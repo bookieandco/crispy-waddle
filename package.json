@@ -1,0 +1,29 @@
+{
+  "name": "jhadina",
+  "version": "0.1.0",
+  "description": "A unified personal AI operating system with multiple intelligence layers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:migrate": "turbo run db:migrate",
+    "db:seed": "turbo run db:seed"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "prettier": "^3.0.0",
+    "turbo": "^1.10.0",
+    "typescript": "^5.1.0"
+  },
+  "packageManager": "pnpm@8.0.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
