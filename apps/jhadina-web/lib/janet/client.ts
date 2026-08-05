@@ -8,24 +8,20 @@
  */
 
 import type {
-  Memory,
+  ApproveMemoryResponse,
   CreateMemoryCandidateRequest,
   CreateMemoryCandidateResponse,
-  ApproveMemoryResponse,
-  SearchMemoriesQuery,
-  SearchMemoriesResponse,
-  UserProfile,
   HealthCheckResponse,
-  JANET_CONFIG,
-} from "../types/janet"
+  MemoryCandidate,
+  UserProfile,
+} from './types'
 
 import {
-  JanetAPIError,
-  parseJanetError,
-  parseNetworkError,
-  parseJsonResponse,
-  assertResponseOk,
-} from "../errors/janet"
+  assertJanetResponse,
+  JanetApiError,
+  parseJanetJson,
+  parseJanetNetworkError,
+} from './errors'
 
 /**
  * JANET Service Client
@@ -39,7 +35,7 @@ export class JanetClient {
   private timeoutMs: number
 
   constructor(baseUrl?: string, timeoutMs?: number) {
-    this.baseUrl = baseUrl || "http://localhost:3001"
+    this.baseUrl = baseUrl || 'http://localhost:3001'
     this.timeoutMs = timeoutMs || 5000
   }
 
@@ -51,29 +47,28 @@ export class JanetClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs)
 
     try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs)
-
       const response = await fetch(url, {
         ...options,
         signal: controller.signal,
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           ...options.headers,
         },
       })
 
-      clearTimeout(timeoutId)
-
-      await assertResponseOk(response)
-      return await parseJsonResponse<T>(response)
+      await assertJanetResponse(response)
+      return await parseJanetJson<T>(response)
     } catch (error) {
-      if (error instanceof JanetAPIError) {
+      if (error instanceof JanetApiError) {
         throw error
       }
-      throw parseNetworkError(error)
+      throw parseJanetNetworkError(error)
+    } finally {
+      clearTimeout(timeoutId)
     }
   }
 
@@ -86,8 +81,8 @@ export class JanetClient {
    * @throws JanetAPIError if service is unavailable
    */
   async getHealth(): Promise<HealthCheckResponse> {
-    return this.request<HealthCheckResponse>("/health", {
-      method: "GET",
+    return this.request<HealthCheckResponse>('/health', {
+      method: 'GET',
     })
   }
 
@@ -116,8 +111,8 @@ export class JanetClient {
   ): Promise<CreateMemoryCandidateResponse> {
     const body: CreateMemoryCandidateRequest = { content }
 
-    return this.request<CreateMemoryCandidateResponse>("/memory/candidate", {
-      method: "POST",
+    return this.request<CreateMemoryCandidateResponse>('/memory/candidate', {
+      method: 'POST',
       body: JSON.stringify(body),
     })
   }
@@ -141,9 +136,9 @@ export class JanetClient {
    *   console.log(memory.confidence) // JANET's confidence (0-1)
    * })
    */
-  async getPendingMemories(): Promise<Memory[]> {
-    return this.request<Memory[]>("/memory/pending", {
-      method: "GET",
+  async getPendingMemories(): Promise<MemoryCandidate[]> {
+    return this.request<MemoryCandidate[]>('/memory/pending', {
+      method: 'GET',
     })
   }
 
@@ -169,35 +164,7 @@ export class JanetClient {
     return this.request<ApproveMemoryResponse>(
       `/memory/${memoryId}/approve`,
       {
-        method: "POST",
-      }
-    )
-  }
-
-  /**
-   * GET /memory/search?query={query}
-   * 
-   * Search through approved memories.
-   * 
-   * IMPORTANT: This search ONLY returns APPROVED memories.
-   * Pending memories are never included in search results.
-   * 
-   * Search matches against the content field.
-   * 
-   * @param query Search term
-   * @returns Array of matching approved memories
-   * @throws JanetAPIError if search fails
-   * 
-   * @example
-   * const results = await client.searchMemories("cinematic")
-   * // Returns all approved memories containing "cinematic"
-   */
-  async searchMemories(query: string): Promise<SearchMemoriesResponse> {
-    const params = new URLSearchParams({ query })
-    return this.request<SearchMemoriesResponse>(
-      `/memory/search?${params.toString()}`,
-      {
-        method: "GET",
+        method: 'POST',
       }
     )
   }
@@ -219,8 +186,8 @@ export class JanetClient {
    * console.log(profile.stats.pendingApprovals) // 3
    */
   async getProfile(): Promise<UserProfile> {
-    return this.request<UserProfile>("/profile", {
-      method: "GET",
+    return this.request<UserProfile>('/profile', {
+      method: 'GET',
     })
   }
 }
@@ -231,9 +198,7 @@ export class JanetClient {
  * Uses environment variable NEXT_PUBLIC_JANET_URL or defaults to localhost:3001
  */
 export function createJanetClient(): JanetClient {
-  const baseUrl = typeof window !== "undefined"
-    ? process.env.NEXT_PUBLIC_JANET_URL || "http://localhost:3001"
-    : "http://localhost:3001"
+  const baseUrl = process.env.NEXT_PUBLIC_JANET_URL || 'http://localhost:3001'
 
   return new JanetClient(baseUrl)
 }

@@ -14,9 +14,8 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react'
-import type { Memory, HealthCheckResponse } from '@/lib/types/janet'
-import { janetClient } from '@/lib/janet/client'
-import { JanetAPIError, getUserErrorMessage } from '@/lib/errors/janet'
+import type { HealthCheckResponse, MemoryCandidate, UserProfile } from '@/lib/janet'
+import { getJanetErrorMessage, JanetApiError, janetClient } from '@/lib/janet'
 
 /**
  * Memory card component for displaying a single pending memory
@@ -26,24 +25,21 @@ function MemoryCard({
   onApprove,
   isApproving,
 }: {
-  memory: Memory
+  memory: MemoryCandidate
   onApprove: (id: string) => Promise<void>
   isApproving: boolean
 }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isApproved, setIsApproved] = useState(false)
-
   const handleApprove = async () => {
     setIsLoading(true)
     setError(null)
 
     try {
       await onApprove(memory.id)
-      setIsApproved(true)
     } catch (err) {
-      if (err instanceof JanetAPIError) {
-        setError(getUserErrorMessage(err))
+      if (err instanceof JanetApiError) {
+        setError(getJanetErrorMessage(err))
       } else {
         setError('Failed to approve memory')
       }
@@ -52,25 +48,24 @@ function MemoryCard({
     }
   }
 
-  if (isApproved) {
-    return (
-      <div className="memory-card approved">
-        <div className="card-status">✓ Approved</div>
-        <div className="card-content">{memory.content}</div>
-      </div>
-    )
-  }
-
   return (
     <div className="memory-card pending">
       <div className="card-header">
         <span className="memory-type">{memory.type}</span>
         <span className="confidence">
-          {(memory.confidence * 100).toFixed(0)}% confident
+          {typeof memory.confidence === 'number'
+            ? `${(memory.confidence * 100).toFixed(0)}% confidence`
+            : 'Confidence unavailable'}
         </span>
       </div>
 
-      <div className="card-content">{memory.content}</div>
+      <div className="card-content">{memory.content || 'No candidate content provided.'}</div>
+
+      {memory.reasoning && (
+        <div className="card-reasoning">
+          <strong>Reasoning:</strong> {memory.reasoning}
+        </div>
+      )}
 
       {memory.createdAt && (
         <div className="card-metadata">
@@ -111,8 +106,8 @@ function HealthIndicator() {
       const response = await janetClient.getHealth()
       setHealth(response)
     } catch (err) {
-      if (err instanceof JanetAPIError) {
-        setError(getUserErrorMessage(err))
+      if (err instanceof JanetApiError) {
+        setError(getJanetErrorMessage(err))
       } else {
         setError('Failed to check service health')
       }
@@ -152,7 +147,7 @@ function HealthIndicator() {
  * User profile summary
  */
 function ProfileSummary() {
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -165,8 +160,8 @@ function ProfileSummary() {
         const data = await janetClient.getProfile()
         setProfile(data)
       } catch (err) {
-        if (err instanceof JanetAPIError) {
-          setError(getUserErrorMessage(err))
+        if (err instanceof JanetApiError) {
+          setError(getJanetErrorMessage(err))
         } else {
           setError('Failed to load profile')
         }
@@ -203,10 +198,11 @@ function ProfileSummary() {
  * Main Memory Page Component
  */
 export default function MemoryPage() {
-  const [memories, setMemories] = useState<Memory[]>([])
+  const [memories, setMemories] = useState<MemoryCandidate[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isApproving, setIsApproving] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
 
   /**
    * Load pending memories from JANET
@@ -219,8 +215,8 @@ export default function MemoryPage() {
       const pending = await janetClient.getPendingMemories()
       setMemories(pending)
     } catch (err) {
-      if (err instanceof JanetAPIError) {
-        setError(getUserErrorMessage(err))
+      if (err instanceof JanetApiError) {
+        setError(getJanetErrorMessage(err))
       } else {
         setError('Failed to load pending memories')
       }
@@ -235,16 +231,18 @@ export default function MemoryPage() {
   const handleApprove = useCallback(
     async (memoryId: string) => {
       setIsApproving(true)
+      setFeedback(null)
+      setError(null)
 
       try {
         await janetClient.approveMemory(memoryId)
-        // Remove approved memory from the list
-        setMemories(prev => prev.filter(m => m.id !== memoryId))
+        setFeedback('Memory approved successfully.')
+        await loadPendingMemories()
       } finally {
         setIsApproving(false)
       }
     },
-    []
+    [loadPendingMemories]
   )
 
   /**
@@ -301,6 +299,7 @@ export default function MemoryPage() {
                 {memories.length} Pending{' '}
                 {memories.length === 1 ? 'Memory' : 'Memories'}
               </h2>
+              {feedback && <div className="state-success">{feedback}</div>}
               <div className="cards-grid">
                 {memories.map(memory => (
                   <MemoryCard
@@ -529,6 +528,12 @@ export default function MemoryPage() {
           color: #333;
         }
 
+        .card-reasoning {
+          margin-bottom: 1rem;
+          color: #555;
+          line-height: 1.5;
+        }
+
         .card-metadata {
           margin-bottom: 1rem;
           color: #999;
@@ -574,7 +579,8 @@ export default function MemoryPage() {
         /* States */
         .state-loading,
         .state-error,
-        .state-empty {
+        .state-empty,
+        .state-success {
           text-align: center;
           padding: 3rem 2rem;
           background: #f5f5f5;
@@ -589,6 +595,14 @@ export default function MemoryPage() {
           background: #ffebee;
           color: #c62828;
           border: 1px solid #ef5350;
+        }
+
+        .state-success {
+          margin-bottom: 1rem;
+          padding: 1rem;
+          background: #f1f8f4;
+          color: #2e7d32;
+          border: 1px solid #81c784;
         }
 
         .btn-retry {

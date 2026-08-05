@@ -8,9 +8,8 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react'
-import type { Memory } from '@/lib/types/janet'
-import { janetClient } from '@/lib/janet/client'
-import { JanetAPIError, getUserErrorMessage } from '@/lib/errors/janet'
+import type { MemoryCandidate } from '@/lib/janet'
+import { getJanetErrorMessage, JanetApiError, janetClient } from '@/lib/janet'
 
 /**
  * Approval workflow component
@@ -20,7 +19,7 @@ function ApprovalWorkflow({
   onApprove,
   isProcessing,
 }: {
-  memory: Memory
+  memory: MemoryCandidate
   onApprove: (id: string) => Promise<void>
   isProcessing: boolean
 }) {
@@ -41,8 +40,8 @@ function ApprovalWorkflow({
         setIsComplete(false)
       }, 2000)
     } catch (err) {
-      if (err instanceof JanetAPIError) {
-        setError(getUserErrorMessage(err))
+      if (err instanceof JanetApiError) {
+        setError(getJanetErrorMessage(err))
       } else {
         setError('Failed to process approval')
       }
@@ -76,7 +75,7 @@ function ApprovalWorkflow({
           <div className="step-number">1</div>
           <div className="step-content">
             <h4>Review Information</h4>
-            <p className="step-text">{memory.content}</p>
+            <p className="step-text">{memory.content || 'No candidate content provided.'}</p>
           </div>
         </div>
 
@@ -87,9 +86,12 @@ function ApprovalWorkflow({
             <div className="classification">
               <span className="type-badge">{memory.type}</span>
               <span className="confidence-score">
-                {(memory.confidence * 100).toFixed(0)}% confidence
+                {typeof memory.confidence === 'number'
+                  ? `${(memory.confidence * 100).toFixed(0)}% confidence`
+                  : 'Confidence unavailable'}
               </span>
             </div>
+            {memory.reasoning && <p className="step-text">{memory.reasoning}</p>}
           </div>
         </div>
 
@@ -122,7 +124,7 @@ function ApprovalWorkflow({
  * Main Approvals Page
  */
 export default function ApprovalsPage() {
-  const [memories, setMemories] = useState<Memory[]>([])
+  const [memories, setMemories] = useState<MemoryCandidate[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -140,8 +142,8 @@ export default function ApprovalsPage() {
       setMemories(pending)
       setCurrentIndex(0)
     } catch (err) {
-      if (err instanceof JanetAPIError) {
-        setError(getUserErrorMessage(err))
+      if (err instanceof JanetApiError) {
+        setError(getJanetErrorMessage(err))
       } else {
         setError('Failed to load pending memories')
       }

@@ -8,9 +8,8 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react'
-import type { HealthCheckResponse } from '@/lib/types/janet'
-import { janetClient } from '@/lib/janet/client'
-import { JanetAPIError, getUserErrorMessage } from '@/lib/errors/janet'
+import type { HealthCheckResponse, UserProfile } from '@/lib/janet'
+import { getJanetErrorMessage, JanetApiError, janetClient } from '@/lib/janet'
 
 /**
  * Service status badge
@@ -67,7 +66,7 @@ function ServiceStatusBadge({
  * System statistics panel
  */
 function SystemStats() {
-  const [stats, setStats] = useState<any>(null)
+  const [stats, setStats] = useState<UserProfile['stats'] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -139,8 +138,8 @@ export default function HealthPage() {
       setJanetHealth(response)
       setLastJanetCheck(new Date())
     } catch (err) {
-      if (err instanceof JanetAPIError) {
-        setJanetError(getUserErrorMessage(err))
+      if (err instanceof JanetApiError) {
+        setJanetError(getJanetErrorMessage(err))
       } else {
         setJanetError('Failed to check JANET service health')
       }
