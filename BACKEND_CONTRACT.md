@@ -1,8 +1,9 @@
 # Jhadina Backend Contract
 
 **Version:** 1.0  
-**Last Updated:** August 6, 2026  
-**Status:** LOCKED (All future work references this contract)
+**Last Updated:** August 7, 2026  
+**Status:** LOCKED (All future work references this contract)  
+**Phase:** Phase 0-1 Alignment Complete
 
 ---
 
@@ -13,7 +14,7 @@ This document defines the stable communication contract between all layers that 
 ```
 Jhadina UI (Frontend)
         ↓ (HTTP Requests)
-    API Layer
+    API Layer (/api/v1/*)
         ↓ (Service Methods)
     JanetService
         ↓ (Domain Logic)
@@ -30,9 +31,11 @@ Jhadina UI (Frontend)
 
 ---
 
-## 2. API Endpoint Inventory
+## 2. API Endpoint Inventory (Sprint 2)
 
-### Endpoint 1: POST /api/message
+All endpoints use `/api/v1/` prefix. Single versioning convention.
+
+### Endpoint 1: POST /api/v1/message
 
 **Purpose:** Submit user input to Jhadina for classification, reasoning, and candidate memory generation.
 
@@ -51,12 +54,11 @@ Jhadina UI (Frontend)
     "reasoningEventId": string,
     "candidateId": string,
     "classification": {
-      "type": "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT" | "PROJECT" | "RELATIONSHIP" | "DECISION",
+      "type": "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT",
       "confidence": number,
-      "evidence": string[]
+      "reasoning": string
     },
-    "systemResponse": string,
-    "responseTimingMs": number
+    "systemResponse": string
   }
 }
 ```
@@ -68,7 +70,7 @@ Jhadina UI (Frontend)
 
 ---
 
-### Endpoint 2: POST /api/memory/approve
+### Endpoint 2: POST /api/v1/memory/approve
 
 **Purpose:** Accept a pending memory candidate and promote it to approved memory.
 
@@ -99,7 +101,7 @@ Jhadina UI (Frontend)
 
 ---
 
-### Endpoint 3: POST /api/memory/reject
+### Endpoint 3: POST /api/v1/memory/reject
 
 **Purpose:** Decline a pending memory candidate. Candidate is removed from queue.
 
@@ -127,40 +129,7 @@ Jhadina UI (Frontend)
 
 ---
 
-### Endpoint 4: POST /api/memory/modify
-
-**Purpose:** Edit a pending memory candidate and resubmit as new candidate.
-
-**Request:**
-```typescript
-{
-  "candidateId": string,
-  "content": string,
-  "type": string
-}
-```
-
-**Response (201 Created):**
-```typescript
-{
-  "success": true,
-  "data": {
-    "status": "PENDING",
-    "candidateId": string,
-    "modifiedContent": string,
-    "type": string,
-    "createdAt": string
-  }
-}
-```
-
-**Errors:**
-- 400: Invalid input
-- 404: Not found
-
----
-
-### Endpoint 5: GET /api/candidates
+### Endpoint 4: GET /api/v1/candidates
 
 **Purpose:** Retrieve all pending memory candidates awaiting user approval.
 
@@ -178,10 +147,9 @@ Jhadina UI (Frontend)
       {
         "id": string,
         "content": string,
-        "type": string,
+        "type": "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT",
         "status": "PENDING",
         "confidence": number,
-        "evidence": string[],
         "createdAt": string
       }
     ],
@@ -197,7 +165,7 @@ Jhadina UI (Frontend)
 
 ---
 
-### Endpoint 6: GET /api/memories
+### Endpoint 5: GET /api/v1/memories
 
 **Purpose:** Retrieve all approved memories for the user.
 
@@ -215,12 +183,12 @@ Jhadina UI (Frontend)
       {
         "id": string,
         "content": string,
-        "type": string,
+        "type": "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT",
         "status": "APPROVED",
         "confidence": number,
-        "evidence": string[],
-        "source": "user_message" | "reasoning" | "suggestion",
+        "source": "user_message" | "reasoning",
         "createdAt": string,
+        "updatedAt": string,
         "approvedAt": string
       }
     ],
@@ -236,7 +204,7 @@ Jhadina UI (Frontend)
 
 ---
 
-### Endpoint 7: GET /api/memories/search
+### Endpoint 6: GET /api/v1/memories/search
 
 **Purpose:** Full-text search across approved memories.
 
@@ -254,7 +222,7 @@ Jhadina UI (Frontend)
       {
         "id": string,
         "content": string,
-        "type": string,
+        "type": "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT",
         "confidence": number,
         "matchScore": number
       }
@@ -273,7 +241,103 @@ Jhadina UI (Frontend)
 
 ---
 
-### Endpoint 8: GET /api/timeline
+### Endpoint 7: PUT /api/v1/memories/{id}
+
+**Purpose:** Edit an approved memory. Creates new version in history.
+
+**Request:**
+```typescript
+{
+  "content": string,
+  "type": "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT"
+}
+```
+
+**Response (200 OK):**
+```typescript
+{
+  "success": true,
+  "data": {
+    "memoryId": string,
+    "newVersion": {
+      "id": string,
+      "content": string,
+      "type": string,
+      "createdAt": string
+    },
+    "previousVersion": {
+      "id": string,
+      "content": string,
+      "createdAt": string
+    }
+  }
+}
+```
+
+**Errors:**
+- 400: Invalid input
+- 404: Not found
+- 401: Unauthorized
+
+---
+
+### Endpoint 8: POST /api/v1/memories/{id}/archive
+
+**Purpose:** Archive (soft delete) an approved memory.
+
+**Request:**
+```typescript
+{}
+```
+
+**Response (200 OK):**
+```typescript
+{
+  "success": true,
+  "data": {
+    "memoryId": string,
+    "archivedAt": string
+  }
+}
+```
+
+**Errors:**
+- 404: Not found
+- 401: Unauthorized
+
+---
+
+### Endpoint 9: GET /api/v1/memories/{id}/history
+
+**Purpose:** Retrieve all versions of a memory.
+
+**Response (200 OK):**
+```typescript
+{
+  "success": true,
+  "data": {
+    "memoryId": string,
+    "versions": [
+      {
+        "id": string,
+        "content": string,
+        "type": string,
+        "createdAt": string,
+        "isCurrentVersion": boolean
+      }
+    ],
+    "count": number
+  }
+}
+```
+
+**Errors:**
+- 404: Not found
+- 401: Unauthorized
+
+---
+
+### Endpoint 10: GET /api/v1/timeline
 
 **Purpose:** Retrieve the chronological timeline of all user interactions and system events.
 
@@ -290,10 +354,9 @@ Jhadina UI (Frontend)
     "events": [
       {
         "id": string,
-        "type": "MESSAGE" | "REASONING" | "APPROVAL" | "REJECTION" | "SEARCH",
+        "type": "MESSAGE" | "REASONING" | "APPROVAL" | "REJECTION" | "ARCHIVE",
         "timestamp": string,
         "summary": string,
-        "details": Record<string, any>,
         "relatedEntityId": string
       }
     ],
@@ -309,7 +372,185 @@ Jhadina UI (Frontend)
 
 ---
 
-### Endpoint 9: GET /api/health
+### Endpoint 11: GET /api/v1/timeline/search
+
+**Purpose:** Full-text search across timeline events.
+
+**Query Parameters:**
+```
+?q=automation&limit=50&offset=0
+```
+
+**Response (200 OK):**
+```typescript
+{
+  "success": true,
+  "data": {
+    "results": [
+      {
+        "id": string,
+        "type": string,
+        "timestamp": string,
+        "summary": string,
+        "matchScore": number
+      }
+    ],
+    "count": number,
+    "query": string
+  }
+}
+```
+
+**Errors:**
+- 400: Invalid input
+- 401: Unauthorized
+
+---
+
+### Endpoint 12: GET /api/v1/dashboard
+
+**Purpose:** Load dashboard data for Mission Control screen.
+
+**Response (200 OK):**
+```typescript
+{
+  "success": true,
+  "data": {
+    "pendingCount": number,
+    "recentMemories": [
+      {
+        "id": string,
+        "content": string,
+        "type": string,
+        "createdAt": string
+      }
+    ],
+    "systemStatus": "ok" | "degraded" | "error",
+    "timestamp": string
+  }
+}
+```
+
+**Errors:**
+- 401: Unauthorized
+
+---
+
+### Endpoint 13: GET /api/v1/user/profile
+
+**Purpose:** Retrieve user profile information.
+
+**Response (200 OK):**
+```typescript
+{
+  "success": true,
+  "data": {
+    "userId": string,
+    "email": string,
+    "name": string,
+    "createdAt": string
+  }
+}
+```
+
+**Errors:**
+- 401: Unauthorized
+
+---
+
+### Endpoint 14: PUT /api/v1/user/profile
+
+**Purpose:** Update user profile information.
+
+**Request:**
+```typescript
+{
+  "name": string,
+  "email": string
+}
+```
+
+**Response (200 OK):**
+```typescript
+{
+  "success": true,
+  "data": {
+    "userId": string,
+    "name": string,
+    "email": string,
+    "updatedAt": string
+  }
+}
+```
+
+**Errors:**
+- 400: Invalid input
+- 401: Unauthorized
+
+---
+
+### Endpoint 15: GET /api/v1/user/preferences
+
+**Purpose:** Retrieve user notification and system preferences.
+
+**Response (200 OK):**
+```typescript
+{
+  "success": true,
+  "data": {
+    "soundEnabled": boolean,
+    "notificationVolume": number,
+    "approvalAlerts": boolean,
+    "systemWarnings": boolean,
+    "confirmationSounds": boolean,
+    "doNotDisturb": boolean,
+    "doNotDisturbStart": string,
+    "doNotDisturbEnd": string
+  }
+}
+```
+
+**Errors:**
+- 401: Unauthorized
+
+---
+
+### Endpoint 16: PUT /api/v1/user/preferences
+
+**Purpose:** Update user notification and system preferences.
+
+**Request:**
+```typescript
+{
+  "soundEnabled": boolean,
+  "notificationVolume": number,
+  "approvalAlerts": boolean,
+  "systemWarnings": boolean,
+  "confirmationSounds": boolean,
+  "doNotDisturb": boolean,
+  "doNotDisturbStart": string,
+  "doNotDisturbEnd": string
+}
+```
+
+**Response (200 OK):**
+```typescript
+{
+  "success": true,
+  "data": {
+    "updated": boolean,
+    "timestamp": string
+  }
+}
+```
+
+**Errors:**
+- 400: Invalid input
+- 401: Unauthorized
+
+---
+
+### Endpoint 17: GET /api/v1/health
 
 **Purpose:** Check system health and service availability.
 
@@ -319,10 +560,11 @@ Jhadina UI (Frontend)
   "success": true,
   "status": "ok" | "degraded" | "error",
   "timestamp": string,
+  "version": string,
   "services": {
+    "api": "ok" | "error",
     "database": "ok" | "error",
-    "classifier": "ok" | "error",
-    "storage": "ok" | "error"
+    "classifier": "ok" | "error"
   }
 }
 ```
@@ -332,7 +574,7 @@ Jhadina UI (Frontend)
 
 ---
 
-## 3. Domain Objects
+## 3. Domain Objects (Sprint 2)
 
 ### Memory
 ```typescript
@@ -340,14 +582,13 @@ interface Memory {
   id: string
   userId: string
   content: string
-  type: "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT" | "PROJECT" | "RELATIONSHIP" | "DECISION"
+  type: "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT"
   confidence: number
-  evidence: string[]
-  source: "user_message" | "reasoning" | "suggestion"
+  source: "user_message" | "reasoning"
   status: "APPROVED" | "ARCHIVED"
   createdAt: string
-  approvedAt: string
   updatedAt: string
+  approvedAt: string
   archivedAt?: string
 }
 ```
@@ -358,13 +599,12 @@ interface MemoryCandidate {
   id: string
   userId: string
   content: string
-  type: "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT" | "PROJECT" | "RELATIONSHIP" | "DECISION"
+  type: "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT"
   confidence: number
-  evidence: string[]
+  reasoningEventId: string
   status: "PENDING" | "APPROVED" | "REJECTED" | "MODIFIED"
   createdAt: string
   reviewedAt?: string
-  updatedAt: string
 }
 ```
 
@@ -387,9 +627,9 @@ interface ReasoningEvent {
   userId: string
   userMessage: string
   classification: {
-    type: string
+    type: "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT"
     confidence: number
-    evidence: string[]
+    reasoning: string
   }
   candidateId: string
   timestamp: string
@@ -401,18 +641,54 @@ interface ReasoningEvent {
 interface TimelineEvent {
   id: string
   userId: string
-  type: "MESSAGE" | "REASONING" | "APPROVAL" | "REJECTION" | "SEARCH"
+  type: "MESSAGE" | "REASONING" | "APPROVAL" | "REJECTION" | "ARCHIVE"
   summary: string
-  details: Record<string, any>
-  relatedMemoryId?: string
-  relatedCandidateId?: string
+  relatedEntityId?: string
   timestamp: string
 }
 ```
 
 ---
 
-## 4. Identity & Security Rules
+## 4. Error Response Contract (Standardized)
+
+All errors follow this structure:
+
+```typescript
+interface ErrorResponse {
+  success: false
+  error: {
+    code: string
+    message: string
+  }
+  timestamp: string
+}
+```
+
+**Error Codes (HTTP Status → Code):**
+- 400: INVALID_INPUT
+- 401: UNAUTHORIZED
+- 403: FORBIDDEN
+- 404: NOT_FOUND
+- 409: CONFLICT
+- 500: INTERNAL_ERROR
+- 503: SERVICE_UNAVAILABLE
+
+**Example Error Response:**
+```typescript
+{
+  "success": false,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "User authentication required"
+  },
+  "timestamp": "2026-08-07T12:00:00Z"
+}
+```
+
+---
+
+## 5. Identity & Security Rules
 
 ### Rule 1: Every Request Has User Context
 User identity is always resolved server-side from authentication token.
@@ -428,33 +704,6 @@ Authentication token is the source of truth, never the request body.
 
 ### Rule 5: Audit Events are Immutable
 Timeline and reasoning events cannot be modified or deleted, only archived.
-
----
-
-## 5. Error Contract
-
-All errors follow this structure:
-
-```typescript
-interface ErrorResponse {
-  success: false
-  error: {
-    code: string
-    message: string
-    requestId: string
-    details?: any
-  }
-}
-```
-
-**Error Codes:**
-- INVALID_INPUT (400)
-- UNAUTHENTICATED (401)
-- UNAUTHORIZED (403)
-- NOT_FOUND (404)
-- CONFLICT (409)
-- INTERNAL_ERROR (500)
-- SERVICE_UNAVAILABLE (503)
 
 ---
 
@@ -487,13 +736,23 @@ interface ErrorResponse {
 ## 7. Versioning Strategy
 
 ### URL Structure
+**All Sprint 2 endpoints use `/api/v1/*`**
+
 ```
 /api/v1/message
 /api/v1/memory/approve
+/api/v1/memory/reject
 /api/v1/candidates
 /api/v1/memories
 /api/v1/memories/search
+/api/v1/memories/{id}
+/api/v1/memories/{id}/archive
+/api/v1/memories/{id}/history
 /api/v1/timeline
+/api/v1/timeline/search
+/api/v1/dashboard
+/api/v1/user/profile
+/api/v1/user/preferences
 /api/v1/health
 ```
 
@@ -518,10 +777,74 @@ When v2 introduced:
 
 ---
 
-## 8. Guarantees
+## 8. Sprint 2 Scope (Approved Features)
+
+✅ **Core Workflow:**
+- Message submission and classification
+- Candidate generation
+- User approval/rejection/modification
+- Memory persistence
+- Timeline tracking
+
+✅ **Data Management:**
+- Memory listing and search
+- Memory editing (creates version)
+- Memory archiving
+- Timeline search
+- History viewing
+
+✅ **User Control:**
+- Profile editing
+- Notification preferences
+- System health visibility
+
+✅ **Notifications:**
+- User-actionable events only
+- Configurable sounds
+- Quiet hours support
+
+---
+
+## 9. Sprint 3+ Deferred Features
+
+These features are EXPLICITLY NOT in Sprint 2. They will be addressed in future sprints:
+
+❌ **Advanced Memory Types:**
+- PROJECT, RELATIONSHIP, DECISION types
+- These require intelligence layers beyond current scope
+
+❌ **User Data Operations:**
+- Export data as JSON
+- Delete all user data
+- Advanced privacy controls
+
+❌ **System Telemetry:**
+- Resource monitoring (CPU, memory, storage)
+- Error logging dashboard
+- Advanced analytics
+
+❌ **Advanced Notifications:**
+- Push notifications to device
+- Email digest/alerts
+- SMS alerts
+- Notification history/archive
+
+❌ **Autonomous Features:**
+- Automatic memory creation
+- Autonomous agent actions
+- Background pattern detection without user prompt
+
+❌ **External Integrations:**
+- Third-party service connections
+- API extensions
+- Plugin system
+
+---
+
+## 10. Guarantees
 
 This contract guarantees:
-- ✅ **Stability:** No endpoint signatures will change
+- ✅ **Stability:** No endpoint signatures will change during Sprint 2
 - ✅ **Consistency:** All errors follow same structure
 - ✅ **Security:** Authentication and user scoping enforced
 - ✅ **Audit Trail:** Every action recorded
@@ -530,14 +853,21 @@ This contract guarantees:
 
 ---
 
-## 9. Conformance Checklist
+## 11. Conformance Checklist
 
 **Endpoint Conformance:**
-- [ ] All endpoints return correct HTTP status codes
+- [ ] All 17 endpoints use /api/v1/* prefix
 - [ ] All responses match documented schemas
 - [ ] All errors match error contract
 - [ ] All endpoints require authentication
 - [ ] All queries scoped by user_id
+
+**Domain Object Conformance:**
+- [ ] Memory uses only Sprint 1 types (4)
+- [ ] MemoryCandidate includes reasoningEventId
+- [ ] Approval is immutable record
+- [ ] ReasoningEvent captures reasoning
+- [ ] TimelineEvent captures workflow
 
 **Security Conformance:**
 - [ ] User identity extracted from token, not request body
@@ -545,21 +875,14 @@ This contract guarantees:
 - [ ] Audit trail is immutable
 - [ ] All approval workflows enforced
 
-**Data Conformance:**
-- [ ] All objects match domain definitions
-- [ ] All timestamps are ISO 8601
-- [ ] All IDs use consistent format
-- [ ] Confidence scores are 0.0-1.0
-
-**Frontend Boundaries:**
-- [ ] Frontend never creates memories directly
-- [ ] Frontend never modifies reasoning
-- [ ] Frontend never bypasses approval flow
-- [ ] Frontend never accesses repositories
+**Scope Conformance:**
+- [ ] Sprint 2 features documented
+- [ ] Sprint 3+ features explicitly deferred
+- [ ] No creep into future scopes
 
 ---
 
-## 10. Implementation Notes
+## 12. Implementation Notes
 
 **This contract is READ-ONLY during Sprint 2.**
 
@@ -579,6 +902,10 @@ The contract is the foundation. Stability matters more than speed.
 
 ---
 
-**Status: LOCKED**
+**Status: PHASE 0-1 ALIGNED**
 
 This contract is the source of truth for all Sprint 2 work.
+
+All endpoints use `/api/v1/*`  
+All domain types match Sprint 1  
+All advanced features deferred to Sprint 3+
