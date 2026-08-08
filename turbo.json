@@ -1,24 +1,20 @@
 {
-  "$schema": "https://turbo.build/json-schema.json",
-  "version": "1",
+  "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["tsconfig.json", ".eslintrc.json"],
-  "pipeline": {
+  "tasks": {
     "dev": {
       "cache": false,
       "persistent": true
     },
     "build": {
-      "outputs": ["dist/**"],
-      "cache": true,
+      "outputs": ["dist/**", ".next/**"],
       "dependsOn": ["^build"]
     },
     "test": {
       "outputs": ["coverage/**"],
-      "cache": true,
       "dependsOn": ["^build"]
     },
     "lint": {
-      "cache": true,
       "outputs": [".eslintcache"]
     },
     "type-check": {
