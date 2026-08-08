@@ -1,16 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPlaybackState, nextTrack, previousTrack, playTrack, setQueue, type PlaybackState } from "@jhadina/music-core";
 
 type Result = { track: { id: string; title: string; artistIds: string[] }; score: number };
 
 export default function MusicPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Result[]>([]);
-  const [selected, setSelected] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
-  const [playing, setPlaying] = useState(false);
-  const [queue, setQueue] = useState<Result[]>([]);
+  const [playback, setPlayback] = useState<PlaybackState>(() => createPlaybackState());
+  const [queueOpen, setQueueOpen] = useState(false);
 
   async function search() {
     if (!query.trim()) return;
@@ -23,12 +23,17 @@ export default function MusicPage() {
   }
 
   function play(item: Result) {
-    setSelected(item);
-    setPlaying(true);
-    setQueue((current) => current.some((x) => x.track.id === item.track.id) ? current : [...current, item]);
+    const track = item.track;
+    const existing = playback.queue.findIndex((x) => x.id === track.id);
+    if (existing >= 0) {
+      setPlayback(playTrack(playback, track));
+      return;
+    }
+    const queue = [...playback.queue, track];
+    setPlayback(setQueue(playback, queue, queue.length - 1));
   }
 
-  const subtitle = useMemo(() => selected ? selected.track.artistIds.join(" · ") || "Your library" : "Choose something to start your session", [selected]);
+  const subtitle = useMemo(() => playback.track?.artistIds.join(" · ") || "Your library", [playback.track]);
 
   return (
     <main className="min-h-screen bg-[#07080b] text-white">
@@ -51,12 +56,14 @@ export default function MusicPage() {
         {results.length > 0 && <section className="mt-10"><p className="mb-4 text-[11px] uppercase tracking-[.3em] text-white/30">Results</p><div className="space-y-2">{results.map((item) => <button key={item.track.id} onClick={() => play(item)} className="flex w-full items-center gap-4 rounded-2xl border border-white/5 bg-white/[.035] p-4 text-left hover:bg-white/[.07]"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10 text-lg">♪</div><div className="min-w-0 flex-1"><p className="truncate font-medium">{item.track.title}</p><p className="truncate text-sm text-white/40">{item.track.artistIds.join(" · ") || "Unknown artist"}</p></div><span className="text-xs text-white/25">{Math.round(item.score * 100)}%</span><span className="text-white/60">▶</span></button>)}</div></section>}
 
         <section className="mt-12 grid gap-4 md:grid-cols-3">
-          {[['For You','Music shaped by your approved taste profile.'],['Recently Played','Your listening history, not an algorithmic guess.'],['Your Library',`${queue.length} queued track${queue.length === 1 ? '' : 's'}`]].map(([title,text]) => <article key={title} className="rounded-[1.5rem] border border-white/8 bg-white/[.035] p-6 hover:bg-white/[.06]"><p className="text-lg font-medium">{title}</p><p className="mt-2 text-sm leading-6 text-white/40">{text}</p></article>)}
+          {[['For You','Music shaped by your approved taste profile.'],['Recently Played','Listening behavior that Jhadina can explain.'],['Your Library',`${playback.queue.length} queued track${playback.queue.length === 1 ? '' : 's'}`]].map(([title,text]) => <article key={title} className="rounded-[1.5rem] border border-white/8 bg-white/[.035] p-6 hover:bg-white/[.06]"><p className="text-lg font-medium">{title}</p><p className="mt-2 text-sm leading-6 text-white/40">{text}</p></article>)}
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-white/10 bg-[#090a0e]/90 px-5 py-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center gap-4"><div className="grid h-12 w-12 place-items-center rounded-xl bg-white/10">♪</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{selected?.track.title ?? 'Nothing playing'}</p><p className="truncate text-xs text-white/35">{subtitle}</p></div>{selected && <button onClick={() => setPlaying(!playing)} className="grid h-11 w-11 place-items-center rounded-full bg-white text-black">{playing ? 'Ⅱ' : '▶'}</button>}</div>
+      {queueOpen && <aside className="fixed bottom-[78px] right-5 z-20 w-[min(380px,calc(100vw-40px))] rounded-3xl border border-white/10 bg-[#101116]/95 p-5 shadow-2xl backdrop-blur-xl"><div className="mb-4 flex items-center justify-between"><h3 className="font-medium">Queue</h3><button onClick={() => setQueueOpen(false)} className="text-white/40">Close</button></div>{playback.queue.length === 0 ? <p className="text-sm text-white/35">Your queue is empty.</p> : <div className="space-y-2">{playback.queue.map((track, index) => <button key={track.id} onClick={() => setPlayback(playTrack(playback, track))} className={`flex w-full items-center gap-3 rounded-xl p-3 text-left ${index === playback.queueIndex ? "bg-white/10" : "hover:bg-white/5"}`}><span className="text-xs text-white/30">{index + 1}</span><span className="min-w-0 flex-1 truncate text-sm">{track.title}</span></button>)}</div>}</aside>}
+
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[#090a0e]/90 px-5 py-3 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center gap-4"><div className="grid h-12 w-12 place-items-center rounded-xl bg-white/10">♪</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{playback.track?.title ?? "Nothing playing"}</p><p className="truncate text-xs text-white/35">{subtitle}</p></div><button onClick={() => setPlayback(previousTrack(playback))} disabled={!playback.queue.length} className="hidden text-white/60 disabled:opacity-20 sm:block">◀◀</button><button onClick={() => setPlayback({ ...playback, playing: !playback.playing })} disabled={!playback.track} className="grid h-11 w-11 place-items-center rounded-full bg-white text-black disabled:opacity-30">{playback.playing ? "Ⅱ" : "▶"}</button><button onClick={() => setPlayback(nextTrack(playback))} disabled={!playback.queue.length} className="text-white/60 disabled:opacity-20">▶▶</button><button onClick={() => setQueueOpen(!queueOpen)} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/60">Queue {playback.queue.length}</button></div>
       </div>
     </main>
   );
