@@ -2,7 +2,7 @@
   "assetId": "mug",
   "category": "drinkware",
   "sourceFile": "mug.glb",
-  "fileSizeBytes": 321668,
+  "fileSizeBytes": 318548,
   "gltfVersion": 2,
   "geometry": {
     "meshCount": 1,
@@ -10,13 +10,12 @@
     "textureCount": 0,
     "hasAnimations": false,
     "issues": [
-      "260 zero-area triangles found (real degenerate geometry)",
       "5 non-manifold edges \u2014 can cause rendering artifacts, worth checking visually"
     ],
     "hasUV": true,
     "hasNormals": true,
     "vertexCount": 6008,
-    "triangleCount": 10682,
+    "triangleCount": 10422,
     "boundingBox": {
       "min": [
         -0.04012700170278549,
@@ -36,16 +35,16 @@
     },
     "degenerateTriangles": {
       "repeatedIndex": 0,
-      "zeroArea": 260
+      "zeroArea": 0
     },
     "connectedComponents": {
-      "byVertexIndex": 6,
+      "byVertexIndex": 136,
       "byWeldedPosition": 1,
       "note": "byWeldedPosition is the physically meaningful count \u2014 byVertexIndex over-counts at every UV seam."
     },
     "topology": {
-      "uniqueEdges": 16720,
-      "boundaryEdges": 1404,
+      "uniqueEdges": 16334,
+      "boundaryEdges": 1412,
       "nonManifoldEdges": 5,
       "watertight": false
     }

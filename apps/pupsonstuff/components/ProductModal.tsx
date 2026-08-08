@@ -30,6 +30,8 @@ const HOTSPOT_3D_MODEL: Record<string, { modelId: string; printArea: string; col
   whiteHoodie: { modelId: "hoodie", printArea: "front", color: "#f4f4f4" },
   hoodieRight: { modelId: "hoodie", printArea: "front", color: "#111111" },
   pillow: { modelId: "pillow", printArea: "front" },
+  mugColorful: { modelId: "mug", printArea: "front" },
+  mugWhite: { modelId: "mug", printArea: "front", color: "#f4f4f0" },
 };
 
 interface Props {

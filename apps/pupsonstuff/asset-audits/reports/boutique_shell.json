@@ -1,0 +1,81 @@
+{
+  "assetId": "boutique_shell",
+  "category": "environment",
+  "sourceFile": "boutique_shell.glb",
+  "fileSizeBytes": 24720,
+  "gltfVersion": 2,
+  "geometry": {
+    "meshCount": 1,
+    "materialCount": 1,
+    "textureCount": 0,
+    "hasAnimations": false,
+    "issues": [
+      "16 genuinely disconnected pieces after welding \u2014 likely real fragmentation, worth investigating"
+    ],
+    "hasUV": true,
+    "hasNormals": true,
+    "vertexCount": 468,
+    "triangleCount": 234,
+    "boundingBox": {
+      "min": [
+        -4.5,
+        0.0,
+        -3.5
+      ],
+      "max": [
+        4.5,
+        3.0480000972747803,
+        3.5
+      ],
+      "dimensions": [
+        9.0,
+        3.0480000972747803,
+        7.0
+      ]
+    },
+    "degenerateTriangles": {
+      "repeatedIndex": 0,
+      "zeroArea": 0
+    },
+    "connectedComponents": {
+      "byVertexIndex": 117,
+      "byWeldedPosition": 16,
+      "note": "byWeldedPosition is the physically meaningful count \u2014 byVertexIndex over-counts at every UV seam."
+    },
+    "topology": {
+      "uniqueEdges": 585,
+      "boundaryEdges": 468,
+      "nonManifoldEdges": 0,
+      "watertight": false
+    }
+  },
+  "materials": {
+    "materials": [
+      {
+        "name": "vertex_color",
+        "hasBaseColorTexture": false,
+        "baseColorTextureDims": null,
+        "baseColorFactor": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "hasNormalTexture": false,
+        "normalTextureDims": null,
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.85,
+        "doubleSided": false,
+        "alphaMode": "OPAQUE"
+      }
+    ],
+    "issues": []
+  },
+  "renders": {
+    "front": "asset-audits/renders/boutique_shell_front.png",
+    "back": "asset-audits/renders/boutique_shell_back.png",
+    "side": "asset-audits/renders/boutique_shell_side.png",
+    "top": "asset-audits/renders/boutique_shell_top.png",
+    "perspective": "asset-audits/renders/boutique_shell_perspective.png"
+  }
+}

@@ -87,9 +87,66 @@ export const product3DModels: Record<string, Product3DConfig> = {
     ],
   },
 
-  // Mug, tote, canvas, etc. all need their own real .glb before an entry
-  // here does anything — registering a config against a mesh that doesn't
-  // exist just produces a load error, not a placeholder model.
+  mug: {
+    id: "mug",
+    displayName: "Mug",
+    glbPath: "/models/mug.glb",
+    meshName: "mug_body",
+    materialName: "mug_material",
+    // No base color/normal texture — flat gray factor (0.8,0.8,0.8) only,
+    // same situation as pillow. Renders flat until the print decal is
+    // applied.
+    supportsColorChange: true,
+    defaultColor: "#f4f4f0",
+    // AUDITED (asset-audits/scores/mug.json): 6,008 vertices, 10,682
+    // triangles as sourced from `scripts/obj_to_glb.py` (manual OBJ->GLB
+    // conversion, no trimesh/Blender CLI available offline). Originally
+    // NEEDS_FIXES at 80/100 — 260 zero-area triangles from near-duplicate
+    // vertices in the source quads (confirmed not a triangulation-diagonal
+    // issue; re-splitting the other way made no difference). Fixed with
+    // `scripts/fix_degenerate_triangles.py`, which drops triangles below
+    // the audit's own zero-area threshold without moving or removing any
+    // vertex — re-audited at 90/100, APPROVED (remaining -10 is 5
+    // pre-existing non-manifold edges, unrelated to the fix, informational
+    // per the pipeline's own watertightness note).
+    //
+    // modelRotation: NOT a guess from the ambiguous matplotlib renders
+    // (those show it lying on its side regardless of the mesh's real
+    // orientation — same rendering-convention mismatch the hoodie's
+    // renders had, not evidence on its own). Determined instead by
+    // measuring the actual vertex cloud: binning points along each axis
+    // and checking which one gives a near-constant, near-circular
+    // perpendicular cross-section (std/mean of cross-section radius —
+    // Z scored 0.17, X scored 0.41, Y scored 1.0). Z is the mesh's real
+    // cylinder axis, confirming this OBJ source is Z-up like the hoodie's
+    // Stable Fast 3D export, needing the same -90°-about-X correction.
+    // Handle-offset analysis (points at >1.4x the body wall radius) puts
+    // the handle in the source +Y direction, which after this rotation
+    // maps to -Z — i.e. the handle ends up facing away from a camera on
+    // +Z, with the undecorated wall facing it. That's what the print area
+    // below is placed on. Still first-pass: confirm live once this
+    // actually renders in a browser, per the same caveat as every other
+    // model here.
+    modelRotation: [-Math.PI / 2, 0, 0],
+    camera: {
+      position: [0, 0, 0.3],
+      fov: 30,
+      minDistance: 0.2,
+      maxDistance: 0.42,
+    },
+    printAreas: [
+      {
+        name: "front",
+        position: [0, -0.017, 0.055],
+        rotation: [0, 0, 0],
+        scale: 0.15,
+      },
+    ],
+  },
+
+  // Tote, canvas, etc. still need their own real .glb before an entry here
+  // does anything — registering a config against a mesh that doesn't exist
+  // just produces a load error, not a placeholder model.
 
   pillow: {
     id: "pillow",

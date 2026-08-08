@@ -1,34 +1,34 @@
 {
-  "assetId": "mug",
-  "technicalScore": 90,
+  "assetId": "boutique_shell",
+  "technicalScore": 70,
   "technicalDeductions": [
     [
-      "Non-manifold edges present",
-      -10
+      "16 real disconnected pieces",
+      -30
     ]
   ],
   "visualScore": "NOT AUTOMATED \u2014 requires a real look at asset-audits/renders/*, not a fabricated number",
-  "status": "APPROVED",
+  "status": "NEEDS_FIXES",
   "explanations": [
-    "5 non-manifold edges \u2014 can cause rendering artifacts, worth checking visually"
+    "16 genuinely disconnected pieces after welding \u2014 likely real fragmentation, worth investigating"
   ],
   "draftedConfig": {
-    "id": "mug",
-    "displayName": "Mug",
-    "glbPath": "/models/mug.glb",
-    "meshName": "mug_body",
-    "materialName": "mug_material",
+    "id": "boutique_shell",
+    "displayName": "Boutique_shell",
+    "glbPath": "/models/boutique_shell.glb",
+    "meshName": "boutique_shell",
+    "materialName": "vertex_color",
     "supportsColorChange": "NEEDS_REVIEW \u2014 check whether the baked texture reads correctly under a color multiply",
     "modelRotation": "NEEDS_REVIEW \u2014 verify orientation live before trusting any value here",
     "camera": {
       "position": [
         0,
         0,
-        0.3
+        23.4
       ],
       "fov": 30,
-      "minDistance": 0.2,
-      "maxDistance": 0.42
+      "minDistance": 15.21,
+      "maxDistance": 32.76
     },
     "printAreas": [
       {

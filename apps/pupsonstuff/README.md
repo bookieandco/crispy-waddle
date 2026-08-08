@@ -1,5 +1,65 @@
 # PupsonStuff — Static Boutique
 
+## Milestone 5.9 — Mug fixed + approved, evidence answered, first boutique shell built
+
+Picked up right where 5.8 left off: the user answered the three MUST HAVE
+evidence items, and separately, the mug's NEEDS_FIXES finding from 5.5 got
+a real fix instead of staying parked.
+
+**Mug: NEEDS_FIXES (80/100) → APPROVED (90/100).** The 260 zero-area
+triangles flagged in 5.5 (real degenerate geometry, not a triangulation
+artifact — already ruled that out) are gone: `scripts/
+fix_degenerate_triangles.py` drops triangles below the audit's own
+zero-area threshold without moving or removing a single vertex, so nothing
+else about the mesh changed. Re-audited clean at 90/100 (remaining -10 is
+5 pre-existing non-manifold edges, informational, unrelated to this fix).
+Moved to `assets/approved/`, re-registered in `config/product3dModels.ts`.
+
+One more real thing came out of fixing it: the audit's own matplotlib
+renders make the mug look tipped on its side, which could've been
+mistaken for an orientation bug. It isn't a rendering bug to fix in the
+mesh — direct vertex-cloud analysis (binning positions along each axis and
+measuring how circular the perpendicular cross-section is) shows the
+mesh's real cylinder axis is Z, not Y, meaning this OBJ source is Z-up
+like the hoodie's Stable Fast 3D export was — same fix, same
+`modelRotation: [-Math.PI / 2, 0, 0]`. Handle-offset analysis then placed
+the handle on the far side once rotated, which is where the registered
+print area now sits. Wired into `ProductModal.tsx`'s `mugColorful`/
+`mugWhite` hotspots, which had no 3D toggle until now.
+
+**Evidence request, all three MUST HAVE items answered:**
+1. Scale anchor: 10ft (3.048m) standard retail ceiling height.
+2. Entrance/storefront: generate a matching concept image rather than
+   describe or skip it. No image-generation tool exists in this
+   environment, so `docs/boutique-design/entrance-concept-prompt.md` is a
+   ready-to-run prompt instead, built from the interior's own established
+   materials/lighting/branding — not generated yet, waiting on the user to
+   run it through the same generator that made `public/boutique.png`.
+3. Real vs. AI-generated: confirmed AI-generated concept image — both from
+   the user directly and from actually looking at `public/boutique.png`
+   itself (the ceiling treatment, mixed art styles, and total absence of
+   any storefront in frame all read as generated-concept markers).
+
+**First boutique environment shell, built and audited**
+(`scripts/build_boutique_shell.py` → `public/models/boutique_shell.glb`,
+full writeup in `docs/boutique-design/boutique-shell-v1.md`). Real
+floor/ceiling/walls/counter/track-lighting geometry, dimensioned off the
+real 10ft ceiling anchor, with real per-face UVs (unlike the retired
+`boutique_proxy.glb`, which had none). Audits at 70/100 NEEDS_FIXES — the
+only deduction is expected multi-object fragmentation (19 separate
+architectural volumes), not a real defect the way missing UVs and
+zero-area triangles were for `boutique_proxy.glb`; the writeup explains
+why that score doesn't mean the same thing here. **Not wired into any
+component yet** — `Boutique.tsx` still renders the flat photo + 2D
+hotspots; turning this into an actual explorable scene is real future
+work, not implied by the file existing. Also: `boutique_proxy.glb` was
+never actually a PupsonStuff reconstruction attempt (it's a proxy of the
+*unrelated* reference blueprint room) — the writeup untangles the naming
+confusion between the two files.
+
+Also added: `.gitignore` for this app (none existed — `node_modules`/
+`.next`/`__pycache__` were one `git add .` away from getting committed).
+
 ## Milestone 5.8 — Evidence Request (what's actually needed next)
 
 `docs/boutique-design/evidence-request.md`. The real finding: the MUST HAVE

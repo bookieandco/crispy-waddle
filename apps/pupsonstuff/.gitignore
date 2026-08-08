@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Python (asset-audit pipeline scripts)
+__pycache__/
+*.pyc
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store
