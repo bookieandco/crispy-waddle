@@ -1,0 +1,181 @@
+"use client";
+
+// Product3DEngine — the generic viewer the roadmap asked for. Replaces the
+// old hardcoded Product3DPreview.tsx: this takes a Product3DConfig (see
+// config/product3dModels.ts) instead of assuming any specific model, mesh
+// name, or single decal spot.
+//
+// Known limitation, stated plainly: this only handles single-mesh,
+// single-material .glb files (reads exactly one geometry + one material
+// off the loaded GLTF). Both models registered so far (shirt, hoodie)
+// happen to fit that. A garment with separate meshes per panel, or
+// multiple materials, needs this extended — not a large change, but not
+// done yet, so don't assume it "just works" for an arbitrary future asset.
+
+import { Suspense, useRef } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, useGLTF, useTexture, Environment } from "@react-three/drei";
+import { Decal } from "@react-three/drei";
+import * as THREE from "three";
+import {
+  Product3DConfig,
+  DecalMap,
+  Product3DPlugin,
+  Product3DPluginContext,
+} from "@/lib/product3d/types";
+
+interface AreaDecalProps {
+  url: string;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: number;
+}
+
+/** Isolated so useTexture only ever runs with a real image URL — a print
+ * area with nothing generated for it yet simply isn't mounted, rather than
+ * being fed a placeholder path that isn't actually an image. */
+function AreaDecal({ url, position, rotation, scale }: AreaDecalProps) {
+  const texture = useTexture(url);
+  return (
+    <Decal
+      position={position}
+      rotation={rotation}
+      scale={scale}
+      map={texture}
+      map-anisotropy={16}
+      depthTest={false}
+      depthWrite={true}
+    />
+  );
+}
+
+interface ProductMeshProps {
+  config: Product3DConfig;
+  color: string;
+  decals: DecalMap;
+}
+
+function ProductMesh({ config, color, decals }: ProductMeshProps) {
+  const { nodes, materials } = useGLTF(config.glbPath) as unknown as {
+    nodes: Record<string, THREE.Mesh>;
+    materials: Record<string, THREE.MeshStandardMaterial>;
+  };
+
+  const geometry = nodes[config.meshName]?.geometry;
+  const material = materials[config.materialName];
+
+  if (!geometry || !material) {
+    // Config/asset mismatch — fail loudly in dev rather than silently
+    // rendering nothing, since this means the .glb's actual mesh/material
+    // names don't match what's registered in config/product3dModels.ts.
+    console.error(
+      `Product3DEngine: mesh "${config.meshName}" or material "${config.materialName}" not found in ${config.glbPath}. Available meshes: ${Object.keys(nodes).join(", ")}`
+    );
+    return null;
+  }
+
+  const rotation = config.modelRotation ?? [0, 0, 0];
+  const scale = config.modelScale ?? 1;
+
+  return (
+    <group rotation={rotation} scale={scale}>
+      <mesh
+        castShadow
+        geometry={geometry}
+        material={material}
+        material-color={config.supportsColorChange ? color : undefined}
+        material-roughness={1}
+        dispose={null}
+      >
+        {config.printAreas.map((area) => {
+          const url = decals[area.name];
+          return url ? (
+            <AreaDecal
+              key={area.name}
+              url={url}
+              position={area.position}
+              rotation={area.rotation}
+              scale={area.scale}
+            />
+          ) : null;
+        })}
+      </mesh>
+    </group>
+  );
+}
+
+interface Props {
+  config: Product3DConfig;
+  /** hex color, only applied if config.supportsColorChange */
+  color?: string;
+  /** map of print-area name -> generated texture URL (or null if not generated yet) */
+  decals: DecalMap;
+  /** roadmap item 6: extension seam for future capabilities (screenshot export today; text-to-3D/AR later) */
+  plugins?: Product3DPlugin[];
+}
+
+export default function Product3DEngine({
+  config,
+  color,
+  decals,
+  plugins = [],
+}: Props) {
+  const anyDecal = Object.values(decals).some(Boolean);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const pluginCtx: Product3DPluginContext = {
+    config,
+    get canvasElement() {
+      return canvasRef.current;
+    },
+  };
+
+  return (
+    <div className="w-full">
+      <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-greige/40 bg-white/40">
+        <Canvas
+          camera={{
+            position: config.camera.position,
+            fov: config.camera.fov ?? 30,
+          }}
+          gl={{ preserveDrawingBuffer: true }}
+          shadows
+          onCreated={({ gl }) => {
+            canvasRef.current = gl.domElement;
+          }}
+        >
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[2, 2, 3]} intensity={0.8} castShadow />
+          <Suspense fallback={null}>
+            <ProductMesh
+              config={config}
+              color={color ?? config.defaultColor ?? "#ffffff"}
+              decals={decals}
+            />
+            <Environment preset="city" />
+          </Suspense>
+          <OrbitControls
+            enablePan={false}
+            minDistance={config.camera.minDistance ?? 1.4}
+            maxDistance={config.camera.maxDistance ?? 3.5}
+            autoRotate
+            autoRotateSpeed={1.4}
+          />
+        </Canvas>
+        {!anyDecal && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-ink/50">
+            Generate a preview to see it on the {config.displayName.toLowerCase()}
+          </div>
+        )}
+      </div>
+
+      {plugins.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {plugins.map((plugin) => (
+            <div key={plugin.id}>{plugin.renderControls?.(pluginCtx)}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

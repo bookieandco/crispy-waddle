@@ -1,0 +1,82 @@
+{
+  "assetId": "hoodie",
+  "category": "apparel",
+  "sourceFile": "hoodie.glb",
+  "fileSizeBytes": 804216,
+  "gltfVersion": 2,
+  "geometry": {
+    "meshCount": 1,
+    "materialCount": 1,
+    "textureCount": 2,
+    "hasAnimations": false,
+    "issues": [
+      "4 zero-area triangles found (real degenerate geometry)"
+    ],
+    "hasUV": true,
+    "hasNormals": true,
+    "vertexCount": 12303,
+    "triangleCount": 21044,
+    "boundingBox": {
+      "min": [
+        -0.37676799297332764,
+        -0.4393163025379181,
+        -0.15340304374694824
+      ],
+      "max": [
+        0.376549631357193,
+        0.4600104093551636,
+        0.09414088726043701
+      ],
+      "dimensions": [
+        0.7533176243305206,
+        0.8993267118930817,
+        0.24754393100738525
+      ]
+    },
+    "degenerateTriangles": {
+      "repeatedIndex": 0,
+      "zeroArea": 4
+    },
+    "connectedComponents": {
+      "byVertexIndex": 291,
+      "byWeldedPosition": 1,
+      "note": "byWeldedPosition is the physically meaningful count \u2014 byVertexIndex over-counts at every UV seam."
+    },
+    "topology": {
+      "uniqueEdges": 33247,
+      "boundaryEdges": 3362,
+      "nonManifoldEdges": 0,
+      "watertight": false
+    }
+  },
+  "materials": {
+    "materials": [
+      {
+        "name": "hoodie_material",
+        "hasBaseColorTexture": true,
+        "baseColorTextureDims": [
+          1024,
+          1024
+        ],
+        "baseColorFactor": null,
+        "hasNormalTexture": true,
+        "normalTextureDims": [
+          1024,
+          1024
+        ],
+        "metallicFactor": 0.006402642000466585,
+        "roughnessFactor": 0.20873798429965973,
+        "doubleSided": false,
+        "alphaMode": "OPAQUE"
+      }
+    ],
+    "issues": []
+  },
+  "renders": {
+    "front": "asset-audits/renders/hoodie_front.png",
+    "back": "asset-audits/renders/hoodie_back.png",
+    "side": "asset-audits/renders/hoodie_side.png",
+    "top": "asset-audits/renders/hoodie_top.png",
+    "perspective": "asset-audits/renders/hoodie_perspective.png"
+  }
+}

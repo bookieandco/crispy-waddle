@@ -1,0 +1,39 @@
+{
+  "assetId": "shirt",
+  "technicalScore": 100,
+  "technicalDeductions": [],
+  "visualScore": "Top-down view is a clean, correctly-oriented crew-neck short-sleeve t-shirt silhouette with visible fabric fold/wrinkle detail baked into the geometry -- noticeably higher apparent surface quality than the hoodie's render. Orientation appears correct without needing a corrective rotation (matches the existing hand-written config, which uses no modelRotation for this asset). Front/side renders are also legible, unlike the hoodie's.",
+  "status": "APPROVED",
+  "explanations": [],
+  "draftedConfig": {
+    "id": "shirt",
+    "displayName": "Shirt",
+    "glbPath": "/models/shirt_baked.glb",
+    "meshName": "T_Shirt_male",
+    "materialName": "lambert1",
+    "supportsColorChange": "NEEDS_REVIEW \u2014 check whether the baked texture reads correctly under a color multiply",
+    "modelRotation": "NEEDS_REVIEW \u2014 verify orientation live before trusting any value here",
+    "camera": {
+      "position": [
+        0,
+        0,
+        1.59
+      ],
+      "fov": 30,
+      "minDistance": 1.03,
+      "maxDistance": 2.23
+    },
+    "printAreas": [
+      {
+        "name": "front",
+        "position": "NEEDS_REVIEW \u2014 placeholder, verify against actual UVs/geometry",
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": "NEEDS_REVIEW"
+      }
+    ]
+  }
+}

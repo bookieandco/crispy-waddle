@@ -1,0 +1,39 @@
+{
+  "assetId": "pillow",
+  "technicalScore": 100,
+  "technicalDeductions": [],
+  "visualScore": "Front and perspective renders show a genuinely convincing pillow silhouette: real cushion volume, characteristic pinched/pointed corners, correct proportions. No rotation correction needed -- already oriented upright, unlike the hoodie. CORRECTION to an earlier impression: the apparent 'woven fabric texture' in the renders is NOT a real texture -- this material has no base color or normal map at all, just a flat gray factor. What looked like weave detail was this project's flat-shaded audit renderer showing the mesh's own triangulation density, not an actual texture map. Expect flat/untextured appearance in the real engine until a print-area decal or a real fabric texture is added. Silhouette quality: high. Material readiness: not yet -- needs a texture or relies entirely on the generated portrait decal for visual interest.",
+  "status": "APPROVED",
+  "explanations": [],
+  "draftedConfig": {
+    "id": "pillow",
+    "displayName": "Pillow",
+    "glbPath": "/models/pillow.glb",
+    "meshName": "Box001",
+    "materialName": "Material",
+    "supportsColorChange": "NEEDS_REVIEW \u2014 check whether the baked texture reads correctly under a color multiply",
+    "modelRotation": "NEEDS_REVIEW \u2014 verify orientation live before trusting any value here",
+    "camera": {
+      "position": [
+        0,
+        0,
+        283.66
+      ],
+      "fov": 30,
+      "minDistance": 184.38,
+      "maxDistance": 397.12
+    },
+    "printAreas": [
+      {
+        "name": "front",
+        "position": "NEEDS_REVIEW \u2014 placeholder, verify against actual UVs/geometry",
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": "NEEDS_REVIEW"
+      }
+    ]
+  }
+}

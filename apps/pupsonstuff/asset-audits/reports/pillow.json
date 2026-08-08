@@ -1,0 +1,79 @@
+{
+  "assetId": "pillow",
+  "category": "home-decor",
+  "sourceFile": "pillow.glb",
+  "fileSizeBytes": 93836,
+  "gltfVersion": 2,
+  "geometry": {
+    "meshCount": 1,
+    "materialCount": 1,
+    "textureCount": 0,
+    "hasAnimations": false,
+    "issues": [],
+    "hasUV": true,
+    "hasNormals": true,
+    "vertexCount": 2170,
+    "triangleCount": 3840,
+    "boundingBox": {
+      "min": [
+        -58.110069274902344,
+        0.9999999403953552,
+        -105.03121948242188
+      ],
+      "max": [
+        50.990379333496094,
+        43.414649963378906,
+        3.0401058197021484
+      ],
+      "dimensions": [
+        109.10044860839844,
+        42.41465002298355,
+        108.07132530212402
+      ]
+    },
+    "degenerateTriangles": {
+      "repeatedIndex": 0,
+      "zeroArea": 0
+    },
+    "connectedComponents": {
+      "byVertexIndex": 6,
+      "byWeldedPosition": 1,
+      "note": "byWeldedPosition is the physically meaningful count \u2014 byVertexIndex over-counts at every UV seam."
+    },
+    "topology": {
+      "uniqueEdges": 6004,
+      "boundaryEdges": 488,
+      "nonManifoldEdges": 0,
+      "watertight": false
+    }
+  },
+  "materials": {
+    "materials": [
+      {
+        "name": "Material",
+        "hasBaseColorTexture": false,
+        "baseColorTextureDims": null,
+        "baseColorFactor": [
+          0.800000011920929,
+          0.800000011920929,
+          0.800000011920929,
+          1
+        ],
+        "hasNormalTexture": false,
+        "normalTextureDims": null,
+        "metallicFactor": 0,
+        "roughnessFactor": 0.5,
+        "doubleSided": true,
+        "alphaMode": "OPAQUE"
+      }
+    ],
+    "issues": []
+  },
+  "renders": {
+    "front": "asset-audits/renders/pillow_front.png",
+    "back": "asset-audits/renders/pillow_back.png",
+    "side": "asset-audits/renders/pillow_side.png",
+    "top": "asset-audits/renders/pillow_top.png",
+    "perspective": "asset-audits/renders/pillow_perspective.png"
+  }
+}

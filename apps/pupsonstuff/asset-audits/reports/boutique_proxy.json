@@ -1,0 +1,83 @@
+{
+  "assetId": "boutique_proxy",
+  "category": "environment",
+  "sourceFile": "boutique_proxy.glb",
+  "fileSizeBytes": 234008,
+  "gltfVersion": 2,
+  "geometry": {
+    "meshCount": 1,
+    "materialCount": 1,
+    "textureCount": 0,
+    "hasAnimations": false,
+    "issues": [
+      "Missing UV coordinates (TEXCOORD_0) \u2014 cannot texture/decal this mesh",
+      "32 zero-area triangles found (real degenerate geometry)",
+      "217 genuinely disconnected pieces after welding \u2014 likely real fragmentation, worth investigating"
+    ],
+    "hasUV": false,
+    "hasNormals": true,
+    "vertexCount": 5544,
+    "triangleCount": 2772,
+    "boundingBox": {
+      "min": [
+        38.286521911621094,
+        5.586514949798584,
+        -0.20000000298023224
+      ],
+      "max": [
+        50.82066345214844,
+        11.400867462158203,
+        4.0
+      ],
+      "dimensions": [
+        12.534141540527344,
+        5.814352512359619,
+        4.200000002980232
+      ]
+    },
+    "degenerateTriangles": {
+      "repeatedIndex": 0,
+      "zeroArea": 32
+    },
+    "connectedComponents": {
+      "byVertexIndex": 1386,
+      "byWeldedPosition": 217,
+      "note": "byWeldedPosition is the physically meaningful count \u2014 byVertexIndex over-counts at every UV seam."
+    },
+    "topology": {
+      "uniqueEdges": 6930,
+      "boundaryEdges": 5544,
+      "nonManifoldEdges": 0,
+      "watertight": false
+    }
+  },
+  "materials": {
+    "materials": [
+      {
+        "name": "vertex_color",
+        "hasBaseColorTexture": false,
+        "baseColorTextureDims": null,
+        "baseColorFactor": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "hasNormalTexture": false,
+        "normalTextureDims": null,
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.8,
+        "doubleSided": false,
+        "alphaMode": "OPAQUE"
+      }
+    ],
+    "issues": []
+  },
+  "renders": {
+    "front": "asset-audits/renders/boutique_proxy_front.png",
+    "back": "asset-audits/renders/boutique_proxy_back.png",
+    "side": "asset-audits/renders/boutique_proxy_side.png",
+    "top": "asset-audits/renders/boutique_proxy_top.png",
+    "perspective": "asset-audits/renders/boutique_proxy_perspective.png"
+  }
+}

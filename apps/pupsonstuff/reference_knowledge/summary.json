@@ -1,0 +1,13 @@
+{
+  "totalObjects": 231,
+  "byCategory": {
+    "uncategorized": 2,
+    "structure_mass": 31,
+    "generic_geometry": 84,
+    "lighting": 20,
+    "hardware": 91,
+    "furniture": 1,
+    "technology": 2
+  },
+  "uniqueColorsObserved": 20
+}
