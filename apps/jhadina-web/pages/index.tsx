@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { JhadinaFeedItem } from '../src/lib/feed/types';
 import { mockFeed } from '../src/lib/feed/mockFeed';
 import '../src/styles/jhadina-feed.css';
@@ -25,28 +25,71 @@ function Card({ item, onAction, onOpenMedia }: { item: JhadinaFeedItem; onAction
 }
 
 export default function Home() {
-  const [items, setItems] = useState(mockFeed);
+  const [items, setItems] = useState<JhadinaFeedItem[]>([]);
   const [activeNav, setActiveNav] = useState('Home');
   const [toast, setToast] = useState<string | null>(null);
   const [player, setPlayer] = useState<JhadinaFeedItem | null>(null);
   const [search, setSearch] = useState('');
-  const visible = useMemo(() => { const q = search.trim().toLowerCase(); return q ? items.filter((item) => `${item.title} ${item.summary} ${item.source} ${item.type}`.toLowerCase().includes(q)) : items; }, [items, search]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/feed', { headers: { 'x-user-id': 'user_demo' } })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Feed unavailable');
+        return response.json();
+      })
+      .then((payload) => {
+        if (!cancelled) setItems(Array.isArray(payload?.data?.items) && payload.data.items.length ? payload.data.items : mockFeed);
+      })
+      .catch(() => {
+        if (!cancelled) setItems(mockFeed);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q ? items.filter((item) => `${item.title} ${item.summary} ${item.source} ${item.type}`.toLowerCase().includes(q)) : items;
+  }, [items, search]);
+
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(null), 3000); };
-  const act = (item: JhadinaFeedItem, action: string) => {
+
+  const act = async (item: JhadinaFeedItem, action: string) => {
     if (action === 'explain') return notify(item.reason);
-    if (action === 'dismiss' || action === 'reject') { setItems((current) => current.filter((candidate) => candidate.id !== item.id)); return notify('Removed from your feed'); }
     if (action === 'save') return notify('Saved');
     if (action === 'edit') return notify('Editor ready');
-    if (['approve', 'review', 'reroute', 'open', 'read', 'watch', 'expand'].includes(action)) {
-      setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, state: 'pending' } : candidate));
-      notify(action === 'approve' ? 'Approval requested…' : `${item.title} opened`);
-      window.setTimeout(() => { setItems((current) => current.filter((candidate) => candidate.id !== item.id)); notify(action === 'approve' ? 'Approved ✓' : 'Done ✓'); }, 850);
+
+    setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, state: 'pending' } : candidate));
+
+    try {
+      const response = await fetch(`/api/feed/${encodeURIComponent(item.id)}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': 'user_demo' },
+        body: JSON.stringify({ action }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || 'Action failed');
+
+      if (['dismiss', 'reject', 'approve', 'open', 'read', 'watch', 'expand'].includes(action)) {
+        setItems((current) => current.filter((candidate) => candidate.id !== item.id));
+      } else if (action === 'defer') {
+        setItems((current) => current.filter((candidate) => candidate.id !== item.id));
+      }
+      notify(payload?.data?.status === 'REJECTED' ? 'Rejected ✓' : action === 'approve' ? 'Approved ✓' : 'Done ✓');
+    } catch (error) {
+      setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, state: 'unread' } : candidate));
+      notify(error instanceof Error ? error.message : 'Action failed');
     }
   };
+
   const nav = ['Home', 'Discover', '+', 'Messages', 'You'];
   return <div className="jh-app"><div className="jh-shell">
     <header className="jh-topbar"><div className="jh-brand">Jhadina</div><div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>{activeNav === 'Discover' && <input aria-label="Search Jhadina" autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…" style={{ width: 150, padding: '9px 12px', border: '1px solid rgba(255,255,255,.1)', borderRadius: 999, background: '#16181d', color: 'white', outline: 'none' }} />}<button className="jh-icon" aria-label="Notifications">♡</button></div></header>
-    {activeNav === 'Home' && <><section className="jh-home-head"><p className="jh-eyebrow">Good morning</p><h1 className="jh-headline">Here's what matters.</h1><p className="jh-subline">{items.length} things are ready for you.</p></section><main className="jh-feed">{visible.map((item) => <Card key={item.id} item={item} onAction={act} onOpenMedia={setPlayer} />)}</main>{!visible.length && <div className="jh-empty"><div className="jh-empty-mark">✓</div><h2>You're caught up.</h2><p>Nothing currently needs your attention.</p></div>}</>}
+    {activeNav === 'Home' && <><section className="jh-home-head"><p className="jh-eyebrow">Good morning</p><h1 className="jh-headline">Here's what matters.</h1><p className="jh-subline">{loading ? 'Connecting to Jhadina…' : `${items.length} things are ready for you.`}</p></section><main className="jh-feed">{visible.map((item) => <Card key={item.id} item={item} onAction={act} onOpenMedia={setPlayer} />)}</main>{!loading && !visible.length && <div className="jh-empty"><div className="jh-empty-mark">✓</div><h2>You're caught up.</h2><p>Nothing currently needs your attention.</p></div>}</>}
     {activeNav === 'Discover' && <section className="jh-home-head"><p className="jh-eyebrow">Discover</p><h1 className="jh-headline">Explore your world.</h1><p className="jh-subline">Search across opportunities, research, media and more.</p><div style={{ marginTop: 22 }} className="jh-carousel-row">{['Campaign','Music','Business','TV','Research','Opportunities'].map((tag) => <button key={tag} className="jh-action">{tag}</button>)}</div></section>}
     {activeNav === 'Messages' && <section className="jh-home-head"><p className="jh-eyebrow">Messages</p><h1 className="jh-headline">Your conversations.</h1><div className="jh-feed" style={{ padding: '24px 0' }}>{['Jhadina — Found 3 opportunities…','Campaign Team — Updated schedule','Community partner — Can I help Saturday?'].map((x) => <div className="jh-card" key={x}><div className="jh-card-body"><h2 style={{ fontSize: 15, margin: 0 }}>{x}</h2><p className="jh-subline">Tap to continue the conversation.</p></div></div>)}</div></section>}
     {activeNav === 'You' && <section className="jh-home-head"><p className="jh-eyebrow">You</p><h1 className="jh-headline">Your Jhadina.</h1><div className="jh-feed" style={{ padding: '24px 0' }}>{['Saved','Memory','Activity','Approvals','Connected Accounts','Permissions','Settings'].map((x) => <button className="jh-card" style={{ textAlign: 'left', cursor: 'pointer' }} key={x} onClick={() => notify(`${x} opened`)}><div className="jh-card-body"><h2 style={{ fontSize: 16, margin: 0 }}>{x}</h2></div></button>)}</div></section>}
