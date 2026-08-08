@@ -24,7 +24,7 @@ jobs:
           package-manager-cache: false
 
       - name: Setup pnpm
-        run: npm install --global pnpm@8.0.0
+        run: npm install --global pnpm@8.15.9
 
       - name: Verify toolchain
         run: |
