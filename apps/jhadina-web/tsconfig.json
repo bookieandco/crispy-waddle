@@ -3,7 +3,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@jhadina/*": ["../../packages/*/src", "../../apps/*/src"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
