@@ -86,6 +86,22 @@ export class InMemoryStorage {
   }
 
   /**
+   * Stable newest-first ordering.
+   *
+   * Timestamps are only millisecond-precise, so two events created during the
+   * same millisecond can legitimately have identical timestamps. In that case
+   * the monotonic storage ID is the deterministic insertion-order tie breaker.
+   */
+  private static newestFirst<T extends { timestamp: string; id: string }>(a: T, b: T): number {
+    const timestampDelta = new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    if (timestampDelta !== 0) return timestampDelta
+
+    const aSequence = Number(a.id.match(/_(\d+)$/)?.[1] ?? 0)
+    const bSequence = Number(b.id.match(/_(\d+)$/)?.[1] ?? 0)
+    return bSequence - aSequence
+  }
+
+  /**
    * Memory operations
    */
   createMemory(data: Omit<Memory, "id">): Memory {
@@ -115,7 +131,7 @@ export class InMemoryStorage {
    * Candidate operations
    */
   createCandidate(data: Omit<MemoryCandidate, "id">): MemoryCandidate {
-    const id = `cand_${++this.idCounters.candidate}`
+    const id = `cand_${++this.idCounters.candidate`
     const candidate: MemoryCandidate = { id, ...data }
     this.candidates.set(id, candidate)
     return candidate
@@ -152,7 +168,7 @@ export class InMemoryStorage {
   listReasoningEvents(userId: string, limit: number = 50): ReasoningEvent[] {
     return Array.from(this.reasoningEvents.values())
       .filter(e => e.userId === userId)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .sort(InMemoryStorage.newestFirst)
       .slice(0, limit)
   }
 
@@ -169,7 +185,7 @@ export class InMemoryStorage {
   listTimeline(userId: string, limit: number = 50): TimelineEvent[] {
     return this.timeline
       .filter(e => e.userId === userId)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .sort(InMemoryStorage.newestFirst)
       .slice(0, limit)
   }
 
