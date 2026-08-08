@@ -67,7 +67,7 @@ export async function generatePetPortrait(
   const form = new FormData();
   form.append(
     "image",
-    new Blob([params.imageBuffer], { type: params.imageMimeType }),
+    new Blob([new Uint8Array(params.imageBuffer)], { type: params.imageMimeType }),
     params.imageFilename
   );
   form.append("prompt", fullPrompt);

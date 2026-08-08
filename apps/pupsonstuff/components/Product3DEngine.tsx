@@ -44,7 +44,11 @@ function AreaDecal({ url, position, rotation, scale }: AreaDecalProps) {
       map={texture}
       map-anisotropy={16}
       depthTest={false}
-      depthWrite={true}
+      // drei 10's DecalProps dropped the top-level `depthWrite` prop (it
+      // was never namespaced as `material-depthWrite`, so it wasn't
+      // actually reaching the decal's material even before this upgrade —
+      // PBR materials default to depthWrite:true regardless, which is the
+      // behavior this line intended). Nothing to replace it with; removed.
     />
   );
 }

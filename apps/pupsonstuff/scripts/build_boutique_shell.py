@@ -133,10 +133,19 @@ def build():
     x0, x1 = -W / 2, W / 2
     z0, z1 = -D / 2, D / 2  # z0 = back wall, z1 = open storefront side
 
-    # Floor
-    add_quad((x0, 0, z0), (x1, 0, z0), (x1, 0, z1), (x0, 0, z1), FLOOR_OAK, uv_scale=W)
-    # Ceiling (normal faces down into the room)
-    add_quad((x0, H, z1), (x1, H, z1), (x1, H, z0), (x0, H, z0), BLACK_ACCENT, uv_scale=W)
+    # Floor (normal faces up, +Y, into the room). The previous vertex order
+    # here computed to a DOWN-facing normal — confirmed by actually
+    # rendering it in a browser (Milestone 6 testing): the floor was
+    # backface-culled and invisible from the camera, showing the page's
+    # background color through what looked like a black void at the
+    # bottom of frame. audit_glb.py's checks don't catch this since
+    # winding direction doesn't affect vertex/triangle counts or
+    # degenerate-triangle detection — this needed an actual render to
+    # catch, not just re-reading the geometry math.
+    add_quad((x0, 0, z0), (x0, 0, z1), (x1, 0, z1), (x1, 0, z0), FLOOR_OAK, uv_scale=W)
+    # Ceiling (normal faces down, -Y, into the room). Same bug, same fix,
+    # same discovery method as the floor above.
+    add_quad((x0, H, z1), (x0, H, z0), (x1, H, z0), (x1, H, z1), BLACK_ACCENT, uv_scale=W)
     # Back wall (accent — the photo's dark logo wall)
     add_quad((x0, 0, z0), (x1, 0, z0), (x1, H, z0), (x0, H, z0), BLACK_ACCENT, uv_scale=W)
     # Left wall (cream — art grid + apparel rack side in the photo)
@@ -162,8 +171,15 @@ def build():
     # length) from reference_knowledge/lighting_reference.json; dimensions
     # rebuilt at realistic real-world track-light scale rather than the
     # source file's own (unrelated-room, unknown-scale) units.
+    #
+    # Head world positions are recorded into `meta["lightHeads"]` below —
+    # this is the ONLY place these numbers are computed. The frontend
+    # (config/boutiqueShell.ts) consumes the emitted JSON sidecar instead
+    # of re-deriving or hand-copying these coordinates, so the decorative
+    # geometry and the actual Three.js light placements can't drift apart.
     rail_length = 3.0
     rail_y = H - 0.12
+    light_heads = []
     for rail_x in (x0 + W * 0.22, x1 - W * 0.22):
         rz0 = z0 + 0.6
         add_box((rail_x, rail_y, rz0 + rail_length / 2), (0.05, 0.04, rail_length), RAIL_METAL)
@@ -171,11 +187,20 @@ def build():
         for i in range(head_count):
             hz = rz0 + (i + 0.5) * (rail_length / head_count)
             add_box((rail_x, rail_y - 0.05, hz), (0.10, 0.09, 0.12), LIGHT_HEAD)
+            light_heads.append([rail_x, rail_y - 0.05, hz])
 
     return {
         "ceilingHeightMeters": H,
         "roomWidthMeters": W,
         "roomDepthMeters": D,
+        "roomBounds": {"x0": x0, "x1": x1, "z0": z0, "z1": z1},
+        "counter": {
+            "center": [0, COUNTER_HEIGHT / 2, counter_z],
+            "size": [COUNTER_WIDTH, COUNTER_HEIGHT, COUNTER_DEPTH],
+            "topY": COUNTER_HEIGHT,
+        },
+        "lightHeads": light_heads,
+        "storefrontZ": z1,
     }
 
 
@@ -262,6 +287,9 @@ def write_glb(out_path, meta):
 
 if __name__ == "__main__":
     out_path = sys.argv[1] if len(sys.argv) > 1 else "public/models/boutique_shell.glb"
+    meta_out_path = sys.argv[2] if len(sys.argv) > 2 else "config/boutiqueShellMeta.json"
     meta = build()
     info = write_glb(out_path, meta)
-    print(json.dumps({**meta, **info}, indent=2))
+    with open(meta_out_path, "w") as f:
+        json.dump(meta, f, indent=2)
+    print(json.dumps({**meta, **info, "metaWrittenTo": meta_out_path}, indent=2))

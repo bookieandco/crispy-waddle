@@ -105,7 +105,13 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
 
     const step = (now: number) => {
       const t = Math.min(1, (now - startTime) / durationMs);
-      audio.volume = start + (target - start) * t;
+      // audio.volume's setter throws if the value is even a hair outside
+      // [0,1] — found live during Milestone 6 testing (real pageerrors:
+      // "The volume provided (1.00856) is outside the range [0, 1]"), from
+      // ordinary float accumulation in this interpolation, not a logic bug
+      // in the fade itself. Clamping the assignment is the fix; the eased
+      // trajectory this produces is unchanged.
+      audio.volume = Math.min(1, Math.max(0, start + (target - start) * t));
       if (t < 1) {
         fadeFrameRef.current = requestAnimationFrame(step);
       }

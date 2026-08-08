@@ -1,5 +1,156 @@
 # PupsonStuff — Static Boutique
 
+## Milestone 6 — The boutique_shell.glb is now an actual explorable 3D room
+
+The brief: turn `public/models/boutique_shell.glb` into a real, mobile-
+viewable 3D boutique, without replacing the flat-photo experience — it
+stays as the fallback. What follows is what got built, what got found
+along the way (two real, pre-existing bugs neither this project nor its
+own audit pipeline had caught, because nothing had ever actually loaded
+this stack in a browser before), and what's honestly still open.
+
+**Architecture — new, not duplicated:**
+- `components/BoutiqueScene.tsx` — the environment-level 3D scene. Loads
+  `boutique_shell.glb` via `useGLTF` (same pattern as `Product3DEngine`),
+  adds real Three.js lighting, renders product markers, and hands off taps
+  to the exact same `onSelect` callback the flat 2D `Hotspots` component
+  already used — no second product renderer, no duplicate `ProductModal`.
+  Tapping a marker opens the real `ProductModal`, which still lazy-loads
+  the real `Product3DEngine` for the tapped product exactly as before —
+  confirmed live (tapped "Geometric Mug" from inside the 3D room, got the
+  same modal with its own Flat/3D toggle).
+- `config/boutiqueShell.ts` + `config/boutiqueShellMeta.json` — the latter
+  is now emitted by `scripts/build_boutique_shell.py` itself (real room
+  dimensions, the counter's box, and every light head's real world
+  position), so the decorative geometry and the numbers used to place
+  actual Three.js lights/markers around it can't drift apart. The former
+  adds the genuinely-new, explicitly-first-pass piece: 7 product markers
+  hand-placed in 3D, ordered by each hotspot's real photo-space x%
+  (RANK-based spacing, not raw-value — several photo x%s sit within a
+  couple points of each other and raw mapping put their markers on top of
+  each other, caught by an actual screenshot, not assumed).
+- `components/BoutiqueSceneErrorBoundary.tsx` + `lib/webgl.ts` — real
+  feature detection (an actual throwaway `getContext('webgl')` call, not
+  an assumption) plus a real React error boundary around the 3D scene.
+  `Boutique.tsx` now holds a `mode: "3d" | "flat"` state: defaults to 3D
+  only when WebGL actually checks out, and both a WebGL-detection failure
+  and a runtime scene error (bad GLTF parse, lost context, etc.) fall back
+  to the ORIGINAL flat photo + hotspot rendering, not a blank screen — the
+  user can also switch modes manually at any time via a bottom-left
+  toggle. All verified live (see Testing below), not just written to spec.
+
+**Lighting — real, not decorative-geometry-as-light:**
+The room's real dimensioned floor/ceiling/walls/counter/track-lighting
+geometry from Milestone 5.9 is unchanged. What actually illuminates it:
+ambient + hemisphere fill, plus 2 real point lights positioned at real
+track-rail head coordinates from `boutiqueShellMeta.json` (one per rail,
+not one per decorative head — 12 real-time lights is real GPU cost a phone
+shouldn't pay for illumination the room doesn't need that granularly), plus
+one warm point light near the counter matching the photo's "register area"
+glow. No `shadows` prop on this Canvas (unlike `Product3DEngine`'s
+per-product one) — a full room's real-time shadow maps is cost this
+environment-level scene deliberately doesn't spend.
+
+**Two real bugs found by actually rendering this — not caught by any
+prior audit, because nothing had ever loaded this stack in a browser:**
+
+1. **The whole three.js/R3F stack was incompatible with this Next.js
+   version.** Next.js 15's App Router aliases `react`/`react-dom` to its
+   own internally vendored React (19.2.0-canary) for the client bundle,
+   regardless of what's pinned in this project's own `package.json` —
+   confirmed by reading `node_modules/next/dist/compiled/react`'s own
+   version string. `@react-three/fiber@8.x` depends on the external
+   `react-reconciler@0.27.0` package, built for React 18-era internals;
+   loading it under React 19 threw `Cannot read properties of undefined
+   (reading 'ReactCurrentOwner')` on every mount, caught live by the new
+   error boundary and silently falling back to flat mode — which is
+   exactly why this had never been noticed: earlier milestones' own notes
+   already say "no browser in the sandbox that built this." Fixed by
+   upgrading the whole stack to its React-19-native generation: `three`
+   0.150→^0.170, `@react-three/fiber` 8.18→^9.4 (which vendors its own
+   reconciler now, no more external `react-reconciler` dependency at all),
+   `@react-three/drei` 9.58→^10.7, `react`/`react-dom`→^19. One real
+   knock-on fix: drei 10's `Decal` dropped the `depthWrite` prop (it was
+   never actually reaching the decal's material even before this — not
+   namespaced as `material-depthWrite` — so nothing regressed by removing
+   it). This wasn't scope creep — it was blocking `Product3DEngine` for
+   every existing product (shirt/hoodie/mug/pillow) just as much as the
+   new boutique scene; fixing it was required to honestly claim either one
+   works.
+2. **The floor and ceiling quads had inverted winding**, computed to
+   normals facing away from the room. Both were backface-culled and
+   invisible — the top and bottom of every render showed the page's `bg-
+   ink` background color through what looked like a black void, not the
+   warm wood floor / dark ceiling the color values said they should be.
+   `audit_glb.py`'s checks don't catch this (winding doesn't change
+   vertex/triangle counts or degenerate-triangle detection) — only an
+   actual render caught it. Fixed in `scripts/build_boutique_shell.py`
+   (vertex order swap on both quads), regenerated, re-audited (same
+   70/100 — winding doesn't affect the score either, confirming the fix
+   didn't touch anything the audit was already measuring).
+
+Also fixed, found the same way (a real thrown `pageerror` during testing,
+not a lint warning): `context/MusicContext.tsx`'s volume fade could
+compute a value a hair outside `[0, 1]` from ordinary float accumulation
+— `audio.volume`'s setter throws on that, not clamps. One-line clamp fix.
+Pre-existing, unrelated to this milestone's own code, but it was a real
+uncaught error surfacing in the same session.
+
+**Testing — what was actually verified, and how:**
+Ran the real dev server and drove it with Playwright + the repo's
+pre-installed Chromium (software WebGL via SwiftShader — see Known
+limitations). Checked, with real assertions against a running page, not
+just "it builds":
+- 3D scene loads, reaches ready state, no console/page errors.
+- Starting camera position shows the room with 5-6 of 7 product markers
+  in frame on an iPhone-13-sized viewport (390×664 CSS px) — fixed
+  overlap and off-screen markers through two real iterations (rank-based
+  spacing, narrower placement band, wider FOV), each verified by an actual
+  screenshot + bounding-box check, not eyeballed once and assumed good.
+- Touch-style drag (pointer down/move/up, the same events OrbitControls'
+  default touch mapping listens to) moves the camera without erroring.
+- Tapping a 3D product marker opens the real `ProductModal` — screenshotted
+  and confirmed (`Geometric Mug`, $22.00, Flat/3D toggle, Add to Cart).
+- Closing the modal returns to the 3D scene, canvas still mounted.
+- Mode toggle switches to "Photo View" and the original flat hotspot flow
+  still opens the modal — existing functionality confirmed unbroken, not
+  assumed unbroken.
+- WebGL forced unavailable (canvas.getContext patched to return null
+  before page scripts run) → 3D mode is never attempted, no toggle shown,
+  flat photo + all 18 hotspots render normally. Real fallback, verified,
+  not just written to satisfy the spec.
+- Desktop viewport (1400×900) sanity-checked separately — full room
+  visible, 6/7 markers unobstructed.
+
+**Known limitations — stated plainly, not glossed over:**
+- **Real iPhone/mobile-GPU performance was NOT measured.** Everything
+  above ran through headless Chromium's software WebGL renderer in this
+  sandbox — there is no physical phone in this environment. Design
+  choices that should help (`dpr` capped at 1.75, no shadow maps on the
+  room canvas, only 3 real lights, the shell itself is only 234 triangles)
+  are reasoned, not benchmarked. Don't take this milestone's word for
+  "smooth on an iPhone" — that claim isn't backed by a real device test.
+- **Marker occlusion isn't implemented** — product markers render through
+  walls/the counter from any angle (`occlude={false}` on drei's `Html`,
+  explicit tradeoff for reliability over polish this pass).
+- **Marker placement is still hand-tuned, not measured** — same honesty
+  as Milestone 5.9's shell dimensions. Good enough to be legible and
+  roughly ordered like the photo; not a precise 3D reconstruction of
+  anything.
+- **One marker ("Black Hoodie") sits partly outside the starting frame**
+  by design tradeoff — it's the rightmost product in the photo, and fully
+  fitting it in view would have meant compressing all 7 markers into an
+  even narrower band. Reachable via the same look-around control being
+  tested, not invisible.
+- **Pinch-zoom specifically wasn't isolated in a touch-only test** —
+  Playwright's touch APIs don't include a pinch gesture, only tap. What
+  WAS verified: `OrbitControls`' `touches` prop is explicitly configured
+  (`ONE: ROTATE, TWO: DOLLY_ROTATE`), which is the standard three.js touch
+  mapping pinch-to-zoom relies on — the same mechanism, not independently
+  re-tested end-to-end with real pinch input.
+- **Entrance/storefront still open** — per the brief, not blocked on
+  `public/boutique-entrance.png`; unchanged from Milestone 5.9.
+
 ## Milestone 5.9 — Mug fixed + approved, evidence answered, first boutique shell built
 
 Picked up right where 5.8 left off: the user answered the three MUST HAVE

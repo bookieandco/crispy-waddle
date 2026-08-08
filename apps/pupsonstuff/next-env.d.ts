@@ -1,7 +1,6 @@
 /// <reference types="next" />
 /// <reference types="next/image-types/global" />
+/// <reference path="./.next/types/routes.d.ts" />
 
-// NOTE: This file is normally regenerated automatically by `next dev` or
-// `next build` and should not be edited by hand. It's committed here so
-// the project type-checks immediately on a fresh clone before the first
-// build.
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
