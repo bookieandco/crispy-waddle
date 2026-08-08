@@ -24,7 +24,7 @@
  *   }
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { handleMessage } from "@/lib/routes/handlers"
 
 export async function POST(req: NextRequest) {

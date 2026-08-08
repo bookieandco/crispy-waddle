@@ -13,7 +13,7 @@ import {
   MemoryType,
   MemoryStatus,
   InMemoryStorage,
-} from "./InMemoryStorage"
+} from "../storage/InMemoryStorage"
 
 export interface SearchMemoriesOptions {
   query?: string
@@ -126,6 +126,14 @@ export class MemoryRepository {
       .slice(offset, offset + limit)
 
     return candidates
+  }
+
+  /**
+   * List approved memories for a user (no filters)
+   * Used by GET /api/memories
+   */
+  async listApproved(userId: string): Promise<Memory[]> {
+    return this.search(userId)
   }
 
   /**

@@ -231,11 +231,11 @@ export class InMemoryStorage {
     if (timelineList.length > 0 && timelineList.length <= 10) {
       for (const event of timelineList) {
         const time = event.timestamp.slice(11, 19)
-        let desc = event.type
+        let desc: string = event.type
         if (event.type === "APPROVAL") {
           desc = `APPROVAL | ${event.decision}`
         } else if (event.type === "REASONING") {
-          desc = `REASONING | Candidate: ${event.candidateId}`
+          desc = `REASONING | Event: ${event.reasoningEventId}`
         }
         lines.push(`  ${time} | ${desc}`)
       }
