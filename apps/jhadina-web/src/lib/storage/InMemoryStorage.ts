@@ -131,7 +131,7 @@ export class InMemoryStorage {
    * Candidate operations
    */
   createCandidate(data: Omit<MemoryCandidate, "id">): MemoryCandidate {
-    const id = `cand_${++this.idCounters.candidate`
+    const id = `cand_${++this.idCounters.candidate}`
     const candidate: MemoryCandidate = { id, ...data }
     this.candidates.set(id, candidate)
     return candidate
@@ -176,7 +176,7 @@ export class InMemoryStorage {
    * Timeline operations
    */
   appendTimelineEvent(data: Omit<TimelineEvent, "id">): TimelineEvent {
-    const id = `timeline_${++this.idCounters.timeline}`
+    const id = `timeline_${++this.idCounters.timeline`
     const event: TimelineEvent = { id, ...data }
     this.timeline.push(event)
     return event
@@ -200,11 +200,9 @@ export class InMemoryStorage {
     lines.push("═══════════════════════════════════════")
     lines.push("")
 
-    // Filter by user if specified
     const filterUser = (item: { userId: string }) =>
       !userId || item.userId === userId
 
-    // Candidates
     const candidateList = Array.from(this.candidates.values()).filter(filterUser)
     lines.push(`Candidates (PENDING): ${candidateList.length}`)
     if (candidateList.length > 0) {
@@ -216,7 +214,6 @@ export class InMemoryStorage {
     }
     lines.push("")
 
-    // Approved Memories
     const memoryList = Array.from(this.memories.values()).filter(filterUser)
     const approved = memoryList.filter(m => m.status === "APPROVED")
     lines.push(`Approved Memories: ${approved.length}`)
@@ -229,10 +226,7 @@ export class InMemoryStorage {
     }
     lines.push("")
 
-    // Reasoning Events
-    const reasoningList = Array.from(this.reasoningEvents.values()).filter(
-      filterUser
-    )
+    const reasoningList = Array.from(this.reasoningEvents.values()).filter(filterUser)
     lines.push(`Reasoning Events: ${reasoningList.length}`)
     if (reasoningList.length > 0 && reasoningList.length <= 5) {
       for (const event of reasoningList) {
@@ -241,7 +235,6 @@ export class InMemoryStorage {
     }
     lines.push("")
 
-    // Timeline
     const timelineList = this.timeline.filter(filterUser)
     lines.push(`Timeline Events: ${timelineList.length}`)
     if (timelineList.length > 0 && timelineList.length <= 10) {
@@ -259,7 +252,6 @@ export class InMemoryStorage {
     lines.push("")
 
     lines.push("═══════════════════════════════════════")
-
     return lines.join("\n")
   }
 
