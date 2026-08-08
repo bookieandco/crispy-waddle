@@ -84,8 +84,23 @@ const RAW_PLACEMENTS: RawPlacement[] = [
 const ordered = [...RAW_PLACEMENTS].sort((a, b) => a.photoX - b.photoX);
 const step = ordered.length > 1 ? (2 * HOTSPOT_X_BAND) / (ordered.length - 1) : 0;
 
+// Neighbors that share a row (same z/y — e.g. pillow and mugColorful both
+// sit at z=-2.5, y=1.15, adjacent in rank too) still crowded each other
+// even with even X spacing, confirmed by a real screenshot (overlapping
+// labels). Tried a depth offset first — barely changed anything, because
+// the starting camera looks nearly level, so a few tens of cm of Z barely
+// moves a marker's projected screen Y at these distances (checked, not
+// assumed: ~5px difference for a 0.35m offset). A vertical offset works
+// directly on the axis that actually separates two horizontally-adjacent
+// labels on screen.
+const Y_JITTER = 0.16;
+
 /** hand-placed first pass — see file header. */
 export const BOUTIQUE_HOTSPOTS_3D: BoutiqueHotspot3D[] = ordered.map((p, i) => ({
   hotspotId: p.hotspotId,
-  position: [-HOTSPOT_X_BAND + i * step, p.y, p.z],
+  position: [
+    -HOTSPOT_X_BAND + i * step,
+    p.y + (i % 2 === 0 ? Y_JITTER : -Y_JITTER),
+    p.z,
+  ],
 }));

@@ -23,7 +23,15 @@ import {
 
 const hotspotById = new Map(hotspots.map((h) => [h.id, h]));
 
-function BoutiqueShellModel() {
+interface ShellModelProps {
+  /** Exposes the loaded room mesh so markers can occlude against it
+   * specifically (see ProductMarker) — targeted raycasting against one
+   * 234-triangle mesh, not drei's whole-scene "raycast" occlusion mode,
+   * which would test against every object in the Canvas every frame. */
+  shellRef: React.RefObject<THREE.Object3D | null>;
+}
+
+function BoutiqueShellModel({ shellRef }: ShellModelProps) {
   const { scene } = useGLTF(BOUTIQUE_SHELL_PATH);
   // Cloned rather than rendered directly — useGLTF caches and shares the
   // same Object3D across every call for this URL; cloning keeps this
@@ -31,7 +39,7 @@ function BoutiqueShellModel() {
   // (e.g. switching back and forth between flat/3D mode) without fighting
   // over a single shared parent.
   const cloned = useMemo(() => scene.clone(), [scene]);
-  return <primitive object={cloned} />;
+  return <primitive ref={shellRef} object={cloned} />;
 }
 
 /** Two real point lights, one per track-lighting rail, positioned at each
@@ -89,26 +97,41 @@ interface MarkerProps {
   hotspot: HotspotConfig;
   position: [number, number, number];
   onSelect: (hotspot: HotspotConfig) => void;
+  occludeAgainst: React.RefObject<THREE.Object3D | null>;
 }
 
-function ProductMarker({ hotspot, position, onSelect }: MarkerProps) {
+function ProductMarker({ hotspot, position, onSelect, occludeAgainst }: MarkerProps) {
+  // Hides (drei toggles the wrapper's `display` directly, not a class or
+  // React state — no per-frame re-render cost) when the room shell is
+  // between the marker and the camera, e.g. a wall or the counter sitting
+  // in front of a marker behind it. Raycasts only against `occludeAgainst`
+  // (the 234-triangle room mesh), not drei's whole-scene "raycast" mode,
+  // which would test every object in the Canvas every frame.
   return (
     <group position={position}>
       <Html
         center
         distanceFactor={6}
-        occlude={false}
+        // drei's HtmlProps types `occlude` as RefObject<Object3D>[]
+        // (non-nullable) — predates React 19's stricter useRef typing,
+        // where a ref created with an initial value of `null` types as
+        // RefObject<T | null>. Functionally always populated by the time
+        // this matters: ProductMarker and BoutiqueShellModel are siblings
+        // under the same <Suspense>, which reveals its whole subtree in
+        // one commit once the shell's GLTF resolves, so shellRef.current
+        // is set before any marker's per-frame occlusion check runs.
+        occlude={[occludeAgainst as React.RefObject<THREE.Object3D>]}
         zIndexRange={[10, 0]}
       >
         <button
           type="button"
           onClick={() => onSelect(hotspot)}
           aria-label={hotspot.name}
-          className="flex flex-col items-center gap-1 rounded-full bg-ink/70 px-3 py-2 text-cream shadow-gold-glow backdrop-blur-sm transition hover:bg-ink/90 active:scale-95"
+          className="flex flex-col items-center gap-0.5 rounded-full bg-ink/70 px-2.5 py-1.5 text-cream shadow-gold-glow backdrop-blur-sm transition hover:bg-ink/90 active:scale-95"
           style={{ touchAction: "manipulation" }}
         >
-          <span className="h-2 w-2 rounded-full bg-gold shadow-gold-glow" />
-          <span className="whitespace-nowrap text-[11px] font-medium leading-none">
+          <span className="h-1.5 w-1.5 rounded-full bg-gold shadow-gold-glow" />
+          <span className="whitespace-nowrap text-[10px] font-medium leading-none">
             {hotspot.name}
           </span>
         </button>
@@ -139,6 +162,7 @@ export default function BoutiqueScene({ onSelectHotspot, onReady }: Props) {
     Math.max(x1 - x0, z1 - z0) * 0.48,
     shellMeta.ceilingHeightMeters * 1.4
   );
+  const shellRef = useRef<THREE.Object3D | null>(null);
 
   return (
     <Canvas
@@ -160,7 +184,7 @@ export default function BoutiqueScene({ onSelectHotspot, onReady }: Props) {
       // cost this environment-level scene deliberately doesn't spend.
     >
       <Suspense fallback={null}>
-        <BoutiqueShellModel />
+        <BoutiqueShellModel shellRef={shellRef} />
         <BoutiqueLighting />
         {BOUTIQUE_HOTSPOTS_3D.map(({ hotspotId, position }) => {
           const hotspot = hotspotById.get(hotspotId);
@@ -171,6 +195,7 @@ export default function BoutiqueScene({ onSelectHotspot, onReady }: Props) {
               hotspot={hotspot}
               position={position}
               onSelect={onSelectHotspot}
+              occludeAgainst={shellRef}
             />
           );
         })}

@@ -1,5 +1,67 @@
 # PupsonStuff — Static Boutique
 
+## Milestone 6.1 — Marker polish + AI-animated portraits
+
+Two separate pieces of follow-up work from Milestone 6.
+
+**3D product marker polish** (`components/BoutiqueScene.tsx`,
+`config/boutiqueShell.ts`):
+- **Occlusion**: markers now hide when the room shell is physically
+  between them and the camera, via drei's `Html occlude` prop pointed at
+  a ref to just the loaded room mesh (`raycaster.intersectObjects`
+  against one 234-triangle object, not drei's whole-scene "raycast" mode,
+  which would test every object in the Canvas every frame). Wired up and
+  running with no console/page errors across multiple camera angles — but
+  stated honestly: this room's actual proportions (markers float above a
+  fairly thin counter, walls are far apart, orbit is angle-limited) mean
+  I couldn't manufacture a real screenshot where a marker actually
+  disappears behind geometry to prove the occlusion visually fires, even
+  after several orbit angles including deliberately extreme ones. The
+  mechanism is real and correctly targeted; a genuine before/after
+  occluded screenshot is still open.
+- **Label overlap**: adjacent markers (e.g. "Throw Pillow" and "Geometric
+  Mug", same rank-adjacent, same row) still crowded each other after
+  Milestone 6's spacing fix. Fixed with a small alternating vertical
+  offset per marker — tried a depth (Z) offset first, which barely helped
+  (checked, not assumed: ~5px screen difference for 0.35m of Z, because
+  the starting camera looks nearly level), then switched to a Y offset,
+  which works directly on the axis that actually separates two
+  horizontally-adjacent labels. Also shrank the marker's own footprint
+  (smaller padding/font/dot). Verified by real screenshot + bounding-box
+  check: all 6 in-frame markers now render with zero label overlap.
+
+**AI-animated portraits** (`lib/animation.ts`,
+`app/api/animate-preview/route.ts`, `components/ProductModal.tsx`):
+Second step on top of the existing static portrait generation
+(`lib/ai.ts`, OpenAI Images API) — once a static portrait exists, an
+"Animate Preview" button sends it to Hugging Face's image-to-video task
+(`@huggingface/inference`, the JS/TS SDK — matching the same "JS
+equivalent, not the Python one" call already made for `lib/ai.ts`/OpenAI)
+to produce a short looping video, using model `Wan-AI/Wan2.1-I2V-14B-720P`
+(the SDK's own documented default for the task) with a prompt aimed at
+subtle idle motion rather than dramatic movement. Shows up as a third
+"Animated" tab in the modal's existing Flat/3D segmented preview control,
+alongside a `<video autoPlay loop muted playsInline>` element.
+
+Real, functional code — not a placeholder, same honesty standard as
+`lib/ai.ts`. What's actually verified: the full request/response wiring
+end-to-end against the real running dev server (input validation, data-URL
+parsing, error propagation, the UI states for generating/error/success),
+confirmed via direct API calls and a live Playwright session. What's
+**not** verified, because no `HUGGINGFACE_API_KEY` is configured in this
+environment (same situation `OPENAI_API_KEY` was in for `lib/ai.ts`): an
+actual call to the model. `HUGGINGFACE_API_KEY` needs to be set before
+this does anything beyond returning its own honest "not configured"
+error — treat the first real run as a test, and expect the prompt/
+`num_frames`/model choice to need tuning once real output exists to look
+at, per `lib/animation.ts`'s own comments.
+
+Also confirmed unbroken by this pass: switching `view3D: boolean` to a
+`viewMode: "flat" | "3d" | "animated"` state didn't regress the existing
+Flat Preview/View in 3D toggle for shirt/hoodie/mug/pillow — checked live
+(opened a 3D-capable product, switched modes, canvas mounted correctly),
+not just assumed from the diff.
+
 ## Milestone 6 — The boutique_shell.glb is now an actual explorable 3D room
 
 The brief: turn `public/models/boutique_shell.glb` into a real, mobile-
@@ -658,13 +720,18 @@ npm run dev
 ```
 
 Then open http://localhost:3000. You'll need Node 18.18+ and the packages
-in `package.json` (Tailwind, Framer Motion pinned; Konva/Supabase/Stripe/
-Printful/OpenAI SDKs get added when I build their features in Phase 2 so
-this install stays lean for now).
+in `package.json` (Tailwind, Framer Motion pinned; `openai` and
+`@huggingface/inference` are in since Milestone 6/6.1 — Konva/Supabase/
+Stripe/Printful still get added when I build their features).
+
+Copy `.env.example` to `.env.local` and fill in real keys before
+exercising `/api/generate-preview` or `/api/animate-preview` — both
+return an honest "not configured" error without them, rather than faking
+a result.
 
 ## Deploying (Vercel)
 
 1. Push this repo to GitHub.
 2. Import into Vercel.
-3. Add the env vars from `.env.example` once Phase 2 backend routes exist —
-   nothing required for Phase 1 to deploy as-is.
+3. Add the env vars from `.env.example` — `OPENAI_API_KEY` and
+   `HUGGINGFACE_API_KEY` as of Milestone 6.1.

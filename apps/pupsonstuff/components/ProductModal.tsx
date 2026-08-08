@@ -57,7 +57,17 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
 
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
-  const [view3D, setView3D] = useState(false);
+
+  // "animated" only becomes reachable once animatedVideoUrl exists — see
+  // the segmented control below. Kept as one viewMode rather than a
+  // separate boolean per view so switching to one always switches away
+  // from the others, instead of needing to remember to clear view3D
+  // whenever an animated view is added later (which is exactly what
+  // happened here — this replaces the old standalone view3D boolean).
+  const [viewMode, setViewMode] = useState<"flat" | "3d" | "animated">("flat");
+  const [animating, setAnimating] = useState(false);
+  const [animatedVideoUrl, setAnimatedVideoUrl] = useState<string | null>(null);
+  const [animateError, setAnimateError] = useState<string | null>(null);
 
   const threeDMapping = activeProduct ? HOTSPOT_3D_MODEL[activeProduct.id] : undefined;
   const threeDConfig = threeDMapping ? getProduct3DConfig(threeDMapping.modelId) : null;
@@ -75,7 +85,9 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
     setPreviewUrl(null);
     setGenerateError(null);
     setApproved(false);
-    setView3D(false);
+    setViewMode("flat");
+    setAnimatedVideoUrl(null);
+    setAnimateError(null);
     return () => duck(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activeProduct?.id]);
@@ -89,6 +101,11 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
     setGenerating(true);
     setGenerateError(null);
     setApproved(false);
+    // A fresh static generation invalidates any earlier animation — it
+    // was made from the previous image, not this one.
+    setAnimatedVideoUrl(null);
+    setAnimateError(null);
+    if (viewMode === "animated") setViewMode("flat");
     duck(true); // extra duck request stacks with the "modal open" one; music
     // stays ducked as long as either condition holds, and un-ducks only
     // once both clear.
@@ -122,6 +139,44 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
       );
     } finally {
       setGenerating(false);
+      duck(false);
+    }
+  };
+
+  // Calls the real /api/animate-preview route (see
+  // app/api/animate-preview/route.ts and lib/animation.ts — Hugging Face's
+  // image-to-video task). Takes the already-generated static portrait, not
+  // a fresh upload; fails until HUGGINGFACE_API_KEY is set, same honest
+  // failure pattern as handleGeneratePreview above.
+  const handleAnimatePreview = async () => {
+    if (!previewUrl) return;
+    setAnimating(true);
+    setAnimateError(null);
+    duck(true);
+
+    try {
+      const res = await fetch("/api/animate-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: previewUrl }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setAnimateError(
+          data?.error ??
+            "Something went wrong animating your portrait. Please try again."
+        );
+      } else {
+        setAnimatedVideoUrl(`data:${data.mimeType};base64,${data.videoBase64}`);
+        setViewMode("animated");
+      }
+    } catch {
+      setAnimateError(
+        "Couldn't reach the animation service. Please try again in a moment."
+      );
+    } finally {
+      setAnimating(false);
       duck(false);
     }
   };
@@ -169,38 +224,64 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
               ) : (
                 <>
                   {/* Product preview */}
-                  {supports3D && (
-                    <div className="mb-3 flex gap-2">
+                  {(supports3D || animatedVideoUrl) && (
+                    <div className="mb-3 flex flex-wrap gap-2">
                       <button
-                        onClick={() => setView3D(false)}
+                        onClick={() => setViewMode("flat")}
                         className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                          !view3D
+                          viewMode === "flat"
                             ? "bg-bronze text-cream"
                             : "border border-greige/50 text-ink/60"
                         }`}
                       >
                         Flat Preview
                       </button>
-                      <button
-                        onClick={() => setView3D(true)}
-                        className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                          view3D
-                            ? "bg-bronze text-cream"
-                            : "border border-greige/50 text-ink/60"
-                        }`}
-                      >
-                        View in 3D
-                      </button>
+                      {supports3D && (
+                        <button
+                          onClick={() => setViewMode("3d")}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                            viewMode === "3d"
+                              ? "bg-bronze text-cream"
+                              : "border border-greige/50 text-ink/60"
+                          }`}
+                        >
+                          View in 3D
+                        </button>
+                      )}
+                      {animatedVideoUrl && (
+                        <button
+                          onClick={() => setViewMode("animated")}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                            viewMode === "animated"
+                              ? "bg-bronze text-cream"
+                              : "border border-greige/50 text-ink/60"
+                          }`}
+                        >
+                          Animated
+                        </button>
+                      )}
                     </div>
                   )}
 
-                  {supports3D && view3D && threeDConfig && threeDMapping ? (
+                  {viewMode === "3d" && supports3D && threeDConfig && threeDMapping ? (
                     <div className="mb-6">
                       <Product3DEngine
                         config={threeDConfig}
                         color={threeDMapping.color}
                         decals={{ [threeDMapping.printArea]: previewUrl }}
                         plugins={[screenshotPlugin]}
+                      />
+                    </div>
+                  ) : viewMode === "animated" && animatedVideoUrl ? (
+                    <div className="mb-6 aspect-square overflow-hidden rounded-lg border border-greige/40 bg-white/40">
+                      <video
+                        src={animatedVideoUrl}
+                        className="h-full w-full object-cover"
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        controls
                       />
                     </div>
                   ) : (
@@ -367,6 +448,32 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                         {approved ? "Approved ✓" : "Approve"}
                       </button>
                     </div>
+                  )}
+
+                  {animateError && (
+                    <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+                      <p className="mb-1">{animateError}</p>
+                      <button
+                        onClick={handleAnimatePreview}
+                        className="font-medium underline underline-offset-2"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
+
+                  {previewUrl && (
+                    <button
+                      onClick={handleAnimatePreview}
+                      disabled={animating}
+                      className="mb-3 w-full rounded-md border border-honey-oak py-3 text-sm font-medium text-bronze transition hover:bg-honey-oak hover:text-cream disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {animating
+                        ? "Animating…"
+                        : animatedVideoUrl
+                          ? "Animate Again"
+                          : "Animate Preview"}
+                    </button>
                   )}
 
                   {previewUrl && (
