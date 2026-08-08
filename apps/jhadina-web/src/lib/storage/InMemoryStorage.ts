@@ -176,7 +176,7 @@ export class InMemoryStorage {
    * Timeline operations
    */
   appendTimelineEvent(data: Omit<TimelineEvent, "id">): TimelineEvent {
-    const id = `timeline_${++this.idCounters.timeline`
+    const id = `timeline_${++this.idCounters.timeline}`
     const event: TimelineEvent = { id, ...data }
     this.timeline.push(event)
     return event
