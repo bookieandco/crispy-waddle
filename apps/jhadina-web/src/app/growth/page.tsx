@@ -25,6 +25,8 @@ export default function GrowthCommandCenter() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState("")
+  const [redraftId, setRedraftId] = useState<string | null>(null)
+  const [instruction, setInstruction] = useState("")
 
   async function load() {
     setLoading(true)
@@ -52,13 +54,22 @@ export default function GrowthCommandCenter() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Action failed")
       await load()
-    } catch (e) { setError(e instanceof Error ? e.message : "Action failed") }
+      return true
+    } catch (e) { setError(e instanceof Error ? e.message : "Action failed"); return false }
     finally { setBusy(null) }
+  }
+
+  async function redraft() {
+    if (!redraftId || !instruction.trim()) return
+    const id = redraftId
+    const ok = await action("/api/growth/drafts/redraft", id, { instruction: instruction.trim() })
+    if (ok) { setRedraftId(null); setInstruction("") }
   }
 
   const pending = drafts.filter((d) => d.status === "PENDING_APPROVAL")
   const approved = drafts.filter((d) => d.status === "APPROVED")
   const scheduled = drafts.filter((d) => d.status === "SCHEDULED")
+  const redraftDraft = drafts.find((d) => d.id === redraftId)
 
   return (
     <main style={{ minHeight: "100vh", background: "linear-gradient(180deg,#f5f1ea,#edf2ed 55%,#f3eee8)", color: "#29332e", padding: "28px 18px 110px", fontFamily: 'ui-rounded,"Avenir Next",Avenir,system-ui,sans-serif' }}>
@@ -79,17 +90,31 @@ export default function GrowthCommandCenter() {
         ) : (
           <section>
             <h2 style={heading}>Needs your call</h2>
-            {pending.map((draft) => <DraftCard key={draft.id} draft={draft} busy={busy === draft.id} onApprove={() => action("/api/growth/drafts/approve", draft.id)} onReject={() => action("/api/growth/drafts/reject", draft.id)} />)}
+            {pending.map((draft) => <DraftCard key={draft.id} draft={draft} busy={busy === draft.id} onApprove={() => action("/api/growth/drafts/approve", draft.id)} onReject={() => action("/api/growth/drafts/reject", draft.id)} onRedraft={() => { setRedraftId(draft.id); setInstruction("") }} />)}
           </section>
         )}
 
-        {approved.length > 0 && <section style={{ marginTop: 38 }}><h2 style={heading}>Ready to schedule</h2>{approved.map((draft) => <DraftCard key={draft.id} draft={draft} busy={busy === draft.id} onSchedule={() => action("/api/growth/drafts/schedule", draft.id, { scheduledAt: draft.suggestedPublishAt || new Date(Date.now() + 86400000).toISOString() })} />)}</section>}
+        {approved.length > 0 && <section style={{ marginTop: 38 }}><h2 style={heading}>Ready to schedule</h2>{approved.map((draft) => <DraftCard key={draft.id} draft={draft} busy={busy === draft.id} onRedraft={() => { setRedraftId(draft.id); setInstruction("") }} onSchedule={() => action("/api/growth/drafts/schedule", draft.id, { scheduledAt: draft.suggestedPublishAt || new Date(Date.now() + 86400000).toISOString() })} />)}</section>}
+
+        {redraftDraft && <div role="dialog" aria-modal="true" style={modalBackdrop} onClick={() => busy ? null : setRedraftId(null)}>
+          <section style={modal} onClick={(e) => e.stopPropagation()}>
+            <div style={eyebrow}>Redraft {brandLabel[redraftDraft.brand] || redraftDraft.brand}</div>
+            <h2 style={{ margin: "9px 0 7px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400, fontSize: 28 }}>Tell Jhadina what to change.</h2>
+            <p style={{ margin: "0 0 14px", color: "#718078", lineHeight: 1.55 }}>The original stays محفوظ. Your instruction creates a new version and sends it back through approval.</p>
+            <div style={originalBox}><strong>{redraftDraft.title || "Current draft"}</strong><span>{redraftDraft.body}</span></div>
+            <textarea autoFocus value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="Make it less robotic and more like me…" style={textarea} rows={5} />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+              <button disabled={!!busy} onClick={() => setRedraftId(null)} style={secondary}>Cancel</button>
+              <button disabled={!!busy || !instruction.trim()} onClick={() => void redraft()} style={primary}>{busy ? "Redrafting…" : "Create new version"}</button>
+            </div>
+          </section>
+        </div>}
       </div>
     </main>
   )
 }
 
-function DraftCard({ draft, busy, onApprove, onReject, onSchedule }: { draft: Draft; busy: boolean; onApprove?: () => void; onReject?: () => void; onSchedule?: () => void }) {
+function DraftCard({ draft, busy, onApprove, onReject, onSchedule, onRedraft }: { draft: Draft; busy: boolean; onApprove?: () => void; onReject?: () => void; onSchedule?: () => void; onRedraft?: () => void }) {
   return <article style={{ padding: 20, marginBottom: 12, borderRadius: 25, background: "rgba(255,255,255,.72)", border: "1px solid #dce2dd", boxShadow: "0 14px 38px rgba(67,76,69,.07)" }}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><span style={eyebrow}>{brandLabel[draft.brand] || draft.brand} · {draft.kind}</span><span style={{ ...eyebrow, color: "#8b7b9d" }}>{draft.platforms.join(" · ")}</span></div>
     {draft.title && <h3 style={{ margin: "12px 0 7px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400, fontSize: 24 }}>{draft.title}</h3>}
@@ -98,8 +123,8 @@ function DraftCard({ draft, busy, onApprove, onReject, onSchedule }: { draft: Dr
     <div style={{ display: "flex", gap: 8, marginTop: 15, flexWrap: "wrap" }}>
       {onApprove && <button disabled={busy} onClick={onApprove} style={primary}>{busy ? "Working…" : "Approve"}</button>}
       {onReject && <button disabled={busy} onClick={onReject} style={secondary}>Reject</button>}
+      {onRedraft && <button disabled={busy} onClick={onRedraft} style={secondary}>Redraft</button>}
       {onSchedule && <button disabled={busy} onClick={onSchedule} style={primary}>{busy ? "Scheduling…" : "Schedule"}</button>}
-      <button disabled={busy} style={secondary}>Edit</button>
     </div>
   </article>
 }
@@ -110,3 +135,7 @@ const eyebrow = { fontSize: 10, letterSpacing: ".11em", textTransform: "uppercas
 const primary = { border: 0, borderRadius: 999, padding: "10px 17px", background: "#34443c", color: "#f8f6f1", fontWeight: 600, cursor: "pointer" }
 const secondary = { border: "1px solid #d4dcd5", borderRadius: 999, padding: "9px 16px", background: "rgba(255,255,255,.5)", color: "#56635c", fontWeight: 600, cursor: "pointer" }
 const empty = { display: "flex", flexDirection: "column" as const, gap: 7, padding: 22, borderRadius: 22, background: "rgba(255,255,255,.55)", border: "1px solid #dce2dd", color: "#68756e", lineHeight: 1.5 }
+const modalBackdrop = { position: "fixed" as const, inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(38,45,41,.28)", backdropFilter: "blur(8px)" }
+const modal = { width: "min(620px,100%)", padding: 24, borderRadius: 28, background: "#faf8f3", border: "1px solid #d9dfda", boxShadow: "0 24px 80px rgba(36,45,40,.22)" }
+const originalBox = { display: "flex", flexDirection: "column" as const, gap: 6, padding: 14, borderRadius: 17, background: "#eef1ed", color: "#59655e", fontSize: 13, lineHeight: 1.5 }
+const textarea = { width: "100%", boxSizing: "border-box" as const, marginTop: 12, padding: 15, borderRadius: 17, border: "1px solid #d4dcd5", background: "white", color: "#29332e", font: "inherit", lineHeight: 1.5, outline: "none", resize: "vertical" as const }
