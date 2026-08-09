@@ -5,3 +5,4 @@ export * from "./assembly.js";
 export * from "./external-adapters.js";
 export * from "./production.js";
 export * from "./recipes.js";
+export * from "./director-modules.js";
