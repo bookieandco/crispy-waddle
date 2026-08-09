@@ -5,3 +5,4 @@ export * from './system-health';
 export * from './core-adapters';
 export * from './memory-adapter';
 export * from './audit-adapter';
+export * from './os-registry';
