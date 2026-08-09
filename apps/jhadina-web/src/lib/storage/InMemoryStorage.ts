@@ -235,7 +235,7 @@ export class InMemoryStorage {
         if (event.type === "APPROVAL") {
           desc = `APPROVAL | ${event.decision}`
         } else if (event.type === "REASONING") {
-          desc = `REASONING | Candidate: ${event.candidateId}`
+          desc = `REASONING | Event: ${event.reasoningEventId || "?"}`
         }
         lines.push(`  ${time} | ${desc}`)
       }
