@@ -22,7 +22,7 @@
  *   }
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { handleListCandidates } from "@/lib/routes/handlers"
 
 export async function GET(req: NextRequest) {

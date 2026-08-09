@@ -186,7 +186,7 @@ export async function handleListCandidates(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const service = getJanetService()
+    getJanetService()
     const memoryRepo = new MemoryRepository(
       storage || new InMemoryStorage()
     )
@@ -220,7 +220,7 @@ export async function handleListMemories(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const service = getJanetService()
+    getJanetService()
     const memoryRepo = new MemoryRepository(
       storage || new InMemoryStorage()
     )
@@ -264,7 +264,7 @@ export async function handleSearchMemories(req: NextRequest) {
       )
     }
 
-    const service = getJanetService()
+    getJanetService()
     const memoryRepo = new MemoryRepository(
       storage || new InMemoryStorage()
     )
@@ -291,7 +291,7 @@ export async function handleSearchMemories(req: NextRequest) {
 // GET /api/health
 // ═══════════════════════════════════════════════════════════════
 
-export async function handleHealth(req: NextRequest) {
+export async function handleHealth(_req: NextRequest) {
   try {
     const service = getJanetService()
     const health = await service.health()

@@ -17,7 +17,7 @@ export default function CampaignPollsPage() {
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
             <div><strong>National — You</strong><div style={{ fontSize: 34, fontWeight: 800 }}>{trend.averageSupport?.toFixed(1)}%</div></div>
             <div><strong>Direction</strong><div>{trend.direction}</div><strong>Confidence</strong><div>{trend.confidence}</div></div>
-            <div><strong>Polls</strong><div>{trend.pollCount}</div><strong>Action</strong><div>Review, don't auto-react</div></div>
+            <div><strong>Polls</strong><div>{trend.pollCount}</div><strong>Action</strong><div>Review, don&apos;t auto-react</div></div>
           </div>
           {trend.warning && <p style={{ marginBottom: 0, color: "#765b00" }}>{trend.warning}</p>}
         </section>

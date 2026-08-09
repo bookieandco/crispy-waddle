@@ -10,8 +10,18 @@ export type OpportunityKind =
 
 export type AutomationLevel = "ai_can_do_it" | "ai_plus_user" | "user_led" | "do_not_pursue"
 
+// "new" is the only state a discovered opportunity starts in. "approved"
+// is the one meaningful, external-facing decision this model tracks: the
+// user has greenlit pursuing it. Approving never applies for a job, spends
+// money, or publishes a listing on its own - it only records that the user
+// made that call, with a timestamp for the audit trail. Save/Dismiss are
+// lighter-weight, reversible triage and are handled as local UI state by
+// the command center rather than a server-tracked status.
+export type OpportunityStatus = "new" | "approved"
+
 export type Opportunity = {
   id: string
+  userId: string
   title: string
   kind: OpportunityKind
   sourceUrl: string
@@ -25,6 +35,9 @@ export type Opportunity = {
   riskFlags: string[]
   deadline?: string
   requiresUserApproval: boolean
+  status: OpportunityStatus
+  createdAt: string
+  approvedAt?: string
 }
 
 export const SIDE_INCOME_KINDS: OpportunityKind[] = [
