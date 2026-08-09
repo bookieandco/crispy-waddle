@@ -1,5 +1,50 @@
 # PupsonStuff — Static Boutique
 
+## Milestone 7 — Admin dashboard (new surface, real data where it exists)
+
+`app/admin/` — the first admin-facing surface in this project. Its
+information architecture (dashboard home / products / orders / a
+categories-equivalent as separate top-level screens, nav-rail sidebar)
+was borrowed from evaluating `Atuoha/shoes_shop_web_admin`, a Flutter/
+Firebase multivendor-marketplace admin — no code from it, it's a
+different language/framework entirely, just the screen list and layout
+concept. Vendor/user management from that reference doesn't apply here
+(PupsonStuff is a single-store catalog, not a marketplace), so it's not
+part of this IA.
+
+Real vs. demo, stated per-page rather than left ambiguous:
+
+- **Dashboard, Products, Art Styles** — every number and row is computed
+  live from actual project files (`data/hotspots.ts`,
+  `types/boutique.ts`), not copy-pasted snapshots that'd go stale the
+  next time a hotspot or art style changes. `lib/admin/stats.ts` holds
+  the derivations. One genuinely useful real signal this surfaced: all
+  15 catalog listings still carry `PLACEHOLDER` Printful product IDs —
+  none of them are actually launch-ready yet, which the dashboard's
+  "Unmapped to Printful" stat now makes visible instead of buried in a
+  data file.
+- **Orders** — PupsonStuff has no cart, checkout, or order-persistence
+  system (roadmap Milestones 5–6, neither built yet), so there is no real
+  order data anywhere in this app to show. Rather than ship an empty page
+  or, worse, numbers that quietly look real, `data/mockOrders.ts` is
+  explicit, clearly-labeled demo data (a visible "Demo data" badge on
+  the page, plus an explanation of exactly what's missing) — product
+  names/prices in it are real, catalog-sourced; customers/dates/statuses
+  are fabricated for layout purposes only.
+- **No auth gate** — stated plainly in the sidebar itself, not just here:
+  `/admin` has zero access control right now. Fine while this is local/
+  dev-only; gating it is Milestone 7's own follow-up (Supabase Auth,
+  listed in the roadmap below, not yet built) before this could ever go
+  live alongside the public storefront.
+
+Verified live via Playwright (all four pages, real browser, zero page
+errors) — not just built. One real bug the live check caught and fixed:
+the layout's background used a translucent `cream/20` tint, which let
+`globals.css`'s dark storefront body color (`#171716`, meant for the
+boutique's mood, not an admin panel) bleed through underneath every
+card — switched to an opaque `bg-cream` so the admin surface reads as
+its own clean, fully-opaque UI regardless of the storefront's theme.
+
 ## Milestone 6.5 — Hoodie/mug 3D orientation, actually fixed (not just newly confirmed wrong)
 
 Milestone 6.3's live Playwright pass across all six products confirmed
