@@ -23,6 +23,7 @@ export interface JhadinaProject {
 
 export interface CapabilityRequest<TInput = unknown> {
   id: string;
+  userId?: string;
   projectId?: string;
   domain: DomainId;
   capability: string;
@@ -50,6 +51,8 @@ export interface JhadinaEvent<TPayload = unknown> {
 
 export interface ApprovalRequest {
   id: string;
+  requestId?: string;
+  userId?: string;
   action: string;
   domain: DomainId;
   projectId?: string;
