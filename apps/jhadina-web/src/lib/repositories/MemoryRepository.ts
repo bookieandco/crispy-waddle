@@ -1,9 +1,9 @@
 /**
  * MemoryRepository
- * 
+ *
  * Business logic layer for memory operations.
  * Enforces rules: approval workflow, status transitions, search constraints.
- * 
+ *
  * Works against InMemoryStorage.
  */
 
@@ -33,7 +33,7 @@ export class MemoryRepository {
     confidence: number
     reasoningEventId: string
   }): Promise<MemoryCandidate> {
-    const candidate = this.storage.createCandidate({
+    return this.storage.createCandidate({
       userId: params.userId,
       content: params.content,
       type: params.type,
@@ -42,7 +42,6 @@ export class MemoryRepository {
       createdAt: new Date().toISOString(),
       reasoningEventId: params.reasoningEventId,
     })
-    return candidate
   }
 
   async approve(candidateId: string, userId: string): Promise<Memory> {
@@ -80,8 +79,17 @@ export class MemoryRepository {
     return this.storage.listCandidates(userId, "PENDING").slice(offset, offset + limit)
   }
 
+  /** List approved memories for a user. */
+  async listApproved(userId: string, limit: number = 100, offset: number = 0): Promise<Memory[]> {
+    return this.storage
+      .listMemories(userId)
+      .filter(memory => memory.status === "APPROVED")
+      .slice(offset, offset + limit)
+  }
+
   async search(userId: string, options: SearchMemoriesOptions = {}): Promise<Memory[]> {
     let results = this.storage.listMemories(userId).filter(m => m.status === "APPROVED")
+    if (options.status) results = results.filter(m => m.status === options.status)
     if (options.type) results = results.filter(m => m.type === options.type)
     if (options.query) {
       const query = options.query.toLowerCase()
@@ -100,7 +108,7 @@ export class MemoryRepository {
   }
 
   async getContext(userId: string): Promise<Memory[]> {
-    return this.storage.listMemories(userId).filter(m => m.status === "APPROVED")
+    return this.listApproved(userId)
   }
 
   async getStats(userId: string): Promise<{
