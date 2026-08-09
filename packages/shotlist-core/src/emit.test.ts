@@ -116,8 +116,10 @@ describe("Director Control Extension", () => {
 
     // Same single set of reference URIs and locked traits either way —
     // director controls add an instruction line, not a new lookup path.
-    expect(withDirector.seedance).toContain("References: s3://refs/mara-01.png");
-    expect(withoutDirector.seedance).toContain("References: s3://refs/mara-01.png");
+    expect(withDirector.seedance).toContain("@material[mara]:");
+    expect(withDirector.seedance).toContain("s3://refs/mara-01.png");
+    expect(withoutDirector.seedance).toContain("@material[mara]:");
+    expect(withoutDirector.seedance).toContain("s3://refs/mara-01.png");
     const referenceCount = (s: string) => (s.match(/s3:\/\/refs\/mara-01\.png/g) ?? []).length;
     expect(referenceCount(withDirector.seedance)).toBe(1);
     expect(referenceCount(withoutDirector.seedance)).toBe(1);
@@ -127,6 +129,17 @@ describe("Director Control Extension", () => {
     const shot = baseShot({ director });
     expect(seedanceTarget.render({ shot })).toContain("Director:");
     expect(higgsfieldTarget.render({ shot })).toContain("Director:");
+  });
+
+  // Platform fidelity: Seedance 2.0 / Higgsfield expect reference material
+  // as `@material[name]: description`, not a generic URI list.
+  it("formats reference assets with the real @material[name] syntax on both targets", () => {
+    const shot = baseShot({ entityHandles: ["mara"] });
+    const refs = [ref("mara", "s3://refs/mara-01.png")];
+    const seedanceOut = seedanceTarget.render({ shot, refs });
+    const higgsfieldOut = higgsfieldTarget.render({ shot, refs });
+    expect(seedanceOut).toMatch(/@material\[mara\]: .*s3:\/\/refs\/mara-01\.png/);
+    expect(higgsfieldOut).toMatch(/@material\[mara\]: .*s3:\/\/refs\/mara-01\.png/);
   });
 });
 

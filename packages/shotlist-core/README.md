@@ -66,3 +66,30 @@ documented parameter schema to port; `inanevin/Cine-AI` is a Unity C#
 director-style cutscene toolset — its "named director style" idea is
 conceptually consistent with `DirectorControls` but there's no TypeScript
 to reuse.
+
+## Reference material syntax fix (Seedance 2.0 / Higgsfield fidelity)
+
+`beshuaxian/higgsfield-seedance2-jineng` is a set of Claude skills written
+specifically for prompting Seedance 2.0 on Higgsfield — the exact two
+targets this package already exports as `seedanceTarget` /
+`higgsfieldTarget`. Its `01-cinematic/SKILL.md` documents the real
+material-reference syntax those prompts expect: `@material[name]:
+description`, not a generic list of URIs. `materialReferencesFor()` in
+`emit.ts` now emits that syntax on both targets — a platform-fidelity
+fix, not a new asset pathway: same `ReferenceAsset[]` input, only the
+output string format changed.
+
+That skill repo also documents measurable camera-move phrasing (e.g.
+"dolly forward at constant 2 feet/second"), a 10-second hook/establish/
+escalate/climax timeline model, and three-point lighting with Kelvin +
+intensity-ratio specs. None of that is wired into code yet —
+`DirectorControls.cameraMovement` / `lightingMood` stay free-text fields,
+so this doesn't force a schema change nobody asked for — but it's a real
+option for a future pass if generated prompts need to get more specific.
+
+Two further repos from the same round were reviewed and intentionally
+left out: `blender/blender` is GPL-3.0 3D-suite source, not something to
+vendor into this package, and its docs didn't surface a portable
+camera-metadata schema either; `devanshutak25/3d-resources` is a curated
+link index (3,400+ external tools/tutorials), not a code source — useful
+for browsing, nothing to integrate.

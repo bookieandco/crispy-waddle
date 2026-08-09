@@ -20,11 +20,18 @@ function lockedTraitsFor(ctx: PromptContext): string[] {
     .flatMap((entity) => entity.lockedTraits);
 }
 
-function referenceUrisFor(ctx: PromptContext): string[] {
+/**
+ * Formats reference assets as `@material[name]: description` — the
+ * syntax Seedance 2.0 / Higgsfield prompts actually expect for uploaded
+ * reference material (see `01-cinematic/SKILL.md` in
+ * beshuaxian/higgsfield-seedance2-jineng), rather than a generic
+ * "here are some URIs" list the target platform doesn't parse.
+ */
+function materialReferencesFor(ctx: PromptContext): string[] {
   const handles = new Set(ctx.shot.entityHandles);
   return (ctx.refs ?? [])
     .filter((ref) => handles.has(ref.entityId))
-    .map((ref) => ref.uri);
+    .map((ref) => `@material[${ref.entityId}]: ${ref.kind ?? "reference"} — ${ref.uri}`);
 }
 
 /**
@@ -55,8 +62,8 @@ export const seedanceTarget: PromptTarget = {
     if (traits.length) lines.push(`Character traits: ${traits.join(", ")}`);
     const directorLine = directorInstructions(ctx.shot.director);
     if (directorLine) lines.push(directorLine);
-    const refs = referenceUrisFor(ctx);
-    if (refs.length) lines.push(`References: ${refs.join(", ")}`);
+    const materials = materialReferencesFor(ctx);
+    for (const material of materials) lines.push(material);
     return lines.join("\n");
   },
 };
@@ -71,8 +78,8 @@ export const higgsfieldTarget: PromptTarget = {
     if (traits.length) segments.push(`traits(${traits.join("; ")})`);
     const directorLine = directorInstructions(ctx.shot.director);
     if (directorLine) segments.push(directorLine);
-    const refs = referenceUrisFor(ctx);
-    if (refs.length) segments.push(`refs[${refs.join(",")}]`);
+    const materials = materialReferencesFor(ctx);
+    if (materials.length) segments.push(materials.join(" "));
     return segments.join(" | ");
   },
 };
