@@ -168,6 +168,32 @@ UI motion (fades, CTA button animation) — relevant to whatever renders
 the finished ad on a web page, not to this package, which has no
 ad-rendering UI surface to attach it to.
 
+### Structural control (`ControlType` on `ReferenceAsset`) and touch-up
+
+Two more repos, reviewed for the same "assembly line" question:
+
+- `Mikubill/sd-webui-controlnet` is the standard way to constrain
+  generation with more than text — pose skeletons, depth maps, edge
+  maps, loose reference-only, color/style transfer. It's a Python
+  AUTOMATIC1111 extension with no portable schema of its own, but the
+  *taxonomy* is portable and was a real gap here: `GenerationAdapter`
+  only carried a rendered text prompt, with no way to say "this
+  reference is a pose skeleton, weight it at 0.8" — which is the actual
+  mechanism character/pose consistency needs beyond what
+  `Entity.lockedTraits` text can specify. `ReferenceAsset` now carries
+  optional `controlType` (`ControlType` in types.ts) and `strength`;
+  `emit.ts` surfaces it in the rendered `@material[...]` line (e.g.
+  `pose control (strength 0.8)`) instead of a generic "reference" label
+  when set, and falls back to the prior behavior when absent.
+- `IrfanulM/BananaSlice` is a Tauri/React desktop app (MIT, actually
+  TypeScript stack) for selective generative-fill — Adobe Generative
+  Fill's idea, open source. Still not vendored (a standalone desktop
+  app, not a library), but it named a real pipeline stage this package
+  didn't have a contract for: fixing one bad region of an already-
+  generated clip (a warped hand, a face artifact) instead of
+  regenerating the whole shot. `TouchUpAdapter` in
+  `external-adapters.ts` models that.
+
 ### What's actually needed to run any of this for real
 
 This package can plan and assemble; it cannot generate a frame. To turn
@@ -183,6 +209,12 @@ This package can plan and assemble; it cannot generate a frame. To turn
    with its own DB/infra footprint)?
 4. **Avatar and comic branches**: worth building `AvatarPerformanceAdapter`
    / `ComicPanelAdapter` implementations at all, or out of scope for now?
+5. **Structural control**: does the real generation provider (Seedance/
+   Higgsfield or self-hosted Wan2.2) even accept ControlNet-style
+   conditioning inputs? If not, `ReferenceAsset.controlType` documents
+   intent in the prompt text only, not enforced structural control — a
+   real `GenerationAdapter` implementation needs to know which case it's
+   in before `strength` means anything.
 
 None of these are guessable from here — they're cost, infra, and product
 calls.

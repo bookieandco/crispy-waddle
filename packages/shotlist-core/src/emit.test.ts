@@ -141,6 +141,23 @@ describe("Director Control Extension", () => {
     expect(seedanceOut).toMatch(/@material\[mara\]: .*s3:\/\/refs\/mara-01\.png/);
     expect(higgsfieldOut).toMatch(/@material\[mara\]: .*s3:\/\/refs\/mara-01\.png/);
   });
+
+  it("surfaces ControlNet-style controlType on a reference instead of a generic label", () => {
+    const shot = baseShot({ entityHandles: ["mara"] });
+    const refs: ReferenceAsset[] = [
+      { id: "pose-ref", entityId: "mara", uri: "s3://refs/mara-pose.png", controlType: "pose", strength: 0.8 },
+    ];
+    const out = seedanceTarget.render({ shot, refs });
+    expect(out).toContain("@material[mara]: pose control (strength 0.8) — s3://refs/mara-pose.png");
+  });
+
+  it("falls back to kind/reference when controlType is absent (backward compatible)", () => {
+    const shot = baseShot({ entityHandles: ["mara"] });
+    const withKind: ReferenceAsset = { id: "r1", entityId: "mara", uri: "s3://refs/a.png", kind: "mood board" };
+    const bare: ReferenceAsset = { id: "r2", entityId: "mara", uri: "s3://refs/b.png" };
+    expect(seedanceTarget.render({ shot, refs: [withKind] })).toContain("@material[mara]: mood board —");
+    expect(seedanceTarget.render({ shot, refs: [bare] })).toContain("@material[mara]: reference —");
+  });
 });
 
 describe("look preset polish pass", () => {

@@ -38,12 +38,27 @@ export interface Entity {
   lockedTraits: string[];
 }
 
+/**
+ * Structural control conditioning for a reference asset — the taxonomy
+ * ControlNet uses to constrain generation beyond what text can specify
+ * (Mikubill/sd-webui-controlnet: pose skeletons, depth maps, edge maps,
+ * loose reference-only, color/style transfer). This is a data taxonomy
+ * only, not the extension itself — sd-webui-controlnet is a Python
+ * AUTOMATIC1111 extension, wrong stack to vendor here, and doesn't
+ * publish a portable schema of its own. `strength` mirrors ControlNet's
+ * conditioning-weight concept (0–1; unset means "let the generator
+ * decide," not zero).
+ */
+export type ControlType = "pose" | "depth" | "canny" | "reference-only" | "style";
+
 /** A reference asset (image, plate, style board, ...) tied to an entity. */
 export interface ReferenceAsset {
   id: string;
   entityId: string;
   uri: string;
   kind?: string;
+  controlType?: ControlType;
+  strength?: number;
 }
 
 /**

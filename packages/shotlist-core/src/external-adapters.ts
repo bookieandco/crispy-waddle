@@ -21,6 +21,14 @@
  *   right one (all four converge on it independently) — they are not
  *   four things to integrate in parallel. Picking one as an actual
  *   orchestrator UI, if wanted, is a separate decision, not made here.
+ * - Mikubill/sd-webui-controlnet is a Python AUTOMATIC1111 extension —
+ *   its portable part is the control-type taxonomy (pose/depth/canny/
+ *   reference-only/style), which now lives as `ControlType` on
+ *   `ReferenceAsset` in types.ts and is surfaced in emit.ts's rendered
+ *   materials, not duplicated here as an adapter.
+ * - IrfanulM/BananaSlice is a Tauri/React desktop app (MIT) — TypeScript,
+ *   but a standalone app, not a library. Its selective generative-fill
+ *   concept is what `TouchUpAdapter` below models.
  */
 import type { ClipRef, LocalizationTrack } from "./assembly.js";
 import type { PromptContext } from "./emit.js";
@@ -63,4 +71,23 @@ export interface AvatarPerformanceAdapter {
 export interface ComicPanelAdapter {
   name: string;
   renderPanel(ctx: PromptContext, renderedPrompt: string): Promise<{ shotId: string; imageUri: string }>;
+}
+
+/**
+ * Spot-fixes one region of an already-generated clip or frame, rather
+ * than regenerating the whole thing — the concrete "polish off the AI
+ * slop" move when the slop is localized (a warped hand, a face artifact)
+ * and everything else in the shot is right. Modeled on
+ * IrfanulM/BananaSlice's selective generative-fill: it's a full Tauri/
+ * React desktop app (MIT, actually TypeScript — but a desktop app, not a
+ * library, so still not vendored), built on the same idea Adobe calls
+ * Generative Fill. `regionHint` is a natural-language region description
+ * ("the left hand," "background behind the subject") rather than a pixel
+ * mask, since this package has no canvas/selection UI to produce a mask
+ * from — a real adapter implementation would need to add one, or accept
+ * a mask URI instead.
+ */
+export interface TouchUpAdapter {
+  name: string;
+  touchUp(clip: ClipRef, regionHint: string, instruction: string): Promise<ClipRef>;
 }

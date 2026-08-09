@@ -21,6 +21,21 @@ function lockedTraitsFor(ctx: PromptContext): string[] {
 }
 
 /**
+ * Describes what a reference asset is *for*. When `controlType` is set
+ * (pose/depth/canny/reference-only/style — see `ControlType` in
+ * types.ts), that's surfaced explicitly rather than folded into a
+ * generic "reference" label, since it changes what the generator is
+ * meant to do with the asset — structural conditioning, not just mood.
+ */
+function describeReference(ref: ReferenceAsset): string {
+  if (ref.controlType) {
+    const strength = typeof ref.strength === "number" ? ` (strength ${ref.strength})` : "";
+    return `${ref.controlType} control${strength}`;
+  }
+  return ref.kind ?? "reference";
+}
+
+/**
  * Formats reference assets as `@material[name]: description` — the
  * syntax Seedance 2.0 / Higgsfield prompts actually expect for uploaded
  * reference material (see `01-cinematic/SKILL.md` in
@@ -31,7 +46,7 @@ function materialReferencesFor(ctx: PromptContext): string[] {
   const handles = new Set(ctx.shot.entityHandles);
   return (ctx.refs ?? [])
     .filter((ref) => handles.has(ref.entityId))
-    .map((ref) => `@material[${ref.entityId}]: ${ref.kind ?? "reference"} — ${ref.uri}`);
+    .map((ref) => `@material[${ref.entityId}]: ${describeReference(ref)} — ${ref.uri}`);
 }
 
 /**
