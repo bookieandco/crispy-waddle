@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emitPrompts, higgsfieldTarget, seedanceTarget } from "./emit.js";
+import { applyLookPreset, lookPresets } from "./polish.js";
 import { isApproved } from "./types.js";
 import type { DirectorControls, Entity, ReferenceAsset, Shot } from "./types.js";
 
@@ -126,5 +127,44 @@ describe("Director Control Extension", () => {
     const shot = baseShot({ director });
     expect(seedanceTarget.render({ shot })).toContain("Director:");
     expect(higgsfieldTarget.render({ shot })).toContain("Director:");
+  });
+});
+
+describe("look preset polish pass", () => {
+  it("leaves the prompt untouched with no preset requested", () => {
+    const shot = baseShot();
+    const prompts = emitPrompts({ shot });
+    expect(prompts.seedance).toBe("Mara turns toward the window.");
+    expect(prompts.seedance).not.toContain("Photographic treatment");
+  });
+
+  it("appends the named preset's photographic treatment to every target", () => {
+    const shot = baseShot({ director: { ...director, lookPreset: "35mm-portrait" } });
+    const prompts = emitPrompts({ shot });
+    expect(prompts.seedance).toContain("Photographic treatment (35mm Film Portrait)");
+    expect(prompts.seedance).toContain("Kodak Portra 400");
+    expect(prompts.seedance).toContain("Avoid: avoid airbrushed or plastic-smooth skin");
+    expect(prompts.higgsfield).toContain("Photographic treatment (35mm Film Portrait)");
+  });
+
+  it("degrades gracefully on an unrecognized preset id, no throw", () => {
+    const shot = baseShot({ director: { lookPreset: "not-a-real-preset" } });
+    expect(() => emitPrompts({ shot })).not.toThrow();
+    expect(emitPrompts({ shot }).seedance).toBe("Mara turns toward the window.");
+  });
+
+  it("exposes every catalog preset through applyLookPreset", () => {
+    for (const id of Object.keys(lookPresets)) {
+      const result = applyLookPreset("base prompt", id);
+      expect(result).toContain("base prompt");
+      expect(result).toContain(lookPresets[id].label);
+    }
+  });
+
+  it("does not require director fields other than lookPreset to apply the polish pass", () => {
+    const shot = baseShot({ director: { lookPreset: "provia-standard" } });
+    const prompts = emitPrompts({ shot });
+    expect(prompts.seedance).not.toContain("Director:"); // no other director fields set
+    expect(prompts.seedance).toContain("Photographic treatment (Provia / Standard)");
   });
 });

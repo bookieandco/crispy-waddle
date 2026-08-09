@@ -1,4 +1,5 @@
 import type { DirectorControls, Entity, ReferenceAsset, Shot } from "./types.js";
+import { applyLookPreset } from "./polish.js";
 
 export interface PromptContext {
   shot: Shot;
@@ -78,11 +79,21 @@ export const higgsfieldTarget: PromptTarget = {
 
 export const promptTargets: PromptTarget[] = [seedanceTarget, higgsfieldTarget];
 
+/**
+ * Renders every target, then runs the post-processing "polish" pass:
+ * when `ctx.shot.director?.lookPreset` names a known preset, its
+ * photographic-treatment block is appended to each rendered prompt. No
+ * preset, or an unrecognized id, leaves the rendered prompt untouched —
+ * same additive/degrade-gracefully discipline as `DirectorControls`
+ * itself.
+ */
 export function emitPrompts(
   ctx: PromptContext,
   targets: PromptTarget[] = promptTargets,
 ): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const target of targets) out[target.name] = target.render(ctx);
+  for (const target of targets) {
+    out[target.name] = applyLookPreset(target.render(ctx), ctx.shot.director?.lookPreset);
+  }
   return out;
 }

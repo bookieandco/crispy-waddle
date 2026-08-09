@@ -15,6 +15,13 @@ export interface DirectorControls {
   lightingMood?: string;
   performanceIntensity?: string;
   durationSeconds?: number;
+  /**
+   * Optional id into the `lookPresets` catalog (see `polish.ts`). Applied
+   * as a post-processing pass on the rendered prompt — a structured
+   * photographic-treatment block meant to push output away from generic
+   * "AI slop" look. Unset or unrecognized ids are a no-op.
+   */
+  lookPreset?: string;
 }
 
 export type ShotStatus = "draft" | "pending_approval" | "approved" | "rejected";
