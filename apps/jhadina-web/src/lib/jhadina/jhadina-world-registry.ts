@@ -1,7 +1,7 @@
 export type JhadinaWorldId =
   | "home" | "music" | "tv" | "studio" | "social" | "pupsonstuff"
   | "trucker" | "cooking" | "shopping" | "radar" | "knowledge"
-  | "money" | "opportunities" | "activity";
+  | "money" | "opportunities" | "activity" | "publishing";
 
 export interface WorldCapability {
   id: string;
@@ -36,6 +36,7 @@ export const JHADINA_WORLDS: JhadinaWorldDefinition[] = [
   ["money", "Money", "Financial awareness and decisions", ["accounts", "budgets", "opportunities"], ["transactions", "goals"]],
   ["opportunities", "Opportunities", "Find and qualify opportunities", ["discover", "qualify", "track"], ["research", "money"]],
   ["activity", "Activity", "Unified audit and action timeline", ["timeline", "audit", "undo"], ["all-worlds"]],
+  ["publishing", "Publishing", "Books, ebooks, digital files and print-on-demand", ["write", "format", "cover", "proof", "pod", "digital-sales", "ebook-sales", "catalog", "orders", "analytics"], ["studio", "knowledge", "commerce", "money", "activity"]],
 ].map(([id, label, description, capabilities, inputs]) => ({
   id: id as JhadinaWorldId,
   label,
