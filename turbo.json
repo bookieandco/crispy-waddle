@@ -1,35 +1,15 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["tsconfig.json", ".eslintrc.json"],
-  "globalEnv": ["GEMINI_API_KEY", "geminisecret"],
+  "globalEnv": ["GEMINI_API_KEY", "geminisecret", "HOOTSUITE_ACCESS_TOKEN"],
   "tasks": {
-    "dev": {
-      "cache": false,
-      "persistent": true
-    },
-    "build": {
-      "outputs": ["dist/**", ".next/**"],
-      "dependsOn": ["^build"]
-    },
-    "test": {
-      "outputs": ["coverage/**"],
-      "dependsOn": ["^build"]
-    },
-    "lint": {
-      "outputs": [".eslintcache"]
-    },
-    "type-check": {
-      "cache": true
-    },
-    "clean": {
-      "cache": false
-    },
-    "db:migrate": {
-      "cache": false,
-      "persistent": true
-    },
-    "db:seed": {
-      "cache": false
-    }
+    "dev": { "cache": false, "persistent": true },
+    "build": { "outputs": ["dist/**", ".next/**"], "dependsOn": ["^build"] },
+    "test": { "outputs": ["coverage/**"], "dependsOn": ["^build"] },
+    "lint": { "outputs": [".eslintcache"] },
+    "type-check": { "cache": true },
+    "clean": { "cache": false },
+    "db:migrate": { "cache": false, "persistent": true },
+    "db:seed": { "cache": false }
   }
 }
