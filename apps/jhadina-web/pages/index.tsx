@@ -65,12 +65,6 @@ export default function Home() {
     if (!message.trim() || sending) return;
     setSending(true);
     setResponse('');
-    try {
-      const result = await getJson<{ data?: { systemResponse?: string } }>('/api/message');
-      void result;
-    } catch {
-      // POST is handled separately below; this keeps the command center resilient.
-    }
 
     try {
       const controller = new AbortController();
