@@ -46,13 +46,19 @@ function getClient(accessToken: string): InferenceClient {
  * Turns a static generated pet portrait into a short looping video.
  *
  * Real, functional code — not a placeholder. It will actually call
- * Hugging Face once HUGGINGFACE_API_KEY is set. Not exercised against a
- * live key in this build pass (no network access in the sandbox that
- * built it) — same honest caveat as lib/ai.ts's OpenAI call: treat the
- * first real run as a test. Image-to-video models are sensitive to
- * prompt/parameter tuning in ways image generation isn't as much —
- * expect to adjust `num_frames`/the prompt below once you see real
- * output, not just once and assume it's right.
+ * Hugging Face once HUGGINGFACE_API_KEY is set — from a deployment that
+ * can actually reach huggingface.co, at least. Worth being precise here,
+ * confirmed after this file was first written: the *development sandbox*
+ * this project has been built in blocks huggingface.co outright at the
+ * network-policy level (`curl $HTTPS_PROXY/__agentproxy/status` logs a
+ * real rejected CONNECT to huggingface.co:443), not just "no key
+ * configured, no network access to test with" the way lib/ai.ts's OpenAI
+ * call honestly was. Same bottom line either way — treat the first real
+ * run (from an environment that can reach Hugging Face) as a test.
+ * Image-to-video models are sensitive to prompt/parameter tuning in ways
+ * image generation isn't as much — expect to adjust `num_frames`/the
+ * prompt below once you see real output, not just once and assume it's
+ * right.
  */
 export async function animatePetPortrait(
   params: AnimatePortraitParams

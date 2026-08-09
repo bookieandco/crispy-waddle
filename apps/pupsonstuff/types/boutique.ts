@@ -10,7 +10,8 @@ export type ArtStyle =
   | "cartoon"
   | "memorial"
   | "pencil-sketch"
-  | "pop-art";
+  | "pop-art"
+  | "ascii-art";
 
 export const artStyles: { id: ArtStyle; label: string }[] = [
   { id: "watercolor", label: "Watercolor" },
@@ -23,6 +24,11 @@ export const artStyles: { id: ArtStyle; label: string }[] = [
   { id: "memorial", label: "Memorial" },
   { id: "pencil-sketch", label: "Pencil Sketch" },
   { id: "pop-art", label: "Pop Art" },
+  // Unlike every style above (all prompts to the OpenAI image model), this
+  // one is deterministic pixel-brightness-to-character conversion
+  // (lib/ascii.ts) — no AI model, no API key, genuinely real output every
+  // time. See app/api/generate-preview/route.ts for the branch.
+  { id: "ascii-art", label: "ASCII Art" },
 ];
 
 /** The modal's active product is just the full hotspot record — every

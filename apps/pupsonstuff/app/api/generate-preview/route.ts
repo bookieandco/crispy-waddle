@@ -22,6 +22,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { generatePetPortrait, AI_PROMPT_TEMPLATE } from "@/lib/ai";
+import { imageToAsciiArt } from "@/lib/ascii";
 import { hotspots } from "@/data/hotspots";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
   const photo = formData.get("photo");
   const productId = formData.get("productId");
   const artStyle = formData.get("artStyle");
+  const artStyleId = formData.get("artStyleId"); // optional — see below
   const cropPositionRaw = formData.get("cropPosition"); // optional
 
   if (!(photo instanceof File)) {
@@ -95,14 +97,31 @@ export async function POST(req: NextRequest) {
 
   const imageBuffer = Buffer.from(await photo.arrayBuffer());
 
-  const result = await generatePetPortrait({
-    imageBuffer,
-    imageFilename: photo.name,
-    imageMimeType: photo.type,
-    basePrompt: AI_PROMPT_TEMPLATE,
-    productPrompt: hotspot.aiTemplate,
-    artStyleLabel: artStyle,
-  });
+  let result: { success: true; imageBase64: string } | { success: false; error: string };
+
+  if (artStyleId === "ascii-art") {
+    // Deterministic, not generative — see lib/ascii.ts. No OpenAI call,
+    // no API key needed, genuinely runs every time (the only generation
+    // path here that does, in an environment with no key configured).
+    try {
+      const png = await imageToAsciiArt(imageBuffer);
+      result = { success: true, imageBase64: png.toString("base64") };
+    } catch (err) {
+      result = {
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to render ASCII art.",
+      };
+    }
+  } else {
+    result = await generatePetPortrait({
+      imageBuffer,
+      imageFilename: photo.name,
+      imageMimeType: photo.type,
+      basePrompt: AI_PROMPT_TEMPLATE,
+      productPrompt: hotspot.aiTemplate,
+      artStyleLabel: artStyle,
+    });
+  }
 
   if (!result.success) {
     return NextResponse.json(result, { status: 502 });

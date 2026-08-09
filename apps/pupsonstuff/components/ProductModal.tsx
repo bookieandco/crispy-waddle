@@ -7,6 +7,7 @@ import { ActiveProduct, ArtStyle, artStyles } from "@/types/boutique";
 import { useMusic } from "@/context/MusicContext";
 import { getProduct3DConfig } from "@/config/product3dModels";
 import { screenshotPlugin } from "./product3d-plugins/screenshotPlugin";
+import AsciiSpinner from "./AsciiSpinner";
 
 // three.js/@react-three/fiber need the browser (WebGL), so this can't be
 // server-rendered. Only loaded at all for hotspots that map to a
@@ -118,6 +119,11 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
       form.append("photo", uploadedFile);
       form.append("productId", activeProduct.id);
       form.append("artStyle", styleLabel);
+      // Sent alongside the label (kept for the OpenAI prompt/back-compat)
+      // so the route can branch on a stable id rather than parsing label
+      // text — needed for "ascii-art", which skips OpenAI entirely (see
+      // app/api/generate-preview/route.ts).
+      form.append("artStyleId", selectedStyle);
 
       const res = await fetch("/api/generate-preview", {
         method: "POST",
@@ -263,7 +269,17 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                     </div>
                   )}
 
-                  {viewMode === "3d" && supports3D && threeDConfig && threeDMapping ? (
+                  {generating || animating ? (
+                    <div className="mb-6 aspect-square overflow-hidden rounded-lg border border-greige/40">
+                      <AsciiSpinner
+                        label={
+                          generating
+                            ? "Generating your portrait…"
+                            : "Animating your portrait…"
+                        }
+                      />
+                    </div>
+                  ) : viewMode === "3d" && supports3D && threeDConfig && threeDMapping ? (
                     <div className="mb-6">
                       <Product3DEngine
                         config={threeDConfig}

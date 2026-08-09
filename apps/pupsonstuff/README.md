@@ -1,5 +1,65 @@
 # PupsonStuff — Static Boutique
 
+## Milestone 6.2 — ASCII art style (real, testable today) + HF product-3D pipeline (blocked)
+
+Follow-up on Milestone 6.1's clarification: Hugging Face's job was 3D +
+animation (animation done in 6.1; 3D-for-products is this pass), and the
+other repo (`vietnh1009/ASCII-generator`) was for an asset — both a new
+art style and a loading effect, per the user.
+
+**ASCII Art style — the one piece of this whole AI-generation surface
+that's actually fully verified, not just "real code, untested":**
+`lib/ascii.ts` reimplements the same idea as the referenced Python repo
+(deterministic pixel-brightness → character mapping) natively in
+TypeScript rather than adding it as a Python dependency — same "JS/TS
+equivalent" call already made for OpenAI and Hugging Face. Because it's
+pure computation with **no external API and no key**, it's the one
+generation path here that could be run for real: tested directly against
+`lib/ascii.ts` (a synthetic image with a known shape rendered correctly
+as recognizable ASCII), then again through the actual
+`/api/generate-preview` route end-to-end (curl, real 200 response, real
+decodable PNG), then again through the live UI (Playwright: selected
+"ASCII Art" in the style picker, uploaded a photo, generated, got a real
+result rendered in the modal — screenshotted). `types/boutique.ts` gained
+an `ascii-art` style; the route branches on a new `artStyleId` field
+(added alongside the existing label field, which OpenAI's prompt still
+uses) to skip the OpenAI call entirely for this one style.
+
+**Loading effect**: `components/AsciiSpinner.tsx` — a small braille-style
+ASCII spinner (client-side interval, no dependency on lib/ascii.ts, just
+the same visual language), swapped in for the product preview area
+whenever `generating` or `animating` is true in `ProductModal.tsx`,
+replacing the old plain "Generating…" button-text-only state.
+
+**Hugging Face product-3D pipeline — built, not run.**
+`scripts/generate_3d_from_image.py` is the missing first step for the two
+products with no real mesh at all (`bottle`, `tote` — per
+`config/product3dModels.ts`'s own long-standing comment): a reference
+product photo in, a raw `.glb` out, via Stable Fast 3D (the same tool the
+existing hoodie mesh already came from, per Milestone 5.2 — just scripted
+here instead of done manually), feeding into the *existing*
+`scripts/audit_glb.py` gate unchanged. Full write-up, including two real
+blockers found while building it, in
+`docs/boutique-design/product-3d-generation.md`:
+1. No reference photo for bottle or tote exists anywhere in this repo —
+   checked, not assumed.
+2. **This sandbox's network policy blocks `huggingface.co` outright** —
+   confirmed via `curl $HTTPS_PROXY/__agentproxy/status`, which logs a
+   real rejected CONNECT (`policy denial`) to `huggingface.co:443`. That's
+   a stronger, more specific caveat than "no API key configured, no
+   network access to test with" (what `lib/ai.ts` and `lib/animation.ts`
+   already honestly carry) — it means even a real `HUGGINGFACE_API_KEY`
+   wouldn't let this run *from this particular sandbox*, though it should
+   work fine from a normal deployment. Also means the exact
+   `gradio_client` call in the script follows Stable Fast 3D's typical
+   documented usage, not a live-confirmed one (`client.view_api()` was
+   never reachable) — flagged in the script itself as needing a check
+   against the live Space before trusting it.
+
+`lib/animation.ts`'s own comment (Milestone 6.1) has been corrected to
+name this same network block precisely, rather than the more generic "no
+network access in the sandbox" it said before finding this.
+
 ## Milestone 6.1 — Marker polish + AI-animated portraits
 
 Two separate pieces of follow-up work from Milestone 6.
