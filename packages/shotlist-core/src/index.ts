@@ -9,3 +9,4 @@ export * from "./director-modules.js";
 export * from "./scene.js";
 export * from "./scene-adapters.js";
 export * from "./performance.js";
+export * from "./channel.js";
