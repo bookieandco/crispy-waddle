@@ -93,3 +93,96 @@ vendor into this package, and its docs didn't surface a portable
 camera-metadata schema either; `devanshutak25/3d-resources` is a curated
 link index (3,400+ external tools/tutorials), not a code source — useful
 for browsing, nothing to integrate.
+
+## Assembly layer: how "longer" actually happens (`src/assembly.ts`)
+
+Ten more repos were reviewed as pieces of an "all-in-one AI cartoon and
+film pipeline." The load-bearing fact across them: every generation model
+in this space caps out short — `Wan-Video/Wan2.2` confirmed ~5s @ 720p,
+GPU-only, no API. There is no model to reach for that just makes one long
+video. Longer-form output has to come from **stitching many short
+generated clips together**, in shot order, with transitions — an
+editorial problem, not a generation one.
+
+`buildTimeline(projectId, shots, clips, options)` does exactly that: it
+takes the existing ordered `Shot[]` (already the source of truth for shot
+order — this is a re-projection, not a second one) plus a pool of
+externally-generated `ClipRef[]`, and produces a `Timeline` — an edit-
+decision list with cumulative start times, per-shot transitions, and
+total duration. A shot with no matching clip yet is reported in
+`missingClips`, not thrown — a shotlist that's still generating is the
+normal case, not an error.
+
+This module does no generation, transcoding, or rendering itself — no
+FFmpeg, no GPU call — same "no pixel pipeline" boundary the rest of this
+package already holds to.
+
+### Four repos that are the same idea, independently arrived at
+
+`ArcReel`, `calesthio/OpenMontage` (AGPL-3.0 — noted, not vendored
+regardless of stack), `HBAI-Ltd/Toonflow-app`, and `waooAI/waoowaoo` are
+four separately-built full-stack apps that all converge on the same
+shape: script/novel → consistent characters → storyboard → video, with
+approval gates. None are vendored — wrong stack for three of the four
+(Python/FastAPI, Next.js/MySQL, Next.js/MySQL against this TypeScript
+package), and the fourth (Toonflow-app, actually TypeScript/Electron)
+is a full desktop app, not a library. Treated as validation that this
+package's `Shot` / `Entity.lockedTraits` / `ReferenceAsset` shape is the
+right one — four independent implementations landed on it — not as four
+things to integrate in parallel. If a real orchestrator UI is wanted
+later, picking one of these (or building a thin one on top of this
+package) is a separate decision, not made here.
+
+### External adapter contracts (`src/external-adapters.ts`)
+
+Four more pieces are genuinely useful stages this package cannot run
+itself — Python/GPU/full-app, wrong runtime here. Rather than skip them
+silently, each gets a TypeScript interface documenting the input/output
+shape a real integration would need, so the assembly layer has a place
+to plug into once one exists:
+
+- `GenerationAdapter` — produces a `ClipRef` for a rendered prompt. Target
+  is Seedance 2.0/Higgsfield (already what `emit.ts` renders for) or a
+  self-hosted `Wan-Video/Wan2.2`.
+- `LocalizationAdapter` — produces a `LocalizationTrack` (subtitles +
+  dubbed audio) for a clip in one language. Modeled on
+  `Huanshere/VideoLingo`'s actual output shape.
+- `AvatarPerformanceAdapter` — an alternative to clip generation for
+  dialogue-driven segments: a VRM avatar performance instead of a
+  diffusion clip, not duration-capped the same way. Modeled conceptually
+  on `dexvdev/svelte-vrm-live`; not fetched in detail this round (hit a
+  fetch-tool rate limit), flagged rather than guessed at — worth a closer
+  look before anyone builds against this interface for real.
+- `ComicPanelAdapter` — a still-panel branch instead of video for a shot,
+  sidestepping clip-length limits entirely. Modeled conceptually on
+  `LingyiChen-AI/AIComicBuilder`; same caveat — not fetched in detail this
+  round, worth confirming before relying on it.
+
+`PixarAnimationStudios/OpenUSD` (also not fetched in detail — same rate
+limit) and `animate-css/animate.css` were reviewed by reputation only:
+OpenUSD is Pixar's 3D scene-interchange format, a heavy C++/Python SDK
+relevant only if this pipeline needs true 3D asset interchange between
+DCC tools — no lightweight TypeScript story, out of scope until that need
+is concrete. `animate.css` is a plain CSS animation-class library for web
+UI motion (fades, CTA button animation) — relevant to whatever renders
+the finished ad on a web page, not to this package, which has no
+ad-rendering UI surface to attach it to.
+
+### What's actually needed to run any of this for real
+
+This package can plan and assemble; it cannot generate a frame. To turn
+`Timeline` output into an actual video, someone needs to decide:
+
+1. **Generation**: self-host `Wan2.2` (GPU hosting — 24GB+ VRAM minimum)
+   or call a hosted Seedance/Higgsfield API (account + cost model)?
+2. **Localization**: which TTS/dubbing provider behind a
+   `LocalizationAdapter` (VideoLingo supports Azure, OpenAI, GPT-SoVITS,
+   Edge-TTS — needs picking and provisioning)?
+3. **Orchestrator UI**: build a thin one on this package, or adopt one of
+   ArcReel/Toonflow-app/waoowaoo wholesale (each is a real deployable app
+   with its own DB/infra footprint)?
+4. **Avatar and comic branches**: worth building `AvatarPerformanceAdapter`
+   / `ComicPanelAdapter` implementations at all, or out of scope for now?
+
+None of these are guessable from here — they're cost, infra, and product
+calls.
