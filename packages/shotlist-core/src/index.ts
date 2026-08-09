@@ -7,3 +7,4 @@ export * from "./production.js";
 export * from "./recipes.js";
 export * from "./director-modules.js";
 export * from "./scene.js";
+export * from "./scene-adapters.js";
