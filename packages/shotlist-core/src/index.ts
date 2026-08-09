@@ -6,3 +6,4 @@ export * from "./external-adapters.js";
 export * from "./production.js";
 export * from "./recipes.js";
 export * from "./director-modules.js";
+export * from "./scene.js";
