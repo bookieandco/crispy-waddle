@@ -1,5 +1,43 @@
 # PupsonStuff — Static Boutique
 
+## Milestone 6.4 — Second AI provider (Muapi.ai): two new art styles
+
+`lib/ai.ts` (OpenAI) stays the default path for the original 10 art
+styles. Two new styles now route through a second, independent provider
+instead — genuinely different capability, not a redundant duplicate:
+
+- **`lib/muapi.ts`** (new): a Muapi.ai client (`upload_file` → submit to
+  `/api/v1/{model}` → poll `/api/v1/predictions/{id}/result`). Muapi.ai's
+  own docs domain is blocked by this environment's egress policy, so
+  every endpoint/auth-header/request-body/response-shape detail here was
+  verified against `Anil-matcha/Open-Generative-AI`'s actual working
+  client source (`packages/studio/src/muapi.js`) — real running code, not
+  paraphrased docs. Two things that source couldn't establish either
+  (and the pricing/rate-limit pages were themselves unreachable to check
+  directly): exact per-model pricing and any documented rate limit —
+  stated as genuinely unknown in the code comments, not guessed at.
+- **"Studio Ghibli"** (`ai-ghibli-style`): a fixed-effect style-transfer
+  model — no prompt field at all, just the uploaded photo in, restyled
+  photo out.
+- **"Flux Dreamscape"** (`flux-kontext-pro-i2i`): prompt-driven, reuses
+  the same `AI_PROMPT_TEMPLATE` + per-product prompt text the OpenAI path
+  already builds, since this model takes a prompt too.
+- New env var `MUAPI_API_KEY`, additive only — every pre-existing style
+  still only needs `OPENAI_API_KEY`; these two are the only ones that
+  need the new key.
+- **Verified live** (not just built): both new style buttons render in
+  the art-style picker, and with no `MUAPI_API_KEY` configured, both fail
+  the exact honest way the OpenAI path already does for a missing key —
+  a 502 with `{"success":false,"error":"MUAPI_API_KEY is not
+  configured."}`, surfaced in the UI's existing error state, no crash.
+  This is the same "fails honestly, not a silent fake result" bar every
+  other AI integration in this project is held to — confirmed here via
+  Playwright against a real running dev server, not assumed from reading
+  the code. The actual generation call itself is untested against a live
+  Muapi key, same caveat as every other unexercised AI call in this
+  project (no network access to muapi.ai from the environment that wrote
+  this) — test it for real before shipping.
+
 ## Milestone 6.3 — Bottle/tote real 3D models (Blender, local) + a genuine app-crashing bug fixed
 
 The HF product-3D pipeline from 6.2 stayed blocked (huggingface.co and
@@ -882,4 +920,6 @@ a result.
 1. Push this repo to GitHub.
 2. Import into Vercel.
 3. Add the env vars from `.env.example` — `OPENAI_API_KEY` and
-   `HUGGINGFACE_API_KEY` as of Milestone 6.1.
+   `HUGGINGFACE_API_KEY` as of Milestone 6.1, plus `MUAPI_API_KEY` as of
+   Milestone 6.4 (only required for the "Studio Ghibli"/"Flux Dreamscape"
+   styles — every other style still only needs `OPENAI_API_KEY`).

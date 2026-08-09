@@ -23,6 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generatePetPortrait, AI_PROMPT_TEMPLATE } from "@/lib/ai";
 import { imageToAsciiArt } from "@/lib/ascii";
+import { generateWithMuapi } from "@/lib/muapi";
 import { hotspots } from "@/data/hotspots";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
@@ -112,6 +113,30 @@ export async function POST(req: NextRequest) {
         error: err instanceof Error ? err.message : "Failed to render ASCII art.",
       };
     }
+  } else if (artStyleId === "studio-ghibli") {
+    // Second AI provider (Muapi.ai, not OpenAI) — see lib/muapi.ts.
+    // ai-ghibli-style is a fixed-effect model with no prompt input at
+    // all, so no basePrompt/productPrompt gets sent here.
+    result = await generateWithMuapi({
+      imageBuffer,
+      imageFilename: photo.name,
+      imageMimeType: photo.type,
+      model: "ai-ghibli-style",
+    });
+  } else if (artStyleId === "flux-dreamscape") {
+    // Same Muapi provider, different (prompt-driven) underlying model —
+    // reuses the same base prompt template + product/style text the
+    // OpenAI path uses below, since flux-kontext-pro-i2i takes a prompt
+    // just like gpt-image-1 does.
+    result = await generateWithMuapi({
+      imageBuffer,
+      imageFilename: photo.name,
+      imageMimeType: photo.type,
+      model: "flux-kontext-pro-i2i",
+      prompt: [AI_PROMPT_TEMPLATE, hotspot.aiTemplate, `Art style: ${artStyle}.`]
+        .filter(Boolean)
+        .join("\n"),
+    });
   } else {
     result = await generatePetPortrait({
       imageBuffer,

@@ -11,7 +11,9 @@ export type ArtStyle =
   | "memorial"
   | "pencil-sketch"
   | "pop-art"
-  | "ascii-art";
+  | "ascii-art"
+  | "studio-ghibli"
+  | "flux-dreamscape";
 
 export const artStyles: { id: ArtStyle; label: string }[] = [
   { id: "watercolor", label: "Watercolor" },
@@ -29,6 +31,14 @@ export const artStyles: { id: ArtStyle; label: string }[] = [
   // (lib/ascii.ts) — no AI model, no API key, genuinely real output every
   // time. See app/api/generate-preview/route.ts for the branch.
   { id: "ascii-art", label: "ASCII Art" },
+  // These two route through lib/muapi.ts — a second AI provider
+  // (Muapi.ai), not OpenAI, needing its own MUAPI_API_KEY. Added for
+  // genuinely different results the OpenAI path doesn't produce: a
+  // purpose-built fixed style-transfer model (no prompt involved at all)
+  // and a different underlying model family for prompt-driven restyling.
+  // See app/api/generate-preview/route.ts for the branch.
+  { id: "studio-ghibli", label: "Studio Ghibli" },
+  { id: "flux-dreamscape", label: "Flux Dreamscape" },
 ];
 
 /** The modal's active product is just the full hotspot record — every
