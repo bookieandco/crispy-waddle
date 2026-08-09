@@ -1,18 +1,17 @@
 import { login, signup } from "./actions";
 
 type LoginPageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams?: Record<string, string | string[] | undefined>;
 };
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const params = await searchParams;
-  const error = first(params.error);
-  const message = first(params.message);
-  const next = first(params.next) ?? "/";
+export default function LoginPage({ searchParams = {} }: LoginPageProps) {
+  const error = first(searchParams.error);
+  const message = first(searchParams.message);
+  const next = first(searchParams.next) ?? "/";
 
   return (
     <main style={{ maxWidth: 420, margin: "80px auto", padding: 24 }}>
