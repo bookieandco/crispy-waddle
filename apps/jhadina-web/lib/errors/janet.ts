@@ -5,8 +5,6 @@
  * Follows verified error patterns from Phase 1A contract.
  */
 
-import type { ErrorResponse } from "./janet"
-
 /**
  * Custom error class for JANET API failures
  */
@@ -59,32 +57,18 @@ export function parseJanetError(
   response: Response,
   originalError?: unknown
 ): JanetAPIError {
-  // Specific error status codes
   if (response.status === 404) {
-    return new JanetAPIError(
-      "Memory not found",
-      404,
-      originalError
-    )
+    return new JanetAPIError("Memory not found", 404, originalError)
   }
 
   if (response.status === 400) {
-    return new JanetAPIError(
-      "Invalid request to JANET service",
-      400,
-      originalError
-    )
+    return new JanetAPIError("Invalid request to JANET service", 400, originalError)
   }
 
   if (response.status === 500) {
-    return new JanetAPIError(
-      "JANET service error",
-      500,
-      originalError
-    )
+    return new JanetAPIError("JANET service error", 500, originalError)
   }
 
-  // Generic error for any other status
   return new JanetAPIError(
     `JANET service returned ${response.status}`,
     response.status,
@@ -97,7 +81,6 @@ export function parseJanetError(
  */
 export function parseNetworkError(error: unknown): JanetAPIError {
   if (error instanceof TypeError) {
-    // Network error or CORS issue
     if (error.message.includes("fetch")) {
       return new JanetAPIError(
         "Cannot connect to JANET service. Is it running?",
@@ -108,18 +91,10 @@ export function parseNetworkError(error: unknown): JanetAPIError {
   }
 
   if (error instanceof Error) {
-    return new JanetAPIError(
-      `Network error: ${error.message}`,
-      0,
-      error
-    )
+    return new JanetAPIError(`Network error: ${error.message}`, 0, error)
   }
 
-  return new JanetAPIError(
-    "Unknown network error",
-    0,
-    error
-  )
+  return new JanetAPIError("Unknown network error", 0, error)
 }
 
 /**
@@ -161,17 +136,14 @@ export async function retryWithBackoff<T>(
     } catch (error) {
       lastError = error
 
-      // Don't retry if not a network error
       if (error instanceof JanetAPIError && !error.isNetworkError()) {
         throw error
       }
 
-      // Don't retry on last attempt
       if (attempt === maxRetries - 1) {
         break
       }
 
-      // Exponential backoff
       const delayMs = baseDelayMs * Math.pow(2, attempt)
       await new Promise(resolve => setTimeout(resolve, delayMs))
     }
