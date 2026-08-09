@@ -1,0 +1,51 @@
+name: PupsonStuff CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/pupsonstuff/**"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+      - "turbo.json"
+      - ".github/workflows/pupsonstuff-ci.yml"
+  push:
+    branches:
+      - pupsonstuff-import
+      - pupsonstuff-main-integration
+    paths:
+      - "apps/pupsonstuff/**"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+      - "turbo.json"
+      - ".github/workflows/pupsonstuff-ci.yml"
+
+jobs:
+  verify:
+    name: Type-check and build PupsonStuff
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Type-check PupsonStuff
+        run: pnpm --filter @jhadina/pupsonstuff type-check
+
+      - name: Build PupsonStuff
+        run: pnpm --filter @jhadina/pupsonstuff build
