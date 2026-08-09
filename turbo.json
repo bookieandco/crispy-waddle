@@ -1,6 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["tsconfig.json", ".eslintrc.json"],
+  "globalEnv": ["GEMINI_API_KEY"],
   "tasks": {
     "dev": {
       "cache": false,
