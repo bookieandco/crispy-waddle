@@ -1,6 +1,7 @@
 'use client';
 
 import React, { FormEvent, useEffect, useState } from 'react';
+import BottomNav from '../components/BottomNav';
 
 type Health = 'LOADING' | 'HEALTHY' | 'DEGRADED' | 'ERROR';
 
@@ -91,57 +92,57 @@ export default function Home() {
   const healthLabel = health === 'LOADING' ? 'Connecting' : health === 'HEALTHY' ? 'Healthy' : health === 'DEGRADED' ? 'Degraded' : 'Needs attention';
 
   return (
-    <main style={{ minHeight: '100vh', background: '#0b0b0d', color: '#f5f5f5', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-      <section style={{ maxWidth: 900, margin: '0 auto', padding: '40px 20px 96px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: 11, letterSpacing: '.28em', textTransform: 'uppercase', opacity: .42 }}>Jhadina Command Center</div>
-            <h1 style={{ fontSize: 38, lineHeight: 1.05, margin: '10px 0 8px' }}>Your world, in one stream.</h1>
-            <p style={{ margin: 0, lineHeight: 1.6, opacity: .52 }}>Awareness first. Decisions when needed. Control always. Every important action leaves a trail.</p>
+    <main style={{ minHeight: '100vh', background: '#0b0b0d', color: '#f5f5f5', fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif', paddingBottom: 104 }}>
+      <section style={{ maxWidth: 760, margin: '0 auto', padding: '28px 20px 64px' }}>
+        <header style={{ marginBottom: 46, paddingTop: 12 }}>
+          <div style={{ fontSize: 10, letterSpacing: '.22em', textTransform: 'uppercase', opacity: .38 }}>Jhadina</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 18, marginTop: 12 }}>
+            <h1 style={{ margin: 0, fontFamily: 'Georgia, Times New Roman, serif', fontWeight: 400, fontSize: 'clamp(34px, 8vw, 58px)', lineHeight: .98, letterSpacing: '-.035em' }}>Your world,<br />in one stream.</h1>
+            <button type="button" onClick={() => void refresh()} disabled={health === 'LOADING'} aria-label="Refresh Jhadina" style={{ flex: '0 0 auto', width: 44, height: 44, border: '1px solid rgba(255,255,255,.1)', borderRadius: '50%', background: 'rgba(255,255,255,.05)', color: 'inherit', cursor: health === 'LOADING' ? 'wait' : 'pointer', fontSize: 17 }}>
+              {health === 'LOADING' ? '…' : '↻'}
+            </button>
           </div>
-          <button type="button" onClick={() => void refresh()} disabled={health === 'LOADING'} style={{ border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '9px 14px', background: 'rgba(255,255,255,.06)', color: 'inherit', cursor: health === 'LOADING' ? 'wait' : 'pointer' }}>
-            {health === 'LOADING' ? 'Checking…' : 'Refresh'}
-          </button>
-        </div>
+          <p style={{ maxWidth: 560, margin: '18px 0 0', fontSize: 15, lineHeight: 1.7, color: 'rgba(255,255,255,.55)' }}>Awareness first. Decisions when needed. Control always.</p>
+        </header>
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginBottom: 18 }}>
-          <StatusCard label="System" value={healthLabel} />
-          <StatusCard label="Pending decisions" value={String(pending)} />
-          <StatusCard label="Approved memories" value={String(memories)} />
+        <section style={{ display: 'flex', gap: 28, overflowX: 'auto', padding: '0 0 8px', marginBottom: 38, scrollbarWidth: 'none' }}>
+          <Metric label="System" value={healthLabel} />
+          <Metric label="Decisions" value={String(pending)} />
+          <Metric label="Memories" value={String(memories)} />
         </section>
 
-        <form onSubmit={sendMessage} style={{ border: '1px solid rgba(255,255,255,.1)', borderRadius: 22, padding: 18, background: 'rgba(255,255,255,.035)', marginBottom: 18 }}>
-          <div style={{ fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', opacity: .45, marginBottom: 10 }}>Talk to Jhadina</div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <input value={message} onChange={(e) => setMessage(e.target.value)} placeholder="What should we work on?" aria-label="Message Jhadina" style={{ flex: '1 1 280px', minWidth: 0, border: '1px solid rgba(255,255,255,.1)', borderRadius: 12, padding: '12px 14px', background: 'rgba(0,0,0,.22)', color: 'inherit', outline: 'none' }} />
-            <button type="submit" disabled={sending || !message.trim()} style={{ border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '12px 16px', background: 'rgba(255,255,255,.09)', color: 'inherit', cursor: sending ? 'wait' : 'pointer' }}>{sending ? 'Working…' : 'Send'}</button>
+        <form onSubmit={sendMessage} style={{ marginBottom: 46 }}>
+          <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', opacity: .4, marginBottom: 12 }}>Talk to Jhadina</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,.18)', paddingBottom: 10 }}>
+            <input value={message} onChange={(e) => setMessage(e.target.value)} placeholder="What should we work on?" aria-label="Message Jhadina" style={{ flex: 1, minWidth: 0, border: 0, padding: '8px 0', background: 'transparent', color: 'inherit', outline: 'none', fontSize: 17 }} />
+            <button type="submit" disabled={sending || !message.trim()} style={{ border: 0, borderRadius: 999, padding: '9px 15px', background: message.trim() ? '#f5f5f5' : 'rgba(255,255,255,.08)', color: message.trim() ? '#0b0b0d' : 'rgba(255,255,255,.3)', cursor: sending ? 'wait' : 'pointer', fontWeight: 600 }}>{sending ? '…' : 'Send'}</button>
           </div>
-          {response && <p style={{ margin: '12px 0 0', lineHeight: 1.55, opacity: .72 }}>{response}</p>}
+          {response && <p style={{ margin: '14px 0 0', lineHeight: 1.6, color: 'rgba(255,255,255,.68)' }}>{response}</p>}
         </form>
 
-        <div style={{ display: 'grid', gap: 14 }}>
-          {feed.map((item) => (
-            <article key={`${item.label}-${item.title}`} style={{ border: '1px solid rgba(255,255,255,.09)', borderRadius: 24, padding: 22, background: 'rgba(255,255,255,.035)', boxShadow: '0 14px 50px rgba(0,0,0,.18)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 42, height: 42, borderRadius: 13, display: 'grid', placeItems: 'center', background: 'rgba(255,255,255,.08)', fontSize: 18 }}>{item.glyph}</div>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.2em', opacity: .45 }}>{item.label}</div>
+        <div style={{ display: 'grid', gap: 34 }}>
+          {feed.map((item, index) => (
+            <article key={`${item.label}-${item.title}`} style={{ paddingTop: index === 0 ? 0 : 30, borderTop: index === 0 ? 'none' : '1px solid rgba(255,255,255,.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(255,255,255,.42)', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 16, opacity: .9 }}>{item.glyph}</span>{item.label}
               </div>
-              <h2 style={{ margin: '18px 0 8px', fontSize: 21 }}>{item.title}</h2>
-              <p style={{ margin: 0, lineHeight: 1.6, opacity: .52 }}>{item.body}</p>
-              {item.action && (item.href ? <a href={item.href} style={{ display: 'inline-block', marginTop: 18, border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '9px 14px', color: 'inherit', textDecoration: 'none', background: 'rgba(255,255,255,.06)' }}>{item.action}</a> : <button type="button" style={{ marginTop: 18, border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '9px 14px', background: 'rgba(255,255,255,.06)', color: 'inherit', cursor: 'pointer' }}>{item.action}</button>)}
+              <h2 style={{ margin: '13px 0 8px', fontFamily: 'Georgia, Times New Roman, serif', fontWeight: 400, fontSize: 25, lineHeight: 1.12, letterSpacing: '-.02em' }}>{item.title}</h2>
+              <p style={{ margin: 0, maxWidth: 620, lineHeight: 1.7, fontSize: 15, color: 'rgba(255,255,255,.5)' }}>{item.body}</p>
+              {item.action && (item.href ? <a href={item.href} style={{ display: 'inline-block', marginTop: 17, color: '#fff', textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>{item.action} <span aria-hidden="true">→</span></a> : <button type="button" style={{ marginTop: 17, border: 0, padding: 0, background: 'none', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{item.action} <span aria-hidden="true">→</span></button>)}
             </article>
           ))}
         </div>
       </section>
+      <BottomNav />
     </main>
   );
 }
 
-function StatusCard({ label, value }: { label: string; value: string }) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ border: '1px solid rgba(255,255,255,.08)', borderRadius: 18, padding: 16, background: 'rgba(255,255,255,.025)' }}>
-      <div style={{ fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', opacity: .4 }}>{label}</div>
-      <div style={{ marginTop: 8, fontSize: 20 }}>{value}</div>
+    <div style={{ flex: '0 0 auto', minWidth: 110 }}>
+      <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,.34)' }}>{label}</div>
+      <div style={{ marginTop: 6, fontFamily: 'Georgia, Times New Roman, serif', fontSize: 18, fontWeight: 400 }}>{value}</div>
     </div>
   );
 }
