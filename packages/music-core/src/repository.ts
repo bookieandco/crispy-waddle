@@ -30,14 +30,14 @@ export class InMemoryMusicRepository implements MusicRepository {
   private assertUser(userId: string, ownerId: string) { if (userId !== ownerId) throw new Error("User scope violation"); }
   async getTrack(userId: string, trackId: string) { return this.tracks.get(this.key(userId, trackId)) ?? null; }
   async upsertTrack(userId: string, track: Track) { const copy = structuredClone(track); this.tracks.set(this.key(userId, track.id), copy); return copy; }
-  async listTracks(userId: string) { return [...this.tracks.entries()].filter(([k]) => k.startsWith(`${userId}:`)).map(([,v]) => structuredClone(v)); }
+  async listTracks(userId: string) { return Array.from(this.tracks.entries()).filter(([k]) => k.startsWith(`${userId}:`)).map(([,v]) => structuredClone(v)); }
   async upsertArtist(userId: string, artist: Artist) { const copy = structuredClone(artist); this.artists.set(this.key(userId, artist.id), copy); return copy; }
   async upsertAlbum(userId: string, album: Album) { const copy = structuredClone(album); this.albums.set(this.key(userId, album.id), copy); return copy; }
   async upsertPlaylist(userId: string, playlist: Playlist) { this.assertUser(userId, playlist.ownerUserId); const copy = structuredClone(playlist); this.playlists.set(this.key(userId, playlist.id), copy); return copy; }
   async upsertSource(source: MusicSource) { const copy = structuredClone(source); this.sources.set(this.key(source.userId, source.id), copy); return copy; }
-  async listSources(userId: string) { return [...this.sources.entries()].filter(([k]) => k.startsWith(`${userId}:`)).map(([,v]) => structuredClone(v)); }
+  async listSources(userId: string) { return Array.from(this.sources.entries()).filter(([k]) => k.startsWith(`${userId}:`)).map(([,v]) => structuredClone(v)); }
   async addAsset(userId: string, asset: MediaAsset) { const copy = structuredClone(asset); this.assets.set(this.key(userId, asset.id), copy); return copy; }
-  async listAssets(userId: string, trackId: string) { return [...this.assets.entries()].filter(([k,v]) => k.startsWith(`${userId}:`) && v.trackId === trackId).map(([,v]) => structuredClone(v)); }
+  async listAssets(userId: string, trackId: string) { return Array.from(this.assets.entries()).filter(([k,v]) => k.startsWith(`${userId}:`) && v.trackId === trackId).map(([,v]) => structuredClone(v)); }
   async upsertArtwork(userId: string, artwork: Artwork) { const copy = structuredClone(artwork); this.artwork.set(this.key(userId, artwork.id), copy); return copy; }
   async upsertLyrics(userId: string, lyrics: Lyrics) { const copy = structuredClone(lyrics); this.lyrics.set(this.key(userId, lyrics.id), copy); return copy; }
   async recordListeningEvent(event: ListeningEvent) { const copy = structuredClone(event); this.listening.set(this.key(event.userId, event.id), copy); return copy; }
