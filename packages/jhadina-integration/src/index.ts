@@ -9,5 +9,6 @@ export * from './os-registry';
 export * from './policy-security';
 export * from './action-executor';
 export * from './creator-workstation';
+export * from './project-store';
 export * from './director-adapter';
 export * from './jhadina-document';
