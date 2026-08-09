@@ -6,3 +6,7 @@ export * from './core-adapters';
 export * from './memory-adapter';
 export * from './audit-adapter';
 export * from './os-registry';
+export * from './policy-security';
+export * from './action-executor';
+export * from './creator-workstation';
+export * from './director-adapter';
