@@ -36,6 +36,8 @@ export interface GrowthDraft {
   body: string
   mediaIds: string[]
   sourceAssetId?: string
+  versionOf?: string
+  version: number
   status: DraftStatus
   rationale: string
   suggestedPublishAt?: string
