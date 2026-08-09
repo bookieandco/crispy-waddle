@@ -1,5 +1,45 @@
 # PupsonStuff — Static Boutique
 
+## Milestone 6.5 — Hoodie/mug 3D orientation, actually fixed (not just newly confirmed wrong)
+
+Milestone 6.3's live Playwright pass across all six products confirmed
+something real: hoodie and mug both rendered visibly wrong in the
+browser — a lying-down mound instead of an upright hoodie, a mug shown
+rim-on instead of in profile. That pass stopped at confirming the bug,
+not fixing it, since a real fix needed the same geometry-analysis rigor
+their original (wrong) rotations were derived with. This pass did that.
+
+Root cause, the same for both: `scripts/obj_to_glb.py` (the OBJ→GLB
+conversion both meshes went through) does no axis conversion at all —
+confirmed by reading its source, not assumed. Both original
+`modelRotation` values (`[-π/2, 0, 0]`) were derived from an analysis
+that concluded the source data needed a Z-up→Y-up correction — for the
+mug, real cross-section-circularity math on the OBJ; for the hoodie, a
+first-pass read of ambiguous matplotlib renders, explicitly flagged at
+the time as unconfirmed. Directly re-measuring the actual
+`public/models/{hoodie,mug}.glb` vertex data (not the OBJ, not a
+render — the real exported bytes) shows both are **already Y-up**: the
+hoodie's Y-extent (-0.439..0.460) dwarfs its Z-extent (-0.153..0.094,
+correctly the thinnest axis for a garment); the mug's Y-extent
+(0.005..0.100) is the base-to-rim height, with X/Z forming the ~0.08-wide
+circular footprint. The documented -90° correction was flipping an
+already-correct mesh onto its side in both cases — not a modeling
+defect in either asset, a config bug.
+
+Fixed: `modelRotation: [0, 0, 0]` for both. Re-verified live (Playwright,
+not just re-reading the numbers): hoodie renders upright and front-facing
+— hood, pocket, cuffs, hem all correctly placed; mug renders as a correct
+vertical cylinder with the handle landing on the far side of the camera,
+which was the original design intent all along, just reached via the
+identity rotation instead of the wrong one. Both products' `printAreas`
+were also recomputed for the corrected coordinate frame (the old decal
+positions were computed for the now-removed rotation and would sit off
+the mesh entirely) — real geometry (body-only point filtering to find
+the true front-wall/chest-center coordinates), though the decal-on-
+surface look itself still isn't confirmed against an actual generated
+image (needs a live `OPENAI_API_KEY`/`MUAPI_API_KEY` run to test that
+part, not available in this pass).
+
 ## Milestone 6.4 — Second AI provider (Muapi.ai): two new art styles
 
 `lib/ai.ts` (OpenAI) stays the default path for the original 10 art

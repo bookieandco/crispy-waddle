@@ -63,14 +63,22 @@ export const product3DModels: Record<string, Product3DConfig> = {
     // by shared vertex INDEX, which double-counts every UV seam; by actual
     // position it's one coherent mesh).
     //
-    // NOT verified: the corrective rotation and print-area placement below
-    // are first-pass estimates from static renders (matplotlib, not the
-    // real Three.js/drei pipeline) — the raw mesh comes oriented lying
-    // flat (Stable Fast 3D's Z-up-ish export), and this rotates it to
-    // stand upright the way Y-up glTF viewers expect. Confirm both once
-    // this actually renders in a browser; don't treat these numbers as
-    // final until someone's looked at it live.
-    modelRotation: [-Math.PI / 2, 0, 0],
+    // modelRotation CORRECTED via a real live-browser check (Playwright),
+    // same story and same root cause as the mug's fix below: the
+    // original -90°-about-X value was a first-pass guess from static
+    // matplotlib renders, deferred for confirmation "once this actually
+    // renders in a browser" — a check that hadn't actually happened
+    // until this pass. With that rotation applied, the hoodie rendered
+    // as a lying-down mound, not an upright garment. Re-measuring the
+    // raw public/models/hoodie.glb vertex data directly shows it's
+    // already Y-up: Y spans -0.439..0.460 (the tallest axis by far — hem
+    // to shoulder), X spans -0.377..0.377 (shoulder-to-shoulder width),
+    // Z spans only -0.153..0.094 (front-to-back thickness, correctly the
+    // thinnest axis for a garment). [0,0,0] is the corrected value.
+    // Confirmed visually too, not just by the numbers: at [0,0,0] the
+    // live render shows a correctly upright front-facing hoodie — hood,
+    // pocket, cuffs, and hem all where they should be.
+    modelRotation: [0, 0, 0],
     camera: {
       position: [0, 0, 2.4],
       fov: 30,
@@ -79,8 +87,17 @@ export const product3DModels: Record<string, Product3DConfig> = {
     },
     printAreas: [
       {
+        // RECOMPUTED for the corrected [0,0,0] rotation above — the old
+        // [0,0.05,0.13] position was for the now-removed -90° frame.
+        // Y=0.123 is the real chest-height midpoint (measured as 55-70%
+        // up the body's actual Y range, hem to shoulder); Z=0.06 sits
+        // just proud of the real front-chest surface (front-facing
+        // points in that Y band average Z=0.038, max Z=0.072). Still
+        // not confirmed against an actual rendered decal — same caveat
+        // as the mug's — but the mesh placement itself is real geometry
+        // from this asset, not carried over from the wrong frame.
         name: "front",
-        position: [0, 0.05, 0.13],
+        position: [0, 0.123, 0.06],
         rotation: [0, 0, 0],
         scale: 0.2,
       },
@@ -110,24 +127,36 @@ export const product3DModels: Record<string, Product3DConfig> = {
     // pre-existing non-manifold edges, unrelated to the fix, informational
     // per the pipeline's own watertightness note).
     //
-    // modelRotation: NOT a guess from the ambiguous matplotlib renders
-    // (those show it lying on its side regardless of the mesh's real
-    // orientation — same rendering-convention mismatch the hoodie's
-    // renders had, not evidence on its own). Determined instead by
-    // measuring the actual vertex cloud: binning points along each axis
-    // and checking which one gives a near-constant, near-circular
-    // perpendicular cross-section (std/mean of cross-section radius —
-    // Z scored 0.17, X scored 0.41, Y scored 1.0). Z is the mesh's real
-    // cylinder axis, confirming this OBJ source is Z-up like the hoodie's
-    // Stable Fast 3D export, needing the same -90°-about-X correction.
-    // Handle-offset analysis (points at >1.4x the body wall radius) puts
-    // the handle in the source +Y direction, which after this rotation
-    // maps to -Z — i.e. the handle ends up facing away from a camera on
-    // +Z, with the undecorated wall facing it. That's what the print area
-    // below is placed on. Still first-pass: confirm live once this
-    // actually renders in a browser, per the same caveat as every other
-    // model here.
-    modelRotation: [-Math.PI / 2, 0, 0],
+    // modelRotation CORRECTED, via a real live-browser regression, not
+    // re-derived from scratch: the original analysis here concluded Z
+    // was this OBJ's cylinder axis (cross-section circularity scored Z
+    // lowest — 0.17 vs X's 0.41 and Y's 1.0) and applied a -90°-about-X
+    // fix on that basis, matching the hoodie's Stable Fast 3D source.
+    // That conclusion turned out to be wrong for THIS asset — confirmed
+    // by actually driving it through the live Three.js/drei pipeline
+    // (Playwright), which is exactly the "confirm once this actually
+    // renders in a browser" check the old comment deferred and which a
+    // later pass (bottle/tote's Milestone 6.3) finally exercised across
+    // every product: with the -90°-about-X rotation applied, the mug
+    // rendered rim-on, looking straight down the cylinder axis instead
+    // of showing a side profile. `scripts/obj_to_glb.py` (the OBJ->GLB
+    // conversion this mesh went through) does no axis conversion at all
+    // — verified by reading its source, not assumed — so whatever axis
+    // convention the source OBJ used is exactly what's in the .glb, and
+    // re-measuring that raw vertex data directly (not the OBJ, the
+    // actual public/models/mug.glb) shows it's ALREADY Y-up: Y spans
+    // 0.005..0.100 (the tallest, base-to-rim range), X and Z are the
+    // ~0.08-wide circular footprint. No rotation needed — [0,0,0] is
+    // the corrected value, not a fallback default.
+    //
+    // Handle-offset re-confirmed on the same raw data: body-wall points
+    // (radius ~0.040, from the X extent) vs. handle points (past
+    // 1.1x that radius in Z) show the handle sticking out to Z=-0.044,
+    // well past the body's own Z range — i.e. the handle is on the -Z
+    // side, same "faces away from a +Z camera" placement the original
+    // analysis intended, just reached via the identity rotation instead
+    // of the -90° one.
+    modelRotation: [0, 0, 0],
     camera: {
       position: [0, 0, 0.3],
       fov: 30,
@@ -136,8 +165,20 @@ export const product3DModels: Record<string, Product3DConfig> = {
     },
     printAreas: [
       {
+        // RECOMPUTED for the corrected [0,0,0] rotation above (the old
+        // [0,-0.017,0.055] position was placed for the now-removed -90°
+        // frame and would float off the mesh entirely in this one — Z
+        // alone was past the body's real max-Z of 0.040). Y is the
+        // body's real vertical midpoint (0.0527, from the same body-only
+        // point filter used to re-derive the handle position above); Z
+        // sits just proud of the real front-wall surface (max body
+        // Z=0.0401, +0.003 clearance). Still not confirmed against an
+        // actual rendered decal (needs a live OPENAI_API_KEY/MUAPI_API_KEY
+        // generation to test — not available in this pass) — the mesh
+        // placement itself is now real geometry, not a guess, but the
+        // decal-on-surface look hasn't been eyeballed.
         name: "front",
-        position: [0, -0.017, 0.055],
+        position: [0, 0.053, 0.043],
         rotation: [0, 0, 0],
         scale: 0.15,
       },
