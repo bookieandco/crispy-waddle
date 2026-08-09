@@ -58,12 +58,11 @@ export function createJhadinaIntegration(params?: {
   };
 
   const audit = params?.audit ?? (async (entry: Parameters<CoreAuditSink['record']>[0]) => {
-    await timelineRepository.record({
-      id: entry.id,
-      userId: 'jhadina',
-      eventType: `audit.${entry.outcome}`,
-      payload: entry,
-      timestamp: entry.occurredAt,
+    await timelineRepository.recordReasoning({
+      userId: entry.actor,
+      reasoningEventId: entry.id,
+      userMessage: entry.action,
+      systemResponse: `Integration action ${entry.outcome}.`,
     });
   });
 
