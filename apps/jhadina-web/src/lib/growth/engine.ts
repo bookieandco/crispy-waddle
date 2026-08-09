@@ -45,6 +45,41 @@ export function createGrowthDraft(input: {
   return draft
 }
 
+export function getGrowthDraft(userId: string, draftId: string): GrowthDraft | null {
+  const draft = drafts.get(draftId)
+  return draft && draft.userId === userId ? draft : null
+}
+
+export function redraftGrowthDraft(userId: string, draftId: string, instruction: string): GrowthDraft | null {
+  const draft = getGrowthDraft(userId, draftId)
+  if (!draft) return null
+
+  const lower = instruction.toLowerCase()
+  let body = draft.body
+  if (lower.includes("less robotic") || lower.includes("more human") || lower.includes("more like me")) {
+    body = body.replace(/\b(leverage|utilize|synergy|delve|robust|seamless)\b/gi, (word) => ({ leverage: "use", utilize: "use", synergy: "fit", delve: "dig", robust: "strong", seamless: "easy" }[word.toLowerCase()] || word))
+      .replace(/\s+/g, " ").trim()
+  }
+  if (lower.includes("shorten") || lower.includes("shorter")) {
+    const sentences = body.split(/(?<=[.!?])\s+/)
+    body = sentences.slice(0, Math.max(1, Math.ceil(sentences.length / 2))).join(" ")
+  }
+  if (lower.includes("exciting") || lower.includes("more energy")) {
+    body = body.replace(/\.$/, "!")
+  }
+
+  const redraft: GrowthDraft = {
+    ...draft,
+    id: `growth_${++draftCounter}`,
+    body,
+    status: "PENDING_APPROVAL",
+    rationale: `Redraft of ${draft.id}: ${instruction}`,
+    createdAt: new Date().toISOString(),
+  }
+  drafts.set(redraft.id, redraft)
+  return redraft
+}
+
 export function listGrowthDrafts(userId: string): GrowthDraft[] {
   return Array.from(drafts.values())
     .filter((draft) => draft.userId === userId)
@@ -54,12 +89,7 @@ export function listGrowthDrafts(userId: string): GrowthDraft[] {
 export function approveGrowthDraft(userId: string, draftId: string): GrowthDraft | null {
   const draft = drafts.get(draftId)
   if (!draft || draft.userId !== userId || draft.status !== "PENDING_APPROVAL") return null
-
-  const approved: GrowthDraft = {
-    ...draft,
-    status: "APPROVED",
-    approvedAt: new Date().toISOString(),
-  }
+  const approved: GrowthDraft = { ...draft, status: "APPROVED", approvedAt: new Date().toISOString() }
   drafts.set(draftId, approved)
   return approved
 }
@@ -67,7 +97,6 @@ export function approveGrowthDraft(userId: string, draftId: string): GrowthDraft
 export function rejectGrowthDraft(userId: string, draftId: string): GrowthDraft | null {
   const draft = drafts.get(draftId)
   if (!draft || draft.userId !== userId || draft.status !== "PENDING_APPROVAL") return null
-
   const rejected: GrowthDraft = { ...draft, status: "REJECTED" }
   drafts.set(draftId, rejected)
   return rejected
@@ -76,12 +105,7 @@ export function rejectGrowthDraft(userId: string, draftId: string): GrowthDraft 
 export function scheduleGrowthDraft(userId: string, draftId: string, scheduledAt: string): GrowthDraft | null {
   const draft = drafts.get(draftId)
   if (!draft || draft.userId !== userId || draft.status !== "APPROVED") return null
-
-  const scheduled: GrowthDraft = {
-    ...draft,
-    status: "SCHEDULED",
-    scheduledAt,
-  }
+  const scheduled: GrowthDraft = { ...draft, status: "SCHEDULED", scheduledAt }
   drafts.set(draftId, scheduled)
   return scheduled
 }
