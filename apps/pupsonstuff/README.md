@@ -1,5 +1,93 @@
 # PupsonStuff — Static Boutique
 
+## Milestone 6.3 — Bottle/tote real 3D models (Blender, local) + a genuine app-crashing bug fixed
+
+The HF product-3D pipeline from 6.2 stayed blocked (huggingface.co and
+*.hf.space both confirmed via real curl tests, not assumption). Rather than
+leave `bottle`/`tote` without any 3D entry, both are now real, audited
+`.glb` models — the third distinct sourcing method in this project after
+the licensed shirt mesh and Stable-Fast-3D's hoodie output, alongside the
+mug's manual-OBJ path.
+
+- **`scripts/model_product_blender.py`** (new): procedurally models both
+  products with Blender's Python API (`bpy`/`bmesh`) at real dimensions —
+  20oz bottle (7.3cm diameter, 27.2cm total height) and a 38×42×10cm
+  canvas tote — entirely offline, no network dependency at all. Two real
+  bugs surfaced and fixed along the way, not just assumed away:
+  - **Bottle**: `bpy.ops.object.join()` on three stacked primitives (body/
+    neck/cap) merges mesh *data* but doesn't weld touching-but-not-
+    coincident geometry — the audit caught 3 genuinely disconnected
+    pieces. Rebuilt as a single bmesh spin/lathe revolve from one vertical
+    profile instead — no seam to weld in the first place. Re-audited:
+    100/100.
+  - **Tote**: two more real bugs, both caught by checking actual vertex
+    counts rather than trusting a render that "looked" fine —
+    `primitive_cube_add(size=1)` spans ±0.5 (a first pass scaled by
+    `dimension/2`, producing a half-size body), and
+    `primitive_torus_add`'s default orientation is flat in the XY plane,
+    not a vertical arch (a first pass's boolean union against the body
+    found zero intersection, twice — confirmed a real no-op by identical
+    vertex counts before/after, not a solver failure). Fixed: correct
+    scale factor, and handles rotated 90° about X before being
+    Boolean-unioned into the body. Re-audited: 98.8/100.
+  - Both registered in `config/product3dModels.ts` with real, verified
+    (not guessed) bounding-box math backing `modelRotation`.
+
+- **A real, previously-undiscovered app-crashing bug**, found while
+  actually driving bottle/tote through the live UI for the first time
+  (not just checking that `next build` compiled): `Product3DEngine.tsx`'s
+  `<Environment preset="city">` fetches an HDR file from an external CDN.
+  When that fetch is blocked or fails, drei/three throws an uncaught
+  error that crashes the *entire* Next.js app — "Application error: a
+  client-side exception has occurred" over the whole page, not a duller
+  product preview. This affected all six products (shirt, hoodie, mug,
+  pillow, bottle, tote), not just the two new ones — it just took adding
+  a product that forced an actual live-browser test to surface it.
+  Fixed: removed `<Environment>` entirely (real three-point-ish light rig
+  instead — a second, softer fill `directionalLight` compensates), and
+  generalized the boutique room's error boundary
+  (`BoutiqueSceneErrorBoundary.tsx` → `Scene3DErrorBoundary.tsx`) to wrap
+  every 3D `<Canvas>` in this app, not just the room. A future flaky asset
+  fetch now degrades to a "3D preview couldn't load" message inside that
+  one component instead of taking the whole page down.
+
+- **Verified live, not just built**: a Playwright pass (headless Chromium,
+  `--use-gl=swiftshader`, iPhone 13 profile) opened all 9 hotspots covering
+  all 6 products, switched each to "View in 3D", and confirmed a canvas
+  renders with zero page errors and no app-crash text — for every product,
+  not just bottle/tote.
+
+- **A second real bug found by that same live pass, also fixed**: the
+  bottle initially rendered cropped — camera looking at roughly the
+  bottom half, cap cut off entirely. Root cause: `Product3DEngine`'s
+  `ProductMesh` only ever reads a glTF node's raw `.geometry`, never its
+  node-level translation. `tote_body`'s export happens to carry an
+  unbaked node translation that gets silently dropped, and its *raw*
+  vertex data happened to already be centered (only scale got baked via
+  `transform_apply`, never location) — coincidence, not design, but
+  correct anyway. Bottle's profile was built starting at z=0 with no equivalent
+  offset, so its raw vertices spanned 0..0.272 uncentered, and
+  OrbitControls' default (0,0,0) target sat at the bottle's *base*. Fixed
+  at the source — the Blender profile now starts at `-total_height/2` so
+  the vertex data that actually reaches the renderer is centered, the
+  same way tote's turned out to be. Re-exported, re-audited (still
+  100/100), re-verified live: full bottle silhouette — body, shoulder,
+  neck, cap — now renders in frame.
+
+- **Newly confirmed, not fixed**: that same live pass is also the first
+  time hoodie and mug were ever actually seen rendering in a real browser
+  rather than judged from static matplotlib renders. Both render
+  visibly wrong — the hoodie shows a lying-down mound rather than an
+  upright garment, and the mug shows its rim/opening face-on with the
+  handle hanging below rather than a side profile. Their
+  `modelRotation` values were already flagged in
+  `config/product3dModels.ts` as first-pass estimates "not verified... 
+  confirm once this actually renders in a browser" — that confirmation
+  has now happened, and it failed. Not fixed here: correcting it needs
+  the same real-geometry-analysis rigor the mug's *existing* rotation
+  value was derived with (cross-section binning, not a guess), which is
+  its own task, not a guess bolted on at the end of this one.
+
 ## Milestone 6.2 — ASCII art style (real, testable today) + HF product-3D pipeline (blocked)
 
 Follow-up on Milestone 6.1's clarification: Hugging Face's job was 3D +

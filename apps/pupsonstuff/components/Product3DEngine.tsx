@@ -12,9 +12,9 @@
 // multiple materials, needs this extended — not a large change, but not
 // done yet, so don't assume it "just works" for an arbitrary future asset.
 
-import { Suspense, useRef } from "react";
+import { Suspense, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, useGLTF, useTexture, Environment } from "@react-three/drei";
+import { OrbitControls, useGLTF, useTexture } from "@react-three/drei";
 import { Decal } from "@react-three/drei";
 import * as THREE from "three";
 import {
@@ -23,6 +23,7 @@ import {
   Product3DPlugin,
   Product3DPluginContext,
 } from "@/lib/product3d/types";
+import Scene3DErrorBoundary from "./Scene3DErrorBoundary";
 
 interface AreaDecalProps {
   url: string;
@@ -126,6 +127,7 @@ export default function Product3DEngine({
 }: Props) {
   const anyDecal = Object.values(decals).some(Boolean);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [failed, setFailed] = useState(false);
 
   const pluginCtx: Product3DPluginContext = {
     config,
@@ -137,36 +139,62 @@ export default function Product3DEngine({
   return (
     <div className="w-full">
       <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-greige/40 bg-white/40">
-        <Canvas
-          camera={{
-            position: config.camera.position,
-            fov: config.camera.fov ?? 30,
-          }}
-          gl={{ preserveDrawingBuffer: true }}
-          shadows
-          onCreated={({ gl }) => {
-            canvasRef.current = gl.domElement;
-          }}
-        >
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[2, 2, 3]} intensity={0.8} castShadow />
-          <Suspense fallback={null}>
-            <ProductMesh
-              config={config}
-              color={color ?? config.defaultColor ?? "#ffffff"}
-              decals={decals}
-            />
-            <Environment preset="city" />
-          </Suspense>
-          <OrbitControls
-            enablePan={false}
-            minDistance={config.camera.minDistance ?? 1.4}
-            maxDistance={config.camera.maxDistance ?? 3.5}
-            autoRotate
-            autoRotateSpeed={1.4}
-          />
-        </Canvas>
-        {!anyDecal && (
+        {failed ? (
+          <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-ink/50">
+            3D preview couldn&apos;t load — try the flat preview instead.
+          </div>
+        ) : (
+          <Scene3DErrorBoundary
+            fallback={
+              <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-ink/50">
+                3D preview couldn&apos;t load — try the flat preview instead.
+              </div>
+            }
+            onError={() => setFailed(true)}
+          >
+            <Canvas
+              camera={{
+                position: config.camera.position,
+                fov: config.camera.fov ?? 30,
+              }}
+              gl={{ preserveDrawingBuffer: true }}
+              shadows
+              onCreated={({ gl }) => {
+                canvasRef.current = gl.domElement;
+              }}
+            >
+              {/* Real lights only — no <Environment preset> here. That
+                  component fetches an HDR file from an external CDN, and
+                  the first time this was actually driven end-to-end in a
+                  browser (not just built), a blocked/slow fetch for it
+                  crashed the whole app with an uncaught error, not just a
+                  duller-looking product. A three-point-ish rig (ambient
+                  fill + a stronger key light + a soft opposite fill)
+                  costs nothing over the network and reads as "lit
+                  product photo" well enough without reflections that
+                  depend on a resource this app doesn't control the
+                  availability of. */}
+              <ambientLight intensity={0.55} />
+              <directionalLight position={[2, 2, 3]} intensity={0.9} castShadow />
+              <directionalLight position={[-2, 1, -1.5]} intensity={0.35} />
+              <Suspense fallback={null}>
+                <ProductMesh
+                  config={config}
+                  color={color ?? config.defaultColor ?? "#ffffff"}
+                  decals={decals}
+                />
+              </Suspense>
+              <OrbitControls
+                enablePan={false}
+                minDistance={config.camera.minDistance ?? 1.4}
+                maxDistance={config.camera.maxDistance ?? 3.5}
+                autoRotate
+                autoRotateSpeed={1.4}
+              />
+            </Canvas>
+          </Scene3DErrorBoundary>
+        )}
+        {!anyDecal && !failed && (
           <div className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-ink/50">
             Generate a preview to see it on the {config.displayName.toLowerCase()}
           </div>

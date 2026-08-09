@@ -144,9 +144,107 @@ export const product3DModels: Record<string, Product3DConfig> = {
     ],
   },
 
-  // Tote, canvas, etc. still need their own real .glb before an entry here
-  // does anything — registering a config against a mesh that doesn't exist
-  // just produces a load error, not a placeholder model.
+  // canvas doesn't need a 3D entry (flat wall art, no product mesh to
+  // view). bottle and tote below are the two that did need one.
+
+  bottle: {
+    id: "bottle",
+    displayName: "Bottle",
+    glbPath: "/models/bottle.glb",
+    meshName: "bottle_body",
+    materialName: "bottle_material",
+    // PROCEDURALLY MODELED, not sourced from a photo/reference — real
+    // dimensions (20oz bottle: 7.3cm diameter, 27.2cm total height
+    // including neck+cap), built with Blender's Python API
+    // (scripts/model_product_blender.py) because the intended source
+    // (image-to-3D via Hugging Face) is genuinely blocked in this
+    // environment — see docs/boutique-design/product-3d-generation.md.
+    // AUDITED: 100/100, APPROVED — single continuous lathe/revolve
+    // surface (no seams to weld in the first place), real UVs.
+    supportsColorChange: true,
+    defaultColor: "#bfc2c6",
+    // VERIFIED, not a guess: exported bounding box is (0.073, 0.272,
+    // 0.073) — Y is the tallest dimension and matches this bottle's own
+    // modeled total height (0.20 body + 0.02 shoulder + 0.03 neck +
+    // 0.022 cap = 0.272) exactly. Confirms scripts/model_product_blender.py's
+    // export_yup=True correctly produced a Y-up mesh — no correction
+    // needed, unlike the hoodie/mug's source tools.
+    //
+    // Y=0 is the VERTICAL CENTER of the bottle (spans -0.136..0.136), not
+    // its base — a real bug found live via Playwright, not by the audit
+    // (which never checks centering): ProductMesh only ever reads a
+    // node's raw `.geometry`, never its node-level translation, so the
+    // first export (profile built from z=0 upward, no compensating
+    // shift) rendered with OrbitControls' default (0,0,0) target sitting
+    // at the bottle's BASE — the camera framed roughly the bottom half
+    // and cropped the cap off entirely. Fixed at the source (the
+    // Blender profile now starts at -total_height/2), not by fudging the
+    // camera/print-area numbers around an off-center mesh.
+    modelRotation: [0, 0, 0],
+    camera: {
+      position: [0, 0, 0.71],
+      fov: 30,
+      minDistance: 0.46,
+      maxDistance: 0.99,
+    },
+    printAreas: [
+      {
+        // NOT verified — placeholder centered on the body's front wall.
+        // Body spans roughly y=-0.136 (base) to y=0.064 (top of the
+        // straight wall, before the shoulder taper starts at
+        // body_height=0.20 above the base i.e. 0.20-0.136=0.064); this
+        // sits at the vertical midpoint of that wall. Needs confirming
+        // against the live mesh before trusting it, same as every other
+        // model here.
+        name: "front",
+        position: [0, -0.036, 0.037],
+        rotation: [0, 0, 0],
+        scale: 0.1,
+      },
+    ],
+  },
+
+  tote: {
+    id: "tote",
+    displayName: "Tote",
+    glbPath: "/models/tote.glb",
+    meshName: "tote_body",
+    materialName: "tote_material",
+    // PROCEDURALLY MODELED, same tool and same reason as bottle above.
+    // Real dimensions (38cm wide, 42cm tall body, 10cm gusset depth),
+    // handles Boolean-unioned into the body (real merged solid geometry
+    // — confirmed by checking actual vertex counts before/after, not
+    // just the audit score, after two earlier passes here that LOOKED
+    // fine in a render but were still genuinely disconnected, and a
+    // third pass whose handles were oriented flat instead of standing
+    // up as an arch — all three real bugs, all caught by actually
+    // running the audit/looking at renders, not assumed fixed).
+    // AUDITED: 98.8/100, APPROVED.
+    supportsColorChange: true,
+    defaultColor: "#d9ceae",
+    // VERIFIED: exported bounding box is (0.38, 0.518, 0.10) — X matches
+    // the modeled width exactly, Z matches the modeled gusset depth
+    // exactly, and Y (tallest) matches body height + handle rise
+    // (0.42 + 0.098) — confirms Y-up, no rotation needed.
+    modelRotation: [0, 0, 0],
+    camera: {
+      position: [0, 0, 1.35],
+      fov: 30,
+      minDistance: 0.88,
+      maxDistance: 1.89,
+    },
+    printAreas: [
+      {
+        // NOT verified — placeholder centered on the front face (body
+        // height 0.42, below the handles), needs confirming against the
+        // live mesh before trusting it, same as every other model here.
+        name: "front",
+        position: [0, 0.18, 0.051],
+        rotation: [0, 0, 0],
+        scale: 0.22,
+      },
+    ],
+  },
 
   pillow: {
     id: "pillow",

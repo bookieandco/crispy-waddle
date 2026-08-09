@@ -7,7 +7,7 @@ import BoutiqueImage from "./BoutiqueImage";
 import Hotspots from "./Hotspots";
 import ProductModal from "./ProductModal";
 import MusicToggle from "./MusicToggle";
-import BoutiqueSceneErrorBoundary from "./BoutiqueSceneErrorBoundary";
+import Scene3DErrorBoundary from "./Scene3DErrorBoundary";
 import { ActiveProduct } from "@/types/boutique";
 import { MusicProvider } from "@/context/MusicContext";
 import { isWebGLAvailable } from "@/lib/webgl";
@@ -51,7 +51,7 @@ export default function Boutique() {
       <main className="relative flex min-h-screen items-center justify-center bg-ink">
         {show3D ? (
           <div className="relative h-[100dvh] w-full">
-            <BoutiqueSceneErrorBoundary
+            <Scene3DErrorBoundary
               fallback={<FlatFallbackNotice />}
               onError={() => {
                 setSceneFailed(true);
@@ -62,7 +62,7 @@ export default function Boutique() {
                 onSelectHotspot={setActiveProduct}
                 onReady={() => setSceneReady(true)}
               />
-            </BoutiqueSceneErrorBoundary>
+            </Scene3DErrorBoundary>
 
             {!sceneReady && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-ink">

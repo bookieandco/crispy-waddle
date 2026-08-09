@@ -33,6 +33,8 @@ const HOTSPOT_3D_MODEL: Record<string, { modelId: string; printArea: string; col
   pillow: { modelId: "pillow", printArea: "front" },
   mugColorful: { modelId: "mug", printArea: "front" },
   mugWhite: { modelId: "mug", printArea: "front", color: "#f4f4f0" },
+  bottle: { modelId: "bottle", printArea: "front" },
+  tote: { modelId: "tote", printArea: "front" },
 };
 
 interface Props {
