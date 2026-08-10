@@ -1,0 +1,8 @@
+{
+  "name": "@jhadina/planning-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Jhadina Planning Core contracts for maps, spatial plans, scenarios, and timelines",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}
