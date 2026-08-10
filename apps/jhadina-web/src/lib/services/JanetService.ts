@@ -1,33 +1,27 @@
 /**
  * JanetService
- * 
- * Core orchestrator. Implements the real reasoning pipeline.
- * 
- * Pipeline:
- *   processMessage()
- *     ↓
- *   observe()
- *     ↓
- *   classify() [replaceable]
- *     ↓
- *   createCandidate()
- *     ↓
- *   recordReasoning()
- *     ↓
- *   return response
- * 
- * This is production-ready. Only the classifier is temporary.
+ *
+ * Core orchestrator. Implements the memory-governed reasoning pipeline.
+ *
+ * processMessage()
+ *   -> observe
+ *   -> classify
+ *   -> create pending candidate
+ *   -> record reasoning/audit
+ *   -> return response
+ *
+ * Context for downstream agents is built only from APPROVED memories.
  */
 
 import { Classifier } from "./Classifier"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
+import { JanetContextProvider, JanetCodebaseContextProvider } from "./JanetContextProvider"
 import {
   Observation,
   Classification,
   MemoryCandidate,
-  ReasoningEvent,
 } from "../storage/InMemoryStorage"
 
 export interface JanetServiceResponse {
@@ -39,39 +33,31 @@ export interface JanetServiceResponse {
 }
 
 export class JanetService {
+  private readonly contextProvider: JanetContextProvider
+
   constructor(
     private classifier: Classifier,
     private memoryRepo: MemoryRepository,
     private reasoningRepo: ReasoningEventRepository,
-    private timelineRepo: TimelineRepository
-  ) {}
+    private timelineRepo: TimelineRepository,
+    codebaseProvider?: JanetCodebaseContextProvider,
+  ) {
+    this.contextProvider = new JanetContextProvider(memoryRepo, codebaseProvider)
+  }
 
-  /**
-   * Main entry point
-   * User sends message → observe → classify → create candidate → record reasoning → respond
-   */
-  async processMessage(params: {
-    userId: string
-    message: string
-  }): Promise<JanetServiceResponse> {
+  async processMessage(params: { userId: string; message: string }): Promise<JanetServiceResponse> {
     const { userId, message } = params
-
-    // Step 1: Observe
     const observation = this.observe(message)
-
-    // Step 2: Classify (replaceable component)
     const classification = this.classifier.classify(message)
 
-    // Step 3: Create memory candidate (PENDING - awaiting approval)
     const candidate = await this.memoryRepo.createCandidate({
       userId,
       content: message,
       type: classification.type,
       confidence: classification.confidence,
-      reasoningEventId: "", // Will be set after reasoning event created
+      reasoningEventId: "",
     })
 
-    // Step 4: Record reasoning event (audit trail)
     const reasoningEvent = await this.reasoningRepo.create({
       userId,
       userMessage: message,
@@ -82,10 +68,6 @@ export class JanetService {
       candidateId: candidate.id,
     })
 
-    // Update candidate with reasoning event ID
-    // (Note: In real implementation, this would be transactional)
-
-    // Step 5: Record on timeline
     await this.timelineRepo.recordReasoning({
       userId,
       reasoningEventId: reasoningEvent.id,
@@ -93,7 +75,6 @@ export class JanetService {
       systemResponse: reasoningEvent.systemResponse,
     })
 
-    // Step 6: Return response
     return {
       response: reasoningEvent.systemResponse,
       reasoningEventId: reasoningEvent.id,
@@ -103,91 +84,65 @@ export class JanetService {
     }
   }
 
-  /**
-   * Observe: Extract structured observation from raw input
-   */
-  private observe(input: string): Observation {
-    return {
-      raw: input,
-      extracted: input.trim(),
-      timestamp: new Date().toISOString(),
-    }
+  /** Build the governed context packet JANET is allowed to hand to DELIA. */
+  async getAgentContext(userId: string, objective?: string) {
+    return this.contextProvider.build({ userId, objective })
   }
 
-  /**
-   * Generate response based on classification
-   * (In future, this could be more sophisticated)
-   */
-  private generateResponse(classification: Classification, message: string): string {
-    const type = classification.type
-    const confidence = (classification.confidence * 100).toFixed(0)
+  /** Compatibility method used by the JANET -> DELIA operating loop. */
+  async getContext(userId: string): Promise<any[]> {
+    const bundle = await this.contextProvider.build({ userId })
+    return bundle.approvedMemories
+  }
 
-    switch (type) {
+  /** Only APPROVED memory IDs may be attached to a downstream handoff. */
+  async getApprovedMemoryIds(userId: string): Promise<string[]> {
+    const bundle = await this.contextProvider.build({ userId })
+    return bundle.sourceMemoryIds
+  }
+
+  private observe(input: string): Observation {
+    return { raw: input, extracted: input.trim(), timestamp: new Date().toISOString() }
+  }
+
+  private generateResponse(classification: Classification, message: string): string {
+    const confidence = (classification.confidence * 100).toFixed(0)
+    switch (classification.type) {
       case "PREFERENCE":
         return `I've noted that ${message.toLowerCase()}. This is stored as a preference (${confidence}% confidence) and is pending your approval.`
-
       case "IDENTITY":
         return `I'll remember that ${message.toLowerCase()}. This is stored as an identity statement (${confidence}% confidence) and is pending your approval.`
-
       case "GOAL":
         return `I understand your goal: ${message.toLowerCase()}. This is stored as a goal (${confidence}% confidence) and is pending your approval.`
-
       case "CONTEXT":
         return `Got it. I'm storing this context: ${message.toLowerCase()} (${confidence}% confidence). It's pending your approval.`
-
       default:
         return `I've processed your message and created a memory candidate (${confidence}% confidence). Please review it in the approvals section.`
     }
   }
 
-  /**
-   * Health check
-   */
   async health(): Promise<{ status: "ok" | "error" }> {
     try {
-      // Quick smoke test
       const obs = this.observe("health check")
-      if (obs && obs.timestamp) {
-        return { status: "ok" }
-      }
-      return { status: "error" }
+      return obs?.timestamp ? { status: "ok" } : { status: "error" }
     } catch {
       return { status: "error" }
     }
   }
 
-  /**
-   * Approve a memory candidate
-   * Called by the approval endpoint
-   */
-  async approveMemory(
-    userId: string,
-    candidateId: string
-  ): Promise<{ status: string; memoryId: string }> {
+  async approveMemory(userId: string, candidateId: string): Promise<{ status: string; memoryId: string }> {
     const memory = await this.memoryRepo.approve(candidateId, userId)
-
-    // Record on timeline
     await this.timelineRepo.recordApproval({
       userId,
       memoryId: memory.id,
       memoryType: memory.type,
       memoryContent: memory.content,
     })
-
-    return {
-      status: "APPROVED",
-      memoryId: memory.id,
-    }
+    return { status: "APPROVED", memoryId: memory.id }
   }
 
-  /**
-   * Reject a memory candidate
-   * Called by the rejection endpoint
-   */
   async rejectMemory(userId: string, candidateId: string): Promise<void> {
     await this.memoryRepo.reject(candidateId, userId)
-
-    // Record on timeline
     const candidate = await this.memoryRepo["storage"]?.getCandidate?.(candidateId)
     if (candidate) {
       await this.timelineRepo.recordRejection({
@@ -199,32 +154,15 @@ export class JanetService {
     }
   }
 
-  /**
-   * Get user's memory context (for future decision engine)
-   */
-  async getContext(userId: string): Promise<any[]> {
-    return this.memoryRepo.getContext(userId)
-  }
-
-  /**
-   * Debug dump
-   */
-  dump(userId?: string): string {
-    const lines: string[] = []
-    lines.push("JanetService")
-    lines.push("═".repeat(40))
-    lines.push("")
-    lines.push("Pipeline Status: ✓ Production")
-    lines.push("Classifier Status: ⏳ Temporary (replaceable)")
-    lines.push("")
-    lines.push("Component Health:")
-    lines.push("  ✓ Observe()")
-    lines.push("  ⏳ Classify() [will be replaced by Decision Engine]")
-    lines.push("  ✓ createCandidate()")
-    lines.push("  ✓ recordReasoning()")
-    lines.push("  ✓ generateResponse()")
-    lines.push("")
-
-    return lines.join("\n")
+  dump(): string {
+    return [
+      "JanetService",
+      "═".repeat(40),
+      "",
+      "Pipeline Status: ✓ Production",
+      "Memory Context: ✓ APPROVED-only",
+      "Codebase Context: ✓ replaceable provider",
+      "Classifier Status: ⏳ Temporary (replaceable)",
+    ].join("\n")
   }
 }
