@@ -1,4 +1,4 @@
-import type { EditableTimeline, GenerativeRegion, TimelineClip } from './timeline-model.js';
+import type { EditableTimeline, GenerativeRegion, SfxGenerationRequest } from './timeline-model.js';
 import { addGenerativeRegion } from './timeline-model.js';
 import { splitClip, setClipFade, addTransition, updateClip } from './timeline-editing.js';
 
@@ -11,7 +11,8 @@ export type TimelineCommand =
   | { type: 'ripple-delete'; clipId: string }
   | { type: 'fade'; clipId: string; fadeInSeconds?: number; fadeOutSeconds?: number; curve?: 'linear' | 'equal-power' | 'exponential' }
   | { type: 'transition'; transition: Parameters<typeof addTransition>[1] }
-  | { type: 'generative-region'; region: GenerativeRegion };
+  | { type: 'generative-region'; region: GenerativeRegion }
+  | { type: 'generate-sfx'; request: SfxGenerationRequest };
 
 export function applyTimelineCommand(timeline: EditableTimeline, command: TimelineCommand): EditableTimeline {
   switch (command.type) {
@@ -24,7 +25,31 @@ export function applyTimelineCommand(timeline: EditableTimeline, command: Timeli
     case 'fade': return setClipFade(timeline, command.clipId, command);
     case 'transition': return addTransition(timeline, command.transition);
     case 'generative-region': return addGenerativeRegion(timeline, command.region);
+    case 'generate-sfx': return addSfxRequest(timeline, command.request);
   }
+}
+
+function addSfxRequest(timeline: EditableTimeline, request: SfxGenerationRequest): EditableTimeline {
+  const region: GenerativeRegion = {
+    id: request.id,
+    startSeconds: Math.max(0, request.startSeconds),
+    durationSeconds: Math.max(0.1, request.durationSeconds),
+    operation: 'insert',
+    instruction: request.prompt,
+    sourceClipId: request.sourceClipId,
+    approved: request.status === 'approved',
+    metadata: {
+      kind: 'sfx',
+      requestId: request.id,
+      action: request.action,
+      materials: request.materials,
+      perspective: request.perspective,
+      intensity: request.intensity,
+      status: request.status,
+      candidateAssetIds: request.candidateAssetIds,
+    },
+  };
+  return addGenerativeRegion(timeline, region);
 }
 
 function rippleDelete(timeline: EditableTimeline, clipId: string): EditableTimeline {
@@ -35,9 +60,7 @@ function rippleDelete(timeline: EditableTimeline, clipId: string): EditableTimel
     ...timeline,
     tracks: timeline.tracks.map(track => ({
       ...track,
-      clips: track.clips
-        .filter(clip => clip.id !== clipId)
-        .map(clip => clip.startSeconds >= end ? { ...clip, startSeconds: Math.max(0, clip.startSeconds - target.durationSeconds) } : clip),
+      clips: track.clips.filter(clip => clip.id !== clipId).map(clip => clip.startSeconds >= end ? { ...clip, startSeconds: Math.max(0, clip.startSeconds - target.durationSeconds) } : clip),
     })),
     transitions: timeline.transitions.filter(transition => transition.fromClipId !== clipId && transition.toClipId !== clipId),
   };
@@ -45,6 +68,7 @@ function rippleDelete(timeline: EditableTimeline, clipId: string): EditableTimel
 
 export function timelineCommandReason(command: TimelineCommand): string {
   if (command.type === 'generative-region') return `Generative edit: ${command.region.instruction}`;
+  if (command.type === 'generate-sfx') return `Generate SFX: ${command.request.prompt}`;
   if (command.type === 'transition') return 'Add timeline transition';
   return `Timeline ${command.type}`;
 }
