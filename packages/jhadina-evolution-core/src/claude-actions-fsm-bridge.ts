@@ -1,34 +1,25 @@
 import type { RepairContext, RepairFSM } from "./repair-fsm";
-import type { ExecutionEvidence } from "./evolution-executor";
-
-export type WorkflowOutcome = "VERIFIED" | "FAILED" | "BLOCKED";
-
-export interface WorkflowExecutionResult {
-  runId: number;
-  taskId: string;
-  outcome: WorkflowOutcome;
-  changedFiles: string[];
-  tests: ExecutionEvidence["tests"];
-  securityChecks: ExecutionEvidence["securityChecks"];
-  diffSummary: string;
-  draftPr?: { url: string; number: number };
-}
+import type { EvolutionExecutionResult } from "./evolution-result";
 
 export function applyWorkflowResult(
   fsm: RepairFSM,
   context: RepairContext,
-  result: WorkflowExecutionResult,
+  result: EvolutionExecutionResult,
 ): RepairContext {
   if (result.taskId !== context.repairId) {
     throw new Error(`Workflow task ${result.taskId} does not match repair ${context.repairId}`);
   }
 
-  if (result.outcome === "BLOCKED") {
+  if (result.status === "BLOCKED") {
     return fsm.transition(context, "block", "GitHub Actions reported BLOCKED").context;
   }
 
-  if (result.outcome === "FAILED") {
+  if (result.status === "FAILED") {
     return fsm.transition(context, "retry", "GitHub Actions repair verification failed").context;
+  }
+
+  if (result.verification.protectedPaths !== "success" || result.verification.evolutionCoreTests !== "success") {
+    return fsm.transition(context, "retry", "Verified status lacked required verification evidence").context;
   }
 
   let next = context;
