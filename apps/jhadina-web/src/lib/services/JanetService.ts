@@ -3,14 +3,21 @@
  *
  * Core orchestrator. Implements the memory-governed reasoning pipeline.
  * Context for downstream agents is built only from APPROVED memories and
- * the configured codebase-memory provider.
+ * explicitly configured codebase and Justice providers.
  */
 
 import { Classifier } from "./Classifier"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
-import { JanetContextProvider, JanetCodebaseContextProvider } from "./JanetContextProvider"
+import {
+  JanetContextProvider,
+  JanetCodebaseContextProvider,
+} from "./JanetContextProvider"
+import {
+  EmptyJanetJusticeContextProvider,
+  JanetJusticeContextProvider,
+} from "./JanetJusticeContextProvider"
 import { JanetGitHubCodebaseProvider } from "./JanetGitHubCodebaseProvider"
 import { Observation, Classification, MemoryCandidate } from "../storage/InMemoryStorage"
 
@@ -22,6 +29,16 @@ export interface JanetServiceResponse {
   confidence: number
 }
 
+export type JanetReadiness = "READY" | "DEGRADED" | "NOT_READY"
+
+export interface JanetHealth {
+  status: "ok" | "error"
+  readiness: JanetReadiness
+  memory: "READY"
+  codebase: "READY" | "UNAVAILABLE"
+  justice: "READY" | "JUSTICE_UNAVAILABLE" | "INSUFFICIENT_EVIDENCE" | "CONFLICT_UNRESOLVED"
+}
+
 export class JanetService {
   private readonly contextProvider: JanetContextProvider
 
@@ -31,8 +48,13 @@ export class JanetService {
     private reasoningRepo: ReasoningEventRepository,
     private timelineRepo: TimelineRepository,
     codebaseProvider?: JanetCodebaseContextProvider,
+    justiceProvider: JanetJusticeContextProvider = new EmptyJanetJusticeContextProvider(),
   ) {
-    this.contextProvider = new JanetContextProvider(memoryRepo, codebaseProvider ?? JanetService.defaultCodebaseProvider())
+    this.contextProvider = new JanetContextProvider(
+      memoryRepo,
+      codebaseProvider ?? JanetService.defaultCodebaseProvider(),
+      justiceProvider,
+    )
   }
 
   private static defaultCodebaseProvider(): JanetCodebaseContextProvider {
@@ -60,7 +82,15 @@ export class JanetService {
     return { response: reasoningEvent.systemResponse, reasoningEventId: reasoningEvent.id, classification, memoryCandidate: candidate, confidence: classification.confidence }
   }
 
-  async getAgentContext(userId: string, objective?: string) { return this.contextProvider.build({ userId, objective }) }
+  async getAgentContext(userId: string, objective?: string) {
+    return this.contextProvider.build({ userId, objective })
+  }
+
+  async getJusticeContext(userId: string, objective?: string, jurisdiction?: string, asOf?: string) {
+    const context = await this.contextProvider.build({ userId, objective, jurisdiction, asOf })
+    return context.justice
+  }
+
   async getContext(userId: string): Promise<any[]> { return (await this.contextProvider.build({ userId })).approvedMemories }
   async getApprovedMemoryIds(userId: string): Promise<string[]> { return (await this.contextProvider.build({ userId })).sourceMemoryIds }
 
@@ -77,7 +107,34 @@ export class JanetService {
     }
   }
 
-  async health(): Promise<{ status: "ok" | "error" }> { try { return this.observe("health check")?.timestamp ? { status: "ok" } : { status: "error" } } catch { return { status: "error" } } }
+  async health(): Promise<JanetHealth> {
+    try {
+      const context = await this.contextProvider.build({ userId: "__health__", objective: "health" })
+      const codebaseReady = context.readiness.codebase === "READY"
+      const justiceReady = context.readiness.justice === "READY"
+      const readiness: JanetReadiness = codebaseReady && justiceReady
+        ? "READY"
+        : codebaseReady || justiceReady
+          ? "DEGRADED"
+          : "NOT_READY"
+
+      return {
+        status: "ok",
+        readiness,
+        memory: "READY",
+        codebase: context.readiness.codebase,
+        justice: context.readiness.justice,
+      }
+    } catch {
+      return {
+        status: "error",
+        readiness: "NOT_READY",
+        memory: "READY",
+        codebase: "UNAVAILABLE",
+        justice: "JUSTICE_UNAVAILABLE",
+      }
+    }
+  }
 
   async approveMemory(userId: string, candidateId: string): Promise<{ status: string; memoryId: string }> {
     const memory = await this.memoryRepo.approve(candidateId, userId)
@@ -91,5 +148,16 @@ export class JanetService {
     if (candidate) await this.timelineRepo.recordRejection({ userId, memoryId: candidateId, memoryType: candidate.type, memoryContent: candidate.content })
   }
 
-  dump(): string { return ["JanetService", "═".repeat(40), "", "Pipeline Status: ✓ Production", "Memory Context: ✓ APPROVED-only", "Codebase Context: ✓ GitHub graph provider when configured", "Classifier Status: ⏳ Temporary (replaceable)"].join("\n") }
+  dump(): string {
+    return [
+      "JanetService",
+      "═".repeat(40),
+      "",
+      "Readiness: derived from live context providers",
+      "Memory Context: ✓ APPROVED-only",
+      "Codebase Context: ✓ GitHub graph provider when configured",
+      "Justice Context: ✓ governed provider when configured",
+      "Classifier Status: ⏳ Temporary (replaceable)",
+    ].join("\n")
+  }
 }
