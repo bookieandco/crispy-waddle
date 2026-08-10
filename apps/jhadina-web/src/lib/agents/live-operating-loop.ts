@@ -28,6 +28,7 @@ export function createLiveJhadinaOperatingLoop(input: {
  */
 export function createMarisaExecutionProvider(executor: VerifiedActionExecutor<unknown, unknown>): MarisaExecutionProvider {
   const governed = new MarisaActionExecutor(executor as unknown as ActionExecutor<unknown, unknown>)
+
   return {
     prepareExecution: async (strategy) => {
       const request = {
@@ -37,8 +38,21 @@ export function createMarisaExecutionProvider(executor: VerifiedActionExecutor<u
         action: strategy,
         requestedAt: new Date().toISOString(),
       }
-      await governed.execute(request)
-      return { executionId: request.id, status: "EXECUTED" }
+
+      try {
+        await governed.execute(request)
+        return {
+          executionId: request.id,
+          strategyId: strategy.strategyId,
+          status: "EXECUTED",
+        }
+      } catch (error) {
+        return {
+          executionId: request.id,
+          strategyId: strategy.strategyId,
+          status: "FAILED",
+        }
+      }
     },
   }
 }
