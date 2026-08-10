@@ -5,11 +5,11 @@ import { SkillScanner } from "./SkillScanner";
 import { SkillPolicyAdapter } from "../governance/SkillPolicyAdapter";
 import { CapabilityTokenIssuer } from "../execution/SkillCapabilityToken";
 import { SkillExecutorGuard } from "../execution/SkillExecutorGuard";
-import { GuardedSkillExecutor } from "../execution/GuardedSkillExecutor";
 import { ActionCoreSkillExecutor } from "../execution/ActionCoreSkillExecutor";
+import type { SkillExecutionAuditEvent, SkillExecutionAuditSink } from "../execution/GuardedSkillExecutor";
 
 describe("governed skill execution flow", () => {
-  it("admits a safe skill, executes it, and records the canonical audit event", async () => {
+  it("admits a safe skill, executes through Action Core, and uses the production audit injection", async () => {
     const skill = {
       id: "calendar.read",
       name: "Calendar Reader",
@@ -55,35 +55,60 @@ describe("governed skill execution flow", () => {
       decision,
     });
 
-    const audit = { append: vi.fn() };
-    const guarded = new GuardedSkillExecutor(new SkillExecutorGuard(), audit);
+    const auditEvents: SkillExecutionAuditEvent[] = [];
+    const audit: SkillExecutionAuditSink = {
+      append: vi.fn((event) => auditEvents.push(event)),
+    };
     const actionExecutor = { execute: vi.fn().mockResolvedValue({ ok: true }) };
-    const executor = new ActionCoreSkillExecutor(new SkillExecutorGuard(), actionExecutor);
+    const executor = new ActionCoreSkillExecutor(new SkillExecutorGuard(), actionExecutor, audit);
 
-    const result = await executor.execute({
+    await expect(executor.execute({
       skillId: registered.id,
       capabilityId: capability.id,
       token,
       userId: "user-1",
       action: { date: "2026-08-10" },
       actionType: "calendar.read",
-    });
+    })).resolves.toEqual({ ok: true });
 
-    await guarded.execute({
-      skillId: registered.id,
-      capabilityId: capability.id,
-      token,
-      input: { date: "2026-08-10" },
-      handler: { execute: async () => result },
-    });
-
-    expect(result).toEqual({ ok: true });
     expect(actionExecutor.execute).toHaveBeenCalledTimes(1);
-    expect(audit.append).toHaveBeenCalledWith(expect.objectContaining({
+    expect(audit.append).toHaveBeenCalledTimes(1);
+    expect(auditEvents[0]).toEqual(expect.objectContaining({
       type: "SKILL_EXECUTION_ALLOWED",
       skillId: "calendar.read",
       capabilityId: "calendar.read",
       tokenId: token.tokenId,
+    }));
+  });
+
+  it("records a rejected execution before Action Core is reached", async () => {
+    const auditEvents: SkillExecutionAuditEvent[] = [];
+    const audit: SkillExecutionAuditSink = {
+      append: vi.fn((event) => auditEvents.push(event)),
+    };
+    const actionExecutor = { execute: vi.fn() };
+    const executor = new ActionCoreSkillExecutor(new SkillExecutorGuard(), actionExecutor, audit);
+    const token = new CapabilityTokenIssuer().issue({
+      skillId: "calendar.read",
+      capabilityId: "calendar.read",
+      decision: "allow",
+      ttlMs: 1,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    await expect(executor.execute({
+      skillId: "calendar.read",
+      capabilityId: "calendar.read",
+      token,
+      userId: "user-1",
+      action: {},
+      actionType: "calendar.read",
+    })).rejects.toThrow("Capability token expired");
+
+    expect(actionExecutor.execute).not.toHaveBeenCalled();
+    expect(auditEvents[0]).toEqual(expect.objectContaining({
+      type: "SKILL_EXECUTION_REJECTED",
+      reason: "Capability token expired",
     }));
   });
 
