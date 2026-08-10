@@ -9,18 +9,20 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Version is intentionally managed by the repository's future
-            // version catalog rather than duplicated in this module.
-        }
-
-        androidMain.dependencies {
-            // Kizitonwose Calendar dependency belongs exclusively here.
-            // Add it when the repository's Compose/Kotlin version catalog is
-            // established so the artifact is version-compatible.
+            implementation("org.jetbrains.compose.runtime:runtime:1.10.0")
+            implementation("org.jetbrains.compose.foundation:foundation:1.10.0")
+            implementation("org.jetbrains.compose.material3:material3:1.10.0-alpha05")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+            implementation("com.kizitonwose.calendar:compose-multiplatform:2.10.1")
         }
     }
 }
 
 android {
     namespace = "com.jhadina.calendar"
+    compileSdk = 36
+
+    defaultConfig {
+        minSdk = 23
+    }
 }
