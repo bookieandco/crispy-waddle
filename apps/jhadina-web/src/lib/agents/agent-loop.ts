@@ -58,12 +58,17 @@ export interface DeliaStrategyProvider {
   }): Promise<StrategyPacket>
 }
 
+/** Result of MARISA handing an execution request to Jhadina's governed Action Core. */
+export type MarisaExecutionStatus = "EXECUTED" | "FAILED"
+
+export interface MarisaExecutionResult {
+  executionId: string
+  strategyId: string
+  status: MarisaExecutionStatus
+}
+
 export interface MarisaExecutionProvider {
-  prepareExecution(strategy: StrategyPacket): Promise<{
-    executionId: string
-    status: "READY" | "BLOCKED"
-    strategyId: string
-  }>
+  prepareExecution(strategy: StrategyPacket): Promise<MarisaExecutionResult>
 }
 
 export class JhadinaOperatingLoop {
