@@ -12,6 +12,7 @@ export * from './creator-workstation';
 export * from './project-store';
 export * from './director-adapter';
 export * from './director-shotlist-action-adapter';
+export * from './director-candidate-action-adapter';
 export * from './jhadina-document';
 export * from './music-adapter';
 export * from './domain-adapters';
