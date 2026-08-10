@@ -27,11 +27,10 @@ public struct NativeMoviePipelineResult: Sendable {
 /// Concrete first-pass file-to-file pipeline:
 /// AVAssetReader -> GPUImage2 -> AVAssetWriter.
 ///
-/// The video path intentionally uses GPUImage2's platform image bridge for the
-/// first executable implementation. It preserves every source presentation
-/// timestamp and muxes the source audio track independently. A later optimized
-/// implementation can replace only `filterPixelBuffer` with TextureInput /
-/// TextureOutput and avoid the image round-trip.
+/// The video path uses GPUImage2's platform image bridge for the first executable
+/// implementation. Source presentation timestamps are preserved and the source
+/// audio track is muxed independently. The optimized TextureInput/TextureOutput
+/// path can replace only `filterPixelBuffer` later to remove the image round-trip.
 public final class AVAssetReaderGPUImageWriterPipeline {
     public init() {}
 
@@ -54,9 +53,7 @@ public final class AVAssetReaderGPUImageWriterPipeline {
 
         let videoReader = AVAssetReaderTrackOutput(
             track: videoTrack,
-            outputSettings: [
-                kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
-            ]
+            outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)]
         )
         videoReader.alwaysCopiesSampleData = false
         guard reader.canAdd(videoReader) else {
@@ -65,12 +62,14 @@ public final class AVAssetReaderGPUImageWriterPipeline {
         reader.add(videoReader)
 
         let naturalSize = videoTrack.naturalSize
+        let width = Int(abs(naturalSize.width))
+        let height = Int(abs(naturalSize.height))
         let videoSettings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: Int(abs(naturalSize.width)),
-            AVVideoHeightKey: Int(abs(naturalSize.height)),
+            AVVideoWidthKey: width,
+            AVVideoHeightKey: height,
             AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: max(2_000_000, Int(abs(naturalSize.width * naturalSize.height) * 0.08)),
+                AVVideoAverageBitRateKey: max(2_000_000, width * height * 8 / 10),
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
             ]
         ]
@@ -82,8 +81,8 @@ public final class AVAssetReaderGPUImageWriterPipeline {
             assetWriterInput: videoWriter,
             sourcePixelBufferAttributes: [
                 kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA),
-                kCVPixelBufferWidthKey as String: Int(abs(naturalSize.width)),
-                kCVPixelBufferHeightKey as String: Int(abs(naturalSize.height)),
+                kCVPixelBufferWidthKey as String: width,
+                kCVPixelBufferHeightKey as String: height,
                 kCVPixelBufferIOSurfacePropertiesKey as String: [:]
             ]
         )
@@ -120,6 +119,7 @@ public final class AVAssetReaderGPUImageWriterPipeline {
         var frames = 0
         var firstPTS: CMTime?
         var lastPTS: CMTime?
+        var sessionStarted = false
 
         while let sample = videoReader.copyNextSampleBuffer() {
             let pts = CMSampleBufferGetPresentationTimeStamp(sample)
@@ -130,8 +130,9 @@ public final class AVAssetReaderGPUImageWriterPipeline {
                 throw PipelineError.execution("Video sample has no pixel buffer.")
             }
 
-            if !writer.sessionStarted {
+            if !sessionStarted {
                 writer.startSession(atSourceTime: pts)
+                sessionStarted = true
             }
 
             let filtered = try filterPixelBuffer(sourceBuffer, operation: request.operation, parameters: request.parameters)
@@ -144,6 +145,9 @@ public final class AVAssetReaderGPUImageWriterPipeline {
             frames += 1
         }
 
+        guard frames > 0 else {
+            throw PipelineError.execution("Video reader returned no frames.")
+        }
         guard reader.status == .completed else {
             throw PipelineError.execution(reader.error?.localizedDescription ?? "Video reader did not complete.")
         }
@@ -180,11 +184,7 @@ public final class AVAssetReaderGPUImageWriterPipeline {
         return NativeMoviePipelineResult(status: "complete", outputURL: request.outputURL, metrics: metrics, warnings: [])
     }
 
-    private func filterPixelBuffer(
-        _ pixelBuffer: CVPixelBuffer,
-        operation: String,
-        parameters: [String: Double]
-    ) throws -> CVPixelBuffer {
+    private func filterPixelBuffer(_ pixelBuffer: CVPixelBuffer, operation: String, parameters: [String: Double]) throws -> CVPixelBuffer {
         #if canImport(UIKit)
         guard let image = makeUIImage(from: pixelBuffer) else {
             throw PipelineError.execution("Could not create UIImage from source pixel buffer.")
@@ -324,8 +324,4 @@ private enum PipelineError: LocalizedError {
             return message
         }
     }
-}
-
-private extension AVAssetWriter {
-    var sessionStarted: Bool { status == .writing }
 }
