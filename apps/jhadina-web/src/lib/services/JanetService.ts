@@ -2,15 +2,8 @@
  * JanetService
  *
  * Core orchestrator. Implements the memory-governed reasoning pipeline.
- *
- * processMessage()
- *   -> observe
- *   -> classify
- *   -> create pending candidate
- *   -> record reasoning/audit
- *   -> return response
- *
- * Context for downstream agents is built only from APPROVED memories.
+ * Context for downstream agents is built only from APPROVED memories and
+ * the configured codebase-memory provider.
  */
 
 import { Classifier } from "./Classifier"
@@ -18,11 +11,8 @@ import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { JanetContextProvider, JanetCodebaseContextProvider } from "./JanetContextProvider"
-import {
-  Observation,
-  Classification,
-  MemoryCandidate,
-} from "../storage/InMemoryStorage"
+import { JanetGitHubCodebaseProvider } from "./JanetGitHubCodebaseProvider"
+import { Observation, Classification, MemoryCandidate } from "../storage/InMemoryStorage"
 
 export interface JanetServiceResponse {
   response: string
@@ -42,127 +32,64 @@ export class JanetService {
     private timelineRepo: TimelineRepository,
     codebaseProvider?: JanetCodebaseContextProvider,
   ) {
-    this.contextProvider = new JanetContextProvider(memoryRepo, codebaseProvider)
+    this.contextProvider = new JanetContextProvider(memoryRepo, codebaseProvider ?? JanetService.defaultCodebaseProvider())
+  }
+
+  private static defaultCodebaseProvider(): JanetCodebaseContextProvider {
+    const owner = process.env.JANET_CODEBASE_OWNER
+    const repo = process.env.JANET_CODEBASE_REPO
+    if (!owner || !repo) {
+      return { getContext: async () => ({ summary: "No JANET_CODEBASE_OWNER/REPO configured.", relevantPaths: [], relationships: [] }) }
+    }
+    return new JanetGitHubCodebaseProvider({
+      owner,
+      repo,
+      ref: process.env.JANET_CODEBASE_REF || "main",
+      token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN,
+      maxFiles: Number(process.env.JANET_CODEBASE_MAX_FILES || 180),
+    })
   }
 
   async processMessage(params: { userId: string; message: string }): Promise<JanetServiceResponse> {
     const { userId, message } = params
     const observation = this.observe(message)
     const classification = this.classifier.classify(message)
-
-    const candidate = await this.memoryRepo.createCandidate({
-      userId,
-      content: message,
-      type: classification.type,
-      confidence: classification.confidence,
-      reasoningEventId: "",
-    })
-
-    const reasoningEvent = await this.reasoningRepo.create({
-      userId,
-      userMessage: message,
-      observation,
-      classification,
-      systemResponse: this.generateResponse(classification, message),
-      confidence: classification.confidence,
-      candidateId: candidate.id,
-    })
-
-    await this.timelineRepo.recordReasoning({
-      userId,
-      reasoningEventId: reasoningEvent.id,
-      userMessage: message,
-      systemResponse: reasoningEvent.systemResponse,
-    })
-
-    return {
-      response: reasoningEvent.systemResponse,
-      reasoningEventId: reasoningEvent.id,
-      classification,
-      memoryCandidate: candidate,
-      confidence: classification.confidence,
-    }
+    const candidate = await this.memoryRepo.createCandidate({ userId, content: message, type: classification.type, confidence: classification.confidence, reasoningEventId: "" })
+    const reasoningEvent = await this.reasoningRepo.create({ userId, userMessage: message, observation, classification, systemResponse: this.generateResponse(classification, message), confidence: classification.confidence, candidateId: candidate.id })
+    await this.timelineRepo.recordReasoning({ userId, reasoningEventId: reasoningEvent.id, userMessage: message, systemResponse: reasoningEvent.systemResponse })
+    return { response: reasoningEvent.systemResponse, reasoningEventId: reasoningEvent.id, classification, memoryCandidate: candidate, confidence: classification.confidence }
   }
 
-  /** Build the governed context packet JANET is allowed to hand to DELIA. */
-  async getAgentContext(userId: string, objective?: string) {
-    return this.contextProvider.build({ userId, objective })
-  }
+  async getAgentContext(userId: string, objective?: string) { return this.contextProvider.build({ userId, objective }) }
+  async getContext(userId: string): Promise<any[]> { return (await this.contextProvider.build({ userId })).approvedMemories }
+  async getApprovedMemoryIds(userId: string): Promise<string[]> { return (await this.contextProvider.build({ userId })).sourceMemoryIds }
 
-  /** Compatibility method used by the JANET -> DELIA operating loop. */
-  async getContext(userId: string): Promise<any[]> {
-    const bundle = await this.contextProvider.build({ userId })
-    return bundle.approvedMemories
-  }
-
-  /** Only APPROVED memory IDs may be attached to a downstream handoff. */
-  async getApprovedMemoryIds(userId: string): Promise<string[]> {
-    const bundle = await this.contextProvider.build({ userId })
-    return bundle.sourceMemoryIds
-  }
-
-  private observe(input: string): Observation {
-    return { raw: input, extracted: input.trim(), timestamp: new Date().toISOString() }
-  }
+  private observe(input: string): Observation { return { raw: input, extracted: input.trim(), timestamp: new Date().toISOString() } }
 
   private generateResponse(classification: Classification, message: string): string {
     const confidence = (classification.confidence * 100).toFixed(0)
     switch (classification.type) {
-      case "PREFERENCE":
-        return `I've noted that ${message.toLowerCase()}. This is stored as a preference (${confidence}% confidence) and is pending your approval.`
-      case "IDENTITY":
-        return `I'll remember that ${message.toLowerCase()}. This is stored as an identity statement (${confidence}% confidence) and is pending your approval.`
-      case "GOAL":
-        return `I understand your goal: ${message.toLowerCase()}. This is stored as a goal (${confidence}% confidence) and is pending your approval.`
-      case "CONTEXT":
-        return `Got it. I'm storing this context: ${message.toLowerCase()} (${confidence}% confidence). It's pending your approval.`
-      default:
-        return `I've processed your message and created a memory candidate (${confidence}% confidence). Please review it in the approvals section.`
+      case "PREFERENCE": return `I've noted that ${message.toLowerCase()}. This is stored as a preference (${confidence}% confidence) and is pending your approval.`
+      case "IDENTITY": return `I'll remember that ${message.toLowerCase()}. This is stored as an identity statement (${confidence}% confidence) and is pending your approval.`
+      case "GOAL": return `I understand your goal: ${message.toLowerCase()}. This is stored as a goal (${confidence}% confidence) and is pending your approval.`
+      case "CONTEXT": return `Got it. I'm storing this context: ${message.toLowerCase()} (${confidence}% confidence). It's pending your approval.`
+      default: return `I've processed your message and created a memory candidate (${confidence}% confidence). Please review it in the approvals section.`
     }
   }
 
-  async health(): Promise<{ status: "ok" | "error" }> {
-    try {
-      const obs = this.observe("health check")
-      return obs?.timestamp ? { status: "ok" } : { status: "error" }
-    } catch {
-      return { status: "error" }
-    }
-  }
+  async health(): Promise<{ status: "ok" | "error" }> { try { return this.observe("health check")?.timestamp ? { status: "ok" } : { status: "error" } } catch { return { status: "error" } } }
 
   async approveMemory(userId: string, candidateId: string): Promise<{ status: string; memoryId: string }> {
     const memory = await this.memoryRepo.approve(candidateId, userId)
-    await this.timelineRepo.recordApproval({
-      userId,
-      memoryId: memory.id,
-      memoryType: memory.type,
-      memoryContent: memory.content,
-    })
+    await this.timelineRepo.recordApproval({ userId, memoryId: memory.id, memoryType: memory.type, memoryContent: memory.content })
     return { status: "APPROVED", memoryId: memory.id }
   }
 
   async rejectMemory(userId: string, candidateId: string): Promise<void> {
     await this.memoryRepo.reject(candidateId, userId)
     const candidate = await this.memoryRepo["storage"]?.getCandidate?.(candidateId)
-    if (candidate) {
-      await this.timelineRepo.recordRejection({
-        userId,
-        memoryId: candidateId,
-        memoryType: candidate.type,
-        memoryContent: candidate.content,
-      })
-    }
+    if (candidate) await this.timelineRepo.recordRejection({ userId, memoryId: candidateId, memoryType: candidate.type, memoryContent: candidate.content })
   }
 
-  dump(): string {
-    return [
-      "JanetService",
-      "═".repeat(40),
-      "",
-      "Pipeline Status: ✓ Production",
-      "Memory Context: ✓ APPROVED-only",
-      "Codebase Context: ✓ replaceable provider",
-      "Classifier Status: ⏳ Temporary (replaceable)",
-    ].join("\n")
-  }
+  dump(): string { return ["JanetService", "═".repeat(40), "", "Pipeline Status: ✓ Production", "Memory Context: ✓ APPROVED-only", "Codebase Context: ✓ GitHub graph provider when configured", "Classifier Status: ⏳ Temporary (replaceable)"].join("\n") }
 }
