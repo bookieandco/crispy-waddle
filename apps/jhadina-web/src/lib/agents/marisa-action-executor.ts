@@ -1,4 +1,8 @@
-import type { ActionExecutor, ActionRequest } from "../../../../packages/jhadina-action-core/src/action-executor"
+import type { ActionRequest } from "../../../../packages/jhadina-action-core/src/action-executor"
+
+export interface GovernedActionExecutor<TResult = unknown> {
+  execute(request: ActionRequest<unknown>): Promise<TResult>
+}
 
 export interface MarisaExecutionRequest {
   id: string
@@ -8,9 +12,9 @@ export interface MarisaExecutionRequest {
   requestedAt: string
 }
 
-/** MARISA's side-effect boundary. It cannot execute directly; it delegates to Jhadina Action Core. */
+/** MARISA's side-effect boundary. It cannot execute directly; it delegates to Jhadina's governed executor. */
 export class MarisaActionExecutor {
-  constructor(private readonly executor: ActionExecutor<unknown, unknown>) {}
+  constructor(private readonly executor: GovernedActionExecutor) {}
 
   async execute(request: MarisaExecutionRequest): Promise<unknown> {
     const actionRequest: ActionRequest = {
