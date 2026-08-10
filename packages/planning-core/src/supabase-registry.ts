@@ -4,6 +4,8 @@ import type {
   PlanningProposal,
   PlanningRegistry,
 } from "./index";
+import { planCreatedEvent, proposalCreatedEvent, type PlanningEventBus } from "./events";
+import { planningEventId } from "./supabase-event-bus";
 
 export interface PlanningDatabaseClient {
   from(table: string): {
@@ -23,24 +25,24 @@ export interface PlanningQuery {
 }
 
 interface PlanRow {
-  id: string;
-  name: string;
-  version: number;
   document: PlanningPlan;
 }
 
-interface ProposalRow {
-  id: string;
-  plan_id: string;
-  description: string;
-  requested_at: string;
-  requested_by: string;
-  action_type: string;
-  payload: Record<string, unknown>;
+export interface PlanningRegistryEventOptions {
+  actorId: ID;
+  eventIdFactory?: (prefix: string, sourceId: ID) => ID;
 }
 
 export class SupabasePlanningRegistry implements PlanningRegistry {
-  constructor(private readonly db: PlanningDatabaseClient) {}
+  private readonly eventIds: (prefix: string, sourceId: ID) => ID;
+
+  constructor(
+    private readonly db: PlanningDatabaseClient,
+    private readonly events: PlanningEventBus,
+    options: PlanningRegistryEventOptions,
+  ) {
+    this.eventIds = options.eventIdFactory ?? planningEventId;
+  }
 
   async getPlan(id: ID): Promise<PlanningPlan | null> {
     const result = await this.db
@@ -64,6 +66,10 @@ export class SupabasePlanningRegistry implements PlanningRegistry {
     });
 
     if (result.error) throw result.error;
+
+    await this.events.publish(
+      planCreatedEvent(plan, "system", this.eventIds("planning:plan-created", plan.id)),
+    );
   }
 
   async listPlans(): Promise<PlanningPlan[]> {
@@ -91,5 +97,13 @@ export class SupabasePlanningRegistry implements PlanningRegistry {
     });
 
     if (result.error) throw result.error;
+
+    await this.events.publish(
+      proposalCreatedEvent(
+        proposal,
+        proposal.requestedBy,
+        this.eventIds("planning:proposal-created", proposal.id),
+      ),
+    );
   }
 }
