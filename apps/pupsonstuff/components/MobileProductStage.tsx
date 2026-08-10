@@ -9,12 +9,132 @@ import { screenshotPlugin } from "./product3d-plugins/screenshotPlugin";
 import AsciiSpinner from "./AsciiSpinner";
 
 const Product3DEngine = dynamic(() => import("./Product3DEngine"), { ssr: false });
-const MODELS: Record<string, { modelId: string; printArea: string; color?: string }> = { concertShirt: { modelId: "shirt", printArea: "front", color: "#111111" }, foldedShirts: { modelId: "shirt", printArea: "front", color: "#f4f4f4" }, whiteHoodie: { modelId: "hoodie", printArea: "front", color: "#f4f4f4" }, hoodieRight: { modelId: "hoodie", printArea: "front", color: "#111111" }, pillow: { modelId: "pillow", printArea: "front" }, mugColorful: { modelId: "mug", printArea: "front" }, mugWhite: { modelId: "mug", printArea: "front", color: "#f4f4f0" }, bottle: { modelId: "bottle", printArea: "front" }, tote: { modelId: "tote", printArea: "front" } };
+const MODELS: Record<string, { modelId: string; printArea: string; color?: string }> = {
+  concertShirt: { modelId: "shirt", printArea: "front", color: "#111111" },
+  foldedShirts: { modelId: "shirt", printArea: "front", color: "#f4f4f4" },
+  whiteHoodie: { modelId: "hoodie", printArea: "front", color: "#f4f4f4" },
+  hoodieRight: { modelId: "hoodie", printArea: "front", color: "#111111" },
+  pillow: { modelId: "pillow", printArea: "front" },
+  mugColorful: { modelId: "mug", printArea: "front" },
+  mugWhite: { modelId: "mug", printArea: "front", color: "#f4f4f0" },
+  bottle: { modelId: "bottle", printArea: "front" },
+  tote: { modelId: "tote", printArea: "front" },
+};
 
 export default function MobileProductStage({ product, onClose }: { product: ActiveProduct | null; onClose: () => void }) {
-  const [file, setFile] = useState<File | null>(null); const [style, setStyle] = useState<ArtStyle>("watercolor"); const [preview, setPreview] = useState<string | null>(null); const [generating, setGenerating] = useState(false); const [error, setError] = useState<string | null>(null); const [view, setView] = useState<"art" | "3d">("3d");
-  useEffect(() => { setFile(null); setPreview(null); setError(null); setStyle("watercolor"); setView("3d"); }, [product?.id]);
-  const mapping = product ? MODELS[product.id] : undefined; const config = mapping ? getProduct3DConfig(mapping.modelId) : null;
-  async function generate() { if (!file || !product) return; setGenerating(true); setError(null); try { const form = new FormData(); form.append("photo", file); form.append("productId", product.id); form.append("artStyle", artStyles.find((s) => s.id === style)?.label ?? style); form.append("artStyleId", style); const response = await fetch("/api/generate-preview", { method: "POST", body: form }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data?.error ?? "Generation failed."); setPreview(`data:image/png;base64,${data.imageBase64}`); setView("3d"); } catch (err) { setError(err instanceof Error ? err.message : "Couldn't generate the preview."); } finally { setGenerating(false); } }
-  return <AnimatePresence>{product && <motion.div className="fixed inset-0 z-[70] bg-ink/75 backdrop-blur-md md:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.section className="absolute inset-2 flex flex-col overflow-hidden rounded-[2rem] border border-cream/15 bg-ink text-cream shadow-2xl" initial={{ y: "100%", scale: .96 }} animate={{ y: 0, scale: 1 }} exit={{ y: "100%", scale: .96 }} transition={{ type: "spring", stiffness: 260, damping: 26 }}><header className="flex shrink-0 items-center justify-between px-5 pb-3 pt-4"><div><p className="text-[9px] uppercase tracking-[.28em] text-gold">PupsonStuff Studio</p><h2 className="text-lg font-semibold">{product.name}</h2></div><button onClick={onClose} className="rounded-full border border-cream/15 px-3 py-2 text-xs text-cream/70">Close</button></header><div className="min-h-0 flex-1 px-3 pb-3"><div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[1.5rem] bg-gradient-to-b from-bronze/20 via-ink to-black/20"><div className="flex min-h-0 flex-1 items-center justify-center p-3">{generating ? <AsciiSpinner label="Creating your pet artwork…" /> : view === "3d" && config && mapping ? <Product3DEngine config={config} color={mapping.color} decals={{ [mapping.printArea]: preview }} plugins={[screenshotPlugin]} /> : preview ? <img src={preview} alt="Generated pet artwork" className="max-h-full max-w-full rounded-xl object-contain shadow-2xl" /> : <div className="max-w-xs text-center"><div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-3xl border border-gold/20 bg-gold/5 text-4xl">🐾</div><p className="text-sm text-cream/65">Add your pet photo and turn this product into your custom creation.</p></div>}</div><div className="shrink-0 border-t border-cream/10 bg-ink/80 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl"><div className="mb-2 flex gap-2"><button onClick={() => setView("3d")} className={`rounded-full px-3 py-1.5 text-[11px] ${view === "3d" ? "bg-gold text-ink" : "bg-cream/10 text-cream/70"}`}>Product</button><button onClick={() => setView("art")} className={`rounded-full px-3 py-1.5 text-[11px] ${view === "art" ? "bg-gold text-ink" : "bg-cream/10 text-cream/70"}`}>Artwork</button></div><div className="flex gap-2"><label className="flex min-w-0 flex-1 cursor-pointer items-center rounded-xl border border-cream/10 bg-cream/5 px-3 py-2.5 text-xs text-cream/65"><span className="truncate">{file?.name ?? "Add pet photo"}</span><input type="file" accept="image/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></label><button onClick={generate} disabled={!file || generating} className="rounded-xl bg-gold px-4 py-2.5 text-xs font-semibold text-ink disabled:opacity-40">{preview ? "Redo" : "Create"}</button></div><div className="mt-2 flex gap-1.5 overflow-x-auto">{artStyles.slice(0, 7).map((item) => <button key={item.id} onClick={() => setStyle(item.id)} className={`shrink-0 rounded-full border px-2.5 py-1.5 text-[10px] ${style === item.id ? "border-gold bg-gold/10 text-gold" : "border-cream/10 text-cream/50"}`}>{item.label}</button>)}</div>{error && <p className="mt-2 text-[10px] text-red-300">{error}</p>}</div></div></div></motion.section></motion.div>}</AnimatePresence>;
+  const [file, setFile] = useState<File | null>(null);
+  const [style, setStyle] = useState<ArtStyle>("watercolor");
+  const [preview, setPreview] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<"art" | "3d">("3d");
+  const [variantId, setVariantId] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
+
+  useEffect(() => {
+    setFile(null);
+    setPreview(null);
+    setError(null);
+    setStyle("watercolor");
+    setView("3d");
+    setVariantId(product?.fulfillment?.variants[0]?.variantId ?? null);
+    setQuantity(1);
+  }, [product?.id]);
+
+  const mapping = product ? MODELS[product.id] : undefined;
+  const config = mapping ? getProduct3DConfig(mapping.modelId) : null;
+  const variants = product?.fulfillment?.variants ?? [];
+  const activeVariant = variants.find((item) => item.variantId === variantId) ?? variants[0];
+
+  async function generate() {
+    if (!file || !product) return;
+    setGenerating(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("photo", file);
+      form.append("productId", product.id);
+      form.append("artStyle", artStyles.find((s) => s.id === style)?.label ?? style);
+      form.append("artStyleId", style);
+      const response = await fetch("/api/generate-preview", { method: "POST", body: form });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data?.error ?? "Generation failed.");
+      setPreview(`data:image/png;base64,${data.imageBase64}`);
+      setView("3d");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't generate the preview.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function checkout() {
+    if (!product?.fulfillment || !activeVariant) return;
+    setCheckingOut(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          variantId: activeVariant.variantId,
+          quantity,
+          previewUrl: preview,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.url) throw new Error(data?.error ?? "Checkout could not be started.");
+      window.location.assign(data.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't start checkout.");
+      setCheckingOut(false);
+    }
+  }
+
+  return (
+    <AnimatePresence>
+      {product && (
+        <motion.div className="fixed inset-0 z-[70] bg-ink/75 backdrop-blur-md md:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.section className="absolute inset-2 flex flex-col overflow-hidden rounded-[2rem] border border-cream/15 bg-ink text-cream shadow-2xl" initial={{ y: "100%", scale: .96 }} animate={{ y: 0, scale: 1 }} exit={{ y: "100%", scale: .96 }} transition={{ type: "spring", stiffness: 260, damping: 26 }}>
+            <header className="flex shrink-0 items-center justify-between px-5 pb-3 pt-4">
+              <div><p className="text-[9px] uppercase tracking-[.28em] text-gold">PupsonStuff Studio</p><h2 className="text-lg font-semibold">{product.name}</h2></div>
+              <button onClick={onClose} className="rounded-full border border-cream/15 px-3 py-2 text-xs text-cream/70">Close</button>
+            </header>
+
+            <div className="min-h-0 flex-1 px-3 pb-3">
+              <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[1.5rem] bg-gradient-to-b from-bronze/20 via-ink to-black/20">
+                <div className="flex min-h-0 flex-1 items-center justify-center p-3">
+                  {generating ? <AsciiSpinner label="Creating your pet artwork…" /> : view === "3d" && config && mapping ? <Product3DEngine config={config} color={mapping.color} decals={{ [mapping.printArea]: preview }} plugins={[screenshotPlugin]} /> : preview ? <img src={preview} alt="Generated pet artwork" className="max-h-full max-w-full rounded-xl object-contain shadow-2xl" /> : <div className="max-w-xs text-center"><div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-3xl border border-gold/20 bg-gold/5 text-4xl">🐾</div><p className="text-sm text-cream/65">Add your pet photo and turn this product into your custom creation.</p></div>}
+                </div>
+
+                <div className="shrink-0 border-t border-cream/10 bg-ink/80 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="flex gap-2"><button onClick={() => setView("3d")} className={`rounded-full px-3 py-1.5 text-[11px] ${view === "3d" ? "bg-gold text-ink" : "bg-cream/10 text-cream/70"}`}>Product</button><button onClick={() => setView("art")} className={`rounded-full px-3 py-1.5 text-[11px] ${view === "art" ? "bg-gold text-ink" : "bg-cream/10 text-cream/70"}`}>Artwork</button></div>
+                    {activeVariant && <span className="text-sm font-semibold text-gold">${(activeVariant.priceCents / 100).toFixed(2)}</span>}
+                  </div>
+
+                  {variants.length > 0 && <div className="mb-2 flex gap-1.5 overflow-x-auto">{variants.map((item) => <button key={item.variantId} onClick={() => setVariantId(item.variantId)} className={`shrink-0 rounded-full border px-2.5 py-1.5 text-[10px] ${variantId === item.variantId ? "border-gold bg-gold/10 text-gold" : "border-cream/10 text-cream/50"}`}>{item.label}</button>)}</div>}
+
+                  <div className="mb-2 flex gap-2">
+                    <label className="flex min-w-0 flex-1 cursor-pointer items-center rounded-xl border border-cream/10 bg-cream/5 px-3 py-2.5 text-xs text-cream/65"><span className="truncate">{file?.name ?? "Add pet photo"}</span><input type="file" accept="image/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></label>
+                    <button onClick={generate} disabled={!file || generating} className="rounded-xl bg-gold px-4 py-2.5 text-xs font-semibold text-ink disabled:opacity-40">{preview ? "Redo" : "Create"}</button>
+                  </div>
+
+                  <div className="mb-2 flex gap-2">{artStyles.slice(0, 7).map((item) => <button key={item.id} onClick={() => setStyle(item.id)} className={`shrink-0 rounded-full border px-2.5 py-1.5 text-[10px] ${style === item.id ? "border-gold bg-gold/10 text-gold" : "border-cream/10 text-cream/50"}`}>{item.label}</button>)}</div>
+
+                  <div className="flex gap-2">
+                    <div className="flex items-center rounded-xl border border-cream/10 bg-cream/5"><button className="px-3 py-2 text-sm" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>−</button><span className="w-6 text-center text-xs">{quantity}</span><button className="px-3 py-2 text-sm" onClick={() => setQuantity((q) => Math.min(20, q + 1))}>+</button></div>
+                    <button onClick={checkout} disabled={!activeVariant || checkingOut} className="flex-1 rounded-xl bg-bronze px-4 py-2.5 text-xs font-semibold text-cream disabled:opacity-40">{checkingOut ? "Opening secure checkout…" : "Buy This Creation"}</button>
+                  </div>
+                  {error && <p className="mt-2 text-[10px] text-red-300">{error}</p>}
+                </div>
+              </div>
+            </div>
+          </motion.section>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }
