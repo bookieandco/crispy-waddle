@@ -9,11 +9,13 @@ import {
   MemoryCoreEventAdapter,
   createCoreOrchestrator,
   createCreatorWorkstationAdapters,
+  createDirectorShotlistActionAdapters,
   CREATOR_WORKSTATION_POLICY,
   type ActionAdapter,
   type CorePolicy,
   type ActionHandler,
 } from '@jhadina/integration';
+import type { GenerationAdapter } from '@jhadina/shotlist-core';
 import { MemoryRepository } from '../repositories/MemoryRepository';
 import { ReasoningEventRepository } from '../repositories/ReasoningEventRepository';
 import { TimelineRepository } from '../repositories/TimelineRepository';
@@ -25,6 +27,7 @@ export function createJhadinaIntegration(params?: {
   audit?: (entry: Parameters<CoreAuditSink['record']>[0]) => Promise<void>;
   actionHandlers?: readonly ActionHandler[];
   actionAdapters?: readonly ActionAdapter[];
+  directorGenerationAdapter?: GenerationAdapter;
 }) {
   const events = new InMemoryEventBus();
   const memoryRepository = new MemoryRepository(storage);
@@ -40,7 +43,11 @@ export function createJhadinaIntegration(params?: {
   const unsubscribeMemory = memoryAdapter.register();
   const unsubscribeAudit = auditAdapter.register();
 
-  const adapters = params?.actionAdapters ?? createCreatorWorkstationAdapters(creatorProjects);
+  const defaultAdapters = createCreatorWorkstationAdapters(creatorProjects);
+  const directorAdapters = params?.directorGenerationAdapter
+    ? createDirectorShotlistActionAdapters(params.directorGenerationAdapter)
+    : [];
+  const adapters = params?.actionAdapters ?? [...defaultAdapters, ...directorAdapters];
   const executor = new ActionExecutor(adapters);
   const policy = params?.policy ?? new DeterministicPolicySecurityCore(CREATOR_WORKSTATION_POLICY);
 
