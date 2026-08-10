@@ -17,6 +17,39 @@ public protocol JhadinaPlaybackBackend: AnyObject {
     func applyCorrection(_ plan: JhadinaCorrectionPlan) -> Bool
     func recoverCorrection()
     func snapshot() -> JhadinaNativePlaybackService.Snapshot
+    func playbackClockSnapshot() -> JhadinaPlaybackClockSnapshot
 }
 
-extension JhadinaNativePlaybackService: JhadinaPlaybackBackend {}
+public struct JhadinaPlaybackClockSnapshot: Sendable {
+    public let mediaTime: TimeInterval
+    public let hostTime: UInt64?
+    public let rate: Double
+    public let isPlaying: Bool
+    public let epochID: UUID
+
+    public init(
+        mediaTime: TimeInterval,
+        hostTime: UInt64? = nil,
+        rate: Double,
+        isPlaying: Bool,
+        epochID: UUID
+    ) {
+        self.mediaTime = mediaTime
+        self.hostTime = hostTime
+        self.rate = rate
+        self.isPlaying = isPlaying
+        self.epochID = epochID
+    }
+}
+
+extension JhadinaNativePlaybackService: JhadinaPlaybackBackend {
+    public func playbackClockSnapshot() -> JhadinaPlaybackClockSnapshot {
+        let snapshot = snapshot()
+        return JhadinaPlaybackClockSnapshot(
+            mediaTime: snapshot.playerTime,
+            rate: Double(snapshot.rate),
+            isPlaying: snapshot.state == .playing,
+            epochID: UUID()
+        )
+    }
+}
