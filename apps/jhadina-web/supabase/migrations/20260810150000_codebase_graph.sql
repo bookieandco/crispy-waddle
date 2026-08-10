@@ -25,7 +25,7 @@ create table if not exists public.janet_codebase_nodes (
 create table if not exists public.janet_codebase_edges (
   from_id text not null references public.janet_codebase_nodes(id) on delete cascade,
   to_id text not null references public.janet_codebase_nodes(id) on delete cascade,
-  kind text not null check (kind in ('imports', 'exports', 'references')),
+  kind text not null check (kind in ('imports', 'exports', 'references', 'calls')),
   primary key (from_id, to_id, kind)
 );
 
@@ -41,9 +41,6 @@ create index if not exists janet_codebase_edges_from_idx
 create index if not exists janet_codebase_edges_to_idx
   on public.janet_codebase_edges(to_id);
 
--- Codebase graph contains private implementation knowledge. No browser/client
--- role should be able to read or mutate it. The server-side Supabase service
--- role can access these tables when building JANET's governed context.
 alter table public.janet_codebase_indexes enable row level security;
 alter table public.janet_codebase_nodes enable row level security;
 alter table public.janet_codebase_edges enable row level security;
