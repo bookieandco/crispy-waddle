@@ -67,45 +67,49 @@ fun JhadinaKizitonwoseCalendar(
         navigation.select(date)
     }
 
+    fun goToday() {
+        scope.launch {
+            monthState.animateScrollToDate(today)
+            weekState.animateScrollToDate(today)
+            navigation.today()
+        }
+    }
+
+    fun goPrevious() {
+        scope.launch {
+            if (mode == CalendarViewMode.MONTH) {
+                monthState.animateScrollToMonth(
+                    monthState.firstVisibleMonth.yearMonth.plus(DatePeriod(months = -1)),
+                )
+            } else {
+                weekState.animateScrollToWeek(
+                    weekState.firstVisibleWeek.days.first().date.plus(DatePeriod(days = -7)),
+                )
+            }
+            navigation.previous()
+        }
+    }
+
+    fun goNext() {
+        scope.launch {
+            if (mode == CalendarViewMode.MONTH) {
+                monthState.animateScrollToMonth(
+                    monthState.firstVisibleMonth.yearMonth.plus(DatePeriod(months = 1)),
+                )
+            } else {
+                weekState.animateScrollToWeek(
+                    weekState.firstVisibleWeek.days.first().date.plus(DatePeriod(days = 7)),
+                )
+            }
+            navigation.next()
+        }
+    }
+
     Column(modifier = modifier) {
         Row(modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = {
-                scope.launch {
-                    if (mode == CalendarViewMode.MONTH) {
-                        monthState.animateScrollToMonth(
-                            monthState.firstVisibleMonth.yearMonth.plus(DatePeriod(months = -1)),
-                        )
-                    } else {
-                        weekState.animateScrollToWeek(
-                            weekState.firstVisibleWeek.days.first().date.plus(DatePeriod(days = -7)),
-                        )
-                    }
-                    navigation.previous()
-                }
-            }) { Text("Previous") }
-
-            Button(onClick = {
-                scope.launch {
-                    monthState.animateScrollToDate(today)
-                    weekState.animateScrollToDate(today)
-                    navigation.today()
-                }
-            }) { Text("Today") }
-
-            Button(onClick = {
-                scope.launch {
-                    if (mode == CalendarViewMode.MONTH) {
-                        monthState.animateScrollToMonth(
-                            monthState.firstVisibleMonth.yearMonth.plus(DatePeriod(months = 1)),
-                        )
-                    } else {
-                        weekState.animateScrollToWeek(
-                            weekState.firstVisibleWeek.days.first().date.plus(DatePeriod(days = 7)),
-                        )
-                    }
-                    navigation.next()
-                }
-            }) { Text("Next") }
+            Button(onClick = ::goPrevious) { Text("Previous") }
+            Button(onClick = ::goToday) { Text("Today") }
+            Button(onClick = ::goNext) { Text("Next") }
         }
 
         Row(modifier = Modifier.fillMaxWidth()) {
