@@ -9,39 +9,16 @@ import { getProduct3DConfig } from "@/config/product3dModels";
 import { screenshotPlugin } from "./product3d-plugins/screenshotPlugin";
 import AsciiSpinner from "./AsciiSpinner";
 
-// three.js/@react-three/fiber need the browser (WebGL), so this can't be
-// server-rendered. Only loaded at all for hotspots that map to a
-// registered 3D model below.
 const Product3DEngine = dynamic(() => import("./Product3DEngine"), {
   ssr: false,
-  loading: () => (
-    <div className="flex aspect-square items-center justify-center rounded-lg border border-greige/40 bg-white/40 text-xs text-ink/50">
-      Loading 3D preview…
-    </div>
-  ),
+  loading: () => <div className="flex aspect-square items-center justify-center rounded-2xl border border-greige/40 bg-white/40 text-xs text-ink/50">Loading 3D preview…</div>,
 });
 
-// Which hotspot maps to which registered 3D model (config/product3dModels.ts)
-// and which of that model's print areas the generated portrait goes on.
-// Add an entry here when a hotspot's product gets a real .glb — nothing
-// else in this file needs to change.
 const HOTSPOT_3D_MODEL: Record<string, { modelId: string; printArea: string; color?: string }> = {
-  concertShirt: { modelId: "shirt", printArea: "front", color: "#111111" },
-  foldedShirts: { modelId: "shirt", printArea: "front", color: "#f4f4f4" },
-  whiteHoodie: { modelId: "hoodie", printArea: "front", color: "#f4f4f4" },
-  hoodieRight: { modelId: "hoodie", printArea: "front", color: "#111111" },
-  pillow: { modelId: "pillow", printArea: "front" },
-  mugColorful: { modelId: "mug", printArea: "front" },
-  mugWhite: { modelId: "mug", printArea: "front", color: "#f4f4f0" },
-  bottle: { modelId: "bottle", printArea: "front" },
-  tote: { modelId: "tote", printArea: "front" },
+  concertShirt: { modelId: "shirt", printArea: "front", color: "#111111" }, foldedShirts: { modelId: "shirt", printArea: "front", color: "#f4f4f4" }, whiteHoodie: { modelId: "hoodie", printArea: "front", color: "#f4f4f4" }, hoodieRight: { modelId: "hoodie", printArea: "front", color: "#111111" }, pillow: { modelId: "pillow", printArea: "front" }, mugColorful: { modelId: "mug", printArea: "front" }, mugWhite: { modelId: "mug", printArea: "front", color: "#f4f4f0" }, bottle: { modelId: "bottle", printArea: "front" }, tote: { modelId: "tote", printArea: "front" },
 };
 
-interface Props {
-  activeProduct: ActiveProduct | null;
-  onClose: () => void;
-}
-
+interface Props { activeProduct: ActiveProduct | null; onClose: () => void; }
 const centsToPrice = (c: number) => `$${(c / 100).toFixed(2)}`;
 
 export default function ProductModal({ activeProduct, onClose }: Props) {
@@ -52,469 +29,112 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [generating, setGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  const open = !!activeProduct;
-  const variants = activeProduct?.fulfillment?.variants ?? [];
-  const activeVariant =
-    variants.find((v) => v.variantId === selectedVariant) ?? variants[0];
-
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
-
-  // "animated" only becomes reachable once animatedVideoUrl exists — see
-  // the segmented control below. Kept as one viewMode rather than a
-  // separate boolean per view so switching to one always switches away
-  // from the others, instead of needing to remember to clear view3D
-  // whenever an animated view is added later (which is exactly what
-  // happened here — this replaces the old standalone view3D boolean).
   const [viewMode, setViewMode] = useState<"flat" | "3d" | "animated">("flat");
   const [animating, setAnimating] = useState(false);
   const [animatedVideoUrl, setAnimatedVideoUrl] = useState<string | null>(null);
   const [animateError, setAnimateError] = useState<string | null>(null);
 
+  const open = !!activeProduct;
+  const variants = activeProduct?.fulfillment?.variants ?? [];
+  const activeVariant = variants.find((v) => v.variantId === selectedVariant) ?? variants[0];
   const threeDMapping = activeProduct ? HOTSPOT_3D_MODEL[activeProduct.id] : undefined;
   const threeDConfig = threeDMapping ? getProduct3DConfig(threeDMapping.modelId) : null;
   const supports3D = !!threeDConfig;
+  const isCustomizable = !!activeProduct?.fulfillment;
 
-  // Duck the music for as long as the panel is open (spec: "duck while
-  // AI is generating artwork or when a modal is open"), reset local state
-  // for the new product each time a different hotspot is clicked.
   useEffect(() => {
     if (!open) return;
     duck(true);
     setSelectedVariant(variants[0]?.variantId ?? null);
-    setQuantity(1);
-    setUploadedFile(null);
-    setPreviewUrl(null);
-    setGenerateError(null);
-    setApproved(false);
-    setViewMode("flat");
-    setAnimatedVideoUrl(null);
-    setAnimateError(null);
+    setQuantity(1); setUploadedFile(null); setPreviewUrl(null); setGenerateError(null); setApproved(false); setViewMode("flat"); setAnimatedVideoUrl(null); setAnimateError(null);
     return () => duck(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activeProduct?.id]);
 
-  // Calls the real /api/generate-preview route (see
-  // app/api/generate-preview/route.ts and lib/ai.ts). This will fail until
-  // OPENAI_API_KEY is set in your environment — that's expected, and the
-  // error below will say so rather than silently faking a result.
+  useEffect(() => {
+    if (!open || !activeProduct) return;
+    window.dispatchEvent(new CustomEvent("pupsonstuff:product-select", { detail: { productId: activeProduct.name } }));
+  }, [open, activeProduct]);
+
   const handleGeneratePreview = async () => {
     if (!uploadedFile || !activeProduct) return;
-    setGenerating(true);
-    setGenerateError(null);
-    setApproved(false);
-    // A fresh static generation invalidates any earlier animation — it
-    // was made from the previous image, not this one.
-    setAnimatedVideoUrl(null);
-    setAnimateError(null);
-    if (viewMode === "animated") setViewMode("flat");
-    duck(true); // extra duck request stacks with the "modal open" one; music
-    // stays ducked as long as either condition holds, and un-ducks only
-    // once both clear.
-
-    const styleLabel =
-      artStyles.find((s) => s.id === selectedStyle)?.label ?? selectedStyle;
-
+    setGenerating(true); setGenerateError(null); setApproved(false); setAnimatedVideoUrl(null); setAnimateError(null); setViewMode("flat"); duck(true);
+    const styleLabel = artStyles.find((s) => s.id === selectedStyle)?.label ?? selectedStyle;
     try {
-      const form = new FormData();
-      form.append("photo", uploadedFile);
-      form.append("productId", activeProduct.id);
-      form.append("artStyle", styleLabel);
-      // Sent alongside the label (kept for the OpenAI prompt/back-compat)
-      // so the route can branch on a stable id rather than parsing label
-      // text — needed for "ascii-art", which skips OpenAI entirely (see
-      // app/api/generate-preview/route.ts).
-      form.append("artStyleId", selectedStyle);
-
-      const res = await fetch("/api/generate-preview", {
-        method: "POST",
-        body: form,
-      });
+      const form = new FormData(); form.append("photo", uploadedFile); form.append("productId", activeProduct.id); form.append("artStyle", styleLabel); form.append("artStyleId", selectedStyle);
+      const res = await fetch("/api/generate-preview", { method: "POST", body: form });
       const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setGenerateError(
-          data?.error ??
-            "Something went wrong generating your portrait. Please try again."
-        );
-      } else {
-        setPreviewUrl(`data:image/png;base64,${data.imageBase64}`);
-      }
-    } catch {
-      setGenerateError(
-        "Couldn't reach the AI service. Please try again in a moment."
-      );
-    } finally {
-      setGenerating(false);
-      duck(false);
-    }
+      if (!res.ok || !data.success) setGenerateError(data?.error ?? "Something went wrong generating your portrait. Please try again.");
+      else setPreviewUrl(`data:image/png;base64,${data.imageBase64}`);
+    } catch { setGenerateError("Couldn't reach the AI service. Please try again in a moment."); }
+    finally { setGenerating(false); duck(false); }
   };
 
-  // Calls the real /api/animate-preview route (see
-  // app/api/animate-preview/route.ts and lib/animation.ts — Hugging Face's
-  // image-to-video task). Takes the already-generated static portrait, not
-  // a fresh upload; fails until HUGGINGFACE_API_KEY is set, same honest
-  // failure pattern as handleGeneratePreview above.
   const handleAnimatePreview = async () => {
     if (!previewUrl) return;
-    setAnimating(true);
-    setAnimateError(null);
-    duck(true);
-
+    setAnimating(true); setAnimateError(null); duck(true);
     try {
-      const res = await fetch("/api/animate-preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: previewUrl }),
-      });
+      const res = await fetch("/api/animate-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageBase64: previewUrl }) });
       const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setAnimateError(
-          data?.error ??
-            "Something went wrong animating your portrait. Please try again."
-        );
-      } else {
-        setAnimatedVideoUrl(`data:${data.mimeType};base64,${data.videoBase64}`);
-        setViewMode("animated");
-      }
-    } catch {
-      setAnimateError(
-        "Couldn't reach the animation service. Please try again in a moment."
-      );
-    } finally {
-      setAnimating(false);
-      duck(false);
-    }
+      if (!res.ok || !data.success) setAnimateError(data?.error ?? "Something went wrong animating your portrait. Please try again.");
+      else { setAnimatedVideoUrl(`data:${data.mimeType};base64,${data.videoBase64}`); setViewMode("animated"); }
+    } catch { setAnimateError("Couldn't reach the animation service. Please try again in a moment."); }
+    finally { setAnimating(false); duck(false); }
   };
-
-  const isCustomizable = !!activeProduct?.fulfillment;
 
   return (
     <AnimatePresence>
       {open && activeProduct && (
         <>
-          <motion.div
-            className="fixed inset-0 z-40 bg-ink/50 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
+          <motion.div className="fixed inset-0 z-40 bg-ink/65 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
           <motion.aside
-            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-cream/95 text-ink shadow-2xl backdrop-blur-md"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-x-2 bottom-2 top-12 z-50 flex w-auto flex-col overflow-hidden rounded-[2rem] border border-cream/20 bg-cream/95 text-ink shadow-2xl backdrop-blur-md sm:inset-y-0 sm:right-0 sm:left-auto sm:top-0 sm:bottom-0 sm:w-full sm:max-w-md sm:rounded-none"
+            initial={{ y: "100%", x: 0, scale: 0.97 }}
+            animate={{ y: 0, x: 0, scale: 1 }}
+            exit={{ y: "100%", scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 280, damping: 28 }}
           >
-            <header className="flex items-center justify-between border-b border-greige/40 px-6 py-5">
-              <h2 className="font-display text-lg text-bronze">
-                {activeProduct.name}
-              </h2>
-              <button
-                onClick={onClose}
-                aria-label="Close"
-                className="text-ink/60 transition hover:text-ink"
-              >
-                ✕
-              </button>
+            <header className="flex shrink-0 items-center justify-between border-b border-greige/40 px-5 py-4 sm:px-6 sm:py-5">
+              <div><p className="text-[9px] uppercase tracking-[0.24em] text-bronze/60">PupsonStuff custom studio</p><h2 className="font-display text-lg text-bronze">{activeProduct.name}</h2></div>
+              <button onClick={onClose} aria-label="Close" className="rounded-full border border-greige/40 px-3 py-2 text-ink/60 transition hover:text-ink">✕</button>
             </header>
 
-            <div className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
               {!isCustomizable ? (
-                <div className="rounded-lg border border-greige/40 bg-white/40 p-6 text-center text-sm text-ink/60">
-                  {activeProduct.product === "checkout"
-                    ? "Checkout isn't wired up yet — this is where the cart drawer opens in the next pass."
-                    : "This area doesn't have a fixed product — it's the entry point into the AI uploader."}
-                </div>
+                <div className="rounded-2xl border border-greige/40 bg-white/40 p-6 text-center text-sm text-ink/60">{activeProduct.product === "checkout" ? "Checkout isn't wired up yet — this is where the cart drawer opens in the next pass." : "This area doesn't have a fixed product — it's the entry point into the AI uploader."}</div>
               ) : (
                 <>
-                  {/* Product preview */}
-                  {(supports3D || animatedVideoUrl) && (
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setViewMode("flat")}
-                        className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                          viewMode === "flat"
-                            ? "bg-bronze text-cream"
-                            : "border border-greige/50 text-ink/60"
-                        }`}
-                      >
-                        Flat Preview
-                      </button>
-                      {supports3D && (
-                        <button
-                          onClick={() => setViewMode("3d")}
-                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                            viewMode === "3d"
-                              ? "bg-bronze text-cream"
-                              : "border border-greige/50 text-ink/60"
-                          }`}
-                        >
-                          View in 3D
-                        </button>
-                      )}
-                      {animatedVideoUrl && (
-                        <button
-                          onClick={() => setViewMode("animated")}
-                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                            viewMode === "animated"
-                              ? "bg-bronze text-cream"
-                              : "border border-greige/50 text-ink/60"
-                          }`}
-                        >
-                          Animated
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {generating || animating ? (
-                    <div className="mb-6 aspect-square overflow-hidden rounded-lg border border-greige/40">
-                      <AsciiSpinner
-                        label={
-                          generating
-                            ? "Generating your portrait…"
-                            : "Animating your portrait…"
-                        }
-                      />
-                    </div>
-                  ) : viewMode === "3d" && supports3D && threeDConfig && threeDMapping ? (
-                    <div className="mb-6">
-                      <Product3DEngine
-                        config={threeDConfig}
-                        color={threeDMapping.color}
-                        decals={{ [threeDMapping.printArea]: previewUrl }}
-                        plugins={[screenshotPlugin]}
-                      />
-                    </div>
-                  ) : viewMode === "animated" && animatedVideoUrl ? (
-                    <div className="mb-6 aspect-square overflow-hidden rounded-lg border border-greige/40 bg-white/40">
-                      <video
-                        src={animatedVideoUrl}
-                        className="h-full w-full object-cover"
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        controls
-                      />
-                    </div>
-                  ) : (
-                    <div className="mb-6 flex aspect-square items-center justify-center rounded-lg border border-greige/40 bg-white/40">
-                      {previewUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={previewUrl}
-                          alt="Generated preview"
-                          className="h-full w-full rounded-lg object-cover"
-                        />
-                      ) : (
-                        <span className="px-6 text-center text-sm text-ink/50">
-                          Upload a photo and generate a preview to see it here
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {activeVariant && (
-                    <div className="mb-2 text-lg font-semibold text-bronze">
-                      {centsToPrice(activeVariant.priceCents)}
-                    </div>
-                  )}
-
-                  {activeProduct.description && (
-                    <p className="mb-2 text-sm text-ink/70">
-                      {activeProduct.description}
-                    </p>
-                  )}
-
-                  {activeProduct.estimatedDeliveryDays && (
-                    <p className="mb-6 text-xs text-ink/50">
-                      Estimated delivery: {activeProduct.estimatedDeliveryDays[0]}–
-                      {activeProduct.estimatedDeliveryDays[1]} business days
-                    </p>
-                  )}
-
-                  {/* Upload */}
-                  <label className="mb-6 block">
-                    <span className="mb-2 block text-sm font-medium text-bronze">
-                      Upload pet photo
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) =>
-                        setUploadedFile(e.target.files?.[0] ?? null)
-                      }
-                      className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-md file:border-0 file:bg-honey-oak file:px-4 file:py-2 file:text-sm file:font-medium file:text-cream hover:file:bg-bronze"
-                    />
-                  </label>
-
-                  {/* Art style */}
-                  <div className="mb-6">
-                    <span className="mb-2 block text-sm font-medium text-bronze">
-                      Art style
-                    </span>
-                    <div className="grid grid-cols-2 gap-2">
-                      {artStyles.map((style) => (
-                        <button
-                          key={style.id}
-                          onClick={() => setSelectedStyle(style.id)}
-                          className={`rounded-md border px-3 py-2 text-sm transition ${
-                            selectedStyle === style.id
-                              ? "border-honey-oak bg-honey-oak text-cream"
-                              : "border-greige/50 text-ink/70 hover:border-honey-oak"
-                          }`}
-                        >
-                          {style.label}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    <button onClick={() => setViewMode("flat")} className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === "flat" ? "bg-bronze text-cream" : "border border-greige/50 text-ink/60"}`}>Flat</button>
+                    {supports3D && <button onClick={() => setViewMode("3d")} className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === "3d" ? "bg-bronze text-cream" : "border border-greige/50 text-ink/60"}`}>3D</button>}
+                    {animatedVideoUrl && <button onClick={() => setViewMode("animated")} className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === "animated" ? "bg-bronze text-cream" : "border border-greige/50 text-ink/60"}`}>Animated</button>}
                   </div>
 
-                  {/* Variant (size/color from Printful mapping) */}
-                  {variants.length > 0 && (
-                    <div className="mb-6">
-                      <span className="mb-2 block text-sm font-medium text-bronze">
-                        {activeProduct.customization?.sizes
-                          ? "Size"
-                          : "Option"}
-                      </span>
-                      <div className="flex flex-wrap gap-2">
-                        {variants.map((v) => (
-                          <button
-                            key={v.variantId}
-                            onClick={() => setSelectedVariant(v.variantId)}
-                            className={`rounded-md border px-3 py-2 text-sm transition ${
-                              activeVariant?.variantId === v.variantId
-                                ? "border-honey-oak bg-honey-oak text-cream"
-                                : "border-greige/50 text-ink/70 hover:border-honey-oak"
-                            }`}
-                          >
-                            {v.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Quantity */}
-                  <div className="mb-6 flex items-center gap-3">
-                    <span className="text-sm font-medium text-bronze">
-                      Quantity
-                    </span>
-                    <div className="flex items-center rounded-md border border-greige/50">
-                      <button
-                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                        className="px-3 py-1 text-ink/70 hover:text-ink"
-                      >
-                        –
-                      </button>
-                      <span className="w-8 text-center text-sm">
-                        {quantity}
-                      </span>
-                      <button
-                        onClick={() => setQuantity((q) => q + 1)}
-                        className="px-3 py-1 text-ink/70 hover:text-ink"
-                      >
-                        +
-                      </button>
-                    </div>
+                  <div className="mb-5 flex min-h-[45vh] items-center justify-center overflow-hidden rounded-[1.5rem] border border-greige/40 bg-white/45 shadow-inner sm:aspect-square sm:min-h-0">
+                    {generating || animating ? <AsciiSpinner label={generating ? "Generating your portrait…" : "Animating your portrait…"} /> : viewMode === "3d" && supports3D && threeDConfig && threeDMapping ? <Product3DEngine config={threeDConfig} color={threeDMapping.color} decals={{ [threeDMapping.printArea]: previewUrl }} plugins={[screenshotPlugin]} /> : viewMode === "animated" && animatedVideoUrl ? <video src={animatedVideoUrl} className="h-full w-full object-contain" autoPlay loop muted playsInline controls /> : previewUrl ? <img src={previewUrl} alt="Your generated pet artwork on the selected product" className="h-full w-full object-contain p-3" /> : <div className="px-8 text-center text-sm text-ink/50">Upload your pet photo, choose a style, and generate a preview. Your artwork will appear here.</div>}
                   </div>
 
-                  {generateError && (
-                    <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-                      <p className="mb-1">{generateError}</p>
-                      <button
-                        onClick={handleGeneratePreview}
-                        className="font-medium underline underline-offset-2"
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  )}
+                  {activeVariant && <div className="mb-1 text-lg font-semibold text-bronze">{centsToPrice(activeVariant.priceCents)}</div>}
+                  {activeProduct.description && <p className="mb-4 text-sm text-ink/70">{activeProduct.description}</p>}
 
-                  {!previewUrl ? (
-                    <button
-                      onClick={handleGeneratePreview}
-                      disabled={!uploadedFile || generating}
-                      className="mb-3 w-full rounded-md bg-bronze py-3 text-sm font-medium text-cream transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {generating ? "Generating…" : "Generate Preview"}
-                    </button>
-                  ) : (
-                    <div className="mb-3 grid grid-cols-2 gap-2">
-                      <button
-                        onClick={handleGeneratePreview}
-                        disabled={generating}
-                        className="rounded-md border border-honey-oak py-3 text-sm font-medium text-bronze transition hover:bg-honey-oak hover:text-cream disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {generating ? "Generating…" : "Generate Again"}
-                      </button>
-                      <button
-                        onClick={() => setApproved(true)}
-                        disabled={generating || approved}
-                        className={`rounded-md py-3 text-sm font-medium transition disabled:cursor-not-allowed ${
-                          approved
-                            ? "bg-honey-oak text-cream opacity-70"
-                            : "bg-bronze text-cream hover:bg-ink"
-                        }`}
-                      >
-                        {approved ? "Approved ✓" : "Approve"}
-                      </button>
-                    </div>
-                  )}
+                  <label className="mb-5 block"><span className="mb-2 block text-sm font-medium text-bronze">Upload pet photo</span><input type="file" accept="image/*" onChange={(e) => setUploadedFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-md file:border-0 file:bg-honey-oak file:px-4 file:py-2 file:text-sm file:font-medium file:text-cream hover:file:bg-bronze" /></label>
 
-                  {animateError && (
-                    <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-                      <p className="mb-1">{animateError}</p>
-                      <button
-                        onClick={handleAnimatePreview}
-                        className="font-medium underline underline-offset-2"
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  )}
+                  <div className="mb-5"><span className="mb-2 block text-sm font-medium text-bronze">Art style</span><div className="flex gap-2 overflow-x-auto pb-1">{artStyles.map((style) => <button key={style.id} onClick={() => setSelectedStyle(style.id)} className={`shrink-0 rounded-full border px-3 py-2 text-xs transition ${selectedStyle === style.id ? "border-honey-oak bg-honey-oak text-cream" : "border-greige/50 text-ink/70"}`}>{style.label}</button>)}</div></div>
 
-                  {previewUrl && (
-                    <button
-                      onClick={handleAnimatePreview}
-                      disabled={animating}
-                      className="mb-3 w-full rounded-md border border-honey-oak py-3 text-sm font-medium text-bronze transition hover:bg-honey-oak hover:text-cream disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {animating
-                        ? "Animating…"
-                        : animatedVideoUrl
-                          ? "Animate Again"
-                          : "Animate Preview"}
-                    </button>
-                  )}
+                  {variants.length > 0 && <div className="mb-5"><span className="mb-2 block text-sm font-medium text-bronze">{activeProduct.customization?.sizes ? "Size" : "Option"}</span><div className="flex flex-wrap gap-2">{variants.map((variant) => <button key={variant.variantId} onClick={() => setSelectedVariant(variant.variantId)} className={`rounded-full border px-3 py-2 text-xs ${selectedVariant === variant.variantId ? "border-honey-oak bg-honey-oak text-cream" : "border-greige/50 text-ink/70"}`}>{variant.name}</button>)}</div></div>}
 
-                  {previewUrl && (
-                    <button className="mb-3 w-full rounded-md border border-honey-oak py-3 text-sm font-medium text-bronze transition hover:bg-honey-oak hover:text-cream">
-                      See It in the Boutique
-                    </button>
-                  )}
+                  {generateError && <p className="mb-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">{generateError}</p>}
+                  {animateError && <p className="mb-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">{animateError}</p>}
+
+                  <div className="grid grid-cols-2 gap-2 pb-4">
+                    <button type="button" disabled={!uploadedFile || generating} onClick={handleGeneratePreview} className="rounded-xl bg-honey-oak px-4 py-3 text-sm font-semibold text-cream disabled:cursor-not-allowed disabled:opacity-40">{generating ? "Generating…" : previewUrl ? "Regenerate" : "Generate Preview"}</button>
+                    <button type="button" disabled={!previewUrl || animating} onClick={handleAnimatePreview} className="rounded-xl border border-bronze/30 px-4 py-3 text-sm font-semibold text-bronze disabled:cursor-not-allowed disabled:opacity-40">{animating ? "Animating…" : "Animate Art"}</button>
+                  </div>
                 </>
               )}
             </div>
-
-            {isCustomizable && (
-              <footer className="border-t border-greige/40 px-6 py-5">
-                <button
-                  disabled={!approved}
-                  className="w-full rounded-md bg-honey-oak py-3 text-sm font-semibold text-cream transition hover:bg-bronze disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Add to Cart
-                  {activeVariant &&
-                    ` — ${centsToPrice(activeVariant.priceCents * quantity)}`}
-                </button>
-              </footer>
-            )}
           </motion.aside>
         </>
       )}
