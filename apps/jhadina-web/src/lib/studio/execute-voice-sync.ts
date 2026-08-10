@@ -1,10 +1,9 @@
 import { QCHandler } from "./handlers/qc-handler";
 import type { StudioActionRequest, StudioActionResult } from "./action-handlers";
-import { StudioProviderOrchestrator } from "./provider-orchestrator";
-import { VoiceSyncProvider } from "./providers/voice-sync-provider";
+import { createStudioProviderOrchestrator } from "./register-providers";
 
 export async function executeVoiceSyncWorkflow(request: StudioActionRequest): Promise<StudioActionResult & { qcReportId?: string; timelineClipId?: string; provider?: string; fallbackUsed?: boolean }> {
-  const orchestrator = new StudioProviderOrchestrator([new VoiceSyncProvider()]);
+  const orchestrator = createStudioProviderOrchestrator();
 
   try {
     const execution = await orchestrator.execute("lip-sync", {
@@ -21,7 +20,7 @@ export async function executeVoiceSyncWorkflow(request: StudioActionRequest): Pr
       action: "qc",
       projectId: request.projectId,
       inputIds: execution.outputIds,
-      parameters: { sourceAction: "voice-sync", voiceSyncMetrics: execution.metadata?.metrics, provider: execution.selection },
+      parameters: { sourceAction: "voice-sync", voiceSyncMetrics: execution.metadata, provider: execution.selection },
     });
 
     return {
