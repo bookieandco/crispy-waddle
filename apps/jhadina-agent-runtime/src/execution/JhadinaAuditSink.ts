@@ -1,40 +1,30 @@
+import type { ActionAuditEvent, ActionLedger } from "../../../../packages/jhadina-action-core/src/action-executor";
 import type { SkillExecutionAuditEvent, SkillExecutionAuditSink } from "./GuardedSkillExecutor";
 
-export interface JhadinaAuditEvent {
-  type: string;
-  occurredAt: string;
-  source: "agent-runtime";
-  subject: {
-    kind: "skill-capability";
-    skillId: string;
-    capabilityId: string;
-    tokenId: string;
-  };
-  outcome: "allowed" | "rejected";
-  reason: string;
-}
-
-export interface JhadinaAuditWriter {
-  append(event: JhadinaAuditEvent): void | Promise<void>;
-}
-
-/** Adapts agent-runtime execution events to Jhadina's canonical audit contract. */
+/**
+ * Converts skill-runtime audit attempts into the canonical Jhadina ActionLedger
+ * contract. The ledger remains the durable boundary; this adapter owns no storage.
+ */
 export class JhadinaAuditSink implements SkillExecutionAuditSink {
-  constructor(private readonly writer: JhadinaAuditWriter) {}
+  constructor(private readonly ledger: ActionLedger) {}
 
   append(event: SkillExecutionAuditEvent): void {
-    void this.writer.append({
-      type: event.type,
-      occurredAt: event.occurredAt,
-      source: "agent-runtime",
-      subject: {
-        kind: "skill-capability",
+    const auditEvent: ActionAuditEvent = {
+      id: `${event.tokenId}:${event.type}:${event.occurredAt}`,
+      actionId: event.tokenId,
+      userId: "agent-runtime",
+      type: `skill:${event.skillId}:${event.capabilityId}`,
+      status: event.type === "SKILL_EXECUTION_ALLOWED" ? "completed" : "denied",
+      timestamp: event.occurredAt,
+      metadata: {
+        source: "agent-runtime",
         skillId: event.skillId,
         capabilityId: event.capabilityId,
         tokenId: event.tokenId,
+        reason: event.reason,
       },
-      outcome: event.type === "SKILL_EXECUTION_ALLOWED" ? "allowed" : "rejected",
-      reason: event.reason,
-    });
+    };
+
+    void this.ledger.append(auditEvent);
   }
 }
