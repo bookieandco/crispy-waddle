@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createJhadinaIntegration } from '../../../src/lib/integration/jhadinaIntegration';
+import { createJhadinaIntegration } from '../../../../src/lib/integration/jhadinaIntegration';
 
 const integrations = new Map<string, ReturnType<typeof createJhadinaIntegration>>();
 
@@ -16,10 +16,12 @@ function getIntegration() {
 export async function POST(request: Request) {
   const body = await request.json();
   const { projectId, userId, capability = 'take.generate', input } = body;
-  if (!projectId || !input) return NextResponse.json({ ok: false, error: 'projectId and input are required' }, { status: 400 });
+  if (!projectId || !input) {
+    return NextResponse.json({ ok: false, error: 'projectId and input are required' }, { status: 400 });
+  }
 
   const integration = getIntegration();
-  const result = await integration.orchestrator.handle({
+  const result = await integration.orchestrator.request({
     id: crypto.randomUUID(),
     userId,
     projectId,
