@@ -14,7 +14,7 @@ export class JhadinaAuditSink implements SkillExecutionAuditSink {
       actionId: event.tokenId,
       userId: "agent-runtime",
       type: `skill:${event.skillId}:${event.capabilityId}`,
-      status: event.type === "SKILL_EXECUTION_ALLOWED" ? "completed" : "denied",
+      status: event.type === "SKILL_EXECUTION_ALLOWED" ? "started" : "denied",
       timestamp: event.occurredAt,
       metadata: {
         source: "agent-runtime",
