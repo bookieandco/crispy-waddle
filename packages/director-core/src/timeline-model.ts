@@ -1,6 +1,7 @@
 export type TrackKind = 'video' | 'audio' | 'overlay' | 'subtitle' | 'effect';
 export type BlendMode = 'normal' | 'screen' | 'multiply' | 'overlay' | 'add';
 export type GenerativeOperation = 'extend' | 'replace' | 'remove' | 'insert' | 'fill' | 'reframe' | 'retime';
+export type SfxGenerationStatus = 'requested' | 'approved' | 'generating' | 'ready' | 'rejected' | 'failed';
 
 export type TimelineClip = {
   id: string;
@@ -32,7 +33,21 @@ export type TimelineTrack = {
 export type Transition = { id: string; fromClipId: string; toClipId: string; type: string; durationSeconds: number; parameters?: Record<string, unknown> };
 export type Marker = { id: string; timeSeconds: number; label: string; color?: string; notes?: string };
 export type EffectInstance = { id: string; type: string; enabled: boolean; parameters: Record<string, unknown> };
-export type GenerativeRegion = { id: string; startSeconds: number; durationSeconds: number; operation: GenerativeOperation; instruction: string; sourceClipId?: string; approved?: boolean; resultAssetId?: string };
+export type GenerativeRegion = { id: string; startSeconds: number; durationSeconds: number; operation: GenerativeOperation; instruction: string; sourceClipId?: string; approved?: boolean; resultAssetId?: string; metadata?: Record<string, unknown> };
+
+export type SfxGenerationRequest = {
+  id: string;
+  startSeconds: number;
+  durationSeconds: number;
+  prompt: string;
+  action?: string;
+  materials?: string[];
+  perspective?: 'close' | 'medium' | 'wide' | 'first-person';
+  intensity?: 'subtle' | 'medium' | 'strong';
+  sourceClipId?: string;
+  status: SfxGenerationStatus;
+  candidateAssetIds?: string[];
+};
 
 export type TimelineSnapshot = {
   tracks: TimelineTrack[];
