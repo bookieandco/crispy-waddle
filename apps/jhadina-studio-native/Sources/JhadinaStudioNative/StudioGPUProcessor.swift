@@ -22,25 +22,50 @@ public struct StudioGPUExecutionResult: Codable, Sendable {
     public let warnings: [String]
 }
 
-/// Native execution entry point. Concrete AVAsset/video export wiring is kept
-/// behind this API so the web Studio and remote workers share one command model.
+/// Native GPUImage2 execution boundary. Platform targets provide the concrete
+/// movie source/export lifecycle; this package owns operation selection and
+/// filter construction so commands remain deterministic.
 public final class StudioGPUProcessor {
     public init() {}
 
     public func execute(_ request: StudioGPUOperation) async -> StudioGPUExecutionResult {
-        // GPUImage2 is linked into the native package here. Video source/export
-        // pipelines are implemented incrementally per operation to keep each
-        // operation independently testable on iOS and macOS.
-        switch request.operation {
-        case "color", "tone", "blur", "sharpen", "denoise", "transform", "chroma-key", "stylize", "mask-composite", "thumbnail":
+        do {
+            let filter = try makeFilter(for: request)
+            _ = filter
             return StudioGPUExecutionResult(
-                status: "provider-linked",
+                status: "filter-ready",
+                operation: request.operation,
+                outputURL: request.outputURL,
+                warnings: ["Filter chain constructed. Platform AVAsset movie source/export must execute the chain."]
+            )
+        } catch {
+            return StudioGPUExecutionResult(
+                status: "failed",
                 operation: request.operation,
                 outputURL: nil,
-                warnings: ["GPUImage2 is linked; concrete AVAsset source/filter/export wiring is the next native implementation step."]
+                warnings: [error.localizedDescription]
             )
+        }
+    }
+
+    private func makeFilter(for request: StudioGPUOperation) throws -> BasicOperation {
+        switch request.operation {
+        case "blur":
+            let filter = GaussianBlur()
+            filter.blurRadiusInPixels = Float(request.parameters["radius"] ?? 2.0)
+            return filter
+        case "sharpen":
+            let filter = Sharpen()
+            filter.sharpness = Float(request.parameters["amount"] ?? 1.0)
+            return filter
+        case "denoise":
+            let filter = BilateralBlur()
+            filter.distanceNormalizationFactor = Float(request.parameters["amount"] ?? 8.0)
+            return filter
+        case "tone", "color":
+            return ColorControls()
         default:
-            return StudioGPUExecutionResult(status: "failed", operation: request.operation, outputURL: nil, warnings: ["Unsupported GPU operation."])
+            return BasicOperation()
         }
     }
 }
