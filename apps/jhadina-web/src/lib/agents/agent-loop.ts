@@ -26,7 +26,8 @@ export interface AgentHandoffAudit {
   userId: string
   inputId: string
   occurredAt: string
-  status: "CREATED"
+  status: "CREATED" | "COMPLETED" | "FAILED"
+  metadata?: Record<string, unknown>
 }
 
 export interface AgentAuditSink {
@@ -35,9 +36,7 @@ export interface AgentAuditSink {
 
 export class InMemoryAgentAuditSink implements AgentAuditSink {
   readonly events: AgentHandoffAudit[] = []
-  async record(event: AgentHandoffAudit): Promise<void> {
-    this.events.push(event)
-  }
+  async record(event: AgentHandoffAudit): Promise<void> { this.events.push(event) }
 }
 
 export interface JanetContextProvider {
@@ -58,13 +57,14 @@ export interface DeliaStrategyProvider {
   }): Promise<StrategyPacket>
 }
 
-/** Result of MARISA handing an execution request to Jhadina's governed Action Core. */
 export type MarisaExecutionStatus = "EXECUTED" | "FAILED"
 
 export interface MarisaExecutionResult {
   executionId: string
   strategyId: string
   status: MarisaExecutionStatus
+  result?: unknown
+  error?: string
 }
 
 export interface MarisaExecutionProvider {
@@ -84,9 +84,7 @@ export class JhadinaOperatingLoop {
       ? await this.janet.getAgentContext(input.userId, input.objective)
       : {
           approvedMemories: await this.janet.getContext(input.userId),
-          sourceMemoryIds: this.janet.getApprovedMemoryIds
-            ? await this.janet.getApprovedMemoryIds(input.userId)
-            : [],
+          sourceMemoryIds: this.janet.getApprovedMemoryIds ? await this.janet.getApprovedMemoryIds(input.userId) : [],
           codebase: undefined,
         }
 
@@ -98,11 +96,7 @@ export class JhadinaOperatingLoop {
       approvedAt: new Date().toISOString(),
     }
 
-    const strategy = await this.delia.createStrategy({
-      userId: input.userId,
-      objective: input.objective,
-      context: approvedContext,
-    })
+    const strategy = await this.delia.createStrategy({ userId: input.userId, objective: input.objective, context: approvedContext })
 
     await this.audit.record({
       id: `handoff:${strategy.strategyId}:janet-delia`,
@@ -112,12 +106,12 @@ export class JhadinaOperatingLoop {
       userId: input.userId,
       inputId: strategy.strategyId,
       occurredAt: new Date().toISOString(),
-      status: "CREATED",
+      status: "COMPLETED",
     })
 
-    const executionId = strategy.strategyId
+    const handoffId = `handoff:${strategy.strategyId}:delia-marisa`
     await this.audit.record({
-      id: `handoff:${executionId}:delia-marisa`,
+      id: handoffId,
       type: "STRATEGY_TO_EXECUTION",
       from: "DELIA",
       to: "MARISA",
@@ -127,8 +121,33 @@ export class JhadinaOperatingLoop {
       status: "CREATED",
     })
 
-    const execution = await this.marisa.prepareExecution(strategy)
-
-    return { context: approvedContext, strategy, execution }
+    try {
+      const execution = await this.marisa.prepareExecution(strategy)
+      await this.audit.record({
+        id: `${handoffId}:result`,
+        type: "STRATEGY_TO_EXECUTION",
+        from: "DELIA",
+        to: "MARISA",
+        userId: input.userId,
+        inputId: execution.executionId,
+        occurredAt: new Date().toISOString(),
+        status: execution.status === "EXECUTED" ? "COMPLETED" : "FAILED",
+        metadata: { strategyId: strategy.strategyId, error: execution.error },
+      })
+      return { context: approvedContext, strategy, execution }
+    } catch (error) {
+      await this.audit.record({
+        id: `${handoffId}:failed`,
+        type: "STRATEGY_TO_EXECUTION",
+        from: "DELIA",
+        to: "MARISA",
+        userId: input.userId,
+        inputId: strategy.strategyId,
+        occurredAt: new Date().toISOString(),
+        status: "FAILED",
+        metadata: { error: error instanceof Error ? error.message : String(error) },
+      })
+      throw error
+    }
   }
 }
