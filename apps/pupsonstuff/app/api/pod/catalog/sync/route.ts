@@ -6,15 +6,14 @@ function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Supabase server environment variables are missing.");
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false });
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
 function requireSyncSecret(request: NextRequest) {
   const configured = process.env.POD_CATALOG_SYNC_SECRET;
   if (!configured) throw new Error("POD_CATALOG_SYNC_SECRET is not configured.");
   const supplied = request.headers.get("x-pod-sync-secret");
-  if (!supplied || supplied !== configured) return false;
-  return true;
+  return Boolean(supplied && supplied === configured);
 }
 
 export async function POST(request: NextRequest) {
