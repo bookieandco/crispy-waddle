@@ -6,10 +6,11 @@ import { SkillPolicyAdapter } from "../governance/SkillPolicyAdapter";
 import { CapabilityTokenIssuer } from "../execution/SkillCapabilityToken";
 import { SkillExecutorGuard } from "../execution/SkillExecutorGuard";
 import { ActionCoreSkillExecutor } from "../execution/ActionCoreSkillExecutor";
-import type { SkillExecutionAuditEvent, SkillExecutionAuditSink } from "../execution/GuardedSkillExecutor";
+import { JhadinaAuditSink } from "../execution/JhadinaAuditSink";
+import type { ActionAuditEvent, ActionLedger } from "../../../../packages/jhadina-action-core/src/action-executor";
 
 describe("governed skill execution flow", () => {
-  it("admits a safe skill, executes through Action Core, and uses the production audit injection", async () => {
+  it("executes through Action Core and writes the production skill audit through ActionLedger", async () => {
     const skill = {
       id: "calendar.read",
       name: "Calendar Reader",
@@ -55,10 +56,11 @@ describe("governed skill execution flow", () => {
       decision,
     });
 
-    const auditEvents: SkillExecutionAuditEvent[] = [];
-    const audit: SkillExecutionAuditSink = {
-      append: vi.fn((event) => auditEvents.push(event)),
+    const ledgerEvents: ActionAuditEvent[] = [];
+    const ledger: ActionLedger = {
+      append: vi.fn(async (event) => ledgerEvents.push(event)),
     };
+    const audit = new JhadinaAuditSink(ledger);
     const actionExecutor = { execute: vi.fn().mockResolvedValue({ ok: true }) };
     const executor = new ActionCoreSkillExecutor(new SkillExecutorGuard(), actionExecutor, audit);
 
@@ -72,20 +74,26 @@ describe("governed skill execution flow", () => {
     })).resolves.toEqual({ ok: true });
 
     expect(actionExecutor.execute).toHaveBeenCalledTimes(1);
-    expect(audit.append).toHaveBeenCalledTimes(1);
-    expect(auditEvents[0]).toEqual(expect.objectContaining({
-      type: "SKILL_EXECUTION_ALLOWED",
-      skillId: "calendar.read",
-      capabilityId: "calendar.read",
-      tokenId: token.tokenId,
+    expect(ledger.append).toHaveBeenCalledTimes(1);
+    expect(ledgerEvents[0]).toEqual(expect.objectContaining({
+      actionId: token.tokenId,
+      type: "skill:calendar.read:calendar.read",
+      status: "started",
+      metadata: expect.objectContaining({
+        source: "agent-runtime",
+        skillId: "calendar.read",
+        capabilityId: "calendar.read",
+        tokenId: token.tokenId,
+      }),
     }));
   });
 
-  it("records a rejected execution before Action Core is reached", async () => {
-    const auditEvents: SkillExecutionAuditEvent[] = [];
-    const audit: SkillExecutionAuditSink = {
-      append: vi.fn((event) => auditEvents.push(event)),
+  it("records a rejected execution through the canonical ActionLedger before Action Core is reached", async () => {
+    const ledgerEvents: ActionAuditEvent[] = [];
+    const ledger: ActionLedger = {
+      append: vi.fn(async (event) => ledgerEvents.push(event)),
     };
+    const audit = new JhadinaAuditSink(ledger);
     const actionExecutor = { execute: vi.fn() };
     const executor = new ActionCoreSkillExecutor(new SkillExecutorGuard(), actionExecutor, audit);
     const token = new CapabilityTokenIssuer().issue({
@@ -106,9 +114,12 @@ describe("governed skill execution flow", () => {
     })).rejects.toThrow("Capability token expired");
 
     expect(actionExecutor.execute).not.toHaveBeenCalled();
-    expect(auditEvents[0]).toEqual(expect.objectContaining({
-      type: "SKILL_EXECUTION_REJECTED",
-      reason: "Capability token expired",
+    expect(ledgerEvents[0]).toEqual(expect.objectContaining({
+      type: "skill:calendar.read:calendar.read",
+      status: "denied",
+      metadata: expect.objectContaining({
+        reason: "Capability token expired",
+      }),
     }));
   });
 
