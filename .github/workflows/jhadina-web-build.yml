@@ -1,0 +1,33 @@
+name: Jhadina Web Build
+
+on:
+  push:
+    branches:
+      - feat/jhadina-entertainment-intelligence
+  pull_request:
+    paths:
+      - "apps/jhadina-web/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "turbo.json"
+      - ".github/workflows/jhadina-web-build.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GEMINI_API_KEY: ci-placeholder
+      geminisecret: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @jhadina/jhadina-web build
