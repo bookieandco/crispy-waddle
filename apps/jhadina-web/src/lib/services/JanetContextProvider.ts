@@ -1,4 +1,9 @@
 import { MemoryRepository } from "../repositories/MemoryRepository"
+import {
+  EmptyJanetJusticeContextProvider,
+  JanetJusticeContext,
+  JanetJusticeContextProvider,
+} from "./JanetJusticeContextProvider"
 
 export interface JanetCodebaseContext {
   summary: string
@@ -10,6 +15,7 @@ export interface JanetContextBundle {
   approvedMemories: unknown[]
   sourceMemoryIds: string[]
   codebase: JanetCodebaseContext
+  justice: JanetJusticeContext
 }
 
 export interface JanetCodebaseContextProvider {
@@ -31,16 +37,26 @@ export class JanetContextProvider {
   constructor(
     private readonly memoryRepo: MemoryRepository,
     private readonly codebaseProvider: JanetCodebaseContextProvider = new EmptyJanetCodebaseContextProvider(),
+    private readonly justiceProvider: JanetJusticeContextProvider = new EmptyJanetJusticeContextProvider(),
   ) {}
 
-  async build(input: { userId: string; objective?: string }): Promise<JanetContextBundle> {
+  async build(input: {
+    userId: string
+    objective?: string
+    jurisdiction?: string
+    asOf?: string
+  }): Promise<JanetContextBundle> {
     const approvedMemories = await this.memoryRepo.getContext(input.userId)
-    const codebase = await this.codebaseProvider.getContext(input)
+    const [codebase, justice] = await Promise.all([
+      this.codebaseProvider.getContext(input),
+      this.justiceProvider.getContext(input),
+    ])
 
     return {
       approvedMemories,
       sourceMemoryIds: approvedMemories.map((memory) => memory.id),
       codebase,
+      justice,
     }
   }
 }
