@@ -16,6 +16,10 @@ export interface JanetContextBundle {
   sourceMemoryIds: string[]
   codebase: JanetCodebaseContext
   justice: JanetJusticeContext
+  readiness: {
+    codebase: "READY" | "UNAVAILABLE"
+    justice: JanetJusticeContext["status"]
+  }
 }
 
 export interface JanetCodebaseContextProvider {
@@ -57,6 +61,10 @@ export class JanetContextProvider {
       sourceMemoryIds: approvedMemories.map((memory) => memory.id),
       codebase,
       justice,
+      readiness: {
+        codebase: codebase.relevantPaths.length > 0 ? "READY" : "UNAVAILABLE",
+        justice: justice.status,
+      },
     }
   }
 }
