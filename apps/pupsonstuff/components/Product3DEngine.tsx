@@ -1,21 +1,8 @@
 "use client";
 
-// Product3DEngine — the generic viewer the roadmap asked for. Replaces the
-// old hardcoded Product3DPreview.tsx: this takes a Product3DConfig (see
-// config/product3dModels.ts) instead of assuming any specific model, mesh
-// name, or single decal spot.
-//
-// Known limitation, stated plainly: this only handles single-mesh,
-// single-material .glb files (reads exactly one geometry + one material
-// off the loaded GLTF). Both models registered so far (shirt, hoodie)
-// happen to fit that. A garment with separate meshes per panel, or
-// multiple materials, needs this extended — not a large change, but not
-// done yet, so don't assume it "just works" for an arbitrary future asset.
-
-import { Suspense, useRef, useState } from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, useGLTF, useTexture } from "@react-three/drei";
-import { Decal } from "@react-three/drei";
+import { Suspense, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { OrbitControls, useGLTF, useTexture, Decal } from "@react-three/drei";
 import * as THREE from "three";
 import {
   Product3DConfig,
@@ -32,9 +19,6 @@ interface AreaDecalProps {
   scale: number;
 }
 
-/** Isolated so useTexture only ever runs with a real image URL — a print
- * area with nothing generated for it yet simply isn't mounted, rather than
- * being fed a placeholder path that isn't actually an image. */
 function AreaDecal({ url, position, rotation, scale }: AreaDecalProps) {
   const texture = useTexture(url);
   return (
@@ -45,11 +29,6 @@ function AreaDecal({ url, position, rotation, scale }: AreaDecalProps) {
       map={texture}
       map-anisotropy={16}
       depthTest={false}
-      // drei 10's DecalProps dropped the top-level `depthWrite` prop (it
-      // was never namespaced as `material-depthWrite`, so it wasn't
-      // actually reaching the decal's material even before this upgrade —
-      // PBR materials default to depthWrite:true regardless, which is the
-      // behavior this line intended). Nothing to replace it with; removed.
     />
   );
 }
@@ -58,21 +37,29 @@ interface ProductMeshProps {
   config: Product3DConfig;
   color: string;
   decals: DecalMap;
+  focused: boolean;
+  onFocus: () => void;
 }
 
-function ProductMesh({ config, color, decals }: ProductMeshProps) {
+function ProductMesh({ config, color, decals, focused, onFocus }: ProductMeshProps) {
   const { nodes, materials } = useGLTF(config.glbPath) as unknown as {
     nodes: Record<string, THREE.Mesh>;
     materials: Record<string, THREE.MeshStandardMaterial>;
   };
-
   const geometry = nodes[config.meshName]?.geometry;
-  const material = materials[config.materialName];
+  const sourceMaterial = materials[config.materialName];
+  const material = useMemo(() => sourceMaterial?.clone(), [sourceMaterial]);
+  const groupRef = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
+
+  useFrame((_, delta) => {
+    if (!groupRef.current) return;
+    const target = focused ? 1.12 : hovered ? 1.055 : 1;
+    const next = THREE.MathUtils.damp(groupRef.current.scale.x, target, 7, delta);
+    groupRef.current.scale.setScalar(next);
+  });
 
   if (!geometry || !material) {
-    // Config/asset mismatch — fail loudly in dev rather than silently
-    // rendering nothing, since this means the .glb's actual mesh/material
-    // names don't match what's registered in config/product3dModels.ts.
     console.error(
       `Product3DEngine: mesh "${config.meshName}" or material "${config.materialName}" not found in ${config.glbPath}. Available meshes: ${Object.keys(nodes).join(", ")}`
     );
@@ -80,16 +67,31 @@ function ProductMesh({ config, color, decals }: ProductMeshProps) {
   }
 
   const rotation = config.modelRotation ?? [0, 0, 0];
-  const scale = config.modelScale ?? 1;
+  const baseScale = config.modelScale ?? 1;
+  material.color.set(config.supportsColorChange ? color : "#ffffff");
+  material.roughness = focused ? 0.72 : 0.9;
+  material.emissive.set(hovered || focused ? "#6b4f2a" : "#000000");
+  material.emissiveIntensity = hovered ? 0.035 : focused ? 0.08 : 0;
 
   return (
-    <group rotation={rotation} scale={scale}>
+    <group ref={groupRef} rotation={rotation} scale={baseScale}>
       <mesh
         castShadow
         geometry={geometry}
         material={material}
-        material-color={config.supportsColorChange ? color : undefined}
-        material-roughness={1}
+        onPointerOver={(event) => {
+          event.stopPropagation();
+          setHovered(true);
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          setHovered(false);
+          document.body.style.cursor = "";
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          onFocus();
+        }}
         dispose={null}
       >
         {config.printAreas.map((area) => {
@@ -109,25 +111,36 @@ function ProductMesh({ config, color, decals }: ProductMeshProps) {
   );
 }
 
+function FocusCamera({ focused, controlsRef }: { focused: boolean; controlsRef: React.RefObject<any> }) {
+  const { camera } = useThree();
+  const target = useRef(new THREE.Vector3());
+
+  useFrame((_, delta) => {
+    const destination = focused
+      ? new THREE.Vector3(0, 0.05, 2.15)
+      : new THREE.Vector3(0, 0, 3);
+    camera.position.lerp(destination, 1 - Math.exp(-5 * delta));
+    target.current.lerp(focused ? new THREE.Vector3(0, 0, 0) : new THREE.Vector3(0, 0, 0), 1 - Math.exp(-5 * delta));
+    camera.lookAt(target.current);
+    if (controlsRef.current) controlsRef.current.enabled = !focused;
+  });
+
+  return null;
+}
+
 interface Props {
   config: Product3DConfig;
-  /** hex color, only applied if config.supportsColorChange */
   color?: string;
-  /** map of print-area name -> generated texture URL (or null if not generated yet) */
   decals: DecalMap;
-  /** roadmap item 6: extension seam for future capabilities (screenshot export today; text-to-3D/AR later) */
   plugins?: Product3DPlugin[];
 }
 
-export default function Product3DEngine({
-  config,
-  color,
-  decals,
-  plugins = [],
-}: Props) {
+export default function Product3DEngine({ config, color, decals, plugins = [] }: Props) {
   const anyDecal = Object.values(decals).some(Boolean);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const controlsRef = useRef<any>(null);
   const [failed, setFailed] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   const pluginCtx: Product3DPluginContext = {
     config,
@@ -145,59 +158,46 @@ export default function Product3DEngine({
           </div>
         ) : (
           <Scene3DErrorBoundary
-            fallback={
-              <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-ink/50">
-                3D preview couldn&apos;t load — try the flat preview instead.
-              </div>
-            }
+            fallback={<div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-ink/50">3D preview couldn&apos;t load — try the flat preview instead.</div>}
             onError={() => setFailed(true)}
           >
             <Canvas
-              camera={{
-                position: config.camera.position,
-                fov: config.camera.fov ?? 30,
-              }}
+              camera={{ position: config.camera.position, fov: config.camera.fov ?? 30 }}
               gl={{ preserveDrawingBuffer: true }}
               shadows
               onCreated={({ gl }) => {
                 canvasRef.current = gl.domElement;
               }}
             >
-              {/* Real lights only — no <Environment preset> here. That
-                  component fetches an HDR file from an external CDN, and
-                  the first time this was actually driven end-to-end in a
-                  browser (not just built), a blocked/slow fetch for it
-                  crashed the whole app with an uncaught error, not just a
-                  duller-looking product. A three-point-ish rig (ambient
-                  fill + a stronger key light + a soft opposite fill)
-                  costs nothing over the network and reads as "lit
-                  product photo" well enough without reflections that
-                  depend on a resource this app doesn't control the
-                  availability of. */}
-              <ambientLight intensity={0.55} />
-              <directionalLight position={[2, 2, 3]} intensity={0.9} castShadow />
-              <directionalLight position={[-2, 1, -1.5]} intensity={0.35} />
+              <ambientLight intensity={focused ? 0.72 : 0.55} />
+              <directionalLight position={[2, 2, 3]} intensity={focused ? 1.25 : 0.9} castShadow />
+              <directionalLight position={[-2, 1, -1.5]} intensity={focused ? 0.5 : 0.35} />
               <Suspense fallback={null}>
                 <ProductMesh
                   config={config}
                   color={color ?? config.defaultColor ?? "#ffffff"}
                   decals={decals}
+                  focused={focused}
+                  onFocus={() => setFocused((value) => !value)}
                 />
               </Suspense>
               <OrbitControls
+                ref={controlsRef}
                 enablePan={false}
                 minDistance={config.camera.minDistance ?? 1.4}
                 maxDistance={config.camera.maxDistance ?? 3.5}
-                autoRotate
+                autoRotate={!focused}
                 autoRotateSpeed={1.4}
               />
+              <FocusCamera focused={focused} controlsRef={controlsRef} />
             </Canvas>
           </Scene3DErrorBoundary>
         )}
         {!anyDecal && !failed && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-ink/50">
-            Generate a preview to see it on the {config.displayName.toLowerCase()}
-          </div>
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-ink/50">Generate a preview to see it on the {config.displayName.toLowerCase()}</div>
+        )}
+        {focused && !failed && (
+          <div className="pointer-events-none absolute inset-x-0 top-3 text-center text-xs font-medium text-bronze">Product reveal · tap again to return</div>
         )}
       </div>
 
