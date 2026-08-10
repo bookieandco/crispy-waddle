@@ -1,5 +1,41 @@
 # PupsonStuff — Static Boutique
 
+## Milestone 8 — Printify fulfillment client (lib/printify.ts)
+
+A second fulfillment-provider client, alongside the Printful account
+this project actually ships against. `data/hotspots.ts`'s
+`FulfillmentProvider` type already included `"printify"` as a valid,
+unused value with a comment saying this would come "later, without
+touching any component" — `lib/printify.ts` is that later, not a
+redesign of the existing fulfillment schema.
+
+Built directly from Printify's own OpenAPI 3.0.3 spec (user-supplied
+file — every endpoint, the `Bearer` auth header, query param names, and
+request/response shapes are transcribed from it, not paraphrased from
+memory of the public docs). Covers Shops, Catalog (blueprints/print
+providers/variants/shipping), Uploads, Products (CRUD + publish), and
+Orders (submit/list/get/cancel/shipping-calc) — see
+`docs/fulfillment/printify-client.md` for the full function list and
+what's deliberately not implemented (webhooks, V2 per-variant shipping).
+
+**Real gap, not glossed over**: this is a standalone client, same
+starting point every other AI/fulfillment integration in this project
+had before its own route existed — nothing in `app/api/*` calls it yet,
+because there's no real order object anywhere in this app to hand it
+(no cart/checkout system — see Milestone 6.4/`data/mockOrders.ts`'s own
+header). Wiring `submitOrder()` into a real route is downstream of that
+work, not something to fake a checkout flow around just to exercise this
+client. The one piece usable standalone right now: catalog browsing
+could replace every `PLACEHOLDER` fulfillment ID currently sitting in
+`data/hotspots.ts` with real Printify `blueprint_id`/`print_provider_id`/
+`variant_id` values — a genuinely useful next step that doesn't need
+checkout to exist first.
+
+New env vars: `PRINTIFY_API_KEY`, `PRINTIFY_SHOP_ID` (the shop ID isn't
+read automatically — every shop-scoped function takes it as a parameter,
+since the API itself has no "current shop" concept). Untested against a
+live key, same caveat as every other external API integration here.
+
 ## Milestone 7 — Admin dashboard (new surface, real data where it exists)
 
 `app/admin/` — the first admin-facing surface in this project. Its
