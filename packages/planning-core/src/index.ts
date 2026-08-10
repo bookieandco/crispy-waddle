@@ -101,4 +101,6 @@ export interface PlanningRegistry {
   createProposal(proposal: PlanningProposal): Promise<void>;
 }
 
+export * from "./events";
+
 export const PLANNING_CORE_VERSION = "0.1.0";
