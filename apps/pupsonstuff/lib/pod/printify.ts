@@ -10,12 +10,21 @@ export type PrintifyOrderDraft = {
   artworkUrl: string;
 };
 
-/**
- * Provider boundary. Keep Printify credentials server-side and keep the
- * storefront independent from provider-specific request shapes.
- * Actual provider calls belong in a server-only integration module once
- * production credentials and product mappings are configured.
- */
+export type PrintifyOrderRequest = {
+  externalId: string;
+  lineItems: Array<{ productId: string; variantId: number; quantity: number }>;
+  shippingMethod?: number;
+  sendShippingNotification?: boolean;
+  address: { firstName: string; lastName: string; email?: string; phone?: string; country: string; region?: string; address1: string; address2?: string; city: string; zip: string };
+};
+
+export type PrintifyApi = {
+  createOrder(input: PrintifyOrderRequest): Promise<{ orderId: string }>;
+  publishOrder(orderId: string): Promise<void>;
+  getOrder(orderId: string): Promise<unknown>;
+  getShippingCost(input: Omit<PrintifyOrderRequest, "externalId">): Promise<unknown>;
+};
+
 export class PrintifyProvider {
   constructor(private readonly config: PrintifyConfig) {}
 
@@ -28,5 +37,14 @@ export class PrintifyProvider {
     if (!input.externalProductId || !input.variantId || !input.artworkUrl) throw new Error("Printify order requires product, variant, and artwork.");
     if (!Number.isInteger(input.quantity) || input.quantity < 1) throw new Error("Invalid order quantity.");
     return { ...input };
+  }
+
+  assertProductionReady(input: { customerApprovedAt?: string; qualityScore?: number; productionReady?: boolean }) {
+    if (!input.customerApprovedAt) throw new Error("Customer approval is required before fulfillment.");
+    if (!input.productionReady || (input.qualityScore ?? 0) < 90) throw new Error("Production artwork has not passed QA.");
+  }
+
+  buildOrder(input: { creationId: string; productId: string; variantId: number; address: PrintifyOrderRequest["address"] }): PrintifyOrderRequest {
+    return { externalId: input.creationId, lineItems: [{ productId: input.productId, variantId: input.variantId, quantity: 1 }], sendShippingNotification: false, address: input.address };
   }
 }
