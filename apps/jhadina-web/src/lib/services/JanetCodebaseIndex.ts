@@ -11,7 +11,7 @@ export type CodebaseNode = {
 export type CodebaseEdge = {
   from: string
   to: string
-  kind: "imports" | "exports" | "references"
+  kind: "imports" | "exports" | "references" | "calls"
 }
 
 export type CodebaseIndexSnapshot = {
@@ -27,17 +27,10 @@ export interface CodebaseIndexStore {
   put(key: string, snapshot: CodebaseIndexSnapshot): Promise<void>
 }
 
-/** Runtime-persistent store. Replace with Supabase/Postgres without changing JANET's query API. */
 export class RuntimeCodebaseIndexStore implements CodebaseIndexStore {
   private readonly snapshots = new Map<string, CodebaseIndexSnapshot>()
-
-  async get(key: string) {
-    return this.snapshots.get(key) ?? null
-  }
-
-  async put(key: string, snapshot: CodebaseIndexSnapshot) {
-    this.snapshots.set(key, snapshot)
-  }
+  async get(key: string) { return this.snapshots.get(key) ?? null }
+  async put(key: string, snapshot: CodebaseIndexSnapshot) { this.snapshots.set(key, snapshot) }
 }
 
 export class JanetCodebaseIndex {
@@ -54,13 +47,16 @@ export class JanetCodebaseIndex {
   async search(repository: string, ref: string, query: string, limit = 20) {
     const snapshot = await this.load(repository, ref)
     if (!snapshot) return []
-    const q = query.toLowerCase().trim()
+    const tokens = query.toLowerCase().split(/[^a-z0-9_/-]+/).filter((token) => token.length > 2)
     return snapshot.nodes
-      .map(node => ({ node, score: [node.name, node.path].join(" ").toLowerCase().includes(q) ? 1 : 0 }))
-      .filter(result => result.score > 0)
+      .map((node) => ({
+        node,
+        score: tokens.reduce((score, token) => score + ([node.name, node.path].join(" ").toLowerCase().includes(token) ? 1 : 0), 0),
+      }))
+      .filter((result) => result.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
-      .map(result => result.node)
+      .map((result) => result.node)
   }
 
   async related(repository: string, ref: string, nodeId: string) {
@@ -71,7 +67,7 @@ export class JanetCodebaseIndex {
       if (edge.from === nodeId) ids.add(edge.to)
       if (edge.to === nodeId) ids.add(edge.from)
     }
-    return snapshot.nodes.filter(node => ids.has(node.id))
+    return snapshot.nodes.filter((node) => ids.has(node.id))
   }
 
   async callPath(repository: string, ref: string, from: string, to: string, maxDepth = 8) {
@@ -79,6 +75,7 @@ export class JanetCodebaseIndex {
     if (!snapshot) return []
     const adjacency = new Map<string, string[]>()
     for (const edge of snapshot.edges) {
+      if (edge.kind !== "calls" && edge.kind !== "references" && edge.kind !== "imports") continue
       const list = adjacency.get(edge.from) ?? []
       list.push(edge.to)
       adjacency.set(edge.from, list)
@@ -89,7 +86,7 @@ export class JanetCodebaseIndex {
       const path = queue.shift()!
       const current = path[path.length - 1]
       if (current === to) return path
-      if (path.length > maxDepth) continue
+      if (path.length >= maxDepth + 1) continue
       for (const next of adjacency.get(current) ?? []) {
         if (!seen.has(next)) {
           seen.add(next)
