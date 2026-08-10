@@ -33,7 +33,8 @@
       "@jhadina/ai-core": ["packages/ai-core/src"],
       "@jhadina/knowledge-graph": ["packages/knowledge-graph/src"],
       "@jhadina/notification-engine": ["packages/notification-engine/src"],
-      "@jhadina/connector-framework": ["packages/connector-framework/src"]
+      "@jhadina/connector-framework": ["packages/connector-framework/src"],
+      "@jhadina/planning-core": ["packages/planning-core/src"]
     }
   },
   "include": ["packages/*/src", "apps/*/src", "infrastructure/*/src"],
