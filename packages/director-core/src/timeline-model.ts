@@ -34,7 +34,25 @@ export type Marker = { id: string; timeSeconds: number; label: string; color?: s
 export type EffectInstance = { id: string; type: string; enabled: boolean; parameters: Record<string, unknown> };
 export type GenerativeRegion = { id: string; startSeconds: number; durationSeconds: number; operation: GenerativeOperation; instruction: string; sourceClipId?: string; approved?: boolean; resultAssetId?: string };
 
-export type TimelineVersion = { id: string; version: number; parentVersionId?: string; createdAt: string; createdBy: 'user' | 'jhadina' | 'system'; message: string; snapshotHash: string };
+export type TimelineSnapshot = {
+  tracks: TimelineTrack[];
+  transitions: Transition[];
+  markers: Marker[];
+  playheadSeconds: number;
+};
+
+export type TimelineVersion = {
+  id: string;
+  version: number;
+  parentVersionId?: string;
+  createdAt: string;
+  createdBy: 'user' | 'jhadina' | 'system';
+  message: string;
+  snapshotHash: string;
+  snapshot?: TimelineSnapshot;
+  revertsVersionId?: string;
+  restoresVersionId?: string;
+};
 
 export type EditableTimeline = {
   version: 1;
