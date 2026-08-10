@@ -22,29 +22,20 @@ public struct StudioGPUExecutionResult: Codable, Sendable {
     public let warnings: [String]
 }
 
-/// Native GPUImage2 execution boundary. Platform targets provide the concrete
-/// movie source/export lifecycle; this package owns operation selection and
-/// filter construction so commands remain deterministic.
 public final class StudioGPUProcessor {
     public init() {}
 
     public func execute(_ request: StudioGPUOperation) async -> StudioGPUExecutionResult {
         do {
-            let filter = try makeFilter(for: request)
-            _ = filter
+            _ = try makeFilter(for: request)
             return StudioGPUExecutionResult(
                 status: "filter-ready",
                 operation: request.operation,
                 outputURL: request.outputURL,
-                warnings: ["Filter chain constructed. Platform AVAsset movie source/export must execute the chain."]
+                warnings: ["GPUImage2 filter constructed. Native movie source/export is the remaining platform integration."]
             )
         } catch {
-            return StudioGPUExecutionResult(
-                status: "failed",
-                operation: request.operation,
-                outputURL: nil,
-                warnings: [error.localizedDescription]
-            )
+            return StudioGPUExecutionResult(status: "failed", operation: request.operation, outputURL: nil, warnings: [error.localizedDescription])
         }
     }
 
@@ -62,10 +53,21 @@ public final class StudioGPUProcessor {
             let filter = BilateralBlur()
             filter.distanceNormalizationFactor = Float(request.parameters["amount"] ?? 8.0)
             return filter
-        case "tone", "color":
+        case "color", "tone":
             return ColorControls()
         default:
-            return BasicOperation()
+            throw StudioGPUError.unsupportedOperation(request.operation)
+        }
+    }
+}
+
+public enum StudioGPUError: LocalizedError {
+    case unsupportedOperation(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .unsupportedOperation(let operation):
+            return "GPUImage2 operation '\(operation)' is not implemented in the native filter map yet."
         }
     }
 }
