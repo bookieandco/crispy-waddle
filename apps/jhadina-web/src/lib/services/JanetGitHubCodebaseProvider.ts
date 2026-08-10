@@ -1,12 +1,13 @@
 import { JanetCodebaseContext, JanetCodebaseContextProvider } from "./JanetContextProvider"
 
-type TreeItem = { path?: string; type?: string; sha?: string }
+type TreeItem = { path?: string; type?: string; sha?: string; size?: number }
+type TreeResponse = { tree?: TreeItem[]; truncated?: boolean }
 type Content = { content?: string; encoding?: string }
 
 /**
  * Live codebase adapter inspired by codebase-memory-mcp's graph approach.
- * It builds a lightweight, query-focused graph from the repository tree and
- * source text without pretending to be a full compiler/parser.
+ * It is deliberately query-focused; the persistent graph index is the next
+ * storage boundary and should consume the same repository/ref snapshot.
  */
 export class JanetGitHubCodebaseProvider implements JanetCodebaseContextProvider {
   constructor(
@@ -24,19 +25,24 @@ export class JanetGitHubCodebaseProvider implements JanetCodebaseContextProvider
     const headers: Record<string, string> = { Accept: "application/vnd.github+json" }
     if (this.config.token) headers.Authorization = `Bearer ${this.config.token}`
 
-    const tree = await this.request<TreeItem[]>(
-      `https://api.github.com/repos/${this.config.owner}/${this.config.repo}/git/trees/${encodeURIComponent(this.config.ref)}?recursive=1`,
+    const treeResponse = await this.request<TreeResponse>(
+      `https://api.github.com/repos/${encodeURIComponent(this.config.owner)}/${encodeURIComponent(this.config.repo)}/git/trees/${encodeURIComponent(this.config.ref)}?recursive=1`,
       headers,
     )
+    const tree = treeResponse.tree ?? []
+    if (treeResponse.truncated) {
+      throw new Error("GitHub codebase tree was truncated; refusing to build incomplete JANET context")
+    }
 
-    const sourceFiles = tree.filter((x) => x.type === "blob" && /\.(ts|tsx|js|jsx|py|json)$/.test(x.path || ""))
-      .filter((x) => !/(node_modules|\.next|dist|build|coverage)\//.test(x.path || ""))
-      .slice(0, this.config.maxFiles ?? 180)
+    const sourceFiles = tree
+      .filter((x) => x.type === "blob" && /\.(ts|tsx|js|jsx|py|json)$/.test(x.path || ""))
+      .filter((x) => !/(^|\/)(node_modules|\.next|dist|build|coverage)(\/|$)/.test(x.path || ""))
 
     const objectiveTokens = this.tokens(input.objective || "")
-    const ranked = sourceFiles.map((item) => ({ item, score: this.scorePath(item.path || "", objectiveTokens) }))
+    const ranked = sourceFiles
+      .map((item) => ({ item, score: this.scorePath(item.path || "", objectiveTokens) }))
       .sort((a, b) => b.score - a.score)
-      .slice(0, 30)
+      .slice(0, this.config.maxFiles ?? 180)
 
     const nodes: string[] = []
     const relationships: string[] = []
@@ -59,11 +65,17 @@ export class JanetGitHubCodebaseProvider implements JanetCodebaseContextProvider
 
   private async file(path: string, headers: Record<string, string>): Promise<string> {
     try {
-      const data = await this.request<Content>(`https://api.github.com/repos/${this.config.owner}/${this.config.repo}/contents/${path}?ref=${encodeURIComponent(this.config.ref)}`, headers)
+      const encodedPath = path.split("/").map(encodeURIComponent).join("/")
+      const data = await this.request<Content>(
+        `https://api.github.com/repos/${encodeURIComponent(this.config.owner)}/${encodeURIComponent(this.config.repo)}/contents/${encodedPath}?ref=${encodeURIComponent(this.config.ref)}`,
+        headers,
+      )
       if (data.encoding !== "base64" || !data.content) return ""
       const text = Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf8")
       return text.slice(0, this.config.maxFileBytes ?? 120_000)
-    } catch { return "" }
+    } catch {
+      return ""
+    }
   }
 
   private async request<T>(url: string, headers: Record<string, string>): Promise<T> {
