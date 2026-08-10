@@ -2,7 +2,6 @@ import type { JanetService } from "../services/JanetService"
 import type { ApprovedContext, AgentAuditSink, DeliaStrategyProvider, MarisaExecutionProvider } from "./agent-loop"
 import { JhadinaOperatingLoop } from "./agent-loop"
 import { MarisaActionExecutor } from "./marisa-action-executor"
-import type { ActionExecutor } from "../../../../packages/jhadina-action-core/src/action-executor"
 import type { VerifiedActionExecutor } from "../../../../packages/jhadina-action-core/src/verified-action-executor"
 
 export function createLiveJhadinaOperatingLoop(input: {
@@ -14,8 +13,7 @@ export function createLiveJhadinaOperatingLoop(input: {
   const janetProvider = {
     getContext: (userId: string) => input.janet.getContext(userId),
     getApprovedMemoryIds: (userId: string) => input.janet.getApprovedMemoryIds(userId),
-    getAgentContext: (userId: string, objective?: string) =>
-      input.janet.getAgentContext(userId, objective),
+    getAgentContext: (userId: string, objective?: string) => input.janet.getAgentContext(userId, objective),
   }
 
   return new JhadinaOperatingLoop(janetProvider, input.delia, input.marisa, input.audit)
@@ -27,12 +25,13 @@ export function createLiveJhadinaOperatingLoop(input: {
  * the application's real identity verifier, policy, ledger, and handlers.
  */
 export function createMarisaExecutionProvider(executor: VerifiedActionExecutor<unknown, unknown>): MarisaExecutionProvider {
-  const governed = new MarisaActionExecutor(executor as unknown as ActionExecutor<unknown, unknown>)
+  const governed = new MarisaActionExecutor(executor)
 
   return {
     prepareExecution: async (strategy) => {
+      const executionId = `exec:${strategy.strategyId}:${crypto.randomUUID()}`
       const request = {
-        id: strategy.strategyId,
+        id: executionId,
         userId: strategy.userId,
         type: "DELIA_STRATEGY_EXECUTION",
         action: strategy,
@@ -40,17 +39,19 @@ export function createMarisaExecutionProvider(executor: VerifiedActionExecutor<u
       }
 
       try {
-        await governed.execute(request)
+        const result = await governed.execute(request)
         return {
-          executionId: request.id,
+          executionId,
           strategyId: strategy.strategyId,
           status: "EXECUTED",
+          result,
         }
       } catch (error) {
         return {
-          executionId: request.id,
+          executionId,
           strategyId: strategy.strategyId,
           status: "FAILED",
+          error: error instanceof Error ? error.message : String(error),
         }
       }
     },
