@@ -1,9 +1,21 @@
 import type { CodingAgentAdapter, EvolutionExecutionPlan, ExecutionEvidence, ExecutionWorkspace } from "./evolution-executor";
+import type { ClaudeRepairContext } from "./claude-repair-context";
+import { renderClaudeRepairPrompt } from "./claude-repair-context";
 
 export interface ClaudeCodeRunner {
   run(input: {
     workspace: ExecutionWorkspace;
     prompt: string;
+    allowedTools: string[];
+    disallowedTools: string[];
+    maxTurns: number;
+  }): Promise<{ changedFiles: string[]; tests: ExecutionEvidence["tests"]; securityChecks: ExecutionEvidence["securityChecks"]; diffSummary: string }>;
+}
+
+export interface ClaudeRepairRunner extends ClaudeCodeRunner {
+  runRepair?(input: {
+    workspace: ExecutionWorkspace;
+    context: ClaudeRepairContext;
     allowedTools: string[];
     disallowedTools: string[];
     maxTurns: number;
@@ -32,22 +44,35 @@ const DEFAULT_DISALLOWED_TOOLS = [
 
 export class ClaudeCodeEvolutionAdapter implements CodingAgentAdapter {
   constructor(
-    private readonly runner: ClaudeCodeRunner,
+    private readonly runner: ClaudeRepairRunner,
     private readonly maxTurns = 12,
   ) {}
 
-  async execute(input: { plan: EvolutionExecutionPlan; workspace: ExecutionWorkspace }): Promise<ExecutionEvidence> {
-    const allowedTools = input.plan.allowedPaths.length
-      ? DEFAULT_ALLOWED_TOOLS
-      : DEFAULT_ALLOWED_TOOLS;
+  async execute(input: { plan: EvolutionExecutionPlan; workspace: ExecutionWorkspace; context?: ClaudeRepairContext }): Promise<ExecutionEvidence> {
+    const context = input.context;
+    if (!context) {
+      throw new Error("ClaudeCodeEvolutionAdapter requires ClaudeRepairContext with repository evidence");
+    }
 
-    const result = await this.runner.run({
-      workspace: input.workspace,
-      prompt: buildPrompt(input.plan),
-      allowedTools,
-      disallowedTools: DEFAULT_DISALLOWED_TOOLS,
-      maxTurns: this.maxTurns,
-    });
+    const allowedTools = [...DEFAULT_ALLOWED_TOOLS];
+    const disallowedTools = [...DEFAULT_DISALLOWED_TOOLS];
+    const prompt = renderClaudeRepairPrompt(context);
+
+    const result = this.runner.runRepair
+      ? await this.runner.runRepair({
+          workspace: input.workspace,
+          context,
+          allowedTools,
+          disallowedTools,
+          maxTurns: this.maxTurns,
+        })
+      : await this.runner.run({
+          workspace: input.workspace,
+          prompt,
+          allowedTools,
+          disallowedTools,
+          maxTurns: this.maxTurns,
+        });
 
     return {
       changedFiles: result.changedFiles,
@@ -56,18 +81,4 @@ export class ClaudeCodeEvolutionAdapter implements CodingAgentAdapter {
       diffSummary: result.diffSummary,
     };
   }
-}
-
-function buildPrompt(plan: EvolutionExecutionPlan) {
-  return [
-    `You are executing approved Jhadina evolution plan ${plan.id}: ${plan.title}.`,
-    "Work only inside the approved isolated workspace.",
-    `Allowed paths: ${plan.allowedPaths.join(", ") || "none"}.`,
-    `Risk: ${plan.risk}.`,
-    "Do not commit, push, deploy, access secrets, modify protected authority boundaries, or broaden scope.",
-    "Inspect first, make the smallest defensible change, then run the requested verification commands.",
-    `Tests: ${plan.testCommands.join(" && ") || "use repository tests when available"}.`,
-    `Security checks: ${plan.securityChecks.join(", ") || "inspect the diff for security regressions"}.`,
-    "Return structured evidence describing changed files, tests, security checks, and the diff.",
-  ].join("\n");
 }
