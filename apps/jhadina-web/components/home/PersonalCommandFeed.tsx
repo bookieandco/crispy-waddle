@@ -1,31 +1,76 @@
 import React from 'react';
 
-type FeedItem = { kind: 'music' | 'opportunity' | 'director' | 'social' | 'youtube' | 'jhadina'; label: string; title: string; body: string; action?: string };
+type Module = {
+  kind: 'janet' | 'delia' | 'marisa' | 'safeguard' | 'music' | 'jei' | 'opportunity' | 'social' | 'money';
+  label: string;
+  title: string;
+  body: string;
+  state: 'online' | 'building' | 'connected';
+};
 
-const demoFeed: FeedItem[] = [
-  { kind: 'jhadina', label: 'Jhadina', title: 'Your day, at a glance.', body: 'A mixed stream for music, opportunities, media, social, and Jhadina activity.' },
-  { kind: 'music', label: 'Music', title: 'Your Music is ready.', body: 'Pick up where you left off or search for something new.', action: 'Open Music' },
-  { kind: 'opportunity', label: 'Opportunity', title: 'A business opportunity needs your attention.', body: 'Opportunity intelligence will surface leads, ideas, and time-sensitive opportunities here.', action: 'Review' },
-  { kind: 'director', label: 'Director', title: 'A new video is ready for review.', body: 'Creative output from your Director workspace can appear here before anything is published.', action: 'Watch' },
-  { kind: 'youtube', label: 'YouTube', title: 'Recommended video space.', body: 'Connected YouTube content can appear here once the account is authorized.', action: 'Connect' },
-  { kind: 'social', label: 'Social', title: 'Your social world, mixed into the stream.', body: 'Facebook, Instagram, and TikTok cards will be pulled through authorized integrations — never scraped.', action: 'Connect' },
+const modules: Module[] = [
+  { kind: 'janet', label: 'JANET', title: 'Memory & identity', body: 'Memory, personalization, taste, approvals, and context.', state: 'online' },
+  { kind: 'delia', label: 'DELIA', title: 'Strategy & intelligence', body: 'Analysis, prioritization, research, and opportunity reasoning.', state: 'online' },
+  { kind: 'marisa', label: 'MARISA', title: 'Production & execution', body: 'Creative production, automation, and action workflows.', state: 'online' },
+  { kind: 'safeguard', label: 'SAFEGUARD', title: 'Security & policy', body: 'Permissions, enforcement boundaries, auditability, and safe actions.', state: 'online' },
+  { kind: 'jei', label: 'JEI', title: 'Entertainment intelligence', body: 'Studies music, YouTube, film, and Jhadina\'s own creative work.', state: 'building' },
+  { kind: 'music', label: 'MUSIC', title: 'Music Core', body: 'Playback, library, creative music workflows, and restoration.', state: 'connected' },
+  { kind: 'opportunity', label: 'OPPORTUNITY', title: 'Opportunity Command Center', body: 'Leads, research, qualification, and recovery opportunities.', state: 'connected' },
+  { kind: 'social', label: 'SOCIAL', title: 'Social Core', body: 'Authorized social connections and publishing workflows.', state: 'connected' },
+  { kind: 'money', label: 'MONEY', title: 'Money Core', body: 'Financial intelligence, allocation, reserves, and cash-flow visibility.', state: 'building' },
 ];
 
-const glyph: Record<FeedItem['kind'], string> = { music: '♪', opportunity: '$', director: '▶', social: '◎', youtube: 'Y', jhadina: '✦' };
+const glyph: Record<Module['kind'], string> = {
+  janet: 'J', delia: 'D', marisa: 'M', safeguard: 'S', music: '♪', jei: '✦', opportunity: '$', social: '◎', money: '₿',
+};
+
+const stateLabel: Record<Module['state'], string> = { online: 'ONLINE', connected: 'CONNECTED', building: 'BUILDING' };
 
 export function PersonalCommandFeed() {
-  return <section style={{ maxWidth: 820, margin: '0 auto', padding: '48px 20px 96px' }}>
-    <div style={{ marginBottom: 28 }}>
-      <div style={{ fontSize: 11, letterSpacing: '.28em', textTransform: 'uppercase', opacity: .42 }}>Jhadina Home</div>
-      <h2 style={{ fontSize: 38, lineHeight: 1.05, margin: '10px 0 8px' }}>Your world, in one stream.</h2>
-      <p style={{ margin: 0, opacity: .52 }}>Social, music, opportunities, media, and Jhadina — mixed by context instead of trapped in separate apps.</p>
-    </div>
-    <div style={{ display: 'grid', gap: 14 }}>
-      {demoFeed.map((item) => <article key={`${item.kind}-${item.title}`} style={{ border: '1px solid rgba(255,255,255,.09)', borderRadius: 24, padding: 22, background: 'rgba(255,255,255,.035)', boxShadow: '0 14px 50px rgba(0,0,0,.18)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><div style={{ width: 42, height: 42, borderRadius: 13, display: 'grid', placeItems: 'center', background: 'rgba(255,255,255,.08)', fontSize: 18 }}>{glyph[item.kind]}</div><div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.2em', opacity: .45 }}>{item.label}</div></div>
-        <h3 style={{ margin: '18px 0 8px', fontSize: 21 }}>{item.title}</h3><p style={{ margin: 0, lineHeight: 1.6, opacity: .52 }}>{item.body}</p>
-        {item.action && <button type="button" style={{ marginTop: 18, border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '9px 14px', background: 'rgba(255,255,255,.06)', color: 'inherit', cursor: 'pointer' }}>{item.action}</button>}
-      </article>)}
-    </div>
-  </section>;
+  return (
+    <section style={{ maxWidth: 1180, margin: '0 auto', padding: '54px 24px 100px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr .6fr', gap: 18, marginBottom: 22 }}>
+        <div style={{ border: '1px solid rgba(255,255,255,.09)', borderRadius: 28, padding: 30, background: 'linear-gradient(145deg, rgba(255,255,255,.065), rgba(255,255,255,.025))' }}>
+          <div style={{ fontSize: 11, letterSpacing: '.28em', textTransform: 'uppercase', opacity: .42 }}>Mission Control</div>
+          <h1 style={{ fontSize: 48, lineHeight: 1.02, margin: '12px 0 12px' }}>Everything Jhadina can do, connected.</h1>
+          <p style={{ maxWidth: 680, margin: 0, lineHeight: 1.65, opacity: .56 }}>One command center for memory, strategy, production, security, music, entertainment intelligence, opportunities, social, and money.</p>
+        </div>
+        <div style={{ border: '1px solid rgba(255,255,255,.09)', borderRadius: 28, padding: 24, background: 'rgba(255,255,255,.035)' }}>
+          <div style={{ fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', opacity: .42 }}>System</div>
+          <div style={{ fontSize: 34, fontWeight: 750, marginTop: 12 }}>7 / 9</div>
+          <div style={{ opacity: .5, marginTop: 4 }}>modules online or connected</div>
+          <div style={{ marginTop: 22, height: 8, borderRadius: 99, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}><div style={{ width: '78%', height: '100%', background: '#65d68a' }} /></div>
+          <div style={{ marginTop: 14, fontSize: 12, opacity: .4 }}>2 modules actively building</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14 }}>
+        {modules.map((item) => (
+          <article key={item.kind} style={{ border: '1px solid rgba(255,255,255,.09)', borderRadius: 22, padding: 20, background: 'rgba(255,255,255,.035)', minHeight: 190 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, display: 'grid', placeItems: 'center', background: 'rgba(255,255,255,.08)', fontSize: 17 }}>{glyph[item.kind]}</div>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.18em', opacity: .45 }}>{item.label}</div>
+              </div>
+              <div style={{ fontSize: 9, letterSpacing: '.12em', opacity: item.state === 'building' ? .55 : .35 }}>{stateLabel[item.state]}</div>
+            </div>
+            <h2 style={{ fontSize: 20, margin: '18px 0 8px' }}>{item.title}</h2>
+            <p style={{ margin: 0, lineHeight: 1.55, opacity: .5, fontSize: 14 }}>{item.body}</p>
+          </article>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 18, border: '1px solid rgba(255,255,255,.09)', borderRadius: 22, padding: 22, background: 'rgba(255,255,255,.025)' }}>
+        <div style={{ fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', opacity: .42 }}>Unified flow</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+          {['You', 'JANET Memory', 'DELIA Strategy', 'MARISA Execution', 'Safeguard', 'JEI Creative Context', 'Action / Connector', 'Audit Trail'].map((step, index) => (
+            <React.Fragment key={step}>
+              <span style={{ padding: '9px 12px', borderRadius: 12, background: 'rgba(255,255,255,.055)', fontSize: 12 }}>{step}</span>
+              {index < 7 && <span style={{ opacity: .25, alignSelf: 'center' }}>→</span>}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
