@@ -1,21 +1,19 @@
-import AVFoundation
 import Foundation
 
 /// Owns the live PLAY -> SYNC -> CORRECTION -> QC observation loop.
 ///
-/// The session only enables drift correction when an audio clock provider is
-/// explicitly supplied. This prevents an independent AVAudioEngine clock from
-/// being mistaken for AVPlayer's actual output clock.
+/// The session depends on the playback backend contract rather than reaching
+/// into a concrete AVPlayer implementation. A backend may therefore be backed
+/// by AVPlayer today and a different media engine later.
 @MainActor
 public final class JhadinaPlaybackSyncSession {
-    private let playback: JhadinaNativePlaybackService
+    private let playback: JhadinaPlaybackBackend
     private let monitor: JhadinaSyncMonitor
     private let coordinator: JhadinaCorrectionCoordinator
     private let audioClock: JhadinaAudioClockProvider?
 
     public init(
-        playback: JhadinaNativePlaybackService,
-        player: AVPlayer,
+        playback: JhadinaPlaybackBackend,
         audioClock: JhadinaAudioClockProvider?,
         coordinator: JhadinaCorrectionCoordinator,
         sampleInterval: TimeInterval = 0.1
@@ -24,7 +22,8 @@ public final class JhadinaPlaybackSyncSession {
         self.audioClock = audioClock
         self.coordinator = coordinator
         self.monitor = JhadinaSyncMonitor(
-            player: player,
+            playerTime: { playback.snapshot().playerTime },
+            isPlaying: { playback.snapshot().state == .playing },
             audioClock: audioClock,
             sampleInterval: sampleInterval
         ) { [weak coordinator] sample in
