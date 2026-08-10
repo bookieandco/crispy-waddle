@@ -1,64 +1,69 @@
-export type AgentName = "JANET" | "DELIA" | "MARISA";
-
-export type HandoffType = "CONTEXT_TO_STRATEGY" | "STRATEGY_TO_EXECUTION";
+export type AgentName = "JANET" | "DELIA" | "MARISA"
+export type HandoffType = "CONTEXT_TO_STRATEGY" | "STRATEGY_TO_EXECUTION"
 
 export interface ApprovedContext {
-  userId: string;
-  sourceMemoryIds: string[];
-  context: unknown[];
-  approvedAt: string;
+  userId: string
+  sourceMemoryIds: string[]
+  context: unknown[]
+  codebase?: unknown
+  approvedAt: string
 }
 
 export interface StrategyPacket {
-  strategyId: string;
-  userId: string;
-  objective: string;
-  contextMemoryIds: string[];
-  recommendations: string[];
-  createdAt: string;
+  strategyId: string
+  userId: string
+  objective: string
+  contextMemoryIds: string[]
+  recommendations: string[]
+  createdAt: string
 }
 
 export interface AgentHandoffAudit {
-  id: string;
-  type: HandoffType;
-  from: AgentName;
-  to: AgentName;
-  userId: string;
-  inputId: string;
-  occurredAt: string;
-  status: "CREATED";
+  id: string
+  type: HandoffType
+  from: AgentName
+  to: AgentName
+  userId: string
+  inputId: string
+  occurredAt: string
+  status: "CREATED"
 }
 
 export interface AgentAuditSink {
-  record(event: AgentHandoffAudit): Promise<void>;
+  record(event: AgentHandoffAudit): Promise<void>
 }
 
 export class InMemoryAgentAuditSink implements AgentAuditSink {
-  readonly events: AgentHandoffAudit[] = [];
+  readonly events: AgentHandoffAudit[] = []
   async record(event: AgentHandoffAudit): Promise<void> {
-    this.events.push(event);
+    this.events.push(event)
   }
 }
 
 export interface JanetContextProvider {
-  getContext(userId: string): Promise<unknown[]>;
-  getApprovedMemoryIds?(userId: string): Promise<string[]>;
+  getContext(userId: string): Promise<unknown[]>
+  getApprovedMemoryIds?(userId: string): Promise<string[]>
+  getAgentContext?(userId: string, objective?: string): Promise<{
+    approvedMemories: unknown[]
+    sourceMemoryIds: string[]
+    codebase: unknown
+  }>
 }
 
 export interface DeliaStrategyProvider {
   createStrategy(input: {
-    userId: string;
-    objective: string;
-    context: ApprovedContext;
-  }): Promise<StrategyPacket>;
+    userId: string
+    objective: string
+    context: ApprovedContext
+  }): Promise<StrategyPacket>
 }
 
 export interface MarisaExecutionProvider {
   prepareExecution(strategy: StrategyPacket): Promise<{
-    executionId: string;
-    status: "READY" | "BLOCKED";
-    strategyId: string;
-  }>;
+    executionId: string
+    status: "READY" | "BLOCKED"
+    strategyId: string
+  }>
 }
 
 export class JhadinaOperatingLoop {
@@ -70,23 +75,29 @@ export class JhadinaOperatingLoop {
   ) {}
 
   async run(input: { userId: string; objective: string }) {
-    const context = await this.janet.getContext(input.userId);
-    const sourceMemoryIds = this.janet.getApprovedMemoryIds
-      ? await this.janet.getApprovedMemoryIds(input.userId)
-      : [];
+    const bundle = this.janet.getAgentContext
+      ? await this.janet.getAgentContext(input.userId, input.objective)
+      : {
+          approvedMemories: await this.janet.getContext(input.userId),
+          sourceMemoryIds: this.janet.getApprovedMemoryIds
+            ? await this.janet.getApprovedMemoryIds(input.userId)
+            : [],
+          codebase: undefined,
+        }
 
     const approvedContext: ApprovedContext = {
       userId: input.userId,
-      sourceMemoryIds,
-      context,
+      sourceMemoryIds: bundle.sourceMemoryIds,
+      context: bundle.approvedMemories,
+      codebase: bundle.codebase,
       approvedAt: new Date().toISOString(),
-    };
+    }
 
     const strategy = await this.delia.createStrategy({
       userId: input.userId,
       objective: input.objective,
       context: approvedContext,
-    });
+    })
 
     await this.audit.record({
       id: `handoff:${strategy.strategyId}:janet-delia`,
@@ -97,9 +108,9 @@ export class JhadinaOperatingLoop {
       inputId: strategy.strategyId,
       occurredAt: new Date().toISOString(),
       status: "CREATED",
-    });
+    })
 
-    const execution = await this.marisa.prepareExecution(strategy);
+    const execution = await this.marisa.prepareExecution(strategy)
 
     await this.audit.record({
       id: `handoff:${execution.executionId}:delia-marisa`,
@@ -110,12 +121,8 @@ export class JhadinaOperatingLoop {
       inputId: strategy.strategyId,
       occurredAt: new Date().toISOString(),
       status: "CREATED",
-    });
+    })
 
-    return {
-      context: approvedContext,
-      strategy,
-      execution,
-    };
+    return { context: approvedContext, strategy, execution }
   }
 }
