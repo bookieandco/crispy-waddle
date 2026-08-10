@@ -1,5 +1,7 @@
 package com.jhadina.calendar
 
+enum class CalendarViewMode { MONTH, WEEK }
+
 /** Calendar-facing state; no Android or Compose types leak into Planning Core. */
 data class PlanningCalendarDay(
     val date: String,
@@ -11,6 +13,8 @@ interface PlanningCalendarAdapter {
     fun today(): PlanningCalendarDay
     fun eventsForDate(date: String): List<PlanningCalendarEvent>
     fun selectDate(date: String): PlanningCalendarDay
+    fun setViewMode(mode: CalendarViewMode)
+    fun viewMode(): CalendarViewMode
 }
 
 class DefaultPlanningCalendarAdapter(
@@ -18,6 +22,7 @@ class DefaultPlanningCalendarAdapter(
     private val todayDate: () -> String,
 ) : PlanningCalendarAdapter {
     private var selectedDate: String = todayDate()
+    private var mode: CalendarViewMode = CalendarViewMode.MONTH
 
     override fun today(): PlanningCalendarDay = day(todayDate())
 
@@ -31,6 +36,12 @@ class DefaultPlanningCalendarAdapter(
         selectedDate = date
         return day(selectedDate)
     }
+
+    override fun setViewMode(mode: CalendarViewMode) {
+        this.mode = mode
+    }
+
+    override fun viewMode(): CalendarViewMode = mode
 
     private fun day(date: String): PlanningCalendarDay =
         PlanningCalendarDay(
