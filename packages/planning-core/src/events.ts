@@ -71,3 +71,24 @@ export function proposalCreatedEvent(
     payload: structuredClone(proposal),
   };
 }
+
+export function policyOutcomeEvent(
+  proposal: PlanningProposal,
+  actorId: ID,
+  allowed: boolean,
+  reason: string,
+  eventId: ID,
+): PlanningEvent {
+  return {
+    id: eventId,
+    type: allowed ? "POLICY_ALLOWED" : "POLICY_DENIED",
+    planId: proposal.planId,
+    occurredAt: new Date().toISOString(),
+    actorId,
+    payload: {
+      proposalId: proposal.id,
+      actionType: proposal.actionType,
+      reason,
+    },
+  };
+}
