@@ -1,6 +1,7 @@
 import type { ClaudeCodeRunner } from "./claude-code-adapter";
 import type { ClaudeRepairContext } from "./claude-repair-context";
 import type { ExecutionEvidence, ExecutionWorkspace } from "./evolution-executor";
+import type { EvolutionExecutionResult } from "./evolution-result";
 
 export interface WorkflowDispatchClient {
   dispatch(input: {
@@ -11,12 +12,18 @@ export interface WorkflowDispatchClient {
 }
 
 export interface WorkflowResultClient {
-  waitForResult(runId: number): Promise<{
-    changedFiles: string[];
-    tests: ExecutionEvidence["tests"];
-    securityChecks: ExecutionEvidence["securityChecks"];
-    diffSummary: string;
-  }>;
+  waitForResult(runId: number): Promise<EvolutionExecutionResult>;
+}
+
+export interface ClaudeWorkflowExecutionResult {
+  runId: number;
+  taskId: string;
+  outcome: EvolutionExecutionResult["outcome"];
+  changedFiles: string[];
+  tests: ExecutionEvidence["tests"];
+  securityChecks: ExecutionEvidence["securityChecks"];
+  diffSummary: string;
+  draftPr?: EvolutionExecutionResult["draftPr"];
 }
 
 export class ClaudeGitHubActionsRunner implements ClaudeCodeRunner {
@@ -37,7 +44,17 @@ export class ClaudeGitHubActionsRunner implements ClaudeCodeRunner {
     if (!input.context) {
       throw new Error("ClaudeGitHubActionsRunner requires a ClaudeRepairContext");
     }
+    return this.runGoverned(input);
+  }
 
+  async runGoverned(input: {
+    workspace: ExecutionWorkspace;
+    prompt: string;
+    allowedTools: string[];
+    disallowedTools: string[];
+    maxTurns: number;
+    context: ClaudeRepairContext;
+  }): Promise<ClaudeWorkflowExecutionResult> {
     const plan = input.context.plan;
     const repository = input.context.repository.snapshot.repository;
 
@@ -51,6 +68,14 @@ export class ClaudeGitHubActionsRunner implements ClaudeCodeRunner {
       },
     });
 
-    return this.resultClient.waitForResult(dispatch.runId);
+    const result = await this.resultClient.waitForResult(dispatch.runId);
+    if (result.taskId !== plan.id) {
+      throw new Error(`Workflow task ${result.taskId} does not match repair ${plan.id}`);
+    }
+    if (result.branch && result.branch !== input.workspace.branch) {
+      throw new Error(`Workflow branch ${result.branch} does not match workspace ${input.workspace.branch}`);
+    }
+
+    return result;
   }
 }
