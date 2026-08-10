@@ -115,10 +115,9 @@ export class JhadinaOperatingLoop {
       status: "CREATED",
     })
 
-    const execution = await this.marisa.prepareExecution(strategy)
-
+    const executionId = strategy.strategyId
     await this.audit.record({
-      id: `handoff:${execution.executionId}:delia-marisa`,
+      id: `handoff:${executionId}:delia-marisa`,
       type: "STRATEGY_TO_EXECUTION",
       from: "DELIA",
       to: "MARISA",
@@ -127,6 +126,8 @@ export class JhadinaOperatingLoop {
       occurredAt: new Date().toISOString(),
       status: "CREATED",
     })
+
+    const execution = await this.marisa.prepareExecution(strategy)
 
     return { context: approvedContext, strategy, execution }
   }
