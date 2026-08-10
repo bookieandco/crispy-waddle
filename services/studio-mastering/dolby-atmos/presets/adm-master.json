@@ -1,0 +1,10 @@
+{
+  "id": "adm-master",
+  "description": "Immutable ADM BWF Atmos mastering source profile",
+  "input": "adm-bwf",
+  "output": "adm-bwf",
+  "sampleRateHz": 48000,
+  "bitDepth": 24,
+  "preserveSource": true,
+  "requireMetadataValidation": true
+}
