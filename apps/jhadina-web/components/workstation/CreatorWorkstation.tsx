@@ -9,11 +9,12 @@ const initialProject: CreatorProject = {
   scenes: [{ id: 'scene-1', title: 'Scene 01', order: 1, summary: 'Opening beat', takeIds: [] }],
 };
 
-type TakeCard = { takeId: string; clipUri?: string; provider?: string; instruction: string; status: 'candidate' | 'selected' };
+type TakeCard = { takeId: string; clipUri?: string; provider?: string; instruction: string; status: 'candidate' | 'selected'; continuityScore?: number };
 
 export function CreatorWorkstation() {
   const [project, setProject] = useState<CreatorProject>(initialProject);
   const [selectedSceneId, setSelectedSceneId] = useState(project.scenes[0]?.id ?? '');
+  const [selectedTakeId, setSelectedTakeId] = useState<string>();
   const [instruction, setInstruction] = useState('');
   const [takes, setTakes] = useState<Record<string, TakeCard[]>>({});
   const [busy, setBusy] = useState(false);
@@ -21,17 +22,18 @@ export function CreatorWorkstation() {
   const selectedScene = project.scenes.find((scene) => scene.id === selectedSceneId);
   const exportPackage = useMemo(() => createCompleteJhadinaExport(project), [project]);
   const sceneTakes = selectedScene ? (takes[selectedScene.id] ?? []) : [];
+  const referenceTake = sceneTakes.find((take) => take.takeId === selectedTakeId) ?? sceneTakes.find((take) => take.status === 'selected');
 
   function addScene() {
     const scene = { id: `scene-${project.scenes.length + 1}`, title: `Scene ${String(project.scenes.length + 1).padStart(2, '0')}`, order: project.scenes.length + 1, summary: '', takeIds: [] };
     setProject((current) => ({ ...current, version: current.version + 1, updatedAt: new Date().toISOString(), scenes: [...current.scenes, scene] }));
-    setSelectedSceneId(scene.id);
+    setSelectedSceneId(scene.id); setSelectedTakeId(undefined);
   }
 
   async function generateTake(regenerate = false) {
     if (!selectedScene) return;
     setBusy(true); setMessage('Sending through Jhadina Policy → Action Executor → DirectorOS…');
-    const previous = sceneTakes.at(-1);
+    const previous = regenerate ? referenceTake : undefined;
     try {
       const response = await fetch('/api/workstation/takes', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -39,7 +41,7 @@ export function CreatorWorkstation() {
           projectId: project.id,
           shot: { id: selectedScene.id, projectId: project.id, sceneScriptOrder: selectedScene.order, ordinal: 1, shotType: 'medium', durationSec: 8, action: selectedScene.summary || selectedScene.title, entityHandles: [], status: 'approved', director: { lens: '35mm', cameraMovement: 'slow dolly', lightingMood: 'cinematic', lookPreset: 'cinematic' } },
           instruction,
-          priorTake: previous ? { takeId: previous.takeId, clipUri: previous.clipUri ?? '', provider: previous.provider ?? '', notes: 'Previous candidate take selected for continuity.' } : undefined,
+          priorTake: previous ? { takeId: previous.takeId, clipUri: previous.clipUri ?? '', provider: previous.provider ?? '', notes: 'Approved/reference take for continuity.' } : undefined,
         } }),
       });
       const result = await response.json();
@@ -54,7 +56,9 @@ export function CreatorWorkstation() {
 
   function selectTake(takeId: string) {
     if (!selectedScene) return;
-    setTakes((current) => ({ ...current, [selectedScene.id]: (current[selectedScene.id] ?? []).map((take) => ({ ...take, status: take.takeId === takeId ? 'selected' : 'candidate' })) }));
+    setSelectedTakeId(takeId);
+    setTakes((current) => ({ ...current, [selectedScene.id]: (current[selectedScene.id] ?? []).map((take) => ({ ...take, status: take.takeId === takeId ? 'selected' : 'candidate', continuityScore: take.takeId === takeId ? 100 : take.continuityScore })) }));
+    setMessage(`Take ${takeId.slice(0, 8)} is now the scene reference. Future regenerations will inherit it.`);
   }
 
   function downloadJhadina() {
@@ -70,13 +74,14 @@ export function CreatorWorkstation() {
       </header>
       <section style={{ display: 'grid', gridTemplateColumns: '260px minmax(0, 1fr) 320px', gap: 16 }}>
         <aside style={panelStyle}><div style={labelStyle}>Project graph</div><button type="button" onClick={addScene} style={{ ...buttonStyle, width: '100%', marginBottom: 14 }}>+ Add scene</button>
-          {project.scenes.map((scene) => <button key={scene.id} type="button" onClick={() => setSelectedSceneId(scene.id)} style={{ ...rowButtonStyle, opacity: scene.id === selectedSceneId ? 1 : .6 }}>{scene.order}. {scene.title}<span>{scene.takeIds.length} takes</span></button>)}
+          {project.scenes.map((scene) => <button key={scene.id} type="button" onClick={() => { setSelectedSceneId(scene.id); setSelectedTakeId(undefined); }} style={{ ...rowButtonStyle, opacity: scene.id === selectedSceneId ? 1 : .6 }}>{scene.order}. {scene.title}<span>{scene.takeIds.length} takes</span></button>)}
         </aside>
         <section style={panelStyle}><div style={labelStyle}>DirectorOS / Takes</div>{selectedScene ? <>
           <h2 style={{ marginTop: 4 }}>{selectedScene.title}</h2><p style={{ opacity: .55 }}>{selectedScene.summary || 'Describe the scene and direct the next take.'}</p>
-          <textarea value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="Tell Jhadina what to change: 'same performance, add a slow push-in and have her glance at camera'" style={textareaStyle} />
-          <div style={{ display: 'flex', gap: 8, margin: '12px 0 18px' }}><button disabled={busy} onClick={() => generateTake(false)} style={buttonStyle}>{busy ? 'Working…' : 'Generate take'}</button><button disabled={busy || sceneTakes.length === 0} onClick={() => generateTake(true)} style={buttonStyle}>Another take</button></div>
-          <div style={{ display: 'grid', gap: 10 }}>{sceneTakes.length === 0 ? <div style={emptyStyle}>No takes yet. Generate the first candidate.</div> : sceneTakes.map((take, index) => <article key={take.takeId} style={{ ...takeStyle, borderColor: take.status === 'selected' ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.08)' }}><div><strong>Take {index + 1}</strong><div style={{ opacity: .5, fontSize: 12 }}>{take.provider} · {take.takeId.slice(0, 8)}</div></div><div style={{ display: 'flex', gap: 8 }}><button onClick={() => selectTake(take.takeId)} style={buttonStyle}>{take.status === 'selected' ? 'Selected' : 'Select'}</button>{take.clipUri && <a href={take.clipUri} target="_blank" rel="noreferrer" style={{ ...buttonStyle, textDecoration: 'none' }}>Preview</a>}</div></article>)}</div>
+          <textarea value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="Example: same everything, but add a slow push-in and have her glance at camera" style={textareaStyle} />
+          <div style={{ display: 'flex', gap: 8, margin: '12px 0 18px' }}><button disabled={busy} onClick={() => generateTake(false)} style={buttonStyle}>{busy ? 'Working…' : 'Generate take'}</button><button disabled={busy || sceneTakes.length === 0} onClick={() => generateTake(true)} style={buttonStyle}>Another take from selected</button></div>
+          <div style={{ display: 'grid', gap: 10 }}>{sceneTakes.length === 0 ? <div style={emptyStyle}>No takes yet. Generate the first candidate.</div> : sceneTakes.map((take, index) => <article key={take.takeId} style={{ ...takeStyle, borderColor: take.status === 'selected' ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.08)' }}><div><strong>Take {index + 1}</strong><div style={{ opacity: .5, fontSize: 12 }}>{take.provider} · {take.takeId.slice(0, 8)}{take.status === 'selected' ? ' · REFERENCE' : ''}</div></div><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{take.continuityScore !== undefined && <span style={{ opacity: .6, fontSize: 12 }}>{take.continuityScore}% continuity</span>}<button onClick={() => selectTake(take.takeId)} style={buttonStyle}>{take.status === 'selected' ? 'Reference' : 'Use as reference'}</button>{take.clipUri && <a href={take.clipUri} target="_blank" rel="noreferrer" style={{ ...buttonStyle, textDecoration: 'none' }}>Preview</a>}</div></article>)}</div>
+          {referenceTake && <p style={{ fontSize: 12, opacity: .5 }}>Reference: {referenceTake.takeId.slice(0, 8)}. Regeneration will preserve its continuity context.</p>}
           {message && <p style={{ fontSize: 13, opacity: .6 }}>{message}</p>}
         </> : <p>Select a scene.</p>}</section>
         <aside style={panelStyle}><div style={labelStyle}>Project / export</div><dl style={{ lineHeight: 1.8 }}><div><dt style={labelStyle}>Status</dt><dd style={{ margin: 0 }}>{project.status}</dd></div><div><dt style={labelStyle}>Version</dt><dd style={{ margin: 0 }}>{project.version}</dd></div><div><dt style={labelStyle}>Scenes</dt><dd style={{ margin: 0 }}>{project.scenes.length}</dd></div><div><dt style={labelStyle}>Assets</dt><dd style={{ margin: 0 }}>{project.assets.length}</dd></div></dl><div style={{ marginTop: 18, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,.08)' }}><div style={labelStyle}>Portable package</div><p style={{ opacity: .65, fontSize: 13 }}>The project graph, takes and asset references travel together in the complete Jhadina document.</p><button type="button" onClick={downloadJhadina} style={{ ...buttonStyle, width: '100%' }}>Save complete document</button></div></aside>
