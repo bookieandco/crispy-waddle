@@ -22,6 +22,9 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  JHADINA_RESULT_VERSION: "1"
+
 concurrency:
   group: jhadina-evolution-${{ inputs.task_id }}
   cancel-in-progress: false
@@ -96,6 +99,7 @@ jobs:
             If the request requires a protected change, stop and explain why.
 
       - name: Verify protected paths were not changed
+        id: protected_paths
         run: |
           if git diff --name-only "$BASE_BRANCH...HEAD" | grep -E '(^|/)(\.github/workflows/|identity/|policy/|values/|security/|secrets/|payments/|transfers/|military/)' ; then
             echo "Protected path changed; blocking execution."
@@ -103,33 +107,45 @@ jobs:
           fi
 
       - name: Run independent verification
+        id: verification
         run: |
           pnpm --filter jhadina-evolution-core test
           pnpm --filter jhadina-evolution-core typecheck
 
-      - name: Write evidence packet
+      - name: Write structured result
+        if: always()
         run: |
-          mkdir -p .jhadina/evidence
-          {
-            echo "# Jhadina Evolution Evidence"
-            echo
-            echo "Task: $TASK_ID"
-            echo "Run: $GITHUB_RUN_ID"
-            echo "Base: $BASE_BRANCH"
-            echo "Branch: $BRANCH_NAME"
-            echo
-            echo "## Changed files"
-            git diff --name-only "$BASE_BRANCH...HEAD" || true
-            echo
-            echo "## Diff stat"
-            git diff --stat "$BASE_BRANCH...HEAD" || true
-            echo
-            echo "## Verification"
-            echo "jhadina-evolution-core tests: passed"
-            echo "jhadina-evolution-core typecheck: passed"
-          } > .jhadina/evidence/$TASK_ID.md
+          mkdir -p .jhadina/results .jhadina/evidence
+          STATUS="FAILED"
+          if [ "${{ steps.protected_paths.outcome }}" = "success" ] && [ "${{ steps.verification.outcome }}" = "success" ]; then
+            STATUS="VERIFIED"
+          fi
+          node - <<'NODE'
+          const fs = require('fs');
+          const status = process.env.STATUS;
+          const result = {
+            version: process.env.JHADINA_RESULT_VERSION,
+            taskId: process.env.TASK_ID,
+            runId: Number(process.env.GITHUB_RUN_ID),
+            status,
+            baseBranch: process.env.BASE_BRANCH,
+            branch: process.env.BRANCH_NAME,
+            changedFiles: require('child_process').execSync(`git diff --name-only ${process.env.BASE_BRANCH}...HEAD`, {encoding:'utf8'}).trim().split('\n').filter(Boolean),
+            diffStat: require('child_process').execSync(`git diff --stat ${process.env.BASE_BRANCH}...HEAD`, {encoding:'utf8'}),
+            verification: {
+              protectedPaths: '${{ steps.protected_paths.outcome }}',
+              evolutionCoreTests: '${{ steps.verification.outcome }}',
+            },
+            draftPr: null,
+          };
+          fs.writeFileSync(`.jhadina/results/${process.env.TASK_ID}.json`, JSON.stringify(result, null, 2));
+          NODE
+          cp ".jhadina/results/$TASK_ID.json" ".jhadina/evidence/$TASK_ID.json"
+        env:
+          STATUS: ${{ steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success' && 'VERIFIED' || 'FAILED' }}
 
       - name: Commit verified change
+        if: steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success'
         run: |
           git config user.name "Jhadina Evolution"
           git config user.email "jhadina-evolution@users.noreply.github.com"
@@ -138,12 +154,40 @@ jobs:
           git push --set-upstream origin "$BRANCH_NAME"
 
       - name: Open draft PR
+        id: draft_pr
+        if: steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr create \
+          PR_URL=$(gh pr create \
             --draft \
             --base "$BASE_BRANCH" \
             --head "$BRANCH_NAME" \
             --title "Jhadina evolution: $TASK_ID" \
-            --body "## Approved Jhadina Evolution\n\nTask: \`$TASK_ID\`\n\nThis change was executed only after the Jhadina evolution approval gate.\n\n### Verification\n- jhadina-evolution-core tests passed\n- jhadina-evolution-core typecheck passed\n- protected-path verification passed\n\n### Evidence\nSee \`.jhadina/evidence/$TASK_ID.md\`."
+            --body "## Approved Jhadina Evolution\n\nTask: \`$TASK_ID\`\n\nExecuted after the Jhadina evolution approval gate.\n\n### Verification\n- jhadina-evolution-core tests passed\n- jhadina-evolution-core typecheck passed\n- protected-path verification passed\n\n### Evidence\nSee \`.jhadina/results/$TASK_ID.json\`." )
+          echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Finalize structured result with PR
+        if: always()
+        run: |
+          if [ -f ".jhadina/results/$TASK_ID.json" ]; then
+            node - <<'NODE'
+            const fs = require('fs');
+            const path = `.jhadina/results/${process.env.TASK_ID}.json`;
+            const result = JSON.parse(fs.readFileSync(path, 'utf8'));
+            result.draftPr = process.env.DRAFT_PR_URL || null;
+            fs.writeFileSync(path, JSON.stringify(result, null, 2));
+            NODE
+            cp ".jhadina/results/$TASK_ID.json" ".jhadina/evidence/$TASK_ID.json"
+          fi
+        env:
+          DRAFT_PR_URL: ${{ steps.draft_pr.outputs.url }}
+
+      - name: Upload structured result artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-evolution-result-${{ inputs.task_id }}-${{ github.run_id }}
+          path: .jhadina/results/${{ inputs.task_id }}.json
+          if-no-files-found: error
+          retention-days: 30
