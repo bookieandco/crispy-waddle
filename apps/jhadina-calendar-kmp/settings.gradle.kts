@@ -21,4 +21,3 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "jhadina-calendar-kmp"
-include(":calendar")
