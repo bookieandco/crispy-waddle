@@ -3,13 +3,13 @@ import { SkillAdmission } from "./SkillAdmission";
 import { SkillRegistry } from "./SkillRegistry";
 import { SkillScanner } from "./SkillScanner";
 import { SkillPolicyAdapter } from "../governance/SkillPolicyAdapter";
-import type { SkillCapabilityToken } from "../execution/SkillCapabilityToken";
 import { CapabilityTokenIssuer } from "../execution/SkillCapabilityToken";
 import { SkillExecutorGuard } from "../execution/SkillExecutorGuard";
+import { GuardedSkillExecutor } from "../execution/GuardedSkillExecutor";
 import { ActionCoreSkillExecutor } from "../execution/ActionCoreSkillExecutor";
 
 describe("governed skill execution flow", () => {
-  it("admits a safe skill and reaches Action Core only after policy", async () => {
+  it("admits a safe skill, executes it, and records the canonical audit event", async () => {
     const skill = {
       id: "calendar.read",
       name: "Calendar Reader",
@@ -25,8 +25,7 @@ describe("governed skill execution flow", () => {
       source: "builtin://calendar",
     };
 
-    const scanner = new SkillScanner();
-    const scan = scanner.scan(skill);
+    const scan = new SkillScanner().scan(skill);
     expect(scan.approved).toBe(true);
 
     const admission = new SkillAdmission().evaluate(skill, scan, {
@@ -39,8 +38,8 @@ describe("governed skill execution flow", () => {
     const registry = new SkillRegistry({ allow: () => true });
     registry.register({ ...skill, status: "approved" });
     const registered = registry.get(skill.id)!;
-
     const capability = registered.capabilities[0];
+
     const decision = new SkillPolicyAdapter().evaluate({
       skill: registered,
       capability,
@@ -56,19 +55,36 @@ describe("governed skill execution flow", () => {
       decision,
     });
 
+    const audit = { append: vi.fn() };
+    const guarded = new GuardedSkillExecutor(new SkillExecutorGuard(), audit);
     const actionExecutor = { execute: vi.fn().mockResolvedValue({ ok: true }) };
     const executor = new ActionCoreSkillExecutor(new SkillExecutorGuard(), actionExecutor);
 
-    await expect(executor.execute({
+    const result = await executor.execute({
       skillId: registered.id,
       capabilityId: capability.id,
       token,
       userId: "user-1",
       action: { date: "2026-08-10" },
       actionType: "calendar.read",
-    })).resolves.toEqual({ ok: true });
+    });
 
+    await guarded.execute({
+      skillId: registered.id,
+      capabilityId: capability.id,
+      token,
+      input: { date: "2026-08-10" },
+      handler: { execute: async () => result },
+    });
+
+    expect(result).toEqual({ ok: true });
     expect(actionExecutor.execute).toHaveBeenCalledTimes(1);
+    expect(audit.append).toHaveBeenCalledWith(expect.objectContaining({
+      type: "SKILL_EXECUTION_ALLOWED",
+      skillId: "calendar.read",
+      capabilityId: "calendar.read",
+      tokenId: token.tokenId,
+    }));
   });
 
   it("does not admit a high-risk capability without approval", () => {
