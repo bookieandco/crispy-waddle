@@ -1,6 +1,9 @@
 package com.jhadina.calendar
 
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /** Platform-neutral navigation state for a Kizitonwose-backed calendar. */
 data class CalendarNavigationState(
@@ -11,7 +14,7 @@ data class CalendarNavigationState(
 
 class PlanningCalendarNavigation(
     private val adapter: PlanningCalendarAdapter,
-    private val today: LocalDate = LocalDate.now(),
+    private val today: LocalDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date,
 ) {
     private var state = CalendarNavigationState(
         mode = CalendarViewMode.MONTH,
@@ -44,21 +47,21 @@ class PlanningCalendarNavigation(
 
     fun next(): CalendarNavigationState {
         val date = if (state.mode == CalendarViewMode.MONTH) {
-            state.anchorDate.plusMonths(1)
+            state.anchorDate.plus(DatePeriod(months = 1))
         } else {
-            state.anchorDate.plusWeeks(1)
+            state.anchorDate.plus(DatePeriod(days = 7))
         }
-        return state.copy(anchorDate = date)
-            .also { state = it }
+        state = state.copy(anchorDate = date)
+        return state
     }
 
     fun previous(): CalendarNavigationState {
         val date = if (state.mode == CalendarViewMode.MONTH) {
-            state.anchorDate.minusMonths(1)
+            state.anchorDate.minus(DatePeriod(months = 1))
         } else {
-            state.anchorDate.minusWeeks(1)
+            state.anchorDate.minus(DatePeriod(days = 7))
         }
-        return state.copy(anchorDate = date)
-            .also { state = it }
+        state = state.copy(anchorDate = date)
+        return state
     }
 }
