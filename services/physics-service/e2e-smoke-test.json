@@ -1,0 +1,15 @@
+{
+  "characterId": "demo-character",
+  "sceneId": "physics-e2e-001",
+  "rigId": "demo-rig",
+  "frameStart": 1,
+  "frameEnd": 48,
+  "physicsAssetIds": ["demo-shirt", "demo-hair", "demo-cup"],
+  "constraints": [
+    {"objectId": "demo-body", "kind": "collision"},
+    {"objectId": "demo-floor", "kind": "surface"},
+    {"objectId": "demo-table", "kind": "collision"}
+  ],
+  "provider": "blender",
+  "expectedStages": ["character", "clothes", "animation", "physics", "qc", "render"]
+}
