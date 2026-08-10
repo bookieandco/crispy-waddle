@@ -11,3 +11,4 @@ export * from "./scene-adapters.js";
 export * from "./performance.js";
 export * from "./channel.js";
 export * from "./marketing.js";
+export * from "./jhadina-adapter.js";
