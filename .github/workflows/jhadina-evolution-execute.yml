@@ -1,4 +1,5 @@
 name: Jhadina Evolution Execute
+run-name: Jhadina Evolution — ${{ inputs.task_id }}
 
 on:
   workflow_dispatch:
@@ -47,8 +48,7 @@ jobs:
           fetch-depth: 0
 
       - name: Create isolated branch
-        run: |
-          git switch -c "$BRANCH_NAME"
+        run: git switch -c "$BRANCH_NAME"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -105,12 +105,7 @@ jobs:
       - name: Run independent verification
         run: |
           pnpm --filter jhadina-evolution-core test
-          if pnpm --filter jhadina-evolution-core typecheck; then
-            echo "Evolution-core typecheck passed."
-          else
-            echo "Evolution-core typecheck unavailable or failed."
-            exit 1
-          fi
+          pnpm --filter jhadina-evolution-core typecheck
 
       - name: Write evidence packet
         run: |
