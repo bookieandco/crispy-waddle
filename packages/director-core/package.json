@@ -1,0 +1,11 @@
+{
+  "name": "@jhadina/director-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./timeline-command": "./src/timeline-command.ts"
+  },
+  "types": "./src/index.ts"
+}
