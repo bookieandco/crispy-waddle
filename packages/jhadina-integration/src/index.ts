@@ -12,3 +12,6 @@ export * from './creator-workstation';
 export * from './project-store';
 export * from './director-adapter';
 export * from './jhadina-document';
+export * from './music-adapter';
+export * from './domain-adapters';
+export * from './finance-adapter';
