@@ -3,6 +3,7 @@ import { buildClaudeRepairContext, renderClaudeRepairPrompt, type ClaudeRepairCo
 import type { ClaudeCodeRunner } from "./claude-code-adapter";
 import type { ClaudeWorkflowExecutionResult } from "./claude-github-actions-runner";
 import { applyWorkflowResult } from "./claude-actions-fsm-bridge";
+import type { EvolutionExecutionResult } from "./evolution-result";
 import type { EvolutionExecutionPlan, ExecutionWorkspace } from "./evolution-executor";
 import type { RepositoryIntelligenceProvider, RepositoryIntelligenceEvidence } from "./repository-intelligence";
 
@@ -68,23 +69,33 @@ export class GovernedRepairService {
     let workflowResult: ClaudeWorkflowExecutionResult | undefined;
 
     for (let attempt = 0; attempt < this.maxAttempts; attempt += 1) {
-      const prompt = renderClaudeRepairPrompt(claudeContext);
       workflowResult = await this.claudeRunner.runGoverned({
         plan: claudeContext.plan,
         workspace: request.workspace,
-        prompt,
+        prompt: renderClaudeRepairPrompt(claudeContext),
         allowedTools: [],
         disallowedTools: [],
         maxTurns: 12,
         context: claudeContext,
       });
 
-      context = applyWorkflowResult(fsm, context, {
-        ...workflowResult,
-        // The bridge consumes the versioned workflow contract shape below.
+      const normalized: EvolutionExecutionResult = {
+        version: "1",
+        taskId: workflowResult.taskId,
         runId: workflowResult.runId,
-      } as never);
+        status: workflowResult.outcome,
+        baseBranch: request.workspace.branch,
+        branch: request.workspace.branch,
+        changedFiles: workflowResult.changedFiles,
+        diffStat: workflowResult.diffSummary,
+        verification: {
+          protectedPaths: workflowResult.securityChecks.every((check) => check.passed) ? "success" : "failure",
+          evolutionCoreTests: workflowResult.tests.every((test) => test.passed) ? "success" : "failure",
+        },
+        draftPr: workflowResult.draftPr?.url ?? null,
+      };
 
+      context = applyWorkflowResult(fsm, context, normalized);
       if (context.state === "APPROVAL" || context.state === "BLOCKED") break;
       if (context.state !== "FIX") break;
     }
