@@ -58,14 +58,15 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
 
   async execute(request: ActionRequest<TAction>): Promise<TResult> {
     const now = () => new Date().toISOString();
-    const started = now();
+
+    // If the start event cannot be durably recorded, fail closed before any side effect.
     await this.ledger.append({
       id: `${request.id}:started`,
       actionId: request.id,
       userId: request.userId,
       type: request.type,
       status: "started",
-      timestamp: started,
+      timestamp: now(),
     });
 
     const decision = await this.policy.evaluate(request);
@@ -95,8 +96,30 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
       throw new Error(`No action handler registered for ${request.type}`);
     }
 
+    let result: TResult;
     try {
-      const result = await handler.execute(request.action, request);
+      result = await handler.execute(request.action, request);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      try {
+        await this.ledger.append({
+          id: `${request.id}:failed`,
+          actionId: request.id,
+          userId: request.userId,
+          type: request.type,
+          status: "failed",
+          timestamp: now(),
+          metadata: { error: message },
+        });
+      } catch (auditError) {
+        throw new Error(`ACTION_FAILED_AND_AUDIT_FAILED:${message}:${auditError instanceof Error ? auditError.message : String(auditError)}`);
+      }
+      throw error;
+    }
+
+    // Never convert a successful side effect into a handler failure because the
+    // completion audit append failed. The side effect already happened.
+    try {
       await this.ledger.append({
         id: `${request.id}:completed`,
         actionId: request.id,
@@ -105,18 +128,10 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
         status: "completed",
         timestamp: now(),
       });
-      return result;
-    } catch (error) {
-      await this.ledger.append({
-        id: `${request.id}:failed`,
-        actionId: request.id,
-        userId: request.userId,
-        type: request.type,
-        status: "failed",
-        timestamp: now(),
-        metadata: { error: error instanceof Error ? error.message : String(error) },
-      });
-      throw error;
+    } catch (auditError) {
+      throw new Error(`ACTION_COMPLETED_AUDIT_FAILED:${auditError instanceof Error ? auditError.message : String(auditError)}`);
     }
+
+    return result;
   }
 }
