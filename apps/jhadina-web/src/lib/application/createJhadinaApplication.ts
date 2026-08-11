@@ -1,4 +1,3 @@
-import type { ActionIdentityVerifier } from "@jhadina/action-core"
 import { Classifier } from "../services/Classifier"
 import { JanetService } from "../services/JanetService"
 import { MemoryRepository } from "../repositories/MemoryRepository"
@@ -7,6 +6,7 @@ import { TimelineRepository } from "../repositories/TimelineRepository"
 import { InMemoryStorage } from "../storage/InMemoryStorage"
 import {
   SupabaseActionIdentityVerifier,
+  type JhadinaIdentityVerifier,
   type SupabaseClaimsClient,
 } from "../auth/supabase-identity-verifier"
 
@@ -25,7 +25,7 @@ export interface JhadinaApplication {
   timelineRepo: TimelineRepository
   janet: JanetService
   identity: {
-    createVerifier(supabase: SupabaseClaimsClient): ActionIdentityVerifier
+    createVerifier(supabase: SupabaseClaimsClient): JhadinaIdentityVerifier
   }
   execution: ExecutionReadiness
 }
@@ -45,7 +45,7 @@ export function createJhadinaApplication(): JhadinaApplication {
   // Identity is request-scoped: the verifier is created from the authenticated
   // request's Supabase SSR client rather than stored as a process-global client.
   const identity = {
-    createVerifier(supabase: SupabaseClaimsClient): ActionIdentityVerifier {
+    createVerifier(supabase: SupabaseClaimsClient): JhadinaIdentityVerifier {
       return new SupabaseActionIdentityVerifier(supabase)
     },
   }
