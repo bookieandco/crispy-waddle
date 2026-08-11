@@ -15,3 +15,6 @@ export * from "./mastering-executor.js";
 export * from "./post-master-qc.js";
 export * from "./jhadina-music-intelligence.js";
 export * from "./audio-engine.js";
+export * from "./realtime-audio-engine.js";
+export * from "./studio-adapter.js";
+export * from "./mobile-adapter.js";
