@@ -1,15 +1,35 @@
 import type { CodingAgentAdapter, EvolutionExecutionPlan, ExecutionEvidence, ExecutionWorkspace } from "./evolution-executor";
 import type { ClaudeRepairContext } from "./claude-repair-context";
 import { renderClaudeRepairPrompt } from "./claude-repair-context";
-import type { ClaudeWorkflowExecutionResult } from "./claude-github-actions-runner";
+import type { EvolutionExecutionResult } from "./evolution-result";
 
 export interface ClaudeCodeRunner {
-  run(input: { workspace: ExecutionWorkspace; prompt: string; allowedTools: string[]; disallowedTools: string[]; maxTurns: number; context?: ClaudeRepairContext }): Promise<{ changedFiles: string[]; tests: ExecutionEvidence["tests"]; securityChecks: ExecutionEvidence["securityChecks"]; diffSummary: string }>;
+  run(input: {
+    workspace: ExecutionWorkspace;
+    prompt: string;
+    allowedTools: string[];
+    disallowedTools: string[];
+    maxTurns: number;
+    context?: ClaudeRepairContext;
+  }): Promise<EvolutionExecutionResult>;
 }
 
 export interface ClaudeRepairRunner extends ClaudeCodeRunner {
-  runGoverned?(input: { workspace: ExecutionWorkspace; prompt: string; allowedTools: string[]; disallowedTools: string[]; maxTurns: number; context: ClaudeRepairContext }): Promise<ClaudeWorkflowExecutionResult>;
-  runRepair?(input: { workspace: ExecutionWorkspace; context: ClaudeRepairContext; allowedTools: string[]; disallowedTools: string[]; maxTurns: number }): Promise<{ changedFiles: string[]; tests: ExecutionEvidence["tests"]; securityChecks: ExecutionEvidence["securityChecks"]; diffSummary: string }>;
+  runGoverned?(input: {
+    workspace: ExecutionWorkspace;
+    prompt: string;
+    allowedTools: string[];
+    disallowedTools: string[];
+    maxTurns: number;
+    context: ClaudeRepairContext;
+  }): Promise<EvolutionExecutionResult>;
+  runRepair?(input: {
+    workspace: ExecutionWorkspace;
+    context: ClaudeRepairContext;
+    allowedTools: string[];
+    disallowedTools: string[];
+    maxTurns: number;
+  }): Promise<EvolutionExecutionResult>;
 }
 
 const DEFAULT_ALLOWED_TOOLS = [
@@ -33,16 +53,26 @@ export class ClaudeCodeEvolutionAdapter implements CodingAgentAdapter {
   async execute(input: { plan: EvolutionExecutionPlan; workspace: ExecutionWorkspace; context?: ClaudeRepairContext }): Promise<ExecutionEvidence> {
     if (!input.context) throw new Error("ClaudeCodeEvolutionAdapter requires ClaudeRepairContext with repository evidence");
     const { allowedTools, disallowedTools } = this.policy();
-    const prompt = renderClaudeRepairPrompt(input.context);
+    const result = this.runner.runRepair
+      ? await this.runner.runRepair({ workspace: input.workspace, context: input.context, allowedTools, disallowedTools, maxTurns: this.maxTurns })
+      : await this.runner.run({ workspace: input.workspace, prompt: renderClaudeRepairPrompt(input.context), allowedTools, disallowedTools, maxTurns: this.maxTurns, context: input.context });
 
-    if (this.runner.runRepair) {
-      return this.runner.runRepair({ workspace: input.workspace, context: input.context, allowedTools, disallowedTools, maxTurns: this.maxTurns });
-    }
-
-    return this.runner.run({ workspace: input.workspace, prompt, allowedTools, disallowedTools, maxTurns: this.maxTurns, context: input.context });
+    return {
+      changedFiles: result.changedFiles,
+      tests: [{ command: "workflow verification", passed: result.verification.evolutionCoreTests === "success" }],
+      securityChecks: [{ name: "protected paths", passed: result.verification.protectedPaths === "success" }],
+      diffSummary: result.diffStat,
+    };
   }
 
-  async runGoverned(input: { workspace: ExecutionWorkspace; prompt: string; allowedTools: string[]; disallowedTools: string[]; maxTurns: number; context: ClaudeRepairContext }): Promise<ClaudeWorkflowExecutionResult> {
+  async runGoverned(input: {
+    workspace: ExecutionWorkspace;
+    prompt: string;
+    allowedTools: string[];
+    disallowedTools: string[];
+    maxTurns: number;
+    context: ClaudeRepairContext;
+  }): Promise<EvolutionExecutionResult> {
     if (!this.runner.runGoverned) throw new Error("ClaudeCodeEvolutionAdapter runner does not implement governed workflow execution");
     const { allowedTools, disallowedTools } = this.policy();
     return this.runner.runGoverned({ ...input, allowedTools, disallowedTools, maxTurns: Math.min(input.maxTurns, this.maxTurns) });
