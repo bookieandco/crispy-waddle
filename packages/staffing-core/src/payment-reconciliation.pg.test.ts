@@ -12,11 +12,11 @@ describe("real postgres payment race", () => {
     const pool = new Pool({ connectionString: databaseUrl });
     const db = createPgSqlExecutor(pool);
     const ids = { next: (prefix: string) => `${prefix}-test` };
+    const invoiceId = "00000000-0000-0000-0000-000000000001";
+    const organizationId = "00000000-0000-0000-0000-000000000002";
+    const employerId = "00000000-0000-0000-0000-000000000003";
 
     try {
-      const invoiceId = "00000000-0000-0000-0000-000000000001";
-      const organizationId = "00000000-0000-0000-0000-000000000002";
-      const employerId = "00000000-0000-0000-0000-000000000003";
       await db.query("delete from staffing_payments where organization_id=$1", [organizationId]);
       await db.query("delete from invoices where id=$1", [invoiceId]);
       await db.query("insert into invoices (id, organization_id, total, paid, currency, status) values ($1,$2,100,0,'USD','OPEN')", [invoiceId, organizationId]);
@@ -34,7 +34,7 @@ describe("real postgres payment race", () => {
       expect(fulfilled.length).toBeGreaterThanOrEqual(1);
       expect(new Set(fulfilled.map(r => r.value.paymentId)).size).toBe(1);
 
-      const payments = await db.query<{ count: number}>("select count(*)::int as count from staffing_payments where organization_id=$1 and provider=$2 and external_payment_id=$3", [organizationId, payment.provider, payment.externalPaymentId]);
+      const payments = await db.query<{ count: number }>("select count(*)::int as count from staffing_payments where organization_id=$1 and provider=$2 and external_payment_id=$3", [organizationId, payment.provider, payment.externalPaymentId]);
       expect(payments[0].count).toBe(1);
       const invoice = await db.query<{ paid: number; status: string }>("select paid,status from invoices where id=$1", [invoiceId]);
       expect(Number(invoice[0].paid)).toBe(100);
