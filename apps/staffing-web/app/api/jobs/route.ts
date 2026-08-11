@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { JobService } from "../../../../../packages/staffing-core/src/jobs.js";
-import { PostgresJobRepository } from "../../../../../packages/staffing-core/src/postgres-adapters.js";
+import { TransactionalJobService } from "../../../../../packages/staffing-core/src/transactional-job-service.js";
+import { PostgresJobStore } from "../../../../../packages/staffing-core/src/postgres-adapters.js";
 import { createSqlExecutor } from "../../../lib/postgres.js";
 
 export const runtime = "nodejs";
@@ -10,20 +10,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const organizationId = request.headers.get("x-organization-id");
     const actorId = request.headers.get("x-actor-id");
-    if (!organizationId || !actorId) {
-      return NextResponse.json({ error: "Missing organization context" }, { status: 401 });
-    }
+    if (!organizationId || !actorId) return NextResponse.json({ error: "Missing organization context" }, { status: 401 });
 
     const client = (globalThis as typeof globalThis & { STAFFING_SQL?: Parameters<typeof createSqlExecutor>[0] }).STAFFING_SQL;
-    if (!client) {
-      return NextResponse.json({ error: "Staffing database adapter is not configured" }, { status: 503 });
-    }
+    if (!client) return NextResponse.json({ error: "Staffing database adapter is not configured" }, { status: 503 });
 
-    const db = createSqlExecutor(client);
-    const repository = new PostgresJobRepository(db);
-    const service = new JobService(
-      repository,
-      { publish: async () => { throw new Error("Use the transactional outbox adapter before publishing JOB_CREATED"); } },
+    const store = new PostgresJobStore(createSqlExecutor(client));
+    const service = new TransactionalJobService(
+      store,
       { next: (prefix) => `${prefix}:${crypto.randomUUID()}` },
       { now: () => new Date().toISOString() },
     );
