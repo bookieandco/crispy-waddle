@@ -1,7 +1,7 @@
 import type { ID } from "./agency-agreements.js";
-import type { AgencyContractRepository, CommercialAgreement } from "./agency-agreements.js";
+import type { AgencyContractRepository } from "./agency-agreements.js";
 import { AgreementResolutionService, type CommercialLedgerWriter } from "./agreement-resolution.js";
-import type { Invoice, InvoiceIds, InvoiceLedgerService, InvoiceRepository } from "./invoice-ledger.js";
+import type { Invoice, InvoiceLedgerService, InvoiceRepository } from "./invoice-ledger.js";
 import type { BillingCalculation } from "./billing.js";
 
 export interface PlacementFinancialInput {
@@ -27,7 +27,21 @@ export interface PlacementFinancialResult {
   platformRevenue: number;
 }
 
-export interface PlacementFinancialRepository extends AgencyContractRepository, InvoiceRepository {}
+export interface CommercialLedgerEntry {
+  id: string;
+  organizationId: ID;
+  placementId: ID;
+  invoiceId: ID;
+  agreementId: ID;
+  type: "PLATFORM_FEE" | "AGENCY_REVENUE" | "PLATFORM_REVENUE";
+  amount: number;
+  currency: string;
+  occurredAt: string;
+}
+
+export interface PlacementFinancialRepository extends AgencyContractRepository, InvoiceRepository {
+  saveCommercialLedgerEntry(entry: CommercialLedgerEntry): Promise<void>;
+}
 
 export class PlacementFinancialService {
   constructor(
@@ -74,14 +88,16 @@ export class PlacementFinancialService {
   }
 }
 
-export function createCommercialLedgerWriter(repository: InvoiceRepository): CommercialLedgerWriter {
+export function createCommercialLedgerWriter(repository: PlacementFinancialRepository, invoiceId: ID): CommercialLedgerWriter {
   return {
     async write(entry) {
-      await repository.saveLedgerEntry({
+      await repository.saveCommercialLedgerEntry({
         id: `commercial:${entry.placementId}:${entry.agreementId}:${entry.type}`,
         organizationId: entry.organizationId,
-        invoiceId: entry.placementId,
-        type: entry.type === "AGENCY_REVENUE" ? "PLATFORM_FEE" : entry.type === "PLATFORM_REVENUE" ? "PLATFORM_FEE" : "PLATFORM_FEE",
+        placementId: entry.placementId,
+        invoiceId,
+        agreementId: entry.agreementId,
+        type: entry.type,
         amount: entry.amount,
         currency: entry.currency,
         occurredAt: entry.occurredAt,
