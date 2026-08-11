@@ -9,6 +9,11 @@ import type {
   PersonalityState,
   PolicyDecision,
 } from './types.js';
+import type {
+  EvolutionPort,
+  ImprovementInput,
+  ImprovementProposal,
+} from './evolution.js';
 
 export interface MemoryPort {
   observe(experience: Experience): Promise<MemoryProposal[]>;
@@ -63,6 +68,7 @@ export interface SpinePorts {
   policy: PolicyPort;
   action: ActionPort;
   audit: AuditPort;
+  evolution: EvolutionPort;
 }
 
 export interface SpineRunResult {
@@ -137,5 +143,15 @@ export class JhadinaSpine {
     });
 
     return { memories, patterns, personality, context, decision, policy, action, result };
+  }
+
+  /**
+   * Accept an idea, conversation, code sample, repository, or other artifact
+   * as evidence and ask the evolution provider to determine whether it should
+   * become a Jhadina improvement. Intake creates a proposal only; it does not
+   * install, deploy, or grant permissions.
+   */
+  async inspectForImprovement(input: ImprovementInput): Promise<ImprovementProposal> {
+    return this.ports.evolution.analyze(input);
   }
 }
