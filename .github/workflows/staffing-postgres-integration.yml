@@ -55,8 +55,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Install CI-only Postgres driver
-        run: pnpm add -Dw pg @types/pg --lockfile-only=false
+      - name: Install CI-only Postgres test dependencies
+        run: pnpm add -Dw pg @types/pg vitest --lockfile-only=false
 
       - name: Verify Postgres connectivity
         run: |
