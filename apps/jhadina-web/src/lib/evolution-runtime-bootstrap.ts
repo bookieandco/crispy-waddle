@@ -1,5 +1,6 @@
 import { ClaudeCodeEvolutionAdapter } from "@jhadina/evolution-core/claude-code-adapter";
 import { ClaudeGitHubActionsRunner } from "@jhadina/evolution-core/claude-github-actions-runner";
+import { DefaultRepositoryIntelligenceCollector } from "@jhadina/evolution-core/repository-intelligence";
 import { GovernedRepairService } from "@jhadina/evolution-core/governed-repair-service";
 import { GovernedEvolutionRepairRuntime } from "@jhadina/evolution-core/evolution-repair-runtime";
 import { SupabaseEvolutionCandidateRepository } from "@jhadina/evolution-core/supabase-evolution-candidate-repository";
@@ -25,7 +26,8 @@ export function ensureEvolutionRepairRuntime(): void {
   const ledger = new SupabaseEvolutionRunLedger({ url: supabaseUrl, key: supabaseKey });
   const workflowRunner = new ClaudeGitHubActionsRunner(github.dispatch, github.results, ledger);
   const claude = new ClaudeCodeEvolutionAdapter(workflowRunner);
-  const repairService = new GovernedRepairService(github.intelligence, claude);
+  const intelligence = new DefaultRepositoryIntelligenceCollector(github.intelligence);
+  const repairService = new GovernedRepairService(intelligence, claude);
   const runtime = new GovernedEvolutionRepairRuntime(candidates, repairService);
 
   registerEvolutionRepairRuntime(runtime);
