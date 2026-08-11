@@ -12,13 +12,14 @@ export interface MiningFinancialEventBase {
   kind: MiningFinancialEventKind;
   resourceId: string;
   occurredAt: string;
-  currency: 'USD';
+  currency: 'USD' | 'BTC';
   source: 'energy-opportunity-core' | 'bitcoin-core' | 'meter' | 'money-core';
   immutable: true;
 }
 
 export interface MiningEconomicsProjectedEvent extends MiningFinancialEventBase {
   kind: 'mining_economics_projected';
+  currency: 'USD';
   estimatedGrossPerHour: number;
   estimatedElectricityPerHour: number;
   estimatedNetPerHour: number;
@@ -27,6 +28,7 @@ export interface MiningEconomicsProjectedEvent extends MiningFinancialEventBase 
 
 export interface ElectricityExpenseObservedEvent extends MiningFinancialEventBase {
   kind: 'electricity_expense_observed';
+  currency: 'USD';
   amountUsd: number;
   powerWatts: number;
   durationSeconds: number;
@@ -46,6 +48,7 @@ export interface MiningPayoutVerifiedEvent extends MiningFinancialEventBase {
 
 export interface MiningProfitabilitySnapshotEvent extends MiningFinancialEventBase {
   kind: 'mining_profitability_snapshot';
+  currency: 'USD';
   estimatedGrossUsd: number;
   electricityUsd: number;
   realizedBtc: number;
