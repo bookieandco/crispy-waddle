@@ -1,8 +1,8 @@
-import type { ClaudeWorkflowExecutionResult, WorkflowDispatchClient, WorkflowResultClient } from "@jhadina/evolution-core/claude-github-actions-runner";
+import type { WorkflowDispatchClient, WorkflowResultClient } from "@jhadina/evolution-core/claude-github-actions-runner";
+import type { EvolutionExecutionResult } from "@jhadina/evolution-core/evolution-result";
 import type { RepositoryIntelligenceProvider, RepositorySnapshot } from "@jhadina/evolution-core/repository-intelligence";
 
 const API = "https://api.github.com";
-
 type GitHubOptions = { token: string; repository: string; fetchImpl?: typeof fetch };
 
 export class GitHubEvolutionIntegration {
@@ -10,7 +10,7 @@ export class GitHubEvolutionIntegration {
   readonly dispatch: WorkflowDispatchClient;
   readonly results: WorkflowResultClient;
 
-  constructor(private readonly options: GitHubOptions) {
+  constructor(options: GitHubOptions) {
     const fetchImpl = options.fetchImpl ?? fetch;
     const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
       const response = await fetchImpl(`${API}${path}`, {
@@ -41,7 +41,7 @@ class GitHubRepositoryIntelligenceProvider implements RepositoryIntelligenceProv
     const branch = encodeURIComponent(input.branch);
     const repo = encodeURIComponent(this.repository);
     const ref = await this.request<{ object: { sha: string } }>(`/repos/${repo}/git/ref/heads/${branch}`);
-    const tree = await this.request<{ tree: Array<{ path?: string; type?: string }> }>(`/repos/${repo}/git/trees/${ref.object.sha}?recursive=1`);
+    const tree = await this.request<{ tree: Array<{ path?: string }> }>(`/repos/${repo}/git/trees/${ref.object.sha}?recursive=1`);
     const paths = tree.tree.map((entry) => entry.path).filter((path): path is string => Boolean(path));
     const relevantFiles = input.allowedPaths.length
       ? paths.filter((path) => input.allowedPaths.some((allowed) => path.startsWith(allowed.replace(/^\//, ""))))
@@ -81,7 +81,7 @@ class GitHubWorkflowDispatchClient implements WorkflowDispatchClient {
     });
 
     for (let attempt = 0; attempt < 30; attempt += 1) {
-      const runs = await this.request<{ workflow_runs: Array<{ id: number; head_branch?: string; created_at: string }> }>(
+      const runs = await this.request<{ workflow_runs: Array<{ id: number; head_branch?: string }> }>(
         `/repos/${repo}/actions/workflows/${encodeURIComponent(input.workflow)}/runs?branch=${encodeURIComponent(input.ref)}&event=workflow_dispatch&per_page=10`,
       );
       const run = runs.workflow_runs[0];
@@ -95,9 +95,9 @@ class GitHubWorkflowDispatchClient implements WorkflowDispatchClient {
 class GitHubWorkflowResultClient implements WorkflowResultClient {
   constructor(private readonly request: <T>(path: string, init?: RequestInit) => Promise<T>, private readonly repository: string) {}
 
-  async waitForResult(runId: number): Promise<ClaudeWorkflowExecutionResult> {
+  async waitForResult(runId: number): Promise<EvolutionExecutionResult> {
     const repo = encodeURIComponent(this.repository);
-    const run = await this.request<{ head_branch?: string; workflow_id?: number }>(`/repos/${repo}/actions/runs/${runId}`);
+    const run = await this.request<{ head_branch?: string }>(`/repos/${repo}/actions/runs/${runId}`);
     if (!run.head_branch) throw new Error(`Workflow ${runId} has no head branch`);
 
     const taskId = decodeURIComponent(run.head_branch.replace(/^jhadina\/evolution\//, "").replace(/-\d+$/, ""));
@@ -106,7 +106,7 @@ class GitHubWorkflowResultClient implements WorkflowResultClient {
     for (let attempt = 0; attempt < 150; attempt += 1) {
       try {
         const file = await this.request<{ content: string }>(`/repos/${repo}/contents/${path}?ref=${encodeURIComponent(run.head_branch)}`);
-        const result = JSON.parse(Buffer.from(file.content, "base64").toString("utf8")) as ClaudeWorkflowExecutionResult;
+        const result = JSON.parse(Buffer.from(file.content.replace(/\n/g, ""), "base64").toString("utf8")) as EvolutionExecutionResult;
         if (result.runId !== runId) throw new Error(`Result run ${result.runId} does not match workflow ${runId}`);
         return result;
       } catch (error) {
