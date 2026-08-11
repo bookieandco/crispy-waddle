@@ -25,14 +25,20 @@ export class PaymentReconciliationService {
       if(existing) return existing;
       const invoice=await store.lockInvoice(payment.invoiceId,payment.organizationId);
       if(!invoice) throw new Error("Invoice not found");
+      // The external-id check races with another delivery, so check again after acquiring the invoice lock.
+      const existingAfterLock=await store.findByExternalId(payment);
+      if(existingAfterLock) return existingAfterLock;
+      const invoiceTotal=Number(invoice.total);
+      const invoicePaid=Number(invoice.paid);
+      if(!Number.isFinite(invoiceTotal)||!Number.isFinite(invoicePaid)) throw new Error("Invoice amounts are invalid");
       if(invoice.currency!==payment.currency) throw new Error("Payment currency does not match invoice currency");
       if(["PAID","VOID"].includes(invoice.status)) throw new Error("Invoice cannot accept payment");
-      const remaining=Math.max(0,invoice.total-invoice.paid);
+      const remaining=Math.max(0,invoiceTotal-invoicePaid);
       if(payment.amount>remaining) throw new Error("Payment exceeds invoice balance");
       const applied=payment.amount;
       const status:InvoicePaymentStatus=applied===remaining?"PAID":"PARTIALLY_PAID";
       const paymentId=await store.recordPayment(payment);
-      await store.updateInvoicePaid(invoice.id,payment.organizationId,invoice.paid+applied,status);
+      await store.updateInvoicePaid(invoice.id,payment.organizationId,invoicePaid+applied,status);
       await store.recordCashLedgerEntry({organizationId:payment.organizationId,invoiceId:invoice.id,paymentId,amount:applied,currency:payment.currency,occurredAt:payment.receivedAt});
       return {paymentId,invoiceId:invoice.id,status,appliedAmount:applied,remainingAmount:remaining-applied};
     };
