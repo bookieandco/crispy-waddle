@@ -15,6 +15,17 @@ export interface CpuminerDryRun {
   decision: OpportunityDecision;
 }
 
+function sanitizePoolUrl(poolUrl: string): string {
+  try {
+    const url = new URL(poolUrl);
+    url.username = '';
+    url.password = '';
+    return url.toString();
+  } catch {
+    throw new Error('INVALID_POOL_URL');
+  }
+}
+
 /**
  * Adapter boundary for pooler/cpuminer.
  *
@@ -52,7 +63,7 @@ export function planCpuminerDryRun(
 
   const args = [
     '-a', config.algorithm,
-    '-o', config.poolUrl,
+    '-o', sanitizePoolUrl(config.poolUrl),
     '-u', config.workerName,
     '-t', String(config.threads),
   ];
