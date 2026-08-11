@@ -1,9 +1,5 @@
 import type { BitaxeTelemetry } from './bitaxe.ts';
 
-/**
- * Financial projection produced from observed compute telemetry.
- * This is intentionally a projection, not a money movement or ledger posting.
- */
 export interface MiningMoneyProjection {
   resourceId: string;
   observedAt: string;
@@ -32,16 +28,16 @@ export interface MiningMoneyProjectionInput {
  * No credentials, wallet keys, payments, transfers, or ledger writes occur here.
  */
 export function projectMiningEconomics(input: MiningMoneyProjectionInput): MiningMoneyProjection {
-  const powerKw = Math.max(0, input.telemetry.powerWatts) / 1000;
-  const electricity = powerKw * Math.max(0, input.electricityRatePerKwh);
+  const powerWatts = Math.max(0, input.telemetry.powerWatts ?? 0);
+  const electricity = (powerWatts / 1000) * Math.max(0, input.electricityRatePerKwh);
   const gross = Math.max(0, input.estimatedGrossPerHour);
 
   return {
     resourceId: input.resourceId,
     observedAt: input.observedAt ?? new Date().toISOString(),
     currency: 'USD',
-    hashrateThs: Math.max(0, input.telemetry.hashrateThs),
-    powerWatts: Math.max(0, input.telemetry.powerWatts),
+    hashrateThs: Math.max(0, input.telemetry.hashRateGh ?? 0) / 1000,
+    powerWatts,
     electricityRatePerKwh: Math.max(0, input.electricityRatePerKwh),
     estimatedGrossPerHour: gross,
     estimatedElectricityPerHour: electricity,
@@ -60,11 +56,7 @@ export interface RealizedMiningPayout {
   source: 'on-chain-verification';
 }
 
-/**
- * Realized payouts are represented separately from estimates. A future wallet
- * verifier may hand this object to Money Core's income/transaction pipeline.
- * This package never signs or moves BTC.
- */
+/** Realized payouts are kept separate from estimates and require independent verification. */
 export function isVerifiedMiningPayout(value: RealizedMiningPayout): boolean {
   return value.source === 'on-chain-verification'
     && value.amountBtc > 0
