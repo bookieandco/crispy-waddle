@@ -79,3 +79,5 @@ export function decideMining(
 
 export { planCpuminerDryRun } from './cpuminer.ts';
 export type { CpuminerConfig, CpuminerDryRun } from './cpuminer.ts';
+export { readBitaxeTelemetry, createFetchBitaxeClient } from './bitaxe.ts';
+export type { BitaxeTelemetry, BitaxeHttpClient, BitaxeAdapterConfig } from './bitaxe.ts';
