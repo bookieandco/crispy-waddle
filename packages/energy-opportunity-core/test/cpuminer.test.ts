@@ -57,3 +57,12 @@ test('rejects invalid thread counts', () => {
     /INVALID_THREAD_COUNT/,
   );
 });
+
+test('redacts pool credentials from the dry-run command', () => {
+  const plan = planCpuminerDryRun(resource, estimate, start, {
+    ...config,
+    poolUrl: 'stratum+tcp://secret:password@pool.example:3333',
+  });
+  assert.equal(plan.args[3], 'stratum+tcp://pool.example:3333');
+  assert.equal(plan.args.some((arg) => arg.includes('password')), false);
+});
