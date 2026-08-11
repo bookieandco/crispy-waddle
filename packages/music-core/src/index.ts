@@ -12,3 +12,4 @@ export * from "./restoration.js";
 export * from "./restoration-dsp.js";
 export * from "./mastering.js";
 export * from "./mastering-executor.js";
+export * from "./post-master-qc.js";
