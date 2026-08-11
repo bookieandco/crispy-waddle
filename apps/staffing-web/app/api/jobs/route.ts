@@ -1,11 +1,47 @@
 import { NextResponse } from "next/server";
+import { JobService } from "../../../../../packages/staffing-core/src/jobs.js";
+import { PostgresJobRepository } from "../../../../../packages/staffing-core/src/postgres-adapters.js";
+import { createSqlExecutor } from "../../../lib/postgres.js";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  // Authentication and concrete repository/event-bus adapters are injected here next.
-  // Do not persist or publish from the route itself; the API must call Staffing Core.
-  return NextResponse.json({
-    error: "Staffing API adapter not configured",
-    received: body,
-  }, { status: 501 });
+  try {
+    const body = await request.json();
+    const organizationId = request.headers.get("x-organization-id");
+    const actorId = request.headers.get("x-actor-id");
+    if (!organizationId || !actorId) {
+      return NextResponse.json({ error: "Missing organization context" }, { status: 401 });
+    }
+
+    const client = (globalThis as typeof globalThis & { STAFFING_SQL?: Parameters<typeof createSqlExecutor>[0] }).STAFFING_SQL;
+    if (!client) {
+      return NextResponse.json({ error: "Staffing database adapter is not configured" }, { status: 503 });
+    }
+
+    const db = createSqlExecutor(client);
+    const repository = new PostgresJobRepository(db);
+    const service = new JobService(
+      repository,
+      { publish: async () => { throw new Error("Use the transactional outbox adapter before publishing JOB_CREATED"); } },
+      { next: (prefix) => `${prefix}:${crypto.randomUUID()}` },
+      { now: () => new Date().toISOString() },
+    );
+
+    const job = await service.create({
+      organizationId,
+      employerId: actorId,
+      title: String(body.title ?? ""),
+      description: String(body.description ?? ""),
+      location: String(body.location ?? ""),
+      payRate: Number(body.payRate),
+      currency: String(body.currency ?? "USD"),
+      remote: Boolean(body.remote),
+    });
+
+    return NextResponse.json({ job }, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to create job";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }
