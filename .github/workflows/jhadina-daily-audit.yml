@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build evolution core
+        run: pnpm --filter @jhadina/evolution-core build
+
       - name: Run read-only daily audit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -76,8 +79,9 @@ jobs:
               output = `${error?.stdout ?? ''}${error?.stderr ?? ''}`;
               if (program !== 'pnpm') status = 'FAILED';
             }
+            const source = `${program}${program === 'pnpm' && args[0] === 'outdated' ? '-outdated' : ''}${program === 'pnpm' && args[0] === 'audit' ? '-audit' : ''}${program === 'gh' && args[0] === 'pr' ? '-pr-list' : ''}${program === 'gh' && args[0] === 'issue' ? '-issue-list' : ''}`;
             evidence.push({
-              source: program,
+              source,
               command: [program, ...args].join(' '),
               exitCode,
               outputSha256: createHash('sha256').update(output).digest('hex'),
@@ -108,6 +112,14 @@ jobs:
             JSON.stringify({ ...base, eventHash }, null, 2) + '\n'
           );
           NODE
+
+      - name: Persist evolution candidates
+        env:
+          SUPABASE_URL: ${{ secrets.JHADINA_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.JHADINA_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          node packages/jhadina-evolution-core/dist/daily-audit-persist.js \
+            ".jhadina/audits/daily-${{ github.run_id }}.json"
 
       - name: Upload reproducible audit record
         uses: actions/upload-artifact@v4
