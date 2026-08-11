@@ -11,3 +11,5 @@ export * from "./agency-agreements.js";
 export * from "./agreement-resolution.js";
 export * from "./jobs.js";
 export * from "./outbox.js";
+export * from "./placement-financials.js";
+export * from "./financial-transaction.js";
