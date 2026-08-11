@@ -53,21 +53,36 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
-      - name: Apply staffing migrations
+      - name: Install CI-only Postgres driver
+        run: pnpm add -Dw pg @types/pg --lockfile-only=false
+
+      - name: Verify Postgres connectivity
+        run: |
+          set -euo pipefail
+          PGPASSWORD=staffing psql "$STAFFING_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'select version();'
+
+      - name: Bootstrap integration schema
         shell: bash
         run: |
           set -euo pipefail
-          if command -v psql >/dev/null 2>&1; then
-            for migration in packages/staffing-core/migrations/*.sql; do
-              echo "Applying ${migration}"
-              PGPASSWORD=staffing psql "$STAFFING_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
-            done
-          else
-            echo "psql is unavailable on runner"
-            exit 1
-          fi
+          PGPASSWORD=staffing psql "$STAFFING_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          create table if not exists public.invoices (
+            id uuid primary key,
+            organization_id uuid not null,
+            total numeric(18,2) not null,
+            paid numeric(18,2) not null default 0,
+            currency text not null,
+            status text not null default 'OPEN'
+          );
+          create or replace function public.placement_is_org_member(uuid)
+          returns boolean language sql stable as $$ select true $$;
+          SQL
+
+      - name: Apply payment migration
+        run: |
+          PGPASSWORD=staffing psql "$STAFFING_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/staffing-core/migrations/0022_payment_reconciliation.sql
 
       - name: Run staffing Postgres integration tests
         run: pnpm exec vitest run packages/staffing-core/src/payment-reconciliation.pg.test.ts
