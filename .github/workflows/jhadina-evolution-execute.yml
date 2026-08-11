@@ -17,6 +17,21 @@ on:
         required: true
         default: "agent/jhadina-integration-spine"
         type: string
+      allowed_tools:
+        description: "Governed Claude allowed tool list"
+        required: true
+        default: "View,GlobTool,GrepTool,BatchTool,Write,Edit,Bash(git status),Bash(git diff:*),Bash(pnpm test),Bash(pnpm typecheck)"
+        type: string
+      disallowed_tools:
+        description: "Governed Claude denied tool list"
+        required: true
+        default: "WebFetch,WebSearch,Task,TaskOutput,Bash(git push),Bash(git commit),Bash(git merge),Bash(gh:*)"
+        type: string
+      max_turns:
+        description: "Maximum Claude turns"
+        required: true
+        default: "12"
+        type: string
 
 permissions:
   contents: write
@@ -42,6 +57,9 @@ jobs:
       APPROVED_PROMPT: ${{ inputs.prompt }}
       BASE_BRANCH: ${{ inputs.base_branch }}
       BRANCH_NAME: jhadina/evolution/${{ inputs.task_id }}-${{ github.run_id }}
+      ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
+      DISALLOWED_TOOLS: ${{ inputs.disallowed_tools }}
+      MAX_TURNS: ${{ inputs.max_turns }}
 
     steps:
       - name: Checkout approved base
@@ -78,6 +96,12 @@ jobs:
             APPROVED REQUEST:
             ${{ inputs.prompt }}
 
+            GOVERNED ALLOWED TOOLS:
+            ${{ inputs.allowed_tools }}
+
+            GOVERNED DISALLOWED TOOLS:
+            ${{ inputs.disallowed_tools }}
+
             Work ONLY on the approved request.
             Work only inside the repository workspace.
             Do not access secrets, credentials, production systems, payment systems,
@@ -90,9 +114,9 @@ jobs:
             Inspect first. Make the smallest safe change.
             Run the requested tests/typechecks when applicable.
             Leave a concise summary of the root cause, files changed, and verification performed.
-          allowed_tools: "View,GlobTool,GrepTool,BatchTool,Write,Edit,Bash(git status),Bash(git diff:*),Bash(pnpm test),Bash(pnpm typecheck)"
-          disallowed_tools: "WebFetch,WebSearch,Task,TaskOutput,Bash(git push),Bash(git commit),Bash(gh:*)"
-          max_turns: "12"
+          allowed_tools: ${{ inputs.allowed_tools }}
+          disallowed_tools: ${{ inputs.disallowed_tools }}
+          max_turns: ${{ inputs.max_turns }}
           append_system_prompt: |
             Jhadina governance is authoritative. Never weaken or bypass a policy boundary.
             Never edit protected authority code or workflow configuration.
@@ -116,13 +140,12 @@ jobs:
         if: always()
         run: |
           mkdir -p .jhadina/results .jhadina/evidence
-          STATUS="FAILED"
-          if [ "${{ steps.protected_paths.outcome }}" = "success" ] && [ "${{ steps.verification.outcome }}" = "success" ]; then
-            STATUS="VERIFIED"
-          fi
           node - <<'NODE'
           const fs = require('fs');
+          const { execSync } = require('child_process');
           const status = process.env.STATUS;
+          const changed = execSync(`git diff --name-only ${process.env.BASE_BRANCH}...HEAD`, {encoding:'utf8'}).trim().split('\n').filter(Boolean);
+          const diffStat = execSync(`git diff --stat ${process.env.BASE_BRANCH}...HEAD`, {encoding:'utf8'});
           const result = {
             version: process.env.JHADINA_RESULT_VERSION,
             taskId: process.env.TASK_ID,
@@ -130,11 +153,16 @@ jobs:
             status,
             baseBranch: process.env.BASE_BRANCH,
             branch: process.env.BRANCH_NAME,
-            changedFiles: require('child_process').execSync(`git diff --name-only ${process.env.BASE_BRANCH}...HEAD`, {encoding:'utf8'}).trim().split('\n').filter(Boolean),
-            diffStat: require('child_process').execSync(`git diff --stat ${process.env.BASE_BRANCH}...HEAD`, {encoding:'utf8'}),
+            changedFiles: changed,
+            diffStat,
+            toolPolicy: {
+              allowedTools: process.env.ALLOWED_TOOLS.split(',').filter(Boolean),
+              disallowedTools: process.env.DISALLOWED_TOOLS.split(',').filter(Boolean),
+              maxTurns: Number(process.env.MAX_TURNS),
+            },
             verification: {
-              protectedPaths: '${{ steps.protected_paths.outcome }}',
-              evolutionCoreTests: '${{ steps.verification.outcome }}',
+              protectedPaths: process.env.PROTECTED_PATHS_OUTCOME,
+              evolutionCoreTests: process.env.VERIFICATION_OUTCOME,
             },
             draftPr: null,
           };
@@ -143,6 +171,8 @@ jobs:
           cp ".jhadina/results/$TASK_ID.json" ".jhadina/evidence/$TASK_ID.json"
         env:
           STATUS: ${{ steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success' && 'VERIFIED' || 'FAILED' }}
+          PROTECTED_PATHS_OUTCOME: ${{ steps.protected_paths.outcome }}
+          VERIFICATION_OUTCOME: ${{ steps.verification.outcome }}
 
       - name: Commit verified change
         if: steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success'
