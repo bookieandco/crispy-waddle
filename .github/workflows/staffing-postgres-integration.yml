@@ -1,0 +1,73 @@
+name: Staffing Postgres Integration
+
+on:
+  pull_request:
+    paths:
+      - "packages/staffing-core/**"
+      - ".github/workflows/staffing-postgres-integration.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  push:
+    branches: [feat/staffingos-standalone-boundary]
+    paths:
+      - "packages/staffing-core/**"
+      - ".github/workflows/staffing-postgres-integration.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+
+jobs:
+  postgres-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: staffing
+          POSTGRES_PASSWORD: staffing
+          POSTGRES_DB: staffing_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U staffing -d staffing_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      STAFFING_TEST_DATABASE_URL: postgresql://staffing:staffing@localhost:5432/staffing_test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply staffing migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v psql >/dev/null 2>&1; then
+            for migration in packages/staffing-core/migrations/*.sql; do
+              echo "Applying ${migration}"
+              PGPASSWORD=staffing psql "$STAFFING_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+            done
+          else
+            echo "psql is unavailable on runner"
+            exit 1
+          fi
+
+      - name: Run staffing Postgres integration tests
+        run: pnpm exec vitest run packages/staffing-core/src/payment-reconciliation.pg.test.ts
