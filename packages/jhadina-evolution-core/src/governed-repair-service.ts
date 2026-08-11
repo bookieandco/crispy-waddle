@@ -1,9 +1,7 @@
 import { RepairFSM, type RepairContext } from "./repair-fsm";
 import { buildClaudeRepairContext, renderClaudeRepairPrompt, type ClaudeRepairContext } from "./claude-repair-context";
 import type { ClaudeCodeRunner } from "./claude-code-adapter";
-import type { ClaudeWorkflowExecutionResult } from "./claude-github-actions-runner";
-import { applyWorkflowResult } from "./claude-actions-fsm-bridge";
-import type { EvolutionExecutionResult } from "./evolution-result";
+import type { EvolutionExecutionResult, EvolutionExecutionStatus } from "./evolution-result";
 import type { EvolutionExecutionPlan, ExecutionWorkspace } from "./evolution-executor";
 import type { RepositoryIntelligenceProvider, RepositoryIntelligenceEvidence } from "./repository-intelligence";
 
@@ -15,7 +13,7 @@ export interface GovernedClaudeRunner extends ClaudeCodeRunner {
     disallowedTools: string[];
     maxTurns: number;
     context: ClaudeRepairContext;
-  }): Promise<ClaudeWorkflowExecutionResult>;
+  }): Promise<EvolutionExecutionResult>;
 }
 
 export interface GovernedRepairRequest {
@@ -29,7 +27,7 @@ export interface GovernedRepairResult {
   context: RepairContext;
   evidence: RepositoryIntelligenceEvidence;
   claudeContext: ClaudeRepairContext;
-  workflowResult: ClaudeWorkflowExecutionResult;
+  workflowResult: EvolutionExecutionResult;
 }
 
 export class GovernedRepairService {
@@ -66,11 +64,10 @@ export class GovernedRepairService {
     context = fsm.transition(context, "advance", "Evidence-bound FIX started").context;
 
     const claudeContext = buildClaudeRepairContext(request.plan, evidence);
-    let workflowResult: ClaudeWorkflowExecutionResult | undefined;
+    let workflowResult: EvolutionExecutionResult | undefined;
 
     for (let attempt = 0; attempt < this.maxAttempts; attempt += 1) {
       workflowResult = await this.claudeRunner.runGoverned({
-        plan: claudeContext.plan,
         workspace: request.workspace,
         prompt: renderClaudeRepairPrompt(claudeContext),
         allowedTools: [],
@@ -79,23 +76,7 @@ export class GovernedRepairService {
         context: claudeContext,
       });
 
-      const normalized: EvolutionExecutionResult = {
-        version: "1",
-        taskId: workflowResult.taskId,
-        runId: workflowResult.runId,
-        status: workflowResult.outcome,
-        baseBranch: request.workspace.branch,
-        branch: request.workspace.branch,
-        changedFiles: workflowResult.changedFiles,
-        diffStat: workflowResult.diffSummary,
-        verification: {
-          protectedPaths: workflowResult.securityChecks.every((check) => check.passed) ? "success" : "failure",
-          evolutionCoreTests: workflowResult.tests.every((test) => test.passed) ? "success" : "failure",
-        },
-        draftPr: workflowResult.draftPr?.url ?? null,
-      };
-
-      context = applyWorkflowResult(fsm, context, normalized);
+      context = applyWorkflowResult(fsm, context, workflowResult);
       if (context.state === "APPROVAL" || context.state === "BLOCKED") break;
       if (context.state !== "FIX") break;
     }
@@ -107,4 +88,24 @@ export class GovernedRepairService {
 
     return { context, evidence, claudeContext, workflowResult };
   }
+}
+
+function applyWorkflowResult(fsm: RepairFSM, context: RepairContext, result: EvolutionExecutionResult): RepairContext {
+  if (result.taskId !== context.repairId) throw new Error(`Workflow task ${result.taskId} does not match repair ${context.repairId}`);
+  if (result.status === "BLOCKED") return fsm.transition(context, "block", "GitHub Actions reported BLOCKED").context;
+  if (result.status === "FAILED") return fsm.transition(context, "retry", "GitHub Actions repair verification failed").context;
+  if (result.verification.protectedPaths !== "success" || result.verification.evolutionCoreTests !== "success") {
+    return fsm.transition(context, "retry", "Verified status lacked required verification evidence").context;
+  }
+
+  let next = context;
+  if (next.state === "TEST") {
+    next = fsm.recordTestResult(next, true);
+    next = fsm.transition(next, "advance", "GitHub Actions verification passed").context;
+  }
+  if (next.state === "VERIFY") {
+    next = fsm.recordVerification(next, true);
+    next = fsm.transition(next, "advance", "Independent workflow verification passed").context;
+  }
+  return next;
 }
