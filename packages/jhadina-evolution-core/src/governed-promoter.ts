@@ -3,6 +3,7 @@ import { assertGovernedRepairResult, type GovernedRepairExecutor } from "./gover
 import type { EvolutionExecutionPlan, ExecutionWorkspace } from "./evolution-executor";
 import type { EvolutionRunLedger } from "./evolution-run-ledger";
 import { recordEvolutionExecutionResult } from "./evolution-run-ledger";
+import type { PersistedLedgerVerifier } from "./supabase-evolution-ledger-verifier";
 
 export interface PromotionExecutionContext {
   repairId: string;
@@ -14,6 +15,7 @@ export interface PromotionExecutionContext {
 export interface GovernedPromotionDependencies {
   repairExecutor: GovernedRepairExecutor;
   runLedger: EvolutionRunLedger;
+  persistedLedgerVerifier: PersistedLedgerVerifier;
   createExecutionContext(proposal: ImprovementProposal, evaluation: ImprovementEvaluation): Promise<PromotionExecutionContext>;
 }
 
@@ -36,5 +38,10 @@ export class GovernedEvolutionPromoter {
 
     assertGovernedRepairResult(result);
     await recordEvolutionExecutionResult(this.dependencies.runLedger, result.workflowResult);
+
+    const ledgerValid = await this.dependencies.persistedLedgerVerifier.verify(result.workflowResult.runId);
+    if (!ledgerValid) {
+      throw new Error(`Persisted evolution ledger verification failed for run ${result.workflowResult.runId}`);
+    }
   }
 }
