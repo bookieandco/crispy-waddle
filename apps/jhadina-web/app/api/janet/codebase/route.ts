@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { JanetGitHubCodebaseProvider } from "../../../src/lib/services/JanetGitHubCodebaseProvider"
+import { JanetGitHubCodebaseProvider } from "../../../../src/lib/services/JanetGitHubCodebaseProvider"
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
