@@ -13,3 +13,5 @@ export * from "./restoration-dsp.js";
 export * from "./mastering.js";
 export * from "./mastering-executor.js";
 export * from "./post-master-qc.js";
+export * from "./jhadina-music-intelligence.js";
+export * from "./audio-engine.js";
