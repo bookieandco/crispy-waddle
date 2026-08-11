@@ -5,12 +5,21 @@ import { ReasoningEventRepository } from "../repositories/ReasoningEventReposito
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { InMemoryStorage } from "../storage/InMemoryStorage"
 
+export type ExecutionReadiness =
+  | { status: "ready"; executor: unknown }
+  | {
+      status: "not_configured"
+      executor: null
+      missing: readonly ("identity" | "policy" | "handlers" | "audit")[]
+    }
+
 export interface JhadinaApplication {
   storage: InMemoryStorage
   memoryRepo: MemoryRepository
   reasoningRepo: ReasoningEventRepository
   timelineRepo: TimelineRepository
   janet: JanetService
+  execution: ExecutionReadiness
 }
 
 export function createJhadinaApplication(): JhadinaApplication {
@@ -25,12 +34,22 @@ export function createJhadinaApplication(): JhadinaApplication {
     timelineRepo,
   )
 
+  // Fail closed until the application composition root has real production
+  // identity, policy, handlers, and durable audit dependencies. Do not expose
+  // a placeholder executor as READY.
+  const execution: ExecutionReadiness = {
+    status: "not_configured",
+    executor: null,
+    missing: ["identity", "policy", "handlers", "audit"],
+  }
+
   return {
     storage,
     memoryRepo,
     reasoningRepo,
     timelineRepo,
     janet,
+    execution,
   }
 }
 
