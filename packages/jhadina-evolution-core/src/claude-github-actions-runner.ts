@@ -57,6 +57,8 @@ export class ClaudeGitHubActionsRunner implements ClaudeCodeRunner {
   }): Promise<ClaudeWorkflowExecutionResult> {
     const plan = input.context.plan;
     const repository = input.context.repository.snapshot.repository;
+    const allowedTools = [...new Set(input.allowedTools)].join(",");
+    const disallowedTools = [...new Set(input.disallowedTools)].join(",");
 
     const dispatch = await this.dispatchClient.dispatch({
       workflow: this.workflow,
@@ -65,6 +67,9 @@ export class ClaudeGitHubActionsRunner implements ClaudeCodeRunner {
         task_id: plan.id,
         prompt: input.prompt,
         base_branch: repository,
+        allowed_tools: allowedTools,
+        disallowed_tools: disallowedTools,
+        max_turns: String(input.maxTurns),
       },
     });
 
