@@ -1,6 +1,6 @@
 import type { ID } from "./agency-agreements.js";
 import type { AgencyContractRepository } from "./agency-agreements.js";
-import { AgreementResolutionService, type CommercialLedgerWriter } from "./agreement-resolution.js";
+import { AgreementResolutionService } from "./agreement-resolution.js";
 import type { Invoice, InvoiceLedgerService, InvoiceRepository } from "./invoice-ledger.js";
 import type { BillingCalculation } from "./billing.js";
 
@@ -76,6 +76,24 @@ export class PlacementFinancialService {
 
     await this.invoiceLedger.issue(invoice.id);
 
+    const entries: CommercialLedgerEntry[] = [
+      ["PLATFORM_FEE", resolved.split.platformFee],
+      ["AGENCY_REVENUE", resolved.split.agencyRevenue],
+      ["PLATFORM_REVENUE", resolved.split.platformRevenue],
+    ].map(([type, amount]) => ({
+      id: `commercial:${input.placementId}:${resolved.agreement.id}:${type}`,
+      organizationId: input.organizationId,
+      placementId: input.placementId,
+      invoiceId: invoice.id,
+      agreementId: resolved.agreement.id,
+      type: type as CommercialLedgerEntry["type"],
+      amount: amount as number,
+      currency: resolved.split.currency,
+      occurredAt: input.occurredAt,
+    }));
+
+    for (const entry of entries) await this.repository.saveCommercialLedgerEntry(entry);
+
     return {
       invoice,
       agreementId: resolved.agreement.id,
@@ -86,22 +104,4 @@ export class PlacementFinancialService {
       platformRevenue: resolved.split.platformRevenue,
     };
   }
-}
-
-export function createCommercialLedgerWriter(repository: PlacementFinancialRepository, invoiceId: ID): CommercialLedgerWriter {
-  return {
-    async write(entry) {
-      await repository.saveCommercialLedgerEntry({
-        id: `commercial:${entry.placementId}:${entry.agreementId}:${entry.type}`,
-        organizationId: entry.organizationId,
-        placementId: entry.placementId,
-        invoiceId,
-        agreementId: entry.agreementId,
-        type: entry.type,
-        amount: entry.amount,
-        currency: entry.currency,
-        occurredAt: entry.occurredAt,
-      });
-    },
-  };
 }
