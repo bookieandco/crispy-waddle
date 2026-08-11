@@ -1,9 +1,14 @@
+import type { ActionIdentityVerifier } from "@jhadina/action-core"
 import { Classifier } from "../services/Classifier"
 import { JanetService } from "../services/JanetService"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { InMemoryStorage } from "../storage/InMemoryStorage"
+import {
+  SupabaseActionIdentityVerifier,
+  type SupabaseClaimsClient,
+} from "../auth/supabase-identity-verifier"
 
 export type ExecutionReadiness =
   | { status: "ready"; executor: unknown }
@@ -19,6 +24,9 @@ export interface JhadinaApplication {
   reasoningRepo: ReasoningEventRepository
   timelineRepo: TimelineRepository
   janet: JanetService
+  identity: {
+    createVerifier(supabase: SupabaseClaimsClient): ActionIdentityVerifier
+  }
   execution: ExecutionReadiness
 }
 
@@ -34,9 +42,17 @@ export function createJhadinaApplication(): JhadinaApplication {
     timelineRepo,
   )
 
+  // Identity is request-scoped: the verifier is created from the authenticated
+  // request's Supabase SSR client rather than stored as a process-global client.
+  const identity = {
+    createVerifier(supabase: SupabaseClaimsClient): ActionIdentityVerifier {
+      return new SupabaseActionIdentityVerifier(supabase)
+    },
+  }
+
   // Fail closed until the application composition root has real production
-  // identity, policy, handlers, and durable audit dependencies. Do not expose
-  // a placeholder executor as READY.
+  // policy, handlers, and durable audit dependencies in addition to identity.
+  // Do not expose a placeholder executor as READY.
   const execution: ExecutionReadiness = {
     status: "not_configured",
     executor: null,
@@ -49,6 +65,7 @@ export function createJhadinaApplication(): JhadinaApplication {
     reasoningRepo,
     timelineRepo,
     janet,
+    identity,
     execution,
   }
 }
