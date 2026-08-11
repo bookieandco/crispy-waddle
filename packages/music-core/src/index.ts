@@ -8,3 +8,5 @@ export * from "./player.js";
 export * from "./jhadina-music.js";
 export * from "./jhadina-music-action-handler.js";
 export * from "./audio-output.js";
+export * from "./restoration.js";
+export * from "./restoration-dsp.js";
