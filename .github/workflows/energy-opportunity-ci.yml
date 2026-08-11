@@ -1,0 +1,54 @@
+name: Energy Opportunity Core CI
+
+on:
+  pull_request:
+    paths:
+      - 'packages/energy-opportunity-core/**'
+      - '.github/workflows/energy-opportunity-ci.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.json'
+  push:
+    branches:
+      - main
+      - 'feat/**'
+    paths:
+      - 'packages/energy-opportunity-core/**'
+      - '.github/workflows/energy-opportunity-ci.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.json'
+
+permissions:
+  contents: read
+
+jobs:
+  energy-opportunity-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check energy opportunity core
+        run: pnpm --filter @jhadina/energy-opportunity-core type-check
+
+      - name: Test energy opportunity core
+        run: pnpm --filter @jhadina/energy-opportunity-core test
