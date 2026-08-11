@@ -5,7 +5,7 @@ import { readBitaxeTelemetry, type BitaxeHttpClient } from '../src/bitaxe.ts';
 test('maps AxeOS system info into read-only telemetry', async () => {
   const requests: string[] = [];
   const client: BitaxeHttpClient = {
-    async getJson(url) {
+    async getJson<T>(url: string): Promise<T> {
       requests.push(url);
       return {
         hostname: 'bitaxe-01',
@@ -39,7 +39,7 @@ test('maps AxeOS system info into read-only telemetry', async () => {
         blockHeight: 900000,
         blockFound: 0,
         miningPaused: false,
-      };
+      } as T;
     },
   };
 
