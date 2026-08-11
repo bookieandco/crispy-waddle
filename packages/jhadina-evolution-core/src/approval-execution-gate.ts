@@ -7,6 +7,7 @@ export interface EvolutionApprovalGrant {
   approvalId: string;
   candidateId: string;
   proposalHash: string;
+  executionPlanHash: string;
   approvedBy: string;
   approvedAt: string;
   expiresAt: string;
@@ -26,8 +27,9 @@ export interface ApprovalExecutionResult {
 
 /**
  * Deterministic release gate between Approval Center decisions and Claude.
- * The candidate repository is the authority for the approval state; this gate
- * additionally binds execution to the exact proposal hash approved by the user.
+ * The candidate repository is the authority for approval state. Execution is
+ * additionally bound to the exact candidate proposal and execution plan that
+ * the user approved.
  */
 export class ApprovalExecutionGate {
   constructor(
@@ -37,20 +39,15 @@ export class ApprovalExecutionGate {
 
   async execute(request: ApprovalExecutionRequest): Promise<ApprovalExecutionResult> {
     const { approval, plan } = request;
-    const now = Date.now();
-
-    if (!approval.approvalId) throw new Error("approvalId is required");
-    if (!approval.approvedBy) throw new Error("approvedBy is required");
-    if (Date.parse(approval.expiresAt) <= now) throw new Error("Evolution approval has expired");
+    if (!approval.approvalId || !approval.approvedBy) throw new Error("Invalid evolution approval grant");
+    if (Date.parse(approval.expiresAt) <= Date.now()) throw new Error("Evolution approval has expired");
     if (approval.candidateId !== plan.id) throw new Error("Approval candidate does not match execution plan");
-    if (approval.proposalHash !== planProposalHash(plan, approval.candidateId)) {
-      throw new Error("Evolution proposal hash does not match the approved plan");
-    }
 
     const candidate = await this.candidates.get(approval.candidateId);
     if (!candidate) throw new Error(`Unknown evolution candidate: ${approval.candidateId}`);
     if (candidate.decision !== "APPROVED") throw new Error(`Candidate ${candidate.candidateId} is not approved`);
     if (candidate.proposalHash !== approval.proposalHash) throw new Error("Candidate proposal changed after approval");
+    if (approval.executionPlanHash !== executionPlanHash(plan)) throw new Error("Execution plan changed after approval");
 
     const repair = await this.repairService.execute({
       ...request.repair,
@@ -63,16 +60,18 @@ export class ApprovalExecutionGate {
   }
 }
 
-export function planProposalHash(plan: EvolutionExecutionPlan, candidateId: string): string {
+export function executionPlanHash(plan: EvolutionExecutionPlan): string {
   return sha256(JSON.stringify({
-    candidateId,
     id: plan.id,
     title: plan.title,
+    risk: plan.risk,
+    requiresApproval: plan.requiresApproval,
     allowedPaths: [...plan.allowedPaths].sort(),
-    description: plan.description,
+    testCommands: [...plan.testCommands],
+    securityChecks: [...plan.securityChecks],
   }));
 }
 
-export function createApprovalId(candidateId: string, proposalHash: string, approvedAt: string): string {
-  return `approval-${sha256(`${candidateId}:${proposalHash}:${approvedAt}`).slice(0, 16)}`;
+export function createApprovalId(candidateId: string, proposalHash: string, executionPlanHashValue: string, approvedAt: string): string {
+  return `approval-${sha256(`${candidateId}:${proposalHash}:${executionPlanHashValue}:${approvedAt}`).slice(0, 16)}`;
 }
