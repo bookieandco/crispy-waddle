@@ -1,6 +1,15 @@
 import { MoneyTransactionWriteHandler } from './transaction-write-handler.js';
+import type { ApprovalPort } from './approval-port.js';
 
 const calls: string[] = [];
+let approvalCalls = 0;
+const approval: ApprovalPort = {
+  async requireApproved(request) {
+    approvalCalls++;
+    if (request.requestId === 'reject-1') throw new Error('MONEY_APPROVAL_REJECTED');
+  },
+};
+
 const handler = new MoneyTransactionWriteHandler({
   getProvider: () => ({
     provider: 'test-bank',
@@ -15,8 +24,8 @@ const handler = new MoneyTransactionWriteHandler({
       return { providerReference: 'tr-1', status: 'submitted' };
     },
   }),
+  approval,
   assertUserWorkspace: async () => {},
-  assertApproval: async () => {},
   assertAccountAccess: async (userId, accountId) => {
     if (userId === 'user-1' && ['acct-1', 'acct-2'].includes(accountId)) return;
     throw new Error(`MONEY_ACCOUNT_ACCESS_DENIED:${accountId}`);
@@ -62,3 +71,16 @@ try {
   missingUser = e instanceof Error && e.message === 'MONEY_USER_REQUIRED';
 }
 if (!missingUser) throw new Error('MISSING_USER_NOT_REJECTED');
+
+let rejected = false;
+const beforeCalls = calls.length;
+try {
+  await handler.execute(
+    { capability: 'money.payment.create', provider: 'test-bank', accountId: 'acct-1', amount: 5, currency: 'USD', payeeId: 'p' },
+    { id: 'reject-1', requestId: 'reject-1', userId: 'user-1', action: {} } as any,
+  );
+} catch (e) {
+  rejected = e instanceof Error && e.message === 'MONEY_APPROVAL_REJECTED';
+}
+if (!rejected || calls.length !== beforeCalls) throw new Error('REJECTED_APPROVAL_REACHED_PROVIDER');
+if (approvalCalls < 3) throw new Error('APPROVAL_PORT_NOT_CALLED');
