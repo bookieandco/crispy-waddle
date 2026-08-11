@@ -4,11 +4,16 @@ export interface PostgresTestClient extends SqlExecutor {
   close(): Promise<void>;
 }
 
-/**
- * CI supplies the concrete pg driver. Keeping the factory injectable avoids
- * coupling staffing-core production code to a specific Postgres client.
- */
+export type PostgresTestExecutorFactory = (databaseUrl: string) => Promise<PostgresTestClient>;
+
+let factory: PostgresTestExecutorFactory | undefined;
+
+export function configurePostgresTestExecutor(next: PostgresTestExecutorFactory): void {
+  factory = next;
+}
+
 export async function createSqlExecutor(databaseUrl: string): Promise<PostgresTestClient> {
   if (!databaseUrl) throw new Error("STAFFING_TEST_DATABASE_URL is required");
-  throw new Error("Postgres test driver is not configured; inject the CI adapter for this package");
+  if (!factory) throw new Error("No Postgres test executor configured");
+  return factory(databaseUrl);
 }
