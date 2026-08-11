@@ -20,7 +20,8 @@ function sanitizePoolUrl(poolUrl: string): string {
     const url = new URL(poolUrl);
     url.username = '';
     url.password = '';
-    return url.toString();
+    const path = url.pathname === '/' ? '' : url.pathname;
+    return `${url.protocol}//${url.host}${path}${url.search}${url.hash}`;
   } catch {
     throw new Error('INVALID_POOL_URL');
   }
