@@ -35,9 +35,6 @@ export function expectedNetPerHour(estimate: WorkloadEstimate): number {
   return estimate.revenuePerHour - estimate.electricityCostPerHour - estimate.providerFeesPerHour;
 }
 
-/**
- * Pure policy kernel: no network, credentials, process spawning, or device I/O.
- */
 export function decideMining(
   resource: Resource,
   estimate: WorkloadEstimate,
@@ -49,31 +46,22 @@ export function decideMining(
   if (resource.authorization === 'disabled') {
     return { decision: 'deny', expectedNetPerHour: net, reasonCodes: ['RESOURCE_NOT_AUTHORIZED'] };
   }
-
-  if (resource.kind !== 'asic') {
-    reasons.push('NON_ASIC_RESOURCE');
-  }
-
+  if (resource.kind !== 'asic') reasons.push('NON_ASIC_RESOURCE');
   if (resource.powerLimitWatts > limits.maxPowerWatts) {
     return { decision: 'deny', expectedNetPerHour: net, reasonCodes: ['POWER_LIMIT_EXCEEDED'] };
   }
-
   if (estimate.confidence < limits.minConfidence) {
     return { decision: 'observe', expectedNetPerHour: net, reasonCodes: ['LOW_CONFIDENCE'] };
   }
-
   if (net < limits.minimumNetPerHour) {
     return { decision: 'stop', expectedNetPerHour: net, reasonCodes: ['UNPROFITABLE'] };
   }
-
   if (resource.authorization === 'observe') {
     return { decision: 'observe', expectedNetPerHour: net, reasonCodes: ['OBSERVE_ONLY'] };
   }
-
   if (estimate.kind !== 'bitcoin-mining') {
     return { decision: 'deny', expectedNetPerHour: net, reasonCodes: ['WORKLOAD_NOT_MINING'] };
   }
-
   return { decision: 'start', expectedNetPerHour: net, reasonCodes: reasons };
 }
 
@@ -81,3 +69,5 @@ export { planCpuminerDryRun } from './cpuminer.ts';
 export type { CpuminerConfig, CpuminerDryRun } from './cpuminer.ts';
 export { readBitaxeTelemetry, createFetchBitaxeClient } from './bitaxe.ts';
 export type { BitaxeTelemetry, BitaxeHttpClient, BitaxeAdapterConfig } from './bitaxe.ts';
+export { projectMiningEconomics, isVerifiedMiningPayout } from './moneycore-bridge.ts';
+export type { MiningMoneyProjection, MiningMoneyProjectionInput, RealizedMiningPayout } from './moneycore-bridge.ts';
