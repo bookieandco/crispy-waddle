@@ -23,20 +23,43 @@ export class SupabaseEvolutionRunLedger implements EvolutionRunLedger {
     const sequence = previous.length + 1;
     const eventId = `${input.runId}:${sequence}`;
     const hash = await sha256(JSON.stringify({ ...input, sequence, eventId, previousHash }));
-    const event: EvolutionRunLedgerEvent = { ...input, sequence, eventId, previousHash, hash };
-    const rows = await this.request<EvolutionRunLedgerEvent[]>("POST", "/rest/v1/jhadina_evolution_run_ledger", event, { Prefer: "return=representation" });
+
+    const rows = await this.request<EvolutionRunLedgerEvent[]>(
+      "POST",
+      "/rest/v1/rpc/jhadina_evolution_run_ledger_append",
+      {
+        p_sequence: sequence,
+        p_event_id: eventId,
+        p_run_id: input.runId,
+        p_task_id: input.taskId,
+        p_type: input.type,
+        p_occurred_at: input.occurredAt,
+        p_payload: input.payload,
+        p_previous_hash: previousHash,
+        p_hash: hash,
+      },
+    );
+
     if (rows.length !== 1) throw new Error("Evolution run ledger did not return its appended event");
     return rows[0];
   }
 
   async list(runId: number): Promise<EvolutionRunLedgerEvent[]> {
-    return this.request<EvolutionRunLedgerEvent[]>("GET", `/rest/v1/jhadina_evolution_run_ledger?run_id=eq.${encodeURIComponent(String(runId))}&order=sequence.asc`);
+    return this.request<EvolutionRunLedgerEvent[]>(
+      "GET",
+      `/rest/v1/jhadina_evolution_run_ledger?run_id=eq.${encodeURIComponent(String(runId))}&order=sequence.asc`,
+    );
   }
 
   private async request<T>(method: string, path: string, body?: unknown, extraHeaders?: Record<string, string>): Promise<T> {
     const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
       method,
-      headers: { apikey: this.key, Authorization: `Bearer ${this.key}`, "Content-Type": "application/json", ...extraHeaders },
+      headers: {
+        apikey: this.key,
+        Authorization: `Bearer ${this.key}`,
+        "Content-Type": "application/json",
+      ...extraHeaders,
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const text = await response.text();
