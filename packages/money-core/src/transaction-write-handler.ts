@@ -1,5 +1,6 @@
 import type { ActionHandler, ActionRequest } from '@jhadina/action-core';
 import { assertCapability, type BankAdapter } from './bank-adapter.js';
+import { type ApprovalPort } from './approval-port.js';
 
 export type PaymentCreateAction = {
   capability: 'money.payment.create';
@@ -23,8 +24,8 @@ export type TransactionWriteAction = PaymentCreateAction | TransferCreateAction;
 
 export type TransactionWriteHandlerDeps = {
   getProvider: (provider: string) => BankAdapter;
+  approval: ApprovalPort;
   assertUserWorkspace?: (userId: string) => Promise<void>;
-  assertApproval?: (request: ActionRequest<TransactionWriteAction>) => Promise<void>;
   assertAccountAccess?: (userId: string, accountId: string) => Promise<void>;
 };
 
@@ -46,12 +47,17 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
   async execute(action: TransactionWriteAction, request: ActionRequest<TransactionWriteAction>) {
     if (!request.userId) throw new Error('MONEY_USER_REQUIRED');
     await this.deps.assertUserWorkspace?.(request.userId);
-    await this.deps.assertApproval?.(request);
 
     assertCapability(
       { userId: request.userId, capability: action.capability, requestId: request.requestId },
       action.capability,
     );
+
+    await this.deps.approval.requireApproved({
+      requestId: request.requestId,
+      userId: request.userId,
+      capability: action.capability,
+    });
 
     assertPositiveAmount(action.amount);
     assertCurrency(action.currency);
