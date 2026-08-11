@@ -76,3 +76,6 @@ export function decideMining(
 
   return { decision: 'start', expectedNetPerHour: net, reasonCodes: reasons };
 }
+
+export { planCpuminerDryRun } from './cpuminer.ts';
+export type { CpuminerConfig, CpuminerDryRun } from './cpuminer.ts';
