@@ -21,8 +21,11 @@ typedef struct jhadina_dsp_params {
 typedef struct jhadina_dsp_metrics {
   float peak_before;
   float peak_after;
+  float true_peak_before;
+  float true_peak_after;
   uint32_t frames_processed;
   uint32_t channels_processed;
+  int32_t true_peak_limited;
 } jhadina_dsp_metrics;
 
 void *jhadina_dsp_create(const jhadina_dsp_config *config);
