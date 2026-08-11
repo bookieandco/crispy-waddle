@@ -17,7 +17,8 @@ export class PlacementFinancialService {
     if(input.grossSpread<0) throw new Error("Gross spread cannot be negative");
     const key=input.idempotencyKey ?? `placement-financial:${input.organizationId}:${input.timesheetId}`;
     if(this.idempotency){
-      const existing=await this.idempotency.begin({organizationId:input.organizationId,idempotencyKey:key,operation:"PLACEMENT_FINANCIAL_FINALIZE",invoiceId:input.invoiceNumber,createdAt:input.occurredAt} as FinancialOperationRecord);
+      const record:FinancialOperationRecord={organizationId:input.organizationId,idempotencyKey:key,operation:"PLACEMENT_FINANCIAL_FINALIZE",placementId:input.placementId,timesheetId:input.timesheetId,invoiceId:input.invoiceNumber,createdAt:input.occurredAt};
+      const existing=await this.idempotency.begin(record);
       if(existing) throw new Error(`Financial operation already completed or reserved: ${existing.invoiceId}`);
     }
     const resolved=await this.resolution.resolve({placementId:input.placementId,agencyId:input.agencyId,employerId:input.employerId,organizationId:input.organizationId,at:input.occurredAt,billingTotal:input.billing.employerBill,grossSpread:input.grossSpread,currency:input.billing.currency});
