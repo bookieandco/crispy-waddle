@@ -11,17 +11,15 @@ export type IdempotencyRecord = {
   result?: TransactionWriteResult;
 };
 
-/**
- * Durable implementations must enforce uniqueness of requestId atomically.
- * A failed claim means another worker already owns or completed the request.
- */
 export interface IdempotencyStore {
   claim(record: Omit<IdempotencyRecord, 'status' | 'result'>): Promise<{ claimed: true } | { claimed: false; record: IdempotencyRecord }>;
   complete(requestId: string, result: TransactionWriteResult): Promise<void>;
+  waitForCompletion(requestId: string): Promise<TransactionWriteResult>;
 }
 
 export function createInMemoryIdempotencyStore(): IdempotencyStore {
   const records = new Map<string, IdempotencyRecord>();
+  const waiters = new Map<string, Array<(result: TransactionWriteResult) => void>>();
   const locks = new Map<string, Promise<void>>();
 
   return {
@@ -29,7 +27,8 @@ export function createInMemoryIdempotencyStore(): IdempotencyStore {
       const previous = locks.get(input.requestId) ?? Promise.resolve();
       let release!: () => void;
       const current = new Promise<void>((resolve) => { release = resolve; });
-      locks.set(input.requestId, previous.then(() => current));
+      const queued = previous.then(() => current);
+      locks.set(input.requestId, queued);
       await previous;
 
       try {
@@ -39,7 +38,7 @@ export function createInMemoryIdempotencyStore(): IdempotencyStore {
         return { claimed: true };
       } finally {
         release();
-        if (locks.get(input.requestId) === current) locks.delete(input.requestId);
+        if (locks.get(input.requestId) === queued) locks.delete(input.requestId);
       }
     },
 
@@ -47,6 +46,20 @@ export function createInMemoryIdempotencyStore(): IdempotencyStore {
       const existing = records.get(requestId);
       if (!existing) throw new Error('MONEY_IDEMPOTENCY_NOT_CLAIMED');
       records.set(requestId, { ...existing, status: 'completed', result });
+      const pending = waiters.get(requestId) ?? [];
+      waiters.delete(requestId);
+      for (const resolve of pending) resolve(result);
+    },
+
+    async waitForCompletion(requestId) {
+      const existing = records.get(requestId);
+      if (!existing) throw new Error('MONEY_IDEMPOTENCY_NOT_FOUND');
+      if (existing.status === 'completed' && existing.result) return existing.result;
+      return new Promise<TransactionWriteResult>((resolve) => {
+        const pending = waiters.get(requestId) ?? [];
+        pending.push(resolve);
+        waiters.set(requestId, pending);
+      });
     },
   };
 }
