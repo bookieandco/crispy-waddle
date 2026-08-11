@@ -1,4 +1,15 @@
-import type { ActionIdentityVerifier, ActionRequest, VerifiedIdentity } from "@jhadina/action-core"
+export interface ActionRequestIdentity {
+  userId: string
+  sessionId: string
+}
+
+export interface JhadinaActionRequest {
+  userId: string
+}
+
+export interface JhadinaIdentityVerifier {
+  verify(request: JhadinaActionRequest): Promise<ActionRequestIdentity>
+}
 
 export interface SupabaseClaims {
   sub?: unknown
@@ -15,17 +26,17 @@ export interface SupabaseClaimsClient {
 }
 
 /**
- * Adapts a request-scoped Supabase Auth client to Jhadina's governed
- * ActionIdentityVerifier contract.
+ * Adapts a request-scoped Supabase Auth client to Jhadina's identity
+ * verification boundary.
  *
- * Identity comes only from server-verified Supabase claims. The caller's
- * ActionRequest userId must match the verified subject before execution can
- * proceed through VerifiedActionExecutor.
+ * Identity comes only from server-verified Supabase claims. The request's
+ * userId must match the verified subject before a future governed executor
+ * can be allowed to run.
  */
-export class SupabaseActionIdentityVerifier implements ActionIdentityVerifier {
+export class SupabaseActionIdentityVerifier implements JhadinaIdentityVerifier {
   constructor(private readonly supabase: SupabaseClaimsClient) {}
 
-  async verify(request: ActionRequest): Promise<VerifiedIdentity> {
+  async verify(request: JhadinaActionRequest): Promise<ActionRequestIdentity> {
     const { data, error } = await this.supabase.auth.getClaims()
 
     if (error) {
