@@ -139,7 +139,7 @@ export async function readBitaxeTelemetry(
 
 export function createFetchBitaxeClient(fetchImpl: typeof fetch = fetch): BitaxeHttpClient {
   return {
-    async getJson<T>(url, signal) {
+    async getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
       const response = await fetchImpl(url, { method: 'GET', signal });
       if (!response.ok) throw new Error(`BITAXE_HTTP_${response.status}`);
       return response.json() as Promise<T>;
