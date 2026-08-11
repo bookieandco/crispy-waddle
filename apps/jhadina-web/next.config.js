@@ -14,6 +14,7 @@ const nextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       "@jhadina/director-core": path.join(directorRoot, "index.ts"),
+      "@jhadina/director-core/sfx-provider": path.join(directorRoot, "sfx-provider.ts"),
       "@jhadina/director-core/timeline-command": path.join(directorRoot, "timeline-command.ts"),
       "@jhadina/director-core/timeline-model": path.join(directorRoot, "timeline-model.ts"),
     }
