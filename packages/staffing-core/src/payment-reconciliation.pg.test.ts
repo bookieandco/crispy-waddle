@@ -11,13 +11,11 @@ describe("real postgres payment race", () => {
   it.skipIf(!databaseUrl)("serializes concurrent duplicate webhook deliveries", async () => {
     const pool = new Pool({ connectionString: databaseUrl, max: 20 });
     const db = createPgSqlExecutor(pool);
+    let idCounter = 20;
     const ids = {
       next: (prefix: string) => {
-        const values: Record<string, string> = {
-          payment: "00000000-0000-0000-0000-000000000010",
-          ledger: "00000000-0000-0000-0000-000000000011",
-        };
-        return values[prefix] ?? "00000000-0000-0000-0000-000000000099";
+        const id = idCounter++;
+        return `00000000-0000-0000-0000-${String(id).padStart(12, "0")}`;
       },
     };
     const invoiceId = "00000000-0000-0000-0000-000000000001";
