@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./sfx-provider": "./src/sfx-provider.ts",
     "./timeline-command": "./src/timeline-command.ts"
   },
   "types": "./src/index.ts"
