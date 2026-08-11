@@ -2,21 +2,39 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 #include <new>
 
 struct JhadinaDsp {
   jhadina_dsp_config config{};
+  jhadina_dsp_params params{0.0, 0.0};
+  float gain_linear{1.0f};
 };
 
+static float db_to_linear(double db) {
+  return static_cast<float>(std::pow(10.0, db / 20.0));
+}
+
+static float linear_to_db(float value) {
+  return value <= 0.0f ? -INFINITY : 20.0f * std::log10(value);
+}
+
 extern "C" void *jhadina_dsp_create(const jhadina_dsp_config *config) {
-  if (!config || config->sample_rate_hz <= 0 || config->channels == 0 || config->max_frames == 0) {
-    return nullptr;
-  }
+  if (!config || config->sample_rate_hz <= 0 || config->channels == 0 || config->max_frames == 0) return nullptr;
   auto *engine = new (std::nothrow) JhadinaDsp{};
   if (!engine) return nullptr;
   engine->config = *config;
+  engine->params.ceiling_dbfs = config->max_true_peak_dbtp;
   return engine;
+}
+
+extern "C" int32_t jhadina_dsp_set_params(void *opaque, const jhadina_dsp_params *params) {
+  if (!opaque || !params || !std::isfinite(params->gain_db) || !std::isfinite(params->ceiling_dbfs)) return -1;
+  auto *engine = static_cast<JhadinaDsp *>(opaque);
+  if (params->gain_db < -60.0 || params->gain_db > 24.0) return -2;
+  if (params->ceiling_dbfs > 0.0 || params->ceiling_dbfs < -60.0) return -3;
+  engine->params = *params;
+  engine->gain_linear = db_to_linear(params->gain_db);
+  return 0;
 }
 
 extern "C" int32_t jhadina_dsp_process(void *opaque, const float *input, float *output,
@@ -28,11 +46,14 @@ extern "C" int32_t jhadina_dsp_process(void *opaque, const float *input, float *
   float before = 0.0f;
   float after = 0.0f;
   const uint64_t samples = static_cast<uint64_t>(frames) * engine->config.channels;
+  const float ceiling = db_to_linear(engine->params.ceiling_dbfs);
+
   for (uint64_t i = 0; i < samples; ++i) {
     const float x = input[i];
     before = std::max(before, std::fabs(x));
-    // Kernel scaffold: transparent pass-through. DSP stages are added behind this ABI.
-    output[i] = x;
+    const float processed = x * engine->gain_linear;
+    // Deterministic sample-peak ceiling. True-peak oversampling belongs in the next kernel.
+    output[i] = std::clamp(processed, -ceiling, ceiling);
     after = std::max(after, std::fabs(output[i]));
   }
 
@@ -46,7 +67,10 @@ extern "C" int32_t jhadina_dsp_process(void *opaque, const float *input, float *
 }
 
 extern "C" void jhadina_dsp_reset(void *opaque) {
-  (void)opaque;
+  if (!opaque) return;
+  auto *engine = static_cast<JhadinaDsp *>(opaque);
+  engine->params = {0.0, engine->config.max_true_peak_dbtp};
+  engine->gain_linear = 1.0f;
 }
 
 extern "C" void jhadina_dsp_destroy(void *opaque) {
