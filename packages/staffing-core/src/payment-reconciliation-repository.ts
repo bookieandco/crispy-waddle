@@ -6,7 +6,7 @@ export class PostgresPaymentReconciliationRepository implements PaymentReconcili
   constructor(private readonly db:SqlExecutor,private readonly ids:{next(prefix:string):string}){}
 
   async findByExternalId(key:{organizationId:ID;provider:string;externalPaymentId:string}):Promise<PaymentReconciliationResult|null>{
-    const rows=await this.db.query<any>(`select p.id as "paymentId",p.invoice_id as "invoiceId",i.status,(p.amount) as "appliedAmount",greatest(0,i.total-i.paid) as "remainingAmount" from staffing_payments p join invoices i on i.id=p.invoice_id where p.organization_id=$1 and p.provider=$2 and p.external_payment_id=$3 limit 1`,[key.organizationId,key.provider,key.externalPaymentId]);
+    const rows=await this.db.query<any>(`select p.id as "paymentId",p.invoice_id as "invoiceId",i.status,p.amount as "appliedAmount",greatest(0,i.total-i.paid) as "remainingAmount" from staffing_payments p join invoices i on i.id=p.invoice_id where p.organization_id=$1 and p.provider=$2 and p.external_payment_id=$3 limit 1`,[key.organizationId,key.provider,key.externalPaymentId]);
     return rows[0]??null;
   }
 
@@ -17,8 +17,11 @@ export class PostgresPaymentReconciliationRepository implements PaymentReconcili
 
   async recordPayment(payment:PaymentReceipt):Promise<string>{
     const id=this.ids.next("payment");
-    await this.db.query(`insert into staffing_payments (id,organization_id,provider,external_payment_id,invoice_id,employer_id,amount,currency,received_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict (organization_id,provider,external_payment_id) do nothing`,[id,payment.organizationId,payment.provider,payment.externalPaymentId,payment.invoiceId,payment.employerId,payment.amount,payment.currency,payment.receivedAt]);
-    return id;
+    const rows=await this.db.query<any>(`insert into staffing_payments (id,organization_id,provider,external_payment_id,invoice_id,employer_id,amount,currency,received_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict (organization_id,provider,external_payment_id) do nothing returning id`,[id,payment.organizationId,payment.provider,payment.externalPaymentId,payment.invoiceId,payment.employerId,payment.amount,payment.currency,payment.receivedAt]);
+    if(rows[0]?.id) return rows[0].id;
+    const existing=await this.db.query<any>(`select id from staffing_payments where organization_id=$1 and provider=$2 and external_payment_id=$3`,[payment.organizationId,payment.provider,payment.externalPaymentId]);
+    if(!existing[0]) throw new Error("Payment reservation lost without a durable payment record");
+    return existing[0].id;
   }
 
   async updateInvoicePaid(invoiceId:ID,organizationId:ID,paid:number,status:InvoicePaymentStatus):Promise<void>{
