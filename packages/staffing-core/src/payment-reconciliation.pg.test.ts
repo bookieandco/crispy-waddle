@@ -11,7 +11,15 @@ describe("real postgres payment race", () => {
   it.skipIf(!databaseUrl)("serializes two webhook deliveries against one invoice", async () => {
     const pool = new Pool({ connectionString: databaseUrl });
     const db = createPgSqlExecutor(pool);
-    const ids = { next: (prefix: string) => `${prefix}-test` };
+    const ids = {
+      next: (prefix: string) => {
+        const values: Record<string, string> = {
+          payment: "00000000-0000-0000-0000-000000000010",
+          ledger: "00000000-0000-0000-0000-000000000011",
+        };
+        return values[prefix] ?? "00000000-0000-0000-0000-000000000099";
+      },
+    };
     const invoiceId = "00000000-0000-0000-0000-000000000001";
     const organizationId = "00000000-0000-0000-0000-000000000002";
     const employerId = "00000000-0000-0000-0000-000000000003";
