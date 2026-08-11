@@ -1,6 +1,7 @@
 import type { ActionHandler, ActionRequest } from '@jhadina/action-core';
 import { assertCapability, type BankAdapter } from './bank-adapter.js';
 import { type ApprovalPort } from './approval-port.js';
+import { type IdempotencyStore } from './idempotency-store.js';
 
 export type PaymentCreateAction = {
   capability: 'money.payment.create';
@@ -21,10 +22,12 @@ export type TransferCreateAction = {
 };
 
 export type TransactionWriteAction = PaymentCreateAction | TransferCreateAction;
+export type TransactionWriteResult = { providerReference: string; status: string };
 
 export type TransactionWriteHandlerDeps = {
   getProvider: (provider: string) => BankAdapter;
   approval: ApprovalPort;
+  idempotency: IdempotencyStore;
   assertUserWorkspace?: (userId: string) => Promise<void>;
   assertAccountAccess?: (userId: string, accountId: string) => Promise<void>;
 };
@@ -37,14 +40,14 @@ function assertCurrency(currency: string) {
   if (!/^[A-Z]{3}$/.test(currency)) throw new Error('MONEY_CURRENCY_INVALID');
 }
 
-export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWriteAction, { providerReference: string; status: string }> {
+export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWriteAction, TransactionWriteResult> {
   constructor(private readonly deps: TransactionWriteHandlerDeps) {}
 
   supports(type: string): boolean {
     return type === 'money.payment.create' || type === 'money.transfer.create';
   }
 
-  async execute(action: TransactionWriteAction, request: ActionRequest<TransactionWriteAction>) {
+  async execute(action: TransactionWriteAction, request: ActionRequest<TransactionWriteAction>): Promise<TransactionWriteResult> {
     if (!request.userId) throw new Error('MONEY_USER_REQUIRED');
     await this.deps.assertUserWorkspace?.(request.userId);
 
@@ -52,7 +55,6 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
       { userId: request.userId, capability: action.capability, requestId: request.requestId },
       action.capability,
     );
-
     await this.deps.approval.requireApproved({
       requestId: request.requestId,
       userId: request.userId,
@@ -62,24 +64,43 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
     assertPositiveAmount(action.amount);
     assertCurrency(action.currency);
 
+    const claim = await this.deps.idempotency.claim({
+      requestId: request.requestId,
+      userId: request.userId,
+      capability: action.capability,
+    });
+
+    if (!claim.claimed) {
+      if (claim.record.userId !== request.userId || claim.record.capability !== action.capability) {
+        throw new Error('MONEY_IDEMPOTENCY_IDENTITY_MISMATCH');
+      }
+      return claim.record.status === 'completed' && claim.record.result
+        ? claim.record.result
+        : this.deps.idempotency.waitForCompletion(request.requestId);
+    }
+
     const adapter = this.deps.getProvider(action.provider);
+    let result: TransactionWriteResult;
 
     if (action.capability === 'money.payment.create') {
       await this.deps.assertAccountAccess?.(request.userId, action.accountId);
       if (!adapter.createPayment) throw new Error('MONEY_PAYMENT_UNSUPPORTED');
-      return adapter.createPayment(
+      result = await adapter.createPayment(
         { userId: request.userId, capability: action.capability, requestId: request.requestId },
         { accountId: action.accountId, amount: action.amount, currency: action.currency, payeeId: action.payeeId },
       );
+    } else {
+      await this.deps.assertAccountAccess?.(request.userId, action.fromAccountId);
+      await this.deps.assertAccountAccess?.(request.userId, action.toAccountId);
+      if (action.fromAccountId === action.toAccountId) throw new Error('MONEY_TRANSFER_SAME_ACCOUNT');
+      if (!adapter.createTransfer) throw new Error('MONEY_TRANSFER_UNSUPPORTED');
+      result = await adapter.createTransfer(
+        { userId: request.userId, capability: action.capability, requestId: request.requestId },
+        { fromAccountId: action.fromAccountId, toAccountId: action.toAccountId, amount: action.amount, currency: action.currency },
+      );
     }
 
-    await this.deps.assertAccountAccess?.(request.userId, action.fromAccountId);
-    await this.deps.assertAccountAccess?.(request.userId, action.toAccountId);
-    if (action.fromAccountId === action.toAccountId) throw new Error('MONEY_TRANSFER_SAME_ACCOUNT');
-    if (!adapter.createTransfer) throw new Error('MONEY_TRANSFER_UNSUPPORTED');
-    return adapter.createTransfer(
-      { userId: request.userId, capability: action.capability, requestId: request.requestId },
-      { fromAccountId: action.fromAccountId, toAccountId: action.toAccountId, amount: action.amount, currency: action.currency },
-    );
+    await this.deps.idempotency.complete(request.requestId, result);
+    return result;
   }
 }
