@@ -13,24 +13,29 @@ export interface PaymentReconciliationStore {
   recordCashLedgerEntry(input:{organizationId:ID;invoiceId:ID;paymentId:string;amount:number;currency:string;occurredAt:string}):Promise<void>;
 }
 
+export interface PaymentTransaction { run<T>(work:(store:PaymentReconciliationStore)=>Promise<T>):Promise<T>; }
+
 export class PaymentReconciliationService {
-  constructor(private readonly store:PaymentReconciliationStore,private readonly ids:{next(prefix:string):string}){}
+  constructor(private readonly store:PaymentReconciliationStore,private readonly ids:{next(prefix:string):string},private readonly transaction?:PaymentTransaction){}
 
   async reconcile(payment:PaymentReceipt):Promise<PaymentReconciliationResult>{
     if(payment.amount<=0) throw new Error("Payment amount must be positive");
-    const existing=await this.store.findByExternalId(payment);
-    if(existing) return existing;
-    const invoice=await this.store.lockInvoice(payment.invoiceId,payment.organizationId);
-    if(!invoice) throw new Error("Invoice not found");
-    if(invoice.currency!==payment.currency) throw new Error("Payment currency does not match invoice currency");
-    if(["PAID","VOID"].includes(invoice.status)) throw new Error("Invoice cannot accept payment");
-    const remaining=Math.max(0,invoice.total-invoice.paid);
-    if(payment.amount>remaining) throw new Error("Payment exceeds invoice balance");
-    const applied=payment.amount;
-    const status:InvoicePaymentStatus=applied===remaining?"PAID":"PARTIALLY_PAID";
-    const paymentId=await this.store.recordPayment(payment);
-    await this.store.updateInvoicePaid(invoice.id,payment.organizationId,invoice.paid+applied,status);
-    await this.store.recordCashLedgerEntry({organizationId:payment.organizationId,invoiceId:invoice.id,paymentId,amount:applied,currency:payment.currency,occurredAt:payment.receivedAt});
-    return {paymentId,invoiceId:invoice.id,status,appliedAmount:applied,remainingAmount:remaining-applied};
+    const execute=async(store:PaymentReconciliationStore):Promise<PaymentReconciliationResult>=>{
+      const existing=await store.findByExternalId(payment);
+      if(existing) return existing;
+      const invoice=await store.lockInvoice(payment.invoiceId,payment.organizationId);
+      if(!invoice) throw new Error("Invoice not found");
+      if(invoice.currency!==payment.currency) throw new Error("Payment currency does not match invoice currency");
+      if(["PAID","VOID"].includes(invoice.status)) throw new Error("Invoice cannot accept payment");
+      const remaining=Math.max(0,invoice.total-invoice.paid);
+      if(payment.amount>remaining) throw new Error("Payment exceeds invoice balance");
+      const applied=payment.amount;
+      const status:InvoicePaymentStatus=applied===remaining?"PAID":"PARTIALLY_PAID";
+      const paymentId=await store.recordPayment(payment);
+      await store.updateInvoicePaid(invoice.id,payment.organizationId,invoice.paid+applied,status);
+      await store.recordCashLedgerEntry({organizationId:payment.organizationId,invoiceId:invoice.id,paymentId,amount:applied,currency:payment.currency,occurredAt:payment.receivedAt});
+      return {paymentId,invoiceId:invoice.id,status,appliedAmount:applied,remainingAmount:remaining-applied};
+    };
+    return this.transaction ? this.transaction.run(execute) : execute(this.store);
   }
 }
