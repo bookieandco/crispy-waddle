@@ -1,3 +1,5 @@
+create extension if not exists pgcrypto;
+
 create or replace function public.append_jhadina_evolution_run_ledger(
   p_run_id bigint,
   p_task_id text,
@@ -8,7 +10,7 @@ create or replace function public.append_jhadina_evolution_run_ledger(
 returns public.jhadina_evolution_run_ledger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   v_sequence integer;
@@ -17,6 +19,14 @@ declare
   v_hash text;
   v_row public.jhadina_evolution_run_ledger;
 begin
+  if p_run_id is null or p_task_id is null or p_type is null or p_occurred_at is null or p_payload is null then
+    raise exception 'ledger append requires run_id, task_id, type, occurred_at, and payload';
+  end if;
+
+  if p_type not in ('RUN_STARTED','RUN_DISPATCHED','RUN_VERIFIED','RUN_FAILED','RUN_BLOCKED','DRAFT_PR_CREATED') then
+    raise exception 'invalid evolution ledger event type: %', p_type;
+  end if;
+
   perform pg_advisory_xact_lock(hashtextextended(p_run_id::text, 0));
 
   select coalesce(max(sequence), 0) + 1,
@@ -54,3 +64,4 @@ end;
 $$;
 
 revoke all on function public.append_jhadina_evolution_run_ledger(bigint, text, text, timestamptz, jsonb) from public;
+grant execute on function public.append_jhadina_evolution_run_ledger(bigint, text, text, timestamptz, jsonb) to service_role;
