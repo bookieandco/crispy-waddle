@@ -24,9 +24,14 @@ describe("real postgres payment race", () => {
     const organizationId = "00000000-0000-0000-0000-000000000002";
     const employerId = "00000000-0000-0000-0000-000000000003";
 
-    try {
+    const cleanup = async () => {
+      await db.query("delete from staffing_cash_ledger_entries where payment_id in (select id from staffing_payments where organization_id=$1)", [organizationId]);
       await db.query("delete from staffing_payments where organization_id=$1", [organizationId]);
       await db.query("delete from invoices where id=$1", [invoiceId]);
+    };
+
+    try {
+      await cleanup();
       await db.query("insert into invoices (id, organization_id, total, paid, currency, status) values ($1,$2,100,0,'USD','OPEN')", [invoiceId, organizationId]);
 
       const payment: PaymentReceipt = {
@@ -48,8 +53,7 @@ describe("real postgres payment race", () => {
       expect(Number(invoice[0].paid)).toBe(100);
       expect(invoice[0].status).toBe("PAID");
     } finally {
-      await db.query("delete from staffing_payments where organization_id=$1", [organizationId]);
-      await db.query("delete from invoices where id=$1", [invoiceId]);
+      await cleanup();
       await db.close();
     }
   });
