@@ -15,6 +15,7 @@ async function main() {
   const candidates = buildDailyEvolutionCandidates(audit);
   const runId = Number(process.env.GITHUB_RUN_ID);
   const runKey = process.env.RUN_KEY ?? `github:${process.env.REPOSITORY}:${runId}`;
+  const scheduledFor = process.env.SCHEDULED_FOR ?? audit.scheduledFor;
 
   const response = await fetch(INGEST_URL, {
     method: "POST",
@@ -25,7 +26,7 @@ async function main() {
       runId,
       runKey,
       status: audit.status,
-      scheduledFor: audit.scheduledFor,
+      scheduledFor,
       branch: audit.branch,
       commit: audit.commit,
       auditorVersion: audit.auditorVersion,
