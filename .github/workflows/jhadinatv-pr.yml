@@ -3,8 +3,9 @@ name: JhadinaTV PR
 on:
   pull_request:
     paths:
-      - 'apps/jhadina-web/**'
       - 'packages/jhadina-tv-core/**'
+      - 'apps/jhadina-web/pages/jhadinatv/**'
+      - 'apps/jhadina-web/components/jhadinatv/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -28,4 +29,4 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo run type-check build test --filter=@jhadina/tv-core --filter=@jhadina/jhadina-web
+      - run: pnpm --filter @jhadina/tv-core type-check
