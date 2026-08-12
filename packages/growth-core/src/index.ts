@@ -10,6 +10,7 @@ export * from './attribution/performance-aggregator.js';
 export * from './intelligence/growth-decision-feed.js';
 export * from './intelligence/opportunity-engine.js';
 export * from './intelligence/experiment-planner.js';
+export * from './intelligence/growth-loop.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
