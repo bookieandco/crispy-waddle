@@ -1,13 +1,33 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { MediaTitle } from '@jhadina/jhadina-tv-core';
-import { recommendTitles } from '@jhadina/jhadina-tv-core';
+import {
+  CatalogRegistry,
+  createAuthorizedCatalogAdapter,
+  recommendTitles,
+} from '@jhadina/jhadina-tv-core';
 
-const catalog: MediaTitle[] = [
+const records: MediaTitle[] = [
   { id: 'demo-noir', kind: 'movie', title: 'Midnight Signal', overview: 'A detective follows a strange radio transmission through a city that never sleeps.', year: 2026, runtimeMinutes: 108, genres: ['Crime', 'Mystery', 'Drama'], rating: 8.2, availability: 'public-domain' },
   { id: 'demo-comedy', kind: 'movie', title: 'Second Take', overview: 'Two friends turn a failed audition into an unexpectedly funny road trip.', year: 2025, runtimeMinutes: 96, genres: ['Comedy', 'Road', 'Drama'], rating: 7.8, availability: 'public-domain' },
   { id: 'demo-series', kind: 'tv', title: 'After the Last Train', overview: 'A late-night station becomes the meeting point for four strangers with unfinished stories.', year: 2026, genres: ['Drama', 'Mystery'], rating: 8.6, availability: 'external-link' },
   { id: 'demo-action', kind: 'movie', title: 'Breakline', overview: 'A courier has one night to cross the city and expose the people chasing him.', year: 2025, runtimeMinutes: 112, genres: ['Action', 'Thriller', 'Crime'], rating: 8.0, availability: 'licensed' },
 ];
+
+const catalogClient = {
+  async search(query: string) {
+    const needle = query.trim().toLowerCase();
+    return records.filter((title) => !needle || `${title.title} ${title.overview} ${title.genres.join(' ')}`.toLowerCase().includes(needle));
+  },
+  async sources() {
+    return [];
+  },
+};
+
+function createRegistry() {
+  const registry = new CatalogRegistry();
+  registry.register(createAuthorizedCatalogAdapter(catalogClient, { id: 'jhadina-demo', name: 'Jhadina Demo Catalog' }));
+  return registry;
+}
 
 function scoreLabel(score: number) {
   return `${Math.min(99, Math.max(1, Math.round(score)))}% Jhadina Match`;
@@ -15,7 +35,18 @@ function scoreLabel(score: number) {
 
 export default function JhadinaTVHome() {
   const [query, setQuery] = useState('');
-  const recommendations = useMemo(() => recommendTitles(catalog, { query, maxRuntimeMinutes: query ? 120 : undefined }), [query]);
+  const [catalog, setCatalog] = useState<MediaTitle[]>(records);
+  const registry = useMemo(createRegistry, []);
+
+  useEffect(() => {
+    let active = true;
+    registry.search({ query }).then((results) => {
+      if (active) setCatalog(results.map((result) => result.title));
+    });
+    return () => { active = false; };
+  }, [query, registry]);
+
+  const recommendations = useMemo(() => recommendTitles(catalog, { query, maxRuntimeMinutes: query ? 120 : undefined }), [catalog, query]);
   const visible = recommendations.length ? recommendations : catalog.map((title) => ({ title, score: 50, reasons: [] as string[] }));
 
   return (
@@ -42,7 +73,7 @@ export default function JhadinaTVHome() {
         <section id="movies" style={{ marginTop: 52 }}>
           <div style={{ display: 'flex', alignItems: 'end', justifyContent: 'space-between', marginBottom: 18 }}>
             <div><p style={{ color: '#8f93a0', margin: 0, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Personalized</p><h2 style={{ fontSize: 30, margin: '6px 0 0', letterSpacing: '-0.04em' }}>{query ? `Matches for “${query}”` : "Jhadina's Picks"}</h2></div>
-            <span style={{ color: '#737784', fontSize: 13 }}>Catalog foundation · source adapters next</span>
+            <span style={{ color: '#737784', fontSize: 13 }}>Catalog registry · authorized adapters</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 18 }}>
             {visible.map(({ title, score, reasons }) => (
@@ -56,7 +87,7 @@ export default function JhadinaTVHome() {
 
         <section id="shows" style={{ marginTop: 52, padding: 24, borderRadius: 18, border: '1px solid #23262f', background: '#0e1015' }}>
           <h2 style={{ marginTop: 0 }}>Architecture status</h2>
-          <p style={{ color: '#9fa2ad', lineHeight: 1.6, maxWidth: 760, marginBottom: 0 }}>JhadinaTV is now a first-class module in the monorepo. This first slice deliberately stops at catalog, discovery and explainable recommendations. Video playback will use explicit licensed, owned or public-domain source adapters rather than an unverified stream scraper.</p>
+          <p style={{ color: '#9fa2ad', lineHeight: 1.6, maxWidth: 760, marginBottom: 0 }}>JhadinaTV now discovers titles through CatalogRegistry and an authorized-provider boundary. The demo client is intentionally local; a real provider can replace it without changing the catalog or playback contracts.</p>
         </section>
       </section>
     </main>
