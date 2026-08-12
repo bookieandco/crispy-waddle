@@ -22,9 +22,19 @@ describe('performance aggregation', () => {
     expect(result[0].cac).toBe(75);
   });
 
-  it('supports audience and offer dimensions', () => {
-    const input = [{ credit, spend: 100, contributionMargin: 180, customerLtv: 500 }];
+  it('supports audience, offer and channel dimensions', () => {
+    const input = [{ credit, spend: 100, contributionMargin: 180, customerLtv: 500, channel: 'meta' }];
     expect(aggregatePerformance(input, 'audience')[0].key).toBe('audience-1');
     expect(aggregatePerformance(input, 'offer')[0].key).toBe('offer-1');
+    expect(aggregatePerformance(input, 'channel')[0].key).toBe('meta');
+  });
+
+  it('counts each customer once even when multiple attributed credits exist', () => {
+    const result = aggregatePerformance([
+      { credit, spend: 100, contributionMargin: 180, customerLtv: 500 },
+      { credit: { ...credit, touchpointEventId: 'ad-2', attributedRevenue: 100 }, spend: 50, contributionMargin: 40, customerLtv: 500 },
+    ]);
+    expect(result[0].customers).toBe(1);
+    expect(result[0].cac).toBe(150);
   });
 });
