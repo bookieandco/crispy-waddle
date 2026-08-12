@@ -13,7 +13,7 @@ describe("real postgres payment race", () => {
     const db = createPgSqlExecutor(pool);
     let idCounter = 20;
     const ids = {
-      next: (prefix: string) => {
+      next: (_prefix: string) => {
         const id = idCounter++;
         return `00000000-0000-0000-0000-${String(id).padStart(12, "0")}`;
       },
@@ -34,7 +34,7 @@ describe("real postgres payment race", () => {
 
       const repository = new PostgresPaymentReconciliationRepository(db, ids);
       const transaction = new PostgresPaymentTransaction(db, ids);
-      const service = new PaymentReconciliationService(repository, ids, transaction);
+      const service = new PaymentReconciliationService(repository, transaction);
 
       const duplicatePayment: PaymentReceipt = {
         organizationId, provider: "test-provider", externalPaymentId: "evt-concurrent-50",
