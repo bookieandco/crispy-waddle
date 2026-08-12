@@ -113,10 +113,11 @@ jobs:
           );
           NODE
 
-      - name: Persist evolution candidates
+      - name: Persist daily audit and evolution candidates
         env:
-          SUPABASE_URL: ${{ secrets.JHADINA_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.JHADINA_SUPABASE_SERVICE_ROLE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           node packages/jhadina-evolution-core/dist/daily-audit-persist.js \
             ".jhadina/audits/daily-${{ github.run_id }}.json"
