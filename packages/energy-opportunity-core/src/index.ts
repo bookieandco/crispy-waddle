@@ -81,3 +81,5 @@ export { rankMiningProfitability } from './coin-profitability.ts';
 export type { CoinProfitability, CoinProfitabilityInput } from './coin-profitability.ts';
 export { projectCoinMoney } from './coin-moneycore-bridge.ts';
 export type { CoinMoneyProjection, CoinMoneyProjectionInput } from './coin-moneycore-bridge.ts';
+export { buildCoinProfitabilityDashboard } from './coin-profitability-dashboard.ts';
+export type { CoinProfitabilityDashboard } from './coin-profitability-dashboard.ts';
