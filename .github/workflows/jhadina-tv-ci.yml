@@ -1,0 +1,61 @@
+name: JhadinaTV CI
+
+on:
+  pull_request:
+    paths:
+      - 'apps/jhadina-web/**'
+      - 'packages/jhadina-tv-core/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.json'
+      - 'turbo.json'
+      - '.github/workflows/jhadina-tv-ci.yml'
+  push:
+    branches:
+      - 'feat/jhadinatv-streaming-module'
+      - 'feat/jhadinatv-casting-*'
+    paths:
+      - 'apps/jhadina-web/**'
+      - 'packages/jhadina-tv-core/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig.json'
+      - 'turbo.json'
+      - '.github/workflows/jhadina-tv-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-tv-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check JhadinaTV core
+        run: pnpm --filter @jhadina/tv-core type-check
+
+      - name: Type-check Jhadina web
+        run: pnpm --filter @jhadina/jhadina-web type-check
