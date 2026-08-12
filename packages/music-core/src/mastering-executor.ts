@@ -4,13 +4,13 @@ import type { RestorationMetrics, RestorationVersion } from "./restoration";
 
 export interface AudioArtifact {
   id: string;
-  samples: Float32Array;
+  samples: Float32Array<ArrayBufferLike>;
   sampleRateHz: number;
   channels: number;
 }
 
 export interface ArtifactWriter {
-  write(input: { parentArtifactId: string; samples: Float32Array; sampleRateHz: number; channels: number; operation: string }): AudioArtifact;
+  write(input: { parentArtifactId: string; samples: Float32Array<ArrayBufferLike>; sampleRateHz: number; channels: number; operation: string }): AudioArtifact;
 }
 
 export interface MasteringExecutionPolicy {
@@ -49,7 +49,7 @@ export interface MasteringExecutionRecord {
 export class InMemoryArtifactWriter implements ArtifactWriter {
   private counter = 0;
 
-  write(input: { parentArtifactId: string; samples: Float32Array; sampleRateHz: number; channels: number; operation: string }): AudioArtifact {
+  write(input: { parentArtifactId: string; samples: Float32Array<ArrayBufferLike>; sampleRateHz: number; channels: number; operation: string }): AudioArtifact {
     this.counter += 1;
     return {
       id: `${input.parentArtifactId}:${input.operation}:${this.counter}`,
@@ -166,7 +166,7 @@ function numberParam(step: MasteringStep, key: string): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-function peak(samples: Float32Array): number {
+function peak(samples: Float32Array<ArrayBufferLike>): number {
   let value = 0;
   for (const sample of samples) value = Math.max(value, Math.abs(Number.isFinite(sample) ? sample : 0));
   return value;
