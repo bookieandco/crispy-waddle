@@ -1,0 +1,124 @@
+name: Jhadina Daily Evolution Audit
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: jhadina-daily-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout audited commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build evolution core
+        run: pnpm --filter @jhadina/evolution-core build
+
+      - name: Run read-only daily audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: daily-${{ github.run_id }}
+          SCHEDULED_FOR: ${{ github.run_started_at }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT: ${{ github.sha }}
+          VERSION: daily-audit-v1
+        run: |
+          mkdir -p .jhadina/audits
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { createHash } from 'node:crypto';
+          import { mkdirSync, writeFileSync } from 'node:fs';
+
+          const commands = [
+            ['git', ['status', '--short', '--branch']],
+            ['git', ['log', '-20', '--oneline', '--decorate']],
+            ['git', ['diff', '--stat', 'HEAD~1..HEAD']],
+            ['pnpm', ['outdated', '--format', 'json']],
+            ['pnpm', ['audit', '--json']],
+            ['gh', ['pr', 'list', '--state', 'open', '--limit', '50', '--json', 'number,title,headRefName,baseRefName,statusCheckRollup']],
+            ['gh', ['issue', 'list', '--state', 'open', '--limit', '50', '--json', 'number,title,labels,updatedAt']]
+          ];
+
+          const evidence = [];
+          let status = 'COMPLETED';
+          for (const [program, args] of commands) {
+            let output = '';
+            let exitCode = 0;
+            try {
+              output = execFileSync(program, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+            } catch (error) {
+              exitCode = typeof error?.status === 'number' ? error.status : 1;
+              output = `${error?.stdout ?? ''}${error?.stderr ?? ''}`;
+              if (program !== 'pnpm') status = 'FAILED';
+            }
+            const source = `${program}${program === 'pnpm' && args[0] === 'outdated' ? '-outdated' : ''}${program === 'pnpm' && args[0] === 'audit' ? '-audit' : ''}${program === 'gh' && args[0] === 'pr' ? '-pr-list' : ''}${program === 'gh' && args[0] === 'issue' ? '-issue-list' : ''}`;
+            evidence.push({ source, command: [program, ...args].join(' '), exitCode, outputSha256: createHash('sha256').update(output).digest('hex'), output });
+          }
+
+          const base = {
+            schemaVersion: '1.0',
+            eventType: 'DAILY_AUDIT_RUN',
+            runId: process.env.RUN_ID,
+            scheduledFor: process.env.SCHEDULED_FOR,
+            startedAt: process.env.SCHEDULED_FOR,
+            completedAt: new Date().toISOString(),
+            status,
+            repository: process.env.REPOSITORY,
+            branch: process.env.BRANCH,
+            commit: process.env.COMMIT,
+            auditorVersion: process.env.VERSION,
+            evidence,
+            candidateIds: [],
+            previousEventHash: null
+          };
+          const eventHash = createHash('sha256').update(JSON.stringify(base)).digest('hex');
+          mkdirSync('.jhadina/audits', { recursive: true });
+          writeFileSync(`.jhadina/audits/${process.env.RUN_ID}.json`, JSON.stringify({ ...base, eventHash }, null, 2) + '\n');
+          NODE
+
+      - name: Persist daily audit and evolution candidates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          RUN_KEY="daily:$(date -u +%F)"
+          SCHEDULED_FOR="$(date -u +%F)T06:00:00Z"
+          RUN_KEY="$RUN_KEY" SCHEDULED_FOR="$SCHEDULED_FOR" node packages/jhadina-evolution-core/dist/daily-audit-persist.js \
+            ".jhadina/audits/daily-${{ github.run_id }}.json"
+
+      - name: Upload reproducible audit record
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-daily-audit-${{ github.run_id }}
+          path: .jhadina/audits/
+          if-no-files-found: error
+          retention-days: 90
