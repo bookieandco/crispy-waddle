@@ -28,4 +28,4 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo run type-check build test --filter=@jhadina/tv-core --filter=jhadina-web
+      - run: pnpm turbo run type-check build test --filter=@jhadina/tv-core --filter=@jhadina/jhadina-web
