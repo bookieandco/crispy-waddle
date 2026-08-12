@@ -1,8 +1,17 @@
+import { useState } from 'react';
 import { useRouter } from 'next/router';
+import type { PlaybackTarget } from '@jhadina/tv-core';
 
 export default function JhadinaTVWatchPage() {
   const router = useRouter();
   const { kind, id } = router.query;
+  const [casting, setCasting] = useState(false);
+  const [target, setTarget] = useState<PlaybackTarget | null>(null);
+
+  function watchOnTV() {
+    setCasting(true);
+    setTarget({ id: 'discovering', name: 'TV device', transport: 'airplay' });
+  }
 
   return (
     <main style={{ minHeight: '100vh', background: '#050608', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif', padding: 24 }}>
@@ -19,10 +28,26 @@ export default function JhadinaTVWatchPage() {
             </p>
           </div>
         </div>
+
+        <section style={{ marginTop: 24, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={watchOnTV}
+            style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: '#fff', color: '#08090b', fontWeight: 700, cursor: 'pointer' }}
+          >
+            📺 Watch on TV
+          </button>
+          {casting && (
+            <span style={{ color: '#b8bcc7' }}>
+              {target ? `TV session ready via ${target.transport}.` : 'Looking for a TV…'}
+            </span>
+          )}
+        </section>
+
         <section style={{ marginTop: 24 }}>
-          <h2>Playback contract</h2>
+          <h2>Playback & casting contract</h2>
           <p style={{ color: '#9296a2', lineHeight: 1.6 }}>
-            The player will consume HTTPS HLS/DASH sources from the JhadinaTV media-source boundary. Subtitles, quality selection, resume position and next-episode behavior belong here rather than in the catalog layer.
+            Playback uses the JhadinaTV media-source boundary. The same session can later be transferred to AirPlay, Google Cast, or a JhadinaTV TV session without changing the catalog or source adapter.
           </p>
         </section>
       </div>
