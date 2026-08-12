@@ -1,5 +1,5 @@
-import type { MiningDecisionRecord } from './economic-decision';
-import type { MiningDecisionLedger } from './decision-ledger';
+import type { MiningDecisionRecord } from './economic-decision.ts';
+import type { MiningDecisionLedger } from './decision-ledger.ts';
 
 export interface SupabaseDecisionLedgerConfig {
   /** Supabase project URL, e.g. https://<project>.supabase.co */
@@ -16,8 +16,10 @@ export interface SupabaseDecisionLedgerConfig {
 export class SupabaseMiningDecisionLedger implements MiningDecisionLedger {
   private readonly fetchImpl: typeof fetch;
   private readonly endpoint: string;
+  private readonly config: SupabaseDecisionLedgerConfig;
 
-  constructor(private readonly config: SupabaseDecisionLedgerConfig) {
+  constructor(config: SupabaseDecisionLedgerConfig) {
+    this.config = config;
     this.fetchImpl = config.fetchImpl ?? fetch;
     this.endpoint = `${config.projectUrl.replace(/\/$/, '')}/rest/v1/jhadina_mining_decisions`;
   }
