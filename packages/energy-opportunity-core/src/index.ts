@@ -75,3 +75,5 @@ export { buildMiningCommandCenterCard } from './command-center.ts';
 export type { CommandCenterDecision, MiningCommandCenterCard } from './command-center.ts';
 export { SupabaseMiningDecisionReader } from './supabase-decision-reader.ts';
 export type { SupabaseDecisionReaderConfig, MiningDecisionReader } from './supabase-decision-reader.ts';
+export { DEFAULT_MINING_COINS, discoverMiningOpportunities } from './coin-registry.ts';
+export type { MiningAlgorithm, MiningCoin, MiningHardwareProfile, MiningOpportunity } from './coin-registry.ts';
