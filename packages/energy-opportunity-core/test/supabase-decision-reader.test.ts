@@ -37,7 +37,7 @@ test('reader returns latest decision and performs GET only', async () => {
   });
 
   const latest = await reader.getLatestDecision('bitaxe-001');
-  assert.equal(latest?.decision, 'run');
+  assert.equal(latest?.state, 'RUN');
   assert.equal(calls[0].method, 'GET');
   assert.match(calls[0].url, /limit=1/);
   assert.match(calls[0].url, /resource_id=eq\.bitaxe-001/);
@@ -55,7 +55,7 @@ test('reader returns bounded newest-first history', async () => {
   });
 
   const history = await reader.getDecisionHistory('bitaxe-001', 500);
-  assert.deepEqual(history.map(item => item.decision), ['run', 'do_not_run']);
+  assert.deepEqual(history.map(item => item.state), ['RUN', "DON'T RUN"]);
   assert.match(requestedUrl, /limit=100/);
   assert.match(requestedUrl, /order=observed_at\.desc/);
 });
