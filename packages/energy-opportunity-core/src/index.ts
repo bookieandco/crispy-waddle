@@ -79,3 +79,5 @@ export { DEFAULT_MINING_COINS, discoverMiningOpportunities } from './coin-regist
 export type { MiningAlgorithm, MiningCoin, MiningHardwareProfile, MiningOpportunity } from './coin-registry.ts';
 export { rankMiningProfitability } from './coin-profitability.ts';
 export type { CoinProfitability, CoinProfitabilityInput } from './coin-profitability.ts';
+export { projectCoinMoney } from './coin-moneycore-bridge.ts';
+export type { CoinMoneyProjection, CoinMoneyProjectionInput } from './coin-moneycore-bridge.ts';
