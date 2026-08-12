@@ -12,7 +12,7 @@ const base = {
 
 const run = evaluateMiningOpportunity(base);
 assert.equal(run.decision, 'run');
-assert.equal(run.projectedNetPerHour, 0.05);
+assert.ok(Math.abs((run.projectedNetPerHour ?? 0) - 0.05) < Number.EPSILON * 4);
 
 const badEconomics = evaluateMiningOpportunity({ ...base, projectedElectricityPerHour: 0.13 });
 assert.equal(badEconomics.decision, 'do_not_run');
