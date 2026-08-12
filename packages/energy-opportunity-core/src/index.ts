@@ -43,25 +43,13 @@ export function decideMining(
   const net = expectedNetPerHour(estimate);
   const reasons: string[] = [];
 
-  if (resource.authorization === 'disabled') {
-    return { decision: 'deny', expectedNetPerHour: net, reasonCodes: ['RESOURCE_NOT_AUTHORIZED'] };
-  }
+  if (resource.authorization === 'disabled') return { decision: 'deny', expectedNetPerHour: net, reasonCodes: ['RESOURCE_NOT_AUTHORIZED'] };
   if (resource.kind !== 'asic') reasons.push('NON_ASIC_RESOURCE');
-  if (resource.powerLimitWatts > limits.maxPowerWatts) {
-    return { decision: 'deny', expectedNetPerHour: net, reasonCodes: ['POWER_LIMIT_EXCEEDED'] };
-  }
-  if (estimate.confidence < limits.minConfidence) {
-    return { decision: 'observe', expectedNetPerHour: net, reasonCodes: ['LOW_CONFIDENCE'] };
-  }
-  if (net < limits.minimumNetPerHour) {
-    return { decision: 'stop', expectedNetPerHour: net, reasonCodes: ['UNPROFITABLE'] };
-  }
-  if (resource.authorization === 'observe') {
-    return { decision: 'observe', expectedNetPerHour: net, reasonCodes: ['OBSERVE_ONLY'] };
-  }
-  if (estimate.kind !== 'bitcoin-mining') {
-    return { decision: 'deny', expectedNetPerHour: net, reasonCodes: ['WORKLOAD_NOT_MINING'] };
-  }
+  if (resource.powerLimitWatts > limits.maxPowerWatts) return { decision: 'deny', expectedNetPerHour: net, reasonCodes: ['POWER_LIMIT_EXCEEDED'] };
+  if (estimate.confidence < limits.minConfidence) return { decision: 'observe', expectedNetPerHour: net, reasonCodes: ['LOW_CONFIDENCE'] };
+  if (net < limits.minimumNetPerHour) return { decision: 'stop', expectedNetPerHour: net, reasonCodes: ['UNPROFITABLE'] };
+  if (resource.authorization === 'observe') return { decision: 'observe', expectedNetPerHour: net, reasonCodes: ['OBSERVE_ONLY'] };
+  if (estimate.kind !== 'bitcoin-mining') return { decision: 'deny', expectedNetPerHour: net, reasonCodes: ['WORKLOAD_NOT_MINING'] };
   return { decision: 'start', expectedNetPerHour: net, reasonCodes: reasons };
 }
 
@@ -85,3 +73,5 @@ export { SupabaseMiningDecisionLedger } from './supabase-decision-ledger.ts';
 export type { SupabaseDecisionLedgerConfig } from './supabase-decision-ledger.ts';
 export { buildMiningCommandCenterCard } from './command-center.ts';
 export type { CommandCenterDecision, MiningCommandCenterCard } from './command-center.ts';
+export { SupabaseMiningDecisionReader } from './supabase-decision-reader.ts';
+export type { SupabaseDecisionReaderConfig, MiningDecisionReader } from './supabase-decision-reader.ts';
