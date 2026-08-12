@@ -13,13 +13,17 @@ async function main() {
 
   const audit = JSON.parse(await readFile(auditPath, "utf8")) as AuditRunLedgerEvent;
   const candidates = buildDailyEvolutionCandidates(audit);
+  const runId = Number(process.env.GITHUB_RUN_ID);
+  const runKey = process.env.RUN_KEY ?? `github:${process.env.REPOSITORY}:${runId}`;
+
   const response = await fetch(INGEST_URL, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       githubToken,
       repository: process.env.REPOSITORY,
-      runId: Number(process.env.GITHUB_RUN_ID),
+      runId,
+      runKey,
       status: audit.status,
       scheduledFor: audit.scheduledFor,
       branch: audit.branch,
