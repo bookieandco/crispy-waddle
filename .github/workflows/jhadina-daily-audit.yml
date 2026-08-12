@@ -107,10 +107,7 @@ jobs:
           };
           const eventHash = createHash('sha256').update(JSON.stringify(base)).digest('hex');
           mkdirSync('.jhadina/audits', { recursive: true });
-          writeFileSync(
-            `.jhadina/audits/${process.env.RUN_ID}.json`,
-            JSON.stringify({ ...base, eventHash }, null, 2) + '\n'
-          );
+          writeFileSync(`.jhadina/audits/${process.env.RUN_ID}.json`, JSON.stringify({ ...base, eventHash }, null, 2) + '\n');
           NODE
 
       - name: Persist daily audit and evolution candidates
@@ -118,8 +115,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           REPOSITORY: ${{ github.repository }}
+          RUN_KEY: daily:${{ github.run_started_at }}
         run: |
-          node packages/jhadina-evolution-core/dist/daily-audit-persist.js \
+          RUN_KEY="daily:$(date -u +%F)" node packages/jhadina-evolution-core/dist/daily-audit-persist.js \
             ".jhadina/audits/daily-${{ github.run_id }}.json"
 
       - name: Upload reproducible audit record
