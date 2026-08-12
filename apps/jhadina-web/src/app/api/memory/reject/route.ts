@@ -19,7 +19,7 @@
  *   }
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { handleRejectMemory } from "@/lib/routes/handlers"
 
 export async function POST(req: NextRequest) {

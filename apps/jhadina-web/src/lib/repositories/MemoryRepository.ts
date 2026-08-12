@@ -13,7 +13,7 @@ import {
   MemoryType,
   MemoryStatus,
   InMemoryStorage,
-} from "./InMemoryStorage"
+} from "../storage/InMemoryStorage"
 
 export interface SearchMemoriesOptions {
   query?: string
@@ -129,6 +129,15 @@ export class MemoryRepository {
   }
 
   /**
+   * List all approved memories for a user
+   */
+  async listApproved(userId: string): Promise<Memory[]> {
+    return this.storage
+      .listMemories(userId)
+      .filter((m: Memory) => m.status === "APPROVED")
+  }
+
+  /**
    * Search approved memories (full-text search on content)
    */
   async search(
@@ -137,17 +146,17 @@ export class MemoryRepository {
   ): Promise<Memory[]> {
     let results = this.storage
       .listMemories(userId)
-      .filter(m => m.status === "APPROVED")
+      .filter((m: Memory) => m.status === "APPROVED")
 
     // Filter by type if specified
     if (options.type) {
-      results = results.filter(m => m.type === options.type)
+      results = results.filter((m: Memory) => m.type === options.type)
     }
 
     // Search by query (case-insensitive substring)
     if (options.query) {
       const query = options.query.toLowerCase()
-      results = results.filter(m =>
+      results = results.filter((m: Memory) =>
         m.content.toLowerCase().includes(query)
       )
     }
@@ -183,7 +192,7 @@ export class MemoryRepository {
   async getContext(userId: string): Promise<Memory[]> {
     return this.storage
       .listMemories(userId)
-      .filter(m => m.status === "APPROVED")
+      .filter((m: Memory) => m.status === "APPROVED")
   }
 
   /**
@@ -204,14 +213,14 @@ export class MemoryRepository {
       CONTEXT: 0,
     }
 
-    memories.forEach(m => {
+    memories.forEach((m: Memory) => {
       if (m.status === "APPROVED") {
         byType[m.type]++
       }
     })
 
     return {
-      total: memories.filter(m => m.status === "APPROVED").length,
+      total: memories.filter((m: Memory) => m.status === "APPROVED").length,
       pending: candidates.length,
       byType,
     }
@@ -227,7 +236,7 @@ export class MemoryRepository {
 
     const memories = this.storage
       .listMemories(userId || "user_demo")
-      .filter(m => m.status === "APPROVED")
+      .filter((m: Memory) => m.status === "APPROVED")
     const candidates = this.storage.listCandidates(
       userId || "user_demo",
       "PENDING"

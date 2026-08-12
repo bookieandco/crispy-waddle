@@ -11,12 +11,12 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest"
-import { InMemoryStorage } from "../src/lib/storage/InMemoryStorage"
-import { MemoryRepository } from "../src/lib/repositories/MemoryRepository"
-import { ReasoningEventRepository } from "../src/lib/repositories/ReasoningEventRepository"
-import { TimelineRepository } from "../src/lib/repositories/TimelineRepository"
-import { Classifier } from "../src/lib/services/Classifier"
-import { JanetService } from "../src/lib/services/JanetService"
+import { InMemoryStorage, Memory } from "../lib/storage/InMemoryStorage"
+import { MemoryRepository } from "../lib/repositories/MemoryRepository"
+import { ReasoningEventRepository } from "../lib/repositories/ReasoningEventRepository"
+import { TimelineRepository } from "../lib/repositories/TimelineRepository"
+import { Classifier } from "../lib/services/Classifier"
+import { JanetService } from "../lib/services/JanetService"
 
 // ═══════════════════════════════════════════════════════════════
 // InMemoryStorage Tests
@@ -90,7 +90,7 @@ describe("InMemoryStorage", () => {
 
       const user1Memories = storage.listMemories("user_1")
       expect(user1Memories).toHaveLength(2)
-      expect(user1Memories.every(m => m.userId === "user_1")).toBe(true)
+      expect(user1Memories.every((m: Memory) => m.userId === "user_1")).toBe(true)
     })
 
     it("should update a memory", () => {

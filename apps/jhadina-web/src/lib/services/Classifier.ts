@@ -10,7 +10,7 @@
  * Everything else is production-ready.
  */
 
-import { Classification, MemoryType } from "../storage/InMemoryStorage"
+import { Classification } from "../storage/InMemoryStorage"
 
 export class Classifier {
   /**

@@ -23,20 +23,34 @@ import { ReasoningEventRepository } from "../repositories/ReasoningEventReposito
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { InMemoryStorage } from "../storage/InMemoryStorage"
 
-// Global singleton (in production, this would be dependency injection)
-let storage: InMemoryStorage
-let janet: JanetService
+// Global singleton (in production, this would be dependency injection).
+// Anchored to globalThis rather than a plain module-level variable: Next.js
+// compiles each route handler file as its own module graph, so a `let`
+// here would give every route file (message/, candidates/, memories/, ...)
+// its own independent, empty copy of storage instead of one shared store.
+interface JhadinaGlobal {
+  __jhadinaStorage?: InMemoryStorage
+  __jhadinaJanet?: JanetService
+}
+const jhadinaGlobal = globalThis as unknown as JhadinaGlobal
+
+function getStorage(): InMemoryStorage {
+  if (!jhadinaGlobal.__jhadinaStorage) {
+    jhadinaGlobal.__jhadinaStorage = new InMemoryStorage()
+  }
+  return jhadinaGlobal.__jhadinaStorage
+}
 
 function getJanetService(): JanetService {
-  if (!storage) {
-    storage = new InMemoryStorage()
+  if (!jhadinaGlobal.__jhadinaJanet) {
+    const storage = getStorage()
     const memoryRepo = new MemoryRepository(storage)
     const reasoningRepo = new ReasoningEventRepository(storage)
     const timelineRepo = new TimelineRepository(storage)
     const classifier = new Classifier()
-    janet = new JanetService(classifier, memoryRepo, reasoningRepo, timelineRepo)
+    jhadinaGlobal.__jhadinaJanet = new JanetService(classifier, memoryRepo, reasoningRepo, timelineRepo)
   }
-  return janet
+  return jhadinaGlobal.__jhadinaJanet
 }
 
 function extractUserId(req: NextRequest): string | null {
@@ -186,10 +200,7 @@ export async function handleListCandidates(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const service = getJanetService()
-    const memoryRepo = new MemoryRepository(
-      storage || new InMemoryStorage()
-    )
+    const memoryRepo = new MemoryRepository(getStorage())
 
     const candidates = await memoryRepo.listPending(userId)
 
@@ -220,10 +231,7 @@ export async function handleListMemories(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const service = getJanetService()
-    const memoryRepo = new MemoryRepository(
-      storage || new InMemoryStorage()
-    )
+    const memoryRepo = new MemoryRepository(getStorage())
 
     const memories = await memoryRepo.listApproved(userId)
 
@@ -264,10 +272,7 @@ export async function handleSearchMemories(req: NextRequest) {
       )
     }
 
-    const service = getJanetService()
-    const memoryRepo = new MemoryRepository(
-      storage || new InMemoryStorage()
-    )
+    const memoryRepo = new MemoryRepository(getStorage())
 
     const results = await memoryRepo.search(userId, { query })
 
@@ -291,7 +296,7 @@ export async function handleSearchMemories(req: NextRequest) {
 // GET /api/health
 // ═══════════════════════════════════════════════════════════════
 
-export async function handleHealth(req: NextRequest) {
+export async function handleHealth(_req: NextRequest) {
   try {
     const service = getJanetService()
     const health = await service.health()

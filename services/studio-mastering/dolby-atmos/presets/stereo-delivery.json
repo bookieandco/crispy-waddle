@@ -1,0 +1,9 @@
+{
+  "id": "stereo-delivery",
+  "description": "High-quality stereo delivery conversion",
+  "input": "auto",
+  "output": "stereo",
+  "sampleRateHz": 48000,
+  "bitDepth": 24,
+  "preserveSource": true
+}

@@ -1,14 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-
-export const metadata: Metadata = {
-  title: "Jhadina",
-};
-
-export default function RootLayout({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
-}
+import { JhadinaShellNavigation } from "../components/JhadinaShellNavigation";
+import { UniversalJhadinaButton } from "../components/jhadina/UniversalJhadinaButton";
+export const metadata: Metadata = { title: "Jhadina" };
+export default function RootLayout({ children }: { children: ReactNode }) { return <html lang="en"><body style={{ margin: 0, paddingBottom: 76 }}>{children}<UniversalJhadinaButton /><JhadinaShellNavigation /></body></html>; }
