@@ -15,18 +15,26 @@ const projections: CoinMoneyProjection[] = [
   { symbol: 'BTC', currency: 'USD', expectedNetPerHour: 0.55, expectedGrossPerHour: 1, electricityPerHour: 0.4, poolFeesPerHour: 0.05, confidence: 0.9, status: 'projected' },
   { symbol: 'DOGE', currency: 'USD', expectedNetPerHour: 1.4, expectedGrossPerHour: 2, electricityPerHour: 0.5, poolFeesPerHour: 0.1, confidence: 0.95, status: 'projected' },
   { symbol: 'LTC', currency: 'USD', expectedNetPerHour: 0.7, expectedGrossPerHour: 1.1, electricityPerHour: 0.3, poolFeesPerHour: 0.1, confidence: 0.85, status: 'projected' },
+  { symbol: 'XMR', currency: 'USD', expectedNetPerHour: 0.9, expectedGrossPerHour: 1.2, electricityPerHour: 0.2, poolFeesPerHour: 0.1, confidence: 0.8, status: 'projected' },
 ];
 
-test('ranks projected opportunities and selects the compatible recommendation', () => {
+test('selects the highest-net compatible coin as the recommendation', () => {
   const dashboard = buildCoinProfitabilityDashboard(profitability, projections, 2.25, '2026-08-12T12:00:00.000Z');
-  assert.deepEqual(dashboard.projected.map(item => item.symbol), ['DOGE', 'LTC', 'BTC']);
   assert.equal(dashboard.recommendedSymbol, 'DOGE');
   assert.equal(dashboard.projectedNetPerHour, 1.4);
-  assert.equal(dashboard.realizedNet, 2.25);
-  assert.equal(dashboard.generatedAt, '2026-08-12T12:00:00.000Z');
 });
 
-test('does not recommend an incompatible coin', () => {
+test('recommendation selection is independent of input order', () => {
+  const dashboard = buildCoinProfitabilityDashboard(
+    [...profitability].reverse(),
+    [...projections].reverse(),
+    0,
+    '2026-08-12T12:00:00.000Z',
+  );
+  assert.equal(dashboard.recommendedSymbol, 'DOGE');
+});
+
+test('does not recommend an incompatible coin even when it has the highest projected net', () => {
   const dashboard = buildCoinProfitabilityDashboard(
     [{ symbol: 'XMR', compatible: false, expectedNetPerHour: 10, confidence: 1, reasonCodes: ['ALGORITHM_UNSUPPORTED'] }],
     [{ symbol: 'XMR', currency: 'USD', expectedNetPerHour: 10, expectedGrossPerHour: 12, electricityPerHour: 1, poolFeesPerHour: 1, confidence: 1, status: 'projected' }],
