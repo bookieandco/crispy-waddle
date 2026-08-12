@@ -61,6 +61,8 @@ export { projectMiningEconomics, isVerifiedMiningPayout } from './moneycore-brid
 export type { MiningMoneyProjection, MiningMoneyProjectionInput, RealizedMiningPayout } from './moneycore-bridge.ts';
 export { verifyMiningPayout } from './bitcoin-core.ts';
 export type { BitcoinCoreReadClient, BitcoinCoreTransaction, BitcoinCoreVout, VerifyMiningPayoutInput, VerifiedBitcoinPayout } from './bitcoin-core.ts';
+export { discoverBitcoinPayouts } from './bitcoin-payout-discovery.ts';
+export type { BitcoinCoreBlockTransaction, BitcoinCoreDiscoveryClient, BitcoinPayoutCheckpoint, DiscoveredBitcoinPayout, DiscoverBitcoinPayoutsInput, DiscoverBitcoinPayoutsResult } from './bitcoin-payout-discovery.ts';
 export { electricityExpenseUsd, isGovernedMiningFinancialEvent } from './financial-events.ts';
 export type { MiningFinancialEvent, MiningFinancialEventKind, MiningFinancialEventBase, MiningEconomicsProjectedEvent, ElectricityExpenseObservedEvent, MiningPayoutVerifiedEvent, MiningProfitabilitySnapshotEvent } from './financial-events.ts';
 export { buildMiningProfitabilityDashboard } from './profitability-dashboard.ts';
