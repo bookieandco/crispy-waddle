@@ -65,6 +65,8 @@ export { electricityExpenseUsd, isGovernedMiningFinancialEvent } from './financi
 export type { MiningFinancialEvent, MiningFinancialEventKind, MiningFinancialEventBase, MiningEconomicsProjectedEvent, ElectricityExpenseObservedEvent, MiningPayoutVerifiedEvent, MiningProfitabilitySnapshotEvent } from './financial-events.ts';
 export { buildMiningProfitabilityDashboard } from './profitability-dashboard.ts';
 export type { MiningProfitabilityDashboard } from './profitability-dashboard.ts';
+export { reconcileRealizedProfitability } from './realized-profitability.ts';
+export type { RealizedProfitability, RealizedProfitabilityInput } from './realized-profitability.ts';
 export type { MiningDecision, MiningDecisionInput, MiningDecisionRecord } from './economic-decision.ts';
 export { evaluateMiningOpportunity } from './economic-decision.ts';
 export type { MiningDecisionLedger } from './decision-ledger.ts';
