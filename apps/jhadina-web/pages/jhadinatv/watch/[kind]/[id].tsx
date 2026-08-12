@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Script from 'next/script';
 import { useRouter } from 'next/router';
 import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget, CastingManager } from '@jhadina/tv-core';
-import { CatalogRegistry, assertCastableSource, assertPlayableSource, createAuthorizedCatalogAdapter, createBrowserAirPlayController, createCastingManager, createPictureInPictureController } from '@jhadina/tv-core';
+import { CatalogRegistry, assertCastableSource, assertPlayableSource, createAuthorizedCatalogAdapter, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController } from '@jhadina/tv-core';
+import { createBrowserGoogleCastRuntime } from '../../../lib/jhadinatv/google-cast-runtime';
+import { createJhadinaTVReceiverTransport } from '../../../lib/jhadinatv/jhadina-tv-receiver';
 
 const titles: MediaTitle[] = [
   { id: 'demo-noir', kind: 'movie', title: 'Midnight Signal', overview: 'A detective follows a strange radio transmission through a city that never sleeps.', year: 2026, runtimeMinutes: 108, genres: ['Crime', 'Mystery', 'Drama'], rating: 8.2, availability: 'public-domain' },
@@ -11,7 +14,6 @@ const titles: MediaTitle[] = [
 ];
 const client = { async search(query: string) { return titles.filter((title) => title.id === query); }, async sources(_titleId: string): Promise<MediaSource[]> { return []; } };
 function makeRegistry() { const registry = new CatalogRegistry(); registry.register(createAuthorizedCatalogAdapter(client, { id: 'jhadina-demo', name: 'Jhadina Demo Catalog' })); return registry; }
-
 type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
 
 export default function JhadinaTVWatchPage() {
@@ -21,13 +23,25 @@ export default function JhadinaTVWatchPage() {
   const [casting, setCasting] = useState(false); const [target, setTarget] = useState<PlaybackTarget | null>(null); const [targets, setTargets] = useState<PlaybackTarget[]>([]); const [manager, setManager] = useState<CastingManager | null>(null); const [pipSupported, setPipSupported] = useState(false); const [pipActive, setPipActive] = useState(false);
   useEffect(() => { if (!router.isReady || !kind || !id) return; let active = true; registry.search({ query: id }).then(async (results) => { const match = results.find(({ title: candidate }) => candidate.id === id && candidate.kind === kind); if (!match) throw new Error('Title is not available from the configured catalog.'); const resolved = await registry.resolveSources(match.providerId, match.title.id); if (!active) return; setTitle(match.title); if (resolved[0]) setSource(assertPlayableSource(resolved[0].source)); }).catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Unable to load this title.')); return () => { active = false; }; }, [id, kind, registry, router.isReady]);
   useEffect(() => { const video = videoRef.current; if (!video) return; const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); setPipSupported(controller.isSupported()); const sync = () => setPipActive(controller.isActive()); video.addEventListener('enterpictureinpicture', sync); video.addEventListener('leavepictureinpicture', sync); return () => { video.removeEventListener('enterpictureinpicture', sync); video.removeEventListener('leavepictureinpicture', sync); }; }, [source]);
-  function makeCastingManager(): CastingManager | null { if (!source || !title || !videoRef.current) return null; assertCastableSource(source.url); const video = videoRef.current; const state = { titleId: title.id, kind: title.kind, sourceUrl: source.url, positionSeconds: video.currentTime, durationSeconds: Number.isFinite(video.duration) ? video.duration : undefined, playing: !video.paused }; return createCastingManager([createBrowserAirPlayController(video as AirPlayVideo, state)], state); }
+  function makeCastingManager(): CastingManager | null {
+    if (!source || !title || !videoRef.current) return null;
+    assertCastableSource(source.url);
+    const video = videoRef.current;
+    const state = { titleId: title.id, kind: title.kind, sourceUrl: source.url, positionSeconds: video.currentTime, durationSeconds: Number.isFinite(video.duration) ? video.duration : undefined, playing: !video.paused };
+    const controllers = [createBrowserAirPlayController(video as AirPlayVideo, state)];
+    if (typeof window !== 'undefined') {
+      const googleRuntime = createBrowserGoogleCastRuntime();
+      if (googleRuntime.isSupported()) controllers.push(createGoogleCastController(googleRuntime, state));
+      controllers.push(createJhadinaTVReceiverController(createJhadinaTVReceiverTransport(), state));
+    }
+    return createCastingManager(controllers, state);
+  }
   async function discoverTVs() { try { const next = makeCastingManager(); if (!next) return; setManager(next); setTargets(await next.discover()); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to discover TV devices.'); } }
   async function connectTV(nextTarget: PlaybackTarget) { try { const activeManager = manager ?? makeCastingManager(); if (!activeManager) return; setManager(activeManager); await activeManager.connect(nextTarget); setTarget(nextTarget); setCasting(true); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to connect to the selected TV.'); } }
   async function disconnectTV() { if (manager) await manager.disconnect(); setCasting(false); setTarget(null); }
   async function togglePiP() { const video = videoRef.current; if (!video) return; const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); try { await controller.toggle(); setPipActive(controller.isActive()); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Picture-in-Picture is unavailable.'); } }
   if (error) return <main style={{ padding: 32 }}><h1>Unable to play</h1><p>{error}</p></main>; if (!title) return <main style={{ padding: 32 }}><p>Loading JhadinaTV session…</p></main>;
-  return <main style={{ minHeight: '100vh', background: '#050608', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif', padding: 24 }}><div style={{ maxWidth: 1200, margin: '0 auto' }}>
+  return <><Script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" strategy="afterInteractive" /><main style={{ minHeight: '100vh', background: '#050608', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif', padding: 24 }}><div style={{ maxWidth: 1200, margin: '0 auto' }}>
     <button onClick={() => router.back()} style={{ background: 'transparent', border: 0, color: '#aaa', cursor: 'pointer', padding: 0, marginBottom: 18 }}>← Back</button>
     {source ? <video ref={videoRef} controls playsInline src={source.url} style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 20, background: '#0b0c10' }} /> : <div style={{ aspectRatio: '16 / 9', borderRadius: 20, border: '1px solid #272a33', background: 'radial-gradient(circle at 50% 35%, #252a36, #0b0c10 65%)', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}><div><div style={{ fontSize: 44 }}>▶</div><h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>The catalog entry exists, but the configured authorized provider has not returned a playable media source yet.</p></div></div>}
     <h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>{title.overview}</p><section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}>
@@ -37,6 +51,6 @@ export default function JhadinaTVWatchPage() {
     </section>
     {targets.length > 0 && !casting && <section style={{ marginTop: 16, padding: 18, borderRadius: 16, background: '#101218', border: '1px solid #272a33' }}><strong>Choose a TV</strong><div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>{targets.map((device) => <button key={`${device.transport}:${device.id}`} onClick={() => void connectTV(device)} style={{ border: '1px solid #353945', borderRadius: 12, padding: '10px 14px', background: '#181b23', color: '#fff', cursor: 'pointer' }}>📺 {device.name}<small style={{ display: 'block', color: '#8f94a1', marginTop: 3 }}>{device.transport}</small></button>)}</div></section>}
     {casting && target && <section style={{ marginTop: 16, padding: 18, borderRadius: 16, background: '#101218', border: '1px solid #272a33' }}><strong>Playing on {target.name}</strong><p style={{ color: '#9296a2', marginBottom: 0 }}>Your phone remains the controller. The session preserves the current position and play/pause state.</p></section>}
-    <section style={{ marginTop: 24 }}><h2>Playback & casting</h2><p style={{ color: '#9296a2', lineHeight: 1.6 }}>TV discovery and connection now run through the shared CastingManager. AirPlay is browser-backed here; Google Cast and the native JhadinaTV receiver use the same manager once their platform runtimes are supplied.</p></section>
-  </div></main>;
+    <section style={{ marginTop: 24 }}><h2>Playback & casting</h2><p style={{ color: '#9296a2', lineHeight: 1.6 }}>Google Cast uses the browser sender runtime when available. JhadinaTV receivers are discovered from the configured receiver endpoint and connected over WebSocket. AirPlay remains browser-backed.</p></section>
+  </div></main></>;
 }
