@@ -1,8 +1,10 @@
-import type { Track, PlaybackState } from "./types";
-import type { AudioOutputDevice, MusicAudioOutput } from "./audio-output";
+import type { Track } from "./types.js";
+import type { PlaybackState } from "./player.js";
+import type { AudioOutputDevice, MusicAudioOutput } from "./audio-output.js";
 
 export type MusicTrack = Track;
 
+/** Capability contract consumed by Jhadina without depending on the package barrel. */
 export interface MusicCore {
   search(query: string): Promise<MusicTrack[]>;
   play(track: MusicTrack): Promise<PlaybackState>;
