@@ -120,3 +120,5 @@ export type {
 export { CatalogRegistry } from './catalog';
 export type { ProviderFactoryConfig } from './providers';
 export { createCatalogProvider, registerCatalogProviders } from './providers';
+export type { AuthorizedCatalogClient, AuthorizedCatalogRecord } from './providers/authorized';
+export { createAuthorizedCatalogAdapter } from './providers/authorized';
