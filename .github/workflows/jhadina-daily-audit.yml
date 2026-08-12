@@ -80,13 +80,7 @@ jobs:
               if (program !== 'pnpm') status = 'FAILED';
             }
             const source = `${program}${program === 'pnpm' && args[0] === 'outdated' ? '-outdated' : ''}${program === 'pnpm' && args[0] === 'audit' ? '-audit' : ''}${program === 'gh' && args[0] === 'pr' ? '-pr-list' : ''}${program === 'gh' && args[0] === 'issue' ? '-issue-list' : ''}`;
-            evidence.push({
-              source,
-              command: [program, ...args].join(' '),
-              exitCode,
-              outputSha256: createHash('sha256').update(output).digest('hex'),
-              output
-            });
+            evidence.push({ source, command: [program, ...args].join(' '), exitCode, outputSha256: createHash('sha256').update(output).digest('hex'), output });
           }
 
           const base = {
@@ -115,9 +109,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           REPOSITORY: ${{ github.repository }}
-          RUN_KEY: daily:${{ github.run_started_at }}
         run: |
-          RUN_KEY="daily:$(date -u +%F)" node packages/jhadina-evolution-core/dist/daily-audit-persist.js \
+          RUN_KEY="daily:$(date -u +%F)"
+          SCHEDULED_FOR="$(date -u +%F)T06:00:00Z"
+          RUN_KEY="$RUN_KEY" SCHEDULED_FOR="$SCHEDULED_FOR" node packages/jhadina-evolution-core/dist/daily-audit-persist.js \
             ".jhadina/audits/daily-${{ github.run_id }}.json"
 
       - name: Upload reproducible audit record
