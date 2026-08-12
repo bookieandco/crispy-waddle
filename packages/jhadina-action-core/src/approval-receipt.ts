@@ -75,20 +75,42 @@ export class InMemoryApprovalReceiptStore implements ApprovalReceiptStore {
   }
 }
 
+export interface ApprovalRequestLike<TAction = unknown> {
+  id: string;
+  userId: string;
+  type: string;
+  action: TAction;
+  requestedAt: string;
+}
+
+export interface ApprovalReceiptVerifier<TAction = unknown> {
+  verifyAndConsume(receiptId: string, request: ApprovalRequestLike<TAction>): Promise<boolean>;
+}
+
+export function createApprovalReceiptVerifier<TAction = unknown>(
+  store: ApprovalReceiptStore,
+  fingerprint: (request: ApprovalRequestLike<TAction>) => string,
+): ApprovalReceiptVerifier<TAction> {
+  return {
+    verifyAndConsume(receiptId, request) {
+      return store.consume(receiptId, {
+        actionId: request.id,
+        userId: request.userId,
+        type: request.type,
+        fingerprint: fingerprint(request),
+      });
+    },
+  };
+}
+
 export interface ApprovalRequestService<TAction = unknown> {
-  requestApproval(request: {
-    id: string;
-    userId: string;
-    type: string;
-    action: TAction;
-    requestedAt: string;
-  }): Promise<ApprovalReceipt>;
+  requestApproval(request: ApprovalRequestLike<TAction>): Promise<ApprovalReceipt>;
   approve(receiptId: string, userId: string): Promise<ApprovalReceipt>;
 }
 
 export function createApprovalRequestService<TAction = unknown>(
   store: ApprovalReceiptStore,
-  fingerprint: (request: { id: string; userId: string; type: string; action: TAction }) => string,
+  fingerprint: (request: ApprovalRequestLike<TAction>) => string,
 ): ApprovalRequestService<TAction> {
   return {
     async requestApproval(request) {
