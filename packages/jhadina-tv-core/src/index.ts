@@ -118,3 +118,5 @@ export type {
   ResolvedMediaSource,
 } from './catalog';
 export { CatalogRegistry } from './catalog';
+export type { ProviderFactoryConfig } from './providers';
+export { createCatalogProvider, registerCatalogProviders } from './providers';
