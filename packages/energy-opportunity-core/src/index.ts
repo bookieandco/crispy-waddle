@@ -83,3 +83,5 @@ export type { MiningDecisionLedger } from './decision-ledger.ts';
 export { InMemoryMiningDecisionLedger } from './decision-ledger.ts';
 export { SupabaseMiningDecisionLedger } from './supabase-decision-ledger.ts';
 export type { SupabaseDecisionLedgerConfig } from './supabase-decision-ledger.ts';
+export { buildMiningCommandCenterCard } from './command-center.ts';
+export type { CommandCenterDecision, MiningCommandCenterCard } from './command-center.ts';
