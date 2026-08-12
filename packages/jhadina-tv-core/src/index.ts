@@ -100,3 +100,6 @@ export const JHADINA_TV_ROUTES = {
   search: '/jhadinatv/search',
   watch: (kind: MediaKind, id: string) => `/jhadinatv/watch/${kind}/${id}`,
 };
+
+export type { MediaSource, MediaSourceAdapter } from './source-adapter';
+export { assertPlayableSource } from './source-adapter';
