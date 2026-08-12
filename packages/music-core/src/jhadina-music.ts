@@ -1,8 +1,17 @@
 import type { Track, PlaybackState } from "./types";
-import type { MusicCore } from "./jhadina-music-intelligence";
 import type { AudioOutputDevice, MusicAudioOutput } from "./audio-output";
 
 export type MusicTrack = Track;
+
+export interface MusicCore {
+  search(query: string): Promise<MusicTrack[]>;
+  play(track: MusicTrack): Promise<PlaybackState>;
+  pause(): Promise<PlaybackState>;
+  resume(): Promise<PlaybackState>;
+  next(): Promise<PlaybackState>;
+  previous(): Promise<PlaybackState>;
+  getPlaybackState(): Promise<PlaybackState>;
+}
 
 export type MusicAction =
   | { type: "music.search"; query: string }
