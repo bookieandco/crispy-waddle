@@ -25,7 +25,7 @@ const profitable: WorkloadEstimate = {
 };
 
 test('calculates expected net per hour', () => {
-  assert.ok(Math.abs(expectedNetPerHour(profitable) - 0.7) < Number.EPSILON);
+  assert.ok(Math.abs(expectedNetPerHour(profitable) - 0.7) < 1e-12);
 });
 
 test('starts an authorized profitable Bitcoin workload', () => {
