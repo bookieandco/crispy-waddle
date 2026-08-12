@@ -95,12 +95,12 @@ export function executeMasteringPlan(
           gainDb,
           q,
         });
-        samples = result.samples;
+        samples = new Float32Array(result.samples);
         executedSteps.push(record(step, result));
       } else if (gainDb !== undefined) {
         if (Math.abs(gainDb) > request.policy.maxGainDb) throw new Error(`Gain exceeds policy maximum: ${gainDb} dB`);
         const result = applyGain(samples, gainDb);
-        samples = result.samples;
+        samples = new Float32Array(result.samples);
         executedSteps.push(record(step, result));
       }
     } else if (step.operation === "limiter") {
@@ -108,7 +108,7 @@ export function executeMasteringPlan(
       const currentPeak = dbfs(peak(samples));
       if (currentPeak > ceilingDbtp) {
         const result = applyGain(samples, ceilingDbtp - currentPeak);
-        samples = result.samples;
+        samples = new Float32Array(result.samples);
         executedSteps.push(record(step, result));
       } else {
         executedSteps.push({ ...record(step, { samples, peakBefore: peak(samples), peakAfter: peak(samples), gainReductionDb: 0 }), peakBefore: peak(samples), peakAfter: peak(samples) });
