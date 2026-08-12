@@ -1,55 +1,74 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
-import type { PlaybackTarget } from '@jhadina/tv-core';
+import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget } from '@jhadina/tv-core';
+import { CatalogRegistry, assertCastableSource, assertPlayableSource, buildTransferCommand, createAuthorizedCatalogAdapter } from '@jhadina/tv-core';
+
+const titles: MediaTitle[] = [
+  { id: 'demo-noir', kind: 'movie', title: 'Midnight Signal', overview: 'A detective follows a strange radio transmission through a city that never sleeps.', year: 2026, runtimeMinutes: 108, genres: ['Crime', 'Mystery', 'Drama'], rating: 8.2, availability: 'public-domain' },
+  { id: 'demo-comedy', kind: 'movie', title: 'Second Take', overview: 'Two friends turn a failed audition into an unexpectedly funny road trip.', year: 2025, runtimeMinutes: 96, genres: ['Comedy', 'Road', 'Drama'], rating: 7.8, availability: 'public-domain' },
+  { id: 'demo-series', kind: 'tv', title: 'After the Last Train', overview: 'A late-night station becomes the meeting point for four strangers with unfinished stories.', year: 2026, genres: ['Drama', 'Mystery'], rating: 8.6, availability: 'external-link' },
+  { id: 'demo-action', kind: 'movie', title: 'Breakline', overview: 'A courier has one night to cross the city and expose the people chasing him.', year: 2025, runtimeMinutes: 112, genres: ['Action', 'Thriller', 'Crime'], rating: 8.0, availability: 'licensed' },
+];
+
+const client = {
+  async search(query: string) { return titles.filter((title) => title.id === query); },
+  async sources(_titleId: string): Promise<MediaSource[]> { return []; },
+};
+
+function makeRegistry() {
+  const registry = new CatalogRegistry();
+  registry.register(createAuthorizedCatalogAdapter(client, { id: 'jhadina-demo', name: 'Jhadina Demo Catalog' }));
+  return registry;
+}
 
 export default function JhadinaTVWatchPage() {
   const router = useRouter();
-  const { kind, id } = router.query;
+  const registry = useMemo(makeRegistry, []);
+  const { kind, id } = router.query as { kind?: MediaKind; id?: string };
+  const [title, setTitle] = useState<MediaTitle | null>(null);
+  const [source, setSource] = useState<MediaSource | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [casting, setCasting] = useState(false);
   const [target, setTarget] = useState<PlaybackTarget | null>(null);
 
+  useEffect(() => {
+    if (!router.isReady || !kind || !id) return;
+    let active = true;
+    registry.search({ query: id }).then(async (results) => {
+      const match = results.find(({ title: candidate }) => candidate.id === id && candidate.kind === kind);
+      if (!match) throw new Error('Title is not available from the configured catalog.');
+      const resolved = await registry.resolveSources(match.providerId, match.title.id);
+      if (!active) return;
+      setTitle(match.title);
+      if (resolved[0]) setSource(assertPlayableSource(resolved[0].source));
+    }).catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Unable to load this title.'));
+    return () => { active = false; };
+  }, [id, kind, registry, router.isReady]);
+
   function watchOnTV() {
+    if (!source) return;
+    assertCastableSource(source.url);
+    const nextTarget: PlaybackTarget = { id: 'discovering', name: 'TV device', transport: 'jhadinatv-tv' };
+    const command = buildTransferCommand(nextTarget);
     setCasting(true);
-    setTarget({ id: 'discovering', name: 'TV device', transport: 'airplay' });
+    setTarget(nextTarget);
+    void command;
   }
+
+  if (error) return <main style={{ padding: 32 }}><h1>Unable to play</h1><p>{error}</p></main>;
+  if (!title) return <main style={{ padding: 32 }}><p>Loading JhadinaTV session…</p></main>;
 
   return (
     <main style={{ minHeight: '100vh', background: '#050608', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif', padding: 24 }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <button onClick={() => router.back()} style={{ background: 'transparent', border: 0, color: '#aaa', cursor: 'pointer', padding: 0, marginBottom: 18 }}>
-          ← Back
-        </button>
-        <div style={{ aspectRatio: '16 / 9', borderRadius: 20, border: '1px solid #272a33', background: 'radial-gradient(circle at 50% 35%, #252a36, #0b0c10 65%)', display: 'grid', placeItems: 'center' }}>
-          <div style={{ textAlign: 'center', maxWidth: 520, padding: 24 }}>
-            <div style={{ fontSize: 44, marginBottom: 12 }}>▶</div>
-            <h1 style={{ margin: 0, fontSize: 30 }}>JhadinaTV Player</h1>
-            <p style={{ color: '#9da0aa', lineHeight: 1.6 }}>
-              {kind && id ? `Ready for ${kind}/${id}.` : 'Select a title to begin.'} Source adapters are intentionally not connected until an owned, licensed or public-domain media source is configured.
-            </p>
-          </div>
-        </div>
-
-        <section style={{ marginTop: 24, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={watchOnTV}
-            style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: '#fff', color: '#08090b', fontWeight: 700, cursor: 'pointer' }}
-          >
-            📺 Watch on TV
-          </button>
-          {casting && (
-            <span style={{ color: '#b8bcc7' }}>
-              {target ? `TV session ready via ${target.transport}.` : 'Looking for a TV…'}
-            </span>
-          )}
+        <button onClick={() => router.back()} style={{ background: 'transparent', border: 0, color: '#aaa', cursor: 'pointer', padding: 0, marginBottom: 18 }}>← Back</button>
+        {source ? <video controls playsInline src={source.url} style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 20, background: '#0b0c10' }} /> : <div style={{ aspectRatio: '16 / 9', borderRadius: 20, border: '1px solid #272a33', background: 'radial-gradient(circle at 50% 35%, #252a36, #0b0c10 65%)', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}><div><div style={{ fontSize: 44 }}>▶</div><h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>The catalog entry exists, but the configured authorized provider has not returned a playable media source yet.</p></div></div>}
+        <h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>{title.overview}</p>
+        <section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}>
+          <button type="button" disabled={!source} onClick={watchOnTV} style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: source ? '#fff' : '#383b43', color: source ? '#08090b' : '#aaa', fontWeight: 700, cursor: source ? 'pointer' : 'not-allowed' }}>📺 Watch on TV</button>
+          {casting && target && <span style={{ color: '#b8bcc7' }}>TV session prepared via {target.transport}.</span>}
         </section>
-
-        <section style={{ marginTop: 24 }}>
-          <h2>Playback & casting contract</h2>
-          <p style={{ color: '#9296a2', lineHeight: 1.6 }}>
-            Playback uses the JhadinaTV media-source boundary. The same session can later be transferred to AirPlay, Google Cast, or a JhadinaTV TV session without changing the catalog or source adapter.
-          </p>
-        </section>
+        <section style={{ marginTop: 24 }}><h2>Playback & casting contract</h2><p style={{ color: '#9296a2', lineHeight: 1.6 }}>Playback only accepts HTTPS sources returned by the configured catalog provider. The same media session can be transferred to AirPlay, Google Cast, or a JhadinaTV TV target.</p></section>
       </div>
     </main>
   );
