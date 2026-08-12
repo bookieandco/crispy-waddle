@@ -3,17 +3,18 @@ name: Staffing Postgres Integration
 on:
   pull_request:
     paths:
-      - "packages/staffing-core/**"
+      - "packages/**"
       - ".github/workflows/staffing-postgres-integration.yml"
       - "package.json"
       - "pnpm-lock.yaml"
   push:
     branches: [feat/staffingos-standalone-boundary]
     paths:
-      - "packages/staffing-core/**"
+      - "packages/**"
       - ".github/workflows/staffing-postgres-integration.yml"
       - "package.json"
       - "pnpm-lock.yaml"
+  workflow_dispatch:
 
 jobs:
   postgres-integration:
@@ -54,9 +55,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-
-      - name: Install CI-only Postgres test dependencies
-        run: pnpm add -Dw pg @types/pg vitest --lockfile-only=false
 
       - name: Verify Postgres connectivity
         run: |
