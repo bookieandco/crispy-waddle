@@ -40,7 +40,7 @@ test('does not recommend an incompatible coin even when it has the highest proje
     [{ symbol: 'XMR', currency: 'USD', expectedNetPerHour: 10, expectedGrossPerHour: 12, electricityPerHour: 1, poolFeesPerHour: 1, confidence: 1, status: 'projected' }],
   );
   assert.equal(dashboard.recommendedSymbol, null);
-  assert.equal(dashboard.projectedNetPerHour, 10);
+  assert.equal(dashboard.projectedNetPerHour, 0);
 });
 
 test('keeps projected and realized values separate', () => {
