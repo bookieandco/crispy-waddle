@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { InMemoryMiningDecisionLedger } from '../src/decision-ledger';
-import { evaluateMiningOpportunity } from '../src/economic-decision';
+import { InMemoryMiningDecisionLedger } from '../src/decision-ledger.ts';
+import { evaluateMiningOpportunity } from '../src/economic-decision.ts';
 
 test('MiningDecisionLedger stores an advisory decision once and ignores duplicate decision ids', async () => {
   const ledger = new InMemoryMiningDecisionLedger();
