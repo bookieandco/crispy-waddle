@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget } from '@jhadina/tv-core';
-import { CatalogRegistry, assertCastableSource, assertPlayableSource, buildTransferCommand, createAuthorizedCatalogAdapter } from '@jhadina/tv-core';
+import { CatalogRegistry, assertCastableSource, assertPlayableSource, buildTransferCommand, createAuthorizedCatalogAdapter, createPictureInPictureController } from '@jhadina/tv-core';
 
 const titles: MediaTitle[] = [
   { id: 'demo-noir', kind: 'movie', title: 'Midnight Signal', overview: 'A detective follows a strange radio transmission through a city that never sleeps.', year: 2026, runtimeMinutes: 108, genres: ['Crime', 'Mystery', 'Drama'], rating: 8.2, availability: 'public-domain' },
@@ -9,78 +9,27 @@ const titles: MediaTitle[] = [
   { id: 'demo-series', kind: 'tv', title: 'After the Last Train', overview: 'A late-night station becomes the meeting point for four strangers with unfinished stories.', year: 2026, genres: ['Drama', 'Mystery'], rating: 8.6, availability: 'external-link' },
   { id: 'demo-action', kind: 'movie', title: 'Breakline', overview: 'A courier has one night to cross the city and expose the people chasing him.', year: 2025, runtimeMinutes: 112, genres: ['Action', 'Thriller', 'Crime'], rating: 8.0, availability: 'licensed' },
 ];
-
-const client = {
-  async search(query: string) { return titles.filter((title) => title.id === query); },
-  async sources(_titleId: string): Promise<MediaSource[]> { return []; },
-};
-
-function makeRegistry() {
-  const registry = new CatalogRegistry();
-  registry.register(createAuthorizedCatalogAdapter(client, { id: 'jhadina-demo', name: 'Jhadina Demo Catalog' }));
-  return registry;
-}
-
+const client = { async search(query: string) { return titles.filter((title) => title.id === query); }, async sources(_titleId: string): Promise<MediaSource[]> { return []; } };
+function makeRegistry() { const registry = new CatalogRegistry(); registry.register(createAuthorizedCatalogAdapter(client, { id: 'jhadina-demo', name: 'Jhadina Demo Catalog' })); return registry; }
 type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
 
 export default function JhadinaTVWatchPage() {
-  const router = useRouter();
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const registry = useMemo(makeRegistry, []);
+  const router = useRouter(); const videoRef = useRef<HTMLVideoElement | null>(null); const registry = useMemo(makeRegistry, []);
   const { kind, id } = router.query as { kind?: MediaKind; id?: string };
-  const [title, setTitle] = useState<MediaTitle | null>(null);
-  const [source, setSource] = useState<MediaSource | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [casting, setCasting] = useState(false);
-  const [target, setTarget] = useState<PlaybackTarget | null>(null);
-
-  useEffect(() => {
-    if (!router.isReady || !kind || !id) return;
-    let active = true;
-    registry.search({ query: id }).then(async (results) => {
-      const match = results.find(({ title: candidate }) => candidate.id === id && candidate.kind === kind);
-      if (!match) throw new Error('Title is not available from the configured catalog.');
-      const resolved = await registry.resolveSources(match.providerId, match.title.id);
-      if (!active) return;
-      setTitle(match.title);
-      if (resolved[0]) setSource(assertPlayableSource(resolved[0].source));
-    }).catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Unable to load this title.'));
-    return () => { active = false; };
-  }, [id, kind, registry, router.isReady]);
-
-  function watchOnTV() {
-    if (!source) return;
-    assertCastableSource(source.url);
-
-    const video = videoRef.current as AirPlayVideo | null;
-    if (!video?.webkitShowPlaybackTargetPicker) {
-      setError('TV casting is not available in this browser. On iPhone/iPad Safari, use AirPlay from the video player or Control Center.');
-      return;
-    }
-
-    const nextTarget: PlaybackTarget = { id: 'airplay', name: 'AirPlay TV', transport: 'airplay' };
-    const command = buildTransferCommand(nextTarget);
-    video.webkitShowPlaybackTargetPicker();
-    setCasting(true);
-    setTarget(nextTarget);
-    void command;
-  }
-
-  if (error) return <main style={{ padding: 32 }}><h1>Unable to play</h1><p>{error}</p></main>;
-  if (!title) return <main style={{ padding: 32 }}><p>Loading JhadinaTV session…</p></main>;
-
-  return (
-    <main style={{ minHeight: '100vh', background: '#050608', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif', padding: 24 }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <button onClick={() => router.back()} style={{ background: 'transparent', border: 0, color: '#aaa', cursor: 'pointer', padding: 0, marginBottom: 18 }}>← Back</button>
-        {source ? <video ref={videoRef} controls playsInline src={source.url} style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 20, background: '#0b0c10' }} /> : <div style={{ aspectRatio: '16 / 9', borderRadius: 20, border: '1px solid #272a33', background: 'radial-gradient(circle at 50% 35%, #252a36, #0b0c10 65%)', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}><div><div style={{ fontSize: 44 }}>▶</div><h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>The catalog entry exists, but the configured authorized provider has not returned a playable media source yet.</p></div></div>}
-        <h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>{title.overview}</p>
-        <section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}>
-          <button type="button" disabled={!source} onClick={watchOnTV} style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: source ? '#fff' : '#383b43', color: source ? '#08090b' : '#aaa', fontWeight: 700, cursor: source ? 'pointer' : 'not-allowed' }}>📺 Watch on TV</button>
-          {casting && target && <span style={{ color: '#b8bcc7' }}>TV picker opened for {target.name}.</span>}
-        </section>
-        <section style={{ marginTop: 24 }}><h2>Playback & casting contract</h2><p style={{ color: '#9296a2', lineHeight: 1.6 }}>Playback only accepts HTTPS sources returned by the configured catalog provider. AirPlay is now connected to the JhadinaTV transfer boundary; Google Cast and JhadinaTV receiver sessions remain separate adapters.</p></section>
-      </div>
-    </main>
-  );
+  const [title, setTitle] = useState<MediaTitle | null>(null); const [source, setSource] = useState<MediaSource | null>(null); const [error, setError] = useState<string | null>(null);
+  const [casting, setCasting] = useState(false); const [target, setTarget] = useState<PlaybackTarget | null>(null); const [pipSupported, setPipSupported] = useState(false); const [pipActive, setPipActive] = useState(false);
+  useEffect(() => { if (!router.isReady || !kind || !id) return; let active = true; registry.search({ query: id }).then(async (results) => { const match = results.find(({ title: candidate }) => candidate.id === id && candidate.kind === kind); if (!match) throw new Error('Title is not available from the configured catalog.'); const resolved = await registry.resolveSources(match.providerId, match.title.id); if (!active) return; setTitle(match.title); if (resolved[0]) setSource(assertPlayableSource(resolved[0].source)); }).catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Unable to load this title.')); return () => { active = false; }; }, [id, kind, registry, router.isReady]);
+  useEffect(() => { const video = videoRef.current; if (!video) return; const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); setPipSupported(controller.isSupported()); const sync = () => setPipActive(controller.isActive()); video.addEventListener('enterpictureinpicture', sync); video.addEventListener('leavepictureinpicture', sync); return () => { video.removeEventListener('enterpictureinpicture', sync); video.removeEventListener('leavepictureinpicture', sync); }; }, [source]);
+  async function togglePiP() { const video = videoRef.current; if (!video) return; const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); try { await controller.toggle(); setPipActive(controller.isActive()); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Picture-in-Picture is unavailable.'); } }
+  function watchOnTV() { if (!source) return; assertCastableSource(source.url); const video = videoRef.current as AirPlayVideo | null; if (!video?.webkitShowPlaybackTargetPicker) { setError('TV casting is not available in this browser. On iPhone/iPad Safari, use AirPlay from the video player or Control Center.'); return; } const nextTarget: PlaybackTarget = { id: 'airplay', name: 'AirPlay TV', transport: 'airplay' }; const command = buildTransferCommand(nextTarget); video.webkitShowPlaybackTargetPicker(); setCasting(true); setTarget(nextTarget); void command; }
+  if (error) return <main style={{ padding: 32 }}><h1>Unable to play</h1><p>{error}</p></main>; if (!title) return <main style={{ padding: 32 }}><p>Loading JhadinaTV session…</p></main>;
+  return <main style={{ minHeight: '100vh', background: '#050608', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif', padding: 24 }}><div style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <button onClick={() => router.back()} style={{ background: 'transparent', border: 0, color: '#aaa', cursor: 'pointer', padding: 0, marginBottom: 18 }}>← Back</button>
+    {source ? <video ref={videoRef} controls playsInline src={source.url} style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 20, background: '#0b0c10' }} /> : <div style={{ aspectRatio: '16 / 9', borderRadius: 20, border: '1px solid #272a33', background: 'radial-gradient(circle at 50% 35%, #252a36, #0b0c10 65%)', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}><div><div style={{ fontSize: 44 }}>▶</div><h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>The catalog entry exists, but the configured authorized provider has not returned a playable media source yet.</p></div></div>}
+    <h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>{title.overview}</p><section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}>
+      <button type="button" disabled={!source} onClick={watchOnTV} style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: source ? '#fff' : '#383b43', color: source ? '#08090b' : '#aaa', fontWeight: 700, cursor: source ? 'pointer' : 'not-allowed' }}>📺 Watch on TV</button>
+      {pipSupported && <button type="button" disabled={!source} onClick={() => void togglePiP()} style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: pipActive ? '#8b5cf6' : '#242730', color: '#fff', fontWeight: 700, cursor: source ? 'pointer' : 'not-allowed' }}>{pipActive ? '↙ Exit PiP' : '▣ Picture in Picture'}</button>}
+      {casting && target && <span style={{ color: '#b8bcc7' }}>TV picker opened for {target.name}.</span>}
+    </section><section style={{ marginTop: 24 }}><h2>Playback & casting contract</h2><p style={{ color: '#9296a2', lineHeight: 1.6 }}>One media session can remain local, enter Picture-in-Picture, or transfer to AirPlay, Google Cast, or a JhadinaTV TV target.</p></section>
+  </div></main>;
 }
