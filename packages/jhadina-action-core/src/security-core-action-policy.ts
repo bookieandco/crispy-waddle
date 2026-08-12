@@ -1,16 +1,14 @@
-import type { ActionPolicy, ActionRequest } from './action-executor.js';
+import type { ActionPolicy, ActionRequest, ActionPolicyDecision } from './action-executor.js';
 import { createSecurityRequest, JhadinaSecurityCore, type SecurityPolicy } from '../../security-core/src/index.js';
 
-/** Adapts the deterministic Security Core into the Action Executor policy contract.
- * Approval-required decisions remain blocked until the approval-receipt layer is wired in.
- */
+/** Adapts deterministic Security Core decisions without collapsing approval_required into deny. */
 export class SecurityCoreActionPolicy<TAction = unknown> implements ActionPolicy<TAction> {
   constructor(
     private readonly security: JhadinaSecurityCore,
     private readonly domain = 'jhadina-action',
   ) {}
 
-  async evaluate(request: ActionRequest<TAction>): Promise<'allow' | 'deny'> {
+  async evaluate(request: ActionRequest<TAction>): Promise<ActionPolicyDecision> {
     const securityRequest = createSecurityRequest({
       requestId: request.id,
       actorId: request.userId,
@@ -18,8 +16,7 @@ export class SecurityCoreActionPolicy<TAction = unknown> implements ActionPolicy
       capability: request.type,
     });
 
-    const decision = this.security.authorize(securityRequest);
-    return decision === 'allow' ? 'allow' : 'deny';
+    return this.security.authorize(securityRequest);
   }
 }
 
