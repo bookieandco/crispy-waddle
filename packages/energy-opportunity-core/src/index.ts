@@ -77,3 +77,5 @@ export { SupabaseMiningDecisionReader } from './supabase-decision-reader.ts';
 export type { SupabaseDecisionReaderConfig, MiningDecisionReader } from './supabase-decision-reader.ts';
 export { DEFAULT_MINING_COINS, discoverMiningOpportunities } from './coin-registry.ts';
 export type { MiningAlgorithm, MiningCoin, MiningHardwareProfile, MiningOpportunity } from './coin-registry.ts';
+export { rankMiningProfitability } from './coin-profitability.ts';
+export type { CoinProfitability, CoinProfitabilityInput } from './coin-profitability.ts';
