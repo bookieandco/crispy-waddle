@@ -1,4 +1,4 @@
-import type { Pool, PoolClient, QueryResultRow } from "pg";
+import type { PoolClient, QueryResultRow } from "pg";
 import type { SqlExecutor } from "./postgres-adapters.js";
 
 export interface PgPoolLike {
