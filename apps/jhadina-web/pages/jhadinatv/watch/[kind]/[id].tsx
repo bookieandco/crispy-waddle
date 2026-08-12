@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget } from '@jhadina/tv-core';
 import { CatalogRegistry, assertCastableSource, assertPlayableSource, buildTransferCommand, createAuthorizedCatalogAdapter } from '@jhadina/tv-core';
@@ -21,8 +21,11 @@ function makeRegistry() {
   return registry;
 }
 
+type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
+
 export default function JhadinaTVWatchPage() {
   const router = useRouter();
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const registry = useMemo(makeRegistry, []);
   const { kind, id } = router.query as { kind?: MediaKind; id?: string };
   const [title, setTitle] = useState<MediaTitle | null>(null);
@@ -48,8 +51,16 @@ export default function JhadinaTVWatchPage() {
   function watchOnTV() {
     if (!source) return;
     assertCastableSource(source.url);
-    const nextTarget: PlaybackTarget = { id: 'discovering', name: 'TV device', transport: 'jhadinatv-tv' };
+
+    const video = videoRef.current as AirPlayVideo | null;
+    if (!video?.webkitShowPlaybackTargetPicker) {
+      setError('TV casting is not available in this browser. On iPhone/iPad Safari, use AirPlay from the video player or Control Center.');
+      return;
+    }
+
+    const nextTarget: PlaybackTarget = { id: 'airplay', name: 'AirPlay TV', transport: 'airplay' };
     const command = buildTransferCommand(nextTarget);
+    video.webkitShowPlaybackTargetPicker();
     setCasting(true);
     setTarget(nextTarget);
     void command;
@@ -62,13 +73,13 @@ export default function JhadinaTVWatchPage() {
     <main style={{ minHeight: '100vh', background: '#050608', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif', padding: 24 }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <button onClick={() => router.back()} style={{ background: 'transparent', border: 0, color: '#aaa', cursor: 'pointer', padding: 0, marginBottom: 18 }}>← Back</button>
-        {source ? <video controls playsInline src={source.url} style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 20, background: '#0b0c10' }} /> : <div style={{ aspectRatio: '16 / 9', borderRadius: 20, border: '1px solid #272a33', background: 'radial-gradient(circle at 50% 35%, #252a36, #0b0c10 65%)', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}><div><div style={{ fontSize: 44 }}>▶</div><h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>The catalog entry exists, but the configured authorized provider has not returned a playable media source yet.</p></div></div>}
+        {source ? <video ref={videoRef} controls playsInline src={source.url} style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 20, background: '#0b0c10' }} /> : <div style={{ aspectRatio: '16 / 9', borderRadius: 20, border: '1px solid #272a33', background: 'radial-gradient(circle at 50% 35%, #252a36, #0b0c10 65%)', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}><div><div style={{ fontSize: 44 }}>▶</div><h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>The catalog entry exists, but the configured authorized provider has not returned a playable media source yet.</p></div></div>}
         <h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>{title.overview}</p>
         <section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}>
           <button type="button" disabled={!source} onClick={watchOnTV} style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: source ? '#fff' : '#383b43', color: source ? '#08090b' : '#aaa', fontWeight: 700, cursor: source ? 'pointer' : 'not-allowed' }}>📺 Watch on TV</button>
-          {casting && target && <span style={{ color: '#b8bcc7' }}>TV session prepared via {target.transport}.</span>}
+          {casting && target && <span style={{ color: '#b8bcc7' }}>TV picker opened for {target.name}.</span>}
         </section>
-        <section style={{ marginTop: 24 }}><h2>Playback & casting contract</h2><p style={{ color: '#9296a2', lineHeight: 1.6 }}>Playback only accepts HTTPS sources returned by the configured catalog provider. The same media session can be transferred to AirPlay, Google Cast, or a JhadinaTV TV target.</p></section>
+        <section style={{ marginTop: 24 }}><h2>Playback & casting contract</h2><p style={{ color: '#9296a2', lineHeight: 1.6 }}>Playback only accepts HTTPS sources returned by the configured catalog provider. AirPlay is now connected to the JhadinaTV transfer boundary; Google Cast and JhadinaTV receiver sessions remain separate adapters.</p></section>
       </div>
     </main>
   );
