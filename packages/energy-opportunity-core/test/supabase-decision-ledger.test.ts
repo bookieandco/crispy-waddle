@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { SupabaseMiningDecisionLedger } from '../src/supabase-decision-ledger';
-import type { MiningDecisionRecord } from '../src/economic-decision';
+import { SupabaseMiningDecisionLedger } from '../src/supabase-decision-ledger.ts';
+import type { MiningDecisionRecord } from '../src/economic-decision.ts';
 
 const record: MiningDecisionRecord = {
   decisionId: 'mining-decision:bitaxe-001:2026-08-11T23:00:00.000Z',
