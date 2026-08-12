@@ -30,21 +30,37 @@ export interface UnifiedMediaSessionConfig {
 export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): UnifiedMediaSession {
   let state = config.local.getState();
   const listeners = new Set<(next: MediaSessionState) => void>();
-  let unsubscribeLocal = config.local.onStateChange?.((next) => {
-    state = { ...state, ...next, titleId: config.titleId, kind: config.kind, sourceUrl: config.sourceUrl };
+  let stopRemoteSync: (() => void) | null = null;
+  let activeRemote = false;
+
+  const publish = (next: MediaSessionState) => {
+    state = next;
     listeners.forEach((listener) => listener(state));
+  };
+
+  config.local.onStateChange?.((next) => {
+    if (activeRemote) return;
+    publish({ ...state, ...next, titleId: config.titleId, kind: config.kind, sourceUrl: config.sourceUrl, target: { id: 'local', name: 'This device', transport: 'local' } });
   });
 
-  const publish = (next: MediaSessionState) => { state = next; listeners.forEach((listener) => listener(state)); };
   const localCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
+    activeRemote = false;
     await config.local.apply(command);
     const localState = config.local.getState();
     publish({ ...state, ...localState, target: { id: 'local', name: 'This device', transport: 'local' } });
   };
 
+  const startRemoteSync = () => {
+    stopRemoteSync?.();
+    stopRemoteSync = config.casting.subscribeState((remote) => {
+      activeRemote = true;
+      publish({ ...state, ...remote, titleId: config.titleId, kind: config.kind, sourceUrl: config.sourceUrl });
+    });
+  };
+
   return {
     getState: () => state,
-    subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    subscribe(listener) { listeners.add(listener); listener(state); return () => listeners.delete(listener); },
     play: () => localCommand({ type: 'play' }),
     pause: () => localCommand({ type: 'pause' }),
     seek: (positionSeconds) => localCommand({ type: 'seek', value: positionSeconds }),
@@ -54,11 +70,15 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
       const current = config.local.getState();
       await config.casting.connect(target);
       await config.casting.send({ type: 'transfer', target });
+      activeRemote = true;
       publish({ ...state, ...current, target });
+      startRemoteSync();
     },
     async disconnect() {
+      stopRemoteSync?.(); stopRemoteSync = null;
       const remote = await config.casting.getState();
       await config.casting.disconnect();
+      activeRemote = false;
       publish({ ...state, ...(remote ?? {}), target: { id: 'local', name: 'This device', transport: 'local' } });
     },
   };
