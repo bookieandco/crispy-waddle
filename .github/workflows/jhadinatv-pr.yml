@@ -1,0 +1,31 @@
+name: JhadinaTV PR
+
+on:
+  pull_request:
+    paths:
+      - 'apps/jhadina-web/**'
+      - 'packages/jhadina-tv-core/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - '.github/workflows/jhadinatv-pr.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  jhadinatv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run type-check build test --filter=@jhadina/tv-core --filter=jhadina-web
