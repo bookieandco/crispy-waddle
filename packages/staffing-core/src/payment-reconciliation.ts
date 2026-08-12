@@ -16,7 +16,7 @@ export interface PaymentReconciliationStore {
 export interface PaymentTransaction { run<T>(work:(store:PaymentReconciliationStore)=>Promise<T>):Promise<T>; }
 
 export class PaymentReconciliationService {
-  constructor(private readonly store:PaymentReconciliationStore,private readonly ids:{next(prefix:string):string},private readonly transaction?:PaymentTransaction){}
+  constructor(private readonly store:PaymentReconciliationStore,private readonly transaction?:PaymentTransaction){}
 
   async reconcile(payment:PaymentReceipt):Promise<PaymentReconciliationResult>{
     if(payment.amount<=0) throw new Error("Payment amount must be positive");
@@ -25,7 +25,6 @@ export class PaymentReconciliationService {
       if(existing) return existing;
       const invoice=await store.lockInvoice(payment.invoiceId,payment.organizationId);
       if(!invoice) throw new Error("Invoice not found");
-      // The external-id check races with another delivery, so check again after acquiring the invoice lock.
       const existingAfterLock=await store.findByExternalId(payment);
       if(existingAfterLock) return existingAfterLock;
       const invoiceTotal=Number(invoice.total);
