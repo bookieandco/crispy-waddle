@@ -111,3 +111,10 @@ export type {
   PlaybackTransport,
 } from './casting';
 export { assertCastableSource, buildTransferCommand } from './casting';
+export type {
+  CatalogProvider,
+  CatalogSearchOptions,
+  CatalogSearchResult,
+  ResolvedMediaSource,
+} from './catalog';
+export { CatalogRegistry } from './catalog';
