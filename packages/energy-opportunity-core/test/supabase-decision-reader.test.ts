@@ -19,7 +19,10 @@ const records: MiningDecisionRecord[] = [
 ];
 
 function response(body: unknown, ok = true): Response {
-  return new Response(JSON.stringify(body), { ok, status: ok ? 200 : 503, statusText: ok ? 'OK' : 'Unavailable' });
+  return new Response(JSON.stringify(body), {
+    status: ok ? 200 : 503,
+    statusText: ok ? 'OK' : 'Unavailable',
+  });
 }
 
 test('reader returns latest decision and performs GET only', async () => {
