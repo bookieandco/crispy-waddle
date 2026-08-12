@@ -71,6 +71,8 @@ export { reconcileRealizedProfitability } from './realized-profitability.ts';
 export type { RealizedProfitability, RealizedProfitabilityInput } from './realized-profitability.ts';
 export { buildProfitabilitySnapshotEvent, appendProfitabilitySnapshot, InMemoryProfitabilitySnapshotLedger } from './profitability-snapshot.ts';
 export type { ProfitabilitySnapshotInput, ProfitabilitySnapshotLedger } from './profitability-snapshot.ts';
+export { ingestAndReconcileMiningPayout } from './mining-profitability-pipeline.ts';
+export type { MiningProfitabilityPipelineInput, MiningProfitabilityPipelineResult } from './mining-profitability-pipeline.ts';
 export type { MiningDecision, MiningDecisionInput, MiningDecisionRecord } from './economic-decision.ts';
 export { evaluateMiningOpportunity } from './economic-decision.ts';
 export type { MiningDecisionLedger } from './decision-ledger.ts';
