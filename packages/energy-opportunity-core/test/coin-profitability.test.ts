@@ -18,7 +18,8 @@ test('ranks opportunities by expected net per hour', () => {
     { opportunity: opportunity('XMR'), grossRevenuePerHour: 0.5, electricityCostPerHour: 0.1, poolFeesPerHour: 0.02, confidence: 0.8 },
   ]);
   assert.deepEqual(ranked.map(item => item.symbol), ['DOGE', 'BTC', 'XMR']);
-  assert.deepEqual(ranked.map(item => item.expectedNetPerHour), [1.4, 0.55, 0.38]);
+  const expected = [1.4, 0.55, 0.38];
+  ranked.forEach((item, index) => assert.ok(Math.abs(item.expectedNetPerHour - expected[index]) < 1e-12));
 });
 
 test('preserves incompatibility reasons and never makes an unsupported coin executable', () => {
@@ -34,5 +35,5 @@ test('includes electricity and pool fees in net economics', () => {
   const [result] = rankMiningProfitability([
     { opportunity: opportunity('LTC'), grossRevenuePerHour: 1, electricityCostPerHour: 0.25, poolFeesPerHour: 0.15, confidence: 0.9 },
   ]);
-  assert.equal(result.expectedNetPerHour, 0.6);
+  assert.ok(Math.abs(result.expectedNetPerHour - 0.6) < 1e-12);
 });
