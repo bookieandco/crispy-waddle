@@ -1,5 +1,8 @@
-import type { MusicCore, MusicTrack, PlaybackState } from "./index";
+import type { Track, PlaybackState } from "./types";
+import type { MusicCore } from "./jhadina-music-intelligence";
 import type { AudioOutputDevice, MusicAudioOutput } from "./audio-output";
+
+export type MusicTrack = Track;
 
 export type MusicAction =
   | { type: "music.search"; query: string }
@@ -19,10 +22,6 @@ export type MusicActionResult = {
   output?: AudioOutputDevice;
 };
 
-/**
- * Narrow capability boundary between Jhadina reasoning and Music Core.
- * Native iOS owns Bluetooth/AirPlay permissions and pairing.
- */
 export class JhadinaMusicCapability {
   constructor(
     private readonly music: MusicCore,
