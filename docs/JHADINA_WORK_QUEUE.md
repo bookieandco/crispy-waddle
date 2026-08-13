@@ -1050,72 +1050,114 @@ GitHub. #10/#11/#12's real content is filed below rather than lost.
 
 ### JH-037
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/pupsonstuff-engine-v5` (PR #10, closed) — real diff is
-vs its true fork point in #14's trunk (`dccfd74`), not GitHub's
-reported base
+**Status:** REJECTED (not landing)
+**Branch:** `feat/pupsonstuff-engine-v5` (PR #10, closed without
+merging; history preserved)
 **Objective:** Reusable deterministic interaction contract
 (`lib/interactive-experience.ts`) plus an `InteractiveExperienceLayer`
 component — product focus/orbit/AR-style interaction, ambient
 feedback, mobile HUD.
 **Dependencies:** JH-001, JH-017
-**Flag:** Not purely additive — substantially rewrites the already-landed
-`ProductModal.tsx` (492 lines removed) rather than adding alongside it.
-Needs a real diff review against the JH-017 baseline, not a blind
-git merge, to confirm what ProductModal behavior survives.
-**Next Step:** Not yet audited.
+**Audit (2026-08-13):** The true merge-base with current `main`
+(`d1e9024`) predates `main`'s `ProductModal.tsx` entirely — main's
+current version (523 lines: real 3D view switching, `/api/generate-
+preview` + `/api/animate-preview` integration, retry/error states,
+variant/quantity selection, approve workflow — all functioning, all
+already shipped) doesn't exist yet at that fork point. This branch's
+own `ProductModal.tsx` is a 143-line stub from *before* all of that
+was built, not an evolution of it. Applying it would delete the AI
+generation/3D/animation integration users already have — a regression,
+not a feature. `InteractiveExperienceLayer.tsx` (109 lines) is a
+self-contained alternate mobile UI mockup, not wired to
+`ProductModal.tsx` or anything else — its "Preview" button has no
+click handler, its style-swatch buttons only set local state. Not
+consuming any existing governed capability, just a disconnected,
+non-functional shell from an earlier iteration.
+**Next Step:** None. `lib/interactive-experience.ts` (a small, pure
+interaction-profile config contract) is technically safe in isolation,
+but nothing consumes it — landing an unconsumed utility module isn't
+worth the queue overhead. If a real need for tunable 3D-interaction
+profiles on top of the already-shipped `Product3DEngine` shows up
+later, revisit then rather than landing speculative infrastructure now.
 
 ### JH-038
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/pupsonstuff-mobile-stage` (PR #11, closed) — real diff
-vs its true fork point in #14's trunk (`8a907d7`)
+**Status:** SPLIT — component rewrite REJECTED, checkout route BLOCKED
+**Branch:** `feat/pupsonstuff-mobile-stage` (PR #11, closed without
+merging; history preserved)
 **Objective:** Mobile product studio — tap-to-open spring-animated
 foreground product view, pet-photo upload + AI preview generation via
 the existing `/api/generate-preview`, Product/Artwork view switching.
 Also adds `app/api/checkout/route.ts` — a live Stripe Checkout Session
 (real payment collection, customer-initiated).
 **Dependencies:** JH-001, JH-017
-**Flag:** Same "rewrites rather than extends" shape as JH-037 —
-`Product3DEngine.tsx` (246 lines removed), `Boutique.tsx`, and
-`generate-preview/route.ts` are substantially reworked, not just added
-to. The checkout route introduces a new real-money surface (Stripe
-secret key handling, live Checkout Sessions) — per the policy/security
-scrutiny already established for JH-028/033/034, this needs explicit
-confirmation of how it's gated and audited before merging, even though
-it's customer-initiated (not autonomous fund movement) rather than a
-DO_NOT_BUILD hard-no.
-**Next Step:** Not yet audited — security/policy review for the
-checkout route specifically, functional review for the rest.
+**Audit (2026-08-13):** Same true merge-base as JH-037 (`d1e9024`,
+pre-dates main's current pupsonstuff app). `Product3DEngine.tsx`
+(main: 213 lines / branch: 99), `Boutique.tsx` (179 / 116), and
+`generate-preview/route.ts` (163 / 59) are all earlier, smaller
+versions than what's already shipped on `main` — applying them would
+regress already-working functionality, same as JH-037. **Rejected.**
+`app/api/checkout/route.ts` is genuinely new (doesn't exist on `main`
+in any form) and is a real, live Stripe Checkout Session: reads
+pricing from the server-side `hotspots` data (not client-supplied —
+good), clamps quantity 1-20, fails closed with a 503 if
+`STRIPE_SECRET_KEY` isn't set, never auto-charges (customer-initiated,
+one Checkout Session per request). But `packages/payment-core` and
+`packages/checkout-orchestrator` already define a provider-agnostic
+`PaymentProvider`/`CheckoutSession` contract for exactly this — and
+neither has any concrete implementation anywhere in the repo (`grep
+"new Stripe("` across the entire codebase matches nothing but this
+branch). This would be the first concrete payment-provider
+implementation in the repo, built as a raw, app-local Stripe call
+instead of a `PaymentProvider` implementation behind `payment-core` —
+the same "second/first implementation bypassing the governed contract"
+shape as JH-028's Plaid finding.
+**Next Step:** Human call needed on the same axis as JH-028/033: does
+PupsonStuff's checkout wrap `payment-core`'s `PaymentProvider`
+interface (making it the reference implementation other verticals
+route through), or is a simpler app-local integration acceptable given
+payment-core has no consumers yet either? Not decided here — do not
+land the raw Stripe route until that's settled.
 
 ### JH-039
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/pupsonstuff-pod-core` (PR #12, closed) — stacks on
-#11's head (`235e840`); depends on JH-038's resolution first
+**Status:** SPLIT — quality-gate/workflow slice landed (PR #60);
+Printify duplication + fulfillment-spend path BLOCKED
+**Branch:** `jh039-pod-quality-workflow` (PR #60) — reconciled from
+`feat/pupsonstuff-pod-core` (PR #12, closed without merging)
 **Objective:** Print-on-demand core — product-specific print profiles,
 deterministic image quality scoring, a server-side quality-check
 endpoint, and a Printify provider boundary (`lib/pod/*`: catalog sync,
 AI job/worker, quality gate, Supabase-backed job workflow, webhooks).
 **Dependencies:** JH-001, JH-017, JH-038
-**Human gate:** `lib/pod/{printify,printify-client,printify-fulfillment}.ts`
-duplicates the Printify integration already landed via JH-017
-(`apps/pupsonstuff/lib/printify.ts`, the full spec-derived client from
-#14's Milestone 8). #12's version is a thinner business-logic wrapper
-(`PrintifyProvider.assertProductionReady`/`assertFulfillmentGate` —
-requires customer approval + quality score ≥ 90 before allowing
-fulfillment — plus its own raw `PrintifyClient.createOrder` fetch
-call, separate from #14's client). These need explicit reconciliation
-— most likely #12's quality/approval-gate logic calling into #14's
-already-landed client instead of its own duplicate — not an automatic
-merge of both. This also submits real production/fulfillment orders
-(spends money against Printify), so it gets the same policy/security
-scrutiny as JH-028/033/034/038 before merging, on top of the
-duplication question.
-**Next Step:** Not yet audited. Resolve the Printify-client duplication
-explicitly (compare both, decide which is canonical) before any other
-work on this task; security/policy review for the fulfillment/spend
-path.
+**Audit (2026-08-13):** Read all 19 `lib/pod/*` files. Landed the pure,
+dependency-free slice as PR #60: `workflow.ts` (job-stage state
+machine — `customer_approval` always precedes `provider_upload`/
+`order_created`, no path reaches Printify submission without it),
+`quality-gate.ts` (deterministic image scoring), `image-qa.ts` (pure
+`evaluateArtwork` only — dropped its Supabase-writing counterpart,
+see below), `events.ts`/`automation.ts` (pure typing/dispatch
+shaping). 11 new tests; pupsonstuff had no test script at all before
+this, added one.
+
+Confirmed and left blocked: `lib/pod/{printify,printify-client,
+printify-fulfillment}.ts` duplicates the Printify integration already
+landed via JH-017 (`apps/pupsonstuff/lib/printify.ts`, 637 lines,
+`submitOrder`/`sendOrderToProduction` already implemented,
+`PRINTIFY_API_KEY` server-side only). `lib/pod/printify-client.ts` is
+a second, raw fetch-based order client with its own hand-rolled auth
+header — the "second implementation" pattern, not a git-mechanical
+merge question. The valuable new logic (`assertProductionReady`/
+`assertFulfillmentGate` — customer approval + quality score ≥ 90
+required) should call JH-017's existing client, not its own duplicate.
+Also: `pupson_pod_jobs`/`pupson_creation_assets` (referenced by
+`ai-job.ts`/`ai-worker.ts`/`supabase-operations.ts`/the webhook route)
+have no migration anywhere in this repo — those files weren't audited
+this pass and can't be verified end-to-end without that schema either.
+**Next Step:** Human call needed on the Printify-client reconciliation
+(same shape as JH-028/JH-038's payment-provider question) and the
+missing schema, before any of the remaining `lib/pod/*` files or real
+production/fulfillment spend can land.
 
 ### JH-018
 **Priority:** P2
