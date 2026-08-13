@@ -2064,7 +2064,7 @@ NEXT: SP-2 (Commerce)
 ```
 
 ### SP-2 — Commerce (checkout → payment → fulfillment)
-**Status:** IN REVIEW (PR #63)
+**Status:** DONE (PR #63, merged as `e3f5cbd`)
 **Branch:** `spine-proof-commerce` (PR #63)
 **Objective:** Prove the commerce family the architecture audit flagged
 as "seven contracts, zero implementations" actually composes — the
@@ -2075,7 +2075,7 @@ live provider, no credential, no Supabase dependency.
 **Completion report:**
 ```
 TASK: SP-2
-STATUS: IN REVIEW (PR #63, not yet merged)
+STATUS: DONE
 CHANGED:
 - apps/jhadina-web/src/lib/commerce/reference-adapters.ts (new):
   in-memory implementations of every adapter interface all three
@@ -2116,7 +2116,8 @@ VERIFIED:
 ARCHITECTURAL IMPACT:
 - No contract required fixing — both real mismatches found were
   resolved at the adapter boundary.
-NEXT: awaiting real CI on PR #63, then merge. Then SP-3 (Money/Plaid).
+COMMIT: PR #63, merged as e3f5cbd
+NEXT: SP-3 (Money/Plaid).
 ```
 
 ### SP-3 — Money (Plaid consolidation)
