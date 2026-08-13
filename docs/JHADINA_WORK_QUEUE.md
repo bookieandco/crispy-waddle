@@ -663,20 +663,131 @@ against JH-014's resolution first.
 
 ### JH-016
 **Priority:** P1
-**Status:** ACTIVE
-**Branch:** `fix/vercel-build-jhadina-web` (PR #4)
+**Status:** SUPERSEDED
+**Branch:** `fix/vercel-build-jhadina-web` (PR #4, closed without merging)
 **Objective:** Unblock the Jhadina web Vercel build.
 **Dependencies:** None
-**Verification:** Real build, not just Vercel's status.
-**Next Step:** Audit current state against current main (real
-merge-base, not the reported one) — this PR predates several
-since-merged fixes on other branches (JH-006, JH-011/#46's src/app
-consolidation, JH-014's pages/index.tsx resolution) and may already be
-substantially or fully superseded.
+**Completion report:**
+```
+TASK: JH-016
+STATUS: DONE (superseded, no merge needed)
+CHANGED: none — nothing merged.
+VERIFIED:
+- True merge-base with main is 408a2f8 (matches the PR's own stated
+  claim, unlike several earlier PRs' misleading reported base).
+- PR #4's stated fix (music-core tsconfig path mapping, GEMINI_API_KEY
+  turbo globalEnv) is fully superseded: main's apps/jhadina-web/tsconfig.json
+  already has a generic "@jhadina/*" path mapping (from JH-006), and
+  GEMINI_API_KEY has zero references anywhere in the current codebase.
+- Confirmed via real build (JH-014, JH-015) that main already builds
+  clean without any of PR #4's changes.
+ARCHITECTURAL IMPACT:
+- Same over-bundling pattern as JH-015/PR #7: stated scope is a tiny
+  config fix, real diff is 43 files across five unrelated, unqueued
+  domains (see JH-032–JH-036 below), including an alternate homepage
+  that collides with JH-014's already-merged pages/index.tsx decision
+  the same way JH-031 does. None of it merged. PR #4 closed (not
+  merged) with an explanatory comment; branch/history preserved on
+  GitHub.
+COMMIT: none
+NEXT: JH-017
+```
+
+### Deferred from PR #4 (filed per JH-016's resolution, not yet audited)
+
+### JH-032
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
+`apps/jhadina-web/src/lib/growth/{agentReachProvider,scheduler,
+trendScout,trendScoutWorker,webTrendProvider}.ts`,
+`apps/jhadina-web/src/app/api/growth/{drafts/versions,ideas,
+trends/scout}/route.ts`
+**Objective:** A third, more elaborate Growth Engine generation —
+trend scouting, idea generation, agent-reach provider, scheduling —
+built on the same `types.ts`/`engine.ts` shape as JH-015 but
+substantially extended.
+**Dependencies:** JH-001, JH-015
+**Flag:** Three growth-engine generations now exist: JH-015 (merged,
+simple in-memory), JH-025 (deferred `growth-core` package, unwired),
+and this one. Audit needs to establish which is authoritative before
+building further — don't assume they compose.
+**Next Step:** Not yet audited.
+
+### JH-033
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
+`apps/jhadina-web/src/lib/money/{financialAttention,
+financialDataProvider,plaidAdapter}.ts`,
+`apps/jhadina-web/src/app/money/{command-center,withdraw}/page.tsx`
+**Objective:** Plaid-backed financial data/attention engine plus a
+money command-center and withdrawal page.
+**Dependencies:** JH-001
+**Flag:** Same domain as JH-028 (also Plaid, also money command
+center), from a different branch generation — likely overlapping or
+divergent implementations of the same feature. Needs consolidation
+audit against JH-028, not independent implementation. Also handles
+real financial data and a *withdrawal* flow specifically — per
+`docs/DO_NOT_BUILD.md` ("autonomous or automatic movement of funds ...
+needs an explicit human-authorized action through the existing
+approval/policy path, every time"), this needs explicit Policy Engine
+routing confirmed before merging.
+**Next Step:** Not yet audited — security/policy review first,
+reconciled against JH-028.
+
+### JH-034
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
+`apps/jhadina-web/src/lib/music/{distribution,distributionAdapter,
+moneyCoreBridge,moneyCoreWithdrawal,royaltyLedger,
+royaltyStatementImporter}.ts`,
+`apps/jhadina-web/src/app/music/{release-center,royalties}/page.tsx`
+**Objective:** Music distribution and royalty-ledger domain, bridged
+to `money-core`, including a withdrawal path.
+**Dependencies:** JH-001, JH-006 (money-core)
+**Flag:** `moneyCoreWithdrawal.ts` moves money — same DO_NOT_BUILD
+policy-routing concern as JH-033. Needs security/policy review, not
+just a functional audit.
+**Next Step:** Not yet audited — security/policy review first.
+
+### JH-035
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
+`apps/jhadina-web/src/lib/film/{filmPlanner,sceneExtend}.ts`
+**Objective:** Film planning / scene-extension logic. Scope and
+intended UI surface unclear — no page/route wires to these in the
+diff.
+**Dependencies:** JH-001
+**Next Step:** Not yet audited — establish what (if anything) consumes
+this before treating it as a real feature slice.
+
+### JH-036
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
+`apps/jhadina-web/pages/index.tsx`, `apps/jhadina-web/components/BottomNav.tsx`
+**Objective:** Alternate homepage — a `BottomNav`-driven feed (Music /
+Opportunity / Jhadina cards), rewriting `pages/index.tsx` from its
+then-current trivial "Loading..." placeholder.
+**Dependencies:** JH-001, JH-014
+**Human gate:** This branch forked before `PersonalCommandFeed` (the
+homepage JH-014 confirmed and preserved as canonical `/`) existed on
+`main` — it was never aware of that decision, not in conflict with it
+on purpose. Same collision shape as JH-031: two independently-built
+homepages, neither aware of the other, requiring explicit comparison
+before either replaces the other. Do not merge via automatic git
+resolution.
+**Next Step:** Not yet audited. If picked up, compare directly against
+JH-014's `PersonalCommandFeed` and JH-031's five-button-nav proposal
+together — three homepage directions now exist and should be
+reconciled once, not serially.
 
 ### JH-017
 **Priority:** P2
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** PupsonStuff chain — `pupsonstuff-import` (#9) ←
 `claude/pupson-repo-audit-xmahtp` (#14) ← `feat/pupsonstuff-engine-v5`
 (#10) and `feat/pupsonstuff-mobile-stage` (#11) ← `feat/pupsonstuff-pod-core` (#12)
