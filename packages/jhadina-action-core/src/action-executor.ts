@@ -1,4 +1,6 @@
-export type ActionPolicyDecision = "allow" | "deny";
+import type { ApprovalReceiptVerifier } from './approval-receipt.js';
+
+export type ActionPolicyDecision = 'allow' | 'deny' | 'approval_required';
 
 export interface ActionRequest<TAction = unknown> {
   id: string;
@@ -6,6 +8,7 @@ export interface ActionRequest<TAction = unknown> {
   type: string;
   action: TAction;
   requestedAt: string;
+  approvalReceiptId?: string;
 }
 
 export interface ActionAuditEvent {
@@ -13,7 +16,7 @@ export interface ActionAuditEvent {
   actionId: string;
   userId: string;
   type: string;
-  status: "started" | "completed" | "denied" | "failed";
+  status: 'started' | 'approval_required' | 'completed' | 'denied' | 'failed';
   timestamp: string;
   metadata?: Record<string, unknown>;
 }
@@ -45,7 +48,7 @@ export class InMemoryActionLedger implements ActionLedger {
 
 export class AllowAllActionPolicy<TAction = unknown> implements ActionPolicy<TAction> {
   async evaluate(_request: ActionRequest<TAction>): Promise<ActionPolicyDecision> {
-    return "allow";
+    return 'allow';
   }
 }
 
@@ -54,28 +57,55 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
     private readonly policy: ActionPolicy<TAction>,
     private readonly ledger: ActionLedger,
     private readonly handlers: readonly ActionHandler<TAction, TResult>[],
+    private readonly approvalReceipts?: ApprovalReceiptVerifier<TAction>,
   ) {}
 
   async execute(request: ActionRequest<TAction>): Promise<TResult> {
     const now = () => new Date().toISOString();
-    const started = now();
     await this.ledger.append({
       id: `${request.id}:started`,
       actionId: request.id,
       userId: request.userId,
       type: request.type,
-      status: "started",
-      timestamp: started,
+      status: 'started',
+      timestamp: now(),
     });
 
     const decision = await this.policy.evaluate(request);
-    if (decision !== "allow") {
+
+    if (decision === 'approval_required') {
+      if (!request.approvalReceiptId || !this.approvalReceipts) {
+        await this.ledger.append({
+          id: `${request.id}:approval-required`,
+          actionId: request.id,
+          userId: request.userId,
+          type: request.type,
+          status: 'approval_required',
+          timestamp: now(),
+        });
+        throw new Error(`Approval required: ${request.type}`);
+      }
+
+      const valid = await this.approvalReceipts.verifyAndConsume(request.approvalReceiptId, request);
+      if (!valid) {
+        await this.ledger.append({
+          id: `${request.id}:denied`,
+          actionId: request.id,
+          userId: request.userId,
+          type: request.type,
+          status: 'denied',
+          timestamp: now(),
+          metadata: { reason: 'invalid_or_expired_approval_receipt' },
+        });
+        throw new Error(`Invalid approval receipt: ${request.type}`);
+      }
+    } else if (decision === 'deny') {
       await this.ledger.append({
         id: `${request.id}:denied`,
         actionId: request.id,
         userId: request.userId,
         type: request.type,
-        status: "denied",
+        status: 'denied',
         timestamp: now(),
       });
       throw new Error(`Action denied: ${request.type}`);
@@ -88,9 +118,9 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
         actionId: request.id,
         userId: request.userId,
         type: request.type,
-        status: "failed",
+        status: 'failed',
         timestamp: now(),
-        metadata: { reason: "handler_not_found" },
+        metadata: { reason: 'handler_not_found' },
       });
       throw new Error(`No action handler registered for ${request.type}`);
     }
@@ -102,7 +132,7 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
         actionId: request.id,
         userId: request.userId,
         type: request.type,
-        status: "completed",
+        status: 'completed',
         timestamp: now(),
       });
       return result;
@@ -112,7 +142,7 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
         actionId: request.id,
         userId: request.userId,
         type: request.type,
-        status: "failed",
+        status: 'failed',
         timestamp: now(),
         metadata: { error: error instanceof Error ? error.message : String(error) },
       });
