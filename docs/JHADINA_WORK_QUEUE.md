@@ -270,8 +270,8 @@ survivor gets real CI coverage before merge given its size.
 
 ### JH-008
 **Priority:** P1
-**Status:** ACTIVE
-**Branch:** `feat/jhadinatv-casting-boundary-live4` (PR #36)
+**Status:** DONE
+**Branch:** `feat/jhadinatv-casting-boundary-live4` (PR #36, merged `d4bd7a3`)
 **Objective:** Investigate before anything else: this PR is titled as
 "add casting boundary" and its body describes a small, additive change
 (transport-agnostic `MediaSession` contracts, a "Watch on TV" button),
@@ -279,33 +279,48 @@ but the actual diff is **+703 / −3980 across 18 files, 49 commits** — far
 more deletion than the stated scope implies. Its `jhadinatv` CI check is
 also failing.
 **Dependencies:** None
-**Definition of Done:** Someone (agent or human) explains what the 3,980
-deleted lines actually are before this merges. If it's legitimate cleanup,
-document it in the PR; if it's accidental damage from a rebase/squash,
-fix the branch.
-**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI — plus a
-manual diff review, since CI passing wouldn't rule out accidentally
-deleted functionality.
-**Next Step:** Diff review before touching CI.
+**Definition of Done:** Met. Diff review found this branch was stacked
+directly on PR #35's tip commit (not on `main`), and the diff tool was
+comparing against `main` — misleading. ~3,809 of the ~3,980 deleted
+lines were `pnpm-lock.yaml` optional-platform esbuild entries (lockfile
+shrinkage from regeneration); the remaining 176 were a legitimate
+reorganization of `jhadina-tv-core`'s monolithic `index.ts` into
+`casting.ts`/`catalog.ts`/`media-session.ts`/`providers.ts`/`cast/*.ts`.
+No accidental damage. Rebased onto current `main`, retargeted the PR
+from `feat/jhadinatv-streaming-module` to `main` (so it merges into the
+right branch), and fixed real bugs the scoped tsconfig exposed for the
+first time: a filename/import mismatch, two DOM-typing narrowing errors
+in `picture-in-picture.ts`, an off-by-one relative-import depth bug, and
+an unescaped-apostrophe hard ESLint error under `next build`.
+**Verification:** Real CI on PR #36 (retargeted to `main`): launch-gate,
+`jhadinatv`, `evolution-core`, and `postgres-integration` all green.
+Also `pnpm type-check`/`lint`/`test`/`build` locally, including the new
+`/jhadinatv` and `/jhadinatv/watch/[kind]/[id]` routes statically
+generating.
+**Next Step:** None — done.
 
 ### JH-009
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadinatv-streaming-module` (PR #35)
+**Status:** SUPERSEDED
+**Branch:** `feat/jhadinatv-streaming-module` (PR #35, closed not merged)
 **Objective:** Merge the JhadinaTV catalog/media boundary foundation
 (`packages/jhadina-tv-core`, explainable recommendation scoring,
 governed media-source-adapter contract, discovery/watch-page shell).
 Playback is explicitly behind an HTTPS source-adapter contract — no
 scraping/proxying of unverified third-party streams.
-**Dependencies:** JH-001 (never had a real CI run either)
-**Definition of Done:** Real CI run passes; confirmed still only the six
-files the PR body claims.
-**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI.
-**Next Step:** Merge to `main`, then JH-008's fixed branch rebases onto it.
+**Dependencies:** JH-001
+**Definition of Done:** Met via JH-008. PR #36 was built directly on top
+of this PR's tip commit, so every file this PR touched was already an
+ancestor of #36's branch; merging #36 to `main` carried this PR's full
+content along with it (confirmed via diff: `main` is a strict superset
+of this branch, nothing missing). SUPERSEDED — closed without merging,
+purpose fulfilled by #36.
+**Verification:** N/A
+**Next Step:** None — done.
 
 ### JH-010
 **Priority:** P1
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `feat/jhadina-shotlist-director-integration` (PR #8)
 **Objective:** Merge the provider-neutral Director/Shotlist Core —
 persistence-free creative-intent/prompt-emission/scene-timeline/
