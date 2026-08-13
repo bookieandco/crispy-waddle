@@ -886,10 +886,15 @@ NEXT: JH-017
 
 ### JH-032
 **Priority:** P2
-**Status:** PARTIALLY DONE (PR #59) — redraft/version model still needs
-a decision
-**Branch:** `jh032-growth-trend-scout` (PR #59) — reconciled from
-`fix/vercel-build-jhadina-web` (PR #4)
+**Status:** PARTIALLY DONE — trend-scouting/ideas slice merged (PR #59,
+`cd844a4`); redraft/version model BLOCKED on explicit human decision
+**Branch:** `jh032-growth-trend-scout` (PR #59, merged) — reconciled
+from `fix/vercel-build-jhadina-web` (PR #4)
+**Human decision (2026-08-13):** Confirmed keep blocked — the
+linked-draft vs. numbered-version redraft models are a real data-model
+choice; do not merge either by accident. The already-landed
+trend-scouting portion stands independently and needed no further
+action.
 **Objective:** A third, more elaborate Growth Engine generation —
 trend scouting, idea generation, agent-reach provider, scheduling —
 built on the same `types.ts`/`engine.ts` shape as JH-015 but
@@ -1514,14 +1519,15 @@ rather than core-spine's internal personal-assistant reasoning loop —
 that could be a real, distinct use case, or it could just be
 unnecessary vocabulary sprawl for a use case nothing in this repo
 currently needs. Nothing consumes JIC today either way.
-**Next Step:** Human call needed: (a) reject JIC as redundant with
-core-spine, (b) adopt JIC's vocabulary and retire/rename core-spine's
-overlapping types in its favor, or (c) keep both if the external-
-platform-integration use case is real, but rename JIC's colliding type
-names (`ContextPacket` especially) so the two contracts don't share a
-name with different shapes. Not decided here — this is precisely the
-"don't add another abstraction layer unless it genuinely closes a gap"
-call the FOUNDATION lane requires a human on.
+**Human decision (2026-08-13):** Keep BLOCKED. Default direction is to
+reject/supersede JIC in favor of `jhadina-core-spine` (which already
+owns the working pipeline), unless a future audit demonstrates JIC
+contains a genuinely missing capability (e.g. the external multi-tenant
+platform-integration use case turns out to be real and needed). Not
+renamed or rewritten speculatively — no code changes here, decision
+recorded only.
+**Next Step:** None until that audit/decision happens. Do not adopt,
+merge, or rename anything speculatively in the meantime.
 
 ### JH-021
 **Priority:** P2
