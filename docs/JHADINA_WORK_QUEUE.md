@@ -803,24 +803,51 @@ JH-014, do not auto-promote)
 
 ### JH-031
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-growth-engine` (PR #7) —
-`apps/jhadina-web/src/components/JhadinaShellNavigation.tsx`,
-`apps/jhadina-web/src/components/jhadina/UniversalJhadinaButton.tsx`,
-`apps/jhadina-web/src/app/layout.tsx`, `apps/jhadina-web/src/components/
-jhadinaTv/MiniPlayer.tsx`
+**Status:** IN REVIEW (PR #57)
+**Branch:** `jh031-shell-chrome` (new — reconstructed from
+`feat/jhadina-growth-engine` PR #7's
+`JhadinaShellNavigation.tsx`/`MiniPlayer.tsx`/`layout.tsx`)
 **Objective:** Five-button shell navigation (with a "Worlds" dropdown)
-and a persistent JhadinaTV mini player, mounted into the root layout.
+and a persistent JhadinaTV mini player, mounted as chrome around every
+route.
 **Dependencies:** JH-001, JH-014
-**Human gate:** This surface's own history (commit `8b96d19` on PR #7)
-deletes `apps/jhadina-web/pages/index.tsx` — the homepage JH-014
-explicitly preserved as canonical `/` — in favor of the Supabase-auth
-placeholder page JH-014 removed. Cannot be merged via automatic git
-resolution; needs an explicit decision on how five-button nav mounts
-onto the already-merged homepage, the same way the two music-core
-generations required explicit comparison rather than auto-resolution.
-**Next Step:** Not yet audited. Do not merge without reconciling
-against JH-014's resolution first.
+**Human decision (2026-08-13):** Homepage/shell architecture resolved
+— PersonalCommandFeed (JH-014) remains the content and behavioral
+owner of `/`; JH-031 may add navigation, chrome, and the JhadinaTV
+mini-player, but may not replace, fork, or rewrite the homepage. (Same
+decision closed out JH-036 and JH-042 as homepage-replacement
+candidates — see those entries.)
+**Completion report:**
+```
+TASK: JH-031
+STATUS: IN REVIEW (PR #57, not yet merged)
+CHANGED:
+- src/components/JhadinaShellNavigation.tsx + .module.css: five-button
+  bottom nav + Worlds dropdown, route list trimmed to what actually
+  exists on main today (original pointed at /money/command-center,
+  /ask-jhadina, /activity, /film, /social, /trucker, /cooking,
+  /shopping, /radar, /knowledge — none landed yet).
+- src/components/jhadinaTv/MiniPlayer.tsx: copied as-is, self-contained,
+  renders null without a src (no live stream source exists yet —
+  mounted but dormant).
+- src/app/layout.tsx: mounts nav + mini player around App Router pages.
+- pages/_app.tsx (new): same chrome mounted for the Pages Router routes
+  (/, /jhadinatv, /jhadinatv/watch/[kind]/[id]) — App Router and Pages
+  Router are separate trees with separate root shells in Next.js.
+- Deliberately excluded PR #7's UniversalJhadinaButton: depends on a
+  command-bus/command-context runtime that doesn't exist anywhere on
+  main. Left as a follow-on, not invented here.
+VERIFIED:
+- pages/index.tsx and PersonalCommandFeed.tsx confirmed byte-for-byte
+  unchanged (diffed against main).
+- pnpm type-check/lint/test/build for jhadina-web all clean; 51/51
+  tests passing (unchanged); real build confirms every route,
+  including / at 86.2 kB (up from 82.5 kB — new chrome JS, expected).
+ARCHITECTURAL IMPACT:
+- Resolves the homepage-collision human gate additively — no vertical's
+  existing route or component was touched.
+NEXT: awaiting real CI on PR #57, then merge.
+```
 
 ### JH-016
 **Priority:** P1
@@ -927,24 +954,20 @@ this before treating it as a real feature slice.
 
 ### JH-036
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
-`apps/jhadina-web/pages/index.tsx`, `apps/jhadina-web/components/BottomNav.tsx`
+**Status:** REJECTED (not landing)
+**Branch:** `fix/vercel-build-jhadina-web` (PR #4, already closed
+without merging via JH-016; history preserved)
 **Objective:** Alternate homepage — a `BottomNav`-driven feed (Music /
 Opportunity / Jhadina cards), rewriting `pages/index.tsx` from its
 then-current trivial "Loading..." placeholder.
 **Dependencies:** JH-001, JH-014
-**Human gate:** This branch forked before `PersonalCommandFeed` (the
-homepage JH-014 confirmed and preserved as canonical `/`) existed on
-`main` — it was never aware of that decision, not in conflict with it
-on purpose. Same collision shape as JH-031: two independently-built
-homepages, neither aware of the other, requiring explicit comparison
-before either replaces the other. Do not merge via automatic git
-resolution.
-**Next Step:** Not yet audited. If picked up, compare directly against
-JH-014's `PersonalCommandFeed` and JH-031's five-button-nav proposal
-together — three homepage directions now exist and should be
-reconciled once, not serially.
+**Human decision (2026-08-13):** Homepage/shell architecture resolved
+in JH-031's favor — PersonalCommandFeed remains the canonical `/`.
+This branch's BottomNav feed was an alternate homepage built before
+PersonalCommandFeed existed, not a reasoned rejection of it. Not being
+landed; its underlying PR was already closed via JH-016 for unrelated
+reasons.
+**Next Step:** None.
 
 ### JH-017
 **Priority:** P2
@@ -1222,8 +1245,9 @@ straight merge of any one variant.
 
 ### JH-042
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
+**Status:** QUEUED (narrowed — homepage-rewrite portion rejected)
+**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16, already
+closed without merging; history preserved) —
 `apps/jhadina-web/{app,lib}/agents/**`, `apps/jhadina-web/src/lib/agents/**`,
 `apps/jhadina-web/src/app/api/{agents,system/status}/**`,
 `apps/jhadina-web/app/api/system/activity/route.ts`,
@@ -1233,21 +1257,21 @@ straight merge of any one variant.
 **Objective:** Delia/Marisa/Janet agent operating-loop runtime, a
 system-status API, and a new `/activity` page surfacing it.
 **Dependencies:** JH-001
-**Human gate:** This bundle rewrites
-`apps/jhadina-web/components/home/PersonalCommandFeed.tsx` — the
-homepage component JH-014 confirmed and preserved as canonical `/` —
-from a personal content feed into a system-module status board, and
-adds an "Activity" nav link to `pages/index.tsx`. Same collision shape
-as JH-031 and JH-036: a homepage direction built without knowledge of
-JH-014's decision. Three independent homepage proposals now exist
-(JH-014's PersonalCommandFeed as shipped, JH-031's five-button nav,
-JH-036's BottomNav feed, and now this system-status board) — needs one
-reconciliation decision, not three separate ones made serially.
-**Next Step:** Not yet audited. If picked up, reconcile against
-JH-031/JH-036 together, not in isolation. Also note some paths here
-are under root `apps/jhadina-web/app/` and `lib/` (not `src/app/`/
-`src/lib/`) — re-check the app/vs src/app collision class from JH-011
-before assuming these routes are reachable as authored.
+**Human decision (2026-08-13):** Homepage/shell architecture resolved
+in JH-031's favor — PersonalCommandFeed remains the canonical `/`. The
+part of this bundle that rewrote
+`apps/jhadina-web/components/home/PersonalCommandFeed.tsx` into a
+system-status board is rejected, same as JH-036. The rest of the
+bundle — the agents/** operating-loop runtime, the system-status API,
+and a standalone `/activity` page (as a new route, not a homepage
+replacement) — is not itself a homepage proposal and remains a
+legitimate, separately-auditable candidate task.
+**Next Step:** Not yet audited as a standalone slice. If picked up,
+scope it to the agents/system-status/activity surfaces only — do not
+touch `PersonalCommandFeed.tsx` or `pages/index.tsx`. Also note some
+paths here are under root `apps/jhadina-web/app/` and `lib/` (not
+`src/app/`/`src/lib/`) — re-check the app/vs src/app collision class
+from JH-011 before assuming these routes are reachable as authored.
 
 ### JH-043
 **Priority:** P2
