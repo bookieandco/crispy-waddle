@@ -57,7 +57,9 @@ describe("restoration case", () => {
 describe("basic restoration analyzer", () => {
   it("flags a lossy source and low headroom without applying DSP", () => {
     const analyzer = new BasicRestorationAnalyzer();
-    const samples = new Float32Array([0.98, -0.9, 0.2, -0.1]);
+    // Peak must clear the analyzer's LOW_HEADROOM threshold (samplePeakDbfs > -0.1dB,
+    // i.e. peak > ~0.9885) for this fixture to actually exercise that flag.
+    const samples = new Float32Array([0.99, -0.9, 0.2, -0.1]);
     const analysis = analyzer.analyze({
       caseId: "case-001",
       versionId: "case-001:v1",
