@@ -642,7 +642,7 @@ audit before promoting; see JH-028)
 
 ### JH-028
 **Priority:** P2
-**Status:** QUEUED
+**Status:** BLOCKED
 **Branch:** `feat/jhadina-growth-engine` (PR #7) —
 `apps/jhadina-web/src/lib/money/{needsAttentionEngine,
 plaidFinancialData}.ts`, `apps/jhadina-web/src/app/money/command-center/page.tsx`,
@@ -650,13 +650,69 @@ plaidFinancialData}.ts`, `apps/jhadina-web/src/app/money/command-center/page.tsx
 **Objective:** Plaid-backed financial snapshot provider and
 needs-attention engine, wired to a money command-center page.
 **Dependencies:** JH-001
-**Flag:** Handles real financial data via a third-party provider
-(Plaid). Per `docs/DO_NOT_BUILD.md` ("Direct LLM authority over
-money," "Bypassing the Policy Engine ... or audit ledger"), this needs
-explicit confirmation it's read-only/observation-only and routes
-through the existing Policy Engine boundary before merging, not an
-assumption from the branch's own code.
-**Next Step:** Not yet audited — security/policy review first.
+**Human gate:** Full audit completed (2026-08-13) — read every file,
+traced UI → API route → provider → (no further boundary). Findings:
+
+- `needsAttentionEngine.ts` is safe: a pure, deterministic function
+  (snapshot in, ranked `AttentionItem[]` out), zero I/O, zero side
+  effects, and marks every bill/card/subscription item
+  `requiresApproval: true`. Not wired to the command-center page yet
+  (dormant). No concern here.
+- `command-center/page.tsx` is safe: read-only rendering, one `GET`
+  fetch, no form/button anywhere that submits a payment, transfer,
+  withdrawal, or cancellation. Its own copy states the boundary
+  explicitly ("without receiving permission to move money... Payments,
+  transfers, withdrawals, and cancellations remain separate approval
+  actions").
+- `plaidFinancialData.ts` and its API route are the real finding.
+  This makes **genuine, live, credentialed** calls — not mocked, not
+  dormant — to `https://{sandbox,production}.plaid.com/accounts/balance/get`
+  and `/transactions/get` using `process.env.PLAID_ACCESS_TOKEN` /
+  `PLAID_CLIENT_ID` / `PLAID_SECRET` read directly inline. Both Plaid
+  endpoints called are read-only (no `/transfer/*` or
+  `/payment_initiation/*` — confirmed no money-movement endpoint is
+  called anywhere in this file), and no PLAID_* vars are documented
+  anywhere in the repo, so it is inert by default until someone
+  provisions real credentials. The API route
+  (`api/money/financial-data/route.ts`) has **no auth check of its
+  own** — it inherits protection only incidentally, because JH-014's
+  repo-wide middleware (matcher covers all non-static paths, redirects
+  unauthenticated requests to `/login`) happens to also cover this
+  path. That protection is real today but is not this feature's own
+  design — nothing here would fail closed if the middleware were ever
+  scoped differently.
+- **The actual blocker**: `packages/money-core` already has a
+  properly governed Plaid integration —
+  `PlaidReadOnlyAdapter` (`plaid-read-only-adapter.ts`), which
+  implements the `BankAdapter` interface, calls
+  `assertCapability(context, 'money.account.read')` before every read,
+  resolves credentials through `credential-resolver.ts` (never reads
+  `process.env.PLAID_*` directly — verified via repo-wide grep,
+  zero hits in money-core), and has its own test file. This is
+  established, CI-verified FOUNDATION infrastructure (landed via
+  JH-006). `plaidFinancialData.ts` is a second, parallel, ungoverned
+  Plaid client that duplicates it while bypassing every governance
+  mechanism the sanctioned one has: no capability check, no
+  credential-resolver, no shared test coverage, no `BankAdapter`
+  contract. This is exactly the "second registry / second
+  implementation" architectural smell `docs/DO_NOT_BUILD.md` calls out
+  by name — "the actual task is almost always 'wire this into the
+  existing one,' not 'build a parallel one.'"
+- Per the reversed-burden-of-proof principle applied throughout this
+  cleanup pass: `packages/money-core`'s adapter is the established,
+  governed implementation; `plaidFinancialData.ts` is the unverified
+  branch content, and it hasn't demonstrated a reason to bypass the
+  existing governance layer rather than use it. Not landing
+  `plaidFinancialData.ts`/its route as-is. Whether the right fix is
+  (a) rewrite the command-center's data path to call
+  `PlaidReadOnlyAdapter` through the capability boundary instead, (b)
+  something else, is a call for a human to make, not something to
+  guess at silently — same treatment as JH-026.
+**Next Step:** Await human decision on how the command-center's data
+path should reach Plaid (via `packages/money-core`'s governed adapter,
+most likely, but not decided here). `needsAttentionEngine.ts` and the
+UI shell are safe and could land separately once wired to a
+governed data source.
 
 ### JH-029
 **Priority:** P2
