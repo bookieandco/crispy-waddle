@@ -886,22 +886,33 @@ NEXT: JH-017
 
 ### JH-032
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
-`apps/jhadina-web/src/lib/growth/{agentReachProvider,scheduler,
-trendScout,trendScoutWorker,webTrendProvider}.ts`,
-`apps/jhadina-web/src/app/api/growth/{drafts/versions,ideas,
-trends/scout}/route.ts`
+**Status:** PARTIALLY DONE (PR #59) — redraft/version model still needs
+a decision
+**Branch:** `jh032-growth-trend-scout` (PR #59) — reconciled from
+`fix/vercel-build-jhadina-web` (PR #4)
 **Objective:** A third, more elaborate Growth Engine generation —
 trend scouting, idea generation, agent-reach provider, scheduling —
 built on the same `types.ts`/`engine.ts` shape as JH-015 but
 substantially extended.
 **Dependencies:** JH-001, JH-015
-**Flag:** Three growth-engine generations now exist: JH-015 (merged,
-simple in-memory), JH-025 (deferred `growth-core` package, unwired),
-and this one. Audit needs to establish which is authoritative before
-building further — don't assume they compose.
-**Next Step:** Not yet audited.
+**Audit (2026-08-13):** JH-025 is SUPERSEDED (folded into JH-021's
+landed `growth-core`, not a live "third generation" — queue reference
+was stale). The real fork is between JH-015's landed `engine.ts` and
+this branch's: both evolved a `redraftGrowthDraft` independently and
+incompatibly — main's creates a new linked draft
+(`parentDraftId`/`redraftInstruction`); this branch's does actual
+keyword-based text transformation and tracks numbered versions
+(`versionOf`/`version`). `trendScout.ts`/`trendScoutWorker.ts`/
+`webTrendProvider.ts`/`agentReachProvider.ts`/`scheduler.ts` and the
+`ideas`/`trends/scout` API routes don't depend on that fork at all —
+landed as PR #59 (pure trend-observation/proposal pipeline, dormant-
+by-default provider adapters, no engine.ts changes). Only
+`api/growth/drafts/versions/route.ts` (depends on the source branch's
+version-tracking functions) was left out.
+**Next Step:** Human call needed on which `redraftGrowthDraft`/
+versioning model is canonical before `drafts/versions/route.ts` (or
+any engine.ts merge) can land — same category of decision as JH-046,
+not a git-mechanical merge.
 
 ### JH-033
 **Priority:** P2
@@ -1300,19 +1311,49 @@ integration specifically, functional review for the rest.
 
 ### JH-044
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
-`apps/jhadina-web/src/lib/auth/{request-identity,
-supabase-identity-verifier,supabase-server}.ts`
+**Status:** DONE
+**Branch:** `jh044-action-identity-verifier` (PR #58, merged `ebdf0b4`
+— reconciled from `feat/jhadina-entertainment-intelligence` PR #16)
 **Objective:** Server-side request-identity resolution and Supabase
 session verification.
 **Dependencies:** JH-001, JH-014
-**Flag:** Same domain as JH-014's already-merged Supabase Auth work
-(`apps/jhadina-web/src/lib/supabase/{client,server,middleware}.ts`).
-Likely overlapping or divergent identity-verification logic from a
-different branch generation — needs reconciliation against JH-014's
-implementation, not independent adoption.
-**Next Step:** Not yet audited.
+**Completion report:**
+```
+TASK: JH-044
+STATUS: DONE
+CHANGED:
+- src/lib/auth/supabase-identity-verifier.ts: SupabaseActionIdentityVerifier,
+  adapting verified Supabase claims (sub/session_id) to
+  jhadina-action-core's ActionIdentityVerifier contract. Different
+  layer than JH-014's middleware (page-route gate vs. per-action
+  identity gate for VerifiedActionExecutor) — complementary, not
+  duplicative.
+- src/lib/application/createJhadinaApplication.ts (+test): composition
+  root wiring the verifier alongside the already-landed JanetService/
+  MemoryRepository/ReasoningEventRepository/TimelineRepository.
+  execution.status stays 'not_configured' — honest placeholder, not a
+  fake-ready executor.
+- src/lib/auth/request-identity.ts: reconciled to reuse JH-014's
+  existing createClient() (src/lib/supabase/server.ts) instead of the
+  original PR's second, near-duplicate server-client constructor — one
+  Supabase server-client boundary, not two. Normalizes the real
+  SupabaseClient.auth.getClaims() shape down to the narrow
+  SupabaseClaimsClient contract the verifier needs.
+- Fixed two real bugs the first-ever type-check of these files
+  surfaced: the test file's bare describe/it/expect (missing vitest
+  import) and an unsound type cast.
+VERIFIED:
+- pnpm type-check/lint/test/build for jhadina-web all clean. 54/54
+  tests passing (51 existing + 3 new).
+- Does not touch src/lib/supabase/{client,server,middleware}.ts or any
+  existing route.
+ARCHITECTURAL IMPACT:
+- One Supabase server-client boundary maintained; adds the missing
+  action-identity layer jhadina-action-core's VerifiedActionExecutor
+  needs, without creating a second auth implementation.
+COMMIT: 67956a0 (PR #58), merged as ebdf0b4
+NEXT: next unblocked task per selection order
+```
 
 ### JH-045
 **Priority:** P2
