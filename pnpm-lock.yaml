@@ -51,6 +51,9 @@ importers:
       typescript:
         specifier: ^5.1.0
         version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
 
   packages/music-core:
     devDependencies:
@@ -60,6 +63,10 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.43)
+
+  packages/security-core: {}
+
+  packages/social-core: {}
 
 packages:
 
