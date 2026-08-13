@@ -1353,9 +1353,9 @@ JH-025–JH-039.
 
 ### JH-040
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
-`packages/entertainment-core/**`
+**Status:** IN REVIEW (PR #61)
+**Branch:** `jh040-entertainment-graph` (PR #61) — reconciled from
+`feat/jhadina-entertainment-intelligence` (PR #16)
 **Objective:** A second, more ambitious entertainment-intelligence
 surface built as a direct continuation of JH-019's core (same author,
 same day, immediately following commits): creative knowledge graph
@@ -1363,12 +1363,40 @@ same day, immediately following commits): creative knowledge graph
 a creative review/feedback-calibration engine, and music audio-feature
 perception (converting measurements into creative observations).
 **Dependencies:** JH-001, JH-019
-**Flag:** Unlike JH-019's core, this has no `package.json` of its own
-— not a real pnpm workspace member — and nothing anywhere in the
-branch imports it. Real, substantial work (11 commits) but incomplete:
-needs a package.json, integration decision (does it depend on
-JH-019's core or replace it?), and tests before it's mergeable.
-**Next Step:** Not yet audited.
+**Completion report:**
+```
+TASK: JH-040
+STATUS: IN REVIEW (PR #61, not yet merged)
+CHANGED:
+- Determined this genuinely EXTENDS JH-019's @jhadina/entertainment-core
+  rather than competing with it: JH-019's domain.ts/engine.ts already
+  own the observation -> feedback -> taste-hypothesis -> approval
+  boundary. The branch's graph/reference/review/perception modules are
+  a different concern (relationship graph between creative works +
+  matching/calibration on top of it) with zero type-name collisions.
+  Landed inside the EXISTING @jhadina/entertainment-core package as
+  new modules, not as a second top-level package — one entertainment
+  core, several capabilities.
+- src/graph/{types,creative-knowledge-graph}.ts,
+  src/reference/reference-match-engine.ts,
+  src/review/{creative-review-engine,review-feedback,review-events}.ts,
+  src/perception/music/audio-features.ts.
+- Deliberately excluded perception/music/observation-builder.ts: it
+  imports CreativeObservation from a domain/observation.ts that
+  doesn't exist anywhere on the source branch, and its object literals
+  use field names incompatible with JH-019's real CreativeObservation
+  type even if repointed — a genuine gap in the source branch itself.
+- Fixed one real scaffolding gap: this package's tsconfig didn't
+  override the root's ES2020 lib, so the new files'
+  String.prototype.replaceAll() (ES2021) didn't type-check.
+VERIFIED:
+- pnpm type-check clean; 7/7 tests passing (1 existing + 6 new). All
+  new files confirmed pure (no fetch/process.env/credentials). No
+  downstream consumers yet — dormant.
+ARCHITECTURAL IMPACT:
+- One entertainment-core package, not two. No competing boundary.
+NEXT: awaiting real CI on PR #61, then merge.
+```
 
 ### JH-041
 **Priority:** P2
