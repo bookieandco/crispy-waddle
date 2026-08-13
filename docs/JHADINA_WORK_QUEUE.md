@@ -409,41 +409,52 @@ the real build's route manifest.
 
 ### JH-012
 **Priority:** P3
-**Status:** QUEUED (not started — DISCOVER phase only)
-**Branch:** none yet
+**Status:** QUEUED (DISCOVER complete — nothing to land)
+**Branch:** none
 **Objective:** Shodan read-only security connector
 (`shodan.host.read`, `shodan.internetdb.read`, `shodan.dns.read`,
 `shodan.search.read`, `shodan.history.read`), adapter-bounded, evidence
 not conclusions, no active scanning.
-**Dependencies:** JH-001, JH-002 (needs the real spine to exist first —
-this was previously specified against packages that don't exist in this
-repo yet: `jhadina-action-core`, `provider-core`, `security-core`. Those
-need to be found-or-built as part of JH-002/JH-003, not assumed.)
-**Definition of Done:** Not yet defined — this needs a DISCOVER pass
-(does anything like this already exist?) before it gets a real Definition
-of Done.
-**Verification:** N/A yet.
-**Next Step:** Run DISCOVER → AUDIT before writing any code.
+**Dependencies:** JH-001, JH-002
+**DISCOVER result (2026-08-13):** Searched all 32 remote branches, by
+both content (`git grep -i shodan`) and path
+(`packages/{jhadina-action-core,provider-core,security-core}`). `shodan`
+appears nowhere except this queue file. `packages/jhadina-action-core`
+already exists and is merged to `main` (from earlier queue work); no
+`provider-core` or `security-core` package exists anywhere in any
+branch. This is a from-scratch build with no existing implementation to
+audit or land, against infrastructure (`provider-core`, `security-core`)
+that itself doesn't exist yet.
+**Next Step:** Not started — genuinely no code exists for this task.
+Building a live external security-scanning connector (even read-only)
+from a brainstorm description, with no existing `provider-core`/
+`security-core` boundary to adapt into, is a product/security decision
+(what gets scanned, whose Shodan API key, what evidence surfaces where)
+that shouldn't be started implicitly. Left QUEUED pending a human call
+on priority and design.
 
 ### JH-013
 **Priority:** P3
-**Status:** QUEUED (not started — DISCOVER phase only)
+**Status:** QUEUED (DISCOVER complete — nothing to land)
 **Branch:** none
 **Objective:** "Communications stack" end-to-end wiring (Command API →
 Policy → Planner → Comms Core → Transport Registry → Reticulum Adapter →
 Reticulum, and the inbound/evidence paths back).
 **Dependencies:** JH-001, JH-002
-**Definition of Done:** Not yet defined. **Flag:** none of the named
-components (Command API, Communications Core, Communication Planner,
-Transport Registry, Reticulum Adapter, Device/Identity Registry) were
-found anywhere in this repository as of this file's creation. Before
-this becomes a real task, someone needs to confirm whether this work
-exists on a branch not yet surfaced, or whether it's still purely
-conceptual. Don't start implementation from the brainstorm description
-alone.
-**Verification:** N/A yet.
-**Next Step:** DISCOVER: search all 90 branches for any of the named
-component names before assuming a from-scratch build.
+**DISCOVER result (2026-08-13):** Searched all 32 remote branches for
+every named component, by path and by content. `reticulum` appears
+nowhere except this queue file. The only path match for any of
+"transport-registry / comms-core / communication-planner / command-api
+/ device-identity-registry" is `packages/placement-core/src/command-api.ts`
+on `main` and two PlacementOS-adjacent branches — PlacementOS's own
+command API (a staffing/scheduling domain), unrelated to a
+communications/mesh-networking stack. None of the actual named
+components (Communications Core, Communication Planner, Transport
+Registry, Reticulum Adapter, Device/Identity Registry) exist anywhere.
+**Next Step:** Confirmed purely conceptual — this is not implemented on
+any branch this session has access to. Not something to start from a
+brainstorm description alone; needs a human decision on whether it's
+still a real planned feature before it gets a Definition of Done.
 
 ---
 
