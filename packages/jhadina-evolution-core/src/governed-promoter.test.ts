@@ -10,6 +10,7 @@ let calls = 0;
 
 const promoter = new GovernedEvolutionPromoter({
   runLedger: ledger,
+  persistedLedgerVerifier: { verify: async () => true },
   createExecutionContext: async () => ({
     repairId: "repair-1", plan, workspace,
     repository: { snapshot: { repository: "bookieandco/crispy-waddle", branch: "main", commit: "abc123" } },

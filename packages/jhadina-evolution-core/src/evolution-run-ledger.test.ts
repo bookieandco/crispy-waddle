@@ -5,6 +5,7 @@ import {
 } from "./evolution-run-ledger";
 
 const result = {
+  version: "1" as const,
   runId: 42,
   taskId: "task-42",
   status: "VERIFIED" as const,
@@ -12,7 +13,7 @@ const result = {
   branch: "evolution/task-42",
   changedFiles: ["src/example.ts"],
   diffStat: "+1 -0",
-  verification: { passed: true },
+  verification: { protectedPaths: "success" as const, evolutionCoreTests: "success" as const },
   draftPr: "https://github.com/bookieandco/crispy-waddle/pull/42",
 };
 

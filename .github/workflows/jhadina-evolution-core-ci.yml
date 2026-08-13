@@ -46,13 +46,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Test evolution core
-        run: pnpm --filter jhadina-evolution-core test
+        run: pnpm --filter @jhadina/evolution-core test
 
       - name: Typecheck evolution core
-        run: pnpm --filter jhadina-evolution-core typecheck
+        run: pnpm --filter @jhadina/evolution-core type-check
 
       - name: Typecheck core spine
-        run: pnpm --filter @jhadina/core-spine typecheck
+        run: pnpm --filter @jhadina/core-spine type-check
 
       - name: Validate migration files
         run: |

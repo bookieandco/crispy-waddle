@@ -57,6 +57,12 @@ importers:
 
   packages/jhadina-core-spine: {}
 
+  packages/jhadina-evolution-core:
+    dependencies:
+      '@jhadina/core-spine':
+        specifier: workspace:*
+        version: link:../jhadina-core-spine
+
   packages/music-core:
     devDependencies:
       typescript:
