@@ -184,25 +184,30 @@ fulfilled by #25 + #30.
 
 ### JH-005
 **Priority:** P1
-**Status:** ACTIVE
-**Branch:** `feat/approval-receipt-boundary` (PR #33)
+**Status:** DONE
+**Branch:** `feat/approval-receipt-boundary` (PR #33, merged `b0368d6`)
 **Objective:** Preserve `approval_required` as a first-class decision;
 require a verified, single-use, expiring approval receipt bound to
 action ID/user ID/capability/fingerprint before `ActionExecutor` runs a
 consequential action.
-**Dependencies:** JH-001 (this PR has *never* had a real build/test job
-run against it — only a skipped Supabase-preview check — despite being
-small and self-contained (175/-19, 3 files))
-**Definition of Done:**
-- Real CI run completes and passes.
-- Confirmed no UI, external API, DB migration, or Evolution changes
-  snuck into what's meant to be a pure spine-hardening change.
-**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI (first real run).
-**Next Step:** Trigger and inspect a real CI run once JH-001 lands, then merge.
+**Dependencies:** JH-001
+**Definition of Done:** Met. Rebased cleanly onto `main` past #42/#25/#30
+with no conflicts. `jhadina-action-core` (the package this PR touches)
+has no `package.json` of its own, but is reached and type-checked
+transitively through `music-core`'s existing relative import
+(`../../jhadina-action-core/src/action-executor`), so the real launch
+gate already covers it — no new tsconfig or workspace wiring needed.
+Confirmed scope stayed to the 3 stated files (action-executor.ts,
+approval-receipt.ts, security-core-action-policy.ts) — no UI, external
+API, DB migration, or Evolution changes.
+**Verification:** Real CI on PR #33 (its first-ever real run — previously
+only a skipped Supabase-preview check): `Install, type-check, lint, test,
+build` green. Also `pnpm type-check`/`lint`/`test`/`build` locally.
+**Next Step:** None — done.
 
 ### JH-006
 **Priority:** P1
-**Status:** BLOCKED
+**Status:** ACTIVE
 **Branch:** `feat/staffingos-standalone-boundary` (PR #24)
 **Objective:** Get the PostgreSQL-backed staffing payment idempotency/
 transaction/reconciliation boundary CI-verified and conflict-free.
