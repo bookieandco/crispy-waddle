@@ -716,20 +716,54 @@ governed data source.
 
 ### JH-029
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-growth-engine` (PR #7) —
-`apps/jhadina-web/src/lib/{shopping,cooking,opportunities}/**`,
-`apps/jhadina-web/src/app/opportunity/page.tsx`,
-`apps/jhadina-web/src/app/api/opportunities/**`
+**Status:** DONE
+**Branch:** `agent/opportunities-shopping-cooking` (PR #54, merged
+`5ab2476`). Original PR #7 left open/untouched.
 **Objective:** Shopping watchlist, cooking/recipe/drink recommendation
 engines, and an Opportunity Command Center (side-income discovery with
 an approve-only, no-side-effect action model).
 **Dependencies:** JH-001
-**Next Step:** Not yet audited.
+**Completion report:**
+```
+TASK: JH-029
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/opportunities/{sideIncome,engine}.ts,
+  src/app/opportunity/page.tsx, src/app/api/opportunities/{route,
+  approve/route}.ts, src/__tests__/opportunities.test.ts (existing
+  10-test vitest coverage carried over)
+- apps/jhadina-web/src/lib/shopping/universal-shopping.ts,
+  src/lib/awareness/shopping-watchlist.ts
+- apps/jhadina-web/src/lib/cooking/{drink-recommendations,
+  recipe-ingestion}.ts
+- apps/jhadina-web/src/lib/flow/context-flow.ts (direct dependency,
+  small/self-contained, not claimed by any other deferred task)
+- Fixed one real type-narrowing bug in drink-recommendations.ts
+  (property narrowing lost across a closure) — behavior unchanged.
+VERIFIED:
+- Full grep sweep across all 11 files for fetch/credentials/secrets/
+  bearer/http(s):// — nothing beyond the app's own internal
+  /api/opportunities* routes. Every "source" field (shopping,
+  recipes) is caller-supplied input, never fetched by this code.
+- No path to Action Executor anywhere; the only server-tracked
+  mutation in the whole slice is approveOpportunity(), an in-memory
+  status flip with a timestamp — no money movement, no purchase, no
+  booking, no publishing.
+- type-check, lint, test (51/51), build all pass; CI green on PR #54.
+ARCHITECTURAL IMPACT:
+- No human/security gate needed — decision-support/observation only
+  throughout, matching the pattern already established for
+  JH-019/020/021/027.
+- Confirmed (again) the rest of PR #7 is the already-tracked
+  kitchen-sink content from JH-015/019/021/025-028/030-039 — not
+  re-deferred, not re-merged.
+COMMIT: d2048c1 (PR #54), merged as 5ab2476
+NEXT: JH-030
+```
 
 ### JH-030
 **Priority:** P2
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `feat/jhadina-growth-engine` (PR #7) —
 `apps/jhadina-web/src/lib/campaign/polling.ts`,
 `apps/jhadina-web/src/app/campaign/polls/page.tsx`
