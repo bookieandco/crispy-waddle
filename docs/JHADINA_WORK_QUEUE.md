@@ -116,27 +116,29 @@ build`: success). 57/57 tests passing.
 
 ### JH-002
 **Priority:** P0
-**Status:** ACTIVE
-**Branch:** `feat/jhadina-core-spine` (PR #25)
+**Status:** DONE
+**Branch:** `feat/jhadina-core-spine` (PR #25, merged `fbcbbaf`)
 **Objective:** Merge the `@jhadina/core-spine` control-plane package
 (evidence-backed contracts for memory, patterns, personality, context,
 decisions, policy, actions, audit; governed orchestration that stops
 denied decisions before execution).
-**Dependencies:** JH-001 (need a trustworthy CI gate before merging
-something everything else will depend on)
-**Definition of Done:**
-- Core contracts and orchestration only — confirmed no domain business
-  logic, external APIs, DELIA/MARISA implementation, DB schema changes,
-  or autonomous behavior snuck in.
-- Real (not the generically-named "evolution-core" job that currently
-  runs on this PR) CI coverage via the JH-001 gate.
-**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI (post JH-001).
-**Next Step:** Merge to `main` once JH-001 is done and this PR is re-run
-against the real gate.
+**Dependencies:** JH-001
+**Definition of Done:** Met. Same root cause as JH-001 hit again: the
+package had no scoped `tsconfig.json`, so `tsc` pulled in unrelated
+incomplete packages via the root config. Added
+`packages/jhadina-core-spine/tsconfig.json` (scoped to its own `src/**`,
+`moduleResolution: "bundler"` for its `.js`-extension ESM-style internal
+imports) plus the missing `pnpm-lock.yaml` workspace importer entry.
+Confirmed scope stayed to contracts/orchestration only — no domain
+logic, external APIs, DELIA/MARISA, or DB changes.
+**Verification:** Real CI on PR #25 after rebase onto the fixed `main`:
+both `evolution-core` checks and the repo-wide `Install, type-check,
+lint, test, build` gate all green.
+**Next Step:** None — done.
 
 ### JH-003
 **Priority:** P0
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `agent/evolution-core-spine-adapter` (PR #30)
 **Objective:** Merge `@jhadina/evolution-core`'s `JhadinaEvolutionAdapter`
 against the canonical `core-spine` `EvolutionPort` — proposal/evaluation
