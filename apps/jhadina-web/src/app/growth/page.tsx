@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { getCurrentUserId } from "@/lib/auth/current-user"
 
 type Draft = {
   id: string; brand: string; platforms: string[]; kind: string; title?: string; body: string
@@ -20,10 +21,22 @@ export default function GrowthCommandCenter() {
   const [redraftId, setRedraftId] = useState<string | null>(null)
   const [instruction, setInstruction] = useState("")
 
+  // Real, signed-in Supabase user id — the app's global middleware
+  // already guarantees a session exists before this page renders. This
+  // is what the governed approve path's server-side identity verifier
+  // actually checks the claim against; sending anything else fails
+  // closed with "Action identity mismatch" (Integration Phase 2 fix —
+  // this page previously sent a hardcoded, never-real "user_demo").
+  async function userHeader(): Promise<Record<string, string>> {
+    const userId = await getCurrentUserId()
+    if (!userId) throw new Error("Not signed in")
+    return { "x-jhadina-user-id": userId }
+  }
+
   async function load() {
     setLoading(true); setError("")
     try {
-      const res = await fetch("/api/growth/drafts", { headers: { "x-jhadina-user-id": "user_demo" } })
+      const res = await fetch("/api/growth/drafts", { headers: await userHeader() })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Could not load growth drafts")
       setDrafts(json.data?.drafts ?? [])
@@ -35,7 +48,7 @@ export default function GrowthCommandCenter() {
   async function action(path: string, draftId: string, extra: Record<string, string> = {}) {
     setBusy(draftId); setError("")
     try {
-      const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json", "x-jhadina-user-id": "user_demo" }, body: JSON.stringify({ draftId, ...extra }) })
+      const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json", ...(await userHeader()) }, body: JSON.stringify({ draftId, ...extra }) })
       const json = await res.json(); if (!res.ok) throw new Error(json.error || "Action failed")
       setRedraftId(null); setInstruction(""); await load()
     } catch (e) { setError(e instanceof Error ? e.message : "Action failed") }

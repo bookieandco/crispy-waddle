@@ -2385,3 +2385,163 @@ SP-2 reference adapters untouched underneath.
 **NEXT: no Proof #4 started. Finding D is named as the logical next
 step, not begun. All 15 frozen human gates remain frozen — untouched
 by this checkpoint or its corrections.**
+
+---
+
+## JHADINA OS INTEGRATION PHASE 2 — REAL PRODUCT LOOP
+
+Explicitly not another domain proof. Phase 1 proved the backend spine
+composes (SP-1/2/3) and Checkpoint #2 confirmed it's mature enough to
+build on (Growth and Money converged on it independently). Phase 2's
+question is different: can a real user interaction in Jhadina's
+*shipped* UI travel through that composition and come back as
+observable state — not another mock adapter, the actual app.
+
+### PL-1 — Command Center → governed Growth action
+
+**Status:** DONE
+**Objective:** `PersonalCommandFeed` → user selects a proposed Growth
+action → identity context → capability/policy evaluation → Approval
+Center → `ActionExecutor` → audit ledger → Activity Timeline →
+Command Center reflects result. Reuses `PersonalCommandFeed`, the
+JH-031 shell, the existing `/growth` Approval Center, and SP-1's
+governed spine exactly as they are. No new governance package, no
+live advertising API, no credentials, no new parallel policy/identity
+implementation.
+
+**Pre-build audit (required before any code, per instruction):**
+- `PersonalCommandFeed` (`pages/index.tsx` + `components/home/
+  PersonalCommandFeed.tsx`) was 100% static demo data — no fetch, no
+  click handlers wired to anything.
+- `/growth` was already the real Approval Center: it already fetched
+  real drafts and its Approve button already called SP-1's governed
+  path. Further along than expected.
+- **A real, pre-existing bug found, not hypothetical:** `/growth`'s
+  client code sent a hardcoded `x-jhadina-user-id: "user_demo"` header
+  as the claimed identity (same stub pattern in `/opportunity`). SP-1's
+  real `SupabaseActionIdentityVerifier` checks that claim against the
+  actual, server-verified Supabase session subject and throws `"Action
+  identity mismatch"` on any mismatch. No real Supabase user has the
+  literal id `"user_demo"` — so, as shipped, the existing Approve
+  button could not have completed successfully against any real
+  logged-in session. Confirmed by reading both files, not inferred.
+- No Activity Timeline UI existed anywhere — JH-031's nav was
+  explicitly trimmed to drop a stubbed `/activity` entry because
+  nothing backed it (confirmed in that entry's own completion report).
+- **The one genuine architectural fork:** SP-1's audit ledger
+  (`governed-approval-runtime.ts`) is a process-local, in-memory
+  singleton; no Supabase migration/RPC for the real `SupabaseAuditLedger`
+  exists anywhere in `supabase/migrations`. Flagged to the user rather
+  than guessed. **Decision: in-memory ledger for this milestone.**
+  Explicit rule given: use the existing `ActionLedger` interface and
+  the in-memory implementation; no Supabase migration, `audit_events`
+  table, RPC, or new persistence abstraction in this slice; the
+  implementation must be written so swapping in the already-existing
+  `SupabaseAuditLedger` later requires only dependency wiring, not
+  changes to the UI, governance flow, or `ActionExecutor`. Durability is
+  explicitly the next milestone, not this one.
+- Global middleware (`src/middleware.ts` → `updateSession`) already
+  requires a real Supabase session for every route except `/login`/
+  `/auth` — confirmed real, not assumed. This is why the identity-header
+  bug matters (a real session always exists by the time these pages
+  render) and why it's a bug fix, not a design decision.
+
+**Completion report:**
+```
+TASK: PL-1
+STATUS: DONE
+CHANGED:
+- src/lib/auth/current-user.ts (new): getCurrentUserId() reads the
+  real, client-side Supabase session (auth.getUser()) — replaces the
+  hardcoded "user_demo" header. Not a new identity system: it only
+  reads the identity Supabase already established and hands it to
+  SP-1's existing server-verified boundary.
+- src/app/growth/page.tsx: fetch calls now send the real signed-in
+  user id instead of "user_demo" — the bug fix above. No other change;
+  the existing Approve/Reject/Redraft/Schedule flow and its calls into
+  SP-1's governed path are otherwise untouched.
+- src/lib/growth/governed-approval-runtime.ts: runGovernedGrowthDraftApproval
+  now accepts an optional identityVerifierOverride (default: the real
+  createRequestIdentityVerifier(), unchanged production behavior).
+  Exists solely so tests can exercise the actual composition root the
+  API routes call — createRequestIdentityVerifier() makes a real
+  Supabase call with no meaning in a test process, so this was
+  previously untestable at this layer; SP-1's own tests only covered
+  the function one level below (approveGrowthDraftGoverned). Also adds
+  listGovernedGrowthActivity(claimedUserId, override?): the Activity
+  Timeline's read boundary — identity-gated the same way approval is,
+  filters the shared ledger singleton to events belonging to the
+  verified caller only.
+- src/app/api/growth/activity/route.ts (new): thin GET handler —
+  reads the same x-jhadina-user-id header pattern as the other Growth
+  routes, calls listGovernedGrowthActivity with the real identity
+  verifier (no override), returns the caller's own events as JSON.
+  This is the only path from the ledger to any UI — no UI component
+  imports the ledger, action-core, or governed-approval-runtime
+  directly (grep-verified).
+- src/app/activity/page.tsx (new): Activity Timeline UI. Fetches
+  /api/growth/activity with the real signed-in user id, renders each
+  event's type/status/timestamp/metadata. Empty/loading/error states
+  handled explicitly; never assumes success.
+- components/home/PersonalCommandFeed.tsx: added one real card. Every
+  other card is still JH-014's original demo content (no backend
+  exists yet for those kinds) — untouched. The new card fetches the
+  signed-in user's actual pending Growth drafts through the same
+  /api/growth/drafts route /growth already uses, shows one when
+  something real is pending, and its "Review" action links to /growth
+  (the existing Approval Center) rather than reimplementing approve/
+  deny controls inline — matches the diagram's own separation between
+  "user selects a proposed action" (Command Center) and "Approval
+  Center" (a distinct step). Fails silently on this preview surface if
+  signed out or the fetch fails; errors that matter surface on /growth
+  itself.
+- src/components/JhadinaShellNavigation.tsx: added Activity to the
+  Worlds dropdown (not the fixed five-button primary nav, which JH-031
+  deliberately caps at five). Now genuinely reachable, not an orphan
+  page.
+- src/lib/growth/governed-approval-runtime.test.ts (new): the ten
+  required lifecycle points, all against the real composition-root
+  functions the API routes call (not the one-layer-down functions
+  SP-1 already tested) — proposal visible via listGrowthDrafts;
+  authorized approval runs identity→policy→approval→execute and is
+  recorded in the shared ledger; unauthorized (identity-mismatched)
+  approval fails closed with a denied ledger entry, draft untouched;
+  Activity Timeline boundary reads back exactly what approval wrote,
+  scoped per-user (a second user's events proven not to leak); a
+  failed execution (approving a nonexistent draft) is recorded failed
+  and IS visible through the Activity boundary, not hidden; a second
+  approval on an already-approved draft cannot execute twice, draft
+  state unchanged from the first approval.
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm vitest run: 91/91 (85 existing + 6 new).
+- pnpm --filter jhadina-web build: real Next.js production build
+  succeeds; /activity and /api/growth/activity both present in the
+  route manifest.
+- pnpm --filter jhadina-web lint: clean except one new
+  react-hooks/exhaustive-deps warning on growth/page.tsx's existing
+  useEffect (same warning class already accepted elsewhere in this
+  codebase, e.g. AudioPlaybackBridge.tsx; not fixed here to avoid a
+  broader refactor of that page's effect structure outside this
+  slice's scope).
+- Grep-confirmed no "use client" component or Pages Router component
+  imports the ledger, @jhadina/action-core, or
+  governed-approval-runtime — only the two new API routes do.
+ARCHITECTURAL IMPACT:
+- Closes a real, previously-shipped bug (the identity-header mismatch)
+  that meant the governed Growth approval path, despite compiling and
+  passing SP-1's tests, could not have completed successfully against
+  any real authenticated user until now.
+- Activity Timeline is real but explicitly non-durable by design
+  decision (in-memory ledger) — will not survive a process restart or
+  necessarily be visible across separate serverless instances in a
+  real deployment. This is the intentional scope of this milestone,
+  not an oversight; the next durability milestone is named below.
+NEXT: durability milestone (in-memory AuditLedger → existing
+SupabaseAuditLedger, schema TBD) OR Commerce reference adapter → sandbox
+payment provider, per user prioritization. Not decided here.
+```
+
+**Frozen gates:** unchanged. JH-007, JH-022–024, JH-026, JH-028/033/034,
+JH-032 remainder, JH-038 checkout decision, JH-039 remainder, JH-041,
+JH-043, JH-046 — none touched.
