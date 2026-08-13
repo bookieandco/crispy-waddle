@@ -557,16 +557,16 @@ yet.
 
 ### JH-025
 **Priority:** P2
-**Status:** QUEUED
+**Status:** SUPERSEDED
 **Branch:** `feat/jhadina-growth-engine` (PR #7) — `packages/growth-core/**`
 **Objective:** Standalone attribution/creative-brief/customer-LTV/
 economics/experiments/lineage engine (20 files, own package.json).
-**Dependencies:** JH-001
-**Flag:** Nothing in PR #7 (including the growth slice that did merge)
-actually imports `@jhadina/growth-core` — it's fully unwired. Audit
-should establish whether this supersedes/relates to JH-015's simpler
-in-memory engine before deciding how it's meant to connect.
-**Next Step:** Not yet audited.
+**Resolution:** Folded into and completed by JH-021 (PR #52, merged
+`d6efd2e`) — PR #41 turned out to contain the exact same 30 files
+(byte-identical, diffed to confirm) plus 26 more finishing the
+package with full test coverage. Landed as one task rather than
+landing this narrower slice first and completing it later. See
+JH-021's completion report.
 
 ### JH-026
 **Priority:** P2
@@ -1236,11 +1236,62 @@ net-new.
 
 ### JH-021
 **Priority:** P2
-**Status:** ACTIVE
-**Branch:** `feat/jhadina-growth-channel-adapters-v9` (PR #41)
+**Status:** DONE
+**Branch:** `agent/growth-core-foundation` (PR #52, merged `d6efd2e`).
+Original `feat/jhadina-growth-channel-adapters-v9` (PR #41) closed
+without merging, history preserved.
 **Objective:** Complete the advertising intelligence loop.
 **Dependencies:** JH-001 (done), JH-015 (done)
-**Next Step:** Not yet audited.
+**Completion report:**
+```
+TASK: JH-021
+STATUS: DONE
+CHANGED:
+- packages/growth-core/** (56 files): full attribution, creative,
+  customer, economics, channels (adapters/campaign-orchestrator/
+  registry/delivery-reconciliation), events, intelligence
+  (experiment-planner/growth-decision-feed/growth-loop/
+  opportunity-engine), learning, lineage, opportunity, and store
+  modules, each with a Vitest test file.
+- Added standard scaffolding not present in the original: scoped
+  tsconfig.json, type-check/test scripts, vitest devDependency.
+VERIFIED:
+- True merge-base a6d85a3, same fork point as PR #6/#7/#8/#16/#17-22
+  (same "kitchen sink" branch family this whole cleanup pass has been
+  disentangling).
+- Diffed growth-core's 30 pre-existing files against PR #7's copies
+  (already deferred as JH-025) — byte-identical. The 26 new files
+  complete rather than duplicate that work.
+- Read every new advertising-execution file directly (channels/,
+  events/advertising-events.ts, intelligence/growth-loop.ts): only
+  concrete channel adapter anywhere is MockChannelAdapter (in-memory
+  fake); CampaignExecutionOrchestrator.execute() and
+  assertExecutionApproved() both hard-require an explicit policy
+  approval decision before any action; reconciliation/normalization
+  functions are pure, no fetch calls; runGrowthIntelligenceLoop() is
+  a pure planning function. Full grep sweep for fetch/credentials/
+  secrets/bearer/http(s):// across every new file: nothing found.
+- Still fully unwired — nothing in apps/jhadina-web imports
+  growth-core, same dormant shape as JH-019/020's landed packages.
+- type-check clean; test: 26 files / 61 tests passing; CI green on
+  PR #52; jhadina-web, pupsonstuff, entertainment-core, payment-core
+  re-verified unaffected.
+ARCHITECTURAL IMPACT:
+- No human/security gate needed: read-only observation/attribution/
+  planning infrastructure throughout, no live advertising execution,
+  no credentials, no autonomous publishing path — matches the
+  category explicitly called safe rather than the category requiring
+  a stop.
+- Folded JH-025 into this task's landing (see JH-025, now
+  SUPERSEDED) rather than tracking it as a separate stale entry once
+  its full/completed form was found and landed here.
+- Rest of PR #41's diff (Studio pipeline, Publishing, Money/Plaid,
+  homepage deletion) is the same already-tracked content from
+  JH-025-036 (byte-diffed to confirm) — not re-deferred as
+  duplicates.
+COMMIT: cd15059 (PR #52), merged as d6efd2e
+NEXT: next unblocked task per selection order
+```
 
 ---
 
