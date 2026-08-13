@@ -593,13 +593,52 @@ that decision is made.
 
 ### JH-027
 **Priority:** P2
-**Status:** ACTIVE
-**Branch:** `feat/jhadina-growth-engine` (PR #7) —
-`apps/jhadina-web/src/lib/publishing/**`
+**Status:** DONE
+**Branch:** `agent/publishing-engine` (PR #53, merged `0664435`).
+Original PR #7 left open/untouched (shared source for other still-
+deferred tasks).
 **Objective:** Publishing engine — fiction/creative-writing workflow,
 KDP intelligence, research library and engine.
 **Dependencies:** JH-001
-**Next Step:** Not yet audited.
+**Completion report:**
+```
+TASK: JH-027
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/publishing/{creative-writing-workflow,
+  fiction-engine,kdp-intelligence,publishing-intelligence,
+  publishing-workbench,publishing-world,research-engine,
+  research-library}.ts (new, 8 files)
+- apps/jhadina-web/src/components/publishing/{PublishingWorkbench.tsx,
+  .module.css} (new)
+- apps/jhadina-web/src/lib/jhadina/jhadina-world-registry.ts (new) —
+  pulled in as a required direct dependency (publishing-intelligence.ts
+  imports its JhadinaWorldId type); small, zero-import, self-contained,
+  not claimed by any other deferred task.
+- Fixed 2 real bugs surfaced by actually type-checking (not present
+  in any deferred task, genuine defects in the reconstructed files):
+  PublishingWorkbench.tsx's dead 'Library' tool-name comparison, and
+  jhadina-world-registry.ts's untyped tuple array.
+VERIFIED:
+- All 10 core files + the 1 dependency file grepped for fetch/
+  credentials/secrets/bearer/http(s):// — nothing found.
+- kdp-intelligence.ts read in full: pure types + deterministic
+  factories (crypto.randomUUID(), timestamp), createKdpAutomationJob()
+  defaults publish-adjacent operations to requiresApproval-gated
+  status. No live Amazon KDP integration anywhere.
+- PublishingWorkbench.tsx's persistence is client-side
+  window.localStorage only — no network calls.
+- type-check, lint, test (41/41), build all pass; CI green on PR #53.
+ARCHITECTURAL IMPACT:
+- No human/security gate needed — same governed/dormant-until-wired
+  pattern as JH-019/020/021. Nothing here is mounted to a page/route.
+- Confirmed (again) that the remainder of PR #7's diff is the
+  already-tracked kitchen-sink content from JH-015/019/021/025-039 —
+  not re-deferred, not re-merged.
+COMMIT: 796dede (PR #53), merged as 0664435
+NEXT: JH-028 (flagged — real Plaid financial data, needs its own
+audit before promoting; see JH-028)
+```
 
 ### JH-028
 **Priority:** P2
