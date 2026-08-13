@@ -1428,25 +1428,58 @@ NEXT: JH-021
 
 ### JH-046
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-intelligence-contract` (PR #20, closed) —
-`packages/jhadina-intelligence-contract/**`
-**Objective:** Jhadina Intelligence Contract (JIC) v1.0 — the general
+**Status:** BLOCKED (human decision — architectural overlap confirmed)
+**Branch:** `feat/jhadina-intelligence-contract` (PR #20, closed
+without merging) — `packages/jhadina-intelligence-contract/**` (3
+files: README, package.json, a single `src/index.ts` of pure type
+definitions plus two pure helper functions — `isConfidenceValid`,
+`canExecuteRecommendation`. No runtime, no orchestrator, no ports.
+Nothing on `main` imports or references it.)
+**Objective:** Jhadina Intelligence Contract (JIC) v1.0 — a general
 interface between any application/platform and Jhadina's intelligence
 layer: read-only events and scoped context packets in, evidence-backed
 observations/forecasts/recommendations/command-proposals out, with
 regulatory constraints overriding optimization and every recommendation
 carrying evidence/rationale/confidence/risk/approval-requirements.
-Proposed commands must pass Policy Core and the Action Executor.
 **Dependencies:** JH-001
-**Flag:** This is a FOUNDATION-lane concern (a general platform
-integration contract), not PRODUCT/commerce — it was only bundled with
-the commerce chain because it happened to be built first in the same
-working session, not because commerce depends on it. Audit should
-confirm whether this overlaps with anything already in the FOUNDATION
-lane (jhadina-action-core, security-core) before treating it as
-net-new.
-**Next Step:** Not yet audited.
+**Audit (2026-08-13):** Read the full (small) source. Confirmed
+safety-clean — pure types plus two pure predicates, nothing landable
+or dangerous either way. The real finding is architectural overlap,
+exactly as flagged: `packages/jhadina-core-spine` (already merged,
+FOUNDATION lane) already implements the identical "observation →
+context → decision → policy → action → audit" pipeline JIC describes,
+as a working, pluggable, port-based orchestrator
+(`JhadinaSpine.run()` in `spine.ts`), not just types:
+- JIC's `ContextPacket` reuses that exact type name for a different
+  shape (`contractVersion`/`mission`/`tenantId`/`jurisdiction` vs.
+  core-spine's `purpose`/`relevantMemories`/`patterns`/`personality`).
+- JIC's `Recommendation` ≈ core-spine's `DecisionProposal` (both:
+  evidence-backed proposal with rationale/confidence/risk/approval).
+- JIC's `CommandProposal`/`CommandResult` ≈ core-spine's
+  `ActionRequest`/`ActionResult` — and separately, a *third* shape of
+  the same concept already exists in `jhadina-action-core`
+  (`ActionRequest`/`ActionAuditEvent`, the actual hardened execution
+  boundary from JH-045).
+- JIC's `EvidenceReference` ≈ core-spine's `EvidenceRef`.
+
+So this isn't a security question — it's whether JIC closes a genuine
+gap core-spine doesn't cover. The one real difference: JIC's event
+vocabulary (`ORDER_CREATED`, `INVENTORY_RECEIVED`, `DELIVERY_STARTED`,
+etc.) and multi-tenant/`jurisdictionId` fields suggest it was designed
+for external, multi-tenant B2B platform integration (exposing
+Jhadina's intelligence to third-party commerce/logistics systems)
+rather than core-spine's internal personal-assistant reasoning loop —
+that could be a real, distinct use case, or it could just be
+unnecessary vocabulary sprawl for a use case nothing in this repo
+currently needs. Nothing consumes JIC today either way.
+**Next Step:** Human call needed: (a) reject JIC as redundant with
+core-spine, (b) adopt JIC's vocabulary and retire/rename core-spine's
+overlapping types in its favor, or (c) keep both if the external-
+platform-integration use case is real, but rename JIC's colliding type
+names (`ContextPacket` especially) so the two contracts don't share a
+name with different shapes. Not decided here — this is precisely the
+"don't add another abstraction layer unless it genuinely closes a gap"
+call the FOUNDATION lane requires a human on.
 
 ### JH-021
 **Priority:** P2
