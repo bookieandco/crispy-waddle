@@ -320,48 +320,53 @@ purpose fulfilled by #36.
 
 ### JH-010
 **Priority:** P1
-**Status:** BLOCKED
-**Branch:** `feat/jhadina-shotlist-director-integration` (PR #8)
+**Status:** DONE
+**Branch:** `agent/shotlist-director-core-repaired` (PR #45, merged
+`79300f2`) — reconstructed from `feat/jhadina-shotlist-director-integration`
+(PR #8, closed not merged, branch untouched/recoverable)
 **Objective:** Merge the provider-neutral Director/Shotlist Core —
 persistence-free creative-intent/prompt-emission/scene-timeline/
 production-gate logic, with policy/approval/execution/audit/memory
 remaining owned by the spine.
 **Dependencies:** JH-001
-**Human gate:** Merging `main` into this branch (no conflicts reported —
-that's the danger, not a reassurance) reveals PR #8's own 103 commits
-have, relative to their own stated base (`450c8b5`), **deleted the
-entire `security-core` package** (`security-gate.ts`, `audit-integrity.ts`,
-`auth-binding.ts`, etc. — the deterministic security policy engine
-`SecurityCoreActionPolicy` in `jhadina-action-core` depends on, wired
-into `money-core` by JH-006) **and deleted 30 of `music-core`'s files**
-(`mastering.ts`, `restoration.ts`, `studio-adapter.ts`, the native DSP
-bindings, and their tests — the audio-restoration engine JH-001 fixed
-and verified). Both packages existed intact at PR #8's own base commit,
-so this isn't drift or a naming coincidence — PR #8's branch genuinely
-diverged by removing them, most likely via an early bad rebase/squash
-in its 103-commit history that was never caught because it never had a
-real CI run. Because a plain `git merge` doesn't flag a modify(main)/
-delete(PR#8) conflict here the way it should, blindly merging would
-silently glue two unrelated `music-core` implementations together
-(PR #8 branch's own pre-existing, older discovery/matching/taste/
-youtube-music/search/player files, present since before its base commit,
-sitting alongside main's DSP files) and would risk actually deleting
-`security-core` if resolved the other way. Neither outcome is a
-mechanical call: reconstructing what PR #8 intended to keep vs. actually
-lost requires either author input or a real commit-by-commit archaeology
-of a 103-commit branch that's safer done with sign-off given what's at
-stake (an already-merged, CI-verified security dependency).
-**Definition of Done:** Not decided — depends on the resolution Dorian
-picks: rebase PR #8's genuinely-new commits (planning-core, shotlist-core)
-onto current `main` without carrying the deletions across, or something
-else if the deletions turn out to be intentional.
-**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI — once scope
-is decided.
-**Next Step:** Ask Dorian: were `security-core` and `music-core`'s DSP
-files meant to be deleted by this branch, or is this accidental damage
-from an early rebase? If accidental, confirm the fix should be
-cherry-picking PR #8's real additions (`planning-core`, `shotlist-core`)
-onto current `main` rather than merging the branch as-is.
+**Definition of Done:** Met, via a reconstruction rather than a direct
+merge. Dorian's instruction: treat the deletions as accidental damage
+unless PR #8's own history proved otherwise, reversing the burden of
+proof onto the unverified branch rather than the already-merged
+`security-core`/DSP `music-core` infrastructure. Archaeology (not
+guessing): the original "PR #8 deletes security-core + 30 music-core
+DSP files" finding was an artifact of diffing against `450c8b5`
+(GitHub's reported base sha), which is **not actually an ancestor** of
+PR #8's branch (`git merge-base --is-ancestor` fails). The real
+merge-base is `a6d85a3`; at that commit neither package existed yet on
+`main` (`security-core` added later at `8005a69`, DSP `music-core` at
+`9e51ee9`, both confirmed descendants of `a6d85a3`). Zero commits in
+PR #8's 103-commit history touch either path — it never deleted
+anything, it's a stale branch that forked before `main` grew those
+packages. The real diff (`a6d85a3..065a1b2`) is 72 files, +3732/−1,
+entirely additive: `packages/planning-core`, `packages/shotlist-core`,
+`apps/jhadina-agent-runtime`, `apps/jhadina-calendar-kmp`, a handful of
+`jhadina-web` routes/components — none touching `music-core`, so the
+two "generations" of that package already coexisting on `main` were
+never a real collision. Applied that diff directly onto current `main`
+(`git apply --check` — zero conflicts) as a new branch, entirely
+independent of PR #8's stale history; PR #8 itself was never touched
+(no commits, no force-push) and was only closed, not deleted, after
+#45 merged. Fixed real bugs the packages' own type-checker/build had
+never caught (no prior real CI run): `PlanningEventBus.publish()`
+wasn't generic despite every event-factory function returning a
+concretely-typed event; a few unused imports/fields; a test calling a
+3-arg constructor with 1 arg; the app's first real App Router page
+needed a root `layout.tsx` and a `Suspense` boundary for
+`useSearchParams()`; scoped tsconfigs and missing scripts for the two
+new packages. `apps/jhadina-agent-runtime` has no `package.json` (not
+yet a real workspace member) — left as-is, not invented.
+**Verification:** Real CI on PR #45: launch-gate, `jhadinatv`,
+`evolution-core`, and `postgres-integration` all green. Also `pnpm
+type-check`/`lint`/`test`/`build` locally, plus an explicit isolated
+check that `SecurityCoreActionPolicy` still resolves through the real
+`security-core` implementation, unaffected.
+**Next Step:** None — done.
 
 ### JH-011
 **Priority:** P2
