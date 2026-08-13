@@ -803,8 +803,8 @@ JH-014, do not auto-promote)
 
 ### JH-031
 **Priority:** P2
-**Status:** IN REVIEW (PR #57)
-**Branch:** `jh031-shell-chrome` (new — reconstructed from
+**Status:** DONE
+**Branch:** `jh031-shell-chrome` (PR #57, merged `6c7cf00` — reconstructed from
 `feat/jhadina-growth-engine` PR #7's
 `JhadinaShellNavigation.tsx`/`MiniPlayer.tsx`/`layout.tsx`)
 **Objective:** Five-button shell navigation (with a "Worlds" dropdown)
@@ -820,7 +820,7 @@ candidates — see those entries.)
 **Completion report:**
 ```
 TASK: JH-031
-STATUS: IN REVIEW (PR #57, not yet merged)
+STATUS: DONE
 CHANGED:
 - src/components/JhadinaShellNavigation.tsx + .module.css: five-button
   bottom nav + Worlds dropdown, route list trimmed to what actually
@@ -846,7 +846,8 @@ VERIFIED:
 ARCHITECTURAL IMPACT:
 - Resolves the homepage-collision human gate additively — no vertical's
   existing route or component was touched.
-NEXT: awaiting real CI on PR #57, then merge.
+COMMIT: 4dafe4c (PR #57), merged as 6c7cf00
+NEXT: next unblocked task per selection order
 ```
 
 ### JH-016
