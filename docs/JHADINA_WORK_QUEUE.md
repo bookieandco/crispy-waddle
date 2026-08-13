@@ -1353,8 +1353,8 @@ JH-025–JH-039.
 
 ### JH-040
 **Priority:** P2
-**Status:** IN REVIEW (PR #61)
-**Branch:** `jh040-entertainment-graph` (PR #61) — reconciled from
+**Status:** DONE
+**Branch:** `jh040-entertainment-graph` (PR #61, merged `cd09e0d`) — reconciled from
 `feat/jhadina-entertainment-intelligence` (PR #16)
 **Objective:** A second, more ambitious entertainment-intelligence
 surface built as a direct continuation of JH-019's core (same author,
@@ -1366,7 +1366,7 @@ perception (converting measurements into creative observations).
 **Completion report:**
 ```
 TASK: JH-040
-STATUS: IN REVIEW (PR #61, not yet merged)
+STATUS: DONE
 CHANGED:
 - Determined this genuinely EXTENDS JH-019's @jhadina/entertainment-core
   rather than competing with it: JH-019's domain.ts/engine.ts already
@@ -1395,7 +1395,8 @@ VERIFIED:
   downstream consumers yet — dormant.
 ARCHITECTURAL IMPACT:
 - One entertainment-core package, not two. No competing boundary.
-NEXT: awaiting real CI on PR #61, then merge.
+COMMIT: df2f28f (PR #61), merged as cd09e0d
+NEXT: next unblocked task per selection order
 ```
 
 ### JH-041
