@@ -451,25 +451,70 @@ component names before assuming a from-scratch build.
 
 ### JH-014
 **Priority:** P1
-**Status:** ACTIVE
-**Branch:** `feat/supabase-auth-protected-routes` (PR #6)
+**Status:** DONE
+**Branch:** `feat/supabase-auth-protected-routes` (PR #6, merged `d4ead67`)
 **Objective:** Add Supabase Auth and protected routes.
 **Dependencies:** JH-001
-**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI.
-**Next Step:** Audit for conflicts, then merge.
+**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI — all green
+(`Install, type-check, lint, test, build`, `evolution-core`,
+`postgres-integration`, `jhadinatv`).
+**Completion report:**
+```
+TASK: JH-014
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/supabase/{client,server,middleware}.ts (new)
+- apps/jhadina-web/src/middleware.ts (new)
+- apps/jhadina-web/src/app/login/{page.tsx,actions.ts} (new)
+- apps/jhadina-web/src/app/auth/confirm/route.ts (new)
+- apps/jhadina-web/src/app/auth/signout/route.ts (new)
+- apps/jhadina-web/package.json — merged both sides' new deps
+  (@jhadina/tv-core from main, @supabase/ssr + @supabase/supabase-js
+  from PR #6)
+- Deleted apps/jhadina-web/src/app/page.tsx (PR #6's placeholder auth
+  demo page) — see ARCHITECTURAL IMPACT
+VERIFIED:
+- Real merge-base with main confirmed as a6d85a3 (not GitHub's reported
+  base sha); real diff matched PR #6's own stated size exactly
+  (274/-1, 11 files) — no scope creep
+- tsc --noEmit, eslint, vitest, next build all pass for jhadina-web,
+  planning-core, shotlist-core (forced/no-cache)
+- Real GitHub Actions CI green on PR #6 before merge
+ARCHITECTURAL IMPACT:
+- PR #6 introduced apps/jhadina-web/src/app/page.tsx targeting the same
+  `/` route as the already-merged, substantive
+  apps/jhadina-web/pages/index.tsx (PersonalCommandFeed homepage),
+  producing a hard Next.js build failure ("Conflicting app and page
+  file"). Applied the same reversed-burden-of-proof principle used for
+  JH-010: pages/index.tsx is established, CI-verified product content;
+  the PR's page.tsx was an unverified branch's placeholder demo page
+  with no other references anywhere in the codebase. Deleted the
+  placeholder, kept pages/index.tsx as canonical `/`. Confirmed the
+  middleware's route matcher protects `/` regardless of which router
+  serves it, so this does not regress the auth objective — all other
+  PR #6 infrastructure (middleware, login, signup/login actions, email
+  confirmation, signout) is intact and unchanged.
+COMMIT: c115fdf (pushed to PR #6), merged as d4ead67
+NEXT: JH-015
+```
 
 ### JH-015
 **Priority:** P1
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `feat/jhadina-growth-engine` (PR #7)
 **Objective:** Growth Engine redraft workflow — draft lifecycle with
 explicit approval gate, redraft/approve/reject/schedule endpoints,
 Growth Command Center UI. Provider-neutral: publishing stays a separate
 layer behind the approval gate.
-**Dependencies:** JH-014 (based on its branch); `mergeable_state` is
-currently `unstable` (CI failing, not conflicted).
+**Dependencies:** JH-014 (done — merged to main); `mergeable_state` was
+last reported `unstable` (CI failing, not conflicted) — needs
+re-verification against current main.
 **Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI.
-**Next Step:** Fix the failing CI check, then merge.
+**Next Step:** Inspect actual scope/dependencies against current main
+(not the stale reported base), identify whether any existing merged
+work is being replaced/duplicated (note JH-016/PR #4 also touches
+jhadina-web build config — check for overlap), fix the failing CI
+check, then merge.
 
 ### JH-016
 **Priority:** P1
