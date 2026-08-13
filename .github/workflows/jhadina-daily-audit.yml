@@ -1,0 +1,129 @@
+name: Jhadina Daily Evolution Audit
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: jhadina-daily-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout audited commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build evolution core
+        run: pnpm --filter @jhadina/evolution-core build
+
+      - name: Run read-only daily audit and candidate compiler
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: daily-${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT: ${{ github.sha }}
+          VERSION: daily-audit-v1
+        run: |
+          mkdir -p .jhadina/audits .jhadina/candidates
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { mkdirSync, writeFileSync } from 'node:fs';
+          import { buildAuditRunEvent, buildEvidence } from './packages/jhadina-evolution-core/dist/daily-audit-ledger.js';
+          import { attachCandidateIds, buildDailyEvolutionCandidates } from './packages/jhadina-evolution-core/dist/daily-evolution-candidates.js';
+
+          const runId = process.env.RUN_ID;
+          const scheduledFor = new Date().toISOString();
+          const repository = process.env.REPOSITORY;
+          const branch = process.env.BRANCH;
+          const commit = process.env.COMMIT;
+          const version = process.env.VERSION;
+          const commands = [
+            ['git-status', 'git', ['status', '--short', '--branch']],
+            ['git-log', 'git', ['log', '-20', '--oneline', '--decorate']],
+            ['git-diff-stat', 'git', ['diff', '--stat', 'HEAD~1..HEAD']],
+            ['pnpm-outdated', 'pnpm', ['outdated', '--format', 'json']],
+            ['pnpm-audit', 'pnpm', ['audit', '--json']],
+            ['gh-pr-list', 'gh', ['pr', 'list', '--state', 'open', '--limit', '50', '--json', 'number,title,headRefName,baseRefName,statusCheckRollup']],
+            ['gh-issue-list', 'gh', ['issue', 'list', '--state', 'open', '--limit', '50', '--json', 'number,title,labels,updatedAt']]
+          ];
+
+          const evidence = [];
+          let status = 'COMPLETED';
+          for (const [source, program, args] of commands) {
+            let output = '';
+            let exitCode = 0;
+            try {
+              output = execFileSync(program, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+            } catch (error) {
+              exitCode = typeof error?.status === 'number' ? error.status : 1;
+              output = `${error?.stdout ?? ''}${error?.stderr ?? ''}`;
+              if (source !== 'pnpm-audit' && source !== 'pnpm-outdated') status = 'FAILED';
+            }
+            evidence.push(buildEvidence(source, [program, ...args].join(' '), exitCode, output));
+          }
+
+          const audit = buildAuditRunEvent({
+            runId,
+            scheduledFor,
+            startedAt: scheduledFor,
+            completedAt: new Date().toISOString(),
+            status,
+            repository,
+            branch,
+            commit,
+            auditorVersion: version,
+            evidence,
+            candidateIds: [],
+            previousEventHash: null
+          });
+
+          const candidates = buildDailyEvolutionCandidates(audit);
+          const finalAudit = attachCandidateIds(audit, candidates);
+          const finalEvent = buildAuditRunEvent(finalAudit);
+
+          mkdirSync('.jhadina/audits', { recursive: true });
+          mkdirSync('.jhadina/candidates', { recursive: true });
+          writeFileSync(`.jhadina/audits/${runId}.json`, JSON.stringify(finalEvent, null, 2) + '\n');
+          writeFileSync(`.jhadina/candidates/${runId}.json`, JSON.stringify({ schemaVersion: '1.0', auditRunId: runId, candidates }, null, 2) + '\n');
+
+          console.log(`Daily audit ${runId}: ${candidates.length} candidate(s)`);
+          for (const candidate of candidates) {
+            console.log(`${candidate.priority}\t${candidate.category}\t${candidate.title}\t${candidate.candidateId}`);
+          }
+          NODE
+
+      - name: Upload reproducible audit and candidate records
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-daily-audit-${{ github.run_id }}
+          path: |
+            .jhadina/audits/
+            .jhadina/candidates/
+          if-no-files-found: error
+          retention-days: 90

@@ -30,7 +30,6 @@ export function createInMemoryIdempotencyStore(): IdempotencyStore {
       const queued = previous.then(() => current);
       locks.set(input.requestId, queued);
       await previous;
-
       try {
         const existing = records.get(input.requestId);
         if (existing) return { claimed: false, record: existing };

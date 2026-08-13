@@ -12,12 +12,12 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest"
-import { InMemoryStorage } from "../src/lib/storage/InMemoryStorage"
-import { MemoryRepository } from "../src/lib/repositories/MemoryRepository"
-import { ReasoningEventRepository } from "../src/lib/repositories/ReasoningEventRepository"
-import { TimelineRepository } from "../src/lib/repositories/TimelineRepository"
-import { Classifier } from "../src/lib/services/Classifier"
-import { JanetService } from "../src/lib/services/JanetService"
+import { InMemoryStorage } from "../lib/storage/InMemoryStorage"
+import { MemoryRepository } from "../lib/repositories/MemoryRepository"
+import { ReasoningEventRepository } from "../lib/repositories/ReasoningEventRepository"
+import { TimelineRepository } from "../lib/repositories/TimelineRepository"
+import { Classifier } from "../lib/services/Classifier"
+import { JanetService } from "../lib/services/JanetService"
 
 describe("Integration: Full API Flow", () => {
   let storage: InMemoryStorage
@@ -176,7 +176,7 @@ describe("Integration: Full API Flow", () => {
         message: "I prefer cinematic visuals",
       })
 
-      const msg2 = await janet.processMessage({
+      await janet.processMessage({
         userId,
         message: "I prefer minimalist design",
       })
@@ -237,7 +237,7 @@ describe("Integration: Full API Flow", () => {
       expect(response.memoryCandidate.confidence).toBeGreaterThan(0.8)
 
       // Approve it
-      const approval = await janet.approveMemory(
+      await janet.approveMemory(
         userId,
         response.memoryCandidate.id
       )

@@ -1,5 +1,5 @@
 import type { MasteringPlan } from "./mastering";
-import type { AudioArtifact, MasteringExecutionPolicy } from "./mastering-executor";
+import type { MasteringExecutionPolicy } from "./mastering-executor";
 import type { RealtimeAudioEngineAdapter, RealtimeAudioProcessor, RealtimeEngineSession } from "./realtime-audio-engine";
 
 export type StudioHost = "vst3" | "audio-unit" | "aax" | "generic";
