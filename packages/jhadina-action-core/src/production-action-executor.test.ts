@@ -27,9 +27,9 @@ const handler: ActionHandler<Action, string> = {
 
 let rpcCalls = 0;
 const supabase = {
-  async rpc() {
+  async rpc<T = unknown>() {
     rpcCalls += 1;
-    return { data: { event_id: `event-${rpcCalls}` }, error: null };
+    return { data: { event_id: `event-${rpcCalls}` } as T, error: null };
   },
 };
 
