@@ -763,13 +763,32 @@ NEXT: JH-030
 
 ### JH-030
 **Priority:** P2
-**Status:** ACTIVE
-**Branch:** `feat/jhadina-growth-engine` (PR #7) —
-`apps/jhadina-web/src/lib/campaign/polling.ts`,
-`apps/jhadina-web/src/app/campaign/polls/page.tsx`
+**Status:** DONE
+**Branch:** `agent/campaign-polling` (PR #55, merged `eeeb228`). Original
+PR #7 left open/untouched.
 **Objective:** Polling intelligence dashboard.
 **Dependencies:** JH-001
-**Next Step:** Not yet audited.
+**Completion report:**
+```
+TASK: JH-030
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/campaign/polling.ts (new): summarizePolls()
+  — sample-weighted average, recent-vs-older trend direction,
+  poll-count-based confidence tier, low-sample warning.
+- apps/jhadina-web/src/app/campaign/polls/page.tsx (new): renders
+  static demo poll data through summarizePolls(). No API route.
+VERIFIED:
+- Grep sweep for fetch/credentials/secrets/bearer/http(s):// across
+  both files: nothing. No external polling-data source, no write
+  path, no action execution anywhere in this slice.
+- type-check, lint, test (51/51), build all pass; CI green on PR #55.
+ARCHITECTURAL IMPACT: None — descriptive/evidence-only, matches the
+pattern already established for JH-019/020/021/027/029.
+COMMIT: 122dcd3 (PR #55), merged as eeeb228
+NEXT: JH-031 (human gate already on file — homepage collision with
+JH-014, do not auto-promote)
+```
 
 ### JH-031
 **Priority:** P2
