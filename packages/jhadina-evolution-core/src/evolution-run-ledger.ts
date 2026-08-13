@@ -21,20 +21,32 @@ export interface EvolutionRunLedgerEvent {
   hash: string;
 }
 
+type LedgerEventInput = Omit<
+  EvolutionRunLedgerEvent,
+  "sequence" | "eventId" | "previousHash" | "hash"
+>;
+
 export interface EvolutionRunLedger {
-  append(event: Omit<EvolutionRunLedgerEvent, "sequence" | "eventId" | "hash">): Promise<EvolutionRunLedgerEvent>;
+  append(event: LedgerEventInput): Promise<EvolutionRunLedgerEvent>;
   list(runId: number): Promise<EvolutionRunLedgerEvent[]>;
 }
 
 export class InMemoryEvolutionRunLedger implements EvolutionRunLedger {
   private readonly events: EvolutionRunLedgerEvent[] = [];
 
-  async append(input: Omit<EvolutionRunLedgerEvent, "sequence" | "eventId" | "hash">) {
-    const previousHash = this.events.at(-1)?.hash ?? null;
-    const sequence = this.events.length + 1;
+  async append(input: LedgerEventInput) {
+    const runEvents = this.events.filter((event) => event.runId === input.runId);
+    const previousHash = runEvents.at(-1)?.hash ?? null;
+    const sequence = runEvents.length + 1;
     const eventId = `${input.runId}:${sequence}`;
     const hash = sha256(JSON.stringify({ ...input, sequence, eventId, previousHash }));
-    const event = { ...input, sequence, eventId, previousHash, hash };
+    const event: EvolutionRunLedgerEvent = {
+      ...input,
+      sequence,
+      eventId,
+      previousHash,
+      hash,
+    };
     this.events.push(event);
     return event;
   }
@@ -42,6 +54,34 @@ export class InMemoryEvolutionRunLedger implements EvolutionRunLedger {
   async list(runId: number) {
     return this.events.filter((event) => event.runId === runId);
   }
+}
+
+export function verifyEvolutionRunLedger(events: EvolutionRunLedgerEvent[]): boolean {
+  for (let index = 0; index < events.length; index += 1) {
+    const event = events[index];
+    const previous = events[index - 1];
+
+    if (event.sequence !== index + 1) return false;
+    if (event.eventId !== `${event.runId}:${event.sequence}`) return false;
+    if ((previous?.hash ?? null) !== event.previousHash) return false;
+
+    const expectedHash = sha256(
+      JSON.stringify({
+        runId: event.runId,
+        taskId: event.taskId,
+        type: event.type,
+        occurredAt: event.occurredAt,
+        payload: event.payload,
+        sequence: event.sequence,
+        eventId: event.eventId,
+        previousHash: event.previousHash,
+      }),
+    );
+
+    if (event.hash !== expectedHash) return false;
+  }
+
+  return true;
 }
 
 export async function recordEvolutionExecutionResult(
@@ -60,12 +100,14 @@ export async function recordEvolutionExecutionResult(
       baseBranch: result.baseBranch,
       branch: result.branch,
     },
-    previousHash: null,
   }));
 
   const terminalType: EvolutionRunEventType =
-    result.status === "VERIFIED" ? "RUN_VERIFIED" :
-    result.status === "BLOCKED" ? "RUN_BLOCKED" : "RUN_FAILED";
+    result.status === "VERIFIED"
+      ? "RUN_VERIFIED"
+      : result.status === "BLOCKED"
+        ? "RUN_BLOCKED"
+        : "RUN_FAILED";
 
   events.push(await ledger.append({
     runId: result.runId,
@@ -78,7 +120,6 @@ export async function recordEvolutionExecutionResult(
       verification: result.verification,
       draftPr: result.draftPr,
     },
-    previousHash: null,
   }));
 
   if (result.draftPr) {
@@ -88,7 +129,6 @@ export async function recordEvolutionExecutionResult(
       type: "DRAFT_PR_CREATED",
       occurredAt: new Date().toISOString(),
       payload: { url: result.draftPr },
-      previousHash: null,
     }));
   }
 
