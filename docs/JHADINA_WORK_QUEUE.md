@@ -2064,7 +2064,7 @@ NEXT: SP-2 (Commerce)
 ```
 
 ### SP-2 — Commerce (checkout → payment → fulfillment)
-**Status:** IN REVIEW (PR #63)
+**Status:** DONE (PR #63, merged as `e3f5cbd`)
 **Branch:** `spine-proof-commerce` (PR #63)
 **Objective:** Prove the commerce family the architecture audit flagged
 as "seven contracts, zero implementations" actually composes — the
@@ -2075,7 +2075,7 @@ live provider, no credential, no Supabase dependency.
 **Completion report:**
 ```
 TASK: SP-2
-STATUS: IN REVIEW (PR #63, not yet merged)
+STATUS: DONE
 CHANGED:
 - apps/jhadina-web/src/lib/commerce/reference-adapters.ts (new):
   in-memory implementations of every adapter interface all three
@@ -2116,18 +2116,129 @@ VERIFIED:
 ARCHITECTURAL IMPACT:
 - No contract required fixing — both real mismatches found were
   resolved at the adapter boundary.
-NEXT: awaiting real CI on PR #63, then merge. Then SP-3 (Money/Plaid).
+COMMIT: PR #63, merged as e3f5cbd
+NEXT: SP-3 (Money/Plaid).
 ```
 
 ### SP-3 — Money (Plaid consolidation)
-**Status:** QUEUED — not started
+**Status:** DONE (branch `spine-proof-money`)
 **Objective:** Unify JH-028/033/034 around the existing governed path
 (`money-core` → `PlaidReadOnlyAdapter` → capability check → credential
 resolver), so the question stops being "which PR do we merge" and
-becomes "what is the canonical Money API the UI consumes." JH-028's
-command-center UI should end up consuming that interface without ever
-touching Plaid credentials directly. Same acceptance boundary as SP-1/
-SP-2: reference adapters, no live provider, fail-closed tests, no
-change to the frozen JH-028/033/034 human-gate status itself — this
-proves the *path*, it doesn't unilaterally pick a product surface.
-**Next Step:** Not started. Begins after SP-2 merges.
+becomes "what is the canonical Money API the UI consumes." Same
+acceptance boundary as SP-1/SP-2: reference adapters, no live provider,
+fail-closed tests, no change to the frozen JH-028/033/034 human-gate
+status itself — this proves the *path*, it doesn't unilaterally pick a
+product surface.
+**Completion report:**
+```
+TASK: SP-3
+STATUS: DONE
+DISCOVERY: money-core already has its own complete, unwired production
+composition for account-read — parallel to the one hand-built for
+Growth in SP-1: account-read-handler.ts (assertCapability + handler) ->
+governed-account-read.ts (MONEY_CORE_SECURITY_POLICY, base policy +
+money.account.read) -> production-account-read.ts
+(SecurityCoreActionPolicy + createProductionActionExecutor, the same
+action-core spine SP-1 proved) -> governed-provider-account-read.ts
+(adds MoneyProviderHealthGate + MoneyProviderRegistry in front). This
+proof composes those real pieces with reference dependencies rather
+than reinventing them, exactly as instructed ("keep the existing
+governed Plaid adapter as the eventual production boundary").
+CHANGED:
+- packages/money-core/src/index.ts (new): money-core's package.json has
+  declared main/types as "./src/index.ts" since the package was
+  created; the file never existed, so nothing outside the package could
+  import it by its bare specifier — a real infra gap, same class as
+  SP-1's missing security-core package.json. Added as a minimal barrel
+  of the public composition-root surface (capabilities, bank-adapter,
+  credential-resolver, provider-health, provider-registry,
+  provider-adapter-factory, account-read-handler,
+  governed-account-read, production-account-read,
+  governed-provider-account-read, read-only-http-bank-adapter,
+  plaid-read-only-adapter, plaid-provider-builder). Deliberately
+  excludes postgres-client/postgres-idempotency-store and the
+  transaction-write/privacy-defense modules — out of scope for this
+  proof and some pull in the 'pg' package unnecessarily.
+- apps/jhadina-web/src/lib/money/reference-adapters.ts (new): reuses
+  the real, already-landed ReadOnlyHttpBankAdapter (provider-neutral,
+  HTTPS-enforced, no payment/transfer methods) with an injected fake
+  fetchImpl that never performs network I/O — not a second Plaid
+  client, not a hand-rolled adapter double. Records every request
+  (including the Authorization header) so tests can prove the
+  credential reached the provider boundary without ever leaking past
+  it. Also: a workspace-entitlement reference checker, and an in-memory
+  stand-in for the Supabase RPC client SupabaseAuditLedger writes
+  through (no Supabase dependency for this proof; swapping in the real
+  client is a one-line change).
+- apps/jhadina-web/src/lib/money/governed-account-read.ts (new):
+  composition root. Wires ProviderAdapterFactory +
+  EnvironmentCredentialResolver (injected in-memory env map, never
+  process.env) to build the reference adapter, registers it in a
+  MoneyProviderRegistry, and hands that straight to money-core's own
+  createGovernedProviderAccountReadExecutor — no reimplementation of
+  the governance chain.
+- apps/jhadina-web/src/lib/money/governed-account-read.test.ts (new): 9
+  tests covering all 7 required cases (2 identity variants — wrong
+  user, unverifiable/no session): authorized read succeeds (real
+  mapped account data, ledger started->completed, exactly one provider
+  call carrying "Bearer <credential>"); wrong identity and missing
+  identity both fail before any ledger event or provider call exists
+  (see ARCHITECTURAL FINDING below); missing money.account.read from
+  the provider's own capability allow-list fails at the health gate
+  before the provider is reached, cross-checked against the
+  independent MoneyCapabilityPolicy; unauthorized workspace access
+  fails after policy allows but before the provider is reached
+  (started->failed); a live provider HTTP failure fails cleanly and is
+  recorded as failed, with the request actually having reached the
+  provider; a bonus case shows an unresolvable credential fails closed
+  before any adapter is even constructed; no credential string appears
+  anywhere in the returned accounts or the audit trail, and the
+  returned account shape has no field that could carry one; no
+  mutation capability exists structurally (the adapter has no
+  createPayment/createTransfer) or at the policy layer
+  (MONEY_CORE_SECURITY_POLICY never allow-lists a financial-mutation
+  capability), and dispatching a mutation-shaped action through the
+  same executor is rejected.
+- apps/jhadina-web/vitest.config.ts: added the @jhadina/money-core
+  alias (same class of gap SP-1/SP-2 found — Vitest doesn't read
+  tsconfig paths).
+VERIFIED:
+- pnpm --filter @jhadina/money-core type-check: clean.
+- pnpm --filter @jhadina/money-core test: 11/11 (unchanged, all
+  pre-existing).
+- pnpm -r type-check: 22/23 packages clean (apps/pupsonstuff fails on a
+  pre-existing, unrelated missing vitest type declaration — confirmed
+  present on main before this branch, untouched by this proof).
+- pnpm vitest run (jhadina-web): 85/85 (76 existing + 9 new).
+- pnpm --filter jhadina-web build: real Next.js production build
+  succeeds.
+- pnpm --filter jhadina-web lint: clean (3 pre-existing, unrelated
+  warnings).
+ARCHITECTURAL FINDINGS (inspecting the actual boundary, not asserted
+behavior):
+- VerifiedActionExecutor checks identity BEFORE the ledger's "started"
+  event is appended. An identity failure (wrong user or verifier
+  rejection) therefore produces zero audit events — there is nothing to
+  durably audit against an identity that was never verified. This is a
+  real, deliberate property of the already-landed production
+  composition (not something this proof added or changed) and is
+  worth knowing before anyone builds an "audit every attempt" surface
+  on top of it.
+- createGovernedProviderAccountReadExecutor runs the provider
+  health/capability-allow-list check BEFORE identity verification (it
+  wraps VerifiedActionExecutor.execute, not the other way around). A
+  caller whose identity would fail can still learn whether a given
+  provider/capability is configured. Minor; not fixed here since fixing
+  it means reordering money-core's own composition, out of scope for a
+  reference proof — flagged for the next checkpoint.
+- money-core ships two independent ActionPolicy implementations for
+  money actions: MoneyCapabilityPolicy (capability-policy.ts) and
+  SecurityCoreActionPolicy over MONEY_CORE_SECURITY_POLICY
+  (governed-account-read.ts). Only the second is wired into the
+  production composition; MoneyCapabilityPolicy has no consumer
+  anywhere in the package. Same failure mode the architecture audit
+  named for growth-core/entertainment-core: real, tested,
+  unwired/duplicate. Not resolved here — noted for the checkpoint.
+NEXT: second architecture checkpoint (per instruction), not Proof #4.
+```
