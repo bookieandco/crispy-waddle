@@ -6,9 +6,6 @@
 export type { MoneyCapability, CapabilityRisk } from './capabilities.js';
 export { getMoneyCapability, requiresMoneyApproval, isMoneyCapability } from './capabilities.js';
 
-export type { MoneyAction } from './capability-policy.js';
-export { MoneyCapabilityPolicy, assertMoneyActionType } from './capability-policy.js';
-
 export type { MoneyAccount, MoneyTransaction, MoneyAdapterContext, BankAdapter } from './bank-adapter.js';
 export { assertCapability } from './bank-adapter.js';
 

@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest"
 import { StaticIdentityVerifier, type ActionIdentityVerifier, type ActionRequest } from "@jhadina/action-core"
-import { MoneyCapabilityPolicy } from "@jhadina/money-core"
 import {
   createReferenceMoneyAccountReadExecutor,
   REFERENCE_MONEY_PROVIDER,
@@ -112,24 +111,14 @@ describe("Money account read — governed lifecycle (Jhadina OS Integration Phas
     await expect(executor.execute(readRequest(USER))).rejects.toThrow(/BANK_PROVIDER_NOT_READY/)
     expect(recordedRequests).toHaveLength(0)
 
-    // money-core also ships a second, independent ActionPolicy for money
-    // actions (MoneyCapabilityPolicy) that isn't the one wired into the
-    // production account-read composition above (that uses
-    // SecurityCoreActionPolicy over MONEY_CORE_SECURITY_POLICY instead —
-    // see governed-account-read.ts in money-core). It agrees on the same
-    // outcome for an unrecognized capability, confirming the two policies
-    // aren't in conflict, but this is a real duplication worth flagging in
-    // the checkpoint rather than silently treating as equivalent.
-    const policy = new MoneyCapabilityPolicy()
-    await expect(
-      policy.evaluate({
-        id: "policy-check",
-        userId: USER,
-        type: "money.account.read",
-        requestedAt: new Date().toISOString(),
-        action: { capability: "money.does.not.exist" as never },
-      }),
-    ).resolves.toBe("deny")
+    // (Architecture Checkpoint #2: money-core previously shipped a second,
+    // independent ActionPolicy for money actions — MoneyCapabilityPolicy —
+    // that was never wired into this production composition and, worse,
+    // collapsed approval_required into deny for approval-gated
+    // capabilities, silently disagreeing with the canonical
+    // SecurityCoreActionPolicy(MONEY_CORE_SECURITY_POLICY) used above.
+    // Removed as part of the checkpoint's minimal-correction set — there
+    // is now exactly one money ActionPolicy.)
   })
 
   it("4. unauthorized account access (no workspace entitlement) fails closed before the provider is called", async () => {
