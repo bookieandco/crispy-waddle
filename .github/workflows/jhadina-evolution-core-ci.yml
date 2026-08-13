@@ -11,7 +11,7 @@ on:
       - "pnpm-workspace.yaml"
   push:
     branches:
-      - feat/jhadina-core-spine
+      - main
     paths:
       - "packages/jhadina-evolution-core/**"
       - "packages/jhadina-core-spine/**"
@@ -28,15 +28,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
           run_install: false
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter jhadina-evolution-core test
-      - run: pnpm --filter jhadina-evolution-core typecheck
-      - run: pnpm --filter @jhadina/core-spine typecheck
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test evolution core
+        run: pnpm --filter @jhadina/evolution-core test
+
+      - name: Typecheck evolution core
+        run: pnpm --filter @jhadina/evolution-core type-check
+
+      - name: Typecheck core spine
+        run: pnpm --filter @jhadina/core-spine type-check
+
+      - name: Validate migration files
+        run: |
+          test -d supabase/migrations
+          test -n "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -print -quit)"
