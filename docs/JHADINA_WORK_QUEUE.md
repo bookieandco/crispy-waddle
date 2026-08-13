@@ -921,7 +921,8 @@ not a git-mechanical merge.
 
 ### JH-033
 **Priority:** P2
-**Status:** QUEUED
+**Status:** BLOCKED (same axis as JH-028 — reconcile before either
+becomes a real financial surface)
 **Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
 `apps/jhadina-web/src/lib/money/{financialAttention,
 financialDataProvider,plaidAdapter}.ts`,
@@ -929,21 +930,49 @@ financialDataProvider,plaidAdapter}.ts`,
 **Objective:** Plaid-backed financial data/attention engine plus a
 money command-center and withdrawal page.
 **Dependencies:** JH-001
-**Flag:** Same domain as JH-028 (also Plaid, also money command
-center), from a different branch generation — likely overlapping or
-divergent implementations of the same feature. Needs consolidation
-audit against JH-028, not independent implementation. Also handles
-real financial data and a *withdrawal* flow specifically — per
-`docs/DO_NOT_BUILD.md` ("autonomous or automatic movement of funds ...
-needs an explicit human-authorized action through the existing
-approval/policy path, every time"), this needs explicit Policy Engine
-routing confirmed before merging.
-**Next Step:** Not yet audited — security/policy review first,
-reconciled against JH-028.
+**Audit (2026-08-13):** Read every file in full. This is a *different
+and safer* implementation than JH-028's, not the same one from another
+branch generation — important distinction, since the queue previously
+assumed equal risk:
+- `plaidAdapter.ts`: pure normalizer only — no `fetch`, no Plaid API
+  call, no credentials anywhere in the file.
+- `financialDataProvider.ts`: an abstract `FinancialDataProvider`
+  interface (`getSnapshot(): Promise<FinancialSnapshot>`) plus pure
+  helpers (`creditUtilization`, `toFinancialAttention`) — no concrete
+  Plaid (or any) implementation at all.
+- `financialAttention.ts`: pure sort/action-shaping functions.
+- `command-center/page.tsx` on **this** branch is a different
+  implementation than JH-028's page of the same name/route — this one
+  renders hardcoded demo seed data (`seed: FinancialAttention[]`), has
+  **no fetch call anywhere**, and its "One-click review" button only
+  calls a local, pure `createApprovalAction()` ("Prepared... Pending
+  your approval; no money moved"). JH-028's version of this same route
+  is the one that fetches live data from the ungoverned Plaid client.
+- `withdraw/page.tsx` imports `requestWithdrawal` from
+  `@/lib/music/moneyCoreWithdrawal.ts` (JH-034's domain, not in this
+  task's original file list — pulled in as a direct dependency). That
+  function only ever creates a `PENDING_APPROVAL` request object; it
+  never executes a transfer (see JH-034 below for the full read). The
+  page's own hardcoded `available=0` means any real submission would
+  fail closed with "Withdrawal exceeds available balance" as shipped.
+
+So JH-033, as written, is safety-clean top to bottom — the risk here
+isn't a live governance-bypassing client (that's specifically JH-028's
+`plaidFinancialData.ts`), it's that this is a **second, independent
+UI/interface design for the identical `/money/command-center` route**,
+demo-data-only and not wired to `money-core`'s governed
+`PlaidReadOnlyAdapter` either. Landing this alongside or instead of
+JH-028 would still leave two competing "what does the money command
+center look like and where does its data come from" answers.
+**Next Step:** Human call, same as JH-028: which design (or a merge of
+JH-033's cleaner `FinancialDataProvider` abstraction with money-core's
+already-governed `PlaidReadOnlyAdapter` as its concrete implementation)
+becomes the one canonical `/money/command-center`. Not decided here.
 
 ### JH-034
 **Priority:** P2
-**Status:** QUEUED
+**Status:** BLOCKED (safety-clean, but not wired to real `money-core`
+— park with JH-033/JH-028 pending the one-canonical-path decision)
 **Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
 `apps/jhadina-web/src/lib/music/{distribution,distributionAdapter,
 moneyCoreBridge,moneyCoreWithdrawal,royaltyLedger,
@@ -952,10 +981,41 @@ royaltyStatementImporter}.ts`,
 **Objective:** Music distribution and royalty-ledger domain, bridged
 to `money-core`, including a withdrawal path.
 **Dependencies:** JH-001, JH-006 (money-core)
-**Flag:** `moneyCoreWithdrawal.ts` moves money — same DO_NOT_BUILD
-policy-routing concern as JH-033. Needs security/policy review, not
-just a functional audit.
-**Next Step:** Not yet audited — security/policy review first.
+**Audit (2026-08-13):** Read every file (also read as JH-033's direct
+dependency). All five `lib/music/*.ts` files here are pure — grepped
+for `fetch(`/`process.env`/`API_KEY`/`Authorization` across all of
+them, zero matches. Specifically:
+- `moneyCoreWithdrawal.ts`: `requestWithdrawal()` only ever constructs
+  a `PENDING_APPROVAL` request object; `approveWithdrawal()` only
+  flips status to `APPROVED`. Neither executes a transfer — the file's
+  own comment states it explicitly: "External transfer execution
+  remains a separate, explicitly authorized step." No
+  `executeWithdrawal`/send-money function exists anywhere in it.
+- `moneyCoreBridge.ts`: `toMoneyCoreTransaction()`/
+  `allocateConfirmedIncome()` are pure shaping/allocation functions.
+  Despite the name, this file does **not** import or call
+  `packages/money-core` at all — it produces a `MoneyCoreTransaction`-
+  shaped object but has no real integration with the actual package.
+  "Bridged to money-core" is aspirational naming, not a real wire-up.
+- `distribution.ts`, `distributionAdapter.ts`, `royaltyLedger.ts`,
+  `royaltyStatementImporter.ts`: no external calls found in any of
+  them (not read line-by-line for full business-logic correctness,
+  but confirmed no I/O surface).
+
+So there's no live-execution or credential-handling risk here — the
+DO_NOT_BUILD money-movement concern doesn't apply to what's actually
+in these files today. The real gap is that "bridged to money-core" is
+currently just naming; making it a genuine bridge (calling the real
+`@jhadina/money-core` package, e.g. through its
+`TransactionWriteHandler`/`PaymentProvider` contracts) is exactly the
+"one canonical Money data path" work the JH-028/JH-033 decision needs
+to resolve first — building a second, parallel bridge here before that
+decision lands would just add a third money-adjacent surface.
+**Next Step:** Park alongside JH-028/JH-033. Once the canonical
+money-core integration path is decided, `moneyCoreBridge.ts`'s
+allocation logic and `moneyCoreWithdrawal.ts`'s request/approve state
+machine are both safe, reusable pieces to wire into it — just not
+ahead of that decision.
 
 ### JH-035
 **Priority:** P2
