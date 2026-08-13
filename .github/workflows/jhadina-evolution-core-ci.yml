@@ -1,0 +1,42 @@
+name: Jhadina Evolution Core CI
+
+on:
+  pull_request:
+    paths:
+      - "packages/jhadina-evolution-core/**"
+      - "packages/jhadina-core-spine/**"
+      - "supabase/migrations/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+  push:
+    branches:
+      - feat/jhadina-core-spine
+    paths:
+      - "packages/jhadina-evolution-core/**"
+      - "packages/jhadina-core-spine/**"
+      - "supabase/migrations/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  evolution-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter jhadina-evolution-core test
+      - run: pnpm --filter jhadina-evolution-core typecheck
+      - run: pnpm --filter @jhadina/core-spine typecheck
