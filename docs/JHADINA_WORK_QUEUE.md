@@ -370,13 +370,42 @@ check that `SecurityCoreActionPolicy` still resolves through the real
 
 ### JH-011
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-social-core` (PR #5)
+**Status:** DONE
+**Branch:** `feat/jhadina-social-core` (PR #5, closed not merged — content already
+live on `main`)
 **Objective:** Connect Jhadina Social Core to Hootsuite.
-**Dependencies:** JH-001; also currently based on `fix/vercel-build-jhadina-web` (PR #4) rather than `main` — needs retargeting.
-**Definition of Done:** Not yet audited in depth — do a proper look before treating this as ready.
-**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI.
-**Next Step:** Audit PR #4's status, then this one.
+**Dependencies:** JH-001
+**Definition of Done:** Met — turned out to already be met before this task
+started. This PR is stacked on `fix/vercel-build-jhadina-web` (PR #4)
+partway through PR #4's own 65-commit history (missing PR #4's later 39
+commits). Isolating this PR's own unique diff against its real stacking
+point (not PR #4's baggage) showed exactly 8 files: `packages/social-core/*`
+(Hootsuite provider, brand config, types) and two API routes
+(`api/social/posts`, `api/social/profiles`). Every one of those was
+already present on `main` — semantically identical, just Prettier-
+reformatted, first landed independently at `2fde1da` (2026-08-09).
+Nothing to merge. Closed PR #5 without merging per the duplicate-PR
+rule. The rest of PR #4/#5's combined diff (`BottomNav.tsx`,
+`pages/index.tsx`, growth/money/film features) belongs to PR #4
+(JH-016), not this task, and was left untouched.
+**Bug found during verification, fixed separately (PR #46, `fbbfe2d`):**
+confirming the Hootsuite routes actually worked surfaced that
+`apps/jhadina-web` had BOTH a root `app/` and a `src/app/` directory —
+Next.js silently uses root `app/` and drops `src/app/*` entirely when
+both exist, which had made every route under `src/app/*` (health,
+memories, memory/approve, memory/reject, message, candidates, music/*,
+placement/*, settings, and both social routes) unreachable in every
+real build this whole session, undetected because
+`apps/jhadina-web/tsconfig.json`'s `include` never covered root `app/`
+either. Confirmed pre-existing (reproduced on the commit before JH-010
+touched anything) — moved root `app/`'s small content into `src/app/`
+and removed the redundant root directory. Also fixed a genuine missing
+`@jhadina/planning-core` barrel export the move exposed.
+**Verification:** Real CI on PR #46: launch-gate and `postgres-integration`
+both green. `pnpm type-check`/`lint`/`test`/`build` (forced, no cache)
+locally — every route, including both social routes, now appears in
+the real build's route manifest.
+**Next Step:** None — done.
 
 ### JH-012
 **Priority:** P3
@@ -422,7 +451,7 @@ component names before assuming a from-scratch build.
 
 ### JH-014
 **Priority:** P1
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `feat/supabase-auth-protected-routes` (PR #6)
 **Objective:** Add Supabase Auth and protected routes.
 **Dependencies:** JH-001
