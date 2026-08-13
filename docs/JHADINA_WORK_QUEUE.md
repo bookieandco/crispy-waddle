@@ -918,15 +918,54 @@ path.
 
 ### JH-018
 **Priority:** P2
-**Status:** ACTIVE
-**Branch:** `feature/capital-lab-ui` (PR #3)
+**Status:** DONE
+**Branch:** `agent/capital-lab-ui` (PR #49, merged `5b25950`). Original
+`feature/capital-lab-ui` (PR #3) closed without merging, history
+preserved.
 **Objective:** Jhadina Capital Lab mobile UI.
 **Dependencies:** JH-001
-**Next Step:** Not yet audited.
+**Completion report:**
+```
+TASK: JH-018
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/capital-lab/client.ts (new) — read-only
+  Money Core snapshot fetch (MONEY_CORE_URL)
+- apps/jhadina-web/src/components/capital-lab/{CapitalLabPanel.tsx,
+  index.ts,capital-lab.css,README.md} (new) — the panel UI, not yet
+  mounted into a page/route
+- root package.json: extended pnpm.packageExtensions (from JH-017) to
+  next@14.2.35 and next@15.5.23's @types/react-dom
+VERIFIED:
+- Real diff against true merge-base (c286b843, not GitHub's reported
+  450c8b5): 5 files, fully additive, no deletions, no collisions with
+  main.
+- Read the component/client code directly: no credentials, no
+  transfer/withdrawal submission logic — Send/Withdraw are
+  capability-gated disabled buttons, the action sheet's only handler
+  is onClose. Confirmed safe against the payment/policy scrutiny
+  established for other money-adjacent tasks this pass.
+- type-check, lint, test (41/41), build all pass for jhadina-web; CI
+  green including the PupsonStuff path-scoped check.
+ARCHITECTURAL IMPACT:
+- Surfaced and fixed a real, pre-existing infra fragility: this
+  shared-workspace-lockfile monorepo's hoisted @types/react-dom
+  fallback is NOT deterministic across separate `pnpm install` runs
+  from the identical lockfile (reproduced: two fresh installs hoisted
+  18.3.7 and 19.2.4 respectively). next@14.2.35 (jhadina-web's own
+  Next version) has the same "doesn't declare @types/react-dom itself"
+  gap JH-017 fixed for pupsonstuff's next@15.5.23 — it just hadn't
+  been hit by unlucky hoisting yet. Extended the same
+  pnpm.packageExtensions mechanism to both next versions explicitly;
+  verified across a repeated fresh install that neither app depends on
+  the hoisted fallback anymore.
+COMMIT: 5cde33a (PR #49), merged as 5b25950
+NEXT: JH-019
+```
 
 ### JH-019
 **Priority:** P2
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `feat/jhadina-entertainment-intelligence` (PR #16)
 **Objective:** Entertainment intelligence feature.
 **Dependencies:** JH-001
