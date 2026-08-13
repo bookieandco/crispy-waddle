@@ -1,0 +1,39 @@
+{
+  "assetId": "bottle",
+  "technicalScore": 100,
+  "technicalDeductions": [],
+  "visualScore": "NOT AUTOMATED \u2014 requires a real look at asset-audits/renders/*, not a fabricated number",
+  "status": "APPROVED",
+  "explanations": [],
+  "draftedConfig": {
+    "id": "bottle",
+    "displayName": "Bottle",
+    "glbPath": "/models/bottle.glb",
+    "meshName": "bottle_body",
+    "materialName": "bottle_material",
+    "supportsColorChange": "NEEDS_REVIEW \u2014 check whether the baked texture reads correctly under a color multiply",
+    "modelRotation": "NEEDS_REVIEW \u2014 verify orientation live before trusting any value here",
+    "camera": {
+      "position": [
+        0,
+        0,
+        0.71
+      ],
+      "fov": 30,
+      "minDistance": 0.46,
+      "maxDistance": 0.99
+    },
+    "printAreas": [
+      {
+        "name": "front",
+        "position": "NEEDS_REVIEW \u2014 placeholder, verify against actual UVs/geometry",
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": "NEEDS_REVIEW"
+      }
+    ]
+  }
+}

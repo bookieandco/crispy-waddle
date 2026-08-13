@@ -1,0 +1,82 @@
+{
+  "assetId": "shirt",
+  "category": "apparel",
+  "sourceFile": "shirt_baked.glb",
+  "fileSizeBytes": 1048108,
+  "gltfVersion": 2,
+  "geometry": {
+    "meshCount": 1,
+    "materialCount": 1,
+    "textureCount": 2,
+    "hasAnimations": false,
+    "issues": [],
+    "hasUV": true,
+    "hasNormals": true,
+    "vertexCount": 10513,
+    "triangleCount": 19517,
+    "boundingBox": {
+      "min": [
+        -0.27585458755493164,
+        -0.35195234417915344,
+        -0.12488541007041931
+      ],
+      "max": [
+        0.2742999494075775,
+        0.26103538274765015,
+        0.14407110214233398
+      ],
+      "dimensions": [
+        0.5501545369625092,
+        0.6129877269268036,
+        0.2689565122127533
+      ]
+    },
+    "degenerateTriangles": {
+      "repeatedIndex": 0,
+      "zeroArea": 0
+    },
+    "connectedComponents": {
+      "byVertexIndex": 14,
+      "byWeldedPosition": 1,
+      "note": "byWeldedPosition is the physically meaningful count \u2014 byVertexIndex over-counts at every UV seam."
+    },
+    "topology": {
+      "uniqueEdges": 30022,
+      "boundaryEdges": 1493,
+      "nonManifoldEdges": 0,
+      "watertight": false
+    }
+  },
+  "materials": {
+    "materials": [
+      {
+        "name": "lambert1",
+        "hasBaseColorTexture": false,
+        "baseColorTextureDims": null,
+        "baseColorFactor": [
+          0.5,
+          0.5,
+          0.5,
+          1
+        ],
+        "hasNormalTexture": true,
+        "normalTextureDims": [
+          1024,
+          1024
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.5527864098548889,
+        "doubleSided": true,
+        "alphaMode": "OPAQUE"
+      }
+    ],
+    "issues": []
+  },
+  "renders": {
+    "front": "asset-audits/renders/shirt_front.png",
+    "back": "asset-audits/renders/shirt_back.png",
+    "side": "asset-audits/renders/shirt_side.png",
+    "top": "asset-audits/renders/shirt_top.png",
+    "perspective": "asset-audits/renders/shirt_perspective.png"
+  }
+}

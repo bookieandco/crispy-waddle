@@ -1,0 +1,81 @@
+{
+  "assetId": "tote",
+  "category": "bag",
+  "sourceFile": "tote.glb",
+  "fileSizeBytes": 59140,
+  "gltfVersion": 2,
+  "geometry": {
+    "meshCount": 1,
+    "materialCount": 1,
+    "textureCount": 0,
+    "hasAnimations": false,
+    "issues": [
+      "1 zero-area triangles found (real degenerate geometry)"
+    ],
+    "hasUV": true,
+    "hasNormals": true,
+    "vertexCount": 1648,
+    "triangleCount": 852,
+    "boundingBox": {
+      "min": [
+        -0.1899999976158142,
+        -0.20999999344348907,
+        -0.05000000074505806
+      ],
+      "max": [
+        0.1899999976158142,
+        0.3084000051021576,
+        0.05000000074505806
+      ],
+      "dimensions": [
+        0.3799999952316284,
+        0.5183999985456467,
+        0.10000000149011612
+      ]
+    },
+    "degenerateTriangles": {
+      "repeatedIndex": 0,
+      "zeroArea": 1
+    },
+    "connectedComponents": {
+      "byVertexIndex": 402,
+      "byWeldedPosition": 1,
+      "note": "byWeldedPosition is the physically meaningful count \u2014 byVertexIndex over-counts at every UV seam."
+    },
+    "topology": {
+      "uniqueEdges": 2102,
+      "boundaryEdges": 1648,
+      "nonManifoldEdges": 0,
+      "watertight": false
+    }
+  },
+  "materials": {
+    "materials": [
+      {
+        "name": "tote_material",
+        "hasBaseColorTexture": false,
+        "baseColorTextureDims": null,
+        "baseColorFactor": [
+          0.8500000238418579,
+          0.800000011920929,
+          0.6800000071525574,
+          1
+        ],
+        "hasNormalTexture": false,
+        "normalTextureDims": null,
+        "metallicFactor": 0,
+        "roughnessFactor": 0.8999999761581421,
+        "doubleSided": true,
+        "alphaMode": "OPAQUE"
+      }
+    ],
+    "issues": []
+  },
+  "renders": {
+    "front": "asset-audits/renders/tote_front.png",
+    "back": "asset-audits/renders/tote_back.png",
+    "side": "asset-audits/renders/tote_side.png",
+    "top": "asset-audits/renders/tote_top.png",
+    "perspective": "asset-audits/renders/tote_perspective.png"
+  }
+}

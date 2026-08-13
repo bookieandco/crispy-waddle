@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background-color: #171716;
+}
+
+/*
+ * The actual @keyframes (life-ping-core, life-ping-ring, life-breathe) are
+ * computed from the live hotspot list and injected once via a <style> tag
+ * in Hotspots.tsx (see lib/lifeGlow.ts) — the ping ones' percentages
+ * depend on how many products are in the guided-tour sequence, so they
+ * can't be hand-written here without going stale the next time a hotspot
+ * is added or removed. These rules just bind the animation behavior; only
+ * per-element animation-duration/-delay (set inline in ProductGlow.tsx)
+ * differ between hotspots.
+ */
+.life-ping-core,
+.life-ping-ring,
+.life-breathe {
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+}
+.life-ping-core {
+  animation-name: life-ping-core;
+  /* No visible fill — this brightens whatever photo is behind it via
+     backdrop-filter, it doesn't paint anything itself. */
+  background: transparent;
+}
+.life-ping-ring {
+  /* Styled via SVG fill/stroke attributes in ProductGlow.tsx, not CSS —
+     this rule only supplies the animation. */
+  animation-name: life-ping-ring;
+}
+.life-breathe {
+  animation-name: life-breathe;
+  animation-timing-function: ease-in-out;
+}

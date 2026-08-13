@@ -1,0 +1,81 @@
+{
+  "assetId": "mug",
+  "category": "drinkware",
+  "sourceFile": "mug.glb",
+  "fileSizeBytes": 318548,
+  "gltfVersion": 2,
+  "geometry": {
+    "meshCount": 1,
+    "materialCount": 1,
+    "textureCount": 0,
+    "hasAnimations": false,
+    "issues": [
+      "5 non-manifold edges \u2014 can cause rendering artifacts, worth checking visually"
+    ],
+    "hasUV": true,
+    "hasNormals": true,
+    "vertexCount": 6008,
+    "triangleCount": 10422,
+    "boundingBox": {
+      "min": [
+        -0.04012700170278549,
+        0.0047900001518428326,
+        -0.07444600015878677
+      ],
+      "max": [
+        0.04012700170278549,
+        0.10054399818181992,
+        0.04012700170278549
+      ],
+      "dimensions": [
+        0.08025400340557098,
+        0.09575399802997708,
+        0.11457300186157227
+      ]
+    },
+    "degenerateTriangles": {
+      "repeatedIndex": 0,
+      "zeroArea": 0
+    },
+    "connectedComponents": {
+      "byVertexIndex": 136,
+      "byWeldedPosition": 1,
+      "note": "byWeldedPosition is the physically meaningful count \u2014 byVertexIndex over-counts at every UV seam."
+    },
+    "topology": {
+      "uniqueEdges": 16334,
+      "boundaryEdges": 1412,
+      "nonManifoldEdges": 5,
+      "watertight": false
+    }
+  },
+  "materials": {
+    "materials": [
+      {
+        "name": "mug_material",
+        "hasBaseColorTexture": false,
+        "baseColorTextureDims": null,
+        "baseColorFactor": [
+          0.8,
+          0.8,
+          0.8,
+          1.0
+        ],
+        "hasNormalTexture": false,
+        "normalTextureDims": null,
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.18775000099999994,
+        "doubleSided": false,
+        "alphaMode": "OPAQUE"
+      }
+    ],
+    "issues": []
+  },
+  "renders": {
+    "front": "asset-audits/renders/mug_front.png",
+    "back": "asset-audits/renders/mug_back.png",
+    "side": "asset-audits/renders/mug_side.png",
+    "top": "asset-audits/renders/mug_top.png",
+    "perspective": "asset-audits/renders/mug_perspective.png"
+  }
+}

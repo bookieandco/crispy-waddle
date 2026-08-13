@@ -25,5 +25,29 @@
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.15.9"
+  },
+  "pnpm": {
+    "packageExtensions": {
+      "@react-three/fiber": {
+        "dependencies": {
+          "@types/react": "19.2.18"
+        }
+      },
+      "@react-three/drei": {
+        "dependencies": {
+          "@types/react": "19.2.18"
+        }
+      },
+      "framer-motion@11.18.2": {
+        "dependencies": {
+          "@types/react": "19.2.18"
+        }
+      },
+      "next@15.5.23": {
+        "dependencies": {
+          "@types/react": "19.2.18"
+        }
+      }
+    }
   }
 }

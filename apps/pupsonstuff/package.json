@@ -1,0 +1,35 @@
+{
+  "name": "@jhadina/pupsonstuff",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@huggingface/inference": "^4.13.25",
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.4.2",
+    "framer-motion": "^11.0.0",
+    "maath": "^0.10.8",
+    "next": "^15.0.0",
+    "openai": "^7.4.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sharp": "^0.35.3",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.170.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.4.0"
+  }
+}

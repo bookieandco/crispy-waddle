@@ -1,0 +1,56 @@
+{
+  "assetId": "boutique_proxy",
+  "technicalScore": 20,
+  "technicalDeductions": [
+    [
+      "Missing UVs",
+      -40
+    ],
+    [
+      "32 zero-area triangles",
+      -10
+    ],
+    [
+      "217 real disconnected pieces",
+      -30
+    ]
+  ],
+  "visualScore": "NOT AUTOMATED \u2014 requires a real look at asset-audits/renders/*, not a fabricated number",
+  "status": "REJECTED",
+  "explanations": [
+    "Missing UV coordinates (TEXCOORD_0) \u2014 cannot texture/decal this mesh",
+    "32 zero-area triangles found (real degenerate geometry)",
+    "217 genuinely disconnected pieces after welding \u2014 likely real fragmentation, worth investigating"
+  ],
+  "draftedConfig": {
+    "id": "boutique_proxy",
+    "displayName": "Boutique_proxy",
+    "glbPath": "/models/boutique_proxy.glb",
+    "meshName": "boutique_proxy",
+    "materialName": "vertex_color",
+    "supportsColorChange": "NEEDS_REVIEW \u2014 check whether the baked texture reads correctly under a color multiply",
+    "modelRotation": "NEEDS_REVIEW \u2014 verify orientation live before trusting any value here",
+    "camera": {
+      "position": [
+        0,
+        0,
+        32.59
+      ],
+      "fov": 30,
+      "minDistance": 21.18,
+      "maxDistance": 45.63
+    },
+    "printAreas": [
+      {
+        "name": "front",
+        "position": "NEEDS_REVIEW \u2014 placeholder, verify against actual UVs/geometry",
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": "NEEDS_REVIEW"
+      }
+    ]
+  }
+}

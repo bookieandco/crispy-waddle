@@ -1,0 +1,452 @@
+[
+  {
+    "rgb": [
+      0,
+      0,
+      0
+    ],
+    "hex": "#000000",
+    "usedByObjects": [
+      "Obj3d66_587072_34_391",
+      "Obj3d66_587072_36_925",
+      "Obj3d66_587072_37_353",
+      "Obj3d66_587072_38_464",
+      "Obj3d66_587072_39_805",
+      "Obj3d66_587072_40_304",
+      "Obj3d66_587072_41_218",
+      "Obj3d66_587072_42_705",
+      "Obj3d66_587072_43_153",
+      "Box026",
+      "Box027",
+      "Object045",
+      "Plane007",
+      "Shape018",
+      "Box028",
+      "Box029",
+      "Object046",
+      "Plane008",
+      "Shape019",
+      "IMAC_21",
+      "IMAC_keyboard",
+      "Obj3d66_587072_27_824",
+      "Obj3d66_587072_28_453",
+      "Obj3d66_587072_29_233",
+      "Obj3d66_587072_30_341",
+      "Obj3d66_587072_31_164",
+      "Obj3d66_587072_32_867",
+      "Obj3d66_587072_33_331",
+      "Obj3d66_587072_27_829",
+      "Obj3d66_587072_28_458",
+      "Obj3d66_587072_29_238",
+      "Obj3d66_587072_30_346",
+      "Obj3d66_587072_31_169",
+      "Obj3d66_587072_32_872",
+      "Obj3d66_587072_33_336",
+      "Obj3d66_587072_27_825",
+      "Obj3d66_587072_28_454",
+      "Obj3d66_587072_29_234",
+      "Obj3d66_587072_30_342",
+      "Obj3d66_587072_31_165",
+      "Obj3d66_587072_32_868",
+      "Obj3d66_587072_33_332",
+      "Obj3d66_587072_27_830",
+      "Obj3d66_587072_28_459",
+      "Obj3d66_587072_29_239",
+      "Obj3d66_587072_30_347",
+      "Obj3d66_587072_31_170",
+      "Obj3d66_587072_32_873",
+      "Obj3d66_587072_33_337",
+      "Obj3d66_587072_27_826",
+      "Obj3d66_587072_28_455",
+      "Obj3d66_587072_29_235",
+      "Obj3d66_587072_30_343",
+      "Obj3d66_587072_31_166",
+      "Obj3d66_587072_32_869",
+      "Obj3d66_587072_33_333",
+      "Obj3d66_587072_27_831",
+      "Obj3d66_587072_28_460",
+      "Obj3d66_587072_29_240",
+      "Obj3d66_587072_30_348",
+      "Obj3d66_587072_31_171",
+      "Obj3d66_587072_32_874",
+      "Obj3d66_587072_33_338",
+      "Obj3d66_587072_27_827",
+      "Obj3d66_587072_28_456",
+      "Obj3d66_587072_29_236",
+      "Obj3d66_587072_30_344",
+      "Obj3d66_587072_31_167",
+      "Obj3d66_587072_32_870",
+      "Obj3d66_587072_33_334",
+      "Obj3d66_587072_27_832",
+      "Obj3d66_587072_28_461",
+      "Obj3d66_587072_29_241",
+      "Obj3d66_587072_30_349",
+      "Obj3d66_587072_31_172",
+      "Obj3d66_587072_32_875",
+      "Obj3d66_587072_33_339",
+      "Obj3d66_587072_27_828",
+      "Obj3d66_587072_28_457",
+      "Obj3d66_587072_29_237",
+      "Obj3d66_587072_30_345",
+      "Obj3d66_587072_31_168",
+      "Obj3d66_587072_32_871",
+      "Obj3d66_587072_33_335",
+      "Obj3d66_587072_27_833",
+      "Obj3d66_587072_28_462",
+      "Obj3d66_587072_29_242",
+      "Obj3d66_587072_30_350",
+      "Obj3d66_587072_31_173",
+      "Obj3d66_587072_32_876",
+      "Obj3d66_587072_33_340"
+    ],
+    "usageCount": 91
+  },
+  {
+    "rgb": [
+      13,
+      13,
+      13
+    ],
+    "hex": "#0d0d0d",
+    "usedByObjects": [
+      "Object010",
+      "Object011",
+      "Object012",
+      "Object013",
+      "Object014",
+      "Object015",
+      "Object016",
+      "Object017",
+      "Default001",
+      "Object018",
+      "Object019",
+      "Object020",
+      "Object021",
+      "Object022",
+      "Object023",
+      "Object024",
+      "Default002",
+      "Object025",
+      "Object026",
+      "Object027",
+      "Object028",
+      "Object029",
+      "Object030",
+      "Object031",
+      "Object032",
+      "Default003",
+      "Object033",
+      "Object034",
+      "Object035",
+      "Object036",
+      "Object037",
+      "Object038",
+      "Object039",
+      "Object040",
+      "Default004",
+      "Object041",
+      "Object075",
+      "Object076",
+      "Object077",
+      "Object078",
+      "Object079",
+      "Object080",
+      "Object081",
+      "Default005",
+      "Object082"
+    ],
+    "usageCount": 45
+  },
+  {
+    "rgb": [
+      198,
+      225,
+      87
+    ],
+    "hex": "#c6e157",
+    "usedByObjects": [
+      "01_Zumtobel_Arcos_track",
+      "adaptor",
+      "spotlight",
+      "adaptor001",
+      "spotlight001",
+      "01_Zumtobel_Arcos_track001",
+      "adaptor002",
+      "spotlight002",
+      "adaptor003",
+      "spotlight003",
+      "01_Zumtobel_Arcos_track002",
+      "adaptor008",
+      "spotlight008",
+      "01_Zumtobel_Arcos_track007",
+      "adaptor009",
+      "spotlight009",
+      "adaptor010",
+      "spotlight010",
+      "adaptor011",
+      "spotlight011",
+      "01_Zumtobel_Arcos_track008",
+      "adaptor012",
+      "spotlight012",
+      "adaptor013",
+      "spotlight013",
+      "adaptor014",
+      "spotlight014",
+      "adaptor015",
+      "spotlight015",
+      "01_Zumtobel_Arcos_track009",
+      "01_Zumtobel_Arcos_track010",
+      "01_Zumtobel_Arcos_track011",
+      "02_Magis_Chair_One_4Star"
+    ],
+    "usageCount": 33
+  },
+  {
+    "rgb": [
+      86,
+      86,
+      86
+    ],
+    "hex": "#565656",
+    "usedByObjects": [
+      "vm_v3_059_mall_island",
+      "Object054",
+      "gad",
+      "gad001",
+      "gad002",
+      "Object064",
+      "Object065",
+      "Object066",
+      "Object067",
+      "Object068",
+      "Object069",
+      "Object070",
+      "Object071",
+      "Object072",
+      "Object056",
+      "Object092",
+      "Object093",
+      "Object094",
+      "Object095"
+    ],
+    "usageCount": 19
+  },
+  {
+    "rgb": [
+      228,
+      214,
+      153
+    ],
+    "hex": "#e4d699",
+    "usedByObjects": [
+      "Box002",
+      "Box007",
+      "Box008",
+      "Box012",
+      "Box013",
+      "Object096"
+    ],
+    "usageCount": 6
+  },
+  {
+    "rgb": [
+      225,
+      143,
+      87
+    ],
+    "hex": "#e18f57",
+    "usedByObjects": [
+      "Box005",
+      "Box006",
+      "Box021",
+      "Object073",
+      "Object091"
+    ],
+    "usageCount": 5
+  },
+  {
+    "rgb": [
+      229,
+      154,
+      215
+    ],
+    "hex": "#e59ad7",
+    "usedByObjects": [
+      "Box004",
+      "Object",
+      "Object047",
+      "Object048"
+    ],
+    "usageCount": 4
+  },
+  {
+    "rgb": [
+      87,
+      225,
+      87
+    ],
+    "hex": "#57e157",
+    "usedByObjects": [
+      "Box010",
+      "Box019",
+      "Box020",
+      "Box031"
+    ],
+    "usageCount": 4
+  },
+  {
+    "rgb": [
+      108,
+      8,
+      136
+    ],
+    "hex": "#6c0888",
+    "usedByObjects": [
+      "Box015",
+      "Box016",
+      "Box039",
+      "Box040"
+    ],
+    "usageCount": 4
+  },
+  {
+    "rgb": [
+      255,
+      255,
+      255
+    ],
+    "hex": "#ffffff",
+    "usedByObjects": [
+      "Layer_AMAZE_STRUCTURE001",
+      "Object001",
+      "Object074"
+    ],
+    "usageCount": 3
+  },
+  {
+    "rgb": [
+      113,
+      135,
+      6
+    ],
+    "hex": "#718706",
+    "usedByObjects": [
+      "Line001",
+      "Line002",
+      "Object042"
+    ],
+    "usageCount": 3
+  },
+  {
+    "rgb": [
+      8,
+      8,
+      136
+    ],
+    "hex": "#080888",
+    "usedByObjects": [
+      "Box003",
+      "Object002"
+    ],
+    "usageCount": 2
+  },
+  {
+    "rgb": [
+      6,
+      135,
+      58
+    ],
+    "hex": "#06873a",
+    "usedByObjects": [
+      "Box034",
+      "Object055"
+    ],
+    "usageCount": 2
+  },
+  {
+    "rgb": [
+      88,
+      177,
+      27
+    ],
+    "hex": "#58b11b",
+    "usedByObjects": [
+      "Box035",
+      "Object051"
+    ],
+    "usageCount": 2
+  },
+  {
+    "rgb": [
+      27,
+      177,
+      148
+    ],
+    "hex": "#1bb194",
+    "usedByObjects": [
+      "Box038",
+      "Object050"
+    ],
+    "usageCount": 2
+  },
+  {
+    "rgb": [
+      184,
+      228,
+      153
+    ],
+    "hex": "#b8e499",
+    "usedByObjects": [
+      "Text001"
+    ],
+    "usageCount": 1
+  },
+  {
+    "rgb": [
+      27,
+      177,
+      88
+    ],
+    "hex": "#1bb158",
+    "usedByObjects": [
+      "Box030"
+    ],
+    "usageCount": 1
+  },
+  {
+    "rgb": [
+      227,
+      153,
+      153
+    ],
+    "hex": "#e39999",
+    "usedByObjects": [
+      "Box042"
+    ],
+    "usageCount": 1
+  },
+  {
+    "rgb": [
+      224,
+      86,
+      86
+    ],
+    "hex": "#e05656",
+    "usedByObjects": [
+      "Box043"
+    ],
+    "usageCount": 1
+  },
+  {
+    "rgb": [
+      228,
+      153,
+      184
+    ],
+    "hex": "#e499b8",
+    "usedByObjects": [
+      "Box044"
+    ],
+    "usageCount": 1
+  }
+]

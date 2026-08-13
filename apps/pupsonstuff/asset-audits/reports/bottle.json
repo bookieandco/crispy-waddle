@@ -1,0 +1,79 @@
+{
+  "assetId": "bottle",
+  "category": "bottle",
+  "sourceFile": "bottle.glb",
+  "fileSizeBytes": 52024,
+  "gltfVersion": 2,
+  "geometry": {
+    "meshCount": 1,
+    "materialCount": 1,
+    "textureCount": 0,
+    "hasAnimations": false,
+    "issues": [],
+    "hasUV": true,
+    "hasNormals": true,
+    "vertexCount": 1442,
+    "triangleCount": 768,
+    "boundingBox": {
+      "min": [
+        -0.03650001809000969,
+        -0.13600000739097595,
+        -0.036500006914138794
+      ],
+      "max": [
+        0.0364999994635582,
+        0.13600000739097595,
+        0.03650003299117088
+      ],
+      "dimensions": [
+        0.07300001755356789,
+        0.2720000147819519,
+        0.07300003990530968
+      ]
+    },
+    "degenerateTriangles": {
+      "repeatedIndex": 0,
+      "zeroArea": 0
+    },
+    "connectedComponents": {
+      "byVertexIndex": 338,
+      "byWeldedPosition": 1,
+      "note": "byWeldedPosition is the physically meaningful count \u2014 byVertexIndex over-counts at every UV seam."
+    },
+    "topology": {
+      "uniqueEdges": 1872,
+      "boundaryEdges": 1440,
+      "nonManifoldEdges": 0,
+      "watertight": false
+    }
+  },
+  "materials": {
+    "materials": [
+      {
+        "name": "bottle_material",
+        "hasBaseColorTexture": false,
+        "baseColorTextureDims": null,
+        "baseColorFactor": [
+          0.75,
+          0.7599999904632568,
+          0.7799999713897705,
+          1
+        ],
+        "hasNormalTexture": false,
+        "normalTextureDims": null,
+        "metallicFactor": 0.6000000238418579,
+        "roughnessFactor": 0.3499999940395355,
+        "doubleSided": true,
+        "alphaMode": "OPAQUE"
+      }
+    ],
+    "issues": []
+  },
+  "renders": {
+    "front": "asset-audits/renders/bottle_front.png",
+    "back": "asset-audits/renders/bottle_back.png",
+    "side": "asset-audits/renders/bottle_side.png",
+    "top": "asset-audits/renders/bottle_top.png",
+    "perspective": "asset-audits/renders/bottle_perspective.png"
+  }
+}

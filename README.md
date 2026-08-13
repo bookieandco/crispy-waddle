@@ -55,7 +55,8 @@ jhadina/
 │   ├── marisa-studio/            # Production service
 │   ├── overageos/                # Opportunity intelligence
 │   ├── entertainment/            # Culture system
-│   └── money-core/               # Financial intelligence
+│   ├── money-core/               # Financial intelligence
+│   └── pupsonstuff/              # Virtual boutique / pet-product commerce (Next.js)
 │
 ├── packages/                       # Shared libraries
 │   ├── memory-core/              # Memory interfaces
