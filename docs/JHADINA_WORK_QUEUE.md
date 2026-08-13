@@ -1291,26 +1291,54 @@ implementation, not independent adoption.
 
 ### JH-045
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
-`packages/jhadina-action-core/src/action-executor.ts`
+**Status:** IN REVIEW (PR #56)
+**Branch:** `jh045-action-executor-hardening` (new — original
+`feat/jhadina-entertainment-intelligence` (PR #16) diff was against a
+version of `action-executor.ts` that predates JH-005's
+`approval_required` policy work and could not be applied directly).
 **Objective:** Harden `ActionExecutor.execute`: fail closed if the
 "started" audit-log append itself fails, and never convert a
 successful side effect into a reported failure just because the
 completion-audit append afterward failed.
 **Dependencies:** JH-001, JH-005
-**Flag:** A real, worthwhile improvement, but written against a
-version of `action-executor.ts` that predates JH-005's
-`approval_required` policy-decision work already on `main` — cannot be
-merged as a diff against the current file; the same error-handling
-fix needs to be re-implemented by hand on top of what's there now.
-Touches a shared FOUNDATION package used by every action across the
-system, so changes here affect more than entertainment or any other
-single vertical — treat with the same care as any other FOUNDATION
-change.
-**Next Step:** Not yet audited. Re-implement the fix against current
-`action-executor.ts`, don't attempt to apply the branch's diff
-directly.
+**Completion report:**
+```
+TASK: JH-045
+STATUS: IN REVIEW (PR #56, not yet merged)
+CHANGED:
+- packages/jhadina-action-core/src/action-executor.ts: split the
+  post-handler try/catch. A successful handler result is no longer
+  reported as 'failed' just because the completion-audit append
+  afterward throws (now surfaces as a distinct
+  ACTION_COMPLETED_AUDIT_FAILED error instead). If the handler fails
+  AND the 'failed'-status append also fails, the original handler
+  error is preserved (ACTION_FAILED_AND_AUDIT_FAILED) instead of being
+  silently replaced (a JS catch-block footgun). Documented that the
+  started-audit append was already fail-closed.
+- packages/jhadina-action-core/{package.json,tsconfig.json} (new):
+  this package had neither — invisible to turbo, its own test files
+  never ran in CI, tsc never checked it standalone. Added standard
+  scaffolding matching money-core's pattern.
+- packages/jhadina-action-core/src/action-executor.test.ts (new): 5
+  tests covering fail-closed-on-started-failure, successful-action-not-
+  reported-as-failed, healthy-path, handler-failure-recorded, and
+  double-failure-preserves-original-error.
+- packages/jhadina-action-core/src/production-action-executor.test.ts:
+  fixed one real pre-existing type error the new scaffolding's
+  type-check surfaced (mock rpc() not generic to match AuditRpcClient).
+VERIFIED:
+- pnpm type-check: all 19 workspace packages clean, including
+  money-core (consumes this package via the @jhadina/action-core path
+  alias).
+- pnpm test/lint: 13/13 tasks passing; jhadina-action-core went from 4
+  untested files to 9 passing tests across 5 files.
+- pnpm build for jhadina-web and action-core.
+ARCHITECTURAL IMPACT:
+- Surgical fix to a shared FOUNDATION package's error-handling only —
+  no interface or caller-facing behavior changes beyond the two error
+  paths described above.
+NEXT: awaiting real CI on PR #56, then merge.
+```
 
 ### JH-020
 **Priority:** P2
@@ -1587,13 +1615,27 @@ were proposed in chat and declined. See `docs/DO_NOT_BUILD.md`. This
 lane tracks the read-only, policy-gated observation layer only
 (JH-022/023/024) — nothing here mines, signs, or moves funds.
 
----
-
-## Needs a human decision before filing as a task
-
-- **PR #2** (`copilot/phase-1-1a-day-2-integration`, "Align jhadina-web
-  JANET integration with the documented Day 2 contract") — open since
-  2026-08-05, draft, likely superseded by the much larger amount of
-  JANET-adjacent work since (core-spine, evolution-adapter). Recommend
-  closing rather than filing as a task, but that's Dorian's call, not
-  mine to make unilaterally given real work went into it.
+### JH-047
+**Priority:** P3
+**Status:** SUPERSEDED
+**Branch:** `copilot/phase-1-1a-day-2-integration` (PR #2, closed
+without merging 2026-08-13, history preserved)
+**Objective:** Typed JANET client (`lib/janet/{client,types,errors}.ts`)
+against an external JANET service (`localhost:3001`,
+`GET /memory/pending` / `POST /memory/:id/approve`), plus a `/memory`
+pending-review UI.
+**Audit (2026-08-13):** True merge-base `408a2f8`, five days and a
+large amount of landed work behind current `main`. The client file
+this PR builds out already exists at the same path on `main` — but
+unused there (nothing imports `lib/janet/client.ts` outside its own
+barrel). `main`'s actual JANET implementation is architecturally
+different: an in-process pipeline (`JanetService` →
+`MemoryRepository` → `InMemoryStorage`) backing `/api/memory/approve`
+and `/api/memory/reject`, not an external HTTP service; there's no
+`/memory` UI page on `main` for this PR's queue UI to attach to. The
+diff also touches `apps/jhadina-web/pages/index.tsx` (106 lines),
+colliding with the homepage work JH-014 preserved as canonical.
+**Next Step:** None — closed as superseded. If the external-JANET-
+service contract this PR targets is still wanted, that's a fresh task
+scoped against `main`'s current JANET architecture, not a revival of
+this diff.
