@@ -1153,31 +1153,93 @@ directly.
 
 ### JH-020
 **Priority:** P2
-**Status:** ACTIVE
-**Branch:** Commerce/marketplace bundle — `feat/delivery-compliance-gate`
-(#17), `feat/order-fulfillment-core` (#18),
-`feat/commerce-pos-inventory-contracts` (#19),
-`feat/jhadina-intelligence-contract` (#20),
-`feat/checkout-reservation-orchestrator` (#21), `feat/offer-engine`
-(#22), `feat/placementos-vertical-slice` (#23)
-**Objective:** Marketplace/commerce vertical — 7 independent PRs, all
-based on `main`, all plausibly related to each other (checkout,
-inventory, offers, fulfillment, delivery compliance) but with no
-declared dependency ordering between them.
+**Status:** DONE
+**Branch:** `agent/commerce-foundation` (PR #51, merged `23066c7`).
+Originals #17–#23 closed without merging, history preserved.
+**Objective:** Marketplace/commerce vertical foundation.
 **Dependencies:** JH-001
-**Definition of Done:** Not yet audited. **Flag:** same "related but not
-stacked" pattern as the mining trio (JH-022/023/024) — merging these
-independently risks silent conflicts between them that per-PR CI can't
-catch.
-**Next Step:** Dedicated mini merge-order audit of #17–#23 before
-merging any of them.
+**Completion report:**
+```
+TASK: JH-020
+STATUS: DONE
+CHANGED:
+- packages/{payment-core,checkout-orchestrator,commerce-adapters,
+  courier-fleet-core,delivery-compliance-gate,offer-engine,
+  order-fulfillment-core}/** (new): 7 provider-agnostic, deterministic
+  commerce contracts.
+- offer-engine's package.json name corrected from
+  @commerce/offer-engine to @jhadina/offer-engine (repo convention).
+- Added standard scaffolding not present in the originals: scoped
+  tsconfig.json + type-check script per package.
+VERIFIED:
+- These were NOT 7 independent PRs despite the queue's original
+  framing. Real ancestry (true merge-base a6d85a3 for all six of
+  #17-#22, matching pairwise git merge-base --is-ancestor checks):
+  one linear chain, #20 -> #19 -> #22 -> #21 -> #18 -> #17 (confirmed
+  by both ancestry and commit timestamps, 15:43 through 16:14 the
+  same day). #17 is the full trunk, a strict superset of the other
+  five — audited IT, not each sub-PR separately.
+- All 7 commerce packages read directly: zero external API calls,
+  zero credentials/secrets, zero database migrations, zero
+  cross-package imports, zero wiring into apps/jhadina-web. No
+  competing/duplicate commerce implementations among them — each
+  covers a distinct concern (payment / checkout-reservation /
+  POS-inventory / courier-fleet / delivery-compliance / offer-ranking
+  / order-fulfillment) with no code overlap.
+- #17's full diff also carries the identical "kitchen sink" bundle
+  already found in PR #7/#16 (byte-diffed several files to confirm:
+  growth/engine.ts, studio/character-dna.ts, opportunities/engine.ts
+  all byte-identical) — same already-tracked JH-025-036 content, not
+  re-deferred as duplicates.
+- #23 (placementos-vertical-slice) is genealogically unrelated
+  (different fork point) and every one of its 30 files diffed
+  byte-identical against current main — fully superseded, nothing to
+  reconstruct.
+- type-check passed clean for all 7 packages on first run; CI green
+  on PR #51; apps/jhadina-web, apps/pupsonstuff, and
+  packages/jhadina-entertainment-core re-verified unaffected.
+ARCHITECTURAL IMPACT:
+- packages/jhadina-intelligence-contract (from #20, the chain's
+  earliest link) is real but not commerce-specific — a general
+  platform-to-Jhadina intelligence-event contract, not imported by
+  any of the 7 commerce packages. Filed separately as JH-046 rather
+  than bundled into the commerce foundation or dropped.
+- No competing marketplace/payment architectures found requiring a
+  human gate — the 7 packages are complementary, not overlapping.
+COMMIT: 043f371 (PR #51), merged as 23066c7
+NEXT: JH-021
+```
+
+### Deferred from PR #20 (filed per JH-020's resolution, not yet audited)
+
+### JH-046
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-intelligence-contract` (PR #20, closed) —
+`packages/jhadina-intelligence-contract/**`
+**Objective:** Jhadina Intelligence Contract (JIC) v1.0 — the general
+interface between any application/platform and Jhadina's intelligence
+layer: read-only events and scoped context packets in, evidence-backed
+observations/forecasts/recommendations/command-proposals out, with
+regulatory constraints overriding optimization and every recommendation
+carrying evidence/rationale/confidence/risk/approval-requirements.
+Proposed commands must pass Policy Core and the Action Executor.
+**Dependencies:** JH-001
+**Flag:** This is a FOUNDATION-lane concern (a general platform
+integration contract), not PRODUCT/commerce — it was only bundled with
+the commerce chain because it happened to be built first in the same
+working session, not because commerce depends on it. Audit should
+confirm whether this overlaps with anything already in the FOUNDATION
+lane (jhadina-action-core, security-core) before treating it as
+net-new.
+**Next Step:** Not yet audited.
 
 ### JH-021
 **Priority:** P2
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `feat/jhadina-growth-channel-adapters-v9` (PR #41)
 **Objective:** Complete the advertising intelligence loop.
-**Dependencies:** JH-001, JH-015
+**Dependencies:** JH-001 (done), JH-015 (done)
 **Next Step:** Not yet audited.
 
 ---
