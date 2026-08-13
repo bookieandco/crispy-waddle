@@ -500,21 +500,48 @@ NEXT: JH-015
 
 ### JH-015
 **Priority:** P1
-**Status:** ACTIVE
+**Status:** BLOCKED
 **Branch:** `feat/jhadina-growth-engine` (PR #7)
 **Objective:** Growth Engine redraft workflow — draft lifecycle with
 explicit approval gate, redraft/approve/reject/schedule endpoints,
 Growth Command Center UI. Provider-neutral: publishing stays a separate
 layer behind the approval gate.
-**Dependencies:** JH-014 (done — merged to main); `mergeable_state` was
-last reported `unstable` (CI failing, not conflicted) — needs
-re-verification against current main.
-**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI.
-**Next Step:** Inspect actual scope/dependencies against current main
-(not the stale reported base), identify whether any existing merged
-work is being replaced/duplicated (note JH-016/PR #4 also touches
-jhadina-web build config — check for overlap), fix the failing CI
-check, then merge.
+**Dependencies:** JH-014 (done — merged to main).
+**Human gate:** PR #7's real, true-merge-base diff (against
+`7e502ad`, the actual tip it forked from — 216 commits, 225 files,
++8369/-86) is far larger than its stated objective. Only a small
+subset is the described Growth Engine feature:
+`apps/jhadina-web/src/lib/growth/{engine,types}.ts`, 5
+`api/growth/drafts/*` routes, and `apps/jhadina-web/src/app/growth/page.tsx`
+(self-contained, no dependency on anything else new in the branch).
+The remaining ~200 files are entirely separate, never-before-queued
+product surfaces bundled into the same branch history: a standalone
+`packages/growth-core` (attribution/LTV/economics engine) that nothing
+in the branch actually imports; a large Studio AI-actor/video pipeline
+(GPU processing, character DNA, physics, lip-sync, voice-sync, rig,
+tracking — plus native Swift AV code in `apps/jhadina-studio-native`
+and five new Python microservices under `services/`: `wav2lip`,
+`physics-service`, `rig-service`, `tracking-service`,
+`studio-mastering`); a Publishing engine (fiction writing, KDP
+intelligence, research library); a Money/financial-data integration
+(Plaid snapshot provider, needs-attention engine); Shopping, Cooking,
+Opportunities, and Campaign-polling features; and a shell-navigation
+change to the already-live homepage. None of this existed on `main`
+before (verified — no name collisions, nothing being replaced or
+deleted), so this is not a JH-008/JH-010-style accidental-deletion
+case. It's a scope-bundling case: merging the branch as-is would
+silently ship ~7 unrelated, unaudited architectural surfaces (a native
+mobile AV pipeline and multiple Python microservices among them) under
+a work-queue task labeled only "Growth Engine," while cherry-picking
+just the growth slice would just as unilaterally decide to defer/drop
+all the rest. Needs a human call: (a) merge PR #7 whole and retroactively
+file JH-022+ tasks for the bundled surfaces, (b) land only the Growth
+Engine slice now and split the rest into its own audited task(s), or
+(c) something else. Not proceeding with either option without that
+decision.
+**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI (not yet
+run — blocked on the scope decision above).
+**Next Step:** Await human decision on merge scope, then implement.
 
 ### JH-016
 **Priority:** P1
