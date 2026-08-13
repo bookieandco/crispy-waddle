@@ -1019,15 +1019,46 @@ ahead of that decision.
 
 ### JH-035
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
-`apps/jhadina-web/src/lib/film/{filmPlanner,sceneExtend}.ts`
+**Status:** REJECTED (not landing — duplicates already-landed,
+richer infrastructure)
+**Branch:** `fix/vercel-build-jhadina-web` (PR #4, closed without
+merging; history preserved)
 **Objective:** Film planning / scene-extension logic. Scope and
 intended UI surface unclear — no page/route wires to these in the
 diff.
 **Dependencies:** JH-001
-**Next Step:** Not yet audited — establish what (if anything) consumes
-this before treating it as a real feature slice.
+**Audit (2026-08-13):** Both files read in full (148 lines total,
+genuinely small). Both are pure — no fetch, no credentials, no I/O;
+`SceneExtendProvider`/`PremiereSequenceAdapter` are unimplemented
+interfaces, not concrete adapters. Safety isn't the issue; overlap is:
+- `filmPlanner.ts`'s `FilmPlan`/`FilmScene`/`FilmShot` (a simple
+  scene→shots-with-duration/prompt/status model) duplicates
+  `packages/shotlist-core`'s already-landed `Shot` type — richer in
+  every dimension (`projectId`, `sceneScriptOrder`, `ordinal`,
+  `shotType`, `angle`, `lensMm`, `movement`, `durationSec`, `action`,
+  `emotion`, `lighting`, `audioNote`, `entityHandles`, `status`,
+  `DirectorControls`), plus the surrounding `production.ts`/
+  `scene-adapters.ts`/`director-modules.ts`/`jhadina-adapter.ts`
+  ecosystem already built around it.
+- `sceneExtend.ts`'s `SceneContinuityPacket`/`createSceneExtendJob` (a
+  standalone "extend a clip with a continuity packet" concept)
+  duplicates `packages/director-core`'s already-landed continuity
+  system: `timeline-model.ts`'s `GenerativeOperation` already includes
+  `'extend'`, plus a full `ContinuityLock`/`ContinuityManifest`/
+  continuity-QC-and-ranking pipeline (`continuity-qc.ts`,
+  `candidate-ranking.ts`, `batch-ranking-action-adapter.ts`) and
+  `shotlist-core`'s own `createMultiViewContinuityProvider`/
+  `priorTakeId`/`priorClipUri` tracking — all more sophisticated than
+  this file's simple packet-passing approach.
+
+Neither file is consumed by any page/route on its own branch either
+(confirmed — matches the queue's original note). Per the reversed
+burden of proof, the already-landed, richer shotlist-core/director-core
+infrastructure is presumed correct; this smaller, standalone
+reinvention isn't additive.
+**Next Step:** None. If film-planning UI is wanted later, it should be
+built against `shotlist-core`'s `Shot`/`DirectorControls` and
+`director-core`'s continuity/extend system, not this file pair.
 
 ### JH-036
 **Priority:** P2
