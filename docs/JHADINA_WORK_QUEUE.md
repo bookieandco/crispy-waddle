@@ -500,57 +500,179 @@ NEXT: JH-015
 
 ### JH-015
 **Priority:** P1
-**Status:** BLOCKED
-**Branch:** `feat/jhadina-growth-engine` (PR #7)
+**Status:** DONE
+**Branch:** `agent/growth-engine-slice` (PR #47, merged `8229dce`).
+Original `feat/jhadina-growth-engine` (PR #7) left open/untouched —
+see deferred tasks JH-025–JH-031 below.
 **Objective:** Growth Engine redraft workflow — draft lifecycle with
 explicit approval gate, redraft/approve/reject/schedule endpoints,
 Growth Command Center UI. Provider-neutral: publishing stays a separate
 layer behind the approval gate.
 **Dependencies:** JH-014 (done — merged to main).
-**Human gate:** PR #7's real, true-merge-base diff (against
-`7e502ad`, the actual tip it forked from — 216 commits, 225 files,
-+8369/-86) is far larger than its stated objective. Only a small
-subset is the described Growth Engine feature:
-`apps/jhadina-web/src/lib/growth/{engine,types}.ts`, 5
-`api/growth/drafts/*` routes, and `apps/jhadina-web/src/app/growth/page.tsx`
-(self-contained, no dependency on anything else new in the branch).
-The remaining ~200 files are entirely separate, never-before-queued
-product surfaces bundled into the same branch history: a standalone
-`packages/growth-core` (attribution/LTV/economics engine) that nothing
-in the branch actually imports; a large Studio AI-actor/video pipeline
-(GPU processing, character DNA, physics, lip-sync, voice-sync, rig,
-tracking — plus native Swift AV code in `apps/jhadina-studio-native`
-and five new Python microservices under `services/`: `wav2lip`,
-`physics-service`, `rig-service`, `tracking-service`,
-`studio-mastering`); a Publishing engine (fiction writing, KDP
-intelligence, research library); a Money/financial-data integration
-(Plaid snapshot provider, needs-attention engine); Shopping, Cooking,
-Opportunities, and Campaign-polling features; and a shell-navigation
-change to the already-live homepage. None of this existed on `main`
-before (verified — no name collisions, nothing being replaced or
-deleted), so this is not a JH-008/JH-010-style accidental-deletion
-case. It's a scope-bundling case: merging the branch as-is would
-silently ship ~7 unrelated, unaudited architectural surfaces (a native
-mobile AV pipeline and multiple Python microservices among them) under
-a work-queue task labeled only "Growth Engine," while cherry-picking
-just the growth slice would just as unilaterally decide to defer/drop
-all the rest. Needs a human call: (a) merge PR #7 whole and retroactively
-file JH-022+ tasks for the bundled surfaces, (b) land only the Growth
-Engine slice now and split the rest into its own audited task(s), or
-(c) something else. Not proceeding with either option without that
-decision.
-**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI (not yet
-run — blocked on the scope decision above).
-**Next Step:** Await human decision on merge scope, then implement.
+**Verification:** `pnpm test` (41/41), `pnpm lint` (0 errors), `pnpm build`,
+CI (`Install, type-check, lint, test, build` — green).
+**Completion report:**
+```
+TASK: JH-015
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/growth/{types,engine}.ts (new)
+- apps/jhadina-web/src/app/api/growth/drafts/{route,approve,reject,
+  redraft,schedule}/route.ts (new)
+- apps/jhadina-web/src/app/growth/page.tsx (new)
+VERIFIED: type-check, lint, test (41/41), build (incl. new /growth
+route) all pass locally; real CI green on PR #47.
+ARCHITECTURAL IMPACT:
+- Human gate resolved: option (b) — land only the scoped Growth
+  Engine slice (8 files, self-contained, no dependency on anything
+  else new in PR #7), reconstructed as a fresh branch/PR (#47) off
+  current main rather than merging PR #7 itself. PR #7
+  (feat/jhadina-growth-engine) is fully preserved, untouched, still
+  open — none of its ~200 deferred files were lost or silently
+  dropped, they're filed below as JH-025–JH-031.
+- Notable: PR #7's history independently hit the exact same
+  pages/index.tsx vs app/page.tsx collision resolved in JH-014, and
+  resolved it the opposite way (kept the Supabase placeholder, deleted
+  pages/index.tsx as "legacy" — see commit 8b96d19 on that branch).
+  That resolution is NOT part of what merged here. If JH-031 (shell
+  navigation, below) is ever picked up, it must reconcile with the
+  already-merged JH-014 decision explicitly, not inherit PR #7's
+  deletion via automatic git merge.
+COMMIT: 8229dce
+NEXT: JH-016
+```
+
+### Deferred from PR #7 (filed per JH-015's resolution, not yet audited)
+
+PR #7 (`feat/jhadina-growth-engine`) bundled the following alongside
+the actual Growth Engine feature. None of it merged. Each is filed
+here as its own QUEUED item so it's tracked rather than silently
+accepted or silently dropped, per
+`docs/DO_NOT_BUILD.md`'s "capability that goes straight from 'sounds
+useful' to 'implemented' without a branch, a task in the work queue,
+and a Definition of Done" smell — every one of these was implemented
+without ever going through DISCOVER → AUDIT → ACCEPT. All still live
+only on `feat/jhadina-growth-engine` (PR #7); none has its own branch
+yet.
+
+### JH-025
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-growth-engine` (PR #7) — `packages/growth-core/**`
+**Objective:** Standalone attribution/creative-brief/customer-LTV/
+economics/experiments/lineage engine (20 files, own package.json).
+**Dependencies:** JH-001
+**Flag:** Nothing in PR #7 (including the growth slice that did merge)
+actually imports `@jhadina/growth-core` — it's fully unwired. Audit
+should establish whether this supersedes/relates to JH-015's simpler
+in-memory engine before deciding how it's meant to connect.
+**Next Step:** Not yet audited.
+
+### JH-026
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-growth-engine` (PR #7) —
+`apps/jhadina-studio-native/**`, `apps/jhadina-web/src/lib/studio/**`,
+`services/{wav2lip,physics-service,rig-service,tracking-service,
+studio-mastering}/**`
+**Objective:** Studio AI-actor/video pipeline — GPU video processing,
+character DNA/appearance/behavior runtime, physics, lip-sync,
+voice-sync, rig/tracking, native Swift AV code, and five new Python
+microservices.
+**Dependencies:** JH-001
+**Flag:** By far the largest and most speculative of the deferred
+surfaces — native mobile code plus multiple new deployable services.
+Given `docs/JHADINA_WORK_QUEUE.md`'s EXPERIMENT lane rule ("nothing
+here is authorized to become FOUNDATION or INTEGRATION without an
+explicit human decision"), this needs a human call on lane placement
+and deployment/infra implications before any implementation work,
+not just a merge-order audit.
+**Next Step:** Human scoping decision, then DISCOVER/AUDIT.
+
+### JH-027
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-growth-engine` (PR #7) —
+`apps/jhadina-web/src/lib/publishing/**`
+**Objective:** Publishing engine — fiction/creative-writing workflow,
+KDP intelligence, research library and engine.
+**Dependencies:** JH-001
+**Next Step:** Not yet audited.
+
+### JH-028
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-growth-engine` (PR #7) —
+`apps/jhadina-web/src/lib/money/{needsAttentionEngine,
+plaidFinancialData}.ts`, `apps/jhadina-web/src/app/money/command-center/page.tsx`,
+`apps/jhadina-web/src/app/api/money/financial-data/route.ts`
+**Objective:** Plaid-backed financial snapshot provider and
+needs-attention engine, wired to a money command-center page.
+**Dependencies:** JH-001
+**Flag:** Handles real financial data via a third-party provider
+(Plaid). Per `docs/DO_NOT_BUILD.md` ("Direct LLM authority over
+money," "Bypassing the Policy Engine ... or audit ledger"), this needs
+explicit confirmation it's read-only/observation-only and routes
+through the existing Policy Engine boundary before merging, not an
+assumption from the branch's own code.
+**Next Step:** Not yet audited — security/policy review first.
+
+### JH-029
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-growth-engine` (PR #7) —
+`apps/jhadina-web/src/lib/{shopping,cooking,opportunities}/**`,
+`apps/jhadina-web/src/app/opportunity/page.tsx`,
+`apps/jhadina-web/src/app/api/opportunities/**`
+**Objective:** Shopping watchlist, cooking/recipe/drink recommendation
+engines, and an Opportunity Command Center (side-income discovery with
+an approve-only, no-side-effect action model).
+**Dependencies:** JH-001
+**Next Step:** Not yet audited.
+
+### JH-030
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-growth-engine` (PR #7) —
+`apps/jhadina-web/src/lib/campaign/polling.ts`,
+`apps/jhadina-web/src/app/campaign/polls/page.tsx`
+**Objective:** Polling intelligence dashboard.
+**Dependencies:** JH-001
+**Next Step:** Not yet audited.
+
+### JH-031
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-growth-engine` (PR #7) —
+`apps/jhadina-web/src/components/JhadinaShellNavigation.tsx`,
+`apps/jhadina-web/src/components/jhadina/UniversalJhadinaButton.tsx`,
+`apps/jhadina-web/src/app/layout.tsx`, `apps/jhadina-web/src/components/
+jhadinaTv/MiniPlayer.tsx`
+**Objective:** Five-button shell navigation (with a "Worlds" dropdown)
+and a persistent JhadinaTV mini player, mounted into the root layout.
+**Dependencies:** JH-001, JH-014
+**Human gate:** This surface's own history (commit `8b96d19` on PR #7)
+deletes `apps/jhadina-web/pages/index.tsx` — the homepage JH-014
+explicitly preserved as canonical `/` — in favor of the Supabase-auth
+placeholder page JH-014 removed. Cannot be merged via automatic git
+resolution; needs an explicit decision on how five-button nav mounts
+onto the already-merged homepage, the same way the two music-core
+generations required explicit comparison rather than auto-resolution.
+**Next Step:** Not yet audited. Do not merge without reconciling
+against JH-014's resolution first.
 
 ### JH-016
 **Priority:** P1
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `fix/vercel-build-jhadina-web` (PR #4)
 **Objective:** Unblock the Jhadina web Vercel build.
 **Dependencies:** None
 **Verification:** Real build, not just Vercel's status.
-**Next Step:** Audit current state — this PR predates several since-merged fixes on other branches and may already be superseded.
+**Next Step:** Audit current state against current main (real
+merge-base, not the reported one) — this PR predates several
+since-merged fixes on other branches (JH-006, JH-011/#46's src/app
+consolidation, JH-014's pages/index.tsx resolution) and may already be
+substantially or fully superseded.
 
 ### JH-017
 **Priority:** P2
