@@ -965,15 +965,195 @@ NEXT: JH-019
 
 ### JH-019
 **Priority:** P2
-**Status:** ACTIVE
-**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16)
+**Status:** DONE
+**Branch:** `agent/entertainment-intelligence-core` (PR #50, merged
+`0cb6ff8`). Original `feat/jhadina-entertainment-intelligence` (PR #16)
+left open/untouched — see deferred tasks JH-040–JH-045 below.
 **Objective:** Entertainment intelligence feature.
 **Dependencies:** JH-001
+**Completion report:**
+```
+TASK: JH-019
+STATUS: DONE
+CHANGED:
+- packages/jhadina-entertainment-core/** (new): governed JEI
+  creative-learning core — observation -> feedback -> taste
+  hypothesis -> approval -> creative context. Self-contained, no
+  external calls/credentials.
+- Added standard scaffolding not present in the original PR: scoped
+  tsconfig.json, type-check/test scripts, vitest devDependency;
+  wrapped the original bare-assert test in a vitest test() block
+  (same assertions, unchanged logic) since vitest reported "No test
+  suite found" without it.
+VERIFIED:
+- Real diff against true merge-base (463e769, not GitHub's reported
+  base): 116 commits / 75 files. Read every changed file and
+  classified each as required/dependency/unrelated/superseded — see
+  ARCHITECTURAL IMPACT.
+- type-check and test pass for @jhadina/entertainment-core; CI green
+  on PR #50; apps/jhadina-web and apps/pupsonstuff re-verified
+  unaffected.
+ARCHITECTURAL IMPACT:
+- PR #16's branch name undersold its real scope by roughly the same
+  margin as JH-015/JH-016/JH-017. Only packages/jhadina-entertainment-core
+  (6 files) matches "entertainment intelligence" as a finished,
+  tested, self-contained deliverable. Landed that; deferred six other
+  surfaces as JH-040–JH-045 rather than merging or dropping them
+  silently — see those entries for detail. Two are flagged for
+  security/policy review (live GitHub API credentials; a FOUNDATION
+  package touch), one collides with the JH-014 homepage decision, one
+  overlaps JH-014's auth work, and two justice/entertainment
+  "continuation" packages are unfinished (no package.json, unwired).
+COMMIT: bb172f9 (PR #50), merged as 0cb6ff8
+NEXT: JH-020
+```
+
+### Deferred from PR #16 (filed per JH-019's resolution, not yet audited)
+
+PR #16 (`feat/jhadina-entertainment-intelligence`) bundled the
+following alongside the actual entertainment-intelligence feature.
+None of it merged; all of it still lives only on that branch. Filed
+here per `docs/DO_NOT_BUILD.md`'s "implemented without a branch, a
+task in the work queue, and a Definition of Done" smell, same as
+JH-025–JH-039.
+
+### JH-040
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
+`packages/entertainment-core/**`
+**Objective:** A second, more ambitious entertainment-intelligence
+surface built as a direct continuation of JH-019's core (same author,
+same day, immediately following commits): creative knowledge graph
+(nodes/relations with evidence + provenance), a reference-match engine,
+a creative review/feedback-calibration engine, and music audio-feature
+perception (converting measurements into creative observations).
+**Dependencies:** JH-001, JH-019
+**Flag:** Unlike JH-019's core, this has no `package.json` of its own
+— not a real pnpm workspace member — and nothing anywhere in the
+branch imports it. Real, substantial work (11 commits) but incomplete:
+needs a package.json, integration decision (does it depend on
+JH-019's core or replace it?), and tests before it's mergeable.
 **Next Step:** Not yet audited.
+
+### JH-041
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
+`packages/jhadina-justice-core/**`, `packages/justice-core/**`,
+`apps/jhadina-web/src/lib/justice/**`, `docs/JHADINA_JUSTICE_CORE.md`
+**Objective:** Legal/justice evidence domain — jurisdiction-aware
+evidence contracts, an evidence store with verification pipeline, a
+persistent Supabase-backed schema with RLS, an authority resolver, and
+a verified evidence-packet boundary.
+**Dependencies:** JH-001
+**Flag:** Completely unrelated to entertainment intelligence — bundled
+under the wrong branch/PR entirely. Internally inconsistent: three
+separate evidence-store implementations
+(`jhadina-justice-core`, `justice-core`, and
+`apps/jhadina-web/src/lib/justice/`) built across the same day, none
+importing or referencing each other. `jhadina-justice-core` has a
+package.json (real workspace member); `justice-core` does not
+(orphaned, like JH-040). Needs a dedicated reconciliation audit —
+which implementation is canonical — before any of it is usable, not a
+straight merge of any one variant.
+**Next Step:** Not yet audited.
+
+### JH-042
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
+`apps/jhadina-web/{app,lib}/agents/**`, `apps/jhadina-web/src/lib/agents/**`,
+`apps/jhadina-web/src/app/api/{agents,system/status}/**`,
+`apps/jhadina-web/app/api/system/activity/route.ts`,
+`apps/jhadina-web/pages/activity.tsx`,
+`packages/delia-core/src/quant/market-research.ts`,
+`packages/director-core/**`
+**Objective:** Delia/Marisa/Janet agent operating-loop runtime, a
+system-status API, and a new `/activity` page surfacing it.
+**Dependencies:** JH-001
+**Human gate:** This bundle rewrites
+`apps/jhadina-web/components/home/PersonalCommandFeed.tsx` — the
+homepage component JH-014 confirmed and preserved as canonical `/` —
+from a personal content feed into a system-module status board, and
+adds an "Activity" nav link to `pages/index.tsx`. Same collision shape
+as JH-031 and JH-036: a homepage direction built without knowledge of
+JH-014's decision. Three independent homepage proposals now exist
+(JH-014's PersonalCommandFeed as shipped, JH-031's five-button nav,
+JH-036's BottomNav feed, and now this system-status board) — needs one
+reconciliation decision, not three separate ones made serially.
+**Next Step:** Not yet audited. If picked up, reconcile against
+JH-031/JH-036 together, not in isolation. Also note some paths here
+are under root `apps/jhadina-web/app/` and `lib/` (not `src/app/`/
+`src/lib/`) — re-check the app/vs src/app collision class from JH-011
+before assuming these routes are reachable as authored.
+
+### JH-043
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
+`apps/jhadina-web/app/api/janet/codebase/route.ts`,
+`apps/jhadina-web/src/lib/janet/memory/**`,
+`apps/jhadina-web/src/lib/services/{JanetCodebaseIndex,
+JanetContextProvider,JanetGitHubCodebaseProvider,
+SupabaseCodebaseIndexStore}.ts`, `apps/jhadina-web/supabase/migrations/
+20260810150000_codebase_graph.sql`, `docs/JHADINA_OPERATING_SYSTEM_AUDIT.md`
+**Objective:** JANET codebase-context memory — indexes and scores this
+repository's own source against an objective, backed by a Supabase
+graph schema.
+**Dependencies:** JH-001
+**Flag:** `JanetGitHubCodebaseProvider.ts` makes live,
+token-authenticated calls to `api.github.com` (repo tree + file
+contents) — a genuine new external data-ingestion surface with a
+credential to manage, not just an internal refactor. Needs security
+review (token scope/storage, rate limits, what triggers a fetch)
+before merging, per the same scrutiny already applied to other
+external-integration deferred tasks.
+**Next Step:** Not yet audited — security review for the GitHub
+integration specifically, functional review for the rest.
+
+### JH-044
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
+`apps/jhadina-web/src/lib/auth/{request-identity,
+supabase-identity-verifier,supabase-server}.ts`
+**Objective:** Server-side request-identity resolution and Supabase
+session verification.
+**Dependencies:** JH-001, JH-014
+**Flag:** Same domain as JH-014's already-merged Supabase Auth work
+(`apps/jhadina-web/src/lib/supabase/{client,server,middleware}.ts`).
+Likely overlapping or divergent identity-verification logic from a
+different branch generation — needs reconciliation against JH-014's
+implementation, not independent adoption.
+**Next Step:** Not yet audited.
+
+### JH-045
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
+`packages/jhadina-action-core/src/action-executor.ts`
+**Objective:** Harden `ActionExecutor.execute`: fail closed if the
+"started" audit-log append itself fails, and never convert a
+successful side effect into a reported failure just because the
+completion-audit append afterward failed.
+**Dependencies:** JH-001, JH-005
+**Flag:** A real, worthwhile improvement, but written against a
+version of `action-executor.ts` that predates JH-005's
+`approval_required` policy-decision work already on `main` — cannot be
+merged as a diff against the current file; the same error-handling
+fix needs to be re-implemented by hand on top of what's there now.
+Touches a shared FOUNDATION package used by every action across the
+system, so changes here affect more than entertainment or any other
+single vertical — treat with the same care as any other FOUNDATION
+change.
+**Next Step:** Not yet audited. Re-implement the fix against current
+`action-executor.ts`, don't attempt to apply the branch's diff
+directly.
 
 ### JH-020
 **Priority:** P2
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** Commerce/marketplace bundle — `feat/delivery-compliance-gate`
 (#17), `feat/order-fulfillment-core` (#18),
 `feat/commerce-pos-inventory-contracts` (#19),
