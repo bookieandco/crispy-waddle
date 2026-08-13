@@ -12,6 +12,9 @@
       "@/*": [
         "./src/*"
       ],
+      "@jhadina/action-core": [
+        "../../packages/jhadina-action-core/src"
+      ],
       "@jhadina/*": [
         "../../packages/*/src",
         "../../apps/*/src"
