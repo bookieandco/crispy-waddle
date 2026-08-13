@@ -42,7 +42,12 @@ describe("mastering execution boundary", () => {
     expect(result.status).toBe("candidate");
     expect(result.artifact.id).toContain("source:mastering:");
     expect(result.artifact.samples).not.toBe(sourceSamples);
-    expect(Array.from(sourceSamples)).toEqual([0.9, -0.9, 0.25, -0.25]);
+    // Compare against another Float32Array-routed literal, not raw float64
+    // numbers: 0.9 has no exact float32 representation, so comparing
+    // Array.from(sourceSamples) directly against [0.9, -0.9, ...] fails on
+    // float32/float64 rounding alone, independent of whether the source
+    // was actually mutated.
+    expect(Array.from(sourceSamples)).toEqual(Array.from(new Float32Array([0.9, -0.9, 0.25, -0.25])));
     expect(result.metricsAfter.samplePeakDbfs).toBeLessThanOrEqual(-1);
   });
 

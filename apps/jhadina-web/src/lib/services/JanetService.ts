@@ -27,7 +27,6 @@ import {
   Observation,
   Classification,
   MemoryCandidate,
-  ReasoningEvent,
 } from "../storage/InMemoryStorage"
 
 export interface JanetServiceResponse {
@@ -209,7 +208,7 @@ export class JanetService {
   /**
    * Debug dump
    */
-  dump(userId?: string): string {
+  dump(_userId?: string): string {
     const lines: string[] = []
     lines.push("JanetService")
     lines.push("═".repeat(40))
