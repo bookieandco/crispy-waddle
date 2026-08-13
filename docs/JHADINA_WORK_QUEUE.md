@@ -570,7 +570,7 @@ JH-021's completion report.
 
 ### JH-026
 **Priority:** P2
-**Status:** QUEUED
+**Status:** BLOCKED
 **Branch:** `feat/jhadina-growth-engine` (PR #7) —
 `apps/jhadina-studio-native/**`, `apps/jhadina-web/src/lib/studio/**`,
 `services/{wav2lip,physics-service,rig-service,tracking-service,
@@ -580,18 +580,20 @@ character DNA/appearance/behavior runtime, physics, lip-sync,
 voice-sync, rig/tracking, native Swift AV code, and five new Python
 microservices.
 **Dependencies:** JH-001
-**Flag:** By far the largest and most speculative of the deferred
-surfaces — native mobile code plus multiple new deployable services.
-Given `docs/JHADINA_WORK_QUEUE.md`'s EXPERIMENT lane rule ("nothing
-here is authorized to become FOUNDATION or INTEGRATION without an
-explicit human decision"), this needs a human call on lane placement
-and deployment/infra implications before any implementation work,
-not just a merge-order audit.
-**Next Step:** Human scoping decision, then DISCOVER/AUDIT.
+**Human gate:** By far the largest and most speculative of the
+deferred surfaces — native mobile code plus multiple new deployable
+services. Given `docs/JHADINA_WORK_QUEUE.md`'s EXPERIMENT lane rule
+("nothing here is authorized to become FOUNDATION or INTEGRATION
+without an explicit human decision"), this needs a human call on lane
+placement and deployment/infra implications before any implementation
+work, not just a merge-order audit. Explicitly left BLOCKED
+(2026-08-13) rather than promoted — evidence above stays as-is until
+that decision is made.
+**Next Step:** Await human scoping decision, then DISCOVER/AUDIT.
 
 ### JH-027
 **Priority:** P2
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `feat/jhadina-growth-engine` (PR #7) —
 `apps/jhadina-web/src/lib/publishing/**`
 **Objective:** Publishing engine — fiction/creative-writing workflow,
