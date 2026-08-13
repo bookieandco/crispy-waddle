@@ -21,5 +21,6 @@ export interface PlanningRegistry { getPlan(id: ID): Promise<PlanningPlan | null
 export * from "./events";
 export * from "./planning-service";
 export * from "./api";
+export * from "./timeline-reader";
 
 export const PLANNING_CORE_VERSION = "0.1.0";
