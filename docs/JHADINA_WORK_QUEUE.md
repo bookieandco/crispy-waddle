@@ -1400,26 +1400,73 @@ NEXT: awaiting real CI on PR #61, then merge.
 
 ### JH-041
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
-`packages/jhadina-justice-core/**`, `packages/justice-core/**`,
-`apps/jhadina-web/src/lib/justice/**`, `docs/JHADINA_JUSTICE_CORE.md`
+**Status:** BLOCKED (human gate — three incompatible evidence models,
+no unilateral canonical pick)
+**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16, closed
+without merging) — `packages/jhadina-justice-core/**`,
+`packages/justice-core/**`, `apps/jhadina-web/src/lib/justice/**`,
+`apps/jhadina-web/src/lib/services/JanetJusticeContextProvider.ts`
+(direct dependency, not in the original file list — see below),
+`docs/JHADINA_JUSTICE_CORE.md`
 **Objective:** Legal/justice evidence domain — jurisdiction-aware
 evidence contracts, an evidence store with verification pipeline, a
 persistent Supabase-backed schema with RLS, an authority resolver, and
 a verified evidence-packet boundary.
 **Dependencies:** JH-001
-**Flag:** Completely unrelated to entertainment intelligence — bundled
-under the wrong branch/PR entirely. Internally inconsistent: three
-separate evidence-store implementations
-(`jhadina-justice-core`, `justice-core`, and
-`apps/jhadina-web/src/lib/justice/`) built across the same day, none
-importing or referencing each other. `jhadina-justice-core` has a
-package.json (real workspace member); `justice-core` does not
-(orphaned, like JH-040). Needs a dedicated reconciliation audit —
-which implementation is canonical — before any of it is usable, not a
-straight merge of any one variant.
-**Next Step:** Not yet audited.
+**Audit (2026-08-13):** Read all three implementations in full, plus a
+fourth file discovered as a direct dependency
+(`JanetJusticeContextProvider.ts`, imported by `JanetContextProvider.ts`/
+`JanetService.ts` — JANET's actual consumer-side hook for justice
+context, currently defaulted to a safe no-op
+`EmptyJanetJusticeContextProvider`). Confirmed: zero of the three
+implementations import or reference each other; each contributes a
+different, non-overlapping piece of what would need to be one
+coherent pipeline:
+- `packages/jhadina-justice-core` (has `package.json`, real workspace
+  member): pure types + `JusticeEvidenceProvider.search()` (interface
+  only, no implementation) + `JUSTICE_SOURCE_REGISTRY` (a static
+  catalog of external legal-data repositories — statedecoded,
+  citation-regexes, statedb, etc. — documentation, not live calls) +
+  `validateJusticeFinding()`, a pure guardrail (rejects unverified
+  citations, jurisdiction mismatches, expired evidence, and hard-
+  requires `isLegalAdvice: false`). This is the **source-discovery**
+  layer — nothing else has one.
+- `packages/justice-core` (no `package.json`, orphaned like JH-040
+  originally was): `JusticeEvidenceStore`/`InMemoryJusticeEvidenceStore`/
+  `JusticeEvidenceVerifier` + a real Supabase migration
+  (`justice_sources`/`justice_evidence`/`justice_verifications`, RLS
+  enabled, `anon`/`authenticated` explicitly revoked — safe as
+  written). This is the **persistence** layer — nothing else has one.
+- `apps/jhadina-web/src/lib/justice/*`: the most sophisticated of the
+  three. `JusticeAuthorityResolver.resolveJusticeAuthorities()` ranks
+  evidence by authority level and explicitly refuses to silently pick
+  a winner when same-rank authorities conflict (returns
+  `unresolvedConflicts` instead, with a full `reasoningTrace`);
+  `JusticeEvidencePacket.buildVerifiedJusticeEvidencePacket()` filters
+  to verified/jurisdiction-matching/date-valid evidence and marks
+  `INSUFFICIENT_EVIDENCE` rather than fabricating an answer from
+  partial evidence. This is the **conflict-resolution and packet**
+  layer. Its field shapes (`authorityLevel`/`verificationState`/
+  `contentHash`/`provenance`) line up closely with
+  `JanetJusticeContextProvider.ts`'s `JanetJusticeEvidenceReference`
+  type — the only one of the three with a matching downstream JANET
+  consumer already built, even though nothing wires them together yet.
+
+So this isn't three redundant copies of the same thing — it's three
+different, incompatible **type systems** for the same domain, each
+owning a different real piece (discovery / persistence / resolution),
+with no shared `JusticeEvidence` shape between them. Reconciling that
+into one pipeline is genuine design work with real-world stakes
+(evidence provenance, jurisdiction handling, what counts as
+"verified," how conflicting authorities get surfaced rather than
+silently resolved) — not a mechanical merge.
+**Next Step:** Human call needed on which type system becomes
+canonical (most likely: `apps/jhadina-web/src/lib/justice/*`'s
+resolver/packet shapes as the spine, since JANET's own consumer
+already expects that shape, with `jhadina-justice-core`'s discovery
+registry and `justice-core`'s Supabase schema adapted to match) —
+or a from-scratch redesign if none should win outright. Not decided
+here.
 
 ### JH-042
 **Priority:** P2
