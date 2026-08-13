@@ -1394,8 +1394,10 @@ from JH-011 before assuming these routes are reachable as authored.
 
 ### JH-043
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16) —
+**Status:** BLOCKED (human gate — live external credential, no
+governed boundary)
+**Branch:** `feat/jhadina-entertainment-intelligence` (PR #16, closed
+without merging) —
 `apps/jhadina-web/app/api/janet/codebase/route.ts`,
 `apps/jhadina-web/src/lib/janet/memory/**`,
 `apps/jhadina-web/src/lib/services/{JanetCodebaseIndex,
@@ -1406,15 +1408,37 @@ SupabaseCodebaseIndexStore}.ts`, `apps/jhadina-web/supabase/migrations/
 repository's own source against an objective, backed by a Supabase
 graph schema.
 **Dependencies:** JH-001
-**Flag:** `JanetGitHubCodebaseProvider.ts` makes live,
-token-authenticated calls to `api.github.com` (repo tree + file
-contents) — a genuine new external data-ingestion surface with a
-credential to manage, not just an internal refactor. Needs security
-review (token scope/storage, rate limits, what triggers a fetch)
-before merging, per the same scrutiny already applied to other
-external-integration deferred tasks.
-**Next Step:** Not yet audited — security review for the GitHub
-integration specifically, functional review for the rest.
+**Audit (2026-08-13):** Full read. `JanetGitHubCodebaseProvider.ts`
+itself is reasonably careful: read-only (`git/trees` + `contents` —
+no write/webhook endpoints), refuses to proceed on a truncated tree
+rather than silently indexing partial data, bounds file count/size,
+and takes its token as constructor-injected config rather than reading
+`process.env` internally. The Supabase migration
+(`janet_codebase_{indexes,nodes,edges}`) enables RLS on all three
+tables and defines **no policies at all** — Postgres's default-deny
+means nothing is readable/writable except via service-role; safe as
+shipped, just also unusable until policies exist.
+
+The actual finding is the route, not the provider:
+`app/api/janet/codebase/route.ts` reads `GITHUB_TOKEN`/`GH_TOKEN`
+directly from `process.env` inline and hands it to the provider with
+**no auth check of its own** — the same "inherits protection only
+incidentally from middleware, not by its own design" shape flagged for
+JH-028's API route, except this one triggers live, credentialed calls
+to a third-party API (GitHub) keyed off a client-supplied `objective`
+query parameter, with no capability check, no credential-resolver, and
+no rate/abuse limiting beyond the file-count cap. It's also under root
+`apps/jhadina-web/app/` rather than `src/app/` — main has no root
+`app/` directory today, so this route isn't reachable as authored
+without reintroducing the app-router collision class JH-011 already
+resolved.
+**Next Step:** Stays behind its security boundary, per the standing
+rule for external credentialed connectors (same category as JH-026).
+The eventual path should be JANET → a governed connector → a scoped
+GitHub capability (through `security-core`'s `authorize()`/capability-
+grant primitives, already real and landed) → evidence/index →
+memory/context — not a route reading a raw token from `process.env`
+with no gate. Not decided or built here.
 
 ### JH-044
 **Priority:** P2
