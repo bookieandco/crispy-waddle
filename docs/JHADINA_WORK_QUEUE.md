@@ -1181,9 +1181,9 @@ land the raw Stripe route until that's settled.
 
 ### JH-039
 **Priority:** P2
-**Status:** SPLIT — quality-gate/workflow slice landed (PR #60);
-Printify duplication + fulfillment-spend path BLOCKED
-**Branch:** `jh039-pod-quality-workflow` (PR #60) — reconciled from
+**Status:** SPLIT — quality-gate/workflow slice DONE (PR #60, merged
+`ae2d716`); Printify duplication + fulfillment-spend path BLOCKED
+**Branch:** `jh039-pod-quality-workflow` (PR #60, merged) — reconciled from
 `feat/pupsonstuff-pod-core` (PR #12, closed without merging)
 **Objective:** Print-on-demand core — product-specific print profiles,
 deterministic image quality scoring, a server-side quality-check
