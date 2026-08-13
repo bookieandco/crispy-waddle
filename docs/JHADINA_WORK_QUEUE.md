@@ -2243,3 +2243,145 @@ behavior):
 COMMIT: PR #64, merged as cbd291c
 NEXT: second architecture checkpoint (per instruction), not Proof #4.
 ```
+
+---
+
+## ARCHITECTURE CHECKPOINT #2 — do the three proofs share one boundary?
+
+**Date:** 2026-08-13 · main @ `de2e0ea` (corrections merged) · after SP-1/SP-2/SP-3
+
+Performed per explicit instruction after SP-3, in place of starting a
+Proof #4. Full published report:
+https://claude.ai/public/artifacts (see "Jhadina OS Checkpoint Two" —
+title/URL as published this session). Summary below is the durable
+record; the artifact has the full comparison and prose.
+
+### At a glance
+
+| Dimension | SP-1 Growth | SP-2 Commerce | SP-3 Money |
+|---|---|---|---|
+| Identity check | hand-rolled, own ledger entry on failure | **none, anywhere** | real `VerifiedActionExecutor`, silent on failure |
+| Policy/capability | `SecurityCoreActionPolicy` (base policy) | fulfillment `PolicyGate` — jurisdiction/regulatory, not actor-capability | `SecurityCoreActionPolicy` (money policy) |
+| Approval | request→approve→consume-once receipt | none | none (read capability isn't approval-gated) |
+| Audit trail | `ActionLedger` (hand-driven) | domain-native: `CustodyLedger` + checkout status history | `ActionLedger` via `SupabaseAuditLedger`'s real RPC shape |
+| Fail-closed on | identity mismatch, policy denial, handler ownership, double-approval | inventory, payment decline, fulfillment denial, multi-merchant, empty cart | identity, health/capability, workspace, provider error, credential |
+
+### Five findings (established invariant / observed / duplicate / gap / minimal change / stays domain-specific)
+
+**A — Identity-failure visibility diverges (Growth logs it, Money's real executor doesn't).**
+Invariant: identity verified before policy/ledger/handler, always true in both.
+Observed: SP-1 hand-appends a `denied` ledger entry (with the claimed,
+unverified userId) on identity failure; SP-3's real
+`VerifiedActionExecutor` appends nothing — there's no verified actor to
+attribute an event to. Duplicate: SP-1's hand-rolled identity+policy
+pre-stage is load-bearing, not laziness — an approval-required flow
+needs the policy decision known before a receipt can be requested, and
+`VerifiedActionExecutor` only exposes that decision bundled inside a
+single `execute()` call. Gap: `action-core` has no first-class
+"evaluate policy without executing" primitive. Minimal change: none to
+either merged proof — not auditing failed identity checks in the
+shared ledger is the *correct* default (can't durably attribute an
+event to an unverified actor); SP-1's own denied-entry-with-unverified-
+userId is a mild antipattern worth reconsidering next time Growth is
+touched, not urgent. Domain-specific: how a domain surfaces rejected
+identity claims (rate-limiting, alerting) is product-specific.
+
+**B — Money's health gate ran before identity — FIXED.**
+Invariant: no system info revealed before identity is verified.
+Observed: only Money has a health-gate concept
+(`MoneyProviderHealthGate`); it ran before the identity-checking
+executor. Gap: real, confirmed by SP-3's own tests. Minimal change:
+**made** — `governed-provider-account-read.ts` now verifies identity
+before the health gate runs (PR #65, `de2e0ea`). Domain-specific: the
+health-gate concept itself stays Money-only until a second domain needs
+it.
+
+**C — `MoneyCapabilityPolicy` was dead, unwired, and semantically wrong — REMOVED.**
+Invariant: exactly one `ActionPolicy` reachable from a domain's
+production composition. Observed: money-core shipped two —
+`SecurityCoreActionPolicy(MONEY_CORE_SECURITY_POLICY)` (real, wired,
+correct) and `MoneyCapabilityPolicy` (zero consumers, and its
+`evaluate()` collapsed `approval_required` into `deny`, silently
+disagreeing with the canonical policy). Minimal change: **made** —
+deleted entirely (PR #65, `de2e0ea`). Money now has exactly one
+`ActionPolicy`.
+
+**D — Commerce has no identity/capability layer at all. The largest finding.**
+Invariant (drawn from Growth/Money): any action mutating state or
+reading sensitive data on a real actor's behalf must pass through
+identity verification and a capability/policy decision first. Observed:
+`CheckoutOrchestrator.execute(checkoutId)` takes no actor parameter;
+`customerId` is a plain unverified string; grep across
+checkout-orchestrator/payment-core/order-fulfillment-core found the
+only identity-adjacent field anywhere is an optional, non-authorizing
+`actorId` on custody events (attribution logging only). Duplicate:
+none — Commerce doesn't reimplement identity/policy, it simply doesn't
+have it. Gap: **real, the most significant finding of this checkpoint.**
+SP-2 proved the three commerce contracts compose into a working
+lifecycle; it did not prove that lifecycle is governed by any actor-
+authorization boundary. As shipped, any caller who can construct a
+`CommerceIntent` can run a full checkout for any `customerId` with no
+session, no capability check, no audit trail beyond `CustodyLedger`.
+Minimal change: **not made** — closing this is new integration work
+(wrapping the existing, unchanged checkout lifecycle behind the same
+identity→policy→execute→audit shape Growth/Money already use), not a
+correction to something already built. Domain-specific: fulfillment's
+`PolicyGate` (jurisdiction/regulatory: accept/pick/handoff/deliver/
+cancel) and inventory/pricing failure handling are correctly domain
+logic and should not fold into a shared `ActionPolicy` — they answer
+"can this order be fulfilled here," not "is this actor allowed to
+act." Both can coexist once an actor-capability check gates entry.
+
+**E — Commerce's audit trail is real, just not `ActionLedger`-shaped.**
+Not a defect — Growth/Money emit `ActionAuditEvent`s; Commerce emits
+`CustodyLedger` events + merchant-adapter call log + checkout status
+history, three domain-native shapes carrying real information an
+`ActionAuditEvent` can't hold (custody to/from states, computed
+totals). Consequence: a future single-ledger "Activity" surface
+(Checkpoint #1's proposal) would only ever show Growth/Money until
+Finding D is closed. Minimal change: none now — when D is closed, add
+one coarse-grained governance-layer event at the outer boundary; the
+rich domain-native trail stays as-is underneath. Not a call to unify
+audit formats.
+
+### Six questions, answered
+
+1. **Genuinely common:** fail-closed behavior everywhere, dependency-
+   injected adapters at every external boundary, and — in Growth and
+   Money — the identical real classes (`VerifiedActionExecutor`,
+   `SecurityCoreActionPolicy`, `ActionLedger`).
+2. **Actually different:** audit shape (unified vs. Commerce's
+   domain-native trail) and what "policy" means (actor-capability vs.
+   Commerce's jurisdiction/regulatory `PolicyGate`) — both real,
+   correct, not to be forced together.
+3. **Duplicates removed:** `MoneyCapabilityPolicy`, done. Nothing
+   else qualifies — SP-1's pre-stage is load-bearing, Commerce's
+   `PolicyGate` answers a different question, not a duplicate of
+   anything.
+4. **Canonical ordering:** identity → policy/capability → ledger →
+   handler/external provider, always. Both real violations found
+   (A, B) are now resolved or explicitly justified.
+5. **Same boundary or parallel versions?** Split, honest answer:
+   Growth and Money are **the same boundary** — two independent
+   integrations converged on identical primitives without being told
+   to, which is stronger evidence than either proof alone. Commerce is
+   **categorically outside it** — not a parallel version, an absence.
+6. **Reusable OS primitive needed before another domain:** none —
+   `VerifiedActionExecutor` + `SecurityCoreActionPolicy` + `ActionLedger`
+   already is that primitive, proven twice independently. The next
+   domain needs the existing primitive applied, not a new one.
+
+### Verdict
+
+**The shared primitive is sufficient. The gap is that one domain
+(Commerce) isn't using it yet.** Two corrections made (B, C) — the
+smallest scope the evidence supported. Finding D is real but is not a
+maturity gap in the primitive; it's the next unit of work whenever
+taken up: wrap Commerce's existing, unchanged checkout lifecycle in an
+identity → `commerce.checkout.execute` capability → execute → audit
+shell mirroring Growth/Money, leaving `PolicyGate`/`CustodyLedger`/all
+SP-2 reference adapters untouched underneath.
+
+**NEXT: no Proof #4 started. Finding D is named as the logical next
+step, not begun. All 15 frozen human gates remain frozen — untouched
+by this checkpoint or its corrections.**
