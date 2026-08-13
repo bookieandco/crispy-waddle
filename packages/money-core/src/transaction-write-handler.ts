@@ -52,11 +52,11 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
     await this.deps.assertUserWorkspace?.(request.userId);
 
     assertCapability(
-      { userId: request.userId, capability: action.capability, requestId: request.requestId },
+      { userId: request.userId, capability: action.capability, requestId: request.id },
       action.capability,
     );
     await this.deps.approval.requireApproved({
-      requestId: request.requestId,
+      requestId: request.id,
       userId: request.userId,
       capability: action.capability,
     });
@@ -65,7 +65,7 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
     assertCurrency(action.currency);
 
     const claim = await this.deps.idempotency.claim({
-      requestId: request.requestId,
+      requestId: request.id,
       userId: request.userId,
       capability: action.capability,
     });
@@ -76,7 +76,7 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
       }
       return claim.record.status === 'completed' && claim.record.result
         ? claim.record.result
-        : this.deps.idempotency.waitForCompletion(request.requestId);
+        : this.deps.idempotency.waitForCompletion(request.id);
     }
 
     const adapter = this.deps.getProvider(action.provider);
@@ -86,7 +86,7 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
       await this.deps.assertAccountAccess?.(request.userId, action.accountId);
       if (!adapter.createPayment) throw new Error('MONEY_PAYMENT_UNSUPPORTED');
       result = await adapter.createPayment(
-        { userId: request.userId, capability: action.capability, requestId: request.requestId },
+        { userId: request.userId, capability: action.capability, requestId: request.id },
         { accountId: action.accountId, amount: action.amount, currency: action.currency, payeeId: action.payeeId },
       );
     } else {
@@ -95,12 +95,12 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
       if (action.fromAccountId === action.toAccountId) throw new Error('MONEY_TRANSFER_SAME_ACCOUNT');
       if (!adapter.createTransfer) throw new Error('MONEY_TRANSFER_UNSUPPORTED');
       result = await adapter.createTransfer(
-        { userId: request.userId, capability: action.capability, requestId: request.requestId },
+        { userId: request.userId, capability: action.capability, requestId: request.id },
         { fromAccountId: action.fromAccountId, toAccountId: action.toAccountId, amount: action.amount, currency: action.currency },
       );
     }
 
-    await this.deps.idempotency.complete(request.requestId, result);
+    await this.deps.idempotency.complete(request.id, result);
     return result;
   }
 }

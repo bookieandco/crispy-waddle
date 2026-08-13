@@ -8,7 +8,11 @@ export function createPostgresClient(config: PoolConfig = {}): SqlClient & { end
 
   return {
     async query<T = Record<string, unknown>>(text: string, values?: readonly unknown[]) {
-      return pool.query<T>(text, values ? [...values] : undefined);
+      // pg's `query<R extends QueryResultRow>` can't be parameterized by SqlClient's
+      // unconstrained T directly; let pg infer its own row type and cast the result
+      // to the driver-agnostic shape SqlClient callers expect.
+      const result = await pool.query(text, values ? [...values] : undefined);
+      return result as unknown as { rows: T[] };
     },
     end: () => pool.end(),
   };

@@ -1,7 +1,6 @@
 import type { Job, JobRepository } from "./jobs.js";
 import type { JobStore, JobStoreTransaction, OutboxEvent } from "./outbox.js";
 import type { CommercialLedgerEntry } from "./placement-financials.js";
-import type { FinancialOperationRecord, FinancialIdempotencyStore, FinancialOperationKey } from "./financial-idempotency.js";
 
 export interface SqlExecutor {
   query<T = unknown>(sql: string, params?: readonly unknown[]): Promise<T[]>;
@@ -80,29 +79,10 @@ export class PostgresCommercialLedgerRepository {
   }
 }
 
-export class PostgresFinancialIdempotencyStore implements FinancialIdempotencyStore {
-  constructor(private readonly db: SqlExecutor) {}
-
-  async find(key: FinancialOperationKey): Promise<FinancialOperationRecord | null> {
-    const rows = await this.db.query<FinancialOperationRecord>(
-      `select organization_id as "organizationId", idempotency_key as "idempotencyKey",
-              operation, invoice_id as "invoiceId", created_at as "createdAt"
-       from staffing_financial_idempotency
-       where organization_id = $1 and idempotency_key = $2`,
-      [key.organizationId, key.idempotencyKey],
-    );
-    return rows[0] ?? null;
-  }
-
-  async reserve(record: FinancialOperationRecord): Promise<boolean> {
-    const rows = await this.db.query<{ inserted: boolean }>(
-      `insert into staffing_financial_idempotency
-       (organization_id, idempotency_key, operation, invoice_id, created_at)
-       values ($1,$2,$3,$4,$5)
-       on conflict (organization_id, idempotency_key) do nothing
-       returning true as inserted`,
-      [record.organizationId, record.idempotencyKey, record.operation, record.invoiceId, record.createdAt],
-    );
-    return Boolean(rows[0]?.inserted);
-  }
-}
+// Note: financial idempotency persistence lives in
+// PostgresFinancialOperationRepository (financial-operation-repository.ts),
+// which targets the staffing_financial_operations table introduced by
+// migration 0021. An earlier, incomplete duplicate of this adapter
+// (targeting the older staffing_financial_idempotency table from migration
+// 0005, and missing the required complete()/fail() methods) was removed
+// from here -- it was never imported anywhere outside this file.

@@ -7,7 +7,7 @@
   "types": "./src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "tsx --test $(find src -name '*.test.ts' -not -name '*.integration.test.ts')",
     "test:integration": "tsx --test src/**/*.integration.test.ts"
   },
   "dependencies": {

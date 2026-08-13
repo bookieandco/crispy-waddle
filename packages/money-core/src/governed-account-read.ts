@@ -1,4 +1,4 @@
-import type { ActionHandler, ActionRequest, ActionPolicy, VerifiedActionExecutor } from '@jhadina/action-core';
+import type { ActionHandler, ActionRequest, VerifiedActionExecutor } from '@jhadina/action-core';
 import { JhadinaSecurityCore, JHADINA_BASE_SECURITY_POLICY, createSecurityRequest } from '@jhadina/security-core';
 import { MoneyAccountReadHandler, type AccountReadAction, type AccountReadHandlerDeps } from './account-read-handler.js';
 

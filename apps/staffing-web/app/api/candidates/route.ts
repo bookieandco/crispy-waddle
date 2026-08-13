@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { CandidatePipelineQueryService } from "../../../../../packages/staffing-core/src/candidate-pipeline-query.js";
 import { PostgresCandidatePipelineReader } from "../../../../../packages/staffing-core/src/postgres-candidate-pipeline-reader.js";
-import { createSqlExecutor } from "../../lib/postgres.js";
+import { createSqlExecutor } from "../../../lib/postgres.js";
 
 export const runtime = "nodejs";
 

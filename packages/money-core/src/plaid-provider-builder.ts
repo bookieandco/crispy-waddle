@@ -7,3 +7,10 @@ export const buildPlaidReadOnlyAdapter: ProviderAdapterBuilder = ({ secret }) =>
     baseUrl: process.env.JHADINA_PLAID_BASE_URL ?? 'https://sandbox.plaid.com',
     credentialBundle: secret,
   });
+
+/** Same as `buildPlaidReadOnlyAdapter`, but with the base URL fixed by the caller
+ * (e.g. `createPlaidProviderAdapterFactory`'s configurable `baseUrl` parameter)
+ * instead of falling back to the environment variable. */
+export function createPlaidReadOnlyAdapterBuilder(baseUrl: string): ProviderAdapterBuilder {
+  return ({ secret }) => new PlaidReadOnlyAdapter({ baseUrl, credentialBundle: secret });
+}

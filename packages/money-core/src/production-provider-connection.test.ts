@@ -6,7 +6,7 @@ const adapter: BankAdapter = {
   provider: 'test-bank',
   async listAccounts() { return []; },
   async listTransactions() { return []; },
-  async listStatements() { return []; },
+  async getStatement() { return new Uint8Array(); },
   async createPayment() { throw new Error('NOT_ENABLED'); },
   async createTransfer() { throw new Error('NOT_ENABLED'); },
 };

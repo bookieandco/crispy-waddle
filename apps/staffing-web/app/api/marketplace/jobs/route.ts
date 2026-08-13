@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { MarketplaceJobQueryService } from "../../../../../../../packages/staffing-core/src/marketplace-query.js";
-import { PostgresMarketplaceJobReader } from "../../../../../../../packages/staffing-core/src/postgres-marketplace-reader.js";
+import { MarketplaceJobQueryService } from "../../../../../../packages/staffing-core/src/marketplace-query.js";
+import { PostgresMarketplaceJobReader } from "../../../../../../packages/staffing-core/src/postgres-marketplace-reader.js";
 import { createSqlExecutor } from "../../../../lib/postgres.js";
 
 export const runtime = "nodejs";

@@ -6,6 +6,9 @@ const transitions: Record<TimesheetStatus, TimesheetStatus[]> = {
   SUBMITTED: ["APPROVED", "REJECTED"],
   APPROVED: [],
   REJECTED: ["SUBMITTED"],
+  // BILLABLE is reached via TimesheetService.transition (billing pipeline),
+  // not this workflow, and is terminal from this workflow's perspective.
+  BILLABLE: [],
 };
 
 export class TransactionalTimesheetWorkflow {

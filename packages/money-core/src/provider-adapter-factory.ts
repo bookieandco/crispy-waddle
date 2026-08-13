@@ -29,6 +29,7 @@ export class ProviderAdapterFactory {
     const builder = this.options.builders[provider];
     if (!builder) throw new Error(`PROVIDER_ADAPTER_NOT_REGISTERED:${provider}`);
 
+    if (!config.credentialRef) throw new Error(`PROVIDER_CREDENTIAL_REF_MISSING:${provider}`);
     const credential = await this.options.credentialResolver.resolve(config.credentialRef);
     if (!credential.secret) throw new Error(`PROVIDER_SECRET_EMPTY:${provider}`);
 
