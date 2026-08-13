@@ -1,12 +1,14 @@
 export interface PictureInPictureDocument {
   pictureInPictureEnabled?: boolean;
-  pictureInPictureElement?: HTMLVideoElement | null;
+  // Not all browsers implement the Picture-in-Picture API, so lib.dom's
+  // required/Element-typed members are widened here for feature detection.
+  pictureInPictureElement?: Element | null;
   exitPictureInPicture?: () => Promise<void>;
 }
 
-export interface PictureInPictureVideo extends HTMLVideoElement {
+export type PictureInPictureVideo = Omit<HTMLVideoElement, 'requestPictureInPicture'> & {
   requestPictureInPicture?: () => Promise<PictureInPictureWindow>;
-}
+};
 
 export interface PictureInPictureController {
   isSupported(): boolean;

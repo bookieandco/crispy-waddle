@@ -3,8 +3,8 @@ import Script from 'next/script';
 import { useRouter } from 'next/router';
 import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget, MediaSessionState, LocalPlaybackAdapter, UnifiedMediaSession } from '@jhadina/tv-core';
 import { CatalogRegistry, assertCastableSource, assertPlayableSource, createAuthorizedCatalogAdapter, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createUnifiedMediaSession } from '@jhadina/tv-core';
-import { createBrowserGoogleCastRuntime } from '../../../lib/jhadinatv/google-cast-runtime';
-import { createJhadinaTVReceiverTransport } from '../../../lib/jhadinatv/jhadina-tv-receiver';
+import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
+import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
 const titles: MediaTitle[] = [
   { id: 'demo-noir', kind: 'movie', title: 'Midnight Signal', overview: 'A detective follows a strange radio transmission through a city that never sleeps.', year: 2026, runtimeMinutes: 108, genres: ['Crime', 'Mystery', 'Drama'], rating: 8.2, availability: 'public-domain' },
   { id: 'demo-comedy', kind: 'movie', title: 'Second Take', overview: 'Two friends turn a failed audition into an unexpectedly funny road trip.', year: 2025, runtimeMinutes: 96, genres: ['Comedy', 'Road', 'Drama'], rating: 7.8, availability: 'public-domain' },

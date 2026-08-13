@@ -13,7 +13,7 @@ export type { CatalogProvider, CatalogSearchOptions, CatalogSearchResult, Resolv
 export type { ProviderFactoryConfig } from './providers'; export { createCatalogProvider, registerCatalogProviders } from './providers';
 export type { AuthorizedCatalogClient, AuthorizedCatalogRecord } from './providers/authorized'; export { createAuthorizedCatalogAdapter } from './providers/authorized';
 export type { GoogleCastRuntime, GoogleCastSession } from './cast/google-cast'; export { createGoogleCastController } from './cast/google-cast';
-export type { JhadinaTVReceiverTransport } from './cast/jhadina-tv-receiver'; export { createJhadinaTVReceiverController } from './cast/jhadina-tv-receiver';
+export type { JhadinaTVReceiverTransport } from './cast/jhadinatv-receiver'; export { createJhadinaTVReceiverController } from './cast/jhadinatv-receiver';
 export type { AirPlayVideo } from './cast/browser-airplay'; export { createBrowserAirPlayController } from './cast/browser-airplay';
 export type { PictureInPictureController, PictureInPictureDocument, PictureInPictureVideo } from './picture-in-picture'; export { createPictureInPictureController } from './picture-in-picture';
 export type { LocalPlaybackAdapter, UnifiedMediaSession, UnifiedMediaSessionConfig } from './media-session'; export { createUnifiedMediaSession } from './media-session';
