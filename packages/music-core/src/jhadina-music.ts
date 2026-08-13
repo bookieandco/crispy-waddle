@@ -1,5 +1,19 @@
-import type { MusicCore, MusicTrack, PlaybackState } from "./index";
-import type { AudioOutputDevice, MusicAudioOutput } from "./audio-output";
+import type { Track } from "./types.js";
+import type { PlaybackState } from "./player.js";
+import type { AudioOutputDevice, MusicAudioOutput } from "./audio-output.js";
+
+export type MusicTrack = Track;
+
+/** Capability contract consumed by Jhadina without depending on the package barrel. */
+export interface MusicCore {
+  search(query: string): Promise<MusicTrack[]>;
+  play(track: MusicTrack): Promise<PlaybackState>;
+  pause(): Promise<PlaybackState>;
+  resume(): Promise<PlaybackState>;
+  next(): Promise<PlaybackState>;
+  previous(): Promise<PlaybackState>;
+  getPlaybackState(): Promise<PlaybackState>;
+}
 
 export type MusicAction =
   | { type: "music.search"; query: string }
@@ -19,10 +33,6 @@ export type MusicActionResult = {
   output?: AudioOutputDevice;
 };
 
-/**
- * Narrow capability boundary between Jhadina reasoning and Music Core.
- * Native iOS owns Bluetooth/AirPlay permissions and pairing.
- */
 export class JhadinaMusicCapability {
   constructor(
     private readonly music: MusicCore,

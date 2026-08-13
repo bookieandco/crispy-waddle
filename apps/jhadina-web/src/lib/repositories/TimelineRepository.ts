@@ -107,7 +107,7 @@ export class TimelineRepository {
       lines.push("Recent Events:")
       for (const event of events.slice(0, 10)) {
         const time = event.timestamp.slice(11, 19)
-        let desc = event.type
+        let desc: string = event.type
         if (event.type === "APPROVAL") {
           desc = `APPROVAL | ${event.memoryType}`
         } else if (event.type === "REJECTION") {
