@@ -207,23 +207,40 @@ build` green. Also `pnpm type-check`/`lint`/`test`/`build` locally.
 
 ### JH-006
 **Priority:** P1
-**Status:** ACTIVE
-**Branch:** `feat/staffingos-standalone-boundary` (PR #24)
+**Status:** DONE
+**Branch:** `feat/staffingos-standalone-boundary` (PR #24, merged `63bf6fb`)
 **Objective:** Get the PostgreSQL-backed staffing payment idempotency/
 transaction/reconciliation boundary CI-verified and conflict-free.
 **Dependencies:** JH-001
-**Definition of Done:** See the full invariant list already handed off
-for this task (concurrent-request idempotency, provider-failure
-rollback, reconciliation-not-duplication, etc.) — not repeated here to
-keep this file short; the acceptance criteria live in the PR body.
-**Human gate:** `mergeable_state` is currently `dirty` — a real conflict
-against `main`, not just the previously-assumed Vercel-quota noise.
-Needs a rebase decision from Dorian on which side wins if the conflict
-touches shared files (or can proceed as an ordinary rebase if it's
-purely additive drift — check before assuming).
-**Verification:** `pnpm exec tsc --noEmit`, the staffing Postgres
-integration test suite, real GitHub Actions run.
-**Next Step:** Rebase onto `main`, resolve conflicts, re-run CI.
+**Definition of Done:** Met. The `main`-merge conflict was checked (per
+this task's own note) and turned out to be pure drift, not an
+architecture disagreement: both sides had independently written the
+same idempotency-store logic, differing only in an implementation
+detail — `main`'s side had a real lock-cleanup bug (comparing against
+the wrong promise reference), so kept this branch's correct version.
+6th occurrence of the tsconfig-scoping bug (`money-core`), plus a
+missing root path-alias entry (`@jhadina/action-core` didn't match the
+`jhadina-action-core` directory name) and a missing `src/index.ts`
+barrel for `jhadina-action-core` — both needed before `money-core`
+could even resolve its own dependency. Real bugs found once actually
+type-checked: an `ActionRequest.requestId` vs `.id` field-name bug in
+money-core, a stale/duplicate/incomplete `PostgresFinancialIdempotencyStore`
+in staffing-core sitting unused next to the real, tested implementation
+(deleted, not completed — same no-duplicate-implementations precedent
+as PR #31), a missing `PostgresTimesheetStore.update()`, a missing
+`BILLABLE` key in the timesheet transitions map, a missing
+`apps/staffing-web/next.config.js` (workspace `.js`-extension imports
+couldn't resolve) and `.eslintrc.json`, and 12 staffing-web API routes
+importing nonexistent service factories from a `lib/staffing/*` module
+that was never built — rewired to the same inline-construction pattern
+already used by the one route that worked, using the real, already-complete
+service classes rather than inventing new ones.
+**Verification:** Real CI on PR #24: `Install, type-check, lint, test,
+build`, `evolution-core`, and both `postgres-integration` runs all
+green. Also reproduced the PR's own `staffing-postgres-integration.yml`
+gate locally against a live Postgres 16 instance with migration 0022
+applied, and the full `pnpm type-check`/`lint`/`test`/`build` repo-wide.
+**Next Step:** None — done.
 
 ### JH-007
 **Priority:** P1
@@ -253,7 +270,7 @@ survivor gets real CI coverage before merge given its size.
 
 ### JH-008
 **Priority:** P1
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `feat/jhadinatv-casting-boundary-live4` (PR #36)
 **Objective:** Investigate before anything else: this PR is titled as
 "add casting boundary" and its body describes a small, additive change
