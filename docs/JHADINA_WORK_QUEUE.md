@@ -787,21 +787,138 @@ reconciled once, not serially.
 
 ### JH-017
 **Priority:** P2
-**Status:** ACTIVE
-**Branch:** PupsonStuff chain — `pupsonstuff-import` (#9) ←
-`claude/pupson-repo-audit-xmahtp` (#14) ← `feat/pupsonstuff-engine-v5`
-(#10) and `feat/pupsonstuff-mobile-stage` (#11) ← `feat/pupsonstuff-pod-core` (#12)
+**Status:** DONE
+**Branch:** `agent/pupsonstuff-foundation` (PR #48, merged `9b83f00`).
+Originals #9/#10/#11/#12/#14 closed without merging, history preserved.
 **Objective:** Integrate the PupsonStuff boutique vertical (product
 engine, mobile stage, print-on-demand core).
 **Dependencies:** JH-001
-**Definition of Done:** Not yet audited — this chain has its own internal
-merge-order question (4 stacked PRs) that deserves the same kind of pass
-already done for the FOUNDATION lane before treating it as ready.
-**Next Step:** Dedicated mini merge-order audit of #9/#10/#11/#12/#14.
+**Completion report:**
+```
+TASK: JH-017
+STATUS: DONE (foundation only — see JH-037/038/039 for the rest)
+CHANGED:
+- apps/pupsonstuff/** (new, 159 files): 3D boutique + per-product
+  viewers, AI preview routing (OpenAI/Muapi/ASCII), animation preview,
+  read-only admin dashboard, audited GLB assets, Printify fulfillment
+  client (lib/printify.ts, spec-derived).
+- .github/workflows/pupsonstuff-ci.yml (new, ported from #9)
+- apps/pupsonstuff/.eslintrc.json (new — didn't exist)
+- root package.json: pnpm.packageExtensions for @react-three/fiber,
+  @react-three/drei, framer-motion, next
+- root README.md: pupsonstuff added to the apps/ tree listing
+VERIFIED:
+- Real git archaeology across all 5 PRs (true merge-base d1e9024 for
+  all, not GitHub's reported 450c8b5): #14 is the actual linear trunk;
+  #9 is a squash-recovery of #14@Milestone-7 with one unique file
+  (the CI workflow, ported forward); #10/#11 are parallel siblings
+  forking mid-#14-trunk, not a chain; #12 stacks only on #11.
+- type-check, lint, build all pass for @jhadina/pupsonstuff, both
+  locally and via real CI (both the path-scoped "Type-check and build
+  PupsonStuff" check and the main "Install, type-check, lint, test,
+  build" gate green).
+- apps/jhadina-web's React 18 type-check re-verified unaffected by the
+  packageExtensions change.
+ARCHITECTURAL IMPACT:
+- Landed #14's trunk as the canonical PupsonStuff foundation. #10
+  (interactive engine layer), #11 (mobile product stage + live Stripe
+  checkout), and #12 (POD core + print quality gate + a second,
+  colliding Printify client) were deliberately NOT included — #10/#11
+  substantially rewrite established components rather than adding to
+  them, #11 introduces real payment collection, and #12's Printify
+  client duplicates #14's own more complete one. Filed as JH-037/038/039
+  rather than silently merged or silently dropped.
+- Diagnosed and fixed a real (not pupsonstuff-specific) monorepo
+  infrastructure gap: @react-three/fiber, @react-three/drei,
+  framer-motion, and next don't declare @types/react as an explicit
+  dependency, so in this shared-workspace-lockfile monorepo (mixed
+  React 18/19 across apps) their bundled .d.ts fell through to the
+  repo-wide hoisted 18.x types, breaking tsc program-wide with
+  "X cannot be used as a JSX component" on unrelated files. Fixed via
+  scoped pnpm.packageExtensions, verified not to affect React-18 apps.
+COMMIT: 0c73849 (PR #48), merged as 9b83f00
+NEXT: JH-018
+```
+
+### Deferred from PupsonStuff #10/#11/#12 (filed per JH-017's resolution, not yet audited)
+
+PR #9, #10, #11, #12, and #14 are all now closed without merging
+(JH-017 landed #14's trunk + #9's one unique file as PR #48; #10/#11/#12
+were never merged anywhere). Their branches and history remain on
+GitHub. #10/#11/#12's real content is filed below rather than lost.
+
+### JH-037
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/pupsonstuff-engine-v5` (PR #10, closed) — real diff is
+vs its true fork point in #14's trunk (`dccfd74`), not GitHub's
+reported base
+**Objective:** Reusable deterministic interaction contract
+(`lib/interactive-experience.ts`) plus an `InteractiveExperienceLayer`
+component — product focus/orbit/AR-style interaction, ambient
+feedback, mobile HUD.
+**Dependencies:** JH-001, JH-017
+**Flag:** Not purely additive — substantially rewrites the already-landed
+`ProductModal.tsx` (492 lines removed) rather than adding alongside it.
+Needs a real diff review against the JH-017 baseline, not a blind
+git merge, to confirm what ProductModal behavior survives.
+**Next Step:** Not yet audited.
+
+### JH-038
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/pupsonstuff-mobile-stage` (PR #11, closed) — real diff
+vs its true fork point in #14's trunk (`8a907d7`)
+**Objective:** Mobile product studio — tap-to-open spring-animated
+foreground product view, pet-photo upload + AI preview generation via
+the existing `/api/generate-preview`, Product/Artwork view switching.
+Also adds `app/api/checkout/route.ts` — a live Stripe Checkout Session
+(real payment collection, customer-initiated).
+**Dependencies:** JH-001, JH-017
+**Flag:** Same "rewrites rather than extends" shape as JH-037 —
+`Product3DEngine.tsx` (246 lines removed), `Boutique.tsx`, and
+`generate-preview/route.ts` are substantially reworked, not just added
+to. The checkout route introduces a new real-money surface (Stripe
+secret key handling, live Checkout Sessions) — per the policy/security
+scrutiny already established for JH-028/033/034, this needs explicit
+confirmation of how it's gated and audited before merging, even though
+it's customer-initiated (not autonomous fund movement) rather than a
+DO_NOT_BUILD hard-no.
+**Next Step:** Not yet audited — security/policy review for the
+checkout route specifically, functional review for the rest.
+
+### JH-039
+**Priority:** P2
+**Status:** QUEUED
+**Branch:** `feat/pupsonstuff-pod-core` (PR #12, closed) — stacks on
+#11's head (`235e840`); depends on JH-038's resolution first
+**Objective:** Print-on-demand core — product-specific print profiles,
+deterministic image quality scoring, a server-side quality-check
+endpoint, and a Printify provider boundary (`lib/pod/*`: catalog sync,
+AI job/worker, quality gate, Supabase-backed job workflow, webhooks).
+**Dependencies:** JH-001, JH-017, JH-038
+**Human gate:** `lib/pod/{printify,printify-client,printify-fulfillment}.ts`
+duplicates the Printify integration already landed via JH-017
+(`apps/pupsonstuff/lib/printify.ts`, the full spec-derived client from
+#14's Milestone 8). #12's version is a thinner business-logic wrapper
+(`PrintifyProvider.assertProductionReady`/`assertFulfillmentGate` —
+requires customer approval + quality score ≥ 90 before allowing
+fulfillment — plus its own raw `PrintifyClient.createOrder` fetch
+call, separate from #14's client). These need explicit reconciliation
+— most likely #12's quality/approval-gate logic calling into #14's
+already-landed client instead of its own duplicate — not an automatic
+merge of both. This also submits real production/fulfillment orders
+(spends money against Printify), so it gets the same policy/security
+scrutiny as JH-028/033/034/038 before merging, on top of the
+duplication question.
+**Next Step:** Not yet audited. Resolve the Printify-client duplication
+explicitly (compare both, decide which is canonical) before any other
+work on this task; security/policy review for the fulfillment/spend
+path.
 
 ### JH-018
 **Priority:** P2
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `feature/capital-lab-ui` (PR #3)
 **Objective:** Jhadina Capital Lab mobile UI.
 **Dependencies:** JH-001
