@@ -92,24 +92,31 @@ Done` as provisional until someone actually opens each one.
 
 ### JH-001
 **Priority:** P0
-**Status:** ACTIVE
-**Branch:** `ci/launch-gate` (PR #42)
+**Status:** DONE
+**Branch:** `ci/launch-gate` (PR #42, merged `b8c2453`)
 **Objective:** Get the repository-wide CI launch gate (install → type-check
 → lint → test → build, independent of Vercel) actually passing.
 **Dependencies:** None
-**Definition of Done:**
-- The "Install, type-check, lint, test, build" check on PR #42 is green.
-- The failure has been root-caused, not silenced (no disabled tests, no
-  `any`-ing past type errors, no excluded packages).
-**Verification:** `pnpm install --frozen-lockfile`, `pnpm type-check`, `pnpm lint`, `pnpm test`, `pnpm build`, then the real GitHub Actions run on PR #42.
-**Next Step:** This is the task to actually pick up on `Next`. Every other
-task's CI trust depends on this one landing first — most currently-open
-PRs have never had a real build/test job run on them at all, only a
-skipped Supabase-preview stub.
+**Definition of Done:** Met. Root cause was `apps/jhadina-web` having no
+app-level `tsconfig.json`, so `tsc` fell back to the root config and
+pulled in unrelated, incomplete packages. Fixed alongside: the recurring
+"Phase 1" bug set (wrong import paths, missing `listApproved`, a
+`let desc = event.type` narrowing bug, `jest`-vs-`vitest` mismatch,
+`privacy-core` missing a re-export); two premature integrations
+(evolution-candidates API routes, workstation routes) referencing
+`jhadina-evolution-core`/`director-core` packages that have no
+`package.json` yet — removed rather than stubbed, since inventing their
+internals is explicitly out of bounds; and three real `music-core` test
+bugs (two float32/float64 comparison mistakes, one miscalibrated fixture
+against an untouched threshold).
+**Verification:** All five commands run for real, locally and in the
+actual GitHub Actions run on PR #42 (`Install, type-check, lint, test,
+build`: success). 57/57 tests passing.
+**Next Step:** None — done.
 
 ### JH-002
 **Priority:** P0
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `feat/jhadina-core-spine` (PR #25)
 **Objective:** Merge the `@jhadina/core-spine` control-plane package
 (evidence-backed contracts for memory, patterns, personality, context,
