@@ -156,6 +156,18 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.43)
 
+  packages/jhadina-action-core:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.12
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+
   packages/jhadina-core-spine: {}
 
   packages/jhadina-entertainment-core:
