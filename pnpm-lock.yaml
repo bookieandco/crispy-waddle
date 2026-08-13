@@ -4,7 +4,7 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-packageExtensionsChecksum: 3019b076772fecbba5a36e182cdf8253
+packageExtensionsChecksum: 1c6b329f8dcac75651a5dd6f8b85d6ce
 
 importers:
 
@@ -2125,7 +2125,6 @@ packages:
 
   /@types/prop-types@15.7.15:
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
-    dev: true
 
   /@types/react-dom@18.3.7(@types/react@18.3.31):
     resolution: {integrity: sha512-MEe3UeoENYVFXzoXEWsvcpg6ZvlrFNlOQ7EOsvhI3CfAXwzPfO8Qwuxd40nepsYKqyyVQnTdEfv68q91yLcKrQ==}
@@ -2133,7 +2132,6 @@ packages:
       '@types/react': ^18.0.0
     dependencies:
       '@types/react': 18.3.31
-    dev: true
 
   /@types/react-dom@19.2.4(@types/react@19.2.18):
     resolution: {integrity: sha512-Bsc+QHgp+P/F02XDzNCY9jnZNCUuLki36KT7VKrTXXLdHf+vHMNZnW1rVu5DNW/rCK+fya3DATySbLM4yhtKUw==}
@@ -2141,7 +2139,6 @@ packages:
       '@types/react': ^19.2.0
     dependencies:
       '@types/react': 19.2.18
-    dev: true
 
   /@types/react-reconciler@0.28.9(@types/react@19.2.18):
     resolution: {integrity: sha512-HHM3nxyUZ3zAylX8ZEyrDNd2XZOnQ0D5XfunJF5FLQnZbHHYq4UWvW1QfelQNXv1ICNkwYhfxjwfnqivYB6bFg==}
@@ -2156,7 +2153,6 @@ packages:
     dependencies:
       '@types/prop-types': 15.7.15
       csstype: 3.2.3
-    dev: true
 
   /@types/react@19.2.18:
     resolution: {integrity: sha512-AnzbBERsrLKtk2XSfTbYRLjQPdy116Sty4q+T+Bp3IC4l6jNBvreVPAHmpq9qhXQM7CXZPjLVmGMw9sy+hxQ3w==}
@@ -4742,6 +4738,8 @@ packages:
     dependencies:
       '@next/env': 14.2.35
       '@swc/helpers': 0.5.5
+      '@types/react': 18.3.31
+      '@types/react-dom': 18.3.7(@types/react@18.3.31)
       busboy: 1.6.0
       caniuse-lite: 1.0.30001809
       graceful-fs: 4.2.11
@@ -4788,6 +4786,7 @@ packages:
       '@next/env': 15.5.23
       '@swc/helpers': 0.5.15
       '@types/react': 19.2.18
+      '@types/react-dom': 19.2.4(@types/react@19.2.18)
       caniuse-lite: 1.0.30001809
       postcss: 8.4.31
       react: 19.2.8
