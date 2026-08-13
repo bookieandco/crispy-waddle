@@ -1291,10 +1291,10 @@ implementation, not independent adoption.
 
 ### JH-045
 **Priority:** P2
-**Status:** IN REVIEW (PR #56)
-**Branch:** `jh045-action-executor-hardening` (new — original
-`feat/jhadina-entertainment-intelligence` (PR #16) diff was against a
-version of `action-executor.ts` that predates JH-005's
+**Status:** DONE
+**Branch:** `jh045-action-executor-hardening` (PR #56, merged `b236753`
+— original `feat/jhadina-entertainment-intelligence` (PR #16) diff was
+against a version of `action-executor.ts` that predates JH-005's
 `approval_required` policy work and could not be applied directly).
 **Objective:** Harden `ActionExecutor.execute`: fail closed if the
 "started" audit-log append itself fails, and never convert a
@@ -1304,7 +1304,7 @@ completion-audit append afterward failed.
 **Completion report:**
 ```
 TASK: JH-045
-STATUS: IN REVIEW (PR #56, not yet merged)
+STATUS: DONE
 CHANGED:
 - packages/jhadina-action-core/src/action-executor.ts: split the
   post-handler try/catch. A successful handler result is no longer
@@ -1337,7 +1337,8 @@ ARCHITECTURAL IMPACT:
 - Surgical fix to a shared FOUNDATION package's error-handling only —
   no interface or caller-facing behavior changes beyond the two error
   paths described above.
-NEXT: awaiting real CI on PR #56, then merge.
+COMMIT: 28dd361 (PR #56), merged as b236753
+NEXT: next unblocked task per selection order
 ```
 
 ### JH-020
