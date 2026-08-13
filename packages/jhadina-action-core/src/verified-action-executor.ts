@@ -1,4 +1,4 @@
-import type { ActionAuditEvent, ActionHandler, ActionLedger, ActionPolicy, ActionRequest } from './action-executor.js';
+import type { ActionHandler, ActionLedger, ActionPolicy, ActionRequest } from './action-executor.js';
 import { ActionExecutor } from './action-executor.js';
 
 export interface VerifiedIdentity {

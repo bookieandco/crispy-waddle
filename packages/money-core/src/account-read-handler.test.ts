@@ -19,7 +19,13 @@ const handler = new MoneyAccountReadHandler({
 
 const result = await handler.execute(
   { capability: 'money.account.read', provider: 'test-bank' },
-  { requestId: 'test-account-read', userId: 'user-1', action: { capability: 'money.account.read', provider: 'test-bank' } },
+  {
+    id: 'test-account-read',
+    userId: 'user-1',
+    type: 'money.account.read',
+    requestedAt: new Date().toISOString(),
+    action: { capability: 'money.account.read', provider: 'test-bank' },
+  },
 );
 
 if (result[0]?.maskedName !== 'Checking •••• 1234') throw new Error('ACCOUNT_READ_FAILED');
@@ -28,7 +34,13 @@ let denied = false;
 try {
   await handler.execute(
     { capability: 'money.account.read', provider: 'test-bank' },
-    { requestId: 'test-account-read-2', userId: 'user-2', action: { capability: 'money.account.read', provider: 'test-bank' } },
+    {
+      id: 'test-account-read-2',
+      userId: 'user-2',
+      type: 'money.account.read',
+      requestedAt: new Date().toISOString(),
+      action: { capability: 'money.account.read', provider: 'test-bank' },
+    },
   );
 } catch {
   denied = true;

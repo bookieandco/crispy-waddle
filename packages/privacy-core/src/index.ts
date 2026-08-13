@@ -1,3 +1,5 @@
+export * from "./kill-switch";
+
 export type VpnStatus = "disconnected" | "connecting" | "connected" | "error";
 
 export interface VpnProfile {

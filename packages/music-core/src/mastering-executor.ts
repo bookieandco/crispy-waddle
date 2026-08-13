@@ -4,13 +4,13 @@ import type { RestorationMetrics, RestorationVersion } from "./restoration";
 
 export interface AudioArtifact {
   id: string;
-  samples: Float32Array;
+  samples: Float32Array<ArrayBufferLike>;
   sampleRateHz: number;
   channels: number;
 }
 
 export interface ArtifactWriter {
-  write(input: { parentArtifactId: string; samples: Float32Array; sampleRateHz: number; channels: number; operation: string }): AudioArtifact;
+  write(input: { parentArtifactId: string; samples: Float32Array<ArrayBufferLike>; sampleRateHz: number; channels: number; operation: string }): AudioArtifact;
 }
 
 export interface MasteringExecutionPolicy {
@@ -49,7 +49,7 @@ export interface MasteringExecutionRecord {
 export class InMemoryArtifactWriter implements ArtifactWriter {
   private counter = 0;
 
-  write(input: { parentArtifactId: string; samples: Float32Array; sampleRateHz: number; channels: number; operation: string }): AudioArtifact {
+  write(input: { parentArtifactId: string; samples: Float32Array<ArrayBufferLike>; sampleRateHz: number; channels: number; operation: string }): AudioArtifact {
     this.counter += 1;
     return {
       id: `${input.parentArtifactId}:${input.operation}:${this.counter}`,
@@ -95,12 +95,12 @@ export function executeMasteringPlan(
           gainDb,
           q,
         });
-        samples = result.samples;
+        samples = new Float32Array(result.samples);
         executedSteps.push(record(step, result));
       } else if (gainDb !== undefined) {
         if (Math.abs(gainDb) > request.policy.maxGainDb) throw new Error(`Gain exceeds policy maximum: ${gainDb} dB`);
         const result = applyGain(samples, gainDb);
-        samples = result.samples;
+        samples = new Float32Array(result.samples);
         executedSteps.push(record(step, result));
       }
     } else if (step.operation === "limiter") {
@@ -108,7 +108,7 @@ export function executeMasteringPlan(
       const currentPeak = dbfs(peak(samples));
       if (currentPeak > ceilingDbtp) {
         const result = applyGain(samples, ceilingDbtp - currentPeak);
-        samples = result.samples;
+        samples = new Float32Array(result.samples);
         executedSteps.push(record(step, result));
       } else {
         executedSteps.push({ ...record(step, { samples, peakBefore: peak(samples), peakAfter: peak(samples), gainReductionDb: 0 }), peakBefore: peak(samples), peakAfter: peak(samples) });
@@ -166,7 +166,7 @@ function numberParam(step: MasteringStep, key: string): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-function peak(samples: Float32Array): number {
+function peak(samples: Float32Array<ArrayBufferLike>): number {
   let value = 0;
   for (const sample of samples) value = Math.max(value, Math.abs(Number.isFinite(sample) ? sample : 0));
   return value;

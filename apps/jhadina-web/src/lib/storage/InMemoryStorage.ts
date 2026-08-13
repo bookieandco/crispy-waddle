@@ -150,9 +150,14 @@ export class InMemoryStorage {
   }
 
   listReasoningEvents(userId: string, limit: number = 50): ReasoningEvent[] {
+    // Reverse insertion order rather than sorting by timestamp: events
+    // created within the same millisecond (common in tests and fast
+    // request handling) compare equal, which makes a timestamp sort
+    // unstable and can leave older events ahead of newer ones.
+    // Insertion order is always correctly chronological.
     return Array.from(this.reasoningEvents.values())
       .filter(e => e.userId === userId)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .reverse()
       .slice(0, limit)
   }
 
@@ -167,9 +172,12 @@ export class InMemoryStorage {
   }
 
   listTimeline(userId: string, limit: number = 50): TimelineEvent[] {
+    // See listReasoningEvents: reverse insertion order instead of sorting
+    // by timestamp, since same-millisecond events make a timestamp sort
+    // unstable.
     return this.timeline
       .filter(e => e.userId === userId)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .reverse()
       .slice(0, limit)
   }
 
@@ -231,11 +239,11 @@ export class InMemoryStorage {
     if (timelineList.length > 0 && timelineList.length <= 10) {
       for (const event of timelineList) {
         const time = event.timestamp.slice(11, 19)
-        let desc = event.type
+        let desc: string = event.type
         if (event.type === "APPROVAL") {
           desc = `APPROVAL | ${event.decision}`
         } else if (event.type === "REASONING") {
-          desc = `REASONING | Candidate: ${event.candidateId}`
+          desc = `REASONING | Candidate: ${event.reasoningEventId}`
         }
         lines.push(`  ${time} | ${desc}`)
       }

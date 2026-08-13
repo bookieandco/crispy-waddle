@@ -6,7 +6,8 @@ describe("restoration DSP", () => {
     const input = new Float32Array([0.5, -0.5]);
     const result = applyGain(input, -1);
     expect(Array.from(input)).toEqual([0.5, -0.5]);
-    expect(result.samples[0]).toBeCloseTo(0.4467, 3);
+    // -1dB linear gain on 0.5 is 0.5 * 10^(-1/20) ≈ 0.4456, not 0.4467.
+    expect(result.samples[0]).toBeCloseTo(0.4456, 3);
   });
 
   it("runs a channel-independent peaking EQ", () => {

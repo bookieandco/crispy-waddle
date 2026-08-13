@@ -1,8 +1,7 @@
 import { ProviderAdapterFactory, type ProviderAdapterFactoryOptions } from './provider-adapter-factory.js';
-import { buildPlaidReadOnlyAdapter } from './plaid-provider-builder.js';
+import { createPlaidReadOnlyAdapterBuilder } from './plaid-provider-builder.js';
 
 export const PLAID_READ_ONLY_CONFIG = {
-  provider: 'plaid',
   enabled: true,
   credentialRef: 'money/plaid/default',
   capabilities: ['money.account.read'] as const,
@@ -17,7 +16,7 @@ export function createPlaidProviderAdapterFactory(
     credentialResolver,
     configs: { plaid: PLAID_READ_ONLY_CONFIG },
     builders: {
-      plaid: ({ secret }) => buildPlaidReadOnlyAdapter({ baseUrl, credentialBundle: secret }),
+      plaid: createPlaidReadOnlyAdapterBuilder(baseUrl),
     },
   });
 }

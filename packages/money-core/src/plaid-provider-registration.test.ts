@@ -19,15 +19,21 @@ const factory = createPlaidProviderAdapterFactory(
 const adapter = await factory.create('plaid');
 if (adapter.provider !== 'plaid') throw new Error('PLAID_PROVIDER_NOT_REGISTERED');
 
-let unknownCapabilityRejected = false;
+// Plaid's adapter is account-read-only: transaction reads are always
+// rejected, regardless of capability, because the path isn't implemented.
+let transactionReadRejected = false;
 try {
-  await adapter.listTransactions({
-    capability: 'money.transaction.read',
-    requestId: 'test-request',
-  });
+  await adapter.listTransactions(
+    {
+      userId: 'test-user',
+      capability: 'money.transaction.read',
+      requestId: 'test-request',
+    },
+    'test-account',
+  );
 } catch (error) {
-  unknownCapabilityRejected = error instanceof Error && error.message === 'CAPABILITY_NOT_ALLOWED:money.transaction.read';
+  transactionReadRejected = error instanceof Error && error.message === 'PLAID_TRANSACTION_READ_NOT_IMPLEMENTED';
 }
-if (!unknownCapabilityRejected) throw new Error('PLAID_READ_ONLY_SCOPE_BROKEN');
+if (!transactionReadRejected) throw new Error('PLAID_READ_ONLY_SCOPE_BROKEN');
 
 console.log('Plaid provider registration passed');

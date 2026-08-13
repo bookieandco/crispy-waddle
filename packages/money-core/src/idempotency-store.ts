@@ -27,7 +27,8 @@ export function createInMemoryIdempotencyStore(): IdempotencyStore {
       const previous = locks.get(input.requestId) ?? Promise.resolve();
       let release!: () => void;
       const current = new Promise<void>((resolve) => { release = resolve; });
-      locks.set(input.requestId, previous.then(() => current));
+      const queued = previous.then(() => current);
+      locks.set(input.requestId, queued);
       await previous;
       try {
         const existing = records.get(input.requestId);
@@ -36,7 +37,7 @@ export function createInMemoryIdempotencyStore(): IdempotencyStore {
         return { claimed: true };
       } finally {
         release();
-        if (locks.get(input.requestId) === current) locks.delete(input.requestId);
+        if (locks.get(input.requestId) === queued) locks.delete(input.requestId);
       }
     },
 
@@ -44,18 +45,19 @@ export function createInMemoryIdempotencyStore(): IdempotencyStore {
       const existing = records.get(requestId);
       if (!existing) throw new Error('MONEY_IDEMPOTENCY_NOT_CLAIMED');
       records.set(requestId, { ...existing, status: 'completed', result });
-      for (const resolve of waiters.get(requestId) ?? []) resolve(result);
+      const pending = waiters.get(requestId) ?? [];
       waiters.delete(requestId);
+      for (const resolve of pending) resolve(result);
     },
 
     async waitForCompletion(requestId) {
       const existing = records.get(requestId);
-      if (existing?.status === 'completed' && existing.result) return existing.result;
       if (!existing) throw new Error('MONEY_IDEMPOTENCY_NOT_FOUND');
-      return new Promise((resolve) => {
-        const current = waiters.get(requestId) ?? [];
-        current.push(resolve);
-        waiters.set(requestId, current);
+      if (existing.status === 'completed' && existing.result) return existing.result;
+      return new Promise<TransactionWriteResult>((resolve) => {
+        const pending = waiters.get(requestId) ?? [];
+        pending.push(resolve);
+        waiters.set(requestId, pending);
       });
     },
   };

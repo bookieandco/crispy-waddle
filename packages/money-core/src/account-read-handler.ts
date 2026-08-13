@@ -25,7 +25,7 @@ export class MoneyAccountReadHandler implements ActionHandler<AccountReadAction,
     const context = {
       userId: request.userId,
       capability: action.capability,
-      requestId: request.requestId,
+      requestId: request.id,
     } as const;
     assertCapability(context, 'money.account.read');
 

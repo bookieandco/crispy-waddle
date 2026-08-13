@@ -6,7 +6,7 @@ export interface SupabaseEvolutionRunLedgerOptions {
   fetchImpl?: typeof fetch;
 }
 
-/** Append-only persistence adapter for the evolution run ledger. */
+/** Append-only persistence adapter. Sequence/hash authority lives in Postgres. */
 export class SupabaseEvolutionRunLedger implements EvolutionRunLedger {
   private readonly baseUrl: string;
   private readonly key: string;
@@ -18,21 +18,19 @@ export class SupabaseEvolutionRunLedger implements EvolutionRunLedger {
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
 
-  async append(input: Omit<EvolutionRunLedgerEvent, "sequence" | "eventId" | "hash">): Promise<EvolutionRunLedgerEvent> {
-    const previous = await this.list(input.runId);
-    const previousHash = previous.at(-1)?.hash ?? null;
-    const sequence = previous.length + 1;
-    const eventId = `${input.runId}:${sequence}`;
-    const hash = await sha256(JSON.stringify({ ...input, sequence, eventId, previousHash }));
-
-    const event: EvolutionRunLedgerEvent = { ...input, sequence, eventId, previousHash, hash };
+  async append(input: Omit<EvolutionRunLedgerEvent, "sequence" | "eventId" | "previousHash" | "hash">): Promise<EvolutionRunLedgerEvent> {
     const rows = await this.request<EvolutionRunLedgerEvent[]>(
       "POST",
-      "/rest/v1/jhadina_evolution_run_ledger",
-      event,
-      { Prefer: "return=representation" },
+      "/rest/v1/rpc/append_jhadina_evolution_run_ledger",
+      {
+        p_run_id: input.runId,
+        p_task_id: input.taskId,
+        p_type: input.type,
+        p_occurred_at: input.occurredAt,
+        p_payload: input.payload,
+      },
     );
-    if (rows.length !== 1) throw new Error("Evolution run ledger did not return its appended event");
+    if (rows.length !== 1) throw new Error("Evolution run ledger RPC did not return its appended event");
     return rows[0];
   }
 
@@ -43,14 +41,13 @@ export class SupabaseEvolutionRunLedger implements EvolutionRunLedger {
     );
   }
 
-  private async request<T>(method: string, path: string, body?: unknown, extraHeaders?: Record<string, string>): Promise<T> {
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
       method,
       headers: {
         apikey: this.key,
         Authorization: `Bearer ${this.key}`,
         "Content-Type": "application/json",
-        ...extraHeaders,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -58,10 +55,4 @@ export class SupabaseEvolutionRunLedger implements EvolutionRunLedger {
     if (!response.ok) throw new Error(`Supabase evolution ledger request failed (${response.status}): ${text}`);
     return text ? (JSON.parse(text) as T) : ([] as T);
   }
-}
-
-async function sha256(value: string): Promise<string> {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
