@@ -55,6 +55,8 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.43)
 
+  packages/jhadina-core-spine: {}
+
   packages/music-core:
     devDependencies:
       typescript:
