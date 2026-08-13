@@ -57,7 +57,7 @@ export class PlaidReadOnlyAdapter implements BankAdapter {
         'UNKNOWN',
       maskedName: account.mask
         ? `${account.name ?? account.official_name ?? 'Account'} ••••${account.mask}`
-        : account.name ?? account.official_name,
+        : account.name ?? account.official_name ?? undefined,
     }));
   }
 

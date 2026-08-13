@@ -2,9 +2,10 @@ import { EnvironmentCredentialResolver } from './credential-resolver.js';
 import { ProviderAdapterFactory } from './provider-adapter-factory.js';
 
 const adapter = {
+  provider: 'coinbase',
   async listAccounts() { return []; },
   async listTransactions() { return []; },
-  async listStatements() { return []; },
+  async getStatement() { return new Uint8Array(); },
   async createPayment() { throw new Error('PAYMENT_DISABLED_IN_TEST'); },
   async createTransfer() { throw new Error('TRANSFER_DISABLED_IN_TEST'); },
 };
@@ -12,8 +13,8 @@ const adapter = {
 const factory = new ProviderAdapterFactory({
   credentialResolver: new EnvironmentCredentialResolver({ JHADINA_SECRET_COINBASE_DEFAULT: 'secret' }),
   configs: {
-    coinbase: { provider: 'coinbase', enabled: true, credentialRef: 'money/coinbase/default', capabilities: ['money.account.read'] },
-    disabled: { provider: 'disabled', enabled: false, credentialRef: 'money/disabled/default', capabilities: [] },
+    coinbase: { enabled: true, credentialRef: 'money/coinbase/default', capabilities: ['money.account.read'] },
+    disabled: { enabled: false, credentialRef: 'money/disabled/default', capabilities: [] },
   },
   builders: { coinbase: () => adapter },
 });
@@ -30,7 +31,7 @@ let missingSecretRejected = false;
 try {
   await new ProviderAdapterFactory({
     credentialResolver: new EnvironmentCredentialResolver({}),
-    configs: { coinbase: { provider: 'coinbase', enabled: true, credentialRef: 'money/coinbase/default', capabilities: ['money.account.read'] } },
+    configs: { coinbase: { enabled: true, credentialRef: 'money/coinbase/default', capabilities: ['money.account.read'] } },
     builders: { coinbase: () => adapter },
   }).create('coinbase');
 } catch { missingSecretRejected = true; }

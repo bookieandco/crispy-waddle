@@ -1,5 +1,10 @@
 import type { ActionPolicy, ActionRequest, ActionPolicyDecision } from './action-executor.js';
-import { createSecurityRequest, JhadinaSecurityCore, type SecurityPolicy } from '../../security-core/src/index.js';
+import {
+  createSecurityRequest,
+  JhadinaSecurityCore,
+  JHADINA_BASE_SECURITY_POLICY,
+  type SecurityPolicy,
+} from '../../security-core/src/index.js';
 
 /** Adapts deterministic Security Core decisions without collapsing approval_required into deny. */
 export class SecurityCoreActionPolicy<TAction = unknown> implements ActionPolicy<TAction> {

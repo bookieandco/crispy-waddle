@@ -30,6 +30,7 @@
       "@jhadina/types": ["packages/types/src"],
       "@jhadina/memory-core": ["packages/memory-core/src"],
       "@jhadina/security-core": ["packages/security-core/src"],
+      "@jhadina/action-core": ["packages/jhadina-action-core/src"],
       "@jhadina/ai-core": ["packages/ai-core/src"],
       "@jhadina/knowledge-graph": ["packages/knowledge-graph/src"],
       "@jhadina/notification-engine": ["packages/notification-engine/src"],
