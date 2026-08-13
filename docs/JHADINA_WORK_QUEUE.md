@@ -138,41 +138,53 @@ lint, test, build` gate all green.
 
 ### JH-003
 **Priority:** P0
-**Status:** ACTIVE
-**Branch:** `agent/evolution-core-spine-adapter` (PR #30)
+**Status:** DONE
+**Branch:** `agent/evolution-core-spine-adapter` (PR #30, merged `fc5557f`)
 **Objective:** Merge `@jhadina/evolution-core`'s `JhadinaEvolutionAdapter`
 against the canonical `core-spine` `EvolutionPort` — proposal/evaluation
 identity enforced at the adapter boundary, promotion delegated to a
 governed promoter, no policy/executor bypass.
-**Dependencies:** JH-002 (this PR's own body says it depends on core-spine
-existing in `main` to become type-checkable — its `evolution-core` CI
-check is currently failing for exactly that reason, which is expected,
-not a real defect yet)
-**Definition of Done:**
-- Rebased/retargeted against `main` after JH-002 lands.
-- `evolution-core` CI check passes for real (not "expected to fail").
-- No second orchestration/control plane introduced.
-**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI.
-**Next Step:** Merge to `main` after JH-002.
+**Dependencies:** JH-002
+**Definition of Done:** Met. Same tsconfig-scoping root cause hit a 4th
+time — added `packages/jhadina-evolution-core/tsconfig.json`. The
+reconciled `jhadina-evolution-core-ci.yml` (merge conflict between this
+branch and `main`, both having added it independently) called
+`pnpm --filter jhadina-evolution-core` / `... typecheck`, but the package
+is named `@jhadina/evolution-core` with a `type-check` script — fixed
+both. Deleted three orphaned files (`claude-github-actions-runner.ts`,
+`evolution-repair-runtime.ts`, `supabase-evolution-candidate-repository.ts`)
+that only imported modules that were never created and weren't exported
+from `index.ts` or referenced anywhere else — same "delete, don't invent
+the missing internals" precedent as JH-001. Fixed two stale test fixtures
+(`evolution-run-ledger.test.ts` missing `version: "1"` and using an old
+verification shape; `governed-promoter.test.ts` missing
+`persistedLedgerVerifier`) to match the real types — test-only, no
+production change. Regenerated `pnpm-lock.yaml` for the new
+`@jhadina/core-spine` workspace dependency.
+**Verification:** Real CI on PR #30: `Install, type-check, lint, test,
+build` and `evolution-core` both green (Supabase Preview skipped, not
+counted per the CI trust rule). Also `pnpm type-check`/`lint`/`test`/
+`build` run locally across all packages.
+**Next Step:** None — done.
 
 ### JH-004
 **Priority:** P0
-**Status:** QUEUED
-**Branch:** `feat/jhadina-core-spine` onto `agent/evolution-core-spine-adapter` (PR #31)
-**Objective:** N/A — this PR is a rehearsal, not new work. Its entire
+**Status:** SUPERSEDED
+**Branch:** `feat/jhadina-core-spine` onto `agent/evolution-core-spine-adapter` (PR #31, closed not merged)
+**Objective:** N/A — this PR was a rehearsal, not new work. Its entire
 purpose was proving core-spine's commits apply cleanly on top of the
-evolution-adapter branch. It currently shows `mergeable_state: dirty`
-(a real conflict), which is itself useful signal to check before JH-002/
-JH-003 land, but the PR itself should not be merged.
+evolution-adapter branch.
 **Dependencies:** JH-002, JH-003
-**Definition of Done:** PR #31 closed (not merged) once JH-002 and JH-003
-are both in `main`, with a comment noting why.
+**Definition of Done:** Met. PR #31 closed (not merged) with a comment
+explaining its purpose was fulfilled by #25 (`fbcbbaf`) and #30
+(`fc5557f`) both landing on `main`. SUPERSEDED — rehearsal PR; purpose
+fulfilled by #25 + #30.
 **Verification:** N/A
-**Next Step:** Close after JH-003.
+**Next Step:** None — done.
 
 ### JH-005
 **Priority:** P1
-**Status:** QUEUED
+**Status:** ACTIVE
 **Branch:** `feat/approval-receipt-boundary` (PR #33)
 **Objective:** Preserve `approval_required` as a first-class decision;
 require a verified, single-use, expiring approval receipt bound to
