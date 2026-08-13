@@ -4,15 +4,17 @@ on:
   pull_request:
     paths:
       - "packages/jhadina-evolution-core/**"
+      - "packages/jhadina-core-spine/**"
       - "supabase/migrations/**"
       - "pnpm-lock.yaml"
       - "package.json"
       - "pnpm-workspace.yaml"
   push:
     branches:
-      - agent/evolution-core-spine-adapter
+      - main
     paths:
       - "packages/jhadina-evolution-core/**"
+      - "packages/jhadina-core-spine/**"
       - "supabase/migrations/**"
       - "pnpm-lock.yaml"
       - "package.json"
@@ -48,6 +50,9 @@ jobs:
 
       - name: Typecheck evolution core
         run: pnpm --filter jhadina-evolution-core typecheck
+
+      - name: Typecheck core spine
+        run: pnpm --filter @jhadina/core-spine typecheck
 
       - name: Validate migration files
         run: |

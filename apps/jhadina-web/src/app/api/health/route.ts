@@ -12,7 +12,7 @@
  *   }
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { handleHealth } from "@/lib/routes/handlers"
 
 export async function GET(req: NextRequest) {

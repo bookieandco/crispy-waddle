@@ -20,7 +20,6 @@ export function JhadinaMusicCommand({ search, command }: { search: (query: strin
   const [mode, setMode] = useState<Mode>("search");
   const [favorites, setFavorites] = useState<string[]>(() => load(FAVORITES_KEY, []));
   const [playlists, setPlaylists] = useState<Playlist[]>(() => load(PLAYLISTS_KEY, []));
-  const [activePlaylist, setActivePlaylist] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   function persistFavorites(next: string[]) { setFavorites(next); localStorage.setItem(FAVORITES_KEY, JSON.stringify(next)); }
@@ -32,7 +31,11 @@ export function JhadinaMusicCommand({ search, command }: { search: (query: strin
 
   async function runSearch(nextQuery = query) { if (!nextQuery.trim()) return; setBusy(true); try { setResults(await search(nextQuery.trim())); } finally { setBusy(false); } }
   async function run(action: "play" | "pause" | "resume" | "next" | "previous") { setBusy(true); try { setPlayback(await command(action)); } finally { setBusy(false); } }
-  async function playTrack(track: Track) { setBusy(true); try { setPlayback(await command("play")); } finally { setBusy(false); } }
+  // NOTE: command("play") has no per-track argument today, so playTrack
+  // can't yet tell the backend which track to play - it only toggles
+  // playback state. Tracked as a real gap, not addressed here (out of
+  // scope for a CI-green fix; needs a command surface change).
+  async function playTrack(_track: Track) { setBusy(true); try { setPlayback(await command("play")); } finally { setBusy(false); } }
   function enterDiscovery(seed?: string) { setMode("discovery"); const next = seed?.trim() || query.trim() || "Lil Wayne mixtapes deep cuts southern rap"; setQuery(next); void runSearch(next); }
 
   const visibleResults = useMemo(() => mode === "favorites" ? results.filter(t => favorites.includes(t.id)) : results, [mode, results, favorites]);
