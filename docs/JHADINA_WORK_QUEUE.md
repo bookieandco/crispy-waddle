@@ -1978,3 +1978,156 @@ colliding with the homepage work JH-014 preserved as canonical.
 service contract this PR targets is still wanted, that's a fresh task
 scoped against `main`'s current JANET architecture, not a revival of
 this diff.
+
+---
+
+## JHADINA OS INTEGRATION PHASE 1 — SPINE PROOF
+
+Once the JH-### backlog reached a checkpoint (2026-08-13, main @
+`df36611`) where every remaining open item was an explicit human gate
+rather than unaudited work, the architecture audit found the core
+infrastructure was ahead of its own integration: most FOUNDATION
+packages were real, tested, and CI-verified, but not composed into a
+single working path a real action could travel end to end. This lane
+tracks that integration work directly — proving the already-landed
+cores actually compose — rather than filing it under the JH-###
+archaeology numbering, since it isn't sourced from any old branch/PR.
+
+Uses `SP-` IDs to keep this cleanly separate from the JH-### backlog.
+
+**Standing rule for this whole lane:** proving composability with safe
+reference implementations is not license to resolve any of the 15
+frozen human gates below. None of them are touched, reopened, or
+implicitly decided by this work:
+
+JH-007 (DirectorOS vs Mission Control), JH-022/023/024 (mining
+architecture/payout verification), JH-026 (Studio infrastructure),
+JH-028/033/034 (canonical Money/Plaid path), JH-032's redraft/version
+remainder, JH-038's checkout/Stripe decision, JH-039's Printify +
+Supabase-schema remainder, JH-041 (Justice reconciliation), JH-043
+(GitHub/JANET security boundary), JH-046 (duplicate Intelligence
+Contract).
+
+### SP-1 — Governed action (Growth draft approval)
+**Status:** DONE
+**Branch:** `spine-proof-growth-approval` (PR #62, merged `14c17df`)
+**Objective:** Prove one real, UI-originated action can travel the
+complete governed lifecycle — identity → policy → explicit approval →
+ActionExecutor → audit — using only already-landed FOUNDATION
+infrastructure, no new package, no external side effect.
+**Completion report:**
+```
+TASK: SP-1
+STATUS: DONE
+CHANGED:
+- packages/security-core/src/index.ts: added 'growth.draft.approve' to
+  JHADINA_BASE_SECURITY_POLICY's allowed + approval-gated capabilities.
+- apps/jhadina-web/src/lib/growth/governed-approval.ts (new): composes
+  identity (JH-044's SupabaseActionIdentityVerifier) -> policy
+  (security-core's SecurityCoreActionPolicy) -> explicit approval
+  (action-core's request/approve/consume receipt flow) ->
+  ActionExecutor (JH-045-hardened) -> audit (ActionLedger) as five
+  explicit, separately-auditable stages, reusing the existing
+  approveGrowthDraft() handler unchanged.
+- apps/jhadina-web/src/lib/growth/governed-approval-runtime.ts (new):
+  process-local composition root — in-memory ledger + approval store
+  (reference adapters; SupabaseAuditLedger, already implemented, is a
+  one-line swap whenever this needs to survive process restarts).
+- apps/jhadina-web/src/app/api/growth/drafts/approve/route.ts: now
+  calls the governed path instead of approveGrowthDraft() directly.
+  The existing /growth "Approve" button is unchanged — the same click
+  now runs through the full spine.
+- apps/jhadina-web/src/lib/growth/governed-approval.test.ts (new): 6
+  tests — full happy path with ledger inspection, identity-mismatch
+  fail-closed, policy-denial fail-closed, handler-level ownership
+  enforcement surviving identity+policy+approval, double-approval
+  rejection.
+- Found and fixed two real infrastructure gaps, surfaced by this being
+  jhadina-web's first cross-package import of @jhadina/action-core:
+  jhadina-web's own tsconfig.json redefines (not extends) the root's
+  "paths", losing the explicit jhadina-action-core mapping (the
+  generic @jhadina/* wildcard only matches directories named after
+  their unscoped package name); and Vitest doesn't read tsconfig paths
+  at all, needing its own vitest.config.ts. Also gave
+  packages/security-core its first package.json/tsconfig.json — it had
+  neither, and its 3 real test files had never run in CI (same class
+  of gap JH-045 found and fixed for jhadina-action-core).
+VERIFIED:
+- pnpm type-check: 20/20 packages clean.
+- pnpm test: 12/12 tasks; jhadina-web 70/70 (64 existing + 6 new);
+  security-core 3/3 (previously 0 ever run).
+- pnpm build: real Next.js production build succeeds,
+  /api/growth/drafts/approve present in the route manifest.
+- pnpm lint: clean.
+COMMIT: a416272 (PR #62), merged as 14c17df
+NEXT: SP-2 (Commerce)
+```
+
+### SP-2 — Commerce (checkout → payment → fulfillment)
+**Status:** IN REVIEW (PR #63)
+**Branch:** `spine-proof-commerce` (PR #63)
+**Objective:** Prove the commerce family the architecture audit flagged
+as "seven contracts, zero implementations" actually composes — the
+smallest real path (three of the seven contracts): commerce intent →
+`checkout-orchestrator` → `payment-core` (in-memory adapter) →
+`order-fulfillment-core` → audit/event. No new commerce package, no
+live provider, no credential, no Supabase dependency.
+**Completion report:**
+```
+TASK: SP-2
+STATUS: IN REVIEW (PR #63, not yet merged)
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/reference-adapters.ts (new):
+  in-memory implementations of every adapter interface all three
+  orchestrators need — deterministic, inspectable, configurable to
+  fail (inventory/payment/policy) so fail-closed paths are actually
+  exercised.
+- apps/jhadina-web/src/lib/commerce/bridge-adapters.ts (new): the real
+  composition proof. checkout-orchestrator/payment-core/
+  order-fulfillment-core were built independently (none depends on
+  either other). Two genuine mismatches surfaced and were resolved at
+  the adapter boundary, not by changing any package: (1)
+  checkout-orchestrator's PaymentGateway carries only a single netted
+  amountMinor, while payment-core's PaymentIntentRequest wants a
+  lines/taxes/platformFees breakdown — bridged as one opaque line
+  item; (2) checkout-orchestrator's refund reason is a free-form
+  string against payment-core's fixed reason taxonomy — bridged with
+  an explicit mapping; (3) order-fulfillment-core's Order requires a
+  single merchant/location/jurisdiction that a checkout isn't
+  guaranteed to have uniformly — the bridge asserts single-merchant/
+  single-location and fails closed otherwise (a real scope boundary,
+  not silently papered over).
+- apps/jhadina-web/src/lib/commerce/commerce-intent.ts (new):
+  top-level composition, returns full resulting state for inspection.
+- apps/jhadina-web/src/lib/commerce/commerce-intent.test.ts (new): 6
+  tests inspecting actual state/events — happy path (real computed
+  total captured, order + manifest + custody event all recorded),
+  inventory failure, payment decline, fulfillment policy denial AFTER
+  successful payment (proves checkout-orchestrator's own automatic-
+  refund path fires correctly across the bridge), multi-merchant
+  checkout, empty checkout — all fail closed.
+- apps/jhadina-web/vitest.config.ts: added aliases for the three
+  newly-consumed packages (same class of gap SP-1 found).
+VERIFIED:
+- pnpm type-check: 20/20 packages clean.
+- pnpm test: jhadina-web 76/76 (70 existing + 6 new).
+- pnpm build: real Next.js production build succeeds.
+- pnpm lint: clean.
+ARCHITECTURAL IMPACT:
+- No contract required fixing — both real mismatches found were
+  resolved at the adapter boundary.
+NEXT: awaiting real CI on PR #63, then merge. Then SP-3 (Money/Plaid).
+```
+
+### SP-3 — Money (Plaid consolidation)
+**Status:** QUEUED — not started
+**Objective:** Unify JH-028/033/034 around the existing governed path
+(`money-core` → `PlaidReadOnlyAdapter` → capability check → credential
+resolver), so the question stops being "which PR do we merge" and
+becomes "what is the canonical Money API the UI consumes." JH-028's
+command-center UI should end up consuming that interface without ever
+touching Plaid credentials directly. Same acceptance boundary as SP-1/
+SP-2: reference adapters, no live provider, fail-closed tests, no
+change to the frozen JH-028/033/034 human-gate status itself — this
+proves the *path*, it doesn't unilaterally pick a product surface.
+**Next Step:** Not started. Begins after SP-2 merges.
