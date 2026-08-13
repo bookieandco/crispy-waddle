@@ -1449,41 +1449,124 @@ NEXT: next unblocked task per selection order
 
 ### JH-022
 **Priority:** P3
-**Status:** QUEUED
+**Status:** BLOCKED
 **Branch:** `feat/jhadina-energy-opportunity-core` (PR #32)
 **Objective:** Deterministic profitability/authorization *policy* logic
-for an energy/compute opportunity core. Explicitly defers real miner
-execution, credentials, wallet custody, and hardware I/O — this PR does
-not mine anything or execute background workloads.
+for an energy/compute opportunity core.
 **Dependencies:** JH-001
-**Definition of Done:** CI already green (`energy-opportunity-core` check
-×2, Vercel preview). Confirm no execution/credential/wallet code crept
-in before merging.
-**Verification:** `pnpm test`, `pnpm lint`, `pnpm build`, CI (already passing — re-verify post JH-001).
-**Next Step:** Merge after JH-001. See `docs/DO_NOT_BUILD.md` — this
-task's boundary is load-bearing, not decorative.
+**Human gate:** Full audit completed (2026-08-13) — see consolidated
+finding below. Not a security stop (every file read is genuinely
+read-only/pure/policy-gated); this is an architectural-fork stop shared
+with JH-023/024.
 
 ### JH-023
 **Priority:** P3
-**Status:** QUEUED
+**Status:** BLOCKED
 **Branch:** `ci/reorg-safe-bitcoin-checkpoint` (PR #39)
 **Objective:** Reorg-safe, restart-safe checkpoint scanner for automatic
 Bitcoin payout *discovery* (read-only — no wallet access, no signing).
-**Dependencies:** JH-022 (related domain, not currently stacked in git —
-merge one at a time and re-test rather than assuming independent green
-checks compose cleanly)
-**Verification:** `test-and-typecheck` CI (already passing).
-**Next Step:** Merge after JH-022, re-run CI.
+**Dependencies:** JH-022 — this queue originally assumed JH-022→023→024
+stack in git. They do not: exhaustive pairwise `git merge-base
+--is-ancestor` checks show all three PRs are independent siblings, not a
+chain.
+**Human gate:** See consolidated finding below.
 
 ### JH-024
 **Priority:** P3
-**Status:** QUEUED
+**Status:** BLOCKED
 **Branch:** `ci/profitability-snapshot` (PR #38)
 **Objective:** Realized-profitability snapshot adapter with idempotent
 snapshot persistence.
-**Dependencies:** JH-023
-**Verification:** `energy-opportunity-core` CI check (already passing).
-**Next Step:** Merge after JH-023, re-run CI.
+**Dependencies:** JH-023 (see JH-023 note — not actually stacked)
+**Human gate:** See consolidated finding below.
+
+**Consolidated finding (2026-08-13) — architectural fork, not a security
+stop:**
+
+Every file across all three branches was read in full. Confirmed safe
+throughout: `cpuminer.ts` only assembles a sanitized dry-run command
+object (never spawns a process, opens a socket, or reads pool
+credentials — `sanitizePoolUrl()` strips user/pass before use);
+`bitaxe.ts` performs exactly one read-only GET to a LAN AxeOS device's
+`/api/system/info` (no control endpoints); `bitcoin-core.ts` /
+`bitcoin-payout-discovery.ts` / `mining-payout-ingestion.ts` verify
+payouts against an injected read-only Bitcoin Core client (never signs
+or sends); `economic-decision.ts` / `decision-ledger.ts` /
+`realized-profitability.ts` / `profitability-snapshot.ts` /
+`command-center.ts` are pure or in-memory, advisory-only, and
+explicitly documented as never starting/stopping hardware or moving
+funds; `supabase-decision-ledger.ts`, `supabase-decision-reader.ts`,
+`supabase-mining-payout-checkpoint.ts`, and
+`supabase-mining-payout-processor.ts` all take credentials via
+constructor-injected config (never read `process.env.*` directly) and
+call only REST/RPC endpoints, never signing or transferring anything.
+Both SQL migrations (`20260812192807_create_jhadina_mining_scan_checkpoints.sql`,
+`20260812200000_create_mining_payout_processing.sql`) enable RLS and
+revoke all table/function privileges from `public`/`anon`/`authenticated`
+— only a trusted service role can reach them. No file anywhere in the
+trio mines, signs, or moves funds; this matches the EXPERIMENT lane's
+sanctioned "read-only observation layer" boundary.
+
+The actual blocker is architectural, not security:
+
+- **PR #32 and PR #38 are the same branch.** They share 79 identical
+  commits (5502426..3139962, byte-identical for all 16 shared files —
+  `bitaxe.ts`, `bitcoin-core.ts`, `coin-*.ts`, `command-center.ts`,
+  `cpuminer.ts`, `decision-ledger.ts`, `economic-decision.ts`,
+  `financial-events.ts`, `moneycore-bridge.ts`, `profitability-*.ts`,
+  `realized-profitability.ts`, `supabase-decision-*.ts`) and then
+  diverge at that same commit into two *mutually exclusive* designs for
+  the same responsibility — turning Bitcoin Core chain data into
+  verified, recorded mining payouts:
+  - PR #32 continues with `bitcoin-payout-discovery.ts`: a block-range
+    scanner keyed by wallet address (`fromHeight`/`toHeight`, iterates
+    blocks, filters `vout` by address).
+  - PR #38 continues with `mining-payout-ingestion.ts` +
+    `mining-profitability-pipeline.ts`: direct per-payout verification
+    by txid against `bitcoin-core.ts`'s `verifyMiningPayout()`, with no
+    block scanning at all.
+  Both are legitimate, safety-clean designs. They are not composable —
+  a real product has one canonical way to discover/verify payouts, not
+  two.
+- **PR #39 extends PR #32's design, not PR #38's**, adding
+  `mining-scan-runner.ts` (non-overlapping scan scheduler),
+  `supabase-mining-payout-checkpoint.ts` +
+  `supabase-mining-payout-processor.ts` (durable checkpoint + atomic
+  payout-processing RPC adapters), `mining-payout-processing.ts`
+  (transactional processor), `REORG_CHECKPOINT_CI.md`, and both SQL
+  migrations. But PR #39's own tree does **not** include
+  `bitcoin-payout-discovery.ts` — it depends on that file existing
+  without carrying it, so PR #39 alone does not compile/type-check as a
+  standalone diff.
+- **Main already has a broken fragment of PR #32/#39's design,
+  committed directly outside PR review.** `git log origin/main --
+  packages/energy-opportunity-core/` shows exactly two commits already
+  on `main` — `566efac` ("feat: add reorg-safe bitcoin payout checkpoint
+  scanner") and `53660bb` ("test: cover checkpoint restart and reorg
+  handling") — which are byte-identical to the first two commits of PR
+  #39's own branch. `packages/energy-opportunity-core/` on `main`
+  currently contains **only** `bitcoin-payout-checkpoint.ts` and its
+  test — no `package.json`, no `tsconfig.json`, and
+  `bitcoin-payout-checkpoint.ts` imports from
+  `./bitcoin-payout-discovery.ts`, which does not exist anywhere on
+  `main`. This package is not wired into any workspace build (no
+  `package.json` means pnpm's `packages/*` glob does not pick it up),
+  so nothing has ever type-checked this dangling import — it is latent,
+  pre-existing breakage, unrelated to anything built this session.
+
+**Decision needed:** (1) which design is canonical for Bitcoin payout
+verification — PR #38's direct per-txid verification, or PR
+#32+#39's resumable/reorg-safe block scanner (and if the scanner design
+wins, PR #39's checkpoint/processing layer composes cleanly on top of
+PR #32, once PR #32's `bitcoin-payout-discovery.ts` is included); (2)
+what to do about the two commits already on `main` — complete them
+(pull in PR #32's `bitcoin-payout-discovery.ts` + add the missing
+`package.json`/`tsconfig.json` scaffolding) or treat them as dead code
+to be removed, since they were never part of a reviewed, CI-verified
+package. Not decided here — this is exactly the "second implementation"
+pattern `docs/DO_NOT_BUILD.md` names, except neither side is clearly
+the sanctioned one, so it needs a human call rather than an implicit
+pick.
 
 ### Explicitly rejected (not tasks)
 
