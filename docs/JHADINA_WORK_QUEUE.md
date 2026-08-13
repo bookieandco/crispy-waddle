@@ -2121,7 +2121,7 @@ NEXT: SP-3 (Money/Plaid).
 ```
 
 ### SP-3 — Money (Plaid consolidation)
-**Status:** DONE (branch `spine-proof-money`)
+**Status:** DONE (PR #64, merged as `cbd291c`)
 **Objective:** Unify JH-028/033/034 around the existing governed path
 (`money-core` → `PlaidReadOnlyAdapter` → capability check → credential
 resolver), so the question stops being "which PR do we merge" and
@@ -2240,5 +2240,6 @@ behavior):
   anywhere in the package. Same failure mode the architecture audit
   named for growth-core/entertainment-core: real, tested,
   unwired/duplicate. Not resolved here — noted for the checkpoint.
+COMMIT: PR #64, merged as cbd291c
 NEXT: second architecture checkpoint (per instruction), not Proof #4.
 ```
