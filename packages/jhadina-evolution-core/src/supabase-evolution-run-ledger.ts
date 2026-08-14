@@ -42,13 +42,18 @@ export class SupabaseEvolutionRunLedger implements EvolutionRunLedger {
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const headers: Record<string, string> = {
+      apikey: this.key,
+      "Content-Type": "application/json",
+    };
+
+    // New Supabase secret/publishable keys are opaque API keys, not JWTs.
+    // Legacy anon/service_role keys remain compatible with Authorization: Bearer.
+    if (!this.key.startsWith("sb_")) headers.Authorization = `Bearer ${this.key}`;
+
     const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
       method,
-      headers: {
-        apikey: this.key,
-        Authorization: `Bearer ${this.key}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const text = await response.text();
