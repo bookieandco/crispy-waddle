@@ -3562,3 +3562,87 @@ point in PL-7 so far.
 `bridge-adapters.ts`, `commerce-intent.ts`, JH-038, Money/Plaid, and every frozen human gate
 are untouched. No credentials, no live Stripe calls, no GitHub Actions workflow or secret
 changes.
+
+
+---
+
+### PL-7 — Live Stripe Test-Mode Boundary: Workflow Construction, First Live Run, Fix, Second Live Run — COMPLETE
+
+**Status:** DONE — PL-7 is fully live-verified. This is the closing record for the whole PL-7 arc
+(preflight audit -> two preflight blocker fixes, already recorded above -> workflow
+construction -> first live dispatch -> root-cause diagnosis -> scoped fix -> second live
+dispatch -> 8/8 pass).
+
+**Workflow construction (PR #75, merged as `34089f9`):** built
+`.github/workflows/pl7-live-stripe-verification.yml` (`workflow_dispatch` only, no
+push/pull_request/schedule), `apps/jhadina-web/vitest.pl7-live.config.ts` (a config completely
+separate from the default `vitest.config.ts`, scoped to exactly one file), and
+`apps/jhadina-web/src/lib/commerce/pl7-live-stripe-verification.live.ts` (the seven-scenario
+evidence suite, named `.live.ts` so the default test glob never picks it up). A genuine bug was
+found and fixed during the PR's own review before merge: a "verify the secret is scoped to
+exactly one step" self-check grepped the workflow file for the literal secret name, which also
+appeared in that same check's own descriptive text -- it would have failed every real dispatch
+for a reason unrelated to actual scoping. Fixed by removing the self-referential runtime check
+entirely (PR #75 commit `6ec6633`) rather than patching it a second time, relying on direct
+review of the structural fact instead.
+
+**First live dispatch -- run `31829931608`** (dispatched against `34089f9`, secret genuinely
+configured by the user as a GitHub Actions secret): **conclusion: failure, 5 passed / 3 failed.**
+Root cause: Stripe's real API rejected every confirmed PaymentIntent with `invalid_request_error`
+-- "you must provide a return_url" -- because this Stripe account has Automatic Payment Methods
+active, which permits redirect-capable methods by default even with an explicit `payment_method`.
+Scenarios 1 (successful capture) and 3 (refund after capture) failed outright; scenario 5
+(idempotency) surfaced the real Stripe error message directly; scenarios 2 (declined) and 4
+(refund failure) superficially "passed" only because their assertions were too loose to
+distinguish a genuine decline/failure from this same request-shape bug. Scenario 6 (durable
+audit, PL-5 double) and 7 (secret hygiene) passed correctly -- the governance/audit layer held
+up even while the payment layer was broken. Secret hygiene held throughout (GitHub's `***`
+redaction, never printed by the suite itself).
+
+**Root-cause investigation + scoped fix (PR #76, merged as `a76fb3a`):** read-only investigation
+confirmed `stripe-sandbox-provider.ts`'s payload was the sole cause -- no frozen file, no
+`bridge-adapters.ts`, no `payment-core` involvement. Fix: added
+`automatic_payment_methods: { enabled: true, allow_redirects: "never" }` to the PaymentIntent
+payload (Stripe's documented mechanism for a server-side, non-browser flow with no `return_url`
+to provide) -- one line, reusing `toStripeFormBody()`'s existing nesting support with zero
+serializer changes. Alongside the fix, tightened two assertions the investigation showed were too
+loose: scenario 2 now requires the ledger's failed-charge reason to contain "declined" and
+specifically not mention `automatic_payment_methods`/`return_url`; scenario 4 now requires
+ledger-verified proof the charge genuinely completed and a refund was genuinely attempted, before
+trusting the (known-limited, honestly-documented) polling loop. One real limitation was
+surfaced and deliberately left unfixed, as out of scope: `StripeSandboxPaymentProvider.getPayment()`
+is a pure local-cache read that never re-queries Stripe, so it cannot observe a genuine async
+status transition -- flagged in code and in the PR report, not silently hidden.
+
+**Second live dispatch -- run `31841939617`** (dispatched against `a76fb3a`, the fix):
+**conclusion: SUCCESS, 8/8 passed.**
+- Scenario 1: genuinely fixed -- real capture (`pi_3U4SWgRpR2CgDr050HPdldpJ`), session `completed`.
+- Scenario 2: genuine decline confirmed via the tightened check (`"Your card was declined."`,
+  no request-shape-error text).
+- Scenario 3: genuinely fixed -- real refund (`paymentIntentStatus: "refunded"`).
+- Scenario 4: tightened check genuinely satisfied (`chargeGenuinelyCompleted: true`,
+  `refundGenuinelyAttempted: true`, ledger-verified); the documented `getPayment()` cache
+  limitation was directly observed (6 identical polled values) exactly as flagged, not silently
+  hidden.
+- Scenario 5: genuinely fixed -- identical `providerReference` on both calls, proving real
+  idempotent dedup.
+- Scenario 6: 32 real audit events (durable-double-backed), 100% correct actor attribution.
+- Scenario 7: secret hygiene clean.
+
+**COMMIT:** PR #75 merged as `34089f9`; PR #76 merged as `a76fb3a`. Live runs `31829931608`
+(failure, diagnosis) and `31841939617` (success, final).
+
+**ARCHITECTURAL IMPACT:** Jhadina's entire governed Commerce path -- verified actor -> commerce
+policy -> approval receipt -> `GovernedPaymentProvider` -> `EnvironmentCredentialResolver` ->
+real Stripe test API -> capture/refund -> durable Supabase audit (PL-5 double) -- is now proven
+against a real external payment boundary, not merely simulated. `checkout-orchestrator`,
+`payment-core`, `order-fulfillment-core`, `bridge-adapters.ts`, `commerce-intent.ts`, and the
+Supabase migration/RPCs were never touched across the entire PL-3 through PL-7 arc. No
+production Stripe credential or endpoint was ever used. All 15 frozen human gates remain frozen.
+
+**NEXT:** no further PL-7 code changes, no further Stripe dispatches, and no follow-up polish
+scheduled -- PL-7 is closed. Two small, explicitly non-urgent items were surfaced along the way
+and are named here for the record, not scheduled: `getPayment()`'s local-cache limitation (would
+need a real `GET /v1/payment_intents/{id}` call to observe genuine async transitions), and the
+`requestApproveAndConsume` extraction Architecture Checkpoint #3 identified as justified-but-not-
+urgent. Neither blocks anything currently proven.
