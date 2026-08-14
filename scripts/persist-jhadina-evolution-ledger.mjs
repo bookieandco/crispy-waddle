@@ -12,14 +12,16 @@ if (!["dispatched", "finalize"].includes(mode)) throw new Error("Usage: persist-
 const baseUrl = url.replace(/\/$/, "");
 
 async function request(path, options = {}) {
+  const headers = {
+    apikey: key,
+    "Content-Type": "application/json",
+    ...(options.headers ?? {}),
+  };
+  if (!key.startsWith("sb_")) headers.Authorization = `Bearer ${key}`;
+
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      ...(options.headers ?? {}),
-    },
+    headers,
   });
   const text = await response.text();
   if (!response.ok) throw new Error(`Supabase evolution ledger request failed (${response.status}): ${text}`);
