@@ -6,7 +6,7 @@ import type {
   ReconciliationReport,
   RefundRequest,
 } from "@jhadina/payment-core"
-import { InMemoryActionLedger } from "@jhadina/action-core"
+import { InMemoryActionLedger, type ActionLedger } from "@jhadina/action-core"
 
 /**
  * Commerce sandbox-payment milestone (PL-3) + Finding D (Jhadina OS
@@ -35,15 +35,16 @@ import { InMemoryActionLedger } from "@jhadina/action-core"
  * proof of identity. One GovernedPaymentProvider instance now belongs
  * to exactly one verified actor for its whole lifetime.
  *
- * The ledger is now an optional constructor param (defaults to a fresh
+ * The ledger is an optional constructor param (defaults to a fresh
  * InMemoryActionLedger for standalone use) rather than always
  * constructing its own — governed-commerce-intent.ts passes one shared
  * ledger so checkout-level and payment-level events land in the same
- * inspectable trail. Still in-memory, not the durable SupabaseAuditLedger
- * PL-2 built for Growth: that ledger's RPCs require a real, server-verified
- * auth.uid() tied to an actual signed-in session; nothing about this
- * milestone changes that. Durability for Commerce is a deliberate
- * follow-up, not this one.
+ * inspectable trail. PL-5: typed against the abstract ActionLedger
+ * contract (was InMemoryActionLedger — Checkpoint #3, dimension 8) so
+ * that shared ledger can be the real, durable SupabaseAuditLedger PL-2
+ * built for Growth with zero change to this file's own logic; only the
+ * caller composing GovernedCommerceIntentDeps decides which
+ * implementation to pass.
  */
 
 export type CommercePaymentCapability =
@@ -72,7 +73,7 @@ export class GovernedPaymentProvider implements PaymentProvider {
   constructor(
     private readonly provider: PaymentProvider,
     private readonly verifiedActorId: string,
-    private readonly ledger: InMemoryActionLedger = new InMemoryActionLedger(),
+    private readonly ledger: ActionLedger = new InMemoryActionLedger(),
   ) {
     if (!verifiedActorId) throw new Error("GovernedPaymentProvider requires a verified actor id")
     this.name = provider.name

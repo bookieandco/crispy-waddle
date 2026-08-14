@@ -1,8 +1,8 @@
 import {
-  InMemoryActionLedger,
   SecurityCoreActionPolicy,
   createApprovalRequestService,
   createApprovalReceiptVerifier,
+  type ActionLedger,
   type ActionPolicy,
   type ActionPolicyDecision,
   type ActionRequest,
@@ -63,7 +63,17 @@ import {
 
 export interface GovernedCommerceIntentDeps {
   identityVerifier: JhadinaIdentityVerifier
-  ledger: InMemoryActionLedger
+  /**
+   * PL-5: typed against the abstract ActionLedger contract (was
+   * InMemoryActionLedger — a Checkpoint #3 finding, dimension 8) since
+   * this function only ever calls .append(), which every ActionLedger
+   * implementation provides. Production composition should pass
+   * durable-audit-ledger.ts's createCommerceAuditLedger() (a real
+   * SupabaseAuditLedger, the same class PL-2 proved for Growth); tests
+   * may still pass an InMemoryActionLedger — both satisfy this type
+   * with zero change to the logic below.
+   */
+  ledger: ActionLedger
   approvalStore: ApprovalReceiptStore
   /** The raw, ungoverned provider (reference or sandbox) this checkout should use — wrapped internally in GovernedPaymentProvider. */
   paymentProvider: PaymentProvider
