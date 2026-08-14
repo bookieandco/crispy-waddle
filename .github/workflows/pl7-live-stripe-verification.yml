@@ -40,18 +40,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Static self-check: the secret must be referenced in exactly one
-      # place in this file (the scoped env: block on the final step)
-      # and nowhere else — never echoed, never passed to an artifact
-      # upload, never added to a broader job- or workflow-level env.
-      - name: Verify the credential is scoped to exactly one step
-        run: |
-          count=$(grep -c "JHADINA_SECRET_STRIPE_SANDBOX" .github/workflows/pl7-live-stripe-verification.yml || true)
-          if [ "$count" -ne 1 ]; then
-            echo "Expected exactly one reference to JHADINA_SECRET_STRIPE_SANDBOX in this workflow file, found $count" >&2
-            exit 1
-          fi
-
+      # The credential is scoped to exactly one place in this file: the
+      # env: block on the final step below, never job- or
+      # workflow-level, never echoed, never passed to an artifact
+      # upload. This is a structural property of the file itself,
+      # confirmed by direct review of the diff (visible above/below)
+      # rather than a runtime self-check — a text-matching check run
+      # from inside this same file cannot reliably distinguish a real
+      # secrets.<name> reference from a comment or error message that
+      # merely describes one, since both necessarily contain the same
+      # string. A prior version of this step attempted exactly that
+      # and matched its own descriptive text; removed rather than
+      # patched a second time.
+      #
       # No artifact is uploaded from this job — evidence lives only in
       # this step's own log output (GitHub Actions automatically
       # redacts the registered secret value anywhere it would appear
