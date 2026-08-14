@@ -14,7 +14,7 @@ function createFakeStripeFetch(options: {
   declinePaymentIds?: Set<string>
   httpErrorOnRefund?: boolean
   networkErrorOnCreate?: boolean
-  recordedRequests?: Array<{ url: string; authorization: string | null; idempotencyKey: string | null }>
+  recordedRequests?: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; payload: Record<string, unknown> }>
 } = {}): StripeFetch {
   let paymentIntentSeq = 0
   return async (input, init) => {
@@ -24,6 +24,7 @@ function createFakeStripeFetch(options: {
       url,
       authorization: headers.get("authorization"),
       idempotencyKey: headers.get("Idempotency-Key"),
+      payload: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {},
     })
 
     if (url.includes("/v1/payment_intents") && !url.includes("/capture") && init?.method === "POST") {
@@ -77,7 +78,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("a successful charge captures instantly and carries the credential only to the provider boundary", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({
       secret: "sk_test_reference_do_not_log",
       fetchImpl: createFakeStripeFetch({ recordedRequests }),
@@ -122,7 +123,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("idempotency: a repeated call with the same paymentId never reaches the provider a second time", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; payload: Record<string, unknown> }> = []
     const fetchImpl = vi.fn(createFakeStripeFetch({ recordedRequests }))
     const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl })
 
@@ -157,6 +158,58 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
     await expect(
       provider.refund({ refundId: "re_2", paymentId: "pay_refund_fails", reason: "customer_request", requestedBy: "customer" }),
     ).rejects.toThrow(ProviderFailureError)
+  })
+
+  test("PL-7: defaults to Stripe's documented success PaymentMethod (pm_card_visa) when nothing is configured", async () => {
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; payload: Record<string, unknown> }> = []
+    const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl: createFakeStripeFetch({ recordedRequests }) })
+    await provider.createPaymentIntent(paymentRequest())
+    expect(recordedRequests[0].payload.payment_method).toBe("pm_card_visa")
+  })
+
+  test("PL-7: an instance-level defaultTestPaymentMethod is sent on every createPaymentIntent call", async () => {
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; payload: Record<string, unknown> }> = []
+    const provider = new StripeSandboxPaymentProvider({
+      secret: "sk_test_x",
+      fetchImpl: createFakeStripeFetch({ recordedRequests }),
+      defaultTestPaymentMethod: "pm_card_visa_chargeDeclined",
+    })
+    await provider.createPaymentIntent(paymentRequest({ paymentId: "pay_pm_default" })).catch(() => {
+      // The fake transport doesn't actually decline based on payment_method — only the real
+      // Stripe scenario in CI does. This test only cares about what was sent, not the outcome.
+    })
+    expect(recordedRequests[0].payload.payment_method).toBe("pm_card_visa_chargeDeclined")
+  })
+
+  test("PL-7: a request.metadata override takes precedence over the instance default", async () => {
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; payload: Record<string, unknown> }> = []
+    const provider = new StripeSandboxPaymentProvider({
+      secret: "sk_test_x",
+      fetchImpl: createFakeStripeFetch({ recordedRequests }),
+      defaultTestPaymentMethod: "pm_card_visa",
+    })
+    await provider.createPaymentIntent(paymentRequest({ paymentId: "pay_pm_override", metadata: { stripeTestPaymentMethod: "pm_card_refundFail" } }))
+    expect(recordedRequests[0].payload.payment_method).toBe("pm_card_refundFail")
+  })
+
+  test("PL-7: rejects an unknown defaultTestPaymentMethod at construction time, before any provider call", () => {
+    expect(
+      () =>
+        new StripeSandboxPaymentProvider({
+          secret: "sk_test_x",
+          // @ts-expect-error deliberately not on the allowlist
+          defaultTestPaymentMethod: "pm_card_totally_made_up",
+        }),
+    ).toThrow("STRIPE_SANDBOX_UNKNOWN_TEST_PAYMENT_METHOD")
+  })
+
+  test("PL-7: rejects an unknown metadata override before any provider call", async () => {
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; payload: Record<string, unknown> }> = []
+    const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl: createFakeStripeFetch({ recordedRequests }) })
+    await expect(
+      provider.createPaymentIntent(paymentRequest({ metadata: { stripeTestPaymentMethod: "pm_card_totally_made_up" } })),
+    ).rejects.toThrow("STRIPE_SANDBOX_UNKNOWN_TEST_PAYMENT_METHOD")
+    expect(recordedRequests).toHaveLength(0)
   })
 
   test("payouts and reconciliation are structurally out of scope for this sandbox proof", async () => {
