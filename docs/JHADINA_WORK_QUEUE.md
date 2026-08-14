@@ -3646,3 +3646,96 @@ and are named here for the record, not scheduled: `getPayment()`'s local-cache l
 need a real `GET /v1/payment_intents/{id}` call to observe genuine async transitions), and the
 `requestApproveAndConsume` extraction Architecture Checkpoint #3 identified as justified-but-not-
 urgent. Neither blocks anything currently proven.
+
+---
+
+### PL-8 — Money Real Integration, Phase 1: Wiring — DONE (merged, no live Plaid call)
+
+**Status:** DONE. First milestone of the Money real-integration workstream, opened with an
+audit-only pass (chat report, not filed as its own doc section) tracing the real Money path from
+`createReferenceMoneyAccountReadExecutor()` (SP-3's reference proof) through `money-core`'s
+production executor, the durable audit infrastructure, the `PlaidReadOnlyAdapter` bank-adapter
+boundary, and the current web app surface. The audit found: money-core's production executor is
+already durable-capable by construction (`createProductionActionExecutor` always builds a real
+`SupabaseAuditLedger` -- no in-memory-ledger branch to migrate away from); the real gap was that
+nothing had ever supplied it a real Supabase-backed `AuditRpcClient`, a real Plaid credential, or
+a real route; several real, tested `money-core` pieces (`ProductionProviderConnection`,
+`plaid-provider-registration.ts`, `postgres-*.ts`) were unwired islands proven only in their own
+test files, same "shipped ahead of the wiring" pattern found repeatedly elsewhere in this
+engagement; Plaid's safety boundary is base-URL-based (unlike Stripe's key-prefix-based one) and
+had no enforcement analogous to Commerce's `assertStripeSandboxKey`; and `JH-028`/`JH-033`/`JH-034`
+(BLOCKED, frozen) are the unresolved "which Money UI/data-path is canonical" human gate --
+directly relevant, since any UI work here would pre-empt that decision.
+
+**Phase 1 scope (PR #77, merged as `80c9813`):** backend/API vertical slice only, explicitly
+avoiding the frozen UI gates, per explicit authorization after the audit was reviewed and agreed:
+
+- `packages/money-core`: `assertPlaidSandboxBaseUrl(baseUrl)` -- fails closed
+  (`PLAID_BASE_URL_MUST_BE_SANDBOX:<url>`) unless the resolved endpoint is
+  `sandbox.plaid.com`, wired into `createPlaidProviderAdapterFactory` before any adapter is
+  constructed. Money's base-URL-based analog of Commerce's key-prefix-based
+  `assertStripeSandboxKey` -- the one new security-hardening item explicitly required before any
+  credential is ever provisioned. Exported `createPlaidProviderAdapterFactory` /
+  `PLAID_READ_ONLY_CONFIG` / `PLAID_SANDBOX_BASE_URL` / `assertPlaidSandboxBaseUrl` from
+  `index.ts` -- real, tested code that was previously unreachable outside the package (same class
+  of gap SP-3 fixed for the rest of the file).
+- `apps/jhadina-web/src/lib/money/durable-audit-ledger.ts` (new): domain `"money"`, same shape as
+  Growth's (PL-2) and Commerce's (PL-5) files -- no new table, RPC, or ledger abstraction.
+  `createMoneyAuditRpcClient()` (the raw client money-core's executor actually consumes) plus
+  `createMoneyAuditLedger()` (wraps it in `SupabaseAuditLedger`, for direct ledger reads later).
+- `apps/jhadina-web/src/lib/money/production-provider.ts` (new): real
+  `EnvironmentCredentialResolver` -> `createPlaidProviderAdapterFactory` (sandbox-enforced) ->
+  `PlaidReadOnlyAdapter` -> `MoneyProviderRegistry`. Mirrors Commerce's
+  `production-payment-provider.ts` (PL-6) exactly, including the test-only-escape-hatch
+  discipline (no fetchImpl/baseUrl override ever set by real composition code).
+- `apps/jhadina-web/src/lib/money/governed-account-read-runtime.ts` (new): wires real identity +
+  real audit RPC client + real provider registry into money-core's unmodified
+  `createGovernedProviderAccountReadExecutor`. A small adapter (`toActionIdentityVerifier`)
+  converts the app's `JhadinaIdentityVerifier` to action-core's `ActionIdentityVerifier` rather
+  than relying on structural bivariance. `assertUserWorkspace` deliberately left unset and
+  documented in-file: no bank-connection-ownership table/migration exists yet, and building one
+  wasn't authorized this phase -- every verified identity can currently read the one configured
+  `'plaid'` provider's accounts. Real, known, named gap; must close before more than one bank
+  connection per user is exposed.
+- `apps/jhadina-web/src/app/api/money/accounts/route.ts` (new): the one authenticated route, same
+  claimed-header/verified-session shape as `/api/growth/activity`. No other route or page touched.
+
+**Explicitly out of scope, verified in the diff review before commit:** no `/money/command-center`
+or any Money UI (`JH-028`/`JH-033`/`JH-034` untouched); no second `ActionPolicy` (zero diff to
+`governed-account-read.ts` -- `SecurityCoreActionPolicy(MONEY_CORE_SECURITY_POLICY)` remains the
+only one); `assertCapability('money.account.read')` and Plaid's HTTPS enforcement both zero-diff
+inside `plaid-read-only-adapter.ts`; no write capability added (`createPayment`/`createTransfer`
+appear only in tests proving their absence); no credential logged/echoed anywhere in the diff; no
+Plaid credential configured and no network call made anywhere -- every test mocks
+`fetch`/RPC/credentials.
+
+**VERIFIED:** money-core test (`tsx --test`) 11/11; jhadina-web vitest 152/152 (18 new: 5
+`production-provider.test.ts`, 4 `governed-account-read-runtime.test.ts`, 9 pre-existing
+reference); jhadina-web type-check clean; jhadina-web lint 0 errors (4 pre-existing, unrelated
+warnings); jhadina-web build succeeds (`/api/money/accounts` registered as a dynamic route);
+repo-wide type-check 22/23 clean (`apps/pupsonstuff` fails on a pre-existing missing-vitest-types
+error, confirmed present on `main` via `git stash` before this branch, unrelated to this work).
+
+**Operational note:** the designated branch name (`claude/jhadina-mvp-audit-ok29s0`) already
+existed on the remote with stale, unrelated content from six days earlier (`2c709c5`, early-session
+MVP-foundation scaffolding, never merged into `main`, not an ancestor of `main`). Reset to the
+correctly-based branch via a lease-checked force push (`--force-with-lease=<branch>:<known-stale-sha>`)
+before opening the PR, per this session's standing procedure for a stale designated branch --
+reported to the user before the PR was opened, not discovered after.
+
+**COMMIT:** PR #77 merged as `80c9813` (commit `4deb027`), by the user via the GitHub UI --
+detected via `git fetch origin main` / `FETCH_HEAD`, not merged by the assistant.
+
+**ARCHITECTURAL IMPACT:** Money's governed account-read path -- verified actor -> policy ->
+health/capability gate -> `PlaidReadOnlyAdapter` (sandbox-boundary-enforced) -> durable Supabase
+audit (domain `"money"`) -- is now real, production-composed code reachable from one authenticated
+route, with zero UI surface and zero live credential. `PlaidReadOnlyAdapter`, `bank-adapter.ts`,
+`governed-account-read.ts`, `governed-provider-account-read.ts`, and every frozen human gate
+(`JH-028`/`JH-033`/`JH-034` included) were never touched.
+
+**NEXT:** Phase 2 (local validation) and Phase 3 (CI) were already folded into this same PR/merge
+cycle in practice (the full gate ran pre-PR and again in CI). Remaining phases from the original
+plan -- post-merge validation on `main`, and the optional real Plaid sandbox verification
+(PL-7-shaped: a `.live.ts` suite + dedicated `workflow_dispatch`-only workflow, proving
+`listAccounts()` against Plaid's real sandbox) -- are unscheduled, each requiring its own explicit
+authorization, same discipline as PL-7.
