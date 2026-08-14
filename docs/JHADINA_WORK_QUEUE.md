@@ -3383,3 +3383,104 @@ service actor, or identity mechanism was added; checkout-orchestrator,
 payment-core, order-fulfillment-core, JH-038's checkout decision, and
 Money/Plaid are all untouched. All 15 frozen human gates remain
 frozen.
+
+
+---
+
+### PL-7 — Live Stripe Test-Mode Boundary: Preflight Blocker Fix
+
+**Status:** DONE (code fix only — the live seven-scenario run itself has NOT started and remains gated on separate explicit authorization)
+**Objective:** Close out the two-part diagnosis from PL-7's preflight audit before any live Stripe call is attempted: (A) a concrete provider-level blocker that would make every live scenario fail identically, and (B) confirming no new Supabase credential is introduced merely to reproduce what PL-5 already proved.
+
+**Preflight audit (before any edit):** re-inspected the four credential/provider-path files
+(`sandbox-credential.ts`, `production-payment-provider.ts`, `governed-payment-provider.ts`,
+`governed-commerce-intent.ts`) — clean, no blocker. Then found two real, concrete blockers:
+
+- **Blocker A (fixed this step):** `StripeSandboxPaymentProvider.createPaymentIntent()` sent
+  `confirm: true` with no `payment_method` attached. Every prior test passed only because the
+  fake transport never validated the payload — against Stripe's real API this fails outright
+  for every scenario (success included), not just declines. Traced the full call chain
+  (`runCommerceIntentGoverned` → `runCommerceIntentLifecycle` → `CheckoutOrchestrator.execute()`
+  (frozen) → `PaymentGateway.authorizeOrCapture` (frozen interface) → `bridge-adapters.ts` →
+  `provider.createPaymentIntent()`) and found a per-request `metadata` selector (as first
+  proposed) has no channel to survive that path — `bridge-adapters.ts` unconditionally
+  overwrites `metadata`, and `checkout-orchestrator`/`CommerceIntent` carry no such field at
+  all upstream. Corrected to an instance-level `defaultTestPaymentMethod`, set once per
+  provider instance at construction and restricted to a closed allowlist — the CI script
+  constructs one provider instance per scenario and injects it as
+  `GovernedCommerceIntentDeps.paymentProvider`, the same pattern every prior fake-transport
+  test already used to select decline-vs-success behavior. Not a bypass: every call still runs
+  through the full identity → policy → approval → execute → audit sequence.
+- **Blocker B (resolved by decision, not by code):** `SupabaseAuditLedger`'s real RPCs enforce
+  `auth.uid()::text = p_actor_id` at the database level — an unattended CI job has no
+  authenticated Supabase session, so genuinely durable audit persistence can't be proven live
+  without provisioning a new credential (a real test-user session or a service-role key).
+  Decision: do NOT provision either. PL-5 already proved `SupabaseAuditLedger`'s durability
+  contract exhaustively against a faithful double of the real RPC; PL-7 will keep
+  `SupabaseAuditLedger` unchanged, backed by that same double, for evidence purposes. The PL-7
+  report must explicitly separate what's proven live (Stripe authentication, PaymentIntent
+  operations, declines, refunds/failure behavior, the governed commerce path, actor
+  attribution, ledger append invocation) from what is not re-proven live (Supabase's own RPC
+  durability/auth enforcement — already covered by PL-5).
+- **Network limitation surfaced:** this session's network policy blocks `stripe.com`/
+  `docs.stripe.com` outright (`EGRESS_BLOCKED`) — the exact PaymentMethod ID strings for the
+  decline and refund-failure scenarios could not be independently verified from here and were
+  taken from the user's explicit citations of Stripe's documentation.
+
+**Completion report:**
+```
+TASK: PL-7 preflight blocker fix
+STATUS: DONE (code fix only)
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.ts:
+  - New closed allowlist STRIPE_SANDBOX_TEST_PAYMENT_METHODS
+    ("pm_card_visa", "pm_card_visa_chargeDeclined", "pm_card_refundFail")
+    -- never an arbitrary caller-supplied ID.
+  - StripeSandboxProviderOptions gained an optional
+    defaultTestPaymentMethod, restricted to the allowlist (throws at
+    construction time otherwise), defaulting to "pm_card_visa".
+  - createPaymentIntent() now sends payment_method, resolved from an
+    optional request.metadata.stripeTestPaymentMethod override (same
+    allowlist, provider-level test convenience only, not required by
+    PL-7's own governed-path scenarios) falling back to the instance
+    default.
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.test.ts:
+  5 new tests -- default PM sent when unconfigured; instance-level
+  default honored; metadata override takes precedence; unknown
+  instance default rejected at construction before any call; unknown
+  metadata override rejected before any provider call (zero requests
+  recorded).
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm --filter jhadina-web exec vitest run: 137/137 (132 existing +
+  5 new).
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing
+  warnings).
+- pnpm --filter jhadina-web build: succeeds.
+- pnpm -r --no-bail type-check: 19/20 clean (pupsonstuff
+  pre-existing, unrelated).
+- git diff --stat: zero changes outside stripe-sandbox-provider.ts
+  and its own test file -- checkout-orchestrator, payment-core,
+  order-fulfillment-core, bridge-adapters.ts, commerce-intent.ts, the
+  Supabase migration, and Money are all untouched.
+ARCHITECTURAL IMPACT:
+- StripeSandboxPaymentProvider can now actually place a real,
+  syntactically valid PaymentIntent-confirmation call against Stripe.
+  No production credentials, no live endpoints, no change to any
+  frozen contract.
+- Scope of PL-7's scenario 6 ("durable audit events") is now
+  explicitly redefined by decision: proves the real governed path
+  invokes SupabaseAuditLedger.append() correctly with real Stripe
+  results; does not re-prove Supabase's own RPC durability, which
+  PL-5 already covers.
+COMMIT: PR #73, merged as e09cace
+NEXT: the actual seven-scenario live run against Stripe's real test
+API. NOT started. Explicitly gated on the user inspecting this merged
+diff/CI and giving separate, explicit authorization for the live run
+-- distinct from the authorization already given for this code fix.
+```
+
+**Frozen gates:** unchanged. `checkout-orchestrator`, `payment-core`, `order-fulfillment-core`,
+`bridge-adapters.ts`, `commerce-intent.ts`, JH-038, Money/Plaid, and every frozen human gate are
+untouched. No production Stripe credentials or endpoints introduced. No new Supabase credential
+introduced.
