@@ -24,6 +24,38 @@ create table if not exists public.jhadina_evolution_run_ledger (
 create index if not exists jhadina_evolution_run_ledger_run_sequence_idx
   on public.jhadina_evolution_run_ledger (run_id, sequence);
 
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.jhadina_evolution_run_ledger'::regclass
+       and conname = 'jhadina_evolution_run_ledger_sequence_check'
+  ) then
+    alter table public.jhadina_evolution_run_ledger
+      add constraint jhadina_evolution_run_ledger_sequence_check check (sequence > 0);
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.jhadina_evolution_run_ledger'::regclass
+       and conname = 'jhadina_evolution_run_ledger_hash_check'
+  ) then
+    alter table public.jhadina_evolution_run_ledger
+      add constraint jhadina_evolution_run_ledger_hash_check check (length(hash) = 64);
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.jhadina_evolution_run_ledger'::regclass
+       and conname = 'jhadina_evolution_run_ledger_hash_key'
+  ) then
+    alter table public.jhadina_evolution_run_ledger
+      add constraint jhadina_evolution_run_ledger_hash_key unique (hash);
+  end if;
+end;
+$$;
+
 alter table public.jhadina_evolution_run_ledger enable row level security;
 
 revoke all on table public.jhadina_evolution_run_ledger from anon, authenticated, public;
@@ -31,7 +63,7 @@ grant select on table public.jhadina_evolution_run_ledger to authenticated;
 grant select on table public.jhadina_evolution_run_ledger to service_role;
 revoke insert, update, delete, truncate on table public.jhadina_evolution_run_ledger from service_role;
 
- drop policy if exists "authenticated users can read evolution run events" on public.jhadina_evolution_run_ledger;
+drop policy if exists "authenticated users can read evolution run events" on public.jhadina_evolution_run_ledger;
 create policy "authenticated users can read evolution run events"
   on public.jhadina_evolution_run_ledger
   for select
@@ -51,12 +83,12 @@ $$;
 
 revoke all on function public.reject_jhadina_evolution_run_ledger_mutation() from public, anon, authenticated, service_role;
 
- drop trigger if exists jhadina_evolution_run_ledger_no_update on public.jhadina_evolution_run_ledger;
+drop trigger if exists jhadina_evolution_run_ledger_no_update on public.jhadina_evolution_run_ledger;
 create trigger jhadina_evolution_run_ledger_no_update
 before update on public.jhadina_evolution_run_ledger
 for each row execute function public.reject_jhadina_evolution_run_ledger_mutation();
 
- drop trigger if exists jhadina_evolution_run_ledger_no_delete on public.jhadina_evolution_run_ledger;
+drop trigger if exists jhadina_evolution_run_ledger_no_delete on public.jhadina_evolution_run_ledger;
 create trigger jhadina_evolution_run_ledger_no_delete
 before delete on public.jhadina_evolution_run_ledger
 for each row execute function public.reject_jhadina_evolution_run_ledger_mutation();
