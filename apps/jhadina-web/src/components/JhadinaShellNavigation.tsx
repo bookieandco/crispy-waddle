@@ -19,6 +19,7 @@ const worlds = [
   ["🎵", "Music", "/music"],
   ["📺", "JhadinaTV", "/jhadinatv"],
   ["📈", "Growth", "/growth"],
+  ["🗒️", "Activity", "/activity"],
   ["🎯", "Opportunities", "/opportunity"],
   ["🗓️", "Calendar", "/calendar"],
   ["📊", "Campaign Polls", "/campaign/polls"],
