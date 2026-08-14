@@ -18,9 +18,53 @@ import { createInMemorySandboxIdempotencyStore, type SandboxIdempotencyStore } f
  * proof (createPayout/reconcile both reject) — not needed to prove
  * checkout -> payment -> fulfillment -> audit, matching the
  * "smallest vertical slice" discipline from every prior proof.
+ *
+ * PL-7: createPaymentIntent() now sends a `payment_method` — Stripe's
+ * real PaymentIntents API rejects `confirm: true` with none attached,
+ * which every prior test never caught because the fake transport
+ * never validated the payload. Restricted to a closed allowlist of
+ * Stripe's own documented test PaymentMethod IDs (never an arbitrary
+ * string) via defaultTestPaymentMethod, set once per provider
+ * instance at construction — the CI script for PL-7 constructs one
+ * instance per scenario (pm_card_visa for success,
+ * pm_card_visa_chargeDeclined for a generic decline, pm_card_refundFail
+ * for Stripe's documented asynchronous refund-failure case) and
+ * injects it as GovernedCommerceIntentDeps.paymentProvider — the same
+ * pattern every prior fake-transport test already used to select
+ * decline-vs-success behavior. This is fixture selection at
+ * construction time, not a provider bypass: checkout-orchestrator,
+ * payment-core, order-fulfillment-core, and bridge-adapters.ts are
+ * completely untouched, and every call still goes through
+ * runCommerceIntentGoverned's real identity -> policy -> approval ->
+ * execute -> audit sequence. An optional request.metadata override is
+ * also honored, restricted to the same allowlist, purely as a
+ * provider-level test convenience — PL-7's own governed-path scenarios
+ * rely on the instance-level default, not this override.
  */
 
 export type StripeFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+/**
+ * Stripe's own documented test PaymentMethod IDs, restricted to
+ * exactly what PL-7's seven scenarios need — never an arbitrary
+ * caller-supplied ID. "pm_card_visa_chargeDeclined" and
+ * "pm_card_refundFail" were provided as verified citations from
+ * Stripe's testing documentation (this environment's network policy
+ * blocks stripe.com, so they could not be independently re-fetched
+ * here); a wrong ID fails safely — Stripe returns a clear "no such
+ * PaymentMethod" error before any charge occurs.
+ */
+export const STRIPE_SANDBOX_TEST_PAYMENT_METHODS = [
+  "pm_card_visa",
+  "pm_card_visa_chargeDeclined",
+  "pm_card_refundFail",
+] as const;
+
+export type StripeSandboxTestPaymentMethod = (typeof STRIPE_SANDBOX_TEST_PAYMENT_METHODS)[number];
+
+export function isStripeSandboxTestPaymentMethod(value: string): value is StripeSandboxTestPaymentMethod {
+  return (STRIPE_SANDBOX_TEST_PAYMENT_METHODS as readonly string[]).includes(value);
+}
 
 export type StripeSandboxProviderOptions = {
   secret: string;
@@ -28,6 +72,8 @@ export type StripeSandboxProviderOptions = {
   fetchImpl?: StripeFetch;
   timeoutMs?: number;
   idempotencyStore?: SandboxIdempotencyStore;
+  /** Restricted to STRIPE_SANDBOX_TEST_PAYMENT_METHODS. Defaults to "pm_card_visa" (Stripe's documented success case) when omitted. */
+  defaultTestPaymentMethod?: StripeSandboxTestPaymentMethod;
 };
 
 type StripeErrorBody = { error: { type: string; code?: string; message: string } };
@@ -50,13 +96,28 @@ export class StripeSandboxPaymentProvider implements PaymentProvider {
   private readonly fetchImpl: StripeFetch
   private readonly idempotency: SandboxIdempotencyStore
   private readonly intents = new Map<string, PaymentIntent>()
+  private readonly defaultTestPaymentMethod: StripeSandboxTestPaymentMethod
 
   constructor(private readonly options: StripeSandboxProviderOptions) {
     if (!options.baseUrl?.startsWith("https://") && options.baseUrl !== undefined) {
       throw new Error("PROVIDER_HTTPS_REQUIRED")
     }
+    if (options.defaultTestPaymentMethod && !isStripeSandboxTestPaymentMethod(options.defaultTestPaymentMethod)) {
+      throw new Error(`STRIPE_SANDBOX_UNKNOWN_TEST_PAYMENT_METHOD:${options.defaultTestPaymentMethod}`)
+    }
     this.fetchImpl = options.fetchImpl ?? fetch
     this.idempotency = options.idempotencyStore ?? createInMemorySandboxIdempotencyStore()
+    this.defaultTestPaymentMethod = options.defaultTestPaymentMethod ?? "pm_card_visa"
+  }
+
+  /** Metadata override takes precedence over the instance default when present; both are restricted to the same closed allowlist. */
+  private resolveTestPaymentMethod(request: PaymentIntentRequest): StripeSandboxTestPaymentMethod {
+    const override = request.metadata?.stripeTestPaymentMethod
+    if (override === undefined) return this.defaultTestPaymentMethod
+    if (!isStripeSandboxTestPaymentMethod(override)) {
+      throw new Error(`STRIPE_SANDBOX_UNKNOWN_TEST_PAYMENT_METHOD:${override}`)
+    }
+    return override
   }
 
   async createPaymentIntent(request: PaymentIntentRequest): Promise<PaymentIntent> {
@@ -81,6 +142,7 @@ export class StripeSandboxPaymentProvider implements PaymentProvider {
           amount: request.amount.amountMinor,
           currency: request.amount.currency.toLowerCase(),
           confirm: true,
+          payment_method: this.resolveTestPaymentMethod(request),
           metadata: request.metadata ?? {},
         },
       })
