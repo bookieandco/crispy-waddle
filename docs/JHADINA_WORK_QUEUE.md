@@ -3274,3 +3274,112 @@ service actor, or identity mechanism was added; checkout-orchestrator,
 payment-core, order-fulfillment-core, JH-038's checkout decision, and
 Money/Plaid are all untouched. All 15 frozen human gates remain
 frozen.
+
+
+---
+
+### PL-6 — Stripe Credential-Resolution Wiring
+
+**Status:** DONE (credential-resolution wiring only — see NEXT)
+**Objective:** Close half of "the real Stripe test-mode boundary"
+milestone the user named after PL-5: complete the credential-
+resolution plumbing so a real `sk_test_...` key, once configured,
+reaches Commerce's sandbox payment provider through its real,
+unmocked transport. Explicitly scoped by the user, after a raised
+blocker, to wiring only — no live call.
+
+**Blocker raised before any code:** grepped process env, `.env.example`,
+and every committed config file for a Stripe credential — none exists
+anywhere in this environment. Asked the user how to proceed rather
+than guessing; the user chose "scope it as credential-wiring only, no
+live call" over providing a real key or picking a different milestone.
+
+**Completion report:**
+```
+TASK: PL-6
+STATUS: DONE (wiring only)
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/production-payment-provider.ts
+  (new): createStripeSandboxProductionProvider() wires
+  EnvironmentSandboxCredentialResolver(real process.env) ->
+  assertStripeSandboxKey (fail-closed inside .resolve()) ->
+  StripeSandboxPaymentProvider, constructed with the resolved secret
+  and NO injected fake transport -- the first place in the whole
+  Commerce proof where the real default fetchImpl (global fetch) is
+  actually reachable. A fetchImpl override exists purely as a
+  test-only escape hatch, documented as never to be used by real
+  composition code. This is the "one-line swap" money-core's own
+  reference proof (governed-account-read.ts, Money) described but
+  never built either -- PL-6 builds it, for Commerce, without a real
+  key to run it against yet.
+- apps/jhadina-web/src/lib/commerce/production-payment-provider.test.ts
+  (new, 4 tests): fails closed before any transport exists when no
+  credential is configured; fails closed on a live-mode key even if
+  that's what's configured; with no fetchImpl override (the real
+  composition path), the resolved credential reaches the real global
+  fetch -- proven by spying on globalThis.fetch itself (always
+  mocked, never a real network call) rather than injecting a fake
+  transport, specifically to prove the default path is real; defaults
+  to the documented commerce/stripe/sandbox credential ref.
+- apps/jhadina-web/.env.example: documents JHADINA_SECRET_STRIPE_SANDBOX
+  (empty value) -- the exact env var a real sk_test_ key would need,
+  server-side only.
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm --filter jhadina-web exec vitest run: 132/132 (128 existing +
+  4 new).
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing
+  warnings).
+- pnpm --filter jhadina-web build: succeeds.
+- pnpm -r --no-bail type-check: 19/20 clean (pupsonstuff
+  pre-existing, unrelated).
+- git diff --stat: zero changes to any existing file besides
+  .env.example -- only new, additive files.
+- Post-merge secret-hygiene sweep (server-side-only, per explicit
+  user instruction): grepped the whole repo for any "use client" or
+  client-bundled file importing production-payment-provider.ts or
+  sandbox-credential.ts -- zero matches, both are server-only modules
+  (no "use client" directive, never imported from pages/ or app/
+  client components). Grepped every reference to
+  JHADINA_SECRET_STRIPE_SANDBOX -- confirmed server-side only
+  (sandbox-credential.ts, .env.example, production-payment-provider.ts's
+  own comments), never NEXT_PUBLIC_-prefixed. Re-read
+  governed-payment-provider.ts's governed() method -- ledger.append()
+  metadata is only ever a denial/failure reason string or approval
+  receipt id, never a request/response body or header, so the secret
+  cannot reach an audit event. Grepped for console.log/console.error
+  near credential/fetchImpl code in stripe-sandbox-provider.ts,
+  sandbox-credential.ts, production-payment-provider.ts -- none
+  exist. Grepped the whole repo for sk_test_/sk_live_ outside
+  node_modules -- every hit is an obviously-fake placeholder inside a
+  *.test.ts file (sk_test_x, sk_test_production_wiring_proof,
+  sk_live_do_not_use, etc.); .env.example's own
+  JHADINA_SECRET_STRIPE_SANDBOX= is empty. No LLM/agent-facing prompt
+  or system message anywhere in the repo references this credential
+  or env var. Confirmed every test that exercises the transport uses
+  either an injected fake fetchImpl or a vi.spyOn(globalThis,
+  "fetch") mock -- no code path in this PR calls the real network,
+  and the merged CI run's job log shows no outbound call to
+  api.stripe.com.
+ARCHITECTURAL IMPACT:
+- The credential-resolution boundary for Commerce's sandbox provider
+  is now real and fail-closed, matching money-core's own
+  CredentialResolver/EnvironmentCredentialResolver pattern exactly.
+  Nothing about checkout-orchestrator, payment-core,
+  order-fulfillment-core, @jhadina/action-core, the Supabase
+  migration, or Money changed.
+- No live Stripe request was made or verified as part of this PR.
+  That remains open work.
+COMMIT: PR #72, merged as 4c96fcd
+NEXT: the actual Stripe test-mode live-boundary verification --
+a genuinely separate milestone from this one, requiring a real
+sk_test_... secret to be securely configured outside this
+conversation first. Not started. Holding until the user supplies a
+real key and explicitly asks for it.
+```
+
+**Frozen gates:** unchanged. No table, RPC, ledger abstraction,
+service actor, or identity mechanism was added; checkout-orchestrator,
+payment-core, order-fulfillment-core, JH-038's checkout decision, and
+Money/Plaid are all untouched. All 15 frozen human gates remain
+frozen.
