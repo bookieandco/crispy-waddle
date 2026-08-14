@@ -196,12 +196,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          PR_URL=$(gh pr create \
-            --draft \
-            --base "$BASE_BRANCH" \
-            --head "$BRANCH_NAME" \
-            --title "Jhadina evolution: $TASK_ID" \
-            --body "## Approved Jhadina Evolution\n\nTask: \`$TASK_ID\`\n\nExecuted after the Jhadina evolution approval gate.\n\n### Verification\n- jhadina-evolution-core tests passed\n- jhadina-evolution-core typecheck passed\n- protected-path verification passed\n\n### Evidence\nSee \`.jhadina/results/$TASK_ID.json\`." )
+          PR_URL=$(gh pr create --draft --base "$BASE_BRANCH" --head "$BRANCH_NAME" --title "Jhadina evolution: $TASK_ID" --body "## Approved Jhadina Evolution\n\nTask: \`$TASK_ID\`\n\nExecuted after the Jhadina evolution approval gate.\n\n### Verification\n- jhadina-evolution-core tests passed\n- jhadina-evolution-core typecheck passed\n- protected-path verification passed\n\n### Evidence\nSee \`.jhadina/results/$TASK_ID.json\`." )
           echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
 
       - name: Finalize structured result with PR
