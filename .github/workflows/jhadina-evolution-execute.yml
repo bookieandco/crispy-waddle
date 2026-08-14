@@ -60,6 +60,9 @@ jobs:
       ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
       DISALLOWED_TOOLS: ${{ inputs.disallowed_tools }}
       MAX_TURNS: ${{ inputs.max_turns }}
+      JHADINA_SUPABASE_URL: ${{ secrets.JHADINA_SUPABASE_URL }}
+      JHADINA_SUPABASE_SECRET_KEY: ${{ secrets.JHADINA_SUPABASE_SECRET_KEY }}
+      JHADINA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.JHADINA_SUPABASE_SERVICE_ROLE_KEY }}
 
     steps:
       - name: Checkout approved base
@@ -84,6 +87,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Record evolution dispatch
+        run: node scripts/persist-jhadina-evolution-ledger.mjs dispatched
 
       - name: Run Claude Code in the isolated workspace
         id: claude
@@ -212,6 +218,10 @@ jobs:
           fi
         env:
           DRAFT_PR_URL: ${{ steps.draft_pr.outputs.url }}
+
+      - name: Persist terminal evolution events
+        if: always() && hashFiles(format('.jhadina/results/{0}.json', env.TASK_ID)) != ''
+        run: node scripts/persist-jhadina-evolution-ledger.mjs finalize ".jhadina/results/$TASK_ID.json"
 
       - name: Publish finalized execution result
         if: always() && steps.draft_pr.outcome == 'success'
