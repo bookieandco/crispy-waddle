@@ -2706,3 +2706,140 @@ by the cleanup (confirmed via diff) so the security boundary is
 unchanged. **Durable-audit milestone (PL-1 + PL-2) is complete.**
 
 **Frozen gates:** unchanged.
+
+### PL-3 — Commerce sandbox-payment integration
+
+**Status:** DONE
+**Objective:** `Commerce intent → checkout-orchestrator → payment-core
+→ sandbox payment adapter → order-fulfillment-core → audit`. Moves
+from SP-2's in-memory reference adapter to an actual external sandbox
+provider shape, reusing the same three commerce contracts unchanged.
+No new payment architecture — the sandbox provider implements the
+existing `payment-core.PaymentProvider` contract SP-2 already proved
+compositionally.
+
+**Pre-build decisions (both surfaced before writing code):**
+- **Provider:** Stripe test mode — real, well-known sandbox, real test
+  card/decline semantics, orthogonal to the frozen JH-038 decision
+  (this proves the `PaymentProvider` contract can be satisfied by a
+  real provider; it does not touch JH-038's shipped-checkout code or
+  wire into any UI, so it doesn't resolve JH-038's "which path should
+  the canonical checkout use" question).
+- **No live calls this milestone:** no sandbox credentials exist in
+  this environment. Built with a fully injectable transport (mirroring
+  `ReadOnlyHttpBankAdapter`'s established pattern) and an injected fake
+  fetch that faithfully models Stripe's real request/response shapes
+  (idempotency headers, success/decline/error payloads) for the proof;
+  wiring in a real `fetch` + real `sk_test_` key later is the same
+  one-line change every prior adapter in this pass was built around.
+- **Audit attribution:** in-memory, not the durable `SupabaseAuditLedger`
+  PL-2 built. That ledger's RPCs require a real `auth.uid()`; Commerce's
+  checkout lifecycle has no verified actor (Architecture Checkpoint #2,
+  Finding D — `customerId` is an unverified string). Mirrors PL-1's own
+  phasing (in-memory now, durable once a real actor exists) rather than
+  weakening the RPC's actor invariant or reopening Finding D, which
+  this milestone was explicitly told not to touch.
+
+**Completion report:**
+```
+TASK: PL-3
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/sandbox-credential.ts (new):
+  mirrors money-core's CredentialResolver/EnvironmentCredentialResolver
+  pattern (namespaced ref -> JHADINA_SECRET_* env var), implemented
+  locally rather than cross-imported to keep commerce's composition
+  layer self-contained (matches SP-2's own precedent of never reaching
+  into money-core). Adds one hard, fail-closed guarantee beyond
+  money-core's version: the resolved secret must start with sk_test_
+  or resolution throws — the actual mechanism "no production
+  credentials" depends on, since Stripe has no separate sandbox base
+  URL (test vs. live is determined by which key authenticates, not
+  the endpoint).
+- apps/jhadina-web/src/lib/commerce/sandbox-idempotency.ts (new):
+  mirrors money-core's IdempotencyStore shape, implemented locally for
+  the same layering reason.
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.ts (new):
+  StripeSandboxPaymentProvider implements PaymentProvider unchanged.
+  HTTPS-enforced, injectable fetch transport, real Idempotency-Key
+  header plus a local idempotency claim (a repeated call for the same
+  paymentId never re-calls the provider). createPayout/reconcile
+  explicitly reject — out of scope for this proof, not needed to show
+  checkout -> payment -> fulfillment -> audit.
+- apps/jhadina-web/src/lib/commerce/governed-payment-provider.ts
+  (new): GovernedPaymentProvider — a decorator implementing
+  PaymentProvider around any real provider, composing transparently
+  with SP-2's existing createPaymentGatewayFromProvider bridge with
+  zero changes there. Adds the "explicit capability/policy boundary"
+  and "authorization before provider call" requirements: a fixed,
+  named-capability allow-list (mirroring money-core's capabilities.ts
+  registry shape) permitting charge/refund and denying payout/reconcile,
+  checked before the wrapped provider is ever called — denials are
+  audited too, not just successes and failures. payment-core's
+  PaymentProvider interface has no per-call actor/context parameter
+  (unlike money-core's BankAdapter), so this check lives at the
+  composition boundary rather than inside each method.
+- apps/jhadina-web/src/lib/commerce/commerce-intent.ts: added an
+  optional paymentProvider override to CommerceLifecycleOptions
+  (defaults to the original InMemoryPaymentProvider, fully backward
+  compatible). Fixed the paymentIntents derivation to duck-type a
+  .list() inspection method rather than assuming InMemoryPaymentProvider
+  specifically — checkout-orchestrator only assigns session.paymentId
+  on a *successful* authorizeOrCapture call (confirmed by reading its
+  source: it throws before that assignment on a decline), so deriving
+  paymentIntents from the session alone would have silently missed
+  every declined attempt.
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.ts,
+  governed-payment-provider.ts: both add list(): PaymentIntent[] (the
+  same inspection contract InMemoryPaymentProvider already had) so the
+  duck-typed derivation above works uniformly.
+- Five new test files (22 new tests): sandbox-credential.test.ts (6 —
+  sandbox-only enforcement, malformed refs, missing credentials);
+  stripe-sandbox-provider.test.ts (8 — HTTPS enforcement, successful
+  charge with credential-never-in-result verified, decline handling,
+  network-failure handling, idempotency via a call-count spy,
+  capture/refund two-step flow, refund-provider-failure handling,
+  payout/reconcile rejection); governed-payment-provider.test.ts (5 —
+  charge/refund allowed and audited started->completed, payout/reconcile
+  denied with zero calls reaching the wrapped provider and the denial
+  itself audited, a failed charge audited as failed with a reason);
+  commerce-intent-sandbox-payment.test.ts (3 — full lifecycle success
+  through the sandbox provider with real computed totals, a declined
+  sandbox payment failing closed exactly like the reference provider,
+  and the critical cross-contract proof: fulfillment denial after a
+  successful sandbox charge still triggers checkout-orchestrator's own
+  automatic refund compensation, now through the governed sandbox path
+  instead of the reference one).
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm vitest run: 113/113 (91 existing + 22 new).
+- pnpm -r type-check: 22/23 clean (pupsonstuff's pre-existing,
+  unrelated vitest-types failure, unchanged).
+- pnpm --filter jhadina-web build: real production build succeeds (no
+  new route — composition + tests only, matching SP-2's precedent;
+  Commerce has no shipped checkout UI on main to wire into yet).
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing warnings).
+- Grep-confirmed: no client component or Pages Router component
+  imports the sandbox provider, credential resolver, or governed
+  wrapper directly. Grep-confirmed no SERVICE_ROLE credential and no
+  sk_live key anywhere outside tests verifying such keys are rejected.
+ARCHITECTURAL IMPACT:
+- Proves payment-core's PaymentProvider contract composes against a
+  real-provider-shaped implementation, not just an in-memory double —
+  the second contract-vs-real-boundary proof after SP-3's Money/Plaid
+  path, using the same injectable-transport pattern.
+- GovernedPaymentProvider's decorator shape (implements the same
+  interface it wraps) is a reusable pattern for adding a capability
+  gate + audit trail to any contract whose methods don't carry a
+  context parameter — worth remembering if Commerce's actor-identity
+  gap (Finding D) is closed later and this needs to gate on a real
+  actor instead of a fixed allow-list.
+NEXT: not decided here. Commerce's audit trail is still in-memory
+(same limitation PL-1 had before PL-2); live Stripe credentials still
+don't exist in this environment; Finding D (Commerce has no
+identity/capability layer at all) remains open.
+```
+
+**Frozen gates:** unchanged. JH-038 checkout decision in particular —
+this milestone proves a contract, it does not choose or touch
+Jhadina's canonical checkout implementation.

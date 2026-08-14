@@ -1,5 +1,5 @@
 import { CheckoutOrchestrator, type CheckoutItem, type CheckoutSession } from "@jhadina/checkout-orchestrator"
-import type { PaymentIntent } from "@jhadina/payment-core"
+import type { PaymentIntent, PaymentProvider } from "@jhadina/payment-core"
 import type { CustodyEvent, Order } from "@jhadina/order-fulfillment-core"
 import { createOrderGatewayFromFulfillment, createPaymentGatewayFromProvider, type CreatedOrderRecord } from "./bridge-adapters"
 import {
@@ -44,6 +44,17 @@ export interface CommerceLifecycleOptions {
   inventoryFailures?: InventoryFailure[]
   paymentDeclineAtOrAboveMinor?: number
   fulfillmentPolicyDenies?: PolicyGateOptions["denyActions"]
+  /**
+   * Defaults to a fresh InMemoryPaymentProvider (SP-2's original
+   * reference proof, unchanged). The Commerce sandbox-payment
+   * milestone injects a GovernedPaymentProvider wrapping
+   * StripeSandboxPaymentProvider here instead — checkout-orchestrator
+   * and the bridge adapter don't change at all, only which
+   * PaymentProvider implementation composes underneath them.
+   * paymentDeclineAtOrAboveMinor is ignored when this is supplied; the
+   * injected provider controls its own decline behavior.
+   */
+  paymentProvider?: PaymentProvider
 }
 
 export interface CommerceLifecycleResult {
@@ -86,7 +97,8 @@ export async function runCommerceIntentLifecycle(
   const store = new InMemoryCheckoutStore()
   const inventory = new InMemoryInventoryReservationAdapter(options.inventoryFailures)
   const pricing = new DeterministicPricingService()
-  const paymentProvider = new InMemoryPaymentProvider({ declineAtOrAboveMinor: options.paymentDeclineAtOrAboveMinor })
+  const paymentProvider =
+    options.paymentProvider ?? new InMemoryPaymentProvider({ declineAtOrAboveMinor: options.paymentDeclineAtOrAboveMinor })
   const payments = createPaymentGatewayFromProvider(paymentProvider)
 
   const merchant = new InMemoryMerchantOrderAdapter()
@@ -113,10 +125,23 @@ export async function runCommerceIntentLifecycle(
 
   const record = finalSession.orderId ? createdOrders.get(finalSession.orderId) : undefined
 
+  // Not part of PaymentProvider itself — checkout-orchestrator only
+  // assigns session.paymentId on a *successful* authorizeOrCapture
+  // call (it throws before that assignment on a decline), so deriving
+  // this from the session alone would silently miss every declined
+  // attempt. InMemoryPaymentProvider's own .list() inspection helper
+  // is the real mechanism this file's tests rely on; the sandbox
+  // provider and its governed wrapper both implement the same
+  // duck-typed inspection method so this keeps working uniformly.
+  const paymentIntents: PaymentIntent[] =
+    "list" in paymentProvider && typeof (paymentProvider as { list?: unknown }).list === "function"
+      ? (paymentProvider as { list(): PaymentIntent[] }).list()
+      : []
+
   return {
     session: finalSession,
     order: record?.order,
     custodyEvents: record ? await custody.list(record.order.orderId) : [],
-    paymentIntents: paymentProvider.list(),
+    paymentIntents,
   }
 }
