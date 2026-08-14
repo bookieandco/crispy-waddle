@@ -2537,9 +2537,11 @@ ARCHITECTURAL IMPACT:
   necessarily be visible across separate serverless instances in a
   real deployment. This is the intentional scope of this milestone,
   not an oversight; the next durability milestone is named below.
-NEXT: durability milestone (in-memory AuditLedger → existing
-SupabaseAuditLedger, schema TBD) OR Commerce reference adapter → sandbox
-payment provider, per user prioritization. Not decided here.
+COMMIT: PR #66, merged as 99c51b3
+NEXT: PL-1 post-merge verification, then a narrowly-scoped durability
+swap (in-memory AuditLedger → existing SupabaseAuditLedger, audited
+first — dependency composition only, not new architecture) before
+Commerce sandbox payments.
 ```
 
 **Frozen gates:** unchanged. JH-007, JH-022–024, JH-026, JH-028/033/034,
