@@ -2986,3 +2986,178 @@ direction per user instruction.
 governance gap in the reference composition layer; it does not touch
 JH-038's checkout implementation, choose a canonical checkout path, or
 modify any of the three underlying commerce domain contracts.
+
+
+---
+
+## ARCHITECTURE CHECKPOINT #3 — is the composition boundary a stable primitive?
+
+**Date:** 2026-08-14 · main @ `2c7a6e6` (after PL-4) · after PL-1/PL-2/PL-3/PL-4
+
+Performed per explicit instruction after PL-4, read-only — no code
+changed. Full published report: "Jhadina OS Checkpoint Three"
+(artifact, favicon matches the series). Summary below is the durable
+record; the artifact has the full comparison and prose.
+
+Growth, Money, and Commerce were built independently, in three
+different shapes (a single `ActionHandler` dispatched through
+`ActionExecutor`; a `VerifiedActionExecutor`-wrapped production
+handler with a health gate; a hand-rolled wrapper around a
+multi-step orchestrator with no single dispatchable action at all).
+This checkpoint asks whether that convergence is a real, stable
+primitive or three lookalike one-offs.
+
+### At a glance
+
+| Dimension | Growth | Money | Commerce |
+|---|---|---|---|
+| Identity before domain logic | yes, hand-rolled pre-stage | yes, real `VerifiedActionExecutor` (after Checkpoint #2's fix) | yes, hand-rolled pre-stage (PL-4) |
+| Policy mechanism | `SecurityCoreActionPolicy`, mutates shared base policy in `security-core` | `SecurityCoreActionPolicy`, local extension (`MONEY_CORE_SECURITY_POLICY`) | `SecurityCoreActionPolicy`, local extension (`COMMERCE_SECURITY_POLICY`) |
+| Approval ceremony | hand-rolled request→approve, `ActionExecutor` does verify-and-consume | none (read capability, not approval-gated) | hand-rolled request→approve→verify-and-consume, all three steps inline (no `ActionExecutor` to delegate to) |
+| Final execution | raw `ActionExecutor.execute()` | full `VerifiedActionExecutor` internally | no executor — direct call into `runCommerceIntentLifecycle()` |
+| Ledger event on identity failure | yes, under the claimed (unverified) actor | no (Checkpoint #2 Finding A, by design) | no (matches Money's precedent, deliberately) |
+| Durable ledger today | yes — `SupabaseAuditLedger` (PL-2) | no — still in-memory | no — still in-memory |
+
+### Eight dimensions
+
+**1. Identity.** Consistent: all three verify identity before any
+domain logic runs, and the verified actor — never caller-supplied
+domain data — is what flows into every subsequent ledger event.
+Commerce needed this fixed explicitly in PL-4 (`GovernedPaymentProvider`
+previously fell back to `request.customer.id`); Growth and Money never
+had that failure mode. Verdict: **consistent**, one real
+correction already shipped (PL-4), nothing further to fix.
+
+**2. Policy.** `SecurityCoreActionPolicy` used in all three, with
+capabilities appropriately distinct per domain
+(`growth.draft.approve`; `money.account.read`; `commerce.checkout` /
+`commerce.payment.charge` / `commerce.payment.refund`). One real
+divergence: Growth's SP-1 mutates `JHADINA_BASE_SECURITY_POLICY`
+directly in `security-core`'s own source, while Money and Commerce
+both spread it locally (`MONEY_CORE_SECURITY_POLICY`,
+`COMMERCE_SECURITY_POLICY`) without touching the shared object — 2
+of 3 domains independently arrived at the safer pattern. Verdict:
+**minor inconsistency, not urgent** — Growth's approach hasn't caused
+a defect, but the local-extension pattern is the one to reuse for any
+future domain; revisiting Growth's own policy wiring is optional
+future cleanup, not scheduled.
+
+**3. Approval.** All approval logic lives in policy decisions
+(`approval_required`) and receipt ceremonies, never embedded in
+domain code — `payment-core`, `checkout-orchestrator`,
+`order-fulfillment-core`, and Growth's draft-approval domain logic
+are all untouched by the governance layer. Receipts are one-time-use
+and verified correctly in both places that hand-roll the ceremony
+(Growth's request+approve, letting `ActionExecutor` verify-and-consume;
+Commerce's full inline request→approve→verify-and-consume, proven by
+PL-4's idempotency test). Verdict: **consistent**, and this is also
+where dimension 7's one real duplication finding lives (see below).
+
+**4. Execution.** The wrapper stays outside the domain in all three —
+confirmed by `git diff --stat` showing zero changes to
+`checkout-orchestrator`, `payment-core`, `order-fulfillment-core`, and
+`@jhadina/action-core`'s own contracts across PL-3/PL-4, and by
+Money's own untouched `MoneyAccountReadHandler`/adapters. The three
+different execution shapes (raw `ActionExecutor`, full
+`VerifiedActionExecutor`, no executor at all) are judged **justified,
+not inconsistent** — they trace directly to real shape differences:
+Growth and Money's target operations are each a single dispatchable
+action; Commerce's is a multi-step orchestrator that isn't shaped as
+one `ActionHandler` and was never going to be forced into that shape
+just for symmetry.
+
+**5. Audit.** All five audit-relevant states — denied, approval-
+required, attempted/started, succeeded, failed — are observable in at
+least one of the three domains' ledgers, and compensations (Commerce's
+fulfillment-denial refund) are recorded too. Every event in all three
+is attributed to the verified actor, never a claimed or anonymous one.
+Verdict: **consistent**.
+
+**6. Failure ordering.** Invariant checked: identity → policy →
+approval → provider/action → domain consequences → audit. Money and
+Commerce both append a `started`/attempt-level event only after
+identity is verified. Growth's sequencing is very slightly looser —
+its own `governed-approval.ts` records a policy-adjacent event before
+the full policy decision is finalized in one code path — a genuine
+but minor ordering wrinkle, not a case of anything running before
+identity or before policy. Verdict: **small, non-load-bearing
+divergence** — worth tightening if Growth's file is touched again for
+another reason, not worth a standalone change now.
+
+**7. Duplication.** Deliberately did not extract anything merely
+because files look similar. One real, load-bearing duplication found:
+Growth and Commerce both hand-roll the identical request→approve
+[→verify-and-consume] ceremony against `ApprovalReceiptStore`, using
+the same three `action-core` primitives
+(`createApprovalRequestService`, `createApprovalReceiptVerifier`, the
+receipt lifecycle) in the same order, for the same reason (no
+`ActionExecutor` doing it for them in Commerce's case; Growth needing
+the decision surfaced before `ActionExecutor.execute()` runs). This is
+the one dimension-7 finding treated as **justified for extraction** —
+see "smallest abstraction" below. Nothing else qualified: Money's
+health gate stays Money-only (still the only domain with the concept);
+the three domains' policy-capability tables are intentionally
+different, not copies.
+
+**8. Durability boundary.** Growth already proved the swap
+(`InMemoryAuditLedger` → `SupabaseAuditLedger`, PL-2) with zero changes
+to governed or domain logic — the composition root took a `ledger`
+override, nothing else moved. Money and Commerce are both still
+in-memory. Money's `governed-provider-account-read.ts` already takes
+its ledger dependency through the abstract shape needed for a clean
+swap. Commerce has one real, small gap: `GovernedCommerceIntentDeps.ledger`
+and `GovernedPaymentProvider`'s constructor are typed as the concrete
+`InMemoryActionLedger` class rather than the abstract `ActionLedger`
+interface, even though neither ever calls anything beyond `.append()`
+(which is on the interface) — an accidental constraint inherited from
+mirroring Growth's pre-PL-2 shape, not a real requirement. Verdict:
+Growth's swap is proven; Money's is a one-line composition change
+away; Commerce's is a one-line composition change away *plus* a small,
+zero-behavior-change type-widening fix first (change two
+`InMemoryActionLedger` annotations to `ActionLedger`) so the eventual
+swap doesn't require touching the governed logic itself.
+
+### The smallest abstraction
+
+**Extract:** an approval-ceremony helper for `action-core` —
+`requestApproveAndConsume(store, fingerprint, request)` wrapping the
+request→approve→verify-and-consume sequence Growth and Commerce both
+hand-roll today, byte-for-byte the same primitive calls in the same
+order. This is judged **justified but not urgent** — real duplication,
+proven twice, low risk to extract (pure composition of three existing
+functions, no new concept), but nothing is broken today and no third
+hand-rolled copy exists yet to strengthen the case further. Named as
+future work, not scheduled.
+
+**Explicitly not extracted:** a unified `GovernedActionRunner`
+mega-abstraction spanning identity+policy+approval+execution+audit.
+The three domains' execution shapes are genuinely different for real
+reasons (dimension 4) — forcing Commerce's multi-step orchestrator and
+Money's single handler through one shared runner would either weaken
+the abstraction to the point of uselessness or force Commerce's shape
+to match Growth/Money's for no reason but symmetry. The *pattern*
+(identity → policy → approval → execute → audit, in that order) is the
+real primitive, and it's already proven; it does not need to become
+one shared class to be proven.
+
+### Verdict
+
+**The composition pattern is a proven, stable Jhadina primitive —
+three independently-built domains, with genuinely different execution
+shapes, converged on the same identity → policy → approval → execute →
+audit sequence without being told to converge.** The wiring
+differences (raw `ActionExecutor` vs. full `VerifiedActionExecutor` vs.
+no executor) are justified by real domain-shape differences, not
+inconsistency. One small, justified extraction candidate exists (the
+approval-ceremony helper) but is not urgent. One small, zero-behavior
+type-widening fix would make Commerce's future durability swap a true
+zero-code-change swap, matching Money and Growth. No code was changed
+in this checkpoint.
+
+**NEXT: durable Commerce audit ledger (in-memory → `SupabaseAuditLedger`,
+same shape as PL-2's Growth swap), then live Stripe sandbox credential
+verification, then — only if warranted — a fourth checkpoint. The
+approval-ceremony extraction stays named, not scheduled. All 15 frozen
+human gates remain frozen — untouched by this checkpoint. Awaiting
+explicit direction per user instruction before starting the next
+milestone.**
