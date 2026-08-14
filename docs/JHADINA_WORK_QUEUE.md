@@ -3484,3 +3484,81 @@ diff/CI and giving separate, explicit authorization for the live run
 `bridge-adapters.ts`, `commerce-intent.ts`, JH-038, Money/Plaid, and every frozen human gate are
 untouched. No production Stripe credentials or endpoints introduced. No new Supabase credential
 introduced.
+
+
+---
+
+### PL-7 — Live Stripe Test-Mode Boundary: Second Preflight Blocker Fix (Wire Format)
+
+**Status:** DONE (code fix only — still pre-live; the live-run workflow has not been built)
+**Objective:** Close a second concrete blocker found while preparing to construct PL-7's
+live-run workflow, discovered by re-reading `stripe-sandbox-provider.ts`'s actual transport
+code one more time before building anything around it (per explicit instruction to verify the
+static shape of the adapter before construction, not just its logical scenarios).
+
+**Blocker C (fixed this step):** `request()` declared
+`content-type: application/x-www-form-urlencoded` but sent `JSON.stringify(payload)` as the
+body — Stripe's classic REST API (`/v1/payment_intents`, `/v1/refunds`, everything this
+adapter calls) only accepts form-urlencoded bodies, with nested fields like `metadata` encoded
+via Stripe's documented bracket notation (`metadata[key]=value`). This is unconditional — it
+would have broken every live scenario (success included), independent of the PaymentMethod fix
+already shipped. Never caught before because the fake transport parsed whatever it was given.
+
+**Completion report:**
+```
+TASK: PL-7 preflight blocker fix #2 (wire format)
+STATUS: DONE (code fix only, still pre-live)
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.ts:
+  - New toStripeFormBody(payload) -- a small, deliberately limited
+    serializer (not a generalized form-encoding library), covering
+    exactly the shapes this adapter emits: flat scalars (amount,
+    currency, confirm, payment_method, payment_intent, reason) and
+    one level of nested object (metadata), encoded with Stripe's
+    bracket notation, full composed key percent-encoded
+    (metadata%5Bkey%5D=value). Empty metadata contributes no key.
+  - request() now sends toStripeFormBody(init.payload) instead of
+    JSON.stringify(init.payload). content-type was already correct
+    and is unchanged -- only the body was wrong.
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.test.ts:
+  the fake transport now parses the same form-urlencoded wire format
+  the real serializer produces (new parseStripeFormBody test helper,
+  including bracket-notation reconstruction) instead of accepting
+  whichever representation it's handed. 5 new tests: content-type is
+  form-urlencoded and the body is provably not JSON;
+  payment_method/amount/currency/confirm sent as correct flat form
+  fields; metadata sent with percent-encoded bracket notation, never
+  literal brackets; a metadata value with special characters
+  (space, &, =, /) is properly URL-encoded, not sent raw;
+  toStripeFormBody omits an empty metadata object.
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm --filter jhadina-web exec vitest run: 142/142 (137 existing +
+  5 new).
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing
+  warnings).
+- pnpm --filter jhadina-web build: succeeds.
+- pnpm -r --no-bail type-check: 19/20 clean (pupsonstuff
+  pre-existing, unrelated).
+- git diff --stat: zero changes outside stripe-sandbox-provider.ts
+  and its own test file -- checkout-orchestrator, payment-core,
+  order-fulfillment-core, bridge-adapters.ts, commerce-intent.ts, and
+  the Supabase migration are all untouched.
+ARCHITECTURAL IMPACT:
+- Both preflight blockers found while preparing PL-7 (missing
+  payment_method; JSON body under a form-urlencoded content-type) are
+  now resolved and merged. StripeSandboxPaymentProvider can now place
+  a wire-correct, syntactically valid live call against Stripe.
+COMMIT: PR #74, merged as 62d0f79
+NEXT: construction of the workflow_dispatch live-run job itself has
+NOT started. That is the next authorized step, once this diff is
+reviewed -- and even once built, the workflow will not be dispatched
+without a further, separate, explicit authorization beyond
+construction. No live Stripe call has been made or attempted at any
+point in PL-7 so far.
+```
+
+**Frozen gates:** unchanged. `checkout-orchestrator`, `payment-core`, `order-fulfillment-core`,
+`bridge-adapters.ts`, `commerce-intent.ts`, JH-038, Money/Plaid, and every frozen human gate
+are untouched. No credentials, no live Stripe calls, no GitHub Actions workflow or secret
+changes.
