@@ -2679,7 +2679,30 @@ ARCHITECTURAL IMPACT:
   FOUNDATION package — the next domain that wants a durable, readable
   audit trail (Money, Commerce, once governed) doesn't need to
   reinvent this.
-NEXT: Commerce sandbox-payment milestone, per user prioritization.
+COMMIT: PR #67, merged as 69692a4
+NEXT: post-merge verification, then Commerce sandbox-payment milestone.
 ```
+
+**Post-merge verification:** DONE. main contains the merge SHA; working
+tree clean; durable audit path confirmed genuinely wired at the
+composition root (`governed-approval-runtime.ts` uses
+`createGrowthAuditLedger()`/`SupabaseAuditLedger` by default in both
+the write and read paths — `InMemoryActionLedger` no longer appears in
+any growth production code path); migration/RPC security posture
+confirmed: RLS enabled + `revoke all` from `public`/`anon`/`authenticated`
+on the table, both RPCs `security definer` + revoked from `public` +
+granted only to `authenticated`, each independently enforcing
+`auth.uid() = p_actor_id`. One real finding surfaced while confirming
+the wiring: `listGovernedGrowthApprovalAuditTrail` (SP-1's original
+in-memory-ledger accessor) was fully dead — superseded by PL-2's real
+read boundary, zero callers left anywhere. Removed on PR #68, merged as
+`bb34a27`, rather than leaving an unwired duplicate behind — same
+discipline as removing `MoneyCapabilityPolicy` in Architecture
+Checkpoint #2. Re-verified after that cleanup: no production reference
+to the old accessor remains; the durable path still works for both
+append and read (91/91 tests, including the full PL-2 lifecycle suite,
+re-run clean on fully-synced `main`); the migration file was untouched
+by the cleanup (confirmed via diff) so the security boundary is
+unchanged. **Durable-audit milestone (PL-1 + PL-2) is complete.**
 
 **Frozen gates:** unchanged.
