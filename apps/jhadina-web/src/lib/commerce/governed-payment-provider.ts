@@ -6,17 +6,18 @@ import type {
   ReconciliationReport,
   RefundRequest,
 } from "@jhadina/payment-core"
-import { InMemoryActionLedger, type ActionAuditEvent } from "@jhadina/action-core"
+import { InMemoryActionLedger } from "@jhadina/action-core"
 
 /**
- * Commerce sandbox-payment milestone: the "explicit capability/policy
- * boundary" and "authorization before provider call" requirements,
- * implemented as a decorator around a real PaymentProvider — mirroring
- * money-core's capabilities.ts registry shape (a fixed set of named
- * capabilities, each explicitly allowed or not) rather than inventing
- * a different policy shape. Composes transparently with SP-2's
- * existing createPaymentGatewayFromProvider bridge — GovernedPaymentProvider
- * IS a PaymentProvider, so nothing downstream changes.
+ * Commerce sandbox-payment milestone (PL-3) + Finding D (Jhadina OS
+ * Integration Phase 2): the "explicit capability/policy boundary" and
+ * "authorization before provider call" requirements, implemented as a
+ * decorator around a real PaymentProvider — mirroring money-core's
+ * capabilities.ts registry shape (a fixed set of named capabilities,
+ * each explicitly allowed or not) rather than inventing a different
+ * policy shape. Composes transparently with SP-2's existing
+ * createPaymentGatewayFromProvider bridge — GovernedPaymentProvider IS
+ * a PaymentProvider, so nothing downstream changes.
  *
  * payment-core's PaymentProvider interface has no per-call actor/
  * context parameter (unlike money-core's BankAdapter, whose methods
@@ -26,15 +27,23 @@ import { InMemoryActionLedger, type ActionAuditEvent } from "@jhadina/action-cor
  * place the check would have to live even if payment-core's interface
  * changes down the line; this proof doesn't change that interface.
  *
- * Audit trail is in-memory, not the durable SupabaseAuditLedger PL-2
- * built for Growth — a deliberate decision, not an oversight. That
- * ledger's RPCs require a real, server-verified auth.uid(); Commerce's
- * checkout lifecycle has no such actor yet (Architecture Checkpoint
- * #2, Finding D — customerId is an unverified string). Attributing
- * commerce events to it would mean either failing every audit append
- * closed, or weakening the RPC's actor invariant — neither is this
- * milestone's call to make. Durability for commerce is a follow-up
- * once Finding D is closed, exactly like Growth's PL-1 -> PL-2 phasing.
+ * Finding D correction: the actor audited against every call is now a
+ * verified identity supplied by the caller (governed-commerce-intent.ts,
+ * after ActionIdentityVerifier + policy + approval all pass) — never
+ * derived from request.customer.id / instruction.merchant.id /
+ * request.requestedBy, which are domain data a caller controls, not
+ * proof of identity. One GovernedPaymentProvider instance now belongs
+ * to exactly one verified actor for its whole lifetime.
+ *
+ * The ledger is now an optional constructor param (defaults to a fresh
+ * InMemoryActionLedger for standalone use) rather than always
+ * constructing its own — governed-commerce-intent.ts passes one shared
+ * ledger so checkout-level and payment-level events land in the same
+ * inspectable trail. Still in-memory, not the durable SupabaseAuditLedger
+ * PL-2 built for Growth: that ledger's RPCs require a real, server-verified
+ * auth.uid() tied to an actual signed-in session; nothing about this
+ * milestone changes that. Durability for Commerce is a deliberate
+ * follow-up, not this one.
  */
 
 export type CommercePaymentCapability =
@@ -59,15 +68,14 @@ export class PaymentCapabilityDeniedError extends Error {
 
 export class GovernedPaymentProvider implements PaymentProvider {
   readonly name: string
-  private readonly ledger = new InMemoryActionLedger()
 
-  constructor(private readonly provider: PaymentProvider) {
+  constructor(
+    private readonly provider: PaymentProvider,
+    private readonly verifiedActorId: string,
+    private readonly ledger: InMemoryActionLedger = new InMemoryActionLedger(),
+  ) {
+    if (!verifiedActorId) throw new Error("GovernedPaymentProvider requires a verified actor id")
     this.name = provider.name
-  }
-
-  /** Inspection boundary for tests — every attempt, allowed or denied, successful or failed. */
-  getAuditTrail(): readonly ActionAuditEvent[] {
-    return this.ledger.list()
   }
 
   /** Delegates to the wrapped provider's own inspection helper, if it has one (the sandbox provider does). */
@@ -77,22 +85,17 @@ export class GovernedPaymentProvider implements PaymentProvider {
   }
 
   async createPaymentIntent(request: PaymentIntentRequest): Promise<PaymentIntent> {
-    return this.governed("commerce.payment.charge", request.paymentId, request.customer.id, () =>
-      this.provider.createPaymentIntent(request),
-    )
+    return this.governed("commerce.payment.charge", request.paymentId, () => this.provider.createPaymentIntent(request))
   }
 
   async capture(paymentId: string): Promise<PaymentIntent> {
-    // capture() carries no actor in payment-core's interface — it's
-    // the second half of the same charge capability already
-    // authorized when createPaymentIntent ran, not a separate grant.
-    return this.governed("commerce.payment.charge", paymentId, "n/a", () => this.provider.capture(paymentId))
+    // capture() is the second half of the same charge capability
+    // already authorized when createPaymentIntent ran, not a separate grant.
+    return this.governed("commerce.payment.charge", paymentId, () => this.provider.capture(paymentId))
   }
 
   async refund(request: RefundRequest): Promise<PaymentIntent> {
-    return this.governed("commerce.payment.refund", request.refundId, request.requestedBy, () =>
-      this.provider.refund(request),
-    )
+    return this.governed("commerce.payment.refund", request.refundId, () => this.provider.refund(request))
   }
 
   async getPayment(paymentId: string): Promise<PaymentIntent> {
@@ -100,24 +103,18 @@ export class GovernedPaymentProvider implements PaymentProvider {
   }
 
   async createPayout(instruction: PayoutInstruction): Promise<{ payoutId: string; providerReference?: string }> {
-    return this.governed("commerce.payment.payout", instruction.payoutId, instruction.merchant.id, () =>
-      this.provider.createPayout(instruction),
-    )
+    return this.governed("commerce.payment.payout", instruction.payoutId, () => this.provider.createPayout(instruction))
   }
 
   async reconcile(periodStart: string, periodEnd: string): Promise<ReconciliationReport> {
-    return this.governed("commerce.payment.reconcile", `${periodStart}:${periodEnd}`, "n/a", () =>
+    return this.governed("commerce.payment.reconcile", `${periodStart}:${periodEnd}`, () =>
       this.provider.reconcile(periodStart, periodEnd),
     )
   }
 
-  private async governed<T>(
-    capability: CommercePaymentCapability,
-    actionId: string,
-    actorId: string,
-    run: () => Promise<T>,
-  ): Promise<T> {
+  private async governed<T>(capability: CommercePaymentCapability, actionId: string, run: () => Promise<T>): Promise<T> {
     const eventId = `${actionId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
+    const actorId = this.verifiedActorId
     const now = () => new Date().toISOString()
 
     if (!CAPABILITY_ALLOWED[capability]) {
