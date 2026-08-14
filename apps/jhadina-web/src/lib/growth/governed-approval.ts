@@ -1,10 +1,8 @@
 import {
   ActionExecutor,
-  InMemoryActionLedger,
   createApprovalRequestService,
   createApprovalReceiptVerifier,
   createBaseSecurityCoreActionPolicy,
-  type ActionAuditEvent,
   type ActionHandler,
   type ActionLedger,
   type ActionPolicy,
@@ -175,10 +173,4 @@ export async function approveGrowthDraftGoverned(
   // required (internal to executor.execute()'s first internal check —
   // not reached here since the receipt is already attached), completed.
   return { draft, verifiedUserId: identity.userId, approvalReceiptId }
-}
-
-/** Convenience accessor for displaying/asserting on the recorded audit trail. */
-export function listGovernedGrowthApprovalAuditTrail(ledger: ActionLedger): readonly ActionAuditEvent[] {
-  if (ledger instanceof InMemoryActionLedger) return ledger.list()
-  return []
 }
