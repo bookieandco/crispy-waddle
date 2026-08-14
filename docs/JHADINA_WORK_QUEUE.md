@@ -3161,3 +3161,116 @@ approval-ceremony extraction stays named, not scheduled. All 15 frozen
 human gates remain frozen — untouched by this checkpoint. Awaiting
 explicit direction per user instruction before starting the next
 milestone.**
+
+
+---
+
+### PL-5 — Durable Commerce Audit
+
+**Status:** DONE
+**Objective:** Close Architecture Checkpoint #3's dimension-8 finding —
+Commerce's audit trail was still `InMemoryActionLedger`, even though
+PL-4 gave it a real verified actor to durably attribute events to.
+Swap it for the same, already-proven `SupabaseAuditLedger` PL-2 built
+for Growth. Explicitly scoped by the user to the smallest possible
+durability change: no new table, RPC, ledger abstraction, service
+actor, or identity mechanism; no touch to checkout-orchestrator,
+payment-core, order-fulfillment-core, JH-038, or Money.
+
+**Audit first:** `append_jhadina_audit_event` /
+`list_jhadina_audit_events` are already domain-parameterized
+(`p_domain`) — confirmed the existing PL-2 migration needed zero
+changes; `"commerce"` is just another value in the same hash-chained
+table Growth already durably writes to. Confirmed the two Checkpoint
+#3 dimension-8 annotations (`GovernedCommerceIntentDeps.ledger`,
+`GovernedPaymentProvider`'s constructor param) were the only places
+still typed against the concrete `InMemoryActionLedger` class rather
+than the abstract `ActionLedger` interface, and that both only ever
+call `.append()` — a zero-behavior type correction, not a logic
+change. Confirmed no production route or page in `jhadina-web` calls
+`runCommerceIntentGoverned` yet (Commerce has no UI wiring — JH-038's
+checkout decision is still frozen), so "no production Commerce path
+uses InMemoryActionLedger" reduces to: the composition root's ledger
+dependency has no default and is now durability-capable, and a real
+`createCommerceAuditLedger()` now exists as the correct thing for a
+future route to pass.
+
+**Completion report:**
+```
+TASK: PL-5
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/governed-commerce-intent.ts:
+  GovernedCommerceIntentDeps.ledger retyped InMemoryActionLedger ->
+  ActionLedger (Checkpoint #3, dimension 8). Zero logic change — the
+  function only ever calls .append().
+- apps/jhadina-web/src/lib/commerce/governed-payment-provider.ts:
+  constructor's ledger param retyped the same way; default value
+  (new InMemoryActionLedger()) unchanged, for standalone/test
+  construction outside the governed composition root only.
+- apps/jhadina-web/src/lib/commerce/durable-audit-ledger.ts (new):
+  createCommerceAuditLedger() -> a real SupabaseAuditLedger, domain
+  "commerce", built the same way Growth's own durable-audit-ledger.ts
+  (PL-2) is: reuses the request-scoped Supabase client, no
+  service-role client, no new credential.
+- apps/jhadina-web/src/lib/commerce/governed-commerce-intent-durable.test.ts
+  (new, 7 tests): proves actual durability, not merely dependency
+  wiring. Every scenario writes through one SupabaseAuditLedger
+  instance (backed by a fake RPC client modeling the real
+  append/list RPCs: sequential per-domain sequence numbers,
+  domain/actor-scoped reads) and reads back through a SECOND,
+  independent SupabaseAuditLedger instance that never wrote anything
+  itself, sharing only the underlying fake table — simulating a real
+  process boundary. Covers: authorized charge / successful payment
+  (customerId deliberately different from the verified actor, to
+  prove durable events are attributed to identity, not intent data);
+  policy-denied checkout; approval rejection (the defensive
+  fail-closed branch for an approval-required decision on a
+  capability that isn't approval-eligible); provider failure (raw
+  transport throws, not a decline — audited as failed with the
+  reason preserved); fulfillment denial -> automatic refund
+  compensation, fully durable; refund failure (the compensating
+  refund itself fails at the provider — durably audited as failed,
+  not silently dropped, matching checkout-orchestrator's own
+  swallow-and-rethrow-original-error behavior); idempotent retry
+  (underlying provider called once, both governed attempts still
+  durably recorded — a feature, every attempt is auditable). Every
+  test checks every persisted event's actor.
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm --filter jhadina-web exec vitest run: 128/128 (121 existing +
+  7 new).
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing
+  warnings).
+- pnpm --filter jhadina-web build: real production build succeeds.
+- pnpm -r --no-bail type-check: 19/20 clean (pupsonstuff pre-existing
+  failure, unrelated).
+- git diff --stat confirms zero changes to checkout-orchestrator,
+  payment-core, order-fulfillment-core, @jhadina/action-core, the
+  Supabase migration/RPCs, and Money — only two modified + two new
+  files, all under apps/jhadina-web/src/lib/commerce.
+- Confirmed no new migration file was added (ls
+  supabase/migrations/ | grep audit still shows exactly PL-2's one
+  file) and no production route/page calls
+  runCommerceIntentGoverned (Commerce has no UI wiring yet).
+ARCHITECTURAL IMPACT:
+- Commerce's audit trail is now durable, the same real
+  SupabaseAuditLedger class as Growth's, proven via genuine
+  cross-instance read-back rather than dependency wiring alone.
+- Growth and Commerce are now both durable; Money remains the one
+  domain still on InMemoryActionLedger (not touched here — out of
+  scope, no Money code was changed).
+- The requestApproveAndConsume extraction Checkpoint #3 named as
+  justified-but-not-urgent future cleanup remains untouched,
+  per explicit instruction.
+COMMIT: PR #71, merged as dc87bc5
+NEXT: the real Stripe test-mode boundary (live sandbox credential
+verification), per the user's stated order. Not started here —
+holding for explicit direction.
+```
+
+**Frozen gates:** unchanged. No table, RPC, ledger abstraction,
+service actor, or identity mechanism was added; checkout-orchestrator,
+payment-core, order-fulfillment-core, JH-038's checkout decision, and
+Money/Plaid are all untouched. All 15 frozen human gates remain
+frozen.
