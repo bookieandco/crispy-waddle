@@ -2834,6 +2834,7 @@ ARCHITECTURAL IMPACT:
   context parameter — worth remembering if Commerce's actor-identity
   gap (Finding D) is closed later and this needs to gate on a real
   actor instead of a fixed allow-list.
+COMMIT: PR #69, merged as 362188b
 NEXT: not decided here. Commerce's audit trail is still in-memory
 (same limitation PL-1 had before PL-2); live Stripe credentials still
 don't exist in this environment; Finding D (Commerce has no
