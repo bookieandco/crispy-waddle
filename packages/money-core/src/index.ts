@@ -49,3 +49,16 @@ export type { PlaidReadOnlyAdapterOptions } from './plaid-read-only-adapter.js';
 export { PlaidReadOnlyAdapter } from './plaid-read-only-adapter.js';
 
 export { buildPlaidReadOnlyAdapter, createPlaidReadOnlyAdapterBuilder } from './plaid-provider-builder.js';
+
+// PL-8 (Jhadina OS Integration Phase 2, Money real-integration Phase 1):
+// the Plaid provider-registration helper and its sandbox-boundary guard
+// were real, tested code (plaid-provider-registration.test.ts) but never
+// reachable from outside the package — the same "shipped ahead of the
+// barrel" gap SP-3 found and fixed for the rest of this file. Exported
+// here as the first real cross-package consumer.
+export {
+  PLAID_READ_ONLY_CONFIG,
+  PLAID_SANDBOX_BASE_URL,
+  assertPlaidSandboxBaseUrl,
+  createPlaidProviderAdapterFactory,
+} from './plaid-provider-registration.js';
