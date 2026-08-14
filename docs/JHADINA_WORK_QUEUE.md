@@ -2973,6 +2973,7 @@ ARCHITECTURAL IMPACT:
   now that a real verified actor exists, the objection to durable
   SupabaseAuditLedger attribution (Finding D) no longer applies; that
   swap is the next, separately-scoped milestone, not done here.
+COMMIT: PR #70, merged as 488d49e
 NEXT: make Commerce durable (in-memory -> SupabaseAuditLedger, now
 that a verified actor exists — same shape as PL-2's swap for Growth),
 then live Stripe sandbox credentials, then the next architecture
