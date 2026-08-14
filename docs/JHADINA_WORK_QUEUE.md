@@ -2547,3 +2547,139 @@ Commerce sandbox payments.
 **Frozen gates:** unchanged. JH-007, JH-022–024, JH-026, JH-028/033/034,
 JH-032 remainder, JH-038 checkout decision, JH-039 remainder, JH-041,
 JH-043, JH-046 — none touched.
+
+### PL-1 post-merge verification
+
+**Status:** DONE — all checks passed on `main` @ `99c51b3`/`9c45d51`.
+main contains the merge SHA; working tree clean; `/growth` confirmed
+using `getCurrentUserId()` for every fetch; `PersonalCommandFeed`'s
+Growth card confirmed linking to `/growth`; 91/91 tests re-run clean on
+merged `main` (including the 6 lifecycle tests against the real
+composition root); grep-confirmed the ledger boundary holds (only the
+two API routes import `governed-approval-runtime`); grep-confirmed no
+literal `user_demo` header send remains anywhere in the governed path
+(only explanatory comments referencing the old bug); full CI green.
+
+### PL-2 — Durability: in-memory AuditLedger → SupabaseAuditLedger
+
+**Status:** DONE
+**Objective:** `UI → governance → InMemoryAuditLedger` becomes
+`UI → governance → SupabaseAuditLedger`. No UI redesign, no new
+governance primitives, no new parallel audit system, no unrelated
+Supabase schema work.
+
+**Pre-build audit (required before any code):** `SupabaseAuditLedger`
+(action-core) is a clean, already-correct, already-tested
+implementation of `ActionLedger` — the class itself needed no changes
+to its `append()` contract. But its one required RPC,
+`append_jhadina_audit_event`, and any backing table did not exist
+anywhere in `supabase/migrations` — the repo has exactly one migration
+file, and it's for a completely unrelated ledger
+(`jhadina_evolution_run_ledger`, evolution-core's own run-event log).
+Live introspection via the Supabase MCP tool was attempted but blocked
+by a non-interactive permission gate; the audit is grounded in the
+migrations directory, the same ground truth CI's "Supabase Preview"
+check deploys from. Conclusion, surfaced before writing code: the
+*contract* is satisfied, the *schema* is not — some new migration is
+unavoidable for real durability, not a pure dependency-composition
+change with zero schema. **User decision: minimal migration, mirroring
+the existing evolution-ledger pattern.**
+
+A second real gap surfaced during the audit: `ActionLedger` (the
+interface `SupabaseAuditLedger` implements) is append-only by design —
+no `list()` method exists on the interface, and `SupabaseAuditLedger`
+itself had no read path at all before this milestone. Activity
+Timeline's read side therefore needed its own addition, not a bundled
+freebie from swapping the write side. Not "unrelated Supabase schema
+work" (it's the same table, necessary to keep Activity Timeline
+working) and not a "new parallel audit system" (it's the one ledger's
+own read capability, added to match `InMemoryActionLedger`'s existing
+shape) — reported as part of the honest scope of this decision rather
+than a fresh fork requiring its own sign-off.
+
+**Completion report:**
+```
+TASK: PL-2
+STATUS: DONE
+CHANGED:
+- supabase/migrations/20260814000000_append_jhadina_audit_event.sql
+  (new): jhadina_audit_event table + append_jhadina_audit_event +
+  list_jhadina_audit_events, mirroring
+  append_jhadina_evolution_run_ledger's established pattern (advisory
+  lock -> next sequence -> sha256 hash chain over the event + previous
+  hash), partitioned per domain rather than per run. RLS enabled with
+  zero policies; all access is through these two security definer
+  functions, granted to `authenticated` (not service_role — no new
+  credential introduced). Both functions self-enforce
+  auth.uid() = the actor being written or read as a database-level
+  backstop behind the application's own identity verification, not a
+  replacement for it.
+- packages/jhadina-action-core/src/supabase-audit-ledger.ts: added
+  list(filter: {domain, actorId}) — scoped to exactly one domain/actor
+  pair, never "all events," calling the new list_jhadina_audit_events
+  RPC. Not part of ActionLedger (append-only by design); mirrors
+  InMemoryActionLedger's own list() in spirit. The reconstructed
+  event's `type` is read back from the stored `capability` column — a
+  documented, narrow caveat: faithful only when the ledger wasn't
+  configured with a many-to-one capabilityForType mapping, true for
+  every current caller since each domain's action `type` already *is*
+  its capability string.
+- packages/jhadina-action-core/src/supabase-audit-ledger.test.ts:
+  extended with list() coverage against a fake RPC client.
+- apps/jhadina-web/src/lib/growth/durable-audit-ledger.ts (new):
+  createGrowthAuditLedger() — constructs a SupabaseAuditLedger wrapping
+  the same request-scoped Supabase client createRequestIdentityVerifier()
+  already builds (session cookies via @supabase/ssr). No service-role
+  client, no new credential.
+- apps/jhadina-web/src/lib/growth/governed-approval-runtime.ts:
+  InMemoryActionLedger replaced with a per-call SupabaseAuditLedger
+  (its underlying client is request-scoped, so it can no longer be a
+  module-level singleton the way the in-memory one was — the one
+  structural change beyond a pure constructor swap). Approval receipts
+  deliberately stay in-memory/process-local — explicitly out of scope
+  for this milestone, only the audit ledger changed. The
+  identityVerifierOverride param from PL-1 became a small overrides
+  object also accepting a ledger override, for the same reason (real
+  Supabase calls have no meaning in a test process).
+- apps/jhadina-web/src/lib/growth/governed-approval-runtime.test.ts:
+  rewritten against a FakeAuditRpcClient that models the real
+  migration's actual behavior (sequential per-domain inserts,
+  domain+actor-scoped reads) rather than a client that always returns
+  success — same discipline as every reference adapter this pass. All
+  10 lifecycle points re-verified against the durable path. One test
+  (#4, unauthorized approval) needed a real fix, not a mechanical
+  port: the denied event is recorded under the *claimed* (unverified)
+  actor, so it correctly does not appear in the real, verified user's
+  own Activity read — the original assertion was checking the wrong
+  boundary; fixed to inspect the ledger's write-side state directly
+  for that case, and to separately assert the mismatched claim never
+  leaks into the verified user's own activity view.
+- No changes to any API route, any UI component, or ActionExecutor.
+VERIFIED:
+- pnpm --filter @jhadina/action-core type-check + test: clean, 9/9
+  (was 8/8 — one new subtest for list()).
+- pnpm --filter @jhadina/money-core type-check + test: clean, 11/11
+  unchanged (money-core also depends on action-core; confirmed
+  unaffected).
+- pnpm -r type-check: 22/23 clean (pupsonstuff's pre-existing,
+  unrelated vitest-types failure, same as every prior check this
+  pass).
+- pnpm vitest run (jhadina-web): 91/91 unchanged.
+- pnpm --filter jhadina-web build: real production build succeeds.
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing warnings
+  as PL-1, none new).
+- Grep-confirmed: no client component imports the ledger,
+  @jhadina/action-core, or durable-audit-ledger directly. Grep-confirmed
+  no SERVICE_ROLE/service_role credential introduced anywhere.
+ARCHITECTURAL IMPACT:
+- Activity Timeline now survives process restarts and is visible
+  across separate serverless instances — the limitation PL-1 explicitly
+  flagged as out of scope is closed.
+- SupabaseAuditLedger.list() is a real, reusable addition to a shared
+  FOUNDATION package — the next domain that wants a durable, readable
+  audit trail (Money, Commerce, once governed) doesn't need to
+  reinvent this.
+NEXT: Commerce sandbox-payment milestone, per user prioritization.
+```
+
+**Frozen gates:** unchanged.
