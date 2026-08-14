@@ -52,6 +52,18 @@ import { createInMemorySandboxIdempotencyStore, type SandboxIdempotencyStore } f
  * Fixed with toStripeFormBody(), deliberately limited to the flat +
  * one-level-nested-object shapes this adapter actually sends — not a
  * generalized form serializer.
+ *
+ * PL-7 first live dispatch (run 31829931608): every confirmed
+ * PaymentIntent was rejected by Stripe's real API with
+ * invalid_request_error — "you must provide a return_url" — because
+ * this account has Automatic Payment Methods active, which allows
+ * redirect-based methods by default even with an explicit
+ * payment_method. Fixed by sending
+ * automatic_payment_methods: { enabled: true, allow_redirects: "never" }
+ * alongside payment_method — Stripe's documented mechanism for a
+ * server-side, non-browser flow with no return_url to provide. Uses
+ * toStripeFormBody()'s existing one-level nesting support (the same
+ * mechanism metadata already uses); no serializer change was needed.
  */
 
 export type StripeFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -155,6 +167,21 @@ export class StripeSandboxPaymentProvider implements PaymentProvider {
           currency: request.amount.currency.toLowerCase(),
           confirm: true,
           payment_method: this.resolveTestPaymentMethod(request),
+          // PL-7 live-run finding: Stripe's live API rejected every
+          // confirmed PaymentIntent with invalid_request_error —
+          // "you must provide a return_url" — because this account has
+          // Automatic Payment Methods active, which by default allows
+          // redirect-based methods even when an explicit payment_method
+          // is supplied. This is a server-side automated test suite
+          // using explicit Stripe test PaymentMethods, not a browser
+          // flow, so there is no return_url to provide. Per Stripe's
+          // Confirm PaymentIntent documentation, allow_redirects: "never"
+          // is the documented way to filter out redirect-based methods
+          // and remove the return_url requirement; it only takes effect
+          // when sent together with enabled: true (allow_redirects is a
+          // sub-field of automatic_payment_methods, not independently
+          // meaningful).
+          automatic_payment_methods: { enabled: true, allow_redirects: "never" },
           metadata: request.metadata ?? {},
         },
       })
