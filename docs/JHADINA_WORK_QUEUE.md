@@ -2844,3 +2844,144 @@ identity/capability layer at all) remains open.
 **Frozen gates:** unchanged. JH-038 checkout decision in particular —
 this milestone proves a contract, it does not choose or touch
 Jhadina's canonical checkout implementation.
+
+### PL-4 — Finding D: Commerce's governed identity/capability boundary
+
+**Status:** DONE
+**Objective:** Close Architecture Checkpoint #2's Finding D — Commerce
+had no identity/capability layer anywhere. Wire the existing Jhadina
+governance spine (`ActionIdentityVerifier` → `SecurityCoreActionPolicy`
+→ approval receipts → audit) around Commerce, the third domain to
+independently converge on it after Growth and Money.
+
+**Audit first (no code until reported and confirmed):** traced Commerce
+end to end — `customerId`/`PaymentParty.id`/`merchant.id` are plain
+strings across all three commerce contracts, never verified anywhere;
+`CheckoutOrchestrator.execute()` takes no actor parameter; the only
+actor-shaped field in the whole family (`CustodyEvent.actorId`) is
+attribution, not authorization. Confirmed `payment-core` already has a
+slot for a verified actor (`PaymentParty.id`) and needs no interface
+change — verification is purely a composition-layer concern, exactly
+like money-core's `assertCapability` pattern lives in its handler
+layer, not its raw adapter interface. Verdict: the existing spine can
+wrap Commerce cleanly; no missing primitive. Two open questions
+(approval-gating boundary; how `GovernedPaymentProvider` sources its
+actor) were resolved by explicit user decision before any code:
+- `commerce.checkout` — capability-only, no approval.
+- `commerce.payment.charge` / `commerce.payment.refund` — both require
+  an explicit approval receipt (capability authorization and approval
+  are different controls; a user may be permitted to act, but moving
+  real money needs explicit approval on top of that).
+- `commerce.fulfillment` — deliberately not implemented; fulfillment
+  stays gated solely by `order-fulfillment-core`'s own `PolicyGate`
+  (a different question — "can this order be fulfilled here" — not
+  duplicated by an actor-capability gate).
+- `GovernedPaymentProvider` must receive the verified actor from the
+  outer governed composition, never derive it from `request.customer.id`
+  / `instruction.merchant.id` / `request.requestedBy` (domain data a
+  caller controls, not proof of identity).
+
+**Completion report:**
+```
+TASK: PL-4
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/commerce-security-policy.ts (new):
+  COMMERCE_SECURITY_POLICY — a *local* extension of
+  JHADINA_BASE_SECURITY_POLICY (mirrors money-core's
+  MONEY_CORE_SECURITY_POLICY pattern; does NOT mutate the shared base
+  policy the way Growth's SP-1 did for growth.draft.approve). Commerce
+  has no dedicated backing package, so this lives at the app
+  composition layer — the pattern is what's reused, not the package
+  location. commerce.checkout allowed, not approval-gated;
+  commerce.payment.charge/refund both allowed AND approval-gated.
+- apps/jhadina-web/src/lib/commerce/governed-payment-provider.ts:
+  constructor now requires a verifiedActorId (throws if empty — no
+  silent fallback) and accepts an optional shared ledger (defaults to
+  a fresh InMemoryActionLedger for standalone use). Every method's
+  audited actor is now this.verifiedActorId, never request data.
+  Removed getAuditTrail() — callers keep their own ledger reference
+  instead (needed once checkout-level and payment-level events share
+  one ledger). Zero changes to payment-core itself.
+- apps/jhadina-web/src/lib/commerce/governed-commerce-intent.ts (new):
+  the governed composition root, mirroring governed-approval.ts's
+  (Growth) and governed-provider-account-read.ts's (Money) shape:
+  identity verify -> SecurityCoreActionPolicy(COMMERCE_SECURITY_POLICY)
+  -> commerce.checkout capability check -> pre-authorize both
+  commerce.payment.charge and commerce.payment.refund (request ->
+  approve -> verify-and-consume, the same one-time-use receipt
+  mechanics ActionExecutor uses internally, hand-implemented since
+  checkout-orchestrator isn't shaped as a single ActionHandler) ->
+  runCommerceIntentLifecycle() completely unchanged -> a
+  GovernedPaymentProvider carrying the now-verified actor and the
+  shared ledger. Both payment capabilities are authorized *before*
+  runCommerceIntentLifecycle ever runs, not per payment-core call —
+  checkout-orchestrator's execute() is one synchronous call that may
+  attempt a charge and, on later fulfillment denial, an automatic
+  compensating refund, with no mid-flight human touchpoint; both
+  receipts are obtained up front under the one governed checkout
+  action, the same way Growth's own request+approve happens within a
+  single call. checkout-orchestrator, payment-core, and
+  order-fulfillment-core are untouched (confirmed via git diff — empty
+  diffstat on all three packages plus action-core).
+- apps/jhadina-web/src/lib/commerce/governed-payment-provider.test.ts,
+  commerce-intent-sandbox-payment.test.ts: updated for the new
+  constructor signature (verifiedActorId + shared ledger instead of
+  getAuditTrail()); every assertion now also confirms the audited
+  actor is the verified identity and specifically NOT
+  request.customer.id / request.requestedBy (constructed to differ
+  from each other in the tests, to prove which one wins).
+- apps/jhadina-web/src/lib/commerce/governed-commerce-intent.test.ts
+  (new): 7 tests — authorized checkout completes end to end with
+  every ledger event (checkout-level and payment-level) carrying the
+  single verified actor, none anonymous/service/n/a; unverifiable
+  identity fails before any provider call with zero ledger entries
+  (matching Checkpoint #2 Finding A's established precedent); policy
+  denial on commerce.checkout fails before any provider call;
+  unauthorized commerce.payment.charge fails before the provider is
+  ever reached (checkout never even starts — both capabilities are
+  pre-authorized up front); unauthorized commerce.payment.refund fails
+  the whole checkout before it starts, proven to be specifically the
+  refund pre-authorization blocking it (charge itself was authorized
+  fine); fulfillment denial after a successful, fully governed charge
+  still triggers checkout-orchestrator's own automatic refund
+  compensation, attributed to the correct verified actor; a duplicate
+  charge attempt for the same paymentId through the governed,
+  verified-actor path never re-calls the underlying provider a second
+  time (idempotency survives the actor-verification wrapping).
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm vitest run: 121/121 (113 existing + 7 new, one existing file's
+  test count grew from 5->6 for the "requires a verified actor id"
+  constructor guard).
+- pnpm -r type-check: 22/23 clean (pupsonstuff pre-existing,
+  unrelated).
+- pnpm --filter jhadina-web build: real production build succeeds.
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing
+  warnings).
+- Grep-confirmed: no client component imports
+  governed-commerce-intent / commerce-security-policy /
+  governed-payment-provider directly.
+- git diff --stat confirms zero changes to checkout-orchestrator,
+  payment-core, order-fulfillment-core, and @jhadina/action-core.
+ARCHITECTURAL IMPACT:
+- Commerce is now the third independent domain converged on the exact
+  same governance spine as Growth and Money — the pattern the audit
+  predicted would hold, held. No new identity primitive, no new
+  policy framework, no new ledger, no new Commerce package.
+- Commerce's audit trail is still in-memory (unchanged from PL-3) —
+  now that a real verified actor exists, the objection to durable
+  SupabaseAuditLedger attribution (Finding D) no longer applies; that
+  swap is the next, separately-scoped milestone, not done here.
+NEXT: make Commerce durable (in-memory -> SupabaseAuditLedger, now
+that a verified actor exists — same shape as PL-2's swap for Growth),
+then live Stripe sandbox credentials, then the next architecture
+checkpoint testing whether the governance composition boundary is now
+a stable, established primitive. Not decided here — awaiting explicit
+direction per user instruction.
+```
+
+**Frozen gates:** unchanged. JH-038 in particular — this closes a real
+governance gap in the reference composition layer; it does not touch
+JH-038's checkout implementation, choose a canonical checkout path, or
+modify any of the three underlying commerce domain contracts.
