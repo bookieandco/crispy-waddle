@@ -20,13 +20,17 @@ export class SupabaseEvolutionLedgerVerifier implements PersistedLedgerVerifier 
   }
 
   async verify(runId: number): Promise<boolean> {
+    const headers: Record<string, string> = {
+      apikey: this.key,
+      "Content-Type": "application/json",
+    };
+
+    // New Supabase secret/publishable keys are opaque API keys, not JWTs.
+    if (!this.key.startsWith("sb_")) headers.Authorization = `Bearer ${this.key}`;
+
     const response = await this.fetchImpl(`${this.baseUrl}/rest/v1/rpc/verify_jhadina_evolution_run_ledger`, {
       method: "POST",
-      headers: {
-        apikey: this.key,
-        Authorization: `Bearer ${this.key}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ p_run_id: runId }),
     });
 
