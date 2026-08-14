@@ -48,7 +48,8 @@ jobs:
   execute-approved-evolution:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment: jhadina-evolution-approval
+    environment:
+      name: jhadina-evolution-approval
     permissions:
       contents: write
       pull-requests: write
