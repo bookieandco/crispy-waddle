@@ -17,6 +17,8 @@ export interface EvolutionCandidateSnapshot {
 export interface ApprovedEvolutionExecution {
   candidateId: string;
   approvalId: string;
+  executionId: string;
+  proposalHash: string;
   plan: EvolutionExecutionPlan;
 }
 
@@ -61,7 +63,10 @@ export class ApprovalExecutionGate {
     if (!candidate.proposalHash) {
       throw new Error(`Evolution candidate ${candidate.candidateId} has no proposal hash.`);
     }
-    if (candidate.executionId && candidate.executionId !== requestedExecutionId) {
+    if (!candidate.executionId) {
+      throw new Error(`Evolution candidate ${candidate.candidateId} has no execution binding.`);
+    }
+    if (candidate.executionId !== requestedExecutionId) {
       throw new Error(`Evolution candidate ${candidate.candidateId} is bound to a different execution.`);
     }
     if (candidate.risk === "critical") {
@@ -84,6 +89,8 @@ export class ApprovalExecutionGate {
     return {
       candidateId: candidate.candidateId,
       approvalId: `${candidate.candidateId}:${candidate.proposalHash}`,
+      executionId: candidate.executionId,
+      proposalHash: candidate.proposalHash,
       plan,
     };
   }
