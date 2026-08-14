@@ -16,13 +16,19 @@ const approved: EvolutionCandidateSnapshot = {
 
 const gate = new ApprovalExecutionGate();
 const execution = gate.approve(approved, "exec-001");
-if (execution.candidateId !== "candidate-001" || execution.plan.id !== "candidate-001") {
-  throw new Error("approved candidate did not produce the expected execution plan");
+if (
+  execution.candidateId !== "candidate-001" ||
+  execution.plan.id !== "candidate-001" ||
+  execution.executionId !== "exec-001" ||
+  execution.proposalHash !== "abc123"
+) {
+  throw new Error("approved candidate did not produce the expected bound execution plan");
 }
 
 for (const [name, candidate, executionId] of [
   ["unapproved", { ...approved, status: "pending" }, "exec-001"],
   ["missing receipt", { ...approved, decidedAt: null }, "exec-001"],
+  ["missing execution binding", { ...approved, executionId: null }, "exec-001"],
   ["execution mismatch", approved, "exec-002"],
   ["protected path", { ...approved, affectedPaths: ["policy/foo.ts"] }, "exec-001"],
 ] as const) {
