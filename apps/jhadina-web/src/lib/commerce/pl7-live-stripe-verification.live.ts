@@ -12,6 +12,7 @@ import { StripeSandboxPaymentProvider, type StripeSandboxTestPaymentMethod } fro
 import { EnvironmentSandboxCredentialResolver } from "./sandbox-credential"
 import { STRIPE_SANDBOX_CREDENTIAL_REF } from "./production-payment-provider"
 import { COMMERCE_AUDIT_DOMAIN } from "./durable-audit-ledger"
+import { COMMERCE_PAYMENT_CHARGE_CAPABILITY, COMMERCE_PAYMENT_REFUND_CAPABILITY } from "./commerce-security-policy"
 
 /**
  * PL-7: the live-run evidence suite against Stripe's real test API.
@@ -219,13 +220,31 @@ describe("PL-7 — live Stripe test-mode boundary (workflow_dispatch only, never
 
     expect(outcome.result.session.status).toBe("failed")
 
+    // Tightened after the first live run: session.status === "failed" alone
+    // doesn't prove Stripe actually declined the card — a malformed
+    // request (wrong content-type, missing a required param, etc.) fails
+    // the exact same way and would have made this scenario silently pass
+    // for the wrong reason, which is exactly what happened on run
+    // 31829931608 (masked by the automatic_payment_methods/return_url
+    // bug fixed alongside this tightening). Inspecting the charge
+    // failure's own recorded reason is what actually proves a genuine
+    // decline occurred.
+    const trail = await freshLedger().list({ domain: COMMERCE_AUDIT_DOMAIN, actorId: LIVE_ACTOR_ID })
+    const failedCharge = trail
+      .filter((e) => e.type === COMMERCE_PAYMENT_CHARGE_CAPABILITY && e.status === "failed")
+      .at(-1)
+    const declineReason = String(failedCharge?.metadata?.reason ?? "")
+    expect(declineReason.toLowerCase()).toContain("declined")
+    expect(declineReason).not.toContain("automatic_payment_methods")
+    expect(declineReason).not.toContain("return_url")
+
     record({
       scenario: "2-declined-payment",
       requestedOperation: "runCommerceIntentGoverned — checkout with pm_card_visa_chargeDeclined",
       governedPathUsed: "identity -> policy -> approval -> runCommerceIntentLifecycle -> GovernedPaymentProvider -> StripeSandboxPaymentProvider",
-      stripeResult: { paymentIntentStatus: outcome.result.paymentIntents[0]?.status },
+      stripeResult: { paymentIntentStatus: outcome.result.paymentIntents[0]?.status, declineReason },
       applicationResult: { sessionStatus: outcome.result.session.status },
-      auditEvidence: "charge recorded as failed in the same audited ledger",
+      auditEvidence: "charge recorded as failed in the same audited ledger, with a genuine decline reason confirmed (not a request-shape error)",
       actorAttribution: outcome.verifiedUserId,
       secretExposureCheck: "clean",
     })
@@ -268,15 +287,36 @@ describe("PL-7 — live Stripe test-mode boundary (workflow_dispatch only, never
         { fulfillmentPolicyDenies: ["accept"] },
       )
 
+      // Tightened after the first live run: a defined status proved
+      // nothing on its own — on run 31829931608 it was "failed" purely
+      // because the charge itself never succeeded (the now-fixed
+      // automatic_payment_methods bug), a completely different failure
+      // than what this scenario exists to prove. Ledger-based proof
+      // that capture genuinely completed BEFORE any refund was
+      // attempted is what actually distinguishes "successful capture,
+      // then a real refund problem" from "capture never worked in the
+      // first place" — the exact confusion that masked the real root
+      // cause the first time.
+      const trail = await freshLedger().list({ domain: COMMERCE_AUDIT_DOMAIN, actorId: LIVE_ACTOR_ID })
+      const chargeCompleted = trail.some((e) => e.type === COMMERCE_PAYMENT_CHARGE_CAPABILITY && e.status === "completed")
+      const refundAttempted = trail.some((e) => e.type === COMMERCE_PAYMENT_REFUND_CAPABILITY)
+      expect(chargeCompleted).toBe(true)
+      expect(refundAttempted).toBe(true)
+
       const paymentId = outcome.result.paymentIntents[0]?.paymentId
       const immediateStatus = outcome.result.paymentIntents[0]?.status
       const observedSequence: string[] = [String(immediateStatus)]
 
-      // Stripe documents this as an asynchronous transition (succeeds
-      // immediately, later flips to failed). This environment's network
-      // policy blocks stripe.com, so that exact timing could not be
-      // independently verified — bounded polling reports whatever is
-      // actually observed rather than asserting a specific final status.
+      // Known limitation surfaced by this investigation, not fixed
+      // here (out of scope for this change): StripeSandboxPaymentProvider.getPayment()
+      // is a pure local-cache read — it never re-queries Stripe — so
+      // polling it cannot observe a real async transition; every entry
+      // below the first will be identical to it. Kept so the evidence
+      // record is honest about what was actually checked, rather than
+      // silently dropping the attempt. A genuine async observation
+      // would require getPayment() to make a real GET
+      // /v1/payment_intents/{id} call, a separate, larger change this
+      // fix does not make.
       if (paymentId) {
         for (let attempt = 0; attempt < 5; attempt++) {
           await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -286,15 +326,17 @@ describe("PL-7 — live Stripe test-mode boundary (workflow_dispatch only, never
         }
       }
 
-      expect(immediateStatus).toBeDefined()
-
       record({
         scenario: "4-refund-failure-deterministic",
         requestedOperation: "runCommerceIntentGoverned — checkout with pm_card_refundFail, fulfillment denies 'accept'",
         governedPathUsed: "same automatic-refund path as scenario 3",
         stripeResult: { immediateStatus, observedSequence },
-        applicationResult: { sessionStatus: outcome.result.session.status },
-        auditEvidence: "refund attempt (and any observed failure) recorded in the same audited ledger",
+        applicationResult: {
+          sessionStatus: outcome.result.session.status,
+          chargeGenuinelyCompleted: chargeCompleted,
+          refundGenuinelyAttempted: refundAttempted,
+        },
+        auditEvidence: "charge completed and refund attempted both verified via ledger inspection, not top-level status alone",
         actorAttribution: outcome.verifiedUserId,
         secretExposureCheck: "clean",
       })

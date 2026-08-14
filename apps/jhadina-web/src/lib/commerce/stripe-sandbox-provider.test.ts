@@ -277,6 +277,20 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
     expect(payload.confirm).toBe("true")
   })
 
+  test("PL-7 live-run fix: sends automatic_payment_methods[enabled]=true and automatic_payment_methods[allow_redirects]=never so a return_url is never required", async () => {
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl: createFakeStripeFetch({ recordedRequests }) })
+    await provider.createPaymentIntent(paymentRequest())
+
+    const { rawBody, payload } = recordedRequests[0]
+    expect(rawBody).toContain("automatic_payment_methods%5Benabled%5D=true")
+    expect(rawBody).toContain("automatic_payment_methods%5Ballow_redirects%5D=never")
+    expect(payload.automatic_payment_methods).toEqual({ enabled: "true", allow_redirects: "never" })
+    // No return_url is ever sent — this is the documented alternative
+    // to providing one, for a server-side flow with no browser to redirect.
+    expect(rawBody).not.toContain("return_url")
+  })
+
   test("PL-7: encodes metadata with Stripe's bracket notation, percent-encoded on the wire", async () => {
     const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl: createFakeStripeFetch({ recordedRequests }) })
