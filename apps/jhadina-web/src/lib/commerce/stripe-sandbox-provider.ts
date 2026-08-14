@@ -40,6 +40,18 @@ import { createInMemorySandboxIdempotencyStore, type SandboxIdempotencyStore } f
  * also honored, restricted to the same allowlist, purely as a
  * provider-level test convenience — PL-7's own governed-path scenarios
  * rely on the instance-level default, not this override.
+ *
+ * PL-7 live-run preparation: request() declared
+ * content-type: application/x-www-form-urlencoded but sent
+ * JSON.stringify(payload) as the body — a real, unconditional bug
+ * that would have broken every live call (Stripe's classic REST API,
+ * including /v1/payment_intents and /v1/refunds, only accepts
+ * form-urlencoded bodies; nested fields like metadata use Stripe's
+ * documented bracket notation, e.g. metadata[key]=value). Never
+ * caught because the fake transport parsed whatever it was given.
+ * Fixed with toStripeFormBody(), deliberately limited to the flat +
+ * one-level-nested-object shapes this adapter actually sends — not a
+ * generalized form serializer.
  */
 
 export type StripeFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -252,7 +264,7 @@ export class StripeSandboxPaymentProvider implements PaymentProvider {
           authorization: `Bearer ${this.options.secret}`,
           ...(init.idempotencyKey ? { "Idempotency-Key": init.idempotencyKey } : {}),
         },
-        body: init.payload ? JSON.stringify(init.payload) : undefined,
+        body: init.payload ? toStripeFormBody(init.payload) : undefined,
         signal: controller.signal,
       })
 
@@ -276,4 +288,32 @@ function mapRefundReason(reason: RefundRequest["reason"]): "duplicate" | "fraudu
   if (reason === "customer_request") return "requested_by_customer"
   if (reason === "compliance") return "fraudulent"
   return "requested_by_customer"
+}
+
+/**
+ * Stripe's classic REST API (every endpoint this adapter calls) only
+ * accepts application/x-www-form-urlencoded bodies, never JSON, even
+ * though every response is JSON. One level of object nesting (this
+ * adapter only ever sends `metadata`) is encoded with Stripe's
+ * documented bracket notation: metadata[key]=value, with the whole
+ * composed key (brackets included) percent-encoded, matching what
+ * Stripe's own client libraries produce on the wire. Deliberately
+ * limited to the flat-scalar + one-level-nested-object shapes this
+ * adapter actually emits (amount, currency, confirm, payment_method,
+ * metadata, payment_intent, reason) — not a generalized serializer.
+ */
+export function toStripeFormBody(payload: Record<string, unknown>): string {
+  const pairs: string[] = []
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === undefined || value === null) continue
+    if (typeof value === "object" && !Array.isArray(value)) {
+      for (const [nestedKey, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+        if (nestedValue === undefined || nestedValue === null) continue
+        pairs.push(`${encodeURIComponent(`${key}[${nestedKey}]`)}=${encodeURIComponent(String(nestedValue))}`)
+      }
+      continue
+    }
+    pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+  }
+  return pairs.join("&")
 }
