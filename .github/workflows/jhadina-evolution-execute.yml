@@ -54,7 +54,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Resolve approved evolution from Supabase
+      - name: Resolve and authorize approved evolution from Supabase
         id: resolve
         shell: bash
         run: |
@@ -63,18 +63,19 @@ jobs:
           test -n "$SUPABASE_SECRET_KEY" || { echo "JHADINA_SUPABASE_SECRET_KEY is not configured"; exit 1; }
           test -n "$EVOLUTION_ID" || { echo "evolution_id is required"; exit 1; }
 
-          response=$(curl --fail-with-body --silent --show-error \
+          curl --fail-with-body --silent --show-error \
             --get "$SUPABASE_URL/rest/v1/jhadina_evolution_candidates" \
             -H "apikey: $SUPABASE_SECRET_KEY" \
             -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
             -H "Accept: application/json" \
             --data-urlencode "candidate_id=eq.$EVOLUTION_ID" \
             --data-urlencode "select=candidate_id,status,proposed_change,risk,affected_paths,verification_plan,proposal_hash,decided_by,decided_at,execution_id" \
-            --data-urlencode "limit=1")
+            --data-urlencode "limit=1" \
+            > /tmp/jhadina-candidate-response.json
 
           node --input-type=module <<'NODE'
           const fs = await import('node:fs');
-          const rows = JSON.parse(process.env.CANDIDATE_RESPONSE);
+          const rows = JSON.parse(fs.readFileSync('/tmp/jhadina-candidate-response.json', 'utf8'));
           if (!Array.isArray(rows) || rows.length !== 1) throw new Error('approved evolution candidate not found');
           const c = rows[0];
           if (c.status !== 'approved') throw new Error(`candidate is not approved: ${c.status}`);
@@ -87,8 +88,6 @@ jobs:
           if (paths.some((p) => protectedPattern.test(p))) throw new Error('candidate touches protected authority paths');
           fs.writeFileSync('/tmp/jhadina-approved.json', JSON.stringify(c, null, 2));
           NODE
-        env:
-          CANDIDATE_RESPONSE: ${{ steps.resolve.outputs.response }}
 
       - name: Export approved execution
         id: approved
@@ -153,14 +152,13 @@ jobs:
       - name: Verify approved paths were not exceeded
         id: verification_paths
         env:
-          BASE_BRANCH: main
           APPROVED_PATHS: ${{ steps.approved.outputs.affected_paths }}
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
           const { execSync } = await import('node:child_process');
           const approved = JSON.parse(process.env.APPROVED_PATHS || '[]');
-          const changed = execSync(`git diff --name-only main...HEAD`, { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+          const changed = execSync('git diff --name-only main...HEAD', { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
           const ok = changed.every((file) => approved.includes(file));
           if (!ok) {
             console.error(JSON.stringify({ approved, changed }, null, 2));
@@ -180,6 +178,9 @@ jobs:
           STATUS: ${{ steps.verification_paths.outcome == 'success' && steps.verification.outcome == 'success' && 'VERIFIED' || 'FAILED' }}
           PROTECTED_PATHS_OUTCOME: ${{ steps.verification_paths.outcome }}
           VERIFICATION_OUTCOME: ${{ steps.verification.outcome }}
+          EXECUTION_ID: ${{ steps.approved.outputs.execution_id }}
+          PROPOSAL_HASH: ${{ steps.approved.outputs.proposal_hash }}
+          BRANCH_NAME: ${{ steps.approved.outputs.branch }}
         run: |
           set -euo pipefail
           mkdir -p .jhadina/results .jhadina/evidence
@@ -206,10 +207,6 @@ jobs:
           fs.writeFileSync(`.jhadina/results/${process.env.EVOLUTION_ID}.json`, JSON.stringify(result, null, 2));
           fs.writeFileSync(`.jhadina/evidence/${process.env.EVOLUTION_ID}.json`, JSON.stringify(result, null, 2));
           NODE
-        env:
-          EXECUTION_ID: ${{ steps.approved.outputs.execution_id }}
-          PROPOSAL_HASH: ${{ steps.approved.outputs.proposal_hash }}
-          BRANCH_NAME: ${{ steps.approved.outputs.branch }}
 
       - name: Commit verified change
         if: steps.verification_paths.outcome == 'success' && steps.verification.outcome == 'success'
