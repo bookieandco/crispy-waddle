@@ -25,13 +25,19 @@ if (
   throw new Error("approved candidate did not produce the expected bound execution plan");
 }
 
-for (const [name, candidate, executionId] of [
-  ["unapproved", { ...approved, status: "pending" }, "exec-001"],
-  ["missing receipt", { ...approved, decidedAt: null }, "exec-001"],
-  ["missing execution binding", { ...approved, executionId: null }, "exec-001"],
-  ["execution mismatch", approved, "exec-002"],
-  ["protected path", { ...approved, affectedPaths: ["policy/foo.ts"] }, "exec-001"],
-] as const) {
+const blockedCases: Array<{
+  name: string;
+  candidate: EvolutionCandidateSnapshot;
+  executionId: string;
+}> = [
+  { name: "unapproved", candidate: { ...approved, status: "pending" }, executionId: "exec-001" },
+  { name: "missing receipt", candidate: { ...approved, decidedAt: null }, executionId: "exec-001" },
+  { name: "missing execution binding", candidate: { ...approved, executionId: null }, executionId: "exec-001" },
+  { name: "execution mismatch", candidate: approved, executionId: "exec-002" },
+  { name: "protected path", candidate: { ...approved, affectedPaths: ["policy/foo.ts"] }, executionId: "exec-001" },
+];
+
+for (const { name, candidate, executionId } of blockedCases) {
   let blocked = false;
   try {
     gate.approve(candidate, executionId);
