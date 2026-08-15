@@ -1,0 +1,94 @@
+name: Jhadina Evolution Governance Dry Run
+run-name: Jhadina Governance — ${{ inputs.evolution_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      evolution_id:
+        description: "Approved Jhadina evolution candidate ID"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-governance-dry-run-${{ inputs.evolution_id }}
+  cancel-in-progress: false
+
+jobs:
+  validate-approved-evolution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: jhadina-evolution-approval
+    permissions:
+      contents: read
+    env:
+      EVOLUTION_ID: ${{ inputs.evolution_id }}
+      SUPABASE_URL: ${{ secrets.JHADINA_SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.JHADINA_SUPABASE_SECRET_KEY }}
+
+    steps:
+      - name: Resolve and authorize approved evolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_URL" || { echo "JHADINA_SUPABASE_URL is not configured"; exit 1; }
+          test -n "$SUPABASE_SECRET_KEY" || { echo "JHADINA_SUPABASE_SECRET_KEY is not configured"; exit 1; }
+          test -n "$EVOLUTION_ID" || { echo "evolution_id is required"; exit 1; }
+
+          curl --fail-with-body --silent --show-error \
+            --get "$SUPABASE_URL/rest/v1/jhadina_evolution_candidates" \
+            -H "apikey: $SUPABASE_SECRET_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+            -H "Accept: application/json" \
+            --data-urlencode "candidate_id=eq.$EVOLUTION_ID" \
+            --data-urlencode "select=candidate_id,status,risk,affected_paths,verification_plan,proposal_hash,decided_by,decided_at,execution_id" \
+            --data-urlencode "limit=1" \
+            > /tmp/jhadina-candidate-response.json
+
+          node --input-type=module <<'NODE'
+          const fs = await import('node:fs');
+          const rows = JSON.parse(fs.readFileSync('/tmp/jhadina-candidate-response.json', 'utf8'));
+          if (!Array.isArray(rows) || rows.length !== 1) throw new Error('approved evolution candidate not found');
+          const c = rows[0];
+          if (c.status !== 'approved') throw new Error(`candidate is not approved: ${c.status}`);
+          if (!c.decided_by || !c.decided_at) throw new Error('candidate has incomplete approval receipt');
+          if (!c.proposal_hash) throw new Error('candidate has no proposal hash');
+          if (!c.execution_id) throw new Error('candidate has no execution binding');
+          if (c.risk === 'critical') throw new Error('critical-risk evolution is blocked');
+          const paths = Array.isArray(c.affected_paths) ? c.affected_paths : [];
+          const protectedPattern = /(^|\/)(\.github\/workflows\/|identity\/|policy\/|values\/|security\/|secrets\/|payments\/|transfers\/|military\/)/;
+          if (paths.some((p) => protectedPattern.test(p))) throw new Error('candidate touches protected authority paths');
+
+          const result = {
+            version: '2',
+            evolutionId: c.candidate_id,
+            executionId: c.execution_id,
+            proposalHash: c.proposal_hash,
+            status: 'BLOCKED_NO_EXECUTOR',
+            executor: null,
+            governance: {
+              approved: true,
+              approvalReceipt: true,
+              executionBinding: true,
+              protectedPaths: false,
+              risk: c.risk,
+              affectedPaths: paths,
+              verificationPlan: c.verification_plan || []
+            },
+            reason: 'Governance validation completed without invoking an AI executor. No code changes, commits, pushes, or draft PRs are permitted in dry-run mode.'
+          };
+          fs.mkdirSync('.jhadina/results', { recursive: true });
+          fs.writeFileSync(`.jhadina/results/${c.candidate_id}.json`, JSON.stringify(result, null, 2));
+          console.log(JSON.stringify(result, null, 2));
+          NODE
+
+      - name: Upload governance result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-governance-dry-run-${{ inputs.evolution_id }}-${{ github.run_id }}
+          path: .jhadina/results/${{ inputs.evolution_id }}.json
+          if-no-files-found: warn
+          retention-days: 30
