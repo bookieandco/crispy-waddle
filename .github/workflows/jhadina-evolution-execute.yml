@@ -1,6 +1,17 @@
 name: Jhadina Evolution Execute
 run-name: Jhadina Evolution — ${{ inputs.task_id }}
 
+# dry_run (default false): governance-only mode. Runs the same
+# protected-path check and independent verification (tests/type-check)
+# as a real execution, but never invokes Claude and never commits,
+# pushes, or opens a PR — the "Run Claude Code", "Commit verified
+# change", and "Open draft PR" steps are all skipped. Use this to
+# exercise/validate the governance pipeline itself (including after a
+# change to this workflow) without spending any Claude/Anthropic API
+# usage and without any repository mutation. The structured result is
+# still written and uploaded as a build artifact for evidence, tagged
+# dryRun: true / claudeInvoked: false; it is never committed to the
+# repo, matching every other step this mode skips.
 on:
   workflow_dispatch:
     inputs:
@@ -32,6 +43,11 @@ on:
         required: true
         default: "12"
         type: string
+      dry_run:
+        description: "Governance-only dry run: run verification only, never invoke Claude, never commit, push, or open a PR"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -60,6 +76,7 @@ jobs:
       ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
       DISALLOWED_TOOLS: ${{ inputs.disallowed_tools }}
       MAX_TURNS: ${{ inputs.max_turns }}
+      DRY_RUN: ${{ inputs.dry_run }}
 
     steps:
       - name: Checkout approved base
@@ -87,6 +104,7 @@ jobs:
 
       - name: Run Claude Code in the isolated workspace
         id: claude
+        if: inputs.dry_run != true
         uses: anthropics/claude-code-base-action@beta
         with:
           prompt: |
@@ -132,9 +150,20 @@ jobs:
 
       - name: Run independent verification
         id: verification
+        # Found while wiring dry_run: this previously read
+        # `pnpm --filter jhadina-evolution-core test` / `... typecheck`
+        # -- neither the package name nor the script name matched
+        # anything real (the package is @jhadina/evolution-core; its
+        # script is type-check, not typecheck). pnpm's --filter exits 0
+        # ("No projects matched the filters") rather than failing when
+        # nothing matches, so this step has always silently reported
+        # success without ever actually running a test or a type-check.
+        # jhadina-evolution-core-ci.yml already used the correct,
+        # working invocation (@jhadina/evolution-core / type-check);
+        # this now matches it.
         run: |
-          pnpm --filter jhadina-evolution-core test
-          pnpm --filter jhadina-evolution-core typecheck
+          pnpm --filter @jhadina/evolution-core test
+          pnpm --filter @jhadina/evolution-core type-check
 
       - name: Write structured result
         if: always()
@@ -146,11 +175,14 @@ jobs:
           const status = process.env.STATUS;
           const changed = execSync(`git diff --name-only ${process.env.BASE_BRANCH}...HEAD`, {encoding:'utf8'}).trim().split('\n').filter(Boolean);
           const diffStat = execSync(`git diff --stat ${process.env.BASE_BRANCH}...HEAD`, {encoding:'utf8'});
+          const dryRun = process.env.DRY_RUN === 'true';
           const result = {
             version: process.env.JHADINA_RESULT_VERSION,
             taskId: process.env.TASK_ID,
             runId: Number(process.env.GITHUB_RUN_ID),
             status,
+            dryRun,
+            claudeInvoked: !dryRun,
             baseBranch: process.env.BASE_BRANCH,
             branch: process.env.BRANCH_NAME,
             changedFiles: changed,
@@ -164,6 +196,9 @@ jobs:
               protectedPaths: process.env.PROTECTED_PATHS_OUTCOME,
               evolutionCoreTests: process.env.VERIFICATION_OUTCOME,
             },
+            // Dry runs never commit or push, so there is nothing to open a PR
+            // against — draftPr stays null by construction, not because the
+            // PR step failed.
             draftPr: null,
           };
           fs.writeFileSync(`.jhadina/results/${process.env.TASK_ID}.json`, JSON.stringify(result, null, 2));
@@ -175,7 +210,7 @@ jobs:
           VERIFICATION_OUTCOME: ${{ steps.verification.outcome }}
 
       - name: Commit verified change
-        if: steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success'
+        if: inputs.dry_run != true && steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success'
         run: |
           git config user.name "Jhadina Evolution"
           git config user.email "jhadina-evolution@users.noreply.github.com"
@@ -185,7 +220,7 @@ jobs:
 
       - name: Open draft PR
         id: draft_pr
-        if: steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success'
+        if: inputs.dry_run != true && steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
