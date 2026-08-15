@@ -1,0 +1,74 @@
+name: PL-8 Live Plaid Sandbox Verification
+
+# Manual trigger only. This is the only workflow in the repo permitted
+# to make a real call against Plaid's sandbox API, and it never runs
+# unless a human explicitly dispatches it — no push, pull_request, or
+# schedule trigger exists here. Construction of this workflow does not
+# authorize dispatching it; that is a separate, explicit decision made
+# each time via the Actions tab (or the API), never automatic.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pl8-live-plaid-verification
+  cancel-in-progress: false
+
+jobs:
+  live-verification:
+    name: Five-scenario live Plaid sandbox evidence run
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The credential is scoped to exactly one place in this file: the
+      # env: block on the final step below, never job- or
+      # workflow-level, never echoed, never passed to an artifact
+      # upload. This is a structural property of the file itself,
+      # confirmed by direct review of the diff rather than a runtime
+      # self-check — PL-7's own construction found that a text-matching
+      # check run from inside this same file cannot reliably
+      # distinguish a real secrets.<name> reference from a comment or
+      # error message that merely describes one, since both necessarily
+      # contain the same string. Not repeated here.
+      #
+      # No artifact is uploaded from this job — evidence lives only in
+      # this step's own log output (GitHub Actions automatically
+      # redacts the registered secret value anywhere it would appear
+      # in step output, as a backstop behind the fact that the suite
+      # itself never logs it). Fails closed before any Plaid call if
+      # the credential is missing, malformed, or the resolved endpoint
+      # isn't Plaid's sandbox host — see plaid-provider-registration.ts's
+      # assertPlaidSandboxBaseUrl and credential-resolver.ts.
+      #
+      # JHADINA_SECRET_PLAID_DEFAULT must be a JSON bundle
+      # {"clientId": "...", "secret": "...", "accessToken": "..."}
+      # where accessToken is a real Plaid *sandbox* access token already
+      # exchanged via Plaid's own /sandbox/public_token/create +
+      # /item/public_token/exchange flow — provisioning that token is a
+      # prerequisite to dispatching this workflow, done outside this
+      # repo, never by this suite.
+      - name: Run the live Plaid sandbox evidence suite
+        working-directory: apps/jhadina-web
+        env:
+          JHADINA_SECRET_PLAID_DEFAULT: ${{ secrets.JHADINA_SECRET_PLAID_DEFAULT }}
+        run: pnpm exec vitest run --config vitest.pl8-live.config.ts
