@@ -1,3 +1,5 @@
+import { ApprovalExecutionGate } from '../packages/jhadina-evolution-core/src/approval-execution-gate.ts';
+
 const url = process.env.JHADINA_SUPABASE_URL;
 const key = process.env.JHADINA_SUPABASE_SECRET_KEY || process.env.JHADINA_SUPABASE_SERVICE_ROLE_KEY;
 const candidateId = process.env.EVOLUTION_ID;
@@ -24,44 +26,39 @@ if (!Array.isArray(rows) || rows.length !== 1) {
   throw new Error(`Expected exactly one evolution candidate for ${candidateId}; found ${rows?.length ?? 0}.`);
 }
 
-const candidate = rows[0];
-const paths = Array.isArray(candidate.affected_paths)
-  ? candidate.affected_paths
-  : Array.isArray(candidate.affectedPaths) ? candidate.affectedPaths : [];
-const verificationPlan = Array.isArray(candidate.verification_plan)
-  ? candidate.verification_plan
-  : Array.isArray(candidate.verificationPlan) ? candidate.verificationPlan : [];
+const row = rows[0];
+const candidate = {
+  candidateId: row.candidate_id ?? row.id,
+  title: row.title,
+  suggestedChange: row.suggested_change ?? row.suggestedChange,
+  risk: row.risk,
+  affectedPaths: Array.isArray(row.affected_paths)
+    ? row.affected_paths
+    : Array.isArray(row.affectedPaths) ? row.affectedPaths : [],
+  verificationPlan: Array.isArray(row.verification_plan)
+    ? row.verification_plan
+    : Array.isArray(row.verificationPlan) ? row.verificationPlan : [],
+  status: row.status,
+  proposalHash: row.proposal_hash ?? row.proposalHash,
+  decidedBy: row.decided_by ?? row.decidedBy ?? null,
+  decidedAt: row.decided_at ?? row.decidedAt ?? null,
+  executionId: row.execution_id ?? row.executionId ?? null,
+};
 
-const protectedPrefixes = [
-  '.github/workflows/', 'identity/', 'policy/', 'values/', 'security/',
-  'secrets/', 'payments/', 'transfers/', 'military/',
-];
-const touchesProtected = paths.some((path) => {
-  const normalized = String(path).replace(/^\.\//, '');
-  return protectedPrefixes.some((prefix) => normalized === prefix.slice(0, -1) || normalized.startsWith(prefix));
-});
-
-if (candidate.status !== 'approved') throw new Error(`Evolution candidate ${candidateId} is not approved.`);
-if (!candidate.decided_by || !candidate.decided_at) throw new Error(`Evolution candidate ${candidateId} has no complete approval receipt.`);
-if (!candidate.proposal_hash) throw new Error(`Evolution candidate ${candidateId} has no proposal hash.`);
-if (candidate.execution_id && candidate.execution_id !== executionId) {
-  throw new Error(`Evolution candidate ${candidateId} is bound to a different execution.`);
-}
-if (candidate.risk === 'critical') throw new Error('Critical evolution changes require a separate controlled process.');
-if (touchesProtected) throw new Error('Approved evolution touches a protected Jhadina authority boundary.');
+const approved = new ApprovalExecutionGate().approve(candidate, executionId);
 
 const result = {
-  candidateId: candidate.candidate_id ?? candidate.id,
-  approvalId: `${candidate.candidate_id ?? candidate.id}:${candidate.proposal_hash}`,
+  candidateId: approved.candidateId,
+  approvalId: approved.approvalId,
   title: candidate.title,
-  suggestedChange: candidate.suggested_change,
+  suggestedChange: candidate.suggestedChange,
   risk: candidate.risk,
-  allowedPaths: paths,
-  verificationPlan,
-  proposalHash: candidate.proposal_hash,
-  decidedBy: candidate.decided_by,
-  decidedAt: candidate.decided_at,
-  executionId,
+  allowedPaths: approved.plan.allowedPaths,
+  verificationPlan: approved.plan.testCommands,
+  proposalHash: approved.proposalHash,
+  decidedBy: candidate.decidedBy,
+  decidedAt: candidate.decidedAt,
+  executionId: approved.executionId,
 };
 
 console.log(JSON.stringify(result));
