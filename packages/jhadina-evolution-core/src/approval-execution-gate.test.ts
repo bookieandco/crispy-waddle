@@ -1,3 +1,5 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { ApprovalExecutionGate, type EvolutionCandidateSnapshot } from "./approval-execution-gate.js";
 
 const approved: EvolutionCandidateSnapshot = {
@@ -14,35 +16,40 @@ const approved: EvolutionCandidateSnapshot = {
   executionId: "exec-001",
 };
 
-const gate = new ApprovalExecutionGate();
-const execution = gate.approve(approved, "exec-001");
-if (
-  execution.candidateId !== "candidate-001" ||
-  execution.plan.id !== "candidate-001" ||
-  execution.executionId !== "exec-001" ||
-  execution.proposalHash !== "abc123"
-) {
-  throw new Error("approved candidate did not produce the expected bound execution plan");
-}
+test("approved candidate produces an execution bound to approval and execution id", () => {
+  const gate = new ApprovalExecutionGate();
+  const execution = gate.approve(approved, "exec-001");
 
-const blockedCases: Array<{
-  name: string;
-  candidate: EvolutionCandidateSnapshot;
-  executionId: string;
-}> = [
-  { name: "unapproved", candidate: { ...approved, status: "pending" }, executionId: "exec-001" },
-  { name: "missing receipt", candidate: { ...approved, decidedAt: null }, executionId: "exec-001" },
-  { name: "missing execution binding", candidate: { ...approved, executionId: null }, executionId: "exec-001" },
-  { name: "execution mismatch", candidate: approved, executionId: "exec-002" },
-  { name: "protected path", candidate: { ...approved, affectedPaths: ["policy/foo.ts"] }, executionId: "exec-001" },
-];
+  assert.equal(execution.candidateId, "candidate-001");
+  assert.equal(execution.plan.id, "candidate-001");
+  assert.equal(execution.executionId, "exec-001");
+  assert.equal(execution.proposalHash, "abc123");
+});
 
-for (const { name, candidate, executionId } of blockedCases) {
-  let blocked = false;
-  try {
-    gate.approve(candidate, executionId);
-  } catch {
-    blocked = true;
-  }
-  if (!blocked) throw new Error(`${name} candidate was incorrectly executable`);
-}
+test("unapproved candidates are blocked", () => {
+  const gate = new ApprovalExecutionGate();
+  assert.throws(() => gate.approve({ ...approved, status: "pending" }, "exec-001"), /not approved/);
+});
+
+test("missing approval receipts are blocked", () => {
+  const gate = new ApprovalExecutionGate();
+  assert.throws(() => gate.approve({ ...approved, decidedAt: null }, "exec-001"), /approval receipt/);
+});
+
+test("missing execution bindings are blocked", () => {
+  const gate = new ApprovalExecutionGate();
+  assert.throws(() => gate.approve({ ...approved, executionId: null }, "exec-001"), /execution binding/);
+});
+
+test("execution-id mismatches are blocked", () => {
+  const gate = new ApprovalExecutionGate();
+  assert.throws(() => gate.approve(approved, "exec-002"), /different execution/);
+});
+
+test("protected paths are blocked", () => {
+  const gate = new ApprovalExecutionGate();
+  assert.throws(
+    () => gate.approve({ ...approved, affectedPaths: ["policy/foo.ts"] }, "exec-001"),
+    /protected Jhadina authority boundary/,
+  );
+});
