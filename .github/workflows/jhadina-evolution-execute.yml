@@ -71,7 +71,7 @@ jobs:
           JHADINA_SUPABASE_SECRET_KEY: ${{ secrets.JHADINA_SUPABASE_SECRET_KEY }}
           JHADINA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.JHADINA_SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          pnpm exec tsx scripts/resolve-approved-jhadina-evolution.mjs > /tmp/approved-evolution.json
+          pnpm --filter @jhadina/action-core exec tsx ../../scripts/resolve-approved-jhadina-evolution.mjs > /tmp/approved-evolution.json
           node - <<'NODE'
           const fs = require('fs');
           const candidate = JSON.parse(fs.readFileSync('/tmp/approved-evolution.json', 'utf8'));
