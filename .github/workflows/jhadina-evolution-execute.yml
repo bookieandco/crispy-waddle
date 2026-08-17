@@ -50,14 +50,28 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Resolve approved evolution
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve and authorize approved evolution
         id: approval
         env:
           JHADINA_SUPABASE_URL: ${{ secrets.JHADINA_SUPABASE_URL }}
           JHADINA_SUPABASE_SECRET_KEY: ${{ secrets.JHADINA_SUPABASE_SECRET_KEY }}
           JHADINA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.JHADINA_SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          node scripts/resolve-approved-jhadina-evolution.mjs > /tmp/approved-evolution.json
+          pnpm exec tsx scripts/resolve-approved-jhadina-evolution.mjs > /tmp/approved-evolution.json
           node - <<'NODE'
           const fs = require('fs');
           const candidate = JSON.parse(fs.readFileSync('/tmp/approved-evolution.json', 'utf8'));
@@ -75,20 +89,6 @@ jobs:
 
       - name: Create isolated branch
         run: git switch -c "$BRANCH_NAME"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Record evolution dispatch
         env:
