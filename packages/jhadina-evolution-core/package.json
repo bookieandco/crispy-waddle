@@ -7,12 +7,9 @@
   "types": "src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "tsx --test src/approval-execution-gate.test.ts"
+    "test": "node --experimental-strip-types --test src/approval-execution-gate.test.ts"
   },
   "dependencies": {
     "@jhadina/core-spine": "workspace:*"
-  },
-  "devDependencies": {
-    "tsx": "^4.20.3"
   }
 }
