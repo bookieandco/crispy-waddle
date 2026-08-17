@@ -67,7 +67,7 @@ jobs:
             `APPROVED_PROMPT=${candidate.suggestedChange.replace(/%/g, '%25').replace(/\n/g, '%0A').replace(/\r/g, '%0D')}`,
             `APPROVED_RISK=${candidate.risk}`,
             `APPROVED_PATHS=${JSON.stringify(candidate.allowedPaths).replace(/%/g, '%25').replace(/\n/g, '%0A').replace(/\r/g, '%0D')}`,
-            `APPROVED_VERIFICATION_PLAN=${JSON.stringify(candidate.verificationPlan).replace(/%/g, '%25').replace(/\n/g, '%0D')}`,
+            `APPROVED_VERIFICATION_PLAN=${JSON.stringify(candidate.verificationPlan).replace(/%/g, '%25').replace(/\n/g, '%0A').replace(/\r/g, '%0D')}`,
             `PROPOSAL_HASH=${candidate.proposalHash}`,
           ];
           fs.appendFileSync(process.env.GITHUB_ENV, env.join('\n') + '\n');
