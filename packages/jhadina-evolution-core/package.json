@@ -7,7 +7,7 @@
   "types": "src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/approval-execution-gate.test.ts"
+    "test": "pnpm --filter @jhadina/action-core exec tsx --test ../jhadina-evolution-core/src/approval-execution-gate.test.ts"
   },
   "dependencies": {
     "@jhadina/core-spine": "workspace:*"
