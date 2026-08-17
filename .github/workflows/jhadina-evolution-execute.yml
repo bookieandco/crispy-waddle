@@ -42,9 +42,6 @@ jobs:
       ALLOWED_TOOLS: ${{ env.JHADINA_ALLOWED_TOOLS }}
       DISALLOWED_TOOLS: ${{ env.JHADINA_DISALLOWED_TOOLS }}
       MAX_TURNS: ${{ env.JHADINA_MAX_TURNS }}
-      JHADINA_SUPABASE_URL: ${{ secrets.JHADINA_SUPABASE_URL }}
-      JHADINA_SUPABASE_SECRET_KEY: ${{ secrets.JHADINA_SUPABASE_SECRET_KEY }}
-      JHADINA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.JHADINA_SUPABASE_SERVICE_ROLE_KEY }}
 
     steps:
       - name: Checkout authoritative base
@@ -55,6 +52,10 @@ jobs:
 
       - name: Resolve approved evolution
         id: approval
+        env:
+          JHADINA_SUPABASE_URL: ${{ secrets.JHADINA_SUPABASE_URL }}
+          JHADINA_SUPABASE_SECRET_KEY: ${{ secrets.JHADINA_SUPABASE_SECRET_KEY }}
+          JHADINA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.JHADINA_SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           node scripts/resolve-approved-jhadina-evolution.mjs > /tmp/approved-evolution.json
           node - <<'NODE'
@@ -66,7 +67,7 @@ jobs:
             `APPROVED_PROMPT=${candidate.suggestedChange.replace(/%/g, '%25').replace(/\n/g, '%0A').replace(/\r/g, '%0D')}`,
             `APPROVED_RISK=${candidate.risk}`,
             `APPROVED_PATHS=${JSON.stringify(candidate.allowedPaths).replace(/%/g, '%25').replace(/\n/g, '%0A').replace(/\r/g, '%0D')}`,
-            `APPROVED_VERIFICATION_PLAN=${JSON.stringify(candidate.verificationPlan).replace(/%/g, '%25').replace(/\n/g, '%0A').replace(/\r/g, '%0D')}`,
+            `APPROVED_VERIFICATION_PLAN=${JSON.stringify(candidate.verificationPlan).replace(/%/g, '%25').replace(/\n/g, '%0D')}`,
             `PROPOSAL_HASH=${candidate.proposalHash}`,
           ];
           fs.appendFileSync(process.env.GITHUB_ENV, env.join('\n') + '\n');
@@ -90,6 +91,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Record evolution dispatch
+        env:
+          JHADINA_SUPABASE_URL: ${{ secrets.JHADINA_SUPABASE_URL }}
+          JHADINA_SUPABASE_SECRET_KEY: ${{ secrets.JHADINA_SUPABASE_SECRET_KEY }}
+          JHADINA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.JHADINA_SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/persist-jhadina-evolution-ledger.mjs dispatched
 
       - name: Run Claude Code in the isolated workspace
@@ -184,7 +189,6 @@ jobs:
             draftPr: null,
           };
           fs.writeFileSync(`.jhadina/results/${process.env.TASK_ID}.json`, JSON.stringify(result, null, 2));
-          NODE
           cp ".jhadina/results/$TASK_ID.json" ".jhadina/evidence/$TASK_ID.json"
         env:
           STATUS: ${{ steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success' && 'VERIFIED' || 'FAILED' }}
@@ -227,6 +231,10 @@ jobs:
 
       - name: Persist terminal evolution events
         if: always() && hashFiles(format('.jhadina/results/{0}.json', env.TASK_ID)) != ''
+        env:
+          JHADINA_SUPABASE_URL: ${{ secrets.JHADINA_SUPABASE_URL }}
+          JHADINA_SUPABASE_SECRET_KEY: ${{ secrets.JHADINA_SUPABASE_SECRET_KEY }}
+          JHADINA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.JHADINA_SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/persist-jhadina-evolution-ledger.mjs finalize ".jhadina/results/$TASK_ID.json"
 
       - name: Publish finalized execution result
