@@ -55,12 +55,16 @@ object anywhere in this app to hand to `submitOrder()`. Wiring this in
 for real is downstream of that work, not a parallel task that can be
 finished independently.
 
-The one piece usable right now, standalone: catalog browsing
-(`listBlueprints`/`listPrintProvidersForBlueprint`/`listVariants`) could
-replace the `PLACEHOLDER` fulfillment IDs currently in every
-`data/hotspots.ts` entry with real `blueprint_id`/`print_provider_id`/
-`variant_id` values — a genuinely useful next step that doesn't depend
-on checkout existing first.
+**Update**: that catalog-browsing next step is now built —
+`scripts/printify-catalog-sync.ts` (`npm run printify:sync`) does the
+blueprint/provider/variant discovery and produces a dry-run mapping
+report (`docs/fulfillment/catalog-mapping-report.{md,json}`). It still
+doesn't write to `data/hotspots.ts` — applying its findings to real
+`blueprintId`/`printProviderId`/variant values in that file is a
+deliberate separate step, done by a human after reviewing the report,
+not automated here. See that report and the Milestone 8.1 README entry
+for what it actually found (currently: nothing, since this environment
+has no `PRINTIFY_API_KEY` — see the report's own header for why).
 
 ## Untested against a live key
 

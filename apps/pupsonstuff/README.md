@@ -1,5 +1,58 @@
 # PupsonStuff — Static Boutique
 
+## Milestone 8.1 — Printify catalog discovery / dry-run mapping report
+
+Continuation of Milestone 8, not a second client — `scripts/
+printify-catalog-sync.ts` calls `lib/printify.ts` exclusively (no raw
+`fetch()` to `api.printify.com` anywhere in the new script; verified by
+grep, not assumed). A read-only reconnaissance tool: it never calls
+`createProduct()`/`submitOrder()`/anything mutating, and never writes to
+`data/hotspots.ts` — output is a report, not a migration.
+
+- **Grouping, not per-hotspot**: `data/hotspots.ts`'s 13 sellable
+  hotspots collapse to **9 real fulfillment targets** once grouped by
+  their shared placeholder `fulfillment.productId` — the 6 canvas
+  frames share one physical Printify product, as do the 2 mugs. The
+  script groups first, so it's 9 catalog lookups, not 13.
+- **Matching, not assumed**: for each group, real keyword-scored
+  blueprint candidates → real print providers → real variants, cross-
+  matched against that group's actual `customization.sizes`/`colors`
+  from `data/hotspots.ts`, plus a best-effort cross-reference between
+  the group's `printArea.name` and the real placeholder `position`
+  values Printify returns (only suggested when there's real signal —
+  otherwise explicitly flagged "needs a human decision, not a guess").
+  Every group gets one of three honest states: RESOLVED (blueprint +
+  provider + every size/color matched a real variant), PARTIAL (some
+  matched, some didn't — named explicitly), or UNRESOLVED (with a
+  stated reason, never a placeholder ID standing in for a real one).
+- **Verified for real, not just typechecked**: no network access to
+  `api.printify.com` from this environment (confirmed via a direct curl
+  — 403 policy denial, same class of block as huggingface.co/muapi.ai
+  earlier in this project), so the actual matching/scoring/variant-
+  matching logic was verified by stubbing `global.fetch` with schema-
+  accurate synthetic Printify responses and running the REAL
+  `lib/printify.ts` parsing + the REAL `matchGroup()` logic against
+  them end-to-end — three cases (a clean single-dimension RESOLVED, a
+  cross-product size×color PARTIAL with one deliberately-missing
+  variant, and a keyword-matched-but-no-provider-data UNRESOLVED) all
+  passed. That test script isn't committed (scratch-only, and it'd be
+  misleading to ship fake Printify IDs as if they were fixture data for
+  the real report) — the logic it validated is what's committed.
+- **The actual committed report** (`docs/fulfillment/
+  catalog-mapping-report.{md,json}`) is honestly **all 9 groups
+  UNRESOLVED**, because this environment has no `PRINTIFY_API_KEY` and
+  no route to the real API. That's not a failure of the tool — it's the
+  correct, non-fabricated output given the real constraint. Every
+  unresolved reason states exactly why, down to per-dimension detail
+  (e.g. the hoodie groups list all 4 size×color combinations as
+  unresolved). Run `npm run printify:sync` with a real
+  `PRINTIFY_API_KEY` in `.env.local` to get real candidates.
+- New dev dependency: `tsx` (runs the `.ts` script directly — `lib/
+  printify.ts` isn't part of the Next.js build/route tree, so it needs
+  its own runner). Zero new vulnerabilities from adding it (checked via
+  `npm audit`); the 3 pre-existing high-severity flags are in `next`'s
+  own `sharp`/`postcss` transitive deps, unrelated to this change.
+
 ## Milestone 8 — Printify fulfillment client (lib/printify.ts)
 
 A second fulfillment-provider client, alongside the Printful account
