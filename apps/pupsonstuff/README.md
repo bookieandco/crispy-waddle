@@ -1028,46 +1028,89 @@ Same codebase, same hotspot coordinates, nothing recreated. This pass:
 
 ## What's built today
 
-The homepage: your real boutique photo, full-screen and responsive, with all
-ten hotspots from your spec wired up and data-driven from `data/hotspots.ts`.
+This section is deliberately a pointer, not a re-description — a static
+snapshot here goes stale the moment the next milestone lands (the
+previous version of this section still described a 10-art-style,
+2D-only, `/api/generate-art`-routed app; every one of those specifics
+was wrong by Milestone 8.1). **The Milestone entries above this one are
+the real, current changelog** — newest first, each one stating plainly
+what's real vs. demo/untested. Three durable facts that don't drift as
+fast as the rest:
 
-- `data/hotspots.ts` — the single source of truth for every hotspot position.
-  Move a shelf in a new photo later, update coordinates here only.
-- `components/BoutiqueImage.tsx` — the photo itself, `object-contain` so it's
-  never cropped or stretched, centered at any screen size.
-- `components/Hotspot.tsx` / `Hotspots.tsx` — invisible zones, 102% scale +
-  gold glow on hover (200–250ms, no bounce), click opens the panel.
-- `components/ProductGlow.tsx` — the SVG-masked glow. Right now it's a
-  rounded-rect mask (inset glow, not a hard rectangle outline). When you have
-  real per-product cutout shapes, swap in traced paths here for a
-  pixel-accurate highlight per item.
-- `components/ProductModal.tsx` — the slide-out panel: preview, photo upload,
-  10 art styles, quantity, Generate Preview, See It in the Boutique, Add to
-  Cart. Generate Preview now calls the real `/api/generate-art` route.
-- `app/api/generate-art/route.ts` + `lib/ai.ts` — real OpenAI Images API
-  call, server-side only. Needs `OPENAI_API_KEY` to actually return art.
+- The storefront is `apps/pupsonstuff` in this monorepo — a Next.js 15
+  App Router app, no separate backend service.
+- `data/hotspots.ts` is the single source of truth for every product's
+  position, pricing, and fulfillment data. `types/boutique.ts` is the
+  source of truth for art styles.
+- Brand tokens (cream/honey-oak/bronze/ink/greige) live in
+  `tailwind.config.ts`, sampled from the real store photo.
 
-Brand tokens (cream/honey-oak/bronze/ink/greige) live in
-`tailwind.config.ts`, sampled from your real store.
+For "what actually exists right now," read the Milestone entries top to
+bottom — they supersede this section, not the other way around.
 
-## Roadmap (build one milestone at a time)
+## Roadmap
 
-1. **Foundation** — done (this repo).
-2. **Interactive boutique polish** — real per-product SVG glow masks
-   (current glow is a rounded-rect inset, not traced to product edges yet).
-3. **AI portrait generation** — `/api/upload`, `/api/generate`: Supabase
-   Storage → OpenAI Images API using the AI Prompt Template → stored artwork
-   URL. `lib/supabase.ts` and `lib/ai.ts` get built here.
-4. **Live product previews** — Konva.js compositing onto each product's
-   transparent mockup (`/api/mockup`), instant re-preview on style/product/
-   color change without another AI call.
-5. **Shopping cart + checkout** — cart drawer, `/api/cart`, Stripe Checkout.
-6. **Printful automation** — Stripe webhook → `/api/orders` → Printful order
-   creation, `lib/printful.ts`.
-7. **User accounts + order history** — Supabase Auth, order lookups.
-8. **Final polish** — boutique music control (bottom-right, off by default,
-   fades in over 2–3s, remembers volume, ducks during generation), lazy
-   loading, production build check.
+The original 8-item plan below is kept for history, corrected to its
+real current status rather than silently left wrong — but note it's no
+longer a complete list of open work: 3D product previews, the admin
+dashboard, ASCII/Muapi art styles, and the Printify catalog tooling
+(Milestones 5–8.1) weren't on this list at all when it was written and
+came from later requests, not from working down these 8 items in order.
+Treat the Milestone log above as the authoritative record of what's
+built; treat this list only as "what was originally scoped and its real
+status," not as the current backlog.
+
+1. **Foundation** — ✅ done (this repo).
+2. **Interactive boutique polish** (real per-product SVG glow masks,
+   traced to product edges) — 🚧 partial. `ProductGlow.tsx` ships an
+   elliptical-mask approximation (Milestone 2, `auraRoundness` per
+   product) — a real improvement over a plain rectangle, but true traced
+   polygon silhouettes were explicitly deferred at the time ("still
+   blocked on not having per-product cutout art to trace paths from,"
+   Milestone 3) and nothing since has revisited it.
+3. **AI portrait generation** — ✅ done, and grown well past the
+   original scope. Not Supabase Storage as originally planned (Supabase
+   was never wired in — no database exists in this app at all, see
+   Milestone 8's own note); instead `lib/ai.ts` (OpenAI `gpt-image-1`)
+   and `lib/muapi.ts` (a second provider, Milestone 6.4) both write
+   directly to `app/api/generate-preview` (renamed from the original
+   `/api/generate-art` in Milestone 5), returning base64 image data with
+   nothing persisted server-side. 13 art styles now, not the original
+   10 — see Milestone 6.2 (ASCII, deterministic) and 6.4 (Studio
+   Ghibli/Flux Dreamscape, Muapi).
+4. **Live product previews** — ⬜ not built. The flat preview still
+   shows the raw generated square image as-is; Konva.js compositing onto
+   a transparent product mockup never happened (still a stated TODO in
+   `app/api/generate-preview/route.ts`). What *did* get built instead,
+   covering different ground: a full interactive 3D product viewer
+   (`Product3DEngine.tsx`, Milestones 5.1–6.5) showing the generated art
+   as a decal on a real 3D model, for all 6 products.
+5. **Shopping cart + checkout** — ⬜ not built. No cart drawer, no
+   `/api/cart`, no Stripe. This is the real blocker behind several other
+   sections' own stated gaps (the admin Orders page's demo data,
+   Printify's `submitOrder()` having nothing real to call it with).
+6. **Printful automation** — ⬜ not built as originally scoped (no
+   Stripe webhook, no `/api/orders`, no order automation for either
+   provider — Printful or Printify). What *did* get built: a full
+   Printify fulfillment client (`lib/printify.ts`, Milestone 8) and a
+   read-only catalog discovery/dry-run mapping tool
+   (`scripts/printify-catalog-sync.ts`, Milestone 8.1) — real
+   groundwork, but standalone, not wired to checkout because checkout
+   (#5) doesn't exist yet. Printful itself (this project's actual
+   fulfillment account, per `data/hotspots.ts`'s own header) has no
+   client at all — only Printify does, since that's the OpenAPI spec
+   that was actually supplied to build against.
+7. **User accounts + order history** — ⬜ not built. No Supabase Auth,
+   no login anywhere in this app — including the admin dashboard
+   (Milestone 7), which states plainly in its own sidebar that `/admin`
+   has zero access control.
+8. **Final polish** — 🚧 partial. Boutique music **is** done (Milestone
+   2's `MusicContext`/`MusicToggle`, plus a real audio file added later)
+   — floating control, fade/duck/volume-memory all live. Lazy loading
+   was never addressed. "Production build check" isn't really a
+   one-time item — `next build` has been run clean at the end of every
+   milestone in this log, so treat that as continuously true rather than
+   a pending checkbox.
 
 Tell me which milestone to build next and I'll work from this exact
 codebase — same components, same hotspot coordinates, nothing recreated.
@@ -1079,15 +1122,21 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:3000. You'll need Node 18.18+ and the packages
-in `package.json` (Tailwind, Framer Motion pinned; `openai` and
-`@huggingface/inference` are in since Milestone 6/6.1 — Konva/Supabase/
-Stripe/Printful still get added when I build their features).
+Then open http://localhost:3000 for the storefront, or `/admin` for the
+dashboard (Milestone 7 — no login gate, see that section). You'll need
+Node 18.18+ and the packages in `package.json` (Tailwind, Framer Motion
+pinned; `openai`, `@huggingface/inference`, and `sharp` are in since
+Milestone 6/6.1; `tsx` since Milestone 8.1, dev-only, for running
+`scripts/printify-catalog-sync.ts` directly — Konva/Supabase/Stripe
+still get added when/if their features do; Printful itself never got a
+client, see Roadmap item 6 above for why Printify did instead).
 
 Copy `.env.example` to `.env.local` and fill in real keys before
-exercising `/api/generate-preview` or `/api/animate-preview` — both
-return an honest "not configured" error without them, rather than faking
-a result.
+exercising `/api/generate-preview` (10 of 13 art styles need
+`OPENAI_API_KEY`, 2 need `MUAPI_API_KEY`, 1 needs neither),
+`/api/animate-preview` (`HUGGINGFACE_API_KEY`), or `npm run
+printify:sync` (`PRINTIFY_API_KEY`) — all three return/print an honest
+"not configured" error without their key, rather than faking a result.
 
 ## Deploying (Vercel)
 
@@ -1097,3 +1146,6 @@ a result.
    `HUGGINGFACE_API_KEY` as of Milestone 6.1, plus `MUAPI_API_KEY` as of
    Milestone 6.4 (only required for the "Studio Ghibli"/"Flux Dreamscape"
    styles — every other style still only needs `OPENAI_API_KEY`).
+   `PRINTIFY_API_KEY`/`PRINTIFY_SHOP_ID` (Milestone 8) are deliberately
+   not needed here — nothing deployed reads them, only the local-only
+   `npm run printify:sync` script does.
