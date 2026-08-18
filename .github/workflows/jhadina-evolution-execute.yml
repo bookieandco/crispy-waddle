@@ -39,9 +39,9 @@ jobs:
       TASK_ID: ${{ inputs.evolution_id }}
       BASE_BRANCH: main
       BRANCH_NAME: jhadina/evolution/${{ inputs.evolution_id }}-${{ github.run_id }}
-      ALLOWED_TOOLS: ${{ env.JHADINA_ALLOWED_TOOLS }}
-      DISALLOWED_TOOLS: ${{ env.JHADINA_DISALLOWED_TOOLS }}
-      MAX_TURNS: ${{ env.JHADINA_MAX_TURNS }}
+      ALLOWED_TOOLS: "View,GlobTool,GrepTool,BatchTool,Write,Edit,Bash(git status),Bash(git diff:*),Bash(pnpm test),Bash(pnpm typecheck)"
+      DISALLOWED_TOOLS: "WebFetch,WebSearch,Task,TaskOutput,Bash(git push),Bash(git commit),Bash(git merge),Bash(gh:*)"
+      MAX_TURNS: "12"
 
     steps:
       - name: Checkout authoritative base
@@ -71,7 +71,7 @@ jobs:
           JHADINA_SUPABASE_SECRET_KEY: ${{ secrets.JHADINA_SUPABASE_SECRET_KEY }}
           JHADINA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.JHADINA_SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          pnpm --filter @jhadina/action-core exec tsx ../../scripts/resolve-approved-jhadina-evolution.mjs > /tmp/approved-evolution.json
+          pnpm exec tsx scripts/resolve-approved-jhadina-evolution.mjs > /tmp/approved-evolution.json
           node - <<'NODE'
           const fs = require('fs');
           const candidate = JSON.parse(fs.readFileSync('/tmp/approved-evolution.json', 'utf8'));
@@ -189,7 +189,6 @@ jobs:
             draftPr: null,
           };
           fs.writeFileSync(`.jhadina/results/${process.env.TASK_ID}.json`, JSON.stringify(result, null, 2));
-          cp ".jhadina/results/$TASK_ID.json" ".jhadina/evidence/$TASK_ID.json"
         env:
           STATUS: ${{ steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success' && 'VERIFIED' || 'FAILED' }}
           PROTECTED_PATHS_OUTCOME: ${{ steps.protected_paths.outcome }}
@@ -224,7 +223,6 @@ jobs:
             result.draftPr = process.env.DRAFT_PR_URL || null;
             fs.writeFileSync(path, JSON.stringify(result, null, 2));
             NODE
-            cp ".jhadina/results/$TASK_ID.json" ".jhadina/evidence/$TASK_ID.json"
           fi
         env:
           DRAFT_PR_URL: ${{ steps.draft_pr.outputs.url }}
