@@ -45,7 +45,10 @@ export function useDriverLocation() {
       setErrorMessage(err.message)
     }
 
-    provider.getCurrentLocation().then(handleUpdate).catch(handleError)
+    // watchPosition's first callback already delivers an initial fix (per
+    // the Geolocation API spec), so calling getCurrentPosition separately
+    // here would issue two concurrent location requests — and on some
+    // browsers, prompt for permission twice — for the same first fix.
     const watchId = provider.watchLocation(handleUpdate, handleError)
     return () => provider.clearWatch(watchId)
   }, [])

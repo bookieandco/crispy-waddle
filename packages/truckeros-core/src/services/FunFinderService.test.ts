@@ -52,6 +52,37 @@ class FakePlacesProvider implements IPlacesProvider {
   }
 }
 
+/**
+ * Simulates a real places provider where the same physical place matches
+ * more than one of the "all" mix's category queries (a diner that's both
+ * "food" and an "attraction", say) and comes back with the same
+ * providerId both times — the way Google Places actually behaves, unlike
+ * MockPlacesProvider's category-namespaced ids.
+ */
+class OverlappingCategoryProvider implements IPlacesProvider {
+  readonly providerName = "overlap_test_provider";
+
+  async searchNearby(params: PlaceSearchParams): Promise<PlaceSearchResult[]> {
+    if (params.category !== "food" && params.category !== "attractions") return [];
+
+    return [
+      {
+        providerId: "shared_place",
+        providerName: this.providerName,
+        name: "Roadside Diner & Curiosity Shop",
+        category: params.category,
+        latitude: ORIGIN.latitude + 0.01,
+        longitude: ORIGIN.longitude + 0.01,
+        address: "shared",
+        phone: null,
+        rating: 4.0,
+        isOpenNow: true,
+        truckAttributes: emptyTruckAttributes(),
+      },
+    ];
+  }
+}
+
 describe("FunFinderService", () => {
   let store: InMemoryStore;
   let service: FunFinderService;
@@ -131,5 +162,27 @@ describe("FunFinderService", () => {
     expect(farPlace.rankReasons.some((r) => r.includes("confirmed truck parking"))).toBe(true);
     // The preference now outweighs the proximity gap and wins the ranking.
     expect(after[0].name).toBe("Far BBQ, Truck Parking");
+  });
+
+  it("dedupes a place returned by more than one category query in the 'all' mix", async () => {
+    const overlapService = new FunFinderService(
+      new OverlappingCategoryProvider(),
+      new HaversineRoutingProvider(),
+      new InMemoryPlaceRepository(store),
+      preferenceRepo,
+      new InMemoryRecommendationRepository(store),
+      new AuditService(new InMemoryAuditRepository(store))
+    );
+
+    const results = await overlapService.search({
+      driverId,
+      latitude: ORIGIN.latitude,
+      longitude: ORIGIN.longitude,
+      radiusMeters: 16093,
+      category: "all",
+    });
+
+    const matches = results.filter((p) => p.name === "Roadside Diner & Curiosity Shop");
+    expect(matches).toHaveLength(1);
   });
 });

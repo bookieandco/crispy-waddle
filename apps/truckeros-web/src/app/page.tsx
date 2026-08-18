@@ -67,20 +67,36 @@ export default function DriverHomePage() {
         )}
       </section>
 
-      <Link href={coords ? `/funfinder?${query}` : "#"} aria-disabled={!coords}>
-        <button className="btn btn-primary" disabled={!coords} style={{ width: "100%" }}>
+      {coords ? (
+        <Link href={`/funfinder?${query}`}>
+          <button className="btn btn-primary" style={{ width: "100%" }}>
+            ⚡ Find Something Fun
+          </button>
+        </Link>
+      ) : (
+        // Not wrapped in a Link while GPS is unavailable — a disabled
+        // <button> nested inside an <a> still lets clicks reach the
+        // anchor, so it would "navigate" to a dead link instead of doing
+        // nothing.
+        <button className="btn btn-primary" disabled style={{ width: "100%" }}>
           ⚡ Find Something Fun
         </button>
-      </Link>
+      )}
 
       <div className="grid-2">
-        {QUICK_FILTERS.map((filter) => (
-          <Link key={filter.category} href={coords ? `/funfinder?${query}&category=${filter.category}` : "#"}>
-            <button className="btn" disabled={!coords} style={{ width: "100%", textAlign: "left" }}>
+        {QUICK_FILTERS.map((filter) =>
+          coords ? (
+            <Link key={filter.category} href={`/funfinder?${query}&category=${filter.category}`}>
+              <button className="btn" style={{ width: "100%", textAlign: "left" }}>
+                {filter.label}
+              </button>
+            </Link>
+          ) : (
+            <button key={filter.category} className="btn" disabled style={{ width: "100%", textAlign: "left" }}>
               {filter.label}
             </button>
-          </Link>
-        ))}
+          )
+        )}
       </div>
 
       <section className="stack">

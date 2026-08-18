@@ -16,12 +16,24 @@ export class MockPlacesProvider implements IPlacesProvider {
   async searchNearby(params: PlaceSearchParams): Promise<PlaceSearchResult[]> {
     const templates = TEMPLATES[params.category] ?? TEMPLATES.default;
 
+    // Meters-per-degree at this latitude, matching the approximation
+    // geo.ts's boundingBox() uses. Offsets are derived from radiusMeters
+    // so results actually land inside the requested search radius instead
+    // of a set of fixed constants that quietly ignored it (and could put
+    // "nearby" results outside a small requested radius, or bunch them
+    // unrealistically close for a large one).
+    const metersPerDegreeLat = 111320;
+    const metersPerDegreeLng = metersPerDegreeLat * Math.cos((params.latitude * Math.PI) / 180) || 1;
+
     return templates.map((template, index) => {
-      // Small deterministic offsets so markers land at plausible, varied
-      // distances from the driver instead of stacking on one point.
+      // Spread templates from ~20% to ~80% of the requested radius, at
+      // alternating diagonal bearings, so markers land at plausible,
+      // varied distances instead of stacking on one point.
+      const fraction = 0.2 + (0.6 * (index + 1)) / (templates.length + 1);
+      const distanceMeters = params.radiusMeters * fraction;
       const sign = index % 2 === 0 ? 1 : -1;
-      const latOffset = (index + 1) * 0.015 * sign;
-      const lngOffset = (index + 1) * 0.02 * -sign;
+      const latOffset = ((distanceMeters * Math.SQRT1_2) / metersPerDegreeLat) * sign;
+      const lngOffset = ((distanceMeters * Math.SQRT1_2) / metersPerDegreeLng) * -sign;
 
       const inferred: TruckAttributes["inferred"] = template.hasBigLot
         ? { truck_accessible: true, large_vehicle_parking: true }

@@ -43,7 +43,7 @@ export class FunFinderService {
     const categories = params.category === "all" ? DEFAULT_MIX_CATEGORIES : [params.category];
     const origin = { latitude: params.latitude, longitude: params.longitude };
 
-    const searchResults = (
+    const rawResults = (
       await Promise.all(
         categories.map((category) =>
           this.placesProvider.searchNearby({
@@ -55,6 +55,22 @@ export class FunFinderService {
         )
       )
     ).flat();
+
+    // The "all" mix queries several categories in parallel. A real places
+    // provider can return the same physical place for more than one of
+    // them (a business that matches both "food" and "attractions" text
+    // search, say) with the same providerId — dedupe on the provider's own
+    // identity before ranking, or it shows up twice with two different
+    // category labels. MockPlacesProvider can't reproduce this (its ids
+    // are namespaced per category), which is why this needs its own note
+    // rather than being obvious from the existing tests.
+    const seenProviderKeys = new Set<string>();
+    const searchResults = rawResults.filter((result) => {
+      const key = `${result.providerName}:${result.providerId}`;
+      if (seenProviderKeys.has(key)) return false;
+      seenProviderKeys.add(key);
+      return true;
+    });
 
     const preferences = await this.preferenceRepo.listByDriver(params.driverId);
 
