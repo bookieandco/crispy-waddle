@@ -7,6 +7,7 @@ export * from "./interfaces/location.js";
 export * from "./interfaces/places.js";
 export * from "./interfaces/routing.js";
 export * from "./interfaces/maps.js";
+export * from "./interfaces/dispatcher.js";
 
 // Adapters
 export * from "./providers/index.js";
@@ -29,3 +30,4 @@ export * from "./repositories/AuditRepository.js";
 export * from "./services/FunFinderService.js";
 export * from "./services/MemoryService.js";
 export * from "./services/AuditService.js";
+export * from "./services/DispatcherService.js";
