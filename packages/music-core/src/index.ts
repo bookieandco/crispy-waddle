@@ -20,3 +20,4 @@ export * from "./studio-adapter.js";
 export * from "./mobile-adapter.js";
 export * from "./instrument-replacement.js";
 export * from "./instrument-replacement-planner.js";
+export * from "./instrument-reconstruction.js";
