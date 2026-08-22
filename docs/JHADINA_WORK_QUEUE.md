@@ -3739,3 +3739,125 @@ plan -- post-merge validation on `main`, and the optional real Plaid sandbox ver
 (PL-7-shaped: a `.live.ts` suite + dedicated `workflow_dispatch`-only workflow, proving
 `listAccounts()` against Plaid's real sandbox) -- are unscheduled, each requiring its own explicit
 authorization, same discipline as PL-7.
+
+---
+
+### PL-8 Phase 2 — Money Live Plaid Sandbox Verification Infrastructure — DONE (prepared, not dispatched)
+
+**Status:** DONE (PR #85, merged as `53ab75a`, commit `8e76eed`). The PL-7-shaped live-verification
+gate for Money/Plaid: infrastructure only, exactly like Phase 2 was scoped -- **no credential was
+ever configured and no dispatch occurred** in this milestone.
+
+**Changed (3 files, all new):**
+- `apps/jhadina-web/vitest.pl8-live.config.ts` -- separate vitest config, scoped to exactly one
+  file, byte-identical alias set to the default config and to `vitest.pl7-live.config.ts`.
+- `apps/jhadina-web/src/lib/money/pl8-live-plaid-verification.live.ts` -- 5-scenario evidence
+  suite against Plaid's real sandbox API: (0) `JHADINA_SECRET_PLAID_DEFAULT` resolves server-side
+  without exposing its value; (1) sandbox-boundary + HTTPS enforcement, including a live-adjacent
+  rejection of a production host before any adapter exists; (2) an authenticated actor reaches the
+  governed executor, the real unmocked `PlaidReadOnlyAdapter` calls Plaid's sandbox
+  `/accounts/get`, the response maps into real `MoneyAccount[]`; (3) a durable audit event is
+  recorded with domain `"money"` and correct actor attribution (same faithful `FakeAuditRpcClient`
+  shape PL-5/PL-7 validated -- not a live Supabase connection, same call PL-7 made for identical
+  reasons); (4) final secret-hygiene self-check.
+- `.github/workflows/pl8-live-plaid-verification.yml` -- `workflow_dispatch`-only (no
+  push/pull_request/schedule), `permissions: contents: read` (the minimum possible grant), secret
+  scoped to exactly one step's `env:` block, no artifact upload, documents the required
+  `{clientId, secret, accessToken}` bundle shape and Plaid's sandbox-token prerequisite.
+
+**Two independent pre-merge audits performed** (diff review before commit, then a second read-only
+audit of the open PR before merge authorization): confirmed exactly these 3 files and no others;
+no literal credential anywhere in the diff (only a `secrets.JHADINA_SECRET_PLAID_DEFAULT`
+reference); no permission escalation (`contents: read` only, versus PR #84's
+`jhadina-evolution-execute.yml` which legitimately needs `contents: write`/`pull-requests: write`
+for its own commit/PR steps); no production dispatch possible (`workflow_dispatch` only); no
+unintended network call surface (Plaid sandbox only, gated behind fail-closed credential
+resolution); zero overlap with PR #84's already-merged evolution/Vercel files.
+
+**VERIFIED (no credential required):** default `pnpm vitest run` still exactly 18 files / 152
+tests (the `.live.ts` file invisible to it); running the live config with no
+`JHADINA_SECRET_PLAID_DEFAULT` set fails all 5 scenarios cleanly on
+`CREDENTIAL_NOT_CONFIGURED:money/plaid/default` -- no malformed error, no network attempt;
+type-check clean; lint 0 errors (4 pre-existing, unrelated warnings); build succeeds; CI green
+(Launch Gate success) both before and after merge.
+
+**COMMIT:** PR #85 merged as `53ab75a` (commit `8e76eed`), by the user via the GitHub UI --
+detected via `git fetch origin main`, not merged by the assistant. Built on top of PR #84's merge
+(`0dffe6b`, unrelated evolution/Vercel separation work, tracked outside this doc's PL numbering).
+
+**Operational note:** the designated branch (`claude/jhadina-mvp-audit-ok29s0`) again held only
+already-merged history (Phase 1's `4deb027`, merged via PR #77) at the point this milestone
+started -- restarted fresh from current `main` and force-with-lease pushed, same pattern used for
+Phase 1, confirmed safe via `git merge-base --is-ancestor` before the reset.
+
+**ARCHITECTURAL IMPACT:** Money now has the same live-verification readiness Commerce reached
+before PL-7's actual dispatch -- the governed path (identity -> policy -> health/capability gate ->
+sandbox-boundary-enforced `PlaidReadOnlyAdapter` -> durable audit, domain `"money"`) is provably
+ready to run against Plaid's real sandbox the moment a real `JHADINA_SECRET_PLAID_DEFAULT` is
+provisioned as a GitHub Actions secret. No UI, no write capability, no frozen gate
+(`JH-028`/`JH-033`/`JH-034` included) touched.
+
+**NEXT:** the live dispatch itself remains a separate, explicit authorization gate -- unscheduled.
+It requires, in order: a real Plaid sandbox credential bundle provisioned as
+`JHADINA_SECRET_PLAID_DEFAULT` (including a real sandbox access token exchanged via Plaid's own
+`/sandbox/public_token/create` + `/item/public_token/exchange` flow, done outside this repo), then
+a single explicit dispatch authorization, mirroring PL-7's two-gate discipline (construction
+authorized separately from dispatch).
+
+### JH-048
+**Priority:** P3
+**Status:** DECISION DOCUMENTED -- human confirmation still open
+**Objective:** Phase 1 Step 1 asked whether `placement_*` (the tables
+`placement-core` writes: `placement_organizations`, `placement_memberships`,
+`placement_jobs`, `placement_placements`, `placement_referrals`,
+`placement_assignments`, `placement_timesheets`, `placement_audit_events`)
+belongs in the planned Opportunity vertical (OverageOS-style discovery /
+evidence / entity-resolution / verification / governed action). Nothing
+was deleted; this is a classification finding only.
+
+**Finding: it does not.** `placement-core` is a job-placement / staffing
+marketplace domain -- organizations, memberships, job orders, referrals,
+assignments, timesheets, invoicing -- with no overlap in data model,
+evidence model, or verification concept with Opportunity's asset/money
+discovery domain. The work queue's own prior finding on JH's "Reticulum"
+thread already independently characterized `placement-core/src/command-api.ts`
+as "PlacementOS's own command API (a staffing/scheduling domain)" --
+consistent with this conclusion, not new to it.
+
+**A separate, more consequential finding surfaced while answering this:**
+`placement-core` is not the only implementation of this domain.
+`packages/staffing-core` (65 source files, ~2,500 LOC, 18 sequential
+migrations `0005`-`0022` covering placements, timesheets, invoices,
+payment ledger + reconciliation, interviews, interview outcomes,
+candidate reviews, employer decisions) plus its own dedicated app,
+`apps/staffing-web`, is a substantially larger and more mature build of
+what looks like the same underlying domain as `placement-core`'s single
+212-line migration (`organizations`, `memberships`, `jobs`, and a
+narrower slice beyond that). `jhadina-web`'s `/placement/*` pages are
+wired to `placement-core`, not `staffing-core` -- meaning the OS's own
+front door currently exercises the smaller, less mature of the two.
+
+Whether `placement-core` is an earlier draft `staffing-core` superseded,
+a deliberately separate lighter-weight Jhadina-integrated view over the
+same eventual data, or something that should be unified into one
+package before either becomes a real department, is a product-scope call
+this session did not make -- it fits squarely under "architectural
+decision that cannot safely be inferred" from Phase 1's own working
+method.
+
+**Also open:** whether either `placement_*` or `staffing_*` tables exist
+on the live Supabase project could not be verified this pass -- the
+`execute_sql` tool call was gated pending approval and was not forced.
+Given every other package-local migration found in this repo's history
+(`energy-opportunity-core`, `justice-core`, `jhadina-web`'s
+codebase-graph, and originally all of `overage_*`/`jhadina_mining_*`
+before Gates 0-12) turned out to be unapplied-live, the same should be
+assumed true here until confirmed, not assumed clean.
+
+**Human gate:** (1) confirm placement/staffing is out of scope for the
+Opportunity vertical (no action needed if so -- this entry can close);
+(2) decide whether `placement-core` and `staffing-core` are one domain
+that needs reconciling before either is wired into the OS backbone, or
+two deliberately distinct things; (3) when convenient, confirm live
+table state for both `placement_*` and `staffing_*` against the Supabase
+project.
