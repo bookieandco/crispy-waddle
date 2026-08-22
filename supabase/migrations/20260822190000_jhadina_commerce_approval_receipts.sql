@@ -36,7 +36,7 @@ create or replace function public.jhadina_commerce_create_approval_receipt(
 )
 returns public.jhadina_commerce_approval_receipts
 language plpgsql
-security invoker
+security definer
 set search_path = public
 as $$
 declare
@@ -63,7 +63,7 @@ create or replace function public.jhadina_commerce_approve_receipt(
 )
 returns public.jhadina_commerce_approval_receipts
 language plpgsql
-security invoker
+security definer
 set search_path = public
 as $$
 declare
@@ -97,7 +97,7 @@ create or replace function public.jhadina_commerce_consume_approval_receipt(
 )
 returns boolean
 language plpgsql
-security invoker
+security definer
 set search_path = public
 as $$
 declare
