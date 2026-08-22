@@ -25,7 +25,9 @@ import {
  * singleton either).
  *
  * The payment provider is createStripeSandboxProductionProvider() with
- * no overrides: it resolves JHADINA_SECRET_COMMERCE_STRIPE_SANDBOX from
+ * no overrides: it resolves JHADINA_SECRET_STRIPE_SANDBOX (via
+ * STRIPE_SANDBOX_CREDENTIAL_REF = "commerce/stripe/sandbox" and
+ * sandboxCredentialRefToEnvKey — see sandbox-credential.ts) from
  * the real environment and fails closed (CREDENTIAL_NOT_CONFIGURED) if
  * that secret is unset, and independently refuses anything that is not a
  * real sk_test_ key (assertStripeSandboxKey). No live credential exists
