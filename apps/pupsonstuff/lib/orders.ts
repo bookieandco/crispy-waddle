@@ -59,15 +59,14 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
   const order = rows[0] ?? await getOrderByStripeSession(input.stripeSessionId);
   if (!order) throw new Error("Supabase order was not returned after upsert.");
 
-  // Stripe webhook delivery is retried. The unique line-item id prevents
-  // duplicate item rows when the same event is delivered twice.
   for (const item of items) {
     const itemResponse = await supabaseFetch("pupson_order_items?on_conflict=stripe_line_item_id", {
       method: "POST",
       headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
       body: JSON.stringify({
         order_id: order.id,
-        stripe_line_item_id: `${input.stripeSessionId}:${item.id}`,
+        // item.id is the actual Stripe line-item ID from the signed webhook.
+        stripe_line_item_id: item.id,
         product_id: item.productId,
         variant_id: item.variantId,
         product_name: item.productName,
@@ -78,8 +77,6 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
         fulfillment_provider: item.fulfillment?.provider ?? null,
         fulfillment_product_id: item.fulfillment?.productId ?? null,
         fulfillment_variant_id: item.fulfillment?.variants.find((v) => v.variantId === item.variantId)?.variantId ?? null,
-        // preview_path stays null until the private Storage bucket is configured.
-        // Browser data: URLs must not be written into the order database.
         preview_path: null,
       }),
     });
