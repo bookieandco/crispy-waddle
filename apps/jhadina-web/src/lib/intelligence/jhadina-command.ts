@@ -1,9 +1,11 @@
 import {
   InMemoryApprovalReceiptStore,
+  JhadinaValuesActionPolicy,
   type ActionPolicy,
   type ApprovalReceiptStore,
   type SupabaseAuditLedger,
 } from "@jhadina/action-core"
+import { JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION } from "@jhadina/security-core"
 import { IntelligenceRouter, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
@@ -113,9 +115,17 @@ export async function handleJhadinaCommand(
   const ledger = overrides.ledger ?? (await createIntelligenceAuditLedger())
   const router = overrides.router ?? createProductionIntelligenceRouter(overrides.onEvent)
   const approvalStore = overrides.approvalStore ?? defaultApprovalStore
+  // Phase 1 Step 7: the real, classification/values-aware policy, not
+  // the flat base policy alone. memory.propose is classified read_only
+  // (see capability-classification.ts), so this changes nothing about
+  // its outcome (still `allow`) — it's here so Ask Jhadina's one live
+  // capability is already protected by the same risk-boundary layer any
+  // future capability this router is pointed at will need.
+  const policy = overrides.policy
+    ?? new JhadinaValuesActionPolicy<MemoryProposeAction>(JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION)
 
   const result = await decideAndProposeMemoryGoverned(
-    { identityVerifier, ledger, router, memoryRepo, reasoningRepo, approvalStore, policy: overrides.policy },
+    { identityVerifier, ledger, router, memoryRepo, reasoningRepo, approvalStore, policy },
     input.userId,
     assembled.contextPacket,
   )
