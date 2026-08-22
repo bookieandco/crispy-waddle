@@ -1,25 +1,8 @@
 // lib/stripe.ts
-//
-// Server-only. Never import this from a client component — it reads
-// process.env.STRIPE_SECRET_KEY, which must never reach the browser.
-//
-// UNTESTED against a live key — no network access to api.stripe.com
-// from the sandbox that wrote this, the same honest caveat as every
-// other external API integration in this project (lib/ai.ts,
-// lib/animation.ts, lib/muapi.ts, lib/printify.ts). Treat the first
-// real checkout attempt as a test.
-//
-// apiVersion deliberately left unset in the Stripe client constructor
-// below — the installed `stripe` SDK's own `apiVersion?` option accepts
-// it, but pinning a specific dated version string here would mean
-// guessing at one rather than knowing it's actually current, which this
-// project avoids everywhere else. Omitting it uses the SDK's own bundled
-// default (Stripe's documented behavior for the Node library), which
-// tracks the installed package version instead of a hand-picked string
-// that could quietly drift out of date.
+// Server-only. Never import this from a client component.
 
 import Stripe from "stripe";
-import { CartItem } from "@/types/boutique";
+import { ValidatedCartItem } from "@/lib/catalog";
 
 let client: Stripe | null = null;
 
@@ -29,7 +12,7 @@ function getClient(secretKey: string): Stripe {
 }
 
 export interface CreateCheckoutSessionParams {
-  items: CartItem[];
+  items: ValidatedCartItem[];
   successUrl: string;
   cancelUrl: string;
 }
@@ -44,19 +27,6 @@ export interface CreateCheckoutSessionError {
   error: string;
 }
 
-/**
- * Creates a real Stripe Checkout Session and returns its hosted URL for
- * the client to redirect to (`window.location.href = url`) — the
- * redirect-to-Stripe-hosted-page flow, not Stripe.js/Elements embedded
- * on this page, so no client-side Stripe publishable key or
- * `@stripe/stripe-js` dependency is needed anywhere in this app.
- *
- * Line items are built with `price_data` (inline pricing), not
- * pre-created Stripe Price/Product objects — there's no Stripe catalog
- * synced to this app's products (same situation as Printify/Printful:
- * `data/hotspots.ts` is this app's only product source of truth), so
- * each checkout constructs its prices from the cart at request time.
- */
 export async function createCheckoutSession(
   params: CreateCheckoutSessionParams
 ): Promise<CreateCheckoutSessionResult | CreateCheckoutSessionError> {
@@ -70,25 +40,24 @@ export async function createCheckoutSession(
 
   try {
     const stripe = getClient(secretKey);
-
     const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] =
       params.items.map((item) => ({
         quantity: item.quantity,
         price_data: {
           currency: "usd",
           product_data: {
-            name: item.productName,
-            // Stripe requires image URLs to be publicly reachable
-            // (it fetches them) — a data: URL (what this app's
-            // generated previews actually are, from
-            // app/api/generate-preview/route.ts's base64 response)
-            // is not that, so it's deliberately excluded rather than
-            // sent and silently rejected/ignored by Stripe.
+            name: `${item.productName} — ${item.variantLabel}`,
+            metadata: {
+              cart_entry_id: item.id,
+              product_id: item.productId,
+              variant_id: item.variantId,
+              art_style: item.artStyle,
+            },
             images: item.previewUrl?.startsWith("http")
               ? [item.previewUrl]
               : undefined,
           },
-          unit_amount: item.price,
+          unit_amount: item.priceCents,
         },
       }));
 
@@ -119,14 +88,6 @@ export interface CheckoutSessionSummary {
   customerEmail: string | null;
 }
 
-/**
- * Fetches a Checkout Session's real status server-side — the success
- * page needs this because Stripe's own `session_id` query param is not
- * itself proof of payment (anyone can craft that URL), only a lookup
- * key; the actual status has to come from Stripe's API using the
- * secret key, which is exactly why this can't be a direct client-side
- * fetch to Stripe.
- */
 export async function getCheckoutSession(
   sessionId: string
 ): Promise<{ success: true; session: CheckoutSessionSummary } | CreateCheckoutSessionError> {
@@ -153,4 +114,9 @@ export async function getCheckoutSession(
       error: err instanceof Error ? err.message : "Unknown error calling Stripe.",
     };
   }
+}
+
+export function getStripeClient(): Stripe | null {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  return secretKey ? getClient(secretKey) : null;
 }
