@@ -59,15 +59,15 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
   const order = rows[0] ?? await getOrderByStripeSession(input.stripeSessionId);
   if (!order) throw new Error("Supabase order was not returned after upsert.");
 
-  // Stripe webhook delivery is retried. The unique line-item id prevents
-  // duplicate item rows when the same event is delivered twice.
+  // Stripe's line-item ID is globally unique within the Checkout Session
+  // and is now the exact durable idempotency key persisted in Postgres.
   for (const item of items) {
     const itemResponse = await supabaseFetch("pupson_order_items?on_conflict=stripe_line_item_id", {
       method: "POST",
       headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
       body: JSON.stringify({
         order_id: order.id,
-        stripe_line_item_id: `${input.stripeSessionId}:${item.id}`,
+        stripe_line_item_id: item.id,
         product_id: item.productId,
         variant_id: item.variantId,
         product_name: item.productName,
