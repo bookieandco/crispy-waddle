@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getStripeClient } from "@/lib/stripe";
-import { validateCart } from "@/lib/catalog";
+import { validateStripeLineItems } from "@/lib/catalog";
 import { upsertPaidOrder } from "@/lib/orders";
 
 export const runtime = "nodejs";
@@ -44,7 +44,6 @@ export async function POST(req: NextRequest) {
 
   const session = event.data.object as Stripe.Checkout.Session;
   if (session.payment_status !== "paid") {
-    // Do not create a paid order for an unpaid/async-pending session.
     return NextResponse.json({ received: true, paid: false });
   }
 
@@ -61,7 +60,9 @@ export async function POST(req: NextRequest) {
         : {};
 
       return {
-        id: metadata.cart_entry_id ?? lineItem.id,
+        // Stripe's line-item ID is the durable idempotency key. Never use
+        // browser cart IDs for webhook replay protection.
+        id: lineItem.id,
         productId: metadata.product_id,
         variantId: metadata.variant_id,
         artStyle: metadata.art_style,
@@ -73,12 +74,11 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const items = validateCart(rawItems);
+    // The catalog is consulted to recover the current fulfillment mapping,
+    // but Stripe's already-paid unit amount remains the historical order
+    // price. A catalog price change therefore cannot rewrite an old order.
+    const items = validateStripeLineItems(rawItems);
     if (!items || items.length !== rawItems.length) {
-      // A paid session with malformed catalog metadata is intentionally
-      // not silently turned into an order. Stripe can retry after the
-      // deployment is corrected, while the payment remains visible in
-      // Stripe for manual reconciliation.
       return NextResponse.json(
         { success: false, error: "Stripe line-item catalog metadata failed validation." },
         { status: 422 }
