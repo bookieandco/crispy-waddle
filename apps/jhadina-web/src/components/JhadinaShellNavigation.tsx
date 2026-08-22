@@ -16,6 +16,7 @@ import styles from "./JhadinaShellNavigation.module.css"
  * link ahead of it.
  */
 const worlds = [
+  ["✦", "Ask Jhadina", "/ask-jhadina"],
   ["🎵", "Music", "/music"],
   ["📺", "JhadinaTV", "/jhadinatv"],
   ["📈", "Growth", "/growth"],
@@ -29,6 +30,7 @@ const worlds = [
 
 const primary = [
   ["🏡", "Home", "/"],
+  ["✦", "Ask Jhadina", "/ask-jhadina"],
   ["📈", "Growth", "/growth"],
   ["🎵", "Music", "/music"],
   ["🎯", "Opportunities", "/opportunity"],
