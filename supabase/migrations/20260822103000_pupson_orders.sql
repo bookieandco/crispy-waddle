@@ -23,6 +23,7 @@ create table if not exists public.pupson_orders (
 create table if not exists public.pupson_order_items (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.pupson_orders(id) on delete cascade,
+  stripe_line_item_id text not null unique,
   product_id text not null,
   variant_id text not null,
   product_name text not null,
