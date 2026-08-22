@@ -123,7 +123,7 @@ begin
   insert into public.jhadina_audit_event
     (domain, sequence, event_id, request_id, actor_id, capability, decision, status, occurred_at, metadata, previous_hash, hash)
   values
-    (p_domain, v_sequence, p_event_id, p_request_id, p_actor_id, p_domain, p_capability, p_decision, p_status, p_occurred_at, coalesce(p_metadata, '{}'::jsonb), v_previous_hash, v_hash)
+    (p_domain, v_sequence, p_event_id, p_request_id, p_actor_id, p_capability, p_decision, p_status, p_occurred_at, coalesce(p_metadata, '{}'::jsonb), v_previous_hash, v_hash)
   returning * into v_row;
 
   return v_row;
@@ -133,6 +133,11 @@ $$;
 revoke all on function public.append_jhadina_audit_event(text, text, text, text, text, text, text, timestamptz, jsonb) from public;
 grant execute on function public.append_jhadina_audit_event(text, text, text, text, text, text, text, timestamptz, jsonb) to authenticated;
 
+-- Read side. SupabaseAuditLedger had no list() before this migration's
+-- companion code change (see packages/jhadina-action-core) — an
+-- append-only ActionLedger has nowhere on its own contract to read
+-- from. This RPC is that boundary: scoped to exactly one domain and
+-- exactly the calling actor, never "all events."
 create or replace function public.list_jhadina_audit_events(
   p_domain text,
   p_actor_id text
