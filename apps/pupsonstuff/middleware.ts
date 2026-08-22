@@ -1,6 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+function isAdmin(email: string | undefined) {
+  if (!email) return false;
+  const allowed = process.env.PUPSON_ADMIN_EMAILS
+    ?.split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  return Boolean(allowed?.includes(email.toLowerCase()));
+}
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
   const url = process.env.SUPABASE_URL;
@@ -28,6 +37,10 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (!isAdmin(user.email)) {
+    return new NextResponse("Forbidden", { status: 403 });
   }
 
   return response;
