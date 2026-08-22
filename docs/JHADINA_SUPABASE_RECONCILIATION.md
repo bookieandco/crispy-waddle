@@ -1,8 +1,9 @@
 # Jhadina OS Supabase Schema Reconciliation
 
-Status: **Gate 9 reconstruction complete. Awaiting human authorization before
-provisioning any clean-environment verification infrastructure or touching
-production in any way.**
+Status: **Gate 9 reconstruction complete. Gate 10 clean-replay ordering fix
+complete and static preflight re-verified clean. Awaiting human authorization
+before provisioning any clean-environment verification infrastructure or
+touching production in any way.**
 
 This document is the durable record of a multi-gate, read-only-first
 investigation into drift between the live "Jhadina OS" Supabase project
@@ -198,3 +199,95 @@ provisioning step is treated as the first human-authorization gate this
 instruction refers to — cost must be checked and explicitly confirmed before
 any such resource is created. Nothing has been provisioned; no clean-room
 diff has been run yet.
+
+## Gate 10 — clean-replay ordering fix
+
+A static preflight check (Gate 9's own verification pass) found that
+collapsing the 10 intermediate evolution-run-ledger migrations into
+`20260814233342_create_jhadina_evolution_run_ledger_authoritative` — while
+correct for representing the final live shape — left two later migrations
+referencing objects that, in the promoted/canonical file set, don't exist
+until `20260814233342` runs. As the preflight report put it: this is exactly
+the class of dependency issue a clean replay is supposed to expose, not a
+failure of the reconstruction itself.
+
+Two files were trimmed and two new migrations added, all git-only, nothing
+executed against any database:
+
+- **`20260812195157_harden_daily_audit_run_access.sql`** — its unrelated
+  `jhadina_audit_runs_select_authenticated` policy stays in its original
+  position. Its two `REVOKE EXECUTE` statements (on
+  `append_jhadina_evolution_run_ledger` and
+  `verify_jhadina_evolution_run_ledger`) moved verbatim to a new file,
+  **`20260814233343_finish_daily_audit_run_access_hardening.sql`**, timestamped
+  after `20260814233342`. No behavioral change: REVOKE is monotonic, and
+  `20260814233342` already revokes ALL on both functions from
+  public/anon/authenticated before granting EXECUTE to service_role — these
+  two narrower revokes are a no-op confirmation of that same final state.
+
+- **`20260814224651_harden_jhadina_evolution_run_ledger_head.sql`** — trimmed
+  to only what it self-contains (creating `jhadina_evolution_run_ledger_head`,
+  enabling its RLS, and its own read policy). The five statements that
+  referenced `jhadina_evolution_run_ledger` (the main table, not the head
+  table) were removed from here:
+  - `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and
+    `jhadina_evolution_run_ledger_run_sequence_idx` are **not** duplicated
+    anywhere else — `20260814233342` already performs both itself, so they
+    would be pure no-ops. No index is dropped; `run_sequence_idx` still gets
+    created, just by `20260814233342`'s own statement instead.
+  - The `"authenticated users can read evolution run events"` policy is
+    **not** duplicated either — `20260814233342` already creates it via
+    `DROP POLICY IF EXISTS` + `CREATE POLICY`, with a corrected,
+    subquery-wrapped `(select auth.uid())` USING clause that supersedes this
+    file's original unwrapped `auth.uid()` version. Re-running the older
+    version after `20260814233342` would have silently overwritten the live,
+    currently-correct policy with the one it was designed to replace — the
+    opposite of preserving live behavior. This is the one point where a
+    literal "move every referencing statement verbatim" would have
+    introduced a new bug; the fix preserves final live behavior instead.
+  - The `jhadina_evolution_run_ledger_task_idx` and
+    `jhadina_evolution_run_ledger_type_idx` indexes have no equivalent in
+    `20260814233342`, so they moved unchanged to a new file,
+    **`20260814233344_add_jhadina_evolution_run_ledger_secondary_indexes.sql`**,
+    timestamped after it.
+
+`20260814233342` itself was not modified, renamed, or renumbered.
+`jhadina_evolution_run_ledger_append` was not touched. Nothing under
+`supabase/quarantine/` was read or executed. No index was dropped anywhere —
+every index that existed before Gate 10 still gets created, just from its
+correct position in the sequence.
+
+Re-running the same static dependency analysis (every `CREATE TABLE` /
+`CREATE FUNCTION` cross-checked against every `ALTER TABLE`, `CREATE POLICY
+ON`, `CREATE INDEX ON`, `REVOKE/GRANT ON FUNCTION`, and `EXECUTE FUNCTION`
+reference, comment-stripped) over all 22 files in the new order found: no
+duplicate table creations, no duplicate function creations, no duplicate
+index declarations, and zero forward references. Full order:
+
+1. `20260810060438_create_jhadina_audit_ledger.sql`
+2. `20260810060509_lock_jhadina_audit_trigger_function.sql`
+3. `20260810060748_harden_jhadina_audit_append_path.sql`
+4. `20260810164226_create_jhadina_planning_core.sql`
+5. `20260811030927_create_jhadina_evolution_candidates.sql`
+6. `20260811031424_create_overage_runtime_core.sql`
+7. `20260811031731_harden_overage_action_execution.sql`
+8. `20260811033336_harden_jhadina_audit_ledger_head_rls.sql`
+9. `20260811033529_create_overage_jurisdiction_source_registry.sql`
+10. `20260811033555_add_federal_geography_keys_to_overage_jurisdictions.sql`
+11. `20260811233914_create_jhadina_mining_financial_events.sql`
+12. `20260812000137_create_jhadina_mining_decisions.sql`
+13. `20260812192807_create_jhadina_mining_scan_checkpoints.sql`
+14. `20260812194414_create_jhadina_mining_payout_processing.sql`
+15. `20260812194650_lock_down_mining_payout_rpc.sql`
+16. `20260812194727_enable_pg_cron_and_daily_audit_scheduler.sql`
+17. `20260812194849_add_daily_audit_ledger_indexes.sql`
+18. `20260812195157_harden_daily_audit_run_access.sql` (trimmed)
+19. `20260814224651_harden_jhadina_evolution_run_ledger_head.sql` (trimmed)
+20. `20260814233342_create_jhadina_evolution_run_ledger_authoritative.sql` (unchanged)
+21. `20260814233343_finish_daily_audit_run_access_hardening.sql` (new)
+22. `20260814233344_add_jhadina_evolution_run_ledger_secondary_indexes.sql` (new)
+
+Clean-environment replay (provisioning a fresh Supabase project/branch to
+apply these 22 migrations and diff against live) is still not started —
+still gated on explicit human authorization before any cloud resource is
+created, per Gate 9's original stopping point.
