@@ -1,4 +1,4 @@
-import { assertGovernedRepairResult } from "./governed-repair-contract";
+import { assertGovernedRepairResult } from "./governed-repair-contract.ts";
 
 const verified = {
   workflowResult: {

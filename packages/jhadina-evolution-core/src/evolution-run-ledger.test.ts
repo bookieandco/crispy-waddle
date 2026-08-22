@@ -2,7 +2,7 @@ import {
   InMemoryEvolutionRunLedger,
   recordEvolutionExecutionResult,
   verifyEvolutionRunLedger,
-} from "./evolution-run-ledger";
+} from "./evolution-run-ledger.ts";
 
 const result = {
   version: "1" as const,
