@@ -11,11 +11,11 @@ import {
   ReasoningEvent,
   Observation,
   Classification,
-  InMemoryStorage,
 } from "../storage/InMemoryStorage"
+import type { MemoryStorage } from "../storage/MemoryStorage"
 
 export class ReasoningEventRepository {
-  constructor(private storage: InMemoryStorage) {}
+  constructor(private storage: MemoryStorage) {}
 
   /**
    * Create a reasoning event
@@ -30,7 +30,7 @@ export class ReasoningEventRepository {
     confidence: number
     candidateId?: string
   }): Promise<ReasoningEvent> {
-    const event = this.storage.createReasoningEvent({
+    const event = await this.storage.createReasoningEvent({
       userId: params.userId,
       timestamp: new Date().toISOString(),
       userMessage: params.userMessage,
@@ -48,7 +48,7 @@ export class ReasoningEventRepository {
    * Get a specific reasoning event by ID
    */
   async get(eventId: string): Promise<ReasoningEvent | null> {
-    const event = this.storage.getReasoningEvent(eventId)
+    const event = await this.storage.getReasoningEvent(eventId)
     return event || null
   }
 
@@ -60,7 +60,7 @@ export class ReasoningEventRepository {
     limit: number = 50,
     offset: number = 0
   ): Promise<ReasoningEvent[]> {
-    const events = this.storage.listReasoningEvents(userId, limit + offset)
+    const events = await this.storage.listReasoningEvents(userId, limit + offset)
     return events.slice(offset, offset + limit)
   }
 
@@ -68,7 +68,7 @@ export class ReasoningEventRepository {
    * Get the most recent reasoning event
    */
   async getMostRecent(userId: string): Promise<ReasoningEvent | null> {
-    const events = this.storage.listReasoningEvents(userId, 1)
+    const events = await this.storage.listReasoningEvents(userId, 1)
     return events.length > 0 ? events[0] : null
   }
 
@@ -76,18 +76,19 @@ export class ReasoningEventRepository {
    * Count reasoning events
    */
   async count(userId: string): Promise<number> {
-    return this.storage.listReasoningEvents(userId, 10000).length
+    const events = await this.storage.listReasoningEvents(userId, 10000)
+    return events.length
   }
 
   /**
    * Debug dump
    */
-  dump(userId?: string): string {
+  async dump(userId?: string): Promise<string> {
     const lines: string[] = []
     lines.push("ReasoningEventRepository")
     lines.push("─".repeat(40))
 
-    const events = this.storage.listReasoningEvents(
+    const events = await this.storage.listReasoningEvents(
       userId || "user_demo",
       10
     )
