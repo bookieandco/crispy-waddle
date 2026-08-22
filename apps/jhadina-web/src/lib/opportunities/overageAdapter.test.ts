@@ -14,7 +14,13 @@ describe("buildOverageOpportunity", () => {
     claimantName: "Test Claimant",
     propertyReference: "APN-TEST-001",
     sourceConfidence: 0.9,
-    verificationStatus: "approved",
+    // Deliberately an already-elevated status: proves the adapter clobbers
+    // it back to "human_required" rather than trusting a caller-supplied
+    // verification outcome. "verified" is a real OpportunityVerificationStatus
+    // value (unlike the "approved" this fixture used previously, which
+    // belongs to the separate OpportunityStatus vocabulary and was never a
+    // valid verificationStatus).
+    verificationStatus: "verified",
     evidenceSummary: "Controlled Washoe fixture; no external action permitted.",
     riskFlags: ["identity_unverified"],
   }

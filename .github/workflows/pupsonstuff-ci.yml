@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "apps/pupsonstuff/**"
+      - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "package.json"
       - "turbo.json"
@@ -14,6 +15,7 @@ on:
       - pupsonstuff-main-integration
     paths:
       - "apps/pupsonstuff/**"
+      - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "package.json"
       - "turbo.json"
@@ -21,7 +23,7 @@ on:
 
 jobs:
   verify:
-    name: Type-check and build PupsonStuff
+    name: Type-check, test, and build PupsonStuff
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -41,10 +43,13 @@ jobs:
           cache: pnpm
 
       - name: Install workspace dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Type-check PupsonStuff
         run: pnpm --filter @jhadina/pupsonstuff type-check
+
+      - name: Test PupsonStuff
+        run: pnpm --filter @jhadina/pupsonstuff test
 
       - name: Build PupsonStuff
         run: pnpm --filter @jhadina/pupsonstuff build
