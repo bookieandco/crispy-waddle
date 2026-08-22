@@ -1,5 +1,6 @@
 import type { ContextPacket } from "@jhadina/core-spine"
 import { IntelligenceRouter, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
+import { InMemoryApprovalReceiptStore, type ApprovalReceiptStore } from "@jhadina/action-core"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { MemoryRepository } from "../repositories/MemoryRepository"
@@ -20,11 +21,18 @@ import type { SupabaseAuditLedger, ActionAuditEvent } from "@jhadina/action-core
  * wiring, not "Ask Jhadina" (Step 7), which needs a real Context Builder
  * (Step 4) to supply `ContextPacket`s from live requests. This function
  * is the callable, tested seam Step 7 will mount.
+ *
+ * Approval receipts stay in-memory and process-local, same explicit
+ * scope boundary Growth's runtime already documented — durability here
+ * was never required for this milestone.
  */
+const approvalStore = new InMemoryApprovalReceiptStore()
+
 export type GovernedIntelligenceRuntimeOverrides = {
   identityVerifier?: JhadinaIdentityVerifier
   ledger?: SupabaseAuditLedger
   router?: IntelligenceRouter
+  approvalStore?: ApprovalReceiptStore
   onEvent?: (event: IntelligenceRouterEvent) => void
 }
 
@@ -41,7 +49,7 @@ export async function runGovernedIntelligenceProposal(
   const reasoningRepo = new ReasoningEventRepository(storage)
 
   return decideAndProposeMemoryGoverned(
-    { identityVerifier, ledger, router, memoryRepo, reasoningRepo },
+    { identityVerifier, ledger, router, memoryRepo, reasoningRepo, approvalStore: overrides.approvalStore ?? approvalStore },
     claimedUserId,
     context,
   )

@@ -4092,3 +4092,40 @@ instantiating JhadinaSpine early.
    Stocks, Bitcoin, Betting, Mining, Overage. These remain downstream of
    the OS backbone, to plug into this same `DecisionPort`/`ActionExecutor`
    spine once Steps 4-8 land -- not before.
+
+**ADDENDUM — approval-required path completed (same milestone, before
+Step 4):** the initial landing above only exercised `memory.propose`'s
+actual (allow) policy outcome; per explicit instruction to also test
+"approval-required actions," `governed-intelligence-proposal.ts` now
+evaluates policy as its own distinct, audited stage (mirroring SP-1's
+Growth flow exactly) and, when a policy marks the action
+`approval_required`, requests and self-approves an explicit
+`ApprovalReceipt` (`@jhadina/action-core`'s existing request -> approve
+-> consume flow, same primitive, no new mechanism) before
+`ActionExecutor` — which re-validates the receipt independently — ever
+runs. `memory.propose` itself is still allow-listed (not approval-gated)
+today, so this path is currently reached only via an injected test
+policy (`alwaysApprovalRequiredPolicy()`) — but the wiring is real, not
+a stub, so any future approval-gated capability this router is pointed
+at is already correctly governed. `GovernedIntelligenceProposalDeps`
+gained a required `approvalStore: ApprovalReceiptStore`;
+`governed-intelligence-runtime.ts` holds an in-memory, process-local
+singleton for it (same explicit scope boundary Growth's runtime already
+documented for its own approval store).
+
+Two new tests in `governed-intelligence-proposal.test.ts` (now 10/10 in
+that file, 14/14 across both intelligence test files, 172/172 across
+jhadina-web overall): an approval-required decision is blocked until an
+explicit receipt is requested/approved/consumed, then completes and is
+durably recorded; a consumed receipt is confirmed single-use (cannot be
+replayed). Also corrected: `alwaysDenyPolicy()`'s expected error message
+now matches the new explicit pre-check (`"Action denied by policy: ..."`,
+same wording Growth's SP-1 uses) rather than `ActionExecutor`'s own
+internal message, since policy is now evaluated as its own stage before
+the executor is constructed.
+
+Re-verified after this addendum: `pnpm --filter jhadina-web vitest run`
+21/21 files, 172/172 tests; `pnpm -r type-check` 25/25 clean;
+`pnpm --filter jhadina-web build` clean; `pnpm --filter jhadina-web lint`
+0 errors (4 pre-existing warnings, unchanged); `pnpm -r test` clean
+repo-wide. Still no live Anthropic call anywhere in this environment.
