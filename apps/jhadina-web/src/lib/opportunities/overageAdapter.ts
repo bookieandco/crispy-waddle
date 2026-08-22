@@ -56,7 +56,9 @@ export function buildOverageOpportunity(
     summary: `Potential ${candidate.currency} ${candidate.amount.toFixed(2)} overage for ${candidate.claimantName}. Source confidence: ${sourceConfidence.toFixed(2)}.${family}${propertyReference}${evidence}`,
     estimatedPay: { min: candidate.amount, max: candidate.amount, currency: candidate.currency, cadence: "unknown" },
     automationLevel,
-    fitScore: Math.round(sourceConfidence * 100),
+    // OverageOS currently supplies source/evidence confidence, not user-fit.
+    // Keep fit neutral until a separate fit signal exists; never derive it from source confidence.
+    fitScore: 50,
     riskFlags: candidate.riskFlags ?? [],
     requiresUserApproval: true,
     verificationStatus,

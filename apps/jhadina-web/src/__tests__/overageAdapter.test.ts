@@ -22,11 +22,21 @@ describe("buildOverageOpportunity", () => {
     expect(opportunity.kind).toBe("overage")
     expect(opportunity.userId).toBe("user_1")
     expect(opportunity.estimatedPay?.max).toBe(1250.5)
-    expect(opportunity.fitScore).toBe(80)
+    expect(opportunity.fitScore).toBe(50)
     expect(opportunity.sourceConfidence).toBe(0.8)
     expect(opportunity.verificationStatus).toBe("human_required")
     expect(opportunity.requiresUserApproval).toBe(true)
     expect(opportunity.automationLevel).toBe("user_led")
+  })
+
+  it("keeps fit independent from source confidence", () => {
+    const lowSource = buildOverageOpportunity({ ...candidate, sourceConfidence: 0.2 }, "user_1")
+    const highSource = buildOverageOpportunity({ ...candidate, sourceConfidence: 1 }, "user_1")
+
+    expect(lowSource.sourceConfidence).toBe(0.2)
+    expect(highSource.sourceConfidence).toBe(1)
+    expect(lowSource.fitScore).toBe(highSource.fitScore)
+    expect(lowSource.fitScore).toBe(50)
   })
 
   it("does not turn source confidence into identity verification", () => {
