@@ -1,5 +1,5 @@
-import { InMemoryEvolutionRunLedger, verifyEvolutionRunLedger } from "./evolution-run-ledger";
-import { GovernedEvolutionPromoter } from "./governed-promoter";
+import { InMemoryEvolutionRunLedger, verifyEvolutionRunLedger } from "./evolution-run-ledger.ts";
+import { GovernedEvolutionPromoter } from "./governed-promoter.ts";
 
 const proposal = { id: "proposal-1", reversible: true } as any;
 const evaluation = { id: "evaluation-1", proposalId: proposal.id, recommendation: "promote" } as any;
