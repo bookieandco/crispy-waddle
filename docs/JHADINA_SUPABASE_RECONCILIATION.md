@@ -98,7 +98,7 @@ not PR #78's own `20260814190000`, so that Supabase CLI's version-tracked
 tooling never sees two entries for the same content and never attempts to
 replay the untracked one.
 
-## Preserved-but-not-promoted: `jhadina_evolution_run_ledger_append`
+## Preserved-but-not-promoted: orphaned functions
 
 The live database has **two** functions for appending to
 `jhadina_evolution_run_ledger`:
@@ -156,6 +156,33 @@ intentional, currently-relied-upon part of the schema. It remains exactly as
 it is on the live project, undocumented in migration form, pending an
 explicit future decision (drop vs. formally deprecate) that this
 reconciliation does not make.
+
+A second orphaned function was identified during Gate 11's clean-environment
+comparison: `prevent_jhadina_evolution_run_ledger_mutation`, created in the
+table's original (un-promoted) creation migration,
+`20260811163602_create_jhadina_evolution_run_ledger`:
+
+```sql
+CREATE OR REPLACE FUNCTION public.prevent_jhadina_evolution_run_ledger_mutation()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'pg_catalog'
+AS $function$
+begin
+  raise exception 'jhadina_evolution_run_ledger is append-only';
+end;
+$function$
+```
+
+It backed that migration's original single combined `before update or delete`
+trigger. `20260814233342` replaced that wiring with two separate triggers
+(`jhadina_evolution_run_ledger_no_update` / `_no_delete`) calling a different
+function, `reject_jhadina_evolution_run_ledger_mutation`. Confirmed via
+`pg_trigger` that no live trigger references
+`prevent_jhadina_evolution_run_ledger_mutation` any more — it is superseded
+and orphaned, the same class of object as
+`jhadina_evolution_run_ledger_append` above. Same treatment: **preserved
+live, not dropped, not promoted into a canonical migration file.**
 
 ## Redundant indexes — preserved, not dropped
 
@@ -291,3 +318,93 @@ Clean-environment replay (provisioning a fresh Supabase project/branch to
 apply these 22 migrations and diff against live) is still not started —
 still gated on explicit human authorization before any cloud resource is
 created, per Gate 9's original stopping point.
+
+## Gate 11 — clean-environment verification
+
+Authorized and executed. Cost checked first ($0/month, same org as live,
+no billing gate triggered) via `get_cost`/`confirm_cost`, then a fresh
+Supabase project (`jhsapxcrgsgztasvyhkm`, `ca-central-1`, Postgres 17.6 —
+same region/version as live) was provisioned and all 22 migrations applied
+via `apply_migration`, one file at a time, in exact filename order.
+
+**Replay result: 22/22 applied successfully, zero SQL errors.** This
+confirms Gate 10's ordering fix was correct and sufficient.
+
+**Structural comparison against live:** every table (19/19), every
+column/type/nullable/default, every constraint/index/policy on the other
+18 tables, all 5 triggers, 9 of 11 functions, the `pg_cron` job, and all 6
+extensions matched exactly. Five differences were found, all confined to
+`public.jhadina_evolution_run_ledger`:
+
+1. **Missing index** `jhadina_evolution_run_ledger_occurred_at_idx` —
+   created in the table's original, un-promoted first creation
+   (`20260811163602_create_jhadina_evolution_run_ledger`) and never
+   dropped since; never captured in the Gate 8B manifest.
+2. **Missing policy** `jhadina_evolution_run_ledger_service_role_access` —
+   created in `20260811163628_harden_jhadina_evolution_run_ledger`, same
+   gap.
+3. **Constraint name mismatch** — live's `unique(run_id, sequence)`
+   constraint is named `jhadina_evolution_run_ledger_run_id_sequence_key`
+   (Postgres's auto-generated name for the *unnamed* inline constraint in
+   the original `20260811163602` creation); the promoted
+   `20260814233342` explicitly named it
+   `jhadina_evolution_run_ledger_run_sequence_key`. Because the table
+   already existed live by the time `20260814233342` ran, its
+   `CREATE TABLE IF NOT EXISTS` — including that explicit constraint name
+   — was a complete no-op live; on a from-scratch clean replay the same
+   statement actually executes, producing the different name. Same
+   columns, same semantics, different name.
+4. **Index definition mismatch** — live's `jhadina_evolution_run_ledger_task_idx`
+   is `(task_id)` only, first created single-column in
+   `20260811181310_create_jhadina_evolution_run_ledger`.
+   `20260814224651`'s later attempt to redefine it as
+   `(task_id, occurred_at desc)` was a silent no-op live: `CREATE INDEX IF
+   NOT EXISTS` only checks the index *name*, not its definition, so an
+   already-existing same-named index is never redefined. The clean
+   replay, where the name didn't pre-exist, created the two-column
+   version instead.
+5. **Orphaned function (expected, now documented)** —
+   `prevent_jhadina_evolution_run_ledger_mutation` exists live, referenced
+   by no trigger (confirmed via `pg_trigger`), superseded by
+   `reject_jhadina_evolution_run_ledger_mutation` when `20260814233342`
+   rewired the triggers. Analogous to `jhadina_evolution_run_ledger_append`
+   below.
+
+Findings 1-4 are exactly the class of issue clean-environment replay
+exists to catch: `CREATE ... IF NOT EXISTS` statements are
+history-dependent — a no-op against a database where the object already
+pre-exists (live, via the un-promoted Aug 11 intermediate migrations) is
+*not* a no-op against a from-scratch replay. Nothing was a transcription
+error; every promoted file remained byte-verbatim from its
+`supabase_migrations.schema_migrations` source. Gate 11 was reported as
+**replay PASS, parity not yet complete** — nothing was corrected
+automatically, per instruction.
+
+## Gate 12 — parity corrections
+
+Authorized. Four git-only corrections applied, no production changes, no
+drops, no unrelated migrations touched:
+
+1. Added `jhadina_evolution_run_ledger_occurred_at_idx` (exact original
+   definition from `20260811163602`) in a new migration,
+   `20260814233345_add_jhadina_evolution_run_ledger_occurred_at_index_and_service_role_policy.sql`.
+2. Added `jhadina_evolution_run_ledger_service_role_access` (exact
+   original definition from `20260811163628`) in the same new migration.
+3. Corrected `20260814233344`'s `jhadina_evolution_run_ledger_task_idx`
+   from `(task_id, occurred_at desc)` to `(task_id)`, matching what is
+   actually live.
+4. Renamed the unique constraint in `20260814233342` from
+   `jhadina_evolution_run_ledger_run_sequence_key` to
+   `jhadina_evolution_run_ledger_run_id_sequence_key` — a content
+   correction (not a version change) to match live verbatim; semantics
+   (`unique (run_id, sequence)`) unchanged.
+5. Documented `prevent_jhadina_evolution_run_ledger_mutation` above as a
+   preserved-but-not-promoted orphan, alongside
+   `jhadina_evolution_run_ledger_append` (see next section) — neither is
+   dropped from live, neither is promoted as a canonical migration, since
+   both are unreferenced by any live trigger or caller.
+
+The migration set promoted into `supabase/migrations/` is now 23 files.
+Re-verification results (replay + structural comparison against live)
+are recorded in this document once complete — see the outcome appended
+below.

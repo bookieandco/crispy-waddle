@@ -13,7 +13,7 @@ create table if not exists public.jhadina_evolution_run_ledger (
   hash text not null,
   created_at timestamptz not null default now(),
   constraint jhadina_evolution_run_ledger_event_id_key unique (event_id),
-  constraint jhadina_evolution_run_ledger_run_sequence_key unique (run_id, sequence),
+  constraint jhadina_evolution_run_ledger_run_id_sequence_key unique (run_id, sequence),
   constraint jhadina_evolution_run_ledger_type_check check (type in ('RUN_STARTED','RUN_DISPATCHED','RUN_VERIFIED','RUN_FAILED','RUN_BLOCKED','DRAFT_PR_CREATED')),
   constraint jhadina_evolution_run_ledger_sequence_check check (sequence > 0),
   constraint jhadina_evolution_run_ledger_hash_check check (length(hash) = 64)

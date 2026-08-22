@@ -23,11 +23,22 @@
 -- live, currently-correct policy with the earlier one it was designed to
 -- replace -- the opposite of preserving live behavior.
 --
--- See docs/JHADINA_SUPABASE_RECONCILIATION.md (Gate 10) for the full
+-- Gate 11 clean-environment verification found that jhadina_evolution_run_ledger_task_idx
+-- is actually (task_id) only on live, not (task_id, occurred_at desc) as
+-- originally promoted here. The two-column definition below was first
+-- attempted in this same 20260814224651 migration, but by the time it ran
+-- live, an index of that exact name already existed -- single-column --
+-- from the table's original (un-promoted) creation in
+-- 20260811181310_create_jhadina_evolution_run_ledger. CREATE INDEX IF NOT
+-- EXISTS only checks the index name, not its definition, so that
+-- redefinition attempt was a silent no-op live, and the original
+-- single-column index is what's actually running today. Corrected here
+-- during Gate 12 to match live verbatim. See
+-- docs/JHADINA_SUPABASE_RECONCILIATION.md (Gate 11/Gate 12) for the full
 -- rationale.
 
 create index if not exists jhadina_evolution_run_ledger_task_idx
-on public.jhadina_evolution_run_ledger(task_id, occurred_at desc);
+on public.jhadina_evolution_run_ledger(task_id);
 
 create index if not exists jhadina_evolution_run_ledger_type_idx
 on public.jhadina_evolution_run_ledger(type, occurred_at desc);
