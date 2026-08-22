@@ -8,6 +8,7 @@ export * from "./interfaces/places.js";
 export * from "./interfaces/routing.js";
 export * from "./interfaces/maps.js";
 export * from "./interfaces/dispatcher.js";
+export * from "./interfaces/loads.js";
 
 // Adapters
 export * from "./providers/index.js";
