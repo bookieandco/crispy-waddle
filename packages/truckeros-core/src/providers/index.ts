@@ -5,6 +5,7 @@ import { MockPlacesProvider } from "./MockPlacesProvider.js";
 export { BrowserLocationProvider } from "./BrowserLocationProvider.js";
 export { GooglePlacesProvider } from "./GooglePlacesProvider.js";
 export { MockPlacesProvider } from "./MockPlacesProvider.js";
+export { MockLoadProvider } from "./MockLoadProvider.js";
 export { HaversineRoutingProvider } from "./HaversineRoutingProvider.js";
 export { OpenStreetMapProvider } from "./OpenStreetMapProvider.js";
 export { TemplateDispatcherReasoner } from "./TemplateDispatcherReasoner.js";
