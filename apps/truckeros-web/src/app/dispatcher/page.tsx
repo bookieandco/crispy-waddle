@@ -2,53 +2,8 @@
 
 import Link from "next/link"
 import { FormEvent, useState } from "react"
-import type { DispatcherBrief, DispatcherCandidate, LoadOffer } from "@jhadina/truckeros-core"
+import type { DispatcherBrief, DispatcherCandidate } from "@jhadina/truckeros-core"
 import { apiPost } from "@/lib/apiClient"
-
-const DEMO_LOADS: LoadOffer[] = [
-  {
-    id: "demo-houston-dallas",
-    origin: "Houston, TX",
-    destination: "Dallas, TX",
-    pickupAt: null,
-    deliveryAt: null,
-    revenueCents: 210_000,
-    loadedMiles: 240,
-    deadheadMiles: 40,
-    fuelCostCents: 31_000,
-    tollCostCents: 4_800,
-    otherCostCents: 7_500,
-    brokerName: "Example Broker",
-  },
-  {
-    id: "demo-houston-austin",
-    origin: "Houston, TX",
-    destination: "Austin, TX",
-    pickupAt: null,
-    deliveryAt: null,
-    revenueCents: 155_000,
-    loadedMiles: 165,
-    deadheadMiles: 25,
-    fuelCostCents: 22_000,
-    tollCostCents: 0,
-    otherCostCents: 5_000,
-    brokerName: "Example Broker",
-  },
-  {
-    id: "demo-houston-sanantonio",
-    origin: "Houston, TX",
-    destination: "San Antonio, TX",
-    pickupAt: null,
-    deliveryAt: null,
-    revenueCents: 120_000,
-    loadedMiles: 200,
-    deadheadMiles: 80,
-    fuelCostCents: 26_000,
-    tollCostCents: 0,
-    otherCostCents: 6_000,
-    brokerName: "Example Broker",
-  },
-]
 
 type DispatcherResponse = {
   brief: DispatcherBrief
@@ -76,7 +31,6 @@ export default function DispatcherPage() {
       const data = await apiPost<DispatcherResponse>("/api/dispatcher", {
         message,
         context: {
-          loads: DEMO_LOADS,
           minimumNetCentsPerMile: 400,
           targetNetCentsPerMile: 500,
         },
@@ -127,7 +81,7 @@ export default function DispatcherPage() {
         </form>
 
         <div className="subtle">
-          Demo load board for now. The dispatcher API is ready for a real load provider next.
+          Load opportunities come through the configured load provider. This environment currently uses a clearly labeled offline demo provider; no real load board is being represented as live.
         </div>
       </section>
 
