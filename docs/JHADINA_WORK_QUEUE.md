@@ -2124,10 +2124,1739 @@ NEXT: awaiting real CI on PR #63, then merge. Then SP-3 (Money/Plaid).
 **Objective:** Unify JH-028/033/034 around the existing governed path
 (`money-core` → `PlaidReadOnlyAdapter` → capability check → credential
 resolver), so the question stops being "which PR do we merge" and
-becomes "what is the canonical Money API the UI consumes." JH-028's
-command-center UI should end up consuming that interface without ever
-touching Plaid credentials directly. Same acceptance boundary as SP-1/
-SP-2: reference adapters, no live provider, fail-closed tests, no
-change to the frozen JH-028/033/034 human-gate status itself — this
-proves the *path*, it doesn't unilaterally pick a product surface.
-**Next Step:** Not started. Begins after SP-2 merges.
+becomes "what is the canonical Money API the UI consumes." Same
+acceptance boundary as SP-1/SP-2: reference adapters, no live provider,
+fail-closed tests, no change to the frozen JH-028/033/034 human-gate
+status itself — this proves the *path*, it doesn't unilaterally pick a
+product surface.
+**Completion report:**
+```
+TASK: SP-3
+STATUS: DONE
+DISCOVERY: money-core already has its own complete, unwired production
+composition for account-read — parallel to the one hand-built for
+Growth in SP-1: account-read-handler.ts (assertCapability + handler) ->
+governed-account-read.ts (MONEY_CORE_SECURITY_POLICY, base policy +
+money.account.read) -> production-account-read.ts
+(SecurityCoreActionPolicy + createProductionActionExecutor, the same
+action-core spine SP-1 proved) -> governed-provider-account-read.ts
+(adds MoneyProviderHealthGate + MoneyProviderRegistry in front). This
+proof composes those real pieces with reference dependencies rather
+than reinventing them, exactly as instructed ("keep the existing
+governed Plaid adapter as the eventual production boundary").
+CHANGED:
+- packages/money-core/src/index.ts (new): money-core's package.json has
+  declared main/types as "./src/index.ts" since the package was
+  created; the file never existed, so nothing outside the package could
+  import it by its bare specifier — a real infra gap, same class as
+  SP-1's missing security-core package.json. Added as a minimal barrel
+  of the public composition-root surface (capabilities, bank-adapter,
+  credential-resolver, provider-health, provider-registry,
+  provider-adapter-factory, account-read-handler,
+  governed-account-read, production-account-read,
+  governed-provider-account-read, read-only-http-bank-adapter,
+  plaid-read-only-adapter, plaid-provider-builder). Deliberately
+  excludes postgres-client/postgres-idempotency-store and the
+  transaction-write/privacy-defense modules — out of scope for this
+  proof and some pull in the 'pg' package unnecessarily.
+- apps/jhadina-web/src/lib/money/reference-adapters.ts (new): reuses
+  the real, already-landed ReadOnlyHttpBankAdapter (provider-neutral,
+  HTTPS-enforced, no payment/transfer methods) with an injected fake
+  fetchImpl that never performs network I/O — not a second Plaid
+  client, not a hand-rolled adapter double. Records every request
+  (including the Authorization header) so tests can prove the
+  credential reached the provider boundary without ever leaking past
+  it. Also: a workspace-entitlement reference checker, and an in-memory
+  stand-in for the Supabase RPC client SupabaseAuditLedger writes
+  through (no Supabase dependency for this proof; swapping in the real
+  client is a one-line change).
+- apps/jhadina-web/src/lib/money/governed-account-read.ts (new):
+  composition root. Wires ProviderAdapterFactory +
+  EnvironmentCredentialResolver (injected in-memory env map, never
+  process.env) to build the reference adapter, registers it in a
+  MoneyProviderRegistry, and hands that straight to money-core's own
+  createGovernedProviderAccountReadExecutor — no reimplementation of
+  the governance chain.
+- apps/jhadina-web/src/lib/money/governed-account-read.test.ts (new): 9
+  tests covering all 7 required cases (2 identity variants — wrong
+  user, unverifiable/no session): authorized read succeeds (real
+  mapped account data, ledger started->completed, exactly one provider
+  call carrying "Bearer <credential>"); wrong identity and missing
+  identity both fail before any ledger event or provider call exists
+  (see ARCHITECTURAL FINDING below); missing money.account.read from
+  the provider's own capability allow-list fails at the health gate
+  before the provider is reached, cross-checked against the
+  independent MoneyCapabilityPolicy; unauthorized workspace access
+  fails after policy allows but before the provider is reached
+  (started->failed); a live provider HTTP failure fails cleanly and is
+  recorded as failed, with the request actually having reached the
+  provider; a bonus case shows an unresolvable credential fails closed
+  before any adapter is even constructed; no credential string appears
+  anywhere in the returned accounts or the audit trail, and the
+  returned account shape has no field that could carry one; no
+  mutation capability exists structurally (the adapter has no
+  createPayment/createTransfer) or at the policy layer
+  (MONEY_CORE_SECURITY_POLICY never allow-lists a financial-mutation
+  capability), and dispatching a mutation-shaped action through the
+  same executor is rejected.
+- apps/jhadina-web/vitest.config.ts: added the @jhadina/money-core
+  alias (same class of gap SP-1/SP-2 found — Vitest doesn't read
+  tsconfig paths).
+VERIFIED:
+- pnpm --filter @jhadina/money-core type-check: clean.
+- pnpm --filter @jhadina/money-core test: 11/11 (unchanged, all
+  pre-existing).
+- pnpm -r type-check: 22/23 packages clean (apps/pupsonstuff fails on a
+  pre-existing, unrelated missing vitest type declaration — confirmed
+  present on main before this branch, untouched by this proof).
+- pnpm vitest run (jhadina-web): 85/85 (76 existing + 9 new).
+- pnpm --filter jhadina-web build: real Next.js production build
+  succeeds.
+- pnpm --filter jhadina-web lint: clean (3 pre-existing, unrelated
+  warnings).
+ARCHITECTURAL FINDINGS (inspecting the actual boundary, not asserted
+behavior):
+- VerifiedActionExecutor checks identity BEFORE the ledger's "started"
+  event is appended. An identity failure (wrong user or verifier
+  rejection) therefore produces zero audit events — there is nothing to
+  durably audit against an identity that was never verified. This is a
+  real, deliberate property of the already-landed production
+  composition (not something this proof added or changed) and is
+  worth knowing before anyone builds an "audit every attempt" surface
+  on top of it.
+- createGovernedProviderAccountReadExecutor runs the provider
+  health/capability-allow-list check BEFORE identity verification (it
+  wraps VerifiedActionExecutor.execute, not the other way around). A
+  caller whose identity would fail can still learn whether a given
+  provider/capability is configured. Minor; not fixed here since fixing
+  it means reordering money-core's own composition, out of scope for a
+  reference proof — flagged for the next checkpoint.
+- money-core ships two independent ActionPolicy implementations for
+  money actions: MoneyCapabilityPolicy (capability-policy.ts) and
+  SecurityCoreActionPolicy over MONEY_CORE_SECURITY_POLICY
+  (governed-account-read.ts). Only the second is wired into the
+  production composition; MoneyCapabilityPolicy has no consumer
+  anywhere in the package. Same failure mode the architecture audit
+  named for growth-core/entertainment-core: real, tested,
+  unwired/duplicate. Not resolved here — noted for the checkpoint.
+COMMIT: PR #64, merged as cbd291c
+NEXT: second architecture checkpoint (per instruction), not Proof #4.
+```
+
+---
+
+## ARCHITECTURE CHECKPOINT #2 — do the three proofs share one boundary?
+
+**Date:** 2026-08-13 · main @ `de2e0ea` (corrections merged) · after SP-1/SP-2/SP-3
+
+Performed per explicit instruction after SP-3, in place of starting a
+Proof #4. Full published report:
+https://claude.ai/public/artifacts (see "Jhadina OS Checkpoint Two" —
+title/URL as published this session). Summary below is the durable
+record; the artifact has the full comparison and prose.
+
+### At a glance
+
+| Dimension | SP-1 Growth | SP-2 Commerce | SP-3 Money |
+|---|---|---|---|
+| Identity check | hand-rolled, own ledger entry on failure | **none, anywhere** | real `VerifiedActionExecutor`, silent on failure |
+| Policy/capability | `SecurityCoreActionPolicy` (base policy) | fulfillment `PolicyGate` — jurisdiction/regulatory, not actor-capability | `SecurityCoreActionPolicy` (money policy) |
+| Approval | request→approve→consume-once receipt | none | none (read capability isn't approval-gated) |
+| Audit trail | `ActionLedger` (hand-driven) | domain-native: `CustodyLedger` + checkout status history | `ActionLedger` via `SupabaseAuditLedger`'s real RPC shape |
+| Fail-closed on | identity mismatch, policy denial, handler ownership, double-approval | inventory, payment decline, fulfillment denial, multi-merchant, empty cart | identity, health/capability, workspace, provider error, credential |
+
+### Five findings (established invariant / observed / duplicate / gap / minimal change / stays domain-specific)
+
+**A — Identity-failure visibility diverges (Growth logs it, Money's real executor doesn't).**
+Invariant: identity verified before policy/ledger/handler, always true in both.
+Observed: SP-1 hand-appends a `denied` ledger entry (with the claimed,
+unverified userId) on identity failure; SP-3's real
+`VerifiedActionExecutor` appends nothing — there's no verified actor to
+attribute an event to. Duplicate: SP-1's hand-rolled identity+policy
+pre-stage is load-bearing, not laziness — an approval-required flow
+needs the policy decision known before a receipt can be requested, and
+`VerifiedActionExecutor` only exposes that decision bundled inside a
+single `execute()` call. Gap: `action-core` has no first-class
+"evaluate policy without executing" primitive. Minimal change: none to
+either merged proof — not auditing failed identity checks in the
+shared ledger is the *correct* default (can't durably attribute an
+event to an unverified actor); SP-1's own denied-entry-with-unverified-
+userId is a mild antipattern worth reconsidering next time Growth is
+touched, not urgent. Domain-specific: how a domain surfaces rejected
+identity claims (rate-limiting, alerting) is product-specific.
+
+**B — Money's health gate ran before identity — FIXED.**
+Invariant: no system info revealed before identity is verified.
+Observed: only Money has a health-gate concept
+(`MoneyProviderHealthGate`); it ran before the identity-checking
+executor. Gap: real, confirmed by SP-3's own tests. Minimal change:
+**made** — `governed-provider-account-read.ts` now verifies identity
+before the health gate runs (PR #65, `de2e0ea`). Domain-specific: the
+health-gate concept itself stays Money-only until a second domain needs
+it.
+
+**C — `MoneyCapabilityPolicy` was dead, unwired, and semantically wrong — REMOVED.**
+Invariant: exactly one `ActionPolicy` reachable from a domain's
+production composition. Observed: money-core shipped two —
+`SecurityCoreActionPolicy(MONEY_CORE_SECURITY_POLICY)` (real, wired,
+correct) and `MoneyCapabilityPolicy` (zero consumers, and its
+`evaluate()` collapsed `approval_required` into `deny`, silently
+disagreeing with the canonical policy). Minimal change: **made** —
+deleted entirely (PR #65, `de2e0ea`). Money now has exactly one
+`ActionPolicy`.
+
+**D — Commerce has no identity/capability layer at all. The largest finding.**
+Invariant (drawn from Growth/Money): any action mutating state or
+reading sensitive data on a real actor's behalf must pass through
+identity verification and a capability/policy decision first. Observed:
+`CheckoutOrchestrator.execute(checkoutId)` takes no actor parameter;
+`customerId` is a plain unverified string; grep across
+checkout-orchestrator/payment-core/order-fulfillment-core found the
+only identity-adjacent field anywhere is an optional, non-authorizing
+`actorId` on custody events (attribution logging only). Duplicate:
+none — Commerce doesn't reimplement identity/policy, it simply doesn't
+have it. Gap: **real, the most significant finding of this checkpoint.**
+SP-2 proved the three commerce contracts compose into a working
+lifecycle; it did not prove that lifecycle is governed by any actor-
+authorization boundary. As shipped, any caller who can construct a
+`CommerceIntent` can run a full checkout for any `customerId` with no
+session, no capability check, no audit trail beyond `CustodyLedger`.
+Minimal change: **not made** — closing this is new integration work
+(wrapping the existing, unchanged checkout lifecycle behind the same
+identity→policy→execute→audit shape Growth/Money already use), not a
+correction to something already built. Domain-specific: fulfillment's
+`PolicyGate` (jurisdiction/regulatory: accept/pick/handoff/deliver/
+cancel) and inventory/pricing failure handling are correctly domain
+logic and should not fold into a shared `ActionPolicy` — they answer
+"can this order be fulfilled here," not "is this actor allowed to
+act." Both can coexist once an actor-capability check gates entry.
+
+**E — Commerce's audit trail is real, just not `ActionLedger`-shaped.**
+Not a defect — Growth/Money emit `ActionAuditEvent`s; Commerce emits
+`CustodyLedger` events + merchant-adapter call log + checkout status
+history, three domain-native shapes carrying real information an
+`ActionAuditEvent` can't hold (custody to/from states, computed
+totals). Consequence: a future single-ledger "Activity" surface
+(Checkpoint #1's proposal) would only ever show Growth/Money until
+Finding D is closed. Minimal change: none now — when D is closed, add
+one coarse-grained governance-layer event at the outer boundary; the
+rich domain-native trail stays as-is underneath. Not a call to unify
+audit formats.
+
+### Six questions, answered
+
+1. **Genuinely common:** fail-closed behavior everywhere, dependency-
+   injected adapters at every external boundary, and — in Growth and
+   Money — the identical real classes (`VerifiedActionExecutor`,
+   `SecurityCoreActionPolicy`, `ActionLedger`).
+2. **Actually different:** audit shape (unified vs. Commerce's
+   domain-native trail) and what "policy" means (actor-capability vs.
+   Commerce's jurisdiction/regulatory `PolicyGate`) — both real,
+   correct, not to be forced together.
+3. **Duplicates removed:** `MoneyCapabilityPolicy`, done. Nothing
+   else qualifies — SP-1's pre-stage is load-bearing, Commerce's
+   `PolicyGate` answers a different question, not a duplicate of
+   anything.
+4. **Canonical ordering:** identity → policy/capability → ledger →
+   handler/external provider, always. Both real violations found
+   (A, B) are now resolved or explicitly justified.
+5. **Same boundary or parallel versions?** Split, honest answer:
+   Growth and Money are **the same boundary** — two independent
+   integrations converged on identical primitives without being told
+   to, which is stronger evidence than either proof alone. Commerce is
+   **categorically outside it** — not a parallel version, an absence.
+6. **Reusable OS primitive needed before another domain:** none —
+   `VerifiedActionExecutor` + `SecurityCoreActionPolicy` + `ActionLedger`
+   already is that primitive, proven twice independently. The next
+   domain needs the existing primitive applied, not a new one.
+
+### Verdict
+
+**The shared primitive is sufficient. The gap is that one domain
+(Commerce) isn't using it yet.** Two corrections made (B, C) — the
+smallest scope the evidence supported. Finding D is real but is not a
+maturity gap in the primitive; it's the next unit of work whenever
+taken up: wrap Commerce's existing, unchanged checkout lifecycle in an
+identity → `commerce.checkout.execute` capability → execute → audit
+shell mirroring Growth/Money, leaving `PolicyGate`/`CustodyLedger`/all
+SP-2 reference adapters untouched underneath.
+
+**NEXT: no Proof #4 started. Finding D is named as the logical next
+step, not begun. All 15 frozen human gates remain frozen — untouched
+by this checkpoint or its corrections.**
+
+---
+
+## JHADINA OS INTEGRATION PHASE 2 — REAL PRODUCT LOOP
+
+Explicitly not another domain proof. Phase 1 proved the backend spine
+composes (SP-1/2/3) and Checkpoint #2 confirmed it's mature enough to
+build on (Growth and Money converged on it independently). Phase 2's
+question is different: can a real user interaction in Jhadina's
+*shipped* UI travel through that composition and come back as
+observable state — not another mock adapter, the actual app.
+
+### PL-1 — Command Center → governed Growth action
+
+**Status:** DONE
+**Objective:** `PersonalCommandFeed` → user selects a proposed Growth
+action → identity context → capability/policy evaluation → Approval
+Center → `ActionExecutor` → audit ledger → Activity Timeline →
+Command Center reflects result. Reuses `PersonalCommandFeed`, the
+JH-031 shell, the existing `/growth` Approval Center, and SP-1's
+governed spine exactly as they are. No new governance package, no
+live advertising API, no credentials, no new parallel policy/identity
+implementation.
+
+**Pre-build audit (required before any code, per instruction):**
+- `PersonalCommandFeed` (`pages/index.tsx` + `components/home/
+  PersonalCommandFeed.tsx`) was 100% static demo data — no fetch, no
+  click handlers wired to anything.
+- `/growth` was already the real Approval Center: it already fetched
+  real drafts and its Approve button already called SP-1's governed
+  path. Further along than expected.
+- **A real, pre-existing bug found, not hypothetical:** `/growth`'s
+  client code sent a hardcoded `x-jhadina-user-id: "user_demo"` header
+  as the claimed identity (same stub pattern in `/opportunity`). SP-1's
+  real `SupabaseActionIdentityVerifier` checks that claim against the
+  actual, server-verified Supabase session subject and throws `"Action
+  identity mismatch"` on any mismatch. No real Supabase user has the
+  literal id `"user_demo"` — so, as shipped, the existing Approve
+  button could not have completed successfully against any real
+  logged-in session. Confirmed by reading both files, not inferred.
+- No Activity Timeline UI existed anywhere — JH-031's nav was
+  explicitly trimmed to drop a stubbed `/activity` entry because
+  nothing backed it (confirmed in that entry's own completion report).
+- **The one genuine architectural fork:** SP-1's audit ledger
+  (`governed-approval-runtime.ts`) is a process-local, in-memory
+  singleton; no Supabase migration/RPC for the real `SupabaseAuditLedger`
+  exists anywhere in `supabase/migrations`. Flagged to the user rather
+  than guessed. **Decision: in-memory ledger for this milestone.**
+  Explicit rule given: use the existing `ActionLedger` interface and
+  the in-memory implementation; no Supabase migration, `audit_events`
+  table, RPC, or new persistence abstraction in this slice; the
+  implementation must be written so swapping in the already-existing
+  `SupabaseAuditLedger` later requires only dependency wiring, not
+  changes to the UI, governance flow, or `ActionExecutor`. Durability is
+  explicitly the next milestone, not this one.
+- Global middleware (`src/middleware.ts` → `updateSession`) already
+  requires a real Supabase session for every route except `/login`/
+  `/auth` — confirmed real, not assumed. This is why the identity-header
+  bug matters (a real session always exists by the time these pages
+  render) and why it's a bug fix, not a design decision.
+
+**Completion report:**
+```
+TASK: PL-1
+STATUS: DONE
+CHANGED:
+- src/lib/auth/current-user.ts (new): getCurrentUserId() reads the
+  real, client-side Supabase session (auth.getUser()) — replaces the
+  hardcoded "user_demo" header. Not a new identity system: it only
+  reads the identity Supabase already established and hands it to
+  SP-1's existing server-verified boundary.
+- src/app/growth/page.tsx: fetch calls now send the real signed-in
+  user id instead of "user_demo" — the bug fix above. No other change;
+  the existing Approve/Reject/Redraft/Schedule flow and its calls into
+  SP-1's governed path are otherwise untouched.
+- src/lib/growth/governed-approval-runtime.ts: runGovernedGrowthDraftApproval
+  now accepts an optional identityVerifierOverride (default: the real
+  createRequestIdentityVerifier(), unchanged production behavior).
+  Exists solely so tests can exercise the actual composition root the
+  API routes call — createRequestIdentityVerifier() makes a real
+  Supabase call with no meaning in a test process, so this was
+  previously untestable at this layer; SP-1's own tests only covered
+  the function one level below (approveGrowthDraftGoverned). Also adds
+  listGovernedGrowthActivity(claimedUserId, override?): the Activity
+  Timeline's read boundary — identity-gated the same way approval is,
+  filters the shared ledger singleton to events belonging to the
+  verified caller only.
+- src/app/api/growth/activity/route.ts (new): thin GET handler —
+  reads the same x-jhadina-user-id header pattern as the other Growth
+  routes, calls listGovernedGrowthActivity with the real identity
+  verifier (no override), returns the caller's own events as JSON.
+  This is the only path from the ledger to any UI — no UI component
+  imports the ledger, action-core, or governed-approval-runtime
+  directly (grep-verified).
+- src/app/activity/page.tsx (new): Activity Timeline UI. Fetches
+  /api/growth/activity with the real signed-in user id, renders each
+  event's type/status/timestamp/metadata. Empty/loading/error states
+  handled explicitly; never assumes success.
+- components/home/PersonalCommandFeed.tsx: added one real card. Every
+  other card is still JH-014's original demo content (no backend
+  exists yet for those kinds) — untouched. The new card fetches the
+  signed-in user's actual pending Growth drafts through the same
+  /api/growth/drafts route /growth already uses, shows one when
+  something real is pending, and its "Review" action links to /growth
+  (the existing Approval Center) rather than reimplementing approve/
+  deny controls inline — matches the diagram's own separation between
+  "user selects a proposed action" (Command Center) and "Approval
+  Center" (a distinct step). Fails silently on this preview surface if
+  signed out or the fetch fails; errors that matter surface on /growth
+  itself.
+- src/components/JhadinaShellNavigation.tsx: added Activity to the
+  Worlds dropdown (not the fixed five-button primary nav, which JH-031
+  deliberately caps at five). Now genuinely reachable, not an orphan
+  page.
+- src/lib/growth/governed-approval-runtime.test.ts (new): the ten
+  required lifecycle points, all against the real composition-root
+  functions the API routes call (not the one-layer-down functions
+  SP-1 already tested) — proposal visible via listGrowthDrafts;
+  authorized approval runs identity→policy→approval→execute and is
+  recorded in the shared ledger; unauthorized (identity-mismatched)
+  approval fails closed with a denied ledger entry, draft untouched;
+  Activity Timeline boundary reads back exactly what approval wrote,
+  scoped per-user (a second user's events proven not to leak); a
+  failed execution (approving a nonexistent draft) is recorded failed
+  and IS visible through the Activity boundary, not hidden; a second
+  approval on an already-approved draft cannot execute twice, draft
+  state unchanged from the first approval.
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm vitest run: 91/91 (85 existing + 6 new).
+- pnpm --filter jhadina-web build: real Next.js production build
+  succeeds; /activity and /api/growth/activity both present in the
+  route manifest.
+- pnpm --filter jhadina-web lint: clean except one new
+  react-hooks/exhaustive-deps warning on growth/page.tsx's existing
+  useEffect (same warning class already accepted elsewhere in this
+  codebase, e.g. AudioPlaybackBridge.tsx; not fixed here to avoid a
+  broader refactor of that page's effect structure outside this
+  slice's scope).
+- Grep-confirmed no "use client" component or Pages Router component
+  imports the ledger, @jhadina/action-core, or
+  governed-approval-runtime — only the two new API routes do.
+ARCHITECTURAL IMPACT:
+- Closes a real, previously-shipped bug (the identity-header mismatch)
+  that meant the governed Growth approval path, despite compiling and
+  passing SP-1's tests, could not have completed successfully against
+  any real authenticated user until now.
+- Activity Timeline is real but explicitly non-durable by design
+  decision (in-memory ledger) — will not survive a process restart or
+  necessarily be visible across separate serverless instances in a
+  real deployment. This is the intentional scope of this milestone,
+  not an oversight; the next durability milestone is named below.
+COMMIT: PR #66, merged as 99c51b3
+NEXT: PL-1 post-merge verification, then a narrowly-scoped durability
+swap (in-memory AuditLedger → existing SupabaseAuditLedger, audited
+first — dependency composition only, not new architecture) before
+Commerce sandbox payments.
+```
+
+**Frozen gates:** unchanged. JH-007, JH-022–024, JH-026, JH-028/033/034,
+JH-032 remainder, JH-038 checkout decision, JH-039 remainder, JH-041,
+JH-043, JH-046 — none touched.
+
+### PL-1 post-merge verification
+
+**Status:** DONE — all checks passed on `main` @ `99c51b3`/`9c45d51`.
+main contains the merge SHA; working tree clean; `/growth` confirmed
+using `getCurrentUserId()` for every fetch; `PersonalCommandFeed`'s
+Growth card confirmed linking to `/growth`; 91/91 tests re-run clean on
+merged `main` (including the 6 lifecycle tests against the real
+composition root); grep-confirmed the ledger boundary holds (only the
+two API routes import `governed-approval-runtime`); grep-confirmed no
+literal `user_demo` header send remains anywhere in the governed path
+(only explanatory comments referencing the old bug); full CI green.
+
+### PL-2 — Durability: in-memory AuditLedger → SupabaseAuditLedger
+
+**Status:** DONE
+**Objective:** `UI → governance → InMemoryAuditLedger` becomes
+`UI → governance → SupabaseAuditLedger`. No UI redesign, no new
+governance primitives, no new parallel audit system, no unrelated
+Supabase schema work.
+
+**Pre-build audit (required before any code):** `SupabaseAuditLedger`
+(action-core) is a clean, already-correct, already-tested
+implementation of `ActionLedger` — the class itself needed no changes
+to its `append()` contract. But its one required RPC,
+`append_jhadina_audit_event`, and any backing table did not exist
+anywhere in `supabase/migrations` — the repo has exactly one migration
+file, and it's for a completely unrelated ledger
+(`jhadina_evolution_run_ledger`, evolution-core's own run-event log).
+Live introspection via the Supabase MCP tool was attempted but blocked
+by a non-interactive permission gate; the audit is grounded in the
+migrations directory, the same ground truth CI's "Supabase Preview"
+check deploys from. Conclusion, surfaced before writing code: the
+*contract* is satisfied, the *schema* is not — some new migration is
+unavoidable for real durability, not a pure dependency-composition
+change with zero schema. **User decision: minimal migration, mirroring
+the existing evolution-ledger pattern.**
+
+A second real gap surfaced during the audit: `ActionLedger` (the
+interface `SupabaseAuditLedger` implements) is append-only by design —
+no `list()` method exists on the interface, and `SupabaseAuditLedger`
+itself had no read path at all before this milestone. Activity
+Timeline's read side therefore needed its own addition, not a bundled
+freebie from swapping the write side. Not "unrelated Supabase schema
+work" (it's the same table, necessary to keep Activity Timeline
+working) and not a "new parallel audit system" (it's the one ledger's
+own read capability, added to match `InMemoryActionLedger`'s existing
+shape) — reported as part of the honest scope of this decision rather
+than a fresh fork requiring its own sign-off.
+
+**Completion report:**
+```
+TASK: PL-2
+STATUS: DONE
+CHANGED:
+- supabase/migrations/20260814000000_append_jhadina_audit_event.sql
+  (new): jhadina_audit_event table + append_jhadina_audit_event +
+  list_jhadina_audit_events, mirroring
+  append_jhadina_evolution_run_ledger's established pattern (advisory
+  lock -> next sequence -> sha256 hash chain over the event + previous
+  hash), partitioned per domain rather than per run. RLS enabled with
+  zero policies; all access is through these two security definer
+  functions, granted to `authenticated` (not service_role — no new
+  credential introduced). Both functions self-enforce
+  auth.uid() = the actor being written or read as a database-level
+  backstop behind the application's own identity verification, not a
+  replacement for it.
+- packages/jhadina-action-core/src/supabase-audit-ledger.ts: added
+  list(filter: {domain, actorId}) — scoped to exactly one domain/actor
+  pair, never "all events," calling the new list_jhadina_audit_events
+  RPC. Not part of ActionLedger (append-only by design); mirrors
+  InMemoryActionLedger's own list() in spirit. The reconstructed
+  event's `type` is read back from the stored `capability` column — a
+  documented, narrow caveat: faithful only when the ledger wasn't
+  configured with a many-to-one capabilityForType mapping, true for
+  every current caller since each domain's action `type` already *is*
+  its capability string.
+- packages/jhadina-action-core/src/supabase-audit-ledger.test.ts:
+  extended with list() coverage against a fake RPC client.
+- apps/jhadina-web/src/lib/growth/durable-audit-ledger.ts (new):
+  createGrowthAuditLedger() — constructs a SupabaseAuditLedger wrapping
+  the same request-scoped Supabase client createRequestIdentityVerifier()
+  already builds (session cookies via @supabase/ssr). No service-role
+  client, no new credential.
+- apps/jhadina-web/src/lib/growth/governed-approval-runtime.ts:
+  InMemoryActionLedger replaced with a per-call SupabaseAuditLedger
+  (its underlying client is request-scoped, so it can no longer be a
+  module-level singleton the way the in-memory one was — the one
+  structural change beyond a pure constructor swap). Approval receipts
+  deliberately stay in-memory/process-local — explicitly out of scope
+  for this milestone, only the audit ledger changed. The
+  identityVerifierOverride param from PL-1 became a small overrides
+  object also accepting a ledger override, for the same reason (real
+  Supabase calls have no meaning in a test process).
+- apps/jhadina-web/src/lib/growth/governed-approval-runtime.test.ts:
+  rewritten against a FakeAuditRpcClient that models the real
+  migration's actual behavior (sequential per-domain inserts,
+  domain+actor-scoped reads) rather than a client that always returns
+  success — same discipline as every reference adapter this pass. All
+  10 lifecycle points re-verified against the durable path. One test
+  (#4, unauthorized approval) needed a real fix, not a mechanical
+  port: the denied event is recorded under the *claimed* (unverified)
+  actor, so it correctly does not appear in the real, verified user's
+  own Activity read — the original assertion was checking the wrong
+  boundary; fixed to inspect the ledger's write-side state directly
+  for that case, and to separately assert the mismatched claim never
+  leaks into the verified user's own activity view.
+- No changes to any API route, any UI component, or ActionExecutor.
+VERIFIED:
+- pnpm --filter @jhadina/action-core type-check + test: clean, 9/9
+  (was 8/8 — one new subtest for list()).
+- pnpm --filter @jhadina/money-core type-check + test: clean, 11/11
+  unchanged (money-core also depends on action-core; confirmed
+  unaffected).
+- pnpm -r type-check: 22/23 clean (pupsonstuff's pre-existing,
+  unrelated vitest-types failure, same as every prior check this
+  pass).
+- pnpm vitest run (jhadina-web): 91/91 unchanged.
+- pnpm --filter jhadina-web build: real production build succeeds.
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing warnings
+  as PL-1, none new).
+- Grep-confirmed: no client component imports the ledger,
+  @jhadina/action-core, or durable-audit-ledger directly. Grep-confirmed
+  no SERVICE_ROLE/service_role credential introduced anywhere.
+ARCHITECTURAL IMPACT:
+- Activity Timeline now survives process restarts and is visible
+  across separate serverless instances — the limitation PL-1 explicitly
+  flagged as out of scope is closed.
+- SupabaseAuditLedger.list() is a real, reusable addition to a shared
+  FOUNDATION package — the next domain that wants a durable, readable
+  audit trail (Money, Commerce, once governed) doesn't need to
+  reinvent this.
+COMMIT: PR #67, merged as 69692a4
+NEXT: post-merge verification, then Commerce sandbox-payment milestone.
+```
+
+**Post-merge verification:** DONE. main contains the merge SHA; working
+tree clean; durable audit path confirmed genuinely wired at the
+composition root (`governed-approval-runtime.ts` uses
+`createGrowthAuditLedger()`/`SupabaseAuditLedger` by default in both
+the write and read paths — `InMemoryActionLedger` no longer appears in
+any growth production code path); migration/RPC security posture
+confirmed: RLS enabled + `revoke all` from `public`/`anon`/`authenticated`
+on the table, both RPCs `security definer` + revoked from `public` +
+granted only to `authenticated`, each independently enforcing
+`auth.uid() = p_actor_id`. One real finding surfaced while confirming
+the wiring: `listGovernedGrowthApprovalAuditTrail` (SP-1's original
+in-memory-ledger accessor) was fully dead — superseded by PL-2's real
+read boundary, zero callers left anywhere. Removed on PR #68, merged as
+`bb34a27`, rather than leaving an unwired duplicate behind — same
+discipline as removing `MoneyCapabilityPolicy` in Architecture
+Checkpoint #2. Re-verified after that cleanup: no production reference
+to the old accessor remains; the durable path still works for both
+append and read (91/91 tests, including the full PL-2 lifecycle suite,
+re-run clean on fully-synced `main`); the migration file was untouched
+by the cleanup (confirmed via diff) so the security boundary is
+unchanged. **Durable-audit milestone (PL-1 + PL-2) is complete.**
+
+**Frozen gates:** unchanged.
+
+### PL-3 — Commerce sandbox-payment integration
+
+**Status:** DONE
+**Objective:** `Commerce intent → checkout-orchestrator → payment-core
+→ sandbox payment adapter → order-fulfillment-core → audit`. Moves
+from SP-2's in-memory reference adapter to an actual external sandbox
+provider shape, reusing the same three commerce contracts unchanged.
+No new payment architecture — the sandbox provider implements the
+existing `payment-core.PaymentProvider` contract SP-2 already proved
+compositionally.
+
+**Pre-build decisions (both surfaced before writing code):**
+- **Provider:** Stripe test mode — real, well-known sandbox, real test
+  card/decline semantics, orthogonal to the frozen JH-038 decision
+  (this proves the `PaymentProvider` contract can be satisfied by a
+  real provider; it does not touch JH-038's shipped-checkout code or
+  wire into any UI, so it doesn't resolve JH-038's "which path should
+  the canonical checkout use" question).
+- **No live calls this milestone:** no sandbox credentials exist in
+  this environment. Built with a fully injectable transport (mirroring
+  `ReadOnlyHttpBankAdapter`'s established pattern) and an injected fake
+  fetch that faithfully models Stripe's real request/response shapes
+  (idempotency headers, success/decline/error payloads) for the proof;
+  wiring in a real `fetch` + real `sk_test_` key later is the same
+  one-line change every prior adapter in this pass was built around.
+- **Audit attribution:** in-memory, not the durable `SupabaseAuditLedger`
+  PL-2 built. That ledger's RPCs require a real `auth.uid()`; Commerce's
+  checkout lifecycle has no verified actor (Architecture Checkpoint #2,
+  Finding D — `customerId` is an unverified string). Mirrors PL-1's own
+  phasing (in-memory now, durable once a real actor exists) rather than
+  weakening the RPC's actor invariant or reopening Finding D, which
+  this milestone was explicitly told not to touch.
+
+**Completion report:**
+```
+TASK: PL-3
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/sandbox-credential.ts (new):
+  mirrors money-core's CredentialResolver/EnvironmentCredentialResolver
+  pattern (namespaced ref -> JHADINA_SECRET_* env var), implemented
+  locally rather than cross-imported to keep commerce's composition
+  layer self-contained (matches SP-2's own precedent of never reaching
+  into money-core). Adds one hard, fail-closed guarantee beyond
+  money-core's version: the resolved secret must start with sk_test_
+  or resolution throws — the actual mechanism "no production
+  credentials" depends on, since Stripe has no separate sandbox base
+  URL (test vs. live is determined by which key authenticates, not
+  the endpoint).
+- apps/jhadina-web/src/lib/commerce/sandbox-idempotency.ts (new):
+  mirrors money-core's IdempotencyStore shape, implemented locally for
+  the same layering reason.
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.ts (new):
+  StripeSandboxPaymentProvider implements PaymentProvider unchanged.
+  HTTPS-enforced, injectable fetch transport, real Idempotency-Key
+  header plus a local idempotency claim (a repeated call for the same
+  paymentId never re-calls the provider). createPayout/reconcile
+  explicitly reject — out of scope for this proof, not needed to show
+  checkout -> payment -> fulfillment -> audit.
+- apps/jhadina-web/src/lib/commerce/governed-payment-provider.ts
+  (new): GovernedPaymentProvider — a decorator implementing
+  PaymentProvider around any real provider, composing transparently
+  with SP-2's existing createPaymentGatewayFromProvider bridge with
+  zero changes there. Adds the "explicit capability/policy boundary"
+  and "authorization before provider call" requirements: a fixed,
+  named-capability allow-list (mirroring money-core's capabilities.ts
+  registry shape) permitting charge/refund and denying payout/reconcile,
+  checked before the wrapped provider is ever called — denials are
+  audited too, not just successes and failures. payment-core's
+  PaymentProvider interface has no per-call actor/context parameter
+  (unlike money-core's BankAdapter), so this check lives at the
+  composition boundary rather than inside each method.
+- apps/jhadina-web/src/lib/commerce/commerce-intent.ts: added an
+  optional paymentProvider override to CommerceLifecycleOptions
+  (defaults to the original InMemoryPaymentProvider, fully backward
+  compatible). Fixed the paymentIntents derivation to duck-type a
+  .list() inspection method rather than assuming InMemoryPaymentProvider
+  specifically — checkout-orchestrator only assigns session.paymentId
+  on a *successful* authorizeOrCapture call (confirmed by reading its
+  source: it throws before that assignment on a decline), so deriving
+  paymentIntents from the session alone would have silently missed
+  every declined attempt.
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.ts,
+  governed-payment-provider.ts: both add list(): PaymentIntent[] (the
+  same inspection contract InMemoryPaymentProvider already had) so the
+  duck-typed derivation above works uniformly.
+- Five new test files (22 new tests): sandbox-credential.test.ts (6 —
+  sandbox-only enforcement, malformed refs, missing credentials);
+  stripe-sandbox-provider.test.ts (8 — HTTPS enforcement, successful
+  charge with credential-never-in-result verified, decline handling,
+  network-failure handling, idempotency via a call-count spy,
+  capture/refund two-step flow, refund-provider-failure handling,
+  payout/reconcile rejection); governed-payment-provider.test.ts (5 —
+  charge/refund allowed and audited started->completed, payout/reconcile
+  denied with zero calls reaching the wrapped provider and the denial
+  itself audited, a failed charge audited as failed with a reason);
+  commerce-intent-sandbox-payment.test.ts (3 — full lifecycle success
+  through the sandbox provider with real computed totals, a declined
+  sandbox payment failing closed exactly like the reference provider,
+  and the critical cross-contract proof: fulfillment denial after a
+  successful sandbox charge still triggers checkout-orchestrator's own
+  automatic refund compensation, now through the governed sandbox path
+  instead of the reference one).
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm vitest run: 113/113 (91 existing + 22 new).
+- pnpm -r type-check: 22/23 clean (pupsonstuff's pre-existing,
+  unrelated vitest-types failure, unchanged).
+- pnpm --filter jhadina-web build: real production build succeeds (no
+  new route — composition + tests only, matching SP-2's precedent;
+  Commerce has no shipped checkout UI on main to wire into yet).
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing warnings).
+- Grep-confirmed: no client component or Pages Router component
+  imports the sandbox provider, credential resolver, or governed
+  wrapper directly. Grep-confirmed no SERVICE_ROLE credential and no
+  sk_live key anywhere outside tests verifying such keys are rejected.
+ARCHITECTURAL IMPACT:
+- Proves payment-core's PaymentProvider contract composes against a
+  real-provider-shaped implementation, not just an in-memory double —
+  the second contract-vs-real-boundary proof after SP-3's Money/Plaid
+  path, using the same injectable-transport pattern.
+- GovernedPaymentProvider's decorator shape (implements the same
+  interface it wraps) is a reusable pattern for adding a capability
+  gate + audit trail to any contract whose methods don't carry a
+  context parameter — worth remembering if Commerce's actor-identity
+  gap (Finding D) is closed later and this needs to gate on a real
+  actor instead of a fixed allow-list.
+COMMIT: PR #69, merged as 362188b
+NEXT: not decided here. Commerce's audit trail is still in-memory
+(same limitation PL-1 had before PL-2); live Stripe credentials still
+don't exist in this environment; Finding D (Commerce has no
+identity/capability layer at all) remains open.
+```
+
+**Frozen gates:** unchanged. JH-038 checkout decision in particular —
+this milestone proves a contract, it does not choose or touch
+Jhadina's canonical checkout implementation.
+
+### PL-4 — Finding D: Commerce's governed identity/capability boundary
+
+**Status:** DONE
+**Objective:** Close Architecture Checkpoint #2's Finding D — Commerce
+had no identity/capability layer anywhere. Wire the existing Jhadina
+governance spine (`ActionIdentityVerifier` → `SecurityCoreActionPolicy`
+→ approval receipts → audit) around Commerce, the third domain to
+independently converge on it after Growth and Money.
+
+**Audit first (no code until reported and confirmed):** traced Commerce
+end to end — `customerId`/`PaymentParty.id`/`merchant.id` are plain
+strings across all three commerce contracts, never verified anywhere;
+`CheckoutOrchestrator.execute()` takes no actor parameter; the only
+actor-shaped field in the whole family (`CustodyEvent.actorId`) is
+attribution, not authorization. Confirmed `payment-core` already has a
+slot for a verified actor (`PaymentParty.id`) and needs no interface
+change — verification is purely a composition-layer concern, exactly
+like money-core's `assertCapability` pattern lives in its handler
+layer, not its raw adapter interface. Verdict: the existing spine can
+wrap Commerce cleanly; no missing primitive. Two open questions
+(approval-gating boundary; how `GovernedPaymentProvider` sources its
+actor) were resolved by explicit user decision before any code:
+- `commerce.checkout` — capability-only, no approval.
+- `commerce.payment.charge` / `commerce.payment.refund` — both require
+  an explicit approval receipt (capability authorization and approval
+  are different controls; a user may be permitted to act, but moving
+  real money needs explicit approval on top of that).
+- `commerce.fulfillment` — deliberately not implemented; fulfillment
+  stays gated solely by `order-fulfillment-core`'s own `PolicyGate`
+  (a different question — "can this order be fulfilled here" — not
+  duplicated by an actor-capability gate).
+- `GovernedPaymentProvider` must receive the verified actor from the
+  outer governed composition, never derive it from `request.customer.id`
+  / `instruction.merchant.id` / `request.requestedBy` (domain data a
+  caller controls, not proof of identity).
+
+**Completion report:**
+```
+TASK: PL-4
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/commerce-security-policy.ts (new):
+  COMMERCE_SECURITY_POLICY — a *local* extension of
+  JHADINA_BASE_SECURITY_POLICY (mirrors money-core's
+  MONEY_CORE_SECURITY_POLICY pattern; does NOT mutate the shared base
+  policy the way Growth's SP-1 did for growth.draft.approve). Commerce
+  has no dedicated backing package, so this lives at the app
+  composition layer — the pattern is what's reused, not the package
+  location. commerce.checkout allowed, not approval-gated;
+  commerce.payment.charge/refund both allowed AND approval-gated.
+- apps/jhadina-web/src/lib/commerce/governed-payment-provider.ts:
+  constructor now requires a verifiedActorId (throws if empty — no
+  silent fallback) and accepts an optional shared ledger (defaults to
+  a fresh InMemoryActionLedger for standalone use). Every method's
+  audited actor is now this.verifiedActorId, never request data.
+  Removed getAuditTrail() — callers keep their own ledger reference
+  instead (needed once checkout-level and payment-level events share
+  one ledger). Zero changes to payment-core itself.
+- apps/jhadina-web/src/lib/commerce/governed-commerce-intent.ts (new):
+  the governed composition root, mirroring governed-approval.ts's
+  (Growth) and governed-provider-account-read.ts's (Money) shape:
+  identity verify -> SecurityCoreActionPolicy(COMMERCE_SECURITY_POLICY)
+  -> commerce.checkout capability check -> pre-authorize both
+  commerce.payment.charge and commerce.payment.refund (request ->
+  approve -> verify-and-consume, the same one-time-use receipt
+  mechanics ActionExecutor uses internally, hand-implemented since
+  checkout-orchestrator isn't shaped as a single ActionHandler) ->
+  runCommerceIntentLifecycle() completely unchanged -> a
+  GovernedPaymentProvider carrying the now-verified actor and the
+  shared ledger. Both payment capabilities are authorized *before*
+  runCommerceIntentLifecycle ever runs, not per payment-core call —
+  checkout-orchestrator's execute() is one synchronous call that may
+  attempt a charge and, on later fulfillment denial, an automatic
+  compensating refund, with no mid-flight human touchpoint; both
+  receipts are obtained up front under the one governed checkout
+  action, the same way Growth's own request+approve happens within a
+  single call. checkout-orchestrator, payment-core, and
+  order-fulfillment-core are untouched (confirmed via git diff — empty
+  diffstat on all three packages plus action-core).
+- apps/jhadina-web/src/lib/commerce/governed-payment-provider.test.ts,
+  commerce-intent-sandbox-payment.test.ts: updated for the new
+  constructor signature (verifiedActorId + shared ledger instead of
+  getAuditTrail()); every assertion now also confirms the audited
+  actor is the verified identity and specifically NOT
+  request.customer.id / request.requestedBy (constructed to differ
+  from each other in the tests, to prove which one wins).
+- apps/jhadina-web/src/lib/commerce/governed-commerce-intent.test.ts
+  (new): 7 tests — authorized checkout completes end to end with
+  every ledger event (checkout-level and payment-level) carrying the
+  single verified actor, none anonymous/service/n/a; unverifiable
+  identity fails before any provider call with zero ledger entries
+  (matching Checkpoint #2 Finding A's established precedent); policy
+  denial on commerce.checkout fails before any provider call;
+  unauthorized commerce.payment.charge fails before the provider is
+  ever reached (checkout never even starts — both capabilities are
+  pre-authorized up front); unauthorized commerce.payment.refund fails
+  the whole checkout before it starts, proven to be specifically the
+  refund pre-authorization blocking it (charge itself was authorized
+  fine); fulfillment denial after a successful, fully governed charge
+  still triggers checkout-orchestrator's own automatic refund
+  compensation, attributed to the correct verified actor; a duplicate
+  charge attempt for the same paymentId through the governed,
+  verified-actor path never re-calls the underlying provider a second
+  time (idempotency survives the actor-verification wrapping).
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm vitest run: 121/121 (113 existing + 7 new, one existing file's
+  test count grew from 5->6 for the "requires a verified actor id"
+  constructor guard).
+- pnpm -r type-check: 22/23 clean (pupsonstuff pre-existing,
+  unrelated).
+- pnpm --filter jhadina-web build: real production build succeeds.
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing
+  warnings).
+- Grep-confirmed: no client component imports
+  governed-commerce-intent / commerce-security-policy /
+  governed-payment-provider directly.
+- git diff --stat confirms zero changes to checkout-orchestrator,
+  payment-core, order-fulfillment-core, and @jhadina/action-core.
+ARCHITECTURAL IMPACT:
+- Commerce is now the third independent domain converged on the exact
+  same governance spine as Growth and Money — the pattern the audit
+  predicted would hold, held. No new identity primitive, no new
+  policy framework, no new ledger, no new Commerce package.
+- Commerce's audit trail is still in-memory (unchanged from PL-3) —
+  now that a real verified actor exists, the objection to durable
+  SupabaseAuditLedger attribution (Finding D) no longer applies; that
+  swap is the next, separately-scoped milestone, not done here.
+COMMIT: PR #70, merged as 488d49e
+NEXT: make Commerce durable (in-memory -> SupabaseAuditLedger, now
+that a verified actor exists — same shape as PL-2's swap for Growth),
+then live Stripe sandbox credentials, then the next architecture
+checkpoint testing whether the governance composition boundary is now
+a stable, established primitive. Not decided here — awaiting explicit
+direction per user instruction.
+```
+
+**Frozen gates:** unchanged. JH-038 in particular — this closes a real
+governance gap in the reference composition layer; it does not touch
+JH-038's checkout implementation, choose a canonical checkout path, or
+modify any of the three underlying commerce domain contracts.
+
+
+---
+
+## ARCHITECTURE CHECKPOINT #3 — is the composition boundary a stable primitive?
+
+**Date:** 2026-08-14 · main @ `2c7a6e6` (after PL-4) · after PL-1/PL-2/PL-3/PL-4
+
+Performed per explicit instruction after PL-4, read-only — no code
+changed. Full published report: "Jhadina OS Checkpoint Three"
+(artifact, favicon matches the series). Summary below is the durable
+record; the artifact has the full comparison and prose.
+
+Growth, Money, and Commerce were built independently, in three
+different shapes (a single `ActionHandler` dispatched through
+`ActionExecutor`; a `VerifiedActionExecutor`-wrapped production
+handler with a health gate; a hand-rolled wrapper around a
+multi-step orchestrator with no single dispatchable action at all).
+This checkpoint asks whether that convergence is a real, stable
+primitive or three lookalike one-offs.
+
+### At a glance
+
+| Dimension | Growth | Money | Commerce |
+|---|---|---|---|
+| Identity before domain logic | yes, hand-rolled pre-stage | yes, real `VerifiedActionExecutor` (after Checkpoint #2's fix) | yes, hand-rolled pre-stage (PL-4) |
+| Policy mechanism | `SecurityCoreActionPolicy`, mutates shared base policy in `security-core` | `SecurityCoreActionPolicy`, local extension (`MONEY_CORE_SECURITY_POLICY`) | `SecurityCoreActionPolicy`, local extension (`COMMERCE_SECURITY_POLICY`) |
+| Approval ceremony | hand-rolled request→approve, `ActionExecutor` does verify-and-consume | none (read capability, not approval-gated) | hand-rolled request→approve→verify-and-consume, all three steps inline (no `ActionExecutor` to delegate to) |
+| Final execution | raw `ActionExecutor.execute()` | full `VerifiedActionExecutor` internally | no executor — direct call into `runCommerceIntentLifecycle()` |
+| Ledger event on identity failure | yes, under the claimed (unverified) actor | no (Checkpoint #2 Finding A, by design) | no (matches Money's precedent, deliberately) |
+| Durable ledger today | yes — `SupabaseAuditLedger` (PL-2) | no — still in-memory | no — still in-memory |
+
+### Eight dimensions
+
+**1. Identity.** Consistent: all three verify identity before any
+domain logic runs, and the verified actor — never caller-supplied
+domain data — is what flows into every subsequent ledger event.
+Commerce needed this fixed explicitly in PL-4 (`GovernedPaymentProvider`
+previously fell back to `request.customer.id`); Growth and Money never
+had that failure mode. Verdict: **consistent**, one real
+correction already shipped (PL-4), nothing further to fix.
+
+**2. Policy.** `SecurityCoreActionPolicy` used in all three, with
+capabilities appropriately distinct per domain
+(`growth.draft.approve`; `money.account.read`; `commerce.checkout` /
+`commerce.payment.charge` / `commerce.payment.refund`). One real
+divergence: Growth's SP-1 mutates `JHADINA_BASE_SECURITY_POLICY`
+directly in `security-core`'s own source, while Money and Commerce
+both spread it locally (`MONEY_CORE_SECURITY_POLICY`,
+`COMMERCE_SECURITY_POLICY`) without touching the shared object — 2
+of 3 domains independently arrived at the safer pattern. Verdict:
+**minor inconsistency, not urgent** — Growth's approach hasn't caused
+a defect, but the local-extension pattern is the one to reuse for any
+future domain; revisiting Growth's own policy wiring is optional
+future cleanup, not scheduled.
+
+**3. Approval.** All approval logic lives in policy decisions
+(`approval_required`) and receipt ceremonies, never embedded in
+domain code — `payment-core`, `checkout-orchestrator`,
+`order-fulfillment-core`, and Growth's draft-approval domain logic
+are all untouched by the governance layer. Receipts are one-time-use
+and verified correctly in both places that hand-roll the ceremony
+(Growth's request+approve, letting `ActionExecutor` verify-and-consume;
+Commerce's full inline request→approve→verify-and-consume, proven by
+PL-4's idempotency test). Verdict: **consistent**, and this is also
+where dimension 7's one real duplication finding lives (see below).
+
+**4. Execution.** The wrapper stays outside the domain in all three —
+confirmed by `git diff --stat` showing zero changes to
+`checkout-orchestrator`, `payment-core`, `order-fulfillment-core`, and
+`@jhadina/action-core`'s own contracts across PL-3/PL-4, and by
+Money's own untouched `MoneyAccountReadHandler`/adapters. The three
+different execution shapes (raw `ActionExecutor`, full
+`VerifiedActionExecutor`, no executor at all) are judged **justified,
+not inconsistent** — they trace directly to real shape differences:
+Growth and Money's target operations are each a single dispatchable
+action; Commerce's is a multi-step orchestrator that isn't shaped as
+one `ActionHandler` and was never going to be forced into that shape
+just for symmetry.
+
+**5. Audit.** All five audit-relevant states — denied, approval-
+required, attempted/started, succeeded, failed — are observable in at
+least one of the three domains' ledgers, and compensations (Commerce's
+fulfillment-denial refund) are recorded too. Every event in all three
+is attributed to the verified actor, never a claimed or anonymous one.
+Verdict: **consistent**.
+
+**6. Failure ordering.** Invariant checked: identity → policy →
+approval → provider/action → domain consequences → audit. Money and
+Commerce both append a `started`/attempt-level event only after
+identity is verified. Growth's sequencing is very slightly looser —
+its own `governed-approval.ts` records a policy-adjacent event before
+the full policy decision is finalized in one code path — a genuine
+but minor ordering wrinkle, not a case of anything running before
+identity or before policy. Verdict: **small, non-load-bearing
+divergence** — worth tightening if Growth's file is touched again for
+another reason, not worth a standalone change now.
+
+**7. Duplication.** Deliberately did not extract anything merely
+because files look similar. One real, load-bearing duplication found:
+Growth and Commerce both hand-roll the identical request→approve
+[→verify-and-consume] ceremony against `ApprovalReceiptStore`, using
+the same three `action-core` primitives
+(`createApprovalRequestService`, `createApprovalReceiptVerifier`, the
+receipt lifecycle) in the same order, for the same reason (no
+`ActionExecutor` doing it for them in Commerce's case; Growth needing
+the decision surfaced before `ActionExecutor.execute()` runs). This is
+the one dimension-7 finding treated as **justified for extraction** —
+see "smallest abstraction" below. Nothing else qualified: Money's
+health gate stays Money-only (still the only domain with the concept);
+the three domains' policy-capability tables are intentionally
+different, not copies.
+
+**8. Durability boundary.** Growth already proved the swap
+(`InMemoryAuditLedger` → `SupabaseAuditLedger`, PL-2) with zero changes
+to governed or domain logic — the composition root took a `ledger`
+override, nothing else moved. Money and Commerce are both still
+in-memory. Money's `governed-provider-account-read.ts` already takes
+its ledger dependency through the abstract shape needed for a clean
+swap. Commerce has one real, small gap: `GovernedCommerceIntentDeps.ledger`
+and `GovernedPaymentProvider`'s constructor are typed as the concrete
+`InMemoryActionLedger` class rather than the abstract `ActionLedger`
+interface, even though neither ever calls anything beyond `.append()`
+(which is on the interface) — an accidental constraint inherited from
+mirroring Growth's pre-PL-2 shape, not a real requirement. Verdict:
+Growth's swap is proven; Money's is a one-line composition change
+away; Commerce's is a one-line composition change away *plus* a small,
+zero-behavior-change type-widening fix first (change two
+`InMemoryActionLedger` annotations to `ActionLedger`) so the eventual
+swap doesn't require touching the governed logic itself.
+
+### The smallest abstraction
+
+**Extract:** an approval-ceremony helper for `action-core` —
+`requestApproveAndConsume(store, fingerprint, request)` wrapping the
+request→approve→verify-and-consume sequence Growth and Commerce both
+hand-roll today, byte-for-byte the same primitive calls in the same
+order. This is judged **justified but not urgent** — real duplication,
+proven twice, low risk to extract (pure composition of three existing
+functions, no new concept), but nothing is broken today and no third
+hand-rolled copy exists yet to strengthen the case further. Named as
+future work, not scheduled.
+
+**Explicitly not extracted:** a unified `GovernedActionRunner`
+mega-abstraction spanning identity+policy+approval+execution+audit.
+The three domains' execution shapes are genuinely different for real
+reasons (dimension 4) — forcing Commerce's multi-step orchestrator and
+Money's single handler through one shared runner would either weaken
+the abstraction to the point of uselessness or force Commerce's shape
+to match Growth/Money's for no reason but symmetry. The *pattern*
+(identity → policy → approval → execute → audit, in that order) is the
+real primitive, and it's already proven; it does not need to become
+one shared class to be proven.
+
+### Verdict
+
+**The composition pattern is a proven, stable Jhadina primitive —
+three independently-built domains, with genuinely different execution
+shapes, converged on the same identity → policy → approval → execute →
+audit sequence without being told to converge.** The wiring
+differences (raw `ActionExecutor` vs. full `VerifiedActionExecutor` vs.
+no executor) are justified by real domain-shape differences, not
+inconsistency. One small, justified extraction candidate exists (the
+approval-ceremony helper) but is not urgent. One small, zero-behavior
+type-widening fix would make Commerce's future durability swap a true
+zero-code-change swap, matching Money and Growth. No code was changed
+in this checkpoint.
+
+**NEXT: durable Commerce audit ledger (in-memory → `SupabaseAuditLedger`,
+same shape as PL-2's Growth swap), then live Stripe sandbox credential
+verification, then — only if warranted — a fourth checkpoint. The
+approval-ceremony extraction stays named, not scheduled. All 15 frozen
+human gates remain frozen — untouched by this checkpoint. Awaiting
+explicit direction per user instruction before starting the next
+milestone.**
+
+
+---
+
+### PL-5 — Durable Commerce Audit
+
+**Status:** DONE
+**Objective:** Close Architecture Checkpoint #3's dimension-8 finding —
+Commerce's audit trail was still `InMemoryActionLedger`, even though
+PL-4 gave it a real verified actor to durably attribute events to.
+Swap it for the same, already-proven `SupabaseAuditLedger` PL-2 built
+for Growth. Explicitly scoped by the user to the smallest possible
+durability change: no new table, RPC, ledger abstraction, service
+actor, or identity mechanism; no touch to checkout-orchestrator,
+payment-core, order-fulfillment-core, JH-038, or Money.
+
+**Audit first:** `append_jhadina_audit_event` /
+`list_jhadina_audit_events` are already domain-parameterized
+(`p_domain`) — confirmed the existing PL-2 migration needed zero
+changes; `"commerce"` is just another value in the same hash-chained
+table Growth already durably writes to. Confirmed the two Checkpoint
+#3 dimension-8 annotations (`GovernedCommerceIntentDeps.ledger`,
+`GovernedPaymentProvider`'s constructor param) were the only places
+still typed against the concrete `InMemoryActionLedger` class rather
+than the abstract `ActionLedger` interface, and that both only ever
+call `.append()` — a zero-behavior type correction, not a logic
+change. Confirmed no production route or page in `jhadina-web` calls
+`runCommerceIntentGoverned` yet (Commerce has no UI wiring — JH-038's
+checkout decision is still frozen), so "no production Commerce path
+uses InMemoryActionLedger" reduces to: the composition root's ledger
+dependency has no default and is now durability-capable, and a real
+`createCommerceAuditLedger()` now exists as the correct thing for a
+future route to pass.
+
+**Completion report:**
+```
+TASK: PL-5
+STATUS: DONE
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/governed-commerce-intent.ts:
+  GovernedCommerceIntentDeps.ledger retyped InMemoryActionLedger ->
+  ActionLedger (Checkpoint #3, dimension 8). Zero logic change — the
+  function only ever calls .append().
+- apps/jhadina-web/src/lib/commerce/governed-payment-provider.ts:
+  constructor's ledger param retyped the same way; default value
+  (new InMemoryActionLedger()) unchanged, for standalone/test
+  construction outside the governed composition root only.
+- apps/jhadina-web/src/lib/commerce/durable-audit-ledger.ts (new):
+  createCommerceAuditLedger() -> a real SupabaseAuditLedger, domain
+  "commerce", built the same way Growth's own durable-audit-ledger.ts
+  (PL-2) is: reuses the request-scoped Supabase client, no
+  service-role client, no new credential.
+- apps/jhadina-web/src/lib/commerce/governed-commerce-intent-durable.test.ts
+  (new, 7 tests): proves actual durability, not merely dependency
+  wiring. Every scenario writes through one SupabaseAuditLedger
+  instance (backed by a fake RPC client modeling the real
+  append/list RPCs: sequential per-domain sequence numbers,
+  domain/actor-scoped reads) and reads back through a SECOND,
+  independent SupabaseAuditLedger instance that never wrote anything
+  itself, sharing only the underlying fake table — simulating a real
+  process boundary. Covers: authorized charge / successful payment
+  (customerId deliberately different from the verified actor, to
+  prove durable events are attributed to identity, not intent data);
+  policy-denied checkout; approval rejection (the defensive
+  fail-closed branch for an approval-required decision on a
+  capability that isn't approval-eligible); provider failure (raw
+  transport throws, not a decline — audited as failed with the
+  reason preserved); fulfillment denial -> automatic refund
+  compensation, fully durable; refund failure (the compensating
+  refund itself fails at the provider — durably audited as failed,
+  not silently dropped, matching checkout-orchestrator's own
+  swallow-and-rethrow-original-error behavior); idempotent retry
+  (underlying provider called once, both governed attempts still
+  durably recorded — a feature, every attempt is auditable). Every
+  test checks every persisted event's actor.
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm --filter jhadina-web exec vitest run: 128/128 (121 existing +
+  7 new).
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing
+  warnings).
+- pnpm --filter jhadina-web build: real production build succeeds.
+- pnpm -r --no-bail type-check: 19/20 clean (pupsonstuff pre-existing
+  failure, unrelated).
+- git diff --stat confirms zero changes to checkout-orchestrator,
+  payment-core, order-fulfillment-core, @jhadina/action-core, the
+  Supabase migration/RPCs, and Money — only two modified + two new
+  files, all under apps/jhadina-web/src/lib/commerce.
+- Confirmed no new migration file was added (ls
+  supabase/migrations/ | grep audit still shows exactly PL-2's one
+  file) and no production route/page calls
+  runCommerceIntentGoverned (Commerce has no UI wiring yet).
+ARCHITECTURAL IMPACT:
+- Commerce's audit trail is now durable, the same real
+  SupabaseAuditLedger class as Growth's, proven via genuine
+  cross-instance read-back rather than dependency wiring alone.
+- Growth and Commerce are now both durable; Money remains the one
+  domain still on InMemoryActionLedger (not touched here — out of
+  scope, no Money code was changed).
+- The requestApproveAndConsume extraction Checkpoint #3 named as
+  justified-but-not-urgent future cleanup remains untouched,
+  per explicit instruction.
+COMMIT: PR #71, merged as dc87bc5
+NEXT: the real Stripe test-mode boundary (live sandbox credential
+verification), per the user's stated order. Not started here —
+holding for explicit direction.
+```
+
+**Frozen gates:** unchanged. No table, RPC, ledger abstraction,
+service actor, or identity mechanism was added; checkout-orchestrator,
+payment-core, order-fulfillment-core, JH-038's checkout decision, and
+Money/Plaid are all untouched. All 15 frozen human gates remain
+frozen.
+
+
+---
+
+### PL-6 — Stripe Credential-Resolution Wiring
+
+**Status:** DONE (credential-resolution wiring only — see NEXT)
+**Objective:** Close half of "the real Stripe test-mode boundary"
+milestone the user named after PL-5: complete the credential-
+resolution plumbing so a real `sk_test_...` key, once configured,
+reaches Commerce's sandbox payment provider through its real,
+unmocked transport. Explicitly scoped by the user, after a raised
+blocker, to wiring only — no live call.
+
+**Blocker raised before any code:** grepped process env, `.env.example`,
+and every committed config file for a Stripe credential — none exists
+anywhere in this environment. Asked the user how to proceed rather
+than guessing; the user chose "scope it as credential-wiring only, no
+live call" over providing a real key or picking a different milestone.
+
+**Completion report:**
+```
+TASK: PL-6
+STATUS: DONE (wiring only)
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/production-payment-provider.ts
+  (new): createStripeSandboxProductionProvider() wires
+  EnvironmentSandboxCredentialResolver(real process.env) ->
+  assertStripeSandboxKey (fail-closed inside .resolve()) ->
+  StripeSandboxPaymentProvider, constructed with the resolved secret
+  and NO injected fake transport -- the first place in the whole
+  Commerce proof where the real default fetchImpl (global fetch) is
+  actually reachable. A fetchImpl override exists purely as a
+  test-only escape hatch, documented as never to be used by real
+  composition code. This is the "one-line swap" money-core's own
+  reference proof (governed-account-read.ts, Money) described but
+  never built either -- PL-6 builds it, for Commerce, without a real
+  key to run it against yet.
+- apps/jhadina-web/src/lib/commerce/production-payment-provider.test.ts
+  (new, 4 tests): fails closed before any transport exists when no
+  credential is configured; fails closed on a live-mode key even if
+  that's what's configured; with no fetchImpl override (the real
+  composition path), the resolved credential reaches the real global
+  fetch -- proven by spying on globalThis.fetch itself (always
+  mocked, never a real network call) rather than injecting a fake
+  transport, specifically to prove the default path is real; defaults
+  to the documented commerce/stripe/sandbox credential ref.
+- apps/jhadina-web/.env.example: documents JHADINA_SECRET_STRIPE_SANDBOX
+  (empty value) -- the exact env var a real sk_test_ key would need,
+  server-side only.
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm --filter jhadina-web exec vitest run: 132/132 (128 existing +
+  4 new).
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing
+  warnings).
+- pnpm --filter jhadina-web build: succeeds.
+- pnpm -r --no-bail type-check: 19/20 clean (pupsonstuff
+  pre-existing, unrelated).
+- git diff --stat: zero changes to any existing file besides
+  .env.example -- only new, additive files.
+- Post-merge secret-hygiene sweep (server-side-only, per explicit
+  user instruction): grepped the whole repo for any "use client" or
+  client-bundled file importing production-payment-provider.ts or
+  sandbox-credential.ts -- zero matches, both are server-only modules
+  (no "use client" directive, never imported from pages/ or app/
+  client components). Grepped every reference to
+  JHADINA_SECRET_STRIPE_SANDBOX -- confirmed server-side only
+  (sandbox-credential.ts, .env.example, production-payment-provider.ts's
+  own comments), never NEXT_PUBLIC_-prefixed. Re-read
+  governed-payment-provider.ts's governed() method -- ledger.append()
+  metadata is only ever a denial/failure reason string or approval
+  receipt id, never a request/response body or header, so the secret
+  cannot reach an audit event. Grepped for console.log/console.error
+  near credential/fetchImpl code in stripe-sandbox-provider.ts,
+  sandbox-credential.ts, production-payment-provider.ts -- none
+  exist. Grepped the whole repo for sk_test_/sk_live_ outside
+  node_modules -- every hit is an obviously-fake placeholder inside a
+  *.test.ts file (sk_test_x, sk_test_production_wiring_proof,
+  sk_live_do_not_use, etc.); .env.example's own
+  JHADINA_SECRET_STRIPE_SANDBOX= is empty. No LLM/agent-facing prompt
+  or system message anywhere in the repo references this credential
+  or env var. Confirmed every test that exercises the transport uses
+  either an injected fake fetchImpl or a vi.spyOn(globalThis,
+  "fetch") mock -- no code path in this PR calls the real network,
+  and the merged CI run's job log shows no outbound call to
+  api.stripe.com.
+ARCHITECTURAL IMPACT:
+- The credential-resolution boundary for Commerce's sandbox provider
+  is now real and fail-closed, matching money-core's own
+  CredentialResolver/EnvironmentCredentialResolver pattern exactly.
+  Nothing about checkout-orchestrator, payment-core,
+  order-fulfillment-core, @jhadina/action-core, the Supabase
+  migration, or Money changed.
+- No live Stripe request was made or verified as part of this PR.
+  That remains open work.
+COMMIT: PR #72, merged as 4c96fcd
+NEXT: the actual Stripe test-mode live-boundary verification --
+a genuinely separate milestone from this one, requiring a real
+sk_test_... secret to be securely configured outside this
+conversation first. Not started. Holding until the user supplies a
+real key and explicitly asks for it.
+```
+
+**Frozen gates:** unchanged. No table, RPC, ledger abstraction,
+service actor, or identity mechanism was added; checkout-orchestrator,
+payment-core, order-fulfillment-core, JH-038's checkout decision, and
+Money/Plaid are all untouched. All 15 frozen human gates remain
+frozen.
+
+
+---
+
+### PL-7 — Live Stripe Test-Mode Boundary: Preflight Blocker Fix
+
+**Status:** DONE (code fix only — the live seven-scenario run itself has NOT started and remains gated on separate explicit authorization)
+**Objective:** Close out the two-part diagnosis from PL-7's preflight audit before any live Stripe call is attempted: (A) a concrete provider-level blocker that would make every live scenario fail identically, and (B) confirming no new Supabase credential is introduced merely to reproduce what PL-5 already proved.
+
+**Preflight audit (before any edit):** re-inspected the four credential/provider-path files
+(`sandbox-credential.ts`, `production-payment-provider.ts`, `governed-payment-provider.ts`,
+`governed-commerce-intent.ts`) — clean, no blocker. Then found two real, concrete blockers:
+
+- **Blocker A (fixed this step):** `StripeSandboxPaymentProvider.createPaymentIntent()` sent
+  `confirm: true` with no `payment_method` attached. Every prior test passed only because the
+  fake transport never validated the payload — against Stripe's real API this fails outright
+  for every scenario (success included), not just declines. Traced the full call chain
+  (`runCommerceIntentGoverned` → `runCommerceIntentLifecycle` → `CheckoutOrchestrator.execute()`
+  (frozen) → `PaymentGateway.authorizeOrCapture` (frozen interface) → `bridge-adapters.ts` →
+  `provider.createPaymentIntent()`) and found a per-request `metadata` selector (as first
+  proposed) has no channel to survive that path — `bridge-adapters.ts` unconditionally
+  overwrites `metadata`, and `checkout-orchestrator`/`CommerceIntent` carry no such field at
+  all upstream. Corrected to an instance-level `defaultTestPaymentMethod`, set once per
+  provider instance at construction and restricted to a closed allowlist — the CI script
+  constructs one provider instance per scenario and injects it as
+  `GovernedCommerceIntentDeps.paymentProvider`, the same pattern every prior fake-transport
+  test already used to select decline-vs-success behavior. Not a bypass: every call still runs
+  through the full identity → policy → approval → execute → audit sequence.
+- **Blocker B (resolved by decision, not by code):** `SupabaseAuditLedger`'s real RPCs enforce
+  `auth.uid()::text = p_actor_id` at the database level — an unattended CI job has no
+  authenticated Supabase session, so genuinely durable audit persistence can't be proven live
+  without provisioning a new credential (a real test-user session or a service-role key).
+  Decision: do NOT provision either. PL-5 already proved `SupabaseAuditLedger`'s durability
+  contract exhaustively against a faithful double of the real RPC; PL-7 will keep
+  `SupabaseAuditLedger` unchanged, backed by that same double, for evidence purposes. The PL-7
+  report must explicitly separate what's proven live (Stripe authentication, PaymentIntent
+  operations, declines, refunds/failure behavior, the governed commerce path, actor
+  attribution, ledger append invocation) from what is not re-proven live (Supabase's own RPC
+  durability/auth enforcement — already covered by PL-5).
+- **Network limitation surfaced:** this session's network policy blocks `stripe.com`/
+  `docs.stripe.com` outright (`EGRESS_BLOCKED`) — the exact PaymentMethod ID strings for the
+  decline and refund-failure scenarios could not be independently verified from here and were
+  taken from the user's explicit citations of Stripe's documentation.
+
+**Completion report:**
+```
+TASK: PL-7 preflight blocker fix
+STATUS: DONE (code fix only)
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.ts:
+  - New closed allowlist STRIPE_SANDBOX_TEST_PAYMENT_METHODS
+    ("pm_card_visa", "pm_card_visa_chargeDeclined", "pm_card_refundFail")
+    -- never an arbitrary caller-supplied ID.
+  - StripeSandboxProviderOptions gained an optional
+    defaultTestPaymentMethod, restricted to the allowlist (throws at
+    construction time otherwise), defaulting to "pm_card_visa".
+  - createPaymentIntent() now sends payment_method, resolved from an
+    optional request.metadata.stripeTestPaymentMethod override (same
+    allowlist, provider-level test convenience only, not required by
+    PL-7's own governed-path scenarios) falling back to the instance
+    default.
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.test.ts:
+  5 new tests -- default PM sent when unconfigured; instance-level
+  default honored; metadata override takes precedence; unknown
+  instance default rejected at construction before any call; unknown
+  metadata override rejected before any provider call (zero requests
+  recorded).
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm --filter jhadina-web exec vitest run: 137/137 (132 existing +
+  5 new).
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing
+  warnings).
+- pnpm --filter jhadina-web build: succeeds.
+- pnpm -r --no-bail type-check: 19/20 clean (pupsonstuff
+  pre-existing, unrelated).
+- git diff --stat: zero changes outside stripe-sandbox-provider.ts
+  and its own test file -- checkout-orchestrator, payment-core,
+  order-fulfillment-core, bridge-adapters.ts, commerce-intent.ts, the
+  Supabase migration, and Money are all untouched.
+ARCHITECTURAL IMPACT:
+- StripeSandboxPaymentProvider can now actually place a real,
+  syntactically valid PaymentIntent-confirmation call against Stripe.
+  No production credentials, no live endpoints, no change to any
+  frozen contract.
+- Scope of PL-7's scenario 6 ("durable audit events") is now
+  explicitly redefined by decision: proves the real governed path
+  invokes SupabaseAuditLedger.append() correctly with real Stripe
+  results; does not re-prove Supabase's own RPC durability, which
+  PL-5 already covers.
+COMMIT: PR #73, merged as e09cace
+NEXT: the actual seven-scenario live run against Stripe's real test
+API. NOT started. Explicitly gated on the user inspecting this merged
+diff/CI and giving separate, explicit authorization for the live run
+-- distinct from the authorization already given for this code fix.
+```
+
+**Frozen gates:** unchanged. `checkout-orchestrator`, `payment-core`, `order-fulfillment-core`,
+`bridge-adapters.ts`, `commerce-intent.ts`, JH-038, Money/Plaid, and every frozen human gate are
+untouched. No production Stripe credentials or endpoints introduced. No new Supabase credential
+introduced.
+
+
+---
+
+### PL-7 — Live Stripe Test-Mode Boundary: Second Preflight Blocker Fix (Wire Format)
+
+**Status:** DONE (code fix only — still pre-live; the live-run workflow has not been built)
+**Objective:** Close a second concrete blocker found while preparing to construct PL-7's
+live-run workflow, discovered by re-reading `stripe-sandbox-provider.ts`'s actual transport
+code one more time before building anything around it (per explicit instruction to verify the
+static shape of the adapter before construction, not just its logical scenarios).
+
+**Blocker C (fixed this step):** `request()` declared
+`content-type: application/x-www-form-urlencoded` but sent `JSON.stringify(payload)` as the
+body — Stripe's classic REST API (`/v1/payment_intents`, `/v1/refunds`, everything this
+adapter calls) only accepts form-urlencoded bodies, with nested fields like `metadata` encoded
+via Stripe's documented bracket notation (`metadata[key]=value`). This is unconditional — it
+would have broken every live scenario (success included), independent of the PaymentMethod fix
+already shipped. Never caught before because the fake transport parsed whatever it was given.
+
+**Completion report:**
+```
+TASK: PL-7 preflight blocker fix #2 (wire format)
+STATUS: DONE (code fix only, still pre-live)
+CHANGED:
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.ts:
+  - New toStripeFormBody(payload) -- a small, deliberately limited
+    serializer (not a generalized form-encoding library), covering
+    exactly the shapes this adapter emits: flat scalars (amount,
+    currency, confirm, payment_method, payment_intent, reason) and
+    one level of nested object (metadata), encoded with Stripe's
+    bracket notation, full composed key percent-encoded
+    (metadata%5Bkey%5D=value). Empty metadata contributes no key.
+  - request() now sends toStripeFormBody(init.payload) instead of
+    JSON.stringify(init.payload). content-type was already correct
+    and is unchanged -- only the body was wrong.
+- apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.test.ts:
+  the fake transport now parses the same form-urlencoded wire format
+  the real serializer produces (new parseStripeFormBody test helper,
+  including bracket-notation reconstruction) instead of accepting
+  whichever representation it's handed. 5 new tests: content-type is
+  form-urlencoded and the body is provably not JSON;
+  payment_method/amount/currency/confirm sent as correct flat form
+  fields; metadata sent with percent-encoded bracket notation, never
+  literal brackets; a metadata value with special characters
+  (space, &, =, /) is properly URL-encoded, not sent raw;
+  toStripeFormBody omits an empty metadata object.
+VERIFIED:
+- pnpm --filter jhadina-web type-check: clean.
+- pnpm --filter jhadina-web exec vitest run: 142/142 (137 existing +
+  5 new).
+- pnpm --filter jhadina-web lint: clean (same 4 pre-existing
+  warnings).
+- pnpm --filter jhadina-web build: succeeds.
+- pnpm -r --no-bail type-check: 19/20 clean (pupsonstuff
+  pre-existing, unrelated).
+- git diff --stat: zero changes outside stripe-sandbox-provider.ts
+  and its own test file -- checkout-orchestrator, payment-core,
+  order-fulfillment-core, bridge-adapters.ts, commerce-intent.ts, and
+  the Supabase migration are all untouched.
+ARCHITECTURAL IMPACT:
+- Both preflight blockers found while preparing PL-7 (missing
+  payment_method; JSON body under a form-urlencoded content-type) are
+  now resolved and merged. StripeSandboxPaymentProvider can now place
+  a wire-correct, syntactically valid live call against Stripe.
+COMMIT: PR #74, merged as 62d0f79
+NEXT: construction of the workflow_dispatch live-run job itself has
+NOT started. That is the next authorized step, once this diff is
+reviewed -- and even once built, the workflow will not be dispatched
+without a further, separate, explicit authorization beyond
+construction. No live Stripe call has been made or attempted at any
+point in PL-7 so far.
+```
+
+**Frozen gates:** unchanged. `checkout-orchestrator`, `payment-core`, `order-fulfillment-core`,
+`bridge-adapters.ts`, `commerce-intent.ts`, JH-038, Money/Plaid, and every frozen human gate
+are untouched. No credentials, no live Stripe calls, no GitHub Actions workflow or secret
+changes.
+
+
+---
+
+### PL-7 — Live Stripe Test-Mode Boundary: Workflow Construction, First Live Run, Fix, Second Live Run — COMPLETE
+
+**Status:** DONE — PL-7 is fully live-verified. This is the closing record for the whole PL-7 arc
+(preflight audit -> two preflight blocker fixes, already recorded above -> workflow
+construction -> first live dispatch -> root-cause diagnosis -> scoped fix -> second live
+dispatch -> 8/8 pass).
+
+**Workflow construction (PR #75, merged as `34089f9`):** built
+`.github/workflows/pl7-live-stripe-verification.yml` (`workflow_dispatch` only, no
+push/pull_request/schedule), `apps/jhadina-web/vitest.pl7-live.config.ts` (a config completely
+separate from the default `vitest.config.ts`, scoped to exactly one file), and
+`apps/jhadina-web/src/lib/commerce/pl7-live-stripe-verification.live.ts` (the seven-scenario
+evidence suite, named `.live.ts` so the default test glob never picks it up). A genuine bug was
+found and fixed during the PR's own review before merge: a "verify the secret is scoped to
+exactly one step" self-check grepped the workflow file for the literal secret name, which also
+appeared in that same check's own descriptive text -- it would have failed every real dispatch
+for a reason unrelated to actual scoping. Fixed by removing the self-referential runtime check
+entirely (PR #75 commit `6ec6633`) rather than patching it a second time, relying on direct
+review of the structural fact instead.
+
+**First live dispatch -- run `31829931608`** (dispatched against `34089f9`, secret genuinely
+configured by the user as a GitHub Actions secret): **conclusion: failure, 5 passed / 3 failed.**
+Root cause: Stripe's real API rejected every confirmed PaymentIntent with `invalid_request_error`
+-- "you must provide a return_url" -- because this Stripe account has Automatic Payment Methods
+active, which permits redirect-capable methods by default even with an explicit `payment_method`.
+Scenarios 1 (successful capture) and 3 (refund after capture) failed outright; scenario 5
+(idempotency) surfaced the real Stripe error message directly; scenarios 2 (declined) and 4
+(refund failure) superficially "passed" only because their assertions were too loose to
+distinguish a genuine decline/failure from this same request-shape bug. Scenario 6 (durable
+audit, PL-5 double) and 7 (secret hygiene) passed correctly -- the governance/audit layer held
+up even while the payment layer was broken. Secret hygiene held throughout (GitHub's `***`
+redaction, never printed by the suite itself).
+
+**Root-cause investigation + scoped fix (PR #76, merged as `a76fb3a`):** read-only investigation
+confirmed `stripe-sandbox-provider.ts`'s payload was the sole cause -- no frozen file, no
+`bridge-adapters.ts`, no `payment-core` involvement. Fix: added
+`automatic_payment_methods: { enabled: true, allow_redirects: "never" }` to the PaymentIntent
+payload (Stripe's documented mechanism for a server-side, non-browser flow with no `return_url`
+to provide) -- one line, reusing `toStripeFormBody()`'s existing nesting support with zero
+serializer changes. Alongside the fix, tightened two assertions the investigation showed were too
+loose: scenario 2 now requires the ledger's failed-charge reason to contain "declined" and
+specifically not mention `automatic_payment_methods`/`return_url`; scenario 4 now requires
+ledger-verified proof the charge genuinely completed and a refund was genuinely attempted, before
+trusting the (known-limited, honestly-documented) polling loop. One real limitation was
+surfaced and deliberately left unfixed, as out of scope: `StripeSandboxPaymentProvider.getPayment()`
+is a pure local-cache read that never re-queries Stripe, so it cannot observe a genuine async
+status transition -- flagged in code and in the PR report, not silently hidden.
+
+**Second live dispatch -- run `31841939617`** (dispatched against `a76fb3a`, the fix):
+**conclusion: SUCCESS, 8/8 passed.**
+- Scenario 1: genuinely fixed -- real capture (`pi_3U4SWgRpR2CgDr050HPdldpJ`), session `completed`.
+- Scenario 2: genuine decline confirmed via the tightened check (`"Your card was declined."`,
+  no request-shape-error text).
+- Scenario 3: genuinely fixed -- real refund (`paymentIntentStatus: "refunded"`).
+- Scenario 4: tightened check genuinely satisfied (`chargeGenuinelyCompleted: true`,
+  `refundGenuinelyAttempted: true`, ledger-verified); the documented `getPayment()` cache
+  limitation was directly observed (6 identical polled values) exactly as flagged, not silently
+  hidden.
+- Scenario 5: genuinely fixed -- identical `providerReference` on both calls, proving real
+  idempotent dedup.
+- Scenario 6: 32 real audit events (durable-double-backed), 100% correct actor attribution.
+- Scenario 7: secret hygiene clean.
+
+**COMMIT:** PR #75 merged as `34089f9`; PR #76 merged as `a76fb3a`. Live runs `31829931608`
+(failure, diagnosis) and `31841939617` (success, final).
+
+**ARCHITECTURAL IMPACT:** Jhadina's entire governed Commerce path -- verified actor -> commerce
+policy -> approval receipt -> `GovernedPaymentProvider` -> `EnvironmentCredentialResolver` ->
+real Stripe test API -> capture/refund -> durable Supabase audit (PL-5 double) -- is now proven
+against a real external payment boundary, not merely simulated. `checkout-orchestrator`,
+`payment-core`, `order-fulfillment-core`, `bridge-adapters.ts`, `commerce-intent.ts`, and the
+Supabase migration/RPCs were never touched across the entire PL-3 through PL-7 arc. No
+production Stripe credential or endpoint was ever used. All 15 frozen human gates remain frozen.
+
+**NEXT:** no further PL-7 code changes, no further Stripe dispatches, and no follow-up polish
+scheduled -- PL-7 is closed. Two small, explicitly non-urgent items were surfaced along the way
+and are named here for the record, not scheduled: `getPayment()`'s local-cache limitation (would
+need a real `GET /v1/payment_intents/{id}` call to observe genuine async transitions), and the
+`requestApproveAndConsume` extraction Architecture Checkpoint #3 identified as justified-but-not-
+urgent. Neither blocks anything currently proven.
+
+---
+
+### PL-8 — Money Real Integration, Phase 1: Wiring — DONE (merged, no live Plaid call)
+
+**Status:** DONE. First milestone of the Money real-integration workstream, opened with an
+audit-only pass (chat report, not filed as its own doc section) tracing the real Money path from
+`createReferenceMoneyAccountReadExecutor()` (SP-3's reference proof) through `money-core`'s
+production executor, the durable audit infrastructure, the `PlaidReadOnlyAdapter` bank-adapter
+boundary, and the current web app surface. The audit found: money-core's production executor is
+already durable-capable by construction (`createProductionActionExecutor` always builds a real
+`SupabaseAuditLedger` -- no in-memory-ledger branch to migrate away from); the real gap was that
+nothing had ever supplied it a real Supabase-backed `AuditRpcClient`, a real Plaid credential, or
+a real route; several real, tested `money-core` pieces (`ProductionProviderConnection`,
+`plaid-provider-registration.ts`, `postgres-*.ts`) were unwired islands proven only in their own
+test files, same "shipped ahead of the wiring" pattern found repeatedly elsewhere in this
+engagement; Plaid's safety boundary is base-URL-based (unlike Stripe's key-prefix-based one) and
+had no enforcement analogous to Commerce's `assertStripeSandboxKey`; and `JH-028`/`JH-033`/`JH-034`
+(BLOCKED, frozen) are the unresolved "which Money UI/data-path is canonical" human gate --
+directly relevant, since any UI work here would pre-empt that decision.
+
+**Phase 1 scope (PR #77, merged as `80c9813`):** backend/API vertical slice only, explicitly
+avoiding the frozen UI gates, per explicit authorization after the audit was reviewed and agreed:
+
+- `packages/money-core`: `assertPlaidSandboxBaseUrl(baseUrl)` -- fails closed
+  (`PLAID_BASE_URL_MUST_BE_SANDBOX:<url>`) unless the resolved endpoint is
+  `sandbox.plaid.com`, wired into `createPlaidProviderAdapterFactory` before any adapter is
+  constructed. Money's base-URL-based analog of Commerce's key-prefix-based
+  `assertStripeSandboxKey` -- the one new security-hardening item explicitly required before any
+  credential is ever provisioned. Exported `createPlaidProviderAdapterFactory` /
+  `PLAID_READ_ONLY_CONFIG` / `PLAID_SANDBOX_BASE_URL` / `assertPlaidSandboxBaseUrl` from
+  `index.ts` -- real, tested code that was previously unreachable outside the package (same class
+  of gap SP-3 fixed for the rest of the file).
+- `apps/jhadina-web/src/lib/money/durable-audit-ledger.ts` (new): domain `"money"`, same shape as
+  Growth's (PL-2) and Commerce's (PL-5) files -- no new table, RPC, or ledger abstraction.
+  `createMoneyAuditRpcClient()` (the raw client money-core's executor actually consumes) plus
+  `createMoneyAuditLedger()` (wraps it in `SupabaseAuditLedger`, for direct ledger reads later).
+- `apps/jhadina-web/src/lib/money/production-provider.ts` (new): real
+  `EnvironmentCredentialResolver` -> `createPlaidProviderAdapterFactory` (sandbox-enforced) ->
+  `PlaidReadOnlyAdapter` -> `MoneyProviderRegistry`. Mirrors Commerce's
+  `production-payment-provider.ts` (PL-6) exactly, including the test-only-escape-hatch
+  discipline (no fetchImpl/baseUrl override ever set by real composition code).
+- `apps/jhadina-web/src/lib/money/governed-account-read-runtime.ts` (new): wires real identity +
+  real audit RPC client + real provider registry into money-core's unmodified
+  `createGovernedProviderAccountReadExecutor`. A small adapter (`toActionIdentityVerifier`)
+  converts the app's `JhadinaIdentityVerifier` to action-core's `ActionIdentityVerifier` rather
+  than relying on structural bivariance. `assertUserWorkspace` deliberately left unset and
+  documented in-file: no bank-connection-ownership table/migration exists yet, and building one
+  wasn't authorized this phase -- every verified identity can currently read the one configured
+  `'plaid'` provider's accounts. Real, known, named gap; must close before more than one bank
+  connection per user is exposed.
+- `apps/jhadina-web/src/app/api/money/accounts/route.ts` (new): the one authenticated route, same
+  claimed-header/verified-session shape as `/api/growth/activity`. No other route or page touched.
+
+**Explicitly out of scope, verified in the diff review before commit:** no `/money/command-center`
+or any Money UI (`JH-028`/`JH-033`/`JH-034` untouched); no second `ActionPolicy` (zero diff to
+`governed-account-read.ts` -- `SecurityCoreActionPolicy(MONEY_CORE_SECURITY_POLICY)` remains the
+only one); `assertCapability('money.account.read')` and Plaid's HTTPS enforcement both zero-diff
+inside `plaid-read-only-adapter.ts`; no write capability added (`createPayment`/`createTransfer`
+appear only in tests proving their absence); no credential logged/echoed anywhere in the diff; no
+Plaid credential configured and no network call made anywhere -- every test mocks
+`fetch`/RPC/credentials.
+
+**VERIFIED:** money-core test (`tsx --test`) 11/11; jhadina-web vitest 152/152 (18 new: 5
+`production-provider.test.ts`, 4 `governed-account-read-runtime.test.ts`, 9 pre-existing
+reference); jhadina-web type-check clean; jhadina-web lint 0 errors (4 pre-existing, unrelated
+warnings); jhadina-web build succeeds (`/api/money/accounts` registered as a dynamic route);
+repo-wide type-check 22/23 clean (`apps/pupsonstuff` fails on a pre-existing missing-vitest-types
+error, confirmed present on `main` via `git stash` before this branch, unrelated to this work).
+
+**Operational note:** the designated branch name (`claude/jhadina-mvp-audit-ok29s0`) already
+existed on the remote with stale, unrelated content from six days earlier (`2c709c5`, early-session
+MVP-foundation scaffolding, never merged into `main`, not an ancestor of `main`). Reset to the
+correctly-based branch via a lease-checked force push (`--force-with-lease=<branch>:<known-stale-sha>`)
+before opening the PR, per this session's standing procedure for a stale designated branch --
+reported to the user before the PR was opened, not discovered after.
+
+**COMMIT:** PR #77 merged as `80c9813` (commit `4deb027`), by the user via the GitHub UI --
+detected via `git fetch origin main` / `FETCH_HEAD`, not merged by the assistant.
+
+**ARCHITECTURAL IMPACT:** Money's governed account-read path -- verified actor -> policy ->
+health/capability gate -> `PlaidReadOnlyAdapter` (sandbox-boundary-enforced) -> durable Supabase
+audit (domain `"money"`) -- is now real, production-composed code reachable from one authenticated
+route, with zero UI surface and zero live credential. `PlaidReadOnlyAdapter`, `bank-adapter.ts`,
+`governed-account-read.ts`, `governed-provider-account-read.ts`, and every frozen human gate
+(`JH-028`/`JH-033`/`JH-034` included) were never touched.
+
+**NEXT:** Phase 2 (local validation) and Phase 3 (CI) were already folded into this same PR/merge
+cycle in practice (the full gate ran pre-PR and again in CI). Remaining phases from the original
+plan -- post-merge validation on `main`, and the optional real Plaid sandbox verification
+(PL-7-shaped: a `.live.ts` suite + dedicated `workflow_dispatch`-only workflow, proving
+`listAccounts()` against Plaid's real sandbox) -- are unscheduled, each requiring its own explicit
+authorization, same discipline as PL-7.
+
+---
+
+### PL-8 Phase 2 — Money Live Plaid Sandbox Verification Infrastructure — DONE (prepared, not dispatched)
+
+**Status:** DONE (PR #85, merged as `53ab75a`, commit `8e76eed`). The PL-7-shaped live-verification
+gate for Money/Plaid: infrastructure only, exactly like Phase 2 was scoped -- **no credential was
+ever configured and no dispatch occurred** in this milestone.
+
+**Changed (3 files, all new):**
+- `apps/jhadina-web/vitest.pl8-live.config.ts` -- separate vitest config, scoped to exactly one
+  file, byte-identical alias set to the default config and to `vitest.pl7-live.config.ts`.
+- `apps/jhadina-web/src/lib/money/pl8-live-plaid-verification.live.ts` -- 5-scenario evidence
+  suite against Plaid's real sandbox API: (0) `JHADINA_SECRET_PLAID_DEFAULT` resolves server-side
+  without exposing its value; (1) sandbox-boundary + HTTPS enforcement, including a live-adjacent
+  rejection of a production host before any adapter exists; (2) an authenticated actor reaches the
+  governed executor, the real unmocked `PlaidReadOnlyAdapter` calls Plaid's sandbox
+  `/accounts/get`, the response maps into real `MoneyAccount[]`; (3) a durable audit event is
+  recorded with domain `"money"` and correct actor attribution (same faithful `FakeAuditRpcClient`
+  shape PL-5/PL-7 validated -- not a live Supabase connection, same call PL-7 made for identical
+  reasons); (4) final secret-hygiene self-check.
+- `.github/workflows/pl8-live-plaid-verification.yml` -- `workflow_dispatch`-only (no
+  push/pull_request/schedule), `permissions: contents: read` (the minimum possible grant), secret
+  scoped to exactly one step's `env:` block, no artifact upload, documents the required
+  `{clientId, secret, accessToken}` bundle shape and Plaid's sandbox-token prerequisite.
+
+**Two independent pre-merge audits performed** (diff review before commit, then a second read-only
+audit of the open PR before merge authorization): confirmed exactly these 3 files and no others;
+no literal credential anywhere in the diff (only a `secrets.JHADINA_SECRET_PLAID_DEFAULT`
+reference); no permission escalation (`contents: read` only, versus PR #84's
+`jhadina-evolution-execute.yml` which legitimately needs `contents: write`/`pull-requests: write`
+for its own commit/PR steps); no production dispatch possible (`workflow_dispatch` only); no
+unintended network call surface (Plaid sandbox only, gated behind fail-closed credential
+resolution); zero overlap with PR #84's already-merged evolution/Vercel files.
+
+**VERIFIED (no credential required):** default `pnpm vitest run` still exactly 18 files / 152
+tests (the `.live.ts` file invisible to it); running the live config with no
+`JHADINA_SECRET_PLAID_DEFAULT` set fails all 5 scenarios cleanly on
+`CREDENTIAL_NOT_CONFIGURED:money/plaid/default` -- no malformed error, no network attempt;
+type-check clean; lint 0 errors (4 pre-existing, unrelated warnings); build succeeds; CI green
+(Launch Gate success) both before and after merge.
+
+**COMMIT:** PR #85 merged as `53ab75a` (commit `8e76eed`), by the user via the GitHub UI --
+detected via `git fetch origin main`, not merged by the assistant. Built on top of PR #84's merge
+(`0dffe6b`, unrelated evolution/Vercel separation work, tracked outside this doc's PL numbering).
+
+**Operational note:** the designated branch (`claude/jhadina-mvp-audit-ok29s0`) again held only
+already-merged history (Phase 1's `4deb027`, merged via PR #77) at the point this milestone
+started -- restarted fresh from current `main` and force-with-lease pushed, same pattern used for
+Phase 1, confirmed safe via `git merge-base --is-ancestor` before the reset.
+
+**ARCHITECTURAL IMPACT:** Money now has the same live-verification readiness Commerce reached
+before PL-7's actual dispatch -- the governed path (identity -> policy -> health/capability gate ->
+sandbox-boundary-enforced `PlaidReadOnlyAdapter` -> durable audit, domain `"money"`) is provably
+ready to run against Plaid's real sandbox the moment a real `JHADINA_SECRET_PLAID_DEFAULT` is
+provisioned as a GitHub Actions secret. No UI, no write capability, no frozen gate
+(`JH-028`/`JH-033`/`JH-034` included) touched.
+
+**NEXT:** the live dispatch itself remains a separate, explicit authorization gate -- unscheduled.
+It requires, in order: a real Plaid sandbox credential bundle provisioned as
+`JHADINA_SECRET_PLAID_DEFAULT` (including a real sandbox access token exchanged via Plaid's own
+`/sandbox/public_token/create` + `/item/public_token/exchange` flow, done outside this repo), then
+a single explicit dispatch authorization, mirroring PL-7's two-gate discipline (construction
+authorized separately from dispatch).
+
+### JH-048
+**Priority:** P3
+**Status:** DECISION DOCUMENTED -- human confirmation still open
+**Objective:** Phase 1 Step 1 asked whether `placement_*` (the tables
+`placement-core` writes: `placement_organizations`, `placement_memberships`,
+`placement_jobs`, `placement_placements`, `placement_referrals`,
+`placement_assignments`, `placement_timesheets`, `placement_audit_events`)
+belongs in the planned Opportunity vertical (OverageOS-style discovery /
+evidence / entity-resolution / verification / governed action). Nothing
+was deleted; this is a classification finding only.
+
+**Finding: it does not.** `placement-core` is a job-placement / staffing
+marketplace domain -- organizations, memberships, job orders, referrals,
+assignments, timesheets, invoicing -- with no overlap in data model,
+evidence model, or verification concept with Opportunity's asset/money
+discovery domain. The work queue's own prior finding on JH's "Reticulum"
+thread already independently characterized `placement-core/src/command-api.ts`
+as "PlacementOS's own command API (a staffing/scheduling domain)" --
+consistent with this conclusion, not new to it.
+
+**A separate, more consequential finding surfaced while answering this:**
+`placement-core` is not the only implementation of this domain.
+`packages/staffing-core` (65 source files, ~2,500 LOC, 18 sequential
+migrations `0005`-`0022` covering placements, timesheets, invoices,
+payment ledger + reconciliation, interviews, interview outcomes,
+candidate reviews, employer decisions) plus its own dedicated app,
+`apps/staffing-web`, is a substantially larger and more mature build of
+what looks like the same underlying domain as `placement-core`'s single
+212-line migration (`organizations`, `memberships`, `jobs`, and a
+narrower slice beyond that). `jhadina-web`'s `/placement/*` pages are
+wired to `placement-core`, not `staffing-core` -- meaning the OS's own
+front door currently exercises the smaller, less mature of the two.
+
+Whether `placement-core` is an earlier draft `staffing-core` superseded,
+a deliberately separate lighter-weight Jhadina-integrated view over the
+same eventual data, or something that should be unified into one
+package before either becomes a real department, is a product-scope call
+this session did not make -- it fits squarely under "architectural
+decision that cannot safely be inferred" from Phase 1's own working
+method.
+
+**Also open:** whether either `placement_*` or `staffing_*` tables exist
+on the live Supabase project could not be verified this pass -- the
+`execute_sql` tool call was gated pending approval and was not forced.
+Given every other package-local migration found in this repo's history
+(`energy-opportunity-core`, `justice-core`, `jhadina-web`'s
+codebase-graph, and originally all of `overage_*`/`jhadina_mining_*`
+before Gates 0-12) turned out to be unapplied-live, the same should be
+assumed true here until confirmed, not assumed clean.
+
+**Human gate:** (1) confirm placement/staffing is out of scope for the
+Opportunity vertical (no action needed if so -- this entry can close);
+(2) decide whether `placement-core` and `staffing-core` are one domain
+that needs reconciling before either is wired into the OS backbone, or
+two deliberately distinct things; (3) when convenient, confirm live
+table state for both `placement_*` and `staffing_*` against the Supabase
+project.

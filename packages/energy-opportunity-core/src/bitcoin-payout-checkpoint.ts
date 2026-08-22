@@ -42,7 +42,13 @@ export interface ScanBitcoinPayoutsResult {
 export async function scanBitcoinPayouts(input: ScanBitcoinPayoutsInput): Promise<ScanBitcoinPayoutsResult> {
   const previous = await input.checkpointStore.load(input.walletAddress);
   const lookback = Math.max(1, input.reorgLookback ?? 12);
-  let fromHeight = previous ? Math.max(input.startHeight, previous.height - lookback + 1) : input.startHeight;
+  // Ordinary resume always rescans a small safety margin behind the last
+  // checkpoint, even if that margin falls earlier than the original
+  // startHeight floor — startHeight only bounds where the very first scan
+  // begins, not how far back a routine resume is allowed to re-verify. A
+  // *confirmed* reorg (below) is the one case that re-clamps to startHeight,
+  // since at that point a bounded, non-negotiable floor is what's wanted.
+  let fromHeight = previous ? Math.min(input.startHeight, previous.height - lookback + 1) : input.startHeight;
   let reorgDetected = false;
 
   if (previous) {
