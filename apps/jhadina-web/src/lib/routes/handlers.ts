@@ -48,7 +48,14 @@ function createStorage(): MemoryStorage {
   return new InMemoryStorage()
 }
 
-function getStorage(): MemoryStorage {
+/**
+ * Exported so other composition roots (e.g. the Intelligence Router's
+ * governed-intelligence-runtime.ts) share this same storage instance
+ * rather than standing up a second one — a model-proposed candidate and
+ * a Classifier-proposed candidate both need to land in the one real
+ * /api/candidates list, not two disconnected stores.
+ */
+export function getStorage(): MemoryStorage {
   if (!storage) storage = createStorage()
   return storage
 }
