@@ -1,0 +1,243 @@
+{
+  "generatedAt": "2026-08-18T07:07:58.084Z",
+  "blocked": true,
+  "blockedReason": "PRINTIFY_API_KEY is not configured — cannot query the live Printify catalog. Copy .env.example to .env.local and fill in a real key, then re-run.",
+  "groups": [
+    {
+      "fulfillmentProductId": "FUL-CANVAS-PLACEHOLDER",
+      "productType": "canvas",
+      "memberHotspots": [
+        {
+          "id": "frame1",
+          "name": "Astronaut Portrait Canvas"
+        },
+        {
+          "id": "frame2",
+          "name": "Royal Uniform Portrait Canvas"
+        },
+        {
+          "id": "frame3",
+          "name": "Pop Art Portrait Canvas"
+        },
+        {
+          "id": "frame4",
+          "name": "Regal Crown Portrait Canvas"
+        },
+        {
+          "id": "frame5",
+          "name": "Soft Watercolor Portrait Canvas"
+        },
+        {
+          "id": "frame6",
+          "name": "Uniformed Portrait Canvas"
+        }
+      ],
+      "searchKeywords": [
+        "canvas"
+      ],
+      "status": "UNRESOLVED",
+      "reason": "PRINTIFY_API_KEY is not configured — cannot query the live Printify catalog. Copy .env.example to .env.local and fill in a real key, then re-run.",
+      "blueprintCandidates": [],
+      "matchedVariants": [],
+      "unmatchedCustomization": [
+        "Size: 12×16 in",
+        "Size: 16×20 in",
+        "Size: 20×30 in"
+      ]
+    },
+    {
+      "fulfillmentProductId": "FUL-PILLOW-PLACEHOLDER",
+      "productType": "pillow",
+      "memberHotspots": [
+        {
+          "id": "pillow",
+          "name": "Throw Pillow"
+        }
+      ],
+      "searchKeywords": [
+        "pillow"
+      ],
+      "status": "UNRESOLVED",
+      "reason": "PRINTIFY_API_KEY is not configured — cannot query the live Printify catalog. Copy .env.example to .env.local and fill in a real key, then re-run.",
+      "blueprintCandidates": [],
+      "matchedVariants": [],
+      "unmatchedCustomization": [
+        "Size: 18×18 in"
+      ]
+    },
+    {
+      "fulfillmentProductId": "FUL-BOTTLE-PLACEHOLDER",
+      "productType": "bottle",
+      "memberHotspots": [
+        {
+          "id": "bottle",
+          "name": "Insulated Bottle"
+        }
+      ],
+      "searchKeywords": [
+        "water bottle",
+        "bottle",
+        "tumbler"
+      ],
+      "status": "UNRESOLVED",
+      "reason": "PRINTIFY_API_KEY is not configured — cannot query the live Printify catalog. Copy .env.example to .env.local and fill in a real key, then re-run.",
+      "blueprintCandidates": [],
+      "matchedVariants": [],
+      "unmatchedCustomization": [
+        "Color: Stainless",
+        "Color: Black"
+      ]
+    },
+    {
+      "fulfillmentProductId": "FUL-MUG-PLACEHOLDER",
+      "productType": "mug",
+      "memberHotspots": [
+        {
+          "id": "mugColorful",
+          "name": "Geometric Mug"
+        },
+        {
+          "id": "mugWhite",
+          "name": "Classic White Mug"
+        }
+      ],
+      "searchKeywords": [
+        "mug"
+      ],
+      "status": "UNRESOLVED",
+      "reason": "PRINTIFY_API_KEY is not configured — cannot query the live Printify catalog. Copy .env.example to .env.local and fill in a real key, then re-run.",
+      "blueprintCandidates": [],
+      "matchedVariants": [],
+      "unmatchedCustomization": [
+        "Color: White"
+      ]
+    },
+    {
+      "fulfillmentProductId": "FUL-HOODIE-WHITE-PLACEHOLDER",
+      "productType": "hoodie",
+      "memberHotspots": [
+        {
+          "id": "whiteHoodie",
+          "name": "White Hoodie"
+        }
+      ],
+      "searchKeywords": [
+        "hoodie"
+      ],
+      "status": "UNRESOLVED",
+      "reason": "PRINTIFY_API_KEY is not configured — cannot query the live Printify catalog. Copy .env.example to .env.local and fill in a real key, then re-run.",
+      "blueprintCandidates": [],
+      "matchedVariants": [],
+      "unmatchedCustomization": [
+        "Size: S, Color: White",
+        "Size: M, Color: White",
+        "Size: L, Color: White",
+        "Size: XL, Color: White"
+      ]
+    },
+    {
+      "fulfillmentProductId": "FUL-TEE-CONCERT-PLACEHOLDER",
+      "productType": "shirt",
+      "memberHotspots": [
+        {
+          "id": "concertShirt",
+          "name": "Vintage Concert Tee"
+        }
+      ],
+      "searchKeywords": [
+        "t-shirt",
+        "tee"
+      ],
+      "status": "UNRESOLVED",
+      "reason": "PRINTIFY_API_KEY is not configured — cannot query the live Printify catalog. Copy .env.example to .env.local and fill in a real key, then re-run.",
+      "blueprintCandidates": [],
+      "matchedVariants": [],
+      "unmatchedCustomization": [
+        "Size: S, Color: Black",
+        "Size: M, Color: Black",
+        "Size: L, Color: Black",
+        "Size: XL, Color: Black"
+      ]
+    },
+    {
+      "fulfillmentProductId": "FUL-TEE-FOLDED-PLACEHOLDER",
+      "productType": "shirts",
+      "memberHotspots": [
+        {
+          "id": "foldedShirts",
+          "name": "Folded Apparel"
+        }
+      ],
+      "searchKeywords": [
+        "t-shirt",
+        "tee"
+      ],
+      "status": "UNRESOLVED",
+      "reason": "PRINTIFY_API_KEY is not configured — cannot query the live Printify catalog. Copy .env.example to .env.local and fill in a real key, then re-run.",
+      "blueprintCandidates": [],
+      "matchedVariants": [],
+      "unmatchedCustomization": [
+        "Size: S, Color: Olive",
+        "Size: S, Color: White",
+        "Size: S, Color: Pink",
+        "Size: S, Color: Black",
+        "Size: M, Color: Olive",
+        "Size: M, Color: White",
+        "Size: M, Color: Pink",
+        "Size: M, Color: Black",
+        "Size: L, Color: Olive",
+        "Size: L, Color: White",
+        "Size: L, Color: Pink",
+        "Size: L, Color: Black",
+        "Size: XL, Color: Olive",
+        "Size: XL, Color: White",
+        "Size: XL, Color: Pink",
+        "Size: XL, Color: Black"
+      ]
+    },
+    {
+      "fulfillmentProductId": "FUL-HOODIE-BLACK-PLACEHOLDER",
+      "productType": "hoodie",
+      "memberHotspots": [
+        {
+          "id": "hoodieRight",
+          "name": "Black Hoodie"
+        }
+      ],
+      "searchKeywords": [
+        "hoodie"
+      ],
+      "status": "UNRESOLVED",
+      "reason": "PRINTIFY_API_KEY is not configured — cannot query the live Printify catalog. Copy .env.example to .env.local and fill in a real key, then re-run.",
+      "blueprintCandidates": [],
+      "matchedVariants": [],
+      "unmatchedCustomization": [
+        "Size: S, Color: Black",
+        "Size: M, Color: Black",
+        "Size: L, Color: Black",
+        "Size: XL, Color: Black"
+      ]
+    },
+    {
+      "fulfillmentProductId": "FUL-TOTE-PLACEHOLDER",
+      "productType": "tote",
+      "memberHotspots": [
+        {
+          "id": "tote",
+          "name": "Tote Bag"
+        }
+      ],
+      "searchKeywords": [
+        "tote bag",
+        "tote"
+      ],
+      "status": "UNRESOLVED",
+      "reason": "PRINTIFY_API_KEY is not configured — cannot query the live Printify catalog. Copy .env.example to .env.local and fill in a real key, then re-run.",
+      "blueprintCandidates": [],
+      "matchedVariants": [],
+      "unmatchedCustomization": [
+        "Color: Natural"
+      ]
+    }
+  ]
+}
