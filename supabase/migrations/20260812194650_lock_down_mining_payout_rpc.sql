@@ -1,0 +1,1 @@
+revoke execute on function public.process_jhadina_mining_payout(text,text,text,integer,bigint,bigint,text,timestamptz) from public, anon, authenticated; grant execute on function public.process_jhadina_mining_payout(text,text,text,integer,bigint,bigint,text,timestamptz) to service_role;

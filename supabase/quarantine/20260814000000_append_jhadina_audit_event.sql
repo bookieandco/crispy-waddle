@@ -1,3 +1,49 @@
+-- ============================================================================
+-- QUARANTINED — DO NOT APPLY. DO NOT MOVE BACK INTO supabase/migrations/.
+-- ============================================================================
+--
+-- Reason: DANGEROUS / CONFLICTING ARTIFACT.
+--
+-- This file was originally committed at
+-- supabase/migrations/20260814000000_append_jhadina_audit_event.sql on the
+-- main branch. It creates a table `public.jhadina_audit_event` and a
+-- function `public.append_jhadina_audit_event(...)` that target that table.
+--
+-- The live, currently-running `public.append_jhadina_audit_event` RPC is a
+-- DIFFERENT function (applied via
+-- 20260810060748_harden_jhadina_audit_append_path, promoted into
+-- supabase/migrations/ in this reconciliation) that reads and writes
+-- `public.jhadina_audit_ledger` / `public.jhadina_audit_ledger_head`, not
+-- `public.jhadina_audit_event`. It has a different signature (p_actor_id
+-- uuid vs. this file's p_actor_id text), a different decision CHECK
+-- ('allow','deny','approval_required') vs. this file's ('allow','deny'),
+-- and writes to a table that does not exist in the live database.
+--
+-- Replaying this migration against the live project (or any environment
+-- rebuilt from live data) would:
+--   1. Create an unused, never-referenced `jhadina_audit_event` table, and
+--   2. `create or replace function public.append_jhadina_audit_event(...)`
+--      with a DIFFERENT signature than the live function — since Postgres
+--      resolves overloaded functions by argument signature, callers using
+--      the old (uuid-based) signature would still resolve to the real
+--      function, but this migration's own signature would silently coexist
+--      as a second, broken, disconnected overload of the same RPC name,
+--      writing to a table nothing else reads from and enforcing a
+--      different (looser) decision/status contract than the real audit
+--      path. It also defines `list_jhadina_audit_events`, which has no
+--      live counterpart at all.
+--
+-- This was identified in Gate 1 of the Jhadina Supabase schema
+-- reconciliation (see docs/JHADINA_SUPABASE_RECONCILIATION.md) as a hard-stop
+-- artifact: never execute it, never let Supabase CLI migration tooling pick
+-- it up for replay. It is preserved here, unexecuted, for historical
+-- reference only — e.g. in case it reflects work-in-progress intent for a
+-- separate/successor audit-event design that was abandoned mid-flight in
+-- favor of the jhadina_audit_ledger path that actually shipped.
+--
+-- Original filename/version: 20260814000000_append_jhadina_audit_event.sql
+-- ============================================================================
+
 create extension if not exists pgcrypto;
 
 -- Backs @jhadina/action-core's SupabaseAuditLedger — the class already
