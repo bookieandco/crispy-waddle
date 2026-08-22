@@ -251,7 +251,7 @@ function OpportunityCard({
       )}
 
       <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-        <Link href="/ask-jhadina" style={linkChip}>Ask Jhadina</Link>
+        <Link href="/ask-jhadina?surface=opportunities&route=/opportunity" style={linkChip}>Ask Jhadina</Link>
         <Link href="/money/command-center" style={linkChip}>Send to Money</Link>
         <Link href="/campaign/polls" style={linkChip}>Send to CampaignOS</Link>
         <Link href="/director-studio" style={linkChip}>Send to Director Studio</Link>

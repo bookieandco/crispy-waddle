@@ -1,7 +1,7 @@
 export type JhadinaWorldId =
   | "home" | "music" | "tv" | "studio" | "social" | "pupsonstuff"
   | "trucker" | "cooking" | "shopping" | "radar" | "knowledge"
-  | "money" | "opportunities" | "activity" | "publishing";
+  | "money" | "opportunities" | "activity" | "publishing" | "assistant";
 
 export interface WorldCapability {
   id: string;
@@ -37,6 +37,7 @@ const worldRows: [JhadinaWorldId, string, string, string[], string[]][] = [
   ["opportunities", "Opportunities", "Find and qualify opportunities", ["discover", "qualify", "track"], ["research", "money"]],
   ["activity", "Activity", "Unified audit and action timeline", ["timeline", "audit", "undo"], ["all-worlds"]],
   ["publishing", "Publishing", "Books, ebooks, digital files and print-on-demand", ["write", "format", "cover", "proof", "pod", "digital-sales", "ebook-sales", "catalog", "orders", "analytics"], ["studio", "knowledge", "commerce", "money", "activity"]],
+  ["assistant", "Ask Jhadina", "Talk to Jhadina directly — the governed Intelligence Router surface (Phase 1 Step 6)", ["propose", "approve"], ["memory", "activity"]],
 ];
 
 export const JHADINA_WORLDS: JhadinaWorldDefinition[] = worldRows.map(([id, label, description, capabilities, inputs]) => ({
