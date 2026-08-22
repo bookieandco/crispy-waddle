@@ -1,0 +1,47 @@
+name: Repair PupsonStuff Stripe lockfile
+
+on:
+  push:
+    branches:
+      - fix/pupsonstuff-stripe-dependency
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: fix/pupsonstuff-stripe-dependency
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Reconcile lockfile from workspace manifests
+        run: pnpm install --lockfile-only
+
+      - name: Commit reconciled lockfile
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "pnpm-lock.yaml is already synchronized"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "fix(pupsonstuff): reconcile pnpm lockfile for Stripe"
+          git push origin HEAD:fix/pupsonstuff-stripe-dependency
