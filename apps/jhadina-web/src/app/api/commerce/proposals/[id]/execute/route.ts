@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic"
  * only) governed PaymentProvider call happen. See
  * commerce-proposal-lifecycle.ts's executeCommerceProposal.
  *
- * With no JHADINA_SECRET_COMMERCE_STRIPE_SANDBOX configured in this
+ * With no JHADINA_SECRET_STRIPE_SANDBOX configured in this
  * environment, this route fails closed with
  * CREDENTIAL_NOT_CONFIGURED:commerce/stripe/sandbox (mapped to 503
  * below) rather than silently succeeding or fabricating a result — that
