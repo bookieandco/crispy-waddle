@@ -4,12 +4,37 @@ import {
   handleApproveMemoryCandidate,
   handleFunFinderSearch,
   handleGetDriver,
+  handleListAudit,
   handleListMemories,
   handleListMemoryCandidates,
+  handlePostDispatcher,
   handlePostInteraction,
 } from "./handlers"
 
 const DALLAS = { lat: "32.7767", lng: "-96.797" }
+
+const sampleLoad = (overrides: Record<string, unknown> = {}) => ({
+  id: "load-1",
+  origin: "Houston, TX",
+  destination: "Dallas, TX",
+  pickupAt: null,
+  deliveryAt: null,
+  revenueCents: 210_000,
+  loadedMiles: 240,
+  deadheadMiles: 40,
+  fuelCostCents: 31_000,
+  tollCostCents: 4_800,
+  otherCostCents: 7_500,
+  brokerName: "Example Broker",
+  ...overrides,
+})
+
+function dispatcherRequest(body: unknown) {
+  return new NextRequest("http://localhost/api/dispatcher", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
 
 describe("route handlers — acceptance loop", () => {
   it("GET /api/driver seeds and returns the demo driver", async () => {
@@ -84,5 +109,149 @@ describe("route handlers — acceptance loop", () => {
       p.rankReasons.some((reason) => reason.includes("approved preference match"))
     )
     expect(influenced).toBe(true)
+  })
+})
+
+describe("route handlers — POST /api/dispatcher", () => {
+  it("rejects a missing message", async () => {
+    const res = await handlePostDispatcher(
+      dispatcherRequest({ context: { loads: [sampleLoad()], minimumNetCentsPerMile: 400, targetNetCentsPerMile: 500 } })
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toMatch(/message/)
+  })
+
+  it("rejects an empty loads array", async () => {
+    const res = await handlePostDispatcher(
+      dispatcherRequest({
+        message: "Should I take this load?",
+        context: { loads: [], minimumNetCentsPerMile: 400, targetNetCentsPerMile: 500 },
+      })
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toMatch(/context\.loads/)
+  })
+
+  it("rejects a load missing a required numeric field, naming the exact field", async () => {
+    const badLoad = sampleLoad()
+    delete (badLoad as Record<string, unknown>).revenueCents
+    const res = await handlePostDispatcher(
+      dispatcherRequest({
+        message: "Should I take this load?",
+        context: { loads: [badLoad], minimumNetCentsPerMile: 400, targetNetCentsPerMile: 500 },
+      })
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toBe("context.loads[0].revenueCents is required and must be a finite number")
+  })
+
+  it("rejects an inverted threshold pair (target below minimum) rather than silently misranking", async () => {
+    const res = await handlePostDispatcher(
+      dispatcherRequest({
+        message: "Should I take this load?",
+        context: { loads: [sampleLoad()], minimumNetCentsPerMile: 500, targetNetCentsPerMile: 400 },
+      })
+    )
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toMatch(/targetNetCentsPerMile.*minimumNetCentsPerMile/)
+  })
+
+  it("rejects malformed JSON with a 400, not a 500", async () => {
+    const req = new NextRequest("http://localhost/api/dispatcher", { method: "POST", body: "{not json" })
+    const res = await handlePostDispatcher(req)
+    expect(res.status).toBe(400)
+  })
+
+  it("returns a ranked brief, an explanation, and an explicit safety block with no execution capability", async () => {
+    const res = await handlePostDispatcher(
+      dispatcherRequest({
+        message: "Should I take the Houston to Dallas load?",
+        context: { loads: [sampleLoad()], minimumNetCentsPerMile: 400, targetNetCentsPerMile: 500 },
+      })
+    )
+    expect(res.status).toBe(200)
+    const json = await res.json()
+
+    expect(json.success).toBe(true)
+    expect(json.data.brief.recommendation).toBe("accept")
+    expect(json.data.brief.candidates).toHaveLength(1)
+    expect(typeof json.data.explanation).toBe("string")
+    expect(json.data.explanation.length).toBeGreaterThan(0)
+
+    // The safety boundary is asserted on the wire, not just in comments:
+    // advisory only, deterministic economics, nothing executable.
+    expect(json.data.safety).toEqual({
+      aiRole: "advisory",
+      economicsSource: "deterministic",
+      executionAllowed: false,
+      requiresDriverApproval: true,
+    })
+
+    // No field anywhere in the payload offers a way to actually commit to
+    // anything — this is a recommendation, not a booking action.
+    const serialized = JSON.stringify(json.data).toLowerCase()
+    for (const forbidden of ["\"execute\"", "\"book\"", "\"commit\"", "\"confirmbooking\""]) {
+      expect(serialized).not.toContain(forbidden)
+    }
+  })
+
+  it("never lets the AI narrative introduce a dollar figure absent from the deterministic brief", async () => {
+    const res = await handlePostDispatcher(
+      dispatcherRequest({
+        message: "Why should I take this one?",
+        context: { loads: [sampleLoad()], minimumNetCentsPerMile: 400, targetNetCentsPerMile: 500 },
+      })
+    )
+    const json = await res.json()
+
+    const dollarAmounts: string[] = json.data.explanation.match(/\$\d+(\.\d+)?/g) ?? []
+    const sourceText = `${json.data.brief.headline} ${json.data.brief.candidates
+      .flatMap((c: { reasons: string[] }) => c.reasons)
+      .join(" ")}`
+    for (const amount of dollarAmounts) {
+      expect(sourceText).toContain(amount)
+    }
+  })
+
+  it("records an audit event for every dispatcher query, advisory (driverApproved: null)", async () => {
+    await handlePostDispatcher(
+      dispatcherRequest({
+        message: "Audit trail check",
+        context: { loads: [sampleLoad()], minimumNetCentsPerMile: 400, targetNetCentsPerMile: 500 },
+      })
+    )
+
+    const auditRes = await handleListAudit(new NextRequest("http://localhost/api/audit?limit=50"))
+    const auditJson = await auditRes.json()
+    const event = auditJson.data.events.find(
+      (e: { eventName: string; payload: { message?: string } }) =>
+        e.eventName === "dispatcher.brief_requested" && e.payload.message === "Audit trail check"
+    )
+    expect(event).toBeDefined()
+    expect(event.driverApproved).toBeNull()
+    expect(event.triggeredBy).toBe("driver_action:dispatcher_query")
+  })
+
+  it("ranks a stronger load first and declines a load below the driver's minimum", async () => {
+    const strong = sampleLoad({ id: "strong", revenueCents: 220_000 })
+    const belowMinimum = sampleLoad({ id: "weak", revenueCents: 80_000 })
+
+    const res = await handlePostDispatcher(
+      dispatcherRequest({
+        message: "Which of these should I take?",
+        context: { loads: [belowMinimum, strong], minimumNetCentsPerMile: 400, targetNetCentsPerMile: 500 },
+      })
+    )
+    const json = await res.json()
+
+    expect(json.data.brief.candidates.map((c: { load: { id: string } }) => c.load.id)).toEqual(["strong", "weak"])
+    expect(json.data.brief.recommendation).toBe("accept")
+
+    const weakCandidate = json.data.brief.candidates.find((c: { load: { id: string } }) => c.load.id === "weak")
+    expect(weakCandidate.recommendation).toBe("decline")
   })
 })

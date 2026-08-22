@@ -38,6 +38,18 @@ confused with real data.
 | `/profile` | Driver baseline, saved places, committed memories |
 | `/activity` | Pending memory candidates (approve/reject) + audit ledger |
 
+## AI Dispatcher (API only — no screen yet)
+
+`POST /api/dispatcher` takes a natural-language driver message plus a
+deterministic dispatcher context (candidate loads + the driver's own
+minimum/target net-cents-per-mile) and returns ranked recommendations with
+an explanation. The AI layer is strictly advisory: `DispatcherService`
+(`@jhadina/truckeros-core`) computes every number and the accept/counter/
+decline call deterministically; the reasoner only narrates the result it's
+handed and cannot alter it or execute anything. See
+`TRUCKEROS-02B_DISPATCHER_API.md` for the full contract, the safety-boundary
+verification, and the live acceptance run.
+
 ## Architecture boundary
 
 UI components never import a repository or service. Every screen calls an
@@ -60,13 +72,18 @@ explicit non-goals, not omissions.
 
 ## Verification
 
-- `pnpm --filter @jhadina/truckeros-core test` — 17 unit tests covering the
-  ranking formula, the truck-attribute trust hierarchy, and the full
-  Memory Core state machine.
-- `pnpm --filter @jhadina/truckeros-web test` — 8 tests, including one that
-  drives the actual route handlers through the complete loop (search → save
-  → candidate proposed → approve → committed memory → later search ranks
-  differently because of it).
+- `pnpm --filter @jhadina/truckeros-core test` — 34 unit tests covering the
+  FunFinder ranking formula, the truck-attribute trust hierarchy, the full
+  Memory Core state machine, and the deterministic dispatcher
+  economics/recommendation engine.
+- `pnpm --filter @jhadina/truckeros-web test` — 17 tests, including one that
+  drives the actual route handlers through the complete FunFinder loop
+  (search → save → candidate proposed → approve → committed memory → later
+  search ranks differently because of it), and a suite covering
+  `/api/dispatcher`'s validation, ranking, and safety-boundary contract.
+- `pnpm --filter @jhadina/truckeros-web lint` — 0 errors
+  (`.eslintrc.json` extends `next/core-web-vitals`).
 - `pnpm --filter @jhadina/truckeros-web build` — production build.
-- See `ACCEPTANCE_TEST.md` for the manual/curl-driven end-to-end protocol
-  and what was actually run to verify this MVP, with real output.
+- See `ACCEPTANCE_TEST.md` for the FunFinder loop's manual/curl-driven
+  protocol, `AUDIT.md` for the self-audit that followed it, and
+  `TRUCKEROS-02B_DISPATCHER_API.md` for the dispatcher endpoint's.

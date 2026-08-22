@@ -39,6 +39,11 @@ export default function DriverHomePage() {
       .then((data) => setNearby(data.results.slice(0, 5)))
       .catch((err) => console.error("[Home] failed to load nearby places", err))
       .finally(() => setLoadingNearby(false))
+    // Intentionally depends on the lat/lng primitives, not `coords` itself:
+    // watchPosition fires on every heading/speed/timestamp jitter even when
+    // the driver hasn't actually moved, and re-querying FunFinder on every
+    // one of those would be wasteful and would spam recommendations.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coords?.latitude, coords?.longitude])
 
   const query = coords ? `lat=${coords.latitude}&lng=${coords.longitude}` : ""
@@ -67,18 +72,20 @@ export default function DriverHomePage() {
         )}
       </section>
 
+      <Link href="/dispatcher">
+        <button className="btn btn-primary" style={{ width: "100%" }}>
+          🚛 Ask AI Dispatcher
+        </button>
+      </Link>
+
       {coords ? (
         <Link href={`/funfinder?${query}`}>
-          <button className="btn btn-primary" style={{ width: "100%" }}>
+          <button className="btn" style={{ width: "100%" }}>
             ⚡ Find Something Fun
           </button>
         </Link>
       ) : (
-        // Not wrapped in a Link while GPS is unavailable — a disabled
-        // <button> nested inside an <a> still lets clicks reach the
-        // anchor, so it would "navigate" to a dead link instead of doing
-        // nothing.
-        <button className="btn btn-primary" disabled style={{ width: "100%" }}>
+        <button className="btn" disabled style={{ width: "100%" }}>
           ⚡ Find Something Fun
         </button>
       )}

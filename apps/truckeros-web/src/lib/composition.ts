@@ -3,13 +3,12 @@
  *
  * The one place that knows which concrete adapter backs each port and
  * wires services together. Every API route handler calls
- * `getTruckerOS()` instead of constructing repositories/services itself —
- * mirrors @jhadina/jhadina-web's `getJanetService()` singleton pattern in
- * src/lib/routes/handlers.ts.
+ * `getTruckerOS()` instead of constructing repositories/services itself.
  */
 
 import {
   AuditService,
+  DispatcherService,
   FunFinderService,
   HaversineRoutingProvider,
   InMemoryAuditRepository,
@@ -22,8 +21,12 @@ import {
   InMemorySavedPlaceRepository,
   InMemoryStore,
   MemoryService,
+  MockLoadProvider,
   OpenStreetMapProvider,
+  TemplateDispatcherReasoner,
   createPlacesProvider,
+  type IDispatcherReasoner,
+  type ILoadProvider,
 } from "@jhadina/truckeros-core"
 
 export interface TruckerOSContext {
@@ -37,16 +40,11 @@ export interface TruckerOSContext {
   funFinderService: FunFinderService
   memoryService: MemoryService
   mapProvider: OpenStreetMapProvider
+  dispatcherService: DispatcherService
+  dispatcherReasoner: IDispatcherReasoner
+  loadProvider: ILoadProvider
 }
 
-// Next.js compiles each route.ts as its own module entry, including in dev
-// mode — a plain module-scope `let context` is NOT reliably shared across
-// different API route files (verified: two route files can end up with
-// independent InMemoryStore instances even though both import this same
-// module). Stashing on `globalThis` is the standard fix for this exact
-// class of bug (the same technique Next.js's own docs recommend for a
-// Prisma client singleton) and is what actually keeps one InMemoryStore
-// live across every route for the life of the dev/prod server process.
 declare global {
   // eslint-disable-next-line no-var
   var __truckerOSContext: TruckerOSContext | undefined
@@ -90,6 +88,10 @@ export function getTruckerOS(): TruckerOSContext {
     funFinderService,
     memoryService,
     mapProvider: new OpenStreetMapProvider(),
+    dispatcherService: new DispatcherService(),
+    dispatcherReasoner: new TemplateDispatcherReasoner(),
+    // Explicitly offline until a real load-board adapter is verified.
+    loadProvider: new MockLoadProvider(),
   }
   globalThis.__truckerOSContext = context
   return context
