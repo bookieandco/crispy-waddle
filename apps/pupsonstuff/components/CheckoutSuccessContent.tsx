@@ -48,11 +48,6 @@ export default function CheckoutSuccessContent() {
         }
 
         const paid = data.session.paymentStatus === "paid";
-        // Only clear the cart once payment is actually confirmed server-
-        // side — never on page load alone. The session_id in this page's
-        // URL is just a lookup key anyone could type in; it's this fetch
-        // (which required the real STRIPE_SECRET_KEY server-side) that
-        // establishes whether anything was actually paid for.
         if (paid) clearCart();
 
         setState({
@@ -86,60 +81,41 @@ export default function CheckoutSuccessContent() {
 
         {state.status === "missing-session" && (
           <>
-            <h1 className="font-display text-2xl text-ink">
-              No order to confirm
-            </h1>
+            <h1 className="font-display text-2xl text-ink">No order to confirm</h1>
             <p className="mt-2 text-sm text-ink/60">
-              This page is meant to be reached from Stripe after checkout —
-              there&apos;s no session to look up here.
+              This page is meant to be reached from Stripe after checkout — there&apos;s no session to look up here.
             </p>
           </>
         )}
 
         {state.status === "error" && (
           <>
-            <h1 className="font-display text-2xl text-ink">
-              Couldn&apos;t confirm your order
-            </h1>
+            <h1 className="font-display text-2xl text-ink">Couldn&apos;t confirm your order</h1>
             <p className="mt-2 text-sm text-ink/60">{state.message}</p>
             <p className="mt-2 text-xs text-ink/40">
-              If you were actually charged, this is a confirmation-lookup
-              problem, not a billing one — check your email for a Stripe
-              receipt, or contact support with your payment details.
+              If you were actually charged, this is a confirmation-lookup problem, not a billing one — check your email for a Stripe receipt, or contact support with your payment details.
             </p>
           </>
         )}
 
         {state.status === "confirmed" && state.paid && (
           <>
-            <h1 className="font-display text-2xl text-ink">
-              Thank you — order confirmed
-            </h1>
+            <h1 className="font-display text-2xl text-ink">Thank you — order confirmed</h1>
             <p className="mt-2 text-sm text-ink/60">
-              {state.amountTotalCents !== null
-                ? `${centsToPrice(state.amountTotalCents)} charged`
-                : "Payment confirmed"}
+              {state.amountTotalCents !== null ? `${centsToPrice(state.amountTotalCents)} charged` : "Payment confirmed"}
               {state.customerEmail ? ` — a receipt was sent to ${state.customerEmail}.` : "."}
             </p>
             <p className="mt-2 text-xs text-ink/40">
-              Order fulfillment/tracking isn&apos;t wired up yet in this
-              build — there&apos;s no order-history page to send you to.
-              This confirmation is real; what happens after payment isn&apos;t
-              automated yet.
+              Your paid order is recorded asynchronously by the Stripe webhook once the webhook is configured. Fulfillment and tracking are the next stage; payment confirmation itself is real and verified server-side.
             </p>
           </>
         )}
 
         {state.status === "confirmed" && !state.paid && (
           <>
-            <h1 className="font-display text-2xl text-ink">
-              Payment not completed
-            </h1>
+            <h1 className="font-display text-2xl text-ink">Payment not completed</h1>
             <p className="mt-2 text-sm text-ink/60">
-              This checkout session exists but isn&apos;t marked as paid —
-              your cart hasn&apos;t been cleared. If you completed payment
-              and see this, please contact support with this page&apos;s
-              URL.
+              This checkout session exists but isn&apos;t marked as paid — your cart hasn&apos;t been cleared. If you completed payment and see this, please contact support with this page&apos;s URL.
             </p>
           </>
         )}
