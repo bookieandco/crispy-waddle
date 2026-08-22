@@ -72,18 +72,20 @@ export default function DriverHomePage() {
         )}
       </section>
 
+      <Link href="/dispatcher">
+        <button className="btn btn-primary" style={{ width: "100%" }}>
+          🚛 Ask AI Dispatcher
+        </button>
+      </Link>
+
       {coords ? (
         <Link href={`/funfinder?${query}`}>
-          <button className="btn btn-primary" style={{ width: "100%" }}>
+          <button className="btn" style={{ width: "100%" }}>
             ⚡ Find Something Fun
           </button>
         </Link>
       ) : (
-        // Not wrapped in a Link while GPS is unavailable — a disabled
-        // <button> nested inside an <a> still lets clicks reach the
-        // anchor, so it would "navigate" to a dead link instead of doing
-        // nothing.
-        <button className="btn btn-primary" disabled style={{ width: "100%" }}>
+        <button className="btn" disabled style={{ width: "100%" }}>
           ⚡ Find Something Fun
         </button>
       )}
