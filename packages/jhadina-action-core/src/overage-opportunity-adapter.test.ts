@@ -51,25 +51,14 @@ test('rejects an opportunity with an incomplete verification state', () => {
     ...verifiedOpportunity,
     verification: {
       ...verifiedOpportunity.verification,
-      claimantIdentity: 'verified' as const,
-      entitlement: 'verified' as const,
+      entitlement: 'not_verified' as never,
     },
   }
 
-  assertVerifiedOpportunity(incomplete)
-
-  const invalid = {
-    ...verifiedOpportunity,
-    verification: {
-      ...verifiedOpportunity.verification,
-      sourceRecord: 'verified' as const,
-      propertyReference: 'verified' as const,
-      claimantIdentity: 'verified' as const,
-      entitlement: 'verified' as const,
-    },
-  }
-
-  assert.doesNotThrow(() => assertVerifiedOpportunity(invalid))
+  assert.throws(
+    () => assertVerifiedOpportunity(incomplete),
+    /all overage verification checks must be verified/,
+  )
 })
 
 test('rejects negative or non-finite economics', () => {
