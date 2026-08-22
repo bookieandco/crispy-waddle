@@ -1,0 +1,38 @@
+name: PupsonStuff reconcile helper
+
+on:
+  push:
+    branches:
+      - pupsonstuff/main-rebased-2026-08-22
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Reconcile PupsonStuff onto current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main claude/pupson-repo-audit-xmahtp
+          git checkout -B pupson-reconcile origin/main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Preserve current main when the old long-lived branch conflicts,
+          # while retaining every non-conflicting PupsonStuff change.
+          git merge --no-edit --no-ff -X ours origin/claude/pupson-repo-audit-xmahtp || {
+            echo "Merge still has unresolved conflicts; stopping rather than guessing."
+            git status --short
+            exit 1
+          }
+
+          git push --force-with-lease origin HEAD:refs/heads/pupsonstuff/reconciled
