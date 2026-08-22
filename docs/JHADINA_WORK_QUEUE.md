@@ -4537,3 +4537,190 @@ noticed and left out of the record.
 5. Step 9: close the Evolution/Builder loop.
 6. Not started, per explicit instruction: Music, TV, Social, Meta Ads,
    Stocks, Bitcoin, Betting, Mining, Overage, Notifications, Voice.
+
+---
+
+## JHADINA OS INTEGRATION -- PHASE 1 (USER ROADMAP), STEP 7: REAL VALUES & POLICY
+
+**Status:** DONE.
+
+**Objective:** make what Jhadina is allowed to do explicit and
+data-driven -- capability classification, approval rules, risk
+boundaries (financial limits, external-recipient restrictions,
+publishing restrictions, irreversible-action restrictions,
+self-modification restrictions), and User Values stored as governed
+configuration the model can never author or infer, only a real human
+can change.
+
+**Architecture inspected first:** `AllowAllActionPolicy` (action-core)
+has exactly zero production call sites -- confirmed by repo-wide grep,
+appears only in its own definition and its own package's tests. Every
+domain built so far (Growth/Money/Commerce/Intelligence) already uses
+`SecurityCoreActionPolicy` over `JHADINA_BASE_SECURITY_POLICY` or a
+domain-extended copy of it (`COMMERCE_SECURITY_POLICY`,
+`MONEY_CORE_SECURITY_POLICY` -- both built by *spreading* the base
+policy and adding capabilities, the established composition pattern
+reused here too). What was missing wasn't "replace AllowAll" -- that
+was already true -- it was that `SecurityPolicy` itself is a flat
+allow/approval/deny capability-string list with **no classification, no
+risk boundaries, and no separation between deterministic mechanics and
+human-set values.**
+
+**Design decision, made to avoid regressing anything already shipped:**
+rather than modifying `JhadinaSecurityCore`/`SecurityCoreActionPolicy`/
+`SecurityPolicy` in place (risking Growth's SP-1, Money's SP-3,
+Commerce's Finding-D fix, and this branch's own `runSecurityGate()`/
+`runExtendedSecurityGate()`, none of which supply the new fields),
+Step 7 adds a **strictly additive composing layer**:
+`JhadinaValuesActionPolicy` delegates the base allow/approval/deny
+decision to the same, unmodified `SecurityCoreActionPolicy`/
+`JhadinaSecurityCore` every domain already uses, and combines it with
+an independent risk-boundary decision via "most restrictive wins" --
+the same defense-in-depth composition Architecture Checkpoint #2
+already established for Money's health-gate + identity-gate and
+Commerce's actor-capability-gate + fulfillment PolicyGate. Neither
+check can loosen the other. Nothing in `action-core`'s `ActionExecutor`,
+`ApprovalReceipt` flow, or audit ledger changed at all.
+
+**CHANGED:**
+- `packages/security-core/src/capability-classification.ts` (new):
+  `CapabilityRiskCategory` (`read_only`/`reversible`/
+  `external_communication`/`financial`/`publishing`/`destructive`/
+  `code_evolution`) and a real classification table covering every
+  capability string used anywhere in this repository today (36
+  entries) -- `classifyCapability()` returns `undefined` for anything
+  not listed, which `risk-boundary-policy.ts` treats as **deny**, not
+  "probably fine."
+- `packages/security-core/src/values-configuration.ts` (new):
+  `JhadinaValuesConfiguration` -- financial limits, external-recipient
+  restrictions, publishing restrictions, self-modification
+  restrictions -- plus `assertValidValuesConfiguration()`, which fails
+  loudly on a malformed policy (negative/NaN limits, an
+  `updatedBy` claiming to be `"jhadina"`/`"system"`/`"model"`/`"ai"`,
+  a per-action limit exceeding the per-day limit) rather than
+  misbehaving silently later. `JHADINA_DEFAULT_VALUES_CONFIGURATION` is
+  deliberately maximally restrictive -- zero spend, zero allowed
+  recipients, zero allowed platforms -- so the *absence* of an explicit
+  human decision reads as "nothing is authorized yet." A real,
+  durable/human-editable backing (mirroring Step 2's Memory Core
+  migration) is future work, not fabricated here -- no such migration
+  exists for this data yet.
+- `packages/security-core/src/risk-boundary-policy.ts` (new):
+  `evaluateRiskBoundaries(context, values)` -- turns a request's
+  *objective* facts (capability, amount, recipient, platform) into a
+  decision. `RiskContext` has no field resembling "approved"/
+  "executeNow"/"policyOverride"/"limitOverride" at all, so there is
+  nothing for a forged model output to smuggle authority through. A
+  capability spanning multiple categories (e.g. `public.publish` is
+  both `publishing` and `external_communication`; `paid-ad.publish`
+  adds `financial` on top of both) has **every** applicable category
+  evaluated independently and combined via `mostRestrictiveDecision` --
+  a real bug caught and fixed during this milestone's own test run (the
+  first version stopped at the first matching category, so
+  `public.publish` with an allowed platform but no configured recipient
+  domain incorrectly evaluated as if only the publishing half existed;
+  now covered by two named regression tests). `policy.self_modify` is
+  an outright, non-configurable `deny` -- not gated by
+  `values.selfModification` at all, since even human *approval* of
+  "let the model edit its own governing policy" is out of scope for
+  this milestone's design. `evolution.merge` (destructive +
+  code_evolution together) is always at least `approval_required`,
+  never controlled by `allowEvolutionProposals` -- that flag only gates
+  `evolution.propose` (Step 9's "Jhadina proposes a build task"),
+  never merging or executing one.
+- `packages/jhadina-action-core/src/values-action-policy.ts` (new):
+  `JhadinaValuesActionPolicy<TAction>` -- the composing `ActionPolicy`
+  described above. `extractRiskMetadata` is how *application code* (never
+  the model) supplies the amount/recipient/platform a risk boundary
+  needs from the actual typed action payload; its default extracts
+  nothing, so a policy built with no extractor behaves exactly like the
+  base policy alone for every category except the four risk categories,
+  which then correctly fall back to `approval_required`/`deny` rather
+  than a silent `allow` when their fact is missing.
+- `apps/jhadina-web/src/lib/intelligence/jhadina-command.ts`: the one
+  real, live wiring -- Ask Jhadina's default policy (when no override is
+  supplied) is now `JhadinaValuesActionPolicy` over the base policy and
+  default values configuration, not the flat base policy alone.
+  `memory.propose` is classified `read_only`, so this changes **nothing**
+  about its outcome (still `allow`) -- confirmed by the fact every one
+  of Step 5/6's existing tests still passes unchanged, not merely
+  asserted.
+- `security-core`'s and `jhadina-action-core`'s `index.ts` barrels
+  re-export the new modules/class. `JHADINA_BASE_SECURITY_POLICY`
+  itself, `SecurityPolicy`'s shape, `JhadinaSecurityCore`,
+  `SecurityCoreActionPolicy`, `ActionExecutor`, the approval-receipt
+  flow, and every existing composition root (Growth/Money/Commerce)
+  are byte-for-byte unchanged.
+
+**Adversarial tests (40 new in security-core, 5 new in
+jhadina-action-core, all passing):**
+1. Forged `approved`/`executeNow`/`preApproved` fields on the action
+   payload have no field to land in and are proven to have zero effect
+   end to end through the real `ActionExecutor`.
+2. Forged capability -- an unclassified capability is denied by
+   default; `RiskContext` never reads a capability from anywhere but
+   the fixed `request.type` application code already owns.
+3. Forged spending limit -- `RiskContext` has no `limitOverride` field;
+   a payload that adds one anyway is proven to have no effect, and an
+   amount exceeding the *real*, configured limit is denied even when
+   the forged field claims a much higher one.
+4. Forged recipient -- a recipient outside the allowlist is denied even
+   when other fields look benign; an explicit deny-list entry is denied
+   even when its domain is otherwise allowed.
+5. Forged execution instruction -- same fixed-capability invariant Step
+   5 already proved, re-confirmed at this policy layer.
+6. Policy missing -- an unclassified capability (no entry in
+   `capability-classification.ts`) is denied, not defaulted to allow.
+7. Malformed policy -- `assertValidValuesConfiguration` throws on a
+   negative/NaN limit, an inverted per-action/per-day limit, or a
+   self-authored `updatedBy`, and `evaluateRiskBoundaries` calls it
+   before evaluating anything.
+8. Replayed approval -- a within-limit financial action's approval
+   receipt is consumed exactly once through the real `ActionExecutor` +
+   `ApprovalReceiptStore`; replaying it against a fresh request fails.
+9. Attempted self-escalation -- `policy.self_modify` is denied outright
+   through the full real `ActionExecutor`, even when a valid-looking
+   approval receipt was actually obtained for that exact request first
+   -- the policy layer denies before the receipt is ever consulted.
+
+**VERIFIED:**
+- `packages/security-core` test: 40/40 (3 pre-existing + 37 new).
+- `packages/jhadina-action-core` test: adds 5 new tests to the existing
+  suite, all passing (0 regressions).
+- `pnpm --filter jhadina-web vitest run`: 24/24 files, 198/198 tests
+  (unchanged from Step 6 -- confirms the new default policy is
+  behavior-preserving for the live Ask Jhadina vertical, not merely
+  claimed to be).
+- `pnpm --filter jhadina-web build`: clean.
+- `pnpm --filter jhadina-web lint`: 0 errors, 5 warnings (unchanged
+  from Step 6 -- no new warning introduced).
+- `pnpm -r type-check`: clean.
+- `pnpm -r test`: clean repo-wide.
+- No live Anthropic or Supabase call made or needed anywhere in this
+  milestone -- all of it is deterministic, local logic.
+
+**ARCHITECTURAL NOTE:** `JhadinaValuesActionPolicy` is not yet wired
+into Growth/Money/Commerce's own composition roots -- only Ask
+Jhadina's `memory.propose` vertical uses it live. Retrofitting the
+other domains (meaningful now that `commerce.payment.charge`/
+`money.transfer.create`/`paid-ad.publish` all have real financial/
+publishing risk boundaries available to them) is real, valuable,
+unstarted follow-up work, not done here to avoid touching
+already-shipped, already-verified composition roots without being
+asked.
+
+**COMMIT:** (this branch, `claude/jhadina-mvp-audit-ok29s0`)
+
+**NEXT (stopping at this human gate):**
+1. Retrofit Growth/Money/Commerce's composition roots onto
+   `JhadinaValuesActionPolicy` with real risk-metadata extractors for
+   their financial/publishing capabilities -- named above, not started.
+2. A durable, human-editable-without-a-deploy backing for
+   `JhadinaValuesConfiguration` (mirroring Step 2's Memory Core
+   migration) -- currently an in-code default, same pattern
+   `JHADINA_BASE_SECURITY_POLICY` already uses.
+3. `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` remain unset.
+4. Step 8: Event Bus + Capability Registry.
+5. Step 9: close the Evolution/Builder loop.
+6. Not started, per explicit instruction: Music, TV, Social, Meta Ads,
+   Stocks, Bitcoin, Betting, Mining, Overage, Notifications, Voice.
