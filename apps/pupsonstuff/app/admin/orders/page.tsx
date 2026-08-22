@@ -2,6 +2,17 @@ import { getAdminOrders } from "@/lib/admin/orders";
 import { formatPriceCents } from "@/lib/admin/stats";
 
 export const metadata = { title: "Orders — PupsonStuff Admin" };
+// This page queries live Supabase order data on every load — Next.js's
+// default static-generation behavior for an async Server Component with
+// no dynamic directive would otherwise try to prerender it AT BUILD TIME,
+// which both bakes a stale snapshot into the build (wrong for a live
+// order list) and hard-fails any build run without production Supabase
+// credentials present (confirmed live: `next build` in this environment,
+// with no SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY configured, threw
+// "Supabase admin configuration is missing" while prerendering this
+// route and aborted the whole build). force-dynamic is correct here on
+// both counts, not just a build workaround.
+export const dynamic = "force-dynamic";
 
 export default async function AdminOrdersPage() {
   const orders = await getAdminOrders();

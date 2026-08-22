@@ -1,0 +1,11 @@
+# Root-level ignores for the pnpm workspace (pnpm-workspace.yaml sets
+# shared-workspace-lockfile: true, which installs a root node_modules/ —
+# nothing was previously ignoring it at this level, only
+# apps/pupsonstuff/.gitignore existed).
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.local

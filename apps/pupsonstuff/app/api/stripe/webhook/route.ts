@@ -55,9 +55,16 @@ export async function POST(req: NextRequest) {
 
     const rawItems = lineItems.data.map((lineItem) => {
       const product = lineItem.price?.product;
-      const metadata = typeof product === "object" && product !== null
-        ? product.metadata
-        : {};
+      // `product` is typed as `Stripe.Product | Stripe.DeletedProduct` once
+      // expanded — a real, narrow type-check failure caught here, not
+      // present before: DeletedProduct has neither `metadata` nor `name`
+      // (it's just `{ id, object: "product", deleted: true }`). A product
+      // can genuinely be deleted from the catalog after a Checkout Session
+      // was created but before this webhook fires, so this isn't a
+      // theoretical case to wave off with an `any`.
+      const isActiveProduct =
+        typeof product === "object" && product !== null && !("deleted" in product && product.deleted);
+      const metadata = isActiveProduct ? product.metadata : {};
 
       return {
         // Stripe's line-item ID is the durable idempotency key. Never use
@@ -66,9 +73,7 @@ export async function POST(req: NextRequest) {
         productId: metadata.product_id,
         variantId: metadata.variant_id,
         artStyle: metadata.art_style,
-        productName: typeof product === "object" && product !== null
-          ? product.name
-          : "",
+        productName: isActiveProduct ? product.name : "",
         price: lineItem.price?.unit_amount ?? 0,
         quantity: lineItem.quantity ?? 0,
       };

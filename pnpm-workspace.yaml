@@ -2,6 +2,10 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'infrastructure/*'
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
 
 shared-workspace-lockfile: true
 symlink-workspace-packages: true
