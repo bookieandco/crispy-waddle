@@ -196,9 +196,15 @@ importers:
 
   packages/jhadina-evolution-core:
     dependencies:
+      '@jhadina/action-core':
+        specifier: workspace:*
+        version: link:../jhadina-action-core
       '@jhadina/core-spine':
         specifier: workspace:*
         version: link:../jhadina-core-spine
+      '@jhadina/security-core':
+        specifier: workspace:*
+        version: link:../security-core
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
