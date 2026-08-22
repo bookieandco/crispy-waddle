@@ -37,14 +37,22 @@ export async function POST(req: NextRequest) {
     });
     const rawItems = lineItems.data.map((lineItem) => {
       const product = lineItem.price?.product;
-      const metadata = typeof product === "object" && product !== null ? product.metadata : {};
+      // `product` is `Stripe.Product | Stripe.DeletedProduct | string`.
+      // A deleted product still expands to an object, but one with no
+      // `metadata`/`name` — Stripe's own discriminant is `deleted`
+      // (`true` on DeletedProduct, absent/void on a live Product), so a
+      // deleted product is treated the same as an unexpanded string id:
+      // no metadata available, which validateStripeLineItems below will
+      // correctly reject rather than silently accepting.
+      const liveProduct = typeof product === "object" && product !== null && !product.deleted ? product : null;
+      const metadata = liveProduct?.metadata ?? {};
       return {
         // The Stripe line-item ID is the durable idempotency key.
         id: lineItem.id,
         productId: metadata.product_id,
         variantId: metadata.variant_id,
         artStyle: metadata.art_style,
-        productName: typeof product === "object" && product !== null ? product.name : "",
+        productName: liveProduct?.name ?? "",
         // Preserve the historical amount actually charged by Stripe.
         price: lineItem.price?.unit_amount ?? 0,
         quantity: lineItem.quantity ?? 0,
