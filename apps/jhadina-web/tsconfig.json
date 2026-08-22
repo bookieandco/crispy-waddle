@@ -15,6 +15,12 @@
       "@jhadina/action-core": [
         "../../packages/jhadina-action-core/src"
       ],
+      "@jhadina/core-spine": [
+        "../../packages/jhadina-core-spine/src"
+      ],
+      "@jhadina/intelligence-core": [
+        "../../packages/jhadina-intelligence-core/src"
+      ],
       "@jhadina/*": [
         "../../packages/*/src",
         "../../apps/*/src"

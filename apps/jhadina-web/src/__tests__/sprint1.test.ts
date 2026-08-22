@@ -30,8 +30,8 @@ describe("InMemoryStorage", () => {
   })
 
   describe("Memory Operations", () => {
-    it("should create a memory", () => {
-      const memory = storage.createMemory({
+    it("should create a memory", async () => {
+      const memory = await storage.createMemory({
         userId: "user_1",
         type: "PREFERENCE",
         status: "PENDING",
@@ -45,8 +45,8 @@ describe("InMemoryStorage", () => {
       expect(memory.status).toBe("PENDING")
     })
 
-    it("should retrieve a memory by ID", () => {
-      const created = storage.createMemory({
+    it("should retrieve a memory by ID", async () => {
+      const created = await storage.createMemory({
         userId: "user_1",
         type: "PREFERENCE",
         status: "PENDING",
@@ -55,13 +55,13 @@ describe("InMemoryStorage", () => {
         createdAt: new Date().toISOString(),
       })
 
-      const retrieved = storage.getMemory(created.id)
+      const retrieved = await storage.getMemory(created.id)
       expect(retrieved).toBeDefined()
       expect(retrieved?.content).toBe("Test content")
     })
 
-    it("should list memories by user", () => {
-      storage.createMemory({
+    it("should list memories by user", async () => {
+      await storage.createMemory({
         userId: "user_1",
         type: "PREFERENCE",
         status: "APPROVED",
@@ -70,7 +70,7 @@ describe("InMemoryStorage", () => {
         createdAt: new Date().toISOString(),
       })
 
-      storage.createMemory({
+      await storage.createMemory({
         userId: "user_1",
         type: "IDENTITY",
         status: "APPROVED",
@@ -79,7 +79,7 @@ describe("InMemoryStorage", () => {
         createdAt: new Date().toISOString(),
       })
 
-      storage.createMemory({
+      await storage.createMemory({
         userId: "user_2",
         type: "GOAL",
         status: "APPROVED",
@@ -88,13 +88,13 @@ describe("InMemoryStorage", () => {
         createdAt: new Date().toISOString(),
       })
 
-      const user1Memories = storage.listMemories("user_1")
+      const user1Memories = await storage.listMemories("user_1")
       expect(user1Memories).toHaveLength(2)
       expect(user1Memories.every(m => m.userId === "user_1")).toBe(true)
     })
 
-    it("should update a memory", () => {
-      const created = storage.createMemory({
+    it("should update a memory", async () => {
+      const created = await storage.createMemory({
         userId: "user_1",
         type: "PREFERENCE",
         status: "PENDING",
@@ -103,7 +103,7 @@ describe("InMemoryStorage", () => {
         createdAt: new Date().toISOString(),
       })
 
-      const updated = storage.updateMemory(created.id, {
+      const updated = await storage.updateMemory(created.id, {
         status: "APPROVED",
         approvedAt: new Date().toISOString(),
       })
@@ -114,8 +114,8 @@ describe("InMemoryStorage", () => {
   })
 
   describe("Candidate Operations", () => {
-    it("should create a candidate", () => {
-      const candidate = storage.createCandidate({
+    it("should create a candidate", async () => {
+      const candidate = await storage.createCandidate({
         userId: "user_1",
         content: "I prefer cinematic visuals",
         type: "PREFERENCE",
@@ -129,8 +129,8 @@ describe("InMemoryStorage", () => {
       expect(candidate.status).toBe("PENDING")
     })
 
-    it("should list pending candidates", () => {
-      storage.createCandidate({
+    it("should list pending candidates", async () => {
+      await storage.createCandidate({
         userId: "user_1",
         content: "Candidate 1",
         type: "PREFERENCE",
@@ -140,12 +140,12 @@ describe("InMemoryStorage", () => {
         reasoningEventId: "reason_1",
       })
 
-      const candidates = storage.listCandidates("user_1", "PENDING")
+      const candidates = await storage.listCandidates("user_1", "PENDING")
       expect(candidates).toHaveLength(1)
     })
 
-    it("should remove a candidate", () => {
-      const candidate = storage.createCandidate({
+    it("should remove a candidate", async () => {
+      const candidate = await storage.createCandidate({
         userId: "user_1",
         content: "Test",
         type: "PREFERENCE",
@@ -155,15 +155,15 @@ describe("InMemoryStorage", () => {
         reasoningEventId: "reason_1",
       })
 
-      storage.removeCandidate(candidate.id)
-      const retrieved = storage.getCandidate(candidate.id)
+      await storage.removeCandidate(candidate.id)
+      const retrieved = await storage.getCandidate(candidate.id)
       expect(retrieved).toBeUndefined()
     })
   })
 
   describe("ReasoningEvent Operations", () => {
-    it("should create a reasoning event", () => {
-      const event = storage.createReasoningEvent({
+    it("should create a reasoning event", async () => {
+      const event = await storage.createReasoningEvent({
         userId: "user_1",
         timestamp: new Date().toISOString(),
         userMessage: "I prefer cinematic visuals",
@@ -181,8 +181,8 @@ describe("InMemoryStorage", () => {
       expect(event.userMessage).toBe("I prefer cinematic visuals")
     })
 
-    it("should list reasoning events", () => {
-      storage.createReasoningEvent({
+    it("should list reasoning events", async () => {
+      await storage.createReasoningEvent({
         userId: "user_1",
         timestamp: new Date().toISOString(),
         userMessage: "Message 1",
@@ -196,14 +196,14 @@ describe("InMemoryStorage", () => {
         confidence: 0.95,
       })
 
-      const events = storage.listReasoningEvents("user_1", 10)
+      const events = await storage.listReasoningEvents("user_1", 10)
       expect(events).toHaveLength(1)
     })
   })
 
   describe("Timeline Operations", () => {
-    it("should append a timeline event", () => {
-      const event = storage.appendTimelineEvent({
+    it("should append a timeline event", async () => {
+      const event = await storage.appendTimelineEvent({
         userId: "user_1",
         timestamp: new Date().toISOString(),
         type: "REASONING",
@@ -214,18 +214,18 @@ describe("InMemoryStorage", () => {
       expect(event.type).toBe("REASONING")
     })
 
-    it("should list timeline events in reverse chronological order", () => {
+    it("should list timeline events in reverse chronological order", async () => {
       const now = new Date()
       const earlier = new Date(now.getTime() - 10000)
 
-      storage.appendTimelineEvent({
+      await storage.appendTimelineEvent({
         userId: "user_1",
         timestamp: earlier.toISOString(),
         type: "REASONING",
         reasoningEventId: "reason_1",
       })
 
-      storage.appendTimelineEvent({
+      await storage.appendTimelineEvent({
         userId: "user_1",
         timestamp: now.toISOString(),
         type: "APPROVAL",
@@ -235,15 +235,15 @@ describe("InMemoryStorage", () => {
         decision: "APPROVED",
       })
 
-      const timeline = storage.listTimeline("user_1")
+      const timeline = await storage.listTimeline("user_1")
       expect(timeline[0].timestamp).toBe(now.toISOString())
       expect(timeline[1].timestamp).toBe(earlier.toISOString())
     })
   })
 
   describe("Debug Dump", () => {
-    it("should generate a debug dump", () => {
-      storage.createMemory({
+    it("should generate a debug dump", async () => {
+      await storage.createMemory({
         userId: "user_1",
         type: "PREFERENCE",
         status: "APPROVED",

@@ -1,12 +1,14 @@
 /**
  * InMemoryStorage
- * 
+ *
  * Pure storage layer. No business logic.
  * Collections for memories, candidates, reasoning events, and timeline.
- * 
+ *
  * This is the foundation that Repositories will build on.
  * All data is lost on application restart (by design for MVP).
  */
+
+import type { MemoryStorage } from "./MemoryStorage"
 
 export interface Memory {
   id: string
@@ -72,8 +74,14 @@ export type MemoryStatus = "PENDING" | "APPROVED" | "REJECTED"
 
 /**
  * InMemoryStorage class
+ *
+ * Implements MemoryStorage (see ./MemoryStorage.ts) as an async-returning
+ * class even though every operation here is synchronous under the hood —
+ * that keeps this interchangeable with SupabaseMemoryStorage without
+ * changing a single caller. Dev/test fallback only: all data is lost on
+ * application restart (by design).
  */
-export class InMemoryStorage {
+export class InMemoryStorage implements MemoryStorage {
   private memories: Map<string, Memory> = new Map()
   private candidates: Map<string, MemoryCandidate> = new Map()
   private reasoningEvents: Map<string, ReasoningEvent> = new Map()
@@ -88,22 +96,22 @@ export class InMemoryStorage {
   /**
    * Memory operations
    */
-  createMemory(data: Omit<Memory, "id">): Memory {
+  async createMemory(data: Omit<Memory, "id">): Promise<Memory> {
     const id = `mem_${++this.idCounters.memory}`
     const memory: Memory = { id, ...data }
     this.memories.set(id, memory)
     return memory
   }
 
-  getMemory(id: string): Memory | undefined {
+  async getMemory(id: string): Promise<Memory | undefined> {
     return this.memories.get(id)
   }
 
-  listMemories(userId: string): Memory[] {
+  async listMemories(userId: string): Promise<Memory[]> {
     return Array.from(this.memories.values()).filter(m => m.userId === userId)
   }
 
-  updateMemory(id: string, updates: Partial<Memory>): Memory | undefined {
+  async updateMemory(id: string, updates: Partial<Memory>): Promise<Memory | undefined> {
     const memory = this.memories.get(id)
     if (!memory) return undefined
     const updated = { ...memory, ...updates }
@@ -114,42 +122,42 @@ export class InMemoryStorage {
   /**
    * Candidate operations
    */
-  createCandidate(data: Omit<MemoryCandidate, "id">): MemoryCandidate {
+  async createCandidate(data: Omit<MemoryCandidate, "id">): Promise<MemoryCandidate> {
     const id = `cand_${++this.idCounters.candidate}`
     const candidate: MemoryCandidate = { id, ...data }
     this.candidates.set(id, candidate)
     return candidate
   }
 
-  getCandidate(id: string): MemoryCandidate | undefined {
+  async getCandidate(id: string): Promise<MemoryCandidate | undefined> {
     return this.candidates.get(id)
   }
 
-  listCandidates(userId: string, status?: "PENDING"): MemoryCandidate[] {
+  async listCandidates(userId: string, status?: "PENDING"): Promise<MemoryCandidate[]> {
     return Array.from(this.candidates.values()).filter(
       c => c.userId === userId && (!status || c.status === status)
     )
   }
 
-  removeCandidate(id: string): void {
+  async removeCandidate(id: string): Promise<void> {
     this.candidates.delete(id)
   }
 
   /**
    * Reasoning event operations
    */
-  createReasoningEvent(data: Omit<ReasoningEvent, "id">): ReasoningEvent {
+  async createReasoningEvent(data: Omit<ReasoningEvent, "id">): Promise<ReasoningEvent> {
     const id = `reason_${++this.idCounters.reasoning}`
     const event: ReasoningEvent = { id, ...data }
     this.reasoningEvents.set(id, event)
     return event
   }
 
-  getReasoningEvent(id: string): ReasoningEvent | undefined {
+  async getReasoningEvent(id: string): Promise<ReasoningEvent | undefined> {
     return this.reasoningEvents.get(id)
   }
 
-  listReasoningEvents(userId: string, limit: number = 50): ReasoningEvent[] {
+  async listReasoningEvents(userId: string, limit: number = 50): Promise<ReasoningEvent[]> {
     // Reverse insertion order rather than sorting by timestamp: events
     // created within the same millisecond (common in tests and fast
     // request handling) compare equal, which makes a timestamp sort
@@ -164,14 +172,14 @@ export class InMemoryStorage {
   /**
    * Timeline operations
    */
-  appendTimelineEvent(data: Omit<TimelineEvent, "id">): TimelineEvent {
+  async appendTimelineEvent(data: Omit<TimelineEvent, "id">): Promise<TimelineEvent> {
     const id = `timeline_${++this.idCounters.timeline}`
     const event: TimelineEvent = { id, ...data }
     this.timeline.push(event)
     return event
   }
 
-  listTimeline(userId: string, limit: number = 50): TimelineEvent[] {
+  async listTimeline(userId: string, limit: number = 50): Promise<TimelineEvent[]> {
     // See listReasoningEvents: reverse insertion order instead of sorting
     // by timestamp, since same-millisecond events make a timestamp sort
     // unstable.

@@ -3803,3 +3803,924 @@ It requires, in order: a real Plaid sandbox credential bundle provisioned as
 `/sandbox/public_token/create` + `/item/public_token/exchange` flow, done outside this repo), then
 a single explicit dispatch authorization, mirroring PL-7's two-gate discipline (construction
 authorized separately from dispatch).
+
+### JH-048
+**Priority:** P3
+**Status:** DECISION DOCUMENTED -- human confirmation still open
+**Objective:** Phase 1 Step 1 asked whether `placement_*` (the tables
+`placement-core` writes: `placement_organizations`, `placement_memberships`,
+`placement_jobs`, `placement_placements`, `placement_referrals`,
+`placement_assignments`, `placement_timesheets`, `placement_audit_events`)
+belongs in the planned Opportunity vertical (OverageOS-style discovery /
+evidence / entity-resolution / verification / governed action). Nothing
+was deleted; this is a classification finding only.
+
+**Finding: it does not.** `placement-core` is a job-placement / staffing
+marketplace domain -- organizations, memberships, job orders, referrals,
+assignments, timesheets, invoicing -- with no overlap in data model,
+evidence model, or verification concept with Opportunity's asset/money
+discovery domain. The work queue's own prior finding on JH's "Reticulum"
+thread already independently characterized `placement-core/src/command-api.ts`
+as "PlacementOS's own command API (a staffing/scheduling domain)" --
+consistent with this conclusion, not new to it.
+
+**A separate, more consequential finding surfaced while answering this:**
+`placement-core` is not the only implementation of this domain.
+`packages/staffing-core` (65 source files, ~2,500 LOC, 18 sequential
+migrations `0005`-`0022` covering placements, timesheets, invoices,
+payment ledger + reconciliation, interviews, interview outcomes,
+candidate reviews, employer decisions) plus its own dedicated app,
+`apps/staffing-web`, is a substantially larger and more mature build of
+what looks like the same underlying domain as `placement-core`'s single
+212-line migration (`organizations`, `memberships`, `jobs`, and a
+narrower slice beyond that). `jhadina-web`'s `/placement/*` pages are
+wired to `placement-core`, not `staffing-core` -- meaning the OS's own
+front door currently exercises the smaller, less mature of the two.
+
+Whether `placement-core` is an earlier draft `staffing-core` superseded,
+a deliberately separate lighter-weight Jhadina-integrated view over the
+same eventual data, or something that should be unified into one
+package before either becomes a real department, is a product-scope call
+this session did not make -- it fits squarely under "architectural
+decision that cannot safely be inferred" from Phase 1's own working
+method.
+
+**Also open:** whether either `placement_*` or `staffing_*` tables exist
+on the live Supabase project could not be verified this pass -- the
+`execute_sql` tool call was gated pending approval and was not forced.
+Given every other package-local migration found in this repo's history
+(`energy-opportunity-core`, `justice-core`, `jhadina-web`'s
+codebase-graph, and originally all of `overage_*`/`jhadina_mining_*`
+before Gates 0-12) turned out to be unapplied-live, the same should be
+assumed true here until confirmed, not assumed clean.
+
+**Human gate:** (1) confirm placement/staffing is out of scope for the
+Opportunity vertical (no action needed if so -- this entry can close);
+(2) decide whether `placement-core` and `staffing-core` are one domain
+that needs reconciling before either is wired into the OS backbone, or
+two deliberately distinct things; (3) when convenient, confirm live
+table state for both `placement_*` and `staffing_*` against the Supabase
+project.
+
+---
+
+## JHADINA OS INTEGRATION -- PHASE 1 (USER ROADMAP), STEP 3: INTELLIGENCE ROUTER
+
+Distinct numbering from the SP-/PL- lanes above (those are this repo's
+own internal spine-proof/product-loop tracking; "Phase 1, Step 1-9" is
+the user's own roadmap for reconnecting Memory/Intelligence/Spine/Ask
+Jhadina/Event Bus, agreed directly with the user this session). Step 1
+(repair active breakages) and Step 2 (durable Memory Core) preceded
+this; both already landed on this branch. This entry is Step 3.
+
+**Status:** DONE (code-complete; live model call unverified -- no
+`ANTHROPIC_API_KEY` exists in this environment, by design a fail-closed
+condition, not a blocker to landing the wiring, same discipline PL-8's
+Plaid credential absence used).
+
+**Objective:** establish the "brain interface" -- a model-provider-
+agnostic router that takes a bounded context in and returns a structured
+proposal out, incapable of executing anything itself, with everything
+downstream still passing through the exact deterministic Policy ->
+Approval -> ActionExecutor -> Audit path Growth (SP-1) and Money (SP-3)
+already proved. Not "build every capability" -- Music/TV/Social/Meta
+Ads/Stocks/Bitcoin/Betting/Mining/Overage are explicitly out of scope
+here, per instruction.
+
+**Architecture discovered first (per instruction, before writing any
+code):** `packages/jhadina-core-spine`'s `JhadinaSpine.run()` pipeline
+(memory -> pattern -> personality -> context -> **decision** -> policy
+-> action -> audit) already defines the exact contract a reasoning
+component must satisfy -- `DecisionPort.decide(context): Promise<DecisionProposal>`
+-- and JH-046 already settled, as a frozen human gate, that this
+pipeline is canonical over a duplicate `jhadina-intelligence-contract`
+package. `JhadinaSpine` itself is still never instantiated anywhere on
+this branch (confirmed by repo-wide grep, same finding as before this
+session's audit) -- SP-1/SP-2/SP-3/PL-1-8 all reach `ActionExecutor`
+directly rather than through `JhadinaSpine.run()`. Given that, and given
+Step 5 (instantiate JhadinaSpine) is explicitly a later step, the router
+was built to *implement* `DecisionPort` (so Step 5 is a one-line wiring
+change, not a rewrite) while its own proof today reaches the real
+governed-action primitive the same way Growth/Money do -- not by
+instantiating JhadinaSpine early.
+
+**CHANGED:**
+- `packages/jhadina-intelligence-core/` (new package, `@jhadina/intelligence-core`):
+  - `router.ts`: `ModelProvider` interface (`propose(context): Promise<DecisionProposal>`,
+    nothing else -- no execute method, no handler, no capability grant
+    anywhere on the interface) and `IntelligenceRouter`, which implements
+    core-spine's `DecisionPort`. Always tries a `primary` provider first;
+    on any failure, tries a required `fallback` (never optional -- a
+    router with no fallback has a silent failure mode); if both fail,
+    throws `ModelProviderFailedError` rather than fabricating a
+    proposal.
+  - `proposal-validation.ts`: the actual anti-bypass boundary. Parses a
+    model's raw text into a `DecisionProposal` field-by-field (never a
+    spread of the parsed JSON), validates `disposition` against exactly
+    the four core-spine values, requires `recommendation`/`rationale`,
+    coerces `evidence`/`uncertainty`/`alternatives` defensively, and
+    never trusts an `id` the model supplied. Any invented field (a fake
+    `approved`, `capability`, `executeNow`, `policyOverride`,
+    `approvalReceiptId`) is silently dropped by construction -- nothing
+    downstream ever sees it.
+  - `anthropic-model-provider.ts`: the one real provider wired in this
+    milestone. Raw `fetch` against Anthropic's Messages API (matching
+    Commerce's stripe-sandbox-provider.ts / Money's PlaidReadOnlyAdapter
+    convention -- no new SDK dependency). Credential resolved lazily
+    inside `propose()`, not the constructor (same fix pupsonstuff's
+    lib/ai.ts already made for `OPENAI_API_KEY`) -- specifically so a
+    missing key is an ordinary `propose()`-time rejection
+    `IntelligenceRouter` already knows how to catch and fall back from,
+    not a construction-time throw that would happen before the router
+    exists.
+  - 3 test files, 17/17 passing: `router.test.ts` (primary success,
+    primary-fails-fallback-succeeds, both-fail closes with a tagged
+    error, provider swap with zero router code change),
+    `proposal-validation.test.ts` (well-formed parse, prose/markdown-
+    wrapped JSON tolerated, non-JSON rejected, invented disposition
+    rejected, missing required fields rejected, **invented fields
+    attempting to smuggle `approved`/`capability`/`executeNow`/
+    `policyOverride`/`approvalReceiptId` verified structurally absent
+    from the parsed object's own key list** -- not just "unused"),
+    `anthropic-model-provider.test.ts` (credential-missing rejection,
+    real Messages-API response shape parsed, HTTP failure surfaced as a
+    catchable rejection, malformed response rejected, API key confirmed
+    to travel only via the `x-api-key` header and never inside the
+    request body).
+- `apps/jhadina-web/src/lib/intelligence/` (new):
+  - `legacy-classifier-provider.ts`: adapts the existing regex
+    `Classifier` (unchanged) into a `ModelProvider` -- the demotion to
+    fallback/legacy adapter the instruction called for, without touching
+    `Classifier.ts`'s own pattern-matching logic. Never throws (matches
+    a fallback's one hard requirement).
+  - `production-model-provider.ts`: `createProductionIntelligenceRouter()`
+    -- exactly one real (Anthropic) + one fallback (legacy classifier)
+    router, mirroring Money's `createMoneyPlaidProductionRegistry()`.
+  - `memory-propose-capability.ts`: the one reference capability this
+    proof exercises, `memory.propose` -- already allow-listed (not
+    approval-gated) in security-core's `JHADINA_BASE_SECURITY_POLICY`
+    from SP-1, so no policy-data change was needed. The handler creates
+    a PENDING memory candidate through Step 2's own durable
+    `MemoryRepository`/`ReasoningEventRepository` -- Step 2's approval
+    governance is completely unchanged; a model-originated candidate
+    still requires an explicit human approve/reject exactly like a
+    Classifier-originated one always has. Every model-originated
+    candidate is recorded as `CONTEXT` -- `DecisionProposal` carries no
+    PREFERENCE/IDENTITY/GOAL taxonomy field, and inventing one here would
+    be exactly the kind of extra classification this proof exists to
+    avoid smuggling in; real classification is Context Builder (Step 4)
+    territory.
+  - `governed-intelligence-proposal.ts`: identity -> `router.decide()` ->
+    disposition gate (only `PROCEED` becomes an `ActionRequest`; ASK/
+    DECLINE/DEFER stop here, with only the proposal itself as the
+    result) -> `SecurityCoreActionPolicy` -> `ActionExecutor` -> audit.
+    The capability requested is the hardcoded constant
+    `MEMORY_PROPOSE_CAPABILITY` -- this function never reads a
+    capability, an approval flag, or anything resembling authority off
+    of `proposal`; it only ever reads `disposition`/`recommendation`/
+    `rationale`. A model output attempting to claim
+    `financial.execute`/`approved: true`/etc. has no code path that ever
+    looks at those fields.
+  - `governed-intelligence-runtime.ts`: process-local composition root,
+    same shape as `growth/governed-approval-runtime.ts` -- real identity
+    verifier, real durable `SupabaseAuditLedger` (domain `"intelligence"`,
+    reusing the existing `append_jhadina_audit_event` /
+    `list_jhadina_audit_events` RPCs from PL-2/PL-5/PL-8's migration, no
+    new table), real production router. Shares `handlers.ts`'s existing
+    `getStorage()` singleton (now exported) rather than standing up a
+    second storage instance -- a model-proposed candidate and a
+    Classifier-proposed one both land in the one real `/api/candidates`
+    list.
+  - `durable-audit-ledger.ts`: Intelligence's own audit-ledger
+    composition root, byte-for-byte the same shape as Growth's/Money's.
+  - 2 test files, 12/12 passing: `governed-intelligence-proposal.test.ts`
+    (full lifecycle with a real durable candidate; identity fails closed
+    before the model is ever called -- proven via a call-counting fake
+    provider; ASK/DECLINE/DEFER never reach `ActionExecutor`; fallback
+    provider used and still completes governance; both-providers-down
+    fails closed and is itself audited; policy-deny still blocks a
+    PROCEED disposition; **a proposal object carrying invented
+    `capability`/`approved`/`executeNow`/`approvalReceiptId` fields is
+    routed through the real `ActionExecutor` and the resulting audit
+    trail is verified to contain only `memory.propose` entries, never
+    the invented capability string**; `memory.propose` confirmed `allow`
+    -- not approval-gated -- under the base Security Core policy),
+    `governed-intelligence-runtime.test.ts` (same four cases through the
+    real composition root + a fake RPC client modeling the actual
+    migration's insert/read behavior, same pattern as Growth's
+    Phase-2 runtime test).
+- Workspace wiring: `tsconfig.json` (root) and `apps/jhadina-web/tsconfig.json`
+  gained explicit path entries for `@jhadina/core-spine` and
+  `@jhadina/intelligence-core` (their directory names don't match their
+  unscoped package names, so the generic `@jhadina/*` wildcard can't
+  resolve them -- same class of gap SP-1 found and fixed for
+  `@jhadina/action-core`). `vitest.config.ts` gained matching aliases
+  (Vitest doesn't read tsconfig paths, same recurring finding).
+  `apps/jhadina-web/.env.example` documents `ANTHROPIC_API_KEY` (empty
+  placeholder, no secret).
+
+**VERIFIED:**
+- `packages/jhadina-intelligence-core` type-check: clean; test: 17/17.
+- `pnpm -r type-check`: 25/25 packages with a type-check script clean.
+- `pnpm --filter jhadina-web vitest run`: 21/21 files, 170/170 tests
+  (158 pre-existing + 12 new).
+- `pnpm --filter jhadina-web build`: real Next.js production build
+  succeeds; `/api/message`, `/api/candidates`, `/api/memories`,
+  `/api/money/accounts` all present in the route manifest, unchanged.
+- `pnpm --filter jhadina-web lint`: 0 errors (4 pre-existing, unrelated
+  warnings, confirmed identical to the pre-Step-3 run).
+- No live Anthropic call was made or attempted anywhere in this
+  environment -- `ANTHROPIC_API_KEY` is unset, confirmed via `env | grep`
+  before this work began and left unset throughout.
+
+**ARCHITECTURAL IMPACT:**
+- The Intelligence Router is real, tested, production-composed code,
+  reachable from `runGovernedIntelligenceProposal()` -- but **not yet
+  mounted behind any HTTP route.** `JanetService.processMessage()` (the
+  live `/api/message` handler) still calls the regex `Classifier`
+  directly, unchanged. This is a deliberate scope boundary, not an
+  oversight: `JanetService`'s current identity model is a raw
+  `x-user-id` header / `"user_demo"` placeholder
+  (`handlers.ts::extractUserId`), while `governed-intelligence-runtime.ts`
+  correctly uses the *real* Supabase-session identity verifier
+  Growth/Money/Commerce already established (`createRequestIdentityVerifier()`,
+  backed by JH-014's real auth middleware, which already covers
+  `/api/message`'s route pattern -- it's simply never consulted there
+  today). Retrofitting `/api/message` to require a real session is an
+  identity-layer decision affecting existing, just-verified Step 2
+  behavior and today's demo/test flows that work with no login -- named
+  here as a real, discovered gap, not silently fixed and not silently
+  ignored. Mounting the router live is Step 7 (Ask Jhadina), which
+  also needs Step 4 (Context Builder) to supply real `ContextPacket`s
+  from live requests instead of this proof's hand-built reference
+  contexts.
+- `memory.propose`'s existing allow-listing (from SP-1, added before
+  this Phase existed) meant zero changes to `security-core`'s policy
+  data were needed -- confirms the base policy already anticipated this
+  exact integration point.
+- No second Spine, Event Bus, Capability Registry, ActionExecutor,
+  Policy, or Audit mechanism was created. `IntelligenceRouter` is a new
+  `DecisionPort` implementation; everything downstream of a `PROCEED`
+  disposition is the identical `ActionExecutor` + `SecurityCoreActionPolicy`
+  + `SupabaseAuditLedger` primitive Architecture Checkpoint #2 already
+  verified twice.
+
+**COMMIT:** (this branch, `claude/jhadina-mvp-audit-ok29s0`)
+
+**NEXT (per instruction, stopping at this human gate):**
+1. Configure `ANTHROPIC_API_KEY` (a real secret only the user can supply)
+   to move the Anthropic path from "wired but fail-closed" to a genuine
+   live call -- optional for Step 4/5 to proceed, since the fallback
+   path is already fully governed and tested.
+2. Step 4: Context Builder -- assemble real `ContextPacket`s (identity,
+   goals, active project, current surface, relevant memory, available
+   capabilities, current task) from live application state, replacing
+   this proof's hand-built reference contexts.
+3. Step 5: instantiate `JhadinaSpine` for the first time anywhere in this
+   repo, wiring `IntelligenceRouter` in as its `decision` port alongside
+   real `MemoryPort`/`ContextPort` implementations -- the one-line change
+   this milestone's `DecisionPort` conformance was built to make possible.
+4. Step 6: replace `AllowAllActionPolicy` (still the only policy some
+   call sites could reach for) with real Values/Policy data beyond what
+   SP-1/Checkpoint #2 already wired for Growth/Money -- explicitly
+   required, per instruction, before any further autonomous action.
+5. Step 7: mount Ask Jhadina globally, replacing `JanetService`'s direct
+   Classifier call with `runGovernedIntelligenceProposal()` -- blocked on
+   resolving the identity-model mismatch named above (real session vs.
+   header placeholder) first.
+6. Not started, per explicit instruction: Music, TV, Social, Meta Ads,
+   Stocks, Bitcoin, Betting, Mining, Overage. These remain downstream of
+   the OS backbone, to plug into this same `DecisionPort`/`ActionExecutor`
+   spine once Steps 4-8 land -- not before.
+
+**ADDENDUM — approval-required path completed (same milestone, before
+Step 4):** the initial landing above only exercised `memory.propose`'s
+actual (allow) policy outcome; per explicit instruction to also test
+"approval-required actions," `governed-intelligence-proposal.ts` now
+evaluates policy as its own distinct, audited stage (mirroring SP-1's
+Growth flow exactly) and, when a policy marks the action
+`approval_required`, requests and self-approves an explicit
+`ApprovalReceipt` (`@jhadina/action-core`'s existing request -> approve
+-> consume flow, same primitive, no new mechanism) before
+`ActionExecutor` — which re-validates the receipt independently — ever
+runs. `memory.propose` itself is still allow-listed (not approval-gated)
+today, so this path is currently reached only via an injected test
+policy (`alwaysApprovalRequiredPolicy()`) — but the wiring is real, not
+a stub, so any future approval-gated capability this router is pointed
+at is already correctly governed. `GovernedIntelligenceProposalDeps`
+gained a required `approvalStore: ApprovalReceiptStore`;
+`governed-intelligence-runtime.ts` holds an in-memory, process-local
+singleton for it (same explicit scope boundary Growth's runtime already
+documented for its own approval store).
+
+Two new tests in `governed-intelligence-proposal.test.ts` (now 10/10 in
+that file, 14/14 across both intelligence test files, 172/172 across
+jhadina-web overall): an approval-required decision is blocked until an
+explicit receipt is requested/approved/consumed, then completes and is
+durably recorded; a consumed receipt is confirmed single-use (cannot be
+replayed). Also corrected: `alwaysDenyPolicy()`'s expected error message
+now matches the new explicit pre-check (`"Action denied by policy: ..."`,
+same wording Growth's SP-1 uses) rather than `ActionExecutor`'s own
+internal message, since policy is now evaluated as its own stage before
+the executor is constructed.
+
+Re-verified after this addendum: `pnpm --filter jhadina-web vitest run`
+21/21 files, 172/172 tests; `pnpm -r type-check` 25/25 clean;
+`pnpm --filter jhadina-web build` clean; `pnpm --filter jhadina-web lint`
+0 errors (4 pre-existing warnings, unchanged); `pnpm -r test` clean
+repo-wide. Still no live Anthropic call anywhere in this environment.
+
+---
+
+## JHADINA OS INTEGRATION -- PHASE 1 (USER ROADMAP), STEP 4: CONTEXT BUILDER
+
+**Status:** DONE.
+
+**Objective:** assemble a bounded, structured `ContextPacket` (core-spine's
+existing type, unmodified) from real data sources this repository
+already has, so `IntelligenceRouter` (Step 3) has something better than
+a hand-built reference context to reason over. Makes zero decisions,
+executes zero actions -- pure read + assemble.
+
+**Architecture inspected first:** `ContextPort.build(input: {experience,
+memories, patterns, personality}): Promise<ContextPacket>` assumes
+`MemoryPort`/`PatternPort`/`PersonalityPort` already ran and handed it
+their output. None of those three ports has a real implementation
+anywhere in this repo. Rather than fabricate stub ports just to satisfy
+`ContextPort`'s literal input signature, the Context Builder assembles a
+`ContextPacket` directly from the real sources that do exist --
+`MemoryRepository`/`TimelineRepository` (Step 2), `security-core`'s real
+`JHADINA_BASE_SECURITY_POLICY`, and the existing (previously
+one-consumer, now two) `jhadina-world-registry.ts` surface catalogue --
+and is honest in `excludedContext` that `patterns`/`personality` aren't
+real yet. The *output* is exactly what `DecisionPort`/
+`IntelligenceRouter.decide()` already consume; a `ContextPort` adapter
+wiring real `MemoryPort`/`PatternPort`/`PersonalityPort` implementations
+together is Step 5 work, once those ports are decided.
+
+**CHANGED:**
+- `apps/jhadina-web/src/lib/context/redact.ts` (new): the "free of
+  secrets" boundary -- pattern-based redaction (Stripe-style keys,
+  Bearer headers, generic `key: value` secrets) applied to every piece
+  of free text before it enters a `ContextPacket`. Defense in depth, not
+  a claim that Memory/Timeline storage is otherwise unsafe. 5/5 tests.
+- `apps/jhadina-web/src/lib/context/context-builder.ts` (new):
+  `buildContext(deps, input): Promise<AssembledContext>`.
+  - Relevant durable memories: `MemoryRepository.listApproved()` (Step
+    2, already durable) filtered by a deterministic keyword-overlap
+    relevance heuristic against `activeTask`, sorted most-recent-first
+    with `id` as a stable tiebreaker, bounded by `maxMemories`.
+  - Recent approved observations: `TimelineRepository.list()`'s
+    `APPROVAL`-type entries, same sort/bound treatment, bounded by
+    `maxRecentApprovals`.
+  - Relevant capabilities / applicable policy constraints: the real,
+    unmodified `JHADINA_BASE_SECURITY_POLICY` (`security-core`) rendered
+    as human-readable `allowed: X (requires explicit approval)` /
+    `denied: Y` strings -- not filtered by surface, since
+    `jhadina-world-registry.ts`'s per-world capability labels
+    ("search", "playback", ...) and security-core's actual capability
+    strings ("growth.draft.approve", ...) are two different, unrelated
+    vocabularies; conflating them would have been a fabricated link, so
+    the full base policy is surfaced as-is instead.
+  - Surface/route/active project: caller-supplied, honestly recorded as
+    missing in `excludedContext` when omitted (no Project/Workspace
+    entity exists in this repository to source `activeProject` from).
+  - Hard character-budget trimming (`maxTotalChars`, default 4000):
+    drops the lowest-priority (least-recent) memory/knowledge items
+    first when the assembled text would exceed budget, recording how
+    many items were trimmed.
+  - `patterns`/`personality`: not fabricated. `patterns: []`;
+    `personality` is an explicitly-flagged never-real placeholder
+    (`independentAssessmentRequired: true`, `version: 0`,
+    `updatedAt` at the epoch) -- both named in `excludedContext` as "no
+    Pattern/PersonalityPort implementation exists yet."
+  - 10/10 tests covering all 9 requested categories plus one extra: (1)
+    empty context for a brand-new user; (2) relevant-memory retrieval;
+    (3) irrelevant-memory exclusion, reflected in `excludedContext`; (4)
+    surface/route carried through into `purpose` and `AssembledContext`;
+    (5) both item-count (`maxMemories`) and total-character
+    (`maxTotalChars`) budget enforcement; (6) a memory containing a
+    Stripe-style secret is redacted before it ever reaches the packet;
+    (7) two calls with identical state produce byte-identical content
+    and ordering (excluding the per-call `id`/`assembledAt` nonces); (8)
+    a user with real memory activity but no surface/route/project never
+    throws and every omission is named, not silently absent; (9) **the
+    real `IntelligenceRouter` accepts the assembled `ContextPacket`
+    directly and reasons over it with no adapter, and the proposal's
+    `evidence` is traceable straight back to the packet's
+    `relevantMemories`** -- proving actual Step 3 compatibility, not
+    just matching types on paper. Plus one covering that the surfaced
+    constraints are the real base policy, unmodified.
+- No changes to `@jhadina/intelligence-core`, `@jhadina/action-core`,
+  `@jhadina/core-spine`, `security-core`'s policy data, `MemoryRepository`/
+  `TimelineRepository`, or any Money/Growth/Commerce file.
+
+**VERIFIED:**
+- `pnpm --filter jhadina-web vitest run`: 23/23 files, 187/187 tests
+  (172 existing + 15 new).
+- `pnpm -r type-check`: 25/25 clean.
+- `pnpm --filter jhadina-web build`: clean.
+- `pnpm --filter jhadina-web lint`: 0 errors (4 pre-existing warnings,
+  unchanged).
+- `pnpm -r test`: clean repo-wide.
+- No live Anthropic call and no live Supabase call made anywhere in
+  this environment -- both credentials remain unset, unrelated to this
+  milestone.
+
+**ARCHITECTURAL IMPACT:**
+- `IntelligenceRouter` (Step 3) can now be handed a real `ContextPacket`
+  instead of a hand-built reference one, with no code change on the
+  router side -- confirmed directly by test 9, not asserted.
+- `jhadina-world-registry.ts` gained its second real consumer
+  (previously only `publishing-intelligence.ts`) -- still a static,
+  design-time catalogue, not wired to live routing anywhere; the
+  Context Builder only reads it when a caller supplies a `surface`, it
+  does not infer one.
+- A real, named gap surfaced and left alone, not silently patched: there
+  is no Project/Workspace entity in this repository, so `activeProject`
+  is a pass-through, caller-supplied string with nothing durable behind
+  it. Building one is out of scope for Step 4.
+
+**COMMIT:** (this branch, `claude/jhadina-mvp-audit-ok29s0`)
+
+**NEXT (stopping at this human gate):**
+1. `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` remain unset in
+   this environment -- both real secrets only the user can supply, not
+   fabricated or worked around here.
+2. Step 5: instantiate `JhadinaSpine` for the first time, wiring
+   `IntelligenceRouter` as `decision` and a real `ContextPort` adapter
+   (built from this milestone's `buildContext`, reshaped to
+   `ContextPort`'s literal signature once `MemoryPort`/`PatternPort`/
+   `PersonalityPort` are decided) as `context`.
+3. Step 6: real Values/Policy data beyond what Growth/Money already have.
+4. Step 7: mount Ask Jhadina, replacing `JanetService`'s direct
+   Classifier call and supplying real `surface`/`route` values from live
+   request state -- this milestone's `buildContext` is the seam Step 7
+   will call.
+5. Not started, per explicit instruction: Music, TV, Social, Meta Ads,
+   Stocks, Bitcoin, Betting, Mining, Overage.
+
+---
+
+## JHADINA OS INTEGRATION -- PHASE 1 (USER ROADMAP), STEP 5: INSTANTIATE THE OPERATING LOOP
+
+**Status:** DONE.
+
+**Objective:** prove one complete governed loop -- Observe -> Remember ->
+Understand -> Decide -> Authorize -> Act -> Verify -> Learn -- using only
+already-real pieces: the Context Builder (Step 4), IntelligenceRouter
+(Step 3), SecurityCoreActionPolicy, the ApprovalReceipt mechanism,
+ActionExecutor, and SupabaseAuditLedger. The single vertical for this
+milestone is `memory.propose`, exactly as scoped. No new executor,
+policy engine, audit ledger, or memory abstraction.
+
+**CHANGED (2 new files, zero modifications to any existing file):**
+- `apps/jhadina-web/src/lib/intelligence/jhadina-command.ts`:
+  `handleJhadinaCommand(input, overrides)` -- the top-level entry point.
+  Calls `buildContext()` (real, Step 4) to assemble a `ContextPacket`,
+  then calls `decideAndProposeMemoryGoverned()` (Step 3, unmodified)
+  directly rather than through its usual `runGovernedIntelligenceProposal`
+  wrapper -- solely so this function retains the same `ledger` reference
+  for the new Verify stage, not because the governed lifecycle itself
+  changed. Adds one genuinely new stage: **Verify** -- an independent
+  durable read-back (`MemoryRepository.listPending()`, an existing public
+  method, not a new one) confirming the executed candidate is actually
+  findable, still PENDING, and content-matches what was executed, before
+  reporting success. Verification failure is audited as its own `"verify"`
+  -staged event and throws a tagged `JHADINA_COMMAND_VERIFICATION_FAILED`
+  error -- fail-closed, not a silent pass. When disposition never reached
+  execution (ASK/DECLINE/DEFER, denied, or approval never obtained),
+  verification is trivially true and says so explicitly, rather than
+  being silently skipped.
+- `apps/jhadina-web/src/lib/intelligence/jhadina-command.test.ts`: 11
+  tests covering all 12 requested categories (two folded into one test
+  where they're the same assertion -- receipt-consumed-once /
+  replay-fails):
+  1. Full lifecycle: Context -> Router -> Policy -> Approval -> Executor
+     -> Audit, using memory.propose's real (allow) policy outcome.
+  2. A proposal requiring approval cannot execute without a receipt --
+     proven directly against the real `ActionExecutor` (no
+     `approvalReceipts` verifier, no `approvalReceiptId` attached),
+     throwing `"Approval required: memory.propose"`.
+  3/4. A valid receipt is consumed exactly once; replaying it against
+     the same `ApprovalReceiptStore` returns `false`.
+  5/6. A model proposal forging `capability`/`approved`/`executeNow`/
+     `approvalReceiptId`/`permissions` fields still results in an audit
+     trail containing only `memory.propose` -- never the forged
+     capability string.
+  7. Policy denial prevents execution (`"Action denied by policy:
+     memory.propose"`, zero candidates created).
+  8. An always-failing audit RPC client causes the whole command to
+     reject with `DURABLE_AUDIT_APPEND_FAILED` before any candidate is
+     created -- fails closed rather than silently completing.
+  9. The candidate lands as PENDING; `listApproved()` for that user stays
+     empty -- it never automatically became durable memory.
+  10/11. **The real Context Builder and the real IntelligenceRouter,
+     proven together**: a memory is approved through Step 2's real flow
+     beforehand, a capturing fake `ModelProvider` records the
+     `ContextPacket` it actually received, and the test asserts
+     `relevantMemories.length > 0` and a `ctx_`-prefixed real id -- a
+     hand-built fake context could never produce this, so this is
+     evidence the real pipeline ran, not an assumption.
+  12. No test in this file sets `ANTHROPIC_API_KEY` or
+     `SUPABASE_SERVICE_ROLE_KEY` -- every test supplies a fake identity
+     verifier, a fake-RPC-backed (but real-class) `SupabaseAuditLedger`,
+     and an explicit router built from fake `ModelProvider`s; the real
+     production defaults are never reached.
+  Plus two extra: an explicit assertion that a non-executed disposition
+  reports `verified: true` with a stated reason, and a direct
+  confirmation that `memory.propose` evaluates to `allow` under the real,
+  un-overridden base policy end to end.
+
+**VERIFIED:**
+- `pnpm --filter jhadina-web vitest run`: 24/24 files, 198/198 tests
+  (187 existing + 11 new).
+- `pnpm --filter jhadina-web build`: clean.
+- `pnpm --filter jhadina-web lint`: 0 errors (4 pre-existing warnings,
+  unchanged).
+- `pnpm -r type-check`: 25/25 clean.
+- `pnpm -r test`: clean repo-wide.
+- **No live Anthropic or Supabase call was made or attempted anywhere in
+  this environment.** Both credentials remain unset; every test
+  overrides `identityVerifier`/`ledger`/`router` with fakes, so the real
+  `createRequestIdentityVerifier`/`createIntelligenceAuditLedger`/
+  `createProductionIntelligenceRouter` defaults are never exercised by
+  any test in this milestone. Live verification of both remains
+  outstanding, unrelated to and not attempted by this milestone.
+
+**ARCHITECTURAL ISSUE DISCOVERED (not resolved here, named for Step 6+):**
+this branch's own prior commit (`3863b15`, `create-spine.ts`) added
+`createJhadinaSpine(ports: SpinePorts)`, a validating factory requiring
+all 9 `SpinePorts` -- including `PolicyPort.evaluate(proposal):
+Promise<PolicyDecision>` and `ActionPort.prepare/execute`, which use
+core-spine's own `ActionRequest`/`ActionResult`/`PolicyDecision` shapes.
+Those shapes are not losslessly convertible to the real, concrete types
+this milestone actually uses (action-core's `ActionRequest<T>`,
+`SecurityCoreActionPolicy`, `ActionExecutor`) -- core-spine's
+`ActionRequest` requires `operation`/`input`/`reversible`/
+`consequenceLevel` fields with no equivalent anywhere in the real
+pipeline, and `ActionPort` has no representation at all for the
+approval-receipt mechanics that are load-bearing here. JH-046 already
+named this exact duplication and did not resolve it; this milestone
+does not either. `DecisionPort`/`ContextPort` are **not** part of this
+mismatch -- `IntelligenceRouter` already implements `DecisionPort`
+cleanly (Step 3), and this milestone's `assembled.contextPacket` is
+exactly a `ContextPacket` (Step 4). The gap is specifically
+`PolicyPort`/`ActionPort`. `handleJhadinaCommand()` therefore composes
+the real concrete primitives directly rather than routing through
+`createJhadinaSpine()`/`new JhadinaSpine()` -- writing an adapter to
+force the fit would have meant fabricating meaningless fields or
+silently dropping real approval-receipt behavior, exactly the kind of
+"implemented because an interface exists" this engagement has been
+instructed to avoid throughout. Reconciling `PolicyPort`/`ActionPort`
+with what's actually real (adapt one direction or the other, or accept
+that `JhadinaSpine`'s literal class is not this pipeline's integration
+point) is unresolved and is Step 6-or-later work.
+
+**COMMIT:** (this branch, `claude/jhadina-mvp-audit-ok29s0`)
+
+**NEXT (stopping at this human gate):**
+1. `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` remain unset --
+   both real secrets only the user can supply.
+2. The `PolicyPort`/`ActionPort` vs. concrete-primitive mismatch named
+   above needs an explicit decision before `JhadinaSpine` can honestly
+   be said to be "instantiated" in the literal class-construction sense.
+3. Step 6: real Values/Policy data beyond what Growth/Money/this
+   milestone already have.
+4. Step 7: mount Ask Jhadina, replacing `JanetService`'s direct
+   Classifier call with `handleJhadinaCommand()`, and supplying real
+   `surface`/`route` from live request state.
+5. Not started, per explicit instruction: Music, TV, Social, Meta Ads,
+   Stocks, Bitcoin, Betting, Mining, Overage, Notifications, Voice.
+
+---
+
+## JHADINA OS INTEGRATION -- PHASE 1 (USER ROADMAP), STEP 6: MOUNT ASK JHADINA
+
+(Renumbered by explicit user direction after Step 5: Step 6 is now "mount
+Ask Jhadina," Step 7 becomes real Values/Policy, Step 8 becomes Event
+Bus + Capability Registry, Step 9 closes the Evolution/Builder loop. The
+prior Step 5 entry's own "NEXT" list used the old numbering -- this
+entry supersedes it.)
+
+**Status:** DONE (code-complete, CI-verified; live authenticated E2E
+verification blocked on a genuine, newly-identified credential gap --
+see below, not fabricated).
+
+**Objective:** connect the app's existing ✦ shell to the real governed
+loop -- `handleJhadinaCommand()` (Step 5) -- with no regex planner in
+this new path, real live surface/context, visible proposals/approval
+state, execution only through the governed path, and an audited
+interaction.
+
+**Architecture inspected first:** no live "Ask Jhadina" UI existed
+anywhere in this app before this milestone -- verified by grep, not
+assumed. The "✦" symbol appears in three places: `JhadinaShellNavigation.tsx`'s
+worlds-menu toggle button (functional, but just opens a nav menu),
+`PublishingWorkbench.tsx`'s "✦ Ask Jhadina" button (a `<button>` with no
+`onClick` at all -- purely decorative), and `opportunity/page.tsx`'s
+`<Link href="/ask-jhadina">` (a dead link -- no `/ask-jhadina` route
+existed). `src/middleware.ts` already redirects any unauthenticated
+request to `/login` for every route except `/login`/`/auth/*`
+(app-wide, already existed) -- real login was already the intended
+model everywhere; `/api/message`'s header/`user_demo` placeholder was
+simply never replaced with it. Growth's `getCurrentUserId()` +
+`x-jhadina-user-id` header + server-side `createRequestIdentityVerifier()`
+verification (SP-1) is the established, working real-identity pattern --
+reused verbatim, not reinvented.
+
+**CHANGED:**
+- `apps/jhadina-web/src/app/api/jhadina/command/route.ts` (new): a thin
+  HTTP adapter, same shape as `growth/drafts/approve/route.ts` -- reads
+  a claimed `x-jhadina-user-id` header and the command body, calls
+  `handleJhadinaCommand()` (Step 5) with **no overrides**, so this route
+  always uses the real `createRequestIdentityVerifier()`/
+  `createIntelligenceAuditLedger()`/`createProductionIntelligenceRouter()`.
+  Maps thrown errors to 401 (identity/session)/403 (policy denial)/409
+  (approval required or invalid receipt)/500 (anything else, including
+  audit or verification failure) -- no new executor, policy, audit, or
+  memory mechanism.
+- `apps/jhadina-web/src/app/ask-jhadina/page.tsx` (new): a client page
+  mirroring Growth's page conventions (`getCurrentUserId()`, inline
+  styles, busy/error state). Submits to `/api/jhadina/command`, renders
+  the returned `DecisionProposal` (disposition/recommendation/rationale),
+  surfaces the approval receipt when one was granted, and surfaces a
+  verification-failure message when present. **Executes nothing itself
+  and decides nothing** -- a resulting PENDING memory candidate is shown
+  with Approve/Reject buttons that call Step 2's pre-existing
+  `/api/memory/approve`/`/api/memory/reject` routes, unchanged --
+  preserving the same explicit human-approval boundary Step 2 and Step 5
+  both already established. Reads `?surface=`/`?route=` query params so
+  a caller can pass live context.
+- `jhadina-world-registry.ts`: added `"assistant"` to `JhadinaWorldId`
+  and one `JHADINA_WORLDS` row for it -- Ask Jhadina is its own
+  first-class surface, same registry Step 4's Context Builder already
+  reads, not a new concept.
+- `JhadinaShellNavigation.tsx`: added a real `✦ Ask Jhadina -> /ask-jhadina`
+  entry to both the worlds menu and the primary bottom nav -- this is
+  literally "connect the existing ✦ UI to the real Spine": the same "✦"
+  toggle button's menu now has a genuine, working destination.
+- `opportunity/page.tsx`: the pre-existing dead `/ask-jhadina` link now
+  passes `?surface=opportunities&route=/opportunity` -- live surface
+  context, real destination. The row's two other dead links
+  (`/money/command-center`, `/director-studio`) are untouched --
+  out of scope, downstream verticals.
+- No changes to `PublishingWorkbench.tsx`'s unrelated decorative button,
+  `JanetService`/`Classifier`/`/api/message` (still untouched, still
+  legacy/test-covered as-is), or any Money/Growth/Commerce/Intelligence
+  file.
+
+**Test coverage note (explicit, not glossed over):** no new automated
+test file was added for the page/route in this milestone. This repo has
+zero existing component/page tests and no React Testing Library/jsdom
+setup anywhere (verified by search, not assumed) -- adding one would be
+introducing new test infrastructure this repo doesn't have, which this
+milestone did not treat as its call to make unilaterally. The governed
+logic this route calls (`handleJhadinaCommand`) is already 11/11 tested
+(Step 5); `route.ts` here is a thin, intentionally-untested-directly
+adapter, the same convention Growth/Money's own route files already use
+(their tested logic lives one layer down, in `*-runtime.ts`).
+
+**VERIFIED:**
+- `pnpm --filter jhadina-web vitest run`: 24/24 files, 198/198 tests
+  (unchanged from Step 5 -- no governed logic changed).
+- `pnpm --filter jhadina-web build`: clean; `/ask-jhadina` (static) and
+  `/api/jhadina/command` (dynamic) both present in the route manifest.
+- `pnpm --filter jhadina-web lint`: 0 errors; 5 warnings (the 4
+  pre-existing ones, plus one new `react-hooks/exhaustive-deps` warning
+  on `ask-jhadina/page.tsx`'s `loadPending` -- the identical warning
+  class `growth/page.tsx` already has and left unaddressed; consistent
+  with existing precedent, not a new category of problem).
+- `pnpm -r type-check`: 25/25 clean.
+- `pnpm -r test`: clean repo-wide.
+- **Real local verification actually performed** (not fabricated): ran
+  `next dev` against this exact code with zero Supabase env vars set
+  (this sandbox's real state). `GET /ask-jhadina` returned genuine page
+  content. `POST /api/jhadina/command` with no claimed identity returned
+  401 `"Not signed in"` (this route's own input guard). `POST` **with**
+  a claimed identity returned 500 with Supabase's own real error --
+  `"Your project's URL and Key are required to create a Supabase
+  client!"` -- proving `createRequestIdentityVerifier()`'s real identity
+  check genuinely runs and genuinely fails closed (500, not a silent
+  success) when Supabase is unreachable. No live Anthropic or live
+  Supabase call succeeded anywhere -- both remain unconfigured.
+
+**ARCHITECTURAL/SECURITY ISSUE DISCOVERED (pre-existing, not introduced
+by this milestone, not fixed here):** with zero Supabase env vars
+configured, `GET /ask-jhadina` returned `200` with real page content --
+`src/middleware.ts`'s redirect-to-`/login` for unauthenticated requests
+did not fire, even though the same missing configuration makes the
+identity check inside the API route fail closed correctly (500). This
+suggests the middleware's own Supabase client construction/`getClaims()`
+call fails in a way that isn't currently caught and forces the intended
+redirect -- i.e. **the page-level gate may fail open when Supabase is
+entirely unconfigured, while the API-level gate correctly fails
+closed.** This is existing `middleware.ts`/`lib/supabase/middleware.ts`
+code this milestone did not write or modify; observed once, in this
+sandbox's specific zero-config condition, not confirmed against a
+properly configured environment. Worth the user's own independent
+confirmation before relying on it -- named here rather than silently
+noticed and left out of the record.
+
+**COMMIT:** (this branch, `claude/jhadina-mvp-audit-ok29s0`)
+
+**NEXT (stopping at this human gate):**
+1. The middleware fail-open observation above needs the user's own
+   confirmation in a properly configured environment, and a decision on
+   whether/how to harden it -- not attempted here, out of this
+   milestone's scope and not something to silently patch.
+2. `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` remain unset --
+   both required for a genuine live, signed-in Ask Jhadina round trip.
+3. Step 7 (new numbering): replace `AllowAllActionPolicy` call sites and
+   extend real Values/Policy data beyond Growth/Money/this milestone.
+4. Step 8: Event Bus + Capability Registry.
+5. Step 9: close the Evolution/Builder loop.
+6. Not started, per explicit instruction: Music, TV, Social, Meta Ads,
+   Stocks, Bitcoin, Betting, Mining, Overage, Notifications, Voice.
+
+---
+
+## JHADINA OS INTEGRATION -- PHASE 1 (USER ROADMAP), STEP 7: REAL VALUES & POLICY
+
+**Status:** DONE.
+
+**Objective:** make what Jhadina is allowed to do explicit and
+data-driven -- capability classification, approval rules, risk
+boundaries (financial limits, external-recipient restrictions,
+publishing restrictions, irreversible-action restrictions,
+self-modification restrictions), and User Values stored as governed
+configuration the model can never author or infer, only a real human
+can change.
+
+**Architecture inspected first:** `AllowAllActionPolicy` (action-core)
+has exactly zero production call sites -- confirmed by repo-wide grep,
+appears only in its own definition and its own package's tests. Every
+domain built so far (Growth/Money/Commerce/Intelligence) already uses
+`SecurityCoreActionPolicy` over `JHADINA_BASE_SECURITY_POLICY` or a
+domain-extended copy of it (`COMMERCE_SECURITY_POLICY`,
+`MONEY_CORE_SECURITY_POLICY` -- both built by *spreading* the base
+policy and adding capabilities, the established composition pattern
+reused here too). What was missing wasn't "replace AllowAll" -- that
+was already true -- it was that `SecurityPolicy` itself is a flat
+allow/approval/deny capability-string list with **no classification, no
+risk boundaries, and no separation between deterministic mechanics and
+human-set values.**
+
+**Design decision, made to avoid regressing anything already shipped:**
+rather than modifying `JhadinaSecurityCore`/`SecurityCoreActionPolicy`/
+`SecurityPolicy` in place (risking Growth's SP-1, Money's SP-3,
+Commerce's Finding-D fix, and this branch's own `runSecurityGate()`/
+`runExtendedSecurityGate()`, none of which supply the new fields),
+Step 7 adds a **strictly additive composing layer**:
+`JhadinaValuesActionPolicy` delegates the base allow/approval/deny
+decision to the same, unmodified `SecurityCoreActionPolicy`/
+`JhadinaSecurityCore` every domain already uses, and combines it with
+an independent risk-boundary decision via "most restrictive wins" --
+the same defense-in-depth composition Architecture Checkpoint #2
+already established for Money's health-gate + identity-gate and
+Commerce's actor-capability-gate + fulfillment PolicyGate. Neither
+check can loosen the other. Nothing in `action-core`'s `ActionExecutor`,
+`ApprovalReceipt` flow, or audit ledger changed at all.
+
+**CHANGED:**
+- `packages/security-core/src/capability-classification.ts` (new):
+  `CapabilityRiskCategory` (`read_only`/`reversible`/
+  `external_communication`/`financial`/`publishing`/`destructive`/
+  `code_evolution`) and a real classification table covering every
+  capability string used anywhere in this repository today (36
+  entries) -- `classifyCapability()` returns `undefined` for anything
+  not listed, which `risk-boundary-policy.ts` treats as **deny**, not
+  "probably fine."
+- `packages/security-core/src/values-configuration.ts` (new):
+  `JhadinaValuesConfiguration` -- financial limits, external-recipient
+  restrictions, publishing restrictions, self-modification
+  restrictions -- plus `assertValidValuesConfiguration()`, which fails
+  loudly on a malformed policy (negative/NaN limits, an
+  `updatedBy` claiming to be `"jhadina"`/`"system"`/`"model"`/`"ai"`,
+  a per-action limit exceeding the per-day limit) rather than
+  misbehaving silently later. `JHADINA_DEFAULT_VALUES_CONFIGURATION` is
+  deliberately maximally restrictive -- zero spend, zero allowed
+  recipients, zero allowed platforms -- so the *absence* of an explicit
+  human decision reads as "nothing is authorized yet." A real,
+  durable/human-editable backing (mirroring Step 2's Memory Core
+  migration) is future work, not fabricated here -- no such migration
+  exists for this data yet.
+- `packages/security-core/src/risk-boundary-policy.ts` (new):
+  `evaluateRiskBoundaries(context, values)` -- turns a request's
+  *objective* facts (capability, amount, recipient, platform) into a
+  decision. `RiskContext` has no field resembling "approved"/
+  "executeNow"/"policyOverride"/"limitOverride" at all, so there is
+  nothing for a forged model output to smuggle authority through. A
+  capability spanning multiple categories (e.g. `public.publish` is
+  both `publishing` and `external_communication`; `paid-ad.publish`
+  adds `financial` on top of both) has **every** applicable category
+  evaluated independently and combined via `mostRestrictiveDecision` --
+  a real bug caught and fixed during this milestone's own test run (the
+  first version stopped at the first matching category, so
+  `public.publish` with an allowed platform but no configured recipient
+  domain incorrectly evaluated as if only the publishing half existed;
+  now covered by two named regression tests). `policy.self_modify` is
+  an outright, non-configurable `deny` -- not gated by
+  `values.selfModification` at all, since even human *approval* of
+  "let the model edit its own governing policy" is out of scope for
+  this milestone's design. `evolution.merge` (destructive +
+  code_evolution together) is always at least `approval_required`,
+  never controlled by `allowEvolutionProposals` -- that flag only gates
+  `evolution.propose` (Step 9's "Jhadina proposes a build task"),
+  never merging or executing one.
+- `packages/jhadina-action-core/src/values-action-policy.ts` (new):
+  `JhadinaValuesActionPolicy<TAction>` -- the composing `ActionPolicy`
+  described above. `extractRiskMetadata` is how *application code* (never
+  the model) supplies the amount/recipient/platform a risk boundary
+  needs from the actual typed action payload; its default extracts
+  nothing, so a policy built with no extractor behaves exactly like the
+  base policy alone for every category except the four risk categories,
+  which then correctly fall back to `approval_required`/`deny` rather
+  than a silent `allow` when their fact is missing.
+- `apps/jhadina-web/src/lib/intelligence/jhadina-command.ts`: the one
+  real, live wiring -- Ask Jhadina's default policy (when no override is
+  supplied) is now `JhadinaValuesActionPolicy` over the base policy and
+  default values configuration, not the flat base policy alone.
+  `memory.propose` is classified `read_only`, so this changes **nothing**
+  about its outcome (still `allow`) -- confirmed by the fact every one
+  of Step 5/6's existing tests still passes unchanged, not merely
+  asserted.
+- `security-core`'s and `jhadina-action-core`'s `index.ts` barrels
+  re-export the new modules/class. `JHADINA_BASE_SECURITY_POLICY`
+  itself, `SecurityPolicy`'s shape, `JhadinaSecurityCore`,
+  `SecurityCoreActionPolicy`, `ActionExecutor`, the approval-receipt
+  flow, and every existing composition root (Growth/Money/Commerce)
+  are byte-for-byte unchanged.
+
+**Adversarial tests (40 new in security-core, 5 new in
+jhadina-action-core, all passing):**
+1. Forged `approved`/`executeNow`/`preApproved` fields on the action
+   payload have no field to land in and are proven to have zero effect
+   end to end through the real `ActionExecutor`.
+2. Forged capability -- an unclassified capability is denied by
+   default; `RiskContext` never reads a capability from anywhere but
+   the fixed `request.type` application code already owns.
+3. Forged spending limit -- `RiskContext` has no `limitOverride` field;
+   a payload that adds one anyway is proven to have no effect, and an
+   amount exceeding the *real*, configured limit is denied even when
+   the forged field claims a much higher one.
+4. Forged recipient -- a recipient outside the allowlist is denied even
+   when other fields look benign; an explicit deny-list entry is denied
+   even when its domain is otherwise allowed.
+5. Forged execution instruction -- same fixed-capability invariant Step
+   5 already proved, re-confirmed at this policy layer.
+6. Policy missing -- an unclassified capability (no entry in
+   `capability-classification.ts`) is denied, not defaulted to allow.
+7. Malformed policy -- `assertValidValuesConfiguration` throws on a
+   negative/NaN limit, an inverted per-action/per-day limit, or a
+   self-authored `updatedBy`, and `evaluateRiskBoundaries` calls it
+   before evaluating anything.
+8. Replayed approval -- a within-limit financial action's approval
+   receipt is consumed exactly once through the real `ActionExecutor` +
+   `ApprovalReceiptStore`; replaying it against a fresh request fails.
+9. Attempted self-escalation -- `policy.self_modify` is denied outright
+   through the full real `ActionExecutor`, even when a valid-looking
+   approval receipt was actually obtained for that exact request first
+   -- the policy layer denies before the receipt is ever consulted.
+
+**VERIFIED:**
+- `packages/security-core` test: 40/40 (3 pre-existing + 37 new).
+- `packages/jhadina-action-core` test: adds 5 new tests to the existing
+  suite, all passing (0 regressions).
+- `pnpm --filter jhadina-web vitest run`: 24/24 files, 198/198 tests
+  (unchanged from Step 6 -- confirms the new default policy is
+  behavior-preserving for the live Ask Jhadina vertical, not merely
+  claimed to be).
+- `pnpm --filter jhadina-web build`: clean.
+- `pnpm --filter jhadina-web lint`: 0 errors, 5 warnings (unchanged
+  from Step 6 -- no new warning introduced).
+- `pnpm -r type-check`: clean.
+- `pnpm -r test`: clean repo-wide.
+- No live Anthropic or Supabase call made or needed anywhere in this
+  milestone -- all of it is deterministic, local logic.
+
+**ARCHITECTURAL NOTE:** `JhadinaValuesActionPolicy` is not yet wired
+into Growth/Money/Commerce's own composition roots -- only Ask
+Jhadina's `memory.propose` vertical uses it live. Retrofitting the
+other domains (meaningful now that `commerce.payment.charge`/
+`money.transfer.create`/`paid-ad.publish` all have real financial/
+publishing risk boundaries available to them) is real, valuable,
+unstarted follow-up work, not done here to avoid touching
+already-shipped, already-verified composition roots without being
+asked.
+
+**COMMIT:** (this branch, `claude/jhadina-mvp-audit-ok29s0`)
+
+**NEXT (stopping at this human gate):**
+1. Retrofit Growth/Money/Commerce's composition roots onto
+   `JhadinaValuesActionPolicy` with real risk-metadata extractors for
+   their financial/publishing capabilities -- named above, not started.
+2. A durable, human-editable-without-a-deploy backing for
+   `JhadinaValuesConfiguration` (mirroring Step 2's Memory Core
+   migration) -- currently an in-code default, same pattern
+   `JHADINA_BASE_SECURITY_POLICY` already uses.
+3. `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` remain unset.
+4. Step 8: Event Bus + Capability Registry.
+5. Step 9: close the Evolution/Builder loop.
+6. Not started, per explicit instruction: Music, TV, Social, Meta Ads,
+   Stocks, Bitcoin, Betting, Mining, Overage, Notifications, Voice.
