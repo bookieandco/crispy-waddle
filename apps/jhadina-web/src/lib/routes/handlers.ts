@@ -22,17 +22,42 @@ import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { InMemoryStorage } from "../storage/InMemoryStorage"
+import { SupabaseMemoryStorage } from "../storage/SupabaseMemoryStorage"
+import { createServiceRoleClient } from "../supabase/service-role"
+import type { MemoryStorage } from "../storage/MemoryStorage"
 
 // Global singleton (in production, this would be dependency injection)
-let storage: InMemoryStorage
+let storage: MemoryStorage
 let janet: JanetService
 
+/**
+ * Durable by default: uses the real Supabase-backed store whenever a
+ * service-role client is configured. Falls back to InMemoryStorage only
+ * when it isn't (local dev without env configured, or tests) — loudly,
+ * once, rather than silently pretending memory is durable when it isn't.
+ */
+function createStorage(): MemoryStorage {
+  const client = createServiceRoleClient()
+  if (client) return new SupabaseMemoryStorage(client)
+
+  console.warn(
+    "[jhadina-web] SUPABASE_SERVICE_ROLE_KEY not configured — falling back " +
+    "to InMemoryStorage. Memory will NOT survive an application restart. " +
+    "See supabase/migrations/20260822000000_create_jhadina_memory_core.sql."
+  )
+  return new InMemoryStorage()
+}
+
+function getStorage(): MemoryStorage {
+  if (!storage) storage = createStorage()
+  return storage
+}
+
 function getJanetService(): JanetService {
-  if (!storage) {
-    storage = new InMemoryStorage()
-    const memoryRepo = new MemoryRepository(storage)
-    const reasoningRepo = new ReasoningEventRepository(storage)
-    const timelineRepo = new TimelineRepository(storage)
+  if (!janet) {
+    const memoryRepo = new MemoryRepository(getStorage())
+    const reasoningRepo = new ReasoningEventRepository(getStorage())
+    const timelineRepo = new TimelineRepository(getStorage())
     const classifier = new Classifier()
     janet = new JanetService(classifier, memoryRepo, reasoningRepo, timelineRepo)
   }
@@ -187,9 +212,7 @@ export async function handleListCandidates(req: NextRequest) {
     }
 
     getJanetService()
-    const memoryRepo = new MemoryRepository(
-      storage || new InMemoryStorage()
-    )
+    const memoryRepo = new MemoryRepository(getStorage())
 
     const candidates = await memoryRepo.listPending(userId)
 
@@ -221,9 +244,7 @@ export async function handleListMemories(req: NextRequest) {
     }
 
     getJanetService()
-    const memoryRepo = new MemoryRepository(
-      storage || new InMemoryStorage()
-    )
+    const memoryRepo = new MemoryRepository(getStorage())
 
     const memories = await memoryRepo.listApproved(userId)
 
@@ -265,9 +286,7 @@ export async function handleSearchMemories(req: NextRequest) {
     }
 
     getJanetService()
-    const memoryRepo = new MemoryRepository(
-      storage || new InMemoryStorage()
-    )
+    const memoryRepo = new MemoryRepository(getStorage())
 
     const results = await memoryRepo.search(userId, { query })
 

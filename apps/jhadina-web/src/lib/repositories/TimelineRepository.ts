@@ -9,12 +9,12 @@
 
 import {
   TimelineEvent,
-  InMemoryStorage,
   MemoryType,
 } from "../storage/InMemoryStorage"
+import type { MemoryStorage } from "../storage/MemoryStorage"
 
 export class TimelineRepository {
-  constructor(private storage: InMemoryStorage) {}
+  constructor(private storage: MemoryStorage) {}
 
   /**
    * Record a reasoning event on the timeline
@@ -25,7 +25,7 @@ export class TimelineRepository {
     userMessage: string
     systemResponse: string
   }): Promise<TimelineEvent> {
-    return this.storage.appendTimelineEvent({
+    return await this.storage.appendTimelineEvent({
       userId: params.userId,
       timestamp: new Date().toISOString(),
       type: "REASONING",
@@ -81,7 +81,7 @@ export class TimelineRepository {
     limit: number = 50,
     offset: number = 0
   ): Promise<TimelineEvent[]> {
-    const events = this.storage.listTimeline(userId, limit + offset)
+    const events = await this.storage.listTimeline(userId, limit + offset)
     return events.slice(offset, offset + limit)
   }
 
@@ -89,18 +89,19 @@ export class TimelineRepository {
    * Get total count of timeline events
    */
   async count(userId: string): Promise<number> {
-    return this.storage.listTimeline(userId, 10000).length
+    const events = await this.storage.listTimeline(userId, 10000)
+    return events.length
   }
 
   /**
    * Debug dump
    */
-  dump(userId?: string): string {
+  async dump(userId?: string): Promise<string> {
     const lines: string[] = []
     lines.push("TimelineRepository")
     lines.push("─".repeat(40))
 
-    const events = this.storage.listTimeline(userId || "user_demo", 10)
+    const events = await this.storage.listTimeline(userId || "user_demo", 10)
     lines.push(`Total Events: ${events.length}`)
 
     if (events.length > 0) {
