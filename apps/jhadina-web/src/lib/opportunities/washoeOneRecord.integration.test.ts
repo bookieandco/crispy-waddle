@@ -50,8 +50,11 @@ describe("Washoe 004-382-35 controlled Jhadina handoff", () => {
   })
 
   it("cannot be elevated by a caller-supplied verification status", () => {
+    // "verified" is a real OpportunityVerificationStatus value, deliberately
+    // already-elevated, to prove the adapter clobbers it back to
+    // "human_required" regardless of what the caller supplies.
     const opportunity = buildOverageOpportunity(
-      { ...washoeRecord, verificationStatus: "approved" },
+      { ...washoeRecord, verificationStatus: "verified" },
       "controlled-test-user",
     )
 
