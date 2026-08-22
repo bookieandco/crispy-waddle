@@ -94,6 +94,22 @@ export function validateCart(items: unknown): ValidatedCartItem[] | null {
   return validated.every(Boolean) ? validated as ValidatedCartItem[] : null;
 }
 
+/** Reconcile Stripe's historical amount with current catalog fulfillment identity. */
+export function validateStripeLineItems(items: unknown): ValidatedCartItem[] | null {
+  if (!Array.isArray(items) || items.length === 0 || items.length > 100) return null;
+  const validated: ValidatedCartItem[] = [];
+  for (const item of items) {
+    const raw = item as Record<string, unknown> | null;
+    const catalogItem = validateCartItem(item);
+    if (
+      !catalogItem || !raw || typeof raw.price !== "number" ||
+      !Number.isInteger(raw.price) || raw.price <= 0
+    ) return null;
+    validated.push({ ...catalogItem, priceCents: raw.price });
+  }
+  return validated;
+}
+
 export function cartItemsFromValidated(items: ValidatedCartItem[]): CartItem[] {
   return items.map((item) => ({
     id: item.id,
