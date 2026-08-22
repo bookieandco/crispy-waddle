@@ -3861,3 +3861,234 @@ that needs reconciling before either is wired into the OS backbone, or
 two deliberately distinct things; (3) when convenient, confirm live
 table state for both `placement_*` and `staffing_*` against the Supabase
 project.
+
+---
+
+## JHADINA OS INTEGRATION -- PHASE 1 (USER ROADMAP), STEP 3: INTELLIGENCE ROUTER
+
+Distinct numbering from the SP-/PL- lanes above (those are this repo's
+own internal spine-proof/product-loop tracking; "Phase 1, Step 1-9" is
+the user's own roadmap for reconnecting Memory/Intelligence/Spine/Ask
+Jhadina/Event Bus, agreed directly with the user this session). Step 1
+(repair active breakages) and Step 2 (durable Memory Core) preceded
+this; both already landed on this branch. This entry is Step 3.
+
+**Status:** DONE (code-complete; live model call unverified -- no
+`ANTHROPIC_API_KEY` exists in this environment, by design a fail-closed
+condition, not a blocker to landing the wiring, same discipline PL-8's
+Plaid credential absence used).
+
+**Objective:** establish the "brain interface" -- a model-provider-
+agnostic router that takes a bounded context in and returns a structured
+proposal out, incapable of executing anything itself, with everything
+downstream still passing through the exact deterministic Policy ->
+Approval -> ActionExecutor -> Audit path Growth (SP-1) and Money (SP-3)
+already proved. Not "build every capability" -- Music/TV/Social/Meta
+Ads/Stocks/Bitcoin/Betting/Mining/Overage are explicitly out of scope
+here, per instruction.
+
+**Architecture discovered first (per instruction, before writing any
+code):** `packages/jhadina-core-spine`'s `JhadinaSpine.run()` pipeline
+(memory -> pattern -> personality -> context -> **decision** -> policy
+-> action -> audit) already defines the exact contract a reasoning
+component must satisfy -- `DecisionPort.decide(context): Promise<DecisionProposal>`
+-- and JH-046 already settled, as a frozen human gate, that this
+pipeline is canonical over a duplicate `jhadina-intelligence-contract`
+package. `JhadinaSpine` itself is still never instantiated anywhere on
+this branch (confirmed by repo-wide grep, same finding as before this
+session's audit) -- SP-1/SP-2/SP-3/PL-1-8 all reach `ActionExecutor`
+directly rather than through `JhadinaSpine.run()`. Given that, and given
+Step 5 (instantiate JhadinaSpine) is explicitly a later step, the router
+was built to *implement* `DecisionPort` (so Step 5 is a one-line wiring
+change, not a rewrite) while its own proof today reaches the real
+governed-action primitive the same way Growth/Money do -- not by
+instantiating JhadinaSpine early.
+
+**CHANGED:**
+- `packages/jhadina-intelligence-core/` (new package, `@jhadina/intelligence-core`):
+  - `router.ts`: `ModelProvider` interface (`propose(context): Promise<DecisionProposal>`,
+    nothing else -- no execute method, no handler, no capability grant
+    anywhere on the interface) and `IntelligenceRouter`, which implements
+    core-spine's `DecisionPort`. Always tries a `primary` provider first;
+    on any failure, tries a required `fallback` (never optional -- a
+    router with no fallback has a silent failure mode); if both fail,
+    throws `ModelProviderFailedError` rather than fabricating a
+    proposal.
+  - `proposal-validation.ts`: the actual anti-bypass boundary. Parses a
+    model's raw text into a `DecisionProposal` field-by-field (never a
+    spread of the parsed JSON), validates `disposition` against exactly
+    the four core-spine values, requires `recommendation`/`rationale`,
+    coerces `evidence`/`uncertainty`/`alternatives` defensively, and
+    never trusts an `id` the model supplied. Any invented field (a fake
+    `approved`, `capability`, `executeNow`, `policyOverride`,
+    `approvalReceiptId`) is silently dropped by construction -- nothing
+    downstream ever sees it.
+  - `anthropic-model-provider.ts`: the one real provider wired in this
+    milestone. Raw `fetch` against Anthropic's Messages API (matching
+    Commerce's stripe-sandbox-provider.ts / Money's PlaidReadOnlyAdapter
+    convention -- no new SDK dependency). Credential resolved lazily
+    inside `propose()`, not the constructor (same fix pupsonstuff's
+    lib/ai.ts already made for `OPENAI_API_KEY`) -- specifically so a
+    missing key is an ordinary `propose()`-time rejection
+    `IntelligenceRouter` already knows how to catch and fall back from,
+    not a construction-time throw that would happen before the router
+    exists.
+  - 3 test files, 17/17 passing: `router.test.ts` (primary success,
+    primary-fails-fallback-succeeds, both-fail closes with a tagged
+    error, provider swap with zero router code change),
+    `proposal-validation.test.ts` (well-formed parse, prose/markdown-
+    wrapped JSON tolerated, non-JSON rejected, invented disposition
+    rejected, missing required fields rejected, **invented fields
+    attempting to smuggle `approved`/`capability`/`executeNow`/
+    `policyOverride`/`approvalReceiptId` verified structurally absent
+    from the parsed object's own key list** -- not just "unused"),
+    `anthropic-model-provider.test.ts` (credential-missing rejection,
+    real Messages-API response shape parsed, HTTP failure surfaced as a
+    catchable rejection, malformed response rejected, API key confirmed
+    to travel only via the `x-api-key` header and never inside the
+    request body).
+- `apps/jhadina-web/src/lib/intelligence/` (new):
+  - `legacy-classifier-provider.ts`: adapts the existing regex
+    `Classifier` (unchanged) into a `ModelProvider` -- the demotion to
+    fallback/legacy adapter the instruction called for, without touching
+    `Classifier.ts`'s own pattern-matching logic. Never throws (matches
+    a fallback's one hard requirement).
+  - `production-model-provider.ts`: `createProductionIntelligenceRouter()`
+    -- exactly one real (Anthropic) + one fallback (legacy classifier)
+    router, mirroring Money's `createMoneyPlaidProductionRegistry()`.
+  - `memory-propose-capability.ts`: the one reference capability this
+    proof exercises, `memory.propose` -- already allow-listed (not
+    approval-gated) in security-core's `JHADINA_BASE_SECURITY_POLICY`
+    from SP-1, so no policy-data change was needed. The handler creates
+    a PENDING memory candidate through Step 2's own durable
+    `MemoryRepository`/`ReasoningEventRepository` -- Step 2's approval
+    governance is completely unchanged; a model-originated candidate
+    still requires an explicit human approve/reject exactly like a
+    Classifier-originated one always has. Every model-originated
+    candidate is recorded as `CONTEXT` -- `DecisionProposal` carries no
+    PREFERENCE/IDENTITY/GOAL taxonomy field, and inventing one here would
+    be exactly the kind of extra classification this proof exists to
+    avoid smuggling in; real classification is Context Builder (Step 4)
+    territory.
+  - `governed-intelligence-proposal.ts`: identity -> `router.decide()` ->
+    disposition gate (only `PROCEED` becomes an `ActionRequest`; ASK/
+    DECLINE/DEFER stop here, with only the proposal itself as the
+    result) -> `SecurityCoreActionPolicy` -> `ActionExecutor` -> audit.
+    The capability requested is the hardcoded constant
+    `MEMORY_PROPOSE_CAPABILITY` -- this function never reads a
+    capability, an approval flag, or anything resembling authority off
+    of `proposal`; it only ever reads `disposition`/`recommendation`/
+    `rationale`. A model output attempting to claim
+    `financial.execute`/`approved: true`/etc. has no code path that ever
+    looks at those fields.
+  - `governed-intelligence-runtime.ts`: process-local composition root,
+    same shape as `growth/governed-approval-runtime.ts` -- real identity
+    verifier, real durable `SupabaseAuditLedger` (domain `"intelligence"`,
+    reusing the existing `append_jhadina_audit_event` /
+    `list_jhadina_audit_events` RPCs from PL-2/PL-5/PL-8's migration, no
+    new table), real production router. Shares `handlers.ts`'s existing
+    `getStorage()` singleton (now exported) rather than standing up a
+    second storage instance -- a model-proposed candidate and a
+    Classifier-proposed one both land in the one real `/api/candidates`
+    list.
+  - `durable-audit-ledger.ts`: Intelligence's own audit-ledger
+    composition root, byte-for-byte the same shape as Growth's/Money's.
+  - 2 test files, 12/12 passing: `governed-intelligence-proposal.test.ts`
+    (full lifecycle with a real durable candidate; identity fails closed
+    before the model is ever called -- proven via a call-counting fake
+    provider; ASK/DECLINE/DEFER never reach `ActionExecutor`; fallback
+    provider used and still completes governance; both-providers-down
+    fails closed and is itself audited; policy-deny still blocks a
+    PROCEED disposition; **a proposal object carrying invented
+    `capability`/`approved`/`executeNow`/`approvalReceiptId` fields is
+    routed through the real `ActionExecutor` and the resulting audit
+    trail is verified to contain only `memory.propose` entries, never
+    the invented capability string**; `memory.propose` confirmed `allow`
+    -- not approval-gated -- under the base Security Core policy),
+    `governed-intelligence-runtime.test.ts` (same four cases through the
+    real composition root + a fake RPC client modeling the actual
+    migration's insert/read behavior, same pattern as Growth's
+    Phase-2 runtime test).
+- Workspace wiring: `tsconfig.json` (root) and `apps/jhadina-web/tsconfig.json`
+  gained explicit path entries for `@jhadina/core-spine` and
+  `@jhadina/intelligence-core` (their directory names don't match their
+  unscoped package names, so the generic `@jhadina/*` wildcard can't
+  resolve them -- same class of gap SP-1 found and fixed for
+  `@jhadina/action-core`). `vitest.config.ts` gained matching aliases
+  (Vitest doesn't read tsconfig paths, same recurring finding).
+  `apps/jhadina-web/.env.example` documents `ANTHROPIC_API_KEY` (empty
+  placeholder, no secret).
+
+**VERIFIED:**
+- `packages/jhadina-intelligence-core` type-check: clean; test: 17/17.
+- `pnpm -r type-check`: 25/25 packages with a type-check script clean.
+- `pnpm --filter jhadina-web vitest run`: 21/21 files, 170/170 tests
+  (158 pre-existing + 12 new).
+- `pnpm --filter jhadina-web build`: real Next.js production build
+  succeeds; `/api/message`, `/api/candidates`, `/api/memories`,
+  `/api/money/accounts` all present in the route manifest, unchanged.
+- `pnpm --filter jhadina-web lint`: 0 errors (4 pre-existing, unrelated
+  warnings, confirmed identical to the pre-Step-3 run).
+- No live Anthropic call was made or attempted anywhere in this
+  environment -- `ANTHROPIC_API_KEY` is unset, confirmed via `env | grep`
+  before this work began and left unset throughout.
+
+**ARCHITECTURAL IMPACT:**
+- The Intelligence Router is real, tested, production-composed code,
+  reachable from `runGovernedIntelligenceProposal()` -- but **not yet
+  mounted behind any HTTP route.** `JanetService.processMessage()` (the
+  live `/api/message` handler) still calls the regex `Classifier`
+  directly, unchanged. This is a deliberate scope boundary, not an
+  oversight: `JanetService`'s current identity model is a raw
+  `x-user-id` header / `"user_demo"` placeholder
+  (`handlers.ts::extractUserId`), while `governed-intelligence-runtime.ts`
+  correctly uses the *real* Supabase-session identity verifier
+  Growth/Money/Commerce already established (`createRequestIdentityVerifier()`,
+  backed by JH-014's real auth middleware, which already covers
+  `/api/message`'s route pattern -- it's simply never consulted there
+  today). Retrofitting `/api/message` to require a real session is an
+  identity-layer decision affecting existing, just-verified Step 2
+  behavior and today's demo/test flows that work with no login -- named
+  here as a real, discovered gap, not silently fixed and not silently
+  ignored. Mounting the router live is Step 7 (Ask Jhadina), which
+  also needs Step 4 (Context Builder) to supply real `ContextPacket`s
+  from live requests instead of this proof's hand-built reference
+  contexts.
+- `memory.propose`'s existing allow-listing (from SP-1, added before
+  this Phase existed) meant zero changes to `security-core`'s policy
+  data were needed -- confirms the base policy already anticipated this
+  exact integration point.
+- No second Spine, Event Bus, Capability Registry, ActionExecutor,
+  Policy, or Audit mechanism was created. `IntelligenceRouter` is a new
+  `DecisionPort` implementation; everything downstream of a `PROCEED`
+  disposition is the identical `ActionExecutor` + `SecurityCoreActionPolicy`
+  + `SupabaseAuditLedger` primitive Architecture Checkpoint #2 already
+  verified twice.
+
+**COMMIT:** (this branch, `claude/jhadina-mvp-audit-ok29s0`)
+
+**NEXT (per instruction, stopping at this human gate):**
+1. Configure `ANTHROPIC_API_KEY` (a real secret only the user can supply)
+   to move the Anthropic path from "wired but fail-closed" to a genuine
+   live call -- optional for Step 4/5 to proceed, since the fallback
+   path is already fully governed and tested.
+2. Step 4: Context Builder -- assemble real `ContextPacket`s (identity,
+   goals, active project, current surface, relevant memory, available
+   capabilities, current task) from live application state, replacing
+   this proof's hand-built reference contexts.
+3. Step 5: instantiate `JhadinaSpine` for the first time anywhere in this
+   repo, wiring `IntelligenceRouter` in as its `decision` port alongside
+   real `MemoryPort`/`ContextPort` implementations -- the one-line change
+   this milestone's `DecisionPort` conformance was built to make possible.
+4. Step 6: replace `AllowAllActionPolicy` (still the only policy some
+   call sites could reach for) with real Values/Policy data beyond what
+   SP-1/Checkpoint #2 already wired for Growth/Money -- explicitly
+   required, per instruction, before any further autonomous action.
+5. Step 7: mount Ask Jhadina globally, replacing `JanetService`'s direct
+   Classifier call with `runGovernedIntelligenceProposal()` -- blocked on
+   resolving the identity-model mismatch named above (real session vs.
+   header placeholder) first.
+6. Not started, per explicit instruction: Music, TV, Social, Meta Ads,
+   Stocks, Bitcoin, Betting, Mining, Overage. These remain downstream of
+   the OS backbone, to plug into this same `DecisionPort`/`ActionExecutor`
+   spine once Steps 4-8 land -- not before.

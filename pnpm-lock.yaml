@@ -207,6 +207,22 @@ importers:
         specifier: ^5.1.0
         version: 5.9.3
 
+  packages/jhadina-intelligence-core:
+    dependencies:
+      '@jhadina/core-spine':
+        specifier: workspace:*
+        version: link:../jhadina-core-spine
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.12
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+
   packages/jhadina-tv-core: {}
 
   packages/money-core:
