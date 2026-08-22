@@ -1,0 +1,164 @@
+-- QUARANTINED MIGRATION — DO NOT EXECUTE
+-- Reason: dangerous, never-applied audit schema/function migration.
+-- The live append_jhadina_audit_event function targets public.jhadina_audit_ledger,
+-- not public.jhadina_audit_event. Executing this artifact would CREATE OR REPLACE the
+-- live function with an incompatible implementation and can regress the audit path.
+-- Retained verbatim for historical provenance only.
+--
+-- Original path:
+-- supabase/migrations/20260814000000_append_jhadina_audit_event.sql
+
+create extension if not exists pgcrypto;
+
+-- Backs @jhadina/action-core's SupabaseAuditLedger — the class already
+-- existed, already implements the ActionLedger contract, and was
+-- already unit-tested against a fake RPC client. This is the schema it
+-- was written against but never had: package.json/class shipped ahead of
+-- the migration, same class of gap found repeatedly this pass
+-- (money-core's missing index.ts, security-core's missing
+-- package.json). append_jhadina_audit_event's RPC name and parameter
+-- names (p_event_id, p_request_id, p_actor_id, ...) are dictated by
+-- that existing class — not chosen fresh here.
+--
+-- Hash-chained per domain, mirroring
+-- append_jhadina_evolution_run_ledger's established pattern in this
+-- same migrations directory (advisory lock -> next sequence -> sha256
+-- over the full event + previous hash). No RLS policies are granted to
+-- anon/authenticated on the table itself; all access is through these
+-- two security definer functions, which self-enforce that a caller can
+-- only append or list their own events via auth.uid() — a second,
+-- database-level backstop behind the application's own identity
+-- verification, not a replacement for it.
+create table if not exists public.jhadina_audit_event (
+  id bigint generated always as identity primary key,
+  domain text not null,
+  sequence integer not null,
+  event_id text not null,
+  request_id text not null,
+  actor_id text not null,
+  capability text not null,
+  decision text not null check (decision in ('allow', 'deny')),
+  status text not null check (status in ('started', 'approval_required', 'completed', 'denied', 'failed')),
+  occurred_at timestamptz not null,
+  metadata jsonb not null default '{}'::jsonb,
+  previous_hash text not null,
+  hash text not null,
+  created_at timestamptz not null default now(),
+  unique (domain, sequence)
+);
+
+create index if not exists jhadina_audit_event_actor_idx
+  on public.jhadina_audit_event (domain, actor_id, occurred_at desc);
+
+alter table public.jhadina_audit_event enable row level security;
+revoke all on public.jhadina_audit_event from public, anon, authenticated;
+
+create or replace function public.append_jhadina_audit_event(
+  p_event_id text,
+  p_request_id text,
+  p_actor_id text,
+  p_domain text,
+  p_capability text,
+  p_decision text,
+  p_status text,
+  p_occurred_at timestamptz,
+  p_metadata jsonb
+)
+returns public.jhadina_audit_event
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_sequence integer;
+  v_previous_hash text;
+  v_hash text;
+  v_row public.jhadina_audit_event;
+begin
+  if p_event_id is null or p_request_id is null or p_actor_id is null or p_domain is null
+     or p_capability is null or p_decision is null or p_status is null or p_occurred_at is null then
+    raise exception 'audit append requires event_id, request_id, actor_id, domain, capability, decision, status, and occurred_at';
+  end if;
+
+  if p_decision not in ('allow', 'deny') then
+    raise exception 'invalid audit decision: %', p_decision;
+  end if;
+
+  if p_status not in ('started', 'approval_required', 'completed', 'denied', 'failed') then
+    raise exception 'invalid audit status: %', p_status;
+  end if;
+
+  if auth.uid() is null or auth.uid()::text <> p_actor_id then
+    raise exception 'audit append actor must match the authenticated caller';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(p_domain, 0));
+
+  select coalesce(max(sequence), 0) + 1,
+         coalesce((array_agg(hash order by sequence desc))[1], 'GENESIS')
+    into v_sequence, v_previous_hash
+    from public.jhadina_audit_event
+   where domain = p_domain;
+
+  v_hash := encode(
+    digest(
+      jsonb_build_object(
+        'eventId', p_event_id,
+        'requestId', p_request_id,
+        'actorId', p_actor_id,
+        'domain', p_domain,
+        'capability', p_capability,
+        'decision', p_decision,
+        'status', p_status,
+        'occurredAt', p_occurred_at,
+        'metadata', coalesce(p_metadata, '{}'::jsonb),
+        'sequence', v_sequence,
+        'previousHash', v_previous_hash
+      )::text,
+      'sha256'
+    ),
+    'hex'
+  );
+
+  insert into public.jhadina_audit_event
+    (domain, sequence, event_id, request_id, actor_id, capability, decision, status, occurred_at, metadata, previous_hash, hash)
+  values
+    (p_domain, v_sequence, p_event_id, p_request_id, p_actor_id, p_domain, p_capability, p_decision, p_status, p_occurred_at, coalesce(p_metadata, '{}'::jsonb), v_previous_hash, v_hash)
+  returning * into v_row;
+
+  return v_row;
+end;
+$$;
+
+revoke all on function public.append_jhadina_audit_event(text, text, text, text, text, text, text, timestamptz, jsonb) from public;
+grant execute on function public.append_jhadina_audit_event(text, text, text, text, text, text, text, timestamptz, jsonb) to authenticated;
+
+create or replace function public.list_jhadina_audit_events(
+  p_domain text,
+  p_actor_id text
+)
+returns setof public.jhadina_audit_event
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if p_domain is null or p_actor_id is null then
+    raise exception 'audit list requires domain and actor_id';
+  end if;
+
+  if auth.uid() is null or auth.uid()::text <> p_actor_id then
+    raise exception 'audit list actor must match the authenticated caller';
+  end if;
+
+  return query
+    select *
+      from public.jhadina_audit_event
+     where domain = p_domain
+       and actor_id = p_actor_id
+     order by sequence asc;
+end;
+$$;
+
+revoke all on function public.list_jhadina_audit_events(text, text) from public;
+grant execute on function public.list_jhadina_audit_events(text, text) to authenticated;
