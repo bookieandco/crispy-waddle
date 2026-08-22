@@ -15,6 +15,7 @@ import {
   type CommerceProposalLifecycleDeps,
 } from "./commerce-proposal-lifecycle"
 import { COMMERCE_SECURITY_POLICY } from "./commerce-security-policy"
+import { InMemoryCommerceEventBus } from "./commerce-event-bus"
 import { EnvironmentSandboxCredentialResolver } from "./sandbox-credential"
 import { STRIPE_SANDBOX_CREDENTIAL_REF } from "./production-payment-provider"
 import { StripeSandboxPaymentProvider, type StripeSandboxTestPaymentMethod } from "./stripe-sandbox-provider"
@@ -109,6 +110,7 @@ function baseDeps(): CommerceProposalLifecycleDeps {
     proposalStore: createInMemoryCommerceProposalStore(),
     approvalStore: new InMemoryApprovalReceiptStore(),
     ledger: new InMemoryActionLedger(),
+    eventBus: new InMemoryCommerceEventBus(),
     policy: new SecurityCoreActionPolicy(new JhadinaSecurityCore(COMMERCE_SECURITY_POLICY), "commerce"),
   }
 }

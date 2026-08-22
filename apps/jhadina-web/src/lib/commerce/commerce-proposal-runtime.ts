@@ -5,8 +5,10 @@ import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier
 import { createCommerceAuditLedger } from "./durable-audit-ledger"
 import { createSupabaseCommerceApprovalReceiptStore } from "./supabase-approval-receipt-store"
 import { createSupabaseCommerceProposalStore } from "./supabase-commerce-proposal-store"
+import { createSupabaseCommerceEventBus } from "./supabase-commerce-event-bus"
 import { createStripeSandboxProductionProvider } from "./production-payment-provider"
 import type { CommerceProposalPayload, CommerceProposalStore } from "./commerce-proposal-store"
+import type { CommerceEventBus } from "./commerce-event-bus"
 import {
   approveCommerceProposal,
   executeCommerceProposal,
@@ -45,6 +47,8 @@ export type CommerceProposalRuntimeOverrides = {
   proposalStore?: CommerceProposalStore
   /** Test-only: substitutes an in-memory ApprovalReceiptStore instead of a live database. */
   approvalStore?: ApprovalReceiptStore
+  /** Test-only: substitutes an in-memory CommerceEventBus instead of a live database. */
+  eventBus?: CommerceEventBus
   /** Test-only: substitutes a fake PaymentProvider instead of a live (sandbox) Stripe call. */
   paymentProvider?: PaymentProvider
 }
@@ -63,6 +67,7 @@ async function resolveBaseDeps(overrides: CommerceProposalRuntimeOverrides) {
     ledger: overrides.ledger ?? (await createCommerceAuditLedger()),
     proposalStore: overrides.proposalStore ?? createSupabaseCommerceProposalStore(),
     approvalStore: overrides.approvalStore ?? createSupabaseCommerceApprovalReceiptStore(),
+    eventBus: overrides.eventBus ?? createSupabaseCommerceEventBus(),
   }
 }
 
