@@ -1,5 +1,5 @@
 import { hotspots, Hotspot } from "@/data/hotspots";
-import { ArtStyle, CartItem } from "@/types/boutique";
+import { ArtStyle, CartItem, artStyles } from "@/types/boutique";
 
 export interface ValidatedCartItem {
   id: string;
@@ -17,11 +17,7 @@ export interface ValidatedCartItem {
 const MAX_QUANTITY = 100;
 
 function isArtStyle(value: unknown): value is ArtStyle {
-  return typeof value === "string" && [
-    "watercolor", "oil-painting", "royal-portrait", "astronaut",
-    "vintage-concert", "cubist", "cartoon", "memorial", "pencil-sketch",
-    "pop-art", "ascii-art", "studio-ghibli", "flux-dreamscape",
-  ].includes(value);
+  return typeof value === "string" && artStyles.some((style) => style.id === value);
 }
 
 function isSafePreviewUrl(value: unknown): value is string | undefined {
@@ -29,14 +25,25 @@ function isSafePreviewUrl(value: unknown): value is string | undefined {
     (typeof value === "string" && value.startsWith("data:image/"));
 }
 
+function resolveLegacyDisplayName(name: string) {
+  for (const hotspot of hotspots) {
+    if (!hotspot.fulfillment) continue;
+    for (const variant of hotspot.fulfillment.variants) {
+      for (const style of artStyles) {
+        const expected = `${hotspot.name} — ${variant.label} — ${style.label}`;
+        if (name === expected) return { hotspot, variant, artStyle: style.id };
+      }
+    }
+  }
+  return null;
+}
+
 export function validateCartItem(item: unknown): ValidatedCartItem | null {
   if (typeof item !== "object" || item === null) return null;
   const raw = item as Record<string, unknown>;
   if (
     typeof raw.id !== "string" ||
-    typeof raw.productId !== "string" ||
-    typeof raw.variantId !== "string" ||
-    !isArtStyle(raw.artStyle) ||
+    typeof raw.productName !== "string" ||
     typeof raw.quantity !== "number" ||
     !Number.isInteger(raw.quantity) ||
     raw.quantity < 1 ||
@@ -44,13 +51,28 @@ export function validateCartItem(item: unknown): ValidatedCartItem | null {
     !isSafePreviewUrl(raw.previewUrl)
   ) return null;
 
-  const hotspot = hotspots.find((candidate) => candidate.id === raw.productId);
-  if (!hotspot?.fulfillment) return null;
+  let hotspot: Hotspot | undefined;
+  let variant: NonNullable<Hotspot["fulfillment"]>["variants"][number] | undefined;
+  let artStyle: ArtStyle | undefined;
 
-  const variant = hotspot.fulfillment.variants.find(
-    (candidate) => candidate.variantId === raw.variantId
-  );
-  if (!variant) return null;
+  if (
+    typeof raw.productId === "string" &&
+    typeof raw.variantId === "string" &&
+    isArtStyle(raw.artStyle)
+  ) {
+    hotspot = hotspots.find((candidate) => candidate.id === raw.productId);
+    variant = hotspot?.fulfillment?.variants.find(
+      (candidate) => candidate.variantId === raw.variantId
+    );
+    artStyle = raw.artStyle;
+  } else {
+    const legacy = resolveLegacyDisplayName(raw.productName);
+    hotspot = legacy?.hotspot;
+    variant = legacy?.variant;
+    artStyle = legacy?.artStyle;
+  }
+
+  if (!hotspot?.fulfillment || !variant || !artStyle) return null;
 
   return {
     id: raw.id,
@@ -58,7 +80,7 @@ export function validateCartItem(item: unknown): ValidatedCartItem | null {
     variantId: variant.variantId,
     productName: hotspot.name,
     variantLabel: variant.label,
-    artStyle: raw.artStyle,
+    artStyle,
     priceCents: variant.priceCents,
     quantity: raw.quantity,
     previewUrl: raw.previewUrl,
@@ -77,7 +99,7 @@ export function cartItemsFromValidated(items: ValidatedCartItem[]): CartItem[] {
     id: item.id,
     productId: item.productId,
     variantId: item.variantId,
-    productName: `${item.productName} — ${item.variantLabel}`,
+    productName: `${item.productName} — ${item.variantLabel} — ${artStyles.find((s) => s.id === item.artStyle)?.label ?? item.artStyle}`,
     price: item.priceCents,
     quantity: item.quantity,
     previewUrl: item.previewUrl,
