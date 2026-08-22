@@ -4129,3 +4129,133 @@ Re-verified after this addendum: `pnpm --filter jhadina-web vitest run`
 `pnpm --filter jhadina-web build` clean; `pnpm --filter jhadina-web lint`
 0 errors (4 pre-existing warnings, unchanged); `pnpm -r test` clean
 repo-wide. Still no live Anthropic call anywhere in this environment.
+
+---
+
+## JHADINA OS INTEGRATION -- PHASE 1 (USER ROADMAP), STEP 4: CONTEXT BUILDER
+
+**Status:** DONE.
+
+**Objective:** assemble a bounded, structured `ContextPacket` (core-spine's
+existing type, unmodified) from real data sources this repository
+already has, so `IntelligenceRouter` (Step 3) has something better than
+a hand-built reference context to reason over. Makes zero decisions,
+executes zero actions -- pure read + assemble.
+
+**Architecture inspected first:** `ContextPort.build(input: {experience,
+memories, patterns, personality}): Promise<ContextPacket>` assumes
+`MemoryPort`/`PatternPort`/`PersonalityPort` already ran and handed it
+their output. None of those three ports has a real implementation
+anywhere in this repo. Rather than fabricate stub ports just to satisfy
+`ContextPort`'s literal input signature, the Context Builder assembles a
+`ContextPacket` directly from the real sources that do exist --
+`MemoryRepository`/`TimelineRepository` (Step 2), `security-core`'s real
+`JHADINA_BASE_SECURITY_POLICY`, and the existing (previously
+one-consumer, now two) `jhadina-world-registry.ts` surface catalogue --
+and is honest in `excludedContext` that `patterns`/`personality` aren't
+real yet. The *output* is exactly what `DecisionPort`/
+`IntelligenceRouter.decide()` already consume; a `ContextPort` adapter
+wiring real `MemoryPort`/`PatternPort`/`PersonalityPort` implementations
+together is Step 5 work, once those ports are decided.
+
+**CHANGED:**
+- `apps/jhadina-web/src/lib/context/redact.ts` (new): the "free of
+  secrets" boundary -- pattern-based redaction (Stripe-style keys,
+  Bearer headers, generic `key: value` secrets) applied to every piece
+  of free text before it enters a `ContextPacket`. Defense in depth, not
+  a claim that Memory/Timeline storage is otherwise unsafe. 5/5 tests.
+- `apps/jhadina-web/src/lib/context/context-builder.ts` (new):
+  `buildContext(deps, input): Promise<AssembledContext>`.
+  - Relevant durable memories: `MemoryRepository.listApproved()` (Step
+    2, already durable) filtered by a deterministic keyword-overlap
+    relevance heuristic against `activeTask`, sorted most-recent-first
+    with `id` as a stable tiebreaker, bounded by `maxMemories`.
+  - Recent approved observations: `TimelineRepository.list()`'s
+    `APPROVAL`-type entries, same sort/bound treatment, bounded by
+    `maxRecentApprovals`.
+  - Relevant capabilities / applicable policy constraints: the real,
+    unmodified `JHADINA_BASE_SECURITY_POLICY` (`security-core`) rendered
+    as human-readable `allowed: X (requires explicit approval)` /
+    `denied: Y` strings -- not filtered by surface, since
+    `jhadina-world-registry.ts`'s per-world capability labels
+    ("search", "playback", ...) and security-core's actual capability
+    strings ("growth.draft.approve", ...) are two different, unrelated
+    vocabularies; conflating them would have been a fabricated link, so
+    the full base policy is surfaced as-is instead.
+  - Surface/route/active project: caller-supplied, honestly recorded as
+    missing in `excludedContext` when omitted (no Project/Workspace
+    entity exists in this repository to source `activeProject` from).
+  - Hard character-budget trimming (`maxTotalChars`, default 4000):
+    drops the lowest-priority (least-recent) memory/knowledge items
+    first when the assembled text would exceed budget, recording how
+    many items were trimmed.
+  - `patterns`/`personality`: not fabricated. `patterns: []`;
+    `personality` is an explicitly-flagged never-real placeholder
+    (`independentAssessmentRequired: true`, `version: 0`,
+    `updatedAt` at the epoch) -- both named in `excludedContext` as "no
+    Pattern/PersonalityPort implementation exists yet."
+  - 10/10 tests covering all 9 requested categories plus one extra: (1)
+    empty context for a brand-new user; (2) relevant-memory retrieval;
+    (3) irrelevant-memory exclusion, reflected in `excludedContext`; (4)
+    surface/route carried through into `purpose` and `AssembledContext`;
+    (5) both item-count (`maxMemories`) and total-character
+    (`maxTotalChars`) budget enforcement; (6) a memory containing a
+    Stripe-style secret is redacted before it ever reaches the packet;
+    (7) two calls with identical state produce byte-identical content
+    and ordering (excluding the per-call `id`/`assembledAt` nonces); (8)
+    a user with real memory activity but no surface/route/project never
+    throws and every omission is named, not silently absent; (9) **the
+    real `IntelligenceRouter` accepts the assembled `ContextPacket`
+    directly and reasons over it with no adapter, and the proposal's
+    `evidence` is traceable straight back to the packet's
+    `relevantMemories`** -- proving actual Step 3 compatibility, not
+    just matching types on paper. Plus one covering that the surfaced
+    constraints are the real base policy, unmodified.
+- No changes to `@jhadina/intelligence-core`, `@jhadina/action-core`,
+  `@jhadina/core-spine`, `security-core`'s policy data, `MemoryRepository`/
+  `TimelineRepository`, or any Money/Growth/Commerce file.
+
+**VERIFIED:**
+- `pnpm --filter jhadina-web vitest run`: 23/23 files, 187/187 tests
+  (172 existing + 15 new).
+- `pnpm -r type-check`: 25/25 clean.
+- `pnpm --filter jhadina-web build`: clean.
+- `pnpm --filter jhadina-web lint`: 0 errors (4 pre-existing warnings,
+  unchanged).
+- `pnpm -r test`: clean repo-wide.
+- No live Anthropic call and no live Supabase call made anywhere in
+  this environment -- both credentials remain unset, unrelated to this
+  milestone.
+
+**ARCHITECTURAL IMPACT:**
+- `IntelligenceRouter` (Step 3) can now be handed a real `ContextPacket`
+  instead of a hand-built reference one, with no code change on the
+  router side -- confirmed directly by test 9, not asserted.
+- `jhadina-world-registry.ts` gained its second real consumer
+  (previously only `publishing-intelligence.ts`) -- still a static,
+  design-time catalogue, not wired to live routing anywhere; the
+  Context Builder only reads it when a caller supplies a `surface`, it
+  does not infer one.
+- A real, named gap surfaced and left alone, not silently patched: there
+  is no Project/Workspace entity in this repository, so `activeProject`
+  is a pass-through, caller-supplied string with nothing durable behind
+  it. Building one is out of scope for Step 4.
+
+**COMMIT:** (this branch, `claude/jhadina-mvp-audit-ok29s0`)
+
+**NEXT (stopping at this human gate):**
+1. `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` remain unset in
+   this environment -- both real secrets only the user can supply, not
+   fabricated or worked around here.
+2. Step 5: instantiate `JhadinaSpine` for the first time, wiring
+   `IntelligenceRouter` as `decision` and a real `ContextPort` adapter
+   (built from this milestone's `buildContext`, reshaped to
+   `ContextPort`'s literal signature once `MemoryPort`/`PatternPort`/
+   `PersonalityPort` are decided) as `context`.
+3. Step 6: real Values/Policy data beyond what Growth/Money already have.
+4. Step 7: mount Ask Jhadina, replacing `JanetService`'s direct
+   Classifier call and supplying real `surface`/`route` values from live
+   request state -- this milestone's `buildContext` is the seam Step 7
+   will call.
+5. Not started, per explicit instruction: Music, TV, Social, Meta Ads,
+   Stocks, Bitcoin, Betting, Mining, Overage.
