@@ -1,9 +1,12 @@
 import {
   ActionExecutor,
+  createApprovalRequestService,
+  createApprovalReceiptVerifier,
   createBaseSecurityCoreActionPolicy,
   type ActionLedger,
   type ActionPolicy,
   type ActionRequest,
+  type ApprovalReceiptStore,
 } from "@jhadina/action-core"
 import type { ContextPacket, DecisionProposal } from "@jhadina/core-spine"
 import type { IntelligenceRouter } from "@jhadina/intelligence-core"
@@ -36,11 +39,19 @@ import {
  * output) is only ever read for `disposition`, `recommendation`, and
  * `rationale`, never for anything resembling a capability, an approval,
  * or a policy decision. A DECLINE/ASK/DEFER disposition stops before any
- * ActionRequest is even constructed; only PROCEED reaches
- * ActionExecutor, and ActionExecutor + SecurityCoreActionPolicy then
- * evaluate that fixed capability exactly as they would for any other
- * caller — the model's recommendation carries no more authority than a
- * human typing the same text into a form field would.
+ * ActionRequest is even constructed; only PROCEED reaches policy
+ * evaluation, and `SecurityCoreActionPolicy` evaluates that fixed
+ * capability exactly as it would for any other caller — the model's
+ * recommendation carries no more authority than a human typing the same
+ * text into a form field would.
+ *
+ * `memory.propose` is allow-listed today (not approval-gated), so the
+ * `approval_required` branch below is currently reachable only via an
+ * injected test policy — but the wiring is real, not a stub: the same
+ * request -> approve -> consume receipt flow SP-1 (Growth) uses, so any
+ * future capability this router is pointed at that *is* approval-gated
+ * (e.g. a hypothetical `memory.commit`) is already governed correctly,
+ * not silently unsupported.
  */
 export interface GovernedIntelligenceProposalDeps {
   identityVerifier: JhadinaIdentityVerifier
@@ -48,6 +59,8 @@ export interface GovernedIntelligenceProposalDeps {
   router: IntelligenceRouter
   memoryRepo: MemoryRepository
   reasoningRepo: ReasoningEventRepository
+  /** Backing store for explicit approval receipts (request -> approve -> consume). */
+  approvalStore: ApprovalReceiptStore
   policy?: ActionPolicy<MemoryProposeAction>
 }
 
@@ -56,6 +69,13 @@ export interface GovernedIntelligenceProposalResult {
   verifiedUserId: string
   /** Set only when disposition was PROCEED and the action executed. */
   candidate?: MemoryCandidate
+  /** Set only when policy required an explicit approval step. */
+  approvalReceiptId?: string
+}
+
+/** Deterministic fingerprint binding an approval receipt to this exact proposed content. */
+function fingerprintMemoryPropose(action: MemoryProposeAction): string {
+  return `memory-propose:${action.content}`
 }
 
 export async function decideAndProposeMemoryGoverned(
@@ -129,14 +149,56 @@ export async function decideAndProposeMemoryGoverned(
     requestedAt: now(),
   }
 
-  // 4/5/6. Policy -> ActionExecutor -> audit — the same primitive
-  // Growth (SP-1) and Money (SP-3) already use.
+  // 4. Policy evaluation — a distinct, visible, audited stage, evaluated
+  // before ActionExecutor exists (same shape as Growth's SP-1).
   const policy = deps.policy ?? createBaseSecurityCoreActionPolicy<MemoryProposeAction>()
-  const handler = createMemoryProposeHandler(deps.memoryRepo, deps.reasoningRepo)
-  const executor = new ActionExecutor(policy, deps.ledger, [handler])
-  const candidate = await executor.execute(request)
+  const decision = await policy.evaluate(request)
+  await deps.ledger.append({
+    id: `${actionId}:policy-evaluated`,
+    actionId,
+    userId: identity.userId,
+    type: MEMORY_PROPOSE_CAPABILITY,
+    status: "started",
+    timestamp: now(),
+    metadata: { decision, disposition: proposal.disposition, proposalId: proposal.id },
+  })
 
-  return { proposal, verifiedUserId: identity.userId, candidate }
+  if (decision === "deny") {
+    await deps.ledger.append({
+      id: `${actionId}:policy-denied`,
+      actionId,
+      userId: identity.userId,
+      type: MEMORY_PROPOSE_CAPABILITY,
+      status: "denied",
+      timestamp: now(),
+    })
+    throw new Error(`Action denied by policy: ${MEMORY_PROPOSE_CAPABILITY}`)
+  }
+
+  const approvalVerifier = createApprovalReceiptVerifier(deps.approvalStore, (r) =>
+    fingerprintMemoryPropose(r.action as MemoryProposeAction),
+  )
+  const handler = createMemoryProposeHandler(deps.memoryRepo, deps.reasoningRepo)
+  const executor = new ActionExecutor(policy, deps.ledger, [handler], approvalVerifier)
+
+  // 5. Explicit approval, only when policy requires it. The model's own
+  // PROCEED disposition is never treated as an approval — a distinct,
+  // separately-gated approval decision is requested and consumed here,
+  // exactly like a human-originated action would need.
+  let approvalReceiptId: string | undefined
+  if (decision === "approval_required") {
+    const approvalService = createApprovalRequestService(deps.approvalStore, (r) =>
+      fingerprintMemoryPropose(r.action as MemoryProposeAction),
+    )
+    const pending = await approvalService.requestApproval(request)
+    const approved = await approvalService.approve(pending.id, identity.userId)
+    approvalReceiptId = approved.id
+  }
+
+  // 6. ActionExecutor executes (re-validates policy + receipt independently) -> audit.
+  const candidate = await executor.execute(approvalReceiptId ? { ...request, approvalReceiptId } : request)
+
+  return { proposal, verifiedUserId: identity.userId, candidate, approvalReceiptId }
 }
 
 function confidenceFor(proposal: DecisionProposal): number {
