@@ -14,6 +14,7 @@ const KIND_LABEL: Record<OpportunityKind, string> = {
   creator: "Creator",
   affiliate: "Affiliate",
   automation: "Automation",
+  overage: "Unclaimed property",
 }
 
 const AUTOMATION_LABEL: Record<AutomationLevel, string> = {
@@ -317,17 +318,17 @@ const h1 = { margin: "12px 0 8px", fontFamily: 'Georgia,"Times New Roman",serif'
 const sub = { margin: 0, color: "#718078", lineHeight: 1.65, maxWidth: 620 }
 const metricsRow = { display: "flex", gap: 24, overflowX: "auto" as const, padding: "26px 2px 4px", marginBottom: 10 }
 const filterRow = { display: "flex", gap: 8, overflowX: "auto" as const, padding: "6px 2px 22px", flexWrap: "wrap" as const }
-const filterChip = { border: "1px solid #d4dcd5", borderRadius: 999, padding: "7px 14px", background: "rgba(255,255,255,.55)", color: "#56635c", fontWeight: 650 as const, fontSize: 12, cursor: "pointer" }
-const filterChipActive = { background: "#34443c", color: "#f8f6f1", borderColor: "#34443c" }
-const heading = { margin: "0 4px 14px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400 as const, fontSize: 26 }
-const warning = { marginBottom: 16, padding: 13, borderRadius: 16, background: "#f5e1dc", color: "#8d5148" }
-const card = { padding: 20, marginBottom: 12, borderRadius: 25, background: "rgba(255,255,255,.72)", border: "1px solid #dce2dd", boxShadow: "0 14px 38px rgba(67,76,69,.07)" }
-const cardTitle = { margin: "12px 0 7px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400 as const, fontSize: 22 }
-const cardBody = { margin: "8px 0 14px", fontSize: 14, lineHeight: 1.6, color: "#3c4a43" }
-const statRow = { display: "flex", gap: 18, flexWrap: "wrap" as const, padding: "12px 14px", borderRadius: 16, background: "#f5f7f4" }
-const automationBadge = { padding: "5px 11px", borderRadius: 999, background: "#e6ece7", color: "#3c4a43", fontSize: 11, fontWeight: 650 as const }
-const riskBadge = { padding: "5px 11px", borderRadius: 999, background: "#f6e6de", color: "#8d5148", fontSize: 11, fontWeight: 650 as const }
-const approvedBadge = { marginTop: 15, padding: "9px 14px", borderRadius: 14, background: "#e6ece7", color: "#3c4a43", fontSize: 13, fontWeight: 650 as const, display: "inline-block" }
-const linkChip = { border: "1px solid #d4dcd5", borderRadius: 999, padding: "6px 12px", background: "rgba(255,255,255,.4)", color: "#56635c", fontSize: 11, fontWeight: 600 as const, textDecoration: "none" }
-const primary = { border: 0, borderRadius: 999, padding: "10px 17px", background: "#34443c", color: "#f8f6f1", fontWeight: 600 as const, cursor: "pointer" }
-const secondary = { border: "1px solid #d4dcd5", borderRadius: 999, padding: "9px 16px", background: "rgba(255,255,255,.5)", color: "#56635c", fontWeight: 600 as const, cursor: "pointer" }
+const filterChip = { border: "1px solid #d5ddd7", background: "rgba(255,255,255,.5)", borderRadius: 999, padding: "8px 12px", color: "#66736b", cursor: "pointer" }
+const filterChipActive = { background: "#34453c", color: "white", borderColor: "#34453c" }
+const heading = { margin: "24px 0 12px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400 as const, fontSize: 28 }
+const card = { background: "rgba(255,255,255,.78)", border: "1px solid #dce2dd", borderRadius: 24, padding: 20, marginBottom: 12, boxShadow: "0 10px 40px rgba(63,76,67,.05)" }
+const cardTitle = { margin: "10px 0 6px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400 as const, fontSize: 25 }
+const cardBody = { margin: 0, color: "#657169", lineHeight: 1.6, fontSize: 13 }
+const statRow = { display: "flex", gap: 20, overflowX: "auto" as const, marginTop: 18, paddingBottom: 2 }
+const automationBadge = { display: "inline-flex", padding: "6px 9px", borderRadius: 999, background: "#e6eee8", color: "#52635a", fontSize: 11 }
+const riskBadge = { display: "inline-flex", padding: "6px 9px", borderRadius: 999, background: "#f3ebe1", color: "#84694f", fontSize: 11 }
+const primary = { border: 0, borderRadius: 999, padding: "10px 15px", background: "#34453c", color: "white", cursor: "pointer" }
+const secondary = { border: "1px solid #d5ddd7", borderRadius: 999, padding: "10px 15px", background: "white", color: "#526158", cursor: "pointer" }
+const linkChip = { display: "inline-block", padding: "7px 9px", borderRadius: 999, background: "#f0f3f0", color: "#647169", textDecoration: "none", fontSize: 11 }
+const approvedBadge = { marginTop: 15, padding: "10px 12px", borderRadius: 14, background: "#e6eee8", color: "#52635a", fontSize: 12 }
+const warning = { padding: 12, borderRadius: 14, background: "#f3ebe1", color: "#785f49", marginBottom: 12 }
