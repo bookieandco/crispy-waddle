@@ -10,6 +10,7 @@
 
 import {
   AuditService,
+  DispatcherService,
   FunFinderService,
   HaversineRoutingProvider,
   InMemoryAuditRepository,
@@ -23,7 +24,9 @@ import {
   InMemoryStore,
   MemoryService,
   OpenStreetMapProvider,
+  TemplateDispatcherReasoner,
   createPlacesProvider,
+  type IDispatcherReasoner,
 } from "@jhadina/truckeros-core"
 
 export interface TruckerOSContext {
@@ -37,6 +40,8 @@ export interface TruckerOSContext {
   funFinderService: FunFinderService
   memoryService: MemoryService
   mapProvider: OpenStreetMapProvider
+  dispatcherService: DispatcherService
+  dispatcherReasoner: IDispatcherReasoner
 }
 
 // Next.js compiles each route.ts as its own module entry, including in dev
@@ -90,6 +95,11 @@ export function getTruckerOS(): TruckerOSContext {
     funFinderService,
     memoryService,
     mapProvider: new OpenStreetMapProvider(),
+    dispatcherService: new DispatcherService(),
+    // Template-based stand-in — see TemplateDispatcherReasoner.ts. Swapping
+    // in a real LLM-backed adapter later is a one-line change here; nothing
+    // above this composition root needs to know which one is wired in.
+    dispatcherReasoner: new TemplateDispatcherReasoner(),
   }
   globalThis.__truckerOSContext = context
   return context
