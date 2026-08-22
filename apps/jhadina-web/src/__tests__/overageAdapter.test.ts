@@ -46,6 +46,15 @@ describe("buildOverageOpportunity", () => {
     expect(opportunity.verificationStatus).toBe("human_required")
   })
 
+  it("cannot be promoted to verified by the input status", () => {
+    const opportunity = buildOverageOpportunity(
+      { ...candidate, verificationStatus: "verified" },
+      "user_1",
+    )
+
+    expect(opportunity.verificationStatus).toBe("human_required")
+  })
+
   it("rejects invalid source confidence", () => {
     expect(() => buildOverageOpportunity({ ...candidate, sourceConfidence: 1.01 }, "user_1")).toThrow(
       "sourceConfidence must be a finite number between 0 and 1.",

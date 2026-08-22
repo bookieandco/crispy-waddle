@@ -41,7 +41,6 @@ export function buildOverageOpportunity(
   }
 
   const sourceConfidence = assertUnitInterval(candidate.sourceConfidence, "sourceConfidence")
-  const verificationStatus = candidate.verificationStatus ?? "human_required"
   const automationLevel: AutomationLevel = "user_led"
   const propertyReference = candidate.propertyReference ? ` Property reference: ${candidate.propertyReference}.` : ""
   const family = candidate.recoveryFamily ? ` Recovery family: ${candidate.recoveryFamily}.` : ""
@@ -61,7 +60,9 @@ export function buildOverageOpportunity(
     fitScore: 50,
     riskFlags: candidate.riskFlags ?? [],
     requiresUserApproval: true,
-    verificationStatus,
+    // Identity verification remains a Jhadina human decision. A caller cannot
+    // elevate an unverified OverageOS candidate by supplying a status here.
+    verificationStatus: "human_required",
     sourceConfidence,
   }
 }
