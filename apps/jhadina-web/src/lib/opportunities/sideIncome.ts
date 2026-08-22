@@ -7,8 +7,11 @@ export type OpportunityKind =
   | "creator"
   | "affiliate"
   | "automation"
+  | "overage"
 
 export type AutomationLevel = "ai_can_do_it" | "ai_plus_user" | "user_led" | "do_not_pursue"
+
+export type OpportunityVerificationStatus = "not_required" | "human_required" | "verified" | "rejected"
 
 // "new" is the only state a discovered opportunity starts in. "approved"
 // is the one meaningful, external-facing decision this model tracks: the
@@ -35,6 +38,8 @@ export type Opportunity = {
   riskFlags: string[]
   deadline?: string
   requiresUserApproval: boolean
+  verificationStatus?: OpportunityVerificationStatus
+  sourceConfidence?: number
   status: OpportunityStatus
   createdAt: string
   approvedAt?: string
