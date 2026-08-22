@@ -7,6 +7,8 @@ import BoutiqueImage from "./BoutiqueImage";
 import Hotspots from "./Hotspots";
 import ProductModal from "./ProductModal";
 import MusicToggle from "./MusicToggle";
+import CartButton from "./CartButton";
+import CartDrawer from "./CartDrawer";
 import Scene3DErrorBoundary from "./Scene3DErrorBoundary";
 import { ActiveProduct } from "@/types/boutique";
 import { MusicProvider } from "@/context/MusicContext";
@@ -35,6 +37,7 @@ export default function Boutique() {
   const [mode, setMode] = useState<Mode>("flat");
   const [sceneReady, setSceneReady] = useState(false);
   const [sceneFailed, setSceneFailed] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
 
   useEffect(() => {
     const supported = isWebGLAvailable();
@@ -45,6 +48,21 @@ export default function Boutique() {
   }, []);
 
   const show3D = mode === "3d" && webglSupported && !sceneFailed;
+
+  // The "checkout" hotspot (data/hotspots.ts) has no fulfillment/pricing
+  // of its own — it was never a real product to customize, just a spot
+  // on the photo that used to open ProductModal only to show a "not
+  // wired up yet" placeholder. Intercepted here, before that placeholder
+  // is ever reached, so it opens the real cart instead — for both the
+  // flat-photo hotspot layer and the 3D scene's hotspots, which both
+  // call this same handler now instead of setActiveProduct directly.
+  const handleSelectHotspot = (hotspot: ActiveProduct) => {
+    if (hotspot.product === "checkout") {
+      setCartOpen(true);
+      return;
+    }
+    setActiveProduct(hotspot);
+  };
 
   return (
     <MusicProvider>
@@ -59,7 +77,7 @@ export default function Boutique() {
               }}
             >
               <BoutiqueScene
-                onSelectHotspot={setActiveProduct}
+                onSelectHotspot={handleSelectHotspot}
                 onReady={() => setSceneReady(true)}
               />
             </Scene3DErrorBoundary>
@@ -88,7 +106,7 @@ export default function Boutique() {
             style={{ aspectRatio: "1568 / 1003" }}
           >
             <BoutiqueImage />
-            <Hotspots onSelect={setActiveProduct} paused={!!activeProduct} />
+            <Hotspots onSelect={handleSelectHotspot} paused={!!activeProduct} />
           </div>
         )}
 
@@ -96,6 +114,9 @@ export default function Boutique() {
           activeProduct={activeProduct}
           onClose={() => setActiveProduct(null)}
         />
+
+        <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+        <CartButton onClick={() => setCartOpen(true)} />
 
         {webglSupported && (
           <ModeToggle

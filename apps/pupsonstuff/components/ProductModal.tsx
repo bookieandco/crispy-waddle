@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { ActiveProduct, ArtStyle, artStyles } from "@/types/boutique";
 import { useMusic } from "@/context/MusicContext";
+import { useCart } from "@/context/CartContext";
 import { getProduct3DConfig } from "@/config/product3dModels";
 import { screenshotPlugin } from "./product3d-plugins/screenshotPlugin";
 import AsciiSpinner from "./AsciiSpinner";
@@ -46,6 +47,7 @@ const centsToPrice = (c: number) => `$${(c / 100).toFixed(2)}`;
 
 export default function ProductModal({ activeProduct, onClose }: Props) {
   const { duck } = useMusic();
+  const { addItem } = useCart();
   const [selectedStyle, setSelectedStyle] = useState<ArtStyle>("watercolor");
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -60,6 +62,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
 
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
 
   // "animated" only becomes reachable once animatedVideoUrl exists — see
   // the segmented control below. Kept as one viewMode rather than a
@@ -88,6 +91,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
     setPreviewUrl(null);
     setGenerateError(null);
     setApproved(false);
+    setJustAdded(false);
     setViewMode("flat");
     setAnimatedVideoUrl(null);
     setAnimateError(null);
@@ -189,6 +193,26 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
     }
   };
 
+  // Gated by `approved` at the call site (the button is disabled until
+  // then) — a generated preview has to be explicitly approved before it
+  // can be added, not just generated. previewUrl is a data: URL (base64,
+  // from app/api/generate-preview's response) — real image data, not a
+  // remote link, so it round-trips through localStorage/CartContext and
+  // renders directly in CartDrawer's <img> with no extra fetch.
+  const handleAddToCart = () => {
+    if (!activeProduct || !activeVariant || !previewUrl) return;
+    const styleLabel =
+      artStyles.find((s) => s.id === selectedStyle)?.label ?? selectedStyle;
+    addItem({
+      productName: `${activeProduct.name} — ${activeVariant.label} — ${styleLabel}`,
+      price: activeVariant.priceCents,
+      quantity,
+      previewUrl,
+    });
+    setJustAdded(true);
+    window.setTimeout(() => setJustAdded(false), 1800);
+  };
+
   const isCustomizable = !!activeProduct?.fulfillment;
 
   return (
@@ -225,9 +249,14 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
             <div className="flex-1 overflow-y-auto px-6 py-6">
               {!isCustomizable ? (
                 <div className="rounded-lg border border-greige/40 bg-white/40 p-6 text-center text-sm text-ink/60">
-                  {activeProduct.product === "checkout"
-                    ? "Checkout isn't wired up yet — this is where the cart drawer opens in the next pass."
-                    : "This area doesn't have a fixed product — it's the entry point into the AI uploader."}
+                  {/* The "checkout" hotspot no longer reaches this modal
+                      at all — Boutique.tsx's handleSelectHotspot
+                      intercepts it and opens CartDrawer directly, for
+                      both the flat and 3D hotspot layers. Only "upload"
+                      (the AI-uploader entry point, still not wired to
+                      anything of its own) can land here now. */}
+                  This area doesn&apos;t have a fixed product — it&apos;s
+                  the entry point into the AI uploader.
                 </div>
               ) : (
                 <>
@@ -506,11 +535,16 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
             {isCustomizable && (
               <footer className="border-t border-greige/40 px-6 py-5">
                 <button
-                  disabled={!approved}
-                  className="w-full rounded-md bg-honey-oak py-3 text-sm font-semibold text-cream transition hover:bg-bronze disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={handleAddToCart}
+                  disabled={!approved || justAdded}
+                  className={`w-full rounded-md py-3 text-sm font-semibold transition disabled:cursor-not-allowed ${
+                    justAdded
+                      ? "bg-honey-oak text-cream opacity-70"
+                      : "bg-honey-oak text-cream hover:bg-bronze disabled:opacity-40"
+                  }`}
                 >
-                  Add to Cart
-                  {activeVariant &&
+                  {justAdded ? "Added to Cart ✓" : "Add to Cart"}
+                  {!justAdded && activeVariant &&
                     ` — ${centsToPrice(activeVariant.priceCents * quantity)}`}
                 </button>
               </footer>

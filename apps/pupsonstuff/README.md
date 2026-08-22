@@ -1,5 +1,80 @@
 # PupsonStuff — Static Boutique
 
+## Milestone 9 — Shopping cart + real Stripe Checkout wiring
+
+Roadmap item 5, the actual bottleneck behind several other sections'
+stated gaps (the admin Orders page's demo data, `lib/printify.ts`'s
+`submitOrder()` having nothing real to call it with) — picked as the
+highest-leverage next build for exactly that reason.
+
+- **`context/CartContext.tsx`**: cart state, localStorage-persisted —
+  same hydration pattern as `MusicContext`. **App-wide, not
+  page-scoped**: unlike `MusicProvider` (correctly kept inside
+  `Boutique.tsx` — music is page-mood-specific), `CartProvider` now
+  wraps `app/layout.tsx`'s `{children}`, because checkout means a full
+  navigation away to Stripe's hosted page and back to a *different*
+  route (`/checkout/success`) — that route needs `useCart()` too, and
+  it's outside `Boutique.tsx`'s tree entirely. Caught this before
+  shipping, not after: the first version had `CartProvider` only in
+  `Boutique.tsx`, which would have made the success page throw
+  ("`useCart` must be used within a `CartProvider`") the first time
+  anyone actually completed a checkout.
+- **`components/CartDrawer.tsx` + `CartButton.tsx`**: slide-out panel
+  (same visual language as `ProductModal`), floating trigger with a
+  live item-count badge, top-right (bottom-right is `MusicToggle`,
+  bottom-left is the 3D/Photo mode toggle — top-right was the one
+  corner not already claimed).
+- **The `checkout` hotspot, wired to something real**: `data/
+  hotspots.ts`'s `checkout` entry has no `fulfillment` of its own and
+  used to route through `ProductModal` only to hit a hardcoded "not
+  wired up yet" placeholder. `Boutique.tsx` now intercepts it (for
+  both the flat-photo and 3D hotspot layers, which share one handler)
+  and opens the real cart instead — verified live that the placeholder
+  text is genuinely gone from that path, not just visually replaced.
+- **`ProductModal`'s "Add to Cart" button** had no `onClick` at all
+  before this pass — a real, previously-unnoticed dead button, gated
+  behind the existing `approved` flow (generate → approve → add).
+  Verified end-to-end using the ASCII Art style specifically because it
+  needs no API key: generated a real preview, approved it, added to
+  cart, confirmed the drawer showed the correct product name (`"Insulated
+  Bottle — 20oz — ASCII Art"`), confirmed the quantity stepper and
+  subtotal recompute correctly, confirmed remove empties the cart and
+  clears the badge — all via Playwright against the real running app,
+  not asserted from reading the code.
+- **`lib/stripe.ts` + `app/api/checkout/route.ts`**: creates a real
+  Stripe Checkout Session (hosted-redirect flow — `price_data` inline
+  per line item, no Stripe product catalog synced, no client-side
+  publishable key or `@stripe/stripe-js` needed anywhere in this app).
+  `app/api/checkout/session/route.ts` + `app/checkout/success/page.tsx`
+  confirm payment server-side before clearing the cart — the
+  `session_id` in the success URL is a lookup key a browser can see,
+  not proof of payment; only a server-side fetch with the secret key
+  establishes that.
+- **Verified live, not just built**: clicked Checkout with no
+  `STRIPE_SECRET_KEY` configured and confirmed — via the actual network
+  response, not just UI text — a `502` with
+  `{"success":false,"error":"STRIPE_SECRET_KEY is not configured."}`,
+  rendered in the drawer. (One false alarm caught and correctly
+  attributed during this check: the very first attempt read the error
+  text too early and appeared to fail — turned out to be Next.js dev
+  mode's one-time route-compile latency on that route's first-ever hit,
+  confirmed by re-reading the dev server's own log line
+  ("`Compiled /api/checkout in 1413ms`") and re-testing against an
+  already-warm route, not an app bug.)
+- **Real gap, stated plainly**: a successful Stripe payment still
+  creates no order record anywhere in this app — no database, no
+  webhook, no order-history entry. The success page says this outright
+  rather than implying more happened than did. That's genuinely
+  separate work (roadmap item 6's Stripe-webhook-→-order-creation
+  piece, or item 7's order history) — deliberately not built in this
+  pass, not an oversight.
+- New dependency: `stripe` (official server SDK). `apiVersion` left
+  unset in the client constructor — the installed SDK's own default
+  tracks the installed package version, which beats guessing at a
+  dated version string I can't verify against a live account.
+  `STRIPE_SECRET_KEY` added to `.env.example`, same "fails honestly
+  without it" pattern as every other key in this app.
+
 ## Milestone 8.1 — Printify catalog discovery / dry-run mapping report
 
 Continuation of Milestone 8, not a second client — `scripts/
@@ -1085,21 +1160,27 @@ status," not as the current backlog.
    covering different ground: a full interactive 3D product viewer
    (`Product3DEngine.tsx`, Milestones 5.1–6.5) showing the generated art
    as a decal on a real 3D model, for all 6 products.
-5. **Shopping cart + checkout** — ⬜ not built. No cart drawer, no
-   `/api/cart`, no Stripe. This is the real blocker behind several other
-   sections' own stated gaps (the admin Orders page's demo data,
-   Printify's `submitOrder()` having nothing real to call it with).
-6. **Printful automation** — ⬜ not built as originally scoped (no
-   Stripe webhook, no `/api/orders`, no order automation for either
-   provider — Printful or Printify). What *did* get built: a full
-   Printify fulfillment client (`lib/printify.ts`, Milestone 8) and a
-   read-only catalog discovery/dry-run mapping tool
-   (`scripts/printify-catalog-sync.ts`, Milestone 8.1) — real
-   groundwork, but standalone, not wired to checkout because checkout
-   (#5) doesn't exist yet. Printful itself (this project's actual
-   fulfillment account, per `data/hotspots.ts`'s own header) has no
-   client at all — only Printify does, since that's the OpenAPI spec
-   that was actually supplied to build against.
+5. **Shopping cart + checkout** — ✅ done (Milestone 9), not
+   `/api/cart` as originally named but a cart drawer + `CartContext` +
+   `app/api/checkout` doing the same job. Real Stripe Checkout Session
+   creation, not a stub — verified live that it fails honestly without
+   `STRIPE_SECRET_KEY` (a real `502`, not a faked redirect). This was
+   the real blocker behind several other sections' own stated gaps
+   (the admin Orders page's demo data, Printify's `submitOrder()`
+   having nothing real to call it with) — picked for exactly that
+   reason, not because it was next in this numbered list.
+6. **Printful automation** — ⬜ still not built. Milestone 9 unblocked
+   the *checkout* side of this (there's now a real payment event to
+   react to), but nothing reacts to it yet — a successful Stripe
+   payment still creates no order record anywhere, no webhook, no
+   database. What *did* get built, standalone and still not wired to
+   the new checkout flow: a full Printify fulfillment client
+   (`lib/printify.ts`, Milestone 8) and a read-only catalog discovery/
+   dry-run mapping tool (`scripts/printify-catalog-sync.ts`, Milestone
+   8.1). Printful itself (this project's actual fulfillment account,
+   per `data/hotspots.ts`'s own header) has no client at all — only
+   Printify does, since that's the OpenAPI spec that was actually
+   supplied to build against.
 7. **User accounts + order history** — ⬜ not built. No Supabase Auth,
    no login anywhere in this app — including the admin dashboard
    (Milestone 7), which states plainly in its own sidebar that `/admin`
@@ -1127,15 +1208,17 @@ dashboard (Milestone 7 — no login gate, see that section). You'll need
 Node 18.18+ and the packages in `package.json` (Tailwind, Framer Motion
 pinned; `openai`, `@huggingface/inference`, and `sharp` are in since
 Milestone 6/6.1; `tsx` since Milestone 8.1, dev-only, for running
-`scripts/printify-catalog-sync.ts` directly — Konva/Supabase/Stripe
-still get added when/if their features do; Printful itself never got a
-client, see Roadmap item 6 above for why Printify did instead).
+`scripts/printify-catalog-sync.ts` directly; `stripe` since Milestone 9
+— Konva/Supabase still get added when/if their features do; Printful
+itself never got a client, see Roadmap item 6 above for why Printify
+did instead).
 
 Copy `.env.example` to `.env.local` and fill in real keys before
 exercising `/api/generate-preview` (10 of 13 art styles need
 `OPENAI_API_KEY`, 2 need `MUAPI_API_KEY`, 1 needs neither),
-`/api/animate-preview` (`HUGGINGFACE_API_KEY`), or `npm run
-printify:sync` (`PRINTIFY_API_KEY`) — all three return/print an honest
+`/api/animate-preview` (`HUGGINGFACE_API_KEY`), `/api/checkout` (the
+cart drawer's Checkout button — `STRIPE_SECRET_KEY`), or `npm run
+printify:sync` (`PRINTIFY_API_KEY`) — all four return/print an honest
 "not configured" error without their key, rather than faking a result.
 
 ## Deploying (Vercel)
@@ -1148,4 +1231,8 @@ printify:sync` (`PRINTIFY_API_KEY`) — all three return/print an honest
    styles — every other style still only needs `OPENAI_API_KEY`).
    `PRINTIFY_API_KEY`/`PRINTIFY_SHOP_ID` (Milestone 8) are deliberately
    not needed here — nothing deployed reads them, only the local-only
-   `npm run printify:sync` script does.
+   `npm run printify:sync` script does. `STRIPE_SECRET_KEY` (Milestone
+   9) **is** needed here, unlike Printify's keys — `/api/checkout` and
+   `/api/checkout/session` are real deployed routes. Use a live-mode key
+   only once checkout has actually been tested end-to-end; a test-mode
+   key (`sk_test_...`) is the right choice for a preview deployment.
