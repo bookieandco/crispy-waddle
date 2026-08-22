@@ -3803,3 +3803,61 @@ It requires, in order: a real Plaid sandbox credential bundle provisioned as
 `/sandbox/public_token/create` + `/item/public_token/exchange` flow, done outside this repo), then
 a single explicit dispatch authorization, mirroring PL-7's two-gate discipline (construction
 authorized separately from dispatch).
+
+### JH-048
+**Priority:** P3
+**Status:** DECISION DOCUMENTED -- human confirmation still open
+**Objective:** Phase 1 Step 1 asked whether `placement_*` (the tables
+`placement-core` writes: `placement_organizations`, `placement_memberships`,
+`placement_jobs`, `placement_placements`, `placement_referrals`,
+`placement_assignments`, `placement_timesheets`, `placement_audit_events`)
+belongs in the planned Opportunity vertical (OverageOS-style discovery /
+evidence / entity-resolution / verification / governed action). Nothing
+was deleted; this is a classification finding only.
+
+**Finding: it does not.** `placement-core` is a job-placement / staffing
+marketplace domain -- organizations, memberships, job orders, referrals,
+assignments, timesheets, invoicing -- with no overlap in data model,
+evidence model, or verification concept with Opportunity's asset/money
+discovery domain. The work queue's own prior finding on JH's "Reticulum"
+thread already independently characterized `placement-core/src/command-api.ts`
+as "PlacementOS's own command API (a staffing/scheduling domain)" --
+consistent with this conclusion, not new to it.
+
+**A separate, more consequential finding surfaced while answering this:**
+`placement-core` is not the only implementation of this domain.
+`packages/staffing-core` (65 source files, ~2,500 LOC, 18 sequential
+migrations `0005`-`0022` covering placements, timesheets, invoices,
+payment ledger + reconciliation, interviews, interview outcomes,
+candidate reviews, employer decisions) plus its own dedicated app,
+`apps/staffing-web`, is a substantially larger and more mature build of
+what looks like the same underlying domain as `placement-core`'s single
+212-line migration (`organizations`, `memberships`, `jobs`, and a
+narrower slice beyond that). `jhadina-web`'s `/placement/*` pages are
+wired to `placement-core`, not `staffing-core` -- meaning the OS's own
+front door currently exercises the smaller, less mature of the two.
+
+Whether `placement-core` is an earlier draft `staffing-core` superseded,
+a deliberately separate lighter-weight Jhadina-integrated view over the
+same eventual data, or something that should be unified into one
+package before either becomes a real department, is a product-scope call
+this session did not make -- it fits squarely under "architectural
+decision that cannot safely be inferred" from Phase 1's own working
+method.
+
+**Also open:** whether either `placement_*` or `staffing_*` tables exist
+on the live Supabase project could not be verified this pass -- the
+`execute_sql` tool call was gated pending approval and was not forced.
+Given every other package-local migration found in this repo's history
+(`energy-opportunity-core`, `justice-core`, `jhadina-web`'s
+codebase-graph, and originally all of `overage_*`/`jhadina_mining_*`
+before Gates 0-12) turned out to be unapplied-live, the same should be
+assumed true here until confirmed, not assumed clean.
+
+**Human gate:** (1) confirm placement/staffing is out of scope for the
+Opportunity vertical (no action needed if so -- this entry can close);
+(2) decide whether `placement-core` and `staffing-core` are one domain
+that needs reconciling before either is wired into the OS backbone, or
+two deliberately distinct things; (3) when convenient, confirm live
+table state for both `placement_*` and `staffing_*` against the Supabase
+project.
