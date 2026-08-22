@@ -39,6 +39,11 @@ export default function DriverHomePage() {
       .then((data) => setNearby(data.results.slice(0, 5)))
       .catch((err) => console.error("[Home] failed to load nearby places", err))
       .finally(() => setLoadingNearby(false))
+    // Intentionally depends on the lat/lng primitives, not `coords` itself:
+    // watchPosition fires on every heading/speed/timestamp jitter even when
+    // the driver hasn't actually moved, and re-querying FunFinder on every
+    // one of those would be wasteful and would spam recommendations.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coords?.latitude, coords?.longitude])
 
   const query = coords ? `lat=${coords.latitude}&lng=${coords.longitude}` : ""

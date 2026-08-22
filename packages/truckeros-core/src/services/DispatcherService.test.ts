@@ -53,7 +53,13 @@ describe("DispatcherService", () => {
   });
 
   it("counters when a load clears the minimum but misses the target", () => {
-    const brief = service.brief(context([load({ revenueCents: 150_000 })]));
+    // Fixed costs are 43_300 on 280 total miles, so this nets 121_700 /
+    // 280 = ~434.6 cents/mile: inside (minimum 400, target 500), with
+    // margin from both boundaries. The original fixture here (150_000)
+    // actually nets ~381/mile — below the minimum, not between it and the
+    // target — so it asserted "counter" while exercising the "decline"
+    // path; fixed as part of validating this PR.
+    const brief = service.brief(context([load({ revenueCents: 165_000 })]));
     expect(brief.recommendation).toBe("counter");
   });
 
@@ -76,5 +82,29 @@ describe("DispatcherService", () => {
     );
     expect(economics.totalCostsCents).toBe(0);
     expect(economics.netProfitCents).toBe(load().revenueCents);
+  });
+
+  it("declines with a warning instead of throwing when no loads are supplied", () => {
+    const brief = service.brief(context([]));
+    expect(brief.recommendation).toBe("decline");
+    expect(brief.candidates).toEqual([]);
+    expect(brief.warnings).toEqual(["No load candidates were supplied."]);
+  });
+
+  it("warns when the top-ranked load has zero reported miles", () => {
+    const brief = service.brief(context([load({ loadedMiles: 0, deadheadMiles: 0 })]));
+    expect(brief.warnings).toContain("Best load has zero reported miles; economics are incomplete.");
+  });
+
+  it("treats the exact minimum and target as inclusive boundaries", () => {
+    // 400 cents/mile exactly on 280 miles => net profit 112_000, so
+    // revenue = 112_000 + fixed costs 43_300 = 155_300.
+    const atMinimum = service.brief(context([load({ revenueCents: 155_300 })]));
+    expect(atMinimum.recommendation).toBe("counter");
+
+    // 500 cents/mile exactly on 280 miles => net profit 140_000, so
+    // revenue = 140_000 + fixed costs 43_300 = 183_300.
+    const atTarget = service.brief(context([load({ revenueCents: 183_300 })]));
+    expect(atTarget.recommendation).toBe("accept");
   });
 });
