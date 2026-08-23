@@ -1,0 +1,53 @@
+name: Step 8 Lockfile Repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or commit ref to repair'
+        required: true
+        default: 'main'
+        type: string
+      repair_branch:
+        description: 'Branch to receive the generated lockfile'
+        required: true
+        default: 'fix/step8-lockfile'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Generate lockfile
+        run: pnpm install --lockfile-only
+
+      - name: Verify frozen lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Commit generated lockfile
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -B "${{ inputs.repair_branch }}"
+          git add pnpm-lock.yaml
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: synchronize Step 8 lockfile'
+          git push --force-with-lease origin "${{ inputs.repair_branch }}"
