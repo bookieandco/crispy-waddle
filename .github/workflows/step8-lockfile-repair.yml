@@ -1,0 +1,66 @@
+name: Step 8 Lockfile Repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Source branch or commit to repair'
+        required: true
+        default: 'main'
+        type: string
+      repair_branch:
+        description: 'Branch to create/update with the generated lockfile'
+        required: true
+        default: 'fix/step8-lockfile'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Generate lockfile
+        run: pnpm install --lockfile-only
+
+      - name: Verify generated lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Create repair branch and commit
+        env:
+          REPAIR_BRANCH: ${{ inputs.repair_branch }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -C "$REPAIR_BRANCH"
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo 'No lockfile changes were generated.'
+            exit 0
+          fi
+          git commit -m 'fix: synchronize Step 8 pnpm lockfile'
+          git push --set-upstream origin "$REPAIR_BRANCH" --force-with-lease
+
+      - name: Show commit
+        run: git log -1 --oneline
