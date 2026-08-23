@@ -59,6 +59,12 @@ export interface Timeline {
    * in-progress shotlist is the normal case while generation is still
    * catching up, not an error state. */
   missingClips: string[];
+  /** Shot ids for which more than one `ClipRef` was supplied (e.g. a
+   * regeneration retry). The last one in `clips` order wins in `edits`;
+   * this reports which shots had a candidate silently superseded, so a
+   * caller that only checks `missingClips` for "is anything wrong" isn't
+   * blind to a dropped clip. */
+  duplicateClips: string[];
 }
 
 export interface BuildTimelineOptions {
@@ -84,7 +90,12 @@ export function buildTimeline(
   clips: ClipRef[],
   options: BuildTimelineOptions = {},
 ): Timeline {
-  const clipsByShot = new Map(clips.map((clip) => [clip.shotId, clip]));
+  const clipsByShot = new Map<string, ClipRef>();
+  const duplicateClips: string[] = [];
+  for (const clip of clips) {
+    if (clipsByShot.has(clip.shotId)) duplicateClips.push(clip.shotId);
+    clipsByShot.set(clip.shotId, clip);
+  }
   const ordered = [...shots].sort(shotOrder);
 
   const edits: EditDecision[] = [];
@@ -108,5 +119,6 @@ export function buildTimeline(
     localization: options.localization ?? [],
     totalDurationSec: cursor,
     missingClips,
+    duplicateClips,
   };
 }

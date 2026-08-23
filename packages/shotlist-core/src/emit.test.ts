@@ -158,6 +158,18 @@ describe("Director Control Extension", () => {
     expect(seedanceTarget.render({ shot, refs: [withKind] })).toContain("@material[mara]: mood board —");
     expect(seedanceTarget.render({ shot, refs: [bare] })).toContain("@material[mara]: reference —");
   });
+
+  // Bug fix: reference-asset matching used to only accept entityId as the
+  // shot handle, while locked-trait matching already accepted id OR name —
+  // an entity referenced by name lost its reference material silently.
+  it("matches reference assets when the shot handle is the entity's name, not its id", () => {
+    const shot = baseShot({ entityHandles: ["Mara"] }); // handle is the *name*
+    const entities: Entity[] = [{ id: "e1", name: "Mara", lockedTraits: ["red hair"] }];
+    const refs: ReferenceAsset[] = [{ id: "r1", entityId: "e1", uri: "s3://refs/mara.png" }]; // keyed by id
+    const out = seedanceTarget.render({ shot, entities, refs });
+    expect(out).toContain("Character traits: red hair"); // already worked before the fix
+    expect(out).toContain("@material[e1]: reference — s3://refs/mara.png"); // was silently dropped before the fix
+  });
 });
 
 describe("look preset polish pass", () => {

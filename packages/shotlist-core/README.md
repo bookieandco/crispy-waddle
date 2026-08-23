@@ -218,3 +218,27 @@ This package can plan and assemble; it cannot generate a frame. To turn
 
 None of these are guessable from here — they're cost, infra, and product
 calls.
+
+## Audit fixes
+
+A correctness/efficiency audit of the whole package (5 commits) surfaced
+and fixed three issues, all backward compatible:
+
+1. **Reference matching used a different rule than trait matching.**
+   `lockedTraitsFor` matched a shot's `entityHandles` against an entity by
+   `id` OR `name`; `materialReferencesFor` matched only by `entityId`
+   directly. A shot referencing an entity by name lost that entity's
+   reference material from the rendered prompt while its locked traits
+   still rendered fine — silent and untested. Fixed by `resolveHandles()`,
+   a shared handle-resolution step both helpers now use.
+2. **`buildTimeline` silently dropped duplicate clips.** Two `ClipRef`s
+   for the same shot (e.g. a regeneration retry) collapsed to "last one
+   wins" with no trace in the returned `Timeline`. `Timeline` now carries
+   `duplicateClips: string[]`; behavior (last-in-order wins) is unchanged,
+   it's just no longer silent.
+3. **Redundant `Set` construction.** `entityHandles` was turned into a
+   `Set` twice per `render()` call (once in each helper). Reduced to
+   once, shared by both helpers, per `render()` call. Not reduced further
+   to once per `emitPrompts()` call (across both targets), since that
+   would require changing `PromptTarget.render(ctx)`'s signature — a
+   public-interface change, not made for a minor efficiency gain.

@@ -71,5 +71,20 @@ describe("buildTimeline", () => {
     expect(timeline.edits).toEqual([]);
     expect(timeline.totalDurationSec).toBe(0);
     expect(timeline.missingClips).toEqual([]);
+    expect(timeline.duplicateClips).toEqual([]);
+  });
+
+  // Bug fix: a second ClipRef for the same shot (e.g. a regeneration
+  // retry) used to be silently dropped with no trace in the Timeline.
+  it("reports duplicate clips for the same shot instead of silently dropping one", () => {
+    const shots = [shot("a", 1, 1)];
+    const retry = clip("a", 6); // e.g. a re-take, listed after the first
+    const clips = [clip("a", 5), retry];
+    const timeline = buildTimeline("proj-1", shots, clips);
+    expect(timeline.duplicateClips).toEqual(["a"]);
+    // Last-in-order clip still wins in the actual edit (documented, kept).
+    expect(timeline.edits).toHaveLength(1);
+    expect(timeline.edits[0].clip).toEqual(retry);
+    expect(timeline.totalDurationSec).toBe(6);
   });
 });

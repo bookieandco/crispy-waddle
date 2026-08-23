@@ -13,8 +13,30 @@ export interface PromptTarget {
   render(ctx: PromptContext): string;
 }
 
-function lockedTraitsFor(ctx: PromptContext): string[] {
+/**
+ * Resolves `shot.entityHandles` into the full set of strings that count
+ * as "this entity" for matching purposes: the raw handles themselves,
+ * plus — for any handle that matches a known entity's `id` or `name` —
+ * that entity's *other* identifier too. Computed once per render pass
+ * and shared by `lockedTraitsFor` and `materialReferencesFor` so a shot
+ * that references an entity by name (e.g. `entityHandles: ["Mara"]`)
+ * matches that entity's reference assets (keyed by `entityId`, i.e. id)
+ * exactly as reliably as it already matched that entity's locked traits.
+ * Without this, the two lookups used different matching rules and a
+ * name-keyed handle silently lost its reference material.
+ */
+function resolveHandles(ctx: PromptContext): Set<string> {
   const handles = new Set(ctx.shot.entityHandles);
+  for (const entity of ctx.entities ?? []) {
+    if (handles.has(entity.id) || handles.has(entity.name)) {
+      handles.add(entity.id);
+      handles.add(entity.name);
+    }
+  }
+  return handles;
+}
+
+function lockedTraitsFor(ctx: PromptContext, handles: Set<string>): string[] {
   return (ctx.entities ?? [])
     .filter((entity) => handles.has(entity.id) || handles.has(entity.name))
     .flatMap((entity) => entity.lockedTraits);
@@ -42,8 +64,7 @@ function describeReference(ref: ReferenceAsset): string {
  * beshuaxian/higgsfield-seedance2-jineng), rather than a generic
  * "here are some URIs" list the target platform doesn't parse.
  */
-function materialReferencesFor(ctx: PromptContext): string[] {
-  const handles = new Set(ctx.shot.entityHandles);
+function materialReferencesFor(ctx: PromptContext, handles: Set<string>): string[] {
   return (ctx.refs ?? [])
     .filter((ref) => handles.has(ref.entityId))
     .map((ref) => `@material[${ref.entityId}]: ${describeReference(ref)} — ${ref.uri}`);
@@ -70,14 +91,15 @@ function directorInstructions(director: DirectorControls | undefined): string | 
 export const seedanceTarget: PromptTarget = {
   name: "seedance",
   render(ctx) {
+    const handles = resolveHandles(ctx);
     const lines: string[] = [];
     if (ctx.prefix) lines.push(ctx.prefix);
     lines.push(ctx.shot.action);
-    const traits = lockedTraitsFor(ctx);
+    const traits = lockedTraitsFor(ctx, handles);
     if (traits.length) lines.push(`Character traits: ${traits.join(", ")}`);
     const directorLine = directorInstructions(ctx.shot.director);
     if (directorLine) lines.push(directorLine);
-    const materials = materialReferencesFor(ctx);
+    const materials = materialReferencesFor(ctx, handles);
     for (const material of materials) lines.push(material);
     return lines.join("\n");
   },
@@ -86,14 +108,15 @@ export const seedanceTarget: PromptTarget = {
 export const higgsfieldTarget: PromptTarget = {
   name: "higgsfield",
   render(ctx) {
+    const handles = resolveHandles(ctx);
     const segments: string[] = [];
     if (ctx.prefix) segments.push(ctx.prefix);
     segments.push(ctx.shot.action);
-    const traits = lockedTraitsFor(ctx);
+    const traits = lockedTraitsFor(ctx, handles);
     if (traits.length) segments.push(`traits(${traits.join("; ")})`);
     const directorLine = directorInstructions(ctx.shot.director);
     if (directorLine) segments.push(directorLine);
-    const materials = materialReferencesFor(ctx);
+    const materials = materialReferencesFor(ctx, handles);
     if (materials.length) segments.push(materials.join(" "));
     return segments.join(" | ");
   },
