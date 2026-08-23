@@ -1,5 +1,5 @@
 import type { ActionRequest } from './action-executor.js';
-import type { CapabilityDefinition, CapabilityRegistry } from '../../jhadina-capability-registry/src/index.js';
+import type { CapabilityDefinition, CapabilityRegistry } from '@jhadina/capability-registry';
 
 export interface CapabilityMetadataProvider {
   get(name: string): CapabilityDefinition | undefined;
