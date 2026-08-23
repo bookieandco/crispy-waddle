@@ -9,6 +9,9 @@
     "type-check": "tsc --noEmit",
     "test": "tsx --test src/*.test.ts"
   },
+  "dependencies": {
+    "@jhadina/capability-registry": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "tsx": "^4.20.3",
