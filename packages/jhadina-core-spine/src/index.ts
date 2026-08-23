@@ -10,3 +10,4 @@ export * from './emergency-capture.js';
 export * from './emergency-persistence.js';
 export * from './emergency-release.js';
 export * from './emergency-orchestrator.js';
+export * from './emergency-notifications.js';
