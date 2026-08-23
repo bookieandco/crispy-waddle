@@ -13,3 +13,4 @@ export * from './emergency-orchestrator.js';
 export * from './emergency-notifications.js';
 export * from './emergency-integration.js';
 export * from './emergency-e2e-harness.js';
+export * from './emergency-scenarios.js';
