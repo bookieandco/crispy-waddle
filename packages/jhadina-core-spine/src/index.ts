@@ -5,3 +5,4 @@ export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
 export * from './emergency-evidence-state.js';
 export * from './personal-safety.js';
+export * from './safety-codeword.js';
