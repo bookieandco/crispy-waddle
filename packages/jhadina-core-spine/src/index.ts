@@ -8,3 +8,4 @@ export * from './personal-safety.js';
 export * from './safety-codeword.js';
 export * from './emergency-capture.js';
 export * from './emergency-persistence.js';
+export * from './emergency-release.js';
