@@ -92,7 +92,7 @@ export const JHADINA_BASE_SECURITY_POLICY: SecurityPolicy = {
     'timeline.edit', 'timeline.snapshot', 'take.generate', 'take.regenerate',
     'take.record', 'take.select', 'audio.edit', 'image.edit', 'storyboard.edit',
     'research.run', 'memory.propose', 'memory.read', 'public.publish',
-    'growth.draft.approve',
+    'growth.draft.approve', 'overage.review',
   ],
   approvalCapabilities: [
     'public.publish', 'paid-ad.publish', 'affiliate.publish',
