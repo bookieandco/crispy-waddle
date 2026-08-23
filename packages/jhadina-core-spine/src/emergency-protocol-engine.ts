@@ -53,7 +53,9 @@ export class EmergencyProtocolEngine {
 
   public constructor(options: EmergencyProtocolEngineOptions = {}) {
     this.now = options.now ?? (() => new Date().toISOString());
-    this.idFactory ??= options.idFactory ?? (() => crypto.randomUUID());
+    this.idFactory =
+      options.idFactory ??
+      (() => `incident-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
   }
 
   public selectProtocol(
