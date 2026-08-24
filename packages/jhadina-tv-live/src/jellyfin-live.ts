@@ -1,8 +1,8 @@
 import type { LiveChannel, LiveChannelProvider, LiveProgram } from '@jhadina/tv-core';
 
 export interface JellyfinLiveTvClient {
-  getLiveTvChannels(request: { userId: string; limit?: number; startIndex?: number }): Promise<any>;
-  getLiveTvPrograms(request: { userId: string; channelIds?: string[]; minStartDate?: string; maxEndDate?: string; limit?: number }): Promise<any>;
+  getLiveTvChannels(request: { userId: string; limit?: number; startIndex?: number }): Promise<unknown>;
+  getLiveTvPrograms(request: { userId: string; channelIds?: string[]; minStartDate?: string; maxEndDate?: string; limit?: number }): Promise<unknown>;
 }
 
 export interface JellyfinLiveTvConfig {
@@ -12,8 +12,8 @@ export interface JellyfinLiveTvConfig {
   channelUrlFactory?: (channelId: string) => string;
 }
 
-function channelKind(channel: any): LiveChannel['kind'] {
-  return channel.ChannelType === 'TvChannel' ? 'live' : 'live';
+function asRecord(value: unknown): Record<string, any> {
+  return value && typeof value === 'object' ? value as Record<string, any> : {};
 }
 
 function channelUrl(serverUrl: string, channelId: string, factory?: (channelId: string) => string): string {
@@ -23,51 +23,53 @@ function channelUrl(serverUrl: string, channelId: string, factory?: (channelId: 
 export class JellyfinLiveTVProvider implements LiveChannelProvider {
   readonly id = 'jellyfin-live-tv';
   readonly name = 'Jellyfin Live TV';
-  readonly provenance = 'jellyfin' as const;
 
   constructor(private readonly config: JellyfinLiveTvConfig) {}
 
   async listChannels(): Promise<LiveChannel[]> {
-    const response = await this.config.client.getLiveTvChannels({ userId: this.config.userId });
-    const channels = response?.Items ?? response?.items ?? [];
+    const response = asRecord(await this.config.client.getLiveTvChannels({ userId: this.config.userId }));
+    const channels = Array.isArray(response.Items) ? response.Items : [];
 
     return channels
-      .filter((channel: any) => channel?.Id && channel?.Name)
-      .map((channel: any): LiveChannel => ({
+      .filter((channel) => channel?.Id && channel?.Name)
+      .map((channel): LiveChannel => ({
         id: `jellyfin:${channel.Id}`,
-        providerId: this.id,
-        kind: channelKind(channel),
         name: channel.Name,
+        kind: 'broadcast',
+        source: channelUrl(this.config.serverUrl, channel.Id, this.config.channelUrlFactory),
         logoUrl: channel.ImageTags?.Primary
           ? `${this.config.serverUrl.replace(/\/$/, '')}/Items/${encodeURIComponent(channel.Id)}/Images/Primary`
           : undefined,
         group: channel.ChannelType,
         country: channel.Country,
         language: channel.Language,
-        sourceUrl: channelUrl(this.config.serverUrl, channel.Id, this.config.channelUrlFactory),
-        provenance: this.provenance,
+        tvgId: channel.Id,
+        tvgName: channel.Name,
+        provenance: 'jellyfin',
       }));
   }
 
-  async listPrograms(channelId?: string, window?: { from?: string; to?: string }): Promise<LiveProgram[]> {
-    const rawChannelId = channelId?.replace(/^jellyfin:/, '');
-    const response = await this.config.client.getLiveTvPrograms({
+  async getPrograms(channelId: string, from?: string, to?: string): Promise<LiveProgram[]> {
+    const rawChannelId = channelId.replace(/^jellyfin:/, '');
+    const response = asRecord(await this.config.client.getLiveTvPrograms({
       userId: this.config.userId,
-      ...(rawChannelId ? { channelIds: [rawChannelId] } : {}),
-      ...(window?.from ? { minStartDate: window.from } : {}),
-      ...(window?.to ? { maxEndDate: window.to } : {}),
-    });
-    const programs = response?.Items ?? response?.items ?? [];
+      channelIds: [rawChannelId],
+      ...(from ? { minStartDate: from } : {}),
+      ...(to ? { maxEndDate: to } : {}),
+    }));
+    const programs = Array.isArray(response.Items) ? response.Items : [];
 
     return programs
-      .filter((program: any) => program?.Id && program?.Name && program?.StartDate)
-      .map((program: any): LiveProgram => ({
+      .filter((program) => program?.Id && program?.Name && program?.StartDate && program?.EndDate)
+      .map((program): LiveProgram => ({
         id: `jellyfin:${program.Id}`,
-        channelId: `jellyfin:${program.ChannelId}`,
+        channelId: `jellyfin:${program.ChannelId ?? rawChannelId}`,
         title: program.Name,
         description: program.Overview,
-        startsAt: program.StartDate,
-        endsAt: program.EndDate,
+        startTime: program.StartDate,
+        endTime: program.EndDate,
+        episodeTitle: program.SeriesName ? program.Name : undefined,
+        category: program.Genres?.[0],
       }));
   }
 }
