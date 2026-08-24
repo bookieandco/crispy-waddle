@@ -1,5 +1,13 @@
 import type { MediaTitle } from './index';
 
+export interface MediaSourcePlaybackCapabilities {
+  directPlay: boolean;
+  directStream: boolean;
+  transcoding: boolean;
+  durationSeconds?: number;
+  bitrate?: number;
+}
+
 export interface MediaSource {
   id: string;
   titleId: string;
@@ -7,6 +15,7 @@ export interface MediaSource {
   url: string;
   label?: string;
   subtitles?: Array<{ label: string; language: string; url: string }>;
+  playback?: MediaSourcePlaybackCapabilities;
 }
 
 export interface MediaSourceAdapter {
