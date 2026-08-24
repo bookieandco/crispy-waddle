@@ -41,6 +41,10 @@ export interface DecisionPort {
   decide(context: ContextPacket): Promise<DecisionProposal>;
 }
 
+/**
+ * Decision-governance boundary. This answers whether Jhadina should pursue
+ * the proposed course of action; it is not concrete action authorization.
+ */
 export interface PolicyPort {
   evaluate(proposal: DecisionProposal): Promise<PolicyDecision>;
 }
@@ -48,13 +52,13 @@ export interface PolicyPort {
 /**
  * Composition boundary implemented by the concrete Action Core layer.
  *
- * `prepare` must preserve Action Core's governance semantics. In particular,
- * APPROVAL_REQUIRED must never be silently converted into an executable action.
- * The concrete implementation owns receipt issuance/verification/consumption.
+ * Core Spine may construct a semantic action only after decision governance
+ * permits PROCEED. Action Core remains the authority for concrete action
+ * authorization, approval receipts, execution, and action-level audit.
  */
 export interface ActionPort {
-  prepare(proposal: DecisionProposal, policy: PolicyDecision): Promise<ActionRequest | undefined>;
-  execute(request: ActionRequest): Promise<ActionResult>;
+  prepare(proposal: DecisionProposal): Promise<ActionRequest | undefined>;
+  authorizeAndExecute(request: ActionRequest): Promise<ActionResult>;
 }
 
 export interface AuditPort {
@@ -92,11 +96,9 @@ export interface SpineRunResult {
 /**
  * Jhadina's control-plane orchestration boundary.
  *
- * This class deliberately contains no LLM implementation and no domain-specific
- * business logic. Providers implement the ports; the spine owns ordering and
- * the invariant that decisions pass through context and policy before action.
- * Action Core remains the concrete enforcement/execution authority supplied
- * through ActionPort.
+ * This class contains no LLM implementation and no concrete action
+ * authorization. It owns ordering from context through decision governance;
+ * Action Core owns authorization, approval, execution, and action-level audit.
  */
 export class JhadinaSpine {
   constructor(private readonly ports: SpinePorts) {}
@@ -123,8 +125,8 @@ export class JhadinaSpine {
       policy.disposition === 'DENY'
         ? 'POLICY_DENIED'
         : policy.disposition === 'APPROVAL_REQUIRED'
-          ? 'APPROVAL_REQUIRED'
-          : 'DECISION_AUTHORIZED';
+          ? 'DECISION_APPROVAL_REQUIRED'
+          : 'DECISION_PROCEED';
 
     await this.ports.audit.record({
       type: governanceEvent,
@@ -137,39 +139,24 @@ export class JhadinaSpine {
       },
     });
 
-    // DENY and APPROVAL_REQUIRED are both non-executable at this control-plane
-    // stage. Action Core is responsible for receipt-backed execution when an
-    // approved action is later submitted through its concrete boundary.
+    // Decision governance is not executable-action authorization. A decision
+    // that requires approval stops here; Action Core owns concrete approval.
     if (policy.disposition !== 'ALLOW') {
       return { memories, patterns, personality, context, decision, policy };
     }
 
-    const action = await this.ports.action.prepare(decision, policy);
+    const action = await this.ports.action.prepare(decision);
     if (!action) {
       return { memories, patterns, personality, context, decision, policy };
     }
 
-    const result = await this.ports.action.execute(action);
-
-    await this.ports.audit.record({
-      type: result.success ? 'ACTION_COMPLETED' : 'ACTION_FAILED',
-      actor: 'jhadina',
-      subjectId: action.id,
-      payload: {
-        requestId: action.id,
-        success: result.success,
-      },
-    });
+    // Action Core performs concrete authorization and any receipt-backed
+    // approval before execution. The spine never pre-authorizes the action.
+    const result = await this.ports.action.authorizeAndExecute(action);
 
     return { memories, patterns, personality, context, decision, policy, action, result };
   }
 
-  /**
-   * Accept an idea, conversation, code sample, repository, or other artifact
-   * as evidence and ask the evolution provider to determine whether it should
-   * become a Jhadina improvement. Intake creates a proposal only; it does not
-   * install, deploy, or grant permissions.
-   */
   async inspectForImprovement(input: ImprovementInput): Promise<ImprovementProposal> {
     return this.ports.evolution.analyze(input);
   }
