@@ -82,21 +82,12 @@ export class JellyfinSourceAdapter implements MediaSourceAdapter {
     });
     if (!url) return null;
 
-    const subtitles = (source.MediaStreams ?? [])
-      .filter((stream) => stream.Type?.toLowerCase() === 'subtitle' && stream.Index !== undefined)
-      .map((stream) => ({
-        label: stream.DisplayTitle ?? stream.Language ?? `Subtitle ${stream.Index}`,
-        language: stream.Language ?? 'und',
-        url: this.buildSubtitleUrl(titleId, stream.Index as number),
-      }));
-
     return {
       id: source.Id,
       titleId,
       kind: source.TranscodingUrl ? 'hls' : 'external',
       url,
       label: source.Name,
-      subtitles,
       playback: {
         directPlay: source.SupportsDirectPlay === true,
         directStream: source.SupportsDirectStream === true,
@@ -105,11 +96,5 @@ export class JellyfinSourceAdapter implements MediaSourceAdapter {
         bitrate: source.Bitrate,
       },
     };
-  }
-
-  private buildSubtitleUrl(titleId: string, streamIndex: number): string {
-    if (!this.config.playbackUrlFactory) return '';
-    const base = this.config.serverUrl.replace(/\/+$/, '');
-    return `${base}/Videos/${encodeURIComponent(titleId)}/${streamIndex}/Subtitles/stream.vtt`;
   }
 }
