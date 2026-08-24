@@ -1,6 +1,6 @@
 import type { CatalogProvider, MediaTitle, MediaSourceAdapter } from '@jhadina/tv-core';
 import { mapJellyfinItemToMediaTitle } from './mapper';
-import type { JellyfinApiTransport, JellyfinConnectionConfig } from './types';
+import type { JellyfinApiTransport, JellyfinConnectionConfig, JellyfinItem } from './types';
 import { createJellyfinTransport } from './client';
 import { JellyfinSourceAdapter } from './source-adapter';
 
@@ -24,13 +24,13 @@ export class JellyfinCatalogProvider implements CatalogProvider {
   }
 
   async search(query: string): Promise<MediaTitle[]> {
-    const response = await this.transport.get<{ Items?: import('./types').JellyfinItem[] }>('/Items', {
+    const response = await this.transport.get<{ Items?: JellyfinItem[] }>('/Items', {
       UserId: this.config.userId,
       SearchTerm: query,
       IncludeItemTypes: 'Movie,Series,Episode',
       Recursive: true,
       EnableUserData: true,
-      Fields: 'Overview,Genres,PrimaryImageAspectRatio,MediaSources,ProductionYear,RunTimeTicks',
+      Fields: 'Overview,Genres,PrimaryImageAspectRatio,ProductionYear,RunTimeTicks',
       ImageTypeLimit: 2,
       Limit: 100,
     });
@@ -42,10 +42,12 @@ export class JellyfinCatalogProvider implements CatalogProvider {
   }
 
   private withImages(title: MediaTitle): MediaTitle {
+    if (!this.config.imageUrlFactory) return title;
+
     return {
       ...title,
-      posterUrl: `${this.config.serverUrl.replace(/\/+$/, '')}/Items/${encodeURIComponent(title.id)}/Images/Primary`,
-      backdropUrl: `${this.config.serverUrl.replace(/\/+$/, '')}/Items/${encodeURIComponent(title.id)}/Images/Backdrop`,
+      posterUrl: this.config.imageUrlFactory(title.id, 'Primary'),
+      backdropUrl: this.config.imageUrlFactory(title.id, 'Backdrop'),
     };
   }
 }
