@@ -20,3 +20,5 @@ export function createM3uProvider(text: string, config: M3uProviderConfig = {}):
 
 export { m3uRecordsToChannels, parseM3u } from './m3u';
 export type { M3uChannelRecord } from './m3u';
+export * from './jellyfin-live';
+export * from './xmltv';
