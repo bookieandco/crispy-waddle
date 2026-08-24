@@ -3,7 +3,7 @@ import type { LiveProgram } from '@jhadina/tv-core';
 export interface XmltvProgram {
   channelId: string;
   start: string;
-  stop?: string;
+  stop: string;
   title: string;
   description?: string;
 }
@@ -27,18 +27,18 @@ export function parseXmltvPrograms(xml: string): XmltvProgram[] {
   const matches = xml.match(/<programme\b[\s\S]*?<\/programme>/gi) ?? [];
 
   for (const block of matches) {
-    const channel = block.match(/\bchannel=["']([^"']+)["']/i)?.[1];
+    const channelId = block.match(/\bchannel=["']([^"']+)["']/i)?.[1];
     const start = block.match(/\bstart=["']([^"']+)["']/i)?.[1];
     const stop = block.match(/\bstop=["']([^"']+)["']/i)?.[1];
     const title = text(block, 'title');
-    if (!channel || !start || !title) continue;
+    if (!channelId || !start || !stop || !title) continue;
 
     programs.push({
-      channelId: channel,
+      channelId,
       start: parseDate(start),
-      ...(stop ? { stop: parseDate(stop) } : {}),
+      stop: parseDate(stop),
       title,
-      ...(text(block, 'desc') ? { description: text(block, 'desc') } : {}),
+      description: text(block, 'desc'),
     });
   }
 
@@ -51,7 +51,7 @@ export function mapXmltvProgramToLiveProgram(program: XmltvProgram): LiveProgram
     channelId: program.channelId,
     title: program.title,
     description: program.description,
-    startsAt: program.start,
-    endsAt: program.stop,
+    startTime: program.start,
+    endTime: program.stop,
   };
 }
