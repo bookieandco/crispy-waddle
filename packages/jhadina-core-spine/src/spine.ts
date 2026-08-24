@@ -45,6 +45,13 @@ export interface PolicyPort {
   evaluate(proposal: DecisionProposal): Promise<PolicyDecision>;
 }
 
+/**
+ * Composition boundary implemented by the concrete Action Core layer.
+ *
+ * `prepare` must preserve Action Core's governance semantics. In particular,
+ * APPROVAL_REQUIRED must never be silently converted into an executable action.
+ * The concrete implementation owns receipt issuance/verification/consumption.
+ */
 export interface ActionPort {
   prepare(proposal: DecisionProposal, policy: PolicyDecision): Promise<ActionRequest | undefined>;
   execute(request: ActionRequest): Promise<ActionResult>;
@@ -88,6 +95,8 @@ export interface SpineRunResult {
  * This class deliberately contains no LLM implementation and no domain-specific
  * business logic. Providers implement the ports; the spine owns ordering and
  * the invariant that decisions pass through context and policy before action.
+ * Action Core remains the concrete enforcement/execution authority supplied
+ * through ActionPort.
  */
 export class JhadinaSpine {
   constructor(private readonly ports: SpinePorts) {}
@@ -110,18 +119,28 @@ export class JhadinaSpine {
     const decision = await this.ports.decision.decide(context);
     const policy = await this.ports.policy.evaluate(decision);
 
+    const governanceEvent =
+      policy.disposition === 'DENY'
+        ? 'POLICY_DENIED'
+        : policy.disposition === 'APPROVAL_REQUIRED'
+          ? 'APPROVAL_REQUIRED'
+          : 'DECISION_AUTHORIZED';
+
     await this.ports.audit.record({
-      type: policy.allowed ? 'DECISION_AUTHORIZED' : 'POLICY_DENIED',
+      type: governanceEvent,
       actor: 'jhadina',
       subjectId: decision.id,
       payload: {
         proposalId: decision.id,
-        allowed: policy.allowed,
+        disposition: policy.disposition,
         reason: policy.reason,
       },
     });
 
-    if (!policy.allowed) {
+    // DENY and APPROVAL_REQUIRED are both non-executable at this control-plane
+    // stage. Action Core is responsible for receipt-backed execution when an
+    // approved action is later submitted through its concrete boundary.
+    if (policy.disposition !== 'ALLOW') {
       return { memories, patterns, personality, context, decision, policy };
     }
 
