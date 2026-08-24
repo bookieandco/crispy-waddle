@@ -41,10 +41,7 @@ export class JellyfinSourceAdapter implements MediaSourceAdapter {
       UserId: this.config.userId,
     });
 
-    return (response.MediaSources ?? [])
-      .map((source) => this.toMediaSource(titleId, source))
-      .filter((source): source is MediaSource => source !== null)
-      .map(assertPlayableSource);
+    return this.mapSources(titleId, response.MediaSources ?? []);
   }
 
   async getSourcesForPlayback(titleId: string, request: JellyfinPlaybackRequest = {}): Promise<MediaSource[]> {
@@ -65,16 +62,24 @@ export class JellyfinSourceAdapter implements MediaSourceAdapter {
       },
     );
 
-    return (response.MediaSources ?? [])
+    return this.mapSources(titleId, response.MediaSources ?? []);
+  }
+
+  private mapSources(titleId: string, sources: JellyfinMediaSource[]): MediaSource[] {
+    return sources
       .map((source) => this.toMediaSource(titleId, source))
       .filter((source): source is MediaSource => source !== null)
       .map(assertPlayableSource);
   }
 
   private toMediaSource(titleId: string, source: JellyfinMediaSource): MediaSource | null {
-    if (!source.Id) return null;
+    if (!source.Id || !this.config.playbackUrlFactory) return null;
 
-    const url = this.resolvePlayableUrl(titleId, source);
+    const url = this.config.playbackUrlFactory({
+      itemId: titleId,
+      mediaSourceId: source.Id,
+      transcodingUrl: source.TranscodingUrl,
+    });
     if (!url) return null;
 
     const subtitles = (source.MediaStreams ?? [])
@@ -102,18 +107,8 @@ export class JellyfinSourceAdapter implements MediaSourceAdapter {
     };
   }
 
-  private resolvePlayableUrl(titleId: string, source: JellyfinMediaSource): string | null {
-    if (source.TranscodingUrl?.startsWith('https://')) return source.TranscodingUrl;
-    if (!this.config.serverUrl.startsWith('https://')) return null;
-
-    const base = this.config.serverUrl.replace(/\/+$/, '');
-    const url = new URL(`${base}/Videos/${encodeURIComponent(titleId)}/stream`);
-    url.searchParams.set('static', 'true');
-    url.searchParams.set('mediaSourceId', source.Id ?? '');
-    return url.toString();
-  }
-
   private buildSubtitleUrl(titleId: string, streamIndex: number): string {
+    if (!this.config.playbackUrlFactory) return '';
     const base = this.config.serverUrl.replace(/\/+$/, '');
     return `${base}/Videos/${encodeURIComponent(titleId)}/${streamIndex}/Subtitles/stream.vtt`;
   }
