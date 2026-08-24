@@ -5,6 +5,8 @@ export interface JellyfinConnectionConfig {
   clientName?: string;
   clientVersion?: string;
   deviceId?: string;
+  imageUrlFactory?: (itemId: string, type: 'Primary' | 'Backdrop', tag?: string) => string;
+  playbackUrlFactory?: (input: { itemId: string; mediaSourceId: string; transcodingUrl?: string }) => string | undefined;
 }
 
 export interface JellyfinItem {
