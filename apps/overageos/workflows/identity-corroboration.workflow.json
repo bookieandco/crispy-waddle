@@ -1,0 +1,58 @@
+{
+  "name": "OverageOS Identity Corroboration",
+  "active": false,
+  "description": "Template workflow: Washoe name/address/parcel input -> authorized skip-trace provider -> normalized evidence -> OverageOS ranking API -> human review. No outreach or entitlement decision is automated.",
+  "nodes": [
+    {
+      "name": "Washoe Identity Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "parameters": {"path":"overageos/identity-corroboration","httpMethod":"POST","responseMode":"responseNode"},
+      "position":[0,0]
+    },
+    {
+      "name": "Validate Acquisition Policy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {"jsCode":"const x = $json;\nif (!x.recordId || !x.claimantName || !x.parcelId) throw new Error('recordId, claimantName and parcelId are required');\nreturn [{json:{...x, providerAllowed:x.providerAllowed === true, outreachDecision:'BLOCKED'}}];"},
+      "position":[220,0]
+    },
+    {
+      "name": "Skip Trace Provider",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "parameters": {"method":"POST","url":"={{$env.OVERAGEOS_SKIP_TRACE_ENDPOINT}}","sendBody":true,"specifyBody":"json","jsonBody":"={{JSON.stringify({name:$json.claimantName,address:$json.propertyAddress,recordId:$json.recordId,parcelId:$json.parcelId})}}","options":{"timeout":30000}},
+      "position":[460,0]
+    },
+    {
+      "name": "Normalize Observations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {"jsCode":"const input = $json;\nconst results = Array.isArray(input.results) ? input.results : [input];\nreturn results.map((r, i) => ({json:{recordId:input.recordId, parcelId:input.parcelId, candidateId:r.candidateId || `${input.recordId}:candidate:${i}`, name:r.name || null, addresses:r.addresses || (r.currentAddress ? [r.currentAddress] : []), phones:r.phones || [], emails:r.emails || [], profileUrl:r.profileUrl || null, source:r.source || 'authorized_skip_trace_provider', observedAt:new Date().toISOString(), ownershipStatus:'UNCONFIRMED', outreachStatus:'NOT_AUTHORIZED'}}));"},
+      "position":[700,0]
+    },
+    {
+      "name": "Rank Candidates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "parameters": {"method":"POST","url":"={{$env.OVERAGEOS_IDENTITY_RANKING_ENDPOINT}}","sendBody":true,"specifyBody":"json","jsonBody":"={{JSON.stringify({recordId:$json.recordId,parcelId:$json.parcelId,candidate:$json,observations:[$json]})}}","options":{"timeout":30000}},
+      "position":[940,0]
+    },
+    {
+      "name": "Human Review Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {"jsCode":"const x = $json;\nreturn [{json:{...x, identityDecision:'NOT_DETERMINED', entitlementDecision:'NOT_DETERMINED', humanReviewRequired:true, outreachDecision:'BLOCKED'}}];"},
+      "position":[1180,0]
+    }
+  ],
+  "connections": {
+    "Washoe Identity Input":{"main":[[{"node":"Validate Acquisition Policy","type":"main","index":0}]]},
+    "Validate Acquisition Policy":{"main":[[{"node":"Skip Trace Provider","type":"main","index":0}]]},
+    "Skip Trace Provider":{"main":[[{"node":"Normalize Observations","type":"main","index":0}]]},
+    "Normalize Observations":{"main":[[{"node":"Rank Candidates","type":"main","index":0}]]},
+    "Rank Candidates":{"main":[[{"node":"Human Review Gate","type":"main","index":0}]]}
+  },
+  "settings": {"executionOrder":"v1"},
+  "meta": {"provider":"ApiVault-compatible endpoint","mode":"template","liveExecution":"disabled"}
+}
