@@ -2,6 +2,9 @@ import type { MoneyTransaction } from '@jhadina/money-core';
 import { applyBuy, matchLotsForSale, type Lot, type Position, type PositionTransaction } from './position';
 import { classifyMoneyTransaction, type TransactionClassification } from './money-transactions';
 
+export type { Position } from './position';
+export type { PositionTransaction } from './position';
+
 export type ReplayState = {
   positions: Position[];
   lots: Lot[];
