@@ -4,6 +4,23 @@ export type OpportunitySide = 'buy' | 'sell' | 'back' | 'lay' | 'hold';
 export type Money = { amount: number; currency: string };
 export type Evidence = { id: string; source: string; observedAt: string; summary: string };
 
+/** Compatibility contract for position-level ledger events consumed by capital intelligence. */
+export type PositionTransaction = {
+  id: string;
+  positionId?: string;
+  domain?: CapitalDomain;
+  instrument: string;
+  side?: OpportunitySide;
+  quantity?: number;
+  price?: number;
+  notional?: Money;
+  fees?: Money;
+  currency?: string;
+  occurredAt: string;
+  source?: string;
+  metadata?: Record<string, unknown>;
+};
+
 export type Opportunity = {
   id: string;
   domain: CapitalDomain;
