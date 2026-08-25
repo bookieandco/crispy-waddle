@@ -4,6 +4,9 @@ export type OpportunitySide = 'buy' | 'sell' | 'back' | 'lay' | 'hold';
 export type Money = { amount: number; currency: string };
 export type Evidence = { id: string; source: string; observedAt: string; summary: string };
 
+/** Compatibility re-export; the canonical position transaction contract lives in position.ts. */
+export type { PositionTransaction } from './position';
+
 export type Opportunity = {
   id: string;
   domain: CapitalDomain;
