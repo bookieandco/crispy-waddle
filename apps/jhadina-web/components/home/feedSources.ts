@@ -1,3 +1,3 @@
-export const feedSources = ['All', 'TikTok', 'Facebook', 'Snapchat', 'Instagram', 'YouTube', 'Director'] as const;
+export const feedSources = ['All', 'TikTok', 'Facebook', 'Snapchat', 'Instagram', 'YouTube', 'Reddit', 'Director'] as const;
 
 export type FeedSource = (typeof feedSources)[number];
