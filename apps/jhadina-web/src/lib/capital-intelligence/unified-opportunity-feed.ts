@@ -1,5 +1,6 @@
 import type { CapitalDomain } from './taxonomy';
 import type { OpportunityCandidate } from './opportunity-engine';
+import type { CryptoExposureSubtype } from './crypto-exposure';
 
 export type OpportunitySource =
   | 'market'
@@ -14,6 +15,7 @@ export type UnifiedOpportunity = OpportunityCandidate & {
   asset?: string;
   venue?: string;
   metadata: Record<string, unknown>;
+  cryptoExposureSubtype?: CryptoExposureSubtype;
 };
 
 export type OpportunityFeed = {
@@ -46,7 +48,8 @@ export function sourceForDomain(domain: CapitalDomain): OpportunitySource {
   switch (domain) {
     case 'forex': return 'forex';
     case 'crypto': return 'crypto';
-    case 'sports': return 'sports';
+    case 'sports-betting': return 'sports';
+    case 'prediction-market': return 'prediction-market';
     default: return 'market';
   }
 }
