@@ -2,10 +2,7 @@ export type FeedSource = 'All' | 'TikTok' | 'Facebook' | 'Snapchat' | 'Instagram
 
 export type StoryKind = 'social' | 'youtube' | 'director' | 'jhadina';
 
-export type StoryDetail = {
-  label: string;
-  value: string;
-};
+export type StoryDetail = { label: string; value: string };
 
 export type Story = {
   id: string;
