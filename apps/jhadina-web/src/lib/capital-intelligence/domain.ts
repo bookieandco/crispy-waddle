@@ -1,4 +1,4 @@
-export type CapitalDomain = 'equities' | 'etf' | 'forex' | 'crypto' | 'sports' | 'prediction_market';
+export type { CapitalDomain } from './taxonomy';
 export type OpportunitySide = 'buy' | 'sell' | 'back' | 'lay' | 'hold';
 
 export type Money = { amount: number; currency: string };
@@ -9,7 +9,7 @@ export type { PositionTransaction } from './position';
 
 export type Opportunity = {
   id: string;
-  domain: CapitalDomain;
+  domain: import('./taxonomy').CapitalDomain;
   instrument: string;
   strategy: string;
   side: OpportunitySide;
