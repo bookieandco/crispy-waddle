@@ -4,8 +4,8 @@
 .title { font-size: clamp(30px, 4vw, 38px); line-height: 1.05; margin: 10px 0 8px; }
 .description { margin: 0; line-height: 1.6; opacity: .52; }
 .list { display: grid; gap: 14px; }
-.card { border: 1px solid rgba(255,255,255,.09); border-radius: 24px; padding: 22px; background: rgba(255,255,255,.035); box-shadow: 0 14px 50px rgba(0,0,0,.18); transition: border-color .18s ease, background .18s ease, transform .18s ease; }
-.card:hover { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.05); }
+.card { border: 1px solid rgba(255,255,255,.09); border-radius: 24px; padding: 22px; background: rgba(255,255,255,.035); box-shadow: 0 14px 50px rgba(0,0,0,.18); transition: border-color .18s ease, background .18s ease, transform .18s ease; cursor: pointer; }
+.card:hover { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.05); transform: translateY(-1px); }
 .cardHeader { display: flex; align-items: center; gap: 12px; }
 .glyph { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 13px; display: grid; place-items: center; background: rgba(255,255,255,.08); font-size: 18px; }
 .source { font-size: 11px; text-transform: uppercase; letter-spacing: .2em; opacity: .45; }
@@ -16,12 +16,19 @@
 .action, .secondary { border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 9px 14px; background: rgba(255,255,255,.06); color: inherit; cursor: pointer; font: inherit; text-decoration: none; }
 .secondary { background: transparent; opacity: .65; }
 .detail { margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.08); }
-.detailGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.detailGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 18px 0; }
 .detailItem { padding: 12px; border-radius: 14px; background: rgba(255,255,255,.035); }
 .detailLabel { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .16em; opacity: .4; margin-bottom: 5px; }
 .detailValue { font-size: 13px; }
+.overlay { position: fixed; inset: 0; z-index: 100; display: flex; justify-content: flex-end; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); }
+.detailPanel { width: min(520px, 92vw); height: 100%; overflow-y: auto; padding: 32px; background: #0d0f14; border-left: 1px solid rgba(255,255,255,.1); box-shadow: -20px 0 70px rgba(0,0,0,.35); position: relative; }
+.close { position: absolute; top: 18px; right: 18px; width: 36px; height: 36px; border: 1px solid rgba(255,255,255,.1); border-radius: 50%; background: rgba(255,255,255,.05); color: inherit; font-size: 22px; line-height: 1; cursor: pointer; }
+.detailTitle { margin: 16px 0 10px; padding-right: 42px; font-size: 30px; line-height: 1.15; }
 @media (max-width: 600px) {
   .card { padding: 18px; border-radius: 20px; }
   .detailGrid { grid-template-columns: 1fr; }
   .meta { display: none; }
+  .overlay { align-items: flex-end; }
+  .detailPanel { width: 100%; height: min(88vh, 760px); border-left: 0; border-top: 1px solid rgba(255,255,255,.1); border-radius: 24px 24px 0 0; padding: 28px 20px 40px; }
+  .detailTitle { font-size: 25px; }
 }
