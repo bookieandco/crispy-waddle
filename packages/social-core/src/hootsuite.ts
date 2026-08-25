@@ -104,16 +104,23 @@ export class HootsuiteProvider implements SocialProvider {
       limit: "100",
     });
     const messages = await this.request<HootsuiteMessage[]>(`/v1/messages?${query.toString()}`);
-    return (messages ?? []).map((message) => ({
-      id: `hs:${message.id}`,
-      brand: "jhadinatv",
-      platforms: [],
-      text: message.text ?? "",
-      scheduledAt: message.scheduledSendTime,
-      status: normalizeStatus(message.state),
-      requiresApproval: false,
-      providerPostIds: { hootsuite: message.id },
-    }));
+    const profiles = await this.getProfiles();
+
+    return (messages ?? []).map((message) => {
+      const profile = profiles.find((p) => p.id === message.socialProfile?.id);
+      return {
+        id: `hs:${message.id}`,
+        brand: "jhadinatv",
+        platforms: profile ? [profile.platform] : [],
+        text: message.text ?? "",
+        scheduledAt: message.scheduledSendTime,
+        status: normalizeStatus(message.state),
+        requiresApproval: false,
+        providerPostIds: profile
+          ? { [profile.platform]: message.id }
+          : { hootsuite: message.id },
+      };
+    });
   }
 
   async deletePost(providerPostId: string): Promise<void> {
