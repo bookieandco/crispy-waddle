@@ -1,92 +1,196 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { getCurrentUserId } from '../../src/lib/auth/current-user';
 
-type FeedItem = { kind: 'music' | 'opportunity' | 'director' | 'social' | 'youtube' | 'jhadina' | 'growth'; label: string; title: string; body: string; action?: string; href?: string };
+type Kind = 'work' | 'social' | 'jhadina';
+type Platform = 'facebook' | 'instagram' | 'tiktok' | 'youtube';
 
-const leadingCard: FeedItem = { kind: 'jhadina', label: 'Jhadina', title: 'Your day, at a glance.', body: 'A mixed stream for music, opportunities, media, social, and Jhadina activity.' };
+type FeedItem = {
+  id: string;
+  kind: Kind;
+  label: string;
+  title: string;
+  body: string;
+  platform?: Platform;
+  status?: string;
+  action?: string;
+  href?: string;
+  timestamp?: string;
+};
 
-const restOfFeed: FeedItem[] = [
-  { kind: 'music', label: 'Music', title: 'Your Music is ready.', body: 'Pick up where you left off or search for something new.', action: 'Open Music' },
-  { kind: 'opportunity', label: 'Opportunity', title: 'A business opportunity needs your attention.', body: 'Opportunity intelligence will surface leads, ideas, and time-sensitive opportunities here.', action: 'Review' },
-  { kind: 'director', label: 'Director', title: 'A new video is ready for review.', body: 'Creative output from your Director workspace can appear here before anything is published.', action: 'Watch' },
-  { kind: 'youtube', label: 'YouTube', title: 'Recommended video space.', body: 'Connected YouTube content can appear here once the account is authorized.', action: 'Connect' },
-  { kind: 'social', label: 'Social', title: 'Your social world, mixed into the stream.', body: 'Facebook, Instagram, and TikTok cards will be pulled through authorized integrations — never scraped.', action: 'Connect' },
-];
+type GrowthDraft = { id: string; title?: string; body: string; status: string };
+type SocialPost = {
+  id: string;
+  text: string;
+  platforms?: Platform[];
+  status: string;
+  scheduledAt?: string;
+};
 
-const glyph: Record<FeedItem['kind'], string> = { music: '♪', opportunity: '$', director: '▶', social: '◎', youtube: 'Y', jhadina: '✦', growth: '📈' };
+const glyph: Record<Kind | Platform, string> = {
+  work: '$',
+  social: '◎',
+  jhadina: '✦',
+  facebook: 'f',
+  instagram: '◎',
+  tiktok: '♪',
+  youtube: 'Y',
+};
 
-type GrowthDraft = { id: string; brand: string; kind: string; title?: string; body: string; status: string };
+const platformLabel: Record<Platform, string> = {
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  tiktok: 'TikTok',
+  youtube: 'YouTube',
+};
 
-/**
- * Jhadina OS Integration Phase 2: PersonalCommandFeed's one real card.
- *
- * Every other card here is still demo content (JH-014's original scope
- * — no backend exists for those kinds yet). This is the first card
- * sourced from real state: it fetches the signed-in user's actual
- * pending Growth drafts through the same /api/growth/drafts route
- * /growth already uses, and shows one when there's something real
- * waiting. Tapping "Review" goes to /growth — the existing Approval
- * Center — where the explicit approve/deny actually happens against
- * the governed spine. This component never talks to the ledger,
- * ActionExecutor, or any governance package directly; it only ever
- * calls the same public API route the /growth page calls.
- */
-function useGrowthProposal(): FeedItem | null {
-  const [item, setItem] = useState<FeedItem | null>(null);
+function useUnifiedFeed() {
+  const [items, setItems] = useState<FeedItem[]>([]);
 
   useEffect(() => {
     let cancelled = false;
+
     async function load() {
       try {
         const userId = await getCurrentUserId();
         if (!userId) return;
-        const res = await fetch('/api/growth/drafts', { headers: { 'x-jhadina-user-id': userId } });
-        if (!res.ok) return;
-        const json = await res.json();
-        const drafts: GrowthDraft[] = json.data?.drafts ?? [];
-        const pending = drafts.filter((d) => d.status === 'PENDING_APPROVAL');
-        if (cancelled || pending.length === 0) return;
-        const first = pending[0];
-        setItem({
-          kind: 'growth',
-          label: 'Growth',
-          title: first.title || 'A draft is ready for your review.',
-          body: pending.length > 1
-            ? `${pending.length} drafts are waiting on your approval. Nothing publishes without you.`
-            : first.body,
-          action: 'Review',
-          href: '/growth',
-        });
+        const headers = { 'x-jhadina-user-id': userId };
+
+        const [growthRes, socialRes] = await Promise.all([
+          fetch('/api/growth/drafts', { headers }),
+          fetch('/api/social/posts', { headers }),
+        ]);
+
+        const next: FeedItem[] = [];
+
+        if (growthRes.ok) {
+          const json = await growthRes.json();
+          const drafts: GrowthDraft[] = json.data?.drafts ?? [];
+          for (const draft of drafts.filter((d) => d.status === 'PENDING_APPROVAL')) {
+            next.push({
+              id: `growth-${draft.id}`,
+              kind: 'work',
+              label: 'Work',
+              title: draft.title || 'Something is ready for your review.',
+              body: draft.body,
+              status: draft.status,
+              action: 'Review',
+              href: '/growth',
+            });
+          }
+        }
+
+        if (socialRes.ok) {
+          const json = await socialRes.json();
+          const posts: SocialPost[] = json.data ?? [];
+          for (const post of posts) {
+            const platform = post.platforms?.[0];
+            next.push({
+              id: `social-${post.id}`,
+              kind: 'social',
+              label: platform ? platformLabel[platform] : 'Social',
+              title: platform ? `${platformLabel[platform]} activity` : 'Social activity',
+              body: post.text || 'A connected social update is available.',
+              platform,
+              status: post.status,
+              timestamp: post.scheduledAt,
+            });
+          }
+        }
+
+        if (!cancelled) setItems(next);
       } catch {
-        // Fails silently on the home preview — errors that matter surface on /growth itself.
+        if (!cancelled) setItems([]);
       }
     }
+
     void load();
     return () => { cancelled = true; };
   }, []);
 
-  return item;
+  return items;
 }
 
 export function PersonalCommandFeed() {
-  const growthItem = useGrowthProposal();
-  const feed: FeedItem[] = growthItem ? [leadingCard, growthItem, ...restOfFeed] : [leadingCard, ...restOfFeed];
+  const [filter, setFilter] = useState<'all' | Kind | Platform>('all');
+  const items = useUnifiedFeed();
 
-  return <section style={{ maxWidth: 820, margin: '0 auto', padding: '48px 20px 96px' }}>
-    <div style={{ marginBottom: 28 }}>
-      <div style={{ fontSize: 11, letterSpacing: '.28em', textTransform: 'uppercase', opacity: .42 }}>Jhadina Home</div>
-      <h2 style={{ fontSize: 38, lineHeight: 1.05, margin: '10px 0 8px' }}>Your world, in one stream.</h2>
-      <p style={{ margin: 0, opacity: .52 }}>Social, music, opportunities, media, and Jhadina — mixed by context instead of trapped in separate apps.</p>
-    </div>
-    <div style={{ display: 'grid', gap: 14 }}>
-      {feed.map((item) => <article key={`${item.kind}-${item.title}`} style={{ border: '1px solid rgba(255,255,255,.09)', borderRadius: 24, padding: 22, background: 'rgba(255,255,255,.035)', boxShadow: '0 14px 50px rgba(0,0,0,.18)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><div style={{ width: 42, height: 42, borderRadius: 13, display: 'grid', placeItems: 'center', background: 'rgba(255,255,255,.08)', fontSize: 18 }}>{glyph[item.kind]}</div><div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.2em', opacity: .45 }}>{item.label}</div></div>
-        <h3 style={{ margin: '18px 0 8px', fontSize: 21 }}>{item.title}</h3><p style={{ margin: 0, lineHeight: 1.6, opacity: .52 }}>{item.body}</p>
-        {item.action && (item.href
-          ? <Link href={item.href} style={{ marginTop: 18, display: 'inline-block', border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '9px 14px', background: 'rgba(255,255,255,.06)', color: 'inherit', textDecoration: 'none', cursor: 'pointer' }}>{item.action}</Link>
-          : <button type="button" style={{ marginTop: 18, border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '9px 14px', background: 'rgba(255,255,255,.06)', color: 'inherit', cursor: 'pointer' }}>{item.action}</button>)}
-      </article>)}
-    </div>
-  </section>;
+  const feed = useMemo(() => {
+    const filtered = filter === 'all'
+      ? items
+      : items.filter((item) => item.kind === filter || item.platform === filter);
+    return [
+      {
+        id: 'jhadina-intro',
+        kind: 'jhadina' as const,
+        label: 'Jhadina',
+        title: 'Your world, in one stream.',
+        body: 'Social, work, opportunities, media, and Jhadina activity mixed together by context.',
+      },
+      ...filtered,
+    ];
+  }, [filter, items]);
+
+  const filters: Array<{ id: typeof filter; label: string }> = [
+    { id: 'all', label: 'All' },
+    { id: 'work', label: 'Work' },
+    { id: 'tiktok', label: 'TikTok' },
+    { id: 'instagram', label: 'Instagram' },
+    { id: 'facebook', label: 'Facebook' },
+    { id: 'youtube', label: 'YouTube' },
+  ];
+
+  return (
+    <section style={{ maxWidth: 820, margin: '0 auto', padding: '48px 20px 96px' }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 11, letterSpacing: '.28em', textTransform: 'uppercase', opacity: .42 }}>Jhadina Home</div>
+        <h2 style={{ fontSize: 38, lineHeight: 1.05, margin: '10px 0 8px' }}>Everything relevant. One scroll.</h2>
+        <p style={{ margin: 0, opacity: .52 }}>TikTok, Instagram, Facebook, YouTube, and your work — without making you switch apps.</p>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 18 }}>
+        {filters.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => setFilter(option.id)}
+            style={{ flex: '0 0 auto', border: '1px solid rgba(255,255,255,.1)', borderRadius: 999, padding: '8px 13px', background: filter === option.id ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.035)', color: 'inherit', cursor: 'pointer' }}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gap: 14 }}>
+        {feed.map((item) => (
+          <article key={item.id} style={{ border: '1px solid rgba(255,255,255,.09)', borderRadius: 24, padding: 22, background: 'rgba(255,255,255,.035)', boxShadow: '0 14px 50px rgba(0,0,0,.18)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 13, display: 'grid', placeItems: 'center', background: 'rgba(255,255,255,.08)', fontSize: 18 }}>
+                {item.platform ? glyph[item.platform] : glyph[item.kind]}
+              </div>
+              <div>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.2em', opacity: .45 }}>{item.label}</div>
+                {item.status && <div style={{ fontSize: 11, opacity: .35, marginTop: 3 }}>{item.status.replaceAll('_', ' ')}</div>}
+              </div>
+            </div>
+
+            <h3 style={{ margin: '18px 0 8px', fontSize: 21 }}>{item.title}</h3>
+            <p style={{ margin: 0, lineHeight: 1.6, opacity: .62, whiteSpace: 'pre-wrap' }}>{item.body}</p>
+
+            {item.action && item.href && (
+              <Link href={item.href} style={{ marginTop: 18, display: 'inline-block', border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, padding: '9px 14px', background: 'rgba(255,255,255,.06)', color: 'inherit', textDecoration: 'none' }}>
+                {item.action}
+              </Link>
+            )}
+          </article>
+        ))}
+
+        {items.length === 0 && (
+          <div style={{ padding: 24, borderRadius: 20, border: '1px dashed rgba(255,255,255,.12)', opacity: .5 }}>
+            Connect your social accounts and Jhadina will start mixing their activity with your work here.
+          </div>
+        )}
+      </div>
+    </section>
+  );
 }
