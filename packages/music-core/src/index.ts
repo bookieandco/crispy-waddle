@@ -18,3 +18,5 @@ export * from "./audio-engine.js";
 export * from "./realtime-audio-engine.js";
 export * from "./studio-adapter.js";
 export * from "./mobile-adapter.js";
+export * from "./spotify-provider.js";
+export * from "./offline-library.js";
