@@ -73,3 +73,5 @@ export function scoreLink(metrics: ConnectivityMetrics): number {
   if (metrics.throughputMbps !== undefined) score += Math.min(10, metrics.throughputMbps / 10);
   return Math.max(0, Math.min(100, score));
 }
+
+export * from './free-signal-scout.js';
