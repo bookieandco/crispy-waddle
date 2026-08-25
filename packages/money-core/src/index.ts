@@ -28,6 +28,9 @@ export { ProviderAdapterFactory } from './provider-adapter-factory.js';
 export type { AccountReadAction, AccountReadHandlerDeps } from './account-read-handler.js';
 export { MoneyAccountReadHandler } from './account-read-handler.js';
 
+export type { TransactionReadAction, MoneyAccountOwnership } from './transaction-read-handler.js';
+export { MoneyTransactionReadHandler } from './transaction-read-handler.js';
+
 export type { GovernedAccountReadDeps, MoneyAccountReadRequest } from './governed-account-read.js';
 export {
   MONEY_CORE_SECURITY_POLICY,
