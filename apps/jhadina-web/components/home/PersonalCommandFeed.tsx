@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { getCurrentUserId } from '../../src/lib/auth/current-user';
 
-type Kind = 'work' | 'social' | 'jhadina';
+type Kind = 'work' | 'social' | 'opportunity' | 'jhadina';
 type Platform = 'facebook' | 'instagram' | 'tiktok' | 'youtube';
 
 type FeedItem = {
@@ -27,10 +27,24 @@ type SocialPost = {
   status: string;
   scheduledAt?: string;
 };
+type Opportunity = {
+  id: string;
+  title: string;
+  kind: string;
+  sourceName: string;
+  summary: string;
+  fitScore: number;
+  status: 'new' | 'approved';
+  requiresUserApproval: boolean;
+  verificationStatus?: string;
+  deadline?: string;
+  createdAt: string;
+};
 
 const glyph: Record<Kind | Platform, string> = {
   work: '$',
   social: '◎',
+  opportunity: '↗',
   jhadina: '✦',
   facebook: 'f',
   instagram: '◎',
@@ -57,8 +71,9 @@ function recencyScore(timestamp?: string) {
 
 function scoreItem(item: FeedItem) {
   const workBoost = item.kind === 'work' ? 35 : 0;
-  const approvalBoost = item.status === 'PENDING_APPROVAL' ? 45 : 0;
-  return (item.relevance ?? 0) + workBoost + approvalBoost + recencyScore(item.timestamp);
+  const opportunityBoost = item.kind === 'opportunity' ? 20 : 0;
+  const approvalBoost = item.status === 'PENDING_APPROVAL' || item.status === 'new' ? 45 : 0;
+  return (item.relevance ?? 0) + workBoost + opportunityBoost + approvalBoost + recencyScore(item.timestamp);
 }
 
 function useUnifiedFeed() {
@@ -73,9 +88,10 @@ function useUnifiedFeed() {
         if (!userId) return;
         const headers = { 'x-jhadina-user-id': userId };
 
-        const [growthRes, socialRes] = await Promise.all([
+        const [growthRes, socialRes, opportunitiesRes] = await Promise.all([
           fetch('/api/growth/drafts', { headers }),
           fetch('/api/social/posts', { headers }),
+          fetch('/api/opportunities', { headers }),
         ]);
 
         const next: FeedItem[] = [];
@@ -117,6 +133,25 @@ function useUnifiedFeed() {
           }
         }
 
+        if (opportunitiesRes.ok) {
+          const json = await opportunitiesRes.json();
+          const opportunities: Opportunity[] = json.data?.opportunities ?? [];
+          for (const opportunity of opportunities) {
+            next.push({
+              id: `opportunity-${opportunity.id}`,
+              kind: 'opportunity',
+              label: opportunity.sourceName || 'Opportunity',
+              title: opportunity.title,
+              body: opportunity.summary,
+              status: opportunity.status,
+              action: opportunity.status === 'new' && opportunity.requiresUserApproval ? 'Review opportunity' : undefined,
+              href: '/opportunities',
+              timestamp: opportunity.createdAt,
+              relevance: opportunity.fitScore,
+            });
+          }
+        }
+
         if (!cancelled) setItems(next);
       } catch {
         if (!cancelled) setItems([]);
@@ -145,6 +180,7 @@ export function PersonalCommandFeed() {
   const filters: Array<{ id: typeof filter; label: string }> = [
     { id: 'all', label: 'All' },
     { id: 'work', label: 'Work' },
+    { id: 'opportunity', label: 'Opportunities' },
     { id: 'tiktok', label: 'TikTok' },
     { id: 'instagram', label: 'Instagram' },
     { id: 'facebook', label: 'Facebook' },
@@ -156,7 +192,7 @@ export function PersonalCommandFeed() {
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 11, letterSpacing: '.28em', textTransform: 'uppercase', opacity: .42 }}>Jhadina Home</div>
         <h2 style={{ fontSize: 38, lineHeight: 1.05, margin: '10px 0 8px' }}>Everything relevant. One scroll.</h2>
-        <p style={{ margin: 0, opacity: .52 }}>TikTok, Instagram, Facebook, YouTube, and your work — ranked by what deserves your attention first.</p>
+        <p style={{ margin: 0, opacity: .52 }}>TikTok, Instagram, Facebook, YouTube, your work, and opportunities — ranked by what deserves your attention first.</p>
       </div>
 
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 18 }}>
@@ -198,7 +234,7 @@ export function PersonalCommandFeed() {
 
         {items.length === 0 && (
           <div style={{ padding: 24, borderRadius: 20, border: '1px dashed rgba(255,255,255,.12)', opacity: .5 }}>
-            Connect your social accounts and Jhadina will start mixing their activity with your work here.
+            Connect your social accounts and Jhadina will start mixing their activity with your work and opportunities here.
           </div>
         )}
       </div>
