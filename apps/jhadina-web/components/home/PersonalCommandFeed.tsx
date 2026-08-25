@@ -16,6 +16,7 @@ type FeedItem = {
   action?: string;
   href?: string;
   timestamp?: string;
+  relevance?: number;
 };
 
 type GrowthDraft = { id: string; title?: string; body: string; status: string };
@@ -43,6 +44,22 @@ const platformLabel: Record<Platform, string> = {
   tiktok: 'TikTok',
   youtube: 'YouTube',
 };
+
+function recencyScore(timestamp?: string) {
+  if (!timestamp) return 20;
+  const ageHours = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 3_600_000);
+  if (ageHours <= 1) return 100;
+  if (ageHours <= 6) return 80;
+  if (ageHours <= 24) return 60;
+  if (ageHours <= 72) return 35;
+  return 10;
+}
+
+function scoreItem(item: FeedItem) {
+  const workBoost = item.kind === 'work' ? 35 : 0;
+  const approvalBoost = item.status === 'PENDING_APPROVAL' ? 45 : 0;
+  return (item.relevance ?? 0) + workBoost + approvalBoost + recencyScore(item.timestamp);
+}
 
 function useUnifiedFeed() {
   const [items, setItems] = useState<FeedItem[]>([]);
@@ -76,6 +93,7 @@ function useUnifiedFeed() {
               status: draft.status,
               action: 'Review',
               href: '/growth',
+              relevance: 100,
             });
           }
         }
@@ -94,6 +112,7 @@ function useUnifiedFeed() {
               platform,
               status: post.status,
               timestamp: post.scheduledAt,
+              relevance: platform === 'tiktok' ? 5 : 0,
             });
           }
         }
@@ -119,16 +138,8 @@ export function PersonalCommandFeed() {
     const filtered = filter === 'all'
       ? items
       : items.filter((item) => item.kind === filter || item.platform === filter);
-    return [
-      {
-        id: 'jhadina-intro',
-        kind: 'jhadina' as const,
-        label: 'Jhadina',
-        title: 'Your world, in one stream.',
-        body: 'Social, work, opportunities, media, and Jhadina activity mixed together by context.',
-      },
-      ...filtered,
-    ];
+
+    return [...filtered].sort((a, b) => scoreItem(b) - scoreItem(a));
   }, [filter, items]);
 
   const filters: Array<{ id: typeof filter; label: string }> = [
@@ -145,7 +156,7 @@ export function PersonalCommandFeed() {
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 11, letterSpacing: '.28em', textTransform: 'uppercase', opacity: .42 }}>Jhadina Home</div>
         <h2 style={{ fontSize: 38, lineHeight: 1.05, margin: '10px 0 8px' }}>Everything relevant. One scroll.</h2>
-        <p style={{ margin: 0, opacity: .52 }}>TikTok, Instagram, Facebook, YouTube, and your work — without making you switch apps.</p>
+        <p style={{ margin: 0, opacity: .52 }}>TikTok, Instagram, Facebook, YouTube, and your work — ranked by what deserves your attention first.</p>
       </div>
 
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 18 }}>
