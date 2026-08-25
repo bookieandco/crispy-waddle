@@ -24,3 +24,4 @@ export * from "./music-controller.js";
 export * from "./music-library.js";
 export * from "./music-output-controller.js";
 export * from "./now-playing.js";
+export * from "./spotify-sync.js";
