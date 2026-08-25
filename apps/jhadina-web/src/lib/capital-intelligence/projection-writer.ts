@@ -13,22 +13,18 @@ export type ProjectionTransaction = {
 };
 
 export type ProjectionStore = {
-  upsertTransaction: (row: ProjectionTransaction) => void;
-  upsertPosition: (row: Position) => void;
-  upsertLot: (row: Lot) => void;
+  upsertTransaction: (row: ProjectionTransaction) => Promise<void>;
+  upsertPosition: (row: Position) => Promise<void>;
+  upsertLot: (row: Lot) => Promise<void>;
 };
 
-/**
- * Idempotent persistence adapter. The database enforces uniqueness; this
- * writer only persists an already-validated replay result and never executes
- * a broker, exchange, transfer, deposit, withdrawal, or bet.
- */
-export function writeReplayProjection(
+/** Idempotent persistence adapter; execution is explicitly out of scope. */
+export async function writeReplayProjection(
   transactions: ProjectionTransaction[],
   state: ReplayState,
   store: ProjectionStore,
-): void {
-  for (const transaction of transactions) store.upsertTransaction(transaction);
-  for (const position of state.positions) store.upsertPosition(position);
-  for (const lot of state.lots) store.upsertLot(lot);
+): Promise<void> {
+  for (const transaction of transactions) await store.upsertTransaction(transaction);
+  for (const position of state.positions) await store.upsertPosition(position);
+  for (const lot of state.lots) await store.upsertLot(lot);
 }
