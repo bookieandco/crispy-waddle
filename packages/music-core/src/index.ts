@@ -20,3 +20,4 @@ export * from "./studio-adapter.js";
 export * from "./mobile-adapter.js";
 export * from "./spotify-provider.js";
 export * from "./offline-library.js";
+export * from "./music-controller.js";
