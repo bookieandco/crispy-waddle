@@ -26,3 +26,4 @@ export * from "./music-output-controller.js";
 export * from "./now-playing.js";
 export * from "./spotify-sync.js";
 export * from "./spotify-session.js";
+export * from "./smart-mix.js";
