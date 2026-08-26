@@ -23,10 +23,10 @@ describe('media core', () => {
     expect(result.audioTracks).toHaveLength(1);
   });
 
-  it('can unlink either side independently from the shared project', () => {
+  it('unlinks both sides of a linked pair', () => {
     const linked = linkMediaClips(addAudioTrack(addVideoTrack(project(), videoTrack), audioTrack), 'vc1', 'ac1');
     const result = unlinkMediaClip(linked, 'ac1');
-    expect(result.videoTracks[0].clips[0].linkedClipId).toBe('ac1');
+    expect(result.videoTracks[0].clips[0].linkedClipId).toBeUndefined();
     expect(result.audioTracks[0].clips[0].linkedClipId).toBeUndefined();
   });
 });
