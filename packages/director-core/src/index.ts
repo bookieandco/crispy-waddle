@@ -15,3 +15,4 @@ export * from './watch-service';
 export * from './cinematic-notebook';
 export * from './jhadina-learning-events';
 export * from './learning-study-plan';
+export * from './study-job';
