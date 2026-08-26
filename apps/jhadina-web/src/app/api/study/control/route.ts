@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { StudyControlAction } from '@/lib/study-control';
 import { controlStudyJob, type StudyJobControlStore } from '@/lib/study-control-server';
+import { createWebStudyControlOrchestrator } from '@/lib/study-control-orchestrator-factory';
+import type { StudyCheckpointStore } from '@jhadina/director-core/study-checkpoint-store';
+import type { StudyRuntimeLauncher } from '@jhadina/director-core/study-control-orchestrator';
 
 export interface StudyControlRouteDependencies {
   store: StudyJobControlStore;
+  checkpoints?: StudyCheckpointStore;
+  launcher?: StudyRuntimeLauncher;
   authenticate(request: NextRequest): Promise<{ actorId: string } | null>;
 }
 
@@ -25,6 +30,17 @@ export function createStudyControlRoute(deps: StudyControlRouteDependencies) {
     try {
       const job = await deps.store.get(studyId);
       if (!job) return NextResponse.json({ error: 'Study not found' }, { status: 404 });
+
+      if (deps.checkpoints && deps.launcher && (action === 'pause' || action === 'resume' || action === 'stop')) {
+        const orchestrator = createWebStudyControlOrchestrator(deps.store, deps.checkpoints, deps.launcher);
+        const updated = action === 'pause'
+          ? await orchestrator.pause(job)
+          : action === 'resume'
+            ? await orchestrator.resume(job)
+            : await orchestrator.stop(job);
+        return NextResponse.json({ success: true, actorId: identity.actorId, study: updated });
+      }
+
       const updated = await controlStudyJob(deps.store, studyId, action);
       return NextResponse.json({ success: true, actorId: identity.actorId, study: updated });
     } catch (error) {
