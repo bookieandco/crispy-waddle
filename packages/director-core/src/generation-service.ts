@@ -1,5 +1,7 @@
 import type { GenerationRegistry } from './generation-registry';
 import type { GenerationProvider, GenerationRequest, GenerationResult } from './generation-provider';
+import type { GeneratedAssetRepository, ProviderOutput } from './generated-asset-resolver';
+import { resolveGenerationOutputs } from './generated-asset-resolver';
 
 function assertRequestCompatibility(registry: GenerationRegistry, request: GenerationRequest): void {
   const model = registry.getModel(request.model.id);
@@ -46,13 +48,53 @@ export type GenerationJob = {
   updatedAt: string;
 };
 
+function readProviderOutputs(result: GenerationResult): ProviderOutput[] {
+  const raw = result.metadata?.outputs;
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((value) => {
+    if (!value || typeof value !== 'object') return [];
+    const record = value as Record<string, unknown>;
+    if (typeof record.uri !== 'string') return [];
+    return [{
+      uri: record.uri,
+      mediaType: typeof record.mediaType === 'string' ? record.mediaType as ProviderOutput['mediaType'] : undefined,
+      mimeType: typeof record.mimeType === 'string' ? record.mimeType : undefined,
+      sha256: typeof record.sha256 === 'string' ? record.sha256 : undefined,
+      metadata: record.metadata && typeof record.metadata === 'object'
+        ? record.metadata as Record<string, unknown>
+        : undefined,
+    }];
+  });
+}
+
 export class GenerationService {
   private readonly jobs = new Map<string, GenerationJob>();
 
   constructor(
     private readonly registry: GenerationRegistry,
     private readonly providers: Map<string, GenerationProvider>,
+    private readonly assetRepository?: GeneratedAssetRepository,
   ) {}
+
+  private async persistOutputs(job: GenerationJob, result: GenerationResult): Promise<void> {
+    if (!this.assetRepository || result.status !== 'completed') return;
+    const outputs = readProviderOutputs(result);
+    if (!outputs.length) return;
+
+    const assets = resolveGenerationOutputs(result, {
+      projectId: job.request.projectId,
+      modelId: job.request.model.id,
+      workflowId: typeof job.request.parameters.workflowId === 'string' ? job.request.parameters.workflowId : undefined,
+      workflowVersion: typeof job.request.parameters.workflowVersion === 'number' ? job.request.parameters.workflowVersion : undefined,
+      loras: (job.request.loras ?? []).map(({ lora, weight }) => ({
+        id: lora.id,
+        weight: weight ?? lora.weight.recommended ?? 1,
+      })),
+      prompt: job.request.prompt,
+    }, outputs);
+
+    for (const asset of assets) await this.assetRepository.save(asset);
+  }
 
   async submit(request: GenerationRequest): Promise<GenerationJob> {
     assertRequestCompatibility(this.registry, request);
@@ -81,6 +123,7 @@ export class GenerationService {
         updatedAt: new Date().toISOString(),
       };
       this.jobs.set(job.id, job);
+      await this.persistOutputs(job, result);
       return job;
     } catch (error) {
       const failed: GenerationJob = {
@@ -112,6 +155,7 @@ export class GenerationService {
       updatedAt: new Date().toISOString(),
     };
     this.jobs.set(id, updated);
+    await this.persistOutputs(updated, result);
     return updated;
   }
 
