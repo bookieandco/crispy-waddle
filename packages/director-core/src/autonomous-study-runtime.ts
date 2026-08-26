@@ -4,6 +4,7 @@ import { runStudyJob, type StudyJobEffects, type StudyJobStore } from './study-j
 import type { MediaDecoderAdapter, DecodeRequest } from './media-decoder-adapter.js';
 import type { ObservationProvider } from './observation-provider-adapters.js';
 import { createObservationProviderRegistry } from './observation-provider-adapters.js';
+import type { StudyCancellationRegistry } from './study-cancellation-registry.js';
 
 export type AutonomousStudyRuntime = {
   run(job: StudyJob): Promise<StudyJob | undefined>;
@@ -16,17 +17,20 @@ export function createAutonomousStudyRuntime(input: {
   publish: (observations: Observation[]) => Promise<void>;
   note?: (observation: Observation) => Promise<void>;
   learn?: (observation: Observation, job: StudyJob) => Promise<void>;
+  cancellation?: StudyCancellationRegistry;
 }): AutonomousStudyRuntime {
   const registry = createObservationProviderRegistry(input.providers);
   return {
     run(job) {
-      const request: DecodeRequest = { source: job.sourceUrl, assetId: job.id, startSeconds: job.lastTimeSeconds };
+      const signal = input.cancellation?.signalFor(job.id);
+      const request: DecodeRequest = { source: job.sourceUrl, assetId: job.id, startSeconds: job.lastTimeSeconds, signal };
       const effects: StudyJobEffects = {
         observe: () => mergeStreams(input.decoder.decodeFrames(request), input.decoder.decodeAudio(request), registry, input.publish),
         note: input.note,
         learn: input.learn,
       };
-      return runStudyJob(job.id, input.store, effects);
+      const execution = runStudyJob(job.id, input.store, effects);
+      return execution.finally(() => input.cancellation?.remove(job.id));
     },
   };
 }
@@ -47,23 +51,14 @@ async function* mergeStreams(
       nextFrame.then(result => ({ stream: 'frame' as const, result })),
       nextAudio.then(result => ({ stream: 'audio' as const, result })),
     ]);
-
     if (result.stream === 'frame') {
-      if (result.result.done) {
-        nextFrame = new Promise(() => {}) as typeof nextFrame;
-        if ((await Promise.race([nextAudio, Promise.resolve({ done: true, value: undefined })])).done) break;
-        continue;
-      }
+      if (result.result.done) { nextFrame = new Promise(() => {}) as typeof nextFrame; if ((await Promise.race([nextAudio, Promise.resolve({ done: true, value: undefined })])).done) break; continue; }
       const observations = await registry.observeFrame(result.result.value as any);
       if (observations.length) await publish(observations);
       yield* observations;
       nextFrame = frameIterator.next();
     } else {
-      if (result.result.done) {
-        nextAudio = new Promise(() => {}) as typeof nextAudio;
-        if ((await Promise.race([nextFrame, Promise.resolve({ done: true, value: undefined })])).done) break;
-        continue;
-      }
+      if (result.result.done) { nextAudio = new Promise(() => {}) as typeof nextAudio; if ((await Promise.race([nextFrame, Promise.resolve({ done: true, value: undefined })])).done) break; continue; }
       const observations = await registry.observeAudio(result.result.value as any);
       if (observations.length) await publish(observations);
       yield* observations;
