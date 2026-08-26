@@ -93,9 +93,18 @@ export function linkMediaClips(project: MediaProject, videoClipId: string, audio
 }
 
 export function unlinkMediaClip(project: MediaProject, clipId: string): MediaProject {
+  let counterpartId: string | undefined;
+  for (const track of [...project.videoTracks, ...project.audioTracks]) {
+    const clip = track.clips.find(candidate => candidate.id === clipId);
+    if (clip) {
+      counterpartId = clip.linkedClipId;
+      break;
+    }
+  }
+  if (!counterpartId) return project;
   return {
     ...project,
-    videoTracks: project.videoTracks.map(track => ({ ...track, clips: track.clips.map(clip => clip.id === clipId ? { ...clip, linkedClipId: undefined } : clip) })),
-    audioTracks: project.audioTracks.map(track => ({ ...track, clips: track.clips.map(clip => clip.id === clipId ? { ...clip, linkedClipId: undefined } : clip) })),
+    videoTracks: project.videoTracks.map(track => ({ ...track, clips: track.clips.map(clip => clip.id === clipId || clip.id === counterpartId ? { ...clip, linkedClipId: undefined } : clip) })),
+    audioTracks: project.audioTracks.map(track => ({ ...track, clips: track.clips.map(clip => clip.id === clipId || clip.id === counterpartId ? { ...clip, linkedClipId: undefined } : clip) })),
   };
 }
