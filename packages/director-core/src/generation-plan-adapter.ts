@@ -1,4 +1,4 @@
-import type { GenerationModality } from './generation-registry';
+import type { GenerationModality, GenerationRegistry } from './generation-registry';
 import type { GenerationService, GenerationJob } from './generation-service';
 import type { TakeRequest } from './generation-orchestrator';
 
@@ -10,14 +10,23 @@ export type PlannedGeneration = {
   loras?: Array<{ loraId: string; weight?: number }>;
 };
 
-/**
- * Bridges DirectorOS's non-destructive directing plan to the provider-neutral
- * generation service. It deliberately does not know anything about ComfyUI.
- */
+/** Bridges a non-destructive directing take plan to the provider-neutral generation service. */
 export class GenerationPlanAdapter {
-  constructor(private readonly generation: GenerationService) {}
+  constructor(
+    private readonly generation: GenerationService,
+    private readonly registry: GenerationRegistry,
+  ) {}
 
-  async submitTake(request: TakeRequest, generation: PlannedGeneration): Promise<GenerationJob> {
+  async submitTake(request: TakeRequest, plan: PlannedGeneration): Promise<GenerationJob> {
+    const model = this.registry.getModel(plan.modelId);
+    if (!model) throw new Error(`Model is not registered: ${plan.modelId}`);
+
+    const loras = plan.loras?.map((selected) => {
+      const lora = this.registry.getLoRA(selected.loraId);
+      if (!lora) throw new Error(`LoRA is not registered: ${selected.loraId}`);
+      return { lora, weight: selected.weight };
+    });
+
     const references = [
       ...(request.referenceCharacterIds ?? []).map((assetId) => ({ assetId, role: 'character' as const })),
       ...(request.referenceAssetIds ?? []).map((assetId) => ({ assetId, role: 'image' as const })),
@@ -26,17 +35,14 @@ export class GenerationPlanAdapter {
     return this.generation.submit({
       requestId: `${request.projectId}:${request.sceneId}:${Date.now()}`,
       projectId: request.projectId,
-      modality: generation.modality,
+      modality: plan.modality,
       prompt: request.prompt,
-      negativePrompt: generation.negativePrompt,
-      model: { id: generation.modelId } as never,
-      loras: generation.loras?.map((selected) => ({
-        lora: { id: selected.loraId } as never,
-        weight: selected.weight,
-      })),
+      negativePrompt: plan.negativePrompt,
+      model,
+      loras,
       references,
       parameters: {
-        ...(generation.parameters ?? {}),
+        ...(plan.parameters ?? {}),
         targetRuntimeSeconds: request.targetRuntimeSeconds,
         sceneCount: request.sceneCount,
         takeCount: request.takeCount,
