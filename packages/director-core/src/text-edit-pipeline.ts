@@ -18,13 +18,8 @@ export function createTextEditProposal(
   if (!command) return null;
 
   const parsed = resolveTextEdit(timeline, transcript, command);
-  if (!parsed) return null;
+  if (!parsed || command.type !== 'delete-transcript') return null;
 
-  const proposal = createTranscriptEditProposal({
-    action: command.type === 'delete-transcript' ? 'delete' : 'select',
-    selection: parsed.selection,
-    reason: `Text command: ${text.trim()}`,
-  });
-
+  const proposal = createTranscriptEditProposal(parsed.selection, 'delete');
   return { parsed, proposal };
 }
