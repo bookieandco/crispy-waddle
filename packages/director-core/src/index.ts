@@ -16,3 +16,4 @@ export * from './cinematic-notebook';
 export * from './jhadina-learning-events';
 export * from './learning-study-plan';
 export * from './study-job';
+export * from './editing-study-lessons';
