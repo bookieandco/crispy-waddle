@@ -1,12 +1,15 @@
 import type { EditableTimeline, GenerativeRegion } from './timeline-model.js';
 import type { ActionHandler, ActionRequest } from '@jhadina/action-core';
+import { applyGeneratedRegion } from './generative-region-applier.js';
+import { planGenerativeRegionOperation } from './generative-region-operations.js';
+import type { GenerationResult } from './generation-service.js';
 
 export type TimelineMutation =
   | { operation: 'move-clip'; clipId: string; startSeconds: number }
   | { operation: 'trim-clip'; clipId: string; startSeconds: number; durationSeconds: number }
   | { operation: 'split-clip'; clipId: string; atSeconds: number }
   | { operation: 'ripple-delete'; clipIds: string[] }
-  | { operation: 'generative-region'; region: GenerativeRegion };
+  | { operation: 'generative-region'; region: GenerativeRegion; generationResult?: GenerationResult; targetTrackId?: string };
 
 export type GovernedTimelineAction = {
   projectId: string;
@@ -39,4 +42,14 @@ export function createTimelineHandler(apply: (action: GovernedTimelineAction) =>
       return { timeline, version, versionId, auditMetadata: { projectId: action.projectId, operation: action.mutation.operation, mutation: action.mutation, versionId, version } };
     },
   };
+}
+
+/** Executes a generative mutation through the governed timeline handler. */
+export function applyGenerativeMutation(action: GovernedTimelineAction): EditableTimeline {
+  if (action.mutation.operation !== 'generative-region') return action.timeline;
+  const { region, generationResult, targetTrackId } = action.mutation;
+  if (!generationResult) throw new Error('A completed generation result is required before applying a generative-region mutation');
+  if (!targetTrackId) throw new Error('A target video or overlay track is required for a generative-region mutation');
+  const plan = planGenerativeRegionOperation(region, generationResult, targetTrackId);
+  return applyGeneratedRegion(action.timeline, plan, generationResult, targetTrackId);
 }
