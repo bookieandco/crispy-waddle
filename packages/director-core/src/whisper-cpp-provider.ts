@@ -1,5 +1,4 @@
-import type { TranscriptionProvider, TranscriptionRequest, TranscriptionResult } from './transcription-provider.js';
-import type { TranscriptSegment, TranscriptWord } from './transcript-audio-bridge.js';
+import type { Transcript, TranscriptionProvider } from './transcript-core.js';
 
 export type WhisperCppProviderOptions = {
   executablePath: string;
@@ -7,31 +6,36 @@ export type WhisperCppProviderOptions = {
   spawn: (command: string, args: string[]) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
 };
 
-/** Adapter boundary for a local whisper.cpp binary; DirectorOS owns no whisper-specific editor logic. */
+/** Local whisper.cpp adapter. The rest of DirectorOS only consumes transcript-core types. */
 export class WhisperCppTranscriptionProvider implements TranscriptionProvider {
   readonly id = 'whisper-cpp-local';
 
   constructor(private readonly options: WhisperCppProviderOptions) {}
 
-  async transcribe(request: TranscriptionRequest): Promise<TranscriptionResult> {
+  async transcribe(input: { assetId: string; mediaUri: string; language?: string }): Promise<Transcript> {
     const args = [
       '-m', this.options.modelPath,
-      '-f', request.assetId,
-      ...(request.wordTimestamps ? ['-ml', '1'] : []),
-      ...(request.language ? ['-l', request.language] : []),
+      '-f', input.mediaUri,
+      ...(input.language ? ['-l', input.language] : []),
       '--output-json',
     ];
-
     const result = await this.options.spawn(this.options.executablePath, args);
     if (result.exitCode !== 0) throw new Error(`whisper.cpp exited with code ${result.exitCode}: ${result.stderr}`);
 
-    const parsed = JSON.parse(result.stdout) as { transcription?: Array<{ offsets?: { from?: number; to?: number }; text: string; tokens?: Array<{ text: string; offsets?: { from?: number; to?: number }; p?: number }> }> };
-    const segments: TranscriptSegment[] = (parsed.transcription ?? []).map((segment, index) => ({
+    const parsed = JSON.parse(result.stdout) as {
+      transcription?: Array<{
+        offsets?: { from?: number; to?: number };
+        text: string;
+        tokens?: Array<{ text: string; offsets?: { from?: number; to?: number }; p?: number }>;
+      }>;
+    };
+
+    const segments = (parsed.transcription ?? []).map((segment, index) => ({
       id: `whisper-${index}`,
-      startSeconds: ((segment.offsets?.from ?? 0) / 1000),
-      endSeconds: ((segment.offsets?.to ?? 0) / 1000),
+      startSeconds: (segment.offsets?.from ?? 0) / 1000,
+      endSeconds: (segment.offsets?.to ?? 0) / 1000,
       text: segment.text.trim(),
-      words: segment.tokens?.map((token): TranscriptWord => ({
+      words: (segment.tokens ?? []).map(token => ({
         text: token.text,
         startSeconds: (token.offsets?.from ?? 0) / 1000,
         endSeconds: (token.offsets?.to ?? 0) / 1000,
@@ -39,6 +43,14 @@ export class WhisperCppTranscriptionProvider implements TranscriptionProvider {
       })),
     }));
 
-    return { providerId: this.id, assetId: request.assetId, segments, language: request.language, metadata: { engine: 'whisper.cpp' } };
+    return {
+      id: crypto.randomUUID(),
+      assetId: input.assetId,
+      language: input.language,
+      segments,
+      provider: this.id,
+      model: this.options.modelPath,
+      createdAt: new Date().toISOString(),
+    };
   }
 }
