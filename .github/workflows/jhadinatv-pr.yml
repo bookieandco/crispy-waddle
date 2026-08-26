@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'packages/jhadina-tv-core/**'
+      - 'packages/jhadina-tv-live/**'
+      - 'packages/jhadina-tv-programming/**'
+      - 'packages/jhadina-tv-jellyfin/**'
       - 'apps/jhadina-web/pages/jhadinatv/**'
       - 'apps/jhadina-web/components/jhadinatv/**'
       - 'package.json'
@@ -30,3 +33,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @jhadina/tv-core type-check
+      - run: pnpm --filter @jhadina/tv-live type-check
+      - run: pnpm --filter @jhadina/tv-programming type-check
+      - run: pnpm --filter @jhadina/tv-jellyfin type-check
+      - run: pnpm --filter @jhadina/tv-live test
