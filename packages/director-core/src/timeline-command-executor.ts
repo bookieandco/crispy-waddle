@@ -11,21 +11,16 @@ export type TimelineCommandExecutionContext = {
 };
 
 function toMutation(command: TimelineCommand): TimelineMutation {
-  switch (command.operation) {
-    case 'move-clip': return command;
-    case 'trim-clip': return command;
-    case 'split-clip': return command;
-    case 'ripple-delete': return command;
-    case 'generative-region': return command;
-    default: return assertNever(command);
+  switch (command.type) {
+    case 'move': return { operation: 'move-clip', clipId: command.clipId, startSeconds: command.startSeconds };
+    case 'trim': return { operation: 'trim-clip', clipId: command.clipId, startSeconds: command.startSeconds, durationSeconds: command.durationSeconds };
+    case 'split': return { operation: 'split-clip', clipId: command.clipId, atSeconds: command.atSeconds };
+    case 'ripple-delete': return { operation: 'ripple-delete', clipIds: [command.clipId] };
+    case 'generative-region': return { operation: 'generative-region', region: command.region };
+    default: throw new Error(`Timeline command is not supported by the governed boundary: ${command.type}`);
   }
 }
 
-function assertNever(value: never): never {
-  throw new Error(`Unsupported timeline command: ${JSON.stringify(value)}`);
-}
-
-/** Converts an approved TimelineCommand into the existing governed action boundary. */
 export function createGovernedTimelineRequest(command: TimelineCommand, context: TimelineCommandExecutionContext): ActionRequest<ReturnType<typeof createTimelineAction>['action']> {
   return createTimelineAction(context.userId, toMutation(command), context.projectId, context.timeline, context.reason);
 }
@@ -36,6 +31,5 @@ export async function executeApprovedTimelineCommand(
   context: TimelineCommandExecutionContext,
   executor: ActionExecutor<ReturnType<typeof createTimelineAction>['action'], GovernedTimelineResult>,
 ): Promise<GovernedTimelineResult> {
-  const request = createGovernedTimelineRequest(command, context);
-  return executeGovernedTimelineAction(executor, request);
+  return executeGovernedTimelineAction(executor, createGovernedTimelineRequest(command, context));
 }
