@@ -48,20 +48,29 @@ async function* mergeStreams(
   const audioIterator = audio[Symbol.asyncIterator]();
   let nextFrame = frameIterator.next();
   let nextAudio = audioIterator.next();
+  let frameDone = false;
+  let audioDone = false;
 
-  while (true) {
-    const result = await Promise.race([
-      nextFrame.then(result => ({ stream: 'frame' as const, result })),
-      nextAudio.then(result => ({ stream: 'audio' as const, result })),
-    ]);
+  while (!frameDone || !audioDone) {
+    const pending: Array<Promise<{ stream: 'frame' | 'audio'; result: any }>> = [];
+    if (!frameDone) pending.push(nextFrame.then(result => ({ stream: 'frame' as const, result })));
+    if (!audioDone) pending.push(nextAudio.then(result => ({ stream: 'audio' as const, result })));
+    const result = await Promise.race(pending);
+
     if (result.stream === 'frame') {
-      if (result.result.done) { nextFrame = new Promise(() => {}) as typeof nextFrame; if ((await Promise.race([nextAudio, Promise.resolve({ done: true, value: undefined })])).done) break; continue; }
+      if (result.result.done) {
+        frameDone = true;
+        continue;
+      }
       const observations = await registry.observeFrame(result.result.value as any);
       if (observations.length) await publish(observations);
       yield* observations;
       nextFrame = frameIterator.next();
     } else {
-      if (result.result.done) { nextAudio = new Promise(() => {}) as typeof nextAudio; if ((await Promise.race([nextFrame, Promise.resolve({ done: true, value: undefined })])).done) break; continue; }
+      if (result.result.done) {
+        audioDone = true;
+        continue;
+      }
       const observations = await registry.observeAudio(result.result.value as any);
       if (observations.length) await publish(observations);
       yield* observations;
