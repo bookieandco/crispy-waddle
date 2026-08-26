@@ -26,7 +26,7 @@ export type GenerationRequest = {
 export type GenerationResult = {
   requestId: string;
   providerId: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
   assetIds: string[];
   providerJobId?: string;
   error?: string;
@@ -77,6 +77,17 @@ export class ComfyUIProvider implements GenerationProvider {
 
   async status(providerJobId: string): Promise<GenerationResult> {
     const history = await this.client.getHistory(providerJobId);
+    if (history.error) {
+      return {
+        requestId: String(history.requestId ?? providerJobId),
+        providerId: this.descriptor.id,
+        status: 'failed',
+        assetIds: [],
+        providerJobId,
+        error: String(history.error),
+        metadata: history,
+      };
+    }
     const completed = Boolean(history.outputs);
     return {
       requestId: String(history.requestId ?? providerJobId),
