@@ -27,16 +27,25 @@ describe('editing asset manifest', () => {
     expect(entry.status).toBe('ready');
     expect(entry.usable).toBe(false);
     expect(entry.kind).toBe('subtitle');
+    expect(entry.generationJobId).toBe('generation:counter');
+    expect(entry.uri).toBe(asset.uri);
+    expect(entry.mimeType).toBe('application/x-subrip');
     expect(entry.operationId).toBe('counter-operation-1');
     expect(entry.startSeconds).toBe(12);
     expect(entry.endSeconds).toBe(22);
   });
 
-  it('projects approved assets as usable editing assets', () => {
-    const [entry] = approvedEditingAssets([asset]);
+  it('projects only explicitly approved assets as usable editing assets', () => {
+    const [entry] = approvedEditingAssets([asset], new Set([asset.id]));
     expect(entry.status).toBe('approved');
     expect(entry.usable).toBe(true);
     expect(entry.uri).toBe(asset.uri);
     expect(entry.mimeType).toBe('application/x-subrip');
+  });
+
+  it('leaves unapproved assets ready but unusable', () => {
+    const [entry] = approvedEditingAssets([asset], new Set());
+    expect(entry.status).toBe('ready');
+    expect(entry.usable).toBe(false);
   });
 });
