@@ -1,6 +1,6 @@
 import type { GenerativeRegion, TimelineClip } from './timeline-model.js';
 import type { GenerationResult } from './generation-service.js';
-import { generatedResultToTimelineClip } from './generation-output-timeline.js';
+import { placeGeneratedOutput } from './generation-output-timeline.js';
 
 export type GenerativeRegionOperation = 'insert' | 'replace' | 'extend' | 'fill' | 'reframe' | 'retime';
 
@@ -18,7 +18,7 @@ export function planGenerativeRegionOperation(
   result: GenerationResult,
   targetTrackId: string,
 ): GenerativeRegionOperationPlan {
-  const generatedClip = generatedResultToTimelineClip(region, result, targetTrackId);
+  const generatedClip = placeGeneratedOutput(region, result, targetTrackId).clip;
   const operation = region.operation as GenerativeRegionOperation;
   if (!['insert', 'replace', 'extend', 'fill', 'reframe', 'retime'].includes(operation)) {
     throw new Error(`Unsupported generative region operation: ${region.operation}`);
