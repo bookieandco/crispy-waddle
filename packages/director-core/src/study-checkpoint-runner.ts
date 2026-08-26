@@ -1,16 +1,20 @@
 import type { StudyJob } from './study-job.js';
-import type { StudyCheckpoint, } from './study-resume-state.js';
+import type { StudyCheckpoint } from './study-resume-state.js';
 import type { StudyCheckpointPolicy } from './study-checkpoint-policy.js';
 
 export type StudyCheckpointStore = {
   save(checkpoint: StudyCheckpoint): Promise<void>;
 };
 
-export function createStudyCheckpointRunner(policy: StudyCheckpointPolicy, store: StudyCheckpointStore) {
-  let previousSeconds = 0;
+export type StudyCheckpointRunner = {
+  observe(job: StudyJob): Promise<StudyCheckpoint | undefined>;
+  final(job: StudyJob): Promise<StudyCheckpoint>;
+};
 
+export function createStudyCheckpointRunner(policy: StudyCheckpointPolicy, store: StudyCheckpointStore): StudyCheckpointRunner {
+  let previousSeconds = 0;
   return {
-    async observe(job: StudyJob): Promise<StudyCheckpoint | undefined> {
+    async observe(job) {
       const current = job.lastTimeSeconds;
       if (!policy.shouldCheckpoint(previousSeconds, current)) return undefined;
       previousSeconds = current;
@@ -18,8 +22,7 @@ export function createStudyCheckpointRunner(policy: StudyCheckpointPolicy, store
       await store.save(checkpoint);
       return checkpoint;
     },
-
-    async final(job: StudyJob): Promise<StudyCheckpoint> {
+    async final(job) {
       const checkpoint = policy.checkpoint(job);
       previousSeconds = job.lastTimeSeconds;
       await store.save(checkpoint);
