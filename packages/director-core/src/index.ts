@@ -16,3 +16,4 @@ export * from './timeline-model';
 export * from './timeline-command';
 export * from './timeline-command-manager';
 export * from './timeline-operations';
+export * from './transcript-core';
