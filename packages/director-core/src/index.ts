@@ -12,3 +12,7 @@ export * from './generation-assets';
 export * from './generated-asset-resolver';
 export * from './media-core';
 export * from './media-processor';
+export * from './timeline-model';
+export * from './timeline-command';
+export * from './timeline-command-manager';
+export * from './timeline-operations';
