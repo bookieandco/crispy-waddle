@@ -1,6 +1,7 @@
 export * from './generation-registry';
 export * from './generation-provider';
 export * from './comfyui-http';
+export * from './comfyui-output-resolver';
 export * from './generation-service';
 export * from './generation-manifest';
 export * from './generation-catalog';
