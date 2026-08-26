@@ -1,6 +1,7 @@
 import type { Observation } from './observation-bus.js';
 import type { StudyJob } from './study-job.js';
 import { runStudyJob, type StudyJobEffects, type StudyJobStore } from './study-job-runner.js';
+import type { StudyCheckpointRunner } from './study-checkpoint-runner.js';
 import type { MediaDecoderAdapter, DecodeRequest } from './media-decoder-adapter.js';
 import type { ObservationProvider } from './observation-provider-adapters.js';
 import { createObservationProviderRegistry } from './observation-provider-adapters.js';
@@ -17,6 +18,7 @@ export function createAutonomousStudyRuntime(input: {
   publish: (observations: Observation[]) => Promise<void>;
   note?: (observation: Observation) => Promise<void>;
   learn?: (observation: Observation, job: StudyJob) => Promise<void>;
+  checkpoints?: StudyCheckpointRunner;
   cancellation?: StudyCancellationRegistry;
 }): AutonomousStudyRuntime {
   const registry = createObservationProviderRegistry(input.providers);
@@ -28,6 +30,7 @@ export function createAutonomousStudyRuntime(input: {
         observe: () => mergeStreams(input.decoder.decodeFrames(request), input.decoder.decodeAudio(request), registry, input.publish),
         note: input.note,
         learn: input.learn,
+        checkpoints: input.checkpoints,
       };
       const execution = runStudyJob(job.id, input.store, effects);
       return execution.finally(() => input.cancellation?.remove(job.id));
