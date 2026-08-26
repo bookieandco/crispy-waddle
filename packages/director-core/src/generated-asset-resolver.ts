@@ -22,22 +22,32 @@ export interface GeneratedAssetRepository {
   save(asset: GeneratedAssetRecord): Promise<GeneratedAssetRecord>;
   get(id: string): Promise<GeneratedAssetRecord | undefined>;
   listByGenerationJob(generationJobId: string): Promise<GeneratedAssetRecord[]>;
+  listByProject(projectId: string): Promise<GeneratedAssetRecord[]>;
 }
 
 export class InMemoryGeneratedAssetRepository implements GeneratedAssetRepository {
   private readonly assets = new Map<string, GeneratedAssetRecord>();
 
   async save(asset: GeneratedAssetRecord): Promise<GeneratedAssetRecord> {
-    this.assets.set(asset.id, asset);
-    return asset;
+    this.assets.set(asset.id, structuredClone(asset));
+    return structuredClone(asset);
   }
 
   async get(id: string): Promise<GeneratedAssetRecord | undefined> {
-    return this.assets.get(id);
+    const asset = this.assets.get(id);
+    return asset ? structuredClone(asset) : undefined;
   }
 
   async listByGenerationJob(generationJobId: string): Promise<GeneratedAssetRecord[]> {
-    return [...this.assets.values()].filter((asset) => asset.generationJobId === generationJobId);
+    return [...this.assets.values()]
+      .filter((asset) => asset.generationJobId === generationJobId)
+      .map((asset) => structuredClone(asset));
+  }
+
+  async listByProject(projectId: string): Promise<GeneratedAssetRecord[]> {
+    return [...this.assets.values()]
+      .filter((asset) => asset.projectId === projectId)
+      .map((asset) => structuredClone(asset));
   }
 }
 
