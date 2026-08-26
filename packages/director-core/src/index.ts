@@ -13,3 +13,5 @@ export * from './generated-asset-resolver';
 export * from './watch-session';
 export * from './watch-service';
 export * from './cinematic-notebook';
+export * from './jhadina-learning-events';
+export * from './learning-study-plan';
