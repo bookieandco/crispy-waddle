@@ -1,25 +1,16 @@
-import type { TranscriptSegment } from './transcript-audio-bridge.js';
+import type { Transcript, TranscriptionProvider } from './transcript-core.js';
 
 export type TranscriptionRequest = {
   assetId: string;
+  mediaUri: string;
   language?: string;
   wordTimestamps?: boolean;
 };
 
-export type TranscriptionResult = {
-  providerId: string;
-  assetId: string;
-  segments: TranscriptSegment[];
-  language?: string;
-  durationSeconds?: number;
-  metadata?: Record<string, unknown>;
-};
+export type TranscriptionResult = Transcript;
+export type { TranscriptionProvider } from './transcript-core.js';
 
-export interface TranscriptionProvider {
-  readonly id: string;
-  transcribe(request: TranscriptionRequest): Promise<TranscriptionResult>;
-}
-
+/** Registry for canonical DirectorOS transcription providers. */
 export class TranscriptionProviderRegistry {
   private readonly providers = new Map<string, TranscriptionProvider>();
 
