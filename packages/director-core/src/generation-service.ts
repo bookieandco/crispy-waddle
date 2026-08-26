@@ -41,6 +41,7 @@ export type GenerationJob = {
   providerId: string;
   status: GenerationResult['status'];
   providerJobId?: string;
+  error?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -76,12 +77,18 @@ export class GenerationService {
         ...initial,
         status: result.status,
         providerJobId: result.providerJobId,
+        error: result.error,
         updatedAt: new Date().toISOString(),
       };
       this.jobs.set(job.id, job);
       return job;
     } catch (error) {
-      const failed: GenerationJob = { ...initial, status: 'failed', updatedAt: new Date().toISOString() };
+      const failed: GenerationJob = {
+        ...initial,
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error),
+        updatedAt: new Date().toISOString(),
+      };
       this.jobs.set(failed.id, failed);
       throw error;
     }
@@ -98,7 +105,12 @@ export class GenerationService {
     const provider = this.providers.get(job.providerId);
     if (!provider) throw new Error(`Provider is not configured: ${job.providerId}`);
     const result = await provider.status(job.providerJobId);
-    const updated = { ...job, status: result.status, updatedAt: new Date().toISOString() };
+    const updated = {
+      ...job,
+      status: result.status,
+      error: result.error,
+      updatedAt: new Date().toISOString(),
+    };
     this.jobs.set(id, updated);
     return updated;
   }
@@ -111,7 +123,11 @@ export class GenerationService {
       if (!provider) throw new Error(`Provider is not configured: ${job.providerId}`);
       await provider.cancel(job.providerJobId);
     }
-    const updated: GenerationJob = { ...job, status: 'failed', updatedAt: new Date().toISOString() };
+    const updated: GenerationJob = {
+      ...job,
+      status: 'cancelled',
+      updatedAt: new Date().toISOString(),
+    };
     this.jobs.set(id, updated);
     return updated;
   }
