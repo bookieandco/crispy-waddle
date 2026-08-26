@@ -9,6 +9,7 @@ export function recommendTitles(catalog: MediaTitle[], request: RecommendationRe
 export const JHADINA_TV_ROUTES = { home: '/jhadinatv', movies: '/jhadinatv/movies', tv: '/jhadinatv/tv', search: '/jhadinatv/search', watch: (kind: MediaKind, id: string) => `/jhadinatv/watch/${kind}/${id}` };
 export type { MediaSource, MediaSourceAdapter } from './source-adapter'; export { assertPlayableSource } from './source-adapter';
 export type { LiveChannel, LiveChannelKind, LiveChannelProvider, LiveProgram, LiveSourceProvenance } from './live-tv';
+export { buildUnifiedGuide, getCurrentProgram } from './guide'; export type { UnifiedGuideRow } from './guide';
 export type { CastingManager, MediaSessionCommand, MediaSessionController, MediaSessionState, PlaybackTarget, PlaybackTransport } from './casting'; export { assertCastableSource, buildTransferCommand, createCastingManager } from './casting';
 export type { CatalogProvider, CatalogSearchOptions, CatalogSearchResult, ResolvedMediaSource } from './catalog'; export { CatalogRegistry } from './catalog';
 export type { ProviderFactoryConfig } from './providers'; export { createCatalogProvider, registerCatalogProviders } from './providers';
