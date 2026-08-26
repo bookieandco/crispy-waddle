@@ -16,9 +16,14 @@ export function previewEditCommand(instruction: string, context: EditResolutionC
   return { status: edit.requiresConfirmation ? 'needs-review' : 'ready', edit, errors: [] };
 }
 
-/** Final safety boundary: callers must explicitly approve a preview before execution. */
+/** Converts an already approved preview into an executable command. */
 export function approveEditCommand(preview: EditPreview): TimelineCommand {
   if (preview.status === 'rejected' || !preview.edit) throw new Error('Edit preview is not executable');
-  if (preview.edit.requiresConfirmation) throw new Error('Explicit approval required before executing this edit');
   return preview.edit.command;
+}
+
+/** Explicit approval transition. This never mutates timeline state. */
+export function approveEditPreview(preview: EditPreview): EditPreview {
+  if (preview.status === 'rejected' || !preview.edit) throw new Error('Edit preview is not approvable');
+  return { ...preview, status: 'ready' };
 }
