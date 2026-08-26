@@ -76,9 +76,9 @@ export class GenerationRegistry {
   getLoRA(id: string): LoRARecord | undefined { return this.loras.get(id); }
   getProvider(id: string): GenerationProviderRecord | undefined { return this.providers.get(id); }
 
-  listModels(): ModelRecord[] { return [...this.models.values()].map(structuredClone); }
-  listLoRAs(): LoRARecord[] { return [...this.loras.values()].map(structuredClone); }
-  listProviders(): GenerationProviderRecord[] { return [...this.providers.values()].map(structuredClone); }
+  listModels(): ModelRecord[] { return [...this.models.values()].map((value) => structuredClone(value)); }
+  listLoRAs(): LoRARecord[] { return [...this.loras.values()].map((value) => structuredClone(value)); }
+  listProviders(): GenerationProviderRecord[] { return [...this.providers.values()].map((value) => structuredClone(value)); }
 
   compatibleLoRAs(modelId: string): LoRARecord[] {
     const model = this.models.get(modelId);
