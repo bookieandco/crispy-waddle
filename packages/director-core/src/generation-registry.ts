@@ -1,4 +1,4 @@
-export type GenerationModality = 'image' | 'video' | 'audio' | '3d' | 'motion';
+export type GenerationModality = 'image' | 'video' | 'audio' | '3d' | 'motion' | 'subtitle';
 
 export type ProviderCapability =
   | 'text-to-image'
@@ -10,7 +10,8 @@ export type ProviderCapability =
   | 'outpainting'
   | 'upscale'
   | 'motion'
-  | 'camera-control';
+  | 'camera-control'
+  | 'text-to-subtitle';
 
 export type ModelRecord = {
   id: string;
