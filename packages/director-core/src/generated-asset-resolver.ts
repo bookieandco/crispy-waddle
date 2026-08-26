@@ -5,7 +5,7 @@ export type GeneratedAssetRecord = {
   projectId: string;
   generationJobId: string;
   providerId: string;
-  mediaType: 'image' | 'video' | 'audio' | '3d' | 'motion' | 'unknown';
+  mediaType: 'image' | 'video' | 'audio' | '3d' | 'motion' | 'subtitle' | 'unknown';
   uri: string;
   mimeType?: string;
   sha256?: string;
