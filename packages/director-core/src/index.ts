@@ -17,3 +17,7 @@ export * from './timeline-command';
 export * from './timeline-command-manager';
 export * from './timeline-operations';
 export * from './transcript-core';
+export * from './transcription-job';
+export * from './transcript-timeline';
+export * from './ripple-edit';
+export * from './linked-clips';
