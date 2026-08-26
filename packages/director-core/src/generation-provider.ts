@@ -4,6 +4,7 @@ import type {
   LoRARecord,
   ModelRecord,
 } from './generation-registry';
+import { resolveComfyUIHistoryOutputs } from './comfyui-output-resolver';
 
 export type GenerationReference = {
   assetId: string;
@@ -48,10 +49,6 @@ export type ComfyUIClient = {
 
 export type ComfyUIWorkflowBuilder = (request: GenerationRequest) => Record<string, unknown>;
 
-/**
- * Boundary only: this adapter owns ComfyUI transport/workflow details.
- * DirectorOS never depends on node IDs, websocket payloads, or raw workflow JSON.
- */
 export class ComfyUIProvider implements GenerationProvider {
   readonly descriptor: GenerationProviderRecord;
 
@@ -88,14 +85,22 @@ export class ComfyUIProvider implements GenerationProvider {
         metadata: history,
       };
     }
-    const completed = Boolean(history.outputs);
+
+    const outputs = resolveComfyUIHistoryOutputs(history as Parameters<typeof resolveComfyUIHistoryOutputs>[0], {
+      baseUrl: this.descriptor.endpoint ?? 'http://localhost:8188',
+    });
+    const completed = outputs.length > 0 || Boolean(history.outputs);
+
     return {
       requestId: String(history.requestId ?? providerJobId),
       providerId: this.descriptor.id,
       status: completed ? 'completed' : 'running',
       assetIds: Array.isArray(history.assetIds) ? history.assetIds.map(String) : [],
       providerJobId,
-      metadata: history,
+      metadata: {
+        ...history,
+        outputs,
+      },
     };
   }
 
