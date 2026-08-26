@@ -96,6 +96,6 @@ export function unlinkMediaClip(project: MediaProject, clipId: string): MediaPro
   return {
     ...project,
     videoTracks: project.videoTracks.map(track => ({ ...track, clips: track.clips.map(clip => clip.id === clipId ? { ...clip, linkedClipId: undefined } : clip) })),
-    audioTracks: project.audioTracks.map(track => ({ ...track, clips: clip.id === clipId ? { ...clip, linkedClipId: undefined } : clip) as MediaTrack),
+    audioTracks: project.audioTracks.map(track => ({ ...track, clips: track.clips.map(clip => clip.id === clipId ? { ...clip, linkedClipId: undefined } : clip) })),
   };
 }
