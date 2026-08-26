@@ -1,6 +1,7 @@
 import type { GenerationRegistry } from './generation-registry';
 import type { GenerationProvider, GenerationRequest, GenerationResult } from './generation-provider';
 import type { GeneratedAssetRepository, ProviderOutput } from './generated-asset-resolver';
+import type { EditOperation } from './edit-plan';
 import { resolveGenerationOutputs } from './generated-asset-resolver';
 
 function assertRequestCompatibility(registry: GenerationRegistry, request: GenerationRequest): void {
@@ -16,7 +17,9 @@ function assertRequestCompatibility(registry: GenerationRegistry, request: Gener
     ? (request.references?.some((reference) => reference.role === 'image') ? 'image-to-video' : 'text-to-video')
     : request.modality === 'image'
       ? 'text-to-image'
-      : undefined;
+      : request.modality === 'subtitle'
+        ? 'text-to-subtitle'
+        : undefined;
   if (requiredCapability && !provider.capabilities.includes(requiredCapability)) {
     throw new Error(`Provider ${provider.id} does not support capability: ${requiredCapability}`);
   }
@@ -135,6 +138,36 @@ export class GenerationService {
       this.jobs.set(failed.id, failed);
       throw error;
     }
+  }
+
+  async submitEditOperation(operation: EditOperation, projectId: string, modelId: string): Promise<GenerationJob> {
+    if (operation.kind !== 'srt-counter') {
+      throw new Error(`Edit operation is not yet executable through GenerationService: ${operation.kind}`);
+    }
+    const model = this.registry.getModel(modelId);
+    if (!model) throw new Error(`Model is not registered: ${modelId}`);
+    if (!model.modalities.includes('subtitle')) {
+      throw new Error(`Model ${model.id} does not support subtitle generation`);
+    }
+
+    return this.submit({
+      requestId: `generation:${operation.id}`,
+      projectId,
+      modality: 'subtitle',
+      prompt: operation.intent,
+      model,
+      parameters: {
+        ...(operation.parameters ?? {}),
+        startSeconds: operation.startSeconds,
+        endSeconds: operation.endSeconds,
+        sourceId: operation.sourceId,
+      },
+      references: (operation.referenceUris ?? []).map((uri, index) => ({
+        assetId: `${operation.id}:reference:${index + 1}`,
+        role: 'image' as const,
+        uri,
+      })),
+    });
   }
 
   getJob(id: string): GenerationJob | undefined {
