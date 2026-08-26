@@ -18,11 +18,7 @@ export type EditingAssetManifestEntry = {
   metadata?: Record<string, unknown>;
 };
 
-/**
- * Projects a completed generated asset into the governed editing surface.
- * Assets are never considered usable merely because generation completed;
- * the editing manifest requires explicit approval.
- */
+/** Projects a generated asset into the governed editing surface. */
 export function toEditingAssetManifestEntry(
   asset: GeneratedAssetRecord,
   approval: EditingAssetApproval = 'ready',
@@ -50,8 +46,15 @@ export function toEditingAssetManifestEntry(
   };
 }
 
+/**
+ * Projects a repository result using an explicit approval set.
+ * Generation completion alone never grants editing permission.
+ */
 export function approvedEditingAssets(
   assets: GeneratedAssetRecord[],
+  approvedAssetIds: ReadonlySet<string>,
 ): EditingAssetManifestEntry[] {
-  return assets.map((asset) => toEditingAssetManifestEntry(asset, 'approved'));
+  return assets.map((asset) =>
+    toEditingAssetManifestEntry(asset, approvedAssetIds.has(asset.id) ? 'approved' : 'ready'),
+  );
 }
