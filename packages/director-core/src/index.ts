@@ -10,3 +10,6 @@ export * from './generation-orchestrator';
 export * from './generation-plan-adapter';
 export * from './generation-assets';
 export * from './generated-asset-resolver';
+export * from './watch-session';
+export * from './watch-service';
+export * from './cinematic-notebook';
