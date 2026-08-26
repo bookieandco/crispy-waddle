@@ -1,5 +1,5 @@
 import type { EditableTimeline, GenerativeRegion } from './timeline-model.js';
-import type { ActionExecutor, ActionHandler, ActionRequest, ActionPolicy } from '@jhadina/action-core';
+import type { ActionHandler, ActionRequest } from '@jhadina/action-core';
 
 export type TimelineMutation =
   | { operation: 'move-clip'; clipId: string; startSeconds: number }
@@ -39,11 +39,4 @@ export function createTimelineHandler(apply: (action: GovernedTimelineAction) =>
       return { timeline, version, versionId, auditMetadata: { projectId: action.projectId, operation: action.mutation.operation, mutation: action.mutation, versionId, version } };
     },
   };
-}
-
-export async function executeGovernedTimelineAction(
-  executor: ActionExecutor<GovernedTimelineAction, GovernedTimelineResult>,
-  request: ActionRequest<GovernedTimelineAction>,
-): Promise<GovernedTimelineResult> {
-  return executor.execute(request);
 }
