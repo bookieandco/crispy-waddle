@@ -6,6 +6,12 @@ export type StudyJobControlStore = {
   save(job: StudyJob): Promise<void>;
 };
 
+export type StudyControlTransition = {
+  status: StudyJobStatus;
+  startedAt?: string;
+  completedAt?: string;
+};
+
 const transitions: Partial<Record<StudyControlAction, StudyJobStatus>> = {
   start: 'running',
   pause: 'paused',
@@ -16,18 +22,21 @@ const transitions: Partial<Record<StudyControlAction, StudyJobStatus>> = {
 export async function controlStudyJob(store: StudyJobControlStore, id: string, action: StudyControlAction): Promise<StudyJob | undefined> {
   const job = await store.get(id);
   if (!job) return undefined;
+  const transition = getStudyControlTransition(job, action);
+  if (!transition) return job;
+  const next: StudyJob = { ...job, ...transition };
+  await store.save(next);
+  return next;
+}
 
-  if (action === 'promote-learning') return job;
+export function getStudyControlTransition(job: StudyJob, action: StudyControlAction): StudyControlTransition | undefined {
+  if (action === 'promote-learning') return undefined;
   const status = transitions[action];
-  if (!status) return job;
-
+  if (!status) return undefined;
   const now = new Date().toISOString();
-  const next: StudyJob = {
-    ...job,
+  return {
     status,
     startedAt: action === 'start' && !job.startedAt ? now : job.startedAt,
     completedAt: action === 'stop' ? now : job.completedAt,
   };
-  await store.save(next);
-  return next;
 }
