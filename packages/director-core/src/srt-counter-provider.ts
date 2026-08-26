@@ -48,6 +48,7 @@ export class SrtCounterProvider implements GenerationProvider {
   async submit(request: GenerationRequest): Promise<GenerationResult> {
     const content = renderSrtCounter(request.parameters as SrtCounterParameters);
     const uri = encodeDataUri(content);
+    const parameters = request.parameters as SrtCounterParameters & Record<string, unknown>;
     return {
       requestId: request.requestId,
       providerId: this.descriptor.id,
@@ -55,7 +56,18 @@ export class SrtCounterProvider implements GenerationProvider {
       assetIds: [`${request.requestId}:asset:1`],
       providerJobId: request.requestId,
       metadata: {
-        outputs: [{ uri, mediaType: 'subtitle', mimeType: 'application/x-subrip' }],
+        outputs: [{
+          uri,
+          mediaType: 'subtitle',
+          mimeType: 'application/x-subrip',
+          metadata: {
+            operation: 'srt-counter',
+            operationId: request.requestId,
+            sourceId: typeof parameters.sourceId === 'string' ? parameters.sourceId : undefined,
+            startSeconds: typeof parameters.startSeconds === 'number' ? parameters.startSeconds : undefined,
+            endSeconds: typeof parameters.endSeconds === 'number' ? parameters.endSeconds : undefined,
+          },
+        }],
         operation: 'srt-counter',
       },
     };
