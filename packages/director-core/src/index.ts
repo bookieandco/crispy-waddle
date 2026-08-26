@@ -38,3 +38,4 @@ export * from './watch-service';
 export * from './observation-bus';
 export * from './observation-providers';
 export * from './autonomous-watch';
+export * from './autonomous-viewer-worker';
