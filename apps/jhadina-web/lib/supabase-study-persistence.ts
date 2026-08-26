@@ -22,13 +22,12 @@ function toJob(row: any): StudyJob {
 
 function toCheckpoint(row: any): StudyCheckpoint {
   return {
-    id: row.id,
     studyId: row.study_id,
     timeSeconds: Number(row.time_seconds),
     observationsSeen: row.observations_seen,
     notesCreated: row.notes_created,
     learningCandidatesCreated: row.learning_candidates_created,
-    createdAt: row.created_at,
+    capturedAt: row.created_at,
   };
 }
 
@@ -61,14 +60,13 @@ export function createSupabaseStudyPersistence(client: SupabaseClient): StudyPer
     },
     checkpoints: {
       async save(checkpoint) {
-        const { error } = await client.from('director_study_checkpoints').upsert({
-          id: checkpoint.id,
+        const { error } = await client.from('director_study_checkpoints').insert({
           study_id: checkpoint.studyId,
           time_seconds: checkpoint.timeSeconds,
           observations_seen: checkpoint.observationsSeen,
           notes_created: checkpoint.notesCreated,
           learning_candidates_created: checkpoint.learningCandidatesCreated,
-          created_at: checkpoint.createdAt,
+          created_at: checkpoint.capturedAt,
         });
         if (error) throw error;
       },
