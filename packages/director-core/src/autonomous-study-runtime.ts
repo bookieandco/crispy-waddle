@@ -22,7 +22,7 @@ export function createAutonomousStudyRuntime(input: {
     run(job) {
       const request: DecodeRequest = { source: job.sourceUrl, assetId: job.id, startSeconds: job.lastTimeSeconds };
       const effects: StudyJobEffects = {
-        observe: () => mergeSamples(input.decoder.decodeFrames(request), input.decoder.decodeAudio(request), registry, input.publish),
+        observe: () => mergeStreams(input.decoder.decodeFrames(request), input.decoder.decodeAudio(request), registry, input.publish),
         note: input.note,
         learn: input.learn,
       };
@@ -31,15 +31,43 @@ export function createAutonomousStudyRuntime(input: {
   };
 }
 
-async function* mergeSamples(frames: AsyncIterable<any>, audio: AsyncIterable<any>, registry: ReturnType<typeof createObservationProviderRegistry>, publish: (o: Observation[]) => Promise<void>): AsyncIterable<Observation> {
-  for await (const frame of frames) {
-    const observations = await registry.observeFrame(frame);
-    if (observations.length) await publish(observations);
-    yield* observations;
-  }
-  for await (const window of audio) {
-    const observations = await registry.observeAudio(window);
-    if (observations.length) await publish(observations);
-    yield* observations;
+async function* mergeStreams(
+  frames: AsyncIterable<Awaited<ReturnType<NonNullable<ObservationProvider['observeFrame']>>>>,
+  audio: AsyncIterable<Awaited<ReturnType<NonNullable<ObservationProvider['observeAudio']>>>>,
+  registry: ReturnType<typeof createObservationProviderRegistry>,
+  publish: (observations: Observation[]) => Promise<void>,
+): AsyncIterable<Observation> {
+  const frameIterator = frames[Symbol.asyncIterator]();
+  const audioIterator = audio[Symbol.asyncIterator]();
+  let nextFrame = frameIterator.next();
+  let nextAudio = audioIterator.next();
+
+  while (true) {
+    const result = await Promise.race([
+      nextFrame.then(result => ({ stream: 'frame' as const, result })),
+      nextAudio.then(result => ({ stream: 'audio' as const, result })),
+    ]);
+
+    if (result.stream === 'frame') {
+      if (result.result.done) {
+        nextFrame = new Promise(() => {}) as typeof nextFrame;
+        if ((await Promise.race([nextAudio, Promise.resolve({ done: true, value: undefined })])).done) break;
+        continue;
+      }
+      const observations = await registry.observeFrame(result.result.value as any);
+      if (observations.length) await publish(observations);
+      yield* observations;
+      nextFrame = frameIterator.next();
+    } else {
+      if (result.result.done) {
+        nextAudio = new Promise(() => {}) as typeof nextAudio;
+        if ((await Promise.race([nextFrame, Promise.resolve({ done: true, value: undefined })])).done) break;
+        continue;
+      }
+      const observations = await registry.observeAudio(result.result.value as any);
+      if (observations.length) await publish(observations);
+      yield* observations;
+      nextAudio = audioIterator.next();
+    }
   }
 }
