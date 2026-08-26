@@ -17,6 +17,14 @@ describe('createComfyUIHttpClient', () => {
     await expect(client.getHistory('job-123')).resolves.toEqual({ outputs: { '1': {} } });
   });
 
+  it('interrupts a queued generation through /interrupt', async () => {
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 200 }));
+    const client = createComfyUIHttpClient({ baseUrl: 'http://localhost:8188', fetchImpl });
+
+    await expect(client.interrupt('job-123')).resolves.toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledWith('http://localhost:8188/interrupt', expect.objectContaining({ method: 'POST' }));
+  });
+
   it('surfaces provider HTTP failures', async () => {
     const fetchImpl = vi.fn(async () => new Response('bad request', { status: 400 }));
     const client = createComfyUIHttpClient({ baseUrl: 'http://localhost:8188', fetchImpl });
