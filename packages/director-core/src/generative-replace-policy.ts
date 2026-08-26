@@ -7,7 +7,7 @@ export type ReplaceVideoPolicy = {
   preserveAudio?: boolean;
 };
 
-/** Replaces only the target media clip. Independent audio tracks remain untouched by default. */
+/** Replaces only the target media clip while preserving the target clip's editorial timing. */
 export function replaceVideoClip(
   timeline: EditableTimeline,
   policy: ReplaceVideoPolicy,
@@ -30,10 +30,13 @@ export function replaceVideoClip(
     ...policy.replacement,
     trackId: targetTrackId,
     startSeconds: target.startSeconds,
+    durationSeconds: policy.replacement.durationSeconds > 0
+      ? policy.replacement.durationSeconds
+      : target.durationSeconds,
   };
 
-  // Deliberately operate on the target track only. Audio tracks and their link groups
-  // are not removed or rewritten unless a future explicit audio-edit command requests it.
+  // Audio tracks and link groups are intentionally left untouched. A future explicit
+  // audio-edit command can opt into dialogue/music/SFX/foley changes.
   const withoutTarget = removeClip(timeline, targetTrackId, target.id);
   return insertClip(withoutTarget, targetTrackId, replacement);
 }
