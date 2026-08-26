@@ -11,6 +11,7 @@ export type TimelineClip = {
   durationSeconds: number;
   sourceInSeconds?: number;
   sourceOutSeconds?: number;
+  linkGroupId?: string;
   muted?: boolean;
   volume?: number;
   opacity?: number;
@@ -49,44 +50,9 @@ export type SfxGenerationRequest = {
   candidateAssetIds?: string[];
 };
 
-export type TimelineSnapshot = {
-  tracks: TimelineTrack[];
-  transitions: Transition[];
-  markers: Marker[];
-  playheadSeconds: number;
-};
+export type TimelineSnapshot = { tracks: TimelineTrack[]; transitions: Transition[]; markers: Marker[]; playheadSeconds: number };
+export type TimelineVersion = { id: string; version: number; parentVersionId?: string; createdAt: string; createdBy: 'user' | 'jhadina' | 'system'; message: string; snapshotHash: string; snapshot?: TimelineSnapshot; revertsVersionId?: string; restoresVersionId?: string };
+export type EditableTimeline = { version: 1; projectId: string; fps: number; width: number; height: number; durationSeconds: number; playheadSeconds: number; tracks: TimelineTrack[]; transitions: Transition[]; markers: Marker[]; versions: TimelineVersion[] };
 
-export type TimelineVersion = {
-  id: string;
-  version: number;
-  parentVersionId?: string;
-  createdAt: string;
-  createdBy: 'user' | 'jhadina' | 'system';
-  message: string;
-  snapshotHash: string;
-  snapshot?: TimelineSnapshot;
-  revertsVersionId?: string;
-  restoresVersionId?: string;
-};
-
-export type EditableTimeline = {
-  version: 1;
-  projectId: string;
-  fps: number;
-  width: number;
-  height: number;
-  durationSeconds: number;
-  playheadSeconds: number;
-  tracks: TimelineTrack[];
-  transitions: Transition[];
-  markers: Marker[];
-  versions: TimelineVersion[];
-};
-
-export function createTimeline(input: Omit<EditableTimeline, 'version' | 'versions'>): EditableTimeline {
-  return { version: 1, ...input, versions: [] };
-}
-
-export function addGenerativeRegion(timeline: EditableTimeline, region: GenerativeRegion): EditableTimeline {
-  return { ...timeline, tracks: timeline.tracks.map(track => ({ ...track, clips: track.clips.map(clip => clip.id === region.sourceClipId ? { ...clip, generativeRegions: [...clip.generativeRegions, region] } : clip) })) };
-}
+export function createTimeline(input: Omit<EditableTimeline, 'version' | 'versions'>): EditableTimeline { return { version: 1, ...input, versions: [] }; }
+export function addGenerativeRegion(timeline: EditableTimeline, region: GenerativeRegion): EditableTimeline { return { ...timeline, tracks: timeline.tracks.map(track => ({ ...track, clips: track.clips.map(clip => clip.id === region.sourceClipId ? { ...clip, generativeRegions: [...clip.generativeRegions, region] } : clip) })) }; }
