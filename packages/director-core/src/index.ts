@@ -30,3 +30,4 @@ export * from './observation-provider-adapters';
 export * from './provider-adapter-factory';
 export * from './autonomous-study-checkpoint-runtime';
 export * from './editing-study-lessons';
+export * from './srt-counter-provider';
