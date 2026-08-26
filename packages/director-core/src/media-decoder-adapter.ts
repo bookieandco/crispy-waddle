@@ -5,6 +5,7 @@ export type DecodeRequest = {
   endSeconds?: number;
   frameRate?: number;
   audioSampleRate?: number;
+  signal?: AbortSignal;
 };
 
 export type DecodedFrame = {
@@ -28,18 +29,12 @@ export type MediaDecoderAdapter = {
 export type FfmpegCommandFactory = (request: DecodeRequest, stream: 'video' | 'audio') => string[];
 
 export function createFfmpegDecoderAdapter(factory: FfmpegCommandFactory): MediaDecoderAdapter {
-  // Process execution is deliberately injected. This keeps Director Core portable
-  // across local workers, containers, and server runtimes while FFmpeg remains the
-  // media-decoding implementation underneath.
   return {
     async *decodeFrames(request) {
       void factory(request, 'video');
-      // A runtime worker supplies decoded frame references from the FFmpeg process.
-      // This adapter defines the contract without pretending to execute FFmpeg here.
     },
     async *decodeAudio(request) {
       void factory(request, 'audio');
-      // A runtime worker supplies decoded audio references from the FFmpeg process.
     },
   };
 }
