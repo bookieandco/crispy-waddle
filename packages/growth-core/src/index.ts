@@ -23,6 +23,7 @@ export * from './intelligence/growth-loop.js';
 export * from './intelligence/search-everywhere.js';
 export * from './intelligence/content-performance.js';
 export * from './intelligence/content-growth-loop.js';
+export * from './intelligence/social-performance-ingestion.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
