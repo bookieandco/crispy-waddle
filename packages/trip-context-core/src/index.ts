@@ -1,22 +1,11 @@
 export type EquipmentMode = "full_rig" | "bobtail" | "hotshot" | "double_triple";
 
-export type OperatingStatus =
-  | "driving"
-  | "on_duty"
-  | "off_duty"
-  | "sleeper_berth"
-  | "unknown";
-
+export type OperatingStatus = "driving" | "on_duty" | "off_duty" | "sleeper_berth" | "unknown";
 export type ResetWindow = "none" | "short_break" | "rest_period" | "reset_period" | "unknown";
-
 export type MobilityMode = "walk_out" | "rideshare" | "bobtail" | "errands" | "rest_only";
-
 export type Mood = "social" | "quiet_chill" | "errands";
 
-export interface GeoPoint {
-  latitude: number;
-  longitude: number;
-}
+export interface GeoPoint { latitude: number; longitude: number; }
 
 export interface EquipmentContext {
   mode: EquipmentMode;
@@ -41,11 +30,7 @@ export interface TripContext {
   currentLocation: GeoPoint;
   equipment: EquipmentContext;
   operating: OperatingContext;
-  route?: {
-    origin?: GeoPoint;
-    destination?: GeoPoint;
-    corridorId?: string;
-  };
+  route?: { origin?: GeoPoint; destination?: GeoPoint; corridorId?: string };
   preferredMood?: Mood;
   createdAt: string;
 }
@@ -106,15 +91,25 @@ function equipmentNeedsFullRigAccess(equipment: EquipmentContext): boolean {
   return equipment.mode === "full_rig" || equipment.mode === "double_triple";
 }
 
+function stopSupportsEquipment(equipment: EquipmentContext, logistics: LogisticsConstraints): boolean {
+  return equipmentNeedsFullRigAccess(equipment) ? logistics.fullRigAccessible : logistics.fullRigAccessible || logistics.bobtailAccessible;
+}
+
 function chooseMobilityMode(
   equipment: EquipmentContext,
-  logistics: LogisticsConstraints,
+  stop: StopContext,
+  destination: LifestyleDestination,
 ): MobilityMode | undefined {
-  if (equipment.mode === "bobtail" && logistics.bobtailAccessible) return "bobtail";
-  if (!equipmentNeedsFullRigAccess(equipment) && logistics.bobtailAccessible) return "bobtail";
-  if (logistics.ridesharePickupAvailable) return "rideshare";
-  if (logistics.pedestrianAccess) return "walk_out";
-  return undefined;
+  const candidates: MobilityMode[] = equipment.mode === "bobtail" ? ["bobtail", "rideshare", "walk_out"] : ["rideshare", "walk_out"];
+  if (equipment.mode === "hotshot") candidates.unshift("bobtail");
+  if (destination.logistics.fullRigAccessible && stopSupportsEquipment(equipment, stop.logistics)) candidates.unshift("errands");
+  return candidates.find((mode) => destination.allowedMobilityModes.includes(mode) && (
+    mode === "rideshare" ? stop.logistics.ridesharePickupAvailable && destination.logistics.ridesharePickupAvailable :
+    mode === "walk_out" ? stop.logistics.pedestrianAccess && destination.logistics.pedestrianAccess :
+    mode === "bobtail" ? stop.logistics.bobtailAccessible && destination.logistics.bobtailAccessible :
+    mode === "errands" ? stop.logistics.fullRigAccessible && destination.logistics.fullRigAccessible :
+    true
+  ));
 }
 
 export function validateTripContext(context: TripContext): string[] {
@@ -134,103 +129,48 @@ export function qualifyDestination(
 ): QualificationResult {
   const reasons: string[] = [];
   const warnings: string[] = [];
-  const mobilityMode = chooseMobilityMode(context.equipment, destination.logistics);
 
   if (context.operating.status === "driving" || context.operating.status === "on_duty") {
-    return {
-      destinationId: destination.destinationId,
-      qualified: false,
-      reasons: ["Driver is not currently in an off-duty state"],
-      warnings,
-    };
+    return { destinationId: destination.destinationId, qualified: false, reasons: ["Driver is not currently in an off-duty state"], warnings };
   }
 
-  if (equipmentNeedsFullRigAccess(context.equipment)) {
-    if (!stop.logistics.fullRigAccessible) {
-      warnings.push("Current stop is not verified as full-rig accessible");
-    }
-    if (!destination.logistics.fullRigAccessible && !destination.logistics.ridesharePickupAvailable) {
-      return {
-        destinationId: destination.destinationId,
-        qualified: false,
-        reasons: ["No verified full-rig or rideshare access path"],
-        warnings,
-      };
-    }
+  if (!stopSupportsEquipment(context.equipment, stop.logistics)) {
+    return { destinationId: destination.destinationId, qualified: false, reasons: ["Current stop is not verified for the current equipment configuration"], warnings };
   }
 
-  if (context.equipment.trailerType === "reefer") {
-    warnings.push("Confirm reefer/noise restrictions before leaving the equipment unattended");
-  }
+  if (context.equipment.trailerType === "reefer") warnings.push("Confirm reefer/noise restrictions before leaving the equipment unattended");
+  if (context.equipment.hazmat) warnings.push("Hazmat-specific parking and routing restrictions require verified local data");
 
-  if (context.equipment.hazmat) {
-    warnings.push("Hazmat-specific parking and routing restrictions require verified local data");
-  }
-
-  const clearance = destination.logistics.maxClearanceInches;
-  if (clearance !== undefined && clearance < STANDARD_CLEARANCE_INCHES) {
-    return {
-      destinationId: destination.destinationId,
-      qualified: false,
-      reasons: ["Destination approach has insufficient verified clearance for the standard truck profile"],
-      warnings,
-    };
-  }
-
+  const mobilityMode = chooseMobilityMode(context.equipment, stop, destination);
   if (!mobilityMode) {
-    return {
-      destinationId: destination.destinationId,
-      qualified: false,
-      reasons: ["No verified mobility mode is available"],
-      warnings,
-    };
+    return { destinationId: destination.destinationId, qualified: false, reasons: ["No verified mobility mode is available"], warnings };
   }
 
-  if (context.preferredMood && !destination.supportedMoods.includes(context.preferredMood)) {
-    warnings.push("Destination does not match the driver's preferred mood");
-  }
-
-  if (destination.openNow === false) {
-    return {
-      destinationId: destination.destinationId,
-      qualified: false,
-      mobilityMode,
-      reasons: ["Destination is currently closed"],
-      warnings,
-    };
-  }
-
-  if (destination.logistics.verifiedAt) {
-    reasons.push("Destination logistics have a verification timestamp");
+  if (mobilityMode === "rideshare" || mobilityMode === "walk_out") {
+    if (destination.openNow === false) {
+      return { destinationId: destination.destinationId, qualified: false, mobilityMode, reasons: ["Destination is currently closed"], warnings };
+    }
   } else {
-    warnings.push("Destination logistics are not timestamp-verified");
+    const clearance = destination.logistics.maxClearanceInches;
+    if (clearance !== undefined && clearance < STANDARD_CLEARANCE_INCHES) {
+      return { destinationId: destination.destinationId, qualified: false, mobilityMode, reasons: ["Destination approach has insufficient verified clearance"], warnings };
+    }
   }
 
-  if (context.equipment.trailerLengthFeet && context.equipment.trailerLengthFeet > DEFAULT_TRAILER_LENGTH_FEET) {
-    warnings.push("Equipment exceeds the default 53-foot trailer profile; verify local access independently");
-  }
+  if (context.preferredMood && !destination.supportedMoods.includes(context.preferredMood)) warnings.push("Destination does not match the driver's preferred mood");
+  if (destination.logistics.verifiedAt) reasons.push("Destination logistics have a verification timestamp");
+  else warnings.push("Destination logistics are not timestamp-verified");
+  if (context.equipment.trailerLengthFeet && context.equipment.trailerLengthFeet > DEFAULT_TRAILER_LENGTH_FEET) warnings.push("Equipment exceeds the default 53-foot trailer profile; verify local access independently");
 
-  return {
-    destinationId: destination.destinationId,
-    qualified: true,
-    mobilityMode,
-    reasons,
-    warnings,
-  };
+  return { destinationId: destination.destinationId, qualified: true, mobilityMode, reasons, warnings };
 }
 
-export function rankResetDestinations(
-  context: TripContext,
-  stop: StopContext,
-  destinations: LifestyleDestination[],
-): QualificationResult[] {
-  return destinations
-    .map((destination) => qualifyDestination(context, stop, destination))
-    .sort((a, b) => {
-      if (a.qualified !== b.qualified) return a.qualified ? -1 : 1;
-      if (a.warnings.length !== b.warnings.length) return a.warnings.length - b.warnings.length;
-      return a.destinationId.localeCompare(b.destinationId);
-    });
+export function rankResetDestinations(context: TripContext, stop: StopContext, destinations: LifestyleDestination[]): QualificationResult[] {
+  return destinations.map((destination) => qualifyDestination(context, stop, destination)).sort((a, b) => {
+    if (a.qualified !== b.qualified) return a.qualified ? -1 : 1;
+    if (a.warnings.length !== b.warnings.length) return a.warnings.length - b.warnings.length;
+    return a.destinationId.localeCompare(b.destinationId);
+  });
 }
 
 export const TRIP_CONTEXT_CORE_VERSION = "0.1.0" as const;
