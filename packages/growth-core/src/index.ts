@@ -1,6 +1,7 @@
 export * from './domain/types.js';
 export * from './events/event-contract.js';
 export * from './events/advertising-events.js';
+export * from './events/social-publishing-bridge.js';
 export * from './channels/channel-registry.js';
 export * from './channels/campaign-orchestrator.js';
 export * from './channels/delivery-reconciliation.js';
