@@ -1,52 +1,44 @@
 import type { Track } from "./types.js";
-import { createMusicControllerState, next, playTrack, previous, type MusicControllerState } from "./music-controller.js";
+import { createMusicControllerState, next, playTrack, previous } from "./music-controller.js";
 import type { AuthorizedPlaybackResolver } from "./user-scoped-playback-resolver.js";
 import { PlaybackSession } from "./playback-session.js";
 import type { PlaybackHost } from "./playback-host.js";
 
-/** Backward-compatible adapter: legacy queue functions and resolved playback share one state model. */
+/** Backward-compatible adapter: the PlaybackSession owns the single playback state. */
 export class JhadinaMusicPlaybackAdapter {
-  private state: MusicControllerState;
   readonly session: PlaybackSession;
 
-  constructor(
-    userId: string,
-    resolver: AuthorizedPlaybackResolver,
-    host: PlaybackHost,
-    initial: MusicControllerState = createMusicControllerState(),
-  ) {
-    this.state = initial;
+  constructor(userId: string, resolver: AuthorizedPlaybackResolver, host: PlaybackHost, initial = createMusicControllerState()) {
     this.session = new PlaybackSession(userId, resolver, host, initial);
   }
 
-  getState(): MusicControllerState { return this.state; }
+  getState() { return this.session.getState(); }
 
   async play(track?: Track): Promise<void> {
-    if (track) this.state = playTrack(this.state, track);
-    else this.state = { ...this.state, playing: true };
-    const current = this.state.queue[this.state.queueIndex];
+    if (track) this.session.transition((state) => playTrack(state, track));
+    else this.session.transition((state) => ({ ...state, playing: true }));
+    const current = this.session.getState().queue[this.session.getState().queueIndex];
     if (current) await this.session.load(current);
     await this.session.play();
-    this.state = this.session.getState();
   }
 
-  async pause(): Promise<void> { await this.session.pause(); this.state = this.session.getState(); }
+  async pause(): Promise<void> { await this.session.pause(); }
 
   async next(): Promise<void> {
-    this.state = next(this.state);
-    const current = this.state.queue[this.state.queueIndex];
-    if (current && this.state.playing) { await this.session.load(current); await this.session.play(); }
+    this.session.transition(next);
+    const state = this.session.getState();
+    const current = state.queue[state.queueIndex];
+    if (current && state.playing) { await this.session.load(current); await this.session.play(); }
     else await this.session.pause();
-    this.state = this.session.getState();
   }
 
   async previous(): Promise<void> {
-    this.state = previous(this.state);
-    const current = this.state.queue[this.state.queueIndex];
-    if (current && this.state.playing) { await this.session.load(current); await this.session.play(); }
+    this.session.transition(previous);
+    const state = this.session.getState();
+    const current = state.queue[state.queueIndex];
+    if (current && state.playing) { await this.session.load(current); await this.session.play(); }
     else await this.session.pause();
-    this.state = this.session.getState();
   }
 
-  async seek(positionMs: number): Promise<void> { await this.session.seek(positionMs); this.state = this.session.getState(); }
+  async seek(positionMs: number): Promise<void> { await this.session.seek(positionMs); }
 }
