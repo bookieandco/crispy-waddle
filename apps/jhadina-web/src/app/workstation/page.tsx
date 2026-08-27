@@ -89,28 +89,28 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
     setInsertError(null);
 
     try {
-      const raw = selectedAsset as unknown as Record<string, unknown>;
-      const assetId = String(raw.assetId ?? raw.id ?? '');
-      if (!assetId) throw new Error('Approved asset is missing its asset ID.');
-
-      const startSeconds = timelineRef.current.playheadSeconds;
-      const requestedDuration = Number(raw.durationSeconds ?? 5);
-      const durationSeconds = Math.max(0.1, Math.min(Number.isFinite(requestedDuration) ? requestedDuration : 5, DURATION_SECONDS - startSeconds));
-      if (durationSeconds <= 0) throw new Error('The playhead is at the end of the timeline.');
+      const startSeconds = typeof selectedAsset.startSeconds === 'number' ? selectedAsset.startSeconds : timelineRef.current.playheadSeconds;
+      const requestedEnd = typeof selectedAsset.endSeconds === 'number' ? selectedAsset.endSeconds : startSeconds + 5;
+      const endSeconds = Math.min(DURATION_SECONDS, Math.max(startSeconds + 0.1, requestedEnd));
+      if (startSeconds >= DURATION_SECONDS) throw new Error('The selected asset starts at the end of the timeline.');
 
       const command: TimelineCommand = {
         type: 'insert-generated-asset',
         asset: {
-          assetId,
+          assetId: selectedAsset.assetId,
           generationJobId: selectedAsset.generationJobId,
           uri: selectedAsset.uri,
           mimeType: selectedAsset.mimeType,
-          mediaType: selectedAsset.mediaType ?? 'subtitle',
+          mediaType: selectedAsset.kind,
           operationId: selectedAsset.operationId,
           sourceId: selectedAsset.sourceId,
           startSeconds,
-          endSeconds: startSeconds + durationSeconds,
-          metadata: { manifestEntryId: selectedAsset.id, approvalState: 'approved' },
+          endSeconds,
+          metadata: {
+            manifestEntryId: selectedAsset.assetId,
+            approvalState: 'approved',
+            ...selectedAsset.metadata,
+          },
         },
       };
 
