@@ -14,3 +14,4 @@ export * from "./marketing.js";
 export * from "./jhadina-adapter.js";
 export * from "./generation-adapters.js";
 export * from "./candidate-generation.js";
+export * from "./director-taste.js";
