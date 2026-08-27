@@ -13,39 +13,37 @@ export interface OfflineDownloadRequest {
   provenance?: Record<string, unknown>;
 }
 
-export interface OfflineDownloadResult {
-  asset: MediaAsset;
-}
+export interface OfflineDownloadResult { asset: MediaAsset; }
 
-/**
- * Resolves an already-authorized/downloadable audio source into a local file.
- * Provider-specific downloaders (local files, owned storage, licensed services,
- * or an explicitly permitted external source) implement this interface.
- */
 export interface OfflineSourceResolver {
-  download(request: OfflineDownloadRequest): Promise<OfflineDownloadResult>;
+  download(request: OfflineDownloadRequest, signal?: AbortSignal): Promise<OfflineDownloadResult>;
 }
 
-export class OfflineLibrary {
-  constructor(private readonly repository: MusicRepository, private readonly resolver: OfflineSourceResolver) {}
+export interface OfflineAssetRemover {
+  remove(userId: string, trackId: string): Promise<void>;
+}
 
-  async makeAvailableOffline(request: OfflineDownloadRequest): Promise<MediaAsset> {
+/** Resolves an already-authorized/downloadable source into a local file. */
+export class OfflineLibrary {
+  constructor(
+    private readonly repository: MusicRepository,
+    private readonly resolver: OfflineSourceResolver,
+    private readonly remover?: OfflineAssetRemover,
+  ) {}
+
+  async makeAvailableOffline(request: OfflineDownloadRequest, signal?: AbortSignal): Promise<MediaAsset> {
     if (!request.userId) throw new Error("userId is required");
     if (!request.track.id) throw new Error("track.id is required");
     if (!request.sourceId) throw new Error("sourceId is required");
     if (!request.sourceUri) throw new Error("sourceUri is required");
 
-    const result = await this.resolver.download(request);
+    const result = await this.resolver.download(request, signal);
     const asset: MediaAsset = {
       ...result.asset,
       trackId: request.track.id,
       sourceId: request.sourceId,
       kind: "file",
-      provenance: {
-        ...request.provenance,
-        offline: true,
-        sourceUri: request.sourceUri,
-      },
+      provenance: { ...request.provenance, offline: true, sourceUri: request.sourceUri },
     };
     return this.repository.addAsset(request.userId, asset);
   }
@@ -53,5 +51,10 @@ export class OfflineLibrary {
   async listOffline(userId: string, trackId: string): Promise<MediaAsset[]> {
     const assets = await this.repository.listAssets(userId, trackId);
     return assets.filter((asset) => asset.kind === "file" && asset.provenance?.offline === true);
+  }
+
+  async removeOffline(userId: string, trackId: string): Promise<void> {
+    if (!this.remover) throw new Error("Offline asset removal is not configured");
+    await this.remover.remove(userId, trackId);
   }
 }
