@@ -11,9 +11,10 @@ import type {
 } from './types.js';
 import type { EvolutionPort, ImprovementInput, ImprovementProposal } from './evolution.js';
 import { assessSituation, type SituationalInput, type SituationalSignals } from './situational-awareness.js';
-import { createPersonalitySliderProfile, expressPersonality, type PersonalityExpression } from './personality-expression.js';
-import { applyDomainPersonalityModifiers, createOperatingModel, type OperatingContext } from './operating-model.js';
+import { createPersonalitySliderProfile, type PersonalityExpression } from './personality-expression.js';
 import type { DomainRegistry } from './domain-registry.js';
+import { buildOperatingContext, type OperatingContextInput } from './operating-context-builder.js';
+import type { OperatingContext } from './operating-model.js';
 
 export interface MemoryPort {
   observe(experience: Experience): Promise<MemoryProposal[]>;
@@ -97,18 +98,16 @@ export class JhadinaSpine {
       : {};
     const situationalAwareness = assessSituation(situationalInput);
     const personalityProfile = createPersonalitySliderProfile();
-    const baseExpression = expressPersonality(personalityProfile, situationalAwareness);
-
-    const domain = experience.domain ? this.ports.domainRegistry?.get(experience.domain) : undefined;
-    const operatingContext = domain
-      ? {
-          model: createOperatingModel(personalityProfile),
-          domain: domain.context,
+    const registry = this.ports.domainRegistry;
+    const operatingContext = registry
+      ? buildOperatingContext(registry, {
+          domain: experience.domain,
           situation: situationalAwareness,
-          expression: applyDomainPersonalityModifiers(baseExpression, domain.context.personalityModifiers),
-        }
+          personality: personalityProfile,
+        } satisfies OperatingContextInput)
       : undefined;
-    const personalityExpression = operatingContext?.expression ?? baseExpression;
+    const personalityExpression = operatingContext?.expression ??
+      buildOperatingContextFallback(personalityProfile, situationalAwareness);
 
     const context = await this.ports.context.build({
       experience,
@@ -145,4 +144,17 @@ export class JhadinaSpine {
   async inspectForImprovement(input: ImprovementInput): Promise<ImprovementProposal> {
     return this.ports.evolution.analyze(input);
   }
+}
+
+function buildOperatingContextFallback(
+  personalityProfile: ReturnType<typeof createPersonalitySliderProfile>,
+  situation: SituationalSignals,
+): PersonalityExpression {
+  const { expressPersonality } = requirePersonalityExpression();
+  return expressPersonality(personalityProfile, situation);
+}
+
+function requirePersonalityExpression(): typeof import('./personality-expression.js') {
+  // Kept synchronous and dependency-light; avoids changing the existing public port shape.
+  return require('./personality-expression.js') as typeof import('./personality-expression.js');
 }
