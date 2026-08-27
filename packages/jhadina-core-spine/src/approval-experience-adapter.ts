@@ -1,5 +1,5 @@
 import type { ApprovalReceipt } from '@jhadina/action-core';
-import { createExperienceEvent, type ExperienceEvent } from './experience.js';
+import { createExperienceEvent, normalizeActor, type ExperienceEvent } from './experience.js';
 
 export type ApprovalReceiptEvent = 'requested' | 'approved' | 'consumed' | 'expired';
 
@@ -15,7 +15,7 @@ export function approvalReceiptToExperience(
     occurredAt: input.occurredAt ?? receipt[`${event}At` as keyof ApprovalReceipt] as string ?? receipt.requestedAt,
     source: 'action-core',
     domain: 'action',
-    actor: input.actor ?? receipt.userId,
+    actor: normalizeActor(input.actor),
     content: `Approval receipt ${event} for action ${receipt.actionId}.`,
     eventType,
     outcome,
