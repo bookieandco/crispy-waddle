@@ -22,6 +22,14 @@ JhadinaOS Mainframe
 │   └── Audit Ledger
 │
 ├── Domain OS
+│   ├── Money Opportunity OS
+│   │   ├── Opportunity Discovery
+│   │   ├── Commercial Intelligence
+│   │   ├── Government Intelligence (SAM.gov / SBA)
+│   │   ├── Opportunity Scoring
+│   │   ├── Eligibility / Capability Checks
+│   │   ├── Action Planning
+│   │   └── Revenue / Outcome Learning
 │   ├── OverageOS
 │   │   ├── County Intelligence
 │   │   ├── Surplus Discovery
@@ -73,6 +81,10 @@ Every domain OS communicates with the mainframe through typed capabilities and e
 6. Evidence is stored separately from derived conclusions.
 7. Memory is proposed/saved according to the Memory Core approval rules.
 
+## Money Opportunity OS contract
+
+Money Opportunity OS is a discovery and decision-support domain. It may continuously search authorized/public sources and calculate expected value, but it does not independently spend money, submit bids/applications, sign contracts, open financial accounts, or send consequential outreach.
+
 ## Domain isolation
 
 A domain OS must not directly bypass the mainframe to:
@@ -85,6 +97,12 @@ A domain OS must not directly bypass the mainframe to:
 
 ## Shared event examples
 
+- `MONEY_OPPORTUNITY_DISCOVERED`
+- `MONEY_OPPORTUNITY_SCORED`
+- `MONEY_OPPORTUNITY_APPROVAL_REQUIRED`
+- `MONEY_OPPORTUNITY_APPROVED`
+- `MONEY_ACTION_PLANNED`
+- `MONEY_OUTCOME_RECORDED`
 - `OVERAGE_OPPORTUNITY_CREATED`
 - `OVERAGE_VERIFICATION_REQUIRED`
 - `FOIA_REQUEST_DUE`
