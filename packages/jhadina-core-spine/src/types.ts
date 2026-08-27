@@ -16,6 +16,9 @@ export type DecisionDisposition = 'PROCEED' | 'ASK' | 'DECLINE' | 'DEFER';
 
 export type MemoryDisposition = 'PROPOSE' | 'SAVE' | 'IGNORE';
 
+/** Governance outcome. This is distinct from DecisionDisposition. */
+export type GovernanceDisposition = 'ALLOW' | 'DENY' | 'APPROVAL_REQUIRED';
+
 export interface EvidenceRef {
   id: string;
   source: string;
@@ -90,12 +93,15 @@ export interface DecisionProposal {
   alternatives: string[];
 }
 
+/**
+ * Governance is deliberately separate from the intelligence decision.
+ * APPROVAL_REQUIRED is first-class so approval cannot be collapsed into deny.
+ */
 export interface PolicyDecision {
   id: string;
   proposalId: string;
-  allowed: boolean;
+  disposition: GovernanceDisposition;
   reason: string;
-  requiredApproval: boolean;
   evaluatedAt: string;
 }
 
