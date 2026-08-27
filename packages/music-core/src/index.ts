@@ -29,3 +29,4 @@ export * from "./spotify-session.js";
 export * from "./smart-mix.js";
 export * from "./playback-source-resolver.js";
 export * from "./user-scoped-playback-resolver.js";
+export * from "./playback-host.js";
