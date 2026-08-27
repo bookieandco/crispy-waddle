@@ -1,7 +1,7 @@
 import type { ActionResult, AuditEvent, EvidenceRef, Experience, MemoryProposal } from './types.js';
 
 export const EXPERIENCE_SCHEMA_VERSION = 1 as const;
-
+export type ExperienceScope = { type: 'user'; ownerId: string };
 export type ExperienceOutcome = 'requested' | 'proposed' | 'approved' | 'rejected' | 'denied' | 'started' | 'completed' | 'failed' | 'expired' | 'corrected' | 'observed';
 export type ExperienceEventType =
   | 'action.requested' | 'action.approval_required' | 'action.approved' | 'action.denied' | 'action.started' | 'action.completed' | 'action.failed'
@@ -16,6 +16,7 @@ export interface ExperienceEvent extends Experience {
   outcome?: ExperienceOutcome;
   sensitivity: 'public' | 'private' | 'sensitive' | 'restricted';
   provenance: { sourceId?: string; sourceType: string };
+  scope: ExperienceScope;
   metadata?: Record<string, string | number | boolean | null>;
 }
 
@@ -39,57 +40,37 @@ export class InMemoryExperienceRecorder implements ExperiencePort {
 export interface ExperienceFactoryInput {
   id: string; occurredAt: string; source: string; domain?: string; actor: Experience['actor']; content: string; evidence?: EvidenceRef[];
   eventType: ExperienceEventType; recordedAt?: string; correlationId?: string; causationId?: string; outcome?: ExperienceOutcome;
-  sensitivity?: ExperienceEvent['sensitivity']; provenance?: ExperienceEvent['provenance']; metadata?: ExperienceEvent['metadata'];
+  sensitivity?: ExperienceEvent['sensitivity']; provenance?: ExperienceEvent['provenance']; scope: ExperienceScope; metadata?: ExperienceEvent['metadata'];
 }
 
 export function createExperienceEvent(input: ExperienceFactoryInput): ExperienceEvent {
+  if (!input.scope.ownerId.trim()) throw new Error('Experience scope ownerId is required');
   return {
     id: input.id, occurredAt: input.occurredAt, recordedAt: input.recordedAt ?? new Date().toISOString(), source: input.source,
     domain: input.domain, actor: input.actor, content: redactExperienceContent(input.content), evidence: input.evidence ?? [],
     schemaVersion: EXPERIENCE_SCHEMA_VERSION, eventType: input.eventType, correlationId: input.correlationId, causationId: input.causationId,
-    outcome: input.outcome, sensitivity: input.sensitivity ?? 'private', provenance: input.provenance ?? { sourceType: input.source }, metadata: input.metadata,
+    outcome: input.outcome, sensitivity: input.sensitivity ?? 'private', provenance: input.provenance ?? { sourceType: input.source }, scope: input.scope, metadata: input.metadata,
   };
 }
 
 export function normalizeActor(actor: string | undefined): Experience['actor'] {
-  switch ((actor ?? '').toLowerCase()) {
-    case 'user': return 'user';
-    case 'jhadina': return 'jhadina';
-    case 'external': return 'external';
-    default: return 'system';
-  }
+  switch ((actor ?? '').toLowerCase()) { case 'user': return 'user'; case 'jhadina': return 'jhadina'; case 'external': return 'external'; default: return 'system'; }
 }
 
-export function experienceFromAuditEvent(event: AuditEvent, input: { correlationId?: string; causationId?: string } = {}): ExperienceEvent {
-  return createExperienceEvent({
-    id: `audit:${event.id}`, occurredAt: event.occurredAt, source: 'core-audit', domain: 'audit', actor: normalizeActor(event.actor),
-    content: `Audit event ${event.type} for ${event.subjectId}`, eventType: mapAuditEventType(event.type), sensitivity: 'sensitive',
-    correlationId: input.correlationId, causationId: input.causationId,
-    provenance: { sourceId: event.id, sourceType: 'audit-event' }, metadata: { subjectId: event.subjectId },
-  });
+export function experienceFromAuditEvent(event: AuditEvent, input: { correlationId?: string; causationId?: string; scope: ExperienceScope }): ExperienceEvent {
+  return createExperienceEvent({ id: `audit:${event.id}`, occurredAt: event.occurredAt, source: 'core-audit', domain: 'audit', actor: normalizeActor(event.actor), content: `Audit event ${event.type} for ${event.subjectId}`, eventType: mapAuditEventType(event.type), sensitivity: 'sensitive', correlationId: input.correlationId, causationId: input.causationId, provenance: { sourceId: event.id, sourceType: 'audit-event' }, scope: input.scope, metadata: { subjectId: event.subjectId } });
 }
 
-export function experienceFromActionResult(result: ActionResult, input: { actionId: string; source?: string; domain?: string; correlationId?: string; causationId?: string; actor?: Experience['actor']; auditStatus?: 'complete' | 'incomplete' }): ExperienceEvent {
+export function experienceFromActionResult(result: ActionResult, input: { actionId: string; source?: string; domain?: string; correlationId?: string; causationId?: string; actor?: Experience['actor']; auditStatus?: 'complete' | 'incomplete'; scope: ExperienceScope }): ExperienceEvent {
   const outcome: ExperienceOutcome = result.success ? 'completed' : 'failed';
   const metadata: ExperienceEvent['metadata'] = { auditStatus: input.auditStatus ?? 'complete' };
   if (input.auditStatus === 'incomplete') metadata.auditWarning = 'external-action-completed-but-completion-audit-incomplete';
-  return createExperienceEvent({
-    id: `action-result:${result.id}`, occurredAt: result.completedAt, source: input.source ?? 'action-core', domain: input.domain ?? 'action',
-    actor: input.actor ?? 'jhadina', content: result.success ? `Action ${input.actionId} completed.` : `Action ${input.actionId} failed.`,
-    eventType: result.success ? 'action.completed' : 'action.failed', outcome, correlationId: input.correlationId ?? input.actionId, causationId: input.causationId,
-    provenance: { sourceId: result.id, sourceType: 'action-result' }, sensitivity: 'sensitive', metadata,
-  });
+  return createExperienceEvent({ id: `action-result:${result.id}`, occurredAt: result.completedAt, source: input.source ?? 'action-core', domain: input.domain ?? 'action', actor: input.actor ?? 'jhadina', content: result.success ? `Action ${input.actionId} completed.` : `Action ${input.actionId} failed.`, eventType: result.success ? 'action.completed' : 'action.failed', outcome, correlationId: input.correlationId ?? input.actionId, causationId: input.causationId, provenance: { sourceId: result.id, sourceType: 'action-result' }, sensitivity: 'sensitive', scope: input.scope, metadata });
 }
 
-export function experienceFromMemoryProposal(proposal: MemoryProposal, source = 'memory-core', actor?: string, input: { correlationId?: string; causationId?: string } = {}): ExperienceEvent {
+export function experienceFromMemoryProposal(proposal: MemoryProposal, source = 'memory-core', actor?: string, input: { correlationId?: string; causationId?: string; scope: ExperienceScope }): ExperienceEvent {
   const approved = proposal.disposition === 'SAVE'; const rejected = proposal.disposition === 'IGNORE';
-  return createExperienceEvent({
-    id: `memory-proposal:${proposal.id}:${proposal.disposition.toLowerCase()}`, occurredAt: new Date().toISOString(), source, domain: 'memory', actor: normalizeActor(actor),
-    content: approved ? 'Memory proposal approved.' : rejected ? 'Memory proposal rejected.' : 'Memory proposal observed.',
-    eventType: approved ? 'memory.approved' : rejected ? 'memory.rejected' : 'memory.proposed', outcome: approved ? 'approved' : rejected ? 'rejected' : 'proposed',
-    evidence: proposal.evidence, correlationId: input.correlationId ?? proposal.id, causationId: input.causationId,
-    provenance: { sourceId: proposal.id, sourceType: 'memory-proposal' }, sensitivity: 'sensitive',
-  });
+  return createExperienceEvent({ id: `memory-proposal:${proposal.id}:${proposal.disposition.toLowerCase()}`, occurredAt: new Date().toISOString(), source, domain: 'memory', actor: normalizeActor(actor), content: approved ? 'Memory proposal approved.' : rejected ? 'Memory proposal rejected.' : 'Memory proposal observed.', eventType: approved ? 'memory.approved' : rejected ? 'memory.rejected' : 'memory.proposed', outcome: approved ? 'approved' : rejected ? 'rejected' : 'proposed', evidence: proposal.evidence, correlationId: input.correlationId ?? proposal.id, causationId: input.causationId, provenance: { sourceId: proposal.id, sourceType: 'memory-proposal' }, sensitivity: 'sensitive', scope: input.scope });
 }
 
 function mapAuditEventType(type: string): ExperienceEventType {
@@ -97,9 +78,5 @@ function mapAuditEventType(type: string): ExperienceEventType {
 }
 
 function redactExperienceContent(content: string): string {
-  return content
-    .replace(/(authorization\s*[:=]\s*bearer\s+)[^\s]+/gi, '$1[REDACTED]')
-    .replace(/(api[_-]?key\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]')
-    .replace(/(secret\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]')
-    .replace(/(password\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]');
+  return content.replace(/(authorization\s*[:=]\s*bearer\s+)[^\s]+/gi, '$1[REDACTED]').replace(/(api[_-]?key\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]').replace(/(secret\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]').replace(/(password\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]');
 }
