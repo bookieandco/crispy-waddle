@@ -1,4 +1,4 @@
-import type { ExperienceEvent, ExperiencePort } from '../../packages/jhadina-core-spine/src/experience.js';
+import type { ExperienceEvent, ExperiencePort } from '../../jhadina-core-spine/src/experience.js';
 import type { DirectorTakeFeedback } from './director-taste-feedback.js';
 
 export async function recordDirectorTakeExperience(
