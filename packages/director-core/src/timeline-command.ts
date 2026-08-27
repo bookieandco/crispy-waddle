@@ -1,6 +1,19 @@
-import type { EditableTimeline, GenerativeRegion, SfxGenerationRequest } from './timeline-model.js';
+import type { EditableTimeline, GenerativeRegion, SfxGenerationRequest, TimelineClip, TimelineTrack } from './timeline-model.js';
 import { addGenerativeRegion } from './timeline-model.js';
 import { splitClip, setClipFade, addTransition, updateClip } from './timeline-editing.js';
+
+export type GeneratedAssetInsertion = {
+  assetId: string;
+  generationJobId: string;
+  uri: string;
+  mimeType?: string;
+  mediaType: 'image' | 'video' | 'audio' | '3d' | 'motion' | 'subtitle' | 'unknown';
+  operationId?: string;
+  sourceId?: string;
+  startSeconds: number;
+  endSeconds: number;
+  metadata?: Record<string, unknown>;
+};
 
 export type TimelineCommand =
   | { type: 'move'; clipId: string; startSeconds: number }
@@ -12,7 +25,8 @@ export type TimelineCommand =
   | { type: 'fade'; clipId: string; fadeInSeconds?: number; fadeOutSeconds?: number; curve?: 'linear' | 'equal-power' | 'exponential' }
   | { type: 'transition'; transition: Parameters<typeof addTransition>[1] }
   | { type: 'generative-region'; region: GenerativeRegion }
-  | { type: 'generate-sfx'; request: SfxGenerationRequest };
+  | { type: 'generate-sfx'; request: SfxGenerationRequest }
+  | { type: 'insert-generated-asset'; asset: GeneratedAssetInsertion };
 
 export function applyTimelineCommand(timeline: EditableTimeline, command: TimelineCommand): EditableTimeline {
   switch (command.type) {
@@ -26,7 +40,66 @@ export function applyTimelineCommand(timeline: EditableTimeline, command: Timeli
     case 'transition': return addTransition(timeline, command.transition);
     case 'generative-region': return addGenerativeRegion(timeline, command.region);
     case 'generate-sfx': return addSfxRequest(timeline, command.request);
+    case 'insert-generated-asset': return insertGeneratedAsset(timeline, command.asset);
   }
+}
+
+function insertGeneratedAsset(timeline: EditableTimeline, asset: GeneratedAssetInsertion): EditableTimeline {
+  const startSeconds = Math.max(0, asset.startSeconds);
+  const endSeconds = Math.max(startSeconds + 0.1, asset.endSeconds);
+  const durationSeconds = Math.min(timeline.durationSeconds - startSeconds, endSeconds - startSeconds);
+  if (durationSeconds <= 0) return timeline;
+
+  const trackKind = asset.mediaType === 'subtitle' ? 'subtitle' : asset.mediaType === 'audio' ? 'audio' : asset.mediaType === 'image' || asset.mediaType === 'video' || asset.mediaType === 'motion' ? 'overlay' : 'effect';
+  const existingTrack = timeline.tracks.find(track => track.kind === trackKind && !track.locked);
+  const trackId = existingTrack?.id ?? `generated-${trackKind}`;
+
+  const generativeRegion: GenerativeRegion = {
+    id: `${asset.assetId}:region`,
+    startSeconds,
+    durationSeconds,
+    operation: 'insert',
+    instruction: `Insert generated ${asset.mediaType} asset ${asset.assetId}`,
+    sourceClipId: asset.sourceId,
+    resultAssetId: asset.assetId,
+    metadata: {
+      assetId: asset.assetId,
+      generationJobId: asset.generationJobId,
+      uri: asset.uri,
+      mimeType: asset.mimeType,
+      operationId: asset.operationId,
+      sourceId: asset.sourceId,
+      ...asset.metadata,
+    },
+  };
+
+  const clip: TimelineClip = {
+    id: `generated:${asset.assetId}`,
+    assetId: asset.assetId,
+    trackId,
+    startSeconds,
+    durationSeconds,
+    effects: [],
+    generativeRegions: [generativeRegion],
+  };
+
+  if (existingTrack) {
+    return {
+      ...timeline,
+      tracks: timeline.tracks.map(track => track.id === existingTrack.id ? { ...track, clips: [...track.clips, clip].sort((a, b) => a.startSeconds - b.startSeconds) } : track),
+    };
+  }
+
+  const nextIndex = timeline.tracks.length;
+  const newTrack: TimelineTrack = {
+    id: trackId,
+    name: `Generated ${trackKind}`,
+    kind: trackKind,
+    index: nextIndex,
+    clips: [clip],
+  };
+
+  return { ...timeline, tracks: [...timeline.tracks, newTrack] };
 }
 
 function addSfxRequest(timeline: EditableTimeline, request: SfxGenerationRequest): EditableTimeline {
@@ -69,6 +142,7 @@ function rippleDelete(timeline: EditableTimeline, clipId: string): EditableTimel
 export function timelineCommandReason(command: TimelineCommand): string {
   if (command.type === 'generative-region') return `Generative edit: ${command.region.instruction}`;
   if (command.type === 'generate-sfx') return `Generate SFX: ${command.request.prompt}`;
+  if (command.type === 'insert-generated-asset') return `Insert generated ${command.asset.mediaType} asset: ${command.asset.assetId}`;
   if (command.type === 'transition') return 'Add timeline transition';
   return `Timeline ${command.type}`;
 }
