@@ -11,6 +11,7 @@ export interface MusicRepository {
   listSources(userId: string): Promise<MusicSource[]>;
   addAsset(userId: string, asset: MediaAsset): Promise<MediaAsset>;
   listAssets(userId: string, trackId: string): Promise<MediaAsset[]>;
+  removeAssets(userId: string, trackId: string): Promise<void>;
   upsertArtwork(userId: string, artwork: Artwork): Promise<Artwork>;
   upsertLyrics(userId: string, lyrics: Lyrics): Promise<Lyrics>;
   recordListeningEvent(event: ListeningEvent): Promise<ListeningEvent>;
@@ -38,6 +39,7 @@ export class InMemoryMusicRepository implements MusicRepository {
   async listSources(userId: string) { return [...this.sources.entries()].filter(([k]) => k.startsWith(`${userId}:`)).map(([,v]) => structuredClone(v)); }
   async addAsset(userId: string, asset: MediaAsset) { const copy = structuredClone(asset); this.assets.set(this.key(userId, asset.id), copy); return copy; }
   async listAssets(userId: string, trackId: string) { return [...this.assets.entries()].filter(([k,v]) => k.startsWith(`${userId}:`) && v.trackId === trackId).map(([,v]) => structuredClone(v)); }
+  async removeAssets(userId: string, trackId: string) { for (const [key, asset] of this.assets) if (key.startsWith(`${userId}:`) && asset.trackId === trackId) this.assets.delete(key); }
   async upsertArtwork(userId: string, artwork: Artwork) { const copy = structuredClone(artwork); this.artwork.set(this.key(userId, artwork.id), copy); return copy; }
   async upsertLyrics(userId: string, lyrics: Lyrics) { const copy = structuredClone(lyrics); this.lyrics.set(this.key(userId, lyrics.id), copy); return copy; }
   async recordListeningEvent(event: ListeningEvent) { const copy = structuredClone(event); this.listening.set(this.key(event.userId, event.id), copy); return copy; }
