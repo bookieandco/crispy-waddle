@@ -84,3 +84,17 @@ export function prepareBookingPackage(
 }
 
 export const BOOKING_PREPARATION_VERSION = "0.1.0" as const;
+
+export {
+  BOOKING_APPROVAL_CAPABILITY,
+  approvePendingBooking,
+  createPendingApproval,
+  isExecutionEligible,
+  markBookingExecutionEligible,
+} from "./approval-gate";
+export type {
+  ApprovalAuditRecord,
+  ApprovalState,
+  AuthorizationContext,
+  BookingApprovalStatus,
+} from "./approval-gate";
