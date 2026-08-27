@@ -9,6 +9,8 @@ export * from './memory-experience-adapter.js';
 export * from './evolution.js';
 export * from './situational-awareness.js';
 export * from './personality-expression.js';
+export * from './operating-model.js';
+export * from './domain-registry.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
 export * from './emergency-evidence-state.js';
