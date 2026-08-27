@@ -49,6 +49,7 @@ export interface ExperienceEvent extends Experience {
 export interface ExperienceAppendResult {
   accepted: boolean;
   duplicate: boolean;
+  conflict: boolean;
   eventId: string;
 }
 
@@ -59,7 +60,8 @@ export interface ExperiencePort {
 /**
  * Deterministic recorder used by tests and composition roots that provide
  * their own durable implementation. It is intentionally append-only and
- * idempotent by event id.
+ * idempotent by event id. Reusing an event id for different content is a
+ * conflict and is rejected rather than silently treated as a duplicate.
  */
 export class InMemoryExperienceRecorder implements ExperiencePort {
   private readonly events = new Map<string, ExperienceEvent>();
@@ -67,10 +69,13 @@ export class InMemoryExperienceRecorder implements ExperiencePort {
   async append(event: ExperienceEvent): Promise<ExperienceAppendResult> {
     const existing = this.events.get(event.id);
     if (existing) {
-      return { accepted: true, duplicate: true, eventId: existing.id };
+      if (JSON.stringify(existing) === JSON.stringify(event)) {
+        return { accepted: true, duplicate: true, conflict: false, eventId: existing.id };
+      }
+      return { accepted: false, duplicate: false, conflict: true, eventId: event.id };
     }
     this.events.set(event.id, structuredClone(event));
-    return { accepted: true, duplicate: false, eventId: event.id };
+    return { accepted: true, duplicate: false, conflict: false, eventId: event.id };
   }
 
   snapshot(): ExperienceEvent[] {
@@ -123,39 +128,56 @@ export function experienceFromAuditEvent(event: AuditEvent): ExperienceEvent {
     occurredAt: event.occurredAt,
     source: 'core-audit',
     domain: 'audit',
-    actor: 'system',
+    actor: normalizeActor(event.actor),
     content: `Audit event ${event.type} for ${event.subjectId}`,
     eventType: mapAuditEventType(event.type),
     sensitivity: 'sensitive',
     provenance: { sourceId: event.id, sourceType: 'audit-event' },
     metadata: {
       subjectId: event.subjectId,
-      actor: event.actor,
     },
   });
 }
 
 export function experienceFromActionResult(
   result: ActionResult,
-  input: { actionId: string; source?: string; domain?: string; correlationId?: string },
+  input: {
+    actionId: string;
+    source?: string;
+    domain?: string;
+    correlationId?: string;
+    actor?: Experience['actor'];
+    auditStatus?: 'complete' | 'incomplete';
+  },
 ): ExperienceEvent {
   const outcome: ExperienceOutcome = result.success ? 'completed' : 'failed';
+  const metadata: ExperienceEvent['metadata'] = {
+    auditStatus: input.auditStatus ?? 'complete',
+  };
+  if (input.auditStatus === 'incomplete') {
+    metadata.auditWarning = 'external-action-completed-but-completion-audit-incomplete';
+  }
   return createExperienceEvent({
     id: `action-result:${result.id}`,
     occurredAt: result.completedAt,
     source: input.source ?? 'action-core',
     domain: input.domain ?? 'action',
-    actor: 'jhadina',
+    actor: input.actor ?? 'jhadina',
     content: result.success ? `Action ${input.actionId} completed.` : `Action ${input.actionId} failed.`,
     eventType: result.success ? 'action.completed' : 'action.failed',
     outcome,
     correlationId: input.correlationId ?? input.actionId,
     provenance: { sourceId: result.id, sourceType: 'action-result' },
     sensitivity: 'sensitive',
+    metadata,
   });
 }
 
-export function experienceFromMemoryProposal(proposal: MemoryProposal, source = 'memory-core'): ExperienceEvent {
+export function experienceFromMemoryProposal(
+  proposal: MemoryProposal,
+  source = 'memory-core',
+  actor: Experience['actor'] = 'user',
+): ExperienceEvent {
   const approved = proposal.disposition === 'SAVE';
   const rejected = proposal.disposition === 'IGNORE';
   return createExperienceEvent({
@@ -163,7 +185,7 @@ export function experienceFromMemoryProposal(proposal: MemoryProposal, source = 
     occurredAt: new Date().toISOString(),
     source,
     domain: 'memory',
-    actor: 'jhadina',
+    actor,
     content: approved ? 'Memory proposal approved.' : rejected ? 'Memory proposal rejected.' : 'Memory proposal observed.',
     eventType: approved ? 'memory.approved' : rejected ? 'memory.rejected' : 'memory.proposed',
     outcome: approved ? 'approved' : rejected ? 'rejected' : 'proposed',
@@ -185,6 +207,19 @@ function mapAuditEventType(type: string): ExperienceEventType {
       return 'action.failed';
     default:
       return `audit.${type.toLowerCase()}`;
+  }
+}
+
+function normalizeActor(actor: string): Experience['actor'] {
+  switch (actor.toLowerCase()) {
+    case 'user':
+      return 'user';
+    case 'jhadina':
+      return 'jhadina';
+    case 'external':
+      return 'external';
+    default:
+      return 'system';
   }
 }
 
