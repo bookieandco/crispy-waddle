@@ -1,4 +1,5 @@
 import { emitPrompts, type PromptContext } from './emit.js';
+import type { DirectorTasteProfile } from './director-taste.js';
 import type { GenerationAdapter, TouchUpAdapter } from './external-adapters.js';
 import type { Entity, ReferenceAsset, Shot } from './types.js';
 
@@ -8,6 +9,7 @@ export interface DirectorTakeInput {
   entities?: Entity[];
   refs?: ReferenceAsset[];
   instruction?: string;
+  directorTaste?: DirectorTasteProfile;
   priorTake?: { takeId: string; clipUri: string; provider: string; notes?: string };
 }
 
@@ -37,6 +39,7 @@ function buildPromptContext(input: DirectorTakeInput): PromptContext {
     shot: { ...input.shot, action: [input.shot.action, continuity, instruction].filter(Boolean).join('\n') },
     entities: input.entities,
     refs: input.refs,
+    directorTaste: input.directorTaste,
   };
 }
 
