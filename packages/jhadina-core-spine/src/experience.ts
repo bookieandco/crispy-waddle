@@ -68,25 +68,26 @@ export function experienceFromAuditEvent(event: AuditEvent): ExperienceEvent {
   });
 }
 
-export function experienceFromActionResult(result: ActionResult, input: { actionId: string; source?: string; domain?: string; correlationId?: string; actor?: Experience['actor']; auditStatus?: 'complete' | 'incomplete' }): ExperienceEvent {
+export function experienceFromActionResult(result: ActionResult, input: { actionId: string; source?: string; domain?: string; correlationId?: string; causationId?: string; actor?: Experience['actor']; auditStatus?: 'complete' | 'incomplete' }): ExperienceEvent {
   const outcome: ExperienceOutcome = result.success ? 'completed' : 'failed';
   const metadata: ExperienceEvent['metadata'] = { auditStatus: input.auditStatus ?? 'complete' };
   if (input.auditStatus === 'incomplete') metadata.auditWarning = 'external-action-completed-but-completion-audit-incomplete';
   return createExperienceEvent({
     id: `action-result:${result.id}`, occurredAt: result.completedAt, source: input.source ?? 'action-core', domain: input.domain ?? 'action',
     actor: input.actor ?? 'jhadina', content: result.success ? `Action ${input.actionId} completed.` : `Action ${input.actionId} failed.`,
-    eventType: result.success ? 'action.completed' : 'action.failed', outcome, correlationId: input.correlationId ?? input.actionId,
+    eventType: result.success ? 'action.completed' : 'action.failed', outcome, correlationId: input.correlationId ?? input.actionId, causationId: input.causationId,
     provenance: { sourceId: result.id, sourceType: 'action-result' }, sensitivity: 'sensitive', metadata,
   });
 }
 
-export function experienceFromMemoryProposal(proposal: MemoryProposal, source = 'memory-core', actor: Experience['actor'] = 'user'): ExperienceEvent {
+export function experienceFromMemoryProposal(proposal: MemoryProposal, source = 'memory-core', actor?: string, input: { correlationId?: string; causationId?: string } = {}): ExperienceEvent {
   const approved = proposal.disposition === 'SAVE'; const rejected = proposal.disposition === 'IGNORE';
   return createExperienceEvent({
-    id: `memory-proposal:${proposal.id}:${proposal.disposition.toLowerCase()}`, occurredAt: new Date().toISOString(), source, domain: 'memory', actor,
+    id: `memory-proposal:${proposal.id}:${proposal.disposition.toLowerCase()}`, occurredAt: new Date().toISOString(), source, domain: 'memory', actor: normalizeActor(actor),
     content: approved ? 'Memory proposal approved.' : rejected ? 'Memory proposal rejected.' : 'Memory proposal observed.',
     eventType: approved ? 'memory.approved' : rejected ? 'memory.rejected' : 'memory.proposed', outcome: approved ? 'approved' : rejected ? 'rejected' : 'proposed',
-    evidence: proposal.evidence, provenance: { sourceId: proposal.id, sourceType: 'memory-proposal' }, sensitivity: 'sensitive',
+    evidence: proposal.evidence, correlationId: input.correlationId ?? proposal.id, causationId: input.causationId,
+    provenance: { sourceId: proposal.id, sourceType: 'memory-proposal' }, sensitivity: 'sensitive',
   });
 }
 
