@@ -22,7 +22,7 @@ function toRow(event: ExperienceEvent): ExperienceRow {
 function fromRow(row: ExperienceRow): ExperienceEvent {
   return {
     id: row.id, occurredAt: row.occurred_at, recordedAt: row.recorded_at, source: row.source, domain: row.domain ?? undefined,
-    actor: row.actor, content: row.content, evidence: row.evidence as ExperienceEvent['evidence'], schemaVersion: 1,
+    actor: row.actor, content: row.content, evidence: row.evidence as ExperienceEvent['evidence'], schemaVersion: row.schema_version as 1,
     eventType: row.event_type, correlationId: row.correlation_id ?? undefined, causationId: row.causation_id ?? undefined,
     outcome: (row.outcome as ExperienceEvent['outcome']) ?? undefined, sensitivity: row.sensitivity,
     provenance: row.provenance as ExperienceEvent['provenance'], scope: { type: 'user', ownerId: row.user_id }, metadata: row.metadata ?? undefined,
@@ -42,7 +42,7 @@ export class SupabaseExperienceStorage implements ExperienceStore {
 
   async append(event: ExperienceEvent) {
     const row = toRow(event);
-    const { data, error } = await this.client.from('jhadina_experience_events').insert(row).select('*').maybeSingle();
+    const { error } = await this.client.from('jhadina_experience_events').insert(row).select('*').maybeSingle();
     if (!error) return { accepted: true, duplicate: false, conflict: false, eventId: event.id };
 
     const { data: existing, error: lookupError } = await this.client
@@ -57,10 +57,9 @@ export class SupabaseExperienceStorage implements ExperienceStore {
 
   async listByScope(scope: ExperienceScope): Promise<ExperienceEvent[]> {
     if (!scope.ownerId.trim()) throw new Error('Experience scope ownerId is required');
-    const { data, error } = await this.client
-      .from('jhadina_experience_events').select('*').eq('user_id', scope.ownerId).order('recorded_at', { ascending: false }).order('id', { ascending: true });
+    const { data, error } = await this.client.rpc('list_jhadina_experience_events', { p_user_id: scope.ownerId });
     assertNoError(error, 'listByScope');
-    return (data ?? []).map((row) => fromRow(row as ExperienceRow));
+    return ((data ?? []) as ExperienceRow[]).map(fromRow);
   }
 }
 
