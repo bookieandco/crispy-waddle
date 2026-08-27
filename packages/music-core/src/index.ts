@@ -4,6 +4,7 @@ export * from "./matching.js";
 export * from "./taste.js";
 export * from "./youtube-music.js";
 export * from "./search.js";
+export * from "./catalog-search.js";
 export * from "./player.js";
 export * from "./jhadina-music.js";
 export * from "./jhadina-music-action-handler.js";
