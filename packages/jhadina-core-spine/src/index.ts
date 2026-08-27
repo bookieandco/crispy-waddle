@@ -2,6 +2,8 @@ export * from './spine.js';
 export * from './types.js';
 export * from './experience.js';
 export * from './action-experience-adapter.js';
+export * from './approval-experience-adapter.js';
+export * from './memory-experience-adapter.js';
 export * from './evolution.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
