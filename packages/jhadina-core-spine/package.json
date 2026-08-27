@@ -7,6 +7,6 @@
   "types": "src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "tsc --noEmit"
+    "test": "vitest run"
   }
 }
