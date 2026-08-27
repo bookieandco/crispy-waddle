@@ -70,7 +70,6 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
         projectId={projectId}
         durationSeconds={30}
         tracks={initialTracks}
-        generatedAssetToInsert={selectedAsset}
       />
     </main>
   );
