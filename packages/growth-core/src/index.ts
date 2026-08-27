@@ -11,6 +11,7 @@ export * from './intelligence/growth-decision-feed.js';
 export * from './intelligence/opportunity-engine.js';
 export * from './intelligence/distribution-opportunity.js';
 export * from './intelligence/distribution-registry.js';
+export * from './intelligence/opportunity-scanner.js';
 export * from './intelligence/experiment-planner.js';
 export * from './intelligence/growth-loop.js';
 export * from './experiments/experiment-intelligence.js';
