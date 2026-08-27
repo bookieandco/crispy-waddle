@@ -10,14 +10,19 @@ export interface CatalogHydrator {
 
 export interface HydratedCatalogItem {
   item: CatalogItem;
+  sourceId: string;
   tracks: Track[];
 }
 
-/** Turns discovery objects into concrete tracks without coupling Music Core to a provider. */
-export async function hydrateCatalogItem(item: HydratableCatalogItem, sourceId: string, hydrators: CatalogHydrator[]): Promise<HydratedCatalogItem> {
+/** Provider-neutral hydration: discovery objects become concrete tracks without provider logic in Music Core. */
+export async function hydrateCatalogItem(
+  item: HydratableCatalogItem,
+  sourceId: string,
+  hydrators: CatalogHydrator[],
+): Promise<HydratedCatalogItem> {
   const normalizedSourceId = sourceId.trim();
   if (!normalizedSourceId) throw new Error("Catalog hydration requires a sourceId");
   const hydrator = hydrators.find((candidate) => candidate.sourceId === normalizedSourceId);
   if (!hydrator) throw new Error(`No catalog hydrator for source: ${normalizedSourceId}`);
-  return { item, tracks: await hydrator.hydrate(item) };
+  return { item, sourceId: normalizedSourceId, tracks: await hydrator.hydrate(item) };
 }
