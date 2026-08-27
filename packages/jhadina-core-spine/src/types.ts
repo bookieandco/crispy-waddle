@@ -1,3 +1,6 @@
+import type { PersonalityExpression } from './personality-expression.js';
+import type { SituationalSignals } from './situational-awareness.js';
+
 export type CoreDomain =
   | 'identity'
   | 'memory'
@@ -74,6 +77,8 @@ export interface ContextPacket {
   relevantMemories: EvidenceRef[];
   patterns: PatternObservation[];
   personality: PersonalityState;
+  personalityExpression?: PersonalityExpression;
+  situationalAwareness?: SituationalSignals;
   knowledge: EvidenceRef[];
   constraints: string[];
   excludedContext: string[];
