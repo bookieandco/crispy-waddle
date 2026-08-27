@@ -53,6 +53,9 @@ export class SupabaseExperienceRecorder implements ExperiencePort {
 
     if (error.code !== '23505') throw new Error(`Experience append failed: ${error.message}`);
 
+    // event_id is globally unique. RLS intentionally prevents probing another
+    // user's row, so a missing user-scoped read is treated as an unverified
+    // collision rather than a duplicate.
     const { data, error: readError } = await this.client
       .from('jhadina_experience_events')
       .select('event_id, user_id, occurred_at, recorded_at, event_type, outcome, actor, source, domain, correlation_id, causation_id, sensitivity, provenance, evidence, content, metadata')
@@ -61,7 +64,7 @@ export class SupabaseExperienceRecorder implements ExperiencePort {
       .maybeSingle();
 
     if (readError) throw new Error(`Experience duplicate check failed: ${readError.message}`);
-    if (!data) throw new Error('Experience event ID conflict could not be verified for this user');
+    if (!data) throw new Error(`Experience event ID collision could not be verified: ${event.id}`);
 
     const existing = data as ExperienceRow;
     const equivalent = JSON.stringify(existing) === JSON.stringify(row);
