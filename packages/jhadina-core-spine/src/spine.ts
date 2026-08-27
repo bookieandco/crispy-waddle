@@ -12,6 +12,8 @@ import type {
 import type { EvolutionPort, ImprovementInput, ImprovementProposal } from './evolution.js';
 import { assessSituation, type SituationalInput, type SituationalSignals } from './situational-awareness.js';
 import { createPersonalitySliderProfile, expressPersonality, type PersonalityExpression } from './personality-expression.js';
+import { applyDomainPersonalityModifiers, createOperatingModel, type OperatingContext } from './operating-model.js';
+import type { DomainRegistry } from './domain-registry.js';
 
 export interface MemoryPort {
   observe(experience: Experience): Promise<MemoryProposal[]>;
@@ -38,6 +40,7 @@ export interface ContextPort {
     personality: PersonalityState;
     situationalAwareness?: SituationalSignals;
     personalityExpression?: PersonalityExpression;
+    operatingContext?: OperatingContext;
   }): Promise<ContextPacket>;
 }
 
@@ -56,6 +59,7 @@ export interface SpinePorts {
   pattern: PatternPort;
   personality: PersonalityPort;
   situationalAwareness?: SituationalAwarenessPort;
+  domainRegistry?: DomainRegistry;
   context: ContextPort;
   decision: DecisionPort;
   policy: PolicyPort;
@@ -71,6 +75,7 @@ export interface SpineRunResult {
   context: ContextPacket;
   situationalAwareness: SituationalSignals;
   personalityExpression: PersonalityExpression;
+  operatingContext?: OperatingContext;
   decision: DecisionProposal;
   policy: PolicyDecision;
   action?: ActionRequest;
@@ -92,7 +97,18 @@ export class JhadinaSpine {
       : {};
     const situationalAwareness = assessSituation(situationalInput);
     const personalityProfile = createPersonalitySliderProfile();
-    const personalityExpression = expressPersonality(personalityProfile, situationalAwareness);
+    const baseExpression = expressPersonality(personalityProfile, situationalAwareness);
+
+    const domain = experience.domain ? this.ports.domainRegistry?.get(experience.domain) : undefined;
+    const operatingContext = domain
+      ? {
+          model: createOperatingModel(personalityProfile),
+          domain: domain.context,
+          situation: situationalAwareness,
+          expression: applyDomainPersonalityModifiers(baseExpression, domain.context.personalityModifiers),
+        }
+      : undefined;
+    const personalityExpression = operatingContext?.expression ?? baseExpression;
 
     const context = await this.ports.context.build({
       experience,
@@ -101,6 +117,7 @@ export class JhadinaSpine {
       personality,
       situationalAwareness,
       personalityExpression,
+      operatingContext,
     });
 
     const decision = await this.ports.decision.decide(context);
@@ -112,9 +129,9 @@ export class JhadinaSpine {
       payload: { proposalId: decision.id, allowed: policy.allowed, reason: policy.reason },
     });
 
-    if (!policy.allowed) return { memories, patterns, personality, context, situationalAwareness, personalityExpression, decision, policy };
+    if (!policy.allowed) return { memories, patterns, personality, context, situationalAwareness, personalityExpression, operatingContext, decision, policy };
     const action = await this.ports.action.prepare(decision, policy);
-    if (!action) return { memories, patterns, personality, context, situationalAwareness, personalityExpression, decision, policy };
+    if (!action) return { memories, patterns, personality, context, situationalAwareness, personalityExpression, operatingContext, decision, policy };
     const result = await this.ports.action.execute(action);
 
     await this.ports.audit.record({
@@ -122,7 +139,7 @@ export class JhadinaSpine {
       actor: 'jhadina', subjectId: action.id,
       payload: { requestId: action.id, success: result.success },
     });
-    return { memories, patterns, personality, context, situationalAwareness, personalityExpression, decision, policy, action, result };
+    return { memories, patterns, personality, context, situationalAwareness, personalityExpression, operatingContext, decision, policy, action, result };
   }
 
   async inspectForImprovement(input: ImprovementInput): Promise<ImprovementProposal> {
