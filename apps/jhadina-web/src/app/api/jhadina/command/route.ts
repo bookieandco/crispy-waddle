@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
-import { SupabaseExperienceRecorder } from "@/lib/supabase-experience-recorder"
+import { SupabaseExperienceRecorder } from "@/lib/experience/supabase-experience-recorder"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 
