@@ -48,4 +48,11 @@ describe("JhadinaMusicPlaybackAdapter integration", () => {
     expect(adapter.getState().playing).toBe(false);
     expect(host.getState().playing).toBe(false);
   });
+  it("rejects play with an empty queue and remains inactive", async () => {
+    const host = new MemoryPlaybackHost();
+    const adapter = new JhadinaMusicPlaybackAdapter("u1", { resolve: async () => null }, host);
+    await expect(adapter.play()).rejects.toThrow("No track available to play");
+    expect(adapter.getState().playing).toBe(false);
+    expect(adapter.getState().error).toBe("No track available to play");
+  });
 });
