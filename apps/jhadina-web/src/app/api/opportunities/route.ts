@@ -6,6 +6,8 @@ import { searchSamOpportunities } from "@/lib/money-opportunities/sam-client"
 import { rankSamOpportunities } from "@/lib/money-opportunities/sam-ranking"
 import { estimateOpportunityEconomics } from "@/lib/money-opportunities/economics"
 import { buildMoneyActionQueue } from "@/lib/money-opportunities/action-queue"
+import { JHADINA_MONEY_PROFILE } from "@/lib/money-opportunities/capability-profile"
+import { assessSamCapability } from "@/lib/money-opportunities/capability-gap"
 
 export const dynamic = "force-dynamic"
 
@@ -28,16 +30,24 @@ export async function GET(req: NextRequest) {
         offset: Number(params.get("offset") || 0),
       })
 
-      const ranked = rankSamOpportunities(result.opportunities)
+      const ranked = rankSamOpportunities(result.opportunities, JHADINA_MONEY_PROFILE)
+      const enriched = ranked.map(({ opportunity, score }) => ({
+        opportunity,
+        score,
+        capability: assessSamCapability(opportunity, JHADINA_MONEY_PROFILE),
+        economics: estimateOpportunityEconomics(opportunity, {
+          directCostPercent: 35,
+          overheadPercent: 10,
+          contingencyPercent: 5,
+        }),
+      }))
+
       const actionQueue = buildMoneyActionQueue(
-        ranked.map(({ opportunity, score }) => ({
+        enriched.map(({ opportunity, score, economics, capability }) => ({
           opportunity,
           score,
-          economics: estimateOpportunityEconomics(opportunity, {
-            directCostPercent: 35,
-            overheadPercent: 10,
-            contingencyPercent: 5,
-          }),
+          economics,
+          capabilityGap: capability.capabilityGap,
         })),
       )
 
@@ -45,9 +55,10 @@ export async function GET(req: NextRequest) {
         success: true,
         source: "sam.gov",
         data: {
-          opportunities: ranked,
+          opportunities: enriched,
           actionQueue,
           totalRecords: result.totalRecords,
+          capabilityProfile: JHADINA_MONEY_PROFILE,
         },
       })
     } catch (error) {
