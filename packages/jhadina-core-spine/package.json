@@ -8,5 +8,8 @@
   "scripts": {
     "type-check": "tsc --noEmit",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.0"
   }
 }
