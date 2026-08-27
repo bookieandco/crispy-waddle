@@ -39,7 +39,7 @@ export function createDirectorActionHandlers(generation: GenerationAdapter, pers
     const clip = await generation.generateClip(ctx, renderedPrompt);
     const takeId = crypto.randomUUID();
     const result: DirectorTakeResult = { takeId, shotId: input.shot.id, assetIds: [clip.shotId], clipUri: clip.uri, provider: clip.provider, prompts, continuity: { priorTakeId: input.priorTake?.takeId, instruction: input.instruction }, recipe: { prompts, controls: ctx.shot.director, priorTake: input.priorTake } };
-    if (persistence) await recordGeneratedDirectorTakeExperience({ takeId, shotId: result.shotId, clipUri: result.clipUri, provider: result.provider, occurredAt: new Date().toISOString() }, persistence.experiences, persistence.ownerId);
+    if (persistence) await recordGeneratedDirectorTakeExperience({ takeId, shotId: result.shotId, clipUri: result.clipUri, provider: result.provider, occurredAt: new Date().toISOString(), projectId: input.projectId, controls: result.recipe.controls }, persistence.experiences, persistence.ownerId);
     return result;
   };
   return [
