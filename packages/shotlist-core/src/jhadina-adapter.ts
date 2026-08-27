@@ -2,6 +2,8 @@ import { emitPrompts, type PromptContext } from './emit.js';
 import type { DirectorTasteProfile } from './director-taste.js';
 import type { GenerationAdapter, TouchUpAdapter } from './external-adapters.js';
 import type { Entity, ReferenceAsset, Shot } from './types.js';
+import { buildDirectorGenerationContext, mergeDirectorGenerationControls } from './director-generation-context.js';
+import type { DirectorDecisionContext } from './director-decision-context.js';
 
 export interface DirectorTakeInput {
   projectId: string;
@@ -10,6 +12,7 @@ export interface DirectorTakeInput {
   refs?: ReferenceAsset[];
   instruction?: string;
   directorTaste?: DirectorTasteProfile;
+  decisionContext?: DirectorDecisionContext;
   priorTake?: { takeId: string; clipUri: string; provider: string; notes?: string };
 }
 
@@ -35,11 +38,15 @@ function buildPromptContext(input: DirectorTakeInput): PromptContext {
     ? `Maintain continuity with prior take ${input.priorTake.takeId}. Prior clip: ${input.priorTake.clipUri}. ${input.priorTake.notes ?? ''}`
     : undefined;
   const instruction = input.instruction ? `User direction: ${input.instruction}` : undefined;
+  const decision = buildDirectorGenerationContext(input);
+  const controls = mergeDirectorGenerationControls(input.shot.director, decision);
+  const decisionNotes = decision?.promptNotes?.join(' ');
+  const decisionInstruction = decisionNotes ? `Jhadina directing guidance: ${decisionNotes}` : undefined;
   return {
-    shot: { ...input.shot, action: [input.shot.action, continuity, instruction].filter(Boolean).join('\n') },
+    shot: { ...input.shot, director: controls, action: [input.shot.action, continuity, instruction, decisionInstruction].filter(Boolean).join('\n') },
     entities: input.entities,
     refs: input.refs,
-    directorTaste: input.directorTaste,
+    directorTaste: input.directorTaste ?? input.decisionContext?.taste,
   };
 }
 
@@ -59,7 +66,7 @@ export function createDirectorActionHandlers(generation: GenerationAdapter): Dir
       provider: clip.provider,
       prompts,
       continuity: { priorTakeId: input.priorTake?.takeId, instruction: input.instruction },
-      recipe: { prompts, controls: input.shot.director, priorTake: input.priorTake },
+      recipe: { prompts, controls: ctx.shot.director, priorTake: input.priorTake },
     };
   };
 
