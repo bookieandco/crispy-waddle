@@ -1,69 +1,62 @@
-import type { Track } from "./types.js";
-import { createPlaybackState, nextTrack, playTrack, previousTrack, type PlaybackState } from "./player.js";
+import type { MediaAsset, Track } from "./types.js";
+import type { PlaybackHost, PlaybackHostState } from "./playback-host.js";
 
 export interface BrowserPlaybackHostOptions {
   audio?: HTMLAudioElement;
-  onStateChange?: (state: PlaybackState) => void;
+  onEnded?: () => void | Promise<void>;
+  onStateChange?: (state: PlaybackHostState) => void;
 }
 
-/** Browser-only audio host. Music Core stays independent of DOM APIs. */
-export class BrowserPlaybackHost {
+/** Browser-only audio host. Authorization and asset resolution remain in PlaybackSession. */
+export class BrowserPlaybackHost implements PlaybackHost {
   private readonly audio: HTMLAudioElement;
-  private readonly onStateChange?: (state: PlaybackState) => void;
-  private state: PlaybackState = createPlaybackState();
+  private readonly onEnded?: () => void | Promise<void>;
+  private readonly onStateChange?: (state: PlaybackHostState) => void;
+  private state: PlaybackHostState = { playing: false };
 
   constructor(options: BrowserPlaybackHostOptions = {}) {
     if (typeof window === "undefined") throw new Error("BrowserPlaybackHost requires a browser");
     this.audio = options.audio ?? new Audio();
+    this.onEnded = options.onEnded;
     this.onStateChange = options.onStateChange;
-    this.audio.addEventListener("timeupdate", () => this.emit({ ...this.state, positionMs: this.audio.currentTime * 1000 }));
+    this.audio.preload = "auto";
     this.audio.addEventListener("play", () => this.emit({ ...this.state, playing: true }));
     this.audio.addEventListener("pause", () => this.emit({ ...this.state, playing: false }));
-    this.audio.addEventListener("ended", () => void this.advance());
+    this.audio.addEventListener("ended", () => void this.onEnded?.());
+    this.audio.addEventListener("timeupdate", () => this.onStateChange?.({ ...this.state, playing: !this.audio.paused }));
     this.installMediaSession();
   }
 
-  getState(): PlaybackState { return this.state; }
-
-  async play(track: Track): Promise<PlaybackState> {
-    this.state = playTrack(this.state, track);
-    if (!track.sourceUrl) throw new Error("Track has no authorized playback source");
-    this.audio.src = track.sourceUrl;
-    await this.audio.play();
+  async load(track: Track, asset: MediaAsset): Promise<void> {
+    if (!asset.uri) throw new Error("Playable media asset has no URI");
+    this.audio.src = asset.uri;
+    this.audio.currentTime = 0;
+    this.state = { track, asset, playing: false };
     this.updateMediaSession(track);
-    return this.emit(this.state);
+    this.emit(this.state);
   }
 
-  async pause(): Promise<PlaybackState> { this.audio.pause(); return this.emit({ ...this.state, playing: false }); }
-  async resume(): Promise<PlaybackState> { await this.audio.play(); return this.emit({ ...this.state, playing: true }); }
-  async next(): Promise<PlaybackState> { return this.advance(); }
-
-  async previous(): Promise<PlaybackState> {
-    this.state = previousTrack({ ...this.state, positionMs: this.audio.currentTime * 1000 });
-    const track = this.state.queue[this.state.queueIndex];
-    if (track?.sourceUrl) { this.audio.src = track.sourceUrl; await this.audio.play(); this.updateMediaSession(track); }
-    return this.emit(this.state);
+  async play(): Promise<void> {
+    if (!this.state.asset) throw new Error("No media asset loaded");
+    await this.audio.play();
+    this.emit({ ...this.state, playing: true });
   }
 
-  private async advance(): Promise<PlaybackState> {
-    this.state = nextTrack(this.state);
-    const track = this.state.queue[this.state.queueIndex];
-    if (track?.sourceUrl && this.state.playing) { this.audio.src = track.sourceUrl; await this.audio.play(); this.updateMediaSession(track); }
-    return this.emit(this.state);
-  }
+  async pause(): Promise<void> { this.audio.pause(); this.emit({ ...this.state, playing: false }); }
+  async seek(positionMs: number): Promise<void> { if (!this.state.asset) throw new Error("No media asset loaded"); this.audio.currentTime = Math.max(0, positionMs) / 1000; }
+  getState(): PlaybackHostState { return this.state; }
+  private emit(state: PlaybackHostState): void { this.state = state; this.onStateChange?.(state); }
 
-  private emit(state: PlaybackState): PlaybackState { this.state = state; this.onStateChange?.(state); return state; }
-
-  private installMediaSession() {
+  private installMediaSession(): void {
     if (!("mediaSession" in navigator)) return;
-    navigator.mediaSession.setActionHandler("play", () => void this.resume());
+    navigator.mediaSession.setActionHandler("play", () => void this.play());
     navigator.mediaSession.setActionHandler("pause", () => void this.pause());
-    navigator.mediaSession.setActionHandler("nexttrack", () => void this.next());
-    navigator.mediaSession.setActionHandler("previoustrack", () => void this.previous());
+    navigator.mediaSession.setActionHandler("seekbackward", (d) => void this.seek((this.audio.currentTime - (d.seekOffset ?? 10)) * 1000));
+    navigator.mediaSession.setActionHandler("seekforward", (d) => void this.seek((this.audio.currentTime + (d.seekOffset ?? 10)) * 1000));
   }
 
-  private updateMediaSession(track: Track) {
+  private updateMediaSession(track: Track): void {
     if (!("mediaSession" in navigator) || typeof MediaMetadata === "undefined") return;
-    navigator.mediaSession.metadata = new MediaMetadata({ title: track.title, artist: track.artist, album: track.album, artwork: track.artworkUrl ? [{ src: track.artworkUrl }] : [] });
+    navigator.mediaSession.metadata = new MediaMetadata({ title: track.title, artist: track.artistIds.join(", ") });
   }
 }
