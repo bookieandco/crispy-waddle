@@ -12,6 +12,7 @@ import type { ActionRequestIdentity, JhadinaIdentityVerifier } from "../auth/sup
 import { COMMERCE_PAYMENT_CHARGE_CAPABILITY, COMMERCE_SECURITY_POLICY } from "./commerce-security-policy"
 import { GovernedPaymentProvider } from "./governed-payment-provider"
 import type { CommerceProposal, CommerceProposalPayload, CommerceProposalStore } from "./commerce-proposal-store"
+import { commerceEventId, type CommerceEventBus } from "./commerce-event-bus"
 
 /**
  * Phase 4.6: the production-facing Commerce approval boundary —
@@ -46,6 +47,14 @@ import type { CommerceProposal, CommerceProposalPayload, CommerceProposalStore }
  * room for (it is a generic, cross-domain action-id/fingerprint receipt,
  * reused by Growth and Money too, and is not the place for Commerce-only
  * payload fields).
+ *
+ * Step 8 addition: each stage also publishes to a CommerceEventBus
+ * (commerce-event-bus.ts) — proposal_created, approval_granted,
+ * execution_started, execution_succeeded, execution_failed, and
+ * replay_rejected. The bus only ever records what already happened,
+ * strictly after the real policy/approval/receipt decision; see that
+ * file's own header for why it can never become an alternate path
+ * around authorization.
  */
 
 /** Shared by all three stages. Propose and approve never call a payment provider at all — see CommerceProposalExecutionDeps. */
@@ -54,6 +63,13 @@ export interface CommerceProposalLifecycleDeps {
   proposalStore: CommerceProposalStore
   approvalStore: ApprovalReceiptStore
   ledger: ActionLedger
+  /**
+   * Step 8: records what happened at each stage for distribution — see
+   * commerce-event-bus.ts's own header for why this can never become an
+   * alternate authorization path. Every publish() below happens strictly
+   * after the real policy/approval/receipt decision, never before it.
+   */
+  eventBus: CommerceEventBus
   policy?: ActionPolicy<{ capability: string }>
 }
 
@@ -145,6 +161,16 @@ export async function proposeCommerceAction(
     metadata: { decision, fingerprint, amountMinor: payload.amountMinor, currency: payload.currency },
   })
 
+  await deps.eventBus.publish({
+    id: commerceEventId("proposal_created", created.id),
+    type: "proposal_created",
+    proposalId: created.id,
+    capability: created.capability,
+    actorId: identity.userId,
+    occurredAt: now(),
+    payload: { amountMinor: payload.amountMinor, currency: payload.currency, description: payload.description },
+  })
+
   return { proposal: created, verifiedUserId: identity.userId }
 }
 
@@ -190,6 +216,16 @@ export async function approveCommerceProposal(
     metadata: { stage: "human_approval", approvalReceiptId: approved.id, expiresAt: approved.expiresAt },
   })
 
+  await deps.eventBus.publish({
+    id: commerceEventId("approval_granted", proposal.id),
+    type: "approval_granted",
+    proposalId: proposal.id,
+    capability: proposal.capability,
+    actorId: identity.userId,
+    occurredAt: now(),
+    payload: { approvalReceiptId: approved.id, expiresAt: approved.expiresAt },
+  })
+
   return { proposal: updated, verifiedUserId: identity.userId, approvalReceiptId: approved.id }
 }
 
@@ -228,31 +264,75 @@ export async function executeCommerceProposal(
       timestamp: now(),
       metadata: { reason: "invalid_expired_or_replayed_approval_receipt" },
     })
+    await deps.eventBus.publish({
+      id: commerceEventId("replay_rejected", proposal.id),
+      type: "replay_rejected",
+      proposalId: proposal.id,
+      capability: proposal.capability,
+      actorId: identity.userId,
+      occurredAt: now(),
+      payload: { reason: "invalid_expired_or_replayed_approval_receipt" },
+    })
     throw new Error("Invalid, expired, or already-consumed commerce approval receipt")
   }
+
+  await deps.eventBus.publish({
+    id: commerceEventId("execution_started", proposal.id),
+    type: "execution_started",
+    proposalId: proposal.id,
+    capability: proposal.capability,
+    actorId: identity.userId,
+    occurredAt: now(),
+    payload: { approvalReceiptId: proposal.receiptId },
+  })
 
   // GovernedPaymentProvider independently appends started/completed/failed
   // events to the same ledger for commerce.payment.charge — this call's
   // own ledger entries above cover the proposal/approval lifecycle, not
   // the payment call itself, so nothing here is duplicated.
   const governedProvider = new GovernedPaymentProvider(deps.paymentProvider, identity.userId, deps.ledger)
-  const intent = await governedProvider.createPaymentIntent({
-    paymentId: proposal.id,
-    orderId: proposal.id,
-    customer: { id: identity.userId, type: "customer" },
-    seller: { id: "jhadina-commerce", type: "platform" },
-    amount: { amountMinor: proposal.payload.amountMinor, currency: proposal.payload.currency },
-    lines: [],
-    taxes: [],
-    platformFees: [],
-    metadata: { stripeTestPaymentMethod: proposal.payload.testPaymentMethod, description: proposal.payload.description },
-  })
+
+  let intent: Awaited<ReturnType<typeof governedProvider.createPaymentIntent>>
+  try {
+    intent = await governedProvider.createPaymentIntent({
+      paymentId: proposal.id,
+      orderId: proposal.id,
+      customer: { id: identity.userId, type: "customer" },
+      seller: { id: "jhadina-commerce", type: "platform" },
+      amount: { amountMinor: proposal.payload.amountMinor, currency: proposal.payload.currency },
+      lines: [],
+      taxes: [],
+      platformFees: [],
+      metadata: { stripeTestPaymentMethod: proposal.payload.testPaymentMethod, description: proposal.payload.description },
+    })
+  } catch (error) {
+    await deps.eventBus.publish({
+      id: commerceEventId("execution_failed", proposal.id),
+      type: "execution_failed",
+      proposalId: proposal.id,
+      capability: proposal.capability,
+      actorId: identity.userId,
+      occurredAt: now(),
+      payload: { reason: error instanceof Error ? error.message : String(error) },
+    })
+    throw error
+  }
 
   const updated = await deps.proposalStore.markExecuted(proposal.id, identity.userId, {
     paymentId: intent.paymentId,
     provider: intent.provider,
     providerReference: intent.providerReference ?? null,
     status: intent.status,
+  })
+
+  await deps.eventBus.publish({
+    id: commerceEventId("execution_succeeded", proposal.id),
+    type: "execution_succeeded",
+    proposalId: proposal.id,
+    capability: proposal.capability,
+    actorId: identity.userId,
+    occurredAt: now(),
+    payload: { paymentId: intent.paymentId, providerReference: intent.providerReference ?? null, status: intent.status },
   })
 
   return {
