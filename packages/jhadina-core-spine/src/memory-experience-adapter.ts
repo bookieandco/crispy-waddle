@@ -1,5 +1,5 @@
 import type { MemoryProposal } from './types.js';
-import { createExperienceEvent, type ExperienceEvent } from './experience.js';
+import { createExperienceEvent, normalizeActor, type ExperienceEvent } from './experience.js';
 
 export type MemoryExperienceStage = 'proposed' | 'approved' | 'rejected';
 
@@ -16,7 +16,7 @@ export function memoryProposalToExperience(
     occurredAt: input.occurredAt ?? new Date().toISOString(),
     source: 'memory-core',
     domain: 'memory',
-    actor: input.actor ?? 'system',
+    actor: normalizeActor(input.actor),
     content: stage === 'approved'
       ? 'Memory proposal approved.'
       : stage === 'rejected'
