@@ -1,4 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ExperienceEvent, ExperienceScope } from './experience.js';
 import type { ExperienceStore } from './experience-store.contract.js';
 
@@ -8,6 +7,22 @@ type ExperienceRow = {
   correlation_id: string | null; causation_id: string | null; outcome: string | null; sensitivity: ExperienceEvent['sensitivity'];
   provenance: Record<string, unknown>; metadata: Record<string, unknown> | null;
 };
+
+type QueryResult<T> = Promise<{ data: T | null; error: { message: string } | null }>;
+type ExperienceQuery = {
+  select(columns: string): ExperienceQuery;
+  eq(column: string, value: string): ExperienceQuery;
+  order(column: string, options: { ascending: boolean }): ExperienceQuery;
+  maybeSingle(): QueryResult<ExperienceRow>;
+};
+
+export interface ExperienceSupabaseClient {
+  from(table: 'jhadina_experience_events'): {
+    insert(row: ExperienceRow): ExperienceQuery;
+    select(columns: string): ExperienceQuery;
+  };
+  rpc(name: 'list_jhadina_experience_events', args: { p_user_id: string }): QueryResult<ExperienceRow[]>;
+}
 
 function toRow(event: ExperienceEvent): ExperienceRow {
   return {
@@ -38,7 +53,7 @@ function assertNoError(error: { message: string } | null, context: string): void
 }
 
 export class SupabaseExperienceStorage implements ExperienceStore {
-  constructor(private readonly client: SupabaseClient) {}
+  constructor(private readonly client: ExperienceSupabaseClient) {}
 
   async append(event: ExperienceEvent) {
     const row = toRow(event);
