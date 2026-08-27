@@ -38,22 +38,38 @@ export default function JhadinaTVHome() {
   const visible = recommendations.length ? recommendations.map(({ title }) => title) : catalog;
 
   return (
-    <main style={{ minHeight: '100vh', padding: 32, background: '#08090c', color: '#f7f7f8', fontFamily: 'system-ui, sans-serif' }}>
-      <header style={{ display: 'flex', gap: 20, alignItems: 'center', marginBottom: 40 }}>
-        <strong style={{ fontSize: 24 }}>JHADINA<span style={{ opacity: .5 }}>TV</span></strong>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ask Jhadina what to watch..." aria-label="Search JhadinaTV" style={{ marginLeft: 'auto', width: 360, maxWidth: '60vw', padding: 12, borderRadius: 999, border: '1px solid #2a2c33', background: '#111319', color: '#fff' }} />
+    <main style={{ minHeight: '100vh', padding: '28px clamp(18px, 4vw, 56px)', background: '#08090c', color: '#f7f7f8', fontFamily: 'system-ui, sans-serif' }}>
+      <header style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap', marginBottom: 38 }}>
+        <strong style={{ fontSize: 25 }}>JHADINA<span style={{ opacity: .5 }}>TV</span></strong>
+        <nav style={{ display: 'flex', gap: 10 }} aria-label="JhadinaTV navigation">
+          <a href="/jhadinatv" style={{ color: '#fff', textDecoration: 'none', padding: '8px 12px', borderRadius: 999, background: '#1a1c22' }}>Home</a>
+          <a href="/jhadinatv/tv" style={{ color: '#fff', textDecoration: 'none', padding: '8px 12px', borderRadius: 999, background: '#1a1c22' }}>Live TV</a>
+        </nav>
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ask Jhadina what to watch..." aria-label="Search JhadinaTV" style={{ marginLeft: 'auto', width: 360, maxWidth: '100%', padding: 12, borderRadius: 999, border: '1px solid #2a2c33', background: '#111319', color: '#fff' }} />
       </header>
-      <h1>Your entertainment, with an intelligence layer.</h1>
-      <p style={{ color: '#a8abb5', maxWidth: 700 }}>Catalog discovery is routed through JhadinaTV&apos;s authorized provider boundary. Playback and casting stay behind the core media-session contracts.</p>
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18, marginTop: 36 }}>
-        {visible.map((title) => (
-          <article key={title.id} style={{ padding: 18, borderRadius: 16, background: '#111319', border: '1px solid #23262f' }}>
-            <small style={{ color: '#9296a2' }}>{title.kind.toUpperCase()} · {title.year}</small>
-            <h2>{title.title}</h2>
-            <p style={{ color: '#9b9eaa', lineHeight: 1.5 }}>{title.overview}</p>
-            <a href={JHADINA_TV_ROUTES.watch(title.kind, title.id)} style={{ color: '#fff' }}>Watch</a>
-          </article>
-        ))}
+
+      <section style={{ padding: 'clamp(24px, 5vw, 52px)', borderRadius: 28, background: 'linear-gradient(135deg, #151821, #0d0f14)', border: '1px solid #272a34' }}>
+        <div style={{ color: '#9296a2', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 12 }}>Your television</div>
+        <h1 style={{ fontSize: 'clamp(38px, 7vw, 76px)', lineHeight: .98, maxWidth: 800, margin: '12px 0 18px' }}>Everything you watch. One intelligent TV.</h1>
+        <p style={{ color: '#b0b3bd', maxWidth: 720, lineHeight: 1.6 }}>Personal libraries, Live TV, authorized public channels, programming guides, and Jhadina-curated channels are designed to live behind one media experience.</p>
+        <a href="/jhadinatv/tv" style={{ display: 'inline-block', marginTop: 18, padding: '12px 18px', borderRadius: 999, background: '#fff', color: '#090a0d', textDecoration: 'none', fontWeight: 750 }}>Open Live Guide</a>
+      </section>
+
+      <section style={{ marginTop: 42 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 16 }}>
+          <div><div style={{ color: '#9296a2', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 12 }}>On demand</div><h2 style={{ margin: '8px 0' }}>Recommended for you</h2></div>
+          <a href="/jhadinatv/tv" style={{ color: '#cfd2da' }}>What's on now →</a>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18, marginTop: 18 }}>
+          {visible.map((title) => (
+            <article key={title.id} style={{ padding: 18, borderRadius: 18, background: '#111319', border: '1px solid #23262f' }}>
+              <small style={{ color: '#9296a2' }}>{title.kind.toUpperCase()} · {title.year} · {title.availability}</small>
+              <h3>{title.title}</h3>
+              <p style={{ color: '#9b9eaa', lineHeight: 1.5 }}>{title.overview}</p>
+              <a href={JHADINA_TV_ROUTES.watch(title.kind, title.id)} style={{ color: '#fff' }}>Watch</a>
+            </article>
+          ))}
+        </div>
       </section>
     </main>
   );
