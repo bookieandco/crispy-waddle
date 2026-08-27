@@ -14,6 +14,7 @@ export * from './domain-registry.js';
 export * from './domain-capability-contract.js';
 export * from './domain-bootstrap.js';
 export * from './operating-context-builder.js';
+export * from './media-experience.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
 export * from './emergency-evidence-state.js';
