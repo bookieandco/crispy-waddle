@@ -60,10 +60,11 @@ export function normalizeActor(actor: string | undefined): Experience['actor'] {
   }
 }
 
-export function experienceFromAuditEvent(event: AuditEvent): ExperienceEvent {
+export function experienceFromAuditEvent(event: AuditEvent, input: { correlationId?: string; causationId?: string } = {}): ExperienceEvent {
   return createExperienceEvent({
     id: `audit:${event.id}`, occurredAt: event.occurredAt, source: 'core-audit', domain: 'audit', actor: normalizeActor(event.actor),
     content: `Audit event ${event.type} for ${event.subjectId}`, eventType: mapAuditEventType(event.type), sensitivity: 'sensitive',
+    correlationId: input.correlationId, causationId: input.causationId,
     provenance: { sourceId: event.id, sourceType: 'audit-event' }, metadata: { subjectId: event.subjectId },
   });
 }
