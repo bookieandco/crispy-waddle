@@ -6,6 +6,7 @@ export type GrowthEventType =
   | 'campaign_created'
   | 'campaign_activated'
   | 'ad_published'
+  | 'content_published'
   | 'content_viewed'
   | 'content_clicked'
   | 'landing_viewed'
