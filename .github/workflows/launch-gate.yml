@@ -49,3 +49,45 @@ jobs:
 
       - name: Production build
         run: pnpm build
+
+  lockfile-generation:
+    name: Generate and verify lockfile
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout selected ref
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Generate lockfile
+        run: pnpm install --lockfile-only
+
+      - name: Verify generated lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Capture lockfile diff
+        run: git diff -- pnpm-lock.yaml > lockfile.diff
+
+      - name: Upload generated lockfile and diff
+        uses: actions/upload-artifact@v4
+        with:
+          name: step8-lockfile-repair
+          path: |
+            pnpm-lock.yaml
+            lockfile.diff
+          retention-days: 1
