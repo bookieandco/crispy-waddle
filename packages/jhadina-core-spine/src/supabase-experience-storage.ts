@@ -8,7 +8,7 @@ type ExperienceRow = {
   provenance: Record<string, unknown>; metadata: Record<string, unknown> | null;
 };
 
-type QueryResult<T> = Promise<{ data: T | null; error: { message: string } | null }>;
+type QueryResult<T> = Promise<{ data: T | null; error: { message: string; code?: string } | null }>;
 type ExperienceQuery = {
   select(columns: string): ExperienceQuery;
   eq(column: string, value: string): ExperienceQuery;
@@ -23,6 +23,8 @@ export interface ExperienceSupabaseClient {
   };
   rpc(name: 'list_jhadina_experience_events', args: { p_user_id: string }): QueryResult<ExperienceRow[]>;
 }
+
+const UNIQUE_VIOLATION = '23505';
 
 function toRow(event: ExperienceEvent): ExperienceRow {
   return {
@@ -59,6 +61,7 @@ export class SupabaseExperienceStorage implements ExperienceStore {
     const row = toRow(event);
     const { error } = await this.client.from('jhadina_experience_events').insert(row).select('*').maybeSingle();
     if (!error) return { accepted: true, duplicate: false, conflict: false, eventId: event.id };
+    if (error.code !== UNIQUE_VIOLATION) assertNoError(error, 'append.insert');
 
     const { data: existing, error: lookupError } = await this.client
       .from('jhadina_experience_events').select('*').eq('id', event.id).maybeSingle();
