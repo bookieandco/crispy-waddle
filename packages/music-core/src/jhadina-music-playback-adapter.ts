@@ -17,9 +17,19 @@ export class JhadinaMusicPlaybackAdapter {
   async play(track?: Track): Promise<void> {
     if (track) this.session.transition((state) => playTrack(state, track));
     else this.session.transition((state) => ({ ...state, playing: true }));
-    const current = this.session.getState().queue[this.session.getState().queueIndex];
-    if (current) await this.session.load(current);
-    await this.session.play();
+    const state = this.session.getState();
+    const current = state.queue[state.queueIndex];
+    if (!current) {
+      this.session.transition((nextState) => ({ ...nextState, playing: false, error: "No track available to play" }));
+      throw new Error("No track available to play");
+    }
+    try {
+      await this.session.load(current);
+      await this.session.play();
+    } catch (error) {
+      this.session.transition((nextState) => ({ ...nextState, playing: false }));
+      throw error;
+    }
   }
 
   async pause(): Promise<void> { await this.session.pause(); }
