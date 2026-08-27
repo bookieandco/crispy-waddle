@@ -28,7 +28,7 @@ export class DefaultPolicyRule implements PolicyRule {
       return { decision: "DENY", reason: "Irreversible actions require explicit approval context.", policyVersion: this.version };
     }
     if (terminalRisks.has(tool.risk) || proposal.authorizationContext.approvalRequired) {
-      return { decision: "PENDING_APPROVAL", reason: "Explicit human approval is required before execution.", approvalId: proposal.id, policyVersion: this.version };
+      return { decision: "PENDING_APPROVAL", reason: "Explicit human approval is required before execution.", policyVersion: this.version };
     }
     return { decision: "ALLOW", reason: "Read/reversible tool is permitted by policy.", policyVersion: this.version };
   }
