@@ -7,6 +7,7 @@ export * from "./search.js";
 export * from "./catalog-search.js";
 export * from "./catalog-playback.js";
 export * from "./catalog-queue.js";
+export * from "./catalog-hydration.js";
 export * from "./player.js";
 export * from "./jhadina-music.js";
 export * from "./jhadina-music-action-handler.js";
