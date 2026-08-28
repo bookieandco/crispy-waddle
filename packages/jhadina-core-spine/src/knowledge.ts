@@ -42,3 +42,8 @@ export function assertKnowledgeConfidence(confidence: number): void {
     throw new Error('Knowledge confidence must be between 0 and 1')
   }
 }
+
+export function assertKnowledgeId(id: string): void {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  if (!uuid.test(id)) throw new Error('Knowledge id must be a valid UUID')
+}
