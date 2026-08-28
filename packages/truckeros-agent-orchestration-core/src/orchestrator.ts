@@ -12,7 +12,7 @@ import type {
 import type { ApprovalGateway, PolicyRule } from "./policy.js";
 
 export interface AgentReasoner<Input = unknown> {
-  reason(context: Input): Promise<readonly ActionProposal[]>;
+  reason(context: Input, run: WorkflowRun): Promise<readonly ActionProposal[]>;
 }
 
 export interface OrchestrationInput<Context> {
@@ -45,7 +45,7 @@ export class AgentOrchestrator {
     this.record(run, "agent.started", { agentId: agent.id, agentVersion: agent.version });
     this.record(run, "context.loaded", { contextType: typeof input.context });
 
-    const proposals = await reasoner.reason(input.context);
+    const proposals = await reasoner.reason(input.context, run);
     const results: ActionExecutionResult[] = [];
 
     for (const proposal of proposals) {
