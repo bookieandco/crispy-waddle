@@ -39,10 +39,11 @@ export function advertisingEventsToCreativeEvidence(
 
     if (event.eventType === 'impression') current.impressions += event.value ?? 1;
     if (event.eventType === 'click') current.clicks += event.value ?? 1;
-    if (event.eventType === 'conversion') current.conversions += event.value ?? 1;
-    if (event.eventType === 'conversion' && event.currency) current.revenue += event.metadata.revenue === 'number'
-      ? event.metadata.revenue
-      : 0;
+    if (event.eventType === 'conversion') {
+      current.conversions += event.value ?? 1;
+      if (typeof event.metadata.revenue === 'number') current.revenue += event.metadata.revenue;
+      else if (typeof event.value === 'number' && event.currency) current.revenue += event.value;
+    }
 
     buckets.set(key, current);
   }
