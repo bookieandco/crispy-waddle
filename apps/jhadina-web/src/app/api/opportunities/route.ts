@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { listOpportunities } from "@/lib/opportunities/engine"
+import { createOpportunity, listOpportunities } from "@/lib/opportunities/engine"
 import { rankSideIncomeOpportunities } from "@/lib/opportunities/sideIncome"
+import type { AutomationLevel, OpportunityKind } from "@/lib/opportunities/sideIncome"
 
 export const dynamic = "force-dynamic"
 
@@ -8,14 +9,9 @@ function userId(req: NextRequest) {
   return req.headers.get("x-jhadina-user-id") || "default-user"
 }
 
-/**
- * OCE-5.2 compatibility boundary.
- * The UI/API remains stable while legacy records are projected into the
- * canonical queue contract. Source migration can happen incrementally.
- */
+/** OCE-5.2 compatibility boundary: keep the existing API stable while the canonical queue is migrated underneath it. */
 export async function GET(req: NextRequest) {
-  const opportunities = listOpportunities(userId(req))
-  const ranked = rankSideIncomeOpportunities(opportunities)
+  const ranked = rankSideIncomeOpportunities(listOpportunities(userId(req)))
   return NextResponse.json({
     success: true,
     data: {
@@ -25,4 +21,23 @@ export async function GET(req: NextRequest) {
   })
 }
 
-export { POST } from "./post"
+export async function POST(req: NextRequest) {
+  const body = await req.json()
+  const opportunity = createOpportunity({
+    userId: userId(req),
+    title: body.title,
+    kind: body.kind as OpportunityKind,
+    sourceUrl: body.sourceUrl,
+    sourceName: body.sourceName,
+    summary: body.summary,
+    estimatedPay: body.estimatedPay,
+    startupCost: body.startupCost,
+    estimatedHours: body.estimatedHours,
+    automationLevel: body.automationLevel as AutomationLevel,
+    fitScore: body.fitScore,
+    riskFlags: body.riskFlags,
+    deadline: body.deadline,
+    requiresUserApproval: body.requiresUserApproval,
+  })
+  return NextResponse.json({ success: true, data: { opportunity } }, { status: 201 })
+}
