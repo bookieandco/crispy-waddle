@@ -31,6 +31,7 @@ export interface ExperimentOpportunityInput {
 export interface ExperimentOpportunity {
   id: GrowthId;
   distributionOpportunityId: GrowthId;
+  surfaceId: GrowthId;
   title: string;
   state: ExperimentOpportunityState;
   score: number;
@@ -47,6 +48,7 @@ export interface ExperimentOpportunity {
   engagementQuality: number;
   recommendedAction: 'test' | 'hold' | 'reject';
   monetizationCandidateId?: GrowthId;
+  offerId?: GrowthId;
 }
 
 const clamp = (value: number) => Math.max(0, Math.min(100, value));
@@ -112,6 +114,7 @@ export function assembleExperimentOpportunity(input: ExperimentOpportunityInput)
   return {
     id: `experiment-opportunity:${o.id}`,
     distributionOpportunityId: o.id,
+    surfaceId: o.surfaceId,
     title: `Test: ${o.title}`,
     state,
     score,
@@ -130,6 +133,7 @@ export function assembleExperimentOpportunity(input: ExperimentOpportunityInput)
     engagementQuality,
     recommendedAction: state === 'READY' ? 'test' : state === 'REJECTED' ? 'reject' : 'hold',
     monetizationCandidateId: input.monetization?.id,
+    offerId: input.monetization?.offerId,
   };
 }
 
