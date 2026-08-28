@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ActionProposal, ApprovalRecord, ApprovalStatus, AuthorizationContext, ExecutionAuthorization } from "./types.js";
+import type { ActionProposal, ApprovalRecord, AuthorizationContext, ExecutionAuthorization } from "./types.js";
 import type { AgentEventLog } from "./audit.js";
 import { eventId } from "./audit.js";
 
@@ -9,7 +9,7 @@ export interface ApprovalGateway {
 
 export interface ApprovalController extends ApprovalGateway {
   get(approvalId: string): ApprovalRecord;
-  approve(approvalId: string, approvedBy: string, authorizationContext?: AuthorizationContext, now?: Date): ApprovalRecord;
+  approve(approvalId: string, approvedBy: string, now?: Date): ApprovalRecord;
   reject(approvalId: string, rejectedBy: string, now?: Date): ApprovalRecord;
   authorizeExecution(approvalId: string, now?: Date): ExecutionAuthorization;
 }
@@ -31,6 +31,7 @@ export class InMemoryApprovalGateway implements ApprovalController {
     const record: ApprovalRecord = Object.freeze({
       id,
       proposalId: proposal.id,
+      workflowRunId: proposal.workflowRunId,
       status: "PENDING_APPROVAL",
       requestedAt,
       expiresAt,
@@ -48,7 +49,7 @@ export class InMemoryApprovalGateway implements ApprovalController {
     return this.expireIfNeeded(record, new Date());
   }
 
-  approve(approvalId: string, approvedBy: string, authorizationContext?: AuthorizationContext, now = new Date()): ApprovalRecord {
+  approve(approvalId: string, approvedBy: string, now = new Date()): ApprovalRecord {
     if (!approvedBy.trim()) throw new Error("approvedBy is required");
     const current = this.get(approvalId);
     if (current.status !== "PENDING_APPROVAL") throw new Error(`Approval is not pending: ${current.status}`);
@@ -58,7 +59,6 @@ export class InMemoryApprovalGateway implements ApprovalController {
       status: "APPROVED",
       approvedAt: now.toISOString(),
       approvedBy,
-      authorizationContext: Object.freeze({ ...(authorizationContext ?? current.authorizationContext) }),
       version: current.version + 1,
     });
     this.records.set(approvalId, next);
@@ -81,9 +81,7 @@ export class InMemoryApprovalGateway implements ApprovalController {
     const current = this.get(approvalId);
     if (current.status !== "APPROVED") throw new Error(`Execution is not eligible: ${current.status}`);
     if (!current.approvedBy || !current.approvedAt) throw new Error("Approved record is missing authorization identity");
-
-    const expiresAt = new Date(current.expiresAt);
-    if (now >= expiresAt) {
+    if (now >= new Date(current.expiresAt)) {
       this.expire(current, now);
       throw new Error("Approval expired before execution authorization");
     }
@@ -91,6 +89,7 @@ export class InMemoryApprovalGateway implements ApprovalController {
     const authorization: ExecutionAuthorization = Object.freeze({
       approvalId,
       proposalId: current.proposalId,
+      workflowRunId: current.workflowRunId,
       approvedBy: current.approvedBy,
       approvedAt: current.approvedAt,
       authorizationContext: Object.freeze({ ...current.authorizationContext }),
@@ -100,7 +99,13 @@ export class InMemoryApprovalGateway implements ApprovalController {
 
     const consumed: ApprovalRecord = Object.freeze({ ...current, status: "CONSUMED", version: current.version + 1 });
     this.records.set(approvalId, consumed);
-    this.append(consumed, "execution.authorized", { approvalId, proposalId: current.proposalId, approvedBy: current.approvedBy, nonce: authorization.nonce });
+    this.append(consumed, "execution.authorized", {
+      approvalId,
+      proposalId: current.proposalId,
+      workflowRunId: current.workflowRunId,
+      approvedBy: current.approvedBy,
+      nonce: authorization.nonce,
+    });
     return authorization;
   }
 
@@ -114,20 +119,27 @@ export class InMemoryApprovalGateway implements ApprovalController {
   private expire(record: ApprovalRecord, now: Date): void {
     const expired: ApprovalRecord = Object.freeze({ ...record, status: "EXPIRED", version: record.version + 1 });
     this.records.set(record.id, expired);
-    this.append(expired, "approval.expired", { approvalId: record.id, proposalId: record.proposalId, expiredAt: now.toISOString() });
+    this.append(expired, "approval.expired", {
+      approvalId: record.id,
+      proposalId: record.proposalId,
+      workflowRunId: record.workflowRunId,
+      expiredAt: now.toISOString(),
+    });
   }
 
-  private append(record: ApprovalRecord, type: "approval.requested" | "approval.approved" | "approval.rejected" | "approval.expired" | "execution.authorized", payload: Record<string, unknown>): void {
+  private append(
+    record: ApprovalRecord,
+    type: "approval.requested" | "approval.approved" | "approval.rejected" | "approval.expired" | "execution.authorized",
+    payload: Record<string, unknown>,
+  ): void {
     if (!this.events) return;
     const sequenceHint = this.events.list().length + 1;
     this.events.append({
-      id: eventId(record.proposalId, sequenceHint, type),
+      id: eventId(record.workflowRunId, sequenceHint, type),
       type,
-      workflowRunId: record.proposalId,
+      workflowRunId: record.workflowRunId,
       occurredAt: new Date().toISOString(),
       payload,
     });
   }
 }
-
-export type { ApprovalStatus };
