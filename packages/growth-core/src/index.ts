@@ -21,3 +21,7 @@ export * from './intelligence/growth-loop.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
+export * from './affiliate/affiliate-product-intelligence.js';
+export * from './evidence/evidence-contract.js';
+export * from './evidence/evidence-signal-adapter.js';
+export * from './evidence/evidence-distillation.js';
