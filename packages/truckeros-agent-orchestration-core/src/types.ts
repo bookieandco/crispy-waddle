@@ -46,6 +46,7 @@ export interface ActionProposal<Input = unknown> {
 export interface ApprovalRecord {
   id: string;
   proposalId: string;
+  workflowRunId: string;
   status: ApprovalStatus;
   requestedAt: string;
   approvedAt?: string;
@@ -58,6 +59,7 @@ export interface ApprovalRecord {
 export interface ExecutionAuthorization {
   approvalId: string;
   proposalId: string;
+  workflowRunId: string;
   approvedBy: string;
   approvedAt: string;
   authorizationContext: AuthorizationContext;
