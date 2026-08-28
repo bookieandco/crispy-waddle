@@ -12,44 +12,43 @@ export interface SupabaseExecutionReceiptClient {
 }
 
 export interface SupabaseExecutionReceiptRepositoryOptions {
-  /** Resolve the authenticated actor when it is not embedded in authorizationContext. */
-  resolveActorId?: (receipt: ExecutionReceipt) => string | undefined;
+  /** The authenticated actor UUID required by the durable table's foreign key. */
+  resolveActorId: (receipt: ExecutionReceipt) => string | undefined;
 }
 
 /**
  * Durable adapter for the execution receipt boundary.
  *
  * The orchestration core remains provider/database neutral: only this adapter
- * knows the Supabase table shape. Domain-only receipt fields are retained in
- * authorization_context/result_metadata so the persisted record is lossless.
+ * knows the Supabase table shape. Receipt fields that do not have first-class
+ * columns are retained in JSON metadata so persistence remains lossless.
  */
 export class SupabaseExecutionReceiptRepository implements ExecutionReceiptRepository {
   constructor(
     private readonly client: SupabaseExecutionReceiptClient,
-    private readonly options: SupabaseExecutionReceiptRepositoryOptions = {},
+    private readonly options: SupabaseExecutionReceiptRepositoryOptions,
   ) {}
 
   async write(receipt: ExecutionReceipt): Promise<void> {
-    const context = isRecord(receipt.authorizationContext)
-      ? receipt.authorizationContext
-      : {};
-
-    const actorId = this.options.resolveActorId?.(receipt) ?? stringValue(context.actorId);
+    const actorId = this.options.resolveActorId(receipt);
     if (!actorId) {
-      throw new Error("Execution receipt persistence requires authorizationContext.actorId");
+      throw new Error("Execution receipt persistence requires an authenticated actor UUID");
     }
 
-    const resultMetadata = {
-      ...(isRecord(receipt.resultMetadata) ? receipt.resultMetadata : {}),
+    const authorizationContext = {
+      receiptId: receipt.receiptId,
       bookingPackageId: receipt.bookingPackageId,
       offerId: receipt.offerId,
       proposalId: receipt.proposalId,
       approvalId: receipt.approvalId,
       workflowRunId: receipt.workflowRunId,
       authorizationNonce: receipt.authorizationNonce,
+    };
+
+    const resultMetadata = {
       provider: receipt.provider,
       providerBookingId: receipt.providerBookingId,
-      receiptStatus: receipt.status,
+      status: receipt.status,
       startedAt: receipt.startedAt,
       completedAt: receipt.completedAt,
       errorCode: receipt.errorCode,
@@ -64,7 +63,7 @@ export class SupabaseExecutionReceiptRepository implements ExecutionReceiptRepos
         action_id: receipt.receiptId,
         actor_id: actorId,
         capability: `execution:${receipt.provider}`,
-        authorization_context: context,
+        authorization_context: authorizationContext,
         approval_state: "APPROVED",
         execution_state: receipt.status === "SUCCEEDED" ? "EXECUTED" : "FAILED",
         approved_at: receipt.startedAt,
@@ -78,12 +77,4 @@ export class SupabaseExecutionReceiptRepository implements ExecutionReceiptRepos
       throw new Error(`Failed to persist execution receipt: ${error.message}`);
     }
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
