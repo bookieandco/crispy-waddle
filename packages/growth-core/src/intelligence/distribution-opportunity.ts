@@ -1,4 +1,5 @@
 import type { GrowthId, ISODateTime } from '../domain/types.js';
+import type { OpportunityScoringV1Result } from './opportunity-scoring-v1.js';
 
 export type GrowthSurfaceKind = 'social' | 'search' | 'community' | 'creator' | 'email' | 'paid' | 'partnership' | 'marketplace' | 'other';
 
@@ -28,6 +29,7 @@ export interface DistributionOpportunity {
   title: string;
   rationale: string;
   score: number;
+  scoringV1?: OpportunityScoringV1Result;
   reach: number;
   audienceFit: number;
   intent: number;
