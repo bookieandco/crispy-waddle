@@ -1,4 +1,5 @@
 import type { OpportunitySourceClass } from './source.js'
+import type { OpportunityType } from './opportunity.js'
 
 export type FundingSourceCategory =
   | 'federal'
@@ -20,7 +21,7 @@ export type FundingDiscoverySource = {
   sourceClass: OpportunitySourceClass
   countryCodes: string[]
   official: boolean
-  supports: Array<'grant' | 'contract' | 'prize' | 'tax_credit' | 'rebate' | 'subsidy' | 'loan' | 'investment' | 'accelerator' | 'in_kind'>
+  supports: OpportunityType[]
   discoveryMode: 'api' | 'feed' | 'crawl' | 'search' | 'manual'
   verificationRequired: boolean
 }
@@ -38,7 +39,7 @@ export const INITIAL_FUNDING_SOURCES: readonly FundingDiscoverySource[] = [
     sourceClass: 'government',
     countryCodes: ['US'],
     official: true,
-    supports: ['grant', 'cooperative_agreement'],
+    supports: ['grant'],
     discoveryMode: 'search',
     verificationRequired: true,
   },
@@ -60,7 +61,7 @@ export const INITIAL_FUNDING_SOURCES: readonly FundingDiscoverySource[] = [
     sourceClass: 'marketplace',
     countryCodes: ['US'],
     official: false,
-    supports: ['grant', 'loan', 'credit'],
+    supports: ['grant', 'loan'],
     discoveryMode: 'crawl',
     verificationRequired: true,
   },
