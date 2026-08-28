@@ -2,6 +2,7 @@ export * from './spine.js';
 export * from './types.js';
 export * from './knowledge.js';
 export * from './knowledge-repository.js';
+export * from './supabase-knowledge-repository.js';
 export * from './evolution.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
