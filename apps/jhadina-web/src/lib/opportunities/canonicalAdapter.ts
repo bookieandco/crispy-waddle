@@ -20,14 +20,13 @@ export function legacyToCanonicalOpportunity(item: LegacyOpportunity): Canonical
   const now = item.approvedAt ?? item.createdAt
   const evidenceConfidence = item.sourceConfidence ?? 0
   const pay = item.estimatedPay
-
   return {
     id: item.id,
     userId: item.userId,
     title: item.title,
     description: item.summary,
     class: item.kind === "ai_job" || item.kind === "remote_gig" || item.kind === "freelance" ? "freelance" : "experiment",
-    strategy: item.kind === "affiliate" ? "affiliate" : item.kind === "dropshipping" ? "ecommerce" : item.kind === "automation" ? "ai_service" : "digital_product",
+    strategy: item.kind === "affiliate" ? "affiliate" : item.kind === "dropshipping" ? "ecommerce" : item.kind === "automation" ? "service" : "digital_product",
     source: { type: sourceType(item.kind), name: item.sourceName, url: item.sourceUrl },
     evidence: [{ type: "source", summary: item.summary, sourceUrl: item.sourceUrl, confidence: evidenceConfidence }],
     economics: {
@@ -36,7 +35,20 @@ export function legacyToCanonicalOpportunity(item: LegacyOpportunity): Canonical
       startupCost: item.startupCost,
       estimatedHours: item.estimatedHours,
     },
-    score: { overall: item.fitScore, confidence: evidenceConfidence },
+    score: {
+      demand: item.fitScore,
+      buyerValue: item.fitScore,
+      distributionPotential: item.fitScore,
+      aiLeverage: item.automationLevel === "ai_can_do_it" || item.automationLevel === "ai_plus_user" ? item.fitScore : 50,
+      recurringRevenue: 0,
+      competition: 100 - item.fitScore,
+      startupCost: 0,
+      operationalComplexity: 100 - item.fitScore,
+      regulatoryRisk: item.riskFlags.length ? 50 : 0,
+      evidenceConfidence,
+      personalFit: item.fitScore,
+      total: item.fitScore,
+    },
     status: item.status === "approved" ? "approved" : "discovered",
     deadline: item.deadline,
     requiresApproval: item.requiresUserApproval,
