@@ -3,6 +3,7 @@
     "target": "ES2020",
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "useDefineForClassFields": true,
     "module": "ESNext",
     "skipLibCheck": true,
     "strict": true,
@@ -27,6 +28,7 @@
     "baseUrl": ".",
     "paths": {
       "@jhadina/*": ["packages/*/src", "apps/*/src"],
+      "@jhadina/opportunity-core": ["packages/opportunity-core/src"],
       "@jhadina/types": ["packages/types/src"],
       "@jhadina/memory-core": ["packages/memory-core/src"],
       "@jhadina/security-core": ["packages/security-core/src"],
@@ -42,4 +44,5 @@
   },
   "include": ["packages/*/src", "apps/*/src", "infrastructure/*/src"],
   "exclude": ["node_modules", "dist", "build"]
+  
 }
