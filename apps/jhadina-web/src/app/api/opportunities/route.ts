@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createOpportunity, listOpportunities } from "@/lib/opportunities/engine"
 import { rankSideIncomeOpportunities } from "@/lib/opportunities/sideIncome"
 import type { AutomationLevel, OpportunityKind } from "@/lib/opportunities/sideIncome"
+import { GET as getSamMoneyOpportunities } from "@/app/api/money-opportunities/sam/route"
 
 export const dynamic = "force-dynamic"
 
@@ -10,6 +11,10 @@ function userId(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  if (req.nextUrl.searchParams.get("source") === "sam") {
+    return getSamMoneyOpportunities(req)
+  }
+
   const ranked = rankSideIncomeOpportunities(listOpportunities(userId(req)))
   return NextResponse.json({ success: true, data: { opportunities: ranked } })
 }
