@@ -35,16 +35,33 @@ describe("SupabaseMoneyResearchPersistence", () => {
     const taskRows = new Map<string, { id: string; status: string; priority: number }>()
 
     const from = vi.fn((table: string) => ({
+      select: vi.fn((columns?: string) => {
+        if (table === "money_research_cases") {
+          return { single: vi.fn(async () => ({ data: caseRow, error: null })) }
+        }
+
+        return {
+          eq: vi.fn((column: string, value: string) => ({
+            eq: vi.fn((_column: string, branch: string) => ({
+              maybeSingle: vi.fn(async () => ({
+                data: taskRows.get(branch) ?? null,
+                error: null,
+              })),
+            })),
+          })),
+        }
+      }),
       upsert: vi.fn((values: Record<string, unknown>) => ({
         select: vi.fn(() => ({
           single: vi.fn(async () => {
             if (table === "money_research_cases") return { data: caseRow, error: null }
+
             const branch = String(values.branch)
             const existing = taskRows.get(branch)
-            const row = existing || { id: `task-${taskRows.size + 1}`, status: "PENDING", priority: 50 }
-            if (existing?.status === "READY" && values.status === "PENDING") {
-              values.status = "READY"
-              values.priority = 10
+            const row = existing || {
+              id: `task-${taskRows.size + 1}`,
+              status: "PENDING",
+              priority: 50,
             }
             row.status = String(values.status)
             row.priority = Number(values.priority)
@@ -60,6 +77,9 @@ describe("SupabaseMoneyResearchPersistence", () => {
 
     await persistence.saveResearchCase(input)
     const firstReadyId = taskRows.get("REQUIREMENTS")?.id
+
+    // Simulate work being claimed between pulls. The second planner will say
+    // PENDING, but the adapter must preserve the persisted READY state.
     taskRows.get("REQUIREMENTS")!.status = "READY"
     taskRows.get("REQUIREMENTS")!.priority = 10
 
@@ -73,5 +93,6 @@ describe("SupabaseMoneyResearchPersistence", () => {
     expect(taskRows.get("REQUIREMENTS")?.id).toBe(firstReadyId)
     expect(taskRows.get("REQUIREMENTS")?.status).toBe("READY")
     expect(taskRows.get("REQUIREMENTS")?.priority).toBe(10)
+    expect(taskRows.get("AGENCY")?.id).toBe("task-1")
   })
 })
