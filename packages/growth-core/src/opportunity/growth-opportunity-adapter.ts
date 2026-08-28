@@ -5,6 +5,7 @@ import type { Opportunity } from './domain/opportunity.js'
 export function adaptGrowthOpportunity(item: GrowthOpportunity, userId: string): Opportunity {
   const now = new Date().toISOString()
   const confidence = Math.max(0, Math.min(1, item.confidence))
+  const score = Math.max(0, Math.min(100, item.score))
 
   return {
     id: `growth:${item.key}`,
@@ -14,23 +15,16 @@ export function adaptGrowthOpportunity(item: GrowthOpportunity, userId: string):
     class: 'experiment',
     strategy: 'experiment',
     source: { type: 'market_intelligence', name: 'Growth Core', externalId: item.id },
-    evidence: [
-      {
-        type: 'market',
-        summary: item.rationale,
-        confidence,
-      },
-    ],
+    evidence: [{ type: 'market', summary: item.rationale, confidence }],
     economics: {
       currency: 'USD',
       estimatedRevenue: { min: Math.max(item.expectedValue, 0), max: Math.max(item.expectedValue, 0) },
       paymentLikelihood: confidence,
     },
     score: {
-      total: Math.max(0, Math.min(100, item.score)),
-      demand: Math.max(0, Math.min(100, item.score)),
-      buyerValue: Math.max(0, Math.min(100, item.score)),
-      distributionPotential: Math.max(0, Math.min(100, item.score)),
+      demand: score,
+      buyerValue: score,
+      distributionPotential: score,
       aiLeverage: 50,
       recurringRevenue: 50,
       competition: 50,
@@ -39,7 +33,7 @@ export function adaptGrowthOpportunity(item: GrowthOpportunity, userId: string):
       regulatoryRisk: 50,
       evidenceConfidence: confidence * 100,
       personalFit: 50,
-      recommendation: item.action === 'scale' ? 'pursue' : item.action === 'stop' ? 'reject' : 'test',
+      total: score,
     },
     status: 'discovered',
     requiresApproval: true,
