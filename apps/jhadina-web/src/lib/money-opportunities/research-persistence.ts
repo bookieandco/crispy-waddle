@@ -1,7 +1,8 @@
 import type { PlannedResearchCase } from "./research-planner"
+import { persistedResearchCaseResult, type PersistedResearchCase } from "./research-case-persistence-result"
 
 export interface MoneyResearchPersistence {
-  saveResearchCase(input: PlannedResearchCase): Promise<{ id: string }>
+  saveResearchCase(input: PlannedResearchCase): Promise<PersistedResearchCase>
 }
 
 /**
@@ -11,6 +12,7 @@ export interface MoneyResearchPersistence {
 export async function persistPlannedResearchCase(
   persistence: MoneyResearchPersistence,
   input: PlannedResearchCase,
-): Promise<{ id: string }> {
-  return persistence.saveResearchCase(input)
+): Promise<PersistedResearchCase> {
+  const result = await persistence.saveResearchCase(input)
+  return persistedResearchCaseResult(result)
 }
