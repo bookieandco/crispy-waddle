@@ -1,4 +1,4 @@
-import type { Opportunity as CanonicalOpportunity, OpportunitySourceType } from "@/../../../packages/growth-core/src/opportunity/domain/opportunity"
+import type { Opportunity as CanonicalOpportunity, OpportunitySourceType } from "@jhadina/growth-core/opportunity/domain/opportunity"
 import type { Opportunity as LegacyOpportunity } from "./sideIncome"
 
 const sourceType = (kind: LegacyOpportunity["kind"]): OpportunitySourceType => {
