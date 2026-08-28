@@ -4,12 +4,18 @@ import { researchCaseKey } from "./research-case-key"
 import { preserveResearchTaskState, researchTaskPriority } from "./research-task-priority"
 import type { PersistedResearchCase } from "./research-case-persistence-result"
 import type { MoneyResearchTaskPersistence } from "./research-task-persistence"
+import type { ResearchBranchStatus } from "./research-case"
 
 type SupabaseClient = {
   from(table: string): {
     upsert(values: Record<string, unknown> | Record<string, unknown>[], options?: { onConflict?: string; ignoreDuplicates?: boolean }): {
       select(columns?: string): {
         single(): Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>
+      }
+    }
+    select(columns?: string): {
+      eq(column: string, value: string): {
+        maybeSingle(): Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>
       }
     }
   }
@@ -39,12 +45,10 @@ export class SupabaseMoneyResearchPersistence implements MoneyResearchPersistenc
     }
 
     for (const branch of input.branches) {
-      const status = branch.status
-      const state = preserveResearchTaskState({ plannedStatus: status })
       await this.upsertResearchTask({
         researchCaseId: String(data.id),
         branch,
-        priority: researchTaskPriority(state.status),
+        priority: researchTaskPriority(branch.status),
       })
     }
 
@@ -56,7 +60,20 @@ export class SupabaseMoneyResearchPersistence implements MoneyResearchPersistenc
     branch: PlannedResearchCase["branches"][number]
     priority: number
   }): Promise<{ id: string }> {
-    const state = preserveResearchTaskState({ plannedStatus: input.branch.status })
+    const existing = await this.supabase
+      .from("money_research_tasks")
+      .select("id, status, priority")
+      .eq("research_case_id", input.researchCaseId)
+      .maybeSingle()
+
+    if (existing.error) throw new Error(existing.error.message)
+
+    const existingStatus = existing.data?.status as ResearchBranchStatus | undefined
+    const state = preserveResearchTaskState({
+      existingStatus,
+      plannedStatus: input.branch.status,
+    })
+
     const { data, error } = await this.supabase
       .from("money_research_tasks")
       .upsert({
@@ -64,7 +81,7 @@ export class SupabaseMoneyResearchPersistence implements MoneyResearchPersistenc
         branch: input.branch.kind,
         question: input.branch.question,
         status: state.status,
-        priority: state.status === "READY" ? 10 : input.priority,
+        priority: state.priority,
       }, { onConflict: "research_case_id,branch" })
       .select("id")
       .single()
