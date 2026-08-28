@@ -1,43 +1,46 @@
 import { createHash } from 'node:crypto'
 import type { KnowledgePort, KnowledgeRecord } from '@jhadina/core-spine'
-import type { ResearchCasePlan } from './research'
+import type { PlannedResearchCase } from '@/lib/money-opportunities/research-planner'
 
 /**
  * Projects persisted SAM research state into Jhadina Knowledge.
  * SAM remains the source of truth; this is a derived, idempotent projection.
  */
 export function buildSamKnowledgeRecord(
-  plan: ResearchCasePlan,
+  plan: PlannedResearchCase,
   now = new Date().toISOString(),
 ): KnowledgeRecord {
+  const ready = plan.branches.filter((branch) => branch.status === 'READY').length
+  const pending = plan.branches.filter((branch) => branch.status === 'PENDING').length
+  const complete = plan.branches.filter((branch) => branch.status === 'COMPLETE').length
+  const blocked = plan.branches.filter((branch) => branch.status === 'BLOCKED').length
+
   return {
-    id: deterministicUuid(`sam:research-case:${plan.researchCase.id}`),
-    subject: plan.researchCase.title,
-    claim: `SAM research case ${plan.researchCase.id} has ${plan.tasks.length} planned research tasks and status ${plan.researchCase.status}.`,
+    id: deterministicUuid(`sam:research-case:${plan.id}`),
+    subject: plan.title,
+    claim: `SAM research case ${plan.id} has ${plan.branches.length} research branches: ${ready} READY, ${pending} PENDING, ${complete} COMPLETE, ${blocked} BLOCKED.`,
     confidence: 1,
     evidence: [{
-      id: deterministicUuid(`sam:research-case:evidence:${plan.researchCase.id}`),
-      claim: `Derived from persisted SAM research case ${plan.researchCase.id}.`,
+      id: deterministicUuid(`sam:research-case:evidence:${plan.id}`),
+      claim: `Derived from persisted SAM research case ${plan.id}.`,
       confidence: 1,
       provenance: [{
         sourceKind: 'system',
-        sourceId: `sam-research-case:${plan.researchCase.id}`,
+        sourceId: `sam-research-case:${plan.id}`,
         capturedAt: now,
-        locator: plan.researchCase.sourceUrl,
       }],
     }],
-    createdAt: plan.researchCase.createdAt,
+    createdAt: plan.createdAt,
     updatedAt: now,
   }
 }
 
 export async function projectSamResearchToKnowledge(
   knowledge: KnowledgePort,
-  plan: ResearchCasePlan,
+  plan: PlannedResearchCase,
   now = new Date().toISOString(),
 ): Promise<KnowledgeRecord> {
-  const record = buildSamKnowledgeRecord(plan, now)
-  return knowledge.ingest(record)
+  return knowledge.ingest(buildSamKnowledgeRecord(plan, now))
 }
 
 function deterministicUuid(input: string): string {
