@@ -29,4 +29,19 @@ describe('buildDirectorDecisionGuidance', () => {
     expect(result.jokePermission).toBe(0);
     expect(result.creativeRisk).toBe(20);
   });
+
+  it('uses resolved behavioral sliders instead of the baseline personality sliders', () => {
+    const result = buildDirectorDecisionGuidance({
+      ...base,
+      mode: 'serious',
+      behavioralState: {
+        mode: 'serious',
+        sliders: { humor: 5, playfulness: 10, boldness: 40, warmth: 95, seriousness: 100 },
+        domain: 'directoros',
+      },
+    });
+    expect(result.jokePermission).toBe(5);
+    expect(result.creativeRisk).toBe(40);
+    expect(result.tone).toBe('serious');
+  });
 });
