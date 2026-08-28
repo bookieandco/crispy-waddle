@@ -14,14 +14,15 @@ export class ApprovedExecutionService {
     approvalId: string;
     proposal: ActionProposal<Input>;
   }): Promise<ActionExecutionResult & { output?: Output }> {
-    const authorization = this.approvals.authorizeExecution(request.approvalId);
-
-    if (authorization.proposalId !== request.proposal.id) {
+    const record = this.approvals.get(request.approvalId);
+    if (record.proposalId !== request.proposal.id) {
       throw new Error("Approval does not authorize this proposal");
     }
-    if (authorization.workflowRunId !== request.proposal.workflowRunId) {
+    if (record.workflowRunId !== request.proposal.workflowRunId) {
       throw new Error("Approval does not authorize this workflow");
     }
+
+    const authorization = this.approvals.authorizeExecution(request.approvalId);
 
     const tool = this.tools.get(request.proposal.toolId) as ReturnType<ToolRegistry["get"]> & {
       execute(input: Input): Promise<Output>;
