@@ -15,29 +15,39 @@ export type CorporateRelationshipWriter = {
   }): Promise<{ id: string }>
 }
 
-/**
- * Application boundary for persisting relationship edges.
- * Keeps provider-specific relationship shapes out of the database adapter.
- */
+/** Application boundary for persisting relationship edges. */
 export async function persistCorporateRelationships(
   writer: CorporateRelationshipWriter,
   relationships: Array<CorporateRelationship & { observedAt?: string; metadata?: Record<string, unknown> }>,
 ) {
-  const normalized = relationships.map((relationship) => normalizeCorporateRelationship({
-    fromEntityId: relationship.fromEntityId,
-    toEntityId: relationship.toEntityId,
-    relationshipType: relationship.type,
-    confidence: relationship.confidence,
-    source: relationship.source,
-    sourceReference: relationship.sourceReference,
-    evidenceIds: relationship.evidenceIds,
-    observedAt: relationship.observedAt,
-    metadata: relationship.metadata,
-  }))
-
   const persisted: Array<{ id: string }> = []
-  for (const relationship of normalized) {
-    persisted.push(await writer.upsertRelationship(relationship))
+  const seen = new Set<string>()
+
+  for (const relationship of relationships) {
+    const normalized = normalizeCorporateRelationship({
+      fromEntityId: relationship.fromEntityId,
+      toEntityId: relationship.toEntityId,
+      relationshipType: relationship.type,
+      confidence: relationship.confidence,
+      source: relationship.source,
+      sourceReference: relationship.sourceReference,
+      evidenceIds: relationship.evidenceIds,
+      observedAt: relationship.observedAt,
+      metadata: relationship.metadata,
+    })
+
+    const key = [
+      normalized.fromEntityId,
+      normalized.toEntityId,
+      normalized.relationshipType,
+      normalized.source,
+      normalized.sourceReference,
+    ].join('|')
+
+    if (seen.has(key)) continue
+    seen.add(key)
+    persisted.push(await writer.upsertRelationship(normalized))
   }
+
   return persisted
 }
