@@ -1,5 +1,11 @@
 import type { ActionExecutionResult, ActionProposal, AgentEventLog, AgentTool, ExecutionAuthorization } from "./types.js";
 import { eventId } from "./audit.js";
+import {
+  executionReceiptId,
+  outputRefFromOutput,
+  providerIdFromOutput,
+  type ExecutionReceiptStore,
+} from "./execution-receipt.js";
 
 export interface ExecutionGatewayClock {
   now(): Date;
@@ -22,6 +28,7 @@ export class GuardedExecutionGateway implements ExecutionGateway {
   constructor(
     private readonly events: AgentEventLog,
     private readonly clock: ExecutionGatewayClock = systemClock,
+    private readonly receipts?: ExecutionReceiptStore,
   ) {}
 
   async execute<Input, Output>(request: {
@@ -51,12 +58,25 @@ export class GuardedExecutionGateway implements ExecutionGateway {
 
     try {
       const output = await tool.execute(proposal.input);
+      const completedAt = clock.now();
       this.append(proposal.workflowRunId, "execution.completed", {
         proposalId: proposal.id,
         approvalId: authorization.approvalId,
         nonce: authorization.nonce,
         toolId: tool.id,
-      }, clock.now());
+      }, completedAt);
+      this.recordReceipt({
+        proposalId: proposal.id,
+        workflowRunId: proposal.workflowRunId,
+        approvalId: authorization.approvalId,
+        authorizationNonce: authorization.nonce,
+        toolId: tool.id,
+        providerId: providerIdFromOutput(output),
+        outcome: "COMPLETED",
+        startedAt: now.toISOString(),
+        completedAt: completedAt.toISOString(),
+        outputRef: outputRefFromOutput(output),
+      });
 
       return {
         proposalId: proposal.id,
@@ -67,15 +87,35 @@ export class GuardedExecutionGateway implements ExecutionGateway {
         reason: "Execution authorization validated",
       };
     } catch (error) {
+      const failedAt = clock.now();
+      const message = error instanceof Error ? error.message : String(error);
       this.append(proposal.workflowRunId, "execution.failed", {
         proposalId: proposal.id,
         approvalId: authorization.approvalId,
         nonce: authorization.nonce,
         toolId: tool.id,
-        error: error instanceof Error ? error.message : String(error),
-      }, clock.now());
+        error: message,
+      }, failedAt);
+      this.recordReceipt({
+        proposalId: proposal.id,
+        workflowRunId: proposal.workflowRunId,
+        approvalId: authorization.approvalId,
+        authorizationNonce: authorization.nonce,
+        toolId: tool.id,
+        outcome: "FAILED",
+        startedAt: now.toISOString(),
+        completedAt: failedAt.toISOString(),
+        error: message,
+      });
       throw error;
     }
+  }
+
+  private recordReceipt(receipt: Omit<import("./execution-receipt.js").ExecutionReceipt, "id">): void {
+    this.receipts?.record({
+      id: executionReceiptId(receipt.workflowRunId, receipt.proposalId, receipt.authorizationNonce),
+      ...receipt,
+    });
   }
 
   private validateAuthorization<Input, Output>(
