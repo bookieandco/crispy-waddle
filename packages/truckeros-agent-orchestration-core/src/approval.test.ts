@@ -18,8 +18,7 @@ const proposal: ActionProposal = {
     capabilityId: "freight.booking",
     approvalRequired: true,
   },
-  createdAt: "2026-08-27T00:00:00.000Z",
-  expiresAt: "2026-08-27T01:00:00.000Z",
+  createdAt: new Date().toISOString(),
 };
 
 describe("InMemoryApprovalGateway", () => {
@@ -36,14 +35,14 @@ describe("InMemoryApprovalGateway", () => {
       version: 1,
     });
 
-    const approved = gateway.approve(approvalId, "user:dispatcher-1", new Date("2026-08-27T00:10:00.000Z"));
+    const approved = gateway.approve(approvalId, "user:dispatcher-1");
     expect(approved).toMatchObject({
       status: "APPROVED",
       approvedBy: "user:dispatcher-1",
       version: 2,
     });
 
-    const authorization = gateway.authorizeExecution(approvalId, new Date("2026-08-27T00:11:00.000Z"));
+    const authorization = gateway.authorizeExecution(approvalId);
     expect(authorization).toMatchObject({
       approvalId,
       proposalId: proposal.id,
@@ -54,7 +53,7 @@ describe("InMemoryApprovalGateway", () => {
     expect(authorization.nonce).toBeTruthy();
     expect(gateway.get(approvalId).status).toBe("CONSUMED");
 
-    expect(() => gateway.authorizeExecution(approvalId, new Date("2026-08-27T00:12:00.000Z"))).toThrow("Execution is not eligible: CONSUMED");
+    expect(() => gateway.authorizeExecution(approvalId)).toThrow("Execution is not eligible: CONSUMED");
     expect(events.verify()).toBe(true);
     expect(events.list(proposal.workflowRunId).map((event) => event.type)).toEqual([
       "approval.requested",
@@ -65,12 +64,18 @@ describe("InMemoryApprovalGateway", () => {
 
   it("expires pending approvals and refuses late approval", async () => {
     const events = new InMemoryAgentEventLog();
-    const gateway = new InMemoryApprovalGateway(events, 60_000);
-    const approvalId = await gateway.request({ ...proposal, expiresAt: undefined });
-    const expired = gateway.get(approvalId);
+    const gateway = new InMemoryApprovalGateway(events);
+    const now = Date.now();
+    const approvalId = await gateway.request({
+      ...proposal,
+      id: "proposal:expiring",
+      expiresAt: new Date(now + 60_000).toISOString(),
+    });
 
-    expect(expired.status).toBe("PENDING_APPROVAL");
-    expect(() => gateway.approve(approvalId, "user:dispatcher-1", new Date(Date.now() + 61_000))).not.toThrow();
+    expect(gateway.get(approvalId).status).toBe("PENDING_APPROVAL");
+    expect(() => gateway.approve(approvalId, "user:dispatcher-1", new Date(now + 61_000))).toThrow("Approval expired before approval");
+    expect(gateway.get(approvalId).status).toBe("EXPIRED");
+    expect(events.verify()).toBe(true);
   });
 
   it("rejects approval and prevents execution", async () => {
