@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import type { Opportunity, OpportunityRepository } from '../domain/index.js'
-import { CanonicalOpportunityQueue } from '../../../../apps/jhadina-web/src/lib/opportunities/canonical-queue.js'
 import { ingestCommercialOpportunity } from './commercial-pipeline.js'
 import type { CommercialOpportunityRecord } from './commercial-opportunity.js'
 
@@ -18,7 +17,7 @@ const record: CommercialOpportunityRecord = {
 
 describe('ingestCommercialOpportunity', () => {
   it('normalizes, scores, queues, and persists one canonical record', async () => {
-    const queue = new CanonicalOpportunityQueue()
+    const queue = { items: new Map<string, Opportunity>(), ingest(items: readonly Opportunity[]) { for (const item of items) this.items.set(item.id, item); return [...this.items.values()] }, get(id: string) { return this.items.get(id) } }
     const store = new Map<string, Opportunity>()
     const repository: OpportunityRepository = {
       async getById(id) { return store.get(id) ?? null },
