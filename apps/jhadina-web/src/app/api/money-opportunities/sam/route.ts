@@ -6,22 +6,14 @@ import { buildMoneyActionQueue } from '@/lib/money-opportunities/action-queue';
 import { planResearchCase } from '@/lib/money-opportunities/research-planner';
 import { persistPlannedResearchCases } from '@/lib/money-opportunities/research-batch-persistence';
 import { SupabaseMoneyResearchPersistence } from '@/lib/money-opportunities/supabase-research-persistence';
+import { SupabaseKnowledgeRepository, type KnowledgeSupabaseClient } from '@jhadina/core-spine';
+import { projectSamResearchToKnowledge } from '@/lib/opportunities/sam-knowledge-projector';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
 export const dynamic = 'force-dynamic';
 
 const CAPABILITY_PROFILE = {
-  capabilities: [
-    'software development',
-    'web application',
-    'automation',
-    'ai',
-    'data analysis',
-    'marketing',
-    'content',
-    'digital services',
-    'research',
-  ],
+  capabilities: ['software development','web application','automation','ai','data analysis','marketing','content','digital services','research'],
   maxSoloValue: 250000,
 };
 
@@ -29,54 +21,39 @@ export async function GET(request: NextRequest) {
   try {
     const search = request.nextUrl.searchParams;
     const data = await searchSamOpportunities({
-      limit: Number(search.get('limit') ?? 25),
-      offset: Number(search.get('offset') ?? 0),
-      postedFrom: search.get('postedFrom') ?? undefined,
-      postedTo: search.get('postedTo') ?? undefined,
-      keyword: search.get('keyword') ?? undefined,
-      noticeType: search.get('noticeType') ?? undefined,
+      limit: Number(search.get('limit') ?? 25), offset: Number(search.get('offset') ?? 0),
+      postedFrom: search.get('postedFrom') ?? undefined, postedTo: search.get('postedTo') ?? undefined,
+      keyword: search.get('keyword') ?? undefined, noticeType: search.get('noticeType') ?? undefined,
       typeOfSetAside: search.get('typeOfSetAside') ?? undefined,
     });
-
     const scored = scoreSamOpportunities(data.opportunities, CAPABILITY_PROFILE);
-    const withEconomics = scored.map((opportunity) => ({
-      opportunity,
-      score: opportunity.intelligence,
-      economics: estimateOpportunityEconomics(opportunity),
-      capabilityGap: opportunity.intelligence.capability < 55,
-    }));
+    const withEconomics = scored.map((opportunity) => ({ opportunity, score: opportunity.intelligence, economics: estimateOpportunityEconomics(opportunity), capabilityGap: opportunity.intelligence.capability < 55 }));
     const moneyActions = buildMoneyActionQueue(withEconomics);
 
     const serviceClient = createServiceRoleClient();
     let persistedResearch: Array<{ opportunityId: string; caseId: string; action: string }> = [];
+    let knowledgeProjection: Array<{ opportunityId: string; caseId: string; knowledgeId: string; status: 'projected' | 'failed'; error?: string }> = [];
     if (serviceClient) {
       const persistence = new SupabaseMoneyResearchPersistence(serviceClient);
       const titles = new Map(data.opportunities.map((opportunity) => [opportunity.noticeId, opportunity.title]));
-      const plannedCases = moneyActions
-        .map((action) => planResearchCase({
-          action,
-          title: titles.get(action.opportunityId) ?? `SAM opportunity ${action.opportunityId}`,
-        }))
-        .filter((planned): planned is NonNullable<typeof planned> => planned !== null);
-
+      const plannedCases = moneyActions.map((action) => planResearchCase({ action, title: titles.get(action.opportunityId) ?? `SAM opportunity ${action.opportunityId}` })).filter((planned): planned is NonNullable<typeof planned> => planned !== null);
       const persisted = await persistPlannedResearchCases(persistence, plannedCases);
-      persistedResearch = persisted.map((item, index) => ({
-        opportunityId: item.opportunityId,
-        caseId: item.id,
-        action: plannedCases[index].action,
-      }));
+      persistedResearch = persisted.map((item) => ({ opportunityId: item.opportunityId, caseId: item.id, action: plannedCases.find((planned) => planned.opportunityId === item.opportunityId)?.action ?? 'UNKNOWN' }));
+
+      const knowledge = new SupabaseKnowledgeRepository(serviceClient as unknown as KnowledgeSupabaseClient);
+      for (const item of persisted) {
+        const planned = plannedCases.find((candidate) => candidate.opportunityId === item.opportunityId);
+        if (!planned) continue;
+        try {
+          const record = await projectSamResearchToKnowledge(knowledge, planned);
+          knowledgeProjection.push({ opportunityId: item.opportunityId, caseId: item.id, knowledgeId: record.id, status: 'projected' });
+        } catch (error) {
+          knowledgeProjection.push({ opportunityId: item.opportunityId, caseId: item.id, knowledgeId: '', status: 'failed', error: error instanceof Error ? error.message : 'Unknown Knowledge projection error' });
+        }
+      }
     }
 
-    return NextResponse.json({
-      ok: true,
-      source: 'sam.gov',
-      count: data.opportunities.length,
-      totalRecords: data.totalRecords,
-      opportunities: withEconomics,
-      moneyActions,
-      persistedResearch,
-      persistence: serviceClient ? 'supabase' : 'not_configured',
-    });
+    return NextResponse.json({ ok: true, source: 'sam.gov', count: data.opportunities.length, totalRecords: data.totalRecords, opportunities: withEconomics, moneyActions, persistedResearch, knowledgeProjection, persistence: serviceClient ? 'supabase' : 'not_configured' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown SAM.gov error';
     const status = message.includes('not configured') ? 503 : 502;
