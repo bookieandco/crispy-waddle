@@ -5,6 +5,7 @@ import { preserveResearchTaskState, researchTaskPriority } from "./research-task
 import type { PersistedResearchCase } from "./research-case-persistence-result"
 import type { MoneyResearchTaskPersistence } from "./research-task-persistence"
 import type { ResearchBranchStatus } from "./research-case"
+import type { MoneyResearchBatchPersistence } from "./research-batch-persistence"
 
 type SupabaseClient = {
   from(table: string): {
@@ -23,8 +24,14 @@ type SupabaseClient = {
   }
 }
 
-export class SupabaseMoneyResearchPersistence implements MoneyResearchPersistence, MoneyResearchTaskPersistence {
+export class SupabaseMoneyResearchPersistence implements MoneyResearchPersistence, MoneyResearchTaskPersistence, MoneyResearchBatchPersistence {
   constructor(private readonly supabase: SupabaseClient) {}
+
+  async saveResearchCases(inputs: PlannedResearchCase[]): Promise<PersistedResearchCase[]> {
+    const results: PersistedResearchCase[] = []
+    for (const input of inputs) results.push(await this.saveResearchCase(input))
+    return results
+  }
 
   async saveResearchCase(input: PlannedResearchCase): Promise<PersistedResearchCase> {
     const opportunityId = researchCaseKey(input.opportunityId)
