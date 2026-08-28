@@ -1,7 +1,6 @@
+import type { BehavioralState } from '@jhadina/core-spine';
 import type { DirectorControls } from './types.js';
 import type { DirectorTasteProfile } from './director-taste.js';
-
-export type SituationalMode = 'playful' | 'focused' | 'serious' | 'sensitive' | 'urgent';
 
 export interface PersonalitySliders {
   humor: number;
@@ -14,9 +13,10 @@ export interface PersonalitySliders {
 
 export interface DirectorDecisionContext {
   sliders: PersonalitySliders;
-  mode: SituationalMode;
+  mode: 'playful' | 'focused' | 'serious' | 'sensitive' | 'urgent';
   taste: DirectorTasteProfile;
   storyIntent: string;
+  behavioralState?: BehavioralState;
 }
 
 export interface DirectorDecisionGuidance {
@@ -28,37 +28,17 @@ export interface DirectorDecisionGuidance {
 }
 
 export function buildDirectorDecisionGuidance(context: DirectorDecisionContext): DirectorDecisionGuidance {
-  const tasteSignals = context.taste.signals ?? [];
-  const positive = tasteSignals.filter((s) => s.sentiment >= 50 && s.confidence >= 50);
-  const controls: DirectorControls = {};
-  const promptNotes = [`Story intent: ${context.storyIntent}.`];
-
-  const style = positive.find((s) => s.category === 'style');
-  const mood = positive.find((s) => s.category === 'mood');
-  if (style) controls.lookPreset = style.subject;
-  if (mood) controls.lightingMood = mood.subject;
-
-  let tone: DirectorDecisionGuidance['tone'] = context.sliders.formality >= 70 ? 'professional' : 'playful';
-  let jokePermission = context.sliders.humor;
-  let creativeRisk = context.sliders.boldness;
-
-  if (context.mode === 'focused') {
-    tone = 'professional';
-    jokePermission = Math.min(jokePermission, 25);
-  } else if (context.mode === 'serious' || context.mode === 'sensitive') {
-    tone = 'serious';
-    jokePermission = 0;
-    creativeRisk = Math.min(creativeRisk, 45);
-  } else if (context.mode === 'urgent') {
-    tone = 'urgent';
-    jokePermission = 0;
-    creativeRisk = Math.min(creativeRisk, 20);
-  }
-
-  if (context.sliders.playfulness >= 75 && context.mode === 'playful') promptNotes.push('Allow playful creative choices when they serve the story.');
+  const state = context.behavioralState;
+  const humor = state?.sliders.humor ?? context.sliders.humor;
+  const playfulness = state?.sliders.playfulness ?? context.sliders.playfulness;
+  const warmth = state?.sliders.warmth ?? context.sliders.warmth;
+  const creativeRisk = state?.sliders.boldness ?? context.sliders.boldness;
+  const formality = context.sliders.formality;
+  const tone = state?.mode === 'urgent' ? 'urgent' : state?.mode === 'serious' || state?.mode === 'sensitive' ? 'serious' : formality >= 70 ? 'professional' : 'playful';
+  const jokePermission = state?.mode === 'urgent' ? 0 : state?.mode === 'serious' || state?.mode === 'sensitive' ? 0 : Math.min(100, humor);
+  const promptNotes = [`Story intent: ${context.storyIntent}.`, `Situational mode: ${state?.mode ?? context.mode}. Joke permission: ${jokePermission}/100. Creative risk: ${creativeRisk}/100.`];
+  if (playfulness >= 75 && jokePermission >= 60) promptNotes.push('Allow playful creative choices when they serve the story.');
   if (context.sliders.curiosity >= 75) promptNotes.push('Explore novel visual possibilities without violating story intent.');
-  if (context.sliders.warmth >= 75) promptNotes.push('Favor human, emotionally attentive direction when appropriate.');
-
-  promptNotes.push(`Situational mode: ${context.mode}. Joke permission: ${jokePermission}/100. Creative risk: ${creativeRisk}/100.`);
-  return { controls, promptNotes, tone, jokePermission, creativeRisk };
+  if (warmth >= 75) promptNotes.push('Favor human, emotionally attentive direction when appropriate.');
+  return { controls: {}, promptNotes, tone, jokePermission, creativeRisk };
 }
