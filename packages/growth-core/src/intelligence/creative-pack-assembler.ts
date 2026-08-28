@@ -2,6 +2,7 @@ import type { GrowthId, ISODateTime } from '../domain/types.js';
 import type { CreativeFormat, CreativePack, CreativeVariant, FunnelStage } from './creative-pack.js';
 import type { ExperimentPlan } from './experiment-planner.js';
 import type { GrowthOpportunity } from './opportunity-engine.js';
+import { planCreativeAngles } from './creative-intelligence.js';
 
 export interface CreativePackAssemblyInput {
   brandId: GrowthId;
@@ -22,15 +23,19 @@ export function assembleCreativePack(
   const funnelStage = input.funnelStage ?? 'prospecting';
   const objective = input.objective ?? `Validate ${opportunity.key}`;
   const avatar = input.avatar ?? 'target-audience';
+  const angles = planCreativeAngles(opportunity);
 
-  const variants: CreativeVariant[] = experiment.creativeVariants.map((variantKey, index) => ({
-    id: `creative-variant:${experiment.id}:${index + 1}`,
-    label: variantKey,
-    format,
-    hook: `${index === 0 ? 'Control' : `Variant ${index}`}: ${opportunity.key}`,
-    primaryText: experiment.hypothesis,
-    callToAction: input.offer ? `Explore ${input.offer}` : 'Learn more',
-  }));
+  const variants: CreativeVariant[] = experiment.creativeVariants.map((variantKey, index) => {
+    const angle = angles[index % angles.length];
+    return {
+      id: `creative-variant:${experiment.id}:${index + 1}`,
+      label: variantKey,
+      format,
+      hook: angle.hook,
+      primaryText: `${experiment.hypothesis} ${angle.rationale}`,
+      callToAction: input.offer ? `Explore ${input.offer}` : 'Learn more',
+    };
+  });
 
   return {
     id: `creative-pack:${experiment.id}`,
@@ -47,6 +52,7 @@ export function assembleCreativePack(
         `opportunity-score:${opportunity.score}`,
         `confidence:${opportunity.confidence}`,
         `action:${opportunity.action}`,
+        ...angles.map((angle) => `creative-angle:${angle.angle}`),
       ],
       variants,
     }],
