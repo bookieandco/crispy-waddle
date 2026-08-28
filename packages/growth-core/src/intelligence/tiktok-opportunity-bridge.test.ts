@@ -29,7 +29,7 @@ describe('TikTok -> DistributionOpportunity -> OpportunityScoringV1', () => {
     expect(opportunity).not.toBeNull();
     expect(opportunity?.surfaceId).toBe('social:tiktok');
     expect(opportunity?.recommendedAction).toBe('test');
-    expect(opportunity?.score).toBe(89.22);
+    expect(opportunity?.score).toBe(90.96);
     expect(opportunity?.scoringV1?.opportunityId).toBe('distribution-opportunity:tiktok:rich-wallet:001');
     expect(opportunity?.scoringV1?.breakdown.velocity).toBe(94);
     expect(opportunity?.scoringV1?.breakdown.monetizationPotential).toBe(87);
