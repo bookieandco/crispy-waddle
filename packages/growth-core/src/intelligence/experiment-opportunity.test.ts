@@ -24,7 +24,7 @@ const monetization = {
   kind: 'affiliate' as const,
   name: 'Wallet affiliate offer',
   expectedRevenuePerConversion: 80,
-  expectedConversionRate: 0.04,
+  expectedConversionRate: 0.2,
   productionCost: 8,
   evidenceQuality: 85,
   approved: true,
@@ -46,7 +46,7 @@ describe('experiment opportunity assembly', () => {
     expect(result.id).toBe('experiment-opportunity:distribution-opportunity:tiktok-1');
     expect(result.distributionOpportunityId).toBe(distributionOpportunity.id);
     expect(result.monetizationCandidateId).toBe(monetization.id);
-    expect(result.expectedValue).toBeCloseTo(-4.8);
+    expect(result.expectedValue).toBeCloseTo(8);
     expect(result.score).toBeGreaterThan(70);
     expect(result.state).toBe('READY');
     expect(result.recommendedAction).toBe('test');
