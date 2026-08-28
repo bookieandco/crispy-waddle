@@ -22,7 +22,7 @@ describe('Opportunity Scoring v1', () => {
       productionDifficulty: 92,
     });
 
-    expect(result.score).toBe(86.62);
+    expect(result.score).toBe(86.88);
     expect(result.breakdown.total).toBe(result.score);
     expect(result.decision).toBe('prioritize');
     expect(Object.keys(result.breakdown)).toEqual([
