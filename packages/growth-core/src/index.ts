@@ -19,6 +19,7 @@ export * from './intelligence/monetization-opportunity.js';
 export * from './intelligence/offer-discovery.js';
 export * from './intelligence/offer-verification.js';
 export * from './intelligence/monetization-bridge.js';
+export * from './intelligence/affiliate-offer-adapter.js';
 export * from './intelligence/brand-audience.js';
 export * from './intelligence/brand-registry.js';
 export * from './intelligence/growth-command-queue.js';
