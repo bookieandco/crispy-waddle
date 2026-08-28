@@ -12,6 +12,8 @@ export * from './intelligence/opportunity-engine.js';
 export * from './intelligence/distribution-opportunity.js';
 export * from './intelligence/distribution-registry.js';
 export * from './intelligence/opportunity-scanner.js';
+export * from './intelligence/opportunity-scoring-v1.js';
+export * from './intelligence/tiktok-distribution-bridge.js';
 export * from './intelligence/brand-audience.js';
 export * from './intelligence/brand-registry.js';
 export * from './intelligence/growth-command-queue.js';
