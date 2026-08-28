@@ -15,7 +15,9 @@ type SupabaseClient = {
     }
     select(columns?: string): {
       eq(column: string, value: string): {
-        maybeSingle(): Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>
+        eq(column: string, value: string): {
+          maybeSingle(): Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>
+        }
       }
     }
   }
@@ -64,6 +66,7 @@ export class SupabaseMoneyResearchPersistence implements MoneyResearchPersistenc
       .from("money_research_tasks")
       .select("id, status, priority")
       .eq("research_case_id", input.researchCaseId)
+      .eq("branch", input.branch.kind)
       .maybeSingle()
 
     if (existing.error) throw new Error(existing.error.message)
