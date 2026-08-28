@@ -4,7 +4,7 @@ import { scoreSamOpportunities } from '@/lib/money-opportunities/sam-intelligenc
 import { estimateOpportunityEconomics } from '@/lib/money-opportunities/economics';
 import { buildMoneyActionQueue } from '@/lib/money-opportunities/action-queue';
 import { planResearchCase } from '@/lib/money-opportunities/research-planner';
-import { persistPlannedResearchCase } from '@/lib/money-opportunities/research-persistence';
+import { persistPlannedResearchCases } from '@/lib/money-opportunities/research-batch-persistence';
 import { SupabaseMoneyResearchPersistence } from '@/lib/money-opportunities/supabase-research-persistence';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
@@ -48,23 +48,23 @@ export async function GET(request: NextRequest) {
     const moneyActions = buildMoneyActionQueue(withEconomics);
 
     const serviceClient = createServiceRoleClient();
-    const persistedResearch: Array<{ opportunityId: string; caseId: string; action: string }> = [];
+    let persistedResearch: Array<{ opportunityId: string; caseId: string; action: string }> = [];
     if (serviceClient) {
       const persistence = new SupabaseMoneyResearchPersistence(serviceClient);
       const titles = new Map(data.opportunities.map((opportunity) => [opportunity.noticeId, opportunity.title]));
-      for (const action of moneyActions) {
-        const planned = planResearchCase({
+      const plannedCases = moneyActions
+        .map((action) => planResearchCase({
           action,
           title: titles.get(action.opportunityId) ?? `SAM opportunity ${action.opportunityId}`,
-        });
-        if (!planned) continue;
-        const persisted = await persistPlannedResearchCase(persistence, planned);
-        persistedResearch.push({
-          opportunityId: persisted.opportunityId,
-          caseId: persisted.id,
-          action: action.action,
-        });
-      }
+        }))
+        .filter((planned): planned is NonNullable<typeof planned> => planned !== null);
+
+      const persisted = await persistPlannedResearchCases(persistence, plannedCases);
+      persistedResearch = persisted.map((item, index) => ({
+        opportunityId: item.opportunityId,
+        caseId: item.id,
+        action: plannedCases[index].action,
+      }));
     }
 
     return NextResponse.json({
