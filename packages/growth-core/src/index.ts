@@ -1,6 +1,7 @@
 export * from './domain/types.js';
 export * from './events/event-contract.js';
 export * from './events/advertising-events.js';
+export * from './events/organic-social.js';
 export * from './channels/channel-registry.js';
 export * from './channels/campaign-orchestrator.js';
 export * from './channels/delivery-reconciliation.js';
@@ -21,3 +22,4 @@ export * from './intelligence/growth-loop.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
+export * from './learning/organic-social-signals.js';
