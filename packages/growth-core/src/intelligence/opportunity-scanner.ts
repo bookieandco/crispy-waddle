@@ -71,7 +71,6 @@ export function scanGrowthSignal(raw: RawGrowthSignal): DistributionOpportunity 
       surfaceId: surface.id,
       title: `${signal.topic} on ${surface.name}`,
       rationale: `Signal from ${signal.source} has ${signal.intent}/100 intent, ${signal.audienceFit}/100 audience fit, and ${signal.momentum}/100 momentum.`,
-      score: scoringV1.score,
       reach: clamp(raw.reach ?? signal.momentum),
       audienceFit: signal.audienceFit,
       intent: signal.intent,
