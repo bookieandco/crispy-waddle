@@ -8,3 +8,4 @@ export * from "./execution-gateway.js";
 export * from "./approved-execution.js";
 export * from "./booking-execution-adapter.js";
 export * from "./execution-receipt.js";
+export * from "./execution-receipt-repository.js";
