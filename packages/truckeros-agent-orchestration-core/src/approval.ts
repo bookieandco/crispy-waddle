@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ActionProposal, ApprovalRecord, AuthorizationContext, ExecutionAuthorization } from "./types.js";
+import type { ActionProposal, ApprovalRecord, ExecutionAuthorization } from "./types.js";
 import type { AgentEventLog } from "./audit.js";
 import { eventId } from "./audit.js";
 
@@ -51,8 +51,13 @@ export class InMemoryApprovalGateway implements ApprovalController {
 
   approve(approvalId: string, approvedBy: string, now = new Date()): ApprovalRecord {
     if (!approvedBy.trim()) throw new Error("approvedBy is required");
-    const current = this.get(approvalId);
+    const current = this.records.get(approvalId);
+    if (!current) throw new Error(`Approval not found: ${approvalId}`);
     if (current.status !== "PENDING_APPROVAL") throw new Error(`Approval is not pending: ${current.status}`);
+    if (now >= new Date(current.expiresAt)) {
+      this.expire(current, now);
+      throw new Error("Approval expired before approval");
+    }
 
     const next: ApprovalRecord = Object.freeze({
       ...current,
