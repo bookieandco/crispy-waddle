@@ -2,6 +2,8 @@ export type AgentStatus = "draft" | "active" | "disabled";
 export type ToolRisk = "read" | "reversible" | "approval_required" | "irreversible";
 export type PolicyDecision = "ALLOW" | "PENDING_APPROVAL" | "DENY";
 
+export type ApprovalStatus = "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "EXPIRED" | "CONSUMED";
+
 export interface AgentDefinition {
   id: string;
   version: string;
@@ -41,6 +43,28 @@ export interface ActionProposal<Input = unknown> {
   expiresAt?: string;
 }
 
+export interface ApprovalRecord {
+  id: string;
+  proposalId: string;
+  status: ApprovalStatus;
+  requestedAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  expiresAt: string;
+  authorizationContext: AuthorizationContext;
+  version: number;
+}
+
+export interface ExecutionAuthorization {
+  approvalId: string;
+  proposalId: string;
+  approvedBy: string;
+  approvedAt: string;
+  authorizationContext: AuthorizationContext;
+  expiresAt: string;
+  nonce: string;
+}
+
 export interface PolicyResult {
   decision: PolicyDecision;
   reason: string;
@@ -64,6 +88,10 @@ export type AgentEventType =
   | "action.proposed"
   | "policy.evaluated"
   | "approval.requested"
+  | "approval.approved"
+  | "approval.rejected"
+  | "approval.expired"
+  | "execution.authorized"
   | "execution.started"
   | "execution.completed"
   | "execution.failed"
