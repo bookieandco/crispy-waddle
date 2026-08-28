@@ -1,7 +1,8 @@
 import type { DirectorControls, Entity, ReferenceAsset, Shot } from "./types.js";
 import { applyLookPreset } from "./polish.js";
+import { deriveDirectorTasteGuidance, type DirectorTasteProfile } from "./director-taste.js";
 
-export interface PromptContext { shot: Shot; prefix?: string; refs?: ReferenceAsset[]; entities?: Entity[]; }
+export interface PromptContext { shot: Shot; prefix?: string; refs?: ReferenceAsset[]; entities?: Entity[]; directorTaste?: DirectorTasteProfile; }
 export interface PromptTarget { name: string; render(ctx: PromptContext): string; }
 
 function lockedTraitsFor(ctx: PromptContext): string[] {
@@ -34,6 +35,11 @@ function directorInstructions(director: DirectorControls | undefined): string | 
   return parts.length ? `Director: ${parts.join(", ")}` : undefined;
 }
 
+function tasteInstructions(ctx: PromptContext): string[] {
+  if (!ctx.directorTaste) return [];
+  return deriveDirectorTasteGuidance(ctx.directorTaste).promptNotes;
+}
+
 export const seedanceTarget: PromptTarget = {
   name: "seedance",
   render(ctx) {
@@ -44,6 +50,7 @@ export const seedanceTarget: PromptTarget = {
     if (traits.length) lines.push(`Character traits: ${traits.join(", ")}`);
     const directorLine = directorInstructions(ctx.shot.director);
     if (directorLine) lines.push(directorLine);
+    for (const note of tasteInstructions(ctx)) lines.push(`Learned directing preference: ${note}`);
     for (const material of materialReferencesFor(ctx)) lines.push(material);
     return lines.join("\n");
   },
@@ -59,6 +66,7 @@ export const higgsfieldTarget: PromptTarget = {
     if (traits.length) segments.push(`traits(${traits.join("; ")})`);
     const directorLine = directorInstructions(ctx.shot.director);
     if (directorLine) segments.push(directorLine);
+    for (const note of tasteInstructions(ctx)) segments.push(`learned directing preference: ${note}`);
     const materials = materialReferencesFor(ctx);
     if (materials.length) segments.push(materials.join(" "));
     return segments.join(" | ");

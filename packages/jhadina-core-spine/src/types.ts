@@ -1,3 +1,7 @@
+import type { PersonalityExpression } from './personality-expression.js';
+import type { SituationalSignals } from './situational-awareness.js';
+import type { OperatingContext } from './operating-model.js';
+
 export type CoreDomain =
   | 'identity'
   | 'memory'
@@ -44,11 +48,6 @@ export interface PatternObservation {
   lastObservedAt: string;
 }
 
-/**
- * Personality is evidence-backed state, not a prompt or a fixed persona.
- * It may contain preferences and tendencies, but every durable claim needs
- * provenance and can be contradicted or revised.
- */
 export interface PersonalityTrait {
   id: string;
   statement: string;
@@ -74,6 +73,9 @@ export interface ContextPacket {
   relevantMemories: EvidenceRef[];
   patterns: PatternObservation[];
   personality: PersonalityState;
+  personalityExpression?: PersonalityExpression;
+  situationalAwareness?: SituationalSignals;
+  operatingContext?: OperatingContext;
   knowledge: EvidenceRef[];
   constraints: string[];
   excludedContext: string[];
