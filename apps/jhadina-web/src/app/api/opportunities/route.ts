@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createOpportunity, listOpportunities } from "@/lib/opportunities/engine"
 import { rankSideIncomeOpportunities } from "@/lib/opportunities/sideIncome"
 import type { AutomationLevel, OpportunityKind } from "@/lib/opportunities/sideIncome"
-import { searchSamOpportunities } from "@/lib/money-opportunities/sam-client"
-import { rankSamOpportunities } from "@/lib/money-opportunities/sam-ranking"
-import { estimateOpportunityEconomics } from "@/lib/money-opportunities/economics"
-import { buildMoneyActionQueue } from "@/lib/money-opportunities/action-queue"
-import { JHADINA_MONEY_PROFILE } from "@/lib/money-opportunities/capability-profile"
-import { assessSamCapability } from "@/lib/money-opportunities/capability-gap"
+import { GET as getSamMoneyOpportunities } from "@/app/api/money-opportunities/sam/route"
 
 export const dynamic = "force-dynamic"
 
@@ -16,56 +11,8 @@ function userId(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const params = req.nextUrl.searchParams
-
-  if (params.get("source") === "sam") {
-    try {
-      const result = await searchSamOpportunities({
-        keyword: params.get("keyword") || undefined,
-        postedFrom: params.get("postedFrom") || undefined,
-        postedTo: params.get("postedTo") || undefined,
-        noticeType: params.get("noticeType") || undefined,
-        typeOfSetAside: params.get("typeOfSetAside") || undefined,
-        limit: Number(params.get("limit") || 25),
-        offset: Number(params.get("offset") || 0),
-      })
-
-      const ranked = rankSamOpportunities(result.opportunities, JHADINA_MONEY_PROFILE)
-      const enriched = ranked.map(({ opportunity, score }) => ({
-        opportunity,
-        score,
-        capability: assessSamCapability(opportunity, JHADINA_MONEY_PROFILE),
-        economics: estimateOpportunityEconomics(opportunity, {
-          directCostPercent: 35,
-          overheadPercent: 10,
-          contingencyPercent: 5,
-        }),
-      }))
-
-      const actionQueue = buildMoneyActionQueue(
-        enriched.map(({ opportunity, score, economics, capability }) => ({
-          opportunity,
-          score,
-          economics,
-          capabilityGap: capability.capabilityGap,
-        })),
-      )
-
-      return NextResponse.json({
-        success: true,
-        source: "sam.gov",
-        data: {
-          opportunities: enriched,
-          actionQueue,
-          totalRecords: result.totalRecords,
-          capabilityProfile: JHADINA_MONEY_PROFILE,
-        },
-      })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "SAM.gov request failed"
-      const status = message.includes("not configured") ? 503 : 502
-      return NextResponse.json({ success: false, error: message }, { status })
-    }
+  if (req.nextUrl.searchParams.get("source") === "sam") {
+    return getSamMoneyOpportunities(req)
   }
 
   const ranked = rankSideIncomeOpportunities(listOpportunities(userId(req)))
