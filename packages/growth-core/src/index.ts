@@ -16,6 +16,7 @@ export * from './intelligence/brand-audience.js';
 export * from './intelligence/brand-registry.js';
 export * from './intelligence/growth-command-queue.js';
 export * from './intelligence/creative-pack.js';
+export * from './intelligence/creative-format-intelligence.js';
 export * from './intelligence/experiment-planner.js';
 export * from './intelligence/growth-loop.js';
 export * from './experiments/experiment-intelligence.js';
