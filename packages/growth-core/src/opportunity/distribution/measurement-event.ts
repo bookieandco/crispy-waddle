@@ -41,3 +41,20 @@ export function createDistributionMeasurementEvent(
 export interface DistributionMeasurementSink {
   emit(event: DistributionMeasurementEvent): Promise<void>
 }
+
+export class IdempotentDistributionMeasurementSink implements DistributionMeasurementSink {
+  private readonly emitted = new Set<string>()
+
+  constructor(private readonly sink: DistributionMeasurementSink) {}
+
+  async emit(event: DistributionMeasurementEvent): Promise<void> {
+    if (this.emitted.has(event.eventId)) return
+    this.emitted.add(event.eventId)
+    try {
+      await this.sink.emit(event)
+    } catch (error) {
+      this.emitted.delete(event.eventId)
+      throw error
+    }
+  }
+}
