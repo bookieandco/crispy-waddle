@@ -93,6 +93,17 @@ export interface GovernmentSourceRegistry {
   upsert(source: GovernmentSource): void
 }
 
+export interface SourceCoverageCell {
+  entityId: string
+  entityName: string
+  level: GovernmentLevel
+  sourceIds: string[]
+  sourceKinds: GovernmentSourceKind[]
+  portals: GovernmentPortal[]
+  covered: boolean
+  evidenceConfidence: number
+}
+
 export function filterGovernmentSources(
   sources: GovernmentSource[],
   filters: Parameters<GovernmentSourceRegistry['list']>[0] = {},
@@ -123,4 +134,30 @@ export function createInMemoryGovernmentSourceRegistry(
       sources.set(source.id, source)
     },
   }
+}
+
+/** Builds a coverage view across the exact government entities we intend to monitor. */
+export function buildSourceCoverageMatrix(
+  entities: GovernmentEntity[],
+  sources: GovernmentSource[],
+): SourceCoverageCell[] {
+  return entities.map((entity) => {
+    const matches = sources.filter((source) => source.active && source.entityId === entity.id)
+    const officialCount = matches.filter((source) => source.official).length
+    const evidenceConfidence = matches.length === 0 ? 0 : Math.round(Math.min(100, (officialCount / matches.length) * 100))
+    return {
+      entityId: entity.id,
+      entityName: entity.name,
+      level: entity.level,
+      sourceIds: matches.map((source) => source.id),
+      sourceKinds: [...new Set(matches.map((source) => source.kind))],
+      portals: [...new Set(matches.map((source) => source.portal))],
+      covered: matches.length > 0,
+      evidenceConfidence,
+    }
+  })
+}
+
+export function findCoverageGaps(cells: SourceCoverageCell[]): SourceCoverageCell[] {
+  return cells.filter((cell) => !cell.covered)
 }
