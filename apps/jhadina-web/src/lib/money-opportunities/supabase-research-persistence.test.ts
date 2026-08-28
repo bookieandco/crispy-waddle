@@ -17,14 +17,14 @@ function makeInput(): PlannedResearchCase {
     priority: "HIGH",
     estimatedValue: 100000,
     estimatedMarginPercent: 25,
-    status: "OPEN",
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
     focusBranches: ["AGENCY", "REQUIREMENTS", "INCUMBENT", "COMPETITORS", "ECONOMICS", "NEXT_ACTION"],
     branches: kinds.map((kind) => ({
+      id: `SAM-REGRESSION-001-${kind.toLowerCase()}`,
       kind,
       question: `Research ${kind}`,
       status: kind === "REQUIREMENTS" ? "READY" : "PENDING",
+      findings: [],
     })),
   }
 }
