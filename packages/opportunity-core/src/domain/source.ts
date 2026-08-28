@@ -119,4 +119,17 @@ export const CANONICAL_OPPORTUNITY_SOURCES: readonly OpportunitySource[] = [
     refreshPolicy: 'daily',
     active: true,
   },
+  {
+    id: 'us.helloskip',
+    name: 'Hello Skip',
+    publisher: 'Skip',
+    class: 'marketplace',
+    authority: 'secondary',
+    countryCodes: ['US'],
+    opportunityTypes: ['grant', 'loan', 'credit'],
+    officialUrl: 'https://helloskip.com/grants-for-entrepreneurs',
+    adapterKey: 'helloskip',
+    refreshPolicy: 'daily',
+    active: true,
+  },
 ] as const
