@@ -15,6 +15,8 @@ export function assessOpportunity({ opportunity, kind = 'other', streetSignals =
 export function validateSharkDecision(decision: SharkOpportunityDecision): string[] { const errors: string[] = []; if (!decision.id) errors.push('id is required'); if (!decision.opportunityId) errors.push('opportunityId is required'); if (!decision.decidedAt) errors.push('decidedAt is required'); for (const [name, value] of [['confidence', decision.confidence], ['sourceQuality', decision.sourceQuality], ['novelty', decision.novelty], ['repeatability', decision.repeatability]] as const) if (!Number.isFinite(value) || value < 0 || value > 1) errors.push(`${name} must be between 0 and 1`); if (decision.policy.executionPermitted !== false) errors.push('Shark intelligence cannot authorize execution'); if (decision.policy.authorized && !decision.policy.authorizationRequired) errors.push('authorized cannot be true when authorizationRequired is false'); return errors }
 export type { SharkObservation, SharkObservationSource } from './observation.js'
 export { createSharkObservation, validateSharkObservation } from './observation.js'
+export type { SharkObservationInput, SharkObservationIngestionResult, SharkObservationSourceAdapter } from './observation-ingestion.js'
+export { ingestSharkObservations } from './observation-ingestion.js'
 export type { SharkFeatureStats, SharkLearningSnapshot, SharkOutcome } from './learning.js'
 export { buildSharkLearningSnapshot, learningAdjustment, recordSharkOutcome } from './learning.js'
 export type { SharkFeatureVector, SharkScore } from './scoring.js'
