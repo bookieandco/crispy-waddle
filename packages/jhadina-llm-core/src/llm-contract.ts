@@ -2,6 +2,11 @@ export type LLMModality = "text" | "vision" | "audio" | "image" | "video";
 
 export type LLMCapability = "chat" | "coding" | "reasoning" | "vision" | "tool_calling" | "streaming" | "structured_output";
 
+export type LLMContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; url: string; mediaType?: string }
+  | { type: "audio_url"; url: string; mediaType?: string };
+
 export interface LLMProviderDescriptor {
   id: string;
   displayName: string;
@@ -13,7 +18,7 @@ export interface LLMProviderDescriptor {
 
 export interface LLMMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string;
+  content: string | LLMContentPart[];
 }
 
 export interface LLMRequest {
