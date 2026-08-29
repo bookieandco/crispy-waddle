@@ -7,10 +7,7 @@ export class LLMResponseGenerator implements JhadinaResponseGenerator {
 
   async generate(request: JhadinaResponseRequest): Promise<JhadinaResponse> {
     const messages: LLMMessage[] = [
-      {
-        role: "system",
-        content: buildSystemContext(request),
-      },
+      { role: "system", content: buildSystemContext(request) },
       ...(request.conversationContext
         ? [{ role: "system" as const, content: `Conversation context:\n${request.conversationContext}` }]
         : []),
@@ -28,10 +25,7 @@ export class LLMResponseGenerator implements JhadinaResponseGenerator {
       requiredModalities: ["text"],
     });
 
-    return {
-      text: response.text,
-      context: request.context,
-    };
+    return { text: response.text, context: request.context };
   }
 }
 
@@ -45,7 +39,7 @@ function buildSystemContext(request: JhadinaResponseRequest): string {
     `Disposition: ${context.disposition}`,
     `Authoritative: ${context.authoritative}`,
     context.capability ? `Capability: ${context.capability}` : undefined,
-    context.result !== undefined ? `Result: ${safeSerialize(context.result)}` : undefined,
+    context.capabilityResult !== undefined ? `Result: ${safeSerialize(context.capabilityResult)}` : undefined,
     context.rationale ? `Rationale: ${context.rationale}` : undefined,
     context.clarification ? `Clarification needed: ${context.clarification}` : undefined,
   ].filter(Boolean).join("\n");
