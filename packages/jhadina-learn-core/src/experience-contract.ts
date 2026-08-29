@@ -25,6 +25,7 @@ export interface ExperienceRecord {
   sourceTypes: Array<"text" | "file" | "video" | "url">;
   title?: string;
   instruction?: string;
+  content: unknown;
   reflection?: ExperienceReflection;
   status: "experienced" | "reflected" | "promoted" | "archived";
   createdAt: string;
