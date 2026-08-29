@@ -6,3 +6,6 @@ export * from "./orchestrator";
 export * from "./personality-contract";
 export * from "./evidence-personality-engine";
 export * from "./personality-context-assembler";
+export * from "./affective-state";
+export * from "./conversational-presence";
+export * from "./response-self-audit";
