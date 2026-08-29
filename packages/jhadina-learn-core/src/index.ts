@@ -7,3 +7,4 @@ export * from "./experience-boundary";
 export * from "./in-memory-experience-repository";
 export * from "./resolved-content-contract";
 export * from "./content-resolver";
+export * from "./source-adapters";
