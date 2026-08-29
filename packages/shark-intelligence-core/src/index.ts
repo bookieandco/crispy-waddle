@@ -247,3 +247,10 @@ export {
   fuseStreetSignals,
   inferRiskFromObservation,
 } from './fusion.js'
+
+export type {
+  SharkSimulationConfig,
+  SharkSimulationPoint,
+  SharkSimulationTrade,
+} from './simulation.js'
+export { simulateSharkTrade } from './simulation.js'
