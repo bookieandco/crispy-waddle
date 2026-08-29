@@ -1,1 +1,0 @@
-B&W-1.1 implementation scaffold: capability registry, device registry, transport contract, deterministic resolver, and tests.
