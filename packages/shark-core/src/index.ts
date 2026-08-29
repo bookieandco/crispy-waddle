@@ -5,6 +5,7 @@ export * from './decisions/SharkDecision';
 export * from './outcomes/SharkOutcome';
 export * from './learning/SharkLearning';
 export * from './learning/SharkPatternEngine';
+export * from './risk/SharkStreetSmartRisk';
 export * from './memory/SharkMarketMemory';
 export * from './graph/SharkEntityGraph';
 export * from './graph/SharkGraphBuilder';
