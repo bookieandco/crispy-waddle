@@ -10,3 +10,5 @@ export * from "./screen-change-detector";
 export * from "./on-demand-screen";
 export * from "./vision-contract";
 export * from "./screen-session";
+export * from "./look-capability";
+export * from "./look-action-handler";
