@@ -74,20 +74,32 @@ export function executeSharkPaperOrder(input: {
 
   const fill = { orderId: input.order.id, quantity: input.order.quantity, price: input.fillPrice, fee: input.fee, slippage: input.slippage, filledAt: input.filledAt ?? input.order.submittedAt }
   const position = input.currentPosition ?? { opportunityId: input.order.opportunityId, quantity: 0, averageEntryPrice: 0, realizedPnl: 0, unrealizedPnl: 0 }
+  if (position.opportunityId !== input.order.opportunityId) throw new Error('position opportunity does not match order')
+  if (!Number.isFinite(position.quantity) || position.quantity < 0) throw new Error('paper position quantity must be non-negative')
+  if (input.order.side === 'sell' && input.order.quantity > position.quantity) throw new Error('paper sell cannot exceed current long position')
+
   const notional = fill.quantity * fill.price
-  const signedQuantity = input.order.side === 'buy' ? fill.quantity : -fill.quantity
-  const nextQuantity = position.quantity + signedQuantity
-  const averageEntryPrice = input.order.side === 'buy' && nextQuantity > 0
-    ? (position.quantity * position.averageEntryPrice + notional) / nextQuantity
-    : position.averageEntryPrice
   const nextBalance = input.balance ?? { currency: 'USD', available: 0, reserved: 0 }
   const cashDelta = input.order.side === 'buy' ? -(notional + input.fee) : notional - input.fee
+
+  let nextQuantity = position.quantity
+  let averageEntryPrice = position.averageEntryPrice
+  let realizedPnl = position.realizedPnl
+
+  if (input.order.side === 'buy') {
+    nextQuantity += fill.quantity
+    averageEntryPrice = (position.quantity * position.averageEntryPrice + notional) / nextQuantity
+  } else {
+    realizedPnl += notional - fill.quantity * position.averageEntryPrice - input.fee
+    nextQuantity -= fill.quantity
+    if (nextQuantity === 0) averageEntryPrice = 0
+  }
 
   return {
     order: input.order,
     status: 'filled',
     fills: [fill],
-    position: { ...position, quantity: nextQuantity, averageEntryPrice, realizedPnl: position.realizedPnl, unrealizedPnl: position.unrealizedPnl },
+    position: { ...position, quantity: nextQuantity, averageEntryPrice, realizedPnl, unrealizedPnl: position.unrealizedPnl },
     balance: { ...nextBalance, available: nextBalance.available + cashDelta },
     simulated: true,
   }
