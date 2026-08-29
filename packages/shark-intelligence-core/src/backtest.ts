@@ -1,19 +1,8 @@
+import { sellSharkPaperLots, type SharkPaperLot } from './paper-cost-basis'
+
 export type SharkBacktestPoint = { at: string; price: number }
-
-export type SharkBacktestDecision = {
-  at: string
-  action: 'buy' | 'sell' | 'hold'
-  quantity: number
-}
-
-export type SharkBacktestResult = {
-  startingCash: number
-  endingCash: number
-  position: number
-  trades: number
-  realizedPnl: number
-  simulated: true
-}
+export type SharkBacktestDecision = { at: string; action: 'buy' | 'sell' | 'hold'; quantity: number }
+export type SharkBacktestResult = { startingCash: number; endingCash: number; position: number; trades: number; realizedPnl: number; simulated: true }
 
 export function runSharkBacktest(input: {
   startingCash: number
@@ -28,9 +17,9 @@ export function runSharkBacktest(input: {
 
   const prices = new Map(input.prices.map((point) => [point.at, point.price]))
   let cash = input.startingCash
-  let position = 0
   let realizedPnl = 0
   let trades = 0
+  let lots: SharkPaperLot[] = []
 
   for (const decision of input.decisions) {
     const price = prices.get(decision.at)
@@ -43,15 +32,15 @@ export function runSharkBacktest(input: {
     if (decision.action === 'buy') {
       if (cash < notional + fee) throw new Error('insufficient simulated cash')
       cash -= notional + fee
-      position += decision.quantity
+      lots.push({ quantity: decision.quantity, entryPrice: price })
     } else {
-      if (position < decision.quantity) throw new Error('backtest sell exceeds simulated position')
-      cash += notional - fee
-      realizedPnl += notional - fee
-      position -= decision.quantity
+      const result = sellSharkPaperLots({ lots, quantity: decision.quantity, sellPrice: price, feeBps })
+      cash += result.proceeds - result.fee
+      realizedPnl += result.realizedPnl
+      lots = result.remainingLots
     }
     trades += 1
   }
 
-  return { startingCash: input.startingCash, endingCash: cash, position, trades, realizedPnl, simulated: true }
+  return { startingCash: input.startingCash, endingCash: cash, position: lots.reduce((sum, lot) => sum + lot.quantity, 0), trades, realizedPnl, simulated: true }
 }
