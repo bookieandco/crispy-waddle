@@ -1,13 +1,21 @@
-// Public surface for @jhadina/money-core. package.json's "main"/"types"
-// have pointed at this file since the package was created; it never
-// existed, so nothing outside packages/money-core has ever been able to
-// import this package by its bare specifier. Added as part of Spine
-// Proof #3 (Money/Plaid), the first cross-package consumer.
+// Public surface for @jhadina/money-core.
 export type { MoneyCapability, CapabilityRisk } from './capabilities.js';
 export { getMoneyCapability, requiresMoneyApproval, isMoneyCapability } from './capabilities.js';
 
 export type { MoneyAccount, MoneyTransaction, MoneyAdapterContext, BankAdapter } from './bank-adapter.js';
 export { assertCapability } from './bank-adapter.js';
+
+export type {
+  Currency,
+  MoneyAmount,
+  FinancialAccountKind,
+  FinancialAccount,
+  FinancialObligation,
+  CapitalReserve,
+  FinancialState,
+  CapitalAllocationSnapshot,
+} from './financial-state.js';
+export { calculateSafeToSpend, calculateCapitalAllocation } from './financial-state.js';
 
 export type { ResolvedCredential, CredentialResolver } from './credential-resolver.js';
 export { EnvironmentCredentialResolver, credentialRefToEnvKey } from './credential-resolver.js';
@@ -50,12 +58,6 @@ export { PlaidReadOnlyAdapter } from './plaid-read-only-adapter.js';
 
 export { buildPlaidReadOnlyAdapter, createPlaidReadOnlyAdapterBuilder } from './plaid-provider-builder.js';
 
-// PL-8 (Jhadina OS Integration Phase 2, Money real-integration Phase 1):
-// the Plaid provider-registration helper and its sandbox-boundary guard
-// were real, tested code (plaid-provider-registration.test.ts) but never
-// reachable from outside the package — the same "shipped ahead of the
-// barrel" gap SP-3 found and fixed for the rest of this file. Exported
-// here as the first real cross-package consumer.
 export {
   PLAID_READ_ONLY_CONFIG,
   PLAID_SANDBOX_BASE_URL,
