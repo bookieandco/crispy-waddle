@@ -3,6 +3,7 @@ import type { CapabilityInvoker, CommandGatewayPort, CommandPlanner } from "./co
 export interface CommandExecutionResult {
   commandId: string;
   disposition: "answer" | "execute" | "clarify" | "deny" | "approve";
+  capability?: string;
   result?: unknown;
   rationale?: string;
   clarification?: string;
@@ -22,6 +23,7 @@ export class RegistryCommandGateway implements CommandGatewayPort {
       return {
         commandId: plan.commandId,
         disposition: plan.disposition,
+        capability: plan.invocation?.capability,
         rationale: plan.rationale,
         clarification: plan.clarification,
       };
@@ -31,6 +33,7 @@ export class RegistryCommandGateway implements CommandGatewayPort {
     return {
       commandId: plan.commandId,
       disposition: plan.disposition,
+      capability: plan.invocation.capability,
       result,
     };
   }
