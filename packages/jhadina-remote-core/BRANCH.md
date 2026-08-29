@@ -1,1 +1,0 @@
-This file exists only to create the implementation branch from the current scaffold.
