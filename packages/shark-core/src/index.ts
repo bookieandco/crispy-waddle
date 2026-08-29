@@ -1,4 +1,5 @@
 export * from './wallets/MultiChainWallet';
+export * from './wallets/WalletBehavior';
 export * from './observations/SharkObservation';
 export * from './decisions/SharkDecision';
 export * from './outcomes/SharkOutcome';
