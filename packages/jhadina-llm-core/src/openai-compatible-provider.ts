@@ -1,0 +1,76 @@
+import type { LLMProvider, LLMRequest, LLMResponse } from "./llm-contract";
+
+export interface OpenAICompatibleProviderOptions {
+  id: string;
+  displayName: string;
+  baseUrl: string;
+  apiKey?: string;
+  models: string[];
+}
+
+interface ChatCompletionPayload {
+  choices?: Array<{ message?: { content?: string }; finish_reason?: LLMResponse["finishReason"] }>;
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  model?: string;
+}
+
+/** Adapter for OpenAI-compatible chat APIs. Credentials stay outside command/action core. */
+export class OpenAICompatibleProvider implements LLMProvider {
+  readonly descriptor;
+
+  constructor(private readonly options: OpenAICompatibleProviderOptions) {
+    this.descriptor = {
+      id: options.id,
+      displayName: options.displayName,
+      modalities: ["text"] as const,
+      capabilities: ["chat", "coding", "reasoning", "tool_calling", "structured_output"] as const,
+      models: options.models,
+      requiresAuth: Boolean(options.apiKey),
+    };
+  }
+
+  async complete(request: LLMRequest): Promise<LLMResponse> {
+    if (request.stream) {
+      throw new Error("OpenAICompatibleProvider currently supports non-streaming completion only.");
+    }
+
+    const model = request.model ?? this.options.models[0];
+    if (!model) throw new Error(`No model configured for provider ${this.options.id}.`);
+
+    const response = await fetch(`${this.options.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(this.options.apiKey ? { authorization: `Bearer ${this.options.apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model,
+        messages: request.messages,
+        temperature: request.temperature,
+        max_tokens: request.maxTokens,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`LLM provider ${this.options.id} returned HTTP ${response.status}.`);
+    }
+
+    const payload = (await response.json()) as ChatCompletionPayload;
+    const choice = payload.choices?.[0];
+    const text = choice?.message?.content;
+    if (typeof text !== "string") {
+      throw new Error(`LLM provider ${this.options.id} returned no message content.`);
+    }
+
+    return {
+      providerId: this.options.id,
+      model: payload.model ?? model,
+      text,
+      finishReason: choice?.finish_reason,
+      usage: {
+        inputTokens: payload.usage?.prompt_tokens,
+        outputTokens: payload.usage?.completion_tokens,
+      },
+    };
+  }
+}
