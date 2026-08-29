@@ -32,5 +32,6 @@ export { SharkStrategyRegistry } from './strategy-registry.js'
 export type { SharkAttributedLearningRecord } from './learning-attribution.js'
 export { buildAttributedLearningSnapshot, toAttributedLearningRecord } from './learning-attribution.js'
 export type { SharkSimulationLearningRecord } from './simulation-learning.js'
-export { learnFromSimulationTrade, simulationTradeToOutcome } from './simulation-learning.js
+export { learnFromSimulationTrade, simulationTradeToOutcome } from './simulation-learning.js'
 export { adaptOpportunityEvidence, adaptOpportunityEvidenceSet } from './evidence-adapter.js'
+export type { SharkObservationSourceAdapter as SharkObservationAdapter } from './observation-ingestion.js'
