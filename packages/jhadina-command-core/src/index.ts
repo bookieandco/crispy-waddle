@@ -11,3 +11,4 @@ export * from "./conversational-command-runtime";
 export * from "./control-center-port";
 export * from "./control-center-request-adapter";
 export * from "./llm-response-generator";
+export * from "./screen-capture-port";
