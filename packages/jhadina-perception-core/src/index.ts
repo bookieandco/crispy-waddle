@@ -7,3 +7,4 @@ export * from "./experience-adapter";
 export * from "./observe";
 export * from "./screen-contract";
 export * from "./screen-change-detector";
+export * from "./on-demand-screen";
