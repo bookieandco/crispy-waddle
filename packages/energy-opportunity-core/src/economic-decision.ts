@@ -1,4 +1,7 @@
-export type MiningDecision = 'run' | 'do_not_run' | 'insufficient_data';
+export type MiningOpportunityDecision =
+  | 'eligible'
+  | 'do_not_run'
+  | 'insufficient_data';
 
 export interface MiningDecisionInput {
   resourceId: string;
@@ -11,10 +14,10 @@ export interface MiningDecisionInput {
   observedAt?: string;
 }
 
-export interface MiningDecisionRecord {
-  decisionId: string;
+export interface MiningOpportunityAssessment {
+  assessmentId: string;
   resourceId: string;
-  decision: MiningDecision;
+  decision: MiningOpportunityDecision;
   observedAt: string;
   projectedGrossPerHour: number | null;
   projectedElectricityPerHour: number | null;
@@ -23,17 +26,27 @@ export interface MiningDecisionRecord {
   confidence: number;
   reasons: string[];
   policyVersion: string;
+  authorizationRequired: true;
+  authorized: false;
+  executionPermitted: false;
 }
 
-const POLICY_VERSION = 'mining-economic-v1';
+const POLICY_VERSION = 'mining-economic-v2';
 
-/** Advisory only: this function never starts, stops, or controls mining hardware. */
-export function evaluateMiningOpportunity(input: MiningDecisionInput): MiningDecisionRecord {
+/**
+ * Advisory-only mining economics assessment.
+ *
+ * This function evaluates whether observed economics satisfy policy. It never
+ * authorizes, starts, stops, or controls mining hardware and never moves funds.
+ */
+export function evaluateMiningOpportunity(
+  input: MiningDecisionInput,
+): MiningOpportunityAssessment {
   const confidence = Math.min(1, Math.max(0, input.confidence));
   const minimumConfidence = Math.min(1, Math.max(0, input.minimumConfidence ?? 0.7));
   const minimumNet = input.minimumNetPerHour ?? 0;
   const reasons: string[] = [];
-  let decision: MiningDecision = 'insufficient_data';
+  let decision: MiningOpportunityDecision = 'insufficient_data';
 
   if (input.projectedGrossPerHour === null || input.projectedElectricityPerHour === null) {
     reasons.push('economic inputs are incomplete');
@@ -43,24 +56,31 @@ export function evaluateMiningOpportunity(input: MiningDecisionInput): MiningDec
     reasons.push('confidence is below policy threshold');
   } else {
     const net = input.projectedGrossPerHour - input.projectedElectricityPerHour;
+
     if (input.health === 'degraded') {
       reasons.push('resource health is degraded');
     }
+
     if (net >= minimumNet && input.health === 'healthy') {
-      decision = 'run';
+      decision = 'eligible';
       reasons.push('projected net economics satisfy policy');
     } else {
       decision = 'do_not_run';
-      reasons.push(net < minimumNet ? 'projected net economics are below policy threshold' : 'resource health does not satisfy run policy');
+      reasons.push(
+        net < minimumNet
+          ? 'projected net economics are below policy threshold'
+          : 'resource health does not satisfy run policy',
+      );
     }
   }
 
-  const net = input.projectedGrossPerHour !== null && input.projectedElectricityPerHour !== null
-    ? input.projectedGrossPerHour - input.projectedElectricityPerHour
-    : null;
+  const net =
+    input.projectedGrossPerHour !== null && input.projectedElectricityPerHour !== null
+      ? input.projectedGrossPerHour - input.projectedElectricityPerHour
+      : null;
 
   return {
-    decisionId: `mining-decision:${input.resourceId}:${input.observedAt ?? Date.now()}`,
+    assessmentId: `mining-opportunity:${input.resourceId}:${input.observedAt ?? Date.now()}`,
     resourceId: input.resourceId,
     decision,
     observedAt: input.observedAt ?? new Date().toISOString(),
@@ -71,5 +91,8 @@ export function evaluateMiningOpportunity(input: MiningDecisionInput): MiningDec
     confidence,
     reasons,
     policyVersion: POLICY_VERSION,
+    authorizationRequired: true,
+    authorized: false,
+    executionPermitted: false,
   };
 }
