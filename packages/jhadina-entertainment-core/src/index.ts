@@ -5,3 +5,5 @@ export * from "./graph/creative-knowledge-graph.js";
 export * from "./reference/index.js";
 export * from "./review/index.js";
 export * from "./perception/music/audio-features.js";
+export * from "./perception/audio/transcription.js";
+export * from "./perception/audio/media-processing.js";
