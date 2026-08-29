@@ -222,3 +222,14 @@ export function validateSharkDecision(decision: SharkOpportunityDecision): strin
 
   return errors
 }
+
+export type {
+  SharkFeatureStats,
+  SharkLearningSnapshot,
+  SharkOutcome,
+} from './learning.js'
+export {
+  buildSharkLearningSnapshot,
+  learningAdjustment,
+  recordSharkOutcome,
+} from './learning.js'
