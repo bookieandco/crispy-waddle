@@ -47,7 +47,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
       },
       body: JSON.stringify({
         model,
-        messages: request.messages,
+        messages: request.messages.map((message) => ({
+          role: message.role,
+          content: normalizeContent(message.content),
+        })),
         temperature: request.temperature,
         max_tokens: request.maxTokens,
       }),
@@ -77,4 +80,17 @@ export class OpenAICompatibleProvider implements LLMProvider {
   }
 }
 
-export type OpenAICompatibleContentPart = LLMContentPart;
+function normalizeContent(content: string | LLMContentPart[]): unknown {
+  if (typeof content === "string") return content;
+
+  return content.map((part) => {
+    switch (part.type) {
+      case "text":
+        return part;
+      case "image_url":
+        return { type: "image_url", image_url: { url: part.url } };
+      case "audio_url":
+        return { type: "audio_url", audio_url: { url: part.url } };
+    }
+  });
+}
