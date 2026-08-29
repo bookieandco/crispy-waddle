@@ -23,3 +23,6 @@ export function connectStaffingToJhadina(
 }
 
 export * from "./command-gateway";
+export * from "./command-entry-adapter";
+export * from "./command-runtime";
+export * from "./jhadina-runtime";
