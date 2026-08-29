@@ -1,12 +1,7 @@
-export type LLMContentPart =
-  | { type: "text"; text: string }
-  | { type: "image_url"; url: string; mediaType?: string }
-  | { type: "audio_url"; url: string; mediaType?: string };
+import type { LLMContentPart, LLMMessage } from "./llm-contract";
 
-export interface MultimodalMessage {
-  role: "system" | "user" | "assistant";
-  content: string | LLMContentPart[];
-}
+export type { LLMContentPart } from "./llm-contract";
+export type MultimodalMessage = LLMMessage;
 
 export function hasModalityInput(message: MultimodalMessage, type: LLMContentPart["type"]): boolean {
   if (typeof message.content === "string") return false;
