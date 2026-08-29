@@ -1,4 +1,4 @@
-import type { LLMProvider, LLMRequest, LLMResponse } from "./llm-contract";
+import type { LLMContentPart, LLMProvider, LLMRequest, LLMResponse } from "./llm-contract";
 
 export interface OpenAICompatibleProviderOptions {
   id: string;
@@ -6,6 +6,8 @@ export interface OpenAICompatibleProviderOptions {
   baseUrl: string;
   apiKey?: string;
   models: string[];
+  modalities?: LLMProvider["descriptor"]["modalities"];
+  capabilities?: LLMProvider["descriptor"]["capabilities"];
 }
 
 interface ChatCompletionPayload {
@@ -22,8 +24,8 @@ export class OpenAICompatibleProvider implements LLMProvider {
     this.descriptor = {
       id: options.id,
       displayName: options.displayName,
-      modalities: ["text"] as const,
-      capabilities: ["chat", "coding", "reasoning", "tool_calling", "structured_output"] as const,
+      modalities: options.modalities ?? ["text"],
+      capabilities: options.capabilities ?? ["chat", "coding", "reasoning", "tool_calling", "structured_output"],
       models: options.models,
       requiresAuth: Boolean(options.apiKey),
     };
@@ -74,3 +76,5 @@ export class OpenAICompatibleProvider implements LLMProvider {
     };
   }
 }
+
+export type OpenAICompatibleContentPart = LLMContentPart;
