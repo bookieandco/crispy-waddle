@@ -19,3 +19,4 @@ export * from "./browser-screen-capture";
 export * from "./screen-experience-bridge";
 export * from "./audio-experience-bridge";
 export * from "./perception-session";
+export * from "./multimodal-experience-bridge";
