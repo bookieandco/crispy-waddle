@@ -6,15 +6,22 @@ import {
   type SharkOutcome,
 } from './learning.js'
 import type { SharkSimulationTrade } from './simulation.js'
+import type { SharkDecisionRecord } from './strategy-registry.js'
 
 export type SharkSimulationLearningRecord = {
   strategyId: string
+  strategyVersion: string
+  decisionId: string
+  opportunityId: string
+  featureSet: Record<string, number>
+  reasoning: string[]
   trade: SharkSimulationTrade
   outcome: SharkOutcome
 }
 
 export type SharkStrategyLearning = {
   strategyId: string
+  strategyVersion: string
   observations: number
   wins: number
   losses: number
@@ -25,12 +32,16 @@ export type SharkStrategyLearning = {
 }
 
 export function simulationTradeToOutcome(
-  decision: SharkOpportunityDecision,
+  decisionRecord: SharkDecisionRecord,
   trade: SharkSimulationTrade,
   observedAt = new Date().toISOString(),
 ): SharkOutcome {
+  const decision: SharkOpportunityDecision = decisionRecord.decision
   if (trade.decisionId !== decision.id || trade.opportunityId !== decision.opportunityId) {
-    throw new Error('simulation trade does not belong to decision')
+    throw new Error('simulation trade does not belong to decision record')
+  }
+  if (trade.strategyId !== decisionRecord.strategyId) {
+    throw new Error('simulation trade strategy does not match decision record')
   }
 
   return recordSharkOutcome(decision, {
@@ -40,24 +51,27 @@ export function simulationTradeToOutcome(
     outcome: trade.outcome,
     realizedReturnPct: trade.netReturnPct,
     holdingPeriodMinutes: trade.holdingPeriodMinutes,
-    notes: `paper-simulation strategy=${trade.strategyId} pnl=${trade.pnl}`,
+    notes: `paper-simulation strategy=${decisionRecord.strategyId}@${decisionRecord.strategyVersion} pnl=${trade.pnl}`,
   })
 }
 
 function strategyStats(records: SharkSimulationLearningRecord[]): SharkStrategyLearning[] {
   const grouped = new Map<string, SharkSimulationLearningRecord[]>()
   for (const record of records) {
-    const bucket = grouped.get(record.strategyId) ?? []
+    const key = `${record.strategyId}@${record.strategyVersion}`
+    const bucket = grouped.get(key) ?? []
     bucket.push(record)
-    grouped.set(record.strategyId, bucket)
+    grouped.set(key, bucket)
   }
 
-  return [...grouped.entries()].map(([strategyId, bucket]) => {
+  return [...grouped.entries()].map(([key, bucket]) => {
+    const [strategyId, strategyVersion] = key.split('@')
     const wins = bucket.filter((r) => r.outcome.outcome === 'win').length
     const losses = bucket.filter((r) => r.outcome.outcome === 'loss').length
     const flats = bucket.filter((r) => r.outcome.outcome === 'flat').length
     return {
       strategyId,
+      strategyVersion,
       observations: bucket.length,
       wins,
       losses,
@@ -70,7 +84,7 @@ function strategyStats(records: SharkSimulationLearningRecord[]): SharkStrategyL
 }
 
 export function learnFromSimulationTrade(
-  decision: SharkOpportunityDecision,
+  decisionRecord: SharkDecisionRecord,
   trade: SharkSimulationTrade,
   prior: SharkSimulationLearningRecord[] = [],
   version = 'shark-learning-v1',
@@ -79,15 +93,21 @@ export function learnFromSimulationTrade(
   snapshot: SharkLearningSnapshot
   strategyStats: SharkStrategyLearning[]
 } {
-  const outcome = simulationTradeToOutcome(decision, trade)
-  const record: SharkSimulationLearningRecord = { strategyId: trade.strategyId, trade, outcome }
+  const outcome = simulationTradeToOutcome(decisionRecord, trade)
+  const record: SharkSimulationLearningRecord = {
+    strategyId: decisionRecord.strategyId,
+    strategyVersion: decisionRecord.strategyVersion,
+    decisionId: decisionRecord.decisionId,
+    opportunityId: decisionRecord.opportunityId,
+    featureSet: { ...decisionRecord.featureSet },
+    reasoning: [...decisionRecord.reasoning],
+    trade,
+    outcome,
+  }
   const records = [...prior, record]
 
   const snapshot = buildSharkLearningSnapshot(
-    records.map(({ trade: priorTrade, outcome: priorOutcome }) => ({
-      decision: priorTrade.decisionId === decision.id ? decision : decision,
-      outcome: priorOutcome,
-    })),
+    records.map((item) => ({ decision: decisionRecord.decision, outcome: item.outcome })),
     version,
   )
 
