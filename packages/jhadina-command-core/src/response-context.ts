@@ -6,15 +6,14 @@ export interface JhadinaResponseContext {
   commandId: string;
   kind: ResponseContextKind;
   disposition: CommandExecutionResult["disposition"];
+  capability?: string;
   capabilityResult?: unknown;
   rationale?: string;
   clarification?: string;
   authoritative: boolean;
 }
 
-/** Converts a command result into authoritative context for the conversational layer.
- * This layer never claims that an action succeeded unless the execution boundary returned a result.
- */
+/** Converts a command result into authoritative context for the conversational layer. */
 export function toResponseContext(result: CommandExecutionResult): JhadinaResponseContext {
   const kind: ResponseContextKind = result.disposition === "execute"
     ? "action"
@@ -26,6 +25,7 @@ export function toResponseContext(result: CommandExecutionResult): JhadinaRespon
     commandId: result.commandId,
     kind,
     disposition: result.disposition,
+    capability: result.capability,
     capabilityResult: result.result,
     rationale: result.rationale,
     clarification: result.clarification,
