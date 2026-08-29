@@ -26,3 +26,4 @@ export * from "./command-gateway";
 export * from "./command-entry-adapter";
 export * from "./command-runtime";
 export * from "./jhadina-runtime";
+export * from "./control-plane-command";
