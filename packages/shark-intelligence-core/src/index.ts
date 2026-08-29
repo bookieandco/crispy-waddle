@@ -254,3 +254,9 @@ export type {
   SharkSimulationTrade,
 } from './simulation.js'
 export { simulateSharkTrade } from './simulation.js'
+
+export type {
+  SharkDecisionRecord,
+  SharkStrategyDefinition,
+} from './strategy-registry.js'
+export { SharkStrategyRegistry } from './strategy-registry.js'
