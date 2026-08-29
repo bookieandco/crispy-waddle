@@ -21,3 +21,5 @@ export function connectStaffingToJhadina(
 ): JhadinaStaffingGateway {
   return gateway;
 }
+
+export * from "./command-gateway";
