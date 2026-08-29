@@ -25,6 +25,7 @@ export class GatewayConversationalRuntime implements ConversationalCommandRuntim
     const context = toResponseContext({
       commandId: execution.commandId,
       disposition: execution.disposition,
+      capability: execution.capability,
       result: execution.result,
       rationale: execution.rationale,
       clarification: execution.clarification,
