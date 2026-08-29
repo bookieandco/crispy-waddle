@@ -4,6 +4,7 @@ export * from './observations/SharkObservation';
 export * from './decisions/SharkDecision';
 export * from './outcomes/SharkOutcome';
 export * from './learning/SharkLearning';
+export * from './memory/SharkMarketMemory';
 export * from './graph/SharkEntityGraph';
 export * from './graph/SharkGraphBuilder';
 export * from './sources/DexScreenerSource';
