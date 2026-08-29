@@ -4,5 +4,6 @@ export * from "./source-normalizer";
 export * from "./in-memory-learning-repository";
 export * from "./experience-contract";
 export * from "./experience-boundary";
+export * from "./in-memory-experience-repository";
 export * from "./resolved-content-contract";
 export * from "./content-resolver";
