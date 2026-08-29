@@ -1,66 +1,30 @@
 // Public surface for @jhadina/money-core.
 export type { MoneyCapability, CapabilityRisk } from './capabilities.js';
 export { getMoneyCapability, requiresMoneyApproval, isMoneyCapability } from './capabilities.js';
-
 export type { MoneyAccount, MoneyTransaction, MoneyAdapterContext, BankAdapter } from './bank-adapter.js';
 export { assertCapability } from './bank-adapter.js';
-
-export type {
-  Currency,
-  MoneyAmount,
-  FinancialAccountKind,
-  FinancialAccount,
-  FinancialObligation,
-  CapitalReserve,
-  FinancialState,
-  CapitalAllocationSnapshot,
-} from './financial-state.js';
+export type { Currency, MoneyAmount, FinancialAccountKind, FinancialAccount, FinancialObligation, CapitalReserve, FinancialState, CapitalAllocationSnapshot } from './financial-state.js';
 export { calculateSafeToSpend, calculateCapitalAllocation } from './financial-state.js';
-
+export type { MoneyAccountOwnership, MoneyAccountKind, MoneyAccountState, CapitalState } from './capital-state.js';
+export { assertOwnedCapitalAccount, assertCapitalCurrency } from './capital-state.js';
 export type { ResolvedCredential, CredentialResolver } from './credential-resolver.js';
 export { EnvironmentCredentialResolver, credentialRefToEnvKey } from './credential-resolver.js';
-
-export type {
-  ProviderHealthStatus,
-  ProviderConfig,
-  ProviderHealth,
-  ProviderHealthChecker,
-} from './provider-health.js';
+export type { ProviderHealthStatus, ProviderConfig, ProviderHealth, ProviderHealthChecker } from './provider-health.js';
 export { MoneyProviderHealthGate } from './provider-health.js';
-
 export { MoneyProviderRegistry } from './provider-registry.js';
-
 export type { ProviderAdapterBuilder, ProviderAdapterFactoryOptions } from './provider-adapter-factory.js';
 export { ProviderAdapterFactory } from './provider-adapter-factory.js';
-
 export type { AccountReadAction, AccountReadHandlerDeps } from './account-read-handler.js';
 export { MoneyAccountReadHandler } from './account-read-handler.js';
-
 export type { GovernedAccountReadDeps, MoneyAccountReadRequest } from './governed-account-read.js';
-export {
-  MONEY_CORE_SECURITY_POLICY,
-  createMoneyAccountReadSecurityRequest,
-  createMoneyAccountReadHandler,
-  createMoneySecurityCore,
-} from './governed-account-read.js';
-
+export { MONEY_CORE_SECURITY_POLICY, createMoneyAccountReadSecurityRequest, createMoneyAccountReadHandler, createMoneySecurityCore } from './governed-account-read.js';
 export type { ProductionMoneyAccountReadOptions } from './production-account-read.js';
 export { createProductionMoneyAccountReadExecutor } from './production-account-read.js';
-
 export type { GovernedProviderAccountReadOptions } from './governed-provider-account-read.js';
 export { createGovernedProviderAccountReadExecutor } from './governed-provider-account-read.js';
-
 export type { HttpClient, ReadOnlyHttpBankAdapterOptions } from './read-only-http-bank-adapter.js';
 export { ReadOnlyHttpBankAdapter } from './read-only-http-bank-adapter.js';
-
 export type { PlaidReadOnlyAdapterOptions } from './plaid-read-only-adapter.js';
 export { PlaidReadOnlyAdapter } from './plaid-read-only-adapter.js';
-
 export { buildPlaidReadOnlyAdapter, createPlaidReadOnlyAdapterBuilder } from './plaid-provider-builder.js';
-
-export {
-  PLAID_READ_ONLY_CONFIG,
-  PLAID_SANDBOX_BASE_URL,
-  assertPlaidSandboxBaseUrl,
-  createPlaidProviderAdapterFactory,
-} from './plaid-provider-registration.js';
+export { PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, assertPlaidSandboxBaseUrl, createPlaidProviderAdapterFactory } from './plaid-provider-registration.js';
