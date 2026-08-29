@@ -2,6 +2,7 @@ export * from './spine.js';
 export * from './types.js';
 export * from './evolution.js';
 export * from './control-plane-adapter.js';
+export * from './observation-experience-adapter.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
 export * from './emergency-evidence-state.js';
