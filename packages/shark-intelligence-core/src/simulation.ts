@@ -6,6 +6,7 @@ export type SharkSimulationPoint = {
 }
 
 export type SharkSimulationConfig = {
+  strategyId: string
   initialCapital: number
   positionFraction: number
   entryFeePct?: number
@@ -14,6 +15,7 @@ export type SharkSimulationConfig = {
 }
 
 export type SharkSimulationTrade = {
+  strategyId: string
   decisionId: string
   opportunityId: string
   entryPrice: number
@@ -35,19 +37,16 @@ function pct(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, value as number) / 100 : 0
 }
 
-/**
- * Deterministic paper-trade simulation. It consumes observed prices only;
- * it never creates, signs, submits, or authorizes a real transaction.
- */
+/** Deterministic paper simulation. It cannot authorize or execute real transactions. */
 export function simulateSharkTrade(
   decision: SharkOpportunityDecision,
   points: SharkSimulationPoint[],
   config: SharkSimulationConfig,
 ): SharkSimulationTrade {
   if (points.length < 2) throw new Error('at least two price points are required')
+  if (!config.strategyId.trim()) throw new Error('strategyId is required')
   const capital = finitePositive(config.initialCapital, 'initialCapital')
-  const fraction = config.positionFraction
-  if (!Number.isFinite(fraction) || fraction <= 0 || fraction > 1) {
+  if (!Number.isFinite(config.positionFraction) || config.positionFraction <= 0 || config.positionFraction > 1) {
     throw new Error('positionFraction must be between 0 and 1')
   }
 
@@ -56,8 +55,7 @@ export function simulateSharkTrade(
   const entryFee = pct(config.entryFeePct)
   const exitFee = pct(config.exitFeePct)
   const slippage = pct(config.slippagePct)
-  const positionSize = capital * fraction
-
+  const positionSize = capital * config.positionFraction
   const effectiveEntry = entry * (1 + slippage)
   const effectiveExit = exit * (1 - slippage)
   const grossReturnPct = ((effectiveExit / effectiveEntry) - 1) * 100
@@ -65,12 +63,11 @@ export function simulateSharkTrade(
   const pnl = positionSize * (netReturnPct / 100)
   const holdingPeriodMinutes = Math.max(
     0,
-    (new Date(points[points.length - 1].observedAt).getTime() -
-      new Date(points[0].observedAt).getTime()) /
-      60000,
+    (new Date(points[points.length - 1].observedAt).getTime() - new Date(points[0].observedAt).getTime()) / 60000,
   )
 
   return {
+    strategyId: config.strategyId,
     decisionId: decision.id,
     opportunityId: decision.opportunityId,
     entryPrice: entry,
