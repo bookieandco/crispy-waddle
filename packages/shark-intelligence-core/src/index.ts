@@ -236,3 +236,14 @@ export {
 
 export type { SharkFeatureVector, SharkScore } from './scoring.js'
 export { buildSharkFeatureVector, scoreSharkOpportunity } from './scoring.js'
+
+export type {
+  SharkFusedSignal,
+  SharkObservation,
+  SharkSourceKind,
+} from './fusion.js'
+export {
+  fuseObservations,
+  fuseStreetSignals,
+  inferRiskFromObservation,
+} from './fusion.js'
