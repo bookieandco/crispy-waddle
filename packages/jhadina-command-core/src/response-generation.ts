@@ -20,18 +20,15 @@ export interface JhadinaResponseGenerator {
 export class DeterministicResponseGenerator implements JhadinaResponseGenerator {
   async generate(request: JhadinaResponseRequest): Promise<JhadinaResponse> {
     const { context } = request;
+    const result = context.capabilityResult;
 
     let text: string;
     switch (context.disposition) {
       case "execute":
-        text = context.result === undefined
-          ? "Done."
-          : `Done. ${formatResult(context.result)}`;
+        text = result === undefined ? "Done." : `Done. ${formatResult(result)}`;
         break;
       case "answer":
-        text = context.result === undefined
-          ? "I have an answer ready."
-          : formatResult(context.result);
+        text = result === undefined ? "I have an answer ready." : formatResult(result);
         break;
       case "clarify":
         text = context.clarification ?? "I need a little more information before I continue.";
