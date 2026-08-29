@@ -8,3 +8,4 @@ export * from "./registry-command-gateway";
 export * from "./response-context";
 export * from "./response-generation";
 export * from "./conversational-command-runtime";
+export * from "./control-center-port";
