@@ -12,11 +12,11 @@ export class MicWarmCoordinator {
 
   async prepareForVoiceCapture(): Promise<void> {
     if (this.policy.mode === "disabled") return;
-    await this.warm.start(this.policy.mode);
+    await this.warm.setMode(this.policy.mode);
   }
 
   async releaseAfterVoiceCapture(): Promise<void> {
     if (this.policy.mode === "always") return;
-    await this.warm.stop();
+    await this.warm.setMode("disabled");
   }
 }
