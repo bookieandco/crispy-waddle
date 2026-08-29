@@ -233,3 +233,6 @@ export {
   learningAdjustment,
   recordSharkOutcome,
 } from './learning.js'
+
+export type { SharkFeatureVector, SharkScore } from './scoring.js'
+export { buildSharkFeatureVector, scoreSharkOpportunity } from './scoring.js'
