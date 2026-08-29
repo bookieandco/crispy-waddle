@@ -1,36 +1,12 @@
 import type { SharkRisk, SharkStreetSignal } from './index.js'
+import type { SharkFusionObservation, SharkFusionFeature } from './observation-feature.js'
 
-export type SharkSourceKind =
-  | 'dex'
-  | 'chain'
-  | 'social'
-  | 'market'
-  | 'historical'
-  | 'system'
-
-export type SharkObservation = {
-  id: string
-  opportunityId: string
-  source: SharkSourceKind
-  observedAt: string
-  feature:
-    | 'liquidity'
-    | 'holders'
-    | 'contract'
-    | 'sellability'
-    | 'market'
-    | 'wallet'
-    | 'social'
-    | 'migration'
-  value: number
-  confidence: number
-  evidenceId?: string
-  metadata?: Record<string, string | number | boolean | null>
-}
+export type SharkSourceKind = SharkFusionObservation['source']
+export type { SharkFusionFeature, SharkFusionObservation } from './observation-feature.js'
 
 export type SharkFusedSignal = {
   opportunityId: string
-  feature: SharkObservation['feature']
+  feature: SharkFusionFeature
   value: number
   confidence: number
   observations: string[]
@@ -39,8 +15,8 @@ export type SharkFusedSignal = {
 
 const clamp = (n: number) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0))
 
-export function fuseObservations(observations: SharkObservation[]): SharkFusedSignal[] {
-  const groups = new Map<string, SharkObservation[]>()
+export function fuseObservations(observations: SharkFusionObservation[]): SharkFusedSignal[] {
+  const groups = new Map<string, SharkFusionObservation[]>()
   for (const observation of observations) {
     const key = `${observation.opportunityId}:${observation.feature}`
     const group = groups.get(key) ?? []
@@ -78,17 +54,11 @@ export function fuseStreetSignals(signals: SharkStreetSignal[]): SharkStreetSign
     const positive = group.filter((signal) => signal.direction === 'positive').length
     const direction = negative === positive ? 'unknown' : negative > positive ? 'negative' : 'positive'
 
-    return {
-      name,
-      direction,
-      strength: clamp(strength),
-      rationale: group.map((signal) => signal.rationale).join(' | '),
-      evidenceIds: [...new Set(group.flatMap((signal) => signal.evidenceIds))],
-    }
+    return { name, direction, strength: clamp(strength), rationale: group.map((signal) => signal.rationale).join(' | '), evidenceIds: [...new Set(group.flatMap((signal) => signal.evidenceIds))] }
   })
 }
 
-export function inferRiskFromObservation(observation: SharkObservation): SharkRisk | undefined {
+export function inferRiskFromObservation(observation: SharkFusionObservation): SharkRisk | undefined {
   if (observation.feature === 'liquidity' && observation.value < 0.35) return 'liquidity'
   if (observation.feature === 'holders' && observation.value < 0.35) return 'holder_concentration'
   if (observation.feature === 'contract' && observation.value < 0.35) return 'contract_control'
