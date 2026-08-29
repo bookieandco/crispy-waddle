@@ -13,6 +13,7 @@ export type SharkSimulationLearningRecord = {
   strategyVersion: string
   decisionId: string
   opportunityId: string
+  decision: SharkOpportunityDecision
   featureSet: Record<string, number>
   reasoning: string[]
   trade: SharkSimulationTrade
@@ -99,15 +100,16 @@ export function learnFromSimulationTrade(
     strategyVersion: decisionRecord.strategyVersion,
     decisionId: decisionRecord.decisionId,
     opportunityId: decisionRecord.opportunityId,
+    decision: { ...decisionRecord.decision, risks: [...decisionRecord.decision.risks], evidence: [...decisionRecord.decision.evidence], streetSignals: [...decisionRecord.decision.streetSignals], policy: { ...decisionRecord.decision.policy } },
     featureSet: { ...decisionRecord.featureSet },
     reasoning: [...decisionRecord.reasoning],
     trade,
-    outcome,
+    outcome: { ...outcome },
   }
   const records = [...prior, record]
 
   const snapshot = buildSharkLearningSnapshot(
-    records.map((item) => ({ decision: decisionRecord.decision, outcome: item.outcome })),
+    records.map((item) => ({ decision: item.decision, outcome: item.outcome })),
     version,
   )
 
