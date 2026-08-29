@@ -1,6 +1,7 @@
 export * from "./command-contract";
 export * from "./capability-planner";
 export * from "./capability-adapter";
+export * from "./capability-invoker-registry";
 export * from "./command-entry";
 export * from "./look-command-planner";
 export * from "./media-command-planner";
@@ -20,3 +21,6 @@ export * from "./screen-capture-port";
 export * from "./screen-capture-host-adapter";
 export * from "./screen-perception-capability";
 export * from "./camera-capture-port";
+export * from "./camera-host-adapter";
+export * from "./camera-perception-capability";
+export * from "./vision-capability-composition";
