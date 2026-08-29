@@ -4,6 +4,8 @@ import type { AudioCapturePort } from "./audio-capture-port";
 import type { WhisperClient } from "./whisper-adapter";
 import type { MediaProcessorPort } from "./media-processor-port";
 import { registerAudioCapabilities } from "./audio-capability-composition";
+import { PolicyEnforcedAudioCapture } from "./policy-enforced-audio-capture";
+import { DEFAULT_AUDIO_SOURCE_POLICY, type AudioSourcePolicy } from "./audio-source-policy";
 
 export interface AudioCapabilityComposition {
   registry: CapabilityRegistry;
@@ -15,8 +17,10 @@ export function composeAudioCapabilities(
   capture: AudioCapturePort,
   whisper: WhisperClient,
   processor: MediaProcessorPort,
+  policy: AudioSourcePolicy = DEFAULT_AUDIO_SOURCE_POLICY,
 ): AudioCapabilityComposition {
   const invokers = new CapabilityInvokerRegistry();
-  registerAudioCapabilities(registry, invokers, capture, whisper, processor);
+  const guardedCapture = new PolicyEnforcedAudioCapture(capture, policy);
+  registerAudioCapabilities(registry, invokers, guardedCapture, whisper, processor);
   return { registry, invokers };
 }
