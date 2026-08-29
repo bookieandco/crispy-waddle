@@ -14,3 +14,5 @@ export * from "./look-capability";
 export * from "./look-action-handler";
 export * from "./screen-adapter";
 export * from "./look-action-registration";
+export * from "./host-screen-capture";
+export * from "./browser-screen-capture";
