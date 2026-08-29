@@ -4,3 +4,4 @@ export * from "./capability-adapter";
 export * from "./command-entry";
 export * from "./look-command-planner";
 export * from "./registry-command-gateway";
+export * from "./response-context";
