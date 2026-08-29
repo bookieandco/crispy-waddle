@@ -26,7 +26,3 @@ export interface CameraObservation {
 export function toCameraObservation(frame: CameraFrame): CameraObservation {
   return { kind: "camera", frame };
 }
-
-export type VisionObservation =
-  | import("./screen-capture-port").ScreenObservation
-  | CameraObservation;
