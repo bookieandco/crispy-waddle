@@ -6,3 +6,5 @@ export * from './outcomes/SharkOutcome';
 export * from './learning/SharkLearning';
 export * from './graph/SharkEntityGraph';
 export * from './graph/SharkGraphBuilder';
+export * from './sources/DexScreenerSource';
+export * from './sources/SolanaRpcSource';
