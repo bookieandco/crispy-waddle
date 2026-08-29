@@ -1,5 +1,5 @@
 export type VpnProviderKind = 'wireguard' | 'openvpn';
-export type GatewayState = 'offline' | 'connecting' | 'connected' | 'degraded' | 'disconnecting' | 'error';
+export type GatewayState = 'offline' | 'connecting' | 'connected' | 'degraded' | 'disconnecting' | 'paused' | 'error';
 
 export interface NetworkRoute { readonly cidr: string; readonly description?: string; }
 export interface VpnProfile { readonly id: string; readonly name: string; readonly provider: VpnProviderKind; readonly endpoint: string; readonly routes: readonly NetworkRoute[]; readonly allowedNetworks: readonly string[]; readonly autoConnect: boolean; }
@@ -9,7 +9,6 @@ export interface NetworkAccessDecision { readonly allowed: boolean; readonly rea
 
 export interface VpnProvider { readonly kind: VpnProviderKind; connect(profile: VpnProfile): Promise<void>; disconnect(): Promise<void>; status(): Promise<VpnStatus>; }
 export interface CredentialStore { get(key: string): Promise<string>; set(key: string, secret: string): Promise<void>; delete(key: string): Promise<void>; }
-
 export interface NetworkPolicy { authorize(request: NetworkAccessRequest, profile: VpnProfile, status: VpnStatus): NetworkAccessDecision; }
 
 export class AllowlistedNetworkPolicy implements NetworkPolicy {
@@ -21,11 +20,49 @@ export class AllowlistedNetworkPolicy implements NetworkPolicy {
 }
 
 export class PrivateNetworkGateway {
+  private paused = false;
+  private activeProfile?: VpnProfile;
+
   constructor(private readonly provider: VpnProvider, private readonly policy: NetworkPolicy) {}
-  async connect(profile: VpnProfile): Promise<VpnStatus> { await this.provider.connect(profile); return this.provider.status(); }
-  async disconnect(): Promise<void> { await this.provider.disconnect(); }
-  async status(): Promise<VpnStatus> { return this.provider.status(); }
+
+  async connect(profile: VpnProfile): Promise<VpnStatus> {
+    this.paused = false;
+    this.activeProfile = profile;
+    await this.provider.connect(profile);
+    return this.provider.status();
+  }
+
+  async pause(): Promise<VpnStatus> {
+    if (this.paused) return this.status();
+    await this.provider.disconnect();
+    this.paused = true;
+    return { state: 'paused', profileId: this.activeProfile?.id };
+  }
+
+  async resume(): Promise<VpnStatus> {
+    if (!this.paused) return this.status();
+    if (!this.activeProfile) return { state: 'error', errorCode: 'NO_PROFILE_TO_RESUME' };
+    this.paused = false;
+    await this.provider.connect(this.activeProfile);
+    return this.provider.status();
+  }
+
+  async toggle(): Promise<VpnStatus> {
+    return this.paused ? this.resume() : this.pause();
+  }
+
+  async disconnect(): Promise<void> {
+    this.paused = false;
+    this.activeProfile = undefined;
+    await this.provider.disconnect();
+  }
+
+  async status(): Promise<VpnStatus> {
+    if (this.paused) return { state: 'paused', profileId: this.activeProfile?.id };
+    return this.provider.status();
+  }
+
   async authorize(request: NetworkAccessRequest, profile: VpnProfile): Promise<NetworkAccessDecision> {
-    return this.policy.authorize(request, profile, await this.provider.status());
+    return this.policy.authorize(request, profile, await this.status());
   }
 }
