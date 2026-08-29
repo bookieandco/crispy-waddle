@@ -17,3 +17,5 @@ export * from "./look-action-registration";
 export * from "./host-screen-capture";
 export * from "./browser-screen-capture";
 export * from "./screen-experience-bridge";
+export * from "./audio-experience-bridge";
+export * from "./perception-session";
