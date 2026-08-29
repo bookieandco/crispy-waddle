@@ -1,4 +1,4 @@
-import type { SharkOpportunityDecision } from './index.js'
+import { validateSharkDecision, type SharkOpportunityDecision } from './index.js'
 
 export type SharkStrategyDefinition = {
   strategyId: string
@@ -38,6 +38,9 @@ export class SharkStrategyRegistry {
     const strategy = this.strategies.get(strategyId)
     if (!strategy) throw new Error(`unknown strategy: ${strategyId}`)
     if (this.decisions.has(decision.id)) throw new Error(`decision already recorded: ${decision.id}`)
+
+    const validationErrors = validateSharkDecision(decision)
+    if (validationErrors.length) throw new Error(`invalid Shark decision: ${validationErrors.join(', ')}`)
 
     for (const feature of strategy.featureNames) {
       const value = featureSet[feature]
