@@ -22,6 +22,7 @@ export * from './intelligence/growth-loop.js';
 export * from './intelligence/social-intelligence.js';
 export * from './intelligence/social-discovery.js';
 export * from './intelligence/market-pulse.js';
+export * from './intelligence/social-pattern-extractor.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
