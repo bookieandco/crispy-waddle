@@ -19,6 +19,7 @@ export * from "./web-scout-pipeline";
 export * from "./research-verifier";
 export * from "./research-evidence";
 export * from "./research-investigation";
+export * from "./research-capability";
 export * from "./oasis-social-reference";
 export * from "./graph/types.js";
 export * from "./graph/creative-knowledge-graph.js";
