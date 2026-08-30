@@ -9,3 +9,4 @@ export * from "./attribution";
 export * from "./commerce-intent";
 export * from "./commerce-execution";
 export * from "./commerce-events";
+export * from "./product-identity";
