@@ -56,8 +56,13 @@ export interface RemoteAccessProvider {
 
 export interface RemoteAccessRuntime {
   open(request: RemoteSessionRequest, grant: RemoteAccessGrant): Promise<RemoteSession>;
-  close(session: RemoteSession): Promise<void>;
-  execute(session: RemoteSession, command: string): Promise<string>;
+  close(request: RemoteSessionRequest, grant: RemoteAccessGrant, session: RemoteSession): Promise<void>;
+  execute(
+    request: RemoteSessionRequest,
+    grant: RemoteAccessGrant,
+    session: RemoteSession,
+    command: string,
+  ): Promise<string>;
 }
 
 export class DefaultRemoteAccessPolicy implements RemoteAccessPolicy {
@@ -109,16 +114,36 @@ export class InMemoryRemoteAccessRuntime implements RemoteAccessRuntime {
     return Object.freeze({ ...session });
   }
 
-  async close(session: RemoteSession): Promise<void> {
+  async close(
+    request: RemoteSessionRequest,
+    grant: RemoteAccessGrant,
+    session: RemoteSession,
+  ): Promise<void> {
+    this.policy.authorize(request, grant);
     const provider = this.sessions.get(session.id);
     if (!provider) throw new Error(`Remote session not found: ${session.id}`);
+    if (request.operation !== 'disconnect') {
+      throw new Error('Closing a remote session requires the disconnect operation');
+    }
     await provider.disconnect(session);
     this.sessions.delete(session.id);
   }
 
-  async execute(session: RemoteSession, command: string): Promise<string> {
+  async execute(
+    request: RemoteSessionRequest,
+    grant: RemoteAccessGrant,
+    session: RemoteSession,
+    command: string,
+  ): Promise<string> {
+    this.policy.authorize(request, grant);
     const provider = this.sessions.get(session.id);
     if (!provider) throw new Error(`Remote session not found: ${session.id}`);
+    if (request.operation !== 'execute') {
+      throw new Error('Remote execution requires the execute operation');
+    }
+    if (request.endpoint.id !== session.endpoint.id) {
+      throw new Error('Remote session endpoint mismatch');
+    }
     if (!provider.execute) throw new Error(`Remote execution unsupported: ${session.protocol}`);
     return provider.execute(session, command);
   }
