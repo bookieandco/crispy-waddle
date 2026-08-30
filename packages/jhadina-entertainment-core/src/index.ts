@@ -17,6 +17,7 @@ export * from "./voice-engine";
 export * from "./web-scout";
 export * from "./web-scout-pipeline";
 export * from "./research-verifier";
+export * from "./research-evidence";
 export * from "./oasis-social-reference";
 export * from "./graph/types.js";
 export * from "./graph/creative-knowledge-graph.js";
