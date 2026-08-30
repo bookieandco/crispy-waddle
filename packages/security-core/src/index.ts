@@ -112,3 +112,4 @@ export * from './risk-boundary-policy.js';
 export * from './hardened-boundary.js';
 export * from './security-evolution.js';
 export * from './security-posture.js';
+export * from './security-principal.js';
