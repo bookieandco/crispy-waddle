@@ -1,5 +1,5 @@
 import type { RealCore, RealCoreResult, RealCoreStore, RealExperience, RealState } from '@jhadina/real-core';
-import { HumorCore, type HumorAudience, type HumorOpportunity } from '@jhadina/entertainment-core';
+import { HumorCore, HumorMemory, type HumorAudience, type HumorFeedback, type HumorOpportunity, type HumorMode } from '@jhadina/entertainment-core';
 import type { Experience, ContextPacket, HumorContextState } from './types.js';
 
 export interface RealCoreRuntimeResult {
@@ -10,6 +10,8 @@ export interface RealCoreRuntimeResult {
 
 /** Bridges continuity state into the control-plane and optionally persists it. */
 export class RealCoreRuntime {
+  private readonly humorMemory = new HumorMemory();
+
   constructor(
     private readonly core: RealCore,
     private readonly store?: RealCoreStore,
@@ -51,7 +53,7 @@ export class RealCoreRuntime {
     };
     const relationshipId = experience.actor === 'user' ? this.snapshot().identity.continuityKey : undefined;
     const decision = this.humor.evaluate(opportunity, relationshipId);
-    const rankedModes = this.humor.rankModes(opportunity, relationshipId);
+    const rankedModes = this.humorMemory.rankModes(this.humor.rankModes(opportunity, relationshipId), relationshipId);
     return {
       shouldHumor: decision.shouldHumor,
       intensity: decision.intensity,
@@ -59,6 +61,25 @@ export class RealCoreRuntime {
       reason: decision.reason,
       rankedModes,
     };
+  }
+
+  /** Records the outcome of a humor attempt as relationship-specific evidence. */
+  recordHumorFeedback(input: HumorFeedback & { mode: HumorMode; context: string; line: string; relationshipId?: string }): void {
+    this.humor.recordFeedback(input);
+    this.humorMemory.record({
+      candidateId: input.candidateId,
+      relationshipId: input.relationshipId,
+      mode: input.mode,
+      context: input.context,
+      line: input.line,
+      signal: input.signal,
+      explicit: Boolean(input.explicit),
+      at: input.at,
+    });
+  }
+
+  humorMemorySnapshot(limit = 20) {
+    return this.humorMemory.recent(limit);
   }
 
   augmentContext(context: ContextPacket, state: RealState, stance?: RealCoreResult['stance'], humor?: HumorContextState): ContextPacket {
