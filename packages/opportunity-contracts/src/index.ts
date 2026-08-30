@@ -10,3 +10,4 @@ export * from "./commerce-intent";
 export * from "./commerce-execution";
 export * from "./commerce-events";
 export * from "./product-identity";
+export * from "./catalog-sync";
