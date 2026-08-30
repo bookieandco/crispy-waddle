@@ -18,10 +18,6 @@ on:
         default: false
         type: boolean
 
-# The evolution worker is intentionally untrusted. It can inspect and edit an
-# ephemeral workspace, but it cannot mutate GitHub, secrets, policy, identity,
-# security, payments, or deployment state. A human/independent promotion path
-# must review the resulting patch.
 permissions:
   contents: read
 
@@ -71,7 +67,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run governed evolution worker
-        id: worker
         if: inputs.dry_run != true
         uses: anthropics/claude-code-base-action@beta
         with:
@@ -115,6 +110,7 @@ jobs:
         run: |
           set -euo pipefail
           changed="$(git status --porcelain=v1 | sed -E 's/^.. //')"
+          printf '%s\n' "$changed" > /tmp/jhadina-changed-files
           if printf '%s\n' "$changed" | grep -E '(^|/)(\.github/workflows/|identity/|policy/|values/|security/|secrets/|payments/|transfers/|military/|deploy|infra)' ; then
             echo "Protected path changed; blocking proposal."
             exit 1
@@ -132,9 +128,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .jhadina/results .jhadina/evidence
-          changed="$(git status --porcelain=v1 | sed -E 's/^.. //')"
+          changed="$(cat /tmp/jhadina-changed-files 2>/dev/null || true)"
           git diff --binary > ".jhadina/evidence/$TASK_ID.patch"
           git diff --stat > ".jhadina/evidence/$TASK_ID.diffstat"
+          export CHANGED_FILES="$changed"
           node - <<'NODE'
           const fs = require('fs');
           const result = {
@@ -158,7 +155,6 @@ jobs:
           STATUS: ${{ steps.protected_paths.outcome == 'success' && steps.verification.outcome == 'success' && 'VERIFIED_PROPOSAL' || 'REJECTED' }}
           PROTECTED_PATHS_OUTCOME: ${{ steps.protected_paths.outcome }}
           VERIFICATION_OUTCOME: ${{ steps.verification.outcome }}
-          CHANGED_FILES: ${{ steps.protected_paths.outcome }}
 
       - name: Upload proposal evidence
         if: always()
