@@ -51,7 +51,7 @@ function unique(values: string[]): string[] {
   return [...new Set(values)].slice(-32);
 }
 
-function upsertPreference(preferences: Preference[], statement: string, evidence: Evidence[], now: string): Preference[] {
+function upsertPreference(preferences: Preference[], statement: string, evidence: Evidence[]): Preference[] {
   const normalized = statement.trim().toLowerCase();
   const existing = preferences.find((p) => p.statement.trim().toLowerCase() === normalized);
   if (!existing) {
@@ -136,7 +136,7 @@ export class RealCore {
   }
 
   learnPreference(statement: string, evidence: Evidence[], at: string): RealCoreEvent {
-    this.state.preferences = upsertPreference(this.state.preferences, statement, evidence, at);
+    this.state.preferences = upsertPreference(this.state.preferences, statement, evidence);
     this.state.updatedAt = at;
     return { type: 'PREFERENCE_UPDATED', at, payload: { statement } };
   }
