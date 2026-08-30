@@ -22,26 +22,23 @@ export class JhadinaSpine {
   async run(experience: Experience): Promise<SpineRunResult> {
     await this.realRuntime?.hydrate();
     const realObservation = await this.realRuntime?.observe(experience);
-    const humor = this.realRuntime?.evaluateHumor(experience);
-
+    const humor = realObservation?.humor;
+    const voice = realObservation?.voice;
     const memories = await this.ports.memory.observe(experience);
     const relevantMemories = await this.ports.memory.loadRelevant(experience);
     const combinedMemories = [...memories, ...relevantMemories];
     const patterns = await this.ports.pattern.detect(experience, combinedMemories);
     const personality = await this.ports.personality.build(patterns, combinedMemories);
     const baseContext = await this.ports.context.build({ experience, memories: combinedMemories, patterns, personality });
-    const context = realObservation ? this.realRuntime!.augmentContext(baseContext, realObservation.contextState, realObservation.real.stance, humor) : baseContext;
+    const context = realObservation ? this.realRuntime!.augmentContext(baseContext, realObservation.contextState, realObservation.real.stance, humor, voice) : baseContext;
     const decision = await this.ports.decision.decide(context);
     const policy = await this.ports.policy.evaluate(decision);
-
-    await this.ports.audit.record({ type: policy.allowed ? 'DECISION_AUTHORIZED' : 'POLICY_DENIED', actor: 'jhadina', subjectId: decision.id, payload: { proposalId: decision.id, allowed: policy.allowed, reason: policy.reason, realCoreStance: realObservation?.real.stance, realCoreStateVersion: realObservation?.contextState.version, humor: humor ? { shouldHumor: humor.shouldHumor, intensity: humor.intensity, score: humor.score, rankedModes: humor.rankedModes } : undefined } });
+    await this.ports.audit.record({ type: policy.allowed ? 'DECISION_AUTHORIZED' : 'POLICY_DENIED', actor: 'jhadina', subjectId: decision.id, payload: { proposalId: decision.id, allowed: policy.allowed, reason: policy.reason, realCoreStance: realObservation?.real.stance, realCoreStateVersion: realObservation?.contextState.version, humor: humor ? { shouldHumor: humor.shouldHumor, intensity: humor.intensity, score: humor.score, rankedModes: humor.rankedModes } : undefined, voice: voice ? { register: voice.register, quipiness: voice.quipiness, profanityAllowed: voice.profanityAllowed, profanityIntensity: voice.profanityIntensity } : undefined } });
     if (!policy.allowed) return { memories, patterns, personality, context, decision, policy, realCore: realObservation?.contextState };
-
     const action = await this.ports.action.prepare(decision, policy);
     if (!action) return { memories, patterns, personality, context, decision, policy, realCore: realObservation?.contextState };
     const result = await this.ports.action.execute(action);
     await this.ports.audit.record({ type: result.success ? 'ACTION_COMPLETED' : 'ACTION_FAILED', actor: 'jhadina', subjectId: action.id, payload: { requestId: action.id, success: result.success } });
-
     await this.realRuntime?.observe({ id: `outcome:${result.id}`, occurredAt: result.completedAt, source: 'jhadina-action-outcome', content: result.success ? `Action ${action.operation} completed successfully.` : `Action ${action.operation} failed: ${result.error ?? 'unknown error'}`, evidence: [{ id: result.id, source: 'action-result', observedAt: result.completedAt, summary: result.success ? 'Action completed successfully' : (result.error ?? 'Action failed') }] });
     return { memories, patterns, personality, context, decision, policy, action, result, realCore: this.realRuntime?.snapshot() };
   }
