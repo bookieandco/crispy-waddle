@@ -1,14 +1,6 @@
 export type RemoteProtocol =
-  | 'rdp'
-  | 'ssh'
-  | 'vnc'
-  | 'telnet'
-  | 'http'
-  | 'https'
-  | 'rlogin'
-  | 'raw-socket'
-  | 'powershell-remoting'
-  | 'anydesk';
+  | 'rdp' | 'ssh' | 'vnc' | 'telnet' | 'http' | 'https' | 'rlogin'
+  | 'raw-socket' | 'powershell-remoting' | 'anydesk';
 
 export type RemoteAccessOperation = 'connect' | 'disconnect' | 'execute' | 'observe';
 
@@ -57,93 +49,63 @@ export interface RemoteAccessProvider {
 export interface RemoteAccessRuntime {
   open(request: RemoteSessionRequest, grant: RemoteAccessGrant): Promise<RemoteSession>;
   close(request: RemoteSessionRequest, grant: RemoteAccessGrant, session: RemoteSession): Promise<void>;
-  execute(
-    request: RemoteSessionRequest,
-    grant: RemoteAccessGrant,
-    session: RemoteSession,
-    command: string,
-  ): Promise<string>;
+  execute(request: RemoteSessionRequest, grant: RemoteAccessGrant, session: RemoteSession, command: string): Promise<string>;
 }
 
 export class DefaultRemoteAccessPolicy implements RemoteAccessPolicy {
   authorize(request: RemoteSessionRequest, grant: RemoteAccessGrant): void {
-    if (request.capability !== grant.capability) {
-      throw new Error('Remote access capability denied');
-    }
-    if (!grant.protocols.includes(request.endpoint.protocol)) {
-      throw new Error(`Remote protocol denied: ${request.endpoint.protocol}`);
-    }
-    if (!grant.operations.includes(request.operation)) {
-      throw new Error(`Remote operation denied: ${request.operation}`);
-    }
-    if (grant.endpointIds && !grant.endpointIds.includes(request.endpoint.id)) {
-      throw new Error(`Remote endpoint denied: ${request.endpoint.id}`);
-    }
-    if (grant.expiresAt && Date.parse(grant.expiresAt) <= Date.now()) {
-      throw new Error('Remote access grant expired');
-    }
+    if (request.capability !== grant.capability) throw new Error('Remote access capability denied');
+    if (!grant.protocols.includes(request.endpoint.protocol)) throw new Error(`Remote protocol denied: ${request.endpoint.protocol}`);
+    if (!grant.operations.includes(request.operation)) throw new Error(`Remote operation denied: ${request.operation}`);
+    if (grant.endpointIds && !grant.endpointIds.includes(request.endpoint.id)) throw new Error(`Remote endpoint denied: ${request.endpoint.id}`);
+    if (grant.expiresAt && Date.parse(grant.expiresAt) <= Date.now()) throw new Error('Remote access grant expired');
   }
 }
 
+export { RemoteAccessProviderRegistry } from './provider-registry.js';
+export { REMOTE_ACCESS_CAPABILITY, remoteAccessCapability, registerRemoteAccessCapability } from './capability.js';
+
+import { RemoteAccessProviderRegistry } from './provider-registry.js';
+
 export class InMemoryRemoteAccessRuntime implements RemoteAccessRuntime {
-  private readonly providers = new Map<RemoteProtocol, RemoteAccessProvider>();
+  private readonly providers: RemoteAccessProviderRegistry;
   private readonly sessions = new Map<string, RemoteAccessProvider>();
   private readonly policy: RemoteAccessPolicy;
 
-  constructor(policy: RemoteAccessPolicy = new DefaultRemoteAccessPolicy()) {
+  constructor(policy: RemoteAccessPolicy = new DefaultRemoteAccessPolicy(), providers = new RemoteAccessProviderRegistry()) {
     this.policy = policy;
+    this.providers = providers;
   }
 
   registerProvider(provider: RemoteAccessProvider): void {
-    if (this.providers.has(provider.protocol)) {
-      throw new Error(`Remote provider already registered: ${provider.protocol}`);
-    }
-    this.providers.set(provider.protocol, provider);
+    this.providers.register(provider);
   }
 
   async open(request: RemoteSessionRequest, grant: RemoteAccessGrant): Promise<RemoteSession> {
     this.policy.authorize(request, grant);
-    const provider = this.providers.get(request.endpoint.protocol);
-    if (!provider) throw new Error(`No remote provider registered: ${request.endpoint.protocol}`);
-    if (request.operation !== 'connect') {
-      throw new Error('Opening a remote session requires the connect operation');
-    }
-
+    if (request.operation !== 'connect') throw new Error('Opening a remote session requires the connect operation');
+    const provider = this.providers.resolve(request.endpoint.protocol);
     const session = await provider.connect(request);
     this.sessions.set(session.id, provider);
     return Object.freeze({ ...session });
   }
 
-  async close(
-    request: RemoteSessionRequest,
-    grant: RemoteAccessGrant,
-    session: RemoteSession,
-  ): Promise<void> {
+  async close(request: RemoteSessionRequest, grant: RemoteAccessGrant, session: RemoteSession): Promise<void> {
     this.policy.authorize(request, grant);
+    if (request.operation !== 'disconnect') throw new Error('Closing a remote session requires the disconnect operation');
     const provider = this.sessions.get(session.id);
     if (!provider) throw new Error(`Remote session not found: ${session.id}`);
-    if (request.operation !== 'disconnect') {
-      throw new Error('Closing a remote session requires the disconnect operation');
-    }
+    if (request.endpoint.id !== session.endpoint.id) throw new Error('Remote session endpoint mismatch');
     await provider.disconnect(session);
     this.sessions.delete(session.id);
   }
 
-  async execute(
-    request: RemoteSessionRequest,
-    grant: RemoteAccessGrant,
-    session: RemoteSession,
-    command: string,
-  ): Promise<string> {
+  async execute(request: RemoteSessionRequest, grant: RemoteAccessGrant, session: RemoteSession, command: string): Promise<string> {
     this.policy.authorize(request, grant);
+    if (request.operation !== 'execute') throw new Error('Remote execution requires the execute operation');
     const provider = this.sessions.get(session.id);
     if (!provider) throw new Error(`Remote session not found: ${session.id}`);
-    if (request.operation !== 'execute') {
-      throw new Error('Remote execution requires the execute operation');
-    }
-    if (request.endpoint.id !== session.endpoint.id) {
-      throw new Error('Remote session endpoint mismatch');
-    }
+    if (request.endpoint.id !== session.endpoint.id) throw new Error('Remote session endpoint mismatch');
     if (!provider.execute) throw new Error(`Remote execution unsupported: ${session.protocol}`);
     return provider.execute(session, command);
   }
