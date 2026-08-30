@@ -110,3 +110,4 @@ export * from './capability-classification.js';
 export * from './values-configuration.js';
 export * from './risk-boundary-policy.js';
 export * from './hardened-boundary.js';
+export * from './security-evolution.js';
