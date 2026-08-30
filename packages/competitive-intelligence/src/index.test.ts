@@ -4,6 +4,7 @@ import { DeterministicCompetitiveEvidenceRecorder } from "./index";
 describe("DeterministicCompetitiveEvidenceRecorder", () => {
   const recorder = new DeterministicCompetitiveEvidenceRecorder();
   const input = {
+    ownerId: "owner-a",
     source: {
       sourceId: "etsy-listing-1",
       sourceType: "marketplace" as const,
@@ -25,22 +26,27 @@ describe("DeterministicCompetitiveEvidenceRecorder", () => {
   it("records raw adapter input as an observed fact with provenance", () => {
     const evidence = recorder.recordObservation(input);
     expect(evidence.kind).toBe("observed_fact");
+    expect(evidence.ownerId).toBe("owner-a");
     expect(evidence.subjectId).toBe("product-1");
     expect(evidence.source?.sourceId).toBe("etsy-listing-1");
     expect(evidence.value).toEqual(input.observation);
   });
 
-  it("produces the same evidence ID for the same observation", () => {
+  it("produces the same evidence ID for the same owner and observation", () => {
     expect(recorder.recordObservation(input).evidenceId).toBe(
       recorder.recordObservation(input).evidenceId,
     );
   });
 
-  it("rejects missing provenance", () => {
-    expect(() => recorder.recordObservation({
-      ...input,
-      source: { ...input.source, sourceId: "" },
-    })).toThrow("source ID");
+  it("isolates evidence identity by owner", () => {
+    const other = recorder.recordObservation({ ...input, ownerId: "owner-b" });
+    expect(other.evidenceId).not.toBe(recorder.recordObservation(input).evidenceId);
+    expect(other.ownerId).toBe("owner-b");
+  });
+
+  it("rejects missing owner or provenance", () => {
+    expect(() => recorder.recordObservation({ ...input, ownerId: "" })).toThrow("Owner ID");
+    expect(() => recorder.recordObservation({ ...input, source: { ...input.source, sourceId: "" } })).toThrow("source ID");
   });
 
   it("rejects invalid observation timestamps", () => {
