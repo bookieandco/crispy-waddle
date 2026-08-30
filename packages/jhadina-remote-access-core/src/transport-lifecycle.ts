@@ -6,6 +6,7 @@ export type RemoteTransportRequest = Readonly<{
 }>;
 
 export interface RemoteTransportSession {
+  readonly sessionId: string;
   readonly state: RemoteTransportState;
   execute(command: string, request?: RemoteTransportRequest): Promise<string>;
   close(): Promise<void>;
