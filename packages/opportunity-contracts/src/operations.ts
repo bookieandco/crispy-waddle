@@ -1,11 +1,3 @@
-import type {
-  InventoryAdapter,
-  InventoryItem,
-  InventoryReservation as CommerceInventoryReservation,
-  NormalizedOrder,
-  NormalizedOrderLine,
-} from "@jhadina/commerce-adapters";
-
 export interface ListingProvider {
   readonly providerId: string;
   createListing(input: CreateListingInput): Promise<ListingResult>;
@@ -13,7 +5,7 @@ export interface ListingProvider {
   getListing?(listingId: string): Promise<ListingResult | null>;
 }
 
-/** Opportunity-layer view over the canonical commerce inventory adapter. */
+/** Opportunity-facing capability; runtime ownership remains in commerce-adapters. */
 export interface InventoryProvider {
   readonly providerId: string;
   getInventory(productId: string): Promise<InventorySnapshot>;
@@ -21,7 +13,7 @@ export interface InventoryProvider {
   release?(reservationId: string, idempotencyKey: string): Promise<InventoryReservationResult>;
 }
 
-/** Opportunity-layer view over the canonical commerce POS/order adapter. */
+/** Opportunity-facing capability; runtime ownership remains in commerce-adapters. */
 export interface OrderProvider {
   readonly providerId: string;
   getOrder(orderId: string): Promise<OrderSnapshot | null>;
@@ -128,13 +120,3 @@ export interface TrackingEvent {
   location?: string;
   description?: string;
 }
-
-/**
- * Compile-time compatibility helpers. Runtime implementations remain owned by
- * commerce-adapters; opportunity code consumes the narrower opportunity view.
- */
-export type CanonicalCommerceInventory = InventoryAdapter;
-export type CanonicalInventoryItem = InventoryItem;
-export type CanonicalInventoryReservation = CommerceInventoryReservation;
-export type CanonicalCommerceOrder = NormalizedOrder;
-export type CanonicalCommerceOrderLine = NormalizedOrderLine;
