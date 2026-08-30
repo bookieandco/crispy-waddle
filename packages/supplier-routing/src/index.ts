@@ -15,13 +15,18 @@ export class DeterministicSupplierRoutingEngine implements SupplierRoutingEngine
   route(request: SupplierRoutingRequest): SupplierRoutingDecision | null {
     if (!Number.isInteger(request.quantity) || request.quantity <= 0) return null;
 
+    const destination = request.destinationCountry.trim().toUpperCase();
+    if (!destination) return null;
+
     const eligible = request.candidates.filter((candidate) => {
       const available = candidate.inventory.availableQuantity;
-      const destination = request.destinationCountry.toUpperCase();
-      const eligibleDestinations = candidate.fulfillment.destinationCountries.map((c) => c.toUpperCase());
-      const excludedDestinations = (candidate.fulfillment.excludedDestinationCountries ?? []).map((c) => c.toUpperCase());
+      const eligibleDestinations = candidate.fulfillment.destinationCountries.map((c) => c.trim().toUpperCase());
+      const excludedDestinations = (candidate.fulfillment.excludedDestinationCountries ?? []).map((c) => c.trim().toUpperCase());
       const destinationAllowed =
         eligibleDestinations.includes("*") || eligibleDestinations.includes(destination);
+      const fulfillmentDeliveryAllowed =
+        candidate.fulfillment.maxDeliveryDays === undefined ||
+        candidate.estimatedDeliveryDays <= candidate.fulfillment.maxDeliveryDays;
 
       return (
         available >= request.quantity &&
@@ -29,11 +34,9 @@ export class DeterministicSupplierRoutingEngine implements SupplierRoutingEngine
         candidate.inventory.unitPrice?.currency === request.currency &&
         candidate.supplierRiskScore <= this.policy.maxRiskScore &&
         candidate.estimatedDeliveryDays <= this.policy.maxDeliveryDays &&
-        candidate.fulfillment.maxDeliveryDays !== undefined
-          ? candidate.estimatedDeliveryDays <= candidate.fulfillment.maxDeliveryDays &&
-            destinationAllowed &&
-            !excludedDestinations.includes(destination)
-          : destinationAllowed && !excludedDestinations.includes(destination)
+        fulfillmentDeliveryAllowed &&
+        destinationAllowed &&
+        !excludedDestinations.includes(destination)
       );
     });
 
