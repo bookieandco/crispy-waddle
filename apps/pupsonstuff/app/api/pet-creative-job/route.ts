@@ -44,9 +44,7 @@ export async function POST(request: NextRequest) {
     .getAll("photos")
     .filter((value): value is File => value instanceof File);
 
-  if (files.length === 0) {
-    return jsonError("Add at least one pet photo.");
-  }
+  if (files.length === 0) return jsonError("Add at least one pet photo.");
   if (files.length > MAX_PHOTOS) {
     return jsonError(`You can add up to ${MAX_PHOTOS} pet photos.`);
   }
@@ -64,12 +62,10 @@ export async function POST(request: NextRequest) {
       : undefined;
 
   const promptRaw = form.get("prompt");
-  const prompt =
-    typeof promptRaw === "string" ? promptRaw.trim().slice(0, 2000) : "";
+  const prompt = typeof promptRaw === "string" ? promptRaw.trim().slice(0, 2000) : "";
 
   const artStyleRaw = form.get("artStyle");
-  const artStyle =
-    typeof artStyleRaw === "string" ? artStyleRaw.trim().slice(0, 120) : "";
+  const artStyle = typeof artStyleRaw === "string" ? artStyleRaw.trim().slice(0, 120) : "";
 
   const backgroundRaw = form.get("backgroundMode");
   const backgroundMode: BackgroundMode =
@@ -93,12 +89,14 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const uploadedPaths: string[] = [];
+  const storagePaths: string[] = [];
   const assetIds: string[] = [];
+  let petId: string | null = null;
+  let jobId: string | null = null;
 
   try {
-    // Upload originals first. The object path is owner-scoped so the Storage
-    // RLS policy can enforce ownership without consulting application tables.
+    // The bucket is private. Every object is owner-scoped in its path so
+    // Storage RLS can authorize it without consulting application tables.
     for (const file of files) {
       const assetId = crypto.randomUUID();
       const path = `pet-assets/${user.id}/pending/${assetId}.${safeExtension(file)}`;
@@ -116,8 +114,7 @@ export async function POST(request: NextRequest) {
       if (uploadError) {
         throw new Error(`Storage upload failed: ${uploadError.message}`);
       }
-
-      uploadedPaths.push(path);
+      storagePaths.push(path);
 
       const { error: assetError } = await supabase
         .from("pupson_media_assets")
@@ -139,22 +136,16 @@ export async function POST(request: NextRequest) {
       if (assetError) {
         throw new Error(`Asset record failed: ${assetError.message}`);
       }
-
       assetIds.push(assetId);
     }
-
-    const primaryAssetId = assetIds[0];
 
     const { data: pet, error: petError } = await supabase
       .from("pupson_pet_identities")
       .insert({
         owner_id: user.id,
         name: petName,
-        primary_asset_id: primaryAssetId,
-        metadata: {
-          source: "pupsonstuff",
-          photoCount: assetIds.length,
-        },
+        primary_asset_id: assetIds[0],
+        metadata: { source: "pupsonstuff", photoCount: assetIds.length },
       })
       .select("id, name, primary_asset_id")
       .single();
@@ -162,22 +153,20 @@ export async function POST(request: NextRequest) {
     if (petError || !pet) {
       throw new Error(`Pet identity creation failed: ${petError?.message ?? "unknown error"}`);
     }
+    petId = pet.id;
 
-    // Move objects from pending to the durable pet-specific namespace.
     const durablePaths: string[] = [];
     for (let index = 0; index < assetIds.length; index += 1) {
       const assetId = assetIds[index];
-      const currentPath = uploadedPaths[index];
-      const extension = safeExtension(files[index]);
-      const nextPath = `pet-assets/${user.id}/${pet.id}/${assetId}.${extension}`;
+      const currentPath = storagePaths[index];
+      const nextPath = `pet-assets/${user.id}/${pet.id}/${assetId}.${safeExtension(files[index])}`;
 
-      const { error: moveError } = await supabase.storage
-        .from(BUCKET)
-        .move(currentPath, nextPath);
+      const { error: moveError } = await supabase.storage.from(BUCKET).move(currentPath, nextPath);
       if (moveError) {
         throw new Error(`Storage finalization failed: ${moveError.message}`);
       }
 
+      storagePaths.push(nextPath);
       durablePaths.push(nextPath);
 
       const { error: assetUpdateError } = await supabase
@@ -191,16 +180,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const identityAssets = assetIds.map((assetId, index) => ({
-      pet_identity_id: pet.id,
-      asset_id: assetId,
-      role: "reference",
-      sort_order: index,
-    }));
-
     const { error: identityAssetError } = await supabase
       .from("pupson_pet_identity_assets")
-      .insert(identityAssets);
+      .insert(
+        assetIds.map((assetId, index) => ({
+          pet_identity_id: pet.id,
+          asset_id: assetId,
+          role: "reference",
+          sort_order: index,
+        }))
+      );
 
     if (identityAssetError) {
       throw new Error(`Pet photo association failed: ${identityAssetError.message}`);
@@ -234,6 +223,7 @@ export async function POST(request: NextRequest) {
     if (jobError || !job) {
       throw new Error(`Creative job enqueue failed: ${jobError?.message ?? "unknown error"}`);
     }
+    jobId = job.id;
 
     return NextResponse.json({
       success: true,
@@ -243,8 +233,18 @@ export async function POST(request: NextRequest) {
       storagePaths: durablePaths,
     });
   } catch (error) {
-    if (uploadedPaths.length > 0) {
-      await supabase.storage.from(BUCKET).remove(uploadedPaths).catch(() => undefined);
+    if (jobId) {
+      await supabase.from("pupson_creative_jobs").delete().eq("id", jobId).eq("owner_id", user.id);
+    }
+    if (petId) {
+      await supabase.from("pupson_pet_identity_assets").delete().eq("pet_identity_id", petId);
+      await supabase.from("pupson_pet_identities").delete().eq("id", petId).eq("owner_id", user.id);
+    }
+    if (assetIds.length > 0) {
+      await supabase.from("pupson_media_assets").delete().in("id", assetIds).eq("owner_id", user.id);
+    }
+    if (storagePaths.length > 0) {
+      await supabase.storage.from(BUCKET).remove([...new Set(storagePaths)]).catch(() => undefined);
     }
 
     return jsonError(
