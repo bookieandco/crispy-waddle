@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchSamOpportunities } from '@/lib/money-opportunities/sam-client';
-import { adaptSamResults } from '@/lib/money-opportunities/sam-opportunity-adapter';
-import { rankSideIncomeOpportunities } from '@/lib/opportunities/sideIncome';
+import { adaptSamResultsToCanonical } from '@/lib/opportunities/sam-canonical-adapter';
+import { CanonicalOpportunityQueue } from '@/lib/opportunities/canonical-queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,9 @@ export async function GET(request: NextRequest) {
       typeOfSetAside: search.get('typeOfSetAside') ?? undefined,
     });
 
-    const opportunities = rankSideIncomeOpportunities(adaptSamResults(data, userId));
+    const queue = new CanonicalOpportunityQueue();
+    const opportunities = queue.ingest(adaptSamResultsToCanonical(data, userId));
+
     return NextResponse.json({
       ok: true,
       source: 'sam.gov',
