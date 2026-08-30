@@ -17,15 +17,31 @@ export interface CommerceEvent<TPayload = unknown> {
   resourceId: string;
   payload: TPayload;
   correlationId?: string;
-  idempotencyKey?: string;
+  idempotencyKey: string;
+}
+
+export interface CommerceEventReceipt {
+  eventId: string;
+  idempotencyKey: string;
+  status: "accepted" | "duplicate" | "rejected";
+  receivedAt: string;
 }
 
 export interface CommerceEventBus {
-  publish<TPayload>(event: CommerceEvent<TPayload>): Promise<void>;
+  publish<TPayload>(event: CommerceEvent<TPayload>): Promise<CommerceEventReceipt>;
   subscribe(
     eventType: CommerceEventType,
     handler: (event: CommerceEvent) => Promise<void>,
   ): Promise<() => Promise<void>>;
+}
+
+export interface CommerceDeadLetterEvent {
+  deadLetterId: string;
+  event: CommerceEvent;
+  reason: "validation" | "processing" | "duplicate" | "unknown";
+  attempts: number;
+  firstFailedAt: string;
+  lastFailedAt: string;
 }
 
 export interface CommerceReconciliationIssue {
