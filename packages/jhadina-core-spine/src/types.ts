@@ -67,6 +67,14 @@ export interface PersonalityState {
   updatedAt: string;
 }
 
+export interface HumorContextState {
+  shouldHumor: boolean;
+  intensity: number;
+  score: number;
+  reason: string;
+  rankedModes: string[];
+}
+
 export interface ContextPacket {
   id: string;
   purpose: string;
@@ -77,6 +85,7 @@ export interface ContextPacket {
   knowledge: EvidenceRef[];
   constraints: string[];
   excludedContext: string[];
+  humor?: HumorContextState;
 }
 
 export interface DecisionProposal {
