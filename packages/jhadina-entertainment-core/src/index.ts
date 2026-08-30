@@ -2,6 +2,7 @@ export * from "./domain";
 export * from "./engine";
 export * from "./humor";
 export * from "./humor-memory";
+export * from "./humor-feedback-adapter";
 export * from "./graph/types.js";
 export * from "./graph/creative-knowledge-graph.js";
 export * from "./reference/index.js";
