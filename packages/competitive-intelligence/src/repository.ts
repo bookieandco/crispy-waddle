@@ -3,7 +3,7 @@ import type { CompetitiveEvidenceRecorder, RawCompetitiveObservation } from "./i
 
 export interface CompetitiveEvidenceRepository {
   recordObservation(input: RawCompetitiveObservation): CompetitiveEvidence<CompetitorObservation>;
-  get(evidenceId: string): CompetitiveEvidence<CompetitorObservation> | undefined;
+  get(ownerId: string, evidenceId: string): CompetitiveEvidence<CompetitorObservation> | undefined;
 }
 
 export class InMemoryCompetitiveEvidenceRepository implements CompetitiveEvidenceRepository {
@@ -25,7 +25,8 @@ export class InMemoryCompetitiveEvidenceRepository implements CompetitiveEvidenc
     return immutable;
   }
 
-  get(evidenceId: string): CompetitiveEvidence<CompetitorObservation> | undefined {
-    return this.records.get(evidenceId);
+  get(ownerId: string, evidenceId: string): CompetitiveEvidence<CompetitorObservation> | undefined {
+    const evidence = this.records.get(evidenceId);
+    return evidence?.ownerId === ownerId ? evidence : undefined;
   }
 }
