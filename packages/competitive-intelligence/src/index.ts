@@ -5,6 +5,7 @@ import type {
 } from "@jhadina/opportunity-contracts";
 
 export interface RawCompetitiveObservation {
+  ownerId: string;
   source: CompetitiveEvidenceSource;
   observation: CompetitorObservation;
 }
@@ -21,20 +22,16 @@ export class DeterministicCompetitiveEvidenceRecorder implements CompetitiveEvid
     if (Number.isNaN(Date.parse(observedAt)) || Number.isNaN(Date.parse(sourceObservedAt))) {
       throw new Error("Competitive observation timestamps must be valid ISO dates");
     }
-    if (input.observation.competitorId.trim() === "") {
-      throw new Error("Competitor ID is required");
-    }
+    if (input.ownerId.trim() === "") throw new Error("Owner ID is required");
+    if (input.observation.competitorId.trim() === "") throw new Error("Competitor ID is required");
     if (input.source.sourceId.trim() === "" || input.source.locator.trim() === "") {
       throw new Error("Evidence source ID and locator are required");
     }
 
-    const observation = Object.freeze({
-      ...input.observation,
-      observedAt,
-    });
-
+    const observation = Object.freeze({ ...input.observation, observedAt });
     return Object.freeze({
-      evidenceId: this.idFor(input.source.sourceId, input.observation),
+      evidenceId: this.idFor(input.ownerId, input.source.sourceId, input.observation),
+      ownerId: input.ownerId,
       kind: "observed_fact",
       subjectId: input.observation.productId ?? input.observation.competitorId,
       value: observation,
@@ -43,14 +40,7 @@ export class DeterministicCompetitiveEvidenceRecorder implements CompetitiveEvid
     });
   }
 
-  private idFor(sourceId: string, observation: CompetitorObservation): string {
-    return [
-      sourceId,
-      observation.competitorId,
-      observation.productId ?? "",
-      observation.marketplace ?? "",
-      observation.listingUrl ?? "",
-      observation.observedAt,
-    ].join(":");
+  private idFor(ownerId: string, sourceId: string, observation: CompetitorObservation): string {
+    return [ownerId, sourceId, observation.competitorId, observation.productId ?? "", observation.marketplace ?? "", observation.listingUrl ?? "", observation.observedAt].join(":");
   }
 }
