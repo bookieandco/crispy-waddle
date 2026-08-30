@@ -21,7 +21,9 @@ export interface ResearchSourcePerformance {
 
 /** Adaptive source feedback. It changes routing preference, never factual truth. */
 export class ResearchSourcePerformanceStore {
-  private readonly state = new Map<string, ResearchSourcePerformance>();
+  protected readonly state = new Map<string, ResearchSourcePerformance>();
+
+  protected set(value: ResearchSourcePerformance): void { this.state.set(value.sourceId, value); }
 
   record(outcome: ResearchSourceOutcome, now = new Date().toISOString()): ResearchSourcePerformance {
     const previous = this.state.get(outcome.sourceId) ?? {
@@ -40,7 +42,7 @@ export class ResearchSourcePerformanceStore {
     };
     const total = next.usefulEvidence + next.rejectedEvidence;
     next.score = total === 0 ? 0 : ((next.verifiedEvidence * 2) + (next.corroboratedEvidence * 1.5) + next.usefulEvidence - next.rejectedEvidence) / total;
-    this.state.set(next.sourceId, next);
+    this.set(next);
     return next;
   }
 
