@@ -30,6 +30,7 @@ export * from './intelligence/active-buyer-intelligence.js';
 export * from './intelligence/social-opportunity.js';
 export * from './intelligence/social-decision-feed.js';
 export * from './intelligence/social-knowledge.js';
+export * from './intelligence/social-opportunity-history.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
