@@ -1,5 +1,6 @@
 import type { ResearchSignal } from './cultural-ingestion.js';
-import { JHADINA_RESEARCH_SOURCES, type ResearchSourceProfile, type SourceRole } from '@jhadina/core-spine';
+import { JHADINA_RESEARCH_SOURCES, type ResearchSourceProfile, type SourceRole, type ResearchIntent } from '@jhadina/core-spine';
+import type { ResearchSourcePerformanceStore } from '@jhadina/core-spine';
 
 export interface ScoutSearchResult { url: string; title?: string; snippet?: string; source?: string; publishedAt?: string; }
 export interface ScoutPage { url: string; title?: string; text: string; publishedAt?: string; metadata?: Record<string, string>; }
@@ -8,22 +9,36 @@ export interface SourceAssessment { source: string; reputation: number; corrobor
 export interface WebScoutPipelineResult { signals: ResearchSignal[]; discovered: number; crawled: number; rejected: number; sourceAssessments: SourceAssessment[]; selectedSources: string[]; }
 export interface ResearchSourceSelection { profile: ResearchSourceProfile; score: number; }
 
-/** Select sources by question intent. Scores route research; they never establish factual truth. */
-export function selectResearchSources(query: string): ResearchSourceSelection[] {
-  const q = query.toLowerCase();
-  const culture = /trend|meme|slang|reddit|community|what .* talking about|sentiment/.test(q);
-  const storedKnowledge = /remember|previous|stored|our knowledge|history|evidence/.test(q);
-  const current = /today|latest|current|recent|news|now|this week|2026/.test(q);
-  return JHADINA_RESEARCH_SOURCES.map(profile => {
-    let score = 0;
-    if (profile.roles.includes('discovery')) score += current ? 4 : 2;
-    if (culture && profile.roles.includes('community')) score += 5;
-    if (storedKnowledge && profile.roles.includes('retrieval')) score += 5;
-    if (profile.roles.includes('verification')) score += current ? 3 : 1;
-    if (profile.trustClass === 'primary') score += 2;
-    if (profile.requiresCaution) score -= 0.5;
-    return { profile, score };
-  }).sort((a, b) => b.score - a.score);
+/**
+ * Adaptive planner. Relevance + source role + learned performance determine routing.
+ * Exploration is intentionally preserved so weak-history sources can be tested again.
+ */
+export function selectResearchSources(
+  intentOrQuery: ResearchIntent | string,
+  performance?: ResearchSourcePerformanceStore,
+  explorationRate = 0.15,
+): ResearchSourceSelection[] {
+  const intent: ResearchIntent = typeof intentOrQuery === 'string'
+    ? { query: intentOrQuery, kinds: [], primary: 'factual', freshnessRequired: /today|latest|current|recent|news|now/.test(intentOrQuery.toLowerCase()), communitySignalUseful: /trend|meme|slang|reddit|community|sentiment/.test(intentOrQuery.toLowerCase()), storedEvidenceUseful: /remember|previous|stored|our knowledge|history|evidence/.test(intentOrQuery.toLowerCase()), primarySourcesPreferred: true, verificationRequired: true, confidence: 0.5 }
+    : intentOrQuery;
+
+  const selections = JHADINA_RESEARCH_SOURCES.map(profile => {
+    let relevance = 0;
+    if (intent.freshnessRequired && profile.roles.includes('discovery')) relevance += 4;
+    if (intent.communitySignalUseful && profile.roles.includes('community')) relevance += 5;
+    if (intent.storedEvidenceUseful && (profile.roles.includes('retrieval') || profile.roles.includes('memory'))) relevance += 5;
+    if (intent.primarySourcesPreferred && profile.roles.includes('verification')) relevance += 3;
+    if (profile.roles.includes('discovery')) relevance += 1;
+    if (profile.requiresCaution) relevance -= 0.25;
+
+    const learned = performance?.get(profile.id)?.score ?? 0;
+    const exploitation = Math.max(-2, Math.min(4, learned));
+    const unexplored = performance?.get(profile.id) === undefined;
+    const explorationBonus = unexplored ? 1.5 : explorationRate * (1 + Math.max(0, 2 - learned));
+    return { profile, score: relevance + exploitation + explorationBonus };
+  });
+
+  return selections.sort((a, b) => b.score - a.score);
 }
 
 function hostMatchesProfile(host: string, profile: ResearchSourceProfile): boolean {
@@ -35,10 +50,11 @@ function hostMatchesProfile(host: string, profile: ResearchSourceProfile): boole
 
 /** Discovery -> crawl -> source weighting -> normalization. Verification remains downstream. */
 export class WebScoutPipeline {
-  constructor(private readonly scout: WebScout) {}
+  constructor(private readonly scout: WebScout, private readonly performance?: ResearchSourcePerformanceStore, private readonly intentClassifier?: { classify(query: string): ResearchIntent }) {}
 
   async investigate(query: string, limit = 5): Promise<WebScoutPipelineResult> {
-    const rankedSources = selectResearchSources(query);
+    const intent = this.intentClassifier?.classify(query);
+    const rankedSources = selectResearchSources(intent ?? query, this.performance);
     const results = await this.scout.search(query, Math.max(1, Math.min(20, limit)));
     const assessments: SourceAssessment[] = [];
     const signals: ResearchSignal[] = [];
