@@ -20,9 +20,9 @@ export class JhadinaSpine {
   constructor(private readonly ports: SpinePorts, options: JhadinaSpineOptions = {}) { this.realRuntime = options.realCore ? new RealCoreRuntime(options.realCore, options.realCoreStore) : undefined; }
 
   async run(experience: Experience): Promise<SpineRunResult> {
-    // Hydrate once per cycle so serverless/process restarts retain identity continuity.
     await this.realRuntime?.hydrate();
     const realObservation = await this.realRuntime?.observe(experience);
+    const humor = this.realRuntime?.evaluateHumor(experience);
 
     const memories = await this.ports.memory.observe(experience);
     const relevantMemories = await this.ports.memory.loadRelevant(experience);
@@ -30,11 +30,11 @@ export class JhadinaSpine {
     const patterns = await this.ports.pattern.detect(experience, combinedMemories);
     const personality = await this.ports.personality.build(patterns, combinedMemories);
     const baseContext = await this.ports.context.build({ experience, memories: combinedMemories, patterns, personality });
-    const context = realObservation ? this.realRuntime!.augmentContext(baseContext, realObservation.contextState, realObservation.real.stance) : baseContext;
+    const context = realObservation ? this.realRuntime!.augmentContext(baseContext, realObservation.contextState, realObservation.real.stance, humor) : baseContext;
     const decision = await this.ports.decision.decide(context);
     const policy = await this.ports.policy.evaluate(decision);
 
-    await this.ports.audit.record({ type: policy.allowed ? 'DECISION_AUTHORIZED' : 'POLICY_DENIED', actor: 'jhadina', subjectId: decision.id, payload: { proposalId: decision.id, allowed: policy.allowed, reason: policy.reason, realCoreStance: realObservation?.real.stance, realCoreStateVersion: realObservation?.contextState.version } });
+    await this.ports.audit.record({ type: policy.allowed ? 'DECISION_AUTHORIZED' : 'POLICY_DENIED', actor: 'jhadina', subjectId: decision.id, payload: { proposalId: decision.id, allowed: policy.allowed, reason: policy.reason, realCoreStance: realObservation?.real.stance, realCoreStateVersion: realObservation?.contextState.version, humor: humor ? { shouldHumor: humor.shouldHumor, intensity: humor.intensity, score: humor.score, rankedModes: humor.rankedModes } : undefined } });
     if (!policy.allowed) return { memories, patterns, personality, context, decision, policy, realCore: realObservation?.contextState };
 
     const action = await this.ports.action.prepare(decision, policy);
