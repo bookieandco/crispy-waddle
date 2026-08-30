@@ -11,6 +11,7 @@ export * from "./quip-generator";
 export * from "./cultural-context";
 export * from "./cultural-ingestion";
 export * from "./culture-service";
+export * from "./culture-scheduler";
 export * from "./graph/types.js";
 export * from "./graph/creative-knowledge-graph.js";
 export * from "./reference/index.js";
