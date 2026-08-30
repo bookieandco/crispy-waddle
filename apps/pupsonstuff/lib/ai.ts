@@ -27,7 +27,7 @@ Luxury pet artwork.`;
 
 export interface GenerateArtResult {
   success: true;
-  imageBase64: string;
+  imagesBase64: string[];
   outputCount: number;
 }
 
@@ -46,9 +46,7 @@ export async function generatePetPortrait(
   params: GenerateArtParams
 ): Promise<GenerateArtResult | GenerateArtError> {
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return { success: false, error: "OPENAI_API_KEY is not configured." };
-  }
+  if (!apiKey) return { success: false, error: "OPENAI_API_KEY is not configured." };
 
   const outputCount = Math.min(Math.max(params.outputCount ?? 1, 1), 3);
   const fullPrompt = [
@@ -56,16 +54,11 @@ export async function generatePetPortrait(
     params.productPrompt,
     `Art style: ${params.artStyleLabel}.`,
     params.userPrompt ? `Customer instructions: ${params.userPrompt}` : undefined,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  ].filter(Boolean).join("\n");
 
   try {
     const openai = getClient(apiKey);
-    const image = await toFile(params.imageBuffer, params.imageFilename, {
-      type: params.imageMimeType,
-    });
-
+    const image = await toFile(params.imageBuffer, params.imageFilename, { type: params.imageMimeType });
     const response = await openai.images.edit({
       image,
       prompt: fullPrompt,
@@ -74,15 +67,15 @@ export async function generatePetPortrait(
       n: outputCount,
     });
 
-    const b64 = response.data?.[0]?.b64_json;
-    if (!b64) {
-      return {
-        success: false,
-        error: "OpenAI response did not include image data.",
-      };
+    const imagesBase64 = (response.data ?? [])
+      .map((item) => item.b64_json)
+      .filter((value): value is string => Boolean(value));
+
+    if (!imagesBase64.length) {
+      return { success: false, error: "OpenAI response did not include image data." };
     }
 
-    return { success: true, imageBase64: b64, outputCount };
+    return { success: true, imagesBase64, outputCount: imagesBase64.length };
   } catch (err) {
     return {
       success: false,
