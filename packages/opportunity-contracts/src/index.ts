@@ -12,3 +12,4 @@ export * from "./commerce-events";
 export * from "./product-identity";
 export * from "./catalog-sync";
 export * from "./supplier-verification";
+export * from "./opportunity-evaluation";
