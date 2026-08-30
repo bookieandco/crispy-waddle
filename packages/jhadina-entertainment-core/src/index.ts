@@ -12,6 +12,8 @@ export * from "./cultural-context";
 export * from "./cultural-ingestion";
 export * from "./culture-service";
 export * from "./culture-scheduler";
+export * from "./voice-core";
+export * from "./oasis-social-reference";
 export * from "./graph/types.js";
 export * from "./graph/creative-knowledge-graph.js";
 export * from "./reference/index.js";
