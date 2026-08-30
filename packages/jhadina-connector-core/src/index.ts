@@ -152,3 +152,6 @@ export class ConnectorGateway {
     }
   }
 }
+
+export { createGitHubReadOnlyAdapter } from './github.js';
+export type { GitHubReadTransport, GitHubRepository } from './github.js';
