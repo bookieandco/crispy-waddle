@@ -1,5 +1,4 @@
-import type { SecurityDecision, SecurityPolicy } from './index.js';
-import { JhadinaSecurityCore } from './index.js';
+import type { SecurityDecision, SecurityPolicy, SecurityRequest } from './index.js';
 
 export interface HardenedSecurityRequest<TPayload = unknown> {
   requestId: string;
@@ -18,6 +17,10 @@ export interface HardenedSecurityRequest<TPayload = unknown> {
 export interface ReplayGuard {
   has(nonce: string): Promise<boolean>;
   consume(nonce: string, expiresAt: number): Promise<boolean>;
+}
+
+export interface SecurityAuthorizer {
+  authorize(request: SecurityRequest): SecurityDecision;
 }
 
 /** Test/local implementation only. Production deployments must use a durable, atomic store. */
@@ -74,10 +77,11 @@ export async function createHardenedRequest<TPayload>(input: {
   requiresApproval?: boolean;
   ttlMs?: number;
 }): Promise<HardenedSecurityRequest<TPayload>> {
+  const { ttlMs = 30_000, ...requestInput } = input;
   const issuedAt = Date.now();
-  const expiresAt = issuedAt + Math.min(input.ttlMs ?? 30_000, 60_000);
+  const expiresAt = issuedAt + Math.min(ttlMs, 60_000);
   return {
-    ...input,
+    ...requestInput,
     payloadHash: await hashActionPayload(input.payload),
     nonce: crypto.randomUUID(),
     issuedAt,
@@ -87,7 +91,7 @@ export async function createHardenedRequest<TPayload>(input: {
 
 export class HardenedSecurityBoundary {
   constructor(
-    private readonly security: JhadinaSecurityCore,
+    private readonly security: SecurityAuthorizer,
     private readonly replayGuard: ReplayGuard,
     private readonly maxClockSkewMs = 60_000,
   ) {}
@@ -120,6 +124,10 @@ export class HardenedSecurityBoundary {
   }
 }
 
-export function createHardenedSecurityBoundary(policy: SecurityPolicy, replayGuard: ReplayGuard): HardenedSecurityBoundary {
-  return new HardenedSecurityBoundary(new JhadinaSecurityCore(policy), replayGuard);
+export function createHardenedSecurityBoundary(
+  security: SecurityAuthorizer,
+  _policy: SecurityPolicy,
+  replayGuard: ReplayGuard,
+): HardenedSecurityBoundary {
+  return new HardenedSecurityBoundary(security, replayGuard);
 }
