@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { PersonalCommandFeed } from '../components/home/PersonalCommandFeed';
 import { feedSources, type FeedSource } from '../components/home/feedSources';
+import { QuickActions } from '../src/components/QuickActions';
 import styles from '../components/home/HomepageComposition.module.css';
 
 const navigation = [
@@ -21,6 +22,7 @@ export default function Home() {
           {navigation.map(([label, href]) => <Link key={label} href={href} className={`${styles.sideLink} ${label === 'Home' ? styles.sideLinkActive : ''}`}>{label}</Link>)}
         </aside>
         <section className={styles.feed} aria-label="Jhadina home feed">
+          <QuickActions />
           <div className={styles.filters} aria-label="Feed sources">
             {feedSources.map((value) => <button key={value} type="button" aria-pressed={source === value} className={`${styles.filter} ${source === value ? styles.filterActive : ''}`} onClick={() => setSource(value)}>{value}</button>)}
           </div>
