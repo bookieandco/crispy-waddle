@@ -1,5 +1,11 @@
 import type { InventoryItem } from "@jhadina/commerce-adapters";
 
+export interface SupplierFulfillmentEligibility {
+  destinationCountries: readonly string[];
+  excludedDestinationCountries?: readonly string[];
+  maxDeliveryDays?: number;
+}
+
 export interface SupplierInventoryCandidate {
   supplierId: string;
   connectionId: string;
@@ -7,6 +13,7 @@ export interface SupplierInventoryCandidate {
   supplierRiskScore: number;
   estimatedLandedCostMinor: number;
   estimatedDeliveryDays: number;
+  fulfillment: SupplierFulfillmentEligibility;
 }
 
 export interface SupplierRoutingRequest {
