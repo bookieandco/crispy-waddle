@@ -1,4 +1,4 @@
-import type { SecurityDecision, SecurityPolicy, SecurityRequest } from './index.js';
+import type { SecurityDecision, SecurityRequest } from './index.js';
 
 export interface HardenedSecurityRequest<TPayload = unknown> {
   requestId: string;
@@ -122,12 +122,4 @@ export class HardenedSecurityBoundary {
       expiresAt: request.expiresAt,
     });
   }
-}
-
-export function createHardenedSecurityBoundary(
-  security: SecurityAuthorizer,
-  _policy: SecurityPolicy,
-  replayGuard: ReplayGuard,
-): HardenedSecurityBoundary {
-  return new HardenedSecurityBoundary(security, replayGuard);
 }
