@@ -13,6 +13,7 @@ export interface CompetitiveEvidenceSource {
 
 export interface CompetitiveEvidence<T = unknown> {
   evidenceId: string;
+  ownerId: string;
   kind: CompetitiveEvidenceKind;
   subjectId: string;
   value: T;
@@ -36,6 +37,7 @@ export interface CompetitorObservation {
 }
 
 export interface CompetitiveIntelligenceQuery {
+  ownerId: string;
   productId?: string;
   competitorId?: string;
   marketplace?: string;
