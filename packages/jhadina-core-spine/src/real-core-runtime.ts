@@ -1,5 +1,5 @@
 import type { RealCore, RealCoreResult, RealCoreStore, RealExperience, RealState } from '@jhadina/real-core';
-import { HumorCore, HumorMemory, VoiceMemory, decideExpression, type HumorAudience, type HumorFeedback, type HumorOpportunity, type HumorMode, type ExpressionProfile } from '@jhadina/entertainment-core';
+import { HumorCore, HumorMemory, VoiceMemory, decideExpression, CulturalService, type HumorAudience, type HumorFeedback, type HumorOpportunity, type HumorMode, type ExpressionProfile, type ResearchSignal } from '@jhadina/entertainment-core';
 import type { Experience, ContextPacket, HumorContextState, VoiceContextState } from './types.js';
 
 export interface RealCoreRuntimeResult { real: RealCoreResult; contextState: RealState; humor?: HumorContextState; voice?: VoiceContextState; }
@@ -7,6 +7,7 @@ export interface RealCoreRuntimeResult { real: RealCoreResult; contextState: Rea
 export class RealCoreRuntime {
   private readonly humorMemory = new HumorMemory();
   private readonly voiceMemory = new VoiceMemory();
+  private readonly culturalService = new CulturalService();
   private readonly expressionProfile: ExpressionProfile = { quipiness: 0.78, sharpness: 0.68, profanityFrequency: 0.62, profanityIntensity: 0.58, directness: 0.82, warmth: 0.62 };
 
   constructor(private readonly core: RealCore, private readonly store?: RealCoreStore, private readonly humor = new HumorCore()) {}
@@ -23,6 +24,10 @@ export class RealCoreRuntime {
   }
 
   async save(): Promise<void> { if (this.store) await this.store.save(this.snapshot()); }
+
+  ingestResearch(signal: ResearchSignal, now?: string) { return this.culturalService.ingest(signal, now); }
+  refreshCulture(now = new Date().toISOString()): void { this.culturalService.refresh(now); }
+  culturalSnapshot() { return this.culturalService.snapshot(); }
 
   evaluateHumor(experience: Experience): HumorContextState {
     const audience = this.resolveAudience(experience);
