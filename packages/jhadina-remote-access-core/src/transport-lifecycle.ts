@@ -3,6 +3,7 @@ export type RemoteTransportState = 'idle' | 'connecting' | 'connected' | 'closin
 export type RemoteTransportRequest = Readonly<{
   signal?: AbortSignal;
   timeoutMs?: number;
+  sessionId?: string;
 }>;
 
 export interface RemoteTransportSession {
