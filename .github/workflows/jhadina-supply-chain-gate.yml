@@ -1,0 +1,68 @@
+name: Jhadina Supply Chain Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supply-chain-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Verify lockfile and dependency integrity
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Detect dependency lifecycle scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE '"(preinstall|install|postinstall|prepare)"[[:space:]]*:' --include='package.json' . --exclude-dir=node_modules --exclude-dir=.git; then
+            echo "Lifecycle scripts require explicit security review."
+            exit 1
+          fi
+
+      - name: Detect direct remote dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE '"(https?|git\+|git://|github:)' --include='package.json' . --exclude-dir=node_modules --exclude-dir=.git; then
+            echo "Direct remote dependency detected; use approved registry packages or explicit review."
+            exit 1
+          fi
+
+      - name: Dependency audit
+        run: pnpm audit --prod
+
+      - name: Secret-pattern scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE '(BEGIN (RSA|EC|OPENSSH|PRIVATE) KEY|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,})' --exclude-dir=.git --exclude-dir=node_modules --exclude='*.lock' .; then
+            echo "Potential credential material detected."
+            exit 1
+          fi
