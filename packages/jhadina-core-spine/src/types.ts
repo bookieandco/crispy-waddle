@@ -13,146 +13,20 @@ export type CoreDomain =
   | 'evolution';
 
 export type DecisionDisposition = 'PROCEED' | 'ASK' | 'DECLINE' | 'DEFER';
-
 export type MemoryDisposition = 'PROPOSE' | 'SAVE' | 'IGNORE';
 
-export interface EvidenceRef {
-  id: string;
-  source: string;
-  observedAt: string;
-  summary: string;
-  immutable?: boolean;
-}
-
-export interface Experience {
-  id: string;
-  occurredAt: string;
-  source: string;
-  domain?: string;
-  actor: 'user' | 'jhadina' | 'system' | 'external';
-  content: string;
-  evidence: EvidenceRef[];
-}
-
-export interface PatternObservation {
-  id: string;
-  pattern: string;
-  evidence: EvidenceRef[];
-  confidence: number;
-  occurrences: number;
-  contradictions: EvidenceRef[];
-  lastObservedAt: string;
-}
-
-/**
- * Personality is evidence-backed state, not a prompt or a fixed persona.
- * It may contain preferences and tendencies, but every durable claim needs
- * provenance and can be contradicted or revised.
- */
-export interface PersonalityTrait {
-  id: string;
-  statement: string;
-  category: 'preference' | 'value' | 'tendency' | 'communication' | 'decision';
-  confidence: number;
-  stability: number;
-  evidence: EvidenceRef[];
-  contradictions: EvidenceRef[];
-  status: 'candidate' | 'accepted' | 'contested' | 'retired';
-}
-
-export interface PersonalityState {
-  version: number;
-  traits: PersonalityTrait[];
-  independentAssessmentRequired: boolean;
-  updatedAt: string;
-}
-
-export interface HumorContextState {
-  shouldHumor: boolean;
-  intensity: number;
-  score: number;
-  reason: string;
-  rankedModes: string[];
-}
-
-export interface ContextPacket {
-  id: string;
-  purpose: string;
-  userGoal?: string;
-  relevantMemories: EvidenceRef[];
-  patterns: PatternObservation[];
-  personality: PersonalityState;
-  knowledge: EvidenceRef[];
-  constraints: string[];
-  excludedContext: string[];
-  humor?: HumorContextState;
-}
-
-export interface DecisionProposal {
-  id: string;
-  contextId: string;
-  disposition: DecisionDisposition;
-  recommendation: string;
-  rationale: string;
-  evidence: EvidenceRef[];
-  uncertainty: string[];
-  alternatives: string[];
-}
-
-export interface PolicyDecision {
-  id: string;
-  proposalId: string;
-  allowed: boolean;
-  reason: string;
-  requiredApproval: boolean;
-  evaluatedAt: string;
-}
-
-export interface ActionRequest {
-  id: string;
-  proposalId: string;
-  capability: string;
-  operation: string;
-  input: unknown;
-  reversible: boolean;
-  consequenceLevel: 'low' | 'medium' | 'high' | 'critical';
-}
-
-export interface ActionResult {
-  id: string;
-  requestId: string;
-  success: boolean;
-  output?: unknown;
-  error?: string;
-  completedAt: string;
-}
-
-export interface AuditEvent {
-  id: string;
-  type: string;
-  occurredAt: string;
-  actor: string;
-  subjectId: string;
-  payload: Record<string, unknown>;
-}
-
-export interface MemoryProposal {
-  id: string;
-  content: string;
-  reason: string;
-  evidence: EvidenceRef[];
-  disposition: MemoryDisposition;
-}
-
-export interface SpineCycle {
-  experience: Experience;
-  patterns: PatternObservation[];
-  personality: PersonalityState;
-  context: ContextPacket;
-  decision?: DecisionProposal;
-  policy?: PolicyDecision;
-  action?: ActionRequest;
-  result?: ActionResult;
-  memoryProposals: MemoryProposal[];
-  auditEvents: AuditEvent[];
-}
+export interface EvidenceRef { id: string; source: string; observedAt: string; summary: string; immutable?: boolean; }
+export interface Experience { id: string; occurredAt: string; source: string; domain?: string; actor: 'user' | 'jhadina' | 'system' | 'external'; content: string; evidence: EvidenceRef[]; }
+export interface PatternObservation { id: string; pattern: string; evidence: EvidenceRef[]; confidence: number; occurrences: number; contradictions: EvidenceRef[]; lastObservedAt: string; }
+export interface PersonalityTrait { id: string; statement: string; category: 'preference' | 'value' | 'tendency' | 'communication' | 'decision'; confidence: number; stability: number; evidence: EvidenceRef[]; contradictions: EvidenceRef[]; status: 'candidate' | 'accepted' | 'contested' | 'retired'; }
+export interface PersonalityState { version: number; traits: PersonalityTrait[]; independentAssessmentRequired: boolean; updatedAt: string; }
+export interface HumorContextState { shouldHumor: boolean; intensity: number; score: number; reason: string; rankedModes: string[]; }
+export interface VoiceContextState { register: 'clean' | 'casual' | 'profane'; quipiness: number; profanityAllowed: boolean; profanityIntensity: number; preferredPhrases: string[]; preferredRhythms: string[]; preferredDirectness: string[]; preferredWarmth: string[]; preferredSharpness: string[]; }
+export interface ContextPacket { id: string; purpose: string; userGoal?: string; relevantMemories: EvidenceRef[]; patterns: PatternObservation[]; personality: PersonalityState; knowledge: EvidenceRef[]; constraints: string[]; excludedContext: string[]; humor?: HumorContextState; voice?: VoiceContextState; }
+export interface DecisionProposal { id: string; contextId: string; disposition: DecisionDisposition; recommendation: string; rationale: string; evidence: EvidenceRef[]; uncertainty: string[]; alternatives: string[]; }
+export interface PolicyDecision { id: string; proposalId: string; allowed: boolean; reason: string; requiredApproval: boolean; evaluatedAt: string; }
+export interface ActionRequest { id: string; proposalId: string; capability: string; operation: string; input: unknown; reversible: boolean; consequenceLevel: 'low' | 'medium' | 'high' | 'critical'; }
+export interface ActionResult { id: string; requestId: string; success: boolean; output?: unknown; error?: string; completedAt: string; }
+export interface AuditEvent { id: string; type: string; occurredAt: string; actor: string; subjectId: string; payload: Record<string, unknown>; }
+export interface MemoryProposal { id: string; content: string; reason: string; evidence: EvidenceRef[]; disposition: MemoryDisposition; }
+export interface SpineCycle { experience: Experience; patterns: PatternObservation[]; personality: PersonalityState; context: ContextPacket; decision?: DecisionProposal; policy?: PolicyDecision; action?: ActionRequest; result?: ActionResult; memoryProposals: MemoryProposal[]; auditEvents: AuditEvent[]; }
