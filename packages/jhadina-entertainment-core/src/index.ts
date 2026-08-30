@@ -7,6 +7,7 @@ export * from "./callback-memory";
 export * from "./expression";
 export * from "./voice-memory";
 export * from "./quip";
+export * from "./quip-generator";
 export * from "./graph/types.js";
 export * from "./graph/creative-knowledge-graph.js";
 export * from "./reference/index.js";
