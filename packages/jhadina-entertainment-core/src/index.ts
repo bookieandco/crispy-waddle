@@ -5,6 +5,7 @@ export * from "./humor-memory";
 export * from "./humor-feedback-adapter";
 export * from "./callback-memory";
 export * from "./expression";
+export * from "./voice-memory";
 export * from "./graph/types.js";
 export * from "./graph/creative-knowledge-graph.js";
 export * from "./reference/index.js";
