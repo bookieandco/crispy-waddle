@@ -49,13 +49,15 @@ export class RealCoreRuntime {
       risk: this.estimateRisk(experience),
       callbackCandidates: this.snapshot().recentExperiences.slice(-5),
     };
-    const decision = this.humor.evaluate(opportunity, experience.actor === 'user' ? this.snapshot().identity.continuityKey : undefined);
+    const relationshipId = experience.actor === 'user' ? this.snapshot().identity.continuityKey : undefined;
+    const decision = this.humor.evaluate(opportunity, relationshipId);
+    const rankedModes = this.humor.rankModes(opportunity, relationshipId);
     return {
       shouldHumor: decision.shouldHumor,
       intensity: decision.intensity,
       score: decision.score,
       reason: decision.reason,
-      rankedModes: this.humor.rankModes(opportunity),
+      rankedModes,
     };
   }
 
@@ -90,15 +92,20 @@ export class RealCoreRuntime {
   }
 
   private estimateSeriousness(experience: Experience): number {
-    return /emergency|urgent|security|fraud|legal|medical|critical|death|danger/i.test(experience.content) ? 0.95 : 0.25;
+    if (/emergency|danger|life-threatening|immediate threat/i.test(experience.content)) return 0.95;
+    if (/urgent|security|fraud|legal|medical|critical|death/i.test(experience.content)) return 0.8;
+    if (/problem|broken|failure|conflict|bad news|loss/i.test(experience.content)) return 0.55;
+    return 0.25;
   }
 
   private estimateEmotionalLoad(experience: Experience): number {
-    return /angry|upset|sad|hurt|afraid|stress|panic|grief|conflict/i.test(experience.content) ? 0.8 : 0.2;
+    if (/panic|grief|trauma|suicid|abuse|devastated|terrified/i.test(experience.content)) return 0.95;
+    if (/angry|upset|sad|hurt|afraid|stress|conflict/i.test(experience.content)) return 0.7;
+    return 0.2;
   }
 
   private estimateRisk(experience: Experience): 'low' | 'medium' | 'high' {
-    if (/emergency|security|fraud|legal|medical|critical|danger/i.test(experience.content)) return 'high';
+    if (/emergency|security|fraud|legal|medical|critical|danger|life-threatening/i.test(experience.content)) return 'high';
     if (/money|payment|contract|public|reputation/i.test(experience.content)) return 'medium';
     return 'low';
   }
