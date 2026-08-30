@@ -18,7 +18,10 @@ export async function auditedConnectSsh(
     await audit.record(createRemoteAuditEvent({ type: 'session.connect.denied', sessionId, protocol: 'ssh', host: request.host, port: request.port, reason: decision.reason }));
     throw new Error(`SSH request denied: ${decision.reason}`);
   }
-  const session = await connectAuthorizedSsh(transport, policy, request, connection, transportRequest);
+  const session = await connectAuthorizedSsh(transport, policy, request, connection, {
+    ...transportRequest,
+    sessionId,
+  });
   if (session.sessionId !== sessionId) throw new Error('SSH transport returned an unexpected session identity');
   await audit.record(createRemoteAuditEvent({ type: 'session.connected', sessionId, protocol: 'ssh', host: request.host, port: request.port }));
   return session;
