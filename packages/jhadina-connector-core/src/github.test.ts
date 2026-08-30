@@ -23,6 +23,7 @@ test('GitHub adapter exposes only read-only repository metadata', () => {
 
   assert.deepEqual(adapter.manifest.operations.map((operation) => operation.name), ['repo.read']);
   assert.equal(adapter.manifest.operations[0]?.capability, 'github.repo.read');
+  assert.equal(adapter.manifest.operations[0]?.kind, 'read');
   assert.equal(calls.length, 0);
 });
 
@@ -91,11 +92,6 @@ test('GitHub adapter rejects unverified output', async () => {
       return { fullName: 'bookieandco/crispy-waddle' } as GitHubRepository;
     },
   });
-
-  const response = await new ConnectorGateway(
-    new ConnectorRegistry(),
-  ).execute;
-  void response;
 
   assert.equal(
     await adapter.verify(adapter.manifest.operations[0]!, { fullName: 'incomplete' }, {
