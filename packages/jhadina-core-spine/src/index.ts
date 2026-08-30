@@ -2,6 +2,7 @@ export * from './spine.js';
 export * from './types.js';
 export * from './real-core-runtime.js';
 export * from './quip-runtime.js';
+export * from './capability-gateway.js';
 export * from './evolution.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
