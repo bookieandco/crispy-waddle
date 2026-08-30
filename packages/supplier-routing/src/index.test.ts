@@ -13,6 +13,9 @@ const candidate = (overrides: Record<string, unknown> = {}) => ({
   supplierRiskScore: 10,
   estimatedLandedCostMinor: 1200,
   estimatedDeliveryDays: 5,
+  fulfillment: {
+    destinationCountries: ["US"],
+  },
   ...overrides,
 });
 
@@ -37,6 +40,35 @@ describe("DeterministicSupplierRoutingEngine", () => {
     const slow = candidate({ estimatedDeliveryDays: 11 });
     const eur = candidate({ inventory: { ...candidate().inventory, unitPrice: { amountMinor: 1000, currency: "EUR" } } });
     expect(engine.route({ productId: "p1", quantity: 1, currency: "USD", destinationCountry: "US", candidates: [risky, slow, eur] })).toBeNull();
+  });
+
+  it("rejects a supplier that does not serve the destination", () => {
+    expect(engine.route({
+      productId: "p1", quantity: 1, currency: "USD", destinationCountry: "CA",
+      candidates: [candidate()],
+    })).toBeNull();
+  });
+
+  it("supports wildcard destinations", () => {
+    const decision = engine.route({
+      productId: "p1", quantity: 1, currency: "USD", destinationCountry: "CA",
+      candidates: [candidate({ fulfillment: { destinationCountries: ["*"] } })],
+    });
+    expect(decision?.supplierId).toBe("supplier-a");
+  });
+
+  it("honors explicitly excluded destinations even with a wildcard", () => {
+    expect(engine.route({
+      productId: "p1", quantity: 1, currency: "USD", destinationCountry: "CA",
+      candidates: [candidate({ fulfillment: { destinationCountries: ["*"], excludedDestinationCountries: ["CA"] } })],
+    })).toBeNull();
+  });
+
+  it("enforces supplier-specific maximum delivery days", () => {
+    expect(engine.route({
+      productId: "p1", quantity: 1, currency: "USD", destinationCountry: "US",
+      candidates: [candidate({ estimatedDeliveryDays: 6, fulfillment: { destinationCountries: ["US"], maxDeliveryDays: 5 } })],
+    })).toBeNull();
   });
 
   it("breaks equal-cost ties deterministically", () => {
