@@ -17,12 +17,23 @@ export class DeterministicSupplierRoutingEngine implements SupplierRoutingEngine
 
     const eligible = request.candidates.filter((candidate) => {
       const available = candidate.inventory.availableQuantity;
+      const destination = request.destinationCountry.toUpperCase();
+      const eligibleDestinations = candidate.fulfillment.destinationCountries.map((c) => c.toUpperCase());
+      const excludedDestinations = (candidate.fulfillment.excludedDestinationCountries ?? []).map((c) => c.toUpperCase());
+      const destinationAllowed =
+        eligibleDestinations.includes("*") || eligibleDestinations.includes(destination);
+
       return (
         available >= request.quantity &&
         candidate.inventory.availability === "available" &&
         candidate.inventory.unitPrice?.currency === request.currency &&
         candidate.supplierRiskScore <= this.policy.maxRiskScore &&
-        candidate.estimatedDeliveryDays <= this.policy.maxDeliveryDays
+        candidate.estimatedDeliveryDays <= this.policy.maxDeliveryDays &&
+        candidate.fulfillment.maxDeliveryDays !== undefined
+          ? candidate.estimatedDeliveryDays <= candidate.fulfillment.maxDeliveryDays &&
+            destinationAllowed &&
+            !excludedDestinations.includes(destination)
+          : destinationAllowed && !excludedDestinations.includes(destination)
       );
     });
 
@@ -44,6 +55,7 @@ export class DeterministicSupplierRoutingEngine implements SupplierRoutingEngine
       quantity: request.quantity,
       rationale: [
         "eligible inventory available",
+        `destination: ${request.destinationCountry}`,
         `landed cost: ${winner.estimatedLandedCostMinor}`,
         `delivery days: ${winner.estimatedDeliveryDays}`,
         `risk score: ${winner.supplierRiskScore}`,
