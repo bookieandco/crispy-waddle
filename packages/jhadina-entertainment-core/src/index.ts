@@ -13,6 +13,8 @@ export * from "./cultural-ingestion";
 export * from "./culture-service";
 export * from "./culture-scheduler";
 export * from "./voice-core";
+export * from "./voice-engine";
+export * from "./web-scout";
 export * from "./oasis-social-reference";
 export * from "./graph/types.js";
 export * from "./graph/creative-knowledge-graph.js";
