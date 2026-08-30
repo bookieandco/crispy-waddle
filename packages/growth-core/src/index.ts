@@ -33,6 +33,7 @@ export * from './intelligence/social-knowledge.js';
 export * from './intelligence/social-opportunity-history.js';
 export * from './intelligence/buyer-offer-matching.js';
 export * from './intelligence/demand-creative-matching.js';
+export * from './intelligence/social-creative-pipeline.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
