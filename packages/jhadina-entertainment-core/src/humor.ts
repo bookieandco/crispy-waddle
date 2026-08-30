@@ -24,6 +24,7 @@ export interface HumorProfile {
   observational: number;
   selfDeprecation: number;
   darkness: number;
+  naturalness: number;
 }
 
 export interface HumorRelationshipProfile {
@@ -61,10 +62,11 @@ export interface HumorFeedback {
 
 export interface HumorDecision {
   shouldHumor: boolean;
-  mode?: HumorMode;
   intensity: number;
   score: number;
   reason: string;
+  rankedModes?: HumorMode[];
+  allowSeriousHumor: boolean;
 }
 
 const DEFAULT_PROFILE: HumorProfile = {
@@ -80,6 +82,7 @@ const DEFAULT_PROFILE: HumorProfile = {
   observational: 0.76,
   selfDeprecation: 0.3,
   darkness: 0.25,
+  naturalness: 0.82,
 };
 
 function clamp(value: number): number {
@@ -118,24 +121,35 @@ export class HumorCore {
   }
 
   evaluate(opportunity: HumorOpportunity, relationshipId?: string): HumorDecision {
-    if (!this.profile.enabled) return { shouldHumor: false, intensity: 0, score: 0, reason: "Humor is disabled." };
-    if (opportunity.seriousness >= 0.9 || opportunity.risk === "high") {
-      return { shouldHumor: false, intensity: 0, score: 0, reason: "Context is too serious or risky for humor." };
-    }
+    if (!this.profile.enabled) return { shouldHumor: false, intensity: 0, score: 0, reason: "Humor is disabled.", allowSeriousHumor: false };
 
     const relationship = relationshipId ? this.relationships.get(relationshipId) : undefined;
     const familiarity = relationship?.familiarity ?? (opportunity.audience === "private" ? 0.75 : 0.35);
     const consent = relationship?.teasingConsent ?? 0;
-    const base = this.profile.timing * 0.3 + this.profile.playfulness * 0.25 + familiarity * 0.2 + (1 - opportunity.emotionalLoad) * 0.15;
-    const callbackBonus = opportunity.callbackCandidates.length > 0 ? this.profile.callbacks * 0.15 : 0;
+    const seriousHumorFit = this.seriousHumorFit(opportunity, relationship);
+    const base = this.profile.timing * 0.26
+      + this.profile.playfulness * 0.18
+      + familiarity * 0.18
+      + (1 - opportunity.emotionalLoad) * 0.12
+      + seriousHumorFit * 0.18
+      + this.profile.naturalness * 0.08;
+    const callbackBonus = opportunity.callbackCandidates.length > 0 ? this.profile.callbacks * 0.14 : 0;
     const teasingPenalty = opportunity.audience === "professional" ? this.profile.teasing * 0.25 : 0;
-    const score = clamp(base + callbackBonus - teasingPenalty + consent * 0.08);
+    const highRiskPenalty = opportunity.risk === "high" ? 0.24 : 0;
+    const score = clamp(base + callbackBonus - teasingPenalty - highRiskPenalty + consent * 0.08);
+    const allowSeriousHumor = opportunity.seriousness >= 0.6 && opportunity.risk !== "high" && seriousHumorFit >= 0.5;
+    const shouldHumor = score >= 0.54 && (opportunity.risk !== "high" || seriousHumorFit >= 0.82);
 
     return {
-      shouldHumor: score >= 0.58,
-      intensity: clamp(score * (1 - opportunity.seriousness)),
+      shouldHumor,
+      intensity: clamp(score * (0.65 + seriousHumorFit * 0.35)),
       score,
-      reason: score >= 0.58 ? "Timing and relationship context support a humorous response." : "Humor opportunity is too weak; stay natural and direct.",
+      allowSeriousHumor,
+      reason: shouldHumor
+        ? allowSeriousHumor
+          ? "The moment is serious, but the social and tonal signals support a light or tension-breaking joke."
+          : "Timing, relationship, and context support humor without forcing it."
+        : "The moment does not support natural humor; stay direct without becoming stiff.",
     };
   }
 
@@ -164,5 +178,13 @@ export class HumorCore {
 
   feedbackScore(candidateId: string): number {
     return this.feedback.get(candidateId) ?? 0.5;
+  }
+
+  private seriousHumorFit(opportunity: HumorOpportunity, relationship?: HumorRelationshipProfile): number {
+    const familiarity = relationship?.familiarity ?? (opportunity.audience === "private" ? 0.75 : 0.35);
+    const consent = relationship?.teasingConsent ?? 0.25;
+    const tensionRelease = opportunity.seriousness * (1 - opportunity.emotionalLoad * 0.55);
+    const emotionalRestraint = opportunity.emotionalLoad >= 0.9 ? 0.2 : 0.8;
+    return clamp(familiarity * 0.35 + consent * 0.15 + tensionRelease * 0.25 + emotionalRestraint * 0.25);
   }
 }
