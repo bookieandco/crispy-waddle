@@ -13,3 +13,4 @@ export * from "./product-identity";
 export * from "./catalog-sync";
 export * from "./supplier-verification";
 export * from "./opportunity-evaluation";
+export * from "./commerce-capability-binding";
