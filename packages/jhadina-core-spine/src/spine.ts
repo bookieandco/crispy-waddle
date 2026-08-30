@@ -47,6 +47,28 @@ export class JhadinaSpine {
     if (this.researchCapability && this.knowledgeCheck) {
       const check = await this.knowledgeCheck(experience, context);
       research = await this.researchCapability.execute(experience.content, check);
+      await this.ports.audit.record({
+        type: research.denied ? 'RESEARCH_DENIED' : research.researched ? 'RESEARCH_AUTHORIZED' : 'RESEARCH_NOT_NEEDED',
+        actor: 'jhadina',
+        subjectId: research.intent ? `research:${research.intent.requestedAt}` : experience.id,
+        payload: {
+          query: experience.content,
+          knowledgeState: check.state,
+          confidence: check.confidence,
+          reason: check.reason,
+          researched: research.researched,
+          denied: research.denied,
+          result: research.result ? {
+            discovered: research.result.discovered,
+            crawled: research.result.crawled,
+            verified: research.result.verified,
+            corroborated: research.result.corroborated,
+            promoted: research.result.promoted,
+            duplicates: research.result.duplicates,
+            rejected: research.result.rejected,
+          } : undefined,
+        },
+      });
       if (research.result) {
         context = {
           ...context,
