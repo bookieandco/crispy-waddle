@@ -1,8 +1,20 @@
 export type CreativeOperation =
+  | "background_remove"
   | "generate"
   | "edit"
   | "enhance"
-  | "upscale";
+  | "upscale"
+  | "video"
+  | "compose_product";
+
+export type CreativeJobStatus =
+  | "queued"
+  | "preprocessing"
+  | "generating"
+  | "reviewing"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 export type ReferenceRole =
   | "subject"
@@ -13,6 +25,8 @@ export type ReferenceRole =
   | "color"
   | "inspiration";
 
+export type BackgroundMode = "auto" | "transparent" | "keep" | "generate";
+
 export interface CreativeReference {
   assetId: string;
   role: ReferenceRole;
@@ -20,19 +34,23 @@ export interface CreativeReference {
 }
 
 export interface CreativeIntent {
-  operation: CreativeOperation;
+  operation: CreativeOperation | "generate_product_design";
   prompt?: string;
   references: CreativeReference[];
   outputCount?: number;
   productId?: string;
+  backgroundMode?: BackgroundMode;
   metadata?: Record<string, unknown>;
 }
 
 export interface CreativeJob {
   id: string;
   intent: CreativeIntent;
-  status: "queued" | "running" | "completed" | "failed";
+  status: CreativeJobStatus;
   outputs: CreativeOutput[];
+  provider?: string;
+  providerJobId?: string;
+  error?: string;
 }
 
 export interface CreativeOutput {
