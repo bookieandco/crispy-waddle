@@ -52,6 +52,7 @@ export * from './intelligence/media-signal-deduplication.js';
 export * from './intelligence/trend-emergence.js';
 export * from './intelligence/trend-opportunity-bridge.js';
 export * from './intelligence/trend-buyer-convergence.js';
+export * from './intelligence/creative-pattern-selection.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
