@@ -1,14 +1,19 @@
 import type { CapabilityRegistry } from './index.js';
 import type { RemoteCommandRequest, RemoteCommandResult, RemoteCommandPolicy } from './remote-command-gateway.js';
 import type { RemoteResolver } from './remote-resolver.js';
-import type { RemoteTransportRouter } from './remote-transport.js';
+import type { ResolvedRemoteCommand } from './remote-resolver.js';
+import type { TransportRouter } from './remote-transport.js';
 
-export class ResolvedRemoteCommandExecutor {
+export interface RemoteCommandExecutor {
+  execute(request: RemoteCommandRequest): Promise<RemoteCommandResult>;
+}
+
+export class ResolvedRemoteCommandExecutor implements RemoteCommandExecutor {
   constructor(
     private readonly registry: CapabilityRegistry,
     private readonly policy: RemoteCommandPolicy,
     private readonly resolver: RemoteResolver,
-    private readonly transports: RemoteTransportRouter,
+    private readonly transports: TransportRouter,
   ) {}
 
   async execute(request: RemoteCommandRequest): Promise<RemoteCommandResult> {
@@ -20,10 +25,17 @@ export class ResolvedRemoteCommandExecutor {
     if (!(await this.policy.authorize(request, capability))) {
       return { status: 'rejected', requestId: request.requestId, reason: 'policy-denied' };
     }
-    const resolved = this.resolver.resolve(request);
-    const transport = this.transports.resolve(resolved);
-    if (!transport) return { status: 'rejected', requestId: request.requestId, reason: 'no-supported-transport' };
-    await transport.execute(resolved);
+    let resolved: ResolvedRemoteCommand;
+    try {
+      resolved = this.resolver.resolve(request);
+      await this.transports.execute(resolved);
+    } catch (error) {
+      return {
+        status: 'rejected',
+        requestId: request.requestId,
+        reason: error instanceof Error ? error.message : 'execution-failed',
+      };
+    }
     return { status: 'accepted', requestId: request.requestId };
   }
 }
