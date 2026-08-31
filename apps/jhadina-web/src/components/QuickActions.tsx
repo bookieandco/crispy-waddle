@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import styles from "./QuickActions.module.css"
 
 type Action = { id: string; label: string; icon: string; capability: string }
+type Capability = { name: string; available: boolean }
 type CommandResult = { status: "accepted" | "rejected"; requestId: string; reason?: string }
 
 const actions: Action[] = [
@@ -27,9 +28,25 @@ const scenes = [
 export function QuickActions() {
   const [lastAction, setLastAction] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [available, setAvailable] = useState<Set<string>>(new Set())
+  const [capabilitiesLoaded, setCapabilitiesLoaded] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/remote/capabilities")
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("capability discovery failed")))
+      .then(data => {
+        if (cancelled) return
+        const capabilities = (data.capabilities ?? []) as Capability[]
+        setAvailable(new Set(capabilities.filter(capability => capability.available).map(capability => capability.name)))
+      })
+      .catch(() => setLastAction("Capability discovery failed"))
+      .finally(() => { if (!cancelled) setCapabilitiesLoaded(true) })
+    return () => { cancelled = true }
+  }, [])
 
   const run = async (label: string, capability: string) => {
-    if (busy) return
+    if (busy || !available.has(capability)) return
     setBusy(true)
     const requestId = crypto.randomUUID()
     try {
@@ -47,18 +64,20 @@ export function QuickActions() {
     }
   }
 
+  const isAvailable = (capability: string) => capabilitiesLoaded && available.has(capability)
+
   return (
     <section className={styles.panel} aria-label="Remote quick actions">
       <div className={styles.header}>
         <div><span className={styles.eyebrow}>Remote</span><h2>Quick Actions</h2></div>
-        <span className={styles.status} aria-live="polite">{busy ? "Sending…" : lastAction ?? "Ready"}</span>
+        <span className={styles.status} aria-live="polite">{busy ? "Sending…" : lastAction ?? (capabilitiesLoaded ? "Ready" : "Loading…")}</span>
       </div>
       <div className={styles.grid}>
-        {actions.map(action => <button key={action.id} type="button" className={styles.action} onClick={() => run(action.label, action.capability)} disabled={busy} aria-label={action.label}><span>{action.icon}</span><small>{action.label}</small></button>)}
+        {actions.map(action => <button key={action.id} type="button" className={styles.action} onClick={() => run(action.label, action.capability)} disabled={busy || !isAvailable(action.capability)} aria-label={action.label} aria-disabled={!isAvailable(action.capability)}><span>{action.icon}</span><small>{action.label}</small></button>)}
       </div>
       <div className={styles.section}>
         <span className={styles.eyebrow}>Scenes</span>
-        <div className={styles.scenes}>{scenes.map(scene => <button key={scene.id} type="button" className={styles.scene} onClick={() => run(scene.label, scene.capability)} disabled={busy}>{scene.label}</button>)}</div>
+        <div className={styles.scenes}>{scenes.map(scene => <button key={scene.id} type="button" className={styles.scene} onClick={() => run(scene.label, scene.capability)} disabled={busy || !isAvailable(scene.capability)} aria-disabled={!isAvailable(scene.capability)}>{scene.label}</button>)}</div>
       </div>
     </section>
   )
