@@ -1,5 +1,5 @@
 import type { CanonicalHomeStateEvent } from './home-assistant-state-events.js';
-import type { DecisionProposal } from '@jhadina/core-spine';
+import type { DecisionProposal, EvidenceRef } from '@jhadina/core-spine';
 
 export type HomeAutomationCondition = Readonly<{
   entityId: string;
@@ -28,7 +28,16 @@ export interface HomeAutomationEvaluation {
   readonly proposal?: DecisionProposal;
 }
 
-/** Pure evaluator: matching can propose an action, but never executes it. */
+function eventEvidence(event: CanonicalHomeStateEvent): EvidenceRef {
+  return {
+    id: event.id,
+    source: event.provenance.source,
+    observedAt: event.occurredAt,
+    summary: `${event.entityId} changed from ${String(event.previousState)} to ${String(event.state)}`,
+  };
+}
+
+/** Pure evaluator: matching can propose a decision, but never executes it. */
 export function evaluateHomeAutomationRule(
   rule: HomeAutomationRule,
   event: CanonicalHomeStateEvent,
@@ -39,13 +48,13 @@ export function evaluateHomeAutomationRule(
 
   const proposal: DecisionProposal = {
     id: `automation:${rule.id}:${event.id}`,
-    reason: `Home automation rule ${rule.id} matched`,
-    action: rule.then.capability,
-    parameters: {
-      operation: rule.then.operation,
-      ...rule.then.input,
-    },
-    consequenceLevel: rule.then.consequenceLevel,
+    contextId: `home-automation:${rule.id}`,
+    disposition: 'PROCEED',
+    recommendation: `Execute ${rule.then.operation} through capability ${rule.then.capability}`,
+    rationale: `Deterministic home automation rule ${rule.id} matched ${event.entityId}=${String(event.state)}`,
+    evidence: [eventEvidence(event)],
+    uncertainty: [],
+    alternatives: [],
   };
 
   return { ruleId: rule.id, matched: true, proposal };
