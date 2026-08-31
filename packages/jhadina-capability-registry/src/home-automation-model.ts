@@ -36,10 +36,7 @@ export function normalizeHomeEntity(entity: CanonicalHomeEntity): CanonicalHomeE
   if (!/^ha:device:[^\s:]+$/.test(entity.deviceId)) {
     throw new Error('invalid-canonical-home-device');
   }
-  return Object.freeze({
-    ...entity,
-    entities: undefined,
-  } as unknown as CanonicalHomeEntity);
+  return Object.freeze({ ...entity });
 }
 
 export function normalizeHomeDevice(device: CanonicalHomeDevice): CanonicalHomeDevice {
