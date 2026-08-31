@@ -25,3 +25,4 @@ export type { PlaybackAdapterKind, PlaybackAdapterContext, PlaybackAdapter, Dire
 export { resolvePlaybackAdapter, createDirectSourceAdapter, createYouTubePlaybackAdapter } from './playback-adapters';
 export type { MediaPlaybackProgress, MediaPlaybackProgressRepository } from './media-playback-persistence'; export { InMemoryMediaPlaybackProgressRepository, isMeaningfulResume } from './media-playback-persistence';
 export type { MediaPlayerStore, MediaPlayerStoreOptions } from './media-player-store'; export { createMediaPlayerStore } from './media-player-store';
+export type { MediaPlayerActions, MediaPlayerViewState } from './media-player-store-context'; export { MediaPlayerStoreProvider, useMediaPlayerStore, useMediaPlayerState, useMediaPlayerSession, selectMediaPlayerState } from './media-player-store-context';
