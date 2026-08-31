@@ -1,59 +1,119 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { MediaTitle } from '@jhadina/tv-core';
-import { CatalogRegistry, JHADINA_TV_ROUTES, createAuthorizedCatalogAdapter, recommendTitles } from '@jhadina/tv-core';
+import { useEffect, useState } from 'react';
+import type { MediaItem } from '@jhadina/tv-core';
+import { JHADINA_TV_ROUTES } from '@jhadina/tv-core';
 
-const records: MediaTitle[] = [
-  { id: 'demo-noir', kind: 'movie', title: 'Midnight Signal', overview: 'A detective follows a strange radio transmission through a city that never sleeps.', year: 2026, runtimeMinutes: 108, genres: ['Crime', 'Mystery', 'Drama'], rating: 8.2, availability: 'public-domain' },
-  { id: 'demo-comedy', kind: 'movie', title: 'Second Take', overview: 'Two friends turn a failed audition into an unexpectedly funny road trip.', year: 2025, runtimeMinutes: 96, genres: ['Comedy', 'Road', 'Drama'], rating: 7.8, availability: 'public-domain' },
-  { id: 'demo-series', kind: 'tv', title: 'After the Last Train', overview: 'A late-night station becomes the meeting point for four strangers with unfinished stories.', year: 2026, genres: ['Drama', 'Mystery'], rating: 8.6, availability: 'external-link' },
-  { id: 'demo-action', kind: 'movie', title: 'Breakline', overview: 'A courier has one night to cross the city and expose the people chasing him.', year: 2025, runtimeMinutes: 112, genres: ['Action', 'Thriller', 'Crime'], rating: 8.0, availability: 'licensed' },
-];
-
-const catalogClient = {
-  async search(query: string) {
-    const needle = query.trim().toLowerCase();
-    return records.filter((title) => !needle || `${title.title} ${title.overview} ${title.genres.join(' ')}`.toLowerCase().includes(needle));
-  },
-  async sources() { return []; },
+type SearchResponse = {
+  success: boolean;
+  data?: {
+    query: string;
+    providers: Array<{ id: string; name: string; capabilities: unknown }>;
+    results: MediaItem[];
+  };
+  error?: string;
 };
 
-function createRegistry() {
-  const registry = new CatalogRegistry();
-  registry.register(createAuthorizedCatalogAdapter(catalogClient, { id: 'jhadina-demo', name: 'Jhadina Demo Catalog' }));
-  return registry;
-}
+const categories = [
+  { id: 'movies', label: 'Movies' },
+  { id: 'tv', label: 'TV' },
+  { id: 'music', label: 'Music' },
+  { id: 'sports', label: 'Sports' },
+  { id: 'youtube', label: 'YouTube' },
+];
 
 export default function JhadinaTVHome() {
-  const registry = useMemo(createRegistry, []);
   const [query, setQuery] = useState('');
-  const [catalog, setCatalog] = useState<MediaTitle[]>(records);
+  const [results, setResults] = useState<MediaItem[]>([]);
+  const [providers, setProviders] = useState<SearchResponse['data']['providers']>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState('youtube');
 
   useEffect(() => {
-    let active = true;
-    registry.search({ query }).then((results) => { if (active) setCatalog(results.map(({ title }) => title)); });
-    return () => { active = false; };
-  }, [query, registry]);
+    const needle = query.trim();
+    if (!needle) {
+      setResults([]);
+      setProviders([]);
+      setError(null);
+      return;
+    }
 
-  const recommendations = useMemo(() => recommendTitles(catalog, { query }), [catalog, query]);
-  const visible = recommendations.length ? recommendations.map(({ title }) => title) : catalog;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({ q: needle });
+        if (activeCategory === 'youtube') params.set('provider', 'youtube');
+        const response = await fetch(`/api/media/search?${params.toString()}`, { signal: controller.signal });
+        const payload = (await response.json()) as SearchResponse;
+        if (!response.ok || !payload.success || !payload.data) throw new Error(payload.error ?? 'Media search failed');
+        setResults(payload.data.results);
+        setProviders(payload.data.providers);
+      } catch (cause) {
+        if ((cause as Error).name !== 'AbortError') setError(cause instanceof Error ? cause.message : 'Media search failed');
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, activeCategory]);
+
+  const visible = activeCategory === 'youtube' ? results.filter((item) => item.provider === 'youtube') : results;
 
   return (
     <main style={{ minHeight: '100vh', padding: 32, background: '#08090c', color: '#f7f7f8', fontFamily: 'system-ui, sans-serif' }}>
-      <header style={{ display: 'flex', gap: 20, alignItems: 'center', marginBottom: 40 }}>
+      <header style={{ display: 'flex', gap: 20, alignItems: 'center', marginBottom: 28 }}>
         <strong style={{ fontSize: 24 }}>JHADINA<span style={{ opacity: .5 }}>TV</span></strong>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ask Jhadina what to watch..." aria-label="Search JhadinaTV" style={{ marginLeft: 'auto', width: 360, maxWidth: '60vw', padding: 12, borderRadius: 999, border: '1px solid #2a2c33', background: '#111319', color: '#fff' }} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search movies, shows, music, sports, or YouTube..." aria-label="Search Jhadina Media" style={{ marginLeft: 'auto', width: 420, maxWidth: '60vw', padding: 12, borderRadius: 999, border: '1px solid #2a2c33', background: '#111319', color: '#fff' }} />
       </header>
-      <h1>Your entertainment, with an intelligence layer.</h1>
-      <p style={{ color: '#a8abb5', maxWidth: 700 }}>Catalog discovery is routed through JhadinaTV&apos;s authorized provider boundary. Playback and casting stay behind the core media-session contracts.</p>
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18, marginTop: 36 }}>
-        {visible.map((title) => (
-          <article key={title.id} style={{ padding: 18, borderRadius: 16, background: '#111319', border: '1px solid #23262f' }}>
-            <small style={{ color: '#9296a2' }}>{title.kind.toUpperCase()} · {title.year}</small>
-            <h2>{title.title}</h2>
-            <p style={{ color: '#9b9eaa', lineHeight: 1.5 }}>{title.overview}</p>
-            <a href={JHADINA_TV_ROUTES.watch(title.kind, title.id)} style={{ color: '#fff' }}>Watch</a>
-          </article>
+
+      <nav aria-label="Media categories" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 36 }}>
+        {categories.map((category) => (
+          <button key={category.id} onClick={() => setActiveCategory(category.id)} aria-pressed={activeCategory === category.id} style={{ padding: '10px 16px', borderRadius: 999, border: '1px solid #2a2c33', background: activeCategory === category.id ? '#f7f7f8' : '#111319', color: activeCategory === category.id ? '#08090c' : '#f7f7f8', cursor: 'pointer' }}>
+            {category.label}
+          </button>
         ))}
+      </nav>
+
+      <section>
+        <p style={{ color: '#a8abb5', maxWidth: 760 }}>
+          One media surface for discovery, with provider-aware playback. Search results identify their source so Jhadina can route playback through the correct Media Session.
+        </p>
+
+        {providers.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '18px 0' }} aria-label="Available providers">
+            {providers.map((provider) => <span key={provider.id} style={{ padding: '6px 10px', borderRadius: 999, background: '#151821', color: '#aeb2bd', fontSize: 13 }}>{provider.name}</span>)}
+          </div>
+        )}
+
+        {loading && <p aria-live="polite" style={{ color: '#a8abb5' }}>Searching…</p>}
+        {error && <p role="alert" style={{ color: '#ffb4b4' }}>{error}</p>}
+        {!query.trim() && <p style={{ color: '#727683' }}>Start a search to discover media from configured providers.</p>}
+
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 18, marginTop: 24 }}>
+          {visible.map((item) => (
+            <article key={`${item.providerId}:${item.id}`} style={{ overflow: 'hidden', borderRadius: 16, background: '#111319', border: '1px solid #23262f' }}>
+              {item.artworkUrl && <img src={item.artworkUrl} alt="" loading="lazy" style={{ display: 'block', width: '100%', aspectRatio: '16 / 9', objectFit: 'cover' }} />}
+              <div style={{ padding: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, color: '#9296a2', fontSize: 12 }}>
+                  <span>{item.kind.toUpperCase()}</span>
+                  <span>{item.provider}</span>
+                </div>
+                <h2 style={{ marginBottom: 8 }}>{item.title}</h2>
+                {item.subtitle && <p style={{ margin: '0 0 8px', color: '#b7bac4' }}>{item.subtitle}</p>}
+                {item.description && <p style={{ color: '#9b9eaa', lineHeight: 1.5 }}>{item.description}</p>}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '14px 0' }}>
+                  {item.capabilities.map((capability) => <span key={capability} style={{ padding: '4px 8px', borderRadius: 6, background: '#1a1d25', color: '#aeb2bd', fontSize: 11 }}>{capability}</span>)}
+                </div>
+                <a href={JHADINA_TV_ROUTES.watch('movie', item.id)} style={{ color: '#fff' }}>Play / Resume</a>
+              </div>
+            </article>
+          ))}
+        </section>
       </section>
     </main>
   );
