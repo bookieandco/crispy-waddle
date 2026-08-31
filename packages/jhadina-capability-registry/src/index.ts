@@ -65,3 +65,13 @@ export const REMOTE_CAPABILITY_DEFINITIONS: readonly CapabilityDefinition[] = [
 export function registerRemoteCapabilities(registry: CapabilityRegistry): void {
   for (const definition of REMOTE_CAPABILITY_DEFINITIONS) registry.register(definition);
 }
+
+export type {
+  HomeAssistantAdapter,
+  HomeAssistantEntityInput,
+  HomeAssistantServiceInput,
+  HomeAssistantEntityCapability as JhadinaEntityCapability,
+  JhadinaEntityProvenance,
+  JhadinaHomeEntity,
+} from './home-assistant-adapter.js';
+export { DeterministicHomeAssistantAdapter } from './home-assistant-adapter.js';
