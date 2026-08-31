@@ -10,8 +10,9 @@ export const JHADINA_TV_ROUTES = { home: '/jhadinatv', movies: '/jhadinatv/movie
 export type { MediaSource, MediaSourceAdapter } from './source-adapter'; export { assertPlayableSource } from './source-adapter';
 export type { CastingManager, MediaSessionCommand, MediaSessionController, MediaSessionState, PlaybackTarget, PlaybackTransport } from './casting'; export { assertCastableSource, buildTransferCommand, createCastingManager } from './casting';
 export type { CatalogProvider, CatalogSearchOptions, CatalogSearchResult, ResolvedMediaSource } from './catalog'; export { CatalogRegistry } from './catalog';
-export type { ProviderFactoryConfig } from './providers'; export { createCatalogProvider, registerCatalogProviders } from './providers';
+export type { ProviderFactoryConfig } from './providers'; export { createCatalogProvider, registerCatalogProviders, toMediaProvider } from './providers';
 export type { AuthorizedCatalogClient, AuthorizedCatalogRecord } from './providers/authorized'; export { createAuthorizedCatalogAdapter } from './providers/authorized';
+export type { MediaEntityKind, MediaProviderKind, MediaCapability, MediaItem, MediaQueue, MediaPlaybackState, MediaSessionSnapshot, MediaSourceReference, MediaProviderCapabilities, MediaProvider } from './media-domain';
 export type { GoogleCastRuntime, GoogleCastSession } from './cast/google-cast'; export { createGoogleCastController } from './cast/google-cast';
 export type { JhadinaTVReceiverTransport } from './cast/jhadinatv-receiver'; export { createJhadinaTVReceiverController } from './cast/jhadinatv-receiver';
 export type { AirPlayVideo } from './cast/browser-airplay'; export { createBrowserAirPlayController } from './cast/browser-airplay';
