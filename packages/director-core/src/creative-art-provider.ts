@@ -8,6 +8,7 @@ export type CreativeArtRequest = Omit<GenerationRequest, 'modality'> & {
 export type CreativeArtResult = {
   generationId: string;
   status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+  assetIds: string[];
   error?: string;
 };
 
@@ -18,6 +19,7 @@ export type CreativeArtResult = {
 export interface CreativeArtProvider {
   generate(request: CreativeArtRequest): Promise<CreativeArtResult>;
   getGenerationStatus(generationId: string): CreativeArtResult | undefined;
+  refreshGenerationStatus(generationId: string): Promise<CreativeArtResult>;
 }
 
 export class GenerationServiceCreativeArtProvider implements CreativeArtProvider {
@@ -32,6 +34,7 @@ export class GenerationServiceCreativeArtProvider implements CreativeArtProvider
     return {
       generationId: job.id,
       status: job.status,
+      assetIds: [],
       error: job.error,
     };
   }
@@ -43,6 +46,17 @@ export class GenerationServiceCreativeArtProvider implements CreativeArtProvider
     return {
       generationId: job.id,
       status: job.status,
+      assetIds: [],
+      error: job.error,
+    };
+  }
+
+  async refreshGenerationStatus(generationId: string): Promise<CreativeArtResult> {
+    const job = await this.generationService.refresh(generationId);
+    return {
+      generationId: job.id,
+      status: job.status,
+      assetIds: [],
       error: job.error,
     };
   }
