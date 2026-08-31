@@ -39,6 +39,7 @@ export * from './intelligence/social-signal-classification.js';
 export * from './intelligence/social-comment-personas.js';
 export * from './intelligence/voice-dna.js';
 export * from './intelligence/voice-memory.js';
+export * from './intelligence/voice-context.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
