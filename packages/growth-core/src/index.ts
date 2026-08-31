@@ -48,6 +48,7 @@ export * from './intelligence/content-replication.js';
 export * from './intelligence/media-signal.js';
 export * from './intelligence/media-signal-graph.js';
 export * from './intelligence/entity-resolution.js';
+export * from './intelligence/media-signal-deduplication.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
