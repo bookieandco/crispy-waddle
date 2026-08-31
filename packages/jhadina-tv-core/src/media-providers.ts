@@ -1,4 +1,4 @@
-import type { MediaProvider } from './media-domain';
+import type { MediaItem, MediaProvider } from './media-domain';
 
 export interface MediaProviderStatus {
   id: string;
@@ -25,6 +25,18 @@ export class MediaProviderRegistry {
 
   get(providerId: string): MediaProvider | undefined {
     return this.providers.get(providerId);
+  }
+
+  async getItem(providerId: string, itemId: string): Promise<MediaItem | undefined> {
+    const provider = this.providers.get(providerId);
+    if (!provider?.get) return undefined;
+    return provider.get(itemId);
+  }
+
+  async resolveItemSources(providerId: string, itemId: string) {
+    const provider = this.providers.get(providerId);
+    if (!provider?.resolveSources) return [];
+    return provider.resolveSources(itemId);
   }
 
   list(): MediaProvider[] {
