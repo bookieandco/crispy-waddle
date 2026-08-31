@@ -85,3 +85,9 @@ export type { HomeAssistantServiceTransport } from './home-assistant-capability-
 export { HomeAssistantCapabilityExecutor } from './home-assistant-capability-executor.js';
 export type { CanonicalHomeEntity, CanonicalHomeDevice } from './home-automation-model.js';
 export { CanonicalHomeAutomationModel } from './home-automation-model.js';
+export type { HomeAssistantStateValue, HomeAssistantStateChangedInput, CanonicalHomeStateEvent } from './home-assistant-state-events.js';
+export { normalizeHomeAssistantStateChanged } from './home-assistant-state-events.js';
+export type { HomeAssistantEventPublisher } from './home-assistant-event-publisher.js';
+export { EventBusHomeAssistantEventPublisher } from './home-assistant-event-publisher.js';
+export type { HomeAssistantEventSource } from './home-assistant-event-source.js';
+export { HomeAssistantStateEventIngestor } from './home-assistant-event-source.js';
