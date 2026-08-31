@@ -13,13 +13,14 @@ export type { CatalogProvider, CatalogSearchOptions, CatalogSearchResult, Resolv
 export type { ProviderFactoryConfig } from './providers'; export { createCatalogProvider, registerCatalogProviders, toMediaProvider } from './providers';
 export type { MediaProviderStatus } from './media-providers'; export { MediaProviderRegistry } from './media-providers';
 export type { AuthorizedCatalogClient, AuthorizedCatalogRecord } from './providers/authorized'; export { createAuthorizedCatalogAdapter } from './providers/authorized';
-export type { MediaEntityKind, MediaProviderKind, MediaCapability, MediaItem, MediaQueue, MediaPlaybackState, MediaSessionSnapshot, MediaSourceReference, MediaProviderCapabilities, MediaProvider } from './media-domain';
+export type { MediaEntityKind, MediaProviderKind, MediaCapability, MediaItem, MediaQueue, MediaPlaybackState, MediaSessionSnapshot, MediaSourceReference, MediaProviderCapabilities, PlaybackTarget as MediaPlaybackTarget, CaptionState, AudioTrackState, PlayerCapabilities } from './media-domain';
 export type { YouTubeProviderConfig, YouTubeSearchResponse } from './providers/youtube'; export { createYouTubeProvider } from './providers/youtube';
 export type { MediaProviderRuntimeConfig } from './providers/runtime'; export { createMediaProviderRegistry } from './providers/runtime';
 export type { GoogleCastRuntime, GoogleCastSession } from './cast/google-cast'; export { createGoogleCastController } from './cast/google-cast';
-export type { JhadinaTVReceiverTransport } from './cast/jhadinatv-receiver'; export { createJhadinaTVReceiverController } from './cast/jhadinatv-receiver';
+export type { JhadinaTVReceiverTransport } from './cast/jhadinatv-receiver'; export { createJhadinaTVReceiverController } from './cast/jhadina-tv-receiver';
 export type { AirPlayVideo } from './cast/browser-airplay'; export { createBrowserAirPlayController } from './cast/browser-airplay';
 export type { PictureInPictureController, PictureInPictureDocument, PictureInPictureVideo } from './picture-in-picture'; export { createPictureInPictureController } from './picture-in-picture';
 export type { LocalPlaybackAdapter, UnifiedMediaSession, UnifiedMediaSessionConfig } from './media-session'; export { createUnifiedMediaSession } from './media-session';
 export type { PlaybackAdapterKind, PlaybackAdapterContext, PlaybackAdapter, DirectSourcePlaybackAdapter, YouTubePlaybackAdapter, RemotePlaybackAdapter, PlaybackResolver, PlaybackSessionFactory, ResolvedPlaybackSession, PlaybackSnapshot } from './playback'; export { createPlaybackResolver } from './playback';
 export { resolvePlaybackAdapter, createDirectSourceAdapter, createYouTubePlaybackAdapter } from './playback-adapters';
+export type { MediaPlayerStore } from './media-player-store'; export { createMediaPlayerStore } from './media-player-store';
