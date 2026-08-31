@@ -62,6 +62,7 @@ export * from './intelligence/social-comment-target-bridge.js';
 export * from './intelligence/social-comment-quality-gate.js';
 export * from './intelligence/social-comment-learning.js';
 export * from './intelligence/social-comment-adaptive-scoring.js';
+export * from './intelligence/social-account-learning.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
