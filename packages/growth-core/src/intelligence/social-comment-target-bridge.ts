@@ -30,7 +30,12 @@ export function buildTargetAwareCommentPlan(request: TargetAwareCommentRequest):
   if (request.target.targetId !== request.opportunity.postId) {
     throw new Error('TARGET_COMMENT_CONTEXT_MISMATCH');
   }
-  if (request.target.audienceId !== request.target.audienceId) throw new Error('TARGET_AUDIENCE_MISMATCH');
+  if (request.opportunity.accountId !== request.persona.accountId || request.persona.accountId !== request.voice.accountId) {
+    throw new Error('TARGET_COMMENT_ACCOUNT_MISMATCH');
+  }
+  if (request.target.audienceId === undefined || request.target.audienceId === null) {
+    throw new Error('TARGET_AUDIENCE_MISSING');
+  }
   const strategy = chooseCommentStrategy(request.target, request.opportunity);
   return {
     id: `target-comment:${request.id}` as GrowthId,
