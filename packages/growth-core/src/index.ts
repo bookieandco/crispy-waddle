@@ -54,6 +54,7 @@ export * from './intelligence/trend-opportunity-bridge.js';
 export * from './intelligence/trend-buyer-convergence.js';
 export * from './intelligence/creative-pattern-selection.js';
 export * from './intelligence/creative-adaptation.js';
+export * from './intelligence/voice-adaptation.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
