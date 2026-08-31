@@ -49,6 +49,8 @@ export type CreativeJob = {
   updatedAt: string;
 };
 
+export type CreativeGenerationPort = Pick<GenerationService, 'submit'>;
+
 export type CreativeModelResolver = (
   intent: CreativeIntent,
 ) => GenerationRequest['model'];
@@ -59,7 +61,7 @@ export type CreativeEngine = {
 
 export class DirectorCreativeEngine implements CreativeEngine {
   constructor(
-    private readonly generation: GenerationService,
+    private readonly generation: CreativeGenerationPort,
     private readonly resolveModel: CreativeModelResolver,
   ) {}
 
