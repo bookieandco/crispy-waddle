@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createRemoteRuntime } from '@jhadina/capability-registry';
+import { RemoteDevelopmentPolicy } from '@jhadina/capability-registry/remote-development-policy';
 
 const runtime = createRemoteRuntime(
   {
@@ -7,9 +8,10 @@ const runtime = createRemoteRuntime(
       ? { authToken: process.env.HOME_ASSISTANT_TOKEN }
       : undefined,
   },
-  {
-    authorize: async () => true,
-  },
+  new RemoteDevelopmentPolicy({
+    allowedCapabilities: (process.env.REMOTE_ALLOWED_CAPABILITIES ?? '').split(',').map(value => value.trim()).filter(Boolean),
+    allowedDeviceIds: (process.env.REMOTE_ALLOWED_DEVICE_IDS ?? '').split(',').map(value => value.trim()).filter(Boolean),
+  }),
 );
 
 export async function POST(request: Request) {
