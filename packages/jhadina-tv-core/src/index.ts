@@ -15,6 +15,7 @@ export type { MediaProviderStatus } from './media-providers'; export { MediaProv
 export type { AuthorizedCatalogClient, AuthorizedCatalogRecord } from './providers/authorized'; export { createAuthorizedCatalogAdapter } from './providers/authorized';
 export type { MediaEntityKind, MediaProviderKind, MediaCapability, MediaItem, MediaQueue, MediaPlaybackState, MediaSessionSnapshot, MediaSourceReference, MediaProviderCapabilities, MediaProvider } from './media-domain';
 export type { YouTubeProviderConfig, YouTubeSearchResponse } from './providers/youtube'; export { createYouTubeProvider } from './providers/youtube';
+export type { MediaProviderRuntimeConfig } from './providers/runtime'; export { createMediaProviderRegistry } from './providers/runtime';
 export type { GoogleCastRuntime, GoogleCastSession } from './cast/google-cast'; export { createGoogleCastController } from './cast/google-cast';
 export type { JhadinaTVReceiverTransport } from './cast/jhadinatv-receiver'; export { createJhadinaTVReceiverController } from './cast/jhadinatv-receiver';
 export type { AirPlayVideo } from './cast/browser-airplay'; export { createBrowserAirPlayController } from './cast/browser-airplay';
