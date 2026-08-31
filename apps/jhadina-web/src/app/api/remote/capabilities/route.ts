@@ -12,13 +12,23 @@ const runtime = createRemoteRuntime(
   new RemoteDevelopmentPolicy(),
 );
 
-export async function GET() {
+export async function GET(request: Request) {
+  const deviceId = new URL(request.url).searchParams.get('deviceId');
+  if (!deviceId) {
+    return NextResponse.json({ error: 'deviceId is required' }, { status: 400 });
+  }
+
+  if (!runtime.devices.list().some(device => device.deviceId === deviceId)) {
+    return NextResponse.json({ error: 'unknown device' }, { status: 404 });
+  }
+
   const availability = new Map(
-    listRemoteCapabilityAvailability(runtime.capabilities, runtime.transports, 'tv-1')
+    listRemoteCapabilityAvailability(runtime.capabilities, runtime.transports, deviceId)
       .map(item => [item.name, item.available]),
   );
 
   return NextResponse.json({
+    deviceId,
     capabilities: runtime.capabilities.list().map(({ name, description, risk, version }) => ({
       name,
       description,
