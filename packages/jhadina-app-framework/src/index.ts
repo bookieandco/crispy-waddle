@@ -1,3 +1,5 @@
+export * from './data-boundary';
+
 export type JhadinaAppLifecycleState =
   | 'installed'
   | 'registered'
@@ -38,6 +40,7 @@ export interface JhadinaAppManifest {
   readonly events: readonly string[];
   readonly widgets?: readonly string[];
   readonly backgroundJobs?: readonly string[];
+  readonly dataBoundary: DataBoundary;
 }
 
 export interface RegisteredJhadinaApp {
@@ -54,6 +57,9 @@ export class JhadinaAppRegistry {
     if (!manifest.id.trim()) throw new Error('App id is required');
     if (!manifest.name.trim()) throw new Error(`App name is required: ${manifest.id}`);
     if (this.apps.has(manifest.id)) throw new Error(`App already registered: ${manifest.id}`);
+    if (manifest.dataBoundary.customerDataToPersonalMemory !== false) {
+      throw new Error(`Invalid data boundary for ${manifest.id}`);
+    }
 
     const registered: RegisteredJhadinaApp = Object.freeze({
       manifest: Object.freeze({ ...manifest }),
@@ -85,20 +91,8 @@ export class JhadinaAppRegistry {
 }
 
 export const JHADINA_SYSTEM_APP_IDS = [
-  'jhadina',
-  'memory',
-  'money',
-  'media',
-  'overage',
-  'music',
-  'directoros',
-  'pupsonstuff',
-  'social',
-  'government',
-  'files',
-  'developer',
-  'home',
-  'safety',
+  'jhadina', 'memory', 'money', 'media', 'overage', 'music', 'directoros',
+  'pupsonstuff', 'social', 'government', 'files', 'developer', 'home', 'safety',
 ] as const;
 
 export type JhadinaSystemAppId = (typeof JHADINA_SYSTEM_APP_IDS)[number];
