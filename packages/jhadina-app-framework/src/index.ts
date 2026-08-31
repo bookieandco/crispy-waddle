@@ -1,4 +1,5 @@
 export * from './data-boundary';
+export * from './personal-learning';
 
 export type JhadinaAppLifecycleState =
   | 'installed'
