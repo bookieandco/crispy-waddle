@@ -75,3 +75,7 @@ export type {
   JhadinaHomeEntity,
 } from './home-assistant-adapter.js';
 export { DeterministicHomeAssistantAdapter } from './home-assistant-adapter.js';
+export type { HomeAssistantDevice } from './home-assistant-device-registry.js';
+export { HomeAssistantDeviceRegistry } from './home-assistant-device-registry.js';
+export type { HomeAssistantTransportBinding } from './home-assistant-transport-registry.js';
+export { HomeAssistantTransportRegistry } from './home-assistant-transport-registry.js';
