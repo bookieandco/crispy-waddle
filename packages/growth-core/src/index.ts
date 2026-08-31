@@ -56,6 +56,7 @@ export * from './intelligence/creative-pattern-selection.js';
 export * from './intelligence/creative-adaptation.js';
 export * from './intelligence/voice-adaptation.js';
 export * from './intelligence/social-generation-routing.js';
+export * from './intelligence/social-target-opportunity.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
