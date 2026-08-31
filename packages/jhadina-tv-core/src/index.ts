@@ -11,6 +11,7 @@ export type { MediaSource, MediaSourceAdapter } from './source-adapter'; export 
 export type { CastingManager, MediaSessionCommand, MediaSessionController, MediaSessionState, PlaybackTarget, PlaybackTransport } from './casting'; export { assertCastableSource, buildTransferCommand, createCastingManager } from './casting';
 export type { CatalogProvider, CatalogSearchOptions, CatalogSearchResult, ResolvedMediaSource } from './catalog'; export { CatalogRegistry } from './catalog';
 export type { ProviderFactoryConfig } from './providers'; export { createCatalogProvider, registerCatalogProviders, toMediaProvider } from './providers';
+export type { MediaProviderStatus } from './media-providers'; export { MediaProviderRegistry } from './media-providers';
 export type { AuthorizedCatalogClient, AuthorizedCatalogRecord } from './providers/authorized'; export { createAuthorizedCatalogAdapter } from './providers/authorized';
 export type { MediaEntityKind, MediaProviderKind, MediaCapability, MediaItem, MediaQueue, MediaPlaybackState, MediaSessionSnapshot, MediaSourceReference, MediaProviderCapabilities, MediaProvider } from './media-domain';
 export type { GoogleCastRuntime, GoogleCastSession } from './cast/google-cast'; export { createGoogleCastController } from './cast/google-cast';
