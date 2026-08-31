@@ -9,8 +9,8 @@ export interface PlaybackHost {
   pause(): void;
   seek(positionSeconds: number): void;
   setVolume(value: number): void;
-  getState(): LocalPlaybackAdapter['getState'] extends () => infer T ? T : never;
-  onStateChange(listener: (state: ReturnType<LocalPlaybackAdapter['getState']>) => void): () => void;
+  getState(): MediaSessionSnapshot;
+  onStateChange(listener: (state: MediaSessionSnapshot) => void): () => void;
   destroy?(): void;
 }
 
