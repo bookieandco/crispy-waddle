@@ -19,6 +19,7 @@ export type CreativeIntent = {
   source: CreativeSource;
   destination: CreativeDestination;
   prompt: string;
+  modelId?: string;
   references?: Array<{
     assetId: string;
     uri: string;
@@ -48,16 +49,23 @@ export type CreativeJob = {
   updatedAt: string;
 };
 
+export type CreativeModelResolver = (
+  intent: CreativeIntent,
+) => GenerationRequest['model'];
+
 export type CreativeEngine = {
   create(intent: CreativeIntent): Promise<CreativeJob>;
 };
 
 export class DirectorCreativeEngine implements CreativeEngine {
-  constructor(private readonly generation: GenerationService) {}
+  constructor(
+    private readonly generation: GenerationService,
+    private readonly resolveModel: CreativeModelResolver,
+  ) {}
 
   async create(intent: CreativeIntent): Promise<CreativeJob> {
     const now = new Date().toISOString();
-    const generationRequests = buildGenerationRequests(intent);
+    const generationRequests = buildGenerationRequests(intent, this.resolveModel(intent));
     const plan: CreativePlan = {
       id: `creative-plan:${intent.id}`,
       intentId: intent.id,
@@ -73,38 +81,44 @@ export class DirectorCreativeEngine implements CreativeEngine {
       generationJobs.push(await this.generation.submit(request));
     }
 
+    const status = generationJobs.every((job) => job.status === 'completed')
+      ? 'completed'
+      : generationJobs.some((job) => job.status === 'failed')
+        ? 'failed'
+        : 'running';
+
     return {
       id: `creative:${intent.id}`,
       intent,
       plan,
       generationJobs,
-      status: generationJobs.every((job) => job.status === 'completed') ? 'completed' : 'running',
+      status,
       createdAt: now,
       updatedAt: new Date().toISOString(),
     };
   }
 }
 
-function buildGenerationRequests(intent: CreativeIntent): GenerationRequest[] {
-  const model = intent.metadata?.model;
-  if (!model || typeof model !== 'object') {
-    throw new Error('Creative intent requires metadata.model for the initial engine adapter');
-  }
-
-  const modelRecord = model as GenerationRequest['model'];
+function buildGenerationRequests(
+  intent: CreativeIntent,
+  model: GenerationRequest['model'],
+): GenerationRequest[] {
   return [{
     requestId: `creative-generation:${intent.id}`,
     projectId: intent.id,
     modality: 'image',
     prompt: intent.prompt,
-    model: modelRecord,
+    model,
     parameters: {
       ...(intent.constraints ?? {}),
       destination: intent.destination,
+      productContext: intent.productContext,
+      brandContext: intent.brandContext,
+      audienceContext: intent.audienceContext,
     },
     references: (intent.references ?? []).map((reference) => ({
       assetId: reference.assetId,
-      role: reference.role === 'image' || reference.role === 'product' ? 'image' : 'image',
+      role: 'image' as const,
       uri: reference.uri,
     })),
   }];
