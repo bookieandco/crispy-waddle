@@ -6,6 +6,7 @@ export interface CatalogProvider {
   readonly name: string;
   readonly sourceAdapter: MediaSourceAdapter;
   search(query: string): Promise<MediaTitle[]>;
+  get?(id: string): Promise<MediaTitle | undefined>;
 }
 
 export interface CatalogSearchOptions {
