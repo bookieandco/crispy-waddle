@@ -4,6 +4,7 @@ export * from './real-core-runtime.js';
 export * from './quip-runtime.js';
 export * from './capability-gateway.js';
 export * from './research-source-performance.js';
+export * from './research-learning-policy.js';
 export * from './evolution.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
