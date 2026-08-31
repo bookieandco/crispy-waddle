@@ -43,6 +43,7 @@ export * from './intelligence/voice-context.js';
 export * from './intelligence/social-comment-generation.js';
 export * from './intelligence/social-engagement-attribution.js';
 export * from './intelligence/social-engagement-prioritization.js';
+export * from './intelligence/social-target-graph.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
