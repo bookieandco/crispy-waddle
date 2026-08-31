@@ -20,6 +20,10 @@ export class HomeAssistantDeviceRegistry {
     return this.devices.get(deviceId);
   }
 
+  list(): readonly HomeAssistantDevice[] {
+    return [...this.devices.values()].map(device => ({ ...device }));
+  }
+
   resolve(command: ResolvedRemoteCommand): HomeAssistantDevice {
     const device = this.get(command.deviceId);
     if (!device) throw new Error(`unknown-device:${command.deviceId}`);
