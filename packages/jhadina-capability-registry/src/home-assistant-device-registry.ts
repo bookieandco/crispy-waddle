@@ -3,14 +3,13 @@ import type { ResolvedRemoteCommand } from './remote-resolver.js';
 export interface HomeAssistantDevice {
   readonly deviceId: string;
   readonly entityId: string;
-  readonly baseUrl: string;
 }
 
 export class HomeAssistantDeviceRegistry {
   private readonly devices = new Map<string, HomeAssistantDevice>();
 
   register(device: HomeAssistantDevice): void {
-    if (!device.deviceId.trim() || !device.entityId.trim() || !device.baseUrl.trim()) {
+    if (!device.deviceId.trim() || !device.entityId.trim()) {
       throw new Error('invalid-home-assistant-device');
     }
     this.devices.set(device.deviceId, { ...device });
