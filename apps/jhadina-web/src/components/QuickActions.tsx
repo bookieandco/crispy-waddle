@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import styles from "./QuickActions.module.css"
 
 type Action = { id: string; label: string; icon: string; capability: string }
+type Device = { deviceId: string; entityId: string }
 type Capability = { name: string; available: boolean }
 type CommandResult = { status: "accepted" | "rejected"; requestId: string; reason?: string }
 
@@ -28,32 +29,48 @@ const scenes = [
 export function QuickActions() {
   const [lastAction, setLastAction] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [device, setDevice] = useState<Device | null>(null)
   const [available, setAvailable] = useState<Set<string>>(new Set())
-  const [capabilitiesLoaded, setCapabilitiesLoaded] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    fetch("/api/remote/capabilities")
-      .then(response => response.ok ? response.json() : Promise.reject(new Error("capability discovery failed")))
-      .then(data => {
+    const load = async () => {
+      try {
+        const devicesResponse = await fetch("/api/remote/devices")
+        if (!devicesResponse.ok) throw new Error("device discovery failed")
+        const devices = (await devicesResponse.json()).devices as Device[]
+        const active = devices[0] ?? null
+        if (!active) {
+          if (!cancelled) setLastAction("No remote device available")
+          return
+        }
         if (cancelled) return
-        const capabilities = (data.capabilities ?? []) as Capability[]
-        setAvailable(new Set(capabilities.filter(capability => capability.available).map(capability => capability.name)))
-      })
-      .catch(() => setLastAction("Capability discovery failed"))
-      .finally(() => { if (!cancelled) setCapabilitiesLoaded(true) })
+        setDevice(active)
+
+        const capabilitiesResponse = await fetch(`/api/remote/capabilities?deviceId=${encodeURIComponent(active.deviceId)}`)
+        if (!capabilitiesResponse.ok) throw new Error("capability discovery failed")
+        const capabilities = (await capabilitiesResponse.json()).capabilities as Capability[]
+        if (!cancelled) setAvailable(new Set(capabilities.filter(item => item.available).map(item => item.name)))
+      } catch {
+        if (!cancelled) setLastAction("Remote discovery failed")
+      } finally {
+        if (!cancelled) setLoaded(true)
+      }
+    }
+    void load()
     return () => { cancelled = true }
   }, [])
 
   const run = async (label: string, capability: string) => {
-    if (busy || !available.has(capability)) return
+    if (busy || !device || !available.has(capability)) return
     setBusy(true)
     const requestId = crypto.randomUUID()
     try {
       const response = await fetch("/api/remote/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId, deviceId: "tv-1", capability }),
+        body: JSON.stringify({ requestId, deviceId: device.deviceId, capability }),
       })
       const result = (await response.json()) as CommandResult
       setLastAction(result.status === "accepted" ? `Executed · ${label}` : `Denied · ${label}`)
@@ -64,13 +81,13 @@ export function QuickActions() {
     }
   }
 
-  const isAvailable = (capability: string) => capabilitiesLoaded && available.has(capability)
+  const isAvailable = (capability: string) => loaded && !!device && available.has(capability)
 
   return (
     <section className={styles.panel} aria-label="Remote quick actions">
       <div className={styles.header}>
         <div><span className={styles.eyebrow}>Remote</span><h2>Quick Actions</h2></div>
-        <span className={styles.status} aria-live="polite">{busy ? "Sending…" : lastAction ?? (capabilitiesLoaded ? "Ready" : "Loading…")}</span>
+        <span className={styles.status} aria-live="polite">{busy ? "Sending…" : lastAction ?? (loaded ? "Ready" : "Loading…")}</span>
       </div>
       <div className={styles.grid}>
         {actions.map(action => <button key={action.id} type="button" className={styles.action} onClick={() => run(action.label, action.capability)} disabled={busy || !isAvailable(action.capability)} aria-label={action.label} aria-disabled={!isAvailable(action.capability)}><span>{action.icon}</span><small>{action.label}</small></button>)}
