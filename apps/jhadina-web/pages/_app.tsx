@@ -1,6 +1,7 @@
 import type { AppProps } from "next";
 import { JhadinaShellNavigation } from "../src/components/JhadinaShellNavigation";
 import { MiniPlayer } from "../src/components/jhadinaTv/MiniPlayer";
+import { MediaPlayerStoreProvider } from "@jhadina/tv-core";
 
 /**
  * Pages Router equivalent of src/app/layout.tsx's chrome. Next.js runs
@@ -13,10 +14,12 @@ import { MiniPlayer } from "../src/components/jhadinaTv/MiniPlayer";
  */
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <div style={{ paddingBottom: 76 }}>
-      <Component {...pageProps} />
-      <MiniPlayer />
-      <JhadinaShellNavigation />
-    </div>
+    <MediaPlayerStoreProvider>
+      <div style={{ paddingBottom: 76 }}>
+        <Component {...pageProps} />
+        <MiniPlayer />
+        <JhadinaShellNavigation />
+      </div>
+    </MediaPlayerStoreProvider>
   );
 }
