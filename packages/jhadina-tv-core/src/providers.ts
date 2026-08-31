@@ -27,7 +27,7 @@ export function registerCatalogProviders(
 
 /** Bridges the legacy TV catalog provider into the canonical MediaProvider contract. */
 export function toMediaProvider(provider: CatalogProvider): MediaProvider {
-  return {
+  const canonical: MediaProvider = {
     id: provider.id,
     name: provider.name,
     capabilities: {
@@ -63,4 +63,27 @@ export function toMediaProvider(provider: CatalogProvider): MediaProvider {
       }));
     },
   };
+
+  if (provider.get) {
+    canonical.get = async (id) => {
+      const title = await provider.get?.(id);
+      if (!title) return undefined;
+      return {
+        id: title.id,
+        providerId: provider.id,
+        provider: 'other',
+        kind: title.kind === 'tv' ? 'show' : 'movie',
+        title: title.title,
+        description: title.overview,
+        artworkUrl: title.posterUrl,
+        backdropUrl: title.backdropUrl,
+        durationMs: title.runtimeMinutes ? title.runtimeMinutes * 60_000 : undefined,
+        canonicalUrl: title.watchUrl,
+        capabilities: title.watchUrl ? ['play', 'seek', 'queue'] : [],
+        metadata: { year: title.year, availability: title.availability },
+      };
+    };
+  }
+
+  return canonical;
 }
