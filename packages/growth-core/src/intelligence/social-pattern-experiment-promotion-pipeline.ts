@@ -1,10 +1,19 @@
 import type { GrowthId } from '../domain/types.js';
-import { evaluateRecordedExperiment } from './social-pattern-experiment-evidence.js';
-import type { PatternExperiment, PatternExperimentResult } from './social-pattern-experiment.js';
-import { promoteValidatedPattern, type PromotedSocialPattern } from './social-pattern-promotion.js';
+import {
+  evaluateRecordedExperiment,
+  type PatternExperimentEvidenceStore,
+} from './social-pattern-experiment-evidence.js';
+import {
+  evaluatePatternExperiment,
+  type PatternExperiment,
+  type PatternExperimentResult,
+} from './social-pattern-experiment.js';
+import {
+  promoteValidatedPattern,
+  type PromotedSocialPattern,
+} from './social-pattern-promotion.js';
 import type { PatternHypothesis } from './social-pattern-transfer.js';
 import type { SocialPatternPromotionStore } from './social-pattern-promotion-store.js';
-import type { PatternExperimentEvidenceStore } from './social-pattern-experiment-evidence.js';
 
 export interface PatternExperimentPromotionPipelineResult {
   readonly evaluation: PatternExperimentResult;
@@ -29,11 +38,7 @@ export async function evaluateAndPromoteRecordedExperiment(
     experiment,
     executionId,
     evidenceStore,
-    (boundExperiment, observation) => {
-      // Lazy import is unnecessary here: the evaluator is deterministic and
-      // kept in the pattern-experiment module to preserve one source of truth.
-      return evaluatePatternExperiment(boundExperiment, observation);
-    },
+    evaluatePatternExperiment,
   );
 
   if (!evaluation) return null;
@@ -49,5 +54,3 @@ export async function evaluateAndPromoteRecordedExperiment(
 
   return { evaluation, promotion };
 }
-
-import { evaluatePatternExperiment } from './social-pattern-experiment.js';
