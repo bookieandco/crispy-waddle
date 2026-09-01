@@ -52,7 +52,14 @@ export type WatchlistEvaluation = {
   supportingEvidenceIds: string[]
 }
 
-const stable = (value: unknown): string => JSON.stringify(value, Object.keys((value && typeof value === 'object') ? value as object : {}))
+/** Recursively canonicalize JSON-compatible values without changing array order. */
+const stable = (value: unknown): string => {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`
+
+  const record = value as Record<string, unknown>
+  return `{${Object.keys(record).sort().map(key => `${JSON.stringify(key)}:${stable(record[key])}`).join(',')}}`
+}
 
 export function fingerprintAlert(entry: WatchlistEntry, evaluation: WatchlistEvaluation): string {
   const payload = `${entry.id}|${entry.opportunityId}|${entry.principalId ?? ''}|${evaluation.type}|${stable(evaluation.previousState)}|${stable(evaluation.newState)}|${evaluation.changeReason}`
