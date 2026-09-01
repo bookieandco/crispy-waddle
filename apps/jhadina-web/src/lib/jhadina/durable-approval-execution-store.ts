@@ -2,6 +2,7 @@ import type {
   ApprovalExecutionRecord,
   ApprovalExecutionStore,
   ConnectorExecutionRecord,
+  ConnectorExecutionState,
   ConnectorExecutionStore,
   ConnectorResponse,
 } from "@jhadina/connector-core"
@@ -17,7 +18,7 @@ type Row = {
   operation: string | null
   actor_id: string | null
   correlation_id: string | null
-  state: "executing" | "succeeded" | "failed" | "recovery_required"
+  state: ConnectorExecutionState
   response: ConnectorResponse | null
   error: string | null
   started_at: string
@@ -49,7 +50,6 @@ export class SupabaseConnectorExecutionStore implements ConnectorExecutionStore 
       idempotency_key: record.idempotencyKey,
       connector_id: record.connectorId,
       operation: record.operation,
-      capability: undefined,
       actor_id: record.actorId,
       correlation_id: record.correlationId,
       state: "executing",
@@ -144,7 +144,7 @@ function mapConnectorRow(row: Row): ConnectorExecutionRecord {
     operation: row.operation ?? "",
     actorId: row.actor_id ?? "",
     correlationId: row.correlation_id ?? "",
-    state: row.state === "recovery_required" ? "executing" : row.state,
+    state: row.state,
     ...(row.response ? { response: row.response } : {}),
     ...(row.error ? { error: row.error } : {}),
     startedAt: row.started_at,
