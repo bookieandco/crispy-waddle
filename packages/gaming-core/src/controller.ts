@@ -18,6 +18,9 @@ export interface ControllerRepository {
 }
 
 export interface ControllerAdapter {
+  id: string;
+  name: string;
+  supports(device: ControllerDevice): boolean;
   discover(): Promise<ControllerDevice[]>;
   readInput(deviceId: string): Promise<CanonicalGameInput>;
 }
@@ -43,8 +46,8 @@ export class ControllerCore {
   async input(deviceId: string): Promise<CanonicalGameInput> {
     const device = await this.repository.get(deviceId);
     if (!device) throw new Error(`Controller not registered: ${deviceId}`);
-    const adapter = this.adapters[0];
-    if (!adapter) throw new Error('No controller adapter registered');
+    const adapter = this.adapters.find((candidate) => candidate.supports(device));
+    if (!adapter) throw new Error(`No controller adapter supports ${device.name}`);
     return adapter.readInput(deviceId);
   }
 
