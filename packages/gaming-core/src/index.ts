@@ -4,6 +4,7 @@ export * from './runtime.js';
 export * from './runtime-registry.js';
 export * from './gameboy-runtime.js';
 export * from './gameboy-runtime-host.js';
+export * from './gameboy-wasm-bridge.js';
 export * from './game-library.js';
 export * from './save.js';
 export * from './jhadina-gaming.js';
