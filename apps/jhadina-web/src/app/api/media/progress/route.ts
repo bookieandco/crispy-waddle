@@ -6,13 +6,20 @@ import { SupabaseMediaPlaybackProgressRepository } from "@/lib/storage/SupabaseM
 
 const MAX_PROVIDER_ID_LENGTH = 128
 const MAX_MEDIA_ID_LENGTH = 512
+const MAX_PROGRESS_MS = 24 * 60 * 60 * 1000
 
 function isNonEmptyString(value: unknown, maxLength: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= maxLength
 }
 
-function isFiniteNonNegativeNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0
+function isFiniteNonNegativeNumber(value: unknown, max = MAX_PROGRESS_MS): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= max
+}
+
+function isIsoTimestamp(value: unknown): value is string {
+  if (typeof value !== "string" || value.length !== 24) return false
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) return false
+  return !Number.isNaN(Date.parse(value))
 }
 
 function jsonError(message: string, status: number) {
@@ -45,15 +52,16 @@ export async function POST(request: Request) {
     if (!progress || typeof progress !== "object") return jsonError("Invalid progress", 400)
 
     const candidate = progress as Record<string, unknown>
+    const durationMs = candidate.durationMs
     if (
       candidate.userId !== userId ||
       candidate.providerId !== providerId ||
       candidate.itemId !== itemId ||
       !isFiniteNonNegativeNumber(candidate.positionMs) ||
-      (candidate.durationMs !== undefined && !isFiniteNonNegativeNumber(candidate.durationMs)) ||
+      (durationMs !== undefined && !isFiniteNonNegativeNumber(durationMs)) ||
+      (typeof durationMs === "number" && durationMs > 0 && candidate.positionMs > durationMs) ||
       typeof candidate.completed !== "boolean" ||
-      typeof candidate.updatedAt !== "string" ||
-      Number.isNaN(Date.parse(candidate.updatedAt))
+      !isIsoTimestamp(candidate.updatedAt)
     ) {
       return jsonError("Invalid progress", 400)
     }
