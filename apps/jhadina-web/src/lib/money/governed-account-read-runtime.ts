@@ -3,9 +3,18 @@ import {
   type MoneyAccount,
 } from "@jhadina/money-core"
 import type { ActionIdentityVerifier, AuditRpcClient } from "@jhadina/action-core"
+import {
+  CredentialBroker,
+  JHADINA_BASE_SECURITY_POLICY,
+  JhadinaSecurityCore,
+  createSecurityRequest,
+} from "@jhadina/security-core"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
+import { createClient } from "../supabase/server"
 import { createMoneyAuditRpcClient } from "./durable-audit-ledger"
+import { BrokerCredentialResolver, createServerEnvironmentSecretStore } from "../security/broker-credential-resolver"
+import { SupabaseCredentialLeaseStore } from "../security/supabase-credential-lease-store"
 import {
   createMoneyPlaidProductionRegistry,
   PLAID_PROVIDER,
@@ -13,34 +22,23 @@ import {
 } from "./production-provider"
 
 /**
- * PL-8 (Jhadina OS Integration Phase 2, Money real-integration Phase 1):
- * process-local composition root for the real Money account-read path —
- * Money's own version of Growth's governed-approval-runtime.ts.
+ * PL-8 production composition: identity -> canonical security policy ->
+ * short-lived broker lease -> durable one-time lease consumption -> provider.
+ * Provider code never resolves process.env directly.
  *
- * Real identity -> real durable SupabaseAuditLedger -> the real
- * governed Plaid provider registry -> money-core's own
- * createGovernedProviderAccountReadExecutor (identity verified before
- * the health/capability gate, exactly one ActionPolicy, assertCapability
- * enforced inside the adapter — none of that is reimplemented here).
- *
- * assertUserWorkspace is deliberately left unset: there is no stored
- * "which Plaid Item does this user own" mapping anywhere in this
- * codebase yet (no bank-connection table, no migration) — building one
- * is new infrastructure this Phase-1 wiring milestone was not
- * authorized to add. Every verified identity that reaches this runtime
- * is therefore allowed to read the single configured 'plaid' provider's
- * accounts; this is a real, known, intentionally-surfaced gap (not
- * hidden) and matches the current absence of any "connect your bank"
- * flow. It must be closed before this path is exposed to more than one
- * real bank connection per user.
+ * The traffic gate intentionally fails closed until the native/network kill
+ * switch state is supplied. Do not replace it with an unconditional true;
+ * that is the remaining A1/A5 integration seam.
  */
 export type GovernedMoneyRuntimeOverrides = {
-  /** Test-only: createRequestIdentityVerifier() makes a real Supabase call with no meaning outside a real request. */
+  /** Test-only identity substitution. */
   identityVerifier?: JhadinaIdentityVerifier
-  /** Test-only: substitutes a fake AuditRpcClient instead of a live database. createProductionActionExecutor wraps whatever is passed here in its own real SupabaseAuditLedger — never pass an already-built ledger. */
+  /** Test-only audit transport substitution. */
   supabase?: AuditRpcClient
-  /** Test-only: substitutes an already-built provider registry instead of the real Plaid credential-resolution path. */
+  /** Test-only provider registry substitution. */
   providers?: MoneyPlaidProductionRegistry
+  /** Explicitly supplied by the trusted transport/kill-switch layer. */
+  credentialTrafficAllowed?: boolean
 }
 
 export interface GovernedMoneyAccountReadResult {
@@ -48,23 +46,51 @@ export interface GovernedMoneyAccountReadResult {
   verifiedUserId: string
 }
 
-/**
- * money-core's createGovernedProviderAccountReadExecutor expects
- * action-core's native ActionIdentityVerifier (verify(request:
- * ActionRequest): Promise<VerifiedIdentity>), while
- * createRequestIdentityVerifier() returns this app's own
- * JhadinaIdentityVerifier (verify(request: {userId}): Promise<{userId,
- * sessionId}>) — the same type Growth's and Commerce's composition
- * roots already use. The two return shapes are identical
- * (userId/sessionId); this adapts the narrower request shape rather
- * than relying on structural bivariance to paper over the difference.
- */
 function toActionIdentityVerifier(verifier: JhadinaIdentityVerifier): ActionIdentityVerifier {
   return {
     async verify(request) {
       return verifier.verify({ userId: request.userId })
     },
   }
+}
+
+async function createBrokerCredentialResolver(
+  actorId: string,
+  workerId: string,
+  trafficAllowed: boolean,
+): Promise<BrokerCredentialResolver> {
+  const client = await createClient()
+  const security = new JhadinaSecurityCore(JHADINA_BASE_SECURITY_POLICY)
+  const leaseStore = new SupabaseCredentialLeaseStore(client)
+  const broker = new CredentialBroker(
+    createServerEnvironmentSecretStore(),
+    leaseStore,
+    {
+      authorize(input) {
+        const request = createSecurityRequest({
+          requestId: `${workerId}:credential`,
+          actorId: input.actorId,
+          domain: input.domain,
+          capability: input.capability,
+          resourceId: input.resourceId,
+        })
+        return security.authorize(request) === "allow" ? "allow" : "deny"
+      },
+      allowTraffic: () => trafficAllowed,
+      allowCredentialEgress: (input) =>
+        input.domain === "money"
+        && input.capability === "money.account.read"
+        && /^money\/plaid\/[a-z0-9][a-z0-9._-]*$/i.test(input.credentialRef),
+    },
+  )
+
+  return new BrokerCredentialResolver({
+    broker,
+    actorId,
+    workerId,
+    domain: "money",
+    capability: "money.account.read",
+  })
 }
 
 export async function runGovernedMoneyAccountRead(
@@ -74,13 +100,22 @@ export async function runGovernedMoneyAccountRead(
 ): Promise<GovernedMoneyAccountReadResult> {
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
   const supabase: AuditRpcClient = overrides.supabase ?? (await createMoneyAuditRpcClient())
-  const { registry, providerConfig } = overrides.providers ?? (await createMoneyPlaidProductionRegistry())
+
+  const providers = overrides.providers
+    ? overrides.providers
+    : await createMoneyPlaidProductionRegistry({
+        credentialResolver: await createBrokerCredentialResolver(
+          claimedUserId,
+          requestId,
+          overrides.credentialTrafficAllowed === true,
+        ),
+      })
 
   const executor = createGovernedProviderAccountReadExecutor({
     identityVerifier: toActionIdentityVerifier(identityVerifier),
     supabase,
-    providers: registry,
-    providerConfig,
+    providers: providers.registry,
+    providerConfig: providers.providerConfig,
   })
 
   const accounts = await executor.execute({
