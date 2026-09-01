@@ -22,7 +22,10 @@ export interface PatternExperimentExecutionReport {
 }
 
 export interface PatternExperimentExecutionAdapter {
-  record(report: PatternExperimentExecutionReport): Promise<PatternExperimentEvidence>;
+  record(
+    experiment: PatternExperiment,
+    report: PatternExperimentExecutionReport,
+  ): Promise<PatternExperimentEvidence>;
 }
 
 const isFiniteNonNegative = (value: number): boolean => Number.isFinite(value) && value >= 0;
