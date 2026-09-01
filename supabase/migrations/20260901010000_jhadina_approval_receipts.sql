@@ -29,6 +29,9 @@ as $$
 declare
   result public.jhadina_approval_receipt;
 begin
+  if auth.uid() is null or auth.uid()::text <> p_user_id then
+    raise exception 'APPROVAL_RECEIPT_ACTOR_MISMATCH';
+  end if;
   if p_action_id is null or p_user_id is null or p_type is null or p_fingerprint is null then
     raise exception 'APPROVAL_RECEIPT_INPUT_INVALID';
   end if;
@@ -61,6 +64,10 @@ as $$
 declare
   result public.jhadina_approval_receipt;
 begin
+  if auth.uid() is null or auth.uid()::text <> p_user_id then
+    raise exception 'APPROVAL_RECEIPT_ACTOR_MISMATCH';
+  end if;
+
   update public.jhadina_approval_receipt
   set status = 'approved', approved_at = now()
   where id = p_receipt_id
@@ -73,6 +80,7 @@ begin
     update public.jhadina_approval_receipt
     set status = 'expired'
     where id = p_receipt_id
+      and user_id = p_user_id
       and status in ('pending', 'approved')
       and expires_at <= now();
     return null;
@@ -97,6 +105,10 @@ as $$
 declare
   consumed_id uuid;
 begin
+  if auth.uid() is null or auth.uid()::text <> p_user_id then
+    raise exception 'APPROVAL_RECEIPT_ACTOR_MISMATCH';
+  end if;
+
   update public.jhadina_approval_receipt
   set status = 'consumed', consumed_at = now()
   where id = p_receipt_id
@@ -115,6 +127,7 @@ begin
   update public.jhadina_approval_receipt
   set status = 'expired'
   where id = p_receipt_id
+    and user_id = p_user_id
     and status = 'approved'
     and expires_at <= now();
 
@@ -122,7 +135,10 @@ begin
 end;
 $$;
 
-revoke all on public.jhadina_approval_receipt from anon, authenticated;
-revoke all on function public.create_jhadina_approval_receipt(text, text, text, text, timestamptz) from public, anon, authenticated;
-revoke all on function public.approve_jhadina_approval_receipt(uuid, text) from public, anon, authenticated;
-revoke all on function public.consume_jhadina_approval_receipt(uuid, text, text, text, text) from public, anon, authenticated;
+revoke all on public.jhadina_approval_receipt from anon;
+revoke all on function public.create_jhadina_approval_receipt(text, text, text, text, timestamptz) from public, anon;
+revoke all on function public.approve_jhadina_approval_receipt(uuid, text) from public, anon;
+revoke all on function public.consume_jhadina_approval_receipt(uuid, text, text, text, text) from public, anon;
+grant execute on function public.create_jhadina_approval_receipt(text, text, text, text, timestamptz) to authenticated;
+grant execute on function public.approve_jhadina_approval_receipt(uuid, text) to authenticated;
+grant execute on function public.consume_jhadina_approval_receipt(uuid, text, text, text, text) to authenticated;
