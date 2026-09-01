@@ -11,7 +11,7 @@ import {
 } from './repositories.js'
 
 const entry = {
-  id: 'watch-1', opportunityId: 'opp-1', principalId: 'principal-1', enabled: true,
+  id: 'watch-1', userId: 'user-1', opportunityId: 'opp-1', principalId: 'principal-1', enabled: true,
   createdAt: '2026-08-30T00:00:00Z',
 } as const
 
@@ -32,6 +32,14 @@ describe('OCE persistence repositories', () => {
     expect(loaded).toEqual(entry)
     if (loaded) loaded.enabled = false
     expect((await repo.get(entry.id))?.enabled).toBe(true)
+  })
+
+  it('filters watchlists by explicit owner rather than id naming', async () => {
+    const repo = new InMemoryWatchlistRepository()
+    await repo.save({ ...entry })
+    await repo.save({ ...entry, id: 'watch-2', userId: 'user-2' })
+    expect((await repo.listByUser('user-1')).map((item) => item.id)).toEqual(['watch-1'])
+    expect((await repo.listByUser('user-2')).map((item) => item.id)).toEqual(['watch-2'])
   })
 
   it('deduplicates alert events by watchlist entry and fingerprint', async () => {
