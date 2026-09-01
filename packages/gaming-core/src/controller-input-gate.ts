@@ -2,7 +2,7 @@ import type {InputIntegrityEvent} from './input-integrity.js';
 import type {ControllerHealthResult} from './controller-health.js';
 import type {ControllerSessionBindingManager} from './controller-session-binding.js';
 
-export type ControllerInputGateReason='healthy'|'controller-unhealthy'|'controller-unbound'|'session-mismatch';
+export type ControllerInputGateReason='healthy'|'controller-unhealthy'|'controller-health-stale'|'controller-unbound'|'session-mismatch';
 
 export interface ControllerInputGateResult {
   allowed:boolean;
@@ -10,18 +10,38 @@ export interface ControllerInputGateResult {
   deviceId:string;
   sessionId:string;
   health?:ControllerHealthResult;
+  healthObservedAtMs?:number;
+}
+
+export interface ControllerHealthGatePolicy {
+  maxHealthAgeMs:number;
+}
+
+export const DEFAULT_CONTROLLER_HEALTH_GATE_POLICY:ControllerHealthGatePolicy={maxHealthAgeMs:250};
+
+interface HealthEnvelope {
+  result:ControllerHealthResult;
+  observedAtMs:number;
 }
 
 export class ControllerInputGate {
-  private readonly health=new Map<string,ControllerHealthResult>();
+  private readonly health=new Map<string,HealthEnvelope>();
+  private readonly policy:ControllerHealthGatePolicy;
 
-  constructor(private readonly bindings:ControllerSessionBindingManager){}
+  constructor(private readonly bindings:ControllerSessionBindingManager,policy:ControllerHealthGatePolicy=DEFAULT_CONTROLLER_HEALTH_GATE_POLICY){
+    if(!Number.isFinite(policy.maxHealthAgeMs)||policy.maxHealthAgeMs<0)throw new Error('maxHealthAgeMs must be finite and non-negative');
+    this.policy={...policy};
+  }
 
-  updateHealth(result:ControllerHealthResult):void{this.health.set(result.deviceId,result);}
+  updateHealth(result:ControllerHealthResult,observedAtMs=Date.now()):void{
+    if(!Number.isFinite(observedAtMs))throw new Error('observedAtMs must be finite');
+    this.health.set(result.deviceId,{result,observedAtMs});
+  }
 
   clearHealth(deviceId:string):void{this.health.delete(deviceId);}
 
-  authorize(event:InputIntegrityEvent):ControllerInputGateResult{
+  authorize(event:InputIntegrityEvent,nowMs=Date.now()):ControllerInputGateResult{
+    if(!Number.isFinite(nowMs))throw new Error('nowMs must be finite');
     const deviceId=event.deviceId;
     const sessionId=event.sessionId;
     if(!deviceId||!sessionId)return{allowed:false,reason:'session-mismatch',deviceId:deviceId??'',sessionId:sessionId??''};
@@ -30,8 +50,13 @@ export class ControllerInputGate {
       return{allowed:false,reason:'controller-unbound',deviceId,sessionId};
     }
     if(binding.sessionId!==sessionId||binding.deviceId!==deviceId)return{allowed:false,reason:'session-mismatch',deviceId,sessionId};
-    const health=this.health.get(deviceId);
-    if(!health||!health.accepted||health.state!=='healthy')return{allowed:false,reason:'controller-unhealthy',deviceId,sessionId,health};
-    return{allowed:true,reason:'healthy',deviceId,sessionId,health};
+    const envelope=this.health.get(deviceId);
+    if(!envelope)return{allowed:false,reason:'controller-unhealthy',deviceId,sessionId};
+    const {result:health,observedAtMs}=envelope;
+    if(nowMs<observedAtMs||nowMs-observedAtMs>this.policy.maxHealthAgeMs){
+      return{allowed:false,reason:'controller-health-stale',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
+    }
+    if(!health.accepted||health.state!=='healthy')return{allowed:false,reason:'controller-unhealthy',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
+    return{allowed:true,reason:'healthy',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
   }
 }
