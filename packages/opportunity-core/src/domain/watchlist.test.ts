@@ -9,6 +9,18 @@ describe('OCE-6.74 watchlist alerts', () => {
     expect(fingerprintAlert(entry, evaluation)).toBe(fingerprintAlert(entry, evaluation))
   })
 
+  it('is invariant to nested object key order', () => {
+    const left = { ...evaluation, previousState: { deadline: '2026-09-01', meta: { b: 2, a: 1 } } }
+    const right = { ...evaluation, previousState: { meta: { a: 1, b: 2 }, deadline: '2026-09-01' } }
+    expect(fingerprintAlert(entry, left)).toBe(fingerprintAlert(entry, right))
+  })
+
+  it('preserves array order as material state', () => {
+    const left = { ...evaluation, newState: { ids: ['a', 'b'] } }
+    const right = { ...evaluation, newState: { ids: ['b', 'a'] } }
+    expect(fingerprintAlert(entry, left)).not.toBe(fingerprintAlert(entry, right))
+  })
+
   it('creates provenance-preserving alert events', () => {
     const alert = createAlertEvent(entry, evaluation, '2026-08-30T12:00:00Z')
     expect(alert.opportunityId).toBe('opp-1')
