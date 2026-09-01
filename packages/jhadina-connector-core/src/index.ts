@@ -33,7 +33,7 @@ export { createApprovalRequest, hashActionProposal, verifyApproval } from './app
 export type { ApprovalExecutionStore, ApprovalExecutionRecord, ApprovalExecutionState } from './approval-execution.js';
 export { InMemoryApprovalExecutionStore, authorizeApprovedExecution } from './approval-execution.js';
 export type { ConnectorReconciliationStatus, ConnectorReconciliationEvidence, ConnectorReconciliationResult, ConnectorReconciler, RecoveryResolution } from './reconciliation.js';
-export { resolveRecovery, reconciliationEvidencePayload } from './reconciliation.js';
+export { resolveRecovery, reconciliationEvidencePayload, hashReconciliationEvidence, verifyReconciliationEvidenceHash, canRetryAfterReconciliation, blocksProviderRetry } from './reconciliation.js';
 export type { AskIntent } from './ask-action.js';
 export { buildActionProposalFromAsk } from './ask-action.js';
 export { AskExecutionPipeline } from './ask-pipeline.js';
