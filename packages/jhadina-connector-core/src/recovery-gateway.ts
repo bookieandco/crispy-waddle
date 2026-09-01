@@ -104,17 +104,7 @@ export class ConnectorRecoveryGateway {
     const retryExecutionId = `exec_recovery_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`
     const retryIdempotencyKey = `recovery_${execution.idempotencyKey}_${retryExecutionId}`
     const recoveryLeaseId = `lease_recovery_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`
-    const claimed = await this.recoveryAttempts.claimRecoveryAttempt({
-      originalExecutionId: execution.executionId,
-      proposalHash,
-      newExecutionId: retryExecutionId,
-      newIdempotencyKey: retryIdempotencyKey,
-      recoveryLeaseId,
-      connectorId: execution.connectorId,
-      operation: execution.operation,
-      actorId: execution.actorId,
-      correlationId: execution.correlationId,
-    })
+    const claimed = await this.recoveryAttempts.claimRecoveryAttempt({ originalExecutionId: execution.executionId, proposalHash, newExecutionId: retryExecutionId, newIdempotencyKey: retryIdempotencyKey, recoveryLeaseId, connectorId: execution.connectorId, operation: execution.operation, actorId: execution.actorId, correlationId: execution.correlationId })
     if (!claimed) throw new Error('Recovery attempt could not be atomically claimed')
 
     await this.audit.record({ executionId: retryExecutionId, originalExecutionId: execution.executionId, proposalId: proposal.id, correlationId: proposal.correlationId, actorId: proposal.actor.id, connectorId: execution.connectorId, operation: execution.operation, proposalHash, resolution, evidence: result.evidence })
@@ -122,13 +112,7 @@ export class ConnectorRecoveryGateway {
   }
 }
 
-function validateEvidence(
-  evidence: ConnectorReconciliationEvidence,
-  execution: ConnectorExecutionRecord,
-  proposalHash: string,
-  operation: ConnectorOperation,
-  adapterVersion: number,
-): void {
+function validateEvidence(evidence: ConnectorReconciliationEvidence, execution: ConnectorExecutionRecord, proposalHash: string, operation: ConnectorOperation, adapterVersion: number): void {
   if (evidence.executionId !== execution.executionId) throw new Error('Reconciliation evidence execution mismatch')
   if (evidence.proposalHash !== proposalHash || evidence.proposalHash !== execution.proposalHash) throw new Error('Reconciliation evidence proposal mismatch')
   if (evidence.idempotencyKey !== execution.idempotencyKey) throw new Error('Reconciliation evidence idempotency mismatch')
