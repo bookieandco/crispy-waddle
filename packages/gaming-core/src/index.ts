@@ -14,4 +14,6 @@ export * from './remote-apps.js';
 export * from './game-source.js';
 export * from './launch-orchestrator.js';
 export * from './device-capabilities.js';
+export * from './input-sync.js';
+export * from './remote-play-session.js';
 export * from './jhadina-gaming.js';
