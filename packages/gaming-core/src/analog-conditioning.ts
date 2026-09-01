@@ -1,0 +1,4 @@
+export interface AnalogCalibration { deadzone?:number; min?:number; max?:number; }
+export function conditionAxis(value:number,calibration:AnalogCalibration={}):number {const min=calibration.min??-1,max=calibration.max??1,deadzone=Math.max(0,Math.min(0.95,calibration.deadzone??0));const clamped=Math.max(min,Math.min(max,value));const normalized=(clamped-min)/(max-min)*2-1;if(Math.abs(normalized)<=deadzone)return 0;const sign=normalized<0?-1:1;const magnitude=(Math.abs(normalized)-deadzone)/(1-deadzone);return sign*Math.min(1,magnitude);}
+export interface AnalogState {leftX:number;leftY:number;rightX:number;rightY:number;}
+export function conditionAnalog(state:AnalogState,calibration:AnalogCalibration={}):AnalogState{return{leftX:conditionAxis(state.leftX,calibration),leftY:conditionAxis(state.leftY,calibration),rightX:conditionAxis(state.rightX,calibration),rightY:conditionAxis(state.rightY,calibration)};}
