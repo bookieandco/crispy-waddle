@@ -15,19 +15,16 @@ export interface ApprovalExecutionRecord {
 
 export interface ApprovalExecutionStore {
   /** Atomically claims an approved action for execution. */
-  begin(approvalId: string, proposalHash: string, now?: Date): boolean
+  begin(approvalId: string, proposalHash: string, now?: Date): boolean | Promise<boolean>
   /** Records a verified successful execution. */
-  complete(approvalId: string, now?: Date): void
+  complete(approvalId: string, now?: Date): void | Promise<void>
   /** Records a terminal execution failure without making the approval reusable. */
-  fail(approvalId: string, error: string, now?: Date): void
-  get(approvalId: string): ApprovalExecutionRecord | undefined
-  /**
-   * Releases a stale in-flight claim back to the approval layer.
-   * Callers must only use this after provider-side idempotency/reconciliation.
-   */
-  recoverStale(approvalId: string, staleBefore: Date): boolean
+  fail(approvalId: string, error: string, now?: Date): void | Promise<void>
+  get(approvalId: string): ApprovalExecutionRecord | undefined | Promise<ApprovalExecutionRecord | undefined>
+  /** Releases a stale in-flight claim back to the approval layer. */
+  recoverStale(approvalId: string, staleBefore: Date): boolean | Promise<boolean>
   /** Legacy one-way consumption primitive. Prefer begin/complete/fail. */
-  consume(approvalId: string): boolean
+  consume(approvalId: string): boolean | Promise<boolean>
 }
 
 export class InMemoryApprovalExecutionStore implements ApprovalExecutionStore {
@@ -36,12 +33,7 @@ export class InMemoryApprovalExecutionStore implements ApprovalExecutionStore {
   begin(approvalId: string, proposalHash: string, now = new Date()): boolean {
     const existing = this.records.get(approvalId)
     if (existing) return false
-    this.records.set(approvalId, {
-      approvalId,
-      proposalHash,
-      state: 'executing',
-      startedAt: now.toISOString(),
-    })
+    this.records.set(approvalId, { approvalId, proposalHash, state: 'executing', startedAt: now.toISOString() })
     return true
   }
 
@@ -60,9 +52,7 @@ export class InMemoryApprovalExecutionStore implements ApprovalExecutionStore {
     record.completedAt = now.toISOString()
   }
 
-  get(approvalId: string): ApprovalExecutionRecord | undefined {
-    return this.records.get(approvalId)
-  }
+  get(approvalId: string): ApprovalExecutionRecord | undefined { return this.records.get(approvalId) }
 
   recoverStale(approvalId: string, staleBefore: Date): boolean {
     const record = this.records.get(approvalId)
@@ -72,9 +62,7 @@ export class InMemoryApprovalExecutionStore implements ApprovalExecutionStore {
     return true
   }
 
-  consume(approvalId: string): boolean {
-    return this.begin(approvalId, `legacy:${approvalId}`)
-  }
+  consume(approvalId: string): boolean { return this.begin(approvalId, `legacy:${approvalId}`) as boolean }
 
   private require(approvalId: string): ApprovalExecutionRecord {
     const record = this.records.get(approvalId)
@@ -83,15 +71,15 @@ export class InMemoryApprovalExecutionStore implements ApprovalExecutionStore {
   }
 }
 
-export function authorizeApprovedExecution(
+export async function authorizeApprovedExecution(
   proposal: AuthoritativeActionProposal,
   approval: ApprovalGrant,
   approverIdentityId: string,
   store: ApprovalExecutionStore,
   now = new Date(),
-): void {
+): Promise<void> {
   verifyApproval(proposal, approval, approverIdentityId, now)
-  if (!store.begin(approval.approvalId, approval.proposalHash, now)) {
+  if (!(await store.begin(approval.approvalId, approval.proposalHash, now))) {
     throw new Error('Approval execution has already been claimed')
   }
 }
