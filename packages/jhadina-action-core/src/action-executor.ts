@@ -1,4 +1,5 @@
 import type { ApprovalReceiptVerifier } from './approval-receipt.js';
+import type { NonceReplayGuard } from '../../security-core/src/replay-guard.js';
 
 export type ActionPolicyDecision = 'allow' | 'deny' | 'approval_required';
 
@@ -60,6 +61,7 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
     private readonly ledger: ActionLedger,
     private readonly handlers: readonly ActionHandler<TAction, TResult>[],
     private readonly approvalReceipts?: ApprovalReceiptVerifier<TAction>,
+    private readonly replayGuard?: NonceReplayGuard,
   ) {}
 
   async execute(request: ActionRequest<TAction>): Promise<TResult> {
@@ -113,6 +115,28 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
         timestamp: now(),
       });
       throw new Error(`Action denied: ${request.type}`);
+    }
+
+    if (this.replayGuard) {
+      const nonce = request.nonce ?? request.id;
+      const claimed = await this.replayGuard.consume({
+        nonce,
+        requestId: request.id,
+        actorId: request.userId,
+        expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      });
+      if (!claimed) {
+        await this.ledger.append({
+          id: `${request.id}:replay-denied`,
+          actionId: request.id,
+          userId: request.userId,
+          type: request.type,
+          status: 'denied',
+          timestamp: now(),
+          metadata: { reason: 'replayed_action_nonce' },
+        });
+        throw new Error(`Action replay rejected: ${request.type}`);
+      }
     }
 
     const handler = this.handlers.find((candidate) => candidate.supports(request.type));
