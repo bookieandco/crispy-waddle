@@ -5,6 +5,7 @@ import type {
   ConnectorExecutionState,
   ConnectorExecutionStore,
   ConnectorResponse,
+  RecoveryAttemptStore,
 } from "@jhadina/connector-core"
 import { createServiceRoleClient } from "../supabase/service-role"
 
@@ -26,7 +27,7 @@ type Row = {
 }
 
 /** Server-only durable connector execution store. The service-role client must never reach a browser bundle. */
-export class SupabaseConnectorExecutionStore implements ConnectorExecutionStore {
+export class SupabaseConnectorExecutionStore implements ConnectorExecutionStore, RecoveryAttemptStore {
   constructor(private readonly supabase = createServiceRoleClient()) {}
 
   async getByIdempotencyKey(idempotencyKey: string): Promise<ConnectorExecutionRecord | undefined> {
@@ -58,6 +59,33 @@ export class SupabaseConnectorExecutionStore implements ConnectorExecutionStore 
     if (!error) return true
     if (error.code === "23505") return false
     throw new Error(`Failed to claim connector execution: ${error.message}`)
+  }
+
+  async claimRecoveryAttempt(input: {
+    originalExecutionId: string
+    proposalHash: string
+    newExecutionId: string
+    newIdempotencyKey: string
+    connectorId: string
+    operation: string
+    actorId: string
+    correlationId: string
+    approvalId?: string
+  }): Promise<boolean> {
+    if (!this.supabase) throw new Error("Supabase service-role client is not configured")
+    const { data, error } = await this.supabase.rpc("jhadina_claim_recovery_attempt", {
+      p_original_execution_id: input.originalExecutionId,
+      p_proposal_hash: input.proposalHash,
+      p_new_execution_id: input.newExecutionId,
+      p_new_idempotency_key: input.newIdempotencyKey,
+      p_connector_id: input.connectorId,
+      p_operation: input.operation,
+      p_actor_id: input.actorId,
+      p_correlation_id: input.correlationId,
+      p_approval_id: input.approvalId ?? null,
+    })
+    if (error) throw new Error(`Failed to claim connector recovery attempt: ${error.message}`)
+    return data === true
   }
 
   async complete(executionId: string, proposalHash: string, response: ConnectorResponse, now = new Date()): Promise<void> {
