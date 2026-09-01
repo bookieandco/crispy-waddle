@@ -20,3 +20,21 @@ export function assertControllerCapabilities(profile:ControllerCapabilityProfile
 export function controllerSupports(profile:ControllerCapabilityProfile,capability:ControllerCapability):boolean{
   return profile.capabilities.includes(capability);
 }
+
+export interface ControllerInputCapabilityRequirement {
+  buttons?:boolean;
+  axes?:boolean;
+  triggers?:boolean;
+  dpad?:boolean;
+  haptics?:boolean;
+}
+
+export function requiredCapabilitiesForInput(requirement:ControllerInputCapabilityRequirement):ControllerCapability[] {
+  const capabilities:ControllerCapability[]=[];
+  if(requirement.buttons)capabilities.push('buttons');
+  if(requirement.axes)capabilities.push('axes');
+  if(requirement.triggers)capabilities.push('triggers');
+  if(requirement.dpad)capabilities.push('dpad');
+  if(requirement.haptics)capabilities.push('haptics');
+  return capabilities;
+}
