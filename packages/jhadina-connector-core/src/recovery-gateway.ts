@@ -10,11 +10,11 @@ export interface RecoveryAttemptStore {
     proposalHash: string
     newExecutionId: string
     newIdempotencyKey: string
+    recoveryLeaseId: string
     connectorId: string
     operation: string
     actorId: string
     correlationId: string
-    approvalId?: string
   }): Promise<boolean>
 }
 
@@ -38,12 +38,13 @@ export interface GovernedRecoveryResult {
   readonly evidence: ConnectorReconciliationEvidence
   readonly retryExecutionId?: string
   readonly retryIdempotencyKey?: string
+  readonly recoveryLeaseId?: string
 }
 
 /**
  * Recovery is deliberately separate from normal execute(). It can only observe a
  * durable recovery_required execution, obtain provider evidence, and then either
- * block, terminally reconcile, or atomically create a fresh retry execution.
+ * block, terminally reconcile, or atomically create a fresh single-use retry lease.
  */
 export class ConnectorRecoveryGateway {
   constructor(
@@ -102,21 +103,22 @@ export class ConnectorRecoveryGateway {
 
     const retryExecutionId = `exec_recovery_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`
     const retryIdempotencyKey = `recovery_${execution.idempotencyKey}_${retryExecutionId}`
+    const recoveryLeaseId = `lease_recovery_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`
     const claimed = await this.recoveryAttempts.claimRecoveryAttempt({
       originalExecutionId: execution.executionId,
       proposalHash,
       newExecutionId: retryExecutionId,
       newIdempotencyKey: retryIdempotencyKey,
+      recoveryLeaseId,
       connectorId: execution.connectorId,
       operation: execution.operation,
       actorId: execution.actorId,
       correlationId: execution.correlationId,
-      approvalId: execution.approvalId,
     })
     if (!claimed) throw new Error('Recovery attempt could not be atomically claimed')
 
     await this.audit.record({ executionId: retryExecutionId, originalExecutionId: execution.executionId, proposalId: proposal.id, correlationId: proposal.correlationId, actorId: proposal.actor.id, connectorId: execution.connectorId, operation: execution.operation, proposalHash, resolution, evidence: result.evidence })
-    return { resolution, evidence: result.evidence, retryExecutionId, retryIdempotencyKey }
+    return { resolution, evidence: result.evidence, retryExecutionId, retryIdempotencyKey, recoveryLeaseId }
   }
 }
 
