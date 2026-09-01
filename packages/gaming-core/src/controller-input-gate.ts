@@ -1,7 +1,7 @@
 import type {InputIntegrityEvent} from './input-integrity.js';
 import type {ControllerHealthResult} from './controller-health.js';
 import type {ControllerSessionBindingManager} from './controller-session-binding.js';
-import type {ControllerCapability,ControllerCapabilityProfile} from './controller-capabilities.js';
+import type {ControllerCapability} from './controller-capabilities.js';
 import {assertControllerCapabilities} from './controller-capabilities.js';
 
 export type ControllerInputGateReason='healthy'|'controller-unhealthy'|'controller-health-stale'|'controller-unbound'|'session-mismatch'|'controller-health-session-mismatch'|'controller-capability-mismatch';
@@ -15,16 +15,9 @@ export interface ControllerInputGateResult {
   healthObservedAtMs?:number;
 }
 
-export interface ControllerHealthGatePolicy {
-  maxHealthAgeMs:number;
-}
-
-export interface ControllerInputGatePolicy extends ControllerHealthGatePolicy {
-  requiredCapabilities?:readonly ControllerCapability[];
-}
-
+export interface ControllerHealthGatePolicy {maxHealthAgeMs:number;}
+export interface ControllerInputGatePolicy extends ControllerHealthGatePolicy {requiredCapabilities?:readonly ControllerCapability[];}
 export const DEFAULT_CONTROLLER_HEALTH_GATE_POLICY:ControllerHealthGatePolicy={maxHealthAgeMs:250};
-
 interface HealthEnvelope {result:ControllerHealthResult;observedAtMs:number;sessionId:string;}
 
 export class ControllerInputGate {
@@ -60,15 +53,9 @@ export class ControllerInputGate {
     if(nowMs<observedAtMs||nowMs-observedAtMs>this.policy.maxHealthAgeMs)return{allowed:false,reason:'controller-health-stale',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
     if(!health.accepted||health.state!=='healthy')return{allowed:false,reason:'controller-unhealthy',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
     if(this.policy.requiredCapabilities?.length){
-      const profile:ControllerCapabilityProfile={deviceId,capabilities:bindingDeviceCapabilities(binding)};
-      try{assertControllerCapabilities(profile,{required:this.policy.requiredCapabilities});}
+      try{assertControllerCapabilities({deviceId,capabilities:binding.capabilities},{required:this.policy.requiredCapabilities});}
       catch{return{allowed:false,reason:'controller-capability-mismatch',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};}
     }
     return{allowed:true,reason:'healthy',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
   }
-}
-
-function bindingDeviceCapabilities(binding:{deviceId:string}):readonly ControllerCapability[]{
-  const bindingWithCapabilities=binding as {deviceId:string;capabilities?:readonly ControllerCapability[]};
-  return bindingWithCapabilities.capabilities??[];
 }
