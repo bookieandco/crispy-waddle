@@ -1,11 +1,12 @@
 import type { ActionResult } from './types.js';
 
 /**
- * Structural contract for the authoritative policy result. The core-spine
- * package does not implement policy; security-core supplies the authority.
+ * Structural contract for security-core's authoritative policy result.
+ * The spine does not issue policy decisions and intentionally does not import
+ * security-core, preserving the package layering boundary.
  */
 export interface CanonicalPolicyDecision {
-  id: string;
+  decisionId: string;
   requestId: string;
   actorId: string;
   domain: string;
@@ -13,9 +14,8 @@ export interface CanonicalPolicyDecision {
   resourceId?: string;
   decision: 'allow' | 'approval_required' | 'deny';
   policyVersion: string;
-  decidedAt: string;
-  expiresAt: string;
-  reason?: string;
+  decidedAt: number;
+  expiresAt: number;
 }
 
 /**
@@ -32,14 +32,15 @@ export interface CanonicalActionRequest {
   reversible: boolean;
   consequenceLevel: 'low' | 'medium' | 'high' | 'critical';
   resourceId?: string;
-  requestedAt: string;
-  expiresAt: string;
+  requestedAt: number;
+  expiresAt: number;
   amountMinor?: number;
   recipient?: string;
   platform?: string;
 }
 
 export interface CanonicalActionPort {
+  /** Preparation must be side-effect free; authorization happens afterward. */
   prepare(proposal: import('./types.js').DecisionProposal): Promise<CanonicalActionRequest | undefined>;
   execute(request: CanonicalActionRequest, policy: CanonicalPolicyDecision): Promise<ActionResult>;
 }
