@@ -20,7 +20,9 @@ export interface MediaPlaybackProgressRepository {
 
 export class InMemoryMediaPlaybackProgressRepository implements MediaPlaybackProgressRepository {
   private readonly records = new Map<string, MediaPlaybackProgress>();
-  private key(userId: string, providerId: string, itemId: string) { return `${userId}:${providerId}:${itemId}`; }
+  private key(userId: string, providerId: string, itemId: string) {
+    return `${userId}:${providerId}:${itemId}`;
+  }
 
   async get(userId: string, providerId: string, itemId: string) {
     const record = this.records.get(this.key(userId, providerId, itemId));
@@ -28,8 +30,18 @@ export class InMemoryMediaPlaybackProgressRepository implements MediaPlaybackPro
   }
 
   async upsert(progress: MediaPlaybackProgress) {
+    const key = this.key(progress.userId, progress.providerId, progress.itemId);
+    const existing = this.records.get(key);
+
+    // Match the production database invariant: an older or equal event can
+    // never replace a newer event. Strict `>` also makes equal timestamps
+    // deterministic: the first accepted write wins.
+    if (existing && progress.updatedAt <= existing.updatedAt) {
+      return { ...existing };
+    }
+
     const copy = { ...progress, positionMs: Math.max(0, progress.positionMs) };
-    this.records.set(this.key(progress.userId, progress.providerId, progress.itemId), copy);
+    this.records.set(key, copy);
     return { ...copy };
   }
 }
