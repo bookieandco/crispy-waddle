@@ -3,6 +3,7 @@ export * from './generation-provider';
 export * from './generation-service';
 export * from './generation-task';
 export * from './generation-execution';
+export * from './generation-repository';
 export * from './comfyui-http';
 export * from './comfyui-output-resolver';
 export * from './generation-manifest';
