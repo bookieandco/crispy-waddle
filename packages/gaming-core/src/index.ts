@@ -31,3 +31,4 @@ export * from './input-pipeline.js';
 export * from './input-photon-latency.js';
 export * from './controller-session-binding.js';
 export * from './controller-health.js';
+export * from './controller-input-gate.js';
