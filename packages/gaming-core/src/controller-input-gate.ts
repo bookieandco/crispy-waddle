@@ -1,8 +1,10 @@
 import type {InputIntegrityEvent} from './input-integrity.js';
 import type {ControllerHealthResult} from './controller-health.js';
 import type {ControllerSessionBindingManager} from './controller-session-binding.js';
+import type {ControllerCapability,ControllerCapabilityProfile} from './controller-capabilities.js';
+import {assertControllerCapabilities} from './controller-capabilities.js';
 
-export type ControllerInputGateReason='healthy'|'controller-unhealthy'|'controller-health-stale'|'controller-unbound'|'session-mismatch'|'controller-health-session-mismatch';
+export type ControllerInputGateReason='healthy'|'controller-unhealthy'|'controller-health-stale'|'controller-unbound'|'session-mismatch'|'controller-health-session-mismatch'|'controller-capability-mismatch';
 
 export interface ControllerInputGateResult {
   allowed:boolean;
@@ -17,19 +19,19 @@ export interface ControllerHealthGatePolicy {
   maxHealthAgeMs:number;
 }
 
+export interface ControllerInputGatePolicy extends ControllerHealthGatePolicy {
+  requiredCapabilities?:readonly ControllerCapability[];
+}
+
 export const DEFAULT_CONTROLLER_HEALTH_GATE_POLICY:ControllerHealthGatePolicy={maxHealthAgeMs:250};
 
-interface HealthEnvelope {
-  result:ControllerHealthResult;
-  observedAtMs:number;
-  sessionId:string;
-}
+interface HealthEnvelope {result:ControllerHealthResult;observedAtMs:number;sessionId:string;}
 
 export class ControllerInputGate {
   private readonly health=new Map<string,HealthEnvelope>();
-  private readonly policy:ControllerHealthGatePolicy;
+  private readonly policy:ControllerInputGatePolicy;
 
-  constructor(private readonly bindings:ControllerSessionBindingManager,policy:ControllerHealthGatePolicy=DEFAULT_CONTROLLER_HEALTH_GATE_POLICY){
+  constructor(private readonly bindings:ControllerSessionBindingManager,policy:ControllerInputGatePolicy=DEFAULT_CONTROLLER_HEALTH_GATE_POLICY){
     if(!Number.isFinite(policy.maxHealthAgeMs)||policy.maxHealthAgeMs<0)throw new Error('maxHealthAgeMs must be finite and non-negative');
     this.policy={...policy};
   }
@@ -49,20 +51,24 @@ export class ControllerInputGate {
     const sessionId=event.sessionId;
     if(!deviceId||!sessionId)return{allowed:false,reason:'session-mismatch',deviceId:deviceId??'',sessionId:sessionId??''};
     let binding;
-    try{binding=this.bindings.assertBound(sessionId,deviceId);}catch{
-      return{allowed:false,reason:'controller-unbound',deviceId,sessionId};
-    }
+    try{binding=this.bindings.assertBound(sessionId,deviceId);}catch{return{allowed:false,reason:'controller-unbound',deviceId,sessionId};}
     if(binding.sessionId!==sessionId||binding.deviceId!==deviceId)return{allowed:false,reason:'session-mismatch',deviceId,sessionId};
     const envelope=this.health.get(deviceId);
     if(!envelope)return{allowed:false,reason:'controller-unhealthy',deviceId,sessionId};
     const {result:health,observedAtMs}=envelope;
-    if(envelope.sessionId!==sessionId){
-      return{allowed:false,reason:'controller-health-session-mismatch',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
-    }
-    if(nowMs<observedAtMs||nowMs-observedAtMs>this.policy.maxHealthAgeMs){
-      return{allowed:false,reason:'controller-health-stale',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
-    }
+    if(envelope.sessionId!==sessionId)return{allowed:false,reason:'controller-health-session-mismatch',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
+    if(nowMs<observedAtMs||nowMs-observedAtMs>this.policy.maxHealthAgeMs)return{allowed:false,reason:'controller-health-stale',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
     if(!health.accepted||health.state!=='healthy')return{allowed:false,reason:'controller-unhealthy',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
+    if(this.policy.requiredCapabilities?.length){
+      const profile:ControllerCapabilityProfile={deviceId,capabilities:bindingDeviceCapabilities(binding)};
+      try{assertControllerCapabilities(profile,{required:this.policy.requiredCapabilities});}
+      catch{return{allowed:false,reason:'controller-capability-mismatch',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};}
+    }
     return{allowed:true,reason:'healthy',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
   }
+}
+
+function bindingDeviceCapabilities(binding:{deviceId:string}):readonly ControllerCapability[]{
+  const bindingWithCapabilities=binding as {deviceId:string;capabilities?:readonly ControllerCapability[]};
+  return bindingWithCapabilities.capabilities??[];
 }
