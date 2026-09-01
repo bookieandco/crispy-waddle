@@ -25,8 +25,12 @@ export type { SignedAuthenticatedSession, TrustedIssuer, SessionAuthenticator } 
 export { Ed25519SessionAuthenticator } from './session-authentication.js';
 export type { ApprovalRequest, ApprovalGrant } from './approval.js';
 export { createApprovalRequest, hashActionProposal, verifyApproval } from './approval.js';
-export type { AskIntent, } from './ask-action.js';
+export type { AskIntent } from './ask-action.js';
 export { buildActionProposalFromAsk } from './ask-action.js';
 export { AskExecutionPipeline } from './ask-pipeline.js';
 export { createGitHubReadOnlyAdapter } from './github.js';
 export type { GitHubReadTransport, GitHubRepository } from './github.js';
+export { createGitHubPullRequestAdapter } from './github-pr.js';
+export type { GitHubPullRequestTransport, GitHubPullRequest } from './github-pr.js';
+export type { VerifiedCodingChange, DraftPullRequestRequest } from './coding-pr.js';
+export { createDraftPullRequestRequest } from './coding-pr.js';
