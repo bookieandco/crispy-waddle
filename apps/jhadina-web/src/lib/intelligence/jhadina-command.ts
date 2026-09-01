@@ -1,6 +1,7 @@
 import {
   JhadinaValuesActionPolicy,
   SupabaseApprovalReceiptStore,
+  SupabaseNonceReplayGuard,
   type ActionPolicy,
   type ApprovalReceiptStore,
   type SupabaseAuditLedger,
@@ -15,21 +16,11 @@ import { ReasoningEventRepository } from "../repositories/ReasoningEventReposito
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { getStorage } from "../routes/handlers"
 import type { JhadinaWorldId } from "../jhadina/jhadina-world-registry"
-import { createIntelligenceAuditLedger } from "./durable-audit-ledger"
+import { createIntelligenceAuditLedger, createIntelligenceAuditRpcClient } from "./durable-audit-ledger"
 import { createClient } from "../supabase/server"
-import {
-  decideAndProposeMemoryGoverned,
-  type GovernedIntelligenceProposalResult,
-} from "./governed-intelligence-proposal"
+import { decideAndProposeMemoryGoverned, type GovernedIntelligenceProposalResult } from "./governed-intelligence-proposal"
 import { MEMORY_PROPOSE_CAPABILITY, type MemoryProposeAction } from "./memory-propose-capability"
 import { createProductionIntelligenceRouter } from "./production-model-provider"
-
-/**
- * Phase 1 Step 5 — instantiate the Jhadina operating loop.
- *
- * The production approval boundary is durable: no process-local receipt store
- * is used by the command runtime. Test callers may still inject a store.
- */
 
 export interface JhadinaCommandInput {
   userId: string
@@ -46,7 +37,7 @@ export interface JhadinaCommandOverrides {
   ledger?: SupabaseAuditLedger
   router?: IntelligenceRouter
   approvalStore?: ApprovalReceiptStore
-  /** Test-only policy substitution. */
+  replayGuard?: InstanceType<typeof SupabaseNonceReplayGuard>
   policy?: ActionPolicy<MemoryProposeAction>
   onEvent?: (event: IntelligenceRouterEvent) => void
 }
@@ -63,10 +54,7 @@ export async function handleJhadinaCommand(
   const storage = getStorage()
   const memoryRepo = new MemoryRepository(storage)
   const reasoningRepo = new ReasoningEventRepository(storage)
-  const contextDeps: ContextBuilderDeps = {
-    memoryRepo,
-    timelineRepo: new TimelineRepository(storage),
-  }
+  const contextDeps: ContextBuilderDeps = { memoryRepo, timelineRepo: new TimelineRepository(storage) }
   const assembled = await buildContext(contextDeps, {
     userId: input.userId,
     activeTask: input.activeTask,
@@ -80,20 +68,20 @@ export async function handleJhadinaCommand(
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
   const ledger = overrides.ledger ?? (await createIntelligenceAuditLedger())
   const router = overrides.router ?? createProductionIntelligenceRouter(overrides.onEvent)
-  const approvalStore = overrides.approvalStore
-    ?? new SupabaseApprovalReceiptStore(await createClient())
-  const policy = overrides.policy
-    ?? new JhadinaValuesActionPolicy<MemoryProposeAction>(JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION)
+  const approvalStore = overrides.approvalStore ?? new SupabaseApprovalReceiptStore(await createClient())
+  const replayGuard = overrides.replayGuard ?? new SupabaseNonceReplayGuard(await createIntelligenceAuditRpcClient())
+  const policy = overrides.policy ?? new JhadinaValuesActionPolicy<MemoryProposeAction>(
+    JHADINA_BASE_SECURITY_POLICY,
+    JHADINA_DEFAULT_VALUES_CONFIGURATION,
+  )
 
   const result = await decideAndProposeMemoryGoverned(
-    { identityVerifier, ledger, router, memoryRepo, reasoningRepo, approvalStore, policy },
+    { identityVerifier, ledger, router, memoryRepo, reasoningRepo, approvalStore, replayGuard, policy },
     input.userId,
     assembled.contextPacket,
   )
 
-  if (!result.candidate) {
-    return { ...result, verified: true, verificationReason: "no action was executed for this proposal" }
-  }
+  if (!result.candidate) return { ...result, verified: true, verificationReason: "no action was executed for this proposal" }
 
   const verification = await verifyCandidateDurable(memoryRepo, result.verifiedUserId, result.candidate)
   const verifyEventId = `verify:${result.candidate.id}:${Date.now()}`
@@ -107,10 +95,7 @@ export async function handleJhadinaCommand(
     metadata: { stage: "verify", reason: verification.reason ?? "durable read-back matched executed content" },
   })
 
-  if (!verification.verified) {
-    throw new Error(`JHADINA_COMMAND_VERIFICATION_FAILED:${verification.reason}`)
-  }
-
+  if (!verification.verified) throw new Error(`JHADINA_COMMAND_VERIFICATION_FAILED:${verification.reason}`)
   return { ...result, verified: true, verificationReason: verification.reason }
 }
 
@@ -121,15 +106,8 @@ async function verifyCandidateDurable(
 ): Promise<{ verified: boolean; reason?: string }> {
   const pending = await memoryRepo.listPending(userId, 1000)
   const found = pending.find((c) => c.id === candidate.id)
-
-  if (!found) {
-    return { verified: false, reason: "candidate not found in durable storage after execution" }
-  }
-  if (found.status !== "PENDING") {
-    return { verified: false, reason: `candidate status is ${found.status}, expected PENDING` }
-  }
-  if (found.content !== candidate.content) {
-    return { verified: false, reason: "candidate content mismatch on read-back" }
-  }
+  if (!found) return { verified: false, reason: "candidate not found in durable storage after execution" }
+  if (found.status !== "PENDING") return { verified: false, reason: `candidate status is ${found.status}, expected PENDING` }
+  if (found.content !== candidate.content) return { verified: false, reason: "candidate content mismatch on read-back" }
   return { verified: true }
 }
