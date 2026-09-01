@@ -1,5 +1,5 @@
-import { BrokerCredentialResolver, EnvironmentCredentialStore, MoneyProviderRegistry, PLAID_READ_ONLY_CONFIG, createPlaidProviderAdapterFactory, type ProviderConfig } from "@jhadina/money-core"
-import { CredentialBroker, RpcCredentialLeaseStore } from "@jhadina/security-core"
+import { BrokerCredentialResolver, EnvironmentCredentialStore, MoneyProviderRegistry, PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, createPlaidProviderAdapterFactory, type ProviderConfig } from "@jhadina/money-core"
+import { CredentialBroker, EgressPolicy, RpcCredentialLeaseStore } from "@jhadina/security-core"
 import { createClient } from "../supabase/server"
 
 export const PLAID_PROVIDER = "plaid"
@@ -37,8 +37,21 @@ export async function createGovernedMoneyPlaidProductionRegistry(actorId: string
     issuedAt: now,
     expiresAt: now + 30_000,
     nonce: crypto.randomUUID(),
+  }, "trusted-compute", {
+    policy: new EgressPolicy([
+      {
+        capability: "money.account.read",
+        hosts: [new URL(PLAID_SANDBOX_BASE_URL).hostname],
+        protocols: ["https"],
+        ports: [443],
+        maxPayloadBytes: 1_048_576,
+        allowedDataClasses: ["internal"],
+      },
+    ]),
+    destination: PLAID_SANDBOX_BASE_URL,
+    dataClass: "internal",
   })
-  const adapter = await createPlaidProviderAdapterFactory(undefined, resolver).create(PLAID_PROVIDER)
+  const adapter = await createPlaidProviderAdapterFactory(PLAID_SANDBOX_BASE_URL, resolver).create(PLAID_PROVIDER)
   const registry = new MoneyProviderRegistry()
   registry.register(adapter)
   return { registry, providerConfig: { [PLAID_PROVIDER]: PLAID_READ_ONLY_CONFIG } }
