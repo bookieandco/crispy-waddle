@@ -20,4 +20,5 @@ export type { JhadinaTVReceiverTransport } from './cast/jhadinatv-receiver'; exp
 export type { AirPlayVideo } from './cast/browser-airplay'; export { createBrowserAirPlayController } from './cast/browser-airplay';
 export type { PictureInPictureController, PictureInPictureDocument, PictureInPictureVideo } from './picture-in-picture'; export { createPictureInPictureController } from './picture-in-picture';
 export type { LocalPlaybackAdapter, UnifiedMediaSession, UnifiedMediaSessionConfig } from './media-session'; export { createUnifiedMediaSession } from './media-session';
+export type { ResolvedMediaPlayer, ResolvedPlaybackRuntime } from './resolved-media-player'; export { assertNativePlaybackSource, createResolvedMediaPlayer } from './resolved-media-player';
 export type { MediaPlaybackProgress, MediaPlaybackProgressRepository } from './media-playback-persistence'; export { InMemoryMediaPlaybackProgressRepository, isMeaningfulResume } from './media-playback-persistence';
