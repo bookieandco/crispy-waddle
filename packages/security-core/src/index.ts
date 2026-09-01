@@ -53,6 +53,10 @@ export class JhadinaSecurityCore {
 
   constructor(private readonly policy: SecurityPolicy) {}
 
+  /**
+   * Synchronous/test compatibility path. Production authorization that spans
+   * workers or instances must use authorizeWithReplayGuard().
+   */
   authorize(request: SecurityRequest): SecurityDecision {
     const now = Date.now();
     if (!request.actorId || !request.requestId || !request.nonce) return 'deny';
@@ -61,6 +65,21 @@ export class JhadinaSecurityCore {
     if (this.policy.deniedCapabilities?.includes(request.capability)) return 'deny';
     if (!this.policy.allowedCapabilities.includes(request.capability)) return 'deny';
     this.usedNonces.add(request.nonce);
+    if (request.requiresApproval || this.policy.approvalCapabilities.includes(request.capability)) return 'approval_required';
+    return 'allow';
+  }
+
+  /**
+   * Production-capable authorization path. Replay ownership is delegated to
+   * an atomic durable guard, so a nonce cannot be accepted by two workers.
+   */
+  async authorizeWithReplayGuard(request: SecurityRequest, replayGuard: NonceReplayGuard): Promise<SecurityDecision> {
+    const now = Date.now();
+    if (!request.actorId || !request.requestId || !request.nonce) return 'deny';
+    if (request.expiresAt <= now) return 'deny';
+    if (this.policy.deniedCapabilities?.includes(request.capability)) return 'deny';
+    if (!this.policy.allowedCapabilities.includes(request.capability)) return 'deny';
+    if (!(await replayGuard.consume(request))) return 'deny';
     if (request.requiresApproval || this.policy.approvalCapabilities.includes(request.capability)) return 'approval_required';
     return 'allow';
   }
@@ -106,11 +125,7 @@ export function createSecurityRequest(input: Omit<SecurityRequest, 'nonce' | 'ex
   return { ...input, nonce: crypto.randomUUID(), expiresAt: now + (input.ttlMs ?? 30_000) };
 }
 
-// Phase 1 Step 7 — capability classification, User Values configuration,
-// and risk-boundary evaluation. Re-exported here (not just left as
-// sibling files) so `@jhadina/security-core`'s package-specifier entry
-// point exposes them too, not only the relative-path imports other
-// packages in this monorepo already use.
+export * from './replay-guard.js';
 export * from './capability-classification.js';
 export * from './values-configuration.js';
 export * from './risk-boundary-policy.js';
