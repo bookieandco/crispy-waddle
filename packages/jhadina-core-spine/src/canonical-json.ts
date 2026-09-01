@@ -100,7 +100,26 @@ function serialize(
         `Array exceeds maxArrayLength (${limits.maxArrayLength}) at ${path}`,
       );
     }
-    return `[${value.map((item, index) => serialize(item, depth + 1, `${path}[${index}]`, limits)).join(',')}]`;
+
+    const descriptors = Object.getOwnPropertyDescriptors(value);
+    const symbols = Object.getOwnPropertySymbols(value);
+    const enumerableKeys = Object.keys(value);
+    const expectedKeys = Array.from({ length: value.length }, (_, index) => String(index));
+
+    if (symbols.length > 0 || enumerableKeys.length !== value.length ||
+        enumerableKeys.some((key, index) => key !== expectedKeys[index])) {
+      throw new CanonicalizationError(`Array has non-index or sparse properties at ${path}`);
+    }
+
+    const items = expectedKeys.map((key, index) => {
+      const descriptor = descriptors[key];
+      if (!descriptor || !('value' in descriptor)) {
+        throw new CanonicalizationError(`Array accessor/hole is not canonical at ${path}[${index}]`);
+      }
+      return serialize(descriptor.value, depth + 1, `${path}[${index}]`, limits);
+    });
+
+    return `[${items.join(',')}]`;
   }
 
   const prototype = Object.getPrototypeOf(value);
