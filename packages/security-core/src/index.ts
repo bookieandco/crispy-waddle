@@ -117,3 +117,4 @@ export * from './security-principal.js';
 export * from './command-security-gateway.js';
 export * from './egress-policy.js';
 export * from './security-kill-switch.js';
+export * from './credential-broker.js';
