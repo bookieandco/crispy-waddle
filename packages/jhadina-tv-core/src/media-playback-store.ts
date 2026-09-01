@@ -1,5 +1,5 @@
 import type { MediaKind } from './index';
-import type { MediaSessionState, PlaybackTarget } from './casting';
+import type { MediaSessionState } from './casting';
 import type { ResolvedPlaybackSource } from './playback-resolver';
 
 export interface MediaQueueItem {
