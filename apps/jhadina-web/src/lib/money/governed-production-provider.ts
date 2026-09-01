@@ -1,5 +1,5 @@
 import { BrokerCredentialResolver, EnvironmentCredentialStore, MoneyProviderRegistry, PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, createPlaidProviderAdapterFactory, type ProviderConfig } from "@jhadina/money-core"
-import { CredentialBroker, EgressPolicy, RpcCredentialLeaseStore, RpcKillSwitchStore, SecurityKillSwitch, createAuthoritativePolicyDecision, evaluateRiskBoundaries, JHADINA_DEFAULT_VALUES_CONFIGURATION } from "@jhadina/security-core"
+import { CredentialBroker, EgressPolicy, JhadinaPolicyEngine, RpcCredentialLeaseStore, RpcKillSwitchStore, SecurityKillSwitch, JHADINA_DEFAULT_VALUES_CONFIGURATION } from "@jhadina/security-core"
 import { createClient } from "../supabase/server"
 
 export const PLAID_PROVIDER = "plaid"
@@ -34,16 +34,7 @@ export async function createGovernedMoneyPlaidProductionRegistry(actorId: string
     expiresAt: now + 30_000,
     nonce: crypto.randomUUID(),
   }
-  const policyDecision = createAuthoritativePolicyDecision({
-    requestId,
-    actorId,
-    domain: PLAID_PROVIDER,
-    capability: credentialRequest.capability,
-    decision: evaluateRiskBoundaries({ capability: credentialRequest.capability }, JHADINA_DEFAULT_VALUES_CONFIGURATION),
-    policyVersion: `risk-boundary-v${JHADINA_DEFAULT_VALUES_CONFIGURATION.version}`,
-    decidedAt: now,
-    expiresAt: credentialRequest.expiresAt,
-  })
+  const policyEngine = new JhadinaPolicyEngine(JHADINA_DEFAULT_VALUES_CONFIGURATION)
   const broker = new CredentialBroker(new EnvironmentCredentialStore(), {
     maxTtlMs: 60_000,
     providerCapabilities: { [PLAID_PROVIDER]: ["money.account.read"] },
@@ -52,7 +43,7 @@ export async function createGovernedMoneyPlaidProductionRegistry(actorId: string
   }, Date.now, () => crypto.randomUUID(), leaseStore, {
     killSwitch,
     posture: "normal",
-    policyDecision,
+    policyEngine,
   })
   const resolver = new BrokerCredentialResolver(broker, credentialRequest, "trusted-compute", {
     policy: new EgressPolicy([
