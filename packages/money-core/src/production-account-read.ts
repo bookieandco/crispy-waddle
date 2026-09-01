@@ -13,7 +13,8 @@ export type ProductionMoneyAccountReadOptions = {
   identityVerifier: ActionIdentityVerifier;
   supabase: AuditRpcClient;
   bank: AccountReadHandlerDeps;
-  replayGuard?: NonceReplayGuard;
+  /** Required durable one-shot guard; replay is claimed only after policy/approval checks pass. */
+  replayGuard: NonceReplayGuard;
 };
 
 /** First real Money Core capability composed through the shared production spine. */
@@ -23,7 +24,6 @@ export function createProductionMoneyAccountReadExecutor(
   const policy = new SecurityCoreActionPolicy<AccountReadAction>(
     createMoneySecurityCore(),
     'money',
-    options.replayGuard,
   );
 
   const handler = new MoneyAccountReadHandler(options.bank);
@@ -35,5 +35,6 @@ export function createProductionMoneyAccountReadExecutor(
     supabase: options.supabase,
     domain: 'money',
     capabilityForType: () => 'money.account.read',
+    replayGuard: options.replayGuard,
   });
 }
