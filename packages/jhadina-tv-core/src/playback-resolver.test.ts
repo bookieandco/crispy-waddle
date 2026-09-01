@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPlaybackResolver } from './playback-resolver';
 import type { MediaSourceAdapter } from './source-adapter';
 
-function adapter(sources: Awaited<ReturnType<MediaSourceAdapter['getSources']>>): MediaSourceAdapter {
+function adapter(sources: Awaited<ReturnType<MediaSourceAdapter['getSources']>>, id = 'direct'): MediaSourceAdapter {
   return {
-    id: 'direct',
+    id,
     name: 'Direct',
     search: vi.fn(async () => []),
     getSources: vi.fn(async () => sources),
@@ -26,10 +26,31 @@ describe('createPlaybackResolver', () => {
     expect(getSources).toHaveBeenCalledTimes(1);
   });
 
+  it('uses the default playback capabilities when none are declared', async () => {
+    const resolver = createPlaybackResolver([{ id: 'direct', adapter: adapter([
+      { id: 'source', titleId: 'title-1', kind: 'external', url: 'https://media.example/a' },
+    ]), authorized: true }]);
+    await expect(resolver.resolve({ providerId: 'direct', titleId: 'title-1' })).resolves.toMatchObject({ capabilities: ['playback', 'seek'] });
+  });
+
   it('rejects unknown and unauthorized providers', async () => {
-    const resolver = createPlaybackResolver([{ id: 'blocked', adapter: adapter([]), authorized: false }]);
+    const resolver = createPlaybackResolver([{ id: 'blocked', adapter: adapter([], 'blocked'), authorized: false }]);
     await expect(resolver.resolve({ providerId: 'missing', titleId: 'title-1' })).rejects.toThrow('Unknown playback provider');
     await expect(resolver.resolve({ providerId: 'blocked', titleId: 'title-1' })).rejects.toThrow('not authorized');
+  });
+
+  it('rejects duplicate providers and adapter identity mismatches', () => {
+    expect(() => createPlaybackResolver([
+      { id: 'direct', adapter: adapter([], 'direct'), authorized: true },
+      { id: 'direct', adapter: adapter([], 'direct'), authorized: true },
+    ])).toThrow('Duplicate playback provider');
+
+    expect(() => createPlaybackResolver([{ id: 'direct', adapter: adapter([], 'other'), authorized: true }])).not.toThrow();
+  });
+
+  it('fails closed on an adapter identity mismatch during resolution', async () => {
+    const resolver = createPlaybackResolver([{ id: 'direct', adapter: adapter([], 'other'), authorized: true }]);
+    await expect(resolver.resolve({ providerId: 'direct', titleId: 'title-1' })).rejects.toThrow('adapter identity mismatch');
   });
 
   it('filters by requested source id and fails closed when absent', async () => {
@@ -48,5 +69,20 @@ describe('createPlaybackResolver', () => {
 
     const mismatched = createPlaybackResolver([{ id: 'direct', adapter: adapter([{ id: 'source', titleId: 'other-title', kind: 'external', url: 'https://media.example/a' }]), authorized: true }]);
     await expect(mismatched.resolve({ providerId: 'direct', titleId: 'title-1' })).rejects.toThrow('title');
+  });
+
+  it('rejects insecure subtitle sources', async () => {
+    const resolver = createPlaybackResolver([{ id: 'direct', adapter: adapter([{
+      id: 'source', titleId: 'title-1', kind: 'hls', url: 'https://media.example/a.m3u8',
+      subtitles: [{ label: 'English', language: 'en', url: 'http://media.example/en.vtt' }],
+    }]), authorized: true }]);
+    await expect(resolver.resolve({ providerId: 'direct', titleId: 'title-1' })).rejects.toThrow('subtitle');
+  });
+
+  it('rejects empty titles before calling the adapter', async () => {
+    const getSources = vi.fn(async () => []);
+    const resolver = createPlaybackResolver([{ id: 'direct', adapter: { ...adapter([]), getSources }, authorized: true }]);
+    await expect(resolver.resolve({ providerId: 'direct', titleId: '' })).rejects.toThrow('Invalid playback title');
+    expect(getSources).not.toHaveBeenCalled();
   });
 });
