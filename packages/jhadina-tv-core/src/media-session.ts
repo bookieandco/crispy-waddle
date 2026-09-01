@@ -11,6 +11,7 @@ export interface LocalPlaybackAdapter {
 export interface UnifiedMediaSession {
   getState(): MediaSessionState;
   subscribe(listener: (state: MediaSessionState) => void): () => void;
+  dispose(): void;
   play(): Promise<void>;
   pause(): Promise<void>;
   seek(positionSeconds: number): Promise<void>;
@@ -41,39 +42,69 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
   let state = config.local.getState();
   const listeners = new Set<(next: MediaSessionState) => void>();
   let remoteUnsubscribe: (() => void) | undefined;
-  const publish = (next: MediaSessionState) => { state = next; listeners.forEach((listener) => listener(state)); };
+  let localUnsubscribe: (() => void) | undefined;
+  let disposed = false;
+  const assertActive = () => {
+    if (disposed) throw new Error('Media session is disposed.');
+  };
+  const publish = (next: MediaSessionState) => {
+    if (disposed) return;
+    state = next;
+    listeners.forEach((listener) => listener(state));
+  };
   const localCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
+    assertActive();
     await config.local.apply(command);
+    assertActive();
     const localState = config.local.getState();
     publish({ ...state, ...localState, target: { id: 'local', name: 'This device', transport: 'local' } });
   };
   const remoteCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
+    assertActive();
     if (!state.target || state.target.transport === 'local') throw new Error('No remote TV playback session is connected.');
     await config.casting.send(command);
+    assertActive();
     const remote = await config.casting.getState();
     if (remote) publish({ ...state, ...remote, target: state.target });
   };
 
   const session: UnifiedMediaSession = {
     getState: () => state,
-    subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    subscribe(listener) {
+      if (disposed) throw new Error('Media session is disposed.');
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      localUnsubscribe?.();
+      localUnsubscribe = undefined;
+      remoteUnsubscribe?.();
+      remoteUnsubscribe = undefined;
+      listeners.clear();
+    },
     play: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'play' }) : localCommand({ type: 'play' }),
     pause: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'pause' }) : localCommand({ type: 'pause' }),
     seek: (positionSeconds) => state.target?.transport !== 'local' ? remoteCommand({ type: 'seek', value: Math.max(0, positionSeconds) }) : localCommand({ type: 'seek', value: Math.max(0, positionSeconds) }),
     setVolume: (value) => state.target?.transport !== 'local' ? remoteCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }) : localCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }),
-    discoverTargets: () => config.casting.discover(),
+    discoverTargets: async () => { assertActive(); return config.casting.discover(); },
     async transfer(target) {
+      assertActive();
       const current = config.local.getState();
       await config.casting.connect(target);
+      assertActive();
       await config.casting.send({ type: 'transfer', target });
       publish({ ...state, ...current, target });
       remoteUnsubscribe?.();
       remoteUnsubscribe = config.casting.subscribeState((next) => publish({ ...state, ...next, target }), 500);
     },
     async disconnect() {
+      assertActive();
       const remote = await config.casting.getState();
       remoteUnsubscribe?.(); remoteUnsubscribe = undefined;
       await config.casting.disconnect();
+      assertActive();
       const local = config.local.getState();
       const nextPosition = remote?.positionSeconds ?? local.positionSeconds;
       await config.local.apply({ type: 'seek', value: nextPosition });
@@ -88,11 +119,10 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
     remoteSetVolume: (value) => remoteCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }),
   };
 
-  const unsubscribeLocal = config.local.onStateChange?.((next) => {
+  localUnsubscribe = config.local.onStateChange?.((next) => {
     if (session.isRemote()) return;
     publish({ ...state, ...next, titleId: config.titleId, kind: config.kind, sourceUrl: config.playback.source.url, target: { id: 'local', name: 'This device', transport: 'local' } });
   });
-  void unsubscribeLocal;
   return session;
 }
 
