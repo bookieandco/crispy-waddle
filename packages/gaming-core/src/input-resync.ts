@@ -31,6 +31,7 @@ export class ControllerInputResyncManager {
     this.bindings.assertBound(sessionId,deviceId);
     this.sessionId=sessionId;
     this.deviceId=deviceId;
+    this.integrity.bindIdentity(sessionId,deviceId);
     this.nextSequenceNumber=nextSequenceNumber;
     this.state='awaiting-resync';
     return this.snapshot(sessionId,deviceId);
@@ -53,9 +54,7 @@ export class ControllerInputResyncManager {
     return this.snapshot(sessionId,deviceId);
   }
 
-  snapshot(sessionId=this.sessionId??'',deviceId=this.deviceId??''):ControllerResyncSnapshot{
-    return{sessionId,deviceId,state:this.state,nextSequenceNumber:this.nextSequenceNumber};
-  }
+  snapshot(sessionId=this.sessionId??'',deviceId=this.deviceId??''):ControllerResyncSnapshot{return{sessionId,deviceId,state:this.state,nextSequenceNumber:this.nextSequenceNumber};}
 
   private assertIdentity(sessionId:string,deviceId:string):void{
     if(!sessionId.trim()||!deviceId.trim())throw new Error('sessionId and deviceId are required');
