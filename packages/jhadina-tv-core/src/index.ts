@@ -18,6 +18,7 @@ export type { AuthorizedYouTubeCatalogClient } from './youtube-playback-adapter'
 export type { GoogleCastRuntime, GoogleCastSession } from './cast/google-cast'; export { createGoogleCastController } from './cast/google-cast';
 export type { JhadinaTVReceiverTransport } from './cast/jhadinatv-receiver'; export { createJhadinaTVReceiverController } from './cast/jhadinatv-receiver';
 export type { AirPlayVideo } from './cast/browser-airplay'; export { createBrowserAirPlayController } from './cast/browser-airplay';
+export type { CastMediaDescriptor } from './cast/execution'; export { assertCastablePlayback, toCastMediaDescriptor } from './cast/execution';
 export type { PictureInPictureController, PictureInPictureDocument, PictureInPictureVideo } from './picture-in-picture'; export { createPictureInPictureController } from './picture-in-picture';
 export type { LocalPlaybackAdapter, UnifiedMediaSession, UnifiedMediaSessionConfig } from './media-session'; export { createUnifiedMediaSession } from './media-session';
 export type { ResolvedMediaPlayer, ResolvedPlaybackRuntime } from './resolved-media-player'; export { assertNativePlaybackSource, createResolvedMediaPlayer } from './resolved-media-player';
