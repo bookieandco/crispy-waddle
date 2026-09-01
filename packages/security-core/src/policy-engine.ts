@@ -1,13 +1,10 @@
 import type { AuthoritativePolicyDecision } from './authoritative-policy-decision.js';
 import { createAuthoritativePolicyDecision } from './authoritative-policy-decision.js';
-import { evaluateRiskBoundaries, type RiskContext } from './risk-boundary-policy.js';
+import { evaluateRiskBoundaries, mostRestrictiveDecision, type RiskContext } from './risk-boundary-policy.js';
 import type { JhadinaValuesConfiguration } from './values-configuration.js';
+import { JHADINA_BASE_SECURITY_POLICY, type SecurityDecision, type SecurityPolicy } from './security-policy.js';
 
-/**
- * The single authoritative decision issuer for security-sensitive callers.
- * Callers provide objective request facts; they never provide a decision.
- * Model output is not an input to this engine.
- */
+/** Objective request facts. Decision/approval/override fields are intentionally absent. */
 export type AuthoritativePolicyRequest = {
   requestId: string;
   actorId: string;
@@ -25,11 +22,26 @@ export interface PolicyEngine {
   decide(request: AuthoritativePolicyRequest): AuthoritativePolicyDecision;
 }
 
+function evaluateCapabilityPolicy(capability: string, policy: SecurityPolicy): SecurityDecision {
+  if (policy.deniedCapabilities?.includes(capability)) return 'deny';
+  if (!policy.allowedCapabilities.includes(capability)) return 'deny';
+  return policy.approvalCapabilities.includes(capability) ? 'approval_required' : 'allow';
+}
+
+/**
+ * Canonical policy engine and sole issuer of AuthoritativePolicyDecision.
+ * Capability policy and values/risk policy are defense-in-depth layers;
+ * most-restrictive wins, so no adapter can loosen the result.
+ */
 export class JhadinaPolicyEngine implements PolicyEngine {
-  constructor(private readonly values: JhadinaValuesConfiguration) {}
+  constructor(
+    private readonly values: JhadinaValuesConfiguration,
+    private readonly securityPolicy: SecurityPolicy = JHADINA_BASE_SECURITY_POLICY,
+  ) {}
 
   decide(request: AuthoritativePolicyRequest): AuthoritativePolicyDecision {
-    const decision = evaluateRiskBoundaries({
+    const capabilityDecision = evaluateCapabilityPolicy(request.capability, this.securityPolicy);
+    const riskDecision = evaluateRiskBoundaries({
       capability: request.capability,
       amountMinor: request.amountMinor,
       recipient: request.recipient,
@@ -42,7 +54,7 @@ export class JhadinaPolicyEngine implements PolicyEngine {
       domain: request.domain,
       capability: request.capability,
       resourceId: request.resourceId,
-      decision,
+      decision: mostRestrictiveDecision(capabilityDecision, riskDecision),
       policyVersion: `values-v${this.values.version}`,
       decidedAt: request.issuedAt,
       expiresAt: request.expiresAt,
