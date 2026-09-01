@@ -15,6 +15,7 @@ export type AlertPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO'
 
 export type WatchlistEntry = {
   id: string
+  userId: string
   opportunityId: string
   principalId?: string
   enabled: boolean
