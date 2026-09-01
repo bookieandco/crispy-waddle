@@ -2,7 +2,7 @@ import { hashActionProposal } from './approval.js'
 import type { AuthoritativeActionProposal } from './governed-action.js'
 import type { ConnectorAdapter, ConnectorExecutionRecord, ConnectorOperation, ConnectorRequest } from './index.js'
 import type { ConnectorReconciliationEvidence, ConnectorReconciliationResult, ConnectorReconciliationStore, RecoveryResolution } from './reconciliation.js'
-import { hashReconciliationEvidence, resolveRecovery, verifyReconciliationEvidenceHash } from './reconciliation.js'
+import { resolveRecovery, verifyReconciliationEvidenceHash } from './reconciliation.js'
 
 export interface RecoveryAttemptStore {
   claimRecoveryAttempt(input: {
@@ -74,7 +74,7 @@ export class ConnectorRecoveryGateway {
     const existingEvidence = await this.reconciliation.get(execution.executionId)
     let result: ConnectorReconciliationResult
     if (existingEvidence) {
-      validateEvidence(existingEvidence, execution, proposalHash, operation)
+      validateEvidence(existingEvidence, execution, proposalHash, operation, adapter.manifest.version)
       result = { status: existingEvidence.status, evidence: existingEvidence }
     } else {
       if (!adapter.reconcile) throw new Error(`Connector does not support reconciliation: ${execution.connectorId}.${execution.operation}`)
@@ -90,7 +90,7 @@ export class ConnectorRecoveryGateway {
         risk: proposal.risk,
       }
       result = await adapter.reconcile(operation, request, execution)
-      validateEvidence(result.evidence, execution, proposalHash, operation)
+      validateEvidence(result.evidence, execution, proposalHash, operation, adapter.manifest.version)
       await this.reconciliation.record(result.evidence)
     }
 
@@ -125,21 +125,17 @@ function validateEvidence(
   execution: ConnectorExecutionRecord,
   proposalHash: string,
   operation: ConnectorOperation,
+  adapterVersion: number,
 ): void {
   if (evidence.executionId !== execution.executionId) throw new Error('Reconciliation evidence execution mismatch')
   if (evidence.proposalHash !== proposalHash || evidence.proposalHash !== execution.proposalHash) throw new Error('Reconciliation evidence proposal mismatch')
   if (evidence.idempotencyKey !== execution.idempotencyKey) throw new Error('Reconciliation evidence idempotency mismatch')
   if (evidence.connectorId !== execution.connectorId) throw new Error('Reconciliation evidence connector binding mismatch')
   if (evidence.operation !== execution.operation || evidence.operation !== operation.name) throw new Error('Reconciliation evidence operation binding mismatch')
-  if (evidence.adapterVersion !== operationVersion(operation)) throw new Error('Reconciliation evidence adapter operation version mismatch')
-  if (!Number.isInteger(evidence.adapterVersion) || evidence.adapterVersion < 1) throw new Error('Reconciliation evidence adapter version is invalid')
+  if (!Number.isInteger(adapterVersion) || adapterVersion < 1) throw new Error('Connector adapter version is invalid')
+  if (evidence.adapterVersion !== adapterVersion) throw new Error('Reconciliation evidence adapter version mismatch')
   if (!evidence.source.trim()) throw new Error('Reconciliation evidence source is required')
   if (!Number.isFinite(new Date(evidence.observedAt).getTime()) || !Number.isFinite(new Date(evidence.checkedAt).getTime())) throw new Error('Reconciliation evidence timestamps are invalid')
   if (!verifyReconciliationEvidenceHash(evidence)) throw new Error('Reconciliation evidence hash is invalid')
   if (evidence.status === 'confirmed_executed' && !evidence.providerReference && !evidence.providerState) throw new Error('Confirmed execution requires provider evidence')
-}
-
-/** ConnectorOperation is currently versioned by its adapter manifest; keep this isolated for future operation-level versioning. */
-function operationVersion(_operation: ConnectorOperation): number {
-  return 1
 }
