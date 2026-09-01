@@ -16,4 +16,8 @@ export * from './launch-orchestrator.js';
 export * from './device-capabilities.js';
 export * from './input-sync.js';
 export * from './remote-play-session.js';
+export * from './remote-quality.js';
+export * from './remote-quality-monitor.js';
+export * from './remote-play-gate.js';
+export * from './remote-degradation.js';
 export * from './jhadina-gaming.js';
