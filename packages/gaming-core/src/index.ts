@@ -13,4 +13,5 @@ export * from './moonlight-host.js';
 export * from './remote-apps.js';
 export * from './game-source.js';
 export * from './launch-orchestrator.js';
+export * from './device-capabilities.js';
 export * from './jhadina-gaming.js';
