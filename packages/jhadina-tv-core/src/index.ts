@@ -23,3 +23,4 @@ export type { PictureInPictureController, PictureInPictureDocument, PictureInPic
 export type { LocalPlaybackAdapter, UnifiedMediaSession, UnifiedMediaSessionConfig } from './media-session'; export { createUnifiedMediaSession } from './media-session';
 export type { ResolvedMediaPlayer, ResolvedPlaybackRuntime } from './resolved-media-player'; export { assertNativePlaybackSource, createResolvedMediaPlayer } from './resolved-media-player';
 export type { MediaPlaybackProgress, MediaPlaybackProgressRepository } from './media-playback-persistence'; export { InMemoryMediaPlaybackProgressRepository, isMeaningfulResume } from './media-playback-persistence';
+export type { MediaPlaybackStore, MediaPlaybackStoreState, MediaQueueItem } from './media-playback-store'; export { createMediaPlaybackStore } from './media-playback-store';
