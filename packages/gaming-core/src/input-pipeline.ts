@@ -23,7 +23,9 @@ export class GamingInputPipeline {
     const integrity=this.integrity.accept(event,nowMs);
     if(!integrity.accepted)return{...integrity,transported:false};
     await this.transport.send(event);
-    const acknowledgement=await this.runtime.deliver(event);
+    const acknowledgement=this.transport.deliveryMode==='runtime-delivery'
+      ?await this.transport.deliverToRuntime(event)
+      :await this.runtime.deliver(event);
     if(acknowledgement.inputId!==event.inputId||acknowledgement.sequenceNumber!==event.sequenceNumber){
       throw new Error('Runtime input acknowledgement does not match delivered input');
     }
