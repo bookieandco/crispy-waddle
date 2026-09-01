@@ -17,6 +17,15 @@ alter table public.jhadina_connector_execution_ledger
   add column if not exists recovery_lease_expires_at timestamptz;
 
 alter table public.jhadina_connector_execution_ledger
+  drop constraint if exists jhadina_connector_execution_ledge_recovery_of_execution_id_fkey,
+  drop constraint if exists jhadina_connector_execution_ledge_recovery_of_execution_id_fkey1;
+
+alter table public.jhadina_connector_execution_ledger
+  add constraint jhadina_connector_execution_ledger_recovery_of_execution_id_fkey
+  foreign key (recovery_of_execution_id)
+  references public.jhadina_connector_execution_ledger(execution_id);
+
+alter table public.jhadina_connector_execution_ledger
   drop constraint if exists jhadina_connector_execution_ledger_state_check;
 
 alter table public.jhadina_connector_execution_ledger
@@ -174,3 +183,14 @@ begin
   return true;
 end;
 $$;
+
+-- Recovery RPCs are server-only. Never expose SECURITY DEFINER execution to the
+-- browser-facing roles, even though the underlying tables have RLS enabled.
+revoke execute on function public.jhadina_claim_recovery_attempt(uuid, text, text, text, text, text, text, text, text) from public, anon, authenticated;
+grant execute on function public.jhadina_claim_recovery_attempt(uuid, text, text, text, text, text, text, text, text) to service_role;
+
+revoke execute on function public.jhadina_adopt_recovery_execution(text, text, text) from public, anon, authenticated;
+grant execute on function public.jhadina_adopt_recovery_execution(text, text, text) to service_role;
+
+revoke execute on function public.jhadina_complete_recovery_execution(uuid, uuid, text, jsonb, timestamptz) from public, anon, authenticated;
+grant execute on function public.jhadina_complete_recovery_execution(uuid, uuid, text, jsonb, timestamptz) to service_role;
