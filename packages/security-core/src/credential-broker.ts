@@ -3,6 +3,7 @@ import type { KillSwitchDecision, SecurityKillSwitch } from './security-kill-swi
 import type { SecurityPosture } from './security-posture.js';
 import type { AuthoritativePolicyDecision } from './authoritative-policy-decision.js';
 import { verifyAuthoritativePolicyDecision } from './authoritative-policy-decision.js';
+import type { PolicyEngine } from './policy-engine.js';
 
 export type CredentialTrust = 'untrusted' | 'quarantined' | 'trusted-compute';
 export type CredentialRequest = {
@@ -22,10 +23,15 @@ export interface CredentialStore { resolve(credentialRef: string): Promise<Crede
 export type CredentialPolicy = { maxTtlMs: number; providerCapabilities: Readonly<Record<string, readonly string[]>>; allowedCredentialRefs: readonly string[]; maxUses: number };
 export class CredentialBrokerError extends Error { constructor(public readonly code: string) { super(code); this.name = 'CredentialBrokerError'; } }
 
+/**
+ * Security dependencies for the broker. The policy engine is deliberately
+ * request-shaped: callers cannot inject a precomputed/zero-argument policy
+ * decision that is unrelated to the credential request being authorized.
+ */
 export type CredentialSecurityGate = {
   killSwitch: SecurityKillSwitch;
   posture: SecurityPosture | (() => SecurityPosture);
-  policyDecision: AuthoritativePolicyDecision | (() => AuthoritativePolicyDecision | Promise<AuthoritativePolicyDecision>);
+  policyEngine: PolicyEngine;
 };
 
 type SecurityAuthorization = { killSwitch: KillSwitchDecision; policy: AuthoritativePolicyDecision };
@@ -44,12 +50,6 @@ export class CredentialBroker {
     return typeof this.securityGate?.posture === 'function' ? this.securityGate.posture() : (this.securityGate?.posture ?? 'normal');
   }
 
-  private async policyDecision(): Promise<AuthoritativePolicyDecision> {
-    if (!this.securityGate) throw new CredentialBrokerError('POLICY_DECISION_REQUIRED');
-    const value = this.securityGate.policyDecision;
-    return typeof value === 'function' ? await value() : value;
-  }
-
   private async authorizeSecurity(request: CredentialRequest): Promise<SecurityAuthorization | null> {
     if (!this.securityGate) return null;
     let decision: KillSwitchDecision;
@@ -57,7 +57,17 @@ export class CredentialBroker {
     catch { throw new CredentialBrokerError('KILL_SWITCH_STATE_UNAVAILABLE'); }
     if (!decision.allowed) throw new CredentialBrokerError(decision.reason === 'kill_switch_enabled' ? 'KILL_SWITCH_ENABLED' : 'SECURITY_POSTURE_DENIED');
     let policy: AuthoritativePolicyDecision;
-    try { policy = await this.policyDecision(); } catch { throw new CredentialBrokerError('POLICY_DECISION_UNAVAILABLE'); }
+    try {
+      policy = await this.securityGate.policyEngine.decide({
+        requestId: request.requestId,
+        actorId: request.actorId,
+        domain: request.provider,
+        capability: request.capability,
+        resourceId: request.resourceId,
+        issuedAt: request.issuedAt,
+        expiresAt: request.expiresAt,
+      });
+    } catch { throw new CredentialBrokerError('POLICY_DECISION_UNAVAILABLE'); }
     if (!verifyAuthoritativePolicyDecision(policy, {
       requestId: request.requestId, actorId: request.actorId, domain: request.provider,
       capability: request.capability, resourceId: request.resourceId,
@@ -105,7 +115,19 @@ export class CredentialBroker {
     if (grant.purpose !== request.purpose) throw new CredentialBrokerError('PURPOSE_MISMATCH');
     if (grant.resourceId !== request.resourceId) throw new CredentialBrokerError('RESOURCE_MISMATCH');
     if (grant.egressDestination !== request.egressDestination || grant.egressPolicyVersion !== request.egressPolicyVersion || grant.egressDecisionReason !== request.egressDecisionReason) throw new CredentialBrokerError('EGRESS_BINDING_MISMATCH');
-    const authorization = await this.authorizeSecurity({ ...request, requestId: grant.requestId, issuedAt: grant.issuedAt, expiresAt: grant.expiresAt, nonce: grant.requestId });
+    const authorization = await this.authorizeSecurity({
+      ...request,
+      requestId: grant.requestId,
+      actorId: grant.actorId,
+      capability: grant.capability,
+      provider: grant.provider,
+      credentialRef: grant.credentialRef,
+      purpose: grant.purpose,
+      resourceId: grant.resourceId,
+      issuedAt: grant.issuedAt,
+      expiresAt: grant.expiresAt,
+      nonce: grant.requestId,
+    });
     if (!authorization) throw new CredentialBrokerError('POLICY_DECISION_REQUIRED');
     if (grant.policyDecisionId !== authorization.policy.decisionId || grant.policyVersion !== authorization.policy.policyVersion) throw new CredentialBrokerError('POLICY_DECISION_PROVENANCE_MISMATCH');
     if (!this.leaseStore) throw new CredentialBrokerError('DURABLE_LEASE_STORE_REQUIRED');
