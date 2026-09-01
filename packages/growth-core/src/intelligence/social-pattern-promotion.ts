@@ -5,6 +5,8 @@ import type { PatternHypothesis } from './social-pattern-transfer.js';
 export interface PromotedSocialPattern {
   readonly id: GrowthId;
   readonly hypothesisId: GrowthId;
+  readonly sourcePatternId: GrowthId;
+  readonly sourceAccountId: GrowthId;
   readonly targetAccountId: GrowthId;
   readonly targetAudienceId: GrowthId;
   readonly targetVoiceId: GrowthId;
@@ -16,12 +18,14 @@ export interface PromotedSocialPattern {
 
 export function promoteValidatedPattern(hypothesis: PatternHypothesis, result: PatternExperimentResult): PromotedSocialPattern | null {
   if (!result.promoted || result.winner !== 'treatment') return null;
-  if (result.observations < 30) return null;
+  if (result.observations < result.minimumObservations) return null;
   const relativeLift = result.controlMetric > 0 ? (result.treatmentMetric - result.controlMetric) / result.controlMetric : 0;
   const confidence = Math.max(0, Math.min(1, hypothesis.sourceConfidence * 0.5 + Math.min(1, Math.max(0, relativeLift)) * 0.5));
   return {
     id: `promoted-pattern:${hypothesis.id}` as GrowthId,
     hypothesisId: hypothesis.id,
+    sourcePatternId: hypothesis.sourcePatternId,
+    sourceAccountId: hypothesis.sourceAccountId,
     targetAccountId: hypothesis.targetAccountId,
     targetAudienceId: hypothesis.targetAudienceId,
     targetVoiceId: hypothesis.targetVoiceId,
