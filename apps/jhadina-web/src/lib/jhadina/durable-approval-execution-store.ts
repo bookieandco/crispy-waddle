@@ -17,7 +17,7 @@ type Row = {
   operation: string | null
   actor_id: string | null
   correlation_id: string | null
-  state: "executing" | "succeeded" | "failed"
+  state: "executing" | "succeeded" | "failed" | "recovery_required"
   response: ConnectorResponse | null
   error: string | null
   started_at: string
@@ -49,6 +49,7 @@ export class SupabaseConnectorExecutionStore implements ConnectorExecutionStore 
       idempotency_key: record.idempotencyKey,
       connector_id: record.connectorId,
       operation: record.operation,
+      capability: undefined,
       actor_id: record.actorId,
       correlation_id: record.correlationId,
       state: "executing",
@@ -104,15 +105,21 @@ export class SupabaseApprovalExecutionStore implements ApprovalExecutionStore {
 
   async get(approvalId: string): Promise<ApprovalExecutionRecord | undefined> {
     if (!this.supabase) throw new Error("Supabase service-role client is not configured")
-    const { data, error } = await this.supabase.from("jhadina_connector_execution_ledger").select("approval_id, proposal_hash, state, started_at, completed_at, error").eq("approval_id", approvalId).maybeSingle<{ approval_id: string; proposal_hash: string; state: "executing" | "succeeded" | "failed"; started_at: string; completed_at: string | null; error: string | null }>()
+    const { data, error } = await this.supabase.from("jhadina_connector_execution_ledger").select("approval_id, proposal_hash, state, started_at, completed_at, error").eq("approval_id", approvalId).maybeSingle<{ approval_id: string; proposal_hash: string; state: "executing" | "succeeded" | "failed" | "recovery_required"; started_at: string; completed_at: string | null; error: string | null }>()
     if (error) throw new Error(`Failed to read approval execution: ${error.message}`)
     return data ? { approvalId: data.approval_id, proposalHash: data.proposal_hash, state: data.state, startedAt: data.started_at, ...(data.completed_at ? { completedAt: data.completed_at } : {}), ...(data.error ? { error: data.error } : {}) } : undefined
   }
 
   async recoverStale(approvalId: string, staleBefore: Date): Promise<boolean> {
     if (!this.supabase) throw new Error("Supabase service-role client is not configured")
-    const { data, error } = await this.supabase.from("jhadina_connector_execution_ledger").delete().eq("approval_id", approvalId).eq("state", "executing").lte("started_at", staleBefore.toISOString()).select("approval_id")
-    if (error) throw new Error(`Failed to recover stale approval execution: ${error.message}`)
+    const { data, error } = await this.supabase
+      .from("jhadina_connector_execution_ledger")
+      .update({ state: "recovery_required", error: "Execution became stale and requires provider reconciliation before retry", completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("approval_id", approvalId)
+      .eq("state", "executing")
+      .lte("started_at", staleBefore.toISOString())
+      .select("approval_id")
+    if (error) throw new Error(`Failed to mark stale approval execution: ${error.message}`)
     return Boolean(data?.length)
   }
 
@@ -137,7 +144,7 @@ function mapConnectorRow(row: Row): ConnectorExecutionRecord {
     operation: row.operation ?? "",
     actorId: row.actor_id ?? "",
     correlationId: row.correlation_id ?? "",
-    state: row.state,
+    state: row.state === "recovery_required" ? "executing" : row.state,
     ...(row.response ? { response: row.response } : {}),
     ...(row.error ? { error: row.error } : {}),
     startedAt: row.started_at,
