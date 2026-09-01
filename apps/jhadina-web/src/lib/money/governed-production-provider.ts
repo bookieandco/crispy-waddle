@@ -1,5 +1,5 @@
 import { BrokerCredentialResolver, EnvironmentCredentialStore, MoneyProviderRegistry, PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, createPlaidProviderAdapterFactory, type ProviderConfig } from "@jhadina/money-core"
-import { CredentialBroker, EgressPolicy, RpcCredentialLeaseStore, RpcKillSwitchStore, SecurityKillSwitch } from "@jhadina/security-core"
+import { CredentialBroker, EgressPolicy, RpcCredentialLeaseStore, RpcKillSwitchStore, SecurityKillSwitch, createAuthoritativePolicyDecision, evaluateRiskBoundaries, JHADINA_DEFAULT_VALUES_CONFIGURATION } from "@jhadina/security-core"
 import { createClient } from "../supabase/server"
 
 export const PLAID_PROVIDER = "plaid"
@@ -20,6 +20,30 @@ export async function createGovernedMoneyPlaidProductionRegistry(actorId: string
   }
   const leaseStore = new RpcCredentialLeaseStore(rpcClient)
   const killSwitch = new SecurityKillSwitch(new RpcKillSwitchStore(rpcClient))
+  const now = Date.now()
+  const credentialRequest = {
+    requestId,
+    actorId,
+    workerId: "jhadina-web",
+    workerTrust: "trusted-compute" as const,
+    capability: "money.account.read",
+    provider: PLAID_PROVIDER,
+    credentialRef: PLAID_READ_ONLY_CONFIG.credentialRef,
+    purpose: "governed-money-account-read",
+    issuedAt: now,
+    expiresAt: now + 30_000,
+    nonce: crypto.randomUUID(),
+  }
+  const policyDecision = createAuthoritativePolicyDecision({
+    requestId,
+    actorId,
+    domain: PLAID_PROVIDER,
+    capability: credentialRequest.capability,
+    decision: evaluateRiskBoundaries({ capability: credentialRequest.capability }, JHADINA_DEFAULT_VALUES_CONFIGURATION),
+    policyVersion: `risk-boundary-v${JHADINA_DEFAULT_VALUES_CONFIGURATION.version}`,
+    decidedAt: now,
+    expiresAt: credentialRequest.expiresAt,
+  })
   const broker = new CredentialBroker(new EnvironmentCredentialStore(), {
     maxTtlMs: 60_000,
     providerCapabilities: { [PLAID_PROVIDER]: ["money.account.read"] },
@@ -28,22 +52,9 @@ export async function createGovernedMoneyPlaidProductionRegistry(actorId: string
   }, Date.now, () => crypto.randomUUID(), leaseStore, {
     killSwitch,
     posture: "normal",
-    policyDecision: "allow",
+    policyDecision,
   })
-  const now = Date.now()
-  const resolver = new BrokerCredentialResolver(broker, {
-    requestId,
-    actorId,
-    workerId: "jhadina-web",
-    workerTrust: "trusted-compute",
-    capability: "money.account.read",
-    provider: PLAID_PROVIDER,
-    credentialRef: PLAID_READ_ONLY_CONFIG.credentialRef,
-    purpose: "governed-money-account-read",
-    issuedAt: now,
-    expiresAt: now + 30_000,
-    nonce: crypto.randomUUID(),
-  }, "trusted-compute", {
+  const resolver = new BrokerCredentialResolver(broker, credentialRequest, "trusted-compute", {
     policy: new EgressPolicy([
       {
         capability: "money.account.read",
