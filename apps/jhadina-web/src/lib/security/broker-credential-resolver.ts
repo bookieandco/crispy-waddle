@@ -46,7 +46,8 @@ export class BrokerCredentialResolver implements CredentialResolver {
 export function createServerEnvironmentSecretStore(env: NodeJS.ProcessEnv = process.env) {
   return {
     async resolve(credentialRef: string): Promise<string> {
-      const key = `JHADINA_SECRET_${credentialRef.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}`
+      const normalizedRef = credentialRef.replace(/^money\//i, "")
+      const key = `JHADINA_SECRET_${normalizedRef.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}`
       const secret = env[key]
       if (!secret) throw new Error(`CREDENTIAL_NOT_CONFIGURED:${credentialRef}`)
       return secret
