@@ -5,21 +5,11 @@ import { approveGrowthDraftGoverned, type GovernedGrowthApprovalResult } from ".
 import { createGrowthAuditLedger, createGrowthAuditRpcClient, GROWTH_AUDIT_DOMAIN } from "./durable-audit-ledger"
 import { createDurableApprovalReceiptStore } from "../security/durable-approval-receipt-store"
 
-/**
- * Production composition root for the Growth approval spine.
- *
- * Approval receipts and one-shot action replay protection are durable in
- * Supabase. Tests may inject both stores explicitly; production has no
- * process-local approval/replay fallback.
- */
+/** Production composition root for Growth: durable approval receipts and durable one-shot replay protection. */
 export type GovernedGrowthRuntimeOverrides = {
-  /** Test-only: createRequestIdentityVerifier() makes a real Supabase call with no meaning outside a real request. */
   identityVerifier?: JhadinaIdentityVerifier
-  /** Test-only: substitutes a SupabaseAuditLedger wrapping a fake RPC client instead of a live database. */
   ledger?: SupabaseAuditLedger
-  /** Test-only: substitutes an in-memory/fake receipt store; production defaults to Supabase. */
   approvalStore?: ApprovalReceiptStore
-  /** Test-only: substitutes the durable replay guard. */
   replayGuard?: SupabaseNonceReplayGuard
 }
 
@@ -31,8 +21,7 @@ export async function runGovernedGrowthDraftApproval(
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
   const ledger = overrides.ledger ?? (await createGrowthAuditLedger())
   const approvalStore = overrides.approvalStore ?? (await createDurableApprovalReceiptStore())
-  const replayRpc: AuditRpcClient = await createGrowthAuditRpcClient()
-  const replayGuard = overrides.replayGuard ?? new SupabaseNonceReplayGuard(replayRpc)
+  const replayGuard = overrides.replayGuard ?? new SupabaseNonceReplayGuard(await createGrowthAuditRpcClient())
   return approveGrowthDraftGoverned({ identityVerifier, ledger, approvalStore, replayGuard }, claimedUserId, draftId)
 }
 
