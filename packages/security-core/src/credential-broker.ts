@@ -1,6 +1,8 @@
 import type { CredentialLeaseStore, CredentialLeaseUseRequest } from './credential-lease-store.js';
 import type { KillSwitchDecision, SecurityKillSwitch } from './security-kill-switch.js';
 import type { SecurityPosture } from './security-posture.js';
+import type { AuthoritativePolicyDecision } from './authoritative-policy-decision.js';
+import { verifyAuthoritativePolicyDecision } from './authoritative-policy-decision.js';
 
 export type CredentialTrust = 'untrusted' | 'quarantined' | 'trusted-compute';
 export type CredentialRequest = {
@@ -10,8 +12,8 @@ export type CredentialRequest = {
   egressDestination?: string; egressPolicyVersion?: string; egressDecisionReason?: string;
 };
 export type CredentialGrant = {
-  leaseId: string; actorId: string; workerId?: string; capability: string; provider: string;
-  credentialRef: string; purpose: string; resourceId?: string; issuedAt: number; expiresAt: number; maxUses: number;
+  leaseId: string; actorId: string; workerId?: string; capability: string; provider: string; credentialRef: string;
+  purpose: string; resourceId?: string; issuedAt: number; expiresAt: number; maxUses: number;
   egressDestination?: string; egressPolicyVersion?: string; egressDecisionReason?: string;
 };
 export type CredentialMaterial = { secret: string; expiresAt?: number };
@@ -22,7 +24,7 @@ export class CredentialBrokerError extends Error { constructor(public readonly c
 export type CredentialSecurityGate = {
   killSwitch: SecurityKillSwitch;
   posture: SecurityPosture | (() => SecurityPosture);
-  policyDecision?: 'allow' | 'approval_required' | 'deny' | (() => 'allow' | 'approval_required' | 'deny');
+  policyDecision: AuthoritativePolicyDecision | (() => AuthoritativePolicyDecision | Promise<AuthoritativePolicyDecision>);
 };
 
 export class CredentialBroker {
@@ -38,21 +40,37 @@ export class CredentialBroker {
   private posture(): SecurityPosture {
     return typeof this.securityGate?.posture === 'function' ? this.securityGate.posture() : (this.securityGate?.posture ?? 'normal');
   }
-  private policyDecision(): 'allow' | 'approval_required' | 'deny' {
-    const value = this.securityGate?.policyDecision;
-    return typeof value === 'function' ? value() : (value ?? 'allow');
+
+  private async policyDecision(): Promise<AuthoritativePolicyDecision> {
+    if (!this.securityGate) throw new CredentialBrokerError('POLICY_DECISION_REQUIRED');
+    const value = this.securityGate.policyDecision;
+    return typeof value === 'function' ? await value() : value;
   }
-  private async authorizeSecurity(capability: string): Promise<KillSwitchDecision | null> {
+
+  private async authorizeSecurity(request: CredentialRequest): Promise<KillSwitchDecision | null> {
     if (!this.securityGate) return null;
     let decision: KillSwitchDecision;
     try {
-      decision = await this.securityGate.killSwitch.decide(this.posture(), capability);
+      decision = await this.securityGate.killSwitch.decide(this.posture(), request.capability);
     } catch {
       throw new CredentialBrokerError('KILL_SWITCH_STATE_UNAVAILABLE');
     }
     if (!decision.allowed) throw new CredentialBrokerError(decision.reason === 'kill_switch_enabled' ? 'KILL_SWITCH_ENABLED' : 'SECURITY_POSTURE_DENIED');
-    const policy = this.policyDecision();
-    if (policy !== 'allow') throw new CredentialBrokerError(policy === 'approval_required' ? 'POLICY_APPROVAL_REQUIRED' : 'POLICY_DENIED');
+
+    let policy: AuthoritativePolicyDecision;
+    try { policy = await this.policyDecision(); } catch { throw new CredentialBrokerError('POLICY_DECISION_UNAVAILABLE'); }
+    if (!verifyAuthoritativePolicyDecision(policy, {
+      requestId: request.requestId,
+      actorId: request.actorId,
+      domain: request.provider,
+      capability: request.capability,
+      resourceId: request.resourceId,
+    }, this.now())) {
+      throw new CredentialBrokerError('POLICY_DECISION_BINDING_INVALID');
+    }
+    if (policy.decision !== 'allow') {
+      throw new CredentialBrokerError(policy.decision === 'approval_required' ? 'POLICY_APPROVAL_REQUIRED' : 'POLICY_DENIED');
+    }
     return decision;
   }
 
@@ -67,7 +85,7 @@ export class CredentialBroker {
     if (request.workerTrust !== undefined && request.workerTrust !== 'trusted-compute') throw new CredentialBrokerError('WORKER_NOT_TRUSTED');
     if (request.workerId === undefined && request.workerTrust !== undefined) throw new CredentialBrokerError('WORKER_BINDING_REQUIRED');
     if (request.egressDestination !== undefined && !request.egressPolicyVersion) throw new CredentialBrokerError('EGRESS_POLICY_BINDING_REQUIRED');
-    await this.authorizeSecurity(request.capability);
+    await this.authorizeSecurity(request);
     const material = await this.store.resolve(request.credentialRef);
     if (!material?.secret) throw new CredentialBrokerError('CREDENTIAL_NOT_AVAILABLE');
     if (material.expiresAt !== undefined && material.expiresAt <= now) throw new CredentialBrokerError('CREDENTIAL_EXPIRED');
@@ -93,7 +111,7 @@ export class CredentialBroker {
     if (grant.purpose !== request.purpose) throw new CredentialBrokerError('PURPOSE_MISMATCH');
     if (grant.resourceId !== request.resourceId) throw new CredentialBrokerError('RESOURCE_MISMATCH');
     if (grant.egressDestination !== request.egressDestination || grant.egressPolicyVersion !== request.egressPolicyVersion || grant.egressDecisionReason !== request.egressDecisionReason) throw new CredentialBrokerError('EGRESS_BINDING_MISMATCH');
-    await this.authorizeSecurity(request.capability);
+    await this.authorizeSecurity({ ...request, requestId: grant.leaseId, issuedAt: grant.issuedAt, expiresAt: grant.expiresAt, nonce: grant.leaseId });
     if (!this.leaseStore) throw new CredentialBrokerError('DURABLE_LEASE_STORE_REQUIRED');
     if (!(await this.leaseStore.consume(grant.leaseId, request, now))) throw new CredentialBrokerError('LEASE_EXHAUSTED');
     const material = await this.store.resolve(grant.credentialRef);
