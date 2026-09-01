@@ -60,7 +60,7 @@ export function createGitHubPullRequestAdapter(
       }
 
       return (await transport.createPullRequest({
-        repository: repositoryFromProposalId(_request.connectorId, input.proposalId),
+        repository: input.repository,
         title: input.title,
         body: input.body,
         headBranch: input.branch,
@@ -88,6 +88,8 @@ function isDraftPullRequestRequest(value: unknown): value is DraftPullRequestReq
     candidate.capability === 'github.pr.create' &&
     typeof candidate.proposalId === 'string' &&
     candidate.proposalId.length > 0 &&
+    typeof candidate.repository === 'string' &&
+    /^[^/\s]+\/[^/\s]+$/.test(candidate.repository) &&
     typeof candidate.branch === 'string' &&
     candidate.branch.length > 0 &&
     typeof candidate.baseBranch === 'string' &&
@@ -127,14 +129,4 @@ function isGitHubPullRequest(value: unknown): value is GitHubPullRequest {
     typeof candidate.baseBranch === 'string' &&
     typeof candidate.htmlUrl === 'string'
   )
-}
-
-function repositoryFromProposalId(connectorId: string, proposalId: string): string {
-  if (connectorId.includes('/')) return connectorId
-  const marker = proposalId.indexOf('@')
-  if (marker > 0) {
-    const repository = proposalId.slice(0, marker)
-    if (/^[^/\s]+\/[^/\s]+$/.test(repository)) return repository
-  }
-  throw new Error('GitHub PR request must identify repository as owner/name in connector context')
 }
