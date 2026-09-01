@@ -96,6 +96,15 @@ export class SupabaseConnectorExecutionStore implements ConnectorExecutionStore,
     return data === true
   }
 
+  async markRecoveryRequired(executionId: string, proposalHash: string, error: string, now = new Date()): Promise<void> {
+    if (!this.supabase) throw new Error("Supabase service-role client is not configured")
+    const { data, error: dbError } = await this.supabase.from("jhadina_connector_execution_ledger")
+      .update({ state: "recovery_required", error, completed_at: null, updated_at: now.toISOString() })
+      .eq("execution_id", executionId).eq("proposal_hash", proposalHash).eq("state", "executing").select("execution_id")
+    if (dbError) throw new Error(`Failed to mark connector execution for recovery: ${dbError.message}`)
+    if (!data?.length) throw new Error(`Connector execution cannot enter recovery: ${executionId}`)
+  }
+
   async complete(executionId: string, proposalHash: string, response: ConnectorResponse, now = new Date()): Promise<void> {
     await this.transition(executionId, proposalHash, { state: "succeeded", response, error: null }, now)
   }
