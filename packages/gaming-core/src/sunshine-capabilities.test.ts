@@ -1,0 +1,3 @@
+import{describe,expect,it}from'vitest';import{evaluateSunshineCapabilities}from'./sunshine-capabilities.js';
+const host={video:['h264','hevc'] as const,audio:['stereo'] as const,hdr:true,maxFps:120,maxWidth:3840,maxHeight:2160};const device={video:['h264','hevc'] as const,hdr:true,maxFps:120,maxWidth:1920,maxHeight:1080};
+describe('evaluateSunshineCapabilities',()=>{it('allows a compatible stream',()=>expect(evaluateSunshineCapabilities(host,device,{video:'hevc',hdr:true,minFps:60,minWidth:1920,minHeight:1080}).allowed).toBe(true));it('rejects an unsupported codec',()=>{const d=evaluateSunshineCapabilities(host,{...device,video:['h264']},{video:'av1'});expect(d.allowed).toBe(false);expect(d.reasons).toContain('video codec unsupported: av1');});});
