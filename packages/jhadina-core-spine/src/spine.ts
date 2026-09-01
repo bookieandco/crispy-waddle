@@ -137,9 +137,8 @@ export class JhadinaSpine {
         capability: action.capability,
         resourceId: action.resourceId,
         decision: policy.decision,
-        policyDecisionId: policy.id,
+        policyDecisionId: policy.decisionId,
         policyVersion: policy.policyVersion,
-        reason: policy.reason,
       },
     });
 
@@ -157,7 +156,7 @@ export class JhadinaSpine {
       subjectId: action.id,
       payload: {
         requestId: action.id,
-        policyDecisionId: policy.id,
+        policyDecisionId: policy.decisionId,
         policyVersion: policy.policyVersion,
         success: result.success,
       },
