@@ -2,7 +2,7 @@ import type { ApprovalGrant } from './approval.js'
 import { verifyApproval } from './approval.js'
 import type { AuthoritativeActionProposal } from './governed-action.js'
 
-export type ApprovalExecutionState = 'executing' | 'succeeded' | 'failed'
+export type ApprovalExecutionState = 'executing' | 'succeeded' | 'failed' | 'recovery_required'
 
 export interface ApprovalExecutionRecord {
   readonly approvalId: string
@@ -21,7 +21,7 @@ export interface ApprovalExecutionStore {
   /** Records a terminal execution failure without making the approval reusable. */
   fail(approvalId: string, error: string, now?: Date): void | Promise<void>
   get(approvalId: string): ApprovalExecutionRecord | undefined | Promise<ApprovalExecutionRecord | undefined>
-  /** Releases a stale in-flight claim back to the approval layer. */
+  /** Marks a stale in-flight claim as requiring reconciliation; it never deletes the claim. */
   recoverStale(approvalId: string, staleBefore: Date): boolean | Promise<boolean>
   /** Legacy one-way consumption primitive. Prefer begin/complete/fail. */
   consume(approvalId: string): boolean | Promise<boolean>
@@ -58,7 +58,9 @@ export class InMemoryApprovalExecutionStore implements ApprovalExecutionStore {
     const record = this.records.get(approvalId)
     if (!record || record.state !== 'executing') return false
     if (new Date(record.startedAt).getTime() > staleBefore.getTime()) return false
-    this.records.delete(approvalId)
+    record.state = 'recovery_required'
+    record.error = 'Execution became stale and requires provider reconciliation before retry'
+    record.completedAt = staleBefore.toISOString()
     return true
   }
 
