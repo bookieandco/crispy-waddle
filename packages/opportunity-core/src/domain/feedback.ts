@@ -44,9 +44,17 @@ export type VersionedAssessment = {
   engineVersion: string
 }
 
+let fallbackSequence = 0
+
+function newFeedbackEventId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID
+  if (randomUUID) return `feedback:${randomUUID()}`
+  fallbackSequence += 1
+  return `feedback:${Date.now().toString(36)}:${fallbackSequence.toString(36)}`
+}
+
 export function createFeedbackEvent(input: Omit<FeedbackEvent, 'id'> & { id?: string }): FeedbackEvent {
-  const id = input.id ?? `${input.type}:${input.opportunityId ?? ''}:${input.principalId ?? ''}:${input.observedAt}`
-  return { ...input, id }
+  return { ...input, id: input.id ?? newFeedbackEventId() }
 }
 
 export function createVersionedAssessment(input: Omit<VersionedAssessment, 'id'> & { id?: string }): VersionedAssessment {
