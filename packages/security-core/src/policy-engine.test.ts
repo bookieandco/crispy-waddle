@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { JhadinaPolicyEngine } from './policy-engine.js';
+import type { JhadinaValuesConfiguration } from './values-configuration.js';
+
+const values = (overrides: Partial<JhadinaValuesConfiguration> = {}): JhadinaValuesConfiguration => ({
+  version: 1,
+  updatedAt: '2026-09-01T00:00:00.000Z',
+  updatedBy: 'user_real_human',
+  financial: { currency: 'USD', maxAmountMinorPerAction: 0, maxAmountMinorPerDay: 0 },
+  externalCommunication: { allowedRecipientDomains: [], deniedRecipients: [] },
+  publishing: { allowedPlatforms: [] },
+  selfModification: { allowEvolutionProposals: true },
+  ...overrides,
+});
 
 describe('JhadinaPolicyEngine', () => {
   const request = () => ({
@@ -13,7 +25,7 @@ describe('JhadinaPolicyEngine', () => {
   });
 
   it('issues an allow decision from objective request facts', () => {
-    const decision = new JhadinaPolicyEngine().decide(request());
+    const decision = new JhadinaPolicyEngine(values()).decide(request());
     expect(decision.decision).toBe('allow');
     expect(decision.requestId).toBe('req-1');
     expect(decision.actorId).toBe('actor-1');
@@ -27,20 +39,15 @@ describe('JhadinaPolicyEngine', () => {
   });
 
   it('fails closed for an unclassified capability', () => {
-    const decision = new JhadinaPolicyEngine().decide({ ...request(), capability: 'unknown.capability' });
+    const decision = new JhadinaPolicyEngine(values()).decide({ ...request(), capability: 'unknown.capability' });
     expect(decision.decision).toBe('deny');
   });
 
   it('uses risk facts rather than a caller-supplied decision', () => {
-    const engine = new JhadinaPolicyEngine({
+    const engine = new JhadinaPolicyEngine(values({
       version: 7,
-      updatedAt: '2026-09-01T00:00:00.000Z',
-      updatedBy: 'user_real_human',
-      financial: { maxAmountMinorPerAction: 100, maxAmountMinorPerDay: 100 },
-      externalCommunication: { allowedRecipientDomains: ['example.com'], deniedRecipients: [] },
-      publishing: { allowedPlatforms: ['example'], },
-      selfModification: { allowEvolutionProposals: true },
-    });
+      financial: { currency: 'USD', maxAmountMinorPerAction: 100, maxAmountMinorPerDay: 100 },
+    }));
     const decision = engine.decide({ ...request(), capability: 'financial.execute', amountMinor: 101 });
     expect(decision.decision).toBe('deny');
     expect(decision.policyVersion).toBe('values-v7');
