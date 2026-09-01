@@ -68,6 +68,7 @@ export * from './intelligence/social-pattern-transfer.js';
 export * from './intelligence/social-pattern-experiment.js';
 export * from './intelligence/social-pattern-experiment-evidence.js';
 export * from './intelligence/social-pattern-experiment-execution.js';
+export * from './intelligence/social-pattern-experiment-promotion-pipeline.js';
 export * from './intelligence/social-pattern-promotion.js';
 export * from './intelligence/social-pattern-promotion-store.js';
 export * from './experiments/experiment-intelligence.js';
