@@ -2,6 +2,7 @@ import type { ActionHandler, ActionPolicy, ActionRequest } from './action-execut
 import type { ApprovalReceiptVerifier } from './approval-receipt.js';
 import { SupabaseAuditLedger, type AuditRpcClient } from './supabase-audit-ledger.js';
 import { VerifiedActionExecutor, type ActionIdentityVerifier } from './verified-action-executor.js';
+import type { NonceReplayGuard } from '../../security-core/src/replay-guard.js';
 
 export type ProductionActionExecutorOptions<TAction = unknown, TResult = unknown> = {
   identityVerifier: ActionIdentityVerifier;
@@ -9,11 +10,13 @@ export type ProductionActionExecutorOptions<TAction = unknown, TResult = unknown
   handlers: readonly ActionHandler<TAction, TResult>[];
   supabase: AuditRpcClient;
   approvalReceipts?: ApprovalReceiptVerifier<TAction>;
+  /** Durable one-shot action replay guard. Production composition must provide this. */
+  replayGuard: NonceReplayGuard;
   domain?: string;
   capabilityForType?: (type: string) => string;
 };
 
-/** Production composition root: verified identity + policy + durable audit + optional durable approval. */
+/** Production composition root: verified identity + policy + durable audit + durable replay + optional durable approval. */
 export function createProductionActionExecutor<TAction = unknown, TResult = unknown>(
   options: ProductionActionExecutorOptions<TAction, TResult>,
 ): VerifiedActionExecutor<TAction, TResult> {
@@ -29,6 +32,7 @@ export function createProductionActionExecutor<TAction = unknown, TResult = unkn
     ledger,
     options.handlers,
     options.approvalReceipts,
+    options.replayGuard,
   );
 }
 
