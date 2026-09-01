@@ -51,11 +51,6 @@ export interface IdempotencyStore {
    */
   markSeen(eventId: string, entityId: string): void;
 
-  /**
-   * Returns the number of unique events that have been seen.
-   * Useful for diagnostics and tests.
-   */
-  seenCount(): number;
 }
 
 /**

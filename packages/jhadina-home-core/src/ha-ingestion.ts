@@ -74,7 +74,12 @@ export type IngestionResult =
 // Pipeline
 // ---------------------------------------------------------------------------
 
-const adapter = new DeterministicHomeAssistantAdapter();
+export interface HomeAssistantIngestionPipelineOptions {
+  /** Injected adapter for testability; defaults to DeterministicHomeAssistantAdapter(). */
+  adapter?: DeterministicHomeAssistantAdapter;
+  /** Injected clock for deterministic test control. */
+  clock?: () => string;
+}
 
 /**
  * HomeAssistantIngestionPipeline — B&W-6.2
@@ -83,15 +88,22 @@ const adapter = new DeterministicHomeAssistantAdapter();
  * - idempotencyStore: swap InMemoryIdempotencyStore for a durable Supabase store
  * - stateStore: swap InMemoryEntityStateStore for a durable entity-state table
  * - eventBus: the existing Jhadina InMemoryEventBus or a durable outbox bus
- * - clock: injected for deterministic test control
+ * - options.adapter: injected for testability; defaults to DeterministicHomeAssistantAdapter
+ * - options.clock: injected for deterministic test control
  */
 export class HomeAssistantIngestionPipeline {
+  private readonly adapter: DeterministicHomeAssistantAdapter;
+  private readonly clock: () => string;
+
   constructor(
     private readonly idempotency: IdempotencyStore,
     private readonly stateStore: EntityStateStore,
     private readonly eventBus: EventBusPort,
-    private readonly clock: () => string = () => new Date().toISOString(),
-  ) {}
+    options: HomeAssistantIngestionPipelineOptions = {},
+  ) {
+    this.adapter = options.adapter ?? new DeterministicHomeAssistantAdapter();
+    this.clock = options.clock ?? (() => new Date().toISOString());
+  }
 
   /**
    * Ingest a raw HA event.
@@ -126,7 +138,7 @@ export class HomeAssistantIngestionPipeline {
       return { outcome: 'rejected', reason: 'Both new_state and old_state are null' };
     }
 
-    const normResult = adapter.normalizeEntity(
+    const normResult = this.adapter.normalizeEntity(
       {
         entity_id: envelope.sourceEntityId,
         state: typeof rawState['state'] === 'string' ? rawState['state'] : 'unknown',

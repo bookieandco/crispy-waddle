@@ -68,7 +68,7 @@ function makePipeline(busOverride?: EventBusPort & { events: DomainEvent[] }) {
   const stateStore = new InMemoryEntityStateStore();
   const bus = busOverride ?? makeBus();
   const clock = () => T2;
-  const pipeline = new HomeAssistantIngestionPipeline(idempotency, stateStore, bus, clock);
+  const pipeline = new HomeAssistantIngestionPipeline(idempotency, stateStore, bus, { clock });
   return { idempotency, stateStore, bus: bus as ReturnType<typeof makeBus>, pipeline };
 }
 
@@ -549,7 +549,7 @@ describe('B&W-6.2 Durability boundary', () => {
       const idempotency = testStore;
       const stateStore = new InMemoryEntityStateStore();
       const bus = makeBus();
-      const pipeline = new HomeAssistantIngestionPipeline(idempotency, stateStore, bus, () => T2);
+      const pipeline = new HomeAssistantIngestionPipeline(idempotency, stateStore, bus, { clock: () => T2 });
       return { pipeline, bus };
     })();
     await _.ingest(makeRaw());
@@ -571,7 +571,7 @@ describe('B&W-6.2 Durability boundary', () => {
       new InMemoryIdempotencyStore(),
       customStore,
       makeBus(),
-      () => T2,
+      { clock: () => T2 },
     );
     assert.ok(typeof pipeline.ingest === 'function');
     assert.equal(customStore.list().length, 0);
