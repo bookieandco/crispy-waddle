@@ -14,6 +14,7 @@ export type CredentialRequest = {
 export type CredentialGrant = {
   leaseId: string; requestId: string; actorId: string; workerId?: string; capability: string; provider: string; credentialRef: string;
   purpose: string; resourceId?: string; issuedAt: number; expiresAt: number; maxUses: number;
+  policyDecisionId: string; policyVersion: string;
   egressDestination?: string; egressPolicyVersion?: string; egressDecisionReason?: string;
 };
 export type CredentialMaterial = { secret: string; expiresAt?: number };
@@ -26,6 +27,8 @@ export type CredentialSecurityGate = {
   posture: SecurityPosture | (() => SecurityPosture);
   policyDecision: AuthoritativePolicyDecision | (() => AuthoritativePolicyDecision | Promise<AuthoritativePolicyDecision>);
 };
+
+type SecurityAuthorization = { killSwitch: KillSwitchDecision; policy: AuthoritativePolicyDecision };
 
 export class CredentialBroker {
   constructor(
@@ -47,7 +50,7 @@ export class CredentialBroker {
     return typeof value === 'function' ? await value() : value;
   }
 
-  private async authorizeSecurity(request: CredentialRequest): Promise<KillSwitchDecision | null> {
+  private async authorizeSecurity(request: CredentialRequest): Promise<SecurityAuthorization | null> {
     if (!this.securityGate) return null;
     let decision: KillSwitchDecision;
     try { decision = await this.securityGate.killSwitch.decide(this.posture(), request.capability); }
@@ -60,7 +63,7 @@ export class CredentialBroker {
       capability: request.capability, resourceId: request.resourceId,
     }, this.now())) throw new CredentialBrokerError('POLICY_DECISION_BINDING_INVALID');
     if (policy.decision !== 'allow') throw new CredentialBrokerError(policy.decision === 'approval_required' ? 'POLICY_APPROVAL_REQUIRED' : 'POLICY_DENIED');
-    return decision;
+    return { killSwitch: decision, policy };
   }
 
   async issue(request: CredentialRequest): Promise<CredentialGrant> {
@@ -74,7 +77,8 @@ export class CredentialBroker {
     if (request.workerTrust !== undefined && request.workerTrust !== 'trusted-compute') throw new CredentialBrokerError('WORKER_NOT_TRUSTED');
     if (request.workerId === undefined && request.workerTrust !== undefined) throw new CredentialBrokerError('WORKER_BINDING_REQUIRED');
     if (request.egressDestination !== undefined && !request.egressPolicyVersion) throw new CredentialBrokerError('EGRESS_POLICY_BINDING_REQUIRED');
-    await this.authorizeSecurity(request);
+    const authorization = await this.authorizeSecurity(request);
+    if (!authorization) throw new CredentialBrokerError('POLICY_DECISION_REQUIRED');
     const material = await this.store.resolve(request.credentialRef);
     if (!material?.secret) throw new CredentialBrokerError('CREDENTIAL_NOT_AVAILABLE');
     if (material.expiresAt !== undefined && material.expiresAt <= now) throw new CredentialBrokerError('CREDENTIAL_EXPIRED');
@@ -82,8 +86,8 @@ export class CredentialBroker {
       leaseId: this.idFactory(), requestId: request.requestId, actorId: request.actorId, workerId: request.workerId, capability: request.capability,
       provider: request.provider, credentialRef: request.credentialRef, purpose: request.purpose, resourceId: request.resourceId,
       issuedAt: now, expiresAt: Math.min(request.expiresAt, now + this.policy.maxTtlMs, material.expiresAt ?? Number.MAX_SAFE_INTEGER),
-      maxUses: this.policy.maxUses, egressDestination: request.egressDestination,
-      egressPolicyVersion: request.egressPolicyVersion, egressDecisionReason: request.egressDecisionReason,
+      maxUses: this.policy.maxUses, policyDecisionId: authorization.policy.decisionId, policyVersion: authorization.policy.policyVersion,
+      egressDestination: request.egressDestination, egressPolicyVersion: request.egressPolicyVersion, egressDecisionReason: request.egressDecisionReason,
     };
     if (grant.expiresAt <= now) throw new CredentialBrokerError('CREDENTIAL_EXPIRED');
     if (this.leaseStore) await this.leaseStore.create(grant);
@@ -101,9 +105,11 @@ export class CredentialBroker {
     if (grant.purpose !== request.purpose) throw new CredentialBrokerError('PURPOSE_MISMATCH');
     if (grant.resourceId !== request.resourceId) throw new CredentialBrokerError('RESOURCE_MISMATCH');
     if (grant.egressDestination !== request.egressDestination || grant.egressPolicyVersion !== request.egressPolicyVersion || grant.egressDecisionReason !== request.egressDecisionReason) throw new CredentialBrokerError('EGRESS_BINDING_MISMATCH');
-    await this.authorizeSecurity({ ...request, requestId: grant.requestId, issuedAt: grant.issuedAt, expiresAt: grant.expiresAt, nonce: grant.requestId });
+    const authorization = await this.authorizeSecurity({ ...request, requestId: grant.requestId, issuedAt: grant.issuedAt, expiresAt: grant.expiresAt, nonce: grant.requestId });
+    if (!authorization) throw new CredentialBrokerError('POLICY_DECISION_REQUIRED');
+    if (grant.policyDecisionId !== authorization.policy.decisionId || grant.policyVersion !== authorization.policy.policyVersion) throw new CredentialBrokerError('POLICY_DECISION_PROVENANCE_MISMATCH');
     if (!this.leaseStore) throw new CredentialBrokerError('DURABLE_LEASE_STORE_REQUIRED');
-    if (!(await this.leaseStore.consume(grant.leaseId, request, now))) throw new CredentialBrokerError('LEASE_EXHAUSTED');
+    if (!(await this.leaseStore.consume(grant.leaseId, request, now, grant.policyDecisionId, grant.policyVersion))) throw new CredentialBrokerError('LEASE_EXHAUSTED');
     const material = await this.store.resolve(grant.credentialRef);
     if (!material?.secret) throw new CredentialBrokerError('CREDENTIAL_NOT_AVAILABLE');
     if (material.expiresAt !== undefined && material.expiresAt <= now) throw new CredentialBrokerError('CREDENTIAL_EXPIRED');
