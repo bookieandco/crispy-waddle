@@ -3,13 +3,13 @@ import type { PromotedSocialPattern } from './social-pattern-promotion.js';
 
 export type SocialPatternPromotionStatus = 'promoted' | 'revoked';
 
-export interface SocialPatternPromotionRecord extends PromotedSocialPattern {
+export type SocialPatternPromotionRecord = Omit<PromotedSocialPattern, 'status'> & {
   readonly status: SocialPatternPromotionStatus;
   readonly promotedAt: string;
   readonly experimentId: GrowthId;
   readonly revokedAt?: string;
   readonly revocationReason?: string;
-}
+};
 
 export interface SocialPatternPromotionStore {
   getById(id: GrowthId): Promise<SocialPatternPromotionRecord | null>;
@@ -29,9 +29,7 @@ function mergeMonotonic(existing: SocialPatternPromotionRecord | undefined, inco
     existing.targetVoiceId !== incoming.targetVoiceId ||
     existing.strategy !== incoming.strategy ||
     existing.experimentId !== incoming.experimentId
-  ) {
-    throw new Error('promotion provenance is immutable');
-  }
+  ) throw new Error('promotion provenance is immutable');
   if (existing.status === 'revoked') return existing;
   return {
     ...existing,
@@ -44,18 +42,13 @@ function mergeMonotonic(existing: SocialPatternPromotionRecord | undefined, inco
 export class InMemorySocialPatternPromotionStore implements SocialPatternPromotionStore {
   private readonly records = new Map<GrowthId, SocialPatternPromotionRecord>();
 
-  async getById(id: GrowthId): Promise<SocialPatternPromotionRecord | null> {
-    return this.records.get(id) ?? null;
-  }
-
+  async getById(id: GrowthId): Promise<SocialPatternPromotionRecord | null> { return this.records.get(id) ?? null; }
   async listForAccount(accountId: GrowthId): Promise<readonly SocialPatternPromotionRecord[]> {
     return [...this.records.values()].filter(record => record.targetAccountId === accountId);
   }
-
   async upsert(record: SocialPatternPromotionRecord): Promise<void> {
     this.records.set(record.id, mergeMonotonic(this.records.get(record.id), record));
   }
-
   async revoke(id: GrowthId, revokedAt: string, reason: string): Promise<void> {
     const existing = this.records.get(id);
     if (!existing) throw new Error('promotion not found');
