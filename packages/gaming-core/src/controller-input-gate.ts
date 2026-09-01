@@ -2,7 +2,7 @@ import type {InputIntegrityEvent} from './input-integrity.js';
 import type {ControllerHealthResult} from './controller-health.js';
 import type {ControllerSessionBindingManager} from './controller-session-binding.js';
 
-export type ControllerInputGateReason='healthy'|'controller-unhealthy'|'controller-health-stale'|'controller-unbound'|'session-mismatch';
+export type ControllerInputGateReason='healthy'|'controller-unhealthy'|'controller-health-stale'|'controller-unbound'|'session-mismatch'|'controller-health-session-mismatch';
 
 export interface ControllerInputGateResult {
   allowed:boolean;
@@ -22,6 +22,7 @@ export const DEFAULT_CONTROLLER_HEALTH_GATE_POLICY:ControllerHealthGatePolicy={m
 interface HealthEnvelope {
   result:ControllerHealthResult;
   observedAtMs:number;
+  sessionId:string;
 }
 
 export class ControllerInputGate {
@@ -35,7 +36,9 @@ export class ControllerInputGate {
 
   updateHealth(result:ControllerHealthResult,observedAtMs=Date.now()):void{
     if(!Number.isFinite(observedAtMs))throw new Error('observedAtMs must be finite');
-    this.health.set(result.deviceId,{result,observedAtMs});
+    const binding=this.bindings.get();
+    if(!binding||binding.state!=='bound'||binding.deviceId!==result.deviceId)throw new Error('Controller health requires an active session binding');
+    this.health.set(result.deviceId,{result,observedAtMs,sessionId:binding.sessionId});
   }
 
   clearHealth(deviceId:string):void{this.health.delete(deviceId);}
@@ -53,6 +56,9 @@ export class ControllerInputGate {
     const envelope=this.health.get(deviceId);
     if(!envelope)return{allowed:false,reason:'controller-unhealthy',deviceId,sessionId};
     const {result:health,observedAtMs}=envelope;
+    if(envelope.sessionId!==sessionId){
+      return{allowed:false,reason:'controller-health-session-mismatch',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
+    }
     if(nowMs<observedAtMs||nowMs-observedAtMs>this.policy.maxHealthAgeMs){
       return{allowed:false,reason:'controller-health-stale',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
     }
