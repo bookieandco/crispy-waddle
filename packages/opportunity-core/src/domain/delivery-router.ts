@@ -33,7 +33,6 @@ export function nextRetryAttempt(record: AlertDeliveryRecord, now: string, polic
       status: 'FAILED',
       updatedAt: now,
       nextAttemptAt: undefined,
-      lastError: record.lastError,
       deadLetteredAt: now,
       maxAttempts,
     }
@@ -41,26 +40,19 @@ export function nextRetryAttempt(record: AlertDeliveryRecord, now: string, polic
 
   const delaySeconds = Math.min(policy.maxDelaySeconds, policy.baseDelaySeconds * 2 ** Math.max(0, nextAttempt - 1))
   const nextAttemptAt = new Date(new Date(now).getTime() + delaySeconds * 1000).toISOString()
-  return {
-    ...record,
-    attempt: nextAttempt,
-    status: 'RETRYING',
-    updatedAt: now,
-    nextAttemptAt,
-    maxAttempts,
-  }
+  return { ...record, attempt: nextAttempt, status: 'RETRYING', updatedAt: now, nextAttemptAt, maxAttempts }
 }
 
 export function applyDeliveryResult(record: AlertDeliveryRecord, result: DeliveryResult, now: string): AlertDeliveryRecord {
   switch (result.status) {
     case 'RETRYING':
-      return { ...record, status: 'RETRYING', updatedAt: now, nextAttemptAt: result.nextAttemptAt, lastError: result.error }
+      return { ...record, status: 'RETRYING', updatedAt: now, nextAttemptAt: result.nextAttemptAt, lastError: result.error, deadLetteredAt: undefined }
     case 'FAILED':
-      return { ...record, status: 'FAILED', updatedAt: now, nextAttemptAt: undefined, lastError: result.error, deadLetteredAt: now }
+      return { ...record, status: 'FAILED', updatedAt: now, nextAttemptAt: undefined, lastError: result.error }
     case 'SUPPRESSED':
-      return { ...record, status: 'SUPPRESSED', updatedAt: now, nextAttemptAt: undefined, lastError: result.reason }
+      return { ...record, status: 'SUPPRESSED', updatedAt: now, nextAttemptAt: undefined, lastError: result.reason, deadLetteredAt: undefined }
     case 'EXPIRED':
-      return { ...record, status: 'EXPIRED', updatedAt: now, nextAttemptAt: undefined, lastError: result.reason }
+      return { ...record, status: 'EXPIRED', updatedAt: now, nextAttemptAt: undefined, lastError: result.reason, deadLetteredAt: undefined }
     case 'SENT':
     case 'DELIVERED':
       return { ...record, status: result.status, updatedAt: now, nextAttemptAt: undefined, lastError: undefined, deadLetteredAt: undefined }
