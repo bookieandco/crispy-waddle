@@ -15,6 +15,7 @@ type Row = {
   proposal_id: string | null
   proposal_hash: string
   idempotency_key: string | null
+  recovery_lease_id: string | null
   connector_id: string | null
   operation: string | null
   actor_id: string | null
@@ -34,8 +35,19 @@ export class SupabaseConnectorExecutionStore implements ConnectorExecutionStore,
     if (!this.supabase) throw new Error("Supabase service-role client is not configured")
     const { data, error } = await this.supabase
       .from("jhadina_connector_execution_ledger")
-      .select("execution_id, approval_id, proposal_id, proposal_hash, idempotency_key, connector_id, operation, actor_id, correlation_id, state, response, error, started_at, completed_at")
+      .select("execution_id, approval_id, proposal_id, proposal_hash, idempotency_key, recovery_lease_id, connector_id, operation, actor_id, correlation_id, state, response, error, started_at, completed_at")
       .eq("idempotency_key", idempotencyKey)
+      .maybeSingle<Row>()
+    if (error) throw new Error(`Failed to read connector execution: ${error.message}`)
+    return data ? mapConnectorRow(data) : undefined
+  }
+
+  async getByExecutionId(executionId: string): Promise<ConnectorExecutionRecord | undefined> {
+    if (!this.supabase) throw new Error("Supabase service-role client is not configured")
+    const { data, error } = await this.supabase
+      .from("jhadina_connector_execution_ledger")
+      .select("execution_id, approval_id, proposal_id, proposal_hash, idempotency_key, recovery_lease_id, connector_id, operation, actor_id, correlation_id, state, response, error, started_at, completed_at")
+      .eq("execution_id", executionId)
       .maybeSingle<Row>()
     if (error) throw new Error(`Failed to read connector execution: ${error.message}`)
     return data ? mapConnectorRow(data) : undefined
@@ -61,16 +73,30 @@ export class SupabaseConnectorExecutionStore implements ConnectorExecutionStore,
     throw new Error(`Failed to claim connector execution: ${error.message}`)
   }
 
+  async adoptRecoveryExecution(executionId: string, proposalHash: string): Promise<boolean> {
+    if (!this.supabase) throw new Error("Supabase service-role client is not configured")
+    const { data, error } = await this.supabase
+      .from("jhadina_connector_execution_ledger")
+      .select("execution_id")
+      .eq("execution_id", executionId)
+      .eq("proposal_hash", proposalHash)
+      .eq("state", "executing")
+      .not("recovery_lease_id", "is", null)
+      .maybeSingle<{ execution_id: string }>()
+    if (error) throw new Error(`Failed to validate recovery execution lease: ${error.message}`)
+    return Boolean(data?.execution_id)
+  }
+
   async claimRecoveryAttempt(input: {
     originalExecutionId: string
     proposalHash: string
     newExecutionId: string
     newIdempotencyKey: string
+    recoveryLeaseId: string
     connectorId: string
     operation: string
     actorId: string
     correlationId: string
-    approvalId?: string
   }): Promise<boolean> {
     if (!this.supabase) throw new Error("Supabase service-role client is not configured")
     const { data, error } = await this.supabase.rpc("jhadina_claim_recovery_attempt", {
@@ -78,11 +104,11 @@ export class SupabaseConnectorExecutionStore implements ConnectorExecutionStore,
       p_proposal_hash: input.proposalHash,
       p_new_execution_id: input.newExecutionId,
       p_new_idempotency_key: input.newIdempotencyKey,
+      p_recovery_lease_id: input.recoveryLeaseId,
       p_connector_id: input.connectorId,
       p_operation: input.operation,
       p_actor_id: input.actorId,
       p_correlation_id: input.correlationId,
-      p_approval_id: input.approvalId ?? null,
     })
     if (error) throw new Error(`Failed to claim connector recovery attempt: ${error.message}`)
     return data === true
