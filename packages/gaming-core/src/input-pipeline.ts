@@ -10,8 +10,14 @@ export interface GamingInputPipelineResult extends InputIntegrityResult { transp
 export interface GamingRuntimeInputSink { deliver(event:InputIntegrityEvent):Promise<GamingRuntimeInputAck>; }
 
 export class GamingInputPipeline {
+  private submissionTail:Promise<void>=Promise.resolve();
   constructor(private readonly integrity:InputIntegrityMonitor,private readonly transport:GamingInputTransportBoundary,private readonly runtime:GamingRuntimeInputSink,private readonly controllerGate:ControllerInputGate,private readonly resync:ControllerInputResyncManager){ }
-  async submit(event:InputIntegrityEvent,nowMs=Date.now()):Promise<GamingInputPipelineResult>{
+  submit(event:InputIntegrityEvent,nowMs=Date.now()):Promise<GamingInputPipelineResult>{
+    const run=this.submissionTail.then(()=>this.submitSerialized(event,nowMs));
+    this.submissionTail=run.then(()=>undefined,()=>undefined);
+    return run;
+  }
+  private async submitSerialized(event:InputIntegrityEvent,nowMs:number):Promise<GamingInputPipelineResult>{
     const controllerGate=this.controllerGate.authorize(event,nowMs);
     if(!controllerGate.allowed)return{...this.integritySnapshotResult(),transported:false,controllerGate,resync:{allowed:false,reason:'not-resynchronized'}};
     const resync=this.checkResync(event);
