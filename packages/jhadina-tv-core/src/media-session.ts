@@ -36,7 +36,7 @@ export interface UnifiedMediaSessionConfig {
 
 export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): UnifiedMediaSession {
   if (config.playback.source.titleId !== config.titleId) throw new Error('Playback source title does not match the media session.');
-  if (config.playback.providerId !== config.playback.source.id && !config.playback.providerId) throw new Error('Playback provider is required.');
+  if (!config.playback.providerId) throw new Error('Playback provider is required.');
 
   let state = config.local.getState();
   const listeners = new Set<(next: MediaSessionState) => void>();
