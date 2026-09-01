@@ -1,3 +1,5 @@
+import type { VerificationDecision } from './verification.js'
+
 export type OpportunityFamily =
   | 'funding'
   | 'recovery'
@@ -82,6 +84,7 @@ export type Opportunity = {
   claims: OpportunityClaim[]
   evidence: OpportunityEvidence[]
   verificationStatus: OpportunityVerificationStatus
+  verificationDecision?: VerificationDecision
   sourceConfidence: number
   fitScore?: number
   opportunityScore?: number
@@ -92,4 +95,15 @@ export type Opportunity = {
   status: OpportunityStatus
   createdAt: string
   updatedAt: string
+}
+
+/**
+ * The domain must never treat an opportunity as verified merely because a
+ * caller supplied verificationStatus: 'verified'. A verified opportunity
+ * needs a complete, evidence-backed verification decision.
+ */
+export function isOpportunityVerified(opportunity: Opportunity): boolean {
+  return opportunity.verificationStatus === 'verified' &&
+    opportunity.status === 'verified' &&
+    opportunity.verificationDecision !== undefined
 }
