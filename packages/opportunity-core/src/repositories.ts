@@ -1,4 +1,4 @@
-import type { AlertDeliveryRecord, AlertDeliveryRequest } from './domain/alert-delivery.js'
+import type { AlertDeliveryRecord } from './domain/alert-delivery.js'
 import type { AlertEvent, WatchlistEntry } from './domain/watchlist.js'
 import type { FeedbackEvent, VersionedAssessment } from './domain/feedback.js'
 
@@ -45,7 +45,7 @@ export class InMemoryWatchlistRepository implements WatchlistRepository {
   async get(id: string): Promise<WatchlistEntry | undefined> { return clone(this.entries.get(id)) }
 
   async listByUser(userId: string): Promise<WatchlistEntry[]> {
-    return [...this.entries.values()].filter((entry) => entry.id.startsWith(`${userId}:`)).map(clone)
+    return [...this.entries.values()].filter((entry) => entry.userId === userId).map(clone)
   }
 
   async save(entry: WatchlistEntry): Promise<WatchlistEntry> {
@@ -141,5 +141,3 @@ export class InMemoryVersionedAssessmentRepository implements VersionedAssessmen
     return clone(assessment)
   }
 }
-
-export type { AlertDeliveryRequest }
