@@ -12,4 +12,5 @@ export * from './moonlight-runtime.js';
 export * from './moonlight-host.js';
 export * from './remote-apps.js';
 export * from './game-source.js';
+export * from './launch-orchestrator.js';
 export * from './jhadina-gaming.js';
