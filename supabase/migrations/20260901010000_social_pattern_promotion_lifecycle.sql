@@ -3,6 +3,10 @@
 -- and revocation is terminal. The RPC keeps these invariants atomic under races.
 
 alter table public.growth_social_pattern_promotions
+  add column if not exists revoked_at timestamptz,
+  add column if not exists revocation_reason text;
+
+alter table public.growth_social_pattern_promotions
   drop constraint if exists growth_social_pattern_promotions_status_check;
 
 alter table public.growth_social_pattern_promotions
@@ -77,10 +81,10 @@ as $$
 begin
   update public.growth_social_pattern_promotions
   set status = 'revoked',
-      revoked_at = coalesce(public.growth_social_pattern_promotions.revoked_at, revoke_social_pattern_promotion.revoked_at),
-      revocation_reason = coalesce(public.growth_social_pattern_promotions.revocation_reason, revoke_social_pattern_promotion.reason),
+      revoked_at = coalesce(public.growth_social_pattern_promotions.revoked_at, $3),
+      revocation_reason = coalesce(public.growth_social_pattern_promotions.revocation_reason, $2),
       updated_at = now()
-  where id = promotion_id;
+  where id = $1;
 
   if not found then
     raise exception 'promotion not found';
