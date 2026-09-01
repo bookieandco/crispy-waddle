@@ -12,7 +12,7 @@ export interface WorkflowFingerprintInput {
   workflow: CanonicalJson;
 }
 
-export function createWorkflowFingerprint(input: WorkflowFingerprintInput): string {
+export async function createWorkflowFingerprint(input: WorkflowFingerprintInput): Promise<string> {
   return sha256Canonical({
     fingerprintVersion: WORKFLOW_FINGERPRINT_VERSION,
     providerId: input.manifest.providerId,
