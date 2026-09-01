@@ -1,4 +1,5 @@
 import type {InputIntegrityEvent} from './input-integrity.js';
+import {CONTROLLER_INPUT_CAPABILITY} from './input-integrity.js';
 import type {ControllerHealthResult} from './controller-health.js';
 import type {ControllerSessionBindingManager} from './controller-session-binding.js';
 import type {ControllerCapability} from './controller-capabilities.js';
@@ -52,10 +53,9 @@ export class ControllerInputGate {
     if(envelope.sessionId!==sessionId)return{allowed:false,reason:'controller-health-session-mismatch',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
     if(nowMs<observedAtMs||nowMs-observedAtMs>this.policy.maxHealthAgeMs)return{allowed:false,reason:'controller-health-stale',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
     if(!health.accepted||health.state!=='healthy')return{allowed:false,reason:'controller-unhealthy',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
-    if(this.policy.requiredCapabilities?.length){
-      try{assertControllerCapabilities({deviceId,capabilities:binding.capabilities},{required:this.policy.requiredCapabilities});}
-      catch{return{allowed:false,reason:'controller-capability-mismatch',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};}
-    }
+    const requiredCapabilities=[...(this.policy.requiredCapabilities??[]),CONTROLLER_INPUT_CAPABILITY[event.inputKind]].filter((capability,index,array):capability is ControllerCapability=>Boolean(capability)&&array.indexOf(capability)===index);
+    try{assertControllerCapabilities({deviceId,capabilities:binding.capabilities},{required:requiredCapabilities});}
+    catch{return{allowed:false,reason:'controller-capability-mismatch',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};}
     return{allowed:true,reason:'healthy',deviceId,sessionId,health,healthObservedAtMs:observedAtMs};
   }
 }
