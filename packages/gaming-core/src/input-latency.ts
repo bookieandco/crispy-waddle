@@ -1,0 +1,3 @@
+export interface InputLatencySample { inputId:string; capturedAtMs:number; sentAtMs?:number; hostReceivedAtMs?:number; acknowledgedAtMs?:number; }
+export interface InputLatencyMetrics { captureToSendMs?:number; sendToHostMs?:number; captureToHostMs?:number; captureToAckMs?:number; }
+export function measureInputLatency(sample:InputLatencySample):InputLatencyMetrics { const delta=(a?:number,b?:number)=>a===undefined||b===undefined?undefined:Math.max(0,b-a); return {captureToSendMs:delta(sample.capturedAtMs,sample.sentAtMs),sendToHostMs:delta(sample.sentAtMs,sample.hostReceivedAtMs),captureToHostMs:delta(sample.capturedAtMs,sample.hostReceivedAtMs),captureToAckMs:delta(sample.capturedAtMs,sample.acknowledgedAtMs)}; }
