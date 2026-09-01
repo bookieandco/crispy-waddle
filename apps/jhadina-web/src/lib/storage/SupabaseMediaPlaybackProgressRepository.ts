@@ -50,26 +50,23 @@ export class SupabaseMediaPlaybackProgressRepository implements MediaPlaybackPro
   }
 
   async upsert(progress: MediaPlaybackProgress): Promise<MediaPlaybackProgress> {
-    const row: MediaPlaybackProgressRow = {
-      id: nextId(),
-      user_id: progress.userId,
-      provider_id: progress.providerId,
-      media_id: progress.itemId,
-      position_ms: Math.max(0, Math.trunc(progress.positionMs)),
-      duration_ms:
-        progress.durationMs === undefined ? null : Math.max(0, Math.trunc(progress.durationMs)),
-      completed: progress.completed,
-      updated_at: progress.updatedAt,
-      metadata: {},
-    }
-
     const { data, error } = await this.client
-      .from("media_playback_progress")
-      .upsert(row, { onConflict: "user_id,provider_id,media_id" })
-      .select("*")
+      .rpc("upsert_media_playback_progress", {
+        p_id: nextId(),
+        p_user_id: progress.userId,
+        p_provider_id: progress.providerId,
+        p_media_id: progress.itemId,
+        p_position_ms: Math.max(0, Math.trunc(progress.positionMs)),
+        p_duration_ms:
+          progress.durationMs === undefined ? null : Math.max(0, Math.trunc(progress.durationMs)),
+        p_completed: progress.completed,
+        p_updated_at: progress.updatedAt,
+        p_metadata: {},
+      })
       .single()
 
     assertNoError(error, "upsert")
+    if (!data) throw new Error("JHADINA_MEDIA_PLAYBACK_PERSISTENCE_FAILED:upsert:no_result")
     return rowToProgress(data as MediaPlaybackProgressRow)
   }
 }
