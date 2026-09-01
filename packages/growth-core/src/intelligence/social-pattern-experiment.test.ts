@@ -3,7 +3,7 @@ import { evaluatePatternExperiment, planPatternExperiment } from './social-patte
 
 describe('pattern experiments', () => {
   const hypothesis = { id: 'hypothesis:1' as never, sourcePatternId: 'pattern:1' as never, sourceAccountId: 'account:a' as never, targetAccountId: 'account:b' as never, targetAudienceId: 'audience:b' as never, targetVoiceId: 'voice:b' as never, strategy: 'playful_challenge', transferableTraits: ['strategy_shape'], sourceConfidence: 0.9, initialPrior: 0.45, status: 'hypothesis' as const, requiresLocalValidation: true as const };
-  const observation = (experimentId: string) => ({
+  const observation = () => ({
     controlMetric: 0.1,
     treatmentMetric: 0.12,
     controlObservations: 15,
@@ -20,7 +20,7 @@ describe('pattern experiments', () => {
 
   it('derives provenance and promotes only a meaningful treatment win', () => {
     const experiment = planPatternExperiment(hypothesis);
-    const result = evaluatePatternExperiment(experiment, observation(experiment.id));
+    const result = evaluatePatternExperiment(experiment, observation());
     expect(result.experimentId).toBe(experiment.id);
     expect(result.hypothesisId).toBe(experiment.hypothesisId);
     expect(result.targetAccountId).toBe(experiment.targetAccountId);
@@ -35,7 +35,7 @@ describe('pattern experiments', () => {
 
   it('honors a custom minimum observation threshold', () => {
     const experiment = planPatternExperiment(hypothesis, 'qualified_leads', 50);
-    const result = evaluatePatternExperiment(experiment, observation(experiment.id));
+    const result = evaluatePatternExperiment(experiment, observation());
     expect(result.winner).toBe('inconclusive');
     expect(result.promoted).toBe(false);
     expect(result.reason).toBe('insufficient_observations');
@@ -44,7 +44,7 @@ describe('pattern experiments', () => {
   it('rejects an incomplete population even when total observations are sufficient', () => {
     const experiment = planPatternExperiment(hypothesis);
     const result = evaluatePatternExperiment(experiment, {
-      ...observation(experiment.id),
+      ...observation(),
       controlObservations: 0,
       treatmentObservations: 30,
     });
@@ -54,11 +54,11 @@ describe('pattern experiments', () => {
 
   it('rejects missing or invalid evaluation provenance', () => {
     const experiment = planPatternExperiment(hypothesis);
-    const missing = evaluatePatternExperiment(experiment, { ...observation(experiment.id), evaluationId: '' as never });
+    const missing = evaluatePatternExperiment(experiment, { ...observation(), evaluationId: '' as never });
     expect(missing.promoted).toBe(false);
     expect(missing.reason).toBe('missing_evaluation_id');
 
-    const invalidTime = evaluatePatternExperiment(experiment, { ...observation(experiment.id), evaluatedAt: 'not-a-date' });
+    const invalidTime = evaluatePatternExperiment(experiment, { ...observation(), evaluatedAt: 'not-a-date' });
     expect(invalidTime.promoted).toBe(false);
     expect(invalidTime.reason).toBe('invalid_evaluation_timestamp');
   });
