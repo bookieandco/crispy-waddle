@@ -30,7 +30,7 @@ security definer
 set search_path = public
 as $$
 declare
-  inserted boolean;
+  rows_inserted integer;
 begin
   if p_nonce is null or length(p_nonce) < 16 or length(p_nonce) > 256 then
     return false;
@@ -44,22 +44,22 @@ begin
   values (p_nonce, p_expires_at)
   on conflict (nonce) do nothing;
 
-  get diagnostics inserted = row_count > 0;
-  return inserted;
+  get diagnostics rows_inserted = row_count;
+  return rows_inserted = 1;
 end;
 $$;
 
 revoke all on function public.consume_jhadina_security_nonce(text, timestamptz) from public, anon, authenticated;
+-- Supabase's server-only service_role is the intended caller. Keep this grant
+-- out of browser-facing roles; never expose the service-role key to clients.
+grant execute on function public.consume_jhadina_security_nonce(text, timestamptz) to service_role;
 
--- Grant this function only to the trusted server role used by Jhadina's
--- server-side data access layer. Configure the concrete role per deployment;
--- do not grant it to browser-facing roles.
 comment on function public.consume_jhadina_security_nonce(text, timestamptz)
-  is 'Atomic one-time nonce consumption for Jhadina security boundaries; grant only to trusted server role.';
+  is 'Atomic one-time nonce consumption for Jhadina security boundaries; server-only execution.';
 
--- Operational cleanup can run from a trusted server/maintenance job.
+-- Operational cleanup can run from the trusted server/maintenance job.
 -- Deleting expired rows is safe because requests must be unexpired before
--- consumption; keep retention long enough for incident investigation.
+-- consumption; retain them long enough for incident investigation.
 create or replace function public.prune_jhadina_security_replay_nonces(
   p_before timestamptz default now() - interval '24 hours'
 )
@@ -77,3 +77,4 @@ as $$
 $$;
 
 revoke all on function public.prune_jhadina_security_replay_nonces(timestamptz) from public, anon, authenticated;
+grant execute on function public.prune_jhadina_security_replay_nonces(timestamptz) to service_role;
