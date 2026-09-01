@@ -41,7 +41,12 @@ function assertSource(source: MediaSource, requestedTitleId: string): void {
 }
 
 export function createPlaybackResolver(providers: readonly PlaybackResolverProvider[]): PlaybackResolver {
-  const registry = new Map(providers.map((provider) => [provider.id, provider]));
+  const registry = new Map<string, PlaybackResolverProvider>();
+  for (const provider of providers) {
+    assertProviderId(provider.id);
+    if (registry.has(provider.id)) throw new Error(`Duplicate playback provider: ${provider.id}`);
+    registry.set(provider.id, provider);
+  }
 
   return {
     async resolve(request) {
