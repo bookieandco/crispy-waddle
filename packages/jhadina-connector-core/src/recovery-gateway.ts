@@ -2,7 +2,7 @@ import { hashActionProposal } from './approval.js'
 import type { AuthoritativeActionProposal } from './governed-action.js'
 import type { ConnectorAdapter, ConnectorExecutionRecord, ConnectorOperation, ConnectorRequest } from './index.js'
 import type { ConnectorReconciliationEvidence, ConnectorReconciliationResult, ConnectorReconciliationStore, RecoveryResolution } from './reconciliation.js'
-import { resolveRecovery } from './reconciliation.js'
+import { hashReconciliationEvidence, resolveRecovery, verifyReconciliationEvidenceHash } from './reconciliation.js'
 
 export interface RecoveryAttemptStore {
   claimRecoveryAttempt(input: {
@@ -61,7 +61,7 @@ export class ConnectorRecoveryGateway {
     if (execution.state !== 'recovery_required') throw new Error('Only recovery_required executions can be reconciled')
     if (execution.proposalHash !== proposalHash) throw new Error('Recovery proposal hash does not match original execution')
     if (execution.connectorId !== proposal.target) throw new Error('Recovery connector does not match proposal target')
-    if (execution.operation !== proposal.intent.slice(proposal.target.length + 1)) throw new Error('Recovery operation does not match proposal intent')
+    if (proposal.intent !== `${proposal.target}.${execution.operation}`) throw new Error('Recovery operation does not match proposal intent')
     if (execution.actorId !== proposal.actor.id) throw new Error('Recovery actor does not match original execution')
     if (execution.correlationId !== proposal.correlationId) throw new Error('Recovery correlation does not match original execution')
 
@@ -74,6 +74,7 @@ export class ConnectorRecoveryGateway {
     const existingEvidence = await this.reconciliation.get(execution.executionId)
     let result: ConnectorReconciliationResult
     if (existingEvidence) {
+      validateEvidence(existingEvidence, execution, proposalHash, operation)
       result = { status: existingEvidence.status, evidence: existingEvidence }
     } else {
       if (!adapter.reconcile) throw new Error(`Connector does not support reconciliation: ${execution.connectorId}.${execution.operation}`)
@@ -89,17 +90,13 @@ export class ConnectorRecoveryGateway {
         risk: proposal.risk,
       }
       result = await adapter.reconcile(operation, request, execution)
-      if (result.evidence.executionId !== execution.executionId) throw new Error('Reconciliation evidence execution mismatch')
-      if (result.evidence.proposalHash !== proposalHash) throw new Error('Reconciliation evidence proposal mismatch')
-      if (result.evidence.idempotencyKey !== execution.idempotencyKey) throw new Error('Reconciliation evidence idempotency mismatch')
-      if (result.evidence.connectorId !== execution.connectorId || result.evidence.operation !== execution.operation) throw new Error('Reconciliation evidence connector binding mismatch')
+      validateEvidence(result.evidence, execution, proposalHash, operation)
       await this.reconciliation.record(result.evidence)
     }
 
     const resolution = resolveRecovery(result.status)
-    const auditExecutionId = execution.executionId
     if (resolution !== 'retry_allowed') {
-      await this.audit.record({ executionId: auditExecutionId, originalExecutionId: execution.executionId, proposalId: proposal.id, correlationId: proposal.correlationId, actorId: proposal.actor.id, connectorId: execution.connectorId, operation: execution.operation, proposalHash, resolution, evidence: result.evidence })
+      await this.audit.record({ executionId: execution.executionId, originalExecutionId: execution.executionId, proposalId: proposal.id, correlationId: proposal.correlationId, actorId: proposal.actor.id, connectorId: execution.connectorId, operation: execution.operation, proposalHash, resolution, evidence: result.evidence })
       return { resolution, evidence: result.evidence }
     }
 
@@ -121,4 +118,28 @@ export class ConnectorRecoveryGateway {
     await this.audit.record({ executionId: retryExecutionId, originalExecutionId: execution.executionId, proposalId: proposal.id, correlationId: proposal.correlationId, actorId: proposal.actor.id, connectorId: execution.connectorId, operation: execution.operation, proposalHash, resolution, evidence: result.evidence })
     return { resolution, evidence: result.evidence, retryExecutionId, retryIdempotencyKey }
   }
+}
+
+function validateEvidence(
+  evidence: ConnectorReconciliationEvidence,
+  execution: ConnectorExecutionRecord,
+  proposalHash: string,
+  operation: ConnectorOperation,
+): void {
+  if (evidence.executionId !== execution.executionId) throw new Error('Reconciliation evidence execution mismatch')
+  if (evidence.proposalHash !== proposalHash || evidence.proposalHash !== execution.proposalHash) throw new Error('Reconciliation evidence proposal mismatch')
+  if (evidence.idempotencyKey !== execution.idempotencyKey) throw new Error('Reconciliation evidence idempotency mismatch')
+  if (evidence.connectorId !== execution.connectorId) throw new Error('Reconciliation evidence connector binding mismatch')
+  if (evidence.operation !== execution.operation || evidence.operation !== operation.name) throw new Error('Reconciliation evidence operation binding mismatch')
+  if (evidence.adapterVersion !== operationVersion(operation)) throw new Error('Reconciliation evidence adapter operation version mismatch')
+  if (!Number.isInteger(evidence.adapterVersion) || evidence.adapterVersion < 1) throw new Error('Reconciliation evidence adapter version is invalid')
+  if (!evidence.source.trim()) throw new Error('Reconciliation evidence source is required')
+  if (!Number.isFinite(new Date(evidence.observedAt).getTime()) || !Number.isFinite(new Date(evidence.checkedAt).getTime())) throw new Error('Reconciliation evidence timestamps are invalid')
+  if (!verifyReconciliationEvidenceHash(evidence)) throw new Error('Reconciliation evidence hash is invalid')
+  if (evidence.status === 'confirmed_executed' && !evidence.providerReference && !evidence.providerState) throw new Error('Confirmed execution requires provider evidence')
+}
+
+/** ConnectorOperation is currently versioned by its adapter manifest; keep this isolated for future operation-level versioning. */
+function operationVersion(_operation: ConnectorOperation): number {
+  return 1
 }
