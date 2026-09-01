@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { ConnectorExecutionRecord, ConnectorOperation, ConnectorRequest } from './index.js'
 
 /** A recovery decision is evidence-driven; an LLM or caller cannot assert execution state. */
@@ -71,6 +72,21 @@ export function reconciliationEvidencePayload(
     adapterVersion: evidence.adapterVersion,
     source: evidence.source,
   })
+}
+
+/** Computes the tamper-evident SHA-256 identity of reconciliation evidence. */
+export function hashReconciliationEvidence(
+  evidence: Omit<ConnectorReconciliationEvidence, 'evidenceHash'>,
+): string {
+  return createHash('sha256').update(reconciliationEvidencePayload(evidence)).digest('hex')
+}
+
+/** Verifies the evidence hash before any recovery decision is trusted. */
+export function verifyReconciliationEvidenceHash(
+  evidence: ConnectorReconciliationEvidence,
+): boolean {
+  const { evidenceHash: _evidenceHash, ...payload } = evidence
+  return hashReconciliationEvidence(payload) === evidence.evidenceHash
 }
 
 /** Only an evidence-backed provider result may unlock recovery. */
