@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter } from 'next/router';
 import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget, MediaSessionState, LocalPlaybackAdapter, UnifiedMediaSession, ResolvedPlaybackSource } from '@jhadina/tv-core';
-import { CatalogRegistry, assertCastableSource, createAuthorizedCatalogAdapter, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createPlaybackResolver, createResolvedMediaPlayer, createUnifiedMediaSession } from '@jhadina/tv-core';
+import { CatalogRegistry, createAuthorizedCatalogAdapter, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createPlaybackResolver, createResolvedMediaPlayer, createUnifiedMediaSession } from '@jhadina/tv-core';
 import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
 import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
 
@@ -34,8 +34,7 @@ export default function JhadinaTVWatchPage() {
       const resolver = createPlaybackResolver([{ id: provider.id, adapter: provider.sourceAdapter, authorized: true }]);
       const resolved = await resolver.resolve({ providerId: match.providerId, titleId: match.title.id });
       if (!active) return;
-      setTitle(match.title);
-      setPlayback(resolved);
+      setTitle(match.title); setPlayback(resolved);
     }).catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Unable to load this title.'));
     return () => { active = false; };
   }, [id, kind, registry, router.isReady]);
@@ -44,11 +43,10 @@ export default function JhadinaTVWatchPage() {
     const video = videoRef.current;
     if (!video || !playback || !title) return;
     const resolvedSource = playback.source;
-    assertCastableSource(resolvedSource.url);
     const snapshot = (): MediaSessionState => ({ titleId: title.id, kind: title.kind, sourceUrl: resolvedSource.url, positionSeconds: video.currentTime, durationSeconds: Number.isFinite(video.duration) ? video.duration : undefined, playing: !video.paused, volume: video.volume, target: { id: 'local', name: 'This device', transport: 'local' } });
     const local: LocalPlaybackAdapter = { getState: snapshot, async apply(command) { if (command.type === 'play') await video.play(); else if (command.type === 'pause') video.pause(); else if (command.type === 'seek') video.currentTime = Math.max(0, command.value); else if (command.type === 'set-volume') video.volume = Math.max(0, Math.min(1, command.value)); }, onStateChange(listener) { const sync = () => listener(snapshot()); const events = ['play', 'pause', 'timeupdate', 'durationchange', 'volumechange', 'seeking', 'seeked'] as const; events.forEach((event) => video.addEventListener(event, sync)); sync(); return () => events.forEach((event) => video.removeEventListener(event, sync)); } };
     const player = createResolvedMediaPlayer(playback, { ...local, setSource(url) { video.src = url; } });
-    const initial = player.getState(); const controllers = [createBrowserAirPlayController(video as AirPlayVideo, initial)]; if (typeof window !== 'undefined') { const googleRuntime = createBrowserGoogleCastRuntime(); if (googleRuntime.isSupported()) controllers.push(createGoogleCastController(googleRuntime, initial)); controllers.push(createJhadinaTVReceiverController(createJhadinaTVReceiverTransport(), initial)); }
+    const initial = player.getState(); const controllers = [createBrowserAirPlayController(video as AirPlayVideo, initial, playback)]; if (typeof window !== 'undefined') { const googleRuntime = createBrowserGoogleCastRuntime(); if (googleRuntime.isSupported()) controllers.push(createGoogleCastController(googleRuntime, initial, playback)); controllers.push(createJhadinaTVReceiverController(createJhadinaTVReceiverTransport(), initial, playback)); }
     const casting = createCastingManager(controllers, initial);
     const session = createUnifiedMediaSession({ titleId: title.id, kind: title.kind, playback: player.playback, local: player, casting }); sessionRef.current = session; const unsubscribe = session.subscribe(setSessionState); setSessionState(session.getState()); return () => { unsubscribe(); sessionRef.current = null; };
   }, [playback, title]);
@@ -68,6 +66,6 @@ export default function JhadinaTVWatchPage() {
     </section>
     {targets.length > 0 && !casting && <section style={{ marginTop: 16, padding: 18, borderRadius: 16, background: '#101218', border: '1px solid #272a33' }}><strong>Choose a TV</strong><div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>{targets.map((device) => <button key={`${device.transport}:${device.id}`} onClick={() => void connectTV(device)} style={{ border: '1px solid #353945', borderRadius: 12, padding: '10px 14px', background: '#181b23', color: '#fff', cursor: 'pointer' }}>📺 {device.name}<small style={{ display: 'block', color: '#8f94a1', marginTop: 3 }}>{device.transport}</small></button>)}</div></section>}
     {casting && target && <section style={{ marginTop: 16, padding: 18, borderRadius: 16, background: '#101218', border: '1px solid #272a33' }}><strong>Playing on {target.name}</strong><p style={{ color: '#9296a2', marginBottom: 0 }}>Unified session position: {Math.floor(sessionState?.positionSeconds ?? 0)}s. Your phone remains the controller.</p></section>}
-    <section style={{ marginTop: 24 }}><h2>Playback & casting</h2><p style={{ color: '#9296a2', lineHeight: 1.6 }}>Local playback, Picture-in-Picture, AirPlay, Google Cast, and JhadinaTV receivers share one media-session state boundary.</p></section>
+    <section style={{ marginTop: 24 }}><h2>Playback & casting</h2><p style={{ color: '#9296a2', lineHeight: 1.6 }}>Local playback, Picture-in-Picture, AirPlay, Google Cast, and JhadinaTV receivers share one governed media-session state boundary.</p></section>
   </div></main></>;
 }
