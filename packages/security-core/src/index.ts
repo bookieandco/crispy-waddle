@@ -92,7 +92,7 @@ export const JHADINA_BASE_SECURITY_POLICY: SecurityPolicy = {
     'timeline.edit', 'timeline.snapshot', 'take.generate', 'take.regenerate',
     'take.record', 'take.select', 'audio.edit', 'image.edit', 'storyboard.edit',
     'research.run', 'memory.propose', 'memory.read', 'public.publish',
-    'growth.draft.approve', 'overage.review',
+    'growth.draft.approve', 'overage.review', 'money.account.read',
   ],
   approvalCapabilities: [
     'public.publish', 'paid-ad.publish', 'affiliate.publish',
@@ -106,11 +106,7 @@ export function createSecurityRequest(input: Omit<SecurityRequest, 'nonce' | 'ex
   return { ...input, nonce: crypto.randomUUID(), expiresAt: now + (input.ttlMs ?? 30_000) };
 }
 
-// Phase 1 Step 7 — capability classification, User Values configuration,
-// and risk-boundary evaluation. Re-exported here (not just left as
-// sibling files) so `@jhadina/security-core`'s package-specifier entry
-// point exposes them too, not only the relative-path imports other
-// packages in this monorepo already use.
 export * from './capability-classification.js';
 export * from './values-configuration.js';
 export * from './risk-boundary-policy.js';
+export * from './credential-broker.js';
