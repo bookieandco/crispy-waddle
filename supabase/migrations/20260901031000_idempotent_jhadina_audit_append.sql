@@ -90,7 +90,7 @@ begin
   insert into public.jhadina_audit_event
     (domain, sequence, event_id, request_id, actor_id, capability, decision, status, occurred_at, metadata, previous_hash, hash)
   values
-    (p_domain, v_sequence, p_event_id, p_request_id, p_actor_id, p_domain, p_decision, p_status, p_occurred_at, coalesce(p_metadata, '{}'::jsonb), v_previous_hash, v_hash)
+    (p_domain, v_sequence, p_event_id, p_request_id, p_actor_id, p_capability, p_decision, p_status, p_occurred_at, coalesce(p_metadata, '{}'::jsonb), v_previous_hash, v_hash)
   returning * into v_row;
 
   return v_row;
