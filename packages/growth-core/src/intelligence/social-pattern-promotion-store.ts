@@ -4,7 +4,6 @@ import type { PromotedSocialPattern } from './social-pattern-promotion.js';
 export interface SocialPatternPromotionRecord extends PromotedSocialPattern {
   readonly promotedAt: string;
   readonly experimentId: GrowthId;
-  readonly sourcePatternId: GrowthId;
 }
 
 export interface SocialPatternPromotionStore {
@@ -29,8 +28,13 @@ export class InMemorySocialPatternPromotionStore implements SocialPatternPromoti
   }
 }
 
-export async function persistPromotion(store: SocialPatternPromotionStore, promotion: PromotedSocialPattern, experimentId: GrowthId, promotedAt: string): Promise<SocialPatternPromotionRecord> {
-  const record: SocialPatternPromotionRecord = { ...promotion, experimentId, sourcePatternId: promotion.hypothesisId, promotedAt };
+export async function persistPromotion(
+  store: SocialPatternPromotionStore,
+  promotion: PromotedSocialPattern,
+  experimentId: GrowthId,
+  promotedAt: string,
+): Promise<SocialPatternPromotionRecord> {
+  const record: SocialPatternPromotionRecord = { ...promotion, experimentId, promotedAt };
   await store.upsert(record);
   return record;
 }
