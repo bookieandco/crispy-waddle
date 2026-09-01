@@ -14,7 +14,8 @@ export type GovernedProviderAccountReadOptions = {
   providerConfig?: Readonly<Record<string, ProviderConfig>>;
   healthChecker?: ProviderHealthChecker;
   assertUserWorkspace?: (userId: string) => Promise<void>;
-  replayGuard?: NonceReplayGuard;
+  /** Required durable one-shot guard; production execution cannot omit it. */
+  replayGuard: NonceReplayGuard;
 };
 
 /** Production Money Core composition with the provider health gate in front of the provider registry. */
