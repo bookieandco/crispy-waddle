@@ -1,5 +1,4 @@
 import type {
-  ActionRequest,
   ActionResult,
   ContextPacket,
   DecisionProposal,
@@ -7,8 +6,13 @@ import type {
   MemoryProposal,
   PatternObservation,
   PersonalityState,
-  PolicyDecision,
 } from './types.js';
+import type {
+  CanonicalActionPort,
+  CanonicalActionRequest,
+  CanonicalPolicyDecision,
+  CanonicalPolicyPort,
+} from './canonical-action.js';
 import type {
   EvolutionPort,
   ImprovementInput,
@@ -41,14 +45,9 @@ export interface DecisionPort {
   decide(context: ContextPacket): Promise<DecisionProposal>;
 }
 
-export interface PolicyPort {
-  evaluate(proposal: DecisionProposal): Promise<PolicyDecision>;
-}
-
-export interface ActionPort {
-  prepare(proposal: DecisionProposal, policy: PolicyDecision): Promise<ActionRequest | undefined>;
-  execute(request: ActionRequest): Promise<ActionResult>;
-}
+/** Policy is an injected authority; it authorizes only concrete prepared actions. */
+export type PolicyPort = CanonicalPolicyPort;
+export type ActionPort = CanonicalActionPort;
 
 export interface AuditPort {
   record(event: {
@@ -77,17 +76,17 @@ export interface SpineRunResult {
   personality: PersonalityState;
   context: ContextPacket;
   decision: DecisionProposal;
-  policy: PolicyDecision;
-  action?: ActionRequest;
+  policy?: CanonicalPolicyDecision;
+  action?: CanonicalActionRequest;
   result?: ActionResult;
 }
 
 /**
  * Jhadina's control-plane orchestration boundary.
  *
- * This class deliberately contains no LLM implementation and no domain-specific
- * business logic. Providers implement the ports; the spine owns ordering and
- * the invariant that decisions pass through context and policy before action.
+ * Security invariant: the model-level DecisionProposal is never authorized.
+ * An ActionPort must first produce the concrete, application-fixed action;
+ * only that action is sent to the injected authoritative PolicyPort.
  */
 export class JhadinaSpine {
   constructor(private readonly ports: SpinePorts) {}
@@ -108,36 +107,58 @@ export class JhadinaSpine {
     });
 
     const decision = await this.ports.decision.decide(context);
-    const policy = await this.ports.policy.evaluate(decision);
+    const action = await this.ports.action.prepare(decision);
+
+    if (!action) {
+      await this.ports.audit.record({
+        type: 'ACTION_NOT_PREPARED',
+        actor: 'jhadina',
+        subjectId: decision.id,
+        payload: { proposalId: decision.id },
+      });
+      return { memories, patterns, personality, context, decision };
+    }
+
+    const policy = await this.ports.policy.evaluate(action);
 
     await this.ports.audit.record({
-      type: policy.allowed ? 'DECISION_AUTHORIZED' : 'POLICY_DENIED',
-      actor: 'jhadina',
-      subjectId: decision.id,
+      type:
+        policy.decision === 'allow'
+          ? 'ACTION_AUTHORIZED'
+          : policy.decision === 'approval_required'
+            ? 'ACTION_APPROVAL_REQUIRED'
+            : 'POLICY_DENIED',
+      actor: policy.actorId,
+      subjectId: action.id,
       payload: {
-        proposalId: decision.id,
-        allowed: policy.allowed,
+        requestId: action.id,
+        proposalId: action.proposalId,
+        actorId: action.actorId,
+        capability: action.capability,
+        resourceId: action.resourceId,
+        decision: policy.decision,
+        policyDecisionId: policy.id,
+        policyVersion: policy.policyVersion,
         reason: policy.reason,
       },
     });
 
-    if (!policy.allowed) {
-      return { memories, patterns, personality, context, decision, policy };
+    // approval_required is not authorization to execute. A separate approval
+    // flow must convert it into an execution-authorizing decision/receipt.
+    if (policy.decision !== 'allow') {
+      return { memories, patterns, personality, context, decision, policy, action };
     }
 
-    const action = await this.ports.action.prepare(decision, policy);
-    if (!action) {
-      return { memories, patterns, personality, context, decision, policy };
-    }
-
-    const result = await this.ports.action.execute(action);
+    const result = await this.ports.action.execute(action, policy);
 
     await this.ports.audit.record({
       type: result.success ? 'ACTION_COMPLETED' : 'ACTION_FAILED',
-      actor: 'jhadina',
+      actor: policy.actorId,
       subjectId: action.id,
       payload: {
         requestId: action.id,
+        policyDecisionId: policy.id,
+        policyVersion: policy.policyVersion,
         success: result.success,
       },
     });
@@ -145,12 +166,6 @@ export class JhadinaSpine {
     return { memories, patterns, personality, context, decision, policy, action, result };
   }
 
-  /**
-   * Accept an idea, conversation, code sample, repository, or other artifact
-   * as evidence and ask the evolution provider to determine whether it should
-   * become a Jhadina improvement. Intake creates a proposal only; it does not
-   * install, deploy, or grant permissions.
-   */
   async inspectForImprovement(input: ImprovementInput): Promise<ImprovementProposal> {
     return this.ports.evolution.analyze(input);
   }
