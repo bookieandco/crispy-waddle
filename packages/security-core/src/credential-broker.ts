@@ -44,7 +44,12 @@ export class CredentialBroker {
   }
   private async authorizeSecurity(capability: string): Promise<KillSwitchDecision | null> {
     if (!this.securityGate) return null;
-    const decision = await this.securityGate.killSwitch.decide(this.posture(), capability);
+    let decision: KillSwitchDecision;
+    try {
+      decision = await this.securityGate.killSwitch.decide(this.posture(), capability);
+    } catch {
+      throw new CredentialBrokerError('KILL_SWITCH_STATE_UNAVAILABLE');
+    }
     if (!decision.allowed) throw new CredentialBrokerError(decision.reason === 'kill_switch_enabled' ? 'KILL_SWITCH_ENABLED' : 'SECURITY_POSTURE_DENIED');
     const policy = this.policyDecision();
     if (policy !== 'allow') throw new CredentialBrokerError(policy === 'approval_required' ? 'POLICY_APPROVAL_REQUIRED' : 'POLICY_DENIED');
