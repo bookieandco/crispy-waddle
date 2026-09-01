@@ -1,5 +1,5 @@
 import type { GrowthId } from '../domain/types.js';
-import type { PatternExperiment, PatternExperimentResult } from './social-pattern-experiment.js';
+import type { PatternExperiment, PatternExperimentObservation, PatternExperimentResult } from './social-pattern-experiment.js';
 import {
   bindExperimentEvidence,
   type PatternExperimentEvidence,
@@ -28,15 +28,11 @@ export interface PatternExperimentExecutionAdapter {
 const isFiniteNonNegative = (value: number): boolean => Number.isFinite(value) && value >= 0;
 const isRate = (value: number): boolean => Number.isFinite(value) && value >= 0 && value <= 1;
 
-/**
- * Converts a trusted execution report into immutable evaluation evidence.
- * The adapter refuses malformed reports before they reach the evidence store.
- */
 export function toPatternExperimentEvidence(
   experiment: PatternExperiment,
   report: PatternExperimentExecutionReport,
 ): PatternExperimentEvidence | null {
-  if (report.executionId.length === 0) return null;
+  if (!report.executionId) return null;
   if (report.experimentId !== experiment.id) return null;
   if (report.hypothesisId !== experiment.hypothesisId) return null;
   if (report.targetAccountId !== experiment.targetAccountId) return null;
@@ -69,20 +65,28 @@ export function toPatternExperimentEvidence(
 export class StoreBackedPatternExperimentExecutionAdapter implements PatternExperimentExecutionAdapter {
   constructor(private readonly store: PatternExperimentEvidenceStore) {}
 
-  async record(report: PatternExperimentExecutionReport): Promise<PatternExperimentEvidence> {
-    throw new Error('not implemented');
+  async record(
+    experiment: PatternExperiment,
+    report: PatternExperimentExecutionReport,
+  ): Promise<PatternExperimentEvidence> {
+    const evidence = toPatternExperimentEvidence(experiment, report);
+    if (!evidence) throw new Error('invalid pattern experiment execution report');
+    await this.store.put(evidence);
+    return evidence;
   }
 }
 
-/**
- * Produces an evaluation result only after the execution report has been
- * accepted as immutable evidence. Evaluation identity remains derived from
- * the execution evidence, never from caller-supplied winner state.
- */
+export function executionEvidenceToObservation(
+  experiment: PatternExperiment,
+  evidence: PatternExperimentEvidence,
+): PatternExperimentObservation | null {
+  return bindExperimentEvidence(experiment, evidence);
+}
+
 export function evaluateExecutionReport(
   experiment: PatternExperiment,
   report: PatternExperimentExecutionReport,
-  evaluate: (experiment: PatternExperiment, observation: ReturnType<typeof bindExperimentEvidence> extends infer T ? Exclude<T, null> : never) => PatternExperimentResult,
+  evaluate: (experiment: PatternExperiment, observation: PatternExperimentObservation) => PatternExperimentResult,
 ): PatternExperimentResult | null {
   const evidence = toPatternExperimentEvidence(experiment, report);
   if (!evidence) return null;
