@@ -7,6 +7,7 @@ import { SupabaseMediaPlaybackProgressRepository } from "@/lib/storage/SupabaseM
 const MAX_PROVIDER_ID_LENGTH = 128
 const MAX_MEDIA_ID_LENGTH = 512
 const MAX_PROGRESS_MS = 24 * 60 * 60 * 1000
+const MAX_FUTURE_SKEW_MS = 5 * 60 * 1000
 
 function isNonEmptyString(value: unknown, maxLength: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= maxLength
@@ -61,7 +62,8 @@ export async function POST(request: Request) {
       (durationMs !== undefined && !isFiniteNonNegativeNumber(durationMs)) ||
       (typeof durationMs === "number" && durationMs > 0 && candidate.positionMs > durationMs) ||
       typeof candidate.completed !== "boolean" ||
-      !isIsoTimestamp(candidate.updatedAt)
+      !isIsoTimestamp(candidate.updatedAt) ||
+      Date.parse(candidate.updatedAt as string) > Date.now() + MAX_FUTURE_SKEW_MS
     ) {
       return jsonError("Invalid progress", 400)
     }
