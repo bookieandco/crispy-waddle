@@ -26,3 +26,7 @@ export * from './moonlight-transport.js';
 export * from './sunshine-discovery.js';
 export * from './sunshine-pairing.js';
 export * from './jhadina-gaming.js';
+export * from './input-integrity.js';
+export * from './input-transport.js';
+export * from './input-pipeline.js';
+export * from './input-photon-latency.js';
