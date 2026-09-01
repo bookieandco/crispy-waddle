@@ -31,6 +31,16 @@ const base = {
   itemId: "media-1",
 }
 
+const validProgress = {
+  userId: "user-1",
+  providerId: "direct",
+  itemId: "media-1",
+  positionMs: 1000,
+  durationMs: 10000,
+  completed: false,
+  updatedAt: "2026-09-01T14:00:00.000Z",
+}
+
 describe("POST /api/media/progress", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -86,18 +96,30 @@ describe("POST /api/media/progress", () => {
     const response = await POST(request({
       ...base,
       action: "upsert",
-      progress: {
-        userId: "someone-else",
-        providerId: base.providerId,
-        itemId: base.itemId,
-        positionMs: 1000,
-        completed: false,
-        updatedAt: "2026-09-01T14:00:00.000Z",
-      },
+      progress: { ...validProgress, userId: "someone-else" },
     }))
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({ error: "Invalid progress" })
+    expect(verify).not.toHaveBeenCalled()
+    expect(repositoryUpsert).not.toHaveBeenCalled()
+  })
+
+  it("rejects impossible progress values and non-canonical timestamps", async () => {
+    const cases = [
+      { ...validProgress, positionMs: -1 },
+      { ...validProgress, positionMs: 10001 },
+      { ...validProgress, durationMs: -1 },
+      { ...validProgress, updatedAt: "2026-09-01T14:00:00Z" },
+      { ...validProgress, updatedAt: "not-a-date" },
+      { ...validProgress, positionMs: Number.POSITIVE_INFINITY },
+    ]
+
+    for (const progress of cases) {
+      const response = await POST(request({ ...base, action: "upsert", progress }))
+      expect(response.status).toBe(400)
+    }
+
     expect(verify).not.toHaveBeenCalled()
     expect(repositoryUpsert).not.toHaveBeenCalled()
   })
