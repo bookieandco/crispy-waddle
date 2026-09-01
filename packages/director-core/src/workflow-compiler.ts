@@ -11,7 +11,6 @@ import {
 export type WorkflowCompileInput = {
   manifest: GenerationWorkflowManifest;
   request: GenerationRequest;
-  /** Values have already been resolved from Director assets/intent. No I/O occurs in the compiler. */
   inputs: Record<string, unknown>;
 };
 
@@ -26,9 +25,7 @@ export type CompiledWorkflow = {
   outputs: WorkflowOutputBinding[];
 };
 
-export type WorkflowCompilerOptions = {
-  registry?: GenerationRegistry;
-};
+export type WorkflowCompilerOptions = { registry?: GenerationRegistry };
 
 export class WorkflowCompiler {
   constructor(private readonly options: WorkflowCompilerOptions = {}) {}
@@ -48,12 +45,9 @@ export class WorkflowCompiler {
       setPath(workflow, binding.nodeId, binding.fieldPath, structuredClone(input.inputs[binding.inputId]));
     }
 
-    // Canonicalize once before hashing/submission. This makes object-key order irrelevant
-    // while preserving semantic array order and preventing provider/runtime mutation from
-    // becoming part of logical workflow identity.
     const canonicalWorkflow = canonicalize(workflow);
     const canonicalWorkflowValue = JSON.parse(canonicalWorkflow) as Record<string, unknown>;
-    const submissionFingerprint = await sha256Canonical({
+    const identity = {
       fingerprintVersion: '1',
       providerId: input.manifest.providerId,
       workflowId: input.manifest.id,
@@ -69,43 +63,21 @@ export class WorkflowCompiler {
       loras: input.request.loras ?? [],
       references: input.request.references ?? [],
       parameters: input.request.parameters,
-      workflow: canonicalWorkflowValue,
-    });
-
-    const requestFingerprint = await sha256Canonical({
-      fingerprintVersion: '1',
-      providerId: input.manifest.providerId,
-      workflowId: input.manifest.id,
-      workflowVersion: input.manifest.version,
-      modality: input.request.modality,
-      model: {
-        id: input.request.model.id,
-        providerId: input.request.model.providerId,
-        version: input.request.model.version,
-      },
-      prompt: input.request.prompt,
-      negativePrompt: input.request.negativePrompt ?? null,
-      loras: input.request.loras ?? [],
-      references: input.request.references ?? [],
-      parameters: input.request.parameters,
-    });
+    };
 
     return {
       workflow: canonicalWorkflowValue,
       workflowId: input.manifest.id,
       workflowVersion: input.manifest.version,
       workflowSha256: input.manifest.workflowSha256,
-      requestFingerprint,
-      submissionFingerprint,
+      requestFingerprint: await sha256Canonical(identity),
+      submissionFingerprint: await sha256Canonical({ ...identity, workflow: canonicalWorkflowValue }),
       inputs: structuredClone(input.inputs),
       outputs: structuredClone(input.manifest.outputBindings),
     };
   }
 
   private validateRequest(input: WorkflowCompileInput): void {
-    if (input.request.providerId && input.request.providerId !== input.manifest.providerId) {
-      throw new Error(`Request provider does not match workflow provider: ${input.manifest.id}`);
-    }
     if (input.request.modality !== input.manifest.modality) {
       throw new Error(`Request modality does not match workflow manifest: ${input.manifest.id}`);
     }
@@ -119,7 +91,6 @@ export class WorkflowCompiler {
         throw new Error(`Model registry provider mismatch: ${input.request.model.id}`);
       }
     }
-
     for (const entry of input.request.loras ?? []) {
       validateLoRA(entry.lora, input.request.model.id, input.request.modality, this.options.registry);
       if (entry.weight !== undefined && (entry.weight < 0 || entry.weight > 2)) {
@@ -129,9 +100,8 @@ export class WorkflowCompiler {
   }
 
   private validateBindings(manifest: GenerationWorkflowManifest, inputs: Record<string, unknown>): void {
-    const workflowNodes = manifest.workflow;
     for (const binding of manifest.inputBindings) {
-      if (!(binding.nodeId in workflowNodes)) {
+      if (!(binding.nodeId in manifest.workflow)) {
         throw new Error(`Input binding targets unknown workflow node: ${binding.nodeId}`);
       }
       if (binding.required && !(binding.inputId in inputs)) {
@@ -141,9 +111,8 @@ export class WorkflowCompiler {
         throw new Error(`Workflow input has wrong type: ${binding.inputId}`);
       }
     }
-
     for (const binding of manifest.outputBindings) {
-      if (!(binding.nodeId in workflowNodes)) {
+      if (!(binding.nodeId in manifest.workflow)) {
         throw new Error(`Output binding targets unknown workflow node: ${binding.nodeId}`);
       }
     }
@@ -157,17 +126,14 @@ function setPath(workflow: Record<string, unknown>, nodeId: string, fieldPath: s
   }
   const segments = fieldPath.split('.').filter(Boolean);
   if (segments.length === 0) throw new Error(`Invalid workflow field path: ${fieldPath}`);
-
   let cursor = node as Record<string, unknown>;
   for (let index = 0; index < segments.length - 1; index += 1) {
-    const segment = segments[index];
-    const next = cursor[segment];
+    const next = cursor[segments[index]];
     if (!next || typeof next !== 'object' || Array.isArray(next)) {
       throw new Error(`Input binding field path does not exist: ${nodeId}.${fieldPath}`);
     }
     cursor = next as Record<string, unknown>;
   }
-
   const leaf = segments[segments.length - 1];
   if (!(leaf in cursor)) throw new Error(`Input binding field does not exist: ${nodeId}.${fieldPath}`);
   cursor[leaf] = value;
@@ -180,19 +146,12 @@ function matchesType(value: unknown, type: WorkflowInputBinding['valueType']): b
   return typeof value === 'string' || (typeof value === 'object' && value !== null);
 }
 
-function validateLoRA(
-  lora: LoRARecord,
-  modelId: string,
-  modality: GenerationRequest['modality'],
-  registry?: GenerationRegistry,
-): void {
+function validateLoRA(lora: LoRARecord, modelId: string, modality: GenerationRequest['modality'], registry?: GenerationRegistry): void {
   if (!lora.modalities.includes(modality)) throw new Error(`LoRA does not support modality: ${lora.id}`);
   if (registry) {
     const model = registry.getModel(modelId);
     if (!model) throw new Error(`Unknown model: ${modelId}`);
-    if (lora.baseModel !== model.baseModel) {
-      throw new Error(`LoRA base model mismatch: ${lora.id}`);
-    }
+    if (lora.baseModel !== model.baseModel) throw new Error(`LoRA base model mismatch: ${lora.id}`);
   }
 }
 
