@@ -1,0 +1,3 @@
+import {describe,expect,it} from 'vitest';
+import {DEFAULT_REMOTE_POLICIES,evaluateRemoteQuality} from './remote-quality.js';
+describe('remote quality',()=>{it('allows a clean action connection',()=>expect(evaluateRemoteQuality({rttMs:20,jitterMs:3,packetLossPercent:0.1,inputLatencyMs:20},DEFAULT_REMOTE_POLICIES.action).allowed).toBe(true));it('blocks competitive play over a poor connection',()=>{const d=evaluateRemoteQuality({rttMs:70,jitterMs:15,packetLossPercent:1,inputLatencyMs:50},DEFAULT_REMOTE_POLICIES.competitive);expect(d.allowed).toBe(false);expect(d.reasons.length).toBeGreaterThan(0);});});
