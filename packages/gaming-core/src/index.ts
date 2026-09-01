@@ -9,4 +9,5 @@ export * from './gameboy-io.js';
 export * from './game-library.js';
 export * from './save.js';
 export * from './moonlight-runtime.js';
+export * from './moonlight-host.js';
 export * from './jhadina-gaming.js';
