@@ -1,5 +1,6 @@
 import type { MediaKind } from './index';
 import type { CastingManager, MediaSessionCommand, MediaSessionState, PlaybackTarget, PlaybackTransport } from './casting';
+import type { ResolvedPlaybackSource } from './playback-resolver';
 
 export interface LocalPlaybackAdapter {
   getState(): MediaSessionState;
@@ -28,12 +29,15 @@ export interface UnifiedMediaSession {
 export interface UnifiedMediaSessionConfig {
   titleId: string;
   kind: MediaKind;
-  sourceUrl: string;
+  playback: ResolvedPlaybackSource;
   local: LocalPlaybackAdapter;
   casting: CastingManager;
 }
 
 export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): UnifiedMediaSession {
+  if (config.playback.source.titleId !== config.titleId) throw new Error('Playback source title does not match the media session.');
+  if (config.playback.providerId !== config.playback.source.id && !config.playback.providerId) throw new Error('Playback provider is required.');
+
   let state = config.local.getState();
   const listeners = new Set<(next: MediaSessionState) => void>();
   let remoteUnsubscribe: (() => void) | undefined;
@@ -86,7 +90,7 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
 
   const unsubscribeLocal = config.local.onStateChange?.((next) => {
     if (session.isRemote()) return;
-    publish({ ...state, ...next, titleId: config.titleId, kind: config.kind, sourceUrl: config.sourceUrl, target: { id: 'local', name: 'This device', transport: 'local' } });
+    publish({ ...state, ...next, titleId: config.titleId, kind: config.kind, sourceUrl: config.playback.source.url, target: { id: 'local', name: 'This device', transport: 'local' } });
   });
   void unsubscribeLocal;
   return session;
