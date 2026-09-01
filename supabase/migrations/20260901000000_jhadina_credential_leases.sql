@@ -43,6 +43,9 @@ begin
   if p_expires_at <= p_issued_at then
     raise exception 'credential lease expiry must be after issue time';
   end if;
+  if p_expires_at > p_issued_at + interval '60 seconds' then
+    raise exception 'credential lease exceeds maximum ttl';
+  end if;
   insert into public.jhadina_credential_lease
     (lease_id, actor_id, worker_id, domain, capability, credential_ref, resource_id, issued_at, expires_at)
   values
