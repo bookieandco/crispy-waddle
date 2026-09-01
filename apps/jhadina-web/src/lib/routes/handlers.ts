@@ -33,13 +33,28 @@ let janet: JanetService
 
 /**
  * Durable by default: uses the real Supabase-backed store whenever a
- * service-role client is configured. Falls back to InMemoryStorage only
- * when it isn't (local dev without env configured, or tests) — loudly,
- * once, rather than silently pretending memory is durable when it isn't.
+ * service-role client is configured. In production (NODE_ENV === 'production')
+ * throws if Supabase is not configured rather than silently falling back —
+ * failing closed is safer than silently losing durability. In non-production
+ * environments (test / local dev) falls back to InMemoryStorage with a loud
+ * warning so developers know the data is ephemeral.
+ *
+ * Exported for unit-testing the selection logic; callers that need the
+ * process-singleton should use getStorage() instead.
  */
-function createStorage(): MemoryStorage {
+export function createStorage(): MemoryStorage {
   const client = createServiceRoleClient()
   if (client) return new SupabaseMemoryStorage(client)
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[jhadina-web] Production requires SUPABASE_SERVICE_ROLE_KEY and " +
+      "NEXT_PUBLIC_SUPABASE_URL to be configured. Application cannot start " +
+      "without durable storage — refusing to silently fall back to " +
+      "InMemoryStorage in production. " +
+      "See supabase/migrations/20260822000000_create_jhadina_memory_core.sql."
+    )
+  }
 
   console.warn(
     "[jhadina-web] SUPABASE_SERVICE_ROLE_KEY not configured — falling back " +

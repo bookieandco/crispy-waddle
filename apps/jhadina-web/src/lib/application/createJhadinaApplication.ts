@@ -10,6 +10,7 @@ import {
   type JhadinaIdentityVerifier,
   type SupabaseClaimsClient,
 } from "../auth/supabase-identity-verifier"
+import { getStorage } from "../routes/handlers"
 
 export type ExecutionReadiness =
   | { status: "ready"; executor: unknown }
@@ -41,13 +42,16 @@ export interface JhadinaApplication {
  *
  * @param overrides.storage - Supply a SupabaseMemoryStorage in production so
  *   memory is durable.  Defaults to InMemoryStorage (dev/test only — data is
- *   lost on process restart).  Production routes should NOT call this function
- *   directly; they use the shared singleton from handlers.ts::getStorage().
+ *   lost on process restart).  Production callers should use getJhadinaApplication()
+ *   which delegates to getStorage() (Supabase-aware, fail-closed in production).
+ *   Direct calls to this factory with no override are valid for tests only.
  *
- * Production persistence regression: this function does NOT silently select
- * InMemoryStorage in production because production routes use handlers.ts
- * rather than this factory.  Any future caller that passes a Supabase-backed
- * storage through the overrides parameter will receive durable persistence.
+ * Production persistence: getJhadinaApplication() now passes getStorage() as
+ * the storage override, so the process singleton is always backed by the
+ * Supabase-aware selection logic in handlers.ts::createStorage().  That
+ * function throws (fails closed) in production when SUPABASE_SERVICE_ROLE_KEY
+ * is not configured — ensuring the application cannot silently fall back to
+ * InMemoryStorage in production.
  */
 export function createJhadinaApplication(
   overrides: { storage?: MemoryStorage } = {},
@@ -97,8 +101,13 @@ let application: JhadinaApplication | undefined
  * Returns the process-local application graph. This keeps all route handlers
  * in the same runtime instance on long-lived Node/serverless workers while
  * remaining replaceable through createJhadinaApplication() in tests.
+ *
+ * Uses getStorage() from handlers.ts so the singleton shares the same
+ * Supabase-backed storage instance as all other route handlers — in
+ * production this means durable persistence; getStorage() will throw (fail
+ * closed) if the required env variables are not configured.
  */
 export function getJhadinaApplication(): JhadinaApplication {
-  if (!application) application = createJhadinaApplication()
+  if (!application) application = createJhadinaApplication({ storage: getStorage() })
   return application
 }
