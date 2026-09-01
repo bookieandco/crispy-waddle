@@ -5,7 +5,8 @@ import type { YouTubeMusicTrackInput } from "@jhadina/music-core";
 const music = new InMemoryMusicRepository();
 
 export async function POST(req: NextRequest) {
-  const userId = req.headers.get("x-user-id") || "user_demo";
+  const userId = req.headers.get("x-user-id")?.trim() || null;
+  if (!userId) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   try {
     const body = await req.json() as { sourceId?: string; tracks?: YouTubeMusicTrackInput[] };
     if (!body.sourceId || !Array.isArray(body.tracks)) {

@@ -12,7 +12,8 @@
  *   GET    /api/memories/search  - Search memories
  *   GET    /api/health           - Health check
  * 
- * All routes require userId in request (from auth middleware in future).
+ * All routes require userId in request header (x-user-id). Missing or
+ * empty header returns 401 — never falls back to a demo identity.
  */
 
 import { NextRequest, NextResponse } from "next/server"
@@ -72,10 +73,13 @@ function getJanetService(): JanetService {
 }
 
 function extractUserId(req: NextRequest): string | null {
-  // In production: extract from auth context
-  // For now: from header or default to demo
-  const userId = req.headers.get("x-user-id") || "user_demo"
-  return userId
+  // Returns the client-supplied claimed identity. A missing or empty header
+  // is treated as unauthenticated (null → 401) — never fall back to a demo
+  // user that would let any unauthenticated caller read or write another
+  // user's memory. The caller is expected to verify this identity against the
+  // real Supabase session before any ownership-sensitive operation.
+  const userId = req.headers.get("x-user-id")
+  return userId && userId.trim() ? userId.trim() : null
 }
 
 // ═══════════════════════════════════════════════════════════════

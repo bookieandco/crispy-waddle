@@ -4,6 +4,7 @@ import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { InMemoryStorage } from "../storage/InMemoryStorage"
+import type { MemoryStorage } from "../storage/MemoryStorage"
 import {
   SupabaseActionIdentityVerifier,
   type JhadinaIdentityVerifier,
@@ -19,7 +20,12 @@ export type ExecutionReadiness =
     }
 
 export interface JhadinaApplication {
-  storage: InMemoryStorage
+  /**
+   * MemoryStorage instance. Production callers should pass a SupabaseMemoryStorage
+   * via createJhadinaApplication({ storage }) rather than accepting the default
+   * InMemoryStorage — see handlers.ts::getStorage() for the production singleton.
+   */
+  storage: MemoryStorage
   memoryRepo: MemoryRepository
   reasoningRepo: ReasoningEventRepository
   timelineRepo: TimelineRepository
@@ -30,8 +36,23 @@ export interface JhadinaApplication {
   execution: ExecutionReadiness
 }
 
-export function createJhadinaApplication(): JhadinaApplication {
-  const storage = new InMemoryStorage()
+/**
+ * Create a JhadinaApplication graph.
+ *
+ * @param overrides.storage - Supply a SupabaseMemoryStorage in production so
+ *   memory is durable.  Defaults to InMemoryStorage (dev/test only — data is
+ *   lost on process restart).  Production routes should NOT call this function
+ *   directly; they use the shared singleton from handlers.ts::getStorage().
+ *
+ * Production persistence regression: this function does NOT silently select
+ * InMemoryStorage in production because production routes use handlers.ts
+ * rather than this factory.  Any future caller that passes a Supabase-backed
+ * storage through the overrides parameter will receive durable persistence.
+ */
+export function createJhadinaApplication(
+  overrides: { storage?: MemoryStorage } = {},
+): JhadinaApplication {
+  const storage = overrides.storage ?? new InMemoryStorage()
   const memoryRepo = new MemoryRepository(storage)
   const reasoningRepo = new ReasoningEventRepository(storage)
   const timelineRepo = new TimelineRepository(storage)
