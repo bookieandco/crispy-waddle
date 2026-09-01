@@ -16,7 +16,26 @@ create table if not exists public.jhadina_credential_leases (
 );
 
 alter table public.jhadina_credential_leases enable row level security;
-revoke all on table public.jhadina_credential_leases from anon, authenticated;
+revoke all on table public.jhadina_credential_leases from anon;
+revoke all on table public.jhadina_credential_leases from authenticated;
+
+grant select, insert, update on table public.jhadina_credential_leases to authenticated;
+
+create policy "credential leases are actor scoped"
+  on public.jhadina_credential_leases
+  for select to authenticated
+  using ((select auth.uid())::text = actor_id);
+
+create policy "credential leases may be created only for the session actor"
+  on public.jhadina_credential_leases
+  for insert to authenticated
+  with check ((select auth.uid())::text = actor_id);
+
+create policy "credential leases may only be consumed by the session actor"
+  on public.jhadina_credential_leases
+  for update to authenticated
+  using ((select auth.uid())::text = actor_id)
+  with check ((select auth.uid())::text = actor_id);
 
 create or replace function public.create_jhadina_credential_lease(
   p_lease_id text,
@@ -78,6 +97,5 @@ begin
 end;
 $$;
 
--- These are server-side RPCs only. Do not expose them to browser roles.
-revoke all on function public.create_jhadina_credential_lease(text,text,text,text,text,text,text,text,timestamptz,integer) from public, anon, authenticated;
-revoke all on function public.consume_jhadina_credential_lease(text,text,text,text,text,text,text,text,timestamptz) from public, anon, authenticated;
+grant execute on function public.create_jhadina_credential_lease(text,text,text,text,text,text,text,text,timestamptz,integer) to authenticated;
+grant execute on function public.consume_jhadina_credential_lease(text,text,text,text,text,text,text,text,timestamptz) to authenticated;
