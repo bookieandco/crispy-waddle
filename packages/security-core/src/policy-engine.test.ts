@@ -43,7 +43,15 @@ describe('JhadinaPolicyEngine', () => {
     expect(decision.decision).toBe('deny');
   });
 
-  it('uses risk facts rather than a caller-supplied decision', () => {
+  it('requires approval for an allowed financial capability within the values limit', () => {
+    const engine = new JhadinaPolicyEngine(values({
+      financial: { currency: 'USD', maxAmountMinorPerAction: 100, maxAmountMinorPerDay: 100 },
+    }));
+    const decision = engine.decide({ ...request(), capability: 'financial.execute', amountMinor: 50 });
+    expect(decision.decision).toBe('approval_required');
+  });
+
+  it('denies a financial request over the values limit', () => {
     const engine = new JhadinaPolicyEngine(values({
       version: 7,
       financial: { currency: 'USD', maxAmountMinorPerAction: 100, maxAmountMinorPerDay: 100 },
@@ -51,5 +59,16 @@ describe('JhadinaPolicyEngine', () => {
     const decision = engine.decide({ ...request(), capability: 'financial.execute', amountMinor: 101 });
     expect(decision.decision).toBe('deny');
     expect(decision.policyVersion).toBe('values-v7');
+  });
+
+  it('cannot be loosened by an allowed capability when risk requires approval', () => {
+    const engine = new JhadinaPolicyEngine(values({
+      financial: { currency: 'USD', maxAmountMinorPerAction: 100, maxAmountMinorPerDay: 100 },
+    }), {
+      allowedCapabilities: ['financial.execute'],
+      approvalCapabilities: [],
+    });
+    const decision = engine.decide({ ...request(), capability: 'financial.execute', amountMinor: 50 });
+    expect(decision.decision).toBe('approval_required');
   });
 });
