@@ -20,6 +20,7 @@ export interface PatternExperimentResult {
   readonly controlMetric: number;
   readonly treatmentMetric: number;
   readonly observations: number;
+  readonly minimumObservations: number;
   readonly winner: 'control' | 'treatment' | 'inconclusive';
   readonly promoted: boolean;
   readonly reason: string;
@@ -43,17 +44,18 @@ export function planPatternExperiment(hypothesis: PatternHypothesis, successMetr
 
 export function evaluatePatternExperiment(
   experiment: PatternExperiment,
-  result: Omit<PatternExperimentResult, 'winner' | 'promoted' | 'reason'>,
+  result: Omit<PatternExperimentResult, 'minimumObservations' | 'winner' | 'promoted' | 'reason'>,
 ): PatternExperimentResult {
+  const base = { ...result, minimumObservations: experiment.minimumObservations };
   if (result.experimentId !== experiment.id) {
-    return { ...result, winner: 'inconclusive', promoted: false, reason: 'experiment_id_mismatch' };
+    return { ...base, winner: 'inconclusive', promoted: false, reason: 'experiment_id_mismatch' };
   }
   if (result.observations < experiment.minimumObservations) {
-    return { ...result, winner: 'inconclusive', promoted: false, reason: 'insufficient_observations' };
+    return { ...base, winner: 'inconclusive', promoted: false, reason: 'insufficient_observations' };
   }
   const delta = result.treatmentMetric - result.controlMetric;
   const relative = result.controlMetric > 0 ? delta / result.controlMetric : delta;
-  if (relative >= 0.1) return { ...result, winner: 'treatment', promoted: true, reason: 'treatment_exceeded_control_by_at_least_10_percent' };
-  if (relative <= -0.1) return { ...result, winner: 'control', promoted: false, reason: 'treatment_underperformed_control_by_at_least_10_percent' };
-  return { ...result, winner: 'inconclusive', promoted: false, reason: 'difference_within_10_percent' };
+  if (relative >= 0.1) return { ...base, winner: 'treatment', promoted: true, reason: 'treatment_exceeded_control_by_at_least_10_percent' };
+  if (relative <= -0.1) return { ...base, winner: 'control', promoted: false, reason: 'treatment_underperformed_control_by_at_least_10_percent' };
+  return { ...base, winner: 'inconclusive', promoted: false, reason: 'difference_within_10_percent' };
 }
