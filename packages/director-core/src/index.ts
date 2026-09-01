@@ -6,6 +6,8 @@ export * from './generation-service';
 export * from './generation-manifest';
 export * from './generation-catalog';
 export * from './workflow-registry';
+export * from './workflow-compiler';
+export * from './workflow-fingerprint';
 export * from './generation-orchestrator';
 export * from './generation-plan-adapter';
 export * from './generation-assets';
