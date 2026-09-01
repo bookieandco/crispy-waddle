@@ -34,6 +34,10 @@ export type AuditSecurityEvent = {
   eventHash: string;
 };
 
+export interface SecurityAuditSink {
+  append(event: AuditSecurityEvent): Promise<Pick<AuditSecurityEvent, 'previousHash' | 'eventHash'>>;
+}
+
 export type SecurityPolicy = {
   allowedCapabilities: readonly string[];
   approvalCapabilities: readonly string[];
@@ -89,11 +93,32 @@ export class JhadinaSecurityCore {
     return { ...input, issuedAt, expiresAt: Math.min(input.expiresAt, issuedAt + (input.ttlMs ?? 60_000)) };
   }
 
+  /**
+   * Compatibility/test-only in-process chain. Production callers must use
+   * auditWithSink(), whose sink owns the durable atomic chain head.
+   */
   async audit(input: Omit<AuditSecurityEvent, 'previousHash' | 'eventHash'>): Promise<AuditSecurityEvent> {
     const previousHash = this.lastAuditHash;
     const eventHash = await sha256(JSON.stringify({ ...input, previousHash }));
     this.lastAuditHash = eventHash;
     return { ...input, previousHash, eventHash };
+  }
+
+  /**
+   * Production audit path. The durable sink atomically allocates the chain
+   * position and returns the database-computed chain hashes; this instance
+   * does not maintain a process-local authoritative chain head.
+   */
+  async auditWithSink(
+    input: Omit<AuditSecurityEvent, 'previousHash' | 'eventHash'>,
+    sink: SecurityAuditSink,
+  ): Promise<AuditSecurityEvent> {
+    const persisted = await sink.append({
+      ...input,
+      previousHash: 'DURABLE',
+      eventHash: 'DURABLE',
+    });
+    return { ...input, ...persisted };
   }
 
   validateGrant(grant: CapabilityGrant, request: SecurityRequest): boolean {
