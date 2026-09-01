@@ -4,6 +4,7 @@ import {
   type ActionIdentityVerifier,
   type AuditRpcClient,
 } from '@jhadina/action-core';
+import type { NonceReplayGuard } from '@jhadina/security-core';
 import { createMoneySecurityCore } from './governed-account-read.js';
 import { MoneyAccountReadHandler, type AccountReadHandlerDeps, type AccountReadAction } from './account-read-handler.js';
 import type { MoneyAccount } from './bank-adapter.js';
@@ -12,6 +13,7 @@ export type ProductionMoneyAccountReadOptions = {
   identityVerifier: ActionIdentityVerifier;
   supabase: AuditRpcClient;
   bank: AccountReadHandlerDeps;
+  replayGuard?: NonceReplayGuard;
 };
 
 /** First real Money Core capability composed through the shared production spine. */
@@ -21,6 +23,7 @@ export function createProductionMoneyAccountReadExecutor(
   const policy = new SecurityCoreActionPolicy<AccountReadAction>(
     createMoneySecurityCore(),
     'money',
+    options.replayGuard,
   );
 
   const handler = new MoneyAccountReadHandler(options.bank);
