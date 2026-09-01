@@ -1,15 +1,12 @@
 import type { AuthoritativePolicyDecision } from './authoritative-policy-decision.js';
 import { createAuthoritativePolicyDecision } from './authoritative-policy-decision.js';
 import { evaluateRiskBoundaries, type RiskContext } from './risk-boundary-policy.js';
-import { JHADINA_DEFAULT_VALUES_CONFIGURATION, type JhadinaValuesConfiguration } from './values-configuration.js';
+import type { JhadinaValuesConfiguration } from './values-configuration.js';
 
 /**
  * The single authoritative decision issuer for security-sensitive callers.
- *
- * Callers provide objective request facts; they do not provide a decision.
- * The engine evaluates the request against the active values configuration
- * and stamps the resulting decision with the exact request binding and
- * policy version. Model output is never consulted here.
+ * Callers provide objective request facts; they never provide a decision.
+ * Model output is not an input to this engine.
  */
 export type AuthoritativePolicyRequest = {
   requestId: string;
@@ -29,9 +26,7 @@ export interface PolicyEngine {
 }
 
 export class JhadinaPolicyEngine implements PolicyEngine {
-  constructor(
-    private readonly values: JhadinaValuesConfiguration = JHADINA_DEFAULT_VALUES_CONFIGURATION,
-  ) {}
+  constructor(private readonly values: JhadinaValuesConfiguration) {}
 
   decide(request: AuthoritativePolicyRequest): AuthoritativePolicyDecision {
     const decision = evaluateRiskBoundaries({
