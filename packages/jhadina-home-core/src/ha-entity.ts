@@ -20,8 +20,7 @@ export type HomeAssistantEntityDomain =
   | 'remote'
   | 'scene'
   | 'script'
-  | 'automation'
-  | string; // extensible to new domains
+  | 'automation';
 
 /**
  * Normalized availability state. 'unavailable' and 'unknown' are explicit

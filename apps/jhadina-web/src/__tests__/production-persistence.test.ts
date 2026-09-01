@@ -192,11 +192,15 @@ describe("Proof 4: production resolves SupabaseMemoryStorage when env is configu
 describe("Proof 5: no API route bypasses the repository abstraction", () => {
   /**
    * Scans every file under src/app/api/ and asserts none of them directly
-   * instantiate InMemoryStorage or SupabaseMemoryStorage.  All routes must go
-   * through getStorage() / handlers.ts so that the production fail-closed
-   * guard and the Supabase-selection logic are always on the hot path.
+   * instantiate InMemoryStorage or SupabaseMemoryStorage — the two concrete
+   * classes that implement the canonical Jhadina MemoryStorage interface
+   * used by JanetService, MemoryRepository, TimelineRepository, etc.
+   *
+   * NOTE: domain-specific in-memory stubs (e.g. InMemoryMusicRepository) are
+   * a separate concern; this test deliberately scopes only to the canonical
+   * Jhadina MemoryStorage abstraction to avoid false positives on those.
    */
-  it("API route files do not contain direct new InMemoryStorage() or new SupabaseMemoryStorage() calls", () => {
+  it("API route files do not contain direct new InMemoryStorage() or new SupabaseMemoryStorage() — canonical Jhadina storage abstraction", () => {
     const apiDir = path.resolve(__dirname, "../app/api")
     const violations: string[] = []
 
