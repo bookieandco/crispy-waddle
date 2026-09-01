@@ -38,7 +38,8 @@ This matrix reflects the **current** repository state. No claim is made for anyt
 | **Event Bus** | `EventBus` / `DomainEvent` (`@jhadina/event-bus`) | ✅ `InMemoryEventBus` + extended `DomainEvent` with canonical fields (this PR) | ❌ No production durable EventBus adapter | ❌ Non-durable | N/A | N/A | N/A | N/A | ✅ Conformance tests updated | ⚠️ | No outbox/durable adapter — tracked Issue #193 | Implement durable outbox adapter |
 | **JhadinaOS iPhone Shell** | App manifest/registry/lifecycle (`apps/jhadina-ios`) | ⚠️ 2 Swift files exist (PacketTunnelProvider, AudioOutputBridge) | 🔒 PR #202 is draft/open off a separate branch | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 | 🔒 | PR #202 has +633 lines of iOS manifest/shell work on `feat/jhadinaos-iphone-first`; Xcode signing/device validation required | Merge PR #202 after physical-device validation |
 | **Media Core** | `UnifiedMediaSession` / `MediaSessionSnapshot` (`@jhadina/tv-core`) | ✅ `createUnifiedMediaSession()` and casting abstractions exist | ✅ Playback adapter pattern implemented | N/A (stream state) | N/A | N/A | N/A | N/A | ❌ No package-level tests | 🔒 | Issue #201: verification blocked by Vercel build-rate-limit; local typecheck not run due to missing pnpm install | Run `pnpm tsc --noEmit` in @jhadina/tv-core when CI capacity restored |
-| **Home Automation** | `DeterministicHomeAssistantAdapter` | 🌿 Implemented on `feat/bw-1-capability-registry` — NOT on current main | 🌿 | 🌿 | 🌿 | 🌿 | 🌿 | 🌿 | 🌿 | 🌿 | Issue #200 audit findings: (1) baseUrl in device records, (2) ad-hoc remote.power mapping, (3) inconsistent test construction, (4) HA capabilities not through canonical registry — all on the feature branch, not main | Merge feat/bw-1-capability-registry after addressing audit findings |
+| **Home Automation B&W-6.1** | `CanonicalHomeAssistantEntity/Device`, `DeterministicHomeAssistantAdapter`, `HA_DOMAIN_ACTION_MAP`, `CapabilityRegistryPort` (`@jhadina/home-core`) | ✅ Foundation complete in `packages/jhadina-home-core` | ✅ No transport config in canonical records; capability registration through existing CapabilityRegistry | N/A (in-process) | N/A (transport config separate) | N/A | ✅ CapabilityRegistryPort interface — Policy evaluates registered metadata | N/A | ✅ 31/31 pass (tsx --test) | ✅ | baseUrl strictly excluded; remote.power replaced by deterministic HA_DOMAIN_ACTION_MAP; B&W-6.3 HTTP transport not yet implemented | B&W-6.3 HTTP transport + production composition root |
+| **Home Automation B&W-6.2** | `HomeAssistantIngestionPipeline`, `HaEventEnvelope`, `IdempotencyStore`, `HomeEntityState` (`@jhadina/home-core`) | ✅ Ingestion pipeline with validate→provenance→idempotency→order→normalize→publish | ✅ Publishes to existing EventBus (EventBusPort) — no second event system | ⚠️ InMemoryIdempotencyStore + InMemoryEntityStateStore are @testOnly (durability gap documented) | N/A (ingestion only — no auth fields on state) | N/A | ✅ State ingestion ≠ capability authorization | ✅ Provenance preserved; `ha.entity.state_changed` events carry full envelope | ✅ 47/47 pass (tsx --test) | ✅ | DURABILITY GAP: durable IdempotencyStore + EntityStateStore required for production; InMemory @testOnly | Durable Supabase-backed idempotency/state stores before production deployment |
 | **Security Architecture** | `SecurityGate` / `RiskBoundaryPolicy` (`@jhadina/security-core`) | ✅ Multiple policy implementations exist | ✅ Used via `JHADINA_BASE_SECURITY_POLICY` | N/A | N/A | N/A | ✅ | ✅ `audit-integrity.ts` | ✅ | ✅ | Infrastructure-dependent controls from Issue #193 not completable in this repository pass (remote worker, SBOM, encrypted backup) | Issue #193 full closure |
 
 ---
@@ -158,23 +159,43 @@ PR #202 (`feat/jhadinaos-iphone-first`) adds +633 lines of iOS manifest/shell/Ap
 
 ---
 
-### Task 7 — Home Automation (Issue #200)
+### Task 7 — Home Automation (Issue #200) — B&W-6.1 + B&W-6.2
 
-**STATUS:** BRANCH-BLOCKED
+**B&W-6.1 STATUS: FOUNDATION COMPLETE — source-verified, 31/31 tests pass locally**
 
-The Home Automation implementation (`DeterministicHomeAssistantAdapter`, `HomeAssistantDevice`, `HomeAssistantRemoteTransport`) lives on `feat/bw-1-capability-registry`, which is not in the current clone. No Home Automation source exists on `main`.
+The historical `feat/bw-1-capability-registry` branch was never merged. B&W-6.1 was implemented from scratch with all Issue #200 findings resolved from the outset.
 
-**Issue #200 audit findings (documented for when the branch is merged):**
+**Files:** `packages/jhadina-home-core/src/` — ha-entity.ts, ha-adapter.ts, ha-service-map.ts, ha-capability-registrar.ts, index.ts, ha-adapter.test.ts
 
-1. **baseUrl in device records** — `HomeAssistantDevice` carries `baseUrl` inside the runtime device registry. Transport configuration must be kept separate from normalized entity/device records. Fix: remove `baseUrl` from the canonical normalized type; put it in a separate `HomeAssistantTransportConfig`.
+| Finding | Status | Resolution |
+|---------|--------|------------|
+| (1) baseUrl in device records | ✅ RESOLVED | `CanonicalHomeAssistantEntity/Device` have no baseUrl. `HomeAssistantTransportConfig` is a separate interface. |
+| (2) ad-hoc remote.power mapping | ✅ RESOLVED | `HA_DOMAIN_ACTION_MAP` table — remote.turn_on/turn_off/toggle with explicit mappings; remote.power does not exist. |
+| (3) inconsistent test construction | ✅ RESOLVED | `DeterministicHomeAssistantAdapter` takes no transport config. Tests use correct shape with injected timestamps. |
+| (4) HA capabilities not through canonical registry | ✅ RESOLVED | `registerHomeAssistantCapabilities()` uses `CapabilityRegistryPort`; unavailable entities produce no capabilities; registration ≠ authorization. |
 
-2. **ad-hoc remote.power mapping** — `HomeAssistantRemoteTransport` hardcodes only `remote.power → homeassistant.toggle`. Fix: replace with deterministic service/action mapping from a capability-to-service lookup table.
+**B&W-6.2 STATUS: STATE/EVENT INGESTION COMPLETE — source-verified, 47/47 tests pass locally**
 
-3. **inconsistent remote execution test construction** — Remote execution tests use a constructor shape inconsistent with the current transport implementation. Fix: align test construction with the actual constructor.
+**Files:** `packages/jhadina-home-core/src/` — ha-event-envelope.ts, ha-idempotency.ts, ha-state-machine.ts, ha-ingestion.ts, ha-ingestion.test.ts
 
-4. **HA capabilities not through canonical registry** — Home Assistant-derived capabilities should register through `@jhadina/capability-registry` rather than bypassing the authoritative resolver/policy boundary.
+**Architecture:**
+- `validateHaEvent()` — rejects malformed/unsupported events; produces provenance-enriched `HaEventEnvelope`
+- `IdempotencyStore` interface — `InMemoryIdempotencyStore` @testOnly; durable replacement required for production
+- `EntityStateStore` interface — `InMemoryEntityStateStore` @testOnly; durable replacement required for production
+- `determineOrdering()` — deterministic: newer wins, stale rejected, equal timestamps → accept-tie
+- `HomeAssistantIngestionPipeline` — validate → idempotency → normalize → ordering → state commit → EventBus publish
+- Publishes `ha.entity.state_changed` DomainEvents on the existing EventBus — no second event system
 
-**HUMAN GATE:** Address all four findings before merging `feat/bw-1-capability-registry`.
+**DURABILITY GAP (explicitly documented):**
+- `InMemoryIdempotencyStore`: no durability across process restarts. Production requires a durable store (e.g. Supabase `ha_ingestion_idempotency` table with a unique constraint on `event_id`).
+- `InMemoryEntityStateStore`: no durability across process restarts. Production requires a durable entity-state table with optimistic-locking semantics on `state_at`.
+- Both gaps are isolated behind interfaces so a durable Supabase implementation can substitute at the composition root without changing pipeline code.
+
+**BLOCKED:** Hosted CI/Vercel verification blocked by quota. Tests verified locally with `tsx --test`.
+
+**HUMAN GATE:** Durable IdempotencyStore and EntityStateStore required before production deployment of the ingestion pipeline. B&W-6.3 HTTP transport is the next step.
+
+**B&W-6.3 READINESS:** READY — B&W-6.2 provides all required interfaces. B&W-6.3 only needs to implement the HTTP transport layer that feeds `RawHomeAssistantEvent` into `HomeAssistantIngestionPipeline.ingest()`.
 
 ---
 
