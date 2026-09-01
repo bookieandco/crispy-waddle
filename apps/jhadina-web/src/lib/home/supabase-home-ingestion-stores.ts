@@ -1,20 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EntityStateStore, HomeEntityState, IdempotencyStore } from '@jhadina/home-core';
+import { createServiceRoleClient } from '../supabase/service-role.js';
 
-/**
- * B&W-6.2 production persistence adapters.
- *
- * These adapters deliberately live in the web/application layer rather than
- * home-core so the domain package remains independent of Supabase.
- */
-
+/** B&W-6.2 production persistence adapters; Supabase stays outside home-core. */
 export type HomePersistenceClient = SupabaseClient;
-
-type IdempotencyRow = {
-  event_id: string;
-  entity_id: string;
-  status: 'processing' | 'completed';
-};
 
 type EntityStateRow = {
   entity_id: string;
@@ -64,7 +53,6 @@ export class SupabaseHomeIdempotencyStore implements IdempotencyStore {
     return data !== null;
   }
 
-  /** Database uniqueness makes this claim safe across processes/instances. */
   async claim(eventId: string, entityId: string): Promise<boolean> {
     const { data, error } = await this.client
       .from('jhadina_home_ingestion_idempotency')
@@ -74,18 +62,20 @@ export class SupabaseHomeIdempotencyStore implements IdempotencyStore {
       )
       .select('event_id')
       .maybeSingle();
-
     if (error) throw new Error(`HOME_IDEMPOTENCY_CLAIM_FAILED: ${error.message}`);
     return data !== null;
   }
 
   async markSeen(eventId: string, entityId: string): Promise<void> {
-    const { error } = await this.client
+    const { data, error } = await this.client
       .from('jhadina_home_ingestion_idempotency')
       .update({ status: 'completed', completed_at: new Date().toISOString(), entity_id: entityId })
       .eq('event_id', eventId)
-      .eq('status', 'processing');
+      .eq('status', 'processing')
+      .select('event_id')
+      .maybeSingle();
     if (error) throw new Error(`HOME_IDEMPOTENCY_COMPLETE_FAILED: ${error.message}`);
+    if (!data) throw new Error('HOME_IDEMPOTENCY_NOT_CLAIMED');
   }
 
   async release(eventId: string): Promise<void> {
@@ -135,7 +125,6 @@ export class SupabaseHomeEntityStateStore implements EntityStateStore {
         .select('entity_id')
         .maybeSingle();
       if (error) {
-        // A concurrent initial writer won the primary-key race.
         if (error.code === '23505') return false;
         throw new Error(`HOME_STATE_INSERT_FAILED: ${error.message}`);
       }
@@ -163,19 +152,25 @@ export class SupabaseHomeEntityStateStore implements EntityStateStore {
   }
 }
 
-/**
- * Production composition helper. Never silently falls back to in-memory
- * persistence when NODE_ENV=production.
- */
 export function createDurableHomeStores(client: HomePersistenceClient | null): {
   idempotency: SupabaseHomeIdempotencyStore;
   stateStore: SupabaseHomeEntityStateStore;
 } {
-  if (!client) {
-    throw new Error('HOME_DURABLE_STORAGE_UNAVAILABLE');
-  }
+  if (!client) throw new Error('HOME_DURABLE_STORAGE_UNAVAILABLE');
   return {
     idempotency: new SupabaseHomeIdempotencyStore(client),
     stateStore: new SupabaseHomeEntityStateStore(client),
   };
+}
+
+/** Production composition root helper: no silent in-memory fallback. */
+export function createProductionHomeStores(): {
+  idempotency: SupabaseHomeIdempotencyStore;
+  stateStore: SupabaseHomeEntityStateStore;
+} {
+  const client = createServiceRoleClient();
+  if (!client && process.env.NODE_ENV === 'production') {
+    throw new Error('HOME_DURABLE_STORAGE_UNAVAILABLE');
+  }
+  return createDurableHomeStores(client);
 }
