@@ -115,3 +115,4 @@ export * from './security-evolution.js';
 export * from './security-posture.js';
 export * from './security-principal.js';
 export * from './command-security-gateway.js';
+export * from './egress-policy.js';
