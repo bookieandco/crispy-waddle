@@ -2,6 +2,10 @@ import type { GenerationRegistry } from './generation-registry';
 import type { GenerationProvider, GenerationRequest, GenerationResult } from './generation-provider';
 import type { GeneratedAssetRepository, ProviderOutput } from './generated-asset-resolver';
 import type { EditOperation } from './edit-plan';
+import type { GenerationExecution } from './generation-execution';
+import type { GenerationRepository } from './generation-repository';
+import { generationExecutionFromResult } from './generation-execution';
+import { generationTaskFromRequest, type GenerationTask } from './generation-task';
 import { resolveGenerationOutputs } from './generated-asset-resolver';
 
 function assertRequestCompatibility(registry: GenerationRegistry, request: GenerationRequest): void {
@@ -70,6 +74,19 @@ function readProviderOutputs(result: GenerationResult): ProviderOutput[] {
   });
 }
 
+function jobFromTask(task: GenerationTask, execution?: GenerationExecution): GenerationJob {
+  return {
+    id: task.id,
+    request: task.request,
+    providerId: execution?.providerId ?? task.request.model.providerId,
+    status: execution?.status ?? task.status,
+    providerJobId: execution?.providerJobId,
+    error: execution?.error ?? task.error,
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
+  };
+}
+
 export class GenerationService {
   private readonly jobs = new Map<string, GenerationJob>();
 
@@ -77,6 +94,7 @@ export class GenerationService {
     private readonly registry: GenerationRegistry,
     private readonly providers: Map<string, GenerationProvider>,
     private readonly assetRepository?: GeneratedAssetRepository,
+    private readonly generationRepository?: GenerationRepository,
   ) {}
 
   private async persistOutputs(job: GenerationJob, result: GenerationResult): Promise<void> {
@@ -99,43 +117,94 @@ export class GenerationService {
     for (const asset of assets) await this.assetRepository.save(asset);
   }
 
+  private async persistState(task: GenerationTask, execution: GenerationExecution): Promise<void> {
+    if (!this.generationRepository) return;
+    await this.generationRepository.saveExecution(execution);
+    await this.generationRepository.saveTask(task);
+  }
+
   async submit(request: GenerationRequest): Promise<GenerationJob> {
     assertRequestCompatibility(this.registry, request);
     const registeredModel = this.registry.getModel(request.model.id)!;
     const provider = this.providers.get(registeredModel.providerId);
     if (!provider) throw new Error(`Provider is not configured: ${registeredModel.providerId}`);
 
+    const normalizedRequest = { ...request, model: registeredModel };
+
+    if (this.generationRepository) {
+      const existingTask = await this.generationRepository.getTaskByIdempotencyKey(request.requestId);
+      if (existingTask) {
+        const executions = await this.generationRepository.listExecutions(existingTask.id);
+        const latest = executions.at(-1);
+        const existingJob = jobFromTask(existingTask, latest);
+        this.jobs.set(existingJob.id, existingJob);
+        return existingJob;
+      }
+    }
+
     const now = new Date().toISOString();
-    const initial: GenerationJob = {
-      id: request.requestId,
-      request: { ...request, model: registeredModel },
+    const task = generationTaskFromRequest(normalizedRequest, {
+      idempotencyKey: request.requestId,
+    });
+    task.createdAt = now;
+    task.updatedAt = now;
+    task.status = 'queued';
+
+    const initialExecution: GenerationExecution = {
+      id: `${task.id}:attempt:1`,
+      taskId: task.id,
       providerId: registeredModel.providerId,
+      attempt: 1,
       status: 'queued',
       createdAt: now,
       updatedAt: now,
     };
+
+    if (this.generationRepository) {
+      await this.generationRepository.saveTask(task);
+      await this.generationRepository.saveExecution(initialExecution);
+    }
+
+    const initial = jobFromTask(task, initialExecution);
     this.jobs.set(initial.id, initial);
 
     try {
       const result = await provider.submit(initial.request);
-      const job: GenerationJob = {
-        ...initial,
+      const completedAt = new Date().toISOString();
+      const execution = generationExecutionFromResult(task.id, registeredModel.providerId, result, {
+        id: initialExecution.id,
+        attempt: 1,
+        now: completedAt,
+      });
+      const updatedTask: GenerationTask = {
+        ...task,
         status: result.status,
-        providerJobId: result.providerJobId,
         error: result.error,
-        updatedAt: new Date().toISOString(),
+        updatedAt: completedAt,
       };
+      const job = jobFromTask(updatedTask, execution);
       this.jobs.set(job.id, job);
+      await this.persistState(updatedTask, execution);
       await this.persistOutputs(job, result);
       return job;
     } catch (error) {
-      const failed: GenerationJob = {
-        ...initial,
+      const message = error instanceof Error ? error.message : String(error);
+      const failedAt = new Date().toISOString();
+      const failedExecution: GenerationExecution = {
+        ...initialExecution,
         status: 'failed',
-        error: error instanceof Error ? error.message : String(error),
-        updatedAt: new Date().toISOString(),
+        error: message,
+        updatedAt: failedAt,
       };
+      const failedTask: GenerationTask = {
+        ...task,
+        status: 'failed',
+        error: message,
+        updatedAt: failedAt,
+      };
+      const failed = jobFromTask(failedTask, failedExecution);
       this.jobs.set(failed.id, failed);
+      await this.persistState(failedTask, failedExecution);
       throw error;
     }
   }
@@ -174,38 +243,76 @@ export class GenerationService {
     return this.jobs.get(id);
   }
 
+  async getJobDurable(id: string): Promise<GenerationJob | undefined> {
+    const cached = this.jobs.get(id);
+    if (cached) return cached;
+    if (!this.generationRepository) return undefined;
+    const task = await this.generationRepository.getTask(id);
+    if (!task) return undefined;
+    const executions = await this.generationRepository.listExecutions(id);
+    const job = jobFromTask(task, executions.at(-1));
+    this.jobs.set(id, job);
+    return job;
+  }
+
   async refresh(id: string): Promise<GenerationJob> {
-    const job = this.jobs.get(id);
+    const job = await this.getJobDurable(id);
     if (!job) throw new Error(`Generation job not found: ${id}`);
     if (!job.providerJobId) return job;
     const provider = this.providers.get(job.providerId);
     if (!provider) throw new Error(`Provider is not configured: ${job.providerId}`);
     const result = await provider.status(job.providerJobId);
-    const updated = {
-      ...job,
-      status: result.status,
-      error: result.error,
-      updatedAt: new Date().toISOString(),
-    };
+    const updatedAt = new Date().toISOString();
+    const executions = this.generationRepository
+      ? await this.generationRepository.listExecutions(id)
+      : [];
+    const latest = executions.at(-1);
+    const updatedExecution: GenerationExecution = latest
+      ? { ...latest, status: result.status, error: result.error, updatedAt }
+      : generationExecutionFromResult(id, job.providerId, result, { attempt: 1, now: updatedAt });
+    const updatedTask: GenerationTask = this.generationRepository
+      ? {
+          ...(await this.generationRepository.getTask(id) ?? { id, request: job.request, projectId: job.request.projectId, idempotencyKey: id, status: result.status, createdAt: job.createdAt, updatedAt }),
+          status: result.status,
+          error: result.error,
+          updatedAt,
+        }
+      : generationTaskFromRequest(job.request, { idempotencyKey: id });
+    const updated = jobFromTask(updatedTask, updatedExecution);
     this.jobs.set(id, updated);
+    await this.persistState(updatedTask, updatedExecution);
     await this.persistOutputs(updated, result);
     return updated;
   }
 
   async cancel(id: string): Promise<GenerationJob> {
-    const job = this.jobs.get(id);
+    const job = await this.getJobDurable(id);
     if (!job) throw new Error(`Generation job not found: ${id}`);
     if (job.providerJobId) {
       const provider = this.providers.get(job.providerId);
       if (!provider) throw new Error(`Provider is not configured: ${job.providerId}`);
       await provider.cancel(job.providerJobId);
     }
+    const updatedAt = new Date().toISOString();
     const updated: GenerationJob = {
       ...job,
       status: 'cancelled',
-      updatedAt: new Date().toISOString(),
+      updatedAt,
     };
     this.jobs.set(id, updated);
+
+    if (this.generationRepository) {
+      const task = await this.generationRepository.getTask(id);
+      const executions = await this.generationRepository.listExecutions(id);
+      const latest = executions.at(-1);
+      if (task && latest) {
+        await this.persistState(
+          { ...task, status: 'cancelled', updatedAt },
+          { ...latest, status: 'cancelled', updatedAt },
+        );
+      }
+    }
+
     return updated;
   }
 }
