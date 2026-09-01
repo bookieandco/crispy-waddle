@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter } from 'next/router';
-import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget, MediaSessionState, LocalPlaybackAdapter, UnifiedMediaSession, PlaybackResolver } from '@jhadina/tv-core';
+import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget, MediaSessionState, LocalPlaybackAdapter, UnifiedMediaSession, ResolvedPlaybackSource } from '@jhadina/tv-core';
 import { CatalogRegistry, assertCastableSource, createAuthorizedCatalogAdapter, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createPlaybackResolver, createUnifiedMediaSession } from '@jhadina/tv-core';
 import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
 import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
@@ -19,9 +19,9 @@ type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => 
 
 export default function JhadinaTVWatchPage() {
   const router = useRouter(); const videoRef = useRef<HTMLVideoElement | null>(null); const registry = useMemo(makeRegistry, []); const sessionRef = useRef<UnifiedMediaSession | null>(null);
-  const resolverRef = useRef<PlaybackResolver | null>(null);
-  const { kind, id } = router.query as { kind?: MediaKind; id?: string }; const [title, setTitle] = useState<MediaTitle | null>(null); const [source, setSource] = useState<MediaSource | null>(null); const [error, setError] = useState<string | null>(null);
+  const { kind, id } = router.query as { kind?: MediaKind; id?: string }; const [title, setTitle] = useState<MediaTitle | null>(null); const [playback, setPlayback] = useState<ResolvedPlaybackSource | null>(null); const [error, setError] = useState<string | null>(null);
   const [casting, setCasting] = useState(false); const [target, setTarget] = useState<PlaybackTarget | null>(null); const [targets, setTargets] = useState<PlaybackTarget[]>([]); const [pipSupported, setPipSupported] = useState(false); const [pipActive, setPipActive] = useState(false); const [sessionState, setSessionState] = useState<MediaSessionState | null>(null);
+  const source = playback?.source ?? null;
 
   useEffect(() => {
     if (!router.isReady || !kind || !id) return;
@@ -32,26 +32,25 @@ export default function JhadinaTVWatchPage() {
       const provider = registry.list().find((candidate) => candidate.id === match.providerId);
       if (!provider) throw new Error('Playback provider is unavailable.');
       const resolver = createPlaybackResolver([{ id: provider.id, adapter: provider.sourceAdapter, authorized: true }]);
-      resolverRef.current = resolver;
       const resolved = await resolver.resolve({ providerId: match.providerId, titleId: match.title.id });
       if (!active) return;
       setTitle(match.title);
-      setSource(resolved.source);
+      setPlayback(resolved);
     }).catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Unable to load this title.'));
-    return () => { active = false; resolverRef.current = null; };
+    return () => { active = false; };
   }, [id, kind, registry, router.isReady]);
 
   useEffect(() => {
-    const video = videoRef.current; const resolver = resolverRef.current;
-    if (!video || !source || !title || !resolver) return;
+    const video = videoRef.current;
+    if (!video || !playback || !title) return;
+    const source = playback.source;
     assertCastableSource(source.url);
     const snapshot = (): MediaSessionState => ({ titleId: title.id, kind: title.kind, sourceUrl: source.url, positionSeconds: video.currentTime, durationSeconds: Number.isFinite(video.duration) ? video.duration : undefined, playing: !video.paused, volume: video.volume, target: { id: 'local', name: 'This device', transport: 'local' } });
     const local: LocalPlaybackAdapter = { getState: snapshot, async apply(command) { if (command.type === 'play') await video.play(); else if (command.type === 'pause') video.pause(); else if (command.type === 'seek') video.currentTime = Math.max(0, command.value); else if (command.type === 'set-volume') video.volume = Math.max(0, Math.min(1, command.value)); }, onStateChange(listener) { const sync = () => listener(snapshot()); const events = ['play', 'pause', 'timeupdate', 'durationchange', 'volumechange', 'seeking', 'seeked'] as const; events.forEach((event) => video.addEventListener(event, sync)); sync(); return () => events.forEach((event) => video.removeEventListener(event, sync)); } };
     const initial = local.getState(); const controllers = [createBrowserAirPlayController(video as AirPlayVideo, initial)]; if (typeof window !== 'undefined') { const googleRuntime = createBrowserGoogleCastRuntime(); if (googleRuntime.isSupported()) controllers.push(createGoogleCastController(googleRuntime, initial)); controllers.push(createJhadinaTVReceiverController(createJhadinaTVReceiverTransport(), initial)); }
-    const casting = createCastingManager(controllers, initial); const resolved = { providerId: resolver ? (registry.list().find((candidate) => candidate.sourceAdapter.id === source.id)?.id ?? '') : '', source, capabilities: ['playback', 'seek'] as const };
-    if (!resolved.providerId) { setError('Playback provider identity could not be established.'); return; }
-    const session = createUnifiedMediaSession({ titleId: title.id, kind: title.kind, playback: resolved, local, casting }); sessionRef.current = session; const unsubscribe = session.subscribe(setSessionState); setSessionState(session.getState()); return () => { unsubscribe(); sessionRef.current = null; };
-  }, [source, title, registry]);
+    const casting = createCastingManager(controllers, initial);
+    const session = createUnifiedMediaSession({ titleId: title.id, kind: title.kind, playback, local, casting }); sessionRef.current = session; const unsubscribe = session.subscribe(setSessionState); setSessionState(session.getState()); return () => { unsubscribe(); sessionRef.current = null; };
+  }, [playback, title]);
 
   useEffect(() => { const video = videoRef.current; if (!video) return; const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); setPipSupported(controller.isSupported()); const sync = () => setPipActive(controller.isActive()); video.addEventListener('enterpictureinpicture', sync); video.addEventListener('leavepictureinpicture', sync); return () => { video.removeEventListener('enterpictureinpicture', sync); video.removeEventListener('leavepictureinpicture', sync); }; }, [source]);
   async function discoverTVs() { try { const session = sessionRef.current; if (!session) return; setTargets(await session.discoverTargets()); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to discover TV devices.'); } }
