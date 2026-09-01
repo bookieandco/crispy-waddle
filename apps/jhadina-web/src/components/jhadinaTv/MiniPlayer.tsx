@@ -1,17 +1,33 @@
 'use client'
 
 import { useEffect, useState } from "react"
+import { getMediaPlaybackSession, getMediaPlaybackStore } from "../../lib/jhadinatv/media-playback-runtime"
+import type { MediaPlaybackStoreState } from "@jhadina/tv-core"
 
-type Props={src?:string;title?:string;poster?:string}
-export function MiniPlayer({src,title="JhadinaTV",poster}:Props){
+export function MiniPlayer(){
+ const store=getMediaPlaybackStore()
+ const [state,setState]=useState<MediaPlaybackStoreState>(()=>store.getState())
  const [open,setOpen]=useState(true)
  const [expanded,setExpanded]=useState(false)
- useEffect(()=>{if(!src)setOpen(false)},[src])
- if(!open||!src)return null
- return <div style={{position:"fixed",right:14,bottom:78,zIndex:50,width:expanded?"min(92vw,720px)":260,borderRadius:18,overflow:"hidden",background:"#111",boxShadow:"0 14px 45px rgba(0,0,0,.3)",border:"1px solid rgba(255,255,255,.12)"}}>
-  <video src={src} poster={poster} controls={expanded} playsInline style={{display:"block",width:"100%",maxHeight:expanded?"60vh":150,objectFit:"cover"}} />
-  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",color:"white",fontSize:12}}>
-   <button onClick={()=>setExpanded(v=>!v)} style={button}>{expanded?"Minimize":"Expand"}</button><strong style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",margin:"0 8px"}}>{title}</strong><button onClick={()=>setOpen(false)} style={button}>×</button>
+ useEffect(()=>store.subscribe(setState),[store])
+ const item=state.current
+ const session=getMediaPlaybackSession()
+ useEffect(()=>{if(!item)setOpen(false);else setOpen(true)},[item])
+ if(!open||!item)return null
+ const playing=state.playerState?.playing ?? false
+ const position=Math.floor(state.playerState?.positionSeconds ?? 0)
+ const duration=Math.floor(state.playerState?.durationSeconds ?? item.durationSeconds ?? 0)
+ return <div style={{position:"fixed",right:14,bottom:78,zIndex:50,width:expanded?"min(92vw,720px)":300,borderRadius:18,overflow:"hidden",background:"#111",boxShadow:"0 14px 45px rgba(0,0,0,.3)",border:"1px solid rgba(255,255,255,.12)"}}>
+  <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",color:"white"}}>
+   <button onClick={()=>void session?.[playing?"pause":"play"]()} style={button}>{playing?"Pause":"Play"}</button>
+   <button onClick={()=>void session?.seek(Math.max(0,(state.playerState?.positionSeconds ?? 0)-10))} style={button}>−10s</button>
+   <button onClick={()=>void session?.seek((state.playerState?.positionSeconds ?? 0)+10)} style={button}>+10s</button>
+   <strong style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",margin:"0 4px",flex:1}}>{item.title}</strong>
+   <button onClick={()=>setExpanded(v=>!v)} style={button}>{expanded?"Min":"Expand"}</button>
+   <button onClick={()=>setOpen(false)} style={button}>×</button>
+  </div>
+  <div style={{height:expanded?180:72,background:"#08090b",display:"grid",placeItems:"center",color:"#aaa",fontSize:expanded?28:14}}>
+   <div>{position}s{duration>0?` / ${duration}s`:""}{state.playerState?.target && state.playerState.target.transport !== "local" ? ` • ${state.playerState.target.name}` : ""}</div>
   </div>
  </div>
 }
