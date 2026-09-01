@@ -1,84 +1,66 @@
 /**
  * B&W-6.2 — Home Assistant Ingestion Idempotency
  *
- * Prevents duplicate HA events from producing duplicate state transitions
- * or duplicate downstream domain events.
- *
- * DURABILITY GAP — explicitly documented:
- * The InMemoryIdempotencyStore is @testOnly / local-development only.
- * It provides no durability across process restarts or horizontal scaling.
- *
- * Production requires a durable IdempotencyStore backed by a persistent
- * store (e.g. Supabase table with a unique constraint on eventId).
- * The correct schema would be:
- *
- *   CREATE TABLE ha_ingestion_idempotency (
- *     event_id   TEXT PRIMARY KEY,
- *     seen_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
- *     entity_id  TEXT NOT NULL
- *   );
- *
- * When this table exists, a DurableSupabaseIdempotencyStore implementing
- * IdempotencyStore should replace InMemoryIdempotencyStore in the
- * production composition root.
- *
- * This gap is tracked under B&W-6.2 and must be resolved before the
- * ingestion pipeline is deployed to production.
+ * The pipeline supports an optional durable claim protocol. Durable stores
+ * must make claim() atomic so concurrent deliveries of the same event cannot
+ * both enter the state-transition path.
  */
 
-/**
- * Idempotency store interface.
- *
- * Callers:
- * 1. Call hasSeen(eventId) before processing — if true, skip.
- * 2. After successful state transition, call markSeen(eventId, entityId).
- *
- * The interface is separate from the in-memory implementation so the
- * composition root can substitute a durable implementation without
- * changing the pipeline code.
- */
+export type MaybePromise<T> = T | Promise<T>;
+
 export interface IdempotencyStore {
-  /**
-   * Returns true if the event has already been processed.
-   * Must be safe to call multiple times — must not mutate state.
-   */
-  hasSeen(eventId: string): boolean;
+  /** Legacy/read-only lookup retained for compatibility and diagnostics. */
+  hasSeen(eventId: string): MaybePromise<boolean>;
 
   /**
-   * Records the event as processed. Called exactly once after a successful
-   * state transition. Implementations must be safe to call with the same
-   * eventId multiple times (defensive idempotency).
+   * Atomically claims an event for processing.
+   * Returns true only for the delivery that owns the claim.
+   * Durable implementations must enforce uniqueness in the database.
    */
-  markSeen(eventId: string, entityId: string): void;
+  claim?(eventId: string, entityId: string): MaybePromise<boolean>;
 
+  /** Marks a successfully published event as completed. */
+  markSeen(eventId: string, entityId: string): MaybePromise<void>;
+
+  /** Releases an in-flight claim when validation/processing fails before commit. */
+  release?(eventId: string): MaybePromise<void>;
 }
 
 /**
- * In-process non-durable idempotency store.
- *
- * @testOnly / local-dev only — data is lost on process restart.
- *
- * DURABILITY GAP: See module header above.
+ * In-process implementation for tests/local development only.
+ * @testOnly
  */
 export class InMemoryIdempotencyStore implements IdempotencyStore {
   private readonly seen = new Map<string, { entityId: string; seenAt: number }>();
+  private readonly processing = new Set<string>();
 
   hasSeen(eventId: string): boolean {
     return this.seen.has(eventId);
   }
 
+  claim(eventId: string, entityId: string): boolean {
+    if (this.seen.has(eventId) || this.processing.has(eventId)) return false;
+    this.processing.add(eventId);
+    return true;
+  }
+
   markSeen(eventId: string, entityId: string): void {
+    this.processing.delete(eventId);
     if (!this.seen.has(eventId)) {
       this.seen.set(eventId, { entityId, seenAt: Date.now() });
     }
+  }
+
+  release(eventId: string): void {
+    this.processing.delete(eventId);
   }
 
   seenCount(): number {
     return this.seen.size;
   }
 
-  /** Test helper: clear all seen events. */
   clear(): void {
     this.seen.clear();
+    this.processing.clear();
   }
 }
