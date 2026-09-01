@@ -30,7 +30,7 @@ export interface ControllerHealthResult {
 const finite=(value:number)=>Number.isFinite(value);
 
 export function normalizeControllerSample(sample:ControllerSample,calibration:ControllerCalibration,previous?:ControllerSample):ControllerHealthResult{
-  if(!sample.deviceId.trim())throw new Error('deviceId is required');
+  if(typeof sample.deviceId!=='string'||!sample.deviceId.trim())throw new Error('deviceId is required');
   if(!finite(sample.capturedAtMs))throw new Error('capturedAtMs must be finite');
   if(!sample.connected)return{deviceId:sample.deviceId,state:'disconnected',accepted:false,normalizedAxes:[],normalizedTriggers:[],jitterDetected:false,outOfRange:false};
   if(!finite(calibration.axisDeadzone)||calibration.axisDeadzone<0||calibration.axisDeadzone>=1)throw new Error('axisDeadzone must be in [0,1)');
@@ -46,7 +46,7 @@ export function normalizeControllerSample(sample:ControllerSample,calibration:Co
   const normalizedAxes=axes.map(value=>{const scaled=value/calibration.axisMax;return Math.abs(scaled)<calibration.axisDeadzone?0:scaled;});
   const normalizedTriggers=triggers.map(value=>(value-calibration.triggerMin)/(calibration.triggerMax-calibration.triggerMin));
   const previousAxes=previous?.axes??[];
-  const jitterDetected=previous?.deviceId===sample.deviceId&&sample.capturedAtMs>=previous.capturedAtMs&&sample.capturedAtMs-previous.capturedAtMs<=jitterWindowMs&&normalizedAxes.some((value,index)=>{const prior=previousAxes[index];if(prior===undefined||!finite(prior))return false;const priorNormalized=Math.abs(prior/calibration.axisMax)<calibration.axisDeadzone?0:prior/calibration.axisMax;const delta=Math.abs(value-priorNormalized);return delta>0&&delta<=calibration.jitterThreshold;});
+  const jitterDetected=previous?.deviceId===sample.deviceId&&sample.capturedAtMs>=previous.capturedAtMs&&sample.capturedAtMs-previous.capturedAtMs<=jitterWindowMs&&normalizedAxes.some((value,index)=>{const prior=previousAxes[index];if(prior===undefined||!finite(prior)||prior<-calibration.axisMax||prior>calibration.axisMax)return false;const priorNormalized=Math.abs(prior/calibration.axisMax)<calibration.axisDeadzone?0:prior/calibration.axisMax;const delta=Math.abs(value-priorNormalized);return delta>0&&delta<=calibration.jitterThreshold;});
   return{deviceId:sample.deviceId,state:jitterDetected?'jitter':'healthy',accepted:!jitterDetected,normalizedAxes,normalizedTriggers,jitterDetected,outOfRange:false};
 }
 
