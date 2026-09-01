@@ -105,13 +105,15 @@ describe("POST /api/media/progress", () => {
     expect(repositoryUpsert).not.toHaveBeenCalled()
   })
 
-  it("rejects impossible progress values and non-canonical timestamps", async () => {
+  it("rejects impossible progress values, future timestamps, and non-canonical timestamps", async () => {
+    const futureTimestamp = new Date(Date.now() + 6 * 60 * 1000).toISOString()
     const cases = [
       { ...validProgress, positionMs: -1 },
       { ...validProgress, positionMs: 10001 },
       { ...validProgress, durationMs: -1 },
       { ...validProgress, updatedAt: "2026-09-01T14:00:00Z" },
       { ...validProgress, updatedAt: "not-a-date" },
+      { ...validProgress, updatedAt: futureTimestamp },
       { ...validProgress, positionMs: Number.POSITIVE_INFINITY },
     ]
 
