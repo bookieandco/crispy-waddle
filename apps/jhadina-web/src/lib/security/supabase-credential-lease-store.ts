@@ -1,4 +1,4 @@
-import type { CredentialLease, CredentialLeaseStore } from "@jhadina/security-core"
+import type { CredentialLease, CredentialLeaseBinding, CredentialLeaseStore } from "@jhadina/security-core"
 
 type RpcClient = {
   rpc<T = unknown>(
@@ -11,7 +11,7 @@ type RpcClient = {
  * Production adapter for CredentialLeaseStore.
  *
  * The database owns replay protection: consume_jhadina_credential_lease
- * deletes the matching lease atomically and returns it only once. This class
+ * atomically deletes the matching lease and returns it only once. This class
  * deliberately has no secret field and never persists credential material.
  */
 export class SupabaseCredentialLeaseStore implements CredentialLeaseStore {
@@ -32,11 +32,7 @@ export class SupabaseCredentialLeaseStore implements CredentialLeaseStore {
     if (error) throw new Error(`CREDENTIAL_LEASE_ISSUE_FAILED:${error.message}`)
   }
 
-  async consume(leaseId: string, nowMs: number): Promise<CredentialLease | null> {
-    // Binding is enforced again by the database RPC. The broker's consume()
-    // method performs the caller-side binding check before this store call;
-    // the durable store only receives the lease id here, so the broker remains
-    // the single owner of the binding contract.
+  async consume(leaseId: string, binding: CredentialLeaseBinding, nowMs: number): Promise<CredentialLease | null> {
     const { data, error } = await this.client.rpc<{
       lease_id: string
       actor_id: string
@@ -49,15 +45,12 @@ export class SupabaseCredentialLeaseStore implements CredentialLeaseStore {
       expires_at: string
     } | null>("consume_jhadina_credential_lease", {
       p_lease_id: leaseId,
-      // These values are supplied through the bound RPC wrapper below in the
-      // production composition root. This method is intentionally kept
-      // structurally typed so security-core stays framework independent.
-      p_actor_id: "",
-      p_worker_id: "",
-      p_domain: "",
-      p_capability: "",
-      p_credential_ref: "",
-      p_resource_id: null,
+      p_actor_id: binding.actorId,
+      p_worker_id: binding.workerId,
+      p_domain: binding.domain,
+      p_capability: binding.capability,
+      p_credential_ref: binding.credentialRef,
+      p_resource_id: binding.resourceId ?? null,
       p_now: new Date(nowMs).toISOString(),
     })
     if (error) throw new Error(`CREDENTIAL_LEASE_CONSUME_FAILED:${error.message}`)
