@@ -29,8 +29,8 @@ export type CredentialSecretStore = {
 
 export type CredentialLeaseStore = {
   issue(lease: CredentialLease): Promise<void>;
-  /** Atomically consumes a lease. A consumed, expired, or missing lease returns null. */
-  consume(leaseId: string, nowMs: number): Promise<CredentialLease | null>;
+  /** Atomically consumes a lease. Binding is part of the compare/delete operation. */
+  consume(leaseId: string, binding: CredentialLeaseBinding, nowMs: number): Promise<CredentialLease | null>;
 };
 
 export type CredentialBrokerGate = {
@@ -45,8 +45,8 @@ export type CredentialBrokerGate = {
  * are resolved just-in-time during consume() and are never part of a lease.
  *
  * Production deployments must provide a durable CredentialLeaseStore whose
- * consume operation is atomic across instances. InMemoryCredentialLeaseStore
- * below is explicitly test-only.
+ * consume operation atomically compares the complete binding across instances.
+ * InMemoryCredentialLeaseStore below is explicitly test-only.
  */
 export class CredentialBroker {
   private readonly maxTtlMs: number;
@@ -64,13 +64,8 @@ export class CredentialBroker {
     validateRequest(request);
     const authorized = await this.gate.authorize(request);
     if (authorized !== 'allow') throw new Error('CREDENTIAL_LEASE_DENIED');
-
-    if (this.gate.allowTraffic && !(await this.gate.allowTraffic())) {
-      throw new Error('CREDENTIAL_TRAFFIC_BLOCKED');
-    }
-    if (this.gate.allowCredentialEgress && !(await this.gate.allowCredentialEgress(request))) {
-      throw new Error('CREDENTIAL_EGRESS_BLOCKED');
-    }
+    if (this.gate.allowTraffic && !(await this.gate.allowTraffic())) throw new Error('CREDENTIAL_TRAFFIC_BLOCKED');
+    if (this.gate.allowCredentialEgress && !(await this.gate.allowCredentialEgress(request))) throw new Error('CREDENTIAL_EGRESS_BLOCKED');
 
     const nowMs = request.nowMs ?? Date.now();
     const ttlMs = Math.min(request.ttlMs ?? 30_000, this.maxTtlMs);
@@ -94,7 +89,7 @@ export class CredentialBroker {
     assertBinding(lease, binding);
     if (lease.expiresAt <= nowMs) throw new Error('CREDENTIAL_LEASE_EXPIRED');
 
-    const consumed = await this.leases.consume(lease.leaseId, nowMs);
+    const consumed = await this.leases.consume(lease.leaseId, binding, nowMs);
     if (!consumed) throw new Error('CREDENTIAL_LEASE_REPLAYED_OR_MISSING');
     assertBinding(consumed, binding);
 
@@ -113,10 +108,15 @@ export class InMemoryCredentialLeaseStore implements CredentialLeaseStore {
     this.pending.set(lease.leaseId, lease);
   }
 
-  async consume(leaseId: string, nowMs: number): Promise<CredentialLease | null> {
+  async consume(leaseId: string, binding: CredentialLeaseBinding, nowMs: number): Promise<CredentialLease | null> {
     const lease = this.pending.get(leaseId);
     if (!lease || lease.expiresAt <= nowMs) {
       this.pending.delete(leaseId);
+      return null;
+    }
+    try {
+      assertBinding(lease, binding);
+    } catch {
       return null;
     }
     this.pending.delete(leaseId);
@@ -125,18 +125,10 @@ export class InMemoryCredentialLeaseStore implements CredentialLeaseStore {
 }
 
 function validateRequest(request: CredentialLeaseRequest): void {
-  for (const [name, value] of Object.entries({
-    actorId: request.actorId,
-    workerId: request.workerId,
-    domain: request.domain,
-    capability: request.capability,
-    credentialRef: request.credentialRef,
-  })) {
+  for (const [name, value] of Object.entries({ actorId: request.actorId, workerId: request.workerId, domain: request.domain, capability: request.capability, credentialRef: request.credentialRef })) {
     if (!value) throw new Error(`CREDENTIAL_LEASE_${name.toUpperCase()}_MISSING`);
   }
-  if (request.ttlMs !== undefined && (!Number.isFinite(request.ttlMs) || request.ttlMs <= 0)) {
-    throw new Error('CREDENTIAL_LEASE_TTL_INVALID');
-  }
+  if (request.ttlMs !== undefined && (!Number.isFinite(request.ttlMs) || request.ttlMs <= 0)) throw new Error('CREDENTIAL_LEASE_TTL_INVALID');
 }
 
 function assertBinding(lease: CredentialLease, binding: CredentialLeaseBinding): void {
