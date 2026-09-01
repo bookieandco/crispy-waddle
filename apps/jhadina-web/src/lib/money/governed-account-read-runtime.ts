@@ -99,13 +99,16 @@ export async function runGovernedMoneyAccountRead(
   overrides: GovernedMoneyRuntimeOverrides = {},
 ): Promise<GovernedMoneyAccountReadResult> {
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
-  const supabase: AuditRpcClient = overrides.supabase ?? (await createMoneyAuditRpcClient())
+  const identity = await identityVerifier.verify({ userId: claimedUserId })
+  if (identity.userId !== claimedUserId) throw new Error("Action identity mismatch")
+  if (!identity.sessionId) throw new Error("Action session missing")
 
+  const supabase: AuditRpcClient = overrides.supabase ?? (await createMoneyAuditRpcClient())
   const providers = overrides.providers
     ? overrides.providers
     : await createMoneyPlaidProductionRegistry({
         credentialResolver: await createBrokerCredentialResolver(
-          claimedUserId,
+          identity.userId,
           requestId,
           overrides.credentialTrafficAllowed === true,
         ),
