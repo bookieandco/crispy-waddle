@@ -1,16 +1,16 @@
-import { SupabaseAuditLedger, type ActionAuditEvent, type ApprovalReceiptStore } from "@jhadina/action-core"
+import { SupabaseAuditLedger, SupabaseNonceReplayGuard, type ActionAuditEvent, type ApprovalReceiptStore, type AuditRpcClient } from "@jhadina/action-core"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { approveGrowthDraftGoverned, type GovernedGrowthApprovalResult } from "./governed-approval"
-import { createGrowthAuditLedger, GROWTH_AUDIT_DOMAIN } from "./durable-audit-ledger"
+import { createGrowthAuditLedger, createGrowthAuditRpcClient, GROWTH_AUDIT_DOMAIN } from "./durable-audit-ledger"
 import { createDurableApprovalReceiptStore } from "../security/durable-approval-receipt-store"
 
 /**
  * Production composition root for the Growth approval spine.
  *
- * Approval receipts are durable in Supabase. Tests may inject an
- * ApprovalReceiptStore explicitly; there is no process-local production
- * receipt store.
+ * Approval receipts and one-shot action replay protection are durable in
+ * Supabase. Tests may inject both stores explicitly; production has no
+ * process-local approval/replay fallback.
  */
 export type GovernedGrowthRuntimeOverrides = {
   /** Test-only: createRequestIdentityVerifier() makes a real Supabase call with no meaning outside a real request. */
@@ -19,6 +19,8 @@ export type GovernedGrowthRuntimeOverrides = {
   ledger?: SupabaseAuditLedger
   /** Test-only: substitutes an in-memory/fake receipt store; production defaults to Supabase. */
   approvalStore?: ApprovalReceiptStore
+  /** Test-only: substitutes the durable replay guard. */
+  replayGuard?: SupabaseNonceReplayGuard
 }
 
 export async function runGovernedGrowthDraftApproval(
@@ -29,7 +31,9 @@ export async function runGovernedGrowthDraftApproval(
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
   const ledger = overrides.ledger ?? (await createGrowthAuditLedger())
   const approvalStore = overrides.approvalStore ?? (await createDurableApprovalReceiptStore())
-  return approveGrowthDraftGoverned({ identityVerifier, ledger, approvalStore }, claimedUserId, draftId)
+  const replayRpc: AuditRpcClient = await createGrowthAuditRpcClient()
+  const replayGuard = overrides.replayGuard ?? new SupabaseNonceReplayGuard(replayRpc)
+  return approveGrowthDraftGoverned({ identityVerifier, ledger, approvalStore, replayGuard }, claimedUserId, draftId)
 }
 
 export interface GovernedGrowthActivityResult {
@@ -37,13 +41,6 @@ export interface GovernedGrowthActivityResult {
   verifiedUserId: string
 }
 
-/**
- * Activity Timeline's read boundary. Identity-gated the same way
- * approval is — a caller only ever sees their own governed Growth
- * events, never another user's; the database itself enforces this a
- * second time (list_jhadina_audit_events requires auth.uid() to match
- * the requested actor).
- */
 export async function listGovernedGrowthActivity(
   claimedUserId: string,
   overrides: GovernedGrowthRuntimeOverrides = {},
