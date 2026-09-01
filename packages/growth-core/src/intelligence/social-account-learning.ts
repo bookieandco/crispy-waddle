@@ -1,5 +1,6 @@
 import type { GrowthId } from '../domain/types.js';
 import type { CommentLearningSignal } from './social-comment-learning.js';
+import type { SocialPatternPromotionRecord } from './social-pattern-promotion-store.js';
 
 export interface AccountLearningProfile {
   readonly accountId: GrowthId;
@@ -22,17 +23,42 @@ export interface TransferableSocialPattern {
 
 const clamp = (n: number) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
 
-export function buildAccountLearningProfile(accountId: GrowthId, signals: readonly CommentLearningSignal[]): AccountLearningProfile {
+export function buildAccountLearningProfile(
+  accountId: GrowthId,
+  signals: readonly CommentLearningSignal[],
+  promotedPatterns: readonly SocialPatternPromotionRecord[] = [],
+): AccountLearningProfile {
   const local = signals.filter(s => s.accountId === accountId);
   const strategyScores: Record<string, number> = {};
   const toneScores: Record<string, number> = {};
   const targetPatternScores: Record<string, number> = {};
+
   for (const signal of local) {
     strategyScores[signal.strategy] = Math.max(strategyScores[signal.strategy] ?? 0, signal.signalScore);
-    toneScores[signal.strategy + ':' + (signal.provenance.find(p => p.startsWith('tone:'))?.slice(5) ?? 'unknown')] = Math.max(toneScores[signal.strategy + ':' + (signal.provenance.find(p => p.startsWith('tone:'))?.slice(5) ?? 'unknown')] ?? 0, signal.signalScore);
+    const tone = signal.provenance.find(p => p.startsWith('tone:'))?.slice(5) ?? 'unknown';
+    toneScores[signal.strategy + ':' + tone] = Math.max(toneScores[signal.strategy + ':' + tone] ?? 0, signal.signalScore);
     targetPatternScores[String(signal.targetId)] = Math.max(targetPatternScores[String(signal.targetId)] ?? 0, signal.signalScore);
   }
-  return { accountId, strategyScores, toneScores, targetPatternScores, transferablePatterns: buildTransferablePatterns(signals, accountId) };
+
+  // Only durable, already-promoted records may influence future target-account
+  // learning. Provenance is deliberately ignored for voice/tone: the target
+  // account's local signals remain authoritative for identity and voice.
+  for (const promotion of promotedPatterns) {
+    if (promotion.targetAccountId !== accountId) continue;
+    if (promotion.status !== 'promoted' || promotion.source !== 'validated_experiment') continue;
+    strategyScores[promotion.strategy] = Math.max(
+      strategyScores[promotion.strategy] ?? 0,
+      clamp(promotion.confidence),
+    );
+  }
+
+  return {
+    accountId,
+    strategyScores,
+    toneScores,
+    targetPatternScores,
+    transferablePatterns: buildTransferablePatterns(signals, accountId),
+  };
 }
 
 export function buildTransferablePatterns(signals: readonly CommentLearningSignal[], sourceAccountId: GrowthId): TransferableSocialPattern[] {

@@ -1,6 +1,7 @@
 import type { GrowthId } from '../domain/types.js';
 import type { CommentStrategy } from './social-comment-strategy.js';
 import type { CommentLearningSignal } from './social-comment-learning.js';
+import type { SocialPatternPromotionRecord } from './social-pattern-promotion-store.js';
 import { applyCommentLearning, type AdaptiveCommentCandidate, type AdaptiveCommentScore } from './social-comment-adaptive-scoring.js';
 import { buildAccountLearningProfile } from './social-account-learning.js';
 
@@ -14,8 +15,13 @@ export interface RankedCommentCandidate extends AdaptiveCommentScore {
   readonly targetHistoryScore: number;
 }
 
-export function rankCommentCandidates(accountId: GrowthId, candidates: readonly AccountAdaptiveCandidate[], learning: readonly CommentLearningSignal[]): RankedCommentCandidate[] {
-  const profile = buildAccountLearningProfile(accountId, learning);
+export function rankCommentCandidates(
+  accountId: GrowthId,
+  candidates: readonly AccountAdaptiveCandidate[],
+  learning: readonly CommentLearningSignal[],
+  promotedPatterns: readonly SocialPatternPromotionRecord[] = [],
+): RankedCommentCandidate[] {
+  const profile = buildAccountLearningProfile(accountId, learning, promotedPatterns);
   return candidates
     .filter(candidate => candidate.accountId === accountId)
     .map(candidate => {
