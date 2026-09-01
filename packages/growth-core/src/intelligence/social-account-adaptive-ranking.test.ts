@@ -3,7 +3,7 @@ import { rankCommentCandidates } from './social-account-adaptive-ranking.js';
 
 describe('account adaptive ranking', () => {
   const signal = (targetId: string, score: number) => ({ commentId: ('comment:' + targetId) as never, accountId: 'account:pupsonstuff' as never, targetId: targetId as never, strategy: 'playful_challenge' as const, tone: 'mascot', likes: 100, replies: 20, signalScore: score, engagementRate: 0.1, conversationRate: 0.02, leadRate: 0.05, conversionRate: 0.01, recommendations: [], provenance: ['tone:mascot'] });
-  const promotion = (targetAccountId: string, strategy: string, confidence: number) => ({
+  const promotion = (targetAccountId: string, strategy: string, confidence: number, status: 'promoted' | 'revoked' = 'promoted') => ({
     id: 'promoted:1' as never,
     hypothesisId: 'hypothesis:1' as never,
     sourcePatternId: 'pattern:source' as never,
@@ -13,10 +13,11 @@ describe('account adaptive ranking', () => {
     targetVoiceId: 'voice:target' as never,
     strategy,
     confidence,
-    status: 'promoted' as const,
+    status,
     source: 'validated_experiment' as const,
     experimentId: 'experiment:1' as never,
     promotedAt: '2026-09-01T00:00:00Z',
+    ...(status === 'revoked' ? { revokedAt: '2026-09-01T01:00:00Z', revocationReason: 'regression' } : {}),
   });
 
   it('ranks candidates using the selected account history', () => {
@@ -52,5 +53,21 @@ describe('account adaptive ranking', () => {
       [promotion('account:other', 'playful_challenge', 0.99)],
     );
     expect(result[0].accountStrategyScore).toBe(0.5);
+  });
+
+  it('does not let a revoked promotion affect the selected account', () => {
+    const baseline = rankCommentCandidates(
+      'account:pupsonstuff' as never,
+      [{ accountId: 'account:pupsonstuff' as never, targetId: 'target:new', audienceId: 'audience:1' as never, strategy: 'playful_challenge', baseScore: 0.6 }],
+      [],
+    );
+    const revoked = rankCommentCandidates(
+      'account:pupsonstuff' as never,
+      [{ accountId: 'account:pupsonstuff' as never, targetId: 'target:new', audienceId: 'audience:1' as never, strategy: 'playful_challenge', baseScore: 0.6 }],
+      [],
+      [promotion('account:pupsonstuff', 'playful_challenge', 0.99, 'revoked')],
+    );
+    expect(revoked[0].score).toBe(baseline[0].score);
+    expect(revoked[0].accountStrategyScore).toBe(0.5);
   });
 });
