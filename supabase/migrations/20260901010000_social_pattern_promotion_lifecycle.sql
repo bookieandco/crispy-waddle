@@ -94,3 +94,5 @@ $$;
 
 revoke all on function public.upsert_social_pattern_promotion(jsonb) from public, anon, authenticated;
 revoke all on function public.revoke_social_pattern_promotion(text, text, timestamptz) from public, anon, authenticated;
+grant execute on function public.upsert_social_pattern_promotion(jsonb) to service_role;
+grant execute on function public.revoke_social_pattern_promotion(text, text, timestamptz) to service_role;
