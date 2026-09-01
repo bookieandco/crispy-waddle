@@ -1,5 +1,5 @@
 import { BrokerCredentialResolver, EnvironmentCredentialStore, MoneyProviderRegistry, PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, createPlaidProviderAdapterFactory, type ProviderConfig } from "@jhadina/money-core"
-import { CredentialBroker, EgressPolicy, RpcCredentialLeaseStore } from "@jhadina/security-core"
+import { CredentialBroker, EgressPolicy, RpcCredentialLeaseStore, RpcKillSwitchStore, SecurityKillSwitch } from "@jhadina/security-core"
 import { createClient } from "../supabase/server"
 
 export const PLAID_PROVIDER = "plaid"
@@ -12,18 +12,24 @@ export type GovernedMoneyPlaidProductionRegistry = {
 export async function createGovernedMoneyPlaidProductionRegistry(actorId: string, requestId: string): Promise<GovernedMoneyPlaidProductionRegistry> {
   if (!actorId || !requestId) throw new Error("MONEY_CREDENTIAL_IDENTITY_REQUIRED")
   const supabase = await createClient()
-  const leaseStore = new RpcCredentialLeaseStore({
+  const rpcClient = {
     async rpc<T>(fn: string, args: Record<string, unknown>) {
       const { data, error } = await supabase.rpc(fn, args)
       return { data: (data ?? null) as T | null, error: error ? { message: error.message } : null }
     },
-  })
+  }
+  const leaseStore = new RpcCredentialLeaseStore(rpcClient)
+  const killSwitch = new SecurityKillSwitch(new RpcKillSwitchStore(rpcClient))
   const broker = new CredentialBroker(new EnvironmentCredentialStore(), {
     maxTtlMs: 60_000,
     providerCapabilities: { [PLAID_PROVIDER]: ["money.account.read"] },
     allowedCredentialRefs: [PLAID_READ_ONLY_CONFIG.credentialRef],
     maxUses: 1,
-  }, Date.now, () => crypto.randomUUID(), leaseStore)
+  }, Date.now, () => crypto.randomUUID(), leaseStore, {
+    killSwitch,
+    posture: "normal",
+    policyDecision: "allow",
+  })
   const now = Date.now()
   const resolver = new BrokerCredentialResolver(broker, {
     requestId,
