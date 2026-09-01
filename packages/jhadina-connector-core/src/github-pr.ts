@@ -8,6 +8,7 @@ import type { DraftPullRequestRequest } from './coding-pr.js'
 import type { ConnectorExecutionRecord } from './index.js'
 import type { ConnectorReconciliationResult } from './reconciliation.js'
 import { reconciliationEvidencePayload } from './reconciliation.js'
+import { toConnectorExecutionError } from './execution-errors.js'
 
 export interface GitHubPullRequest {
   readonly number: number
@@ -70,14 +71,23 @@ export function createGitHubPullRequestAdapter(
         throw new Error('GitHub pr.create requires a verified draft pull request request')
       }
 
-      return (await transport.createPullRequest({
-        repository: input.repository,
-        title: input.title,
-        body: input.body,
-        headBranch: input.branch,
-        baseBranch: input.baseBranch,
-        draft: true,
-      })) as TOutput
+      try {
+        return (await transport.createPullRequest({
+          repository: input.repository,
+          title: input.title,
+          body: input.body,
+          headBranch: input.branch,
+          baseBranch: input.baseBranch,
+          draft: true,
+        })) as TOutput
+      } catch (error) {
+        // Never turn a known provider rejection into a recovery retry. Only
+        // transport failures whose outcome cannot be established are marked
+        // recovery-required; the Gateway then persists recovery_required.
+        const ambiguous = toConnectorExecutionError(error)
+        if (ambiguous) throw ambiguous
+        throw error
+      }
     },
     async verify<TOutput>(
       operation: ConnectorOperation,
