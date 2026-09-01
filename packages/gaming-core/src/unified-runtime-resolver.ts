@@ -1,5 +1,7 @@
 import {isRuntimeCompatible, type GameRuntimeRequirements, type RuntimeCompatibility} from './runtime-compatibility.js';
 import {selectRuntime, type RuntimeCandidate, type RuntimeSelectionPolicy} from './runtime-selection.js';
-export interface UnifiedRuntimeCandidate extends RuntimeCandidate, RuntimeCompatibility { }
-export interface UnifiedRuntimeRequest {requirements:GameRuntimeRequirements;selectionPolicy:RuntimeSelectionPolicy;}
+export interface UnifiedRuntimeCandidate extends RuntimeCandidate, RuntimeCompatibility {}
+export interface UnifiedRuntimeRequest {gameId:string;requirements:GameRuntimeRequirements;selectionPolicy:RuntimeSelectionPolicy;}
+export interface GamingLaunchProposal {proposalId:string;gameId:string;runtimeId:string;runtimeKind:RuntimeCandidate['kind'];createdAtMs:number;reason:'lowest-latency-compatible-runtime';}
 export function resolveRuntime(candidates:readonly UnifiedRuntimeCandidate[],request:UnifiedRuntimeRequest):UnifiedRuntimeCandidate|undefined{const compatible=candidates.filter(c=>isRuntimeCompatible(request.requirements,c));return selectRuntime(compatible,request.selectionPolicy) as UnifiedRuntimeCandidate|undefined;}
+export function createLaunchProposal(candidates:readonly UnifiedRuntimeCandidate[],request:UnifiedRuntimeRequest,nowMs=Date.now()):GamingLaunchProposal|undefined{if(!request.gameId.trim())throw new Error('Game id is required');const runtime=resolveRuntime(candidates,request);if(!runtime)return undefined;return{proposalId:`gaming-launch:${request.gameId}:${runtime.id}:${nowMs}`,gameId:request.gameId,runtimeId:runtime.id,runtimeKind:runtime.kind,createdAtMs:nowMs,reason:'lowest-latency-compatible-runtime'};}
