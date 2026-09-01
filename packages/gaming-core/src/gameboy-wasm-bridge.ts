@@ -10,13 +10,8 @@ export interface GameBoyWasmModule {
   setButton(button: 'a' | 'b' | 'up' | 'down' | 'left' | 'right' | 'start' | 'select', pressed: boolean): void;
 }
 
-export interface GameBoyWasmModuleFactory {
-  create(): Promise<GameBoyWasmModule>;
-}
-
-export interface RomSource {
-  read(uri: string): Promise<Uint8Array>;
-}
+export interface GameBoyWasmModuleFactory { create(): Promise<GameBoyWasmModule>; }
+export interface RomSource { read(uri: string): Promise<Uint8Array>; }
 
 export class GameBoyWasmEmulatorFactory implements GameBoyEmulatorFactory {
   constructor(private readonly modules: GameBoyWasmModuleFactory, private readonly roms: RomSource) {}
@@ -33,8 +28,6 @@ class GameBoyWasmEmulatorInstance implements GameBoyEmulatorInstance {
   constructor(private readonly module: GameBoyWasmModule) {}
 
   setInput(input: CanonicalGameInput): void {
-    const buttons: Array<[CanonicalGameInput['buttons'] extends ReadonlySet<infer B> ? B : never, GameBoyWasmModule['setButton']]> = [];
-    void buttons;
     this.module.setButton('a', input.buttons.has('a'));
     this.module.setButton('b', input.buttons.has('b'));
     this.module.setButton('up', input.buttons.has('dpad_up'));
