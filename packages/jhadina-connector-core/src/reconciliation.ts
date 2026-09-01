@@ -28,11 +28,12 @@ export interface ConnectorReconciliationResult {
   readonly evidence: ConnectorReconciliationEvidence
 }
 
-/**
- * Optional provider capability for recovering an interrupted external execution.
- * Adapters that cannot independently establish provider state must not implement
- * this by guessing; they should return indeterminate through their own mechanism.
- */
+export interface ConnectorReconciliationStore {
+  get(executionId: string): Promise<ConnectorReconciliationEvidence | undefined>
+  record(evidence: ConnectorReconciliationEvidence): Promise<boolean>
+}
+
+/** Optional provider capability for recovering an interrupted external execution. */
 export interface ConnectorReconciler {
   reconcile<TInput>(
     operation: ConnectorOperation,
@@ -43,17 +44,12 @@ export interface ConnectorReconciler {
 
 export type RecoveryResolution = 'retry_allowed' | 'already_executed' | 'blocked'
 
-export function resolveRecovery(
-  status: ConnectorReconciliationStatus,
-): RecoveryResolution {
+export function resolveRecovery(status: ConnectorReconciliationStatus): RecoveryResolution {
   switch (status) {
-    case 'confirmed_not_executed':
-      return 'retry_allowed'
-    case 'confirmed_executed':
-      return 'already_executed'
+    case 'confirmed_not_executed': return 'retry_allowed'
+    case 'confirmed_executed': return 'already_executed'
     case 'unknown':
-    case 'indeterminate':
-      return 'blocked'
+    case 'indeterminate': return 'blocked'
   }
 }
 
@@ -75,4 +71,17 @@ export function reconciliationEvidencePayload(
     adapterVersion: evidence.adapterVersion,
     source: evidence.source,
   })
+}
+
+/** Only an evidence-backed provider result may unlock recovery. */
+export function canRetryAfterReconciliation(
+  evidence: ConnectorReconciliationEvidence | undefined,
+): boolean {
+  return evidence?.status === 'confirmed_not_executed'
+}
+
+export function blocksProviderRetry(
+  evidence: ConnectorReconciliationEvidence | undefined,
+): boolean {
+  return !canRetryAfterReconciliation(evidence)
 }
