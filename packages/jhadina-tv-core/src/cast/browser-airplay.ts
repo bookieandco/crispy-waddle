@@ -1,8 +1,11 @@
 import type { MediaSessionController, MediaSessionState, PlaybackTarget } from '../casting';
+import type { ResolvedPlaybackSource } from '../playback-resolver';
+import { assertCastablePlayback } from './execution';
 
 export type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
 
-export function createBrowserAirPlayController(video: AirPlayVideo, initialState: MediaSessionState): MediaSessionController {
+export function createBrowserAirPlayController(video: AirPlayVideo, initialState: MediaSessionState, playback: ResolvedPlaybackSource): MediaSessionController {
+  assertCastablePlayback(playback);
   const target: PlaybackTarget = { id: 'airplay', name: 'AirPlay TV', transport: 'airplay' };
   let connected = false;
   let state = initialState;
@@ -13,6 +16,7 @@ export function createBrowserAirPlayController(video: AirPlayVideo, initialState
     async connect(nextTarget) {
       if (nextTarget.transport !== 'airplay') throw new Error('AirPlay controller requires an airplay target.');
       if (!supported()) throw new Error('AirPlay is not available in this browser.');
+      assertCastablePlayback(playback);
       video.webkitShowPlaybackTargetPicker!();
       connected = true;
       state = { ...state, target: nextTarget };
@@ -20,6 +24,7 @@ export function createBrowserAirPlayController(video: AirPlayVideo, initialState
     async disconnect() { connected = false; state = { ...state, target: undefined }; },
     async send(command) {
       if (command.type === 'transfer' && command.target) { await this.connect(command.target); return; }
+      if (!connected) throw new Error('AirPlay controller is not connected.');
       if (command.type === 'play') await video.play();
       else if (command.type === 'pause') video.pause();
       else if (command.type === 'seek' && typeof command.value === 'number') video.currentTime = command.value;
