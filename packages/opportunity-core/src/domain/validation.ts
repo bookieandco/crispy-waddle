@@ -1,4 +1,5 @@
 import type { Opportunity } from './opportunity.js'
+import { isCompleteVerification } from './verification.js'
 
 export type OpportunityValidationIssue = {
   code: string
@@ -28,8 +29,17 @@ export function validateOpportunity(opportunity: Opportunity): OpportunityValida
     if (claim.confidence < 0 || claim.confidence > 1) issues.push({ code: 'invalid_claim_confidence', field: `claims.${claim.field}`, message: 'Claim confidence must be between 0 and 1.', severity: 'error' })
   }
 
+  if (opportunity.verificationStatus === 'verified' && !isCompleteVerification(opportunity.verificationDecision)) {
+    issues.push({
+      code: 'verified_without_complete_decision',
+      field: 'verificationDecision',
+      message: 'A verified opportunity requires a complete evidence-backed verification decision.',
+      severity: 'error',
+    })
+  }
+
   const valid = issues.every((issue) => issue.severity !== 'error')
-  const ready = valid && opportunity.verificationStatus === 'verified' && opportunity.status === 'ready'
+  const ready = valid && isCompleteVerification(opportunity.verificationDecision) && opportunity.status === 'ready'
 
   return { valid, ready, issues }
 }
