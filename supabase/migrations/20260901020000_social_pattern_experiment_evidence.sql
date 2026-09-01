@@ -52,3 +52,5 @@ end;
 $$;
 
 revoke all on function public.insert_social_pattern_experiment_evidence(jsonb) from public, anon, authenticated;
+-- Explicitly grant the writer RPC only to the trusted service role.
+grant execute on function public.insert_social_pattern_experiment_evidence(jsonb) to service_role;
