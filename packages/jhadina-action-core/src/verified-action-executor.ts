@@ -1,6 +1,7 @@
 import type { ActionHandler, ActionLedger, ActionPolicy, ActionRequest } from './action-executor.js';
 import { ActionExecutor } from './action-executor.js';
 import type { ApprovalReceiptVerifier } from './approval-receipt.js';
+import type { NonceReplayGuard } from '../../security-core/src/replay-guard.js';
 
 export interface VerifiedIdentity {
   userId: string;
@@ -24,8 +25,9 @@ export class VerifiedActionExecutor<TAction = unknown, TResult = unknown> {
     ledger: ActionLedger,
     handlers: readonly ActionHandler<TAction, TResult>[],
     approvalReceipts?: ApprovalReceiptVerifier<TAction>,
+    replayGuard?: NonceReplayGuard,
   ) {
-    this.executor = new ActionExecutor(policy, ledger, handlers, approvalReceipts);
+    this.executor = new ActionExecutor(policy, ledger, handlers, approvalReceipts, replayGuard);
   }
 
   async execute(request: ActionRequest<TAction>): Promise<TResult> {
