@@ -21,6 +21,7 @@ export class SecurityCoreActionPolicy<TAction = unknown> implements ActionPolicy
       actorId: request.userId,
       domain: this.domain,
       capability: request.type,
+      nonce: request.nonce ?? request.id,
     });
 
     if (this.replayGuard) return this.security.authorizeWithReplayGuard(securityRequest, this.replayGuard);
