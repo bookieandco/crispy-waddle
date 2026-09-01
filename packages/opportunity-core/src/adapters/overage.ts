@@ -1,4 +1,12 @@
 import type { Opportunity } from '../domain/opportunity.js'
+import type { VerificationDecision } from '../domain/verification.js'
+
+export type OverageVerificationChecks = {
+  source_record: 'pending' | 'verified' | 'rejected'
+  property_reference: 'pending' | 'verified' | 'rejected'
+  claimant_identity: 'pending' | 'verified' | 'rejected'
+  entitlement: 'pending' | 'verified' | 'rejected'
+}
 
 export type OverageOpportunityInput = {
   id: string
@@ -10,26 +18,30 @@ export type OverageOpportunityInput = {
   sourceName?: string
   jurisdiction?: { country?: string; region?: string; locality?: string }
   propertyReference?: string
-  claimantVerified: boolean
-  saleVerified: boolean
-  entitlementVerified: boolean
-  sourceRecordVerified: boolean
+  verificationChecks?: Partial<OverageVerificationChecks>
+  verificationDecision?: VerificationDecision
   description?: string
   capturedAt?: string
 }
 
+const defaultChecks = (): OverageVerificationChecks => ({
+  source_record: 'pending',
+  property_reference: 'pending',
+  claimant_identity: 'pending',
+  entitlement: 'pending',
+})
+
 export function adaptOverageOpportunity(input: OverageOpportunityInput): Opportunity {
   const now = input.capturedAt ?? new Date().toISOString()
-  const checks = {
-    claimantVerified: input.claimantVerified,
-    saleVerified: input.saleVerified,
-    entitlementVerified: input.entitlementVerified,
-    sourceRecordVerified: input.sourceRecordVerified,
+  const checks: OverageVerificationChecks = {
+    ...defaultChecks(),
+    ...input.verificationChecks,
   }
-  const verified = Object.values(checks).every(Boolean)
+  const decision = input.verificationDecision
+  const verified = decision !== undefined && decision.status === 'verified'
   const riskFlags = Object.entries(checks)
-    .filter(([, value]) => !value)
-    .map(([key]) => `unverified:${key}`)
+    .filter(([, value]) => value !== 'verified')
+    .map(([key, value]) => `unverified:${key}:${value}`)
 
   return {
     id: `overage:${input.id}`,
@@ -52,8 +64,8 @@ export function adaptOverageOpportunity(input: OverageOpportunityInput): Opportu
       value,
       sourceId: input.id,
       sourceType: 'official' as const,
-      confidence: value ? 1 : 0,
-      verified: value,
+      confidence: value === 'verified' ? 1 : 0,
+      verified: value === 'verified',
     })),
     evidence: [{
       id: `${input.id}:source`,
@@ -62,10 +74,11 @@ export function adaptOverageOpportunity(input: OverageOpportunityInput): Opportu
       sourceName: input.sourceName ?? 'Recovery source',
       sourceType: 'official',
       capturedAt: now,
-      confidence: input.sourceRecordVerified ? 1 : 0,
+      confidence: checks.source_record === 'verified' ? 1 : 0,
     }],
-    verificationStatus: verified ? 'verified' : 'partially_verified',
-    sourceConfidence: input.sourceRecordVerified ? 1 : 0,
+    verificationStatus: verified ? 'verified' : Object.values(checks).some(value => value === 'verified') ? 'partially_verified' : 'unverified',
+    verificationDecision: decision,
+    sourceConfidence: checks.source_record === 'verified' ? 1 : 0,
     riskFlags,
     brokerability: 'restricted',
     status: verified ? 'verified' : 'research_pending',
