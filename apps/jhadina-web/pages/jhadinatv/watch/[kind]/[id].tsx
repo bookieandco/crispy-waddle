@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter } from 'next/router';
-import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget, MediaSessionState, LocalPlaybackAdapter, UnifiedMediaSession, ResolvedPlaybackSource } from '@jhadina/tv-core';
+import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget, MediaSessionState, LocalPlaybackAdapter, UnifiedMediaSession, ResolvedPlaybackSource, MediaQueueItem } from '@jhadina/tv-core';
 import { CatalogRegistry, createAuthorizedCatalogAdapter, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createPlaybackResolver, createResolvedMediaPlayer, createUnifiedMediaSession } from '@jhadina/tv-core';
 import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
 import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
+import { attachMediaPlaybackSession, detachMediaPlaybackSession } from '../../../../src/lib/jhadinatv/media-playback-runtime';
 
 const titles: MediaTitle[] = [
   { id: 'demo-noir', kind: 'movie', title: 'Midnight Signal', overview: 'A detective follows a strange radio transmission through a city that never sleeps.', year: 2026, runtimeMinutes: 108, genres: ['Crime', 'Mystery', 'Drama'], rating: 8.2, availability: 'public-domain' },
@@ -48,7 +49,11 @@ export default function JhadinaTVWatchPage() {
     const player = createResolvedMediaPlayer(playback, { ...local, setSource(url) { video.src = url; } });
     const initial = player.getState(); const controllers = [createBrowserAirPlayController(video as AirPlayVideo, initial, playback)]; if (typeof window !== 'undefined') { const googleRuntime = createBrowserGoogleCastRuntime(); if (googleRuntime.isSupported()) controllers.push(createGoogleCastController(googleRuntime, initial, playback)); controllers.push(createJhadinaTVReceiverController(createJhadinaTVReceiverTransport(), initial, playback)); }
     const casting = createCastingManager(controllers, initial);
-    const session = createUnifiedMediaSession({ titleId: title.id, kind: title.kind, playback: player.playback, local: player, casting }); sessionRef.current = session; const unsubscribe = session.subscribe(setSessionState); setSessionState(session.getState()); return () => { unsubscribe(); sessionRef.current = null; };
+    const session = createUnifiedMediaSession({ titleId: title.id, kind: title.kind, playback: player.playback, local: player, casting }); sessionRef.current = session;
+    const queueItem: MediaQueueItem = { id: `${playback.providerId}:${title.id}`, titleId: title.id, title: title.title, kind: title.kind, playback: player.playback, posterUrl: title.posterUrl, durationSeconds: title.runtimeMinutes ? title.runtimeMinutes * 60 : undefined };
+    attachMediaPlaybackSession(session, queueItem);
+    const unsubscribe = session.subscribe(setSessionState); setSessionState(session.getState());
+    return () => { unsubscribe(); detachMediaPlaybackSession(); sessionRef.current = null; };
   }, [playback, title]);
 
   useEffect(() => { const video = videoRef.current; if (!video) return; const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); setPipSupported(controller.isSupported()); const sync = () => setPipActive(controller.isActive()); video.addEventListener('enterpictureinpicture', sync); video.addEventListener('leavepictureinpicture', sync); return () => { video.removeEventListener('enterpictureinpicture', sync); video.removeEventListener('leavepictureinpicture', sync); }; }, [source]);
