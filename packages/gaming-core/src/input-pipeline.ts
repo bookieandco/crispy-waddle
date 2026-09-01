@@ -31,8 +31,8 @@ export class GamingInputPipeline {
   constructor(private readonly integrity:InputIntegrityMonitor,private readonly transport:GamingInputTransportBoundary,private readonly runtime:GamingRuntimeInputSink,private readonly controllerGate:ControllerInputGate,private readonly resync:ControllerInputResyncManager){ }
 
   async submit(event:InputIntegrityEvent,nowMs=Date.now()):Promise<GamingInputPipelineResult>{
+    const controllerGate=this.controllerGate.authorize(event,nowMs);
     const integrity=this.integrity.accept(event,nowMs);
-    const controllerGate=this.controllerGate.authorize(event);
     if(!integrity.accepted)return{...integrity,transported:false,controllerGate,resync:{allowed:false,reason:'not-resynchronized'}};
     if(!controllerGate.allowed)return{...integrity,transported:false,controllerGate,resync:{allowed:false,reason:'not-resynchronized'}};
     const resync=this.checkResync(event);
@@ -47,7 +47,10 @@ export class GamingInputPipeline {
     return{...integrity,transported:true,acknowledgement,controllerGate,resync};
   }
 
-  disconnect(sessionId:string,deviceId:string):void{this.resync.disconnect(sessionId,deviceId);}
+  disconnect(sessionId:string,deviceId:string):void{
+    this.controllerGate.clearHealth(deviceId);
+    this.resync.disconnect(sessionId,deviceId);
+  }
 
   private checkResync(event:InputIntegrityEvent):GamingInputResyncResult{
     if(!event.sessionId||!event.deviceId)return{allowed:false,reason:'not-resynchronized'};
