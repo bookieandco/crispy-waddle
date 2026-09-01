@@ -37,8 +37,9 @@ describe("Proof 1: test environment may use InMemoryStorage", () => {
     expect(typeof storage.appendTimelineEvent).toBe("function")
   })
 
-  it("createJhadinaApplication() defaults to InMemoryStorage in non-production", async () => {
-    // Dynamically import so we control the module state cleanly.
+  it("createJhadinaApplication() respects a storage override — the injected instance is used as-is", async () => {
+    // A production caller or integration test can inject SupabaseMemoryStorage;
+    // the factory must use it rather than replacing it with InMemoryStorage.
     const { createJhadinaApplication } = await import("../lib/application/createJhadinaApplication")
     const mockStorage: MemoryStorage = {
       createMemory: vi.fn().mockResolvedValue({}),

@@ -10,7 +10,6 @@ import {
   type JhadinaIdentityVerifier,
   type SupabaseClaimsClient,
 } from "../auth/supabase-identity-verifier"
-import { getStorage } from "../routes/handlers"
 
 export type ExecutionReadiness =
   | { status: "ready"; executor: unknown }
@@ -102,12 +101,18 @@ let application: JhadinaApplication | undefined
  * in the same runtime instance on long-lived Node/serverless workers while
  * remaining replaceable through createJhadinaApplication() in tests.
  *
- * Uses getStorage() from handlers.ts so the singleton shares the same
- * Supabase-backed storage instance as all other route handlers — in
- * production this means durable persistence; getStorage() will throw (fail
- * closed) if the required env variables are not configured.
+ * NOTE: The singleton defaults to InMemoryStorage because the application
+ * layer must not import from the routes layer (handlers.ts). The only
+ * production caller, request-identity.ts, accesses application.identity
+ * only — it never reads application.storage for durable persistence.
+ * All route handlers that need durable storage call getStorage() from
+ * handlers.ts directly, which is the Supabase-aware, fail-closed path.
+ *
+ * If application.storage is ever used for production persistence, inject
+ * the durable storage by calling createJhadinaApplication({ storage })
+ * from a composition root that already has getStorage() in scope.
  */
 export function getJhadinaApplication(): JhadinaApplication {
-  if (!application) application = createJhadinaApplication({ storage: getStorage() })
+  if (!application) application = createJhadinaApplication()
   return application
 }
