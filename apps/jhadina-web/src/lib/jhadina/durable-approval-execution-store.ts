@@ -105,6 +105,15 @@ export class SupabaseConnectorExecutionStore implements ConnectorExecutionStore,
     if (!data?.length) throw new Error(`Connector execution cannot enter recovery: ${executionId}`)
   }
 
+  async resolveRecoveredExecution(executionId: string, proposalHash: string, response: ConnectorResponse, now = new Date()): Promise<void> {
+    if (!this.supabase) throw new Error("Supabase service-role client is not configured")
+    const { data, error } = await this.supabase.from("jhadina_connector_execution_ledger")
+      .update({ state: "recovered", response, error: null, completed_at: now.toISOString(), updated_at: now.toISOString() })
+      .eq("execution_id", executionId).eq("proposal_hash", proposalHash).eq("state", "recovery_required").select("execution_id")
+    if (error) throw new Error(`Failed to resolve recovered connector execution: ${error.message}`)
+    if (!data?.length) throw new Error(`Connector execution cannot be resolved as recovered: ${executionId}`)
+  }
+
   async complete(executionId: string, proposalHash: string, response: ConnectorResponse, now = new Date()): Promise<void> {
     await this.transition(executionId, proposalHash, { state: "succeeded", response, error: null }, now)
   }
@@ -142,7 +151,7 @@ export class SupabaseApprovalExecutionStore implements ApprovalExecutionStore {
   }
   async get(approvalId: string): Promise<ApprovalExecutionRecord | undefined> {
     if (!this.supabase) throw new Error("Supabase service-role client is not configured")
-    const { data, error } = await this.supabase.from("jhadina_connector_execution_ledger").select("approval_id, proposal_hash, state, started_at, completed_at, error").eq("approval_id", approvalId).maybeSingle<{ approval_id: string; proposal_hash: string; state: "executing" | "succeeded" | "failed" | "recovery_required"; started_at: string; completed_at: string | null; error: string | null }>()
+    const { data, error } = await this.supabase.from("jhadina_connector_execution_ledger").select("approval_id, proposal_hash, state, started_at, completed_at, error").eq("approval_id", approvalId).maybeSingle<{ approval_id: string; proposal_hash: string; state: "executing" | "succeeded" | "failed" | "recovery_required" | "recovered"; started_at: string; completed_at: string | null; error: string | null }>()
     if (error) throw new Error(`Failed to read approval execution: ${error.message}`)
     return data ? { approvalId: data.approval_id, proposalHash: data.proposal_hash, state: data.state, startedAt: data.started_at, ...(data.completed_at ? { completedAt: data.completed_at } : {}), ...(data.error ? { error: data.error } : {}) } : undefined
   }
