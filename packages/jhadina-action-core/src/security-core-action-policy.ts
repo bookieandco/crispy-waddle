@@ -1,27 +1,56 @@
 import type { ActionPolicy, ActionRequest, ActionPolicyDecision } from './action-executor.js';
 import {
-  createSecurityRequest,
+  JhadinaPolicyEngine,
+  JHADINA_DEFAULT_VALUES_CONFIGURATION,
   JhadinaSecurityCore,
   JHADINA_BASE_SECURITY_POLICY,
+  type JhadinaValuesConfiguration,
   type SecurityPolicy,
 } from '../../security-core/src/index.js';
 
-/** Adapts deterministic Security Core decisions without collapsing approval_required into deny. */
+export interface ActionRiskMetadata {
+  amountMinor?: number;
+  recipient?: string;
+  platform?: string;
+}
+
+/**
+ * Compatibility adapter for ActionExecutor.
+ *
+ * It no longer performs authorization itself: every decision is issued by
+ * JhadinaPolicyEngine. The legacy JhadinaSecurityCore instance supplies only
+ * its immutable capability policy; it is not called as a second authority.
+ */
 export class SecurityCoreActionPolicy<TAction = unknown> implements ActionPolicy<TAction> {
+  private readonly engine: JhadinaPolicyEngine;
+
   constructor(
-    private readonly security: JhadinaSecurityCore,
+    security: JhadinaSecurityCore,
     private readonly domain = 'jhadina-action',
-  ) {}
+    values: JhadinaValuesConfiguration = JHADINA_DEFAULT_VALUES_CONFIGURATION,
+    private readonly extractRiskMetadata: (action: TAction) => ActionRiskMetadata = () => ({}),
+  ) {
+    this.engine = new JhadinaPolicyEngine(values, security.getPolicy());
+  }
 
   async evaluate(request: ActionRequest<TAction>): Promise<ActionPolicyDecision> {
-    const securityRequest = createSecurityRequest({
+    const issuedAt = Date.parse(request.requestedAt);
+    if (!Number.isFinite(issuedAt)) return 'deny';
+
+    const metadata = this.extractRiskMetadata(request.action);
+    const decision = this.engine.decide({
       requestId: request.id,
       actorId: request.userId,
       domain: this.domain,
       capability: request.type,
+      amountMinor: metadata.amountMinor,
+      recipient: metadata.recipient,
+      platform: metadata.platform,
+      issuedAt,
+      expiresAt: issuedAt + 30_000,
     });
 
-    return this.security.authorize(securityRequest);
+    return decision.decision;
   }
 }
 
