@@ -1,0 +1,4 @@
+export type SessionQualityState='maintain'|'adapt'|'warn'|'stop';
+export interface SessionQualityMetrics { rttMs:number;jitterMs:number;packetLossPct:number;inputHealth:'excellent'|'degraded'|'critical'|'disconnected';streamHealthy:boolean;}
+export interface SessionQualityDecision { state:SessionQualityState; reason:string; }
+export function evaluateSessionQuality(m:SessionQualityMetrics):SessionQualityDecision {if(!m.streamHealthy||m.inputHealth==='disconnected')return{state:'stop',reason:'stream or controller disconnected'};if(m.inputHealth==='critical'||m.packetLossPct>=5||m.rttMs>=120||m.jitterMs>=40)return{state:'warn',reason:'connection quality is critically degraded'};if(m.inputHealth==='degraded'||m.packetLossPct>=1||m.rttMs>=50||m.jitterMs>=15)return{state:'adapt',reason:'connection quality is degraded'};return{state:'maintain',reason:'connection quality is healthy'};}
