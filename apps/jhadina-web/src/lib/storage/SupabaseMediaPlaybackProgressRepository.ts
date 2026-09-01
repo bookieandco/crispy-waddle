@@ -10,7 +10,6 @@ type MediaPlaybackProgressRow = {
   duration_ms: number | null
   completed: boolean
   updated_at: string
-  metadata: Record<string, unknown>
 }
 
 function rowToProgress(row: MediaPlaybackProgressRow): MediaPlaybackProgress {
@@ -61,7 +60,6 @@ export class SupabaseMediaPlaybackProgressRepository implements MediaPlaybackPro
           progress.durationMs === undefined ? null : Math.max(0, Math.trunc(progress.durationMs)),
         p_completed: progress.completed,
         p_updated_at: progress.updatedAt,
-        p_metadata: {},
       })
       .single()
 
