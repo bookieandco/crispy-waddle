@@ -16,11 +16,31 @@ export interface PromotedSocialPattern {
   readonly source: 'validated_experiment';
 }
 
-export function promoteValidatedPattern(hypothesis: PatternHypothesis, result: PatternExperimentResult): PromotedSocialPattern | null {
-  if (!result.promoted || result.winner !== 'treatment') return null;
+export function promoteValidatedPattern(
+  hypothesis: PatternHypothesis,
+  result: PatternExperimentResult,
+): PromotedSocialPattern | null {
+  if (result.evaluationSource !== 'pattern-experiment-evaluator') return null;
+  if (result.experimentId !== `pattern-experiment:${hypothesis.id}`) return null;
+  if (result.hypothesisId !== hypothesis.id) return null;
+  if (result.targetAccountId !== hypothesis.targetAccountId) return null;
+  if (result.targetAudienceId !== hypothesis.targetAudienceId) return null;
+  if (result.targetVoiceId !== hypothesis.targetVoiceId) return null;
+  if (result.successMetric === undefined) return null;
+  if (result.evaluationId.length === 0 || !result.evaluatedAt) return null;
+  if (result.winner !== 'treatment' || !result.promoted) return null;
   if (result.observations < result.minimumObservations) return null;
-  const relativeLift = result.controlMetric > 0 ? (result.treatmentMetric - result.controlMetric) / result.controlMetric : 0;
-  const confidence = Math.max(0, Math.min(1, hypothesis.sourceConfidence * 0.5 + Math.min(1, Math.max(0, relativeLift)) * 0.5));
+  if (result.controlObservations <= 0 || result.treatmentObservations <= 0) return null;
+
+  const relativeLift = result.controlMetric > 0
+    ? (result.treatmentMetric - result.controlMetric) / result.controlMetric
+    : 0;
+  if (relativeLift < 0.1) return null;
+
+  const confidence = Math.max(
+    0,
+    Math.min(1, hypothesis.sourceConfidence * 0.5 + Math.min(1, relativeLift) * 0.5),
+  );
   return {
     id: `promoted-pattern:${hypothesis.id}` as GrowthId,
     hypothesisId: hypothesis.id,
