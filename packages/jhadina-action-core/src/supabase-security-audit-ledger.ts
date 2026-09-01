@@ -14,24 +14,30 @@ type SecurityAuditRow = {
 };
 
 /**
- * SecurityCore's durable audit boundary. It deliberately reuses the canonical
- * append_jhadina_audit_event RPC/table owned by SupabaseAuditLedger rather than
- * creating a second security-specific audit store.
+ * SecurityCore's durable audit boundary. Reuses the canonical
+ * append_jhadina_audit_event RPC/table; this adapter owns no second ledger.
  */
 export class SupabaseSecurityAuditLedger {
   constructor(private readonly options: SupabaseSecurityAuditLedgerOptions) {}
 
   async append(event: AuditSecurityEvent): Promise<DurableSecurityAuditAppendResult> {
+    const domain = this.options.domain ?? event.domain;
+    const status = event.decision === 'approval_required'
+      ? 'approval_required'
+      : event.decision === 'deny'
+        ? 'denied'
+        : 'completed';
+
     const { data, error } = await this.options.client.rpc<SecurityAuditRow>('append_jhadina_audit_event', {
       p_event_id: event.id,
       p_request_id: event.requestId,
       p_actor_id: event.actorId,
-      p_domain: this.options.domain ?? event.domain,
+      p_domain: domain,
       p_capability: event.capability,
-      p_decision: event.decision === 'deny' ? 'deny' : 'allow',
-      p_status: event.decision === 'approval_required' ? 'approval_required' : event.decision === 'deny' ? 'denied' : 'completed',
+      p_decision: event.decision,
+      p_status: status,
       p_occurred_at: event.occurredAt,
-      p_metadata: {},
+      p_metadata: { securityDecision: event.decision },
     });
 
     if (error || !data) {
