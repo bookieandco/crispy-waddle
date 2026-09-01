@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { hashActionProposal } from './approval.js'
 import type { AuthoritativeActionProposal } from './governed-action.js'
 import type { ConnectorAdapter, ConnectorExecutionRecord, ConnectorOperation, ConnectorRequest } from './index.js'
@@ -101,9 +102,9 @@ export class ConnectorRecoveryGateway {
       return { resolution, evidence: result.evidence }
     }
 
-    const retryExecutionId = `exec_recovery_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`
+    const retryExecutionId = randomUUID()
     const retryIdempotencyKey = `recovery_${execution.idempotencyKey}_${retryExecutionId}`
-    const recoveryLeaseId = `lease_recovery_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`
+    const recoveryLeaseId = `lease_recovery_${randomUUID()}`
     const claimed = await this.recoveryAttempts.claimRecoveryAttempt({ originalExecutionId: execution.executionId, proposalHash, newExecutionId: retryExecutionId, newIdempotencyKey: retryIdempotencyKey, recoveryLeaseId, connectorId: execution.connectorId, operation: execution.operation, actorId: execution.actorId, correlationId: execution.correlationId })
     if (!claimed) throw new Error('Recovery attempt could not be atomically claimed')
 
