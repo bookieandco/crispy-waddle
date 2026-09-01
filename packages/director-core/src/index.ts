@@ -3,6 +3,7 @@ export * from './generation-provider';
 export * from './comfyui-http';
 export * from './comfyui-output-resolver';
 export * from './generation-service';
+export * from './creative-art-provider';
 export * from './generation-manifest';
 export * from './generation-catalog';
 export * from './workflow-registry';
