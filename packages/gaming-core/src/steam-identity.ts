@@ -1,0 +1,3 @@
+export interface SteamGameIdentity {sourceAppId:number;name:string;kind:'steam';}
+export function parseSteamAppId(value:unknown):number|undefined{const n=typeof value==='number'?value:Number(typeof value==='string'?value.trim():NaN);return Number.isInteger(n)&&n>0?n:undefined;}
+export function identifySteamApplication(app:{id?:string|number;name:string;cmd?:string}):SteamGameIdentity|undefined{const candidates=[app.id,app.cmd?.match(/(?:^|\s|["'])appid[=:\s]+(\d+)/i)?.[1]];for(const candidate of candidates){const id=parseSteamAppId(candidate);if(id!==undefined)return{sourceAppId:id,name:app.name.trim(),kind:'steam'};}return undefined;}
