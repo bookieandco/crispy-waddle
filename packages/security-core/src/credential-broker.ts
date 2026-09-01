@@ -1,4 +1,6 @@
 import type { CredentialLeaseStore, CredentialLeaseUseRequest } from './credential-lease-store.js';
+import type { KillSwitchDecision, SecurityKillSwitch } from './security-kill-switch.js';
+import type { SecurityPosture } from './security-posture.js';
 
 export type CredentialTrust = 'untrusted' | 'quarantined' | 'trusted-compute';
 export type CredentialRequest = { requestId: string; actorId: string; workerId?: string; workerTrust?: CredentialTrust; capability: string; provider: string; credentialRef: string; purpose: string; resourceId?: string; issuedAt: number; expiresAt: number; nonce: string };
@@ -8,8 +10,40 @@ export interface CredentialStore { resolve(credentialRef: string): Promise<Crede
 export type CredentialPolicy = { maxTtlMs: number; providerCapabilities: Readonly<Record<string, readonly string[]>>; allowedCredentialRefs: readonly string[]; maxUses: number };
 export class CredentialBrokerError extends Error { constructor(public readonly code: string) { super(code); this.name = 'CredentialBrokerError'; } }
 
+export type CredentialSecurityGate = {
+  killSwitch: SecurityKillSwitch;
+  posture: SecurityPosture | (() => SecurityPosture);
+  /** Optional final policy decision supplied by the authoritative policy boundary. */
+  policyDecision?: 'allow' | 'approval_required' | 'deny' | (() => 'allow' | 'approval_required' | 'deny');
+};
+
 export class CredentialBroker {
-  constructor(private readonly store: CredentialStore, private readonly policy: CredentialPolicy, private readonly now: () => number = Date.now, private readonly idFactory: () => string = () => crypto.randomUUID(), private readonly leaseStore?: CredentialLeaseStore) {}
+  constructor(
+    private readonly store: CredentialStore,
+    private readonly policy: CredentialPolicy,
+    private readonly now: () => number = Date.now,
+    private readonly idFactory: () => string = () => crypto.randomUUID(),
+    private readonly leaseStore?: CredentialLeaseStore,
+    private readonly securityGate?: CredentialSecurityGate,
+  ) {}
+
+  private posture(): SecurityPosture {
+    return typeof this.securityGate?.posture === 'function' ? this.securityGate.posture() : (this.securityGate?.posture ?? 'normal');
+  }
+
+  private policyDecision(): 'allow' | 'approval_required' | 'deny' {
+    const value = this.securityGate?.policyDecision;
+    return typeof value === 'function' ? value() : (value ?? 'allow');
+  }
+
+  private async authorizeSecurity(capability: string): Promise<KillSwitchDecision | null> {
+    if (!this.securityGate) return null;
+    const decision = await this.securityGate.killSwitch.decide(this.posture(), capability);
+    if (!decision.allowed) throw new CredentialBrokerError(decision.reason === 'kill_switch_enabled' ? 'KILL_SWITCH_ENABLED' : 'SECURITY_POSTURE_DENIED');
+    const policy = this.policyDecision();
+    if (policy !== 'allow') throw new CredentialBrokerError(policy === 'approval_required' ? 'POLICY_APPROVAL_REQUIRED' : 'POLICY_DENIED');
+    return decision;
+  }
 
   async issue(request: CredentialRequest): Promise<CredentialGrant> {
     const now = this.now();
@@ -21,6 +55,7 @@ export class CredentialBroker {
     if (!(this.policy.providerCapabilities[request.provider] ?? []).includes(request.capability)) throw new CredentialBrokerError('CAPABILITY_PROVIDER_MISMATCH');
     if (request.workerTrust !== undefined && request.workerTrust !== 'trusted-compute') throw new CredentialBrokerError('WORKER_NOT_TRUSTED');
     if (request.workerId === undefined && request.workerTrust !== undefined) throw new CredentialBrokerError('WORKER_BINDING_REQUIRED');
+    await this.authorizeSecurity(request.capability);
     const material = await this.store.resolve(request.credentialRef);
     if (!material?.secret) throw new CredentialBrokerError('CREDENTIAL_NOT_AVAILABLE');
     if (material.expiresAt !== undefined && material.expiresAt <= now) throw new CredentialBrokerError('CREDENTIAL_EXPIRED');
@@ -39,6 +74,7 @@ export class CredentialBroker {
     if (grant.credentialRef !== request.credentialRef) throw new CredentialBrokerError('CREDENTIAL_REF_MISMATCH');
     if (grant.purpose !== request.purpose) throw new CredentialBrokerError('PURPOSE_MISMATCH');
     if (grant.resourceId !== request.resourceId) throw new CredentialBrokerError('RESOURCE_MISMATCH');
+    await this.authorizeSecurity(request.capability);
     if (!this.leaseStore) throw new CredentialBrokerError('DURABLE_LEASE_STORE_REQUIRED');
     if (!(await this.leaseStore.consume(grant.leaseId, request, now))) throw new CredentialBrokerError('LEASE_EXHAUSTED');
     const material = await this.store.resolve(grant.credentialRef);
