@@ -1,6 +1,7 @@
 export * from './action-executor.js';
 export * from './approval-receipt.js';
 export * from './supabase-audit-ledger.js';
+export * from './supabase-security-audit-ledger.js';
 export * from './supabase-approval-receipt.js';
 export * from './supabase-nonce-replay-guard.js';
 export * from './verified-action-executor.js';
