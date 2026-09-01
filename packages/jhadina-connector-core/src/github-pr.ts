@@ -1,9 +1,13 @@
+import { createHash } from 'node:crypto'
 import type {
   ConnectorAdapter,
   ConnectorOperation,
   ConnectorRequest,
 } from './index.js'
 import type { DraftPullRequestRequest } from './coding-pr.js'
+import type { ConnectorExecutionRecord } from './index.js'
+import type { ConnectorReconciliationResult } from './reconciliation.js'
+import { reconciliationEvidencePayload } from './reconciliation.js'
 
 export interface GitHubPullRequest {
   readonly number: number
@@ -24,6 +28,13 @@ export interface GitHubPullRequestTransport {
     baseBranch: string
     draft: true
   }): Promise<GitHubPullRequest>
+  /** Provider-side lookup used after an interrupted create request. */
+  findPullRequest?(input: {
+    repository: string
+    title: string
+    headBranch: string
+    baseBranch: string
+  }): Promise<GitHubPullRequest | undefined>
 }
 
 const operations: readonly ConnectorOperation[] = [
@@ -53,7 +64,7 @@ export function createGitHubPullRequestAdapter(
       _request: ConnectorRequest<TInput>,
     ): Promise<TOutput> {
       if (operation.name !== 'pr.create') {
-        throw new Error(`Unsupported GitHub PR operation: ${operation.name}`)
+        throw new Error(`Unsupported GitHub operation: ${operation.name}`)
       }
       if (!isDraftPullRequestRequest(input)) {
         throw new Error('GitHub pr.create requires a verified draft pull request request')
@@ -78,6 +89,93 @@ export function createGitHubPullRequestAdapter(
       if (output.draft !== true) return false
       return output.headBranch !== output.baseBranch && output.htmlUrl.length > 0 && request.capability === 'github.pr.create'
     },
+    async reconcile<TInput>(
+      operation: ConnectorOperation,
+      request: ConnectorRequest<TInput>,
+      execution: ConnectorExecutionRecord,
+    ): Promise<ConnectorReconciliationResult> {
+      if (operation.name !== 'pr.create') {
+        throw new Error(`Unsupported GitHub operation: ${operation.name}`)
+      }
+      if (!isDraftPullRequestRequest(request.input)) {
+        throw new Error('GitHub pr.create reconciliation requires the original verified draft request')
+      }
+
+      const checkedAt = new Date().toISOString()
+      const baseEvidence = {
+        executionId: execution.executionId,
+        proposalHash: execution.proposalHash,
+        idempotencyKey: execution.idempotencyKey,
+        connectorId: execution.connectorId,
+        operation: execution.operation,
+        observedAt: checkedAt,
+        checkedAt,
+        adapterVersion: 1,
+        source: 'github-pr',
+      }
+
+      if (!transport.findPullRequest) {
+        return makeReconciliationResult({
+          ...baseEvidence,
+          status: 'indeterminate',
+        })
+      }
+
+      let pullRequest: GitHubPullRequest | undefined
+      try {
+        pullRequest = await transport.findPullRequest({
+          repository: request.input.repository,
+          title: request.input.title,
+          headBranch: request.input.branch,
+          baseBranch: request.input.baseBranch,
+        })
+      } catch {
+        return makeReconciliationResult({
+          ...baseEvidence,
+          status: 'indeterminate',
+        })
+      }
+
+      if (!pullRequest) {
+        return makeReconciliationResult({
+          ...baseEvidence,
+          status: 'confirmed_not_executed',
+          providerState: 'not_found',
+        })
+      }
+
+      const exactMatch =
+        pullRequest.title === request.input.title &&
+        pullRequest.headBranch === request.input.branch &&
+        pullRequest.baseBranch === request.input.baseBranch &&
+        pullRequest.draft === true &&
+        pullRequest.htmlUrl.length > 0
+
+      if (!exactMatch) {
+        return makeReconciliationResult({
+          ...baseEvidence,
+          status: 'indeterminate',
+          providerState: 'ambiguous_match',
+        })
+      }
+
+      return makeReconciliationResult({
+        ...baseEvidence,
+        status: 'confirmed_executed',
+        providerReference: pullRequest.htmlUrl,
+        providerState: pullRequest.draft ? 'open_draft' : 'open',
+      })
+    },
+  }
+}
+
+function makeReconciliationResult(
+  evidence: Omit<import('./reconciliation.js').ConnectorReconciliationEvidence, 'evidenceHash'>,
+): ConnectorReconciliationResult {
+  const evidenceHash = createHash('sha256').update(reconciliationEvidencePayload(evidence)).digest('hex')
+  return {
+    status: evidence.status,
+    evidence: { ...evidence, evidenceHash },
   }
 }
 
