@@ -11,11 +11,7 @@ export class BrokerCredentialResolver implements CredentialResolver {
       if (this.request.egressDestination && this.request.egressPolicyVersion && this.request.egressDecisionReason) return { destination: this.request.egressDestination, policyVersion: this.request.egressPolicyVersion, reason: this.request.egressDecisionReason };
       throw new Error('EGRESS_BINDING_REQUIRED');
     }
-    const decision = await this.egress.policy.authorize({
-      requestId: this.request.requestId, actorId: this.request.actorId, capability: this.request.capability,
-      destination: this.egress.destination, method: 'POST', dataClass: this.egress.dataClass ?? 'internal',
-      issuedAt: this.request.issuedAt, expiresAt: this.request.expiresAt,
-    });
+    const decision = await this.egress.policy.authorize({ requestId: this.request.requestId, actorId: this.request.actorId, capability: this.request.capability, destination: this.egress.destination, method: 'POST', dataClass: this.egress.dataClass ?? 'internal', issuedAt: this.request.issuedAt, expiresAt: this.request.expiresAt });
     if (decision.decision !== 'allow' || !decision.normalizedDestination) throw new Error(`EGRESS_DENIED:${decision.reason}`);
     return { destination: decision.normalizedDestination, policyVersion: decision.policyVersion, reason: decision.reason };
   }
@@ -23,15 +19,12 @@ export class BrokerCredentialResolver implements CredentialResolver {
   async resolve(credentialRef: string): Promise<ResolvedCredential> {
     if (credentialRef !== this.request.credentialRef) throw new Error('CREDENTIAL_REF_SCOPE_MISMATCH');
     const egress = await this.authorizeEgress();
-    const boundRequest: CredentialRequest = {
-      ...this.request, workerTrust: this.trust, egressDestination: egress.destination,
-      egressPolicyVersion: egress.policyVersion, egressDecisionReason: egress.reason,
-    };
+    const boundRequest: CredentialRequest = { ...this.request, workerTrust: this.trust, egressDestination: egress.destination, egressPolicyVersion: egress.policyVersion, egressDecisionReason: egress.reason };
     const grant = await this.broker.issue(boundRequest);
     const rechecked = await this.authorizeEgress();
     if (rechecked.destination !== grant.egressDestination || rechecked.policyVersion !== grant.egressPolicyVersion || rechecked.reason !== grant.egressDecisionReason) throw new Error('EGRESS_BINDING_CHANGED');
     const material = await this.broker.use(grant, {
-      actorId: boundRequest.actorId, workerId: boundRequest.workerId, capability: boundRequest.capability,
+      requestId: boundRequest.requestId, actorId: boundRequest.actorId, workerId: boundRequest.workerId, capability: boundRequest.capability,
       provider: boundRequest.provider, credentialRef: boundRequest.credentialRef, purpose: boundRequest.purpose,
       resourceId: boundRequest.resourceId, egressDestination: grant.egressDestination,
       egressPolicyVersion: grant.egressPolicyVersion, egressDecisionReason: grant.egressDecisionReason,
