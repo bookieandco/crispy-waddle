@@ -2,9 +2,21 @@ import { describe, expect, it } from 'vitest'
 import { createFeedbackEvent, createVersionedAssessment, isLearningSignal } from './feedback.js'
 
 describe('OCE-6.76 intelligence feedback', () => {
-  it('creates stable append-only feedback event ids', () => {
-    const event = createFeedbackEvent({ kind: 'OUTCOME', type: 'OPPORTUNITY_LOST', opportunityId: 'opp-1', sourceEvidenceIds: [], payload: {}, observedAt: '2026-08-30T12:00:00Z', recordedAt: '2026-08-30T12:01:00Z', schemaVersion: '1.0' })
-    expect(event.id).toBe('OPPORTUNITY_LOST:opp-1::2026-08-30T12:00:00Z')
+  it('generates unique ids for repeated events unless an id is explicitly supplied', () => {
+    const input = {
+      kind: 'OUTCOME' as const,
+      type: 'OPPORTUNITY_LOST' as const,
+      opportunityId: 'opp-1',
+      sourceEvidenceIds: [],
+      payload: {},
+      observedAt: '2026-08-30T12:00:00Z',
+      recordedAt: '2026-08-30T12:01:00Z',
+      schemaVersion: '1.0',
+    }
+    const first = createFeedbackEvent(input)
+    const second = createFeedbackEvent(input)
+    expect(first.id).not.toBe(second.id)
+    expect(createFeedbackEvent({ ...input, id: 'feedback-1' }).id).toBe('feedback-1')
   })
 
   it('keeps source evidence references separate from outcomes', () => {
