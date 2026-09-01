@@ -9,12 +9,22 @@ describe('pattern experiments', () => {
     expect(experiment.treatmentRequired).toBe(true);
   });
   it('promotes only a meaningful treatment win', () => {
-    const result = evaluatePatternExperiment({ experimentId: 'experiment:1' as never, controlMetric: 0.1, treatmentMetric: 0.12, observations: 30 });
+    const experiment = planPatternExperiment(hypothesis);
+    const result = evaluatePatternExperiment(experiment, { experimentId: experiment.id, controlMetric: 0.1, treatmentMetric: 0.12, observations: 30 });
     expect(result.winner).toBe('treatment');
     expect(result.promoted).toBe(true);
   });
-  it('does not promote an underpowered experiment', () => {
-    const result = evaluatePatternExperiment({ experimentId: 'experiment:2' as never, controlMetric: 0.1, treatmentMetric: 0.2, observations: 12 });
+  it('honors a custom minimum observation threshold', () => {
+    const experiment = planPatternExperiment(hypothesis, 'qualified_leads', 50);
+    const result = evaluatePatternExperiment(experiment, { experimentId: experiment.id, controlMetric: 0.1, treatmentMetric: 0.2, observations: 30 });
+    expect(result.winner).toBe('inconclusive');
     expect(result.promoted).toBe(false);
+    expect(result.reason).toBe('insufficient_observations');
+  });
+  it('rejects results for a different experiment', () => {
+    const experiment = planPatternExperiment(hypothesis);
+    const result = evaluatePatternExperiment(experiment, { experimentId: 'experiment:other' as never, controlMetric: 0.1, treatmentMetric: 0.2, observations: 30 });
+    expect(result.promoted).toBe(false);
+    expect(result.reason).toBe('experiment_id_mismatch');
   });
 });
