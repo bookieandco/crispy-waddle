@@ -1,28 +1,20 @@
 /**
  * B&W-6.2 — Home Assistant State/Event Ingestion Pipeline
  *
- * Pipeline: HA event → validate → idempotency → ordering → normalize → publish
+ * Pipeline: HA event → validate → idempotency claim → normalize → order →
+ * durable state CAS → publish → complete idempotency.
  *
- * Architecture:
- * - Uses the existing Jhadina EventBus (EventBus interface from @jhadina/event-bus).
- * - Does NOT create a HomeEventBus, HomePolicyEngine, or HomeCapabilityRegistry.
- * - Does NOT grant capability authorization — state ingestion is knowledge-only.
- * - Does NOT mutate canonical state before validation.
- * - Rejected events produce no downstream domain events.
- * - Every accepted state transition produces exactly one DomainEvent on the bus.
+ * Durable stores are injected; no Home-specific policy, capability registry,
+ * or event bus is created here.
  */
 
 import { DeterministicHomeAssistantAdapter } from './ha-adapter.js';
-import type { RawHomeAssistantEvent, HaEventEnvelope } from './ha-event-envelope.js';
+import type { RawHomeAssistantEvent } from './ha-event-envelope.js';
 import { validateHaEvent } from './ha-event-envelope.js';
 import type { IdempotencyStore } from './ha-idempotency.js';
 import type { EntityStateStore, HomeEntityState } from './ha-state-machine.js';
 import { determineOrdering } from './ha-state-machine.js';
 import type { HomeAssistantAvailability, HomeAssistantEntityDomain } from './ha-entity.js';
-
-// ---------------------------------------------------------------------------
-// EventBus port (matches the existing @jhadina/event-bus DomainEvent contract)
-// ---------------------------------------------------------------------------
 
 export interface DomainEvent<TPayload = unknown> {
   readonly id: string;
@@ -41,17 +33,6 @@ export interface EventBusPort {
   publish<TPayload>(event: DomainEvent<TPayload>): Promise<void>;
 }
 
-// ---------------------------------------------------------------------------
-// Domain event payload
-// ---------------------------------------------------------------------------
-
-/**
- * Payload for a ha.entity.state_changed domain event.
- *
- * Contains the full HomeEntityState snapshot PLUS the stale old state for
- * consumers that need to compute transitions (e.g. capability evaluation
- * reacting to unavailable → available).
- */
 export interface HaEntityStatePayload {
   readonly current: HomeEntityState;
   readonly previous: HomeEntityState | null;
@@ -60,37 +41,17 @@ export interface HaEntityStatePayload {
 export const HA_STATE_CHANGED_EVENT_TYPE = 'ha.entity.state_changed';
 export const HA_STATE_CHANGED_EVENT_VERSION = 1;
 
-// ---------------------------------------------------------------------------
-// Pipeline result
-// ---------------------------------------------------------------------------
-
 export type IngestionResult =
   | { outcome: 'accepted'; entityId: `ha:entity:${string}`; eventId: string }
   | { outcome: 'duplicate'; eventId: string; reason: string }
   | { outcome: 'stale'; eventId: string; entityId: `ha:entity:${string}`; reason: string }
   | { outcome: 'rejected'; reason: string };
 
-// ---------------------------------------------------------------------------
-// Pipeline
-// ---------------------------------------------------------------------------
-
 export interface HomeAssistantIngestionPipelineOptions {
-  /** Injected adapter for testability; defaults to DeterministicHomeAssistantAdapter(). */
   adapter?: DeterministicHomeAssistantAdapter;
-  /** Injected clock for deterministic test control. */
   clock?: () => string;
 }
 
-/**
- * HomeAssistantIngestionPipeline — B&W-6.2
- *
- * Dependencies are injected so the composition root controls durability:
- * - idempotencyStore: swap InMemoryIdempotencyStore for a durable Supabase store
- * - stateStore: swap InMemoryEntityStateStore for a durable entity-state table
- * - eventBus: the existing Jhadina InMemoryEventBus or a durable outbox bus
- * - options.adapter: injected for testability; defaults to DeterministicHomeAssistantAdapter
- * - options.clock: injected for deterministic test control
- */
 export class HomeAssistantIngestionPipeline {
   private readonly adapter: DeterministicHomeAssistantAdapter;
   private readonly clock: () => string;
@@ -105,36 +66,30 @@ export class HomeAssistantIngestionPipeline {
     this.clock = options.clock ?? (() => new Date().toISOString());
   }
 
-  /**
-   * Ingest a raw HA event.
-   *
-   * Pipeline stages:
-   * 1. Validate — reject malformed events; produce no side effects on failure.
-   * 2. Idempotency — return 'duplicate' without mutating state.
-   * 3. Normalize — call B&W-6.1 DeterministicHomeAssistantAdapter.
-   *    Normalization failure → reject.
-   * 4. Ordering — determine if the incoming event is newer/stale/tied.
-   *    Stale → return 'stale' without mutating state.
-   * 5. Commit state — update the entity state store.
-   * 6. Publish — emit exactly one DomainEvent on the EventBus.
-   * 7. Mark seen — record the eventId in the idempotency store.
-   */
   async ingest(raw: RawHomeAssistantEvent): Promise<IngestionResult> {
-    // Stage 1: Validate
     const validation = validateHaEvent(raw);
-    if (!validation.ok) {
-      return { outcome: 'rejected', reason: validation.reason };
-    }
+    if (!validation.ok) return { outcome: 'rejected', reason: validation.reason };
     const envelope = validation.envelope;
 
-    // Stage 2: Idempotency check
-    if (this.idempotency.hasSeen(envelope.eventId)) {
+    // Durable implementations use an atomic database claim. The legacy
+    // hasSeen fallback remains for compatibility with older test doubles.
+    let claimed = false;
+    if (this.idempotency.claim) {
+      claimed = await this.idempotency.claim(envelope.eventId, envelope.sourceEntityId);
+      if (!claimed) {
+        return { outcome: 'duplicate', eventId: envelope.eventId, reason: 'already processed or in flight' };
+      }
+    } else if (await this.idempotency.hasSeen(envelope.eventId)) {
       return { outcome: 'duplicate', eventId: envelope.eventId, reason: 'already processed' };
     }
 
-    // Stage 3: Normalize
+    const releaseClaim = async () => {
+      if (claimed && this.idempotency.release) await this.idempotency.release(envelope.eventId);
+    };
+
     const rawState = envelope.newState ?? envelope.oldState;
     if (!rawState) {
+      await releaseClaim();
       return { outcome: 'rejected', reason: 'Both new_state and old_state are null' };
     }
 
@@ -152,14 +107,14 @@ export class HomeAssistantIngestionPipeline {
     );
 
     if (!normResult.ok) {
+      await releaseClaim();
       return { outcome: 'rejected', reason: normResult.reason };
     }
 
-    // Stage 4: Ordering
-    const current = this.stateStore.get(normResult.entity.entityId);
+    const current = await this.stateStore.get(normResult.entity.entityId);
     const ordering = determineOrdering(current, envelope);
-
     if (ordering === 'reject-stale') {
+      await releaseClaim();
       return {
         outcome: 'stale',
         eventId: envelope.eventId,
@@ -168,8 +123,6 @@ export class HomeAssistantIngestionPipeline {
       };
     }
 
-    // Stage 5: Build new canonical state
-    const updatedAt = this.clock();
     const newState: HomeEntityState = Object.freeze({
       entityId: normResult.entity.entityId,
       domain: normResult.entity.domain as HomeAssistantEntityDomain,
@@ -181,34 +134,55 @@ export class HomeAssistantIngestionPipeline {
       sourceEventId: envelope.eventId,
       stateAt: envelope.eventOccurredAt,
       timestampMissing: envelope.timestampMissing,
-      updatedAt,
+      updatedAt: this.clock(),
       correlationId: envelope.correlationId,
       causationId: envelope.causationId,
     });
 
-    // Stage 5b: Commit state
-    this.stateStore.set(newState);
+    // Durable implementations perform compare-and-swap on the previously
+    // observed stateAt. This prevents a stale concurrent writer from
+    // overwriting a newer canonical snapshot.
+    const committed = await this.stateStore.set(newState, current?.stateAt);
+    if (committed === false) {
+      const latest = await this.stateStore.get(newState.entityId);
+      await releaseClaim();
+      return {
+        outcome: 'stale',
+        eventId: envelope.eventId,
+        entityId: newState.entityId,
+        reason: latest
+          ? `Concurrent state update won: current ${latest.stateAt}`
+          : 'Concurrent state update prevented commit',
+      };
+    }
 
-    // Stage 6: Publish exactly one DomainEvent
     const domainEvent: DomainEvent<HaEntityStatePayload> = {
       id: envelope.eventId,
       type: HA_STATE_CHANGED_EVENT_TYPE,
       version: HA_STATE_CHANGED_EVENT_VERSION,
       occurredAt: envelope.eventOccurredAt,
       payload: { current: newState, previous: current ?? null },
-      aggregate: { type: 'ha:entity', id: normResult.entity.entityId },
+      aggregate: { type: 'ha:entity', id: newState.entityId },
       provenance: 'home-assistant',
       correlationId: envelope.correlationId,
       causationId: envelope.causationId,
     };
-    await this.eventBus.publish(domainEvent);
 
-    // Stage 7: Mark seen — after successful publish so a bus failure allows retry
-    this.idempotency.markSeen(envelope.eventId, envelope.sourceEntityId);
+    try {
+      await this.eventBus.publish(domainEvent);
+    } catch (error) {
+      // State is already committed. Release the idempotency claim so an
+      // external retry can attempt publication again. Production should use
+      // a transactional outbox to make state + publication atomic.
+      await releaseClaim();
+      throw error;
+    }
+
+    await this.idempotency.markSeen(envelope.eventId, envelope.sourceEntityId);
 
     return {
       outcome: 'accepted',
-      entityId: normResult.entity.entityId,
+      entityId: newState.entityId,
       eventId: envelope.eventId,
     };
   }
