@@ -80,7 +80,11 @@ describe('CoreSpine → ActionCore translation boundary', () => {
         return { ok: true };
       },
     };
-    const adapter = new ActionCorePortAdapter(executor, 'user-a');
+    const adapter = new ActionCorePortAdapter(
+      executor,
+      'user-a',
+      { capability: 'memory', operation: 'propose', input: { content: 'test' } },
+    );
     const spineReq = makeSpineRequest();
     const result = await adapter.execute(spineReq);
 
@@ -95,15 +99,23 @@ describe('CoreSpine → ActionCore translation boundary', () => {
         throw new Error('denied by policy');
       },
     };
-    const adapter = new ActionCorePortAdapter(executor, 'user-a');
+    const adapter = new ActionCorePortAdapter(
+      executor,
+      'user-a',
+      { capability: 'memory', operation: 'propose' },
+    );
     const result = await adapter.execute(makeSpineRequest());
     assert.equal(result.success, false);
     assert.match(result.error ?? '', /denied by policy/);
   });
 
-  it('ActionCorePortAdapter.prepare returns undefined when policy denies', async () => {
+  it('ActionCorePortAdapter.prepare returns undefined when policy denies (allowed=false, requiredApproval=false)', async () => {
     const executor: ActionCoreExecutor = { async execute() { return null; } };
-    const adapter = new ActionCorePortAdapter(executor, 'user-a');
+    const adapter = new ActionCorePortAdapter(
+      executor,
+      'user-a',
+      { capability: 'memory', operation: 'propose' },
+    );
     const result = await adapter.prepare(
       { id: 'prop-1', contextId: 'ctx-1', disposition: 'DECLINE', recommendation: 'skip', rationale: 'policy', evidence: [], uncertainty: [], alternatives: [] },
       { id: 'pol-1', proposalId: 'prop-1', allowed: false, reason: 'denied', requiredApproval: false, evaluatedAt: new Date().toISOString() },
@@ -111,14 +123,57 @@ describe('CoreSpine → ActionCore translation boundary', () => {
     assert.equal(result, undefined);
   });
 
+  it('ActionCorePortAdapter.prepare returns undefined when allowed=false even if requiredApproval=true (hard deny wins)', async () => {
+    // Regression: a receipt being present must not unlock an explicitly-denied action.
+    const executor: ActionCoreExecutor = { async execute() { return null; } };
+    const adapter = new ActionCorePortAdapter(
+      executor,
+      'user-a',
+      { capability: 'memory', operation: 'propose' },
+      'receipt-xyz', // receipt present — must NOT unlock a hard deny
+    );
+    const result = await adapter.prepare(
+      { id: 'prop-hd', contextId: 'ctx-hd', disposition: 'DECLINE', recommendation: 'skip', rationale: 'hard-deny', evidence: [], uncertainty: [], alternatives: [] },
+      { id: 'pol-hd', proposalId: 'prop-hd', allowed: false, reason: 'hard deny', requiredApproval: true, evaluatedAt: new Date().toISOString() },
+    );
+    assert.equal(result, undefined, 'allowed=false must always return undefined regardless of requiredApproval or receipt');
+  });
+
   it('ActionCorePortAdapter.prepare returns undefined when approval required but no receipt', async () => {
     const executor: ActionCoreExecutor = { async execute() { return null; } };
-    // No approvalReceiptId supplied to adapter
-    const adapter = new ActionCorePortAdapter(executor, 'user-a');
+    const adapter = new ActionCorePortAdapter(
+      executor,
+      'user-a',
+      { capability: 'memory', operation: 'propose' },
+      // no approvalReceiptId
+    );
     const result = await adapter.prepare(
       { id: 'prop-2', contextId: 'ctx-2', disposition: 'PROCEED', recommendation: 'do it', rationale: 'values', evidence: [], uncertainty: [], alternatives: [] },
       { id: 'pol-2', proposalId: 'prop-2', allowed: true, reason: 'ok', requiredApproval: true, evaluatedAt: new Date().toISOString() },
     );
     assert.equal(result, undefined);
+  });
+
+  it('ActionCorePortAdapter.prepare materialises a SpineActionRequest when policy allows', async () => {
+    const executor: ActionCoreExecutor = { async execute() { return null; } };
+    const adapter = new ActionCorePortAdapter(
+      executor,
+      'user-a',
+      { capability: 'memory', operation: 'propose', input: { content: 'test' }, reversible: false, consequenceLevel: 'low' },
+    );
+    const proposal = {
+      id: 'prop-3', contextId: 'ctx-3', disposition: 'PROCEED' as const,
+      recommendation: 'proceed', rationale: 'allowed', evidence: [], uncertainty: [], alternatives: [],
+    };
+    const policy = {
+      id: 'pol-3', proposalId: 'prop-3', allowed: true, reason: 'ok',
+      requiredApproval: false, evaluatedAt: new Date().toISOString(),
+    };
+    const request = await adapter.prepare(proposal, policy);
+    assert.ok(request, 'prepare() must return a concrete ActionRequest when policy allows');
+    assert.equal(request?.proposalId, 'prop-3');
+    assert.equal(request?.capability, 'memory');
+    assert.equal(request?.operation, 'propose');
+    assert.deepEqual(request?.input, { content: 'test' });
   });
 });

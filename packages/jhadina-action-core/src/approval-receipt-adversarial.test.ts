@@ -5,13 +5,15 @@
  *
  * These tests prove:
  *  1. An expired receipt cannot be approved.
- *  2. An expired receipt cannot be consumed even if it was approved first.
+ *  2. An expired pending receipt cannot be consumed (expiry guard in consume path).
  *  3. A receipt bound to User A cannot be consumed by User B (actor binding).
- *  4. A consumed receipt cannot be consumed a second time (replay protection).
- *  5. A fingerprint mismatch causes consumption to fail (payload binding).
- *  6. A receipt for action-1 cannot be consumed by action-2 (action ID binding).
- *  7. A pending receipt cannot be consumed without prior approval.
- *  8. Receipt expiry defaults to 5 minutes from creation.
+ *  4. User B cannot approve User A's receipt (cross-actor approval rejection).
+ *  5. A consumed receipt cannot be consumed a second time (replay protection).
+ *  6. A fingerprint mismatch causes consumption to fail (payload binding).
+ *  7. A receipt for action-1 cannot be consumed by action-2 (action ID binding).
+ *  8. A pending receipt cannot be consumed without prior approval.
+ *  9. Receipt expiry defaults to 5 minutes from creation.
+ * 10. The verifier integrates fingerprint + store bindings end-to-end.
  *
  * INFRASTRUCTURE NOTE:
  *  The production replacement for InMemoryApprovalReceiptStore (a durable,
@@ -45,19 +47,13 @@ describe('ApprovalReceiptStore — adversarial binding tests', () => {
     );
   });
 
-  it('receipt cannot be consumed after expiry (approved before expiry but consumed after)', async () => {
-    const store = new InMemoryApprovalReceiptStore();
-    // Approve with a very-near expiry that we'll manually set to past after approval
-    const receipt = await store.createPending({
-      actionId: 'act-2',
-      userId: 'user-a',
-      type: 'memory.propose',
-      fingerprint: 'fp-def',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-    });
-    await store.approve(receipt.id, 'user-a');
-
-    // Simulate expired by creating a new store entry with past expiry
+  it('consume() returns false for an already-expired pending receipt (expiry check in consume path)', async () => {
+    // Tests the expiry guard inside consume() directly.
+    // The "approved-before-expiry, consumed-after-expiry" scenario requires
+    // clock injection to reliably test deterministically (the store would need
+    // to allow time to be advanced after approval); that is tracked as a
+    // future improvement when the durable Supabase-backed store is implemented
+    // with an injectable clock (Issue #193).
     const storeExpired = new InMemoryApprovalReceiptStore();
     const expiredReceipt = await storeExpired.createPending({
       actionId: 'act-2',
@@ -66,15 +62,15 @@ describe('ApprovalReceiptStore — adversarial binding tests', () => {
       fingerprint: 'fp-def',
       expiresAt: new Date(Date.now() - 1).toISOString(),
     });
-    // Manually hack: bypass expiry check to set status approved then test consume
-    // The store re-checks expiry on consume; consumption must fail.
+    // Receipt is pending (not approved) and already expired.
+    // consume() must return false — never consuming an expired receipt.
     const consumed = await storeExpired.consume(expiredReceipt.id, {
       actionId: 'act-2',
       userId: 'user-a',
       type: 'memory.propose',
       fingerprint: 'fp-def',
     });
-    assert.equal(consumed, false, 'Consuming an expired receipt must return false');
+    assert.equal(consumed, false, 'Consuming an expired pending receipt must return false');
   });
 
   it('receipt bound to user-a cannot be consumed by user-b (actor binding)', async () => {

@@ -145,15 +145,35 @@ export function translateFromActionCoreError(
 // ---------------------------------------------------------------------------
 
 /**
+ * Action specification provided at adapter construction time.
+ * Because Core Spine's DecisionProposal does not carry structured
+ * capability/operation data (Issue #140 root cause), the composition root
+ * must supply this information when wiring the adapter.
+ */
+export interface ActionSpec {
+  /** Capability name as registered in CapabilityRegistry (e.g. 'memory'). */
+  capability: string;
+  /** Operation within the capability (e.g. 'propose'). */
+  operation: string;
+  /** Opaque action payload forwarded to the Action Core handler. */
+  input?: unknown;
+  /** Whether this action can be reversed. Defaults to false. */
+  reversible?: boolean;
+  /** Consequence level for audit / approval thresholds. Defaults to 'low'. */
+  consequenceLevel?: SpineActionRequest['consequenceLevel'];
+}
+
+/**
  * Implements Core Spine's ActionPort by delegating to an Action Core executor.
  *
  * This is the ONLY class that may cross the Core Spine ↔ Action Core boundary.
- * Composition roots supply the concrete executor; this class handles only the
- * type translation.
+ * Composition roots supply the concrete executor and an ActionSpec so that
+ * `prepare()` can materialise a concrete SpineActionRequest.
  *
  * Caller responsibilities:
  *   • Supply a real userId from the verified identity context.
  *   • Supply an approvalReceiptId when PolicyDecision.requiredApproval is true.
+ *   • Supply an ActionSpec with the capability/operation/input for this action.
  *   • Never pass an AllowAllActionPolicy-backed executor to this adapter in
  *     production (see @testOnly note on AllowAllActionPolicy).
  */
@@ -163,30 +183,43 @@ export class ActionCorePortAdapter<TAction = unknown, TResult = unknown>
   constructor(
     private readonly executor: ActionCoreExecutor<TAction, TResult>,
     private readonly userId: string,
+    private readonly actionSpec: ActionSpec,
     private readonly approvalReceiptId?: string,
   ) {}
 
+  /**
+   * Materialises a SpineActionRequest from the DecisionProposal and policy.
+   *
+   * Returns undefined when:
+   *   • The policy did not allow the action (allowed=false), regardless of
+   *     requiredApproval — a hard deny always wins.
+   *   • Approval is required but no receipt has been supplied — the caller
+   *     must re-enter with an approvalReceiptId.
+   *
+   * Returns a concrete SpineActionRequest otherwise, which the Spine run loop
+   * passes directly to execute().
+   */
   async prepare(
-    _proposal: DecisionProposal,
+    proposal: DecisionProposal,
     policy: PolicyDecision,
   ): Promise<SpineActionRequest | undefined> {
-    // Core Spine calls prepare() to turn a decision + policy into an ActionRequest.
-    // If the policy denied the action, return undefined — the Spine run loop
-    // treats that as "no action to execute" and proceeds to audit.
-    if (!policy.allowed && !policy.requiredApproval) {
+    // Hard deny: allowed=false always short-circuits, regardless of requiredApproval.
+    if (!policy.allowed) {
       return undefined;
     }
-    // Return undefined when approval is required but no receipt has been provided;
-    // the Spine caller must re-enter with an approvalReceiptId.
+    // Policy allows but requires an approval receipt that has not been supplied.
     if (policy.requiredApproval && !this.approvalReceiptId) {
       return undefined;
     }
-    // No concrete ActionRequest to return here — the spine will pass the
-    // request back to execute().  The adapter does not materialise an
-    // ActionRequest itself; it relies on the Spine already having one from the
-    // DecisionProposal context.  Returning undefined is intentional: the
-    // concrete prepare step belongs to the composition root, not to this adapter.
-    return undefined;
+    return {
+      id: crypto.randomUUID(),
+      proposalId: proposal.id,
+      capability: this.actionSpec.capability,
+      operation: this.actionSpec.operation,
+      input: this.actionSpec.input,
+      reversible: this.actionSpec.reversible ?? false,
+      consequenceLevel: this.actionSpec.consequenceLevel ?? 'low',
+    };
   }
 
   async execute(request: SpineActionRequest): Promise<SpineActionResult> {
