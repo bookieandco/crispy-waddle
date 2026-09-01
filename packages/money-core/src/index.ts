@@ -1,18 +1,12 @@
-// Public surface for @jhadina/money-core. package.json's "main"/"types"
-// have pointed at this file since the package was created; it never
-// existed, so nothing outside packages/money-core has ever been able to
-// import this package by its bare specifier. Added as part of Spine
-// Proof #3 (Money/Plaid), the first cross-package consumer.
+// Public surface for @jhadina/money-core.
 export type { MoneyCapability, CapabilityRisk } from './capabilities.js';
 export { getMoneyCapability, requiresMoneyApproval, isMoneyCapability } from './capabilities.js';
-
 export type { MoneyAccount, MoneyTransaction, MoneyAdapterContext, BankAdapter } from './bank-adapter.js';
 export { assertCapability } from './bank-adapter.js';
-
 export type { ResolvedCredential, CredentialResolver } from './credential-resolver.js';
 export { EnvironmentCredentialResolver, credentialRefToEnvKey } from './credential-resolver.js';
 export { BrokerCredentialResolver } from './broker-credential-resolver.js';
-
+export { EnvironmentCredentialStore } from './environment-credential-store.js';
 export type { ProviderHealthStatus, ProviderConfig, ProviderHealth, ProviderHealthChecker } from './provider-health.js';
 export { MoneyProviderHealthGate } from './provider-health.js';
 export { MoneyProviderRegistry } from './provider-registry.js';
