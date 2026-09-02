@@ -2,11 +2,11 @@ import type { AlertDeliveryRecord, DeliveryProvider, DeliveryResult } from '@jha
 import { createServiceRoleClient } from '../supabase/service-role'
 
 /**
- * First concrete OCE delivery provider.
+ * Durable in-app delivery provider.
  *
- * The delivery worker remains the only caller. The provider turns a claimed
- * durable delivery into a durable user notification and uses delivery_id as
- * its idempotency boundary so a worker retry cannot create a second notice.
+ * The delivery worker remains the only caller. The provider persists one
+ * notification per delivery and relies on the unique delivery_id constraint
+ * as the idempotency boundary. The database owns notification UUID creation.
  */
 export class SupabaseInAppAlertDeliveryProvider implements DeliveryProvider {
   readonly channel = 'IN_APP' as const
@@ -15,12 +15,10 @@ export class SupabaseInAppAlertDeliveryProvider implements DeliveryProvider {
     const client = createServiceRoleClient()
     if (!client) throw new Error('Supabase service-role configuration is missing')
 
-    const notificationId = `oce-notification:${record.id}`
     const { error } = await client
       .from('oce_in_app_notifications')
       .upsert(
         {
-          id: notificationId,
           delivery_id: record.id,
           alert_id: record.alertId,
           recipient_id: record.recipientId,
@@ -32,6 +30,6 @@ export class SupabaseInAppAlertDeliveryProvider implements DeliveryProvider {
 
     if (error) throw new Error(`In-app notification persistence failed: ${error.message}`)
 
-    return { status: 'DELIVERED', providerMessageId: notificationId }
+    return { status: 'DELIVERED', providerMessageId: record.id }
   }
 }
