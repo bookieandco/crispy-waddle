@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { runDirectorSubmissionReconciliation } from '@/lib/director-submission-reconciliation';
-import { createDirectorGenerationProviders } from '@/lib/director-generation-provider-factory';
+import { createConfiguredDirectorGenerationRuntime } from '@/lib/director-generation-composition';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export const runtime = 'nodejs';
@@ -14,7 +13,7 @@ export async function GET(request: Request) {
   }
 
   const client = await createSupabaseServerClient();
-  const providers = createDirectorGenerationProviders();
-  const result = await runDirectorSubmissionReconciliation(client, providers);
+  const { reconciler } = createConfiguredDirectorGenerationRuntime(client);
+  const result = await reconciler.runOnce(25);
   return NextResponse.json({ ok: true, ...result });
 }
