@@ -34,6 +34,17 @@ export type GenerationResult = {
   metadata?: Record<string, unknown>;
 };
 
+/**
+ * Describes what Director can safely assume when a worker loses its lease around submission.
+ *
+ * strong-idempotent: the provider transport atomically deduplicates the idempotency key.
+ * recoverable: Director can discover an already-created job by idempotency key, but lookup
+ * + submit is not itself an exactly-once primitive.
+ * non-idempotent: submission can create an unrecoverable duplicate and must not be retried
+ * automatically after lease loss.
+ */
+export type GenerationSubmissionGuarantee = 'strong-idempotent' | 'recoverable' | 'non-idempotent';
+
 /** Stable key used by providers to deduplicate submissions across retries. */
 export type GenerationSubmissionOptions = {
   idempotencyKey: string;
@@ -41,7 +52,7 @@ export type GenerationSubmissionOptions = {
 
 export interface GenerationProvider {
   readonly descriptor: GenerationProviderRecord;
-  /** Providers should honor the key when their transport supports idempotency. */
+  readonly submissionGuarantee?: GenerationSubmissionGuarantee;
   submit(request: GenerationRequest, options?: GenerationSubmissionOptions): Promise<GenerationResult>;
   /** Optional recovery lookup for providers that can resolve an already-submitted request. */
   findByIdempotencyKey?(idempotencyKey: string): Promise<GenerationResult | undefined>;
@@ -60,6 +71,7 @@ export type ComfyUIWorkflowBuilder = (request: GenerationRequest) => Record<stri
 
 export class ComfyUIProvider implements GenerationProvider {
   readonly descriptor: GenerationProviderRecord;
+  readonly submissionGuarantee: GenerationSubmissionGuarantee = 'recoverable';
 
   constructor(
     descriptor: GenerationProviderRecord,
