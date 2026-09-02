@@ -29,19 +29,33 @@ export function buildTransferCommand(target: PlaybackTarget): MediaSessionComman
 export function createCastingManager(controllers: MediaSessionController[], initialState: MediaSessionState): CastingManager {
   let active: MediaSessionController | null = null;
   let state = initialState;
+  let connectionGeneration = 0;
   return {
-    async discover() { const groups = await Promise.all(controllers.map((controller) => controller.discoverTargets().catch(() => []))); return groups.flat(); },
+    discover() { return Promise.all(controllers.map((controller) => controller.discoverTargets().catch(() => []))).then((groups) => groups.flat()); },
     async connect(target) {
       const controller = controllers.find((candidate) => candidate.transport === target.transport);
       if (!controller) throw new Error(`No ${target.transport} controller is available.`);
+      const generation = ++connectionGeneration;
       await controller.connect(target);
+      if (generation !== connectionGeneration) {
+        await controller.disconnect().catch(() => undefined);
+        throw new Error('TV playback connection was superseded.');
+      }
       active = controller;
       state = { ...state, target };
     },
-    async disconnect() { if (active) await active.disconnect(); active = null; state = { ...state, target: undefined }; },
+    async disconnect() {
+      ++connectionGeneration;
+      const controller = active;
+      active = null;
+      if (controller) await controller.disconnect();
+      state = { ...state, target: undefined };
+    },
     async loadPlayback(playback, positionSeconds = 0) {
-      if (!active?.loadPlayback) throw new Error('Active remote playback controller cannot load a new source.');
-      await active.loadPlayback(playback, Math.max(0, positionSeconds));
+      const controller = active;
+      if (!controller?.loadPlayback) throw new Error('Active remote playback controller cannot load a new source.');
+      await controller.loadPlayback(playback, Math.max(0, positionSeconds));
+      if (controller !== active) return;
       state = {
         ...state,
         titleId: playback.source.titleId,
@@ -51,14 +65,28 @@ export function createCastingManager(controllers: MediaSessionController[], init
       };
     },
     async send(command) {
-      if (!active) throw new Error('No TV playback session is connected.');
-      await active.send(command);
+      const controller = active;
+      if (!controller) throw new Error('No TV playback session is connected.');
+      await controller.send(command);
+      if (controller !== active) return;
       if (command.type === 'transfer' && command.target) state = { ...state, target: command.target };
     },
-    async getState() { return active ? (await active.getState()) ?? state : state; },
+    async getState() {
+      const controller = active;
+      if (!controller) return state;
+      return (await controller.getState()) ?? state;
+    },
     subscribeState(listener, intervalMs = 500) {
       let stopped = false;
-      const tick = async () => { if (stopped || !active) return; const next = await active.getState().catch(() => null); if (next) { state = { ...state, ...next }; listener(state); } };
+      const generation = connectionGeneration;
+      const controller = active;
+      const tick = async () => {
+        if (stopped || !controller || controller !== active || generation !== connectionGeneration) return;
+        const next = await controller.getState().catch(() => null);
+        if (stopped || controller !== active || generation !== connectionGeneration || !next) return;
+        state = { ...state, ...next };
+        listener(state);
+      };
       const timer = globalThis.setInterval(tick, intervalMs);
       void tick();
       return () => { stopped = true; globalThis.clearInterval(timer); };
