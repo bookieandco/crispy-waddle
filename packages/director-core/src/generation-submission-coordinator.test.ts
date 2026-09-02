@@ -29,7 +29,7 @@ function result(task: GenerationTask): GenerationResult {
 
 function provider(task: GenerationTask): GenerationProvider {
   return {
-    descriptor: { id: 'provider-1', name: 'Test Provider', kind: 'test', endpoint: 'http://provider.test', capabilities: ['text-to-image'], models: ['model-1'], health: 'healthy' },
+    descriptor: { id: 'provider-1', name: 'Test Provider', kind: 'comfyui', endpoint: 'http://provider.test', capabilities: ['text-to-image'], models: ['model-1'], health: 'healthy' },
     async submit(): Promise<GenerationResult> { return result(task); },
     async status(providerJobId: string): Promise<GenerationResult> { return { ...result(task), providerJobId }; },
     async cancel(): Promise<void> {},
