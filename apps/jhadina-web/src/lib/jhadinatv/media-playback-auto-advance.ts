@@ -4,10 +4,11 @@ export interface MediaPlaybackAutoAdvanceDeps {
   video: HTMLVideoElement;
   store: MediaPlaybackStore;
   session: UnifiedMediaSession;
+  resolveResumePosition?: (item: { id: string; titleId: string; playback: { providerId: string } }) => Promise<number>;
   onError?: (error: unknown) => void;
 }
 
-export function attachMediaPlaybackAutoAdvance({ video, store, session, onError }: MediaPlaybackAutoAdvanceDeps): () => void {
+export function attachMediaPlaybackAutoAdvance({ video, store, session, resolveResumePosition, onError }: MediaPlaybackAutoAdvanceDeps): () => void {
   let advancing = false;
 
   const handleEnded = () => {
@@ -20,7 +21,8 @@ export function attachMediaPlaybackAutoAdvance({ video, store, session, onError 
     if (!next) return;
 
     advancing = true;
-    void session.loadPlayback(next.playback)
+    void (resolveResumePosition ? resolveResumePosition(next) : Promise.resolve(0))
+      .then((positionSeconds) => session.loadPlayback(next.playback, positionSeconds))
       .then(() => session.play())
       .catch((error) => {
         const after = store.getState();
