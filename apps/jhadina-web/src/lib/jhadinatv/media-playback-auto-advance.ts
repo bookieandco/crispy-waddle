@@ -12,6 +12,10 @@ export function attachMediaPlaybackAutoAdvance({ video, store, session, onError 
 
   const handleEnded = () => {
     if (advancing || session.isRemote()) return;
+
+    const before = store.getState();
+    const previous = before.current;
+    const previousIndex = before.queueIndex;
     const next = store.next();
     if (!next) return;
 
@@ -19,6 +23,10 @@ export function attachMediaPlaybackAutoAdvance({ video, store, session, onError 
     void session.loadPlayback(next.playback)
       .then(() => session.play())
       .catch((error) => {
+        const after = store.getState();
+        if (after.current?.id === next.id && previous) {
+          store.setCurrent(previous, previousIndex);
+        }
         onError?.(error);
       })
       .finally(() => {
