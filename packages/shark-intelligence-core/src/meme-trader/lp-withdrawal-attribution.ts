@@ -23,11 +23,6 @@ function sameTime(a: string, b: string): boolean {
   return Number.isFinite(Date.parse(a)) && Number.isFinite(Date.parse(b)) && Math.abs(Date.parse(a) - Date.parse(b)) <= 120_000
 }
 
-/**
- * Correlates an explicit liquidity-removal event with the LP state immediately
- * preceding it. This identifies the LP token-account owner, but deliberately
- * does not infer developer control without EntityGraph evidence.
- */
 export function attributeLPWithdrawals(input: {
   history: PoolHistory
   liquidityEvents: LiquidityEventEvidence[]
@@ -48,11 +43,11 @@ export function attributeLPWithdrawals(input: {
       const association: LPWithdrawalAttribution['developerAssociation'] = ownerBefore ? (developerWallets.size === 0 ? 'UNKNOWN' : developerWallets.has(ownerBefore) ? 'MATCHED' : 'NOT_MATCHED') : 'UNKNOWN'
       const evidenceIds = [...new Set([event.eventId, ...event.evidenceIds, ...(lp?.evidenceIds ?? [])])]
       return {
-        signature: event.eventId.split(':')[1] ?? event.eventId,
+        signature: event.signature,
         observedAt: event.observedAt,
         poolAddress: event.poolAddress,
         lpMint: event.lpMint ?? lp?.lpMint,
-        lpTokenAccount: undefined,
+        lpTokenAccount: event.lpTokenAccount,
         lpAmountRaw: event.amountRaw ?? lp?.amountRaw,
         ownerBefore,
         ownerAfter: lp?.to,
@@ -65,7 +60,6 @@ export function attributeLPWithdrawals(input: {
     })
 }
 
-/** Returns only withdrawals for which an LP position event establishes a pre-withdrawal owner. */
 export function verifiedLPWithdrawals(attributions: LPWithdrawalAttribution[]): LPWithdrawalAttribution[] {
   return attributions.filter(item => Boolean(item.ownerBefore) && Boolean(item.lpStateEventId) && item.confidence >= 0.7)
 }
