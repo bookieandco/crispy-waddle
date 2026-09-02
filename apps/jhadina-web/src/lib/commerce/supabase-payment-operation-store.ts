@@ -1,4 +1,4 @@
-import type { PaymentOperationClaim, PaymentOperationKey, PaymentOperationRecord, PaymentOperationStore } from "./durable-payment-operation"
+import type { PaymentOperationBinding, PaymentOperationClaim, PaymentOperationRecord, PaymentOperationStore } from "./durable-payment-operation"
 import type { AuditRpcClient } from "@jhadina/action-core"
 
 type ClaimRpcResult = { claimed: boolean; record: PaymentOperationRecord }
@@ -12,7 +12,7 @@ type TerminalResult = {
 export class SupabasePaymentOperationStore implements PaymentOperationStore {
   constructor(private readonly client: AuditRpcClient) {}
 
-  async claim(input: Omit<PaymentOperationRecord, "status" | "providerReference" | "resultStatus" | "resultPayload">): Promise<PaymentOperationClaim> {
+  async claim(input: PaymentOperationBinding): Promise<PaymentOperationClaim> {
     const { data, error } = await this.client.rpc<ClaimRpcResult>("claim_jhadina_commerce_payment_operation", {
       p_provider: input.provider,
       p_payment_id: input.paymentId,
@@ -26,35 +26,15 @@ export class SupabasePaymentOperationStore implements PaymentOperationStore {
     return data.claimed ? { claimed: true } : { claimed: false, record: data.record }
   }
 
-  async complete(
-    key: PaymentOperationKey,
-    result: { providerReference: string; resultStatus: string; resultPayload: unknown },
-  ): Promise<void> {
-    throw new Error("SupabasePaymentOperationStore.complete requires a bound operation; use completeBound")
-  }
-
-  async completeBound(
-    input: Omit<PaymentOperationRecord, "status" | "providerReference" | "resultStatus" | "resultPayload">,
-    result: { providerReference: string; resultStatus: string; resultPayload: unknown },
-  ): Promise<void> {
+  async complete(input: PaymentOperationBinding, result: { providerReference: string; resultStatus: string; resultPayload: unknown }): Promise<void> {
     await this.terminal("complete_jhadina_commerce_payment_operation", input, result)
   }
 
-  async fail(
-    key: PaymentOperationKey,
-    result: { providerReference?: string; resultStatus: string; resultPayload?: unknown },
-  ): Promise<void> {
-    throw new Error("SupabasePaymentOperationStore.fail requires a bound operation; use failBound")
-  }
-
-  async failBound(
-    input: Omit<PaymentOperationRecord, "status" | "providerReference" | "resultStatus" | "resultPayload">,
-    result: { providerReference?: string; resultStatus: string; resultPayload?: unknown },
-  ): Promise<void> {
+  async fail(input: PaymentOperationBinding, result: { providerReference?: string; resultStatus: string; resultPayload?: unknown }): Promise<void> {
     await this.terminal("fail_jhadina_commerce_payment_operation", input, result)
   }
 
-  private async terminal(functionName: string, input: Omit<PaymentOperationRecord, "status" | "providerReference" | "resultStatus" | "resultPayload">, result: TerminalResult): Promise<void> {
+  private async terminal(functionName: string, input: PaymentOperationBinding, result: TerminalResult): Promise<void> {
     const { error } = await this.client.rpc(functionName, {
       p_provider: input.provider,
       p_payment_id: input.paymentId,
