@@ -1,4 +1,5 @@
-import type { GenerationProvider, GenerationProviderRecord, GenerationRequest, GenerationResult } from './generation-provider';
+import type { GenerationProvider, GenerationRequest, GenerationResult } from './generation-provider';
+import type { GenerationProviderRecord } from './generation-registry';
 import type { GenerationRepository } from './generation-repository';
 import { GenerationSubmissionCoordinator } from './generation-submission-coordinator';
 
