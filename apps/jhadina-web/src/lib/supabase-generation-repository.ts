@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { GenerationExecution } from '@jhadina/director-core/generation-execution';
-import type { GenerationRepository, GenerationSubmissionOutbox } from '@jhadina/director-core/generation-repository';
+import type { AtomicSubmissionAcknowledgement, GenerationRepository, GenerationSubmissionOutbox } from '@jhadina/director-core/generation-repository';
 import type { GenerationSubmissionRepository } from '@jhadina/director-core/generation-submission-repository';
 import type { GenerationTask } from '@jhadina/director-core/generation-task';
 
@@ -8,6 +8,7 @@ type TaskRow = { id: string; project_id: string; edit_plan_id: string | null; op
 type ExecutionRow = { id: string; task_id: string; provider_id: string; provider_job_id: string | null; attempt: number; status: GenerationExecution['status']; error: string | null; lease_owner: string | null; lease_token: string | null; lease_expires_at: string | null; created_at: string; updated_at: string };
 type SubmissionRow = { id: string; task_id: string; execution_id: string; provider_id: string; idempotency_key: string; request_payload: GenerationTask['request']; status: GenerationSubmissionOutbox['status']; provider_job_id: string | null; attempt: number; lease_owner: string | null; lease_token: string | null; lease_expires_at: string | null; last_error: string | null; created_at: string; updated_at: string };
 type AtomicStateResult = { saved: boolean; task: TaskRow | null; execution: ExecutionRow | null };
+type AtomicSubmissionAckResult = { submission: SubmissionRow | null; task: TaskRow | null; execution: ExecutionRow | null };
 
 function toTask(row: TaskRow): GenerationTask { return { id: row.id, request: row.request, projectId: row.project_id, editPlanId: row.edit_plan_id ?? undefined, operationId: row.operation_id ?? undefined, idempotencyKey: row.idempotency_key, status: row.status, error: row.error ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }; }
 function toExecution(row: ExecutionRow): GenerationExecution { return { id: row.id, taskId: row.task_id, providerId: row.provider_id, providerJobId: row.provider_job_id ?? undefined, attempt: row.attempt, status: row.status, error: row.error ?? undefined, leaseOwner: row.lease_owner ?? undefined, leaseToken: row.lease_token ?? undefined, leaseExpiresAt: row.lease_expires_at ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }; }
@@ -65,6 +66,32 @@ export function createSupabaseGenerationRepository(client: SupabaseClient): Gene
       const { data, error } = await client.rpc('ack_director_generation_submission', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_token: leaseToken, p_provider_job_id: providerJobId });
       if (error) throw error;
       return data ? toSubmission(data as SubmissionRow) : undefined;
+    },
+    async acknowledgeSubmissionAndSaveState(submissionId, workerId, submissionLeaseToken, executionLeaseToken, providerJobId, task, execution) {
+      const { data, error } = await client.rpc('ack_director_generation_submission_and_save_state', {
+        p_submission_id: submissionId,
+        p_worker_id: workerId,
+        p_submission_lease_token: submissionLeaseToken,
+        p_provider_job_id: providerJobId,
+        p_task_status: task.status,
+        p_task_error: task.error ?? null,
+        p_task_updated_at: task.updatedAt,
+        p_execution_status: execution.status,
+        p_execution_error: execution.error ?? null,
+        p_execution_updated_at: execution.updatedAt,
+        p_execution_lease_owner: execution.leaseOwner ?? null,
+        p_execution_lease_token: executionLeaseToken,
+        p_execution_lease_expires_at: execution.leaseExpiresAt ?? null,
+      });
+      if (error) throw error;
+      const result = data as AtomicSubmissionAckResult | null;
+      if (!result?.submission || !result.task || !result.execution) return undefined;
+      const acknowledged: AtomicSubmissionAcknowledgement = {
+        submission: toSubmission(result.submission),
+        task: toTask(result.task),
+        execution: toExecution(result.execution),
+      };
+      return acknowledged;
     },
     async markSubmissionRecoveryRequired(submissionId, workerId, leaseToken, errorMessage) {
       const { data, error } = await client.rpc('recover_director_generation_submission', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_token: leaseToken, p_error: errorMessage });
