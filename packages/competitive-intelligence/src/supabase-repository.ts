@@ -12,7 +12,7 @@ type CompetitiveEvidenceRow = {
   kind: "observed_fact";
   subject_id: string;
   value: CompetitorObservation;
-  source: CompetitiveEvidence<CompetitorObservation>["source"];
+  source: NonNullable<CompetitiveEvidence<CompetitorObservation>["source"]>;
   confidence: number | null;
   derived_from_evidence_ids: string[] | null;
   model_id: string | null;
