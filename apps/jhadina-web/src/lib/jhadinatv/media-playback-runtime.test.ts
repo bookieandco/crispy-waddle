@@ -3,6 +3,7 @@ import type { MediaQueueItem, MediaSessionState, UnifiedMediaSession } from '@jh
 import {
   attachMediaPlaybackSession,
   disposeMediaPlaybackSession,
+  ensureMediaPlaybackSession,
   getMediaPlaybackSnapshot,
   releaseMediaPlaybackView,
   subscribeMediaPlaybackSnapshot,
@@ -64,6 +65,29 @@ function item(titleId: string): MediaQueueItem {
   };
 }
 
+function sessionConfig(itemToLoad: MediaQueueItem) {
+  let current = state(itemToLoad.titleId);
+  const local = {
+    getState: () => current,
+    async apply(command: { type: 'play' | 'pause' | 'seek' | 'set-volume'; value?: number }) {
+      if (command.type === 'seek') current = { ...current, positionSeconds: command.value ?? 0 };
+      if (command.type === 'play') current = { ...current, playing: true };
+      if (command.type === 'pause') current = { ...current, playing: false };
+    },
+    setSource(url: string) { current = { ...current, titleId: itemToLoad.titleId, sourceUrl: url, positionSeconds: 0, playing: false }; },
+  };
+  const casting = {
+    discover: async () => [],
+    connect: async () => undefined,
+    disconnect: async () => undefined,
+    loadPlayback: async () => undefined,
+    send: async () => undefined,
+    getState: async () => null,
+    subscribeState: () => () => undefined,
+  };
+  return { titleId: itemToLoad.titleId, kind: itemToLoad.kind, playback: itemToLoad.playback, local, casting };
+}
+
 describe('media playback runtime lifecycle', () => {
   it('publishes one coherent snapshot and keeps observing after view release', () => {
     const first = fakeSession(state('one', 12));
@@ -100,6 +124,18 @@ describe('media playback runtime lifecycle', () => {
     attachMediaPlaybackSession(first, item('one'));
     attachMediaPlaybackSession(second, item('two'));
     expect(first.dispose).not.toHaveBeenCalled();
+  });
+
+  it('replaces the global executor when ensure receives a different playback item', async () => {
+    const first = item('one');
+    const second = item('two');
+    const firstSession = await ensureMediaPlaybackSession(sessionConfig(first), first);
+    const secondSession = await ensureMediaPlaybackSession(sessionConfig(second), second);
+
+    expect(secondSession).not.toBe(firstSession);
+    expect(getMediaPlaybackSnapshot().session).toBe(secondSession);
+    expect(getMediaPlaybackSnapshot().current?.titleId).toBe('two');
+    expect(firstSession.getState().titleId).toBe('one');
   });
 
   it('explicit disposal is destructive and fenced', () => {
