@@ -14,7 +14,6 @@ const request = {
 
 const policy = { maxAttempts: 3, baseDelaySeconds: 10, maxDelaySeconds: 60 }
 
-
 describe('delivery retry scheduling', () => {
   it('creates records ready for immediate delivery', () => {
     const record = createDeliveryRecord(request, '2026-09-01T18:00:00.000Z')
@@ -51,8 +50,21 @@ describe('delivery retry scheduling', () => {
       nextAttemptAt: '2026-09-01T18:00:20.000Z',
     }, '2026-09-01T18:00:05.000Z')
     expect(updated.status).toBe('RETRYING')
+    expect(updated.attempt).toBe(1)
     expect(updated.lastError).toBe('provider timeout')
     expect(updated.nextAttemptAt).toBe('2026-09-01T18:00:20.000Z')
     expect(updated.payload).toEqual({ message: 'test' })
+  })
+
+  it('increments a provider failure exactly once', () => {
+    const record = createDeliveryRecord(request, '2026-09-01T18:00:00.000Z')
+    const updated = applyDeliveryResult(record, {
+      status: 'FAILED',
+      error: 'provider failure',
+    }, '2026-09-01T18:00:05.000Z', policy)
+    expect(updated.attempt).toBe(1)
+    expect(updated.status).toBe('RETRYING')
+    expect(updated.lastError).toBe('provider failure')
+    expect(updated.nextAttemptAt).toBe('2026-09-01T18:00:15.000Z')
   })
 })
