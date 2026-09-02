@@ -3,26 +3,23 @@ import type { GenerationTask } from './generation-task';
 
 /** Durable persistence boundary for Director generation work. */
 export interface GenerationRepository {
-  /** Atomically create-or-return the canonical task for an idempotency key. */
   claimTask(task: GenerationTask): Promise<GenerationTask>;
   saveTask(task: GenerationTask): Promise<void>;
   getTask(id: string): Promise<GenerationTask | undefined>;
   getTaskByIdempotencyKey(idempotencyKey: string): Promise<GenerationTask | undefined>;
-  /** Atomically acquire an execution lease, creating attempt 1 when absent. */
   claimExecution(taskId: string, providerId: string, workerId: string, leaseMs: number): Promise<GenerationExecution | undefined>;
-  /** Persist only if the caller presents the currently valid lease token. */
   saveExecution(execution: GenerationExecution): Promise<boolean>;
-  /** Atomically persist the task and its fenced execution transition. */
   saveState(task: GenerationTask, execution: GenerationExecution): Promise<boolean>;
   getExecution(id: string): Promise<GenerationExecution | undefined>;
   getExecutionByProviderJob(providerId: string, providerJobId: string): Promise<GenerationExecution | undefined>;
   listExecutions(taskId: string): Promise<GenerationExecution[]>;
+  /** Extend the current execution lease only when the owner/token still match. */
+  renewExecutionLease(executionId: string, workerId: string, leaseToken: string, leaseMs: number): Promise<GenerationExecution | undefined>;
 }
 
 function clone<T>(value: T): T { return structuredClone(value); }
 function newLeaseToken(): string { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`; }
 
-/** Reference implementation for unit tests and local runtimes. */
 export class InMemoryGenerationRepository implements GenerationRepository {
   private readonly tasks = new Map<string, GenerationTask>();
   private readonly tasksByIdempotencyKey = new Map<string, string>();
@@ -60,6 +57,15 @@ export class InMemoryGenerationRepository implements GenerationRepository {
       ? { ...existing, providerId, leaseOwner: workerId, leaseToken: newLeaseToken(), leaseExpiresAt: new Date(now + leaseMs).toISOString(), updatedAt: new Date(now).toISOString() }
       : { id, taskId, providerId, attempt: 1, status: 'queued', leaseOwner: workerId, leaseToken: newLeaseToken(), leaseExpiresAt: new Date(now + leaseMs).toISOString(), createdAt: new Date(now).toISOString(), updatedAt: new Date(now).toISOString() };
     this.executions.set(id, clone(updated));
+    return clone(updated);
+  }
+
+  async renewExecutionLease(executionId: string, workerId: string, leaseToken: string, leaseMs: number): Promise<GenerationExecution | undefined> {
+    const existing = this.executions.get(executionId);
+    if (!existing || existing.leaseOwner !== workerId || existing.leaseToken !== leaseToken || (existing.leaseExpiresAt ? Date.parse(existing.leaseExpiresAt) <= Date.now() : true)) return undefined;
+    const now = Date.now();
+    const updated = { ...existing, leaseExpiresAt: new Date(now + leaseMs).toISOString(), updatedAt: new Date(now).toISOString() };
+    this.executions.set(executionId, clone(updated));
     return clone(updated);
   }
 
