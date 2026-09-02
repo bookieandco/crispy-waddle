@@ -10,6 +10,18 @@ describe('createComfyUIHttpClient', () => {
     expect(fetchImpl).toHaveBeenCalledWith('http://localhost:8188/prompt', expect.objectContaining({ method: 'POST' }));
   });
 
+  it('propagates a stable client idempotency key to ComfyUI', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ prompt_id: 'job-456' }), { status: 200 }));
+    const client = createComfyUIHttpClient({ baseUrl: 'http://localhost:8188', fetchImpl });
+
+    await expect(client.queuePrompt({ '1': { class_type: 'CheckpointLoaderSimple' } }, { clientId: 'generation:123' })).resolves.toEqual({ promptId: 'job-456' });
+    const request = fetchImpl.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toEqual({
+      prompt: { '1': { class_type: 'CheckpointLoaderSimple' } },
+      client_id: 'generation:123',
+    });
+  });
+
   it('unwraps a prompt history entry', async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ 'job-123': { outputs: { '1': {} } } }), { status: 200 }));
     const client = createComfyUIHttpClient({ baseUrl: 'http://localhost:8188', fetchImpl });
