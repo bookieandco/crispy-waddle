@@ -5,8 +5,8 @@ import type { GenerationTaskStatus } from './generation-task';
  * Provider execution state for a Director generation task.
  *
  * A lease identifies the worker currently allowed to advance an execution.
- * It is recovery metadata, not a guarantee of exactly-once execution at an
- * external provider boundary.
+ * leaseToken fences an older lease instance even when the same worker later
+ * reacquires the execution.
  */
 export type GenerationExecution = {
   id: string;
@@ -17,6 +17,7 @@ export type GenerationExecution = {
   status: GenerationTaskStatus;
   error?: string;
   leaseOwner?: string;
+  leaseToken?: string;
   leaseExpiresAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -31,6 +32,7 @@ export function generationExecutionFromResult(
     attempt?: number;
     now?: string;
     leaseOwner?: string;
+    leaseToken?: string;
     leaseExpiresAt?: string;
   } = {},
 ): GenerationExecution {
@@ -44,6 +46,7 @@ export function generationExecutionFromResult(
     status: result.status,
     error: result.error,
     leaseOwner: options.leaseOwner,
+    leaseToken: options.leaseToken,
     leaseExpiresAt: options.leaseExpiresAt,
     createdAt: now,
     updatedAt: now,
