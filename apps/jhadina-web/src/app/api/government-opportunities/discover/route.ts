@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { OpportunityDiscoveryProviderRegistry, OpportunityDiscoveryService } from '@jhadina/opportunity-core'
+import {
+  GrantsGovOpportunityDiscoveryProvider,
+  OpportunityDiscoveryProviderRegistry,
+  OpportunityDiscoveryService,
+} from '@jhadina/opportunity-core'
 import { SupabaseOpportunityRepository } from '@/lib/government-opportunities/supabase-oce-opportunity-repository'
 import { SamOpportunityDiscoveryProvider } from '@/lib/government-opportunities/sam-opportunity-discovery-provider'
 
@@ -19,16 +23,20 @@ export async function POST(request: Request) {
   }
 
   const repository = new SupabaseOpportunityRepository()
-  const provider = new SamOpportunityDiscoveryProvider({
+  const samProvider = new SamOpportunityDiscoveryProvider({
     limit: Math.min(Math.max(body.limit ?? 25, 1), 100),
     keyword: body.keyword?.trim() || undefined,
   })
-  const registry = new OpportunityDiscoveryProviderRegistry([provider])
+  const grantsProvider = new GrantsGovOpportunityDiscoveryProvider({
+    limit: Math.min(Math.max(body.limit ?? 25, 1), 100),
+    keyword: body.keyword?.trim() || undefined,
+  })
+  const registry = new OpportunityDiscoveryProviderRegistry([samProvider, grantsProvider])
   const service = new OpportunityDiscoveryService(repository, registry)
 
   try {
     const result = await service.run({ since: body.since })
-    return NextResponse.json({ ok: true, source: provider.source.id, result })
+    return NextResponse.json({ ok: true, sources: registry.list().map((provider) => provider.source.id), result })
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : 'Opportunity discovery failed' }, { status: 503 })
   }
