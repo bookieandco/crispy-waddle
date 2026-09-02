@@ -36,28 +36,16 @@ export function getPersistentMediaElement(): HTMLVideoElement {
 export function mountPersistentMediaElement(host: HTMLElement): HTMLVideoElement { const video = getPersistentMediaElement(); if (video.parentElement !== host) host.appendChild(video); video.style.display = ''; return video; }
 export function releasePersistentMediaElement(host?: HTMLElement): void { if (!persistentMediaElement) return; if (host && persistentMediaElement.parentElement !== host) return; if (persistentMediaElement.parentElement !== document.body) document.body.appendChild(persistentMediaElement); persistentMediaElement.style.display = 'none'; }
 
-function attachConfiguredProgressPersistence(nextSession: UnifiedMediaSession): void { progressPersistence?.dispose(); progressPersistence = null; const config = progressPersistenceConfig; if (!config) return; progressPersistence = attachRuntimeProgressPersistence({ session: nextSession, getCurrentItem: () => getMediaPlaybackStore().getState().current, userId: config.userId, client: config.client ?? createMediaPlaybackProgressApiClient(), throttleMs: config.throttleMs, onError: config.onError }); }
-export function configureMediaPlaybackProgressPersistence(config: MediaPlaybackProgressPersistenceConfig): RuntimeProgressPersistence | null { if (!config.userId.trim()) throw new Error('JHADINA_MEDIA_PLAYBACK_PROGRESS_USER_REQUIRED'); progressPersistenceConfig = config; if (!session) return null; attachConfiguredProgressPersistence(session); return progressPersistence; }
+function attachConfiguredProgressPersistence(nextSession: UnifiedMediaSession): RuntimeProgressPersistence | null { progressPersistence?.dispose(); progressPersistence = null; const config = progressPersistenceConfig; if (!config) return null; progressPersistence = attachRuntimeProgressPersistence({ session: nextSession, getCurrentItem: () => getMediaPlaybackStore().getState().current, userId: config.userId, client: config.client ?? createMediaPlaybackProgressApiClient(), throttleMs: config.throttleMs, onError: config.onError }); return progressPersistence; }
+export function configureMediaPlaybackProgressPersistence(config: MediaPlaybackProgressPersistenceConfig): RuntimeProgressPersistence | null { if (!config.userId.trim()) throw new Error('JHADINA_MEDIA_PLAYBACK_PROGRESS_USER_REQUIRED'); progressPersistenceConfig = config; if (!session) return null; return attachConfiguredProgressPersistence(session); }
 export async function flushMediaPlaybackProgress(completed = false): Promise<void> { await progressPersistence?.flush(completed); }
 
 function observeSession(nextSession: UnifiedMediaSession): void { const generation = ++sessionGeneration; unsubscribeSession?.(); unsubscribeSession = nextSession.subscribe((state) => { if (generation !== sessionGeneration || session !== nextSession) return; getMediaPlaybackStore().updatePlayerState(state); publishSnapshot(); }); getMediaPlaybackStore().updatePlayerState(nextSession.getState()); attachConfiguredProgressPersistence(nextSession); publishSnapshot(); }
 function queueItem(item: MediaQueueItem): void { const playbackStore = getMediaPlaybackStore(); const currentState = playbackStore.getState(); const existingIndex = currentState.queue.findIndex((entry) => entry.id === item.id); if (existingIndex >= 0) playbackStore.setCurrent(item, existingIndex); else if (currentState.queue.length === 0) playbackStore.setCurrent(item, 0); else { playbackStore.addToQueue(item); const nextIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id); playbackStore.setCurrent(item, nextIndex); } }
 
-function createLoadRequest(): { request: MediaPlaybackLoadRequest; generation: number } {
-  const generation = ++latestLoadRequestGeneration;
-  let cancelled = false;
-  const request = { get cancelled() { return cancelled; }, cancel() { cancelled = true; } } as MediaPlaybackLoadRequest;
-  return { request, generation };
-}
-function assertLoadRequestCurrent(request: MediaPlaybackLoadRequest, generation: number): void {
-  if (request.cancelled || generation !== latestLoadRequestGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_LOAD_CANCELLED');
-}
-function enqueueSessionCommand<T>(operation: () => Promise<T>, request: MediaPlaybackLoadRequest, requestGeneration: number): Promise<T> {
-  const generation = sessionCommandGeneration;
-  const run = sessionCommand.then(async () => { assertLoadRequestCurrent(request, requestGeneration); if (generation !== sessionCommandGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_COMMAND_CANCELLED'); return operation(); }, async () => { assertLoadRequestCurrent(request, requestGeneration); if (generation !== sessionCommandGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_COMMAND_CANCELLED'); return operation(); });
-  sessionCommand = run.then(() => undefined, () => undefined);
-  return run;
-}
+function createLoadRequest(): { request: MediaPlaybackLoadRequest; generation: number } { const generation = ++latestLoadRequestGeneration; let cancelled = false; const request = { get cancelled() { return cancelled; }, cancel() { cancelled = true; } } as MediaPlaybackLoadRequest; return { request, generation }; }
+function assertLoadRequestCurrent(request: MediaPlaybackLoadRequest, generation: number): void { if (request.cancelled || generation !== latestLoadRequestGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_LOAD_CANCELLED'); }
+function enqueueSessionCommand<T>(operation: () => Promise<T>, request: MediaPlaybackLoadRequest, requestGeneration: number): Promise<T> { const generation = sessionCommandGeneration; const run = sessionCommand.then(async () => { assertLoadRequestCurrent(request, requestGeneration); if (generation !== sessionCommandGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_COMMAND_CANCELLED'); return operation(); }, async () => { assertLoadRequestCurrent(request, requestGeneration); if (generation !== sessionCommandGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_COMMAND_CANCELLED'); return operation(); }); sessionCommand = run.then(() => undefined, () => undefined); return run; }
 
 export async function ensureMediaPlaybackSession(config: UnifiedMediaSessionConfig, item: MediaQueueItem, request?: MediaPlaybackLoadRequest): Promise<UnifiedMediaSession> {
   const load = request ? { request, generation: ++latestLoadRequestGeneration } : createLoadRequest();
