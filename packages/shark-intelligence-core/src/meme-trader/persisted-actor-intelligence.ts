@@ -11,21 +11,20 @@ export type PersistedActorOutcomeRecord = ActorOutcomeHistory & {
 
 const clamp = (n: number) => Math.max(0, Math.min(1, n))
 
-/**
- * Matches the current token's graph actors to durable actor reputation.
- * Association confidence is preserved and multiplied into reputation confidence;
- * a cluster match is never treated as proof of common ownership.
- */
+/** Matches current-token graph actors to durable reputation without treating cluster association as ownership proof. */
 export function matchPersistedActorOutcomeHistory(input: {
   associations: ActorAssociation[]
   records: PersistedActorOutcomeRecord[]
-}): ActorOutcomeHistory[] {
+}): Array<ActorOutcomeHistory & { actorKey: string; actorKind: PersistedActorOutcomeRecord['actorKind'] }> {
   const byKey = new Map(input.records.map(record => [record.actorKey, record]))
   return input.associations.flatMap(association => {
-    const record = byKey.get(`${association.kind}:${association.actorId}`)
+    const key = `${association.kind}:${association.actorId}`
+    const record = byKey.get(key)
     if (!record) return []
     const confidence = clamp(record.confidence * association.confidence * record.associationConfidence)
     return [{
+      actorKey: key,
+      actorKind: association.kind,
       actorId: record.actorId,
       launches: record.launches,
       healthyLaunches: record.healthyLaunches,
@@ -40,10 +39,7 @@ export function matchPersistedActorOutcomeHistory(input: {
   })
 }
 
-/**
- * Combines durable reputation with optional in-memory historical launches.
- * Durable reputation is the preferred source once backfill has populated it.
- */
+/** Durable reputation is preferred once backfill has populated it; in-memory history remains a compatibility fallback. */
 export function derivePersistedActorIntelligence(input: {
   currentGraph: EntityGraph
   currentTokenAddress: string
@@ -57,10 +53,14 @@ export function derivePersistedActorIntelligence(input: {
   })
   const durable = matchPersistedActorOutcomeHistory({ associations: base.associations, records: input.persistedRecords })
   const merged = new Map<string, ActorOutcomeHistory>()
-  for (const history of base.outcomeHistory) merged.set(history.actorId, history)
+  for (const history of base.outcomeHistory) {
+    const matching = base.associations.find(association => association.actorId === history.actorId)
+    merged.set(matching ? `${matching.kind}:${history.actorId}` : `unknown:${history.actorId}`, history)
+  }
   for (const history of durable) {
-    const current = merged.get(history.actorId)
-    if (!current || history.confidence > current.confidence) merged.set(history.actorId, history)
+    const key = `${history.actorKind}:${history.actorId}`
+    const current = merged.get(key)
+    if (!current || history.confidence > current.confidence) merged.set(key, history)
   }
   return {
     ...base,
