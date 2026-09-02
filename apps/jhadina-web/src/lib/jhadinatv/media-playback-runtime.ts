@@ -53,13 +53,17 @@ export async function ensureMediaPlaybackSession(config: UnifiedMediaSessionConf
   return enqueueSessionCommand(async () => {
     if (!session || session !== sharedSession) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_OWNERSHIP_LOST');
     const current = getMediaPlaybackStore().getState().current;
-    if (!current || current.id !== item.id) { await sharedSession.loadPlayback(item.playback); if (!session || session !== sharedSession) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_OWNERSHIP_LOST'); queueItem(item); publishSnapshot(); }
+    if (!current || current.id !== item.id || current.playback.source.id !== item.playback.source.id || current.playback.source.url !== item.playback.source.url || current.playback.providerId !== item.playback.providerId || current.kind !== item.kind) {
+      await sharedSession.loadPlayback(item.playback, 0, item.kind);
+      if (!session || session !== sharedSession) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_OWNERSHIP_LOST');
+      queueItem(item);
+      publishSnapshot();
+    }
     return sharedSession;
   });
 }
 
-// A route owns only its view subscription. The playback observer is global so MiniPlayer,
-// queue advancement, and progress persistence continue receiving session state after navigation.
+// A route owns only its view subscription. The playback observer is global so MiniPlayer, queue advancement, and progress persistence continue receiving session state after navigation.
 export function releaseMediaPlaybackView(): void { publishSnapshot(); }
 export function disposeMediaPlaybackSession(): void { sessionCommandGeneration += 1; sessionGeneration += 1; unsubscribeSession?.(); unsubscribeSession = null; progressPersistence?.dispose(); progressPersistence = null; progressPersistenceConfig = null; const currentSession = session; session = null; currentSession?.dispose(); publishSnapshot(); }
 /** @deprecated Use releaseMediaPlaybackView() or disposeMediaPlaybackSession(). */
