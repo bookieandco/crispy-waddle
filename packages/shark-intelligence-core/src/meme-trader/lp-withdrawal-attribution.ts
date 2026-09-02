@@ -36,7 +36,7 @@ export function attributeLPWithdrawals(input: {
     .filter(event => event.kind === 'LIQUIDITY_REMOVE')
     .map(event => {
       const candidates = lpEvents
-        .filter(lp => lp.poolAddress === event.poolAddress && sameTime(lp.observedAt, event.observedAt) && (lp.kind === 'BURN' || lp.kind === 'TRANSFER'))
+        .filter(lp => lp.poolAddress === event.poolAddress && lp.signature === event.signature && sameTime(lp.observedAt, event.observedAt) && (lp.kind === 'BURN' || lp.kind === 'TRANSFER'))
         .sort((a, b) => Math.abs(Date.parse(a.observedAt) - Date.parse(event.observedAt)) - Math.abs(Date.parse(b.observedAt) - Date.parse(event.observedAt)))
       const lp = candidates[0]
       const ownerBefore = lp?.from
@@ -47,7 +47,7 @@ export function attributeLPWithdrawals(input: {
         observedAt: event.observedAt,
         poolAddress: event.poolAddress,
         lpMint: event.lpMint ?? lp?.lpMint,
-        lpTokenAccount: event.lpTokenAccount,
+        lpTokenAccount: event.lpTokenAccount ?? lp?.tokenAccount,
         lpAmountRaw: event.amountRaw ?? lp?.amountRaw,
         ownerBefore,
         ownerAfter: lp?.to,
@@ -61,7 +61,7 @@ export function attributeLPWithdrawals(input: {
 }
 
 export function verifiedLPWithdrawals(attributions: LPWithdrawalAttribution[]): LPWithdrawalAttribution[] {
-  return attributions.filter(item => Boolean(item.ownerBefore) && Boolean(item.lpStateEventId) && item.confidence >= 0.7)
+  return attributions.filter(item => Boolean(item.ownerBefore) && Boolean(item.lpStateEventId) && Boolean(item.lpTokenAccount) && item.confidence >= 0.7)
 }
 
 export type LPWithdrawalTransactionMatcher = (transaction: HistoricalPoolTransaction, attribution: LPWithdrawalAttribution) => boolean
