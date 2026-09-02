@@ -3,25 +3,14 @@ import { createMediaPlaybackStore, createUnifiedMediaSession } from '@jhadina/tv
 import { attachRuntimeProgressPersistence, createMediaPlaybackProgressApiClient, type RuntimeProgressClient, type RuntimeProgressPersistence } from './media-playback-progress-runtime';
 
 const MEDIA_ELEMENT_ATTRIBUTE = 'data-jhadina-media-element';
-
-export interface MediaPlaybackSnapshot {
-  session: UnifiedMediaSession | null;
-  current: MediaQueueItem | null;
-  playerState: ReturnType<UnifiedMediaSession['getState']>;
-}
-
+export interface MediaPlaybackSnapshot { session: UnifiedMediaSession | null; current: MediaQueueItem | null; playerState: ReturnType<UnifiedMediaSession['getState']>; }
 type MediaPlaybackSnapshotListener = (snapshot: MediaPlaybackSnapshot) => void;
-
-export interface MediaPlaybackProgressPersistenceConfig {
-  userId: string;
-  client?: RuntimeProgressClient;
-  throttleMs?: number;
-  onError?: (error: unknown) => void;
-}
+export interface MediaPlaybackProgressPersistenceConfig { userId: string; client?: RuntimeProgressClient; throttleMs?: number; onError?: (error: unknown) => void; }
 
 let store: MediaPlaybackStore | null = null;
 let session: UnifiedMediaSession | null = null;
 let sessionInitialization: Promise<UnifiedMediaSession> | null = null;
+let sessionCommand: Promise<void> = Promise.resolve();
 let unsubscribeSession: (() => void) | null = null;
 let progressPersistence: RuntimeProgressPersistence | null = null;
 let progressPersistenceConfig: MediaPlaybackProgressPersistenceConfig | null = null;
@@ -29,29 +18,11 @@ let persistentMediaElement: HTMLVideoElement | null = null;
 let sessionGeneration = 0;
 const snapshotListeners = new Set<MediaPlaybackSnapshotListener>();
 
-function snapshot(): MediaPlaybackSnapshot {
-  const state = getMediaPlaybackStore().getState();
-  return { session, current: state.current, playerState: state.playerState };
-}
-
-function publishSnapshot(): void {
-  const next = snapshot();
-  for (const listener of snapshotListeners) listener(next);
-}
-
-export function getMediaPlaybackStore(): MediaPlaybackStore {
-  if (!store) store = createMediaPlaybackStore();
-  return store;
-}
-
+function snapshot(): MediaPlaybackSnapshot { const state = getMediaPlaybackStore().getState(); return { session, current: state.current, playerState: state.playerState }; }
+function publishSnapshot(): void { const next = snapshot(); for (const listener of snapshotListeners) listener(next); }
+export function getMediaPlaybackStore(): MediaPlaybackStore { if (!store) store = createMediaPlaybackStore(); return store; }
 export function getMediaPlaybackSnapshot(): MediaPlaybackSnapshot { return snapshot(); }
-
-export function subscribeMediaPlaybackSnapshot(listener: MediaPlaybackSnapshotListener): () => void {
-  snapshotListeners.add(listener);
-  listener(snapshot());
-  return () => snapshotListeners.delete(listener);
-}
-
+export function subscribeMediaPlaybackSnapshot(listener: MediaPlaybackSnapshotListener): () => void { snapshotListeners.add(listener); listener(snapshot()); return () => snapshotListeners.delete(listener); }
 export function getMediaPlaybackSession(): UnifiedMediaSession | null { return session; }
 
 export function getPersistentMediaElement(): HTMLVideoElement {
@@ -66,139 +37,62 @@ export function getPersistentMediaElement(): HTMLVideoElement {
   if (!persistentMediaElement.isConnected) document.body.appendChild(persistentMediaElement);
   return persistentMediaElement;
 }
-
-export function mountPersistentMediaElement(host: HTMLElement): HTMLVideoElement {
-  const video = getPersistentMediaElement();
-  if (video.parentElement !== host) host.appendChild(video);
-  video.style.display = '';
-  return video;
-}
-
-export function releasePersistentMediaElement(host?: HTMLElement): void {
-  if (!persistentMediaElement) return;
-  if (host && persistentMediaElement.parentElement !== host) return;
-  if (persistentMediaElement.parentElement !== document.body) document.body.appendChild(persistentMediaElement);
-  persistentMediaElement.style.display = 'none';
-}
+export function mountPersistentMediaElement(host: HTMLElement): HTMLVideoElement { const video = getPersistentMediaElement(); if (video.parentElement !== host) host.appendChild(video); video.style.display = ''; return video; }
+export function releasePersistentMediaElement(host?: HTMLElement): void { if (!persistentMediaElement) return; if (host && persistentMediaElement.parentElement !== host) return; if (persistentMediaElement.parentElement !== document.body) document.body.appendChild(persistentMediaElement); persistentMediaElement.style.display = 'none'; }
 
 function attachConfiguredProgressPersistence(nextSession: UnifiedMediaSession): void {
-  progressPersistence?.dispose();
-  progressPersistence = null;
+  progressPersistence?.dispose(); progressPersistence = null;
   const config = progressPersistenceConfig;
   if (!config) return;
-  progressPersistence = attachRuntimeProgressPersistence({
-    session: nextSession,
-    getCurrentItem: () => getMediaPlaybackStore().getState().current,
-    userId: config.userId,
-    client: config.client ?? createMediaPlaybackProgressApiClient(),
-    throttleMs: config.throttleMs,
-    onError: config.onError,
-  });
+  progressPersistence = attachRuntimeProgressPersistence({ session: nextSession, getCurrentItem: () => getMediaPlaybackStore().getState().current, userId: config.userId, client: config.client ?? createMediaPlaybackProgressApiClient(), throttleMs: config.throttleMs, onError: config.onError });
 }
-
-export function configureMediaPlaybackProgressPersistence(config: MediaPlaybackProgressPersistenceConfig): RuntimeProgressPersistence | null {
-  if (!config.userId.trim()) throw new Error('JHADINA_MEDIA_PLAYBACK_PROGRESS_USER_REQUIRED');
-  progressPersistenceConfig = config;
-  if (!session) return null;
-  attachConfiguredProgressPersistence(session);
-  return progressPersistence;
-}
-
-export async function flushMediaPlaybackProgress(completed = false): Promise<void> {
-  await progressPersistence?.flush(completed);
-}
+export function configureMediaPlaybackProgressPersistence(config: MediaPlaybackProgressPersistenceConfig): RuntimeProgressPersistence | null { if (!config.userId.trim()) throw new Error('JHADINA_MEDIA_PLAYBACK_PROGRESS_USER_REQUIRED'); progressPersistenceConfig = config; if (!session) return null; attachConfiguredProgressPersistence(session); return progressPersistence; }
+export async function flushMediaPlaybackProgress(completed = false): Promise<void> { await progressPersistence?.flush(completed); }
 
 function observeSession(nextSession: UnifiedMediaSession): void {
   const generation = ++sessionGeneration;
   unsubscribeSession?.();
-  unsubscribeSession = nextSession.subscribe((state) => {
-    if (generation !== sessionGeneration || session !== nextSession) return;
-    getMediaPlaybackStore().updatePlayerState(state);
-    publishSnapshot();
-  });
+  unsubscribeSession = nextSession.subscribe((state) => { if (generation !== sessionGeneration || session !== nextSession) return; getMediaPlaybackStore().updatePlayerState(state); publishSnapshot(); });
   getMediaPlaybackStore().updatePlayerState(nextSession.getState());
   attachConfiguredProgressPersistence(nextSession);
   publishSnapshot();
 }
-
 function queueItem(item: MediaQueueItem): void {
-  const playbackStore = getMediaPlaybackStore();
-  const currentState = playbackStore.getState();
-  const existingIndex = currentState.queue.findIndex((entry) => entry.id === item.id);
-  if (existingIndex >= 0) playbackStore.setCurrent(item, existingIndex);
-  else if (currentState.queue.length === 0) playbackStore.setCurrent(item, 0);
-  else {
-    playbackStore.addToQueue(item);
-    const nextIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id);
-    playbackStore.setCurrent(item, nextIndex);
-  }
+  const playbackStore = getMediaPlaybackStore(); const currentState = playbackStore.getState(); const existingIndex = currentState.queue.findIndex((entry) => entry.id === item.id);
+  if (existingIndex >= 0) playbackStore.setCurrent(item, existingIndex); else if (currentState.queue.length === 0) playbackStore.setCurrent(item, 0); else { playbackStore.addToQueue(item); const nextIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id); playbackStore.setCurrent(item, nextIndex); }
 }
 
-/** Runtime owns initialization as well as the lifetime of the single session. */
+function enqueueSessionCommand<T>(operation: () => Promise<T>): Promise<T> {
+  const run = sessionCommand.then(operation, operation);
+  sessionCommand = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+/** Runtime owns the single session and serializes cross-title commands. */
 export async function ensureMediaPlaybackSession(config: UnifiedMediaSessionConfig, item: MediaQueueItem): Promise<UnifiedMediaSession> {
-  if (session) {
-    const sharedSession = session;
-    const current = getMediaPlaybackStore().getState().current;
-    if (!current || current.id !== item.id) {
-      await sharedSession.loadPlayback(item.playback);
-      queueItem(item);
-      publishSnapshot();
+  if (!session) {
+    if (!sessionInitialization) {
+      sessionInitialization = Promise.resolve().then(() => {
+        if (session) return session;
+        const created = createUnifiedMediaSession(config); session = created; queueItem(item); observeSession(created); return created;
+      }).finally(() => { sessionInitialization = null; });
     }
+    const initialized = await sessionInitialization;
+    if (!session || session !== initialized) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_INITIALIZATION_LOST');
+  }
+
+  const sharedSession = session;
+  return enqueueSessionCommand(async () => {
+    if (!session || session !== sharedSession) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_OWNERSHIP_LOST');
+    const current = getMediaPlaybackStore().getState().current;
+    if (!current || current.id !== item.id) { await sharedSession.loadPlayback(item.playback); if (!session || session !== sharedSession) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_OWNERSHIP_LOST'); queueItem(item); publishSnapshot(); }
     return sharedSession;
-  }
-
-  if (!sessionInitialization) {
-    sessionInitialization = Promise.resolve().then(() => {
-      if (session) return session;
-      const created = createUnifiedMediaSession(config);
-      session = created;
-      queueItem(item);
-      observeSession(created);
-      return created;
-    }).finally(() => {
-      sessionInitialization = null;
-    });
-  }
-
-  const initialized = await sessionInitialization;
-  if (!session || session !== initialized) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_INITIALIZATION_LOST');
-  const current = getMediaPlaybackStore().getState().current;
-  if (!current || current.id !== item.id) {
-    await initialized.loadPlayback(item.playback);
-    queueItem(item);
-    publishSnapshot();
-  }
-  return initialized;
+  });
 }
 
-/** Observer-only release for route/view unmounts. Playback continues. */
-export function releaseMediaPlaybackView(): void {
-  unsubscribeSession?.();
-  unsubscribeSession = null;
-  publishSnapshot();
-}
-
-/** Explicit destructive shutdown. */
-export function disposeMediaPlaybackSession(): void {
-  sessionGeneration += 1;
-  unsubscribeSession?.();
-  unsubscribeSession = null;
-  progressPersistence?.dispose();
-  progressPersistence = null;
-  progressPersistenceConfig = null;
-  const currentSession = session;
-  session = null;
-  currentSession?.dispose();
-  publishSnapshot();
-}
-
+export function releaseMediaPlaybackView(): void { unsubscribeSession?.(); unsubscribeSession = null; publishSnapshot(); }
+export function disposeMediaPlaybackSession(): void { sessionGeneration += 1; unsubscribeSession?.(); unsubscribeSession = null; progressPersistence?.dispose(); progressPersistence = null; progressPersistenceConfig = null; const currentSession = session; session = null; currentSession?.dispose(); publishSnapshot(); }
 /** @deprecated Use releaseMediaPlaybackView() or disposeMediaPlaybackSession(). */
 export function detachMediaPlaybackSession(): void { releaseMediaPlaybackView(); }
-
 /** @deprecated Direct attachment is retained only for compatibility. New routes should use ensureMediaPlaybackSession(). */
-export function attachMediaPlaybackSession(nextSession: UnifiedMediaSession, item: MediaQueueItem): void {
-  if (session && session !== nextSession) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_ALREADY_OWNED');
-  session = nextSession;
-  queueItem(item);
-  observeSession(nextSession);
-}
+export function attachMediaPlaybackSession(nextSession: UnifiedMediaSession, item: MediaQueueItem): void { if (session && session !== nextSession) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_ALREADY_OWNED'); session = nextSession; queueItem(item); observeSession(nextSession); }
