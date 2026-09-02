@@ -106,16 +106,28 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
     setVolume: (value) => state.target?.transport !== 'local' ? remoteCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }) : localCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }),
     discoverTargets: async () => { assertActive(); return config.casting.discover(); },
     async transfer(target) {
-      assertActive(); const current = config.local.getState(); await config.casting.connect(target); assertActive(); await config.casting.send({ type: 'transfer', target });
-      publish({ ...state, ...current, sourceUrl: playback.source.url, titleId: playback.source.titleId, target });
-      remoteUnsubscribe?.(); remoteUnsubscribe = config.casting.subscribeState((next) => publish({ ...state, ...next, sourceUrl: playback.source.url, titleId: playback.source.titleId, target }), 500);
+      assertActive();
+      if (target.transport === 'local') {
+        await session.disconnect();
+        return;
+      }
+      const current = state;
+      await config.casting.connect(target);
+      assertActive();
+      const remote = await config.casting.getState();
+      publish({ ...state, ...remote, ...current, sourceUrl: playback.source.url, titleId: playback.source.titleId, target });
+      remoteUnsubscribe?.();
+      remoteUnsubscribe = config.casting.subscribeState((next) => publish({ ...state, ...next, sourceUrl: playback.source.url, titleId: playback.source.titleId, target }), 500);
     },
     async disconnect() {
-      assertActive(); const remote = await config.casting.getState(); remoteUnsubscribe?.(); remoteUnsubscribe = undefined; await config.casting.disconnect(); assertActive();
+      assertActive();
+      const remote = await config.casting.getState();
+      remoteUnsubscribe?.(); remoteUnsubscribe = undefined;
+      await config.casting.disconnect(); assertActive();
       const local = config.local.getState(); const nextPosition = remote?.positionSeconds ?? local.positionSeconds;
       await config.local.apply({ type: 'seek', value: nextPosition });
       if (remote?.playing) await config.local.apply({ type: 'play' }); else await config.local.apply({ type: 'pause' });
-      publish({ ...local, ...remote, sourceUrl: playback.source.url, titleId: playback.source.titleId, positionSeconds: nextPosition, playing: !!remote?.playing, target: { id: 'local', name: 'This device', transport: 'local' } });
+      publish({ ...local, sourceUrl: playback.source.url, titleId: playback.source.titleId, positionSeconds: nextPosition, playing: !!remote?.playing, target: { id: 'local', name: 'This device', transport: 'local' } });
     },
     isRemote: () => state.target?.transport !== undefined && state.target.transport !== 'local',
     remotePlay: () => remoteCommand({ type: 'play' }),
