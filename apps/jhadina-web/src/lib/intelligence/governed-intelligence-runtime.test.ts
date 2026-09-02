@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { SupabaseAuditLedger, type AuditRpcClient } from "@jhadina/action-core"
-import type { ContextPacket, DecisionProposal } from "@jhadina/core-spine"
+import { InMemoryLearningRecordRepository, type ContextPacket, type DecisionProposal } from "@jhadina/core-spine"
 import { IntelligenceRouter, type ModelProvider } from "@jhadina/intelligence-core"
 import type { ActionRequestIdentity, JhadinaActionRequest, JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import {
@@ -9,23 +9,10 @@ import {
   type GovernedIntelligenceRuntimeOverrides,
 } from "./governed-intelligence-runtime"
 
-/**
- * Exercises the real production composition root (runGovernedIntelligenceProposal /
- * listGovernedIntelligenceActivity) against a fake RPC client modeling the
- * actual append_jhadina_audit_event / list_jhadina_audit_events migration's
- * behavior — same pattern growth/governed-approval-runtime.test.ts already
- * established. createRequestIdentityVerifier(), the real Supabase client, and
- * the real AnthropicModelProvider have no meaning in a test process, so all
- * three are overridden; production always uses the real ones (getStorage()
- * is not overridden — this deliberately shares the same storage singleton
- * production routes use).
- */
 function staticIdentityVerifier(identity: ActionRequestIdentity): JhadinaIdentityVerifier {
   return {
     async verify(request: JhadinaActionRequest) {
-      if (request.userId !== identity.userId) {
-        throw new Error("Action identity mismatch")
-      }
+      if (request.userId !== identity.userId) throw new Error("Action identity mismatch")
       return identity
     },
   }
@@ -62,8 +49,7 @@ class FakeAuditRpcClient implements AuditRpcClient {
     if (fn === "list_jhadina_audit_events") {
       const domain = args.p_domain as string
       const actorId = args.p_actor_id as string
-      const rows = this.rows.filter((r) => r.domain === domain && r.actor_id === actorId)
-      return { data: rows as T, error: null }
+      return { data: this.rows.filter((r) => r.domain === domain && r.actor_id === actorId) as T, error: null }
     }
     return { data: null as T | null, error: { message: `Unknown RPC: ${fn}` } }
   }
@@ -103,18 +89,19 @@ function baseContext(id = "ctx-runtime-1"): ContextPacket {
 function freshOverrides(
   identity: ActionRequestIdentity,
   router: IntelligenceRouter,
-): Required<Pick<GovernedIntelligenceRuntimeOverrides, "identityVerifier" | "ledger" | "router">> & { rpc: FakeAuditRpcClient } {
+): Required<Pick<GovernedIntelligenceRuntimeOverrides, "identityVerifier" | "ledger" | "router" | "learningRecordRepository">> & { rpc: FakeAuditRpcClient } {
   const rpc = new FakeAuditRpcClient()
   return {
     rpc,
     identityVerifier: staticIdentityVerifier(identity),
     ledger: new SupabaseAuditLedger({ client: rpc, domain: "intelligence" }),
     router,
+    learningRecordRepository: new InMemoryLearningRecordRepository(),
   }
 }
 
 describe("Intelligence Router — production composition root (Phase 1 Step 3)", () => {
-  it("runs the full governed lifecycle through the real composition root and durably records it", async () => {
+  it("runs the full governed lifecycle through the real composition root and records the completed outcome", async () => {
     const identity: ActionRequestIdentity = { userId: "user-runtime-1", sessionId: "session-runtime-1" }
     const overrides = freshOverrides(identity, fakeRouterReturning(proposalFor("PROCEED")))
 
@@ -128,21 +115,27 @@ describe("Intelligence Router — production composition root (Phase 1 Step 3)",
     expect(statuses).toContain("started")
     expect(statuses).toContain("completed")
     expect(statuses).not.toContain("denied")
+
+    const records = await overrides.learningRecordRepository.listByCorrelation("ctx-runtime-1")
+    expect(records).toHaveLength(1)
+    expect(records[0]?.decision.proposalId).toBe("proposal-runtime-1")
+    expect(records[0]?.decision.actionRequestId).toBeDefined()
+    expect(records[0]?.outcome.status).toBe("success")
+    expect(records[0]?.learningUpdate.kind).toBe("create")
   })
 
-  it("an identity-mismatched claim fails closed and never appears in the real user's own activity", async () => {
+  it("an identity-mismatched claim fails closed and never records a learning outcome", async () => {
     const identity: ActionRequestIdentity = { userId: "user-runtime-2", sessionId: "session-runtime-2" }
     const overrides = freshOverrides(identity, fakeRouterReturning(proposalFor("PROCEED")))
 
-    await expect(
-      runGovernedIntelligenceProposal("someone-else", baseContext(), overrides),
-    ).rejects.toThrow("Action identity mismatch")
+    await expect(runGovernedIntelligenceProposal("someone-else", baseContext(), overrides)).rejects.toThrow("Action identity mismatch")
 
     const activity = await listGovernedIntelligenceActivity(identity.userId, overrides)
     expect(activity.events).toHaveLength(0)
+    expect(await overrides.learningRecordRepository.listByDomain("intelligence")).toHaveLength(0)
   })
 
-  it("a DECLINE disposition is durably recorded but produces no candidate", async () => {
+  it("a DECLINE disposition is durably audited but produces neither a candidate nor a learning outcome", async () => {
     const identity: ActionRequestIdentity = { userId: "user-runtime-3", sessionId: "session-runtime-3" }
     const overrides = freshOverrides(identity, fakeRouterReturning(proposalFor("DECLINE")))
 
@@ -151,9 +144,10 @@ describe("Intelligence Router — production composition root (Phase 1 Step 3)",
 
     const activity = await listGovernedIntelligenceActivity(identity.userId, overrides)
     expect(activity.events.some((e) => e.metadata?.disposition === "DECLINE")).toBe(true)
+    expect(await overrides.learningRecordRepository.listByDomain("intelligence")).toHaveLength(0)
   })
 
-  it("the Activity read boundary scopes strictly to the requesting user, same as Growth/Money", async () => {
+  it("the Activity read boundary scopes strictly to the requesting user", async () => {
     const alice: ActionRequestIdentity = { userId: "user-runtime-4a", sessionId: "s-4a" }
     const bob: ActionRequestIdentity = { userId: "user-runtime-4b", sessionId: "s-4b" }
     const rpc = new FakeAuditRpcClient()
@@ -161,11 +155,13 @@ describe("Intelligence Router — production composition root (Phase 1 Step 3)",
       identityVerifier: staticIdentityVerifier(alice),
       ledger: new SupabaseAuditLedger({ client: rpc, domain: "intelligence" }),
       router: fakeRouterReturning(proposalFor("PROCEED", "alice's recommendation")),
+      learningRecordRepository: new InMemoryLearningRecordRepository(),
     }
     const bobOverrides: GovernedIntelligenceRuntimeOverrides = {
       identityVerifier: staticIdentityVerifier(bob),
       ledger: new SupabaseAuditLedger({ client: rpc, domain: "intelligence" }),
       router: fakeRouterReturning(proposalFor("PROCEED", "bob's recommendation")),
+      learningRecordRepository: new InMemoryLearningRecordRepository(),
     }
 
     await runGovernedIntelligenceProposal(alice.userId, baseContext("ctx-a"), aliceOverrides)
