@@ -108,11 +108,32 @@ export class GenerationService {
     }
 
     initialExecution ??= { id: `${task.id}:attempt:1`, taskId: task.id, providerId: registeredModel.providerId, attempt: 1, status: 'queued', createdAt: task.createdAt, updatedAt: task.updatedAt };
-    if (this.generationRepository) await this.generationRepository.saveExecution({ ...initialExecution, status: 'running', updatedAt: new Date().toISOString() });
-    const initial = jobFromTask(task, { ...initialExecution, status: 'running' });
+    const runningExecution: GenerationExecution = { ...initialExecution, status: 'running', leaseOwner: this.workerId, leaseExpiresAt: new Date(Date.now() + this.executionLeaseMs).toISOString(), updatedAt: new Date().toISOString() };
+    if (this.generationRepository) await this.generationRepository.saveExecution(runningExecution);
+    const initial = jobFromTask(task, runningExecution);
     this.jobs.set(initial.id, initial);
 
     try {
+      // Recovery boundary: a provider may have accepted the job before the worker
+      // crashed, leaving no providerJobId in our durable execution row.
+      if (!initialExecution.providerJobId && provider.findByIdempotencyKey) {
+        const recovered = await provider.findByIdempotencyKey(task.idempotencyKey);
+        if (recovered) {
+          const recoveredAt = new Date().toISOString();
+          const recoveredExecution = generationExecutionFromResult(task.id, registeredModel.providerId, recovered, {
+            id: initialExecution.id,
+            attempt: initialExecution.attempt,
+            now: recoveredAt,
+          });
+          const recoveredTask: GenerationTask = { ...task, status: recovered.status, error: recovered.error, updatedAt: recoveredAt };
+          const recoveredJob = jobFromTask(recoveredTask, recoveredExecution);
+          this.jobs.set(recoveredJob.id, recoveredJob);
+          await this.persistState(recoveredTask, recoveredExecution);
+          await this.persistOutputs(recoveredJob, recovered);
+          return recoveredJob;
+        }
+      }
+
       const result = await provider.submit(initial.request, { idempotencyKey: task.idempotencyKey });
       const completedAt = new Date().toISOString();
       const execution = generationExecutionFromResult(task.id, registeredModel.providerId, result, { id: initialExecution.id, attempt: initialExecution.attempt, now: completedAt });
