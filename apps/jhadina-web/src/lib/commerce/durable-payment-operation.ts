@@ -2,6 +2,7 @@ export type PaymentOperationStatus = "processing" | "completed" | "failed";
 
 export type PaymentOperationKey = {
   provider: string;
+  operationId: string;
   paymentId: string;
 };
 
@@ -33,6 +34,7 @@ export interface PaymentOperationStore {
 export function assertPaymentOperationBinding(record: PaymentOperationRecord, expected: PaymentOperationBinding): void {
   if (
     record.provider !== expected.provider ||
+    record.operationId !== expected.operationId ||
     record.paymentId !== expected.paymentId ||
     record.actorId !== expected.actorId ||
     record.actionId !== expected.actionId ||
