@@ -6,45 +6,18 @@ import type {
   ReconciliationReport,
   RefundRequest,
 } from "@jhadina/payment-core"
-import { InMemoryActionLedger, type ActionLedger } from "@jhadina/action-core"
+import type { ActionLedger } from "@jhadina/action-core"
 
 /**
  * Commerce sandbox-payment milestone (PL-3) + Finding D (Jhadina OS
- * Integration Phase 2): the "explicit capability/policy boundary" and
- * "authorization before provider call" requirements, implemented as a
- * decorator around a real PaymentProvider — mirroring money-core's
- * capabilities.ts registry shape (a fixed set of named capabilities,
- * each explicitly allowed or not) rather than inventing a different
- * policy shape. Composes transparently with SP-2's existing
- * createPaymentGatewayFromProvider bridge — GovernedPaymentProvider IS
- * a PaymentProvider, so nothing downstream changes.
+ * Integration Phase 2): the explicit capability/policy boundary and
+ * authorization-before-provider-call requirements, implemented as a
+ * decorator around a real PaymentProvider.
  *
- * payment-core's PaymentProvider interface has no per-call actor/
- * context parameter (unlike money-core's BankAdapter, whose methods
- * take a MoneyAdapterContext) — capture() in particular carries no
- * actor at all. The capability check therefore lives at this
- * composition-boundary layer instead of inside each method, the same
- * place the check would have to live even if payment-core's interface
- * changes down the line; this proof doesn't change that interface.
- *
- * Finding D correction: the actor audited against every call is now a
- * verified identity supplied by the caller (governed-commerce-intent.ts,
- * after ActionIdentityVerifier + policy + approval all pass) — never
- * derived from request.customer.id / instruction.merchant.id /
- * request.requestedBy, which are domain data a caller controls, not
- * proof of identity. One GovernedPaymentProvider instance now belongs
- * to exactly one verified actor for its whole lifetime.
- *
- * The ledger is an optional constructor param (defaults to a fresh
- * InMemoryActionLedger for standalone use) rather than always
- * constructing its own — governed-commerce-intent.ts passes one shared
- * ledger so checkout-level and payment-level events land in the same
- * inspectable trail. PL-5: typed against the abstract ActionLedger
- * contract (was InMemoryActionLedger — Checkpoint #3, dimension 8) so
- * that shared ledger can be the real, durable SupabaseAuditLedger PL-2
- * built for Growth with zero change to this file's own logic; only the
- * caller composing GovernedCommerceIntentDeps decides which
- * implementation to pass.
+ * The verified actor and ledger are supplied by the governed composition
+ * root. There is intentionally no in-memory ledger default: production
+ * callers must make the audit sink explicit, while tests and verification
+ * fixtures may inject InMemoryActionLedger themselves.
  */
 
 export type CommercePaymentCapability =
@@ -73,13 +46,13 @@ export class GovernedPaymentProvider implements PaymentProvider {
   constructor(
     private readonly provider: PaymentProvider,
     private readonly verifiedActorId: string,
-    private readonly ledger: ActionLedger = new InMemoryActionLedger(),
+    private readonly ledger: ActionLedger,
   ) {
     if (!verifiedActorId) throw new Error("GovernedPaymentProvider requires a verified actor id")
+    if (!ledger) throw new Error("GovernedPaymentProvider requires an explicit audit ledger")
     this.name = provider.name
   }
 
-  /** Delegates to the wrapped provider's own inspection helper, if it has one (the sandbox provider does). */
   list(): PaymentIntent[] {
     const wrapped = this.provider as PaymentProvider & { list?: () => PaymentIntent[] }
     return wrapped.list?.() ?? []
@@ -90,8 +63,6 @@ export class GovernedPaymentProvider implements PaymentProvider {
   }
 
   async capture(paymentId: string): Promise<PaymentIntent> {
-    // capture() is the second half of the same charge capability
-    // already authorized when createPaymentIntent ran, not a separate grant.
     return this.governed("commerce.payment.charge", paymentId, () => this.provider.capture(paymentId))
   }
 
