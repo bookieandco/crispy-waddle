@@ -45,10 +45,6 @@ export function assessMigrationAwareRisk(input: MigrationAwareRiskInput): Migrat
     liquidityDrawdownFromPeak: migrated ? undefined : input.rugProtection.liquidityDrawdownFromPeak,
     liquidityHistory: migrated ? undefined : input.rugProtection.liquidityHistory,
     lpControlRisk,
-    evidence: [
-      ...input.rugProtection.evidence,
-      ...(migrated ? [{ source: 'migration-classification', observedAt: new Date().toISOString(), label: input.migrationClassification?.reason ?? 'verified-migration' }] : []),
-    ],
   }
   const rugProtection = evaluateRugProtection(rugInput)
   return { lpControlRisk, rugProtection, migrationSuppressedLiquidityRisk: migrated }
