@@ -115,7 +115,7 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
       await config.casting.connect(target);
       assertActive();
       const remote = await config.casting.getState();
-      publish({ ...state, ...remote, ...current, sourceUrl: playback.source.url, titleId: playback.source.titleId, target });
+      publish({ ...current, ...(remote ?? {}), sourceUrl: playback.source.url, titleId: playback.source.titleId, target });
       remoteUnsubscribe?.();
       remoteUnsubscribe = config.casting.subscribeState((next) => publish({ ...state, ...next, sourceUrl: playback.source.url, titleId: playback.source.titleId, target }), 500);
     },
