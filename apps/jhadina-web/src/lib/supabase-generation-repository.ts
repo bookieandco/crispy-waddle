@@ -18,14 +18,17 @@ export function createSupabaseGenerationRepository(client: SupabaseClient): Gene
       if (!data) throw new Error(`Failed to claim generation task: ${task.idempotencyKey}`);
       return toTask(data as TaskRow);
     },
-
     async claimExecution(taskId, providerId, workerId, leaseMs) {
       const { data, error } = await client.rpc('claim_director_generation_execution', { p_task_id: taskId, p_provider_id: providerId, p_worker_id: workerId, p_lease_ms: leaseMs });
       if (error) throw error;
       if (!data) return undefined;
       return toExecution(data as ExecutionRow);
     },
-
+    async renewExecutionLease(executionId, workerId, leaseToken, leaseMs) {
+      const { data, error } = await client.rpc('renew_director_generation_execution_lease', { p_execution_id: executionId, p_worker_id: workerId, p_lease_token: leaseToken, p_lease_ms: leaseMs });
+      if (error) throw error;
+      return data ? toExecution(data as ExecutionRow) : undefined;
+    },
     async saveTask(task) {
       const { error } = await client.from('director_generation_tasks').upsert({ id: task.id, project_id: task.projectId, edit_plan_id: task.editPlanId ?? null, operation_id: task.operationId ?? null, idempotency_key: task.idempotencyKey, request: task.request, status: task.status, error: task.error ?? null, created_at: task.createdAt, updated_at: task.updatedAt }, { onConflict: 'id' });
       if (error) throw error;
