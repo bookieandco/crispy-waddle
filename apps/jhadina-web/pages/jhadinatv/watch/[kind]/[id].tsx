@@ -62,19 +62,19 @@ export default function JhadinaTVWatchPage() {
     const progressClient = createMediaPlaybackApiClient();
     const writerClient = createMediaPlaybackProgressApiClient();
     let resumeCoordinator: ReturnType<typeof createMediaPlaybackResumeCoordinator> | null = null;
-    let detachProgressWriter: (() => void) | null = null;
+    let progressWriter: ReturnType<typeof attachMediaPlaybackProgressWriter> | null = null;
     const resumeReady = getCurrentUserId().then(async (userId) => {
       if (!active || !userId) return;
       resumeCoordinator = createMediaPlaybackResumeCoordinator(session, userId, progressClient);
       await resumeCoordinator.loadItem(queueItem);
       if (!active) return;
-      detachProgressWriter = attachMediaPlaybackProgressWriter({ video, session, item: queueItem, userId, client: writerClient, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to save playback progress.') });
+      progressWriter = attachMediaPlaybackProgressWriter({ video, session, item: queueItem, userId, client: writerClient, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to save playback progress.') });
       setSessionState(session.getState());
     }).catch((cause) => {
       if (active) setError(cause instanceof Error ? cause.message : 'Unable to restore saved playback progress.');
     });
-    const detachAutoAdvance = attachMediaPlaybackAutoAdvance({ video, store: getMediaPlaybackStore(), session, resolveResumePosition: async (next) => { await resumeReady; if (!resumeCoordinator) return 0; return resumeCoordinator.resolvePositionSeconds(next as MediaQueueItem); }, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to advance to the next item.') });
-    return () => { active = false; detachProgressWriter?.(); unsubscribe(); detachAutoAdvance(); releasePersistentMediaElement(host); sessionRef.current = null; };
+    const detachAutoAdvance = attachMediaPlaybackAutoAdvance({ video, store: getMediaPlaybackStore(), session, resolveResumePosition: async (next) => { await resumeReady; if (!resumeCoordinator) return 0; return resumeCoordinator.resolvePositionSeconds(next as MediaQueueItem); }, beforeAdvance: async () => { if (progressWriter) await progressWriter.flush(true); }, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to advance to the next item.') });
+    return () => { active = false; progressWriter?.dispose(); unsubscribe(); detachAutoAdvance(); releasePersistentMediaElement(host); sessionRef.current = null; };
   }, [playback, title]);
 
   useEffect(() => { if (!source) return; const video = getPersistentMediaElement(); const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); setPipSupported(controller.isSupported()); const sync = () => setPipActive(controller.isActive()); video.addEventListener('enterpictureinpicture', sync); video.addEventListener('leavepictureinpicture', sync); return () => { video.removeEventListener('enterpictureinpicture', sync); video.removeEventListener('leavepictureinpicture', sync); }; }, [source]);
