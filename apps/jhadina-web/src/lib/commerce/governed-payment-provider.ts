@@ -58,11 +58,7 @@ export interface GovernedPaymentApproval<TAction = unknown> {
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize)
   if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, child]) => [key, canonicalize(child)]),
-    )
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, child]) => [key, canonicalize(child)]))
   }
   return value
 }
@@ -71,12 +67,7 @@ function operationFingerprint(capability: CommercePaymentCapability, action: unk
   return JSON.stringify(canonicalize({ capability, action }))
 }
 
-/**
- * Final payment-provider boundary. Approval is consumed here, immediately
- * before the irreversible provider call. Durable operation claim happens
- * before approval consumption so concurrent/replayed execution can never
- * create a second external side effect.
- */
+/** Final payment-provider governance boundary. */
 export class GovernedPaymentProvider implements PaymentProvider {
   readonly name: string
 
@@ -89,6 +80,8 @@ export class GovernedPaymentProvider implements PaymentProvider {
   ) {
     if (!verifiedActorId) throw new Error("GovernedPaymentProvider requires a verified actor id")
     if (!ledger) throw new Error("GovernedPaymentProvider requires an explicit audit ledger")
+    if (!provider.name) throw new Error("GovernedPaymentProvider requires a provider name")
+    this.name = provider.name
   }
 
   list(): PaymentIntent[] {
@@ -117,18 +110,10 @@ export class GovernedPaymentProvider implements PaymentProvider {
   }
 
   async reconcile(periodStart: string, periodEnd: string): Promise<ReconciliationReport> {
-    return this.governed("commerce.payment.reconcile", `reconcile:${periodStart}:${periodEnd}`, `${periodStart}:${periodEnd}`, { periodStart, periodEnd }, () =>
-      this.provider.reconcile(periodStart, periodEnd),
-    )
+    return this.governed("commerce.payment.reconcile", `reconcile:${periodStart}:${periodEnd}`, `${periodStart}:${periodEnd}`, { periodStart, periodEnd }, () => this.provider.reconcile(periodStart, periodEnd))
   }
 
-  private async governed<T>(
-    capability: CommercePaymentCapability,
-    providerActionId: string,
-    paymentId: string,
-    action: unknown,
-    run: () => Promise<T>,
-  ): Promise<T> {
+  private async governed<T>(capability: CommercePaymentCapability, providerActionId: string, paymentId: string, action: unknown, run: () => Promise<T>): Promise<T> {
     const approval = this.approvals[capability]
     const eventId = `${providerActionId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
     const now = () => new Date().toISOString()
@@ -137,12 +122,10 @@ export class GovernedPaymentProvider implements PaymentProvider {
       await this.ledger.append({ id: `${eventId}:denied`, actionId: providerActionId, userId: this.verifiedActorId, type: capability, status: "denied", timestamp: now() })
       throw new PaymentCapabilityDeniedError(capability)
     }
-
     if (!approval) {
       await this.ledger.append({ id: `${eventId}:approval-required`, actionId: providerActionId, userId: this.verifiedActorId, type: capability, status: "approval_required", timestamp: now(), metadata: { reason: "missing_bound_approval" } })
       throw new PaymentApprovalRequiredError(capability)
     }
-
     if (!this.paymentOperations) throw new Error("COMMERCE_PAYMENT_OPERATION_STORE_REQUIRED")
 
     const binding: PaymentOperationBinding = {
@@ -163,14 +146,7 @@ export class GovernedPaymentProvider implements PaymentProvider {
       throw new PaymentOperationInProgressError(binding.operationId)
     }
 
-    const approvalRequest: ApprovalRequestLike = {
-      id: approval.actionId,
-      userId: this.verifiedActorId,
-      type: capability,
-      action,
-      requestedAt: now(),
-    }
-
+    const approvalRequest: ApprovalRequestLike = { id: approval.actionId, userId: this.verifiedActorId, type: capability, action, requestedAt: now() }
     const valid = await approval.verifier.verifyAndConsume(approval.receiptId, approvalRequest)
     if (!valid) {
       await this.paymentOperations.fail(binding, { resultStatus: "approval_invalid", resultPayload: { reason: "invalid_or_expired_or_replayed_approval" } })
@@ -195,9 +171,6 @@ export class GovernedPaymentProvider implements PaymentProvider {
       const resultStatus = (terminal as { status?: string } | null)?.status ?? "completed"
       await this.paymentOperations.complete(binding, { providerReference, resultStatus, resultPayload: terminal })
     } catch (error) {
-      // The provider already ran. Do not mark the operation failed or retry the
-      // provider: leaving it processing forces reconciliation instead of risking
-      // a second external side effect.
       await this.ledger.append({ id: `${eventId}:durability-failed`, actionId: providerActionId, userId: this.verifiedActorId, type: capability, status: "failed", timestamp: now(), metadata: { reason: error instanceof Error ? error.message : String(error), recovery: "reconcile_processing_operation" } })
       throw new Error("COMMERCE_PAYMENT_OPERATION_RESULT_PERSIST_FAILED")
     }
