@@ -1,5 +1,6 @@
 import type { MediaPlaybackStore, MediaQueueItem, UnifiedMediaSession, UnifiedMediaSessionConfig } from '@jhadina/tv-core';
 import { createMediaPlaybackStore, createUnifiedMediaSession } from '@jhadina/tv-core';
+import { attachRuntimeProgressPersistence, createMediaPlaybackProgressApiClient, type RuntimeProgressClient, type RuntimeProgressPersistence } from './media-playback-progress-runtime';
 
 const MEDIA_ELEMENT_ATTRIBUTE = 'data-jhadina-media-element';
 
@@ -11,10 +12,19 @@ export interface MediaPlaybackSnapshot {
 
 type MediaPlaybackSnapshotListener = (snapshot: MediaPlaybackSnapshot) => void;
 
+export interface MediaPlaybackProgressPersistenceConfig {
+  userId: string;
+  client?: RuntimeProgressClient;
+  throttleMs?: number;
+  onError?: (error: unknown) => void;
+}
+
 let store: MediaPlaybackStore | null = null;
 let session: UnifiedMediaSession | null = null;
 let sessionInitialization: Promise<UnifiedMediaSession> | null = null;
 let unsubscribeSession: (() => void) | null = null;
+let progressPersistence: RuntimeProgressPersistence | null = null;
+let progressPersistenceConfig: MediaPlaybackProgressPersistenceConfig | null = null;
 let persistentMediaElement: HTMLVideoElement | null = null;
 let sessionGeneration = 0;
 const snapshotListeners = new Set<MediaPlaybackSnapshotListener>();
@@ -71,6 +81,33 @@ export function releasePersistentMediaElement(host?: HTMLElement): void {
   persistentMediaElement.style.display = 'none';
 }
 
+function attachConfiguredProgressPersistence(nextSession: UnifiedMediaSession): void {
+  progressPersistence?.dispose();
+  progressPersistence = null;
+  const config = progressPersistenceConfig;
+  if (!config) return;
+  progressPersistence = attachRuntimeProgressPersistence({
+    session: nextSession,
+    getCurrentItem: () => getMediaPlaybackStore().getState().current,
+    userId: config.userId,
+    client: config.client ?? createMediaPlaybackProgressApiClient(),
+    throttleMs: config.throttleMs,
+    onError: config.onError,
+  });
+}
+
+export function configureMediaPlaybackProgressPersistence(config: MediaPlaybackProgressPersistenceConfig): RuntimeProgressPersistence | null {
+  if (!config.userId.trim()) throw new Error('JHADINA_MEDIA_PLAYBACK_PROGRESS_USER_REQUIRED');
+  progressPersistenceConfig = config;
+  if (!session) return null;
+  attachConfiguredProgressPersistence(session);
+  return progressPersistence;
+}
+
+export async function flushMediaPlaybackProgress(completed = false): Promise<void> {
+  await progressPersistence?.flush(completed);
+}
+
 function observeSession(nextSession: UnifiedMediaSession): void {
   const generation = ++sessionGeneration;
   unsubscribeSession?.();
@@ -80,6 +117,7 @@ function observeSession(nextSession: UnifiedMediaSession): void {
     publishSnapshot();
   });
   getMediaPlaybackStore().updatePlayerState(nextSession.getState());
+  attachConfiguredProgressPersistence(nextSession);
   publishSnapshot();
 }
 
@@ -145,6 +183,9 @@ export function disposeMediaPlaybackSession(): void {
   sessionGeneration += 1;
   unsubscribeSession?.();
   unsubscribeSession = null;
+  progressPersistence?.dispose();
+  progressPersistence = null;
+  progressPersistenceConfig = null;
   const currentSession = session;
   session = null;
   currentSession?.dispose();
