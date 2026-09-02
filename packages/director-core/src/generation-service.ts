@@ -81,6 +81,21 @@ export class GenerationService {
     return (await this.generationRepository.listExecutions(task.id)).at(-1);
   }
 
+  /**
+   * Re-check durable ownership immediately before an external submission.
+   * This closes the obvious stale-worker window, while the provider guarantee
+   * contract documents the remaining provider-side race.
+   */
+  private async hasCurrentSubmissionLease(execution: GenerationExecution): Promise<boolean> {
+    if (!this.generationRepository) return true;
+    const durable = await this.generationRepository.getExecution(execution.id);
+    if (!durable) return false;
+    if (durable.leaseOwner !== this.workerId) return false;
+    if (durable.leaseToken !== execution.leaseToken) return false;
+    if (!durable.leaseExpiresAt) return false;
+    return Date.parse(durable.leaseExpiresAt) > Date.now();
+  }
+
   async submit(request: GenerationRequest): Promise<GenerationJob> {
     assertRequestCompatibility(this.registry, request);
     const registeredModel = this.registry.getModel(request.model.id)!;
@@ -122,6 +137,18 @@ export class GenerationService {
     const initial = jobFromTask(runningTask, runningExecution);
     this.jobs.set(initial.id, initial);
     try {
+      if (!await this.hasCurrentSubmissionLease(initialExecution)) {
+        const reconciled = await this.waitForExecutionResolution(task);
+        const existingJob = jobFromTask(task, reconciled);
+        this.jobs.set(existingJob.id, existingJob);
+        return existingJob;
+      }
+      if (provider.submissionGuarantee === 'non-idempotent') {
+        throw new Error(`Provider ${provider.descriptor.id} is non-idempotent and cannot be auto-submitted through a leased Director execution`);
+      }
+      if (provider.submissionGuarantee === 'recoverable' && !provider.findByIdempotencyKey) {
+        throw new Error(`Provider ${provider.descriptor.id} declares recoverable submission but has no idempotency-key recovery method`);
+      }
       if (!initialExecution.providerJobId && provider.findByIdempotencyKey) {
         const recovered = await provider.findByIdempotencyKey(task.idempotencyKey);
         if (recovered) {
