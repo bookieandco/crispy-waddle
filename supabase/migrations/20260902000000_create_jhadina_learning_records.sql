@@ -48,7 +48,7 @@ create policy jhadina_learning_records_service_role_only
 
 revoke all on public.jhadina_learning_records from public, anon, authenticated;
 
-a create or replace function public.prevent_jhadina_learning_record_mutation()
+create or replace function public.prevent_jhadina_learning_record_mutation()
 returns trigger
 language plpgsql
 as $$
