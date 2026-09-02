@@ -1,6 +1,8 @@
 import type { MediaPlaybackProgress, MediaQueueItem, UnifiedMediaSession } from '@jhadina/tv-core';
 import { isMeaningfulResume } from '@jhadina/tv-core';
 
+export const MEDIA_PLAYBACK_RESUME_CANCELLED = 'JHADINA_MEDIA_PLAYBACK_RESUME_CANCELLED';
+
 export interface MediaPlaybackProgressClient {
   get(userId: string, providerId: string, itemId: string): Promise<MediaPlaybackProgress | null>;
 }
@@ -8,14 +10,11 @@ export interface MediaPlaybackProgressClient {
 export interface MediaPlaybackResumeCoordinator {
   resolvePositionSeconds(item: MediaQueueItem): Promise<number>;
   loadItem(item: MediaQueueItem): Promise<number>;
+  cancelPending(): void;
 }
 
 function clampResumeSeconds(progress: MediaPlaybackProgress | null, item: MediaQueueItem): number {
   if (!isMeaningfulResume(progress)) return 0;
-  if (progress!.userId !== item.playback.providerId && progress!.userId !== undefined) {
-    // The API client is authenticated separately; this guard intentionally does not
-    // attempt to infer user identity from queue metadata.
-  }
   if (progress!.providerId !== item.playback.providerId || progress!.itemId !== item.id) return 0;
   const storedSeconds = Math.max(0, progress!.positionMs / 1000);
   const knownDuration = item.durationSeconds ?? (progress!.durationMs === undefined ? undefined : progress!.durationMs / 1000);
@@ -24,15 +23,28 @@ function clampResumeSeconds(progress: MediaPlaybackProgress | null, item: MediaQ
 }
 
 export function createMediaPlaybackResumeCoordinator(session: UnifiedMediaSession, userId: string, progressClient: MediaPlaybackProgressClient): MediaPlaybackResumeCoordinator {
+  let loadGeneration = 0;
+
+  const assertCurrent = (generation: number): void => {
+    if (generation !== loadGeneration) throw new Error(MEDIA_PLAYBACK_RESUME_CANCELLED);
+  };
+
   return {
     async resolvePositionSeconds(item) {
       const progress = await progressClient.get(userId, item.playback.providerId, item.id);
       return clampResumeSeconds(progress, item);
     },
     async loadItem(item) {
-      const positionSeconds = await this.resolvePositionSeconds(item);
-      await session.loadPlayback(item.playback, positionSeconds);
+      const generation = ++loadGeneration;
+      const progress = await progressClient.get(userId, item.playback.providerId, item.id);
+      assertCurrent(generation);
+      const positionSeconds = clampResumeSeconds(progress, item);
+      await session.loadPlayback(item.playback, positionSeconds, item.kind);
+      assertCurrent(generation);
       return positionSeconds;
+    },
+    cancelPending() {
+      loadGeneration += 1;
     },
   };
 }
