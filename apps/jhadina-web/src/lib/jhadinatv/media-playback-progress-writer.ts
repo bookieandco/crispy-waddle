@@ -1,4 +1,4 @@
-import type { MediaPlaybackProgress, MediaQueueItem, MediaSessionState, UnifiedMediaSession } from '@jhadina/tv-core';
+import type { MediaPlaybackProgress, MediaPlaybackStore, MediaQueueItem, MediaSessionState, UnifiedMediaSession } from '@jhadina/tv-core';
 
 export interface MediaPlaybackProgressWriterClient {
   upsert(progress: MediaPlaybackProgress): Promise<MediaPlaybackProgress>;
@@ -7,7 +7,7 @@ export interface MediaPlaybackProgressWriterClient {
 export interface MediaPlaybackProgressWriterDeps {
   video: HTMLVideoElement;
   session: UnifiedMediaSession;
-  item: MediaQueueItem;
+  store: MediaPlaybackStore;
   userId: string;
   client: MediaPlaybackProgressWriterClient;
   throttleMs?: number;
@@ -33,13 +33,7 @@ export function createMediaPlaybackProgressApiClient(fetchImpl: typeof fetch = f
       const response = await fetchImpl('/api/media/progress', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          action: 'upsert',
-          userId: progress.userId,
-          providerId: progress.providerId,
-          itemId: progress.itemId,
-          progress,
-        }),
+        body: JSON.stringify({ action: 'upsert', userId: progress.userId, providerId: progress.providerId, itemId: progress.itemId, progress }),
       });
       if (!response.ok) throw new Error('Unable to save playback progress.');
       const payload = (await response.json()) as { progress?: MediaPlaybackProgress };
@@ -49,20 +43,24 @@ export function createMediaPlaybackProgressApiClient(fetchImpl: typeof fetch = f
   };
 }
 
-export function attachMediaPlaybackProgressWriter({ video, session, item, userId, client, throttleMs = 5000, onError }: MediaPlaybackProgressWriterDeps): () => void {
+export function attachMediaPlaybackProgressWriter({ video, session, store, userId, client, throttleMs = 5000, onError }: MediaPlaybackProgressWriterDeps): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
   let writeInFlight: Promise<unknown> | null = null;
-  let pending: MediaPlaybackProgress | null = null;
+  let pendingKey: string | null = null;
 
   const write = (completed = false) => {
     if (disposed) return;
-    const progress = buildProgress(userId, item, session.getState(), completed);
-    pending = progress;
+    const item = store.getState().current;
+    if (!item) return;
+    const state = session.getState();
+    const progress = buildProgress(userId, item, state, completed);
+    const key = `${progress.providerId}:${progress.itemId}:${progress.updatedAt}`;
+    pendingKey = key;
     if (writeInFlight) return;
     writeInFlight = client.upsert(progress).catch((error) => onError?.(error)).finally(() => {
       writeInFlight = null;
-      if (!disposed && pending && pending !== progress) write(false);
+      if (!disposed && pendingKey && pendingKey !== key) write(false);
     });
   };
   const schedule = () => {
