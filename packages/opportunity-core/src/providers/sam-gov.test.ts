@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { SamOpportunityDiscoveryProvider } from './sam-gov.js'
+import { SamGovProviderError, SamOpportunityDiscoveryProvider } from './sam-gov.js'
 
 describe('SamOpportunityDiscoveryProvider', () => {
   it('maps published SAM notices into canonical discovered opportunities', async () => {
@@ -42,5 +42,33 @@ describe('SamOpportunityDiscoveryProvider', () => {
     const requestUrl = new URL(String(fetchImpl.mock.calls[0]?.[0]))
     expect(requestUrl.searchParams.get('api_key')).toBe('test-sam-key')
     expect(requestUrl.searchParams.get('postedFrom')).toBe('08/01/2026')
+  })
+
+  it('never exposes an upstream SAM response body on request failure', async () => {
+    process.env.sam_key = 'test-sam-key'
+    const secretBody = 'sensitive upstream diagnostic payload'
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(secretBody, { status: 429 }))
+
+    const provider = new SamOpportunityDiscoveryProvider({ fetchImpl })
+
+    await expect(provider.discover()).rejects.toMatchObject({
+      name: 'SamGovProviderError',
+      code: 'SAM_GOV_REQUEST_FAILED',
+      status: 429,
+    })
+    await expect(provider.discover()).rejects.not.toThrow(secretBody)
+  })
+
+  it('reports a missing key without exposing configuration details', async () => {
+    delete process.env.sam_key
+    delete process.env.SAM_GOV_API_KEY
+    const fetchImpl = vi.fn<typeof fetch>()
+    const provider = new SamOpportunityDiscoveryProvider({ fetchImpl })
+
+    await expect(provider.discover()).rejects.toEqual(expect.objectContaining({
+      code: 'SAM_GOV_KEY_NOT_CONFIGURED',
+    }))
+    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(SamGovProviderError).toBeDefined()
   })
 })
