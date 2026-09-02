@@ -90,25 +90,11 @@ export interface DecisionProposal {
   alternatives: string[];
 }
 
-export interface PolicyDecision {
-  id: string;
-  proposalId: string;
-  allowed: boolean;
-  reason: string;
-  requiredApproval: boolean;
-  evaluatedAt: string;
-}
-
-export interface ActionRequest {
-  id: string;
-  proposalId: string;
-  capability: string;
-  operation: string;
-  input: unknown;
-  reversible: boolean;
-  consequenceLevel: 'low' | 'medium' | 'high' | 'critical';
-}
-
+/**
+ * Result produced by an ActionPort after the canonical policy decision has
+ * already authorized execution. Policy decisions and action requests live in
+ * canonical-action.ts so there is only one authoritative governance model.
+ */
 export interface ActionResult {
   id: string;
   requestId: string;
@@ -133,17 +119,4 @@ export interface MemoryProposal {
   reason: string;
   evidence: EvidenceRef[];
   disposition: MemoryDisposition;
-}
-
-export interface SpineCycle {
-  experience: Experience;
-  patterns: PatternObservation[];
-  personality: PersonalityState;
-  context: ContextPacket;
-  decision?: DecisionProposal;
-  policy?: PolicyDecision;
-  action?: ActionRequest;
-  result?: ActionResult;
-  memoryProposals: MemoryProposal[];
-  auditEvents: AuditEvent[];
 }
