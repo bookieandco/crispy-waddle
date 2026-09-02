@@ -16,22 +16,23 @@ export function createMediaPlaybackProgressApiClient(fetchImpl: typeof fetch = f
 
 type Pending = { item: MediaQueueItem; state: MediaSessionState; completed: boolean };
 
+function isSnapshotOwnedByItem(item: MediaQueueItem, state: MediaSessionState): boolean {
+  return state.titleId === item.titleId && state.sourceUrl === item.playback.source.url;
+}
+
 export function attachRuntimeProgressPersistence({ session, getCurrentItem, userId, client, throttleMs = 5000, onError }: RuntimeProgressPersistenceDeps): RuntimeProgressPersistence {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
   let inFlight: Promise<void> | null = null;
   let pending: Pending | null = null;
   let lastPlaying = session.getState().playing;
-  let sequence = 0;
-  let persistedSequence = 0;
 
   const drain = async (): Promise<void> => {
     if (disposed || inFlight || !pending) return;
     const next = pending;
     pending = null;
-    const writeSequence = ++sequence;
     inFlight = client.upsert(buildProgress(userId, next.item, next.state, next.completed))
-      .then(() => { persistedSequence = Math.max(persistedSequence, writeSequence); })
+      .then(() => undefined)
       .catch((error) => { onError?.(error); })
       .finally(() => { inFlight = null; if (!disposed && pending) void drain(); });
     await inFlight;
@@ -42,6 +43,10 @@ export function attachRuntimeProgressPersistence({ session, getCurrentItem, user
     const item = getCurrentItem();
     if (!item) return Promise.resolve();
     const state = { ...session.getState() };
+    // Queue state and session state are independently observable. Never combine a
+    // snapshot from one media item with the identity of another during auto-advance
+    // or route transitions; the database cannot repair that semantic mismatch.
+    if (!isSnapshotOwnedByItem(item, state)) return Promise.resolve();
     const inferredCompleted = completed || (!state.playing && state.durationSeconds !== undefined && Number.isFinite(state.durationSeconds) && state.durationSeconds > 0 && state.positionSeconds >= state.durationSeconds - 0.5);
     pending = { item, state, completed: inferredCompleted || pending?.completed === true };
     if (inFlight) return inFlight;
@@ -60,10 +65,6 @@ export function attachRuntimeProgressPersistence({ session, getCurrentItem, user
     timer = null;
     await requestWrite(completed);
     while (!disposed && (inFlight || pending)) { if (inFlight) await inFlight; else await drain(); }
-    // A completed flush only returns once the newest pending snapshot has been handed
-    // to the client. This prevents route transitions from advancing the queue before
-    // the old item's final progress write is ordered ahead of the transition.
-    void persistedSequence;
   };
 
   const dispose = () => { if (disposed) return; disposed = true; if (timer) clearTimeout(timer); timer = null; unsubscribe(); window.removeEventListener('pagehide', handlePageHide); document.removeEventListener('visibilitychange', handleVisibility); };
