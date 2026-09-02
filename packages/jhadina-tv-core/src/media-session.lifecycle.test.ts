@@ -11,8 +11,8 @@ const targetState: MediaSessionState = {
 const playback: ResolvedPlaybackSource = { providerId: 'direct', source: { id: 'source-1', titleId: 'title-1', kind: 'hls', url: 'https://example.com/video.m3u8' }, capabilities: ['playback', 'seek'] };
 const nextPlayback: ResolvedPlaybackSource = { providerId: 'direct', source: { id: 'source-2', titleId: 'title-2', kind: 'hls', url: 'https://example.com/next.m3u8' }, capabilities: ['playback', 'seek'] };
 
-function createFixture() {
-  let state = { ...targetState }; let listener: ((next: MediaSessionState) => void) | undefined;
+function createFixture(initialState: MediaSessionState = targetState) {
+  let state = { ...initialState }; let listener: ((next: MediaSessionState) => void) | undefined;
   const unsubscribe = vi.fn(() => { listener = undefined; });
   const local: LocalPlaybackAdapter = {
     getState: () => state,
@@ -40,24 +40,21 @@ describe('UnifiedMediaSession lifecycle', () => {
     await s.syncRemoteState();
     expect(s.getState()).toMatchObject({ positionSeconds: 137.5, playing: true, target: remoteState.target });
   });
-  it('keeps a newer load authoritative when an older load resolves late', async () => {
-    const f = createFixture();
+  it('keeps a newer remote load authoritative when an older load resolves late', async () => {
+    const remoteInitial: MediaSessionState = { ...targetState, target: { id: 'tv-1', name: 'Living Room TV', transport: 'google-cast' } };
+    const f = createFixture(remoteInitial);
     const first = { ...nextPlayback, source: { ...nextPlayback.source, id: 'first', titleId: 'title-2', url: 'https://example.com/first.m3u8' } };
     const second = { ...nextPlayback, source: { ...nextPlayback.source, id: 'second', titleId: 'title-3', url: 'https://example.com/second.m3u8' } };
     let releaseFirst!: () => void;
     const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
-    let firstLoad = true;
+    let calls = 0;
     f.casting.getState = vi.fn(async () => {
-      if (firstLoad) {
-        firstLoad = false;
-        await firstGate;
-      }
-      return { ...targetState, sourceUrl: second.source.url, titleId: second.source.titleId };
+      calls += 1;
+      if (calls === 1) await firstGate;
+      return { ...remoteInitial, sourceUrl: second.source.url, titleId: second.source.titleId };
     });
-    const remote = { id: 'tv-1', name: 'Living Room TV', transport: 'google-cast' as const };
-    f.casting.connect = vi.fn(async () => undefined);
+    f.casting.loadPlayback = vi.fn(async () => undefined);
     const s = createUnifiedMediaSession({ titleId: 'title-1', kind: 'movie', playback, local: f.local, casting: f.casting });
-    await f.casting.connect(remote);
     const p1 = s.loadPlayback(first);
     const p2 = s.loadPlayback(second);
     releaseFirst();
