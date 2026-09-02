@@ -6,6 +6,10 @@ import { OutboxGenerationProvider } from '@jhadina/director-core/outbox-generati
 import type { GenerationRegistry } from '@jhadina/director-core/generation-registry';
 import { createSupabaseGeneratedAssetRepository } from './supabase-generated-asset-repository';
 import { createSupabaseGenerationRepository } from '../src/lib/supabase-generation-repository';
+import {
+  createDirectorGenerationRegistryAndProviders,
+  type DirectorGenerationFactoryConfig,
+} from '../src/lib/director-generation-provider-factory';
 
 export type DirectorGenerationRuntime = {
   service: GenerationService;
@@ -13,12 +17,11 @@ export type DirectorGenerationRuntime = {
   workerId: string;
 };
 
-/** Server composition root for generation and durable submission reconciliation. */
-export function createDirectorGenerationRuntime(
+function composeDirectorGenerationRuntime(
   client: SupabaseClient,
   registry: GenerationRegistry,
   providers: Map<string, GenerationProvider>,
-  workerId = `director-worker:${Math.random().toString(36).slice(2)}`,
+  workerId: string,
 ): DirectorGenerationRuntime {
   const repository = createSupabaseGenerationRepository(client);
   const outboxProviders = new Map<string, GenerationProvider>();
@@ -37,7 +40,34 @@ export function createDirectorGenerationRuntime(
   return { service, reconciler, workerId };
 }
 
-/** Backward-compatible service-only composition for request handlers. */
+/**
+ * Canonical server composition root for production Director generation.
+ * Provider construction comes exclusively from the configured provider factory,
+ * so HTTP generation and reconciliation cannot silently assemble different runtimes.
+ */
+export function createConfiguredDirectorGenerationRuntime(
+  client: SupabaseClient,
+  config?: DirectorGenerationFactoryConfig,
+  workerId = `director-worker:${Math.random().toString(36).slice(2)}`,
+): DirectorGenerationRuntime {
+  const { registry, providers } = createDirectorGenerationRegistryAndProviders(config);
+  return composeDirectorGenerationRuntime(client, registry, providers, workerId);
+}
+
+/**
+ * Explicit-injection composition retained for unit/integration tests and
+ * specialized adapters that already own their provider registry.
+ */
+export function createDirectorGenerationRuntime(
+  client: SupabaseClient,
+  registry: GenerationRegistry,
+  providers: Map<string, GenerationProvider>,
+  workerId = `director-worker:${Math.random().toString(36).slice(2)}`,
+): DirectorGenerationRuntime {
+  return composeDirectorGenerationRuntime(client, registry, providers, workerId);
+}
+
+/** Backward-compatible service-only composition for injected request handlers. */
 export function createDirectorGenerationService(
   client: SupabaseClient,
   registry: GenerationRegistry,
