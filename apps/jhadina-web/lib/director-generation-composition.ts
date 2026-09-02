@@ -3,11 +3,12 @@ import type { GenerationProvider } from '@jhadina/director-core/generation-provi
 import { GenerationService } from '@jhadina/director-core/generation-service';
 import type { GenerationRegistry } from '@jhadina/director-core/generation-registry';
 import { createSupabaseGeneratedAssetRepository } from './supabase-generated-asset-repository';
+import { createSupabaseGenerationRepository } from '../src/lib/supabase-generation-repository';
 
 /**
- * Server composition root for generation. Keeping the repository injection here
- * means every completed provider output can flow into the same durable asset
- * registry consumed by the workstation feed.
+ * Server composition root for generation. Every generation now persists both
+ * its canonical task/execution state and completed generated assets through
+ * the same privileged Supabase client.
  */
 export function createDirectorGenerationService(
   client: SupabaseClient,
@@ -18,5 +19,6 @@ export function createDirectorGenerationService(
     registry,
     providers,
     createSupabaseGeneratedAssetRepository(client),
+    createSupabaseGenerationRepository(client),
   );
 }
