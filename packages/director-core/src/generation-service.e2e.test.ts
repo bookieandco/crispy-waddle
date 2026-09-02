@@ -217,12 +217,65 @@ describe('GenerationService end-to-end', () => {
       async cancel(): Promise<void> {},
     };
 
-    const service = new GenerationService(registry, new Map([['comfy-local', provider]]);
+    const service = new GenerationService(registry, new Map([['comfy-local', provider]]));
     const job = await service.submit(request);
 
     expect(job.providerJobId).toBe('provider-fallback-1');
     expect(submitCalls).toBe(1);
     expect(receivedKey).toBe(request.requestId);
+  });
+
+  it('does not submit after the execution lease has been replaced', async () => {
+    const registry = createRegistry();
+    const request = createRequest(registry, 'stale-before-submit-1');
+    const repository = new InMemoryGenerationRepository();
+    const task = generationTaskFromRequest(request, { idempotencyKey: request.requestId });
+    await repository.claimTask(task);
+    const stale = await repository.claimExecution(task.id, 'comfy-local', 'worker-a', 1);
+    expect(stale?.leaseToken).toBeDefined();
+    await repository.saveState({ ...task, status: 'running', updatedAt: new Date().toISOString() }, { ...stale!, status: 'running', leaseExpiresAt: new Date(Date.now() - 1).toISOString(), updatedAt: new Date().toISOString() });
+    const replacement = await repository.claimExecution(task.id, 'comfy-local', 'worker-b', 30_000);
+    expect(replacement?.leaseToken).not.toBe(stale?.leaseToken);
+
+    let submitCalls = 0;
+    const provider: GenerationProvider = {
+      descriptor: registry.getProvider('comfy-local')!,
+      async submit(): Promise<GenerationResult> {
+        submitCalls += 1;
+        return createQueuedResult(request, 'should-not-submit');
+      },
+      async status(providerJobId: string): Promise<GenerationResult> {
+        return createQueuedResult(request, providerJobId);
+      },
+      async cancel(): Promise<void> {},
+    };
+
+    const service = new GenerationService(registry, new Map([['comfy-local', provider]]), undefined, repository, 'worker-a', 30_000, 10, 1);
+    const job = await service.submit(request);
+
+    expect(submitCalls).toBe(0);
+    expect(job.providerJobId).toBeUndefined();
+    expect((await repository.getExecution(task.id + ':attempt:1'))).toMatchObject({ leaseOwner: 'worker-b' });
+  });
+
+  it('blocks a provider declared non-idempotent from automatic leased submission', async () => {
+    const registry = createRegistry();
+    const request = createRequest(registry, 'non-idempotent-1');
+    let submitCalls = 0;
+    const provider: GenerationProvider = {
+      descriptor: registry.getProvider('comfy-local')!,
+      submissionGuarantee: 'non-idempotent',
+      async submit(): Promise<GenerationResult> {
+        submitCalls += 1;
+        return createQueuedResult(request, 'should-not-submit');
+      },
+      async status(providerJobId: string): Promise<GenerationResult> { return createQueuedResult(request, providerJobId); },
+      async cancel(): Promise<void> {},
+    };
+
+    const service = new GenerationService(registry, new Map([['comfy-local', provider]]));
+    await expect(service.submit(request)).rejects.toThrow(/non-idempotent/);
+    expect(submitCalls).toBe(0);
   });
 
   it('does not let a stale refresh overwrite a replacement worker execution', async () => {
