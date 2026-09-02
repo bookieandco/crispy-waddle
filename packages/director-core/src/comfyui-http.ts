@@ -28,11 +28,14 @@ export function createComfyUIHttpClient(options: ComfyUIHttpClientOptions): Comf
   const headers = { 'content-type': 'application/json', ...(options.headers ?? {}) };
 
   return {
-    async queuePrompt(workflow) {
+    async queuePrompt(workflow, queueOptions) {
       const response = await fetchImpl(joinUrl(options.baseUrl, '/prompt'), {
         method: 'POST',
         headers,
-        body: JSON.stringify({ prompt: workflow }),
+        body: JSON.stringify({
+          prompt: workflow,
+          ...(queueOptions?.clientId ? { client_id: queueOptions.clientId } : {}),
+        }),
       });
       const body = await parseJson(response);
       const promptId = typeof body.prompt_id === 'string' ? body.prompt_id : undefined;
