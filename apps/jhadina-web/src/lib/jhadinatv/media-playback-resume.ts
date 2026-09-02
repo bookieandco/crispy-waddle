@@ -1,4 +1,4 @@
-import type { MediaPlaybackProgress, MediaPlaybackStore, MediaQueueItem, UnifiedMediaSession } from '@jhadina/tv-core';
+import type { MediaPlaybackProgress, MediaQueueItem, UnifiedMediaSession } from '@jhadina/tv-core';
 import { isMeaningfulResume } from '@jhadina/tv-core';
 
 export interface MediaPlaybackProgressClient {
@@ -17,18 +17,17 @@ function clampResumeSeconds(progress: MediaPlaybackProgress | null, item: MediaQ
   const knownDuration = item.durationSeconds ?? (progress!.durationMs === undefined ? undefined : progress!.durationMs / 1000);
   if (knownDuration === undefined || !Number.isFinite(knownDuration) || knownDuration <= 0) return storedSeconds;
 
-  // Never resume at the terminal edge; an end-state should advance rather than
-  // immediately firing ended again. Leave a small safety margin for rounding.
   return Math.min(storedSeconds, Math.max(0, knownDuration - 0.5));
 }
 
 export function createMediaPlaybackResumeCoordinator(
   session: UnifiedMediaSession,
+  userId: string,
   progressClient: MediaPlaybackProgressClient,
 ): MediaPlaybackResumeCoordinator {
   return {
     async resolvePositionSeconds(item) {
-      const progress = await progressClient.get(item.playback.providerId, item.playback.providerId, item.id);
+      const progress = await progressClient.get(userId, item.playback.providerId, item.id);
       return clampResumeSeconds(progress, item);
     },
     async loadItem(item) {
