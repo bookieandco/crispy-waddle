@@ -4,9 +4,9 @@ import type { GenerationTaskStatus } from './generation-task';
 /**
  * Provider execution state for a Director generation task.
  *
- * This is deliberately separate from GenerationTask so provider retries,
- * provider job IDs, and provider failures cannot redefine Director's work
- * identity.
+ * A lease identifies the worker currently allowed to advance an execution.
+ * It is recovery metadata, not a guarantee of exactly-once execution at an
+ * external provider boundary.
  */
 export type GenerationExecution = {
   id: string;
@@ -16,6 +16,8 @@ export type GenerationExecution = {
   attempt: number;
   status: GenerationTaskStatus;
   error?: string;
+  leaseOwner?: string;
+  leaseExpiresAt?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -28,6 +30,8 @@ export function generationExecutionFromResult(
     id?: string;
     attempt?: number;
     now?: string;
+    leaseOwner?: string;
+    leaseExpiresAt?: string;
   } = {},
 ): GenerationExecution {
   const now = options.now ?? new Date().toISOString();
@@ -39,6 +43,8 @@ export function generationExecutionFromResult(
     attempt: options.attempt ?? 1,
     status: result.status,
     error: result.error,
+    leaseOwner: options.leaseOwner,
+    leaseExpiresAt: options.leaseExpiresAt,
     createdAt: now,
     updatedAt: now,
   };
