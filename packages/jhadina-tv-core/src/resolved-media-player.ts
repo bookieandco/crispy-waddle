@@ -6,6 +6,7 @@ export interface ResolvedPlaybackRuntime {
   apply(command: Exclude<MediaSessionCommand, { type: 'transfer' }>): Promise<void>;
   setSource(url: string): void;
   onStateChange?(listener: (state: MediaSessionState) => void): () => void;
+  isCurrent?(): boolean;
 }
 
 export interface ResolvedMediaPlayer extends ResolvedPlaybackRuntime {
@@ -23,13 +24,31 @@ function assertResolvedPlayback(playback: ResolvedPlaybackSource, runtime: Resol
   }
 }
 
+function assertCurrent(runtime: ResolvedPlaybackRuntime): void {
+  if (runtime.isCurrent && !runtime.isCurrent()) {
+    throw new Error('JHADINA_MEDIA_ELEMENT_COMMAND_CANCELLED');
+  }
+}
+
 export function createResolvedMediaPlayer(
   playback: ResolvedPlaybackSource,
   runtime: ResolvedPlaybackRuntime,
 ): ResolvedMediaPlayer {
   assertResolvedPlayback(playback, runtime);
+  assertCurrent(runtime);
   runtime.setSource(playback.source.url);
-  return { ...runtime, playback };
+  return {
+    ...runtime,
+    apply: async (command) => {
+      assertCurrent(runtime);
+      await runtime.apply(command);
+    },
+    setSource: (url) => {
+      assertCurrent(runtime);
+      runtime.setSource(url);
+    },
+    playback,
+  };
 }
 
 export function assertNativePlaybackSource(
