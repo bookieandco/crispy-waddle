@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter } from 'next/router';
 import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget, MediaSessionState, LocalPlaybackAdapter, UnifiedMediaSession, ResolvedPlaybackSource, MediaQueueItem } from '@jhadina/tv-core';
-import { CatalogRegistry, createAuthorizedCatalogAdapter, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createPlaybackResolver, createResolvedMediaPlayer, createUnifiedMediaSession } from '@jhadina/tv-core';
+import { CatalogRegistry, createAuthorizedCatalogAdapter, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createPlaybackResolver, createResolvedMediaPlayer } from '@jhadina/tv-core';
 import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
 import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
 import { getCurrentUserId } from '../../../../src/lib/auth/current-user';
-import { attachMediaPlaybackSession, getPersistentMediaElement, mountPersistentMediaElement, releasePersistentMediaElement, getMediaPlaybackStore } from '../../../../src/lib/jhadinatv/media-playback-runtime';
+import { ensureMediaPlaybackSession, getPersistentMediaElement, mountPersistentMediaElement, releasePersistentMediaElement, getMediaPlaybackStore, releaseMediaPlaybackView } from '../../../../src/lib/jhadinatv/media-playback-runtime';
 import { attachMediaPlaybackAutoAdvance } from '../../../../src/lib/jhadinatv/media-playback-auto-advance';
 import { createMediaPlaybackApiClient, createMediaPlaybackResumeCoordinator } from '../../../../src/lib/jhadinatv/media-playback-resume';
 import { attachMediaPlaybackProgressWriter, createMediaPlaybackProgressApiClient } from '../../../../src/lib/jhadinatv/media-playback-progress-writer';
@@ -54,36 +54,49 @@ export default function JhadinaTVWatchPage() {
     const local: LocalPlaybackAdapter = { getState: snapshot, async apply(command) { if (command.type === 'play') await video.play(); else if (command.type === 'pause') video.pause(); else if (command.type === 'seek') video.currentTime = Math.max(0, command.value); else if (command.type === 'set-volume') video.volume = Math.max(0, Math.min(1, command.value)); }, onStateChange(listener) { const sync = () => listener(snapshot()); const events = ['play', 'pause', 'timeupdate', 'durationchange', 'volumechange', 'seeking', 'seeked'] as const; events.forEach((event) => video.addEventListener(event, sync)); sync(); return () => events.forEach((event) => video.removeEventListener(event, sync)); } };
     const player = createResolvedMediaPlayer(playback, { ...local, setSource(url) { video.src = url; } });
     const initial = player.getState(); const controllers = [createBrowserAirPlayController(video as AirPlayVideo, initial, playback)]; if (typeof window !== 'undefined') { const googleRuntime = createBrowserGoogleCastRuntime(); if (googleRuntime.isSupported()) controllers.push(createGoogleCastController(googleRuntime, initial, playback)); controllers.push(createJhadinaTVReceiverController(createJhadinaTVReceiverTransport(), initial, playback)); }
-    const casting = createCastingManager(controllers, initial);
-    const session = createUnifiedMediaSession({ titleId: title.id, kind: title.kind, playback: player.playback, local: player, casting }); sessionRef.current = session;
+    const castingManager = createCastingManager(controllers, initial);
     const queueItem: MediaQueueItem = { id: `${playback.providerId}:${title.id}`, titleId: title.id, title: title.title, kind: title.kind, playback: player.playback, posterUrl: title.posterUrl, durationSeconds: title.runtimeMinutes ? title.runtimeMinutes * 60 : undefined };
-    attachMediaPlaybackSession(session, queueItem);
-    const unsubscribe = session.subscribe(setSessionState); setSessionState(session.getState());
-    const progressClient = createMediaPlaybackApiClient();
-    const writerClient = createMediaPlaybackProgressApiClient();
+    const sessionConfig = { titleId: title.id, kind: title.kind, playback: player.playback, local: player, casting: castingManager };
+
     let resumeCoordinator: ReturnType<typeof createMediaPlaybackResumeCoordinator> | null = null;
     let progressWriter: ReturnType<typeof attachMediaPlaybackProgressWriter> | null = null;
-    const resumeReady = getCurrentUserId().then(async (userId) => {
-      if (!active || !userId) return;
-      resumeCoordinator = createMediaPlaybackResumeCoordinator(session, userId, progressClient);
-      await resumeCoordinator.loadItem(queueItem);
+    let detachAutoAdvance: (() => void) | null = null;
+    let unsubscribe: (() => void) | null = null;
+    let resumeReady: Promise<void> | null = null;
+
+    void (async () => {
+      const session = await ensureMediaPlaybackSession(sessionConfig, queueItem);
       if (!active) return;
-      progressWriter = attachMediaPlaybackProgressWriter({ video, session, item: queueItem, userId, client: writerClient, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to save playback progress.') });
-      progressWriterRef.current = progressWriter;
+      sessionRef.current = session;
+      unsubscribe = session.subscribe(setSessionState);
       setSessionState(session.getState());
-    }).catch((cause) => {
-      if (active) setError(cause instanceof Error ? cause.message : 'Unable to restore saved playback progress.');
-    });
-    const detachAutoAdvance = attachMediaPlaybackAutoAdvance({ video, store: getMediaPlaybackStore(), session, resolveResumePosition: async (next) => { await resumeReady; if (!resumeCoordinator) return 0; return resumeCoordinator.resolvePositionSeconds(next as MediaQueueItem); }, beforeAdvance: async () => { if (progressWriter) await progressWriter.flush(true); }, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to advance to the next item.') });
+
+      const progressClient = createMediaPlaybackApiClient();
+      const writerClient = createMediaPlaybackProgressApiClient();
+      resumeReady = getCurrentUserId().then(async (userId) => {
+        if (!active || !userId) return;
+        resumeCoordinator = createMediaPlaybackResumeCoordinator(session, userId, progressClient);
+        await resumeCoordinator.loadItem(queueItem);
+        if (!active) return;
+        progressWriter = attachMediaPlaybackProgressWriter({ video, session, item: queueItem, userId, client: writerClient, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to save playback progress.') });
+        progressWriterRef.current = progressWriter;
+        setSessionState(session.getState());
+      });
+      await resumeReady;
+      if (!active) return;
+      detachAutoAdvance = attachMediaPlaybackAutoAdvance({ video, store: getMediaPlaybackStore(), session, resolveResumePosition: async (next) => { if (resumeReady) await resumeReady; if (!resumeCoordinator) return 0; return resumeCoordinator.resolvePositionSeconds(next as MediaQueueItem); }, beforeAdvance: async () => { if (progressWriter) await progressWriter.flush(true); }, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to advance to the next item.') });
+    })().catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Unable to initialize playback session.'); });
+
     return () => {
       active = false;
       const writer = progressWriter;
       if (progressWriterRef.current === writer) progressWriterRef.current = null;
-      unsubscribe();
-      detachAutoAdvance();
+      unsubscribe?.();
+      detachAutoAdvance?.();
       if (writer) void writer.flush(false).finally(() => writer.dispose());
       releasePersistentMediaElement(host);
       sessionRef.current = null;
+      releaseMediaPlaybackView();
     };
   }, [playback, title]);
 
