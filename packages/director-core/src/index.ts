@@ -16,6 +16,7 @@ export * from './watch-service';
 export * from './cinematic-notebook';
 export * from './edit-plan';
 export * from './creative-stage-graph';
+export * from './creative-stage-runtime';
 export * from './jhadina-learning-events';
 export * from './learning-study-plan';
 export * from './study-job';
