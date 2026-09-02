@@ -13,11 +13,13 @@ export type LiquidityEventKind =
 
 export type LiquidityEventEvidence = {
   eventId: string
+  signature: string
   kind: LiquidityEventKind
   observedAt: string
   poolAddress: string
   actorId?: string
   lpMint?: string
+  lpTokenAccount?: string
   amountRaw?: bigint
   source: string
   evidenceIds: string[]
@@ -29,11 +31,6 @@ export interface LiquidityInstructionDecoder {
   decode(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): LiquidityEventEvidence[]
 }
 
-/**
- * Conservative fallback: vault balance deltas are not enough to call an event
- * a liquidity withdrawal because swaps can move both reserves. A decoder must
- * provide explicit instruction semantics before this layer emits ADD/REMOVE.
- */
 export class NoopLiquidityInstructionDecoder implements LiquidityInstructionDecoder {
   decode(_transaction: HistoricalPoolTransaction, _pool: PoolHistory['pool']): LiquidityEventEvidence[] {
     return []
@@ -46,7 +43,8 @@ export function classifySemanticLiquidityEvent(input: {
   decoder: LiquidityInstructionDecoder
 }): LiquidityEventEvidence[] {
   return input.decoder.decode(input.transaction, input.pool).filter(event => {
-    if (!event.eventId || !event.observedAt || !event.poolAddress) return false
+    if (!event.eventId || !event.signature || !event.observedAt || !event.poolAddress) return false
+    if (event.signature !== input.transaction.signature) return false
     if (event.poolAddress !== input.pool.poolAddress) return false
     if (!Number.isFinite(event.confidence) || event.confidence < 0 || event.confidence > 1) return false
     if (!event.evidenceIds.length) return false
