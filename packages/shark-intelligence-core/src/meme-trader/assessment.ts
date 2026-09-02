@@ -1,6 +1,6 @@
 import type { EvidenceEnvelope, MarketObservation, SocialObservation, WalletObservation, NetworkHealthObservation } from './contracts'
 import type { LiquidityHistory } from './liquidity-history'
-import type { LPControlRisk, LPControlRiskInput } from './lp-control-risk'
+import { assessLPControlRisk, type LPControlRisk, type LPControlRiskInput } from './lp-control-risk'
 import type { RugProtectionEvidence, RugProtectionResult } from './rug-protection'
 import { evaluateRugProtection } from './rug-protection'
 import { assessMigrationAwareRisk } from './migration-aware-risk'
@@ -81,12 +81,11 @@ export function createMemeTradeAssessment(input: {
   confidence: number
 }): MemeTradeAssessment {
   const marketActivityQuality = assessMarketActivity(input.market.payload)
-  const lpRisk = input.lpControlRiskInput ? undefined : (input.lpControlRisk?.score ?? 0)
-  const supplyControl = input.supplyControl ?? assessSupplyControl({ liquidityControlRisk: lpRisk ?? input.lpControlRisk?.score ?? 0 })
+  const supplyControl = input.supplyControl ?? assessSupplyControl({ liquidityControlRisk: input.lpControlRisk?.score ?? 0 })
   const holderCohort = input.holderCohort ?? { score: .5, profitableTrackedWallets: 0, accumulatingWallets: 0, distributingWallets: 0, reasons: [] }
   const attention = input.attention ?? assessAttentionQuality({})
-
   const baseEvidence: RugProtectionEvidence[] = input.rugProtectionInput?.evidence ?? [{ source: 'meme-trader', observedAt: input.assessedAt, label: input.market.observationId }]
+
   let finalLpControlRisk = input.lpControlRisk
   let rugProtection = input.rugProtection ?? evaluateRugProtection({
     ...input.rugProtectionInput,
@@ -99,9 +98,7 @@ export function createMemeTradeAssessment(input: {
   })
 
   if (input.migrationClassification) {
-    if (!input.lpControlRiskInput) {
-      throw new Error('migration-aware assessment requires authoritative lpControlRiskInput')
-    }
+    if (!input.lpControlRiskInput) throw new Error('migration-aware assessment requires authoritative lpControlRiskInput')
     const migrationRisk = assessMigrationAwareRisk({
       lpControlRisk: input.lpControlRiskInput,
       rugProtection: {
@@ -118,7 +115,7 @@ export function createMemeTradeAssessment(input: {
     finalLpControlRisk = migrationRisk.lpControlRisk
     rugProtection = migrationRisk.rugProtection
   } else if (input.lpControlRiskInput) {
-    finalLpControlRisk = input.lpControlRiskInput ? assessLPControlRiskCompat(input.lpControlRiskInput) : input.lpControlRisk
+    finalLpControlRisk = assessLPControlRisk(input.lpControlRiskInput)
   }
 
   const effectiveLpRisk = finalLpControlRisk?.score ?? 0
@@ -138,13 +135,8 @@ export function createMemeTradeAssessment(input: {
     exitLiquidityRisk: Math.max(1 - marketActivityQuality.liquidityScore, effectiveLpRisk, migrated ? 0 : input.liquidityHistory?.drawdownFromPeak ?? 0),
   })
 
-  if (rugProtection.disposition === 'BLOCK') {
-    riskAssessment.overallRisk = 1
-    riskAssessment.band = 'blocked'
-  } else if (rugProtection.disposition === 'REVIEW' && riskAssessment.band === 'candidate') {
-    riskAssessment.overallRisk = Math.max(riskAssessment.overallRisk, .4)
-    riskAssessment.band = 'watch'
-  }
+  if (rugProtection.disposition === 'BLOCK') { riskAssessment.overallRisk = 1; riskAssessment.band = 'blocked' }
+  else if (rugProtection.disposition === 'REVIEW' && riskAssessment.band === 'candidate') { riskAssessment.overallRisk = Math.max(riskAssessment.overallRisk, .4); riskAssessment.band = 'watch' }
 
   const evidenceIds = [...new Set([
     input.market.observationId,
@@ -178,17 +170,5 @@ export function createMemeTradeAssessment(input: {
     confidence: clamp(input.confidence),
     evidenceIds,
     assessmentVersion: 'meme-trader-assessment-v5-authoritative-lp',
-  }
-}
-
-function assessLPControlRiskCompat(input: LPControlRiskInput): LPControlRisk {
-  return {
-    score: 0,
-    band: 'low',
-    controllableLiquidityPct: 0,
-    lockExpiryRisk: 0,
-    withdrawalRisk: 0,
-    reasons: [],
-    evidenceIds: input.evidenceIds,
   }
 }
