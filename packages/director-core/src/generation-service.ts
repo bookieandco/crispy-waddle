@@ -14,9 +14,7 @@ function assertRequestCompatibility(registry: GenerationRegistry, request: Gener
   if (!model.modalities.includes(request.modality)) throw new Error(`Model ${model.id} does not support modality: ${request.modality}`);
   const provider = registry.getProvider(model.providerId);
   if (!provider) throw new Error(`Provider is not registered: ${model.providerId}`);
-  const requiredCapability = request.modality === 'video'
-    ? (request.references?.some((reference) => reference.role === 'image') ? 'image-to-video' : 'text-to-video')
-    : request.modality === 'image' ? 'text-to-image' : request.modality === 'subtitle' ? 'text-to-subtitle' : undefined;
+  const requiredCapability = request.modality === 'video' ? (request.references?.some((reference) => reference.role === 'image') ? 'image-to-video' : 'text-to-video') : request.modality === 'image' ? 'text-to-image' : request.modality === 'subtitle' ? 'text-to-subtitle' : undefined;
   if (requiredCapability && !provider.capabilities.includes(requiredCapability)) throw new Error(`Provider ${provider.id} does not support capability: ${requiredCapability}`);
   for (const selected of request.loras ?? []) {
     const registeredLoRA = registry.getLoRA(selected.lora.id);
@@ -52,16 +50,7 @@ export class GenerationService {
   private readonly executionWaitMs: number;
   private readonly executionPollMs: number;
 
-  constructor(
-    private readonly registry: GenerationRegistry,
-    private readonly providers: Map<string, GenerationProvider>,
-    private readonly assetRepository?: GeneratedAssetRepository,
-    private readonly generationRepository?: GenerationRepository,
-    workerId?: string,
-    executionLeaseMs = 30_000,
-    executionWaitMs = 5_000,
-    executionPollMs = 25,
-  ) {
+  constructor(private readonly registry: GenerationRegistry, private readonly providers: Map<string, GenerationProvider>, private readonly assetRepository?: GeneratedAssetRepository, private readonly generationRepository?: GenerationRepository, workerId?: string, executionLeaseMs = 30_000, executionWaitMs = 5_000, executionPollMs = 25) {
     this.workerId = workerId ?? `director-worker:${Math.random().toString(36).slice(2)}`;
     this.executionLeaseMs = executionLeaseMs;
     this.executionWaitMs = executionWaitMs;
@@ -105,7 +94,6 @@ export class GenerationService {
     const candidate = generationTaskFromRequest(normalizedRequest, { idempotencyKey: request.requestId });
     candidate.createdAt = now;
     candidate.updatedAt = now;
-
     let task = candidate;
     let initialExecution: GenerationExecution | undefined;
     if (this.generationRepository) {
@@ -125,7 +113,6 @@ export class GenerationService {
         return existingJob;
       }
     }
-
     initialExecution ??= { id: `${task.id}:attempt:1`, taskId: task.id, providerId: registeredModel.providerId, attempt: 1, status: 'queued', createdAt: task.createdAt, updatedAt: task.updatedAt };
     const runningExecution: GenerationExecution = { ...initialExecution, status: 'running', leaseOwner: this.workerId, leaseExpiresAt: new Date(Date.now() + this.executionLeaseMs).toISOString(), updatedAt: new Date().toISOString() };
     if (this.generationRepository && !(await this.generationRepository.saveExecution(runningExecution))) {
@@ -136,13 +123,12 @@ export class GenerationService {
     }
     const initial = jobFromTask(task, runningExecution);
     this.jobs.set(initial.id, initial);
-
     try {
       if (!initialExecution.providerJobId && provider.findByIdempotencyKey) {
         const recovered = await provider.findByIdempotencyKey(task.idempotencyKey);
         if (recovered) {
           const recoveredAt = new Date().toISOString();
-          const recoveredExecution = generationExecutionFromResult(task.id, registeredModel.providerId, recovered, { id: initialExecution.id, attempt: initialExecution.attempt, now: recoveredAt });
+          const recoveredExecution = generationExecutionFromResult(task.id, registeredModel.providerId, recovered, { id: initialExecution.id, attempt: initialExecution.attempt, now: recoveredAt, leaseOwner: this.workerId, leaseToken: initialExecution.leaseToken });
           const recoveredTask: GenerationTask = { ...task, status: recovered.status, error: recovered.error, updatedAt: recoveredAt };
           const recoveredJob = jobFromTask(recoveredTask, recoveredExecution);
           this.jobs.set(recoveredJob.id, recoveredJob);
@@ -151,10 +137,9 @@ export class GenerationService {
           return recoveredJob;
         }
       }
-
       const result = await provider.submit(initial.request, { idempotencyKey: task.idempotencyKey });
       const completedAt = new Date().toISOString();
-      const execution = generationExecutionFromResult(task.id, registeredModel.providerId, result, { id: initialExecution.id, attempt: initialExecution.attempt, now: completedAt });
+      const execution = generationExecutionFromResult(task.id, registeredModel.providerId, result, { id: initialExecution.id, attempt: initialExecution.attempt, now: completedAt, leaseOwner: this.workerId, leaseToken: initialExecution.leaseToken });
       const updatedTask: GenerationTask = { ...task, status: result.status, error: result.error, updatedAt: completedAt };
       const job = jobFromTask(updatedTask, execution);
       this.jobs.set(job.id, job);
@@ -164,7 +149,7 @@ export class GenerationService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const failedAt = new Date().toISOString();
-      const failedExecution: GenerationExecution = { ...initialExecution, status: 'failed', error: message, leaseOwner: undefined, leaseExpiresAt: undefined, updatedAt: failedAt };
+      const failedExecution: GenerationExecution = { ...initialExecution, status: 'failed', error: message, leaseOwner: this.workerId, leaseExpiresAt: undefined, updatedAt: failedAt };
       const failedTask: GenerationTask = { ...task, status: 'failed', error: message, updatedAt: failedAt };
       const failed = jobFromTask(failedTask, failedExecution);
       this.jobs.set(failed.id, failed);
@@ -184,7 +169,6 @@ export class GenerationService {
   }
 
   getJob(id: string): GenerationJob | undefined { return this.jobs.get(id); }
-
   async getJobDurable(id: string): Promise<GenerationJob | undefined> {
     const cached = this.jobs.get(id);
     if (cached) return cached;
@@ -196,7 +180,6 @@ export class GenerationService {
     this.jobs.set(id, job);
     return job;
   }
-
   async refresh(id: string): Promise<GenerationJob> {
     const job = await this.getJobDurable(id);
     if (!job) throw new Error(`Generation job not found: ${id}`);
@@ -216,7 +199,6 @@ export class GenerationService {
     await this.persistOutputs(updated, result);
     return updated;
   }
-
   async cancel(id: string): Promise<GenerationJob> {
     const job = await this.getJobDurable(id);
     if (!job) throw new Error(`Generation job not found: ${id}`);
