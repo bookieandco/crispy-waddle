@@ -55,6 +55,7 @@ export interface GenerationRepository {
   ): Promise<AtomicSubmissionAcknowledgement | undefined>;
   markSubmissionRecoveryRequired(submissionId: string, workerId: string, leaseToken: string, error: string): Promise<GenerationSubmissionOutbox | undefined>;
   getSubmissionByIdempotencyKey(providerId: string, idempotencyKey: string): Promise<GenerationSubmissionOutbox | undefined>;
+  listSubmissionRecoveryCandidates(limit: number): Promise<GenerationSubmissionOutbox[]>;
 }
 
 function clone<T>(value: T): T { return structuredClone(value); }
@@ -85,23 +86,19 @@ export class InMemoryGenerationRepository implements GenerationRepository {
   async renewSubmissionLease(submissionId: string, workerId: string, leaseToken: string, leaseMs: number): Promise<GenerationSubmissionOutbox | undefined> { const existing = this.submissions.get(submissionId); if (!existing || existing.status !== 'submitting' || existing.leaseOwner !== workerId || existing.leaseToken !== leaseToken || !existing.leaseExpiresAt || Date.parse(existing.leaseExpiresAt) <= Date.now()) return undefined; const now = Date.now(); const updated = { ...existing, leaseExpiresAt: new Date(now + leaseMs).toISOString(), updatedAt: new Date(now).toISOString() }; this.submissions.set(submissionId, clone(updated)); return clone(updated); }
   async acknowledgeSubmission(submissionId: string, workerId: string, leaseToken: string, providerJobId: string): Promise<GenerationSubmissionOutbox | undefined> { const existing = this.submissions.get(submissionId); if (!existing || existing.status !== 'submitting' || existing.leaseOwner !== workerId || existing.leaseToken !== leaseToken || !existing.leaseExpiresAt || Date.parse(existing.leaseExpiresAt) <= Date.now()) return undefined; const updated = { ...existing, status: 'submitted' as const, providerJobId, leaseOwner: undefined, leaseToken: undefined, leaseExpiresAt: undefined, updatedAt: new Date().toISOString() }; this.submissions.set(submissionId, clone(updated)); return clone(updated); }
   async acknowledgeSubmissionAndSaveState(submissionId: string, workerId: string, submissionLeaseToken: string, executionLeaseToken: string, providerJobId: string, task: GenerationTask, execution: GenerationExecution): Promise<AtomicSubmissionAcknowledgement | undefined> {
-    const submission = this.submissions.get(submissionId);
-    const durableTask = this.tasks.get(task.id);
-    const durableExecution = this.executions.get(execution.id);
-    const now = Date.now();
+    const submission = this.submissions.get(submissionId); const durableTask = this.tasks.get(task.id); const durableExecution = this.executions.get(execution.id); const now = Date.now();
     if (!submission || !durableTask || !durableExecution) return undefined;
     if (submission.status === 'submitted' && submission.providerJobId === providerJobId) return { submission: clone(submission), task: clone(durableTask), execution: clone(durableExecution) };
     if (submission.status !== 'submitting' || submission.leaseOwner !== workerId || submission.leaseToken !== submissionLeaseToken || !submission.leaseExpiresAt || Date.parse(submission.leaseExpiresAt) <= now) return undefined;
     if (durableExecution.taskId !== task.id || durableExecution.leaseOwner !== execution.leaseOwner || durableExecution.leaseToken !== executionLeaseToken || !durableExecution.leaseExpiresAt || Date.parse(durableExecution.leaseExpiresAt) <= now) return undefined;
     if (this.tasksByIdempotencyKey.get(task.idempotencyKey) !== task.id) return undefined;
     const acknowledged: GenerationSubmissionOutbox = { ...submission, status: 'submitted', providerJobId, leaseOwner: undefined, leaseToken: undefined, leaseExpiresAt: undefined, updatedAt: new Date(now).toISOString() };
-    this.submissions.set(submission.id, clone(acknowledged));
-    this.executions.set(execution.id, clone(execution));
-    this.tasks.set(task.id, clone(task));
+    this.submissions.set(submission.id, clone(acknowledged)); this.executions.set(execution.id, clone(execution)); this.tasks.set(task.id, clone(task));
     return { submission: clone(acknowledged), task: clone(task), execution: clone(execution) };
   }
   async markSubmissionRecoveryRequired(submissionId: string, workerId: string, leaseToken: string, error: string): Promise<GenerationSubmissionOutbox | undefined> { const existing = this.submissions.get(submissionId); if (!existing || existing.status !== 'submitting' || existing.leaseOwner !== workerId || existing.leaseToken !== leaseToken || !existing.leaseExpiresAt || Date.parse(existing.leaseExpiresAt) <= Date.now()) return undefined; const updated = { ...existing, status: 'recovery_required' as const, lastError: error, leaseOwner: undefined, leaseToken: undefined, leaseExpiresAt: undefined, updatedAt: new Date().toISOString() }; this.submissions.set(submissionId, clone(updated)); return clone(updated); }
   async getSubmissionByIdempotencyKey(providerId: string, idempotencyKey: string): Promise<GenerationSubmissionOutbox | undefined> { const id = this.submissionsByKey.get(`${providerId}:${idempotencyKey}`); if (!id) return undefined; const submission = this.submissions.get(id); return submission ? clone(submission) : undefined; }
+  async listSubmissionRecoveryCandidates(limit: number): Promise<GenerationSubmissionOutbox[]> { const now = Date.now(); return [...this.submissions.values()].filter((submission) => submission.status === 'recovery_required' || submission.status === 'pending' || (submission.status === 'submitting' && !!submission.leaseExpiresAt && Date.parse(submission.leaseExpiresAt) <= now)).sort((a, b) => Date.parse(a.updatedAt) - Date.parse(b.updatedAt)).slice(0, Math.max(0, limit)).map(clone); }
   async getExecution(id: string): Promise<GenerationExecution | undefined> { const execution = this.executions.get(id); return execution ? clone(execution) : undefined; }
   async getExecutionByProviderJob(providerId: string, providerJobId: string): Promise<GenerationExecution | undefined> { for (const execution of this.executions.values()) if (execution.providerId === providerId && execution.providerJobId === providerJobId) return clone(execution); return undefined; }
   async listExecutions(taskId: string): Promise<GenerationExecution[]> { return [...this.executions.values()].filter((execution) => execution.taskId === taskId).sort((a, b) => a.attempt - b.attempt).map(clone); }
