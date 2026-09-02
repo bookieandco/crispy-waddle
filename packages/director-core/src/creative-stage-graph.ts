@@ -68,6 +68,18 @@ function assertGraph(graph: CreativeStageGraph): void {
       if (upstreamId === stage.id) throw new Error('creative_stage_self_dependency');
     }
   }
+  // Reject dependency cycles: a stage graph must have a valid execution order.
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visit = (stageId: string): void => {
+    if (visiting.has(stageId)) throw new Error('creative_stage_cycle');
+    if (visited.has(stageId)) return;
+    visiting.add(stageId);
+    for (const upstreamId of stageMap(graph).get(stageId)!.upstreamStageIds) visit(upstreamId);
+    visiting.delete(stageId);
+    visited.add(stageId);
+  };
+  for (const stage of graph.stages) visit(stage.id);
 }
 
 /** Returns every stage that directly or transitively depends on stageId. */
@@ -107,8 +119,8 @@ export function invalidateDownstream(
 }
 
 /**
- * Builds a deterministic rerun order. This is planning only; it does not
- * authorize, execute, or submit GenerationTask work.
+ * Builds a deterministic target-first rerun order using breadth-first graph
+ * traversal. This is planning only; it does not authorize or execute tasks.
  */
 export function buildRerunPlan(
   graph: CreativeStageGraph,
@@ -118,13 +130,7 @@ export function buildRerunPlan(
 ): RerunPlan {
   assertGraph(graph);
   if (!graph.version.trim()) throw new Error('creative_stage_graph_version_required');
-  const affected = new Set([targetStageId, ...downstreamStages(graph, targetStageId)]);
-  const stageIds = graph.stages.filter((stage) => affected.has(stage.id)).map((stage) => stage.id);
-  const targetIndex = stageIds.indexOf(targetStageId);
-  if (targetIndex > 0) {
-    stageIds.splice(targetIndex, 1);
-    stageIds.unshift(targetStageId);
-  }
+  const stageIds = [targetStageId, ...downstreamStages(graph, targetStageId)];
   return {
     targetStageId,
     stageIds,
