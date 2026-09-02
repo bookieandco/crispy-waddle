@@ -1,4 +1,4 @@
-import type { Opportunity, OpportunityRepository, OpportunityStatus } from '@jhadina/opportunity-core/src/opportunity-repository'
+import type { Opportunity, OpportunityStatus, OpportunityRepository } from '@jhadina/opportunity-core'
 import { createServiceRoleClient } from '../supabase/service-role'
 
 function serviceClient() {
