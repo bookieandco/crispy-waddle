@@ -155,7 +155,7 @@ describe('GenerationService end-to-end', () => {
     expect(submitCalls).toBe(0);
   });
 
-  it('allows only one concurrent worker to cross the provider submission boundary', async () => {
+  it('waits for the owning concurrent worker to publish the provider job before returning', async () => {
     const registry = createRegistry();
     const request = createRequest(registry, 'concurrent-1');
     const repository = new InMemoryGenerationRepository();
@@ -178,8 +178,8 @@ describe('GenerationService end-to-end', () => {
     };
 
     const providers = new Map([['comfy-local', provider]]);
-    const workerA = new GenerationService(registry, providers, undefined, repository, 'worker-a', 30_000);
-    const workerB = new GenerationService(registry, providers, undefined, repository, 'worker-b', 30_000);
+    const workerA = new GenerationService(registry, providers, undefined, repository, 'worker-a', 30_000, 1_000, 5);
+    const workerB = new GenerationService(registry, providers, undefined, repository, 'worker-b', 30_000, 1_000, 5);
 
     const first = workerA.submit(request);
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -192,7 +192,7 @@ describe('GenerationService end-to-end', () => {
     const [jobA, jobB] = await Promise.all([first, second]);
 
     expect(jobA.providerJobId).toBe('provider-concurrent-1');
-    expect(jobB.providerJobId).toBeUndefined();
+    expect(jobB.providerJobId).toBe('provider-concurrent-1');
     expect(submitCalls).toBe(1);
 
     const execution = (await repository.listExecutions(request.requestId)).at(-1);
@@ -217,7 +217,7 @@ describe('GenerationService end-to-end', () => {
       async cancel(): Promise<void> {},
     };
 
-    const service = new GenerationService(registry, new Map([['comfy-local', provider]]));
+    const service = new GenerationService(registry, new Map([['comfy-local', provider]]);
     const job = await service.submit(request);
 
     expect(job.providerJobId).toBe('provider-fallback-1');
