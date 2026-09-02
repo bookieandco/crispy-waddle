@@ -67,10 +67,7 @@ export class GenerationService {
 
   private async persistState(task: GenerationTask, execution: GenerationExecution): Promise<boolean> {
     if (!this.generationRepository) return true;
-    const saved = await this.generationRepository.saveExecution(execution);
-    if (!saved) return false;
-    await this.generationRepository.saveTask(task);
-    return true;
+    return this.generationRepository.saveState(task, execution);
   }
 
   private async waitForExecutionResolution(task: GenerationTask): Promise<GenerationExecution | undefined> {
@@ -115,13 +112,14 @@ export class GenerationService {
     }
     initialExecution ??= { id: `${task.id}:attempt:1`, taskId: task.id, providerId: registeredModel.providerId, attempt: 1, status: 'queued', createdAt: task.createdAt, updatedAt: task.updatedAt };
     const runningExecution: GenerationExecution = { ...initialExecution, status: 'running', leaseOwner: this.workerId, leaseExpiresAt: new Date(Date.now() + this.executionLeaseMs).toISOString(), updatedAt: new Date().toISOString() };
-    if (this.generationRepository && !(await this.generationRepository.saveExecution(runningExecution))) {
+    if (this.generationRepository && !(await this.generationRepository.saveState({ ...task, status: 'running', updatedAt: runningExecution.updatedAt }, runningExecution))) {
       const reconciled = await this.waitForExecutionResolution(task);
       const existingJob = jobFromTask(task, reconciled);
       this.jobs.set(existingJob.id, existingJob);
       return existingJob;
     }
-    const initial = jobFromTask(task, runningExecution);
+    const runningTask: GenerationTask = { ...task, status: 'running', updatedAt: runningExecution.updatedAt };
+    const initial = jobFromTask(runningTask, runningExecution);
     this.jobs.set(initial.id, initial);
     try {
       if (!initialExecution.providerJobId && provider.findByIdempotencyKey) {
@@ -129,10 +127,10 @@ export class GenerationService {
         if (recovered) {
           const recoveredAt = new Date().toISOString();
           const recoveredExecution = generationExecutionFromResult(task.id, registeredModel.providerId, recovered, { id: initialExecution.id, attempt: initialExecution.attempt, now: recoveredAt, leaseOwner: this.workerId, leaseToken: initialExecution.leaseToken });
-          const recoveredTask: GenerationTask = { ...task, status: recovered.status, error: recovered.error, updatedAt: recoveredAt };
+          const recoveredTask: GenerationTask = { ...runningTask, status: recovered.status, error: recovered.error, updatedAt: recoveredAt };
           const recoveredJob = jobFromTask(recoveredTask, recoveredExecution);
-          this.jobs.set(recoveredJob.id, recoveredJob);
           if (!(await this.persistState(recoveredTask, recoveredExecution))) return jobFromTask(task, await this.waitForExecutionResolution(task));
+          this.jobs.set(recoveredJob.id, recoveredJob);
           await this.persistOutputs(recoveredJob, recovered);
           return recoveredJob;
         }
@@ -140,20 +138,22 @@ export class GenerationService {
       const result = await provider.submit(initial.request, { idempotencyKey: task.idempotencyKey });
       const completedAt = new Date().toISOString();
       const execution = generationExecutionFromResult(task.id, registeredModel.providerId, result, { id: initialExecution.id, attempt: initialExecution.attempt, now: completedAt, leaseOwner: this.workerId, leaseToken: initialExecution.leaseToken });
-      const updatedTask: GenerationTask = { ...task, status: result.status, error: result.error, updatedAt: completedAt };
+      const updatedTask: GenerationTask = { ...runningTask, status: result.status, error: result.error, updatedAt: completedAt };
       const job = jobFromTask(updatedTask, execution);
-      this.jobs.set(job.id, job);
       if (!(await this.persistState(updatedTask, execution))) return jobFromTask(task, await this.waitForExecutionResolution(task));
+      this.jobs.set(job.id, job);
       await this.persistOutputs(job, result);
       return job;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const failedAt = new Date().toISOString();
       const failedExecution: GenerationExecution = { ...initialExecution, status: 'failed', error: message, leaseOwner: this.workerId, leaseExpiresAt: undefined, updatedAt: failedAt };
-      const failedTask: GenerationTask = { ...task, status: 'failed', error: message, updatedAt: failedAt };
+      const failedTask: GenerationTask = { ...runningTask, status: 'failed', error: message, updatedAt: failedAt };
       const failed = jobFromTask(failedTask, failedExecution);
-      this.jobs.set(failed.id, failed);
-      if (await this.persistState(failedTask, failedExecution)) throw error;
+      if (await this.persistState(failedTask, failedExecution)) {
+        this.jobs.set(failed.id, failed);
+        throw error;
+      }
       const reconciled = await this.waitForExecutionResolution(task);
       if (reconciled) return jobFromTask(task, reconciled);
       throw error;
