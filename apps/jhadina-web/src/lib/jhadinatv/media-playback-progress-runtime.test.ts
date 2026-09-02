@@ -86,4 +86,32 @@ describe('runtime-owned media playback progress', () => {
     expect(client.upsert).toHaveBeenCalled();
     persistence.dispose();
   });
+
+  it('does not persist an old item snapshot under the next queue item during navigation', async () => {
+    const session = fakeSession({ titleId: 'one', kind: 'movie', sourceUrl: 'https://example.com/one.m3u8', positionSeconds: 30, durationSeconds: 120, playing: true });
+    let current = item('one');
+    let releaseFirstWrite: (() => void) | undefined;
+    const firstWrite = new Promise<void>((resolve) => { releaseFirstWrite = resolve; });
+    const writes: MediaPlaybackProgress[] = [];
+    const client = {
+      upsert: vi.fn(async (progress: MediaPlaybackProgress) => {
+        writes.push(progress);
+        if (writes.length === 1) await firstWrite;
+        return progress;
+      }),
+    };
+    const persistence = attachRuntimeProgressPersistence({ session, getCurrentItem: () => current, userId: 'user-a', client });
+
+    session.emit({ titleId: 'one', kind: 'movie', sourceUrl: 'https://example.com/one.m3u8', positionSeconds: 31, durationSeconds: 120, playing: false });
+    current = item('two');
+    session.emit({ titleId: 'two', kind: 'movie', sourceUrl: 'https://example.com/two.m3u8', positionSeconds: 7, durationSeconds: 90, playing: false });
+
+    releaseFirstWrite!();
+    await persistence.flush();
+
+    expect(writes).toHaveLength(2);
+    expect(writes[0]).toMatchObject({ itemId: 'one', positionMs: 31000 });
+    expect(writes[1]).toMatchObject({ itemId: 'two', positionMs: 7000 });
+    persistence.dispose();
+  });
 });
