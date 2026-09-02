@@ -5,7 +5,8 @@ import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget, MediaSessionSt
 import { CatalogRegistry, createAuthorizedCatalogAdapter, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createPlaybackResolver, createResolvedMediaPlayer, createUnifiedMediaSession } from '@jhadina/tv-core';
 import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
 import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
-import { attachMediaPlaybackSession, getPersistentMediaElement, mountPersistentMediaElement, releasePersistentMediaElement } from '../../../../src/lib/jhadinatv/media-playback-runtime';
+import { attachMediaPlaybackSession, getPersistentMediaElement, mountPersistentMediaElement, releasePersistentMediaElement, getMediaPlaybackStore } from '../../../../src/lib/jhadinatv/media-playback-runtime';
+import { attachMediaPlaybackAutoAdvance } from '../../../../src/lib/jhadinatv/media-playback-auto-advance';
 
 const titles: MediaTitle[] = [
   { id: 'demo-noir', kind: 'movie', title: 'Midnight Signal', overview: 'A detective follows a strange radio transmission through a city that never sleeps.', year: 2026, runtimeMinutes: 108, genres: ['Crime', 'Mystery', 'Drama'], rating: 8.2, availability: 'public-domain' },
@@ -54,7 +55,8 @@ export default function JhadinaTVWatchPage() {
     const queueItem: MediaQueueItem = { id: `${playback.providerId}:${title.id}`, titleId: title.id, title: title.title, kind: title.kind, playback: player.playback, posterUrl: title.posterUrl, durationSeconds: title.runtimeMinutes ? title.runtimeMinutes * 60 : undefined };
     attachMediaPlaybackSession(session, queueItem);
     const unsubscribe = session.subscribe(setSessionState); setSessionState(session.getState());
-    return () => { unsubscribe(); releasePersistentMediaElement(host); sessionRef.current = null; };
+    const detachAutoAdvance = attachMediaPlaybackAutoAdvance({ video, store: getMediaPlaybackStore(), session, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to advance to the next item.') });
+    return () => { unsubscribe(); detachAutoAdvance(); releasePersistentMediaElement(host); sessionRef.current = null; };
   }, [playback, title]);
 
   useEffect(() => { if (!source) return; const video = getPersistentMediaElement(); const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); setPipSupported(controller.isSupported()); const sync = () => setPipActive(controller.isActive()); video.addEventListener('enterpictureinpicture', sync); video.addEventListener('leavepictureinpicture', sync); return () => { video.removeEventListener('enterpictureinpicture', sync); video.removeEventListener('leavepictureinpicture', sync); }; }, [source]);
