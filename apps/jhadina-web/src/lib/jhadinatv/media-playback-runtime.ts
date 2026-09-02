@@ -18,6 +18,7 @@ let unsubscribeSession: (() => void) | null = null;
 let progressPersistence: RuntimeProgressPersistence | null = null;
 let progressPersistenceConfig: MediaPlaybackProgressPersistenceConfig | null = null;
 let persistentMediaElement: HTMLVideoElement | null = null;
+let persistentMediaElementOwner: HTMLElement | null = null;
 let sessionGeneration = 0;
 const snapshotListeners = new Set<MediaPlaybackSnapshotListener>();
 
@@ -33,8 +34,37 @@ export function getPersistentMediaElement(): HTMLVideoElement {
   if (!persistentMediaElement || !persistentMediaElement.isConnected) { const existing = document.querySelector<HTMLVideoElement>(`video[${MEDIA_ELEMENT_ATTRIBUTE}]`); persistentMediaElement = existing ?? document.createElement('video'); persistentMediaElement.setAttribute(MEDIA_ELEMENT_ATTRIBUTE, 'true'); persistentMediaElement.playsInline = true; persistentMediaElement.controls = true; }
   if (!persistentMediaElement.isConnected) document.body.appendChild(persistentMediaElement); return persistentMediaElement;
 }
-export function mountPersistentMediaElement(host: HTMLElement): HTMLVideoElement { const video = getPersistentMediaElement(); if (video.parentElement !== host) host.appendChild(video); video.style.display = ''; return video; }
-export function releasePersistentMediaElement(host?: HTMLElement): void { if (!persistentMediaElement) return; if (host && persistentMediaElement.parentElement !== host) return; if (persistentMediaElement.parentElement !== document.body) document.body.appendChild(persistentMediaElement); persistentMediaElement.style.display = 'none'; }
+
+/**
+ * Mount the shared media element into the current view host.
+ *
+ * The host is only an ownership hint for the legacy release API. Mounting is
+ * deliberately non-destructive: it never changes src/currentTime/listeners.
+ */
+export function mountPersistentMediaElement(host: HTMLElement): HTMLVideoElement {
+  const video = getPersistentMediaElement();
+  persistentMediaElementOwner = host;
+  if (video.parentElement !== host) host.appendChild(video);
+  video.style.display = '';
+  return video;
+}
+
+/**
+ * Release is conservative because route effects can overlap during concurrent
+ * navigation. A stale cleanup must never hide/reparent a video that a newer
+ * view currently owns. In particular, an omitted host is not allowed to steal
+ * an actively mounted element.
+ */
+export function releasePersistentMediaElement(host?: HTMLElement): void {
+  if (!persistentMediaElement) return;
+  const owner = persistentMediaElementOwner;
+  if (owner && host !== owner) return;
+  if (!owner && host) return;
+  if (owner && owner.isConnected) return;
+  if (persistentMediaElement.parentElement !== document.body) document.body.appendChild(persistentMediaElement);
+  persistentMediaElement.style.display = 'none';
+  persistentMediaElementOwner = null;
+}
 
 function attachConfiguredProgressPersistence(nextSession: UnifiedMediaSession): RuntimeProgressPersistence | null { progressPersistence?.dispose(); progressPersistence = null; const config = progressPersistenceConfig; if (!config) return null; progressPersistence = attachRuntimeProgressPersistence({ session: nextSession, getCurrentItem: () => getMediaPlaybackStore().getState().current, userId: config.userId, client: config.client ?? createMediaPlaybackProgressApiClient(), throttleMs: config.throttleMs, onError: config.onError }); return progressPersistence; }
 export function configureMediaPlaybackProgressPersistence(config: MediaPlaybackProgressPersistenceConfig): RuntimeProgressPersistence | null { if (!config.userId.trim()) throw new Error('JHADINA_MEDIA_PLAYBACK_PROGRESS_USER_REQUIRED'); progressPersistenceConfig = config; if (!session) return null; return attachConfiguredProgressPersistence(session); }
