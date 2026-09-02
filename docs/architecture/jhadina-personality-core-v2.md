@@ -1,6 +1,6 @@
 # Jhadina Personality Core v2
 
-Status: implementation in progress
+Status: durable persistence implemented; production port composition remains in progress
 
 ## Purpose
 
@@ -49,6 +49,7 @@ Experience
   → explicitly personality-eligible PatternObservation
   → Personality Core projection
   → versioned PersonalityState
+  → durable repository
   → Context Builder
   → Reasoning Model
   → Expression Layer
@@ -72,6 +73,14 @@ Raw memory does not directly become a personality trait. The Pattern Engine must
 8. Personality changes are versioned and must be reversible through governed evolution.
 9. The reasoning model may propose personality changes but cannot persist them directly.
 10. Personality never contains Values Core rules, capability grants, credentials, authority, or security policy.
+
+## Durable persistence
+
+`PersonalityStateRepository` is the persistence contract. The server-only Supabase implementation stores immutable, versioned snapshots in `public.jhadina_personality_states` and uses an atomic Postgres RPC for optimistic concurrency.
+
+The snapshot key is `(profile_id, version)`. A save is accepted only when the persisted latest version equals the caller's expected version, and the next state version is exactly `expectedVersion + 1`. Stale writers therefore fail closed instead of overwriting newer personality state.
+
+Until Identity Core is authoritative for the application, the adapter uses an explicit `default` profile and service-role-only access. Do not pretend `auth.uid()` provides user isolation before the real identity boundary exists.
 
 ## Durable submodels
 
@@ -115,11 +124,22 @@ If evidence is equally strong or contradictory, Jhadina should surface uncertain
 
 ## Current implementation
 
-`packages/jhadina-core-spine/src/personality-core.ts` provides the first governed projection engine and repository boundary.
+`packages/jhadina-core-spine/src/personality-core.ts` provides the governed projection engine and repository boundary.
 
-`PersonalityStateRepository` is intentionally an interface. The durable Supabase adapter belongs outside the pure core and must be server-only.
+`apps/jhadina-web/src/lib/personality/supabase-personality-state-repository.ts` provides the server-only Supabase implementation.
 
-The direct context fallback uses `emptyPersonalityState()` and explicitly records that personality has not yet been assembled through the real ports. This is intentional until the production MemoryPort → PatternPort → PersonalityPort composition is wired.
+`supabase/migrations/20260902060000_create_jhadina_personality_state.sql` provides the versioned snapshot table, service-role-only RLS boundary, and atomic optimistic-concurrency RPC.
+
+The direct context fallback still uses `emptyPersonalityState()` and explicitly records that personality has not yet been assembled through the real ports. This is intentional until production MemoryPort → PatternPort → PersonalityPort composition is wired.
+
+## Next implementation boundary
+
+1. Implement the real `MemoryPort` over the durable Memory Core.
+2. Implement the real `PatternPort` and require explicit personality eligibility metadata.
+3. Compose MemoryPort → PatternPort → `createPersonalityPort()` using the durable repository.
+4. Feed the resulting personality state into Context Builder instead of the empty-state fallback.
+5. Add Expression Mixer and outcome-to-personality LearningRecord feedback.
+6. Add behavioral drift detection and governed personality evolution.
 
 ## Do not do
 
