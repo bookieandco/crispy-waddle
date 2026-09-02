@@ -33,7 +33,17 @@ const base = {
     reasons: ['deployer-controls-lp', 'historical-liquidity-withdrawal-observed', 'rapid-liquidity-drain'],
     evidenceIds: ['lp-1'],
   },
-  liquidityHistory: { initialLiquidity: 100000, currentLiquidity: 10000, peakLiquidity: 100000, drawdownFromPeak: 0.9, drainRate: 0.4, drainAcceleration: 0.2, stabilityScore: 0.1, evidenceIds: ['liq-1'] },
+  liquidityHistory: {
+    snapshots: [],
+    initialLiquidityUsd: 100000,
+    currentLiquidityUsd: 10000,
+    peakLiquidityUsd: 100000,
+    drawdownFromPeak: 0.9,
+    drainRate: 0.4,
+    drainAcceleration: 0.2,
+    stabilityScore: 0.1,
+    evidenceIds: ['liq-1'],
+  },
   rugProtectionInput: {
     liquidityDrainRate: 0.4,
     liquidityDrainAcceleration: 0.2,
