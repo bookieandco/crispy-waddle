@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { GenerationExecution } from '@jhadina/director-core/generation-execution';
 import type { GenerationRepository, GenerationSubmissionOutbox } from '@jhadina/director-core/generation-repository';
+import type { GenerationSubmissionRepository } from '@jhadina/director-core/generation-submission-repository';
 import type { GenerationTask } from '@jhadina/director-core/generation-task';
 
 type TaskRow = { id: string; project_id: string; edit_plan_id: string | null; operation_id: string | null; idempotency_key: string; request: GenerationTask['request']; status: GenerationTask['status']; error: string | null; created_at: string; updated_at: string };
@@ -12,7 +13,7 @@ function toTask(row: TaskRow): GenerationTask { return { id: row.id, request: ro
 function toExecution(row: ExecutionRow): GenerationExecution { return { id: row.id, taskId: row.task_id, providerId: row.provider_id, providerJobId: row.provider_job_id ?? undefined, attempt: row.attempt, status: row.status, error: row.error ?? undefined, leaseOwner: row.lease_owner ?? undefined, leaseToken: row.lease_token ?? undefined, leaseExpiresAt: row.lease_expires_at ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }; }
 function toSubmission(row: SubmissionRow): GenerationSubmissionOutbox { return { id: row.id, taskId: row.task_id, executionId: row.execution_id, providerId: row.provider_id, idempotencyKey: row.idempotency_key, requestPayload: row.request_payload, status: row.status, providerJobId: row.provider_job_id ?? undefined, attempt: row.attempt, leaseOwner: row.lease_owner ?? undefined, leaseToken: row.lease_token ?? undefined, leaseExpiresAt: row.lease_expires_at ?? undefined, lastError: row.last_error ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }; }
 
-export function createSupabaseGenerationRepository(client: SupabaseClient): GenerationRepository {
+export function createSupabaseGenerationRepository(client: SupabaseClient): GenerationRepository & GenerationSubmissionRepository {
   return {
     async claimTask(task) {
       const { data, error } = await client.rpc('claim_director_generation_task', { p_id: task.id, p_project_id: task.projectId, p_edit_plan_id: task.editPlanId ?? null, p_operation_id: task.operationId ?? null, p_idempotency_key: task.idempotencyKey, p_request: task.request, p_now: task.createdAt });
@@ -47,6 +48,31 @@ export function createSupabaseGenerationRepository(client: SupabaseClient): Gene
     },
     async reserveSubmission(task, execution, providerId, idempotencyKey) {
       const { data, error } = await client.rpc('reserve_director_generation_submission', { p_task_id: task.id, p_execution_id: execution.id, p_provider_id: providerId, p_idempotency_key: idempotencyKey, p_request_payload: task.request, p_lease_owner: execution.leaseOwner ?? null, p_lease_token: execution.leaseToken ?? null });
+      if (error) throw error;
+      return data ? toSubmission(data as SubmissionRow) : undefined;
+    },
+    async claimSubmission(submissionId, workerId, leaseMs) {
+      const { data, error } = await client.rpc('claim_director_generation_submission', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_ms: leaseMs });
+      if (error) throw error;
+      return data ? toSubmission(data as SubmissionRow) : undefined;
+    },
+    async renewSubmissionLease(submissionId, workerId, leaseToken, leaseMs) {
+      const { data, error } = await client.rpc('renew_director_generation_submission_lease', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_token: leaseToken, p_lease_ms: leaseMs });
+      if (error) throw error;
+      return data ? toSubmission(data as SubmissionRow) : undefined;
+    },
+    async acknowledgeSubmission(submissionId, workerId, leaseToken, providerJobId) {
+      const { data, error } = await client.rpc('ack_director_generation_submission', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_token: leaseToken, p_provider_job_id: providerJobId });
+      if (error) throw error;
+      return data ? toSubmission(data as SubmissionRow) : undefined;
+    },
+    async markSubmissionRecoveryRequired(submissionId, workerId, leaseToken, errorMessage) {
+      const { data, error } = await client.rpc('recover_director_generation_submission', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_token: leaseToken, p_error: errorMessage });
+      if (error) throw error;
+      return data ? toSubmission(data as SubmissionRow) : undefined;
+    },
+    async getSubmissionByIdempotencyKey(providerId, idempotencyKey) {
+      const { data, error } = await client.from('director_generation_submission_outbox').select('*').eq('provider_id', providerId).eq('idempotency_key', idempotencyKey).maybeSingle();
       if (error) throw error;
       return data ? toSubmission(data as SubmissionRow) : undefined;
     },
