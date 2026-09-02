@@ -28,7 +28,7 @@ export function attachMediaPlaybackAutoAdvance({ video, store, session, resolveR
       })
       .then((result) => {
         if (!result) return;
-        return session.loadPlayback(result.next.playback, result.positionSeconds).then(() => session.play());
+        return session.loadPlayback(result.next.playback, result.positionSeconds, result.next.kind).then(() => session.play());
       })
       .catch((error) => {
         const after = store.getState();
