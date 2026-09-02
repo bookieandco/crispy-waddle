@@ -22,7 +22,6 @@ export interface CastingManager {
   send(command: MediaSessionCommand): Promise<void>;
   getState(): Promise<MediaSessionState | null>;
   subscribeState(listener: (state: MediaSessionState) => void, intervalMs?: number): () => void;
-  /** Retire the manager and stop all observation; active receivers are disconnected best-effort. */
   dispose(): void;
 }
 
@@ -33,6 +32,7 @@ export function createCastingManager(controllers: MediaSessionController[], init
   let state = initialState;
   let connectionGeneration = 0;
   let disposed = false;
+  let observationGeneration = 0;
   const assertActive = () => { if (disposed) throw new Error('Casting manager is disposed.'); };
   return {
     discover() { assertActive(); return Promise.all(controllers.map((controller) => controller.discoverTargets().catch(() => []))).then((groups) => { assertActive(); return groups.flat(); }); },
@@ -41,6 +41,7 @@ export function createCastingManager(controllers: MediaSessionController[], init
       const controller = controllers.find((candidate) => candidate.transport === target.transport);
       if (!controller) throw new Error(`No ${target.transport} controller is available.`);
       const generation = ++connectionGeneration;
+      ++observationGeneration;
       await controller.connect(target);
       if (disposed || generation !== connectionGeneration) {
         await controller.disconnect().catch(() => undefined);
@@ -52,6 +53,7 @@ export function createCastingManager(controllers: MediaSessionController[], init
     async disconnect() {
       if (disposed) return;
       ++connectionGeneration;
+      ++observationGeneration;
       const controller = active;
       active = null;
       if (controller) await controller.disconnect();
@@ -88,22 +90,28 @@ export function createCastingManager(controllers: MediaSessionController[], init
       assertActive();
       let stopped = false;
       const generation = connectionGeneration;
+      const observation = ++observationGeneration;
       const controller = active;
+      let pollSequence = 0;
+      let appliedSequence = 0;
       const tick = async () => {
-        if (disposed || stopped || !controller || controller !== active || generation !== connectionGeneration) return;
+        if (disposed || stopped || !controller || controller !== active || generation !== connectionGeneration || observation !== observationGeneration) return;
+        const sequence = ++pollSequence;
         const next = await controller.getState().catch(() => null);
-        if (disposed || stopped || controller !== active || generation !== connectionGeneration || !next) return;
+        if (disposed || stopped || controller !== active || generation !== connectionGeneration || observation !== observationGeneration || sequence < appliedSequence || !next) return;
+        appliedSequence = sequence;
         state = { ...state, ...next };
         listener(state);
       };
       const timer = globalThis.setInterval(tick, intervalMs);
       void tick();
-      return () => { stopped = true; globalThis.clearInterval(timer); };
+      return () => { stopped = true; ++observationGeneration; globalThis.clearInterval(timer); };
     },
     dispose() {
       if (disposed) return;
       disposed = true;
       ++connectionGeneration;
+      ++observationGeneration;
       const controller = active;
       active = null;
       if (controller) void controller.disconnect().catch(() => undefined);
