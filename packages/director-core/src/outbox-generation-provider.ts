@@ -1,4 +1,4 @@
-import type { GenerationProvider, GenerationRequest, GenerationResult } from './generation-provider';
+import type { GenerationProvider, GenerationRequest, GenerationResult, GenerationSubmissionOptions } from './generation-provider';
 import type { GenerationProviderRecord } from './generation-registry';
 import type { GenerationRepository } from './generation-repository';
 import { GenerationSubmissionCoordinator } from './generation-submission-coordinator';
@@ -21,11 +21,12 @@ export class OutboxGenerationProvider implements GenerationProvider {
     this.submissionGuarantee = provider.submissionGuarantee;
   }
 
-  async submit(request: GenerationRequest): Promise<GenerationResult> {
-    const task = await this.repository.getTaskByIdempotencyKey(request.requestId);
-    if (!task) throw new Error(`Durable generation task not found for submission: ${request.requestId}`);
+  async submit(request: GenerationRequest, options?: GenerationSubmissionOptions): Promise<GenerationResult> {
+    const idempotencyKey = options?.idempotencyKey ?? request.requestId;
+    const task = await this.repository.getTaskByIdempotencyKey(idempotencyKey);
+    if (!task) throw new Error(`Durable generation task not found for submission: ${idempotencyKey}`);
     const executions = await this.repository.listExecutions(task.id);
-    const execution = executions.at(-1);
+    const execution = executions.reduce((latest, candidate) => (!latest || candidate.attempt > latest.attempt ? candidate : latest), undefined as typeof executions[number] | undefined);
     if (!execution) throw new Error(`Durable generation execution not found for task: ${task.id}`);
 
     const coordinator = new GenerationSubmissionCoordinator(this.repository, this.workerId, this.leaseMs);
