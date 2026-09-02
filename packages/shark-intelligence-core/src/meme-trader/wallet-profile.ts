@@ -79,7 +79,9 @@ export function deriveWalletProfile(input: {
     medianHoldTime: median(holds),
     averageRealizedReturn: average(pnl),
     winRate: pnl.length ? wins / pnl.length : undefined,
-    profitFactor: grossLoss ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : undefined),
+    // Never emit Infinity: JSON cannot represent it safely and downstream ranking should
+    // distinguish "no observed losses" from an unbounded numeric value.
+    profitFactor: grossLoss > 0 ? grossProfit / grossLoss : undefined,
     maxDrawdown: undefined,
     concentration: total && max ? max / total : undefined,
     narrativeAffinity: input.trades.length ? input.trades.filter(t => t.narrative).length / input.trades.length : undefined,
