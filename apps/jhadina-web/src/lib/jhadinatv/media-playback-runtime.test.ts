@@ -65,7 +65,7 @@ function item(titleId: string): MediaQueueItem {
 }
 
 describe('media playback runtime lifecycle', () => {
-  it('publishes one coherent snapshot and survives view release', () => {
+  it('publishes one coherent snapshot and keeps observing after view release', () => {
     const first = fakeSession(state('one', 12));
     const seen: Array<ReturnType<typeof getMediaPlaybackSnapshot>> = [];
     const unsubscribe = subscribeMediaPlaybackSnapshot((next) => seen.push(next));
@@ -76,8 +76,8 @@ describe('media playback runtime lifecycle', () => {
     const current = getMediaPlaybackSnapshot();
     expect(current.session).toBe(first);
     expect(current.current?.titleId).toBe('one');
-    expect(current.playerState?.positionSeconds).toBe(12);
-    expect(seen.at(-1)?.session).toBe(first);
+    expect(current.playerState?.positionSeconds).toBe(20);
+    expect(seen.at(-1)?.playerState?.positionSeconds).toBe(20);
     unsubscribe();
   });
 
