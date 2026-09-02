@@ -9,13 +9,14 @@ import {
   type RuntimeAuditSink,
   type RuntimeResourceLease,
 } from './index.js';
+import { assertResourceEnforcementReceipt } from './resource-enforcement.js';
 
 export interface RuntimeExecutionClock { now(): string; }
 const systemClock: RuntimeExecutionClock = { now: () => new Date().toISOString() };
 
 /**
  * Canonical runtime orchestration boundary. No adapter is reachable until
- * request validation, policy, and physical resource enforcement have passed.
+ * request validation, policy, and physically attested resource enforcement have passed.
  */
 export class GovernedRuntimeExecutor {
   constructor(
@@ -45,14 +46,17 @@ export class GovernedRuntimeExecutor {
       await this.appendAudit(request, 'denied', { reason: 'resource_enforcement_unavailable' });
       throw error;
     }
-    if (lease.executionId !== request.executionId || lease.enforcement !== 'enforced') {
+
+    try {
+      assertResourceEnforcementReceipt(request, lease);
+    } catch (error) {
       await this.safeRelease(lease);
-      await this.appendAudit(request, 'denied', { reason: 'invalid_resource_lease' });
-      throw new Error(`Runtime resource lease is not bound to ${request.executionId}`);
+      await this.appendAudit(request, 'denied', { reason: 'invalid_resource_attestation' });
+      throw error;
     }
 
     // The durable allow record is the final governed point before execution.
-    try { await this.appendAudit(request, 'allowed', { resourceLimits: request.manifest.resourceLimits }); }
+    try { await this.appendAudit(request, 'allowed', { resourceLimits: request.manifest.resourceLimits, resourceAttestation: lease.enforcement }); }
     catch (error) { await this.safeRelease(lease); throw error; }
 
     try {
