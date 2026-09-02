@@ -12,78 +12,49 @@ CREATE TABLE IF NOT EXISTS jhadina_commerce_payment_operation (
   completed_at TIMESTAMPTZ,
   PRIMARY KEY (provider, payment_id)
 );
-
-CREATE INDEX IF NOT EXISTS idx_jhadina_commerce_payment_operation_actor
-  ON jhadina_commerce_payment_operation (actor_id, created_at DESC);
-
+CREATE INDEX IF NOT EXISTS idx_jhadina_commerce_payment_operation_actor ON jhadina_commerce_payment_operation (actor_id, created_at DESC);
 ALTER TABLE jhadina_commerce_payment_operation ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS jhadina_commerce_payment_operation_owner_select ON jhadina_commerce_payment_operation;
-CREATE POLICY jhadina_commerce_payment_operation_owner_select
-  ON jhadina_commerce_payment_operation FOR SELECT USING (auth.uid() = actor_id);
-
+CREATE POLICY jhadina_commerce_payment_operation_owner_select ON jhadina_commerce_payment_operation FOR SELECT USING (auth.uid() = actor_id);
 REVOKE ALL ON jhadina_commerce_payment_operation FROM anon;
 REVOKE ALL ON jhadina_commerce_payment_operation FROM authenticated;
 
 CREATE OR REPLACE FUNCTION claim_jhadina_commerce_payment_operation(
-  p_provider TEXT,
-  p_payment_id TEXT,
-  p_actor_id UUID,
-  p_action_id TEXT,
-  p_capability TEXT,
-  p_request_fingerprint TEXT
-) RETURNS JSONB
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
-AS $$
-DECLARE r jhadina_commerce_payment_operation;
+  p_provider TEXT, p_payment_id TEXT, p_actor_id UUID, p_action_id TEXT,
+  p_capability TEXT, p_request_fingerprint TEXT
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE r jhadina_commerce_payment_operation; inserted BOOLEAN;
 BEGIN
-  IF auth.uid() IS NULL OR auth.uid() <> p_actor_id THEN
-    RAISE EXCEPTION 'ACTOR_BINDING_FAILED';
-  END IF;
-
+  IF auth.uid() IS NULL OR auth.uid() <> p_actor_id THEN RAISE EXCEPTION 'ACTOR_BINDING_FAILED'; END IF;
   INSERT INTO jhadina_commerce_payment_operation
     (provider, payment_id, actor_id, action_id, capability, request_fingerprint, status)
-  VALUES
-    (p_provider, p_payment_id, p_actor_id, p_action_id, p_capability, p_request_fingerprint, 'processing')
+  VALUES (p_provider, p_payment_id, p_actor_id, p_action_id, p_capability, p_request_fingerprint, 'processing')
   ON CONFLICT (provider, payment_id) DO NOTHING;
-
-  SELECT * INTO r FROM jhadina_commerce_payment_operation
-  WHERE provider = p_provider AND payment_id = p_payment_id;
-
-  IF r.actor_id <> p_actor_id OR r.action_id <> p_action_id OR r.capability <> p_capability
-     OR r.request_fingerprint <> p_request_fingerprint THEN
+  GET DIAGNOSTICS inserted = ROW_COUNT;
+  SELECT * INTO r FROM jhadina_commerce_payment_operation WHERE provider = p_provider AND payment_id = p_payment_id;
+  IF r.actor_id <> p_actor_id OR r.action_id <> p_action_id OR r.capability <> p_capability OR r.request_fingerprint <> p_request_fingerprint THEN
     RAISE EXCEPTION 'PAYMENT_OPERATION_BINDING_MISMATCH';
   END IF;
-
-  RETURN jsonb_build_object(
-    'claimed', (r.status = 'processing' AND r.created_at = (SELECT created_at FROM jhadina_commerce_payment_operation WHERE provider = p_provider AND payment_id = p_payment_id)),
-    'record', to_jsonb(r)
-  );
-END;
-$$;
+  RETURN jsonb_build_object('claimed', inserted, 'record', to_jsonb(r));
+END; $$;
 
 CREATE OR REPLACE FUNCTION complete_jhadina_commerce_payment_operation(
   p_provider TEXT, p_payment_id TEXT, p_provider_reference TEXT, p_result_status TEXT
 ) RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  UPDATE jhadina_commerce_payment_operation
-  SET status = 'completed', provider_reference = p_provider_reference,
-      result_status = p_result_status, completed_at = CURRENT_TIMESTAMP
-  WHERE provider = p_provider AND payment_id = p_payment_id AND status = 'processing';
+  UPDATE jhadina_commerce_payment_operation SET status='completed', provider_reference=p_provider_reference, result_status=p_result_status, completed_at=CURRENT_TIMESTAMP
+  WHERE provider=p_provider AND payment_id=p_payment_id AND status='processing';
   IF NOT FOUND THEN RAISE EXCEPTION 'PAYMENT_OPERATION_NOT_PROCESSING'; END IF;
-END;
-$$;
+END; $$;
 
 CREATE OR REPLACE FUNCTION fail_jhadina_commerce_payment_operation(
   p_provider TEXT, p_payment_id TEXT, p_provider_reference TEXT, p_result_status TEXT
 ) RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  UPDATE jhadina_commerce_payment_operation
-  SET status = 'failed', provider_reference = p_provider_reference,
-      result_status = p_result_status, completed_at = CURRENT_TIMESTAMP
-  WHERE provider = p_provider AND payment_id = p_payment_id AND status = 'processing';
+  UPDATE jhadina_commerce_payment_operation SET status='failed', provider_reference=p_provider_reference, result_status=p_result_status, completed_at=CURRENT_TIMESTAMP
+  WHERE provider=p_provider AND payment_id=p_payment_id AND status='processing';
   IF NOT FOUND THEN RAISE EXCEPTION 'PAYMENT_OPERATION_NOT_PROCESSING'; END IF;
-END;
-$$;
+END; $$;
 
 REVOKE ALL ON FUNCTION claim_jhadina_commerce_payment_operation(TEXT,TEXT,UUID,TEXT,TEXT,TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION complete_jhadina_commerce_payment_operation(TEXT,TEXT,TEXT,TEXT) FROM PUBLIC;
@@ -91,6 +62,3 @@ REVOKE ALL ON FUNCTION fail_jhadina_commerce_payment_operation(TEXT,TEXT,TEXT,TE
 GRANT EXECUTE ON FUNCTION claim_jhadina_commerce_payment_operation(TEXT,TEXT,UUID,TEXT,TEXT,TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION complete_jhadina_commerce_payment_operation(TEXT,TEXT,TEXT,TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION fail_jhadina_commerce_payment_operation(TEXT,TEXT,TEXT,TEXT) TO authenticated;
-
-COMMENT ON TABLE jhadina_commerce_payment_operation IS
-  'Durable Commerce payment execution/idempotency record. Provider/payment_id is the external operation identity; approval remains enforced at the governed provider boundary.';
