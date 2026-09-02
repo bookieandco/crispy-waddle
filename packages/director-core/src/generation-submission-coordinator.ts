@@ -1,12 +1,11 @@
 import type { GenerationProvider, GenerationResult } from './generation-provider';
 import type { GenerationExecution } from './generation-execution';
 import type { GenerationTask } from './generation-task';
-import type { GenerationSubmissionOutbox } from './generation-repository';
-import type { GenerationSubmissionRepository } from './generation-submission-repository';
+import type { GenerationRepository, GenerationSubmissionOutbox } from './generation-repository';
 
 export class GenerationSubmissionCoordinator {
   constructor(
-    private readonly repository: GenerationSubmissionRepository,
+    private readonly repository: GenerationRepository,
     private readonly workerId: string,
     private readonly leaseMs = 30_000,
   ) {}
@@ -58,13 +57,23 @@ export class GenerationSubmissionCoordinator {
         await this.repository.markSubmissionRecoveryRequired(submission.id, this.workerId, submission.leaseToken!, 'Provider returned no provider job ID');
         return { result, submission: (await this.repository.getSubmissionByIdempotencyKey(provider.descriptor.id, task.idempotencyKey)) ?? submission };
       }
-      const acknowledged = await this.repository.acknowledgeSubmission(submission.id, this.workerId, submission.leaseToken!, result.providerJobId);
+
+      const completedAt = new Date().toISOString();
+      const acknowledged = await this.repository.acknowledgeSubmissionAndSaveState(
+        submission.id,
+        this.workerId,
+        submission.leaseToken!,
+        execution.leaseToken!,
+        result.providerJobId,
+        { ...task, status: result.status, error: result.error, updatedAt: completedAt },
+        { ...execution, providerJobId: result.providerJobId, status: result.status, error: result.error, updatedAt: completedAt },
+      );
       if (!acknowledged) {
         const existing = await this.repository.getSubmissionByIdempotencyKey(provider.descriptor.id, task.idempotencyKey);
         if (existing?.status === 'submitted' && existing.providerJobId) return { result, submission: existing };
         return { result, submission: existing ?? submission };
       }
-      return { result, submission: acknowledged };
+      return { result, submission: acknowledged.submission };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (!heartbeat?.lost()) {
