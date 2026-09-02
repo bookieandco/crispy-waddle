@@ -13,7 +13,7 @@ export interface UnifiedMediaSession {
   getState(): MediaSessionState;
   subscribe(listener: (state: MediaSessionState) => void): () => void;
   dispose(): void;
-  loadPlayback(playback: ResolvedPlaybackSource, positionSeconds?: number): Promise<void>;
+  loadPlayback(playback: ResolvedPlaybackSource, positionSeconds?: number, kind?: MediaKind): Promise<void>;
   play(): Promise<void>;
   pause(): Promise<void>;
   seek(positionSeconds: number): Promise<void>;
@@ -58,7 +58,8 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
   if (!config.local.setSource) throw new Error('Local playback source switching is unavailable.');
 
   let playback = config.playback;
-  let state: MediaSessionState = { ...config.local.getState(), titleId: config.playback.source.titleId, kind: config.kind, sourceUrl: config.playback.source.url };
+  let currentKind = config.kind;
+  let state: MediaSessionState = { ...config.local.getState(), titleId: config.playback.source.titleId, kind: currentKind, sourceUrl: config.playback.source.url };
   const listeners = new Set<(next: MediaSessionState) => void>();
   let remoteUnsubscribe: (() => void) | undefined;
   let localUnsubscribe: (() => void) | undefined;
@@ -69,21 +70,21 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
   const localCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
     assertActive(); await config.local.apply(command); assertActive();
     const localState = config.local.getState();
-    publish({ ...state, ...localState, sourceUrl: playback.source.url, titleId: playback.source.titleId, target: { id: 'local', name: 'This device', transport: 'local' } });
+    publish({ ...state, ...localState, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target: { id: 'local', name: 'This device', transport: 'local' } });
   };
   const remoteCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
     assertActive();
     if (!state.target || state.target.transport === 'local') throw new Error('No remote TV playback session is connected.');
     await config.casting.send(command); assertActive();
     const remote = await config.casting.getState();
-    if (remote) publish({ ...state, ...remote, sourceUrl: playback.source.url, titleId: playback.source.titleId, target: state.target });
+    if (remote) publish({ ...state, ...remote, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target: state.target });
   };
 
   const session: UnifiedMediaSession = {
     getState: () => state,
     subscribe(listener) { if (disposed) throw new Error('Media session is disposed.'); listeners.add(listener); return () => listeners.delete(listener); },
     dispose() { if (disposed) return; disposed = true; localUnsubscribe?.(); localUnsubscribe = undefined; remoteUnsubscribe?.(); remoteUnsubscribe = undefined; listeners.clear(); },
-    async loadPlayback(nextPlayback, positionSeconds = 0) {
+    async loadPlayback(nextPlayback, positionSeconds = 0, kind = currentKind) {
       assertActive(); assertLoadablePlayback(nextPlayback);
       const generation = ++loadGeneration;
       const requestedPosition = normalizePosition(positionSeconds);
@@ -96,10 +97,11 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
       assertActive();
       if (generation !== loadGeneration) return;
       playback = nextPlayback;
+      currentKind = kind;
       const nextState = remoteTarget ? await config.casting.getState() : config.local.getState();
       if (generation !== loadGeneration) return;
       const actualPosition = nextState?.positionSeconds ?? requestedPosition;
-      publish({ ...state, ...(nextState ?? {}), titleId: nextPlayback.source.titleId, kind: config.kind, sourceUrl: nextPlayback.source.url, positionSeconds: Math.max(0, actualPosition), playing: false });
+      publish({ ...state, ...(nextState ?? {}), titleId: nextPlayback.source.titleId, kind: currentKind, sourceUrl: nextPlayback.source.url, positionSeconds: Math.max(0, actualPosition), playing: false });
     },
     play: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'play' }) : localCommand({ type: 'play' }),
     pause: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'pause' }) : localCommand({ type: 'pause' }),
@@ -112,23 +114,20 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
       const remote = await config.casting.getState();
       assertActive();
       if (!remote) return null;
-      const next = { ...state, ...remote, kind: config.kind, sourceUrl: playback.source.url, titleId: playback.source.titleId, target: state.target };
+      const next = { ...state, ...remote, kind: currentKind, sourceUrl: playback.source.url, titleId: playback.source.titleId, target: state.target };
       publish(next);
       return next;
     },
     async transfer(target) {
       assertActive();
-      if (target.transport === 'local') {
-        await session.disconnect();
-        return;
-      }
+      if (target.transport === 'local') { await session.disconnect(); return; }
       const current = state;
       await config.casting.connect(target);
       assertActive();
       const remote = await config.casting.getState();
-      publish({ ...current, ...(remote ?? {}), sourceUrl: playback.source.url, titleId: playback.source.titleId, target });
+      publish({ ...current, ...(remote ?? {}), sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target });
       remoteUnsubscribe?.();
-      remoteUnsubscribe = config.casting.subscribeState((next) => publish({ ...state, ...next, sourceUrl: playback.source.url, titleId: playback.source.titleId, target }), 500);
+      remoteUnsubscribe = config.casting.subscribeState((next) => publish({ ...state, ...next, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target }), 500);
     },
     async disconnect() {
       assertActive();
@@ -138,7 +137,7 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
       const local = config.local.getState(); const nextPosition = remote?.positionSeconds ?? local.positionSeconds;
       await config.local.apply({ type: 'seek', value: nextPosition });
       if (remote?.playing) await config.local.apply({ type: 'play' }); else await config.local.apply({ type: 'pause' });
-      publish({ ...local, sourceUrl: playback.source.url, titleId: playback.source.titleId, positionSeconds: nextPosition, playing: !!remote?.playing, target: { id: 'local', name: 'This device', transport: 'local' } });
+      publish({ ...local, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, positionSeconds: nextPosition, playing: !!remote?.playing, target: { id: 'local', name: 'This device', transport: 'local' } });
     },
     isRemote: () => state.target?.transport !== undefined && state.target.transport !== 'local',
     remotePlay: () => remoteCommand({ type: 'play' }),
@@ -150,7 +149,7 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
 
   localUnsubscribe = config.local.onStateChange?.((next) => {
     if (session.isRemote()) return;
-    publish({ ...state, ...next, titleId: playback.source.titleId, kind: config.kind, sourceUrl: playback.source.url, target: { id: 'local', name: 'This device', transport: 'local' } });
+    publish({ ...state, ...next, titleId: playback.source.titleId, kind: currentKind, sourceUrl: playback.source.url, target: { id: 'local', name: 'This device', transport: 'local' } });
   });
   return session;
 }
