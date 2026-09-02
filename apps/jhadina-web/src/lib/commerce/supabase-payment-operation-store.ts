@@ -2,6 +2,7 @@ import type { PaymentOperationBinding, PaymentOperationClaim, PaymentOperationRe
 import type { AuditRpcClient } from "@jhadina/action-core"
 
 type ClaimRpcResult = { claimed: boolean; record: PaymentOperationRecord }
+type GetRpcResult = PaymentOperationRecord | null
 
 type TerminalResult = {
   providerReference?: string
@@ -11,6 +12,20 @@ type TerminalResult = {
 
 export class SupabasePaymentOperationStore implements PaymentOperationStore {
   constructor(private readonly client: AuditRpcClient) {}
+
+  async get(input: PaymentOperationBinding): Promise<PaymentOperationRecord | undefined> {
+    const { data, error } = await this.client.rpc<GetRpcResult>("get_jhadina_commerce_payment_operation", {
+      p_provider: input.provider,
+      p_operation_id: input.operationId,
+      p_payment_id: input.paymentId,
+      p_actor_id: input.actorId,
+      p_action_id: input.actionId,
+      p_capability: input.capability,
+      p_request_fingerprint: input.requestFingerprint,
+    })
+    if (error) throw new Error(`COMMERCE_PAYMENT_OPERATION_GET_FAILED:${error.message}`)
+    return data ?? undefined
+  }
 
   async claim(input: PaymentOperationBinding): Promise<PaymentOperationClaim> {
     const { data, error } = await this.client.rpc<ClaimRpcResult>("claim_jhadina_commerce_payment_operation", {
