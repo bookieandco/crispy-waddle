@@ -190,12 +190,17 @@ export class GenerationService {
     const updatedAt = new Date().toISOString();
     const executions = this.generationRepository ? await this.generationRepository.listExecutions(id) : [];
     const latest = executions.at(-1);
-    const updatedExecution: GenerationExecution = latest ? { ...latest, status: result.status, error: result.error, leaseOwner: undefined, leaseExpiresAt: undefined, updatedAt } : generationExecutionFromResult(id, job.providerId, result, { attempt: 1, now: updatedAt });
+    const updatedExecution: GenerationExecution = latest ? { ...latest, status: result.status, error: result.error, updatedAt } : generationExecutionFromResult(id, job.providerId, result, { attempt: 1, now: updatedAt });
     const existingTask = this.generationRepository ? await this.generationRepository.getTask(id) : undefined;
     const updatedTask: GenerationTask = existingTask ? { ...existingTask, status: result.status, error: result.error, updatedAt } : generationTaskFromRequest(job.request, { idempotencyKey: id });
     const updated = jobFromTask(updatedTask, updatedExecution);
+    if (!(await this.persistState(updatedTask, updatedExecution))) {
+      const reconciled = await this.waitForExecutionResolution(updatedTask);
+      const reconciledJob = jobFromTask(updatedTask, reconciled);
+      this.jobs.set(id, reconciledJob);
+      return reconciledJob;
+    }
     this.jobs.set(id, updated);
-    await this.persistState(updatedTask, updatedExecution);
     await this.persistOutputs(updated, result);
     return updated;
   }
@@ -208,14 +213,26 @@ export class GenerationService {
       await provider.cancel(job.providerJobId);
     }
     const updatedAt = new Date().toISOString();
-    const updated: GenerationJob = { ...job, status: 'cancelled', updatedAt };
-    this.jobs.set(id, updated);
     if (this.generationRepository) {
       const task = await this.generationRepository.getTask(id);
       const executions = await this.generationRepository.listExecutions(id);
       const latest = executions.at(-1);
-      if (task && latest) await this.persistState({ ...task, status: 'cancelled', updatedAt }, { ...latest, status: 'cancelled', leaseOwner: undefined, leaseExpiresAt: undefined, updatedAt });
+      if (task && latest) {
+        const cancelledExecution: GenerationExecution = { ...latest, status: 'cancelled', updatedAt };
+        const cancelledTask: GenerationTask = { ...task, status: 'cancelled', updatedAt };
+        if (!(await this.persistState(cancelledTask, cancelledExecution))) {
+          const reconciled = await this.waitForExecutionResolution(task);
+          const reconciledJob = jobFromTask(task, reconciled);
+          this.jobs.set(id, reconciledJob);
+          return reconciledJob;
+        }
+        const cancelled = jobFromTask(cancelledTask, cancelledExecution);
+        this.jobs.set(id, cancelled);
+        return cancelled;
+      }
     }
+    const updated: GenerationJob = { ...job, status: 'cancelled', updatedAt };
+    this.jobs.set(id, updated);
     return updated;
   }
 }
