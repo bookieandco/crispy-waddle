@@ -6,7 +6,7 @@ import { CatalogRegistry, createAuthorizedCatalogAdapter, createBrowserAirPlayCo
 import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
 import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
 import { getCurrentUserId } from '../../../../src/lib/auth/current-user';
-import { ensureMediaPlaybackSession, createMediaPlaybackLoadRequest, getPersistentMediaElement, mountPersistentMediaElement, releasePersistentMediaElement, getMediaPlaybackStore, releaseMediaPlaybackView } from '../../../../src/lib/jhadinatv/media-playback-runtime';
+import { ensureMediaPlaybackSession, getPersistentMediaElement, mountPersistentMediaElement, releasePersistentMediaElement, getMediaPlaybackStore, releaseMediaPlaybackView, createMediaPlaybackLoadRequest } from '../../../../src/lib/jhadinatv/media-playback-runtime';
 import { attachMediaPlaybackAutoAdvance } from '../../../../src/lib/jhadinatv/media-playback-auto-advance';
 import { createMediaPlaybackApiClient, createMediaPlaybackResumeCoordinator } from '../../../../src/lib/jhadinatv/media-playback-resume';
 import { attachMediaPlaybackProgressWriter, createMediaPlaybackProgressApiClient } from '../../../../src/lib/jhadinatv/media-playback-progress-writer';
@@ -17,7 +17,6 @@ const titles: MediaTitle[] = [
   { id: 'demo-series', kind: 'tv', title: 'After the Last Train', overview: 'A late-night station becomes the meeting point for four strangers with unfinished stories.', year: 2026, genres: ['Drama', 'Mystery'], rating: 8.6, availability: 'external-link' },
   { id: 'demo-action', kind: 'movie', title: 'Breakline', overview: 'A courier has one night to cross the city and expose the people chasing him.', year: 2025, runtimeMinutes: 112, genres: ['Action', 'Thriller', 'Crime'], rating: 8.0, availability: 'licensed' },
 ];
-
 const client = { async search(query: string) { return titles.filter((title) => title.id === query); }, async sources(_titleId: string): Promise<MediaSource[]> { return []; } };
 function makeRegistry() { const registry = new CatalogRegistry(); registry.register(createAuthorizedCatalogAdapter(client, { id: 'jhadina-demo', name: 'Jhadina Demo Catalog' })); return registry; }
 type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
@@ -32,75 +31,33 @@ export default function JhadinaTVWatchPage() {
     if (!router.isReady || !kind || !id) return;
     let active = true;
     registry.search({ query: id }).then(async (results) => {
-      const match = results.find(({ title: candidate }) => candidate.id === id && candidate.kind === kind);
-      if (!match) throw new Error('Title is not available from the configured catalog.');
-      const provider = registry.list().find((candidate) => candidate.id === match.providerId);
-      if (!provider) throw new Error('Playback provider is unavailable.');
-      const resolver = createPlaybackResolver([{ id: provider.id, adapter: provider.sourceAdapter, authorized: true }]);
-      const resolved = await resolver.resolve({ providerId: match.providerId, titleId: match.title.id });
-      if (!active) return;
-      setTitle(match.title); setPlayback(resolved);
+      const match = results.find(({ title: candidate }) => candidate.id === id && candidate.kind === kind); if (!match) throw new Error('Title is not available from the configured catalog.');
+      const provider = registry.list().find((candidate) => candidate.id === match.providerId); if (!provider) throw new Error('Playback provider is unavailable.');
+      const resolver = createPlaybackResolver([{ id: provider.id, adapter: provider.sourceAdapter, authorized: true }]); const resolved = await resolver.resolve({ providerId: match.providerId, titleId: match.title.id });
+      if (!active) return; setTitle(match.title); setPlayback(resolved);
     }).catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Unable to load this title.'));
     return () => { active = false; };
   }, [id, kind, registry, router.isReady]);
 
   useEffect(() => {
-    const host = videoHostRef.current;
-    if (!host || !playback || !title) return;
-    let active = true;
-    const loadRequest = createMediaPlaybackLoadRequest();
-    const video = mountPersistentMediaElement(host);
-    const resolvedSource = playback.source;
+    const host = videoHostRef.current; if (!host || !playback || !title) return;
+    let active = true; const loadRequest = createMediaPlaybackLoadRequest(); const video = mountPersistentMediaElement(host); const resolvedSource = playback.source;
     const snapshot = (): MediaSessionState => ({ titleId: title.id, kind: title.kind, sourceUrl: resolvedSource.url, positionSeconds: video.currentTime, durationSeconds: Number.isFinite(video.duration) ? video.duration : undefined, playing: !video.paused, volume: video.volume, target: { id: 'local', name: 'This device', transport: 'local' } });
     const local: LocalPlaybackAdapter = { getState: snapshot, async apply(command) { if (command.type === 'play') await video.play(); else if (command.type === 'pause') video.pause(); else if (command.type === 'seek') video.currentTime = Math.max(0, command.value); else if (command.type === 'set-volume') video.volume = Math.max(0, Math.min(1, command.value)); }, onStateChange(listener) { const sync = () => listener(snapshot()); const events = ['play', 'pause', 'timeupdate', 'durationchange', 'volumechange', 'seeking', 'seeked'] as const; events.forEach((event) => video.addEventListener(event, sync)); sync(); return () => events.forEach((event) => video.removeEventListener(event, sync)); } };
-    const player = createResolvedMediaPlayer(playback, { ...local, setSource(url) { video.src = url; } });
-    const initial = player.getState(); const controllers = [createBrowserAirPlayController(video as AirPlayVideo, initial, playback)]; if (typeof window !== 'undefined') { const googleRuntime = createBrowserGoogleCastRuntime(); if (googleRuntime.isSupported()) controllers.push(createGoogleCastController(googleRuntime, initial, playback)); controllers.push(createJhadinaTVReceiverController(createJhadinaTVReceiverTransport(), initial, playback)); }
-    const castingManager = createCastingManager(controllers, initial);
-    const queueItem: MediaQueueItem = { id: `${playback.providerId}:${title.id}`, titleId: title.id, title: title.title, kind: title.kind, playback: player.playback, posterUrl: title.posterUrl, durationSeconds: title.runtimeMinutes ? title.runtimeMinutes * 60 : undefined };
-    const sessionConfig = { titleId: title.id, kind: title.kind, playback: player.playback, local: player, casting: castingManager };
-
-    let resumeCoordinator: ReturnType<typeof createMediaPlaybackResumeCoordinator> | null = null;
-    let progressWriter: ReturnType<typeof attachMediaPlaybackProgressWriter> | null = null;
-    let detachAutoAdvance: (() => void) | null = null;
-    let unsubscribe: (() => void) | null = null;
-    let resumeReady: Promise<void> | null = null;
+    const player = createResolvedMediaPlayer(playback, { ...local, setSource(url) { video.src = url; } }); const initial = player.getState();
+    const controllers = [createBrowserAirPlayController(video as AirPlayVideo, initial, playback)]; if (typeof window !== 'undefined') { const googleRuntime = createBrowserGoogleCastRuntime(); if (googleRuntime.isSupported()) controllers.push(createGoogleCastController(googleRuntime, initial, playback)); controllers.push(createJhadinaTVReceiverController(createJhadinaTVReceiverTransport(), initial, playback)); }
+    const castingManager = createCastingManager(controllers, initial); const queueItem: MediaQueueItem = { id: `${playback.providerId}:${title.id}`, titleId: title.id, title: title.title, kind: title.kind, playback: player.playback, posterUrl: title.posterUrl, durationSeconds: title.runtimeMinutes ? title.runtimeMinutes * 60 : undefined }; const sessionConfig = { titleId: title.id, kind: title.kind, playback: player.playback, local: player, casting: castingManager };
+    let resumeCoordinator: ReturnType<typeof createMediaPlaybackResumeCoordinator> | null = null; let progressWriter: ReturnType<typeof attachMediaPlaybackProgressWriter> | null = null; let detachAutoAdvance: (() => void) | null = null; let unsubscribe: (() => void) | null = null; let resumeReady: Promise<void> | null = null;
 
     void (async () => {
-      const session = await ensureMediaPlaybackSession(sessionConfig, queueItem, loadRequest);
-      if (!active) return;
-      sessionRef.current = session;
-      unsubscribe = session.subscribe(setSessionState);
-      setSessionState(session.getState());
-
-      const progressClient = createMediaPlaybackApiClient();
-      const writerClient = createMediaPlaybackProgressApiClient();
-      resumeReady = getCurrentUserId().then(async (userId) => {
-        if (!active || !userId) return;
-        resumeCoordinator = createMediaPlaybackResumeCoordinator(session, userId, progressClient);
-        await resumeCoordinator.loadItem(queueItem);
-        if (!active) return;
-        progressWriter = attachMediaPlaybackProgressWriter({ video, session, item: queueItem, userId, client: writerClient, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to save playback progress.') });
-        progressWriterRef.current = progressWriter;
-        setSessionState(session.getState());
-      });
-      await resumeReady;
-      if (!active) return;
-      detachAutoAdvance = attachMediaPlaybackAutoAdvance({ video, store: getMediaPlaybackStore(), session, resolveResumePosition: async (next) => { if (resumeReady) await resumeReady; if (!resumeCoordinator) return 0; return resumeCoordinator.resolvePositionSeconds(next as MediaQueueItem); }, beforeAdvance: async () => { if (progressWriter) await progressWriter.flush(true); }, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to advance to the next item.') });
+      const session = await ensureMediaPlaybackSession(sessionConfig, queueItem, loadRequest); if (!active) return; sessionRef.current = session; unsubscribe = session.subscribe(setSessionState); setSessionState(session.getState());
+      const progressClient = createMediaPlaybackApiClient(); const writerClient = createMediaPlaybackProgressApiClient();
+      resumeReady = getCurrentUserId().then(async (userId) => { if (!active || !userId) return; resumeCoordinator = createMediaPlaybackResumeCoordinator(session, userId, progressClient); await resumeCoordinator.loadItem(queueItem); if (!active) return; progressWriter = attachMediaPlaybackProgressWriter({ video, session, item: queueItem, userId, client: writerClient, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to save playback progress.') }); progressWriterRef.current = progressWriter; setSessionState(session.getState()); });
+      await resumeReady; if (!active) return;
+      detachAutoAdvance = attachMediaPlaybackAutoAdvance({ video, store: getMediaPlaybackStore(), session, isActive: () => active, resolveResumePosition: async (next) => { if (resumeReady) await resumeReady; if (!active || !resumeCoordinator) return 0; return resumeCoordinator.resolvePositionSeconds(next); }, beforeAdvance: async () => { if (progressWriter) await progressWriter.flush(true); }, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to advance to the next item.') });
     })().catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Unable to initialize playback session.'); });
 
-    return () => {
-      active = false;
-      loadRequest.cancel();
-      resumeCoordinator?.cancelPending();
-      const writer = progressWriter;
-      if (progressWriterRef.current === writer) progressWriterRef.current = null;
-      unsubscribe?.();
-      detachAutoAdvance?.();
-      if (writer) void writer.flush(false).finally(() => writer.dispose());
-      releasePersistentMediaElement(host);
-      sessionRef.current = null;
-      releaseMediaPlaybackView();
-    };
+    return () => { active = false; loadRequest.cancel(); resumeCoordinator?.cancelPending(); const writer = progressWriter; if (progressWriterRef.current === writer) progressWriterRef.current = null; unsubscribe?.(); detachAutoAdvance?.(); if (writer) void writer.flush(false).finally(() => writer.dispose()); releasePersistentMediaElement(host); sessionRef.current = null; releaseMediaPlaybackView(); };
   }, [playback, title]);
 
   useEffect(() => { if (!source) return; const video = getPersistentMediaElement(); const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); setPipSupported(controller.isSupported()); const sync = () => setPipActive(controller.isActive()); video.addEventListener('enterpictureinpicture', sync); video.addEventListener('leavepictureinpicture', sync); return () => { video.removeEventListener('enterpictureinpicture', sync); video.removeEventListener('leavepictureinpicture', sync); }; }, [source]);
@@ -109,15 +66,5 @@ export default function JhadinaTVWatchPage() {
   async function disconnectTV() { try { const session = sessionRef.current; if (session) { await session.disconnect(); await progressWriterRef.current?.flush(false); } setCasting(false); setTarget(null); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to disconnect from the selected TV.'); } }
   async function togglePiP() { const video = getPersistentMediaElement(); const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); try { await controller.toggle(); setPipActive(controller.isActive()); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Picture-in-Picture is unavailable.'); } }
   if (error) return <main style={{ padding: 32 }}><h1>Unable to play</h1><p>{error}</p></main>; if (!title) return <main style={{ padding: 32 }}><p>Loading JhadinaTV session…</p></main>;
-  return <><Script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" strategy="afterInteractive" /><main style={{ minHeight: '100vh', background: '#050608', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif', padding: 24 }}><div style={{ maxWidth: 1200, margin: '0 auto' }}><button onClick={() => router.back()} style={{ background: 'transparent', border: 0, color: '#aaa', cursor: 'pointer', padding: 0, marginBottom: 18 }}>← Back</button>
-    {source ? <div ref={videoHostRef} style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 20, overflow: 'hidden', background: '#0b0c10' }} /> : <div style={{ aspectRatio: '16 / 9', borderRadius: 20, border: '1px solid #272a33', background: 'radial-gradient(circle at 50% 35%, #252a36, #0b0c10 65%)', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}><div><div style={{ fontSize: 44 }}>▶</div><h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>The catalog entry exists, but the configured authorized provider has not returned a playable media source yet.</p></div></div>}
-    <h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>{title.overview}</p><section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}>
-      {!casting && <button type="button" disabled={!source || !sessionRef.current} onClick={() => void discoverTVs()} style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: source ? '#fff' : '#383b43', color: source ? '#08090b' : '#aaa', fontWeight: 700 }}>📺 Find TVs</button>}
-      {pipSupported && <button type="button" disabled={!source} onClick={() => void togglePiP()} style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: pipActive ? '#8b5cf6' : '#242730', color: '#fff', fontWeight: 700 }}>{pipActive ? '↙ Exit PiP' : '▣ Picture in Picture'}</button>}
-      {casting && target && <button type="button" onClick={() => void disconnectTV()} style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: '#242730', color: '#fff', fontWeight: 700 }}>Disconnect {target.name}</button>}
-    </section>
-    {targets.length > 0 && !casting && <section style={{ marginTop: 16, padding: 18, borderRadius: 16, background: '#101218', border: '1px solid #272a33' }}><strong>Choose a TV</strong><div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>{targets.map((device) => <button key={`${device.transport}:${device.id}`} onClick={() => void connectTV(device)} style={{ border: '1px solid #353945', borderRadius: 12, padding: '10px 14px', background: '#181b23', color: '#fff', cursor: 'pointer' }}>📺 {device.name}<small style={{ display: 'block', color: '#8f94a1', marginTop: 3 }}>{device.transport}</small></button>)}</div></section>}
-    {casting && target && <section style={{ marginTop: 16, padding: 18, borderRadius: 16, background: '#101218', border: '1px solid #272a33' }}><strong>Playing on {target.name}</strong><p style={{ color: '#9296a2', marginBottom: 0 }}>Unified session position: {Math.floor(sessionState?.positionSeconds ?? 0)}s. Your phone remains the controller.</p></section>}
-    <section style={{ marginTop: 24 }}><h2>Playback & casting</h2><p style={{ color: '#9296a2', lineHeight: 1.6 }}>Local playback, Picture-in-Picture, AirPlay, Google Cast, and JhadinaTV receivers share one governed media-session state boundary. The underlying media element persists outside the route tree so playback can survive navigation.</p></section>
-  </div></main></>;
+  return <><Script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" strategy="afterInteractive" /><main style={{ minHeight: '100vh', background: '#050608', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif', padding: 24 }}><div style={{ maxWidth: 1200, margin: '0 auto' }}><button onClick={() => router.back()} style={{ background: 'transparent', border: 0, color: '#aaa', cursor: 'pointer', padding: 0, marginBottom: 18 }}>← Back</button>{source ? <div ref={videoHostRef} style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 20, overflow: 'hidden', background: '#0b0c10' }} /> : <div style={{ aspectRatio: '16 / 9', borderRadius: 20, border: '1px solid #272a33', background: 'radial-gradient(circle at 50% 35%, #252a36, #0b0c10 65%)', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}><div><div style={{ fontSize: 44 }}>▶</div><h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>The catalog entry exists, but the configured authorized provider has not returned a playable media source yet.</p></div></div>}<h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>{title.overview}</p><section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}><button type="button" disabled={!source || !sessionRef.current} onClick={() => void discoverTVs()} style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: source ? '#fff' : '#383b43', color: source ? '#08090b' : '#aaa', fontWeight: 700 }}>📺 Find TVs</button>{pipSupported && <button type="button" disabled={!source} onClick={() => void togglePiP()} style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: pipActive ? '#8b5cf6' : '#242730', color: '#fff', fontWeight: 700 }}>{pipActive ? '↙ Exit PiP' : '▣ Picture in Picture'}</button>}{casting && target && <button type="button" onClick={() => void disconnectTV()} style={{ border: 0, borderRadius: 999, padding: '12px 18px', background: '#242730', color: '#fff', fontWeight: 700 }}>Disconnect {target.name}</button>}</section>{targets.length > 0 && !casting && <section style={{ marginTop: 16, padding: 18, borderRadius: 16, background: '#101218', border: '1px solid #272a33' }}><strong>Choose a TV</strong><div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>{targets.map((device) => <button key={`${device.transport}:${device.id}`} onClick={() => void connectTV(device)} style={{ border: '1px solid #353945', borderRadius: 12, padding: '10px 14px', background: '#181b23', color: '#fff', cursor: 'pointer' }}>📺 {device.name}<small style={{ display: 'block', color: '#8f94a1', marginTop: 3 }}>{device.transport}</small></button>)}</div></section>}{casting && target && <section style={{ marginTop: 16, padding: 18, borderRadius: 16, background: '#101218', border: '1px solid #272a33' }}><strong>Playing on {target.name}</strong><p style={{ color: '#9296a2', marginBottom: 0 }}>Unified session position: {Math.floor(sessionState?.positionSeconds ?? 0)}s. Your phone remains the controller.</p></section>}<section style={{ marginTop: 24 }}><h2>Playback & casting</h2><p style={{ color: '#9296a2', lineHeight: 1.6 }}>Local playback, Picture-in-Picture, AirPlay, Google Cast, and JhadinaTV receivers share one governed media-session state boundary. The underlying media element persists outside the route tree so playback can survive navigation.</p></section></div></main></>;
 }
