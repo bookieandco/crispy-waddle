@@ -34,15 +34,23 @@ export type GenerationResult = {
   metadata?: Record<string, unknown>;
 };
 
+/** Stable key used by providers to deduplicate submissions across retries. */
+export type GenerationSubmissionOptions = {
+  idempotencyKey: string;
+};
+
 export interface GenerationProvider {
   readonly descriptor: GenerationProviderRecord;
-  submit(request: GenerationRequest): Promise<GenerationResult>;
+  /** Providers should honor the key when their transport supports idempotency. */
+  submit(request: GenerationRequest, options?: GenerationSubmissionOptions): Promise<GenerationResult>;
+  /** Optional recovery lookup for providers that can resolve an already-submitted request. */
+  findByIdempotencyKey?(idempotencyKey: string): Promise<GenerationResult | undefined>;
   status(providerJobId: string): Promise<GenerationResult>;
   cancel(providerJobId: string): Promise<void>;
 }
 
 export type ComfyUIClient = {
-  queuePrompt(workflow: Record<string, unknown>): Promise<{ promptId: string }>;
+  queuePrompt(workflow: Record<string, unknown>, options?: { clientId?: string }): Promise<{ promptId: string }>;
   getHistory(promptId: string): Promise<Record<string, unknown>>;
   interrupt(promptId: string): Promise<void>;
 };
@@ -60,15 +68,16 @@ export class ComfyUIProvider implements GenerationProvider {
     if (descriptor.kind !== 'comfyui') throw new Error('ComfyUIProvider requires a comfyui provider descriptor');
   }
 
-  async submit(request: GenerationRequest): Promise<GenerationResult> {
+  async submit(request: GenerationRequest, options?: GenerationSubmissionOptions): Promise<GenerationResult> {
     const workflow = this.buildWorkflow(request);
-    const { promptId } = await this.client.queuePrompt(workflow);
+    const { promptId } = await this.client.queuePrompt(workflow, options?.idempotencyKey ? { clientId: options.idempotencyKey } : undefined);
     return {
       requestId: request.requestId,
       providerId: this.descriptor.id,
       status: 'queued',
       assetIds: [],
       providerJobId: promptId,
+      metadata: options?.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : undefined,
     };
   }
 
