@@ -45,20 +45,18 @@ export function attachMediaPlaybackProgressWriter({ video, session, item, store,
   let disposed = false;
   let writeInFlight: Promise<void> | null = null;
   let pending: { item: MediaQueueItem; completed: boolean } | null = null;
-  let generation = 0;
 
   const currentItem = () => playbackStore.getState().current ?? item ?? null;
 
   const drain = async () => {
     if (disposed || writeInFlight || !pending) return;
-    const generationAtStart = generation;
     const next = pending;
     pending = null;
     const progress = buildProgress(userId, next.item, session.getState(), next.completed);
     writeInFlight = client.upsert(progress)
       .then(() => undefined)
       .catch((error) => { onError?.(error); })
-      .finally(() => { writeInFlight = null; if (!disposed && generation === generationAtStart) void drain(); else if (!disposed && pending) void drain(); });
+      .finally(() => { writeInFlight = null; if (!disposed && pending) void drain(); });
     await writeInFlight;
   };
 
@@ -86,19 +84,17 @@ export function attachMediaPlaybackProgressWriter({ video, session, item, store,
   window.addEventListener('pagehide', handlePageHide);
   document.addEventListener('visibilitychange', handleVisibility);
 
-  return {
-    flush: (completed = false) => requestWrite(completed),
-    dispose() {
-      if (disposed) return;
-      disposed = true;
-      generation += 1;
-      if (timer) clearTimeout(timer);
-      timer = null;
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('ended', handleEnded);
-      window.removeEventListener('pagehide', handlePageHide);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    },
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    if (timer) clearTimeout(timer);
+    timer = null;
+    video.removeEventListener('timeupdate', handleTimeUpdate);
+    video.removeEventListener('pause', handlePause);
+    video.removeEventListener('ended', handleEnded);
+    window.removeEventListener('pagehide', handlePageHide);
+    document.removeEventListener('visibilitychange', handleVisibility);
   };
+
+  return Object.assign(dispose, { flush: requestWrite, dispose }) as MediaPlaybackProgressWriter;
 }
