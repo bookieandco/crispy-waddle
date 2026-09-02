@@ -27,6 +27,12 @@ describe('scheduler platform adapters', () => {
     });
   });
 
+  it('rejects non-UTC schedules for Vercel rather than changing semantics', () => {
+    expect(() => vercelCronAdapter.compile({ ...schedule, timezone: 'America/New_York' })).toThrow(
+      'requires timezone=UTC',
+    );
+  });
+
   it('preserves timezone when compiling GitHub Actions schedules', () => {
     expect(githubActionsScheduleAdapter.compile(schedule)).toEqual({
       cron: '*/5 * * * *',
