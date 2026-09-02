@@ -83,7 +83,15 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
   const session: UnifiedMediaSession = {
     getState: () => state,
     subscribe(listener) { if (disposed) throw new Error('Media session is disposed.'); listeners.add(listener); return () => listeners.delete(listener); },
-    dispose() { if (disposed) return; disposed = true; localUnsubscribe?.(); localUnsubscribe = undefined; remoteUnsubscribe?.(); remoteUnsubscribe = undefined; listeners.clear(); },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      ++loadGeneration;
+      localUnsubscribe?.(); localUnsubscribe = undefined;
+      remoteUnsubscribe?.(); remoteUnsubscribe = undefined;
+      listeners.clear();
+      config.casting.dispose();
+    },
     async loadPlayback(nextPlayback, positionSeconds = 0, kind = currentKind) {
       assertActive(); assertLoadablePlayback(nextPlayback);
       const generation = ++loadGeneration;
