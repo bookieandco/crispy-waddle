@@ -4,6 +4,13 @@ export type ExecutionTrust = 'trusted' | 'untrusted';
 export type ExecutionDecision = 'allow' | 'deny';
 
 export interface ResourceLimits { maxWallTimeMs: number; maxMemoryMb: number; maxOutputBytes: number; maxCpuMs?: number; }
+export type ResourceDimension = 'wallTime' | 'memory' | 'output' | 'cpu';
+export type ResourceEnforcementStatus = 'enforced';
+export interface ResourceEnforcementReceipt {
+  executionId: string;
+  limitsDigestSha256: string;
+  dimensions: Readonly<Record<ResourceDimension, ResourceEnforcementStatus>>;
+}
 export interface ProgramArtifact { artifactId: string; digestSha256: string; mediaType: string; trust: ExecutionTrust; }
 export interface ProgramManifest { manifestId: string; artifactDigestSha256: string; entrypoint: string; requestedCapabilities: readonly string[]; resourceLimits: ResourceLimits; }
 /** Capability identity is an attestation reference; authorization remains canonical. */
@@ -13,15 +20,15 @@ export interface ExecutionRequest { executionId: string; actorId: string; artifa
 export interface ExecutionPolicy { evaluate(request: ExecutionRequest): Promise<ExecutionDecision>; }
 export interface ExecutionResult { executionId: string; status: 'completed' | 'failed'; output?: unknown; }
 
-/** Runtime adapters cannot authorize or choose resource policy; they receive an enforced lease. */
+/** Runtime adapters receive a cryptographically bound enforcement attestation, not a generic marker. */
 export interface RuntimeAdapterPort { execute(request: ExecutionRequest, lease: RuntimeResourceLease): Promise<ExecutionResult>; }
 export interface RuntimeResourceLease {
   executionId: string;
   limits: ResourceLimits;
-  enforcement: 'enforced';
+  enforcement: ResourceEnforcementReceipt;
   release(): Promise<void>;
 }
-/** The implementation must reserve/enforce the requested limits or reject execution. */
+/** Resource acquisition is an enforcement boundary; a reservation without attestation is invalid. */
 export interface ResourceEnforcerPort { acquire(request: ExecutionRequest): Promise<RuntimeResourceLease>; }
 
 export interface ExtensionPatchRegistration { patchId: string; extensionId: string; targetFingerprint: string; artifactDigestSha256: string; before?: readonly string[]; after?: readonly string[]; requestedCapabilities: readonly string[]; }
@@ -52,3 +59,5 @@ export class InMemoryExtensionPatchRegistry implements ExtensionPatchRegistry {
 export const RUNTIME_CORE_NO_ARBITRARY_UPLOAD_EXECUTION = true as const;
 export { GovernedRuntimeExecutor } from './runtime-executor.js';
 export type { RuntimeExecutionClock } from './runtime-executor.js';
+export { assertResourceEnforcementReceipt, deriveResourceLimitsDigest } from './resource-enforcement.js';
+export type { AttestedRuntimeResourceLease } from './resource-enforcement.js';
