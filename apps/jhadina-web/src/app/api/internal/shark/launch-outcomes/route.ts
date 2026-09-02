@@ -56,33 +56,38 @@ async function run(request: NextRequest) {
       : { data: [], error: null }
     if (observationError) return NextResponse.json({ error: 'observation_query_failed' }, { status: 500 })
 
-    const result = evaluateLaunchOutcomeBatch({
-      launches: typedLaunches,
-      observations: (observations ?? []).map(row => ({
-        observationId: row.observation_id,
-        launchId: row.launch_id,
-        observedAt: row.observed_at,
-        priceReturnFromLaunchPct: row.price_return_from_launch_pct ?? undefined,
-        peakReturnPct: row.peak_return_pct ?? undefined,
-        maxDrawdownPct: row.max_drawdown_pct ?? undefined,
-        initialLiquidityUsd: row.initial_liquidity_usd ?? undefined,
-        currentLiquidityUsd: row.current_liquidity_usd ?? undefined,
-        peakLiquidityUsd: row.peak_liquidity_usd ?? undefined,
-        liquidityDrawdownFromPeak: row.liquidity_drawdown_from_peak ?? undefined,
-        liquidityDrainRate: row.liquidity_drain_rate ?? undefined,
-        liquidityDrainAcceleration: row.liquidity_drain_acceleration ?? undefined,
-        liquidityStabilityScore: row.liquidity_stability_score ?? undefined,
-        holderCountChangePct: row.holder_count_change_pct ?? undefined,
-        holderExitPct: row.holder_exit_pct ?? undefined,
-        developerSoldPct: row.developer_sold_pct ?? undefined,
-        liquidityRemoved: row.liquidity_removed ?? undefined,
-        tradingHalted: row.trading_halted ?? undefined,
-        holderBehavior: row.holder_behavior ?? undefined,
-        evidenceIds: row.evidence_ids ?? [],
-        source: row.source,
-      })) as PersistedLaunchOutcomeObservation[],
-      evaluatedAt: new Date().toISOString(),
-    })
+    const typedObservations = (observations ?? []).map(row => ({
+      observationId: row.observation_id,
+      launchId: row.launch_id,
+      observedAt: row.observed_at,
+      priceReturnFromLaunchPct: row.price_return_from_launch_pct ?? undefined,
+      peakReturnPct: row.peak_return_pct ?? undefined,
+      maxDrawdownPct: row.max_drawdown_pct ?? undefined,
+      initialLiquidityUsd: row.initial_liquidity_usd ?? undefined,
+      currentLiquidityUsd: row.current_liquidity_usd ?? undefined,
+      peakLiquidityUsd: row.peak_liquidity_usd ?? undefined,
+      liquidityDrawdownFromPeak: row.liquidity_drawdown_from_peak ?? undefined,
+      liquidityDrainRate: row.liquidity_drain_rate ?? undefined,
+      liquidityDrainAcceleration: row.liquidity_drain_acceleration ?? undefined,
+      liquidityStabilityScore: row.liquidity_stability_score ?? undefined,
+      holderCountChangePct: row.holder_count_change_pct ?? undefined,
+      holderExitPct: row.holder_exit_pct ?? undefined,
+      developerSoldPct: row.developer_sold_pct ?? undefined,
+      liquidityRemoved: row.liquidity_removed ?? undefined,
+      tradingHalted: row.trading_halted ?? undefined,
+      holderBehavior: row.holder_behavior ?? undefined,
+      evidenceIds: row.evidence_ids ?? [],
+      source: row.source,
+    })) as PersistedLaunchOutcomeObservation[]
+
+    const latestObservationByLaunch = new Map<string, PersistedLaunchOutcomeObservation>()
+    for (const observation of typedObservations) {
+      const current = latestObservationByLaunch.get(observation.launchId)
+      if (!current || Date.parse(observation.observedAt) > Date.parse(current.observedAt)) latestObservationByLaunch.set(observation.launchId, observation)
+    }
+
+    const evaluatedAt = new Date().toISOString()
+    const result = evaluateLaunchOutcomeBatch({ launches: typedLaunches, observations: typedObservations, evaluatedAt })
 
     for (const item of result.assessments) {
       const original = typedLaunches.find(launch => launch.launchId === item.launchId)
@@ -96,22 +101,26 @@ async function run(request: NextRequest) {
     }
 
     if (result.assessments.length) {
-      const evaluationRows = result.assessments.map(item => ({
-        evaluation_id: `launch-outcome:${item.launchId}:${item.assessment.version}:${item.assessment.evaluatedAt}`,
-        launch_id: item.launchId,
-        previous_outcome: typedLaunches.find(launch => launch.launchId === item.launchId)?.outcome ?? 'UNKNOWN',
-        evaluated_outcome: item.assessment.outcome,
-        confidence: item.assessment.confidence,
-        evaluated_at: item.assessment.evaluatedAt,
-        evaluator_version: item.assessment.version,
-        evidence_ids: item.assessment.evidenceIds,
-        reasons: item.assessment.reasons,
-      }))
+      const evaluationRows = result.assessments.map(item => {
+        const observation = latestObservationByLaunch.get(item.launchId)
+        return {
+          evaluation_id: `launch-outcome:${item.launchId}:${item.assessment.version}:${observation?.observationId ?? 'none'}`,
+          launch_id: item.launchId,
+          previous_outcome: typedLaunches.find(launch => launch.launchId === item.launchId)?.outcome ?? 'UNKNOWN',
+          evaluated_outcome: item.assessment.outcome,
+          confidence: item.assessment.confidence,
+          evaluated_at: item.assessment.evaluatedAt,
+          evaluator_version: item.assessment.version,
+          evidence_ids: item.assessment.evidenceIds,
+          reasons: item.assessment.reasons,
+        }
+      })
       const { error } = await supabase.from('jhadina_launch_outcome_evaluations').upsert(evaluationRows, { onConflict: 'evaluation_id' })
       if (error) return NextResponse.json({ error: 'evaluation_persist_failed' }, { status: 500 })
     }
 
     if (result.actorHistories.length) {
+      const now = new Date().toISOString()
       const actorRows = result.actorHistories.map(item => ({
         actor_key: item.actorKey,
         actor_id: item.actorId,
@@ -126,9 +135,9 @@ async function run(request: NextRequest) {
         confidence: item.history.confidence,
         association_confidence: 1,
         evidence_ids: item.history.evidenceIds,
-        evaluated_at: new Date().toISOString(),
+        evaluated_at: now,
         evaluator_version: 'launch-outcome-v1',
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       }))
       const { error } = await supabase.from('jhadina_actor_outcome_history').upsert(actorRows, { onConflict: 'actor_key' })
       if (error) return NextResponse.json({ error: 'actor_history_persist_failed' }, { status: 500 })
