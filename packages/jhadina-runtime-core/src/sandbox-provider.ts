@@ -2,24 +2,24 @@ import type { ExecutionRequest, ExecutionResult, RuntimeResourceLease } from './
 
 /** Runtime families informed by the evaluated sandbox references. */
 export type SandboxProviderKind = 'opensandbox' | 'hivebox' | 'native-linux' | 'container' | 'microvm';
+export type SandboxControlState = 'active' | 'degraded' | 'unsupported' | 'disabled';
 
 /**
- * Evidence must describe controls the provider actually enabled. It is not a
- * declaration that a provider could support them.
+ * Evidence reports what the provider actually enabled for this sandbox.
+ * Capability availability is not treated as enforcement evidence.
  */
 export interface SandboxIsolationEvidence {
   provider: SandboxProviderKind;
-  namespaces: boolean;
-  cgroups: boolean;
-  seccomp: boolean;
-  filesystemIsolation: boolean;
-  networkIsolation: boolean;
+  namespaces: SandboxControlState;
+  cgroups: SandboxControlState;
+  seccomp: SandboxControlState;
+  filesystemIsolation: SandboxControlState;
+  networkIsolation: SandboxControlState;
   secureRuntime: 'none' | 'gvisor' | 'kata' | 'firecracker' | 'other';
 }
 
 export interface SandboxLease extends RuntimeResourceLease {
   isolation: SandboxIsolationEvidence;
-  destroy(): Promise<void>;
 }
 
 /**
@@ -34,11 +34,14 @@ export interface SandboxProviderPort {
 
 export function assertSandboxIsolationEvidence(evidence: SandboxIsolationEvidence): void {
   if (!evidence.provider) throw new Error('Sandbox provider identity is required');
-  if (!evidence.namespaces) throw new Error('Sandbox namespaces are not enforced');
-  if (!evidence.cgroups) throw new Error('Sandbox cgroups are not enforced');
-  if (!evidence.seccomp) throw new Error('Sandbox seccomp is not enforced');
-  if (!evidence.filesystemIsolation) throw new Error('Sandbox filesystem isolation is not enforced');
-  if (!evidence.networkIsolation) throw new Error('Sandbox network isolation is not enforced');
+  const required: Array<[keyof SandboxIsolationEvidence, string]> = [
+    ['namespaces', 'namespaces'],
+    ['cgroups', 'cgroups'],
+    ['seccomp', 'seccomp'],
+    ['filesystemIsolation', 'filesystem isolation'],
+    ['networkIsolation', 'network isolation'],
+  ];
+  for (const [key, label] of required) if (evidence[key] !== 'active') throw new Error(`Sandbox ${label} is not actively enforced`);
 }
 
 /**
