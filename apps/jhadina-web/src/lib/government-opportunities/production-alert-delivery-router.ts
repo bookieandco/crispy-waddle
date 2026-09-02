@@ -1,4 +1,4 @@
-import { DeliveryRouter } from '@jhadina/opportunity-core'
+import { InMemoryAlertDeliveryRouter } from './alert-delivery-router'
 import { SupabaseInAppAlertDeliveryProvider } from './in-app-alert-delivery-provider'
 
 /**
@@ -6,7 +6,7 @@ import { SupabaseInAppAlertDeliveryProvider } from './in-app-alert-delivery-prov
  * email/push/webhook cannot silently change the delivery surface.
  */
 export function createProductionAlertDeliveryRouter() {
-  const router = new DeliveryRouter()
+  const router = new InMemoryAlertDeliveryRouter()
   router.register(new SupabaseInAppAlertDeliveryProvider())
   return router
 }
