@@ -28,6 +28,8 @@ export type MigrationAwareClassification = {
   confidence: number
   evidenceIds: string[]
   migrationId?: string
+  withdrawalEventId?: string
+  withdrawalSignature?: string
   reason: string
   hardBlockRug: boolean
 }
@@ -39,12 +41,6 @@ function near(a: string, b: string, windowMs = 10 * 60_000): boolean {
   return Number.isFinite(aa) && Number.isFinite(bb) && Math.abs(aa - bb) <= windowMs
 }
 
-/**
- * Separates an observed liquidity withdrawal from a verified migration.
- * A migration is never treated as a rug merely because the old pool loses
- * liquidity. Migration evidence must identify the destination and preserve
- * its own provenance.
- */
 export function classifyMigrationAwareWithdrawal(input: {
   withdrawal: LPWithdrawalAttribution
   migrations?: TokenMigrationEvidence[]
@@ -70,6 +66,8 @@ export function classifyMigrationAwareWithdrawal(input: {
       confidence: clamp(Math.min(input.withdrawal.confidence, matching.confidence)),
       evidenceIds,
       migrationId: matching.migrationId,
+      withdrawalEventId: input.withdrawal.raydiumWithdrawalEventId,
+      withdrawalSignature: input.withdrawal.signature,
       reason: `${kind.toLowerCase()}:${matching.migrationId}`,
       hardBlockRug: false,
     }
@@ -79,6 +77,8 @@ export function classifyMigrationAwareWithdrawal(input: {
     kind: 'LIQUIDITY_REMOVAL',
     confidence: clamp(input.withdrawal.confidence),
     evidenceIds,
+    withdrawalEventId: input.withdrawal.raydiumWithdrawalEventId,
+    withdrawalSignature: input.withdrawal.signature,
     reason: 'no-verified-migration-evidence',
     hardBlockRug: false,
   }
