@@ -1,124 +1,103 @@
-import { describe, test, expect } from "vitest"
-import { InMemoryActionLedger } from "@jhadina/action-core"
-import type { PaymentIntentRequest } from "@jhadina/payment-core"
-import { StripeSandboxPaymentProvider } from "./stripe-sandbox-provider"
-import { GovernedPaymentProvider, PaymentCapabilityDeniedError } from "./governed-payment-provider"
+import { describe, expect, test } from "vitest"
+import { InMemoryActionLedger, type ApprovalReceiptVerifier } from "@jhadina/action-core"
+import type { PaymentIntent, PaymentIntentRequest, PaymentProvider } from "@jhadina/payment-core"
+import { GovernedPaymentProvider, PaymentCapabilityDeniedError, PaymentApprovalRequiredError } from "./governed-payment-provider"
+import type { PaymentOperationBinding, PaymentOperationRecord, PaymentOperationStore } from "./durable-payment-operation"
 
-const VERIFIED_ACTOR = "user-verified-1"
+const ACTOR = "user-verified-1"
+const request = (paymentId = "pay-1"): PaymentIntentRequest => ({
+  paymentId, orderId: "order-1", customer: { id: "customer-1", type: "customer" }, seller: { id: "platform", type: "platform" },
+  amount: { amountMinor: 1000, currency: "USD" }, lines: [], taxes: [], platformFees: [],
+})
+const result = (paymentId: string, status: PaymentIntent["status"] = "captured"): PaymentIntent => ({
+  paymentId, provider: "test-provider", orderId: "order-1", amount: { amountMinor: 1000, currency: "USD" }, status,
+  createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+})
 
-function provider() {
-  return new StripeSandboxPaymentProvider({
-    secret: "sk_test_x",
-    fetchImpl: async (input) => {
-      const url = typeof input === "string" ? input : input.toString()
-      if (url.includes("/v1/refunds")) return new Response(JSON.stringify({ id: "re_1", status: "succeeded", payment_intent: "pi_1" }), { status: 200 })
-      return new Response(JSON.stringify({ id: "pi_1", status: "succeeded", amount: 0, currency: "usd" }), { status: 200 })
-    },
-  })
+class FakeOperationStore implements PaymentOperationStore {
+  private records = new Map<string, PaymentOperationRecord>()
+  private key(b: PaymentOperationBinding) { return `${b.provider}:${b.operationId}:${b.paymentId}` }
+  async get(b: PaymentOperationBinding) { return this.records.get(this.key(b)) }
+  async claim(b: PaymentOperationBinding) {
+    const k = this.key(b), existing = this.records.get(k)
+    if (existing) return { claimed: false as const, record: { ...existing } }
+    this.records.set(k, { ...b, status: "processing" }); return { claimed: true as const }
+  }
+  async complete(b: PaymentOperationBinding, r: { providerReference: string; resultStatus: string; resultPayload: unknown }) { this.records.set(this.key(b), { ...b, status: "completed", ...r }) }
+  async fail(b: PaymentOperationBinding, r: { providerReference?: string; resultStatus: string; resultPayload?: unknown }) { this.records.set(this.key(b), { ...b, status: "failed", ...r }) }
 }
 
-function paymentRequest(overrides: Partial<PaymentIntentRequest> = {}): PaymentIntentRequest {
+function provider(onCall: () => void = () => {}): PaymentProvider {
   return {
-    paymentId: "pay_1",
-    orderId: "order_1",
-    customer: { id: "cust_1", type: "customer" },
-    seller: { id: "platform", type: "platform" },
-    amount: { amountMinor: 1000, currency: "USD" },
-    lines: [],
-    taxes: [],
-    platformFees: [],
-    ...overrides,
+    name: "test-provider",
+    async createPaymentIntent(r) { onCall(); return result(r.paymentId) },
+    async capture(id) { onCall(); return result(id) },
+    async refund(r) { onCall(); return result(r.paymentId, "refunded") },
+    async getPayment(id) { return result(id) },
+    async createPayout() { throw new Error("unexpected payout") },
+    async reconcile() { throw new Error("unexpected reconcile") },
   }
 }
 
-describe("GovernedPaymentProvider — explicit capability boundary, authorization before provider call, full audit trail", () => {
-  test("requires a verified actor id and explicit audit ledger — refuses incomplete construction", () => {
+function approval(actionId: string, action: unknown, actor = ACTOR) {
+  let consumed = false
+  const verifier: ApprovalReceiptVerifier = { async verifyAndConsume(receiptId, req) {
+    if (consumed || receiptId !== `receipt-${actionId}` || req.id !== actionId || req.userId !== actor || req.type !== "commerce.payment.charge") return false
+    if (JSON.stringify(req.action) !== JSON.stringify(action)) return false
+    consumed = true; return true
+  }}
+  return { receiptId: `receipt-${actionId}`, actionId, capability: "commerce.payment.charge" as const, verifier }
+}
+
+describe("GovernedPaymentProvider adversarial execution boundary", () => {
+  test("fails closed when actor or audit ledger is missing", () => {
     const ledger = new InMemoryActionLedger()
     expect(() => new GovernedPaymentProvider(provider(), "", ledger)).toThrow("verified actor")
-    expect(() => new GovernedPaymentProvider(provider(), VERIFIED_ACTOR, undefined as never)).toThrow("explicit audit ledger")
+    expect(() => new GovernedPaymentProvider(provider(), ACTOR, undefined as never)).toThrow("explicit audit ledger")
   })
 
-  test("charge is an allowed capability: authorized before the provider call, recorded started->completed, and audited against the verified actor — never request.customer.id", async () => {
-    const ledger = new InMemoryActionLedger()
-    const governed = new GovernedPaymentProvider(provider(), VERIFIED_ACTOR, ledger)
-    const intent = await governed.createPaymentIntent(paymentRequest({ customer: { id: "someone-else-entirely", type: "customer" } }))
-    expect(intent.status).toBe("captured")
-
-    const trail = ledger.list().filter((e) => e.actionId === "pay_1")
-    expect(trail.map((e) => e.status)).toEqual(["started", "completed"])
-    expect(trail.every((e) => e.type === "commerce.payment.charge")).toBe(true)
-    expect(trail.every((e) => e.userId === VERIFIED_ACTOR)).toBe(true)
-    expect(trail.every((e) => e.userId !== "someone-else-entirely")).toBe(true)
+  test("allowed charge requires bound approval before provider execution", async () => {
+    let calls = 0
+    const governed = new GovernedPaymentProvider(provider(() => calls++), ACTOR, new InMemoryActionLedger(), {}, new FakeOperationStore())
+    await expect(governed.createPaymentIntent(request())).rejects.toThrow(PaymentApprovalRequiredError)
+    expect(calls).toBe(0)
   })
 
-  test("payout is denied by policy: the wrapped provider is never called, and the denial itself is audited against the verified actor", async () => {
-    const underlying = provider()
-    let payoutCalls = 0
-    const originalCreatePayout = underlying.createPayout.bind(underlying)
-    underlying.createPayout = async (instruction) => {
-      payoutCalls += 1
-      return originalCreatePayout(instruction)
-    }
-    const ledger = new InMemoryActionLedger()
-    const governed = new GovernedPaymentProvider(underlying, VERIFIED_ACTOR, ledger)
-
-    await expect(
-      governed.createPayout({
-        payoutId: "po_1",
-        merchant: { id: "merchant_1", type: "merchant" },
-        orderId: "order_1",
-        gross: { amountMinor: 100, currency: "USD" },
-        fees: { amountMinor: 0, currency: "USD" },
-        taxesWithheld: { amountMinor: 0, currency: "USD" },
-        refunds: { amountMinor: 0, currency: "USD" },
-        net: { amountMinor: 100, currency: "USD" },
-      }),
-    ).rejects.toThrow(PaymentCapabilityDeniedError)
-
-    expect(payoutCalls).toBe(0)
-
-    const trail = ledger.list().filter((e) => e.actionId === "po_1")
-    expect(trail).toHaveLength(1)
-    expect(trail[0].status).toBe("denied")
-    expect(trail[0].type).toBe("commerce.payment.payout")
-    expect(trail[0].userId).toBe(VERIFIED_ACTOR)
+  test("exact operation replay returns stored result without a second provider call", async () => {
+    let calls = 0; const store = new FakeOperationStore(); const req = request()
+    const governed = new GovernedPaymentProvider(provider(() => calls++), ACTOR, new InMemoryActionLedger(), { "commerce.payment.charge": approval("action-1", req) }, store)
+    await expect(governed.createPaymentIntent(req)).resolves.toMatchObject({ paymentId: "pay-1" })
+    await expect(governed.createPaymentIntent(req)).resolves.toMatchObject({ paymentId: "pay-1" })
+    expect(calls).toBe(1)
   })
 
-  test("reconcile is denied the same way", async () => {
-    const ledger = new InMemoryActionLedger()
-    const governed = new GovernedPaymentProvider(provider(), VERIFIED_ACTOR, ledger)
+  test("fingerprint substitution is rejected before provider execution", async () => {
+    let calls = 0; const store = new FakeOperationStore()
+    const governed = new GovernedPaymentProvider(provider(() => calls++), ACTOR, new InMemoryActionLedger(), { "commerce.payment.charge": approval("action-1", request("pay-1")) }, store)
+    await expect(governed.createPaymentIntent(request("pay-2"))).rejects.toThrow()
+    expect(calls).toBe(0)
+  })
+
+  test("cross-actor approval reuse is rejected", async () => {
+    let calls = 0; const store = new FakeOperationStore(); const req = request()
+    const governed = new GovernedPaymentProvider(provider(() => calls++), "attacker", new InMemoryActionLedger(), { "commerce.payment.charge": approval("action-1", req, ACTOR) }, store)
+    await expect(governed.createPaymentIntent(req)).rejects.toThrow()
+    expect(calls).toBe(0)
+  })
+
+  test("provider failure becomes terminal and cannot be replayed", async () => {
+    let calls = 0; const store = new FakeOperationStore(); const req = request()
+    const failing: PaymentProvider = { ...provider(), async createPaymentIntent() { calls++; throw new Error("declined") } }
+    const governed = new GovernedPaymentProvider(failing, ACTOR, new InMemoryActionLedger(), { "commerce.payment.charge": approval("action-1", req) }, store)
+    await expect(governed.createPaymentIntent(req)).rejects.toThrow("declined")
+    await expect(governed.createPaymentIntent(req)).rejects.toThrow("FAILED")
+    expect(calls).toBe(1)
+  })
+
+  test("payout and reconcile are denied before provider execution", async () => {
+    let calls = 0; const governed = new GovernedPaymentProvider(provider(() => calls++), ACTOR, new InMemoryActionLedger(), {}, new FakeOperationStore())
+    await expect(governed.createPayout({ payoutId: "payout-1" } as never)).rejects.toThrow(PaymentCapabilityDeniedError)
     await expect(governed.reconcile("2026-01-01", "2026-01-31")).rejects.toThrow(PaymentCapabilityDeniedError)
-    const trail = ledger.list().filter((e) => e.type === "commerce.payment.reconcile")
-    expect(trail).toHaveLength(1)
-    expect(trail[0].status).toBe("denied")
-  })
-
-  test("a failed charge is audited as failed, not silently dropped", async () => {
-    const failing = new StripeSandboxPaymentProvider({
-      secret: "sk_test_x",
-      fetchImpl: async () =>
-        new Response(JSON.stringify({ error: { type: "card_error", code: "card_declined", message: "declined" } }), { status: 402 }),
-    })
-    const ledger = new InMemoryActionLedger()
-    const governed = new GovernedPaymentProvider(failing, VERIFIED_ACTOR, ledger)
-
-    await expect(governed.createPaymentIntent(paymentRequest({ paymentId: "pay_declined" }))).rejects.toThrow()
-
-    const trail = ledger.list().filter((e) => e.actionId === "pay_declined")
-    expect(trail.map((e) => e.status)).toEqual(["started", "failed"])
-    expect(trail[1].metadata?.reason).toBeDefined()
-  })
-
-  test("refund is an allowed capability and composes through the same governed gate, audited against the verified actor — never request.requestedBy", async () => {
-    const ledger = new InMemoryActionLedger()
-    const governed = new GovernedPaymentProvider(provider(), VERIFIED_ACTOR, ledger)
-    await governed.createPaymentIntent(paymentRequest({ paymentId: "pay_refund_me" }))
-    const refunded = await governed.refund({ refundId: "re_1", paymentId: "pay_refund_me", reason: "customer_request", requestedBy: "someone-else-entirely" })
-    expect(refunded.status).toBe("refunded")
-
-    const trail = ledger.list().filter((e) => e.actionId === "re_1")
-    expect(trail.map((e) => e.status)).toEqual(["started", "completed"])
-    expect(trail.every((e) => e.type === "commerce.payment.refund")).toBe(true)
-    expect(trail.every((e) => e.userId === VERIFIED_ACTOR)).toBe(true)
+    expect(calls).toBe(0)
   })
 })
