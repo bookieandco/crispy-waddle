@@ -63,17 +63,7 @@ export function attachMediaPlaybackSession(nextSession: UnifiedMediaSession, ite
   playbackStore.updatePlayerState(nextSession.getState());
 }
 
-/**
- * Release the current route's subscription without disposing the shared session.
- * The persistent media element and session may continue playing across navigation.
- */
-export function releaseMediaPlaybackSessionSubscription(unsubscribe?: () => void): void {
-  unsubscribe?.();
-}
-
-/**
- * Explicitly stop the shared playback session. Route unmounts should not call this.
- */
+/** Explicitly stop the shared playback session. Route unmounts should not call this. */
 export function detachMediaPlaybackSession(): void {
   unsubscribeSession?.();
   unsubscribeSession = null;
