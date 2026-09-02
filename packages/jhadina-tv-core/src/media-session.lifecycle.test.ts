@@ -38,12 +38,10 @@ const nextPlayback: ResolvedPlaybackSource = {
 function createFixture() {
   let state = { ...targetState };
   let listener: ((next: MediaSessionState) => void) | undefined;
-  let setSource: ((url: string) => void) | undefined;
   const unsubscribe = vi.fn(() => { listener = undefined; });
   const local: LocalPlaybackAdapter = {
     getState: () => state,
     setSource: vi.fn((url) => {
-      setSource = local.setSource;
       state = { ...state, sourceUrl: url, positionSeconds: 0, playing: false };
     }),
     apply: vi.fn(async (command) => {
@@ -60,11 +58,12 @@ function createFixture() {
     discover: vi.fn(async () => []),
     connect: vi.fn(async () => undefined),
     disconnect: vi.fn(async () => undefined),
+    loadPlayback: vi.fn(async () => undefined),
     send: vi.fn(async () => undefined),
     getState: vi.fn(async () => null),
     subscribeState: vi.fn(() => vi.fn()),
   };
-  return { local, casting, getListener: () => listener, getSetSource: () => setSource, unsubscribe };
+  return { local, casting, getListener: () => listener, unsubscribe };
 }
 
 describe('UnifiedMediaSession lifecycle', () => {
@@ -125,14 +124,41 @@ describe('UnifiedMediaSession lifecycle', () => {
     expect(fixture.local.setSource).not.toHaveBeenCalledWith('http://example.com/next.m3u8');
   });
 
-  it('rejects governed source switching while a remote target owns the session', async () => {
+  it('loads governed source switching while a remote target owns the session', async () => {
     const fixture = createFixture();
-    const casting = { ...fixture.casting, connect: vi.fn(async () => undefined), send: vi.fn(async () => undefined), getState: vi.fn(async () => ({ ...targetState, target: { id: 'tv-1', name: 'TV', transport: 'google-cast' as const } })) };
+    const remoteTarget = { id: 'tv-1', name: 'TV', transport: 'google-cast' as const };
+    const casting: CastingManager = {
+      ...fixture.casting,
+      connect: vi.fn(async () => undefined),
+      loadPlayback: vi.fn(async () => undefined),
+      send: vi.fn(async () => undefined),
+      getState: vi.fn(async () => ({ ...targetState, target: remoteTarget })),
+    };
     const session = createUnifiedMediaSession({ titleId: 'title-1', kind: 'movie', playback, local: fixture.local, casting });
-    await session.transfer({ id: 'tv-1', name: 'TV', transport: 'google-cast' });
+    await session.transfer(remoteTarget);
 
-    await expect(session.loadPlayback(nextPlayback)).rejects.toThrow('Remote playback source switching is not yet supported by this casting session.');
+    await session.loadPlayback(nextPlayback);
+
+    expect(casting.loadPlayback).toHaveBeenCalledWith(nextPlayback, 0);
     expect(fixture.local.setSource).not.toHaveBeenCalledWith('https://example.com/next.m3u8');
+    expect(session.getState()).toMatchObject({ sourceUrl: 'https://example.com/next.m3u8', positionSeconds: 0, playing: false, target: remoteTarget });
+  });
+
+  it('fails closed when a remote controller cannot load a new source', async () => {
+    const fixture = createFixture();
+    const remoteTarget = { id: 'tv-1', name: 'TV', transport: 'google-cast' as const };
+    const casting = {
+      ...fixture.casting,
+      connect: vi.fn(async () => undefined),
+      send: vi.fn(async () => undefined),
+      getState: vi.fn(async () => ({ ...targetState, target: remoteTarget })),
+      loadPlayback: vi.fn(async () => { throw new Error('Active remote playback controller cannot load a new source.'); }),
+    } satisfies CastingManager;
+    const session = createUnifiedMediaSession({ titleId: 'title-1', kind: 'movie', playback, local: fixture.local, casting });
+    await session.transfer(remoteTarget);
+
+    await expect(session.loadPlayback(nextPlayback)).rejects.toThrow('Active remote playback controller cannot load a new source.');
+    expect(session.getState().sourceUrl).toBe(playback.source.url);
   });
 
   it('makes loadPlayback fail after disposal', async () => {
