@@ -1,4 +1,8 @@
 import type { EvidenceEnvelope, MarketObservation, SocialObservation, WalletObservation, NetworkHealthObservation } from './contracts'
+import type { LiquidityHistory } from './liquidity-history'
+import type { LPControlRisk } from './lp-control-risk'
+import type { RugProtectionEvidence, RugProtectionResult } from './rug-protection'
+import { evaluateRugProtection } from './rug-protection'
 
 export type TradeStyle = 'new-pair-speculation' | 'narrative' | 'swing-hold' | 'high-conviction' | 'information-edge'
 export type StrategyFit = { score: number; matchedSignals: string[]; conflicts: string[] }
@@ -9,7 +13,7 @@ export type SupplyControlRisk = { score: number; deployerRisk: number; concentra
 export type HolderCohortSignal = { score: number; profitableTrackedWallets: number; accumulatingWallets: number; distributingWallets: number; reasons: string[] }
 export type AttentionQuality = { score: number; crossSourceConfirmation: number; engagementQuality: number; sourceCredibility: number; manipulationPenalty: number; reasons: string[] }
 export type RiskAssessment = { marketIntegrity: number; liquidityRisk: number; supplyControlRisk: number; holderConcentrationRisk: number; walletCohortRisk: number; socialManipulationRisk: number; narrativeFragilityRisk: number; developerRisk: number; contractRisk: number; networkRisk: number; attentionQuality: number; exitLiquidityRisk: number; overallRisk: number; band: 'candidate' | 'watch' | 'high-risk' | 'blocked' }
-export type MemeTradeAssessment = { assessmentId: string; assessedAt: string; token: { chainId: string; tokenAddress: string }; tradeType: TradeStyle; marketActivityQuality: MarketActivityQuality; supplyControl: SupplyControlRisk; holderCohort: HolderCohortSignal; attention: AttentionQuality; strategyFit: StrategyFit; riskAssessment: RiskAssessment; thesis: string; invalidation: ThesisInvalidation; positionPlan: PositionPlan; confidence: number; evidenceIds: string[]; assessmentVersion: string }
+export type MemeTradeAssessment = { assessmentId: string; assessedAt: string; token: { chainId: string; tokenAddress: string }; tradeType: TradeStyle; marketActivityQuality: MarketActivityQuality; supplyControl: SupplyControlRisk; holderCohort: HolderCohortSignal; attention: AttentionQuality; strategyFit: StrategyFit; riskAssessment: RiskAssessment; rugProtection: RugProtectionResult; lpControlRisk?: LPControlRisk; liquidityHistory?: LiquidityHistory; thesis: string; invalidation: ThesisInvalidation; positionPlan: PositionPlan; confidence: number; evidenceIds: string[]; assessmentVersion: string }
 
 const clamp = (n: number) => Math.max(0, Math.min(1, n))
 
@@ -32,7 +36,12 @@ export function assessMarketActivity(market: MarketObservation): MarketActivityQ
 
 export function assessSupplyControl(input: { deployerRisk?: number; concentrationRisk?: number; bundledSupplyRisk?: number; liquidityControlRisk?: number }): SupplyControlRisk {
   const deployerRisk = clamp(input.deployerRisk ?? 0), concentrationRisk = clamp(input.concentrationRisk ?? 0), bundledSupplyRisk = clamp(input.bundledSupplyRisk ?? 0), liquidityControlRisk = clamp(input.liquidityControlRisk ?? 0)
-  return { deployerRisk, concentrationRisk, bundledSupplyRisk, liquidityControlRisk, score: clamp(.3 * deployerRisk + .3 * concentrationRisk + .2 * bundledSupplyRisk + .2 * liquidityControlRisk), reasons: [] }
+  const reasons: string[] = []
+  if (deployerRisk >= .7) reasons.push('historical-deployer-risk-high')
+  if (concentrationRisk >= .7) reasons.push('holder-concentration-high')
+  if (bundledSupplyRisk >= .7) reasons.push('bundled-supply-risk-high')
+  if (liquidityControlRisk >= .7) reasons.push('liquidity-control-risk-high')
+  return { deployerRisk, concentrationRisk, bundledSupplyRisk, liquidityControlRisk, score: clamp(.3 * deployerRisk + .3 * concentrationRisk + .2 * bundledSupplyRisk + .2 * liquidityControlRisk), reasons }
 }
 
 export function assessAttentionQuality(input: { crossSourceConfirmation?: number; engagementQuality?: number; sourceCredibility?: number; manipulationPenalty?: number }): AttentionQuality {
@@ -46,12 +55,96 @@ export function evaluateRisk(input: Omit<RiskAssessment, 'overallRisk' | 'band'>
   return { ...input, overallRisk, band }
 }
 
-export function createMemeTradeAssessment(input: { assessmentId: string; assessedAt: string; market: EvidenceEnvelope<MarketObservation>; social?: EvidenceEnvelope<SocialObservation>[]; wallets?: EvidenceEnvelope<WalletObservation>[]; network?: EvidenceEnvelope<NetworkHealthObservation>; tradeType: TradeStyle; strategyFit: StrategyFit; holderCohort?: HolderCohortSignal; supplyControl?: SupplyControlRisk; attention?: AttentionQuality; thesis: string; invalidation: ThesisInvalidation; positionPlan: PositionPlan; confidence: number }): MemeTradeAssessment {
+export function createMemeTradeAssessment(input: {
+  assessmentId: string
+  assessedAt: string
+  market: EvidenceEnvelope<MarketObservation>
+  social?: EvidenceEnvelope<SocialObservation>[]
+  wallets?: EvidenceEnvelope<WalletObservation>[]
+  network?: EvidenceEnvelope<NetworkHealthObservation>
+  tradeType: TradeStyle
+  strategyFit: StrategyFit
+  holderCohort?: HolderCohortSignal
+  supplyControl?: SupplyControlRisk
+  attention?: AttentionQuality
+  lpControlRisk?: LPControlRisk
+  liquidityHistory?: LiquidityHistory
+  rugProtection?: RugProtectionResult
+  rugProtectionInput?: Omit<Parameters<typeof evaluateRugProtection>[0], 'evidence'> & { evidence?: RugProtectionEvidence[] }
+  thesis: string
+  invalidation: ThesisInvalidation
+  positionPlan: PositionPlan
+  confidence: number
+}): MemeTradeAssessment {
   const marketActivityQuality = assessMarketActivity(input.market.payload)
-  const supplyControl = input.supplyControl ?? assessSupplyControl({})
+  const lpRisk = input.lpControlRisk?.score ?? 0
+  const supplyControl = input.supplyControl ?? assessSupplyControl({ liquidityControlRisk: lpRisk })
   const holderCohort = input.holderCohort ?? { score: .5, profitableTrackedWallets: 0, accumulatingWallets: 0, distributingWallets: 0, reasons: [] }
   const attention = input.attention ?? assessAttentionQuality({})
-  const riskAssessment = evaluateRisk({ marketIntegrity: 1 - (input.market.payload.anomalyScore ?? 0), liquidityRisk: 1 - marketActivityQuality.liquidityScore, supplyControlRisk: supplyControl.score, holderConcentrationRisk: 1 - holderCohort.score, walletCohortRisk: 1 - holderCohort.score, socialManipulationRisk: attention.manipulationPenalty, narrativeFragilityRisk: 1 - attention.score, developerRisk: supplyControl.deployerRisk, contractRisk: 0, networkRisk: input.network ? clamp(input.network.payload.riskScore ?? 0) : .5, attentionQuality: attention.score, exitLiquidityRisk: 1 - marketActivityQuality.liquidityScore })
-  const evidenceIds = [input.market.observationId, ...(input.social ?? []).map(x => x.observationId), ...(input.wallets ?? []).map(x => x.observationId), ...(input.network ? [input.network.observationId] : [])]
-  return { assessmentId: input.assessmentId, assessedAt: input.assessedAt, token: { chainId: input.market.chainId, tokenAddress: input.market.subjectId }, tradeType: input.tradeType, marketActivityQuality, supplyControl, holderCohort, attention, strategyFit: input.strategyFit, riskAssessment, thesis: input.thesis, invalidation: input.invalidation, positionPlan: input.positionPlan, confidence: clamp(input.confidence), evidenceIds, assessmentVersion: 'meme-trader-assessment-v1' }
+
+  const baseEvidence: RugProtectionEvidence[] = input.rugProtectionInput?.evidence ?? [{ source: 'meme-trader', observedAt: input.assessedAt, label: input.market.observationId }]
+  const rugProtection = input.rugProtection ?? evaluateRugProtection({
+    ...input.rugProtectionInput,
+    liquidityHistory: input.liquidityHistory,
+    lpControlRisk: input.lpControlRisk,
+    supplyControlRisk: supplyControl.score,
+    holderConcentrationRisk: 1 - holderCohort.score,
+    marketIntegrityRisk: 1 - clamp(input.market.payload.anomalyScore ?? 0),
+    evidence: baseEvidence,
+  })
+
+  const riskAssessment = evaluateRisk({
+    marketIntegrity: 1 - (input.market.payload.anomalyScore ?? 0),
+    liquidityRisk: Math.max(1 - marketActivityQuality.liquidityScore, lpRisk, input.liquidityHistory?.drainRate ?? 0),
+    supplyControlRisk: supplyControl.score,
+    holderConcentrationRisk: Math.max(1 - holderCohort.score, supplyControl.concentrationRisk),
+    walletCohortRisk: 1 - holderCohort.score,
+    socialManipulationRisk: attention.manipulationPenalty,
+    narrativeFragilityRisk: 1 - attention.score,
+    developerRisk: supplyControl.deployerRisk,
+    contractRisk: rugProtection.disposition === 'BLOCK' ? 1 : 0,
+    networkRisk: input.network ? clamp(input.network.payload.riskScore ?? 0) : .5,
+    attentionQuality: attention.score,
+    exitLiquidityRisk: Math.max(1 - marketActivityQuality.liquidityScore, lpRisk, input.liquidityHistory?.drawdownFromPeak ?? 0),
+  })
+
+  if (rugProtection.disposition === 'BLOCK') {
+    riskAssessment.overallRisk = 1
+    riskAssessment.band = 'blocked'
+  } else if (rugProtection.disposition === 'REVIEW' && riskAssessment.band === 'candidate') {
+    riskAssessment.overallRisk = Math.max(riskAssessment.overallRisk, .4)
+    riskAssessment.band = 'watch'
+  }
+
+  const evidenceIds = [...new Set([
+    input.market.observationId,
+    ...(input.social ?? []).map(x => x.observationId),
+    ...(input.wallets ?? []).map(x => x.observationId),
+    ...(input.network ? [input.network.observationId] : []),
+    ...(input.liquidityHistory?.evidenceIds ?? []),
+    ...(input.lpControlRisk?.evidenceIds ?? []),
+    ...rugProtection.evidenceIds,
+  ])]
+
+  return {
+    assessmentId: input.assessmentId,
+    assessedAt: input.assessedAt,
+    token: { chainId: input.market.chainId, tokenAddress: input.market.subjectId },
+    tradeType: input.tradeType,
+    marketActivityQuality,
+    supplyControl,
+    holderCohort,
+    attention,
+    strategyFit: input.strategyFit,
+    riskAssessment,
+    rugProtection,
+    lpControlRisk: input.lpControlRisk,
+    liquidityHistory: input.liquidityHistory,
+    thesis: input.thesis,
+    invalidation: input.invalidation,
+    positionPlan: input.positionPlan,
+    confidence: clamp(input.confidence),
+    evidenceIds,
+    assessmentVersion: 'meme-trader-assessment-v3-rug-gated',
+  }
 }
