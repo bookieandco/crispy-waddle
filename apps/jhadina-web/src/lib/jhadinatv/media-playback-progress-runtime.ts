@@ -8,13 +8,21 @@ type Pending = { item: MediaQueueItem; state: MediaSessionState; completed: bool
 function isSnapshotOwnedByItem(item: MediaQueueItem, state: MediaSessionState): boolean { return state.titleId === item.titleId && state.sourceUrl === item.playback.source.url; }
 export function attachRuntimeProgressPersistence({ session, getCurrentItem, userId, client, throttleMs = 5000, onError }: RuntimeProgressPersistenceDeps): RuntimeProgressPersistence {
   let timer: ReturnType<typeof setTimeout> | null = null; let disposed = false; let inFlight: Promise<void> | null = null; let pending: Pending | null = null; let lastPlaying = session.getState().playing;
-  const drain = async (): Promise<void> => { if (disposed || inFlight || !pending) return; const next = pending; pending = null; if (next.authorityGeneration !== session.getAuthorityGeneration()) return; inFlight = client.upsert(buildProgress(userId, next.item, next.state, next.completed)).then(() => undefined).catch((error) => { onError?.(error); }).finally(() => { inFlight = null; if (!disposed && pending) void drain(); }); await inFlight; };
-  const requestWrite = (completed = false): Promise<void> => { if (disposed) return Promise.resolve(); const item = getCurrentItem(); if (!item) return Promise.resolve(); const state = { ...session.getState() }; if (!isSnapshotOwnedByItem(item, state)) return Promise.resolve(); pending = { item, state, completed: completed || pending?.completed === true, authorityGeneration: session.getAuthorityGeneration() }; if (inFlight) return inFlight; return drain(); };
+  const drain = async (): Promise<void> => { if (disposed || inFlight || !pending) return; const next = pending; pending = null; if (next.authorityGeneration !== session.getAuthorityGeneration() && !next.completed) return; inFlight = client.upsert(buildProgress(userId, next.item, next.state, next.completed)).then(() => undefined).catch((error) => { onError?.(error); }).finally(() => { inFlight = null; if (!disposed && pending) void drain(); }); await inFlight; };
+  const capture = (completed = false): Pending | null => { const item = getCurrentItem(); if (!item) return null; const state = { ...session.getState() }; if (!isSnapshotOwnedByItem(item, state)) return null; return { item, state, completed, authorityGeneration: session.getAuthorityGeneration() }; };
+  const requestWrite = (completed = false): Promise<void> => { if (disposed) return Promise.resolve(); const next = capture(completed); if (!next) return Promise.resolve(); pending = pending && pending.item.id === next.item.id ? { ...next, completed: next.completed || pending.completed } : next; if (inFlight) return inFlight; return drain(); };
   const schedule = () => { if (disposed || timer) return; timer = setTimeout(() => { timer = null; void requestWrite(false); }, throttleMs); };
   const unsubscribe = session.subscribe((state) => { if (disposed) return; const becamePaused = lastPlaying && !state.playing; lastPlaying = state.playing; if (becamePaused) void requestWrite(false); else if (state.playing) schedule(); });
   const handleVisibility = () => { if (document.visibilityState === 'hidden') void requestWrite(false); }; const handlePageHide = () => { void requestWrite(false); };
   window.addEventListener('pagehide', handlePageHide); document.addEventListener('visibilitychange', handleVisibility);
-  const flush = async (completed = false): Promise<void> => { if (timer) clearTimeout(timer); timer = null; await requestWrite(completed); while (!disposed && (inFlight || pending)) { if (inFlight) await inFlight; else await drain(); } };
+  const flush = async (completed = false): Promise<void> => {
+    if (timer) clearTimeout(timer); timer = null;
+    if (!completed) { await requestWrite(false); while (!disposed && (inFlight || pending)) { if (inFlight) await inFlight; else await drain(); } return; }
+    const completion = capture(true); if (!completion) return;
+    if (inFlight) await inFlight;
+    if (disposed) { try { await client.upsert(buildProgress(userId, completion.item, completion.state, true)); } catch (error) { onError?.(error); } return; }
+    await client.upsert(buildProgress(userId, completion.item, completion.state, true)).catch((error) => { onError?.(error); });
+  };
   const dispose = () => { if (disposed) return; disposed = true; if (timer) clearTimeout(timer); timer = null; pending = null; unsubscribe(); window.removeEventListener('pagehide', handlePageHide); document.removeEventListener('visibilitychange', handleVisibility); };
   return { flush, dispose };
 }
