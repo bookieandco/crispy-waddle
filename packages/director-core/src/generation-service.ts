@@ -96,6 +96,29 @@ export class GenerationService {
     return Date.parse(durable.leaseExpiresAt) > Date.now();
   }
 
+  /** Keep a leased execution alive while an external provider call is in flight. */
+  private startLeaseHeartbeat(execution: GenerationExecution): { stop: () => void; lost: () => boolean } {
+    if (!this.generationRepository || !execution.leaseToken || !execution.leaseExpiresAt) {
+      return { stop: () => undefined, lost: () => false };
+    }
+    let lostLease = false;
+    const intervalMs = Math.max(10, Math.floor(this.executionLeaseMs / 3));
+    const timer = setInterval(() => {
+      void this.generationRepository!
+        .renewExecutionLease(execution.id, this.workerId, execution.leaseToken!, this.executionLeaseMs)
+        .then((renewed) => {
+          if (!renewed) lostLease = true;
+        })
+        .catch(() => {
+          lostLease = true;
+        });
+    }, intervalMs);
+    return {
+      stop: () => clearInterval(timer),
+      lost: () => lostLease,
+    };
+  }
+
   async submit(request: GenerationRequest): Promise<GenerationJob> {
     assertRequestCompatibility(this.registry, request);
     const registeredModel = this.registry.getModel(request.model.id)!;
@@ -136,6 +159,7 @@ export class GenerationService {
     const runningTask: GenerationTask = { ...task, status: 'running', updatedAt: runningExecution.updatedAt };
     const initial = jobFromTask(runningTask, runningExecution);
     this.jobs.set(initial.id, initial);
+    let heartbeat: { stop: () => void; lost: () => boolean } | undefined;
     try {
       if (!await this.hasCurrentSubmissionLease(initialExecution)) {
         const reconciled = await this.waitForExecutionResolution(task);
@@ -162,7 +186,24 @@ export class GenerationService {
           return recoveredJob;
         }
       }
+      heartbeat = this.startLeaseHeartbeat(initialExecution);
       const result = await provider.submit(initial.request, { idempotencyKey: task.idempotencyKey });
+      if (heartbeat.lost() && !await this.hasCurrentSubmissionLease(initialExecution)) {
+        const recovered = provider.findByIdempotencyKey ? await provider.findByIdempotencyKey(task.idempotencyKey) : undefined;
+        if (recovered) {
+          const recoveredAt = new Date().toISOString();
+          const recoveredExecution = generationExecutionFromResult(task.id, registeredModel.providerId, recovered, { id: initialExecution.id, attempt: initialExecution.attempt, now: recoveredAt, leaseOwner: this.workerId, leaseToken: initialExecution.leaseToken });
+          const recoveredTask: GenerationTask = { ...runningTask, status: recovered.status, error: recovered.error, updatedAt: recoveredAt };
+          const recoveredJob = jobFromTask(recoveredTask, recoveredExecution);
+          if (await this.persistState(recoveredTask, recoveredExecution)) {
+            this.jobs.set(recoveredJob.id, recoveredJob);
+            await this.persistOutputs(recoveredJob, recovered);
+            return recoveredJob;
+          }
+        }
+        const reconciled = await this.waitForExecutionResolution(task);
+        return jobFromTask(task, reconciled);
+      }
       const completedAt = new Date().toISOString();
       const execution = generationExecutionFromResult(task.id, registeredModel.providerId, result, { id: initialExecution.id, attempt: initialExecution.attempt, now: completedAt, leaseOwner: this.workerId, leaseToken: initialExecution.leaseToken });
       const updatedTask: GenerationTask = { ...runningTask, status: result.status, error: result.error, updatedAt: completedAt };
@@ -184,6 +225,8 @@ export class GenerationService {
       const reconciled = await this.waitForExecutionResolution(task);
       if (reconciled) return jobFromTask(task, reconciled);
       throw error;
+    } finally {
+      heartbeat?.stop();
     }
   }
 
