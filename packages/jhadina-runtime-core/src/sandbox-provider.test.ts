@@ -4,11 +4,11 @@ import { assertSandboxIsolationEvidence, SANDBOX_PROVIDER_GUIDANCE, type Sandbox
 
 const evidence: SandboxIsolationEvidence = {
   provider: 'opensandbox',
-  namespaces: true,
-  cgroups: true,
-  seccomp: true,
-  filesystemIsolation: true,
-  networkIsolation: true,
+  namespaces: 'active',
+  cgroups: 'active',
+  seccomp: 'active',
+  filesystemIsolation: 'active',
+  networkIsolation: 'active',
   secureRuntime: 'kata',
 };
 
@@ -17,8 +17,11 @@ test('accepts complete sandbox isolation evidence', () => {
 });
 
 for (const field of ['namespaces', 'cgroups', 'seccomp', 'filesystemIsolation', 'networkIsolation'] as const) {
-  test(`rejects sandbox evidence when ${field} is not enforced`, () => {
-    assert.throws(() => assertSandboxIsolationEvidence({ ...evidence, [field]: false }), new RegExp(`${field === 'filesystemIsolation' ? 'filesystem isolation' : field === 'networkIsolation' ? 'network isolation' : field}`));
+  test(`rejects sandbox evidence when ${field} is degraded`, () => {
+    assert.throws(() => assertSandboxIsolationEvidence({ ...evidence, [field]: 'degraded' }));
+  });
+  test(`rejects sandbox evidence when ${field} is disabled`, () => {
+    assert.throws(() => assertSandboxIsolationEvidence({ ...evidence, [field]: 'disabled' }));
   });
 }
 
