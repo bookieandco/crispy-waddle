@@ -68,6 +68,28 @@ function sessionFixture(remote = false): UnifiedMediaSession {
 }
 
 describe('media playback automatic queue advancement', () => {
+  it('flushes the completed current item before mutating the queue', async () => {
+    const video = new FakeVideo() as unknown as HTMLVideoElement;
+    const next = item('next');
+    const store = storeFixture(next);
+    const session = sessionFixture();
+    let releaseFlush: (() => void) | undefined;
+    const beforeAdvance = vi.fn(() => new Promise<void>((resolve) => { releaseFlush = resolve; }));
+    const detach = attachMediaPlaybackAutoAdvance({ video, store, session, beforeAdvance });
+
+    video.dispatchEvent(new Event('ended'));
+    expect(beforeAdvance).toHaveBeenCalledWith(store.getState().current);
+    expect(store.next).not.toHaveBeenCalled();
+    expect(store.getState().current?.id).toBe('current');
+
+    releaseFlush?.();
+    await Promise.resolve();
+
+    expect(store.next).toHaveBeenCalledTimes(1);
+    expect(store.getState().current?.id).toBe('next');
+    detach();
+  });
+
   it('loads and starts the next governed queue item when local playback ends', async () => {
     const video = new FakeVideo() as unknown as HTMLVideoElement;
     const next = item('next');
@@ -80,7 +102,7 @@ describe('media playback automatic queue advancement', () => {
     await Promise.resolve();
 
     expect(store.next).toHaveBeenCalledTimes(1);
-    expect(session.loadPlayback).toHaveBeenCalledWith(next.playback);
+    expect(session.loadPlayback).toHaveBeenCalledWith(next.playback, 0);
     expect(session.play).toHaveBeenCalledTimes(1);
     expect(store.getState().current?.id).toBe('next');
     expect(onError).not.toHaveBeenCalled();
@@ -127,6 +149,7 @@ describe('media playback automatic queue advancement', () => {
     attachMediaPlaybackAutoAdvance({ video, store, session });
 
     video.dispatchEvent(new Event('ended'));
+    await Promise.resolve();
     video.dispatchEvent(new Event('ended'));
     expect(store.next).toHaveBeenCalledTimes(1);
 
