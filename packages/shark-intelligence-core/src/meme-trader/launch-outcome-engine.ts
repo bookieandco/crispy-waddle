@@ -15,7 +15,7 @@ export type LaunchOutcomeInput = {
   priceReturnFromLaunchPct?: number
   peakReturnPct?: number
   maxDrawdownPct?: number
-  liquidityHistory?: Pick<LiquidityHistory, 'initialLiquidityUsd' | 'currentLiquidityUsd' | 'peakLiquidityUsd' | 'drawdownFromPeak' | 'drainRate' | 'drainAcceleration' | 'evidenceIds'>
+  liquidityHistory?: Pick<LiquidityHistory, 'initialLiquidityUsd' | 'currentLiquidityUsd' | 'peakLiquidityUsd' | 'drawdownFromPeak' | 'drainRate' | 'drainAcceleration' | 'stabilityScore' | 'evidenceIds'>
   holderCountChangePct?: number
   holderExitPct?: number
   developerSoldPct?: number
@@ -81,12 +81,7 @@ export function applyLaunchOutcome(launch: TokenLaunch, assessment: LaunchOutcom
   if (launch.outcome !== 'UNKNOWN' && launch.outcome !== assessment.outcome) {
     throw new Error(`Conflicting launch outcome labels for ${launch.launchId}: ${launch.outcome} vs ${assessment.outcome}.`)
   }
-  return {
-    ...launch,
-    outcome: assessment.outcome,
-    outcomeObservedAt: assessment.evaluatedAt,
-    evidenceIds: [...new Set([...launch.evidenceIds, ...assessment.evidenceIds])],
-  }
+  return { ...launch, outcome: assessment.outcome, outcomeObservedAt: assessment.evaluatedAt, evidenceIds: [...new Set([...launch.evidenceIds, ...assessment.evidenceIds])] }
 }
 
 export type ActorOutcomeHistory = {
@@ -109,16 +104,5 @@ export function deriveActorOutcomeHistory(actorId: string, launches: TokenLaunch
   const badLaunches = launches.filter(x => x.outcome === 'RUG' || x.outcome === 'PUMP_AND_DUMP').length
   const failedLaunches = launches.filter(x => x.outcome === 'FAILED').length
   const evidenceIds = [...new Set(launches.flatMap(x => x.evidenceIds))]
-  return {
-    actorId,
-    launches: launches.length,
-    healthyLaunches,
-    badLaunches,
-    failedLaunches,
-    rugRate: launches.length ? launches.filter(x => x.outcome === 'RUG').length / launches.length : 0,
-    pumpAndDumpRate: launches.length ? launches.filter(x => x.outcome === 'PUMP_AND_DUMP').length / launches.length : 0,
-    outcomeCoverage: launches.length ? labeled.length / launches.length : 0,
-    confidence: clamp(labeled.length / 10),
-    evidenceIds,
-  }
+  return { actorId, launches: launches.length, healthyLaunches, badLaunches, failedLaunches, rugRate: launches.length ? launches.filter(x => x.outcome === 'RUG').length / launches.length : 0, pumpAndDumpRate: launches.length ? launches.filter(x => x.outcome === 'PUMP_AND_DUMP').length / launches.length : 0, outcomeCoverage: launches.length ? labeled.length / launches.length : 0, confidence: clamp(labeled.length / 10), evidenceIds }
 }
