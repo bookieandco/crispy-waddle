@@ -58,7 +58,9 @@ export async function ensureMediaPlaybackSession(config: UnifiedMediaSessionConf
   });
 }
 
-export function releaseMediaPlaybackView(): void { unsubscribeSession?.(); unsubscribeSession = null; publishSnapshot(); }
+// A route owns only its view subscription. The playback observer is global so MiniPlayer,
+// queue advancement, and progress persistence continue receiving session state after navigation.
+export function releaseMediaPlaybackView(): void { publishSnapshot(); }
 export function disposeMediaPlaybackSession(): void { sessionCommandGeneration += 1; sessionGeneration += 1; unsubscribeSession?.(); unsubscribeSession = null; progressPersistence?.dispose(); progressPersistence = null; progressPersistenceConfig = null; const currentSession = session; session = null; currentSession?.dispose(); publishSnapshot(); }
 /** @deprecated Use releaseMediaPlaybackView() or disposeMediaPlaybackSession(). */
 export function detachMediaPlaybackSession(): void { releaseMediaPlaybackView(); }
