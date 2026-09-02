@@ -224,4 +224,62 @@ describe('GenerationService end-to-end', () => {
     expect(submitCalls).toBe(1);
     expect(receivedKey).toBe(request.requestId);
   });
+
+  it('does not let a stale refresh overwrite a replacement worker execution', async () => {
+    const registry = createRegistry();
+    const request = createRequest(registry, 'refresh-fence-1');
+    const repository = new InMemoryGenerationRepository();
+    const task = generationTaskFromRequest(request, { idempotencyKey: request.requestId });
+    await repository.claimTask(task);
+    const stale = await repository.claimExecution(task.id, 'comfy-local', 'worker-a', 1);
+    expect(stale?.leaseToken).toBeDefined();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const replacement = await repository.claimExecution(task.id, 'comfy-local', 'worker-b', 30_000);
+    expect(replacement?.leaseToken).not.toBe(stale?.leaseToken);
+    await repository.saveExecution({ ...replacement!, providerJobId: 'provider-current-1', status: 'running' });
+
+    const provider: GenerationProvider = {
+      descriptor: registry.getProvider('comfy-local')!,
+      async submit(): Promise<GenerationResult> { throw new Error('submit should not run'); },
+      async status(): Promise<GenerationResult> {
+        return { ...createQueuedResult(request, 'provider-current-1'), status: 'completed' };
+      },
+      async cancel(): Promise<void> {},
+    };
+
+    const service = new GenerationService(registry, new Map([['comfy-local', provider]]), undefined, repository, 'worker-a');
+    const refreshed = await service.refresh(task.id);
+
+    expect(refreshed.providerJobId).toBe('provider-current-1');
+    expect(refreshed.status).toBe('running');
+    await expect(repository.getExecution(task.id + ':attempt:1')).resolves.toMatchObject({ leaseOwner: 'worker-b', status: 'running', providerJobId: 'provider-current-1' });
+  });
+
+  it('does not let a stale cancel overwrite a replacement worker execution', async () => {
+    const registry = createRegistry();
+    const request = createRequest(registry, 'cancel-fence-1');
+    const repository = new InMemoryGenerationRepository();
+    const task = generationTaskFromRequest(request, { idempotencyKey: request.requestId });
+    await repository.claimTask(task);
+    const first = await repository.claimExecution(task.id, 'comfy-local', 'worker-a', 1);
+    await repository.saveExecution({ ...first!, providerJobId: 'provider-current-2', status: 'running' });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const replacement = await repository.claimExecution(task.id, 'comfy-local', 'worker-b', 30_000);
+    await repository.saveExecution({ ...replacement!, providerJobId: 'provider-current-2', status: 'running' });
+
+    let cancelCalls = 0;
+    const provider: GenerationProvider = {
+      descriptor: registry.getProvider('comfy-local')!,
+      async submit(): Promise<GenerationResult> { throw new Error('submit should not run'); },
+      async status(providerJobId: string): Promise<GenerationResult> { return createQueuedResult(request, providerJobId); },
+      async cancel(): Promise<void> { cancelCalls += 1; },
+    };
+
+    const service = new GenerationService(registry, new Map([['comfy-local', provider]]), undefined, repository, 'worker-a');
+    const cancelled = await service.cancel(task.id);
+
+    expect(cancelCalls).toBe(1);
+    expect(cancelled.status).toBe('running');
+    await expect(repository.getExecution(task.id + ':attempt:1')).resolves.toMatchObject({ leaseOwner: 'worker-b', status: 'running', providerJobId: 'provider-current-2' });
+  });
 });
