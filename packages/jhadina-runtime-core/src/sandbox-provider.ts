@@ -1,4 +1,4 @@
-import type { ExecutionRequest, ExecutionResult, RuntimeResourceLease } from './index.js';
+import type { ExecutionRequest, ExecutionResult, ResourceEnforcerPort, RuntimeAdapterPort, RuntimeResourceLease } from './index.js';
 
 /** Runtime families informed by the evaluated sandbox references. */
 export type SandboxProviderKind = 'opensandbox' | 'hivebox' | 'native-linux' | 'container' | 'microvm';
@@ -42,6 +42,36 @@ export function assertSandboxIsolationEvidence(evidence: SandboxIsolationEvidenc
     ['networkIsolation', 'network isolation'],
   ];
   for (const [key, label] of required) if (evidence[key] !== 'active') throw new Error(`Sandbox ${label} is not actively enforced`);
+}
+
+function asSandboxLease(lease: RuntimeResourceLease): SandboxLease {
+  if (!('isolation' in lease)) throw new Error('Runtime lease lacks sandbox isolation evidence');
+  const sandbox = lease as SandboxLease;
+  assertSandboxIsolationEvidence(sandbox.isolation);
+  return sandbox;
+}
+
+/** Adapts a physical sandbox provider to the runtime resource boundary. */
+export class SandboxProviderResourceEnforcer implements ResourceEnforcerPort {
+  constructor(private readonly provider: SandboxProviderPort) {}
+  async acquire(request: ExecutionRequest): Promise<SandboxLease> {
+    const lease = await this.provider.provision(request);
+    try {
+      assertSandboxIsolationEvidence(lease.isolation);
+      return lease;
+    } catch (error) {
+      try { await lease.release(); } catch { /* original validation failure wins */ }
+      throw error;
+    }
+  }
+}
+
+/** Adapts the same physical sandbox to the runtime execution boundary. */
+export class SandboxProviderRuntimeAdapter implements RuntimeAdapterPort {
+  constructor(private readonly provider: SandboxProviderPort) {}
+  async execute(request: ExecutionRequest, lease: RuntimeResourceLease): Promise<ExecutionResult> {
+    return this.provider.execute(request, asSandboxLease(lease));
+  }
 }
 
 /**
