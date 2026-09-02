@@ -50,15 +50,8 @@ export class GenerationSubmissionCoordinator {
       const result = await provider.submit(task.request, { idempotencyKey: task.idempotencyKey });
       if (heartbeat.lost()) {
         const recovered = provider.findByIdempotencyKey ? await provider.findByIdempotencyKey(task.idempotencyKey) : undefined;
-        if (!recovered) {
-          await this.repository.markSubmissionRecoveryRequired(submission.id, this.workerId, submission.leaseToken!, 'Submission lease was lost during provider execution; provider result could not be recovered');
-          return { submission: (await this.repository.getSubmissionByIdempotencyKey(provider.descriptor.id, task.idempotencyKey)) ?? submission };
-        }
-        const providerJobId = recovered.providerJobId ?? result.providerJobId;
-        if (!providerJobId) {
-          await this.repository.markSubmissionRecoveryRequired(submission.id, this.workerId, submission.leaseToken!, 'Provider recovered a result without a durable provider job ID');
-          return { submission: (await this.repository.getSubmissionByIdempotencyKey(provider.descriptor.id, task.idempotencyKey)) ?? submission };
-        }
+        if (recovered) return { result: recovered, submission };
+        return { result, submission };
       }
 
       if (!result.providerJobId) {
@@ -74,7 +67,9 @@ export class GenerationSubmissionCoordinator {
       return { result, submission: acknowledged };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await this.repository.markSubmissionRecoveryRequired(submission.id, this.workerId, submission.leaseToken!, message).catch(() => undefined);
+      if (!heartbeat?.lost()) {
+        await this.repository.markSubmissionRecoveryRequired(submission.id, this.workerId, submission.leaseToken!, message).catch(() => undefined);
+      }
       throw error;
     } finally {
       heartbeat?.stop();
