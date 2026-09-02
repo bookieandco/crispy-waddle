@@ -6,8 +6,10 @@ export type LPPositionEventKind = 'MINT' | 'TRANSFER' | 'BURN' | 'UNKNOWN'
 export type LPPositionEvent = {
   eventId: string
   observedAt: string
+  signature: string
   poolAddress: string
   lpMint: string
+  tokenAccount?: string
   kind: LPPositionEventKind
   from?: string
   to?: string
@@ -20,6 +22,7 @@ export type LPPositionEvent = {
 export type LPPositionState = {
   lpMint: string
   owner?: string
+  tokenAccount?: string
   balanceRaw: bigint
   observedAt: string
   evidenceIds: string[]
