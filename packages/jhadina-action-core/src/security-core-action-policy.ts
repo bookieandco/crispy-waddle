@@ -22,7 +22,7 @@ export class SecurityCoreActionPolicy<TAction = unknown> implements ActionPolicy
       nonce: request.nonce ?? request.id,
     });
 
-    return this.security.authorize(securityRequest);
+    return this.security.evaluateAuthorization(securityRequest);
   }
 }
 
