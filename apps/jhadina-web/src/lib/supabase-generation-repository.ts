@@ -16,93 +16,21 @@ function toSubmission(row: SubmissionRow): GenerationSubmissionOutbox { return {
 
 export function createSupabaseGenerationRepository(client: SupabaseClient): GenerationRepository & GenerationSubmissionRepository {
   return {
-    async claimTask(task) {
-      const { data, error } = await client.rpc('claim_director_generation_task', { p_id: task.id, p_project_id: task.projectId, p_edit_plan_id: task.editPlanId ?? null, p_operation_id: task.operationId ?? null, p_idempotency_key: task.idempotencyKey, p_request: task.request, p_now: task.createdAt });
-      if (error) throw error;
-      if (!data) throw new Error(`Failed to claim generation task: ${task.idempotencyKey}`);
-      return toTask(data as TaskRow);
-    },
-    async claimExecution(taskId, providerId, workerId, leaseMs) {
-      const { data, error } = await client.rpc('claim_director_generation_execution', { p_task_id: taskId, p_provider_id: providerId, p_worker_id: workerId, p_lease_ms: leaseMs });
-      if (error) throw error;
-      if (!data) return undefined;
-      return toExecution(data as ExecutionRow);
-    },
-    async renewExecutionLease(executionId, workerId, leaseToken, leaseMs) {
-      const { data, error } = await client.rpc('renew_director_generation_execution_lease', { p_execution_id: executionId, p_worker_id: workerId, p_lease_token: leaseToken, p_lease_ms: leaseMs });
-      if (error) throw error;
-      return data ? toExecution(data as ExecutionRow) : undefined;
-    },
-    async saveTask(task) {
-      const { error } = await client.from('director_generation_tasks').upsert({ id: task.id, project_id: task.projectId, edit_plan_id: task.editPlanId ?? null, operation_id: task.operationId ?? null, idempotency_key: task.idempotencyKey, request: task.request, status: task.status, error: task.error ?? null, created_at: task.createdAt, updated_at: task.updatedAt }, { onConflict: 'id' });
-      if (error) throw error;
-    },
+    async claimTask(task) { const { data, error } = await client.rpc('claim_director_generation_task', { p_id: task.id, p_project_id: task.projectId, p_edit_plan_id: task.editPlanId ?? null, p_operation_id: task.operationId ?? null, p_idempotency_key: task.idempotencyKey, p_request: task.request, p_now: task.createdAt }); if (error) throw error; if (!data) throw new Error(`Failed to claim generation task: ${task.idempotencyKey}`); return toTask(data as TaskRow); },
+    async claimExecution(taskId, providerId, workerId, leaseMs) { const { data, error } = await client.rpc('claim_director_generation_execution', { p_task_id: taskId, p_provider_id: providerId, p_worker_id: workerId, p_lease_ms: leaseMs }); if (error) throw error; return data ? toExecution(data as ExecutionRow) : undefined; },
+    async renewExecutionLease(executionId, workerId, leaseToken, leaseMs) { const { data, error } = await client.rpc('renew_director_generation_execution_lease', { p_execution_id: executionId, p_worker_id: workerId, p_lease_token: leaseToken, p_lease_ms: leaseMs }); if (error) throw error; return data ? toExecution(data as ExecutionRow) : undefined; },
+    async saveTask(task) { const { error } = await client.from('director_generation_tasks').upsert({ id: task.id, project_id: task.projectId, edit_plan_id: task.editPlanId ?? null, operation_id: task.operationId ?? null, idempotency_key: task.idempotencyKey, request: task.request, status: task.status, error: task.error ?? null, created_at: task.createdAt, updated_at: task.updatedAt }, { onConflict: 'id' }); if (error) throw error; },
     async getTask(id) { const { data, error } = await client.from('director_generation_tasks').select('*').eq('id', id).maybeSingle(); if (error) throw error; return data ? toTask(data as TaskRow) : undefined; },
     async getTaskByIdempotencyKey(idempotencyKey) { const { data, error } = await client.from('director_generation_tasks').select('*').eq('idempotency_key', idempotencyKey).maybeSingle(); if (error) throw error; return data ? toTask(data as TaskRow) : undefined; },
     async saveExecution(execution) { const { error } = await client.from('director_generation_executions').upsert({ id: execution.id, task_id: execution.taskId, provider_id: execution.providerId, provider_job_id: execution.providerJobId ?? null, attempt: execution.attempt, status: execution.status, error: execution.error ?? null, lease_owner: execution.leaseOwner ?? null, lease_token: execution.leaseToken ?? null, lease_expires_at: execution.leaseExpiresAt ?? null, created_at: execution.createdAt, updated_at: execution.updatedAt }, { onConflict: 'id' }); if (error) throw error; return true; },
-    async saveState(task, execution) {
-      const { data, error } = await client.rpc('save_director_generation_state', { p_task_id: task.id, p_project_id: task.projectId, p_edit_plan_id: task.editPlanId ?? null, p_operation_id: task.operationId ?? null, p_idempotency_key: task.idempotencyKey, p_request: task.request, p_task_status: task.status, p_task_error: task.error ?? null, p_task_updated_at: task.updatedAt, p_execution_id: execution.id, p_execution_task_id: execution.taskId, p_provider_id: execution.providerId, p_provider_job_id: execution.providerJobId ?? null, p_attempt: execution.attempt, p_execution_status: execution.status, p_execution_error: execution.error ?? null, p_lease_owner: execution.leaseOwner ?? null, p_lease_token: execution.leaseToken ?? null, p_lease_expires_at: execution.leaseExpiresAt ?? null, p_execution_created_at: execution.createdAt, p_execution_updated_at: execution.updatedAt });
-      if (error) throw error;
-      const result = data as AtomicStateResult | null;
-      if (!result) return false;
-      return result.saved === true;
-    },
-    async reserveSubmission(task, execution, providerId, idempotencyKey) {
-      const { data, error } = await client.rpc('reserve_director_generation_submission', { p_task_id: task.id, p_execution_id: execution.id, p_provider_id: providerId, p_idempotency_key: idempotencyKey, p_request_payload: task.request, p_lease_owner: execution.leaseOwner ?? null, p_lease_token: execution.leaseToken ?? null });
-      if (error) throw error;
-      return data ? toSubmission(data as SubmissionRow) : undefined;
-    },
-    async claimSubmission(submissionId, workerId, leaseMs) {
-      const { data, error } = await client.rpc('claim_director_generation_submission', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_ms: leaseMs });
-      if (error) throw error;
-      return data ? toSubmission(data as SubmissionRow) : undefined;
-    },
-    async renewSubmissionLease(submissionId, workerId, leaseToken, leaseMs) {
-      const { data, error } = await client.rpc('renew_director_generation_submission_lease', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_token: leaseToken, p_lease_ms: leaseMs });
-      if (error) throw error;
-      return data ? toSubmission(data as SubmissionRow) : undefined;
-    },
-    async acknowledgeSubmission(submissionId, workerId, leaseToken, providerJobId) {
-      const { data, error } = await client.rpc('ack_director_generation_submission', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_token: leaseToken, p_provider_job_id: providerJobId });
-      if (error) throw error;
-      return data ? toSubmission(data as SubmissionRow) : undefined;
-    },
-    async acknowledgeSubmissionAndSaveState(submissionId, workerId, submissionLeaseToken, executionLeaseToken, providerJobId, task, execution) {
-      const { data, error } = await client.rpc('ack_director_generation_submission_and_save_state', {
-        p_submission_id: submissionId,
-        p_worker_id: workerId,
-        p_submission_lease_token: submissionLeaseToken,
-        p_provider_job_id: providerJobId,
-        p_task_status: task.status,
-        p_task_error: task.error ?? null,
-        p_task_updated_at: task.updatedAt,
-        p_execution_status: execution.status,
-        p_execution_error: execution.error ?? null,
-        p_execution_updated_at: execution.updatedAt,
-        p_execution_lease_owner: execution.leaseOwner ?? null,
-        p_execution_lease_token: executionLeaseToken,
-        p_execution_lease_expires_at: execution.leaseExpiresAt ?? null,
-      });
-      if (error) throw error;
-      const result = data as AtomicSubmissionAckResult | null;
-      if (!result?.submission || !result.task || !result.execution) return undefined;
-      const acknowledged: AtomicSubmissionAcknowledgement = {
-        submission: toSubmission(result.submission),
-        task: toTask(result.task),
-        execution: toExecution(result.execution),
-      };
-      return acknowledged;
-    },
-    async markSubmissionRecoveryRequired(submissionId, workerId, leaseToken, errorMessage) {
-      const { data, error } = await client.rpc('recover_director_generation_submission', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_token: leaseToken, p_error: errorMessage });
-      if (error) throw error;
-      return data ? toSubmission(data as SubmissionRow) : undefined;
-    },
-    async getSubmissionByIdempotencyKey(providerId, idempotencyKey) {
-      const { data, error } = await client.from('director_generation_submission_outbox').select('*').eq('provider_id', providerId).eq('idempotency_key', idempotencyKey).maybeSingle();
-      if (error) throw error;
-      return data ? toSubmission(data as SubmissionRow) : undefined;
-    },
+    async saveState(task, execution) { const { data, error } = await client.rpc('save_director_generation_state', { p_task_id: task.id, p_project_id: task.projectId, p_edit_plan_id: task.editPlanId ?? null, p_operation_id: task.operationId ?? null, p_idempotency_key: task.idempotencyKey, p_request: task.request, p_task_status: task.status, p_task_error: task.error ?? null, p_task_updated_at: task.updatedAt, p_execution_id: execution.id, p_execution_task_id: execution.taskId, p_provider_id: execution.providerId, p_provider_job_id: execution.providerJobId ?? null, p_attempt: execution.attempt, p_execution_status: execution.status, p_execution_error: execution.error ?? null, p_lease_owner: execution.leaseOwner ?? null, p_lease_token: execution.leaseToken ?? null, p_lease_expires_at: execution.leaseExpiresAt ?? null, p_execution_created_at: execution.createdAt, p_execution_updated_at: execution.updatedAt }); if (error) throw error; const result = data as AtomicStateResult | null; return result?.saved === true; },
+    async reserveSubmission(task, execution, providerId, idempotencyKey) { const { data, error } = await client.rpc('reserve_director_generation_submission', { p_task_id: task.id, p_execution_id: execution.id, p_provider_id: providerId, p_idempotency_key: idempotencyKey, p_request_payload: task.request, p_lease_owner: execution.leaseOwner ?? null, p_lease_token: execution.leaseToken ?? null }); if (error) throw error; return data ? toSubmission(data as SubmissionRow) : undefined; },
+    async claimSubmission(submissionId, workerId, leaseMs) { const { data, error } = await client.rpc('claim_director_generation_submission', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_ms: leaseMs }); if (error) throw error; return data ? toSubmission(data as SubmissionRow) : undefined; },
+    async renewSubmissionLease(submissionId, workerId, leaseToken, leaseMs) { const { data, error } = await client.rpc('renew_director_generation_submission_lease', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_token: leaseToken, p_lease_ms: leaseMs }); if (error) throw error; return data ? toSubmission(data as SubmissionRow) : undefined; },
+    async acknowledgeSubmission(submissionId, workerId, leaseToken, providerJobId) { const { data, error } = await client.rpc('ack_director_generation_submission', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_token: leaseToken, p_provider_job_id: providerJobId }); if (error) throw error; return data ? toSubmission(data as SubmissionRow) : undefined; },
+    async acknowledgeSubmissionAndSaveState(submissionId, workerId, submissionLeaseToken, executionLeaseToken, providerJobId, task, execution) { const { data, error } = await client.rpc('ack_director_generation_submission_and_save_state', { p_submission_id: submissionId, p_worker_id: workerId, p_submission_lease_token: submissionLeaseToken, p_provider_job_id: providerJobId, p_task_status: task.status, p_task_error: task.error ?? null, p_task_updated_at: task.updatedAt, p_execution_status: execution.status, p_execution_error: execution.error ?? null, p_execution_updated_at: execution.updatedAt, p_execution_lease_owner: execution.leaseOwner ?? null, p_execution_lease_token: executionLeaseToken, p_execution_lease_expires_at: execution.leaseExpiresAt ?? null }); if (error) throw error; const result = data as AtomicSubmissionAckResult | null; if (!result?.submission || !result.task || !result.execution) return undefined; return { submission: toSubmission(result.submission), task: toTask(result.task), execution: toExecution(result.execution) }; },
+    async markSubmissionRecoveryRequired(submissionId, workerId, leaseToken, errorMessage) { const { data, error } = await client.rpc('recover_director_generation_submission', { p_submission_id: submissionId, p_worker_id: workerId, p_lease_token: leaseToken, p_error: errorMessage }); if (error) throw error; return data ? toSubmission(data as SubmissionRow) : undefined; },
+    async getSubmissionByIdempotencyKey(providerId, idempotencyKey) { const { data, error } = await client.from('director_generation_submission_outbox').select('*').eq('provider_id', providerId).eq('idempotency_key', idempotencyKey).maybeSingle(); if (error) throw error; return data ? toSubmission(data as SubmissionRow) : undefined; },
     async getExecution(id) { const { data, error } = await client.from('director_generation_executions').select('*').eq('id', id).maybeSingle(); if (error) throw error; return data ? toExecution(data as ExecutionRow) : undefined; },
     async getExecutionByProviderJob(providerId, providerJobId) { const { data, error } = await client.from('director_generation_executions').select('*').eq('provider_id', providerId).eq('provider_job_id', providerJobId).maybeSingle(); if (error) throw error; return data ? toExecution(data as ExecutionRow) : undefined; },
     async listExecutions(taskId) { const { data, error } = await client.from('director_generation_executions').select('*').eq('task_id', taskId).order('attempt', { ascending: true }); if (error) throw error; return (data ?? []).map((row) => toExecution(row as ExecutionRow)); },
