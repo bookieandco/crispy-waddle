@@ -89,6 +89,8 @@ export default function JhadinaTVWatchPage() {
 
     return () => {
       active = false;
+      // Invalidate an outstanding resume lookup before it can load this route's item after navigation.
+      resumeCoordinator?.cancelPending();
       const writer = progressWriter;
       if (progressWriterRef.current === writer) progressWriterRef.current = null;
       unsubscribe?.();
