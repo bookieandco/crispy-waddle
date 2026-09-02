@@ -34,15 +34,27 @@ export function createCastingManager(controllers: MediaSessionController[], init
     async connect(target) {
       const controller = controllers.find((candidate) => candidate.transport === target.transport);
       if (!controller) throw new Error(`No ${target.transport} controller is available.`);
-      await controller.connect(target); active = controller; state = { ...state, target };
+      await controller.connect(target);
+      active = controller;
+      state = { ...state, target };
     },
     async disconnect() { if (active) await active.disconnect(); active = null; state = { ...state, target: undefined }; },
     async loadPlayback(playback, positionSeconds = 0) {
       if (!active?.loadPlayback) throw new Error('Active remote playback controller cannot load a new source.');
       await active.loadPlayback(playback, Math.max(0, positionSeconds));
-      state = { ...state, sourceUrl: playback.source.url, positionSeconds: Math.max(0, positionSeconds), playing: false };
+      state = {
+        ...state,
+        titleId: playback.source.titleId,
+        sourceUrl: playback.source.url,
+        positionSeconds: Math.max(0, positionSeconds),
+        playing: false,
+      };
     },
-    async send(command) { if (!active) throw new Error('No TV playback session is connected.'); await active.send(command); state = { ...state, ...(command.type === 'transfer' && command.target ? { target: command.target } : {}) }; },
+    async send(command) {
+      if (!active) throw new Error('No TV playback session is connected.');
+      await active.send(command);
+      if (command.type === 'transfer' && command.target) state = { ...state, target: command.target };
+    },
     async getState() { return active ? (await active.getState()) ?? state : state; },
     subscribeState(listener, intervalMs = 500) {
       let stopped = false;
