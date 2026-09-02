@@ -52,6 +52,7 @@ export interface GenerationProvider {
 export type ComfyUIClient = {
   queuePrompt(workflow: Record<string, unknown>, options?: { clientId?: string }): Promise<{ promptId: string }>;
   getHistory(promptId: string): Promise<Record<string, unknown>>;
+  findPromptByClientId?(clientId: string): Promise<string | undefined>;
   interrupt(promptId: string): Promise<void>;
 };
 
@@ -68,7 +69,18 @@ export class ComfyUIProvider implements GenerationProvider {
     if (descriptor.kind !== 'comfyui') throw new Error('ComfyUIProvider requires a comfyui provider descriptor');
   }
 
+  async findByIdempotencyKey(idempotencyKey: string): Promise<GenerationResult | undefined> {
+    if (!this.client.findPromptByClientId) return undefined;
+    const promptId = await this.client.findPromptByClientId(idempotencyKey);
+    if (!promptId) return undefined;
+    return this.status(promptId);
+  }
+
   async submit(request: GenerationRequest, options?: GenerationSubmissionOptions): Promise<GenerationResult> {
+    if (options?.idempotencyKey && this.client.findPromptByClientId) {
+      const existing = await this.findByIdempotencyKey(options.idempotencyKey);
+      if (existing) return existing;
+    }
     const workflow = this.buildWorkflow(request);
     const { promptId } = await this.client.queuePrompt(workflow, options?.idempotencyKey ? { clientId: options.idempotencyKey } : undefined);
     return {
