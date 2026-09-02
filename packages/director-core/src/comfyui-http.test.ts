@@ -22,6 +22,24 @@ describe('createComfyUIHttpClient', () => {
     });
   });
 
+  it('finds an existing prompt by its stable client idempotency key', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      old: { prompt: [1, 'other-key', {}], outputs: {} },
+      target: { prompt: [2, 'generation:123', {}], outputs: {} },
+    }), { status: 200 }));
+    const client = createComfyUIHttpClient({ baseUrl: 'http://localhost:8188', fetchImpl });
+
+    await expect(client.findPromptByClientId?.('generation:123')).resolves.toBe('target');
+    expect(fetchImpl).toHaveBeenCalledWith('http://localhost:8188/history', expect.objectContaining({ method: 'GET' }));
+  });
+
+  it('returns undefined when no prompt matches the stable client idempotency key', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ old: { prompt: [1, 'other-key', {}] } }), { status: 200 }));
+    const client = createComfyUIHttpClient({ baseUrl: 'http://localhost:8188', fetchImpl });
+
+    await expect(client.findPromptByClientId?.('missing')).resolves.toBeUndefined();
+  });
+
   it('unwraps a prompt history entry', async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ 'job-123': { outputs: { '1': {} } } }), { status: 200 }));
     const client = createComfyUIHttpClient({ baseUrl: 'http://localhost:8188', fetchImpl });
