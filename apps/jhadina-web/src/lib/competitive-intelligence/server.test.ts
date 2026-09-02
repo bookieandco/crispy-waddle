@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CompetitiveEvidence, CompetitorObservation } from "../../../../../packages/opportunity-contracts/src";
-import type {
-  AsyncCompetitiveEvidenceRepository,
-  RawCompetitiveObservation,
-} from "../../../../../packages/competitive-intelligence/src";
+import type { RawCompetitiveObservation } from "../../../../../packages/competitive-intelligence/src";
+import type { AsyncCompetitiveEvidenceRepository } from "../../../../../packages/competitive-intelligence/src/supabase-repository";
 import { bindAuthenticatedCompetitiveEvidenceRepository } from "./authenticated-boundary";
 
 const observation: CompetitorObservation = {
