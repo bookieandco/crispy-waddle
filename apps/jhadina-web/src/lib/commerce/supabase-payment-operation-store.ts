@@ -15,6 +15,7 @@ export class SupabasePaymentOperationStore implements PaymentOperationStore {
   async claim(input: PaymentOperationBinding): Promise<PaymentOperationClaim> {
     const { data, error } = await this.client.rpc<ClaimRpcResult>("claim_jhadina_commerce_payment_operation", {
       p_provider: input.provider,
+      p_operation_id: input.operationId,
       p_payment_id: input.paymentId,
       p_actor_id: input.actorId,
       p_action_id: input.actionId,
@@ -37,6 +38,7 @@ export class SupabasePaymentOperationStore implements PaymentOperationStore {
   private async terminal(functionName: string, input: PaymentOperationBinding, result: TerminalResult): Promise<void> {
     const { error } = await this.client.rpc(functionName, {
       p_provider: input.provider,
+      p_operation_id: input.operationId,
       p_payment_id: input.paymentId,
       p_actor_id: input.actorId,
       p_action_id: input.actionId,
