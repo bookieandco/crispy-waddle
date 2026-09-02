@@ -1,5 +1,5 @@
 import type { MediaKind } from './index';
-import type { CastingManager, MediaSessionCommand, MediaSessionState, PlaybackTarget, PlaybackTransport } from './casting';
+import type { CastingManager, MediaSessionCommand, MediaSessionState, PlaybackTarget } from './casting';
 import type { ResolvedPlaybackSource } from './playback-resolver';
 
 export interface LocalPlaybackAdapter {
@@ -8,197 +8,44 @@ export interface LocalPlaybackAdapter {
   setSource?(url: string): void;
   onStateChange?(listener: (state: MediaSessionState) => void): () => void;
 }
-
 export interface UnifiedMediaSession {
   getState(): MediaSessionState;
+  getAuthorityGeneration(): number;
   subscribe(listener: (state: MediaSessionState) => void): () => void;
   dispose(): void;
   loadPlayback(playback: ResolvedPlaybackSource, positionSeconds?: number, kind?: MediaKind): Promise<void>;
-  play(): Promise<void>;
-  pause(): Promise<void>;
-  seek(positionSeconds: number): Promise<void>;
-  setVolume(value: number): Promise<void>;
-  discoverTargets(): Promise<PlaybackTarget[]>;
-  syncRemoteState(): Promise<MediaSessionState | null>;
-  transfer(target: PlaybackTarget): Promise<void>;
-  disconnect(): Promise<void>;
-  isRemote(): boolean;
-  remotePlay(): Promise<void>;
-  remotePause(): Promise<void>;
-  remoteSeek(deltaSeconds: number): Promise<void>;
-  remoteSeekTo(positionSeconds: number): Promise<void>;
-  remoteSetVolume(value: number): Promise<void>;
+  play(): Promise<void>; pause(): Promise<void>; seek(positionSeconds: number): Promise<void>; setVolume(value: number): Promise<void>;
+  discoverTargets(): Promise<PlaybackTarget[]>; syncRemoteState(): Promise<MediaSessionState | null>; transfer(target: PlaybackTarget): Promise<void>; disconnect(): Promise<void>; isRemote(): boolean;
+  remotePlay(): Promise<void>; remotePause(): Promise<void>; remoteSeek(deltaSeconds: number): Promise<void>; remoteSeekTo(positionSeconds: number): Promise<void>; remoteSetVolume(value: number): Promise<void>;
 }
-
-export interface UnifiedMediaSessionConfig {
-  titleId: string;
-  kind: MediaKind;
-  playback: ResolvedPlaybackSource;
-  local: LocalPlaybackAdapter;
-  casting: CastingManager;
-}
-
-function assertLoadablePlayback(playback: ResolvedPlaybackSource): void {
-  if (!playback.providerId) throw new Error('Playback provider is required.');
-  if (!playback.source.id || !playback.source.titleId) throw new Error('Playback source is incomplete.');
-  if (!playback.source.url.startsWith('https://')) throw new Error('Playback source must use HTTPS.');
-  if (playback.source.kind === 'external') throw new Error('External playback sources require an external playback executor.');
-  for (const subtitle of playback.source.subtitles ?? []) {
-    if (!subtitle.url.startsWith('https://')) throw new Error('Playback subtitle source must use HTTPS.');
-  }
-}
-
-function normalizePosition(positionSeconds: number | undefined): number {
-  if (positionSeconds === undefined || !Number.isFinite(positionSeconds)) return 0;
-  return Math.max(0, positionSeconds);
-}
-
+export interface UnifiedMediaSessionConfig { titleId: string; kind: MediaKind; playback: ResolvedPlaybackSource; local: LocalPlaybackAdapter; casting: CastingManager; }
+function assertLoadablePlayback(playback: ResolvedPlaybackSource): void { if (!playback.providerId) throw new Error('Playback provider is required.'); if (!playback.source.id || !playback.source.titleId) throw new Error('Playback source is incomplete.'); if (!playback.source.url.startsWith('https://')) throw new Error('Playback source must use HTTPS.'); if (playback.source.kind === 'external') throw new Error('External playback sources require an external playback executor.'); for (const subtitle of playback.source.subtitles ?? []) if (!subtitle.url.startsWith('https://')) throw new Error('Playback subtitle source must use HTTPS.'); }
+function normalizePosition(positionSeconds: number | undefined): number { if (positionSeconds === undefined || !Number.isFinite(positionSeconds)) return 0; return Math.max(0, positionSeconds); }
 export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): UnifiedMediaSession {
-  assertLoadablePlayback(config.playback);
-  if (!config.local.setSource) throw new Error('Local playback source switching is unavailable.');
-
-  let playback = config.playback;
-  let currentKind = config.kind;
-  let state: MediaSessionState = { ...config.local.getState(), titleId: config.playback.source.titleId, kind: currentKind, sourceUrl: config.playback.source.url };
-  const listeners = new Set<(next: MediaSessionState) => void>();
-  let remoteUnsubscribe: (() => void) | undefined;
-  let localUnsubscribe: (() => void) | undefined;
-  let disposed = false;
-  let loadGeneration = 0;
-  let authorityGeneration = 0;
-  let handoffInProgress = false;
+  assertLoadablePlayback(config.playback); if (!config.local.setSource) throw new Error('Local playback source switching is unavailable.');
+  let playback = config.playback; let currentKind = config.kind; let state: MediaSessionState = { ...config.local.getState(), titleId: config.playback.source.titleId, kind: currentKind, sourceUrl: config.playback.source.url };
+  const listeners = new Set<(next: MediaSessionState) => void>(); let remoteUnsubscribe: (() => void) | undefined; let localUnsubscribe: (() => void) | undefined; let disposed = false; let loadGeneration = 0; let authorityGeneration = 0; let handoffInProgress = false;
   const assertActive = () => { if (disposed) throw new Error('Media session is disposed.'); };
   const publish = (next: MediaSessionState) => { if (disposed) return; state = next; listeners.forEach((listener) => listener(state)); };
-  const localCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
-    assertActive();
-    const generation = authorityGeneration;
-    await config.local.apply(command);
-    assertActive();
-    if (generation !== authorityGeneration || handoffInProgress || session.isRemote()) return;
-    const localState = config.local.getState();
-    publish({ ...state, ...localState, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target: { id: 'local', name: 'This device', transport: 'local' } });
-  };
-  const remoteCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
-    assertActive();
-    if (!state.target || state.target.transport === 'local') throw new Error('No remote TV playback session is connected.');
-    const generation = authorityGeneration;
-    await config.casting.send(command);
-    assertActive();
-    if (generation !== authorityGeneration || handoffInProgress || state.target.transport === 'local') return;
-    const remote = await config.casting.getState();
-    assertActive();
-    if (generation !== authorityGeneration || handoffInProgress || state.target.transport === 'local') return;
-    if (remote) publish({ ...state, ...remote, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target: state.target });
-  };
-
+  const localCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => { assertActive(); const generation = authorityGeneration; await config.local.apply(command); assertActive(); if (generation !== authorityGeneration || handoffInProgress || session.isRemote()) return; const localState = config.local.getState(); publish({ ...state, ...localState, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target: { id: 'local', name: 'This device', transport: 'local' } }); };
+  const remoteCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => { assertActive(); if (!state.target || state.target.transport === 'local') throw new Error('No remote TV playback session is connected.'); const generation = authorityGeneration; await config.casting.send(command); assertActive(); if (generation !== authorityGeneration || handoffInProgress || state.target.transport === 'local') return; const remote = await config.casting.getState(); assertActive(); if (generation !== authorityGeneration || handoffInProgress || state.target.transport === 'local') return; if (remote) publish({ ...state, ...remote, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target: state.target }); };
   const session: UnifiedMediaSession = {
     getState: () => state,
-    subscribe(listener) { if (disposed) throw new Error('Media session is disposed.'); listeners.add(listener); return () => listeners.delete(listener); },
-    dispose() {
-      if (disposed) return;
-      disposed = true;
-      ++loadGeneration;
-      ++authorityGeneration;
-      handoffInProgress = true;
-      localUnsubscribe?.(); localUnsubscribe = undefined;
-      remoteUnsubscribe?.(); remoteUnsubscribe = undefined;
-      listeners.clear();
-      config.casting.dispose();
-    },
-    async loadPlayback(nextPlayback, positionSeconds = 0, kind = currentKind) {
-      assertActive(); assertLoadablePlayback(nextPlayback);
-      const generation = ++loadGeneration;
-      const authority = ++authorityGeneration;
-      handoffInProgress = true;
-      const requestedPosition = normalizePosition(positionSeconds);
-      const remoteTarget = state.target && state.target.transport !== 'local';
-      if (remoteTarget) await config.casting.loadPlayback(nextPlayback, requestedPosition);
-      else {
-        config.local.setSource!(nextPlayback.source.url);
-        if (requestedPosition > 0) await config.local.apply({ type: 'seek', value: requestedPosition });
-      }
-      assertActive();
-      if (generation !== loadGeneration || authority !== authorityGeneration) return;
-      playback = nextPlayback;
-      currentKind = kind;
-      const nextState = remoteTarget ? await config.casting.getState() : config.local.getState();
-      if (generation !== loadGeneration || authority !== authorityGeneration) return;
-      const actualPosition = nextState?.positionSeconds ?? requestedPosition;
-      handoffInProgress = false;
-      publish({ ...state, ...(nextState ?? {}), titleId: nextPlayback.source.titleId, kind: currentKind, sourceUrl: nextPlayback.source.url, positionSeconds: Math.max(0, actualPosition), playing: false });
-    },
+    getAuthorityGeneration: () => authorityGeneration,
+    subscribe(listener) { assertActive(); listeners.add(listener); return () => listeners.delete(listener); },
+    dispose() { if (disposed) return; disposed = true; ++loadGeneration; ++authorityGeneration; handoffInProgress = true; localUnsubscribe?.(); localUnsubscribe = undefined; remoteUnsubscribe?.(); remoteUnsubscribe = undefined; listeners.clear(); config.casting.dispose(); },
+    async loadPlayback(nextPlayback, positionSeconds = 0, kind = currentKind) { assertActive(); assertLoadablePlayback(nextPlayback); const generation = ++loadGeneration; const authority = ++authorityGeneration; handoffInProgress = true; const requestedPosition = normalizePosition(positionSeconds); const remoteTarget = state.target && state.target.transport !== 'local'; if (remoteTarget) await config.casting.loadPlayback(nextPlayback, requestedPosition); else { config.local.setSource!(nextPlayback.source.url); if (requestedPosition > 0) await config.local.apply({ type: 'seek', value: requestedPosition }); } assertActive(); if (generation !== loadGeneration || authority !== authorityGeneration) return; playback = nextPlayback; currentKind = kind; const nextState = remoteTarget ? await config.casting.getState() : config.local.getState(); if (generation !== loadGeneration || authority !== authorityGeneration) return; const actualPosition = nextState?.positionSeconds ?? requestedPosition; handoffInProgress = false; publish({ ...state, ...(nextState ?? {}), titleId: nextPlayback.source.titleId, kind: currentKind, sourceUrl: nextPlayback.source.url, positionSeconds: Math.max(0, actualPosition), playing: false }); },
     play: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'play' }) : localCommand({ type: 'play' }),
     pause: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'pause' }) : localCommand({ type: 'pause' }),
     seek: (positionSeconds) => state.target?.transport !== 'local' ? remoteCommand({ type: 'seek', value: Math.max(0, positionSeconds) }) : localCommand({ type: 'seek', value: Math.max(0, positionSeconds) }),
     setVolume: (value) => state.target?.transport !== 'local' ? remoteCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }) : localCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }),
     discoverTargets: async () => { assertActive(); return config.casting.discover(); },
-    async syncRemoteState() {
-      assertActive();
-      if (!state.target || state.target.transport === 'local') return null;
-      const authority = authorityGeneration;
-      const remote = await config.casting.getState();
-      assertActive();
-      if (authority !== authorityGeneration || handoffInProgress || state.target.transport === 'local') return null;
-      if (!remote) return null;
-      const next = { ...state, ...remote, kind: currentKind, sourceUrl: playback.source.url, titleId: playback.source.titleId, target: state.target };
-      publish(next);
-      return next;
-    },
-    async transfer(target) {
-      assertActive();
-      if (target.transport === 'local') { await session.disconnect(); return; }
-      const current = state;
-      const authority = ++authorityGeneration;
-      handoffInProgress = true;
-      remoteUnsubscribe?.(); remoteUnsubscribe = undefined;
-      try {
-        await config.casting.connect(target);
-        assertActive();
-        if (authority !== authorityGeneration) return;
-        const remote = await config.casting.getState();
-        assertActive();
-        if (authority !== authorityGeneration) return;
-        publish({ ...current, ...(remote ?? {}), sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target });
-        handoffInProgress = false;
-        remoteUnsubscribe = config.casting.subscribeState((next) => {
-          if (disposed || handoffInProgress || authority !== authorityGeneration || state.target?.transport === 'local') return;
-          publish({ ...state, ...next, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target });
-        }, 500);
-      } catch (error) {
-        if (authority === authorityGeneration) handoffInProgress = false;
-        throw error;
-      }
-    },
-    async disconnect() {
-      assertActive();
-      const authority = ++authorityGeneration;
-      handoffInProgress = true;
-      const remote = await config.casting.getState();
-      if (authority !== authorityGeneration) return;
-      remoteUnsubscribe?.(); remoteUnsubscribe = undefined;
-      await config.casting.disconnect(); assertActive();
-      if (authority !== authorityGeneration) return;
-      const local = config.local.getState(); const nextPosition = remote?.positionSeconds ?? local.positionSeconds;
-      await config.local.apply({ type: 'seek', value: nextPosition });
-      if (authority !== authorityGeneration) return;
-      if (remote?.playing) await config.local.apply({ type: 'play' }); else await config.local.apply({ type: 'pause' });
-      if (authority !== authorityGeneration) return;
-      handoffInProgress = false;
-      publish({ ...local, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, positionSeconds: nextPosition, playing: !!remote?.playing, target: { id: 'local', name: 'This device', transport: 'local' } });
-    },
+    async syncRemoteState() { assertActive(); if (!state.target || state.target.transport === 'local') return null; const authority = authorityGeneration; const remote = await config.casting.getState(); assertActive(); if (authority !== authorityGeneration || handoffInProgress || state.target.transport === 'local' || !remote) return null; const next = { ...state, ...remote, kind: currentKind, sourceUrl: playback.source.url, titleId: playback.source.titleId, target: state.target }; publish(next); return next; },
+    async transfer(target) { assertActive(); if (target.transport === 'local') { await session.disconnect(); return; } const current = state; const authority = ++authorityGeneration; handoffInProgress = true; remoteUnsubscribe?.(); remoteUnsubscribe = undefined; try { await config.casting.connect(target); assertActive(); if (authority !== authorityGeneration) return; const remote = await config.casting.getState(); assertActive(); if (authority !== authorityGeneration) return; publish({ ...current, ...(remote ?? {}), sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target }); handoffInProgress = false; remoteUnsubscribe = config.casting.subscribeState((next) => { if (disposed || handoffInProgress || authority !== authorityGeneration || state.target?.transport === 'local') return; publish({ ...state, ...next, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, target }); }, 500); } catch (error) { if (authority === authorityGeneration) handoffInProgress = false; throw error; } },
+    async disconnect() { assertActive(); const authority = ++authorityGeneration; handoffInProgress = true; const remote = await config.casting.getState(); if (authority !== authorityGeneration) return; remoteUnsubscribe?.(); remoteUnsubscribe = undefined; await config.casting.disconnect(); assertActive(); if (authority !== authorityGeneration) return; const local = config.local.getState(); const nextPosition = remote?.positionSeconds ?? local.positionSeconds; await config.local.apply({ type: 'seek', value: nextPosition }); if (authority !== authorityGeneration) return; if (remote?.playing) await config.local.apply({ type: 'play' }); else await config.local.apply({ type: 'pause' }); if (authority !== authorityGeneration) return; handoffInProgress = false; publish({ ...local, sourceUrl: playback.source.url, titleId: playback.source.titleId, kind: currentKind, positionSeconds: nextPosition, playing: !!remote?.playing, target: { id: 'local', name: 'This device', transport: 'local' } }); },
     isRemote: () => state.target?.transport !== undefined && state.target.transport !== 'local',
-    remotePlay: () => remoteCommand({ type: 'play' }),
-    remotePause: () => remoteCommand({ type: 'pause' }),
-    remoteSeek: (deltaSeconds) => remoteCommand({ type: 'seek', value: Math.max(0, state.positionSeconds + deltaSeconds) }),
-    remoteSeekTo: (positionSeconds) => remoteCommand({ type: 'seek', value: Math.max(0, positionSeconds) }),
-    remoteSetVolume: (value) => remoteCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }),
+    remotePlay: () => remoteCommand({ type: 'play' }), remotePause: () => remoteCommand({ type: 'pause' }), remoteSeek: (deltaSeconds) => remoteCommand({ type: 'seek', value: Math.max(0, state.positionSeconds + deltaSeconds) }), remoteSeekTo: (positionSeconds) => remoteCommand({ type: 'seek', value: Math.max(0, positionSeconds) }), remoteSetVolume: (value) => remoteCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }),
   };
-
-  localUnsubscribe = config.local.onStateChange?.((next) => {
-    if (session.isRemote() || handoffInProgress) return;
-    publish({ ...state, ...next, titleId: playback.source.titleId, kind: currentKind, sourceUrl: playback.source.url, target: { id: 'local', name: 'This device', transport: 'local' } });
-  });
+  localUnsubscribe = config.local.onStateChange?.((next) => { if (session.isRemote() || handoffInProgress) return; publish({ ...state, ...next, titleId: playback.source.titleId, kind: currentKind, sourceUrl: playback.source.url, target: { id: 'local', name: 'This device', transport: 'local' } }); });
   return session;
 }
-
-export type { PlaybackTransport };
