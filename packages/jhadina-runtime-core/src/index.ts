@@ -112,15 +112,10 @@ export function deriveExecutionId(input: {
 export function assertExecutionRequest(request: ExecutionRequest): void {
   if (!request.actorId.trim()) throw new Error('Runtime actor binding is required');
   if (!request.executionId.trim()) throw new Error('Runtime executionId is required');
-  if (request.executionId !== deriveExecutionId({
-    actorId: request.actorId,
-    artifactDigestSha256: request.artifact.digestSha256,
-    manifestId: request.manifest.manifestId,
-    requestedAt: request.requestedAt,
-  })) throw new Error('Runtime executionId is not the deterministic request identity');
   if (request.artifact.trust !== 'trusted') throw new Error('Untrusted program artifacts cannot be executed');
   assertManifestMatchesArtifact(request.artifact, request.manifest);
-
+  const expected = deriveExecutionId({ actorId: request.actorId, artifactDigestSha256: request.artifact.digestSha256, manifestId: request.manifest.manifestId, requestedAt: request.requestedAt });
+  if (request.executionId !== expected) throw new Error('Runtime executionId must match deterministic request identity');
   const declared = new Set(request.manifest.requestedCapabilities);
   const granted = new Set(request.capabilityGrants.map((grant) => grant.capability));
   if (declared.size !== request.manifest.requestedCapabilities.length || granted.size !== request.capabilityGrants.length) {
@@ -137,20 +132,11 @@ export function assertExecutionRequest(request: ExecutionRequest): void {
 /** Metadata-only registry; registration never loads or executes patch code. */
 export class InMemoryExtensionPatchRegistry implements ExtensionPatchRegistry {
   private readonly patches = new Map<string, ExtensionPatchRegistration>();
-
   register(patch: ExtensionPatchRegistration): void {
-    if (!patch.patchId || !patch.extensionId || !patch.targetFingerprint || !patch.artifactDigestSha256) {
-      throw new Error('Incomplete extension patch registration');
-    }
+    if (!patch.patchId || !patch.extensionId || !patch.targetFingerprint || !patch.artifactDigestSha256) throw new Error('Incomplete extension patch registration');
     if (this.patches.has(patch.patchId)) throw new Error(`Duplicate extension patch: ${patch.patchId}`);
-    this.patches.set(patch.patchId, Object.freeze({
-      ...patch,
-      before: Object.freeze([...(patch.before ?? [])]),
-      after: Object.freeze([...(patch.after ?? [])]),
-      requestedCapabilities: Object.freeze([...patch.requestedCapabilities]),
-    }));
+    this.patches.set(patch.patchId, Object.freeze({ ...patch, before: Object.freeze([...(patch.before ?? [])]), after: Object.freeze([...(patch.after ?? [])]), requestedCapabilities: Object.freeze([...patch.requestedCapabilities]) }));
   }
-
   list(): readonly ExtensionPatchRegistration[] { return [...this.patches.values()]; }
 }
 
