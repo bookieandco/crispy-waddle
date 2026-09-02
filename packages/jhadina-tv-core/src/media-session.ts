@@ -13,7 +13,7 @@ export interface UnifiedMediaSession {
   getState(): MediaSessionState;
   subscribe(listener: (state: MediaSessionState) => void): () => void;
   dispose(): void;
-  loadPlayback(playback: ResolvedPlaybackSource): Promise<void>;
+  loadPlayback(playback: ResolvedPlaybackSource, positionSeconds?: number): Promise<void>;
   play(): Promise<void>;
   pause(): Promise<void>;
   seek(positionSeconds: number): Promise<void>;
@@ -48,6 +48,11 @@ function assertLoadablePlayback(playback: ResolvedPlaybackSource, titleId: strin
   }
 }
 
+function normalizePosition(positionSeconds: number | undefined): number {
+  if (positionSeconds === undefined || !Number.isFinite(positionSeconds)) return 0;
+  return Math.max(0, positionSeconds);
+}
+
 export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): UnifiedMediaSession {
   assertLoadablePlayback(config.playback, config.titleId);
   if (!config.local.setSource) throw new Error('Local playback source switching is unavailable.');
@@ -79,19 +84,22 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
     dispose() {
       if (disposed) return; disposed = true; localUnsubscribe?.(); localUnsubscribe = undefined; remoteUnsubscribe?.(); remoteUnsubscribe = undefined; listeners.clear();
     },
-    async loadPlayback(nextPlayback) {
+    async loadPlayback(nextPlayback, positionSeconds = 0) {
       assertActive(); assertLoadablePlayback(nextPlayback, config.titleId);
+      const requestedPosition = normalizePosition(positionSeconds);
       if (state.target && state.target.transport !== 'local') {
-        await config.casting.loadPlayback(nextPlayback, 0);
+        await config.casting.loadPlayback(nextPlayback, requestedPosition);
       } else {
         config.local.setSource!(nextPlayback.source.url);
+        if (requestedPosition > 0) await config.local.apply({ type: 'seek', value: requestedPosition });
       }
       assertActive();
       playback = nextPlayback;
       const nextState = state.target && state.target.transport !== 'local'
         ? await config.casting.getState()
         : config.local.getState();
-      publish({ ...state, ...(nextState ?? {}), titleId: config.titleId, kind: config.kind, sourceUrl: nextPlayback.source.url, positionSeconds: 0, playing: false });
+      const actualPosition = nextState?.positionSeconds ?? requestedPosition;
+      publish({ ...state, ...(nextState ?? {}), titleId: config.titleId, kind: config.kind, sourceUrl: nextPlayback.source.url, positionSeconds: Math.max(0, actualPosition), playing: false });
     },
     play: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'play' }) : localCommand({ type: 'play' }),
     pause: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'pause' }) : localCommand({ type: 'pause' }),
