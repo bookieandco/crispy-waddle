@@ -1,4 +1,5 @@
 import type { ApprovalReceiptVerifier } from './approval-receipt.js';
+import type { NonceReplayGuard } from '../../security-core/src/replay-guard.js';
 
 export type ActionPolicyDecision = 'allow' | 'deny' | 'approval_required';
 
@@ -8,6 +9,8 @@ export interface ActionRequest<TAction = unknown> {
   type: string;
   action: TAction;
   requestedAt: string;
+  /** Stable per-action replay nonce. Defaults to id at the Security Core boundary. */
+  nonce?: string;
   approvalReceiptId?: string;
 }
 
@@ -58,12 +61,11 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
     private readonly ledger: ActionLedger,
     private readonly handlers: readonly ActionHandler<TAction, TResult>[],
     private readonly approvalReceipts?: ApprovalReceiptVerifier<TAction>,
+    private readonly replayGuard?: NonceReplayGuard,
   ) {}
 
   async execute(request: ActionRequest<TAction>): Promise<TResult> {
     const now = () => new Date().toISOString();
-    // Fail closed: if the start event can't be durably recorded, this throws
-    // here and nothing below — policy, handler, side effects — ever runs.
     await this.ledger.append({
       id: `${request.id}:started`,
       actionId: request.id,
@@ -99,9 +101,11 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
           timestamp: now(),
           metadata: { reason: 'invalid_or_expired_approval_receipt' },
         });
-        throw new Error(`Invalid approval receipt: ${request.type}`);
+        throw new Error(`Approval receipt invalid or expired: ${request.type}`);
       }
-    } else if (decision === 'deny') {
+    }
+
+    if (decision === 'deny') {
       await this.ledger.append({
         id: `${request.id}:denied`,
         actionId: request.id,
@@ -113,51 +117,33 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
       throw new Error(`Action denied: ${request.type}`);
     }
 
-    const handler = this.handlers.find((candidate) => candidate.supports(request.type));
-    if (!handler) {
-      await this.ledger.append({
-        id: `${request.id}:failed`,
-        actionId: request.id,
-        userId: request.userId,
-        type: request.type,
-        status: 'failed',
-        timestamp: now(),
-        metadata: { reason: 'handler_not_found' },
+    if (this.replayGuard) {
+      const nonce = request.nonce ?? request.id;
+      const claimed = await this.replayGuard.consume({
+        nonce,
+        requestId: request.id,
+        actorId: request.userId,
+        expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
       });
-      throw new Error(`No action handler registered for ${request.type}`);
-    }
-
-    let result: TResult;
-    try {
-      result = await handler.execute(request.action, request);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      try {
+      if (!claimed) {
         await this.ledger.append({
-          id: `${request.id}:failed`,
+          id: `${request.id}:replay-denied`,
           actionId: request.id,
           userId: request.userId,
           type: request.type,
-          status: 'failed',
+          status: 'denied',
           timestamp: now(),
-          metadata: { error: message },
+          metadata: { reason: 'replayed_action_nonce' },
         });
-      } catch (auditError) {
-        // Don't let a failed audit append swallow the original handler error.
-        throw new Error(
-          `ACTION_FAILED_AND_AUDIT_FAILED:${message}:${auditError instanceof Error ? auditError.message : String(auditError)}`,
-        );
+        throw new Error(`Action replay rejected: ${request.type}`);
       }
-      throw error;
     }
 
-    // The handler's side effect already happened successfully — never report
-    // it as a failure just because the durable completion-audit append
-    // afterward failed. The caller still needs to know the audit trail may be
-    // incomplete, so this still throws, but with a distinct, tagged error
-    // rather than a misleading 'failed' status recorded against a successful
-    // action.
+    const handler = this.handlers.find((candidate) => candidate.supports(request.type));
+    if (!handler) throw new Error(`No handler for action type: ${request.type}`);
+
     try {
+      const result = await handler.execute(request.action, request);
       await this.ledger.append({
         id: `${request.id}:completed`,
         actionId: request.id,
@@ -166,12 +152,17 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
         status: 'completed',
         timestamp: now(),
       });
-    } catch (auditError) {
-      throw new Error(
-        `ACTION_COMPLETED_AUDIT_FAILED:${auditError instanceof Error ? auditError.message : String(auditError)}`,
-      );
+      return result;
+    } catch (error) {
+      await this.ledger.append({
+        id: `${request.id}:failed`,
+        actionId: request.id,
+        userId: request.userId,
+        type: request.type,
+        status: 'failed',
+        timestamp: now(),
+      });
+      throw error;
     }
-
-    return result;
   }
 }

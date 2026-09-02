@@ -4,6 +4,7 @@ import {
   type ActionIdentityVerifier,
   type AuditRpcClient,
 } from '@jhadina/action-core';
+import type { NonceReplayGuard } from '@jhadina/security-core';
 import { createMoneySecurityCore } from './governed-account-read.js';
 import { MoneyAccountReadHandler, type AccountReadHandlerDeps, type AccountReadAction } from './account-read-handler.js';
 import type { MoneyAccount } from './bank-adapter.js';
@@ -12,6 +13,8 @@ export type ProductionMoneyAccountReadOptions = {
   identityVerifier: ActionIdentityVerifier;
   supabase: AuditRpcClient;
   bank: AccountReadHandlerDeps;
+  /** Required durable one-shot guard; replay is claimed only after policy/approval checks pass. */
+  replayGuard: NonceReplayGuard;
 };
 
 /** First real Money Core capability composed through the shared production spine. */
@@ -32,5 +35,6 @@ export function createProductionMoneyAccountReadExecutor(
     supabase: options.supabase,
     domain: 'money',
     capabilityForType: () => 'money.account.read',
+    replayGuard: options.replayGuard,
   });
 }

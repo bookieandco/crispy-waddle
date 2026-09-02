@@ -19,9 +19,10 @@ export class SecurityCoreActionPolicy<TAction = unknown> implements ActionPolicy
       actorId: request.userId,
       domain: this.domain,
       capability: request.type,
+      nonce: request.nonce ?? request.id,
     });
 
-    return this.security.authorize(securityRequest);
+    return this.security.evaluateAuthorization(securityRequest);
   }
 }
 

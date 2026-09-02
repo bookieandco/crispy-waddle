@@ -19,13 +19,20 @@ import { createClient } from "../supabase/server"
  */
 export const GROWTH_AUDIT_DOMAIN = "growth"
 
-export async function createGrowthAuditLedger(): Promise<SupabaseAuditLedger> {
+/** Request-scoped Supabase RPC adapter shared by durable Growth stores. */
+export async function createGrowthAuditRpcClient(): Promise<AuditRpcClient> {
   const supabase = await createClient()
-  const client: AuditRpcClient = {
+  return {
     async rpc<T>(fn: string, args: Record<string, unknown>) {
       const { data, error } = await supabase.rpc(fn, args)
       return { data: (data ?? null) as T | null, error: error ? { message: error.message } : null }
     },
   }
-  return new SupabaseAuditLedger({ client, domain: GROWTH_AUDIT_DOMAIN })
+}
+
+export async function createGrowthAuditLedger(): Promise<SupabaseAuditLedger> {
+  return new SupabaseAuditLedger({
+    client: await createGrowthAuditRpcClient(),
+    domain: GROWTH_AUDIT_DOMAIN,
+  })
 }

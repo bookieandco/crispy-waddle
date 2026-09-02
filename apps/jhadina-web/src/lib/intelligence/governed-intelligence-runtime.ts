@@ -1,38 +1,22 @@
 import type { ContextPacket } from "@jhadina/core-spine"
 import { IntelligenceRouter, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
-import { InMemoryApprovalReceiptStore, type ApprovalReceiptStore } from "@jhadina/action-core"
+import { SupabaseNonceReplayGuard, type ApprovalReceiptStore, type ActionAuditEvent, type SupabaseAuditLedger } from "@jhadina/action-core"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { getStorage } from "../routes/handlers"
 import { createProductionIntelligenceRouter } from "./production-model-provider"
-import { createIntelligenceAuditLedger, INTELLIGENCE_AUDIT_DOMAIN } from "./durable-audit-ledger"
-import {
-  decideAndProposeMemoryGoverned,
-  type GovernedIntelligenceProposalResult,
-} from "./governed-intelligence-proposal"
-import type { SupabaseAuditLedger, ActionAuditEvent } from "@jhadina/action-core"
-
-/**
- * Process-local composition root for the Intelligence Router proof —
- * same shape as Growth's governed-approval-runtime.ts. Not yet mounted
- * behind an HTTP route: Step 3's scope is the router and its governance
- * wiring, not "Ask Jhadina" (Step 7), which needs a real Context Builder
- * (Step 4) to supply `ContextPacket`s from live requests. This function
- * is the callable, tested seam Step 7 will mount.
- *
- * Approval receipts stay in-memory and process-local, same explicit
- * scope boundary Growth's runtime already documented — durability here
- * was never required for this milestone.
- */
-const approvalStore = new InMemoryApprovalReceiptStore()
+import { createIntelligenceAuditLedger, createIntelligenceAuditRpcClient, INTELLIGENCE_AUDIT_DOMAIN } from "./durable-audit-ledger"
+import { createDurableApprovalReceiptStore } from "../security/durable-approval-receipt-store"
+import { decideAndProposeMemoryGoverned, type GovernedIntelligenceProposalResult } from "./governed-intelligence-proposal"
 
 export type GovernedIntelligenceRuntimeOverrides = {
   identityVerifier?: JhadinaIdentityVerifier
   ledger?: SupabaseAuditLedger
   router?: IntelligenceRouter
   approvalStore?: ApprovalReceiptStore
+  replayGuard?: InstanceType<typeof SupabaseNonceReplayGuard>
   onEvent?: (event: IntelligenceRouterEvent) => void
 }
 
@@ -47,9 +31,11 @@ export async function runGovernedIntelligenceProposal(
   const storage = getStorage()
   const memoryRepo = new MemoryRepository(storage)
   const reasoningRepo = new ReasoningEventRepository(storage)
+  const approvalStore = overrides.approvalStore ?? (await createDurableApprovalReceiptStore())
+  const replayGuard = overrides.replayGuard ?? new SupabaseNonceReplayGuard(await createIntelligenceAuditRpcClient())
 
   return decideAndProposeMemoryGoverned(
-    { identityVerifier, ledger, router, memoryRepo, reasoningRepo, approvalStore: overrides.approvalStore ?? approvalStore },
+    { identityVerifier, ledger, router, memoryRepo, reasoningRepo, approvalStore, replayGuard },
     claimedUserId,
     context,
   )
@@ -66,7 +52,6 @@ export async function listGovernedIntelligenceActivity(
 ): Promise<GovernedIntelligenceActivityResult> {
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
   const identity = await identityVerifier.verify({ userId: claimedUserId })
-
   const ledger = overrides.ledger ?? (await createIntelligenceAuditLedger())
   const events = await ledger.list({ domain: INTELLIGENCE_AUDIT_DOMAIN, actorId: identity.userId })
   return { events, verifiedUserId: identity.userId }
