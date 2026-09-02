@@ -31,10 +31,38 @@ describe('UnifiedMediaSession lifecycle', () => {
   it('loads a governed source for a different queue title and transitions session identity', async () => { const f = createFixture(); const s = createUnifiedMediaSession({ titleId: 'title-1', kind: 'movie', playback, local: f.local, casting: f.casting }); await s.loadPlayback(nextPlayback); expect(f.local.setSource).toHaveBeenCalledWith(nextPlayback.source.url); expect(s.getState()).toMatchObject({ titleId: 'title-2', sourceUrl: nextPlayback.source.url, positionSeconds: 0, playing: false }); });
   it('applies local resume position when loading the next queue title', async () => { const f = createFixture(); const s = createUnifiedMediaSession({ titleId: 'title-1', kind: 'movie', playback, local: f.local, casting: f.casting }); await s.loadPlayback(nextPlayback, 42.5); expect(f.local.apply).toHaveBeenCalledWith({ type: 'seek', value: 42.5 }); expect(s.getState()).toMatchObject({ titleId: 'title-2', positionSeconds: 42.5 }); });
   it('rejects external and non-HTTPS sources before touching local playback', async () => { const f = createFixture(); const s = createUnifiedMediaSession({ titleId: 'title-1', kind: 'movie', playback, local: f.local, casting: f.casting }); const external = { ...nextPlayback, source: { ...nextPlayback.source, kind: 'external' as const } }; const insecure = { ...nextPlayback, source: { ...nextPlayback.source, url: 'http://example.com/next.m3u8' } }; await expect(s.loadPlayback(external)).rejects.toThrow('External playback sources require an external playback executor.'); await expect(s.loadPlayback(insecure)).rejects.toThrow('Playback source must use HTTPS.'); expect(f.local.setSource).not.toHaveBeenCalled(); });
+  it('refreshes authoritative remote state before a transfer', async () => {
+    const f = createFixture();
+    const remoteState: MediaSessionState = { ...targetState, positionSeconds: 137.5, playing: true, target: { id: 'tv-1', name: 'Living Room TV', transport: 'google-cast' } };
+    f.casting.getState = vi.fn(async () => remoteState);
+    const s = createUnifiedMediaSession({ titleId: 'title-1', kind: 'movie', playback, local: f.local, casting: f.casting });
+    await f.casting.connect({ id: 'tv-1', name: 'Living Room TV', transport: 'google-cast' });
+    await s.syncRemoteState();
+    expect(s.getState()).toMatchObject({ positionSeconds: 137.5, playing: true, target: remoteState.target });
+  });
   it('keeps a newer load authoritative when an older load resolves late', async () => {
-    const f = createFixture(); const first = { ...nextPlayback, source: { ...nextPlayback.source, id: 'first', titleId: 'title-2', url: 'https://example.com/first.m3u8' } }; const second = { ...nextPlayback, source: { ...nextPlayback.source, id: 'second', titleId: 'title-3', url: 'https://example.com/second.m3u8' } };
-    let resolveFirst!: () => void; const firstGate = new Promise<void>((resolve) => { resolveFirst = resolve; }); const originalSetSource = f.local.setSource!; f.local.setSource = vi.fn((url) => { if (url.includes('first')) void firstGate; originalSetSource(url); });
-    const s = createUnifiedMediaSession({ titleId: 'title-1', kind: 'movie', playback, local: f.local, casting: f.casting }); const p1 = s.loadPlayback(first); const p2 = s.loadPlayback(second); resolveFirst(); await Promise.all([p1, p2]); expect(s.getState().sourceUrl).toBe(second.source.url);
+    const f = createFixture();
+    const first = { ...nextPlayback, source: { ...nextPlayback.source, id: 'first', titleId: 'title-2', url: 'https://example.com/first.m3u8' } };
+    const second = { ...nextPlayback, source: { ...nextPlayback.source, id: 'second', titleId: 'title-3', url: 'https://example.com/second.m3u8' } };
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    let firstLoad = true;
+    f.casting.getState = vi.fn(async () => {
+      if (firstLoad) {
+        firstLoad = false;
+        await firstGate;
+      }
+      return { ...targetState, sourceUrl: second.source.url, titleId: second.source.titleId };
+    });
+    const remote = { id: 'tv-1', name: 'Living Room TV', transport: 'google-cast' as const };
+    f.casting.connect = vi.fn(async () => undefined);
+    const s = createUnifiedMediaSession({ titleId: 'title-1', kind: 'movie', playback, local: f.local, casting: f.casting });
+    await f.casting.connect(remote);
+    const p1 = s.loadPlayback(first);
+    const p2 = s.loadPlayback(second);
+    releaseFirst();
+    await Promise.all([p1, p2]);
+    expect(s.getState().sourceUrl).toBe(second.source.url);
   });
   it('fails after disposal', async () => { const f = createFixture(); const s = createUnifiedMediaSession({ titleId: 'title-1', kind: 'movie', playback, local: f.local, casting: f.casting }); s.dispose(); await expect(s.loadPlayback(nextPlayback)).rejects.toThrow('Media session is disposed.'); });
 });
