@@ -276,6 +276,16 @@ export class InMemoryStorage implements MemoryStorage {
 }
 
 /**
- * Global singleton instance
+ * @deprecated Do NOT import this singleton from production code.
+ * It is a process-scoped in-memory instance with no durability and no
+ * connection to the Supabase-backed MemoryStorage used by route handlers.
+ *
+ * For production storage: use getStorage() from lib/routes/handlers.ts.
+ * For test-local storage: construct `new InMemoryStorage()` directly.
+ *
+ * This export is retained only for legacy test compatibility; it will be
+ * removed once all test usages are migrated.
+ *
+ * @testOnly
  */
 export const storage = new InMemoryStorage()
