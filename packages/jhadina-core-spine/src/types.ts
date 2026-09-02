@@ -34,16 +34,6 @@ export interface Experience {
   evidence: EvidenceRef[];
 }
 
-export interface PatternObservation {
-  id: string;
-  pattern: string;
-  evidence: EvidenceRef[];
-  confidence: number;
-  occurrences: number;
-  contradictions: EvidenceRef[];
-  lastObservedAt: string;
-}
-
 /** Personality never owns identity, values, authority, or policy. */
 export type PersonalityDimension =
   | 'temperament'
@@ -56,6 +46,19 @@ export type PersonalityDimension =
   | 'relationship';
 
 export type PersonalityTraitStatus = 'candidate' | 'accepted' | 'contested' | 'retired';
+
+export interface PatternObservation {
+  id: string;
+  pattern: string;
+  evidence: EvidenceRef[];
+  confidence: number;
+  occurrences: number;
+  contradictions: EvidenceRef[];
+  lastObservedAt: string;
+  /** Only explicitly projected personality patterns may affect PersonalityState. */
+  personalityEligible?: boolean;
+  personalityDimension?: PersonalityDimension;
+}
 
 export interface PersonalityTrait {
   id: string;
