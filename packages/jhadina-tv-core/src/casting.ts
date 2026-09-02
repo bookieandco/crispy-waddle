@@ -1,7 +1,7 @@
 import type { MediaKind } from './index';
+import type { ResolvedPlaybackSource } from './playback-resolver';
 
 export type PlaybackTransport = 'local' | 'airplay' | 'google-cast' | 'jhadinatv-tv';
-
 export interface PlaybackTarget { id: string; name: string; transport: PlaybackTransport; }
 export interface MediaSessionState { titleId: string; kind: MediaKind; sourceUrl: string; positionSeconds: number; durationSeconds?: number; playing: boolean; volume?: number; target?: PlaybackTarget; }
 export interface MediaSessionCommand { type: 'play' | 'pause' | 'seek' | 'set-volume' | 'transfer'; value?: number; target?: PlaybackTarget; }
@@ -10,6 +10,7 @@ export interface MediaSessionController {
   discoverTargets(): Promise<PlaybackTarget[]>;
   connect(target: PlaybackTarget): Promise<void>;
   disconnect(): Promise<void>;
+  loadPlayback?(playback: ResolvedPlaybackSource, positionSeconds?: number): Promise<void>;
   send(command: MediaSessionCommand): Promise<void>;
   getState(): Promise<MediaSessionState | null>;
 }
@@ -17,6 +18,7 @@ export interface CastingManager {
   discover(): Promise<PlaybackTarget[]>;
   connect(target: PlaybackTarget): Promise<void>;
   disconnect(): Promise<void>;
+  loadPlayback(playback: ResolvedPlaybackSource, positionSeconds?: number): Promise<void>;
   send(command: MediaSessionCommand): Promise<void>;
   getState(): Promise<MediaSessionState | null>;
   subscribeState(listener: (state: MediaSessionState) => void, intervalMs?: number): () => void;
@@ -35,6 +37,11 @@ export function createCastingManager(controllers: MediaSessionController[], init
       await controller.connect(target); active = controller; state = { ...state, target };
     },
     async disconnect() { if (active) await active.disconnect(); active = null; state = { ...state, target: undefined }; },
+    async loadPlayback(playback, positionSeconds = 0) {
+      if (!active?.loadPlayback) throw new Error('Active remote playback controller cannot load a new source.');
+      await active.loadPlayback(playback, Math.max(0, positionSeconds));
+      state = { ...state, sourceUrl: playback.source.url, positionSeconds: Math.max(0, positionSeconds), playing: false };
+    },
     async send(command) { if (!active) throw new Error('No TV playback session is connected.'); await active.send(command); state = { ...state, ...(command.type === 'transfer' && command.target ? { target: command.target } : {}) }; },
     async getState() { return active ? (await active.getState()) ?? state : state; },
     subscribeState(listener, intervalMs = 500) {
