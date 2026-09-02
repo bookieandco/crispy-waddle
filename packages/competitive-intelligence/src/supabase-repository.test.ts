@@ -22,8 +22,6 @@ const input = {
   },
 };
 
-type Row = Parameters<ReturnType<typeof makeClient>["from"]>[never];
-
 function makeClient() {
   const rows = new Map<string, any>();
   let duplicateNextInsert = false;
