@@ -50,9 +50,25 @@ export default function JhadinaTVWatchPage() {
     let resumeCoordinator: ReturnType<typeof createMediaPlaybackResumeCoordinator> | null = null; let progressWriter: ReturnType<typeof attachMediaPlaybackProgressWriter> | null = null; let detachAutoAdvance: (() => void) | null = null; let unsubscribe: (() => void) | null = null; let resumeReady: Promise<void> | null = null;
 
     void (async () => {
+      // Bind persistence to the identity observed before session initialization.
+      // If authentication changes while initialization/resume work is in flight,
+      // do not attach the new identity to an already-created global session.
+      const initializationUserId = await getCurrentUserId();
       const session = await ensureMediaPlaybackSession(sessionConfig, queueItem, loadRequest); if (!active) return; sessionRef.current = session; unsubscribe = session.subscribe(setSessionState); setSessionState(session.getState());
       const progressClient = createMediaPlaybackApiClient(); const writerClient = createMediaPlaybackProgressApiClient();
-      resumeReady = getCurrentUserId().then(async (userId) => { if (!active || !userId) return; resumeCoordinator = createMediaPlaybackResumeCoordinator(session, userId, progressClient); await resumeCoordinator.loadItem(queueItem); if (!active) return; progressWriter = attachMediaPlaybackProgressWriter({ video, session, item: queueItem, userId, client: writerClient, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to save playback progress.') }); progressWriterRef.current = progressWriter; setSessionState(session.getState()); });
+      resumeReady = Promise.resolve(initializationUserId).then(async (userId) => {
+        if (!active || !userId) return;
+        const currentUserId = await getCurrentUserId();
+        if (!active) return;
+        if (currentUserId !== userId) { resumeCoordinator = null; return; }
+        resumeCoordinator = createMediaPlaybackResumeCoordinator(session, userId, progressClient);
+        await resumeCoordinator.loadItem(queueItem);
+        if (!active) return;
+        const stableUserId = await getCurrentUserId();
+        if (!active || stableUserId !== userId) { resumeCoordinator.cancelPending(); resumeCoordinator = null; return; }
+        progressWriter = attachMediaPlaybackProgressWriter({ video, session, item: queueItem, userId, client: writerClient, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to save playback progress.') });
+        progressWriterRef.current = progressWriter; setSessionState(session.getState());
+      });
       await resumeReady; if (!active) return;
       detachAutoAdvance = attachMediaPlaybackAutoAdvance({ video, store: getMediaPlaybackStore(), session, isActive: () => active, resolveResumePosition: async (next) => { if (resumeReady) await resumeReady; if (!active || !resumeCoordinator) return 0; return resumeCoordinator.resolvePositionSeconds(next); }, beforeAdvance: async () => { if (progressWriter) await progressWriter.flush(true); }, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to advance to the next item.') });
     })().catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Unable to initialize playback session.'); });
