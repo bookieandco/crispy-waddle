@@ -99,23 +99,6 @@ export function assertManifestMatchesArtifact(artifact: ProgramArtifact, manifes
   if (!manifest.entrypoint.trim()) throw new Error('Runtime manifest entrypoint is required');
 }
 
-export function assertExecutionRequest(request: ExecutionRequest): void {
-  if (!request.actorId.trim()) throw new Error('Runtime actor binding is required');
-  if (!request.executionId.trim()) throw new Error('Runtime executionId is required');
-  if (request.artifact.trust !== 'trusted') throw new Error('Untrusted program artifacts cannot be executed');
-  assertManifestMatchesArtifact(request.artifact, request.manifest);
-  if (request.manifest.requestedCapabilities.length !== request.capabilityGrants.length) {
-    throw new Error('Runtime capability grants must explicitly bind every requested capability');
-  }
-  const declared = new Set(request.manifest.requestedCapabilities);
-  for (const grant of request.capabilityGrants) {
-    if (!grant.grantId.trim() || !declared.has(grant.capability)) {
-      throw new Error('Runtime capability grant is not bound to a declared capability');
-    }
-  }
-}
-
-/** Stable, content-derived execution identity. */
 export function deriveExecutionId(input: {
   actorId: string;
   artifactDigestSha256: string;
@@ -124,6 +107,31 @@ export function deriveExecutionId(input: {
 }): string {
   const canonical = [input.actorId, input.artifactDigestSha256, input.manifestId, input.requestedAt].join('\n');
   return createHash('sha256').update(canonical, 'utf8').digest('hex');
+}
+
+export function assertExecutionRequest(request: ExecutionRequest): void {
+  if (!request.actorId.trim()) throw new Error('Runtime actor binding is required');
+  if (!request.executionId.trim()) throw new Error('Runtime executionId is required');
+  if (request.executionId !== deriveExecutionId({
+    actorId: request.actorId,
+    artifactDigestSha256: request.artifact.digestSha256,
+    manifestId: request.manifest.manifestId,
+    requestedAt: request.requestedAt,
+  })) throw new Error('Runtime executionId is not the deterministic request identity');
+  if (request.artifact.trust !== 'trusted') throw new Error('Untrusted program artifacts cannot be executed');
+  assertManifestMatchesArtifact(request.artifact, request.manifest);
+
+  const declared = new Set(request.manifest.requestedCapabilities);
+  const granted = new Set(request.capabilityGrants.map((grant) => grant.capability));
+  if (declared.size !== request.manifest.requestedCapabilities.length || granted.size !== request.capabilityGrants.length) {
+    throw new Error('Runtime capabilities and grants must be unique');
+  }
+  if (declared.size !== granted.size || [...declared].some((capability) => !granted.has(capability))) {
+    throw new Error('Runtime capability grants must exactly bind declared capabilities');
+  }
+  for (const grant of request.capabilityGrants) {
+    if (!grant.grantId.trim()) throw new Error('Runtime capability grant id is required');
+  }
 }
 
 /** Metadata-only registry; registration never loads or executes patch code. */
