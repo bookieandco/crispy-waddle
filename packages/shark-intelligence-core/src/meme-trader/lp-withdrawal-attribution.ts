@@ -23,6 +23,20 @@ function sameTime(a: string, b: string): boolean {
   return Number.isFinite(Date.parse(a)) && Number.isFinite(Date.parse(b)) && Math.abs(Date.parse(a) - Date.parse(b)) <= 120_000
 }
 
+function correlatedLPEvent(event: LiquidityEventEvidence, lp: LPPositionEvent): boolean {
+  if (lp.poolAddress !== event.poolAddress || lp.signature !== event.signature) return false
+  if (!sameTime(lp.observedAt, event.observedAt)) return false
+  if (lp.kind !== 'BURN' && lp.kind !== 'TRANSFER') return false
+
+  // Once the withdrawal decoder has supplied an identity field, a candidate
+  // must carry and match that same field. Never fill a known identity gap
+  // from an unrelated LP event merely because signature/time happen to match.
+  if (event.lpMint !== undefined && lp.lpMint !== event.lpMint) return false
+  if (event.lpTokenAccount !== undefined && lp.tokenAccount !== event.lpTokenAccount) return false
+  if (event.amountRaw !== undefined && lp.amountRaw !== event.amountRaw) return false
+  return true
+}
+
 export function attributeLPWithdrawals(input: {
   history: PoolHistory
   liquidityEvents: LiquidityEventEvidence[]
@@ -36,7 +50,7 @@ export function attributeLPWithdrawals(input: {
     .filter(event => event.kind === 'LIQUIDITY_REMOVE')
     .map(event => {
       const candidates = lpEvents
-        .filter(lp => lp.poolAddress === event.poolAddress && lp.signature === event.signature && sameTime(lp.observedAt, event.observedAt) && (lp.kind === 'BURN' || lp.kind === 'TRANSFER'))
+        .filter(lp => correlatedLPEvent(event, lp))
         .sort((a, b) => Math.abs(Date.parse(a.observedAt) - Date.parse(event.observedAt)) - Math.abs(Date.parse(b.observedAt) - Date.parse(event.observedAt)))
       const lp = candidates[0]
       const ownerBefore = lp?.from
