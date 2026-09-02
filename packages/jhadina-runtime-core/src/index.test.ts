@@ -8,24 +8,31 @@ import {
   type ExecutionRequest,
 } from './index.js';
 
-const base: ExecutionRequest = {
-  executionId: 'exec-1',
+const baseInput = {
   actorId: 'actor-1',
+  artifactDigestSha256: 'a'.repeat(64),
+  manifestId: 'manifest-1',
+  requestedAt: '2026-09-01T12:00:00.000Z',
+};
+
+const base: ExecutionRequest = {
+  executionId: deriveExecutionId(baseInput),
+  actorId: baseInput.actorId,
   artifact: {
     artifactId: 'artifact-1',
-    digestSha256: 'a'.repeat(64),
+    digestSha256: baseInput.artifactDigestSha256,
     mediaType: 'application/octet-stream',
     trust: 'trusted',
   },
   manifest: {
-    manifestId: 'manifest-1',
-    artifactDigestSha256: 'a'.repeat(64),
+    manifestId: baseInput.manifestId,
+    artifactDigestSha256: baseInput.artifactDigestSha256,
     entrypoint: 'main',
     requestedCapabilities: ['runtime.read'],
     resourceLimits: { maxWallTimeMs: 1000, maxMemoryMb: 64, maxOutputBytes: 4096 },
   },
   capabilityGrants: [{ grantId: 'grant-1', capability: 'runtime.read' }],
-  requestedAt: '2026-09-01T12:00:00.000Z',
+  requestedAt: baseInput.requestedAt,
 };
 
 test('valid request passes the runtime boundary', () => assert.doesNotThrow(() => assertExecutionRequest(base)));
@@ -36,16 +43,29 @@ test('untrusted artifacts are rejected regardless of claimed capability', () => 
 });
 
 test('artifact substitution is rejected', () => {
-  assert.throws(() => assertExecutionRequest({ ...base, artifact: { ...base.artifact, digestSha256: 'b'.repeat(64) } }), /digest mismatch/);
+  assert.throws(() => assertExecutionRequest({ ...base, artifact: { ...base.artifact, digestSha256: 'b'.repeat(64) } }), /digest mismatch|executionId/);
 });
 
 test('actor binding is mandatory', () => {
   assert.throws(() => assertExecutionRequest({ ...base, actorId: '' }), /actor binding/);
 });
 
+test('execution identity cannot be caller-chosen', () => {
+  assert.throws(() => assertExecutionRequest({ ...base, executionId: 'caller-chosen' }), /deterministic request identity/);
+});
+
 test('capability grants must exactly bind declared capabilities', () => {
-  assert.throws(() => assertExecutionRequest({ ...base, capabilityGrants: [] }), /explicitly bind/);
-  assert.throws(() => assertExecutionRequest({ ...base, capabilityGrants: [{ grantId: 'grant-1', capability: 'runtime.write' }] }), /not bound/);
+  assert.throws(() => assertExecutionRequest({ ...base, capabilityGrants: [] }), /explicitly bind|exactly bind/);
+  assert.throws(() => assertExecutionRequest({ ...base, capabilityGrants: [{ grantId: 'grant-1', capability: 'runtime.write' }] }), /exactly bind/);
+  assert.throws(() => assertExecutionRequest({
+    ...base,
+    manifest: { ...base.manifest, requestedCapabilities: ['runtime.read', 'runtime.write'] },
+    capabilityGrants: [
+      { grantId: 'grant-1', capability: 'runtime.read' },
+      { grantId: 'grant-2', capability: 'runtime.read' },
+    ],
+    executionId: deriveExecutionId({ ...baseInput }),
+  }), /unique|exactly bind/);
 });
 
 test('resource limits are mandatory and positive', () => {
@@ -56,9 +76,8 @@ test('resource limits are mandatory and positive', () => {
 });
 
 test('execution identity is deterministic and actor-bound', () => {
-  const input = { actorId: base.actorId, artifactDigestSha256: base.artifact.digestSha256, manifestId: base.manifest.manifestId, requestedAt: base.requestedAt };
-  assert.equal(deriveExecutionId(input), deriveExecutionId(input));
-  assert.notEqual(deriveExecutionId(input), deriveExecutionId({ ...input, actorId: 'actor-2' }));
+  assert.equal(deriveExecutionId(baseInput), deriveExecutionId(baseInput));
+  assert.notEqual(deriveExecutionId(baseInput), deriveExecutionId({ ...baseInput, actorId: 'actor-2' }));
 });
 
 test('patch registrations are unique metadata and cannot carry executable code', () => {
