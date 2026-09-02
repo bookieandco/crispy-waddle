@@ -19,6 +19,22 @@ async function parseJson(response: Response): Promise<Record<string, unknown>> {
   return JSON.parse(body) as Record<string, unknown>;
 }
 
+function historyClientId(entry: unknown): string | undefined {
+  if (!entry || typeof entry !== 'object') return undefined;
+  const record = entry as Record<string, unknown>;
+  const prompt = record.prompt;
+  if (Array.isArray(prompt) && typeof prompt[1] === 'string') return prompt[1];
+  if (prompt && typeof prompt === 'object') {
+    const promptRecord = prompt as Record<string, unknown>;
+    if (typeof promptRecord.client_id === 'string') return promptRecord.client_id;
+  }
+  if (record.extra_data && typeof record.extra_data === 'object') {
+    const extra = record.extra_data as Record<string, unknown>;
+    if (typeof extra.client_id === 'string') return extra.client_id;
+  }
+  return undefined;
+}
+
 /**
  * Thin HTTP transport for ComfyUI. Workflow construction stays in a separate
  * ComfyUIWorkflowBuilder so DirectorOS does not learn ComfyUI node IDs.
@@ -51,6 +67,18 @@ export function createComfyUIHttpClient(options: ComfyUIHttpClientOptions): Comf
       const body = await parseJson(response);
       const entry = body[promptId];
       return entry && typeof entry === 'object' ? entry as Record<string, unknown> : body;
+    },
+
+    async findPromptByClientId(clientId) {
+      const response = await fetchImpl(joinUrl(options.baseUrl, '/history'), {
+        method: 'GET',
+        headers,
+      });
+      const body = await parseJson(response);
+      for (const [promptId, entry] of Object.entries(body)) {
+        if (historyClientId(entry) === clientId) return promptId;
+      }
+      return undefined;
     },
 
     async interrupt(promptId) {
