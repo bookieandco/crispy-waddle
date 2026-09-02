@@ -15,7 +15,6 @@ export type HeliusLaunchWebhookEvent = {
 export type SolanaLaunchCollectorConfig = {
   chainId?: 'solana-mainnet' | 'solana-devnet'
   source?: string
-  minInitialLiquidityUsd?: number
 }
 
 export type SolanaLaunchCollection = {
@@ -25,22 +24,20 @@ export type SolanaLaunchCollection = {
   slot?: number
 }
 
-const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0
 const timestamp = (seconds?: number) => seconds && Number.isFinite(seconds) ? new Date(seconds * 1000).toISOString() : new Date().toISOString()
 
 /**
  * Normalizes live Helius webhook deliveries into the canonical launch-ingestion contract.
  * It deliberately refuses to infer a launch from arbitrary transactions: callers must
  * configure Helius for token-mint/program events and provide a mint in the payload.
+ * Liquidity is intentionally not inferred from token amounts; it must arrive from a
+ * separate liquidity observation so USD values are never fabricated.
  */
 export function collectHeliusLaunch(event: HeliusLaunchWebhookEvent, config: SolanaLaunchCollectorConfig = {}): SolanaLaunchCollection | null {
   const mint = event.events?.token?.mint ?? event.tokenTransfers?.find(t => t.mint)?.mint
   if (!mint) return null
   const observedAt = timestamp(event.timestamp)
   const observationId = event.signature ? `helius:${event.signature}:${mint}` : `helius:${mint}:${observedAt}`
-  const initialLiquidityUsd = event.tokenTransfers?.reduce((sum, transfer) => sum + (finite(transfer.tokenAmount) ? transfer.tokenAmount : 0), 0)
-  if (config.minInitialLiquidityUsd !== undefined && (initialLiquidityUsd ?? 0) < config.minInitialLiquidityUsd) return null
-
   const evidenceIds = [observationId, ...(event.signature ? [`solana-signature:${event.signature}`] : [])]
   const observation: TokenLaunchObservation = {
     observationId,
@@ -48,7 +45,6 @@ export function collectHeliusLaunch(event: HeliusLaunchWebhookEvent, config: Sol
     tokenAddress: mint,
     observedAt,
     deployerWalletId: event.feePayer,
-    initialLiquidityUsd,
     evidenceIds,
     source: config.source ?? 'helius-webhook',
   }
