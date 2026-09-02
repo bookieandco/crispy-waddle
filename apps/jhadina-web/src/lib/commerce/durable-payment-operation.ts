@@ -13,26 +13,23 @@ export type PaymentOperationRecord = PaymentOperationKey & {
   status: PaymentOperationStatus;
   providerReference?: string;
   resultStatus?: string;
+  resultPayload?: unknown;
 };
 
 export type PaymentOperationClaim =
   | { claimed: true }
   | { claimed: false; record: PaymentOperationRecord };
 
-/**
- * Durable execution boundary for irreversible Commerce payment operations.
- * Production implementations must make claim atomic and persist terminal
- * outcomes. In-memory implementations belong only in tests/live fixtures.
- */
+/** Durable execution boundary for irreversible Commerce payment operations. */
 export interface PaymentOperationStore {
-  claim(input: Omit<PaymentOperationRecord, "status" | "providerReference" | "resultStatus">): Promise<PaymentOperationClaim>;
-  complete(key: PaymentOperationKey, result: { providerReference: string; resultStatus: string }): Promise<void>;
-  fail(key: PaymentOperationKey, result: { providerReference?: string; resultStatus: string }): Promise<void>;
+  claim(input: Omit<PaymentOperationRecord, "status" | "providerReference" | "resultStatus" | "resultPayload">): Promise<PaymentOperationClaim>;
+  complete(key: PaymentOperationKey, result: { providerReference: string; resultStatus: string; resultPayload: unknown }): Promise<void>;
+  fail(key: PaymentOperationKey, result: { providerReference?: string; resultStatus: string; resultPayload?: unknown }): Promise<void>;
 }
 
 export function assertPaymentOperationBinding(
   record: PaymentOperationRecord,
-  expected: Omit<PaymentOperationRecord, "status" | "providerReference" | "resultStatus">,
+  expected: Omit<PaymentOperationRecord, "status" | "providerReference" | "resultStatus" | "resultPayload">,
 ): void {
   if (
     record.provider !== expected.provider ||
@@ -44,4 +41,11 @@ export function assertPaymentOperationBinding(
   ) {
     throw new Error("COMMERCE_PAYMENT_OPERATION_BINDING_MISMATCH");
   }
+}
+
+export function requireStoredPaymentIntent(record: PaymentOperationRecord): unknown {
+  if (record.status === "processing") throw new Error("COMMERCE_PAYMENT_OPERATION_IN_PROGRESS");
+  if (record.status === "failed") throw new Error(`COMMERCE_PAYMENT_OPERATION_FAILED:${record.resultStatus ?? "unknown"}`);
+  if (record.resultPayload === undefined) throw new Error("COMMERCE_PAYMENT_OPERATION_RESULT_MISSING");
+  return record.resultPayload;
 }
