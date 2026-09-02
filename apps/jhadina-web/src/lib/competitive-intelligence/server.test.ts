@@ -1,11 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { CompetitiveEvidence } from "@jhadina/opportunity-contracts";
-import type { CompetitorObservation } from "@jhadina/opportunity-contracts";
-import type { RawCompetitiveObservation } from "@jhadina/competitive-intelligence";
-import {
-  bindAuthenticatedCompetitiveEvidenceRepository,
-} from "./server";
-import type { AsyncCompetitiveEvidenceRepository } from "@jhadina/competitive-intelligence";
+import type { CompetitiveEvidence, CompetitorObservation } from "../../../../../packages/opportunity-contracts/src";
+import type {
+  AsyncCompetitiveEvidenceRepository,
+  RawCompetitiveObservation,
+} from "../../../../../packages/competitive-intelligence/src";
+import { bindAuthenticatedCompetitiveEvidenceRepository } from "./authenticated-boundary";
 
 const observation: CompetitorObservation = {
   competitorId: "competitor-a",
