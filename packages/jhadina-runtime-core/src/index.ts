@@ -34,3 +34,5 @@ export type { SandboxProviderKind, SandboxControlState, SandboxIsolationEvidence
 export { SANDBOX_PROVIDER_GUIDANCE } from './sandbox-provider.js';
 export { OpenSandboxProvider } from './opensandbox-provider.js';
 export type { OpenSandboxClientPort, OpenSandboxCreateRequest, OpenSandboxHandle, OpenSandboxImageResolverPort, OpenSandboxLease, OpenSandboxProviderOptions, OpenSandboxRuntimeAttestation, OpenSandboxSandboxStatus } from './opensandbox-provider.js';
+export { createOpenSandboxGovernedRuntimeExecutor } from './opensandbox-runtime.js';
+export type { OpenSandboxGovernedRuntimeOptions } from './opensandbox-runtime.js';
