@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/internal/shark/launch-outcomes?limit=500",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
