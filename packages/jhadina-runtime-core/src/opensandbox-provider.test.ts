@@ -1,0 +1,87 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { deriveExecutionId, OpenSandboxProvider, type ExecutionRequest, type OpenSandboxClientPort, type OpenSandboxHandle } from './index.js';
+
+const isolation = { provider: 'opensandbox' as const, namespaces: 'active' as const, cgroups: 'active' as const, seccomp: 'active' as const, filesystemIsolation: 'active' as const, networkIsolation: 'active' as const, secureRuntime: 'kata' as const };
+const request: ExecutionRequest = {
+  actorId: 'actor-1',
+  artifact: { artifactId: 'artifact-1', digestSha256: 'digest-1', mediaType: 'application/octet-stream', trust: 'trusted' },
+  manifest: { manifestId: 'manifest-1', artifactDigestSha256: 'digest-1', entrypoint: 'main', requestedCapabilities: [], resourceLimits: { maxWallTimeMs: 1000, maxMemoryMb: 128, maxOutputBytes: 4096 } },
+  requestedAt: '2026-09-01T10:00:00.000Z',
+  executionId: deriveExecutionId({ actorId: 'actor-1', artifactDigestSha256: 'digest-1', manifestId: 'manifest-1', requestedAt: '2026-09-01T10:00:00.000Z' }),
+  capabilityGrants: [],
+};
+
+function handle(status: OpenSandboxHandle['status'] = 'running'): OpenSandboxHandle {
+  return { sandboxId: 'sb-1', status, attestation: { sandboxId: 'sb-1', executionId: request.executionId, isolation } };
+}
+function fakeClient(overrides: Partial<OpenSandboxClientPort> = {}) {
+  const calls = { create: [] as unknown[], execute: [] as unknown[], delete: [] as string[], get: [] as string[] };
+  const client: OpenSandboxClientPort = {
+    createSandbox: async (input) => { calls.create.push(input); return handle(); },
+    getSandbox: async (sandboxId) => { calls.get.push(sandboxId); return handle(); },
+    execute: async (sandboxId, input) => { calls.execute.push([sandboxId, input]); return { executionId: input.executionId, status: 'completed' }; },
+    deleteSandbox: async (sandboxId) => { calls.delete.push(sandboxId); },
+    ...overrides,
+  };
+  return { client, calls };
+}
+
+test('uses only the trusted artifact-to-image mapping and passes exact resource limits', async () => {
+  const { client, calls } = fakeClient();
+  const provider = new OpenSandboxProvider({ client, imageResolver: { resolve: async () => 'registry/jhadina-runtime@sha256:trusted' } });
+  const lease = await provider.provision(request);
+  assert.equal(calls.create.length, 1);
+  assert.deepEqual(calls.create[0], { image: 'registry/jhadina-runtime@sha256:trusted', executionId: request.executionId, resourceLimits: request.manifest.resourceLimits });
+  assert.equal(lease.sandboxId, 'sb-1');
+  assert.notEqual(lease.enforcement.limitsDigestSha256, '');
+});
+
+test('rejects missing trusted image mapping', async () => {
+  const { client } = fakeClient();
+  const provider = new OpenSandboxProvider({ client, imageResolver: { resolve: async () => undefined } });
+  await assert.rejects(() => provider.provision(request), /trusted OpenSandbox image mapping/);
+});
+
+test('fails closed for non-running sandbox and cleans it up', async () => {
+  const deleted: string[] = [];
+  const { client } = fakeClient({ createSandbox: async () => ({ ...handle('pending') }), deleteSandbox: async (id) => { deleted.push(id); } });
+  const provider = new OpenSandboxProvider({ client, imageResolver: { resolve: async () => 'trusted-image' } });
+  await assert.rejects(() => provider.provision(request), /not running/);
+  assert.deepEqual(deleted, ['sb-1']);
+});
+
+test('fails closed when runtime attestation is missing or degraded', async () => {
+  const { client } = fakeClient({ createSandbox: async () => ({ sandboxId: 'sb-1', status: 'running', attestation: undefined }) });
+  const provider = new OpenSandboxProvider({ client, imageResolver: { resolve: async () => 'trusted-image' } });
+  await assert.rejects(() => provider.provision(request), /attestation/);
+
+  const degraded = fakeClient({ createSandbox: async () => ({ ...handle(), attestation: { ...handle().attestation!, isolation: { ...isolation, seccomp: 'degraded' } } }) });
+  const provider2 = new OpenSandboxProvider({ client: degraded.client, imageResolver: { resolve: async () => 'trusted-image' } });
+  await assert.rejects(() => provider2.provision(request), /not actively enforced/);
+});
+
+test('requires secure runtime when configured', async () => {
+  const { client } = fakeClient({ createSandbox: async () => ({ ...handle(), attestation: { ...handle().attestation!, isolation: { ...isolation, secureRuntime: 'none' } } }) });
+  const provider = new OpenSandboxProvider({ client, imageResolver: { resolve: async () => 'trusted-image' }, requireSecureRuntime: true });
+  await assert.rejects(() => provider.provision(request), /secure runtime is required/);
+});
+
+test('binds execution to the provisioned sandbox identity', async () => {
+  const { client, calls } = fakeClient();
+  const provider = new OpenSandboxProvider({ client, imageResolver: { resolve: async () => 'trusted-image' } });
+  const lease = await provider.provision(request);
+  const result = await provider.execute(request, lease);
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(calls.execute[0], ['sb-1', request]);
+  await assert.rejects(() => provider.execute({ ...request, executionId: 'other' }, lease), /identity mismatch/);
+});
+
+test('release is idempotent at the provider boundary', async () => {
+  const { client, calls } = fakeClient();
+  const provider = new OpenSandboxProvider({ client, imageResolver: { resolve: async () => 'trusted-image' } });
+  const lease = await provider.provision(request);
+  await lease.release();
+  await lease.release();
+  assert.deepEqual(calls.delete, ['sb-1', 'sb-1']);
+});
