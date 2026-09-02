@@ -36,8 +36,12 @@ export function createMediaPlaybackResumeCoordinator(session: UnifiedMediaSessio
     },
     async loadItem(item) {
       const generation = ++loadGeneration;
+      const authority = session.getAuthorityGeneration();
       const progress = await progressClient.get(userId, item.playback.providerId, item.id);
       assertCurrent(generation);
+      if (session.getAuthorityGeneration() !== authority) {
+        throw new Error(MEDIA_PLAYBACK_RESUME_CANCELLED);
+      }
       const positionSeconds = clampResumeSeconds(progress, item);
       await session.loadPlayback(item.playback, positionSeconds, item.kind);
       assertCurrent(generation);
