@@ -1,14 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { GenerationExecution } from '@jhadina/director-core/generation-execution';
-import type { GenerationRepository } from '@jhadina/director-core/generation-repository';
+import type { GenerationRepository, GenerationSubmissionOutbox } from '@jhadina/director-core/generation-repository';
 import type { GenerationTask } from '@jhadina/director-core/generation-task';
 
 type TaskRow = { id: string; project_id: string; edit_plan_id: string | null; operation_id: string | null; idempotency_key: string; request: GenerationTask['request']; status: GenerationTask['status']; error: string | null; created_at: string; updated_at: string };
 type ExecutionRow = { id: string; task_id: string; provider_id: string; provider_job_id: string | null; attempt: number; status: GenerationExecution['status']; error: string | null; lease_owner: string | null; lease_token: string | null; lease_expires_at: string | null; created_at: string; updated_at: string };
+type SubmissionRow = { id: string; task_id: string; execution_id: string; provider_id: string; idempotency_key: string; request_payload: GenerationTask['request']; status: GenerationSubmissionOutbox['status']; provider_job_id: string | null; attempt: number; lease_owner: string | null; lease_token: string | null; lease_expires_at: string | null; last_error: string | null; created_at: string; updated_at: string };
 type AtomicStateResult = { saved: boolean; task: TaskRow | null; execution: ExecutionRow | null };
 
 function toTask(row: TaskRow): GenerationTask { return { id: row.id, request: row.request, projectId: row.project_id, editPlanId: row.edit_plan_id ?? undefined, operationId: row.operation_id ?? undefined, idempotencyKey: row.idempotency_key, status: row.status, error: row.error ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }; }
 function toExecution(row: ExecutionRow): GenerationExecution { return { id: row.id, taskId: row.task_id, providerId: row.provider_id, providerJobId: row.provider_job_id ?? undefined, attempt: row.attempt, status: row.status, error: row.error ?? undefined, leaseOwner: row.lease_owner ?? undefined, leaseToken: row.lease_token ?? undefined, leaseExpiresAt: row.lease_expires_at ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }; }
+function toSubmission(row: SubmissionRow): GenerationSubmissionOutbox { return { id: row.id, taskId: row.task_id, executionId: row.execution_id, providerId: row.provider_id, idempotencyKey: row.idempotency_key, requestPayload: row.request_payload, status: row.status, providerJobId: row.provider_job_id ?? undefined, attempt: row.attempt, leaseOwner: row.lease_owner ?? undefined, leaseToken: row.lease_token ?? undefined, leaseExpiresAt: row.lease_expires_at ?? undefined, lastError: row.last_error ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }; }
 
 export function createSupabaseGenerationRepository(client: SupabaseClient): GenerationRepository {
   return {
@@ -42,6 +44,11 @@ export function createSupabaseGenerationRepository(client: SupabaseClient): Gene
       const result = data as AtomicStateResult | null;
       if (!result) return false;
       return result.saved === true;
+    },
+    async reserveSubmission(task, execution, providerId, idempotencyKey) {
+      const { data, error } = await client.rpc('reserve_director_generation_submission', { p_task_id: task.id, p_execution_id: execution.id, p_provider_id: providerId, p_idempotency_key: idempotencyKey, p_request_payload: task.request, p_lease_owner: execution.leaseOwner ?? null, p_lease_token: execution.leaseToken ?? null });
+      if (error) throw error;
+      return data ? toSubmission(data as SubmissionRow) : undefined;
     },
     async getExecution(id) { const { data, error } = await client.from('director_generation_executions').select('*').eq('id', id).maybeSingle(); if (error) throw error; return data ? toExecution(data as ExecutionRow) : undefined; },
     async getExecutionByProviderJob(providerId, providerJobId) { const { data, error } = await client.from('director_generation_executions').select('*').eq('provider_id', providerId).eq('provider_job_id', providerJobId).maybeSingle(); if (error) throw error; return data ? toExecution(data as ExecutionRow) : undefined; },
