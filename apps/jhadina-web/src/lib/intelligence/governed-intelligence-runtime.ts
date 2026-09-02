@@ -8,6 +8,7 @@ import { ReasoningEventRepository } from "../repositories/ReasoningEventReposito
 import { getStorage } from "../routes/handlers"
 import { createProductionIntelligenceRouter } from "./production-model-provider"
 import { createIntelligenceAuditLedger, INTELLIGENCE_AUDIT_DOMAIN } from "./durable-audit-ledger"
+import { createSupabaseLearningRecordRepository } from "../learning/supabase-learning-record-repository"
 import {
   decideAndProposeMemoryGoverned,
   type GovernedIntelligenceProposalResult,
@@ -15,16 +16,9 @@ import {
 import type { SupabaseAuditLedger, ActionAuditEvent } from "@jhadina/action-core"
 
 /**
- * Process-local composition root for the Intelligence Router proof —
- * same shape as Growth's governed-approval-runtime.ts. Not yet mounted
- * behind an HTTP route: Step 3's scope is the router and its governance
- * wiring, not "Ask Jhadina" (Step 7), which needs a real Context Builder
- * (Step 4) to supply `ContextPacket`s from live requests. This function
- * is the callable, tested seam Step 7 will mount.
- *
- * Approval receipts stay in-memory and process-local, same explicit
- * scope boundary Growth's runtime already documented — durability here
- * was never required for this milestone.
+ * Process-local composition root for the Intelligence Router proof.
+ * Production execution now injects the server-only durable LearningRecord
+ * repository, so successful governed actions become durable learning facts.
  */
 const approvalStore = new InMemoryApprovalReceiptStore()
 
@@ -33,6 +27,7 @@ export type GovernedIntelligenceRuntimeOverrides = {
   ledger?: SupabaseAuditLedger
   router?: IntelligenceRouter
   approvalStore?: ApprovalReceiptStore
+  learningRecordRepository?: ReturnType<typeof createSupabaseLearningRecordRepository>
   onEvent?: (event: IntelligenceRouterEvent) => void
 }
 
@@ -47,9 +42,18 @@ export async function runGovernedIntelligenceProposal(
   const storage = getStorage()
   const memoryRepo = new MemoryRepository(storage)
   const reasoningRepo = new ReasoningEventRepository(storage)
+  const learningRecordRepository = overrides.learningRecordRepository ?? createSupabaseLearningRecordRepository()
 
   return decideAndProposeMemoryGoverned(
-    { identityVerifier, ledger, router, memoryRepo, reasoningRepo, approvalStore: overrides.approvalStore ?? approvalStore },
+    {
+      identityVerifier,
+      ledger,
+      router,
+      memoryRepo,
+      reasoningRepo,
+      approvalStore: overrides.approvalStore ?? approvalStore,
+      learningRecordRepository,
+    },
     claimedUserId,
     context,
   )
