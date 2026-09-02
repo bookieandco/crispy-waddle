@@ -9,6 +9,8 @@ export interface GenerationRepository {
   getTask(id: string): Promise<GenerationTask | undefined>;
   getTaskByIdempotencyKey(idempotencyKey: string): Promise<GenerationTask | undefined>;
 
+  /** Atomically acquire an execution lease, creating attempt 1 when absent. */
+  claimExecution(taskId: string, providerId: string, workerId: string, leaseMs: number): Promise<GenerationExecution | undefined>;
   saveExecution(execution: GenerationExecution): Promise<void>;
   getExecution(id: string): Promise<GenerationExecution | undefined>;
   getExecutionByProviderJob(providerId: string, providerJobId: string): Promise<GenerationExecution | undefined>;
@@ -55,6 +57,20 @@ export class InMemoryGenerationRepository implements GenerationRepository {
     return id ? this.getTask(id) : undefined;
   }
 
+  async claimExecution(taskId: string, providerId: string, workerId: string, leaseMs: number): Promise<GenerationExecution | undefined> {
+    const id = `${taskId}:attempt:1`;
+    const now = Date.now();
+    const existing = this.executions.get(id);
+    if (existing && existing.status !== 'queued' && existing.status !== 'running') return clone(existing);
+    const leaseExpiry = existing?.leaseExpiresAt ? Date.parse(existing.leaseExpiresAt) : 0;
+    if (existing && leaseExpiry > now && existing.leaseOwner !== workerId) return undefined;
+    const updated: GenerationExecution = existing
+      ? { ...existing, providerId, leaseOwner: workerId, leaseExpiresAt: new Date(now + leaseMs).toISOString(), updatedAt: new Date(now).toISOString() }
+      : { id, taskId, providerId, attempt: 1, status: 'queued', leaseOwner: workerId, leaseExpiresAt: new Date(now + leaseMs).toISOString(), createdAt: new Date(now).toISOString(), updatedAt: new Date(now).toISOString() };
+    this.executions.set(id, clone(updated));
+    return clone(updated);
+  }
+
   async saveExecution(execution: GenerationExecution): Promise<void> {
     this.executions.set(execution.id, clone(execution));
   }
@@ -66,9 +82,7 @@ export class InMemoryGenerationRepository implements GenerationRepository {
 
   async getExecutionByProviderJob(providerId: string, providerJobId: string): Promise<GenerationExecution | undefined> {
     for (const execution of this.executions.values()) {
-      if (execution.providerId === providerId && execution.providerJobId === providerJobId) {
-        return clone(execution);
-      }
+      if (execution.providerId === providerId && execution.providerJobId === providerJobId) return clone(execution);
     }
     return undefined;
   }
