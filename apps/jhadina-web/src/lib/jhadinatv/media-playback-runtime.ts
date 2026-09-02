@@ -13,6 +13,7 @@ type MediaPlaybackSnapshotListener = (snapshot: MediaPlaybackSnapshot) => void;
 
 let store: MediaPlaybackStore | null = null;
 let session: UnifiedMediaSession | null = null;
+let sessionInitialization: Promise<UnifiedMediaSession> | null = null;
 let unsubscribeSession: (() => void) | null = null;
 let persistentMediaElement: HTMLVideoElement | null = null;
 let sessionGeneration = 0;
@@ -82,42 +83,54 @@ function observeSession(nextSession: UnifiedMediaSession): void {
   publishSnapshot();
 }
 
-/**
- * The runtime is the sole owner of the playback session. Routes provide a
- * session configuration only when no shared session exists; later routes
- * reuse the same session and load playback through its public command API.
- */
+function queueItem(item: MediaQueueItem): void {
+  const playbackStore = getMediaPlaybackStore();
+  const currentState = playbackStore.getState();
+  const existingIndex = currentState.queue.findIndex((entry) => entry.id === item.id);
+  if (existingIndex >= 0) playbackStore.setCurrent(item, existingIndex);
+  else if (currentState.queue.length === 0) playbackStore.setCurrent(item, 0);
+  else {
+    playbackStore.addToQueue(item);
+    const nextIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id);
+    playbackStore.setCurrent(item, nextIndex);
+  }
+}
+
+/** Runtime owns initialization as well as the lifetime of the single session. */
 export async function ensureMediaPlaybackSession(config: UnifiedMediaSessionConfig, item: MediaQueueItem): Promise<UnifiedMediaSession> {
-  if (!session) {
-    session = createUnifiedMediaSession(config);
-    const playbackStore = getMediaPlaybackStore();
-    const currentIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id);
-    if (currentIndex >= 0) playbackStore.setCurrent(item, currentIndex);
-    else if (playbackStore.getState().queue.length === 0) playbackStore.setCurrent(item, 0);
-    else {
-      playbackStore.addToQueue(item);
-      const nextIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id);
-      playbackStore.setCurrent(item, nextIndex);
+  if (session) {
+    const sharedSession = session;
+    const current = getMediaPlaybackStore().getState().current;
+    if (!current || current.id !== item.id) {
+      await sharedSession.loadPlayback(item.playback);
+      queueItem(item);
+      publishSnapshot();
     }
-    observeSession(session);
-    return session;
+    return sharedSession;
   }
 
-  const sharedSession = session;
+  if (!sessionInitialization) {
+    sessionInitialization = Promise.resolve().then(() => {
+      if (session) return session;
+      const created = createUnifiedMediaSession(config);
+      session = created;
+      queueItem(item);
+      observeSession(created);
+      return created;
+    }).finally(() => {
+      sessionInitialization = null;
+    });
+  }
+
+  const initialized = await sessionInitialization;
+  if (!session || session !== initialized) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_INITIALIZATION_LOST');
   const current = getMediaPlaybackStore().getState().current;
   if (!current || current.id !== item.id) {
-    await sharedSession.loadPlayback(item.playback);
-    const playbackStore = getMediaPlaybackStore();
-    const currentIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id);
-    if (currentIndex >= 0) playbackStore.setCurrent(item, currentIndex);
-    else {
-      playbackStore.addToQueue(item);
-      const nextIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id);
-      playbackStore.setCurrent(item, nextIndex);
-    }
+    await initialized.loadPlayback(item.playback);
+    queueItem(item);
     publishSnapshot();
   }
-  return sharedSession;
+  return initialized;
 }
 
 /** Observer-only release for route/view unmounts. Playback continues. */
@@ -139,22 +152,12 @@ export function disposeMediaPlaybackSession(): void {
 }
 
 /** @deprecated Use releaseMediaPlaybackView() or disposeMediaPlaybackSession(). */
-export function detachMediaPlaybackSession(): void {
-  releaseMediaPlaybackView();
-}
+export function detachMediaPlaybackSession(): void { releaseMediaPlaybackView(); }
 
 /** @deprecated Direct attachment is retained only for compatibility. New routes should use ensureMediaPlaybackSession(). */
 export function attachMediaPlaybackSession(nextSession: UnifiedMediaSession, item: MediaQueueItem): void {
   if (session && session !== nextSession) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_ALREADY_OWNED');
   session = nextSession;
-  const playbackStore = getMediaPlaybackStore();
-  const currentIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id);
-  if (currentIndex >= 0) playbackStore.setCurrent(item, currentIndex);
-  else if (playbackStore.getState().queue.length === 0) playbackStore.setCurrent(item, 0);
-  else {
-    playbackStore.addToQueue(item);
-    const nextIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id);
-    playbackStore.setCurrent(item, nextIndex);
-  }
+  queueItem(item);
   observeSession(nextSession);
 }
