@@ -46,7 +46,8 @@ create policy jhadina_learning_records_service_role_only
   on public.jhadina_learning_records as restrictive for all
   to service_role using (true) with check (true);
 
-revoke all on public.jhadina_learning_records from public, anon, authenticated;
+revoke all on public.jhadina_learning_records from public, anon, authenticated, service_role;
+grant select, insert on public.jhadina_learning_records to service_role;
 
 create or replace function public.prevent_jhadina_learning_record_mutation()
 returns trigger
