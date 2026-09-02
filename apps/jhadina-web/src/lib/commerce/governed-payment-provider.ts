@@ -105,7 +105,7 @@ export class GovernedPaymentProvider implements PaymentProvider {
   }
 
   async refund(request: RefundRequest): Promise<PaymentIntent> {
-    return this.governed("commerce.payment.refund", `refund:${request.refundId}`, request.refundId, request.paymentId, request, () => this.provider.refund(request))
+    return this.governed("commerce.payment.refund", `refund:${request.refundId}`, request.paymentId, request, () => this.provider.refund(request))
   }
 
   async getPayment(paymentId: string): Promise<PaymentIntent> {
@@ -143,9 +143,7 @@ export class GovernedPaymentProvider implements PaymentProvider {
       throw new PaymentApprovalRequiredError(capability)
     }
 
-    if (!this.paymentOperations) {
-      throw new Error("COMMERCE_PAYMENT_OPERATION_STORE_REQUIRED")
-    }
+    if (!this.paymentOperations) throw new Error("COMMERCE_PAYMENT_OPERATION_STORE_REQUIRED")
 
     const binding: PaymentOperationBinding = {
       provider: this.name,
@@ -160,12 +158,8 @@ export class GovernedPaymentProvider implements PaymentProvider {
     const claim = await this.paymentOperations.claim(binding)
     if (!claim.claimed) {
       assertPaymentOperationBinding(claim.record, binding)
-      if (claim.record.status === "completed") {
-        return requireStoredPaymentIntent(claim.record) as T
-      }
-      if (claim.record.status === "failed") {
-        throw new Error(`COMMERCE_PAYMENT_OPERATION_FAILED:${claim.record.resultStatus ?? "unknown"}`)
-      }
+      if (claim.record.status === "completed") return requireStoredPaymentIntent(claim.record) as T
+      if (claim.record.status === "failed") throw new Error(`COMMERCE_PAYMENT_OPERATION_FAILED:${claim.record.resultStatus ?? "unknown"}`)
       throw new PaymentOperationInProgressError(binding.operationId)
     }
 
@@ -186,29 +180,29 @@ export class GovernedPaymentProvider implements PaymentProvider {
 
     await this.ledger.append({ id: `${eventId}:started`, actionId: providerActionId, userId: this.verifiedActorId, type: capability, status: "started", timestamp: now(), metadata: { approvalReceiptId: approval.receiptId, governedActionId: approval.actionId } })
 
+    let result: T
     try {
-      const result = await run()
-      if (capability === "commerce.payment.charge" || capability === "commerce.payment.refund") {
-        const intent = result as PaymentIntent
-        await this.paymentOperations.complete(binding, {
-          providerReference: intent.providerReference ?? intent.paymentId,
-          resultStatus: intent.status,
-          resultPayload: intent,
-        })
-      } else {
-        await this.paymentOperations.complete(binding, {
-          providerReference: providerActionId,
-          resultStatus: "completed",
-          resultPayload: result,
-        })
-      }
-      await this.ledger.append({ id: `${eventId}:completed`, actionId: providerActionId, userId: this.verifiedActorId, type: capability, status: "completed", timestamp: now(), metadata: { approvalReceiptId: approval.receiptId, governedActionId: approval.actionId } })
-      return result
+      result = await run()
     } catch (error) {
-      const resultPayload = { error: error instanceof Error ? error.message : String(error) }
-      await this.paymentOperations.fail(binding, { resultStatus: "provider_failed", resultPayload })
-      await this.ledger.append({ id: `${eventId}:failed`, actionId: providerActionId, userId: this.verifiedActorId, type: capability, status: "failed", timestamp: now(), metadata: { reason: resultPayload.error, approvalReceiptId: approval.receiptId } })
+      await this.paymentOperations.fail(binding, { resultStatus: "provider_failed", resultPayload: { error: error instanceof Error ? error.message : String(error) } })
+      await this.ledger.append({ id: `${eventId}:failed`, actionId: providerActionId, userId: this.verifiedActorId, type: capability, status: "failed", timestamp: now(), metadata: { reason: error instanceof Error ? error.message : String(error), approvalReceiptId: approval.receiptId } })
       throw error
     }
+
+    try {
+      const terminal = result as unknown
+      const providerReference = (terminal as { providerReference?: string } | null)?.providerReference ?? providerActionId
+      const resultStatus = (terminal as { status?: string } | null)?.status ?? "completed"
+      await this.paymentOperations.complete(binding, { providerReference, resultStatus, resultPayload: terminal })
+    } catch (error) {
+      // The provider already ran. Do not mark the operation failed or retry the
+      // provider: leaving it processing forces reconciliation instead of risking
+      // a second external side effect.
+      await this.ledger.append({ id: `${eventId}:durability-failed`, actionId: providerActionId, userId: this.verifiedActorId, type: capability, status: "failed", timestamp: now(), metadata: { reason: error instanceof Error ? error.message : String(error), recovery: "reconcile_processing_operation" } })
+      throw new Error("COMMERCE_PAYMENT_OPERATION_RESULT_PERSIST_FAILED")
+    }
+
+    await this.ledger.append({ id: `${eventId}:completed`, actionId: providerActionId, userId: this.verifiedActorId, type: capability, status: "completed", timestamp: now(), metadata: { approvalReceiptId: approval.receiptId, governedActionId: approval.actionId } })
+    return result
   }
 }
