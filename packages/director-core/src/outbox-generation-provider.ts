@@ -1,4 +1,4 @@
-import type { GenerationProvider, GenerationRequest, GenerationResult } from './generation-provider';
+import type { GenerationProvider, GenerationProviderRecord, GenerationRequest, GenerationResult } from './generation-provider';
 import type { GenerationRepository } from './generation-repository';
 import { GenerationSubmissionCoordinator } from './generation-submission-coordinator';
 
@@ -7,15 +7,18 @@ import { GenerationSubmissionCoordinator } from './generation-submission-coordin
  * provider without first creating and claiming durable submission intent.
  */
 export class OutboxGenerationProvider implements GenerationProvider {
-  readonly descriptor = this.provider.descriptor;
-  readonly submissionGuarantee = this.provider.submissionGuarantee;
+  readonly descriptor: GenerationProviderRecord;
+  readonly submissionGuarantee: GenerationProvider['submissionGuarantee'];
 
   constructor(
     private readonly provider: GenerationProvider,
     private readonly repository: GenerationRepository,
     private readonly workerId: string,
     private readonly leaseMs = 30_000,
-  ) {}
+  ) {
+    this.descriptor = provider.descriptor;
+    this.submissionGuarantee = provider.submissionGuarantee;
+  }
 
   async submit(request: GenerationRequest): Promise<GenerationResult> {
     const task = await this.repository.getTaskByIdempotencyKey(request.requestId);
