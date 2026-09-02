@@ -113,7 +113,7 @@ export class GenerationService {
     this.jobs.set(initial.id, initial);
 
     try {
-      const result = await provider.submit(initial.request);
+      const result = await provider.submit(initial.request, { idempotencyKey: task.idempotencyKey });
       const completedAt = new Date().toISOString();
       const execution = generationExecutionFromResult(task.id, registeredModel.providerId, result, { id: initialExecution.id, attempt: initialExecution.attempt, now: completedAt });
       const updatedTask: GenerationTask = { ...task, status: result.status, error: result.error, updatedAt: completedAt };
