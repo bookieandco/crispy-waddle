@@ -6,7 +6,7 @@ import { CatalogRegistry, createAuthorizedCatalogAdapter, createBrowserAirPlayCo
 import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
 import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
 import { getCurrentUserId } from '../../../../src/lib/auth/current-user';
-import { ensureMediaPlaybackSession, getPersistentMediaElement, mountPersistentMediaElement, releasePersistentMediaElement, getMediaPlaybackStore, releaseMediaPlaybackView } from '../../../../src/lib/jhadinatv/media-playback-runtime';
+import { ensureMediaPlaybackSession, createMediaPlaybackLoadRequest, getPersistentMediaElement, mountPersistentMediaElement, releasePersistentMediaElement, getMediaPlaybackStore, releaseMediaPlaybackView } from '../../../../src/lib/jhadinatv/media-playback-runtime';
 import { attachMediaPlaybackAutoAdvance } from '../../../../src/lib/jhadinatv/media-playback-auto-advance';
 import { createMediaPlaybackApiClient, createMediaPlaybackResumeCoordinator } from '../../../../src/lib/jhadinatv/media-playback-resume';
 import { attachMediaPlaybackProgressWriter, createMediaPlaybackProgressApiClient } from '../../../../src/lib/jhadinatv/media-playback-progress-writer';
@@ -48,6 +48,7 @@ export default function JhadinaTVWatchPage() {
     const host = videoHostRef.current;
     if (!host || !playback || !title) return;
     let active = true;
+    const loadRequest = createMediaPlaybackLoadRequest();
     const video = mountPersistentMediaElement(host);
     const resolvedSource = playback.source;
     const snapshot = (): MediaSessionState => ({ titleId: title.id, kind: title.kind, sourceUrl: resolvedSource.url, positionSeconds: video.currentTime, durationSeconds: Number.isFinite(video.duration) ? video.duration : undefined, playing: !video.paused, volume: video.volume, target: { id: 'local', name: 'This device', transport: 'local' } });
@@ -65,7 +66,7 @@ export default function JhadinaTVWatchPage() {
     let resumeReady: Promise<void> | null = null;
 
     void (async () => {
-      const session = await ensureMediaPlaybackSession(sessionConfig, queueItem);
+      const session = await ensureMediaPlaybackSession(sessionConfig, queueItem, loadRequest);
       if (!active) return;
       sessionRef.current = session;
       unsubscribe = session.subscribe(setSessionState);
@@ -89,7 +90,7 @@ export default function JhadinaTVWatchPage() {
 
     return () => {
       active = false;
-      // Invalidate an outstanding resume lookup before it can load this route's item after navigation.
+      loadRequest.cancel();
       resumeCoordinator?.cancelPending();
       const writer = progressWriter;
       if (progressWriterRef.current === writer) progressWriterRef.current = null;
