@@ -33,19 +33,25 @@ type SamNotice = {
   placeOfPerformance?: string | { city?: string; state?: string; zip?: string; country?: string }
   description?: string
   uiLink?: string
-  resourceLinks?: string[]
 }
 
-type SamResponse = {
-  opportunitiesData?: SamNotice[]
-  totalRecords?: number
-  limit?: number
-  offset?: number
+type SamResponse = { opportunitiesData?: SamNotice[] }
+
+class SamGovProviderError extends Error {
+  readonly code: 'SAM_GOV_KEY_NOT_CONFIGURED' | 'SAM_GOV_REQUEST_FAILED' | 'SAM_GOV_INVALID_RESPONSE'
+  readonly status?: number
+
+  constructor(code: SamGovProviderError['code'], status?: number) {
+    super(code)
+    this.name = 'SamGovProviderError'
+    this.code = code
+    this.status = status
+  }
 }
 
 function apiKey(): string {
   const key = process.env.SAM_GOV_API_KEY?.trim() || process.env.sam_key?.trim()
-  if (!key) throw new Error('SAM.gov API key is not configured')
+  if (!key) throw new SamGovProviderError('SAM_GOV_KEY_NOT_CONFIGURED')
   return key
 }
 
@@ -82,26 +88,36 @@ export class SamOpportunityDiscoveryProvider implements OpportunityDiscoveryProv
   constructor(private readonly options: SamOpportunityDiscoveryProviderOptions = {}) {}
 
   async discover(input?: { since?: string }): Promise<DiscoveredOpportunity[]> {
-    const url = new URL(SAM_API_URL)
-    url.searchParams.set('api_key', apiKey())
-    url.searchParams.set('limit', String(Math.min(Math.max(this.options.limit ?? 25, 1), 100)))
-    url.searchParams.set('offset', '0')
-    if (input?.since) url.searchParams.set('postedFrom', input.since)
-    if (this.options.keyword) url.searchParams.set('q', this.options.keyword)
-    if (this.options.noticeType) url.searchParams.set('ptype', this.options.noticeType)
-    if (this.options.typeOfSetAside) url.searchParams.set('typeOfSetAside', this.options.typeOfSetAside)
+    let response: Response
+    try {
+      const url = new URL(SAM_API_URL)
+      url.searchParams.set('api_key', apiKey())
+      url.searchParams.set('limit', String(Math.min(Math.max(this.options.limit ?? 25, 1), 100)))
+      url.searchParams.set('offset', '0')
+      if (input?.since) url.searchParams.set('postedFrom', input.since)
+      if (this.options.keyword) url.searchParams.set('q', this.options.keyword)
+      if (this.options.noticeType) url.searchParams.set('ptype', this.options.noticeType)
+      if (this.options.typeOfSetAside) url.searchParams.set('typeOfSetAside', this.options.typeOfSetAside)
 
-    const response = await (this.options.fetchImpl ?? fetch)(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-    })
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '')
-      throw new Error(`SAM.gov request failed (${response.status}): ${detail.slice(0, 500)}`)
+      response = await (this.options.fetchImpl ?? fetch)(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      })
+    } catch (error) {
+      if (error instanceof SamGovProviderError) throw error
+      throw new SamGovProviderError('SAM_GOV_REQUEST_FAILED')
     }
 
-    const payload = (await response.json()) as SamResponse
+    if (!response.ok) throw new SamGovProviderError('SAM_GOV_REQUEST_FAILED', response.status)
+
+    let payload: SamResponse
+    try {
+      payload = (await response.json()) as SamResponse
+    } catch {
+      throw new SamGovProviderError('SAM_GOV_INVALID_RESPONSE')
+    }
+
     return (payload.opportunitiesData ?? []).flatMap((notice): DiscoveredOpportunity[] => {
       if (!notice.noticeId || !notice.title) return []
       return [{
@@ -126,3 +142,5 @@ export class SamOpportunityDiscoveryProvider implements OpportunityDiscoveryProv
     })
   }
 }
+
+export { SamGovProviderError }
