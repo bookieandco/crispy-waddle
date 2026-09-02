@@ -3,79 +3,75 @@ import {
   type ExecutionPolicy,
   type ExecutionRequest,
   type ExecutionResult,
+  type ResourceEnforcerPort,
   type RuntimeAdapterPort,
   type RuntimeAuditEvent,
   type RuntimeAuditSink,
+  type RuntimeResourceLease,
 } from './index.js';
 
-export interface RuntimeExecutionClock {
-  now(): string;
-}
-
+export interface RuntimeExecutionClock { now(): string; }
 const systemClock: RuntimeExecutionClock = { now: () => new Date().toISOString() };
 
 /**
- * Canonical runtime orchestration boundary.
- * Validation and policy happen before an adapter is permitted to execute.
- * The adapter receives no credentials or authorization authority from this class.
+ * Canonical runtime orchestration boundary. No adapter is reachable until
+ * request validation, policy, and physical resource enforcement have passed.
  */
 export class GovernedRuntimeExecutor {
   constructor(
     private readonly policy: ExecutionPolicy,
     private readonly adapter: RuntimeAdapterPort,
     private readonly audit: RuntimeAuditSink,
+    private readonly resourceEnforcer: ResourceEnforcerPort,
     private readonly clock: RuntimeExecutionClock = systemClock,
   ) {}
 
   async execute(request: ExecutionRequest): Promise<ExecutionResult> {
-    try {
-      assertExecutionRequest(request);
-    } catch (error) {
-      await this.appendAudit(request, 'denied', { reason: 'invalid_execution_request' });
-      throw error;
-    }
+    try { assertExecutionRequest(request); }
+    catch (error) { await this.appendAudit(request, 'denied', { reason: 'invalid_execution_request' }); throw error; }
 
     let decision: Awaited<ReturnType<ExecutionPolicy['evaluate']>>;
-    try {
-      decision = await this.policy.evaluate(request);
-    } catch (error) {
-      await this.appendAudit(request, 'denied', { reason: 'policy_evaluation_failed' });
-      throw error;
-    }
-
+    try { decision = await this.policy.evaluate(request); }
+    catch (error) { await this.appendAudit(request, 'denied', { reason: 'policy_evaluation_failed' }); throw error; }
     if (decision !== 'allow') {
       await this.appendAudit(request, 'denied', { reason: 'policy_denied' });
       throw new Error(`Runtime execution denied: ${request.executionId}`);
     }
 
-    // This is the last governed point before an adapter can cause execution.
-    // If the durable allow record cannot be written, execution must not start.
-    await this.appendAudit(request, 'allowed');
+    let lease: RuntimeResourceLease;
+    try {
+      lease = await this.resourceEnforcer.acquire(request);
+    } catch (error) {
+      await this.appendAudit(request, 'denied', { reason: 'resource_enforcement_unavailable' });
+      throw error;
+    }
+    if (lease.executionId !== request.executionId || lease.enforcement !== 'enforced') {
+      await this.safeRelease(lease);
+      await this.appendAudit(request, 'denied', { reason: 'invalid_resource_lease' });
+      throw new Error(`Runtime resource lease is not bound to ${request.executionId}`);
+    }
+
+    // The durable allow record is the final governed point before execution.
+    try { await this.appendAudit(request, 'allowed', { resourceLimits: request.manifest.resourceLimits }); }
+    catch (error) { await this.safeRelease(lease); throw error; }
 
     try {
-      const result = await this.adapter.execute(request, this.policy);
+      const result = await this.adapter.execute(request, lease);
       await this.appendAudit(request, result.status === 'completed' ? 'completed' : 'failed');
       return result;
     } catch (error) {
-      await this.appendAudit(request, 'failed', {
-        reason: error instanceof Error ? error.message : String(error),
-      });
+      await this.appendAudit(request, 'failed', { reason: error instanceof Error ? error.message : String(error) });
       throw error;
+    } finally {
+      await lease.release();
     }
   }
 
-  private async appendAudit(
-    request: ExecutionRequest,
-    status: RuntimeAuditEvent['status'],
-    metadata?: Readonly<Record<string, unknown>>,
-  ): Promise<void> {
-    await this.audit.append({
-      executionId: request.executionId,
-      actorId: request.actorId,
-      artifactDigestSha256: request.artifact.digestSha256,
-      status,
-      occurredAt: this.clock.now(),
-      metadata,
-    });
+  private async safeRelease(lease: RuntimeResourceLease): Promise<void> {
+    try { await lease.release(); } catch { /* original fail-closed error wins */ }
+  }
+
+  private async appendAudit(request: ExecutionRequest, status: RuntimeAuditEvent['status'], metadata?: Readonly<Record<string, unknown>>): Promise<void> {
+    await this.audit.append({ executionId: request.executionId, actorId: request.actorId, artifactDigestSha256: request.artifact.digestSha256, status, occurredAt: this.clock.now(), metadata });
   }
 }
