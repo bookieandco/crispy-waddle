@@ -16,15 +16,14 @@ export type MigrationAwareRiskResult = {
 
 const VERIFIED_MIGRATIONS = new Set(['LEGITIMATE_MIGRATION', 'POOL_MIGRATION'])
 
-function isVerifiedMigration(classification?: MigrationAwareClassification): boolean {
+export function isVerifiedMigration(classification?: MigrationAwareClassification): boolean {
   return !!classification && classification.confidence >= 0.7 && VERIFIED_MIGRATIONS.has(classification.kind) && classification.hardBlockRug === false
 }
 
 /**
  * Wires verified migration evidence into both LP control and rug protection.
- * Migration suppresses only liquidity-withdrawal/drain signals caused by the
- * migration; independent contract, supply, holder, authority and control
- * risks remain active.
+ * Only liquidity-withdrawal/drain signals are suppressed. Independent
+ * authority, supply, contract and other control risks remain active.
  */
 export function assessMigrationAwareRisk(input: MigrationAwareRiskInput): MigrationAwareRiskResult {
   const migrated = isVerifiedMigration(input.migrationClassification)
