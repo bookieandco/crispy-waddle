@@ -58,57 +58,40 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
   let remoteUnsubscribe: (() => void) | undefined;
   let localUnsubscribe: (() => void) | undefined;
   let disposed = false;
-  const assertActive = () => {
-    if (disposed) throw new Error('Media session is disposed.');
-  };
-  const publish = (next: MediaSessionState) => {
-    if (disposed) return;
-    state = next;
-    listeners.forEach((listener) => listener(state));
-  };
+  const assertActive = () => { if (disposed) throw new Error('Media session is disposed.'); };
+  const publish = (next: MediaSessionState) => { if (disposed) return; state = next; listeners.forEach((listener) => listener(state)); };
   const localCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
-    assertActive();
-    await config.local.apply(command);
-    assertActive();
+    assertActive(); await config.local.apply(command); assertActive();
     const localState = config.local.getState();
     publish({ ...state, ...localState, sourceUrl: playback.source.url, target: { id: 'local', name: 'This device', transport: 'local' } });
   };
   const remoteCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
     assertActive();
     if (!state.target || state.target.transport === 'local') throw new Error('No remote TV playback session is connected.');
-    await config.casting.send(command);
-    assertActive();
+    await config.casting.send(command); assertActive();
     const remote = await config.casting.getState();
     if (remote) publish({ ...state, ...remote, sourceUrl: playback.source.url, target: state.target });
   };
 
   const session: UnifiedMediaSession = {
     getState: () => state,
-    subscribe(listener) {
-      if (disposed) throw new Error('Media session is disposed.');
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    subscribe(listener) { if (disposed) throw new Error('Media session is disposed.'); listeners.add(listener); return () => listeners.delete(listener); },
     dispose() {
-      if (disposed) return;
-      disposed = true;
-      localUnsubscribe?.();
-      localUnsubscribe = undefined;
-      remoteUnsubscribe?.();
-      remoteUnsubscribe = undefined;
-      listeners.clear();
+      if (disposed) return; disposed = true; localUnsubscribe?.(); localUnsubscribe = undefined; remoteUnsubscribe?.(); remoteUnsubscribe = undefined; listeners.clear();
     },
     async loadPlayback(nextPlayback) {
-      assertActive();
-      assertLoadablePlayback(nextPlayback, config.titleId);
+      assertActive(); assertLoadablePlayback(nextPlayback, config.titleId);
       if (state.target && state.target.transport !== 'local') {
-        throw new Error('Remote playback source switching is not yet supported by this casting session.');
+        await config.casting.loadPlayback(nextPlayback, 0);
+      } else {
+        config.local.setSource!(nextPlayback.source.url);
       }
-      config.local.setSource!(nextPlayback.source.url);
       assertActive();
       playback = nextPlayback;
-      const localState = config.local.getState();
-      publish({ ...state, ...localState, titleId: config.titleId, kind: config.kind, sourceUrl: nextPlayback.source.url, positionSeconds: 0, playing: false, target: { id: 'local', name: 'This device', transport: 'local' } });
+      const nextState = state.target && state.target.transport !== 'local'
+        ? await config.casting.getState()
+        : config.local.getState();
+      publish({ ...state, ...(nextState ?? {}), titleId: config.titleId, kind: config.kind, sourceUrl: nextPlayback.source.url, positionSeconds: 0, playing: false });
     },
     play: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'play' }) : localCommand({ type: 'play' }),
     pause: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'pause' }) : localCommand({ type: 'pause' }),
@@ -116,23 +99,14 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
     setVolume: (value) => state.target?.transport !== 'local' ? remoteCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }) : localCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }),
     discoverTargets: async () => { assertActive(); return config.casting.discover(); },
     async transfer(target) {
-      assertActive();
-      const current = config.local.getState();
-      await config.casting.connect(target);
-      assertActive();
+      assertActive(); const current = config.local.getState(); await config.casting.connect(target); assertActive();
       await config.casting.send({ type: 'transfer', target });
       publish({ ...state, ...current, sourceUrl: playback.source.url, target });
-      remoteUnsubscribe?.();
-      remoteUnsubscribe = config.casting.subscribeState((next) => publish({ ...state, ...next, sourceUrl: playback.source.url, target }), 500);
+      remoteUnsubscribe?.(); remoteUnsubscribe = config.casting.subscribeState((next) => publish({ ...state, ...next, sourceUrl: playback.source.url, target }), 500);
     },
     async disconnect() {
-      assertActive();
-      const remote = await config.casting.getState();
-      remoteUnsubscribe?.(); remoteUnsubscribe = undefined;
-      await config.casting.disconnect();
-      assertActive();
-      const local = config.local.getState();
-      const nextPosition = remote?.positionSeconds ?? local.positionSeconds;
+      assertActive(); const remote = await config.casting.getState(); remoteUnsubscribe?.(); remoteUnsubscribe = undefined; await config.casting.disconnect(); assertActive();
+      const local = config.local.getState(); const nextPosition = remote?.positionSeconds ?? local.positionSeconds;
       await config.local.apply({ type: 'seek', value: nextPosition });
       if (remote?.playing) await config.local.apply({ type: 'play' }); else await config.local.apply({ type: 'pause' });
       publish({ ...local, ...remote, sourceUrl: playback.source.url, positionSeconds: nextPosition, playing: !!remote?.playing, target: { id: 'local', name: 'This device', transport: 'local' } });
