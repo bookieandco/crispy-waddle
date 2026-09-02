@@ -1,5 +1,6 @@
 export * from './spine.js';
 export * from './types.js';
+export * from './personality-core.js';
 export * from './evolution.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
