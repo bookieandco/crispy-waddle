@@ -22,7 +22,7 @@ export type LPControlRisk = {
 
 function clamp(n: number): number { return Math.max(0, Math.min(1, n)) }
 
-export function assessLPControlRisk(input: LPControlRiskInput): LPControlRisk {
+export function assessLPControlRisk(input: LPControlRiskInput, now = Date.now()): LPControlRisk {
   const reasons: string[] = []
   let score = 0
   const burned = clamp(input.lpBurnedPct ?? 0) / 100
@@ -37,7 +37,7 @@ export function assessLPControlRisk(input: LPControlRiskInput): LPControlRisk {
 
   let lockExpiryRisk = 0
   if (input.lockExpiresAt) {
-    const remaining = Date.parse(input.lockExpiresAt) - Date.now()
+    const remaining = Date.parse(input.lockExpiresAt) - now
     if (Number.isFinite(remaining) && remaining <= 7 * 86400000) { lockExpiryRisk = 0.25; score += lockExpiryRisk; reasons.push('lp-lock-expiring-soon') }
   }
 
