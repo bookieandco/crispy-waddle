@@ -49,6 +49,8 @@ export class GenerationService {
   private readonly jobs = new Map<string, GenerationJob>();
   private readonly workerId: string;
   private readonly executionLeaseMs: number;
+  private readonly executionWaitMs: number;
+  private readonly executionPollMs: number;
 
   constructor(
     private readonly registry: GenerationRegistry,
@@ -57,9 +59,13 @@ export class GenerationService {
     private readonly generationRepository?: GenerationRepository,
     workerId?: string,
     executionLeaseMs = 30_000,
+    executionWaitMs = 5_000,
+    executionPollMs = 25,
   ) {
     this.workerId = workerId ?? `director-worker:${Math.random().toString(36).slice(2)}`;
     this.executionLeaseMs = executionLeaseMs;
+    this.executionWaitMs = executionWaitMs;
+    this.executionPollMs = executionPollMs;
   }
 
   private async persistOutputs(job: GenerationJob, result: GenerationResult): Promise<void> {
@@ -74,6 +80,17 @@ export class GenerationService {
     if (!this.generationRepository) return;
     await this.generationRepository.saveExecution(execution);
     await this.generationRepository.saveTask(task);
+  }
+
+  private async waitForExecutionResolution(task: GenerationTask): Promise<GenerationExecution | undefined> {
+    if (!this.generationRepository) return undefined;
+    const deadline = Date.now() + this.executionWaitMs;
+    while (Date.now() < deadline) {
+      const execution = (await this.generationRepository.listExecutions(task.id)).at(-1);
+      if (execution?.providerJobId || execution?.status === 'completed' || execution?.status === 'failed' || execution?.status === 'cancelled') return execution;
+      await new Promise((resolve) => setTimeout(resolve, this.executionPollMs));
+    }
+    return (await this.generationRepository.listExecutions(task.id)).at(-1);
   }
 
   async submit(request: GenerationRequest): Promise<GenerationJob> {
@@ -100,8 +117,10 @@ export class GenerationService {
       }
       initialExecution = await this.generationRepository.claimExecution(task.id, registeredModel.providerId, this.workerId, this.executionLeaseMs);
       if (!initialExecution) {
-        const current = (await this.generationRepository.listExecutions(task.id)).at(-1);
-        const existingJob = jobFromTask(task, current);
+        // Another worker owns the active lease. Wait for its durable result rather
+        // than returning a job that has no providerJobId yet.
+        const reconciled = await this.waitForExecutionResolution(task);
+        const existingJob = jobFromTask(task, reconciled);
         this.jobs.set(existingJob.id, existingJob);
         return existingJob;
       }
@@ -114,8 +133,6 @@ export class GenerationService {
     this.jobs.set(initial.id, initial);
 
     try {
-      // Recovery boundary: a provider may have accepted the job before the worker
-      // crashed, leaving no providerJobId in our durable execution row.
       if (!initialExecution.providerJobId && provider.findByIdempotencyKey) {
         const recovered = await provider.findByIdempotencyKey(task.idempotencyKey);
         if (recovered) {
