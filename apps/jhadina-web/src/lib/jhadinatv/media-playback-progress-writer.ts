@@ -1,6 +1,6 @@
 import type { MediaPlaybackProgress, MediaPlaybackStore, MediaQueueItem, UnifiedMediaSession } from '@jhadina/tv-core';
 import { configureMediaPlaybackProgressPersistence, flushMediaPlaybackProgress, getMediaPlaybackStore } from './media-playback-runtime';
-import type { RuntimeProgressClient } from './media-playback-progress-runtime';
+import type { RuntimeProgressClient, RuntimeProgressPersistence } from './media-playback-progress-runtime';
 
 export interface MediaPlaybackProgressWriterClient extends RuntimeProgressClient {}
 export interface MediaPlaybackProgressWriter { flush(completed?: boolean): Promise<void>; dispose(): void; }
@@ -38,9 +38,9 @@ export function createMediaPlaybackProgressApiClient(fetchImpl: typeof fetch = f
  * persistence while playback continues in the global player.
  */
 export function attachMediaPlaybackProgressWriter({ userId, client, throttleMs, onError }: MediaPlaybackProgressWriterDeps): MediaPlaybackProgressWriter {
-  configureMediaPlaybackProgressPersistence({ userId, client, throttleMs, onError });
+  const persistence: RuntimeProgressPersistence | null = configureMediaPlaybackProgressPersistence({ userId, client, throttleMs, onError });
   return {
-    flush: flushMediaPlaybackProgress,
+    flush: persistence ? (completed = false) => persistence.flush(completed) : flushMediaPlaybackProgress,
     dispose: () => undefined,
   };
 }
