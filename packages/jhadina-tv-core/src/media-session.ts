@@ -19,6 +19,7 @@ export interface UnifiedMediaSession {
   seek(positionSeconds: number): Promise<void>;
   setVolume(value: number): Promise<void>;
   discoverTargets(): Promise<PlaybackTarget[]>;
+  syncRemoteState(): Promise<MediaSessionState | null>;
   transfer(target: PlaybackTarget): Promise<void>;
   disconnect(): Promise<void>;
   isRemote(): boolean;
@@ -105,6 +106,16 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
     seek: (positionSeconds) => state.target?.transport !== 'local' ? remoteCommand({ type: 'seek', value: Math.max(0, positionSeconds) }) : localCommand({ type: 'seek', value: Math.max(0, positionSeconds) }),
     setVolume: (value) => state.target?.transport !== 'local' ? remoteCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }) : localCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }),
     discoverTargets: async () => { assertActive(); return config.casting.discover(); },
+    async syncRemoteState() {
+      assertActive();
+      if (!state.target || state.target.transport === 'local') return null;
+      const remote = await config.casting.getState();
+      assertActive();
+      if (!remote) return null;
+      const next = { ...state, ...remote, kind: config.kind, sourceUrl: playback.source.url, titleId: playback.source.titleId, target: state.target };
+      publish(next);
+      return next;
+    },
     async transfer(target) {
       assertActive();
       if (target.transport === 'local') {
