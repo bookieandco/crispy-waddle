@@ -23,10 +23,16 @@ export type SchedulerAdapter<T> = {
   compile(schedule: Schedule): T;
 };
 
-/** Vercel consumes a path plus a five-field cron expression in vercel.json. */
+/**
+ * Vercel Cron schedules are expressed in UTC. Refuse a non-UTC canonical
+ * schedule rather than silently changing its wall-clock semantics.
+ */
 export const vercelCronAdapter: SchedulerAdapter<VercelCronConfig> = {
   platform: 'vercel-cron',
   compile(schedule) {
+    if (schedule.timezone !== 'UTC') {
+      throw new Error('Vercel Cron adapter requires timezone=UTC; convert the schedule explicitly before deployment.');
+    }
     return { path: schedule.target, schedule: schedule.expression };
   },
 };
