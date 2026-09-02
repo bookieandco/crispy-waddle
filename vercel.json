@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/internal/shark/historical-observations?limit=100",
+      "schedule": "30 * * * *"
+    },
+    {
       "path": "/api/internal/shark/launch-outcomes?limit=500",
       "schedule": "0 * * * *"
     }
