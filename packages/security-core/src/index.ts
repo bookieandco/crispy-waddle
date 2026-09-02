@@ -57,20 +57,27 @@ export class JhadinaSecurityCore {
 
   constructor(private readonly policy: SecurityPolicy) {}
 
+  /** Pure deterministic authorization evaluation. It never consumes replay state. */
+  evaluateAuthorization(request: SecurityRequest): SecurityDecision {
+    const now = Date.now();
+    if (!request.actorId || !request.requestId || !request.nonce) return 'deny';
+    if (request.expiresAt <= now) return 'deny';
+    if (this.policy.deniedCapabilities?.includes(request.capability)) return 'deny';
+    if (!this.policy.allowedCapabilities.includes(request.capability)) return 'deny';
+    if (request.requiresApproval || this.policy.approvalCapabilities.includes(request.capability)) return 'approval_required';
+    return 'allow';
+  }
+
   /**
    * Synchronous/test compatibility path. Production authorization that spans
    * workers or instances must use authorizeWithReplayGuard().
    */
   authorize(request: SecurityRequest): SecurityDecision {
-    const now = Date.now();
-    if (!request.actorId || !request.requestId || !request.nonce) return 'deny';
-    if (request.expiresAt <= now) return 'deny';
+    const decision = this.evaluateAuthorization(request);
+    if (decision === 'deny') return decision;
     if (this.usedNonces.has(request.nonce)) return 'deny';
-    if (this.policy.deniedCapabilities?.includes(request.capability)) return 'deny';
-    if (!this.policy.allowedCapabilities.includes(request.capability)) return 'deny';
     this.usedNonces.add(request.nonce);
-    if (request.requiresApproval || this.policy.approvalCapabilities.includes(request.capability)) return 'approval_required';
-    return 'allow';
+    return decision;
   }
 
   /**
@@ -78,14 +85,10 @@ export class JhadinaSecurityCore {
    * an atomic durable guard, so a nonce cannot be accepted by two workers.
    */
   async authorizeWithReplayGuard(request: SecurityRequest, replayGuard: NonceReplayGuard): Promise<SecurityDecision> {
-    const now = Date.now();
-    if (!request.actorId || !request.requestId || !request.nonce) return 'deny';
-    if (request.expiresAt <= now) return 'deny';
-    if (this.policy.deniedCapabilities?.includes(request.capability)) return 'deny';
-    if (!this.policy.allowedCapabilities.includes(request.capability)) return 'deny';
+    const decision = this.evaluateAuthorization(request);
+    if (decision === 'deny') return decision;
     if (!(await replayGuard.consume(request))) return 'deny';
-    if (request.requiresApproval || this.policy.approvalCapabilities.includes(request.capability)) return 'approval_required';
-    return 'allow';
+    return decision;
   }
 
   issueGrant(input: Omit<CapabilityGrant, 'issuedAt'> & { ttlMs?: number }): CapabilityGrant {
