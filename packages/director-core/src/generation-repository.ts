@@ -11,7 +11,8 @@ export interface GenerationRepository {
 
   /** Atomically acquire an execution lease, creating attempt 1 when absent. */
   claimExecution(taskId: string, providerId: string, workerId: string, leaseMs: number): Promise<GenerationExecution | undefined>;
-  saveExecution(execution: GenerationExecution): Promise<void>;
+  /** Persist only if the worker still owns the execution lease. Returns false for stale workers. */
+  saveExecution(execution: GenerationExecution): Promise<boolean>;
   getExecution(id: string): Promise<GenerationExecution | undefined>;
   getExecutionByProviderJob(providerId: string, providerJobId: string): Promise<GenerationExecution | undefined>;
   listExecutions(taskId: string): Promise<GenerationExecution[]>;
@@ -71,8 +72,12 @@ export class InMemoryGenerationRepository implements GenerationRepository {
     return clone(updated);
   }
 
-  async saveExecution(execution: GenerationExecution): Promise<void> {
+  async saveExecution(execution: GenerationExecution): Promise<boolean> {
+    const existing = this.executions.get(execution.id);
+    if (existing && existing.leaseOwner && existing.leaseOwner !== execution.leaseOwner) return false;
+    if (existing && existing.leaseExpiresAt && Date.parse(existing.leaseExpiresAt) < Date.now() && existing.leaseOwner !== execution.leaseOwner) return false;
     this.executions.set(execution.id, clone(execution));
+    return true;
   }
 
   async getExecution(id: string): Promise<GenerationExecution | undefined> {
