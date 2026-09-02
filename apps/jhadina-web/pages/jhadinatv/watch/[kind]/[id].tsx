@@ -23,7 +23,7 @@ function makeRegistry() { const registry = new CatalogRegistry(); registry.regis
 type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
 
 export default function JhadinaTVWatchPage() {
-  const router = useRouter(); const videoHostRef = useRef<HTMLDivElement | null>(null); const registry = useMemo(makeRegistry, []); const sessionRef = useRef<UnifiedMediaSession | null>(null);
+  const router = useRouter(); const videoHostRef = useRef<HTMLDivElement | null>(null); const registry = useMemo(makeRegistry, []); const sessionRef = useRef<UnifiedMediaSession | null>(null); const progressWriterRef = useRef<ReturnType<typeof attachMediaPlaybackProgressWriter> | null>(null);
   const { kind, id } = router.query as { kind?: MediaKind; id?: string }; const [title, setTitle] = useState<MediaTitle | null>(null); const [playback, setPlayback] = useState<ResolvedPlaybackSource | null>(null); const [error, setError] = useState<string | null>(null);
   const [casting, setCasting] = useState(false); const [target, setTarget] = useState<PlaybackTarget | null>(null); const [targets, setTargets] = useState<PlaybackTarget[]>([]); const [pipSupported, setPipSupported] = useState(false); const [pipActive, setPipActive] = useState(false); const [sessionState, setSessionState] = useState<MediaSessionState | null>(null);
   const source = playback?.source ?? null;
@@ -69,18 +69,28 @@ export default function JhadinaTVWatchPage() {
       await resumeCoordinator.loadItem(queueItem);
       if (!active) return;
       progressWriter = attachMediaPlaybackProgressWriter({ video, session, item: queueItem, userId, client: writerClient, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to save playback progress.') });
+      progressWriterRef.current = progressWriter;
       setSessionState(session.getState());
     }).catch((cause) => {
       if (active) setError(cause instanceof Error ? cause.message : 'Unable to restore saved playback progress.');
     });
     const detachAutoAdvance = attachMediaPlaybackAutoAdvance({ video, store: getMediaPlaybackStore(), session, resolveResumePosition: async (next) => { await resumeReady; if (!resumeCoordinator) return 0; return resumeCoordinator.resolvePositionSeconds(next as MediaQueueItem); }, beforeAdvance: async () => { if (progressWriter) await progressWriter.flush(true); }, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to advance to the next item.') });
-    return () => { active = false; progressWriter?.dispose(); unsubscribe(); detachAutoAdvance(); releasePersistentMediaElement(host); sessionRef.current = null; };
+    return () => {
+      active = false;
+      const writer = progressWriter;
+      if (progressWriterRef.current === writer) progressWriterRef.current = null;
+      unsubscribe();
+      detachAutoAdvance();
+      if (writer) void writer.flush(false).finally(() => writer.dispose());
+      releasePersistentMediaElement(host);
+      sessionRef.current = null;
+    };
   }, [playback, title]);
 
   useEffect(() => { if (!source) return; const video = getPersistentMediaElement(); const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); setPipSupported(controller.isSupported()); const sync = () => setPipActive(controller.isActive()); video.addEventListener('enterpictureinpicture', sync); video.addEventListener('leavepictureinpicture', sync); return () => { video.removeEventListener('enterpictureinpicture', sync); video.removeEventListener('leavepictureinpicture', sync); }; }, [source]);
   async function discoverTVs() { try { const session = sessionRef.current; if (!session) return; setTargets(await session.discoverTargets()); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to discover TV devices.'); } }
-  async function connectTV(nextTarget: PlaybackTarget) { try { const session = sessionRef.current; if (!session) return; await session.transfer(nextTarget); setTarget(nextTarget); setCasting(true); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to connect to the selected TV.'); } }
-  async function disconnectTV() { const session = sessionRef.current; if (session) await session.disconnect(); setCasting(false); setTarget(null); }
+  async function connectTV(nextTarget: PlaybackTarget) { try { const session = sessionRef.current; if (!session) return; await session.syncRemoteState(); await progressWriterRef.current?.flush(false); await session.transfer(nextTarget); setTarget(nextTarget); setCasting(true); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to connect to the selected TV.'); } }
+  async function disconnectTV() { try { const session = sessionRef.current; if (session) { await session.disconnect(); await progressWriterRef.current?.flush(false); } setCasting(false); setTarget(null); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to disconnect from the selected TV.'); } }
   async function togglePiP() { const video = getPersistentMediaElement(); const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); try { await controller.toggle(); setPipActive(controller.isActive()); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Picture-in-Picture is unavailable.'); } }
   if (error) return <main style={{ padding: 32 }}><h1>Unable to play</h1><p>{error}</p></main>; if (!title) return <main style={{ padding: 32 }}><p>Loading JhadinaTV session…</p></main>;
   return <><Script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" strategy="afterInteractive" /><main style={{ minHeight: '100vh', background: '#050608', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif', padding: 24 }}><div style={{ maxWidth: 1200, margin: '0 auto' }}><button onClick={() => router.back()} style={{ background: 'transparent', border: 0, color: '#aaa', cursor: 'pointer', padding: 0, marginBottom: 18 }}>← Back</button>
