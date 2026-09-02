@@ -61,3 +61,6 @@ export { GovernedRuntimeExecutor } from './runtime-executor.js';
 export type { RuntimeExecutionClock } from './runtime-executor.js';
 export { assertResourceEnforcementReceipt, deriveResourceLimitsDigest } from './resource-enforcement.js';
 export type { AttestedRuntimeResourceLease } from './resource-enforcement.js';
+export { assertSandboxIsolationEvidence } from './sandbox-provider.js';
+export type { SandboxProviderKind, SandboxIsolationEvidence, SandboxLease, SandboxProviderPort } from './sandbox-provider.js';
+export { SANDBOX_PROVIDER_GUIDANCE } from './sandbox-provider.js';
