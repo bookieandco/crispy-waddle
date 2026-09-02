@@ -41,22 +41,17 @@ describe('GenerationRepository', () => {
   it('persists and returns cloned task state', async () => {
     const repository = new InMemoryGenerationRepository();
     const original = task();
-
     await repository.saveTask(original);
     const loaded = await repository.getTask(original.id);
-
     expect(loaded).toEqual(original);
     expect(loaded).not.toBe(original);
-
     original.request.prompt = 'mutated';
     expect((await repository.getTask(original.id))?.request.prompt).toBe('test');
   });
 
   it('rejects an idempotency key collision across task identities', async () => {
     const repository = new InMemoryGenerationRepository();
-
     await repository.saveTask(task());
-
     await expect(repository.saveTask(task({
       id: 'task-2',
       request: { ...task().request, requestId: 'task-2' },
@@ -66,27 +61,41 @@ describe('GenerationRepository', () => {
   it('finds tasks by idempotency key', async () => {
     const repository = new InMemoryGenerationRepository();
     await repository.saveTask(task());
-
     await expect(repository.getTaskByIdempotencyKey('idem-1')).resolves.toEqual(task());
     await expect(repository.getTaskByIdempotencyKey('missing')).resolves.toBeUndefined();
   });
 
   it('looks up provider executions and sorts attempts', async () => {
     const repository = new InMemoryGenerationRepository();
-    await repository.saveExecution(execution({
-      id: 'task-1:attempt:2',
-      attempt: 2,
-      providerJobId: 'provider-job-2',
-      status: 'running',
-    }));
+    await repository.saveExecution(execution({ id: 'task-1:attempt:2', attempt: 2, providerJobId: 'provider-job-2', status: 'running' }));
     await repository.saveExecution(execution());
+    await expect(repository.getExecutionByProviderJob('provider-1', 'provider-job-2')).resolves.toMatchObject({ attempt: 2 });
+    await expect(repository.listExecutions('task-1')).resolves.toEqual([
+      expect.objectContaining({ attempt: 1 }),
+      expect.objectContaining({ attempt: 2 }),
+    ]);
+  });
 
-    await expect(repository.getExecutionByProviderJob('provider-1', 'provider-job-2'))
-      .resolves.toMatchObject({ attempt: 2 });
-    await expect(repository.listExecutions('task-1'))
-      .resolves.toEqual([
-        expect.objectContaining({ attempt: 1 }),
-        expect.objectContaining({ attempt: 2 }),
-      ]);
+  it('rejects a stale worker from overwriting a replacement worker lease', async () => {
+    const repository = new InMemoryGenerationRepository();
+    const first = await repository.claimExecution('task-1', 'provider-1', 'worker-a', 1);
+    expect(first?.leaseOwner).toBe('worker-a');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const replacement = await repository.claimExecution('task-1', 'provider-1', 'worker-b', 30_000);
+    expect(replacement?.leaseOwner).toBe('worker-b');
+
+    const staleWrite = await repository.saveExecution({
+      ...first!,
+      providerJobId: 'stale-provider-job',
+      status: 'queued',
+      leaseOwner: 'worker-a',
+      updatedAt: new Date().toISOString(),
+    });
+
+    expect(staleWrite).toBe(false);
+    await expect(repository.getExecution(first!.id)).resolves.toMatchObject({
+      leaseOwner: 'worker-b',
+      providerJobId: undefined,
+    });
   });
 });
