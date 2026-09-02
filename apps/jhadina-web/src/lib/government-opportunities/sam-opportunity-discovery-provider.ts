@@ -39,8 +39,16 @@ const number = (value: unknown): number | undefined => {
   }
   return undefined
 }
-
 const first = (...values: unknown[]) => values.map(text).find(Boolean)
+
+function samDate(value?: string): string | undefined {
+  if (!value) return undefined
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  const month = String(parsed.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(parsed.getUTCDate()).padStart(2, '0')
+  return `${month}/${day}/${parsed.getUTCFullYear()}`
+}
 
 function noticeToInput(notice: Record<string, unknown>, fetchedAt: string) {
   const noticeId = first(notice.noticeId, notice.solicitationNumber, notice.contractOpportunityId)
@@ -79,8 +87,8 @@ export class SamOpportunityDiscoveryProvider implements OpportunityDiscoveryProv
       keyword: this.defaults.keyword,
       noticeType: this.defaults.noticeType,
       typeOfSetAside: this.defaults.typeOfSetAside,
-      postedFrom: input?.since ?? this.defaults.postedFrom,
-      postedTo: this.defaults.postedTo,
+      postedFrom: samDate(input?.since ?? this.defaults.postedFrom),
+      postedTo: samDate(this.defaults.postedTo),
     })
 
     const root = data && typeof data === 'object' ? data as Record<string, unknown> : {}
