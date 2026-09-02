@@ -98,4 +98,35 @@ describe('GenerationRepository', () => {
       providerJobId: undefined,
     });
   });
+
+  it('persists task and execution atomically as one fenced transition', async () => {
+    const repository = new InMemoryGenerationRepository();
+    const originalTask = task();
+    await repository.claimTask(originalTask);
+    const leased = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-a', 30_000);
+    expect(leased?.leaseToken).toBeDefined();
+
+    const updatedTask = { ...originalTask, status: 'running' as const, updatedAt: '2026-09-01T00:00:01.000Z' };
+    const updatedExecution = { ...leased!, status: 'running' as const, updatedAt: '2026-09-01T00:00:01.000Z' };
+    await expect(repository.saveState(updatedTask, updatedExecution)).resolves.toBe(true);
+    await expect(repository.getTask(originalTask.id)).resolves.toMatchObject({ status: 'running', updatedAt: '2026-09-01T00:00:01.000Z' });
+    await expect(repository.getExecution(leased!.id)).resolves.toMatchObject({ status: 'running', leaseOwner: 'worker-a' });
+  });
+
+  it('rejects a stale atomic transition without changing either durable record', async () => {
+    const repository = new InMemoryGenerationRepository();
+    const originalTask = task();
+    await repository.claimTask(originalTask);
+    const first = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-a', 1);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const replacement = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-b', 30_000);
+    expect(replacement?.leaseToken).not.toBe(first?.leaseToken);
+
+    const staleTask = { ...originalTask, status: 'completed' as const, error: undefined, updatedAt: '2026-09-01T00:00:02.000Z' };
+    const staleExecution = { ...first!, status: 'completed' as const, providerJobId: 'stale-provider-job', updatedAt: '2026-09-01T00:00:02.000Z' };
+    await expect(repository.saveState(staleTask, staleExecution)).resolves.toBe(false);
+
+    await expect(repository.getTask(originalTask.id)).resolves.toEqual(originalTask);
+    await expect(repository.getExecution(first!.id)).resolves.toMatchObject({ leaseOwner: 'worker-b', providerJobId: undefined, status: 'queued' });
+  });
 });
