@@ -20,6 +20,28 @@ export interface AuthenticatedCompetitiveEvidenceRepository {
 }
 
 /**
+ * Removes ownerId from the application-facing contract. Ownership is bound
+ * once, from an already verified identity, before any capability consumer can
+ * reach the persistence adapter.
+ */
+export function bindAuthenticatedCompetitiveEvidenceRepository(
+  repository: AsyncCompetitiveEvidenceRepository,
+  ownerId: string,
+): AuthenticatedCompetitiveEvidenceRepository {
+  if (ownerId.trim() === "") throw new Error("Authenticated owner ID is required");
+
+  return {
+    recordObservation: (input) =>
+      repository.recordObservation({
+        ownerId,
+        source: input.source,
+        observation: input.observation,
+      }),
+    get: (evidenceId) => repository.get(ownerId, evidenceId),
+  };
+}
+
+/**
  * Builds the request-scoped competitive-evidence repository.
  *
  * The owner is derived from server-verified Supabase claims. Callers never
@@ -47,20 +69,19 @@ export async function createAuthenticatedCompetitiveEvidenceRepository(): Promis
     new DeterministicCompetitiveEvidenceRecorder(),
   );
 
-  return {
-    recordObservation: (input) =>
-      repository.recordObservation({
-        ownerId: identity.userId,
-        source: input.source,
-        observation: input.observation,
-      }),
-    get: (evidenceId) => repository.get(identity.userId, evidenceId),
-  };
+  return bindAuthenticatedCompetitiveEvidenceRepository(repository, identity.userId);
 }
 
 async function verifiedIdentity(
   verifier: SupabaseActionIdentityVerifier,
-  claimsClient: { auth: { getClaims(): Promise<{ data: { claims: SupabaseClaims | null }; error: { message: string } | null }> } },
+  claimsClient: {
+    auth: {
+      getClaims(): Promise<{
+        data: { claims: SupabaseClaims | null };
+        error: { message: string } | null;
+      }>;
+    };
+  },
 ) {
   const { data, error } = await claimsClient.auth.getClaims();
   if (error) throw new Error(`Supabase identity verification failed: ${error.message}`);
