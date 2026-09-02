@@ -42,6 +42,7 @@ export async function flushMediaPlaybackProgress(completed = false): Promise<voi
 
 function observeSession(nextSession: UnifiedMediaSession): void { const generation = ++sessionGeneration; unsubscribeSession?.(); unsubscribeSession = nextSession.subscribe((state) => { if (generation !== sessionGeneration || session !== nextSession) return; getMediaPlaybackStore().updatePlayerState(state); publishSnapshot(); }); getMediaPlaybackStore().updatePlayerState(nextSession.getState()); attachConfiguredProgressPersistence(nextSession); publishSnapshot(); }
 function queueItem(item: MediaQueueItem): void { const playbackStore = getMediaPlaybackStore(); const currentState = playbackStore.getState(); const existingIndex = currentState.queue.findIndex((entry) => entry.id === item.id); if (existingIndex >= 0) playbackStore.setCurrent(item, existingIndex); else if (currentState.queue.length === 0) playbackStore.setCurrent(item, 0); else { playbackStore.addToQueue(item); const nextIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id); playbackStore.setCurrent(item, nextIndex); } }
+function samePlaybackItem(current: MediaQueueItem | null, next: MediaQueueItem): boolean { return Boolean(current && current.id === next.id && current.playback.providerId === next.playback.providerId && current.playback.source.id === next.playback.source.id && current.playback.source.url === next.playback.source.url && current.kind === next.kind); }
 
 function createLoadRequest(): { request: MediaPlaybackLoadRequest; generation: number } { const generation = ++latestLoadRequestGeneration; let cancelled = false; const request = { get cancelled() { return cancelled; }, cancel() { cancelled = true; } } as MediaPlaybackLoadRequest; return { request, generation }; }
 function assertLoadRequestCurrent(request: MediaPlaybackLoadRequest, generation: number): void { if (request.cancelled || generation !== latestLoadRequestGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_LOAD_CANCELLED'); }
@@ -61,14 +62,30 @@ export async function ensureMediaPlaybackSession(config: UnifiedMediaSessionConf
     assertLoadRequestCurrent(load.request, load.generation);
     if (!session || session !== sharedSession) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_OWNERSHIP_LOST');
     const current = getMediaPlaybackStore().getState().current;
-    if (!current || current.id !== item.id || current.playback.source.id !== item.playback.source.id || current.playback.source.url !== item.playback.source.url || current.playback.providerId !== item.playback.providerId || current.kind !== item.kind) {
-      await sharedSession.loadPlayback(item.playback, 0, item.kind);
-      assertLoadRequestCurrent(load.request, load.generation);
-      if (!session || session !== sharedSession) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_OWNERSHIP_LOST');
-      queueItem(item);
-      publishSnapshot();
-    }
-    return sharedSession;
+    if (samePlaybackItem(current, item)) return sharedSession;
+
+    // A route can construct a fresh adapter/controller set for a new title while
+    // the global session still owns the previous set. Never feed the new title
+    // through those stale executors. Retire the old session and install the new
+    // configuration around the same persistent media element instead.
+    await progressPersistence?.flush(false);
+    progressPersistence?.dispose();
+    progressPersistence = null;
+    progressPersistenceConfig = null;
+    unsubscribeSession?.();
+    unsubscribeSession = null;
+    const previousSession = session;
+    sessionGeneration += 1;
+    session = null;
+    previousSession.dispose();
+    assertLoadRequestCurrent(load.request, load.generation);
+
+    const replacement = createUnifiedMediaSession(config);
+    session = replacement;
+    queueItem(item);
+    observeSession(replacement);
+    publishSnapshot();
+    return replacement;
   }, load.request, load.generation);
 }
 
