@@ -1,5 +1,5 @@
 import type { PaymentIntent, PaymentProvider } from "@jhadina/payment-core"
-import { assertPaymentOperationBinding, type PaymentOperationBinding, type PaymentOperationRecord, type PaymentOperationStore } from "./durable-payment-operation"
+import { assertPaymentOperationBinding, type PaymentOperationBinding, type PaymentOperationStore } from "./durable-payment-operation"
 
 export interface PaymentOperationReconciliationDeps {
   store: PaymentOperationStore
@@ -15,12 +15,14 @@ export async function reconcileProcessingPaymentOperation(
   deps: PaymentOperationReconciliationDeps,
   binding: PaymentOperationBinding,
 ): Promise<PaymentIntent> {
-  const claim = await deps.store.claim(binding)
-  if (claim.claimed) throw new Error("PAYMENT_RECONCILIATION_OPERATION_NOT_EXISTING")
+  const record = await deps.store.get(binding)
+  if (!record) throw new Error("PAYMENT_RECONCILIATION_OPERATION_NOT_EXISTING")
 
-  const record: PaymentOperationRecord = claim.record
   assertPaymentOperationBinding(record, binding)
-  if (record.status === "completed") return record.resultPayload as PaymentIntent
+  if (record.status === "completed") {
+    if (!record.resultPayload) throw new Error("COMMERCE_PAYMENT_OPERATION_RESULT_MISSING")
+    return record.resultPayload as PaymentIntent
+  }
   if (record.status === "failed") throw new Error(`COMMERCE_PAYMENT_OPERATION_FAILED:${record.resultStatus ?? "unknown"}`)
 
   let observed: PaymentIntent
