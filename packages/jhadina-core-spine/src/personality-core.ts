@@ -6,6 +6,7 @@ import type {
   PersonalityState,
   PersonalityTrait,
 } from './types.js';
+import { createBetaPrior, updateBetaBelief } from './bayesian-inference.js';
 
 export interface PersonalityStateRepository {
   load(): Promise<PersonalityState>;
@@ -69,16 +70,11 @@ function isFiniteUnit(value: number): boolean {
 }
 
 function normalizeStatement(statement: string): string {
-  return statement.trim().replace(/\\s+/g, ' ').toLowerCase();
+  return statement.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 function validEvidence(ref: EvidenceRef): boolean {
-  return Boolean(
-    ref.id.trim() &&
-      ref.source.trim() &&
-      ref.summary.trim() &&
-      Number.isFinite(Date.parse(ref.observedAt)),
-  );
+  return Boolean(ref.id.trim() && ref.source.trim() && ref.summary.trim() && Number.isFinite(Date.parse(ref.observedAt)));
 }
 
 function uniqueEvidence(refs: EvidenceRef[]): EvidenceRef[] {
@@ -113,11 +109,7 @@ function traitStatus(
   policy: PersonalityCorePolicy,
 ): PersonalityTrait['status'] {
   if (contradictions > 0) return 'contested';
-  if (
-    evidenceCount >= policy.minimumEvidence &&
-    confidence >= policy.acceptanceConfidence &&
-    stability >= policy.minimumStability
-  ) {
+  if (evidenceCount >= policy.minimumEvidence && confidence >= policy.acceptanceConfidence && stability >= policy.minimumStability) {
     return 'accepted';
   }
   return evidenceCount > 0 ? 'candidate' : 'retired';
@@ -125,7 +117,9 @@ function traitStatus(
 
 /**
  * Pure projection from explicitly personality-eligible PatternObservations.
- * Raw memories never become personality traits on their own.
+ * Bayesian evidence updating supplies the belief/confidence estimate; this
+ * function still owns the separate governance gates for eligibility, stability,
+ * contradiction, and durable personality state.
  */
 export function projectPersonality(
   current: PersonalityState,
@@ -141,47 +135,42 @@ export function projectPersonality(
 
   for (const pattern of patterns) {
     if (!pattern.personalityEligible || !pattern.personalityDimension) continue;
-    if (!isFiniteUnit(pattern.confidence) || !Number.isInteger(pattern.occurrences) || pattern.occurrences <= 0) {
-      continue;
-    }
+    if (!isFiniteUnit(pattern.confidence) || !Number.isInteger(pattern.occurrences) || pattern.occurrences <= 0) continue;
 
-    const evidence = uniqueEvidence(
-      pattern.evidence.filter((ref) => evidenceIsAllowed(ref, approvedMemoryIds)),
-    );
-    const contradictions = uniqueEvidence(
-      pattern.contradictions.filter((ref) => evidenceIsAllowed(ref, approvedMemoryIds)),
-    );
+    const evidence = uniqueEvidence(pattern.evidence.filter((ref) => evidenceIsAllowed(ref, approvedMemoryIds)));
+    const contradictions = uniqueEvidence(pattern.contradictions.filter((ref) => evidenceIsAllowed(ref, approvedMemoryIds)));
     if (evidence.length === 0) continue;
 
     const key = `${pattern.personalityDimension}:${normalizeStatement(pattern.pattern)}`;
-    const existingIndex = nextTraits.findIndex(
-      (trait) => `${trait.dimension}:${normalizeStatement(trait.statement)}` === key,
-    );
-
+    const existingIndex = nextTraits.findIndex((trait) => `${trait.dimension}:${normalizeStatement(trait.statement)}` === key);
     const existing = existingIndex >= 0 ? nextTraits[existingIndex] : undefined;
     const mergedEvidence = uniqueEvidence([...(existing?.evidence ?? []), ...evidence]);
     const mergedContradictions = uniqueEvidence([...(existing?.contradictions ?? []), ...contradictions]);
-    const confidenceBeforePenalty = existing
-      ? existing.confidence * 0.7 + pattern.confidence * 0.3
-      : pattern.confidence;
+
+    // Treat the pattern's confidence as the observed support for this trait.
+    // Existing trait evidence becomes the prior; new evidence contributes
+    // weighted pseudo-counts. This prevents a single observation from replacing
+    // accumulated belief while preserving the existing governance thresholds.
+    const prior = existing
+      ? createBetaPrior(
+          Math.max(existing.confidence * Math.max(existing.evidence.length, 1), 0.000001),
+          Math.max((1 - existing.confidence) * Math.max(existing.evidence.length, 1), 0.000001),
+        )
+      : createBetaPrior(1, 1);
+    const posterior = updateBetaBelief(prior, [
+      { support: pattern.confidence, weight: Math.max(pattern.occurrences, 1) },
+    ]);
+
+    const confidenceBeforePenalty = posterior.mean;
     const confidence = Math.max(
       0,
-      Math.min(
-        1,
-        confidenceBeforePenalty * (mergedContradictions.length > 0 ? 1 - policy.contradictionPenalty : 1),
-      ),
+      Math.min(1, confidenceBeforePenalty * (mergedContradictions.length > 0 ? 1 - policy.contradictionPenalty : 1)),
     );
     const stability = Math.max(
       existing?.stability ?? 0,
       Math.min(1, mergedEvidence.length / Math.max(policy.minimumEvidence, 1)),
     );
-    const status = traitStatus(
-      mergedEvidence.length,
-      confidence,
-      stability,
-      mergedContradictions.length,
-      policy,
-    );
+    const status = traitStatus(mergedEvidence.length, confidence, stability, mergedContradictions.length, policy);
 
     const trait: PersonalityTrait = {
       id: existing?.id ?? idFactory(),
@@ -228,9 +217,7 @@ export function createPersonalityPort(
     async build(patterns, memories) {
       const current = await repository.load();
       const next = projectPersonality(current, patterns, memories, new Date().toISOString(), policy);
-      if (next !== current) {
-        await repository.save(current.version, next);
-      }
+      if (next !== current) await repository.save(current.version, next);
       return next;
     },
   };
