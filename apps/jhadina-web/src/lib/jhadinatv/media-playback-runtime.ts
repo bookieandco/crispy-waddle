@@ -6,7 +6,7 @@ const MEDIA_ELEMENT_ATTRIBUTE = 'data-jhadina-media-element';
 export interface MediaPlaybackSnapshot { session: UnifiedMediaSession | null; current: MediaQueueItem | null; playerState: ReturnType<UnifiedMediaSession['getState']>; }
 type MediaPlaybackSnapshotListener = (snapshot: MediaPlaybackSnapshot) => void;
 export interface MediaPlaybackProgressPersistenceConfig { userId: string; client?: RuntimeProgressClient; throttleMs?: number; onError?: (error: unknown) => void; }
-export interface MediaPlaybackLoadRequest { cancelled: boolean; cancel(): void; }
+export interface MediaPlaybackLoadRequest { readonly cancelled: boolean; cancel(): void; }
 
 let store: MediaPlaybackStore | null = null;
 let session: UnifiedMediaSession | null = null;
@@ -46,19 +46,24 @@ function queueItem(item: MediaQueueItem): void { const playbackStore = getMediaP
 function createLoadRequest(): { request: MediaPlaybackLoadRequest; generation: number } {
   const generation = ++latestLoadRequestGeneration;
   let cancelled = false;
-  const request: MediaPlaybackLoadRequest = { get cancelled() { return cancelled; }, cancel() { cancelled = true; } } as MediaPlaybackLoadRequest;
+  const request = { get cancelled() { return cancelled; }, cancel() { cancelled = true; } } as MediaPlaybackLoadRequest;
   return { request, generation };
 }
 function assertLoadRequestCurrent(request: MediaPlaybackLoadRequest, generation: number): void {
   if (request.cancelled || generation !== latestLoadRequestGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_LOAD_CANCELLED');
 }
-function enqueueSessionCommand<T>(operation: () => Promise<T>, request: MediaPlaybackLoadRequest, requestGeneration: number): Promise<T> { const generation = sessionCommandGeneration; const run = sessionCommand.then(async () => { assertLoadRequestCurrent(request, requestGeneration); if (generation !== sessionCommandGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_COMMAND_CANCELLED'); return operation(); }, async () => { assertLoadRequestCurrent(request, requestGeneration); if (generation !== sessionCommandGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_COMMAND_CANCELLED'); return operation(); }); sessionCommand = run.then(() => undefined, () => undefined); return run; }
+function enqueueSessionCommand<T>(operation: () => Promise<T>, request: MediaPlaybackLoadRequest, requestGeneration: number): Promise<T> {
+  const generation = sessionCommandGeneration;
+  const run = sessionCommand.then(async () => { assertLoadRequestCurrent(request, requestGeneration); if (generation !== sessionCommandGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_COMMAND_CANCELLED'); return operation(); }, async () => { assertLoadRequestCurrent(request, requestGeneration); if (generation !== sessionCommandGeneration) throw new Error('JHADINA_MEDIA_PLAYBACK_COMMAND_CANCELLED'); return operation(); });
+  sessionCommand = run.then(() => undefined, () => undefined);
+  return run;
+}
 
 export async function ensureMediaPlaybackSession(config: UnifiedMediaSessionConfig, item: MediaQueueItem, request?: MediaPlaybackLoadRequest): Promise<UnifiedMediaSession> {
   const load = request ? { request, generation: ++latestLoadRequestGeneration } : createLoadRequest();
   assertLoadRequestCurrent(load.request, load.generation);
   if (!session) {
-    if (!sessionInitialization) { sessionInitialization = Promise.resolve().then(() => { if (session) return session; assertLoadRequestCurrent(load.request, load.generation); const created = createUnifiedMediaSession(config); session = created; queueItem(item); observeSession(created); return created; }).finally(() => { sessionInitialization = null; }); }
+    if (!sessionInitialization) { sessionInitialization = Promise.resolve().then(() => { if (session) return session; const created = createUnifiedMediaSession(config); session = created; queueItem(item); observeSession(created); return created; }).finally(() => { sessionInitialization = null; }); }
     const initialized = await sessionInitialization;
     assertLoadRequestCurrent(load.request, load.generation);
     if (!session || session !== initialized) throw new Error('JHADINA_MEDIA_PLAYBACK_SESSION_INITIALIZATION_LOST');
@@ -80,7 +85,6 @@ export async function ensureMediaPlaybackSession(config: UnifiedMediaSessionConf
 }
 
 export function createMediaPlaybackLoadRequest(): MediaPlaybackLoadRequest { return createLoadRequest().request; }
-// A route owns only its view subscription. The playback observer is global so MiniPlayer, queue advancement, and progress persistence continue receiving session state after navigation.
 export function releaseMediaPlaybackView(): void { publishSnapshot(); }
 export function disposeMediaPlaybackSession(): void { sessionCommandGeneration += 1; sessionGeneration += 1; latestLoadRequestGeneration += 1; unsubscribeSession?.(); unsubscribeSession = null; progressPersistence?.dispose(); progressPersistence = null; progressPersistenceConfig = null; const currentSession = session; session = null; currentSession?.dispose(); publishSnapshot(); }
 /** @deprecated Use releaseMediaPlaybackView() or disposeMediaPlaybackSession(). */
