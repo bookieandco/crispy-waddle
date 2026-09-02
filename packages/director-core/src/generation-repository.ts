@@ -12,6 +12,8 @@ export interface GenerationRepository {
   claimExecution(taskId: string, providerId: string, workerId: string, leaseMs: number): Promise<GenerationExecution | undefined>;
   /** Persist only if the caller presents the currently valid lease token. */
   saveExecution(execution: GenerationExecution): Promise<boolean>;
+  /** Atomically persist the task and its fenced execution transition. */
+  saveState(task: GenerationTask, execution: GenerationExecution): Promise<boolean>;
   getExecution(id: string): Promise<GenerationExecution | undefined>;
   getExecutionByProviderJob(providerId: string, providerJobId: string): Promise<GenerationExecution | undefined>;
   listExecutions(taskId: string): Promise<GenerationExecution[]>;
@@ -66,6 +68,21 @@ export class InMemoryGenerationRepository implements GenerationRepository {
     if (existing?.leaseToken && existing.leaseToken !== execution.leaseToken) return false;
     if (existing?.leaseOwner && existing.leaseOwner !== execution.leaseOwner) return false;
     this.executions.set(execution.id, clone(execution));
+    return true;
+  }
+
+  async saveState(task: GenerationTask, execution: GenerationExecution): Promise<boolean> {
+    const existingTask = this.tasks.get(task.id);
+    if (!existingTask) return false;
+    const existingExecution = this.executions.get(execution.id);
+    if (existingExecution?.taskId !== task.id) return false;
+    if (existingExecution?.leaseToken && existingExecution.leaseToken !== execution.leaseToken) return false;
+    if (existingExecution?.leaseOwner && existingExecution.leaseOwner !== execution.leaseOwner) return false;
+    const existingId = this.tasksByIdempotencyKey.get(task.idempotencyKey);
+    if (existingId && existingId !== task.id) throw new Error(`Generation task idempotency key already belongs to task: ${existingId}`);
+    this.executions.set(execution.id, clone(execution));
+    this.tasks.set(task.id, clone(task));
+    this.tasksByIdempotencyKey.set(task.idempotencyKey, task.id);
     return true;
   }
 
