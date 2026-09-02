@@ -1,9 +1,11 @@
-import type { MediaPlaybackProgress, MediaPlaybackStore, MediaQueueItem, MediaSessionState, UnifiedMediaSession } from '@jhadina/tv-core';
-import { getMediaPlaybackStore } from './media-playback-runtime';
+import type { MediaPlaybackProgress, MediaPlaybackStore, MediaQueueItem, UnifiedMediaSession } from '@jhadina/tv-core';
+import { configureMediaPlaybackProgressPersistence, flushMediaPlaybackProgress, getMediaPlaybackStore } from './media-playback-runtime';
+import type { RuntimeProgressClient } from './media-playback-progress-runtime';
 
-export interface MediaPlaybackProgressWriterClient { upsert(progress: MediaPlaybackProgress): Promise<MediaPlaybackProgress>; }
+export interface MediaPlaybackProgressWriterClient extends RuntimeProgressClient {}
 export interface MediaPlaybackProgressWriter { flush(completed?: boolean): Promise<void>; dispose(): void; }
 export interface MediaPlaybackProgressWriterDeps {
+  /** Retained for API compatibility. Runtime persistence no longer owns this element. */
   video: HTMLVideoElement;
   session: UnifiedMediaSession;
   item?: MediaQueueItem;
@@ -14,23 +16,9 @@ export interface MediaPlaybackProgressWriterDeps {
   onError?: (error: unknown) => void;
 }
 
-function buildProgress(userId: string, item: MediaQueueItem, state: MediaSessionState, completed = false): MediaPlaybackProgress {
-  const positionSeconds = Number.isFinite(state.positionSeconds) ? Math.max(0, state.positionSeconds) : 0;
-  const durationSeconds = Number.isFinite(state.durationSeconds) ? Math.max(0, state.durationSeconds ?? 0) : item.durationSeconds;
-  return {
-    userId,
-    providerId: item.playback.providerId,
-    itemId: item.id,
-    positionMs: Math.max(0, Math.trunc(positionSeconds * 1000)),
-    durationMs: durationSeconds === undefined ? undefined : Math.max(0, Math.trunc(durationSeconds * 1000)),
-    completed,
-    updatedAt: new Date().toISOString(),
-  };
-}
-
 export function createMediaPlaybackProgressApiClient(fetchImpl: typeof fetch = fetch): MediaPlaybackProgressWriterClient {
   return {
-    async upsert(progress) {
+    async upsert(progress: MediaPlaybackProgress) {
       const response = await fetchImpl('/api/media/progress', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -44,82 +32,20 @@ export function createMediaPlaybackProgressApiClient(fetchImpl: typeof fetch = f
   };
 }
 
-type PendingWrite = { item: MediaQueueItem; state: MediaSessionState; completed: boolean };
-
-export function attachMediaPlaybackProgressWriter({ video, session, item, store, userId, client, throttleMs = 5000, onError }: MediaPlaybackProgressWriterDeps): MediaPlaybackProgressWriter {
-  const playbackStore = store ?? getMediaPlaybackStore();
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let disposed = false;
-  let writeInFlight: Promise<void> | null = null;
-  let pending: PendingWrite | null = null;
-
-  const currentItem = () => playbackStore.getState().current ?? item ?? null;
-
-  const drain = async (): Promise<void> => {
-    if (disposed || writeInFlight || !pending) return;
-    const next = pending;
-    pending = null;
-    const progress = buildProgress(userId, next.item, next.state, next.completed);
-    writeInFlight = client.upsert(progress)
-      .then(() => undefined)
-      .catch((error) => { onError?.(error); })
-      .finally(() => {
-        writeInFlight = null;
-        if (!disposed && pending) void drain();
-      });
-    await writeInFlight;
+/**
+ * Compatibility facade for older watch routes. The actual observer is now
+ * attached to the runtime-owned session, so route unmounts cannot stop
+ * persistence while playback continues in the global player.
+ */
+export function attachMediaPlaybackProgressWriter({ userId, client, throttleMs, onError }: MediaPlaybackProgressWriterDeps): MediaPlaybackProgressWriter {
+  configureMediaPlaybackProgressPersistence({ userId, client, throttleMs, onError });
+  return {
+    flush: flushMediaPlaybackProgress,
+    dispose: () => undefined,
   };
+}
 
-  const requestWrite = (completed = false): Promise<void> => {
-    if (disposed) return Promise.resolve();
-    const current = currentItem();
-    if (!current) return Promise.resolve();
-    const state = session.getState();
-    pending = {
-      item: current,
-      state: { ...state },
-      completed: completed || pending?.completed === true,
-    };
-    if (writeInFlight) return writeInFlight;
-    return drain();
-  };
-
-  const schedule = () => {
-    if (disposed || timer) return;
-    timer = setTimeout(() => { timer = null; void requestWrite(false); }, throttleMs);
-  };
-  const handlePause = () => { void requestWrite(false); };
-  const handleEnded = () => { void requestWrite(true); };
-  const handleTimeUpdate = () => schedule();
-  const handleVisibility = () => { if (document.visibilityState === 'hidden') void requestWrite(false); };
-  const handlePageHide = () => { void requestWrite(false); };
-
-  video.addEventListener('timeupdate', handleTimeUpdate);
-  video.addEventListener('pause', handlePause);
-  video.addEventListener('ended', handleEnded);
-  window.addEventListener('pagehide', handlePageHide);
-  document.addEventListener('visibilitychange', handleVisibility);
-
-  const flush = async (completed = false): Promise<void> => {
-    if (timer) { clearTimeout(timer); timer = null; }
-    await requestWrite(completed);
-    while (!disposed && (writeInFlight || pending)) {
-      if (writeInFlight) await writeInFlight;
-      else await drain();
-    }
-  };
-
-  const dispose = () => {
-    if (disposed) return;
-    disposed = true;
-    if (timer) clearTimeout(timer);
-    timer = null;
-    video.removeEventListener('timeupdate', handleTimeUpdate);
-    video.removeEventListener('pause', handlePause);
-    video.removeEventListener('ended', handleEnded);
-    window.removeEventListener('pagehide', handlePageHide);
-    document.removeEventListener('visibilitychange', handleVisibility);
-  };
-
-  return Object.assign(dispose, { flush, dispose }) as MediaPlaybackProgressWriter;
+/** @deprecated Use getMediaPlaybackStore() from the runtime directly. */
+export function getPlaybackProgressStore(): MediaPlaybackStore {
+  return getMediaPlaybackStore();
 }
