@@ -11,6 +11,7 @@ export * from './generation-plan-adapter';
 export * from './generation-assets';
 export * from './generated-asset-resolver';
 export * from './editing-asset-manifest';
+export * from './artifact-quality-assessment';
 export * from './watch-session';
 export * from './watch-service';
 export * from './cinematic-notebook';
