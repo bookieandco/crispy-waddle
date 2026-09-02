@@ -10,6 +10,17 @@ export type SamSearchParams = {
   typeOfSetAside?: string;
 };
 
+export class SamGovRequestError extends Error {
+  readonly code = 'SAM_GOV_REQUEST_FAILED';
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`SAM.gov request failed (${status})`);
+    this.name = 'SamGovRequestError';
+    this.status = status;
+  }
+}
+
 export async function searchSamOpportunities(params: SamSearchParams = {}) {
   const apiKey = getSamApiKey();
   if (!apiKey) throw new Error('SAM_GOV_API_KEY is not configured');
@@ -31,8 +42,7 @@ export async function searchSamOpportunities(params: SamSearchParams = {}) {
   });
 
   if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    throw new Error(`SAM.gov request failed (${response.status}): ${detail.slice(0, 500)}`);
+    throw new SamGovRequestError(response.status);
   }
 
   return response.json();
