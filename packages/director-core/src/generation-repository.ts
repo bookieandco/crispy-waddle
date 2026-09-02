@@ -3,6 +3,8 @@ import type { GenerationTask } from './generation-task';
 
 /** Durable persistence boundary for Director generation work. */
 export interface GenerationRepository {
+  /** Atomically create-or-return the canonical task for an idempotency key. */
+  claimTask(task: GenerationTask): Promise<GenerationTask>;
   saveTask(task: GenerationTask): Promise<void>;
   getTask(id: string): Promise<GenerationTask | undefined>;
   getTaskByIdempotencyKey(idempotencyKey: string): Promise<GenerationTask | undefined>;
@@ -22,6 +24,17 @@ export class InMemoryGenerationRepository implements GenerationRepository {
   private readonly tasks = new Map<string, GenerationTask>();
   private readonly tasksByIdempotencyKey = new Map<string, string>();
   private readonly executions = new Map<string, GenerationExecution>();
+
+  async claimTask(task: GenerationTask): Promise<GenerationTask> {
+    const existingId = this.tasksByIdempotencyKey.get(task.idempotencyKey);
+    if (existingId) {
+      const existing = this.tasks.get(existingId);
+      if (existing) return clone(existing);
+    }
+    this.tasks.set(task.id, clone(task));
+    this.tasksByIdempotencyKey.set(task.idempotencyKey, task.id);
+    return clone(task);
+  }
 
   async saveTask(task: GenerationTask): Promise<void> {
     const existingId = this.tasksByIdempotencyKey.get(task.idempotencyKey);
