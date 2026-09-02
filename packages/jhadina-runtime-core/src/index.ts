@@ -12,7 +12,18 @@ export interface ExecutionRequest { executionId: string; actorId: string; artifa
 /** Policy output is authoritative infrastructure state, never an LLM-authored instruction. */
 export interface ExecutionPolicy { evaluate(request: ExecutionRequest): Promise<ExecutionDecision>; }
 export interface ExecutionResult { executionId: string; status: 'completed' | 'failed'; output?: unknown; }
-export interface RuntimeAdapterPort { execute(request: ExecutionRequest, policy: ExecutionPolicy): Promise<ExecutionResult>; }
+
+/** Runtime adapters cannot authorize or choose resource policy; they receive an enforced lease. */
+export interface RuntimeAdapterPort { execute(request: ExecutionRequest, lease: RuntimeResourceLease): Promise<ExecutionResult>; }
+export interface RuntimeResourceLease {
+  executionId: string;
+  limits: ResourceLimits;
+  enforcement: 'enforced';
+  release(): Promise<void>;
+}
+/** The implementation must reserve/enforce the requested limits or reject execution. */
+export interface ResourceEnforcerPort { acquire(request: ExecutionRequest): Promise<RuntimeResourceLease>; }
+
 export interface ExtensionPatchRegistration { patchId: string; extensionId: string; targetFingerprint: string; artifactDigestSha256: string; before?: readonly string[]; after?: readonly string[]; requestedCapabilities: readonly string[]; }
 export interface ExtensionPatchRegistry { register(patch: ExtensionPatchRegistration): void; list(): readonly ExtensionPatchRegistration[]; }
 export interface RuntimeAuditEvent { executionId: string; actorId: string; artifactDigestSha256: string; status: 'allowed' | 'denied' | 'completed' | 'failed'; occurredAt: string; metadata?: Readonly<Record<string, unknown>>; }
@@ -38,7 +49,6 @@ export class InMemoryExtensionPatchRegistry implements ExtensionPatchRegistry {
   register(patch: ExtensionPatchRegistration): void { if (!patch.patchId || !patch.extensionId || !patch.targetFingerprint || !patch.artifactDigestSha256) throw new Error('Incomplete extension patch registration'); if (this.patches.has(patch.patchId)) throw new Error(`Duplicate extension patch: ${patch.patchId}`); this.patches.set(patch.patchId, Object.freeze({ ...patch, before: Object.freeze([...(patch.before ?? [])]), after: Object.freeze([...(patch.after ?? [])]), requestedCapabilities: Object.freeze([...patch.requestedCapabilities]) })); }
   list(): readonly ExtensionPatchRegistration[] { return [...this.patches.values()]; }
 }
-/** No arbitrary uploaded source is compiled, loaded, or executed by this core. */
 export const RUNTIME_CORE_NO_ARBITRARY_UPLOAD_EXECUTION = true as const;
 export { GovernedRuntimeExecutor } from './runtime-executor.js';
 export type { RuntimeExecutionClock } from './runtime-executor.js';
