@@ -57,8 +57,19 @@ export function attachMediaPlaybackSession(nextSession: UnifiedMediaSession, ite
   if (session === nextSession) return;
   detachMediaPlaybackSession();
   session = nextSession;
+
   const playbackStore = getMediaPlaybackStore();
-  playbackStore.setCurrent(item, 0);
+  const currentIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id);
+  if (currentIndex >= 0) {
+    playbackStore.setCurrent(item, currentIndex);
+  } else if (playbackStore.getState().queue.length === 0) {
+    playbackStore.setCurrent(item, 0);
+  } else {
+    playbackStore.addToQueue(item);
+    const nextIndex = playbackStore.getState().queue.findIndex((entry) => entry.id === item.id);
+    playbackStore.setCurrent(item, nextIndex);
+  }
+
   unsubscribeSession = nextSession.subscribe((state) => playbackStore.updatePlayerState(state));
   playbackStore.updatePlayerState(nextSession.getState());
 }
