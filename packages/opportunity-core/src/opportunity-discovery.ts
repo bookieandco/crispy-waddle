@@ -13,6 +13,34 @@ export interface OpportunityDiscoveryProvider {
   discover(input?: { since?: string }): Promise<DiscoveredOpportunity[]>
 }
 
+export class OpportunityDiscoveryProviderRegistry {
+  private readonly providersBySourceId: ReadonlyMap<string, OpportunityDiscoveryProvider>
+
+  constructor(providers: readonly OpportunityDiscoveryProvider[]) {
+    const bySourceId = new Map<string, OpportunityDiscoveryProvider>()
+
+    for (const provider of providers) {
+      if (!provider.source.active) {
+        throw new Error(`inactive opportunity source cannot be registered: ${provider.source.id}`)
+      }
+      if (bySourceId.has(provider.source.id)) {
+        throw new Error(`duplicate opportunity discovery provider source: ${provider.source.id}`)
+      }
+      bySourceId.set(provider.source.id, provider)
+    }
+
+    this.providersBySourceId = bySourceId
+  }
+
+  list(): readonly OpportunityDiscoveryProvider[] {
+    return [...this.providersBySourceId.values()]
+  }
+
+  get(sourceId: string): OpportunityDiscoveryProvider | undefined {
+    return this.providersBySourceId.get(sourceId)
+  }
+}
+
 export type OpportunityDiscoveryResult = {
   discovered: number
   persisted: number
@@ -24,8 +52,12 @@ export type OpportunityDiscoveryResult = {
 export class OpportunityDiscoveryService {
   constructor(
     private readonly repository: OpportunityRepository,
-    private readonly providers: readonly OpportunityDiscoveryProvider[],
-  ) {}
+    providers: readonly OpportunityDiscoveryProvider[] | OpportunityDiscoveryProviderRegistry,
+  ) {
+    this.providers = providers instanceof OpportunityDiscoveryProviderRegistry ? providers.list() : new OpportunityDiscoveryProviderRegistry(providers).list()
+  }
+
+  private readonly providers: readonly OpportunityDiscoveryProvider[]
 
   async run(input?: { since?: string }): Promise<OpportunityDiscoveryResult> {
     let discovered = 0
