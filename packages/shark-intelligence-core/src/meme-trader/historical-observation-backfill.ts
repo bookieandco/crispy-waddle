@@ -1,4 +1,5 @@
 import type { TokenLaunch } from './wallet-launch-pipeline'
+import type { LiquidityHistory } from './liquidity-history'
 
 export type HistoricalCandle = { observedAt: string; open: number; high: number; low: number; close: number; volumeUsd?: number; source: string; evidenceId: string }
 export type HistoricalHolderPoint = { observedAt: string; holderCount: number; source: string; evidenceId: string }
@@ -17,12 +18,11 @@ function finite(value: unknown): value is number { return typeof value === 'numb
 function pct(current: number, initial: number): number | undefined { return finite(current) && finite(initial) && initial !== 0 ? ((current - initial) / initial) * 100 : undefined }
 function clamp01(value: number): number { return Math.max(0, Math.min(1, value)) }
 
-export function buildHistoricalObservation(input: { launch: TokenLaunch; candles: HistoricalCandle[]; holders?: HistoricalHolderPoint[]; movements?: ActorMovement[]; now: string }): HistoricalObservation {
+export function buildHistoricalObservation(input: { launch: TokenLaunch; candles: HistoricalCandle[]; holders?: HistoricalHolderPoint[]; movements?: ActorMovement[]; liquidityHistory?: LiquidityHistory; now: string }): HistoricalObservation {
   const candles = [...input.candles].sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt))
-  const first = candles[0]
-  const last = candles.at(-1)
+  const first = candles[0]; const last = candles.at(-1)
   const evidence = new Set<string>(input.launch.evidenceIds)
-  candles.forEach(c => evidence.add(c.evidenceId)); input.holders?.forEach(h => evidence.add(h.evidenceId)); input.movements?.forEach(m => evidence.add(m.evidenceId))
+  candles.forEach(c => evidence.add(c.evidenceId)); input.holders?.forEach(h => evidence.add(h.evidenceId)); input.movements?.forEach(m => evidence.add(m.evidenceId)); input.liquidityHistory?.evidenceIds.forEach(id => evidence.add(id))
   const peak = candles.length ? Math.max(...candles.map(c => c.high)) : undefined
   const peakReturnPct = first && peak !== undefined ? pct(peak, first.open) : undefined
   const priceReturnFromLaunchPct = first && last ? pct(last.close, first.open) : undefined
@@ -37,11 +37,15 @@ export function buildHistoricalObservation(input: { launch: TokenLaunch; candles
   const developerSoldPct = soldUsd + boughtUsd > 0 ? clamp01(soldUsd / (soldUsd + boughtUsd)) : undefined
   let holderBehavior: HistoricalObservation['holderBehavior']
   if (holderCountChangePct !== undefined) holderBehavior = (holderExitPct ?? 0) >= 0.5 ? 'PANIC_EXIT' : holderCountChangePct >= 10 ? 'ACCUMULATING' : holderCountChangePct <= -10 ? 'DISTRIBUTING' : 'STABLE'
-  const liquidityRemoved = input.movements?.some(m => m.direction === 'LIQUIDITY_REMOVE')
+  const liquidityRemoved = input.liquidityHistory ? input.liquidityHistory.drawdownFromPeak >= 0.5 || input.liquidityHistory.drainRate >= 0.25 : input.movements?.some(m => m.direction === 'LIQUIDITY_REMOVE')
   return {
     observationId: `historical-observation:${input.launch.launchId}:${last?.observedAt ?? input.now}`,
     launchId: input.launch.launchId, observedAt: last?.observedAt ?? input.now,
-    priceReturnFromLaunchPct, peakReturnPct, maxDrawdownPct, holderCountChangePct, holderExitPct, developerSoldPct,
+    priceReturnFromLaunchPct, peakReturnPct, maxDrawdownPct,
+    currentLiquidityUsd: input.liquidityHistory?.currentLiquidityUsd,
+    peakLiquidityUsd: input.liquidityHistory?.peakLiquidityUsd,
+    liquidityDrawdownFromPeak: input.liquidityHistory?.drawdownFromPeak,
+    holderCountChangePct, holderExitPct, developerSoldPct,
     liquidityRemoved: liquidityRemoved || undefined, holderBehavior, evidenceIds: [...evidence], source: 'historical-backfill',
   }
 }
