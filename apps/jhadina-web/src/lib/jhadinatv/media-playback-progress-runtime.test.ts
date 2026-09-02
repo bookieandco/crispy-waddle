@@ -120,4 +120,26 @@ describe('runtime-owned media playback progress', () => {
     expect(writes[0]).toMatchObject({ itemId: 'a', completed: true, positionMs: 120000 });
     persistence.dispose();
   });
+
+  it('persists completion for A even when B is queued before the completion write drains', async () => {
+    const session = fakeSession({ titleId: 'a', kind: 'movie', sourceUrl: 'https://example.com/a.m3u8', positionSeconds: 120, durationSeconds: 120, playing: false });
+    let current = item('a');
+    const writes: MediaPlaybackProgress[] = [];
+    let releaseA: (() => void) | undefined;
+    const blockedA = new Promise<void>((resolve) => { releaseA = resolve; });
+    const client = { upsert: vi.fn(async (progress: MediaPlaybackProgress) => { writes.push(progress); if (progress.itemId === 'a' && writes.filter((entry) => entry.itemId === 'a').length === 1) await blockedA; return progress; }) };
+    const persistence = attachRuntimeProgressPersistence({ session, getCurrentItem: () => current, userId: 'user-a', client });
+
+    const completion = persistence.flush(true);
+    await Promise.resolve();
+    current = item('b');
+    session.emit({ titleId: 'b', kind: 'movie', sourceUrl: 'https://example.com/b.m3u8', positionSeconds: 4, durationSeconds: 90, playing: false });
+    const bWrite = persistence.flush(false);
+    releaseA!();
+    await Promise.all([completion, bWrite]);
+
+    expect(writes.filter((entry) => entry.itemId === 'a')).toContainEqual(expect.objectContaining({ itemId: 'a', completed: true, positionMs: 120000 }));
+    expect(writes.filter((entry) => entry.itemId === 'b')).toContainEqual(expect.objectContaining({ itemId: 'b', completed: false, positionMs: 4000 }));
+    persistence.dispose();
+  });
 });
