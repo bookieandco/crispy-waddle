@@ -17,11 +17,16 @@ const item = (id: string): MediaQueueItem => ({
 });
 
 function storeFixture(nextItem: MediaQueueItem | null): MediaPlaybackStore {
-  const state = { current: item('current'), queue: [item('current'), ...(nextItem ? [nextItem] : [])], queueIndex: 0, playerState: null, repeat: 'off' as const, shuffle: false };
+  const current = item('current');
+  const queue = [current, ...(nextItem ? [nextItem] : [])];
+  const state = { current, queue, queueIndex: 0, playerState: null, repeat: 'off' as const, shuffle: false };
   return {
     getState: () => state,
     subscribe: vi.fn(() => vi.fn()),
-    setCurrent: vi.fn(),
+    setCurrent: vi.fn((nextCurrent, queueIndex = nextCurrent ? 0 : -1) => {
+      state.current = nextCurrent;
+      state.queueIndex = queueIndex;
+    }),
     setQueue: vi.fn(),
     addToQueue: vi.fn(),
     removeFromQueue: vi.fn(),
@@ -29,7 +34,12 @@ function storeFixture(nextItem: MediaQueueItem | null): MediaPlaybackStore {
     updatePlayerState: vi.fn(),
     setRepeat: vi.fn(),
     setShuffle: vi.fn(),
-    next: vi.fn(() => nextItem),
+    next: vi.fn(() => {
+      if (!nextItem) return null;
+      state.current = nextItem;
+      state.queueIndex = 1;
+      return nextItem;
+    }),
     previous: vi.fn(() => null),
     reset: vi.fn(),
   };
@@ -72,6 +82,7 @@ describe('media playback automatic queue advancement', () => {
     expect(store.next).toHaveBeenCalledTimes(1);
     expect(session.loadPlayback).toHaveBeenCalledWith(next.playback);
     expect(session.play).toHaveBeenCalledTimes(1);
+    expect(store.getState().current?.id).toBe('next');
     expect(onError).not.toHaveBeenCalled();
 
     detach();
@@ -124,9 +135,10 @@ describe('media playback automatic queue advancement', () => {
     expect(session.play).toHaveBeenCalledTimes(1);
   });
 
-  it('reports load or play failures without throwing from the ended event', async () => {
+  it('rolls the queue back when loading the next item fails', async () => {
     const video = new FakeVideo() as unknown as HTMLVideoElement;
-    const store = storeFixture(item('next'));
+    const next = item('next');
+    const store = storeFixture(next);
     const session = sessionFixture();
     const failure = new Error('advance failed');
     session.loadPlayback = vi.fn(async () => { throw failure; });
@@ -136,6 +148,8 @@ describe('media playback automatic queue advancement', () => {
     video.dispatchEvent(new Event('ended'));
     await Promise.resolve();
 
+    expect(store.getState().current?.id).toBe('current');
+    expect(store.getState().queueIndex).toBe(0);
     expect(onError).toHaveBeenCalledWith(failure);
   });
 });
