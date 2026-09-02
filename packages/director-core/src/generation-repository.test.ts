@@ -129,4 +129,42 @@ describe('GenerationRepository', () => {
     await expect(repository.getTask(originalTask.id)).resolves.toEqual(originalTask);
     await expect(repository.getExecution(first!.id)).resolves.toMatchObject({ leaseOwner: 'worker-b', providerJobId: undefined, status: 'queued' });
   });
+
+  it('creates one durable submission reservation and returns it on repeat', async () => {
+    const repository = new InMemoryGenerationRepository();
+    const originalTask = task();
+    await repository.claimTask(originalTask);
+    const leased = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-a', 30_000);
+    const first = await repository.reserveSubmission(originalTask, leased!, 'provider-1', originalTask.idempotencyKey);
+    const second = await repository.reserveSubmission(originalTask, leased!, 'provider-1', originalTask.idempotencyKey);
+
+    expect(first).toMatchObject({ taskId: 'task-1', executionId: leased!.id, providerId: 'provider-1', idempotencyKey: 'idem-1', status: 'pending', attempt: 0 });
+    expect(second).toEqual(first);
+    expect(second?.requestPayload).toEqual(originalTask.request);
+  });
+
+  it('rejects a stale execution from reserving a submission', async () => {
+    const repository = new InMemoryGenerationRepository();
+    const originalTask = task();
+    await repository.claimTask(originalTask);
+    const first = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-a', 1);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const replacement = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-b', 30_000);
+
+    await expect(repository.reserveSubmission(originalTask, first!, 'provider-1', originalTask.idempotencyKey)).resolves.toBeUndefined();
+    await expect(repository.reserveSubmission(originalTask, replacement!, 'provider-1', originalTask.idempotencyKey)).resolves.toMatchObject({ leaseOwner: 'worker-b' });
+  });
+
+  it('does not reuse a submission key across different executions', async () => {
+    const repository = new InMemoryGenerationRepository();
+    const originalTask = task();
+    await repository.claimTask(originalTask);
+    const first = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-a', 30_000);
+    const reservation = await repository.reserveSubmission(originalTask, first!, 'provider-1', originalTask.idempotencyKey);
+    expect(reservation).toBeDefined();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const replacement = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-b', 30_000);
+
+    await expect(repository.reserveSubmission(originalTask, replacement!, 'provider-1', originalTask.idempotencyKey)).rejects.toThrow('belongs to another generation execution');
+  });
 });
