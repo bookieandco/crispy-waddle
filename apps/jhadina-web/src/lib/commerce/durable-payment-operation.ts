@@ -5,11 +5,14 @@ export type PaymentOperationKey = {
   paymentId: string;
 };
 
-export type PaymentOperationRecord = PaymentOperationKey & {
+export type PaymentOperationBinding = PaymentOperationKey & {
   actorId: string;
   actionId: string;
   capability: string;
   requestFingerprint: string;
+};
+
+export type PaymentOperationRecord = PaymentOperationBinding & {
   status: PaymentOperationStatus;
   providerReference?: string;
   resultStatus?: string;
@@ -22,15 +25,12 @@ export type PaymentOperationClaim =
 
 /** Durable execution boundary for irreversible Commerce payment operations. */
 export interface PaymentOperationStore {
-  claim(input: Omit<PaymentOperationRecord, "status" | "providerReference" | "resultStatus" | "resultPayload">): Promise<PaymentOperationClaim>;
-  complete(key: PaymentOperationKey, result: { providerReference: string; resultStatus: string; resultPayload: unknown }): Promise<void>;
-  fail(key: PaymentOperationKey, result: { providerReference?: string; resultStatus: string; resultPayload?: unknown }): Promise<void>;
+  claim(input: PaymentOperationBinding): Promise<PaymentOperationClaim>;
+  complete(input: PaymentOperationBinding, result: { providerReference: string; resultStatus: string; resultPayload: unknown }): Promise<void>;
+  fail(input: PaymentOperationBinding, result: { providerReference?: string; resultStatus: string; resultPayload?: unknown }): Promise<void>;
 }
 
-export function assertPaymentOperationBinding(
-  record: PaymentOperationRecord,
-  expected: Omit<PaymentOperationRecord, "status" | "providerReference" | "resultStatus" | "resultPayload">,
-): void {
+export function assertPaymentOperationBinding(record: PaymentOperationRecord, expected: PaymentOperationBinding): void {
   if (
     record.provider !== expected.provider ||
     record.paymentId !== expected.paymentId ||
