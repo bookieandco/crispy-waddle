@@ -1,15 +1,8 @@
 import type { MediaPlaybackProgress, MediaPlaybackStore, MediaQueueItem, MediaSessionState, UnifiedMediaSession } from '@jhadina/tv-core';
 import { getMediaPlaybackStore } from './media-playback-runtime';
 
-export interface MediaPlaybackProgressWriterClient {
-  upsert(progress: MediaPlaybackProgress): Promise<MediaPlaybackProgress>;
-}
-
-export interface MediaPlaybackProgressWriter {
-  flush(completed?: boolean): Promise<void>;
-  dispose(): void;
-}
-
+export interface MediaPlaybackProgressWriterClient { upsert(progress: MediaPlaybackProgress): Promise<MediaPlaybackProgress>; }
+export interface MediaPlaybackProgressWriter { flush(completed?: boolean): Promise<void>; dispose(): void; }
 export interface MediaPlaybackProgressWriterDeps {
   video: HTMLVideoElement;
   session: UnifiedMediaSession;
@@ -24,13 +17,25 @@ export interface MediaPlaybackProgressWriterDeps {
 function buildProgress(userId: string, item: MediaQueueItem, state: MediaSessionState, completed = false): MediaPlaybackProgress {
   const positionSeconds = Number.isFinite(state.positionSeconds) ? Math.max(0, state.positionSeconds) : 0;
   const durationSeconds = Number.isFinite(state.durationSeconds) ? Math.max(0, state.durationSeconds ?? 0) : item.durationSeconds;
-  return { userId, providerId: item.playback.providerId, itemId: item.id, positionMs: Math.max(0, Math.trunc(positionSeconds * 1000)), durationMs: durationSeconds === undefined ? undefined : Math.max(0, Math.trunc(durationSeconds * 1000)), completed, updatedAt: new Date().toISOString() };
+  return {
+    userId,
+    providerId: item.playback.providerId,
+    itemId: item.id,
+    positionMs: Math.max(0, Math.trunc(positionSeconds * 1000)),
+    durationMs: durationSeconds === undefined ? undefined : Math.max(0, Math.trunc(durationSeconds * 1000)),
+    completed,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export function createMediaPlaybackProgressApiClient(fetchImpl: typeof fetch = fetch): MediaPlaybackProgressWriterClient {
   return {
     async upsert(progress) {
-      const response = await fetchImpl('/api/media/progress', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'upsert', userId: progress.userId, providerId: progress.providerId, itemId: progress.itemId, progress }) });
+      const response = await fetchImpl('/api/media/progress', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'upsert', userId: progress.userId, providerId: progress.providerId, itemId: progress.itemId, progress }),
+      });
       if (!response.ok) throw new Error('Unable to save playback progress.');
       const payload = (await response.json()) as { progress?: MediaPlaybackProgress };
       if (!payload.progress) throw new Error('Playback progress save returned no record.');
@@ -39,32 +44,43 @@ export function createMediaPlaybackProgressApiClient(fetchImpl: typeof fetch = f
   };
 }
 
+type PendingWrite = { item: MediaQueueItem; state: MediaSessionState; completed: boolean };
+
 export function attachMediaPlaybackProgressWriter({ video, session, item, store, userId, client, throttleMs = 5000, onError }: MediaPlaybackProgressWriterDeps): MediaPlaybackProgressWriter {
   const playbackStore = store ?? getMediaPlaybackStore();
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
   let writeInFlight: Promise<void> | null = null;
-  let pending: { item: MediaQueueItem; completed: boolean } | null = null;
+  let pending: PendingWrite | null = null;
 
   const currentItem = () => playbackStore.getState().current ?? item ?? null;
 
-  const drain = async () => {
+  const drain = async (): Promise<void> => {
     if (disposed || writeInFlight || !pending) return;
     const next = pending;
     pending = null;
-    const progress = buildProgress(userId, next.item, session.getState(), next.completed);
+    const progress = buildProgress(userId, next.item, next.state, next.completed);
     writeInFlight = client.upsert(progress)
       .then(() => undefined)
       .catch((error) => { onError?.(error); })
-      .finally(() => { writeInFlight = null; if (!disposed && pending) void drain(); });
+      .finally(() => {
+        writeInFlight = null;
+        if (!disposed && pending) void drain();
+      });
     await writeInFlight;
   };
 
-  const requestWrite = (completed = false) => {
+  const requestWrite = (completed = false): Promise<void> => {
     if (disposed) return Promise.resolve();
     const current = currentItem();
     if (!current) return Promise.resolve();
-    pending = { item: current, completed: completed || pending?.completed === true };
+    const state = session.getState();
+    pending = {
+      item: current,
+      state: { ...state },
+      completed: completed || pending?.completed === true,
+    };
+    if (writeInFlight) return writeInFlight;
     return drain();
   };
 
@@ -84,6 +100,15 @@ export function attachMediaPlaybackProgressWriter({ video, session, item, store,
   window.addEventListener('pagehide', handlePageHide);
   document.addEventListener('visibilitychange', handleVisibility);
 
+  const flush = async (completed = false): Promise<void> => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    await requestWrite(completed);
+    while (!disposed && (writeInFlight || pending)) {
+      if (writeInFlight) await writeInFlight;
+      else await drain();
+    }
+  };
+
   const dispose = () => {
     if (disposed) return;
     disposed = true;
@@ -96,5 +121,5 @@ export function attachMediaPlaybackProgressWriter({ video, session, item, store,
     document.removeEventListener('visibilitychange', handleVisibility);
   };
 
-  return Object.assign(dispose, { flush: requestWrite, dispose }) as MediaPlaybackProgressWriter;
+  return Object.assign(dispose, { flush, dispose }) as MediaPlaybackProgressWriter;
 }
