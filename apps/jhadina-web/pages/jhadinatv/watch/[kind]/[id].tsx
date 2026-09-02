@@ -9,6 +9,7 @@ import { getCurrentUserId } from '../../../../src/lib/auth/current-user';
 import { attachMediaPlaybackSession, getPersistentMediaElement, mountPersistentMediaElement, releasePersistentMediaElement, getMediaPlaybackStore } from '../../../../src/lib/jhadinatv/media-playback-runtime';
 import { attachMediaPlaybackAutoAdvance } from '../../../../src/lib/jhadinatv/media-playback-auto-advance';
 import { createMediaPlaybackApiClient, createMediaPlaybackResumeCoordinator } from '../../../../src/lib/jhadinatv/media-playback-resume';
+import { attachMediaPlaybackProgressWriter, createMediaPlaybackProgressApiClient } from '../../../../src/lib/jhadinatv/media-playback-progress-writer';
 
 const titles: MediaTitle[] = [
   { id: 'demo-noir', kind: 'movie', title: 'Midnight Signal', overview: 'A detective follows a strange radio transmission through a city that never sleeps.', year: 2026, runtimeMinutes: 108, genres: ['Crime', 'Mystery', 'Drama'], rating: 8.2, availability: 'public-domain' },
@@ -59,17 +60,21 @@ export default function JhadinaTVWatchPage() {
     attachMediaPlaybackSession(session, queueItem);
     const unsubscribe = session.subscribe(setSessionState); setSessionState(session.getState());
     const progressClient = createMediaPlaybackApiClient();
+    const writerClient = createMediaPlaybackProgressApiClient();
     let resumeCoordinator: ReturnType<typeof createMediaPlaybackResumeCoordinator> | null = null;
+    let detachProgressWriter: (() => void) | null = null;
     const resumeReady = getCurrentUserId().then(async (userId) => {
       if (!active || !userId) return;
       resumeCoordinator = createMediaPlaybackResumeCoordinator(session, userId, progressClient);
       await resumeCoordinator.loadItem(queueItem);
-      if (active) setSessionState(session.getState());
+      if (!active) return;
+      detachProgressWriter = attachMediaPlaybackProgressWriter({ video, session, item: queueItem, userId, client: writerClient, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to save playback progress.') });
+      setSessionState(session.getState());
     }).catch((cause) => {
       if (active) setError(cause instanceof Error ? cause.message : 'Unable to restore saved playback progress.');
     });
     const detachAutoAdvance = attachMediaPlaybackAutoAdvance({ video, store: getMediaPlaybackStore(), session, resolveResumePosition: async (next) => { await resumeReady; if (!resumeCoordinator) return 0; return resumeCoordinator.resolvePositionSeconds(next as MediaQueueItem); }, onError: (cause) => setError(cause instanceof Error ? cause.message : 'Unable to advance to the next item.') });
-    return () => { active = false; unsubscribe(); detachAutoAdvance(); releasePersistentMediaElement(host); sessionRef.current = null; };
+    return () => { active = false; detachProgressWriter?.(); unsubscribe(); detachAutoAdvance(); releasePersistentMediaElement(host); sessionRef.current = null; };
   }, [playback, title]);
 
   useEffect(() => { if (!source) return; const video = getPersistentMediaElement(); const controller = createPictureInPictureController(video as HTMLVideoElement & { requestPictureInPicture?: () => Promise<PictureInPictureWindow> }); setPipSupported(controller.isSupported()); const sync = () => setPipActive(controller.isActive()); video.addEventListener('enterpictureinpicture', sync); video.addEventListener('leavepictureinpicture', sync); return () => { video.removeEventListener('enterpictureinpicture', sync); video.removeEventListener('leavepictureinpicture', sync); }; }, [source]);
