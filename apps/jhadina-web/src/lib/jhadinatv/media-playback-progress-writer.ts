@@ -5,6 +5,11 @@ export interface MediaPlaybackProgressWriterClient {
   upsert(progress: MediaPlaybackProgress): Promise<MediaPlaybackProgress>;
 }
 
+export interface MediaPlaybackProgressWriter {
+  flush(completed?: boolean): Promise<void>;
+  dispose(): void;
+}
+
 export interface MediaPlaybackProgressWriterDeps {
   video: HTMLVideoElement;
   session: UnifiedMediaSession;
@@ -17,8 +22,9 @@ export interface MediaPlaybackProgressWriterDeps {
 }
 
 function buildProgress(userId: string, item: MediaQueueItem, state: MediaSessionState, completed = false): MediaPlaybackProgress {
+  const positionSeconds = Number.isFinite(state.positionSeconds) ? Math.max(0, state.positionSeconds) : 0;
   const durationSeconds = Number.isFinite(state.durationSeconds) ? Math.max(0, state.durationSeconds ?? 0) : item.durationSeconds;
-  return { userId, providerId: item.playback.providerId, itemId: item.id, positionMs: Math.max(0, Math.trunc(state.positionSeconds * 1000)), durationMs: durationSeconds === undefined ? undefined : Math.max(0, Math.trunc(durationSeconds * 1000)), completed, updatedAt: new Date().toISOString() };
+  return { userId, providerId: item.playback.providerId, itemId: item.id, positionMs: Math.max(0, Math.trunc(positionSeconds * 1000)), durationMs: durationSeconds === undefined ? undefined : Math.max(0, Math.trunc(durationSeconds * 1000)), completed, updatedAt: new Date().toISOString() };
 }
 
 export function createMediaPlaybackProgressApiClient(fetchImpl: typeof fetch = fetch): MediaPlaybackProgressWriterClient {
@@ -33,47 +39,66 @@ export function createMediaPlaybackProgressApiClient(fetchImpl: typeof fetch = f
   };
 }
 
-export function attachMediaPlaybackProgressWriter({ video, session, item, store, userId, client, throttleMs = 5000, onError }: MediaPlaybackProgressWriterDeps): () => void {
+export function attachMediaPlaybackProgressWriter({ video, session, item, store, userId, client, throttleMs = 5000, onError }: MediaPlaybackProgressWriterDeps): MediaPlaybackProgressWriter {
   const playbackStore = store ?? getMediaPlaybackStore();
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
-  let writeInFlight: Promise<unknown> | null = null;
-  let pendingKey: string | null = null;
+  let writeInFlight: Promise<void> | null = null;
+  let pending: { item: MediaQueueItem; completed: boolean } | null = null;
+  let generation = 0;
 
-  const write = (completed = false) => {
-    if (disposed) return;
-    const currentItem = playbackStore.getState().current ?? item;
-    if (!currentItem) return;
-    const progress = buildProgress(userId, currentItem, session.getState(), completed);
-    const key = `${progress.providerId}:${progress.itemId}:${progress.updatedAt}`;
-    pendingKey = key;
-    if (writeInFlight) return;
-    writeInFlight = client.upsert(progress).catch((error) => onError?.(error)).finally(() => {
-      writeInFlight = null;
-      if (!disposed && pendingKey && pendingKey !== key) write(false);
-    });
+  const currentItem = () => playbackStore.getState().current ?? item ?? null;
+
+  const drain = async () => {
+    if (disposed || writeInFlight || !pending) return;
+    const generationAtStart = generation;
+    const next = pending;
+    pending = null;
+    const progress = buildProgress(userId, next.item, session.getState(), next.completed);
+    writeInFlight = client.upsert(progress)
+      .then(() => undefined)
+      .catch((error) => { onError?.(error); })
+      .finally(() => { writeInFlight = null; if (!disposed && generation === generationAtStart) void drain(); else if (!disposed && pending) void drain(); });
+    await writeInFlight;
   };
+
+  const requestWrite = (completed = false) => {
+    if (disposed) return Promise.resolve();
+    const current = currentItem();
+    if (!current) return Promise.resolve();
+    pending = { item: current, completed: completed || pending?.completed === true };
+    return drain();
+  };
+
   const schedule = () => {
     if (disposed || timer) return;
-    timer = setTimeout(() => { timer = null; write(false); }, throttleMs);
+    timer = setTimeout(() => { timer = null; void requestWrite(false); }, throttleMs);
   };
-  const handlePause = () => write(false);
-  const handleEnded = () => write(true);
+  const handlePause = () => { void requestWrite(false); };
+  const handleEnded = () => { void requestWrite(true); };
   const handleTimeUpdate = () => schedule();
-  const handleVisibility = () => { if (document.visibilityState === 'hidden') write(false); };
+  const handleVisibility = () => { if (document.visibilityState === 'hidden') void requestWrite(false); };
+  const handlePageHide = () => { void requestWrite(false); };
 
   video.addEventListener('timeupdate', handleTimeUpdate);
   video.addEventListener('pause', handlePause);
   video.addEventListener('ended', handleEnded);
+  window.addEventListener('pagehide', handlePageHide);
   document.addEventListener('visibilitychange', handleVisibility);
 
-  return () => {
-    disposed = true;
-    if (timer) clearTimeout(timer);
-    timer = null;
-    video.removeEventListener('timeupdate', handleTimeUpdate);
-    video.removeEventListener('pause', handlePause);
-    video.removeEventListener('ended', handleEnded);
-    document.removeEventListener('visibilitychange', handleVisibility);
+  return {
+    flush: (completed = false) => requestWrite(completed),
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      generation += 1;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('ended', handleEnded);
+      window.removeEventListener('pagehide', handlePageHide);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    },
   };
 }
