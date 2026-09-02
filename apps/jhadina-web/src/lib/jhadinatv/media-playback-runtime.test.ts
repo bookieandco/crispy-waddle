@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MediaQueueItem, MediaSessionState, UnifiedMediaSession } from '@jhadina/tv-core';
 import {
   attachMediaPlaybackSession,
@@ -89,6 +89,10 @@ function sessionConfig(itemToLoad: MediaQueueItem) {
 }
 
 describe('media playback runtime lifecycle', () => {
+  beforeEach(() => {
+    disposeMediaPlaybackSession();
+  });
+
   it('publishes one coherent snapshot and keeps observing after view release', () => {
     const first = fakeSession(state('one', 12));
     const seen: Array<ReturnType<typeof getMediaPlaybackSnapshot>> = [];
