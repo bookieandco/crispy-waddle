@@ -1,6 +1,26 @@
 import type { GenerationExecution } from './generation-execution';
 import type { GenerationTask } from './generation-task';
 
+export type GenerationSubmissionOutboxStatus = 'pending' | 'submitting' | 'submitted' | 'recovery_required' | 'failed';
+
+export type GenerationSubmissionOutbox = {
+  id: string;
+  taskId: string;
+  executionId: string;
+  providerId: string;
+  idempotencyKey: string;
+  requestPayload: GenerationTask['request'];
+  status: GenerationSubmissionOutboxStatus;
+  providerJobId?: string;
+  attempt: number;
+  leaseOwner?: string;
+  leaseToken?: string;
+  leaseExpiresAt?: string;
+  lastError?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 /** Durable persistence boundary for Director generation work. */
 export interface GenerationRepository {
   claimTask(task: GenerationTask): Promise<GenerationTask>;
@@ -15,15 +35,20 @@ export interface GenerationRepository {
   listExecutions(taskId: string): Promise<GenerationExecution[]>;
   /** Extend the current execution lease only when the owner/token still match. */
   renewExecutionLease(executionId: string, workerId: string, leaseToken: string, leaseMs: number): Promise<GenerationExecution | undefined>;
+  /** Atomically create/reuse durable provider submission intent under the current execution fence. */
+  reserveSubmission(task: GenerationTask, execution: GenerationExecution, providerId: string, idempotencyKey: string): Promise<GenerationSubmissionOutbox | undefined>;
 }
 
 function clone<T>(value: T): T { return structuredClone(value); }
 function newLeaseToken(): string { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`; }
+function newSubmissionId(): string { return `submission:${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`; }
 
 export class InMemoryGenerationRepository implements GenerationRepository {
   private readonly tasks = new Map<string, GenerationTask>();
   private readonly tasksByIdempotencyKey = new Map<string, string>();
   private readonly executions = new Map<string, GenerationExecution>();
+  private readonly submissions = new Map<string, GenerationSubmissionOutbox>();
+  private readonly submissionsByKey = new Map<string, string>();
 
   async claimTask(task: GenerationTask): Promise<GenerationTask> {
     const existingId = this.tasksByIdempotencyKey.get(task.idempotencyKey);
@@ -90,6 +115,41 @@ export class InMemoryGenerationRepository implements GenerationRepository {
     this.tasks.set(task.id, clone(task));
     this.tasksByIdempotencyKey.set(task.idempotencyKey, task.id);
     return true;
+  }
+
+  async reserveSubmission(task: GenerationTask, execution: GenerationExecution, providerId: string, idempotencyKey: string): Promise<GenerationSubmissionOutbox | undefined> {
+    const durableTask = this.tasks.get(task.id);
+    const durableExecution = this.executions.get(execution.id);
+    if (!durableTask || !durableExecution || durableExecution.taskId !== task.id) return undefined;
+    if (durableExecution.leaseOwner !== execution.leaseOwner || durableExecution.leaseToken !== execution.leaseToken) return undefined;
+    if (!durableExecution.leaseExpiresAt || Date.parse(durableExecution.leaseExpiresAt) <= Date.now()) return undefined;
+    const key = `${providerId}:${idempotencyKey}`;
+    const existingId = this.submissionsByKey.get(key);
+    if (existingId) {
+      const existing = this.submissions.get(existingId);
+      if (!existing) return undefined;
+      if (existing.taskId !== task.id || existing.executionId !== execution.id) throw new Error('Submission idempotency key belongs to another generation execution');
+      return clone(existing);
+    }
+    const now = new Date().toISOString();
+    const submission: GenerationSubmissionOutbox = {
+      id: newSubmissionId(),
+      taskId: task.id,
+      executionId: execution.id,
+      providerId,
+      idempotencyKey,
+      requestPayload: clone(task.request),
+      status: 'pending',
+      attempt: 0,
+      leaseOwner: execution.leaseOwner,
+      leaseToken: execution.leaseToken,
+      leaseExpiresAt: execution.leaseExpiresAt,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.submissions.set(submission.id, clone(submission));
+    this.submissionsByKey.set(key, submission.id);
+    return clone(submission);
   }
 
   async getExecution(id: string): Promise<GenerationExecution | undefined> { const execution = this.executions.get(id); return execution ? clone(execution) : undefined; }
