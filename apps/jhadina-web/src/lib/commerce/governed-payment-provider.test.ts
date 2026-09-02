@@ -32,14 +32,15 @@ function paymentRequest(overrides: Partial<PaymentIntentRequest> = {}): PaymentI
 }
 
 describe("GovernedPaymentProvider — explicit capability boundary, authorization before provider call, full audit trail", () => {
-  test("requires a verified actor id — refuses to construct without one", () => {
-    expect(() => new GovernedPaymentProvider(provider(), "")).toThrow("verified actor")
+  test("requires a verified actor id and explicit audit ledger — refuses incomplete construction", () => {
+    const ledger = new InMemoryActionLedger()
+    expect(() => new GovernedPaymentProvider(provider(), "", ledger)).toThrow("verified actor")
+    expect(() => new GovernedPaymentProvider(provider(), VERIFIED_ACTOR, undefined as never)).toThrow("explicit audit ledger")
   })
 
   test("charge is an allowed capability: authorized before the provider call, recorded started->completed, and audited against the verified actor — never request.customer.id", async () => {
     const ledger = new InMemoryActionLedger()
     const governed = new GovernedPaymentProvider(provider(), VERIFIED_ACTOR, ledger)
-    // customer.id deliberately differs from the verified actor, to prove which one wins.
     const intent = await governed.createPaymentIntent(paymentRequest({ customer: { id: "someone-else-entirely", type: "customer" } }))
     expect(intent.status).toBe("captured")
 
@@ -74,7 +75,6 @@ describe("GovernedPaymentProvider — explicit capability boundary, authorizatio
       }),
     ).rejects.toThrow(PaymentCapabilityDeniedError)
 
-    // Authorization happened before any provider call — the wrapped provider's own method never ran.
     expect(payoutCalls).toBe(0)
 
     const trail = ledger.list().filter((e) => e.actionId === "po_1")
