@@ -119,7 +119,12 @@ export function resolveNBAOrchestratedPossession(
         }
         const lastEvent = events.at(-1);
         if (lastEvent?.kind === 'FREE_THROW' && lastEvent.made) {
-          current = Object.freeze({ ...current, offenseTeamId: possession.defenseTeamId, defenseTeamId: possession.offenseTeamId, shotClockSeconds: 24 });
+          apply(createNBAEvent(current, 'POSSESSION_END', {
+            teamId: possession.offenseTeamId,
+            playerId: possession.ballHandler.playerId,
+            elapsedSeconds: 0,
+            evidenceIds: foul.evidenceIds,
+          }));
         }
       }
       break;
