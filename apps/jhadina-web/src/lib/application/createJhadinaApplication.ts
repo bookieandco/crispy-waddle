@@ -3,7 +3,8 @@ import { JanetService } from "../services/JanetService"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
-import { InMemoryStorage } from "../storage/InMemoryStorage"
+import { createMemoryStorage } from "../storage/createMemoryStorage"
+import type { MemoryStorage } from "../storage/MemoryStorage"
 import {
   SupabaseActionIdentityVerifier,
   type JhadinaIdentityVerifier,
@@ -19,7 +20,7 @@ export type ExecutionReadiness =
     }
 
 export interface JhadinaApplication {
-  storage: InMemoryStorage
+  storage: MemoryStorage
   memoryRepo: MemoryRepository
   reasoningRepo: ReasoningEventRepository
   timelineRepo: TimelineRepository
@@ -31,7 +32,7 @@ export interface JhadinaApplication {
 }
 
 export function createJhadinaApplication(): JhadinaApplication {
-  const storage = new InMemoryStorage()
+  const storage = createMemoryStorage()
   const memoryRepo = new MemoryRepository(storage)
   const reasoningRepo = new ReasoningEventRepository(storage)
   const timelineRepo = new TimelineRepository(storage)
@@ -73,9 +74,9 @@ export function createJhadinaApplication(): JhadinaApplication {
 let application: JhadinaApplication | undefined
 
 /**
- * Returns the process-local application graph. This keeps all route handlers
- * in the same runtime instance on long-lived Node/serverless workers while
- * remaining replaceable through createJhadinaApplication() in tests.
+ * Returns the process-local application graph. The graph uses the same
+ * storage factory as the route layer, so production cannot accidentally
+ * create a second in-memory memory universe beside the durable store.
  */
 export function getJhadinaApplication(): JhadinaApplication {
   if (!application) application = createJhadinaApplication()
