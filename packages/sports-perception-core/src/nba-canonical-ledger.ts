@@ -1,6 +1,7 @@
 import type { NBAEvent, NBAEventGameState, NBAEventTransition } from './nba-event-state-machine.js';
 import { applyNBAEvent } from './nba-event-state-machine.js';
 import { applyNBASubstitution } from './nba-lineup-state.js';
+import { assertNBAEventTeam, createNBAGameIdentity } from './nba-game-identity.js';
 
 export interface NBAStateTransition extends NBAEventTransition {
   previousStateHash: string;
@@ -34,9 +35,7 @@ function hash(value: unknown): string {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-export function hashNBAEvent(event: NBAEvent): string {
-  return hash(event);
-}
+export function hashNBAEvent(event: NBAEvent): string { return hash(event); }
 
 export function hashNBAState(state: NBAEventGameState): string {
   return hash({
@@ -57,6 +56,8 @@ export function hashNBAState(state: NBAEventGameState): string {
 }
 
 function assertEventIdentity(state: NBAEventGameState, event: NBAEvent, seen: ReadonlySet<string>): void {
+  const identity = createNBAGameIdentity(state);
+  assertNBAEventTeam(identity, event.teamId);
   if (state.gameId !== event.eventId.split(':')[0]) throw new Error(`NBA event ${event.eventId} does not belong to game ${state.gameId}`);
   if (seen.has(event.eventId)) throw new Error(`Duplicate NBA event ID: ${event.eventId}`);
   if (event.sequence !== state.sequence + 1) throw new Error('NBA event sequence must advance exactly by one');
@@ -85,6 +86,7 @@ export class NBAEventLedger {
   private readonly seen = new Set<string>();
 
   constructor(initialState: NBAEventGameState) {
+    createNBAGameIdentity(initialState);
     this.initial = initialState;
     this.state = initialState;
   }
@@ -102,13 +104,7 @@ export class NBAEventLedger {
   }
 
   snapshot(): NBACanonicalEventLedger {
-    return Object.freeze({
-      gameId: this.initial.gameId,
-      initialState: this.initial,
-      transitions: Object.freeze([...this.transitions]),
-      finalState: this.state,
-      finalStateHash: hashNBAState(this.state),
-    });
+    return Object.freeze({ gameId: this.initial.gameId, initialState: this.initial, transitions: Object.freeze([...this.transitions]), finalState: this.state, finalStateHash: hashNBAState(this.state) });
   }
 }
 
