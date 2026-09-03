@@ -69,14 +69,19 @@ export class PostgresExecutionRecoveryLedger implements ExecutionRecoveryLedger 
     providerReference?: string;
     reason: string;
     observation: RecoveryObservation;
+    leaseId?: string;
   }): Promise<void> {
     const state = input.state === 'SUCCEEDED' ? 'recovered' : input.state === 'FAILED' ? 'failed' : 'recovery_required';
-    await this.client.query(
+    const result = await this.client.query(
       `UPDATE ${this.ledger}
-       SET state=$2, response=$3::jsonb, error=$4, completed_at=CASE WHEN $2 IN ('recovered','failed') THEN $5 ELSE completed_at END, updated_at=CURRENT_TIMESTAMP
-       WHERE execution_id=$1`,
-      [input.attemptId, state, JSON.stringify({ providerReference: input.providerReference, reason: input.reason, observation: input.observation }), input.state === 'FAILED' ? input.reason : null, input.observation.checkedAt],
+       SET state=$2, response=$3::jsonb, error=$4, completed_at=CASE WHEN $2 IN ('recovered','failed') THEN $5 ELSE completed_at END, recovery_lease_id=NULL, recovery_lease_expires_at=NULL, updated_at=CURRENT_TIMESTAMP
+       WHERE execution_id=$1
+         AND ($6::text IS NULL OR recovery_lease_id=$6)
+         AND state='recovery_required'
+       RETURNING execution_id`,
+      [input.attemptId, state, JSON.stringify({ providerReference: input.providerReference, reason: input.reason, observation: input.observation }), input.state === 'FAILED' ? input.reason : null, input.observation.checkedAt, input.leaseId ?? null],
     );
+    if (result.rowCount !== 1) throw new Error('MONEY_RECOVERY_LEASE_LOST');
   }
 
   async ensureExecutionLedger(attempt: ExecutionAttempt, approvalId?: string): Promise<void> {
