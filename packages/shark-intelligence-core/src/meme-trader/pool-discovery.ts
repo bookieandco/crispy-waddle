@@ -5,7 +5,12 @@ export type PoolCandidate = { poolAddress: string; dexId?: string; programId?: s
 export interface PoolDiscoverySource { discoverPools(launch: TokenLaunch): Promise<PoolCandidate[]> }
 function finite(value: unknown): value is number { return typeof value === 'number' && Number.isFinite(value) }
 function stringValue(value: unknown): string | undefined { return typeof value === 'string' && value.length > 0 ? value : undefined }
-const PROGRAM_IDS: Record<string, string> = { raydium: '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8', pumpswap: 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA' }
+const PROGRAM_IDS: Record<string, string> = {
+  raydium: '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8',
+  pumpswap: 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA',
+  meteora: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',
+  meteora_dlmm: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo',
+}
 function nonNegativeFinite(value: unknown): value is number { return finite(value) && value >= 0 }
 
 /** DexScreener discovers candidate pools only; it is not a historical reserve or LP-control oracle. */
