@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
-import type { ExecutionAction } from './execution-permit.js';
+import { fingerprintAction, type ExecutionAction } from './execution-permit.js';
+import type { ExecutionAttempt } from './execution-attempt.js';
 
 export type ProviderExecutionIdentity = {
   executionId: string;
@@ -22,11 +22,23 @@ export function createProviderExecutionIdentity(input: {
   return {
     executionId: input.executionId,
     idempotencyKey: input.idempotencyKey,
-    actionFingerprint: createHash('sha256')
-      .update(`jhadina-provider-execution:v1:${input.executionId}:${input.action.actionId}:${input.idempotencyKey}`)
-      .digest('hex'),
+    actionFingerprint: fingerprintAction(input.action),
     provider: input.action.provider,
     operation: input.operation,
+  };
+}
+
+export function createProviderExecutionIdentityFromAttempt(attempt: ExecutionAttempt): ProviderExecutionIdentity {
+  if (!attempt.attemptId || !attempt.idempotencyKey || !attempt.operation) {
+    throw new Error('MONEY_PROVIDER_EXECUTION_IDENTITY_INVALID');
+  }
+  return {
+    executionId: attempt.attemptId,
+    idempotencyKey: attempt.idempotencyKey,
+    actionFingerprint: attempt.actionFingerprint,
+    provider: attempt.provider,
+    operation: attempt.operation,
+    providerReference: attempt.providerReference,
   };
 }
 
