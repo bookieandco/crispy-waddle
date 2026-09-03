@@ -37,6 +37,7 @@ export * from './player-event-simulation.js';
 export * from './player-fatigue.js';
 export * from './player-simulation.js';
 export * from './prediction-ledger.js';
+export * from './prediction-reality-attribution.js';
 export * from './prediction-reality-evaluation.js';
 export * from './reconciliation.js';
 export * from './reality-state-corrections.js';
