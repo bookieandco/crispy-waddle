@@ -39,3 +39,4 @@ export * from "./lsp-plugin-adapter.js";
 export * from "./native-plugin-host.js";
 export * from "./native-plugin-ipc.js";
 export * from "./native-plugin-process-adapter.js";
+export * from "./native-worker-supervisor.js";
