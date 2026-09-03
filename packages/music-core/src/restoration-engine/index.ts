@@ -25,3 +25,4 @@ export * from "./music-human-feedback.js";
 export * from "./music-evaluation.js";
 export * from "./execution-authorization.js";
 export * from "./provenance-ledger.js";
+export * from "./post-execution-audit.js";
