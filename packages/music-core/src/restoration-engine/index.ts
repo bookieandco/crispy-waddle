@@ -9,3 +9,4 @@ export * from "./audio-input.js";
 export * from "./calibration-provider.js";
 export * from "./time-domain-perception.js";
 export * from "./spectral-analysis.js";
+export * from "./multi-signal-damage.js";
