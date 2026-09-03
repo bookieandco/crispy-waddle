@@ -12,6 +12,8 @@ export * from './market-intelligence.js';
 export * from './nba-event-state-machine.js';
 export * from './nba-game-replay.js';
 export * from './nba-lineup-state.js';
+export * from './nba-live-event-bridge.js';
+export * from './nba-live-state.js';
 export * from './nba-possession-chain.js';
 export * from './nba-possession-context.js';
 export * from './nba-possession.js';
