@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import type { ExecutionAttemptStore } from './execution-attempt.js';
+import type { ExecutionAttemptOutcome, ExecutionAttemptStore } from './execution-attempt.js';
 import { classifyRecovery, type ExecutionReconciler, type ExecutionRecoveryLedger, type RecoveryResult } from './execution-recovery.js';
 import { assertRecoveryLease, type ExecutionRecoveryLeaseStore } from './execution-recovery-lease.js';
 import { recoveryEvidenceHash, type PostgresExecutionRecoveryLedger } from './postgres-execution-recovery-ledger.js';
+import type { AtomicRecoveryResolver } from './postgres-atomic-recovery-resolver.js';
 
 export type ExecutionRecoveryServiceOptions = {
   attempts: ExecutionAttemptStore;
   reconciler: ExecutionReconciler;
   ledger: ExecutionRecoveryLedger & Partial<Pick<PostgresExecutionRecoveryLedger, 'ensureExecutionLedger'>>;
+  atomicResolver: AtomicRecoveryResolver;
   leases: ExecutionRecoveryLeaseStore;
   leaseSeconds?: number;
   leaseIdFactory?: () => string;
@@ -41,8 +43,6 @@ export class MoneyExecutionRecoveryService {
       const expectedEvidenceHash = recoveryEvidenceHash(observation);
       if (observation.evidenceHash !== expectedEvidenceHash) throw new Error('MONEY_RECOVERY_EVIDENCE_HASH_MISMATCH');
 
-      // Renewal is also the ownership fence: if another worker reclaimed the
-      // execution, this returns no row and this worker cannot resolve it.
       const renewed = await this.deps.leases.renew(attempt.attemptId, leaseId, leaseSeconds);
       if (!renewed) throw new Error('MONEY_RECOVERY_LEASE_LOST');
       assertRecoveryLease(renewed, this.deps.now?.() ?? Date.now());
@@ -55,18 +55,20 @@ export class MoneyExecutionRecoveryService {
         if (!finalLease) throw new Error('MONEY_RECOVERY_LEASE_LOST');
         assertRecoveryLease(finalLease, this.deps.now?.() ?? Date.now());
 
-        const outcome = result.disposition === 'RESOLVED_SUCCEEDED'
-          ? { state: 'SUCCEEDED' as const, providerReference: observation.providerReference, recoveryRequired: false }
-          : { state: 'FAILED' as const, providerReference: observation.providerReference, errorCode: 'MONEY_PROVIDER_CONFIRMED_FAILED', errorMessage: result.reason, recoveryRequired: false };
+        const outcome: ExecutionAttemptOutcome = result.disposition === 'RESOLVED_SUCCEEDED'
+          ? { state: 'SUCCEEDED', providerReference: observation.providerReference, recoveryRequired: false }
+          : { state: 'FAILED', providerReference: observation.providerReference, errorCode: 'MONEY_PROVIDER_CONFIRMED_FAILED', errorMessage: result.reason, recoveryRequired: false };
 
-        await this.deps.attempts.resolve(attempt.attemptId, outcome);
-        await this.deps.ledger.markAttemptResolved({
+        // One database transaction resolves both durable state machines. The
+        // lease is checked again inside the transaction, so a stale worker
+        // cannot resolve an execution after ownership has moved elsewhere.
+        await this.deps.atomicResolver.resolve({
           attemptId: attempt.attemptId,
-          state: outcome.state,
-          providerReference: observation.providerReference,
-          reason: result.reason,
-          observation,
+          proposalHash: attempt.actionFingerprint,
           leaseId,
+          outcome,
+          observation,
+          reason: result.reason,
         });
       }
 
