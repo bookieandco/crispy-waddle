@@ -1,4 +1,5 @@
 export * from './contracts.js';
+export * from './ensemble.js';
 export * from './evaluation.js';
 export * from './evidence-store.js';
 export * from './identity.js';
