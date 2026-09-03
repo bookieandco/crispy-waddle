@@ -4,6 +4,7 @@ export * from './personality-core.js';
 export * from './bayesian-inference.js';
 export * from './bayesian-pattern.js';
 export * from './hippocampus.js';
+export * from './pattern-engine.js';
 export * from './evolution.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
