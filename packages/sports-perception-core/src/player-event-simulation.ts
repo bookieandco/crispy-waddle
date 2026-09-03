@@ -35,16 +35,11 @@ export function resolvePlayerEventContest(contest: PlayerEventContest): Resolved
   const scenarioAdjustment = contest.scenarioAdjustment ?? 0;
   const matchupAdjustment = normalizedAdjustment + scenarioAdjustment;
 
-  // Odds-space adjustment keeps the contest bounded while allowing strong
-  // player mismatches to matter more near the tails than a raw linear add.
   const odds = contest.baseProbability / Math.max(1e-9, 1 - contest.baseProbability);
   const adjustedOdds = odds * Math.exp(matchupAdjustment);
   const resolvedProbability = clamp(adjustedOdds / (1 + adjustedOdds));
   const evidenceIds = Object.freeze([
-    ...new Set([
-      ...contest.matchup.attacker.evidenceIds,
-      ...contest.matchup.defender.evidenceIds,
-    ]),
+    ...new Set([...contest.matchup.attacker.evidenceIds, ...contest.matchup.defender.evidenceIds]),
   ].sort());
 
   return Object.freeze({
