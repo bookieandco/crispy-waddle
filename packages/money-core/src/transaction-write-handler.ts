@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import type { ActionHandler, ActionRequest } from '@jhadina/action-core';
 import { assertCapability, type BankAdapter } from './bank-adapter.js';
 import { type ApprovalPort } from './approval-port.js';
 import { type IdempotencyStore } from './idempotency-store.js';
 import { authorizeAndConsumeMoneyPermit, toExecutionAction, type MoneyExecutionPermit } from './execution-permit-gate.js';
+import { createExecutionAttempt, type ExecutionAttemptStore } from './execution-attempt.js';
 import type { PermitStore } from './execution-permit.js';
 
 export type PaymentCreateAction = {
@@ -32,6 +34,7 @@ export type TransactionWriteHandlerDeps = {
   idempotency: IdempotencyStore;
   permitStore: PermitStore;
   getExecutionPermit: (requestId: string) => Promise<MoneyExecutionPermit>;
+  executionAttempts: ExecutionAttemptStore;
   policyClock?: () => string;
   assertUserWorkspace?: (userId: string) => Promise<void>;
   assertAccountAccess?: (userId: string, accountId: string) => Promise<void>;
@@ -93,27 +96,52 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
       this.deps.policyClock?.() ?? new Date().toISOString(),
     );
 
+    const attempt = createExecutionAttempt({
+      attemptId: randomUUID(),
+      requestId: request.id,
+      permitId: permit.permitId,
+      action: executionAction,
+      operation: action.capability,
+      now: this.deps.policyClock?.() ?? new Date().toISOString(),
+    });
+    await this.deps.executionAttempts.start(attempt);
+
     const adapter = this.deps.getProvider(action.provider);
     let result: TransactionWriteResult;
-
-    if (action.capability === 'money.payment.create') {
-      await this.deps.assertAccountAccess?.(request.userId, action.accountId);
-      if (!adapter.createPayment) throw new Error('MONEY_PAYMENT_UNSUPPORTED');
-      result = await adapter.createPayment(
-        { userId: request.userId, capability: action.capability, requestId: request.id },
-        { accountId: action.accountId, amount: action.amount, currency: action.currency, payeeId: action.payeeId },
-      );
-    } else {
-      await this.deps.assertAccountAccess?.(request.userId, action.fromAccountId);
-      await this.deps.assertAccountAccess?.(request.userId, action.toAccountId);
-      if (action.fromAccountId === action.toAccountId) throw new Error('MONEY_TRANSFER_SAME_ACCOUNT');
-      if (!adapter.createTransfer) throw new Error('MONEY_TRANSFER_UNSUPPORTED');
-      result = await adapter.createTransfer(
-        { userId: request.userId, capability: action.capability, requestId: request.id },
-        { fromAccountId: action.fromAccountId, toAccountId: action.toAccountId, amount: action.amount, currency: action.currency },
-      );
+    try {
+      if (action.capability === 'money.payment.create') {
+        await this.deps.assertAccountAccess?.(request.userId, action.accountId);
+        if (!adapter.createPayment) throw new Error('MONEY_PAYMENT_UNSUPPORTED');
+        result = await adapter.createPayment(
+          { userId: request.userId, capability: action.capability, requestId: request.id, idempotencyKey: attempt.idempotencyKey },
+          { accountId: action.accountId, amount: action.amount, currency: action.currency, payeeId: action.payeeId },
+        );
+      } else {
+        await this.deps.assertAccountAccess?.(request.userId, action.fromAccountId);
+        await this.deps.assertAccountAccess?.(request.userId, action.toAccountId);
+        if (action.fromAccountId === action.toAccountId) throw new Error('MONEY_TRANSFER_SAME_ACCOUNT');
+        if (!adapter.createTransfer) throw new Error('MONEY_TRANSFER_UNSUPPORTED');
+        result = await adapter.createTransfer(
+          { userId: request.userId, capability: action.capability, requestId: request.id, idempotencyKey: attempt.idempotencyKey },
+          { fromAccountId: action.fromAccountId, toAccountId: action.toAccountId, amount: action.amount, currency: action.currency },
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.deps.executionAttempts.complete(attempt.attemptId, {
+        state: 'UNKNOWN',
+        errorCode: 'MONEY_PROVIDER_OUTCOME_UNKNOWN',
+        errorMessage: message,
+        recoveryRequired: true,
+      });
+      throw new Error(`MONEY_EXECUTION_RECOVERY_REQUIRED:${attempt.attemptId}`);
     }
 
+    await this.deps.executionAttempts.complete(attempt.attemptId, {
+      state: 'SUCCEEDED',
+      providerReference: result.providerReference,
+      recoveryRequired: false,
+    });
     await this.deps.idempotency.complete(request.id, result);
     return result;
   }
