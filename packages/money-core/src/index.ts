@@ -44,3 +44,5 @@ export { validateInvoiceAmount, validateExtractionConfidence } from './invoice-e
 
 export type { PermitState, ExecutionAction, PermitBinding, ExecutionPermit, PermitIssuerInput, PermitVerificationContext, PermitStore } from './execution-permit.js';
 export { canonicalizeAction, fingerprintAction, issueExecutionPermit, verifyExecutionPermit, consumeExecutionPermit } from './execution-permit.js';
+export type { PostgresPermitStoreOptions } from './postgres-permit-store.js';
+export { PostgresPermitStore } from './postgres-permit-store.js';
