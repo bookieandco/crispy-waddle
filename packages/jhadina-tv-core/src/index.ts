@@ -12,8 +12,15 @@ export type { CastingManager, MediaSessionCommand, MediaSessionController, Media
 export type { CatalogProvider, CatalogSearchOptions, CatalogSearchResult, ResolvedMediaSource } from './catalog'; export { CatalogRegistry } from './catalog';
 export type { ProviderFactoryConfig } from './providers'; export { createCatalogProvider, registerCatalogProviders } from './providers';
 export type { AuthorizedCatalogClient, AuthorizedCatalogRecord } from './providers/authorized'; export { createAuthorizedCatalogAdapter } from './providers/authorized';
+export type { PlaybackCapability, PlaybackRequest, ResolvedPlaybackSource, PlaybackResolver, PlaybackResolverProvider } from './playback-resolver'; export { createPlaybackResolver } from './playback-resolver';
+export type { DirectSourceCatalogClient } from './direct-source-adapter'; export { createDirectSourceAdapter } from './direct-source-adapter';
+export type { AuthorizedYouTubeCatalogClient } from './youtube-playback-adapter'; export { createYouTubePlaybackAdapter } from './youtube-playback-adapter';
 export type { GoogleCastRuntime, GoogleCastSession } from './cast/google-cast'; export { createGoogleCastController } from './cast/google-cast';
 export type { JhadinaTVReceiverTransport } from './cast/jhadinatv-receiver'; export { createJhadinaTVReceiverController } from './cast/jhadinatv-receiver';
 export type { AirPlayVideo } from './cast/browser-airplay'; export { createBrowserAirPlayController } from './cast/browser-airplay';
+export type { CastMediaDescriptor } from './cast/execution'; export { assertCastablePlayback, toCastMediaDescriptor } from './cast/execution';
 export type { PictureInPictureController, PictureInPictureDocument, PictureInPictureVideo } from './picture-in-picture'; export { createPictureInPictureController } from './picture-in-picture';
 export type { LocalPlaybackAdapter, UnifiedMediaSession, UnifiedMediaSessionConfig } from './media-session'; export { createUnifiedMediaSession } from './media-session';
+export type { ResolvedMediaPlayer, ResolvedPlaybackRuntime } from './resolved-media-player'; export { assertNativePlaybackSource, createResolvedMediaPlayer } from './resolved-media-player';
+export type { MediaPlaybackProgress, MediaPlaybackProgressRepository } from './media-playback-persistence'; export { InMemoryMediaPlaybackProgressRepository, isMeaningfulResume } from './media-playback-persistence';
+export type { MediaPlaybackStore, MediaPlaybackStoreState, MediaQueueItem } from './media-playback-store'; export { createMediaPlaybackStore } from './media-playback-store';
