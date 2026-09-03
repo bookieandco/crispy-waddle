@@ -17,12 +17,24 @@ const base = {
 };
 
 describe('NBA SportsEvent adapter', () => {
-  it('preserves canonical event identity and nested game IDs', () => {
-    const event = toNBASportsEvent(base);
+  it('preserves canonical identity and nested game IDs', () => {
+    const event = toNBASportsEvent(base, {
+      sourceId: 'test-feed',
+      sourceType: 'FEED',
+      observedAt: '2026-09-03T12:00:00.000Z',
+      receivedAt: '2026-09-03T12:00:01.000Z',
+    });
+
     assert.equal(event.gameId, 'game:2026:01');
     assert.equal(event.sequence, 7);
     assert.equal(event.eventType, 'SHOT');
-    assert.deepEqual(event.participants, { teamId: 'A', playerId: 'p1', opponentPlayerId: 'p2' });
-    assert.deepEqual(event.evidenceIds, ['e1']);
+    assert.equal(event.observationClass, 'OBSERVED');
+    assert.deepEqual(event.participants, [
+      { participantId: 'A', role: 'TEAM' },
+      { participantId: 'p1', role: 'PLAYER' },
+      { participantId: 'p2', role: 'PLAYER' },
+    ]);
+    assert.deepEqual(event.provenance.evidenceIds, ['e1']);
+    assert.deepEqual(event.provenance.derivedFromEventIds, [base.eventId]);
   });
 });
