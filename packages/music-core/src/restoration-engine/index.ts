@@ -36,3 +36,4 @@ export * from "./audio-worker-runtime.js";
 export * from "./dsp-worker.js";
 export * from "./plugin-host.js";
 export * from "./lsp-plugin-adapter.js";
+export * from "./native-plugin-host.js";
