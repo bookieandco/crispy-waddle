@@ -10,6 +10,7 @@ export * from './live-game-watcher.js';
 export * from './market-canonicalization.js';
 export * from './market-intelligence.js';
 export * from './nba-canonical-ledger.js';
+export * from './nba-event-identity.js';
 export * from './nba-event-state-machine.js';
 export * from './nba-game-identity.js';
 export * from './nba-game-loop.js';
