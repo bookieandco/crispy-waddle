@@ -32,3 +32,4 @@ export * from "./plugin-automation-registry.js";
 export * from "./audio-execution-sandbox.js";
 export * from "./opensandbox-provider.js";
 export * from "./music-worker.js";
+export * from "./audio-worker-runtime.js";
