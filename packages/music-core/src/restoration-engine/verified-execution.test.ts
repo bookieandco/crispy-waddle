@@ -73,9 +73,12 @@ const output = (overrides: Partial<MusicArtifact> = {}): MusicArtifact => ({
   ...overrides,
 });
 
-const input = (writer: { write: () => Promise<MusicArtifact> }) => ({
+const makeInput = (
+  writer: { write: () => Promise<MusicArtifact> },
+  auth: RestorationExecutionAuthorization = authorization,
+) => ({
   executionId: "execution-1",
-  authorization,
+  authorization: auth,
   plan,
   candidate,
   ledger: new RestorationProvenanceLedgerWithSource(),
@@ -96,47 +99,55 @@ class RestorationProvenanceLedgerWithSource extends RestorationProvenanceLedger 
 describe("verified restoration execution", () => {
   it("promotes the artifact actually returned by the writer", async () => {
     const writer = { write: vi.fn(async () => output()) };
-    const result = await executeVerifiedRestoration(input(writer));
+    const input = makeInput(writer);
+    const result = await executeVerifiedRestoration(input);
 
     expect(writer.write).toHaveBeenCalledOnce();
     expect(result.status).toBe("completed");
     expect(result.receipt.hashVerified).toBe(true);
     expect(result.version?.outputArtifactId).toBe("output-1");
+    expect(input.ledger.getVersion("restoration-version:execution-1")?.qcPassed).toBe(true);
   });
 
   it("blocks promotion on an output hash mismatch", async () => {
     const writer = { write: vi.fn(async () => output({ contentHash: "wrong-hash" })) };
-    const result = await executeVerifiedRestoration(input(writer));
+    const input = makeInput(writer);
+    const result = await executeVerifiedRestoration(input);
 
     expect(result.version).toBeUndefined();
     expect(result.receipt.qc.passed).toBe(false);
     expect(result.receipt.reasons).toContain("output-hash-mismatch");
-    expect(result.ledger?.getVersion?.("restoration-version:execution-1")).toBeUndefined();
+    expect(input.ledger.getVersion("restoration-version:execution-1")).toBeUndefined();
   });
 
   it("blocks promotion and registration when output lineage is wrong", async () => {
     const writer = { write: vi.fn(async () => output({ parentArtifactId: "other-source" })) };
-    const result = await executeVerifiedRestoration(input(writer));
+    const input = makeInput(writer);
+    const result = await executeVerifiedRestoration(input);
 
     expect(result.version).toBeUndefined();
     expect(result.receipt.qc.passed).toBe(false);
     expect(result.receipt.reasons).toContain("output-lineage-mismatch");
-    expect(result.ledger?.getArtifact?.("output-1")).toBeUndefined();
+    expect(input.ledger.getArtifact("output-1")).toBeUndefined();
   });
 
   it("permanently audits writer failure without producing a version", async () => {
     const writer = { write: vi.fn(async () => { throw new Error("render failed"); }) };
-    const result = await executeVerifiedRestoration(input(writer));
+    const input = makeInput(writer);
+    const result = await executeVerifiedRestoration(input);
 
     expect(result.status).toBe("failed");
     expect(result.version).toBeUndefined();
     expect(result.receipt.reasons).toContain("execution-failed");
     expect(result.receipt.outputArtifactId).toBeUndefined();
+    expect(input.ledger.getEntries().some((entry) => entry.type === "execution-failed")).toBe(true);
   });
 
   it("never invokes the writer when authorization is denied", async () => {
     const writer = { write: vi.fn(async () => output()) };
-    await expect(executeVerifiedRestoration(input(writer)).then(() => undefined)).rejects.toThrow(
+    const denied = { ...authorization, authorized: false };
+
+    await expect(executeVerifiedRestoration(makeInput(writer, denied))).rejects.toThrow(
       "Restoration execution denied by authorization boundary",
     );
     expect(writer.write).not.toHaveBeenCalled();
