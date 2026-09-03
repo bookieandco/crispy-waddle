@@ -8,6 +8,7 @@ export * from './pattern-engine.js';
 export * from './real-nigga-core.js';
 export * from './behavioral-kernel.js';
 export * from './expression-kernel.js';
+export * from './personality-behavior-pipeline.js';
 export * from './evolution.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
