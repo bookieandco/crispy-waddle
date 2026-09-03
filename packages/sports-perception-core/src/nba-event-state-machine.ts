@@ -1,11 +1,11 @@
 import type { RandomSource } from './simulation.js';
 import type { NBALineupState } from './nba-lineup-state.js';
 
-export type NBAEventKind = 'POSSESSION_START' | 'PASS' | 'DRIVE' | 'SHOT' | 'FOUL' | 'FREE_THROW' | 'REBOUND' | 'TURNOVER' | 'SUBSTITUTION' | 'POSSESSION_END';
+export type NBAEventKind = 'POSSESSION_START' | 'PASS' | 'DRIVE' | 'SHOT' | 'FOUL' | 'FREE_THROW' | 'REBOUND' | 'TURNOVER' | 'SUBSTITUTION' | 'POSSESSION_END' | 'PERIOD_END' | 'PERIOD_START' | 'OVERTIME_START' | 'GAME_END';
 export type NBAFoulKind = 'SHOOTING' | 'NON_SHOOTING' | 'OFFENSIVE' | 'TECHNICAL';
 export type NBAReboundKind = 'OFFENSIVE' | 'DEFENSIVE';
 
-export interface NBAEvent { eventId: string; sequence: number; kind: NBAEventKind; teamId: string; playerId?: string; opponentPlayerId?: string; foulKind?: NBAFoulKind; freeThrows?: number; made?: boolean; points?: 0 | 1 | 2 | 3; reboundKind?: NBAReboundKind; elapsedSeconds?: number; evidenceIds: readonly string[]; }
+export interface NBAEvent { eventId: string; sequence: number; kind: NBAEventKind; teamId: string; playerId?: string; opponentPlayerId?: string; foulKind?: NBAFoulKind; freeThrows?: number; made?: boolean; points?: 0 | 1 | 2 | 3; reboundKind?: NBAReboundKind; elapsedSeconds?: number; period?: number; evidenceIds: readonly string[]; }
 export interface NBAEventPlayer { playerId: string; teamId: string; personalFouls: number; fatigue: number; eligible: boolean; }
 export interface NBAEventGameState { gameId: string; period: number; periodSecondsRemaining: number; shotClockSeconds: number; offenseTeamId: string; defenseTeamId: string; scores: Readonly<Record<string, number>>; players: Readonly<Record<string, NBAEventPlayer>>; offenseLineup?: NBALineupState; defenseLineup?: NBALineupState; sequence: number; lastEventId?: string; evidenceIds: readonly string[]; }
 export interface NBAEventTransition { state: NBAEventGameState; event: NBAEvent; }
@@ -41,9 +41,16 @@ export function applyNBAEvent(state: NBAEventGameState, event: NBAEvent): NBAEve
     const player = players[event.playerId]; if (!player) throw new Error(`Unknown foul player: ${event.playerId}`);
     const fouls = player.personalFouls + 1; players[event.playerId] = playerWith(player, { personalFouls: fouls, eligible: fouls < 6 });
   } else if (event.kind === 'FREE_THROW' && event.made) scores = addScore(scores, event.teamId, 1);
-  if (event.kind === 'POSSESSION_END') { offenseTeamId = state.defenseTeamId; defenseTeamId = state.offenseTeamId; shotClockSeconds = 24; }
 
-  return Object.freeze({ ...state, scores, offenseTeamId, defenseTeamId, shotClockSeconds, periodSecondsRemaining, players: Object.freeze(players), sequence: event.sequence, lastEventId: event.eventId, evidenceIds: appendEvidence(state, event.evidenceIds) });
+  if (event.kind === 'POSSESSION_END') { offenseTeamId = state.defenseTeamId; defenseTeamId = state.offenseTeamId; shotClockSeconds = 24; }
+  if (event.kind === 'PERIOD_END' || event.kind === 'GAME_END') { periodSecondsRemaining = 0; shotClockSeconds = 0; }
+  if (event.kind === 'PERIOD_START' || event.kind === 'OVERTIME_START') {
+    if (!event.period || event.period < 1) throw new Error('NBA period start requires a valid period');
+    periodSecondsRemaining = event.period > 4 ? 300 : 720;
+    shotClockSeconds = 24;
+  }
+
+  return Object.freeze({ ...state, period: event.kind === 'PERIOD_START' || event.kind === 'OVERTIME_START' ? event.period! : state.period, scores, offenseTeamId, defenseTeamId, shotClockSeconds, periodSecondsRemaining, players: Object.freeze(players), sequence: event.sequence, lastEventId: event.eventId, evidenceIds: appendEvidence(state, event.evidenceIds) });
 }
 
 export function createNBAEvent(state: NBAEventGameState, kind: NBAEventKind, fields: Omit<NBAEvent, 'eventId' | 'sequence' | 'kind'>): NBAEvent {
