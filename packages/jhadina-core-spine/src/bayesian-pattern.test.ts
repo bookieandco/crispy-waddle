@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { assessPatternBayesian } from './bayesian-pattern.js';
+import { assessPatternBayesian, projectBayesianPattern } from './bayesian-pattern.js';
 import type { PatternObservation } from './types.js';
 
 const pattern: PatternObservation = {
@@ -29,6 +29,16 @@ describe('Bayesian pattern assessment', () => {
     assert.equal(result.evidenceCount, 2);
     assert.equal(result.eligibleForPersonality, true);
     assert.deepEqual(pattern, before);
+  });
+
+  it('projects posterior confidence without granting personality eligibility', () => {
+    const ordinaryPattern = { ...pattern, confidence: 0.2, personalityEligible: false, personalityDimension: undefined };
+    const projected = projectBayesianPattern(ordinaryPattern, [{ support: 1, weight: 1 }]);
+
+    assert.equal(projected.confidence, 2 / 3);
+    assert.equal(projected.personalityEligible, false);
+    assert.equal(projected.personalityDimension, undefined);
+    assert.equal(ordinaryPattern.confidence, 0.2);
   });
 
   it('does not grant personality eligibility to an ordinary pattern', () => {
