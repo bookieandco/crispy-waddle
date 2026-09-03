@@ -5,3 +5,4 @@ export * from './identity.js';
 export * from './prediction-ledger.js';
 export * from './reconciliation.js';
 export * from './validation.js';
+export * from './video-perception.js';
