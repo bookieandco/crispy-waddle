@@ -63,54 +63,43 @@ export class RealityStateEventResolver<TState> {
     const eventTimeMs = new Date(event.provenance.source.observedAt).getTime();
     const receivedTimeMs = new Date(event.provenance.source.receivedAt).getTime();
     if (!Number.isFinite(eventTimeMs) || !Number.isFinite(receivedTimeMs)) throw new Error('Reality event timestamps must be valid');
-
     const existing = this.records.get(event.eventId);
     if (existing) {
       const state = this.currentVersion();
       return { disposition: 'DUPLICATE', state, inserted: false, requiresReplay: false, reason: 'eventId already ingested' };
     }
-
     const late = eventTimeMs < this.watermarkMs;
     this.records.set(event.eventId, { event, eventTimeMs, receivedTimeMs });
     const replay = late || this.versions.length > 0;
     const state = this.rebuild();
     this.watermarkMs = Math.max(this.watermarkMs, eventTimeMs - this.allowedLatenessMs);
-
-    return {
-      disposition: late ? 'LATE' : 'APPLIED',
-      state,
-      inserted: true,
-      requiresReplay: replay,
-      ...(late ? { reason: 'event arrived behind the current event-time watermark' } : {}),
-    };
+    return { disposition: late ? 'LATE' : 'APPLIED', state, inserted: true, requiresReplay: replay, ...(late ? { reason: 'event arrived behind the current event-time watermark' } : {}) };
   }
 
   advanceWatermark(observedAt: string): RealityStateVersion<TState> {
     const timestamp = new Date(observedAt).getTime();
     if (!Number.isFinite(timestamp)) throw new Error('Watermark timestamp must be valid');
     this.watermarkMs = Math.max(this.watermarkMs, timestamp - this.allowedLatenessMs);
-    const state = this.rebuild();
-    return state;
+    return this.rebuild();
   }
 
   currentVersion(): RealityStateVersion<TState> {
     return this.versions[this.versions.length - 1] ?? this.snapshotFrom(this.reducer.initialState(), [], new Date(0).toISOString(), false);
   }
 
-  versionsSnapshot(): readonly RealityStateVersion<TState>[] {
-    return Object.freeze([...this.versions]);
+  versionsSnapshot(): readonly RealityStateVersion<TState>[] { return Object.freeze([...this.versions]); }
+
+  eventsSnapshot(): readonly SportsEvent[] {
+    return Object.freeze([...this.records.values()]
+      .sort((a, b) => a.eventTimeMs - b.eventTimeMs || a.event.sequence - b.event.sequence || a.event.eventId.localeCompare(b.event.eventId))
+      .map((record) => record.event));
   }
 
   private rebuild(): RealityStateVersion<TState> {
-    const ordered = [...this.records.values()].sort((a, b) =>
-      a.eventTimeMs - b.eventTimeMs || a.event.sequence - b.event.sequence || a.event.eventId.localeCompare(b.event.eventId),
-    );
+    const ordered = [...this.records.values()].sort((a, b) => a.eventTimeMs - b.eventTimeMs || a.event.sequence - b.event.sequence || a.event.eventId.localeCompare(b.event.eventId));
     let state = this.reducer.initialState();
     const eventIds: string[] = [];
-    for (const record of ordered) {
-      state = this.reducer.reduce(state, record.event);
-      eventIds.push(record.event.eventId);
-    }
+    for (const record of ordered) { state = this.reducer.reduce(state, record.event); eventIds.push(record.event.eventId); }
     const asOf = ordered.length ? new Date(ordered[ordered.length - 1].eventTimeMs).toISOString() : new Date(0).toISOString();
     const provisional = ordered.length > 0 && ordered[ordered.length - 1].eventTimeMs > this.watermarkMs;
     const version = this.snapshotFrom(state, eventIds, asOf, provisional);
@@ -119,13 +108,6 @@ export class RealityStateEventResolver<TState> {
   }
 
   private snapshotFrom(state: TState, eventIds: readonly string[], asOf: string, provisional: boolean): RealityStateVersion<TState> {
-    return Object.freeze({
-      version: this.versions.length + 1,
-      asOf,
-      state: Object.freeze(state as TState),
-      eventIds: Object.freeze([...eventIds]),
-      stateHash: hash({ state, eventIds }),
-      provisional,
-    });
+    return Object.freeze({ version: this.versions.length + 1, asOf, state: Object.freeze(state as TState), eventIds: Object.freeze([...eventIds]), stateHash: hash({ state, eventIds }), provisional });
   }
 }
