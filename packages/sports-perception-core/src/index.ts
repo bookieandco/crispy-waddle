@@ -4,5 +4,6 @@ export * from './evidence-store.js';
 export * from './identity.js';
 export * from './prediction-ledger.js';
 export * from './reconciliation.js';
+export * from './temporal-events.js';
 export * from './validation.js';
 export * from './video-perception.js';
