@@ -19,3 +19,4 @@ export * from "./listening-frame.js";
 export * from "./listening-ab.js";
 export * from "./music-perception-memory.js";
 export * from "./deep-stem-decomposition.js";
+export * from "./vocal-layer-decomposition.js";
