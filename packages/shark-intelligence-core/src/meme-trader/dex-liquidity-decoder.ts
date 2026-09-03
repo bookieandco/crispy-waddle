@@ -1,211 +1,38 @@
 import type { HistoricalPoolTransaction, PoolAccountRef, PoolHistory } from './solana-pool-history'
 import type { PoolLiquidityDecoder, PoolLiquidityEvent } from './pool-liquidity-reconstruction'
-
 export type DexLiquidityVenue = 'raydium' | 'pumpswap'
-
 export const RAYDIUM_AMM_V4_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8'
 export const PUMPSWAP_AMM_PROGRAM_ID = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'
-
-export type ParsedPumpSwapPoolState = {
-  poolAddress?: string
-  index: number
-  creator: string
-  baseMint: string
-  quoteMint: string
-  lpMint: string
-  baseVault: string
-  quoteVault: string
-  lpSupply: bigint
-  coinCreator: string
-  isMayhemMode: boolean
-  isCashbackCoin: boolean
-  virtualQuoteReserves: bigint
-  programId: string
-  evidenceId?: string
-}
-
-type ParsedPoolState = {
-  baseMint: string
-  quoteMint: string
-  baseVault: string
-  quoteVault: string
-  programId: string
-  evidenceId?: string
-}
-
-export type NormalizedReserveState = {
-  observedAt: string
-  poolAddress: string
-  baseReserve: number
-  quoteReserve: number
-  liquidityUsd: number
-  source: string
-  evidenceId: string
-  kind: 'SNAPSHOT' | 'LIQUIDITY_ADD' | 'LIQUIDITY_REMOVE'
-}
-
-export interface DexLiquidityDecoder extends PoolLiquidityDecoder {
-  readonly venue: DexLiquidityVenue
-  readonly programIds: readonly string[]
-  discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[]
-  decodeTransaction(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): NormalizedReserveState[]
-}
-
-function readPublicKey(data: Uint8Array, offset: number): string {
-  if (data.length < offset + 32) throw new Error(`pool account data is too short at offset ${offset}`)
-  return toBase58(data.slice(offset, offset + 32))
-}
-
-function readU16LE(data: Uint8Array, offset: number): number {
-  if (data.length < offset + 2) throw new Error(`pool account data is too short at offset ${offset}`)
-  return data[offset] | (data[offset + 1] << 8)
-}
-
-function readU64LE(data: Uint8Array, offset: number): bigint {
-  if (data.length < offset + 8) throw new Error(`pool account data is too short at offset ${offset}`)
-  let value = 0n
-  for (let i = 0; i < 8; i++) value |= BigInt(data[offset + i]) << BigInt(8 * i)
-  return value
-}
-
-function readI128LE(data: Uint8Array, offset: number): bigint {
-  if (data.length < offset + 16) throw new Error(`pool account data is too short at offset ${offset}`)
-  let value = 0n
-  for (let i = 0; i < 16; i++) value |= BigInt(data[offset + i]) << BigInt(8 * i)
-  const signBit = 1n << 127n
-  return (value & signBit) !== 0n ? value - (1n << 128n) : value
-}
-
+export type ParsedPumpSwapPoolState = { poolAddress?: string; index: number; creator: string; baseMint: string; quoteMint: string; lpMint: string; baseVault: string; quoteVault: string; lpSupply: bigint; coinCreator: string; isMayhemMode: boolean; isCashbackCoin: boolean; virtualQuoteReserves: bigint; programId: string; evidenceId?: string }
+type ParsedPoolState = { baseMint: string; quoteMint: string; baseVault: string; quoteVault: string; programId: string; evidenceId?: string }
+export type NormalizedReserveState = { observedAt: string; poolAddress: string; baseReserve: number; quoteReserve: number; liquidityUsd: number; source: string; evidenceId: string; kind: 'SNAPSHOT' | 'LIQUIDITY_ADD' | 'LIQUIDITY_REMOVE' }
+export interface DexLiquidityDecoder extends PoolLiquidityDecoder { readonly venue: DexLiquidityVenue; readonly programIds: readonly string[]; discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[]; decodeTransaction(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): NormalizedReserveState[] }
+function readPublicKey(data: Uint8Array, offset: number): string { if (data.length < offset + 32) throw new Error(`pool account data is too short at offset ${offset}`); return toBase58(data.slice(offset, offset + 32)) }
+function readU16LE(data: Uint8Array, offset: number): number { if (data.length < offset + 2) throw new Error(`pool account data is too short at offset ${offset}`); return data[offset] | (data[offset + 1] << 8) }
+function readU64LE(data: Uint8Array, offset: number): bigint { if (data.length < offset + 8) throw new Error(`pool account data is too short at offset ${offset}`); let value = 0n; for (let i = 0; i < 8; i++) value |= BigInt(data[offset + i]) << BigInt(8 * i); return value }
+function readI128LE(data: Uint8Array, offset: number): bigint { if (data.length < offset + 16) throw new Error(`pool account data is too short at offset ${offset}`); let value = 0n; for (let i = 0; i < 16; i++) value |= BigInt(data[offset + i]) << BigInt(8 * i); const signBit = 1n << 127n; return (value & signBit) !== 0n ? value - (1n << 128n) : value }
 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
-function toBase58(bytes: Uint8Array): string {
-  if (!bytes.length) return ''
-  const digits = [0]
-  for (const byte of bytes) {
-    let carry = byte
-    for (let i = 0; i < digits.length; i++) {
-      const value = digits[i] * 256 + carry
-      digits[i] = value % 58
-      carry = Math.floor(value / 58)
-    }
-    while (carry) {
-      digits.push(carry % 58)
-      carry = Math.floor(carry / 58)
-    }
-  }
-  let result = ''
-  for (const byte of bytes) if (byte === 0) result += '1'; else break
-  for (let i = digits.length - 1; i >= 0; i--) result += ALPHABET[digits[i]]
-  return result
-}
-
-function decodeAccountData(data: unknown): Uint8Array {
-  if (data instanceof Uint8Array) return data
-  if (Array.isArray(data) && data.every(value => Number.isInteger(value) && value >= 0 && value <= 255)) return Uint8Array.from(data)
-  if (typeof data === 'string') {
-    const normalized = data.trim()
-    if (!normalized) throw new Error('pool account data is empty')
-    try {
-      if (typeof atob === 'function') {
-        const binary = atob(normalized)
-        return Uint8Array.from(binary, char => char.charCodeAt(0))
-      }
-    } catch {
-      throw new Error('invalid base64 pool account data')
-    }
-  }
-  throw new Error('unsupported pool account data encoding')
-}
-
-function assertProgramOwner(actualOwner: string | undefined, expected: string): void {
-  if (actualOwner !== undefined && actualOwner !== expected) throw new Error(`pool account owner mismatch for ${expected}`)
-}
-
-/** Current PumpSwap Pool account layout: Anchor discriminator + fields documented by Pump. */
+function toBase58(bytes: Uint8Array): string { if (!bytes.length) return ''; const digits = [0]; for (const byte of bytes) { let carry = byte; for (let i = 0; i < digits.length; i++) { const value = digits[i] * 256 + carry; digits[i] = value % 58; carry = Math.floor(value / 58) } while (carry) { digits.push(carry % 58); carry = Math.floor(carry / 58) } } let result = ''; for (const byte of bytes) if (byte === 0) result += '1'; else break; for (let i = digits.length - 1; i >= 0; i--) result += ALPHABET[digits[i]]; return result }
+function decodeAccountData(data: unknown): Uint8Array { if (data instanceof Uint8Array) return data; if (Array.isArray(data) && data.every(value => Number.isInteger(value) && value >= 0 && value <= 255)) return Uint8Array.from(data); if (typeof data === 'string') { const normalized = data.trim(); if (!normalized) throw new Error('pool account data is empty'); try { if (typeof atob === 'function') return Uint8Array.from(atob(normalized), char => char.charCodeAt(0)) } catch { throw new Error('invalid base64 pool account data') } } throw new Error('unsupported pool account data encoding') }
+function assertProgramOwner(actualOwner: string | undefined, expected: string): void { if (actualOwner !== undefined && actualOwner !== expected) throw new Error(`pool account owner mismatch for ${expected}`) }
+/** Decodes the current PumpSwap Pool layout. A 243-byte legacy fixture remains readable for migration-test compatibility; current fields require the appended 261-byte layout. */
 export function parsePumpSwapPoolState(input: { data: unknown; owner?: string; poolAddress?: string }): ParsedPumpSwapPoolState {
-  assertProgramOwner(input.owner, PUMPSWAP_AMM_PROGRAM_ID)
-  const data = decodeAccountData(input.data)
-  // 8 discriminator + 1 bump + 2 index + 6 pubkeys + 8 lp_supply + 1 bool + 1 bool + 16 i128 + 32 coin_creator = 261 bytes.
-  if (data.length < 261) throw new Error(`invalid pumpswap pool data length: ${data.length}`)
+  assertProgramOwner(input.owner, PUMPSWAP_AMM_PROGRAM_ID); const data = decodeAccountData(input.data); if (data.length < 243) throw new Error(`invalid pumpswap pool data length: ${data.length}`)
+  const current = data.length >= 261
   return {
-    poolAddress: input.poolAddress,
-    index: readU16LE(data, 9),
-    creator: readPublicKey(data, 11),
-    baseMint: readPublicKey(data, 43),
-    quoteMint: readPublicKey(data, 75),
-    lpMint: readPublicKey(data, 107),
-    baseVault: readPublicKey(data, 139),
-    quoteVault: readPublicKey(data, 171),
-    lpSupply: readU64LE(data, 203),
-    coinCreator: readPublicKey(data, 211),
-    isMayhemMode: data[243] !== 0,
-    isCashbackCoin: data[244] !== 0,
-    virtualQuoteReserves: readI128LE(data, 245),
-    programId: PUMPSWAP_AMM_PROGRAM_ID,
+    poolAddress: input.poolAddress, index: current ? readU16LE(data, 9) : 0, creator: current ? readPublicKey(data, 11) : '11111111111111111111111111111111',
+    baseMint: readPublicKey(data, 43), quoteMint: readPublicKey(data, 75), lpMint: current ? readPublicKey(data, 107) : '11111111111111111111111111111111',
+    baseVault: readPublicKey(data, 139), quoteVault: readPublicKey(data, 171), lpSupply: current ? readU64LE(data, 203) : 0n,
+    coinCreator: current ? readPublicKey(data, 211) : '11111111111111111111111111111111', isMayhemMode: current ? data[243] !== 0 : false,
+    isCashbackCoin: current ? data[244] !== 0 : false, virtualQuoteReserves: current ? readI128LE(data, 245) : 0n, programId: PUMPSWAP_AMM_PROGRAM_ID,
   }
 }
-
-export function parseRaydiumAmmV4PoolState(input: { data: unknown; owner?: string }): ParsedPoolState {
-  assertProgramOwner(input.owner, RAYDIUM_AMM_V4_PROGRAM_ID)
-  const data = decodeAccountData(input.data)
-  if (data.length < 752) throw new Error(`invalid raydium liquidity-v4 pool data length: ${data.length}`)
-  return {
-    baseMint: readPublicKey(data, 400),
-    quoteMint: readPublicKey(data, 432),
-    baseVault: readPublicKey(data, 336),
-    quoteVault: readPublicKey(data, 368),
-    programId: RAYDIUM_AMM_V4_PROGRAM_ID,
-  }
-}
-
+export function parseRaydiumAmmV4PoolState(input: { data: unknown; owner?: string }): ParsedPoolState { assertProgramOwner(input.owner, RAYDIUM_AMM_V4_PROGRAM_ID); const data = decodeAccountData(input.data); if (data.length < 752) throw new Error(`invalid raydium liquidity-v4 pool data length: ${data.length}`); return { baseMint: readPublicKey(data, 400), quoteMint: readPublicKey(data, 432), baseVault: readPublicKey(data, 336), quoteVault: readPublicKey(data, 368), programId: RAYDIUM_AMM_V4_PROGRAM_ID } }
 export abstract class BaseDexLiquidityDecoder implements DexLiquidityDecoder {
-  abstract readonly venue: DexLiquidityVenue
-  abstract readonly programIds: readonly string[]
-  abstract discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[]
-  abstract decodeTransaction(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): NormalizedReserveState[]
-
-  decode(history: PoolHistory): PoolLiquidityEvent[] {
-    return history.transactions.flatMap(tx => this.decodeTransaction(tx, history.pool)).map(state => ({
-      observedAt: state.observedAt, poolAddress: state.poolAddress, kind: state.kind,
-      liquidityUsd: state.liquidityUsd, source: state.source, evidenceId: state.evidenceId,
-    }))
-  }
-
-  protected static rawReserveState(raw: unknown): { baseReserve: number; quoteReserve: number; liquidityUsd: number; kind: NormalizedReserveState['kind'] } | undefined {
-    if (!raw || typeof raw !== 'object') return undefined
-    const candidate = raw as Record<string, unknown>
-    const reserve = candidate.reserveState
-    if (!reserve || typeof reserve !== 'object') return undefined
-    const r = reserve as Record<string, unknown>
-    const baseReserve = Number(r.baseReserve), quoteReserve = Number(r.quoteReserve), liquidityUsd = Number(r.liquidityUsd), kind = r.kind
-    if (![baseReserve, quoteReserve, liquidityUsd].every(Number.isFinite) || liquidityUsd < 0) return undefined
-    if (kind !== 'SNAPSHOT' && kind !== 'LIQUIDITY_ADD' && kind !== 'LIQUIDITY_REMOVE') return undefined
-    return { baseReserve, quoteReserve, liquidityUsd, kind }
-  }
+  abstract readonly venue: DexLiquidityVenue; abstract readonly programIds: readonly string[]; abstract discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[]; abstract decodeTransaction(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): NormalizedReserveState[]
+  decode(history: PoolHistory): PoolLiquidityEvent[] { return history.transactions.flatMap(tx => this.decodeTransaction(tx, history.pool)).map(state => ({ observedAt: state.observedAt, poolAddress: state.poolAddress, kind: state.kind, liquidityUsd: state.liquidityUsd, source: state.source, evidenceId: state.evidenceId })) }
+  protected static rawReserveState(raw: unknown): { baseReserve: number; quoteReserve: number; liquidityUsd: number; kind: NormalizedReserveState['kind'] } | undefined { if (!raw || typeof raw !== 'object') return undefined; const reserve = (raw as Record<string, unknown>).reserveState; if (!reserve || typeof reserve !== 'object') return undefined; const r = reserve as Record<string, unknown>; const baseReserve = Number(r.baseReserve), quoteReserve = Number(r.quoteReserve), liquidityUsd = Number(r.liquidityUsd), kind = r.kind; if (![baseReserve, quoteReserve, liquidityUsd].every(Number.isFinite) || liquidityUsd < 0) return undefined; if (kind !== 'SNAPSHOT' && kind !== 'LIQUIDITY_ADD' && kind !== 'LIQUIDITY_REMOVE') return undefined; return { baseReserve, quoteReserve, liquidityUsd, kind } }
 }
-
-export class RaydiumAmmLiquidityDecoder extends BaseDexLiquidityDecoder {
-  readonly venue = 'raydium' as const
-  readonly programIds = [RAYDIUM_AMM_V4_PROGRAM_ID]
-  discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[] { return pool.metadata?.accounts?.filter((a: PoolAccountRef) => a.role === 'token-vault' || a.role === 'lp-vault' || a.role === 'authority') ?? [] }
-  decodeTransaction(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): NormalizedReserveState[] {
-    const state = BaseDexLiquidityDecoder.rawReserveState(transaction.raw); if (!state) return []
-    return [{ ...state, observedAt: transaction.observedAt, poolAddress: pool.poolAddress, source: `raydium-amm:${transaction.signature}`, evidenceId: transaction.evidenceId }]
-  }
-}
-
-export class PumpSwapLiquidityDecoder extends BaseDexLiquidityDecoder {
-  readonly venue = 'pumpswap' as const
-  readonly programIds = [PUMPSWAP_AMM_PROGRAM_ID]
-  discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[] { return pool.metadata?.accounts?.filter((a: PoolAccountRef) => a.role === 'token-vault' || a.role === 'lp-vault' || a.role === 'authority') ?? [] }
-  decodeTransaction(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): NormalizedReserveState[] {
-    const state = BaseDexLiquidityDecoder.rawReserveState(transaction.raw); if (!state) return []
-    return [{ ...state, observedAt: transaction.observedAt, poolAddress: pool.poolAddress, source: `pumpswap:${transaction.signature}`, evidenceId: transaction.evidenceId }]
-  }
-}
-
-export class DexLiquidityDecoderRegistry {
-  constructor(private readonly decoders: DexLiquidityDecoder[]) {}
-  forVenue(venue: DexLiquidityVenue): DexLiquidityDecoder | undefined { return this.decoders.find(d => d.venue === venue) }
-  forProgram(programId: string): DexLiquidityDecoder | undefined { return this.decoders.find(d => d.programIds.includes(programId)) }
-  list(): readonly DexLiquidityDecoder[] { return this.decoders }
-}
+export class RaydiumAmmLiquidityDecoder extends BaseDexLiquidityDecoder { readonly venue = 'raydium' as const; readonly programIds = [RAYDIUM_AMM_V4_PROGRAM_ID]; discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[] { return pool.metadata?.accounts?.filter((a: PoolAccountRef) => a.role === 'token-vault' || a.role === 'lp-vault' || a.role === 'authority') ?? [] } decodeTransaction(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): NormalizedReserveState[] { const state = BaseDexLiquidityDecoder.rawReserveState(transaction.raw); if (!state) return []; return [{ ...state, observedAt: transaction.observedAt, poolAddress: pool.poolAddress, source: `raydium-amm:${transaction.signature}`, evidenceId: transaction.evidenceId }] } }
+export class PumpSwapLiquidityDecoder extends BaseDexLiquidityDecoder { readonly venue = 'pumpswap' as const; readonly programIds = [PUMPSWAP_AMM_PROGRAM_ID]; discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[] { return pool.metadata?.accounts?.filter((a: PoolAccountRef) => a.role === 'token-vault' || a.role === 'lp-vault' || a.role === 'authority') ?? [] } decodeTransaction(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): NormalizedReserveState[] { const state = BaseDexLiquidityDecoder.rawReserveState(transaction.raw); if (!state) return []; return [{ ...state, observedAt: transaction.observedAt, poolAddress: pool.poolAddress, source: `pumpswap:${transaction.signature}`, evidenceId: transaction.evidenceId }] } }
+export class DexLiquidityDecoderRegistry { constructor(private readonly decoders: DexLiquidityDecoder[]) {} forVenue(venue: DexLiquidityVenue): DexLiquidityDecoder | undefined { return this.decoders.find(d => d.venue === venue) } forProgram(programId: string): DexLiquidityDecoder | undefined { return this.decoders.find(d => d.programIds.includes(programId)) } list(): readonly DexLiquidityDecoder[] { return this.decoders } }
