@@ -42,6 +42,8 @@ export interface ExecutionReconciler {
   reconcile(attempt: ExecutionAttempt): Promise<RecoveryObservation>;
 }
 
+export type RecoveryResolutionState = Extract<ExecutionAttemptState, 'SUCCEEDED' | 'FAILED' | 'UNKNOWN' | 'RECOVERY_REQUIRED'>;
+
 /**
  * Durable bridge to Jhadina's existing connector execution ledger and
  * reconciliation records. Money Core owns the financial semantics; the
@@ -51,10 +53,11 @@ export interface ExecutionRecoveryLedger {
   recordObservation(input: RecoveryObservation): Promise<void> | void;
   markAttemptResolved(input: {
     attemptId: string;
-    state: Extract<ExecutionAttemptState, 'SUCCEEDED' | 'FAILED' | 'UNKNOWN' | 'RECOVERY_REQUIRED'>;
+    state: RecoveryResolutionState;
     providerReference?: string;
     reason: string;
     observation: RecoveryObservation;
+    leaseId?: string;
   }): Promise<void> | void;
 }
 
