@@ -58,3 +58,23 @@ export function assessPatternBayesian(
     eligibleForPersonality: Boolean(pattern.personalityEligible && pattern.personalityDimension),
   };
 }
+
+/**
+ * Projects the Bayesian posterior back onto a PatternObservation.
+ *
+ * The projection is immutable and preserves the pattern's explicit
+ * personality-eligibility gate. Bayesian confidence never grants eligibility.
+ */
+export function projectBayesianPattern(
+  pattern: PatternObservation,
+  evidence: BayesianPatternEvidence[],
+  prior = createBetaPrior(1, 1),
+): PatternObservation {
+  const assessment = assessPatternBayesian(pattern, evidence, prior);
+  return {
+    ...pattern,
+    confidence: assessment.confidence,
+    evidence: pattern.evidence.map((ref) => ({ ...ref })),
+    contradictions: pattern.contradictions.map((ref) => ({ ...ref })),
+  };
+}
