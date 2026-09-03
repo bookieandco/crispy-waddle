@@ -17,3 +17,4 @@ export * from "./musical-structure.js";
 export * from "./event-perception.js";
 export * from "./listening-frame.js";
 export * from "./music-perception-memory.js";
+export * from "./deep-stem-decomposition.js";
