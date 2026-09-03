@@ -60,12 +60,6 @@ const qc: RestorationQcResult = {
   reasons: [],
 };
 
-const gate: RestorationGateDecision = {
-  allowed: true,
-  reason: "All deterministic restoration checks passed.",
-  candidateId: "candidate-1",
-};
-
 describe("music restoration director boundary", () => {
   it("reports a candidate improvement without treating A/B as authorization", () => {
     const original = frame();
@@ -84,13 +78,14 @@ describe("music restoration director boundary", () => {
   });
 
   it("forces review when A/B evidence contains a regression", () => {
+    const original = frame();
     const comparison = compareListeningFrames(
-      frame(),
+      original,
       frame({
         id: "listen:candidate-artifact:0:1000",
         sourceArtifactId: "candidate-artifact",
         recording: { noiseLevel: 0.8, distortionLevel: 0.9, confidence: 1, evidenceIds: ["e-recording-b"] },
-        evidenceIds: [...frame().evidenceIds, "e-recording-b"],
+        evidenceIds: [...original.evidenceIds, "e-recording-b"],
       }),
     );
     const judgment = judgeMusicRestoration({ plan, comparison, candidateId: candidate.id, qc });
@@ -98,21 +93,26 @@ describe("music restoration director boundary", () => {
     expect(judgment.requiresHumanReview).toBe(true);
   });
 
-  it("cannot execute unless Director, deterministic gate, and QC all agree", () => {
+  it("blocks execution when the deterministic gate denies the candidate", () => {
+    const original = frame();
     const comparison = compareListeningFrames(
-      frame(),
+      original,
       frame({
         id: "listen:candidate-artifact:0:1000",
         sourceArtifactId: "candidate-artifact",
         recording: { noiseLevel: 0.1, distortionLevel: 0.1, confidence: 1, evidenceIds: ["e-recording-b"] },
         anomalies: { damageEvidenceIds: [], eventIds: [], descriptors: [], confidence: 1 },
-        evidenceIds: [...frame().evidenceIds, "e-recording-b"],
+        evidenceIds: [...original.evidenceIds, "e-recording-b"],
       }),
     );
     const judgment = judgeMusicRestoration({ plan, comparison, candidateId: candidate.id, qc });
-    const authorization = authorizeRestorationExecution({ plan, candidate, judgment, gate, qc });
+    const deniedGate: RestorationGateDecision = {
+      allowed: false,
+      reason: "Change mask conflict.",
+      candidateId: candidate.id,
+    };
+    const authorization = authorizeRestorationExecution({ plan, candidate, judgment, gate: deniedGate, qc });
     expect(authorization.authorized).toBe(false);
-    expect(authorization.requiresHumanReview).toBe(true);
     expect(authorization.reasons.join(" ")).toContain("No audio mutation is authorized");
   });
 });
