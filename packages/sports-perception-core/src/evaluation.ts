@@ -33,12 +33,14 @@ export interface ReliabilityBucket {
   observedFrequency: number;
 }
 
-/**
- * Produces reliability buckets without rewriting historical PredictionRecords.
- * Each evaluation contributes one binary observation for its realized outcome.
- */
+export interface ReliabilityObservation {
+  predictedProbability: number;
+  occurred: boolean;
+}
+
+/** Binary reliability diagram data for a chosen outcome/class. */
 export function reliabilityBuckets(
-  evaluations: readonly PredictionEvaluation[],
+  observations: readonly ReliabilityObservation[],
   bucketCount = 10,
 ): ReliabilityBucket[] {
   if (!Number.isInteger(bucketCount) || bucketCount < 1 || bucketCount > 100) {
@@ -52,25 +54,22 @@ export function reliabilityBuckets(
     successTotal: 0,
   }));
 
-  for (const evaluation of evaluations) {
-    if (!Number.isFinite(evaluation.predictedProbability) || evaluation.predictedProbability < 0 || evaluation.predictedProbability > 1) {
-      throw new Error('Evaluation probability must be between 0 and 1');
+  for (const observation of observations) {
+    if (!Number.isFinite(observation.predictedProbability) || observation.predictedProbability < 0 || observation.predictedProbability > 1) {
+      throw new Error('Reliability probability must be between 0 and 1');
     }
-    const index = Math.min(bucketCount - 1, Math.floor(evaluation.predictedProbability * bucketCount));
+    const index = Math.min(bucketCount - 1, Math.floor(observation.predictedProbability * bucketCount));
     const bucket = buckets[index];
     bucket.count += 1;
-    bucket.probabilityTotal += evaluation.predictedProbability;
-    bucket.successTotal += evaluation.predictedProbability > 0 && evaluation.outcome !== '' ? 0 : 0;
+    bucket.probabilityTotal += observation.predictedProbability;
+    bucket.successTotal += observation.occurred ? 1 : 0;
   }
 
-  // PredictionEvaluation alone does not carry the full outcome space, so observed
-  // frequency cannot be inferred safely. Return the predicted side of reliability;
-  // callers should calculate observed frequency from the immutable outcome ledger.
-  return buckets.map(({ lowerBound, upperBound, count, probabilityTotal }) => ({
+  return buckets.map(({ lowerBound, upperBound, count, probabilityTotal, successTotal }) => ({
     lowerBound,
     upperBound,
     count,
     meanPredictedProbability: count ? probabilityTotal / count : 0,
-    observedFrequency: Number.NaN,
+    observedFrequency: count ? successTotal / count : 0,
   }));
 }
