@@ -30,3 +30,4 @@ export * from "./verified-execution.js";
 export * from "./plugin-automation.js";
 export * from "./plugin-automation-registry.js";
 export * from "./audio-execution-sandbox.js";
+export * from "./opensandbox-provider.js";
