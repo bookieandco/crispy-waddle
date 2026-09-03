@@ -12,6 +12,7 @@ export * from './market-intelligence.js';
 export * from './parlay-optimizer.js';
 export * from './parlay-scenario.js';
 export * from './player-attributes.js';
+export * from './player-simulation.js';
 export * from './prediction-ledger.js';
 export * from './reconciliation.js';
 export * from './sensitivity.js';
