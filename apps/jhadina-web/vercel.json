@@ -1,4 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "npx turbo-ignore"
+  "ignoreCommand": "npx turbo-ignore",
+  "crons": [
+    {
+      "path": "/api/internal/oce/alert-delivery?limit=25",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }
