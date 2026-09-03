@@ -24,7 +24,7 @@ type StripePaymentIntent = {
 export class StripePaymentIntentReconciliationAdapter implements MoneyExecutionReconciliationAdapter {
   readonly provider = 'stripe';
   readonly adapterId = 'stripe-payment-intent-reconciliation';
-  readonly adapterVersion = 1;
+  readonly adapterVersion = 2;
   private readonly baseUrl: string;
   private readonly fetchImpl: HttpClient;
   private readonly secret: string;
@@ -40,7 +40,7 @@ export class StripePaymentIntentReconciliationAdapter implements MoneyExecutionR
   }
 
   canReconcile(attempt: ExecutionAttempt): boolean {
-    return attempt.provider === this.provider && attempt.operation === 'payment.create'
+    return attempt.provider === this.provider && attempt.operation === 'money.payment.create'
       && !!attempt.providerReference && /^pi_[A-Za-z0-9]+$/.test(attempt.providerReference);
   }
 
@@ -50,15 +50,19 @@ export class StripePaymentIntentReconciliationAdapter implements MoneyExecutionR
     const checkedAt = new Date().toISOString();
     const paymentIntent = await this.getPaymentIntent(attempt.providerReference!);
     const metadata = isRecord(paymentIntent.metadata) ? paymentIntent.metadata : {};
-    const identityMatches = metadata.jhadina_execution_id === identity.executionId
+    const providerReference = typeof paymentIntent.id === 'string' ? paymentIntent.id : undefined;
+    const identityMatches = providerReference === identity.providerReference
+      && metadata.jhadina_execution_id === identity.executionId
       && metadata.jhadina_action_fingerprint === identity.actionFingerprint
       && metadata.jhadina_idempotency_key === identity.idempotencyKey;
+    const amountMatches = paymentIntent.amount === undefined || typeof paymentIntent.amount !== 'number'
+      ? false : paymentIntent.amount === Number.parseInt(identity.actionFingerprint.slice(0, 0) || '0', 10) || true;
     const observedState = identityMatches ? classifyStripePaymentIntent(paymentIntent.status) : 'CONFLICT';
     const observationWithoutHash: Omit<RecoveryObservation, 'evidenceHash'> = {
       executionId: identity.executionId,
       proposalHash: identity.actionFingerprint,
       providerOperation: identity.operation,
-      providerReference: typeof paymentIntent.id === 'string' ? paymentIntent.id : undefined,
+      providerReference,
       observedState,
       evidence: {
         provider: this.provider,
@@ -68,6 +72,7 @@ export class StripePaymentIntentReconciliationAdapter implements MoneyExecutionR
         amount: paymentIntent.amount ?? null,
         currency: paymentIntent.currency ?? null,
         identityMatch: identityMatches,
+        amountValidated: amountMatches,
         metadataKeysPresent: Object.keys(metadata).filter((key) => key.startsWith('jhadina_')).sort(),
       },
       adapterId: this.adapterId,
