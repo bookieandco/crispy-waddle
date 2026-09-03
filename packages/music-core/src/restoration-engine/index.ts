@@ -8,3 +8,4 @@ export * from "./damage-assessment.js";
 export * from "./audio-input.js";
 export * from "./calibration-provider.js";
 export * from "./time-domain-perception.js";
+export * from "./spectral-analysis.js";
