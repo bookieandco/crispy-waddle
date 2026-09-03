@@ -51,3 +51,7 @@ export type { ExecutionRecoveryServiceOptions } from './execution-recovery-servi
 export { MoneyExecutionRecoveryService } from './execution-recovery-service.js';
 export type { MoneyExecutionReconciliationAdapter } from './execution-reconciliation-adapter.js';
 export { ExecutionReconciliationAdapterRegistry, createExecutionReconciler } from './execution-reconciliation-adapter.js';
+export type { ProviderExecutionIdentity } from './provider-execution-identity.js';
+export { createProviderExecutionIdentity, createProviderExecutionIdentityFromAttempt, assertProviderExecutionIdentity } from './provider-execution-identity.js';
+export type { AtomicRecoveryResolver, PostgresAtomicRecoveryResolverOptions } from './postgres-atomic-recovery-resolver.js';
+export { PostgresAtomicRecoveryResolver } from './postgres-atomic-recovery-resolver.js';
