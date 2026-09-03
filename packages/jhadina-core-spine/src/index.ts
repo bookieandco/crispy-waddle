@@ -6,6 +6,7 @@ export * from './bayesian-pattern.js';
 export * from './hippocampus.js';
 export * from './pattern-engine.js';
 export * from './real-nigga-core.js';
+export * from './behavioral-kernel.js';
 export * from './evolution.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
