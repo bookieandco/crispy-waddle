@@ -25,6 +25,7 @@ export * from './nba-possession-context.js';
 export * from './nba-possession-orchestrator.js';
 export * from './nba-possession.js';
 export * from './nba-rotation-feedback.js';
+export * from './nba-sports-event.js';
 export * from './parlay-optimizer.js';
 export * from './parlay-scenario.js';
 export * from './player-attributes.js';
