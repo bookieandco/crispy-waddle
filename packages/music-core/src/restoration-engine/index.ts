@@ -37,6 +37,7 @@ export * from "./dsp-worker.js";
 export * from "./plugin-host.js";
 export * from "./lsp-plugin-adapter.js";
 export * from "./native-plugin-host.js";
+export * from "./native-host-backend.js";
 export * from "./native-plugin-ipc.js";
 export * from "./native-plugin-process-adapter.js";
 export * from "./native-plugin-worker.js";
