@@ -1,4 +1,5 @@
 import type { NBAEventGameState } from './nba-event-state-machine.js';
+import { createNBAGameIdentity } from './nba-game-identity.js';
 
 export const NBA_REGULATION_PERIOD_SECONDS = 12 * 60;
 export const NBA_OVERTIME_PERIOD_SECONDS = 5 * 60;
@@ -18,9 +19,8 @@ export interface NBAPeriodTransition {
 export function nbaClockPhase(state: NBAEventGameState): NBAClockPhase {
   if (state.periodSecondsRemaining > 0) return state.period <= NBA_REGULATION_PERIODS ? 'REGULATION' : 'OVERTIME';
   if (state.period < NBA_REGULATION_PERIODS) return 'REGULATION';
-  const home = Object.values(state.scores)[0] ?? 0;
-  const away = Object.values(state.scores)[1] ?? 0;
-  if (state.period >= NBA_REGULATION_PERIODS && home === away) return 'OVERTIME';
+  const identity = createNBAGameIdentity(state);
+  if (state.scores[identity.homeTeamId] === state.scores[identity.awayTeamId]) return 'OVERTIME';
   return 'FINAL';
 }
 
@@ -29,8 +29,8 @@ export function resolveNBAEndOfPeriod(state: NBAEventGameState): NBAPeriodTransi
     return Object.freeze({ state, phase: nbaClockPhase(state), periodEnded: false, gameEnded: false, overtimeStarted: false });
   }
 
-  const scoreValues = Object.values(state.scores);
-  const tied = scoreValues.length >= 2 && scoreValues[0] === scoreValues[1];
+  const identity = createNBAGameIdentity(state);
+  const tied = state.scores[identity.homeTeamId] === state.scores[identity.awayTeamId];
   if (state.period < NBA_REGULATION_PERIODS) {
     const nextPeriod = state.period + 1;
     const nextState = Object.freeze({
