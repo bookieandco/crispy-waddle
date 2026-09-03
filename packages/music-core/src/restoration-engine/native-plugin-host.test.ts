@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { discoverAuthorizedPlugin, renderAuthorizedPlugin, type NativePluginHost } from "./native-plugin-host.js";
+import { discoverAuthorizedPlugin, renderAuthorizedPlugin, type NativePluginHost, type NativePluginIdentity } from "./native-plugin-host.js";
 import type { PluginDescriptor, PluginAutomationPlan } from "./plugin-automation.js";
 
 const plugin: PluginDescriptor = { id: "lsp:test", vendor: "LSP Plugins", name: "Test", version: "1.0", format: "vst3", binaryHash: "sha256:abc", parameters: [{ id: "gain", name: "Gain", stepCount: 0, defaultNormalizedValue: .5, automatable: true }] };
 const automation: PluginAutomationPlan = { id: "auto:1", pluginId: plugin.id, pluginBinaryHash: plugin.binaryHash, sourceArtifactId: "src:1", tracks: [], allowedParameterIds: [], protectedRegions: [], maxParameterDelta: {}, evidenceIds: [] };
 const request = { plugin, automation, inputPath: "/workspace/in.wav", outputPath: "/workspace/out.wav", sampleRate: 48000, channels: 2 };
-const identity = { ...plugin, parameters: plugin.parameters };
+const identity: NativePluginIdentity = { ...plugin, parameters: plugin.parameters };
 
 const host: NativePluginHost = {
   discover: async () => identity,
