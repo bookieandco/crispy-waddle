@@ -7,7 +7,8 @@ export type ReconstructedPoolLiquidity = { poolAddress: string; snapshots: Liqui
 
 /** Converts DEX-specific decoded reserve events into canonical LiquidityHistory. */
 export function reconstructPoolLiquidity(input: { history: PoolHistory; decoder: PoolLiquidityDecoder }): ReconstructedPoolLiquidity {
-  const events = input.decoder.decode(input.history).filter(e => e.poolAddress === input.history.pool.poolAddress)
+  const decoded = input.decoder.decode(input.history).filter(e => e.poolAddress === input.history.pool.poolAddress)
+  const events = [...new Map(decoded.map(event => [`${event.evidenceId}:${event.kind}:${event.observedAt}:${event.poolAddress}`, event])).values()]
   for (const e of events) {
     if (!Number.isFinite(e.liquidityUsd) || e.liquidityUsd < 0) throw new Error('Decoded pool liquidity must be finite and non-negative.')
     if (!e.evidenceId || !e.observedAt) throw new Error('Decoded liquidity events require timestamp and evidence.')
