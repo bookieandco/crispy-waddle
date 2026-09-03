@@ -1,10 +1,8 @@
 /**
  * MemoryRepository
- * 
+ *
  * Business logic layer for memory operations.
- * Enforces rules: approval workflow, status transitions, search constraints.
- * 
- * Works against InMemoryStorage.
+ * Enforces approval workflow, status transitions, and user scoping.
  */
 
 import {
@@ -26,10 +24,6 @@ export interface SearchMemoriesOptions {
 export class MemoryRepository {
   constructor(private storage: MemoryStorage) {}
 
-  /**
-   * Create a memory candidate from user input
-   * Status is always PENDING initially
-   */
   async createCandidate(params: {
     userId: string
     content: string
@@ -37,7 +31,7 @@ export class MemoryRepository {
     confidence: number
     reasoningEventId: string
   }): Promise<MemoryCandidate> {
-    const candidate = await this.storage.createCandidate({
+    return this.storage.createCandidate({
       userId: params.userId,
       content: params.content,
       type: params.type,
@@ -46,32 +40,21 @@ export class MemoryRepository {
       createdAt: new Date().toISOString(),
       reasoningEventId: params.reasoningEventId,
     })
-
-    return candidate
   }
 
-  /**
-   * Approve a pending candidate
-   * Moves it from PENDING → APPROVED and stores as Memory
-   */
   async approve(candidateId: string, userId: string): Promise<Memory> {
     const candidate = await this.storage.getCandidate(candidateId)
 
-    if (!candidate) {
-      throw new Error(`Candidate not found: ${candidateId}`)
-    }
-
+    if (!candidate) throw new Error(`Candidate not found: ${candidateId}`)
     if (candidate.status !== "PENDING") {
       throw new Error(
-        `Cannot approve non-pending candidate: ${candidateId} (status: ${candidate.status})`
+        `Cannot approve non-pending candidate: ${candidateId} (status: ${candidate.status})`,
       )
     }
-
     if (candidate.userId !== userId) {
       throw new Error(`User not authorized for candidate: ${candidateId}`)
     }
 
-    // Create approved memory
     const memory = await this.storage.createMemory({
       userId: candidate.userId,
       type: candidate.type,
@@ -82,116 +65,69 @@ export class MemoryRepository {
       approvedAt: new Date().toISOString(),
     })
 
-    // Remove candidate (it's now a memory)
     await this.storage.removeCandidate(candidateId)
-
     return memory
   }
 
-  /**
-   * Reject a pending candidate
-   * Moves it from PENDING → REJECTED (discarded)
-   */
   async reject(candidateId: string, userId: string): Promise<void> {
     const candidate = await this.storage.getCandidate(candidateId)
 
-    if (!candidate) {
-      throw new Error(`Candidate not found: ${candidateId}`)
-    }
-
+    if (!candidate) throw new Error(`Candidate not found: ${candidateId}`)
     if (candidate.status !== "PENDING") {
       throw new Error(
-        `Cannot reject non-pending candidate: ${candidateId} (status: ${candidate.status})`
+        `Cannot reject non-pending candidate: ${candidateId} (status: ${candidate.status})`,
       )
     }
-
     if (candidate.userId !== userId) {
       throw new Error(`User not authorized for candidate: ${candidateId}`)
     }
 
-    // Simply remove it (rejected memories don't persist)
     await this.storage.removeCandidate(candidateId)
   }
 
-  /**
-   * List all pending candidates for a user
-   */
   async listPending(
     userId: string,
     limit: number = 20,
-    offset: number = 0
+    offset: number = 0,
   ): Promise<MemoryCandidate[]> {
     const all = await this.storage.listCandidates(userId, "PENDING")
     return all.slice(offset, offset + limit)
   }
 
-  /**
-   * List all approved memories for a user
-   */
   async listApproved(userId: string): Promise<Memory[]> {
     const memories = await this.storage.listMemories(userId)
     return memories.filter((m: Memory) => m.status === "APPROVED")
   }
 
-  /**
-   * Search approved memories (full-text search on content)
-   */
-  async search(
-    userId: string,
-    options: SearchMemoriesOptions = {}
-  ): Promise<Memory[]> {
+  async search(userId: string, options: SearchMemoriesOptions = {}): Promise<Memory[]> {
     const allMemories = await this.storage.listMemories(userId)
     let results = allMemories.filter((m: Memory) => m.status === "APPROVED")
 
-    // Filter by type if specified
-    if (options.type) {
-      results = results.filter((m: Memory) => m.type === options.type)
-    }
-
-    // Search by query (case-insensitive substring)
+    if (options.type) results = results.filter((m: Memory) => m.type === options.type)
     if (options.query) {
       const query = options.query.toLowerCase()
-      results = results.filter((m: Memory) =>
-        m.content.toLowerCase().includes(query)
-      )
+      results = results.filter((m: Memory) => m.content.toLowerCase().includes(query))
     }
 
-    // Apply pagination
     const limit = options.limit ?? 20
     const offset = options.offset ?? 0
-    results = results.slice(offset, offset + limit)
-
-    return results
+    return results.slice(offset, offset + limit)
   }
 
-  /**
-   * Get a specific memory by ID
-   */
   async getById(userId: string, memoryId: string): Promise<Memory | null> {
     const memory = await this.storage.getMemory(memoryId)
-
-    if (!memory) {
-      return null
-    }
-
+    if (!memory) return null
     if (memory.userId !== userId) {
       throw new Error(`User not authorized for memory: ${memoryId}`)
     }
-
     return memory
   }
 
-  /**
-   * Get all approved memories for a user (for context building)
-   */
   async getContext(userId: string): Promise<Memory[]> {
     const memories = await this.storage.listMemories(userId)
     return memories.filter((m: Memory) => m.status === "APPROVED")
   }
 
-  /**
-   * Get statistics about a user's memories
-   */
   async getStats(userId: string): Promise<{
     total: number
     pending: number
@@ -199,7 +135,6 @@ export class MemoryRepository {
   }> {
     const memories = await this.storage.listMemories(userId)
     const candidates = await this.storage.listCandidates(userId, "PENDING")
-
     const byType: Record<MemoryType, number> = {
       PREFERENCE: 0,
       IDENTITY: 0,
@@ -208,9 +143,7 @@ export class MemoryRepository {
     }
 
     memories.forEach((m: Memory) => {
-      if (m.status === "APPROVED") {
-        byType[m.type]++
-      }
+      if (m.status === "APPROVED") byType[m.type]++
     })
 
     return {
@@ -220,24 +153,14 @@ export class MemoryRepository {
     }
   }
 
-  /**
-   * Debug dump
-   */
-  async dump(userId?: string): Promise<string> {
-    const lines: string[] = []
-    lines.push("MemoryRepository")
-    lines.push("─".repeat(40))
-
-    const allMemories = await this.storage.listMemories(userId || "user_demo")
+  async dump(userId: string): Promise<string> {
+    if (!userId) throw new Error("userId is required")
+    const lines = ["MemoryRepository", "─".repeat(40)]
+    const allMemories = await this.storage.listMemories(userId)
     const memories = allMemories.filter((m: Memory) => m.status === "APPROVED")
-    const candidates = await this.storage.listCandidates(
-      userId || "user_demo",
-      "PENDING"
-    )
-
+    const candidates = await this.storage.listCandidates(userId, "PENDING")
     lines.push(`Approved Memories: ${memories.length}`)
     lines.push(`Pending Candidates: ${candidates.length}`)
-
     return lines.join("\n")
   }
 }
