@@ -27,6 +27,7 @@ export * from './player-event-simulation.js';
 export * from './player-fatigue.js';
 export * from './player-simulation.js';
 export * from './prediction-ledger.js';
+export * from './prediction-reality-evaluation.js';
 export * from './reconciliation.js';
 export * from './sensitivity.js';
 export * from './simulation.js';
