@@ -1,4 +1,4 @@
-// Public surface for @jhadina/money-core.
+// Public surface for @jhadina/money-core. package.json's "main"/"types" have pointed at this file since the package was created; it never existed, so nothing outside packages/money-core has ever been able to import this package by its bare specifier. Added as part of Spine Proof #3 (Money/Plaid), the first cross-package consumer.
 export type { MoneyCapability, CapabilityRisk } from './capabilities.js';
 export { getMoneyCapability, requiresMoneyApproval, isMoneyCapability } from './capabilities.js';
 export type { MoneyAccount, MoneyTransaction, MoneyAdapterContext, BankAdapter } from './bank-adapter.js';
@@ -25,9 +25,22 @@ export { PlaidReadOnlyBankAdapter } from './plaid-read-only-adapter.js';
 export { buildPlaidReadOnlyAdapter, createPlaidReadOnlyAdapterBuilder } from './plaid-provider-builder.js';
 export { PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, assertPlaidSandboxBaseUrl, createPlaidProviderAdapterFactory } from './plaid-provider-registration.js';
 
-export type { AssetClass, EvidenceQuality, EvidenceRef, FinancialHypothesis, PredictionDistribution, OpportunityCandidate, AllocationDecision, CapitalAllocationRequest, CapitalAllocationDecision, CanonicalFinancialAction } from './financial-intelligence-contracts.js';
+export type {
+  AssetClass,
+  EvidenceQuality,
+  EvidenceRef,
+  FinancialHypothesis,
+  PredictionDistribution,
+  OpportunityCandidate,
+  AllocationDecision,
+  CapitalAllocationRequest,
+  CapitalAllocationDecision,
+  CanonicalFinancialAction,
+} from './financial-intelligence-contracts.js';
 export { assertIntelligenceOnly, assertProbability, assertPositiveAmount } from './financial-intelligence-contracts.js';
+
 export type { InvoiceEvidence, InvoiceValidationState, InvoiceAccountingCandidate } from './invoice-evidence.js';
 export { validateInvoiceAmount, validateExtractionConfidence } from './invoice-evidence.js';
-export type { PolicyDecision, ActionProposal, PolicyDecisionRecord, AuditReceipt, FinancialActionBinding } from './financial-action-governance.js';
-export { assertProposalIsFinanciallyBound, isFinancialMutationCapability, assertPolicyAllowsExecution, createActionProposalFromAllocation } from './financial-action-governance.js';
+
+export type { PermitState, ExecutionAction, PermitBinding, ExecutionPermit, PermitIssuerInput, PermitVerificationContext, PermitStore } from './execution-permit.js';
+export { canonicalizeAction, fingerprintAction, issueExecutionPermit, verifyExecutionPermit, consumeExecutionPermit } from './execution-permit.js';
