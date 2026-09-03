@@ -36,6 +36,7 @@ export * from './prediction-reality-evaluation.js';
 export * from './reconciliation.js';
 export * from './sensitivity.js';
 export * from './simulation.js';
+export * from './sports-event.js';
 export * from './temporal-events.js';
 export * from './validation.js';
 export * from './video-perception.js';
