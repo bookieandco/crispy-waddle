@@ -21,6 +21,7 @@ export interface RestorationExperimentCandidate {
 export interface ExperimentPolicy {
   allowAnalysis: boolean;
   allowSimulation: boolean;
+  allowRestoration: boolean;
   allowDestructive: boolean;
   maxRisk: number;
   maxCost: number;
@@ -49,20 +50,20 @@ export function calculateExpectedInformationGain(
 
   let expectedPosteriorEntropy = 0;
   for (const outcome of experiment.outcomes) {
-    const evidenceProbability = outcome.hypothesisLikelihoods;
+    const likelihoods = outcome.hypothesisLikelihoods;
     const probabilityOfOutcome = hypotheses.reduce((sum, hypothesis, index) => {
-      return sum + normalizedPrior[index] * evidenceProbability[hypothesis.id];
+      return sum + normalizedPrior[index] * likelihoods[hypothesis.id];
     }, 0);
     if (probabilityOfOutcome <= 0) continue;
 
     const posterior = hypotheses.map((hypothesis, index) => ({
       ...hypothesis,
-      posterior: normalizedPrior[index] * evidenceProbability[hypothesis.id] / probabilityOfOutcome,
+      posterior: normalizedPrior[index] * likelihoods[hypothesis.id] / probabilityOfOutcome,
     }));
     expectedPosteriorEntropy += probabilityOfOutcome * calculateHypothesisUncertainty(posterior).entropy;
   }
 
-  const expectedInformationGain = priorEntropy - expectedPosteriorEntropy;
+  const expectedInformationGain = Math.max(0, priorEntropy - expectedPosteriorEntropy);
   return {
     experimentId: experiment.id,
     expectedInformationGain,
@@ -92,7 +93,8 @@ function isPolicyEligible(experiment: RestorationExperimentCandidate, policy: Ex
   if (experiment.risk < 0 || experiment.risk > policy.maxRisk) return false;
   if (experiment.authorizationClass === "analysis" && !policy.allowAnalysis) return false;
   if (experiment.authorizationClass === "simulation" && !policy.allowSimulation) return false;
-  return experiment.authorizationClass === "analysis" || experiment.authorizationClass === "simulation" || experiment.authorizationClass === "restoration";
+  if (experiment.authorizationClass === "restoration" && !policy.allowRestoration) return false;
+  return true;
 }
 
 function compareExperimentScores(a: ExperimentScore, b: ExperimentScore): number {
@@ -105,25 +107,33 @@ function validateExperiment(
   experiment: RestorationExperimentCandidate,
   hypotheses: RestorationHypothesis[],
 ): void {
-  if (!experiment.id || experiment.outcomes.length === 0) throw new Error("Experiment identity and outcomes are required");
+  if (!experiment.id || !experiment.description || experiment.affectedRegionIds.length === 0 || experiment.outcomes.length === 0) {
+    throw new Error("Experiment identity, description, affected regions, and outcomes are required");
+  }
+  if (hypotheses.length === 0) throw new Error("At least one hypothesis is required");
   if (experiment.cost < 0 || !Number.isFinite(experiment.cost)) throw new Error("Experiment cost must be finite and non-negative");
   if (experiment.risk < 0 || experiment.risk > 1 || !Number.isFinite(experiment.risk)) throw new Error("Experiment risk must be between 0 and 1");
+
   const ids = new Set(hypotheses.map((hypothesis) => hypothesis.id));
   const outcomeIds = new Set<string>();
+  const outcomeMassByHypothesis = new Map<string, number>(hypotheses.map((hypothesis) => [hypothesis.id, 0]));
+
   for (const outcome of experiment.outcomes) {
     if (!outcome.outcomeId || outcomeIds.has(outcome.outcomeId)) throw new Error("Experiment outcome IDs must be unique");
     outcomeIds.add(outcome.outcomeId);
-    let outcomeMass = 0;
     for (const hypothesis of hypotheses) {
       const likelihood = outcome.hypothesisLikelihoods[hypothesis.id];
       if (!Number.isFinite(likelihood) || likelihood < 0 || likelihood > 1) {
         throw new Error("Experiment outcome likelihoods must be between 0 and 1");
       }
-      outcomeMass += likelihood;
+      outcomeMassByHypothesis.set(hypothesis.id, (outcomeMassByHypothesis.get(hypothesis.id) ?? 0) + likelihood);
     }
-    if (outcomeMass === 0) throw new Error("Every experiment outcome must have positive likelihood under at least one hypothesis");
     for (const hypothesisId of Object.keys(outcome.hypothesisLikelihoods)) {
       if (!ids.has(hypothesisId)) throw new Error("Experiment contains an unknown hypothesis likelihood");
     }
+  }
+
+  for (const [hypothesisId, mass] of outcomeMassByHypothesis) {
+    if (Math.abs(mass - 1) > 1e-9) throw new Error(`Outcome likelihoods for ${hypothesisId} must sum to 1`);
   }
 }
