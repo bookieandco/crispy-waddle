@@ -6,6 +6,8 @@ import type { ApprovalPort } from './approval-port.js';
 
 const calls: string[] = [];
 const idempotencyKeys: string[] = [];
+const executionIds: string[] = [];
+const actionFingerprints: string[] = [];
 let approvalCalls = 0;
 
 const approval: ApprovalPort = {
@@ -59,6 +61,9 @@ const handler = new MoneyTransactionWriteHandler({
     async createPayment(context, input) {
       calls.push(`payment:${context.userId}:${context.capability}:${input.accountId}`);
       idempotencyKeys.push(context.idempotencyKey ?? '');
+      executionIds.push(context.executionId ?? '');
+      actionFingerprints.push(context.actionFingerprint ?? '');
+      if (!context.executionId || !context.actionFingerprint || !context.idempotencyKey) throw new Error('TEST_PROVIDER_IDENTITY_MISSING');
       if (context.requestId === 'provider-fails') throw new Error('TEST_PROVIDER_TIMEOUT');
       await new Promise((resolve) => setTimeout(resolve, 10));
       return { providerReference: 'pay-1', status: 'submitted' };
@@ -66,6 +71,9 @@ const handler = new MoneyTransactionWriteHandler({
     async createTransfer(context, input) {
       calls.push(`transfer:${context.userId}:${context.capability}:${input.fromAccountId}:${input.toAccountId}`);
       idempotencyKeys.push(context.idempotencyKey ?? '');
+      executionIds.push(context.executionId ?? '');
+      actionFingerprints.push(context.actionFingerprint ?? '');
+      if (!context.executionId || !context.actionFingerprint || !context.idempotencyKey) throw new Error('TEST_PROVIDER_IDENTITY_MISSING');
       return { providerReference: 'tr-1', status: 'submitted' };
     },
   }),
@@ -110,7 +118,8 @@ const payment = await handler.execute(paymentAction, request('req-1', paymentAct
 if (payment.providerReference !== 'pay-1' || calls[0] !== 'payment:user-1:money.payment.create:acct-1') throw new Error('PAYMENT_WRITE_FAILED');
 const firstAttempt = [...executionAttempts.attempts.values()][0];
 if (!firstAttempt || firstAttempt.state !== 'SUCCEEDED' || firstAttempt.providerReference !== 'pay-1' || firstAttempt.recoveryRequired) throw new Error('EXECUTION_ATTEMPT_SUCCESS_NOT_RECORDED');
-if (!idempotencyKeys[0]) throw new Error('PROVIDER_IDEMPOTENCY_KEY_MISSING');
+if (!idempotencyKeys[0] || !executionIds[0] || !actionFingerprints[0]) throw new Error('PROVIDER_EXECUTION_IDENTITY_MISSING');
+if (executionIds[0] !== firstAttempt.attemptId || actionFingerprints[0] !== firstAttempt.actionFingerprint || idempotencyKeys[0] !== firstAttempt.idempotencyKey) throw new Error('PROVIDER_EXECUTION_IDENTITY_MISMATCH');
 
 const transferAction = { capability: 'money.transfer.create', provider: 'test-bank', fromAccountId: 'acct-1', toAccountId: 'acct-2', amount: 10, currency: 'USD' };
 const transfer = await handler.execute(transferAction, request('req-2', transferAction));
