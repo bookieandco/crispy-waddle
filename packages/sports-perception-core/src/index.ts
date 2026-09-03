@@ -9,6 +9,7 @@ export * from './joint-outcomes.js';
 export * from './live-game-watcher.js';
 export * from './market-canonicalization.js';
 export * from './market-intelligence.js';
+export * from './nba-canonical-ledger.js';
 export * from './nba-event-state-machine.js';
 export * from './nba-game-loop.js';
 export * from './nba-game-replay.js';
