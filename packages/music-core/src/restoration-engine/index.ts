@@ -48,3 +48,4 @@ export * from "./vst3-processor-lifecycle.js";
 export * from "./restoration-hypothesis.js";
 export * from "./hypothesis-uncertainty.js";
 export * from "./hypothesis-experiment.js";
+export * from "./hypothesis-experiment-executor.js";
