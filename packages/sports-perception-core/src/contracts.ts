@@ -62,12 +62,29 @@ export interface PredictionEvaluation {
   calibrationVersion: string;
 }
 
+export interface ReconciledField {
+  value: unknown;
+  evidenceIds: string[];
+  sourceId: string;
+  status: 'CANONICAL' | 'CONFLICT' | 'INSUFFICIENT_EVIDENCE';
+}
+
+export interface EvidenceConflict {
+  eventId: string;
+  field: string;
+  evidenceIds: string[];
+  values: unknown[];
+}
+
 export interface RealityState {
   eventId: string;
   stateVersion: number;
   asOf: ISODateTime;
+  previousStateHash?: string;
   sourceEvidenceIds: string[];
   worldState: Record<string, unknown>;
+  reconciledFields?: Record<string, ReconciledField>;
+  conflicts?: EvidenceConflict[];
   canonical: boolean;
   stateHash: string;
 }
