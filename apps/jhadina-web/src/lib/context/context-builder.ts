@@ -1,4 +1,5 @@
 import type { ContextPacket, EvidenceRef, PatternObservation, PersonalityState } from "@jhadina/core-spine"
+import { emptyPersonalityState } from "@jhadina/core-spine"
 import { JHADINA_BASE_SECURITY_POLICY, type SecurityPolicy } from "@jhadina/security-core"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
@@ -26,12 +27,10 @@ import { redactSecrets } from "./redact"
  * `ContextPort` (core-spine) is not implemented here. Its signature
  * takes pre-computed `MemoryProposal[]`/`PatternObservation[]`/
  * `PersonalityState` as input — i.e. it assumes `MemoryPort`/
- * `PatternPort`/`PersonalityPort` already ran. None of those three
- * ports have a real implementation anywhere in this repo yet (a real,
- * named gap, not fabricated here to satisfy the interface). Building a
- * `ContextPort` adapter is Step 5 work, once those ports are decided —
- * this function assembles a `ContextPacket` directly from real data
- * instead, which is what makes it usable by `IntelligenceRouter` today.
+ * `PatternPort`/`PersonalityPort` already ran. The PersonalityPort now
+ * has a canonical governed projection engine in core-spine, but this
+ * direct context assembly remains an intentionally explicit fallback
+ * until the real Memory/Pattern/Personality ports are composed here.
  */
 
 export interface ContextBuilderLimits {
@@ -144,7 +143,7 @@ function approvalToEvidenceRef(event: TimelineEvent): { ref: EvidenceRef; redact
       source: "timeline-approval",
       observedAt: event.timestamp,
       summary: redacted,
-      immutable: true, // an approval, once recorded, is a historical fact
+      immutable: true,
     },
     redactionCount,
   }
@@ -162,23 +161,11 @@ function policyConstraints(policy: SecurityPolicy): string[] {
   return constraints
 }
 
-/** A never-real-yet PersonalityState, honestly flagged rather than faked. No PersonalityPort exists in this repository. */
-function emptyPersonalityState(): PersonalityState {
-  return {
-    version: 0,
-    traits: [],
-    independentAssessmentRequired: true,
-    updatedAt: new Date(0).toISOString(),
-  }
+/** Canonical empty state. It is not a fabricated personality and is explicitly marked assessment-required. */
+function getEmptyPersonalityState(): PersonalityState {
+  return emptyPersonalityState(new Date(0).toISOString())
 }
 
-/**
- * Assembles a bounded `ContextPacket`. Pure with respect to decisions —
- * this function only reads (`memoryRepo`/`timelineRepo`) and computes;
- * it writes nothing, executes nothing, and never throws on missing data
- * (a fresh user with no memories/timeline/surface/project is a normal,
- * fully-supported input, not an error).
- */
 export async function buildContext(
   deps: ContextBuilderDeps,
   input: ContextBuilderInput,
@@ -188,7 +175,6 @@ export async function buildContext(
   const excludedContext: string[] = []
   let totalRedactions = 0
 
-  // -- Relevant durable memories -------------------------------------
   const allApproved = await deps.memoryRepo.listApproved(input.userId)
   const keywords = extractKeywords(input.memoryRelevanceQuery ?? input.activeTask)
   const relevantMemories = sortMemoriesDeterministically(allApproved.filter((m) => isRelevant(m.content, keywords)))
@@ -207,7 +193,6 @@ export async function buildContext(
   const memoryRefs = boundedMemories.map(memoryToEvidenceRef)
   totalRedactions += memoryRefs.reduce((sum, r) => sum + r.redactionCount, 0)
 
-  // -- Recent approved observations (Timeline APPROVAL entries) ------
   const timeline = await deps.timelineRepo.list(input.userId, Math.max(limits.maxRecentApprovals * 10, 50))
   const approvals = sortTimelineDeterministically(timeline.filter((e) => e.type === "APPROVAL"))
   const boundedApprovals = approvals.slice(0, limits.maxRecentApprovals)
@@ -219,29 +204,18 @@ export async function buildContext(
   const approvalRefs = boundedApprovals.map(approvalToEvidenceRef)
   totalRedactions += approvalRefs.reduce((sum, r) => sum + r.redactionCount, 0)
 
-  // -- Surface / project bookkeeping ---------------------------------
   const world = input.surface ? getWorld(input.surface) : undefined
-  if (input.surface && !world) {
-    excludedContext.push(`surface "${input.surface}" not found in the world registry`)
-  }
-  if (!input.surface) {
-    excludedContext.push("surface: not supplied by the caller")
-  }
-  if (!input.route) {
-    excludedContext.push("route: not supplied by the caller")
-  }
-  if (!input.activeProject) {
-    excludedContext.push("activeProject: not supplied — no Project/Workspace entity exists in this repository yet")
-  }
+  if (input.surface && !world) excludedContext.push(`surface "${input.surface}" not found in the world registry`)
+  if (!input.surface) excludedContext.push("surface: not supplied by the caller")
+  if (!input.route) excludedContext.push("route: not supplied by the caller")
+  if (!input.activeProject) excludedContext.push("activeProject: not supplied — no Project/Workspace entity exists in this repository yet")
 
-  // -- Not-yet-real ports, honestly named, not fabricated ------------
   excludedContext.push("patterns: not assembled — no PatternPort implementation exists yet")
-  excludedContext.push("personality: not assembled — no PersonalityPort implementation exists yet")
+  excludedContext.push("personality: not assembled — direct context fallback uses canonical empty state until ports are composed")
 
   const { redacted: redactedActiveTask, redactionCount: taskRedactions } = redactSecrets(input.activeTask)
   totalRedactions += taskRedactions
 
-  // -- Character budget: trim least-recent items first until in budget --
   let knowledgeRefs = approvalRefs.map((r) => r.ref)
   let memoryEvidenceRefs = memoryRefs.map((r) => r.ref)
   const textLength = (refs: EvidenceRef[]) => refs.reduce((sum, r) => sum + r.summary.length, 0)
@@ -250,23 +224,12 @@ export async function buildContext(
     redactedActiveTask.length + textLength(memoryEvidenceRefs) + textLength(knowledgeRefs) > limits.maxTotalChars &&
     (memoryEvidenceRefs.length > 0 || knowledgeRefs.length > 0)
   ) {
-    // Drop the least-recent item across both lists (they're each already
-    // sorted most-recent-first, so the tail of whichever list is longer
-    // is always the lowest priority).
-    if (knowledgeRefs.length >= memoryEvidenceRefs.length && knowledgeRefs.length > 0) {
-      knowledgeRefs = knowledgeRefs.slice(0, -1)
-    } else {
-      memoryEvidenceRefs = memoryEvidenceRefs.slice(0, -1)
-    }
+    if (knowledgeRefs.length >= memoryEvidenceRefs.length && knowledgeRefs.length > 0) knowledgeRefs = knowledgeRefs.slice(0, -1)
+    else memoryEvidenceRefs = memoryEvidenceRefs.slice(0, -1)
     trimmed += 1
   }
-  if (trimmed > 0) {
-    excludedContext.push(`${trimmed} item(s) trimmed to stay within the ${limits.maxTotalChars}-character budget`)
-  }
-
-  if (totalRedactions > 0) {
-    excludedContext.push(`${totalRedactions} secret-like pattern(s) redacted from assembled text`)
-  }
+  if (trimmed > 0) excludedContext.push(`${trimmed} item(s) trimmed to stay within the ${limits.maxTotalChars}-character budget`)
+  if (totalRedactions > 0) excludedContext.push(`${totalRedactions} secret-like pattern(s) redacted from assembled text`)
 
   const surfaceLabel = world?.label ?? input.surface
   const purposeParts = ["Ask Jhadina request"]
@@ -278,8 +241,8 @@ export async function buildContext(
     purpose: purposeParts.join(" "),
     userGoal: redactedActiveTask,
     relevantMemories: memoryEvidenceRefs,
-    patterns: [] as PatternObservation[],
-    personality: emptyPersonalityState(),
+    patterns: [],
+    personality: getEmptyPersonalityState(),
     knowledge: knowledgeRefs,
     constraints: policyConstraints(policy),
     excludedContext,

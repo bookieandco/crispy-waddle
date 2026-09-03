@@ -16,7 +16,6 @@ function freshDeps(): ContextBuilderDeps & { memoryRepo: MemoryRepository; timel
   }
 }
 
-/** Creates and approves a memory through the real Step 2 governed flow (candidate -> explicit approve), same as JanetService. */
 async function approveMemory(
   deps: ReturnType<typeof freshDeps>,
   userId: string,
@@ -55,11 +54,15 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     expect(assembled.contextPacket.knowledge).toEqual([])
     expect(assembled.contextPacket.patterns).toEqual([])
     expect(assembled.contextPacket.personality.traits).toEqual([])
+    expect(assembled.contextPacket.personality.independentAssessmentRequired).toBe(true)
+    expect(assembled.contextPacket.personality.voice).toBeDefined()
+    expect(assembled.contextPacket.personality.taste).toBeDefined()
+    expect(assembled.contextPacket.personality.relationship).toBeDefined()
     expect(assembled.contextPacket.excludedContext).toContain(
       "patterns: not assembled — no PatternPort implementation exists yet",
     )
     expect(assembled.contextPacket.excludedContext).toContain(
-      "personality: not assembled — no PersonalityPort implementation exists yet",
+      "personality: not assembled — direct context fallback uses canonical empty state until ports are composed",
     )
     expect(assembled.contextPacket.excludedContext).toContain("surface: not supplied by the caller")
   })
@@ -87,9 +90,7 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     })
 
     expect(assembled.contextPacket.relevantMemories).toHaveLength(0)
-    expect(
-      assembled.contextPacket.excludedContext.some((e) => e.includes("excluded as not relevant")),
-    ).toBe(true)
+    expect(assembled.contextPacket.excludedContext.some((e) => e.includes("excluded as not relevant"))).toBe(true)
   })
 
   it("4. carries surface and route context through, reflected in the packet's purpose", async () => {
@@ -121,11 +122,8 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     })
 
     expect(assembled.contextPacket.relevantMemories).toHaveLength(1)
-    expect(
-      assembled.contextPacket.excludedContext.some((e) => e.includes("maxMemories limit")),
-    ).toBe(true)
+    expect(assembled.contextPacket.excludedContext.some((e) => e.includes("maxMemories limit"))).toBe(true)
 
-    // A tiny character budget forces trimming even below the maxMemories cap.
     const tinyBudget = await buildContext(deps, {
       userId: "user-d",
       activeTask: "recommend me some ambient music",
@@ -158,7 +156,6 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     const first = await buildContext(deps, { userId: "user-f", activeTask: "how should I edit this video" })
     const second = await buildContext(deps, { userId: "user-f", activeTask: "how should I edit this video" })
 
-    // id/assembledAt are per-call nonces by design — everything else must match exactly.
     expect(first.contextPacket.relevantMemories).toEqual(second.contextPacket.relevantMemories)
     expect(first.contextPacket.knowledge).toEqual(second.contextPacket.knowledge)
     expect(first.contextPacket.constraints).toEqual(second.contextPacket.constraints)
