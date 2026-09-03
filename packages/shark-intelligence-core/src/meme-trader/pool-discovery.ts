@@ -44,13 +44,13 @@ export class DexScreenerPoolDiscoverySource implements PoolDiscoverySource {
     const candidates = body.flatMap((raw, index) => {
       if (!raw || typeof raw !== 'object') return []
       const pair = raw as Record<string, unknown>
+      const pairChainId = stringValue(pair.chainId)?.toLowerCase()
+      if (pairChainId !== launch.chainId.toLowerCase()) return []
       const baseToken = pair.baseToken && typeof pair.baseToken === 'object' ? pair.baseToken as Record<string, unknown> : undefined
       const quoteToken = pair.quoteToken && typeof pair.quoteToken === 'object' ? pair.quoteToken as Record<string, unknown> : undefined
       const poolAddress = stringValue(pair.pairAddress)
       if (!poolAddress) return []
 
-      // The API is allowed to report arbitrary DEX identifiers. Only map a program
-      // ID when the identifier is one of the DEXes whose on-chain decoder we know.
       const dexId = stringValue(pair.dexId)?.toLowerCase()
       const programId = dexId ? PROGRAM_IDS[dexId] : undefined
       const baseMint = stringValue(baseToken?.address)
@@ -58,9 +58,6 @@ export class DexScreenerPoolDiscoverySource implements PoolDiscoverySource {
       const liquidity = pair.liquidity && typeof pair.liquidity === 'object' ? pair.liquidity as Record<string, unknown> : undefined
       const liquidityUsd = nonNegativeFinite(liquidity?.usd) ? liquidity.usd : undefined
 
-      // A candidate must identify the requested token as one side of the pair.
-      // DexScreener can return malformed/ambiguous rows; don't promote those into
-      // canonical pool discovery.
       if (baseMint !== launch.tokenAddress && quoteMint !== launch.tokenAddress) return []
 
       return [{
@@ -76,8 +73,6 @@ export class DexScreenerPoolDiscoverySource implements PoolDiscoverySource {
       }]
     })
 
-    // A pair can be surfaced more than once by upstream aggregation. Keep one
-    // observation per pool address so downstream history does not double-count it.
     const seen = new Set<string>()
     return candidates.filter(candidate => {
       if (seen.has(candidate.poolAddress)) return false
