@@ -2,7 +2,6 @@ import type { NBAEvent, NBAEventGameState } from './nba-event-state-machine.js';
 import { applyNBAEvent } from './nba-event-state-machine.js';
 import type { NBALivePlayerState } from './nba-live-state.js';
 import { applyNBALivePlayerUpdate, recoverNBABenchPlayers } from './nba-live-state.js';
-import type { RandomSource } from './simulation.js';
 
 export interface NBALiveEventBridgeResult {
   gameState: NBAEventGameState;
@@ -31,7 +30,7 @@ export function applyNBALiveEvent(
   state: NBAEventGameState,
   players: Readonly<Record<string, NBALivePlayerState>>,
   event: NBAEvent,
-  rng: RandomSource,
+  _rng: unknown,
   asOf: string,
 ): NBALiveEventBridgeResult {
   const gameState = applyNBAEvent(state, event);
@@ -41,12 +40,11 @@ export function applyNBALiveEvent(
   for (const playerId of targets) {
     const player = next[playerId];
     if (!player) continue;
-    const jitter = 0.9 + rng.next() * 0.2;
     const durationSeconds = Math.max(1, event.elapsedSeconds ?? (event.kind === 'FREE_THROW' ? 5 : 4));
     next[playerId] = applyNBALivePlayerUpdate(player, {
       eventId: event.eventId,
       playerId,
-      intensity: intensityByEvent[event.kind] * jitter,
+      intensity: intensityByEvent[event.kind],
       durationSeconds,
       confidenceDelta: event.kind === 'SHOT' && event.made ? 0.5 : 0,
       evidenceIds: event.evidenceIds,
