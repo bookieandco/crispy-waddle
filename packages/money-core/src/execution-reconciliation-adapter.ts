@@ -18,11 +18,11 @@ export class ExecutionReconciliationAdapterRegistry {
   private readonly adapters = new Map<string, MoneyExecutionReconciliationAdapter>();
 
   register(adapter: MoneyExecutionReconciliationAdapter): void {
-    if (this.adapters.has(adapter.provider)) {
-      throw new Error(`MONEY_RECONCILIATION_ADAPTER_ALREADY_REGISTERED:${adapter.provider}`);
-    }
     if (!adapter.provider || !adapter.adapterId || !Number.isInteger(adapter.adapterVersion) || adapter.adapterVersion < 1) {
       throw new Error('MONEY_RECONCILIATION_ADAPTER_INVALID');
+    }
+    if (this.adapters.has(adapter.provider)) {
+      throw new Error(`MONEY_RECONCILIATION_ADAPTER_ALREADY_REGISTERED:${adapter.provider}`);
     }
     this.adapters.set(adapter.provider, adapter);
   }
@@ -35,6 +35,9 @@ export class ExecutionReconciliationAdapterRegistry {
 
   getReconciler(provider: string, attempt: ExecutionAttempt): ExecutionReconciler {
     const adapter = this.get(provider);
+    if (adapter.provider !== attempt.provider) {
+      throw new Error(`MONEY_RECONCILIATION_PROVIDER_MISMATCH:${provider}`);
+    }
     if (!adapter.canReconcile(attempt)) {
       throw new Error(`MONEY_RECONCILIATION_UNSUPPORTED_EXECUTION:${provider}`);
     }
@@ -42,10 +45,6 @@ export class ExecutionReconciliationAdapterRegistry {
   }
 }
 
-/**
- * Adapter factory used by the recovery service. It deliberately refuses to
- * infer reconciliation capability from BankAdapter's optional write methods.
- */
 export function createExecutionReconciler(
   registry: ExecutionReconciliationAdapterRegistry,
   attempt: ExecutionAttempt,
