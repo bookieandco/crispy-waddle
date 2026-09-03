@@ -16,3 +16,4 @@ export * from "./protected-events.js";
 export * from "./musical-structure.js";
 export * from "./event-perception.js";
 export * from "./listening-frame.js";
+export * from "./music-perception-memory.js";
