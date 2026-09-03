@@ -2,6 +2,8 @@ import type { ActionHandler, ActionRequest } from '@jhadina/action-core';
 import { assertCapability, type BankAdapter } from './bank-adapter.js';
 import { type ApprovalPort } from './approval-port.js';
 import { type IdempotencyStore } from './idempotency-store.js';
+import { authorizeAndConsumeMoneyPermit, toExecutionAction, type MoneyExecutionPermit } from './execution-permit-gate.js';
+import type { PermitStore } from './execution-permit.js';
 
 export type PaymentCreateAction = {
   capability: 'money.payment.create';
@@ -28,6 +30,9 @@ export type TransactionWriteHandlerDeps = {
   getProvider: (provider: string) => BankAdapter;
   approval: ApprovalPort;
   idempotency: IdempotencyStore;
+  permitStore: PermitStore;
+  getExecutionPermit: (requestId: string) => Promise<MoneyExecutionPermit>;
+  policyClock?: () => string;
   assertUserWorkspace?: (userId: string) => Promise<void>;
   assertAccountAccess?: (userId: string, accountId: string) => Promise<void>;
 };
@@ -78,6 +83,15 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
         ? claim.record.result
         : this.deps.idempotency.waitForCompletion(request.id);
     }
+
+    const permit = await this.deps.getExecutionPermit(request.id);
+    const executionAction = toExecutionAction(action, request);
+    await authorizeAndConsumeMoneyPermit(
+      this.deps.permitStore,
+      permit,
+      executionAction,
+      this.deps.policyClock?.() ?? new Date().toISOString(),
+    );
 
     const adapter = this.deps.getProvider(action.provider);
     let result: TransactionWriteResult;
