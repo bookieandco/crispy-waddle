@@ -1,6 +1,7 @@
 import type { RandomSource } from './simulation.js';
 import type { NBAEvent, NBAEventGameState } from './nba-event-state-machine.js';
 import { createNBAEvent } from './nba-event-state-machine.js';
+import { createNBAEndOfPeriodEvent, createNBANextPeriodEvent } from './nba-period-events.js';
 import type { NBAPossessionState } from './nba-possession.js';
 import { resolveNBAOrchestratedPossession } from './nba-possession-orchestrator.js';
 import type { NBALivePlayerState } from './nba-live-state.js';
@@ -29,6 +30,23 @@ export interface NBAGameLoopResult {
 
 const MAX_POSSESSIONS = 2_000;
 
+function appendPeriodTransition(ledger: NBAEventLedger): boolean {
+  const state = ledger.snapshot().finalState;
+  if (state.periodSecondsRemaining > 0) return false;
+
+  const endEvent = createNBAEndOfPeriodEvent(state, state.evidenceIds);
+  ledger.append(endEvent);
+  const afterEnd = ledger.snapshot().finalState;
+
+  const scores = Object.values(afterEnd.scores).slice(0, 2);
+  const tied = scores.length >= 2 && scores[0] === scores[1];
+  if (afterEnd.period < 4 || (afterEnd.period >= 4 && tied)) {
+    ledger.append(createNBANextPeriodEvent(afterEnd, afterEnd.evidenceIds));
+    return false;
+  }
+  return true;
+}
+
 export function runNBAGameLoop(input: NBAGameLoopInput): NBAGameLoopResult {
   const maxPossessions = input.maxPossessions ?? MAX_POSSESSIONS;
   if (!Number.isInteger(maxPossessions) || maxPossessions < 0) throw new Error('maxPossessions must be a non-negative integer');
@@ -38,8 +56,14 @@ export function runNBAGameLoop(input: NBAGameLoopInput): NBAGameLoopResult {
   let livePlayers = input.livePlayers;
   let rotations = 0;
   let possessions = 0;
+  let gameEnded = false;
 
-  while (possessions < maxPossessions && ledger.snapshot().finalState.periodSecondsRemaining > 0) {
+  while (possessions < maxPossessions && !gameEnded) {
+    if (ledger.snapshot().finalState.periodSecondsRemaining <= 0) {
+      gameEnded = appendPeriodTransition(ledger);
+      if (gameEnded) break;
+    }
+
     const state = ledger.snapshot().finalState;
     const possession = input.possessionFactory(state);
     const result = resolveNBAOrchestratedPossession(state, possession, input.rng, {
@@ -78,7 +102,9 @@ export function runNBAGameLoop(input: NBAGameLoopInput): NBAGameLoopResult {
     }
 
     possessions += 1;
-    if (ledger.snapshot().finalState.periodSecondsRemaining <= 0) break;
+    if (ledger.snapshot().finalState.periodSecondsRemaining <= 0) {
+      gameEnded = appendPeriodTransition(ledger);
+    }
   }
 
   const snapshot = ledger.snapshot();
