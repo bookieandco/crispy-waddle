@@ -9,6 +9,7 @@ export * from './relationship-context-pattern.js';
 export * from './real-nigga-core.js';
 export * from './behavioral-kernel.js';
 export * from './expression-kernel.js';
+export * from './personality-behavior-expression.js';
 export * from './personality-behavior-pipeline.js';
 export * from './evolution.js';
 export * from './emergency-domain.js';
