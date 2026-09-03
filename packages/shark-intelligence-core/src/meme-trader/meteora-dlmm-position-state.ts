@@ -20,6 +20,7 @@ export type DlmmPositionTransition = {
   signature: string
   positionAddress: string
   poolAddress: string
+  tokenMint?: string
   action: 'OPEN' | 'ADD' | 'REMOVE' | 'REBALANCE' | 'CLAIM_FEE' | 'CLOSE'
   owner?: string
   operator?: string
