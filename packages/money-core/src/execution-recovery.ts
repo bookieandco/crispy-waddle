@@ -6,6 +6,8 @@ import type { ExecutionAttempt, ExecutionAttemptState } from './execution-attemp
  */
 export type RecoveryObservation = {
   executionId: string;
+  /** Canonical action/proposal hash for the execution being reconciled. */
+  proposalHash: string;
   providerOperation: string;
   providerReference?: string;
   observedState: 'SUCCEEDED' | 'FAILED' | 'PENDING' | 'NOT_FOUND' | 'CONFLICT' | 'UNKNOWN';
