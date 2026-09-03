@@ -52,11 +52,12 @@ export function evaluateParlayScenario(
   legs: readonly OutcomeLeg[],
   scenario: ParlayScenario,
   baselineJoint?: number,
+  baselineDependencyEdges: readonly DependencyEdge[] = [],
 ): ParlayScenarioResult {
   if (!scenario.scenarioId || !scenario.label) throw new Error('Scenario requires stable identifiers');
   const adjustedLegs = applyScenario(legs, scenario);
-  const joint = calculateJointProbability(adjustedLegs, scenario.dependencyEdges ?? []);
-  const baseline = baselineJoint ?? calculateJointProbability(legs, []).jointProbability;
+  const joint = calculateJointProbability(adjustedLegs, scenario.dependencyEdges ?? baselineDependencyEdges);
+  const baseline = baselineJoint ?? calculateJointProbability(legs, baselineDependencyEdges).jointProbability;
   const delta = joint.jointProbability - baseline;
   return Object.freeze({
     scenarioId: scenario.scenarioId,
@@ -73,17 +74,19 @@ export function evaluateParlayScenario(
 export function buildParlayRobustnessReport(
   legs: readonly OutcomeLeg[],
   scenarios: readonly ParlayScenario[],
+  baselineDependencyEdges: readonly DependencyEdge[] = [],
 ): ParlayRobustnessReport {
   if (legs.length < 2) throw new Error('A parlay requires at least two legs');
-  const baselineJoint = calculateJointProbability(legs, []).jointProbability;
+  const baselineJoint = calculateJointProbability(legs, baselineDependencyEdges).jointProbability;
   const baseline = evaluateParlayScenario(legs, {
     scenarioId: 'baseline',
     label: 'Baseline',
     status: 'BASELINE',
-  }, baselineJoint);
+    dependencyEdges: baselineDependencyEdges,
+  }, baselineJoint, baselineDependencyEdges);
   const results = scenarios
     .filter((scenario) => scenario.status !== 'BASELINE')
-    .map((scenario) => evaluateParlayScenario(legs, scenario, baselineJoint));
+    .map((scenario) => evaluateParlayScenario(legs, scenario, baselineJoint, baselineDependencyEdges));
   const all = [baseline, ...results];
   const values = all.map((result) => result.joint.jointProbability);
   const minimumJointProbability = Math.min(...values);
