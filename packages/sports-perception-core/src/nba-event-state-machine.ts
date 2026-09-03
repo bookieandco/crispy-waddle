@@ -1,5 +1,6 @@
 import type { RandomSource } from './simulation.js';
 import type { NBALineupState } from './nba-lineup-state.js';
+import { createCanonicalNBAEventId } from './nba-event-identity.js';
 
 export type NBAEventKind = 'POSSESSION_START' | 'PASS' | 'DRIVE' | 'SHOT' | 'FOUL' | 'FREE_THROW' | 'REBOUND' | 'TURNOVER' | 'SUBSTITUTION' | 'POSSESSION_END' | 'PERIOD_END' | 'PERIOD_START' | 'OVERTIME_START' | 'GAME_END';
 export type NBAFoulKind = 'SHOOTING' | 'NON_SHOOTING' | 'OFFENSIVE' | 'TECHNICAL';
@@ -54,7 +55,8 @@ export function applyNBAEvent(state: NBAEventGameState, event: NBAEvent): NBAEve
 }
 
 export function createNBAEvent(state: NBAEventGameState, kind: NBAEventKind, fields: Omit<NBAEvent, 'eventId' | 'sequence' | 'kind'>): NBAEvent {
-  return Object.freeze({ ...fields, eventId: `${state.gameId}:${state.sequence + 1}:${kind}`, sequence: state.sequence + 1, kind });
+  const sequence = state.sequence + 1;
+  return Object.freeze({ ...fields, eventId: createCanonicalNBAEventId(state.gameId, sequence, kind), sequence, kind });
 }
 
 export function resolveMissedShotRebound(state: NBAEventGameState, rng: RandomSource, offensiveReboundProbability: number, defensiveReboundProbability: number, evidenceIds: readonly string[] = []): NBAEvent {
