@@ -34,3 +34,4 @@ export * from "./opensandbox-provider.js";
 export * from "./music-worker.js";
 export * from "./audio-worker-runtime.js";
 export * from "./dsp-worker.js";
+export * from "./plugin-host.js";
