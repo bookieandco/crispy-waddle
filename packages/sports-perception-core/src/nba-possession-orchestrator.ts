@@ -15,7 +15,7 @@ export interface NBAOrchestratedPossessionResult {
 }
 
 export interface NBAReboundPolicy { offensive: number; defensive: number; }
-export interface NBAFoulPolicy { shootingProbability: number; threePointProbability: number; }
+export interface NBAFoulPolicy { shootingProbability: number; threePointProbability: number; freeThrowMakeProbability: number; }
 export interface NBAOrchestratorOptions {
   reboundPolicy?: NBAReboundPolicy;
   foulPolicy?: NBAFoulPolicy;
@@ -52,7 +52,7 @@ export function resolveNBAOrchestratedPossession(
 ): NBAOrchestratedPossessionResult {
   if (state.offenseTeamId !== possession.offenseTeamId) throw new Error('Possession offense team does not match game state');
   const reboundPolicy = options.reboundPolicy ?? { offensive: 0.25, defensive: 0.75 };
-  const foulPolicy = options.foulPolicy ?? { shootingProbability: 0.65, threePointProbability: 0.08 };
+  const foulPolicy = options.foulPolicy ?? { shootingProbability: 0.65, threePointProbability: 0.08, freeThrowMakeProbability: 0.75 };
   const maxPassContinuations = options.maxPassContinuations ?? 1;
   if (!Number.isInteger(maxPassContinuations) || maxPassContinuations < 0) throw new Error('maxPassContinuations must be a non-negative integer');
 
@@ -81,33 +81,44 @@ export function resolveNBAOrchestratedPossession(
     if (resolved.action === 'PASS' && passCount < maxPassContinuations) {
       apply(actionEvent(current, possession, 'PASS'));
       passCount += 1;
-      resolved = resolveNBAPossession({ ...possession, possessionId: `${possession.possessionId}:pass${passCount}`, clockSeconds: Math.max(1, current.periodSecondsRemaining), shotClockSeconds: Math.max(1, current.shotClockSeconds) }, rng);
+      resolved = resolveNBAPossession({
+        ...possession,
+        possessionId: `${possession.possessionId}:pass${passCount}`,
+        clockSeconds: Math.max(1, current.periodSecondsRemaining),
+        shotClockSeconds: Math.max(1, current.shotClockSeconds),
+      }, rng);
       continue;
     }
 
     if (resolved.action === 'FOUL') {
       const shooting = rng.next() < clamp(foulPolicy.shootingProbability);
       const threePoint = shooting && rng.next() < clamp(foulPolicy.threePointProbability);
-      const foul = Object.freeze({ ...actionEvent(current, possession, 'FOUL'), foulKind: shooting ? 'SHOOTING' : 'NON_SHOOTING', freeThrows: shooting ? (threePoint ? 3 : 2) : 0 });
+      const foul = Object.freeze({
+        ...actionEvent(current, possession, 'FOUL'),
+        foulKind: shooting ? 'SHOOTING' : 'NON_SHOOTING',
+        freeThrows: shooting ? (threePoint ? 3 : 2) : 0,
+      });
       apply(foul);
       if (shooting) {
-        for (let attempt = 1; attempt <= (foul.freeThrows ?? 0); attempt += 1) {
-          const made = rng.next() < 0.75;
+        const attempts = foul.freeThrows ?? 0;
+        for (let attempt = 1; attempt <= attempts; attempt += 1) {
+          const made = rng.next() < clamp(foulPolicy.freeThrowMakeProbability);
           apply(createNBAEvent(current, 'FREE_THROW', {
             teamId: possession.offenseTeamId,
             playerId: possession.ballHandler.playerId,
             made,
             points: made ? 1 : 0,
-            freeThrows: 1,
+            freeThrows: attempts,
             elapsedSeconds: 0,
             evidenceIds: foul.evidenceIds,
           }));
-          if (!made && attempt === (foul.freeThrows ?? 0)) {
+          if (!made && attempt === attempts) {
             const rebound = resolveMissedShotRebound(current, rng, reboundPolicy.offensive, reboundPolicy.defensive, foul.evidenceIds);
             apply(rebound);
           }
         }
-        if (current.offenseTeamId === possession.offenseTeamId && events.at(-1)?.kind === 'FREE_THROW' && events.at(-1)?.made) {
+        const lastEvent = events.at(-1);
+        if (lastEvent?.kind === 'FREE_THROW' && lastEvent.made) {
           current = Object.freeze({ ...current, offenseTeamId: possession.defenseTeamId, defenseTeamId: possession.offenseTeamId, shotClockSeconds: 24 });
         }
       }
@@ -126,15 +137,8 @@ export function resolveNBAOrchestratedPossession(
     }
 
     apply(event);
-    if (resolved.action === 'TURNOVER') break;
     break;
   }
-
-  apply(createNBAEvent(current, 'POSSESSION_END', {
-    teamId: current.offenseTeamId,
-    elapsedSeconds: 0,
-    evidenceIds: possession.context?.evidenceIds ?? [],
-  }));
 
   return Object.freeze({ initialState, finalState: current, events: Object.freeze(events), possession: resolved, ...(livePlayers ? { livePlayers } : {}) });
 }
