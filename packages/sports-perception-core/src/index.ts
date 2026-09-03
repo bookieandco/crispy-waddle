@@ -1,4 +1,5 @@
 export * from './adaptive-scenario-search.js';
+export * from './adaptive-simulation.js';
 export * from './api-sports-source.js';
 export * from './calibration.js';
 export * from './contracts.js';
