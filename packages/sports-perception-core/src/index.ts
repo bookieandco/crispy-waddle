@@ -9,6 +9,7 @@ export * from './joint-outcomes.js';
 export * from './live-game-watcher.js';
 export * from './market-canonicalization.js';
 export * from './market-intelligence.js';
+export * from './nba-lineup-state.js';
 export * from './nba-possession.js';
 export * from './parlay-optimizer.js';
 export * from './parlay-scenario.js';
