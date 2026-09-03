@@ -42,3 +42,5 @@ export * from "./native-plugin-ipc.js";
 export * from "./native-plugin-process-adapter.js";
 export * from "./native-plugin-worker.js";
 export * from "./native-worker-supervisor.js";
+export * from "./vst3-discovery.js";
+export * from "./vst3-instantiation.js";
