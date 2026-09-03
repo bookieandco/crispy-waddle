@@ -1,6 +1,7 @@
 import type { Sport } from './contracts.js';
 
 export type AdaptiveObjectiveKind = 'EXPECTED_VALUE' | 'WORST_CASE' | 'ROBUSTNESS' | 'DIVERSITY' | 'UNCERTAINTY';
+export type AdaptiveVariationOperator = 'CROSSOVER' | 'MUTATION' | 'SEEDED';
 
 export interface ScenarioGenome {
   scenarioId: string;
@@ -27,6 +28,25 @@ export interface ScenarioArchiveEntry {
   novelty: number;
 }
 
+export interface ExperimentObservation {
+  fingerprint: string;
+  scenarioId: string;
+  generation: number;
+  evaluation: ScenarioEvaluation;
+  operator: AdaptiveVariationOperator;
+  parentScenarioIds: readonly string[];
+  evidenceIds: readonly string[];
+  simulationIds: readonly string[];
+}
+
+export interface AdaptiveOperatorStats {
+  operator: AdaptiveVariationOperator;
+  uses: number;
+  improvements: number;
+  meanImprovement: number;
+  meanNovelty: number;
+}
+
 export interface AdaptiveSearchConfig {
   populationSize: number;
   generations: number;
@@ -36,6 +56,7 @@ export interface AdaptiveSearchConfig {
   diversityWeight: number;
   seed: number;
   archiveSize?: number;
+  operatorExplorationRate?: number;
 }
 
 export interface AdaptiveSearchResult {
@@ -46,6 +67,8 @@ export interface AdaptiveSearchResult {
   archive: readonly ScenarioGenome[];
   paretoArchive: readonly ScenarioArchiveEntry[];
   seed: number;
+  experimentMemory: readonly ExperimentObservation[];
+  operatorStats: readonly AdaptiveOperatorStats[];
 }
 
 export interface AdaptiveScenarioEvaluator { evaluate(scenario: ScenarioGenome): ScenarioEvaluation; }
@@ -85,6 +108,55 @@ function validateConfig(config: AdaptiveSearchConfig): void {
   if (!Number.isFinite(config.mutationScale) || config.mutationScale < 0) throw new Error('Mutation scale must be non-negative');
   if (!Number.isFinite(config.diversityWeight) || config.diversityWeight < 0) throw new Error('Diversity weight must be non-negative');
   if (config.archiveSize !== undefined && (!Number.isInteger(config.archiveSize) || config.archiveSize < 1)) throw new Error('Archive size must be positive');
+  if (config.operatorExplorationRate !== undefined && (!Number.isFinite(config.operatorExplorationRate) || config.operatorExplorationRate < 0 || config.operatorExplorationRate > 1)) throw new Error('Operator exploration rate must be within [0,1]');
+}
+
+export class AdaptiveExperimentMemory {
+  private readonly observationsByFingerprint = new Map<string, ExperimentObservation>();
+  private readonly observations: ExperimentObservation[] = [];
+  private readonly stats = new Map<AdaptiveVariationOperator, { uses: number; improvements: number; totalImprovement: number; totalNovelty: number }>();
+
+  constructor() {
+    for (const operator of ['CROSSOVER', 'MUTATION', 'SEEDED'] as AdaptiveVariationOperator[]) this.stats.set(operator, { uses: 0, improvements: 0, totalImprovement: 0, totalNovelty: 0 });
+  }
+
+  get size(): number { return this.observations.length; }
+  get all(): readonly ExperimentObservation[] { return Object.freeze([...this.observations]); }
+
+  find(fingerprint: string): ExperimentObservation | undefined { return this.observationsByFingerprint.get(fingerprint); }
+
+  record(observation: ExperimentObservation, improvement = 0, novelty = 0): void {
+    const existing = this.observationsByFingerprint.get(observation.fingerprint);
+    if (!existing) {
+      this.observations.push(Object.freeze({ ...observation, parentScenarioIds: Object.freeze([...observation.parentScenarioIds]), evidenceIds: Object.freeze([...observation.evidenceIds]), simulationIds: Object.freeze([...observation.simulationIds]) }));
+      this.observationsByFingerprint.set(observation.fingerprint, observation);
+    }
+    const stat = this.stats.get(observation.operator)!;
+    stat.uses += 1;
+    if (improvement > 0) stat.improvements += 1;
+    stat.totalImprovement += improvement;
+    stat.totalNovelty += Math.max(0, novelty);
+  }
+
+  operatorStats(): readonly AdaptiveOperatorStats[] {
+    return Object.freeze([...this.stats.entries()].map(([operator, stat]) => Object.freeze({
+      operator,
+      uses: stat.uses,
+      improvements: stat.improvements,
+      meanImprovement: stat.uses ? stat.totalImprovement / stat.uses : 0,
+      meanNovelty: stat.uses ? stat.totalNovelty / stat.uses : 0,
+    })));
+  }
+
+  chooseOperator(rng: RandomSource, explorationRate: number): AdaptiveVariationOperator {
+    const operators = [...this.stats.keys()];
+    if (rng.next() < explorationRate) return operators[Math.floor(rng.next() * operators.length)];
+    return [...this.operatorStats()].sort((a, b) => {
+      const scoreA = a.uses === 0 ? Number.POSITIVE_INFINITY : a.meanImprovement + 0.25 * a.meanNovelty;
+      const scoreB = b.uses === 0 ? Number.POSITIVE_INFINITY : b.meanImprovement + 0.25 * b.meanNovelty;
+      return scoreB - scoreA || a.operator.localeCompare(b.operator);
+    })[0].operator;
+  }
 }
 
 export class DefaultAdaptiveScenarioOperator implements AdaptiveScenarioOperator {
@@ -175,7 +247,12 @@ function selectParent(population: readonly ScenarioGenome[], evaluations: Readon
 }
 
 export class AdaptiveScenarioSearch {
-  constructor(private readonly config: AdaptiveSearchConfig, private readonly operator: AdaptiveScenarioOperator = new DefaultAdaptiveScenarioOperator()) { validateConfig(config); }
+  constructor(
+    private readonly config: AdaptiveSearchConfig,
+    private readonly operator: AdaptiveScenarioOperator = new DefaultAdaptiveScenarioOperator(),
+    private readonly experimentMemory: AdaptiveExperimentMemory = new AdaptiveExperimentMemory(),
+  ) { validateConfig(config); }
+
   run(runId: string, initialPopulation: readonly ScenarioGenome[], evaluator: AdaptiveScenarioEvaluator): AdaptiveSearchResult {
     if (!runId.trim()) throw new Error('Adaptive search run ID is required');
     if (initialPopulation.length !== this.config.populationSize) throw new Error('Initial population size must match configuration');
@@ -185,10 +262,23 @@ export class AdaptiveScenarioSearch {
     const archive = new Map<string, ScenarioGenome>();
     let evaluations: ScenarioEvaluation[] = [];
     let paretoArchive: ScenarioArchiveEntry[] = [];
+    const scenarioOperators = new Map<string, AdaptiveVariationOperator>();
+    const scenarioParents = new Map<string, readonly string[]>();
+    const previousFitness = new Map<string, number>();
+
+    for (const scenario of initialPopulation) scenarioOperators.set(scenario.scenarioId, 'SEEDED');
+
     for (let generation = 0; generation < this.config.generations; generation += 1) {
       evaluations = population.map((scenario) => {
         const result = evaluator.evaluate(scenario);
         if (result.scenarioId !== scenario.scenarioId || !Number.isFinite(result.fitness)) throw new Error('Evaluator returned an invalid scenario evaluation');
+        const fingerprint = scenarioFingerprint(scenario);
+        const operator = scenarioOperators.get(scenario.scenarioId) ?? 'SEEDED';
+        const parents = scenarioParents.get(scenario.scenarioId) ?? scenario.parentScenarioIds;
+        const parentFitness = parents.map((id) => previousFitness.get(id)).filter((value): value is number => value !== undefined);
+        const improvement = parentFitness.length ? result.fitness - parentFitness.reduce((sum, value) => sum + value, 0) / parentFitness.length : 0;
+        this.experimentMemory.record({ fingerprint, scenarioId: scenario.scenarioId, generation, evaluation: result, operator, parentScenarioIds: parents, evidenceIds: result.evidenceIds, simulationIds: result.simulationIds }, improvement, 0);
+        previousFitness.set(scenario.scenarioId, result.fitness);
         return Object.freeze({ ...result, evidenceIds: Object.freeze([...result.evidenceIds]), simulationIds: Object.freeze([...result.simulationIds]) });
       });
       const evaluationMap = new Map(evaluations.map((evaluation) => [evaluation.scenarioId, evaluation]));
@@ -200,19 +290,45 @@ export class AdaptiveScenarioSearch {
       ranked.slice(0, this.config.eliteCount).forEach((scenario) => archive.set(scenario.scenarioId, scenario));
       paretoArchive = buildParetoArchive(population, evaluations, this.config.archiveSize ?? this.config.populationSize);
       if (generation === this.config.generations - 1) break;
+
       const next: ScenarioGenome[] = ranked.slice(0, this.config.eliteCount);
       while (next.length < this.config.populationSize) {
         const left = selectParent(population, evaluationMap, rng, this.config.diversityWeight);
         const right = selectParent(population, evaluationMap, rng, this.config.diversityWeight);
         const childId = `${runId}:g${generation + 1}:s${next.length + 1}`;
-        let child = this.operator.crossover(left, right, childId, rng);
-        if (rng.next() < this.config.mutationRate) child = this.operator.mutate(child, childId, rng, this.config.mutationScale);
+        const explorationRate = this.config.operatorExplorationRate ?? 0.2;
+        const learnedOperator = this.experimentMemory.chooseOperator(rng, explorationRate);
+        let child: ScenarioGenome;
+        if (learnedOperator === 'MUTATION') {
+          child = this.operator.mutate(left, childId, rng, this.config.mutationScale);
+          scenarioOperators.set(childId, 'MUTATION');
+          scenarioParents.set(childId, Object.freeze([left.scenarioId]));
+        } else {
+          child = this.operator.crossover(left, right, childId, rng);
+          scenarioOperators.set(childId, 'CROSSOVER');
+          scenarioParents.set(childId, Object.freeze([left.scenarioId, right.scenarioId]));
+          if (learnedOperator !== 'SEEDED' && rng.next() < this.config.mutationRate) {
+            child = this.operator.mutate(child, childId, rng, this.config.mutationScale);
+            scenarioOperators.set(childId, 'MUTATION');
+            scenarioParents.set(childId, Object.freeze([left.scenarioId, right.scenarioId]));
+          }
+        }
         next.push(child);
       }
       population = Object.freeze(next);
     }
     const finalEvaluations = [...evaluations].sort((a, b) => b.fitness - a.fitness || a.scenarioId.localeCompare(b.scenarioId));
-    return Object.freeze({ runId, generation: this.config.generations - 1, population, evaluations: Object.freeze(finalEvaluations), archive: Object.freeze([...archive.values()]), paretoArchive: Object.freeze(paretoArchive.map((entry) => Object.freeze({ ...entry }))), seed: this.config.seed });
+    return Object.freeze({
+      runId,
+      generation: this.config.generations - 1,
+      population,
+      evaluations: Object.freeze(finalEvaluations),
+      archive: Object.freeze([...archive.values()]),
+      paretoArchive: Object.freeze(paretoArchive.map((entry) => Object.freeze({ ...entry }))),
+      seed: this.config.seed,
+      experimentMemory: this.experimentMemory.all,
+      operatorStats: this.experimentMemory.operatorStats(),
+    });
   }
 }
 
