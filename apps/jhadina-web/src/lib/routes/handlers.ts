@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getJhadinaApplication } from "../application/createJhadinaApplication"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
+import { handleJhadinaCommand } from "../intelligence/jhadina-command"
 import type { MemoryStorage } from "../storage/MemoryStorage"
 
 /**
@@ -47,26 +48,43 @@ export async function handleMessage(req: NextRequest) {
       )
     }
 
-    if (message.trim().length === 0) {
+    const activeTask = message.trim()
+    if (activeTask.length === 0) {
       return NextResponse.json(
         { error: "Message cannot be empty" },
         { status: 400 },
       )
     }
 
-    const response = await getJanetService().processMessage({
+    // The live Ask Jhadina write path is governed end-to-end:
+    // verified identity -> context -> model decision -> fixed capability
+    // -> policy/approval -> ActionExecutor -> audit -> durable verification.
+    // Do not call JanetService.processMessage() here: that legacy method
+    // remains available for compatibility tests but is not a production
+    // authorization/mutation boundary.
+    const result = await handleJhadinaCommand({
       userId,
-      message: message.trim(),
+      activeTask,
+      route: "/api/message",
+      memoryRelevanceQuery: activeTask,
     })
 
     return NextResponse.json({
       success: true,
       data: {
-        reasoningEventId: response.reasoningEventId,
-        candidateId: response.memoryCandidate.id,
-        classification: response.classification,
-        systemResponse: response.response,
-        confidence: response.confidence,
+        reasoningEventId: result.candidate?.reasoningEventId,
+        candidateId: result.candidate?.id,
+        classification: result.candidate
+          ? {
+              type: result.candidate.type,
+              confidence: result.candidate.confidence,
+            }
+          : undefined,
+        systemResponse: result.proposal.rationale,
+        confidence: result.candidate?.confidence,
+        disposition: result.proposal.disposition,
+        proposalId: result.proposal.id,
+        verified: result.verified,
       },
     })
   } catch (error) {
