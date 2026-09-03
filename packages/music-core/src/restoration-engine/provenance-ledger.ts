@@ -27,11 +27,13 @@ export interface RestorationVersion {
 
 export interface ProvenanceLedgerEntry {
   id: string;
-  type: "artifact-registered" | "version-created";
+  type: "artifact-registered" | "version-created" | "execution-completed" | "execution-failed" | "execution-aborted";
   artifactId?: string;
   versionId?: string;
   sourceArtifactId?: string;
-  contentHash: string;
+  executionId?: string;
+  receiptId?: string;
+  contentHash?: string;
   createdAt: string;
 }
 
@@ -89,6 +91,21 @@ export class RestorationProvenanceLedger {
       contentHash: output.contentHash,
       createdAt: version.createdAt,
     });
+    return normalized;
+  }
+
+  recordExecutionAudit(entry: ProvenanceLedgerEntry): ProvenanceLedgerEntry {
+    if (!["execution-completed", "execution-failed", "execution-aborted"].includes(entry.type)) {
+      throw new Error("Only execution audit events may be appended here.");
+    }
+    if (!entry.executionId || !entry.receiptId || !entry.sourceArtifactId) {
+      throw new Error("Execution audit requires execution, receipt, and source artifact identifiers.");
+    }
+    if (this.entries.some((existing) => existing.id === entry.id)) {
+      throw new Error(`Ledger entry already exists: ${entry.id}`);
+    }
+    const normalized = { ...entry };
+    this.entries.push(normalized);
     return normalized;
   }
 
