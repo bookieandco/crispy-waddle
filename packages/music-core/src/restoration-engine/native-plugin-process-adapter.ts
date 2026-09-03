@@ -74,7 +74,7 @@ export function createNativePluginProcessAdapter(
   };
 
   return {
-    discover: (pluginPath) => dispatch("discover", { pluginPath: undefined }),
+    discover: (_pluginPath) => dispatch("discover"),
     load: (pluginPath) => dispatch("load", { pluginPath }),
     configure: () => dispatch("configure", { audio: binding.audio }),
     bindAutomation: (automation) => dispatch("set_automation", { automation }),
