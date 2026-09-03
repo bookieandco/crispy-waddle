@@ -25,13 +25,12 @@ export interface ExecutionAttempt {
   recoveryRequired: boolean;
 }
 
+export type ExecutionAttemptOutcome = Pick<ExecutionAttempt, 'state' | 'providerReference' | 'errorCode' | 'errorMessage' | 'recoveryRequired'>;
+
 export interface ExecutionAttemptStore {
   start(attempt: ExecutionAttempt): Promise<void> | void;
-  complete(
-    attemptId: string,
-    outcome: Pick<ExecutionAttempt, 'state' | 'providerReference' | 'errorCode' | 'errorMessage' | 'recoveryRequired'>,
-    completedAt?: string,
-  ): Promise<void> | void;
+  complete(attemptId: string, outcome: ExecutionAttemptOutcome, completedAt?: string): Promise<void> | void;
+  resolve(attemptId: string, outcome: ExecutionAttemptOutcome, completedAt?: string): Promise<void> | void;
   get(attemptId: string): Promise<ExecutionAttempt | undefined> | ExecutionAttempt | undefined;
 }
 
