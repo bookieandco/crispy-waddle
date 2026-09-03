@@ -12,3 +12,4 @@ export * from "./spectral-analysis.js";
 export * from "./multi-signal-damage.js";
 export * from "./local-baseline.js";
 export * from "./damage-region.js";
+export * from "./protected-events.js";
