@@ -24,7 +24,6 @@ export type { PlaidReadOnlyAdapterOptions } from './plaid-read-only-adapter.js';
 export { PlaidReadOnlyAdapter } from './plaid-read-only-adapter.js';
 export { buildPlaidReadOnlyAdapter, createPlaidReadOnlyAdapterBuilder } from './plaid-provider-builder.js';
 export { PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, assertPlaidSandboxBaseUrl, createPlaidProviderAdapterFactory } from './plaid-provider-registration.js';
-
 export type { AssetClass, EvidenceQuality, EvidenceRef, FinancialHypothesis, PredictionDistribution, OpportunityCandidate, AllocationDecision, CapitalAllocationRequest, CapitalAllocationDecision, CanonicalFinancialAction } from './financial-intelligence-contracts.js';
 export { assertIntelligenceOnly, assertProbability, assertPositiveAmount } from './financial-intelligence-contracts.js';
 export type { InvoiceEvidence, InvoiceValidationState, InvoiceAccountingCandidate } from './invoice-evidence.js';
@@ -55,3 +54,5 @@ export type { ProviderExecutionIdentity } from './provider-execution-identity.js
 export { createProviderExecutionIdentity, createProviderExecutionIdentityFromAttempt, assertProviderExecutionIdentity } from './provider-execution-identity.js';
 export type { AtomicRecoveryResolver, PostgresAtomicRecoveryResolverOptions } from './postgres-atomic-recovery-resolver.js';
 export { PostgresAtomicRecoveryResolver } from './postgres-atomic-recovery-resolver.js';
+export type { StripePaymentIntentReconciliationAdapterOptions } from './stripe-payment-intent-reconciliation-adapter.js';
+export { StripePaymentIntentReconciliationAdapter } from './stripe-payment-intent-reconciliation-adapter.js';
