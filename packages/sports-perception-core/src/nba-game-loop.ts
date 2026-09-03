@@ -5,6 +5,8 @@ import type { NBAPossessionState } from './nba-possession.js';
 import { resolveNBAOrchestratedPossession } from './nba-possession-orchestrator.js';
 import type { NBALivePlayerState } from './nba-live-state.js';
 import { resolveNBARotationFeedback } from './nba-rotation-feedback.js';
+import type { NBACanonicalEventLedger } from './nba-canonical-ledger.js';
+import { NBAEventLedger, hashNBAState } from './nba-canonical-ledger.js';
 
 export interface NBAGameLoopInput {
   state: NBAEventGameState;
@@ -19,6 +21,7 @@ export interface NBAGameLoopResult {
   initialState: NBAEventGameState;
   finalState: NBAEventGameState;
   events: readonly NBAEvent[];
+  ledger: NBACanonicalEventLedger;
   livePlayers?: Readonly<Record<string, NBALivePlayerState>>;
   rotations: number;
   possessions: number;
@@ -31,62 +34,59 @@ export function runNBAGameLoop(input: NBAGameLoopInput): NBAGameLoopResult {
   if (!Number.isInteger(maxPossessions) || maxPossessions < 0) throw new Error('maxPossessions must be a non-negative integer');
 
   const initialState = input.state;
-  let state = input.state;
+  const ledger = new NBAEventLedger(initialState);
   let livePlayers = input.livePlayers;
-  const events: NBAEvent[] = [];
   let rotations = 0;
   let possessions = 0;
 
-  while (possessions < maxPossessions && state.periodSecondsRemaining > 0) {
+  while (possessions < maxPossessions && ledger.snapshot().finalState.periodSecondsRemaining > 0) {
+    const state = ledger.snapshot().finalState;
     const possession = input.possessionFactory(state);
     const result = resolveNBAOrchestratedPossession(state, possession, input.rng, {
       livePlayers,
       asOf: input.asOf,
     });
-    state = result.finalState;
-    livePlayers = result.livePlayers;
-    events.push(...result.events);
 
-    if (state.offenseLineup || state.defenseLineup) {
-      const feedback = resolveNBARotationFeedback(state, livePlayers ?? {}, undefined);
+    for (const event of result.events) ledger.append(event);
+
+    const afterPossession = ledger.snapshot().finalState;
+    if (hashNBAState(afterPossession) !== hashNBAState(result.finalState)) {
+      throw new Error('NBA possession result diverges from canonical ledger state');
+    }
+    livePlayers = result.livePlayers;
+
+    if (afterPossession.offenseLineup || afterPossession.defenseLineup) {
+      const feedback = resolveNBARotationFeedback(afterPossession, livePlayers ?? {}, undefined);
       if (feedback.decisions.length > 0) {
-        state = Object.freeze({
-          ...state,
-          offenseLineup: feedback.offenseLineup,
-          defenseLineup: feedback.defenseLineup,
-        });
         livePlayers = feedback.players;
         for (const decision of feedback.decisions) {
+          const current = ledger.snapshot().finalState;
           const teamId = decision.playerOut
-            ? (state.players[decision.playerOut]?.teamId ?? state.offenseTeamId)
-            : state.offenseTeamId;
-          const substitution = createNBAEvent(state, 'SUBSTITUTION', {
+            ? (current.players[decision.playerOut]?.teamId ?? current.offenseTeamId)
+            : current.offenseTeamId;
+          const substitution = createNBAEvent(current, 'SUBSTITUTION', {
             teamId,
             playerId: decision.playerIn,
             opponentPlayerId: decision.playerOut,
             elapsedSeconds: 0,
-            evidenceIds: state.evidenceIds,
+            evidenceIds: current.evidenceIds,
           });
-          events.push(substitution);
-          state = Object.freeze({
-            ...state,
-            sequence: substitution.sequence,
-            lastEventId: substitution.eventId,
-            evidenceIds: Object.freeze([...new Set([...state.evidenceIds, ...substitution.evidenceIds])].sort()),
-          });
+          ledger.append(substitution);
           rotations += 1;
         }
       }
     }
 
     possessions += 1;
-    if (state.periodSecondsRemaining <= 0) break;
+    if (ledger.snapshot().finalState.periodSecondsRemaining <= 0) break;
   }
 
+  const snapshot = ledger.snapshot();
   return Object.freeze({
     initialState,
-    finalState: state,
-    events: Object.freeze(events),
+    finalState: snapshot.finalState,
+    events: Object.freeze(snapshot.transitions.map((transition) => transition.event)),
+    ledger: snapshot,
     ...(livePlayers ? { livePlayers } : {}),
     rotations,
     possessions,
