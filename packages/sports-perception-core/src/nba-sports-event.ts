@@ -1,11 +1,19 @@
 import type { SportsEvent } from './sports-event.js';
 import type { NBAEvent } from './nba-event-state-machine.js';
+import { parseCanonicalNBAEventId } from './nba-event-identity.js';
+
+function gameIdFor(event: NBAEvent): string {
+  if (event.eventId.startsWith('nba-event-v2:')) return parseCanonicalNBAEventId(event.eventId).gameId;
+  const separator = event.eventId.lastIndexOf(':');
+  if (separator <= 0) throw new Error(`Invalid legacy NBA event ID: ${event.eventId}`);
+  return event.eventId.slice(0, separator);
+}
 
 export function toNBASportsEvent(event: NBAEvent, sportEventId = event.eventId): SportsEvent {
   return Object.freeze({
     eventId: sportEventId,
     sport: 'NBA',
-    gameId: event.eventId.split(':')[0],
+    gameId: gameIdFor(event),
     sequence: event.sequence,
     eventType: event.kind,
     phase: event.period !== undefined && event.period > 4 ? 'OVERTIME' : 'REGULATION',
