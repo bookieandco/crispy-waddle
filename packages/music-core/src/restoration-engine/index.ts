@@ -5,3 +5,4 @@ export * from "./candidate-ranking.js";
 export * from "./adapter-registry.js";
 export * from "./evidence-engine.js";
 export * from "./damage-assessment.js";
+export * from "./audio-input.js";
