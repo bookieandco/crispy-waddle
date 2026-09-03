@@ -24,7 +24,7 @@ type StripePaymentIntent = {
 export class StripePaymentIntentReconciliationAdapter implements MoneyExecutionReconciliationAdapter {
   readonly provider = 'stripe';
   readonly adapterId = 'stripe-payment-intent-reconciliation';
-  readonly adapterVersion = 2;
+  readonly adapterVersion = 3;
   private readonly baseUrl: string;
   private readonly fetchImpl: HttpClient;
   private readonly secret: string;
@@ -41,23 +41,31 @@ export class StripePaymentIntentReconciliationAdapter implements MoneyExecutionR
 
   canReconcile(attempt: ExecutionAttempt): boolean {
     return attempt.provider === this.provider && attempt.operation === 'money.payment.create'
-      && !!attempt.providerReference && /^pi_[A-Za-z0-9]+$/.test(attempt.providerReference);
+      && !!attempt.providerReference && /^pi_[A-Za-z0-9]+$/.test(attempt.providerReference)
+      && !!attempt.actionSnapshot;
   }
 
   async reconcile(attempt: ExecutionAttempt): Promise<RecoveryObservation> {
     if (!this.canReconcile(attempt)) throw new Error('MONEY_STRIPE_RECONCILIATION_UNSUPPORTED_EXECUTION');
     const identity = createProviderExecutionIdentityFromAttempt(attempt);
+    const action = attempt.actionSnapshot;
+    if (action.provider !== this.provider || action.capability !== 'money.payment.create') {
+      throw new Error('MONEY_STRIPE_RECONCILIATION_ACTION_MISMATCH');
+    }
+    if (attempt.actionFingerprint !== identity.actionFingerprint) throw new Error('MONEY_STRIPE_RECONCILIATION_FINGERPRINT_MISMATCH');
+
     const checkedAt = new Date().toISOString();
     const paymentIntent = await this.getPaymentIntent(attempt.providerReference!);
     const metadata = isRecord(paymentIntent.metadata) ? paymentIntent.metadata : {};
     const providerReference = typeof paymentIntent.id === 'string' ? paymentIntent.id : undefined;
+    const expectedAmountMinor = toStripeMinorUnits(action.amount, action.currency);
+    const providerCurrency = typeof paymentIntent.currency === 'string' ? paymentIntent.currency.toUpperCase() : undefined;
+    const amountMatches = paymentIntent.amount === expectedAmountMinor && providerCurrency === action.currency.toUpperCase();
     const identityMatches = providerReference === identity.providerReference
       && metadata.jhadina_execution_id === identity.executionId
       && metadata.jhadina_action_fingerprint === identity.actionFingerprint
       && metadata.jhadina_idempotency_key === identity.idempotencyKey;
-    const amountMatches = paymentIntent.amount === undefined || typeof paymentIntent.amount !== 'number'
-      ? false : paymentIntent.amount === Number.parseInt(identity.actionFingerprint.slice(0, 0) || '0', 10) || true;
-    const observedState = identityMatches ? classifyStripePaymentIntent(paymentIntent.status) : 'CONFLICT';
+    const observedState = identityMatches && amountMatches ? classifyStripePaymentIntent(paymentIntent.status) : 'CONFLICT';
     const observationWithoutHash: Omit<RecoveryObservation, 'evidenceHash'> = {
       executionId: identity.executionId,
       proposalHash: identity.actionFingerprint,
@@ -71,6 +79,8 @@ export class StripePaymentIntentReconciliationAdapter implements MoneyExecutionR
         status: paymentIntent.status ?? null,
         amount: paymentIntent.amount ?? null,
         currency: paymentIntent.currency ?? null,
+        expectedAmountMinor,
+        expectedCurrency: action.currency,
         identityMatch: identityMatches,
         amountValidated: amountMatches,
         metadataKeysPresent: Object.keys(metadata).filter((key) => key.startsWith('jhadina_')).sort(),
@@ -101,6 +111,19 @@ export class StripePaymentIntentReconciliationAdapter implements MoneyExecutionR
 function isRecord(value: unknown): value is Record<string, string> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
+
+function toStripeMinorUnits(amount: string, currency: string): number {
+  const numeric = Number(amount);
+  if (!Number.isFinite(numeric) || numeric <= 0) throw new Error('MONEY_STRIPE_RECONCILIATION_AMOUNT_INVALID');
+  const code = currency.toUpperCase();
+  const exponent = ZERO_DECIMAL_CURRENCIES.has(code) ? 0 : THREE_DECIMAL_CURRENCIES.has(code) ? 3 : 2;
+  const minor = Math.round(numeric * (10 ** exponent));
+  if (!Number.isSafeInteger(minor) || minor <= 0) throw new Error('MONEY_STRIPE_RECONCILIATION_AMOUNT_INVALID');
+  return minor;
+}
+
+const ZERO_DECIMAL_CURRENCIES = new Set(['BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF']);
+const THREE_DECIMAL_CURRENCIES = new Set(['BHD', 'JOD', 'KWD', 'OMR', 'TND']);
 
 function classifyStripePaymentIntent(status: unknown): RecoveryObservation['observedState'] {
   switch (status) {
