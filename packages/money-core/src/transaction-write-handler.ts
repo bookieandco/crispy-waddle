@@ -5,6 +5,7 @@ import { type ApprovalPort } from './approval-port.js';
 import { type IdempotencyStore } from './idempotency-store.js';
 import { authorizeAndConsumeMoneyPermit, toExecutionAction, type MoneyExecutionPermit } from './execution-permit-gate.js';
 import { createExecutionAttempt, type ExecutionAttemptStore } from './execution-attempt.js';
+import { createProviderExecutionIdentityFromAttempt } from './provider-execution-identity.js';
 import type { PermitStore } from './execution-permit.js';
 
 export type PaymentCreateAction = { capability: 'money.payment.create'; provider: string; accountId: string; amount: number; currency: string; payeeId: string };
@@ -69,17 +70,26 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
       operation: action.capability, now: this.deps.policyClock?.() ?? new Date().toISOString(),
     });
     await this.deps.executionAttempts.start(attempt);
+    const providerIdentity = createProviderExecutionIdentityFromAttempt(attempt);
+    const adapterContext = {
+      userId: request.userId,
+      capability: action.capability,
+      requestId: request.id,
+      idempotencyKey: providerIdentity.idempotencyKey,
+      executionId: providerIdentity.executionId,
+      actionFingerprint: providerIdentity.actionFingerprint,
+    };
 
     let result: TransactionWriteResult;
     try {
       if (action.capability === 'money.payment.create') {
         result = await adapter.createPayment!(
-          { userId: request.userId, capability: action.capability, requestId: request.id, idempotencyKey: attempt.idempotencyKey },
+          adapterContext,
           { accountId: action.accountId, amount: action.amount, currency: action.currency, payeeId: action.payeeId },
         );
       } else {
         result = await adapter.createTransfer!(
-          { userId: request.userId, capability: action.capability, requestId: request.id, idempotencyKey: attempt.idempotencyKey },
+          adapterContext,
           { fromAccountId: action.fromAccountId, toAccountId: action.toAccountId, amount: action.amount, currency: action.currency },
         );
       }
