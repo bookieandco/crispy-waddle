@@ -1,3 +1,4 @@
+export * from './adaptive-experiment-memory.js';
 export * from './adaptive-scenario-search.js';
 export * from './adaptive-simulation.js';
 export * from './api-sports-source.js';
