@@ -13,11 +13,16 @@ export type DlmmReconstructionResult = {
 }
 
 const transitionKey = (t: DlmmPositionTransition) => `${t.signature}:${t.eventId}`
+const withinFiveMinutes = (a: string, b: string) => {
+  const left = Date.parse(a)
+  const right = Date.parse(b)
+  return Number.isFinite(left) && Number.isFinite(right) && left >= right && left - right <= 5 * 60 * 1000
+}
 
 /**
- * Pure state reconstruction boundary. The decoder is deliberately injected:
- * raw Solana/Anchor layout knowledge belongs in the authoritative decoder,
- * while this reducer owns lifecycle invariants and downstream semantics.
+ * Pure state reconstruction boundary. Raw Solana/Anchor layout knowledge stays
+ * in the injected authoritative decoder; this layer owns lifecycle invariants
+ * and converts only actual REMOVE transitions into downstream observations.
  */
 export function reconstructMeteoraDlmmPositions(input: {
   transactions: HistoricalPoolTransaction[]
@@ -28,6 +33,7 @@ export function reconstructMeteoraDlmmPositions(input: {
   const seen = new Set<string>()
   const withdrawals: DlmmWithdrawalObservation[] = []
   const rejected: Array<{ eventId: string; reason: string }> = []
+  const lastRebalance = new Map<string, string>()
 
   const transitions = input.transactions
     .flatMap(tx => input.decoder.decode(tx))
@@ -51,21 +57,29 @@ export function reconstructMeteoraDlmmPositions(input: {
     }
 
     states.set(transition.positionAddress, result.state)
+    if (transition.action === 'REBALANCE') {
+      lastRebalance.set(transition.positionAddress, transition.observedAt)
+      continue
+    }
 
     if (result.withdrawal) {
-      const before = current
       const removedBps = result.withdrawal.removedBps ?? 0
-      const oneSided = result.withdrawal.oneSided ??
-        ((result.withdrawal.tokenXDeltas ?? 0n) === 0n) !== ((result.withdrawal.tokenYDeltas ?? 0n) === 0n)
+      const xDelta = result.withdrawal.tokenXDeltas ?? 0n
+      const yDelta = result.withdrawal.tokenYDeltas ?? 0n
+      const oneSided = result.withdrawal.oneSided ?? ((xDelta === 0n) !== (yDelta === 0n))
+      const rebalanceAt = lastRebalance.get(result.withdrawal.positionAddress)
       const positionClosed = result.state.lifecycle === 'CLOSED'
-      const priorEvidence = before?.evidenceIds ?? []
+      const tokenMint = (result.withdrawal as DlmmPositionTransition & { tokenMint?: string }).tokenMint
+      if (!tokenMint) {
+        rejected.push({ eventId: transition.eventId, reason: 'MISSING_TOKEN_MINT' })
+        continue
+      }
+
       withdrawals.push({
         eventId: result.withdrawal.eventId,
         signature: result.withdrawal.signature,
         poolAddress: result.withdrawal.poolAddress,
-        // The authoritative decoder must supply tokenMint through the pool transaction
-        // envelope in a later adapter; use the pool address only as an explicit sentinel.
-        tokenMint: '',
+        tokenMint,
         observedAt: result.withdrawal.observedAt,
         positionAddress: result.withdrawal.positionAddress,
         ownerId: result.state.owner,
@@ -73,8 +87,7 @@ export function reconstructMeteoraDlmmPositions(input: {
         removedBps,
         oneSided,
         positionClosed,
-        rebalanceBeforeWithdrawal: priorEvidence.length > 0 &&
-          result.state.evidenceIds.some(id => priorEvidence.includes(id)),
+        rebalanceBeforeWithdrawal: !!rebalanceAt && withinFiveMinutes(result.withdrawal.observedAt, rebalanceAt),
         evidenceIds: [...new Set([...result.withdrawal.evidenceIds, ...result.state.evidenceIds])],
         confidence: result.withdrawal.confidence,
       })
