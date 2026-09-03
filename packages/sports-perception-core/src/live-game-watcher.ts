@@ -74,6 +74,15 @@ function compareNotes(a: GameNote, b: GameNote): number {
   return a.noteId.localeCompare(b.noteId);
 }
 
+function cloneNote(note: GameNote): GameNote {
+  return {
+    ...note,
+    subjectIds: [...note.subjectIds],
+    evidenceIds: [...note.evidenceIds],
+    derivedFromObservationIds: [...note.derivedFromObservationIds],
+  };
+}
+
 /**
  * Append-only game notebook. Perception is kept separate from interpretation:
  * detectors/classifiers can ingest observations, while inference/hypothesis
@@ -124,36 +133,52 @@ export class LiveGameWatcher {
       derivedFromObservationIds: [observation.observationId],
     };
     this.notes.set(note.noteId, note);
-    return { ...note };
+    return cloneNote(note);
   }
 
   addInterpretation(note: Omit<GameNote, 'derivedFromObservationIds'> & { derivedFromObservationIds: readonly string[] }): GameNote {
     if (!['INFERENCE', 'HYPOTHESIS'].includes(note.type)) throw new Error('interpretation must be inference or hypothesis');
     if (note.derivedFromObservationIds.length === 0) throw new Error('interpretation requires observations');
-    for (const id of note.derivedFromObservationIds) {
-      if (!this.observations.has(id)) throw new Error(`unknown observation: ${id}`);
-    }
+    const sourceObservations = note.derivedFromObservationIds.map((id) => {
+      const observation = this.observations.get(id);
+      if (!observation) throw new Error(`unknown observation: ${id}`);
+      if (observation.eventId !== note.eventId) throw new Error('interpretation crosses event boundaries');
+      return observation;
+    });
     assertProbability(note.confidence);
     if (this.notes.has(note.noteId)) throw new Error('note already exists');
-    const stored = {
+    if (note.type === 'HYPOTHESIS' && note.sourceTimestamp !== undefined) {
+      const latestSource = Math.max(...sourceObservations.map((item) => item.sourceTimestamp ?? -Infinity));
+      if (Number.isFinite(latestSource) && note.sourceTimestamp < latestSource) {
+        throw new Error('hypothesis cannot precede its source observations');
+      }
+    }
+    const stored: GameNote = {
       ...note,
       subjectIds: [...note.subjectIds],
       evidenceIds: [...note.evidenceIds],
       derivedFromObservationIds: [...note.derivedFromObservationIds],
     };
     this.notes.set(note.noteId, stored);
-    return { ...stored };
+    return cloneNote(stored);
   }
 
   validateHypothesis(hypothesisNoteId: string, validationNote: Omit<GameNote, 'type' | 'relationToNoteId'>): HypothesisValidation {
     const hypothesis = this.notes.get(hypothesisNoteId);
     if (!hypothesis || hypothesis.type !== 'HYPOTHESIS') throw new Error('hypothesis note not found');
-    const derived = new Set(validationNote.derivedFromObservationIds);
-    const hypothesisObservations = new Set(hypothesis.derivedFromObservationIds);
-    for (const id of derived) {
-      if (!this.observations.has(id)) throw new Error(`unknown observation: ${id}`);
-      if (id === [...hypothesisObservations][0]) continue;
+    if (validationNote.eventId !== hypothesis.eventId) throw new Error('validation crosses event boundaries');
+    if (validationNote.sourceTimestamp !== undefined && hypothesis.sourceTimestamp !== undefined && validationNote.sourceTimestamp < hypothesis.sourceTimestamp) {
+      throw new Error('validation cannot precede hypothesis');
     }
+    for (const id of validationNote.derivedFromObservationIds) {
+      const observation = this.observations.get(id);
+      if (!observation) throw new Error(`unknown observation: ${id}`);
+      if (observation.eventId !== hypothesis.eventId) throw new Error('validation crosses event boundaries');
+      if (hypothesis.sourceTimestamp !== undefined && observation.sourceTimestamp !== undefined && observation.sourceTimestamp < hypothesis.sourceTimestamp) {
+        throw new Error('validation evidence must occur after hypothesis');
+      }
+    }
+    assertProbability(validationNote.confidence);
     const validation: GameNote = {
       ...validationNote,
       type: 'VALIDATION',
@@ -174,6 +199,7 @@ export class LiveGameWatcher {
 
   correctNote(noteId: string, correction: Omit<GameNote, 'type' | 'relationToNoteId'>): GameNote {
     if (!this.notes.has(noteId)) throw new Error('note not found');
+    if (correction.eventId !== this.notes.get(noteId)?.eventId) throw new Error('correction crosses event boundaries');
     const note: GameNote = {
       ...correction,
       type: 'CORRECTION',
@@ -182,9 +208,10 @@ export class LiveGameWatcher {
       evidenceIds: [...correction.evidenceIds],
       derivedFromObservationIds: [...correction.derivedFromObservationIds],
     };
+    assertProbability(note.confidence);
     if (this.notes.has(note.noteId)) throw new Error('note already exists');
     this.notes.set(note.noteId, note);
-    return { ...note };
+    return cloneNote(note);
   }
 
   getObservations(eventId?: string): readonly PerceptionObservation[] {
@@ -198,6 +225,6 @@ export class LiveGameWatcher {
     return [...this.notes.values()]
       .filter((item) => eventId === undefined || item.eventId === eventId)
       .sort(compareNotes)
-      .map((item) => ({ ...item, subjectIds: [...item.subjectIds], evidenceIds: [...item.evidenceIds], derivedFromObservationIds: [...item.derivedFromObservationIds] }));
+      .map(cloneNote);
   }
 }
