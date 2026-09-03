@@ -21,7 +21,7 @@ export { createGovernedProviderAccountReadExecutor } from './governed-provider-a
 export type { HttpClient, ReadOnlyHttpBankAdapterOptions } from './read-only-http-bank-adapter.js';
 export { ReadOnlyHttpBankAdapter } from './read-only-http-bank-adapter.js';
 export type { PlaidReadOnlyAdapterOptions } from './plaid-read-only-adapter.js';
-export { PlaidReadOnlyBankAdapter } from './plaid-read-only-bank-adapter.js';
+export { PlaidReadOnlyAdapter } from './plaid-read-only-adapter.js';
 export { buildPlaidReadOnlyAdapter, createPlaidReadOnlyAdapterBuilder } from './plaid-provider-builder.js';
 export { PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, assertPlaidSandboxBaseUrl, createPlaidProviderAdapterFactory } from './plaid-provider-registration.js';
 
@@ -45,3 +45,5 @@ export type { PostgresExecutionRecoveryLedgerOptions } from './postgres-executio
 export { PostgresExecutionRecoveryLedger, recoveryEvidenceHash } from './postgres-execution-recovery-ledger.js';
 export type { ExecutionRecoveryServiceOptions } from './execution-recovery-service.js';
 export { MoneyExecutionRecoveryService } from './execution-recovery-service.js';
+export type { MoneyExecutionReconciliationAdapter } from './execution-reconciliation-adapter.js';
+export { ExecutionReconciliationAdapterRegistry, createExecutionReconciler } from './execution-reconciliation-adapter.js';
