@@ -21,7 +21,7 @@ export { createGovernedProviderAccountReadExecutor } from './governed-provider-a
 export type { HttpClient, ReadOnlyHttpBankAdapterOptions } from './read-only-http-bank-adapter.js';
 export { ReadOnlyHttpBankAdapter } from './read-only-http-bank-adapter.js';
 export type { PlaidReadOnlyAdapterOptions } from './plaid-read-only-adapter.js';
-export { PlaidReadOnlyBankAdapter } from './plaid-read-only-adapter.js';
+export { PlaidReadOnlyBankAdapter } from './plaid-read-only-bank-adapter.js';
 export { buildPlaidReadOnlyAdapter, createPlaidReadOnlyAdapterBuilder } from './plaid-provider-builder.js';
 export { PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, assertPlaidSandboxBaseUrl, createPlaidProviderAdapterFactory } from './plaid-provider-registration.js';
 
@@ -35,3 +35,9 @@ export type { PostgresPermitStoreOptions } from './postgres-permit-store.js';
 export { PostgresPermitStore } from './postgres-permit-store.js';
 export type { MoneyExecutionPermit } from './execution-permit-gate.js';
 export { toExecutionAction, authorizeAndConsumeMoneyPermit } from './execution-permit-gate.js';
+export type { ExecutionAttempt, ExecutionAttemptState, ExecutionAttemptStore } from './execution-attempt.js';
+export { createExecutionAttempt, executionIdempotencyKey } from './execution-attempt.js';
+export type { PostgresExecutionAttemptStoreOptions } from './postgres-execution-attempt-store.js';
+export { PostgresExecutionAttemptStore } from './postgres-execution-attempt-store.js';
+export type { RecoveryObservation, RecoveryDisposition, RecoveryResult, ExecutionReconciler, ExecutionRecoveryLedger } from './execution-recovery.js';
+export { classifyRecovery } from './execution-recovery.js';
