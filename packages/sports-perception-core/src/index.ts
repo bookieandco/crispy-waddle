@@ -17,6 +17,7 @@ export * from './parlay-optimizer.js';
 export * from './parlay-scenario.js';
 export * from './player-attributes.js';
 export * from './player-event-simulation.js';
+export * from './player-fatigue.js';
 export * from './player-simulation.js';
 export * from './prediction-ledger.js';
 export * from './reconciliation.js';
