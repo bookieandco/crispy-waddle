@@ -9,31 +9,21 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { JanetService } from "../services/JanetService"
-import { Classifier } from "../services/Classifier"
-import { MemoryRepository } from "../repositories/MemoryRepository"
-import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
-import { TimelineRepository } from "../repositories/TimelineRepository"
+import { getJhadinaApplication } from "../application/createJhadinaApplication"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
-import { createMemoryStorage } from "../storage/createMemoryStorage"
 import type { MemoryStorage } from "../storage/MemoryStorage"
 
-let storage: MemoryStorage
-let janet: JanetService
-
+/**
+ * Returns the one canonical application storage instance. Keeping route
+ * handlers on the composition root prevents a second in-memory universe in
+ * tests/local development and keeps production on the same durable backend.
+ */
 export function getStorage(): MemoryStorage {
-  if (!storage) storage = createMemoryStorage()
-  return storage
+  return getJhadinaApplication().storage
 }
 
-function getJanetService(): JanetService {
-  if (!janet) {
-    const memoryRepo = new MemoryRepository(getStorage())
-    const reasoningRepo = new ReasoningEventRepository(getStorage())
-    const timelineRepo = new TimelineRepository(getStorage())
-    janet = new JanetService(new Classifier(), memoryRepo, reasoningRepo, timelineRepo)
-  }
-  return janet
+function getJanetService() {
+  return getJhadinaApplication().janet
 }
 
 async function verifyUserId(req: NextRequest): Promise<string> {
@@ -149,7 +139,7 @@ export async function handleRejectMemory(req: NextRequest) {
 export async function handleListCandidates(req: NextRequest) {
   try {
     const userId = await verifyUserId(req)
-    const candidates = await new MemoryRepository(getStorage()).listPending(userId)
+    const candidates = await getJhadinaApplication().memoryRepo.listPending(userId)
     return NextResponse.json({
       success: true,
       data: { candidates, count: candidates.length },
@@ -169,7 +159,7 @@ export async function handleListCandidates(req: NextRequest) {
 export async function handleListMemories(req: NextRequest) {
   try {
     const userId = await verifyUserId(req)
-    const memories = await new MemoryRepository(getStorage()).listApproved(userId)
+    const memories = await getJhadinaApplication().memoryRepo.listApproved(userId)
     return NextResponse.json({
       success: true,
       data: { memories, count: memories.length },
@@ -198,7 +188,7 @@ export async function handleSearchMemories(req: NextRequest) {
       )
     }
 
-    const results = await new MemoryRepository(getStorage()).search(userId, { query })
+    const results = await getJhadinaApplication().memoryRepo.search(userId, { query })
     return NextResponse.json({
       success: true,
       data: { results, count: results.length },
