@@ -6,6 +6,24 @@ export type DexLiquidityVenue = 'raydium' | 'pumpswap'
 export const RAYDIUM_AMM_V4_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8'
 export const PUMPSWAP_AMM_PROGRAM_ID = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'
 
+export type ParsedPumpSwapPoolState = {
+  poolAddress?: string
+  index: number
+  creator: string
+  baseMint: string
+  quoteMint: string
+  lpMint: string
+  baseVault: string
+  quoteVault: string
+  lpSupply: bigint
+  coinCreator: string
+  isMayhemMode: boolean
+  isCashbackCoin: boolean
+  virtualQuoteReserves: bigint
+  programId: string
+  evidenceId?: string
+}
+
 type ParsedPoolState = {
   baseMint: string
   quoteMint: string
@@ -36,6 +54,26 @@ export interface DexLiquidityDecoder extends PoolLiquidityDecoder {
 function readPublicKey(data: Uint8Array, offset: number): string {
   if (data.length < offset + 32) throw new Error(`pool account data is too short at offset ${offset}`)
   return toBase58(data.slice(offset, offset + 32))
+}
+
+function readU16LE(data: Uint8Array, offset: number): number {
+  if (data.length < offset + 2) throw new Error(`pool account data is too short at offset ${offset}`)
+  return data[offset] | (data[offset + 1] << 8)
+}
+
+function readU64LE(data: Uint8Array, offset: number): bigint {
+  if (data.length < offset + 8) throw new Error(`pool account data is too short at offset ${offset}`)
+  let value = 0n
+  for (let i = 0; i < 8; i++) value |= BigInt(data[offset + i]) << BigInt(8 * i)
+  return value
+}
+
+function readI128LE(data: Uint8Array, offset: number): bigint {
+  if (data.length < offset + 16) throw new Error(`pool account data is too short at offset ${offset}`)
+  let value = 0n
+  for (let i = 0; i < 16; i++) value |= BigInt(data[offset + i]) << BigInt(8 * i)
+  const signBit = 1n << 127n
+  return (value & signBit) !== 0n ? value - (1n << 128n) : value
 }
 
 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
@@ -82,21 +120,30 @@ function assertProgramOwner(actualOwner: string | undefined, expected: string): 
   if (actualOwner !== undefined && actualOwner !== expected) throw new Error(`pool account owner mismatch for ${expected}`)
 }
 
-/** PumpSwap pool state layout verified against the TokensHive protocol decoder. */
-export function parsePumpSwapPoolState(input: { data: unknown; owner?: string }): ParsedPoolState {
+/** Current PumpSwap Pool account layout: Anchor discriminator + fields documented by Pump. */
+export function parsePumpSwapPoolState(input: { data: unknown; owner?: string; poolAddress?: string }): ParsedPumpSwapPoolState {
   assertProgramOwner(input.owner, PUMPSWAP_AMM_PROGRAM_ID)
   const data = decodeAccountData(input.data)
-  if (data.length < 243) throw new Error(`invalid pumpswap pool data length: ${data.length}`)
+  // 8 discriminator + 1 bump + 2 index + 6 pubkeys + 8 lp_supply + 1 bool + 1 bool + 16 i128 + 32 coin_creator = 261 bytes.
+  if (data.length < 261) throw new Error(`invalid pumpswap pool data length: ${data.length}`)
   return {
+    poolAddress: input.poolAddress,
+    index: readU16LE(data, 9),
+    creator: readPublicKey(data, 11),
     baseMint: readPublicKey(data, 43),
     quoteMint: readPublicKey(data, 75),
+    lpMint: readPublicKey(data, 107),
     baseVault: readPublicKey(data, 139),
     quoteVault: readPublicKey(data, 171),
+    lpSupply: readU64LE(data, 203),
+    coinCreator: readPublicKey(data, 211),
+    isMayhemMode: data[243] !== 0,
+    isCashbackCoin: data[244] !== 0,
+    virtualQuoteReserves: readI128LE(data, 245),
     programId: PUMPSWAP_AMM_PROGRAM_ID,
   }
 }
 
-/** Raydium AMM V4 pool state layout verified against the TokensHive protocol decoder. */
 export function parseRaydiumAmmV4PoolState(input: { data: unknown; owner?: string }): ParsedPoolState {
   assertProgramOwner(input.owner, RAYDIUM_AMM_V4_PROGRAM_ID)
   const data = decodeAccountData(input.data)
@@ -110,12 +157,6 @@ export function parseRaydiumAmmV4PoolState(input: { data: unknown; owner?: strin
   }
 }
 
-/**
- * Common safety boundary for DEX decoders. A decoder may only emit a USD
- * liquidity value when the transaction/parser has explicitly established the
- * reserve state and its USD valuation. Token transfer amounts alone are not
- * accepted as liquidity.
- */
 export abstract class BaseDexLiquidityDecoder implements DexLiquidityDecoder {
   abstract readonly venue: DexLiquidityVenue
   abstract readonly programIds: readonly string[]
@@ -124,12 +165,8 @@ export abstract class BaseDexLiquidityDecoder implements DexLiquidityDecoder {
 
   decode(history: PoolHistory): PoolLiquidityEvent[] {
     return history.transactions.flatMap(tx => this.decodeTransaction(tx, history.pool)).map(state => ({
-      observedAt: state.observedAt,
-      poolAddress: state.poolAddress,
-      kind: state.kind,
-      liquidityUsd: state.liquidityUsd,
-      source: state.source,
-      evidenceId: state.evidenceId,
+      observedAt: state.observedAt, poolAddress: state.poolAddress, kind: state.kind,
+      liquidityUsd: state.liquidityUsd, source: state.source, evidenceId: state.evidenceId,
     }))
   }
 
@@ -139,10 +176,7 @@ export abstract class BaseDexLiquidityDecoder implements DexLiquidityDecoder {
     const reserve = candidate.reserveState
     if (!reserve || typeof reserve !== 'object') return undefined
     const r = reserve as Record<string, unknown>
-    const baseReserve = Number(r.baseReserve)
-    const quoteReserve = Number(r.quoteReserve)
-    const liquidityUsd = Number(r.liquidityUsd)
-    const kind = r.kind
+    const baseReserve = Number(r.baseReserve), quoteReserve = Number(r.quoteReserve), liquidityUsd = Number(r.liquidityUsd), kind = r.kind
     if (![baseReserve, quoteReserve, liquidityUsd].every(Number.isFinite) || liquidityUsd < 0) return undefined
     if (kind !== 'SNAPSHOT' && kind !== 'LIQUIDITY_ADD' && kind !== 'LIQUIDITY_REMOVE') return undefined
     return { baseReserve, quoteReserve, liquidityUsd, kind }
@@ -152,14 +186,9 @@ export abstract class BaseDexLiquidityDecoder implements DexLiquidityDecoder {
 export class RaydiumAmmLiquidityDecoder extends BaseDexLiquidityDecoder {
   readonly venue = 'raydium' as const
   readonly programIds = [RAYDIUM_AMM_V4_PROGRAM_ID]
-
-  discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[] {
-    return pool.metadata?.accounts?.filter((a: PoolAccountRef) => a.role === 'token-vault' || a.role === 'lp-vault' || a.role === 'authority') ?? []
-  }
-
+  discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[] { return pool.metadata?.accounts?.filter((a: PoolAccountRef) => a.role === 'token-vault' || a.role === 'lp-vault' || a.role === 'authority') ?? [] }
   decodeTransaction(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): NormalizedReserveState[] {
-    const state = BaseDexLiquidityDecoder.rawReserveState(transaction.raw)
-    if (!state) return []
+    const state = BaseDexLiquidityDecoder.rawReserveState(transaction.raw); if (!state) return []
     return [{ ...state, observedAt: transaction.observedAt, poolAddress: pool.poolAddress, source: `raydium-amm:${transaction.signature}`, evidenceId: transaction.evidenceId }]
   }
 }
@@ -167,14 +196,9 @@ export class RaydiumAmmLiquidityDecoder extends BaseDexLiquidityDecoder {
 export class PumpSwapLiquidityDecoder extends BaseDexLiquidityDecoder {
   readonly venue = 'pumpswap' as const
   readonly programIds = [PUMPSWAP_AMM_PROGRAM_ID]
-
-  discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[] {
-    return pool.metadata?.accounts?.filter((a: PoolAccountRef) => a.role === 'token-vault' || a.role === 'lp-vault' || a.role === 'authority') ?? []
-  }
-
+  discoverAccounts(pool: PoolHistory['pool']): PoolAccountRef[] { return pool.metadata?.accounts?.filter((a: PoolAccountRef) => a.role === 'token-vault' || a.role === 'lp-vault' || a.role === 'authority') ?? [] }
   decodeTransaction(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): NormalizedReserveState[] {
-    const state = BaseDexLiquidityDecoder.rawReserveState(transaction.raw)
-    if (!state) return []
+    const state = BaseDexLiquidityDecoder.rawReserveState(transaction.raw); if (!state) return []
     return [{ ...state, observedAt: transaction.observedAt, poolAddress: pool.poolAddress, source: `pumpswap:${transaction.signature}`, evidenceId: transaction.evidenceId }]
   }
 }
