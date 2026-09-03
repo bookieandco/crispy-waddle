@@ -39,6 +39,13 @@ const validTime = (value: string): number => {
   return time;
 };
 
+const hash = (value: unknown): string => {
+  const text = JSON.stringify(value, Object.keys(value as object).sort());
+  let h = 2166136261;
+  for (const char of text) { h ^= char.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return h.toString(16).padStart(8, '0');
+};
+
 const diffStates = <TState>(previous: RealityStateVersion<TState>, next: RealityStateVersion<TState>): RealityStateDiff => {
   const previousIds = new Set(previous.eventIds);
   const nextIds = new Set(next.eventIds);
@@ -70,57 +77,47 @@ export class RealityStateCorrectionEngine<TState> {
     validTime(correction.issuedAt);
 
     const parent = this.resolver.currentVersion();
-    const priorIds = new Set(parent.eventIds);
-    if (!priorIds.has(correction.targetEventId) && correction.kind !== 'LATE_INSERTION') {
-      throw new Error(`Cannot correct unknown event ${correction.targetEventId}`);
-    }
+    const currentEvents = [...this.resolver.eventsSnapshot()];
+    const targetExists = currentEvents.some((event) => event.eventId === correction.targetEventId);
+    if (!targetExists && correction.kind !== 'LATE_INSERTION') throw new Error(`Cannot correct unknown event ${correction.targetEventId}`);
     if ((correction.kind === 'REPLACEMENT' || correction.kind === 'SOURCE_CORRECTION' || correction.kind === 'LATE_INSERTION') && !correction.replacementEvent) {
       throw new Error(`${correction.kind} requires replacementEvent`);
     }
+    if (correction.replacementEvent?.gameId !== currentEvents[0]?.gameId && currentEvents.length > 0) throw new Error('Replacement event must belong to the same game');
 
     const replacement = correction.replacementEvent;
-    const currentEvents = parent.eventIds;
-    const branchEvents: SportsEvent[] = [];
-    for (const eventId of currentEvents) {
-      if (eventId === correction.targetEventId) {
-        if (replacement) branchEvents.push(replacement);
-        continue;
-      }
-    }
+    const branchEvents = currentEvents.filter((event) => event.eventId !== correction.targetEventId);
+    if (replacement && correction.kind !== 'RETRACTION') branchEvents.push(replacement);
+    branchEvents.sort((a, b) => new Date(a.provenance.source.observedAt).getTime() - new Date(b.provenance.source.observedAt).getTime() || a.sequence - b.sequence || a.eventId.localeCompare(b.eventId));
 
-    const branchState = this.rebuildBranch(branchEvents, replacement && correction.kind === 'LATE_INSERTION' ? [...currentEvents, replacement.eventId] : currentEvents);
-    const diff = diffStates(parent, branchState);
+    const branchState = this.rebuildBranch(branchEvents);
     const branch: RealityTemporalBranch<TState> = Object.freeze({
       branchId: `reality-branch:${correction.correctionId}`,
       parentVersion: parent.version,
       createdAt: correction.issuedAt,
       state: branchState,
       correction: Object.freeze({ ...correction, evidenceIds: Object.freeze([...correction.evidenceIds]) }),
-      diff,
+      diff: diffStates(parent, branchState),
     });
     this.corrections.push(branch.correction);
     this.branches.push(branch);
     return branch;
   }
 
-  correctionsSnapshot(): readonly RealityCorrection[] {
-    return Object.freeze([...this.corrections]);
-  }
+  correctionsSnapshot(): readonly RealityCorrection[] { return Object.freeze([...this.corrections]); }
+  branchesSnapshot(): readonly RealityTemporalBranch<TState>[] { return Object.freeze([...this.branches]); }
 
-  branchesSnapshot(): readonly RealityTemporalBranch<TState>[] {
-    return Object.freeze([...this.branches]);
-  }
-
-  private rebuildBranch(events: readonly SportsEvent[], eventIds: readonly string[]): RealityStateVersion<TState> {
+  private rebuildBranch(events: readonly SportsEvent[]): RealityStateVersion<TState> {
     let state = this.reducer.initialState();
-    for (const event of events) state = this.reducer.reduce(state, event);
-    const asOf = events.length ? events.map((e) => new Date(e.provenance.source.observedAt).getTime()).sort((a, b) => b - a)[0] : 0;
+    const eventIds: string[] = [];
+    for (const event of events) { state = this.reducer.reduce(state, event); eventIds.push(event.eventId); }
+    const asOfMs = events.length ? Math.max(...events.map((event) => new Date(event.provenance.source.observedAt).getTime())) : 0;
     return Object.freeze({
       version: this.resolver.currentVersion().version + 1,
-      asOf: new Date(asOf).toISOString(),
+      asOf: new Date(asOfMs).toISOString(),
       state: Object.freeze(state),
-      eventIds: Object.freeze([...eventIds]),
-      stateHash: `${this.resolver.currentVersion().stateHash}:branch:${JSON.stringify(state)}:${eventIds.join('|')}`,
+      eventIds: Object.freeze(eventIds),
+      stateHash: hash({ state, eventIds }),
       provisional: true,
     });
   }
