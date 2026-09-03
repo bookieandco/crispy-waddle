@@ -5,6 +5,7 @@ export * from './bayesian-inference.js';
 export * from './bayesian-pattern.js';
 export * from './hippocampus.js';
 export * from './pattern-engine.js';
+export * from './relationship-context-pattern.js';
 export * from './real-nigga-core.js';
 export * from './behavioral-kernel.js';
 export * from './expression-kernel.js';
