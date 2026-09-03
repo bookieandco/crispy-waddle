@@ -35,3 +35,7 @@ export type { PostgresPermitStoreOptions } from './postgres-permit-store.js';
 export { PostgresPermitStore } from './postgres-permit-store.js';
 export type { MoneyExecutionPermit } from './execution-permit-gate.js';
 export { toExecutionAction, authorizeAndConsumeMoneyPermit } from './execution-permit-gate.js';
+export type { ExecutionAttempt, ExecutionAttemptState, ExecutionAttemptStore } from './execution-attempt.js';
+export { createExecutionAttempt, executionIdempotencyKey } from './execution-attempt.js';
+export type { PostgresExecutionAttemptStoreOptions } from './postgres-execution-attempt-store.js';
+export { PostgresExecutionAttemptStore } from './postgres-execution-attempt-store.js';
