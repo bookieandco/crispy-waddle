@@ -45,3 +45,4 @@ export * from "./native-worker-supervisor.js";
 export * from "./vst3-discovery.js";
 export * from "./vst3-instantiation.js";
 export * from "./vst3-processor-lifecycle.js";
+export * from "./restoration-hypothesis.js";
