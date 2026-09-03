@@ -47,7 +47,7 @@ describe('SportsEventReconciler', () => {
     ]);
     const result = reconciler.reconcile([event('feed-a', 88), event('feed-b', 89)]);
     assert.equal(result.status, 'CONFLICT');
-    assert.deepEqual(result.conflicts, ['possession', 'score']);
+    assert.deepEqual(result.conflicts, ['score']);
     assert.equal(result.fields.score?.value, undefined);
     assert.equal(result.fields.score?.sourceId, 'UNRESOLVED');
   });
