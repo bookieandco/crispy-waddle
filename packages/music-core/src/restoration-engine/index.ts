@@ -21,3 +21,4 @@ export * from "./music-perception-memory.js";
 export * from "./deep-stem-decomposition.js";
 export * from "./vocal-layer-decomposition.js";
 export * from "./music-director-judgment.js";
+export * from "./music-human-feedback.js";
