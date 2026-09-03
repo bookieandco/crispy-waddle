@@ -3,7 +3,13 @@ import type { MoneyCapability } from './capabilities.js';
 export type MoneyAccount = { id: string; provider: string; externalId: string; type: string; currency: string; maskedName?: string };
 export type MoneyTransaction = { id: string; accountId: string; amount: number; currency: string; occurredAt: string; description?: string };
 
-export type MoneyAdapterContext = { userId: string; capability: MoneyCapability; requestId: string };
+export type MoneyAdapterContext = {
+  userId: string;
+  capability: MoneyCapability;
+  requestId: string;
+  /** Stable logical execution key. Providers should use this for idempotency. */
+  idempotencyKey?: string;
+};
 
 export interface BankAdapter {
   readonly provider: string;
