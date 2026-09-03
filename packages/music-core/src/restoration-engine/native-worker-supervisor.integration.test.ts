@@ -9,24 +9,24 @@ import type { PluginAutomationPlan, PluginDescriptor } from "./plugin-automation
 const plugin: PluginDescriptor = { id: "mock-plugin", vendor: "Jhadina", name: "Mock", version: "1.0.0", format: "vst3", binaryHash: "abcdef0123456789abcdef0123456789", parameters: [{ id: "gain", name: "Gain", stepCount: 100, defaultNormalizedValue: 0.5, automatable: true }] };
 const automation: PluginAutomationPlan = { id: "automation-1", pluginId: plugin.id, pluginBinaryHash: plugin.binaryHash, sourceArtifactId: "source-1", tracks: [{ parameterId: "gain", points: [{ sampleOffset: 0, normalizedValue: 0.5 }] }], allowedParameterIds: ["gain"], protectedRegions: [], maxParameterDelta: { gain: 0.5 }, evidenceIds: ["evidence-1"] };
 
-function makeBackend(log: string[]): NativePluginBackend {
+function makeBackend(log: string[], failProcessing = false): NativePluginBackend {
   return {
     async discover(path) { log.push(`discover:${path}`); return plugin; },
     async load(path) { log.push(`load:${path}`); },
     async configure(audio) { log.push(`configure:${audio.sampleRate}`); },
     async setAutomation() { log.push("automation"); },
-    async processBlock(offset, samples) { log.push(`process:${offset}:${samples}`); },
+    async processBlock(offset, samples) { log.push(`process:${offset}:${samples}`); if (failProcessing) throw new Error("mock native crash"); },
     async flush() { log.push("flush"); },
     async collectMetadata(): Promise<NativePluginRuntimeMetadata> { log.push("metadata"); return { plugin, hostVersion: "test-host", runtimeVersion: "test-runtime", format: "vst3", state: "COMPLETED" }; },
     async shutdown() { log.push("shutdown"); },
   };
 }
 
-function makeFixture() {
+function makeFixture(failProcessing = false) {
   const log: string[] = [];
   const binding = createNativePluginIpcBinding({ jobId: "job-1", executionId: "exec-1", sourceArtifactId: "source-1", sourceHash: "0123456789abcdef0123456789abcdef", plugin, automationPlanId: automation.id, automationPlanHash: "abcdef0123456789abcdef0123456789", authorizationReceiptId: "receipt-1", audio: { sampleRate: 48000, channels: 2, blockSize: 128 }, inputPath: "/workspace/input.wav", outputPath: "/workspace/output.wav" });
   const job: AudioSandboxJob = { id: "job-1", sourceArtifactId: "source-1", sourceArtifactHash: binding.sourceHash, pluginId: plugin.id, pluginBinaryHash: plugin.binaryHash, automationPlanId: automation.id, workerImage: "jhadina/native-mock", workerImageDigest: "sha256:" + "a".repeat(64), sampleRate: 48000, channels: 2, resourceLimits: { cpuMillis: 1000, memoryMb: 256, timeoutSeconds: 10 }, network: { mode: "deny" }, inputPath: binding.inputPath, outputPath: binding.outputPath };
-  const worker = createNativePluginWorker(binding, makeBackend(log));
+  const worker = createNativePluginWorker(binding, makeBackend(log, failProcessing));
   let terminated = false;
   let destroyed = 0;
   const process = { send: (request: Parameters<typeof worker.handle>[0]) => worker.handle(request), terminate: async () => { terminated = true; } };
@@ -37,7 +37,7 @@ function makeFixture() {
 
 test("MR-037 supervisor executes complete native worker lifecycle and closes cleanly", async () => {
   const f = makeFixture();
-  const adapter = await f.supervisor.start("/workspace/plugins/mock-plugin.vst3");
+  await f.supervisor.start("/workspace/plugins/mock-plugin.vst3");
   assert.equal(f.supervisor.state, "READY");
   await f.supervisor.run(async (host) => {
     await host.load("/workspace/plugins/mock-plugin.vst3");
@@ -62,18 +62,17 @@ test("MR-037 startup path violation is quarantined before readiness", async () =
   assert.equal(f.processState().quarantineReasons.length, 1);
 });
 
-test("MR-037 worker error during processing quarantines the sandbox", async () => {
-  const f = makeFixture();
+test("MR-037 worker failure during processing quarantines the sandbox", async () => {
+  const f = makeFixture(true);
   const adapter = await f.supervisor.start("/workspace/plugins/mock-plugin.vst3");
   await assert.rejects(() => f.supervisor.run(async (host) => {
     await host.load("/workspace/plugins/mock-plugin.vst3");
     await host.configure();
     await host.bindAutomation({ protocol: "jhadina.music.native-plugin-ipc.v1", version: 1, sequence: 3, binding: f.binding, type: "set_automation", state: "CONFIGURED", automation: f.automation });
-    const original = adapter.processBlock.bind(adapter);
-    adapter.processBlock = async () => { throw new Error("mock native crash"); };
-    await original(0, 64);
-  }));
+    await host.processBlock(0, 64);
+  }), /mock native crash/);
   assert.equal(f.supervisor.state, "CLEANED");
   assert.equal(f.processState().destroyed, 1);
   assert.equal(f.processState().quarantineReasons.length, 1);
+  assert.equal(adapter !== undefined, true);
 });
