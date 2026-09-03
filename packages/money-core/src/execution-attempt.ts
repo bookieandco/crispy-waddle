@@ -8,11 +8,15 @@ export type ExecutionAttemptState =
   | 'UNKNOWN'
   | 'RECOVERY_REQUIRED';
 
+/** Immutable economic action captured at the execution boundary for reconciliation. */
+export type ExecutionActionSnapshot = Readonly<ExecutionAction>;
+
 export interface ExecutionAttempt {
   attemptId: string;
   requestId: string;
   permitId: string;
   actionFingerprint: string;
+  actionSnapshot: ExecutionActionSnapshot;
   provider: string;
   operation: string;
   idempotencyKey: string;
@@ -50,11 +54,13 @@ export function createExecutionAttempt(input: {
   now: string;
 }): ExecutionAttempt {
   const actionFingerprint = fingerprintAction(input.action);
+  const actionSnapshot: ExecutionActionSnapshot = Object.freeze({ ...input.action });
   return {
     attemptId: input.attemptId,
     requestId: input.requestId,
     permitId: input.permitId,
     actionFingerprint,
+    actionSnapshot,
     provider: input.action.provider,
     operation: input.operation,
     idempotencyKey: executionIdempotencyKey(input.permitId, actionFingerprint),
