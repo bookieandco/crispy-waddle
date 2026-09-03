@@ -39,10 +39,14 @@ export type { ExecutionAttempt, ExecutionAttemptState, ExecutionAttemptOutcome, 
 export { createExecutionAttempt, executionIdempotencyKey } from './execution-attempt.js';
 export type { PostgresExecutionAttemptStoreOptions } from './postgres-execution-attempt-store.js';
 export { PostgresExecutionAttemptStore } from './postgres-execution-attempt-store.js';
-export type { RecoveryObservation, RecoveryDisposition, RecoveryResult, ExecutionReconciler, ExecutionRecoveryLedger } from './execution-recovery.js';
+export type { RecoveryObservation, RecoveryDisposition, RecoveryResult, ExecutionReconciler, ExecutionRecoveryLedger, RecoveryResolutionState } from './execution-recovery.js';
 export { classifyRecovery } from './execution-recovery.js';
+export type { RecoveryLease, ExecutionRecoveryLeaseStore } from './execution-recovery-lease.js';
+export { assertRecoveryLease, assertLeaseSeconds } from './execution-recovery-lease.js';
 export type { PostgresExecutionRecoveryLedgerOptions } from './postgres-execution-recovery-ledger.js';
 export { PostgresExecutionRecoveryLedger, recoveryEvidenceHash } from './postgres-execution-recovery-ledger.js';
+export type { PostgresExecutionRecoveryLeaseStoreOptions } from './postgres-execution-recovery-lease-store.js';
+export { PostgresExecutionRecoveryLeaseStore } from './postgres-execution-recovery-lease-store.js';
 export type { ExecutionRecoveryServiceOptions } from './execution-recovery-service.js';
 export { MoneyExecutionRecoveryService } from './execution-recovery-service.js';
 export type { MoneyExecutionReconciliationAdapter } from './execution-reconciliation-adapter.js';
