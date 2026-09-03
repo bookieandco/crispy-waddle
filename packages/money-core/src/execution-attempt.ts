@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { ExecutionAction } from './execution-permit.js';
+import { fingerprintAction, type ExecutionAction } from './execution-permit.js';
 
 export type ExecutionAttemptState =
   | 'STARTED'
@@ -36,10 +36,7 @@ export interface ExecutionAttemptStore {
 }
 
 /** Stable across retries of the same authorized economic action. */
-export function executionIdempotencyKey(
-  permitId: string,
-  actionFingerprint: string,
-): string {
+export function executionIdempotencyKey(permitId: string, actionFingerprint: string): string {
   return createHash('sha256')
     .update(`jhadina-money-execution:v1:${permitId}:${actionFingerprint}`, 'utf8')
     .digest('hex');
@@ -53,9 +50,7 @@ export function createExecutionAttempt(input: {
   operation: string;
   now: string;
 }): ExecutionAttempt {
-  const actionFingerprint = createHash('sha256')
-    .update(JSON.stringify(input.action), 'utf8')
-    .digest('hex');
+  const actionFingerprint = fingerprintAction(input.action);
   return {
     attemptId: input.attemptId,
     requestId: input.requestId,
