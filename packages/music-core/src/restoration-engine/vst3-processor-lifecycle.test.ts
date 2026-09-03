@@ -31,7 +31,7 @@ test("enforces the VST3 processing lifecycle ordering", async () => {
   await lifecycle.configure(configuration);
   await lifecycle.activate();
   await lifecycle.startProcessing();
-  await lifecycle.process(0, 256, configuration.maxSamplesPerBlock);
+  await lifecycle.process(0, 256);
   await lifecycle.stopProcessing();
   await lifecycle.deactivate();
   await lifecycle.release();
@@ -45,20 +45,30 @@ test("enforces the VST3 processing lifecycle ordering", async () => {
 
 test("rejects processing before activation and processing start", async () => {
   const { lifecycle } = fixture();
-  await assert.rejects(() => lifecycle.process(0, 1, 512));
+  await assert.rejects(() => lifecycle.process(0, 1));
   await lifecycle.initialize();
   await lifecycle.configure(configuration);
   await lifecycle.activate();
-  await assert.rejects(() => lifecycle.process(0, 1, 512));
+  await assert.rejects(() => lifecycle.process(0, 1));
 });
 
-test("rejects blocks larger than the authorized maximum", async () => {
+test("rejects blocks larger than the configured maximum", async () => {
   const { lifecycle } = fixture();
   await lifecycle.initialize();
   await lifecycle.configure(configuration);
   await lifecycle.activate();
   await lifecycle.startProcessing();
-  await assert.rejects(() => lifecycle.process(0, 513, 512));
+  await assert.rejects(() => lifecycle.process(0, 513));
+});
+
+test("rejects invalid sample formats and preserves configuration authority", async () => {
+  const { lifecycle } = fixture();
+  await lifecycle.initialize();
+  await assert.rejects(() => lifecycle.configure({ ...configuration, sampleFormat: "invalid" as never }));
+  await lifecycle.configure(configuration);
+  await lifecycle.activate();
+  await lifecycle.startProcessing();
+  await assert.rejects(() => lifecycle.process(0, 513));
 });
 
 test("release requires clean processing shutdown", async () => {
