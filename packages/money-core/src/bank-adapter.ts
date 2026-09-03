@@ -9,6 +9,10 @@ export type MoneyAdapterContext = {
   requestId: string;
   /** Stable logical execution key. Providers should use this for idempotency. */
   idempotencyKey?: string;
+  /** Durable Jhadina execution identity. Write-capable adapters may bind this to provider metadata. */
+  executionId?: string;
+  /** Canonical action fingerprint for provider-side execution identity binding. */
+  actionFingerprint?: string;
 };
 
 export interface BankAdapter {
