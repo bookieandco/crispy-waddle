@@ -21,7 +21,18 @@ function stable(value: unknown): string {
 }
 
 export function recoveryEvidenceHash(observation: Omit<RecoveryObservation, 'evidenceHash'>): string {
-  return createHash('sha256').update(`jhadina-money-recovery:v1:${stable(observation.evidence)}`, 'utf8').digest('hex');
+  const identity = {
+    executionId: observation.executionId,
+    proposalHash: observation.proposalHash,
+    providerOperation: observation.providerOperation,
+    providerReference: observation.providerReference ?? null,
+    observedState: observation.observedState,
+    evidence: observation.evidence,
+    adapterId: observation.adapterId,
+    adapterVersion: observation.adapterVersion,
+    checkedAt: observation.checkedAt,
+  };
+  return createHash('sha256').update(`jhadina-money-recovery:v2:${stable(identity)}`, 'utf8').digest('hex');
 }
 
 export class PostgresExecutionRecoveryLedger implements ExecutionRecoveryLedger {
@@ -48,7 +59,7 @@ export class PostgresExecutionRecoveryLedger implements ExecutionRecoveryLedger 
       `INSERT INTO ${this.reconciliation} (execution_id, proposal_hash, status, provider_operation, provider_reference, observed_state, evidence, evidence_hash, adapter_id, adapter_version, checked_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11)
        ON CONFLICT (execution_id, evidence_hash) DO NOTHING`,
-      [input.executionId, input.executionId, status, input.providerOperation, input.providerReference ?? null, input.observedState, JSON.stringify(input.evidence), input.evidenceHash, input.adapterId, input.adapterVersion, input.checkedAt],
+      [input.executionId, input.proposalHash, status, input.providerOperation, input.providerReference ?? null, input.observedState, JSON.stringify(input.evidence), input.evidenceHash, input.adapterId, input.adapterVersion, input.checkedAt],
     );
   }
 
