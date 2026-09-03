@@ -28,3 +28,4 @@ export * from "./provenance-ledger.js";
 export * from "./post-execution-audit.js";
 export * from "./verified-execution.js";
 export * from "./plugin-automation.js";
+export * from "./plugin-automation-registry.js";
