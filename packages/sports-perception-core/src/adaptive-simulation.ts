@@ -1,4 +1,4 @@
-import type { PredictionDistribution, Sport } from './contracts.js';
+import type { PredictionDistribution } from './contracts.js';
 import {
   AdaptiveScenarioSearch,
   type AdaptiveScenarioEvaluator,
@@ -31,6 +31,7 @@ export interface AdaptiveSimulationContext {
   iterations: number;
   seed: number;
   objective: AdaptiveSimulationObjective;
+  evidenceIds?: readonly string[];
   scenarioVersion?: string;
   datasetVersion?: string;
   featureSetVersion?: string;
@@ -48,8 +49,6 @@ export interface AdaptiveSimulationResult {
   evaluations: readonly AdaptiveSimulationEvaluation[];
   search: ReturnType<AdaptiveScenarioSearch['run']>;
 }
-
-const clamp = (value: number, min = -1, max = 1): number => Math.max(min, Math.min(max, value));
 
 function utility(distribution: SimulationRun['distribution'], objective: AdaptiveSimulationObjective): number {
   return distribution.outcomes.reduce((sum, outcome) => sum + outcome.probability * (objective.outcomeUtility[outcome.outcome] ?? 0), 0);
@@ -82,7 +81,7 @@ function simulationFitness(run: SimulationRun, objective: AdaptiveSimulationObje
   };
 }
 
-function genomeIntervention(scenario: ScenarioGenome): Readonly<{ interventionId: string; type: string; description: string; patch: Readonly<Record<string, unknown>>; evidenceIds: readonly string[] }> {
+function genomeIntervention(scenario: ScenarioGenome) {
   return Object.freeze({
     interventionId: `${scenario.scenarioId}:genes`,
     type: 'ADAPTIVE_SCENARIO_GENOME',
@@ -99,8 +98,7 @@ export function createAdaptiveSimulationEvaluator(
 ): AdaptiveScenarioEvaluator & { evaluations: readonly AdaptiveSimulationEvaluation[] } {
   const baseline = scenarioEngine.createBaseline(context.state);
   const evaluations: AdaptiveSimulationEvaluation[] = [];
-  return {
-    evaluations: Object.freeze(evaluations),
+  const api = {
     evaluate(scenario: ScenarioGenome): AdaptiveSimulationEvaluation {
       if (scenario.sport !== context.state.sport) throw new Error('Adaptive scenario sport must match simulation state sport');
       const branch = scenario.generation === 0 && scenario.scenarioId === baseline.scenarioId
@@ -122,10 +120,7 @@ export function createAdaptiveSimulationEvaluator(
       const simulation = simulator.run(options);
       const scored = simulationFitness(simulation, context.objective);
       const evidenceIds = Object.freeze([
-        ...new Set([
-          ...context.state.worldState.evidenceIds as string[] ?? [],
-          ...simulation.provenance.playerEvidenceIds ?? [],
-        ]),
+        ...new Set([...(context.evidenceIds ?? []), ...(simulation.provenance.playerEvidenceIds ?? [])]),
       ].sort());
       const evaluation: AdaptiveSimulationEvaluation = Object.freeze({
         scenarioId: scenario.scenarioId,
@@ -147,6 +142,8 @@ export function createAdaptiveSimulationEvaluator(
       return evaluation;
     },
   };
+  Object.defineProperty(api, 'evaluations', { value: evaluations, enumerable: true });
+  return api as AdaptiveScenarioEvaluator & { evaluations: readonly AdaptiveSimulationEvaluation[] };
 }
 
 export function runAdaptiveSimulationSearch(
@@ -154,7 +151,6 @@ export function runAdaptiveSimulationSearch(
   searchConfig: AdaptiveSearchConfig,
   initialPopulation: readonly ScenarioGenome[],
 ): AdaptiveSimulationResult {
-  if (context.state.sport !== context.modelSport && false) throw new Error('unreachable');
   const search = new AdaptiveScenarioSearch(searchConfig);
   const evaluator = createAdaptiveSimulationEvaluator(context);
   const result = search.run(context.runId, initialPopulation, evaluator);
