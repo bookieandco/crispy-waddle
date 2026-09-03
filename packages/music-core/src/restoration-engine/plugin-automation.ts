@@ -54,11 +54,11 @@ function inRegion(sample: number, region: { startSample: number; endSample: numb
   return sample >= region.startSample && sample < region.endSample;
 }
 
-/**
- * Validates a parameter automation plan without executing a plugin.
- * VST3 hosts exchange parameter values in normalized [0,1] form and identify
- * exported parameters by stable IDs; this layer preserves those properties.
- */
+export function sortAutomationPoints(points: AutomationPoint[]): AutomationPoint[] {
+  return [...points].sort((a, b) => a.sampleOffset - b.sampleOffset);
+}
+
+/** Validates automation without executing a plugin. */
 export function validatePluginAutomationPlan(
   plugin: PluginDescriptor,
   plan: PluginAutomationPlan,
@@ -80,20 +80,31 @@ export function validatePluginAutomationPlan(
     if (!parameter.automatable) reasons.push(`Parameter is not automatable: ${track.parameterId}`);
     if (!allowed.has(track.parameterId)) reasons.push(`Parameter is outside the automation policy: ${track.parameterId}`);
 
+    if (track.points.length > 1) {
+      for (let i = 1; i < track.points.length; i += 1) {
+        if (track.points[i].sampleOffset <= track.points[i - 1].sampleOffset) {
+          reasons.push(`Automation points must have strictly increasing sample offsets: ${track.parameterId}`);
+        }
+      }
+    }
+
+    const ordered = sortAutomationPoints(track.points);
     let previous = parameter.defaultNormalizedValue;
-    for (const point of track.points) {
-      if (!Number.isInteger(point.sampleOffset) || point.sampleOffset < 0) reasons.push(`Invalid sample offset: ${track.parameterId}`);
-      if (!Number.isFinite(point.normalizedValue) || point.normalizedValue < 0 || point.normalizedValue > 1) {
-        reasons.push(`Normalized parameter value must be within [0,1]: ${track.parameterId}`);
+    for (const point of ordered) {
+      const validOffset = Number.isInteger(point.sampleOffset) && point.sampleOffset >= 0;
+      const validValue = Number.isFinite(point.normalizedValue) && point.normalizedValue >= 0 && point.normalizedValue <= 1;
+      if (!validOffset) reasons.push(`Invalid sample offset: ${track.parameterId}`);
+      if (!validValue) reasons.push(`Normalized parameter value must be within [0,1]: ${track.parameterId}`);
+      if (validOffset && validValue) {
+        const maxDelta = plan.maxParameterDelta[track.parameterId];
+        if (maxDelta !== undefined && (!Number.isFinite(maxDelta) || maxDelta < 0 || Math.abs(point.normalizedValue - previous) > maxDelta)) {
+          reasons.push(`Parameter delta exceeds policy: ${track.parameterId}`);
+        }
+        if (plan.protectedRegions.some((region) => inRegion(point.sampleOffset, region))) {
+          reasons.push(`Automation enters a protected region: ${track.parameterId}`);
+        }
+        previous = point.normalizedValue;
       }
-      const maxDelta = plan.maxParameterDelta[track.parameterId];
-      if (maxDelta !== undefined && Math.abs(point.normalizedValue - previous) > maxDelta) {
-        reasons.push(`Parameter delta exceeds policy: ${track.parameterId}`);
-      }
-      if (plan.protectedRegions.some((region) => inRegion(point.sampleOffset, region))) {
-        reasons.push(`Automation enters a protected region: ${track.parameterId}`);
-      }
-      previous = point.normalizedValue;
     }
   }
 
@@ -102,8 +113,4 @@ export function validatePluginAutomationPlan(
   }
 
   return { allowed: reasons.length === 0, reasons: unique(reasons) };
-}
-
-export function sortAutomationPoints(points: AutomationPoint[]): AutomationPoint[] {
-  return [...points].sort((a, b) => a.sampleOffset - b.sampleOffset);
 }
