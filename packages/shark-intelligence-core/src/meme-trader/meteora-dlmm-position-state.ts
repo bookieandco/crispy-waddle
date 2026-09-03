@@ -55,6 +55,7 @@ export function applyDlmmPositionTransition(current:DlmmPositionState|undefined,
   if(t.evidenceIds.length===0)return{rejected:'MISSING_EVIDENCE'}
   if(!Number.isFinite(t.confidence)||t.confidence<0||t.confidence>1)return{rejected:'INVALID_CONFIDENCE'}
   if(!validBps(t.removedBps)||!validBin(t.fromBinId)||!validBin(t.toBinId)||!validBin(t.activeBinId))return{rejected:'INVALID_RANGE'}
+  if(t.fromBinId!==undefined&&t.toBinId!==undefined&&t.fromBinId>t.toBinId)return{rejected:'INVALID_RANGE'}
   if(!nonNegative(t.tokenXDeltas)||!nonNegative(t.tokenYDeltas)||!nonNegative(t.tokenXWithdrawnRaw)||!nonNegative(t.tokenXAddedRaw)||!nonNegative(t.tokenYWithdrawnRaw)||!nonNegative(t.tokenYAddedRaw))return{rejected:'NEGATIVE_DELTA'}
   if(current&&Date.parse(t.observedAt)<Date.parse(current.lastObservedAt))return{rejected:'STATE_REGRESSION'}
   if(t.action!=='OPEN'&&!current)return{rejected:'MISSING_OPEN'}
@@ -70,11 +71,14 @@ export function applyDlmmPositionTransition(current:DlmmPositionState|undefined,
   let x=current.tokenXRaw,y=current.tokenYRaw,lifecycle=current.lifecycle,lower=current.lowerBinId,upper=current.upperBinId,active=current.activeBinId
   const xd=t.tokenXDeltas??0n,yd=t.tokenYDeltas??0n
   if(t.action==='ADD'){x+=xd;y+=yd;lifecycle='ACTIVE'}
-  else if(t.action==='REMOVE'){if(xd>x||yd>y)return{rejected:'LIQUIDITY_UNDERFLOW'};x-=xd;y-=yd;lifecycle=x===0n&&y===0n?'OPEN':'ACTIVE'}
-  else if(t.action==='REBALANCE'){
+  else if(t.action==='REMOVE'){
+    const wx=t.tokenXWithdrawnRaw??xd,wy=t.tokenYWithdrawnRaw??yd
+    if(wx>x||wy>y)return{rejected:'LIQUIDITY_UNDERFLOW'}
+    x-=wx;y-=wy;lifecycle=x===0n&&y===0n?'OPEN':'ACTIVE'
+  } else if(t.action==='REBALANCE'){
     const xw=t.tokenXWithdrawnRaw??0n,xa=t.tokenXAddedRaw??0n,yw=t.tokenYWithdrawnRaw??0n,ya=t.tokenYAddedRaw??0n
     if(xw>x+xa||yw>y+ya)return{rejected:'REBALANCE_UNDERFLOW'}
     x=x-xw+xa;y=y-yw+ya;lower=t.fromBinId??lower;upper=t.toBinId??upper;active=t.activeBinId??active;lifecycle=x===0n&&y===0n?'OPEN':'ACTIVE'
   } else if(t.action==='CLOSE'){if(x!==0n||y!==0n)return{rejected:'CLOSE_WITH_LIQUIDITY'};lifecycle='CLOSED'}
-  return{state:{...current,owner:t.owner??current.owner,operator:t.operator??current.operator,lowerBinId:lower,upperBinId:upper,activeBinId:active,lifecycle,liquidityState:liquidityState(x,y),tokenXRaw:x,tokenYRaw:y,lastObservedAt:t.observedAt,evidenceIds:mergeEvidence(current.evidenceIds,t.evidenceIds)},withdrawal:t.action==='REMOVE'?t:undefined}
+  return{state:{...current,owner:t.owner??current.owner,operator:t.operator??current.operator,lowerBinId:lower,upperBinId:upper,activeBinId:active,lifecycle,liquidityState:liquidityState(x,y),tokenXRaw:x,tokenYRaw:y,lastObservedAt:t.observedAt,evidenceIds:mergeEvidence(current.evidenceIds,t.evidenceIds)},withdrawal:t.action==='REMOVE'?{...t,tokenXDeltas:t.tokenXWithdrawnRaw??xd,tokenYDeltas:t.tokenYWithdrawnRaw??yd}:undefined}
 }
