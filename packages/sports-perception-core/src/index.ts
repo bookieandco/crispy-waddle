@@ -16,6 +16,7 @@ export * from './nba-live-event-bridge.js';
 export * from './nba-live-state.js';
 export * from './nba-possession-chain.js';
 export * from './nba-possession-context.js';
+export * from './nba-possession-orchestrator.js';
 export * from './nba-possession.js';
 export * from './parlay-optimizer.js';
 export * from './parlay-scenario.js';
