@@ -30,6 +30,7 @@ export interface Vst3ProcessorLifecycleHost {
 
 export class Vst3ProcessorLifecycle {
   private state: Vst3ProcessorState = "INSTANTIATED";
+  private configuration: Vst3ProcessorConfiguration | undefined;
 
   constructor(
     private readonly host: Vst3ProcessorLifecycleHost,
@@ -50,10 +51,12 @@ export class Vst3ProcessorLifecycle {
     this.require("INITIALIZED");
     if (!Number.isFinite(configuration.sampleRate) || configuration.sampleRate <= 0) throw new Error("VST3 sample rate is invalid");
     if (!Number.isInteger(configuration.maxSamplesPerBlock) || configuration.maxSamplesPerBlock <= 0) throw new Error("VST3 max block size is invalid");
+    if (configuration.sampleFormat !== "f32" && configuration.sampleFormat !== "f64") throw new Error("VST3 sample format is invalid");
     if (!Number.isInteger(configuration.inputChannels) || configuration.inputChannels < 0) throw new Error("VST3 input channel count is invalid");
     if (!Number.isInteger(configuration.outputChannels) || configuration.outputChannels < 0) throw new Error("VST3 output channel count is invalid");
     await this.host.setupProcessing(configuration);
     await this.host.setBusArrangements(configuration.inputChannels, configuration.outputChannels);
+    this.configuration = { ...configuration };
     this.state = "CONFIGURED";
   }
 
@@ -69,10 +72,12 @@ export class Vst3ProcessorLifecycle {
     this.state = "PROCESSING";
   }
 
-  async process(sampleOffset: number, numSamples: number, maxSamplesPerBlock: number): Promise<void> {
+  async process(sampleOffset: number, numSamples: number): Promise<void> {
     this.require("PROCESSING");
+    const maxSamplesPerBlock = this.configuration?.maxSamplesPerBlock;
+    if (maxSamplesPerBlock === undefined) throw new Error("VST3 processor configuration is unavailable");
     if (!Number.isInteger(sampleOffset) || sampleOffset < 0) throw new Error("VST3 sample offset is invalid");
-    if (!Number.isInteger(numSamples) || numSamples <= 0 || numSamples > maxSamplesPerBlock) throw new Error("VST3 process block exceeds authorized maximum");
+    if (!Number.isInteger(numSamples) || numSamples <= 0 || numSamples > maxSamplesPerBlock) throw new Error("VST3 process block exceeds configured maximum");
     await this.host.process(sampleOffset, numSamples);
   }
 
