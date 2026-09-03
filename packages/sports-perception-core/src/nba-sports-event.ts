@@ -9,21 +9,25 @@ function gameIdFor(event: NBAEvent): string {
   return event.eventId.slice(0, separator);
 }
 
-export function toNBASportsEvent(event: NBAEvent, sportEventId = event.eventId): SportsEvent {
+export function toNBASportsEvent(event: NBAEvent, source: SportsEvent['provenance']['source'] = {
+  sourceId: 'nba-canonical-event',
+  sourceType: 'SYSTEM',
+  observedAt: new Date(0).toISOString(),
+  receivedAt: new Date(0).toISOString(),
+}): SportsEvent {
   return Object.freeze({
-    eventId: sportEventId,
+    eventId: event.eventId,
     sport: 'NBA',
     gameId: gameIdFor(event),
     sequence: event.sequence,
     eventType: event.kind,
     phase: event.period !== undefined && event.period > 4 ? 'OVERTIME' : 'REGULATION',
     period: event.period,
-    elapsedSeconds: event.elapsedSeconds,
-    participants: Object.freeze({
-      teamId: event.teamId,
-      playerId: event.playerId,
-      opponentPlayerId: event.opponentPlayerId,
-    }),
+    participants: Object.freeze([
+      Object.freeze({ participantId: event.teamId, role: 'TEAM' as const }),
+      ...(event.playerId ? [Object.freeze({ participantId: event.playerId, role: 'PLAYER' as const })] : []),
+      ...(event.opponentPlayerId ? [Object.freeze({ participantId: event.opponentPlayerId, role: 'PLAYER' as const })] : []),
+    ]),
     payload: Object.freeze({
       foulKind: event.foulKind,
       freeThrows: event.freeThrows,
@@ -31,9 +35,12 @@ export function toNBASportsEvent(event: NBAEvent, sportEventId = event.eventId):
       points: event.points,
       reboundKind: event.reboundKind,
     }),
-    observation: 'EVENT',
+    observationClass: 'OBSERVED',
     confidence: 1,
-    evidenceIds: Object.freeze([...event.evidenceIds]),
-    provenance: Object.freeze({ source: 'nba-canonical-event', sourceEventId: event.eventId }),
+    provenance: Object.freeze({
+      evidenceIds: Object.freeze([...event.evidenceIds]),
+      source: Object.freeze(source),
+      derivedFromEventIds: Object.freeze([event.eventId]),
+    }),
   });
 }
