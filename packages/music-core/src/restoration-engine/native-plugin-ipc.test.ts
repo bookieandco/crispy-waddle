@@ -37,8 +37,9 @@ describe("native plugin IPC contract", () => {
     expect(() => createNativePluginIpcRequest({ ...request("discover", "CREATED"), version: 2 } as never)).toThrow(/protocol version/);
   });
 
-  it("rejects source hash drift", () => {
-    expect(() => createNativePluginIpcRequest({ ...request("discover", "CREATED"), binding: { ...binding, sourceHash: "fedcba9876543210fedcba9876543210" } })).not.toThrow();
+  it("requires valid source and plugin hashes", () => {
+    expect(() => createNativePluginIpcRequest({ ...request("discover", "CREATED"), binding: { ...binding, sourceHash: "not-a-hash" } })).toThrow(/source hash/);
+    expect(() => createNativePluginIpcRequest({ ...request("discover", "CREATED"), binding: { ...binding, plugin: { ...binding.plugin, binaryHash: "not-a-hash" } })).toThrow(/binary hash/);
   });
 
   it("rejects sandbox path traversal", () => {
@@ -54,8 +55,13 @@ describe("native plugin IPC contract", () => {
     expect(() => createNativePluginIpcRequest(request("process_block", "CONFIGURED"))).toThrow(/transition/);
   });
 
-  it("rejects automation before load/configure", () => {
+  it("rejects automation before configuration", () => {
     expect(() => createNativePluginIpcRequest({ ...request("set_automation", "LOADED"), automation })).toThrow(/transition/);
+  });
+
+  it("rejects automation bound to the wrong source or plugin binary", () => {
+    expect(() => createNativePluginIpcRequest({ ...request("set_automation", "CONFIGURED"), automation: { ...automation, sourceArtifactId: "src:other" } })).toThrow(/source artifact/);
+    expect(() => createNativePluginIpcRequest({ ...request("set_automation", "CONFIGURED"), automation: { ...automation, pluginBinaryHash: "0123456789abcdef0123456789abcdef" } })).toThrow(/plugin hash/);
   });
 
   it("rejects process after shutdown", () => {
