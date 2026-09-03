@@ -2,6 +2,7 @@ import type { RandomSource } from './simulation.js';
 import type { NBAEvent, NBAEventGameState } from './nba-event-state-machine.js';
 import { createNBAEvent } from './nba-event-state-machine.js';
 import { createNBAEndOfPeriodEvent, createNBANextPeriodEvent } from './nba-period-events.js';
+import { createNBAGameIdentity } from './nba-game-identity.js';
 import type { NBAPossessionState } from './nba-possession.js';
 import { resolveNBAOrchestratedPossession } from './nba-possession-orchestrator.js';
 import type { NBALivePlayerState } from './nba-live-state.js';
@@ -38,8 +39,8 @@ function appendPeriodTransition(ledger: NBAEventLedger): boolean {
   ledger.append(endEvent);
   const afterEnd = ledger.snapshot().finalState;
 
-  const scores = Object.values(afterEnd.scores).slice(0, 2);
-  const tied = scores.length >= 2 && scores[0] === scores[1];
+  const identity = createNBAGameIdentity(afterEnd);
+  const tied = afterEnd.scores[identity.homeTeamId] === afterEnd.scores[identity.awayTeamId];
   if (afterEnd.period < 4 || (afterEnd.period >= 4 && tied)) {
     ledger.append(createNBANextPeriodEvent(afterEnd, afterEnd.evidenceIds));
     return false;
