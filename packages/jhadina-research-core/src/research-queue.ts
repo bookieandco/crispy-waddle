@@ -111,6 +111,19 @@ export function buildResearchQueuePlan(queue: ResearchQueue, nowRunningDurationM
   return { revision: queue.revision, ready, blocked };
 }
 
+/** Starts only a task that the current queue plan explicitly exposes as ready. */
+export function startResearchTask(queue: ResearchQueue, taskId: string): ResearchQueue {
+  const plan = buildResearchQueuePlan(queue);
+  if (!plan.ready.some((item) => item.taskId === taskId)) {
+    throw new Error("Research task is not currently ready or exceeds queue constraints");
+  }
+  return {
+    ...queue,
+    revision: queue.revision + 1,
+    tasks: queue.tasks.map((task) => task.id === taskId ? { ...task, state: "running" } : task),
+  };
+}
+
 export function scoreResearchTask(task: ResearchTask): number {
   // Deterministic value-per-cost score with explicit risk penalty.
   // A queue may prioritize discovery, but cannot convert a disallowed class into authority.
