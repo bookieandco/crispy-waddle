@@ -72,24 +72,30 @@ export function applyExperimentOutcome(
   hypotheses: RestorationHypothesis[],
   experiment: RestorationExperimentCandidate,
   outcomeId: string,
+  evidenceId = `experiment:${experiment.id}:${outcomeId}`,
 ): RestorationHypothesis[] {
   const outcome = experiment.outcomes.find((candidate) => candidate.outcomeId === outcomeId);
   if (!outcome) throw new Error("Cannot apply an undeclared experiment outcome");
   if (hypotheses.length === 0) throw new Error("At least one hypothesis is required");
+  if (!evidenceId) throw new Error("Experiment evidence ID is required");
 
   const hypothesisIds = new Set(hypotheses.map((hypothesis) => hypothesis.id));
   for (const hypothesisId of Object.keys(outcome.hypothesisLikelihoods)) {
     if (!hypothesisIds.has(hypothesisId)) throw new Error("Experiment outcome references an unknown hypothesis");
   }
 
-  const weighted = hypotheses.map((hypothesis) => ({
-    ...hypothesis,
-    observations: [...hypothesis.observations, {
-      evidenceId: `experiment:${experiment.id}:${outcomeId}`,
-      likelihood: outcome.hypothesisLikelihoods[hypothesis.id],
-    }],
-    posterior: hypothesis.prior * outcome.hypothesisLikelihoods[hypothesis.id],
-  }));
+  const weighted = hypotheses.map((hypothesis) => {
+    const likelihood = outcome.hypothesisLikelihoods[hypothesis.id];
+    if (!Number.isFinite(likelihood) || likelihood < 0 || likelihood > 1) {
+      throw new Error("Experiment outcome likelihood must be between 0 and 1");
+    }
+    const baseProbability = hypothesis.posterior ?? hypothesis.prior;
+    return {
+      ...hypothesis,
+      observations: [...hypothesis.observations, { evidenceId, likelihood }],
+      posterior: baseProbability * likelihood,
+    };
+  });
 
   const total = weighted.reduce((sum, hypothesis) => sum + (hypothesis.posterior ?? 0), 0);
   if (!(total > 0) || !Number.isFinite(total)) throw new Error("Experiment outcome produced no posterior mass");
