@@ -50,3 +50,5 @@ export * from "./hypothesis-uncertainty.js";
 export * from "./hypothesis-experiment.js";
 export * from "./hypothesis-experiment-executor.js";
 export * from "./hypothesis-controller.js";
+export * from "./hypothesis-resolution.js";
+export * from "./hypothesis-plan-compiler.js";
