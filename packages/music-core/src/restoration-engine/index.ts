@@ -52,3 +52,4 @@ export * from "./hypothesis-experiment-executor.js";
 export * from "./hypothesis-controller.js";
 export * from "./hypothesis-resolution.js";
 export * from "./hypothesis-plan-compiler.js";
+export * from "./plan-gate-integration.js";
