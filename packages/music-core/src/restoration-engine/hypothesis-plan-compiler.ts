@@ -7,6 +7,7 @@ export interface HypothesisPlanCompilerInput {
   sourceVersionId: string;
   inputArtifactId: string;
   region: { startSample: number; endSample: number };
+  protectedRegions?: Array<{ startSample: number; endSample: number; reason: string }>;
   operation: string;
   parameters?: Record<string, string | number | boolean>;
   planId: string;
@@ -14,11 +15,21 @@ export interface HypothesisPlanCompilerInput {
   requiresApproval?: boolean;
 }
 
+const overlaps = (
+  a: { startSample: number; endSample: number },
+  b: { startSample: number; endSample: number },
+): boolean => a.startSample < b.endSample && b.startSample < a.endSample;
+
 export function compileResolvedHypothesisToPlan(input: HypothesisPlanCompilerInput): RestorationPlan {
   validateInput(input);
   if (input.resolution.status !== "resolved") throw new Error("Only resolved hypotheses can compile into a restoration plan");
   if (input.resolution.kind !== "damage" && input.resolution.kind !== "missing-signal" && input.resolution.kind !== "transfer-artifact") {
     throw new Error("Hypothesis kind is not eligible for restoration planning");
+  }
+
+  const protectedRegions = (input.protectedRegions ?? []).map((region) => ({ ...region }));
+  if (protectedRegions.some((region) => overlaps(input.region, region))) {
+    throw new Error("Resolved hypothesis overlaps a protected region; restoration planning must abstain or narrow the region");
   }
 
   const candidate: RestorationCandidate = {
@@ -38,6 +49,7 @@ export function compileResolvedHypothesisToPlan(input: HypothesisPlanCompilerInp
     sourceVersionId: input.sourceVersionId,
     declaredDamageRegion: { ...input.region },
     allowedPropagationRegion: { ...input.region },
+    protectedRegions,
     evidenceIds: [...input.resolution.evidenceIds],
     candidates: [candidate],
     requiresApproval: input.requiresApproval ?? true,
@@ -49,8 +61,23 @@ function validateInput(input: HypothesisPlanCompilerInput): void {
     throw new Error("Plan compiler identity is required");
   }
   if (!input.operation) throw new Error("Restoration operation is required");
-  if (!Number.isInteger(input.region.startSample) || !Number.isInteger(input.region.endSample) || input.region.startSample < 0 || input.region.endSample <= input.region.startSample) {
+  if (
+    !Number.isInteger(input.region.startSample) ||
+    !Number.isInteger(input.region.endSample) ||
+    input.region.startSample < 0 ||
+    input.region.endSample <= input.region.startSample
+  ) {
     throw new Error("Restoration region must be a valid positive sample range");
   }
-  if (input.resolution.executionAuthorized !== false) throw new Error("Resolution cannot grant execution authority");
+  for (const region of input.protectedRegions ?? []) {
+    if (
+      !Number.isInteger(region.startSample) ||
+      !Number.isInteger(region.endSample) ||
+      region.startSample < 0 ||
+      region.endSample <= region.startSample ||
+      !region.reason
+    ) {
+      throw new Error("Protected regions must be valid sample ranges with reasons");
+    }
+  }
 }
