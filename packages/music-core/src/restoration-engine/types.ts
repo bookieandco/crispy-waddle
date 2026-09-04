@@ -35,6 +35,7 @@ export interface RestorationPlan {
   sourceVersionId: string;
   declaredDamageRegion?: { startSample: number; endSample: number };
   allowedPropagationRegion?: { startSample: number; endSample: number };
+  protectedRegions?: Array<{ startSample: number; endSample: number; reason: string }>;
   evidenceIds: string[];
   candidates: RestorationCandidate[];
   requiresApproval: boolean;
