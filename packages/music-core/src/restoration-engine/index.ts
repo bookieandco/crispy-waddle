@@ -49,3 +49,4 @@ export * from "./restoration-hypothesis.js";
 export * from "./hypothesis-uncertainty.js";
 export * from "./hypothesis-experiment.js";
 export * from "./hypothesis-experiment-executor.js";
+export * from "./hypothesis-controller.js";
