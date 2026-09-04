@@ -30,6 +30,7 @@ describe("hypothesis plan compiler", () => {
     expect(plan.operationClass).toBeUndefined();
     expect(plan.declaredDamageRegion).toEqual({ startSample: 100, endSample: 200 });
     expect(plan.allowedPropagationRegion).toEqual({ startSample: 100, endSample: 200 });
+    expect(plan.protectedRegions).toEqual([]);
     expect(plan.requiresApproval).toBe(true);
     expect(plan.candidates[0]).toEqual(expect.objectContaining({
       id: "candidate-1",
@@ -39,6 +40,21 @@ describe("hypothesis plan compiler", () => {
       provenance: "derived",
       evidenceIds: ["e1", "e2"],
     }));
+  });
+
+  it("preserves non-overlapping protected regions on the compiled plan", () => {
+    const plan = compileResolvedHypothesisToPlan({
+      ...input,
+      protectedRegions: [{ startSample: 300, endSample: 400, reason: "Protected vocal event" }],
+    });
+    expect(plan.protectedRegions).toEqual([{ startSample: 300, endSample: 400, reason: "Protected vocal event" }]);
+  });
+
+  it("fails closed when a resolved hypothesis overlaps a protected region", () => {
+    expect(() => compileResolvedHypothesisToPlan({
+      ...input,
+      protectedRegions: [{ startSample: 150, endSample: 250, reason: "Protected vocal consonant" }],
+    })).toThrow("overlaps a protected region");
   });
 
   it("rejects unresolved hypotheses", () => {
