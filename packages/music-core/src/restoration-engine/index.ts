@@ -56,3 +56,4 @@ export * from "./plan-gate-integration.js";
 export * from "./music-research-adapter.js";
 export * from "./music-perception-adapters.js";
 export * from "./music-pitch-fingerprint-adapters.js";
+export * from "./music-continuity-graph.js";
