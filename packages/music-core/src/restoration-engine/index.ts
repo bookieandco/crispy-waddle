@@ -55,3 +55,4 @@ export * from "./hypothesis-plan-compiler.js";
 export * from "./plan-gate-integration.js";
 export * from "./music-research-adapter.js";
 export * from "./music-perception-adapters.js";
+export * from "./music-pitch-fingerprint-adapters.js";
