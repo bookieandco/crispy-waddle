@@ -1,3 +1,5 @@
+import type { CreativeProvenance } from './creative-provenance.js';
+
 export type MediaQualityKind = 'image' | 'video';
 
 export type MediaQualityStatus = 'pass' | 'warn' | 'fail';
@@ -11,6 +13,8 @@ export interface MediaQualityEvidence {
   checkedAt: string;
   checker: string;
   metrics: Record<string, number | string | boolean>;
+  provenance?: CreativeProvenance;
+  assetSha256?: string;
   notes?: string[];
 }
 
