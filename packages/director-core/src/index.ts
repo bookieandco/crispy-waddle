@@ -40,3 +40,4 @@ export * from './timeline-command';
 export * from './creative-stage-graph';
 export * from './media-quality-evidence';
 export * from './director-vision-relay';
+export * from './creative-gate-adapter';
