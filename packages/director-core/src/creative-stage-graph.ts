@@ -22,6 +22,7 @@ export interface CreativeStage {
   version: number;
   approvedAt?: string;
   approvedBy?: string;
+  lastInvalidation?: StageInvalidation;
 }
 
 export interface StageArtifactVersion {
@@ -52,6 +53,7 @@ export class CreativeStageGraph {
     if (this.stages.has(stage.id)) throw new Error(`Creative stage already exists: ${stage.id}`);
     for (const dependency of stage.dependsOn) {
       if (dependency === stage.id) throw new Error(`Creative stage cannot depend on itself: ${stage.id}`);
+      if (!this.stages.has(dependency)) throw new Error(`Unknown creative stage dependency: ${dependency}`);
     }
     this.stages.set(stage.id, structuredClone(stage));
   }
@@ -69,6 +71,7 @@ export class CreativeStageGraph {
     const stage = this.stages.get(stageId);
     if (!stage) throw new Error(`Unknown creative stage: ${stageId}`);
     stage.status = 'stale';
+    stage.lastInvalidation = structuredClone(invalidation);
   }
 
   downstreamOf(stageId: string): CreativeStage[] {
@@ -87,17 +90,10 @@ export class CreativeStageGraph {
   }
 
   planRerun(stageId: string, invalidation: StageInvalidation): RerunPlan {
-    const stage = this.stages.get(stageId);
-    if (!stage) throw new Error(`Unknown creative stage: ${stageId}`);
+    if (!this.stages.has(stageId)) throw new Error(`Unknown creative stage: ${stageId}`);
     const downstream = this.downstreamOf(stageId);
-    stage.status = 'stale';
-    for (const dependent of downstream) {
-      const stored = this.stages.get(dependent.id);
-      if (stored && stored.status !== 'failed') stored.status = 'stale';
-    }
-    return {
-      stageIds: [stageId, ...downstream.map((item) => item.id)],
-      invalidations: [invalidation],
-    };
+    const affected = [stageId, ...downstream.map((item) => item.id)];
+    for (const id of affected) this.invalidate(id, { ...invalidation, stageId: id });
+    return { stageIds: affected, invalidations: affected.map((id) => ({ ...invalidation, stageId: id })) };
   }
 }
