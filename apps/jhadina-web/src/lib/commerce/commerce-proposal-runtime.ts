@@ -20,24 +20,10 @@ import {
  * Phase 4.6 production composition root. Every dependency here is the
  * same real, durable, request-scoped implementation the rest of Commerce
  * already uses — nothing module-level/singleton, since the underlying
- * Supabase client is bound to the current request's session cookies (see
- * durable-audit-ledger.ts's own note on why its ledger can't be a
- * singleton either).
- *
- * The payment provider is createStripeSandboxProductionProvider() with
- * no overrides: it resolves JHADINA_SECRET_STRIPE_SANDBOX (via
- * STRIPE_SANDBOX_CREDENTIAL_REF = "commerce/stripe/sandbox" and
- * sandboxCredentialRefToEnvKey — see sandbox-credential.ts) from
- * the real environment and fails closed (CREDENTIAL_NOT_CONFIGURED) if
- * that secret is unset, and independently refuses anything that is not a
- * real sk_test_ key (assertStripeSandboxKey). No live credential exists
- * in this environment as of this milestone — executeCommerceProposal
- * against a real proposal will fail closed here until a human configures
- * that secret. That is the intended human gate, not a bug to route
- * around.
+ * Supabase client is bound to the current request's session cookies.
  */
 export type CommerceProposalRuntimeOverrides = {
-  /** Test-only: createRequestIdentityVerifier() makes a real Supabase call with no meaning outside a real request. */
+  /** Test-only identity verifier. Production always verifies the current request session. */
   identityVerifier?: JhadinaIdentityVerifier
   /** Test-only: substitutes a fake/in-memory ledger instead of a live database. */
   ledger?: ActionLedger
@@ -49,14 +35,6 @@ export type CommerceProposalRuntimeOverrides = {
   paymentProvider?: PaymentProvider
 }
 
-/**
- * Shared by all three stages. Deliberately does NOT construct the
- * payment provider — propose and approve never touch Stripe at all, and
- * must keep working in this environment even though no sandbox
- * credential is configured yet. Only executeCommerceProposal (below)
- * needs, and resolves, the payment provider — the one place a missing
- * credential is expected to fail closed.
- */
 async function resolveBaseDeps(overrides: CommerceProposalRuntimeOverrides) {
   return {
     identityVerifier: overrides.identityVerifier ?? (await createRequestIdentityVerifier()),
@@ -66,30 +44,36 @@ async function resolveBaseDeps(overrides: CommerceProposalRuntimeOverrides) {
   }
 }
 
+/**
+ * Identity is deliberately not accepted from the HTTP caller. The lifecycle
+ * receives undefined so its verifier must derive the actor from the verified
+ * request session. Keeping this contract here prevents future route code from
+ * accidentally reintroducing caller-controlled identity.
+ */
 export async function runProposeCommerceAction(
-  claimedUserId: string,
+  _claimedUserId: undefined,
   payload: CommerceProposalPayload,
   overrides: CommerceProposalRuntimeOverrides = {},
 ): Promise<CommerceProposalResult> {
   const deps = await resolveBaseDeps(overrides)
-  return proposeCommerceAction(deps, claimedUserId, payload)
+  return proposeCommerceAction(deps, undefined, payload)
 }
 
 export async function runApproveCommerceProposal(
-  claimedUserId: string,
+  _claimedUserId: undefined,
   proposalId: string,
   overrides: CommerceProposalRuntimeOverrides = {},
 ): Promise<CommerceProposalApprovalResult> {
   const deps = await resolveBaseDeps(overrides)
-  return approveCommerceProposal(deps, claimedUserId, proposalId)
+  return approveCommerceProposal(deps, undefined, proposalId)
 }
 
 export async function runExecuteCommerceProposal(
-  claimedUserId: string,
+  _claimedUserId: undefined,
   proposalId: string,
   overrides: CommerceProposalRuntimeOverrides = {},
 ): Promise<CommerceProposalExecutionResult> {
   const deps = await resolveBaseDeps(overrides)
   const paymentProvider = overrides.paymentProvider ?? (await createStripeSandboxProductionProvider())
-  return executeCommerceProposal({ ...deps, paymentProvider }, claimedUserId, proposalId)
+  return executeCommerceProposal({ ...deps, paymentProvider }, undefined, proposalId)
 }
