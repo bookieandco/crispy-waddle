@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { getCurrentUserId } from "@/lib/auth/current-user"
 
 type EvidenceRef = { id: string; source: string; observedAt: string; summary: string }
 type DecisionProposal = {
@@ -27,20 +26,14 @@ type CommandResult = {
  * Phase 1 Step 6 — Ask Jhadina.
  *
  * Connects the app's ✦ shell to the real governed loop: this page is a
- * thin client for POST /api/jhadina/command (Step 6), which calls the
- * real handleJhadinaCommand() (Step 5) with no overrides — the real
- * Context Builder, the real IntelligenceRouter, the real
- * SecurityCoreActionPolicy/ApprovalReceipt/ActionExecutor/audit chain.
- * This page executes nothing directly and makes no policy decisions —
- * it only submits a command and renders what the governed pipeline
- * returned.
+ * thin client for POST /api/jhadina/command. Identity is established by
+ * the server from the authenticated session; the browser does not choose
+ * an acting user via a request header.
  *
+ * This page executes nothing directly and makes no policy decisions — it
+ * only submits a command and renders what the governed pipeline returned.
  * A PROCEED disposition whose action succeeds produces a PENDING memory
- * candidate — Step 2's explicit human approval boundary is preserved
- * here exactly: the Approve/Reject buttons below call the same
- * pre-existing /api/memory/approve and /api/memory/reject routes Step 2
- * already built. Nothing on this page turns a proposal directly into a
- * durable memory.
+ * candidate; the explicit human approval boundary remains intact.
  */
 export default function AskJhadinaPage() {
   return (
@@ -62,16 +55,9 @@ function AskJhadina() {
   const [pending, setPending] = useState<MemoryCandidate[]>([])
   const [candidateBusy, setCandidateBusy] = useState<string | null>(null)
 
-  async function userHeader(): Promise<Record<string, string>> {
-    const userId = await getCurrentUserId()
-    if (!userId) throw new Error("Not signed in")
-    return { "x-jhadina-user-id": userId }
-  }
-
   async function loadPending() {
     try {
-      const headers = await userHeader()
-      const res = await fetch("/api/candidates", { headers: { "x-user-id": headers["x-jhadina-user-id"] } })
+      const res = await fetch("/api/candidates")
       const json = await res.json()
       if (res.ok) setPending(json.data?.candidates ?? [])
     } catch {
@@ -85,10 +71,9 @@ function AskJhadina() {
     if (!activeTask.trim()) return
     setBusy(true); setError(""); setResult(null)
     try {
-      const headers = await userHeader()
       const res = await fetch("/api/jhadina/command", {
         method: "POST",
-        headers: { "content-type": "application/json", ...headers },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ activeTask: activeTask.trim(), surface, route }),
       })
       const json = await res.json()
@@ -106,10 +91,9 @@ function AskJhadina() {
   async function decideCandidate(candidateId: string, decision: "approve" | "reject") {
     setCandidateBusy(candidateId)
     try {
-      const headers = await userHeader()
       const res = await fetch(`/api/memory/${decision}`, {
         method: "POST",
-        headers: { "content-type": "application/json", "x-user-id": headers["x-jhadina-user-id"] },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ candidateId }),
       })
       const json = await res.json()
