@@ -5,21 +5,16 @@ const runProposeCommerceAction = vi.fn()
 vi.mock("@/lib/commerce/commerce-proposal-runtime", () => ({
   runProposeCommerceAction: (...args: unknown[]) => runProposeCommerceAction(...args),
 }))
+vi.mock("@/lib/auth/require-authenticated-user", () => ({
+  requireAuthenticatedUser: vi.fn().mockResolvedValue({ userId: "user-1", sessionId: "session-1" }),
+}))
 
 import { POST } from "./route"
 
-/**
- * Route-level tests: HTTP surface only (request parsing, validation,
- * status-code mapping) — the governed propose/approve/execute logic
- * itself is proven against real in-memory fakes in
- * commerce-proposal-lifecycle.test.ts. Mocking the runtime module here
- * mirrors how this route is actually composed: a thin adapter with no
- * business logic of its own.
- */
-function request(body: unknown, headers: Record<string, string> = {}): NextRequest {
+function request(body: unknown): NextRequest {
   return new NextRequest("http://localhost/api/commerce/proposals", {
     method: "POST",
-    headers: { "content-type": "application/json", ...headers },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   })
 }
@@ -50,19 +45,19 @@ describe("POST /api/commerce/proposals", () => {
     expect(res.status).toBe(400)
   })
 
-  it("creates a proposal and returns 200 on success", async () => {
+  it("creates a proposal without accepting caller-selected identity", async () => {
     runProposeCommerceAction.mockResolvedValue({
       proposal: { id: "p1", status: "pending" },
       verifiedUserId: "user-1",
     })
 
-    const res = await POST(request({ amountMinor: 1500, currency: "usd", description: "Sandbox charge" }, { "x-jhadina-user-id": "user-1" }))
+    const res = await POST(request({ amountMinor: 1500, currency: "usd", description: "Sandbox charge" }))
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.success).toBe(true)
     expect(json.data.proposal.id).toBe("p1")
     expect(runProposeCommerceAction).toHaveBeenCalledWith(
-      "user-1",
+      undefined,
       expect.objectContaining({ amountMinor: 1500, currency: "usd", description: "Sandbox charge" }),
     )
   })
