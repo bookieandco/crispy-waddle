@@ -4,8 +4,8 @@ import type { CreativeStage, CreativeStageGraph } from './creative-stage-graph.j
 export type DirectorGenerationGateInput = {
   run: ProductionRun;
   gate: CreativeGate;
+  storyboardStage?: CreativeStage;
   generationStage: CreativeStage;
-  requiredQualityEvidenceIds?: string[];
 };
 
 export type DirectorGenerationGateDecision = {
@@ -13,11 +13,7 @@ export type DirectorGenerationGateDecision = {
   reason: string;
 };
 
-/**
- * Final Director-side gate before a generation take is submitted.
- * This is deliberately a pure policy adapter: execution remains in
- * GenerationService and authorization remains upstream in Jhadina policy.
- */
+/** Final Director-side gate before a generation take is submitted. */
 export function evaluateDirectorGenerationGate(
   input: DirectorGenerationGateInput,
 ): DirectorGenerationGateDecision {
@@ -29,15 +25,15 @@ export function evaluateDirectorGenerationGate(
     return { allowed: false, reason: 'Generation requires an approved generation creative gate.' };
   }
 
+  if (input.storyboardStage && input.storyboardStage.status === 'stale') {
+    return { allowed: false, reason: 'Generation is blocked because the storyboard stage is stale.' };
+  }
+
   if (input.generationStage.status !== 'ready' && input.generationStage.status !== 'approved') {
     return { allowed: false, reason: `Generation stage is not ready: ${input.generationStage.status}` };
   }
 
-  if ((input.requiredQualityEvidenceIds?.length ?? 0) > 0) {
-    return { allowed: false, reason: 'Quality evidence belongs to post-generation review and cannot be used to authorize the first generation.' };
-  }
-
-  return { allowed: true, reason: 'Generation creative gate and stage readiness are satisfied.' };
+  return { allowed: true, reason: 'Generation creative gate, storyboard lineage, and stage readiness are satisfied.' };
 }
 
 /** Marks a stage stale through the canonical graph after a gate requests changes. */
