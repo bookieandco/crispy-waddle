@@ -1,8 +1,4 @@
-import type {
-  CreativeStageGraph,
-  RerunPlan,
-  StageArtifactVersion,
-} from './creative-stage-graph.js';
+import type { CreativeStageGraph, RerunPlan, StageArtifactVersion } from './creative-stage-graph.js';
 import type { StoryboardBoardChange, StoryboardInvalidationPlan } from './storyboard-sequence.js';
 
 export interface StoryboardStageBinding {
@@ -30,31 +26,18 @@ export function invalidateStoryboardStages(
   graph: CreativeStageGraph,
   binding: StoryboardStageBinding,
   change: StoryboardBoardChange,
+  storyboard: StoryboardInvalidationPlan,
 ): StoryboardStageInvalidation {
   const storyboardStageId = binding.stageIds.storyboard;
-  const affectedStageIds = Object.values(binding.stageIds).filter(
-    (stageId): stageId is string => Boolean(stageId),
-  );
-
-  for (const stageId of affectedStageIds) {
-    if (!graph.get(stageId)) continue;
-    graph.invalidate(stageId, {
-      reason: change.reason,
-      source: `storyboard:${change.boardId}`,
-      at: change.at,
-    });
-  }
-
-  const stagePlan = graph.planRerun(storyboardStageId);
-  return {
-    storyboard: {
-      boardId: change.boardId,
-      affectedBoardIds: [change.boardId],
-      affectedShotIds: [],
-      reason: change.reason,
-    },
-    stagePlan,
+  const invalidation = {
+    stageId: storyboardStageId,
+    reason: change.reason,
+    sourceStageId: storyboardStageId,
+    at: change.at,
   };
+
+  const stagePlan = graph.planRerun(storyboardStageId, invalidation);
+  return { storyboard, stagePlan };
 }
 
 export function recordStoryboardArtifact(
@@ -64,15 +47,12 @@ export function recordStoryboardArtifact(
   boardVersion: number,
   artifactId: string,
 ): StageArtifactVersion {
-  const stage = graph.get(stageId);
-  if (!stage) throw new Error(`Unknown creative stage: ${stageId}`);
+  if (!graph.get(stageId)) throw new Error(`Unknown creative stage: ${stageId}`);
 
   return {
-    id: `${stageId}:${boardId}:v${boardVersion}`,
+    artifactId,
     stageId,
     version: boardVersion,
-    artifactIds: [artifactId],
-    sourceFingerprint: `storyboard:${boardId}:v${boardVersion}`,
     createdAt: new Date().toISOString(),
   };
 }
