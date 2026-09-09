@@ -1,13 +1,3 @@
-/**
- * InMemoryStorage
- *
- * Pure storage layer. No business logic.
- * Collections for memories, candidates, reasoning events, and timeline.
- *
- * This is the foundation that Repositories will build on.
- * All data is lost on application restart (by design for MVP).
- */
-
 import type { MemoryStorage } from "./MemoryStorage"
 
 export interface Memory {
@@ -21,7 +11,6 @@ export interface Memory {
   approvedAt?: string
   rejectedAt?: string
 }
-
 export interface MemoryCandidate {
   id: string
   userId: string
@@ -32,7 +21,6 @@ export interface MemoryCandidate {
   createdAt: string
   reasoningEventId: string
 }
-
 export interface ReasoningEvent {
   id: string
   userId: string
@@ -44,19 +32,8 @@ export interface ReasoningEvent {
   confidence: number
   candidateId?: string
 }
-
-export interface Observation {
-  raw: string
-  extracted: string
-  timestamp: string
-}
-
-export interface Classification {
-  type: MemoryType
-  confidence: number
-  reasoning?: string
-}
-
+export interface Observation { raw: string; extracted: string; timestamp: string }
+export interface Classification { type: MemoryType; confidence: number; reasoning?: string }
 export interface TimelineEvent {
   id: string
   userId: string
@@ -68,214 +45,83 @@ export interface TimelineEvent {
   memoryType?: MemoryType
   decision?: "APPROVED" | "REJECTED"
 }
-
 export type MemoryType = "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT"
 export type MemoryStatus = "PENDING" | "APPROVED" | "REJECTED"
 
-/**
- * InMemoryStorage class
- *
- * Implements MemoryStorage (see ./MemoryStorage.ts) as an async-returning
- * class even though every operation here is synchronous under the hood —
- * that keeps this interchangeable with SupabaseMemoryStorage without
- * changing a single caller. Dev/test fallback only: all data is lost on
- * application restart (by design).
- */
+/** Dev/test persistence. Object reads and mutations are explicitly user-scoped. */
 export class InMemoryStorage implements MemoryStorage {
-  private memories: Map<string, Memory> = new Map()
-  private candidates: Map<string, MemoryCandidate> = new Map()
-  private reasoningEvents: Map<string, ReasoningEvent> = new Map()
+  private memories = new Map<string, Memory>()
+  private candidates = new Map<string, MemoryCandidate>()
+  private reasoningEvents = new Map<string, ReasoningEvent>()
   private timeline: TimelineEvent[] = []
-  private idCounters = {
-    memory: 0,
-    candidate: 0,
-    reasoning: 0,
-    timeline: 0,
-  }
+  private idCounters = { memory: 0, candidate: 0, reasoning: 0, timeline: 0 }
 
-  /**
-   * Memory operations
-   */
   async createMemory(data: Omit<Memory, "id">): Promise<Memory> {
-    const id = `mem_${++this.idCounters.memory}`
-    const memory: Memory = { id, ...data }
-    this.memories.set(id, memory)
+    const memory = { id: `mem_${++this.idCounters.memory}`, ...data }
+    this.memories.set(memory.id, memory)
     return memory
   }
-
-  async getMemory(id: string): Promise<Memory | undefined> {
-    return this.memories.get(id)
+  async getMemory(userId: string, id: string): Promise<Memory | undefined> {
+    const memory = this.memories.get(id)
+    return memory?.userId === userId ? memory : undefined
   }
-
   async listMemories(userId: string): Promise<Memory[]> {
     return Array.from(this.memories.values()).filter(m => m.userId === userId)
   }
-
-  async updateMemory(id: string, updates: Partial<Memory>): Promise<Memory | undefined> {
+  async updateMemory(userId: string, id: string, updates: Partial<Memory>): Promise<Memory | undefined> {
     const memory = this.memories.get(id)
-    if (!memory) return undefined
-    const updated = { ...memory, ...updates }
+    if (!memory || memory.userId !== userId) return undefined
+    const updated = { ...memory, ...updates, id: memory.id, userId: memory.userId }
     this.memories.set(id, updated)
     return updated
   }
 
-  /**
-   * Candidate operations
-   */
   async createCandidate(data: Omit<MemoryCandidate, "id">): Promise<MemoryCandidate> {
-    const id = `cand_${++this.idCounters.candidate}`
-    const candidate: MemoryCandidate = { id, ...data }
-    this.candidates.set(id, candidate)
+    const candidate = { id: `cand_${++this.idCounters.candidate}`, ...data }
+    this.candidates.set(candidate.id, candidate)
     return candidate
   }
-
-  async getCandidate(id: string): Promise<MemoryCandidate | undefined> {
-    return this.candidates.get(id)
+  async getCandidate(userId: string, id: string): Promise<MemoryCandidate | undefined> {
+    const candidate = this.candidates.get(id)
+    return candidate?.userId === userId ? candidate : undefined
   }
-
   async listCandidates(userId: string, status?: "PENDING"): Promise<MemoryCandidate[]> {
-    return Array.from(this.candidates.values()).filter(
-      c => c.userId === userId && (!status || c.status === status)
-    )
+    return Array.from(this.candidates.values()).filter(c => c.userId === userId && (!status || c.status === status))
+  }
+  async removeCandidate(userId: string, id: string): Promise<void> {
+    const candidate = this.candidates.get(id)
+    if (candidate?.userId === userId) this.candidates.delete(id)
   }
 
-  async removeCandidate(id: string): Promise<void> {
-    this.candidates.delete(id)
-  }
-
-  /**
-   * Reasoning event operations
-   */
   async createReasoningEvent(data: Omit<ReasoningEvent, "id">): Promise<ReasoningEvent> {
-    const id = `reason_${++this.idCounters.reasoning}`
-    const event: ReasoningEvent = { id, ...data }
-    this.reasoningEvents.set(id, event)
+    const event = { id: `reason_${++this.idCounters.reasoning}`, ...data }
+    this.reasoningEvents.set(event.id, event)
     return event
   }
-
-  async getReasoningEvent(id: string): Promise<ReasoningEvent | undefined> {
-    return this.reasoningEvents.get(id)
+  async getReasoningEvent(id: string): Promise<ReasoningEvent | undefined> { return this.reasoningEvents.get(id) }
+  async listReasoningEvents(userId: string, limit = 50): Promise<ReasoningEvent[]> {
+    return Array.from(this.reasoningEvents.values()).filter(e => e.userId === userId).reverse().slice(0, limit)
   }
 
-  async listReasoningEvents(userId: string, limit: number = 50): Promise<ReasoningEvent[]> {
-    // Reverse insertion order rather than sorting by timestamp: events
-    // created within the same millisecond (common in tests and fast
-    // request handling) compare equal, which makes a timestamp sort
-    // unstable and can leave older events ahead of newer ones.
-    // Insertion order is always correctly chronological.
-    return Array.from(this.reasoningEvents.values())
-      .filter(e => e.userId === userId)
-      .reverse()
-      .slice(0, limit)
-  }
-
-  /**
-   * Timeline operations
-   */
   async appendTimelineEvent(data: Omit<TimelineEvent, "id">): Promise<TimelineEvent> {
-    const id = `timeline_${++this.idCounters.timeline}`
-    const event: TimelineEvent = { id, ...data }
+    const event = { id: `timeline_${++this.idCounters.timeline}`, ...data }
     this.timeline.push(event)
     return event
   }
-
-  async listTimeline(userId: string, limit: number = 50): Promise<TimelineEvent[]> {
-    // See listReasoningEvents: reverse insertion order instead of sorting
-    // by timestamp, since same-millisecond events make a timestamp sort
-    // unstable.
-    return this.timeline
-      .filter(e => e.userId === userId)
-      .reverse()
-      .slice(0, limit)
+  async listTimeline(userId: string, limit = 50): Promise<TimelineEvent[]> {
+    return this.timeline.filter(e => e.userId === userId).reverse().slice(0, limit)
   }
 
-  /**
-   * Debug dump - visibility into entire state
-   */
-  dump(userId?: string): string {
-    const lines: string[] = []
-
-    lines.push("═══════════════════════════════════════")
-    lines.push("InMemoryStorage Debug Dump")
-    lines.push("═══════════════════════════════════════")
-    lines.push("")
-
-    // Filter by user if specified
-    const filterUser = (item: { userId: string }) =>
-      !userId || item.userId === userId
-
-    // Candidates
-    const candidateList = Array.from(this.candidates.values()).filter(filterUser)
-    lines.push(`Candidates (PENDING): ${candidateList.length}`)
-    if (candidateList.length > 0) {
-      for (const cand of candidateList) {
-        lines.push(
-          `  ${cand.id} | ${cand.type} | "${cand.content.slice(0, 40)}..." | conf=${cand.confidence.toFixed(2)}`
-        )
-      }
-    }
-    lines.push("")
-
-    // Approved Memories
-    const memoryList = Array.from(this.memories.values()).filter(filterUser)
-    const approved = memoryList.filter(m => m.status === "APPROVED")
-    lines.push(`Approved Memories: ${approved.length}`)
-    if (approved.length > 0) {
-      for (const mem of approved) {
-        lines.push(
-          `  ${mem.id} | ${mem.type} | "${mem.content.slice(0, 40)}..." | approved ${mem.approvedAt?.slice(0, 10) || "?"}`
-        )
-      }
-    }
-    lines.push("")
-
-    // Reasoning Events
-    const reasoningList = Array.from(this.reasoningEvents.values()).filter(
-      filterUser
-    )
-    lines.push(`Reasoning Events: ${reasoningList.length}`)
-    if (reasoningList.length > 0 && reasoningList.length <= 5) {
-      for (const event of reasoningList) {
-        lines.push(`  ${event.id} | ${event.timestamp.slice(11, 19)}`)
-      }
-    }
-    lines.push("")
-
-    // Timeline
-    const timelineList = this.timeline.filter(filterUser)
-    lines.push(`Timeline Events: ${timelineList.length}`)
-    if (timelineList.length > 0 && timelineList.length <= 10) {
-      for (const event of timelineList) {
-        const time = event.timestamp.slice(11, 19)
-        let desc: string = event.type
-        if (event.type === "APPROVAL") {
-          desc = `APPROVAL | ${event.decision}`
-        } else if (event.type === "REASONING") {
-          desc = `REASONING | Candidate: ${event.reasoningEventId}`
-        }
-        lines.push(`  ${time} | ${desc}`)
-      }
-    }
-    lines.push("")
-
-    lines.push("═══════════════════════════════════════")
-
-    return lines.join("\n")
+  dump(userId: string): string {
+    if (!userId) throw new Error("Authenticated userId is required")
+    const memories = this.memoriesFor(userId).filter(m => m.status === "APPROVED")
+    const candidates = Array.from(this.candidates.values()).filter(c => c.userId === userId)
+    return ["InMemoryStorage Debug Dump", `Approved Memories: ${memories.length}`, `Pending Candidates: ${candidates.length}`].join("\n")
   }
-
-  /**
-   * Reset all data (useful for testing)
-   */
+  private memoriesFor(userId: string) { return Array.from(this.memories.values()).filter(m => m.userId === userId) }
   clear(): void {
-    this.memories.clear()
-    this.candidates.clear()
-    this.reasoningEvents.clear()
-    this.timeline = []
+    this.memories.clear(); this.candidates.clear(); this.reasoningEvents.clear(); this.timeline = []
     this.idCounters = { memory: 0, candidate: 0, reasoning: 0, timeline: 0 }
   }
 }
-
-/**
- * Global singleton instance
- */
 export const storage = new InMemoryStorage()
