@@ -5,16 +5,13 @@ export const dynamic = "force-dynamic"
 
 /**
  * Jhadina OS Integration Phase 2: the Activity Timeline's only way to
- * reach the governed Growth audit ledger. No UI component imports the
- * ledger or governed-approval-runtime directly — this route is the
- * application/service boundary between them, exactly like
- * /api/growth/drafts/approve is the boundary for the write side.
+ * reach the governed Growth audit ledger. Identity is derived from the
+ * verified request session inside the governed runtime; callers cannot
+ * select the actor with a request header.
  */
-export async function GET(req: NextRequest) {
-  const claimedUserId = req.headers.get("x-jhadina-user-id") || "default-user"
-
+export async function GET(_req: NextRequest) {
   try {
-    const { events, verifiedUserId } = await listGovernedGrowthActivity(claimedUserId)
+    const { events, verifiedUserId } = await listGovernedGrowthActivity()
     return NextResponse.json({ success: true, data: { events, verifiedUserId } })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not load activity"
