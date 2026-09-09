@@ -25,6 +25,13 @@ describe('creative gate adapter', () => {
     expect(evaluateDirectorGenerationGate({ run, gate, generationStage: graph.get('generation')! }).allowed).toBe(false);
   });
 
+  it('blocks generation when storyboard lineage is stale', () => {
+    const graph = new CreativeStageGraph();
+    graph.add({ id: 'storyboard', projectId: 'project-1', kind: 'storyboard', dependsOn: [], status: 'stale', inputArtifactIds: [], outputArtifactIds: [], version: 2 });
+    graph.add({ id: 'generation', projectId: 'project-1', kind: 'generation', dependsOn: ['storyboard'], status: 'ready', inputArtifactIds: [], outputArtifactIds: [], version: 1 });
+    expect(evaluateDirectorGenerationGate({ run, gate, storyboardStage: graph.get('storyboard')!, generationStage: graph.get('generation')! }).allowed).toBe(false);
+  });
+
   it('plans a deterministic downstream rerun when changes are requested', () => {
     const graph = new CreativeStageGraph();
     graph.add({ id: 'storyboard', projectId: 'project-1', kind: 'storyboard', dependsOn: [], status: 'approved', inputArtifactIds: [], outputArtifactIds: [], version: 1 });
