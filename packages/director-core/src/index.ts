@@ -42,6 +42,7 @@ export * from './media-quality-evidence';
 export * from './director-vision-relay';
 export * from './creative-gate-adapter';
 export * from './media-review-gate-adapter';
+export * from './creative-provenance';
 export * from './storyboard-sequence';
 export * from './storyboard-shot-adapter';
 export * from './storyboard-stage-binding';
