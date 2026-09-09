@@ -1,3 +1,5 @@
+import type { CreativeProvenance } from './creative-provenance.js';
+
 export type GeneratedAssetKind = 'image' | 'video' | 'audio' | '3d' | 'motion';
 
 export type GeneratedAssetRecord = {
@@ -11,6 +13,7 @@ export type GeneratedAssetRecord = {
   modelId?: string;
   workflowId?: string;
   createdAt: string;
+  provenance?: CreativeProvenance;
   metadata?: Record<string, unknown>;
 };
 
