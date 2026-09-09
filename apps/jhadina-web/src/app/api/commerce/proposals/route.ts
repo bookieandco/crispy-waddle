@@ -4,18 +4,9 @@ import { isStripeSandboxTestPaymentMethod } from "@/lib/commerce/stripe-sandbox-
 
 export const dynamic = "force-dynamic"
 
-/**
- * Phase 4.6, Stage 1: POST /api/commerce/proposals.
- *
- * Creates a durable PENDING Commerce proposal after policy evaluation.
- * This route never approves and never executes anything — see
- * commerce-proposal-lifecycle.ts's proposeCommerceAction for the full
- * governed sequence this thin adapter delegates to.
- */
+/** Stage 1: identity is derived from the request's server-verified Supabase session. */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
-  const claimedUserId = req.headers.get("x-jhadina-user-id") || "default-user"
-
   const amountMinor = body?.amountMinor
   const currency = body?.currency
   const description = body?.description
@@ -35,23 +26,16 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await runProposeCommerceAction(claimedUserId, {
+    const result = await runProposeCommerceAction(undefined, {
       amountMinor,
       currency: currency.toLowerCase(),
       description,
       testPaymentMethod,
     })
-    return NextResponse.json({
-      success: true,
-      data: { proposal: result.proposal, verifiedUserId: result.verifiedUserId },
-    })
+    return NextResponse.json({ success: true, data: { proposal: result.proposal, verifiedUserId: result.verifiedUserId } })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create commerce proposal"
-    const status = message.includes("identity") || message.includes("session") || message.includes("Authenticated")
-      ? 401
-      : message.includes("denied by policy")
-        ? 403
-        : 500
+    const status = message.includes("identity") || message.includes("session") || message.includes("Authenticated") ? 401 : message.includes("denied by policy") ? 403 : 500
     return NextResponse.json({ success: false, error: message }, { status })
   }
 }
