@@ -5,14 +5,14 @@ const runExecuteCommerceProposal = vi.fn()
 vi.mock("@/lib/commerce/commerce-proposal-runtime", () => ({
   runExecuteCommerceProposal: (...args: unknown[]) => runExecuteCommerceProposal(...args),
 }))
+vi.mock("@/lib/auth/require-authenticated-user", () => ({
+  requireAuthenticatedUser: vi.fn().mockResolvedValue({ userId: "user-1", sessionId: "session-1" }),
+}))
 
 import { POST } from "./route"
 
-function request(headers: Record<string, string> = {}): NextRequest {
-  return new NextRequest("http://localhost/api/commerce/proposals/p1/execute", {
-    method: "POST",
-    headers,
-  })
+function request(): NextRequest {
+  return new NextRequest("http://localhost/api/commerce/proposals/p1/execute", { method: "POST" })
 }
 
 describe("POST /api/commerce/proposals/:id/execute", () => {
@@ -29,11 +29,11 @@ describe("POST /api/commerce/proposals/:id/execute", () => {
       status: "captured",
     })
 
-    const res = await POST(request({ "x-jhadina-user-id": "user-1" }), { params: { id: "p1" } })
+    const res = await POST(request(), { params: { id: "p1" } })
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.data.status).toBe("captured")
-    expect(runExecuteCommerceProposal).toHaveBeenCalledWith("user-1", "p1")
+    expect(runExecuteCommerceProposal).toHaveBeenCalledWith(undefined, "p1")
   })
 
   it("maps an identity failure to 401", async () => {
