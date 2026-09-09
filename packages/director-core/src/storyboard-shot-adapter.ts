@@ -22,39 +22,45 @@ const DEFAULT_LOCKS: ContinuityLock[] = ['character', 'location', 'camera', 'com
 
 export function buildStoryboardShotPlan(
   sequence: StoryboardSequence,
+  boards: StoryboardBoard[],
   shotId: string,
 ): StoryboardShotPlan {
-  const boards = sequence.boards
-    .filter((board) => board.shotId === shotId)
+  const sequenceBoardIds = new Set(sequence.boardIds);
+  const shotBoards = boards
+    .filter((board) => sequenceBoardIds.has(board.id) && board.shotId === shotId)
     .sort((a, b) => a.order - b.order);
 
-  if (boards.length === 0) throw new Error(`No storyboard boards found for shot: ${shotId}`);
+  if (shotBoards.length === 0) throw new Error(`No storyboard boards found for shot: ${shotId}`);
+  if (shotBoards.some((board) => board.sequenceId !== sequence.id || board.sceneId !== sequence.sceneId)) {
+    throw new Error(`Storyboard board does not belong to sequence scene: ${sequence.id}`);
+  }
 
-  const latestVersion = Math.max(...boards.map((board) => board.version));
-  const referenceAssetIds = unique(boards.flatMap((board) => board.referenceAssetIds));
+  const latestVersion = Math.max(...shotBoards.map((board) => board.version));
+  const referenceAssetIds = unique(shotBoards.flatMap((board) => board.referenceAssetIds));
   const continuityLocks = unique(
-    boards.flatMap((board) => board.continuityLocks.length > 0 ? board.continuityLocks : DEFAULT_LOCKS),
+    shotBoards.flatMap((board) => board.continuityLocks?.length ? board.continuityLocks : DEFAULT_LOCKS),
   );
 
   return {
     projectId: sequence.projectId,
-    sceneId: boards[0].sceneId,
+    sceneId: sequence.sceneId,
     shotId,
-    boardIds: boards.map((board) => board.id),
+    boardIds: shotBoards.map((board) => board.id),
     boardVersion: latestVersion,
-    prompt: boards.map(boardPrompt).filter(Boolean).join('\n'),
+    prompt: shotBoards.map(boardPrompt).filter(Boolean).join('\n'),
     referenceAssetIds,
     continuityLocks,
-    cinematography: cinematographyFrom(boards),
+    cinematography: cinematographyFrom(shotBoards),
   };
 }
 
 export function buildStoryboardTakePlan(
   sequence: StoryboardSequence,
+  boards: StoryboardBoard[],
   shotId: string,
   overrides: Pick<TakeRequest, 'takeCount' | 'parentTakeId' | 'targetRuntimeSeconds'> = {},
 ): StoryboardTakePlan {
-  const shot = buildStoryboardShotPlan(sequence, shotId);
+  const shot = buildStoryboardShotPlan(sequence, boards, shotId);
   const takeRequest: TakeRequest = {
     projectId: shot.projectId,
     sceneId: shot.sceneId,
@@ -67,26 +73,28 @@ export function buildStoryboardTakePlan(
     referenceAssetIds: shot.referenceAssetIds,
   };
 
-  return { shot, take: {
-    sceneId: shot.sceneId,
-    takeNumber: overrides.takeCount ?? 1,
-    parentTakeId: overrides.parentTakeId,
-    continuityLocks: takeRequest.locked,
-    prompt: takeRequest.prompt,
-    status: 'queued',
-  } };
+  return {
+    shot,
+    take: {
+      sceneId: shot.sceneId,
+      takeNumber: overrides.takeCount ?? 1,
+      parentTakeId: overrides.parentTakeId,
+      continuityLocks: takeRequest.locked,
+      prompt: takeRequest.prompt,
+      status: 'queued',
+    },
+  };
 }
 
 function boardPrompt(board: StoryboardBoard): string {
-  return [board.action, board.composition, board.cameraIntent, board.notes]
+  return [board.action, board.description, board.framing, board.cameraLanguage, board.notes]
     .filter((value): value is string => Boolean(value?.trim()))
     .join(' — ');
 }
 
 function cinematographyFrom(boards: StoryboardBoard[]): TakeRequest['cinematography'] {
   const board = boards[boards.length - 1];
-  if (!board) return undefined;
-  return board.cinematography;
+  return board?.cinematography;
 }
 
 function unique<T>(values: T[]): T[] {
