@@ -6,6 +6,7 @@ import type { ActionIdentityVerifier, AuditRpcClient } from "@jhadina/action-cor
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { createMoneyAuditRpcClient } from "./durable-audit-ledger"
+import { assertMoneyProviderWorkspace } from "./workspace-entitlement"
 import {
   createMoneyPlaidProductionRegistry,
   PLAID_PROVIDER,
@@ -16,6 +17,8 @@ export type GovernedMoneyRuntimeOverrides = {
   identityVerifier?: JhadinaIdentityVerifier
   supabase?: AuditRpcClient
   providers?: MoneyPlaidProductionRegistry
+  /** Test-only ownership boundary override. Production uses the durable checker. */
+  assertUserWorkspace?: (userId: string) => Promise<void>
 }
 
 export interface GovernedMoneyAccountReadResult {
@@ -45,6 +48,9 @@ export async function runGovernedMoneyAccountRead(
     supabase,
     providers: registry,
     providerConfig,
+    // Fail closed: an authenticated user must also own an active connection.
+    assertUserWorkspace:
+      overrides.assertUserWorkspace ?? ((userId) => assertMoneyProviderWorkspace(userId, PLAID_PROVIDER)),
   })
 
   const accounts = await executor.execute({
