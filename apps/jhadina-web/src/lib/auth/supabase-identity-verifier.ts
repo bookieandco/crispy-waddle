@@ -4,11 +4,12 @@ export interface ActionRequestIdentity {
 }
 
 export interface JhadinaActionRequest {
-  userId: string
+  /** Optional legacy assertion; authorization always comes from verified claims. */
+  userId?: string
 }
 
 export interface JhadinaIdentityVerifier {
-  verify(request: JhadinaActionRequest): Promise<ActionRequestIdentity>
+  verify(request?: JhadinaActionRequest): Promise<ActionRequestIdentity>
 }
 
 export interface SupabaseClaims {
@@ -29,14 +30,14 @@ export interface SupabaseClaimsClient {
  * Adapts a request-scoped Supabase Auth client to Jhadina's identity
  * verification boundary.
  *
- * Identity comes only from server-verified Supabase claims. The request's
- * userId must match the verified subject before a future governed executor
- * can be allowed to run.
+ * Identity is always derived from server-verified Supabase claims. A caller
+ * supplied userId is optional and, when present, is treated only as a
+ * consistency assertion — never as the source of authorization identity.
  */
 export class SupabaseActionIdentityVerifier implements JhadinaIdentityVerifier {
   constructor(private readonly supabase: SupabaseClaimsClient) {}
 
-  async verify(request: JhadinaActionRequest): Promise<ActionRequestIdentity> {
+  async verify(request: JhadinaActionRequest = {}): Promise<ActionRequestIdentity> {
     const { data, error } = await this.supabase.auth.getClaims()
 
     if (error) {
@@ -47,15 +48,10 @@ export class SupabaseActionIdentityVerifier implements JhadinaIdentityVerifier {
     const sessionId =
       typeof data.claims?.session_id === "string" ? data.claims.session_id : ""
 
-    if (!userId) {
-      throw new Error("Authenticated user missing")
-    }
+    if (!userId) throw new Error("Authenticated user missing")
+    if (!sessionId) throw new Error("Authenticated session missing")
 
-    if (!sessionId) {
-      throw new Error("Authenticated session missing")
-    }
-
-    if (userId !== request.userId) {
+    if (request.userId !== undefined && userId !== request.userId) {
       throw new Error("Action identity mismatch")
     }
 
