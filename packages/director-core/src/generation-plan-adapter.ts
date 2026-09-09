@@ -1,6 +1,8 @@
 import type { GenerationModality, GenerationRegistry } from './generation-registry';
 import type { GenerationService, GenerationJob } from './generation-service';
 import type { TakeRequest } from './generation-orchestrator';
+import type { DirectorGenerationGateInput } from './creative-gate-adapter';
+import { evaluateDirectorGenerationGate } from './creative-gate-adapter';
 
 export type PlannedGeneration = {
   modelId: string;
@@ -10,14 +12,28 @@ export type PlannedGeneration = {
   loras?: Array<{ loraId: string; weight?: number }>;
 };
 
-/** Bridges a non-destructive directing take plan to the provider-neutral generation service. */
+/** Provider submission boundary for Director takes. An approved creative gate is mandatory. */
 export class GenerationPlanAdapter {
   constructor(
     private readonly generation: GenerationService,
     private readonly registry: GenerationRegistry,
   ) {}
 
-  async submitTake(request: TakeRequest, plan: PlannedGeneration): Promise<GenerationJob> {
+  async submitTake(
+    request: TakeRequest,
+    plan: PlannedGeneration,
+    gateInput: DirectorGenerationGateInput,
+  ): Promise<GenerationJob> {
+    if (gateInput.run.projectId !== request.projectId) {
+      throw new Error('Generation gate project does not match the take request project.');
+    }
+    if (gateInput.generationStage.projectId !== request.projectId) {
+      throw new Error('Generation stage project does not match the take request project.');
+    }
+
+    const decision = evaluateDirectorGenerationGate(gateInput);
+    if (!decision.allowed) throw new Error(`Generation submission blocked: ${decision.reason}`);
+
     const model = this.registry.getModel(plan.modelId);
     if (!model) throw new Error(`Model is not registered: ${plan.modelId}`);
 
