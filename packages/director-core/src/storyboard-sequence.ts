@@ -1,3 +1,5 @@
+import type { CinematographyPreset, ContinuityLock } from './generation-orchestrator.js';
+
 export type StoryboardBoardStatus = 'draft' | 'ready' | 'approved' | 'stale' | 'rejected';
 
 export interface StoryboardBoard {
@@ -12,10 +14,12 @@ export interface StoryboardBoard {
   scriptRef?: string;
   referenceAssetIds: string[];
   continuityAnchorIds: string[];
+  continuityLocks?: ContinuityLock[];
   cameraLanguage?: string;
   framing?: string;
   action?: string;
   notes?: string;
+  cinematography?: CinematographyPreset;
   version: number;
   artifactIds: string[];
   updatedAt: string;
@@ -62,8 +66,8 @@ export class StoryboardSequenceRegistry {
     const sequence = this.sequences.get(board.sequenceId)!;
     if (sequence.boardIds.includes(board.id)) throw new Error(`Storyboard board already registered: ${board.id}`);
     sequence.boardIds.push(board.id);
-    sequence.boardIds.sort((a, b) => (this.boards.get(a)?.order ?? Number.MAX_SAFE_INTEGER) - (this.boards.get(b)?.order ?? Number.MAX_SAFE_INTEGER));
     this.boards.set(board.id, structuredClone(board));
+    sequence.boardIds.sort((a, b) => (this.boards.get(a)?.order ?? Number.MAX_SAFE_INTEGER) - (this.boards.get(b)?.order ?? Number.MAX_SAFE_INTEGER));
   }
 
   getBoard(boardId: string): StoryboardBoard | undefined {
@@ -74,7 +78,11 @@ export class StoryboardSequenceRegistry {
   listBoards(sequenceId: string): StoryboardBoard[] {
     const sequence = this.sequences.get(sequenceId);
     if (!sequence) throw new Error(`Unknown storyboard sequence: ${sequenceId}`);
-    return sequence.boardIds.map((id) => this.boards.get(id)).filter((board): board is StoryboardBoard => Boolean(board)).map((board) => structuredClone(board)).sort((a, b) => a.order - b.order);
+    return sequence.boardIds
+      .map((id) => this.boards.get(id))
+      .filter((board): board is StoryboardBoard => Boolean(board))
+      .map((board) => structuredClone(board))
+      .sort((a, b) => a.order - b.order);
   }
 
   updateBoard(boardId: string, patch: Partial<Omit<StoryboardBoard, 'id' | 'sequenceId' | 'projectId'>>): StoryboardBoard {
