@@ -21,19 +21,32 @@ export function evaluateDirectorGenerationGate(
     return { allowed: false, reason: `Production run is not awaiting creative approval: ${input.run.status}` };
   }
 
+  if (input.gate.runId !== input.run.id || !input.run.gateIds.includes(input.gate.id)) {
+    return { allowed: false, reason: 'Generation gate is not bound to the production run.' };
+  }
+
   if (input.gate.kind !== 'generation' || input.gate.decision !== 'approved') {
     return { allowed: false, reason: 'Generation requires an approved generation creative gate.' };
   }
 
-  if (input.storyboardStage && input.storyboardStage.status === 'stale') {
-    return { allowed: false, reason: 'Generation is blocked because the storyboard stage is stale.' };
+  if (input.storyboardStage) {
+    if (input.storyboardStage.projectId !== input.run.projectId || input.storyboardStage.kind !== 'storyboard') {
+      return { allowed: false, reason: 'Storyboard stage is not bound to the production project.' };
+    }
+    if (input.storyboardStage.status !== 'ready' && input.storyboardStage.status !== 'approved') {
+      return { allowed: false, reason: `Storyboard stage is not ready: ${input.storyboardStage.status}` };
+    }
+  }
+
+  if (input.generationStage.projectId !== input.run.projectId || input.generationStage.kind !== 'generation') {
+    return { allowed: false, reason: 'Generation stage is not bound to the production project.' };
   }
 
   if (input.generationStage.status !== 'ready' && input.generationStage.status !== 'approved') {
     return { allowed: false, reason: `Generation stage is not ready: ${input.generationStage.status}` };
   }
 
-  return { allowed: true, reason: 'Generation creative gate, storyboard lineage, and stage readiness are satisfied.' };
+  return { allowed: true, reason: 'Generation creative gate, production binding, storyboard lineage, and stage readiness are satisfied.' };
 }
 
 /** Marks a stage stale through the canonical graph after a gate requests changes. */
