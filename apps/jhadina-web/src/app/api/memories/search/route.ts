@@ -1,32 +1,8 @@
-/**
- * GET /api/memories/search?q=query
- * 
- * Search approved memories.
- * Full-text search across memory content.
- * 
- * Query Parameters:
- *   q: search query (required)
- * 
- * Response:
- *   {
- *     "success": true,
- *     "data": {
- *       "results": [
- *         {
- *           "id": "mem_1",
- *           "content": "I prefer cinematic visuals",
- *           "type": "PREFERENCE",
- *           "confidence": 0.95
- *         }
- *       ],
- *       "count": 1
- *     }
- *   }
- */
-
 import { NextRequest } from "next/server"
 import { handleSearchMemories } from "@/lib/routes/handlers"
+import { withVerifiedUserHeader } from "@/lib/auth/with-verified-user-header"
 
+/** Public boundary: memory search is scoped to the verified session user. */
 export async function GET(req: NextRequest) {
-  return handleSearchMemories(req)
+  return withVerifiedUserHeader(req, handleSearchMemories)
 }
