@@ -6,22 +6,20 @@ import type {
 } from "./InMemoryStorage"
 
 /**
- * Storage contract shared by InMemoryStorage (dev/test fallback) and
- * SupabaseMemoryStorage (durable backend). Repositories depend on this
- * interface, never on a concrete implementation, so the backend can change
- * without touching the approval-governance logic that lives in the
- * repository layer.
+ * Storage contract shared by InMemoryStorage and SupabaseMemoryStorage.
+ * Ownership-sensitive object operations require the authenticated userId so
+ * persistence cannot accidentally become an ID-only authorization surface.
  */
 export interface MemoryStorage {
   createMemory(data: Omit<Memory, "id">): Promise<Memory>
-  getMemory(id: string): Promise<Memory | undefined>
+  getMemory(userId: string, id: string): Promise<Memory | undefined>
   listMemories(userId: string): Promise<Memory[]>
-  updateMemory(id: string, updates: Partial<Memory>): Promise<Memory | undefined>
+  updateMemory(userId: string, id: string, updates: Partial<Memory>): Promise<Memory | undefined>
 
   createCandidate(data: Omit<MemoryCandidate, "id">): Promise<MemoryCandidate>
-  getCandidate(id: string): Promise<MemoryCandidate | undefined>
+  getCandidate(userId: string, id: string): Promise<MemoryCandidate | undefined>
   listCandidates(userId: string, status?: "PENDING"): Promise<MemoryCandidate[]>
-  removeCandidate(id: string): Promise<void>
+  removeCandidate(userId: string, id: string): Promise<void>
 
   createReasoningEvent(data: Omit<ReasoningEvent, "id">): Promise<ReasoningEvent>
   getReasoningEvent(id: string): Promise<ReasoningEvent | undefined>
