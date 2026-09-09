@@ -43,7 +43,6 @@ export function invalidateStoryboardStages(
 export function recordStoryboardArtifact(
   graph: CreativeStageGraph,
   stageId: string,
-  boardId: string,
   boardVersion: number,
   artifactId: string,
 ): StageArtifactVersion {
