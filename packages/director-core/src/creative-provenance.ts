@@ -1,5 +1,5 @@
 import type { StoryboardStageBinding } from './storyboard-stage-binding.js';
-import type { StoryboardSequenceRegistry } from './storyboard-sequence.js';
+import type { StoryboardSequence } from './storyboard-sequence.js';
 import type { CreativeStage } from './creative-stage-graph.js';
 
 export interface CreativeProvenance {
@@ -14,32 +14,34 @@ export interface CreativeProvenance {
 export type DirectorCreativeProvenance = Omit<CreativeProvenance, 'generationJobId'>;
 
 /**
- * Derives creative lineage from the authoritative storyboard registry and
- * stage binding. Callers may propose provenance, but they cannot define the
- * lineage that the Director gate authorizes.
+ * Derives creative lineage from canonical persisted storyboard data and the
+ * governed stage binding. The in-memory registry is deliberately not part of
+ * this authority path.
  */
 export function deriveDirectorCreativeProvenance(input: {
-  registry: StoryboardSequenceRegistry;
+  sequence: StoryboardSequence;
   binding: StoryboardStageBinding;
   storyboardStage: CreativeStage;
   generationStage: CreativeStage;
+  storyboardBoardId: string;
 }): DirectorCreativeProvenance {
-  const board = input.registry.getBoard(input.binding.storyboardBoardId);
-  if (!board) throw new Error(`Unknown storyboard board: ${input.binding.storyboardBoardId}`);
-
-  const sequence = input.registry.getSequence(board.sequenceId);
-  if (!sequence) throw new Error(`Unknown storyboard sequence: ${board.sequenceId}`);
-  if (sequence.projectId !== input.generationStage.projectId || board.projectId !== sequence.projectId) {
-    throw new Error('Storyboard lineage project does not match the generation project.');
-  }
-  if (!sequence.boardIds.includes(board.id)) {
-    throw new Error(`Storyboard board is not registered in its sequence: ${board.id}`);
+  if (!sequence.boardIds.includes(input.storyboardBoardId)) {
+    throw new Error(`Storyboard board is not registered in its sequence: ${input.storyboardBoardId}`);
   }
   if (input.storyboardStage.id !== input.binding.stageIds.storyboard) {
     throw new Error('Storyboard stage does not match the storyboard stage binding.');
   }
   if (input.binding.stageIds.generation && input.generationStage.id !== input.binding.stageIds.generation) {
     throw new Error('Generation stage does not match the storyboard stage binding.');
+  }
+  if (sequence.projectId !== input.generationStage.projectId) {
+    throw new Error('Storyboard lineage project does not match the generation project.');
+  }
+  if (input.binding.projectId !== sequence.projectId) {
+    throw new Error('Storyboard stage binding project does not match the storyboard project.');
+  }
+  if (input.binding.storyboardBoardId !== input.storyboardBoardId) {
+    throw new Error('Storyboard stage binding does not match the canonical storyboard board.');
   }
 
   return {
