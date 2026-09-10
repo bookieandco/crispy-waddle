@@ -3,7 +3,7 @@ import type { GenerationService, GenerationJob } from './generation-service';
 import type { TakeRequest } from './generation-orchestrator';
 import type { DirectorGenerationGateInput } from './creative-gate-adapter';
 import { evaluateDirectorGenerationGate } from './creative-gate-adapter';
-import type { StoryboardLineageResolver } from './storyboard-lineage-resolver';
+import type { DirectorStoryboardLineageResolver } from './storyboard-lineage-resolver';
 
 export type PlannedGeneration = {
   modelId: string;
@@ -13,12 +13,12 @@ export type PlannedGeneration = {
   loras?: Array<{ loraId: string; weight?: number }>;
 };
 
-/** Provider submission boundary for Director takes. An approved creative gate is mandatory. */
+/** Provider submission boundary for Director takes. Canonical storyboard lineage is resolved here. */
 export class GenerationPlanAdapter {
   constructor(
     private readonly generation: GenerationService,
     private readonly registry: GenerationRegistry,
-    private readonly lineageResolver?: StoryboardLineageResolver,
+    private readonly lineageResolver: DirectorStoryboardLineageResolver,
   ) {}
 
   async submitTake(
@@ -33,13 +33,21 @@ export class GenerationPlanAdapter {
       throw new Error('Generation stage project does not match the take request project.');
     }
 
-    const authoritativeGateInput = this.lineageResolver
-      ? await this.lineageResolver.resolveGenerationGateInput({
-          request,
-          gateInput,
-        })
-      : gateInput;
+    let storyboardLineage;
+    try {
+      storyboardLineage = await this.lineageResolver.resolve(request.storyboardBoardId, request.projectId);
+    } catch (error) {
+      throw new Error(`Generation submission blocked: ${error instanceof Error ? error.message : 'Unable to resolve canonical storyboard lineage.'}`);
+    }
 
+    if (gateInput.storyboardLineage.board.id !== storyboardLineage.board.id) {
+      throw new Error('Generation submission blocked: supplied storyboard lineage does not match the canonical board ID.');
+    }
+
+    const authoritativeGateInput: DirectorGenerationGateInput = {
+      ...gateInput,
+      storyboardLineage,
+    };
     const decision = evaluateDirectorGenerationGate(authoritativeGateInput);
     if (!decision.allowed) throw new Error(`Generation submission blocked: ${decision.reason}`);
 
@@ -78,6 +86,7 @@ export class GenerationPlanAdapter {
         sceneCount: request.sceneCount,
         takeCount: request.takeCount,
         parentTakeId: request.parentTakeId,
+        storyboardBoardId: request.storyboardBoardId,
         continuityLocks: request.locked,
         cinematography: request.cinematography,
       },
