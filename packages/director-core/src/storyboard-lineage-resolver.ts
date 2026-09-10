@@ -1,6 +1,6 @@
 import type { StoryboardStageBinding } from './storyboard-stage-binding.js';
 import type { StoryboardBoard, StoryboardSequence } from './storyboard-sequence.js';
-import type { StoryboardRepository } from './storyboard-persistence.js';
+import type { StoryboardBindingRepository } from './storyboard-persistence.js';
 
 export type DirectorStoryboardLineage = {
   sequence: StoryboardSequence;
@@ -9,13 +9,9 @@ export type DirectorStoryboardLineage = {
 };
 
 /**
- * Resolves Director storyboard lineage from persistence. No caller-provided
- * registry or storyboard object is accepted as authority.
+ * Resolves Director storyboard lineage from persisted canonical state. No
+ * caller-provided registry, board, sequence, or binding is accepted as authority.
  */
-export interface StoryboardBindingRepository extends StoryboardRepository {
-  getBinding(boardId: string, projectId: string): Promise<StoryboardStageBinding | null>;
-}
-
 export class DirectorStoryboardLineageResolver {
   constructor(private readonly repository: StoryboardBindingRepository) {}
 
@@ -31,6 +27,7 @@ export class DirectorStoryboardLineageResolver {
 
     const binding = await this.repository.getBinding(board.id, projectId);
     if (!binding) throw new Error(`Storyboard stage binding is not found: ${board.id}`);
+    if (binding.projectId !== projectId) throw new Error('Storyboard stage binding project mismatch.');
     if (binding.storyboardBoardId !== board.id) throw new Error('Storyboard stage binding does not match the board.');
 
     return { sequence, board, binding };
