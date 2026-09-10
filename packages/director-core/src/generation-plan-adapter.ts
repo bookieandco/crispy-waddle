@@ -3,6 +3,7 @@ import type { GenerationService, GenerationJob } from './generation-service';
 import type { TakeRequest } from './generation-orchestrator';
 import type { DirectorGenerationGateInput } from './creative-gate-adapter';
 import { evaluateDirectorGenerationGate } from './creative-gate-adapter';
+import type { StoryboardLineageResolver } from './storyboard-lineage-resolver';
 
 export type PlannedGeneration = {
   modelId: string;
@@ -17,6 +18,7 @@ export class GenerationPlanAdapter {
   constructor(
     private readonly generation: GenerationService,
     private readonly registry: GenerationRegistry,
+    private readonly lineageResolver?: StoryboardLineageResolver,
   ) {}
 
   async submitTake(
@@ -31,7 +33,14 @@ export class GenerationPlanAdapter {
       throw new Error('Generation stage project does not match the take request project.');
     }
 
-    const decision = evaluateDirectorGenerationGate(gateInput);
+    const authoritativeGateInput = this.lineageResolver
+      ? await this.lineageResolver.resolveGenerationGateInput({
+          request,
+          gateInput,
+        })
+      : gateInput;
+
+    const decision = evaluateDirectorGenerationGate(authoritativeGateInput);
     if (!decision.allowed) throw new Error(`Generation submission blocked: ${decision.reason}`);
 
     const model = this.registry.getModel(plan.modelId);
@@ -48,10 +57,9 @@ export class GenerationPlanAdapter {
       ...(request.referenceAssetIds ?? []).map((assetId) => ({ assetId, role: 'image' as const })),
     ];
 
-    // Stable across retries of the same Director take. A new take must receive a new takeId.
     const requestId = `director:${request.projectId}:take:${request.takeId}`;
     const creativeProvenance = {
-      ...gateInput.creativeProvenance,
+      ...authoritativeGateInput.creativeProvenance,
       generationJobId: requestId,
     };
 
