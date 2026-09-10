@@ -1,4 +1,4 @@
-// Public surface for @jhadina/money-core. package.json's "main"/"types" have pointed at this file since the package was created; it never existed, so nothing outside packages/money-core has ever been able to import this package by its bare specifier. Added as part of Spine Proof #3 (Money/Plaid), the first cross-package consumer.
+// Public surface for @jhadina/money-core.
 export type { MoneyCapability, CapabilityRisk } from './capabilities.js';
 export { getMoneyCapability, requiresMoneyApproval, isMoneyCapability } from './capabilities.js';
 export type { MoneyAccount, MoneyTransaction, MoneyAdapterContext, BankAdapter } from './bank-adapter.js';
@@ -26,10 +26,12 @@ export { buildPlaidReadOnlyAdapter, createPlaidReadOnlyAdapterBuilder } from './
 export { PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, assertPlaidSandboxBaseUrl, createPlaidProviderAdapterFactory } from './plaid-provider-registration.js';
 export type { AssetClass, EvidenceQuality, EvidenceRef, FinancialHypothesis, PredictionDistribution, OpportunityCandidate, AllocationDecision, CapitalAllocationRequest, CapitalAllocationDecision, CanonicalFinancialAction } from './financial-intelligence-contracts.js';
 export { assertIntelligenceOnly, assertProbability, assertPositiveAmount } from './financial-intelligence-contracts.js';
-export type { InvoiceEvidence, InvoiceValidationState, InvoiceAccountingCandidate } from './invoice-evidence.js';
-export { validateInvoiceAmount, validateExtractionConfidence } from './invoice-evidence.js';
 export type { IssuerStatus, IssuerIdentifierType, IssuerRelationshipType, FilingStatus, FactStatus, FundamentalStateStatus, ExactFinancialValue, Issuer, IssuerIdentifier, IssuerRelationship, Filing, FilingDocument, FinancialFactDimension, FinancialFact, FactRevision, FundamentalState } from './issuer-reality-contracts.js';
 export { assertPointInTimeFact, factWasAvailableAt, selectFactsAtCutoff } from './issuer-reality-contracts.js';
+export type { SharkFundamentalInput } from './shark-fundamental-adapter.js';
+export { toSharkFundamentalInput } from './shark-fundamental-adapter.js';
+export type { InvoiceEvidence, InvoiceValidationState, InvoiceAccountingCandidate } from './invoice-evidence.js';
+export { validateInvoiceAmount, validateExtractionConfidence } from './invoice-evidence.js';
 export type { PermitState, ExecutionAction, PermitBinding, ExecutionPermit, PermitIssuerInput, PermitVerificationContext, PermitStore } from './execution-permit.js';
 export { canonicalizeAction, fingerprintAction, issueExecutionPermit, verifyExecutionPermit, consumeExecutionPermit } from './execution-permit.js';
 export type { PostgresPermitStoreOptions } from './postgres-permit-store.js';
