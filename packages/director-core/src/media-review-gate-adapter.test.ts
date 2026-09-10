@@ -11,7 +11,7 @@ const gate: CreativeGate = { id: 'gate-1', runId: 'run-1', kind: 'rough_cut', de
 const generationStage: CreativeStage = { id: 'generation-1', projectId: 'project-1', kind: 'generation', dependsOn: ['shotlist-1'], status: 'review', inputArtifactIds: ['shot-1'], outputArtifactIds: ['asset-1'], version: 2 };
 const reviewStage: CreativeStage = { id: 'review-1', projectId: 'project-1', kind: 'review', dependsOn: ['generation-1'], status: 'review', inputArtifactIds: ['asset-1'], outputArtifactIds: [], version: 1 };
 const provenance: CreativeProvenance = { projectId: 'project-1', storyboardBoardIds: ['board-1'], storyboardVersion: 3, generationStageId: 'generation-1', generationStageVersion: 2, generationJobId: 'job-1' };
-const asset: GeneratedAssetRecord = { id: 'asset-1', projectId: 'project-1', generationJobId: 'job-1', kind: 'image', uri: 'https://example.test/asset.png', sha256: 'asset-sha', createdAt: '2026-09-09T00:02:00Z', provenance };
+const asset: GeneratedAssetRecord = { id: 'asset-1', projectId: 'project-1', generationJobId: 'job-1', providerId: 'provider-1', mediaType: 'image', uri: 'https://example.test/asset.png', sha256: 'asset-sha', createdAt: '2026-09-09T00:02:00Z', provenance };
 const evidence: MediaQualityEvidence = { id: 'evidence-1', artifactId: 'asset-1', kind: 'image', status: 'pass', checkedAt: '2026-09-09T00:03:00Z', checker: 'quality-checker', metrics: { width: 1920, height: 1080 }, provenance, assetSha256: 'asset-sha' };
 
 function input(overrides: Partial<Parameters<typeof evaluateDirectorMediaReviewGate>[0]> = {}) {
