@@ -22,10 +22,14 @@ describe('GenerationPlanAdapter', () => {
   const generationStage: CreativeStage = {
     id: 'generation-1', projectId: 'p', kind: 'generation', dependsOn: ['storyboard-1'], status: 'ready', inputArtifactIds: [], outputArtifactIds: [], version: 3,
   };
+  const creativeProvenance = {
+    projectId: 'p', storyboardBoardIds: ['board-1', 'board-2'], storyboardVersion: 7,
+    generationStageId: 'generation-1', generationStageVersion: 3,
+  };
 
   function request(): Parameters<GenerationPlanAdapter['submitTake']>[0] {
     return {
-      projectId: 'p', sceneId: 's1', prompt: 'Maya walks home after the argument',
+      takeId: 'take-001', projectId: 'p', sceneId: 's1', prompt: 'Maya walks home after the argument',
       locked: ['character', 'location', 'performance'], referenceCharacterIds: ['maya'], referenceAssetIds: ['apartment'], targetRuntimeSeconds: 8,
     };
   }
@@ -34,37 +38,24 @@ describe('GenerationPlanAdapter', () => {
     return { modelId: 'video-model', modality: 'video', loras: [{ loraId: 'character-maya', weight: 0.9 }], parameters: { seed: 42 } };
   }
 
-  function gateInput(overrides: Partial<{ gate: CreativeGate; storyboardStage: CreativeStage; generationStage: CreativeStage; creativeProvenance: { projectId: string; storyboardBoardIds: string[]; storyboardVersion: number; generationStageId: string; generationStageVersion: number } }> = {}) {
+  function gateInput(overrides: Partial<{ gate: CreativeGate; storyboardStage: CreativeStage; generationStage: CreativeStage; creativeProvenance: typeof creativeProvenance }> = {}) {
     return {
       run,
       gate: overrides.gate ?? gate,
       generationStage: overrides.generationStage ?? generationStage,
       storyboardStage: overrides.storyboardStage,
-      creativeProvenance: overrides.creativeProvenance,
+      creativeProvenance: overrides.creativeProvenance ?? creativeProvenance,
     };
   }
 
-  function governedGateInput() {
-    return gateInput({
-      storyboardStage,
-      creativeProvenance: {
-        projectId: 'p',
-        storyboardBoardIds: ['board-1', 'board-2'],
-        storyboardVersion: 7,
-        generationStageId: 'generation-1',
-        generationStageVersion: 3,
-      },
-    });
-  }
-
-  function makeAdapter(submitted: { request?: GenerationRequest } = {}) {
+  function makeAdapter(submitted: { requests: GenerationRequest[] } = { requests: [] }) {
     const registry = new GenerationRegistry();
     registry.registerProvider({ id: 'comfy-local', name: 'ComfyUI Local', kind: 'comfyui', capabilities: ['text-to-video', 'image-to-video'], models: ['video-model'], health: 'healthy' });
     registry.registerModel({ id: 'video-model', providerId: 'comfy-local', name: 'Video Model', version: '1', modalities: ['video'], capabilities: ['text-to-video', 'image-to-video'], baseModel: 'video-base' });
     registry.registerLoRA({ id: 'character-maya', name: 'Maya', version: '1', baseModel: 'video-base', modalities: ['video'], weight: { min: 0, max: 1.5, recommended: 0.8 } });
     const provider: GenerationProvider = {
       descriptor: registry.getProvider('comfy-local')!,
-      async submit(input) { submitted.request = input; return { requestId: input.requestId, providerId: 'comfy-local', status: 'queued', assetIds: [], providerJobId: 'p1' }; },
+      async submit(input) { submitted.requests.push(input); return { requestId: input.requestId, providerId: 'comfy-local', status: 'queued', assetIds: [], providerJobId: 'p1' }; },
       async status(providerJobId): Promise<GenerationResult> { return { requestId: providerJobId, providerId: 'comfy-local', status: 'completed', assetIds: [] }; },
       async cancel() {},
     };
@@ -72,46 +63,51 @@ describe('GenerationPlanAdapter', () => {
   }
 
   it('submits only after the approved Director generation gate', async () => {
-    const submitted: { request?: GenerationRequest } = {};
+    const submitted = { requests: [] as GenerationRequest[] };
     const job = await makeAdapter(submitted).submitTake(request(), plan(), gateInput());
     expect(job.status).toBe('queued');
-    expect(submitted.request?.model.id).toBe('video-model');
+    expect(submitted.requests[0]?.model.id).toBe('video-model');
   });
 
   it('carries the approved storyboard lineage into the generated asset request', async () => {
-    const submitted: { request?: GenerationRequest } = {};
-    const job = await makeAdapter(submitted).submitTake(request(), plan(), governedGateInput());
-    expect(submitted.request?.creativeProvenance).toMatchObject({
-      projectId: 'p',
-      storyboardBoardIds: ['board-1', 'board-2'],
-      storyboardVersion: 7,
-      generationStageId: 'generation-1',
-      generationStageVersion: 3,
-    });
-    expect(submitted.request?.creativeProvenance?.generationJobId).toBe(job.id);
+    const submitted = { requests: [] as GenerationRequest[] };
+    const job = await makeAdapter(submitted).submitTake(request(), plan(), gateInput({ storyboardStage }));
+    expect(submitted.requests[0]?.creativeProvenance).toMatchObject(creativeProvenance);
+    expect(submitted.requests[0]?.creativeProvenance?.generationJobId).toBe(job.id);
   });
 
-  it('does not allow storyboard-backed generation without explicit provenance', async () => {
-    const submitted: { request?: GenerationRequest } = {};
-    await expect(makeAdapter(submitted).submitTake(request(), plan(), gateInput({ storyboardStage }))).rejects.toThrow('explicit creative provenance');
-    expect(submitted.request).toBeUndefined();
+  it('uses the same idempotency key when the same Director take is retried', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    const adapter = makeAdapter(submitted);
+    await adapter.submitTake(request(), plan(), gateInput());
+    await adapter.submitTake({ ...request(), prompt: 'same take retry with updated transport payload' }, plan(), gateInput());
+    expect(submitted.requests).toHaveLength(2);
+    expect(submitted.requests[0]?.requestId).toBe('director:p:take:take-001');
+    expect(submitted.requests[1]?.requestId).toBe(submitted.requests[0]?.requestId);
+  });
+
+  it('does not reach the provider when provenance is missing', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    const unsafeInput = { ...gateInput(), creativeProvenance: undefined } as unknown as Parameters<GenerationPlanAdapter['submitTake']>[2];
+    await expect(makeAdapter(submitted).submitTake(request(), plan(), unsafeInput)).rejects.toThrow('Cannot read properties of undefined');
+    expect(submitted.requests).toHaveLength(0);
   });
 
   it('does not reach the provider when the gate is pending', async () => {
-    const submitted: { request?: GenerationRequest } = {};
+    const submitted = { requests: [] as GenerationRequest[] };
     await expect(makeAdapter(submitted).submitTake(request(), plan(), gateInput({ gate: { ...gate, decision: 'pending' } }))).rejects.toThrow('Generation submission blocked');
-    expect(submitted.request).toBeUndefined();
+    expect(submitted.requests).toHaveLength(0);
   });
 
   it('does not reach the provider for stale generation state', async () => {
-    const submitted: { request?: GenerationRequest } = {};
+    const submitted = { requests: [] as GenerationRequest[] };
     await expect(makeAdapter(submitted).submitTake(request(), plan(), gateInput({ generationStage: { ...generationStage, status: 'stale' } }))).rejects.toThrow('Generation submission blocked');
-    expect(submitted.request).toBeUndefined();
+    expect(submitted.requests).toHaveLength(0);
   });
 
   it('rejects a cross-project gate before model/provider work', async () => {
-    const submitted: { request?: GenerationRequest } = {};
+    const submitted = { requests: [] as GenerationRequest[] };
     await expect(makeAdapter(submitted).submitTake(request(), plan(), gateInput({ gate: { ...gate, runId: 'other-run' } }))).rejects.toThrow('Generation requires');
-    expect(submitted.request).toBeUndefined();
+    expect(submitted.requests).toHaveLength(0);
   });
 });
