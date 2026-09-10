@@ -30,6 +30,8 @@ export type { IssuerStatus, IssuerIdentifierType, IssuerRelationshipType, Issuer
 export { assertIssuerIdentifier, selectIssuerIdentifiersAt, assertPointInTimeFact, factWasAvailableAt, selectFactsAtCutoff, revisionsForFact, selectActiveFactsAtCutoff, buildFundamentalState, assertIssuerInstrumentRelationship, relationshipWasEffectiveAt, selectIssuerInstrumentRelationshipsAt } from './issuer-reality-contracts.js';
 export type { SharkFundamentalInput } from './shark-fundamental-adapter.js';
 export { toSharkFundamentalInput } from './shark-fundamental-adapter.js';
+export type { AccountingValue, AccountingTreatment, PeriodKind, NormalizationStatus, AccountingConcept, NormalizationRule, NormalizedMetric, TtmMetric } from './fundamental-normalization-contracts.js';
+export { assertAccountingValue, assertNormalizedMetric, normalizeReportedFact, buildTtmMetric } from './fundamental-normalization-contracts.js';
 export type { InvoiceEvidence, InvoiceValidationState, InvoiceAccountingCandidate } from './invoice-evidence.js';
 export { validateInvoiceAmount, validateExtractionConfidence } from './invoice-evidence.js';
 export type { PermitState, ExecutionAction, PermitBinding, ExecutionPermit, PermitIssuerInput, PermitVerificationContext, PermitStore } from './execution-permit.js';
