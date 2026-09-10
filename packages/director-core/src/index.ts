@@ -12,7 +12,6 @@ export * from './generation-catalog';
 export * from './workflow-registry';
 export * from './generation-orchestrator';
 export * from './generation-plan-adapter';
-export * from './generation-assets';
 export * from './generated-asset-resolver';
 export * from './editing-asset-manifest';
 export * from './watch-session';
