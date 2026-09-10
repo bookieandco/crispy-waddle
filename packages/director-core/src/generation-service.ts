@@ -61,7 +61,15 @@ export class GenerationService {
     if (!this.assetRepository || result.status !== 'completed') return;
     const outputs = readProviderOutputs(result);
     if (!outputs.length) return;
-    const assets = resolveGenerationOutputs(result, { projectId: job.request.projectId, modelId: job.request.model.id, workflowId: typeof job.request.parameters.workflowId === 'string' ? job.request.parameters.workflowId : undefined, workflowVersion: typeof job.request.parameters.workflowVersion === 'number' ? job.request.parameters.workflowVersion : undefined, loras: (job.request.loras ?? []).map(({ lora, weight }) => ({ id: lora.id, weight: weight ?? lora.weight.recommended ?? 1 })), prompt: job.request.prompt }, outputs);
+    const assets = resolveGenerationOutputs(result, {
+      projectId: job.request.projectId,
+      modelId: job.request.model.id,
+      workflowId: typeof job.request.parameters.workflowId === 'string' ? job.request.parameters.workflowId : undefined,
+      workflowVersion: typeof job.request.parameters.workflowVersion === 'number' ? job.request.parameters.workflowVersion : undefined,
+      loras: (job.request.loras ?? []).map(({ lora, weight }) => ({ id: lora.id, weight: weight ?? lora.weight.recommended ?? 1 })),
+      prompt: job.request.prompt,
+      provenance: job.request.creativeProvenance,
+    }, outputs);
     for (const asset of assets) await this.assetRepository.save(asset);
   }
 
@@ -81,11 +89,6 @@ export class GenerationService {
     return (await this.generationRepository.listExecutions(task.id)).at(-1);
   }
 
-  /**
-   * Re-check durable ownership immediately before an external submission.
-   * This closes the obvious stale-worker window, while the provider guarantee
-   * contract documents the remaining provider-side race.
-   */
   private async hasCurrentSubmissionLease(execution: GenerationExecution): Promise<boolean> {
     if (!this.generationRepository) return true;
     const durable = await this.generationRepository.getExecution(execution.id);
@@ -96,27 +99,17 @@ export class GenerationService {
     return Date.parse(durable.leaseExpiresAt) > Date.now();
   }
 
-  /** Keep a leased execution alive while an external provider call is in flight. */
   private startLeaseHeartbeat(execution: GenerationExecution): { stop: () => void; lost: () => boolean } {
-    if (!this.generationRepository || !execution.leaseToken || !execution.leaseExpiresAt) {
-      return { stop: () => undefined, lost: () => false };
-    }
+    if (!this.generationRepository || !execution.leaseToken || !execution.leaseExpiresAt) return { stop: () => undefined, lost: () => false };
     let lostLease = false;
     const intervalMs = Math.max(10, Math.floor(this.executionLeaseMs / 3));
     const timer = setInterval(() => {
       void this.generationRepository!
         .renewExecutionLease(execution.id, this.workerId, execution.leaseToken!, this.executionLeaseMs)
-        .then((renewed) => {
-          if (!renewed) lostLease = true;
-        })
-        .catch(() => {
-          lostLease = true;
-        });
+        .then((renewed) => { if (!renewed) lostLease = true; })
+        .catch(() => { lostLease = true; });
     }, intervalMs);
-    return {
-      stop: () => clearInterval(timer),
-      lost: () => lostLease,
-    };
+    return { stop: () => clearInterval(timer), lost: () => lostLease };
   }
 
   async submit(request: GenerationRequest): Promise<GenerationJob> {
@@ -167,12 +160,8 @@ export class GenerationService {
         this.jobs.set(existingJob.id, existingJob);
         return existingJob;
       }
-      if (provider.submissionGuarantee === 'non-idempotent') {
-        throw new Error(`Provider ${provider.descriptor.id} is non-idempotent and cannot be auto-submitted through a leased Director execution`);
-      }
-      if (provider.submissionGuarantee === 'recoverable' && !provider.findByIdempotencyKey) {
-        throw new Error(`Provider ${provider.descriptor.id} declares recoverable submission but has no idempotency-key recovery method`);
-      }
+      if (provider.submissionGuarantee === 'non-idempotent') throw new Error(`Provider ${provider.descriptor.id} is non-idempotent and cannot be auto-submitted through a leased Director execution`);
+      if (provider.submissionGuarantee === 'recoverable' && !provider.findByIdempotencyKey) throw new Error(`Provider ${provider.descriptor.id} declares recoverable submission but has no idempotency-key recovery method`);
       if (!initialExecution.providerJobId && provider.findByIdempotencyKey) {
         const recovered = await provider.findByIdempotencyKey(task.idempotencyKey);
         if (recovered) {
@@ -257,52 +246,11 @@ export class GenerationService {
     const provider = this.providers.get(job.providerId);
     if (!provider) throw new Error(`Provider is not configured: ${job.providerId}`);
     const result = await provider.status(job.providerJobId);
-    const updatedAt = new Date().toISOString();
-    const executions = this.generationRepository ? await this.generationRepository.listExecutions(id) : [];
-    const latest = executions.at(-1);
-    const updatedExecution: GenerationExecution = latest ? { ...latest, status: result.status, error: result.error, updatedAt } : generationExecutionFromResult(id, job.providerId, result, { attempt: 1, now: updatedAt });
-    const existingTask = this.generationRepository ? await this.generationRepository.getTask(id) : undefined;
-    const updatedTask: GenerationTask = existingTask ? { ...existingTask, status: result.status, error: result.error, updatedAt } : generationTaskFromRequest(job.request, { idempotencyKey: id });
-    const updated = jobFromTask(updatedTask, updatedExecution);
-    if (!(await this.persistState(updatedTask, updatedExecution))) {
-      const reconciled = await this.waitForExecutionResolution(updatedTask);
-      const reconciledJob = jobFromTask(updatedTask, reconciled);
-      this.jobs.set(id, reconciledJob);
-      return reconciledJob;
-    }
-    this.jobs.set(id, updated);
-    await this.persistOutputs(updated, result);
-    return updated;
-  }
-  async cancel(id: string): Promise<GenerationJob> {
-    const job = await this.getJobDurable(id);
-    if (!job) throw new Error(`Generation job not found: ${id}`);
-    if (job.providerJobId) {
-      const provider = this.providers.get(job.providerId);
-      if (!provider) throw new Error(`Provider is not configured: ${job.providerId}`);
-      await provider.cancel(job.providerJobId);
-    }
-    const updatedAt = new Date().toISOString();
-    if (this.generationRepository) {
-      const task = await this.generationRepository.getTask(id);
-      const executions = await this.generationRepository.listExecutions(id);
-      const latest = executions.at(-1);
-      if (task && latest) {
-        const cancelledExecution: GenerationExecution = { ...latest, status: 'cancelled', updatedAt };
-        const cancelledTask: GenerationTask = { ...task, status: 'cancelled', updatedAt };
-        if (!(await this.persistState(cancelledTask, cancelledExecution))) {
-          const reconciled = await this.waitForExecutionResolution(task);
-          const reconciledJob = jobFromTask(task, reconciled);
-          this.jobs.set(id, reconciledJob);
-          return reconciledJob;
-        }
-        const cancelled = jobFromTask(cancelledTask, cancelledExecution);
-        this.jobs.set(id, cancelled);
-        return cancelled;
-      }
-    }
-    const updated: GenerationJob = { ...job, status: 'cancelled', updatedAt };
-    this.jobs.set(id, updated);
-    return updated;
+    const execution: GenerationExecution = { id: `${job.id}:refresh`, taskId: job.id, providerId: job.providerId, attempt: 1, status: result.status, providerJobId: result.providerJobId, error: result.error, createdAt: job.createdAt, updatedAt: new Date().toISOString() };
+    const task: GenerationTask = { id: job.id, idempotencyKey: job.id, request: job.request, status: result.status, error: result.error, createdAt: job.createdAt, updatedAt: execution.updatedAt };
+    const refreshed = jobFromTask(task, execution);
+    this.jobs.set(id, refreshed);
+    await this.persistOutputs(refreshed, result);
+    return refreshed;
   }
 }
