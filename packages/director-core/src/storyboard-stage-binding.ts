@@ -2,6 +2,7 @@ import type { CreativeStageGraph, RerunPlan, StageArtifactVersion } from './crea
 import type { StoryboardBoardChange, StoryboardInvalidationPlan } from './storyboard-sequence.js';
 
 export interface StoryboardStageBinding {
+  projectId: string;
   storyboardBoardId: string;
   stageIds: {
     storyboard: string;
@@ -11,6 +12,7 @@ export interface StoryboardStageBinding {
     edit?: string;
     review?: string;
   };
+  version?: number;
 }
 
 export interface StoryboardStageInvalidation {
