@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { GenerationPlanAdapter } from './generation-plan-adapter';
 import { GenerationRegistry } from './generation-registry';
 import { GenerationService } from './generation-service';
-import type { GenerationProvider } from './generation-provider';
-import type { GenerationRequest } from './generation-provider';
-import type { GenerationResult } from './generation-provider';
+import type { GenerationProvider, GenerationRequest, GenerationResult } from './generation-provider';
 import type { CreativeGate, ProductionRun } from '../../shotlist-core/src/production.js';
 import type { CreativeStage } from './creative-stage-graph.js';
+import { StoryboardSequenceRegistry } from './storyboard-sequence';
+import type { StoryboardStageBinding } from './storyboard-stage-binding';
 
 describe('GenerationPlanAdapter', () => {
   const run: ProductionRun = {
@@ -27,6 +27,15 @@ describe('GenerationPlanAdapter', () => {
     generationStageId: 'generation-1', generationStageVersion: 3,
   };
 
+  function lineage() {
+    const registry = new StoryboardSequenceRegistry();
+    registry.addSequence({ id: 'sequence-1', projectId: 'p', sceneId: 's1', boardIds: [], version: 7, updatedAt: '2026-09-09T00:00:00Z' });
+    registry.addBoard({ id: 'board-1', sequenceId: 'sequence-1', projectId: 'p', shotId: 'shot-1', order: 1, status: 'approved', referenceAssetIds: [], continuityAnchorIds: [], version: 2, artifactIds: [], updatedAt: '2026-09-09T00:00:00Z' });
+    registry.addBoard({ id: 'board-2', sequenceId: 'sequence-1', projectId: 'p', shotId: 'shot-2', order: 2, status: 'approved', referenceAssetIds: [], continuityAnchorIds: [], version: 1, artifactIds: [], updatedAt: '2026-09-09T00:00:00Z' });
+    const binding: StoryboardStageBinding = { storyboardBoardId: 'board-1', stageIds: { storyboard: 'storyboard-1', shotlist: 'shotlist-1', generation: 'generation-1' } };
+    return { registry, binding };
+  }
+
   function request(): Parameters<GenerationPlanAdapter['submitTake']>[0] {
     return {
       takeId: 'take-001', projectId: 'p', sceneId: 's1', prompt: 'Maya walks home after the argument',
@@ -39,12 +48,15 @@ describe('GenerationPlanAdapter', () => {
   }
 
   function gateInput(overrides: Partial<{ gate: CreativeGate; storyboardStage: CreativeStage; generationStage: CreativeStage; creativeProvenance: typeof creativeProvenance }> = {}) {
+    const { registry: storyboardRegistry, binding: storyboardBinding } = lineage();
     return {
       run,
       gate: overrides.gate ?? gate,
       generationStage: overrides.generationStage ?? generationStage,
-      storyboardStage: overrides.storyboardStage,
+      storyboardStage: overrides.storyboardStage ?? storyboardStage,
       creativeProvenance: overrides.creativeProvenance ?? creativeProvenance,
+      storyboardRegistry,
+      storyboardBinding,
     };
   }
 
@@ -71,7 +83,7 @@ describe('GenerationPlanAdapter', () => {
 
   it('carries the approved storyboard lineage into the generated asset request', async () => {
     const submitted = { requests: [] as GenerationRequest[] };
-    const job = await makeAdapter(submitted).submitTake(request(), plan(), gateInput({ storyboardStage }));
+    const job = await makeAdapter(submitted).submitTake(request(), plan(), gateInput());
     expect(submitted.requests[0]?.creativeProvenance).toMatchObject(creativeProvenance);
     expect(submitted.requests[0]?.creativeProvenance?.generationJobId).toBe(job.id);
   });
@@ -89,7 +101,7 @@ describe('GenerationPlanAdapter', () => {
   it('does not reach the provider when provenance is missing', async () => {
     const submitted = { requests: [] as GenerationRequest[] };
     const unsafeInput = { ...gateInput(), creativeProvenance: undefined } as unknown as Parameters<GenerationPlanAdapter['submitTake']>[2];
-    await expect(makeAdapter(submitted).submitTake(request(), plan(), unsafeInput)).rejects.toThrow('Cannot read properties of undefined');
+    await expect(makeAdapter(submitted).submitTake(request(), plan(), unsafeInput)).rejects.toThrow('Generation submission blocked');
     expect(submitted.requests).toHaveLength(0);
   });
 
@@ -107,7 +119,7 @@ describe('GenerationPlanAdapter', () => {
 
   it('rejects a cross-project gate before model/provider work', async () => {
     const submitted = { requests: [] as GenerationRequest[] };
-    await expect(makeAdapter(submitted).submitTake(request(), plan(), gateInput({ gate: { ...gate, runId: 'other-run' } }))).rejects.toThrow('Generation requires');
+    await expect(makeAdapter(submitted).submitTake(request(), plan(), gateInput({ gate: { ...gate, runId: 'other-run' } }))).rejects.toThrow('Generation submission blocked');
     expect(submitted.requests).toHaveLength(0);
   });
 });
