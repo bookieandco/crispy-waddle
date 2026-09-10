@@ -5,8 +5,8 @@ import { GenerationService } from './generation-service';
 import type { GenerationProvider, GenerationRequest, GenerationResult } from './generation-provider';
 import type { CreativeGate, ProductionRun } from '../../shotlist-core/src/production.js';
 import type { CreativeStage } from './creative-stage-graph.js';
-import { StoryboardSequenceRegistry } from './storyboard-sequence';
 import type { StoryboardStageBinding } from './storyboard-stage-binding';
+import type { DirectorStoryboardLineage, DirectorStoryboardLineageResolver } from './storyboard-lineage-resolver';
 
 describe('GenerationPlanAdapter', () => {
   const run: ProductionRun = {
@@ -26,19 +26,20 @@ describe('GenerationPlanAdapter', () => {
     projectId: 'p', storyboardBoardIds: ['board-1', 'board-2'], storyboardVersion: 7,
     generationStageId: 'generation-1', generationStageVersion: 3,
   };
-
-  function lineage() {
-    const registry = new StoryboardSequenceRegistry();
-    registry.addSequence({ id: 'sequence-1', projectId: 'p', sceneId: 's1', boardIds: [], version: 7, updatedAt: '2026-09-09T00:00:00Z' });
-    registry.addBoard({ id: 'board-1', sequenceId: 'sequence-1', projectId: 'p', shotId: 'shot-1', order: 1, status: 'approved', referenceAssetIds: [], continuityAnchorIds: [], version: 2, artifactIds: [], updatedAt: '2026-09-09T00:00:00Z' });
-    registry.addBoard({ id: 'board-2', sequenceId: 'sequence-1', projectId: 'p', shotId: 'shot-2', order: 2, status: 'approved', referenceAssetIds: [], continuityAnchorIds: [], version: 1, artifactIds: [], updatedAt: '2026-09-09T00:00:00Z' });
-    const binding: StoryboardStageBinding = { storyboardBoardId: 'board-1', stageIds: { storyboard: 'storyboard-1', shotlist: 'shotlist-1', generation: 'generation-1' } };
-    return { registry, binding };
-  }
+  const binding: StoryboardStageBinding = {
+    projectId: 'p', storyboardBoardId: 'board-1',
+    stageIds: { storyboard: 'storyboard-1', shotlist: 'shotlist-1', generation: 'generation-1' },
+    version: 1,
+  };
+  const lineage: DirectorStoryboardLineage = {
+    sequence: { id: 'sequence-1', projectId: 'p', sceneId: 's1', boardIds: ['board-1', 'board-2'], version: 7, updatedAt: '2026-09-09T00:00:00Z' },
+    board: { id: 'board-1', sequenceId: 'sequence-1', projectId: 'p', shotId: 'shot-1', order: 1, status: 'approved', referenceAssetIds: [], continuityAnchorIds: [], version: 2, artifactIds: [], updatedAt: '2026-09-09T00:00:00Z' },
+    binding,
+  };
 
   function request(): Parameters<GenerationPlanAdapter['submitTake']>[0] {
     return {
-      takeId: 'take-001', projectId: 'p', sceneId: 's1', prompt: 'Maya walks home after the argument',
+      takeId: 'take-001', projectId: 'p', sceneId: 's1', storyboardBoardId: 'board-1', prompt: 'Maya walks home after the argument',
       locked: ['character', 'location', 'performance'], referenceCharacterIds: ['maya'], referenceAssetIds: ['apartment'], targetRuntimeSeconds: 8,
     };
   }
@@ -47,16 +48,14 @@ describe('GenerationPlanAdapter', () => {
     return { modelId: 'video-model', modality: 'video', loras: [{ loraId: 'character-maya', weight: 0.9 }], parameters: { seed: 42 } };
   }
 
-  function gateInput(overrides: Partial<{ gate: CreativeGate; storyboardStage: CreativeStage; generationStage: CreativeStage; creativeProvenance: typeof creativeProvenance }> = {}) {
-    const { registry: storyboardRegistry, binding: storyboardBinding } = lineage();
+  function gateInput(overrides: Partial<{ gate: CreativeGate; storyboardStage: CreativeStage; generationStage: CreativeStage; creativeProvenance: typeof creativeProvenance; storyboardLineage: DirectorStoryboardLineage }> = {}) {
     return {
       run,
       gate: overrides.gate ?? gate,
       generationStage: overrides.generationStage ?? generationStage,
       storyboardStage: overrides.storyboardStage ?? storyboardStage,
       creativeProvenance: overrides.creativeProvenance ?? creativeProvenance,
-      storyboardRegistry,
-      storyboardBinding,
+      storyboardLineage: overrides.storyboardLineage ?? lineage,
     };
   }
 
@@ -71,7 +70,8 @@ describe('GenerationPlanAdapter', () => {
       async status(providerJobId): Promise<GenerationResult> { return { requestId: providerJobId, providerId: 'comfy-local', status: 'completed', assetIds: [] }; },
       async cancel() {},
     };
-    return new GenerationPlanAdapter(new GenerationService(registry, new Map([['comfy-local', provider]])), registry);
+    const resolver = { resolve: async () => lineage } as unknown as DirectorStoryboardLineageResolver;
+    return new GenerationPlanAdapter(new GenerationService(registry, new Map([['comfy-local', provider]])), registry, resolver);
   }
 
   it('submits only after the approved Director generation gate', async () => {
@@ -120,6 +120,20 @@ describe('GenerationPlanAdapter', () => {
   it('rejects a cross-project gate before model/provider work', async () => {
     const submitted = { requests: [] as GenerationRequest[] };
     await expect(makeAdapter(submitted).submitTake(request(), plan(), gateInput({ gate: { ...gate, runId: 'other-run' } }))).rejects.toThrow('Generation submission blocked');
+    expect(submitted.requests).toHaveLength(0);
+  });
+
+  it('rejects when the resolver returns a different canonical board', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    const resolver = { resolve: async () => ({ ...lineage, board: { ...lineage.board, id: 'board-2' } }) } as unknown as DirectorStoryboardLineageResolver;
+    const adapter = (() => {
+      const registry = new GenerationRegistry();
+      const provider = { descriptor: { id: 'comfy-local', name: 'ComfyUI', kind: 'comfyui', capabilities: ['text-to-video'], models: ['video-model'], health: 'healthy' }, async submit(input: GenerationRequest) { submitted.requests.push(input); return { requestId: input.requestId, providerId: 'comfy-local', status: 'queued' as const, assetIds: [], providerJobId: 'p1' }; }, async status(): Promise<GenerationResult> { return { requestId: 'x', providerId: 'comfy-local', status: 'completed', assetIds: [] }; }, async cancel() {} } as unknown as GenerationProvider;
+      registry.registerProvider(provider.descriptor);
+      registry.registerModel({ id: 'video-model', providerId: 'comfy-local', name: 'Video', version: '1', modalities: ['video'], capabilities: ['text-to-video'], baseModel: 'video-base' });
+      return new GenerationPlanAdapter(new GenerationService(registry, new Map([['comfy-local', provider]])), registry, resolver);
+    })();
+    await expect(adapter.submitTake(request(), plan(), gateInput())).rejects.toThrow('canonical board ID');
     expect(submitted.requests).toHaveLength(0);
   });
 });
