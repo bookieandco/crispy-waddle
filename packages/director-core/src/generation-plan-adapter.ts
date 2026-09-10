@@ -48,8 +48,13 @@ export class GenerationPlanAdapter {
       ...(request.referenceAssetIds ?? []).map((assetId) => ({ assetId, role: 'image' as const })),
     ];
 
+    const requestId = `${request.projectId}:${request.sceneId}:${Date.now()}`;
+    const creativeProvenance = gateInput.creativeProvenance
+      ? { ...gateInput.creativeProvenance, generationJobId: requestId }
+      : undefined;
+
     return this.generation.submit({
-      requestId: `${request.projectId}:${request.sceneId}:${Date.now()}`,
+      requestId,
       projectId: request.projectId,
       modality: plan.modality,
       prompt: request.prompt,
@@ -66,6 +71,7 @@ export class GenerationPlanAdapter {
         continuityLocks: request.locked,
         cinematography: request.cinematography,
       },
+      creativeProvenance,
     });
   }
 }
