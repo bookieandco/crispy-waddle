@@ -13,12 +13,14 @@ import {
   selectIssuerIdentifiersAt,
   selectIssuerInstrumentRelationshipsAt,
   toSharkFundamentalInput,
+  type EvidenceRef,
   type FactRevision,
   type FinancialFact,
   type IssuerIdentifier,
   type IssuerInstrumentRelationship,
 } from './issuer-reality-contracts.js'
 
+const evidence = (id: string): EvidenceRef => ({ evidenceId: id, sourceId: 'sec', observedAt: '2026-03-10T12:00:00Z', receivedAt: '2026-03-10T12:01:00Z', quality: 'VERIFIED', inputHash: `hash-${id}` })
 const fact = (overrides: Partial<FinancialFact> = {}): FinancialFact => ({
   factId: 'fact-1', issuerId: 'issuer-1', filingId: 'filing-1', taxonomy: 'us-gaap', concept: 'Revenue', value: { coefficient: 1000n, scale: 2, currency: 'USD', unit: 'USD' }, dimensions: [],
   reportedAt: '2026-02-20T12:00:00Z', availableAt: '2026-02-20T12:00:00Z', receivedAt: '2026-02-20T12:01:00Z', status: 'REPORTED', evidenceRefs: [], provenanceHash: 'hash-1', ...overrides,
@@ -26,7 +28,6 @@ const fact = (overrides: Partial<FinancialFact> = {}): FinancialFact => ({
 const revision = (overrides: Partial<FactRevision> = {}): FactRevision => ({ revisionId: 'revision-1', factId: 'fact-1', revisionType: 'RESTATEMENT', revisedAt: '2026-03-10T12:00:00Z', evidenceRefs: [], provenanceHash: 'revision-hash', ...overrides })
 const relation = (overrides: Partial<IssuerInstrumentRelationship> = {}): IssuerInstrumentRelationship => ({ relationshipId: 'rel-1', issuerId: 'issuer-1', instrumentId: 'instrument-1', relationshipType: 'ISSUER_OF', effectiveAt: '2026-01-01T00:00:00Z', evidenceRefs: [], provenanceHash: 'rel-hash', ...overrides })
 const identifier = (overrides: Partial<IssuerIdentifier> = {}): IssuerIdentifier => ({ identifierId: 'id-1', issuerId: 'issuer-1', type: 'CIK', value: '0001234567', effectiveAt: '2026-01-01T00:00:00Z', evidenceRefs: [], provenanceHash: 'id-hash', ...overrides })
-
 const build = (facts: readonly FinancialFact[], revisions: readonly FactRevision[] = [], cutoff = '2026-02-25T00:00:00Z') => buildFundamentalState('issuer-1', facts, revisions, cutoff, '2026-03-02T00:00:00Z', '035.1', `snapshot-${cutoff}`, [], `state-hash-${cutoff}`)
 
 test('rejects facts whose availability predates reporting', () => assert.throws(() => assertPointInTimeFact(fact({ availableAt: '2026-02-19T12:00:00Z' })), /availableAt cannot precede reportedAt/))
@@ -52,7 +53,10 @@ test('withdrawal removes a fact only from the active projection, not history', (
   const original = fact(); const withdrawal = revision({ revisionType: 'WITHDRAWAL', revisedAt: '2026-03-10T12:00:00Z' }); assert.deepEqual(selectActiveFactsAtCutoff([original], [], '2026-03-05T00:00:00Z').map((item) => item.factId), ['fact-1']); assert.deepEqual(selectActiveFactsAtCutoff([original], [withdrawal], '2026-03-11T00:00:00Z'), []); assert.deepEqual(selectFactsAtCutoff([original], '2026-03-11T00:00:00Z').map((item) => item.factId), ['fact-1'])
 })
 test('fundamental state consumes the revision ledger and carries revision evidence', () => {
-  const restatement = revision(); const state = build([fact()], [restatement], '2026-03-11T00:00:00Z'); assert.equal(state.status, 'RESTATEMENT_PENDING'); assert.equal(state.evidenceRefs.length, 0)
+  const restatement = revision({ evidenceRefs: [evidence('revision-evidence')] }); const state = build([fact()], [restatement], '2026-03-11T00:00:00Z'); assert.equal(state.status, 'RESTATEMENT_PENDING'); assert.deepEqual(state.evidenceRefs.map((item) => item.evidenceId), ['revision-evidence'])
+})
+test('SHARK replay respects a withdrawal recorded before the cutoff', () => {
+  const withdrawal = revision({ revisionType: 'WITHDRAWAL', revisedAt: '2026-03-10T12:00:00Z' }); const state = build([fact()], [withdrawal], '2026-03-11T00:00:00Z'); const input = toSharkFundamentalInput(state, 'instrument-1', [fact()], [withdrawal]); assert.deepEqual(input.factIds, [])
 })
 test('issuer identifiers are canonical and point-in-time', () => {
   const oldId = identifier({ identifierId: 'old', value: '0001111111', expiresAt: '2026-06-01T00:00:00Z' }); const newId = identifier({ identifierId: 'new', value: '0002222222', effectiveAt: '2026-06-01T00:00:00Z' });
