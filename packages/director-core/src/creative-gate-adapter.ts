@@ -1,11 +1,14 @@
 import type { CreativeGate, ProductionRun } from '../../shotlist-core/src/production.js';
 import type { CreativeStage, CreativeStageGraph } from './creative-stage-graph.js';
+import type { CreativeProvenance } from './creative-provenance.js';
 
 export type DirectorGenerationGateInput = {
   run: ProductionRun;
   gate: CreativeGate;
   storyboardStage?: CreativeStage;
   generationStage: CreativeStage;
+  /** Approved storyboard lineage used to bind the eventual generated asset. */
+  creativeProvenance?: Omit<CreativeProvenance, 'generationJobId'>;
 };
 
 export type DirectorGenerationGateDecision = {
@@ -35,6 +38,15 @@ export function evaluateDirectorGenerationGate(
     }
     if (input.storyboardStage.status !== 'ready' && input.storyboardStage.status !== 'approved') {
       return { allowed: false, reason: `Storyboard stage is not ready: ${input.storyboardStage.status}` };
+    }
+    if (!input.creativeProvenance) {
+      return { allowed: false, reason: 'Storyboard-backed generation requires explicit creative provenance.' };
+    }
+    if (input.creativeProvenance.projectId !== input.run.projectId) {
+      return { allowed: false, reason: 'Creative provenance project does not match the production project.' };
+    }
+    if (input.creativeProvenance.generationStageId !== input.generationStage.id || input.creativeProvenance.generationStageVersion !== input.generationStage.version) {
+      return { allowed: false, reason: 'Creative provenance does not match the generation stage version.' };
     }
   }
 
