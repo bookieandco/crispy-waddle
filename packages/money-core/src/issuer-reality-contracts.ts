@@ -52,16 +52,18 @@ export function selectActiveFactsAtCutoff(facts: readonly FinancialFact[], revis
   return Object.freeze(selected.filter((fact) => !withdrawn.has(fact.factId)))
 }
 
-export function buildFundamentalState(issuerId: string, facts: readonly FinancialFact[], informationCutoff: string, derivedAt: string, methodologyVersion: string, inputSnapshotHash: string, evidenceRefs: readonly EvidenceRef[], provenanceHash: string): FundamentalState {
+export function buildFundamentalState(issuerId: string, facts: readonly FinancialFact[], revisions: readonly FactRevision[], informationCutoff: string, derivedAt: string, methodologyVersion: string, inputSnapshotHash: string, evidenceRefs: readonly EvidenceRef[], provenanceHash: string): FundamentalState {
   assertNonEmpty(issuerId, 'issuerId'); assertIsoTimestamp(informationCutoff, 'informationCutoff'); assertIsoTimestamp(derivedAt, 'derivedAt'); assertNonEmpty(methodologyVersion, 'methodologyVersion'); assertNonEmpty(inputSnapshotHash, 'inputSnapshotHash'); assertNonEmpty(provenanceHash, 'provenanceHash')
-  const selected = selectActiveFactsAtCutoff(facts, [], informationCutoff)
-  const status: FundamentalStateStatus = selected.length === 0 ? 'INSUFFICIENT_HISTORY' : selected.some((fact) => fact.status === 'CONFLICTING') ? 'DATA_CONFLICTING' : selected.some((fact) => fact.status === 'RESTATED') ? 'RESTATEMENT_PENDING' : 'DATA_COMPLETE'
-  return Object.freeze({ stateId: `${issuerId}:${informationCutoff}:${inputSnapshotHash}`, issuerId, informationCutoff, factIds: Object.freeze(selected.map((fact) => fact.factId)), status, derivedAt, methodologyVersion, inputSnapshotHash, evidenceRefs: Object.freeze([...evidenceRefs]), provenanceHash })
+  const selected = selectActiveFactsAtCutoff(facts, revisions, informationCutoff)
+  const cutoff = Date.parse(informationCutoff)
+  const relevantRevisions = revisions.filter((revision) => Date.parse(revision.revisedAt) <= cutoff)
+  const status: FundamentalStateStatus = selected.length === 0 ? 'INSUFFICIENT_HISTORY' : relevantRevisions.some((revision) => revision.revisionType === 'RESTATEMENT' || revision.revisionType === 'CORRECTION' || revision.revisionType === 'AMENDMENT') ? 'RESTATEMENT_PENDING' : selected.some((fact) => fact.status === 'CONFLICTING') ? 'DATA_CONFLICTING' : 'DATA_COMPLETE'
+  return Object.freeze({ stateId: `${issuerId}:${informationCutoff}:${inputSnapshotHash}`, issuerId, informationCutoff, factIds: Object.freeze(selected.map((fact) => fact.factId)), status, derivedAt, methodologyVersion, inputSnapshotHash, evidenceRefs: Object.freeze([...evidenceRefs, ...relevantRevisions.flatMap((revision) => revision.evidenceRefs)]), provenanceHash })
 }
 
-export function toSharkFundamentalInput(state: FundamentalState, instrumentId: string, facts: readonly FinancialFact[]): SharkFundamentalInput {
+export function toSharkFundamentalInput(state: FundamentalState, instrumentId: string, facts: readonly FinancialFact[], revisions: readonly FactRevision[] = []): SharkFundamentalInput {
   assertNonEmpty(instrumentId, 'instrumentId'); assertNonEmpty(state.issuerId, 'issuerId')
-  const selected = selectActiveFactsAtCutoff(facts, [], state.informationCutoff).filter((fact) => state.factIds.includes(fact.factId))
+  const selected = selectActiveFactsAtCutoff(facts, revisions, state.informationCutoff).filter((fact) => state.factIds.includes(fact.factId))
   return Object.freeze({ issuerId: state.issuerId, instrumentId, informationCutoff: state.informationCutoff, factIds: Object.freeze(selected.map((fact) => fact.factId)), evidenceRefs: Object.freeze(selected.flatMap((fact) => fact.evidenceRefs)), inputSnapshotHash: state.inputSnapshotHash })
 }
 
