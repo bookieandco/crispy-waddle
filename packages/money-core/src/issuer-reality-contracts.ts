@@ -4,13 +4,16 @@ import type { EvidenceRef } from './financial-intelligence-contracts.js'
 export type IssuerStatus = 'ACTIVE' | 'INACTIVE' | 'DISSOLVED' | 'MERGED' | 'UNKNOWN'
 export type IssuerIdentifierType = 'CIK' | 'LEI' | 'TAX_ID' | 'LOCAL_REGISTRATION' | 'EXTERNAL_PROVIDER' | 'OTHER'
 export type IssuerRelationshipType = 'ISSUER_OF' | 'PARENT' | 'SUBSIDIARY' | 'PREDECESSOR' | 'SUCCESSOR' | 'AFFILIATE'
+export type IssuerInstrumentRelationshipType = 'ISSUER_OF' | 'SUCCESSOR_SECURITY' | 'PREDECESSOR_SECURITY'
 export type FilingStatus = 'ORIGINAL' | 'AMENDMENT' | 'WITHDRAWN' | 'UNKNOWN'
 export type FactStatus = 'REPORTED' | 'AMENDED' | 'RESTATED' | 'WITHDRAWN' | 'CONFLICTING' | 'UNKNOWN'
 export type FundamentalStateStatus = 'DATA_COMPLETE' | 'DATA_PARTIAL' | 'DATA_STALE' | 'DATA_CONFLICTING' | 'RESTATEMENT_PENDING' | 'UNUSUAL_PERIOD' | 'CUSTOM_TAXONOMY' | 'INSUFFICIENT_HISTORY'
+
 export type ExactFinancialValue = Readonly<{ coefficient: bigint; scale: number; currency?: string; unit: string }>
 export type Issuer = Readonly<{ issuerId: string; legalName: string; formerNames: readonly string[]; jurisdiction?: string; cik?: string; lei?: string; industry?: string; status: IssuerStatus; incorporationDate?: string; fiscalYearEnd?: string; parentIssuerId?: string; evidenceRefs: readonly EvidenceRef[]; provenanceHash: string }>
 export type IssuerIdentifier = Readonly<{ identifierId: string; issuerId: string; type: IssuerIdentifierType; value: string; issuer?: string; effectiveAt?: string; expiresAt?: string; evidenceRefs: readonly EvidenceRef[]; provenanceHash: string }>
 export type IssuerRelationship = Readonly<{ relationshipId: string; fromIssuerId: string; toIssuerId: string; relationshipType: IssuerRelationshipType; effectiveAt?: string; expiresAt?: string; evidenceRefs: readonly EvidenceRef[]; provenanceHash: string }>
+export type IssuerInstrumentRelationship = Readonly<{ relationshipId: string; issuerId: string; instrumentId: string; relationshipType: IssuerInstrumentRelationshipType; effectiveAt?: string; expiresAt?: string; evidenceRefs: readonly EvidenceRef[]; provenanceHash: string }>
 export type Filing = Readonly<{ filingId: string; issuerId: string; accessionNumber: string; formType: string; filingDate: string; acceptedAt: string; periodEnd?: string; amendmentOf?: string; status: FilingStatus; source: string; sourceHash: string; evidenceRefs: readonly EvidenceRef[]; provenanceHash: string }>
 export type FilingDocument = Readonly<{ documentId: string; filingId: string; documentName: string; documentType?: string; uri: string; contentHash: string; mimeType?: string; evidenceRefs: readonly EvidenceRef[]; provenanceHash: string }>
 export type FinancialFactDimension = Readonly<{ namespace?: string; name: string; value: string }>
@@ -44,15 +47,19 @@ export function toSharkFundamentalInput(state: FundamentalState, instrumentId: s
   return Object.freeze({ issuerId: state.issuerId, instrumentId, informationCutoff: state.informationCutoff, factIds: Object.freeze(selected.map((fact) => fact.factId)), evidenceRefs: Object.freeze(selected.flatMap((fact) => fact.evidenceRefs)), inputSnapshotHash: state.inputSnapshotHash })
 }
 
-/** Returns the append-only revision chain for a fact; no original fact is mutated. */
-export function revisionsForFact(revisions: readonly FactRevision[], factId: string): readonly FactRevision[] {
-  assertNonEmpty(factId, 'factId')
-  return Object.freeze(revisions.filter((revision) => revision.factId === factId || revision.supersedesFactId === factId))
+export function assertIssuerInstrumentRelationship(relationship: IssuerInstrumentRelationship): void {
+  assertNonEmpty(relationship.relationshipId, 'relationshipId'); assertNonEmpty(relationship.issuerId, 'issuerId'); assertNonEmpty(relationship.instrumentId, 'instrumentId')
+  if (relationship.effectiveAt) assertIsoTimestamp(relationship.effectiveAt, 'effectiveAt')
+  if (relationship.expiresAt) assertIsoTimestamp(relationship.expiresAt, 'expiresAt')
+  if (relationship.effectiveAt && relationship.expiresAt && Date.parse(relationship.expiresAt) < Date.parse(relationship.effectiveAt)) throw new Error('expiresAt cannot precede effectiveAt')
 }
 
-/** A withdrawn fact remains in history and is excluded from the active projection. */
-export function selectActiveFactsAtCutoff(facts: readonly FinancialFact[], revisions: readonly FactRevision[], informationCutoff: string): readonly FinancialFact[] {
-  const selected = selectFactsAtCutoff(facts, informationCutoff)
-  const withdrawn = new Set(revisions.filter((revision) => revision.revisionType === 'WITHDRAWAL' && Date.parse(revision.revisedAt) <= Date.parse(informationCutoff)).map((revision) => revision.factId))
-  return Object.freeze(selected.filter((fact) => !withdrawn.has(fact.factId) && fact.status !== 'WITHDRAWN'))
+export function relationshipWasEffectiveAt(relationship: IssuerInstrumentRelationship, at: string): boolean {
+  assertIsoTimestamp(at, 'at'); assertIssuerInstrumentRelationship(relationship)
+  const point = Date.parse(at); const start = relationship.effectiveAt ? Date.parse(relationship.effectiveAt) : Number.NEGATIVE_INFINITY; const end = relationship.expiresAt ? Date.parse(relationship.expiresAt) : Number.POSITIVE_INFINITY
+  return point >= start && point < end
+}
+
+export function selectIssuerInstrumentRelationshipsAt(relationships: readonly IssuerInstrumentRelationship[], issuerId: string, instrumentId: string, at: string): readonly IssuerInstrumentRelationship[] {
+  assertNonEmpty(issuerId, 'issuerId'); assertNonEmpty(instrumentId, 'instrumentId'); return Object.freeze(relationships.filter((relationship) => relationship.issuerId === issuerId && relationship.instrumentId === instrumentId && relationshipWasEffectiveAt(relationship, at)))
 }
