@@ -1,4 +1,4 @@
-// Public surface for @jhadina/money-core. package.json's "main"/"types" have pointed at this file since the package was created; it never existed, so nothing outside packages/money-core has ever been able to import this package by its bare specifier. Added as part of Spine Proof #3 (Money/Plaid), the first cross-package consumer.
+// Public surface for @jhadina/money-core.
 export type { MoneyCapability, CapabilityRisk } from './capabilities.js';
 export { getMoneyCapability, requiresMoneyApproval, isMoneyCapability } from './capabilities.js';
 export type { MoneyAccount, MoneyTransaction, MoneyAdapterContext, BankAdapter } from './bank-adapter.js';
@@ -32,6 +32,8 @@ export type { SharkFundamentalInput } from './shark-fundamental-adapter.js';
 export { toSharkFundamentalInput } from './shark-fundamental-adapter.js';
 export type { AccountingValue, AccountingTreatment, PeriodKind, NormalizationStatus, AccountingConcept, NormalizationRule, NormalizedMetric, TtmMetric } from './fundamental-normalization-contracts.js';
 export { assertAccountingValue, assertNormalizedMetric, normalizeReportedFact, buildTtmMetric } from './fundamental-normalization-contracts.js';
+export type { EconomicIndicatorType, ObservationStatus, MacroRegimeType, MacroFactorType, EconomicIndicator, EconomicVintage, EconomicObservation, MacroFactor, MacroRegime, RegimeTransition, MacroSensitivity, MonetaryPolicyEvent, EconomicEvent, MacroSurprise, MacroSnapshot } from './macro-economic-contracts.js';
+export { assertEconomicObservation, observationWasAvailableAt, selectEconomicObservationsAtCutoff, assertEconomicVintage, buildMacroSnapshot, calculateMacroSurprise } from './macro-economic-contracts.js';
 export type { InvoiceEvidence, InvoiceValidationState, InvoiceAccountingCandidate } from './invoice-evidence.js';
 export { validateInvoiceAmount, validateExtractionConfidence } from './invoice-evidence.js';
 export type { PermitState, ExecutionAction, PermitBinding, ExecutionPermit, PermitIssuerInput, PermitVerificationContext, PermitStore } from './execution-permit.js';
