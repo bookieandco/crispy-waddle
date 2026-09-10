@@ -60,6 +60,11 @@ export class StoryboardSequenceRegistry {
     this.sequences.set(sequence.id, structuredClone(sequence));
   }
 
+  getSequence(sequenceId: string): StoryboardSequence | undefined {
+    const sequence = this.sequences.get(sequenceId);
+    return sequence ? structuredClone(sequence) : undefined;
+  }
+
   addBoard(board: StoryboardBoard): void {
     if (!this.sequences.has(board.sequenceId)) throw new Error(`Unknown storyboard sequence: ${board.sequenceId}`);
     if (this.boards.has(board.id)) throw new Error(`Storyboard board already exists: ${board.id}`);
@@ -92,10 +97,6 @@ export class StoryboardSequenceRegistry {
     return structuredClone(board);
   }
 
-  /**
-   * A board revision affects that board and later boards in the same sequence,
-   * then returns the distinct shot ids requiring downstream reconsideration.
-   */
   planInvalidation(change: StoryboardBoardChange): StoryboardInvalidationPlan {
     const board = this.boards.get(change.boardId);
     if (!board) throw new Error(`Unknown storyboard board: ${change.boardId}`);
