@@ -49,14 +49,14 @@ export function evaluateDirectorMediaReviewGate(input: DirectorMediaReviewGateIn
     return { allowed: false, reason: 'Review stage does not reference the generated asset.' };
   }
 
-  if (asset.kind !== 'image' && asset.kind !== 'video') {
-    return { allowed: false, reason: `Media quality evidence is unsupported for generated asset kind: ${asset.kind}.` };
+  if (asset.mediaType !== 'image' && asset.mediaType !== 'video') {
+    return { allowed: false, reason: `Media quality evidence is unsupported for generated asset media type: ${asset.mediaType}.` };
   }
   const assetEvidence = evidence.filter((item) => item.artifactId === asset.id);
   if (assetEvidence.length === 0) {
     return { allowed: false, reason: 'Generated asset has no matching media quality evidence.' };
   }
-  if (assetEvidence.some((item) => item.kind !== asset.kind)) {
+  if (assetEvidence.some((item) => item.kind !== asset.mediaType)) {
     return { allowed: false, reason: 'Media quality evidence kind does not match the generated asset.' };
   }
   if (assetEvidence.some((item) => !item.provenance || !sameCreativeProvenance(item.provenance, expectedProvenance))) {
