@@ -48,10 +48,12 @@ export class GenerationPlanAdapter {
       ...(request.referenceAssetIds ?? []).map((assetId) => ({ assetId, role: 'image' as const })),
     ];
 
-    const requestId = `${request.projectId}:${request.sceneId}:${Date.now()}`;
-    const creativeProvenance = gateInput.creativeProvenance
-      ? { ...gateInput.creativeProvenance, generationJobId: requestId }
-      : undefined;
+    // Stable across retries of the same Director take. A new take must receive a new takeId.
+    const requestId = `director:${request.projectId}:take:${request.takeId}`;
+    const creativeProvenance = {
+      ...gateInput.creativeProvenance,
+      generationJobId: requestId,
+    };
 
     return this.generation.submit({
       requestId,
