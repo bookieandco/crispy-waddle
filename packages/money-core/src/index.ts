@@ -28,6 +28,8 @@ export type { AssetClass, EvidenceQuality, EvidenceRef, FinancialHypothesis, Pre
 export { assertIntelligenceOnly, assertProbability, assertPositiveAmount } from './financial-intelligence-contracts.js';
 export type { InvoiceEvidence, InvoiceValidationState, InvoiceAccountingCandidate } from './invoice-evidence.js';
 export { validateInvoiceAmount, validateExtractionConfidence } from './invoice-evidence.js';
+export type { IssuerStatus, IssuerIdentifierType, IssuerRelationshipType, FilingStatus, FactStatus, FundamentalStateStatus, ExactFinancialValue, Issuer, IssuerIdentifier, IssuerRelationship, Filing, FilingDocument, FinancialFactDimension, FinancialFact, FactRevision, FundamentalState } from './issuer-reality-contracts.js';
+export { assertPointInTimeFact, factWasAvailableAt, selectFactsAtCutoff } from './issuer-reality-contracts.js';
 export type { PermitState, ExecutionAction, PermitBinding, ExecutionPermit, PermitIssuerInput, PermitVerificationContext, PermitStore } from './execution-permit.js';
 export { canonicalizeAction, fingerprintAction, issueExecutionPermit, verifyExecutionPermit, consumeExecutionPermit } from './execution-permit.js';
 export type { PostgresPermitStoreOptions } from './postgres-permit-store.js';
@@ -48,7 +50,7 @@ export type { PostgresExecutionRecoveryLeaseStoreOptions } from './postgres-exec
 export { PostgresExecutionRecoveryLeaseStore } from './postgres-execution-recovery-lease-store.js';
 export type { ExecutionRecoveryServiceOptions } from './execution-recovery-service.js';
 export { MoneyExecutionRecoveryService } from './execution-recovery-service.js';
-export type { MoneyExecutionReconciliationAdapter } from './execution-reconciliation-adapter.js';
+export type { MoneyReconciliationAdapter } from './execution-reconciliation-adapter.js';
 export { ExecutionReconciliationAdapterRegistry, createExecutionReconciler } from './execution-reconciliation-adapter.js';
 export type { ProviderExecutionIdentity } from './provider-execution-identity.js';
 export { createProviderExecutionIdentity, createProviderExecutionIdentityFromAttempt, assertProviderExecutionIdentity } from './provider-execution-identity.js';
