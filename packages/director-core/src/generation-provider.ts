@@ -4,6 +4,7 @@ import type {
   LoRARecord,
   ModelRecord,
 } from './generation-registry';
+import type { CreativeProvenance } from './creative-provenance';
 import { resolveComfyUIHistoryOutputs } from './comfyui-output-resolver';
 
 export type GenerationReference = {
@@ -22,6 +23,8 @@ export type GenerationRequest = {
   loras?: Array<{ lora: LoRARecord; weight?: number }>;
   references?: GenerationReference[];
   parameters: Record<string, unknown>;
+  /** Immutable creative lineage captured at the governed Director submission boundary. */
+  creativeProvenance?: CreativeProvenance;
 };
 
 export type GenerationResult = {
