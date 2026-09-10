@@ -16,8 +16,11 @@ describe('GenerationPlanAdapter', () => {
   const gate: CreativeGate = {
     id: 'gate-1', runId: 'run-1', kind: 'generation', decision: 'approved', requestedAt: '2026-09-09T00:00:00Z',
   };
+  const storyboardStage: CreativeStage = {
+    id: 'storyboard-1', projectId: 'p', kind: 'storyboard', dependsOn: [], status: 'approved', inputArtifactIds: [], outputArtifactIds: [], version: 7,
+  };
   const generationStage: CreativeStage = {
-    id: 'generation-1', projectId: 'p', kind: 'generation', dependsOn: [], status: 'ready', inputArtifactIds: [], outputArtifactIds: [], version: 1,
+    id: 'generation-1', projectId: 'p', kind: 'generation', dependsOn: ['storyboard-1'], status: 'ready', inputArtifactIds: [], outputArtifactIds: [], version: 3,
   };
 
   function request(): Parameters<GenerationPlanAdapter['submitTake']>[0] {
@@ -31,8 +34,27 @@ describe('GenerationPlanAdapter', () => {
     return { modelId: 'video-model', modality: 'video', loras: [{ loraId: 'character-maya', weight: 0.9 }], parameters: { seed: 42 } };
   }
 
-  function gateInput(overrides: Partial<{ gate: CreativeGate; generationStage: CreativeStage }> = {}) {
-    return { run, gate: overrides.gate ?? gate, generationStage: overrides.generationStage ?? generationStage };
+  function gateInput(overrides: Partial<{ gate: CreativeGate; storyboardStage: CreativeStage; generationStage: CreativeStage; creativeProvenance: { projectId: string; storyboardBoardIds: string[]; storyboardVersion: number; generationStageId: string; generationStageVersion: number } }> = {}) {
+    return {
+      run,
+      gate: overrides.gate ?? gate,
+      generationStage: overrides.generationStage ?? generationStage,
+      storyboardStage: overrides.storyboardStage,
+      creativeProvenance: overrides.creativeProvenance,
+    };
+  }
+
+  function governedGateInput() {
+    return gateInput({
+      storyboardStage,
+      creativeProvenance: {
+        projectId: 'p',
+        storyboardBoardIds: ['board-1', 'board-2'],
+        storyboardVersion: 7,
+        generationStageId: 'generation-1',
+        generationStageVersion: 3,
+      },
+    });
   }
 
   function makeAdapter(submitted: { request?: GenerationRequest } = {}) {
@@ -54,6 +76,25 @@ describe('GenerationPlanAdapter', () => {
     const job = await makeAdapter(submitted).submitTake(request(), plan(), gateInput());
     expect(job.status).toBe('queued');
     expect(submitted.request?.model.id).toBe('video-model');
+  });
+
+  it('carries the approved storyboard lineage into the generated asset request', async () => {
+    const submitted: { request?: GenerationRequest } = {};
+    const job = await makeAdapter(submitted).submitTake(request(), plan(), governedGateInput());
+    expect(submitted.request?.creativeProvenance).toMatchObject({
+      projectId: 'p',
+      storyboardBoardIds: ['board-1', 'board-2'],
+      storyboardVersion: 7,
+      generationStageId: 'generation-1',
+      generationStageVersion: 3,
+    });
+    expect(submitted.request?.creativeProvenance?.generationJobId).toBe(job.id);
+  });
+
+  it('does not allow storyboard-backed generation without explicit provenance', async () => {
+    const submitted: { request?: GenerationRequest } = {};
+    await expect(makeAdapter(submitted).submitTake(request(), plan(), gateInput({ storyboardStage }))).rejects.toThrow('explicit creative provenance');
+    expect(submitted.request).toBeUndefined();
   });
 
   it('does not reach the provider when the gate is pending', async () => {
