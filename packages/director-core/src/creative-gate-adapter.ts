@@ -26,7 +26,9 @@ export function evaluateDirectorGenerationGate(input: DirectorGenerationGateInpu
   if (input.generationStage.projectId !== input.run.projectId || input.generationStage.kind !== 'generation') return { allowed: false, reason: 'Generation stage is not bound to the production project.' };
   if (input.generationStage.status !== 'ready' && input.generationStage.status !== 'approved') return { allowed: false, reason: `Generation stage is not ready: ${input.generationStage.status}` };
   if (!input.storyboardRegistry || !input.storyboardBinding || !input.storyboardStage) return { allowed: false, reason: 'Generation requires authoritative storyboard registry, stage binding, and storyboard stage.' };
+  if (!input.storyboardBinding.stageIds.generation) return { allowed: false, reason: 'Generation stage is not bound to the storyboard lineage.' };
   if (input.storyboardStage.projectId !== input.run.projectId || input.storyboardStage.kind !== 'storyboard') return { allowed: false, reason: 'Storyboard stage is not bound to the production project.' };
+  if (input.storyboardStage.id !== input.storyboardBinding.stageIds.storyboard) return { allowed: false, reason: 'Storyboard stage does not match the storyboard stage binding.' };
   if (input.storyboardStage.status !== 'ready' && input.storyboardStage.status !== 'approved') return { allowed: false, reason: `Storyboard stage is not ready: ${input.storyboardStage.status}` };
 
   let authoritative: Omit<CreativeProvenance, 'generationJobId'>;
@@ -37,6 +39,9 @@ export function evaluateDirectorGenerationGate(input: DirectorGenerationGateInpu
       storyboardStage: input.storyboardStage,
       generationStage: input.generationStage,
     });
+    const board = input.storyboardRegistry.getBoard(input.storyboardBinding.storyboardBoardId);
+    if (!board || !input.run.shotIds.includes(board.shotId)) return { allowed: false, reason: 'Storyboard board is not bound to a shot in the production run.' };
+    if (board.status !== 'ready' && board.status !== 'approved') return { allowed: false, reason: `Storyboard board is not ready: ${board.status}` };
   } catch (error) {
     return { allowed: false, reason: error instanceof Error ? error.message : 'Unable to establish authoritative storyboard lineage.' };
   }
