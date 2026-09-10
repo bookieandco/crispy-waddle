@@ -1,9 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { StoryboardBoard, StoryboardSequence } from './storyboard-sequence.js';
+import type { StoryboardStageBinding } from './storyboard-stage-binding.js';
 
 export interface StoryboardRepository {
   getSequence(sequenceId: string, projectId: string): Promise<StoryboardSequence | null>;
   getBoard(boardId: string, projectId: string): Promise<StoryboardBoard | null>;
+}
+
+export interface StoryboardBindingRepository extends StoryboardRepository {
+  getBinding(boardId: string, projectId: string): Promise<StoryboardStageBinding | null>;
 }
 
 type SequenceRow = {
@@ -36,6 +41,18 @@ type BoardRow = {
   version: number;
   artifact_ids: string[];
   updated_at: string;
+};
+
+type BindingRow = {
+  id: string;
+  storyboard_board_id: string;
+  storyboard_stage_id: string;
+  shotlist_stage_id: string;
+  previs_stage_id: string | null;
+  generation_stage_id: string | null;
+  edit_stage_id: string | null;
+  review_stage_id: string | null;
+  version: number;
 };
 
 function mapSequence(row: SequenceRow): StoryboardSequence {
@@ -74,12 +91,26 @@ function mapBoard(row: BoardRow): StoryboardBoard {
   };
 }
 
+function mapBinding(row: BindingRow): StoryboardStageBinding {
+  return {
+    storyboardBoardId: row.storyboard_board_id,
+    stageIds: {
+      storyboard: row.storyboard_stage_id,
+      shotlist: row.shotlist_stage_id,
+      ...(row.previs_stage_id == null ? {} : { previs: row.previs_stage_id }),
+      ...(row.generation_stage_id == null ? {} : { generation: row.generation_stage_id }),
+      ...(row.edit_stage_id == null ? {} : { edit: row.edit_stage_id }),
+      ...(row.review_stage_id == null ? {} : { review: row.review_stage_id }),
+    },
+  };
+}
+
 /**
  * Read-only persistence adapter. Project scoping is part of every lookup so a
  * caller cannot resolve another project's storyboard by guessing an ID.
  * Writes/versioning belong behind the governed storyboard mutation path.
  */
-export class SupabaseStoryboardRepository implements StoryboardRepository {
+export class SupabaseStoryboardRepository implements StoryboardBindingRepository {
   constructor(private readonly client: SupabaseClient) {}
 
   async getSequence(sequenceId: string, projectId: string): Promise<StoryboardSequence | null> {
@@ -102,5 +133,18 @@ export class SupabaseStoryboardRepository implements StoryboardRepository {
       .maybeSingle();
     if (error) throw new Error(`Failed to load storyboard board: ${error.message}`);
     return data ? mapBoard(data as BoardRow) : null;
+  }
+
+  async getBinding(boardId: string, projectId: string): Promise<StoryboardStageBinding | null> {
+    const { data, error } = await this.client
+      .from('director_storyboard_stage_bindings')
+      .select('id,storyboard_board_id,storyboard_stage_id,shotlist_stage_id,previs_stage_id,generation_stage_id,edit_stage_id,review_stage_id,version')
+      .eq('storyboard_board_id', boardId)
+      .eq('project_id', projectId)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(`Failed to load storyboard stage binding: ${error.message}`);
+    return data ? mapBinding(data as BindingRow) : null;
   }
 }
