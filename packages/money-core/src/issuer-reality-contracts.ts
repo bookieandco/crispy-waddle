@@ -1,9 +1,11 @@
+import type { EvidenceRef } from './financial-intelligence-contracts.js'
+
 /**
  * MONEY-035 — Issuer Reality contracts.
  *
  * These contracts model issuer-reported reality without creating a second
  * evidence authority, instrument master, prediction registry, or execution
- * path. Evidence identifiers refer to the shared evidence/provenance layer.
+ * path. Evidence references point into the shared evidence/provenance layer.
  *
  * Financial facts preserve both reporting time and point-in-time availability;
  * periodEnd alone is never sufficient for historical replay.
@@ -11,48 +13,17 @@
 
 export type IssuerStatus = 'ACTIVE' | 'INACTIVE' | 'DISSOLVED' | 'MERGED' | 'UNKNOWN'
 
-export type IssuerIdentifierType =
-  | 'CIK'
-  | 'LEI'
-  | 'TAX_ID'
-  | 'LOCAL_REGISTRATION'
-  | 'EXTERNAL_PROVIDER'
-  | 'OTHER'
+export type IssuerIdentifierType = 'CIK' | 'LEI' | 'TAX_ID' | 'LOCAL_REGISTRATION' | 'EXTERNAL_PROVIDER' | 'OTHER'
 
-export type IssuerRelationshipType =
-  | 'ISSUER_OF'
-  | 'PARENT'
-  | 'SUBSIDIARY'
-  | 'PREDECESSOR'
-  | 'SUCCESSOR'
-  | 'AFFILIATE'
+export type IssuerRelationshipType = 'ISSUER_OF' | 'PARENT' | 'SUBSIDIARY' | 'PREDECESSOR' | 'SUCCESSOR' | 'AFFILIATE'
 
 export type FilingStatus = 'ORIGINAL' | 'AMENDMENT' | 'WITHDRAWN' | 'UNKNOWN'
 
-export type FactStatus =
-  | 'REPORTED'
-  | 'AMENDED'
-  | 'RESTATED'
-  | 'WITHDRAWN'
-  | 'CONFLICTING'
-  | 'UNKNOWN'
+export type FactStatus = 'REPORTED' | 'AMENDED' | 'RESTATED' | 'WITHDRAWN' | 'CONFLICTING' | 'UNKNOWN'
 
-export type FundamentalStateStatus =
-  | 'DATA_COMPLETE'
-  | 'DATA_PARTIAL'
-  | 'DATA_STALE'
-  | 'DATA_CONFLICTING'
-  | 'RESTATEMENT_PENDING'
-  | 'UNUSUAL_PERIOD'
-  | 'CUSTOM_TAXONOMY'
-  | 'INSUFFICIENT_HISTORY'
+export type FundamentalStateStatus = 'DATA_COMPLETE' | 'DATA_PARTIAL' | 'DATA_STALE' | 'DATA_CONFLICTING' | 'RESTATEMENT_PENDING' | 'UNUSUAL_PERIOD' | 'CUSTOM_TAXONOMY' | 'INSUFFICIENT_HISTORY'
 
-export type ExactFinancialValue = Readonly<{
-  coefficient: bigint
-  scale: number
-  currency?: string
-  unit: string
-}>
+export type ExactFinancialValue = Readonly<{ coefficient: bigint; scale: number; currency?: string; unit: string }>
 
 export type Issuer = Readonly<{
   issuerId: string
@@ -66,7 +37,7 @@ export type Issuer = Readonly<{
   incorporationDate?: string
   fiscalYearEnd?: string
   parentIssuerId?: string
-  evidenceRefs: readonly string[]
+  evidenceRefs: readonly EvidenceRef[]
   provenanceHash: string
 }>
 
@@ -78,7 +49,7 @@ export type IssuerIdentifier = Readonly<{
   issuer?: string
   effectiveAt?: string
   expiresAt?: string
-  evidenceRefs: readonly string[]
+  evidenceRefs: readonly EvidenceRef[]
   provenanceHash: string
 }>
 
@@ -89,7 +60,7 @@ export type IssuerRelationship = Readonly<{
   relationshipType: IssuerRelationshipType
   effectiveAt?: string
   expiresAt?: string
-  evidenceRefs: readonly string[]
+  evidenceRefs: readonly EvidenceRef[]
   provenanceHash: string
 }>
 
@@ -105,7 +76,7 @@ export type Filing = Readonly<{
   status: FilingStatus
   source: string
   sourceHash: string
-  evidenceRefs: readonly string[]
+  evidenceRefs: readonly EvidenceRef[]
   provenanceHash: string
 }>
 
@@ -117,15 +88,11 @@ export type FilingDocument = Readonly<{
   uri: string
   contentHash: string
   mimeType?: string
-  evidenceRefs: readonly string[]
+  evidenceRefs: readonly EvidenceRef[]
   provenanceHash: string
 }>
 
-export type FinancialFactDimension = Readonly<{
-  namespace?: string
-  name: string
-  value: string
-}>
+export type FinancialFactDimension = Readonly<{ namespace?: string; name: string; value: string }>
 
 export type FinancialFact = Readonly<{
   factId: string
@@ -142,13 +109,11 @@ export type FinancialFact = Readonly<{
   fiscalPeriod?: string
   dimensions: readonly FinancialFactDimension[]
   sourceContext?: string
-  /** Time the issuer made the fact available to the outside world. */
   reportedAt: string
-  /** Earliest time this fact is allowed to enter a point-in-time replay. */
   availableAt: string
   receivedAt: string
   status: FactStatus
-  evidenceRefs: readonly string[]
+  evidenceRefs: readonly EvidenceRef[]
   provenanceHash: string
 }>
 
@@ -159,7 +124,7 @@ export type FactRevision = Readonly<{
   revisionType: 'AMENDMENT' | 'RESTATEMENT' | 'CORRECTION' | 'WITHDRAWAL'
   revisedAt: string
   reason?: string
-  evidenceRefs: readonly string[]
+  evidenceRefs: readonly EvidenceRef[]
   provenanceHash: string
 }>
 
@@ -172,7 +137,7 @@ export type FundamentalState = Readonly<{
   derivedAt: string
   methodologyVersion: string
   inputSnapshotHash: string
-  evidenceRefs: readonly string[]
+  evidenceRefs: readonly EvidenceRef[]
   provenanceHash: string
 }>
 
@@ -194,12 +159,8 @@ export function assertPointInTimeFact(fact: FinancialFact): void {
   assertIsoTimestamp(fact.reportedAt, 'reportedAt')
   assertIsoTimestamp(fact.availableAt, 'availableAt')
   assertIsoTimestamp(fact.receivedAt, 'receivedAt')
-  if (Date.parse(fact.availableAt) < Date.parse(fact.reportedAt)) {
-    throw new Error('availableAt cannot precede reportedAt')
-  }
-  if (Date.parse(fact.receivedAt) < Date.parse(fact.availableAt)) {
-    throw new Error('receivedAt cannot precede availableAt')
-  }
+  if (Date.parse(fact.availableAt) < Date.parse(fact.reportedAt)) throw new Error('availableAt cannot precede reportedAt')
+  if (Date.parse(fact.receivedAt) < Date.parse(fact.availableAt)) throw new Error('receivedAt cannot precede availableAt')
 }
 
 export function factWasAvailableAt(fact: FinancialFact, informationCutoff: string): boolean {
@@ -208,10 +169,7 @@ export function factWasAvailableAt(fact: FinancialFact, informationCutoff: strin
   return Date.parse(fact.availableAt) <= Date.parse(informationCutoff)
 }
 
-export function selectFactsAtCutoff(
-  facts: readonly FinancialFact[],
-  informationCutoff: string,
-): readonly FinancialFact[] {
+export function selectFactsAtCutoff(facts: readonly FinancialFact[], informationCutoff: string): readonly FinancialFact[] {
   assertIsoTimestamp(informationCutoff, 'informationCutoff')
   return Object.freeze(facts.filter((fact) => factWasAvailableAt(fact, informationCutoff)))
 }
