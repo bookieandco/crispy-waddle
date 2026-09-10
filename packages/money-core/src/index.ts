@@ -26,6 +26,10 @@ export { buildPlaidReadOnlyAdapter, createPlaidReadOnlyAdapterBuilder } from './
 export { PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, assertPlaidSandboxBaseUrl, createPlaidProviderAdapterFactory } from './plaid-provider-registration.js';
 export type { AssetClass, EvidenceQuality, EvidenceRef, FinancialHypothesis, PredictionDistribution, OpportunityCandidate, AllocationDecision, CapitalAllocationRequest, CapitalAllocationDecision, CanonicalFinancialAction } from './financial-intelligence-contracts.js';
 export { assertIntelligenceOnly, assertProbability, assertPositiveAmount } from './financial-intelligence-contracts.js';
+export type { IssuerStatus, IssuerIdentifierType, IssuerRelationshipType, IssuerInstrumentRelationshipType, FilingStatus, FactStatus, FundamentalStateStatus, ExactFinancialValue, Issuer, IssuerIdentifier, IssuerRelationship, IssuerInstrumentRelationship, Filing, FilingDocument, FinancialFactDimension, FinancialFact, FactRevision, FundamentalState } from './issuer-reality-contracts.js';
+export { assertIssuerIdentifier, selectIssuerIdentifiersAt, assertPointInTimeFact, factWasAvailableAt, selectFactsAtCutoff, revisionsForFact, selectActiveFactsAtCutoff, buildFundamentalState, assertIssuerInstrumentRelationship, relationshipWasEffectiveAt, selectIssuerInstrumentRelationshipsAt } from './issuer-reality-contracts.js';
+export type { SharkFundamentalInput } from './shark-fundamental-adapter.js';
+export { toSharkFundamentalInput } from './shark-fundamental-adapter.js';
 export type { InvoiceEvidence, InvoiceValidationState, InvoiceAccountingCandidate } from './invoice-evidence.js';
 export { validateInvoiceAmount, validateExtractionConfidence } from './invoice-evidence.js';
 export type { PermitState, ExecutionAction, PermitBinding, ExecutionPermit, PermitIssuerInput, PermitVerificationContext, PermitStore } from './execution-permit.js';
@@ -48,7 +52,7 @@ export type { PostgresExecutionRecoveryLeaseStoreOptions } from './postgres-exec
 export { PostgresExecutionRecoveryLeaseStore } from './postgres-execution-recovery-lease-store.js';
 export type { ExecutionRecoveryServiceOptions } from './execution-recovery-service.js';
 export { MoneyExecutionRecoveryService } from './execution-recovery-service.js';
-export type { MoneyExecutionReconciliationAdapter } from './execution-reconciliation-adapter.js';
+export type { MoneyReconciliationAdapter } from './execution-reconciliation-adapter.js';
 export { ExecutionReconciliationAdapterRegistry, createExecutionReconciler } from './execution-reconciliation-adapter.js';
 export type { ProviderExecutionIdentity } from './provider-execution-identity.js';
 export { createProviderExecutionIdentity, createProviderExecutionIdentityFromAttempt, assertProviderExecutionIdentity } from './provider-execution-identity.js';
