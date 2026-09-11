@@ -247,10 +247,10 @@ export class GenerationService {
     if (!provider) throw new Error(`Provider is not configured: ${job.providerId}`);
     const result = await provider.status(job.providerJobId);
     const execution: GenerationExecution = { id: `${job.id}:refresh`, taskId: job.id, providerId: job.providerId, attempt: 1, status: result.status, providerJobId: result.providerJobId, error: result.error, createdAt: job.createdAt, updatedAt: new Date().toISOString() };
-    const task: GenerationTask = { id: job.id, idempotencyKey: job.id, request: job.request, status: result.status, error: result.error, createdAt: job.createdAt, updatedAt: execution.updatedAt };
+    const task: GenerationTask = { id: job.id, projectId: job.request.projectId, idempotencyKey: job.id, request: job.request, status: result.status, error: result.error, createdAt: job.createdAt, updatedAt: execution.updatedAt };
     const refreshed = jobFromTask(task, execution);
     this.jobs.set(id, refreshed);
     await this.persistOutputs(refreshed, result);
     return refreshed;
   }
-}
+} 
