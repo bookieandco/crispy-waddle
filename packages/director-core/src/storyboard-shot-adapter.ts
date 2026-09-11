@@ -31,8 +31,8 @@ export function buildStoryboardShotPlan(
     .sort((a, b) => a.order - b.order);
 
   if (shotBoards.length === 0) throw new Error(`No storyboard boards found for shot: ${shotId}`);
-  if (shotBoards.some((board) => board.sequenceId !== sequence.id || board.sceneId !== sequence.sceneId)) {
-    throw new Error(`Storyboard board does not belong to sequence scene: ${sequence.id}`);
+  if (shotBoards.some((board) => board.sequenceId !== sequence.id || board.projectId !== sequence.projectId)) {
+    throw new Error(`Storyboard board does not belong to sequence project: ${sequence.id}`);
   }
 
   const latestVersion = Math.max(...shotBoards.map((board) => board.version));
@@ -58,12 +58,15 @@ export function buildStoryboardTakePlan(
   sequence: StoryboardSequence,
   boards: StoryboardBoard[],
   shotId: string,
-  overrides: Pick<TakeRequest, 'takeCount' | 'parentTakeId' | 'targetRuntimeSeconds'> = {},
+  overrides: Pick<TakeRequest, 'takeCount' | 'parentTakeId' | 'targetRuntimeSeconds'> & { takeId?: string } = {},
 ): StoryboardTakePlan {
   const shot = buildStoryboardShotPlan(sequence, boards, shotId);
+  const takeId = overrides.takeId ?? `${shot.shotId}:take:${overrides.takeCount ?? 1}`;
   const takeRequest: TakeRequest = {
+    takeId,
     projectId: shot.projectId,
     sceneId: shot.sceneId,
+    storyboardBoardId: shot.boardIds[shot.boardIds.length - 1]!,
     parentTakeId: overrides.parentTakeId,
     prompt: shot.prompt,
     targetRuntimeSeconds: overrides.targetRuntimeSeconds,
