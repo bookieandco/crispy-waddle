@@ -3,6 +3,13 @@ import { CreativeStageGraph } from './creative-stage-graph.js';
 import { invalidateStoryboardStages, recordStoryboardArtifact } from './storyboard-stage-binding.js';
 
 describe('storyboard stage binding', () => {
+  const binding = {
+    projectId: 'p1',
+    storyboardBoardId: 'board-1',
+    stageIds: { storyboard: 'storyboard', shotlist: 'shotlist', generation: 'generation', review: 'review' },
+    version: 1,
+  };
+
   it('propagates a storyboard revision through downstream stages', () => {
     const graph = new CreativeStageGraph();
     graph.add({ id: 'storyboard', projectId: 'p1', kind: 'storyboard', dependsOn: [], status: 'approved', inputArtifactIds: [], outputArtifactIds: [], version: 1 });
@@ -12,7 +19,7 @@ describe('storyboard stage binding', () => {
 
     const result = invalidateStoryboardStages(
       graph,
-      { storyboardBoardId: 'board-1', stageIds: { storyboard: 'storyboard', shotlist: 'shotlist', generation: 'generation', review: 'review' } },
+      binding,
       { boardId: 'board-1', reason: 'director changed camera blocking', at: '2026-09-09T00:00:00Z' },
       { boardId: 'board-1', affectedBoardIds: ['board-1'], affectedShotIds: ['shot-1'], reason: 'director changed camera blocking' },
     );
@@ -27,7 +34,7 @@ describe('storyboard stage binding', () => {
     graph.add({ id: 'storyboard', projectId: 'p1', kind: 'storyboard', dependsOn: [], status: 'approved', inputArtifactIds: [], outputArtifactIds: [], version: 1 });
     expect(() => invalidateStoryboardStages(
       graph,
-      { storyboardBoardId: 'board-a', stageIds: { storyboard: 'storyboard', shotlist: 'missing' } },
+      { ...binding, storyboardBoardId: 'board-a' },
       { boardId: 'board-b', reason: 'changed', at: '2026-09-09T00:00:00Z' },
       { boardId: 'board-b', affectedBoardIds: ['board-b'], affectedShotIds: [], reason: 'changed' },
     )).toThrow('Storyboard binding mismatch');
