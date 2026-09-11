@@ -1,0 +1,15 @@
+name: Director Targeted Tests
+on:
+  pull_request:
+jobs:
+  director-targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 8.15.9, run_install: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm --filter @jhadina/director-core exec vitest run src/creative-gate-adapter.test.ts src/storyboard-stage-binding.test.ts src/storyboard-shot-adapter.test.ts src/generation-plan-adapter.test.ts src/media-quality-evidence.test.ts
