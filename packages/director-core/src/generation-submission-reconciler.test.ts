@@ -5,7 +5,7 @@ import { GenerationSubmissionReconciler } from './generation-submission-reconcil
 import { InMemoryGenerationRepository } from './generation-repository';
 
 function task(): GenerationTask {
-  return { id: 'task-reconciler-1', projectId: 'project-1', request: { requestId: 'task-reconciler-1', projectId: 'project-1', modality: 'image', prompt: 'reconciler test', model: { id: 'model-1', providerId: 'provider-1' }, parameters: {} }, idempotencyKey: 'task-reconciler-1', status: 'queued', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' };
+  return { id: 'task-reconciler-1', projectId: 'project-1', request: { requestId: 'task-reconciler-1', projectId: 'project-1', modality: 'image', prompt: 'reconciler test', model: { id: 'model-1', providerId: 'provider-1', name: 'Test Model', version: '1', modalities: ['image'], capabilities: ['text-to-image'] }, parameters: {} }, idempotencyKey: 'task-reconciler-1', status: 'queued', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' };
 }
 function recovered(t: GenerationTask): GenerationResult { return { requestId: t.request.requestId, providerId: 'provider-1', status: 'completed', assetIds: [], providerJobId: 'provider-job-reconciler-1' }; }
 function provider(t: GenerationTask): GenerationProvider {
