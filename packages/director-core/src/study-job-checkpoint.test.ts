@@ -5,7 +5,7 @@ import type { StudyCheckpoint } from './study-resume-state.js';
 import type { StudyJob } from './study-job.js';
 
 const job = (time: number): StudyJob => ({
-  id: 'study-1', sourceUrl: 'sample.mp4', autonomous: true, shareWithJhadina: true,
+  id: 'study-1', sourceUrl: 'sample.mp4', domain: 'universal', autonomous: true, shareWithJhadina: true,
   status: 'running', lastTimeSeconds: time, observationsSeen: Math.floor(time),
   notesCreated: Math.floor(time / 2), learningCandidatesCreated: Math.floor(time / 4),
 });
@@ -13,7 +13,7 @@ const job = (time: number): StudyJob => ({
 describe('study checkpoint runner', () => {
   it('persists at the configured interval and always persists a final checkpoint', async () => {
     const saved: StudyCheckpoint[] = [];
-    const runner = createStudyCheckpointRunner(createStudyCheckpointPolicy(30), { save: async checkpoint => saved.push(checkpoint) });
+    const runner = createStudyCheckpointRunner(createStudyCheckpointPolicy(30), { save: async checkpoint => { saved.push(checkpoint); } });
 
     await runner.observe(job(10));
     await runner.observe(job(29));
