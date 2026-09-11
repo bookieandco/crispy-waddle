@@ -1,6 +1,17 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type { StoryboardBoard, StoryboardSequence } from './storyboard-sequence.js';
 import type { StoryboardStageBinding } from './storyboard-stage-binding.js';
+
+type SupabaseQueryResult = { data: unknown; error: { message: string } | null };
+type SupabaseQuery = {
+  select(columns: string): SupabaseQuery;
+  eq(column: string, value: string): SupabaseQuery;
+  order(column: string, options: { ascending: boolean }): SupabaseQuery;
+  limit(count: number): SupabaseQuery;
+  maybeSingle(): Promise<SupabaseQueryResult>;
+};
+
+/** Minimal structural query surface; keeps Director Core independent of a Supabase SDK package. */
+export type SupabaseStoryboardClient = { from(table: string): SupabaseQuery };
 
 export interface StoryboardRepository {
   getSequence(sequenceId: string, projectId: string): Promise<StoryboardSequence | null>;
@@ -67,7 +78,7 @@ function mapBinding(row: BindingRow): StoryboardStageBinding {
 
 /** Read-only persistence adapter. Every lookup is project-scoped. */
 export class SupabaseStoryboardRepository implements StoryboardBindingRepository {
-  constructor(private readonly client: SupabaseClient) {}
+  constructor(private readonly client: SupabaseStoryboardClient) {}
 
   async getSequence(sequenceId: string, projectId: string): Promise<StoryboardSequence | null> {
     const { data, error } = await this.client.from('director_storyboard_sequences')
