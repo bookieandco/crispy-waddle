@@ -9,7 +9,7 @@ export type StudyJobStore = {
 };
 
 export type StudyJobEffects = {
-  observe(job: StudyJob): StudyObservationSource;
+  observe(job: StudyJob): AsyncIterable<Observation>;
   note?(observation: Observation): Promise<void>;
   learn?(observation: Observation, job: StudyJob): Promise<void>;
   checkpoints?: StudyCheckpointRunner;
@@ -23,8 +23,7 @@ export async function runStudyJob(id: string, store: StudyJobStore, effects: Stu
   await store.save(job);
 
   try {
-    const observationSource = effects.observe(job);
-    for await (const observation of observationSource(job)) {
+    for await (const observation of effects.observe(job)) {
       if (observation.time.endSeconds <= job.lastTimeSeconds) continue;
       job = { ...job, lastTimeSeconds: Math.max(job.lastTimeSeconds, observation.time.endSeconds), observationsSeen: job.observationsSeen + 1 };
       if (effects.note) { await effects.note(observation); job = { ...job, notesCreated: job.notesCreated + 1 }; }
