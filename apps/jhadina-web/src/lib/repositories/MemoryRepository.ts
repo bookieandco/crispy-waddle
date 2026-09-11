@@ -55,7 +55,7 @@ export class MemoryRepository {
       throw new Error(`User not authorized for candidate: ${candidateId}`)
     }
 
-    const memory = await this.storage.createMemory({
+    const memory = await this.storage.createApprovedMemory({
       userId: candidate.userId,
       type: candidate.type,
       status: "APPROVED",
