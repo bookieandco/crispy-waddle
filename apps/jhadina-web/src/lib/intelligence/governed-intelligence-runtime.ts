@@ -3,9 +3,7 @@ import { IntelligenceRouter, type IntelligenceRouterEvent } from "@jhadina/intel
 import { InMemoryApprovalReceiptStore, type ApprovalReceiptStore } from "@jhadina/action-core"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
-import { MemoryRepository } from "../repositories/MemoryRepository"
-import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
-import { getStorage } from "../routes/handlers"
+import { getJhadinaApplication } from "../application/createJhadinaApplication"
 import { createProductionIntelligenceRouter } from "./production-model-provider"
 import { createIntelligenceAuditLedger, INTELLIGENCE_AUDIT_DOMAIN } from "./durable-audit-ledger"
 import {
@@ -14,18 +12,6 @@ import {
 } from "./governed-intelligence-proposal"
 import type { SupabaseAuditLedger, ActionAuditEvent } from "@jhadina/action-core"
 
-/**
- * Process-local composition root for the Intelligence Router proof —
- * same shape as Growth's governed-approval-runtime.ts. Not yet mounted
- * behind an HTTP route: Step 3's scope is the router and its governance
- * wiring, not "Ask Jhadina" (Step 7), which needs a real Context Builder
- * (Step 4) to supply `ContextPacket`s from live requests. This function
- * is the callable, tested seam Step 7 will mount.
- *
- * Approval receipts stay in-memory and process-local, same explicit
- * scope boundary Growth's runtime already documented — durability here
- * was never required for this milestone.
- */
 const approvalStore = new InMemoryApprovalReceiptStore()
 
 export type GovernedIntelligenceRuntimeOverrides = {
@@ -44,9 +30,7 @@ export async function runGovernedIntelligenceProposal(
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
   const ledger = overrides.ledger ?? (await createIntelligenceAuditLedger())
   const router = overrides.router ?? createProductionIntelligenceRouter(overrides.onEvent)
-  const storage = getStorage()
-  const memoryRepo = new MemoryRepository(storage)
-  const reasoningRepo = new ReasoningEventRepository(storage)
+  const { memoryRepo, reasoningRepo } = getJhadinaApplication()
 
   return decideAndProposeMemoryGoverned(
     { identityVerifier, ledger, router, memoryRepo, reasoningRepo, approvalStore: overrides.approvalStore ?? approvalStore },
