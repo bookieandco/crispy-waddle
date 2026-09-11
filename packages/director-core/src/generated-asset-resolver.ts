@@ -1,5 +1,7 @@
 import type { GenerationResult } from './generation-provider';
+import type { CreativeProvenance } from './creative-provenance';
 
+/** Canonical persisted Director-generated asset contract. */
 export type GeneratedAssetRecord = {
   id: string;
   projectId: string;
@@ -15,6 +17,7 @@ export type GeneratedAssetRecord = {
   loras?: Array<{ id: string; weight: number }>;
   prompt?: string;
   createdAt: string;
+  provenance?: CreativeProvenance;
   metadata?: Record<string, unknown>;
 };
 
@@ -39,15 +42,11 @@ export class InMemoryGeneratedAssetRepository implements GeneratedAssetRepositor
   }
 
   async listByGenerationJob(generationJobId: string): Promise<GeneratedAssetRecord[]> {
-    return [...this.assets.values()]
-      .filter((asset) => asset.generationJobId === generationJobId)
-      .map((asset) => structuredClone(asset));
+    return [...this.assets.values()].filter((asset) => asset.generationJobId === generationJobId).map((asset) => structuredClone(asset));
   }
 
   async listByProject(projectId: string): Promise<GeneratedAssetRecord[]> {
-    return [...this.assets.values()]
-      .filter((asset) => asset.projectId === projectId)
-      .map((asset) => structuredClone(asset));
+    return [...this.assets.values()].filter((asset) => asset.projectId === projectId).map((asset) => structuredClone(asset));
   }
 }
 
@@ -61,7 +60,7 @@ export type ProviderOutput = {
 
 export function resolveGenerationOutputs(
   result: GenerationResult,
-  context: Pick<GeneratedAssetRecord, 'projectId' | 'modelId' | 'workflowId' | 'workflowVersion' | 'loras' | 'prompt'>,
+  context: Pick<GeneratedAssetRecord, 'projectId' | 'modelId' | 'workflowId' | 'workflowVersion' | 'loras' | 'prompt'> & { provenance?: CreativeProvenance },
   outputs: ProviderOutput[],
 ): GeneratedAssetRecord[] {
   const createdAt = new Date().toISOString();
@@ -80,6 +79,7 @@ export function resolveGenerationOutputs(
     loras: context.loras,
     prompt: context.prompt,
     createdAt,
+    provenance: context.provenance,
     metadata: output.metadata,
   }));
 }

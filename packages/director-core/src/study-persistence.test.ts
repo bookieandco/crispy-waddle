@@ -7,13 +7,13 @@ describe('study persistence lifecycle', () => {
   it('restores the newest checkpoint into a paused study', async () => {
     const persistence = createTestStudyPersistence();
     const job: StudyJob = {
-      id: 'study-1', sourceUrl: 'sample.mp4', autonomous: true, shareWithJhadina: true,
+      id: 'study-1', sourceUrl: 'sample.mp4', domain: 'universal', autonomous: true, shareWithJhadina: true,
       status: 'paused', lastTimeSeconds: 10, observationsSeen: 2, notesCreated: 1,
       learningCandidatesCreated: 1,
     };
     await persistence.jobs.save(job);
-    await persistence.checkpoints.save({ id: 'cp-1', studyId: 'study-1', timeSeconds: 30, observationsSeen: 8, notesCreated: 4, learningCandidatesCreated: 2, createdAt: '2026-08-26T00:00:00.000Z' });
-    await persistence.checkpoints.save({ id: 'cp-2', studyId: 'study-1', timeSeconds: 20, observationsSeen: 5, notesCreated: 3, learningCandidatesCreated: 1, createdAt: '2026-08-25T23:00:00.000Z' });
+    await persistence.checkpoints.save({ studyId: 'study-1', timeSeconds: 30, observationsSeen: 8, notesCreated: 4, learningCandidatesCreated: 2, capturedAt: '2026-08-26T00:00:00.000Z' });
+    await persistence.checkpoints.save({ studyId: 'study-1', timeSeconds: 20, observationsSeen: 5, notesCreated: 3, learningCandidatesCreated: 1, capturedAt: '2026-08-25T23:00:00.000Z' });
 
     const resumed = await resumeFromLatestCheckpoint(job, persistence.checkpoints);
     expect(resumed.status).toBe('running');

@@ -10,7 +10,7 @@ export type StudyInput = {
   maxNotesPerMinute?: number;
 };
 
-export type StudyCheckpoint = {
+export type StudyPlanCheckpoint = {
   studyId: string;
   timeSeconds: number;
   observationsSeen: number;
@@ -19,11 +19,7 @@ export type StudyCheckpoint = {
 };
 
 export function createStudyInput(input: Omit<StudyInput, 'autonomous' | 'shareWithJhadina'> & Partial<Pick<StudyInput, 'autonomous' | 'shareWithJhadina'>>): StudyInput {
-  return {
-    ...input,
-    autonomous: input.autonomous ?? true,
-    shareWithJhadina: input.shareWithJhadina ?? true,
-  };
+  return { ...input, autonomous: input.autonomous ?? true, shareWithJhadina: input.shareWithJhadina ?? true };
 }
 
 export function shouldCreateStudyNote(lastNoteAt: number | undefined, nowSeconds: number, maxNotesPerMinute = 6): boolean {

@@ -2,7 +2,7 @@ import type { Observation } from './observation-bus.js';
 import type { StudyJob } from './study-job.js';
 import { runStudyJob, type StudyJobEffects, type StudyJobStore } from './study-job-runner.js';
 import type { StudyCheckpointRunner } from './study-checkpoint-runner.js';
-import type { MediaDecoderAdapter, DecodeRequest } from './media-decoder-adapter.js';
+import type { MediaDecoderAdapter, DecodeRequest, DecodedFrame, DecodedAudio } from './media-decoder-adapter.js';
 import type { ObservationProvider } from './observation-provider-adapters.js';
 import { createObservationProviderRegistry } from './observation-provider-adapters.js';
 import type { StudyCancellationRegistry } from './study-cancellation-registry.js';
@@ -39,8 +39,8 @@ export function createAutonomousStudyRuntime(input: {
 }
 
 async function* mergeStreams(
-  frames: AsyncIterable<Awaited<ReturnType<NonNullable<ObservationProvider['observeFrame']>>>>,
-  audio: AsyncIterable<Awaited<ReturnType<NonNullable<ObservationProvider['observeAudio']>>>>,
+  frames: AsyncIterable<DecodedFrame>,
+  audio: AsyncIterable<DecodedAudio>,
   registry: ReturnType<typeof createObservationProviderRegistry>,
   publish: (observations: Observation[]) => Promise<void>,
 ): AsyncIterable<Observation> {
@@ -52,7 +52,7 @@ async function* mergeStreams(
   let audioDone = false;
 
   while (!frameDone || !audioDone) {
-    const pending: Array<Promise<{ stream: 'frame' | 'audio'; result: any }>> = [];
+    const pending: Array<Promise<{ stream: 'frame' | 'audio'; result: IteratorResult<DecodedFrame> | IteratorResult<DecodedAudio> }>> = [];
     if (!frameDone) pending.push(nextFrame.then(result => ({ stream: 'frame' as const, result })));
     if (!audioDone) pending.push(nextAudio.then(result => ({ stream: 'audio' as const, result })));
     const result = await Promise.race(pending);
@@ -62,7 +62,7 @@ async function* mergeStreams(
         frameDone = true;
         continue;
       }
-      const observations = await registry.observeFrame(result.result.value as any);
+      const observations = await registry.observeFrame(result.result.value as DecodedFrame);
       if (observations.length) await publish(observations);
       yield* observations;
       nextFrame = frameIterator.next();
@@ -71,7 +71,7 @@ async function* mergeStreams(
         audioDone = true;
         continue;
       }
-      const observations = await registry.observeAudio(result.result.value as any);
+      const observations = await registry.observeAudio(result.result.value as DecodedAudio);
       if (observations.length) await publish(observations);
       yield* observations;
       nextAudio = audioIterator.next();

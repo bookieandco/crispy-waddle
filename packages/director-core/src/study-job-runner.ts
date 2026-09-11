@@ -9,7 +9,7 @@ export type StudyJobStore = {
 };
 
 export type StudyJobEffects = {
-  observe(job: StudyJob): StudyObservationSource;
+  observe(job: StudyJob): AsyncIterable<Observation>;
   note?(observation: Observation): Promise<void>;
   learn?(observation: Observation, job: StudyJob): Promise<void>;
   checkpoints?: StudyCheckpointRunner;

@@ -15,6 +15,7 @@ type AssetRow = {
   workflow_version: number | null;
   loras: GeneratedAssetRecord['loras'] | null;
   prompt: string | null;
+  provenance: GeneratedAssetRecord['provenance'] | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
 };
@@ -34,6 +35,7 @@ function toAsset(row: AssetRow): GeneratedAssetRecord {
     workflowVersion: row.workflow_version ?? undefined,
     loras: row.loras ?? undefined,
     prompt: row.prompt ?? undefined,
+    provenance: row.provenance ?? undefined,
     createdAt: row.created_at,
     metadata: row.metadata ?? undefined,
   };
@@ -58,6 +60,7 @@ export function createSupabaseGeneratedAssetRepository(client: SupabaseClient): 
           workflow_version: asset.workflowVersion ?? null,
           loras: asset.loras ?? null,
           prompt: asset.prompt ?? null,
+          provenance: asset.provenance ?? null,
           metadata: asset.metadata ?? {},
           created_at: asset.createdAt,
         })
