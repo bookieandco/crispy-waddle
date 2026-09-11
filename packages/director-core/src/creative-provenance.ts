@@ -25,7 +25,7 @@ export function deriveDirectorCreativeProvenance(input: {
   generationStage: CreativeStage;
   storyboardBoardId: string;
 }): DirectorCreativeProvenance {
-  if (!sequence.boardIds.includes(input.storyboardBoardId)) {
+  if (!input.sequence.boardIds.includes(input.storyboardBoardId)) {
     throw new Error(`Storyboard board is not registered in its sequence: ${input.storyboardBoardId}`);
   }
   if (input.storyboardStage.id !== input.binding.stageIds.storyboard) {
@@ -34,10 +34,10 @@ export function deriveDirectorCreativeProvenance(input: {
   if (input.binding.stageIds.generation && input.generationStage.id !== input.binding.stageIds.generation) {
     throw new Error('Generation stage does not match the storyboard stage binding.');
   }
-  if (sequence.projectId !== input.generationStage.projectId) {
+  if (input.sequence.projectId !== input.generationStage.projectId) {
     throw new Error('Storyboard lineage project does not match the generation project.');
   }
-  if (input.binding.projectId !== sequence.projectId) {
+  if (input.binding.projectId !== input.sequence.projectId) {
     throw new Error('Storyboard stage binding project does not match the storyboard project.');
   }
   if (input.binding.storyboardBoardId !== input.storyboardBoardId) {
@@ -45,9 +45,9 @@ export function deriveDirectorCreativeProvenance(input: {
   }
 
   return {
-    projectId: sequence.projectId,
-    storyboardBoardIds: [...sequence.boardIds],
-    storyboardVersion: sequence.version,
+    projectId: input.sequence.projectId,
+    storyboardBoardIds: [...input.sequence.boardIds],
+    storyboardVersion: input.sequence.version,
     generationStageId: input.generationStage.id,
     generationStageVersion: input.generationStage.version,
   };
