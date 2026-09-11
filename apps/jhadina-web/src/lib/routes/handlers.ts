@@ -12,16 +12,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { getJhadinaApplication } from "../application/createJhadinaApplication"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import { handleJhadinaCommand } from "../intelligence/jhadina-command"
-import type { MemoryStorage } from "../storage/MemoryStorage"
-
-/**
- * Returns the one canonical application storage instance. Keeping route
- * handlers on the composition root prevents a second in-memory universe in
- * tests/local development and keeps production on the same durable backend.
- */
-export function getStorage(): MemoryStorage {
-  return getJhadinaApplication().storage
-}
 
 function getJanetService() {
   return getJhadinaApplication().janet
