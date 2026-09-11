@@ -253,4 +253,38 @@ export class GenerationService {
     await this.persistOutputs(refreshed, result);
     return refreshed;
   }
-} 
+
+  async cancel(id: string): Promise<GenerationJob> {
+    const job = await this.getJobDurable(id);
+    if (!job) throw new Error(`Generation job not found: ${id}`);
+    if (!job.providerJobId) return job;
+    const provider = this.providers.get(job.providerId);
+    if (!provider) throw new Error(`Provider is not configured: ${job.providerId}`);
+    await provider.cancel(job.providerJobId);
+
+    if (!this.generationRepository) {
+      const cancelled = { ...job, status: 'cancelled' as const, updatedAt: new Date().toISOString() };
+      this.jobs.set(id, cancelled);
+      return cancelled;
+    }
+
+    const executions = await this.generationRepository.listExecutions(id);
+    const latest = executions.at(-1);
+    if (!latest) return job;
+    const durable = await this.generationRepository.getExecution(latest.id);
+    if (!durable || durable.leaseOwner !== this.workerId || durable.leaseToken !== latest.leaseToken) {
+      const current = await this.generationRepository.getTask(id);
+      const currentExecution = (await this.generationRepository.listExecutions(id)).at(-1);
+      return jobFromTask(current ?? { id, projectId: job.request.projectId, idempotencyKey: id, request: job.request, status: job.status, createdAt: job.createdAt, updatedAt: job.updatedAt }, currentExecution);
+    }
+    const cancelledAt = new Date().toISOString();
+    const cancelledExecution: GenerationExecution = { ...latest, status: 'cancelled', updatedAt: cancelledAt, leaseOwner: this.workerId, leaseExpiresAt: undefined };
+    const cancelledTask: GenerationTask = { id: id, projectId: job.request.projectId, idempotencyKey: id, request: job.request, status: 'cancelled', createdAt: job.createdAt, updatedAt: cancelledAt };
+    if (await this.generationRepository.saveState(cancelledTask, cancelledExecution)) {
+      const cancelled = jobFromTask(cancelledTask, cancelledExecution);
+      this.jobs.set(id, cancelled);
+      return cancelled;
+    }
+    return job;
+  }
+}
