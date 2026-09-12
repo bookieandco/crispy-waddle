@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { createJhadinaApplication, getJhadinaApplication } from "./createJhadinaApplication"
+import { getStorage } from "../routes/handlers"
 
 describe("Jhadina application composition", () => {
   it("creates one coherent dependency graph", () => {
@@ -19,9 +20,6 @@ describe("Jhadina application composition", () => {
   it("shares storage across repositories in the composed graph", () => {
     const app = createJhadinaApplication()
 
-    // Repository constructors receive the same storage instance from the
-    // composition root. The private field is intentionally inspected here so
-    // a future refactor cannot silently split persistence between repositories.
     const repositories = [app.memoryRepo, app.reasoningRepo, app.timelineRepo] as unknown as Array<
       { storage?: unknown }
     >
@@ -29,5 +27,9 @@ describe("Jhadina application composition", () => {
     for (const repository of repositories) {
       expect(repository.storage).toBe(app.storage)
     }
+  })
+
+  it("uses the same storage instance from route handlers", () => {
+    expect(getStorage()).toBe(getJhadinaApplication().storage)
   })
 })

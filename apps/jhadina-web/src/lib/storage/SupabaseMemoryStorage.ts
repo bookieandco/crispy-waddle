@@ -128,10 +128,6 @@ function timelineEventFromRow(row: TimelineEventRow): TimelineEvent {
 }
 
 function nextId(prefix: string): string {
-  // crypto.randomUUID is available in every runtime this app targets
-  // (Node 22, Edge). A short prefix keeps ids readable in logs/dumps the
-  // same way InMemoryStorage's counters did, without needing a shared
-  // counter across server instances.
   return `${prefix}_${crypto.randomUUID()}`
 }
 
@@ -142,20 +138,22 @@ function assertNoError(error: { message: string } | null, context: string): void
 export class SupabaseMemoryStorage implements MemoryStorage {
   constructor(private readonly client: SupabaseClient) {}
 
-  async createMemory(data: Omit<Memory, "id">): Promise<Memory> {
+  async createApprovedMemory(
+    data: Omit<Memory, "id"> & { status: "APPROVED"; approvedAt: string },
+  ): Promise<Memory> {
     const row: MemoryRow = {
       id: nextId("mem"),
       user_id: data.userId,
       type: data.type,
-      status: data.status as "APPROVED" | "REJECTED",
+      status: "APPROVED",
       content: data.content,
       confidence: data.confidence,
       created_at: data.createdAt,
-      approved_at: data.approvedAt ?? null,
-      rejected_at: data.rejectedAt ?? null,
+      approved_at: data.approvedAt,
+      rejected_at: null,
     }
     const { error } = await this.client.from("jhadina_memories").insert(row)
-    assertNoError(error, "createMemory")
+    assertNoError(error, "createApprovedMemory")
     return memoryFromRow(row)
   }
 
@@ -176,24 +174,6 @@ export class SupabaseMemoryStorage implements MemoryStorage {
       .eq("user_id", userId)
     assertNoError(error, "listMemories")
     return (data ?? []).map((row) => memoryFromRow(row as MemoryRow))
-  }
-
-  async updateMemory(id: string, updates: Partial<Memory>): Promise<Memory | undefined> {
-    const patch: Record<string, unknown> = {}
-    if (updates.status !== undefined) patch.status = updates.status
-    if (updates.content !== undefined) patch.content = updates.content
-    if (updates.confidence !== undefined) patch.confidence = updates.confidence
-    if (updates.approvedAt !== undefined) patch.approved_at = updates.approvedAt
-    if (updates.rejectedAt !== undefined) patch.rejected_at = updates.rejectedAt
-
-    const { data, error } = await this.client
-      .from("jhadina_memories")
-      .update(patch)
-      .eq("id", id)
-      .select("*")
-      .maybeSingle()
-    assertNoError(error, "updateMemory")
-    return data ? memoryFromRow(data as MemoryRow) : undefined
   }
 
   async createCandidate(data: Omit<MemoryCandidate, "id">): Promise<MemoryCandidate> {

@@ -1,31 +1,23 @@
 /**
  * TimelineRepository
- * 
- * Manages timeline events - chronological record of system activity.
- * Records: reasoning events, approvals, rejections, pattern promotions, decision reviews.
- * 
- * Works against InMemoryStorage.
+ *
+ * Manages the chronological record of system activity.
+ * User identity is always explicit; there is no demo/default identity.
  */
 
-import {
-  TimelineEvent,
-  MemoryType,
-} from "../storage/InMemoryStorage"
+import { TimelineEvent, MemoryType } from "../storage/InMemoryStorage"
 import type { MemoryStorage } from "../storage/MemoryStorage"
 
 export class TimelineRepository {
   constructor(private storage: MemoryStorage) {}
 
-  /**
-   * Record a reasoning event on the timeline
-   */
   async recordReasoning(params: {
     userId: string
     reasoningEventId: string
     userMessage: string
     systemResponse: string
   }): Promise<TimelineEvent> {
-    return await this.storage.appendTimelineEvent({
+    return this.storage.appendTimelineEvent({
       userId: params.userId,
       timestamp: new Date().toISOString(),
       type: "REASONING",
@@ -33,9 +25,6 @@ export class TimelineRepository {
     })
   }
 
-  /**
-   * Record a memory approval on the timeline
-   */
   async recordApproval(params: {
     userId: string
     memoryId: string
@@ -53,9 +42,6 @@ export class TimelineRepository {
     })
   }
 
-  /**
-   * Record a memory rejection on the timeline
-   */
   async recordRejection(params: {
     userId: string
     memoryId: string
@@ -73,49 +59,29 @@ export class TimelineRepository {
     })
   }
 
-  /**
-   * List timeline events for a user
-   */
-  async list(
-    userId: string,
-    limit: number = 50,
-    offset: number = 0
-  ): Promise<TimelineEvent[]> {
+  async list(userId: string, limit: number = 50, offset: number = 0): Promise<TimelineEvent[]> {
     const events = await this.storage.listTimeline(userId, limit + offset)
     return events.slice(offset, offset + limit)
   }
 
-  /**
-   * Get total count of timeline events
-   */
   async count(userId: string): Promise<number> {
     const events = await this.storage.listTimeline(userId, 10000)
     return events.length
   }
 
-  /**
-   * Debug dump
-   */
-  async dump(userId?: string): Promise<string> {
-    const lines: string[] = []
-    lines.push("TimelineRepository")
-    lines.push("─".repeat(40))
-
-    const events = await this.storage.listTimeline(userId || "user_demo", 10)
+  async dump(userId: string): Promise<string> {
+    if (!userId) throw new Error("userId is required")
+    const lines = ["TimelineRepository", "─".repeat(40)]
+    const events = await this.storage.listTimeline(userId, 10)
     lines.push(`Total Events: ${events.length}`)
 
     if (events.length > 0) {
       lines.push("Recent Events:")
       for (const event of events.slice(0, 10)) {
         const time = event.timestamp.slice(11, 19)
-        let desc: string = event.type
-        if (event.type === "APPROVAL") {
-          desc = `APPROVAL | ${event.memoryType}`
-        } else if (event.type === "REJECTION") {
-          desc = `REJECTION | ${event.memoryType}`
-        } else if (event.type === "REASONING") {
-          desc = `REASONING`
-        }
+        let desc = event.type
+        if (event.type === "APPROVAL") desc = `APPROVAL | ${event.memoryType}`
+        else if (event.type === "REJECTION") desc = `REJECTION | ${event.memoryType}`
         lines.push(`  ${time} | ${desc}`)
       }
     }
