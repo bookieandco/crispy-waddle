@@ -1,8 +1,13 @@
 import type { EvidenceRef } from './types.js';
 import type { RegretRecord } from './regret.js';
 
+/**
+ * Regret Memory is retrieval context, never an authority source.
+ * Historical records are append-only; supersession preserves lineage.
+ */
 export interface RegretMemoryRecord {
   readonly memoryId: string;
+  readonly userId: string;
   readonly regret: RegretRecord;
   readonly createdAt: string;
   readonly provenance: readonly EvidenceRef[];
@@ -13,6 +18,7 @@ export interface RegretMemoryRecord {
 }
 
 export interface RegretMemoryQuery {
+  readonly userId: string;
   readonly text?: string;
   readonly subjectType?: RegretRecord['subjectType'];
   readonly status?: RegretRecord['status'];
@@ -36,12 +42,12 @@ export interface RegretRecallEvaluation {
 
 export interface RegretMemory {
   append(record: RegretMemoryRecord): RegretMemoryRecord;
-  getById(memoryId: string): RegretMemoryRecord | null;
+  getById(userId: string, memoryId: string): RegretMemoryRecord | null;
   retrieve(query: RegretMemoryQuery): readonly RegretRecallResult[];
-  listRelated(memoryId: string): readonly RegretMemoryRecord[];
-  findRecurrences(rootCause: string): readonly RegretMemoryRecord[];
-  supersede(memoryId: string, replacementMemoryId: string): void;
-  getProvenance(memoryId: string): readonly EvidenceRef[];
+  listRelated(userId: string, memoryId: string): readonly RegretMemoryRecord[];
+  findRecurrences(userId: string, rootCause: string): readonly RegretMemoryRecord[];
+  supersede(userId: string, memoryId: string, replacementMemoryId: string): void;
+  getProvenance(userId: string, memoryId: string): readonly EvidenceRef[];
   evaluateRecall(query: RegretMemoryQuery, relevantMemoryIds: readonly string[], k?: number): RegretRecallEvaluation;
 }
 
@@ -77,6 +83,7 @@ export class InMemoryRegretMemory implements RegretMemory {
   private readonly records = new Map<string, RegretMemoryRecord>();
 
   append(record: RegretMemoryRecord): RegretMemoryRecord {
+    if (!record.userId) throw new Error('regret memory userId is required');
     if (this.records.has(record.memoryId)) throw new Error(`regret memory already exists: ${record.memoryId}`);
     if (!Number.isFinite(record.salience) || record.salience < 0 || record.salience > 1) {
       throw new Error('regret memory salience must be between 0 and 1');
@@ -90,14 +97,17 @@ export class InMemoryRegretMemory implements RegretMemory {
     return frozen;
   }
 
-  getById(memoryId: string): RegretMemoryRecord | null {
-    return this.records.get(memoryId) ?? null;
+  getById(userId: string, memoryId: string): RegretMemoryRecord | null {
+    const record = this.records.get(memoryId);
+    return record?.userId === userId ? record : null;
   }
 
   retrieve(query: RegretMemoryQuery): readonly RegretRecallResult[] {
+    if (!query.userId) throw new Error('regret memory query userId is required');
     const limit = Math.min(MAX_RECALL_LIMIT, Math.max(1, query.limit ?? 10));
     const requestedTags = new Set(query.tags ?? []);
     const candidates = [...this.records.values()].filter((record) => {
+      if (record.userId !== query.userId) return false;
       if (!query.includeSuperseded && (record.supersededBy || record.regret.status === 'superseded')) return false;
       if (query.subjectType && record.regret.subjectType !== query.subjectType) return false;
       if (query.status && record.regret.status !== query.status) return false;
@@ -112,15 +122,16 @@ export class InMemoryRegretMemory implements RegretMemory {
         const score = lexical * 0.65 + record.salience * 0.2 + recurrence * 0.15;
         return { memoryId: record.memoryId, score, record };
       })
-      .sort((a, b) => b.score - a.score || a.record.createdAt.localeCompare(b.record.createdAt) * -1 || a.memoryId.localeCompare(b.memoryId))
+      .sort((a, b) => b.score - a.score || b.record.createdAt.localeCompare(a.record.createdAt) || a.memoryId.localeCompare(b.memoryId))
       .slice(0, limit);
   }
 
-  listRelated(memoryId: string): readonly RegretMemoryRecord[] {
-    const target = this.records.get(memoryId);
+  listRelated(userId: string, memoryId: string): readonly RegretMemoryRecord[] {
+    const target = this.getById(userId, memoryId);
     if (!target) return [];
     const rootCause = target.regret.rootCause;
     return [...this.records.values()].filter((record) =>
+      record.userId === userId &&
       record.memoryId !== memoryId &&
       (record.regret.subjectId === target.regret.subjectId ||
         (rootCause !== undefined && record.regret.rootCause === rootCause) ||
@@ -128,22 +139,21 @@ export class InMemoryRegretMemory implements RegretMemory {
     );
   }
 
-  findRecurrences(rootCause: string): readonly RegretMemoryRecord[] {
-    return [...this.records.values()].filter((record) => record.regret.rootCause === rootCause);
+  findRecurrences(userId: string, rootCause: string): readonly RegretMemoryRecord[] {
+    return [...this.records.values()].filter((record) => record.userId === userId && record.regret.rootCause === rootCause);
   }
 
-  supersede(memoryId: string, replacementMemoryId: string): void {
-    const current = this.records.get(memoryId);
-    const replacement = this.records.get(replacementMemoryId);
-    if (!current || !replacement) throw new Error('both regret memories must exist before supersession');
+  supersede(userId: string, memoryId: string, replacementMemoryId: string): void {
+    const current = this.getById(userId, memoryId);
+    const replacement = this.getById(userId, replacementMemoryId);
+    if (!current || !replacement) throw new Error('both regret memories must exist for this user before supersession');
     if (current.supersededBy) throw new Error(`regret memory already superseded: ${memoryId}`);
     if (replacement.supersedes !== memoryId) throw new Error('replacement must declare the memory it supersedes');
     this.records.set(memoryId, Object.freeze({ ...current, supersededBy: replacementMemoryId }));
-    this.records.set(replacementMemoryId, Object.freeze({ ...replacement }));
   }
 
-  getProvenance(memoryId: string): readonly EvidenceRef[] {
-    return this.records.get(memoryId)?.provenance ?? [];
+  getProvenance(userId: string, memoryId: string): readonly EvidenceRef[] {
+    return this.getById(userId, memoryId)?.provenance ?? [];
   }
 
   evaluateRecall(query: RegretMemoryQuery, relevantMemoryIds: readonly string[], k = 10): RegretRecallEvaluation {
