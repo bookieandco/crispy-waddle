@@ -27,6 +27,7 @@ export interface JhadinaCommandInput {
   route?: string
   activeProject?: string
   memoryRelevanceQuery?: string
+  regretRelevanceQuery?: string
   contextLimits?: Partial<ContextBuilderLimits>
 }
 
@@ -55,11 +56,12 @@ export async function handleJhadinaCommand(
   overrides: JhadinaCommandOverrides = {},
 ): Promise<JhadinaCommandResult> {
   const application = getJhadinaApplication()
-  const { memoryRepo, reasoningRepo, timelineRepo } = application
+  const { memoryRepo, reasoningRepo, timelineRepo, regretContextProvider } = application
 
   const contextDeps: ContextBuilderDeps = {
     memoryRepo,
     timelineRepo,
+    regretContextProvider,
   }
   const assembled = await buildContext(contextDeps, {
     userId: input.userId,
@@ -68,6 +70,7 @@ export async function handleJhadinaCommand(
     route: input.route,
     activeProject: input.activeProject,
     memoryRelevanceQuery: input.memoryRelevanceQuery,
+    regretRelevanceQuery: input.regretRelevanceQuery,
     limits: input.contextLimits,
   })
 
