@@ -1,0 +1,105 @@
+name: Regret Live Concurrency Verification
+
+on:
+  push:
+    branches:
+      - build/regret-core-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  concurrent-allocation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Run 8-way atomic recurrence test
+        env:
+          SUPABASE_URL: https://kqbkaozfjubkjevdfvic.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
+            echo "SUPABASE_SERVICE_ROLE_KEY is not configured in GitHub Actions secrets."
+            exit 1
+          fi
+
+          USER_ID="00000000-0000-0000-0000-000000000029"
+          ROOT_CAUSE="REGRET-030-live-concurrency-${GITHUB_RUN_ID}"
+          BASE="${SUPABASE_URL}/rest/v1/rpc/jhadina_materialize_regret_atomic"
+          WORK="${RUNNER_TEMP}/regret-live"
+          mkdir -p "$WORK"
+
+          make_payload() {
+            local i="$1"
+            local id="regret-030-${GITHUB_RUN_ID}-${i}"
+            jq -cn \
+              --arg memoryId "$id" \
+              --arg userId "$USER_ID" \
+              --arg createdAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg rootCause "$ROOT_CAUSE" \
+              '{memoryId:$memoryId,userId:$userId,createdAt:$createdAt,provenance:[{id:("e-"+$memoryId),source:"live-regret-concurrency-test",observedAt:$createdAt,summary:"synthetic concurrency verification",immutable:true}],tags:["regret-concurrency-verify"],salience:0.5,regret:{regretId:$memoryId,subjectType:"action",subjectId:("subject-"+$memoryId),createdAt:$createdAt,originalBelief:"synthetic",expectedOutcome:"synthetic",actualOutcome:"synthetic",outcomeEvidence:[{id:("e-"+$memoryId),source:"live-regret-concurrency-test",observedAt:$createdAt,summary:"synthetic concurrency verification",immutable:true}],discrepancy:"synthetic",severity:"R1",avoidability:"high",rootCause:$rootCause,recurrenceCount:999,status:"verified"}}'
+          }
+
+          echo "Starting 8 concurrent RPC calls for root cause: $ROOT_CAUSE"
+          for i in $(seq 1 8); do
+            make_payload "$i" > "$WORK/payload-$i.json"
+            (
+              curl --fail-with-body --silent --show-error \
+                -X POST "$BASE" \
+                -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+                -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+                -H "Content-Type: application/json" \
+                -H "Prefer: return=representation" \
+                --data "$(jq -cn --slurpfile record "$WORK/payload-$i.json" '{p_user_id:"00000000-0000-0000-0000-000000000029",p_record:$record[0]}')" \
+                > "$WORK/response-$i.json" 2> "$WORK/error-$i.log" || echo $? > "$WORK/failure-$i"
+            ) &
+          done
+          wait
+
+          failures=0
+          for i in $(seq 1 8); do
+            if [[ -f "$WORK/failure-$i" ]]; then
+              echo "CALL $i FAILED: $(cat "$WORK/error-$i.log")"
+              failures=$((failures+1))
+            else
+              echo "CALL $i RESPONSE: $(cat "$WORK/response-$i.json")"
+            fi
+          done
+          if (( failures > 0 )); then
+            exit 1
+          fi
+
+          echo "Verifying persisted recurrence sequence and caller-value override..."
+          QUERY_URL="${SUPABASE_URL}/rest/v1/jhadina_regret_memory?user_id=eq.${USER_ID}&regret->>rootCause=eq.${ROOT_CAUSE}&select=memory_id,regret->recurrenceCount,regret->>status&order=created_at.asc"
+          curl --fail-with-body --silent --show-error \
+            "$QUERY_URL" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            > "$WORK/persisted.json"
+
+          cat "$WORK/persisted.json" | jq .
+
+          count=$(jq 'length' "$WORK/persisted.json")
+          if [[ "$count" -ne 8 ]]; then
+            echo "Expected 8 persisted records; got $count"
+            exit 1
+          fi
+
+          sequence=$(jq -r '[.[].recurrenceCount | tonumber] | sort | join(",")' "$WORK/persisted.json")
+          if [[ "$sequence" != "1,2,3,4,5,6,7,8" ]]; then
+            echo "Expected contiguous recurrence 1..8; got $sequence"
+            exit 1
+          fi
+
+          if jq -e 'any(.[]; (.recurrenceCount | tonumber) == 999)' "$WORK/persisted.json" >/dev/null; then
+            echo "Caller-supplied recurrenceCount=999 was persisted: FAIL"
+            exit 1
+          fi
+
+          echo "PASS: 8 concurrent authoritative calls allocated contiguous recurrence 1..8."
+          echo "PASS: caller-supplied recurrenceCount=999 was ignored by the database authority."
+          echo "TEST ROOT CAUSE: $ROOT_CAUSE"
