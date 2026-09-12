@@ -7,16 +7,26 @@ export interface RegretMaterializationInput {
   readonly source: RegretAssessmentInput;
   readonly regretId: string;
   readonly createdAt: string;
-  readonly recurrenceCount?: number;
+  /** Number of prior verified regrets for the same root cause. */
+  readonly priorRecurrenceCount?: number;
   readonly counterfactualId?: string;
   readonly learningProposalId?: string;
 }
 
+/**
+ * Converts a verified preventable assessment into one immutable regret event.
+ * Recurrence is derived from prior records; existing history is never mutated.
+ */
 export function materializeRegretAssessment(input: RegretMaterializationInput): RegretRecord | null {
   if (input.assessment.disposition !== 'regret') return null;
   if (!input.assessment.preventable || !input.assessment.learningWarranted) return null;
   if (input.assessment.evidence.length === 0) return null;
   if (input.source.outcomeEvidence.length === 0) return null;
+
+  const priorRecurrenceCount = input.priorRecurrenceCount ?? 0;
+  if (!Number.isInteger(priorRecurrenceCount) || priorRecurrenceCount < 0) {
+    throw new Error('prior recurrence count must be a non-negative integer');
+  }
 
   return createRegretRecord({
     regretId: input.regretId,
@@ -33,7 +43,7 @@ export function materializeRegretAssessment(input: RegretMaterializationInput): 
     rootCause: input.source.rootCause,
     counterfactualId: input.counterfactualId,
     learningProposalId: input.learningProposalId,
-    recurrenceCount: Math.max(1, input.recurrenceCount ?? 1),
+    recurrenceCount: priorRecurrenceCount + 1,
     status: 'verified',
   });
 }
