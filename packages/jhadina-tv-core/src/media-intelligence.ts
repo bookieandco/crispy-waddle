@@ -78,16 +78,7 @@ export function buildMediaKnowledge(input: MediaPerceptionInput, generatedAt = n
   const claims = [...(input.claims ?? [])].sort((a, b) => a.id.localeCompare(b.id));
   const timeline = [...(input.scenes ?? [])].sort((a, b) => a.startSeconds - b.startSeconds || a.id.localeCompare(b.id));
   const entities = [...new Set((input.entities ?? []).map(normalize).filter(Boolean))].sort();
-  return {
-    mediaId: input.media.id,
-    kind: input.media.kind,
-    canonicalTitle: input.media.title,
-    entities,
-    claims,
-    timeline,
-    evidence,
-    generatedAt,
-  };
+  return { mediaId: input.media.id, kind: input.media.kind, canonicalTitle: input.media.title, entities, claims, timeline, evidence, generatedAt };
 }
 
 export function evidenceForClaim(claim: MediaClaim, evidence: readonly EvidenceRef[]): EvidenceRef[] {
@@ -102,23 +93,11 @@ export function explainRecommendation(title: MediaTitle, context: MediaRecommend
   const tokens = normalize(context.query ?? '').split(/\s+/).filter(Boolean);
   const searchable = normalize(`${title.title} ${title.overview} ${title.genres.join(' ')}`);
   const matches = tokens.filter((token) => searchable.includes(token));
-  if (matches.length) {
-    score += Math.min(45, matches.length * 15);
-    reasons.push(`Matches your search for ${matches.join(', ')}`);
-  }
+  if (matches.length) { score += Math.min(45, matches.length * 15); reasons.push(`Matches your search for ${matches.join(', ')}`); }
   const related = context.signals?.find((signal) => signal.titleId === title.id);
-  if (related?.liked) {
-    score += 20;
-    reasons.push('Builds on something you liked');
-  }
+  if (related?.liked) { score += related.kind === 'explicit-preference' ? 25 : 20; reasons.push(related.kind === 'explicit-preference' ? 'Builds on an explicit preference' : 'Builds on something you liked'); }
   const knowledge = context.knowledge?.find((item) => item.mediaId === title.id);
-  if (knowledge) {
-    score += Math.min(10, knowledge.evidence.length);
-    if (knowledge.evidence.length) {
-      reasons.push('Supported by indexed media evidence');
-      evidenceIds.push(...knowledge.evidence.map((item) => item.id));
-    }
-  }
+  if (knowledge) { score += Math.min(10, knowledge.evidence.length); if (knowledge.evidence.length) { reasons.push('Supported by indexed media evidence'); evidenceIds.push(...knowledge.evidence.map((item) => item.id)); } }
   return { titleId: title.id, score, reasons, evidenceIds: [...new Set(evidenceIds)].sort() };
 }
 
@@ -127,46 +106,17 @@ export interface AskJhadinaMediaPort {
 }
 
 export function createDeterministicMediaAdvisor(): AskJhadinaMediaPort {
-  return {
-    async recommend(context, catalog) {
-      return catalog
-        .map((title) => explainRecommendation(title, context))
-        .filter((result) => result.score > 0)
-        .sort((a, b) => b.score - a.score || a.titleId.localeCompare(b.titleId));
-    },
-  };
+  return { async recommend(context, catalog) { return catalog.map((title) => explainRecommendation(title, context)).filter((result) => result.score > 0).sort((a, b) => b.score - a.score || a.titleId.localeCompare(b.titleId)); } };
 }
 
-export interface ViewingSignalStore {
-  record(signal: ViewingSignal): void;
-  list(): ViewingSignal[];
-}
+export interface ViewingSignalStore { record(signal: ViewingSignal): void; list(): ViewingSignal[]; }
 
 export function createInMemoryViewingSignalStore(): ViewingSignalStore {
   const signals = new Map<string, ViewingSignal>();
-  return {
-    record(signal) {
-      const existing = signals.get(signal.titleId);
-      signals.set(signal.titleId, existing ? { ...existing, ...signal } : { ...signal });
-    },
-    list() {
-      return [...signals.values()].sort((a, b) => a.titleId.localeCompare(b.titleId));
-    },
-  };
+  return { record(signal) { const existing = signals.get(signal.titleId); signals.set(signal.titleId, existing ? { ...existing, ...signal } : { ...signal }); }, list() { return [...signals.values()].sort((a, b) => a.titleId.localeCompare(b.titleId)); } };
 }
 
-export function createMediaIntelligenceSnapshot(
-  knowledge: readonly MediaKnowledge[],
-  catalog: readonly MediaTitle[],
-  context: Omit<MediaRecommendationContext, 'knowledge'>,
-): MediaIntelligenceSnapshot {
-  const advisor = createDeterministicMediaAdvisor();
+export function createMediaIntelligenceSnapshot(knowledge: readonly MediaKnowledge[], catalog: readonly MediaTitle[], context: Omit<MediaRecommendationContext, 'knowledge'>): MediaIntelligenceSnapshot {
   const enriched = { ...context, knowledge };
-  return {
-    knowledge: [...knowledge].sort((a, b) => a.mediaId.localeCompare(b.mediaId)),
-    recommendations: catalog
-      .map((title) => explainRecommendation(title, enriched))
-      .filter((result) => result.score > 0)
-      .sort((a, b) => b.score - a.score || a.titleId.localeCompare(b.titleId)),
-  };
+  return { knowledge: [...knowledge].sort((a, b) => a.mediaId.localeCompare(b.mediaId)), recommendations: catalog.map((title) => explainRecommendation(title, enriched)).filter((result) => result.score > 0).sort((a, b) => b.score - a.score || a.titleId.localeCompare(b.titleId)) };
 }
