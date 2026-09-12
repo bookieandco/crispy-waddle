@@ -147,7 +147,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   let regretContext: RegretContext[] = []
   if (deps.regretContextProvider) {
     const regretQuery = input.regretRelevanceQuery ?? input.memoryRelevanceQuery ?? input.activeTask
-    const regretRecall = deps.regretContextProvider.getRegretContext({ userId: input.userId, query: regretQuery, limit: limits.maxRegrets })
+    const regretRecall = await deps.regretContextProvider.getRegretContext({ userId: input.userId, query: regretQuery, limit: limits.maxRegrets })
     regretContext = regretRecall.regrets.slice(0, limits.maxRegrets).map(toRegretContext)
     if (regretRecall.regrets.length > regretContext.length) excludedContext.push(`${regretRecall.regrets.length - regretContext.length} regret signal(s) excluded past the maxRegrets limit (${limits.maxRegrets})`)
   } else {
