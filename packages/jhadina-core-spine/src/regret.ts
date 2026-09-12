@@ -55,6 +55,7 @@ export interface LearningProposal {
 export interface RegretCalibration {
   readonly predictionId: string;
   readonly predictedRegret: string;
+  readonly anticipated: boolean;
   readonly occurred: boolean;
   readonly preventionHelped: boolean | null;
   readonly falsePositive: boolean;
@@ -107,15 +108,17 @@ export function compileLearningProposal(input: LearningProposal): LearningPropos
 export function calibrateRegretPrediction(input: {
   predictionId: string;
   predictedRegret: string;
+  anticipated: boolean;
   occurred: boolean;
   preventionHelped?: boolean | null;
 }): RegretCalibration {
-  const falsePositive = !input.occurred;
-  const falseNegative = input.occurred && input.preventionHelped === null;
-  const calibrationDelta = input.occurred ? 1 : -1;
+  const falsePositive = input.anticipated && !input.occurred;
+  const falseNegative = !input.anticipated && input.occurred;
+  const calibrationDelta = Number(input.anticipated === input.occurred) * 2 - 1;
   return Object.freeze({
     predictionId: input.predictionId,
     predictedRegret: input.predictedRegret,
+    anticipated: input.anticipated,
     occurred: input.occurred,
     preventionHelped: input.preventionHelped ?? null,
     falsePositive,
