@@ -85,6 +85,7 @@ export function calculateRegretPressure(regret: Pick<RegretRecord, 'severity' | 
 }
 
 export function buildCounterfactual(input: Omit<Counterfactual, 'confidence'> & { confidence: number }): Counterfactual {
+  if (input.evidence.length === 0) throw new Error('COUNTERFACTUAL requires evidence');
   if (input.confidence < 0 || input.confidence > 1) throw new Error('counterfactual confidence must be between 0 and 1');
   return Object.freeze({ ...input, evidence: Object.freeze([...input.evidence]) });
 }
