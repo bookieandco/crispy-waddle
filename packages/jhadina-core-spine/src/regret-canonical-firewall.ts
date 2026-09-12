@@ -1,4 +1,7 @@
 import type { EvidenceRef, RegretContext } from './types.js';
+import type { LearningApproval } from './regret-learning-gate.js';
+import { fingerprintLearningProposal } from './regret-learning-gate.js';
+import type { LearningProposal } from './regret.js';
 
 /**
  * Regret is never a canonical fact. This firewall provides the only core-spine
@@ -17,6 +20,8 @@ export interface RegretReasoningSignal {
 
 export interface CanonicalLearningAdmission {
   readonly proposalId: string;
+  readonly proposalHash: string;
+  readonly approvalId: string;
   readonly target: 'knowledge' | 'reasoning' | 'process' | 'policy';
   readonly evidence: readonly EvidenceRef[];
   readonly explicitlyApproved: true;
@@ -43,22 +48,32 @@ export function projectRegretToReasoningSignal(context: RegretContext, signalId:
 }
 
 /**
- * Canonical admission is deliberately narrow: it accepts an already-approved
- * learning proposal plus independent commit evidence. Regret context itself
- * can never satisfy this boundary.
+ * Canonical admission is deliberately narrow: it accepts an approved artifact
+ * bound to the exact proposal contents plus independent commit evidence.
+ * Regret context itself can never satisfy this boundary.
  */
 export function admitApprovedLearningToCanonicalState(input: {
-  readonly proposalId: string;
+  readonly proposal: LearningProposal;
+  readonly approval: LearningApproval;
   readonly target: CanonicalLearningAdmission['target'];
-  readonly approvalId: string;
   readonly evidence: readonly EvidenceRef[];
 }): CanonicalLearningAdmission {
-  if (!input.proposalId.trim()) throw new Error('canonical_learning_proposal_required');
-  if (!input.approvalId.trim()) throw new Error('canonical_learning_approval_required');
+  if (!input.proposal.proposalId.trim()) throw new Error('canonical_learning_proposal_required');
+  if (input.approval.status !== 'approved') throw new Error('canonical_learning_approval_required');
+  if (input.approval.proposalId !== input.proposal.proposalId) {
+    throw new Error('canonical_learning_approval_proposal_mismatch');
+  }
+
+  const proposalHash = fingerprintLearningProposal(input.proposal);
+  if (input.approval.proposalHash !== proposalHash) {
+    throw new Error('canonical_learning_approval_proposal_hash_mismatch');
+  }
   if (input.evidence.length === 0) throw new Error('canonical_learning_evidence_required');
 
   return Object.freeze({
-    proposalId: input.proposalId,
+    proposalId: input.proposal.proposalId,
+    proposalHash,
+    approvalId: input.approval.approvalId,
     target: input.target,
     evidence: Object.freeze([...input.evidence]),
     explicitlyApproved: true,
