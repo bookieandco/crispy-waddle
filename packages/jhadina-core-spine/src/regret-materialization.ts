@@ -2,7 +2,8 @@ import type { RegretRecord } from './regret.js';
 import { createRegretRecord } from './regret.js';
 import type { RegretAssessment, RegretAssessmentInput } from './regret-assessment.js';
 import type { RegretMemory } from './regret-memory.js';
-import { nextRegretRecurrence } from './regret-recurrence.js';
+import { nextRegretRecurrence, nextRegretRecurrenceFromMemory } from './regret-recurrence.js';
+import type { RegretRecurrenceHistorySource } from './regret-recurrence.js';
 
 export interface RegretMaterializationInput {
   readonly assessment: RegretAssessment;
@@ -20,7 +21,7 @@ export interface AuthoritativeRegretMaterializationInput {
   readonly regretId: string;
   readonly createdAt: string;
   readonly userId: string;
-  readonly memory: RegretMemory;
+  readonly memory: RegretRecurrenceHistorySource;
   readonly counterfactualId?: string;
   readonly learningProposalId?: string;
 }
@@ -54,36 +55,26 @@ function materialize(input: RegretMaterializationInput): RegretRecord | null {
   });
 }
 
-/**
- * Compatibility boundary for callers that already possess an independently
- * derived recurrence count. It does not derive authority from caller input.
- * New application code should use materializeRegretAssessmentWithMemory().
- */
+/** Compatibility boundary for callers with an independently derived count. */
 export function materializeRegretAssessment(input: RegretMaterializationInput): RegretRecord | null {
   return materialize(input);
 }
 
-/**
- * Authoritative path: recurrence is derived from user-scoped historical memory.
- * No caller-supplied recurrence count is accepted, and history is never mutated.
- */
+/** Authoritative path: recurrence is derived from user-scoped memory. */
 export async function materializeRegretAssessmentWithMemory(
   input: AuthoritativeRegretMaterializationInput,
 ): Promise<RegretRecord | null> {
   if (!input.userId) throw new Error('regret recurrence userId is required');
 
   if (!input.source.rootCause) {
-    return materialize({
-      ...input,
-      recurrenceCount: 1,
-    });
+    return materialize({ ...input, recurrenceCount: 1 });
   }
 
-  const history = input.memory.findRecurrences(input.userId, input.source.rootCause);
-  const recurrenceCount = nextRegretRecurrence(history, input.source.rootCause);
+  const recurrenceCount = await nextRegretRecurrenceFromMemory(
+    input.memory,
+    input.userId,
+    input.source.rootCause,
+  );
 
-  return materialize({
-    ...input,
-    recurrenceCount,
-  });
+  return materialize({ ...input, recurrenceCount });
 }
