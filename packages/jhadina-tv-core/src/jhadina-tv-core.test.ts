@@ -14,25 +14,19 @@ import {
   evidenceForClaim,
   recommendTitles,
   type CatalogProvider,
+  type MediaSessionCommand,
   type MediaSource,
   type MediaSessionController,
   type MediaTitle,
 } from './index';
 
 const title = (id: string, overrides: Partial<MediaTitle> = {}): MediaTitle => ({
-  id,
-  kind: 'movie',
-  title: id,
-  overview: 'A science fiction story',
-  year: 2026,
-  genres: ['science fiction'],
-  availability: 'licensed',
-  ...overrides,
+  id, kind: 'movie', title: id, overview: 'A science fiction story', year: 2026,
+  genres: ['science fiction'], availability: 'licensed', ...overrides,
 });
 
 const provider = (id: string, results: MediaTitle[] = [title('alpha')]): CatalogProvider => ({
-  id,
-  name: id,
+  id, name: id,
   sourceAdapter: { id, name: id, search: async () => results, getSources: async () => [] },
   search: async () => results,
 });
@@ -62,7 +56,7 @@ describe('JhadinaTV production contracts', () => {
   it('keeps HTTPS transport validation separate from authorization', () => {
     const pending: MediaSource = { id: 's2', titleId: 'alpha', kind: 'hls', url: 'https://media.example/video.m3u8', authorization: { status: 'pending' } };
     expect(() => assertAuthorizedSource(pending)).toThrow(/not authorized/);
-    const authorized = { ...pending, authorization: { status: 'authorized', expiresAt: '2030-01-01T00:00:00.000Z', rightsEvidenceIds: ['e1'] as string[] } };
+    const authorized: MediaSource = { ...pending, authorization: { status: 'authorized', expiresAt: '2030-01-01T00:00:00.000Z', rightsEvidenceIds: ['e1'] } };
     expect(assertAuthorizedSource(authorized, new Date('2027-01-01T00:00:00.000Z'))).toBe(authorized);
     expect(() => assertAuthorizedSource({ ...authorized, authorization: { ...authorized.authorization, expiresAt: '2020-01-01T00:00:00.000Z' } }, new Date('2027-01-01T00:00:00.000Z'))).toThrow(/expired/);
   });
@@ -91,7 +85,10 @@ describe('JhadinaTV production contracts', () => {
         { id: 'e1', kind: 'catalog', sourceId: 'catalog', observedAt: '2026-09-12T00:00:00Z', confidence: 'high' },
       ],
       entities: [' Ripley ', 'ripley', ''],
-      scenes: [{ id: 's2', mediaId: 'alpha', startSeconds: 20, label: 'escape', entities: ['ripley'], evidenceIds: ['e2'], confidence: 'medium' }, { id: 's1', mediaId: 'alpha', startSeconds: 5, label: 'arrival', entities: [], evidenceIds: ['e1'], confidence: 'high' }],
+      scenes: [
+        { id: 's2', mediaId: 'alpha', startSeconds: 20, label: 'escape', entities: ['ripley'], evidenceIds: ['e2'], confidence: 'medium' },
+        { id: 's1', mediaId: 'alpha', startSeconds: 5, label: 'arrival', entities: [], evidenceIds: ['e1'], confidence: 'high' },
+      ],
     }, '2026-09-12T01:00:00Z');
     expect(knowledge.entities).toEqual(['ripley']);
     expect(knowledge.evidence.map((item) => item.id)).toEqual(['e1', 'e2']);
@@ -113,8 +110,7 @@ describe('JhadinaTV production contracts', () => {
 
   it('requires an active controller before remote commands', async () => {
     const controller: MediaSessionController = {
-      transport: 'jhadinatv-tv',
-      discoverTargets: async () => [], connect: vi.fn(), disconnect: vi.fn(), send: vi.fn(), getState: async () => null,
+      transport: 'jhadinatv-tv', discoverTargets: async () => [], connect: vi.fn(), disconnect: vi.fn(), send: vi.fn(), getState: async () => null,
     };
     const manager = createCastingManager([controller], { titleId: 'alpha', kind: 'movie', sourceUrl: 'https://media.example/a', positionSeconds: 0, playing: false });
     await expect(manager.send({ type: 'play' })).rejects.toThrow(/No TV playback session/);
@@ -122,7 +118,13 @@ describe('JhadinaTV production contracts', () => {
 
   it('clamps unified-session seek and volume commands', async () => {
     let localState = { titleId: 'alpha', kind: 'movie' as const, sourceUrl: 'https://media.example/a', positionSeconds: 10, playing: false };
-    const local = { getState: () => localState, apply: vi.fn(async (command: { type: 'play' | 'pause' | 'seek' | 'set-volume'; value?: number }) => { if (command.type === 'seek') localState = { ...localState, positionSeconds: command.value ?? 0 }; }), onStateChange: () => () => {} };
+    const local = {
+      getState: () => localState,
+      apply: vi.fn(async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
+        if (command.type === 'seek') localState = { ...localState, positionSeconds: command.value ?? 0 };
+      }),
+      onStateChange: () => () => {},
+    };
     const casting = createCastingManager([], localState);
     const session = createUnifiedMediaSession({ titleId: 'alpha', kind: 'movie', sourceUrl: localState.sourceUrl, local, casting });
     await session.seek(-5);
