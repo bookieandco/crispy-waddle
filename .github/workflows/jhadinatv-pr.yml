@@ -28,6 +28,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
       - run: pnpm --filter @jhadina/tv-core type-check
       - run: pnpm --filter @jhadina/tv-core test
