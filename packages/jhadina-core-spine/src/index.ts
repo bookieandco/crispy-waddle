@@ -10,6 +10,7 @@ export * from './regret-materialization.js';
 export * from './regret-learning-boundary.js';
 export * from './regret-learning-gate.js';
 export * from './regret-canonical-firewall.js';
+export * from './regret-recurrence.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
 export * from './emergency-evidence-state.js';
