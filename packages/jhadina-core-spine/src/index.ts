@@ -7,6 +7,7 @@ export * from './regret-memory.js';
 export * from './regret-context.js';
 export * from './regret-assessment.js';
 export * from './regret-materialization.js';
+export * from './regret-learning-boundary.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
 export * from './emergency-evidence-state.js';
