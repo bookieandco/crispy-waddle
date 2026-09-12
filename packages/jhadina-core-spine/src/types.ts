@@ -1,21 +1,3 @@
-export type CoreDomain =
-  | 'identity'
-  | 'memory'
-  | 'pattern'
-  | 'personality'
-  | 'context'
-  | 'knowledge'
-  | 'values'
-  | 'policy'
-  | 'capability'
-  | 'action'
-  | 'audit'
-  | 'evolution';
-
-export type DecisionDisposition = 'PROCEED' | 'ASK' | 'DECLINE' | 'DEFER';
-
-export type MemoryDisposition = 'PROPOSE' | 'SAVE' | 'IGNORE';
-
 export interface EvidenceRef {
   id: string;
   source: string;
@@ -24,34 +6,19 @@ export interface EvidenceRef {
   immutable?: boolean;
 }
 
-export interface Experience {
-  id: string;
-  occurredAt: string;
-  source: string;
-  domain?: string;
-  actor: 'user' | 'jhadina' | 'system' | 'external';
-  content: string;
-  evidence: EvidenceRef[];
-}
-
 export interface PatternObservation {
   id: string;
-  pattern: string;
-  evidence: EvidenceRef[];
+  category: string;
+  description: string;
   confidence: number;
-  occurrences: number;
+  stability: number;
+  evidence: EvidenceRef[];
   contradictions: EvidenceRef[];
-  lastObservedAt: string;
+  status: 'candidate' | 'accepted' | 'contested' | 'retired';
 }
 
-/**
- * Personality is evidence-backed state, not a prompt or a fixed persona.
- * It may contain preferences and tendencies, but every durable claim needs
- * provenance and can be contradicted or revised.
- */
 export interface PersonalityTrait {
-  id: string;
-  statement: string;
+  name: string;
   category: 'preference' | 'value' | 'tendency' | 'communication' | 'decision';
   confidence: number;
   stability: number;
@@ -67,6 +34,22 @@ export interface PersonalityState {
   updatedAt: string;
 }
 
+/**
+ * Regret context is deliberately separate from canonical memories/knowledge.
+ * It is a learning signal, not a fact, policy, approval, or authority source.
+ */
+export interface RegretContext {
+  memoryId: string;
+  score: number;
+  subjectType: string;
+  subjectId: string;
+  discrepancy: string;
+  rootCause?: string;
+  recurrenceCount: number;
+  status: string;
+  salience: number;
+}
+
 export interface ContextPacket {
   id: string;
   purpose: string;
@@ -75,9 +58,13 @@ export interface ContextPacket {
   patterns: PatternObservation[];
   personality: PersonalityState;
   knowledge: EvidenceRef[];
+  /** Historical learning signals only; never treated as canonical facts. */
+  regretContext?: RegretContext[];
   constraints: string[];
   excludedContext: string[];
 }
+
+export type DecisionDisposition = 'informational' | 'recommendation' | 'proposed_action';
 
 export interface DecisionProposal {
   id: string;
@@ -113,37 +100,7 @@ export interface ActionResult {
   id: string;
   requestId: string;
   success: boolean;
-  output?: unknown;
-  error?: string;
-  completedAt: string;
-}
-
-export interface AuditEvent {
-  id: string;
-  type: string;
-  occurredAt: string;
-  actor: string;
-  subjectId: string;
-  payload: Record<string, unknown>;
-}
-
-export interface MemoryProposal {
-  id: string;
-  content: string;
-  reason: string;
+  output: unknown;
   evidence: EvidenceRef[];
-  disposition: MemoryDisposition;
-}
-
-export interface SpineCycle {
-  experience: Experience;
-  patterns: PatternObservation[];
-  personality: PersonalityState;
-  context: ContextPacket;
-  decision?: DecisionProposal;
-  policy?: PolicyDecision;
-  action?: ActionRequest;
-  result?: ActionResult;
-  memoryProposals: MemoryProposal[];
-  auditEvents: AuditEvent[];
+  completedAt: string;
 }
