@@ -7,10 +7,6 @@
   "types": "./src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
-  },
-  "devDependencies": {
-    "typescript": "^5.1.0",
-    "vitest": "^2.1.8"
+    "test": "pnpm --filter @jhadina/music-core exec vitest run ../../packages/jhadina-tv-core/src/jhadina-tv-core.test.ts"
   }
 }
