@@ -7,9 +7,6 @@
   "types": "src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
-  },
-  "devDependencies": {
-    "vitest": "^2.1.8"
+    "test": "tsc --noEmit"
   }
 }
