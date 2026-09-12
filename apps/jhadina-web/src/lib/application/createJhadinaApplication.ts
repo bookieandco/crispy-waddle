@@ -4,6 +4,8 @@ import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { createMemoryStorage } from "../storage/createMemoryStorage"
+import { InMemoryRegretMemory } from "@jhadina/core-spine"
+import { JanetRegretContextAdapter, type JanetRegretContextProvider } from "../intelligence/janet-regret-context"
 import {
   SupabaseActionIdentityVerifier,
   type JhadinaIdentityVerifier,
@@ -22,6 +24,7 @@ export interface JhadinaApplication {
   memoryRepo: MemoryRepository
   reasoningRepo: ReasoningEventRepository
   timelineRepo: TimelineRepository
+  regretContextProvider: JanetRegretContextProvider
   janet: JanetService
   identity: {
     createVerifier(supabase: SupabaseClaimsClient): JhadinaIdentityVerifier
@@ -34,6 +37,13 @@ export function createJhadinaApplication(): JhadinaApplication {
   const memoryRepo = new MemoryRepository(storage)
   const reasoningRepo = new ReasoningEventRepository(storage)
   const timelineRepo = new TimelineRepository(storage)
+
+  // Regret Memory is process-scoped here so repeated commands share the same
+  // governed recall surface. It is intentionally not presented as durable
+  // persistence; a durable regret store is a separate follow-up gate.
+  const regretMemory = new InMemoryRegretMemory()
+  const regretContextProvider = new JanetRegretContextAdapter(regretMemory)
+
   const janet = new JanetService(
     new Classifier(),
     memoryRepo,
@@ -57,6 +67,7 @@ export function createJhadinaApplication(): JhadinaApplication {
     memoryRepo,
     reasoningRepo,
     timelineRepo,
+    regretContextProvider,
     janet,
     identity,
     execution,
