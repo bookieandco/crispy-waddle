@@ -34,14 +34,21 @@ export interface UnifiedMediaSessionConfig {
 }
 
 export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): UnifiedMediaSession {
-  let state = config.local.getState();
+  const localState = config.local.getState();
+  let state: MediaSessionState = {
+    ...localState,
+    titleId: config.titleId,
+    kind: config.kind,
+    sourceUrl: config.sourceUrl,
+    target: localState.target?.transport === 'local' ? localState.target : { id: 'local', name: 'This device', transport: 'local' },
+  };
   const listeners = new Set<(next: MediaSessionState) => void>();
   let remoteUnsubscribe: (() => void) | undefined;
   const publish = (next: MediaSessionState) => { state = next; listeners.forEach((listener) => listener(state)); };
   const localCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
     await config.local.apply(command);
-    const localState = config.local.getState();
-    publish({ ...state, ...localState, target: { id: 'local', name: 'This device', transport: 'local' } });
+    const nextLocalState = config.local.getState();
+    publish({ ...state, ...nextLocalState, target: { id: 'local', name: 'This device', transport: 'local' } });
   };
   const remoteCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
     if (!state.target || state.target.transport === 'local') throw new Error('No remote TV playback session is connected.');
