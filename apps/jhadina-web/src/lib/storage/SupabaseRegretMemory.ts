@@ -7,9 +7,11 @@ import type {
   RegretRecallResult,
 } from "@jhadina/core-spine"
 
-/** Async durable contract. The existing sync RegretMemory remains the in-memory test/dev contract. */
+/** Async durable contract. Authoritative verified/learned regrets must use appendAuthoritative. */
 export interface DurableRegretMemory {
+  /** Non-authoritative compatibility append for historical/non-materialized records only. */
   append(record: RegretMemoryRecord): Promise<RegretMemoryRecord>
+  /** Authoritative materialization path; recurrence is allocated atomically by Postgres. */
   appendAuthoritative(record: RegretMemoryRecord): Promise<RegretMemoryRecord>
   getById(userId: string, memoryId: string): Promise<RegretMemoryRecord | null>
   retrieve(query: RegretMemoryQuery): Promise<readonly RegretRecallResult[]>
@@ -98,6 +100,9 @@ export class SupabaseRegretMemory implements DurableRegretMemory {
 
   async append(record: RegretMemoryRecord): Promise<RegretMemoryRecord> {
     validateAppend(record)
+    if (record.regret.status === "verified" || record.regret.status === "learned") {
+      throw new Error("authoritative verified or learned regret must use appendAuthoritative")
+    }
     const { error } = await this.client.from("jhadina_regret_memory").insert(toRow(record))
     assertError(error, "append")
     return Object.freeze({ ...record, provenance: Object.freeze([...record.provenance]), tags: Object.freeze([...record.tags]) })
