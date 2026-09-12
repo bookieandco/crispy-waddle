@@ -13,8 +13,7 @@ const evidence: EvidenceRef = Object.freeze({
   immutable: true,
 });
 
-function source(userId: string, rootCause = 'missed-check'): RegretAssessmentInput {
-  void userId;
+function source(rootCause = 'missed-check'): RegretAssessmentInput {
   return {
     subjectType: 'decision',
     subjectId: `decision-${rootCause}`,
@@ -38,8 +37,9 @@ function memory(records: RegretMemoryRecord[] = []): RegretMemory {
     get: () => undefined,
     retrieve: () => [],
     listRelated: () => [],
-    findRecurrences: (_userId, rootCause) => records.filter(
-      (record) => record.regret.rootCause === rootCause &&
+    findRecurrences: (userId, rootCause) => records.filter(
+      (record) => record.userId === userId &&
+        record.regret.rootCause === rootCause &&
         (record.regret.status === 'verified' || record.regret.status === 'learned'),
     ),
     supersede: () => { throw new Error('not used'); },
@@ -50,7 +50,7 @@ function memory(records: RegretMemoryRecord[] = []): RegretMemory {
 
 describe('authoritative regret materialization', () => {
   it('derives recurrence from verified history rather than caller input', async () => {
-    const assessment = assessRegret(source('user-a'));
+    const assessment = assessRegret(source());
     const history = [
       {
         memoryId: 'm1', userId: 'user-a', createdAt: '2026-09-10T00:00:00.000Z',
@@ -63,7 +63,7 @@ describe('authoritative regret materialization', () => {
     ];
 
     const result = await materializeRegretAssessmentWithMemory({
-      assessment, source: source('user-a'), regretId: 'r2', createdAt: '2026-09-12T00:00:00.000Z',
+      assessment, source: source(), regretId: 'r2', createdAt: '2026-09-12T00:00:00.000Z',
       userId: 'user-a', memory: memory(history),
     });
 
@@ -71,7 +71,7 @@ describe('authoritative regret materialization', () => {
   });
 
   it('isolates recurrence by user through the memory boundary', async () => {
-    const assessment = assessRegret(source('user-b'));
+    const assessment = assessRegret(source());
     const history = [{
       memoryId: 'm1', userId: 'user-a', createdAt: '2026-09-10T00:00:00.000Z',
       regret: { rootCause: 'missed-check', status: 'verified', severity: 'R3', avoidability: 'high' },
@@ -79,15 +79,15 @@ describe('authoritative regret materialization', () => {
     } as unknown as RegretMemoryRecord];
 
     const result = await materializeRegretAssessmentWithMemory({
-      assessment, source: source('user-b'), regretId: 'r3', createdAt: '2026-09-12T00:00:00.000Z',
+      assessment, source: source(), regretId: 'r3', createdAt: '2026-09-12T00:00:00.000Z',
       userId: 'user-b', memory: memory(history),
     });
 
-    expect(result?.recurrenceCount).toBe(2);
+    expect(result?.recurrenceCount).toBe(1);
   });
 
   it('does not create a regret without verified outcome evidence', async () => {
-    const invalid = source('user-a');
+    const invalid = source();
     const assessment = assessRegret({ ...invalid, outcomeEvidence: [] });
     const result = await materializeRegretAssessmentWithMemory({
       assessment, source: { ...invalid, outcomeEvidence: [] }, regretId: 'r4',
