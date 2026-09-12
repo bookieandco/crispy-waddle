@@ -5,7 +5,9 @@ import { ReasoningEventRepository } from "../repositories/ReasoningEventReposito
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { createMemoryStorage } from "../storage/createMemoryStorage"
 import { InMemoryRegretMemory } from "@jhadina/core-spine"
-import { JanetRegretContextAdapter, type JanetRegretContextProvider } from "../intelligence/janet-regret-context"
+import { JanetDurableRegretContextAdapter, JanetRegretContextAdapter, type JanetRegretContextProvider } from "../intelligence/janet-regret-context"
+import { SupabaseRegretMemory } from "../storage/SupabaseRegretMemory"
+import { createServiceRoleClient } from "../supabase/service-role"
 import {
   SupabaseActionIdentityVerifier,
   type JhadinaIdentityVerifier,
@@ -38,11 +40,13 @@ export function createJhadinaApplication(): JhadinaApplication {
   const reasoningRepo = new ReasoningEventRepository(storage)
   const timelineRepo = new TimelineRepository(storage)
 
-  // Regret Memory is process-scoped here so repeated commands share the same
-  // governed recall surface. It is intentionally not presented as durable
-  // persistence; a durable regret store is a separate follow-up gate.
-  const regretMemory = new InMemoryRegretMemory()
-  const regretContextProvider = new JanetRegretContextAdapter(regretMemory)
+  // Prefer the durable store whenever the server-only service-role client is
+  // configured. The fallback is explicit process-local memory for local/test
+  // environments; it is never represented as durable persistence.
+  const serviceRoleClient = createServiceRoleClient()
+  const regretContextProvider: JanetRegretContextProvider = serviceRoleClient
+    ? new JanetDurableRegretContextAdapter(new SupabaseRegretMemory(serviceRoleClient))
+    : new JanetRegretContextAdapter(new InMemoryRegretMemory())
 
   const janet = new JanetService(
     new Classifier(),
