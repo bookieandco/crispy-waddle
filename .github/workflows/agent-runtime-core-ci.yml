@@ -1,0 +1,47 @@
+name: Agent Runtime Core CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "audit-build/v3.3-provenance-assurance"
+    paths:
+      - "packages/agent-runtime-core/**"
+      - ".github/workflows/agent-runtime-core-ci.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+  pull_request:
+    paths:
+      - "packages/agent-runtime-core/**"
+      - ".github/workflows/agent-runtime-core-ci.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type-check agent runtime core
+        run: pnpm --filter @jhadina/agent-runtime-core type-check
+      - name: Test agent runtime core
+        run: pnpm --filter @jhadina/agent-runtime-core test
