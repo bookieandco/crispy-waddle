@@ -20,7 +20,7 @@ export function canonicalize(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(canonicalize).join(',')}]`;
   const record = value as Record<string, unknown>;
-  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalize(record[key])}`).join(',')}}`;
+  return `{${Object.keys(record).filter((key) => record[key] !== undefined).sort().map((key) => `${JSON.stringify(key)}:${canonicalize(record[key])}`).join(',')}}`;
 }
 export function sha256(value: unknown): string { return createHash('sha256').update(canonicalize(value)).digest('hex'); }
 export function createArtifactIdentity(input: Omit<ArtifactIdentity, 'provenanceHash' | 'identityHash'>): ArtifactIdentity {
@@ -43,9 +43,10 @@ export function validateProvenanceGraph(snapshot: ProvenanceSnapshot): Provenanc
 export function traceProvenance(snapshot: ProvenanceSnapshot, start: string, direction: 'backward' | 'forward'): ProvenanceNode[] {
   const adjacency = new Map<string, string[]>();
   for (const edge of snapshot.edges) { const from = direction === 'forward' ? edge.from : edge.to; const to = direction === 'forward' ? edge.to : edge.from; adjacency.set(from, [...(adjacency.get(from) ?? []), to]); }
-  const seen = new Set<string>(); const queue = [start];
-  while (queue.length) { const current = queue.shift()!; for (const next of adjacency.get(current) ?? []) if (!seen.has(next)) { seen.add(next); queue.push(next); } }
-  return snapshot.nodes.filter((node) => seen.has(node.id));
+  const seen = new Set<string>(); const order: string[] = []; const queue = [start];
+  while (queue.length) { const current = queue.shift()!; for (const next of adjacency.get(current) ?? []) if (!seen.has(next)) { seen.add(next); order.push(next); queue.push(next); } }
+  const nodesById = new Map(snapshot.nodes.map((node) => [node.id, node]));
+  return order.flatMap((id) => { const node = nodesById.get(id); return node ? [node] : []; });
 }
 export function createProvenanceQuery(snapshot: ProvenanceSnapshot): ProvenanceQuery { const traceBackward = (id: string) => traceProvenance(snapshot, id, 'backward'); const traceForward = (id: string) => traceProvenance(snapshot, id, 'forward'); return { snapshot, traceBackward, traceForward, findCauses: traceBackward, findDependents: traceForward }; }
 export function detectProvenanceDrift(resourceId: string, expectedHash: string | undefined, observedHash: string | undefined, snapshot: ProvenanceSnapshot): ProvenanceDrift {
