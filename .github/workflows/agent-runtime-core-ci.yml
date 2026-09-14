@@ -23,7 +23,33 @@ permissions:
   contents: read
 
 jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Regenerate lockfile for audit evidence
+        run: pnpm install --lockfile-only --ignore-scripts
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-runtime-core-pnpm-lock-${{ github.sha }}
+          path: pnpm-lock.yaml
+          if-no-files-found: error
+          retention-days: 7
+
   verify:
+    needs: lockfile
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
