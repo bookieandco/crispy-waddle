@@ -65,6 +65,13 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
+      - name: Download generated lockfile
+        uses: actions/download-artifact@v5
+        with:
+          name: agent-runtime-core-pnpm-lock-${{ github.sha }}
+          path: .ci-generated-lockfile
+      - name: Replace working lockfile with generated lockfile
+        run: cp .ci-generated-lockfile/pnpm-lock.yaml pnpm-lock.yaml
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Type-check agent runtime core
