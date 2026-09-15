@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { spatialEvidenceHash } from './evidence-hash.js';
 import { InMemorySpatialEvidenceStore } from './evidence-store.js';
 import type { SpatialEvidence } from './evidence.js';
 
-const evidence: SpatialEvidence = {
+const unsignedEvidence: Omit<SpatialEvidence, 'integrity'> = {
   evidenceId: 'ev-1',
   observationId: 'obs-1',
   source: { provider: 'test', recordId: 'record-1', attribution: 'test' },
@@ -10,7 +11,11 @@ const evidence: SpatialEvidence = {
   coverage: { completeness: 'complete', coverage: 'known', freshness: 'fresh' },
   payload: { entity: { id: 'camera-1' }, position: null, attributes: {} },
   transformation: { adapter: 'test-adapter', adapterVersion: '1.0.0', normalized: true },
-  integrity: { contentHash: 'a'.repeat(64) },
+};
+
+const evidence: SpatialEvidence = {
+  ...unsignedEvidence,
+  integrity: { contentHash: spatialEvidenceHash(unsignedEvidence) },
 };
 
 describe('InMemorySpatialEvidenceStore', () => {
@@ -21,10 +26,17 @@ describe('InMemorySpatialEvidenceStore', () => {
     await expect(store.get('ev-1')).resolves.toEqual(evidence);
   });
 
-  it('rejects a different payload using an existing evidence id', async () => {
+  it('rejects a supplied hash that does not match the canonical evidence', async () => {
+    const store = new InMemorySpatialEvidenceStore();
+    await expect(store.append({ ...evidence, integrity: { contentHash: 'b'.repeat(64) } }))
+      .rejects.toThrow('SPATIAL_EVIDENCE_CONTENT_HASH_MISMATCH');
+  });
+
+  it('rejects a different payload even when the original evidence id is reused', async () => {
     const store = new InMemorySpatialEvidenceStore();
     await store.append(evidence);
-    await expect(store.append({ ...evidence, integrity: { contentHash: 'b'.repeat(64) } }))
+    const changed = { ...unsignedEvidence, payload: { ...unsignedEvidence.payload, attributes: { changed: true } } };
+    await expect(store.append({ ...changed, integrity: { contentHash: spatialEvidenceHash(changed) } }))
       .rejects.toThrow('SPATIAL_EVIDENCE_ID_CONFLICT');
   });
 });
