@@ -61,14 +61,14 @@ export const createGevSpatialAdapter = (): GevSpatialAdapter => ({
   toEvidence(snapshot, observationId, contentHash) {
     const camera = createGevSpatialAdapter().normalizeCamera(snapshot.camera)
     return {
-      evidence_id: `gev:evidence:${observationId}`,
-      observation_id: observationId,
-      source: { provider: 'gods-eye-view', record_id: snapshot.sourceRecordId ?? camera.id, attribution: camera.attribution ?? 'God’s Eye View source adapter' },
-      timing: { observed_at: snapshot.observedAt, received_at: snapshot.receivedAt },
+      evidenceId: `gev:evidence:${observationId}`,
+      observationId,
+      source: { provider: 'gods-eye-view', recordId: snapshot.sourceRecordId ?? camera.id, attribution: camera.attribution ?? 'God’s Eye View source adapter' },
+      timing: { observedAt: snapshot.observedAt, receivedAt: snapshot.receivedAt },
       coverage: { completeness: 'partial', coverage: 'known', freshness: snapshot.observedAt ? 'fresh' : 'unknown' },
       payload: { entity: { id: camera.id, type: 'camera' }, position: { lat: camera.lat, lon: camera.lon }, attributes: { frameRef: snapshot.frameRef, name: camera.name ?? null } },
-      transformation: { adapter: 'gods-eye-view', adapter_version: 'gev-adapter:v1', normalized: true },
-      integrity: { content_hash: contentHash },
+      transformation: { adapter: 'gods-eye-view', adapterVersion: 'gev-adapter:v1', normalized: true },
+      integrity: { contentHash },
     }
   },
 })
