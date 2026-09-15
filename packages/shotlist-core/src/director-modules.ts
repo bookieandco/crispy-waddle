@@ -21,6 +21,26 @@ export const directorCapabilityRegistry = (modules: DirectorModuleRef[]): Direct
   find: (kind) => modules.filter((module) => module.kind === kind),
 });
 
+/** Read-only spatial capabilities the Director may request through an approved provider adapter. */
+export type DirectorSpatialCapability =
+  | "observe_scene"
+  | "inspect_spatial_context"
+  | "compare_scene"
+  | "inspect_camera"
+  | "request_video_window"
+  | "analyze_change"
+  | "correlate_sensors";
+
+export const DIRECTOR_SPATIAL_CAPABILITIES: readonly DirectorSpatialCapability[] = [
+  "observe_scene",
+  "inspect_spatial_context",
+  "compare_scene",
+  "inspect_camera",
+  "request_video_window",
+  "analyze_change",
+  "correlate_sensors",
+] as const;
+
 export interface VoiceDirection {
   speakerId?: string;
   language?: string;
