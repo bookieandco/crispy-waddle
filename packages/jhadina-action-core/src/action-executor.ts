@@ -46,6 +46,22 @@ export class InMemoryActionLedger implements ActionLedger {
   }
 }
 
+/**
+ * @testOnly Do NOT instantiate AllowAllActionPolicy outside test code.
+ *
+ * This policy unconditionally approves every action regardless of type,
+ * actor, or risk level.  It exists so unit tests can exercise the executor
+ * without standing up a real policy engine.  Any production composition root
+ * that depends on AllowAllActionPolicy is a security misconfiguration —
+ * use SecurityCoreActionPolicy or JhadinaValuesActionPolicy instead.
+ *
+ * A runtime guard is deliberately NOT added here (it would require
+ * environment-flag injection which itself can be bypassed).  Instead,
+ * enforcement happens at composition time: createProductionActionExecutor()
+ * accepts only a typed ActionPolicy<TAction> whose concrete implementation
+ * must be provided by the caller — AllowAllActionPolicy is never imported
+ * or constructed inside that factory.
+ */
 export class AllowAllActionPolicy<TAction = unknown> implements ActionPolicy<TAction> {
   async evaluate(_request: ActionRequest<TAction>): Promise<ActionPolicyDecision> {
     return 'allow';

@@ -12,7 +12,8 @@
  *   GET    /api/memories/search  - Search memories
  *   GET    /api/health           - Health check
  * 
- * All routes require userId in request (from auth middleware in future).
+ * All routes require userId in request header (x-user-id). Missing or
+ * empty header returns 401 — never falls back to a demo identity.
  */
 
 import { NextRequest, NextResponse } from "next/server"
@@ -32,13 +33,28 @@ let janet: JanetService
 
 /**
  * Durable by default: uses the real Supabase-backed store whenever a
- * service-role client is configured. Falls back to InMemoryStorage only
- * when it isn't (local dev without env configured, or tests) — loudly,
- * once, rather than silently pretending memory is durable when it isn't.
+ * service-role client is configured. In production (NODE_ENV === 'production')
+ * throws if Supabase is not configured rather than silently falling back —
+ * failing closed is safer than silently losing durability. In non-production
+ * environments (test / local dev) falls back to InMemoryStorage with a loud
+ * warning so developers know the data is ephemeral.
+ *
+ * Exported for unit-testing the selection logic; callers that need the
+ * process-singleton should use getStorage() instead.
  */
-function createStorage(): MemoryStorage {
+export function createStorage(): MemoryStorage {
   const client = createServiceRoleClient()
   if (client) return new SupabaseMemoryStorage(client)
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[jhadina-web] Production requires SUPABASE_SERVICE_ROLE_KEY and " +
+      "NEXT_PUBLIC_SUPABASE_URL to be configured. Application cannot start " +
+      "without durable storage — refusing to silently fall back to " +
+      "InMemoryStorage in production. " +
+      "See supabase/migrations/20260822000000_create_jhadina_memory_core.sql."
+    )
+  }
 
   console.warn(
     "[jhadina-web] SUPABASE_SERVICE_ROLE_KEY not configured — falling back " +
@@ -72,10 +88,13 @@ function getJanetService(): JanetService {
 }
 
 function extractUserId(req: NextRequest): string | null {
-  // In production: extract from auth context
-  // For now: from header or default to demo
-  const userId = req.headers.get("x-user-id") || "user_demo"
-  return userId
+  // Returns the client-supplied claimed identity. A missing or empty header
+  // is treated as unauthenticated (null → 401) — never fall back to a demo
+  // user that would let any unauthenticated caller read or write another
+  // user's memory. The caller is expected to verify this identity against the
+  // real Supabase session before any ownership-sensitive operation.
+  const userId = req.headers.get("x-user-id")
+  return userId && userId.trim() ? userId.trim() : null
 }
 
 // ═══════════════════════════════════════════════════════════════
