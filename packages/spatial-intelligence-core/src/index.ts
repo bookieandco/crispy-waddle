@@ -5,3 +5,4 @@ export * from './postgres-evidence-store.js';
 export * from './reality.js';
 export * from './reality-admission.js';
 export * from './postgres-reality-store.js';
+export * from './temporal.js';
