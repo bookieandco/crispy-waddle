@@ -50,16 +50,27 @@ export function canonicalSpatialEvidenceInput(evidence: Omit<SpatialEvidence, 'i
 
 /** Deterministic JSON serialization: object keys are sorted recursively; arrays retain source order. */
 export function stableSerialize(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (value === null) return 'null';
+  if (typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value);
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('SPATIAL_EVIDENCE_NON_FINITE_NUMBER');
+    return JSON.stringify(value);
+  }
   if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
-  const object = value as Record<string, unknown>;
-  return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${stableSerialize(object[key])}`).join(',')}}`;
+  if (typeof value === 'object') {
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${stableSerialize(object[key])}`).join(',')}}`;
+  }
+  throw new Error('SPATIAL_EVIDENCE_NON_JSON_VALUE');
 }
 
 export function assertSpatialEvidenceShape(evidence: SpatialEvidence): void {
   if (!evidence.evidenceId || !evidence.observationId) throw new Error('SPATIAL_EVIDENCE_ID_REQUIRED');
   if (!evidence.source.provider) throw new Error('SPATIAL_EVIDENCE_PROVIDER_REQUIRED');
   if (!evidence.timing.receivedAt) throw new Error('SPATIAL_EVIDENCE_RECEIVED_AT_REQUIRED');
+  if (!evidence.transformation.adapter || !evidence.transformation.adapterVersion) {
+    throw new Error('SPATIAL_EVIDENCE_TRANSFORMATION_REQUIRED');
+  }
   if (evidence.transformation.normalized !== true) throw new Error('SPATIAL_EVIDENCE_MUST_BE_NORMALIZED');
   if (!/^[a-f0-9]{64}$/.test(evidence.integrity.contentHash)) {
     throw new Error('SPATIAL_EVIDENCE_CONTENT_HASH_INVALID');
