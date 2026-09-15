@@ -9,7 +9,12 @@
     "./generation-registry": "./src/generation-registry.ts",
     "./generation-service": "./src/generation-service.ts",
     "./generation-submission-reconciler": "./src/generation-submission-reconciler.ts",
-    "./outbox-generation-provider": "./src/outbox-generation-provider.ts"
+    "./outbox-generation-provider": "./src/outbox-generation-provider.ts",
+    "./study-job": "./src/study-job.ts",
+    "./study-control-orchestrator": "./src/study-control-orchestrator.ts",
+    "./study-cancellation-registry": "./src/study-cancellation-registry.ts",
+    "./study-checkpoint-store": "./src/study-checkpoint-store.ts",
+    "./study-resume-controller": "./src/study-resume-controller.ts"
   },
   "scripts": { "type-check": "tsc --noEmit", "test": "vitest run" },
   "devDependencies": { "vitest": "^2.1.8" }
