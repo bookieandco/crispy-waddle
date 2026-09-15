@@ -44,11 +44,6 @@ export interface PatternObservation {
   lastObservedAt: string;
 }
 
-/**
- * Personality is evidence-backed state, not a prompt or a fixed persona.
- * It may contain preferences and tendencies, but every durable claim needs
- * provenance and can be contradicted or revised.
- */
 export interface PersonalityTrait {
   id: string;
   statement: string;
@@ -67,6 +62,24 @@ export interface PersonalityState {
   updatedAt: string;
 }
 
+/** Provider-neutral spatial context contribution. It is contextual intelligence, never an authority boundary. */
+export interface SpatialDomainContext {
+  observations: EvidenceRef[];
+  evidence: EvidenceRef[];
+  claims: EvidenceRef[];
+  reality: EvidenceRef[];
+  attention: EvidenceRef[];
+  conflicts: string[];
+  uncertainty: string[];
+  limitations: string[];
+  provenance: EvidenceRef[];
+}
+
+/** Domain extensions are additive; existing ContextPacket consumers remain valid. */
+export interface DomainContext {
+  spatial?: SpatialDomainContext;
+}
+
 export interface ContextPacket {
   id: string;
   purpose: string;
@@ -77,6 +90,7 @@ export interface ContextPacket {
   knowledge: EvidenceRef[];
   constraints: string[];
   excludedContext: string[];
+  domainContext?: DomainContext;
 }
 
 export interface DecisionProposal {
