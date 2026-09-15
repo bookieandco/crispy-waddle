@@ -10,6 +10,7 @@
     "./generation-service": "./src/generation-service.ts",
     "./generation-submission-reconciler": "./src/generation-submission-reconciler.ts",
     "./outbox-generation-provider": "./src/outbox-generation-provider.ts",
+    "./editing-asset-manifest": "./src/editing-asset-manifest.ts",
     "./study-job": "./src/study-job.ts",
     "./study-control-orchestrator": "./src/study-control-orchestrator.ts",
     "./study-cancellation-registry": "./src/study-cancellation-registry.ts",
