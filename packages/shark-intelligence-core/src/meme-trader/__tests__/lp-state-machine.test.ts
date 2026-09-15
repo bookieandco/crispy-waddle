@@ -23,15 +23,22 @@ describe('Solana LP state machine', () => {
     const result = new SolanaLPStateMachine().decode(tx({ preTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER_A', uiTokenAmount: { amount: '1000', decimals: 6 } }], postTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER_A', uiTokenAmount: { amount: '400', decimals: 6 } }], innerInstructions: [{ index: 0, instructions: [{ program: 'spl-token', parsed: { type: 'transfer', info: { source: 'LP_ACCOUNT', destination: 'OTHER_ACCOUNT', mint: 'LP', amount: '600' } } }] }] }), pool, 'LP')
     expect(result[0]).toMatchObject({ kind: 'TRANSFER', tokenAccount: 'LP_ACCOUNT', from: 'OWNER_A', amountRaw: 600n, confidence: 1 })
   })
+  it('records owner changes without falsely classifying them as transfers', () => {
+    const result = new SolanaLPStateMachine().decode(tx({ preTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER_A', uiTokenAmount: { amount: '1000', decimals: 6 } }], postTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER_B', uiTokenAmount: { amount: '1000', decimals: 6 } }], innerInstructions: [] }), pool, 'LP')
+    expect(result[0]).toMatchObject({ kind: 'UNKNOWN', tokenAccount: 'LP_ACCOUNT', from: 'OWNER_A', to: 'OWNER_B', amountRaw: 0n, confidence: 0.35 })
+  })
   it('uses compiled legacy SPL burn data when parsed CPI is unavailable', () => {
     const data = base58([8, ...u64(500n)])
     const result = new SolanaLPStateMachine().decode(tx({ preTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER', uiTokenAmount: { amount: '500', decimals: 6 } }], postTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER', uiTokenAmount: { amount: '0', decimals: 6 } }], innerInstructions: [] }, [{ programId: LEGACY_TOKEN, accounts: [0, 3], data }]), pool, 'LP')
     expect(result[0]).toMatchObject({ kind: 'BURN', tokenAccount: 'LP_ACCOUNT', amountRaw: 500n, confidence: 1 })
   })
-  it('uses compiled Token-2022 checked transfer data', () => {
+  it('uses compiled Token-2022 checked transfer data only when the encoded mint matches', () => {
     const data = base58([12, ...u64(600n), 6])
-    const result = new SolanaLPStateMachine().decode(tx({ preTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER', uiTokenAmount: { amount: '1000', decimals: 6 } }], postTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER', uiTokenAmount: { amount: '400', decimals: 6 } }], innerInstructions: [] }, [{ programId: TOKEN_2022, accounts: [0, 2, 1], data }]), pool, 'LP')
+    const result = new SolanaLPStateMachine().decode(tx({ preTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER', uiTokenAmount: { amount: '1000', decimals: 6 } }], postTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER', uiTokenAmount: { amount: '400', decimals: 6 } }], innerInstructions: [] }, [{ programId: TOKEN_2022, accounts: [0, 3, 1], data }]), pool, 'LP')
     expect(result[0]).toMatchObject({ kind: 'TRANSFER', tokenAccount: 'LP_ACCOUNT', amountRaw: 600n, confidence: 1 })
+
+    const mismatch = new SolanaLPStateMachine().decode(tx({ preTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER', uiTokenAmount: { amount: '1000', decimals: 6 } }], postTokenBalances: [{ accountIndex: 0, mint: 'LP', owner: 'OWNER', uiTokenAmount: { amount: '400', decimals: 6 } }], innerInstructions: [] }, [{ programId: TOKEN_2022, accounts: [0, 2, 1], data }]), pool, 'LP')
+    expect(mismatch[0]).toMatchObject({ kind: 'UNKNOWN', tokenAccount: 'LP_ACCOUNT', amountRaw: 600n })
   })
   it('rejects raw instructions from unrelated programs', () => {
     const data = base58([8, ...u64(500n)])

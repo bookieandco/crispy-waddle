@@ -11,12 +11,18 @@ import type {
  * interface, never on a concrete implementation, so the backend can change
  * without touching the approval-governance logic that lives in the
  * repository layer.
+ *
+ * Memory mutation is intentionally constrained: callers can persist a
+ * memory only through the approval-specific primitive. There is no generic
+ * update operation that can alter an existing memory's authority-bearing
+ * status.
  */
 export interface MemoryStorage {
-  createMemory(data: Omit<Memory, "id">): Promise<Memory>
+  createApprovedMemory(
+    data: Omit<Memory, "id"> & { status: "APPROVED"; approvedAt: string },
+  ): Promise<Memory>
   getMemory(id: string): Promise<Memory | undefined>
   listMemories(userId: string): Promise<Memory[]>
-  updateMemory(id: string, updates: Partial<Memory>): Promise<Memory | undefined>
 
   createCandidate(data: Omit<MemoryCandidate, "id">): Promise<MemoryCandidate>
   getCandidate(id: string): Promise<MemoryCandidate | undefined>

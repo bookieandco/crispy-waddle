@@ -10,11 +10,7 @@ import { IntelligenceRouter, type IntelligenceRouterEvent } from "@jhadina/intel
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { buildContext, type ContextBuilderDeps, type ContextBuilderLimits } from "../context/context-builder"
-import { MemoryRepository } from "../repositories/MemoryRepository"
-import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
-import { TimelineRepository } from "../repositories/TimelineRepository"
-import { getStorage } from "../routes/handlers"
-import type { JhadinaWorldId } from "../jhadina/jhadina-world-registry"
+import { getJhadinaApplication } from "../application/createJhadinaApplication"
 import { createIntelligenceAuditLedger } from "./durable-audit-ledger"
 import {
   decideAndProposeMemoryGoverned,
@@ -22,39 +18,7 @@ import {
 } from "./governed-intelligence-proposal"
 import { MEMORY_PROPOSE_CAPABILITY, type MemoryProposeAction } from "./memory-propose-capability"
 import { createProductionIntelligenceRouter } from "./production-model-provider"
-
-/**
- * Phase 1 Step 5 — instantiate the Jhadina operating loop.
- *
- *   Observe   -- a Jhadina command is received (this function's input)
- *   Remember  -- relevant durable memory assembled by the Context Builder
- *   Understand-- a bounded ContextPacket assembled (Step 4, real, not a
- *                hand-built fake)
- *   Decide    -- IntelligenceRouter proposes (Step 3, real)
- *   Authorize -- SecurityCoreActionPolicy evaluates; ApprovalReceipt
- *                requested/consumed if required (Step 3, real)
- *   Act       -- ActionExecutor executes the fixed memory.propose
- *                capability (Step 3, real)
- *   Verify    -- durable read-back confirms the action actually landed
- *                (new in this milestone — see below)
- *   Learn     -- the resulting observation reaches Memory Core as a
- *                PENDING candidate; it does not become durable approved
- *                memory without the human approve/reject step Step 2
- *                already established
- *
- * This file is pure composition of already-real pieces. It is not a new
- * executor, policy engine, audit ledger, or memory abstraction — it
- * calls `decideAndProposeMemoryGoverned` (Step 3) directly rather than
- * through `runGovernedIntelligenceProposal` (its usual entry point) only
- * so this function can retain the same `ledger` reference for the new
- * Verify stage's audit event; the governed lifecycle itself
- * (identity -> decide -> policy -> approval -> execute -> audit) is
- * byte-for-byte the same call Step 3 already tests.
- *
- * `@jhadina/core-spine`'s `JhadinaSpine`/`createJhadinaSpine()` is
- * deliberately NOT instantiated here. See the architectural note at the
- * bottom of this file.
- */
+import type { JhadinaWorldId } from "../jhadina/jhadina-world-registry"
 
 export interface JhadinaCommandInput {
   userId: string
@@ -80,8 +44,6 @@ export interface JhadinaCommandOverrides {
 }
 
 export interface JhadinaCommandResult extends GovernedIntelligenceProposalResult {
-  /** True whenever there was nothing to verify (no PROCEED action ran) or the
-   * executed action's effect was durably confirmed by an independent read-back. */
   verified: boolean
   verificationReason?: string
 }
@@ -92,13 +54,12 @@ export async function handleJhadinaCommand(
   input: JhadinaCommandInput,
   overrides: JhadinaCommandOverrides = {},
 ): Promise<JhadinaCommandResult> {
-  // -- Observe / Remember / Understand: real storage, real Context Builder --
-  const storage = getStorage()
-  const memoryRepo = new MemoryRepository(storage)
-  const reasoningRepo = new ReasoningEventRepository(storage)
+  const application = getJhadinaApplication()
+  const { memoryRepo, reasoningRepo, timelineRepo } = application
+
   const contextDeps: ContextBuilderDeps = {
     memoryRepo,
-    timelineRepo: new TimelineRepository(storage),
+    timelineRepo,
   }
   const assembled = await buildContext(contextDeps, {
     userId: input.userId,
@@ -110,17 +71,10 @@ export async function handleJhadinaCommand(
     limits: input.contextLimits,
   })
 
-  // -- Decide / Authorize / Act: the exact Step 3 governed lifecycle --------
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
   const ledger = overrides.ledger ?? (await createIntelligenceAuditLedger())
   const router = overrides.router ?? createProductionIntelligenceRouter(overrides.onEvent)
   const approvalStore = overrides.approvalStore ?? defaultApprovalStore
-  // Phase 1 Step 7: the real, classification/values-aware policy, not
-  // the flat base policy alone. memory.propose is classified read_only
-  // (see capability-classification.ts), so this changes nothing about
-  // its outcome (still `allow`) — it's here so Ask Jhadina's one live
-  // capability is already protected by the same risk-boundary layer any
-  // future capability this router is pointed at will need.
   const policy = overrides.policy
     ?? new JhadinaValuesActionPolicy<MemoryProposeAction>(JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION)
 
@@ -130,15 +84,7 @@ export async function handleJhadinaCommand(
     assembled.contextPacket,
   )
 
-  // -- Verify: an independent durable read-back, not just trusting the
-  // handler's return value. A PENDING candidate must actually be
-  // findable, for this exact user, with the exact content that was
-  // executed -- otherwise the audit trail says "completed" while nothing
-  // real happened, which fail-closed behavior must not allow to pass
-  // silently.
   if (!result.candidate) {
-    // ASK/DECLINE/DEFER, or policy/approval never reached execution --
-    // there is nothing to verify. Trivially verified, not silently skipped.
     return { ...result, verified: true, verificationReason: "no action was executed for this proposal" }
   }
 
@@ -162,14 +108,10 @@ export async function handleJhadinaCommand(
 }
 
 async function verifyCandidateDurable(
-  memoryRepo: MemoryRepository,
+  memoryRepo: import("../repositories/MemoryRepository").MemoryRepository,
   userId: string,
   candidate: NonNullable<GovernedIntelligenceProposalResult["candidate"]>,
 ): Promise<{ verified: boolean; reason?: string }> {
-  // Reuses MemoryRepository's existing public read surface (listPending)
-  // rather than reaching into storage directly or adding a new method --
-  // the same repository Step 2 already built and Step 3 already writes
-  // through.
   const pending = await memoryRepo.listPending(userId, 1000)
   const found = pending.find((c) => c.id === candidate.id)
 
@@ -186,38 +128,9 @@ async function verifyCandidateDurable(
 }
 
 /**
- * ARCHITECTURAL NOTE — why JhadinaSpine/createJhadinaSpine is not called
- * here, discovered while building this milestone, not guessed at
- * beforehand:
- *
- * core-spine's `SpinePorts` requires `PolicyPort.evaluate(proposal):
- * Promise<PolicyDecision>` and `ActionPort.prepare/execute` using
- * core-spine's OWN `ActionRequest`/`ActionResult`/`PolicyDecision`
- * shapes -- which are structurally different from, and not losslessly
- * convertible to, the real concrete types this file actually uses
- * (action-core's `ActionRequest<T>`/`ActionPolicyDecision`,
- * `SecurityCoreActionPolicy`, `ActionExecutor`). core-spine's
- * `ActionRequest`, for example, requires `operation`/`input`/
- * `reversible`/`consequenceLevel` fields that have no equivalent
- * anywhere in the real governed-action pipeline today. JH-046 already
- * named this exact duplication ("a third shape of the same concept
- * already exists in jhadina-action-core") as a known, unresolved
- * overlap -- it did not resolve it, and this milestone does not either.
- *
- * Writing a `PolicyPort`/`ActionPort` adapter here to force this real,
- * tested, working pipeline through `createJhadinaSpine()`'s literal
- * signature would mean either inventing fields with no real meaning
- * (fabricating `reversible`/`consequenceLevel` for memory.propose) or
- * silently dropping real behavior (the approval-receipt mechanics,
- * which `ActionPort` has no representation for at all) -- exactly the
- * kind of "claim something is implemented merely because an interface
- * exists" this whole engagement has been instructed to avoid. `Decision`/
- * `Context` (this milestone) are the two ports that already match
- * cleanly (`IntelligenceRouter implements DecisionPort`; this file's
- * `assembled.contextPacket` is exactly a `ContextPacket`) -- the
- * mismatch is specifically `PolicyPort`/`ActionPort`, not the whole
- * pipeline. Reconciling that (either adapting the concrete types to
- * core-spine's abstract ones, or revising core-spine's ports to match
- * what's actually real) is Step 6-or-later work, named here rather than
- * silently worked around.
+ * ARCHITECTURAL NOTE — core-spine is intentionally not instantiated here.
+ * Its PolicyPort/ActionPort shapes do not losslessly represent the real
+ * action-core approval-receipt lifecycle. Reconciling those duplicated
+ * abstractions remains later work rather than fabricating fields or dropping
+ * real governance behavior.
  */

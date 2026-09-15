@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import {
   InMemoryLearningRecordRepository,
   createLearningRecord,
@@ -30,21 +31,28 @@ const input: LearningRecordInput = {
 describe('LearningRecord', () => {
   it('creates an immutable canonical learning fact', () => {
     const record = createLearningRecord(input);
-    expect(record.schemaVersion).toBe('1.0');
-    expect(record.experienceId).toBe('experience-1');
-    expect(Object.isFrozen(record)).toBe(true);
-    expect(Object.isFrozen(record.evidence)).toBe(true);
-    expect(Object.isFrozen(record.outcome)).toBe(true);
-    expect(Object.isFrozen(record.outcome.evidence)).toBe(true);
+    assert.equal(record.schemaVersion, '1.0');
+    assert.equal(record.experienceId, 'experience-1');
+    assert.equal(Object.isFrozen(record), true);
+    assert.equal(Object.isFrozen(record.evidence), true);
+    assert.equal(Object.isFrozen(record.outcome), true);
+    assert.equal(Object.isFrozen(record.outcome.evidence), true);
   });
 
   it('requires evidence for observed outcomes', () => {
-    expect(() => createLearningRecord({ ...input, evidence: [], outcome: { ...input.outcome, evidence: [] } })).toThrow('learning_record_evidence_required');
+    assert.throws(
+      () => createLearningRecord({ ...input, evidence: [], outcome: { ...input.outcome, evidence: [] } }),
+      /learning_record_evidence_required/,
+    );
   });
 
   it('allows unknown and not-observed outcomes without evidence', () => {
-    expect(() => createLearningRecord({ ...input, evidence: [], outcome: { ...input.outcome, status: 'unknown', evidence: [] } })).not.toThrow();
-    expect(() => createLearningRecord({ ...input, id: 'learning-2', evidence: [], outcome: { ...input.outcome, status: 'not-observed', evidence: [] } })).not.toThrow();
+    assert.doesNotThrow(() =>
+      createLearningRecord({ ...input, evidence: [], outcome: { ...input.outcome, status: 'unknown', evidence: [] } }),
+    );
+    assert.doesNotThrow(() =>
+      createLearningRecord({ ...input, id: 'learning-2', evidence: [], outcome: { ...input.outcome, status: 'not-observed', evidence: [] } }),
+    );
   });
 
   it('preserves full decision lineage when bridged from spine artifacts', () => {
@@ -72,8 +80,13 @@ describe('LearningRecord', () => {
       learningUpdate: input.learningUpdate,
       provenance: input.provenance,
     });
-    expect(record.decision).toEqual({ proposalId: 'proposal-2', policyDecisionId: 'policy-2', actionRequestId: 'action-2', actionResultId: 'result-2' });
-    expect(record.evidence).toHaveLength(2);
+    assert.deepEqual(record.decision, {
+      proposalId: 'proposal-2',
+      policyDecisionId: 'policy-2',
+      actionRequestId: 'action-2',
+      actionResultId: 'result-2',
+    });
+    assert.equal(record.evidence.length, 2);
   });
 });
 
@@ -82,9 +95,9 @@ describe('InMemoryLearningRecordRepository', () => {
     const repository = new InMemoryLearningRecordRepository();
     const record = createLearningRecord(input);
     await repository.append(record);
-    await expect(repository.append(record)).rejects.toThrow('learning_record_duplicate_id');
-    await expect(repository.get(record.id)).resolves.toEqual(record);
-    await expect(repository.listByCorrelation('corr-1')).resolves.toEqual([record]);
-    await expect(repository.listByDomain('research')).resolves.toEqual([record]);
+    await assert.rejects(repository.append(record), /learning_record_duplicate_id/);
+    assert.deepEqual(await repository.get(record.id), record);
+    assert.deepEqual(await repository.listByCorrelation('corr-1'), [record]);
+    assert.deepEqual(await repository.listByDomain('research'), [record]);
   });
 });

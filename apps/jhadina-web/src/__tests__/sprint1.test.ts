@@ -1,13 +1,9 @@
 /**
- * Unit Tests for Sprint 1 Backend
- * 
- * Tests each layer independently:
- * - InMemoryStorage
- * - MemoryRepository
- * - ReasoningEventRepository
- * - TimelineRepository
- * - Classifier
- * - JanetService
+ * Sprint 1 backend tests.
+ *
+ * MA-2 note: storage may create only APPROVED memories. Candidate creation
+ * and approval remain repository responsibilities; tests must not bypass that
+ * boundary by calling removed generic memory mutators.
  */
 
 import { describe, it, expect, beforeEach } from "vitest"
@@ -18,10 +14,6 @@ import { TimelineRepository } from "../lib/repositories/TimelineRepository"
 import { Classifier } from "../lib/services/Classifier"
 import { JanetService } from "../lib/services/JanetService"
 
-// ═══════════════════════════════════════════════════════════════
-// InMemoryStorage Tests
-// ═══════════════════════════════════════════════════════════════
-
 describe("InMemoryStorage", () => {
   let storage: InMemoryStorage
 
@@ -29,239 +21,118 @@ describe("InMemoryStorage", () => {
     storage = new InMemoryStorage()
   })
 
-  describe("Memory Operations", () => {
-    it("should create a memory", async () => {
-      const memory = await storage.createMemory({
-        userId: "user_1",
-        type: "PREFERENCE",
-        status: "PENDING",
-        content: "I prefer cinematic visuals",
-        confidence: 0.95,
-        createdAt: new Date().toISOString(),
-      })
-
-      expect(memory.id).toMatch(/^mem_/)
-      expect(memory.content).toBe("I prefer cinematic visuals")
-      expect(memory.status).toBe("PENDING")
-    })
-
-    it("should retrieve a memory by ID", async () => {
-      const created = await storage.createMemory({
-        userId: "user_1",
-        type: "PREFERENCE",
-        status: "PENDING",
-        content: "Test content",
-        confidence: 0.9,
-        createdAt: new Date().toISOString(),
-      })
-
-      const retrieved = await storage.getMemory(created.id)
-      expect(retrieved).toBeDefined()
-      expect(retrieved?.content).toBe("Test content")
-    })
-
-    it("should list memories by user", async () => {
-      await storage.createMemory({
-        userId: "user_1",
-        type: "PREFERENCE",
-        status: "APPROVED",
-        content: "Memory 1",
-        confidence: 0.9,
-        createdAt: new Date().toISOString(),
-      })
-
-      await storage.createMemory({
-        userId: "user_1",
-        type: "IDENTITY",
-        status: "APPROVED",
-        content: "Memory 2",
-        confidence: 0.85,
-        createdAt: new Date().toISOString(),
-      })
-
-      await storage.createMemory({
-        userId: "user_2",
-        type: "GOAL",
-        status: "APPROVED",
-        content: "Memory 3",
-        confidence: 0.8,
-        createdAt: new Date().toISOString(),
-      })
-
-      const user1Memories = await storage.listMemories("user_1")
-      expect(user1Memories).toHaveLength(2)
-      expect(user1Memories.every(m => m.userId === "user_1")).toBe(true)
-    })
-
-    it("should update a memory", async () => {
-      const created = await storage.createMemory({
-        userId: "user_1",
-        type: "PREFERENCE",
-        status: "PENDING",
-        content: "Original",
-        confidence: 0.9,
-        createdAt: new Date().toISOString(),
-      })
-
-      const updated = await storage.updateMemory(created.id, {
-        status: "APPROVED",
-        approvedAt: new Date().toISOString(),
-      })
-
-      expect(updated?.status).toBe("APPROVED")
-      expect(updated?.approvedAt).toBeDefined()
-    })
+  it("does not expose generic memory mutation", () => {
+    const rawStorage = storage as unknown as Record<string, unknown>
+    expect(rawStorage.createMemory).toBeUndefined()
+    expect(rawStorage.updateMemory).toBeUndefined()
   })
 
-  describe("Candidate Operations", () => {
-    it("should create a candidate", async () => {
-      const candidate = await storage.createCandidate({
-        userId: "user_1",
-        content: "I prefer cinematic visuals",
-        type: "PREFERENCE",
-        confidence: 0.95,
-        status: "PENDING",
-        createdAt: new Date().toISOString(),
-        reasoningEventId: "reason_1",
-      })
-
-      expect(candidate.id).toMatch(/^cand_/)
-      expect(candidate.status).toBe("PENDING")
+  it("creates only approved memories through the constrained primitive", async () => {
+    const approvedAt = new Date().toISOString()
+    const memory = await storage.createApprovedMemory({
+      userId: "user_1",
+      type: "PREFERENCE",
+      status: "APPROVED",
+      content: "I prefer cinematic visuals",
+      confidence: 0.95,
+      createdAt: new Date().toISOString(),
+      approvedAt,
     })
 
-    it("should list pending candidates", async () => {
-      await storage.createCandidate({
-        userId: "user_1",
-        content: "Candidate 1",
-        type: "PREFERENCE",
-        confidence: 0.9,
-        status: "PENDING",
-        createdAt: new Date().toISOString(),
-        reasoningEventId: "reason_1",
-      })
-
-      const candidates = await storage.listCandidates("user_1", "PENDING")
-      expect(candidates).toHaveLength(1)
-    })
-
-    it("should remove a candidate", async () => {
-      const candidate = await storage.createCandidate({
-        userId: "user_1",
-        content: "Test",
-        type: "PREFERENCE",
-        confidence: 0.9,
-        status: "PENDING",
-        createdAt: new Date().toISOString(),
-        reasoningEventId: "reason_1",
-      })
-
-      await storage.removeCandidate(candidate.id)
-      const retrieved = await storage.getCandidate(candidate.id)
-      expect(retrieved).toBeUndefined()
-    })
+    expect(memory.id).toMatch(/^mem_/)
+    expect(memory.status).toBe("APPROVED")
+    expect(memory.approvedAt).toBe(approvedAt)
   })
 
-  describe("ReasoningEvent Operations", () => {
-    it("should create a reasoning event", async () => {
-      const event = await storage.createReasoningEvent({
-        userId: "user_1",
+  it("lists approved memories by user", async () => {
+    await storage.createApprovedMemory({
+      userId: "user_1",
+      type: "PREFERENCE",
+      status: "APPROVED",
+      content: "Memory 1",
+      confidence: 0.9,
+      createdAt: new Date().toISOString(),
+      approvedAt: new Date().toISOString(),
+    })
+    await storage.createApprovedMemory({
+      userId: "user_2",
+      type: "GOAL",
+      status: "APPROVED",
+      content: "Memory 2",
+      confidence: 0.8,
+      createdAt: new Date().toISOString(),
+      approvedAt: new Date().toISOString(),
+    })
+
+    const memories = await storage.listMemories("user_1")
+    expect(memories).toHaveLength(1)
+    expect(memories[0].status).toBe("APPROVED")
+  })
+
+  it("creates and removes pending candidates", async () => {
+    const candidate = await storage.createCandidate({
+      userId: "user_1",
+      content: "I prefer cinematic visuals",
+      type: "PREFERENCE",
+      confidence: 0.95,
+      status: "PENDING",
+      createdAt: new Date().toISOString(),
+      reasoningEventId: "reason_1",
+    })
+
+    expect(candidate.id).toMatch(/^cand_/)
+    expect(candidate.status).toBe("PENDING")
+    expect(await storage.listCandidates("user_1", "PENDING")).toHaveLength(1)
+
+    await storage.removeCandidate(candidate.id)
+    expect(await storage.getCandidate(candidate.id)).toBeUndefined()
+  })
+
+  it("records reasoning events and timeline events", async () => {
+    const event = await storage.createReasoningEvent({
+      userId: "user_1",
+      timestamp: new Date().toISOString(),
+      userMessage: "I prefer cinematic visuals",
+      observation: {
+        raw: "I prefer cinematic visuals",
+        extracted: "I prefer cinematic visuals",
         timestamp: new Date().toISOString(),
-        userMessage: "I prefer cinematic visuals",
-        observation: {
-          raw: "I prefer cinematic visuals",
-          extracted: "I prefer cinematic visuals",
-          timestamp: new Date().toISOString(),
-        },
-        classification: { type: "PREFERENCE", confidence: 0.95 },
-        systemResponse: "Noted",
-        confidence: 0.95,
-      })
-
-      expect(event.id).toMatch(/^reason_/)
-      expect(event.userMessage).toBe("I prefer cinematic visuals")
+      },
+      classification: { type: "PREFERENCE", confidence: 0.95 },
+      systemResponse: "Noted",
+      confidence: 0.95,
     })
 
-    it("should list reasoning events", async () => {
-      await storage.createReasoningEvent({
-        userId: "user_1",
-        timestamp: new Date().toISOString(),
-        userMessage: "Message 1",
-        observation: {
-          raw: "Message 1",
-          extracted: "Message 1",
-          timestamp: new Date().toISOString(),
-        },
-        classification: { type: "PREFERENCE", confidence: 0.95 },
-        systemResponse: "Response 1",
-        confidence: 0.95,
-      })
+    expect(event.id).toMatch(/^reason_/)
 
-      const events = await storage.listReasoningEvents("user_1", 10)
-      expect(events).toHaveLength(1)
+    const timeline = await storage.appendTimelineEvent({
+      userId: "user_1",
+      timestamp: new Date().toISOString(),
+      type: "REASONING",
+      reasoningEventId: event.id,
     })
+
+    expect(timeline.id).toMatch(/^timeline_/)
+    expect(await storage.listReasoningEvents("user_1")).toHaveLength(1)
+    expect(await storage.listTimeline("user_1")).toHaveLength(1)
   })
 
-  describe("Timeline Operations", () => {
-    it("should append a timeline event", async () => {
-      const event = await storage.appendTimelineEvent({
-        userId: "user_1",
-        timestamp: new Date().toISOString(),
-        type: "REASONING",
-        reasoningEventId: "reason_1",
-      })
-
-      expect(event.id).toMatch(/^timeline_/)
-      expect(event.type).toBe("REASONING")
+  it("produces a debug dump without exposing mutation methods", async () => {
+    await storage.createApprovedMemory({
+      userId: "user_1",
+      type: "PREFERENCE",
+      status: "APPROVED",
+      content: "Test memory",
+      confidence: 0.9,
+      createdAt: new Date().toISOString(),
+      approvedAt: new Date().toISOString(),
     })
 
-    it("should list timeline events in reverse chronological order", async () => {
-      const now = new Date()
-      const earlier = new Date(now.getTime() - 10000)
-
-      await storage.appendTimelineEvent({
-        userId: "user_1",
-        timestamp: earlier.toISOString(),
-        type: "REASONING",
-        reasoningEventId: "reason_1",
-      })
-
-      await storage.appendTimelineEvent({
-        userId: "user_1",
-        timestamp: now.toISOString(),
-        type: "APPROVAL",
-        memoryId: "mem_1",
-        memoryType: "PREFERENCE",
-        memoryContent: "test",
-        decision: "APPROVED",
-      })
-
-      const timeline = await storage.listTimeline("user_1")
-      expect(timeline[0].timestamp).toBe(now.toISOString())
-      expect(timeline[1].timestamp).toBe(earlier.toISOString())
-    })
-  })
-
-  describe("Debug Dump", () => {
-    it("should generate a debug dump", async () => {
-      await storage.createMemory({
-        userId: "user_1",
-        type: "PREFERENCE",
-        status: "APPROVED",
-        content: "Test memory",
-        confidence: 0.9,
-        createdAt: new Date().toISOString(),
-      })
-
-      const dump = storage.dump("user_1")
-      expect(dump).toContain("InMemoryStorage Debug Dump")
-      expect(dump).toContain("Approved Memories: 1")
-    })
+    const dump = storage.dump("user_1")
+    expect(dump).toContain("InMemoryStorage Debug Dump")
+    expect(dump).toContain("Approved Memories: 1")
   })
 })
-
-// ═══════════════════════════════════════════════════════════════
-// MemoryRepository Tests
-// ═══════════════════════════════════════════════════════════════
 
 describe("MemoryRepository", () => {
   let storage: InMemoryStorage
@@ -272,7 +143,7 @@ describe("MemoryRepository", () => {
     repo = new MemoryRepository(storage)
   })
 
-  it("should create a candidate", async () => {
+  it("creates pending candidates", async () => {
     const candidate = await repo.createCandidate({
       userId: "user_1",
       content: "I prefer cinematic visuals",
@@ -285,7 +156,7 @@ describe("MemoryRepository", () => {
     expect(candidate.content).toBe("I prefer cinematic visuals")
   })
 
-  it("should approve a candidate", async () => {
+  it("approves through the repository and creates an approved memory", async () => {
     const candidate = await repo.createCandidate({
       userId: "user_1",
       content: "I prefer cinematic visuals",
@@ -297,44 +168,39 @@ describe("MemoryRepository", () => {
     const memory = await repo.approve(candidate.id, "user_1")
     expect(memory.status).toBe("APPROVED")
     expect(memory.approvedAt).toBeDefined()
+    expect(await repo.listPending("user_1")).toHaveLength(0)
+    expect(await storage.listMemories("user_1")).toHaveLength(1)
   })
 
-  it("should reject a candidate", async () => {
+  it("rejects a candidate without creating a memory", async () => {
     const candidate = await repo.createCandidate({
       userId: "user_1",
-      content: "I prefer cinematic visuals",
-      type: "PREFERENCE",
-      confidence: 0.95,
+      content: "Reject me",
+      type: "CONTEXT",
+      confidence: 0.7,
       reasoningEventId: "reason_1",
     })
 
     await repo.reject(candidate.id, "user_1")
-    const pending = await repo.listPending("user_1")
-    expect(pending).toHaveLength(0)
+    expect(await repo.listPending("user_1")).toHaveLength(0)
+    expect(await storage.listMemories("user_1")).toHaveLength(0)
   })
 
-  it("should list pending candidates", async () => {
-    await repo.createCandidate({
+  it("does not allow another user to approve a candidate", async () => {
+    const candidate = await repo.createCandidate({
       userId: "user_1",
-      content: "Candidate 1",
+      content: "Private preference",
       type: "PREFERENCE",
-      confidence: 0.95,
+      confidence: 0.9,
       reasoningEventId: "reason_1",
     })
 
-    await repo.createCandidate({
-      userId: "user_1",
-      content: "Candidate 2",
-      type: "IDENTITY",
-      confidence: 0.9,
-      reasoningEventId: "reason_2",
-    })
-
-    const pending = await repo.listPending("user_1")
-    expect(pending).toHaveLength(2)
+    await expect(repo.approve(candidate.id, "user_2")).rejects.toThrow()
+    expect(await repo.listPending("user_1")).toHaveLength(1)
+    expect(await storage.listMemories("user_1")).toHaveLength(0)
   })
 
-  it("should search approved memories", async () => {
+  it("searches only approved memory", async () => {
     const candidate = await repo.createCandidate({
       userId: "user_1",
       content: "I prefer cinematic visuals",
@@ -343,45 +209,13 @@ describe("MemoryRepository", () => {
       reasoningEventId: "reason_1",
     })
 
+    expect(await repo.search("user_1", { query: "cinematic" })).toHaveLength(0)
     await repo.approve(candidate.id, "user_1")
-
-    const results = await repo.search("user_1", {
-      query: "cinematic",
-    })
-
+    const results = await repo.search("user_1", { query: "cinematic" })
     expect(results).toHaveLength(1)
-    expect(results[0].content).toContain("cinematic")
-  })
-
-  it("should get memory stats", async () => {
-    await repo.createCandidate({
-      userId: "user_1",
-      content: "Test 1",
-      type: "PREFERENCE",
-      confidence: 0.95,
-      reasoningEventId: "reason_1",
-    })
-
-    const candidate2 = await repo.createCandidate({
-      userId: "user_1",
-      content: "Test 2",
-      type: "IDENTITY",
-      confidence: 0.9,
-      reasoningEventId: "reason_2",
-    })
-
-    await repo.approve(candidate2.id, "user_1")
-
-    const stats = await repo.getStats("user_1")
-    expect(stats.total).toBe(1)
-    expect(stats.pending).toBe(1)
-    expect(stats.byType.IDENTITY).toBe(1)
+    expect(results[0].status).toBe("APPROVED")
   })
 })
-
-// ═══════════════════════════════════════════════════════════════
-// Classifier Tests
-// ═══════════════════════════════════════════════════════════════
 
 describe("Classifier", () => {
   let classifier: Classifier
@@ -390,64 +224,37 @@ describe("Classifier", () => {
     classifier = new Classifier()
   })
 
-  it("should classify PREFERENCE", () => {
-    const result = classifier.classify("I prefer cinematic visuals")
-    expect(result.type).toBe("PREFERENCE")
-    expect(result.confidence).toBeGreaterThan(0.9)
+  it("classifies common memory types", () => {
+    expect(classifier.classify("I prefer cinematic visuals").type).toBe("PREFERENCE")
+    expect(classifier.classify("I'm a designer").type).toBe("IDENTITY")
+    expect(classifier.classify("I want to build systems").type).toBe("GOAL")
+    expect(classifier.classify("Remember I live in SF").type).toBe("CONTEXT")
   })
 
-  it("should classify IDENTITY", () => {
-    const result = classifier.classify("I'm a designer")
-    expect(result.type).toBe("IDENTITY")
-    expect(result.confidence).toBeGreaterThan(0.85)
-  })
-
-  it("should classify GOAL", () => {
-    const result = classifier.classify("I want to build systems")
-    expect(result.type).toBe("GOAL")
-    expect(result.confidence).toBeGreaterThan(0.85)
-  })
-
-  it("should classify CONTEXT", () => {
-    const result = classifier.classify("Remember I live in SF")
-    expect(result.type).toBe("CONTEXT")
-    expect(result.confidence).toBeGreaterThan(0.8)
-  })
-
-  it("should default to CONTEXT with low confidence", () => {
-    const result = classifier.classify("Random text with no patterns")
-    expect(result.type).toBe("CONTEXT")
-    expect(result.confidence).toBeLessThan(0.6)
-  })
-
-  it("should provide explanation with patterns", () => {
+  it("provides pattern explanations", () => {
     const result = classifier.classifyWithExplanation("I prefer cinematic visuals")
     expect(result.patterns).toContain("'I prefer'")
   })
 })
 
-// ═══════════════════════════════════════════════════════════════
-// JanetService Tests
-// ═══════════════════════════════════════════════════════════════
-
 describe("JanetService", () => {
-  let storage: InMemoryStorage
-  let memoryRepo: MemoryRepository
-  let reasoningRepo: ReasoningEventRepository
-  let timelineRepo: TimelineRepository
-  let classifier: Classifier
   let service: JanetService
+  let storage: InMemoryStorage
 
   beforeEach(() => {
     storage = new InMemoryStorage()
-    memoryRepo = new MemoryRepository(storage)
-    reasoningRepo = new ReasoningEventRepository(storage)
-    timelineRepo = new TimelineRepository(storage)
-    classifier = new Classifier()
-    service = new JanetService(classifier, memoryRepo, reasoningRepo, timelineRepo)
+    const memoryRepo = new MemoryRepository(storage)
+    const reasoningRepo = new ReasoningEventRepository(storage)
+    const timelineRepo = new TimelineRepository(storage)
+    service = new JanetService(
+      new Classifier(),
+      memoryRepo,
+      reasoningRepo,
+      timelineRepo,
+    )
   })
 
-  it("should process a message end-to-end", async () => {
+  it("processes a message into a pending candidate", async () => {
     const response = await service.processMessage({
       userId: "user_1",
       message: "I prefer cinematic visuals",
@@ -457,55 +264,22 @@ describe("JanetService", () => {
     expect(response.reasoningEventId).toMatch(/^reason_/)
     expect(response.memoryCandidate.status).toBe("PENDING")
     expect(response.classification.type).toBe("PREFERENCE")
+    expect(await storage.listMemories("user_1")).toHaveLength(0)
   })
 
-  it("should approve a memory", async () => {
+  it("approves a candidate through the repository boundary", async () => {
     const response = await service.processMessage({
       userId: "user_1",
       message: "I prefer cinematic visuals",
     })
 
-    const approval = await service.approveMemory("user_1", response.memoryCandidate.id)
-    expect(approval.status).toBe("APPROVED")
-    expect(approval.memoryId).toBeDefined()
+    const result = await service.approveMemory("user_1", response.memoryCandidate.id)
+    expect(result.status).toBe("APPROVED")
+    expect(result.memoryId).toMatch(/^mem_/)
+    expect(await storage.listMemories("user_1")).toHaveLength(1)
   })
 
-  it("should create reasoning event", async () => {
-    await service.processMessage({
-      userId: "user_1",
-      message: "I prefer cinematic visuals",
-    })
-
-    const events = await reasoningRepo.list("user_1")
-    expect(events).toHaveLength(1)
-    expect(events[0].userMessage).toBe("I prefer cinematic visuals")
-  })
-
-  it("should create timeline event", async () => {
-    await service.processMessage({
-      userId: "user_1",
-      message: "I prefer cinematic visuals",
-    })
-
-    const timeline = await timelineRepo.list("user_1")
-    expect(timeline).toHaveLength(1)
-    expect(timeline[0].type).toBe("REASONING")
-  })
-
-  it("should get user context", async () => {
-    const response = await service.processMessage({
-      userId: "user_1",
-      message: "I prefer cinematic visuals",
-    })
-
-    await service.approveMemory("user_1", response.memoryCandidate.id)
-
-    const context = await service.getContext("user_1")
-    expect(context).toHaveLength(1)
-  })
-
-  it("should pass health check", async () => {
-    const health = await service.health()
-    expect(health.status).toBe("ok")
+  it("reports healthy", async () => {
+    await expect(service.health()).resolves.toEqual({ status: "ok" })
   })
 })

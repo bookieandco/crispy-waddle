@@ -96,7 +96,9 @@ export class InMemoryStorage implements MemoryStorage {
   /**
    * Memory operations
    */
-  async createMemory(data: Omit<Memory, "id">): Promise<Memory> {
+  async createApprovedMemory(
+    data: Omit<Memory, "id"> & { status: "APPROVED"; approvedAt: string },
+  ): Promise<Memory> {
     const id = `mem_${++this.idCounters.memory}`
     const memory: Memory = { id, ...data }
     this.memories.set(id, memory)
@@ -109,14 +111,6 @@ export class InMemoryStorage implements MemoryStorage {
 
   async listMemories(userId: string): Promise<Memory[]> {
     return Array.from(this.memories.values()).filter(m => m.userId === userId)
-  }
-
-  async updateMemory(id: string, updates: Partial<Memory>): Promise<Memory | undefined> {
-    const memory = this.memories.get(id)
-    if (!memory) return undefined
-    const updated = { ...memory, ...updates }
-    this.memories.set(id, updated)
-    return updated
   }
 
   /**
@@ -158,11 +152,6 @@ export class InMemoryStorage implements MemoryStorage {
   }
 
   async listReasoningEvents(userId: string, limit: number = 50): Promise<ReasoningEvent[]> {
-    // Reverse insertion order rather than sorting by timestamp: events
-    // created within the same millisecond (common in tests and fast
-    // request handling) compare equal, which makes a timestamp sort
-    // unstable and can leave older events ahead of newer ones.
-    // Insertion order is always correctly chronological.
     return Array.from(this.reasoningEvents.values())
       .filter(e => e.userId === userId)
       .reverse()
@@ -180,9 +169,6 @@ export class InMemoryStorage implements MemoryStorage {
   }
 
   async listTimeline(userId: string, limit: number = 50): Promise<TimelineEvent[]> {
-    // See listReasoningEvents: reverse insertion order instead of sorting
-    // by timestamp, since same-millisecond events make a timestamp sort
-    // unstable.
     return this.timeline
       .filter(e => e.userId === userId)
       .reverse()
@@ -200,11 +186,9 @@ export class InMemoryStorage implements MemoryStorage {
     lines.push("═══════════════════════════════════════")
     lines.push("")
 
-    // Filter by user if specified
     const filterUser = (item: { userId: string }) =>
       !userId || item.userId === userId
 
-    // Candidates
     const candidateList = Array.from(this.candidates.values()).filter(filterUser)
     lines.push(`Candidates (PENDING): ${candidateList.length}`)
     if (candidateList.length > 0) {
@@ -216,7 +200,6 @@ export class InMemoryStorage implements MemoryStorage {
     }
     lines.push("")
 
-    // Approved Memories
     const memoryList = Array.from(this.memories.values()).filter(filterUser)
     const approved = memoryList.filter(m => m.status === "APPROVED")
     lines.push(`Approved Memories: ${approved.length}`)
@@ -229,7 +212,6 @@ export class InMemoryStorage implements MemoryStorage {
     }
     lines.push("")
 
-    // Reasoning Events
     const reasoningList = Array.from(this.reasoningEvents.values()).filter(
       filterUser
     )
@@ -241,7 +223,6 @@ export class InMemoryStorage implements MemoryStorage {
     }
     lines.push("")
 
-    // Timeline
     const timelineList = this.timeline.filter(filterUser)
     lines.push(`Timeline Events: ${timelineList.length}`)
     if (timelineList.length > 0 && timelineList.length <= 10) {
