@@ -3,3 +3,4 @@ export * from './evidence-hash.js';
 export * from './evidence-store.js';
 export * from './postgres-evidence-store.js';
 export * from './reality.js';
+export * from './reality-admission.js';
