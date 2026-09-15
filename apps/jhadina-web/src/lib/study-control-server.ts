@@ -1,1 +1,1 @@
-export * from '../../../lib/study-control-server'
+export * from '../../lib/study-control-server'
