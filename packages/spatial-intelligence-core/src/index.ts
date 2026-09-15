@@ -1,3 +1,4 @@
+export * from './observation.js';
 export * from './evidence.js';
 export * from './evidence-hash.js';
 export * from './evidence-store.js';
@@ -8,3 +9,4 @@ export * from './postgres-reality-store.js';
 export * from './temporal.js';
 export * from './spatial-pipeline.js';
 export * from './integration.js';
+export * from './gev-adapter.js';
