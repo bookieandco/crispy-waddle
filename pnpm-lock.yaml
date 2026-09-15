@@ -25,6 +25,9 @@ importers:
 
   apps/jhadina-web:
     dependencies:
+      '@jhadina/spatial-intelligence-core':
+        specifier: workspace:*
+        version: link:../../packages/spatial-intelligence-core
       '@jhadina/tv-core':
         specifier: workspace:*
         version: link:../../packages/jhadina-tv-core
@@ -148,6 +151,12 @@ importers:
         specifier: ^19.0.0
         version: 19.2.8(react@19.2.8)
 
+  packages/agent-runtime-core:
+    devDependencies:
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
+
   packages/checkout-orchestrator: {}
 
   packages/commerce-adapters: {}
@@ -155,6 +164,12 @@ importers:
   packages/courier-fleet-core: {}
 
   packages/delivery-compliance-gate: {}
+
+  packages/director-core:
+    devDependencies:
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
 
   packages/energy-opportunity-core:
     devDependencies:
@@ -250,7 +265,21 @@ importers:
         specifier: ^5.1.0
         version: 5.9.3
 
+  packages/jhadina-research-core: {}
+
   packages/jhadina-tv-core: {}
+
+  packages/knowledge-graph:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.12
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
 
   packages/money-core:
     dependencies:
@@ -282,11 +311,19 @@ importers:
 
   packages/offer-engine: {}
 
+  packages/opportunity-core: {}
+
   packages/order-fulfillment-core: {}
 
   packages/payment-core: {}
 
   packages/planning-core:
+    devDependencies:
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
+
+  packages/scheduler-core:
     devDependencies:
       vitest:
         specifier: ^2.1.8
@@ -308,6 +345,18 @@ importers:
         version: 4.1.10(@types/node@20.19.43)(vite@8.2.1)
 
   packages/social-core: {}
+
+  packages/spatial-intelligence-core:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.12
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
 
   packages/staffing-core: {}
 
