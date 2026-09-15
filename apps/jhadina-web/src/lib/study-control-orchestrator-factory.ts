@@ -1,1 +1,1 @@
-export * from '../../../lib/study-control-orchestrator-factory'
+export * from '../../lib/study-control-orchestrator-factory'
