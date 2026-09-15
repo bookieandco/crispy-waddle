@@ -1,0 +1,45 @@
+name: Spatial Conformance
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: spatial-conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spatial-core:
+    name: Spatial core type-check and conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+
+      - name: Spatial type-check
+        run: pnpm --filter @jhadina/spatial-intelligence-core type-check
+
+      - name: Spatial conformance tests
+        run: pnpm --filter @jhadina/spatial-intelligence-core test
