@@ -42,7 +42,6 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
   const dragRef = useRef<{ clipId: string; trackId: string; mode: DragMode; startX: number; originalStart: number; originalDuration: number } | null>(null);
 
   const tracks = timeline.tracks as Track[];
-  const transitions = timeline.transitions;
   const selectedClip = useMemo(() => tracks.flatMap(t => t.clips).find(c => c.id === selectedClipId) ?? null, [tracks, selectedClipId]);
   const timelineWidth = Math.max(durationSeconds * PX_PER_SECOND, 900);
   const currentVersion = timeline.versions.at(-1);
