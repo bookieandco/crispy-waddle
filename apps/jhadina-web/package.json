@@ -12,6 +12,7 @@
     "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {
+    "@jhadina/director-core": "workspace:*",
     "@jhadina/tv-core": "workspace:*",
     "@jhadina/spatial-intelligence-core": "workspace:*",
     "@supabase/ssr": "^0.10.0",
