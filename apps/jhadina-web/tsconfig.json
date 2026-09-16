@@ -8,6 +8,7 @@
       "DOM",
       "DOM.Iterable"
     ],
+    "moduleResolution": "bundler",
     "paths": {
       "@/*": [
         "./src/*"
