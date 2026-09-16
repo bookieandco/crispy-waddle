@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { addTransition, setClipFade, splitClip, type FadeCurve } from '@jhadina/director-core/timeline-editing';
+import { type FadeCurve } from '@jhadina/director-core/timeline-editing';
 import type { EditableTimeline, TimelineClip, TimelineTrack, TimelineVersion, Transition } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
 
