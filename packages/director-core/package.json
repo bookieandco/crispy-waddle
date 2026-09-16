@@ -16,7 +16,9 @@
     "./study-cancellation-registry": "./src/study-cancellation-registry.ts",
     "./study-checkpoint-store": "./src/study-checkpoint-store.ts",
     "./study-resume-controller": "./src/study-resume-controller.ts",
-    "./timeline-editing": "./src/timeline-editing.ts"
+    "./timeline-editing": "./src/timeline-editing.ts",
+    "./timeline-model": "./src/timeline-model.ts",
+    "./timeline-command": "./src/timeline-command.ts"
   },
   "scripts": { "type-check": "tsc --noEmit", "test": "vitest run" },
   "devDependencies": { "vitest": "^2.1.8" }
