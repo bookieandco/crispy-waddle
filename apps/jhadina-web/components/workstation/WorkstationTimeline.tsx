@@ -84,7 +84,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
     setTimeline(current => ({ ...current, tracks: current.tracks.map(track => ({ ...track, clips: track.clips.map(clip => clip.id === clipId ? { ...clip, ...patch } : clip) })) }));
   }
 
-  function pointerDown(event: React.PointerEvent, clip: Clip, mode: DragMode) {
+  function pointerDown(event: React.PointerEvent, clip: TimelineClip, mode: DragMode) {
     if (selectedClip?.id !== clip.id) setSelectedClipId(clip.id);
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = { clipId: clip.id, trackId: clip.trackId, mode, startX: event.clientX, originalStart: clip.startSeconds, originalDuration: clip.durationSeconds };
