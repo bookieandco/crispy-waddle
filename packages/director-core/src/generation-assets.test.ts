@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryGeneratedAssetRepository } from './generation-assets';
+import { InMemoryGeneratedAssetRepository } from './generation-assets.js';
 
 describe('GeneratedAssetRepository', () => {
   it('persists and queries generated assets without exposing storage details', async () => {
@@ -8,7 +8,8 @@ describe('GeneratedAssetRepository', () => {
       id: 'asset-1',
       projectId: 'project-1',
       generationJobId: 'job-1',
-      kind: 'video',
+      providerId: 'provider-1',
+      mediaType: 'video',
       uri: 's3://example/take.mp4',
       mimeType: 'video/mp4',
       modelId: 'video-model',

@@ -5,7 +5,7 @@ import { GenerationSubmissionCoordinator } from './generation-submission-coordin
 import { InMemoryGenerationRepository } from './generation-repository';
 
 function createTask(): GenerationTask {
-  return { id: 'task-coordinator-1', projectId: 'project-1', request: { requestId: 'task-coordinator-1', projectId: 'project-1', modality: 'image', prompt: 'coordinator test', model: { id: 'model-1', providerId: 'provider-1' }, parameters: {} }, idempotencyKey: 'task-coordinator-1', status: 'queued', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' };
+  return { id: 'task-coordinator-1', projectId: 'project-1', request: { requestId: 'task-coordinator-1', projectId: 'project-1', modality: 'image', prompt: 'coordinator test', model: { id: 'model-1', providerId: 'provider-1', name: 'Test Model', version: '1', modalities: ['image'], capabilities: ['text-to-image'] }, parameters: {} }, idempotencyKey: 'task-coordinator-1', status: 'queued', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' };
 }
 function result(task: GenerationTask): GenerationResult { return { requestId: task.request.requestId, providerId: 'provider-1', status: 'completed', assetIds: [], providerJobId: 'provider-job-coordinator-1' }; }
 function provider(task: GenerationTask, recovered?: GenerationResult): GenerationProvider {

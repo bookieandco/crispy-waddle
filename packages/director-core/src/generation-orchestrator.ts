@@ -26,8 +26,12 @@ export type ContinuityLock =
   | 'audio';
 
 export type TakeRequest = {
+  /** Stable Director-owned identity for this take; retries must reuse it. */
+  takeId: string;
   projectId: string;
   sceneId: string;
+  /** Canonical persisted storyboard board; caller supplies an ID, never lineage. */
+  storyboardBoardId: string;
   parentTakeId?: string;
   prompt: string;
   targetRuntimeSeconds?: number;
@@ -75,8 +79,10 @@ export const CINEMATOGRAPHY_PRESETS: CinematographyPreset[] = [
 
 export function buildGenerationBrief(request: TakeRequest) {
   return {
+    takeId: request.takeId,
     projectId: request.projectId,
     sceneId: request.sceneId,
+    storyboardBoardId: request.storyboardBoardId,
     parentTakeId: request.parentTakeId,
     prompt: request.prompt,
     targetRuntimeSeconds: request.targetRuntimeSeconds,
