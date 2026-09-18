@@ -244,25 +244,14 @@ applied, and the full `pnpm type-check`/`lint`/`test`/`build` repo-wide.
 
 ### JH-007
 **Priority:** P1
-**Status:** BLOCKED
-**Branch:** `agent/jhadina-integration-spine` (PRs #13 and #15 — same
-head commit, opened against two different bases)
-**Objective:** N/A until the duplicate is resolved. #13 (based on the
-Shotlist/DirectorOS branch, #8) explicitly says it should be "retargeted
-to main" once #8 merges. #15 (based directly on `main`) is the same
-commits framed more broadly as "Mission Control" — a unified home for
-JANET/DELIA/MARISA/Safeguard/JEI/Music/Opportunity/Social/Money. Neither
-PR has ever had a real build run (only a skipped Supabase-preview check)
-despite being 6,557–7,047 line diffs across 114–123 files.
-**Dependencies:** None technically, but decision-blocked.
-**Human gate:** Which PR is the intended scope — the narrower
-DirectorOS-integration framing (#13) or the broader Mission-Control
-framing (#15)? This is a product-scope call, not a mechanical merge
-decision, and I'm not going to guess given the size of the diff.
-**Definition of Done:** One of the two PRs closed with a note; the
-survivor gets real CI coverage before merge given its size.
-**Verification:** Full `pnpm test`/`lint`/`build`/CI once scope is decided.
-**Next Step:** Ask Dorian which framing is intended.
+**Status:** DONE
+**Branch:** clean reconciliation `repair/jh-007-directoros-current-main` (PR #254, merged `b17adc49f583319027846bf9c510d120ce9b7506`)
+**Objective:** Resolve the duplicate integration-spine scope without importing stale architecture.
+**Dependencies:** None.
+**Human decision:** Dorian selected the narrower DirectorOS / Creator Workstation framing (#13), not the broader Mission Control framing (#15).
+**Definition of Done:** Met. PR #15 was closed without merge with the scope decision recorded. The first replacement (#253) exposed that the historical branch was 1,389 commits behind current `main` and still carried 163 stale commits / 114 files, so it was closed rather than force-merged. PR #254 was reconstructed directly from current `main` and records the selected DirectorOS scope while preserving the newer production Workstation already on main. The obsolete root `apps/jhadina-web/app/**` route tree, parallel ActionExecutor/orchestrator authority, unrelated Evolution/Money changes, and Mission Control framing were intentionally not resurrected.
+**Verification:** GitHub verified PR #254 merged into `main` at `b17adc49f583319027846bf9c510d120ce9b7506`. This reconciliation changed documentation only because current `main` already contains the superseding DirectorOS Workstation implementation; no stale runtime code was reintroduced.
+**Next Step:** None — done.
 
 ---
 
