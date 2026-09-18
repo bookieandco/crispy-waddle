@@ -570,7 +570,7 @@ JH-021's completion report.
 
 ### JH-026
 **Priority:** P2
-**Status:** BLOCKED
+**Status:** QUEUED
 **Branch:** `feat/jhadina-growth-engine` (PR #7) —
 `apps/jhadina-studio-native/**`, `apps/jhadina-web/src/lib/studio/**`,
 `services/{wav2lip,physics-service,rig-service,tracking-service,
@@ -580,16 +580,8 @@ character DNA/appearance/behavior runtime, physics, lip-sync,
 voice-sync, rig/tracking, native Swift AV code, and five new Python
 microservices.
 **Dependencies:** JH-001
-**Human gate:** By far the largest and most speculative of the
-deferred surfaces — native mobile code plus multiple new deployable
-services. Given `docs/JHADINA_WORK_QUEUE.md`'s EXPERIMENT lane rule
-("nothing here is authorized to become FOUNDATION or INTEGRATION
-without an explicit human decision"), this needs a human call on lane
-placement and deployment/infra implications before any implementation
-work, not just a merge-order audit. Explicitly left BLOCKED
-(2026-08-13) rather than promoted — evidence above stays as-is until
-that decision is made.
-**Next Step:** Await human scoping decision, then DISCOVER/AUDIT.
+**Human decision (2026-09-18):** Approved for the subsystem. The Studio AI actor/video pipeline belongs inside the Director/Jhadina subsystem rather than remaining a standalone EXPERIMENT. GPU-heavy media processing must stay behind subsystem adapters/services; this decision does not authorize a parallel orchestration, policy, memory, or execution authority outside Jhadina's canonical governance spine.
+**Next Step:** DISCOVER/AUDIT the old PR #7 implementation against current Director/Shotlist/Media architecture, then reconstruct only compatible components from current main. Do not merge the stale branch wholesale.
 
 ### JH-027
 **Priority:** P2
