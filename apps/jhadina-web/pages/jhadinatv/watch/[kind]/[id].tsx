@@ -1,25 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter } from 'next/router';
 import type { MediaKind, MediaSource, MediaTitle, PlaybackTarget, MediaSessionState, LocalPlaybackAdapter, UnifiedMediaSession } from '@jhadina/tv-core';
-import { CatalogRegistry, assertAuthorizedSource, assertCastableSource, createAuthorizedCatalogAdapter, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createUnifiedMediaSession } from '@jhadina/tv-core';
+import { assertAuthorizedSource, assertCastableSource, assertMediaRight, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createUnifiedMediaSession } from '@jhadina/tv-core';
 import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
 import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
-const titles: MediaTitle[] = [
-  { id: 'demo-noir', kind: 'movie', title: 'Midnight Signal', overview: 'A detective follows a strange radio transmission through a city that never sleeps.', year: 2026, runtimeMinutes: 108, genres: ['Crime', 'Mystery', 'Drama'], rating: 8.2, availability: 'public-domain' },
-  { id: 'demo-comedy', kind: 'movie', title: 'Second Take', overview: 'Two friends turn a failed audition into an unexpectedly funny road trip.', year: 2025, runtimeMinutes: 96, genres: ['Comedy', 'Road', 'Drama'], rating: 7.8, availability: 'public-domain' },
-  { id: 'demo-series', kind: 'tv', title: 'After the Last Train', overview: 'A late-night station becomes the meeting point for four strangers with unfinished stories.', year: 2026, genres: ['Drama', 'Mystery'], rating: 8.6, availability: 'external-link' },
-  { id: 'demo-action', kind: 'movie', title: 'Breakline', overview: 'A courier has one night to cross the city and expose the people chasing him.', year: 2025, runtimeMinutes: 112, genres: ['Action', 'Thriller', 'Crime'], rating: 8.0, availability: 'licensed' },
-];
-const client = { async search(query: string) { return titles.filter((title) => title.id === query); }, async sources(_titleId: string): Promise<MediaSource[]> { return []; } };
-function makeRegistry() { const registry = new CatalogRegistry(); registry.register(createAuthorizedCatalogAdapter(client, { id: 'jhadina-demo', name: 'Jhadina Demo Catalog' })); return registry; }
 type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
 
 export default function JhadinaTVWatchPage() {
-  const router = useRouter(); const videoRef = useRef<HTMLVideoElement | null>(null); const registry = useMemo(makeRegistry, []); const sessionRef = useRef<UnifiedMediaSession | null>(null);
+  const router = useRouter(); const videoRef = useRef<HTMLVideoElement | null>(null); const sessionRef = useRef<UnifiedMediaSession | null>(null);
   const { kind, id } = router.query as { kind?: MediaKind; id?: string }; const [title, setTitle] = useState<MediaTitle | null>(null); const [source, setSource] = useState<MediaSource | null>(null); const [error, setError] = useState<string | null>(null);
   const [casting, setCasting] = useState(false); const [target, setTarget] = useState<PlaybackTarget | null>(null); const [targets, setTargets] = useState<PlaybackTarget[]>([]); const [pipSupported, setPipSupported] = useState(false); const [pipActive, setPipActive] = useState(false); const [sessionState, setSessionState] = useState<MediaSessionState | null>(null);
-  useEffect(() => { if (!router.isReady || !kind || !id) return; let active = true; registry.search({ query: id }).then(async (results) => { const match = results.find(({ title: candidate }) => candidate.id === id && candidate.kind === kind); if (!match) throw new Error('Title is not available from the configured catalog.'); const resolved = await registry.resolveSources(match.providerId, match.title.id); if (!active) return; setTitle(match.title); if (resolved[0]) setSource(assertAuthorizedSource(resolved[0].source)); }).catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Unable to load this title.')); return () => { active = false; }; }, [id, kind, registry, router.isReady]);
+  useEffect(() => { if (!router.isReady || !kind || !id) return; let active = true; fetch(`/api/jhadinatv/search?q=${encodeURIComponent(id)}`).then((response) => response.json()).then(async ({ titles }: { titles: MediaTitle[] }) => { const match = titles.find((candidate) => candidate.id === id && candidate.kind === kind); if (!match || !match.providerId) throw new Error('Title is not available from the configured catalog.'); const response = await fetch(`/api/jhadinatv/sources?provider=${encodeURIComponent(match.providerId)}&id=${encodeURIComponent(match.id)}`); const { sources } = await response.json() as { sources: Array<{ providerId: string; source: MediaSource }> }; if (!active) return; setTitle(match); if (sources?.[0]) setSource(assertMediaRight(assertAuthorizedSource(sources[0].source), 'playback')); }).catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Unable to load this title.')); return () => { active = false; }; }, [id, kind, router.isReady]);
   useEffect(() => {
     const video = videoRef.current; if (!video || !source || !title) return; assertCastableSource(source.url);
     const snapshot = (): MediaSessionState => ({ titleId: title.id, kind: title.kind, sourceUrl: source.url, positionSeconds: video.currentTime, durationSeconds: Number.isFinite(video.duration) ? video.duration : undefined, playing: !video.paused, volume: video.volume, target: { id: 'local', name: 'This device', transport: 'local' } });
