@@ -3,6 +3,7 @@ import {
   CatalogRegistry,
   assertAuthorizedSource,
   assertCastableSource,
+  assertMediaRight,
   assertPlayableSource,
   buildMediaKnowledge,
   buildTransferCommand,
@@ -71,6 +72,26 @@ describe('JhadinaTV production contracts', () => {
     };
     expect(assertAuthorizedSource(source, new Date('2027-01-01T00:00:00.000Z'), 'US')).toBe(source);
     expect(() => assertAuthorizedSource(source, new Date('2027-01-01T00:00:00.000Z'), 'CA')).toThrow(/territory/);
+  });
+
+  it('requires explicit scoped rights for media operations', () => {
+    const source: MediaSource = {
+      id: 's-rights',
+      titleId: 'alpha',
+      kind: 'hls',
+      url: 'https://media.example/video.m3u8',
+      authorization: {
+        status: 'authorized',
+        rights: ['playback', 'casting', 'transcription'],
+        rightsEvidenceIds: ['license-1'],
+      },
+    };
+    expect(assertMediaRight(source, 'playback')).toBe(source);
+    expect(assertMediaRight(source, 'casting')).toBe(source);
+    expect(assertMediaRight(source, 'transcription')).toBe(source);
+    expect(() => assertMediaRight(source, 'download')).toThrow(/does not grant download/);
+    expect(() => assertMediaRight(source, 'ai-analysis')).toThrow(/does not grant ai-analysis/);
+    expect(() => assertMediaRight(source, 'republication')).toThrow(/does not grant republication/);
   });
 
   it('produces deterministic recommendation ordering and explicit-preference weighting', () => {
