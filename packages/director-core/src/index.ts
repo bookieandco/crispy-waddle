@@ -43,3 +43,4 @@ export * from './studio-tracking-provider';
 export * from './studio-character-replacement';
 export * from './studio-voice-sync';
 export * from './studio-rig-animation';
+export * from './studio-secondary-physics';
