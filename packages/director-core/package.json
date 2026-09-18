@@ -25,7 +25,8 @@
     "./studio-character-replacement": "./src/studio-character-replacement.ts",
     "./studio-voice-sync": "./src/studio-voice-sync.ts",
     "./studio-rig-animation": "./src/studio-rig-animation.ts",
-    "./studio-secondary-physics": "./src/studio-secondary-physics.ts"
+    "./studio-secondary-physics": "./src/studio-secondary-physics.ts",
+    "./studio-qc": "./src/studio-qc.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
