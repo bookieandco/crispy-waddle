@@ -21,7 +21,8 @@
     "./timeline-command": "./src/timeline-command.ts",
     "./studio-contracts": "./src/studio-contracts.ts",
     "./studio-governed-action": "./src/studio-governed-action.ts",
-    "./studio-tracking-provider": "./src/studio-tracking-provider.ts"
+    "./studio-tracking-provider": "./src/studio-tracking-provider.ts",
+    "./studio-character-replacement": "./src/studio-character-replacement.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
