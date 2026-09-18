@@ -20,7 +20,8 @@
     "./timeline-model": "./src/timeline-model.ts",
     "./timeline-command": "./src/timeline-command.ts",
     "./studio-contracts": "./src/studio-contracts.ts",
-    "./studio-governed-action": "./src/studio-governed-action.ts"
+    "./studio-governed-action": "./src/studio-governed-action.ts",
+    "./studio-tracking-provider": "./src/studio-tracking-provider.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
