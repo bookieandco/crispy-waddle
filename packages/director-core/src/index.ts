@@ -39,3 +39,4 @@ export * from './srt-counter-provider';
 export * from './timeline-command';
 export * from './studio-contracts';
 export * from './studio-governed-action';
+export * from './studio-tracking-provider';
