@@ -138,3 +138,10 @@ export {
   evidenceForClaim,
   explainRecommendation,
 } from './media-intelligence';
+
+export type { JhadinaMediaContextPort, JhadinaTVRuntime } from './runtime';
+export { createJhadinaTVRuntime } from './runtime';
+export type { ViewingMemoryProposal, ViewingMemoryProposalPort } from './viewing-memory';
+export { proposeViewingMemory, toViewingMemoryProposal } from './viewing-memory';
+export type { MediaPerceptionAdapter } from './perception';
+export { perceiveAuthorizedMedia } from './perception';
