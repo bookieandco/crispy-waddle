@@ -270,7 +270,7 @@ importers:
 
   packages/jhadina-research-core: {}
 
-  packages/jhadina-tv-core: {}
+  packages/jhadina-tv-core:\n    devDependencies:\n      typescript:\n        specifier: ^5.1.0\n        version: 5.9.3\n      vitest:\n        specifier: ^2.1.8\n        version: 2.1.9(@types/node@20.19.43)
 
   packages/knowledge-graph:
     devDependencies:

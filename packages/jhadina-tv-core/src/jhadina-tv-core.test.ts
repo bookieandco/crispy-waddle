@@ -11,6 +11,9 @@ import {
   createDeterministicMediaAdvisor,
   createInMemoryViewingSignalStore,
   createMediaIntelligenceSnapshot,
+  createJhadinaTVRuntime,
+  proposeViewingMemory,
+  perceiveAuthorizedMedia,
   createUnifiedMediaSession,
   evidenceForClaim,
   recommendTitles,
@@ -134,6 +137,47 @@ describe('JhadinaTV production contracts', () => {
     const advisor = createDeterministicMediaAdvisor();
     await expect(advisor.recommend({ query: 'science', knowledge: [knowledge] }, [title('alpha')])).resolves.toEqual([{ titleId: 'alpha', score: 16, reasons: ['Matches your search for science', 'Supported by indexed media evidence'], evidenceIds: ['e1'] }]);
     expect(createMediaIntelligenceSnapshot([knowledge], [title('alpha')], { query: 'science' }).recommendations[0]?.evidenceIds).toEqual(['e1']);
+  });
+
+  it('routes Ask Jhadina recommendations through context and evidence', async () => {
+    const registry = new CatalogRegistry();
+    registry.register(provider('one', [title('alpha')]));
+    const runtime = createJhadinaTVRuntime(registry, createDeterministicMediaAdvisor(), {
+      getViewingSignals: async () => [{ titleId: 'alpha', completed: true, progressMinutes: 90, liked: true, kind: 'explicit-preference' }],
+      getMediaKnowledge: async () => [buildMediaKnowledge({ media: title('alpha'), evidence: [{ id: 'e-runtime', kind: 'catalog', sourceId: 'one', observedAt: '2026-09-18T00:00:00Z', confidence: 'high' }] })],
+    });
+    const result = await runtime.ask('science');
+    expect(result[0]?.titleId).toBe('alpha');
+    expect(result[0]?.evidenceIds).toEqual(['e-runtime']);
+  });
+
+  it('keeps observed viewing as an approval-required memory proposal', async () => {
+    const proposed: unknown[] = [];
+    const proposal = await proposeViewingMemory(
+      { titleId: 'alpha', completed: true, progressMinutes: 90, liked: true, kind: 'observed-behavior', observedAt: '2026-09-18T00:00:00Z' },
+      { propose: async (value) => { proposed.push(value); } },
+    );
+    expect(proposal?.requiresApproval).toBe(true);
+    expect(proposed).toHaveLength(1);
+    await expect(proposeViewingMemory(
+      { titleId: 'beta', completed: false, progressMinutes: 2, kind: 'temporary-intent' },
+      { propose: async (value) => { proposed.push(value); } },
+    )).resolves.toBeNull();
+    expect(proposed).toHaveLength(1);
+  });
+
+  it('requires AI-analysis rights before media perception', async () => {
+    const source: MediaSource = {
+      id: 'analysis-source', titleId: 'alpha', kind: 'hls', url: 'https://media.example/a.m3u8',
+      authorization: { status: 'authorized', rights: ['playback'] },
+    };
+    await expect(perceiveAuthorizedMedia(title('alpha'), source, {})).rejects.toThrow(/ai-analysis/);
+    const authorized = { ...source, authorization: { status: 'authorized' as const, rights: ['playback', 'ai-analysis' as const] } };
+    const knowledge = await perceiveAuthorizedMedia(title('alpha'), authorized, {
+      transcript: async () => ({ evidence: [{ id: 'transcript-1', kind: 'transcript', sourceId: 'analysis-source', observedAt: '2026-09-18T00:00:00Z', confidence: 'high' }], entities: ['Hero'] }),
+    });
+    expect(knowledge.entities).toEqual(['hero']);
+    expect(knowledge.evidence.map((item) => item.id)).toEqual(['transcript-1']);
   });
 
   it('builds transfer commands without granting authority', () => {

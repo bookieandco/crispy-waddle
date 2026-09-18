@@ -4,8 +4,8 @@ on:
   pull_request:
     paths:
       - 'packages/jhadina-tv-core/**'
-      - 'apps/jhadina-web/pages/jhadinatv/**'
-      - 'apps/jhadina-web/components/jhadinatv/**'
+      - 'apps/jhadina-web/pages/jhadinatv/**'\n      - 'apps/jhadina-web/pages/api/jhadinatv/**'\n      - 'apps/jhadina-web/lib/jhadinatv/**'
+      - 'apps/jhadina-web/src/components/jhadinaTv/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -37,7 +37,7 @@ jobs:
       - name: Test JhadinaTV
         run: |
           set -o pipefail
-          pnpm --filter @jhadina/music-core exec vitest run --root ../jhadina-tv-core src/jhadina-tv-core.test.ts 2>&1 | tee /tmp/jhadinatv-test.log
+          pnpm --filter @jhadina/tv-core test 2>&1 | tee /tmp/jhadinatv-test.log
       - name: Upload JhadinaTV diagnostics
         if: always()
         uses: actions/upload-artifact@v4

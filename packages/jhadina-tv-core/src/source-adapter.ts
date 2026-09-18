@@ -56,6 +56,10 @@ export function assertAuthorizedSource(source: MediaSource, now = new Date(), te
   if (authorization.expiresAt && new Date(authorization.expiresAt).getTime() <= now.getTime()) {
     throw new Error(`JhadinaTV source authorization has expired: ${source.id}`);
   }
+  if (authorization.territories?.length) {
+    if (!territory) throw new Error(`JhadinaTV source requires territory context: ${source.id}`);
+    if (!authorization.territories.includes(territory)) throw new Error(`JhadinaTV source is not authorized for territory ${territory}: ${source.id}`);
+  }
   return source;
 }
 
