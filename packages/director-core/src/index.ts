@@ -41,3 +41,4 @@ export * from './studio-contracts';
 export * from './studio-governed-action';
 export * from './studio-tracking-provider';
 export * from './studio-character-replacement';
+export * from './studio-voice-sync';
