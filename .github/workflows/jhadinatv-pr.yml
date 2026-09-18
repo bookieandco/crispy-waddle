@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'packages/jhadina-tv-core/**'
-      - 'apps/jhadina-web/pages/jhadinatv/**'
+      - 'apps/jhadina-web/pages/jhadinatv/**'\n      - 'apps/jhadina-web/pages/api/jhadinatv/**'\n      - 'apps/jhadina-web/lib/jhadinatv/**'
       - 'apps/jhadina-web/src/components/jhadinaTv/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
