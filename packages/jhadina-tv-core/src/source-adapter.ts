@@ -1,11 +1,25 @@
 import type { MediaTitle } from './index';
 
+export type MediaRight =
+  | 'playback'
+  | 'casting'
+  | 'download'
+  | 'transcription'
+  | 'subtitle-processing'
+  | 'ai-analysis'
+  | 'scene-extraction'
+  | 'clipping'
+  | 'transformation'
+  | 'republication'
+  | 'commercial-use';
+
 export interface MediaSourceAuthorization {
   status: 'authorized' | 'pending' | 'revoked';
   authorizedAt?: string;
   expiresAt?: string;
   territories?: string[];
   rightsEvidenceIds?: string[];
+  rights?: MediaRight[];
 }
 
 export interface MediaSource {
@@ -41,6 +55,20 @@ export function assertAuthorizedSource(source: MediaSource, now = new Date(), te
   }
   if (authorization.expiresAt && new Date(authorization.expiresAt).getTime() <= now.getTime()) {
     throw new Error(`JhadinaTV source authorization has expired: ${source.id}`);
+  }
+  return source;
+}
+
+
+export function assertMediaRight(
+  source: MediaSource,
+  right: MediaRight,
+  now = new Date(),
+  territory?: string,
+): MediaSource {
+  assertAuthorizedSource(source, now, territory);
+  if (!source.authorization?.rights?.includes(right)) {
+    throw new Error(`JhadinaTV source does not grant ${right}: ${source.id}`);
   }
   return source;
 }
