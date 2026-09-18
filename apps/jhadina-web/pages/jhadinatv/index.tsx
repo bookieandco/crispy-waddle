@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MediaTitle } from '@jhadina/tv-core';
-import { JHADINA_TV_ROUTES, recommendTitles } from '@jhadina/tv-core';
+import { JHADINA_TV_ROUTES } from '@jhadina/tv-core';
 
 export default function JhadinaTVHome() {
   const [query, setQuery] = useState('');
@@ -8,12 +8,11 @@ export default function JhadinaTVHome() {
 
   useEffect(() => {
     let active = true;
-    fetch(`/api/jhadinatv/search?q=${encodeURIComponent(query)}`).then((response) => response.json()).then(({ titles }) => { if (active) setCatalog(titles); });
+    const endpoint = query.trim() ? `/api/jhadinatv/ask?q=${encodeURIComponent(query)}` : '/api/jhadinatv/search?q=';\n    fetch(endpoint).then((response) => response.json()).then(({ titles }) => { if (active) setCatalog(titles); });
     return () => { active = false; };
   }, [query]);
 
-  const recommendations = useMemo(() => recommendTitles(catalog, { query }), [catalog, query]);
-  const visible = recommendations.length ? recommendations.map(({ title }) => title) : catalog;
+  const visible = useMemo(() => catalog, [catalog]);
 
   return (
     <main style={{ minHeight: '100vh', padding: 32, background: '#08090c', color: '#f7f7f8', fontFamily: 'system-ui, sans-serif' }}>
