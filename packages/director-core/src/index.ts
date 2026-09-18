@@ -38,3 +38,4 @@ export * from './editing-study-lessons';
 export * from './srt-counter-provider';
 export * from './timeline-command';
 export * from './studio-contracts';
+export * from './studio-governed-action';

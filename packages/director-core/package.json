@@ -19,7 +19,8 @@
     "./timeline-editing": "./src/timeline-editing.ts",
     "./timeline-model": "./src/timeline-model.ts",
     "./timeline-command": "./src/timeline-command.ts",
-    "./studio-contracts": "./src/studio-contracts.ts"
+    "./studio-contracts": "./src/studio-contracts.ts",
+    "./studio-governed-action": "./src/studio-governed-action.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
