@@ -26,7 +26,8 @@
     "./studio-voice-sync": "./src/studio-voice-sync.ts",
     "./studio-rig-animation": "./src/studio-rig-animation.ts",
     "./studio-secondary-physics": "./src/studio-secondary-physics.ts",
-    "./studio-qc": "./src/studio-qc.ts"
+    "./studio-qc": "./src/studio-qc.ts",
+    "./studio-tracking-worker-adapter": "./src/studio-tracking-worker-adapter.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
