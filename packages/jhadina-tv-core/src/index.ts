@@ -96,8 +96,8 @@ export const JHADINA_TV_ROUTES = {
   watch: (kind: MediaKind, id: string) => `/jhadinatv/watch/${kind}/${id}`,
 };
 
-export type { MediaSource, MediaSourceAdapter, MediaSourceAuthorization } from './source-adapter';
-export { assertAuthorizedSource, assertPlayableSource } from './source-adapter';
+export type { MediaRight, MediaSource, MediaSourceAdapter, MediaSourceAuthorization } from './source-adapter';
+export { assertAuthorizedSource, assertMediaRight, assertPlayableSource } from './source-adapter';
 export type { CastingManager, MediaSessionCommand, MediaSessionController, MediaSessionState, PlaybackTarget, PlaybackTransport } from './casting';
 export { assertCastableSource, buildTransferCommand, createCastingManager } from './casting';
 export type { CatalogProvider, CatalogSearchOptions, CatalogSearchResult, ResolvedMediaSource } from './catalog';
