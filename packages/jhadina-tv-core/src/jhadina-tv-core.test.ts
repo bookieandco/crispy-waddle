@@ -61,6 +61,18 @@ describe('JhadinaTV production contracts', () => {
     expect(() => assertAuthorizedSource({ ...authorized, authorization: { ...authorized.authorization, expiresAt: '2020-01-01T00:00:00.000Z' } }, new Date('2027-01-01T00:00:00.000Z'))).toThrow(/expired/);
   });
 
+  it('rejects authorized sources outside their permitted territory', () => {
+    const source: MediaSource = {
+      id: 's-territory',
+      titleId: 'alpha',
+      kind: 'hls',
+      url: 'https://media.example/video.m3u8',
+      authorization: { status: 'authorized', territories: ['US'] },
+    };
+    expect(assertAuthorizedSource(source, new Date('2027-01-01T00:00:00.000Z'), 'US')).toBe(source);
+    expect(() => assertAuthorizedSource(source, new Date('2027-01-01T00:00:00.000Z'), 'CA')).toThrow(/territory/);
+  });
+
   it('produces deterministic recommendation ordering and explicit-preference weighting', () => {
     const catalog = [title('zeta'), title('alpha')];
     const request = { query: 'science', signals: [{ titleId: 'alpha', completed: false, progressMinutes: 2, liked: true, kind: 'explicit-preference' as const }] };

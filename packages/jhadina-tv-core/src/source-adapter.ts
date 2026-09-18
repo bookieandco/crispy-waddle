@@ -33,7 +33,7 @@ export function assertPlayableSource(source: MediaSource): MediaSource {
   return source;
 }
 
-export function assertAuthorizedSource(source: MediaSource, now = new Date()): MediaSource {
+export function assertAuthorizedSource(source: MediaSource, now = new Date(), territory?: string): MediaSource {
   assertPlayableSource(source);
   const authorization = source.authorization;
   if (!authorization || authorization.status !== 'authorized') {
