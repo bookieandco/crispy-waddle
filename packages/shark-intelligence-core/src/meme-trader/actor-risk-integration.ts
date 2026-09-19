@@ -5,8 +5,9 @@ import type { LPControlRisk } from './lp-control-risk'
 import type { RugProtectionResult } from './rug-protection'
 import type { LPWithdrawalAttribution } from './lp-withdrawal-attribution'
 import type { MigrationAwareClassification } from './migration-classification'
+import type { MeteoraDlmmWithdrawalAttribution } from './meteora-withdrawal-attribution'
 
-export type ActorRiskIntelligence = { launchBehavior?: LaunchBehaviorSignal[]; outcomeHistory?: ActorOutcomeHistory[]; lpControlRisk?: LPControlRisk; rugProtection?: RugProtectionResult; verifiedLPWithdrawals?: LPWithdrawalAttribution[]; migrationClassifications?: Record<string, MigrationAwareClassification>; top10HolderPct?: number; bundledSupplyRisk?: number; profitableTrackedWallets?: number; accumulatingWallets?: number; distributingWallets?: number; evidenceIds?: string[] }
+export type ActorRiskIntelligence = { launchBehavior?: LaunchBehaviorSignal[]; outcomeHistory?: ActorOutcomeHistory[]; lpControlRisk?: LPControlRisk; rugProtection?: RugProtectionResult; verifiedLPWithdrawals?: LPWithdrawalAttribution[]; verifiedMeteoraWithdrawals?: MeteoraDlmmWithdrawalAttribution[]; migrationClassifications?: Record<string, MigrationAwareClassification>; top10HolderPct?: number; bundledSupplyRisk?: number; profitableTrackedWallets?: number; accumulatingWallets?: number; distributingWallets?: number; evidenceIds?: string[] }
 const clamp = (n: number) => Math.max(0, Math.min(1, n))
 
 const isVerifiedMigration = (classification?: MigrationAwareClassification) => Boolean(
@@ -19,6 +20,7 @@ export function applyActorRiskIntelligence(assessment: MemeTradeAssessment, acto
   const signals = actor.launchBehavior ?? []
   const histories = actor.outcomeHistory ?? []
   const verifiedWithdrawals = (actor.verifiedLPWithdrawals ?? []).filter(item => item.developerAssociation === 'MATCHED' && item.ownerBefore && item.lpStateEventId && item.lpTokenAccount && item.confidence >= 0.7)
+  const verifiedMeteoraWithdrawals = (actor.verifiedMeteoraWithdrawals ?? []).filter(item => (item.association === 'DIRECT_DEPLOYER' || item.association === 'CONTROLLED_DEVELOPER') && item.confidence >= 0.7)
   const migrationClassifications = actor.migrationClassifications ?? {}
   const migrationSuppressedWithdrawals = verifiedWithdrawals.filter(item => {
     const classification = migrationClassifications[item.raydiumWithdrawalEventId ?? ''] ?? migrationClassifications[item.signature]
@@ -32,7 +34,9 @@ export function applyActorRiskIntelligence(assessment: MemeTradeAssessment, acto
   const signalBadRate = signalConfidence ? signals.reduce((sum, s) => sum + (s.rugRate ?? 0) * s.confidence, 0) / signalConfidence : 0
   const historyConfidence = histories.reduce((sum, h) => sum + h.confidence, 0)
   const historyBadRate = historyConfidence ? histories.reduce((sum, h) => sum + (h.rugRate + h.pumpAndDumpRate) * h.confidence, 0) / historyConfidence : 0
-  const developerWithdrawalRisk = developerWithdrawals.length > 0 ? 0.8 : 0
+  // Venue-independent escalation: multiple venue observations do not stack above the same
+  // developer-liquidity-control ceiling, avoiding Raydium/PumpSwap + DLMM double counting.
+  const developerWithdrawalRisk = developerWithdrawals.length > 0 || verifiedMeteoraWithdrawals.length > 0 ? 0.8 : 0
   const deployerRisk = clamp(Math.max(signalBadRate, historyBadRate, developerWithdrawalRisk))
   const concentrationRisk = clamp((actor.top10HolderPct ?? 0) / 100)
   const bundledSupplyRisk = clamp(actor.bundledSupplyRisk ?? 0)
@@ -41,6 +45,7 @@ export function applyActorRiskIntelligence(assessment: MemeTradeAssessment, acto
   supplyControl.score = clamp(.3 * supplyControl.deployerRisk + .3 * supplyControl.concentrationRisk + .2 * supplyControl.bundledSupplyRisk + .2 * supplyControl.liquidityControlRisk)
   if (deployerRisk > 0) supplyControl.reasons.push(`historical-actor-bad-launch-rate:${deployerRisk.toFixed(3)}`)
   if (developerWithdrawals.length > 0) supplyControl.reasons.push(`verified-developer-lp-withdrawal:${developerWithdrawals.length}`)
+  if (verifiedMeteoraWithdrawals.length > 0) supplyControl.reasons.push(`verified-developer-meteora-dlmm-withdrawal:${verifiedMeteoraWithdrawals.length}`)
   if (migrationSuppressedWithdrawals.length > 0) supplyControl.reasons.push(`migration-suppressed-developer-lp-withdrawal:${migrationSuppressedWithdrawals.length}`)
   if (histories.some(h => h.outcomeCoverage < 0.5)) supplyControl.reasons.push('actor-outcome-history-has-limited-label-coverage')
   if (concentrationRisk > 0.45) supplyControl.reasons.push('top-holder-concentration-from-actor-analysis')
@@ -62,6 +67,6 @@ export function applyActorRiskIntelligence(assessment: MemeTradeAssessment, acto
   else risk.overallRisk = clamp(.15 * risk.marketIntegrity + .12 * risk.liquidityRisk + .14 * risk.supplyControlRisk + .10 * risk.holderConcentrationRisk + .08 * risk.walletCohortRisk + .10 * risk.socialManipulationRisk + .07 * risk.narrativeFragilityRisk + .06 * risk.developerRisk + .05 * risk.contractRisk + .05 * risk.networkRisk + .04 * (1 - risk.attentionQuality) + .04 * risk.exitLiquidityRisk)
   risk.band = risk.overallRisk >= .8 ? 'blocked' : risk.overallRisk >= .6 ? 'high-risk' : risk.overallRisk >= .4 ? 'watch' : 'candidate'
 
-  const evidenceIds = [...new Set([...assessment.evidenceIds, ...(actor.evidenceIds ?? []), ...signals.flatMap(s => s.evidenceIds), ...histories.flatMap(h => h.evidenceIds), ...verifiedWithdrawals.flatMap(w => w.evidenceIds), ...migrationSuppressedWithdrawals.flatMap(w => w.evidenceIds), ...Object.values(migrationClassifications).flatMap(c => c.evidenceIds), ...(actor.lpControlRisk?.evidenceIds ?? []), ...(actor.rugProtection?.evidenceIds ?? [])])]
-  return { ...assessment, supplyControl, holderCohort, riskAssessment: risk, evidenceIds, assessmentVersion: 'meme-trader-assessment-v5-migration-aware-actor-risk' }
+  const evidenceIds = [...new Set([...assessment.evidenceIds, ...(actor.evidenceIds ?? []), ...signals.flatMap(s => s.evidenceIds), ...histories.flatMap(h => h.evidenceIds), ...verifiedWithdrawals.flatMap(w => w.evidenceIds), ...verifiedMeteoraWithdrawals.flatMap(w => [...w.evidenceIds]), ...migrationSuppressedWithdrawals.flatMap(w => w.evidenceIds), ...Object.values(migrationClassifications).flatMap(c => c.evidenceIds), ...(actor.lpControlRisk?.evidenceIds ?? []), ...(actor.rugProtection?.evidenceIds ?? [])])]
+  return { ...assessment, supplyControl, holderCohort, riskAssessment: risk, evidenceIds, assessmentVersion: 'meme-trader-assessment-v6-multi-venue-liquidity-control' }
 }
