@@ -23,16 +23,23 @@ export async function persistSharkLaunch(client: SupabaseClient, collection: Sol
   }, { onConflict: 'chain_id,token_address', ignoreDuplicates: false })
   if (error) throw new Error(`SHARK launch persistence failed: ${error.message}`)
 
-  const edges = collection.ingested.graph.edges.map(edge => ({
-    edge_id: edge.edgeId,
-    launch_id: launch.launchId,
-    token_address: launch.tokenAddress,
-    actor_id: edge.toId,
-    actor_kind: edge.toKind,
-    role: edge.role,
-    observed_at: edge.observedAt,
-    evidence_ids: edge.evidenceIds,
-  }))
+  const nodes = new Map(collection.ingested.graph.nodes.map(node => [node.id, node]))
+  const tokenNodeId = `token:${launch.chainId}:${launch.tokenAddress}`
+  const edges = collection.ingested.graph.edges.flatMap(edge => {
+    const actorNodeId = edge.from === tokenNodeId ? edge.to : edge.from
+    const actor = nodes.get(actorNodeId)
+    if (!actor || actor.kind === 'token') return []
+    return [{
+      edge_id: edge.id,
+      launch_id: launch.launchId,
+      token_address: launch.tokenAddress,
+      actor_id: actor.id.replace(/^(wallet|developer|organization|cluster):/, ''),
+      actor_kind: actor.kind,
+      role: edge.relation,
+      observed_at: edge.observedAt,
+      evidence_ids: edge.evidenceIds,
+    }]
+  })
   if (edges.length) {
     const { error: edgeError } = await client.from('jhadina_token_actor_edges').upsert(edges, { onConflict: 'edge_id', ignoreDuplicates: true })
     if (edgeError) throw new Error(`SHARK actor-edge persistence failed: ${edgeError.message}`)
