@@ -13,7 +13,7 @@ create table if not exists public.jhadina_token_launches (
   outcome text not null default 'UNKNOWN',
   evidence_ids text[] not null default '{}',
   source text not null,
-  observation_id text not null unique,
+  observation_id text unique,
   signature text,
   slot bigint,
   created_at timestamptz not null default now(),
