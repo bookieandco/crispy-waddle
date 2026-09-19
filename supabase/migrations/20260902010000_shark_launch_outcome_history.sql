@@ -1,3 +1,28 @@
+-- Base launch identity must exist before outcome-history foreign keys are created.
+-- Kept idempotent so databases that already received the later durable-ingestion
+-- migration remain safe on replay.
+create table if not exists public.jhadina_token_launches (
+  launch_id text primary key,
+  chain_id text not null,
+  token_address text not null,
+  deployer_wallet_id text,
+  developer_entity_id text,
+  cluster_id text,
+  launched_at timestamptz not null,
+  launchpad text,
+  initial_liquidity_usd numeric,
+  outcome text not null default 'UNKNOWN',
+  evidence_ids text[] not null default '{}',
+  source text not null default 'unknown',
+  observation_id text unique,
+  signature text,
+  slot bigint,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint jhadina_token_launches_outcome_check check (outcome in ('UNKNOWN','HEALTHY','RUG','FAILED','PUMP_AND_DUMP')),
+  constraint jhadina_token_launches_identity_unique unique (chain_id, token_address)
+);
+
 create table if not exists public.jhadina_launch_outcome_observations (
   observation_id text primary key,
   launch_id text not null references public.jhadina_token_launches(launch_id) on delete cascade,
