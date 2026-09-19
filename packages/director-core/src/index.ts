@@ -52,3 +52,4 @@ export * from './studio-rig-animation-worker';
 export * from './studio-secondary-physics-worker';
 export * from './studio-render';
 export * from './studio-render-worker';
+export * from './studio-asset-approval';

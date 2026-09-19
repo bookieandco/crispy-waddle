@@ -1,0 +1,3 @@
+export const STUDIO_QC_CHECKS=['tracking','composite','continuity','voice-sync','animation','physics'] as const
+export interface StudioApprovalEvidence{qcReportId:string;minimumObservedScore:number;evidenceIds:string[]}
+export function validateStudioApprovalEvidence(v:StudioApprovalEvidence):string[]{const e:string[]=[];if(!v.qcReportId)e.push('qcReportId is required');if(!Number.isFinite(v.minimumObservedScore)||v.minimumObservedScore<0||v.minimumObservedScore>1)e.push('minimumObservedScore must be between 0 and 1');for(const c of STUDIO_QC_CHECKS)if(!v.evidenceIds.some(x=>x.startsWith(`qc-check:${c}:`)||x===`qc-check:${c}`))e.push(`missing QC evidence: ${c}`);return e}
