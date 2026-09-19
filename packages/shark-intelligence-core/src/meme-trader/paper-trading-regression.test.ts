@@ -33,7 +33,7 @@ describe('SHARK paper trading regression', () => {
 
   it('does not support a strategy before minimum simulated evidence exists', () => {
     const calibration = calibratePaperStrategy({ strategyId: 'NEW_PAIR_POST_BUNDLE_DIP', weightedExperiences: [], trainingScenarios: [], candidateScenario: { scenarioId: 's', strategyId: 'NEW_PAIR_POST_BUNDLE_DIP', regime: 'launch', volatility: .8, liquidity: .5, spread: .2, instrument: 'meme', horizon: 'minutes' }, calibratedAt: '2026-09-18T20:02:00Z' })
-    expect(calibration.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(calibration.status).toBe('INSUFFICIENT_EVIDENCE')\n    expect(calibration.recommendedConfidence).toBeNull()
     expect(calibration.simulationAuthority).toBe('PAPER_ONLY')
   })
 })
