@@ -141,3 +141,5 @@ export function assertPositiveQuantity(quantity: number): void {
 }
 
 export const COMMERCE_ADAPTER_CONTRACT_VERSION = "0.1.0" as const;
+
+export * from "./supplier-procurement";
