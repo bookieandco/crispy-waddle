@@ -10,3 +10,9 @@ Security/authority invariants:
 - returns mask/keypoint references as evidence, not authority.
 
 The HTTP host that exposes `POST /v1/track` should call `run_sam2`. Model weights, GPU selection and asset resolution remain deployment concerns and are not embedded in Director Core.
+
+## Runtime wiring
+
+`Sam2RuntimeEngine` now provides the concrete inference seam. Deployment injects three capabilities: asset resolution, predictor construction/model lifecycle, and mask persistence. The engine lazily creates the predictor, produces deterministic artifact IDs, and returns persisted mask references.
+
+`host.create_app(engine)` exposes `GET /health` and `POST /v1/track`. Validation errors are safe 400 responses; unexpected inference failures are redacted 500 responses so model paths or host secrets cannot cross the worker boundary.
