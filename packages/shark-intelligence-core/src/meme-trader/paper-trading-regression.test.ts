@@ -22,6 +22,9 @@ describe('SHARK paper trading regression', () => {
     expect(outcome.label).toBe('WIN')
     expect(outcome.assessmentId).toBe('a1')
     const attribution = attributePaperTrade({ outcome, proposal, entryFill: entry.fill, exitFills: [closed.fill], exits: [fullExit], attributedAt: '2026-09-18T20:01:02Z' })
+    const reconstructedPnl = attribution.marketMoveContributionQuote - attribution.feeDragQuote - attribution.slippageDragQuote + attribution.residualQuote
+    expect(reconstructedPnl).toBeCloseTo(outcome.realizedPnlQuote, 10)
+    expect(attribution.residualQuote).toBeCloseTo(0, 10)
     const learning = createPaperTradeLearningRecord({ outcome, attribution, scenarioId: 's1', strategyId: 'NEW_PAIR_POST_BUNDLE_DIP', createdAt: '2026-09-18T20:01:03Z' })
     expect(learning.evidenceClass).toBe('SIMULATED_TRADE_OUTCOME')
     expect(learning.experience.provenanceComplete).toBe(true)
@@ -33,7 +36,8 @@ describe('SHARK paper trading regression', () => {
 
   it('does not support a strategy before minimum simulated evidence exists', () => {
     const calibration = calibratePaperStrategy({ strategyId: 'NEW_PAIR_POST_BUNDLE_DIP', weightedExperiences: [], trainingScenarios: [], candidateScenario: { scenarioId: 's', strategyId: 'NEW_PAIR_POST_BUNDLE_DIP', regime: 'launch', volatility: .8, liquidity: .5, spread: .2, instrument: 'meme', horizon: 'minutes' }, calibratedAt: '2026-09-18T20:02:00Z' })
-    expect(calibration.status).toBe('INSUFFICIENT_EVIDENCE')\n    expect(calibration.recommendedConfidence).toBeNull()
+    expect(calibration.status).toBe('INSUFFICIENT_EVIDENCE')
+    expect(calibration.recommendedConfidence).toBeNull()
     expect(calibration.simulationAuthority).toBe('PAPER_ONLY')
   })
 })
