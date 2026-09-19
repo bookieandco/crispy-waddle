@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { collectHeliusLaunch, type HeliusLaunchWebhookEvent } from '@jhadina/shark-intelligence-core/meme-trader'
+import { collectHeliusLaunch, type HeliusLaunchWebhookEvent } from '@jhadina/shark-intelligence-core/meme-trader'\nimport { createServiceRoleClient } from '@/lib/supabase/service-role'\nimport { persistSharkLaunch } from '@/lib/shark/launch-repository'
 
 export const runtime = 'nodejs'
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   let payload: unknown
   try { payload = await request.json() } catch { return NextResponse.json({ error: 'invalid_json' }, { status: 400 }) }
-  const events = Array.isArray(payload) ? payload : [payload]
+  const client = createServiceRoleClient()\n  if (!client) return NextResponse.json({ error: 'shark_launch_ingestion_unavailable', reason: 'Supabase service-role persistence is not configured' }, { status: 503 })\n\n  const events = Array.isArray(payload) ? payload : [payload]
   const collections = events
     .filter((event): event is HeliusLaunchWebhookEvent => typeof event === 'object' && event !== null)
     .map(event => collectHeliusLaunch(event))
