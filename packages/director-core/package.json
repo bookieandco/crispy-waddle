@@ -33,7 +33,8 @@
     "./studio-rig-animation-worker": "./src/studio-rig-animation-worker.ts",
     "./studio-secondary-physics-worker": "./src/studio-secondary-physics-worker.ts",
     "./studio-render": "./src/studio-render.ts",
-    "./studio-render-worker": "./src/studio-render-worker.ts"
+    "./studio-render-worker": "./src/studio-render-worker.ts",
+    "./studio-asset-approval": "./src/studio-asset-approval.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
