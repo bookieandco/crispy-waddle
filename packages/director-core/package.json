@@ -30,7 +30,8 @@
     "./studio-tracking-worker-adapter": "./src/studio-tracking-worker-adapter.ts",
     "./studio-character-replacement-worker": "./src/studio-character-replacement-worker.ts",
     "./studio-voice-sync-worker": "./src/studio-voice-sync-worker.ts",
-    "./studio-rig-animation-worker": "./src/studio-rig-animation-worker.ts"
+    "./studio-rig-animation-worker": "./src/studio-rig-animation-worker.ts",
+    "./studio-secondary-physics-worker": "./src/studio-secondary-physics-worker.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
