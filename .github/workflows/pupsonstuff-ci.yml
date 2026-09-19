@@ -11,6 +11,7 @@ on:
       - ".github/workflows/pupsonstuff-ci.yml"
   push:
     branches:
+      - main
       - pupsonstuff-import
       - pupsonstuff-main-integration
     paths:

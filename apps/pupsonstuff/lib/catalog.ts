@@ -1,5 +1,5 @@
-import { hotspots, Hotspot } from "@/data/hotspots";
-import { ArtStyle, CartItem, artStyles } from "@/types/boutique";
+import { hotspots, Hotspot } from '@/data/hotspots';
+import { ArtStyle, CartItem, artStyles } from '@/types/boutique';
 
 export interface ValidatedCartItem {
   id: string;
@@ -11,18 +11,21 @@ export interface ValidatedCartItem {
   priceCents: number;
   quantity: number;
   previewUrl?: string;
-  fulfillment?: Hotspot["fulfillment"];
+  creativeOutputId: string;
+  fulfillment?: Hotspot['fulfillment'];
 }
 
 const MAX_QUANTITY = 100;
 
 function isArtStyle(value: unknown): value is ArtStyle {
-  return typeof value === "string" && artStyles.some((style) => style.id === value);
+  return typeof value === 'string' && artStyles.some((style) => style.id === value);
 }
 
 function isSafePreviewUrl(value: unknown): value is string | undefined {
-  return value === undefined ||
-    (typeof value === "string" && value.startsWith("data:image/"));
+  return (
+    value === undefined ||
+    (typeof value === 'string' && (value.startsWith('data:image/') || value.startsWith('https://')))
+  );
 }
 
 function resolveLegacyDisplayName(name: string) {
@@ -39,25 +42,27 @@ function resolveLegacyDisplayName(name: string) {
 }
 
 export function validateCartItem(item: unknown): ValidatedCartItem | null {
-  if (typeof item !== "object" || item === null) return null;
+  if (typeof item !== 'object' || item === null) return null;
   const raw = item as Record<string, unknown>;
   if (
-    typeof raw.id !== "string" ||
-    typeof raw.productName !== "string" ||
-    typeof raw.quantity !== "number" ||
+    typeof raw.id !== 'string' ||
+    typeof raw.productName !== 'string' ||
+    typeof raw.quantity !== 'number' ||
     !Number.isInteger(raw.quantity) ||
     raw.quantity < 1 ||
     raw.quantity > MAX_QUANTITY ||
+    typeof raw.creativeOutputId !== 'string' ||
     !isSafePreviewUrl(raw.previewUrl)
-  ) return null;
+  )
+    return null;
 
   let hotspot: Hotspot | undefined;
-  let variant: NonNullable<Hotspot["fulfillment"]>["variants"][number] | undefined;
+  let variant: NonNullable<Hotspot['fulfillment']>['variants'][number] | undefined;
   let artStyle: ArtStyle | undefined;
 
   if (
-    typeof raw.productId === "string" &&
-    typeof raw.variantId === "string" &&
+    typeof raw.productId === 'string' &&
+    typeof raw.variantId === 'string' &&
     isArtStyle(raw.artStyle)
   ) {
     hotspot = hotspots.find((candidate) => candidate.id === raw.productId);
@@ -84,6 +89,7 @@ export function validateCartItem(item: unknown): ValidatedCartItem | null {
     priceCents: variant.priceCents,
     quantity: raw.quantity,
     previewUrl: raw.previewUrl,
+    creativeOutputId: raw.creativeOutputId,
     fulfillment: hotspot.fulfillment,
   };
 }
@@ -91,7 +97,7 @@ export function validateCartItem(item: unknown): ValidatedCartItem | null {
 export function validateCart(items: unknown): ValidatedCartItem[] | null {
   if (!Array.isArray(items) || items.length === 0 || items.length > 50) return null;
   const validated = items.map(validateCartItem);
-  return validated.every(Boolean) ? validated as ValidatedCartItem[] : null;
+  return validated.every(Boolean) ? (validated as ValidatedCartItem[]) : null;
 }
 
 /** Reconcile Stripe's historical amount with current catalog fulfillment identity. */
@@ -102,9 +108,13 @@ export function validateStripeLineItems(items: unknown): ValidatedCartItem[] | n
     const raw = item as Record<string, unknown> | null;
     const catalogItem = validateCartItem(item);
     if (
-      !catalogItem || !raw || typeof raw.price !== "number" ||
-      !Number.isInteger(raw.price) || raw.price <= 0
-    ) return null;
+      !catalogItem ||
+      !raw ||
+      typeof raw.price !== 'number' ||
+      !Number.isInteger(raw.price) ||
+      raw.price <= 0
+    )
+      return null;
     validated.push({ ...catalogItem, priceCents: raw.price });
   }
   return validated;
@@ -120,5 +130,6 @@ export function cartItemsFromValidated(items: ValidatedCartItem[]): CartItem[] {
     quantity: item.quantity,
     previewUrl: item.previewUrl,
     artStyle: item.artStyle,
+    creativeOutputId: item.creativeOutputId,
   }));
 }

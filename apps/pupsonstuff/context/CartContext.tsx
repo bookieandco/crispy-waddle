@@ -1,22 +1,17 @@
-"use client";
+'use client';
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
-import { CartItem } from "@/types/boutique";
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { CartItem } from '@/types/boutique';
 
-const STORAGE_KEY = "pupsonstuff:cart";
+const STORAGE_KEY = 'pupsonstuff:cart';
+const STORAGE_VERSION = 2;
 
 interface CartContextValue {
   items: CartItem[];
   /** id is generated here, not by the caller — callers pass the rest of
    * the item, this assigns a fresh cart-entry id every time (see
    * CartItem.id's own comment: a re-add is a new entry, not a merge). */
-  addItem: (item: Omit<CartItem, "id">) => void;
+  addItem: (item: Omit<CartItem, 'id'>) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -28,12 +23,13 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | null>(null);
 
 function readStoredItems(): CartItem[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === 'undefined') return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (Array.isArray(parsed)) return parsed; // legacy carts are read, then fail closed at checkout if incomplete
+    return parsed?.version === STORAGE_VERSION && Array.isArray(parsed.items) ? parsed.items : [];
   } catch {
     // Corrupted JSON, storage disabled (private browsing), or a quota
     // error on a prior write — any of these should degrade to an empty
@@ -57,7 +53,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated) return; // don't clobber storage with the pre-hydration empty array
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, items }));
     } catch {
       // Storage unavailable or over quota — the cart still works
       // in-memory for the rest of this page session, it just won't
@@ -66,9 +62,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [items, hydrated]);
 
-  const addItem = useCallback((item: Omit<CartItem, "id">) => {
+  const addItem = useCallback((item: Omit<CartItem, 'id'>) => {
     const id =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setItems((prev) => [...prev, { ...item, id }]);
@@ -80,9 +76,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateQuantity = useCallback((id: string, quantity: number) => {
     if (quantity < 1) return; // removing is a separate, explicit action
-    setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, quantity } : i))
-    );
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, quantity } : i)));
   }, []);
 
   const clearCart = useCallback(() => setItems([]), []);
@@ -110,7 +104,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 export function useCart() {
   const ctx = useContext(CartContext);
   if (!ctx) {
-    throw new Error("useCart must be used within a CartProvider");
+    throw new Error('useCart must be used within a CartProvider');
   }
   return ctx;
 }
