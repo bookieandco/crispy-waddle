@@ -49,3 +49,4 @@ export * from './studio-tracking-worker-adapter';
 export * from './studio-character-replacement-worker';
 export * from './studio-voice-sync-worker';
 export * from './studio-rig-animation-worker';
+export * from './studio-secondary-physics-worker';
