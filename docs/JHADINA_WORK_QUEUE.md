@@ -570,18 +570,14 @@ JH-021's completion report.
 
 ### JH-026
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-growth-engine` (PR #7) —
-`apps/jhadina-studio-native/**`, `apps/jhadina-web/src/lib/studio/**`,
-`services/{wav2lip,physics-service,rig-service,tracking-service,
-studio-mastering}/**`
-**Objective:** Studio AI-actor/video pipeline — GPU video processing,
-character DNA/appearance/behavior runtime, physics, lip-sync,
-voice-sync, rig/tracking, native Swift AV code, and five new Python
-microservices.
+**Status:** DONE
+**Branch:** reconstructed from current main across PRs #257–#277; historical PR #7 remains unmerged source material.
+**Objective:** Studio AI-actor/video pipeline inside the governed Director/Jhadina subsystem: character replacement, tracking/segmentation, voice/lip-sync, rig/animation, secondary physics, render, QC, explicit asset approval, and Workstation integration.
 **Dependencies:** JH-001
-**Human decision (2026-09-18):** Approved for the subsystem. The Studio AI actor/video pipeline belongs inside the Director/Jhadina subsystem rather than remaining a standalone EXPERIMENT. GPU-heavy media processing must stay behind subsystem adapters/services; this decision does not authorize a parallel orchestration, policy, memory, or execution authority outside Jhadina's canonical governance spine.
-**Next Step:** DISCOVER/AUDIT the old PR #7 implementation against current Director/Shotlist/Media architecture, then reconstruct only compatible components from current main. Do not merge the stale branch wholesale.
+**Human decision (2026-09-18):** Approved for the subsystem. GPU-heavy media processing remains behind subsystem adapters/services and has no parallel orchestration, policy, memory, or execution authority.
+**Definition of Done:** Met. Current main now owns the Studio contracts and governed capability bridge; tracking/SAM2, replacement/compositing, voice-sync, rig/animation, physics and render workers are isolated behind provider interfaces; QC is the final machine gate; generated Studio media requires explicit durable asset approval before Workstation/timeline use. Historical PR #7 was not merged wholesale.
+**Verification:** Merge state was verified through PR #277. Closure audit recorded in `docs/JH_026_DIRECTOR_STUDIO_AUDIT.md`. Concrete model checkpoints, GPU/native solver implementations and production worker deployment remain deployment configuration behind the completed interfaces rather than new governance architecture.
+**Next Step:** None — done.
 
 ### JH-027
 **Priority:** P2
