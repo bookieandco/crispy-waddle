@@ -25,7 +25,8 @@ export class HeliusHistoricalSource {
       if (!direction) return undefined
       const seconds = Number(row.blockTime ?? 0)
       const observedAt = Number.isFinite(seconds) && seconds > 0 ? new Date(seconds * 1000).toISOString() : launch.launchedAt
-      return { observedAt, actorId: launch.deployerWalletId!, direction, source: 'helius-transfers', evidenceId: `helius:transfer:${row.signature ?? `${launch.launchId}:${seconds}`}` }
+      const tokenAmount = Number(row.tokenAmount ?? row.amount ?? NaN)
+      return { observedAt, actorId: launch.deployerWalletId!, direction, tokenAmount: Number.isFinite(tokenAmount) ? tokenAmount : undefined, source: 'helius-transfers', evidenceId: `helius:transfer:${row.signature ?? `${launch.launchId}:${seconds}`}` }
     }).filter((movement: ActorMovement | undefined): movement is ActorMovement => movement !== undefined)
   }
 }
