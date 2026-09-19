@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { createSupabaseGeneratedAssetRepository } from '@/lib/supabase-generated-asset-repository';
 import { approvedEditingAssets } from '@jhadina/director-core/editing-asset-manifest';
+import { validateStudioApprovalEvidence } from '@jhadina/director-core/studio-asset-approval';
 
 function parseProjectId(value: string | null): string | null {
   const projectId = value?.trim();
@@ -37,10 +38,14 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false, error: 'Authentication required' }, { status: 401 });
 
-  const body = await request.json() as { projectId?: string; assetId?: string };
+  const body = await request.json() as { projectId?: string; assetId?: string; studioQC?: { qcReportId: string; minimumObservedScore: number; evidenceIds: string[] } };
   const projectId = body.projectId?.trim();
   const assetId = body.assetId?.trim();
   if (!projectId || !assetId) return NextResponse.json({ ok: false, error: 'projectId and assetId are required' }, { status: 400 });
+  if (body.studioQC) {
+    const qcErrors = validateStudioApprovalEvidence(body.studioQC);
+    if (qcErrors.length) return NextResponse.json({ ok: false, error: `Studio QC evidence incomplete: ${qcErrors.join('; ')}` }, { status: 409 });
+  }
 
   const privileged = createServiceRoleClient();
   if (!privileged) return NextResponse.json({ ok: false, error: 'Durable asset storage is not configured' }, { status: 503 });
@@ -59,6 +64,7 @@ export async function POST(request: Request) {
     asset_id: assetId,
     approval_id: approvalId,
     approved_at: new Date().toISOString(),
+    ...(body.studioQC ? { qc_report_id: body.studioQC.qcReportId, qc_min_score: body.studioQC.minimumObservedScore, qc_evidence_ids: body.studioQC.evidenceIds } : {}),
   });
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
