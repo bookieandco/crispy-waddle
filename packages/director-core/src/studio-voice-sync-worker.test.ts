@@ -1,0 +1,4 @@
+import {describe,expect,it,vi} from 'vitest'
+import {createVoiceSyncWorkerAdapter} from './studio-voice-sync-worker'
+const input={videoAssetId:'video',audioAssetId:'audio',mode:'lip-sync' as const,tracks:[{id:'v',startMs:0,endMs:1000,confidence:.9}],characterTrackId:'char',continuityRef:'dna'}
+describe('voice sync worker',()=>{it('preserves governed media lineage',async()=>{const post=vi.fn(async()=>({artifactId:'synced',videoAssetId:'video',audioAssetId:'audio',syncEvidenceIds:['timing'],averageConfidence:.92}));expect((await createVoiceSyncWorkerAdapter({post}).synchronize(input)).averageConfidence).toBe(.92)});it('rejects media substitution',async()=>{const a=createVoiceSyncWorkerAdapter({post:vi.fn(async()=>({artifactId:'x',videoAssetId:'other',audioAssetId:'audio',syncEvidenceIds:[],averageConfidence:.9}))});await expect(a.synchronize(input)).rejects.toThrow('changed governed media lineage')})})
