@@ -126,14 +126,18 @@ export function attributePaperTrade(input: {
   if (input.outcome.totalFeesQuote > 0) negativeDrivers.push('fee-drag')
   if (input.outcome.totalSlippageQuote > 0) negativeDrivers.push('slippage-drag')
 
-  const entryGross = input.entryFill.grossQuoteAmount
-  const exitGross = input.exitFills.reduce((sum, fill) => sum + fill.grossQuoteAmount, 0)
   const exitedQuantity = input.exitFills.reduce((sum, fill) => sum + fill.quantity, 0)
-  const entryUnit = input.entryFill.quantity > 0 ? entryGross / input.entryFill.quantity : 0
-  const marketMoveContributionQuote = exitGross - entryUnit * exitedQuantity
+  const entryReference = input.proposal.entryPrice
+  const referenceExitGross = input.exitFills.reduce((sum, fill) => {
+    const referencePrice = fill.price / Math.max(Number.EPSILON, 1 - fill.slippageBps / 10_000)
+    return sum + referencePrice * fill.quantity
+  }, 0)
+  // Attribution is expressed against market reference prices so execution slippage
+  // is a separate drag rather than being hidden inside market movement.
+  const marketMoveContributionQuote = referenceExitGross - entryReference * exitedQuantity
   const feeDragQuote = input.outcome.totalFeesQuote
   const slippageDragQuote = input.outcome.totalSlippageQuote
-  const explained = marketMoveContributionQuote - feeDragQuote
+  const explained = marketMoveContributionQuote - feeDragQuote - slippageDragQuote
   const residualQuote = input.outcome.realizedPnlQuote - explained
 
   const evidence = new Set(input.outcome.evidenceIds)
