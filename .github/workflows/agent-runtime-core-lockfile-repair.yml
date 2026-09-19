@@ -1,0 +1,33 @@
+name: Agent Runtime Core Lockfile Repair
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "packages/agent-runtime-core/package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/agent-runtime-core-lockfile-repair.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: pnpm install --lockfile-only --ignore-scripts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-agent-runtime-core-lockfile
+          path: pnpm-lock.yaml
+          if-no-files-found: error
+          retention-days: 7
