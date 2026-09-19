@@ -397,57 +397,26 @@ the real build's route manifest.
 **Next Step:** None — done.
 
 ### JH-012
-**Priority:** P3
-**Status:** QUEUED (DISCOVER complete — nothing to land)
-**Branch:** none
-**Objective:** Shodan read-only security connector
-(`shodan.host.read`, `shodan.internetdb.read`, `shodan.dns.read`,
-`shodan.search.read`, `shodan.history.read`), adapter-bounded, evidence
-not conclusions, no active scanning.
-**Dependencies:** JH-001, JH-002
-**DISCOVER result (2026-08-13):** Searched all 32 remote branches, by
-both content (`git grep -i shodan`) and path
-(`packages/{jhadina-action-core,provider-core,security-core}`). `shodan`
-appears nowhere except this queue file. `packages/jhadina-action-core`
-already exists and is merged to `main` (from earlier queue work); no
-`provider-core` or `security-core` package exists anywhere in any
-branch. This is a from-scratch build with no existing implementation to
-audit or land, against infrastructure (`provider-core`, `security-core`)
-that itself doesn't exist yet.
-**Next Step:** Not started — genuinely no code exists for this task.
-Building a live external security-scanning connector (even read-only)
-from a brainstorm description, with no existing `provider-core`/
-`security-core` boundary to adapt into, is a product/security decision
-(what gets scanned, whose Shodan API key, what evidence surfaces where)
-that shouldn't be started implicitly. Left QUEUED pending a human call
-on priority and design.
+**Priority:** P2
+**Status:** ACTIVE
+**Program:** INTCOM.2-3 — passive observation provider + first Shodan adapter.
+**Branch:** new reconstruction from current main; no historical implementation exists.
+**Objective:** Add provider-neutral passive-observation contracts, then a read-only Shodan adapter for host/InternetDB/DNS/search/history observations. Observations are evidence, not conclusions; no active scanning, exploitation, mutation, or autonomous target selection.
+**Dependencies:** JH-001, JH-002, JH-042
+**Human decision (2026-09-19):** Combine JH-042/JH-012/JH-013 under the Jhadina Intelligence & Communications Loop while preserving separate capability boundaries. Shodan is the first passive observation adapter, not an agent or execution authority.
+**Definition of Done:** Provider-neutral observation contract is governed/evidence-bearing; Shodan adapter cannot exceed the declared read-only capabilities; evidence/provenance can enter the existing intelligence/activity path; tests prove unsupported/mutating operations fail closed.
+**Next Step:** Build the provider-neutral passive-observation contract first; do not couple the contract to Shodan response shapes or credentials.
 
 ### JH-013
-**Priority:** P3
-**Status:** QUEUED (DISCOVER complete — nothing to land)
-**Branch:** none
-**Objective:** "Communications stack" end-to-end wiring (Command API →
-Policy → Planner → Comms Core → Transport Registry → Reticulum Adapter →
-Reticulum, and the inbound/evidence paths back).
-**Dependencies:** JH-001, JH-002
-**DISCOVER result (2026-08-13):** Searched all 32 remote branches for
-every named component, by path and by content. `reticulum` appears
-nowhere except this queue file. The only path match for any of
-"transport-registry / comms-core / communication-planner / command-api
-/ device-identity-registry" is `packages/placement-core/src/command-api.ts`
-on `main` and two PlacementOS-adjacent branches — PlacementOS's own
-command API (a staffing/scheduling domain), unrelated to a
-communications/mesh-networking stack. None of the actual named
-components (Communications Core, Communication Planner, Transport
-Registry, Reticulum Adapter, Device/Identity Registry) exist anywhere.
-**Next Step:** Confirmed purely conceptual — this is not implemented on
-any branch this session has access to. Not something to start from a
-brainstorm description alone; needs a human decision on whether it's
-still a real planned feature before it gets a Definition of Done.
-
----
-
-## PRODUCT
+**Priority:** P2
+**Status:** QUEUED
+**Program:** INTCOM.3-6 — governed communications.
+**Branch:** none; reconstruct from current main.
+**Objective:** Transport-neutral communications intent -> identity/policy/approval -> ActionExecutor -> transport adapter -> delivery evidence. Reticulum is a future adapter, not the core architecture.
+**Dependencies:** JH-001, JH-002, JH-012, JH-042
+**Human decision (2026-09-19):** Communications joins the same Intelligence & Communications Loop but remains a separately governed capability. Transport adapters receive no policy authority.
+**Definition of Done:** Recipient/device identity, communication intent, transport registry/adapter and durable delivery-receipt contracts exist behind canonical governance; Reticulum can plug in without bypassing ActionExecutor; inbound/outbound evidence projects into canonical activity.
+**Next Step:** After JH-012, define communication/recipient/transport contracts before any Reticulum runtime work.
 
 ### JH-014
 **Priority:** P1
@@ -1448,7 +1417,7 @@ here.
 
 ### JH-042
 **Priority:** P2
-**Status:** QUEUED (narrowed — homepage-rewrite portion rejected)
+**Status:** DONE
 **Branch:** `feat/jhadina-entertainment-intelligence` (PR #16, already
 closed without merging; history preserved) —
 `apps/jhadina-web/{app,lib}/agents/**`, `apps/jhadina-web/src/lib/agents/**`,
@@ -1469,12 +1438,9 @@ bundle — the agents/** operating-loop runtime, the system-status API,
 and a standalone `/activity` page (as a new route, not a homepage
 replacement) — is not itself a homepage proposal and remains a
 legitimate, separately-auditable candidate task.
-**Next Step:** Not yet audited as a standalone slice. If picked up,
-scope it to the agents/system-status/activity surfaces only — do not
-touch `PersonalCommandFeed.tsx` or `pages/index.tsx`. Also note some
-paths here are under root `apps/jhadina-web/app/` and `lib/` (not
-`src/app/`/`src/lib/`) — re-check the app/vs src/app collision class
-from JH-011 before assuming these routes are reachable as authored.
+**Reconciliation (2026-09-19):** Current main already contains the accepted JH-042 slice documented in `docs/JH_042_AGENT_OPERATING_LOOP_AUDIT.md`: standalone /activity, signed-in actor verification, and a read-only projection of the canonical SupabaseAuditLedger. The obsolete PR #16 agent runtime, global in-memory audit store, hard-coded status claims, root app routes and direct agent execution surface remain rejected.
+**Program role:** INTCOM.1 foundation for the Jhadina Intelligence & Communications Loop.
+**Next Step:** None — done; JH-012 is the next active program slice.
 
 ### JH-043
 **Priority:** P2
