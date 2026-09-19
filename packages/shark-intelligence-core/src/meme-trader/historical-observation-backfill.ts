@@ -26,7 +26,7 @@ export function buildHistoricalObservation(input: { launch: TokenLaunch; candles
   const peak = candles.length ? Math.max(...candles.map(c => c.high)) : undefined
   const peakReturnPct = first && peak !== undefined ? pct(peak, first.open) : undefined
   const priceReturnFromLaunchPct = first && last ? pct(last.close, first.open) : undefined
-  const maxDrawdownPct = candles.length && peak && peak > 0 ? Math.max(...candles.map(c => ((peak - c.low) / peak) * 100)) : undefined
+  const maxDrawdownPct = candles.length && peak && peak > 0 ? Math.max(...candles.map(c => (peak - c.low) / peak)) : undefined
   const holders = [...(input.holders ?? [])].sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt))
   const firstHolder = holders[0]?.holderCount; const lastHolder = holders.at(-1)?.holderCount
   const holderCountChangePct = firstHolder && firstHolder > 0 && lastHolder !== undefined ? ((lastHolder - firstHolder) / firstHolder) * 100 : undefined
