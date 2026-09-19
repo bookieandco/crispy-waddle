@@ -28,7 +28,8 @@
     "./studio-secondary-physics": "./src/studio-secondary-physics.ts",
     "./studio-qc": "./src/studio-qc.ts",
     "./studio-tracking-worker-adapter": "./src/studio-tracking-worker-adapter.ts",
-    "./studio-character-replacement-worker": "./src/studio-character-replacement-worker.ts"
+    "./studio-character-replacement-worker": "./src/studio-character-replacement-worker.ts",
+    "./studio-voice-sync-worker": "./src/studio-voice-sync-worker.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
