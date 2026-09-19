@@ -3,7 +3,7 @@ import type { LiquidityHistory } from './liquidity-history'
 
 export type HistoricalCandle = { observedAt: string; open: number; high: number; low: number; close: number; volumeUsd?: number; source: string; evidenceId: string }
 export type HistoricalHolderPoint = { observedAt: string; holderCount: number; source: string; evidenceId: string }
-export type ActorMovement = { observedAt: string; actorId: string; direction: 'BUY' | 'SELL' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'LIQUIDITY_ADD' | 'LIQUIDITY_REMOVE'; amountUsd?: number; source: string; evidenceId: string }
+export type ActorMovement = { observedAt: string; actorId: string; direction: 'BUY' | 'SELL' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'LIQUIDITY_ADD' | 'LIQUIDITY_REMOVE'; amountUsd?: number; tokenAmount?: number; source: string; evidenceId: string }
 export type HistoricalObservation = {
   observationId: string; launchId: string; observedAt: string
   priceReturnFromLaunchPct?: number; peakReturnPct?: number; maxDrawdownPct?: number
@@ -33,8 +33,9 @@ export function buildHistoricalObservation(input: { launch: TokenLaunch; candles
   const holderExitPct = holders.length >= 2 && firstHolder && firstHolder > 0 && lastHolder !== undefined ? clamp01((firstHolder - lastHolder) / firstHolder) : undefined
   const sales = input.movements?.filter(m => m.actorId === input.launch.deployerWalletId && (m.direction === 'SELL' || m.direction === 'TRANSFER_OUT')) ?? []
   const buys = input.movements?.filter(m => m.actorId === input.launch.deployerWalletId && (m.direction === 'BUY' || m.direction === 'TRANSFER_IN')) ?? []
-  const soldUsd = sales.reduce((sum, m) => sum + (m.amountUsd ?? 0), 0); const boughtUsd = buys.reduce((sum, m) => sum + (m.amountUsd ?? 0), 0)
-  const developerSoldPct = soldUsd + boughtUsd > 0 ? clamp01(soldUsd / (soldUsd + boughtUsd)) : undefined
+  const soldAmount = sales.reduce((sum, m) => sum + (finite(m.tokenAmount) ? m.tokenAmount! : finite(m.amountUsd) ? m.amountUsd! : 0), 0)
+  const boughtAmount = buys.reduce((sum, m) => sum + (finite(m.tokenAmount) ? m.tokenAmount! : finite(m.amountUsd) ? m.amountUsd! : 0), 0)
+  const developerSoldPct = soldAmount + boughtAmount > 0 ? clamp01(soldAmount / (soldAmount + boughtAmount)) : undefined
   let holderBehavior: HistoricalObservation['holderBehavior']
   if (holderCountChangePct !== undefined) holderBehavior = (holderExitPct ?? 0) >= 0.5 ? 'PANIC_EXIT' : holderCountChangePct >= 10 ? 'ACCUMULATING' : holderCountChangePct <= -10 ? 'DISTRIBUTING' : 'STABLE'
   const liquidityRemoved = input.liquidityHistory ? input.liquidityHistory.drawdownFromPeak >= 0.5 || input.liquidityHistory.drainRate >= 0.25 : input.movements?.some(m => m.direction === 'LIQUIDITY_REMOVE')
