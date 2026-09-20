@@ -8,6 +8,7 @@ export interface GovernedExpressionRealization {
     mode: ExpressionDirective['mode'];
     allowProfanity: boolean;
     allowQuip: boolean;
+    responseLength?: ExpressionDirective['responseLength'];
     callback?: string;
     culturalReference?: string;
   };
