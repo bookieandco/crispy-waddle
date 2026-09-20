@@ -1,13 +1,19 @@
 /**
- * Deterministic execution permit for Money Core.
+ * Deterministic, single-use Money execution permit.
  *
- * A permit is not an approval by itself. It is a short-lived, single-use
- * capability binding the exact authorized economic action to its execution
- * context. Any material mutation of that context invalidates the permit.
+ * MONEY-R1C invariant:
+ * a permit is downstream of Action Core authority and is cryptographically
+ * bound to both the exact economic action and the exact ActionRequest that
+ * survived policy/approval.
  */
 import { createHash, randomUUID } from 'node:crypto';
 
-export type PermitState = 'ISSUED' | 'CONSUMED' | 'EXPIRED' | 'REVOKED' | 'HALTED';
+export type PermitState =
+  | 'ISSUED'
+  | 'CONSUMED'
+  | 'EXPIRED'
+  | 'REVOKED'
+  | 'HALTED';
 
 export interface ExecutionAction {
   actionId: string;
@@ -25,6 +31,8 @@ export interface ExecutionAction {
 
 export interface PermitBinding {
   actionFingerprint: string;
+  actionRequestFingerprint: string;
+  authorityId: string;
   userId: string;
   capability: string;
   provider: string;
@@ -47,6 +55,8 @@ export interface ExecutionPermit {
 
 export interface PermitIssuerInput {
   action: ExecutionAction;
+  actionRequestFingerprint: string;
+  authorityId: string;
   policyVersion: string;
   policyHash: string;
   expiresAt: string;
@@ -61,6 +71,8 @@ export interface PermitIssuerInput {
 
 export interface PermitVerificationContext {
   action: ExecutionAction;
+  actionRequestFingerprint: string;
+  authorityId: string;
   policyVersion: string;
   policyHash: string;
   now: string;
@@ -72,10 +84,19 @@ export interface PermitVerificationContext {
 
 export interface PermitStore {
   issue(permit: ExecutionPermit): Promise<void> | void;
-  get(permitId: string): Promise<ExecutionPermit | undefined> | ExecutionPermit | undefined;
-  consume(permitId: string, nonce: string): Promise<boolean> | boolean;
+  get(
+    permitId: string,
+  ): Promise<ExecutionPermit | undefined> | ExecutionPermit | undefined;
+  consume(
+    permitId: string,
+    nonce: string,
+  ): Promise<boolean> | boolean;
   revoke(permitId: string): Promise<void> | void;
   haltAll(): Promise<void> | void;
+}
+
+function assertNonEmpty(value: string, code: string): void {
+  if (!value.trim()) throw new Error(code);
 }
 
 export function canonicalizeAction(action: ExecutionAction): string {
@@ -95,24 +116,43 @@ export function canonicalizeAction(action: ExecutionAction): string {
 }
 
 export function fingerprintAction(action: ExecutionAction): string {
-  return createHash('sha256').update(canonicalizeAction(action), 'utf8').digest('hex');
+  return createHash('sha256')
+    .update(canonicalizeAction(action), 'utf8')
+    .digest('hex');
 }
 
-export function issueExecutionPermit(input: PermitIssuerInput): ExecutionPermit {
+export function issueExecutionPermit(
+  input: PermitIssuerInput,
+): ExecutionPermit {
   const now = input.now ?? new Date().toISOString();
-  if (new Date(input.expiresAt).getTime() <= new Date(now).getTime()) {
+  const issuedAt = Date.parse(now);
+  const expiresAt = Date.parse(input.expiresAt);
+  if (Number.isNaN(issuedAt) || Number.isNaN(expiresAt)) {
+    throw new Error('MONEY_PERMIT_TIMESTAMP_INVALID');
+  }
+  if (expiresAt <= issuedAt) {
     throw new Error('Permit expiry must be after issuance time');
   }
 
+  assertNonEmpty(
+    input.actionRequestFingerprint,
+    'MONEY_PERMIT_ACTION_REQUEST_FINGERPRINT_REQUIRED',
+  );
+  assertNonEmpty(input.authorityId, 'MONEY_PERMIT_AUTHORITY_REQUIRED');
+  assertNonEmpty(input.policyVersion, 'MONEY_PERMIT_POLICY_VERSION_REQUIRED');
+  assertNonEmpty(input.policyHash, 'MONEY_PERMIT_POLICY_HASH_REQUIRED');
+
   const actionFingerprint = fingerprintAction(input.action);
-  return {
+  return Object.freeze({
     permitId: input.permitId ?? randomUUID(),
     nonce: input.nonce ?? randomUUID(),
-    state: 'ISSUED',
+    state: 'ISSUED' as const,
     issuedAt: now,
     expiresAt: input.expiresAt,
-    binding: {
+    binding: Object.freeze({
       actionFingerprint,
+      actionRequestFingerprint: input.actionRequestFingerprint,
+      authorityId: input.authorityId,
       userId: input.action.userId,
       capability: input.action.capability,
       provider: input.action.provider,
@@ -122,34 +162,75 @@ export function issueExecutionPermit(input: PermitIssuerInput): ExecutionPermit 
       opportunityId: input.opportunityId,
       riskDecisionId: input.riskDecisionId,
       allocationDecisionId: input.allocationDecisionId,
-    },
-  };
+    }),
+  });
 }
 
 export function verifyExecutionPermit(
   permit: ExecutionPermit,
   context: PermitVerificationContext,
 ): void {
-  if (permit.state !== 'ISSUED') throw new Error(`Permit is not executable: ${permit.state}`);
-  if (new Date(context.now).getTime() >= new Date(permit.expiresAt).getTime()) {
+  if (permit.state !== 'ISSUED') {
+    throw new Error(`Permit is not executable: ${permit.state}`);
+  }
+  const now = Date.parse(context.now);
+  const expiresAt = Date.parse(permit.expiresAt);
+  if (Number.isNaN(now) || Number.isNaN(expiresAt)) {
+    throw new Error('MONEY_PERMIT_TIMESTAMP_INVALID');
+  }
+  if (now >= expiresAt) {
     throw new Error('Permit has expired');
   }
-  const fingerprint = fingerprintAction(context.action);
-  if (fingerprint !== permit.binding.actionFingerprint) throw new Error('Action fingerprint mismatch');
-  if (context.action.userId !== permit.binding.userId) throw new Error('Permit user mismatch');
-  if (context.action.capability !== permit.binding.capability) throw new Error('Permit capability mismatch');
-  if (context.action.provider !== permit.binding.provider) throw new Error('Permit provider mismatch');
-  if (context.policyVersion !== permit.binding.policyVersion) throw new Error('Policy version mismatch');
-  if (context.policyHash !== permit.binding.policyHash) throw new Error('Policy hash mismatch');
 
-  const bindings: Array<[string, string | undefined, string | undefined]> = [
+  const fingerprint = fingerprintAction(context.action);
+  if (fingerprint !== permit.binding.actionFingerprint) {
+    throw new Error('Action fingerprint mismatch');
+  }
+  if (
+    context.actionRequestFingerprint !==
+    permit.binding.actionRequestFingerprint
+  ) {
+    throw new Error('ActionRequest fingerprint mismatch');
+  }
+  if (context.authorityId !== permit.binding.authorityId) {
+    throw new Error('Permit authority mismatch');
+  }
+  if (context.action.userId !== permit.binding.userId) {
+    throw new Error('Permit user mismatch');
+  }
+  if (context.action.capability !== permit.binding.capability) {
+    throw new Error('Permit capability mismatch');
+  }
+  if (context.action.provider !== permit.binding.provider) {
+    throw new Error('Permit provider mismatch');
+  }
+  if (context.policyVersion !== permit.binding.policyVersion) {
+    throw new Error('Policy version mismatch');
+  }
+  if (context.policyHash !== permit.binding.policyHash) {
+    throw new Error('Policy hash mismatch');
+  }
+
+  const bindings: Array<
+    [string, string | undefined, string | undefined]
+  > = [
     ['approval', context.approvalId, permit.binding.approvalId],
     ['opportunity', context.opportunityId, permit.binding.opportunityId],
-    ['risk decision', context.riskDecisionId, permit.binding.riskDecisionId],
-    ['allocation decision', context.allocationDecisionId, permit.binding.allocationDecisionId],
+    [
+      'risk decision',
+      context.riskDecisionId,
+      permit.binding.riskDecisionId,
+    ],
+    [
+      'allocation decision',
+      context.allocationDecisionId,
+      permit.binding.allocationDecisionId,
+    ],
   ];
   for (const [name, actual, bound] of bindings) {
-    if (actual !== bound) throw new Error(`Permit ${name} binding mismatch`);
+    if (actual !== bound) {
+      throw new Error(`Permit ${name} binding mismatch`);
+    }
   }
 }
 
@@ -159,5 +240,7 @@ export async function consumeExecutionPermit(
   nonce: string,
 ): Promise<void> {
   const consumed = await store.consume(permitId, nonce);
-  if (!consumed) throw new Error('Permit replay or invalid nonce');
+  if (!consumed) {
+    throw new Error('Permit replay or invalid nonce');
+  }
 }

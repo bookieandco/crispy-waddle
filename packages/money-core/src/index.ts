@@ -54,7 +54,7 @@ export type { PostgresExecutionRecoveryLeaseStoreOptions } from './postgres-exec
 export { PostgresExecutionRecoveryLeaseStore } from './postgres-execution-recovery-lease-store.js';
 export type { ExecutionRecoveryServiceOptions } from './execution-recovery-service.js';
 export { MoneyExecutionRecoveryService } from './execution-recovery-service.js';
-export type { MoneyReconciliationAdapter } from './execution-reconciliation-adapter.js';
+export type { MoneyExecutionReconciliationAdapter } from './execution-reconciliation-adapter.js';
 export { ExecutionReconciliationAdapterRegistry, createExecutionReconciler } from './execution-reconciliation-adapter.js';
 export type { ProviderExecutionIdentity } from './provider-execution-identity.js';
 export { createProviderExecutionIdentity, createProviderExecutionIdentityFromAttempt, assertProviderExecutionIdentity } from './provider-execution-identity.js';
@@ -69,8 +69,11 @@ export { assertRecoveryChildLineage } from './recovery-child-execution.js';
 export type { RecoveryChildProviderResult, RecoveryChildExecutorDeps } from './recovery-child-executor.js';
 export { MoneyRecoveryChildExecutor } from './recovery-child-executor.js';
 
-export type { MoneyAuthorityBinding } from './action-core-authority-bridge.js';
-export { fingerprintActionRequest, bindActionCoreAuthority } from './action-core-authority-bridge.js';
+export type { MoneyActionCoreAuthority, MoneyAuthorityBinding } from './action-core-authority-bridge.js';
+export { fingerprintActionRequest, createMoneyActionCoreAuthority, assertActionCoreAuthorityMatches, issueActionCoreBoundExecutionPermit, bindActionCoreAuthority } from './action-core-authority-bridge.js';
+
+export type { FinancialExecutionIntent } from './financial-action-governance.js';
+export { isFinancialMutationCapability, createFinancialActionRequestFromAllocation } from './financial-action-governance.js';
 
 export * from './canonical-financial-state.js';
 export * from './accounting-lifecycle-contracts.js';

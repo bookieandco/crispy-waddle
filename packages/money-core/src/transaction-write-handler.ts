@@ -1,76 +1,197 @@
 import { randomUUID } from 'node:crypto';
-import type { ActionHandler, ActionRequest } from '@jhadina/action-core';
-import { assertCapability, type BankAdapter } from './bank-adapter.js';
-import { type ApprovalPort } from './approval-port.js';
+import type {
+  ActionHandler,
+  ActionRequest,
+} from '@jhadina/action-core';
+import {
+  assertCapability,
+  type BankAdapter,
+} from './bank-adapter.js';
 import { type IdempotencyStore } from './idempotency-store.js';
-import { authorizeAndConsumeMoneyPermit, toExecutionAction, type MoneyExecutionPermit } from './execution-permit-gate.js';
-import { createExecutionAttempt, type ExecutionAttemptStore } from './execution-attempt.js';
-import { createProviderExecutionIdentityFromAttempt } from './provider-execution-identity.js';
-import type { PermitStore } from './execution-permit.js';
+import {
+  authorizeAndConsumeMoneyPermit,
+  toExecutionAction,
+  type MoneyExecutionPermit,
+} from './execution-permit-gate.js';
+import {
+  createExecutionAttempt,
+  type ExecutionAttemptStore,
+} from './execution-attempt.js';
+import {
+  createProviderExecutionIdentityFromAttempt,
+} from './provider-execution-identity.js';
+import type {
+  ExecutionAction,
+  PermitStore,
+} from './execution-permit.js';
 
-export type PaymentCreateAction = { capability: 'money.payment.create'; provider: string; accountId: string; amount: number; currency: string; payeeId: string };
-export type TransferCreateAction = { capability: 'money.transfer.create'; provider: string; fromAccountId: string; toAccountId: string; amount: number; currency: string };
-export type TransactionWriteAction = PaymentCreateAction | TransferCreateAction;
-export type TransactionWriteResult = { providerReference: string; status: string };
+export type PaymentCreateAction = {
+  capability: 'money.payment.create';
+  provider: string;
+  accountId: string;
+  amount: number;
+  currency: string;
+  payeeId: string;
+};
+
+export type TransferCreateAction = {
+  capability: 'money.transfer.create';
+  provider: string;
+  fromAccountId: string;
+  toAccountId: string;
+  amount: number;
+  currency: string;
+};
+
+export type TransactionWriteAction =
+  | PaymentCreateAction
+  | TransferCreateAction;
+
+export type TransactionWriteResult = {
+  providerReference: string;
+  status: string;
+};
 
 export type TransactionWriteHandlerDeps = {
   getProvider: (provider: string) => BankAdapter;
-  approval: ApprovalPort;
   idempotency: IdempotencyStore;
   permitStore: PermitStore;
-  getExecutionPermit: (requestId: string) => Promise<MoneyExecutionPermit>;
+  getExecutionPermit: (
+    request: ActionRequest<TransactionWriteAction>,
+    action: ExecutionAction,
+  ) => Promise<MoneyExecutionPermit>;
   executionAttempts: ExecutionAttemptStore;
   policyClock?: () => string;
   assertUserWorkspace?: (userId: string) => Promise<void>;
-  assertAccountAccess?: (userId: string, accountId: string) => Promise<void>;
+  assertAccountAccess?: (
+    userId: string,
+    accountId: string,
+  ) => Promise<void>;
 };
 
-function assertPositiveAmount(amount: number) {
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error('MONEY_AMOUNT_INVALID');
-}
-function assertCurrency(currency: string) {
-  if (!/^[A-Z]{3}$/.test(currency)) throw new Error('MONEY_CURRENCY_INVALID');
+function assertPositiveAmount(amount: number): void {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('MONEY_AMOUNT_INVALID');
+  }
 }
 
-export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWriteAction, TransactionWriteResult> {
-  constructor(private readonly deps: TransactionWriteHandlerDeps) {}
-  supports(type: string): boolean { return type === 'money.payment.create' || type === 'money.transfer.create'; }
+function assertCurrency(currency: string): void {
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    throw new Error('MONEY_CURRENCY_INVALID');
+  }
+}
 
-  async execute(action: TransactionWriteAction, request: ActionRequest<TransactionWriteAction>): Promise<TransactionWriteResult> {
+export class MoneyTransactionWriteHandler
+  implements
+    ActionHandler<TransactionWriteAction, TransactionWriteResult>
+{
+  constructor(
+    private readonly deps: TransactionWriteHandlerDeps,
+  ) {}
+
+  supports(type: string): boolean {
+    return (
+      type === 'money.payment.create' ||
+      type === 'money.transfer.create'
+    );
+  }
+
+  async execute(
+    action: TransactionWriteAction,
+    request: ActionRequest<TransactionWriteAction>,
+  ): Promise<TransactionWriteResult> {
     if (!request.userId) throw new Error('MONEY_USER_REQUIRED');
+    if (request.type !== action.capability) {
+      throw new Error('MONEY_ACTION_REQUEST_CAPABILITY_MISMATCH');
+    }
+
     await this.deps.assertUserWorkspace?.(request.userId);
-    assertCapability({ userId: request.userId, capability: action.capability, requestId: request.id }, action.capability);
-    await this.deps.approval.requireApproved({ requestId: request.id, userId: request.userId, capability: action.capability });
+    assertCapability(
+      {
+        userId: request.userId,
+        capability: action.capability,
+        requestId: request.id,
+      },
+      action.capability,
+    );
     assertPositiveAmount(action.amount);
     assertCurrency(action.currency);
 
-    const claim = await this.deps.idempotency.claim({ requestId: request.id, userId: request.userId, capability: action.capability });
+    const claim = await this.deps.idempotency.claim({
+      requestId: request.id,
+      userId: request.userId,
+      capability: action.capability,
+    });
+
+    // Replays do not create a new financial side effect, so they return the
+    // already-owned result without consuming a second execution permit.
     if (!claim.claimed) {
-      if (claim.record.userId !== request.userId || claim.record.capability !== action.capability) throw new Error('MONEY_IDEMPOTENCY_IDENTITY_MISMATCH');
-      return claim.record.status === 'completed' && claim.record.result ? claim.record.result : this.deps.idempotency.waitForCompletion(request.id);
+      if (
+        claim.record.userId !== request.userId ||
+        claim.record.capability !== action.capability
+      ) {
+        throw new Error('MONEY_IDEMPOTENCY_IDENTITY_MISMATCH');
+      }
+      return claim.record.status === 'completed' &&
+        claim.record.result
+        ? claim.record.result
+        : this.deps.idempotency.waitForCompletion(request.id);
     }
 
     const adapter = this.deps.getProvider(action.provider);
     if (action.capability === 'money.payment.create') {
-      await this.deps.assertAccountAccess?.(request.userId, action.accountId);
-      if (!adapter.createPayment) throw new Error('MONEY_PAYMENT_UNSUPPORTED');
+      await this.deps.assertAccountAccess?.(
+        request.userId,
+        action.accountId,
+      );
+      if (!adapter.createPayment) {
+        throw new Error('MONEY_PAYMENT_UNSUPPORTED');
+      }
     } else {
-      await this.deps.assertAccountAccess?.(request.userId, action.fromAccountId);
-      await this.deps.assertAccountAccess?.(request.userId, action.toAccountId);
-      if (action.fromAccountId === action.toAccountId) throw new Error('MONEY_TRANSFER_SAME_ACCOUNT');
-      if (!adapter.createTransfer) throw new Error('MONEY_TRANSFER_UNSUPPORTED');
+      await this.deps.assertAccountAccess?.(
+        request.userId,
+        action.fromAccountId,
+      );
+      await this.deps.assertAccountAccess?.(
+        request.userId,
+        action.toAccountId,
+      );
+      if (action.fromAccountId === action.toAccountId) {
+        throw new Error('MONEY_TRANSFER_SAME_ACCOUNT');
+      }
+      if (!adapter.createTransfer) {
+        throw new Error('MONEY_TRANSFER_UNSUPPORTED');
+      }
     }
 
-    const permit = await this.deps.getExecutionPermit(request.id);
     const executionAction = toExecutionAction(action, request);
-    await authorizeAndConsumeMoneyPermit(this.deps.permitStore, permit, executionAction, this.deps.policyClock?.() ?? new Date().toISOString());
+    const permit = await this.deps.getExecutionPermit(
+      request,
+      executionAction,
+    );
+    const now =
+      this.deps.policyClock?.() ?? new Date().toISOString();
+
+    await authorizeAndConsumeMoneyPermit(
+      this.deps.permitStore,
+      permit,
+      request,
+      executionAction,
+      now,
+    );
 
     const attempt = createExecutionAttempt({
-      attemptId: randomUUID(), requestId: request.id, permitId: permit.permitId, action: executionAction,
-      operation: action.capability, now: this.deps.policyClock?.() ?? new Date().toISOString(),
+      attemptId: randomUUID(),
+      requestId: request.id,
+      permitId: permit.permitId,
+      action: executionAction,
+      operation: action.capability,
+      now,
     });
     await this.deps.executionAttempts.start(attempt);
-    const providerIdentity = createProviderExecutionIdentityFromAttempt(attempt);
+
+    const providerIdentity =
+      createProviderExecutionIdentityFromAttempt(attempt);
     const adapterContext = {
       userId: request.userId,
       capability: action.capability,
@@ -85,21 +206,49 @@ export class MoneyTransactionWriteHandler implements ActionHandler<TransactionWr
       if (action.capability === 'money.payment.create') {
         result = await adapter.createPayment!(
           adapterContext,
-          { accountId: action.accountId, amount: action.amount, currency: action.currency, payeeId: action.payeeId },
+          {
+            accountId: action.accountId,
+            amount: action.amount,
+            currency: action.currency,
+            payeeId: action.payeeId,
+          },
         );
       } else {
         result = await adapter.createTransfer!(
           adapterContext,
-          { fromAccountId: action.fromAccountId, toAccountId: action.toAccountId, amount: action.amount, currency: action.currency },
+          {
+            fromAccountId: action.fromAccountId,
+            toAccountId: action.toAccountId,
+            amount: action.amount,
+            currency: action.currency,
+          },
         );
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      await this.deps.executionAttempts.complete(attempt.attemptId, { state: 'UNKNOWN', errorCode: 'MONEY_PROVIDER_OUTCOME_UNKNOWN', errorMessage: message, recoveryRequired: true });
-      throw new Error(`MONEY_EXECUTION_RECOVERY_REQUIRED:${attempt.attemptId}`);
+      const message =
+        error instanceof Error ? error.message : String(error);
+      await this.deps.executionAttempts.complete(
+        attempt.attemptId,
+        {
+          state: 'UNKNOWN',
+          errorCode: 'MONEY_PROVIDER_OUTCOME_UNKNOWN',
+          errorMessage: message,
+          recoveryRequired: true,
+        },
+      );
+      throw new Error(
+        `MONEY_EXECUTION_RECOVERY_REQUIRED:${attempt.attemptId}`,
+      );
     }
 
-    await this.deps.executionAttempts.complete(attempt.attemptId, { state: 'SUCCEEDED', providerReference: result.providerReference, recoveryRequired: false });
+    await this.deps.executionAttempts.complete(
+      attempt.attemptId,
+      {
+        state: 'SUCCEEDED',
+        providerReference: result.providerReference,
+        recoveryRequired: false,
+      },
+    );
     await this.deps.idempotency.complete(request.id, result);
     return result;
   }
