@@ -83,6 +83,9 @@ importers:
 
   apps/pupsonstuff:
     dependencies:
+      '@jhadina/intelligence-core':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-intelligence-core
       '@huggingface/inference':
         specifier: ^4.13.25
         version: 4.13.30
