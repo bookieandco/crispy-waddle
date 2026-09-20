@@ -23,6 +23,7 @@ import {
 import { createServiceRoleClient } from "../supabase/service-role";
 import { HttpMediaSecurityScanner } from "./http-media-security-scanner";
 import { SupabaseIntelligenceAssetStore } from "./supabase-intelligence-asset-store";
+import { createProductionSubsystemRegistry } from "./production-subsystem-registry";
 import {
   SupabaseUniversalUploadObjectStore,
   type UniversalUploadObjectStore,
@@ -168,7 +169,9 @@ export function createProductionUniversalUploadRuntime(input: {
   const backend = new MetadataOnlyExtractionBackend();
   const perception = new GovernedPerceptionExtractionRouter(createMetadataExtractors(backend));
   const media = new GovernedMediaPipeline(perception, new GovernedUniversalIntakeRouter());
-  const dispatcher = new GovernedSubsystemDispatcher(input.subsystemAdapters ?? []);
+  const subsystemAdapters =
+    input.subsystemAdapters ?? createProductionSubsystemRegistry(client).adapters;
+  const dispatcher = new GovernedSubsystemDispatcher(subsystemAdapters);
 
   return new UniversalUploadRuntime(scanner, objects, registry, media, dispatcher, scannerPrivacyCeiling);
 }
