@@ -22,6 +22,8 @@ export type OverageOpportunityInput = {
   verificationDecision?: VerificationDecision
   description?: string
   capturedAt?: string
+  sourceConfidence?: number
+  riskFlags?: string[]
 }
 
 const defaultChecks = (): OverageVerificationChecks => ({
@@ -39,9 +41,13 @@ export function adaptOverageOpportunity(input: OverageOpportunityInput): Opportu
   }
   const decision = input.verificationDecision
   const verified = decision !== undefined && decision.status === 'verified'
-  const riskFlags = Object.entries(checks)
-    .filter(([, value]) => value !== 'verified')
-    .map(([key, value]) => `unverified:${key}:${value}`)
+  const sourceConfidence = Math.max(0, Math.min(1, input.sourceConfidence ?? (checks.source_record === 'verified' ? 1 : 0)))
+  const riskFlags = [
+    ...Object.entries(checks)
+      .filter(([, value]) => value !== 'verified')
+      .map(([key, value]) => `unverified:${key}:${value}`),
+    ...(input.riskFlags ?? []),
+  ]
 
   return {
     id: `overage:${input.id}`,
@@ -74,13 +80,14 @@ export function adaptOverageOpportunity(input: OverageOpportunityInput): Opportu
       sourceName: input.sourceName ?? 'Recovery source',
       sourceType: 'official',
       capturedAt: now,
-      confidence: checks.source_record === 'verified' ? 1 : 0,
+      confidence: sourceConfidence,
     }],
     verificationStatus: verified ? 'verified' : Object.values(checks).some(value => value === 'verified') ? 'partially_verified' : 'unverified',
     verificationDecision: decision,
-    sourceConfidence: checks.source_record === 'verified' ? 1 : 0,
+    sourceConfidence,
     riskFlags,
     brokerability: 'restricted',
+    metadata: { providerId: 'provider:overageos', opportunityKind: 'overage', automationLevel: 'user_led', requiresUserApproval: true },
     status: verified ? 'verified' : 'research_pending',
     createdAt: now,
     updatedAt: now,
