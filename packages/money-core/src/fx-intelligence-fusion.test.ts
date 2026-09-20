@@ -654,3 +654,70 @@ test('resolution before target and scoring before resolution fail closed', () =>
     /SCORE_BEFORE_RESOLUTION/,
   );
 });
+
+
+test('forecast rejects a regime derived from a different factor-set lineage', () => {
+  const factorSet = buildFactorSet();
+  const otherFactorSet = buildFxFactorSet({
+    marketSnapshot: primary,
+    relatedSnapshots: [related],
+    factors: deriveFxRealityFactors(
+      primary,
+      '1',
+      'other-derived:hash',
+    ),
+    methodologyVersion: '1',
+    inputSnapshotHash: 'different-factor-input',
+    provenanceHash: 'different-factor-set-hash',
+  });
+  const otherRegime = buildFxRegimeAssessment({
+    factorSet: otherFactorSet,
+    regimeId: 'regime:other',
+    label: 'MIXED',
+    confidence: 0.5,
+    rationale: 'Different factor-set lineage.',
+    sourceFactorIds: [
+      `${primary.snapshotId}:spread-pips`,
+    ],
+    methodologyVersion: '1',
+    evidenceRefs: ['regime:other:e1'],
+    provenanceHash: 'regime:other:hash',
+  });
+
+  assert.throws(
+    () =>
+      buildFxForecast({
+        factorSet,
+        regime: otherRegime,
+        marketSnapshot: primary,
+        forecastId: 'forecast:wrong-regime-lineage',
+        issuedAt: '2026-09-19T14:01:00Z',
+        targetAt: '2026-09-20T14:00:00Z',
+        horizonLabel: '1D',
+        modelId: 'm',
+        modelVersion: '1',
+        methodologyVersion: '1',
+        scenarios: [
+          {
+            scenarioId: 'down',
+            label: 'Down',
+            probability: 0.5,
+            expectedReturn: -0.01,
+            maxReturnExclusive: 0,
+          },
+          {
+            scenarioId: 'up',
+            label: 'Up',
+            probability: 0.5,
+            expectedReturn: 0.01,
+            minReturnInclusive: 0,
+          },
+        ],
+        calibrationStatus: 'UNKNOWN',
+        evidenceRefs: ['model:e1'],
+        inputSnapshotHash: 'forecast-input',
+        provenanceHash: 'forecast:hash',
+      }),
+    /REGIME_LINEAGE_MISMATCH/,
+  );
+});
