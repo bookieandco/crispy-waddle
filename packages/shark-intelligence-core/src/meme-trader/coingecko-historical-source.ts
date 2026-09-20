@@ -33,7 +33,7 @@ export class CoinGeckoHistoricalSource {
   }
 
   async holderHistory(launch: TokenLaunch): Promise<HistoricalHolderPoint[]> {
-    const json = await this.get(`/onchain/networks/${encodeURIComponent(launch.chainId)}/tokens/${encodeURIComponent(launch.tokenAddress)}/holders_chart`)
+    const json = await this.get(`/onchain/networks/${encodeURIComponent(coinGeckoNetworkId(launch.chainId))}/tokens/${encodeURIComponent(launch.tokenAddress)}/holders_chart`)
     const rows = json?.data?.attributes?.holders_chart ?? json?.data?.attributes?.holders
     if (!Array.isArray(rows)) return []
     return rows.map((r: any) => {
