@@ -21,15 +21,15 @@
 | Derived visual perception firewall | PASS | model input policy gate + INFERRED/non-reality output |
 | P10 adversarial tests present | PASS | source policy, authority, replay, inference, reality-admission coverage |
 | Current lockfile importer consistency | PASS (source) | core-spine manifest/importer now match |
-| Fresh Spatial Conformance CI | PASS | run 159 / job 106010250704: type-check passed; Vitest 14/14; Node/TAP 42/42 |
+| Fresh Spatial Conformance CI | PASS | run 168 / job 106010467724: type-check passed; Vitest 14/14; Node/TAP 42/42 |
 | Live GEV deployment connectivity | UNKNOWN | requires deployed integration evidence |
-| Applied workspace/KG migrations | UNKNOWN | requires deployed DB verification |
+| Applied spatial persistence migrations | PASS | live Supabase versions 20260920030347, 20260920030358, 20260920030403, 20260920030407 |
 | Live end-to-end source → reality | UNKNOWN | requires real-source conformance execution |
-| Privacy/security deployment checks | UNKNOWN | requires operational verification |
-| Production deployment/telemetry | UNKNOWN | Vercel currently reports build-rate-limit status; runtime evidence unavailable |
+| Spatial DB privilege/RLS hardening | PASS | RLS on all six tables; no anon/auth grants; service_role SELECT+INSERT only; trigger search_path pinned |
+| Production health gate source | PASS | /api/spatial/health reports provider/database readiness without exposing secrets |\n| Production deployment/telemetry | BLOCKED | current production alias predates Spatial routes; Vercel main status is build-rate-limit failure |
 
 ## Gate result
 
 **SOURCE IMPLEMENTATION COMPLETE THROUGH GEV-P10. PRODUCTION READINESS BLOCKED / FAIL-CLOSED.**
 
-The source-level P1-P10 build is complete. The production gate remains blocked because live deployment, database, privacy/security and telemetry evidence are separate requirements. No UNKNOWN item is promoted to PASS.
+The source-level P1-P10 build and live spatial database/security gate are complete. The production gate remains blocked because provider connectivity, real-source end-to-end execution, current deployment and telemetry evidence are still separate requirements. No UNKNOWN item is promoted to PASS.
