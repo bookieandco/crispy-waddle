@@ -1,5 +1,6 @@
 export * from './contracts'
 export * from './assessment'
+export * from './actor-intelligence'
 export * from './decision-proposal'
 export * from './profit-taking'
 export * from './paper-trade-contracts'
