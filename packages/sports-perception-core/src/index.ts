@@ -166,6 +166,7 @@ export * from './nba-roster-identity-candidates.js';
 export * from './nba-roster-reference.js';
 export * from './nba-rotation-feedback.js';
 export * from './nba-runtime02-commissioning.js';
+export * from './nba-runtime03-identity-commissioning.js';
 export * from './nba-scoreboard-benchmark.js';
 export * from './nba-scoreboard-reconciliation.js';
 export * from './nba-scoreboard-runtime.js';
