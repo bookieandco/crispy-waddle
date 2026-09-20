@@ -48,11 +48,12 @@ export function observationsToFulfillmentProviders(observations:ProviderDiscover
   const warnings:string[]=[]
   for(const [k,rows] of groups){
     const first=rows[0]
-    const evidence:FulfillmentProviderEvidence[]=rows.map((o,i)=>({
-      id:o.evidenceRef,kind:o.source==='award_history'?'award_record':o.source==='entity_directory'?'entity_record':o.source==='workforce'?'capacity_record':o.source==='manual'?'user_supplied':'secondary_source',
-      relationship:o.source==='award_history'?'supports_past_performance':o.source==='workforce'?'supports_capacity':'supports_identity',
-      sourceId:o.sourceId,sourceUrl:o.evidenceUrl,capturedAt:o.observedAt,confidence:o.source==='entity_directory'||o.source==='award_history'?0.9:0.6,
-    }))
+    const evidence:FulfillmentProviderEvidence[]=rows.flatMap((o)=>{
+      const base={sourceId:o.sourceId,sourceUrl:o.evidenceUrl,capturedAt:o.observedAt,confidence:o.source==='entity_directory'||o.source==='award_history'?0.9:0.6}
+      const out:FulfillmentProviderEvidence[]=[{...base,id:o.evidenceRef,kind:o.source==='award_history'?'award_record':o.source==='entity_directory'?'entity_record':o.source==='workforce'?'capacity_record':o.source==='manual'?'user_supplied':'secondary_source',relationship:o.source==='award_history'?'supports_past_performance':o.source==='workforce'?'supports_capacity':'supports_identity'}]
+      for(let i=0;i<(o.capabilities??[]).length;i++)out.push({...base,id:`${o.evidenceRef}:cap:${i+1}`,kind:'capability_record',relationship:'supports_capability'})
+      return out
+    })
     const evidenceIds=uniq(evidence.map(e=>e.id))
     const identifiers:FulfillmentProviderIdentifier[]=[]
     const uei=rows.find(x=>x.uei)?.uei,cage=rows.find(x=>x.cage)?.cage
@@ -62,12 +63,13 @@ export function observationsToFulfillmentProviders(observations:ProviderDiscover
       const a=o.award!;awards.push(a)
       return {id:a.id,role:'prime',customer:a.agency??'unknown',agency:a.agency,awardId:a.id,amount:a.amount,currency:a.currency,startedAt:a.startAt,endedAt:a.endAt,capabilityIds:[],verified:false,evidenceRefs:[o.evidenceRef]}
     })
-    const caps=rows.flatMap(o=>o.capabilities??[]).map((c,i)=>({id:`${k}:cap:${i+1}`,name:c.name,naicsCodes:uniq(c.naicsCodes??[]),pscCodes:uniq(c.pscCodes??[]),keywords:uniq(c.keywords??[]),confidence:0.5,verified:false,evidenceRefs:[]}))
+    let capIndex=0
+    const caps=rows.flatMap(o=>(o.capabilities??[]).map((cap,i)=>({id:`${k}:cap:${++capIndex}`,name:cap.name,naicsCodes:uniq(cap.naicsCodes??[]),pscCodes:uniq(cap.pscCodes??[]),keywords:uniq(cap.keywords??[]),confidence:0.5,verified:false,evidenceRefs:[`${o.evidenceRef}:cap:${i+1}`]})))
     if(!uei&&!cage)warnings.push(`Provider ${first.legalName} requires identity resolution before verification.`)
     providers.push({
       id:`provider:discovered:${k}`,legalName:first.legalName.trim(),website:first.website,
       identifiers,serviceAreas:[],capabilities:caps,credentials:[],pastPerformance,
-      capacity:rows.find(x=>x.capacity)?.capacity??{status:'unknown',evidenceRefs:[]},
+      capacity:(()=>{const row=rows.find(x=>x.capacity);return row?.capacity?{...row.capacity,evidenceRefs:[row.evidenceRef]}:{status:'unknown',evidenceRefs:[]}})(),
       evidence,sourceIds:uniq(rows.map(x=>x.sourceId)),verificationStatus:'unverified',stage:'discovered',
       riskFlags:['discovery-only: requires evidence relationship normalization before verification'],createdAt:now,updatedAt:now,
     })
