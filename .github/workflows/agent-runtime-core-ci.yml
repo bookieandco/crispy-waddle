@@ -1,0 +1,40 @@
+name: Agent Runtime Core CI
+
+on:
+  pull_request:
+    paths:
+      - "packages/agent-runtime-core/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/agent-runtime-core-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/agent-runtime-core/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/agent-runtime-core-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Agent runtime type-check and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type-check agent runtime core
+        run: pnpm --filter @jhadina/agent-runtime-core type-check
+      - name: Test agent runtime core
+        run: pnpm --filter @jhadina/agent-runtime-core test
