@@ -4,9 +4,14 @@ import type { UniversalUploadPrivacyClass } from "./production-universal-upload-
 
 export type DirectUploadSessionStatus =
   | "issued"
+  | "finalize_queued"
+  | "finalizing"
+  | "finalize_retry"
   | "finalized"
   | "rejected"
   | "expired";
+
+export type DirectUploadCleanupStatus = "none" | "pending" | "running" | "cleaned";
 
 export type DirectUploadSession = {
   id: string;
@@ -20,6 +25,10 @@ export type DirectUploadSession = {
   intent?: string;
   status: DirectUploadSessionStatus;
   expiresAt: string;
+  finalizeRequestedAt?: string;
+  finalizeAvailableAt: string;
+  finalizeAttempt: number;
+  finalizeMaxAttempts: number;
   finalizeLeaseOwner?: string;
   finalizeLeaseToken?: string;
   finalizeLeaseExpiresAt?: string;
@@ -28,6 +37,14 @@ export type DirectUploadSession = {
   assetId?: string;
   perceptionJobId?: string;
   lastError?: string;
+  cleanupStatus: DirectUploadCleanupStatus;
+  cleanupAvailableAt: string;
+  cleanupAttempt: number;
+  cleanupLeaseOwner?: string;
+  cleanupLeaseToken?: string;
+  cleanupLeaseExpiresAt?: string;
+  cleanupError?: string;
+  cleanedAt?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -39,11 +56,15 @@ type SessionRow = {
   filename: string;
   declared_media_type: string;
   modality: IntakeModality;
-  expected_byte_length: number;
+  expected_byte_length: number | string;
   privacy_class: UniversalUploadPrivacyClass;
   intent: string | null;
   status: DirectUploadSessionStatus;
   expires_at: string;
+  finalize_requested_at: string | null;
+  finalize_available_at: string;
+  finalize_attempt: number;
+  finalize_max_attempts: number;
   finalize_lease_owner: string | null;
   finalize_lease_token: string | null;
   finalize_lease_expires_at: string | null;
@@ -52,6 +73,14 @@ type SessionRow = {
   asset_id: string | null;
   perception_job_id: string | null;
   last_error: string | null;
+  cleanup_status: DirectUploadCleanupStatus;
+  cleanup_available_at: string;
+  cleanup_attempt: number;
+  cleanup_lease_owner: string | null;
+  cleanup_lease_token: string | null;
+  cleanup_lease_expires_at: string | null;
+  cleanup_error: string | null;
+  cleaned_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -69,6 +98,10 @@ function toSession(row: SessionRow): DirectUploadSession {
     intent: row.intent ?? undefined,
     status: row.status,
     expiresAt: row.expires_at,
+    finalizeRequestedAt: row.finalize_requested_at ?? undefined,
+    finalizeAvailableAt: row.finalize_available_at,
+    finalizeAttempt: row.finalize_attempt,
+    finalizeMaxAttempts: row.finalize_max_attempts,
     finalizeLeaseOwner: row.finalize_lease_owner ?? undefined,
     finalizeLeaseToken: row.finalize_lease_token ?? undefined,
     finalizeLeaseExpiresAt: row.finalize_lease_expires_at ?? undefined,
@@ -77,6 +110,14 @@ function toSession(row: SessionRow): DirectUploadSession {
     assetId: row.asset_id ?? undefined,
     perceptionJobId: row.perception_job_id ?? undefined,
     lastError: row.last_error ?? undefined,
+    cleanupStatus: row.cleanup_status,
+    cleanupAvailableAt: row.cleanup_available_at,
+    cleanupAttempt: row.cleanup_attempt,
+    cleanupLeaseOwner: row.cleanup_lease_owner ?? undefined,
+    cleanupLeaseToken: row.cleanup_lease_token ?? undefined,
+    cleanupLeaseExpiresAt: row.cleanup_lease_expires_at ?? undefined,
+    cleanupError: row.cleanup_error ?? undefined,
+    cleanedAt: row.cleaned_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -133,17 +174,24 @@ export class SupabaseDirectUploadSessionRepository {
     return data ? toSession(data as SessionRow) : undefined;
   }
 
-  async claimFinalize(input: {
+  async requestFinalize(input: {
     actorId: string;
     sessionId: string;
-    workerId: string;
-    leaseMs: number;
-  }) {
-    const { data, error } = await this.client.rpc("claim_jhadina_upload_session_finalize", {
+    maxAttempts: number;
+  }): Promise<DirectUploadSession | undefined> {
+    const { data, error } = await this.client.rpc("request_jhadina_upload_session_finalize", {
       p_actor_id: input.actorId,
       p_session_id: input.sessionId,
-      p_worker_id: input.workerId,
-      p_lease_ms: input.leaseMs,
+      p_max_attempts: input.maxAttempts,
+    });
+    if (error) throw error;
+    return data ? toSession(data as SessionRow) : undefined;
+  }
+
+  async claimNextFinalize(workerId: string, leaseMs: number) {
+    const { data, error } = await this.client.rpc("claim_next_jhadina_upload_session_finalize", {
+      p_worker_id: workerId,
+      p_lease_ms: leaseMs,
     });
     if (error) throw error;
     return data ? toSession(data as SessionRow) : undefined;
@@ -207,6 +255,26 @@ export class SupabaseDirectUploadSessionRepository {
     return data ? toSession(data as SessionRow) : undefined;
   }
 
+  async retryFinalize(input: {
+    actorId: string;
+    sessionId: string;
+    workerId: string;
+    leaseToken: string;
+    error: string;
+    availableAt: string;
+  }) {
+    const { data, error } = await this.client.rpc("retry_jhadina_upload_session_finalize", {
+      p_actor_id: input.actorId,
+      p_session_id: input.sessionId,
+      p_worker_id: input.workerId,
+      p_lease_token: input.leaseToken,
+      p_error: input.error,
+      p_available_at: input.availableAt,
+    });
+    if (error) throw error;
+    return data ? toSession(data as SessionRow) : undefined;
+  }
+
   async reject(input: {
     actorId: string;
     sessionId: string;
@@ -225,19 +293,46 @@ export class SupabaseDirectUploadSessionRepository {
     return data ? toSession(data as SessionRow) : undefined;
   }
 
-  async release(input: {
+  async claimNextCleanup(workerId: string, leaseMs: number) {
+    const { data, error } = await this.client.rpc("claim_next_jhadina_upload_cleanup", {
+      p_worker_id: workerId,
+      p_lease_ms: leaseMs,
+    });
+    if (error) throw error;
+    return data ? toSession(data as SessionRow) : undefined;
+  }
+
+  async completeCleanup(input: {
+    actorId: string;
+    sessionId: string;
+    workerId: string;
+    leaseToken: string;
+  }) {
+    const { data, error } = await this.client.rpc("complete_jhadina_upload_cleanup", {
+      p_actor_id: input.actorId,
+      p_session_id: input.sessionId,
+      p_worker_id: input.workerId,
+      p_lease_token: input.leaseToken,
+    });
+    if (error) throw error;
+    return data ? toSession(data as SessionRow) : undefined;
+  }
+
+  async retryCleanup(input: {
     actorId: string;
     sessionId: string;
     workerId: string;
     leaseToken: string;
     error: string;
+    availableAt: string;
   }) {
-    const { data, error } = await this.client.rpc("release_jhadina_upload_session_finalize", {
+    const { data, error } = await this.client.rpc("retry_jhadina_upload_cleanup", {
       p_actor_id: input.actorId,
       p_session_id: input.sessionId,
       p_worker_id: input.workerId,
       p_lease_token: input.leaseToken,
       p_error: input.error,
+      p_available_at: input.availableAt,
     });
     if (error) throw error;
     return data ? toSession(data as SessionRow) : undefined;
