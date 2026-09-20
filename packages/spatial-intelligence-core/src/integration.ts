@@ -99,7 +99,7 @@ export function createSpatialContextProvider(options: { userId: string; read: Sp
       const query = (options.interpreter ?? defaultSpatialQueryInterpreter)(input.activeTask)
       if (!query) return undefined
       const enriched: SpatialQuery = { ...query, geographicScope: input.geographicScope ?? query.geographicScope, temporalScope: input.temporalScope ?? query.temporalScope }
-      const pkg = await options.read(planSpatialQuery(enriched), input.userId || options.userId)
+      const pkg = await options.read.read(planSpatialQuery(enriched), input.userId || options.userId)
       return pkg ? toSpatialDomainContext(pkg) : undefined
     },
   }
@@ -134,10 +134,10 @@ export function assertDirectorSpatialContext(context: DirectorSpatialContext): v
   if (context.evidenceRefs.length === 0) throw new Error("DIRECTOR_SPATIAL_CONTEXT_EVIDENCE_REQUIRED")
 }
 
-export type GevCameraRecord = { id: string; name: string; city: string; lat: number; lon: number; headingDeg?: number; fovDeg?: number; pitchDeg?: number; capability?: SpatialStream["capability"]; frameUrl?: string; mediaUrl?: string }
+export type GevCameraGraphRecord = { id: string; name: string; city: string; lat: number; lon: number; headingDeg?: number; fovDeg?: number; pitchDeg?: number; capability?: SpatialStream["capability"]; frameUrl?: string; mediaUrl?: string }
 
 /** Normalizes GEV CCTV records without importing GEV's application state, renderer, or action layer. */
-export function normalizeGevCamera(record: GevCameraRecord, sourceId: string, adapterVersion: string): SpatialGraphContribution {
+export function normalizeGevCamera(record: GevCameraGraphRecord, sourceId: string, adapterVersion: string): SpatialGraphContribution {
   if (!record.id || !sourceId || !adapterVersion || !Number.isFinite(record.lat) || !Number.isFinite(record.lon)) throw new Error("GEV_CAMERA_RECORD_INVALID")
   if (record.lat < -90 || record.lat > 90 || record.lon < -180 || record.lon > 180) throw new Error("GEV_CAMERA_POSITION_INVALID")
   return normalizeSpatialGraphContribution({
