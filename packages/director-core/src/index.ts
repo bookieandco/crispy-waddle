@@ -68,3 +68,5 @@ export * from './production-authority';
 export * from './media-review-lifecycle';
 export * from './review-transition';
 export * from './production-orchestrator';
+export * from './rerun-command';
+export * from './recovery-plan';
