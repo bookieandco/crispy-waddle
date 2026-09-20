@@ -8,7 +8,8 @@
   "scripts": {
     "type-check": "tsc --noEmit",
     "test": "tsx --test $(find src -name '*.test.ts' -not -name '*.integration.test.ts')",
-    "test:integration": "tsx --test src/**/*.integration.test.ts"
+    "test:integration": "tsx --test src/**/*.integration.test.ts",
+    "verify:r13": "pnpm type-check && pnpm test"
   },
   "dependencies": {
     "pg": "^8.16.3"
