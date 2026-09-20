@@ -109,6 +109,22 @@ declare
 begin
   if nullif(trim(p_worker_id),'') is null then return null; end if;
 
+  -- Exhausted crashed workers become terminal instead of remaining stuck
+  -- in finalizing forever with an expired fencing lease.
+  update public.jhadina_upload_sessions
+     set status = 'rejected',
+         last_error = coalesce(last_error, 'DIRECT_UPLOAD_FINALIZE_ATTEMPTS_EXHAUSTED'),
+         cleanup_status = 'pending',
+         cleanup_available_at = v_now,
+         finalize_lease_owner = null,
+         finalize_lease_token = null,
+         finalize_lease_expires_at = null,
+         updated_at = v_now
+   where status = 'finalizing'
+     and finalize_lease_expires_at is not null
+     and finalize_lease_expires_at <= v_now
+     and finalize_attempt >= finalize_max_attempts;
+
   -- Expire only sessions that never requested finalization.
   update public.jhadina_upload_sessions
      set status = 'expired',
