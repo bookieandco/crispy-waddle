@@ -119,7 +119,7 @@ export async function runPersistedLaunchOutcomeWorker(client: SupabaseClient, li
     if (!observation) throw new Error(`SHARK evaluation missing source observation for ${item.launchId}`)
     const evaluationId = `launch-evaluation:${item.launchId}:${item.assessment.version}:${observationFingerprint(observation)}`
 
-    const { error: evaluationError } = await client.from('jhadina_launch_outcome_evaluations').upsert({
+    const evaluation = {
       evaluation_id: evaluationId,
       launch_id: item.launchId,
       previous_outcome: previous,
@@ -129,18 +129,12 @@ export async function runPersistedLaunchOutcomeWorker(client: SupabaseClient, li
       evaluator_version: item.assessment.version,
       evidence_ids: item.assessment.evidenceIds,
       reasons: item.assessment.reasons,
-    }, { onConflict: 'evaluation_id', ignoreDuplicates: true })
-    if (evaluationError) throw new Error(`SHARK evaluation persistence failed: ${evaluationError.message}`)
-
-    if (item.updatedLaunch.outcome !== previous) {
-      const { error } = await client.from('jhadina_token_launches').update({
-        outcome: item.updatedLaunch.outcome,
-        outcome_observed_at: item.updatedLaunch.outcomeObservedAt ?? evaluatedAt,
-        evidence_ids: item.updatedLaunch.evidenceIds,
-        updated_at: evaluatedAt,
-      }).eq('launch_id', item.launchId)
-      if (error) throw new Error(`SHARK launch outcome update failed: ${error.message}`)
     }
+    const { error: evaluationError } = await client.rpc('jhadina_shark_apply_outcome_evaluation', {
+      p_evaluation: evaluation,
+      p_apply_outcome: item.assessment.outcome !== 'UNKNOWN',
+    })
+    if (evaluationError) throw new Error(`SHARK atomic outcome persistence failed: ${evaluationError.message}`)
   }
 
   const touchedActorKeys = new Set(result.actorHistories.map(actor => actor.actorKey))
