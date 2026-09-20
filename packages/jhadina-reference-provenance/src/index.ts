@@ -399,22 +399,22 @@ function assertMappingInput(
   }
 
   if (input.borrowedArtifactKinds.includes('CODE')) {
-    const legacyVerified =
-      reference.licenseStatus === 'VERIFIED';
-    const sourceVerified =
-      sourceVerification?.licenseFinding === 'VERIFIED' &&
-      sourceVerification.licenseReusePolicy === 'PERMISSIVE';
-    if (!legacyVerified && !sourceVerified) {
+    if (sourceVerification) {
+      if (sourceVerification.licenseFinding !== 'VERIFIED') {
+        throw new Error(
+          'REF_PROV_CODE_DERIVATION_LICENSE_NOT_VERIFIED',
+        );
+      }
+      if (
+        sourceVerification.licenseReusePolicy !== 'PERMISSIVE'
+      ) {
+        throw new Error(
+          'REF_PROV_CODE_DERIVATION_REUSE_REVIEW_REQUIRED',
+        );
+      }
+    } else if (reference.licenseStatus !== 'VERIFIED') {
       throw new Error(
         'REF_PROV_CODE_DERIVATION_LICENSE_NOT_VERIFIED',
-      );
-    }
-    if (
-      sourceVerification &&
-      sourceVerification.licenseReusePolicy !== 'PERMISSIVE'
-    ) {
-      throw new Error(
-        'REF_PROV_CODE_DERIVATION_REUSE_REVIEW_REQUIRED',
       );
     }
   }
