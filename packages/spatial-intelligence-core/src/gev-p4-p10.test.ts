@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { InMemoryKnowledgeGraph } from '@jhadina/knowledge-graph'
 import { GevProviderBridge, type GevFetchLike } from './gev-provider-bridge.js'
 import { createGevSpatialContextReadProvider } from './gev-spatial-context-read-provider.js'
-import { inferSpatialDomains, normalizeGevCamera, projectSpatialContributionToKnowledgeGraph, type SpatialContextPackage } from './integration.js'
+import { inferSpatialDomains, normalizeGevCamera, type SpatialContextPackage } from './integration.js'
+import { projectSpatialContributionToKnowledgeGraph } from './spatial-knowledge-projection.js'
 import { InMemorySpatialWorkspaceStore, createSpatialWorkspaceRevision } from './spatial-workspace-store.js'
 import { applyJanetSpatialPreferences, composeDeliaSpatialAssessment, prepareMarisaSpatialOperation } from './spatial-role-composition.js'
 import { toMoneySpatialIntelligence, toSafetySpatialIntelligence } from './spatial-consumer-adapters.js'
@@ -100,7 +100,13 @@ test('GEV P5 workspace history is append-only and supports deterministic replay 
 })
 
 test('GEV P6 spatial graph projects into the canonical knowledge graph with provenance', () => {
-  const graph = new InMemoryKnowledgeGraph()
+  const nodes = new Map<string, { nodeId: string; nodeType: string; label: string; provenanceRefs?: string[] }>()
+  const graph = {
+    registerNode(node: { nodeId: string; nodeType: string; label: string; provenanceRefs?: string[] }) { nodes.set(node.nodeId, node) },
+    registerRelation(_relation: unknown) {},
+    getNode(nodeId: string) { return nodes.get(nodeId) },
+    getRelations(_nodeId: string) { return [] },
+  }
   const contribution = normalizeGevCamera({ id: 'cam-1', name: 'Camera', city: 'Austin', lat: 30.2, lon: -97.7 }, 'gev-cctv', 'v1')
   contribution.evidenceRefs.push('e-camera-1')
   projectSpatialContributionToKnowledgeGraph(graph, contribution)
