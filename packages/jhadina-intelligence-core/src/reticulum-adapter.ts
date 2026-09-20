@@ -1,5 +1,5 @@
 import type { AuthorizedCommunicationDispatch } from './communication-action.js'
-import type { DeliveryReceipt } from './delivery-evidence.js'
+import { createDeliveryReceipt, type DeliveryReceipt } from './delivery-evidence.js'
 import type { TransportRoute } from './transport-registry.js'
 
 export interface ReticulumBridge {
@@ -27,16 +27,13 @@ export class ReticulumTransportAdapter {
       contentRef: input.dispatch.intent.contentRef,
       correlationId: input.dispatch.correlationId,
     })
-    return Object.freeze({
+    return createDeliveryReceipt({
       receiptId: input.receiptId,
-      intentId: input.dispatch.intent.intentId,
-      correlationId: input.dispatch.correlationId,
-      actorId: input.dispatch.intent.actorId,
-      transportId: input.route.identity.transportId,
-      adapter: this.adapter,
+      dispatch: input.dispatch,
+      route: input.route,
       status: 'sent',
       occurredAt: input.occurredAt,
-      evidenceRefs: Object.freeze([result.receiptRef]),
+      evidenceRefs: [result.receiptRef],
     })
   }
 }
