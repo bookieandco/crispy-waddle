@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import type { Experience } from "@jhadina/core-spine"
 import { SupabaseMemoryStorage } from "../storage/SupabaseMemoryStorage"
 import { PersistedExperiencePatternAdapter } from "./persisted-experience-pattern-adapter"
 
@@ -179,6 +180,69 @@ describe("persisted Experience -> Hippocampus -> Pattern vertical", () => {
     expect(direct?.personalityEligible).toBe(false)
     expect(direct?.evidence.map((item) => item.id)).toEqual([
       current.id,
+      memory.id,
+    ])
+  })
+
+
+  it("analyzes a live Experience against durable history without persisting a duplicate episode", async () => {
+    const historical = await storage.createReasoningEvent({
+      userId: "user_live",
+      timestamp: "2026-09-01T12:00:00.000Z",
+      userMessage: "I prefer direct answers when we plan.",
+      observation: {
+        raw: "I prefer direct answers when we plan.",
+        extracted: "prefer direct answers",
+        timestamp: "2026-09-01T12:00:00.000Z",
+      },
+      classification: { type: "PREFERENCE", confidence: 0.95 },
+      systemResponse: "Understood.",
+      confidence: 0.95,
+    })
+    const memory = await storage.createMemory({
+      userId: "user_live",
+      type: "PREFERENCE",
+      status: "APPROVED",
+      content: "I prefer direct answers when we plan.",
+      confidence: 0.95,
+      createdAt: "2026-09-01T12:00:00.000Z",
+      approvedAt: "2026-09-01T12:01:00.000Z",
+    })
+    const live: Experience = {
+      id: "live-command-1",
+      occurredAt: "2026-09-02T12:00:00.000Z",
+      source: "ask-jhadina",
+      actor: "user",
+      content: "Please keep this answer direct while we plan.",
+      evidence: [{
+        id: "live-command-1",
+        source: "ask-jhadina",
+        observedAt: "2026-09-02T12:00:00.000Z",
+        summary: "Please keep this answer direct while we plan.",
+        immutable: false,
+      }],
+    }
+
+    const adapter = new PersistedExperiencePatternAdapter(storage)
+    const result = await adapter.detectExperience({
+      userId: "user_live",
+      experience: live,
+    })
+
+    expect(tables.jhadina_reasoning_events.rows).toHaveLength(1)
+    expect(result.experience.id).toBe("live-command-1")
+    expect(result.relatedEpisodes.map((episode) => episode.episodeId)).toContain(
+      historical.id,
+    )
+    expect(result.memories.map((proposal) => proposal.id)).toEqual([memory.id])
+
+    const direct = result.patterns.find(
+      (pattern) => pattern.id === "recurrence:direct",
+    )
+    expect(direct).toBeDefined()
+    expect(direct?.personalityEligible).toBe(false)
+    expect(direct?.evidence.map((item) => item.id)).toEqual([
+      "live-command-1",
       memory.id,
     ])
   })
