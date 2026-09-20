@@ -57,6 +57,12 @@ Eligible observations enter the existing Bayesian Personality projection. Traits
 
 The Personality behavior runtime emits an eligibility decision receipt for every Pattern observation. Receipts identify whether a Pattern was eligible, the governing rule, governed dimension, and denial reason.
 
+## Migration and scale
+
+No PersonalityState schema migration is required for these semantic families. They are stored as ordinary governed traits and projected into transient behavioral posture. Existing voice, taste, and relationship records remain readable. New ExpressionDirective fields are optional, so older consumers remain valid.
+
+The production Hippocampus adapter already bounds relevant durable memories and final Pattern hypotheses. This semantic strategy has a fixed, finite detector set, so its work is bounded by the retrieved memory window rather than total lifetime memory.
+
 ## Acceptance tests
 
 `personality-v2-final-certification.test.ts` is the canonical final gate. It verifies:
