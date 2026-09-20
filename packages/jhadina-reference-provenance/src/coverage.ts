@@ -31,6 +31,12 @@ export type SubsystemReferenceCoverage = Readonly<{
   status: ReferenceCoverageStatus;
 }>;
 
+export type ReferenceLicenseVerificationLookup = Readonly<{
+  get(referenceId: string):
+    | Readonly<{ license: Readonly<{ status: string }> }>
+    | undefined;
+}>;
+
 export type ReferenceCoverageReport = Readonly<{
   schemaVersion: typeof REFERENCE_COVERAGE_SCHEMA_VERSION;
   subsystemCoverage: readonly SubsystemReferenceCoverage[];
@@ -162,6 +168,7 @@ export function buildReferenceCoverageReport(
   registry: ReferenceProvenanceRegistry,
   hints: readonly ReferenceSubsystemHint[] =
     DEFAULT_REFERENCE_SUBSYSTEM_HINTS,
+  sourceVerifications?: ReferenceLicenseVerificationLookup,
 ): ReferenceCoverageReport {
   registry.assertIntegrity();
   const references = registry.listReferences();
@@ -226,12 +233,24 @@ export function buildReferenceCoverageReport(
         );
         const unknownLicenseReferenceIds = uniqueSorted(
           assignedReferences
-            .filter(
-              (reference) =>
+            .filter((reference) => {
+              const verifiedLicense =
+                sourceVerifications?.get(reference.referenceId)
+                  ?.license.status;
+              if (
+                verifiedLicense === 'VERIFIED' ||
+                verifiedLicense === 'NOT_APPLICABLE'
+              ) {
+                return false;
+              }
+              return (
                 reference.licenseStatus === 'UNKNOWN' ||
                 reference.licenseStatus ===
-                  'DECLARED_UNVERIFIED',
-            )
+                  'DECLARED_UNVERIFIED' ||
+                verifiedLicense === 'UNKNOWN' ||
+                verifiedLicense === 'CONFLICTING'
+              );
+            })
             .map((reference) => reference.referenceId),
         );
         const implementedMappingIds = uniqueSorted(
