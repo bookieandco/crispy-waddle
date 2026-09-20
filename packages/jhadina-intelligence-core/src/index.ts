@@ -7,3 +7,4 @@ export * from './task-classifier.js';
 export * from './capability-aware-model-router.js';
 export * from './provider-adapter.js';
 export * from './hybrid-retrieval.js';
+export * from './authorized-retrieval.js';
