@@ -1,4 +1,4 @@
-import type { DecisionProposal } from '@jhadina/core-spine';
+import type { IntelligenceCapability, IntelligenceModality } from './intelligence-fabric.js';
 import type { ModelRegistryEntry } from './model-registry.js';
 import type { ProviderAdapter, ProviderNativeResult } from './provider-adapter.js';
 import { parseDecisionProposal } from './proposal-validation.js';
@@ -38,14 +38,36 @@ export class LocalModelProviderAdapter implements ProviderAdapter {
 }
 
 export function localModelEntry(input: {
-  id: string; providerModelId: string; version: string;
-  contextWindowTokens: number; maxOutputTokens: number;
+  id: string;
+  providerModelId: string;
+  version: number;
+  contextWindowTokens: number;
+  maxOutputTokens: number;
 }): ModelRegistryEntry {
+  const modalities: IntelligenceModality[] = ['text'];
+  const capabilities: IntelligenceCapability[] = [
+    'reason',
+    'summarize',
+    'classify',
+    'extract',
+    'plan',
+    'critique',
+    'verify',
+  ];
+
   return Object.freeze({
-    id: input.id, provider: 'local', providerModelId: input.providerModelId,
-    modalities: Object.freeze(['text']), capabilities: Object.freeze(['reason','summarize','classify','extract','plan','critique','verify']),
-    maxPrivacyClass: 'restricted', contextWindowTokens: input.contextWindowTokens,
-    maxOutputTokens: input.maxOutputTokens, costClass: 'free', latencyClass: 'standard',
-    lifecycle: 'active', local: true, version: input.version,
+    id: input.id,
+    provider: 'local',
+    providerModelId: input.providerModelId,
+    modalities,
+    capabilities,
+    maxPrivacyClass: 'restricted',
+    contextWindowTokens: input.contextWindowTokens,
+    maxOutputTokens: input.maxOutputTokens,
+    costClass: 'free',
+    latencyClass: 'standard',
+    lifecycle: 'active',
+    local: true,
+    version: input.version,
   });
 }
