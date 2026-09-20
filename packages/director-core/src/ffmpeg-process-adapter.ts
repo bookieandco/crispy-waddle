@@ -3,10 +3,12 @@ import type { DecodeRequest, DecodedAudio, DecodedFrame, MediaDecoderAdapter } f
 
 export type FfmpegProcessFactory = (args: string[]) => ChildProcessWithoutNullStreams;
 
-export function createNodeFfmpegDecoder(factory: FfmpegProcessFactory = args => spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] })): MediaDecoderAdapter {
+export function createNodeFfmpegDecoder(
+  factory: FfmpegProcessFactory = args => spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] }),
+): MediaDecoderAdapter {
   return {
     decodeFrames(request: DecodeRequest): AsyncIterable<DecodedFrame> {
-      return decodeStream(request, factory, 'video');
+      return decodeFrameStream(request, factory);
     },
     decodeAudio(request: DecodeRequest): AsyncIterable<DecodedAudio> {
       return decodeAudioStream(request, factory);
@@ -14,42 +16,133 @@ export function createNodeFfmpegDecoder(factory: FfmpegProcessFactory = args => 
   };
 }
 
-async function* decodeStream(request: DecodeRequest, factory: FfmpegProcessFactory, mode: 'video'): AsyncIterable<DecodedFrame> {
-  const child = factory(['-hide_banner', '-loglevel', 'error', '-ss', String(request.startSeconds ?? 0), '-i', request.source, '-an', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-r', String(request.frameRate ?? 2), 'pipe:1']);
-  const detach = attachCancellation(child, request.signal);
-  try {
-    let timestamp = request.startSeconds ?? 0;
-    for await (const chunk of child.stdout) {
-      if (request.signal?.aborted) return;
-      yield { assetId: request.assetId, timestampSeconds: timestamp, frameRef: `ffmpeg:${request.assetId}:frame:${timestamp.toFixed(3)}:${Buffer.from(chunk).toString('base64')}` };
-      timestamp += 1 / (request.frameRate ?? 2);
+function rangeArgs(request: DecodeRequest): string[] {
+  const start = Math.max(0, request.startSeconds ?? 0);
+  const args = ['-ss', String(start), '-i', request.source];
+  if (request.endSeconds !== undefined) {
+    if (!Number.isFinite(request.endSeconds) || request.endSeconds <= start) {
+      throw new Error('FFMPEG_DECODE_RANGE_INVALID');
     }
-    await waitForExit(child, request.signal);
-  } finally { detach(); }
-  void mode;
+    args.push('-t', String(request.endSeconds - start));
+  }
+  return args;
 }
 
-async function* decodeAudioStream(request: DecodeRequest, factory: FfmpegProcessFactory): AsyncIterable<DecodedAudio> {
-  const child = factory(['-hide_banner', '-loglevel', 'error', '-ss', String(request.startSeconds ?? 0), '-i', request.source, '-vn', '-ac', '1', '-ar', String(request.audioSampleRate ?? 16000), '-f', 's16le', 'pipe:1']);
+async function* decodeFrameStream(
+  request: DecodeRequest,
+  factory: FfmpegProcessFactory,
+): AsyncIterable<DecodedFrame> {
+  const frameRate = request.frameRate ?? 2;
+  if (!Number.isFinite(frameRate) || frameRate <= 0) throw new Error('FFMPEG_FRAME_RATE_INVALID');
+
+  const child = factory([
+    '-hide_banner',
+    '-loglevel', 'error',
+    ...rangeArgs(request),
+    '-an',
+    '-f', 'image2pipe',
+    '-vcodec', 'mjpeg',
+    '-r', String(frameRate),
+    'pipe:1',
+  ]);
   const detach = attachCancellation(child, request.signal);
+  const exit = waitForExit(child, request.signal);
+
   try {
-    const windowSeconds = 2;
     let timestamp = request.startSeconds ?? 0;
-    const bytesPerWindow = Math.max(1, Math.floor((request.audioSampleRate ?? 16000) * 2 * windowSeconds));
     let buffer = Buffer.alloc(0);
+
     for await (const chunk of child.stdout) {
       if (request.signal?.aborted) return;
       buffer = Buffer.concat([buffer, Buffer.from(chunk)]);
+
+      while (buffer.length >= 4) {
+        const start = buffer.indexOf(Buffer.from([0xff, 0xd8]));
+        if (start < 0) {
+          buffer = buffer.subarray(Math.max(0, buffer.length - 1));
+          break;
+        }
+        if (start > 0) buffer = buffer.subarray(start);
+
+        const end = buffer.indexOf(Buffer.from([0xff, 0xd9]), 2);
+        if (end < 0) break;
+
+        const frame = buffer.subarray(0, end + 2);
+        buffer = buffer.subarray(end + 2);
+
+        yield {
+          assetId: request.assetId,
+          timestampSeconds: timestamp,
+          frameRef: `ffmpeg:${request.assetId}:frame:${timestamp.toFixed(3)}:${frame.toString('base64')}`,
+        };
+        timestamp += 1 / frameRate;
+      }
+    }
+    await exit;
+  } finally {
+    detach();
+  }
+}
+
+async function* decodeAudioStream(
+  request: DecodeRequest,
+  factory: FfmpegProcessFactory,
+): AsyncIterable<DecodedAudio> {
+  const sampleRate = request.audioSampleRate ?? 16000;
+  if (!Number.isFinite(sampleRate) || sampleRate <= 0) throw new Error('FFMPEG_AUDIO_SAMPLE_RATE_INVALID');
+
+  const child = factory([
+    '-hide_banner',
+    '-loglevel', 'error',
+    ...rangeArgs(request),
+    '-vn',
+    '-ac', '1',
+    '-ar', String(sampleRate),
+    '-f', 's16le',
+    'pipe:1',
+  ]);
+  const detach = attachCancellation(child, request.signal);
+  const exit = waitForExit(child, request.signal);
+
+  try {
+    const windowSeconds = 2;
+    const bytesPerSecond = sampleRate * 2;
+    const bytesPerWindow = Math.max(1, Math.floor(bytesPerSecond * windowSeconds));
+    let timestamp = request.startSeconds ?? 0;
+    let buffer = Buffer.alloc(0);
+
+    for await (const chunk of child.stdout) {
+      if (request.signal?.aborted) return;
+      buffer = Buffer.concat([buffer, Buffer.from(chunk)]);
+
       while (buffer.length >= bytesPerWindow) {
         if (request.signal?.aborted) return;
         const window = buffer.subarray(0, bytesPerWindow);
         buffer = buffer.subarray(bytesPerWindow);
-        yield { assetId: request.assetId, startSeconds: timestamp, endSeconds: timestamp + windowSeconds, audioRef: `ffmpeg:${request.assetId}:audio:${timestamp.toFixed(3)}:${window.toString('base64')}` };
+        yield {
+          assetId: request.assetId,
+          startSeconds: timestamp,
+          endSeconds: timestamp + windowSeconds,
+          audioRef: `ffmpeg:${request.assetId}:audio:${timestamp.toFixed(3)}:${window.toString('base64')}`,
+        };
         timestamp += windowSeconds;
       }
     }
-    await waitForExit(child, request.signal);
-  } finally { detach(); }
+
+    if (buffer.length > 0 && !request.signal?.aborted) {
+      const durationSeconds = buffer.length / bytesPerSecond;
+      yield {
+        assetId: request.assetId,
+        startSeconds: timestamp,
+        endSeconds: timestamp + durationSeconds,
+        audioRef: `ffmpeg:${request.assetId}:audio:${timestamp.toFixed(3)}:${buffer.toString('base64')}`,
+      };
+    }
+
+    await exit;
+  } finally {
+    detach();
+  }
 }
 
 function attachCancellation(child: ChildProcessWithoutNullStreams, signal?: AbortSignal): () => void {
@@ -65,9 +158,14 @@ function waitForExit(child: ChildProcessWithoutNullStreams, signal?: AbortSignal
     const onAbort = () => { if (!child.killed) child.kill('SIGTERM'); };
     if (signal?.aborted) onAbort();
     else signal?.addEventListener('abort', onAbort, { once: true });
-    child.once('error', reject);
+
+    const cleanup = () => signal?.removeEventListener('abort', onAbort);
+    child.once('error', error => {
+      cleanup();
+      reject(error);
+    });
     child.once('close', code => {
-      signal?.removeEventListener('abort', onAbort);
+      cleanup();
       if (signal?.aborted) resolve();
       else if (code === 0) resolve();
       else reject(new Error(`ffmpeg exited with code ${code}`));
