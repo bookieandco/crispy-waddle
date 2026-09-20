@@ -40,7 +40,7 @@ function fakeProviders(recordedRequests: RecordedReferenceRequest[] = []): Money
   return { registry, providerConfig }
 }
 
-const ownedAccounts={async ownedAccountIds(){return new Set(["acc_ref_checking","acc_ref_savings"])}}
+const ownedAccounts={async ownedAccountIds(){return new Set(["acc_ref_checking","acc_ref_savings"])},async adapterForAccount(){throw new Error("unused")},async ownedAdapters(){return []}}
 
 describe("Money product loop — UI-facing composition root (Jhadina OS Integration Phase 2, PL-8)", () => {
   it("an authorized read succeeds, calls the provider exactly once, and is recorded in the durable ledger", async () => {
