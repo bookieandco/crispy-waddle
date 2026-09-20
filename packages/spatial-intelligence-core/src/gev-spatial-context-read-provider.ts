@@ -1,5 +1,6 @@
 import { spatialEvidenceHash } from './evidence-hash.js'
 import type { SpatialEvidence } from './evidence.js'
+import type { SpatialEvidenceStore } from './evidence-store.js'
 import type { SpatialObservation } from './observation.js'
 import { normalizeAisPayload, normalizeFirmsPayload, normalizeGevCctvSources, normalizeOpenSkyPayload } from './gev-source-adapters.js'
 import { GevProviderBridge } from './gev-provider-bridge.js'
@@ -13,6 +14,7 @@ export type GevSpatialReadProviderOptions = {
   policyRegistry?: SpatialSourcePolicyRegistry
   now?: () => string
   maxEvidence?: number
+  evidenceStore?: SpatialEvidenceStore
 }
 
 type ScopePoint = { lat: number; lon: number; radiusKm?: number }
@@ -168,6 +170,11 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
 
     const scoped = observations.filter((observation) => inScope(observation, plan.scope)).slice(0, this.maxEvidence)
     const evidence = scoped.map((observation) => observationToEvidence(observation, this.registry))
+    if (this.options.evidenceStore) {
+      await Promise.all(evidence.map((item) => this.options.evidenceStore!.append(item)))
+    } else if (evidence.length > 0) {
+      limitations.push('Durable spatial evidence store is not configured; evidence is transient and cannot support reality admission.')
+    }
     const observationRefs = scoped.map(observationRef)
     const evidenceRefs = evidence.map(evidenceRef)
     const policyLimitations = [...new Set(scoped.flatMap((observation) => this.registry.require(observation.provenance.source_ref).limitations))]
