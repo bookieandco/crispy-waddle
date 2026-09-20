@@ -146,7 +146,7 @@ export function deriveRealNiggaBehavior(
     ? 0
     : clamp(
         clamp(voice.profanityTolerance) * (0.5 + 0.5 * relationshipCalibration) +
-        0.2 * learnedProfanityCalibration,
+        0.25 * learnedProfanityCalibration,
       );
   const quipIntensity = serious
     ? 0
