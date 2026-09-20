@@ -32,6 +32,10 @@ const norm = (value: string) => value.trim().toLowerCase()
 const uniq = (values: string[]) => [...new Set(values.filter(Boolean))]
 const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)))
 
+export function isProviderAddressableRequirement(requirement: OpportunityRequirement): boolean {
+  return ['capability', 'credential', 'geography', 'past_performance', 'capacity', 'socioeconomic', 'security'].includes(requirement.kind)
+}
+
 function tokenOverlap(required: string[], available: string[]): number {
   if (required.length === 0) return 0
   const pool = available.map(norm)
@@ -150,7 +154,7 @@ export function matchFulfillmentProvider(
   provider: FulfillmentProvider,
 ): FulfillmentProviderMatch {
   const matches = set.requirements.map((requirement) => matchRequirement(requirement, provider))
-  const requiredIds = new Set(set.requirements.filter((r) => r.severity === 'required').map((r) => r.id))
+  const requiredIds = new Set(set.requirements.filter((r) => r.severity === 'required' && isProviderAddressableRequirement(r)).map((r) => r.id))
   const hardFailures = matches.filter((m) => requiredIds.has(m.requirementId) && m.status === 'failed')
   const unresolvedRequired = matches.filter((m) => requiredIds.has(m.requirementId) && m.status === 'unresolved')
   const capabilityMatches = matches.filter((m) => set.requirements.find((r) => r.id === m.requirementId)?.kind !== 'naics')
@@ -170,9 +174,11 @@ export function matchFulfillmentProvider(
   const reasons = uniq(matches.flatMap((m) => m.reasons))
   const evidenceRefs = uniq(matches.flatMap((m) => m.evidenceRefs))
 
+  const satisfiedRequired = matches.filter((m) => requiredIds.has(m.requirementId) && m.status === 'satisfied')
   let disposition: ProviderMatchDisposition = 'review_required'
-  if (hardFailures.length > 0 || !isFulfillmentProviderVerified(provider)) disposition = 'blocked'
-  else if (unresolvedRequired.length === 0 && set.unresolved.length === 0) disposition = 'qualified_candidate'
+  if (!isFulfillmentProviderVerified(provider)) disposition = 'blocked'
+  else if (requiredIds.size > 0 && satisfiedRequired.length === 0 && (hardFailures.length > 0 || unresolvedRequired.length > 0)) disposition = 'blocked'
+  else if (hardFailures.length === 0 && unresolvedRequired.length === 0 && set.unresolved.length === 0) disposition = 'qualified_candidate'
 
   return {
     opportunityId: set.opportunityId,
