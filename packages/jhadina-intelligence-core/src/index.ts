@@ -7,3 +7,4 @@ export * from './shodan-http-transport.js';
 export * from './observation-evidence.js';
 export * from './communication-contracts.js';
 export * from './communication-action.js';
+export * from './transport-registry.js';
