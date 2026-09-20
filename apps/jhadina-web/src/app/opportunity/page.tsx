@@ -251,7 +251,7 @@ function OpportunityCard({
       </div>
 
       {approved ? (
-        <div style={approvedBadge}>✓ Approved{opportunity.approvedAt ? ` · ${new Date(opportunity.approvedAt).toLocaleDateString()}` : ""}</div>
+        <div style={approvedBadge}>✓ Approved for research{opportunity.approvedAt ? ` · ${new Date(opportunity.approvedAt).toLocaleDateString()}` : ""}{opportunity.researchCaseId ? " · case created" : ""}</div>
       ) : (
         <div style={{ display: "flex", gap: 8, marginTop: 15, flexWrap: "wrap" }}>
           {onApprove && <button disabled={busy} onClick={onApprove} style={primary}>{busy ? "Working…" : "Approve"}</button>}
