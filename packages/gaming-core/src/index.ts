@@ -108,3 +108,6 @@ export * from './gaming-commissioning.js';
 export * from './gaming-physical-acceptance.js';
 export * from './gaming-physical-drills.js';
 export * from './gaming-production-acceptance-report.js';
+export * from './gaming-core-audit.js';
+export * from './gaming-product-integration.js';
+export * from './gaming-production-release.js';
