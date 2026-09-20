@@ -210,3 +210,26 @@ describe('JhadinaTV production contracts', () => {
     expect(local.apply).toHaveBeenNthCalledWith(2, { type: 'set-volume', value: 1 });
   });
 });
+
+
+describe('MEDIA-PROD continuity contracts', () => {
+  it('normalizes provider episode identity and preserves provider asset identity', async () => {
+    const { normalizeAuthorizedCatalogRecord } = await import('./providers/authorized');
+    const normalized = normalizeAuthorizedCatalogRecord({ id:'provider-episode', kind:'tv', title:'Episode', overview:'', year:2026, availability:'licensed', providerMediaId:'asset-77', hierarchy:{ seriesId:'series-alpha', season:{ id:'season-2', kind:'season', seasonNumber:2 }, episode:{ kind:'episode', seasonNumber:2, episodeNumber:3, title:'Episode', overview:'' } } }, 'provider-one');
+    expect(normalized.title.id).toBe('series-alpha:s2:e3');
+    expect(normalized.edition?.providerMediaId).toBe('asset-77');
+  });
+
+  it('rebinds provider source identity to canonical media identity', async () => {
+    const registry = new CatalogRegistry();
+    registry.register({ id:'p', name:'p', search:async()=>[], sourceAdapter:{ id:'p', name:'p', search:async()=>[], getSources:async()=>[], getSourcesForMedia:async(req)=>[{ id:'s', titleId:req.providerMediaId ?? req.mediaId, kind:'hls', url:'https://media.example/e.m3u8' }] } });
+    const result = await registry.resolveMediaSources('p',{mediaId:'series:s1:e2',providerMediaId:'asset-2'});
+    expect(result[0]?.source.titleId).toBe('series:s1:e2');
+  });
+
+  it('keeps canonical media identity in approval-required memory proposals', async () => {
+    const proposal = await proposeViewingMemory({ titleId:'legacy', media:{mediaId:'series:s1:e2',seriesId:'series'}, completed:false, progressMinutes:12, kind:'observed-behavior' }, { propose:async()=>{} });
+    expect(proposal?.mediaId).toBe('series:s1:e2');
+    expect(proposal?.requiresApproval).toBe(true);
+  });
+});
