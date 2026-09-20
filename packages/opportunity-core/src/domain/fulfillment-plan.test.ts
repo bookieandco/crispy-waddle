@@ -3,18 +3,19 @@ import { advanceFulfillmentProviderStage, createFulfillmentProvider } from './fu
 import type { OpportunityRequirementSet } from './opportunity-requirement.js'
 import { buildFulfillmentPlan, buildProviderShortlist } from './fulfillment-plan.js'
 
-function verifiedProvider(id: string, capability: string) {
+function verifiedProvider(id: string, capability: string, socioeconomic?: string) {
   let p = createFulfillmentProvider({
     id, legalName: id,
     identifiers: [{ type: 'uei', value: id + '-uei', verified: true, evidenceRefs: ['id'] }],
     serviceAreas: [{ country: 'US', state: 'California', evidenceRefs: ['geo'] }],
     capabilities: [{ id: id + ':cap', name: capability, naicsCodes: [], pscCodes: [], keywords: capability.toLowerCase().split(' '), confidence: 1, verified: true, evidenceRefs: ['cap'] }],
-    credentials: [], pastPerformance: [], capacity: { status: 'available', evidenceRefs: ['capacity'] },
+    credentials: socioeconomic ? [{ id: id + ':socio', kind: 'socioeconomic', name: socioeconomic, verified: true, evidenceRefs: ['socio'] }] : [], pastPerformance: [], capacity: { status: 'available', evidenceRefs: ['capacity'] },
     evidence: [
       { id: 'id', kind: 'sam_registration', relationship: 'supports_identity', sourceId: 'sam', capturedAt: '2026-09-20T00:00:00Z', confidence: 1 },
       { id: 'geo', kind: 'official_source', relationship: 'supports_geography', sourceId: 'sam', capturedAt: '2026-09-20T00:00:00Z', confidence: 1 },
       { id: 'cap', kind: 'capability_record', relationship: 'supports_capability', sourceId: 'statement', capturedAt: '2026-09-20T00:00:00Z', confidence: 1 },
       { id: 'capacity', kind: 'capacity_record', relationship: 'supports_capacity', sourceId: 'attestation', capturedAt: '2026-09-20T00:00:00Z', confidence: 1 },
+      ...(socioeconomic ? [{ id: 'socio', kind: 'certification_record' as const, relationship: 'supports_credential' as const, sourceId: 'sam', capturedAt: '2026-09-20T00:00:00Z', confidence: 1 }] : []),
     ], sourceIds: ['sam'], riskFlags: [],
   })
   p = advanceFulfillmentProviderStage(p, 'evidence_collected')
@@ -70,3 +71,21 @@ const scheduleOnly: OpportunityRequirementSet = {
 const schedulePlan = buildFulfillmentPlan(scheduleOnly, [cloud])
 assert.equal(schedulePlan.structure, 'direct_fulfillment')
 assert.deepEqual(schedulePlan.uncoveredRequirementIds, [])
+
+
+const setAsideTeam: OpportunityRequirementSet = {
+  opportunityId: 'sam:set-aside-team',
+  generatedAt: '2026-09-20T00:00:00Z',
+  unresolved: [],
+  requirements: [
+    { id: 'sb', opportunityId: 'sam:set-aside-team', kind: 'socioeconomic', label: 'Small Business', severity: 'required', evidenceStatus: 'explicit', sourceClaimIds: [], sourceEvidenceIds: [], naicsCodes: [], pscCodes: [], keywords: ['small', 'business'], attributes: {}, confidence: 1, blockers: [] },
+    { id: 'cloud3', opportunityId: 'sam:set-aside-team', kind: 'capability', label: 'Cloud', severity: 'required', evidenceStatus: 'explicit', sourceClaimIds: [], sourceEvidenceIds: [], naicsCodes: [], pscCodes: [], keywords: ['cloud'], attributes: {}, confidence: 1, blockers: [] },
+  ],
+}
+const eligibleLead = verifiedProvider('provider:eligible-lead', 'General services', 'Small Business')
+const cloudSub = verifiedProvider('provider:cloud-sub', 'Cloud')
+const setAsideTeamPlan = buildFulfillmentPlan(setAsideTeam, [cloudSub, eligibleLead])
+assert.equal(setAsideTeamPlan.structure, 'prime_with_subcontractor')
+assert.equal(setAsideTeamPlan.assignments[0].providerId, eligibleLead.id)
+assert.ok(setAsideTeamPlan.assignments[0].requirementIds.includes('sb'))
+assert.ok(!setAsideTeamPlan.assignments.slice(1).some((assignment) => assignment.requirementIds.includes('sb')))
