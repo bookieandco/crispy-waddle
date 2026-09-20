@@ -1,0 +1,5 @@
+import{test}from'node:test';import assert from'assert/strict';import{DirectorStudioIntelligenceAdapter}from'./director-studio-adapter.js';
+const req:any={actorId:'u',assetId:'a',evidence:[{id:'asset:a:scene:1'}],uncertainty:[],intent:'analyze shots'};
+test('passes bounded analysis into Director intelligence ingress',async()=>{let seen:any;const a=new DirectorStudioIntelligenceAdapter({async ingest(i){seen=i;return{receiptId:'director-r1',acceptedEvidenceIds:['asset:a:scene:1']}}});const r=await a.ingest(req);assert.equal(seen.intent,'analyze shots');assert.equal(r.subsystem,'director-studio')});
+test('rejects unrelated evidence claims',async()=>{const a=new DirectorStudioIntelligenceAdapter({async ingest(){return{receiptId:'r',acceptedEvidenceIds:['asset:other:x']}}});await assert.rejects(()=>a.ingest(req),/EVIDENCE_NOT_BOUND/)});
+test('does not expose media mutation authority',()=>{const a:any=new DirectorStudioIntelligenceAdapter({} as any);assert.equal(a.render,undefined);assert.equal(a.execute,undefined);assert.equal(a.approve,undefined)});
