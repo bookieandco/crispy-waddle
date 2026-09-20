@@ -32,8 +32,8 @@ describe('developer withdrawal attribution', () => {
 
   it('recognizes an explicit wallet-to-developer controls edge without claiming wallet is the developer', () => {
     const graph = buildEntityGraph([
-      { id: 'token:solana:TokenA', kind: 'token', observedAt: withdrawal.observedAt, confidence: 1, evidenceIds: [] },
-      { id: 'wallet:dev-wallet', kind: 'wallet', observedAt: withdrawal.observedAt, confidence: 0.9, evidenceIds: [] },
+      { id: 'token:solana:TokenA', kind: 'token', observedAt: withdrawal.observedAt, confidence: 1, evidenceIds: ['token-evidence'] },
+      { id: 'wallet:dev-wallet', kind: 'wallet', observedAt: withdrawal.observedAt, confidence: 0.9, evidenceIds: ['wallet-evidence'] },
       { id: 'developer:dev-entity', kind: 'developer', observedAt: withdrawal.observedAt, confidence: 0.8, evidenceIds: ['developer-evidence'] },
     ], [{ id: 'control-1', from: 'wallet:dev-wallet', to: 'developer:dev-entity', relation: 'controls', observedAt: withdrawal.observedAt, confidence: 0.8, evidenceIds: ['control-evidence'] }])
     const result = attributeWithdrawalToDeveloper({ withdrawal, graph, tokenAddress: 'TokenA' })
