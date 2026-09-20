@@ -45,6 +45,7 @@ export type Opportunity = {
   triageState?: OpportunityTriageState
   createdAt: string
   approvedAt?: string
+  researchCaseId?: string
 }
 
 export const SIDE_INCOME_KINDS: OpportunityKind[] = [
