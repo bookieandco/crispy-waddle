@@ -73,12 +73,26 @@ export function deriveRealNiggaBehavior(
 
   const familiarity = clamp(relationship.familiarity);
   const relationshipCalibration = clamp(familiarity * clamp(relationship.calibrationConfidence));
-  const preferredInteractionModes = normalizeModes(relationship.preferredInteractionModes);
+  const acceptedDirectness = personality.traits.find(
+    (trait) =>
+      trait.status === 'accepted' &&
+      trait.dimension === 'communication' &&
+      trait.statement.trim().toLowerCase() === 'prefers direct communication',
+  );
+  const learnedDirectnessCalibration = acceptedDirectness
+    ? clamp(acceptedDirectness.confidence * acceptedDirectness.stability)
+    : 0;
+  const preferredInteractionModes = normalizeModes([
+    ...relationship.preferredInteractionModes,
+    ...(learnedDirectnessCalibration > 0 ? ['direct'] : []),
+  ]);
   const prefersDirect = preferredInteractionModes.includes('direct');
   const prefersWarm = preferredInteractionModes.includes('warm');
 
   const directness = clamp(
-    clamp(voice.directness) + (prefersDirect ? 0.15 * relationshipCalibration : 0),
+    clamp(voice.directness) +
+      (prefersDirect ? 0.15 * relationshipCalibration : 0) +
+      0.15 * learnedDirectnessCalibration,
   );
   const warmth = clamp(
     clamp(voice.warmth) + (prefersWarm ? 0.15 * relationshipCalibration : 0),
