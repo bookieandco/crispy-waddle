@@ -115,8 +115,13 @@ export class RuntimeLeaseGuard {
 
   private async currentSnapshot(at: string): Promise<RevocationDistributionSnapshot> {
     const now = parseTime(at, 'REF_PROV_08_CHECK_TIME_INVALID');
+    let next: RevocationDistributionSnapshot | undefined;
     try {
-      const next = await this.options.revocationSource.loadSnapshot();
+      next = await this.options.revocationSource.loadSnapshot();
+    } catch (error) {
+      if (!this.cached) throw error;
+    }
+    if (next) {
       verifyRevocationDistributionSnapshot(next);
       if (this.cached && next.epoch < this.cached.epoch) {
         throw new Error('REF_PROV_08_REVOCATION_EPOCH_ROLLBACK');
@@ -125,8 +130,6 @@ export class RuntimeLeaseGuard {
         throw new Error('REF_PROV_08_SNAPSHOT_FROM_FUTURE');
       }
       this.cached = next;
-    } catch (error) {
-      if (!this.cached) throw error;
     }
 
     const snapshot = this.cached!;
