@@ -82,4 +82,35 @@ describe("UniversalUploadRuntime", () => {
     })).rejects.toThrow("MEDIA_SECURITY_QUARANTINE");
     expect(fixture.wasPromoted()).toBe(false);
   });
+  it("blocks restricted uploads before quarantine when scanner ceiling is sensitive", async () => {
+    let quarantined = false;
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    const objects: UniversalUploadObjectStore = {
+      async putQuarantine() { quarantined = true; return { handle: "q", scanUri: "signed" }; },
+      async promote() { return { assetRef: "trusted" }; },
+    };
+    const registry = new GovernedAssetRegistry(new InMemoryIntelligenceAssetStore());
+    const backend: MediaExtractionBackend = {
+      async extract() { return { observations: [{ kind: "page", summary: "x" }], uncertainty: [] }; },
+    };
+    const upload = new UniversalUploadRuntime(
+      { async scan(input) { return { assetId: input.assetId, sha256: hash, verdict: "clean", mimeType: input.mimeType, sizeBytes: input.sizeBytes, reasons: [], scannedAt: "2026-09-19T00:00:00Z" }; } },
+      objects,
+      registry,
+      new GovernedMediaPipeline(
+        new GovernedPerceptionExtractionRouter([new DocumentPerceptionExtractor(backend)]),
+        new GovernedUniversalIntakeRouter(),
+      ),
+      new GovernedSubsystemDispatcher([]),
+      "sensitive",
+    );
+    await expect(upload.ingest({
+      actorId: "u",
+      filename: "secret.pdf",
+      declaredMediaType: "application/pdf",
+      bytes,
+      privacyClass: "restricted",
+    })).rejects.toThrow("SCANNER_PRIVACY_INCOMPATIBLE");
+    expect(quarantined).toBe(false);
+  });
 });
