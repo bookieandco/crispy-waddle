@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildOverageOpportunity, type OverageOpportunityCandidate } from "./overageAdapter"
+import { buildOverageOpportunity, buildOverageOpportunityFromHandoff, type OverageOpportunityCandidate } from "./overageAdapter"
 
 describe("buildOverageOpportunity", () => {
   const candidate: OverageOpportunityCandidate = {
@@ -56,5 +56,31 @@ describe("buildOverageOpportunity", () => {
     expect(opportunity).not.toHaveProperty("filing")
     expect(opportunity).not.toHaveProperty("payment")
     expect(opportunity).not.toHaveProperty("recoveryAction")
+  })
+})
+
+
+describe("OverageOS recovery handoff contract", () => {
+  it("normalizes the persisted-record DTO without trusting its verification level", () => {
+    const opportunity = buildOverageOpportunityFromHandoff({
+      kind: "RecoveryOpportunityCandidate",
+      candidate: {
+        recoveryRecordId: "record-1",
+        sourceId: "washoe-2026",
+        externalRecordId: "004-382-35",
+        owner: "Fixture Claimant",
+        amount: 91420.22,
+        currency: "USD",
+        propertyReference: "004-382-35",
+        sourceUrl: "https://example.gov/washoe",
+        evidence: { sourceName: "Washoe County Treasurer", rawRecordId: "row-1" },
+        verificationLevel: "V3_VERIFIED",
+      },
+    })
+
+    expect(opportunity.id).toBe("overage:washoe-2026:record-1")
+    expect(opportunity.verificationStatus).toBe("unverified")
+    expect(opportunity.metadata?.overageVerificationLevel).toBe("V3_VERIFIED")
+    expect(opportunity.metadata?.recoveryRecordId).toBe("record-1")
   })
 })
