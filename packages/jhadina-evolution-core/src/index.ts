@@ -9,3 +9,4 @@ export * from './app-builder.js';
 export * from './visual-builder.js';
 export * from './opportunity-builder.js';
 export * from './project-executor.js';
+export * from './production-operator.js';
