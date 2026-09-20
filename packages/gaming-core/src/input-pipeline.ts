@@ -99,7 +99,7 @@ export class GamingInputPipeline {
       if(!this.delivery.isTerminal(event.inputId)){
         this.delivery.transition(event.inputId,'delivery-unknown',Date.now(),error instanceof Error?error.message:'runtime-delivery-failed');
       }
-      return this.unknownResult(event,controllerGate,resync,transportReceipt);
+      return this.unknownResult(event,controllerGate,resync,transportReceipt,undefined,integrity);
     }
 
     if(generation!==this.generation||this.delivery.isTerminal(event.inputId)){
