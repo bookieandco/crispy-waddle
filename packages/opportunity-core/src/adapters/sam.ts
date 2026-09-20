@@ -61,7 +61,7 @@ export function adaptSamOpportunity(input: SamOpportunityInput): Opportunity {
     riskFlags: ['human_verification_required'],
     brokerability: 'unknown',
     metadata: { providerId: 'provider:sam.gov', opportunityKind: 'automation', automationLevel: 'ai_plus_user', requiresUserApproval: true },
-    status: 'research_pending',
+    status: 'discovered',
     createdAt: now,
     updatedAt: now,
   }
