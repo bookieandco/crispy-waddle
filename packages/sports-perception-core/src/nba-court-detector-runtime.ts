@@ -1,0 +1,1 @@
+import type {DecodedVideoFrame} from './video-decoder-runtime.js';import type {CourtCalibration} from './nba-court-vision.js';import type {VisionModelRuntime} from './vision-model-runtime.js';export type NBACourtDetectorRuntime=VisionModelRuntime<DecodedVideoFrame,CourtCalibration>;
