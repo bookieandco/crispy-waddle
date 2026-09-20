@@ -1,4 +1,4 @@
--- MONEY-R1C: bind every Money execution permit to one exact Action Core
+-- MONEY-R1C / R13B: bind every Money execution permit to one exact Action Core
 -- request and downstream authority proof.
 --
 -- Legacy ISSUED permits were created before these bindings existed. They are

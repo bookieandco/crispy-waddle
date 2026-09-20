@@ -9,7 +9,10 @@
     "type-check": "tsc --noEmit",
     "test": "tsx --test $(find src -name '*.test.ts' -not -name '*.integration.test.ts')",
     "test:integration": "tsx --test src/**/*.integration.test.ts",
-    "verify:r13": "pnpm type-check && pnpm test"
+    "verify:r13": "pnpm verify:r13b",
+    "build": "tsc --noEmit && node --import tsx --eval \"import('./src/index.ts')\"",
+    "test:certification": "tsx --test src/money-r13-certification.test.ts src/money-r1c-action-core-convergence.test.ts src/money-r13b-certification.test.ts",
+    "verify:r13b": "pnpm type-check && pnpm test:certification && pnpm test && pnpm build"
   },
   "dependencies": {
     "pg": "^8.16.3"
