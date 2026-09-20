@@ -62,7 +62,13 @@ The active production deployment predates this route, so it cannot certify the c
 
 ### GEV-PROD.3 — live-source verification
 
-**SOURCE GAP REPAIRED; LIVE RUNTIME BLOCKED BY PROD.1.**
+**SOURCE AUDIT PASS; LIVE RUNTIME BLOCKED BY PROD.1.**
+
+**2026-09-20 PROD.3 continuation audit:** re-audited the production composition on current main. The production provider instantiates the allowlisted GEV bridge, durable Supabase evidence store, Knowledge Graph sink and telemetry sink. The live read path requests CCTV catalog + CCTV health, OpenSky aircraft, AIS vessel and FIRMS fire data concurrently. Normalization preserves provider/source identity, observation/receipt time, freshness/staleness semantics and immutable evidence provenance. CCTV explicitly records catalog source kind versus effective health source kind, provider health metadata, fallback-active state, timestamp semantics, license and credit. Source-policy metadata is embedded into durable evidence before downstream admission. Provider/source failures are surfaced as degraded sourceHealth/limitations and telemetry rather than converted into invented observations.
+
+Source tests additionally exercise Street View fallback identity, stale OpenSky/AIS/FIRMS semantics and the rule that the evidence reader emits no claims or Reality by itself. No source-side defect justifying a PROD.3 code change was found in this audit.
+
+**Certification boundary:** this is a source-audit PASS only, not a production-runtime PASS. PROD.3 remains BLOCKED until PROD.1 deploys the audited Spatial lineage and live receipts prove CCTV + aircraft + vessel + FIRMS provenance/fallback behavior on that exact deployed SHA.
 
 The bridge allowlists the expected GEV endpoints for CCTV, OpenSky aircraft, AIS vessels, FIRMS, TomTom and CelesTrak. Source policy metadata carries attribution/licensing/privacy/use restrictions.
 
