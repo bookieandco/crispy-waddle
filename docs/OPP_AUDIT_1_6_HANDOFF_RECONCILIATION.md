@@ -63,3 +63,23 @@ Money Core remains financial truth. Opportunity Core derives deterministic metri
 Live external AI-job feeds, affiliate-network feeds, dropshipping supplier/catalog feeds, general AI-POD production completion, information-broker discovery, full SBA legal eligibility/source coverage, and any energy/compute mining execution are not claimed complete. The forward-only Supabase Opportunity migration also still requires production application and end-to-end runtime acceptance; the already-merged PR #310 base migration remains immutable.
 
 These are provider/runtime follow-ons, not reasons to create another Opportunity architecture.
+
+
+## Production acceptance
+
+Production acceptance completed against the connected Supabase project after PR #316 merged.
+
+- The pre-canonical `jhadina_opportunities` table was confirmed empty, archived as `jhadina_opportunities_legacy_20260828`, and removed from client-role access.
+- Canonical migrations are recorded as `20260920030000_jhadina_canonical_opportunities` and `20260920033000_opportunity_pursuit_outcome`.
+- Production-only drift/repair migrations are recorded as `20260920133625_reconcile_legacy_opportunity_table` and `20260920134244_fix_opportunity_outcome_type_column`.
+- Runtime acceptance found and repaired an outcome-learning SQL bug where the RPC read `v_existing.type` instead of the canonical `opportunity_type` column.
+- Authenticated lifecycle smoke passed: ingest → triage → research → evidence-complete ready → user-reported outcome.
+- Recovery smoke passed: public recovery promotion blocked → exact-ID complete verification → service-only ready promotion → trusted OverageOS outcome.
+- Cross-user isolation smoke passed: another authenticated user could neither see nor mutate the first user's Opportunity.
+- All smoke tests used synthetic users inside transactions and intentionally rolled back; no test users or Opportunity rows remain.
+- Caller-supplied learning payloads were proven ignored; the database derives learning and closed Opportunity payloads from persisted truth.
+- `anon` has no Opportunity table or RPC access; authenticated users have read-only table access plus the six intended user RPCs; trusted recovery/outcome RPCs are service-role-only.
+
+Supabase Security Advisor intentionally flags the six authenticated Opportunity write RPCs because they are `SECURITY DEFINER`. The current design keeps these as narrow validated write boundaries: direct authenticated table writes are revoked, every user RPC binds to `auth.uid()`, execute grants are explicit, and cross-user runtime isolation passed. Treat a move to a non-exposed internal RPC architecture as a future hardening option, not a reason to weaken current RLS/grants.
+
+A separate project-wide security finding remains outside Opportunity scope: `public.jhadina_research_source_performance_policy` has RLS disabled. Do not silently enable RLS without first defining its intended access policy.
