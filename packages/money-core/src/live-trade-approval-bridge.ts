@@ -43,7 +43,7 @@ export async function consumeApprovalAndIssueLiveTradePermit(input:{approvalStor
  if(input.permitExpiresAt>input.authorityExpiresAt||input.permitExpiresAt>candidate.expiresAt||input.permitExpiresAt>preflight.expiresAt||input.permitExpiresAt<=input.authorizedAt)throw new Error('MONEY_048_PERMIT_WINDOW_INVALID')
  const consumed=await input.approvalStore.consume(input.approvalReceiptId,{actionId:request.id,userId:request.userId,type:request.type,fingerprint:fingerprintLiveTradeApprovalRequest(request)})
  if(!consumed)throw new Error('MONEY_048_APPROVAL_INVALID_EXPIRED_OR_REPLAYED')
- const approvedRequest:Object.freeze extends never?never:LiveTradeApprovalRequest=Object.freeze({...request,approvalReceiptId:input.approvalReceiptId})
+ const approvedRequest:LiveTradeApprovalRequest=Object.freeze({...request,approvalReceiptId:input.approvalReceiptId})
  const action=toLiveTradeExecutionAction(approvedRequest)
  const authority=createMoneyActionCoreAuthority(approvedRequest,{authorityId:input.authorityId,decision:'approval_required',policyVersion:input.policyVersion,policyHash:input.policyHash,authorizedAt:input.authorizedAt,expiresAt:input.authorityExpiresAt})
  const permit=issueActionCoreBoundExecutionPermit(approvedRequest,action,authority,{expiresAt:input.permitExpiresAt,now:input.authorizedAt,permitId:input.permitId,nonce:input.nonce})
