@@ -45,3 +45,4 @@ export * from './domain/provider-quote.js'
 export * from './domain/sam-live-pilot.js'
 
 export * from './domain/provider-company-research.js'
+export * from './domain/provider-company-adapters.js'
