@@ -64,12 +64,10 @@ export class CommunicationDirectnessPatternStrategy implements PatternDetectionS
     const observations: Array<{ support: 0 | 1; evidence: EvidenceRef[] }> = [];
     const currentSignal = signal(experience.content);
     if (currentSignal === 'none') return [];
-    if (currentSignal !== 'none') {
-      observations.push({
-        support: currentSignal === 'support' ? 1 : 0,
-        evidence: experienceEvidence(experience),
-      });
-    }
+    observations.push({
+      support: currentSignal === 'support' ? 1 : 0,
+      evidence: experienceEvidence(experience),
+    });
 
     for (const memory of memories) {
       if (memory.disposition !== 'SAVE') continue;
