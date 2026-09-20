@@ -133,3 +133,6 @@ export * from './shadow-market-engine.js';
 
 export * from './live-preflight-contracts.js';
 export * from './live-preflight-engine.js';
+
+export * from './broker-account-entitlement.js';
+export * from './postgres-broker-account-entitlement-store.js';
