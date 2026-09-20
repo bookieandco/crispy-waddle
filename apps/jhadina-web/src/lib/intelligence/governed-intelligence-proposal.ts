@@ -77,7 +77,7 @@ export interface GovernedIntelligenceProposalResult {
 
 /** Deterministic fingerprint binding an approval receipt to this exact proposed content. */
 function fingerprintMemoryPropose(action: MemoryProposeAction): string {
-  return `memory-propose:${action.content}`
+  return `memory-propose:${action.reasoningEventId ?? "legacy"}:${action.content}`
 }
 
 export async function decideAndProposeMemoryGoverned(
