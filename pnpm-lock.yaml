@@ -254,6 +254,9 @@ importers:
 
   packages/jhadina-intelligence-core:
     dependencies:
+      '@jhadina/action-core':
+        specifier: workspace:*
+        version: link:../jhadina-action-core
       '@jhadina/core-spine':
         specifier: workspace:*
         version: link:../jhadina-core-spine
