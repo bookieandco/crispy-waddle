@@ -386,10 +386,10 @@ create or replace function public.jhadina_create_revalidation_trigger(
   p_max_breadth integer default 4,
   p_policy_requirements jsonb default '{}'::jsonb,
   p_dedupe_key text default null
-) returns uuid
+) returns public.jhadina_research_revalidation_triggers
 language plpgsql security invoker set search_path=public,pg_catalog
-as $$
-declare v_key text; v_id uuid;
+as $
+declare v_key text; v_row public.jhadina_research_revalidation_triggers%rowtype;
 begin
   v_key:=coalesce(p_dedupe_key,encode(digest(
     concat_ws('|',p_knowledge_record_id::text,p_trigger_reason,p_freshness_state,
@@ -404,10 +404,10 @@ begin
     coalesce(p_policy_requirements,'{}'::jsonb),v_key
   )
   on conflict(dedupe_key) do update set updated_at=now()
-  returning id into v_id;
-  return v_id;
+  returning * into v_row;
+  return v_row;
 end;
-$$;
+$;
 
 create or replace function public.jhadina_compile_research_plan(
   p_decomposition_id uuid,
@@ -418,16 +418,16 @@ create or replace function public.jhadina_compile_research_plan(
   p_breadth integer default 1,
   p_depth integer default 1,
   p_budget jsonb default '{}'::jsonb
-) returns uuid
+) returns public.jhadina_research_plans
 language plpgsql security invoker set search_path=public,pg_catalog
-as $$
+as $
 declare
   v_d public.jhadina_research_intent_decompositions%rowtype;
   v_version integer;
   v_tasks jsonb;
   v_snapshot jsonb;
   v_hash text;
-  v_id uuid;
+  v_row public.jhadina_research_plans%rowtype;
 begin
   select * into v_d from public.jhadina_research_intent_decompositions
   where id=p_decomposition_id and status='validated';
@@ -460,10 +460,10 @@ begin
     v_d.research_intent_id,p_decomposition_id,v_version,v_tasks,v_d.evidence_requirements,
     p_breadth,p_depth,v_d.stopping_criteria,jsonb_build_object('required',true),
     coalesce(p_budget,'{}'::jsonb),v_snapshot,v_snapshot,v_hash,'pending_policy'
-  ) returning id into v_id;
-  return v_id;
+  ) returning * into v_row;
+  return v_row;
 end;
-$$;
+$;
 
 create or replace function public.jhadina_evaluate_research_policy(
   p_plan_id uuid,
@@ -472,9 +472,9 @@ create or replace function public.jhadina_evaluate_research_policy(
   p_available_capabilities jsonb default '[]'::jsonb,
   p_allowed_authorities jsonb default '[]'::jsonb,
   p_approval_granted boolean default false
-) returns uuid
+) returns public.jhadina_research_policy_decisions
 language plpgsql security invoker set search_path=public,pg_catalog
-as $$
+as $
 declare
   v_plan public.jhadina_research_plans%rowtype;
   v_required_caps jsonb;
@@ -484,7 +484,7 @@ declare
   v_missing_auth boolean;
   v_decision text;
   v_reasons jsonb:='[]'::jsonb;
-  v_id uuid;
+  v_row public.jhadina_research_policy_decisions%rowtype;
 begin
   select * into v_plan from public.jhadina_research_plans where id=p_plan_id for update;
   if not found then raise exception 'research_plan_not_found'; end if;
@@ -516,7 +516,7 @@ begin
   )
   on conflict(plan_id,policy_version,evaluator_version) do update
     set decision=excluded.decision,reasons=excluded.reasons,evaluated_at=now()
-  returning id into v_id;
+  returning * into v_row;
 
   update public.jhadina_research_plans
   set status=case when v_decision='allow' then 'approved'
@@ -524,9 +524,9 @@ begin
                   else 'pending_policy' end,
       updated_at=now()
   where id=p_plan_id;
-  return v_id;
+  return v_row;
 end;
-$$;
+$;
 
 create or replace function public.jhadina_research_execution_admissible(p_decision_id uuid)
 returns boolean language sql stable security invoker set search_path=public,pg_catalog
