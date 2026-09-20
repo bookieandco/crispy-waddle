@@ -94,6 +94,8 @@ The Jhadina SHARK persistence soak exercises:
 
 The focused SHARK workflow now runs this app-level soak in addition to SHARK core TypeScript, core Vitest, Jhadina SHARK integration TypeScript, frozen install, and migration presence validation.
 
+Executable evidence: SHARK Intelligence Core CI run #38 completed successfully. Frozen install, SHARK type-check, 37 core test files / 147 tests, Jhadina SHARK integration type-check, the app-level persistence soak, and migration validation all passed.
+
 ## Production boundary
 
 QA.17A-H is a repository readiness gate, not a production deployment. The live Jhadina Supabase project has not received the QA.16/17 migration stack during this work. Apply/verify migrations only after PR review/merge through the normal deployment path.
