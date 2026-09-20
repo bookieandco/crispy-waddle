@@ -291,11 +291,15 @@ describe("Jhadina Command — the instantiated operating loop (Phase 1 Step 5)",
 
     let capturedContextId: string | undefined
     let capturedRelevantMemoryCount = 0
+    let capturedPatternCount = 0
+    let capturedExpressionMode: string | undefined
     const capturingProvider: ModelProvider = {
       name: "capturing-provider",
       propose: async (context) => {
         capturedContextId = context.id
         capturedRelevantMemoryCount = context.relevantMemories.length
+        capturedPatternCount = context.patterns.length
+        capturedExpressionMode = context.expressionDirective?.mode
         return proposalFor("PROCEED", { contextId: context.id })
       },
     }
@@ -313,6 +317,8 @@ describe("Jhadina Command — the instantiated operating loop (Phase 1 Step 5)",
     // approved memory's content — this can only be non-zero if buildContext()
     // genuinely queried MemoryRepository and found a relevant match.
     expect(capturedRelevantMemoryCount).toBeGreaterThan(0)
+    expect(capturedPatternCount).toBeGreaterThan(0)
+    expect(capturedExpressionMode).toBeDefined()
     expect(capturedContextId).toMatch(/^ctx_/) // context-builder.ts's real id prefix, not a test fixture's id
   })
 
