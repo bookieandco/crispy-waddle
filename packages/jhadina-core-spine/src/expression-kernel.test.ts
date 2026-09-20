@@ -58,6 +58,9 @@ const decision: BehavioralDecision = {
     directness: 0.9,
     warmth: 0.7,
     verbosity: 0.4,
+    formality: 0.5,
+    reasoningDepth: 0.5,
+    workflowContinuity: 0.5,
     humor: 0.8,
     profanityAllowed: true,
     profanityIntensity: 0.6,
@@ -92,6 +95,10 @@ describe('Expression Kernel', () => {
       allowProfanity: true,
       allowQuip: true,
       responseLength: 'brief',
+      tone: 'conversational',
+      reasoningDepth: 'standard',
+      interactionStyle: 'balanced',
+      creativeStyle: 'experimental',
       callback: 'callback-1',
       callbackProvenance: [{
         origin: 'relationship',
@@ -119,6 +126,10 @@ describe('Expression Kernel', () => {
     assert.equal(plan.allowProfanity, false);
     assert.equal(plan.allowQuip, false);
     assert.equal(plan.responseLength, 'brief');
+    assert.equal(plan.tone, 'formal');
+    assert.equal(plan.reasoningDepth, 'standard');
+    assert.equal(plan.interactionStyle, 'balanced');
+    assert.equal(plan.creativeStyle, 'conventional');
     assert.equal(plan.callback, undefined);
     assert.equal(plan.callbackProvenance, undefined);
     assert.equal(plan.culturalReference, undefined);
