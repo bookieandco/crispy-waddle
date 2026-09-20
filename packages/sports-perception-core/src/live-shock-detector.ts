@@ -1,0 +1,2 @@
+export type ShockKind='INJURY'|'LINEUP'|'TACTICAL'|'FOUL_TROUBLE'|'ENVIRONMENT'|'STATE';export interface LiveShock{kind:ShockKind;severity:number;evidenceIds:readonly string[];invalidatesAssumptions:boolean;}
+export function detectLiveShock(kind:ShockKind,severity:number,evidenceIds:readonly string[],threshold=.7):LiveShock{if(severity<0||severity>1)throw new Error('Shock severity must be within [0,1]');return Object.freeze({kind,severity,evidenceIds:Object.freeze([...evidenceIds]),invalidatesAssumptions:severity>=threshold});}
