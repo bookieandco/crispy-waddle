@@ -22,7 +22,8 @@
     "react-dom": "^19.0.0",
     "sharp": "^0.35.3",
     "stripe": "^22.5.0",
-    "three": "^0.170.0"
+    "three": "^0.170.0",
+    "@jhadina/intelligence-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
