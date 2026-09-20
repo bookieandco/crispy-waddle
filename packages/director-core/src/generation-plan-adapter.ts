@@ -1,7 +1,7 @@
 import type { GenerationModality, GenerationRegistry } from './generation-registry';
 import type { GenerationService, GenerationJob } from './generation-service';
 import type { TakeRequest } from './generation-orchestrator';
-import type { DirectorGenerationGateInput } from './creative-gate-adapter';
+import type { DirectorGenerationGateInput, AuthoritativeDirectorGenerationGateInput } from './creative-gate-adapter';
 import { evaluateDirectorGenerationGate } from './creative-gate-adapter';
 import type { DirectorStoryboardLineageResolver } from './storyboard-lineage-resolver';
 
@@ -13,7 +13,7 @@ export type PlannedGeneration = {
   loras?: Array<{ loraId: string; weight?: number }>;
 };
 
-/** Provider submission boundary for Director takes. Canonical storyboard lineage is resolved here. */
+/** Provider submission boundary for Director takes. Canonical storyboard lineage and provenance are resolved here. */
 export class GenerationPlanAdapter {
   constructor(
     private readonly generation: GenerationService,
@@ -40,11 +40,11 @@ export class GenerationPlanAdapter {
       throw new Error(`Generation submission blocked: ${error instanceof Error ? error.message : 'Unable to resolve canonical storyboard lineage.'}`);
     }
 
-    if (gateInput.storyboardLineage.board.id !== storyboardLineage.board.id) {
-      throw new Error('Generation submission blocked: supplied storyboard lineage does not match the canonical board ID.');
+    if (storyboardLineage.board.id !== request.storyboardBoardId) {
+      throw new Error('Generation submission blocked: resolved storyboard lineage does not match the requested canonical board ID.');
     }
 
-    const authoritativeGateInput: DirectorGenerationGateInput = {
+    const authoritativeGateInput: AuthoritativeDirectorGenerationGateInput = {
       ...gateInput,
       storyboardLineage,
     };
@@ -67,7 +67,7 @@ export class GenerationPlanAdapter {
 
     const requestId = `director:${request.projectId}:take:${request.takeId}`;
     const creativeProvenance = {
-      ...authoritativeGateInput.creativeProvenance,
+      ...decision.creativeProvenance,
       generationJobId: requestId,
     };
 

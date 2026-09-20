@@ -126,6 +126,9 @@ create table if not exists public.director_storyboard_stage_bindings (
   constraint director_storyboard_stage_bindings_project_id_unique unique (project_id, id)
 );
 
+create unique index if not exists director_storyboard_stage_bindings_board_version_unique
+  on public.director_storyboard_stage_bindings(project_id, storyboard_board_id, version);
+
 create or replace function public.assert_director_storyboard_binding_project()
 returns trigger
 language plpgsql
@@ -155,6 +158,77 @@ create trigger director_storyboard_binding_project_guard
 before insert or update on public.director_storyboard_stage_bindings
 for each row execute function public.assert_director_storyboard_binding_project();
 
+-- Canonical head rows may advance only one version at a time. The matching
+-- immutable evidence row is captured in the same database transaction.
+create or replace function public.assert_director_storyboard_head_version()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+begin
+  if new.version <> old.version + 1 then
+    raise exception 'Director storyboard canonical version must advance exactly once';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists director_storyboard_sequence_version_guard on public.director_storyboard_sequences;
+create trigger director_storyboard_sequence_version_guard
+before update on public.director_storyboard_sequences
+for each row execute function public.assert_director_storyboard_head_version();
+
+drop trigger if exists director_storyboard_board_version_guard on public.director_storyboard_boards;
+create trigger director_storyboard_board_version_guard
+before update on public.director_storyboard_boards
+for each row execute function public.assert_director_storyboard_head_version();
+
+create or replace function public.capture_director_storyboard_sequence_version()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+begin
+  insert into public.director_storyboard_sequence_versions (
+    sequence_id, version, project_id, scene_id, board_ids, created_at
+  ) values (
+    new.id, new.version, new.project_id, new.scene_id, new.board_ids, new.updated_at
+  );
+  return new;
+end;
+$;
+
+drop trigger if exists director_storyboard_sequence_version_capture on public.director_storyboard_sequences;
+create trigger director_storyboard_sequence_version_capture
+after insert or update on public.director_storyboard_sequences
+for each row execute function public.capture_director_storyboard_sequence_version();
+
+create or replace function public.capture_director_storyboard_board_version()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+begin
+  insert into public.director_storyboard_board_versions (
+    board_id, version, sequence_id, project_id, shot_id, ordinal, status,
+    title, description, script_ref, reference_asset_ids, continuity_anchor_ids,
+    continuity_locks, camera_language, framing, action, notes, cinematography,
+    artifact_ids, created_at
+  ) values (
+    new.id, new.version, new.sequence_id, new.project_id, new.shot_id, new.ordinal, new.status,
+    new.title, new.description, new.script_ref, new.reference_asset_ids, new.continuity_anchor_ids,
+    new.continuity_locks, new.camera_language, new.framing, new.action, new.notes, new.cinematography,
+    new.artifact_ids, new.updated_at
+  );
+  return new;
+end;
+$;
+
+drop trigger if exists director_storyboard_board_version_capture on public.director_storyboard_boards;
+create trigger director_storyboard_board_version_capture
+after insert or update on public.director_storyboard_boards
+for each row execute function public.capture_director_storyboard_board_version();
+
 -- Append-only evidence tables cannot be rewritten or erased, even by an
 -- authenticated client. The application service role may insert new evidence
 -- through the governed persistence path.
@@ -178,6 +252,33 @@ create trigger director_storyboard_board_versions_immutable
 before update or delete on public.director_storyboard_board_versions
 for each row execute function public.reject_director_storyboard_history_mutation();
 
+-- Stage bindings participate in generation authority and are append-only too.
+-- A changed binding is a new versioned row, never an in-place rewrite.
+drop trigger if exists director_storyboard_stage_bindings_immutable on public.director_storyboard_stage_bindings;
+create trigger director_storyboard_stage_bindings_immutable
+before update or delete on public.director_storyboard_stage_bindings
+for each row execute function public.reject_director_storyboard_history_mutation();
+
+create or replace function public.reject_director_storyboard_head_delete()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+begin
+  raise exception 'Director storyboard canonical heads cannot be deleted';
+end;
+$;
+
+drop trigger if exists director_storyboard_sequences_no_delete on public.director_storyboard_sequences;
+create trigger director_storyboard_sequences_no_delete
+before delete on public.director_storyboard_sequences
+for each row execute function public.reject_director_storyboard_head_delete();
+
+drop trigger if exists director_storyboard_boards_no_delete on public.director_storyboard_boards;
+create trigger director_storyboard_boards_no_delete
+before delete on public.director_storyboard_boards
+for each row execute function public.reject_director_storyboard_head_delete();
+
 -- Client roles have no direct access. This prevents an untrusted caller from
 -- manufacturing or rewriting canonical storyboard lineage.
 alter table public.director_storyboard_sequences enable row level security;
@@ -192,11 +293,11 @@ revoke all on public.director_storyboard_sequence_versions from public, anon, au
 revoke all on public.director_storyboard_board_versions from public, anon, authenticated;
 revoke all on public.director_storyboard_stage_bindings from public, anon, authenticated;
 
-grant select, insert, update, delete on public.director_storyboard_sequences to service_role;
-grant select, insert, update, delete on public.director_storyboard_boards to service_role;
+grant select, insert, update on public.director_storyboard_sequences to service_role;
+grant select, insert, update on public.director_storyboard_boards to service_role;
 grant select, insert on public.director_storyboard_sequence_versions to service_role;
 grant select, insert on public.director_storyboard_board_versions to service_role;
-grant select, insert, update, delete on public.director_storyboard_stage_bindings to service_role;
+grant select, insert on public.director_storyboard_stage_bindings to service_role;
 
 grant usage on schema public to service_role;
 

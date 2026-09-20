@@ -22,10 +22,6 @@ describe('GenerationPlanAdapter', () => {
   const generationStage: CreativeStage = {
     id: 'generation-1', projectId: 'p', kind: 'generation', dependsOn: ['storyboard-1'], status: 'ready', inputArtifactIds: [], outputArtifactIds: [], version: 3,
   };
-  const creativeProvenance = {
-    projectId: 'p', storyboardBoardIds: ['board-1', 'board-2'], storyboardVersion: 7,
-    generationStageId: 'generation-1', generationStageVersion: 3,
-  };
   const binding: StoryboardStageBinding = {
     projectId: 'p', storyboardBoardId: 'board-1',
     stageIds: { storyboard: 'storyboard-1', shotlist: 'shotlist-1', generation: 'generation-1' },
@@ -48,18 +44,19 @@ describe('GenerationPlanAdapter', () => {
     return { modelId: 'video-model', modality: 'video', loras: [{ loraId: 'character-maya', weight: 0.9 }], parameters: { seed: 42 } };
   }
 
-  function gateInput(overrides: Partial<{ gate: CreativeGate; storyboardStage: CreativeStage; generationStage: CreativeStage; creativeProvenance: typeof creativeProvenance; storyboardLineage: DirectorStoryboardLineage }> = {}) {
+  function gateInput(overrides: Partial<{ gate: CreativeGate; storyboardStage: CreativeStage; generationStage: CreativeStage }> = {}): Parameters<GenerationPlanAdapter['submitTake']>[2] {
     return {
       run,
       gate: overrides.gate ?? gate,
       generationStage: overrides.generationStage ?? generationStage,
       storyboardStage: overrides.storyboardStage ?? storyboardStage,
-      creativeProvenance: overrides.creativeProvenance ?? creativeProvenance,
-      storyboardLineage: overrides.storyboardLineage ?? lineage,
     };
   }
 
-  function makeAdapter(submitted: { requests: GenerationRequest[] } = { requests: [] }) {
+  function makeAdapter(
+    submitted: { requests: GenerationRequest[] } = { requests: [] },
+    resolvedLineage: DirectorStoryboardLineage = lineage,
+  ) {
     const registry = new GenerationRegistry();
     registry.registerProvider({ id: 'comfy-local', name: 'ComfyUI Local', kind: 'comfyui', capabilities: ['text-to-video', 'image-to-video'], models: ['video-model'], health: 'healthy' });
     registry.registerModel({ id: 'video-model', providerId: 'comfy-local', name: 'Video Model', version: '1', modalities: ['video'], capabilities: ['text-to-video', 'image-to-video'], baseModel: 'video-base' });
@@ -70,7 +67,7 @@ describe('GenerationPlanAdapter', () => {
       async status(providerJobId): Promise<GenerationResult> { return { requestId: providerJobId, providerId: 'comfy-local', status: 'completed', assetIds: [] }; },
       async cancel() {},
     };
-    const resolver = { resolve: async () => lineage } as unknown as DirectorStoryboardLineageResolver;
+    const resolver = { resolve: async () => resolvedLineage } as unknown as DirectorStoryboardLineageResolver;
     return new GenerationPlanAdapter(new GenerationService(registry, new Map([['comfy-local', provider]])), registry, resolver);
   }
 
@@ -81,11 +78,44 @@ describe('GenerationPlanAdapter', () => {
     expect(submitted.requests[0]?.model.id).toBe('video-model');
   });
 
-  it('carries the approved storyboard lineage into the generated asset request', async () => {
+  it('derives creative provenance from the canonical resolver result', async () => {
     const submitted = { requests: [] as GenerationRequest[] };
     const job = await makeAdapter(submitted).submitTake(request(), plan(), gateInput());
-    expect(submitted.requests[0]?.creativeProvenance).toMatchObject(creativeProvenance);
+    expect(submitted.requests[0]?.creativeProvenance).toMatchObject({
+      projectId: 'p',
+      storyboardBoardIds: ['board-1', 'board-2'],
+      storyboardVersion: 7,
+      generationStageId: 'generation-1',
+      generationStageVersion: 3,
+    });
     expect(submitted.requests[0]?.creativeProvenance?.generationJobId).toBe(job.id);
+  });
+
+  it('ignores forged caller lineage and provenance fields at runtime', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    const unsafeGateInput = {
+      ...gateInput(),
+      storyboardLineage: {
+        ...lineage,
+        sequence: { ...lineage.sequence, boardIds: ['attacker-board'], version: 999 },
+      },
+      creativeProvenance: {
+        projectId: 'p',
+        storyboardBoardIds: ['attacker-board'],
+        storyboardVersion: 999,
+        generationStageId: 'attacker-stage',
+        generationStageVersion: 999,
+      },
+    } as Parameters<GenerationPlanAdapter['submitTake']>[2];
+
+    await makeAdapter(submitted).submitTake(request(), plan(), unsafeGateInput);
+
+    expect(submitted.requests[0]?.creativeProvenance).toMatchObject({
+      storyboardBoardIds: ['board-1', 'board-2'],
+      storyboardVersion: 7,
+      generationStageId: 'generation-1',
+      generationStageVersion: 3,
+    });
   });
 
   it('uses the same idempotency key when the same Director take is retried', async () => {
@@ -96,13 +126,6 @@ describe('GenerationPlanAdapter', () => {
     expect(submitted.requests).toHaveLength(2);
     expect(submitted.requests[0]?.requestId).toBe('director:p:take:take-001');
     expect(submitted.requests[1]?.requestId).toBe(submitted.requests[0]?.requestId);
-  });
-
-  it('does not reach the provider when provenance is missing', async () => {
-    const submitted = { requests: [] as GenerationRequest[] };
-    const unsafeInput = { ...gateInput(), creativeProvenance: undefined } as unknown as Parameters<GenerationPlanAdapter['submitTake']>[2];
-    await expect(makeAdapter(submitted).submitTake(request(), plan(), unsafeInput)).rejects.toThrow('Generation submission blocked');
-    expect(submitted.requests).toHaveLength(0);
   });
 
   it('does not reach the provider when the gate is pending', async () => {
@@ -117,7 +140,7 @@ describe('GenerationPlanAdapter', () => {
     expect(submitted.requests).toHaveLength(0);
   });
 
-  it('rejects a cross-project gate before model/provider work', async () => {
+  it('rejects a gate bound to another production run before provider work', async () => {
     const submitted = { requests: [] as GenerationRequest[] };
     await expect(makeAdapter(submitted).submitTake(request(), plan(), gateInput({ gate: { ...gate, runId: 'other-run' } }))).rejects.toThrow('Generation submission blocked');
     expect(submitted.requests).toHaveLength(0);
@@ -125,15 +148,25 @@ describe('GenerationPlanAdapter', () => {
 
   it('rejects when the resolver returns a different canonical board', async () => {
     const submitted = { requests: [] as GenerationRequest[] };
-    const resolver = { resolve: async () => ({ ...lineage, board: { ...lineage.board, id: 'board-2' } }) } as unknown as DirectorStoryboardLineageResolver;
-    const adapter = (() => {
-      const registry = new GenerationRegistry();
-      const provider = { descriptor: { id: 'comfy-local', name: 'ComfyUI', kind: 'comfyui', capabilities: ['text-to-video'], models: ['video-model'], health: 'healthy' }, async submit(input: GenerationRequest) { submitted.requests.push(input); return { requestId: input.requestId, providerId: 'comfy-local', status: 'queued' as const, assetIds: [], providerJobId: 'p1' }; }, async status(): Promise<GenerationResult> { return { requestId: 'x', providerId: 'comfy-local', status: 'completed', assetIds: [] }; }, async cancel() {} } as unknown as GenerationProvider;
-      registry.registerProvider(provider.descriptor);
-      registry.registerModel({ id: 'video-model', providerId: 'comfy-local', name: 'Video', version: '1', modalities: ['video'], capabilities: ['text-to-video'], baseModel: 'video-base' });
-      return new GenerationPlanAdapter(new GenerationService(registry, new Map([['comfy-local', provider]])), registry, resolver);
-    })();
-    await expect(adapter.submitTake(request(), plan(), gateInput())).rejects.toThrow('canonical board ID');
+    const wrongBoard = { ...lineage, board: { ...lineage.board, id: 'board-2' } };
+    await expect(makeAdapter(submitted, wrongBoard).submitTake(request(), plan(), gateInput())).rejects.toThrow('requested canonical board ID');
+    expect(submitted.requests).toHaveLength(0);
+  });
+
+  it('rejects cross-project canonical lineage from the resolver', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    const crossProject = { ...lineage, sequence: { ...lineage.sequence, projectId: 'other-project' } };
+    await expect(makeAdapter(submitted, crossProject).submitTake(request(), plan(), gateInput())).rejects.toThrow('Generation submission blocked');
+    expect(submitted.requests).toHaveLength(0);
+  });
+
+  it('rejects canonical lineage with a mismatched generation binding', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    const mismatched = {
+      ...lineage,
+      binding: { ...lineage.binding, stageIds: { ...lineage.binding.stageIds, generation: 'other-generation' } },
+    };
+    await expect(makeAdapter(submitted, mismatched).submitTake(request(), plan(), gateInput())).rejects.toThrow('Generation submission blocked');
     expect(submitted.requests).toHaveLength(0);
   });
 });
