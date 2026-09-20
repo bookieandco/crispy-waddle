@@ -36,6 +36,12 @@ export function planExpression(
   }[decision.action] as ExpressionPlan['mode'];
 
   const serious = mode === 'serious';
+  const responseLength: NonNullable<ExpressionPlan['responseLength']> =
+    decision.posture.verbosity <= 0.4
+      ? 'brief'
+      : decision.posture.verbosity >= 0.7
+        ? 'detailed'
+        : 'balanced';
   const callback = !serious && isVerifiedCallback(context.callback)
     ? context.callback
     : undefined;
@@ -47,6 +53,7 @@ export function planExpression(
     mode,
     allowProfanity: !serious && decision.posture.profanityAllowed,
     allowQuip: !serious && decision.posture.quipsAllowed,
+    responseLength,
     callback: callback?.value,
     callbackProvenance: callback?.provenance.map((item) => ({
       origin: item.origin,
