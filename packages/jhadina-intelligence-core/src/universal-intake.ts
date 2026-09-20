@@ -57,6 +57,7 @@ export class GovernedUniversalIntakeRouter implements UniversalIntakeRouter {
   if(/research|study|paper|source|citation/.test(text))
    add('research','Research intent',.82);
   if(!routes.length) add(asset.modality==='document'?'knowledge':'research','No specific subsystem signal; route to read-only analysis',.55);
-  return Object.freeze({assetId:asset.id,routes:Object.freeze(routes),requiresHumanSelection:routes.length>1});
+  const requiresHumanSelection=routes.length>1&&!intent.trim();
+  return Object.freeze({assetId:asset.id,routes:Object.freeze(routes),requiresHumanSelection});
  }
 }
