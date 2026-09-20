@@ -29,12 +29,12 @@ describe('CapabilityRegistry', () => {
     registry.registerSubsystem({
       subsystemId:'knowledge', capabilityIds:['knowledge.read'], dependencies:[], protectedPaths:['/policy'],
       diagnostics:{healthChecks:['knowledge:health'],targetedTests:['test:knowledge'],regressionTests:['test:knowledge:regression'],staticAnalysis:['type-check'],runtimeEvidence:['runtime-errors']},
-      repair:{governed:true,executor:'jhadina-evolution-core',rollbackRequired:true,permission:'approval'}, invariants:['evidence is not authority']
+      repair:{governed:true,executor:'jhadina-evolution-core',rollbackRequired:true,authorizationCapability:'evolution.propose'}, invariants:['evidence is not authority']
     });
     registry.registerSubsystem({
       subsystemId:'ask-jhadina', capabilityIds:['ask.answer'], dependencies:['knowledge'], protectedPaths:[],
       diagnostics:{healthChecks:['ask:health'],targetedTests:['test:ask'],regressionTests:[],staticAnalysis:['type-check'],runtimeEvidence:['runtime-errors']},
-      repair:{governed:true,executor:'jhadina-evolution-core',rollbackRequired:true,permission:'automatic-safe'}, invariants:[]
+      repair:{governed:true,executor:'jhadina-evolution-core',rollbackRequired:true,authorizationCapability:'evolution.propose'}, invariants:[]
     });
     assert.deepEqual(registry.regressionCommandsFor('knowledge'),['test:knowledge:regression','test:ask']);
   });
