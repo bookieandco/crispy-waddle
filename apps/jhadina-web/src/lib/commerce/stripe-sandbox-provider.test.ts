@@ -48,6 +48,7 @@ function createFakeStripeFetch(options: {
     authorization: string | null
     idempotencyKey: string | null
     contentType: string | null
+    stripeVersion: string | null
     rawBody: string
     payload: Record<string, unknown>
   }>
@@ -62,6 +63,7 @@ function createFakeStripeFetch(options: {
       authorization: headers.get("authorization"),
       idempotencyKey: headers.get("Idempotency-Key"),
       contentType: headers.get("content-type"),
+      stripeVersion: headers.get("Stripe-Version"),
       rawBody,
       payload: parseStripeFormBody(rawBody),
     })
@@ -117,7 +119,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("a successful charge captures instantly and carries the credential only to the provider boundary", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; stripeVersion: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({
       secret: "sk_test_reference_do_not_log",
       fetchImpl: createFakeStripeFetch({ recordedRequests }),
@@ -130,6 +132,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
     expect(recordedRequests).toHaveLength(1)
     expect(recordedRequests[0].authorization).toBe("Bearer sk_test_reference_do_not_log")
     expect(recordedRequests[0].idempotencyKey).toBe("pay_1")
+    expect(recordedRequests[0].stripeVersion).toBe("2026-08-26.dahlia")
     // The credential reached the provider request, never the returned result.
     expect(JSON.stringify(intent)).not.toContain("sk_test_reference_do_not_log")
   })
@@ -162,7 +165,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("idempotency: a repeated call with the same paymentId never reaches the provider a second time", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; stripeVersion: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const fetchImpl = vi.fn(createFakeStripeFetch({ recordedRequests }))
     const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl })
 
@@ -200,14 +203,14 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("PL-7: defaults to Stripe's documented success PaymentMethod (pm_card_visa) when nothing is configured", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; stripeVersion: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl: createFakeStripeFetch({ recordedRequests }) })
     await provider.createPaymentIntent(paymentRequest())
     expect(recordedRequests[0].payload.payment_method).toBe("pm_card_visa")
   })
 
   test("PL-7: an instance-level defaultTestPaymentMethod is sent on every createPaymentIntent call", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; stripeVersion: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({
       secret: "sk_test_x",
       fetchImpl: createFakeStripeFetch({ recordedRequests }),
@@ -221,7 +224,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("PL-7: a request.metadata override takes precedence over the instance default", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; stripeVersion: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({
       secret: "sk_test_x",
       fetchImpl: createFakeStripeFetch({ recordedRequests }),
@@ -243,7 +246,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("PL-7: rejects an unknown metadata override before any provider call", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; stripeVersion: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl: createFakeStripeFetch({ recordedRequests }) })
     await expect(
       provider.createPaymentIntent(paymentRequest({ metadata: { stripeTestPaymentMethod: "pm_card_totally_made_up" } })),
@@ -252,7 +255,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("PL-7: sends the real Stripe wire format — form-urlencoded content-type, not JSON", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; stripeVersion: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl: createFakeStripeFetch({ recordedRequests }) })
     await provider.createPaymentIntent(paymentRequest())
 
@@ -262,7 +265,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("PL-7: encodes payment_method, amount, currency, and confirm as flat form fields", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; stripeVersion: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl: createFakeStripeFetch({ recordedRequests }) })
     await provider.createPaymentIntent(paymentRequest({ amount: { amountMinor: 2500, currency: "USD" } }))
 
@@ -278,7 +281,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("PL-7 live-run fix: sends automatic_payment_methods[enabled]=true and automatic_payment_methods[allow_redirects]=never so a return_url is never required", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; stripeVersion: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl: createFakeStripeFetch({ recordedRequests }) })
     await provider.createPaymentIntent(paymentRequest())
 
@@ -292,7 +295,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("PL-7: encodes metadata with Stripe's bracket notation, percent-encoded on the wire", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; stripeVersion: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl: createFakeStripeFetch({ recordedRequests }) })
     await provider.createPaymentIntent(paymentRequest({ metadata: { idempotencyKey: "checkout_123:payment" } }))
 
@@ -305,7 +308,7 @@ describe("StripeSandboxPaymentProvider — sandbox-only, idempotent, fail-closed
   })
 
   test("PL-7: URL-encodes special characters in metadata values rather than sending them raw", async () => {
-    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; rawBody: string; payload: Record<string, unknown> }> = []
+    const recordedRequests: Array<{ url: string; authorization: string | null; idempotencyKey: string | null; contentType: string | null; stripeVersion: string | null; rawBody: string; payload: Record<string, unknown> }> = []
     const provider = new StripeSandboxPaymentProvider({ secret: "sk_test_x", fetchImpl: createFakeStripeFetch({ recordedRequests }) })
     await provider.createPaymentIntent(paymentRequest({ metadata: { note: "a b&c=d/e" } }))
 
