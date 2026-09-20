@@ -638,8 +638,8 @@ audit before promoting; see JH-028)
 
 ### JH-028
 **Priority:** P2
-**Status:** BLOCKED
-**Branch:** `feat/jhadina-growth-engine` (PR #7) —
+**Status:** ACTIVE
+**Branch:** `fix/jh028-canonical-money-path` (current reconciliation; source material remains in `feat/jhadina-growth-engine` PR #7) —
 `apps/jhadina-web/src/lib/money/{needsAttentionEngine,
 plaidFinancialData}.ts`, `apps/jhadina-web/src/app/money/command-center/page.tsx`,
 `apps/jhadina-web/src/app/api/money/financial-data/route.ts`
@@ -704,11 +704,11 @@ traced UI → API route → provider → (no further boundary). Findings:
   `PlaidReadOnlyAdapter` through the capability boundary instead, (b)
   something else, is a call for a human to make, not something to
   guess at silently — same treatment as JH-026.
-**Next Step:** Await human decision on how the command-center's data
-path should reach Plaid (via `packages/money-core`'s governed adapter,
-most likely, but not decided here). `needsAttentionEngine.ts` and the
-UI shell are safe and could land separately once wired to a
-governed data source.
+**Human decision (2026-09-20):** Use the existing governed `packages/money-core` -> `PlaidReadOnlyAdapter` path as the single canonical Plaid path. The duplicate `plaidFinancialData.ts` client is rejected and must not be ported. Any command-center UI must consume the governed Money boundary rather than call Plaid directly.
+
+**Reconciliation progress (2026-09-20):** The already-landed `/api/money/accounts` -> `runGovernedMoneyAccountRead` -> governed provider registry -> `PlaidReadOnlyAdapter` chain is the canonical read spine. This pass adds a session-authoritative product entry point so callers no longer need to supply `x-jhadina-user-id`; authenticated claims derive the actor and the existing governed executor re-verifies that identity before provider/ledger work. Tests cover successful session-derived reads and fail-closed missing-session behavior.
+
+**Next Step:** After this repair lands, reconcile the command-center product surface against JH-033's safe/pure UI abstractions. Do not add a second provider, ledger, credential path, or direct Plaid fetch. Transaction reads remain separate governed capability work; do not bypass `money.transaction.read` to populate the UI.
 
 ### JH-029
 **Priority:** P2

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { randomUUID } from "node:crypto"
-import { runGovernedMoneyAccountRead } from "@/lib/money/governed-account-read-runtime"
+import { runSessionGovernedMoneyAccountRead } from "@/lib/money/governed-account-read-runtime"
 
 export const dynamic = "force-dynamic"
 
@@ -12,16 +12,16 @@ export const dynamic = "force-dynamic"
  * boundary between a caller and the governed Money account-read
  * runtime; nothing imports governed-account-read-runtime directly.
  *
- * Deliberately does NOT touch /money/command-center or any other
- * Money UI — that surface is the frozen JH-028/JH-033/JH-034 product
- * decision, untouched by this milestone.
+ * This route is the canonical read boundary selected for the JH-028/JH-033
+ * reconciliation. Actor identity comes from the authenticated session; a
+ * client-supplied user id is neither required nor trusted. Product UI may
+ * consume this route, but may not create a second Plaid client.
  */
 export async function GET(req: NextRequest) {
-  const claimedUserId = req.headers.get("x-jhadina-user-id") || "default-user"
   const requestId = req.headers.get("x-jhadina-request-id") || randomUUID()
 
   try {
-    const { accounts, verifiedUserId } = await runGovernedMoneyAccountRead(claimedUserId, requestId)
+    const { accounts, verifiedUserId } = await runSessionGovernedMoneyAccountRead(requestId)
     return NextResponse.json({ success: true, data: { accounts, verifiedUserId } })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not load accounts"
