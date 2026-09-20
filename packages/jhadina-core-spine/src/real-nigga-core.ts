@@ -26,6 +26,8 @@ export interface RealNiggaBehavior {
   reasoningDepth: number;
   /** Presentation preference only; never grants autonomous execution authority. */
   workflowContinuity: number;
+  explanationStyle: 'standard' | 'step-by-step' | 'evidence-first';
+  decisionPresentation: 'balanced' | 'options';
   humor: number;
   profanityAllowed: boolean;
   profanityIntensity: number;
@@ -99,6 +101,9 @@ export function deriveRealNiggaBehavior(
   const learnedPushbackCalibration = acceptedCalibration(personality, 'prefers active pushback');
   const learnedTechnicalDepthCalibration = acceptedCalibration(personality, 'prefers technical depth');
   const learnedWorkflowCalibration = acceptedCalibration(personality, 'prefers continuous workflow');
+  const learnedStepByStepCalibration = acceptedCalibration(personality, 'prefers step-by-step explanations');
+  const learnedEvidenceFirstCalibration = acceptedCalibration(personality, 'prefers evidence-first explanations');
+  const learnedOptionsCalibration = acceptedCalibration(personality, 'prefers multiple options');
   const learnedExperimentationCalibration = acceptedCalibration(personality, 'prefers experimental creativity');
   const learnedFamiliarToneCalibration = acceptedCalibration(personality, 'prefers familiar tone');
   const preferredInteractionModes = normalizeModes(relationship.preferredInteractionModes);
@@ -124,6 +129,14 @@ export function deriveRealNiggaBehavior(
     0.5 + 0.35 * learnedTechnicalDepthCalibration + (context.requiresPrecision ? 0.15 : 0),
   );
   const workflowContinuity = clamp(0.5 + 0.35 * learnedWorkflowCalibration);
+  const explanationStyle: RealNiggaBehavior['explanationStyle'] =
+    learnedEvidenceFirstCalibration > 0
+      ? 'evidence-first'
+      : learnedStepByStepCalibration > 0
+        ? 'step-by-step'
+        : 'standard';
+  const decisionPresentation: RealNiggaBehavior['decisionPresentation'] =
+    learnedOptionsCalibration > 0 ? 'options' : 'balanced';
 
   const tasteLatitude = clamp(
     creativeLatitude(taste) + 0.2 * learnedExperimentationCalibration,
@@ -146,6 +159,8 @@ export function deriveRealNiggaBehavior(
     formality: serious ? Math.max(formality, 0.75) : formality,
     reasoningDepth,
     workflowContinuity,
+    explanationStyle,
+    decisionPresentation,
     humor: serious ? 0 : clamp(clamp(voice.humor) + 0.2 * learnedHumorCalibration),
     profanityAllowed: profanityIntensity >= 0.5,
     profanityIntensity,
