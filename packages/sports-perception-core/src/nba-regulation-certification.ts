@@ -1,0 +1,1 @@
+import type { NBAEvent } from './nba-event-state-machine.js';export function certifyNBARegulationLifecycle(events:readonly NBAEvent[]):boolean{const starts=new Set(events.filter(x=>x.kind==='PERIOD_START').map(x=>x.period));const ends=events.filter(x=>x.kind==='PERIOD_END').map(x=>x.period);return [2,3,4].every(x=>starts.has(x))&&[1,2,3,4].every(x=>ends.includes(x));}
