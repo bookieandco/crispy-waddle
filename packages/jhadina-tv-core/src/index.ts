@@ -145,3 +145,5 @@ export type { ViewingMemoryProposal, ViewingMemoryProposalPort } from './viewing
 export { proposeViewingMemory, toViewingMemoryProposal } from './viewing-memory';
 export type { MediaPerceptionAdapter } from './perception';
 export { perceiveAuthorizedMedia } from './perception';
+export * from './hierarchy';
+export * from './consumer-state';
