@@ -1,5 +1,6 @@
 import {
   decideBehavior,
+  DEFAULT_PERSONALITY_ELIGIBILITY_RULES,
   emptyPersonalityState,
   planExpression,
   runPersonalityBehaviorRuntime,
@@ -57,7 +58,7 @@ export class ProductionPersonalityContextProvider {
   ) {
     this.adapter = new PersistedExperiencePatternAdapter(storage, options.patternPort)
     this.repository = options.repository ?? null
-    this.eligibilityRules = options.eligibilityRules ?? []
+    this.eligibilityRules = options.eligibilityRules ?? DEFAULT_PERSONALITY_ELIGIBILITY_RULES
   }
 
   async getContext(
