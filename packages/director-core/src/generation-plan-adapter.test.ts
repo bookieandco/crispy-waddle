@@ -160,6 +160,13 @@ describe('GenerationPlanAdapter', () => {
     expect(submitted.requests).toHaveLength(0);
   });
 
+  it('rejects a stale canonical storyboard board before provider work', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    const staleLineage = { ...lineage, board: { ...lineage.board, status: 'stale' as const } };
+    await expect(makeAdapter(submitted, staleLineage).submitTake(request(), plan(), gateInput())).rejects.toThrow('Storyboard board is not ready: stale');
+    expect(submitted.requests).toHaveLength(0);
+  });
+
   it('rejects canonical lineage with a mismatched generation binding', async () => {
     const submitted = { requests: [] as GenerationRequest[] };
     const mismatched = {
