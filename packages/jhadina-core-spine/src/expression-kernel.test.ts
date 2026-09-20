@@ -101,6 +101,8 @@ describe('Expression Kernel', () => {
       reasoningDepth: 'standard',
       interactionStyle: 'balanced',
       creativeStyle: 'balanced',
+      explanationStyle: 'standard',
+      decisionPresentation: 'balanced',
       callback: 'callback-1',
       callbackProvenance: [{
         origin: 'relationship',
@@ -132,6 +134,8 @@ describe('Expression Kernel', () => {
     assert.equal(plan.reasoningDepth, 'standard');
     assert.equal(plan.interactionStyle, 'balanced');
     assert.equal(plan.creativeStyle, 'conventional');
+    assert.equal(plan.explanationStyle, 'standard');
+    assert.equal(plan.decisionPresentation, 'balanced');
     assert.equal(plan.callback, undefined);
     assert.equal(plan.callbackProvenance, undefined);
     assert.equal(plan.culturalReference, undefined);
