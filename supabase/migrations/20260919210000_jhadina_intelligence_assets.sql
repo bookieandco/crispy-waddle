@@ -19,7 +19,8 @@ create table if not exists public.jhadina_intelligence_assets (
   content_sha256 text,
   byte_length bigint,
   status text not null check (status = 'registered'),
-  created_at timestamptz not null
+  created_at timestamptz not null,
+  unique (actor_id, id)
 );
 
 create index if not exists jhadina_intelligence_assets_actor_created_idx
