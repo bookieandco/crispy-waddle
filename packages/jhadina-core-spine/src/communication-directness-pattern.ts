@@ -15,8 +15,6 @@ const DIRECT_SUPPORT = [
 const DIRECT_CONTRADICTION = [
   /\bnot (so )?direct\b/i,
   /\bless direct\b/i,
-  /\bmore detail(?:ed)?\b/i,
-  /\bexplain (it )?more\b/i,
   /\bsoften (it|that|the tone)\b/i,
 ];
 
