@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     })
     const ledger = await createIntelligenceAuditLedger()
     await ledger.append({
-      id: `personality-feedback:${result.event.id}`,
+      id: `personality-feedback:${result.event.id}:${crypto.randomUUID()}`,
       actionId: result.event.id,
       userId: identity.userId,
       type: "personality.feedback.record",
