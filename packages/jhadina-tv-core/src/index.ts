@@ -20,8 +20,17 @@ export interface MediaTitle {
 
 export type ViewingSignalKind = 'explicit-preference' | 'observed-behavior' | 'temporary-intent' | 'contextual';
 
+export interface ViewingMediaIdentity {
+  mediaId: string;
+  seriesId?: string;
+  seasonId?: string;
+  seasonNumber?: number;
+  episodeNumber?: number;
+}
+
 export interface ViewingSignal {
   titleId: string;
+  media?: ViewingMediaIdentity;
   completed: boolean;
   progressMinutes: number;
   liked?: boolean;
@@ -29,6 +38,10 @@ export interface ViewingSignal {
   observedAt?: string;
   confidence?: number;
   source?: string;
+}
+
+export function viewingSignalMediaId(signal: ViewingSignal): string {
+  return signal.media?.mediaId ?? signal.titleId;
 }
 
 export interface RecommendationRequest {
@@ -96,7 +109,7 @@ export const JHADINA_TV_ROUTES = {
   watch: (kind: MediaKind, id: string) => `/jhadinatv/watch/${kind}/${id}`,
 };
 
-export type { MediaRight, MediaSource, MediaSourceAdapter, MediaSourceAuthorization } from './source-adapter';
+export type { MediaRight, MediaSource, MediaSourceAdapter, MediaSourceAuthorization, MediaSourceRequest } from './source-adapter';
 export { assertAuthorizedSource, assertMediaRight, assertPlayableSource } from './source-adapter';
 export type { CastingManager, MediaSessionCommand, MediaSessionController, MediaSessionState, PlaybackTarget, PlaybackTransport } from './casting';
 export { assertCastableSource, buildTransferCommand, createCastingManager } from './casting';
@@ -104,8 +117,8 @@ export type { CatalogProvider, CatalogSearchOptions, CatalogSearchResult, Resolv
 export { CatalogRegistry } from './catalog';
 export type { ProviderFactoryConfig } from './providers';
 export { createCatalogProvider, registerCatalogProviders } from './providers';
-export type { AuthorizedCatalogClient, AuthorizedCatalogRecord } from './providers/authorized';
-export { createAuthorizedCatalogAdapter } from './providers/authorized';
+export type { AuthorizedCatalogClient, AuthorizedCatalogHierarchy, AuthorizedCatalogRecord, NormalizedAuthorizedCatalogRecord } from './providers/authorized';
+export { createAuthorizedCatalogAdapter, normalizeAuthorizedCatalogRecord } from './providers/authorized';
 export type { GoogleCastRuntime, GoogleCastSession } from './cast/google-cast';
 export { createGoogleCastController } from './cast/google-cast';
 export type { JhadinaTVReceiverTransport } from './cast/jhadinatv-receiver';
