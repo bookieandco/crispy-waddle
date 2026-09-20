@@ -19,10 +19,40 @@ describe('launch outcome engine', () => {
     expect(assessment.outcome).toBe('UNKNOWN')
   })
 
-  it('rejects conflicting immutable outcome labels', () => {
-    const existing = launch('HEALTHY')
-    const assessment = evaluateLaunchOutcome({ launch: launch(), evaluatedAt: '2026-09-02T00:00:00Z', liquidityRemoved: true, evidence })
-    expect(() => applyLaunchOutcome(existing, assessment)).toThrow('Conflicting launch outcome labels')
+  it('allows newer evidence to revise an earlier classification and ignores stale revisions', () => {
+    const existing = { ...launch('HEALTHY'), outcomeObservedAt: '2026-09-01T12:00:00Z' }
+    const newer = evaluateLaunchOutcome({ launch: launch(), evaluatedAt: '2026-09-02T00:00:00Z', liquidityRemoved: true, evidence })
+    expect(applyLaunchOutcome(existing, newer).outcome).toBe('RUG')
+
+    const stale = { ...newer, evaluatedAt: '2026-09-01T00:00:00Z', outcome: 'FAILED' as const }
+    expect(applyLaunchOutcome(existing, stale).outcome).toBe('HEALTHY')
+  })
+
+  it('does not call a price/developer collapse a rug without liquidity evidence', () => {
+    const assessment = evaluateLaunchOutcome({
+      launch: launch(),
+      evaluatedAt: '2026-09-02T00:00:00Z',
+      peakReturnPct: 400,
+      priceReturnFromLaunchPct: -90,
+      maxDrawdownPct: .95,
+      developerSoldPct: .9,
+      holderExitPct: .9,
+      holderBehavior: 'PANIC_EXIT',
+      evidence,
+    })
+    expect(assessment.outcome).toBe('PUMP_AND_DUMP')
+    expect(assessment.outcome).not.toBe('RUG')
+  })
+
+  it('labels a terminal collapse without pump or liquidity-removal evidence as FAILED', () => {
+    const assessment = evaluateLaunchOutcome({
+      launch: launch(),
+      evaluatedAt: '2026-09-02T00:00:00Z',
+      priceReturnFromLaunchPct: -90,
+      holderExitPct: .8,
+      evidence,
+    })
+    expect(assessment.outcome).toBe('FAILED')
   })
 
   it('derives actor history without counting UNKNOWN as good or bad', () => {
