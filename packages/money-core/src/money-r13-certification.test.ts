@@ -1,6 +1,5 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { bindActionCoreAuthority } from './action-core-authority-bridge.js'
 import { assertCanonicalPortfolio } from './canonical-financial-state.js'
 import { assertPointInTimeObservation } from './market-provenance-contracts.js'
 import { assertReplayableSimulation } from './risk-simulation-contracts.js'
