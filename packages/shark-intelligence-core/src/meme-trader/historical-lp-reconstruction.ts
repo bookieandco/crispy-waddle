@@ -80,10 +80,6 @@ function balancesByAccount(raw: any): Map<string, { mint: string; value: number 
   return result
 }
 
-function accountByRole(accounts: PoolAccountRef[], role: PoolAccountRef['role']): string | undefined {
-  return accounts.find(account => account.role === role)?.address
-}
-
 function classify(baseDelta: number, quoteDelta: number): HistoricalReserveSnapshot['kind'] {
   if (baseDelta > 0 && quoteDelta > 0) return 'LIQUIDITY_ADD'
   if (baseDelta < 0 && quoteDelta < 0) return 'LIQUIDITY_REMOVE'
