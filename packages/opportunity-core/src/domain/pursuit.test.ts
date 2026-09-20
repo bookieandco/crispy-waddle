@@ -1,4 +1,4 @@
-import { approveOpportunityForResearch, isPursuitReady, updatePursuitTask } from './pursuit.js'
+import { approveOpportunityForResearch, isPursuitReady, markOpportunityReady, updatePursuitTask } from './pursuit.js'
 import { adaptEmploymentOpportunity } from '../adapters/employment.js'
 import { adaptOverageOpportunity } from '../adapters/overage.js'
 
@@ -31,3 +31,22 @@ for (const task of readyCase.tasks) {
   readyCase = updatePursuitTask(readyCase, task.id, { status: 'completed', evidenceRefs: [`evidence:${task.id}`] }, '2026-09-19T01:00:00Z')
 }
 assert(isPursuitReady(readyCase), 'All required tasks need evidence before pursuit is ready')
+
+
+let employmentReadyCase = approved.pursuitCase
+for (const task of employmentReadyCase.tasks) {
+  employmentReadyCase = updatePursuitTask(employmentReadyCase, task.id, {
+    status: 'completed',
+    evidenceRefs: [`evidence:${task.id}`],
+  }, '2026-09-19T02:00:00Z')
+}
+const employmentReady = markOpportunityReady(approved.opportunity, employmentReadyCase, '2026-09-19T03:00:00Z')
+assert(employmentReady.status === 'ready', 'Employment opportunity must become ready after evidence-complete research')
+
+let recoveryBlocked = false
+try {
+  markOpportunityReady(recovery.opportunity, readyCase, '2026-09-19T03:00:00Z')
+} catch {
+  recoveryBlocked = true
+}
+assert(recoveryBlocked, 'Recovery opportunity must remain blocked without complete claimant/entitlement verification')
