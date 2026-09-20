@@ -186,7 +186,7 @@ begin
   from public.jhadina_research_execution_leases
   where plan_id = p_plan_id;
 
-  v_token := encode(gen_random_bytes(32), 'hex');
+  v_token := encode(extensions.gen_random_bytes(32), 'hex');
 
   insert into public.jhadina_research_execution_leases(
     plan_id, policy_decision_id, lease_token, worker_id, expires_at,
@@ -301,7 +301,7 @@ begin
   ) into v_task_exists;
   if not v_task_exists then return null; end if;
 
-  v_hash := encode(digest(p_request_hash, 'sha256'), 'hex');
+  v_hash := encode(extensions.digest(p_request_hash, 'sha256'), 'hex');
   select * into v_existing
   from public.jhadina_research_provider_submissions
   where provider_id = p_provider_id and idempotency_key = p_idempotency_key
