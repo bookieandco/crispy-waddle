@@ -1,6 +1,7 @@
 import type { AssetIntelligencePacket } from "./media-pipeline.js";
 import type { RegisteredIntelligenceAsset } from "./asset-registry.js";
 import type { SubsystemDispatchResult } from "./subsystem-dispatcher.js";
+import type { SubsystemId } from "./universal-intake.js";
 
 export type PerceptionJobStatus =
   | "queued"
@@ -15,6 +16,7 @@ export interface PerceptionJob {
   readonly actorId: string;
   readonly assetId: string;
   readonly intent?: string;
+  readonly selectedSubsystems?: readonly SubsystemId[];
   readonly status: PerceptionJobStatus;
   readonly attempt: number;
   readonly maxAttempts: number;
@@ -65,10 +67,10 @@ export interface PerceptionJobRepository {
     leaseToken: string;
     error: string;
   }): Promise<PerceptionJob | undefined>;
-  requeueWithIntent(input: {
+  requeueWithSelection(input: {
     actorId: string;
     jobId: string;
-    intent: string;
+    subsystems: readonly SubsystemId[];
   }): Promise<PerceptionJob | undefined>;
   get(actorId: string, jobId: string): Promise<PerceptionJob | undefined>;
 }
