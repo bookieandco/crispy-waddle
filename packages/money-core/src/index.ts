@@ -110,4 +110,5 @@ export * from './information-analysis-engine.js';
 
 export * from './cross-asset-fusion-contracts.js';
 export * from './cross-asset-fusion-engine.js';
+export * from './cross-asset-fusion-adapters.js';
 export * from './cross-asset-decision-learning.js';
