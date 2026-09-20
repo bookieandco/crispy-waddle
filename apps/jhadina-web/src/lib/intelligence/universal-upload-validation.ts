@@ -18,6 +18,44 @@ export const UNIVERSAL_UPLOAD_LIMITS: Readonly<Record<IntakeModality, number>> =
 
 export const MAX_UNIVERSAL_UPLOAD_BYTES = UNIVERSAL_UPLOAD_LIMITS.video;
 
+const DECLARED_MEDIA_MODALITY: Readonly<Record<string, IntakeModality>> = Object.freeze({
+  "image/jpeg": "image",
+  "image/png": "image",
+  "image/webp": "image",
+  "video/mp4": "video",
+  "video/quicktime": "video",
+  "video/ogg": "video",
+  "audio/mpeg": "audio",
+  "audio/wav": "audio",
+  "audio/x-wav": "audio",
+  "audio/ogg": "audio",
+  "application/pdf": "document",
+  "text/markdown": "document",
+  "text/csv": "document",
+  "text/plain": "text",
+  "application/json": "code",
+  "application/javascript": "code",
+  "text/javascript": "code",
+  "application/typescript": "code",
+  "text/typescript": "code",
+});
+
+export function validateUniversalUploadDeclaration(input: {
+  declaredMediaType: string;
+  byteLength: number;
+}): ValidatedUpload {
+  if (!Number.isInteger(input.byteLength) || input.byteLength <= 0) throw new Error("UPLOAD_BYTE_LENGTH_INVALID");
+  if (input.byteLength > MAX_UNIVERSAL_UPLOAD_BYTES) throw new Error("UPLOAD_TOO_LARGE");
+  const mediaType = input.declaredMediaType.split(";")[0]?.trim().toLowerCase();
+  if (!mediaType) throw new Error("UPLOAD_MEDIA_TYPE_REQUIRED");
+  const modality = DECLARED_MEDIA_MODALITY[mediaType];
+  if (!modality) throw new Error("UPLOAD_TYPE_UNSUPPORTED");
+  if (input.byteLength > UNIVERSAL_UPLOAD_LIMITS[modality]) {
+    throw new Error(`UPLOAD_TOO_LARGE_FOR_${modality.toUpperCase()}`);
+  }
+  return Object.freeze({ modality, mediaType, maxBytes: UNIVERSAL_UPLOAD_LIMITS[modality] });
+}
+
 const ascii = (bytes: Uint8Array, start: number, end: number) =>
   String.fromCharCode(...bytes.slice(start, end));
 
