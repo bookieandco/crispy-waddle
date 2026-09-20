@@ -88,7 +88,7 @@ export function adaptOverageOpportunity(input: OverageOpportunityInput): Opportu
     riskFlags,
     brokerability: 'restricted',
     metadata: { providerId: 'provider:overageos', opportunityKind: 'overage', automationLevel: 'user_led', requiresUserApproval: true },
-    status: verified ? 'verified' : 'research_pending',
+    status: verified ? 'verified' : 'discovered',
     createdAt: now,
     updatedAt: now,
   }
