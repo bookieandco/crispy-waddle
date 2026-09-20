@@ -63,6 +63,7 @@ export * from './safety-production-gate.js';
 export * from './safety-drill-3.js';
 export * from './safety-device-receipts.js';
 export * from './safety-live-readiness.js';
+export * from './safety-prod-gate-3.js';
 
 export * from './communication-directness-pattern.js';
 
