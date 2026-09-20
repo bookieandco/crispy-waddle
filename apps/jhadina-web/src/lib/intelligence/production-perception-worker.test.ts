@@ -37,6 +37,7 @@ describe("HttpSemanticPerceptionBackend", () => {
           schema: "jhadina.perception-result.v1",
           assetId: "a1",
           contentSha256: "a".repeat(64),
+          completedOperations: ["video.frames", "video.scenes", "audio.transcript", "audio.features"],
           observations: [{ kind: "video.scene", summary: "Boxer circles clockwise." }],
           uncertainty: ["rear hand partially occluded"],
         }), { status: 200, headers: { "content-type": "application/json" } });
@@ -58,6 +59,7 @@ describe("HttpSemanticPerceptionBackend", () => {
       async () => new Response(JSON.stringify({
         schema: "jhadina.perception-result.v1",
         assetId: "other",
+        completedOperations: ["video.frames", "video.scenes", "audio.transcript", "audio.features"],
         observations: [],
       }), { status: 200 }),
     );
@@ -76,5 +78,21 @@ describe("HttpSemanticPerceptionBackend", () => {
     await expect(backend.extract({ ...input, privacyClass: "restricted" }))
       .rejects.toThrow("PRIVACY_INCOMPATIBLE");
     expect(resolved).toBe(false);
+  });
+  it("rejects a worker that silently skips requested operations", async () => {
+    const backend = new HttpSemanticPerceptionBackend(
+      "https://worker.test",
+      { async signedReadUrl() { return "signed"; } },
+      undefined,
+      "sensitive",
+      async () => new Response(JSON.stringify({
+        schema: "jhadina.perception-result.v1",
+        assetId: "a1",
+        contentSha256: "a".repeat(64),
+        completedOperations: ["video.frames"],
+        observations: [],
+      }), { status: 200 }),
+    );
+    await expect(backend.extract(input)).rejects.toThrow("PERCEPTION_WORKER_INCOMPLETE");
   });
 });
