@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { getStorage } from "@/lib/routes/handlers"
+import { createIntelligenceAuditLedger } from "@/lib/intelligence/durable-audit-ledger"
 import {
   recordPersonalityOutcomeFeedback,
   type PersonalityOutcomeFeedbackKind,
@@ -49,6 +50,22 @@ export async function POST(req: NextRequest) {
       feedbackId,
       kind,
       note,
+    })
+    const ledger = await createIntelligenceAuditLedger()
+    await ledger.append({
+      id: `personality-feedback:${result.event.id}`,
+      actionId: result.event.id,
+      userId: identity.userId,
+      type: "personality.feedback.record",
+      status: "completed",
+      timestamp: new Date().toISOString(),
+      metadata: {
+        stage: "outcome-feedback",
+        targetReasoningEventId,
+        feedbackKind: kind,
+        replayed: result.replayed,
+        authority: "learning-only",
+      },
     })
     return NextResponse.json({
       success: true,
