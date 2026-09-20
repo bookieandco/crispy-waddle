@@ -222,6 +222,37 @@ describe('JhadinaTV production contracts', () => {
     expect(first[0]?.title.id).toBe('alpha');
   });
 
+  it('preserves canonical episode identity in viewing signals and memory proposals', async () => {
+    const signal = {
+      titleId: 'series-alpha:s2:e3',
+      media: {
+        mediaId: 'series-alpha:s2:e3',
+        seriesId: 'series-alpha',
+        seasonId: 'season-2',
+        seasonNumber: 2,
+        episodeNumber: 3,
+      },
+      completed: false,
+      progressMinutes: 32,
+      kind: 'observed-behavior' as const,
+      observedAt: '2026-09-19T00:00:00Z',
+    };
+    const store = createInMemoryViewingSignalStore();
+    store.record(signal);
+    expect(store.list()[0]?.media).toEqual(signal.media);
+    const proposal = await proposeViewingMemory(signal, { propose: async () => {} });
+    expect(proposal?.mediaId).toBe('series-alpha:s2:e3');
+    expect(proposal?.titleId).toBe('series-alpha:s2:e3');
+  });
+
+  it('keeps legacy viewing signals compatible without a media identity object', async () => {
+    const proposal = await proposeViewingMemory(
+      { titleId: 'legacy-title', completed: false, progressMinutes: 10, kind: 'observed-behavior' },
+      { propose: async () => {} },
+    );
+    expect(proposal?.mediaId).toBe('legacy-title');
+  });
+
   it('records viewing signals without turning them into execution authority', () => {
     const store = createInMemoryViewingSignalStore();
     store.record({ titleId: 'alpha', completed: false, progressMinutes: 10, kind: 'observed-behavior', observedAt: '2026-09-12T00:00:00Z' });
