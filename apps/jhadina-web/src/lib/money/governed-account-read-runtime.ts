@@ -93,3 +93,24 @@ export async function runGovernedMoneyAccountRead(
 
   return { accounts, verifiedUserId: claimedUserId }
 }
+
+
+/**
+ * Session-authoritative entry point for product/API consumers.
+ *
+ * A caller does not need to know or assert its own user id. The request-scoped
+ * identity verifier derives the actor from authenticated Supabase claims, then
+ * the existing governed Money executor verifies that same identity again before
+ * policy, capability, provider or ledger work can proceed.
+ */
+export async function runSessionGovernedMoneyAccountRead(
+  requestId: string,
+  overrides: GovernedMoneyRuntimeOverrides = {},
+): Promise<GovernedMoneyAccountReadResult> {
+  const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
+  const identity = await identityVerifier.verify({})
+  return runGovernedMoneyAccountRead(identity.userId, requestId, {
+    ...overrides,
+    identityVerifier,
+  })
+}
