@@ -179,13 +179,15 @@ export type ReferenceSourceVerification = Readonly<{
 export type ProviderContractProtocol =
   | 'HTTP'
   | 'JSON_RPC'
-  | 'LOCAL_HTTP';
+  | 'LOCAL_HTTP'
+  | 'LOCAL_ADAPTER';
 
 export type ProviderContractVersionStrategy =
   | 'HEADER'
   | 'PATH'
   | 'PROTOCOL'
   | 'UPSTREAM_REVISION'
+  | 'PACKAGE_VERSION'
   | 'CONTRACT_DIGEST';
 
 export type ProviderContractEndpoint = Readonly<{
