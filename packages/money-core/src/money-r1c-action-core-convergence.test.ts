@@ -22,6 +22,7 @@ import type {
   PermitStore,
 } from './execution-permit.js';
 import type { MoneyExecutionPermit } from './execution-permit-gate.js';
+import { createFinancialActionRequestFromAllocation } from './financial-action-governance.js';
 import { createInMemoryIdempotencyStore } from './idempotency-store.js';
 import {
   MoneyTransactionWriteHandler,
@@ -320,4 +321,84 @@ test('missing Action Core approval prevents permit, attempt, and provider execut
   );
   assert.equal(permitRequests, 0);
   assert.equal(providerCalls, 0);
+});
+
+
+test('approved allocation prepares an ActionRequest without creating Money authority', () => {
+  const opportunity = {
+    opportunityId: 'opp-1',
+    hypothesisId: 'hyp-1',
+    assetClass: 'STOCK' as const,
+    instrumentId: 'stock:ACME',
+    expectedValue: 0.1,
+    downside: 0.05,
+    confidence: 0.7,
+    prediction: {
+      scenarios: [
+        { name: 'up', probability: 0.7 },
+        { name: 'down', probability: 0.3 },
+      ],
+      modelVersion: '1',
+      inputHash: 'prediction-input-hash',
+    },
+    evidence: [],
+    createdAt: '2026-09-02T00:00:00Z',
+    expiresAt: '2026-09-03T00:00:00Z',
+  };
+  const risk = {
+    riskDecisionId: 'risk-1',
+    decision: 'PASS' as const,
+    maxLoss: 10,
+    confidence: 0.8,
+    policyVersion: 'risk-v1',
+    inputHash: 'risk-input',
+    resultHash: 'risk-result',
+  };
+  const allocation = {
+    allocationDecisionId: 'allocation-1',
+    request: {
+      allocationRequestId: 'allocation-request-1',
+      opportunityId: opportunity.opportunityId,
+      userId: 'user-1',
+      requestedAmount: 25,
+      currency: 'USD',
+      domain: 'STOCK' as const,
+      protectedReserveFloor: 100,
+      deployableCapitalSnapshotId: 'capital-snapshot-1',
+      riskDecisionId: risk.riskDecisionId,
+      policyVersion: 'allocation-v1',
+      actionFingerprint: 'prediction-input-hash',
+    },
+    decision: 'APPROVE' as const,
+    approvedAmount: 25,
+    reasonCodes: [],
+    expiresAt: '2026-09-02T00:10:00Z',
+    policyHash: 'allocation-policy-hash',
+    resultHash: 'allocation-result',
+  };
+
+  const request = createFinancialActionRequestFromAllocation(
+    opportunity,
+    risk,
+    allocation,
+    {
+      actionId: 'action-1',
+      userId: 'user-1',
+      capability: 'money.order.create',
+      provider: 'broker-1',
+      accountId: 'acct-1',
+      amount: 25,
+      currency: 'USD',
+      requestedAt: '2026-09-02T00:00:01Z',
+    },
+  );
+
+  assert.equal(request.id, 'action-1');
+  assert.equal(request.type, 'money.order.create');
+  assert.equal(request.action.opportunityId, 'opp-1');
+  assert.equal(
+    'policyHash' in (request as unknown as Record<string, unknown>),
+    false,
+  );
+  assert.equal(request.approvalReceiptId, undefined);
 });
