@@ -1,0 +1,1 @@
+export interface ReIDLink{fromTrack:string;toTrack:string;embedding:number;temporal:number;teamCompatible:boolean;jerseyCompatible:boolean;}export function acceptReIDLink(x:ReIDLink){const score=.65*x.embedding+.35*x.temporal;return Object.freeze({score,accepted:x.teamCompatible&&x.jerseyCompatible&&score>=.78});}
