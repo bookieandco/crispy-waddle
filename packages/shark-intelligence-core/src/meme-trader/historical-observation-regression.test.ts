@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildHistoricalObservation } from './historical-observation-backfill'
 import { HeliusHistoricalSource } from './helius-historical-source'
 import { CoinGeckoHistoricalSource } from './coingecko-historical-source'
+import { deriveLiquidityHistory } from './liquidity-history'
 import type { TokenLaunch } from './wallet-launch-pipeline'
 
 const launch: TokenLaunch = {
@@ -100,6 +101,29 @@ describe('SHARK historical observation regression', () => {
     expect(revised.observationId).not.toBe(base.observationId)
     expect(base.observedAt).toBe('2026-09-18T20:02:00Z')
     expect(revised.observedAt).toBe('2026-09-18T20:05:00Z')
+  })
+
+  it('preserves complete liquidity history metrics in the historical snapshot', () => {
+    const liquidityHistory = deriveLiquidityHistory([
+      { observedAt: '2026-09-18T20:00:00Z', liquidityUsd: 1000, source: 'test', evidenceId: 'liq-1' },
+      { observedAt: '2026-09-18T20:01:00Z', liquidityUsd: 800, source: 'test', evidenceId: 'liq-2' },
+      { observedAt: '2026-09-18T20:02:00Z', liquidityUsd: 400, source: 'test', evidenceId: 'liq-3' },
+    ])
+    const observation = buildHistoricalObservation({
+      launch,
+      candles: [],
+      liquidityHistory,
+      now: '2026-09-18T20:03:00Z',
+    })
+
+    expect(observation.initialLiquidityUsd).toBe(liquidityHistory.initialLiquidityUsd)
+    expect(observation.currentLiquidityUsd).toBe(liquidityHistory.currentLiquidityUsd)
+    expect(observation.peakLiquidityUsd).toBe(liquidityHistory.peakLiquidityUsd)
+    expect(observation.liquidityDrawdownFromPeak).toBe(liquidityHistory.drawdownFromPeak)
+    expect(observation.liquidityDrainRate).toBe(liquidityHistory.drainRate)
+    expect(observation.liquidityDrainAcceleration).toBe(liquidityHistory.drainAcceleration)
+    expect(observation.liquidityStabilityScore).toBe(liquidityHistory.stabilityScore)
+    expect(observation.evidenceIds).toEqual(expect.arrayContaining(['liq-1', 'liq-2', 'liq-3']))
   })
 
 })
