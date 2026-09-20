@@ -1,7 +1,5 @@
 export type CapabilityRisk = 'read' | 'write' | 'external' | 'financial' | 'destructive';
 
-export type RepairPermission = 'automatic-safe' | 'approval' | 'restricted';
-
 export interface SubsystemHealthDefinition {
   readonly subsystemId: string;
   readonly capabilityIds: readonly string[];
@@ -18,7 +16,8 @@ export interface SubsystemHealthDefinition {
     readonly governed: true;
     readonly executor: 'jhadina-evolution-core';
     readonly rollbackRequired: boolean;
-    readonly permission: RepairPermission;
+    /** Informational only. Authorization is owned by Security Core's evolution capabilities. */
+    readonly authorizationCapability: 'evolution.propose' | 'evolution.merge';
   };
   readonly invariants: readonly string[];
 }
