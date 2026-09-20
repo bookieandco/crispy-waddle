@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { artifactsAtCutoff, assertInformationCannotAuthorize, buildInformationEvent, buildInformationEvidenceBundle, claimsAtCutoff, relateClaims, type InformationArtifact, type InformationClaim, type InformationSource } from './information-integrity-engine.js'
-import { assessSourceIndependence, classifyArtifactNovelty, createInformationReplayFrame, createMarketRelevance } from './information-analysis-engine.js'
+import { assessSourceIndependence, classifyArtifactNovelty, createInformationReplayFrame, createMarketRelevance, toDecisionEvidenceIngress } from './information-analysis-engine.js'
 
 const source=(id:string,group:string,reliability:InformationSource['reliability']='INDEPENDENT_SECONDARY'):InformationSource=>({sourceId:id,name:id,kind:'NEWS',reliability,canonicalDomain:id+'.test',independenceGroup:group,effectiveFrom:'2020-01-01',methodologyVersion:'1',evidenceRefs:['registry'],provenanceHash:'src-'+id})
 const artifact=(id:string,sourceId:string,availableAt='2026-01-01T12:00:00Z'):InformationArtifact=>({artifactId:id,sourceId,sourceArtifactId:id,contentHash:'hash-'+id,observedAt:availableAt,receivedAt:availableAt,availableAt,status:'ACTIVE',retrievalRef:'ref:'+id,evidenceRefs:['capture:'+id],provenanceHash:'artifact-'+id})
@@ -26,3 +26,5 @@ test('038 market relevance is analysis only',()=>{const r=createMarketRelevance(
 test('038 evidence bundles retain contradictions and cutoff lineage',()=>{const sources=[source('s1','g1'),source('s2','g2')],arts=[artifact('a1','s1'),artifact('a2','s2')],c1=claim('c1','a1'),c2={...claim('c2','a2','DENIES'),object:'no'},rel=relateClaims(c1,c2,'1','2026-01-01T12:01:00Z'),e=buildInformationEvent({eventClass:'RUMOR',subjectIds:['issuer:abc'],instrumentIds:['i'],effectiveAt:'2026-01-01',cutoff:'2026-01-02',claims:[c1,c2],artifacts:arts,sources,relations:[rel],methodologyVersion:'1'}),b=buildInformationEvidenceBundle({cutoff:'2026-01-02',events:[e],claims:[c1,c2],artifacts:arts,relations:[rel]});assert.equal(b.openContradictionIds.length,1);assert.equal(b.authority,'EVIDENCE_ONLY')})
 
 test('038 replay frame excludes information unavailable at historical cutoff',()=>{const a1=artifact('a1','s1'),a2=artifact('a2','s2','2027-01-01T00:00:00Z'),c1=claim('c1','a1'),c2=claim('c2','a2','AFFIRMS','2027-01-01T00:00:00Z'),frame=createInformationReplayFrame('2026-02-01T00:00:00Z',[a1,a2],[c1,c2],[]);assert.deepEqual(frame.artifactIds,['a1']);assert.deepEqual(frame.claimIds,['c1'])})
+
+test('038 decision ingress cannot smuggle execution authority',()=>{const ingress=toDecisionEvidenceIngress({informationCutoff:'2026-01-01',eventIds:['e'],openContradictionIds:[],authority:'EVIDENCE_ONLY'},'2026-01-02');assert.equal(ingress.authority,'NONE');assert.throws(()=>toDecisionEvidenceIngress({informationCutoff:'2027-01-01',eventIds:['e'],openContradictionIds:[],authority:'EVIDENCE_ONLY'},'2026-01-02'),/FUTURE_LEAK/)})
