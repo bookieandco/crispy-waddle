@@ -147,6 +147,19 @@ export async function runPersistedLaunchOutcomeWorker(client: SupabaseClient, li
   const canonicalActorHistories = deriveActorOutcomeHistories(await loadAllLaunches(client))
     .filter(actor => touchedActorKeys.has(actor.actorKey))
 
+  const actorKeys = canonicalActorHistories.map(actor => ({ kind: actor.actorKind, id: actor.actorId }))
+  const actorIds = [...new Set(actorKeys.map(actor => actor.id))]
+  const { data: actorEdges, error: actorEdgeError } = actorIds.length
+    ? await client.from('jhadina_token_actor_edges').select('actor_id,actor_kind,confidence').in('actor_id', actorIds)
+    : { data: [], error: null }
+  if (actorEdgeError) throw new Error(`SHARK actor association confidence load failed: ${actorEdgeError.message}`)
+
+  const associationConfidence = new Map<string, number>()
+  for (const edge of actorEdges ?? []) {
+    const key = `${edge.actor_kind}:${edge.actor_id}`
+    associationConfidence.set(key, Math.max(associationConfidence.get(key) ?? 0, Number(edge.confidence ?? 0)))
+  }
+
   for (const actor of canonicalActorHistories) {
     const h = actor.history
     const { error } = await client.from('jhadina_actor_outcome_history').upsert({
@@ -161,7 +174,7 @@ export async function runPersistedLaunchOutcomeWorker(client: SupabaseClient, li
       pump_and_dump_rate: h.pumpAndDumpRate,
       outcome_coverage: h.outcomeCoverage,
       confidence: h.confidence,
-      association_confidence: 1,
+      association_confidence: associationConfidence.get(actor.actorKey) ?? 0,
       evidence_ids: h.evidenceIds,
       evaluated_at: evaluatedAt,
       evaluator_version: 'launch-outcome-v2',
