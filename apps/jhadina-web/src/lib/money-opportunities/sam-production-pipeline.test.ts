@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adaptSamOpportunity, createFulfillmentProvider, advanceFulfillmentProvider, type FulfillmentProvider } from '@jhadina/opportunity-core'
+import { adaptSamOpportunity, createFulfillmentProvider, advanceFulfillmentProviderStage, type FulfillmentProvider } from '@jhadina/opportunity-core'
 import { buildSamProductionCandidate } from './sam-production-pipeline'
 
 function provider(now:string):FulfillmentProvider{
@@ -17,10 +17,10 @@ function provider(now:string):FulfillmentProvider{
     capacity:{status:'available',evidenceRefs:['capacity']},
     evidence,sourceIds:['sam'],riskFlags:[],
   },now)
-  p=advanceFulfillmentProvider(p,'evidence_collected',now)
-  p=advanceFulfillmentProvider(p,'identity_verified',now)
-  p=advanceFulfillmentProvider(p,'capability_verified',now)
-  return advanceFulfillmentProvider(p,'verified',now)
+  p=advanceFulfillmentProviderStage(p,'evidence_collected',now)
+  p=advanceFulfillmentProviderStage(p,'identity_verified',now)
+  p=advanceFulfillmentProviderStage(p,'capability_verified',now)
+  return advanceFulfillmentProviderStage(p,'verified',now)
 }
 
 describe('SAM production candidate pipeline',()=>{
