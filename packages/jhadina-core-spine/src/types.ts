@@ -27,12 +27,32 @@ export interface EvidenceRef {
 export interface Experience {
   id: string;
   occurredAt: string;
+  recordedAt?: string;
+  createdAt?: string;
   source: string;
   domain?: string;
   actor: 'user' | 'jhadina' | 'system' | 'external';
+  outcome?: string;
+  correlationId?: string;
+  causationId?: string;
+  sensitivity?: string;
+  provenance?: Record<string, unknown>;
   content: string;
   evidence: EvidenceRef[];
+  metadata?: Record<string, unknown>;
 }
+
+export type PersonalityDimension =
+  | 'temperament'
+  | 'communication'
+  | 'preference'
+  | 'tendency'
+  | 'humor'
+  | 'opinion'
+  | 'taste'
+  | 'relationship';
+
+export type PersonalityTraitStatus = 'candidate' | 'accepted' | 'contested' | 'retired';
 
 export interface PatternObservation {
   id: string;
@@ -42,22 +62,63 @@ export interface PatternObservation {
   occurrences: number;
   contradictions: EvidenceRef[];
   lastObservedAt: string;
+  personalityEligible?: boolean;
+  personalityDimension?: PersonalityDimension;
 }
 
 export interface PersonalityTrait {
   id: string;
   statement: string;
-  category: 'preference' | 'value' | 'tendency' | 'communication' | 'decision';
+  /** Legacy mainline field retained during migration to governed dimensions. */
+  category?: 'preference' | 'value' | 'tendency' | 'communication' | 'decision';
+  /** Governed v2 dimension. New personality projection always writes this. */
+  dimension?: PersonalityDimension;
   confidence: number;
   stability: number;
   evidence: EvidenceRef[];
   contradictions: EvidenceRef[];
-  status: 'candidate' | 'accepted' | 'contested' | 'retired';
+  status: PersonalityTraitStatus;
+  firstObservedAt?: string;
+  lastObservedAt?: string;
+  revision?: number;
+}
+
+export interface PersonalityVoiceState {
+  directness: number;
+  warmth: number;
+  humor: number;
+  profanityTolerance: number;
+  quipFrequency: number;
+  verbosity: number;
+  disagreementDirectness: number;
+}
+
+export interface PersonalityTasteState {
+  novelty: number;
+  experimentation: number;
+  conventionTolerance: number;
+  aestheticIntensity: number;
+  evidence: EvidenceRef[];
+}
+
+export interface PersonalityRelationshipState {
+  familiarity: number;
+  calibrationConfidence: number;
+  preferredInteractionModes: string[];
+  recurringCallbacks: string[];
+  evidence: EvidenceRef[];
 }
 
 export interface PersonalityState {
   version: number;
   traits: PersonalityTrait[];
+  /**
+   * Optional only for mainline migration compatibility. Governed v2 state
+   * constructors and persistence always materialize these submodels.
+   */
+  voice?: PersonalityVoiceState;
+  taste?: PersonalityTasteState;
+  relationship?: PersonalityRelationshipState;
   independentAssessmentRequired: boolean;
   updatedAt: string;
 }

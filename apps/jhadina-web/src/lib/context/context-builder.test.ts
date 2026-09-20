@@ -55,11 +55,15 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     expect(assembled.contextPacket.knowledge).toEqual([])
     expect(assembled.contextPacket.patterns).toEqual([])
     expect(assembled.contextPacket.personality.traits).toEqual([])
+    expect(assembled.contextPacket.personality.independentAssessmentRequired).toBe(true)
+    expect(assembled.contextPacket.personality.voice).toBeDefined()
+    expect(assembled.contextPacket.personality.taste).toBeDefined()
+    expect(assembled.contextPacket.personality.relationship).toBeDefined()
     expect(assembled.contextPacket.excludedContext).toContain(
-      "patterns: not assembled — no PatternPort implementation exists yet",
+      "patterns: not assembled — PatternPort is not composed into the direct context fallback",
     )
     expect(assembled.contextPacket.excludedContext).toContain(
-      "personality: not assembled — no PersonalityPort implementation exists yet",
+      "personality: not assembled — direct context fallback uses canonical empty state until governed ports are composed",
     )
     expect(assembled.contextPacket.excludedContext).toContain("surface: not supplied by the caller")
   })

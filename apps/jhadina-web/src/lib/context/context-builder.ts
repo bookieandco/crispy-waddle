@@ -1,10 +1,10 @@
-import type {
-  ContextPacket,
-  DomainContext,
-  EvidenceRef,
-  PatternObservation,
-  PersonalityState,
-  SpatialDomainContext,
+import {
+  emptyPersonalityState,
+  type ContextPacket,
+  type DomainContext,
+  type EvidenceRef,
+  type PatternObservation,
+  type SpatialDomainContext,
 } from "@jhadina/core-spine"
 import { JHADINA_BASE_SECURITY_POLICY, type SecurityPolicy } from "@jhadina/security-core"
 import { MemoryRepository } from "../repositories/MemoryRepository"
@@ -118,10 +118,6 @@ function policyConstraints(policy: SecurityPolicy): string[] {
   return constraints
 }
 
-function emptyPersonalityState(): PersonalityState {
-  return { version: 0, traits: [], independentAssessmentRequired: true, updatedAt: new Date(0).toISOString() }
-}
-
 function normalizeSpatialContext(spatial: SpatialDomainContext): SpatialDomainContext {
   const copyRefs = (refs: EvidenceRef[]) => refs.map((ref) => ({ ...ref }))
   return {
@@ -165,8 +161,8 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   if (!input.surface) excludedContext.push("surface: not supplied by the caller")
   if (!input.route) excludedContext.push("route: not supplied by the caller")
   if (!input.activeProject) excludedContext.push("activeProject: not supplied — no Project/Workspace entity exists in this repository yet")
-  excludedContext.push("patterns: not assembled — no PatternPort implementation exists yet")
-  excludedContext.push("personality: not assembled — no PersonalityPort implementation exists yet")
+  excludedContext.push("patterns: not assembled — PatternPort is not composed into the direct context fallback")
+  excludedContext.push("personality: not assembled — direct context fallback uses canonical empty state until governed ports are composed")
 
   const { redacted: redactedActiveTask, redactionCount: taskRedactions } = redactSecrets(input.activeTask)
   totalRedactions += taskRedactions
@@ -205,7 +201,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     userGoal: redactedActiveTask,
     relevantMemories: memoryEvidenceRefs,
     patterns: [] as PatternObservation[],
-    personality: emptyPersonalityState(),
+    personality: emptyPersonalityState(new Date(0).toISOString()),
     knowledge: knowledgeRefs,
     constraints: policyConstraints(policy),
     excludedContext,
