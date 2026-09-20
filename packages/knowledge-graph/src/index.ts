@@ -57,3 +57,4 @@ export class InMemoryKnowledgeGraph implements KnowledgeGraph {
       .sort((a, b) => a.relationId.localeCompare(b.relationId))
   }
 }
+export * from './jhadina-knowledge-ingress.js'
