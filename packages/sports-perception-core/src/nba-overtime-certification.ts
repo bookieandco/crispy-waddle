@@ -1,0 +1,1 @@
+import type { NBAEvent } from './nba-event-state-machine.js';export function certifyNBAOvertimeLifecycle(events:readonly NBAEvent[]):boolean{const ots=events.filter(x=>x.kind==='OVERTIME_START');return ots.every((x,i)=>x.period===5+i);}
