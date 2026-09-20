@@ -23,7 +23,7 @@ export interface MemoryStorage {
   listCandidates(userId: string, status?: "PENDING"): Promise<MemoryCandidate[]>
   removeCandidate(id: string): Promise<void>
 
-  createReasoningEvent(data: Omit<ReasoningEvent, "id">): Promise<ReasoningEvent>
+  createReasoningEvent(data: Omit<ReasoningEvent, "id"> & { id?: string }): Promise<ReasoningEvent>
   getReasoningEvent(id: string): Promise<ReasoningEvent | undefined>
   listReasoningEvents(userId: string, limit?: number): Promise<ReasoningEvent[]>
 
