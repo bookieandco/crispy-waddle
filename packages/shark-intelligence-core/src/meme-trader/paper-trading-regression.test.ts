@@ -42,6 +42,30 @@ describe('SHARK paper trading regression', () => {
     expect(attribution.residualQuote).toBeCloseTo(0, 10)
   })
 
+  it('keeps the paper contract free of live execution authority', () => {
+    const proposal = createPaperTradeProposal({
+      proposalId: 'boundary',
+      chainId: 'solana',
+      tokenAddress: 'mint-boundary',
+      quoteAsset: 'USD',
+      proposedAt: '2026-09-18T20:00:00Z',
+      simulatedCapital: 25,
+      entryPrice: 1,
+      assumptions: { feeBps: 10, slippageBps: 20 },
+      provenance: { assessmentId: 'assessment-boundary', decisionProposalId: 'decision-boundary', evidenceIds: ['e-boundary'] },
+    })
+    const entry = simulatePaperEntry(proposal, {
+      observationId: 'market-boundary',
+      observedAt: '2026-09-18T20:00:01Z',
+      chainId: 'solana',
+      tokenAddress: 'mint-boundary',
+      price: 1,
+    })
+    const serialized = JSON.stringify({ proposal, order: entry.order, fill: entry.fill, position: entry.position })
+    expect(serialized).toContain('"simulationAuthority":"PAPER_ONLY"')
+    expect(serialized).not.toMatch(/privateKey|secretKey|signature|sendTransaction|signTransaction|walletAdapter|rpcUrl|jupiter|jito/i)
+  })
+
   it('fails closed when simulation learning is promoted to observed market fact', () => {
     expect(() => assertPaperLearningMayInfluence('OBSERVED_MARKET_FACT')).toThrow('paper_learning_cannot_promote_to_observed_fact')
   })
