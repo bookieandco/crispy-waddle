@@ -13,6 +13,8 @@ export interface GovernedExpressionRealization {
     reasoningDepth?: ExpressionDirective['reasoningDepth'];
     interactionStyle?: ExpressionDirective['interactionStyle'];
     creativeStyle?: ExpressionDirective['creativeStyle'];
+    explanationStyle?: ExpressionDirective['explanationStyle'];
+    decisionPresentation?: ExpressionDirective['decisionPresentation'];
     callback?: string;
     culturalReference?: string;
   };
@@ -46,6 +48,8 @@ export function realizeGovernedExpression(
     ...(directive?.reasoningDepth ? { reasoningDepth: directive.reasoningDepth } : {}),
     ...(directive?.interactionStyle ? { interactionStyle: directive.interactionStyle } : {}),
     ...(directive?.creativeStyle ? { creativeStyle: directive.creativeStyle } : {}),
+    ...(directive?.explanationStyle ? { explanationStyle: directive.explanationStyle } : {}),
+    ...(directive?.decisionPresentation ? { decisionPresentation: directive.decisionPresentation } : {}),
     ...(directive?.callback ? { callback: directive.callback } : {}),
     ...(directive?.culturalReference ? { culturalReference: directive.culturalReference } : {}),
   });
