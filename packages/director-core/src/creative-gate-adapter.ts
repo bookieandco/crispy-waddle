@@ -26,6 +26,7 @@ export function evaluateDirectorGenerationGate(input: AuthoritativeDirectorGener
   if (input.run.status !== 'awaiting_approval' && input.run.status !== 'planning') return { allowed: false, reason: `Production run is not awaiting creative approval: ${input.run.status}` };
   if (input.gate.runId !== input.run.id || !input.run.gateIds.includes(input.gate.id)) return { allowed: false, reason: 'Generation gate is not bound to the production run.' };
   if (input.gate.kind !== 'generation' || input.gate.decision !== 'approved') return { allowed: false, reason: 'Generation requires an approved generation creative gate.' };
+  if (!input.storyboardLineage) return { allowed: false, reason: 'Canonical storyboard lineage is required.' };
 
   const { sequence, board, binding } = input.storyboardLineage;
   if (sequence.projectId !== input.run.projectId || board.projectId !== input.run.projectId || binding.projectId !== input.run.projectId) return { allowed: false, reason: 'Storyboard lineage is not bound to the production project.' };
