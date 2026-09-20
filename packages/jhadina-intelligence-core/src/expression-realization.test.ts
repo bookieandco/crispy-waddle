@@ -107,11 +107,15 @@ test('copies semantic presentation targets only from the governed directive', ()
     reasoningDepth: 'technical',
     interactionStyle: 'continuous',
     creativeStyle: 'experimental',
+    explanationStyle: 'evidence-first',
+    decisionPresentation: 'options',
   });
   assert.equal(realized.presentation.tone, 'warm');
   assert.equal(realized.presentation.reasoningDepth, 'technical');
   assert.equal(realized.presentation.interactionStyle, 'continuous');
   assert.equal(realized.presentation.creativeStyle, 'experimental');
+  assert.equal(realized.presentation.explanationStyle, 'evidence-first');
+  assert.equal(realized.presentation.decisionPresentation, 'options');
 
   const modelOnly = realizeGovernedExpression({
     ...proposal,
