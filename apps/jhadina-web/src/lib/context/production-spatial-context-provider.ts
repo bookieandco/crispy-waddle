@@ -5,6 +5,7 @@ import {
   type GevFetchLike,
 } from '@jhadina/spatial-intelligence-core'
 import type { SpatialContextProvider } from './context-builder'
+import { createSupabaseSpatialEvidenceStore } from './supabase-spatial-evidence-store'
 
 export type ProductionSpatialContextProviderOptions = {
   baseUrl?: string
@@ -29,6 +30,7 @@ export function createProductionSpatialContextProvider(
     ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
     ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
   })
-  const read = createGevSpatialContextReadProvider({ bridge, ...(options.maxEvidence ? { maxEvidence: options.maxEvidence } : {}) })
+  const evidenceStore = createSupabaseSpatialEvidenceStore()
+  const read = createGevSpatialContextReadProvider({ bridge, ...(options.maxEvidence ? { maxEvidence: options.maxEvidence } : {}), ...(evidenceStore ? { evidenceStore } : {}) })
   return createSpatialContextProvider({ userId, read })
 }
