@@ -1,0 +1,8 @@
+import { test } from 'node:test';import assert from 'node:assert/strict';import { GovernedSemanticCache,InMemorySemanticCacheStore } from './semantic-cache.js';
+const proposal:any={id:'p',contextId:'ctx',disposition:'PROCEED',recommendation:'r',rationale:'x',evidence:[],uncertainty:[],alternatives:[]};
+const id=(actor='u1',evidence=['e1'],modelVersion='v1'):any=>({contextHash:'a'.repeat(64),canonicalModelId:'m',modelVersion,registryVersion:1,evidenceIds:evidence,scope:{actorId:actor,tenantId:'t1',privacyClass:'internal'}});
+test('cache key is actor scoped',()=>{const c=new GovernedSemanticCache(new InMemorySemanticCacheStore());assert.notEqual(c.key(id('u1')),c.key(id('u2')))});
+test('evidence ordering does not change key but evidence state does',()=>{const c=new GovernedSemanticCache(new InMemorySemanticCacheStore());assert.equal(c.key(id('u',['a','b'])),c.key(id('u',['b','a'])));assert.notEqual(c.key(id('u',['a'])),c.key(id('u',['b'])))});
+test('model version invalidates cache identity',()=>{const c=new GovernedSemanticCache(new InMemorySemanticCacheStore());assert.notEqual(c.key(id('u',['e'],'v1')),c.key(id('u',['e'],'v2')))});
+test('returns isolated proposal copy before expiry',async()=>{const s=new InMemorySemanticCacheStore();const c=new GovernedSemanticCache(s,()=>new Date('2026-01-01T00:00:00Z'));await c.put(id(),proposal,1000);const out:any=await c.get(id());assert.equal(out.id,'p');out.id='changed';assert.equal((await c.get(id()))!.id,'p')});
+test('expired entry is invalidated',async()=>{const s=new InMemorySemanticCacheStore();let now=new Date('2026-01-01T00:00:00Z');const c=new GovernedSemanticCache(s,()=>now);await c.put(id(),proposal,1000);now=new Date('2026-01-01T00:00:02Z');assert.equal(await c.get(id()),undefined)});
