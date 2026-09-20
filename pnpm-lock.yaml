@@ -280,7 +280,11 @@ importers:
         specifier: ^5.1.0
         version: 5.9.3
 
-  packages/jhadina-research-core: {}
+  packages/jhadina-research-core:
+    dependencies:
+      '@jhadina/intelligence-core':
+        specifier: workspace:*
+        version: link:../jhadina-intelligence-core
 
   packages/jhadina-tv-core:
     devDependencies:
@@ -292,6 +296,10 @@ importers:
         version: 2.1.9(@types/node@20.19.43)
 
   packages/knowledge-graph:
+    dependencies:
+      '@jhadina/intelligence-core':
+        specifier: workspace:*
+        version: link:../jhadina-intelligence-core
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -337,7 +345,11 @@ importers:
 
   packages/offer-engine: {}
 
-  packages/opportunity-core: {}
+  packages/opportunity-core:
+    dependencies:
+      '@jhadina/intelligence-core':
+        specifier: workspace:*
+        version: link:../jhadina-intelligence-core
 
   packages/order-fulfillment-core: {}
 
