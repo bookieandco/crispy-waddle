@@ -104,3 +104,7 @@ export * from './gaming-supply-chain.js';
 export * from './gaming-intelligence.js';
 export * from './gaming-device-acceptance.js';
 export * from './gaming-production-hardening.js';
+export * from './gaming-commissioning.js';
+export * from './gaming-physical-acceptance.js';
+export * from './gaming-physical-drills.js';
+export * from './gaming-production-acceptance-report.js';
