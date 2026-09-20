@@ -35,7 +35,7 @@ export type UploadProductionReadiness = {
     scanner: UploadServiceProbe;
     perception: UploadServiceProbe;
   };
-  warnings: string[];
+  warnings: readonly string[];
 };
 
 const REQUIRED_ENV = [
