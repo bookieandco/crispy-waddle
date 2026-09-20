@@ -1,1 +1,5 @@
 inference-sdk
+supervision
+opencv-python-headless
+numpy
+scikit-learn
