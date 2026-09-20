@@ -136,3 +136,5 @@ export * from './live-preflight-engine.js';
 
 export * from './broker-account-entitlement.js';
 export * from './postgres-broker-account-entitlement-store.js';
+
+export * from './live-trade-approval-bridge.js';
