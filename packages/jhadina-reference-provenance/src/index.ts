@@ -845,3 +845,11 @@ export {
   DEFAULT_REFERENCE_SUBSYSTEM_HINTS,
   buildReferenceCoverageReport,
 } from './coverage.js';
+
+export type {
+  ReferenceSourceVerificationReport,
+} from './source-verification-report.js';
+export {
+  SOURCE_VERIFICATION_REPORT_SCHEMA_VERSION,
+  buildReferenceSourceVerificationReport,
+} from './source-verification-report.js';
