@@ -559,3 +559,5 @@ export class ReferenceProvenanceRegistry {
     });
   }
 }
+
+export { createInitialReferenceProvenanceRegistry, INITIAL_REFERENCE_IDS } from './seed-registry.js';
