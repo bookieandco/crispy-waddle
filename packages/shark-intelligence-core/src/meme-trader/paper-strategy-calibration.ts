@@ -52,7 +52,8 @@ export function calibratePaperStrategy(input: {
 
   const direction = pattern.averageOutcome > 0 ? 1 : pattern.averageOutcome < 0 ? -1 : 0
   const evidenceStrength = pattern.patternConfidence * generalization.similarityScore
-  const recommendedConfidence = status === 'SIMULATION_SUPPORTED' || status === 'SIMULATION_MIXED'\n    ? clamp01(0.5 + direction * 0.5 * evidenceStrength)\n    : null
+  const recommendedConfidence = status === 'SIMULATION_SUPPORTED' || status === 'SIMULATION_MIXED'
+    ? clamp01(0.5 + direction * 0.5 * evidenceStrength)\n    : null
 
   return Object.freeze({
     calibrationId: `paper-calibration:${input.strategyId}:${input.calibratedAt}`,
