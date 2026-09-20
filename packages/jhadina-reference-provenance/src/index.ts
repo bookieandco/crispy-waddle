@@ -1279,3 +1279,20 @@ export {
   buildProviderArtifactCoverageReport,
   unresolvedArtifactPins,
 } from './provider-artifact-report.js';
+
+export type {
+  ArtifactRuntimeDescriptor,
+  ArtifactCompatibilityManifestInput,
+  ArtifactCompatibilityManifest,
+  ArtifactLicenseReviewReceipt,
+  ArtifactAdmissionRequest,
+  ArtifactAdmissionLicenseBasis,
+  ArtifactAdmissionReceipt,
+  RuntimeArtifactAttestationRequest,
+  RuntimeArtifactAttestation,
+} from './artifact-admission.js';
+export {
+  ARTIFACT_ADMISSION_SCHEMA_VERSION,
+  buildArtifactCompatibilityManifest,
+  ArtifactAdmissionGate,
+} from './artifact-admission.js';
