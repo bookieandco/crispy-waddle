@@ -1,0 +1,6 @@
+import {test}from'node:test';import assert from'node:assert/strict';import{GovernedPerceptionExtractionRouter,assetEvidenceRef}from'./perception-extraction.js';
+const asset:any={id:'asset_1',actorId:'u',modality:'video',mediaType:'video/mp4',assetRef:'s',privacyClass:'internal',createdAt:'2026-01-01T00:00:00Z',status:'registered'};
+test('routes by registered modality',async()=>{const r=new GovernedPerceptionExtractionRouter([{modality:'video',async extract(i:any){return{assetId:i.asset.id,evidence:[assetEvidenceRef(i.asset,'frame:0','visual observation')],uncertainty:[]}}}]);const o=await r.extract({asset});assert.equal(o.evidence[0].immutable,true)});
+test('rejects evidence belonging to another asset',async()=>{const r=new GovernedPerceptionExtractionRouter([{modality:'video',async extract(i:any){return{assetId:i.asset.id,evidence:[{id:'asset:other:frame',source:'x',observedAt:i.asset.createdAt,summary:'x'}],uncertainty:[]}}}]);await assert.rejects(()=>r.extract({asset}),/NOT_ASSET_BOUND/)});
+test('fails closed when modality extractor unavailable',async()=>{await assert.rejects(()=>new GovernedPerceptionExtractionRouter([]).extract({asset}),/EXTRACTOR_UNAVAILABLE/)});
+test('asset evidence ids are deterministic',()=>{assert.equal(assetEvidenceRef(asset,'ocr:1','x').id,assetEvidenceRef(asset,'ocr:1','y').id)});
