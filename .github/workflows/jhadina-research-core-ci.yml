@@ -1,0 +1,57 @@
+name: Jhadina Research Core CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "packages/jhadina-research-core/**"
+      - "apps/jhadina-web/src/lib/research/**"
+      - "apps/jhadina-web/src/lib/supabase/database.types.ts"
+      - "supabase/migrations/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/jhadina-research-core-ci.yml"
+  push:
+    paths:
+      - "packages/jhadina-research-core/**"
+      - "apps/jhadina-web/src/lib/research/**"
+      - "apps/jhadina-web/src/lib/supabase/database.types.ts"
+      - "supabase/migrations/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/jhadina-research-core-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Research runtime type-check and adversarial tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type-check research core
+        run: pnpm --filter @jhadina/research-core type-check
+      - name: Test research core
+        run: pnpm --filter @jhadina/research-core test
+      - name: Type-check Jhadina web research adapters
+        run: pnpm --filter @jhadina/jhadina-web type-check
+      - name: Verify research migrations are tracked
+        run: |
+          test -f supabase/migrations/20260920171000_k_1_4_9_knowledge_research_reconciliation_baseline.sql
+          test -f supabase/migrations/20260920172000_k_1_4_6h_i_research_execution_hardening.sql
+          test -f supabase/migrations/20260920173000_k_1_4_7_knowledge_candidate_gate.sql
+          test -f supabase/migrations/20260920174000_k_1_4_8_research_governance_reconciliation.sql
+          test -f supabase/migrations/20260920174200_k_1_4_10_plan_global_execution_sequence.sql
