@@ -247,6 +247,57 @@ describe("persisted Experience -> Hippocampus -> Pattern vertical", () => {
     ])
   })
 
+  it("uses retrieved Hippocampal episodes as direct Pattern evidence without synthesizing approved memory", async () => {
+    const historical = await storage.createReasoningEvent({
+      userId: "user_episode",
+      timestamp: "2026-09-01T12:00:00.000Z",
+      userMessage: "Keep answers direct when we plan.",
+      observation: {
+        raw: "Keep answers direct when we plan.",
+        extracted: "keep answers direct",
+        timestamp: "2026-09-01T12:00:00.000Z",
+      },
+      classification: { type: "PREFERENCE", confidence: 0.9 },
+      systemResponse: "Understood.",
+      confidence: 0.9,
+    })
+
+    const live: Experience = {
+      id: "live-episode-1",
+      occurredAt: "2026-09-02T12:00:00.000Z",
+      source: "ask-jhadina",
+      actor: "user",
+      content: "Please keep this direct while we plan.",
+      evidence: [{
+        id: "live-episode-1",
+        source: "ask-jhadina",
+        observedAt: "2026-09-02T12:00:00.000Z",
+        summary: "Please keep this direct while we plan.",
+        immutable: false,
+      }],
+    }
+
+    const result = await new PersistedExperiencePatternAdapter(storage).detectExperience({
+      userId: "user_episode",
+      experience: live,
+    })
+
+    expect(result.memories).toEqual([])
+    expect(result.patterns.some((pattern) => pattern.id === "recurrence:direct")).toBe(false)
+
+    const episodic = result.patterns.find(
+      (pattern) => pattern.id === "episodic-recurrence:direct",
+    )
+    expect(episodic).toBeDefined()
+    expect(episodic?.occurrences).toBe(2)
+    expect(episodic?.confidence).toBe(3 / 4)
+    expect(episodic?.personalityEligible).toBe(false)
+    expect(episodic?.evidence.map((item) => item.id)).toEqual([
+      "live-episode-1",
+      historical.id,
+    ])
+  })
+
   it("fails closed when the persisted event belongs to another user", async () => {
     const event = await storage.createReasoningEvent({
       userId: "user_2",
