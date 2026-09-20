@@ -6,7 +6,7 @@ const launchFromRow = (row: any): TokenLaunch => ({
   deployerWalletId: row.deployer_wallet_id ?? undefined, developerEntityId: row.developer_entity_id ?? undefined,
   clusterId: row.cluster_id ?? undefined, launchedAt: row.launched_at, launchpad: row.launchpad ?? undefined,
   initialLiquidityUsd: row.initial_liquidity_usd == null ? undefined : Number(row.initial_liquidity_usd),
-  outcome: row.outcome, evidenceIds: row.evidence_ids ?? [],
+  outcome: row.outcome, outcomeObservedAt: row.outcome_observed_at ?? undefined, evidenceIds: row.evidence_ids ?? [],
 })
 
 export async function runHistoricalObservationBackfill(client: SupabaseClient, options: { coinGeckoApiKey: string; heliusApiKey?: string; limit: number }) {
