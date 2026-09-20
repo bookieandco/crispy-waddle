@@ -133,7 +133,11 @@ function independent(observations: Observation[]): Observation[] {
  * silently conflated or double-counted.
  */
 export class HippocampalEpisodePatternAdapter {
-  detect(experience: Experience, episodes: readonly HippocampalEpisode[]): PatternObservation[] {
+  detect(
+    experience: Experience,
+    episodes: readonly HippocampalEpisode[],
+    coveredEvidenceByTerm: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
+  ): PatternObservation[] {
     const historical = episodes.filter((episode) => episode.episodeId !== experience.id)
     const historicalTerms = new Set(historical.flatMap((episode) => uniqueTerms(episodeSignal(episode))))
     const candidateTerms = uniqueTerms(experienceSignal(experience)).filter((term) => historicalTerms.has(term))
@@ -142,10 +146,21 @@ export class HippocampalEpisodePatternAdapter {
     for (const term of candidateTerms) {
       const current = currentObservation(experience, term)
       if (!current) continue
+      const coveredEvidence = coveredEvidenceByTerm.get(term) ?? new Set<string>()
       const observations = independent([
         current,
         ...historical
-          .map((episode) => episodeObservation(episode, term))
+          .map((episode) => {
+            const observation = episodeObservation(episode, term)
+            if (!observation) return undefined
+            const lineageIds = new Set([
+              episode.episodeId,
+              ...observation.evidence.map((ref) => ref.id),
+            ])
+            return [...lineageIds].some((id) => coveredEvidence.has(id))
+              ? undefined
+              : observation
+          })
           .filter((item): item is Observation => item !== undefined),
       ])
       if (observations.length < 2) continue
