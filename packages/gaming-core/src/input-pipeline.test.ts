@@ -53,4 +53,35 @@ describe('GamingInputPipeline G13ah',()=>{
     expect(result.delivery.state).toBe('delivery-unknown');
     expect(result.transported).toBe(true);
   });
+  it('evaluates implicit freshness when queued input actually dequeues',async()=>{
+    const integrity=new InputIntegrityMonitor(0); integrity.bindIdentity('s1','d1');
+    let release!:()=>void; const blocked=new Promise<void>(r=>{release=r;});
+    let calls=0;
+    const transport={send:async()=>{},deliveryMode:'direct'} as unknown as GamingInputTransportBoundary;
+    const runtime={deliver:async(e:InputIntegrityEvent)=>{calls++;if(calls===1)await blocked;return{inputId:e.inputId,sequenceNumber:e.sequenceNumber,deliveredAtMs:Date.now()};}};
+    const pipeline=new GamingInputPipeline(integrity,transport,runtime,gate,resync);
+    const capturedAtMs=Date.now();
+    const first=pipeline.submit({...base,inputId:'fresh-0',sequenceNumber:0,capturedAtMs},capturedAtMs);
+    const queued=pipeline.submit({...base,inputId:'fresh-1',sequenceNumber:1,capturedAtMs});
+    await Promise.resolve();
+    await new Promise(resolve=>setTimeout(resolve,2));
+    release();
+    await first;
+    const result=await queued;
+    expect(result.accepted).toBe(false);
+    expect(result.state).toBe('stale');
+    expect(result.delivery.state).toBe('stale');
+    expect(result.transported).toBe(false);
+  });
+
+  it('preserves explicit nowMs for deterministic replay tests',async()=>{
+    const integrity=new InputIntegrityMonitor(0); integrity.bindIdentity('s1','d1');
+    const transport={send:async()=>{},deliveryMode:'direct'} as unknown as GamingInputTransportBoundary;
+    const runtime={deliver:async(e:InputIntegrityEvent)=>({inputId:e.inputId,sequenceNumber:e.sequenceNumber,deliveredAtMs:1000})};
+    const pipeline=new GamingInputPipeline(integrity,transport,runtime,gate,resync);
+    const result=await pipeline.submit(base,1000);
+    expect(result.accepted).toBe(true);
+    expect(result.delivery.state).toBe('acknowledged');
+  });
+
 });
