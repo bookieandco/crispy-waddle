@@ -91,8 +91,22 @@ export class CommunicationDirectnessPatternStrategy implements PatternDetectionS
     });
     if (independent.length < 2) return [];
 
-    const evidence = unique(independent.filter((item) => item.support === 1).flatMap((item) => item.evidence));
-    const contradictions = unique(independent.filter((item) => item.support === 0).flatMap((item) => item.evidence));
+    // Only durable/approved evidence may flow into Personality. The live
+    // Experience can shape the current Bayesian observation, but its mutable
+    // request id must never become durable trait evidence or inflate state on
+    // repeated requests.
+    const evidence = unique(
+      independent
+        .filter((item) => item.support === 1)
+        .flatMap((item) => item.evidence)
+        .filter((ref) => ref.immutable === true),
+    );
+    const contradictions = unique(
+      independent
+        .filter((item) => item.support === 0)
+        .flatMap((item) => item.evidence)
+        .filter((ref) => ref.immutable === true),
+    );
     const raw: PatternObservation = {
       id: 'personality-signal:communication:directness',
       pattern: 'prefers direct communication',
