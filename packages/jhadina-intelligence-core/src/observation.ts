@@ -42,6 +42,12 @@ export function createObservationEnvelope<T>(input: {
     throw new Error('OBSERVATION_SOURCE_REQUIRED')
   }
   if (!input.provenance.observedAt || !input.provenance.receivedAt) throw new Error('OBSERVATION_PROVENANCE_REQUIRED')
+  if (!Number.isFinite(Date.parse(input.provenance.observedAt)) || !Number.isFinite(Date.parse(input.provenance.receivedAt))) {
+    throw new Error('OBSERVATION_PROVENANCE_TIMESTAMP_INVALID')
+  }
+  if (input.provenance.retrievedAt !== undefined && !Number.isFinite(Date.parse(input.provenance.retrievedAt))) {
+    throw new Error('OBSERVATION_PROVENANCE_TIMESTAMP_INVALID')
+  }
 
   return Object.freeze({
     observationId: input.observationId,
