@@ -11,6 +11,7 @@ export interface SubsystemDispatchResult {readonly assetId:string;readonly respo
 export class GovernedSubsystemDispatcher{
  constructor(private readonly adapters:readonly SubsystemIntelligenceAdapter[]){}
  async dispatch(packet:AssetIntelligencePacket,intent?:string):Promise<SubsystemDispatchResult>{
+  if(packet.routing.requiresHumanSelection)throw new Error('SUBSYSTEM_SELECTION_REQUIRED');
   const responses:SubsystemIntelligenceResponse[]=[];const skipped:SubsystemId[]=[];
   for(const route of packet.routing.routes){
    const adapter=this.adapters.find(a=>a.subsystem===route.subsystem);
