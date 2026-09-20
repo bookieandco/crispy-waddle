@@ -4,10 +4,15 @@ import {
   type CallbackProvenance,
   type VerifiedCallback,
 } from './callback-provenance.js';
+import {
+  isVerifiedCulturalReference,
+  type VerifiedCulturalReference,
+} from './cultural-freshness.js';
+import type { EvidenceRef } from './types.js';
 
 export interface ExpressionContext {
   callback?: VerifiedCallback;
-  culturalReference?: string;
+  culturalReference?: VerifiedCulturalReference;
 }
 
 export interface ExpressionPlan {
@@ -17,14 +22,15 @@ export interface ExpressionPlan {
   callback?: string;
   callbackProvenance?: CallbackProvenance[];
   culturalReference?: string;
+  culturalReferenceEvidence?: EvidenceRef[];
 }
 
 /**
  * Expression selection is separate from language generation. The model may
  * realize this plan, but it cannot silently change the behavioral posture.
  *
- * Callback strings are accepted only through the evidence-backed selector.
- * Serious mode suppresses callbacks even when they are otherwise verified.
+ * Callback and cultural-reference strings enter only through their verification
+ * gates. Serious mode suppresses both even when they are otherwise verified.
  */
 export function planExpression(
   decision: BehavioralDecision,
@@ -42,6 +48,9 @@ export function planExpression(
   const callback = !serious && isVerifiedCallback(context.callback)
     ? context.callback
     : undefined;
+  const culturalReference = !serious && isVerifiedCulturalReference(context.culturalReference)
+    ? context.culturalReference
+    : undefined;
 
   return {
     mode,
@@ -52,6 +61,7 @@ export function planExpression(
       origin: item.origin,
       evidence: { ...item.evidence },
     })),
-    culturalReference: context.culturalReference,
+    culturalReference: culturalReference?.value,
+    culturalReferenceEvidence: culturalReference?.evidence.map((ref) => ({ ...ref })),
   };
 }
