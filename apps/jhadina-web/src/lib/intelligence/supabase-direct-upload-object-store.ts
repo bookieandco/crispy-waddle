@@ -106,9 +106,17 @@ export class SupabaseDirectUploadObjectStore {
     if (!path.startsWith("quarantine/")) {
       throw new Error("DIRECT_UPLOAD_CLEANUP_SCOPE_MISMATCH");
     }
-    const { error } = await this.client.storage
-      .from(JHADINA_INTAKE_BUCKET)
-      .remove([path]);
+    const { folder, filename } = splitObjectPath(path);
+    const bucket = this.client.storage.from(JHADINA_INTAKE_BUCKET);
+    const { data, error: listError } = await bucket.list(folder, {
+      limit: 10,
+      search: filename,
+    });
+    if (listError) throw listError;
+    const exists = data?.some((entry) => entry.id !== null && entry.name === filename) ?? false;
+    if (!exists) return;
+
+    const { error } = await bucket.remove([path]);
     if (error) throw error;
   }
 
