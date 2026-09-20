@@ -90,6 +90,9 @@ function approvedMemoryToProposal(memory: Memory): MemoryProposal {
   }
 }
 
+const MAX_RELEVANT_MEMORIES = 100
+const MAX_PATTERN_HYPOTHESES = 64
+
 function relevantMemoryProposals(
   memories: readonly Memory[],
   currentEpisode: HippocampalEpisode,
@@ -103,6 +106,7 @@ function relevantMemoryProposals(
   return memories
     .filter((memory) => memory.status === "APPROVED")
     .filter((memory) => tokenize(memory.content).some((term) => relatedTerms.has(term)))
+    .slice(0, MAX_RELEVANT_MEMORIES)
     .map(approvedMemoryToProposal)
 }
 
@@ -192,9 +196,17 @@ export class PersistedExperiencePatternAdapter {
       relatedEpisodes,
       coveredEvidenceByTerm,
     )
-    const patterns = [...memoryBackedPatterns, ...episodeBackedPatterns].sort(
-      (left, right) => left.id.localeCompare(right.id),
-    )
+    const patternPriority = (pattern: PatternObservation): number =>
+      pattern.id.startsWith("personality-signal:") ? 0
+        : pattern.id.startsWith("relationship-context:") ? 1
+          : 2
+    const patterns = [...memoryBackedPatterns, ...episodeBackedPatterns]
+      .sort(
+        (left, right) =>
+          patternPriority(left) - patternPriority(right) ||
+          left.id.localeCompare(right.id),
+      )
+      .slice(0, MAX_PATTERN_HYPOTHESES)
 
     return {
       experience: input.experience,
