@@ -10,3 +10,4 @@ export * from './hybrid-retrieval.js';
 export * from './authorized-retrieval.js';
 export * from './canonical-context-compiler.js';
 export * from './evidence-verifier.js';
+export * from './critic-verification.js';
