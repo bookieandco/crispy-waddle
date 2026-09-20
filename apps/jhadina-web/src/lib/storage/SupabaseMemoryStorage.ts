@@ -249,9 +249,9 @@ export class SupabaseMemoryStorage implements MemoryStorage {
     assertNoError(error, "removeCandidate")
   }
 
-  async createReasoningEvent(data: Omit<ReasoningEvent, "id">): Promise<ReasoningEvent> {
+  async createReasoningEvent(data: Omit<ReasoningEvent, "id"> & { id?: string }): Promise<ReasoningEvent> {
     const row: ReasoningEventRow = {
-      id: nextId("reason"),
+      id: data.id ?? nextId("reason"),
       user_id: data.userId,
       occurred_at: data.timestamp,
       user_message: data.userMessage,
