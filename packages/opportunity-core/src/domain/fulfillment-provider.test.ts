@@ -22,7 +22,7 @@ function providerFixture(): FulfillmentProvider {
     serviceAreas: [{
       country: 'US',
       state: 'CA',
-      evidenceRefs: ['ev-entity'],
+      evidenceRefs: ['ev-geography'],
     }],
     capabilities: [{
       id: 'cap:cloud',
@@ -40,7 +40,7 @@ function providerFixture(): FulfillmentProvider {
       name: 'SAM registration',
       issuer: 'SAM.gov',
       verified: true,
-      evidenceRefs: ['ev-entity'],
+      evidenceRefs: ['ev-credential'],
     }],
     pastPerformance: [{
       id: 'performance:1',
@@ -61,6 +61,8 @@ function providerFixture(): FulfillmentProvider {
     },
     evidence: [
       { id: 'ev-entity', kind: 'sam_registration', relationship: 'supports_identity', sourceId: 'sam.gov', capturedAt: '2026-09-19T00:00:00Z', confidence: 1 },
+      { id: 'ev-geography', kind: 'official_source', relationship: 'supports_geography', sourceId: 'sam.gov', capturedAt: '2026-09-19T00:00:00Z', confidence: 1 },
+      { id: 'ev-credential', kind: 'sam_registration', relationship: 'supports_credential', sourceId: 'sam.gov', capturedAt: '2026-09-19T00:00:00Z', confidence: 1 },
       { id: 'ev-capability', kind: 'capability_record', relationship: 'supports_capability', sourceId: 'official-capability-statement', capturedAt: '2026-09-19T00:00:00Z', confidence: 0.9 },
       { id: 'ev-award', kind: 'award_record', relationship: 'supports_past_performance', sourceId: 'usaspending', capturedAt: '2026-09-19T00:00:00Z', confidence: 1 },
       { id: 'ev-capacity', kind: 'capacity_record', relationship: 'supports_capacity', sourceId: 'provider-attestation', capturedAt: '2026-09-19T00:00:00Z', confidence: 0.6 },
