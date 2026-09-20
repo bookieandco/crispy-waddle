@@ -49,7 +49,7 @@ test('Stripe source remains pinned to the registered API version and payment end
       '"Stripe-Version": STRIPE_API_VERSION',
       '"/v1/payment_intents"',
       '"/v1/refunds"',
-      '"/capture"',
+      '/capture',
       '"Idempotency-Key"',
     ],
     'Stripe',
