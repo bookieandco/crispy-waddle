@@ -4,7 +4,12 @@
   "private": true,
   "type": "module",
   "exports": { ".": "./src/index.ts" },
-  "scripts": { "type-check": "tsc --noEmit", "test": "vitest run" },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "certify": "pnpm run type-check && pnpm run test"
+  },
   "devDependencies": {
     "typescript": "^5.1.0",
     "vitest": "^2.1.8"
