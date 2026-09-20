@@ -23,6 +23,7 @@ export class ReasoningEventRepository {
    */
   async create(params: {
     userId: string
+    timestamp?: string
     userMessage: string
     observation: Observation
     classification: Classification
@@ -37,7 +38,7 @@ export class ReasoningEventRepository {
   }): Promise<ReasoningEvent> {
     const event = await this.storage.createReasoningEvent({
       userId: params.userId,
-      timestamp: new Date().toISOString(),
+      timestamp: params.timestamp ?? new Date().toISOString(),
       userMessage: params.userMessage,
       observation: params.observation,
       classification: params.classification,
