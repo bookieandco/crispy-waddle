@@ -22,6 +22,50 @@ create table if not exists public.jhadina_token_launches (
   constraint jhadina_token_launches_identity_unique unique (chain_id, token_address)
 );
 
+-- Reconcile the earlier wallet-launch/sniper table that may already exist in
+-- production. That schema used jsonb evidence_ids and omitted SHARK ingestion
+-- provenance columns. Canonical SHARK persistence uses text[] evidence IDs.
+do $
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'jhadina_token_launches'
+      and column_name = 'evidence_ids'
+      and data_type = 'jsonb'
+  ) then
+    alter table public.jhadina_token_launches
+      add column if not exists evidence_ids_shark_text text[] not null default '{}';
+
+    update public.jhadina_token_launches
+       set evidence_ids_shark_text = coalesce(
+         (select array_agg(value) from jsonb_array_elements_text(evidence_ids) value),
+         '{}'::text[]
+       );
+
+    alter table public.jhadina_token_launches drop column evidence_ids;
+    alter table public.jhadina_token_launches rename column evidence_ids_shark_text to evidence_ids;
+  end if;
+end
+$;
+
+alter table public.jhadina_token_launches
+  add column if not exists source text,
+  add column if not exists observation_id text,
+  add column if not exists signature text,
+  add column if not exists slot bigint,
+  add column if not exists outcome_observed_at timestamptz;
+
+update public.jhadina_token_launches
+set source = 'legacy-wallet-launch'
+where source is null or btrim(source) = '';
+
+alter table public.jhadina_token_launches
+  alter column source set default 'unknown',
+  alter column source set not null,
+  alter column evidence_ids set default '{}';
+
 create table if not exists public.jhadina_token_actor_edges (
   edge_id text primary key,
   launch_id text not null references public.jhadina_token_launches(launch_id) on delete cascade,
