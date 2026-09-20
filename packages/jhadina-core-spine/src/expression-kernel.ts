@@ -8,20 +8,15 @@ import {
   isVerifiedCulturalReference,
   type VerifiedCulturalReference,
 } from './cultural-freshness.js';
-import type { EvidenceRef } from './types.js';
+import type { EvidenceRef, ExpressionDirective } from './types.js';
 
 export interface ExpressionContext {
   callback?: VerifiedCallback;
   culturalReference?: VerifiedCulturalReference;
 }
 
-export interface ExpressionPlan {
-  mode: 'direct' | 'explanatory' | 'pushback' | 'clarifying' | 'serious';
-  allowProfanity: boolean;
-  allowQuip: boolean;
-  callback?: string;
+export interface ExpressionPlan extends ExpressionDirective {
   callbackProvenance?: CallbackProvenance[];
-  culturalReference?: string;
   culturalReferenceEvidence?: EvidenceRef[];
 }
 
