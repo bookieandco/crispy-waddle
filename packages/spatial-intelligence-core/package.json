@@ -14,5 +14,9 @@
     "tsx": "^4.20.3",
     "typescript": "^5.1.0",
     "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "@jhadina/core-spine": "workspace:*",
+    "@jhadina/knowledge-graph": "workspace:*"
   }
 }
