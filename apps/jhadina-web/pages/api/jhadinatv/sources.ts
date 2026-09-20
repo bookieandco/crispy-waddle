@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { jhadinaTVServerRegistry } from '../../../../lib/jhadinatv/server-catalog';
+import { jhadinaTVServerRegistry } from '../../../lib/jhadinatv/server-catalog';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const provider = typeof req.query.provider === 'string' ? req.query.provider : '';
