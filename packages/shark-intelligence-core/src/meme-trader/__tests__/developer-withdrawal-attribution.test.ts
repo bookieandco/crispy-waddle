@@ -45,8 +45,8 @@ describe('developer withdrawal attribution', () => {
 
   it('does not promote an unrelated wallet to developer', () => {
     const graph = buildEntityGraph([
-      { id: 'token:solana:TokenA', kind: 'token', observedAt: withdrawal.observedAt, confidence: 1, evidenceIds: [] },
-      { id: 'wallet:other-wallet', kind: 'wallet', observedAt: withdrawal.observedAt, confidence: 1, evidenceIds: [] },
+      { id: 'token:solana:TokenA', kind: 'token', observedAt: withdrawal.observedAt, confidence: 1, evidenceIds: ['token-evidence'] },
+      { id: 'wallet:other-wallet', kind: 'wallet', observedAt: withdrawal.observedAt, confidence: 1, evidenceIds: ['wallet-evidence'] },
     ], [])
     const result = attributeWithdrawalToDeveloper({ withdrawal: { ...withdrawal, ownerBefore: 'other-wallet' }, graph, tokenAddress: 'TokenA' })
     expect(result.actorAssociation.association).toBe('NOT_MATCHED')
