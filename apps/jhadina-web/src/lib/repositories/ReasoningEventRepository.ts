@@ -23,22 +23,35 @@ export class ReasoningEventRepository {
    */
   async create(params: {
     userId: string
+    id?: string
+    timestamp?: string
     userMessage: string
     observation: Observation
     classification: Classification
     systemResponse: string
     confidence: number
     candidateId?: string
+    actor?: ReasoningEvent["actor"]
+    outcome?: string
+    correlationId?: string
+    causationId?: string
+    metadata?: Record<string, unknown>
   }): Promise<ReasoningEvent> {
     const event = await this.storage.createReasoningEvent({
+      id: params.id,
       userId: params.userId,
-      timestamp: new Date().toISOString(),
+      timestamp: params.timestamp ?? new Date().toISOString(),
       userMessage: params.userMessage,
       observation: params.observation,
       classification: params.classification,
       systemResponse: params.systemResponse,
       confidence: params.confidence,
       candidateId: params.candidateId,
+      actor: params.actor,
+      outcome: params.outcome,
+      correlationId: params.correlationId,
+      causationId: params.causationId,
+      metadata: params.metadata,
     })
 
     return event

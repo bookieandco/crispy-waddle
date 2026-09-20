@@ -163,11 +163,60 @@ describe("SupabaseMemoryStorage", () => {
       classification: { type: "PREFERENCE", confidence: 0.95 },
       systemResponse: "Noted",
       confidence: 0.95,
+      actor: "user",
+      outcome: "feedback:reinforced",
+      correlationId: "corr-1",
+      causationId: "reason-parent",
+      metadata: { kind: "personality-outcome-feedback", authority: "learning-only" },
     })
 
     const fetched = await storage.getReasoningEvent(event.id)
     expect(fetched?.observation.raw).toBe("I prefer cinematic visuals")
     expect(fetched?.classification.type).toBe("PREFERENCE")
+    expect(fetched?.actor).toBe("user")
+    expect(fetched?.outcome).toBe("feedback:reinforced")
+    expect(fetched?.correlationId).toBe("corr-1")
+    expect(fetched?.causationId).toBe("reason-parent")
+    expect(fetched?.metadata).toMatchObject({ kind: "personality-outcome-feedback" })
+    expect(tables.jhadina_reasoning_events.rows[0]).toMatchObject({
+      actor: "user",
+      outcome: "feedback:reinforced",
+      correlation_id: "corr-1",
+      causation_id: "reason-parent",
+    })
+  })
+
+  it("survives a storage-adapter restart with outcome lineage intact", async () => {
+    const fake = makeFakeClient()
+    const first = new SupabaseMemoryStorage(fake.client)
+    const event = await first.createReasoningEvent({
+      userId: "user_restart",
+      timestamp: "2026-09-20T22:00:00.000Z",
+      userMessage: "Feedback: that response worked.",
+      observation: {
+        raw: "Feedback: that response worked.",
+        extracted: "Feedback: that response worked.",
+        timestamp: "2026-09-20T22:00:00.000Z",
+      },
+      classification: { type: "CONTEXT", confidence: 1 },
+      systemResponse: "Feedback recorded.",
+      confidence: 1,
+      actor: "user",
+      outcome: "feedback:reinforced",
+      correlationId: "corr-restart",
+      causationId: "reason-original",
+      metadata: { personalityFeedbackId: "feedback-restart", authority: "learning-only" },
+    })
+
+    const restarted = new SupabaseMemoryStorage(fake.client)
+    const fetched = await restarted.getReasoningEvent(event.id)
+    expect(fetched).toMatchObject({
+      id: event.id,
+      outcome: "feedback:reinforced",
+      correlationId: "corr-restart",
+      causationId: "reason-original",
+      metadata: { personalityFeedbackId: "feedback-restart", authority: "learning-only" },
+    })
   })
 
   it("round-trips a timeline event including memoryContent", async () => {

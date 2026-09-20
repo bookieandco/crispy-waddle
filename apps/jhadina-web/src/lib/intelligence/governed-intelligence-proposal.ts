@@ -144,6 +144,14 @@ export async function decideAndProposeMemoryGoverned(
     },
     systemResponse: proposal.recommendation,
     confidence: confidenceFor(proposal),
+    actor: "user",
+    correlationId: context.id,
+    metadata: {
+      kind: "conversation-turn",
+      proposalId: proposal.id,
+      disposition: proposal.disposition,
+      authority: "experience-only",
+    },
   })
 
   // 4. Disposition gate. ASK/DECLINE/DEFER never become an ActionRequest.

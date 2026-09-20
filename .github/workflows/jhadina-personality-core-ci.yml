@@ -16,6 +16,15 @@ on:
       - "apps/jhadina-web/src/lib/intelligence/governed-intelligence-proposal.ts"
       - "apps/jhadina-web/src/lib/intelligence/governed-intelligence-proposal.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/memory-propose-capability.ts"
+      - "apps/jhadina-web/src/lib/repositories/ReasoningEventRepository.ts"
+      - "apps/jhadina-web/src/lib/storage/InMemoryStorage.ts"
+      - "apps/jhadina-web/src/lib/storage/SupabaseMemoryStorage.ts"
+      - "apps/jhadina-web/src/lib/storage/SupabaseMemoryStorage.test.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/command/route.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.test.ts"
+      - "apps/jhadina-web/src/app/ask-jhadina/page.tsx"
+      - "supabase/migrations/20260920224800_jhadina_personality_outcome_lineage.sql"
       - "supabase/migrations/20260902060000_create_jhadina_personality_state.sql"
       - "pnpm-lock.yaml"
       - "package.json"
@@ -36,6 +45,15 @@ on:
       - "apps/jhadina-web/src/lib/intelligence/governed-intelligence-proposal.ts"
       - "apps/jhadina-web/src/lib/intelligence/governed-intelligence-proposal.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/memory-propose-capability.ts"
+      - "apps/jhadina-web/src/lib/repositories/ReasoningEventRepository.ts"
+      - "apps/jhadina-web/src/lib/storage/InMemoryStorage.ts"
+      - "apps/jhadina-web/src/lib/storage/SupabaseMemoryStorage.ts"
+      - "apps/jhadina-web/src/lib/storage/SupabaseMemoryStorage.test.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/command/route.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.test.ts"
+      - "apps/jhadina-web/src/app/ask-jhadina/page.tsx"
+      - "supabase/migrations/20260920224800_jhadina_personality_outcome_lineage.sql"
       - "supabase/migrations/20260902060000_create_jhadina_personality_state.sql"
       - "pnpm-lock.yaml"
       - "package.json"
@@ -88,4 +106,7 @@ jobs:
             src/lib/hippocampus/persisted-experience-pattern-adapter.test.ts \
             src/lib/context/context-builder.test.ts \
             src/lib/intelligence/jhadina-command.test.ts \
-            src/lib/intelligence/governed-intelligence-proposal.test.ts
+            src/lib/intelligence/governed-intelligence-proposal.test.ts \
+            src/lib/personality/personality-outcome-feedback.test.ts \
+            src/lib/storage/SupabaseMemoryStorage.test.ts \
+            src/app/api/jhadina/personality/feedback/route.test.ts

@@ -1,6 +1,6 @@
 # PERSONALITY-V2.FINAL — Production Certification
 
-Status: **certification gate implemented**. Merge is permitted only after the Personality Core CI passes on the final reconciled head.
+Status: **certification gate implemented**. Merge is permitted only after the Personality Core CI passes on the final reconciled head. Runtime outcome/restart/adversarial acceptance is extended by `personality-v2-production-acceptance.md` (PROD.1–PROD.10).
 
 ## Canonical vertical
 

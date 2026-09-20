@@ -32,6 +32,7 @@ type GovernedExpression = {
 }
 type CommandResult = {
   proposal: DecisionProposal
+  reasoningEventId: string
   expression: GovernedExpression
   candidate?: MemoryCandidate
   approvalReceiptId?: string
@@ -77,6 +78,8 @@ function AskJhadina() {
   const [result, setResult] = useState<CommandResult | null>(null)
   const [pending, setPending] = useState<MemoryCandidate[]>([])
   const [candidateBusy, setCandidateBusy] = useState<string | null>(null)
+  const [feedbackBusy, setFeedbackBusy] = useState(false)
+  const [feedbackRecorded, setFeedbackRecorded] = useState<"reinforced" | "rejected" | null>(null)
 
   async function userHeader(): Promise<Record<string, string>> {
     const userId = await getCurrentUserId()
@@ -99,7 +102,7 @@ function AskJhadina() {
 
   async function ask() {
     if (!activeTask.trim()) return
-    setBusy(true); setError(""); setResult(null)
+    setBusy(true); setError(""); setResult(null); setFeedbackRecorded(null)
     try {
       const headers = await userHeader()
       const res = await fetch("/api/jhadina/command", {
@@ -116,6 +119,30 @@ function AskJhadina() {
       setError(e instanceof Error ? e.message : "Jhadina could not process that")
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function sendOutcomeFeedback(kind: "reinforced" | "rejected") {
+    if (!result?.reasoningEventId || feedbackBusy || feedbackRecorded) return
+    setFeedbackBusy(true)
+    try {
+      const headers = await userHeader()
+      const res = await fetch("/api/jhadina/personality/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify({
+          targetReasoningEventId: result.reasoningEventId,
+          feedbackId: crypto.randomUUID(),
+          kind,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Could not record feedback")
+      setFeedbackRecorded(kind)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not record feedback")
+    } finally {
+      setFeedbackBusy(false)
     }
   }
 
@@ -192,6 +219,19 @@ function AskJhadina() {
                 Nothing was executed for this request ({result.verificationReason ?? "no action was proposed"}).
               </p>
             )}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
+              {feedbackRecorded ? (
+                <span style={{ fontSize: 12, color: "#68756e" }}>
+                  Feedback recorded for learning.
+                </span>
+              ) : (
+                <>
+                  <span style={{ fontSize: 12, color: "#7d8982" }}>Did this response work?</span>
+                  <button disabled={feedbackBusy} onClick={() => sendOutcomeFeedback("reinforced")} style={secondary}>Worked</button>
+                  <button disabled={feedbackBusy} onClick={() => sendOutcomeFeedback("rejected")} style={secondary}>Not quite</button>
+                </>
+              )}
+            </div>
           </section>
         )}
 

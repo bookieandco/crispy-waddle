@@ -1,6 +1,6 @@
 # Jhadina Personality Core v2
 
-Status: durable persistence implemented; production port composition remains in progress
+Status: governed production composition implemented; PROD.10 acceptance is defined in `personality-v2-production-acceptance.md`
 
 ## Purpose
 
@@ -132,14 +132,18 @@ If evidence is equally strong or contradictory, Jhadina should surface uncertain
 
 The direct context fallback still uses `emptyPersonalityState()` and explicitly records that personality has not yet been assembled through the real ports. This is intentional until production MemoryPort → PatternPort → PersonalityPort composition is wired.
 
-## Next implementation boundary
+## Production status
 
-1. Implement the real `MemoryPort` over the durable Memory Core.
-2. Implement the real `PatternPort` and require explicit personality eligibility metadata.
-3. Compose MemoryPort → PatternPort → `createPersonalityPort()` using the durable repository.
-4. Feed the resulting personality state into Context Builder instead of the empty-state fallback.
-5. Add Expression Mixer and outcome-to-personality LearningRecord feedback.
-6. Add behavioral drift detection and governed personality evolution.
+The real durable Memory/Hippocampus adapter, canonical PatternPort, explicit
+eligibility classifier, versioned Personality repository, Context Builder
+composition, RNC/Behavior/Expression path, and deterministic governed expression
+asset boundary are implemented.
+
+Outcome feedback is now appended to the existing reasoning-event/Hippocampus
+store with explicit causation/correlation. It is deliberately **not** an
+outcome-to-Personality mutation path: feedback remains learning-only episodic
+evidence until separate approved immutable evidence satisfies a governed
+semantic eligibility rule. See `personality-v2-production-acceptance.md`.
 
 ## Do not do
 

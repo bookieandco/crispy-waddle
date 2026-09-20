@@ -45,6 +45,12 @@ export interface ReasoningEvent {
   systemResponse: string
   confidence: number
   candidateId?: string
+  /** Optional richer Experience lineage; legacy conversation rows default to user/no outcome. */
+  actor?: "user" | "jhadina" | "system" | "external"
+  outcome?: string
+  correlationId?: string
+  causationId?: string
+  metadata?: Record<string, unknown>
 }
 
 export interface Observation {
@@ -148,9 +154,10 @@ export class InMemoryStorage implements MemoryStorage {
   /**
    * Reasoning event operations
    */
-  async createReasoningEvent(data: Omit<ReasoningEvent, "id">): Promise<ReasoningEvent> {
-    const id = `reason_${++this.idCounters.reasoning}`
-    const event: ReasoningEvent = { id, ...data }
+  async createReasoningEvent(data: Omit<ReasoningEvent, "id"> & { id?: string }): Promise<ReasoningEvent> {
+    const id = data.id ?? `reason_${++this.idCounters.reasoning}`
+    if (this.reasoningEvents.has(id)) throw new Error("JHADINA_REASONING_EVENT_DUPLICATE_ID")
+    const event: ReasoningEvent = { ...data, id }
     this.reasoningEvents.set(id, event)
     return event
   }
