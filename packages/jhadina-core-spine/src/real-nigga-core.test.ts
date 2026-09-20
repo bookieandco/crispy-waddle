@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { deriveRealNiggaBehavior } from './real-nigga-core.js';
 import type { PersonalityState } from './types.js';
 
-const personality: PersonalityState = {
+const personality = {
   version: 1,
   traits: [],
   voice: {
@@ -19,7 +19,7 @@ const personality: PersonalityState = {
   relationship: { familiarity: 0.8, calibrationConfidence: 0.9, preferredInteractionModes: [], recurringCallbacks: [], evidence: [] },
   independentAssessmentRequired: false,
   updatedAt: '2026-09-02T20:00:00.000Z',
-};
+} satisfies PersonalityState;
 
 describe('Real Nigga Core', () => {
   it('derives a relationship- and taste-calibrated posture without mutating PersonalityState', () => {
