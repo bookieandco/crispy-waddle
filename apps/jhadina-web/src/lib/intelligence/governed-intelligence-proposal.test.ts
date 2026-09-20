@@ -124,6 +124,14 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
     expect(result.candidate).toBeDefined()
     expect(result.candidate?.content).toBe("I prefer cinematic visuals")
     expect(result.candidate?.status).toBe("PENDING") // Step 2's governance untouched: still needs explicit approval.
+    expect(result.reasoningEventId).toBeDefined()
+    expect(result.candidate?.reasoningEventId).toBe(result.reasoningEventId)
+
+    const experiences = await deps.reasoningRepo.list(identity.userId)
+    expect(experiences).toHaveLength(1)
+    expect(experiences[0].id).toBe(result.reasoningEventId)
+    expect(experiences[0].userMessage).toBe("I prefer cinematic visuals")
+    expect(experiences[0].systemResponse).toBe(result.proposal.recommendation)
 
     // The candidate is durably in Step 2's own repository, not just the return value.
     const pending = await deps.memoryRepo.listPending(identity.userId)
@@ -156,7 +164,7 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
     expect(await deps.memoryRepo.listPending(identity.userId)).toHaveLength(0)
   })
 
-  it("ASK/DECLINE/DEFER dispositions never reach ActionExecutor — no candidate, no side effect", async () => {
+  it("ASK/DECLINE/DEFER never reach ActionExecutor but still persist the conversation Experience", async () => {
     for (const disposition of ["ASK", "DECLINE", "DEFER"] as const) {
       const identity: ActionRequestIdentity = { userId: `user-ir-disp-${disposition}`, sessionId: "s" }
       const router = new IntelligenceRouter({
@@ -169,6 +177,10 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
 
       expect(result.candidate).toBeUndefined()
       expect(await deps.memoryRepo.listPending(identity.userId)).toHaveLength(0)
+      const experiences = await deps.reasoningRepo.list(identity.userId)
+      expect(experiences).toHaveLength(1)
+      expect(experiences[0].id).toBe(result.reasoningEventId)
+      expect(experiences[0].userMessage).toBe("I prefer cinematic visuals")
       const trail = deps.ledger.list()
       expect(trail.some((e) => e.metadata?.disposition === disposition)).toBe(true)
       expect(trail.some((e) => e.status === "started" && e.id.includes(":started"))).toBe(false)
@@ -211,6 +223,7 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
       `Action denied by policy: ${MEMORY_PROPOSE_CAPABILITY}`,
     )
     expect(await deps.memoryRepo.listPending(identity.userId)).toHaveLength(0)
+    expect(await deps.reasoningRepo.list(identity.userId)).toHaveLength(1)
     const trail = deps.ledger.list()
     expect(trail.some((e) => e.status === "denied")).toBe(true)
     expect(trail.some((e) => e.status === "completed")).toBe(false)
