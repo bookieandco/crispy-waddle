@@ -30,6 +30,18 @@ describe('SHARK paper trading regression', () => {
     expect(learning.experience.provenanceComplete).toBe(true)
   })
 
+  it('allocates entry fee and slippage proportionally on a partial exit', () => {
+    const proposal = createPaperTradeProposal({ proposalId: 'partial', chainId: 'solana', tokenAddress: 'mint-partial', quoteAsset: 'USD', proposedAt: '2026-09-18T20:00:00Z', simulatedCapital: 100, entryPrice: 1, assumptions: { feeBps: 100, slippageBps: 100 }, provenance: { assessmentId: 'a2', decisionProposalId: 'd2', evidenceIds: ['e2'] } })
+    const entry = simulatePaperEntry(proposal, { observationId: 'pm1', observedAt: '2026-09-18T20:00:01Z', chainId: 'solana', tokenAddress: 'mint-partial', price: 1 })
+    const observation = { observationId: 'pm2', observedAt: '2026-09-18T20:01:00Z', chainId: 'solana', tokenAddress: 'mint-partial', price: 2 }
+    const exit = { exitId: 'partial-exit', positionId: entry.position.positionId, simulationAuthority: 'PAPER_ONLY' as const, marketObservationId: 'pm2', proposedAt: observation.observedAt, quantity: entry.position.quantity / 2, fractionOfPosition: .5, referencePrice: 2, reasons: ['test'] }
+    const partial = simulatePaperExitFill(proposal, entry.position, exit, observation)
+    const outcome = evaluatePaperTradeOutcome({ proposal, position: partial.position, fills: [entry.fill, partial.fill], marks: [], evaluatedAt: '2026-09-18T20:01:01Z' })
+    const attribution = attributePaperTrade({ outcome, proposal, entryFill: entry.fill, exitFills: [partial.fill], exits: [exit], attributedAt: '2026-09-18T20:01:02Z' })
+    expect(attribution.feeDragQuote).toBeCloseTo(entry.fill.feeQuoteAmount / 2 + partial.fill.feeQuoteAmount, 10)
+    expect(attribution.residualQuote).toBeCloseTo(0, 10)
+  })
+
   it('fails closed when simulation learning is promoted to observed market fact', () => {
     expect(() => assertPaperLearningMayInfluence('OBSERVED_MARKET_FACT')).toThrow('paper_learning_cannot_promote_to_observed_fact')
   })
