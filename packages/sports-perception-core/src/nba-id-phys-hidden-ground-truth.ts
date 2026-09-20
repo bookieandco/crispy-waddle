@@ -1,0 +1,1 @@
+export interface HiddenIdentityTruth{trackId:string;playerId:string;team:string;jersey?:string;revealedAfterInference:boolean;}export function certifyHiddenTruth(xs:readonly HiddenIdentityTruth[]){return xs.length>=50&&xs.every(x=>x.revealedAfterInference&&x.trackId&&x.playerId);}
