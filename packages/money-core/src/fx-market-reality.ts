@@ -196,7 +196,7 @@ function assertCurrencyCode(value: string, code: string): void {
   if (!/^[A-Z]{3}$/.test(value)) throw new Error(code);
 }
 
-function parsePositiveDecimal(value: string, code: string): ParsedDecimal {
+function parseNonNegativeDecimal(value: string, code: string): ParsedDecimal {
   assertNonEmpty(value, code);
   if (!/^(0|[1-9]\d*)(\.\d+)?$/.test(value)) {
     throw new Error(code);
@@ -204,11 +204,16 @@ function parsePositiveDecimal(value: string, code: string): ParsedDecimal {
 
   const [whole = '0', fraction = ''] = value.split('.');
   const coefficient = BigInt(`${whole}${fraction}`);
-  if (coefficient <= 0n) throw new Error(code);
   return Object.freeze({
     coefficient,
     scale: fraction.length,
   });
+}
+
+function parsePositiveDecimal(value: string, code: string): ParsedDecimal {
+  const parsed = parseNonNegativeDecimal(value, code);
+  if (parsed.coefficient <= 0n) throw new Error(code);
+  return parsed;
 }
 
 function pow10(scale: number): bigint {
@@ -283,12 +288,28 @@ function invertDecimalString(value: string, targetScale: number): string {
   return formatScaled(coefficient, targetScale);
 }
 
-function decimalDifferenceAsNumber(left: string, right: string): number {
+function decimalDifferenceRatio(
+  left: string,
+  right: string,
+  denominator: string,
+): number {
   const a = parsePositiveDecimal(left, 'MONEY_FX_DECIMAL_INVALID');
   const b = parsePositiveDecimal(right, 'MONEY_FX_DECIMAL_INVALID');
-  const scale = Math.max(a.scale, b.scale);
+  const d = parsePositiveDecimal(
+    denominator,
+    'MONEY_FX_DECIMAL_DIVISOR_INVALID',
+  );
+  const scale = Math.max(a.scale, b.scale, d.scale);
   const difference = rescaleDecimal(a, scale) - rescaleDecimal(b, scale);
-  return Number(difference) / 10 ** scale;
+  const divisor = rescaleDecimal(d, scale);
+  if (difference < 0n || divisor <= 0n) {
+    throw new Error('MONEY_FX_DECIMAL_RATIO_INVALID');
+  }
+  const result = Number(difference) / Number(divisor);
+  if (!Number.isFinite(result)) {
+    throw new Error('MONEY_FX_DECIMAL_RATIO_INVALID');
+  }
+  return Math.round(result * 1_000_000_000) / 1_000_000_000;
 }
 
 function unique(values: readonly string[]): readonly string[] {
@@ -553,13 +574,13 @@ export function buildFxCarryObservation(input: Readonly<{
   ) {
     throw new Error('MONEY_FX_CARRY_POLICY_RATE_INVALID');
   }
-  parsePositiveDecimal(
+  parseNonNegativeDecimal(
     input.longSwapPoints.startsWith('-')
       ? input.longSwapPoints.slice(1)
       : input.longSwapPoints,
     'MONEY_FX_CARRY_LONG_SWAP_INVALID',
   );
-  parsePositiveDecimal(
+  parseNonNegativeDecimal(
     input.shortSwapPoints.startsWith('-')
       ? input.shortSwapPoints.slice(1)
       : input.shortSwapPoints,
@@ -624,8 +645,11 @@ export function assertFxCarryObservation(
   }
 
   const parseSigned = (value: string, code: string): void => {
+    if (!/^-?(0|[1-9]\d*)(\.\d+)?$/.test(value)) {
+      throw new Error(code);
+    }
     const unsigned = value.startsWith('-') ? value.slice(1) : value;
-    parsePositiveDecimal(unsigned, code);
+    parseNonNegativeDecimal(unsigned, code);
   };
   parseSigned(
     observation.longSwapPoints,
@@ -935,15 +959,11 @@ export function fxSpreadPips(
   pair: FxPairDefinition,
 ): number {
   assertFxQuote(quote, pair);
-  const spread = decimalDifferenceAsNumber(
+  const result = decimalDifferenceRatio(
     quote.askPrice,
     quote.bidPrice,
+    pair.pipSize,
   );
-  const pip = Number(pair.pipSize);
-  if (!Number.isFinite(pip) || pip <= 0) {
-    throw new Error('MONEY_FX_PAIR_PIP_SIZE_INVALID');
-  }
-  const result = spread / pip;
   if (!Number.isFinite(result) || result < 0) {
     throw new Error('MONEY_FX_SPREAD_PIPS_INVALID');
   }
@@ -1041,7 +1061,9 @@ export function buildFxMarketSnapshot(
   );
 
   const baseContexts = input.macroContexts.filter(
-    (context) => context.currencyCode === input.baseCurrency.code,
+    (context) =>
+      context.currencyCode === input.baseCurrency.code &&
+      Date.parse(context.macroInformationCutoff) <= cutoff,
   );
   for (const context of baseContexts) {
     assertFxMacroContext(
@@ -1056,7 +1078,9 @@ export function buildFxMarketSnapshot(
   }
 
   const quoteContexts = input.macroContexts.filter(
-    (context) => context.currencyCode === input.quoteCurrency.code,
+    (context) =>
+      context.currencyCode === input.quoteCurrency.code &&
+      Date.parse(context.macroInformationCutoff) <= cutoff,
   );
   for (const context of quoteContexts) {
     assertFxMacroContext(
