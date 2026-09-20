@@ -17,3 +17,5 @@ export * from './local-model-provider.js';
 export * from './multimodal-perception.js';
 export * from './evaluation-harness.js';
 export * from './evaluation-suite.js';
+export * from './adversarial-suite.js';
+export * from './adversarial-fixtures.js';
