@@ -141,6 +141,24 @@ export interface DomainContext {
   spatial?: SpatialDomainContext;
 }
 
+/**
+ * Deterministic presentation directive supplied to the model as context.
+ * It is descriptive only: it grants no authority and cannot mutate
+ * Personality, Values, Policy, Identity, security, or execution permission.
+ */
+export interface ExpressionDirective {
+  mode: 'direct' | 'explanatory' | 'pushback' | 'clarifying' | 'serious';
+  allowProfanity: boolean;
+  allowQuip: boolean;
+  callback?: string;
+  callbackProvenance?: Array<{
+    origin: 'relationship' | 'memory' | 'hippocampus';
+    evidence: EvidenceRef;
+  }>;
+  culturalReference?: string;
+  culturalReferenceEvidence?: EvidenceRef[];
+}
+
 export interface ContextPacket {
   id: string;
   purpose: string;
@@ -152,6 +170,7 @@ export interface ContextPacket {
   constraints: string[];
   excludedContext: string[];
   domainContext?: DomainContext;
+  expressionDirective?: ExpressionDirective;
 }
 
 export interface DecisionProposal {
