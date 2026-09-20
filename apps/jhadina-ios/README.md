@@ -1,21 +1,34 @@
-# Jhadina iOS Privacy
+# Jhadina iOS Native Boundary
 
-This directory is the native iOS boundary for Jhadina Privacy.
+This directory is the native iOS execution boundary for Jhadina. Existing native modules remain intact:
 
-## Targets
+- `JhadinaAudio` — native audio output bridge
+- `JhadinaPacketTunnel` — privacy Network Extension boundary
 
-- `JhadinaIOS`: host iOS application
-- `JhadinaPacketTunnel`: Network Extension target using `NEPacketTunnelProvider`
+## SAFETY-NATIVE.1
 
-The native implementation is intentionally separate from the Next.js web app and the AI layer.
+The Safety native shell adds:
+- `Sources/JhadinaSafetyApp.swift` — minimal host UI/status surface
+- `Sources/SafetyNativeBridge.swift` — iOS capability/location/network/battery bridge
+- `Sources/SafetyBridgeEnvelope.swift` — typed request/response boundary matching the Core Spine bridge methods
+- `project.yml` — reproducible XcodeGen project declaration
+- `Tests/SafetyNativeRuntimeTests.swift` — bridge contract tests
 
-## Required Apple configuration
+The shell reports actual permission state and fails closed. It deliberately reports iOS background video as unavailable. It does not claim real capture bytes yet: actual AV capture is SAFETY-NATIVE.3.
 
-1. Create/open the Xcode project for these targets.
-2. Enable the **Network Extensions** capability for the host and packet-tunnel targets as appropriate.
-3. Add the Packet Tunnel Provider extension target.
-4. Configure an App Group only if the host/extension bridge needs shared state.
-5. Store provider credentials/configuration in native secure storage; never send them through Jhadina's LLM or web UI.
-6. Replace the placeholder tunnel implementation with the selected VPN engine/provider integration.
+### Generate the project
 
-This repository scaffold does not claim a working VPN until the Xcode target is signed, entitled, built, and tested on a physical iPhone.
+On a macOS/Xcode workstation:
+
+```
+brew install xcodegen
+cd apps/jhadina-ios
+xcodegen generate
+open JhadinaSafety.xcodeproj
+```
+
+Apple signing/team selection and runtime secrets are intentionally not committed.
+
+## Privacy / packet tunnel
+
+The Network Extension implementation remains separate from Safety. Provider credentials/configuration belong in native secure storage and must not pass through the LLM or web UI. The packet-tunnel scaffold is not considered production VPN functionality until signed, entitled, built and tested on a physical iPhone.
