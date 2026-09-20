@@ -53,17 +53,16 @@ try {
   if (headers.get('PLAID-SECRET') !== 'secret-test') throw new Error('PLAID_SECRET_HEADER_FAILED');
   if (headers.get('Plaid-Version') !== '2020-09-14') throw new Error('PLAID_VERSION_HEADER_FAILED');
 
-  let transactionRejected = false;
-  try {
-    await adapter.listTransactions({
-      userId: 'user-test',
-      capability: 'money.transaction.read',
-      requestId: 'req-test',
-    }, 'plaid:acct-123');
-  } catch (error) {
-    transactionRejected = error instanceof Error && error.message === 'PLAID_TRANSACTION_READ_NOT_IMPLEMENTED';
-  }
-  if (!transactionRejected) throw new Error('PLAID_TRANSACTION_GATE_FAILED');
+  globalThis.fetch = async (input, init) => {
+    url = String(input); request = init;
+    return new Response(JSON.stringify({ transactions: [{ transaction_id:'txn-1', account_id:'acct-123', amount:12.5, iso_currency_code:'USD', date:'2026-09-20', merchant_name:'Test Merchant' }] }), { status:200, headers:{'content-type':'application/json'} });
+  };
+  const transactions = await adapter.listTransactions({ userId:'user-test', capability:'money.transaction.read', requestId:'req-txn' }, 'acct-123');
+  if (transactions.length !== 1 || transactions[0].id !== 'plaid:txn-1') throw new Error('PLAID_TRANSACTION_MAPPING_FAILED');
+  if (transactions[0].accountId !== 'plaid:acct-123' || transactions[0].amount !== 12.5) throw new Error('PLAID_TRANSACTION_FIELDS_FAILED');
+  if (url !== 'https://sandbox.plaid.com/transactions/get') throw new Error('PLAID_TRANSACTION_ENDPOINT_FAILED');
+  const transactionBody = JSON.parse(String(request?.body));
+  if (transactionBody.options?.account_ids?.[0] !== 'acct-123') throw new Error('PLAID_TRANSACTION_ACCOUNT_FILTER_FAILED');
 
   let invalidRejected = false;
   try {
