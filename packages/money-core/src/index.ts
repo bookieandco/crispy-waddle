@@ -127,3 +127,6 @@ export * from './paper-execution-engine.js';
 
 export * from './sandbox-broker-contracts.js';
 export * from './sandbox-broker-engine.js';
+
+export * from './shadow-market-contracts.js';
+export * from './shadow-market-engine.js';
