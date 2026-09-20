@@ -1,0 +1,1 @@
+export interface IdentityRegression{regressionId:string;component:'TEAM'|'JERSEY'|'REID'|'ROSTER'|'FUSION';failedEvidenceId:string;repairCommit:string;retested:boolean;passed:boolean;}export function certifyIdentityRepairs(xs:readonly IdentityRegression[]){return xs.every(x=>!!x.regressionId&&!!x.failedEvidenceId&&!!x.repairCommit&&x.retested&&x.passed);}
