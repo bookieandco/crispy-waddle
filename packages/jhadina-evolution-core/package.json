@@ -10,7 +10,9 @@
     "test": "tsx --test src/*.test.ts"
   },
   "dependencies": {
-    "@jhadina/core-spine": "workspace:*"
+    "@jhadina/core-spine": "workspace:*",
+    "@jhadina/action-core": "workspace:*",
+    "@jhadina/security-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
