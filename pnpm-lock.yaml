@@ -25,9 +25,18 @@ importers:
 
   apps/jhadina-web:
     dependencies:
+      '@jhadina/action-core':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-action-core
+      '@jhadina/core-spine':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-core-spine
       '@jhadina/director-core':
         specifier: workspace:*
         version: link:../../packages/director-core
+      '@jhadina/intelligence-core':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-intelligence-core
       '@jhadina/spatial-intelligence-core':
         specifier: workspace:*
         version: link:../../packages/spatial-intelligence-core
