@@ -1,0 +1,29 @@
+{
+  "phase": "KAGGLE-RUNTIME.01",
+  "credential": "KAGGLE_API_TOKEN",
+  "secretValuePersisted": false,
+  "verificationEndpoint": "/api/sports/kaggle-health",
+  "verificationEndpointExposesSecret": false,
+  "vercelProject": "crispy-waddle-jhadina-web",
+  "branch": "feat/live-game-watcher",
+  "firstDeployment": {
+    "commit": "fd55eb22ec140cadf0869307d4afbe87468f430e",
+    "result": "ERROR",
+    "errorCode": "ERR_PNPM_OUTDATED_LOCKFILE"
+  },
+  "lockfileRepair": {
+    "commit": "0e189c12d389b88a9b0c3f73db692b9140f33119",
+    "repairedImporters": [
+      "packages/agent-runtime-core",
+      "packages/director-core",
+      "packages/scheduler-core"
+    ]
+  },
+  "postRepairDeployment": {
+    "result": "BLOCKED",
+    "reason": "Vercel build-rate-limit"
+  },
+  "credentialPresenceVerified": false,
+  "complete": false,
+  "rule": "Do not mark KAGGLE-RUNTIME.01 complete until a deployed server-side check reports configured=true without exposing the credential."
+}
