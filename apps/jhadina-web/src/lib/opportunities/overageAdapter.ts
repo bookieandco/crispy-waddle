@@ -1,4 +1,4 @@
-import type { AutomationLevel, Opportunity, OpportunityVerificationStatus } from "./sideIncome"
+import { adaptOverageOpportunity, type Opportunity } from "@jhadina/opportunity-core"
 
 export type OverageOpportunityCandidate = {
   sourceKey: string
@@ -11,7 +11,7 @@ export type OverageOpportunityCandidate = {
   claimantName: string
   propertyReference?: string
   sourceConfidence: number
-  verificationStatus?: OpportunityVerificationStatus
+  verificationStatus?: "not_required" | "human_required" | "verified" | "rejected"
   evidenceSummary?: string
   riskFlags?: string[]
 }
@@ -24,14 +24,12 @@ function assertUnitInterval(value: number, field: string): number {
 }
 
 /**
- * Converts an OverageOS candidate into the existing Jhadina opportunity shape.
- * This is an adapter only: it does not verify identity, rank the opportunity,
- * contact the claimant, or execute any external action.
+ * Canonical OverageOS -> Opportunity Core boundary.
+ * Source confidence is preserved as evidence quality but never promoted into
+ * claimant identity/entitlement verification. External recovery execution
+ * remains owned by OverageOS.
  */
-export function buildOverageOpportunity(
-  candidate: OverageOpportunityCandidate,
-  userId: string,
-): Omit<Opportunity, "id" | "createdAt" | "status"> {
+export function buildOverageOpportunity(candidate: OverageOpportunityCandidate): Opportunity {
   if (!candidate.sourceKey || !candidate.externalRecordId) {
     throw new Error("sourceKey and externalRecordId are required.")
   }
@@ -41,28 +39,22 @@ export function buildOverageOpportunity(
   }
 
   const sourceConfidence = assertUnitInterval(candidate.sourceConfidence, "sourceConfidence")
-  const automationLevel: AutomationLevel = "user_led"
   const propertyReference = candidate.propertyReference ? ` Property reference: ${candidate.propertyReference}.` : ""
   const family = candidate.recoveryFamily ? ` Recovery family: ${candidate.recoveryFamily}.` : ""
   const evidence = candidate.evidenceSummary ? ` Evidence: ${candidate.evidenceSummary}` : ""
 
-  return {
-    userId,
+  const opportunity = adaptOverageOpportunity({
+    id: `${candidate.sourceKey}:${candidate.externalRecordId}`,
     title: `Unclaimed property opportunity — ${candidate.claimantName}`,
-    kind: "overage",
+    amount: candidate.amount,
+    currency: candidate.currency,
     sourceUrl: candidate.sourceUrl,
     sourceName: candidate.sourceName,
-    summary: `Potential ${candidate.currency} ${candidate.amount.toFixed(2)} overage for ${candidate.claimantName}. Source confidence: ${sourceConfidence.toFixed(2)}.${family}${propertyReference}${evidence}`,
-    estimatedPay: { min: candidate.amount, max: candidate.amount, currency: candidate.currency, cadence: "unknown" },
-    automationLevel,
-    // OverageOS currently supplies source/evidence confidence, not user-fit.
-    // Keep fit neutral until a separate fit signal exists; never derive it from source confidence.
-    fitScore: 50,
-    riskFlags: candidate.riskFlags ?? [],
-    requiresUserApproval: true,
-    // Identity verification remains a Jhadina human decision. A caller cannot
-    // elevate an unverified OverageOS candidate by supplying a status here.
-    verificationStatus: "human_required",
+    propertyReference: candidate.propertyReference,
     sourceConfidence,
-  }
+    riskFlags: candidate.riskFlags,
+    description: `Potential ${candidate.currency} ${candidate.amount.toFixed(2)} overage for ${candidate.claimantName}.${family}${propertyReference}${evidence}`,
+  })
+
+  return { ...opportunity, fitScore: 50 }
 }
