@@ -42,6 +42,14 @@ export async function POST(req: NextRequest) {
       surface: typeof body?.surface === "string" ? (body.surface as JhadinaWorldId) : undefined,
       route: typeof body?.route === "string" ? body.route : undefined,
       activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
+      geographicScope: body?.geographicScope ?? undefined,
+      temporalScope: body?.temporalScope && typeof body.temporalScope === "object"
+        ? {
+            from: typeof body.temporalScope.from === "string" ? body.temporalScope.from : null,
+            to: typeof body.temporalScope.to === "string" ? body.temporalScope.to : null,
+            asOf: typeof body.temporalScope.asOf === "string" ? body.temporalScope.asOf : null,
+          }
+        : undefined,
     })
 
     return NextResponse.json({

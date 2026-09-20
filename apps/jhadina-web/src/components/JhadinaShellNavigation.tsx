@@ -22,6 +22,7 @@ const worlds = [
   ["📈", "Growth", "/growth"],
   ["🗒️", "Activity", "/activity"],
   ["🎯", "Opportunities", "/opportunity"],
+  ["🌐", "Spatial", "/spatial"],
   ["🗓️", "Calendar", "/calendar"],
   ["📊", "Campaign Polls", "/campaign/polls"],
   ["🤝", "Placement", "/placement/worker/opportunities"],

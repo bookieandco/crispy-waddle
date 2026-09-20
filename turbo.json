@@ -1,21 +1,35 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["tsconfig.json", ".eslintrc.json"],
+  "globalDependencies": [
+    "tsconfig.json",
+    ".eslintrc.json"
+  ],
   "tasks": {
     "dev": {
       "cache": false,
       "persistent": true
     },
     "build": {
-      "outputs": ["dist/**", ".next/**"],
-      "dependsOn": ["^build"]
+      "outputs": [
+        "dist/**",
+        ".next/**"
+      ],
+      "dependsOn": [
+        "^build"
+      ]
     },
     "test": {
-      "outputs": ["coverage/**"],
-      "dependsOn": ["^build"]
+      "outputs": [
+        "coverage/**"
+      ],
+      "dependsOn": [
+        "^build"
+      ]
     },
     "lint": {
-      "outputs": [".eslintcache"]
+      "outputs": [
+        ".eslintcache"
+      ]
     },
     "type-check": {
       "cache": true
@@ -30,5 +44,9 @@
     "db:seed": {
       "cache": false
     }
-  }
+  },
+  "globalEnv": [
+    "JHADINA_GEV_BASE_URL",
+    "GEV_BASE_URL"
+  ]
 }

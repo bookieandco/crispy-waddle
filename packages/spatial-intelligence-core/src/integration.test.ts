@@ -33,11 +33,11 @@ test('GEV stream adapter fails closed for unknown/offline capability', () => {
 test('DELIA reasoning consumes context without creating authority', () => {
   const result = reasonOverSpatialContext({
     subject: 'LAX', geographicScope: null, temporalScope: { from: null, to: null, asOf: null },
-    observations: [{ id: 'o', source: 'gev', observedAt: null, summary: 'observed', immutable: true }],
-    evidence: [{ id: 'e', source: 'gev', observedAt: null, summary: 'frame', immutable: true }],
-    claims: [], reality: [{ id: 'r', source: 'reality', observedAt: null, summary: 'admitted', immutable: true }],
-    patterns: [], predictions: [{ id: 'p', source: 'model', observedAt: null, summary: 'scenario', immutable: false }],
-    scenarios: [], hypotheses: [{ id: 'h', source: 'analysis', observedAt: null, summary: 'alternative', immutable: false }],
+    observations: [{ id: 'o', source: 'gev', observedAt: '1970-01-01T00:00:00.000Z', summary: 'observed', immutable: true }],
+    evidence: [{ id: 'e', source: 'gev', observedAt: '1970-01-01T00:00:00.000Z', summary: 'frame', immutable: true }],
+    claims: [], reality: [{ id: 'r', source: 'reality', observedAt: '1970-01-01T00:00:00.000Z', summary: 'admitted', immutable: true }],
+    patterns: [], predictions: [{ id: 'p', source: 'model', observedAt: '1970-01-01T00:00:00.000Z', summary: 'scenario', immutable: false }],
+    scenarios: [], hypotheses: [{ id: 'h', source: 'analysis', observedAt: '1970-01-01T00:00:00.000Z', summary: 'alternative', immutable: false }],
     sourceHealth: [], conflicts: ['source disagreement'], uncertainty: ['limited coverage'], limitations: [], workspaceRef: null, investigationRef: null, provenance: [],
   })
   assert.deepEqual(result.scenarios, ['scenario'])

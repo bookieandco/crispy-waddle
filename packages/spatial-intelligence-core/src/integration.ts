@@ -35,12 +35,13 @@ export type SpatialContextPackage = {
 }
 
 export function toSpatialDomainContext(pkg: SpatialContextPackage): SpatialDomainContext {
+  const attentionObservedAt = pkg.temporalScope.asOf ?? pkg.evidence[0]?.observedAt ?? pkg.observations[0]?.observedAt ?? new Date(0).toISOString()
   return {
     observations: pkg.observations.map((x) => ({ ...x })),
     evidence: pkg.evidence.map((x) => ({ ...x })),
     claims: pkg.claims.map((x) => ({ ...x })),
     reality: pkg.reality.map((x) => ({ ...x })),
-    attention: pkg.conflicts.map((ref, index) => ({ id: `attention:${index}:${ref}`, source: "spatial-attention", observedAt: null, summary: ref, immutable: true })),
+    attention: pkg.conflicts.map((ref, index) => ({ id: `attention:${index}:${ref}`, source: "spatial-attention", observedAt: attentionObservedAt, summary: ref, immutable: true })),
     conflicts: [...pkg.conflicts],
     uncertainty: [...pkg.uncertainty],
     limitations: [...pkg.limitations],
@@ -49,7 +50,23 @@ export function toSpatialDomainContext(pkg: SpatialContextPackage): SpatialDomai
 }
 
 export type SpatialQueryInterpreter = (text: string) => SpatialQuery | undefined
-const spatialWords = /\b(near|around|at|inside|within|airport|camera|traffic|aircraft|vessel|earthquake|fire|weather|satellite|spatial|map|location|where|changed|change|moved|route|track|investigate|why)\b/i
+const spatialWords = /\b(near|around|at|inside|within|airport|camera|traffic|aircraft|flight|plane|vessel|ship|earthquake|fire|weather|satellite|spatial|map|location|where|changed|change|moved|route|track|investigate|why)\b/i
+const spatialDomainRules: ReadonlyArray<{ domain: string; pattern: RegExp }> = [
+  { domain: "camera", pattern: /\b(camera|cctv|view|frame)\b/i },
+  { domain: "aircraft", pattern: /\b(aircraft|flight|plane|airport|aviation)\b/i },
+  { domain: "vessel", pattern: /\b(vessel|ship|boat|ais|port|harbor)\b/i },
+  { domain: "fire", pattern: /\b(fire|wildfire|firms|burn)\b/i },
+  { domain: "earthquake", pattern: /\b(earthquake|quake|seismic)\b/i },
+  { domain: "satellite", pattern: /\b(satellite|orbit|iss|tle)\b/i },
+  { domain: "traffic", pattern: /\b(traffic|congestion|road)\b/i },
+  { domain: "weather", pattern: /\b(weather|storm|wind|rain|snow)\b/i },
+  { domain: "infrastructure", pattern: /\b(infrastructure|datacenter|dam|power|facility)\b/i },
+]
+
+export function inferSpatialDomains(text: string): string[] {
+  const domains = spatialDomainRules.filter((rule) => rule.pattern.test(text)).map((rule) => rule.domain)
+  return domains.length ? [...new Set(domains)].sort() : ["spatial"]
+}
 
 /** Conservative intent detection: false positives are preferable to silently issuing an action. */
 export const defaultSpatialQueryInterpreter: SpatialQueryInterpreter = (text) => {
@@ -62,7 +79,7 @@ export const defaultSpatialQueryInterpreter: SpatialQueryInterpreter = (text) =>
     subject: text.trim(),
     geographicScope: null,
     temporalScope: { from: null, to: null, asOf: null },
-    requestedDomains: ["spatial"],
+    requestedDomains: inferSpatialDomains(text),
     requiresEvidence: true,
   }
 }

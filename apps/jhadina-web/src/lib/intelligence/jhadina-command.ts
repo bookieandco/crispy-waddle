@@ -20,6 +20,7 @@ import { createIntelligenceAuditLedger } from "./durable-audit-ledger"
 import { decideAndProposeMemoryGoverned, type GovernedIntelligenceProposalResult } from "./governed-intelligence-proposal"
 import { MEMORY_PROPOSE_CAPABILITY, type MemoryProposeAction } from "./memory-propose-capability"
 import { createProductionIntelligenceRouter } from "./production-model-provider"
+import { createProductionSpatialContextProvider } from "../context/production-spatial-context-provider"
 
 export interface JhadinaCommandInput {
   userId: string
@@ -55,10 +56,11 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   const storage = getStorage()
   const memoryRepo = new MemoryRepository(storage)
   const reasoningRepo = new ReasoningEventRepository(storage)
+  const spatialContextProvider = overrides.spatialContextProvider ?? createProductionSpatialContextProvider(input.userId)
   const contextDeps: ContextBuilderDeps = {
     memoryRepo,
     timelineRepo: new TimelineRepository(storage),
-    spatialContextProvider: overrides.spatialContextProvider,
+    spatialContextProvider,
   }
   const assembled = await buildContext(contextDeps, {
     userId: input.userId,
