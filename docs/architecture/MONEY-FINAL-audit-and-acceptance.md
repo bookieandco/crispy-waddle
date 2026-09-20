@@ -20,7 +20,7 @@ Audited current `main` Money Core, Jhadina web Money composition, Supabase bank 
 - Handoff references OpenBB, StockSharp, Freqtrade and prediction-market repositories remain research references rather than silently becoming runtime dependencies. Current source does not claim code derivation from them.
 
 ### Audit repairs in this branch
-1. Declared `@jhadina/action-core` as an actual `@jhadina/money-core` workspace dependency and reconciled the lockfile. Money imported Action Core without declaring it.
+1. Declared `@jhadina/action-core` as an actual `@jhadina/money-core` workspace dependency and declared `@jhadina/money-core` in the Jhadina web app that imports it; reconciled both lockfile importers. These imports previously relied on undeclared workspace resolution.
 2. Closed a bank-credential exposure/design defect introduced during read-spine commissioning. The ownership table mixed owner-readable authorization metadata with encrypted Plaid access tokens. Credentials now live in `jhadina_money_bank_credentials`, a service-role-only RLS table; browser roles have no table privileges.
 3. Bank Link exchange/disconnect and per-Item adapter resolution now use the existing server-only Supabase service-role client after request identity verification. User identity is explicitly bound into every connection write/disconnect query.
 4. The browser/session role may resolve only active owned account IDs. It cannot read Item credentials or mutate ownership rows directly.
