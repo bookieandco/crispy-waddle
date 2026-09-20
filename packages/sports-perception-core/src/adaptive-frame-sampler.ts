@@ -1,0 +1,1 @@
+export type VideoActivity='IDLE'|'LIVE_PLAY'|'HIGH_VALUE';export function shouldSampleFrame(frameNumber:number,fps:number,activity:VideoActivity):boolean{const rate=activity==='HIGH_VALUE'?Math.min(fps,15):activity==='LIVE_PLAY'?Math.min(fps,8):Math.min(fps,2);const stride=Math.max(1,Math.round(fps/rate));return frameNumber%stride===0;}
