@@ -11,7 +11,8 @@
     "build": "tsc --noEmit && node --import tsx --eval \"import('./src/index.ts')\"",
     "verify:ref-prov-05": "tsx --test src/artifact-admission.test.ts",
     "verify:ref-prov-06": "tsx --test src/artifact-deployment.test.ts src/postgres-artifact-admission-ledger.test.ts",
-    "verify:ref-prov-07": "tsx --test src/deployment-session.test.ts"
+    "verify:ref-prov-07": "tsx --test src/deployment-session.test.ts",
+    "verify:ref-prov-08": "tsx --test src/runtime-lease.test.ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

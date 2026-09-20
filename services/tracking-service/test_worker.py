@@ -18,6 +18,11 @@ PROOF=worker.ArtifactDeploymentProof(
     attestation_id="attestation:sam2:1",
     attestation_hash="attestation",
     artifact_digest="sha256:"+"a"*64,
+    session_id="session:sam2:1",
+    session_hash="session-hash",
+    heartbeat_expires_at="2099-09-20T06:10:00Z",
+    revocation_snapshot_hash="revocation-snapshot-hash",
+    revocation_snapshot_expires_at="2099-09-20T06:10:00Z",
 )
 
 class TestWorker(unittest.TestCase):
@@ -40,6 +45,29 @@ class TestWorker(unittest.TestCase):
             attestation_id="attestation:sam2:1",
             attestation_hash="attestation",
             artifact_digest="sha256:"+"a"*64,
+            session_id="session:sam2:1",
+            session_hash="session-hash",
+            heartbeat_expires_at="2099-09-20T06:10:00Z",
+            revocation_snapshot_hash="revocation-snapshot-hash",
+            revocation_snapshot_expires_at="2099-09-20T06:10:00Z",
         )
         with self.assertRaises(ValueError): worker.run_sam2(Engine(),{"sourceAssetId":"video","frameStart":0,"frameEnd":5,"classes":["character"]},bad)
+    def test_rejects_expired_runtime_lease_before_inference(self):
+        expired=worker.ArtifactDeploymentProof(
+            artifact_id="sam2:runtime-checkpoint",
+            pin_id="artifact:sam2:checkpoint",
+            runtime_instance_id="runtime:sam2:1",
+            admission_id="admission:sam2:1",
+            admission_receipt_hash="receipt",
+            attestation_id="attestation:sam2:1",
+            attestation_hash="attestation",
+            artifact_digest="sha256:"+"a"*64,
+            session_id="session:sam2:1",
+            session_hash="session-hash",
+            heartbeat_expires_at="2020-01-01T00:00:00Z",
+            revocation_snapshot_hash="revocation-snapshot-hash",
+            revocation_snapshot_expires_at="2099-09-20T06:10:00Z",
+        )
+        with self.assertRaisesRegex(ValueError,"heartbeat expired"):
+            worker.run_sam2(Engine(),{"sourceAssetId":"video","frameStart":0,"frameEnd":5,"classes":["character"]},expired)
 if __name__=="__main__": unittest.main()

@@ -1343,3 +1343,23 @@ export {
   assertDeploymentSessionUsable,
   InMemoryDeploymentSessionLedger,
 } from './deployment-session.js';
+
+export type {
+  RevocationDistributionSnapshot,
+  RevocationDistributionSource,
+  RuntimeLeaseGuardOptions,
+} from './runtime-lease.js';
+export {
+  RUNTIME_LEASE_SCHEMA_VERSION,
+  createRevocationDistributionSnapshot,
+  verifyRevocationDistributionSnapshot,
+  RuntimeLeaseGuard,
+  InMemoryRevocationDistributionSource,
+  HttpRevocationDistributionSource,
+} from './runtime-lease.js';
+export type {
+  RevocationSnapshotFetch,
+} from './runtime-lease.js';
+export {
+  PostgresDeploymentSessionLedger,
+} from './postgres-deployment-session-ledger.js';

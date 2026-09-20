@@ -45,12 +45,13 @@ function composeDirectorGenerationRuntime(
  * Provider construction comes exclusively from the configured provider factory,
  * so HTTP generation and reconciliation cannot silently assemble different runtimes.
  */
-export function createConfiguredDirectorGenerationRuntime(
+export async function createConfiguredDirectorGenerationRuntime(
   client: SupabaseClient,
   config?: DirectorGenerationFactoryConfig,
   workerId = `director-worker:${Math.random().toString(36).slice(2)}`,
-): DirectorGenerationRuntime {
-  const { registry, providers } = createDirectorGenerationRegistryAndProviders(config);
+): Promise<DirectorGenerationRuntime> {
+  const { registry, providers } =
+    await createDirectorGenerationRegistryAndProviders(config);
   return composeDirectorGenerationRuntime(client, registry, providers, workerId);
 }
 

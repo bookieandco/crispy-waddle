@@ -4,6 +4,7 @@ The worker owns model inference only. It receives already-governed bounded work 
 returns evidence; it never approves tracks or makes Jhadina policy decisions.
 """
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Protocol
 
 REQUIRED_SAM2_ARTIFACT_ID="sam2:runtime-checkpoint"
@@ -32,6 +33,17 @@ class ArtifactDeploymentProof:
     attestation_id:str
     attestation_hash:str
     artifact_digest:str
+    session_id:str
+    session_hash:str
+    heartbeat_expires_at:str
+    revocation_snapshot_hash:str
+    revocation_snapshot_expires_at:str
+
+def _parse_utc(value:str)->datetime:
+    parsed=datetime.fromisoformat(value.replace("Z","+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError("SAM2 runtime lease timestamp must include timezone")
+    return parsed.astimezone(timezone.utc)
 
 def validate_sam2_deployment_proof(proof:ArtifactDeploymentProof)->None:
     if proof.artifact_id != REQUIRED_SAM2_ARTIFACT_ID:
@@ -45,11 +57,19 @@ def validate_sam2_deployment_proof(proof:ArtifactDeploymentProof)->None:
         proof.attestation_id,
         proof.attestation_hash,
         proof.artifact_digest,
+        proof.session_id,
+        proof.session_hash,
+        proof.revocation_snapshot_hash,
     ):
         if not isinstance(value,str) or not value:
             raise ValueError("SAM2 durable artifact attestation required")
     if not proof.artifact_digest.startswith("sha256:"):
         raise ValueError("SAM2 artifact digest must be sha256")
+    now=datetime.now(timezone.utc)
+    if _parse_utc(proof.heartbeat_expires_at) <= now:
+        raise ValueError("SAM2 runtime lease heartbeat expired")
+    if _parse_utc(proof.revocation_snapshot_expires_at) <= now:
+        raise ValueError("SAM2 revocation snapshot expired")
 
 def parse_request(body:dict[str,Any])->Sam2Request:
     source=body.get("sourceAssetId")

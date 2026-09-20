@@ -53,5 +53,8 @@ jobs:
       - name: Run REF-PROV-07 session lifecycle certification
         run: pnpm --filter @jhadina/reference-provenance verify:ref-prov-07
 
+      - name: Run REF-PROV-08 runtime lease certification
+        run: pnpm --filter @jhadina/reference-provenance verify:ref-prov-08
+
       - name: Build reference provenance
         run: pnpm --filter @jhadina/reference-provenance build
