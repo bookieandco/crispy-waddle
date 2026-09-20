@@ -1,0 +1,2 @@
+export interface ConfidenceInputs{sourceReliability:number;observation:number;reconstruction:number;modelAgreement:number;simulationAgreement:number;hypothesisValidation:number;}export interface IntelligenceConfidence{overall:number;components:ConfidenceInputs;}
+export function fuseIntelligenceConfidence(i:ConfidenceInputs):IntelligenceConfidence{const v=Object.values(i);if(v.some(x=>x<0||x>1))throw new Error('Confidence components must be within [0,1]');const overall=v.reduce((a,b)=>a+b,0)/v.length;return Object.freeze({overall,components:Object.freeze({...i})});}
