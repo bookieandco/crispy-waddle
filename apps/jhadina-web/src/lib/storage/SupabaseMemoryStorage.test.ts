@@ -186,6 +186,39 @@ describe("SupabaseMemoryStorage", () => {
     })
   })
 
+  it("survives a storage-adapter restart with outcome lineage intact", async () => {
+    const fake = makeFakeClient()
+    const first = new SupabaseMemoryStorage(fake.client)
+    const event = await first.createReasoningEvent({
+      userId: "user_restart",
+      timestamp: "2026-09-20T22:00:00.000Z",
+      userMessage: "Feedback: that response worked.",
+      observation: {
+        raw: "Feedback: that response worked.",
+        extracted: "Feedback: that response worked.",
+        timestamp: "2026-09-20T22:00:00.000Z",
+      },
+      classification: { type: "CONTEXT", confidence: 1 },
+      systemResponse: "Feedback recorded.",
+      confidence: 1,
+      actor: "user",
+      outcome: "feedback:reinforced",
+      correlationId: "corr-restart",
+      causationId: "reason-original",
+      metadata: { personalityFeedbackId: "feedback-restart", authority: "learning-only" },
+    })
+
+    const restarted = new SupabaseMemoryStorage(fake.client)
+    const fetched = await restarted.getReasoningEvent(event.id)
+    expect(fetched).toMatchObject({
+      id: event.id,
+      outcome: "feedback:reinforced",
+      correlationId: "corr-restart",
+      causationId: "reason-original",
+      metadata: { personalityFeedbackId: "feedback-restart", authority: "learning-only" },
+    })
+  })
+
   it("round-trips a timeline event including memoryContent", async () => {
     await storage.appendTimelineEvent({
       userId: "user_1",
