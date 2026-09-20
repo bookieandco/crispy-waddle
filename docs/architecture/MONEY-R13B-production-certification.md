@@ -147,9 +147,11 @@ R13B is complete when:
 12. Money migration numbers are unique;
 13. legacy `verify:r13` invokes the hardened R13B gate.
 
-## Next
+## MONEY-FINAL follow-through
 
-After R13B, the next domain gap is **MONEY-METALS-01 — Precious Metals Reality
-Core**: turn the existing XAU/XAG/XPT/XPD asset-class declarations into a
-first-class spot/futures/venue/unit/purity/currency reality model before adding
-metals intelligence.
+The precious-metals gap recorded at R13B is now closed by **MONEY-METALS-01/02**.
+
+XAU/XAG/XPT/XPD now have first-class spot/futures, venue, unit, purity, currency,
+point-in-time reality and a separate research-intelligence layer. Metals remain
+research-only and gain no autonomous execution authority. See
+`MONEY-METALS-01-02-precious-metals.md`.

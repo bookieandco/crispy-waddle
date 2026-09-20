@@ -101,6 +101,10 @@ export * from './fx-market-reality.js';
 
 export * from './fx-intelligence-fusion.js';
 
+export * from './metals-market-reality.js';
+
+export * from './metals-intelligence-fusion.js';
+
 export * from './opportunity-outcome-truth-bridge.js';
 
 export * from './exact-money.js';
