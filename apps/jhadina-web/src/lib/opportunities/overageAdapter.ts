@@ -58,3 +58,72 @@ export function buildOverageOpportunity(candidate: OverageOpportunityCandidate):
 
   return { ...opportunity, fitScore: 50 }
 }
+
+
+export type RecoveryOpportunityHandoff = {
+  kind: "RecoveryOpportunityCandidate"
+  candidate: {
+    recoveryRecordId: string
+    sourceId: string | null
+    externalRecordId?: string | null
+    owner?: string | null
+    amount: number | null
+    currency?: string | null
+    assetType?: string | null
+    jurisdiction?: string | null
+    propertyReference?: string | null
+    sourceUrl?: string | null
+    evidence?: {
+      sourceName?: string | null
+      sourceUrl?: string | null
+      capturedAt?: string | null
+      rawRecordId?: string | null
+    }
+    verificationLevel?: string | null
+  }
+}
+
+export function buildOverageOpportunityFromHandoff(handoff: RecoveryOpportunityHandoff): Opportunity {
+  if (handoff.kind !== "RecoveryOpportunityCandidate") throw new Error("unsupported recovery handoff kind")
+  const candidate = handoff.candidate
+  if (!candidate.sourceId) throw new Error("recovery sourceId is required")
+  if (!candidate.recoveryRecordId) throw new Error("recoveryRecordId is required")
+  if (!candidate.owner) throw new Error("recovery owner is required")
+  if (candidate.amount === null || !Number.isFinite(candidate.amount) || candidate.amount < 0) {
+    throw new Error("recovery amount must be a finite non-negative number")
+  }
+
+  const sourceUrl = candidate.sourceUrl ?? candidate.evidence?.sourceUrl
+  if (!sourceUrl) throw new Error("recovery sourceUrl is required")
+
+  const opportunity = buildOverageOpportunity({
+    sourceKey: candidate.sourceId,
+    externalRecordId: candidate.recoveryRecordId,
+    sourceName: candidate.evidence?.sourceName ?? candidate.sourceId,
+    sourceUrl,
+    amount: candidate.amount,
+    currency: candidate.currency ?? "USD",
+    claimantName: candidate.owner,
+    propertyReference: candidate.propertyReference ?? undefined,
+    sourceConfidence: 1,
+    evidenceSummary: candidate.evidence?.rawRecordId
+      ? `OverageOS recovery record ${candidate.evidence.rawRecordId}.`
+      : undefined,
+    riskFlags: candidate.verificationLevel && candidate.verificationLevel !== "VERIFIED"
+      ? [`overage_verification_level:${candidate.verificationLevel}`]
+      : [],
+  })
+
+  return {
+    ...opportunity,
+    metadata: {
+      ...opportunity.metadata,
+      recoveryRecordId: candidate.recoveryRecordId,
+      externalRecordId: candidate.externalRecordId ?? null,
+      overageVerificationLevel: candidate.verificationLevel ?? "V0_UNVERIFIED",
+      assetType: candidate.assetType ?? null,
+      jurisdictionLabel: candidate.jurisdiction ?? null,
+      rawRecordId: candidate.evidence?.rawRecordId ?? null,
+    },
+  }
+}
