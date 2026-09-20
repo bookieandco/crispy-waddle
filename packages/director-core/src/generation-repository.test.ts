@@ -12,7 +12,7 @@ function task(overrides: Partial<GenerationTask> = {}): GenerationTask {
       projectId: 'project-1',
       modality: 'image',
       prompt: 'test',
-      model: { id: 'model-1', providerId: 'provider-1' },
+      model: { id: 'model-1', providerId: 'provider-1', name: 'Test Model', version: '1', modalities: ['image'], capabilities: ['text-to-image'] },
       parameters: {},
     },
     idempotencyKey: 'idem-1',

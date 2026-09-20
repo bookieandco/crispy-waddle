@@ -13,10 +13,11 @@ export type TimelineApproval = {
 };
 
 export function requestGenerativeApproval(timeline: EditableTimeline, region: GenerativeRegion, requestedBy: 'user' | 'jhadina' = 'user'): { timeline: EditableTimeline; approval: TimelineApproval } {
-  const approval: TimelineApproval = { id: crypto.randomUUID(), projectId: timeline.projectId, operation: 'generative-edit', regionId: region.id, status: 'pending', requestedBy, requestedAt: new Date().toISOString(), instruction: region.instruction, proposedTimelineVersion: timeline.versions.length + 1 };
+  const approval: TimelineApproval = { id: crypto.randomUUID(), projectId: timeline.projectId, operation: 'generative-edit', regionId: region.id, status: 'pending', requestedBy, requestedAt: new Date().toISOString(), instruction: region.instruction, proposedTimelineVersion: timeline.version + 1 };
   return { timeline, approval };
 }
 
 export function resolveGenerativeApproval(timeline: EditableTimeline, approval: TimelineApproval, decision: 'approved' | 'rejected'): TimelineApproval {
+  void timeline;
   return { ...approval, status: decision };
 }

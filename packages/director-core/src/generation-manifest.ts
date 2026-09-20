@@ -23,18 +23,8 @@ export type GenerationWorkflowManifest = {
   metadata?: Record<string, unknown>;
 };
 
-export type GeneratedAssetRecord = {
-  id: string;
-  generationJobId: string;
-  kind: 'image' | 'video' | 'audio' | '3d' | 'motion';
-  uri: string;
-  mimeType: string;
-  sha256?: string;
-  modelId: string;
-  workflowId?: string;
-  createdAt: string;
-  metadata?: Record<string, unknown>;
-};
+/** Compatibility export; the persisted asset contract has one canonical owner. */
+export type { GeneratedAssetRecord } from './generated-asset-resolver.js';
 
 export function validateWorkflowManifest(manifest: GenerationWorkflowManifest): void {
   if (!manifest.id || !manifest.version || !manifest.providerId) {

@@ -32,7 +32,7 @@ export type EditPlan = {
   metadata?: Record<string, unknown>;
 };
 
-export type GenerationJob = {
+export type EditGenerationJob = {
   id: string;
   editPlanId: string;
   operationId: string;
@@ -76,27 +76,12 @@ export function editPlanFromNotebook(notebook: CinematicNotebook, sourceId = not
     .filter((note) => note.startSeconds !== undefined || note.endSeconds !== undefined || note.kind === 'edit' || note.kind === 'transition')
     .map((note) => notebookNoteToOperation(note, sourceId));
 
-  return {
-    id: `${notebook.id}:edit-plan`,
-    title: notebook.title,
-    version: '1.0.0',
-    status: operations.length ? 'ready' : 'draft',
-    operations,
-  };
+  return { id: `${notebook.id}:edit-plan`, title: notebook.title, version: '1.0.0', status: operations.length ? 'ready' : 'draft', operations };
 }
 
 export function notebookNoteToOperation(note: CinematicNote, sourceId: string): EditOperation {
   const kind = noteKinds[note.kind] ?? inferOperationKind(note);
-  return {
-    id: `edit:${note.id}`,
-    sourceId,
-    kind,
-    startSeconds: note.startSeconds,
-    endSeconds: note.endSeconds,
-    intent: note.body,
-    parameters: { title: note.title, tags: note.tags, noteKind: note.kind },
-    referenceUris: note.frameUrl ? [note.frameUrl] : [],
-  };
+  return { id: `edit:${note.id}`, sourceId, kind, startSeconds: note.startSeconds, endSeconds: note.endSeconds, intent: note.body, parameters: { title: note.title, tags: note.tags, noteKind: note.kind }, referenceUris: note.frameUrl ? [note.frameUrl] : [] };
 }
 
 function inferOperationKind(note: CinematicNote): EditOperationKind {
@@ -109,24 +94,14 @@ function inferOperationKind(note: CinematicNote): EditOperationKind {
   return 'motion-overlay';
 }
 
-export function generationJobsFromEditPlan(plan: EditPlan): GenerationJob[] {
+export function generationJobsFromEditPlan(plan: EditPlan): EditGenerationJob[] {
   return plan.operations.map((operation) => ({
-    id: `generation:${operation.id}`,
-    editPlanId: plan.id,
-    operationId: operation.id,
-    kind: operation.kind,
-    sourceId: operation.sourceId,
-    instructions: operation.intent,
-    inputRefs: operation.referenceUris ?? [],
-    outputRefs: [],
-    status: 'queued',
-    metadata: operation.parameters,
+    id: `generation:${operation.id}`, editPlanId: plan.id, operationId: operation.id, kind: operation.kind, sourceId: operation.sourceId,
+    instructions: operation.intent, inputRefs: operation.referenceUris ?? [], outputRefs: [], status: 'queued', metadata: operation.parameters,
   }));
 }
 
 export function addGeneratedAsset(manifest: AssetManifest, asset: AssetManifestEntry): AssetManifest {
-  if (manifest.assets.some((existing) => existing.id === asset.id)) {
-    throw new Error(`Asset already registered: ${asset.id}`);
-  }
+  if (manifest.assets.some((existing) => existing.id === asset.id)) throw new Error(`Asset already registered: ${asset.id}`);
   return { ...manifest, assets: [...manifest.assets, structuredClone(asset)] };
 }

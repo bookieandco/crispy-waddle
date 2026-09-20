@@ -1,5 +1,5 @@
 import type { EditableTimeline, GenerativeRegion } from './timeline-model.js';
-import type { ActionExecutor, ActionHandler, ActionRequest, ActionPolicy } from '@jhadina/action-core';
+import type { ActionExecutor, ActionHandler, ActionRequest } from '@jhadina/action-core';
 
 export type TimelineMutation =
   | { operation: 'move-clip'; clipId: string; startSeconds: number }
