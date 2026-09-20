@@ -1,0 +1,3 @@
+export type SamSearchProfile={id:string;naicsCodes:string[];postedFrom:string;active:boolean;cursor?:string}
+export type SamDiscoverySchedule={profileId:string;batches:{naicsCode:string;postedFrom:string}[];dedupeKey:'notice_id';nextCursor?:string;automaticSubmissionAuthorized:false}
+export function planSamDiscovery(profile:SamSearchProfile,maxRequests:number):SamDiscoverySchedule{if(!Number.isInteger(maxRequests)||maxRequests<1)throw new Error('Request budget must be positive');const codes=[...new Set(profile.naicsCodes.map(x=>x.trim()).filter(Boolean))].slice(0,maxRequests);return{profileId:profile.id,batches:codes.map(naicsCode=>({naicsCode,postedFrom:profile.postedFrom})),dedupeKey:'notice_id',nextCursor:profile.cursor,automaticSubmissionAuthorized:false}}
