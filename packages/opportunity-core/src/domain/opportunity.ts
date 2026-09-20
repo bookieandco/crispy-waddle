@@ -92,6 +92,7 @@ export type Opportunity = {
   effortScore?: number
   riskFlags: string[]
   brokerability?: 'restricted' | 'low' | 'medium' | 'high' | 'unknown'
+  metadata?: Record<string, unknown>
   status: OpportunityStatus
   createdAt: string
   updatedAt: string
