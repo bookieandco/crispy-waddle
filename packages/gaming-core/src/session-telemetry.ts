@@ -81,14 +81,15 @@ export class GamingSessionMonitor {
     if(!snapshot.sessionId)throw new Error('Input delivery snapshot requires sessionId for telemetry');
     if(!Number.isFinite(capturedAtMs))throw new Error('capturedAtMs must be finite');
     const current=this.requireSession(snapshot.sessionId);
-    const stages=this.inputStages.get(snapshot.inputId)??{};
-    stages[snapshot.state]=snapshot.observedAtMs;this.inputStages.set(snapshot.inputId,stages);
+    const inputKey=`${snapshot.sessionId}:${snapshot.inputId}`;
+    const stages=this.inputStages.get(inputKey)??{};
+    stages[snapshot.state]=snapshot.observedAtMs;this.inputStages.set(inputKey,stages);
     const transportStartedAtMs=stages['transport-started'];
     const transportConfirmedAtMs=stages['transport-confirmed'];
     const runtimeDeliveredAtMs=stages['runtime-delivered'];
     const acknowledgedAtMs=stages.acknowledged;
     const deliveryUncertain=snapshot.state==='delivery-unknown';
-    if(deliveryUncertain)this.uncertainInputs.add(snapshot.inputId);
+    if(deliveryUncertain)this.uncertainInputs.add(inputKey);
 
     const latestInput:GamingInputTelemetry={
       inputId:snapshot.inputId,
