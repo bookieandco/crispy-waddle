@@ -8,6 +8,7 @@ on:
       - 'packages/jhadina-intelligence-core/src/emergency-communication-bridge*'
       - 'packages/spatial-intelligence-core/src/safety-context-reader*'
       - 'apps/jhadina-web/src/lib/safety/**'
+      - 'apps/jhadina-web/tsconfig.safety.json'
       - 'supabase/migrations/*safety*'
       - '.github/workflows/safety-core.yml'
   push:
@@ -18,6 +19,7 @@ on:
       - 'packages/jhadina-intelligence-core/src/emergency-communication-bridge*'
       - 'packages/spatial-intelligence-core/src/safety-context-reader*'
       - 'apps/jhadina-web/src/lib/safety/**'
+      - 'apps/jhadina-web/tsconfig.safety.json'
       - 'supabase/migrations/*safety*'
       - '.github/workflows/safety-core.yml'
 
@@ -54,4 +56,4 @@ jobs:
       - name: Test Safety spatial projection
         run: pnpm --filter @jhadina/spatial-intelligence-core exec vitest run src/safety-context-reader.test.ts
       - name: Type-check Jhadina web safety persistence
-        run: pnpm --filter @jhadina/jhadina-web type-check
+        run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.safety.json
