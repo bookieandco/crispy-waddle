@@ -82,10 +82,7 @@ export function deriveRealNiggaBehavior(
   const learnedDirectnessCalibration = acceptedDirectness
     ? clamp(acceptedDirectness.confidence * acceptedDirectness.stability)
     : 0;
-  const preferredInteractionModes = normalizeModes([
-    ...relationship.preferredInteractionModes,
-    ...(learnedDirectnessCalibration > 0 ? ['direct'] : []),
-  ]);
+  const preferredInteractionModes = normalizeModes(relationship.preferredInteractionModes);
   const prefersDirect = preferredInteractionModes.includes('direct');
   const prefersWarm = preferredInteractionModes.includes('warm');
 
