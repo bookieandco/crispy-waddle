@@ -52,4 +52,7 @@ jobs:
           test -f supabase/migrations/20260920172000_k_1_4_6h_i_research_execution_hardening.sql
           test -f supabase/migrations/20260920173000_k_1_4_7_knowledge_candidate_gate.sql
           test -f supabase/migrations/20260920174000_k_1_4_8_research_governance_reconciliation.sql
+          test -f supabase/migrations/20260920174100_k_1_4_9_pgcrypto_resolution.sql
           test -f supabase/migrations/20260920174200_k_1_4_10_plan_global_execution_sequence.sql
+          test -f supabase/migrations/20260920174300_k_1_4_10_fenced_evidence_capture.sql
+          test -f supabase/migrations/20260920174400_k_1_4_8_action_executor_receipt_bridge.sql
