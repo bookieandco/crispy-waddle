@@ -144,18 +144,22 @@ Provider/evidence/admission failures remain degraded/fail-closed and later succe
 
 ### GEV-PROD.FINAL
 
-**BLOCKED / FAIL-CLOSED.**
+**SOURCE CONFORMANCE AUDIT COMPLETE; PRODUCTION CERTIFICATION BLOCKED / FAIL-CLOSED.**
+
+**2026-09-20 FINAL continuation audit:** PROD.3 through PROD.8 have now been re-audited on the current source lineage. No additional Spatial source defect was identified in those gates: live-source provenance/fallback semantics, durable evidence→candidate→explicit admission, adversarial fail-closed behavior, privacy/licensing enforcement, cross-Jhadina intelligence-only boundaries, and telemetry/health/recovery instrumentation are present and preserve the governing invariants.
+
+The remaining blocker is upstream of those runtime certifications: PROD.1 cannot produce a current deployable lineage because Vercel's latest production attempt for main (`dpl_3X3hX96BUTbaod5SomvCngdybrRp`, commit `a9d403b25bd053264841c4f692b2dd34164c5551`) is `ERROR`. The previously established concrete build blocker is the shared pnpm lockfile regeneration requirement; it remains marked AUDIT/REPAIR and must be fixed by pnpm rather than by weakening frozen-lockfile behavior. Subsequent documentation commits are therefore not production-certified merely because their source audit passed.
 
 Do not freeze a PASS receipt until all of the following are tied to the same deployed Spatial production lineage:
 
-1. production alias on the audited/current Spatial lineage;
-2. `/api/spatial/health == READY`;
-3. live CCTV + aircraft + vessel + FIRMS verification with preserved provenance/time/fallback/licensing identity;
-4. a true live observation-to-explicit-Reality-admission receipt with rows verified in Supabase;
-5. adversarial fail-closed drills;
-6. live privacy/licensing enforcement;
-7. cross-Jhadina intelligence-only integration receipts;
-8. production telemetry and recovery receipts;
-9. final Spatial Conformance rerun on the deployed SHA.
+1. regenerate the shared lock with repository-pinned `pnpm@8.15.9`, prove `pnpm install --frozen-lockfile`, and deploy the current audited main lineage;
+2. confirm the production alias and `/api/spatial/health == READY` report that exact deployed SHA;
+3. verify live CCTV + aircraft + vessel + FIRMS provenance/time/fallback/licensing identity;
+4. produce a true live observation→durable evidence→candidate→explicit Reality-admission→SpatialContext receipt and verify matching Supabase rows;
+5. execute the PROD.5 adversarial fail-closed drills;
+6. capture live privacy/licensing policy-denial and database privilege enforcement receipts;
+7. capture cross-Jhadina intelligence-only boundary receipts;
+8. execute provider/database interruption and recovery drills with production telemetry tied to the SHA;
+9. rerun final Spatial Conformance against that same deployed SHA and freeze the certification receipt only if every required gate passes.
 
-No UNKNOWN or BLOCKED item may be promoted to PASS.
+No UNKNOWN, source-only PASS, or BLOCKED item may be promoted to production PASS.
