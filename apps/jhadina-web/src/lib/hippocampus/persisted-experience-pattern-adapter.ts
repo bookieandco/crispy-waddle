@@ -176,17 +176,21 @@ export class PersistedExperiencePatternAdapter {
       relatedEpisodes,
     )
     const memoryBackedPatterns = await this.patternPort.detect(input.experience, memories)
-    const approvedMemoryReasoningEventIds = new Set(
-      durableMemories
-        .filter((memory) => memory.status === "APPROVED")
-        .map((memory) => memory.reasoningEventId)
-        .filter((id): id is string => Boolean(id)),
-    )
+    const coveredEvidenceByTerm = new Map<string, Set<string>>()
+    for (const pattern of memoryBackedPatterns) {
+      if (!pattern.id.startsWith("recurrence:")) continue
+      const term = pattern.id.slice("recurrence:".length)
+      const ids = new Set(
+        [...pattern.evidence, ...pattern.contradictions]
+          .map((ref) => ref.id)
+          .filter((id) => id !== input.experience.id),
+      )
+      if (ids.size > 0) coveredEvidenceByTerm.set(term, ids)
+    }
     const episodeBackedPatterns = this.episodicPatterns.detect(
       input.experience,
-      relatedEpisodes.filter(
-        (episode) => !approvedMemoryReasoningEventIds.has(episode.episodeId),
-      ),
+      relatedEpisodes,
+      coveredEvidenceByTerm,
     )
     const patterns = [...memoryBackedPatterns, ...episodeBackedPatterns].sort(
       (left, right) => left.id.localeCompare(right.id),
