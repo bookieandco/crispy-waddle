@@ -1,0 +1,1 @@
+export interface CourtCalibrationCase{meanPointErrorFeet:number;confidence:number;}export function benchmarkNBACourtCalibration(x:readonly CourtCalibrationCase[]){return Object.freeze({sampleSize:x.length,meanPointErrorFeet:x.length?x.reduce((s,a)=>s+a.meanPointErrorFeet,0)/x.length:0,meanConfidence:x.length?x.reduce((s,a)=>s+a.confidence,0)/x.length:0});}
