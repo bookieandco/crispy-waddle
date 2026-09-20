@@ -3,8 +3,8 @@ import { useEffect,useState } from "react"
 import Link from "next/link"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 
-type Approval={actionId:string;domain:string;capability:string;state:"requested"|"executing"|"completed"|"denied"|"failed";updatedAt:string;evidence:{source:"action_audit";eventId:string;status:string;timestamp:string}[]}
-const label={requested:"Needs approval",executing:"Executing",completed:"Completed",denied:"Denied",failed:"Failed"} as const
+type Approval={actionId:string;domain:string;capability:string;state:"requested"|"executing"|"completed"|"denied"|"failed"|"recovery_required"|"reconciled"|"recovered";updatedAt:string;evidence:{source:"action_audit";eventId:string;status:string;timestamp:string}[]}
+const label={requested:"Needs approval",executing:"Executing",completed:"Completed",denied:"Denied",failed:"Failed",recovery_required:"Recovery required",reconciled:"Reconciled",recovered:"Recovered"} as const
 
 export default function ApprovalCenter(){
  const [actions,setActions]=useState<Approval[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState("")
@@ -13,7 +13,7 @@ export default function ApprovalCenter(){
  return <main style={{minHeight:"100vh",background:"var(--jh-bg)",color:"var(--jh-text)",padding:"42px 20px 120px"}}><div style={{maxWidth:900,margin:"0 auto"}}>
   <div style={{fontSize:11,letterSpacing:".2em",textTransform:"uppercase",color:"var(--jh-muted)"}}>Governance · evidence backed</div>
   <h1 style={{fontSize:"clamp(34px,7vw,54px)",letterSpacing:"-.04em",margin:"10px 0"}}>Approval Center</h1>
-  <p style={{maxWidth:680,color:"var(--jh-muted)",lineHeight:1.6}}>Each state below is projected from canonical durable evidence. Jhadina does not invent Approved, Verifying, Reconciled, or Recovered when the backing evidence cannot prove those transitions.</p>
+  <p style={{maxWidth:680,color:"var(--jh-muted)",lineHeight:1.6}}>Each state below is projected from canonical durable evidence. Recovery states are shown only when actor-scoped connector execution and reconciliation evidence proves them. Approved and Verifying remain unavailable until their backing evidence is universal.</p>
   {error&&<div role="alert" style={{marginTop:22,padding:16,border:"1px solid var(--jh-border)",borderRadius:"var(--jh-radius-md)",color:"var(--jh-danger)"}}>{error}</div>}
   <section style={{marginTop:32}}><div style={{display:"flex",justifyContent:"space-between"}}><h2>Needs you</h2><span>{loading?"—":pending.length}</span></div>
    {!loading&&!error&&pending.length===0&&<div style={{padding:20,border:"1px solid var(--jh-border)",borderRadius:"var(--jh-radius-md)",background:"var(--jh-surface)"}}>No approval requests are proven by the current durable projection.</div>}
