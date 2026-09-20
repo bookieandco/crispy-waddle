@@ -6,7 +6,7 @@ import type { EditableTimeline, TimelineClip, TimelineTrack, TimelineVersion, Tr
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
 
 type Clip = TimelineClip & { name: string; kind: 'video' | 'audio'; fade?: { fadeInSeconds: number; fadeOutSeconds: number; curve: FadeCurve } };
-type Track = TimelineTrack & { clips: Clip[] };
+type Track = Omit<TimelineTrack, 'clips'> & { clips: Clip[] };
 type Marker = { id: string; timeSeconds: number; label: string };
 type DragMode = 'move' | 'trim-start' | 'trim-end';
 type HistoryCommand = TimelineCommand | { type: 'undo'; targetVersionId?: string } | { type: 'redo'; targetVersionId: string };
