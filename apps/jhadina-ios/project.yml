@@ -6,6 +6,15 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
+schemes:
+  JhadinaSafety:
+    build:
+      targets:
+        JhadinaSafety: all
+        JhadinaSafetyTests: [test]
+    test:
+      targets:
+        - JhadinaSafetyTests
 targets:
   JhadinaSafety:
     type: application
