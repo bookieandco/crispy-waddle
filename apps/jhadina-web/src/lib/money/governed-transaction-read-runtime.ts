@@ -4,7 +4,7 @@ import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import { createMoneyAuditRpcClient } from "./durable-audit-ledger"
 import { createMoneyOwnershipResolver, type MoneyOwnershipResolver } from "./ownership-resolver"
-import { createMoneyPlaidProductionRegistry, PLAID_PROVIDER, type MoneyPlaidProductionRegistry } from "./production-provider"
+import { PLAID_PROVIDER, type MoneyPlaidProductionRegistry } from "./production-provider"
 
 export type GovernedTransactionRuntimeOverrides={identityVerifier?:JhadinaIdentityVerifier;supabase?:AuditRpcClient;providers?:MoneyPlaidProductionRegistry;ownershipResolver?:MoneyOwnershipResolver}
 function toActionIdentityVerifier(verifier:JhadinaIdentityVerifier):ActionIdentityVerifier{return {async verify(request){return verifier.verify({userId:request.userId})}}}
