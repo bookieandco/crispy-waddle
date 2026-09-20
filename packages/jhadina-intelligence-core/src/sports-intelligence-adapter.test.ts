@@ -1,0 +1,5 @@
+import{test}from'node:test';import assert from'node:assert/strict';import{SportsIntelligenceAdapter}from'./sports-intelligence-adapter.js';
+const req:any={actorId:'u',assetId:'a',evidence:[{id:'asset:a:frame:0'}],uncertainty:['occluded'],intent:'boxing match'};
+test('forwards bounded evidence to Sports intelligence ingress',async()=>{let seen:any;const a=new SportsIntelligenceAdapter({async ingest(i){seen=i;return{receiptId:'sports-r1',acceptedEvidenceIds:['asset:a:frame:0']}}});const r=await a.ingest(req);assert.equal(seen.assetId,'a');assert.equal(r.subsystem,'sports-intelligence');assert.equal(r.receiptId,'sports-r1')});
+test('rejects Sports ingress claiming unrelated evidence',async()=>{const a=new SportsIntelligenceAdapter({async ingest(){return{receiptId:'r',acceptedEvidenceIds:['asset:other:x']}}});await assert.rejects(()=>a.ingest(req),/EVIDENCE_NOT_BOUND/)});
+test('adapter exposes no betting or execution authority',()=>{const a:any=new SportsIntelligenceAdapter({} as any);assert.equal(a.placeBet,undefined);assert.equal(a.execute,undefined);assert.equal(a.approve,undefined)});
