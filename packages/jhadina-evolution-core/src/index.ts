@@ -10,3 +10,4 @@ export * from './visual-builder.js';
 export * from './opportunity-builder.js';
 export * from './project-executor.js';
 export * from './production-operator.js';
+export * from './builder-intelligence.js';
