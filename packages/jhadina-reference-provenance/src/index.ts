@@ -200,7 +200,9 @@ function hash(value: unknown): string {
     .digest('hex');
 }
 
-function uniqueSorted(values: readonly string[]): readonly string[] {
+function uniqueSorted<T extends string>(
+  values: readonly T[],
+): readonly T[] {
   return Object.freeze(
     [...new Set(values)].sort((a, b) => a.localeCompare(b)),
   );
@@ -399,7 +401,7 @@ export function buildReferenceMapping(
     targetPaths: uniqueSorted(input.targetPaths),
     borrowedArtifactKinds: uniqueSorted(
       input.borrowedArtifactKinds,
-    ) as readonly BorrowedArtifactKind[],
+    ),
     borrowedConcepts: uniqueSorted(input.borrowedConcepts),
     adaptationNotes: input.adaptationNotes,
     adoptionStatus: input.adoptionStatus,
