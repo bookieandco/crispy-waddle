@@ -15,6 +15,16 @@ pnpm --filter @jhadina/pupsonstuff build
 
 All four commands must pass on the exact commit being deployed.
 
+Then run the credential-safe environment/provider preflight from the app directory:
+
+```bash
+pnpm launch:preflight
+```
+
+The command reports presence and validity but never prints credential values. It
+must remain blocked at `catalog.samples` until the physical sample in step 5 has
+actually been received and inspected.
+
 ## Environment gate
 
 - Supabase migration `pupsonstuff_closeout_core` applied.
@@ -41,7 +51,7 @@ Checkout rejects inactive, missing, uncertified, non-Printify, or unapproved lin
 
 ## End-to-end test matrix
 
-1. Upload one photo and five photos; reject unsupported, corrupt, oversized, and under-512px files.
+1. Upload one photo and the supported multi-photo maximum; reject unsupported, corrupt, oversized, and under-512px files. Keep the shopper-facing recommendation at one or two strong photos rather than asking for five by default.
 2. Run deterministic ASCII generation without an AI key.
 3. Run one OpenAI and one Muapi generation with non-production credentials.
 4. Confirm originals, outputs, and print files are private and ownership scoped.

@@ -83,6 +83,8 @@ describe('PupsonStuff closeout contracts', () => {
     expect(migration).toContain('enable row level security');
     expect(migration).toContain('revoke all on table');
     expect(migration).toContain("'pupson-print-ready'");
+    expect(migration).toContain('PS-CLOSE cannot replace populated legacy table');
+    expect(migration).toContain("column_name = 'owner_token_hash'");
   });
 
   it('runs PupsonStuff CI on main pushes', () => {
@@ -91,5 +93,21 @@ describe('PupsonStuff closeout contracts', () => {
       'utf8'
     );
     expect(workflow).toMatch(/branches:\s*\n\s*- main/);
+  });
+
+  it('hardens legacy trigger functions and covers closeout foreign keys', () => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        '../../supabase/migrations/20260920141955_pupsonstuff_post_apply_hardening.sql'
+      ),
+      'utf8'
+    );
+    expect(migration).toContain(
+      'revoke all on function public.create_pupson_pod_job_for_creation() from public, anon, authenticated'
+    );
+    expect(migration).toContain("set search_path = ''");
+    expect(migration).toContain('pupson_order_items_creative_output_idx');
+    expect(migration).toContain('pupson_pet_identity_media_asset_idx');
   });
 });
