@@ -29,6 +29,7 @@ export class OverageOsIntelligenceAdapter implements SubsystemIntelligenceAdapte
   async ingest(input: SubsystemIntelligenceRequest): Promise<SubsystemIntelligenceResponse> {
     if (!input.assetRef) throw new Error("OVERAGE_INGRESS_ASSET_REFERENCE_REQUIRED");
     if (!input.mediaType) throw new Error("OVERAGE_INGRESS_MEDIA_TYPE_REQUIRED");
+    if (!input.contentSha256 || !/^[a-f0-9]{64}$/i.test(input.contentSha256)) throw new Error("OVERAGE_INGRESS_SHA256_REQUIRED");
     if (!input.evidence.length) throw new Error("OVERAGE_INGRESS_EVIDENCE_REQUIRED");
     const allowed = new Set(input.evidence.map((evidence) => evidence.id));
     const observedAt = input.evidence[0]?.observedAt ?? new Date().toISOString();
