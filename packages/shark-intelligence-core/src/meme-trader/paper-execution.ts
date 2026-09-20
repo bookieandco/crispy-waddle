@@ -252,6 +252,7 @@ export function applyPaperExitToPortfolio(
   exitFill: PaperFill,
 ): PaperPortfolio {
   if (!portfolio.positionIds.includes(position.positionId)) throw new Error('paper_portfolio_position_not_tracked')
+  if (!position.fillIds.includes(exitFill.fillId)) throw new Error('paper_portfolio_exit_fill_lineage_mismatch')
   const netProceeds = exitFill.grossQuoteAmount - exitFill.feeQuoteAmount
   nonNegative(netProceeds, 'exit_net_proceeds')
   return createPaperPortfolio({
