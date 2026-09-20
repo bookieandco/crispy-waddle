@@ -50,5 +50,8 @@ jobs:
       - name: Run REF-PROV-06 durable deployment certification
         run: pnpm --filter @jhadina/reference-provenance verify:ref-prov-06
 
+      - name: Run REF-PROV-07 session lifecycle certification
+        run: pnpm --filter @jhadina/reference-provenance verify:ref-prov-07
+
       - name: Build reference provenance
         run: pnpm --filter @jhadina/reference-provenance build
