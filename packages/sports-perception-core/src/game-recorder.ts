@@ -1,0 +1,1 @@
+import type {GameRecordingManifest} from './game-recording-manifest.js';export interface GameRecorder{start(gameId:string,sourceId:string,authorizationEvidenceId:string):Promise<GameRecordingManifest>;stop(recordingId:string):Promise<GameRecordingManifest>;}
