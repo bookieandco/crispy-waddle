@@ -68,7 +68,7 @@ const completed = applyResearchOutcome({
   evidenceIds: ["e2"],
 });
 if (completed.revision !== 1) throw new Error("Queue revision did not advance");
-if (completed.tasks.find((task) => task.id === "spectral")?.evidenceIds[1] !== "e2") {
+if (completed.tasks.find((task) => task.id === "spectral")?.evidenceIds[0] !== "e2") {
   throw new Error("Returned evidence was not attached to the task");
 }
 
