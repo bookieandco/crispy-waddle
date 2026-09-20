@@ -2,11 +2,25 @@
 -- Upload bytes remain private. Files are not admitted to the trusted asset graph
 -- until server-side MIME/type validation, hashing, and MediaSecurityScanner pass.
 
-insert into storage.buckets (id, name, public, file_size_limit)
-values ('jhadina-intake-private', 'jhadina-intake-private', false, 536870912)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'jhadina-intake-private',
+  'jhadina-intake-private',
+  false,
+  536870912,
+  array[
+    'image/jpeg','image/png','image/webp',
+    'video/mp4','video/quicktime','video/ogg',
+    'audio/mpeg','audio/wav','audio/x-wav','audio/ogg',
+    'application/pdf','text/markdown','text/csv','text/plain',
+    'application/json','application/javascript','text/javascript',
+    'application/typescript','text/typescript'
+  ]::text[]
+)
 on conflict (id) do update
 set public = false,
-    file_size_limit = excluded.file_size_limit;
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 create table if not exists public.jhadina_intelligence_assets (
   id text primary key,
