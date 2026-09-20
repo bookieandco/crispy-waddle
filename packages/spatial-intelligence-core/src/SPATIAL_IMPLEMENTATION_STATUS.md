@@ -35,21 +35,35 @@ The canonical evidence/reality boundary remains unchanged:
 
 The previous frozen-lockfile blocker has been source-repaired: the current `packages/jhadina-core-spine` importer in `pnpm-lock.yaml` matches its manifest. That repair is not treated as CI evidence by itself.
 
-Fresh Spatial Conformance evidence is now recorded: GitHub Actions run 159, job 106010250704 completed successfully after spatial type-check, 14/14 Vitest assertions, and 42/42 Node/TAP conformance tests. Repository-wide workflows may still expose unrelated subsystem failures; those remain separate from the spatial gate.
+Fresh Spatial Conformance evidence is recorded on the final P10 verification lineage: GitHub Actions run 168, job 106010467724 completed successfully after spatial type-check, 14/14 Vitest assertions, and 42/42 Node/TAP conformance tests. Repository-wide workflows may still expose unrelated subsystem failures; those remain separate from the spatial gate.
+
+## Live database verification
+
+The Jhadina Supabase production project now has the complete spatial persistence schema installed and verified:
+
+- `20260920030347_create_jhadina_spatial_evidence`
+- `20260920030358_create_jhadina_spatial_reality`
+- `20260920030403_create_jhadina_spatial_workspace_revisions`
+- `20260920030407_create_jhadina_knowledge_graph`
+- `20260920030454_harden_jhadina_spatial_append_only_privileges`
+- `20260920030535_harden_jhadina_spatial_trigger_search_path`
+
+All six spatial/knowledge tables have RLS enabled and a restrictive service-role policy. `anon` and `authenticated` have no direct table privileges. `service_role` is reduced to `SELECT, INSERT` only, closing UPDATE/DELETE/TRUNCATE append-only bypasses. The four spatial append-only trigger functions use `search_path=pg_catalog`, and the Supabase security advisor no longer reports spatial-specific search-path findings.
+
+A read-only `/api/spatial/health` production gate is implemented. It exposes only readiness booleans plus deployment identity; it does not expose provider URLs, credentials, database rows or upstream payloads.
 
 ## Remaining production evidence
 
 The following still require live/deployed verification and therefore remain UNKNOWN rather than PASS:
 
-1. GEV endpoint configuration/connectivity and live source health.
-2. Applying and verifying the new Supabase workspace/knowledge migrations in the deployed database.
-3. Live observation → durable evidence → claim → reality admission execution.
-4. Real-source temporal freshness/outage behavior.
-5. Multi-source corroboration with upstream-independence checks against production feeds.
-6. Deployed privacy/security checks and provider-term enforcement.
-7. Production telemetry, audit, recovery and operational monitoring.
-8. Vercel deployment while the account build-rate limit is active.
+1. GEV endpoint configuration/connectivity and live CCTV health from the deployed Jhadina runtime.
+2. Live observation → durable evidence → claim → reality admission execution.
+3. Real-source temporal freshness/outage behavior.
+4. Multi-source corroboration with upstream-independence checks against production feeds.
+5. Deployed provider-term/privacy enforcement across real upstream responses.
+6. Production telemetry, audit, recovery and operational monitoring.
+7. Vercel deployment of the current Spatial build while the account build-rate limit is active.
 
 ## Final gate rule
 
-SPATIAL/GEV source implementation is complete through P10, but production readiness remains **BLOCKED / FAIL-CLOSED** until the remaining runtime/deployment checks are independently verified. Architecture/source completion must never be used as a substitute for live evidence.
+SPATIAL/GEV source implementation and the production database gate are complete through P10, but production readiness remains **BLOCKED / FAIL-CLOSED** until the remaining provider/runtime/deployment checks are independently verified. Architecture/source completion must never be used as a substitute for live evidence.
