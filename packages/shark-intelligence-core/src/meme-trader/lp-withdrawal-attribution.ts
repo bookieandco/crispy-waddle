@@ -44,7 +44,8 @@ export function attributeLPWithdrawals(input: {
   lpMint?: string
   developerWalletIds?: string[]
 }): LPWithdrawalAttribution[] {
-  const lpEvents = input.lpEvents ?? (input.lpMint ? input.history.transactions.flatMap(tx => new SolanaLPStateMachine().decode(tx, input.history.pool, input.lpMint)) : [])
+  const lpMint = input.lpMint
+  const lpEvents = input.lpEvents ?? (lpMint ? input.history.transactions.flatMap(tx => new SolanaLPStateMachine().decode(tx, input.history.pool, lpMint)) : [])
   const developerWallets = new Set(input.developerWalletIds ?? [])
   return input.liquidityEvents
     .filter((event): event is LiquidityEventEvidence & { signature: string } => event.kind === 'LIQUIDITY_REMOVE' && typeof event.signature === 'string' && event.signature.length > 0)
