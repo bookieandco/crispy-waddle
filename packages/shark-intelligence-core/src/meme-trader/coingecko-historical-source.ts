@@ -3,6 +3,12 @@ import type { HistoricalCandle, HistoricalHolderPoint } from './historical-obser
 
 export type CoinGeckoHistoricalSourceOptions = { apiKey: string; baseUrl?: string; fetchImpl?: typeof fetch }
 
+const coinGeckoNetworkId = (chainId: string): string => {
+  if (chainId === 'solana-mainnet') return 'solana'
+  if (chainId === 'solana-devnet') throw new Error('CoinGecko historical source does not support solana-devnet')
+  return chainId
+}
+
 export class CoinGeckoHistoricalSource {
   private readonly baseUrl: string
   private readonly fetchImpl: typeof fetch
@@ -17,7 +23,7 @@ export class CoinGeckoHistoricalSource {
   async candles(launch: TokenLaunch, timeframe: 'hour' | 'day' = 'hour', aggregate = 1, beforeTimestamp?: number): Promise<HistoricalCandle[]> {
     const query = new URLSearchParams({ aggregate: String(aggregate), limit: '1000', currency: 'usd', include_empty_intervals: 'false' })
     if (beforeTimestamp) query.set('before_timestamp', String(beforeTimestamp))
-    const json = await this.get(`/onchain/networks/${encodeURIComponent(launch.chainId)}/tokens/${encodeURIComponent(launch.tokenAddress)}/ohlcv/${timeframe}?${query}`)
+    const json = await this.get(`/onchain/networks/${encodeURIComponent(coinGeckoNetworkId(launch.chainId))}/tokens/${encodeURIComponent(launch.tokenAddress)}/ohlcv/${timeframe}?${query}`)
     const rows = json?.data?.attributes?.ohlcv_list
     if (!Array.isArray(rows)) return []
     return rows.filter((r: unknown) => Array.isArray(r) && r.length >= 6).map((r: any[]) => ({

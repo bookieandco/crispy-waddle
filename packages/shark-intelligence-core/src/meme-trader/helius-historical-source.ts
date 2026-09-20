@@ -18,12 +18,15 @@ export class HeliusHistoricalSource {
 
   async deployerTransfers(launch: TokenLaunch): Promise<ActorMovement[]> {
     if (!launch.deployerWalletId) return []
-    const result = await this.rpc('getTransfersByAddress', [launch.deployerWalletId, { filters: { mint: launch.tokenAddress, blockTime: { gte: Math.floor(Date.parse(launch.launchedAt) / 1000) } }, limit: 100 }])
+    const result = await this.rpc('getTransfersByAddress', [launch.deployerWalletId, { mint: launch.tokenAddress, filters: { blockTime: { gte: Math.floor(Date.parse(launch.launchedAt) / 1000) }, status: 'succeeded' }, limit: 100 }])
     const rows = Array.isArray(result?.data) ? result.data : []
     return rows.map((row: any) => {
-      const direction = row.direction === 'out' ? 'TRANSFER_OUT' : row.direction === 'in' ? 'TRANSFER_IN' : 'TRANSFER_IN'
-      const timestamp = Number(row.timestamp ?? row.blockTime ?? 0) * (Number(row.timestamp ?? 0) > 10_000_000_000 ? 1 : 1000)
-      return { observedAt: new Date(timestamp || Date.parse(launch.launchedAt)).toISOString(), actorId: launch.deployerWalletId!, direction, amountUsd: Number(row.valueUsd ?? row.amountUsd ?? NaN), source: 'helius-transfers', evidenceId: `helius:transfer:${row.signature ?? row.txSignature ?? `${launch.launchId}:${timestamp}`}` }
-    })
+      const direction = row.fromUserAccount === launch.deployerWalletId ? 'TRANSFER_OUT' : row.toUserAccount === launch.deployerWalletId ? 'TRANSFER_IN' : undefined
+      if (!direction) return undefined
+      const seconds = Number(row.blockTime ?? 0)
+      const observedAt = Number.isFinite(seconds) && seconds > 0 ? new Date(seconds * 1000).toISOString() : launch.launchedAt
+      const tokenAmount = Number(row.tokenAmount ?? row.amount ?? NaN)
+      return { observedAt, actorId: launch.deployerWalletId!, direction, tokenAmount: Number.isFinite(tokenAmount) ? tokenAmount : undefined, source: 'helius-transfers', evidenceId: `helius:transfer:${row.signature ?? `${launch.launchId}:${seconds}`}` }
+    }).filter((movement: ActorMovement | undefined): movement is ActorMovement => movement !== undefined)
   }
 }
