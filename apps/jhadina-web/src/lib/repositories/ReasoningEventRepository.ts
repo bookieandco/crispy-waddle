@@ -29,6 +29,11 @@ export class ReasoningEventRepository {
     systemResponse: string
     confidence: number
     candidateId?: string
+    actor?: ReasoningEvent["actor"]
+    outcome?: string
+    correlationId?: string
+    causationId?: string
+    metadata?: Record<string, unknown>
   }): Promise<ReasoningEvent> {
     const event = await this.storage.createReasoningEvent({
       userId: params.userId,
@@ -39,6 +44,11 @@ export class ReasoningEventRepository {
       systemResponse: params.systemResponse,
       confidence: params.confidence,
       candidateId: params.candidateId,
+      actor: params.actor,
+      outcome: params.outcome,
+      correlationId: params.correlationId,
+      causationId: params.causationId,
+      metadata: params.metadata,
     })
 
     return event
