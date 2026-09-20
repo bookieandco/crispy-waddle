@@ -398,15 +398,34 @@ the real build's route manifest.
 
 ### JH-012
 **Priority:** P2
-**Status:** ACTIVE
+**Status:** DONE
 **Program:** INTCOM.2-3 — passive observation provider + first Shodan adapter.
-**Branch:** new reconstruction from current main; no historical implementation exists.
-**Objective:** Add provider-neutral passive-observation contracts, then a read-only Shodan adapter for host/InternetDB/DNS/search/history observations. Observations are evidence, not conclusions; no active scanning, exploitation, mutation, or autonomous target selection.
+**Branch:** `fix/jh012-observation-closure` (PR #355, merged `8c756cc242c83786460d228a0097f0d5008188ab`).
+**Objective:** Provider-neutral passive-observation contracts plus a read-only Shodan adapter for host/InternetDB/DNS/search/history observations. Observations are evidence, not conclusions; no active scanning, exploitation, mutation, or autonomous target selection.
 **Dependencies:** JH-001, JH-002, JH-042
 **Human decision (2026-09-19):** Combine JH-042/JH-012/JH-013 under the Jhadina Intelligence & Communications Loop while preserving separate capability boundaries. Shodan is the first passive observation adapter, not an agent or execution authority.
-**Definition of Done:** Provider-neutral observation contract is governed/evidence-bearing; Shodan adapter cannot exceed the declared read-only capabilities; evidence/provenance can enter the existing intelligence/activity path; tests prove unsupported/mutating operations fail closed.
-**Progress (2026-09-19):** INTCOM.2A provider-neutral `ObservationEnvelope` added to `@jhadina/intelligence-core` with source capability/version, provenance/evidence refs, freshness/limitations, and explicit `trustEffect: NONE` / `authorizationEffect: NONE`. Contract is provider-neutral and contains no Shodan credentials or response types. Tests added for normalization and fail-closed required metadata.\n**Progress (2026-09-19):** INTCOM.2B adds a credential/network-agnostic `ShodanReadOnlyAdapter` with an explicit allowlist for host/InternetDB/DNS/search/history reads. Unsupported capabilities fail before transport; mutation execution always fails closed. Returned data is wrapped in canonical `ObservationEnvelope` with no trust or authorization effect.\n**Progress (2026-09-19):** INTCOM.2C adds an injected Shodan HTTP transport with credential-provider boundary and only the existing read allowlist, plus `appendObservationEvidence()` to write observation metadata/provenance/limitations into the canonical ActionLedger. No second evidence ledger is introduced. InternetDB remains credential-free; other reads obtain credentials only through the injected provider.\n**Progress (2026-09-19):** INTCOM.2D composes request identity verification -> read-only Shodan transport/adapter -> canonical ObservationEnvelope -> existing durable intelligence ActionLedger. A test verifies the actor-scoped event is written as `observation.shodan.host.read`, retains no trust effect, and does not serialize the credential. Also repairs the missing declared `@jhadina/action-core` dependency introduced by INTCOM.2C. Activity already projects the `intelligence` domain, so the observation event uses the existing read-side without adding a domain/store.\n**Progress (2026-09-19):** INTCOM.2E adds a server-only POST boundary for Shodan passive observations. It requires a claimed actor, validates observation/subject IDs, allowlists only the five read capabilities, and delegates to the request-scoped governed runtime; no mutation/scan route exists.\n**Verification (2026-09-19):** Jhadina Launch Gate and Spatial Conformance were executed after INTCOM.2E and are red for pre-existing/cross-subsystem blockers outside the Shodan/INTCOM slice. Marked for AUDIT/REPAIR: (1) `packages/jhadina-core-spine/src/learning-record.test.ts` cannot resolve `vitest` and `./learning-record.js`; (2) `apps/jhadina-agent-runtime/src/execution/SkillCapabilityToken.ts` has TypeScript syntax errors; (3) `packages/music-core/src/restoration-engine/native-plugin-ipc.test.ts` has a TypeScript syntax error. `@jhadina/intelligence-core` itself reached type-check without a reported error before the workspace gate stopped.\n**Audit/repair disposition:** These blockers are recorded for their owning subsystems and do not expand JH-012 into unrelated repair work. JH-012 remains ACTIVE pending a clean targeted/full verification pass.\n**Next Step:** Continue INTCOM contract work without claiming JH-012 DONE; repair the recorded CI blockers in their owning audit/repair passes, then rerun closure verification.
-**Handoff audit (2026-09-19):** Expanded against prior Communications/Homebase requirements. Observation evidence must not confer trust/authorization. Subsequent JH-013 work must preserve endpoint vs transport/gateway identity, explicit trust states, correlation lineage, inbound replay/dedup normalization, encrypted store-and-forward/offline reconciliation, and canonical durable delivery evidence. See `docs/JHADINA_INTCOM_ARCHITECTURE.md`.
+**Definition of Done:** Met. Provider-neutral observation contracts are evidence-bearing; the Shodan adapter is allowlisted to five passive reads; HTTP is explicitly GET-only; unsupported/mutating capabilities fail closed before transport; session-verified identity is authoritative; provenance timestamps and credential-free source references are preserved; provider payload is excluded from canonical audit metadata; evidence enters the existing intelligence ActionLedger/Activity projection with `trustEffect: NONE` and `authorizationEffect: NONE`.
+
+**Final audit/repair (2026-09-20):**
+- Made authenticated session claims authoritative at the API/runtime boundary. Optional `x-jhadina-user-id` is only a consistency assertion; a forged mismatch fails before network access.
+- Centralized request parsing on the canonical Shodan read-capability allowlist and rejects scan/write/exploit/unknown operations.
+- Made the HTTP transport explicitly `GET`-only for host, InternetDB, DNS, search and history.
+- Added provenance timestamp validation and stable credential-free `sourceRef`/evidence references.
+- Added evidence tests proving provider payload is not serialized into the canonical audit ledger while actor/source/provenance/trust/authorization metadata is retained.
+- Extended the targeted INTCOM CI gate to exercise the governed web observation boundary in addition to intelligence-core verification.
+
+**Verification (real GitHub Actions, PR #355, 2026-09-20):**
+- INTCOM Core run 35515863560: SUCCESS.
+- `@jhadina/intelligence-core` type-check: SUCCESS.
+- `@jhadina/intelligence-core` tests: 54/54 PASS, 0 failures.
+- Governed observation web boundary: 6/6 PASS across 2 files.
+- Spatial Conformance run 35515863536: SUCCESS.
+- Staffing Postgres Integration run 35515863532: SUCCESS.
+- Repo-wide Launch Gate run 35515863566 remains red in unrelated `@jhadina/director-core#type-check`; `@jhadina/intelligence-core` is not the failing package. This remains separate workspace audit/repair debt.
+
+**Architectural impact:** The passive observation chain is now `authenticated session -> fail-closed passive request -> GET-only provider adapter -> ObservationEnvelope -> canonical intelligence ActionLedger -> Activity`. Observation data cannot grant identity, trust, authorization, or execution authority. JH-013 communications remains separately governed through ActionExecutor.
+
+**Next Step:** None for JH-012 — complete. Continue the canonical queue; unrelated Director Core Launch Gate debt remains marked for its owning audit/repair pass.
 
 ### JH-013
 **Priority:** P2
