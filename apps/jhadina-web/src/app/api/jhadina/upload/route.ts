@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
       message.includes("MEDIA_SCANNER_HTTP_") ? 502 :
       message.includes("UPLOAD_TOO_LARGE") ? 413 :
       message.includes("UPLOAD_TYPE_MISMATCH_OR_UNSUPPORTED") ? 415 :
+      message.includes("SUBSYSTEM_SELECTION_REQUIRED") ? 409 :
       message.includes("MEDIA_SECURITY_QUARANTINE") ||
       message.includes("MEDIA_SECURITY_NEEDS_REVIEW") ||
       message.includes("MEDIA_SECURITY_REJECTED") ? 422 :
