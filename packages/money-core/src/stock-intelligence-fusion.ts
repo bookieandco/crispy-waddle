@@ -404,7 +404,23 @@ export function buildRatioFactorObservation(input: Readonly<{
   }
   const value = input.numerator / input.denominator;
   assertFinite(value, 'MONEY_STOCK_FACTOR_RATIO_INVALID');
-  return Object.freeze({ ...input, value });
+  return Object.freeze({
+    factorId: input.factorId,
+    instrumentId: input.instrumentId,
+    issuerId: input.issuerId,
+    category: input.category,
+    name: input.name,
+    value,
+    unit: input.unit,
+    directionalScore: input.directionalScore,
+    informationCutoff: input.informationCutoff,
+    sourceMetricIds: Object.freeze([...input.sourceMetricIds]),
+    sourceMarketEvidenceRefs: Object.freeze([...input.sourceMarketEvidenceRefs]),
+    sourceBenchmarkIds: Object.freeze([...input.sourceBenchmarkIds]),
+    methodologyVersion: input.methodologyVersion,
+    evidenceRefs: Object.freeze([...input.evidenceRefs]),
+    provenanceHash: input.provenanceHash,
+  });
 }
 
 function assertFactorObservation(
@@ -603,24 +619,22 @@ function assertForecastScenario(scenario: StockForecastScenario): void {
 function assertScenarioRangesDoNotOverlap(
   scenarios: readonly StockForecastScenario[],
 ): void {
-  const bounded = scenarios
-    .filter(
-      (
-        scenario,
-      ): scenario is StockForecastScenario & {
-        minReturnInclusive: number;
-        maxReturnExclusive: number;
-      } =>
-        scenario.minReturnInclusive !== undefined &&
-        scenario.maxReturnExclusive !== undefined,
-    )
-    .sort((a, b) => a.minReturnInclusive - b.minReturnInclusive);
+  const intervals = scenarios
+    .map((scenario) => ({
+      scenarioId: scenario.scenarioId,
+      min:
+        scenario.minReturnInclusive === undefined
+          ? Number.NEGATIVE_INFINITY
+          : scenario.minReturnInclusive,
+      max:
+        scenario.maxReturnExclusive === undefined
+          ? Number.POSITIVE_INFINITY
+          : scenario.maxReturnExclusive,
+    }))
+    .sort((a, b) => a.min - b.min);
 
-  for (let index = 1; index < bounded.length; index += 1) {
-    if (
-      bounded[index]!.minReturnInclusive <
-      bounded[index - 1]!.maxReturnExclusive
-    ) {
+  for (let index = 1; index < intervals.length; index += 1) {
+    if (intervals[index]!.min < intervals[index - 1]!.max) {
       throw new Error('MONEY_STOCK_FORECAST_SCENARIO_RANGES_OVERLAP');
     }
   }
@@ -757,7 +771,7 @@ export function buildStockRiskAssessment(
   }
   if (
     input.downsideEstimate !== undefined &&
-    !Number.isFinite(input.downsideEstimate)
+    (!Number.isFinite(input.downsideEstimate) || input.downsideEstimate > 0)
   ) {
     throw new Error('MONEY_STOCK_RISK_DOWNSIDE_INVALID');
   }
@@ -812,7 +826,17 @@ export function buildStockIntelligenceSnapshot(
   assertNonEmpty(input.requestedBy, 'MONEY_STOCK_INTELLIGENCE_REQUESTER_REQUIRED');
   assertNonEmpty(input.intelligenceId, 'MONEY_STOCK_INTELLIGENCE_ID_REQUIRED');
   assertNonEmpty(input.provenanceHash, 'MONEY_STOCK_INTELLIGENCE_PROVENANCE_REQUIRED');
-  parseTimestamp(input.createdAt, 'MONEY_STOCK_INTELLIGENCE_CREATED_AT_INVALID');
+  const createdAt = parseTimestamp(
+    input.createdAt,
+    'MONEY_STOCK_INTELLIGENCE_CREATED_AT_INVALID',
+  );
+  const cutoff = parseTimestamp(
+    input.factorSet.informationCutoff,
+    'MONEY_STOCK_INTELLIGENCE_CUTOFF_INVALID',
+  );
+  if (createdAt < cutoff) {
+    throw new Error('MONEY_STOCK_INTELLIGENCE_CREATED_BEFORE_CUTOFF');
+  }
 
   if (
     input.factorSet.instrumentId !== input.forecast.instrumentId ||
