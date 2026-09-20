@@ -31,6 +31,10 @@ export type MeteoraDlmmLiquidityDelta = Readonly<{
   upperBinId: number
   tokenXDelta: bigint
   tokenYDelta: bigint
+  grossAddedX: bigint
+  grossAddedY: bigint
+  grossRemovedX: bigint
+  grossRemovedY: bigint
 }>
 
 function total(position: MeteoraDlmmPositionEvidence, side: 'amountX' | 'amountY'): bigint {
@@ -43,8 +47,11 @@ export function createMeteoraDlmmPositionEvidence(
   if (input.programId && input.programId !== METEORA_DLMM_PROGRAM_ID) throw new Error('Unexpected Meteora DLMM program owner')
   if (!input.evidenceId || !input.lbPair || !input.position || !input.owner) throw new Error('Incomplete Meteora DLMM evidence')
   if (!Number.isInteger(input.lowerBinId) || !Number.isInteger(input.upperBinId) || input.lowerBinId > input.upperBinId) throw new Error('Invalid Meteora DLMM bin range')
+  const seenBins = new Set<number>()
   for (const bin of input.bins) {
     if (!Number.isInteger(bin.binId) || bin.binId < input.lowerBinId || bin.binId > input.upperBinId) throw new Error('Meteora DLMM bin outside position range')
+    if (seenBins.has(bin.binId)) throw new Error('Duplicate Meteora DLMM bin evidence')
+    seenBins.add(bin.binId)
     if (bin.amountX < 0n || bin.amountY < 0n) throw new Error('Negative Meteora DLMM bin amount')
   }
   return Object.freeze({ ...input, programId: METEORA_DLMM_PROGRAM_ID, bins: Object.freeze(input.bins.map(bin => Object.freeze({ ...bin }))) })
@@ -63,10 +70,34 @@ export function reconcileMeteoraDlmmPosition(
   if (before.lbPair !== after.lbPair || before.position !== after.position || before.owner !== after.owner) throw new Error('Meteora DLMM position identity mismatch')
   const x = total(after, 'amountX') - total(before, 'amountX')
   const y = total(after, 'amountY') - total(before, 'amountY')
+  const beforeBins = new Map(before.bins.map(bin => [bin.binId, bin]))
+  const afterBins = new Map(after.bins.map(bin => [bin.binId, bin]))
+  const binIds = new Set([...beforeBins.keys(), ...afterBins.keys()])
+  let grossAddedX = 0n; let grossAddedY = 0n; let grossRemovedX = 0n; let grossRemovedY = 0n
+  for (const binId of binIds) {
+    const prior = beforeBins.get(binId)
+    const next = afterBins.get(binId)
+    const dx = (next?.amountX ?? 0n) - (prior?.amountX ?? 0n)
+    const dy = (next?.amountY ?? 0n) - (prior?.amountY ?? 0n)
+    if (dx > 0n) grossAddedX += dx
+    if (dx < 0n) grossRemovedX += -dx
+    if (dy > 0n) grossAddedY += dy
+    if (dy < 0n) grossRemovedY += -dy
+  }
+
   const rangeChanged = before.lowerBinId !== after.lowerBinId || before.upperBinId !== after.upperBinId
-  const increased = x > 0n || y > 0n
-  const decreased = x < 0n || y < 0n
-  const kind = rangeChanged && (increased || decreased) ? 'REBALANCE' : increased && !decreased ? 'LIQUIDITY_ADD' : decreased && !increased ? 'LIQUIDITY_REMOVE' : 'UNKNOWN'
+  const hasGrossAdd = grossAddedX > 0n || grossAddedY > 0n
+  const hasGrossRemove = grossRemovedX > 0n || grossRemovedY > 0n
+  const pureAdd = hasGrossAdd && !hasGrossRemove
+  const pureRemove = hasGrossRemove && !hasGrossAdd
+  // Any simultaneous per-bin add/remove is a range movement until transaction
+  // evidence proves an actual withdrawal. Net token deltas alone cannot safely
+  // distinguish a rebalance from adversarial liquidity extraction.
+  const kind = (rangeChanged || (hasGrossAdd && hasGrossRemove))
+    ? 'REBALANCE'
+    : pureAdd ? 'LIQUIDITY_ADD'
+      : pureRemove ? 'LIQUIDITY_REMOVE'
+        : 'UNKNOWN'
   return Object.freeze({
     evidenceId,
     observedAt: after.observedAt,
@@ -79,5 +110,9 @@ export function reconcileMeteoraDlmmPosition(
     upperBinId: after.upperBinId,
     tokenXDelta: x,
     tokenYDelta: y,
+    grossAddedX,
+    grossAddedY,
+    grossRemovedX,
+    grossRemovedY,
   })
 }
