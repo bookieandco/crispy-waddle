@@ -25,8 +25,8 @@ describe('Bayesian pattern assessment', () => {
 
     assert.equal(result.patternId, 'pattern-1');
     assert.equal(result.posteriorAlpha, 3.4);
-    assert.equal(result.posteriorBeta, 1.6);
-    assert.equal(result.confidence, 0.68);
+    assert.equal(result.posteriorBeta, 1.1);
+    assert.equal(result.confidence, 34 / 45);
     assert.equal(result.evidenceCount, 2);
     assert.equal(result.eligibleForPersonality, true);
     assert.deepEqual(pattern, before);
