@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState } from "react"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 
@@ -34,9 +35,9 @@ export default function ActivityPage() {
   return (
     <main style={{ minHeight: "100vh", padding: "28px 18px 110px" }}>
       <div style={{ maxWidth: 760, margin: "0 auto" }}>
-        <a href="/">← Jhadina</a>
+        <Link href="/">← Jhadina</Link>
         <h1>Activity & Audit</h1>
-        <p>Verified activity from Jhadina's existing governed audit ledger.</p>
+        <p>Verified activity from Jhadina&apos;s existing governed audit ledger.</p>
         {error && <p role="alert">{error}</p>}
         {!error && events.length === 0 && <p>No governed activity recorded yet.</p>}
         {events.map((event) => (
