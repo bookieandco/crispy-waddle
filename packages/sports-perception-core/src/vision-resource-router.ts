@@ -1,0 +1,1 @@
+import type {VisionCompute} from './vision-model-runtime.js';export interface VisionResourceState{gpuAvailable:boolean;gpuLoad:number;remoteAllowed:boolean;latencySensitive:boolean;}export function routeVisionCompute(s:VisionResourceState):VisionCompute{if(s.gpuAvailable&&s.gpuLoad<.85)return'GPU';if(!s.latencySensitive&&s.remoteAllowed)return'REMOTE';return'CPU';}
