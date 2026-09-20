@@ -53,6 +53,7 @@ export async function persistSharkLaunch(client: SupabaseClient, collection: Sol
       actor_id: actor.id.replace(/^(wallet|developer|organization|cluster):/, ''),
       actor_kind: actor.kind,
       role: edge.relation,
+      confidence: edge.confidence,
       observed_at: edge.observedAt,
       evidence_ids: edge.evidenceIds,
     }]
@@ -61,7 +62,7 @@ export async function persistSharkLaunch(client: SupabaseClient, collection: Sol
     const edgeIds = edges.map(edge => edge.edge_id)
     const { data: existingEdges, error: edgeLookupError } = await client
       .from('jhadina_token_actor_edges')
-      .select('edge_id,evidence_ids,observed_at')
+      .select('edge_id,evidence_ids,observed_at,confidence')
       .in('edge_id', edgeIds)
     if (edgeLookupError) throw new Error(`SHARK actor-edge lookup failed: ${edgeLookupError.message}`)
 
@@ -73,6 +74,7 @@ export async function persistSharkLaunch(client: SupabaseClient, collection: Sol
         observed_at: prior?.observed_at && Date.parse(prior.observed_at) <= Date.parse(edge.observed_at)
           ? prior.observed_at
           : edge.observed_at,
+        confidence: Math.max(prior?.confidence ?? 0, edge.confidence),
         evidence_ids: [...new Set([...(prior?.evidence_ids ?? []), ...edge.evidence_ids])],
       }
     })
