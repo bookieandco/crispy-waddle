@@ -33,3 +33,5 @@ export * from './emergency-scenarios.js';
 export * from './emergency-scenario-tests.js';
 
 export * from './communication-directness-pattern.js';
+
+export * from './communication-concision-pattern.js';
