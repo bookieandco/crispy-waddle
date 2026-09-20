@@ -323,6 +323,10 @@ importers:
         version: 5.9.3
 
   packages/music-core:
+    dependencies:
+      '@jhadina/intelligence-core':
+        specifier: workspace:*
+        version: link:../jhadina-intelligence-core
     devDependencies:
       typescript:
         specifier: ^5.1.0
