@@ -9,10 +9,10 @@ export class EvidenceBoundProposalVerifier implements IntelligenceProposalVerifi
   const unknown=proposal.evidence.map(r=>r.id).filter(id=>!canonical.has(id));
   if(unknown.length){
    const ids=[...new Set(unknown)].sort();
-   if((this.options.unknownEvidenceBehavior??'reject')==='defer') return Object.freeze({...proposal,disposition:'DEFER',evidence:Object.freeze(proposal.evidence.filter(r=>canonical.has(r.id)).map(r=>canonical.get(r.id)!)),uncertainty:Object.freeze([...proposal.uncertainty,`Unverified evidence references: ${ids.join(', ')}`])});
+   if((this.options.unknownEvidenceBehavior??'reject')==='defer') return Object.freeze({...proposal,disposition:'DEFER',evidence:proposal.evidence.filter(r=>canonical.has(r.id)).map(r=>canonical.get(r.id)!),uncertainty:[...proposal.uncertainty,`Unverified evidence references: ${ids.join(', ')}`]});
    throw new EvidenceVerificationError('unknown_evidence',ids.join(','));
   }
-  return Object.freeze({...proposal,evidence:Object.freeze(proposal.evidence.map(r=>canonical.get(r.id)!)),uncertainty:Object.freeze([...proposal.uncertainty]),alternatives:Object.freeze([...proposal.alternatives])});
+  return Object.freeze({...proposal,evidence:proposal.evidence.map(r=>canonical.get(r.id)!),uncertainty:[...proposal.uncertainty],alternatives:[...proposal.alternatives]});
  }
 }
 function indexEvidence(context:CompiledIntelligenceContext):Map<string,EvidenceRef>{
