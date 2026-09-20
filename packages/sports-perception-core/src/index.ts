@@ -66,6 +66,8 @@ export * from './nba-calibration-benchmark.js';
 export * from './nba-canonical-ledger.js';
 export * from './nba-clock-accuracy.js';
 export * from './nba-clock.js';
+export * from './nba-coco-baseline-plan.js';
+export * from './nba-coco-dataset-audit.js';
 export * from './nba-commissioning-certification.js';
 export * from './nba-commissioning-trial.js';
 export * from './nba-court-calibration-benchmark.js';
