@@ -129,10 +129,11 @@ export function toOpportunityView(stored: StoredCanonicalOpportunity): Opportuni
     requiresUserApproval: metadata.requiresUserApproval !== false,
     verificationStatus,
     sourceConfidence: opportunity.sourceConfidence,
-    status: ["approved", "pursuing", "won", "lost"].includes(opportunity.status) ? "approved" : "new",
+    status: stored.approvedAt || ["approved", "pursuing", "won", "lost"].includes(opportunity.status) ? "approved" : "new",
     triageState: stored.triageState,
     createdAt: opportunity.createdAt,
     approvedAt: stored.approvedAt,
+    researchCaseId: stored.researchCaseId,
   }
 }
 
