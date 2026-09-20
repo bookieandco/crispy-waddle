@@ -1,0 +1,2 @@
+import type { TacticalPattern } from './tactical-pattern-engine.js';export interface TacticalChange{patternId:string;changed:boolean;delta:number;confidence:number;}
+export function detectTacticalChange(previous:TacticalPattern|undefined,current:TacticalPattern,threshold=.2):TacticalChange{const old=previous?.confidence??0,delta=current.confidence-old;return Object.freeze({patternId:current.patternId,changed:Boolean(previous)&&Math.abs(delta)>=threshold,delta,confidence:current.confidence});}
