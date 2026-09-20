@@ -117,6 +117,49 @@ describe('JhadinaTV production contracts', () => {
     await expect(registry.search({ query: 'x', providers: ['two'] })).resolves.toEqual([{ providerId: 'two', title: title('beta') }]);
   });
 
+  it('resolves a provider asset into canonical episode identity', async () => {
+    const registry = new CatalogRegistry();
+    const getSources = vi.fn(async (providerMediaId: string) => [
+      { id: 'stream-77', titleId: providerMediaId, kind: 'hls' as const, url: 'https://media.example/77.m3u8' },
+    ]);
+    registry.register({
+      id: 'one',
+      name: 'one',
+      sourceAdapter: {
+        id: 'one',
+        name: 'one',
+        search: async () => [],
+        getSources,
+        getSourcesForMedia: async ({ mediaId, providerMediaId }) =>
+          (await getSources(providerMediaId ?? mediaId)).map((source) => ({ ...source, titleId: mediaId })),
+      },
+      search: async () => [],
+    });
+    const [resolved] = await registry.resolveMediaSources('one', {
+      mediaId: 'series-alpha:s2:e3',
+      providerMediaId: 'asset-77',
+    });
+    expect(getSources).toHaveBeenCalledWith('asset-77');
+    expect(resolved?.source.titleId).toBe('series-alpha:s2:e3');
+  });
+
+  it('keeps legacy source resolution working through canonical resolution', async () => {
+    const registry = new CatalogRegistry();
+    registry.register({
+      id: 'legacy',
+      name: 'legacy',
+      sourceAdapter: {
+        id: 'legacy',
+        name: 'legacy',
+        search: async () => [],
+        getSources: async (titleId) => [{ id: 's', titleId, kind: 'hls', url: 'https://media.example/legacy.m3u8' }],
+      },
+      search: async () => [],
+    });
+    const [resolved] = await registry.resolveSources('legacy', 'legacy-title');
+    expect(resolved?.source.titleId).toBe('legacy-title');
+  });
+
   it('rejects unknown source providers', async () => {
     const registry = new CatalogRegistry();
     await expect(registry.resolveSources('missing', 'alpha')).rejects.toThrow(/Unknown/);
