@@ -18,7 +18,7 @@ function repository(overrides:any = {}) {
     async retry(input:any){return {...claimed,status:"retry_wait",lastError:input.error,availableAt:input.availableAt}},
     async fail(input:any){return {...claimed,status:"failed",lastError:input.error}},
     async enqueue(){return claimed},
-    async requeueWithIntent(){return claimed},
+    async requeueWithSelection(){return claimed},
     async get(){return claimed},
     ...overrides,
   } as any;
@@ -96,5 +96,33 @@ describe("PerceptionJobWorker", () => {
     expect(out.state).toBe("failed");
     expect(failed).toBe(true);
     expect(retried).toBe(false);
+  });
+  it("dispatches only explicitly selected subsystems after human selection", async () => {
+    const selectedJob = {
+      ...claimed,
+      selectedSubsystems: ["sports-intelligence"] as const,
+    };
+    let routes:any[] = [];
+    const worker = new PerceptionJobWorker(
+      repository({ async claimNext(){return selectedJob} }),
+      { async get(){return asset} },
+      { async process(){return {
+        asset,evidence:[],uncertainty:[],
+        routing:{
+          assetId:"a",
+          routes:[
+            {subsystem:"sports-intelligence",reason:"sports",confidence:.9},
+            {subsystem:"director-studio",reason:"film",confidence:.9},
+          ],
+          requiresHumanSelection:true,
+        },
+      } as any} },
+      { async dispatch(packet:any){routes=packet.routing.routes;return{assetId:"a",responses:[],skipped:[]}} } as any,
+      "w",
+      60_000,
+    );
+    const out = await worker.runNext();
+    expect(out.state).toBe("completed");
+    expect(routes.map((route) => route.subsystem)).toEqual(["sports-intelligence"]);
   });
 });
