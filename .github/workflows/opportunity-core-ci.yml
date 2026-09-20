@@ -17,6 +17,8 @@ on:
       - 'apps/jhadina-web/tsconfig.opportunity.json'
       - 'supabase/migrations/*opportunity*.sql'
       - 'supabase/migrations/*sam_pursuit*.sql'
+      - 'supabase/migrations/*sam_prod*.sql'
+      - 'supabase/migrations/*sam_prod*.sql'
       - 'packages/staffing-core/package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/opportunity-core-ci.yml'
