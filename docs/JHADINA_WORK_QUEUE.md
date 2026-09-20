@@ -1005,13 +1005,13 @@ decision lands would just add a third money-adjacent surface.
 
 ### JH-MONEY-READ-SPINE
 **Priority:** P2
-**Status:** REVIEW
+**Status:** BLOCKED
 **Branch:** `feat/money-read-spine-acceptance`
 **Objective:** Accept the complete authenticated-user -> owned bank account -> governed account/transaction read -> durable audit -> transaction intelligence -> command-center read spine while preserving the independent execution boundary.
 **Dependencies:** JH-028, JH-MONEY-TXN-READ
 **Implementation (2026-09-20):** Added durable RLS-protected Plaid Item/account authorization metadata with no access-token storage; authenticated ownership RPC/resolver; account output scoping and transaction ownership enforcement; governed transaction intelligence for recurring/duplicate review signals; command-center transaction consumption; and adversarial acceptance tests for owned reads, unknown/cross-user account denial before provider I/O, empty/revoked ownership, identity binding and durable audit evidence. Payment/transfer/withdrawal capabilities remain outside this spine.
 **Security boundary:** Ownership metadata stores a server-side `credential_ref`, never an access token. Authenticated clients have SELECT-only RLS access and cannot insert/update/delete ownership. A separate privileged bank-link lifecycle must provision/revoke those records and referenced secrets; this acceptance slice does not weaken credentials or create a browser token path.
-**Verification gate:** REVIEW until CI receipts exist. Acceptance is code-complete; do not mark DONE without targeted tests/type-check and conformance receipts.
+**Verification (2026-09-20):** Money R13B Certification run #218 SUCCESS; Spatial Conformance run #745 SUCCESS; Jhadina Evolution Core CI #1257 SUCCESS; Staffing Postgres Integration #2001 SUCCESS; Director Targeted Tests #163 SUCCESS; SHARK Intelligence Core CI #111 SUCCESS. Jhadina Web Deploy Conformance #95 fails on unrelated missing `@/lib/director-review-transition-repository`; Launch Gate fails on unrelated `@jhadina/tv-core` unused `assertTVEpisode`. Live Jhadina Supabase schema was exercised with RLS enabled and security advisors returned no Money-specific findings after removing SECURITY DEFINER bypasses.\n**Human gate:** PR #472 must be merged manually per repository workflow, then the deployment must provide server-only `JHADINA_MONEY_CREDENTIAL_KEY` (32-byte base64) plus the existing Plaid sandbox app credential bundle before an authenticated Link session can be commissioned. Until merge + deployment configuration + one live sandbox Link/read/revoke drill are observed, MONEY-FINAL must not be represented as production-accepted.
 
 
 ### JH-035
