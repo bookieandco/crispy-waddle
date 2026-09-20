@@ -298,6 +298,67 @@ describe("persisted Experience -> Hippocampus -> Pattern vertical", () => {
     ])
   })
 
+  it("deduplicates an approved memory from its originating Hippocampal episode", async () => {
+    const historical = await storage.createReasoningEvent({
+      userId: "user_lineage",
+      timestamp: "2026-09-01T12:00:00.000Z",
+      userMessage: "I prefer direct answers when we plan.",
+      observation: {
+        raw: "I prefer direct answers when we plan.",
+        extracted: "prefer direct answers",
+        timestamp: "2026-09-01T12:00:00.000Z",
+      },
+      classification: { type: "PREFERENCE", confidence: 0.95 },
+      systemResponse: "Understood.",
+      confidence: 0.95,
+    })
+
+    const memory = await storage.createMemory({
+      userId: "user_lineage",
+      type: "PREFERENCE",
+      status: "APPROVED",
+      content: "I prefer direct answers when we plan.",
+      confidence: 0.95,
+      createdAt: "2026-09-01T12:00:00.000Z",
+      approvedAt: "2026-09-01T12:01:00.000Z",
+      reasoningEventId: historical.id,
+    })
+
+    const live: Experience = {
+      id: "live-lineage-1",
+      occurredAt: "2026-09-02T12:00:00.000Z",
+      source: "ask-jhadina",
+      actor: "user",
+      content: "Please keep this direct while we plan.",
+      evidence: [{
+        id: "live-lineage-1",
+        source: "ask-jhadina",
+        observedAt: "2026-09-02T12:00:00.000Z",
+        summary: "Please keep this direct while we plan.",
+        immutable: false,
+      }],
+    }
+
+    const result = await new PersistedExperiencePatternAdapter(storage).detectExperience({
+      userId: "user_lineage",
+      experience: live,
+    })
+
+    const memoryBacked = result.patterns.find(
+      (pattern) => pattern.id === "recurrence:direct",
+    )
+    expect(memoryBacked).toBeDefined()
+    expect(memoryBacked?.occurrences).toBe(2)
+    expect(memoryBacked?.evidence.map((item) => item.id)).toEqual([
+      "live-lineage-1",
+      historical.id,
+    ])
+    expect(result.memories[0]?.id).toBe(memory.id)
+    expect(
+      result.patterns.some((pattern) => pattern.id === "episodic-recurrence:direct"),
+    ).toBe(false)
+  })
+
   it("fails closed when the persisted event belongs to another user", async () => {
     const event = await storage.createReasoningEvent({
       userId: "user_2",
