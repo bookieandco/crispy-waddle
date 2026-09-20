@@ -1,0 +1,1 @@
+export interface VisionMetricWindow{from:string;to:string;metric:number;samples:number;}export function detectVisionDrift(baseline:VisionMetricWindow,current:VisionMetricWindow,maxDrop=.05,minSamples=100){const drop=baseline.metric-current.metric;return Object.freeze({drift:baseline.samples>=minSamples&&current.samples>=minSamples&&drop>maxDrop,drop});}
