@@ -359,6 +359,10 @@ importers:
   packages/offer-engine: {}
 
   packages/opportunity-core:
+    dependencies:
+      '@staffing/core':
+        specifier: workspace:*
+        version: link:../staffing-core
     devDependencies:
       '@types/node':
         specifier: ^20.0.0

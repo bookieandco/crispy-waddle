@@ -16,8 +16,8 @@ export async function searchSamOpportunities(params: SamSearchParams = {}) {
 
   const url = new URL(getSamApiUrl());
   url.searchParams.set('api_key', apiKey);
-  url.searchParams.set('limit', String(Math.min(params.limit ?? 25, 100)));
-  url.searchParams.set('offset', String(params.offset ?? 0));
+  url.searchParams.set('limit', String(Math.max(1, Math.min(params.limit ?? 25, 100))));
+  url.searchParams.set('offset', String(Math.max(0, params.offset ?? 0)));
   if (params.postedFrom) url.searchParams.set('postedFrom', params.postedFrom);
   if (params.postedTo) url.searchParams.set('postedTo', params.postedTo);
   if (params.keyword) url.searchParams.set('q', params.keyword);
@@ -31,8 +31,8 @@ export async function searchSamOpportunities(params: SamSearchParams = {}) {
   });
 
   if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    throw new Error(`SAM.gov request failed (${response.status}): ${detail.slice(0, 500)}`);
+    await response.body?.cancel().catch(() => undefined);
+    throw new Error(`SAM.gov request failed with status ${response.status}`);
   }
 
   return response.json();

@@ -8,11 +8,14 @@
   },
   "scripts": {
     "type-check": "tsc --noEmit -p tsconfig.json",
-    "test": "tsx src/domain/validation.test.ts && tsx src/domain/provider.test.ts && tsx src/domain/handoff-contracts.test.ts && tsx src/domain/queue.test.ts && tsx src/domain/pursuit.test.ts && tsx src/domain/outcome.test.ts && tsx src/adapters/vertical-adapters.test.ts && tsx src/fixtures/canonical.test.ts && tsx src/integration/consumer-contract.test.ts"
+    "test": "tsx src/domain/validation.test.ts && tsx src/domain/provider.test.ts && tsx src/domain/handoff-contracts.test.ts && tsx src/domain/queue.test.ts && tsx src/domain/pursuit.test.ts && tsx src/domain/outcome.test.ts && tsx src/adapters/vertical-adapters.test.ts && tsx src/fixtures/canonical.test.ts && tsx src/domain/fulfillment-provider.test.ts && tsx src/domain/provider-evidence-graph.test.ts && tsx src/domain/opportunity-requirement.test.ts && tsx src/domain/provider-matching.test.ts && tsx src/domain/fulfillment-plan.test.ts && tsx src/domain/commercial-deal-gate.test.ts && tsx src/domain/engagement-readiness.test.ts && tsx src/domain/provider-outreach.test.ts && tsx src/domain/engagement-ledger.test.ts && tsx src/domain/provider-negotiation.test.ts && tsx src/domain/contract-readiness.test.ts && tsx src/domain/contract-draft.test.ts && tsx src/domain/commercial-reconciliation.test.ts && tsx src/domain/provider-freshness.test.ts && tsx src/domain/provider-identity-awards.test.ts && tsx src/domain/staffing-fusion.test.ts && tsx src/domain/sam-pursuit-plan.test.ts && tsx src/domain/sam-pursuit-persistence.test.ts && tsx src/integration/sam-subcontractor-golden.test.ts && tsx src/integration/consumer-contract.test.ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "tsx": "^4.20.3",
     "typescript": "^5.1.0"
+  },
+  "dependencies": {
+    "@staffing/core": "workspace:*"
   }
 }
