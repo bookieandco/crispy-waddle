@@ -44,11 +44,21 @@ export function normalizeDexScreenerPair(pair: unknown, receivedAt = new Date().
   const sells24h = finiteNumber(p.txns?.h24?.sells, 'txns.h24.sells')
   const priceUsd = finiteNumber(p.priceUsd, 'priceUsd')
   const pairCreatedAtMs = finiteNumber(p.pairCreatedAt, 'pairCreatedAt')
-  const observedAt = pairCreatedAtMs === undefined ? receivedAt : new Date(pairCreatedAtMs).toISOString()
-
   if (Number.isNaN(Date.parse(receivedAt))) throw new Error('receivedAt must be an ISO timestamp.')
+  const observedAt = receivedAt
+  const pairAgeHours = pairCreatedAtMs === undefined
+    ? undefined
+    : Math.max(0, (Date.parse(receivedAt) - pairCreatedAtMs) / 3_600_000)
 
-  const observationId = [chainId, tokenAddress, observedAt, String(liquidityUsd ?? ''), String(volume24hUsd ?? ''), String(buys24h ?? ''), String(sells24h ?? '')].join(':')
+  // pairCreatedAt describes pair identity/age, not when current liquidity/volume/
+  // price values were observed. Include every normalized market field so a
+  // price-only change is not suppressed as a duplicate.
+  const observationId = [
+    chainId, tokenAddress, observedAt,
+    String(liquidityUsd ?? ''), String(volume24hUsd ?? ''),
+    String(buys24h ?? ''), String(sells24h ?? ''),
+    String(priceUsd ?? ''), String(pairCreatedAtMs ?? ''),
+  ].join(':')
 
   return {
     observationId,
@@ -57,7 +67,7 @@ export function normalizeDexScreenerPair(pair: unknown, receivedAt = new Date().
     receivedAt,
     chainId,
     subjectId: tokenAddress,
-    payload: { liquidityUsd, volume24hUsd, buys24h, sells24h, priceUsd },
+    payload: { liquidityUsd, volume24hUsd, buys24h, sells24h, priceUsd, pairAgeHours },
     sourceRef: `dexscreener:${chainId}:${tokenAddress}`,
     provenance: { adapter: 'dexscreener-event-ingest', validation: 'runtime' },
   }
