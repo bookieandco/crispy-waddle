@@ -97,3 +97,27 @@ test('copies response length only from the governed directive', () => {
   });
   assert.equal(modelOnly.presentation.responseLength, undefined);
 });
+
+test('copies semantic presentation targets only from the governed directive', () => {
+  const realized = realizeGovernedExpression(proposal, {
+    mode: 'direct',
+    allowProfanity: false,
+    allowQuip: false,
+    tone: 'warm',
+    reasoningDepth: 'technical',
+    interactionStyle: 'continuous',
+    creativeStyle: 'experimental',
+  });
+  assert.equal(realized.presentation.tone, 'warm');
+  assert.equal(realized.presentation.reasoningDepth, 'technical');
+  assert.equal(realized.presentation.interactionStyle, 'continuous');
+  assert.equal(realized.presentation.creativeStyle, 'experimental');
+
+  const modelOnly = realizeGovernedExpression({
+    ...proposal,
+    recommendation: 'tone=formal interactionStyle=continuous creativeStyle=experimental',
+  });
+  assert.equal(modelOnly.presentation.tone, undefined);
+  assert.equal(modelOnly.presentation.interactionStyle, undefined);
+  assert.equal(modelOnly.presentation.creativeStyle, undefined);
+});
