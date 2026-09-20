@@ -113,12 +113,26 @@ export class UnifiedGamingSessionOrchestrator {
         this.handles.delete(sessionId);
       }
       await this.cleanupController(sessionId,current.controllerDeviceId,nowMs);
+      const routed=this.registry.get(sessionId);
+      if(routed?.displayRouteId&&routed.resources.includes(`display:${routed.displayRouteId}`)){
+        this.registry.releaseResource(sessionId,`display:${routed.displayRouteId}`,nowMs);
+      }
       this.telemetry.stop(sessionId,nowMs);
       return this.registry.transition(sessionId,'stopped',nowMs);
     }catch(error){
       this.telemetry.fail(sessionId,nowMs);
       return this.registry.transition(sessionId,'failed',nowMs,error instanceof Error?error.message:'session-stop-failed');
     }
+  }
+
+  setDisplayRoute(sessionId:string,displayRouteId:string,nowMs=Date.now()):UnifiedGamingSession{
+    const current=this.registry.get(sessionId);
+    if(!current)throw new Error(`Unknown gaming session: ${sessionId}`);
+    if(current.displayRouteId&&current.resources.includes(`display:${current.displayRouteId}`)){
+      this.registry.releaseResource(sessionId,`display:${current.displayRouteId}`,nowMs);
+    }
+    this.registry.attachResource(sessionId,`display:${displayRouteId}`,nowMs);
+    return this.registry.setDisplayRoute(sessionId,displayRouteId,nowMs);
   }
 
   get(sessionId:string):UnifiedGamingSession|undefined{return this.registry.get(sessionId);}
