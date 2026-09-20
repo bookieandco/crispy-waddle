@@ -13,6 +13,7 @@ import type { ActionRequestIdentity, JhadinaActionRequest, JhadinaIdentityVerifi
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { InMemoryStorage } from "../storage/InMemoryStorage"
+import { PersistedExperiencePatternAdapter } from "../hippocampus/persisted-experience-pattern-adapter"
 import {
   decideAndProposeMemoryGoverned,
   type GovernedIntelligenceProposalDeps,
@@ -93,9 +94,10 @@ function providerThatFails(): ModelProvider {
 function freshDeps(
   identity: ActionRequestIdentity,
   router: IntelligenceRouter,
-): GovernedIntelligenceProposalDeps & { ledger: InMemoryActionLedger; memoryRepo: MemoryRepository } {
+): GovernedIntelligenceProposalDeps & { ledger: InMemoryActionLedger; memoryRepo: MemoryRepository; storage: InMemoryStorage } {
   const storage = new InMemoryStorage()
   return {
+    storage,
     identityVerifier: staticIdentityVerifier(identity),
     ledger: new InMemoryActionLedger(),
     router,
@@ -312,4 +314,52 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
     }
     await expect(policy.evaluate(request)).resolves.toBe("allow")
   })
+  it("PROD.1 closes the successful conversation loop back into Hippocampus without auto-approving Personality evidence", async () => {
+    const identity: ActionRequestIdentity = { userId: "user-prod-01", sessionId: "session-prod-01" }
+    const router = new IntelligenceRouter({
+      primary: providerReturning(proposalFor("ASK", {
+        recommendation: "I can keep the visuals cinematic.",
+      })),
+      fallback: providerThatFails(),
+    })
+    const deps = freshDeps(identity, router)
+
+    const first = await decideAndProposeMemoryGoverned(
+      deps,
+      identity.userId,
+      {
+        ...baseContext("ctx-prod-01"),
+        userGoal: "I prefer cinematic visuals",
+      },
+    )
+
+    expect(first.candidate).toBeUndefined()
+    expect(await deps.memoryRepo.listApproved(identity.userId)).toHaveLength(0)
+
+    const adapter = new PersistedExperiencePatternAdapter(deps.storage)
+    const next = await adapter.detectExperience({
+      userId: identity.userId,
+      experience: {
+        id: "live-prod-01-next",
+        occurredAt: "2026-09-20T23:00:00.000Z",
+        source: "ask-jhadina",
+        actor: "user",
+        content: "Keep the visuals cinematic",
+        evidence: [{
+          id: "live-prod-01-next",
+          source: "ask-jhadina",
+          observedAt: "2026-09-20T23:00:00.000Z",
+          summary: "Keep the visuals cinematic",
+          immutable: false,
+        }],
+      },
+    })
+
+    expect(next.relatedEpisodes.some((episode) => episode.episodeId === first.reasoningEventId)).toBe(true)
+    const episodic = next.patterns.find((pattern) => pattern.id === "episodic-recurrence:cinematic")
+    expect(episodic?.occurrences).toBe(2)
+    expect(episodic?.personalityEligible).toBe(false)
+    expect(next.memories).toHaveLength(0)
+  })
+
 })
