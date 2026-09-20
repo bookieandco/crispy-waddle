@@ -32,7 +32,7 @@ export async function runHistoricalObservationBackfill(client: SupabaseClient, o
         developer_sold_pct: o.developerSoldPct ?? null, liquidity_removed: o.liquidityRemoved ?? null,
         trading_halted: o.tradingHalted ?? null, holder_behavior: o.holderBehavior ?? null,
         evidence_ids: o.evidenceIds, source: o.source,
-      }, { onConflict: 'observation_id' })
+      }, { onConflict: 'observation_id', ignoreDuplicates: true })
       if (persistError) throw new Error(persistError.message)
       persisted += 1
       if (result.errors.length || Object.values(result.sourceStatus).some(status => status !== 'complete')) partial += 1
