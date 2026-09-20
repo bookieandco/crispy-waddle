@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import type { MemoryStorage } from "../storage/MemoryStorage"
 import type { ReasoningEvent } from "../storage/InMemoryStorage"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
@@ -38,6 +39,29 @@ function feedbackMetadata(event: ReasoningEvent): Record<string, unknown> {
   return event.metadata ?? {}
 }
 
+function deterministicFeedbackEventId(userId: string, feedbackId: string): string {
+  const digest = createHash("sha256")
+    .update(`jhadina-personality-feedback:v1:\0${userId}\0${feedbackId}`, "utf8")
+    .digest("hex")
+  return `personality_feedback_${digest}`
+}
+
+function assertReplayMatches(
+  event: ReasoningEvent,
+  targetId: string,
+  kind: PersonalityOutcomeFeedbackKind,
+  note: string | undefined,
+): void {
+  const metadata = feedbackMetadata(event)
+  if (
+    metadata.targetReasoningEventId !== targetId ||
+    metadata.feedbackKind !== kind ||
+    metadata.note !== note
+  ) {
+    throw new Error("PERSONALITY_FEEDBACK_IDEMPOTENCY_CONFLICT")
+  }
+}
+
 /**
  * PROD.2-PROD.4 — append-only outcome feedback for a completed conversation.
  *
@@ -68,17 +92,10 @@ export async function recordPersonalityOutcomeFeedback(
     throw new Error("PERSONALITY_FEEDBACK_TARGET_INVALID")
   }
 
-  const history = await storage.listReasoningEvents(userId, 200)
-  const replay = history.find((event) => feedbackMetadata(event).personalityFeedbackId === feedbackId)
+  const eventId = deterministicFeedbackEventId(userId, feedbackId)
+  const replay = await storage.getReasoningEvent(eventId)
   if (replay) {
-    const metadata = feedbackMetadata(replay)
-    if (
-      metadata.targetReasoningEventId !== targetId ||
-      metadata.feedbackKind !== input.kind ||
-      metadata.note !== note
-    ) {
-      throw new Error("PERSONALITY_FEEDBACK_IDEMPOTENCY_CONFLICT")
-    }
+    assertReplayMatches(replay, targetId, input.kind, note)
     return { event: replay, replayed: true }
   }
 
@@ -91,8 +108,11 @@ export async function recordPersonalityOutcomeFeedback(
   }
   const content = feedbackContent(input.kind, note)
   const repository = new ReasoningEventRepository(storage)
-  const event = await repository.create({
-    userId,
+  let event: ReasoningEvent
+  try {
+    event = await repository.create({
+      id: eventId,
+      userId,
     timestamp: observedAt,
     userMessage: content,
     observation: { raw: content, extracted: content, timestamp: observedAt },
@@ -117,7 +137,16 @@ export async function recordPersonalityOutcomeFeedback(
       canMutatePersonality: false,
       canAuthorizeAction: false,
     },
-  })
+    })
+  } catch (error) {
+    // A concurrent retry can win the deterministic primary-key race after the
+    // read above. Re-read the canonical id and accept only an exact semantic
+    // replay; otherwise preserve the original storage failure.
+    const concurrent = await storage.getReasoningEvent(eventId)
+    if (!concurrent) throw error
+    assertReplayMatches(concurrent, targetId, input.kind, note)
+    return { event: concurrent, replayed: true }
+  }
 
   return { event, replayed: false }
 }
