@@ -30,15 +30,16 @@ export interface PerceptionWorkerResult {
   uncertainty?: readonly string[];
 }
 
-const OPS: Readonly<Record<MediaExtractionRequest["modality"], readonly PerceptionWorkerOperation[]>> =
-  Object.freeze({
-    video: Object.freeze(["video.frames", "video.scenes", "audio.transcript", "audio.features"]),
-    audio: Object.freeze(["audio.transcript", "audio.beats", "audio.features"]),
-    image: Object.freeze(["image.vision", "image.ocr"]),
-    document: Object.freeze(["document.text", "document.pages", "document.tables", "document.ocr"]),
-    text: Object.freeze(["text.chunks"]),
-    code: Object.freeze(["code.text", "code.structure"]),
-  });
+const OPS = {
+  video: ["video.frames", "video.scenes", "audio.transcript", "audio.features"],
+  audio: ["audio.transcript", "audio.beats", "audio.features"],
+  image: ["image.vision", "image.ocr"],
+  document: ["document.text", "document.pages", "document.tables", "document.ocr"],
+  text: ["text.chunks"],
+  code: ["code.text", "code.structure"],
+} as const satisfies Readonly<
+  Record<MediaExtractionRequest["modality"], readonly PerceptionWorkerOperation[]>
+>;
 
 const PRIVACY_RANK = { public: 0, internal: 1, sensitive: 2, restricted: 3 } as const;
 const MAX_OBSERVATIONS = 1000;
