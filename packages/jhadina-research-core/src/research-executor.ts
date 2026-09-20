@@ -80,9 +80,9 @@ export class GovernedResearchExecutor {
       idempotencyKey,
       requestHash,
     });
-    if (!submission) {
+    if (!submission || submission.status === "submitted") {
       await this.repository.releaseExecution(admission, "fenced");
-      return { status: "fenced", reason: "provider_submission_not_reserved" };
+      return { status: "fenced", reason: submission ? "provider_submission_already_submitted" : "provider_submission_not_reserved" };
     }
 
     const started = await this.repository.commitExecutionEvent({
@@ -99,8 +99,6 @@ export class GovernedResearchExecutor {
     try {
       const providerResult = await this.provider.execute(task, { planId: plan.id, idempotencyKey });
 
-      // A provider response does not regain authority. The lease must still be
-      // current after the external call before any result is committed.
       const renewed = await this.repository.renewExecutionLease(admission, input.leaseSeconds ?? 300);
       if (!renewed) {
         await this.repository.markProviderRecoveryRequired({
@@ -142,7 +140,9 @@ export class GovernedResearchExecutor {
       });
       if (!acknowledged) return { status: "fenced", reason: "provider_acknowledgement_rejected" };
 
-      await this.repository.releaseExecution(renewed, "completed");
+      // Completing one task does not imply the whole plan is complete. The DB
+      // closes the plan only after every durable task state is terminal.
+      await this.repository.releaseExecution(renewed, "released");
       return { status: "completed", taskId: task.id, evidence: providerResult.evidence, submission: acknowledged };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -161,8 +161,6 @@ export class GovernedResearchExecutor {
 }
 
 function stableTaskHash(planId: string, version: number, task: ResearchTask): string {
-  // This is an identity string, not a cryptographic digest. The persistence
-  // adapter/DB computes and checks the durable digest at the trust boundary.
   return JSON.stringify({
     planId,
     version,
