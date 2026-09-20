@@ -38,7 +38,7 @@ export interface AgentExecutor { execute(input: { run: AgentRun; step: AgentPlan
 export type PlanFactory = (input: { run: AgentRun; revision: number; previousPlan?: AgentPlan; reason: 'initial' | 'replan' }) => Promise<AgentPlan>;
 
 export class InMemoryAgentRuntimeRepository implements AgentRuntimeRepository {
-  private readonly runs = new Map<string, AgentRun>(); private readonly plans = new Map<string, AgentPlan>(); private readonly steps = new Map<string, AgentStep>(); private readonly checkpoints = new Map<string, AgentCheckpoint>(); private readonly policies = new Map<string, AgentPolicyDecision>();
+  private readonly runs = new Map<string, AgentRun>(); private readonly plans = new Map<string, AgentPlan>(); private readonly steps = new Map<string, AgentStep>(); private readonly checkpoints = new Map<string, AgentCheckpoint>(); private readonly checkpointSequence = new Map<string, number>(); private checkpointSequenceCounter = 0; private readonly policies = new Map<string, AgentPolicyDecision>();
   async createRun(run: AgentRun): Promise<void> { this.runs.set(run.id, structuredClone(run)); }
   async getRun(runId: string): Promise<AgentRun | undefined> { const run = this.runs.get(runId); return run ? structuredClone(run) : undefined; }
   async updateRun(run: AgentRun, expectedVersion: number): Promise<boolean> { const current = this.runs.get(run.id); if (!current || current.version !== expectedVersion) return false; this.runs.set(run.id, structuredClone({ ...run, version: expectedVersion + 1 })); return true; }
@@ -46,8 +46,8 @@ export class InMemoryAgentRuntimeRepository implements AgentRuntimeRepository {
   async getLatestPlan(runId: string): Promise<AgentPlan | undefined> { const plans = [...this.plans.values()].filter((plan) => plan.runId === runId).sort((a, b) => b.revision - a.revision); return plans[0] ? structuredClone(plans[0]) : undefined; }
   async saveStep(step: AgentStep): Promise<void> { this.steps.set(step.id, structuredClone(step)); }
   async getStep(stepId: string): Promise<AgentStep | undefined> { const step = this.steps.get(stepId); return step ? structuredClone(step) : undefined; }
-  async saveCheckpoint(checkpoint: AgentCheckpoint): Promise<void> { this.checkpoints.set(checkpoint.id, structuredClone(checkpoint)); }
-  async getLatestCheckpoint(runId: string): Promise<AgentCheckpoint | undefined> { const checkpoints = [...this.checkpoints.values()].filter((checkpoint) => checkpoint.runId === runId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); return checkpoints[0] ? structuredClone(checkpoints[0]) : undefined; }
+  async saveCheckpoint(checkpoint: AgentCheckpoint): Promise<void> { this.checkpoints.set(checkpoint.id, structuredClone(checkpoint)); this.checkpointSequence.set(checkpoint.id, ++this.checkpointSequenceCounter); }
+  async getLatestCheckpoint(runId: string): Promise<AgentCheckpoint | undefined> { const checkpoints = [...this.checkpoints.values()].filter((checkpoint) => checkpoint.runId === runId).sort((a, b) => (this.checkpointSequence.get(b.id) ?? -1) - (this.checkpointSequence.get(a.id) ?? -1)); return checkpoints[0] ? structuredClone(checkpoints[0]) : undefined; }
   async savePolicyDecision(decision: AgentPolicyDecision): Promise<void> { this.policies.set(decision.id, structuredClone(decision)); }
 }
 
