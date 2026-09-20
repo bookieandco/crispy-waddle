@@ -47,6 +47,12 @@ export type UniversalUploadResult = {
   dispatch: SubsystemDispatchResult;
 };
 
+const PRIVACY_RANK: Record<UniversalUploadPrivacyClass, number> = {
+  internal: 1,
+  sensitive: 2,
+  restricted: 3,
+};
+
 export class UniversalUploadRuntime {
   constructor(
     private readonly scanner: MediaSecurityScanner,
@@ -54,11 +60,15 @@ export class UniversalUploadRuntime {
     private readonly registry: GovernedAssetRegistry,
     private readonly media: GovernedMediaPipeline,
     private readonly dispatcher: GovernedSubsystemDispatcher,
+    private readonly scannerPrivacyCeiling: UniversalUploadPrivacyClass = "sensitive",
   ) {}
 
   async ingest(input: UniversalUploadInput): Promise<UniversalUploadResult> {
     if (!input.actorId.trim()) throw new Error("UPLOAD_ACTOR_REQUIRED");
     if (!input.filename.trim()) throw new Error("UPLOAD_FILENAME_REQUIRED");
+    if (PRIVACY_RANK[input.privacyClass] > PRIVACY_RANK[this.scannerPrivacyCeiling]) {
+      throw new Error("UPLOAD_SCANNER_PRIVACY_INCOMPATIBLE");
+    }
 
     const validated = validateUniversalUpload({
       declaredMediaType: input.declaredMediaType,
@@ -148,6 +158,11 @@ export function createProductionUniversalUploadRuntime(input: {
     scannerUrl,
     process.env.JHADINA_MEDIA_SCANNER_TOKEN || undefined,
   );
+  const configuredCeiling = process.env.JHADINA_MEDIA_SCANNER_PRIVACY_CEILING;
+  const scannerPrivacyCeiling: UniversalUploadPrivacyClass =
+    configuredCeiling === "internal" || configuredCeiling === "sensitive" || configuredCeiling === "restricted"
+      ? configuredCeiling
+      : "sensitive";
   const objects = new SupabaseUniversalUploadObjectStore(client);
   const registry = new GovernedAssetRegistry(new SupabaseIntelligenceAssetStore(client));
   const backend = new MetadataOnlyExtractionBackend();
@@ -155,7 +170,7 @@ export function createProductionUniversalUploadRuntime(input: {
   const media = new GovernedMediaPipeline(perception, new GovernedUniversalIntakeRouter());
   const dispatcher = new GovernedSubsystemDispatcher(input.subsystemAdapters ?? []);
 
-  return new UniversalUploadRuntime(scanner, objects, registry, media, dispatcher);
+  return new UniversalUploadRuntime(scanner, objects, registry, media, dispatcher, scannerPrivacyCeiling);
 }
 
 export const UNIVERSAL_UPLOAD_SUPPORTED_MODALITIES: readonly IntakeModality[] =
