@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { collectHeliusLaunch, type HeliusLaunchWebhookEvent } from '@jhadina/shark-intelligence-core/meme-trader'
+import { collectHeliusLaunch, isHeliusWebhookAuthorizationValid, type HeliusLaunchWebhookEvent } from '@jhadina/shark-intelligence-core/meme-trader'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { persistSharkLaunch } from '@/lib/shark/launch-repository'
 
 export const runtime = 'nodejs'
 
 export function authorizedHeliusWebhook(headers: Headers, expected: string | undefined): boolean {
-  if (!expected) return false
-  // Helius sends the configured authHeader value verbatim in Authorization.
-  // Do not strip Bearer or accept an undocumented alternate header: operators
-  // must configure HELIUS_WEBHOOK_SECRET to the exact authHeader value.
-  return headers.get('authorization') === expected
+  return isHeliusWebhookAuthorizationValid(headers.get('authorization'), expected)
 }
 
 export async function POST(request: NextRequest) {
