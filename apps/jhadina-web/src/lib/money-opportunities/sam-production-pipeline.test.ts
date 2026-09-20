@@ -13,7 +13,7 @@ function provider(now:string):FulfillmentProvider{
     id:'provider:1',legalName:'Provider One',
     identifiers:[{type:'uei',value:'UEI1',verified:true,evidenceRefs:['identity']}],
     serviceAreas:[{country:'United States',evidenceRefs:['geo']}],
-    capabilities:[{id:'cloud',name:'Cloud migration services',naicsCodes:['541512'],pscCodes:[],keywords:['cloud','migration','services'],confidence:1,verified:true,evidenceRefs:['cap']}],
+    capabilities:[{id:'cloud',name:'Cloud migration architecture implementation operations monitoring documentation transition planning technical delivery secure application workloads',naicsCodes:['541512'],pscCodes:[],keywords:['cloud','migration','architecture','implementation','operations','monitoring','documentation','transition','planning','technical','delivery','secure','application','workloads'],confidence:1,verified:true,evidenceRefs:['cap']}],
     credentials:[],pastPerformance:[],
     capacity:{status:'available',evidenceRefs:['capacity']},
     evidence,sourceIds:['sam'],riskFlags:[],
