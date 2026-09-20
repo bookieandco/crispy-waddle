@@ -215,7 +215,7 @@ test('builds policy-rate differential and preserves provider-specific swap point
     pair: eurusdPair,
     basePolicyRatePct: 2.5,
     quotePolicyRatePct: 4.0,
-    longSwapPoints: '-0.8',
+    longSwapPoints: '0',
     shortSwapPoints: '0.3',
     swapPointUnit: 'PIPS',
     rolloverAt: '2026-09-19T21:00:00Z',
@@ -229,7 +229,7 @@ test('builds policy-rate differential and preserves provider-specific swap point
   });
 
   assert.equal(carry.rateDifferentialPct, -1.5);
-  assert.equal(carry.longSwapPoints, '-0.8');
+  assert.equal(carry.longSwapPoints, '0');
   assert.equal(carry.shortSwapPoints, '0.3');
 });
 
@@ -558,5 +558,46 @@ test('cross quote rejects source data unavailable by historical cutoff', () => {
         provenanceHash: 'cross:future:hash',
       }),
     /SOURCE_FUTURE_LEAK/,
+  );
+});
+
+
+test('historical snapshot ignores later macro contexts instead of leaking them', () => {
+  const current = macroContexts();
+  const futureUsd = {
+    ...current[1]!,
+    contextId: 'USD:macro:future',
+    macroSnapshotId: 'macro:USD:future',
+    macroInformationCutoff: '2026-09-20T00:00:00Z',
+    macroArtifactIds: ['macro:USD:future-rate'],
+    provenanceHash: 'macro-context:usd:future:hash',
+  };
+
+  const snapshot = buildFxMarketSnapshot({
+    instrument: eurusdInstrument,
+    pair: eurusdPair,
+    baseCurrency: eur,
+    quoteCurrency: usd,
+    quotes: [
+      directQuote(
+        eurusdPair,
+        'quote:current:macro-test',
+        '1.10000',
+        '1.10020',
+      ),
+    ],
+    sessions: [london, newYork],
+    carryObservations: [],
+    macroContexts: [...current, futureUsd],
+    informationCutoff: '2026-09-19T14:00:00Z',
+    derivedAt: '2026-09-19T14:00:10Z',
+    methodologyVersion: '1',
+    sourceManifest: ['fx-feed', 'macro-core'],
+    snapshotHash: 'fx-snapshot-macro-cutoff',
+  });
+
+  assert.equal(
+    snapshot.quoteMacroContext.macroSnapshotId,
+    'macro:USD:1',
   );
 });
