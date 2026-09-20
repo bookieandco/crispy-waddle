@@ -25,12 +25,12 @@ importers:
 
   apps/jhadina-web:
     dependencies:
-      '@jhadina/shark-intelligence-core':
-        specifier: workspace:*
-        version: link:../../packages/shark-intelligence-core
       '@jhadina/director-core':
         specifier: workspace:*
         version: link:../../packages/director-core
+      '@jhadina/shark-intelligence-core':
+        specifier: workspace:*
+        version: link:../../packages/shark-intelligence-core
       '@jhadina/spatial-intelligence-core':
         specifier: workspace:*
         version: link:../../packages/spatial-intelligence-core
@@ -345,6 +345,15 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.43)
 
+  packages/security-core:
+    devDependencies:
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.13
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+
   packages/shark-intelligence-core:
     dependencies:
       '@jhadina/core-spine':
@@ -357,15 +366,6 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.43)
-
-  packages/security-core:
-    devDependencies:
-      tsx:
-        specifier: ^4.20.3
-        version: 4.23.13
-      typescript:
-        specifier: ^5.1.0
-        version: 5.9.3
 
   packages/shotlist-core:
     devDependencies:
