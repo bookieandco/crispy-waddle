@@ -211,6 +211,14 @@ function hasEvidence(provider: FulfillmentProvider, ref: string): boolean {
   return provider.evidence.some((item) => item.id === ref)
 }
 
+function evidenceSupports(
+  provider: FulfillmentProvider,
+  ref: string,
+  relationship: FulfillmentProviderEvidenceRelationship,
+): boolean {
+  return provider.evidence.some((item) => item.id === ref && item.relationship === relationship)
+}
+
 function assertEvidenceRefsExist(provider: FulfillmentProvider, refs: string[], context: string): void {
   for (const ref of refs) {
     if (!hasEvidence(provider, ref)) throw new Error(`${context} references unknown evidence: ${ref}`)
@@ -222,7 +230,7 @@ function identityIsVerified(provider: FulfillmentProvider): boolean {
     identifier.verified &&
     identifier.value.trim().length > 0 &&
     identifier.evidenceRefs.length > 0 &&
-    identifier.evidenceRefs.every((ref) => hasEvidence(provider, ref)),
+    identifier.evidenceRefs.every((ref) => evidenceSupports(provider, ref, 'supports_identity')),
   )
 }
 
@@ -230,7 +238,7 @@ function capabilityIsVerified(provider: FulfillmentProvider): boolean {
   return provider.capabilities.some((capability) =>
     capability.verified &&
     capability.evidenceRefs.length > 0 &&
-    capability.evidenceRefs.every((ref) => hasEvidence(provider, ref)),
+    capability.evidenceRefs.every((ref) => evidenceSupports(provider, ref, 'supports_capability')),
   )
 }
 
@@ -296,6 +304,9 @@ export function assertFulfillmentProviderIntegrity(provider: FulfillmentProvider
 
   for (const credential of provider.credentials) {
     assertEvidenceRefsExist(provider, credential.evidenceRefs, `Credential ${credential.id}`)
+    if (credential.verified && !credential.evidenceRefs.every((ref) => evidenceSupports(provider, ref, 'supports_credential'))) {
+      throw new Error(`Verified credential requires credential evidence: ${credential.id}`)
+    }
     if (credential.verified && credential.evidenceRefs.length === 0) {
       throw new Error(`Verified credential requires evidence: ${credential.id}`)
     }
@@ -303,6 +314,9 @@ export function assertFulfillmentProviderIntegrity(provider: FulfillmentProvider
 
   for (const performance of provider.pastPerformance) {
     assertEvidenceRefsExist(provider, performance.evidenceRefs, `Past performance ${performance.id}`)
+    if (performance.verified && !performance.evidenceRefs.every((ref) => evidenceSupports(provider, ref, 'supports_past_performance'))) {
+      throw new Error(`Verified past performance requires past-performance evidence: ${performance.id}`)
+    }
     if (performance.verified && performance.evidenceRefs.length === 0) {
       throw new Error(`Verified past performance requires evidence: ${performance.id}`)
     }
@@ -310,8 +324,15 @@ export function assertFulfillmentProviderIntegrity(provider: FulfillmentProvider
 
   for (const area of provider.serviceAreas) {
     assertEvidenceRefsExist(provider, area.evidenceRefs, 'Service area')
+    if (!area.evidenceRefs.every((ref) => evidenceSupports(provider, ref, 'supports_geography'))) {
+      throw new Error('Service area requires geography evidence')
+    }
   }
   assertEvidenceRefsExist(provider, provider.capacity.evidenceRefs, 'Capacity')
+  if (provider.capacity.evidenceRefs.length > 0 &&
+      !provider.capacity.evidenceRefs.every((ref) => evidenceSupports(provider, ref, 'supports_capacity'))) {
+    throw new Error('Capacity requires capacity evidence')
+  }
 
   if (provider.stage === 'verified' && provider.verificationStatus !== 'verified') {
     throw new Error('Verified provider stage requires verified verificationStatus')
