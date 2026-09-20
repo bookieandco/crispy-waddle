@@ -55,6 +55,10 @@ export function createAuthorizedCatalogAdapter(
       return (await client.search(query)).map((record) => normalizeAuthorizedCatalogRecord(record, config.id).title);
     },
     getSources: (titleId) => client.sources(titleId),
+    async getSourcesForMedia(request) {
+      const providerMediaId = request.providerMediaId ?? request.mediaId;
+      return (await client.sources(providerMediaId)).map((source) => ({ ...source, titleId: request.mediaId }));
+    },
   };
 
   return createCatalogProvider({ ...config, adapter });
