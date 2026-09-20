@@ -28,6 +28,11 @@ export interface MemoryProposeAction {
   /** The model's rationale — recorded on the reasoning event for provenance. */
   rationale: string
   confidence: number
+  /**
+   * Application-owned lineage to the already-persisted conversation
+   * Experience. The model never supplies this field.
+   */
+  reasoningEventId?: string
 }
 
 export function createMemoryProposeHandler(
@@ -43,7 +48,11 @@ export function createMemoryProposeHandler(
       // of extra classification this proof exists to avoid smuggling in.
       // Classifying memory type from model output is Context Builder
       // (Step 4) territory, not this capability's.
-      const reasoningEvent = await reasoningRepo.create({
+      // Production Ask Jhadina records the conversation Experience before
+      // policy/action execution and passes its application-owned lineage here.
+      // Keep the fallback for legacy/direct callers that have not yet adopted
+      // that recorder; this avoids creating a second episodic database.
+      const reasoningEventId = action.reasoningEventId ?? (await reasoningRepo.create({
         userId: request.userId,
         userMessage: action.content,
         observation: {
@@ -58,14 +67,14 @@ export function createMemoryProposeHandler(
         },
         systemResponse: action.rationale,
         confidence: action.confidence,
-      })
+      })).id
 
       return memoryRepo.createCandidate({
         userId: request.userId,
         content: action.content,
         type: "CONTEXT",
         confidence: action.confidence,
-        reasoningEventId: reasoningEvent.id,
+        reasoningEventId,
       })
     },
   }
