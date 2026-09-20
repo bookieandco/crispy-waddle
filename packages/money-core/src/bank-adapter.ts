@@ -1,6 +1,6 @@
 import type { MoneyCapability } from './capabilities.js';
 
-export type MoneyAccount = { id: string; provider: string; externalId: string; type: string; currency: string; maskedName?: string };
+export type MoneyAccount = { id: string; provider: string; externalId: string; type: string; currency: string; maskedName?: string; currentBalance?: number; availableBalance?: number };
 export type MoneyTransaction = { id: string; accountId: string; amount: number; currency: string; occurredAt: string; description?: string };
 
 export type MoneyAdapterContext = {
