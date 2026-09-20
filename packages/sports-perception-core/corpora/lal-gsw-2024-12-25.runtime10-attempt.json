@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "attemptedAt": "2026-09-20T15:26:00-07:00",
+  "gameId": "0022400408",
+  "gameDate": "2024-12-25",
+  "modelId": "basketball-ec2xx/1",
+  "videoSha256": "047b433bbe174f6968fa6b38475a6220e0e9d7ee5277fd5217d8968813421461",
+  "video": {
+    "durationSeconds": 4750.979567,
+    "sizeBytes": 305950593,
+    "width": 640,
+    "height": 360,
+    "frameRate": "30000/1001",
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+  },
+  "runtime": {
+    "ffmpegAvailable": true,
+    "ffprobeSucceeded": true,
+    "inferenceSdkInstallAttempted": true,
+    "inferenceSdkInstalled": false,
+    "networkInferenceExecuted": false,
+    "failureClass": "NETWORK_DNS_UNAVAILABLE",
+    "failureDetail": "pip could not resolve the package host; Serverless API inference was therefore not executed."
+  },
+  "empiricalCertification": {
+    "certified": false,
+    "reason": "NBA-RUNTIME.10 requires genuine basketball-ec2xx/1 inference receipts, >=50 hidden ground-truth tracks, benchmark metrics, repair rerun evidence, and a blind full-game identity ledger. Fabricated measurements are forbidden."
+  }
+}
