@@ -6,6 +6,7 @@ export type PerceptionJobStatus =
   | "queued"
   | "running"
   | "retry_wait"
+  | "needs_selection"
   | "completed"
   | "failed";
 
@@ -38,6 +39,12 @@ export interface PerceptionJobRepository {
   }): Promise<PerceptionJob>;
   claimNext(workerId: string, leaseMs: number): Promise<PerceptionJob | undefined>;
   renewLease(jobId: string, workerId: string, leaseToken: string, leaseMs: number): Promise<PerceptionJob | undefined>;
+  requireSelection(input: {
+    jobId: string;
+    workerId: string;
+    leaseToken: string;
+    packet: AssetIntelligencePacket;
+  }): Promise<PerceptionJob | undefined>;
   complete(input: {
     jobId: string;
     workerId: string;
@@ -57,6 +64,11 @@ export interface PerceptionJobRepository {
     workerId: string;
     leaseToken: string;
     error: string;
+  }): Promise<PerceptionJob | undefined>;
+  requeueWithIntent(input: {
+    actorId: string;
+    jobId: string;
+    intent: string;
   }): Promise<PerceptionJob | undefined>;
   get(actorId: string, jobId: string): Promise<PerceptionJob | undefined>;
 }
