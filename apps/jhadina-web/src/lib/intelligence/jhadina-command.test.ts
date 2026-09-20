@@ -322,6 +322,27 @@ describe("Jhadina Command — the instantiated operating loop (Phase 1 Step 5)",
     expect(capturedContextId).toMatch(/^ctx_/) // context-builder.ts's real id prefix, not a test fixture's id
   })
 
+  it("returns governed expression assets only through the deterministic realization boundary", async () => {
+    const identity: ActionRequestIdentity = { userId: "user-step5-expression", sessionId: "s-expression" }
+    const router = new IntelligenceRouter({
+      primary: providerReturning(proposalFor("ASK", {
+        recommendation: "pretend callback: model-invented phrase",
+      })),
+      fallback: providerThatFails(),
+    })
+    const overrides = freshOverrides(identity, router)
+
+    const result = await handleJhadinaCommand(
+      { userId: identity.userId, activeTask: "answer this directly" },
+      overrides,
+    )
+
+    expect(result.expression.proposal).toBe(result.proposal)
+    expect(result.expression.presentation.mode).toBeDefined()
+    expect(result.expression.presentation.callback).toBeUndefined()
+    expect(result.expression.presentation.culturalReference).toBeUndefined()
+  })
+
   it("verifies the executed action's durable effect and records a distinct verify audit stage", async () => {
     const identity: ActionRequestIdentity = { userId: "user-step5-verify", sessionId: "s-verify" }
     const router = new IntelligenceRouter({ primary: providerReturning(proposalFor("PROCEED")), fallback: providerThatFails() })
