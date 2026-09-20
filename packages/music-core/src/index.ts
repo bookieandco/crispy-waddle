@@ -27,3 +27,4 @@ export * from "./offline-downloads.js";
 export * from "./spotify-provider.js";
 export * from "./spotify-session.js";
 export * from "./spotify-sync.js";
+export * from "./browser-playback-host.js";
