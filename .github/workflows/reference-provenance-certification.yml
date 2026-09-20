@@ -47,5 +47,8 @@ jobs:
       - name: Run REF-PROV-05 admission certification
         run: pnpm --filter @jhadina/reference-provenance verify:ref-prov-05
 
+      - name: Run REF-PROV-06 durable deployment certification
+        run: pnpm --filter @jhadina/reference-provenance verify:ref-prov-06
+
       - name: Build reference provenance
         run: pnpm --filter @jhadina/reference-provenance build
