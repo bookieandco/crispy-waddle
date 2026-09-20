@@ -3811,6 +3811,186 @@ export type Database = {
           },
         ]
       }
+      jhadina_safety_deadman_leases: {
+        Row: {
+          completed_at: string | null
+          incident_id: string
+          lease_id: string | null
+          leased_until: string | null
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          incident_id: string
+          lease_id?: string | null
+          leased_until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          incident_id?: string
+          lease_id?: string | null
+          leased_until?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jhadina_safety_deadman_leases_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: true
+            referencedRelation: "jhadina_safety_incidents"
+            referencedColumns: ["incident_id"]
+          },
+        ]
+      }
+      jhadina_safety_delivery_receipts: {
+        Row: {
+          accepted: boolean
+          acknowledged_at: string | null
+          channel: string
+          created_at: string
+          delivered_at: string | null
+          idempotency_key: string
+          incident_id: string
+          provider_reference: string | null
+          recipient_id: string
+          retryable: boolean
+        }
+        Insert: {
+          accepted?: boolean
+          acknowledged_at?: string | null
+          channel: string
+          created_at?: string
+          delivered_at?: string | null
+          idempotency_key: string
+          incident_id: string
+          provider_reference?: string | null
+          recipient_id: string
+          retryable?: boolean
+        }
+        Update: {
+          accepted?: boolean
+          acknowledged_at?: string | null
+          channel?: string
+          created_at?: string
+          delivered_at?: string | null
+          idempotency_key?: string
+          incident_id?: string
+          provider_reference?: string | null
+          recipient_id?: string
+          retryable?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jhadina_safety_delivery_receipts_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "jhadina_safety_incidents"
+            referencedColumns: ["incident_id"]
+          },
+        ]
+      }
+      jhadina_safety_evidence_manifest: {
+        Row: {
+          chunk_id: string
+          ciphertext_ref: string
+          content_hash: string
+          created_at: string
+          incident_id: string
+          off_device_verified: boolean
+          previous_chunk_hash: string | null
+          remote_ref: string | null
+          sequence: number
+        }
+        Insert: {
+          chunk_id: string
+          ciphertext_ref: string
+          content_hash: string
+          created_at?: string
+          incident_id: string
+          off_device_verified?: boolean
+          previous_chunk_hash?: string | null
+          remote_ref?: string | null
+          sequence: number
+        }
+        Update: {
+          chunk_id?: string
+          ciphertext_ref?: string
+          content_hash?: string
+          created_at?: string
+          incident_id?: string
+          off_device_verified?: boolean
+          previous_chunk_hash?: string | null
+          remote_ref?: string | null
+          sequence?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jhadina_safety_evidence_manifest_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "jhadina_safety_incidents"
+            referencedColumns: ["incident_id"]
+          },
+        ]
+      }
+      jhadina_safety_incidents: {
+        Row: {
+          dead_man_state: string
+          deadline_at: string | null
+          incident_id: string
+          owner_id: string
+          protocol_id: string
+          timeline: Json
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          dead_man_state: string
+          deadline_at?: string | null
+          incident_id: string
+          owner_id: string
+          protocol_id: string
+          timeline?: Json
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          dead_man_state?: string
+          deadline_at?: string | null
+          incident_id?: string
+          owner_id?: string
+          protocol_id?: string
+          timeline?: Json
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      jhadina_safety_personal_profiles: {
+        Row: {
+          ciphertext_ref: string
+          key_id: string
+          owner_id: string
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          ciphertext_ref: string
+          key_id: string
+          owner_id: string
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          ciphertext_ref?: string
+          key_id?: string
+          owner_id?: string
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       jhadina_sam_pursuit_snapshots: {
         Row: {
           checksum: string
@@ -5674,6 +5854,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      claim_due_jhadina_safety_incidents: {
+        Args: { p_lease_seconds?: number; p_limit?: number; p_now: string }
+        Returns: {
+          incident_id: string
+          lease_id: string
+          leased_until: string
+        }[]
+      }
       claim_money_execution_recovery_lease: {
         Args: {
           p_execution_id: string
@@ -5829,6 +6017,16 @@ export type Database = {
           inserted: boolean
           sequence: number
         }[]
+      }
+      jhadina_authorize_research_action: {
+        Args: {
+          p_actor_id: string
+          p_audit_domain?: string
+          p_plan_id: string
+          p_policy_decision_id: string
+          p_request_id: string
+        }
+        Returns: string
       }
       jhadina_bind_research_policy_decision: {
         Args: {
