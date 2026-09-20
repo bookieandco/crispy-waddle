@@ -141,3 +141,8 @@ export * from './live-trade-approval-bridge.js';
 
 export * from './manual-live-broker-contracts.js';
 export * from './manual-live-broker-executor.js';
+
+export * from './live-canary-contracts.js';
+export * from './live-canary-store.js';
+export * from './postgres-live-canary-state-store.js';
+export * from './live-execution-governance.js';
