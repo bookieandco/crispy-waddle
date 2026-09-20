@@ -49,6 +49,7 @@ try {
   const headers = new Headers(request?.headers);
   if (headers.get('PLAID-CLIENT-ID') !== 'client-test') throw new Error('PLAID_CLIENT_HEADER_FAILED');
   if (headers.get('PLAID-SECRET') !== 'secret-test') throw new Error('PLAID_SECRET_HEADER_FAILED');
+  if (headers.get('Plaid-Version') !== '2020-09-14') throw new Error('PLAID_VERSION_HEADER_FAILED');
 
   let transactionRejected = false;
   try {
