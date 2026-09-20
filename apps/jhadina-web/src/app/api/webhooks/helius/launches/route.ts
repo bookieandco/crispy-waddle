@@ -5,18 +5,19 @@ import { persistSharkLaunch } from '@/lib/shark/launch-repository'
 
 export const runtime = 'nodejs'
 
-function authorized(request: NextRequest): boolean {
-  const expected = process.env.HELIUS_WEBHOOK_SECRET
+export function authorizedHeliusWebhook(headers: Headers, expected: string | undefined): boolean {
   if (!expected) return false
-  const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? request.headers.get('x-helius-auth')
-  return supplied === expected
+  // Helius sends the configured authHeader value verbatim in Authorization.
+  // Do not strip Bearer or accept an undocumented alternate header: operators
+  // must configure HELIUS_WEBHOOK_SECRET to the exact authHeader value.
+  return headers.get('authorization') === expected
 }
 
 export async function POST(request: NextRequest) {
   if (!process.env.HELIUS_WEBHOOK_SECRET) {
     return NextResponse.json({ error: 'shark_launch_ingestion_unavailable' }, { status: 503 })
   }
-  if (!authorized(request)) return NextResponse.json({ error: 'unauthorized_webhook' }, { status: 401 })
+  if (!authorizedHeliusWebhook(request.headers, process.env.HELIUS_WEBHOOK_SECRET)) return NextResponse.json({ error: 'unauthorized_webhook' }, { status: 401 })
 
   let payload: unknown
   try {
