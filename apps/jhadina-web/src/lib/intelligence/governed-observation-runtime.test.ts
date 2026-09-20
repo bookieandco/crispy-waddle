@@ -30,7 +30,7 @@ describe("governed observation runtime", () => {
   it("uses verified session identity when no caller identity assertion is supplied", async () => {
     const ledger = new InMemoryActionLedger()
     const result = await observeShodanGoverned({ observationId: "obs-session", subjectId: "203.0.113.9", capability: "internetdb.read" }, {
-      identityVerifier: { async verify(request) { expect(request?.userId).toBeUndefined(); return { userId: "session-user", sessionId: "s2" } } } as any,
+      identityVerifier: { async verify(request?: { userId?: string }) { expect(request?.userId).toBeUndefined(); return { userId: "session-user", sessionId: "s2" } } } as any,
       ledger: ledger as any,
       now: () => "2026-09-20T00:00:00.000Z",
       http: async () => ({ ok: true, status: 200, async json() { return {} } }),
