@@ -23,7 +23,7 @@ export function buildSamProductionCandidate(
   providers: FulfillmentProvider[],
   now = new Date().toISOString(),
 ): SamProductionCandidate {
-  if (opportunity.type !== 'contract' || opportunity.sourceName !== 'SAM.gov') {
+  if (opportunity.type !== 'contract' || opportunity.sourceId !== 'us.sam.gov') {
     throw new Error('SAM production candidate requires a canonical SAM.gov contract opportunity')
   }
   const requirements = decomposeOpportunityRequirements(opportunity, now)
