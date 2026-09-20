@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { OverageOsIntelligenceAdapter } from "./jhadina-overage-intelligence-ingress.js";
 
+const assert = (condition: unknown, message: string): void => { if (!condition) throw new Error(message) };
 const request:any = {
   actorId:"u1", assetId:"a1", assetRef:"storage/u1/county.pdf",
   mediaType:"application/pdf", contentSha256:"a".repeat(64),
@@ -8,22 +8,28 @@ const request:any = {
   uncertainty:[], intent:"analyze this county surplus list",
 };
 
-describe("OverageOsIntelligenceAdapter",()=>{
-  it("registers uploaded documents as source material only",async()=>{
-    let seen:any;
-    const a=new OverageOsIntelligenceAdapter({async registerSourceDocument(i){seen=i;return{receiptId:"ovr-r1",acceptedEvidenceIds:i.evidenceIds}}});
-    const out=await a.ingest(request);
-    expect(seen.assetRef).toBe("storage/u1/county.pdf");
-    expect(seen.contentSha256).toBe("a".repeat(64));
-    expect(out.subsystem).toBe("overageos");
-  });
-  it("rejects unrelated evidence claims",async()=>{
-    const a=new OverageOsIntelligenceAdapter({async registerSourceDocument(){return{receiptId:"r",acceptedEvidenceIds:["asset:other:x"]}}});
-    await expect(a.ingest(request)).rejects.toThrow("EVIDENCE_NOT_ASSET_BOUND");
-  });
-  it("has no verification, contact, claim, or execution authority",()=>{
-    const a:any=new OverageOsIntelligenceAdapter({} as any);
-    expect(a.verify).toBeUndefined(); expect(a.contact).toBeUndefined();
-    expect(a.submitClaim).toBeUndefined(); expect(a.execute).toBeUndefined();
-  });
-});
+let seen:any;
+const adapter=new OverageOsIntelligenceAdapter({async registerSourceDocument(input){seen=input;return{receiptId:"ovr-r1",acceptedEvidenceIds:input.evidenceIds}}});
+const output=await adapter.ingest(request);
+assert(seen.assetRef === "storage/u1/county.pdf", "Asset reference was not preserved");
+assert(seen.contentSha256 === "a".repeat(64), "Content hash was not preserved");
+assert(output.subsystem === "overageos", "Wrong subsystem response");
+
+let crossAssetRejected=false;
+try {
+  const bad=new OverageOsIntelligenceAdapter({async registerSourceDocument(){return{receiptId:"r",acceptedEvidenceIds:["asset:other:x"]}}});
+  await bad.ingest(request);
+} catch (error) {
+  crossAssetRejected=error instanceof Error && error.message.includes("EVIDENCE_NOT_ASSET_BOUND");
+}
+assert(crossAssetRejected, "Cross-asset evidence claim was accepted");
+
+let hashRejected=false;
+try { await adapter.ingest({...request,contentSha256:undefined}); } catch (error) {
+  hashRejected=error instanceof Error && error.message.includes("SHA256_REQUIRED");
+}
+assert(hashRejected, "Hashless OverageOS source was accepted");
+
+const authority:any=adapter;
+assert(authority.verify === undefined && authority.contact === undefined && authority.submitClaim === undefined && authority.execute === undefined,
+  "Overage intake adapter exposed consequential authority");
