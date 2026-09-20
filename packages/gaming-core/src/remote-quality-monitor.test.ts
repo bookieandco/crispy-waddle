@@ -1,0 +1,4 @@
+import {describe,expect,it,vi} from 'vitest';
+import {RemoteQualityMonitor} from './remote-quality-monitor.js';
+const policy={maxRttMs:50,maxJitterMs:8,maxPacketLossPercent:.5,maxInputLatencyMs:35};
+describe('RemoteQualityMonitor',()=>{it('reports healthy and degraded states',async()=>{const probe=vi.fn().mockResolvedValueOnce({rttMs:10,jitterMs:2,packetLossPercent:0,inputLatencyMs:10}).mockResolvedValueOnce({rttMs:45,jitterMs:7,packetLossPercent:.1,inputLatencyMs:30});const m=new RemoteQualityMonitor(probe,policy);expect((await m.sample()).state).toBe('healthy');expect((await m.sample()).state).toBe('degraded');});it('reports blocked when a hard threshold is exceeded',async()=>{const m=new RemoteQualityMonitor(async()=>({rttMs:90,jitterMs:2,packetLossPercent:0,inputLatencyMs:20}),policy);expect((await m.sample()).state).toBe('blocked');});});

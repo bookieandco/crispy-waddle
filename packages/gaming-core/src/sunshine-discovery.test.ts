@@ -1,0 +1,3 @@
+import {describe,expect,it,vi} from 'vitest';
+import {SunshineHostDiscovery} from './sunshine-discovery.js';
+describe('SunshineHostDiscovery',()=>{it('normalizes and deduplicates discovered hosts',async()=>{const d=new SunshineHostDiscovery({discover:vi.fn(async()=>[{address:'192.168.1.20',port:47989,name:'Homebase',id:'home-1'},{address:'192.168.1.20',port:47989,name:'Homebase',id:'home-1'}])});const hosts=await d.discover();expect(hosts).toHaveLength(1);expect(hosts[0]).toMatchObject({id:'home-1',name:'Homebase',address:'192.168.1.20',paired:false});});it('derives a stable fallback identity',async()=>{const d=new SunshineHostDiscovery({discover:async()=>[{address:'10.0.0.5'}]});const [h]=await d.discover();expect(h.id).toBe('sunshine:10.0.0.5:47989');});});

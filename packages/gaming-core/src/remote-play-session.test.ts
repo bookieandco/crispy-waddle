@@ -1,0 +1,7 @@
+import { describe, expect, it, vi } from 'vitest';
+import { RemotePlaySessionCoordinator } from './remote-play-session.js';
+const game={id:'moonlight:homebase:steam',title:'Steam',platform:'pc' as const,contentUri:'moonlight://homebase/steam'};
+describe('RemotePlaySessionCoordinator',()=>{
+ it('starts a remote session and forwards accepted input',async()=>{const client={discoverHosts:async()=>[],launch:vi.fn(async()=>({id:'r1',hostId:'homebase',appId:'steam'})),sendInput:vi.fn(async()=>{}),stop:vi.fn(async()=>{})};const c=new RemotePlaySessionCoordinator(client);const s=await c.start(game);await c.sendInput(s.session.id,{inputId:'i1',deviceId:'pad',sequenceNumber:1,timestampMs:1000,control:'a',value:true,canonical:{type:'button',button:'a',pressed:true}},1000);expect(client.launch).toHaveBeenCalledWith('homebase','steam',{});expect(client.sendInput).toHaveBeenCalledTimes(1);});
+ it('drops duplicate input before transport',async()=>{const client={discoverHosts:async()=>[],launch:async()=>({id:'r1',hostId:'h',appId:'a'}),sendInput:vi.fn(async()=>{}),stop:async()=>{}};const c=new RemotePlaySessionCoordinator(client);const s=await c.start({...game,contentUri:'moonlight://h/a'});const input={inputId:'i1',deviceId:'pad',sequenceNumber:1,timestampMs:1000,control:'a',value:true,canonical:{type:'button',button:'a',pressed:true}} as const;await c.sendInput(s.session.id,input,1000);await c.sendInput(s.session.id,input,1000);expect(client.sendInput).toHaveBeenCalledTimes(1);});
+});

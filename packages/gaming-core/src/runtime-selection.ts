@@ -1,0 +1,4 @@
+export type RuntimeKind='local'|'sunshine';
+export interface RuntimeCandidate{id:string;kind:RuntimeKind;available:boolean;paired?:boolean;latencyMs?:number;jitterMs?:number;packetLossPct?:number;controllerHealthy?:boolean;capable?:boolean;}
+export interface RuntimeSelectionPolicy{maxLatencyMs:number;maxJitterMs:number;maxPacketLossPct:number;}
+export function selectRuntime(candidates:readonly RuntimeCandidate[],policy:RuntimeSelectionPolicy):RuntimeCandidate|undefined{return candidates.filter(c=>c.available&&c.capable!==false&&(c.kind==='local'||c.paired===true)&&c.controllerHealthy!==false).filter(c=>(c.latencyMs??0)<=policy.maxLatencyMs&&(c.jitterMs??0)<=policy.maxJitterMs&&(c.packetLossPct??0)<=policy.maxPacketLossPct).sort((a,b)=>(a.latencyMs??0)-(b.latencyMs??0)||(a.jitterMs??0)-(b.jitterMs??0)||(a.packetLossPct??0)-(b.packetLossPct??0))[0];}

@@ -1,0 +1,2 @@
+import{describe,expect,it,vi}from'vitest';import{RemoteTelemetryProbe}from'./remote-telemetry.js';
+describe('RemoteTelemetryProbe',()=>{it('returns transport measurements without modification',async()=>{const sample={atMs:123,rttMs:8,jitterMs:1.5,packetLossPercent:0,inputLatencyMs:11,encodeLatencyMs:3,decodeLatencyMs:4,framePacingMs:8.3};const source={sample:vi.fn(async()=>sample)};expect(await new RemoteTelemetryProbe(source).sample()).toEqual(sample);expect(source.sample).toHaveBeenCalledTimes(1);});});

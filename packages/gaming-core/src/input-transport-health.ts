@@ -1,0 +1,5 @@
+export type InputTransportHealth='excellent'|'degraded'|'critical'|'disconnected';
+export interface InputTransportMetrics { rttMs:number; jitterMs:number; packetLossPct:number; connected:boolean; }
+export interface InputTransportPolicy { axisCoalescing:boolean; heartbeatMs:number; allowGameplayInput:boolean; neutralizeRequired:boolean; }
+export function deriveInputTransportHealth(m:InputTransportMetrics):InputTransportHealth {if(!m.connected)return'disconnected';if(m.packetLossPct>=5||m.rttMs>=120||m.jitterMs>=40)return'critical';if(m.packetLossPct>=1||m.rttMs>=50||m.jitterMs>=15)return'degraded';return'excellent';}
+export function inputTransportPolicy(health:InputTransportHealth):InputTransportPolicy {switch(health){case'excellent':return{axisCoalescing:false,heartbeatMs:100,allowGameplayInput:true,neutralizeRequired:false};case'degraded':return{axisCoalescing:true,heartbeatMs:150,allowGameplayInput:true,neutralizeRequired:false};case'critical':return{axisCoalescing:true,heartbeatMs:250,allowGameplayInput:true,neutralizeRequired:false};default:return{axisCoalescing:true,heartbeatMs:0,allowGameplayInput:false,neutralizeRequired:true};}}
