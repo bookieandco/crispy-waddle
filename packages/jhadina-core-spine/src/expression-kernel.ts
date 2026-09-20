@@ -83,6 +83,8 @@ export function planExpression(
     reasoningDepth,
     interactionStyle,
     creativeStyle,
+    explanationStyle: decision.posture.explanationStyle,
+    decisionPresentation: decision.posture.decisionPresentation,
     callback: callback?.value,
     callbackProvenance: callback?.provenance.map((item) => ({
       origin: item.origin,
