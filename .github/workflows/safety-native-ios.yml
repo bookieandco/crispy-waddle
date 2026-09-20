@@ -1,0 +1,46 @@
+name: Safety Native iOS
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/jhadina-ios/**'
+      - '.github/workflows/safety-native-ios.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/jhadina-ios/**'
+      - '.github/workflows/safety-native-ios.yml'
+
+jobs:
+  build:
+    name: Generate and build iOS shell
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: apps/jhadina-ios
+        run: xcodegen generate
+      - name: Build simulator target
+        working-directory: apps/jhadina-ios
+        run: |
+          xcodebuild \
+            -project JhadinaSafety.xcodeproj \
+            -scheme JhadinaSafety \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Run unit tests
+        working-directory: apps/jhadina-ios
+        run: |
+          xcodebuild \
+            -project JhadinaSafety.xcodeproj \
+            -scheme JhadinaSafety \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            CODE_SIGNING_ALLOWED=NO \
+            test
