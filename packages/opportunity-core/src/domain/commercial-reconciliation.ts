@@ -53,11 +53,11 @@ export function reconcileNegotiatedCommercialTerms(
     marginPercent:Math.round((reconciled.economics.estimatedMarginPercent-previous.economics.estimatedMarginPercent)*100)/100,
   }
   if(changedProviderIds.length) reasons.push('Negotiated provider pricing changed from the prior commercial model.')
-  if(changedScopeProviderIds.length) reasons.push('Negotiated scope allocation changed from the fulfillment-plan baseline.')
+  if(changedScopeProviderIds.length) reasons.push('Negotiated scope allocation changed from the fulfillment-plan baseline and requires a rebuilt fulfillment plan.')
   if(reconciled.status==='blocked') reasons.push('Reconciled economics no longer satisfy the commercial gate.')
 
   const reapprovalRequired=changedProviderIds.length>0||changedScopeProviderIds.length>0||deltas.grossProfit!==0||deltas.marginPercent!==0
-  const status:CommercialReconciliation['status']=reconciled.status==='blocked'?'blocked':reapprovalRequired?'requires_reapproval':'reconciled'
+  const status:CommercialReconciliation['status']=reconciled.status==='blocked'||changedScopeProviderIds.length>0?'blocked':reapprovalRequired?'requires_reapproval':'reconciled'
   return {
     opportunityId:plan.opportunityId,previous,reconciled,negotiatedProviderCosts:providerCosts,deltas,
     changedProviderIds:[...new Set(changedProviderIds)],
