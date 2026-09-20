@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 
 type ActivityEvent = {
+  domain: string
   id: string
   actionId: string
   userId: string
@@ -31,7 +32,7 @@ const statusColor: Record<ActivityEvent["status"], { bg: string; fg: string }> =
 
 /**
  * Jhadina OS Integration Phase 2: the Activity Timeline. Reads the
- * governed Growth audit ledger through /api/growth/activity — never
+ * universal governed audit projection through /api/system/activity — never
  * imports the ledger, action-core, or governed-approval-runtime
  * directly. This page only ever knows JSON events came back from a
  * fetch; the governance boundary lives entirely server-side.
@@ -48,7 +49,7 @@ export default function ActivityTimeline() {
       try {
         const userId = await getCurrentUserId()
         if (!userId) throw new Error("Not signed in")
-        const res = await fetch("/api/growth/activity", { headers: { "x-jhadina-user-id": userId } })
+        const res = await fetch("/api/system/activity", { headers: { "x-jhadina-user-id": userId } })
         const json = await res.json()
         if (!res.ok) throw new Error(json.error || "Could not load activity")
         if (!cancelled) setEvents(json.data?.events ?? [])
@@ -72,14 +73,14 @@ export default function ActivityTimeline() {
 
       {error && <div role="alert" style={{ marginTop: 24, padding: 13, borderRadius: 16, background: "#f5e1dc", color: "#8d5148" }}>{error}</div>}
       {loading ? <p style={{ marginTop: 24, color: "#7b877f" }}>Loading your activity…</p> : sorted.length === 0 ? (
-        !error && <div style={{ marginTop: 24, padding: 20, borderRadius: 20, background: "rgba(255,255,255,.55)", border: "1px solid #dce2dd", color: "#68756e" }}>Nothing recorded yet. Approve a Growth draft and it will show up here.</div>
+        !error && <div style={{ marginTop: 24, padding: 20, borderRadius: 20, background: "rgba(255,255,255,.55)", border: "1px solid #dce2dd", color: "#68756e" }}>Nothing recorded yet. Governed durable actions will show up here.</div>
       ) : (
         <ol style={{ listStyle: "none", margin: "26px 0 0", padding: 0, display: "grid", gap: 10 }}>
           {sorted.map((event) => {
             const color = statusColor[event.status]
             return <li key={event.id} style={{ padding: 16, borderRadius: 20, background: "rgba(255,255,255,.72)", border: "1px solid #dce2dd", boxShadow: "0 10px 28px rgba(67,76,69,.06)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 10, letterSpacing: ".11em", textTransform: "uppercase", color: "#758179" }}>{event.type}</span>
+                <span style={{ fontSize: 10, letterSpacing: ".11em", textTransform: "uppercase", color: "#758179" }}>{event.domain} · {event.type}</span>
                 <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 999, background: color.bg, color: color.fg }}>{statusLabel[event.status]}</span>
               </div>
               <div style={{ marginTop: 8, fontSize: 13, color: "#657169" }}>{new Date(event.timestamp).toLocaleString()}</div>
