@@ -9,7 +9,7 @@ import {
   type ApprovalReceiptStore,
 } from "@jhadina/action-core"
 import type { ContextPacket, DecisionProposal } from "@jhadina/core-spine"
-import type { IntelligenceRouter } from "@jhadina/intelligence-core"\nimport type { ProductionIntelligenceFabric } from "./production-intelligence-fabric"
+import type { IntelligenceRouter } from "@jhadina/intelligence-core"\nimport type { ProductionIntelligenceFabric } from "./production-intelligence-fabric"\nimport { ConservativeIntelligenceAdmissionPolicy, type IntelligenceAdmissionPolicy } from "./intelligence-admission-policy"
 import type { ActionRequestIdentity, JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
