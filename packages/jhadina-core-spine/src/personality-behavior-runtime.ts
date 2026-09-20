@@ -3,6 +3,7 @@ import { planExpression, type ExpressionContext, type ExpressionPlan } from './e
 import {
   createPersonalityEligibilityClassifier,
   type PersonalityEligibilityRule,
+  type PersonalityEligibilityDecision,
 } from './personality-eligibility.js';
 import { projectPersonality, type PersonalityCorePolicy } from './personality-core.js';
 import type { MemoryProposal, PatternObservation, PersonalityState } from './types.js';
@@ -21,6 +22,8 @@ export interface PersonalityBehaviorRuntimeInput {
 
 export interface PersonalityBehaviorRuntimeResult {
   patterns: PatternObservation[];
+  /** Auditable receipts explaining every Pattern -> Personality admission decision. */
+  eligibilityDecisions: PersonalityEligibilityDecision[];
   personality: PersonalityState;
   behavior: BehavioralDecision;
   expression: ExpressionPlan;
@@ -41,6 +44,7 @@ export function runPersonalityBehaviorRuntime(
   input: PersonalityBehaviorRuntimeInput,
 ): PersonalityBehaviorRuntimeResult {
   const classifier = createPersonalityEligibilityClassifier(input.eligibilityRules);
+  const eligibilityDecisions = input.patterns.map((pattern) => classifier.classify(pattern));
   const patterns = classifier.project(input.patterns);
 
   const personality = projectPersonality(
@@ -53,5 +57,5 @@ export function runPersonalityBehaviorRuntime(
   );
   const behavior = decideBehavior(personality, input.behaviorContext);
   const expression = planExpression(behavior, input.expressionContext);
-  return { patterns, personality, behavior, expression };
+  return { patterns, eligibilityDecisions, personality, behavior, expression };
 }
