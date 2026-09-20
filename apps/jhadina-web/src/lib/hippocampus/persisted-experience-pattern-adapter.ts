@@ -80,7 +80,7 @@ function approvedMemoryToProposal(memory: Memory): MemoryProposal {
     content: memory.content,
     reason: "approved durable Jhadina memory",
     evidence: [{
-      id: memory.id,
+      id: memory.reasoningEventId ?? memory.id,
       source: "memory",
       observedAt,
       summary: memory.content,
@@ -176,9 +176,17 @@ export class PersistedExperiencePatternAdapter {
       relatedEpisodes,
     )
     const memoryBackedPatterns = await this.patternPort.detect(input.experience, memories)
+    const approvedMemoryReasoningEventIds = new Set(
+      durableMemories
+        .filter((memory) => memory.status === "APPROVED")
+        .map((memory) => memory.reasoningEventId)
+        .filter((id): id is string => Boolean(id)),
+    )
     const episodeBackedPatterns = this.episodicPatterns.detect(
       input.experience,
-      relatedEpisodes,
+      relatedEpisodes.filter(
+        (episode) => !approvedMemoryReasoningEventIds.has(episode.episodeId),
+      ),
     )
     const patterns = [...memoryBackedPatterns, ...episodeBackedPatterns].sort(
       (left, right) => left.id.localeCompare(right.id),
