@@ -1119,7 +1119,6 @@ declare
   v_now timestamptz := now();
   v_ready_opportunity jsonb;
 begin
-  if auth.role() <> 'service_role' then raise exception 'service role required'; end if;
   if coalesce(p_opportunity->>'id','') <> p_opportunity_id then raise exception 'opportunity payload id mismatch'; end if;
   if coalesce(p_opportunity->>'status','') <> 'ready' then raise exception 'opportunity payload must be ready'; end if;
 
@@ -1244,7 +1243,6 @@ declare
   v_learning jsonb;
   v_closed_opportunity jsonb;
 begin
-  if auth.role() <> 'service_role' then raise exception 'service role required'; end if;
   if coalesce(p_opportunity->>'id','') <> p_opportunity_id then raise exception 'opportunity payload id mismatch'; end if;
   if coalesce(p_outcome->>'opportunityId','') <> p_opportunity_id then raise exception 'outcome does not match opportunity'; end if;
   if coalesce(v_outcome_id,'') = '' then raise exception 'outcome id is required'; end if;
@@ -1449,4 +1447,60 @@ end;
 $$;
 
 revoke all on function public.jhadina_opportunity_record_trusted_outcome(uuid, text, jsonb, jsonb, jsonb) from public;
+grant execute on function public.jhadina_opportunity_record_trusted_outcome(uuid, text, jsonb, jsonb, jsonb) to service_role;
+
+
+-- OPP-AUDIT production privilege normalization.
+-- Older projects may auto-grant Data API privileges to anon/authenticated on
+-- newly-created public tables/functions. Normalize to the intended least-
+-- privilege surface after every object exists.
+
+revoke all on table public.jhadina_opportunities from anon;
+revoke all on table public.jhadina_opportunity_observations from anon;
+revoke all on table public.jhadina_opportunity_reconciliations from anon;
+revoke all on table public.jhadina_opportunity_research_cases from anon;
+revoke all on table public.jhadina_opportunity_research_tasks from anon;
+revoke all on table public.jhadina_opportunity_outbox from anon;
+revoke all on table public.jhadina_opportunity_outcomes from anon;
+
+revoke all on table public.jhadina_opportunities from authenticated;
+revoke all on table public.jhadina_opportunity_observations from authenticated;
+revoke all on table public.jhadina_opportunity_reconciliations from authenticated;
+revoke all on table public.jhadina_opportunity_research_cases from authenticated;
+revoke all on table public.jhadina_opportunity_research_tasks from authenticated;
+revoke all on table public.jhadina_opportunity_outbox from authenticated;
+revoke all on table public.jhadina_opportunity_outcomes from authenticated;
+
+grant select on table public.jhadina_opportunities to authenticated;
+grant select on table public.jhadina_opportunity_observations to authenticated;
+grant select on table public.jhadina_opportunity_reconciliations to authenticated;
+grant select on table public.jhadina_opportunity_research_cases to authenticated;
+grant select on table public.jhadina_opportunity_research_tasks to authenticated;
+grant select on table public.jhadina_opportunity_outbox to authenticated;
+grant select on table public.jhadina_opportunity_outcomes to authenticated;
+
+grant all on table public.jhadina_opportunities to service_role;
+grant all on table public.jhadina_opportunity_observations to service_role;
+grant all on table public.jhadina_opportunity_reconciliations to service_role;
+grant all on table public.jhadina_opportunity_research_cases to service_role;
+grant all on table public.jhadina_opportunity_research_tasks to service_role;
+grant all on table public.jhadina_opportunity_outbox to service_role;
+grant all on table public.jhadina_opportunity_outcomes to service_role;
+
+revoke all on function public.jhadina_opportunity_ingest(jsonb, text) from anon;
+revoke all on function public.jhadina_opportunity_start_research(text, jsonb, jsonb, jsonb) from anon;
+revoke all on function public.jhadina_opportunity_update_research_task(text, text, text, jsonb) from anon;
+revoke all on function public.jhadina_opportunity_promote_ready(text, text, jsonb) from anon;
+revoke all on function public.jhadina_opportunity_record_outcome(text, jsonb, jsonb, jsonb) from anon;
+revoke all on function public.jhadina_opportunity_set_triage(text, text) from anon;
+revoke all on function public.jhadina_opportunity_promote_recovery_ready_trusted(uuid, text, text, jsonb) from anon, authenticated;
+revoke all on function public.jhadina_opportunity_record_trusted_outcome(uuid, text, jsonb, jsonb, jsonb) from anon, authenticated;
+
+grant execute on function public.jhadina_opportunity_ingest(jsonb, text) to authenticated;
+grant execute on function public.jhadina_opportunity_start_research(text, jsonb, jsonb, jsonb) to authenticated;
+grant execute on function public.jhadina_opportunity_update_research_task(text, text, text, jsonb) to authenticated;
+grant execute on function public.jhadina_opportunity_promote_ready(text, text, jsonb) to authenticated;
+grant execute on function public.jhadina_opportunity_record_outcome(text, jsonb, jsonb, jsonb) to authenticated;
+grant execute on function public.jhadina_opportunity_set_triage(text, text) to authenticated;
+grant execute on function public.jhadina_opportunity_promote_recovery_ready_trusted(uuid, text, text, jsonb) to service_role;
 grant execute on function public.jhadina_opportunity_record_trusted_outcome(uuid, text, jsonb, jsonb, jsonb) to service_role;
