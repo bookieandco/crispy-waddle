@@ -25,17 +25,7 @@ import {
  * the health/capability gate, exactly one ActionPolicy, assertCapability
  * enforced inside the adapter — none of that is reimplemented here).
  *
- * assertUserWorkspace is deliberately left unset: there is no stored
- * "which Plaid Item does this user own" mapping anywhere in this
- * codebase yet (no bank-connection table, no migration) — building one
- * is new infrastructure this Phase-1 wiring milestone was not
- * authorized to add. Every verified identity that reaches this runtime
- * is therefore allowed to read the single configured 'plaid' provider's
- * accounts; this is a real, known, intentionally-surfaced gap (not
- * hidden) and matches the current absence of any "connect your bank"
- * flow. It must be closed before this path is exposed to more than one
- * real bank connection per user.
- */
+ * Bank ownership is now durable and user-scoped. The request-scoped identity\n * resolves only that user's active Plaid Items; encrypted provider credentials\n * are fetched through the server-only service-role boundary and never returned\n * to the browser.\n */
 export type GovernedMoneyRuntimeOverrides = {
   /** Test-only: createRequestIdentityVerifier() makes a real Supabase call with no meaning outside a real request. */
   identityVerifier?: JhadinaIdentityVerifier
