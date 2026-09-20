@@ -64,7 +64,19 @@ const relationFromRow = (row: RelationRow): KnowledgeRelation => ({
   validTo: row.valid_to,
 })
 
-const canonical = (value: unknown): string => JSON.stringify(value, Object.keys(value as Record<string, unknown>).sort())
+const canonical = (value: unknown): string => {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value)
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('KNOWLEDGE_GRAPH_NON_FINITE_NUMBER')
+    return JSON.stringify(value)
+  }
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+  if (typeof value === 'object') {
+    const object = value as Record<string, unknown>
+    return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonical(object[key])}`).join(',')}}`
+  }
+  throw new Error('KNOWLEDGE_GRAPH_NON_JSON_VALUE')
+}
 
 export class PostgresKnowledgeGraphStore implements DurableKnowledgeGraphStore {
   private readonly client: KnowledgeGraphSqlClient
