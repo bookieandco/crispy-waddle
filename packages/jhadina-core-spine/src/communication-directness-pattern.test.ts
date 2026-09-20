@@ -15,6 +15,7 @@ const mem = (id: string, content: string): MemoryProposal => ({
   id: `m-${id}`,
   disposition: 'SAVE',
   content,
+  reason: 'approved test memory',
   evidence: [{ id, source: 'memory', observedAt: '2026-09-19T12:00:00.000Z', summary: content, immutable: true }],
 });
 
