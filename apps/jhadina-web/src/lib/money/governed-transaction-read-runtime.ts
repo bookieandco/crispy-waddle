@@ -9,7 +9,7 @@ import { PLAID_PROVIDER, type MoneyPlaidProductionRegistry } from "./production-
 export type GovernedTransactionRuntimeOverrides={identityVerifier?:JhadinaIdentityVerifier;supabase?:AuditRpcClient;providers?:MoneyPlaidProductionRegistry;ownershipResolver?:MoneyOwnershipResolver}
 function toActionIdentityVerifier(verifier:JhadinaIdentityVerifier):ActionIdentityVerifier{return {async verify(request){return verifier.verify({userId:request.userId})}}}
 
-/** Session-authoritative transaction read. Ownership fails closed until a durable per-user bank-connection map is supplied. */
+/** Session-authoritative transaction read. Durable per-user ownership is required and unknown/revoked accounts fail closed before provider I/O. */
 export async function runSessionGovernedMoneyTransactionRead(accountId:string,requestId:string,overrides:GovernedTransactionRuntimeOverrides={}):Promise<{transactions:readonly MoneyTransaction[];verifiedUserId:string}>{
   const identityVerifier=overrides.identityVerifier??(await createRequestIdentityVerifier());const identity=await identityVerifier.verify({});
   const supabase=overrides.supabase??(await createMoneyAuditRpcClient());
