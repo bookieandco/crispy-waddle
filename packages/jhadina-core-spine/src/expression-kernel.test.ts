@@ -28,6 +28,7 @@ const personality: PersonalityState = {
   voice: {
     directness: 0.9,
     warmth: 0.7,
+    verbosity: 0.4,
     humor: 0.8,
     profanityTolerance: 0.7,
     quipFrequency: 0.6,
@@ -90,6 +91,7 @@ describe('Expression Kernel', () => {
       mode: 'pushback',
       allowProfanity: true,
       allowQuip: true,
+      responseLength: 'brief',
       callback: 'callback-1',
       callbackProvenance: [{
         origin: 'relationship',
@@ -116,6 +118,7 @@ describe('Expression Kernel', () => {
     assert.equal(plan.mode, 'serious');
     assert.equal(plan.allowProfanity, false);
     assert.equal(plan.allowQuip, false);
+    assert.equal(plan.responseLength, 'brief');
     assert.equal(plan.callback, undefined);
     assert.equal(plan.callbackProvenance, undefined);
     assert.equal(plan.culturalReference, undefined);
