@@ -28,6 +28,9 @@ describe('GovernedSemanticPreferenceStrategy', () => {
     ['Challenge my assumptions.', 'personality-signal:communication:pushback', 'prefers active pushback'],
     ['Go deeper.', 'personality-signal:communication:technical-depth', 'prefers technical depth'],
     ['Work uninterrupted.', 'personality-signal:preference:continuous-workflow', 'prefers continuous workflow'],
+    ['Walk me through this step-by-step.', 'personality-signal:communication:step-by-step', 'prefers step-by-step explanations'],
+    ['Lead with the evidence.', 'personality-signal:communication:evidence-first', 'prefers evidence-first explanations'],
+    ['Give me several options.', 'personality-signal:preference:multiple-options', 'prefers multiple options'],
     ['Make it experimental.', 'personality-signal:taste:experimentation', 'prefers experimental creativity'],
     ['Use a familiar tone.', 'personality-signal:relationship:familiar-tone', 'prefers familiar tone'],
   ])('detects %s as a governed semantic hypothesis', (phrase, id, statement) => {
