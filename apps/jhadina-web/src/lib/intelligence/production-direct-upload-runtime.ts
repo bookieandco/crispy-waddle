@@ -8,7 +8,11 @@ import {
 } from "@jhadina/intelligence-core";
 import { createServiceRoleClient } from "../supabase/service-role";
 import { HttpMediaSecurityScanner } from "./http-media-security-scanner";
-import { SupabaseDirectUploadObjectStore } from "./supabase-direct-upload-object-store";
+import {
+  SupabaseDirectUploadObjectStore,
+  type DirectUploadGrant,
+  type DirectUploadObjectInfo,
+} from "./supabase-direct-upload-object-store";
 import {
   SupabaseDirectUploadSessionRepository,
   type DirectUploadSession,
@@ -81,16 +85,38 @@ export type DirectUploadFinalizeResult = {
   };
 };
 
-type DirectUploadSessionStore = SupabaseDirectUploadSessionRepository;
-type DirectObjectStore = SupabaseDirectUploadObjectStore;
-type PromotionStore = SupabaseUniversalUploadObjectStore;
+export interface DirectUploadSessionStore {
+  create(input: {
+    id: string; actorId: string; quarantinePath: string; filename: string;
+    declaredMediaType: string; modality: DirectUploadSession["modality"];
+    expectedByteLength: number; privacyClass: UniversalUploadPrivacyClass;
+    intent?: string; expiresAt: string;
+  }): Promise<DirectUploadSession>;
+  get(actorId: string, sessionId: string): Promise<DirectUploadSession | undefined>;
+  claimFinalize(input: { actorId: string; sessionId: string; workerId: string; leaseMs: number }): Promise<DirectUploadSession | undefined>;
+  renewFinalizeLease(input: { actorId: string; sessionId: string; workerId: string; leaseToken: string; leaseMs: number }): Promise<DirectUploadSession | undefined>;
+  recordScan(input: { actorId: string; sessionId: string; workerId: string; leaseToken: string; sha256: string; scannedAt: string }): Promise<DirectUploadSession | undefined>;
+  complete(input: { actorId: string; sessionId: string; workerId: string; leaseToken: string; assetId: string; perceptionJobId: string }): Promise<DirectUploadSession | undefined>;
+  reject(input: { actorId: string; sessionId: string; workerId: string; leaseToken: string; error: string }): Promise<DirectUploadSession | undefined>;
+  release(input: { actorId: string; sessionId: string; workerId: string; leaseToken: string; error: string }): Promise<DirectUploadSession | undefined>;
+}
+
+export interface DirectUploadObjectStore {
+  issue(input: { actorId: string; sessionId: string; filename: string }): Promise<DirectUploadGrant>;
+  inspect(quarantinePath: string): Promise<DirectUploadObjectInfo | undefined>;
+  scanUri(path: string): Promise<string>;
+}
+
+export interface DirectUploadPromotionStore {
+  promote(input: { actorId: string; quarantineHandle: string; filename: string }): Promise<{ assetRef: string }>;
+}
 
 export class DirectUploadRuntime {
   constructor(
     private readonly scanner: MediaSecurityScanner,
     private readonly sessions: DirectUploadSessionStore,
-    private readonly directObjects: DirectObjectStore,
-    private readonly promotion: PromotionStore,
+    private readonly directObjects: DirectUploadObjectStore,
+    private readonly promotion: DirectUploadPromotionStore,
     private readonly registry: GovernedAssetRegistry,
     private readonly jobs: PerceptionJobRepository,
     private readonly scannerPrivacyCeiling: UniversalUploadPrivacyClass = "sensitive",
