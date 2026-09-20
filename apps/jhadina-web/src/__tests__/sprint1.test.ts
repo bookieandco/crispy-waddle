@@ -297,6 +297,7 @@ describe("MemoryRepository", () => {
     const memory = await repo.approve(candidate.id, "user_1")
     expect(memory.status).toBe("APPROVED")
     expect(memory.approvedAt).toBeDefined()
+    expect(memory.reasoningEventId).toBe("reason_1")
   })
 
   it("should reject a candidate", async () => {

@@ -15,8 +15,24 @@ type DecisionProposal = {
   alternatives: string[]
 }
 type MemoryCandidate = { id: string; content: string; type: string; confidence: number; status: string }
+type GovernedExpressionSegment = {
+  kind: "semantic" | "callback" | "cultural_reference"
+  text: string
+}
+type GovernedExpression = {
+  proposal: DecisionProposal
+  presentation: {
+    mode: "direct" | "explanatory" | "pushback" | "clarifying" | "serious"
+    allowProfanity: boolean
+    allowQuip: boolean
+    callback?: string
+    culturalReference?: string
+  }
+  segments: GovernedExpressionSegment[]
+}
 type CommandResult = {
   proposal: DecisionProposal
+  expression: GovernedExpression
   candidate?: MemoryCandidate
   approvalReceiptId?: string
   verified: boolean
@@ -146,10 +162,20 @@ function AskJhadina() {
 
         {result && (
           <section style={{ marginTop: 24, padding: 20, borderRadius: 22, background: "rgba(255,255,255,.78)", border: "1px solid #dce2dd" }}>
-            <div style={eyebrow}>{result.proposal.disposition}</div>
-            <p style={{ margin: "10px 0 8px", fontSize: 16, lineHeight: 1.6 }}>{result.proposal.recommendation}</p>
+            <div style={eyebrow}>{result.proposal.disposition} · {result.expression.presentation.mode}</div>
+            {result.expression.segments.map((segment, index) => (
+              <p
+                key={`${segment.kind}-${index}`}
+                data-expression-kind={segment.kind}
+                style={segment.kind === "semantic"
+                  ? { margin: "10px 0 8px", fontSize: 16, lineHeight: 1.6 }
+                  : { margin: "8px 0", color: "#59675f", fontSize: 14 }}
+              >
+                {segment.text}
+              </p>
+            ))}
             <div style={{ padding: 13, borderRadius: 16, background: "#eef1ed", color: "#657169", fontSize: 13, lineHeight: 1.55 }}>
-              <strong>Why:</strong> {result.proposal.rationale}
+              <strong>Why:</strong> {result.expression.proposal.rationale}
             </div>
             {result.approvalReceiptId && (
               <p style={{ marginTop: 10, fontSize: 12, color: "#8b7b9d" }}>

@@ -107,6 +107,7 @@ describe("SupabaseMemoryStorage", () => {
       confidence: 0.95,
       createdAt: "2026-01-01T00:00:00.000Z",
       approvedAt: "2026-01-01T00:00:01.000Z",
+      reasoningEventId: "reason_1",
     })
 
     expect(memory.id).toMatch(/^mem_/)
@@ -115,6 +116,8 @@ describe("SupabaseMemoryStorage", () => {
     const retrieved = await storage.getMemory(memory.id)
     expect(retrieved?.content).toBe("Loves cinematic visuals")
     expect(retrieved?.approvedAt).toBe("2026-01-01T00:00:01.000Z")
+    expect(retrieved?.reasoningEventId).toBe("reason_1")
+    expect(tables.jhadina_memories.rows[0]?.reasoning_event_id).toBe("reason_1")
   })
 
   it("scopes listMemories to the requesting user", async () => {

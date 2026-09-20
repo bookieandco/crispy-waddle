@@ -6,8 +6,11 @@ import {
   type SupabaseAuditLedger,
 } from "@jhadina/action-core"
 import { JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION } from "@jhadina/security-core"
-import { IntelligenceRouter, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
-import type { SpatialContextProvider } from "../context/context-builder"
+import { IntelligenceRouter, realizeGovernedExpression, type GovernedExpressionRealization, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
+import type {
+  PersonalityContextProvider,
+  SpatialContextProvider,
+} from "../context/context-builder"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { buildContext, type ContextBuilderDeps, type ContextBuilderLimits } from "../context/context-builder"
@@ -21,6 +24,7 @@ import { decideAndProposeMemoryGoverned, type GovernedIntelligenceProposalResult
 import { MEMORY_PROPOSE_CAPABILITY, type MemoryProposeAction } from "./memory-propose-capability"
 import { createProductionIntelligenceRouter } from "./production-model-provider"
 import { createProductionSpatialContextProvider } from "../context/production-spatial-context-provider"
+import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
 
 export interface JhadinaCommandInput {
   userId: string
@@ -43,9 +47,12 @@ export interface JhadinaCommandOverrides {
   onEvent?: (event: IntelligenceRouterEvent) => void
   /** Read-only spatial adapter. It is the only permitted entry from Ask Jhadina into spatial intelligence. */
   spatialContextProvider?: SpatialContextProvider
+  /** Governed read/projection adapter for Pattern -> Personality -> Expression context. */
+  personalityContextProvider?: PersonalityContextProvider
 }
 
 export interface JhadinaCommandResult extends GovernedIntelligenceProposalResult {
+  expression: GovernedExpressionRealization
   verified: boolean
   verificationReason?: string
 }
@@ -60,10 +67,14 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   const memoryRepo = new MemoryRepository(storage)
   const reasoningRepo = new ReasoningEventRepository(storage)
   const spatialContextProvider = overrides.spatialContextProvider ?? createProductionSpatialContextProvider(verifiedIdentity.userId)
+  const personalityContextProvider =
+    overrides.personalityContextProvider ??
+    createProductionPersonalityContextProvider(storage, verifiedIdentity.userId)
   const contextDeps: ContextBuilderDeps = {
     memoryRepo,
     timelineRepo: new TimelineRepository(storage),
     spatialContextProvider,
+    personalityContextProvider,
   }
   const assembled = await buildContext(contextDeps, {
     userId: verifiedIdentity.userId,
@@ -88,7 +99,9 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     assembled.contextPacket,
   )
 
-  if (!result.candidate) return { ...result, verified: true, verificationReason: "no action was executed for this proposal" }
+  const expression = realizeGovernedExpression(result.proposal, assembled.contextPacket.expressionDirective)
+
+  if (!result.candidate) return { ...result, expression, verified: true, verificationReason: "no action was executed for this proposal" }
 
   const verification = await verifyCandidateDurable(memoryRepo, result.verifiedUserId, result.candidate)
   const verifyEventId = `verify:${result.candidate.id}:${Date.now()}`
@@ -102,7 +115,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     metadata: { stage: "verify", reason: verification.reason ?? "durable read-back matched executed content" },
   })
   if (!verification.verified) throw new Error(`JHADINA_COMMAND_VERIFICATION_FAILED:${verification.reason}`)
-  return { ...result, verified: true, verificationReason: verification.reason }
+  return { ...result, expression, verified: true, verificationReason: verification.reason }
 }
 
 async function verifyCandidateDurable(memoryRepo: MemoryRepository, userId: string, candidate: NonNullable<GovernedIntelligenceProposalResult["candidate"]>): Promise<{ verified: boolean; reason?: string }> {

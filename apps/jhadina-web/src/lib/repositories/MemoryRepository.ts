@@ -80,6 +80,7 @@ export class MemoryRepository {
       confidence: candidate.confidence,
       createdAt: candidate.createdAt,
       approvedAt: new Date().toISOString(),
+      reasoningEventId: candidate.reasoningEventId,
     })
 
     // Remove candidate (it's now a memory)

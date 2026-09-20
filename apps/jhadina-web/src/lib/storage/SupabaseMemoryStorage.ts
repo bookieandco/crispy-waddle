@@ -35,6 +35,7 @@ type MemoryRow = {
   created_at: string
   approved_at: string | null
   rejected_at: string | null
+  reasoning_event_id: string | null
 }
 
 type CandidateRow = {
@@ -83,6 +84,7 @@ function memoryFromRow(row: MemoryRow): Memory {
     createdAt: row.created_at,
     approvedAt: row.approved_at ?? undefined,
     rejectedAt: row.rejected_at ?? undefined,
+    reasoningEventId: row.reasoning_event_id ?? undefined,
   }
 }
 
@@ -153,6 +155,7 @@ export class SupabaseMemoryStorage implements MemoryStorage {
       created_at: data.createdAt,
       approved_at: data.approvedAt ?? null,
       rejected_at: data.rejectedAt ?? null,
+      reasoning_event_id: data.reasoningEventId ?? null,
     }
     const { error } = await this.client.from("jhadina_memories").insert(row)
     assertNoError(error, "createMemory")
@@ -185,6 +188,7 @@ export class SupabaseMemoryStorage implements MemoryStorage {
     if (updates.confidence !== undefined) patch.confidence = updates.confidence
     if (updates.approvedAt !== undefined) patch.approved_at = updates.approvedAt
     if (updates.rejectedAt !== undefined) patch.rejected_at = updates.rejectedAt
+    if (updates.reasoningEventId !== undefined) patch.reasoning_event_id = updates.reasoningEventId
 
     const { data, error } = await this.client
       .from("jhadina_memories")

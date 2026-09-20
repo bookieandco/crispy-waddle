@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { IntelligenceRouter, type ModelProvider } from "@jhadina/intelligence-core"
-import type { DecisionProposal } from "@jhadina/core-spine"
+import { emptyPersonalityState, type DecisionProposal } from "@jhadina/core-spine"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
@@ -55,11 +55,15 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     expect(assembled.contextPacket.knowledge).toEqual([])
     expect(assembled.contextPacket.patterns).toEqual([])
     expect(assembled.contextPacket.personality.traits).toEqual([])
+    expect(assembled.contextPacket.personality.independentAssessmentRequired).toBe(true)
+    expect(assembled.contextPacket.personality.voice).toBeDefined()
+    expect(assembled.contextPacket.personality.taste).toBeDefined()
+    expect(assembled.contextPacket.personality.relationship).toBeDefined()
     expect(assembled.contextPacket.excludedContext).toContain(
-      "patterns: not assembled — no PatternPort implementation exists yet",
+      "patterns: not assembled — PatternPort is not composed into the direct context fallback",
     )
     expect(assembled.contextPacket.excludedContext).toContain(
-      "personality: not assembled — no PersonalityPort implementation exists yet",
+      "personality: not assembled — direct context fallback uses canonical empty state until governed ports are composed",
     )
     expect(assembled.contextPacket.excludedContext).toContain("surface: not supplied by the caller")
   })
@@ -211,6 +215,55 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     expect(proposal.contextId).toBe(assembled.contextPacket.id)
     expect(proposal.evidence).toEqual(assembled.contextPacket.relevantMemories)
     expect(proposal.recommendation).toContain("Studio")
+  })
+
+  it("composes governed patterns, personality, and expression directive when a personality provider is present", async () => {
+    const deps = freshDeps()
+    deps.personalityContextProvider = {
+      getContext: async () => ({
+        patterns: [{
+          id: "recurrence:direct",
+          pattern: "recurring term: direct",
+          evidence: [],
+          confidence: 0.75,
+          occurrences: 2,
+          contradictions: [],
+          lastObservedAt: "2026-09-20T12:00:00.000Z",
+          personalityEligible: false,
+        }],
+        personality: {
+          ...emptyPersonalityState("2026-09-20T12:00:00.000Z"),
+          version: 3,
+        },
+        expressionDirective: {
+          mode: "direct",
+          allowProfanity: false,
+          allowQuip: true,
+        },
+        limitations: ["personality persistence unavailable for this test"],
+      }),
+    }
+
+    const assembled = await buildContext(deps, {
+      userId: "user-personality",
+      activeTask: "keep this direct",
+    })
+
+    expect(assembled.contextPacket.patterns).toHaveLength(1)
+    expect(assembled.contextPacket.personality.version).toBe(3)
+    expect(assembled.contextPacket.expressionDirective).toEqual({
+      mode: "direct",
+      allowProfanity: false,
+      allowQuip: true,
+    })
+    expect(assembled.contextPacket.excludedContext).toContain(
+      "personality persistence unavailable for this test",
+    )
+    expect(
+      assembled.contextPacket.excludedContext.some((entry) =>
+        entry.startsWith("patterns: not assembled"),
+      ),
+    ).toBe(false)
   })
 
   it("reflects the current base Security Core policy as human-readable constraints, without duplicating or modifying it", async () => {

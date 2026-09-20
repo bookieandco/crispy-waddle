@@ -291,11 +291,15 @@ describe("Jhadina Command — the instantiated operating loop (Phase 1 Step 5)",
 
     let capturedContextId: string | undefined
     let capturedRelevantMemoryCount = 0
+    let capturedPatternCount = 0
+    let capturedExpressionMode: string | undefined
     const capturingProvider: ModelProvider = {
       name: "capturing-provider",
       propose: async (context) => {
         capturedContextId = context.id
         capturedRelevantMemoryCount = context.relevantMemories.length
+        capturedPatternCount = context.patterns.length
+        capturedExpressionMode = context.expressionDirective?.mode
         return proposalFor("PROCEED", { contextId: context.id })
       },
     }
@@ -313,7 +317,30 @@ describe("Jhadina Command — the instantiated operating loop (Phase 1 Step 5)",
     // approved memory's content — this can only be non-zero if buildContext()
     // genuinely queried MemoryRepository and found a relevant match.
     expect(capturedRelevantMemoryCount).toBeGreaterThan(0)
+    expect(capturedPatternCount).toBeGreaterThan(0)
+    expect(capturedExpressionMode).toBeDefined()
     expect(capturedContextId).toMatch(/^ctx_/) // context-builder.ts's real id prefix, not a test fixture's id
+  })
+
+  it("returns governed expression assets only through the deterministic realization boundary", async () => {
+    const identity: ActionRequestIdentity = { userId: "user-step5-expression", sessionId: "s-expression" }
+    const router = new IntelligenceRouter({
+      primary: providerReturning(proposalFor("ASK", {
+        recommendation: "pretend callback: model-invented phrase",
+      })),
+      fallback: providerThatFails(),
+    })
+    const overrides = freshOverrides(identity, router)
+
+    const result = await handleJhadinaCommand(
+      { userId: identity.userId, activeTask: "answer this directly" },
+      overrides,
+    )
+
+    expect(result.expression.proposal).toBe(result.proposal)
+    expect(result.expression.presentation.mode).toBeDefined()
+    expect(result.expression.presentation.callback).toBeUndefined()
+    expect(result.expression.presentation.culturalReference).toBeUndefined()
   })
 
   it("verifies the executed action's durable effect and records a distinct verify audit stage", async () => {
