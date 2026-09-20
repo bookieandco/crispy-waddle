@@ -32,11 +32,19 @@ export interface MediaSource {
   authorization?: MediaSourceAuthorization;
 }
 
+export interface MediaSourceRequest {
+  /** Canonical Jhadina media identity used for history, recommendations and continuity. */
+  mediaId: string;
+  /** Provider-native identity used only to resolve the provider's playable asset. */
+  providerMediaId?: string;
+}
+
 export interface MediaSourceAdapter {
   readonly id: string;
   readonly name: string;
   search(query: string): Promise<MediaTitle[]>;
   getSources(titleId: string): Promise<MediaSource[]>;
+  getSourcesForMedia?(request: MediaSourceRequest): Promise<MediaSource[]>;
 }
 
 export function assertPlayableSource(source: MediaSource): MediaSource {

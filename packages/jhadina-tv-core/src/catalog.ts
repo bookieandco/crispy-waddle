@@ -1,4 +1,4 @@
-import type { MediaSource, MediaSourceAdapter } from './source-adapter';
+import type { MediaSource, MediaSourceAdapter, MediaSourceRequest } from './source-adapter';
 import type { MediaTitle } from './index';
 
 export interface CatalogProvider {
@@ -52,10 +52,23 @@ export class CatalogRegistry {
   }
 
   async resolveSources(providerId: string, titleId: string): Promise<ResolvedMediaSource[]> {
+    return this.resolveMediaSources(providerId, { mediaId: titleId });
+  }
+
+  async resolveMediaSources(providerId: string, request: MediaSourceRequest): Promise<ResolvedMediaSource[]> {
     const provider = this.providers.get(providerId);
     if (!provider) throw new Error(`Unknown JhadinaTV provider: ${providerId}`);
+    if (!request.mediaId.trim()) throw new Error('Canonical Jhadina mediaId is required.');
 
-    const sources = await provider.sourceAdapter.getSources(titleId);
-    return sources.map((source) => ({ providerId, source }));
+    const sources = provider.sourceAdapter.getSourcesForMedia
+      ? await provider.sourceAdapter.getSourcesForMedia(request)
+      : await provider.sourceAdapter.getSources(request.providerMediaId ?? request.mediaId);
+
+    return sources.map((source) => {
+      if (source.titleId !== request.mediaId) {
+        return { providerId, source: { ...source, titleId: request.mediaId } };
+      }
+      return { providerId, source };
+    });
   }
 }
