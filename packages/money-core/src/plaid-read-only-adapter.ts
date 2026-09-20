@@ -1,6 +1,8 @@
 import type { BankAdapter, MoneyAccount, MoneyAdapterContext, MoneyTransaction } from './bank-adapter.js';
 import { assertCapability } from './bank-adapter.js';
 
+export const PLAID_API_VERSION = '2020-09-14' as const;
+
 type PlaidCredentialBundle = {
   clientId: string;
   secret: string;
@@ -80,6 +82,7 @@ export class PlaidReadOnlyAdapter implements BankAdapter {
           'content-type': 'application/json',
           'PLAID-CLIENT-ID': this.credentials.clientId,
           'PLAID-SECRET': this.credentials.secret,
+          'Plaid-Version': PLAID_API_VERSION,
         },
         body: JSON.stringify(body),
         signal: controller.signal,
