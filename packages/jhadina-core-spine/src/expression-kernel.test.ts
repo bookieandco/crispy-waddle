@@ -135,4 +135,31 @@ describe('Expression Kernel', () => {
     assert.equal(plan.culturalReference, undefined);
     assert.equal(plan.culturalReferenceEvidence, undefined);
   });
+  it('resolves cross-trait presentation conflicts deterministically', () => {
+    const conflicted: BehavioralDecision = {
+      ...decision,
+      posture: {
+        ...decision.posture,
+        warmth: 0.95,
+        formality: 0.9,
+        verbosity: 0.2,
+        reasoningDepth: 0.9,
+        workflowContinuity: 0.9,
+        creativeLatitude: 0.9,
+      },
+    };
+    const plan = planExpression(conflicted);
+    assert.equal(plan.tone, 'formal');
+    assert.equal(plan.responseLength, 'brief');
+    assert.equal(plan.reasoningDepth, 'technical');
+    assert.equal(plan.interactionStyle, 'continuous');
+    assert.equal(plan.creativeStyle, 'experimental');
+
+    const serious = planExpression({ ...conflicted, action: 'stay_serious' });
+    assert.equal(serious.tone, 'formal');
+    assert.equal(serious.creativeStyle, 'conventional');
+    assert.equal(serious.allowProfanity, false);
+    assert.equal(serious.allowQuip, false);
+  });
+
 });
