@@ -28,7 +28,11 @@ export async function encryptSafetyPayload(
   keyId: string,
 ): Promise<SafetyEncryptedPayload> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: iv as unknown as BufferSource },
+    key,
+    plaintext as unknown as BufferSource,
+  );
   return {
     keyId,
     ivBase64: bytesToBase64(iv),
