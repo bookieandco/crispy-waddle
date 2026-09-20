@@ -104,6 +104,7 @@ export * from './nba-id-phys-runtime.js';
 export * from './nba-identity-benchmark.js';
 export * from './nba-identity-certification.js';
 export * from './nba-jersey-ocr.js';
+export * from './nba-kaggle-reference.js';
 export * from './nba-learning-shadow-backtest.js';
 export * from './nba-lineup-accuracy.js';
 export * from './nba-lineup-constraint.js';
