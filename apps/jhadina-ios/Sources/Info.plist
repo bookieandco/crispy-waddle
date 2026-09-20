@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleDisplayName</key><string>Jhadina</string>
+<key>UILaunchScreen</key><dict/>
+<key>NSMicrophoneUsageDescription</key><string>Jhadina Safety uses the microphone only when a safety protocol or user-authorized drill requests permitted audio capture.</string>
+<key>NSCameraUsageDescription</key><string>Jhadina Safety uses the camera only when a safety protocol or user-authorized drill requests permitted video capture.</string>
+<key>NSLocationWhenInUseUsageDescription</key><string>Jhadina Safety uses location to attach spatial context to an active safety incident or drill.</string>
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key><string>Jhadina Safety can continue permitted location updates for an active safety incident when iOS allows it.</string>
+<key>UIBackgroundModes</key><array><string>location</string><string>audio</string></array>
+</dict></plist>
