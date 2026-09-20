@@ -61,7 +61,28 @@ export async function persistSharkLaunch(client: SupabaseClient, collection: Sol
     }]
   })
   if (edges.length) {
-    const { error: edgeError } = await client.from('jhadina_token_actor_edges').upsert(edges, { onConflict: 'edge_id', ignoreDuplicates: true })
+    const edgeIds = edges.map(edge => edge.edge_id)
+    const { data: existingEdges, error: edgeLookupError } = await client
+      .from('jhadina_token_actor_edges')
+      .select('edge_id,evidence_ids,observed_at')
+      .in('edge_id', edgeIds)
+    if (edgeLookupError) throw new Error(`SHARK actor-edge lookup failed: ${edgeLookupError.message}`)
+
+    const existingById = new Map((existingEdges ?? []).map(row => [row.edge_id, row]))
+    const mergedEdges = edges.map(edge => {
+      const prior = existingById.get(edge.edge_id)
+      return {
+        ...edge,
+        observed_at: prior?.observed_at && Date.parse(prior.observed_at) <= Date.parse(edge.observed_at)
+          ? prior.observed_at
+          : edge.observed_at,
+        evidence_ids: [...new Set([...(prior?.evidence_ids ?? []), ...edge.evidence_ids])],
+      }
+    })
+
+    const { error: edgeError } = await client
+      .from('jhadina_token_actor_edges')
+      .upsert(mergedEdges, { onConflict: 'edge_id', ignoreDuplicates: false })
     if (edgeError) throw new Error(`SHARK actor-edge persistence failed: ${edgeError.message}`)
   }
   return { launchId: existing?.launch_id ?? launch.launchId, persistedEdges: edges.length }
