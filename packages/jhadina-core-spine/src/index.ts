@@ -31,6 +31,11 @@ export * from './emergency-integration.js';
 export * from './emergency-e2e-harness.js';
 export * from './emergency-scenarios.js';
 export * from './emergency-scenario-tests.js';
+export * from './emergency-governance.js';
+export * from './emergency-contingency.js';
+export * from './emergency-delivery.js';
+export * from './emergency-incident-ledger.js';
+export * from './emergency-adversarial.js';
 
 export * from './communication-directness-pattern.js';
 
