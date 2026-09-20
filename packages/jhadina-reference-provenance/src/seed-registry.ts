@@ -220,6 +220,82 @@ const handoffOnlyReferences: readonly RegisterReferenceInput[] = [
     ],
   },
   {
+    referenceId: 'github:uerax/all-in-one-bot',
+    canonicalName: 'all-in-one-bot',
+    kind: 'GITHUB_REPOSITORY',
+    roles: ['ARCHITECTURE_REFERENCE', 'ALGORITHM_REFERENCE'],
+    canonicalLocator: 'https://github.com/uerax/all-in-one-bot',
+    discoveredFrom: 'HANDOFF',
+    traceabilityStatus: 'HANDOFF_ONLY',
+    licenseStatus: 'UNKNOWN',
+    notes:
+      'Named in SHARK handoff history as an exploratory bot architecture reference. No code derivation is asserted.',
+    evidence: [
+      {
+        evidenceId: 'handoff:shark:all-in-one-bot',
+        kind: 'HANDOFF_NOTE',
+        locator: 'urn:jhadina:handoff:shark:all-in-one-bot',
+      },
+    ],
+  },
+  {
+    referenceId: 'github:nirholas/pump-fun-sdk',
+    canonicalName: 'pump-fun-sdk',
+    kind: 'GITHUB_REPOSITORY',
+    roles: ['ARCHITECTURE_REFERENCE', 'API_PROVIDER'],
+    canonicalLocator: 'https://github.com/nirholas/pump-fun-sdk',
+    discoveredFrom: 'HANDOFF',
+    traceabilityStatus: 'HANDOFF_ONLY',
+    licenseStatus: 'UNKNOWN',
+    notes:
+      'Named in SHARK handoff history for Pump.fun/PumpSwap interface research. No code derivation is asserted.',
+    evidence: [
+      {
+        evidenceId: 'handoff:shark:pump-fun-sdk',
+        kind: 'HANDOFF_NOTE',
+        locator: 'urn:jhadina:handoff:shark:pump-fun-sdk',
+      },
+    ],
+  },
+  {
+    referenceId: 'github:GeekLad/meteora-profit-analysis',
+    canonicalName: 'meteora-profit-analysis',
+    kind: 'GITHUB_REPOSITORY',
+    roles: ['ALGORITHM_REFERENCE', 'DATA_SOURCE'],
+    canonicalLocator: 'https://github.com/GeekLad/meteora-profit-analysis',
+    discoveredFrom: 'HANDOFF',
+    traceabilityStatus: 'HANDOFF_ONLY',
+    licenseStatus: 'UNKNOWN',
+    notes:
+      'Named in SHARK handoff history for Meteora position/profit analysis research. No code derivation is asserted.',
+    evidence: [
+      {
+        evidenceId: 'handoff:shark:meteora-profit-analysis',
+        kind: 'HANDOFF_NOTE',
+        locator: 'urn:jhadina:handoff:shark:meteora-profit-analysis',
+      },
+    ],
+  },
+  {
+    referenceId: 'docs:dexscreener-api-reference',
+    canonicalName: 'DexScreener API Reference',
+    kind: 'API_DOCUMENTATION',
+    roles: ['API_PROVIDER', 'DATA_SOURCE'],
+    canonicalLocator: 'https://docs.dexscreener.com/api/reference',
+    discoveredFrom: 'HANDOFF',
+    traceabilityStatus: 'HANDOFF_ONLY',
+    licenseStatus: 'NOT_APPLICABLE',
+    notes:
+      'Named in SHARK handoff history as the canonical DexScreener provider-contract reference.',
+    evidence: [
+      {
+        evidenceId: 'handoff:shark:dexscreener-api',
+        kind: 'HANDOFF_NOTE',
+        locator: 'urn:jhadina:handoff:shark:dexscreener-api',
+      },
+    ],
+  },
+  {
     referenceId: 'github:assafelovic/gpt-researcher',
     canonicalName: 'GPT Researcher',
     kind: 'GITHUB_REPOSITORY',
