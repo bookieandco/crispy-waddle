@@ -126,4 +126,46 @@ describe('SHARK historical observation regression', () => {
     expect(observation.evidenceIds).toEqual(expect.arrayContaining(['liq-1', 'liq-2', 'liq-3']))
   })
 
+  it('paginates Helius transfer history and normalizes raw token units', async () => {
+    const calls: any[] = []
+    const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body))
+      calls.push(body)
+      const token = body.params[1].paginationToken
+      return new Response(JSON.stringify({
+        result: token
+          ? { data: [{ signature: 'page-2', blockTime: 1789761720, fromUserAccount: 'developer-1', toUserAccount: 'other', amount: '2500000', decimals: 6 }] }
+          : { data: [{ signature: 'page-1', blockTime: 1789761660, fromUserAccount: 'other', toUserAccount: 'developer-1', uiAmount: 1 }], paginationToken: 'next-page' },
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    }) as typeof fetch
+
+    const source = new HeliusHistoricalSource({ apiKey: 'test-key', fetchImpl, maxPages: 3 })
+    const movements = await source.deployerTransfers(launch)
+    expect(calls).toHaveLength(2)
+    expect(calls[1].params[1].paginationToken).toBe('next-page')
+    expect(movements.map(item => item.tokenAmount)).toEqual([1, 2.5])
+  })
+
+  it('paginates CoinGecko OHLCV backward until launch time', async () => {
+    const launchAt = Date.parse(launch.launchedAt) / 1000
+    const urls: string[] = []
+    const fetchImpl = (async (url: string | URL | Request) => {
+      const value = String(url)
+      urls.push(value)
+      const hasCursor = value.includes('before_timestamp=')
+      const rows = hasCursor
+        ? [[launchAt, 1, 2, .5, 1.5, 100]]
+        : [[launchAt + 7200, 2, 3, 1, 2.5, 200], [launchAt + 3600, 1.5, 2.5, 1, 2, 150]]
+      return new Response(JSON.stringify({ data: { attributes: { ohlcv_list: rows } } }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof fetch
+
+    const source = new CoinGeckoHistoricalSource({ apiKey: 'test-key', fetchImpl, maxPages: 3 })
+    const candles = await source.candles(launch)
+    expect(urls).toHaveLength(2)
+    expect(candles).toHaveLength(3)
+    expect(candles[0].observedAt).toBe(launch.launchedAt)
+  })
+
 })
