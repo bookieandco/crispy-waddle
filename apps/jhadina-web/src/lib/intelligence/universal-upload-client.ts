@@ -677,6 +677,8 @@ export async function selectPerceptionSubsystems(input: {
   const json = await parseJson(response);
   if (!response.ok) throw new Error(json.error || "PERCEPTION_SELECTION_FAILED");
 
-  const pollingHeaders = input.userId ? { "x-jhadina-user-id": input.userId } : {};
+  const pollingHeaders: Record<string, string> = input.userId
+    ? { "x-jhadina-user-id": input.userId }
+    : {};
   return pollPerception(input.jobId, pollingHeaders, input.callbacks ?? {}, fetchImpl);
 }
