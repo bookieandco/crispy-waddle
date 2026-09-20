@@ -36,6 +36,15 @@ Audited current `main` Money Core, Jhadina web Money composition, Supabase bank 
 - SHARK references: DexScreener/CoinGecko/Helius provider paths are repository-traceable; Pump/Meteora/wallet-cluster handoff references remain governed by the reference-provenance ledger and do not imply source-code derivation.
 - Sports: research ingress only; Money independently evaluates risk, capital and authority.
 
+## Full-handoff gap reconciliation
+The final audit also re-checked the broader Money handoff, not only banking. Two requested asset domains are still deliberately incomplete and are **not** prerequisites for the read-spine production acceptance:
+- Precious metals: `AssetClass` declares XAU/XAG/XPT/XPD, but the repository still lacks the first-class spot/futures/venue/unit/purity/currency reality model called out by `MONEY-R13B-production-certification.md` as `MONEY-METALS-01`. Do not represent metals intelligence or execution as complete.
+- Prediction markets: the generic `PREDICTION` asset/evidence contracts exist, but there is no venue-specific Kalshi/Polymarket market-reality or execution adapter. Sports probabilities remain research evidence and must never be treated as wagers or prediction-market instruments automatically.
+
+Historical handoff references to FinQuant, Riskfolio, options/PnL and derivatives learning are design/research inputs only unless separately represented in the reference-provenance registry; the current repository already has canonical portfolio construction, risk simulation, exact-money accounting, tax review, execution reconciliation and live-canary risk gates, so those references must not create parallel ledgers or policy authorities.
+
+These are follow-on domain expansions. MONEY-FINAL here certifies the canonical Money authority/read/accounting/risk boundaries and the Plaid read-spine; it does not falsely certify every future asset-class adapter.
+
 ## MONEY-FINAL acceptance status
 Software architecture is accepted subject to CI on this repair branch. Live banking commissioning is still sandbox/read-only. MONEY-FINAL must not claim live-bank or autonomous-trading production authority.
 
