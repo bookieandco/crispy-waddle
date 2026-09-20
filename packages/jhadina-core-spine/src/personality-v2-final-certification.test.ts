@@ -26,6 +26,9 @@ const supported: ReadonlyArray<{
   { id: 'personality-signal:communication:pushback', statement: 'prefers active pushback', dimension: 'communication' },
   { id: 'personality-signal:communication:technical-depth', statement: 'prefers technical depth', dimension: 'communication' },
   { id: 'personality-signal:preference:continuous-workflow', statement: 'prefers continuous workflow', dimension: 'preference' },
+  { id: 'personality-signal:communication:step-by-step', statement: 'prefers step-by-step explanations', dimension: 'communication' },
+  { id: 'personality-signal:communication:evidence-first', statement: 'prefers evidence-first explanations', dimension: 'communication' },
+  { id: 'personality-signal:preference:multiple-options', statement: 'prefers multiple options', dimension: 'preference' },
   { id: 'personality-signal:taste:experimentation', statement: 'prefers experimental creativity', dimension: 'taste' },
   { id: 'personality-signal:relationship:familiar-tone', statement: 'prefers familiar tone', dimension: 'relationship' },
 ];
@@ -108,6 +111,8 @@ describe('PERSONALITY-V2.FINAL certification', () => {
     expect(result.expression.reasoningDepth).toBe('technical');
     expect(result.expression.interactionStyle).toBe('continuous');
     expect(result.expression.creativeStyle).toBe('experimental');
+    expect(result.expression.explanationStyle).toBe('evidence-first');
+    expect(result.expression.decisionPresentation).toBe('options');
 
     const replay = runPersonalityBehaviorRuntime({
       personality: result.personality,
