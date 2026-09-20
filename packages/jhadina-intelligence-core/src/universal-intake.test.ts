@@ -5,3 +5,5 @@ test('can produce multiple subsystem routes from one asset intent',async()=>{con
 test('document with no domain signal routes to knowledge',async()=>{const r=await new GovernedUniversalIntakeRouter().route(asset('notes.pdf','document'));assert.equal(r.routes[0].subsystem,'knowledge')});
 test('fails closed without actor or asset reference',async()=>{const r=new GovernedUniversalIntakeRouter();await assert.rejects(()=>r.route({...asset('x'),actorId:''}),/ACTOR_REQUIRED/);await assert.rejects(()=>r.route({...asset('x'),assetRef:''}),/ASSET_REFERENCE_REQUIRED/)});
 test('routing has no execution authority',()=>{const r:any=new GovernedUniversalIntakeRouter();assert.equal(r.execute,undefined);assert.equal(r.approve,undefined);assert.equal(r.writeMemory,undefined)});
+
+test('explicit intent can authorize multi-subsystem routing without selection',async()=>{const r=await new GovernedUniversalIntakeRouter().route(asset('game-footage.mp4'),'analyze this boxing footage for film direction');assert.ok(r.routes.length>1);assert.equal(r.requiresHumanSelection,false)});
