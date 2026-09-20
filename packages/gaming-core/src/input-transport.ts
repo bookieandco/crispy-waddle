@@ -1,80 +1,66 @@
-import type {GamingInputEvent} from './input-integrity.js';
+import type {InputIntegrityEvent as GamingInputEvent} from './input-integrity.js';
 import type {GamingRuntimeInputAck} from './input-pipeline.js';
 
 export type GamingInputTransportKind='local'|'lan'|'remote';
 export type GamingInputDeliveryMode='transport-only'|'runtime-delivery';
+export type GamingInputTransportConnectionState='disconnected'|'connecting'|'connected'|'disconnecting';
 
 export interface GamingInputTransportMetrics {
-  transport:GamingInputTransportKind;
-  sent:number;
-  delivered:number;
-  dropped:number;
-  duplicated:number;
-  reordered:number;
-  lastSentAtMs?:number;
-  lastDeliveredAtMs?:number;
-  transportLatencyMs?:number;
+  transport:GamingInputTransportKind;sent:number;delivered:number;dropped:number;duplicated:number;reordered:number;
+  lastSentAtMs?:number;lastDeliveredAtMs?:number;transportLatencyMs?:number;
 }
-
 export interface GamingInputTransport {
-  readonly kind:GamingInputTransportKind;
-  /** transport-only keeps runtime delivery in GamingInputPipeline; runtime-delivery means this transport is the runtime endpoint. */
-  readonly deliveryMode?:GamingInputDeliveryMode;
-  connect(sessionId:string,deviceId:string):Promise<void>;
-  send(event:GamingInputEvent):Promise<void>;
-  deliverToRuntime?(event:GamingInputEvent):Promise<GamingRuntimeInputAck>;
-  disconnect():Promise<void>;
-  metrics():GamingInputTransportMetrics;
+  readonly kind:GamingInputTransportKind;readonly deliveryMode?:GamingInputDeliveryMode;
+  connect(sessionId:string,deviceId:string):Promise<void>;send(event:GamingInputEvent):Promise<void>;
+  deliverToRuntime?(event:GamingInputEvent):Promise<GamingRuntimeInputAck>;disconnect():Promise<void>;metrics():GamingInputTransportMetrics;
 }
-
-export interface GamingInputTransportPolicy {
-  allowRemote:boolean;
-  maxTransportLatencyMs:number;
-  maxQueueDepth:number;
-}
+export interface GamingInputTransportPolicy {allowRemote:boolean;maxTransportLatencyMs:number;maxQueueDepth:number;}
+export interface GamingInputTransportReceipt {status:'confirmed'|'over-budget';sentAtMs:number;confirmedAtMs:number;latencyMs:number;}
 
 export class GamingInputTransportBoundary {
-  private connected=false;
+  private state:GamingInputTransportConnectionState='disconnected';
   private queueDepth=0;
-
+  private disconnectPromise?:Promise<void>;
   constructor(private readonly transport:GamingInputTransport,private readonly policy:GamingInputTransportPolicy={allowRemote:true,maxTransportLatencyMs:25,maxQueueDepth:1}){
     if(!Number.isFinite(policy.maxTransportLatencyMs)||policy.maxTransportLatencyMs<0)throw new Error('maxTransportLatencyMs must be non-negative');
     if(!Number.isInteger(policy.maxQueueDepth)||policy.maxQueueDepth<0)throw new Error('maxQueueDepth must be a non-negative integer');
     if(transport.kind==='remote'&&!policy.allowRemote)throw new Error('Remote input transport is disabled by policy');
     if(transport.deliveryMode==='runtime-delivery'&&!transport.deliverToRuntime)throw new Error('Runtime-delivery transport must expose deliverToRuntime');
   }
-
   get deliveryMode():GamingInputDeliveryMode{return this.transport.deliveryMode??'transport-only';}
+  get connectionState():GamingInputTransportConnectionState{return this.state;}
+  get pendingInputCount():number{return this.queueDepth;}
 
   async connect(sessionId:string,deviceId:string):Promise<void>{
-    if(this.connected)throw new Error('Input transport is already connected');
-    await this.transport.connect(sessionId,deviceId);
-    this.connected=true;
+    if(this.state!=='disconnected')throw new Error(`Input transport cannot connect while ${this.state}`);
+    this.state='connecting';
+    try{await this.transport.connect(sessionId,deviceId);this.state='connected';}
+    catch(error){this.state='disconnected';throw error;}
   }
 
-  async send(event:GamingInputEvent):Promise<void>{
-    if(!this.connected)throw new Error('Input transport is not connected');
+  async send(event:GamingInputEvent):Promise<GamingInputTransportReceipt>{
+    if(this.state!=='connected')throw new Error(`Input transport is not accepting input while ${this.state}`);
     if(this.queueDepth>=this.policy.maxQueueDepth)throw new Error('Input transport queue is full; refusing to buffer control input');
-    const started=Date.now();
-    this.queueDepth++;
+    const started=Date.now();this.queueDepth++;
     try{
       await this.transport.send(event);
-      const elapsed=Date.now()-started;
-      if(elapsed>this.policy.maxTransportLatencyMs)throw new Error(`Input transport latency budget exceeded: ${elapsed}ms`);
-    }finally{this.queueDepth--;}
+      const confirmedAtMs=Date.now();const latencyMs=confirmedAtMs-started;
+      return{status:latencyMs>this.policy.maxTransportLatencyMs?'over-budget':'confirmed',sentAtMs:started,confirmedAtMs,latencyMs};
+    }finally{this.queueDepth=Math.max(0,this.queueDepth-1);}
   }
 
   async deliverToRuntime(event:GamingInputEvent):Promise<GamingRuntimeInputAck>{
+    if(this.state!=='connected')throw new Error(`Input transport cannot deliver to runtime while ${this.state}`);
     if(this.deliveryMode!=='runtime-delivery')throw new Error('Transport is not the runtime delivery endpoint');
     return this.transport.deliverToRuntime!(event);
   }
 
-  async disconnect():Promise<void>{
-    if(!this.connected)return;
-    await this.transport.disconnect();
-    this.connected=false;
-    this.queueDepth=0;
+  disconnect():Promise<void>{
+    if(this.state==='disconnected')return Promise.resolve();
+    if(this.disconnectPromise)return this.disconnectPromise;
+    this.state='disconnecting';
+    this.disconnectPromise=this.transport.disconnect().then(()=>{this.state='disconnected';},error=>{this.state='disconnected';throw error;}).finally(()=>{this.disconnectPromise=undefined;});
+    return this.disconnectPromise;
   }
-
   metrics():GamingInputTransportMetrics{return this.transport.metrics();}
 }
