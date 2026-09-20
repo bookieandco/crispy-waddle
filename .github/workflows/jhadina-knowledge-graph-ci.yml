@@ -1,0 +1,25 @@
+name: Jhadina Knowledge Graph CI
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ["packages/knowledge-graph/**","packages/jhadina-knowledge-runtime/**","apps/jhadina-web/src/lib/knowledge/**","supabase/migrations/**",".github/workflows/jhadina-knowledge-graph-ci.yml"]
+  push:
+    paths: ["packages/knowledge-graph/**","packages/jhadina-knowledge-runtime/**","apps/jhadina-web/src/lib/knowledge/**","supabase/migrations/**",".github/workflows/jhadina-knowledge-graph-ci.yml"]
+permissions: { contents: read }
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 8.15.9, run_install: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @jhadina/knowledge-graph type-check
+      - run: pnpm --filter @jhadina/knowledge-graph test
+      - run: pnpm --filter @jhadina/knowledge-runtime type-check
+      - run: pnpm --filter @jhadina/knowledge-runtime test
+      - run: pnpm --filter @jhadina/jhadina-web type-check
+      - run: test -f supabase/migrations/20260920190000_k_1_6_entity_intelligence.sql
