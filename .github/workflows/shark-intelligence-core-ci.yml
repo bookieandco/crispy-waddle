@@ -7,9 +7,9 @@ on:
       - ".github/workflows/shark-intelligence-core-ci.yml"
       - "packages/shark-intelligence-core/**"
       - "apps/jhadina-web/src/lib/shark/**"
-      - "apps/jhadina-web/app/api/internal/shark/**"
-      - "apps/jhadina-web/app/api/wallet/intelligence/**"
-      - "apps/jhadina-web/app/api/webhooks/helius/**"
+      - "apps/jhadina-web/src/app/api/internal/shark/**"
+      - "apps/jhadina-web/src/app/api/wallet/intelligence/**"
+      - "apps/jhadina-web/src/app/api/webhooks/helius/**"
       - "supabase/migrations/**"
       - "pnpm-lock.yaml"
       - "package.json"
@@ -38,6 +38,8 @@ jobs:
         run: pnpm --filter @jhadina/shark-intelligence-core type-check
       - name: SHARK tests
         run: pnpm --filter @jhadina/shark-intelligence-core test
+      - name: Jhadina SHARK integration type-check
+        run: pnpm --filter @jhadina/jhadina-web type-check
       - name: Validate SHARK migrations
         run: |
           test -f supabase/migrations/20260902010000_shark_launch_outcome_history.sql
