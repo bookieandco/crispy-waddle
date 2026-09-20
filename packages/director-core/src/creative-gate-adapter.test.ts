@@ -22,7 +22,7 @@ describe('creative gate adapter', () => {
   const provenance = { projectId: 'project-1', storyboardBoardIds: ['board-1', 'board-2'], storyboardVersion: 3, generationStageId: 'generation', generationStageVersion: 1 };
 
   function validInput(graph: CreativeStageGraph) {
-    return { run, gate, storyboardStage: graph.get('storyboard')!, generationStage: graph.get('generation')!, creativeProvenance: provenance, storyboardLineage: lineage };
+    return { run, gate, storyboardStage: graph.get('storyboard')!, generationStage: graph.get('generation')!, storyboardLineage: lineage };
   }
 
   it('allows generation only with approved gate, ready stages, and authoritative provenance', () => {
