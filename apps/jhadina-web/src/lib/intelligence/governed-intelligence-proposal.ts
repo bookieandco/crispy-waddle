@@ -9,7 +9,7 @@ import {
   type ApprovalReceiptStore,
 } from "@jhadina/action-core"
 import type { ContextPacket, DecisionProposal } from "@jhadina/core-spine"
-import type { IntelligenceRouter } from "@jhadina/intelligence-core"
+import type { IntelligenceRouter } from "@jhadina/intelligence-core"\nimport type { ProductionIntelligenceFabric } from "./production-intelligence-fabric"
 import type { ActionRequestIdentity, JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
@@ -108,7 +108,7 @@ export async function decideAndProposeMemoryGoverned(
   // no candidate, no side effect of any kind exists yet.
   let proposal: DecisionProposal
   try {
-    proposal = await deps.router.decide(context)
+    if (deps.fabric) {\n      proposal = await deps.fabric.decide({\n        id: `task:${context.id}`,\n        purpose: context.purpose,\n        privacyClass: "internal",\n        riskClass: "standard",\n      }, context)\n    } else if (deps.router) {\n      proposal = await deps.router.decide(context)\n    } else {\n      throw new Error("INTELLIGENCE_DECISION_PROVIDER_NOT_CONFIGURED")\n    }
   } catch (error) {
     await deps.ledger.append({
       id: `${actionId}:model-unavailable`,
