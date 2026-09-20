@@ -1,6 +1,6 @@
 import type { FulfillmentPlan, FulfillmentPlanStructure } from './fulfillment-plan.js'
 
-export type CommercialDealStructure =
+export type FulfillmentCommercialDealStructure =
   | 'direct_fulfillment'
   | 'subcontract_margin'
   | 'teaming'
@@ -34,7 +34,7 @@ export type CommercialEconomics = {
 
 export type CommercialDealGate = {
   opportunityId: string
-  structure: CommercialDealStructure
+  structure: FulfillmentCommercialDealStructure
   economics: CommercialEconomics
   status: 'blocked' | 'review_required' | 'commercially_viable'
   blockers: string[]
@@ -49,8 +49,8 @@ const money = (value: number | undefined) => Math.max(0, Number.isFinite(value) 
 const pct = (value: number | undefined) => Math.max(0, Math.min(100, Number.isFinite(value) ? value! : 0))
 const uniq = (values: string[]) => [...new Set(values.filter(Boolean))]
 
-function inferStructure(plan: FulfillmentPlan): CommercialDealStructure {
-  const map: Record<FulfillmentPlanStructure, CommercialDealStructure> = {
+function inferStructure(plan: FulfillmentPlan): FulfillmentCommercialDealStructure {
+  const map: Record<FulfillmentPlanStructure, FulfillmentCommercialDealStructure> = {
     direct_fulfillment: 'direct_fulfillment',
     prime_with_subcontractor: 'subcontract_margin',
     teaming: 'teaming',
@@ -63,7 +63,7 @@ function inferStructure(plan: FulfillmentPlan): CommercialDealStructure {
 export function evaluateCommercialDeal(
   plan: FulfillmentPlan,
   input: CommercialAssumptions,
-  structure: CommercialDealStructure = inferStructure(plan),
+  structure: FulfillmentCommercialDealStructure = inferStructure(plan),
 ): CommercialDealGate {
   const blockers = [...plan.blockers]
   const warnings: string[] = []
