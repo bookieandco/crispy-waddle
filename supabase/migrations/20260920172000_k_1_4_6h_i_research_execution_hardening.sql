@@ -131,6 +131,7 @@ declare
   v_existing public.jhadina_research_execution_leases%rowtype;
   v_lease public.jhadina_research_execution_leases%rowtype;
   v_attempt integer;
+  v_sequence bigint;
   v_token text;
 begin
   if p_worker_id is null or btrim(p_worker_id) = '' then return null; end if;
@@ -186,6 +187,10 @@ begin
   from public.jhadina_research_execution_leases
   where plan_id = p_plan_id;
 
+  select coalesce(max(sequence_no),0)+1 into v_sequence
+  from public.jhadina_research_execution_events
+  where plan_id = p_plan_id;
+
   v_token := encode(extensions.gen_random_bytes(32), 'hex');
 
   insert into public.jhadina_research_execution_leases(
@@ -205,14 +210,14 @@ begin
       'planContentHash', v_plan.content_hash,
       'admittedAt', now()
     ),
-    1
+    v_sequence
   )
   returning * into v_lease;
 
   insert into public.jhadina_research_execution_events(
     plan_id, lease_id, sequence_no, event_type, payload
   ) values (
-    p_plan_id, v_lease.id, 1, 'admitted',
+    p_plan_id, v_lease.id, v_sequence, 'admitted',
     jsonb_build_object('workerId', p_worker_id, 'attempt', v_attempt)
   );
 
