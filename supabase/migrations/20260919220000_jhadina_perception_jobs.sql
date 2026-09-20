@@ -178,8 +178,16 @@ as $$
 declare
   v_row public.jhadina_perception_jobs%rowtype;
 begin
-  if jsonb_typeof(p_selected_subsystems) <> 'array' or jsonb_array_length(p_selected_subsystems) = 0 then
+  if p_selected_subsystems is null
+     or jsonb_typeof(p_selected_subsystems) <> 'array'
+     or jsonb_array_length(p_selected_subsystems) = 0 then
     raise exception 'PERCEPTION_JOB_SELECTION_REQUIRED';
+  end if;
+  if (
+    select count(*) <> count(distinct value)
+      from jsonb_array_elements_text(p_selected_subsystems) selected(value)
+  ) then
+    raise exception 'PERCEPTION_JOB_SELECTION_DUPLICATE';
   end if;
   if exists (
     select 1
