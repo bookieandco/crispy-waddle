@@ -6,7 +6,7 @@ import { executeGovernedReticulumCommunication } from './governed-communication-
 import { ReticulumTransportAdapter } from './reticulum-adapter.js'
 import { TransportRegistry } from './transport-registry.js'
 
-const intent:any={intentId:'intent-1',correlationId:'corr-1',actorId:'actor-1',recipient:{endpointId:'peer-1',kind:'person',trustState:'authorized'},capability:'communications.send',contentRef:'blob:1',createdAt:'2026-09-19T00:00:00.000Z'}
+const intent:any={intentId:'intent-1',correlationId:'corr-1',actorId:'actor-1',recipient:{endpointId:'peer-1',kind:'person',trustState:'trusted',authorization:{capability:'communications.send',granted:true,evidenceRef:'grant:1'}},capability:'communications.send',contentRef:'blob:1',createdAt:'2026-09-19T00:00:00.000Z'}
 const route:any={identity:{transportId:'rns-1',adapter:'reticulum',address:'dest'},health:'healthy',capabilities:['message.send'],priority:1}
 
 test('end-to-end governed communication preserves lineage into delivery evidence',async()=>{
