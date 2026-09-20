@@ -135,8 +135,20 @@ export function attributePaperTrade(input: {
   // Attribution is expressed against market reference prices so execution slippage
   // is a separate drag rather than being hidden inside market movement.
   const marketMoveContributionQuote = referenceExitGross - entryReference * exitedQuantity
-  const feeDragQuote = input.outcome.totalFeesQuote
-  const slippageDragQuote = input.outcome.totalSlippageQuote
+  // Only attribute entry execution drag to the quantity that has actually exited.
+  // Otherwise a partial close would charge the still-open inventory's entry fee/slippage
+  // against realized P&L and manufacture a residual.
+  const exitedFraction = input.entryFill.quantity > 0 ? Math.min(1, exitedQuantity / input.entryFill.quantity) : 0
+  const exitFees = input.exitFills.reduce((sum, fill) => sum + fill.feeQuoteAmount, 0)
+  const allocatedEntryFee = input.entryFill.feeQuoteAmount * exitedFraction
+  const feeDragQuote = allocatedEntryFee + exitFees
+  const entrySlippagePerUnit = Math.abs(input.entryFill.price - entryReference)
+  const allocatedEntrySlippage = entrySlippagePerUnit * exitedQuantity
+  const exitSlippage = input.exitFills.reduce((sum, fill) => {
+    const referencePrice = fill.price / Math.max(Number.EPSILON, 1 - fill.slippageBps / 10_000)
+    return sum + Math.abs(fill.price - referencePrice) * fill.quantity
+  }, 0)
+  const slippageDragQuote = allocatedEntrySlippage + exitSlippage
   const explained = marketMoveContributionQuote - feeDragQuote - slippageDragQuote
   const residualQuote = input.outcome.realizedPnlQuote - explained
 
