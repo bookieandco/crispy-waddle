@@ -76,4 +76,30 @@ describe('SHARK historical observation regression', () => {
     expect(urls[0]).not.toContain('/onchain/networks/solana-mainnet/')
   })
 
+  it('derives immutable snapshot identity from all evidence, not only the last candle', () => {
+    const base = buildHistoricalObservation({
+      launch,
+      candles: [{ observedAt: '2026-09-18T20:01:00Z', open: 1, high: 1, low: 1, close: 1, source: 'test', evidenceId: 'candle-same' }],
+      holders: [{ observedAt: '2026-09-18T20:02:00Z', holderCount: 10, source: 'test', evidenceId: 'holders-a' }],
+      now: '2026-09-18T20:03:00Z',
+    })
+    const repeated = buildHistoricalObservation({
+      launch,
+      candles: [{ observedAt: '2026-09-18T20:01:00Z', open: 1, high: 1, low: 1, close: 1, source: 'test', evidenceId: 'candle-same' }],
+      holders: [{ observedAt: '2026-09-18T20:02:00Z', holderCount: 10, source: 'test', evidenceId: 'holders-a' }],
+      now: '2026-09-18T20:04:00Z',
+    })
+    const revised = buildHistoricalObservation({
+      launch,
+      candles: [{ observedAt: '2026-09-18T20:01:00Z', open: 1, high: 1, low: 1, close: 1, source: 'test', evidenceId: 'candle-same' }],
+      holders: [{ observedAt: '2026-09-18T20:05:00Z', holderCount: 12, source: 'test', evidenceId: 'holders-b' }],
+      now: '2026-09-18T20:06:00Z',
+    })
+
+    expect(repeated.observationId).toBe(base.observationId)
+    expect(revised.observationId).not.toBe(base.observationId)
+    expect(base.observedAt).toBe('2026-09-18T20:02:00Z')
+    expect(revised.observedAt).toBe('2026-09-18T20:05:00Z')
+  })
+
 })
