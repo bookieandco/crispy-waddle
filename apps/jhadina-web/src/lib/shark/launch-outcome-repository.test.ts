@@ -64,7 +64,7 @@ function fixtureClient(options: { failFirstApply?: boolean } = {}) {
           const launch = stagedLaunches.find(row => row.launch_id === evaluation.launch_id)
           if (launch && evaluation.evaluated_outcome !== 'UNKNOWN') {
             launch.outcome = evaluation.evaluated_outcome
-            launch.outcome_observed_at = evaluation.evaluated_at
+            launch.outcome_observed_at = evaluation.outcome_observed_at ?? evaluation.evaluated_at
             launch.evidence_ids = [...new Set([...launch.evidence_ids, ...evaluation.evidence_ids])]
           }
         }
@@ -95,6 +95,8 @@ describe('SHARK QA17 persisted outcome soak', () => {
     expect(first.changed).toBe(1)
     expect(fixture.launches.find(row => row.launch_id === 'candidate')?.outcome).toBe('FAILED')
     expect(fixture.evaluations.size).toBe(1)
+    expect(fixture.launches.find(row => row.launch_id === 'candidate')?.outcome_observed_at)
+      .toBe('2026-09-20T01:00:00.000Z')
 
     const developer = fixture.histories.get('developer:dev-1')
     expect(developer.launches).toBe(2)
@@ -106,6 +108,8 @@ describe('SHARK QA17 persisted outcome soak', () => {
       await runPersistedLaunchOutcomeWorker(fixture.client, 500)
     }
     expect(fixture.evaluations.size).toBe(1)
+    expect(fixture.launches.find(row => row.launch_id === 'candidate')?.outcome_observed_at)
+      .toBe('2026-09-20T01:00:00.000Z')
     expect(fixture.histories.get('developer:dev-1')?.launches).toBe(2)
     expect(fixture.histories.get('developer:dev-1')?.evidence_ids)
       .toEqual(expect.arrayContaining(['old-rug-evidence', 'candidate-evidence', 'collapse-evidence']))
