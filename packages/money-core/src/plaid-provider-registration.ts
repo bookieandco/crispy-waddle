@@ -4,7 +4,7 @@ import { createPlaidReadOnlyAdapterBuilder } from './plaid-provider-builder.js';
 export const PLAID_READ_ONLY_CONFIG = {
   enabled: true,
   credentialRef: 'money/plaid/default',
-  capabilities: ['money.account.read'] as const,
+  capabilities: ['money.account.read', 'money.transaction.read'] as const,
 };
 
 export const PLAID_SANDBOX_BASE_URL = 'https://sandbox.plaid.com';
@@ -26,7 +26,7 @@ export function assertPlaidSandboxBaseUrl(baseUrl: string): void {
   }
 }
 
-/** Registers Plaid with only the account-read capability enabled. */
+/** Registers Plaid with the explicitly read-only account and transaction capabilities enabled. */
 export function createPlaidProviderAdapterFactory(
   baseUrl = process.env.JHADINA_PLAID_BASE_URL ?? PLAID_SANDBOX_BASE_URL,
   credentialResolver: ProviderAdapterFactoryOptions['credentialResolver'],

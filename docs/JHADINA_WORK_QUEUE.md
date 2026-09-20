@@ -952,8 +952,8 @@ center look like and where does its data come from" answers.
 
 ### JH-034
 **Priority:** P2
-**Status:** REVIEW
-**Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
+**Status:** DONE
+**Branch:** `feat/jh034-music-money-boundary` (PR #392, merged `5a31d8d`) —
 `apps/jhadina-web/src/lib/music/{distribution,distributionAdapter,
 moneyCoreBridge,moneyCoreWithdrawal,royaltyLedger,
 royaltyStatementImporter}.ts`,
@@ -991,7 +991,17 @@ currently just naming; making it a genuine bridge (calling the real
 "one canonical Money data path" work the JH-028/JH-033 decision needs
 to resolve first — building a second, parallel bridge here before that
 decision lands would just add a third money-adjacent surface.
-**Implementation (2026-09-20):** Reconciled onto the canonical Money architecture. Music now produces a typed royalty-income observation only after RECONCILED -> explicit CONFIRMED state; it cannot mint a `CanonicalFinancialAction` or execution authority. Withdrawal request/approval remains consent state only and has no EXECUTED state/provider call. Provider-neutral distribution contracts remain adapters with no concrete credential/network implementation. Targeted tests prove confirmation gating, Money ingress gating, non-executing approval, and fail-closed balance checks. Final status becomes DONE after CI verification.
+**Implementation (2026-09-20):** Reconciled onto the canonical Money architecture. Music now produces a typed royalty-income observation only after RECONCILED -> explicit CONFIRMED state; it cannot mint a `CanonicalFinancialAction` or execution authority. Withdrawal request/approval remains consent state only and has no EXECUTED state/provider call. Provider-neutral distribution contracts remain adapters with no concrete credential/network implementation. Targeted tests prove confirmation gating, Money ingress gating, non-executing approval, and fail-closed balance checks. PR #392 merged as `5a31d8d`; JH-034 is DONE. Follow-on transaction-read work remains a separate Money capability.
+
+### JH-MONEY-TXN-READ
+**Priority:** P2
+**Status:** REVIEW
+**Branch:** `feat/money-transaction-read`
+**Objective:** Complete the deferred governed `money.transaction.read` capability so transaction-derived Money intelligence can be built without bypassing the canonical Money spine.
+**Dependencies:** JH-028, JH-034
+**Implementation (2026-09-20):** Enabled `money.transaction.read` in the existing Plaid read-only provider config; implemented Plaid `/transactions/get` mapping in the existing `PlaidReadOnlyAdapter`; composed a dedicated transaction-read handler through the shared Action/Core policy, identity, durable-audit and provider-health boundaries; retained the existing account-ownership check and added a session-authoritative web runtime/API. The product runtime deliberately supplies an empty ownership set until a durable per-user bank-connection map exists, so production transaction reads fail closed rather than exposing the single configured Plaid Item across users. Tests cover owned-account success, unowned-account denial before provider I/O, identity mismatch, and Plaid response mapping. No payment/transfer capability or execution path was added.
+**Next Step:** CI verification. Durable per-user Plaid Item ownership is a separate prerequisite before enabling real multi-user transaction reads; do not weaken the empty-set fail-closed default.
+
 
 ### JH-035
 **Priority:** P2

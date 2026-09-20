@@ -26,6 +26,20 @@ type PlaidAccount = {
 
 type PlaidAccountsResponse = { accounts?: PlaidAccount[] };
 
+type PlaidTransaction = {
+  transaction_id: string;
+  account_id: string;
+  amount: number;
+  iso_currency_code?: string | null;
+  unofficial_currency_code?: string | null;
+  date?: string;
+  datetime?: string | null;
+  name?: string;
+  merchant_name?: string | null;
+};
+
+type PlaidTransactionsResponse = { transactions?: PlaidTransaction[] };
+
 export type PlaidReadOnlyAdapterOptions = {
   baseUrl: string;
   credentialBundle: string;
@@ -34,8 +48,8 @@ export type PlaidReadOnlyAdapterOptions = {
 
 /**
  * Plaid's account-read endpoint is POST /accounts/get. This adapter exposes
- * only account metadata and read-only balances returned by /accounts/get; no
- * payment, transfer, transaction-read, or account mutation path.
+ * only read-only account/balance data and transaction history; no payment,
+ * transfer, or account mutation path.
  */
 export class PlaidReadOnlyAdapter implements BankAdapter {
   readonly provider = 'plaid';
@@ -68,9 +82,30 @@ export class PlaidReadOnlyAdapter implements BankAdapter {
     }));
   }
 
-  async listTransactions(context: MoneyAdapterContext, _accountId: string): Promise<MoneyTransaction[]> {
+  async listTransactions(context: MoneyAdapterContext, accountId: string): Promise<MoneyTransaction[]> {
     assertCapability(context, 'money.transaction.read');
-    throw new Error('PLAID_TRANSACTION_READ_NOT_IMPLEMENTED');
+    if (!accountId.trim()) throw new Error('MONEY_ACCOUNT_REQUIRED');
+
+    const endDate = new Date();
+    const startDate = new Date(endDate);
+    startDate.setUTCDate(startDate.getUTCDate() - 30);
+    const payload = await this.post<PlaidTransactionsResponse>('/transactions/get', {
+      access_token: this.credentials.accessToken,
+      start_date: startDate.toISOString().slice(0, 10),
+      end_date: endDate.toISOString().slice(0, 10),
+      options: { account_ids: [accountId], count: 100, offset: 0 },
+    });
+
+    return (payload.transactions ?? [])
+      .filter((transaction) => transaction.account_id === accountId)
+      .map((transaction) => ({
+        id: `plaid:${transaction.transaction_id}`,
+        accountId: `plaid:${transaction.account_id}`,
+        amount: transaction.amount,
+        currency: transaction.iso_currency_code || transaction.unofficial_currency_code || 'UNKNOWN',
+        occurredAt: transaction.datetime || transaction.date || '',
+        description: transaction.merchant_name || transaction.name || undefined,
+      }));
   }
 
   private async post<T>(path: string, body: unknown): Promise<T> {
