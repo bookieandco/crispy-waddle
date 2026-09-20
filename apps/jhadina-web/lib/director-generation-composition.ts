@@ -54,7 +54,7 @@ function composeDirectorGenerationRuntime(
  * Provider construction and storyboard authority are both assembled here so
  * callers cannot silently construct a weaker generation path.
  */
-export function createConfiguredDirectorGenerationRuntime(
+export async function createConfiguredDirectorGenerationRuntime(
   client: SupabaseClient,
   config?: DirectorGenerationFactoryConfig,
   workerId = `director-worker:${Math.random().toString(36).slice(2)}`,
