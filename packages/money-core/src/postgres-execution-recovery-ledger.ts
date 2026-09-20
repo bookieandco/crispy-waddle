@@ -81,7 +81,7 @@ export class PostgresExecutionRecoveryLedger implements ExecutionRecoveryLedger 
        RETURNING execution_id`,
       [input.attemptId, state, JSON.stringify({ providerReference: input.providerReference, reason: input.reason, observation: input.observation }), input.state === 'FAILED' ? input.reason : null, input.observation.checkedAt, input.leaseId ?? null],
     );
-    if (result.rowCount !== 1) throw new Error('MONEY_RECOVERY_LEASE_LOST');
+    if ((result.rowCount ?? 0) !== 1) throw new Error('MONEY_RECOVERY_LEASE_LOST');
   }
 
   async ensureExecutionLedger(attempt: ExecutionAttempt, approvalId?: string): Promise<void> {
