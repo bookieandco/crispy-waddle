@@ -51,8 +51,8 @@ export class HeliusHistoricalSource {
 
     if (paginationToken) throw new Error('Helius transfer history exceeded configured pagination bound.')
 
-    return rows.map((row: any) => {
-      const direction = row.fromUserAccount === launch.deployerWalletId
+    return rows.map((row: any): ActorMovement | undefined => {
+      const direction: ActorMovement['direction'] | undefined = row.fromUserAccount === launch.deployerWalletId
         ? 'TRANSFER_OUT'
         : row.toUserAccount === launch.deployerWalletId
           ? 'TRANSFER_IN'
