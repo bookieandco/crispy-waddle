@@ -59,6 +59,11 @@ type ReasoningEventRow = {
   system_response: string
   confidence: number
   candidate_id: string | null
+  actor: "user" | "jhadina" | "system" | "external"
+  outcome: string | null
+  correlation_id: string | null
+  causation_id: string | null
+  metadata: Record<string, unknown>
 }
 
 type TimelineEventRow = {
@@ -112,6 +117,11 @@ function reasoningEventFromRow(row: ReasoningEventRow): ReasoningEvent {
     systemResponse: row.system_response,
     confidence: row.confidence,
     candidateId: row.candidate_id ?? undefined,
+    actor: row.actor,
+    outcome: row.outcome ?? undefined,
+    correlationId: row.correlation_id ?? undefined,
+    causationId: row.causation_id ?? undefined,
+    metadata: row.metadata,
   }
 }
 
@@ -250,6 +260,11 @@ export class SupabaseMemoryStorage implements MemoryStorage {
       system_response: data.systemResponse,
       confidence: data.confidence,
       candidate_id: data.candidateId ?? null,
+      actor: data.actor ?? "user",
+      outcome: data.outcome ?? null,
+      correlation_id: data.correlationId ?? null,
+      causation_id: data.causationId ?? null,
+      metadata: data.metadata ?? {},
     }
     const { error } = await this.client.from("jhadina_reasoning_events").insert(row)
     assertNoError(error, "createReasoningEvent")
