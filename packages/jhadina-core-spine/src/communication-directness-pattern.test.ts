@@ -22,12 +22,12 @@ describe('CommunicationDirectnessPatternStrategy', () => {
   it('emits an explicit semantic family without granting eligibility itself', () => {
     const [pattern] = new CommunicationDirectnessPatternStrategy().detect(
       exp('Keep this direct.'),
-      [mem('e1', 'I prefer direct answers.'), mem('e2', 'Be direct when we plan.')],
+      [mem('e1', 'I prefer direct answers.'), mem('e2', 'Be direct when we plan.'), mem('e3', 'Keep it direct.')],
     );
     expect(pattern.id).toBe('personality-signal:communication:directness');
     expect(pattern.personalityDimension).toBe('communication');
     expect(pattern.personalityEligible).toBe(false);
-    expect(pattern.occurrences).toBe(3);
+    expect(pattern.occurrences).toBe(4);
     expect(pattern.evidence).toHaveLength(3);
     expect(pattern.contradictions).toEqual([]);
   });
@@ -38,7 +38,7 @@ describe('CommunicationDirectnessPatternStrategy', () => {
       [mem('e1', 'I prefer direct answers.'), mem('c1', 'Be less direct and explain it more.')],
     );
     expect(pattern.occurrences).toBe(3);
-    expect(pattern.evidence.map((ref) => ref.id)).toEqual(['live-1', 'e1']);
+    expect(pattern.evidence.map((ref) => ref.id)).toEqual(['e1']);
     expect(pattern.contradictions.map((ref) => ref.id)).toEqual(['c1']);
     expect(pattern.confidence).toBe(3 / 5);
   });
