@@ -15,15 +15,22 @@ export interface CapabilityTokenIssuer {
     capabilityId: string;
     decision: PolicyDecision;
     ttlMs?: number;
+  }): SkillCapabilityToken;
+}
+
+export class DefaultCapabilityTokenIssuer implements CapabilityTokenIssuer {
+  issue(input: {
+    skillId: string;
+    capabilityId: string;
+    decision: PolicyDecision;
+    ttlMs?: number;
   }): SkillCapabilityToken {
     if (input.decision !== "allow" && input.decision !== "sandbox") {
       throw new Error(`Cannot issue execution token for policy decision: ${input.decision}`);
     }
-
     const now = Date.now();
     const ttlMs = input.ttlMs ?? 60_000;
     if (ttlMs <= 0) throw new Error("Token TTL must be positive");
-
     return {
       tokenId: crypto.randomUUID(),
       skillId: input.skillId,
