@@ -1,0 +1,3 @@
+export interface ShadowOutcome{production:number;shadow:number;actual:number;}
+export interface ShadowEvaluation{sampleSize:number;productionMae:number;shadowMae:number;improved:boolean;}
+export function evaluateShadowLearning(items:readonly ShadowOutcome[],minimumSamples=20):ShadowEvaluation{if(items.length===0)return Object.freeze({sampleSize:0,productionMae:0,shadowMae:0,improved:false});const mae=(key:'production'|'shadow')=>items.reduce((s,x)=>s+Math.abs(x[key]-x.actual),0)/items.length;const productionMae=mae('production'),shadowMae=mae('shadow');return Object.freeze({sampleSize:items.length,productionMae,shadowMae,improved:items.length>=minimumSamples&&shadowMae<productionMae});}
