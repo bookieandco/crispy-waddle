@@ -192,3 +192,43 @@ export class InMemoryRevocationDistributionSource
     return this.snapshot;
   }
 }
+
+export type RevocationSnapshotFetch = (
+  input: string,
+  init?: RequestInit,
+) => Promise<Response>;
+
+export class HttpRevocationDistributionSource
+  implements RevocationDistributionSource
+{
+  constructor(
+    private readonly endpoint: string,
+    private readonly fetchFn: RevocationSnapshotFetch = fetch,
+    private readonly headers: Readonly<Record<string, string>> = {},
+  ) {
+    const url = new URL(endpoint);
+    if (url.protocol !== 'https:' && url.hostname !== 'localhost') {
+      throw new Error('REF_PROV_08_REVOCATION_ENDPOINT_HTTPS_REQUIRED');
+    }
+  }
+
+  async loadSnapshot(): Promise<RevocationDistributionSnapshot> {
+    const response = await this.fetchFn(this.endpoint, {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        ...this.headers,
+      },
+      cache: 'no-store',
+    });
+    if (!response.ok) {
+      throw new Error(
+        'REF_PROV_08_REVOCATION_SOURCE_HTTP_' + response.status,
+      );
+    }
+    const snapshot =
+      (await response.json()) as RevocationDistributionSnapshot;
+    verifyRevocationDistributionSnapshot(snapshot);
+    return snapshot;
+  }
+}
