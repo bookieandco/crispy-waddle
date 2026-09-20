@@ -1326,3 +1326,20 @@ export type {
 export {
   PostgresArtifactAdmissionLedger,
 } from './postgres-artifact-admission-ledger.js';
+
+export type {
+  ArtifactRevocationTarget,
+  ArtifactRevocationReceipt,
+  DeploymentSessionState,
+  DeploymentSession,
+  DeploymentSessionEvent,
+  DeploymentSessionLedger,
+} from './deployment-session.js';
+export {
+  ARTIFACT_DEPLOYMENT_SESSION_SCHEMA_VERSION,
+  createArtifactRevocation,
+  startDeploymentSession,
+  heartbeatDeploymentSession,
+  assertDeploymentSessionUsable,
+  InMemoryDeploymentSessionLedger,
+} from './deployment-session.js';
