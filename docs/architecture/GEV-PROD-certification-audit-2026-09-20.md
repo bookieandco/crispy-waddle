@@ -96,7 +96,13 @@ A deployed live receipt with Supabase rows is still required before PROD.4 can P
 
 ### GEV-PROD.5 — adversarial live drills
 
-**BLOCKED BY PROD.1 / PROD.4.** Source tests cover stale/outage/fallback/duplicate/corroboration behavior, but production drills still require deployed live receipts.
+**SOURCE AUDIT PASS; LIVE ADVERSARIAL DRILLS BLOCKED BY PROD.1 / PROD.4.**
+
+**2026-09-20 PROD.5 continuation audit:** adversarial source coverage was re-audited across admission, evidence persistence, provider degradation and replay/idempotency boundaries. Missing referenced evidence defers admission. Synthetic/fallback-only and Street View fallback-only candidates defer. Stale evidence is rejected from the fresh-evidence requirement by the PROD.4/P10 admission coverage. A provider exception is captured as unavailable/degraded source health plus structured source-failure telemetry instead of invented observations. Evidence with a non-canonical/tampered content hash is rejected; reusing an evidence ID with different content raises an ID conflict. Identical evidence is idempotent/duplicate-safe. Candidate and admission stores are append/conflict-safe, and the Supabase adapters verify persisted duplicate content rather than silently accepting an ID collision.
+
+The read/admission boundary also catches persistence/admission exceptions per evidence item, records a failed-closed limitation and telemetry, and does not emit an accepted Reality ref for the failed item. Context assembly copies provider-owned arrays, preventing downstream mutation of the provider result.
+
+**Remaining production drills:** after PROD.1 deployment, execute live fault injections/controlled failure cases for provider outage, stale payload, fallback-only CCTV, evidence write/read failure, candidate/admission persistence failure, duplicate replay, and tampered/conflicting receipt behavior. Capture sourceHealth, limitations, telemetry and Supabase row receipts on the exact deployed SHA. No UNKNOWN/BLOCKED case may be promoted to PASS.
 
 ### GEV-PROD.6 — privacy/licensing runtime test
 
