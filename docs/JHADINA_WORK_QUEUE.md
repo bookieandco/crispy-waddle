@@ -995,12 +995,23 @@ decision lands would just add a third money-adjacent surface.
 
 ### JH-MONEY-TXN-READ
 **Priority:** P2
-**Status:** REVIEW
+**Status:** DONE
 **Branch:** `feat/money-transaction-read`
 **Objective:** Complete the deferred governed `money.transaction.read` capability so transaction-derived Money intelligence can be built without bypassing the canonical Money spine.
 **Dependencies:** JH-028, JH-034
 **Implementation (2026-09-20):** Enabled `money.transaction.read` in the existing Plaid read-only provider config; implemented Plaid `/transactions/get` mapping in the existing `PlaidReadOnlyAdapter`; composed a dedicated transaction-read handler through the shared Action/Core policy, identity, durable-audit and provider-health boundaries; retained the existing account-ownership check and added a session-authoritative web runtime/API. The product runtime deliberately supplies an empty ownership set until a durable per-user bank-connection map exists, so production transaction reads fail closed rather than exposing the single configured Plaid Item across users. Tests cover owned-account success, unowned-account denial before provider I/O, identity mismatch, and Plaid response mapping. No payment/transfer capability or execution path was added.
-**Next Step:** CI verification. Durable per-user Plaid Item ownership is a separate prerequisite before enabling real multi-user transaction reads; do not weaken the empty-set fail-closed default.
+**Completion (2026-09-20):** PR #451 merged as `128916d`. The follow-on read-spine acceptance work replaces the temporary empty ownership set with durable RLS-backed ownership while preserving fail-closed behavior.
+
+
+### JH-MONEY-READ-SPINE
+**Priority:** P2
+**Status:** BLOCKED
+**Branch:** `feat/money-read-spine-acceptance`
+**Objective:** Accept the complete authenticated-user -> owned bank account -> governed account/transaction read -> durable audit -> transaction intelligence -> command-center read spine while preserving the independent execution boundary.
+**Dependencies:** JH-028, JH-MONEY-TXN-READ
+**Implementation (2026-09-20):** Added durable RLS-protected Plaid Item/account authorization metadata with no access-token storage; authenticated ownership RPC/resolver; account output scoping and transaction ownership enforcement; governed transaction intelligence for recurring/duplicate review signals; command-center transaction consumption; and adversarial acceptance tests for owned reads, unknown/cross-user account denial before provider I/O, empty/revoked ownership, identity binding and durable audit evidence. Payment/transfer/withdrawal capabilities remain outside this spine.
+**Security boundary:** Ownership metadata stores a server-side `credential_ref`, never an access token. Authenticated clients have SELECT-only RLS access and cannot insert/update/delete ownership. A separate privileged bank-link lifecycle must provision/revoke those records and referenced secrets; this acceptance slice does not weaken credentials or create a browser token path.
+**Verification (2026-09-20):** Money R13B Certification run #218 SUCCESS; Spatial Conformance run #745 SUCCESS; Jhadina Evolution Core CI #1257 SUCCESS; Staffing Postgres Integration #2001 SUCCESS; Director Targeted Tests #163 SUCCESS; SHARK Intelligence Core CI #111 SUCCESS. Jhadina Web Deploy Conformance #95 fails on unrelated missing `@/lib/director-review-transition-repository`; Launch Gate fails on unrelated `@jhadina/tv-core` unused `assertTVEpisode`. Live Jhadina Supabase schema was exercised with RLS enabled and security advisors returned no Money-specific findings after removing SECURITY DEFINER bypasses.\n**Human gate:** PR #472 must be merged manually per repository workflow, then the deployment must provide server-only `JHADINA_MONEY_CREDENTIAL_KEY` (32-byte base64) plus the existing Plaid sandbox app credential bundle before an authenticated Link session can be commissioned. Until merge + deployment configuration + one live sandbox Link/read/revoke drill are observed, MONEY-FINAL must not be represented as production-accepted.
 
 
 ### JH-035

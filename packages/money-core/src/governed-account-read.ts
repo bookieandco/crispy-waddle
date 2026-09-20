@@ -5,6 +5,7 @@ import { MoneyAccountReadHandler, type AccountReadAction, type AccountReadHandle
 const MONEY_ALLOWED_CAPABILITIES = [
   ...JHADINA_BASE_SECURITY_POLICY.allowedCapabilities,
   'money.account.read',
+  'money.transaction.read',
 ];
 
 export const MONEY_CORE_SECURITY_POLICY = {

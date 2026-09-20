@@ -60,7 +60,7 @@ try {
   const transactions = await adapter.listTransactions({ userId:'user-test', capability:'money.transaction.read', requestId:'req-txn' }, 'acct-123');
   if (transactions.length !== 1 || transactions[0].id !== 'plaid:txn-1') throw new Error('PLAID_TRANSACTION_MAPPING_FAILED');
   if (transactions[0].accountId !== 'plaid:acct-123' || transactions[0].amount !== 12.5) throw new Error('PLAID_TRANSACTION_FIELDS_FAILED');
-  if (url !== 'https://sandbox.plaid.com/transactions/get') throw new Error('PLAID_TRANSACTION_ENDPOINT_FAILED');
+  if (String(url) !== 'https://sandbox.plaid.com/transactions/get') throw new Error('PLAID_TRANSACTION_ENDPOINT_FAILED');
   const transactionBody = JSON.parse(String(request?.body));
   if (transactionBody.options?.account_ids?.[0] !== 'acct-123') throw new Error('PLAID_TRANSACTION_ACCOUNT_FILTER_FAILED');
 

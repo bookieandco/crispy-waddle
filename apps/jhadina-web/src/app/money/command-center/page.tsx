@@ -1,8 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import type { MoneyAccount } from "@jhadina/money-core"
+import type { MoneyAccount, MoneyTransaction } from "@jhadina/money-core"
 import { buildMoneyCommandCenterModel } from "@/lib/money/command-center-model"
+import { MoneyConnectBankButton } from "./connect-bank-button"
+
+type TransactionsResponse = { success:true; data:{transactions:MoneyTransaction[]} } | {success:false;error:string}
 
 type AccountsResponse =
   | { success: true; data: { accounts: MoneyAccount[]; verifiedUserId: string } }
@@ -10,9 +13,10 @@ type AccountsResponse =
 
 export default function MoneyCommandCenter() {
   const [accounts, setAccounts] = useState<MoneyAccount[]>([])
+  const [transactions, setTransactions] = useState<MoneyTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const model = useMemo(() => buildMoneyCommandCenterModel(accounts), [accounts])
+  const model = useMemo(() => buildMoneyCommandCenterModel(accounts, transactions), [accounts, transactions])
 
   useEffect(() => {
     let active = true
@@ -23,6 +27,12 @@ export default function MoneyCommandCenter() {
           throw new Error(payload.success ? "Could not load accounts" : payload.error)
         }
         if (active) setAccounts(payload.data.accounts)
+        const transactionSets = await Promise.all(payload.data.accounts.map(async account => {
+          const response = await fetch(`/api/money/transactions?accountId=${encodeURIComponent(account.externalId)}`, {method:"GET",credentials:"same-origin",cache:"no-store"})
+          const body = await response.json() as TransactionsResponse
+          return response.ok && body.success ? body.data.transactions : []
+        }))
+        if (active) setTransactions(transactionSets.flat())
       })
       .catch((cause: unknown) => {
         if (active) setError(cause instanceof Error ? cause.message : "Could not load accounts")
@@ -42,7 +52,7 @@ export default function MoneyCommandCenter() {
       <div style={wrap}>
         <div style={eyebrow}>Money Core</div>
         <h1 style={h1}>Financial Command Center</h1>
-        <p style={sub}>A read-only view through Jhadina&apos;s governed Money boundary. This screen cannot move money.</p>
+        <p style={sub}>A read-only view through Jhadina&apos;s governed Money boundary. This screen cannot move money.</p>\n        <MoneyConnectBankButton />
 
         <section style={hero}>
           <span>Available cash</span>
@@ -74,9 +84,9 @@ export default function MoneyCommandCenter() {
         <section style={card}>
           <div style={sectionHead}><h2 style={h2}>Needs attention</h2><span>{model.attention.length}</span></div>
           <p style={muted}>
-            Bills, subscriptions and transaction-derived alerts stay unavailable until the separately governed
-            <code> money.transaction.read </code> capability is implemented. Account-read permission is not reused as transaction permission.
+            {model.transactionAttentionAvailable ? "Derived only from separately governed transaction reads. Review items do not authorize payments, transfers, cancellations or withdrawals." : "Transaction intelligence appears only after an owned account returns governed transaction history. Account-read permission is never reused as transaction permission."}
           </p>
+          {model.attention.map(item => <article key={item.id} style={row}><div><strong>{item.title}</strong><div style={muted}>{item.severity} · {item.action}</div></div>{typeof item.amount === "number" && <strong>{new Intl.NumberFormat("en-US",{style:"currency",currency:item.currency??"USD"}).format(item.amount)}</strong>}</article>)}
         </section>
 
         <section style={boundary}>
