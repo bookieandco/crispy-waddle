@@ -22,7 +22,7 @@ try {
         mask: '4242',
         type: 'depository',
         subtype: 'checking',
-        balances: { iso_currency_code: 'USD' },
+        balances: { iso_currency_code: 'USD', current: 1250.5, available: 1100.25 },
       }],
     }), { status: 200, headers: { 'content-type': 'application/json' } });
   };
@@ -42,6 +42,8 @@ try {
   if (accounts[0].externalId !== 'acct-123') throw new Error('PLAID_EXTERNAL_ID_FAILED');
   if (accounts[0].currency !== 'USD') throw new Error('PLAID_CURRENCY_MAPPING_FAILED');
   if (accounts[0].maskedName !== 'Checking ••••4242') throw new Error('PLAID_MASK_MAPPING_FAILED');
+  if (accounts[0].currentBalance !== 1250.5) throw new Error('PLAID_CURRENT_BALANCE_MAPPING_FAILED');
+  if (accounts[0].availableBalance !== 1100.25) throw new Error('PLAID_AVAILABLE_BALANCE_MAPPING_FAILED');
   if (url !== 'https://sandbox.plaid.com/accounts/get') throw new Error('PLAID_ENDPOINT_FAILED');
 
   const body = JSON.parse(String(request?.body));
