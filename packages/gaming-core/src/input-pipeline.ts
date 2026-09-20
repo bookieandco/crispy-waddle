@@ -76,11 +76,11 @@ export class GamingInputPipeline {
       if(!this.delivery.isTerminal(event.inputId)){
         this.delivery.transition(event.inputId,'delivery-unknown',Date.now(),error instanceof Error?error.message:'transport-failed');
       }
-      return this.unknownResult(event,controllerGate,resync);
+      return this.unknownResult(event,controllerGate,resync,undefined,undefined,integrity);
     }
 
     if(generation!==this.generation||this.delivery.isTerminal(event.inputId)){
-      return this.unknownResult(event,controllerGate,resync,transportReceipt);
+      return this.unknownResult(event,controllerGate,resync,transportReceipt,undefined,integrity);
     }
 
     this.delivery.transition(
@@ -103,13 +103,13 @@ export class GamingInputPipeline {
     }
 
     if(generation!==this.generation||this.delivery.isTerminal(event.inputId)){
-      return this.unknownResult(event,controllerGate,resync,transportReceipt,acknowledgement);
+      return this.unknownResult(event,controllerGate,resync,transportReceipt,acknowledgement,integrity);
     }
 
     this.delivery.transition(event.inputId,'runtime-delivered',Math.max(Date.now(),acknowledgement.deliveredAtMs));
     if(!this.acknowledgementMatches(event,acknowledgement)){
       const delivery=this.delivery.transition(event.inputId,'delivery-unknown',Date.now(),'runtime-ack-mismatch');
-      return this.result(this.integritySnapshotResult(),true,controllerGate,resync,delivery,transportReceipt,acknowledgement);
+      return this.result(integrity,true,controllerGate,resync,delivery,transportReceipt,acknowledgement);
     }
 
     const delivery=this.delivery.transition(event.inputId,'acknowledged',Math.max(Date.now(),acknowledgement.deliveredAtMs));
@@ -137,8 +137,9 @@ export class GamingInputPipeline {
   ):GamingInputPipelineResult{
     const delivery=this.delivery.get(event.inputId)??this.delivery.capture({...event,generation:this.generation});
     const final=this.delivery.isTerminal(event.inputId)?delivery:this.delivery.markDisconnect(event.inputId);
+    const integrity=this.integrityResultForDelivery(final);
     const gate:ControllerInputGateResult=controllerGate??{allowed:false,reason:'controller-unbound',deviceId:event.deviceId??'',sessionId:event.sessionId??''};
-    return this.result(this.integritySnapshotResult(),false,gate,resync,final);
+    return this.result(integrity,false,gate,resync,final);
   }
 
   private unknownResult(
@@ -147,12 +148,13 @@ export class GamingInputPipeline {
     resync:GamingInputResyncResult,
     transportReceipt?:GamingInputTransportReceipt,
     acknowledgement?:GamingRuntimeInputAck,
+    integrity?:InputIntegrityResult,
   ):GamingInputPipelineResult{
     let delivery=this.delivery.get(event.inputId)!;
     if(!this.delivery.isTerminal(event.inputId)){
       delivery=this.delivery.transition(event.inputId,'delivery-unknown',Date.now(),'delivery-status-uncertain');
     }
-    return this.result(this.integritySnapshotResult(),delivery.transportDisposition==='confirmed',controllerGate,resync,delivery,transportReceipt,acknowledgement);
+    return this.result(integrity??this.integrityResultForDelivery(delivery),delivery.transportDisposition==='confirmed',controllerGate,resync,delivery,transportReceipt,acknowledgement);
   }
 
   private result(
@@ -165,6 +167,11 @@ export class GamingInputPipeline {
     acknowledgement?:GamingRuntimeInputAck,
   ):GamingInputPipelineResult{
     return{...integrity,transported,transportReceipt,acknowledgement,controllerGate,resync,delivery};
+  }
+
+  private integrityResultForDelivery(delivery:GamingInputDeliverySnapshot):InputIntegrityResult{
+    const snapshot=this.integrity.snapshot();
+    return{accepted:delivery.sequenceDisposition==='consumed',state:snapshot.state,lastSequenceNumber:snapshot.lastSequenceNumber,expectedSequenceNumber:snapshot.lastSequenceNumber+1,droppedCount:snapshot.droppedCount};
   }
 
   private acknowledgementMatches(event:InputIntegrityEvent,acknowledgement:GamingRuntimeInputAck):boolean{
