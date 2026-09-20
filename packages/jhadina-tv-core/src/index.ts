@@ -104,8 +104,8 @@ export type { CatalogProvider, CatalogSearchOptions, CatalogSearchResult, Resolv
 export { CatalogRegistry } from './catalog';
 export type { ProviderFactoryConfig } from './providers';
 export { createCatalogProvider, registerCatalogProviders } from './providers';
-export type { AuthorizedCatalogClient, AuthorizedCatalogRecord } from './providers/authorized';
-export { createAuthorizedCatalogAdapter } from './providers/authorized';
+export type { AuthorizedCatalogClient, AuthorizedCatalogHierarchy, AuthorizedCatalogRecord, NormalizedAuthorizedCatalogRecord } from './providers/authorized';
+export { createAuthorizedCatalogAdapter, normalizeAuthorizedCatalogRecord } from './providers/authorized';
 export type { GoogleCastRuntime, GoogleCastSession } from './cast/google-cast';
 export { createGoogleCastController } from './cast/google-cast';
 export type { JhadinaTVReceiverTransport } from './cast/jhadinatv-receiver';
