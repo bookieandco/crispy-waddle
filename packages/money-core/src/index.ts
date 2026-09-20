@@ -104,3 +104,6 @@ export * from './risk-analysis-engine.js';
 export * from './decision-provenance-engine.js';
 export * from './fundamental-valuation-engine.js';
 export * from './macro-economic-engine.js';
+
+export * from './information-integrity-engine.js';
+export * from './information-analysis-engine.js';
