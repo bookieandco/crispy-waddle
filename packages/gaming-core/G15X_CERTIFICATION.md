@@ -63,4 +63,16 @@ The exact G15-X.5 head must pass the dedicated Gaming Core Certification:
 - full Gaming Core Vitest suite;
 - Turbo build/test/type-check for `@jhadina/gaming-core`.
 
-The final workflow run and counts are recorded after GitHub Actions certification succeeds.
+Certified code commit: `5fe16a7497b8efe3770f82c62be1929c9f7cbb30`
+Gaming Core Certification run: `35533983663` (run #116)
+Certification job: `106139592256`
+Result: SUCCESS
+
+Observed results:
+- Test files: **55 passed / 55**
+- Tests: **124 passed / 124**
+- Turbo tasks: **3 successful / 3**
+- Frozen pnpm workspace install: **success**
+- Compared with `jhadina-gaming-g14j`: **15 commits ahead, 0 behind**
+
+The repository-level Vercel status on the certified parent reported an external build-rate-limit failure. That status is separate from the dedicated Gaming Core certification and is not classified as a G15-X implementation failure.
