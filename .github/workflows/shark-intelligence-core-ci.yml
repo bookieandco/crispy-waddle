@@ -1,0 +1,45 @@
+name: SHARK Intelligence Core CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/shark-intelligence-core-ci.yml"
+      - "packages/shark-intelligence-core/**"
+      - "apps/jhadina-web/src/lib/shark/**"
+      - "apps/jhadina-web/app/api/internal/shark/**"
+      - "apps/jhadina-web/app/api/wallet/intelligence/**"
+      - "apps/jhadina-web/app/api/webhooks/helius/**"
+      - "supabase/migrations/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  shark-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+      - name: SHARK type-check
+        run: pnpm --filter @jhadina/shark-intelligence-core type-check
+      - name: SHARK tests
+        run: pnpm --filter @jhadina/shark-intelligence-core test
+      - name: Validate SHARK migrations
+        run: |
+          test -f supabase/migrations/20260902010000_shark_launch_outcome_history.sql
+          test -f supabase/migrations/20260918000100_shark_durable_launch_ingestion.sql
+          test -f supabase/migrations/20260919000100_shark_historical_observation_ratio_contract.sql
