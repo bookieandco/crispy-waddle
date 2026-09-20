@@ -1,0 +1,51 @@
+name: Reference Provenance Certification
+
+on:
+  pull_request:
+    paths:
+      - 'packages/jhadina-reference-provenance/**'
+      - 'packages/money-core/src/plaid-read-only-adapter.ts'
+      - 'packages/money-core/src/plaid-read-only-adapter.test.ts'
+      - 'apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.ts'
+      - 'apps/jhadina-web/src/lib/commerce/stripe-sandbox-provider.test.ts'
+      - '.github/workflows/reference-provenance-certification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    name: REF-PROV type-check, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check reference provenance
+        run: pnpm --filter @jhadina/reference-provenance type-check
+
+      - name: Run reference provenance tests
+        run: pnpm --filter @jhadina/reference-provenance test
+
+      - name: Run REF-PROV-05 admission certification
+        run: pnpm --filter @jhadina/reference-provenance verify:ref-prov-05
+
+      - name: Build reference provenance
+        run: pnpm --filter @jhadina/reference-provenance build
