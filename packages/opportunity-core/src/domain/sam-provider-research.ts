@@ -27,10 +27,10 @@ export async function runSamProviderResearch(input:{
   const now=input.now??new Date().toISOString()
   const requirements=input.requirements.requirements
   const discovery=await discoverFulfillmentProviders(input.adapters,{
-    keywords:uniq(requirements.flatMap(r=>r.tokens)),
-    naicsCodes:uniq(requirements.filter(r=>r.kind==='naics').flatMap(r=>r.tokens)),
-    pscCodes:uniq(requirements.filter(r=>r.kind==='psc').flatMap(r=>r.tokens)),
-    geography:requirements.find(r=>r.kind==='geography')?.summary,
+    keywords:uniq(requirements.flatMap(r=>r.keywords)),
+    naicsCodes:uniq(requirements.filter(r=>r.kind==='naics').flatMap(r=>r.naicsCodes)),
+    pscCodes:uniq(requirements.filter(r=>r.kind==='psc').flatMap(r=>r.pscCodes)),
+    geography:requirements.find(r=>r.kind==='geography')?.label,
     limit:input.limit??25,
   },now)
   const candidates=(input.knownProviders??[]).map(providerToIdentityCandidate)
