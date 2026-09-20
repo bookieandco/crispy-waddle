@@ -10,8 +10,8 @@ const launchFromRow = (row: any): TokenLaunch => ({
 })
 
 export async function runHistoricalObservationBackfill(client: SupabaseClient, options: { coinGeckoApiKey: string; heliusApiKey?: string; limit: number }) {
-  const { data, error } = await client.from('jhadina_token_launches').select('*').order('launched_at', { ascending: false }).limit(options.limit)
-  if (error) throw new Error(`SHARK launch backfill load failed: ${error.message}`)
+  const { data, error } = await client.rpc('jhadina_shark_claim_historical_backfill', { p_limit: options.limit })
+  if (error) throw new Error(`SHARK launch backfill claim failed: ${error.message}`)
   const market = new CoinGeckoHistoricalSource({ apiKey: options.coinGeckoApiKey })
   const actors = options.heliusApiKey ? new HeliusHistoricalSource({ apiKey: options.heliusApiKey }) : undefined
   let persisted = 0; let partial = 0; const failures: Array<{ launchId: string; reason: string }> = []
@@ -33,8 +33,16 @@ export async function runHistoricalObservationBackfill(client: SupabaseClient, o
       if (persistError) throw new Error(persistError.message)
       persisted += 1
       if (result.errors.length || Object.values(result.sourceStatus).some(status => status !== 'complete')) partial += 1
+
+      const { error: scheduleError } = await client
+        .from('jhadina_shark_historical_backfill_schedule')
+        .update({ last_succeeded_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('launch_id', launch.launchId)
+      if (scheduleError) throw new Error(`SHARK backfill schedule success update failed: ${scheduleError.message}`)
     } catch (error) {
       failures.push({ launchId: launch.launchId, reason: error instanceof Error ? error.message : 'unknown-backfill-failure' })
+      const { error: scheduleError } = await client.rpc('jhadina_shark_record_historical_backfill_failure', { p_launch_id: launch.launchId })
+      if (scheduleError) throw new Error(`SHARK backfill schedule failure update failed: ${scheduleError.message}`)
     }
   }
   return { processed: (data ?? []).length, persisted, partial, failed: failures.length, failures }
