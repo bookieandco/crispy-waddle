@@ -112,3 +112,9 @@ export * from './cross-asset-fusion-contracts.js';
 export * from './cross-asset-fusion-engine.js';
 export * from './cross-asset-fusion-adapters.js';
 export * from './cross-asset-decision-learning.js';
+
+export * from './portfolio-construction-contracts.js';
+export * from './portfolio-construction-engine.js';
+
+export * from './execution-planning-contracts.js';
+export * from './execution-planning-engine.js';
