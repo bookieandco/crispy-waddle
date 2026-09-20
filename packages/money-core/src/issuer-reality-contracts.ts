@@ -23,6 +23,7 @@ export type FundamentalState = Readonly<{ stateId: string; issuerId: string; inf
 function assertNonEmpty(value: string, field: string): void { if (!value.trim()) throw new Error(`${field} is required`) }
 function assertIsoTimestamp(value: string, field: string): void { assertNonEmpty(value, field); if (Number.isNaN(Date.parse(value))) throw new Error(`${field} must be a valid timestamp`) }
 
+export function assertFiling(filing: Filing): void { assertNonEmpty(filing.filingId, 'filingId'); assertNonEmpty(filing.issuerId, 'issuerId'); assertNonEmpty(filing.accessionNumber, 'accessionNumber'); assertIsoTimestamp(filing.filingDate, 'filingDate'); assertIsoTimestamp(filing.acceptedAt, 'acceptedAt'); if (!filing.sourceHash.trim() || !filing.provenanceHash.trim()) throw new Error('filing provenance is required'); if (filing.documentRefs.length === 0 && filing.xbrlRefs.length === 0) throw new Error('filing document or XBRL evidence is required') }
 export function assertIssuerIdentifier(identifier: IssuerIdentifier): void {
   assertNonEmpty(identifier.identifierId, 'identifierId'); assertNonEmpty(identifier.issuerId, 'issuerId'); assertNonEmpty(identifier.type, 'type'); assertNonEmpty(identifier.value, 'value')
   if (identifier.effectiveAt) assertIsoTimestamp(identifier.effectiveAt, 'effectiveAt')
