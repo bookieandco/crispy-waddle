@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createPaperTradeProposal } from './paper-trade-contracts'
-import { markPaperPosition, proposePaperExit, simulatePaperEntry, simulatePaperExitFill } from './paper-execution'
+import { createPaperPortfolio, createPaperTradeProposal } from './paper-trade-contracts'
+import { applyPaperEntryToPortfolio, applyPaperExitToPortfolio, markPaperPosition, proposePaperExit, simulatePaperEntry, simulatePaperExitFill } from './paper-execution'
 import { attributePaperTrade, evaluatePaperTradeOutcome } from './paper-trade-outcome'
 import { createPaperTradeLearningRecord, assertPaperLearningMayInfluence } from './paper-trade-learning'
 import { calibratePaperStrategy } from './paper-strategy-calibration'
@@ -76,4 +76,56 @@ describe('SHARK paper trading regression', () => {
     expect(calibration.recommendedConfidence).toBeNull()
     expect(calibration.simulationAuthority).toBe('PAPER_ONLY')
   })
+  it('accounts for entry, partial exit, final exit, and loss through the paper portfolio', () => {
+    const proposal = createPaperTradeProposal({
+      proposalId: 'portfolio-loss', chainId: 'solana', tokenAddress: 'mint-loss', quoteAsset: 'USD',
+      proposedAt: '2026-09-18T20:00:00Z', simulatedCapital: 100, entryPrice: 1,
+      assumptions: { feeBps: 50, slippageBps: 100 },
+      provenance: { assessmentId: 'a-loss', decisionProposalId: 'd-loss', evidenceIds: ['e-loss'] },
+    })
+    let portfolio = createPaperPortfolio({
+      portfolioId: 'portfolio-1', quoteAsset: 'USD', initialCapital: 500, cashBalance: 500,
+      positionIds: [], updatedAt: '2026-09-18T19:59:00Z',
+    })
+    const entry = simulatePaperEntry(proposal, {
+      observationId: 'loss-entry', observedAt: '2026-09-18T20:00:01Z',
+      chainId: 'solana', tokenAddress: 'mint-loss', price: 1,
+    })
+    portfolio = applyPaperEntryToPortfolio(portfolio, entry.position)
+    expect(portfolio.cashBalance).toBeCloseTo(400, 10)
+
+    const down = { observationId: 'loss-down', observedAt: '2026-09-18T20:05:00Z', chainId: 'solana', tokenAddress: 'mint-loss', price: .5 }
+    const mark = markPaperPosition(entry.position, down)
+    const firstExit = {
+      exitId: 'loss-half', positionId: entry.position.positionId, simulationAuthority: 'PAPER_ONLY' as const,
+      marketObservationId: down.observationId, proposedAt: down.observedAt,
+      quantity: entry.position.quantity / 2, fractionOfPosition: .5, referencePrice: down.price, reasons: ['risk-reduction'],
+    }
+    const partial = simulatePaperExitFill(proposal, entry.position, firstExit, down)
+    portfolio = applyPaperExitToPortfolio(portfolio, partial.position, partial.fill)
+
+    const later = { ...down, observationId: 'loss-final', observedAt: '2026-09-18T20:06:00Z', price: .4 }
+    const finalExit = {
+      exitId: 'loss-rest', positionId: partial.position.positionId, simulationAuthority: 'PAPER_ONLY' as const,
+      marketObservationId: later.observationId, proposedAt: later.observedAt,
+      quantity: partial.position.quantity, fractionOfPosition: 1, referencePrice: later.price, reasons: ['thesis-invalidated'],
+    }
+    const closed = simulatePaperExitFill(proposal, partial.position, finalExit, later)
+    portfolio = applyPaperExitToPortfolio(portfolio, closed.position, closed.fill)
+
+    const outcome = evaluatePaperTradeOutcome({
+      proposal, position: closed.position, fills: [entry.fill, partial.fill, closed.fill], marks: [mark],
+      evaluatedAt: '2026-09-18T20:06:01Z',
+    })
+    const attribution = attributePaperTrade({
+      outcome, proposal, entryFill: entry.fill, exitFills: [partial.fill, closed.fill],
+      exits: [firstExit, finalExit], attributedAt: '2026-09-18T20:06:02Z',
+    })
+
+    expect(closed.position.status).toBe('CLOSED')
+    expect(outcome.label).toBe('LOSS')
+    expect(portfolio.cashBalance).toBeLessThan(portfolio.initialCapital)
+    expect(attribution.residualQuote).toBeCloseTo(0, 10)
+  })
+
 })
