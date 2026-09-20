@@ -25,10 +25,10 @@ begin
 
   if not exists(
     select 1
-    from public.jhadina_audit_event a
+    from public.jhadina_audit_ledger a
     where a.domain=p_audit_domain
       and a.request_id=p_request_id
-      and a.actor_id=p_actor_id::text
+      and a.actor_id=p_actor_id
       and a.capability='research.run'
       and a.status='started'
       and a.decision='allow'
