@@ -47,7 +47,7 @@ export function attributeLPWithdrawals(input: {
   const lpEvents = input.lpEvents ?? (input.lpMint ? input.history.transactions.flatMap(tx => new SolanaLPStateMachine().decode(tx, input.history.pool, input.lpMint)) : [])
   const developerWallets = new Set(input.developerWalletIds ?? [])
   return input.liquidityEvents
-    .filter(event => event.kind === 'LIQUIDITY_REMOVE')
+    .filter((event): event is LiquidityEventEvidence & { signature: string } => event.kind === 'LIQUIDITY_REMOVE' && typeof event.signature === 'string' && event.signature.length > 0)
     .map(event => {
       const candidates = lpEvents
         .filter(lp => correlatedLPEvent(event, lp))
