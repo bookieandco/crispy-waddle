@@ -22,7 +22,7 @@ export interface UniversalUploadObjectStore {
   }): Promise<{ assetRef: string }>;
 }
 
-function safeFilename(value: string): string {
+export function safeUploadFilename(value: string): string {
   const leaf = value.split(/[\\/]/).pop()?.trim() || "upload.bin";
   const safe = leaf.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120);
   return safe || "upload.bin";
@@ -41,7 +41,7 @@ export class SupabaseUniversalUploadObjectStore implements UniversalUploadObject
     bytes: Uint8Array;
   }): Promise<QuarantinedUpload> {
     if (!input.actorId.trim()) throw new Error("UPLOAD_ACTOR_REQUIRED");
-    const filename = safeFilename(input.filename);
+    const filename = safeUploadFilename(input.filename);
     const attemptId = randomUUID();
     const path = `quarantine/${input.actorId}/${attemptId}/${filename}`;
     const bucket = this.client.storage.from(JHADINA_INTAKE_BUCKET);
@@ -73,7 +73,18 @@ export class SupabaseUniversalUploadObjectStore implements UniversalUploadObject
     const trustedPath = `trusted/${input.actorId}/${suffix}`;
     const bucket = this.client.storage.from(JHADINA_INTAKE_BUCKET);
     const { error } = await bucket.move(input.quarantineHandle, trustedPath);
-    if (error) throw error;
+    if (error) {
+      const slash = trustedPath.lastIndexOf("/");
+      const folder = slash >= 0 ? trustedPath.slice(0, slash) : "";
+      const filename = slash >= 0 ? trustedPath.slice(slash + 1) : trustedPath;
+      const { data, error: listError } = await bucket.list(folder, {
+        limit: 10,
+        search: filename,
+      });
+      if (listError || !data?.some((item) => item.id !== null && item.name === filename)) {
+        throw error;
+      }
+    }
 
     return Object.freeze({
       assetRef: `supabase://${JHADINA_INTAKE_BUCKET}/${trustedPath}`,
