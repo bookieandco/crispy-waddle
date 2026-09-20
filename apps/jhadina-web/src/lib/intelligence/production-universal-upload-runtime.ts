@@ -2,34 +2,17 @@ import { createHash } from "node:crypto";
 import type { MediaSecurityScanner, MediaScanResult } from "@jhadina/security-core";
 import { assertSafeMedia } from "@jhadina/security-core";
 import {
-  AudioPerceptionExtractor,
-  CodePerceptionExtractor,
-  DocumentPerceptionExtractor,
   GovernedAssetRegistry,
-  GovernedMediaPipeline,
-  GovernedPerceptionExtractionRouter,
-  GovernedSubsystemDispatcher,
-  GovernedUniversalIntakeRouter,
-  ImagePerceptionExtractor,
-  TextPerceptionExtractor,
-  VideoPerceptionExtractor,
-  type AssetIntelligencePacket,
+  perceptionJobId,
   type IntakeModality,
-  type MediaExtractionBackend,
+  type PerceptionJob,
+  type PerceptionJobRepository,
   type RegisteredIntelligenceAsset,
-  type SubsystemDispatchResult,
-  type SubsystemIntelligenceAdapter,
 } from "@jhadina/intelligence-core";
 import { createServiceRoleClient } from "../supabase/service-role";
 import { HttpMediaSecurityScanner } from "./http-media-security-scanner";
 import { SupabaseIntelligenceAssetStore } from "./supabase-intelligence-asset-store";
-import { createProductionSubsystemRegistry } from "./production-subsystem-registry";
-import { SupabaseTrustedAssetReadResolver } from "./trusted-asset-read-resolver";
-import { HttpSemanticPerceptionBackend } from "./production-perception-worker";
-import {
-  CompositeMediaExtractionBackend,
-  FfmpegStructuralPerceptionBackend,
-} from "./ffmpeg-structural-perception";
+import { SupabasePerceptionJobRepository } from "./supabase-perception-job-repository";
 import {
   SupabaseUniversalUploadObjectStore,
   type UniversalUploadObjectStore,
@@ -50,8 +33,7 @@ export type UniversalUploadInput = {
 export type UniversalUploadResult = {
   asset: RegisteredIntelligenceAsset;
   scan: Pick<MediaScanResult, "sha256" | "verdict" | "scannedAt">;
-  packet: AssetIntelligencePacket;
-  dispatch: SubsystemDispatchResult;
+  job: PerceptionJob;
 };
 
 const PRIVACY_RANK: Record<UniversalUploadPrivacyClass, number> = {
@@ -65,10 +47,14 @@ export class UniversalUploadRuntime {
     private readonly scanner: MediaSecurityScanner,
     private readonly objects: UniversalUploadObjectStore,
     private readonly registry: GovernedAssetRegistry,
-    private readonly media: GovernedMediaPipeline,
-    private readonly dispatcher: GovernedSubsystemDispatcher,
+    private readonly jobs: PerceptionJobRepository,
     private readonly scannerPrivacyCeiling: UniversalUploadPrivacyClass = "sensitive",
-  ) {}
+    private readonly maxAttempts = 4,
+  ) {
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) {
+      throw new Error("UPLOAD_PERCEPTION_MAX_ATTEMPTS_INVALID");
+    }
+  }
 
   async ingest(input: UniversalUploadInput): Promise<UniversalUploadResult> {
     if (!input.actorId.trim()) throw new Error("UPLOAD_ACTOR_REQUIRED");
@@ -97,7 +83,9 @@ export class UniversalUploadRuntime {
       mimeType: validated.mediaType,
       sizeBytes: input.bytes.byteLength,
     });
-    if (scan.sha256.toLowerCase() !== sha256) throw new Error("MEDIA_SCANNER_CONTENT_HASH_MISMATCH");
+    if (scan.sha256.toLowerCase() !== sha256) {
+      throw new Error("MEDIA_SCANNER_CONTENT_HASH_MISMATCH");
+    }
     assertSafeMedia(scan);
 
     const promoted = await this.objects.promote({
@@ -117,32 +105,27 @@ export class UniversalUploadRuntime {
       privacyClass: input.privacyClass,
     });
 
-    const packet = await this.media.process({ asset, intent: input.intent });
-    const dispatch = await this.dispatcher.dispatch(packet, input.intent);
+    const job = await this.jobs.enqueue({
+      id: perceptionJobId(asset.actorId, asset.id),
+      actorId: asset.actorId,
+      assetId: asset.id,
+      intent: input.intent,
+      maxAttempts: this.maxAttempts,
+    });
 
     return Object.freeze({
       asset,
-      scan: Object.freeze({ sha256: scan.sha256, verdict: scan.verdict, scannedAt: scan.scannedAt }),
-      packet,
-      dispatch,
+      scan: Object.freeze({
+        sha256: scan.sha256,
+        verdict: scan.verdict,
+        scannedAt: scan.scannedAt,
+      }),
+      job,
     });
   }
 }
 
-function createProductionExtractors(backend: MediaExtractionBackend) {
-  return [
-    new VideoPerceptionExtractor(backend),
-    new AudioPerceptionExtractor(backend),
-    new ImagePerceptionExtractor(backend),
-    new DocumentPerceptionExtractor(backend),
-    new TextPerceptionExtractor(backend),
-    new CodePerceptionExtractor(backend),
-  ];
-}
-
-export function createProductionUniversalUploadRuntime(input: {
-  subsystemAdapters?: readonly SubsystemIntelligenceAdapter[];
-} = {}): UniversalUploadRuntime {
+export function createProductionUniversalUploadRuntime(): UniversalUploadRuntime {
   const client = createServiceRoleClient();
   if (!client) throw new Error("UPLOAD_RUNTIME_SUPABASE_UNAVAILABLE");
 
@@ -155,40 +138,26 @@ export function createProductionUniversalUploadRuntime(input: {
   );
   const configuredCeiling = process.env.JHADINA_MEDIA_SCANNER_PRIVACY_CEILING;
   const scannerPrivacyCeiling: UniversalUploadPrivacyClass =
-    configuredCeiling === "internal" || configuredCeiling === "sensitive" || configuredCeiling === "restricted"
+    configuredCeiling === "internal" ||
+    configuredCeiling === "sensitive" ||
+    configuredCeiling === "restricted"
       ? configuredCeiling
       : "sensitive";
-  const perceptionWorkerUrl = process.env.JHADINA_PERCEPTION_WORKER_URL;
-  if (!perceptionWorkerUrl) throw new Error("UPLOAD_RUNTIME_PERCEPTION_WORKER_UNAVAILABLE");
-  const perceptionCeilingRaw = process.env.JHADINA_PERCEPTION_WORKER_PRIVACY_CEILING;
-  const perceptionPrivacyCeiling: UniversalUploadPrivacyClass =
-    perceptionCeilingRaw === "internal" || perceptionCeilingRaw === "sensitive" || perceptionCeilingRaw === "restricted"
-      ? perceptionCeilingRaw
-      : "sensitive";
 
-  const objects = new SupabaseUniversalUploadObjectStore(client);
-  const registry = new GovernedAssetRegistry(new SupabaseIntelligenceAssetStore(client));
-  const trustedAssets = new SupabaseTrustedAssetReadResolver(client);
-  const semanticBackend = new HttpSemanticPerceptionBackend(
-    perceptionWorkerUrl,
-    trustedAssets,
-    process.env.JHADINA_PERCEPTION_WORKER_TOKEN || undefined,
-    perceptionPrivacyCeiling,
+  const maxAttemptsRaw = Number(process.env.JHADINA_PERCEPTION_MAX_ATTEMPTS ?? "4");
+  const maxAttempts =
+    Number.isInteger(maxAttemptsRaw) && maxAttemptsRaw >= 1 && maxAttemptsRaw <= 20
+      ? maxAttemptsRaw
+      : 4;
+
+  return new UniversalUploadRuntime(
+    scanner,
+    new SupabaseUniversalUploadObjectStore(client),
+    new GovernedAssetRegistry(new SupabaseIntelligenceAssetStore(client)),
+    new SupabasePerceptionJobRepository(client),
+    scannerPrivacyCeiling,
+    maxAttempts,
   );
-  const backend: MediaExtractionBackend =
-    process.env.JHADINA_LOCAL_FFMPEG_ENABLED === "true"
-      ? new CompositeMediaExtractionBackend([
-          new FfmpegStructuralPerceptionBackend(trustedAssets),
-          semanticBackend,
-        ])
-      : semanticBackend;
-  const perception = new GovernedPerceptionExtractionRouter(createProductionExtractors(backend));
-  const media = new GovernedMediaPipeline(perception, new GovernedUniversalIntakeRouter());
-  const subsystemAdapters =
-    input.subsystemAdapters ?? createProductionSubsystemRegistry(client).adapters;
-  const dispatcher = new GovernedSubsystemDispatcher(subsystemAdapters);
-
-  return new UniversalUploadRuntime(scanner, objects, registry, media, dispatcher, scannerPrivacyCeiling);
 }
 
 export const UNIVERSAL_UPLOAD_SUPPORTED_MODALITIES: readonly IntakeModality[] =
