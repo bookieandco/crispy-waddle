@@ -107,7 +107,7 @@ export class GamingInputPipeline {
     }
 
     this.delivery.transition(event.inputId,'runtime-delivered',Math.max(Date.now(),acknowledgement.deliveredAtMs));
-    if(acknowledgement.inputId!==event.inputId||acknowledgement.sequenceNumber!==event.sequenceNumber){
+    if(!this.acknowledgementMatches(event,acknowledgement)){
       const delivery=this.delivery.transition(event.inputId,'delivery-unknown',Date.now(),'runtime-ack-mismatch');
       return this.result(this.integritySnapshotResult(),true,controllerGate,resync,delivery,transportReceipt,acknowledgement);
     }
@@ -137,7 +137,7 @@ export class GamingInputPipeline {
   ):GamingInputPipelineResult{
     const delivery=this.delivery.get(event.inputId)??this.delivery.capture({...event,generation:this.generation});
     const final=this.delivery.isTerminal(event.inputId)?delivery:this.delivery.markDisconnect(event.inputId);
-    const gate=controllerGate??{allowed:false,reason:'controller-unbound',deviceId:event.deviceId??'',sessionId:event.sessionId??''};
+    const gate:ControllerInputGateResult=controllerGate??{allowed:false,reason:'controller-unbound',deviceId:event.deviceId??'',sessionId:event.sessionId??''};
     return this.result(this.integritySnapshotResult(),false,gate,resync,final);
   }
 
@@ -165,6 +165,10 @@ export class GamingInputPipeline {
     acknowledgement?:GamingRuntimeInputAck,
   ):GamingInputPipelineResult{
     return{...integrity,transported,transportReceipt,acknowledgement,controllerGate,resync,delivery};
+  }
+
+  private acknowledgementMatches(event:InputIntegrityEvent,acknowledgement:GamingRuntimeInputAck):boolean{
+    return acknowledgement.inputId===event.inputId&&acknowledgement.sequenceNumber===event.sequenceNumber;
   }
 
   private integritySnapshotResult():InputIntegrityResult{
