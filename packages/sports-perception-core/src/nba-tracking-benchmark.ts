@@ -1,0 +1,1 @@
+export interface TrackingCase{idSwitches:number;fragments:number;groundTruthTracks:number;}export function benchmarkNBATracking(x:readonly TrackingCase[]){const gt=x.reduce((s,a)=>s+a.groundTruthTracks,0);return Object.freeze({idSwitches:x.reduce((s,a)=>s+a.idSwitches,0),fragments:x.reduce((s,a)=>s+a.fragments,0),switchesPerTrack:x.reduce((s,a)=>s+a.idSwitches,0)/(gt||1)});}
