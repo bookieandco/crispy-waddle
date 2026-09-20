@@ -78,6 +78,36 @@ const INLINE_UPLOAD_MAX_BYTES = 6 * 1024 * 1024;
 const TUS_VERSION = "1.0.0";
 const POLL_MIN_MS = 1500;
 const POLL_MAX_MS = 5000;
+const TUS_RETRY_DELAYS_MS = [0, 3000, 5000, 10000, 20000] as const;
+
+const EXTENSION_MEDIA_TYPES: Readonly<Record<string, string>> = Object.freeze({
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".mp4": "video/mp4",
+  ".mov": "video/quicktime",
+  ".ogg": "audio/ogg",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".pdf": "application/pdf",
+  ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".csv": "text/csv",
+  ".json": "application/json",
+  ".js": "application/javascript",
+  ".ts": "application/typescript",
+});
+
+export function effectiveUploadMediaType(file: Pick<File, "name" | "type">): string {
+  const declared = file.type.split(";")[0]?.trim().toLowerCase();
+  if (declared) return declared;
+  const lower = file.name.toLowerCase();
+  const extension = Object.keys(EXTENSION_MEDIA_TYPES)
+    .sort((a, b) => b.length - a.length)
+    .find((candidate) => lower.endsWith(candidate));
+  return extension ? EXTENSION_MEDIA_TYPES[extension]! : "";
+}
 
 function clampPercent(uploaded: number, total: number): number {
   if (total <= 0) return 0;
@@ -111,6 +141,7 @@ class SignedTusUploader {
   private paused = false;
   private abortController: AbortController | undefined;
   private uploadUrl: string | undefined;
+  private lastOffset = 0;
 
   constructor(
     private readonly input: {
@@ -133,6 +164,13 @@ class SignedTusUploader {
   pause(): void {
     this.paused = true;
     this.abortController?.abort();
+    this.callbacks.onProgress?.({
+      phase: "paused",
+      uploadedBytes: this.lastOffset,
+      totalBytes: this.normalizedFile.size,
+      percent: clampPercent(this.lastOffset, this.normalizedFile.size),
+      sessionId: this.input.sessionId,
+    });
   }
 
   async upload(): Promise<void> {
@@ -140,13 +178,13 @@ class SignedTusUploader {
     const url = await this.ensureUploadUrl();
     let offset = await this.readOffset(url);
 
-    while (offset < this.input.file.size) {
+    while (offset < this.normalizedFile.size) {
       if (this.paused) throw new TusPausedError();
-      const next = Math.min(offset + this.input.chunkSizeBytes, this.input.file.size);
+      const next = Math.min(offset + this.input.chunkSizeBytes, this.normalizedFile.size);
       const chunk = this.input.file.slice(offset, next);
       this.abortController = new AbortController();
 
-      let response: Response;
+      let response: Response | undefined;
       try {
         response = await this.fetchImpl(url, {
           method: "PATCH",
@@ -161,6 +199,11 @@ class SignedTusUploader {
         });
       } catch (error) {
         if (this.paused) throw new TusPausedError();
+        const reconciled = await this.reconcileAfterTransient(url, offset);
+        if (reconciled !== undefined) {
+          offset = reconciled;
+          continue;
+        }
         throw error;
       } finally {
         this.abortController = undefined;
@@ -172,21 +215,29 @@ class SignedTusUploader {
         offset = reconciled;
         continue;
       }
+      if (response.status >= 500) {
+        const reconciled = await this.reconcileAfterTransient(url, offset);
+        if (reconciled !== undefined) {
+          offset = reconciled;
+          continue;
+        }
+      }
       if (!response.ok) {
         throw new Error(`TUS_PATCH_HTTP_${response.status}`);
       }
 
       const header = response.headers.get("Upload-Offset");
       const acknowledged = header ? Number(header) : next;
-      if (!Number.isInteger(acknowledged) || acknowledged < next || acknowledged > this.input.file.size) {
+      if (!Number.isInteger(acknowledged) || acknowledged < next || acknowledged > this.normalizedFile.size) {
         throw new Error("TUS_OFFSET_INVALID");
       }
       offset = acknowledged;
+      this.lastOffset = offset;
       this.callbacks.onProgress?.({
         phase: "uploading",
         uploadedBytes: offset,
-        totalBytes: this.input.file.size,
-        percent: clampPercent(offset, this.input.file.size),
+        totalBytes: this.normalizedFile.size,
+        percent: clampPercent(offset, this.normalizedFile.size),
         sessionId: this.input.sessionId,
       });
     }
@@ -209,7 +260,7 @@ class SignedTusUploader {
       method: "POST",
       headers: {
         "Tus-Resumable": TUS_VERSION,
-        "Upload-Length": String(this.input.file.size),
+        "Upload-Length": String(this.normalizedFile.size),
         "Upload-Metadata": encodeTusMetadata(this.input.metadata),
         "x-signature": this.input.signature,
       },
@@ -233,21 +284,37 @@ class SignedTusUploader {
     if (!response.ok) throw new Error(`TUS_HEAD_HTTP_${response.status}`);
     const raw = response.headers.get("Upload-Offset");
     const offset = raw === null ? 0 : Number(raw);
-    if (!Number.isInteger(offset) || offset < 0 || offset > this.input.file.size) {
+    if (!Number.isInteger(offset) || offset < 0 || offset > this.normalizedFile.size) {
       throw new Error("TUS_OFFSET_INVALID");
     }
+    this.lastOffset = offset;
     this.callbacks.onProgress?.({
       phase: "uploading",
       uploadedBytes: offset,
-      totalBytes: this.input.file.size,
-      percent: clampPercent(offset, this.input.file.size),
+      totalBytes: this.normalizedFile.size,
+      percent: clampPercent(offset, this.normalizedFile.size),
       sessionId: this.input.sessionId,
     });
     return offset;
   }
 
+  private async reconcileAfterTransient(url: string, floorOffset: number): Promise<number | undefined> {
+    for (const delay of TUS_RETRY_DELAYS_MS) {
+      if (this.paused) throw new TusPausedError();
+      if (delay > 0) await sleep(delay);
+      try {
+        const offset = await this.readOffset(url);
+        if (offset < floorOffset) throw new Error("TUS_OFFSET_REGRESSION");
+        return offset;
+      } catch (error) {
+        if (error instanceof TusPausedError) throw error;
+      }
+    }
+    return undefined;
+  }
+
   private storageKey(): string {
-    return `jhadina:tus:${this.input.sessionId}:${this.input.file.name}:${this.input.file.size}:${this.input.file.lastModified}`;
+    return `jhadina:tus:${this.input.sessionId}:${this.input.file.name}:${this.normalizedFile.size}:${this.input.file.lastModified}`;
   }
 
   private restoreUploadUrl(): string | undefined {
@@ -318,6 +385,7 @@ async function inlineUpload(
   privacyClass: "internal" | "sensitive" | "restricted",
   headers: Record<string, string>,
   callbacks: UniversalUploadCallbacks,
+  fetchImpl: typeof fetch,
 ): Promise<PerceptionJobView> {
   const body = new FormData();
   body.append("file", file);
@@ -358,7 +426,7 @@ async function inlineUpload(
     percent: 100,
     job: result.perceptionJob,
   });
-  return pollPerception(result.perceptionJob.id, headers, callbacks, fetch);
+  return pollPerception(result.perceptionJob.id, headers, callbacks, fetchImpl);
 }
 
 export function createUniversalUploadTask(input: {
@@ -376,8 +444,33 @@ export function createUniversalUploadTask(input: {
     ? { "x-jhadina-user-id": input.userId }
     : {};
 
-  if (input.file.size <= INLINE_UPLOAD_MAX_BYTES) {
-    const promise = inlineUpload(input.file, input.intent, privacyClass, headers, callbacks);
+  const mediaType = effectiveUploadMediaType(input.file);
+  if (!mediaType) {
+    const error = new Error("UPLOAD_TYPE_UNSUPPORTED");
+    callbacks.onProgress?.({
+      phase: "failed",
+      uploadedBytes: 0,
+      totalBytes: normalizedFile.size,
+      percent: 0,
+      message: error.message,
+    });
+    return {
+      direct: normalizedFile.size > INLINE_UPLOAD_MAX_BYTES,
+      pause() {},
+      async resume() {},
+      promise: Promise.reject(error),
+    };
+  }
+
+  const normalizedFile = input.file.type
+    ? input.file
+    : new File([input.file], input.file.name, {
+        type: mediaType,
+        lastModified: input.file.lastModified,
+      });
+
+  if (normalizedFile.size <= INLINE_UPLOAD_MAX_BYTES) {
+    const promise = inlineUpload(normalizedFile, input.intent, privacyClass, headers, callbacks, fetchImpl);
     return {
       direct: false,
       pause() {},
@@ -395,7 +488,7 @@ export function createUniversalUploadTask(input: {
     callbacks.onProgress?.({
       phase: "preparing",
       uploadedBytes: 0,
-      totalBytes: input.file.size,
+      totalBytes: normalizedFile.size,
       percent: 0,
     });
 
@@ -403,9 +496,9 @@ export function createUniversalUploadTask(input: {
       method: "POST",
       headers: { "content-type": "application/json", ...headers },
       body: JSON.stringify({
-        filename: input.file.name,
-        mediaType: input.file.type,
-        byteLength: input.file.size,
+        filename: normalizedFile.name,
+        mediaType,
+        byteLength: normalizedFile.size,
         privacyClass,
         intent: input.intent?.trim() || undefined,
       }),
@@ -420,7 +513,7 @@ export function createUniversalUploadTask(input: {
       signature: data.upload.resumable.headers["x-signature"],
       metadata: data.upload.resumable.metadata,
       chunkSizeBytes: data.upload.resumable.chunkSizeBytes,
-      file: input.file,
+      file: normalizedFile,
     }, callbacks, fetchImpl);
 
     for (;;) {
@@ -432,13 +525,6 @@ export function createUniversalUploadTask(input: {
       } catch (error) {
         running = false;
         if (!(error instanceof TusPausedError)) throw error;
-        callbacks.onProgress?.({
-          phase: "paused",
-          uploadedBytes: 0,
-          totalBytes: input.file.size,
-          percent: 0,
-          sessionId: data.session.id,
-        });
         await new Promise<void>((resolve, reject) => {
           resumeResolver = resolve;
           resumeRejecter = reject;
@@ -450,8 +536,8 @@ export function createUniversalUploadTask(input: {
 
     callbacks.onProgress?.({
       phase: "finalizing",
-      uploadedBytes: input.file.size,
-      totalBytes: input.file.size,
+      uploadedBytes: normalizedFile.size,
+      totalBytes: normalizedFile.size,
       percent: 100,
       sessionId: data.session.id,
     });
@@ -466,8 +552,8 @@ export function createUniversalUploadTask(input: {
 
     callbacks.onProgress?.({
       phase: "processing",
-      uploadedBytes: input.file.size,
-      totalBytes: input.file.size,
+      uploadedBytes: normalizedFile.size,
+      totalBytes: normalizedFile.size,
       percent: 100,
       sessionId: data.session.id,
       job,
@@ -488,7 +574,7 @@ export function createUniversalUploadTask(input: {
       callbacks.onProgress?.({
         phase: "failed",
         uploadedBytes: 0,
-        totalBytes: input.file.size,
+        totalBytes: normalizedFile.size,
         percent: 0,
         message: error instanceof Error ? error.message : String(error),
       });
