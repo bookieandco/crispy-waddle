@@ -1,4 +1,3 @@
-import type { CanonicalGameInput } from './controller.js';
 import type { InputPriority, PrioritizedInput } from './input-priority.js';
 
 export interface BackpressureStats { droppedAxisUpdates:number; preservedTransitions:number; preservedNeutralizations:number; }
