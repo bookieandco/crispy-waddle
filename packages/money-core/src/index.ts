@@ -62,3 +62,6 @@ export type { AtomicRecoveryResolver, PostgresAtomicRecoveryResolverOptions } fr
 export { PostgresAtomicRecoveryResolver } from './postgres-atomic-recovery-resolver.js';
 export type { StripePaymentIntentReconciliationAdapterOptions } from './stripe-payment-intent-reconciliation-adapter.js';
 export { StripePaymentIntentReconciliationAdapter } from './stripe-payment-intent-reconciliation-adapter.js';
+
+export type { RecoveryChildLineageInput } from './recovery-child-execution.js';
+export { assertRecoveryChildLineage } from './recovery-child-execution.js';
