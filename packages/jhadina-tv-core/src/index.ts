@@ -163,3 +163,4 @@ export { assertEpisodeBelongsToSeason, assertTVEpisode, assertTVSeason, canonica
 export function viewingSignalMediaId(signal: ViewingSignal): string {
   return signal.media?.mediaId ?? signal.titleId;
 }
+export * from "./consumer-state";\n
