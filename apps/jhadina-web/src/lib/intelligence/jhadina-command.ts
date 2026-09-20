@@ -6,7 +6,7 @@ import {
   type SupabaseAuditLedger,
 } from "@jhadina/action-core"
 import { JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION } from "@jhadina/security-core"
-import { IntelligenceRouter, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
+import { IntelligenceRouter, realizeGovernedExpression, type GovernedExpressionRealization, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
 import type {
   PersonalityContextProvider,
   SpatialContextProvider,
@@ -52,6 +52,7 @@ export interface JhadinaCommandOverrides {
 }
 
 export interface JhadinaCommandResult extends GovernedIntelligenceProposalResult {
+  expression: GovernedExpressionRealization
   verified: boolean
   verificationReason?: string
 }
@@ -98,7 +99,9 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     assembled.contextPacket,
   )
 
-  if (!result.candidate) return { ...result, verified: true, verificationReason: "no action was executed for this proposal" }
+  const expression = realizeGovernedExpression(result.proposal, assembled.contextPacket.expressionDirective)
+
+  if (!result.candidate) return { ...result, expression, verified: true, verificationReason: "no action was executed for this proposal" }
 
   const verification = await verifyCandidateDurable(memoryRepo, result.verifiedUserId, result.candidate)
   const verifyEventId = `verify:${result.candidate.id}:${Date.now()}`
@@ -112,7 +115,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     metadata: { stage: "verify", reason: verification.reason ?? "durable read-back matched executed content" },
   })
   if (!verification.verified) throw new Error(`JHADINA_COMMAND_VERIFICATION_FAILED:${verification.reason}`)
-  return { ...result, verified: true, verificationReason: verification.reason }
+  return { ...result, expression, verified: true, verificationReason: verification.reason }
 }
 
 async function verifyCandidateDurable(memoryRepo: MemoryRepository, userId: string, candidate: NonNullable<GovernedIntelligenceProposalResult["candidate"]>): Promise<{ verified: boolean; reason?: string }> {
