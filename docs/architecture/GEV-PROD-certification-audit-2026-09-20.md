@@ -106,9 +106,17 @@ The read/admission boundary also catches persistence/admission exceptions per ev
 
 ### GEV-PROD.6 — privacy/licensing runtime test
 
-**SOURCE BOUNDARY PASS; LIVE RUNTIME BLOCKED.**
+**SOURCE AUDIT PASS; LIVE RUNTIME BLOCKED BY PROD.1.**
 
-The source policy registry fails closed for restricted/unknown uses and explicitly prohibits CCTV named-person search, face recognition, individual tracking and plate identification. Safety configuration separately hard-disables named-person search, face recognition and plate identification. Live enforcement still requires deployed runtime evidence.
+**2026-09-20 PROD.6 continuation audit:** source-policy enforcement is purpose-specific and fail-closed. Private read-only analysis is the only unconditional policy purpose; commercial analysis, publication, model input, replay and redistribution require an explicit `allowed` disposition. `restricted` and `unknown` dispositions deny use. Every normalized evidence record embeds source policy metadata including attribution, terms reference, privacy class, use dispositions and provider limitations, preserving the policy context with the evidence lineage.
+
+CCTV is classified `public-incidental-personal`; its registered limitations explicitly prohibit named-person search, face recognition, individual tracking and plate identification. CCTV model input is `restricted`, so the perception gate rejects it before calling the model adapter. For sources whose model input is allowed, incidental-personal data additionally requires an explicit approval bit, and every model result remains `INFERRED` with `canonicalReality: false`.
+
+OpenSky commercial use is restricted; AISStream rights beyond private analysis are unknown; TomTom replay/redistribution/retention are restricted; OSM and adsb.lol preserve ODbL attribution/share-alike limitations; FIRMS and USGS preserve provider attribution/source-time constraints. Unknown provider rights therefore cannot silently become commercial/publication/replay authorization.
+
+Database hardening also revokes all spatial table access from `anon` and `authenticated`, and limits `service_role` to SELECT + INSERT on the six append-only Spatial/Knowledge Graph tables, preventing UPDATE/DELETE/TRUNCATE through the production runtime role.
+
+No additional PROD.6 source defect was found. **Certification boundary:** live policy-denial telemetry, source-specific attribution/terms receipts and database privilege enforcement still require verification on the exact deployed SHA after PROD.1. Source audit PASS does not promote PROD.6 runtime status to PASS.
 
 ### GEV-PROD.7 — cross-Jhadina live integration
 
