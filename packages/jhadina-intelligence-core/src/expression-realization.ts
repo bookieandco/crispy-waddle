@@ -37,6 +37,7 @@ export function realizeGovernedExpression(
     mode: directive?.mode ?? 'explanatory',
     allowProfanity: directive?.allowProfanity ?? false,
     allowQuip: directive?.allowQuip ?? false,
+    ...(directive?.responseLength ? { responseLength: directive.responseLength } : {}),
     ...(directive?.callback ? { callback: directive.callback } : {}),
     ...(directive?.culturalReference ? { culturalReference: directive.culturalReference } : {}),
   });
