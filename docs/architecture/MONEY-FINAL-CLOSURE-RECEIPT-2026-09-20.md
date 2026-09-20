@@ -43,8 +43,9 @@ Historical findings were not carried forward automatically. Each material Money 
 | SHARK -> protected Money capital | PASS — isolated | no inherited protected-fund authority |
 | Capital Lab / Coinbase | PASS — read only | account-read provider capability; no execution authority |
 | Precious metals | PASS | MONEY-METALS-01/02 + adversarial tests |
+| Prediction markets | PASS | MONEY-PREDICTION-01/02 + adversarial tests; provider-independent research domain |
 | OpenBB / StockSharp / Freqtrade references | PASS — reference only | no silent runtime dependency/code-derivation claim |
-| Polymarket / Kalshi references | PASS — research only | no autonomous prediction-market execution |
+| Polymarket / Kalshi references | PASS — provider refs only | canonical domain exists, but no provider adapter or autonomous execution is admitted |
 | Money schema changes trigger Money CI | PASS | workflow now watches `supabase/migrations/*money*` |
 | Production deployment of closure code | BLOCKED — external | Vercel build-rate quota |
 | Required server-only production secrets | UNVERIFIED | fresh deployment unavailable; secret values are intentionally not exposed |
@@ -109,10 +110,25 @@ The prior R13B “next domain” gap is closed with:
 - no financial authority at any reality/intelligence stage;
 - explicit regression proof that a metals intelligence assessment cannot satisfy `assertProposalEligible()`.
 
+## Prediction-market closeout
+
+The post-merge handoff recheck found that `PREDICTION` existed only as a generic asset-class/calibration concept and external-reference note. MONEY-PREDICTION-01/02 closes that domain gap with:
+
+- canonical binary/multi-outcome market reality;
+- point-in-time outcome quotes;
+- explicit resolution authority/rule binding;
+- complete-set arbitrage visibility;
+- independent research probability comparison;
+- liquidity/resolution risk;
+- post-resolution Brier learning;
+- zero financial/execution authority.
+
+Polymarket/Kalshi remain provider references until separate read adapters are explicitly admitted; no wallet/order/betting executor is introduced.
+
 ## Final interpretation
 
 **MONEY-FINAL repository/software closure is complete and merged to `main` as `5187506c0cd63471d37a8fe30f4776a452762aae`.**
 
 Production banking commissioning is deliberately outside that acceptance because its required deployment/secrets/live-drill receipts do not yet exist. Until they do, the system must remain unable to claim a production Plaid/banking admission.
 
-This receipt does not authorize autonomous stocks, FX, metals, sports betting, prediction-market execution, SHARK access to protected capital, or any financial mutation outside Action Core policy/approval/execution boundaries.
+This receipt does not authorize autonomous stocks, FX, metals, sports betting, prediction-market execution, SHARK access to protected capital, or any financial mutation outside Action Core policy/approval/execution boundaries. MONEY-PREDICTION-01/02 is research intelligence, not a trading/betting adapter.
