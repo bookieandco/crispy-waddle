@@ -56,10 +56,17 @@ describe("createUniversalUploadTask", () => {
         offset += (init.body as Blob).size;
         return new Response(null, { status:204, headers:{"Upload-Offset":String(offset)} });
       }
-      if (url === "/api/jhadina/upload/session/s1") {
-        return new Response(JSON.stringify({success:true,data:{perceptionJob:{
-          id:"perception:u:a",status:"queued",attempt:0,maxAttempts:4,availableAt:"2026-09-19T00:00:00Z",
-        }}}), {status:202});
+      if (url === "/api/jhadina/upload/session/s1" && init.method === "POST") {
+        return new Response(JSON.stringify({success:true,data:{
+          session:{id:"s1",status:"finalize_queued",finalizeAttempt:0,finalizeMaxAttempts:4,finalizeAvailableAt:"2026-09-20T06:00:00Z"},
+          statusPath:"/api/jhadina/upload/session/s1"
+        }}), {status:202});
+      }
+      if (url === "/api/jhadina/upload/session/s1" && (init.method ?? "GET") === "GET") {
+        return new Response(JSON.stringify({success:true,data:{
+          id:"s1",status:"finalized",finalizeAttempt:1,finalizeMaxAttempts:4,finalizeAvailableAt:"2026-09-20T06:00:00Z",
+          assetId:"asset_a",perceptionJobId:"perception:u:a"
+        }}), {status:200});
       }
       if (url === "/api/jhadina/perception/perception%3Au%3Aa") {
         return new Response(JSON.stringify({success:true,data:{
