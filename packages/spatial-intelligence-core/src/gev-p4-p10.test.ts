@@ -9,6 +9,7 @@ import { applyJanetSpatialPreferences, composeDeliaSpatialAssessment, prepareMar
 import { toMoneySpatialIntelligence, toSafetySpatialIntelligence } from './spatial-consumer-adapters.js'
 import { runSpatialPerception, type SpatialPerceptionAdapter } from './spatial-perception.js'
 import { type SpatialWorkspace, planSpatialQuery } from './spatial-pipeline.js'
+import { evaluateSpatialRealityAdmission } from './reality-admission.js'
 
 const response = (body: unknown, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -171,4 +172,38 @@ test('GEV P10 conformance keeps prediction, evidence, and admitted reality disti
   assert.deepEqual(money.reality.map((item) => item.summary), ['admitted reality'])
   assert.ok(!money.reality.some((item) => item.id === 'p1'))
   assert.ok(delia.evidenceRefs.includes('r1'))
+})
+
+test('GEV P10 reality admission is explicit: fallback-only defers, non-fallback evidence can be admitted', () => {
+  const candidate = {
+    candidateId: 'candidate-1',
+    entityId: 'camera:cam-1',
+    state: { status: 'observed' },
+    determination: 'observed' as const,
+    evidenceRefs: ['e-fallback'],
+    observationRefs: ['o1'],
+    fusionRefs: [],
+    createdAt: '2026-09-19T20:00:00Z',
+    validFrom: '2026-09-19T20:00:00Z',
+    validTo: null,
+    limitations: [],
+  }
+  const fallbackOnly = evaluateSpatialRealityAdmission({
+    candidate,
+    verifier: 'p10-verifier',
+    evidenceAvailable: new Set(['e-fallback']),
+    fallbackEvidenceRefs: new Set(['e-fallback']),
+    createdAt: '2026-09-19T20:00:01Z',
+  })
+  assert.equal(fallbackOnly.decision, 'DEFER')
+  assert.ok(fallbackOnly.rationale.includes('SPATIAL_REALITY_NON_FALLBACK_EVIDENCE_REQUIRED'))
+
+  const admitted = evaluateSpatialRealityAdmission({
+    candidate: { ...candidate, candidateId: 'candidate-2', evidenceRefs: ['e-source'] },
+    verifier: 'p10-verifier',
+    evidenceAvailable: new Set(['e-source']),
+    fallbackEvidenceRefs: new Set(),
+    createdAt: '2026-09-19T20:00:01Z',
+  })
+  assert.equal(admitted.decision, 'ACCEPT')
 })
