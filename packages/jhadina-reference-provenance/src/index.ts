@@ -346,6 +346,7 @@ function assertReferenceInput(input: RegisterReferenceInput): void {
 function assertMappingInput(
   input: RegisterMappingInput,
   reference: ReferenceRecord,
+  sourceVerification?: ReferenceSourceVerification,
 ): void {
   assertNonEmpty(input.mappingId, 'REF_PROV_MAPPING_ID_REQUIRED');
   assertNonEmpty(input.referenceId, 'REF_PROV_MAPPING_REFERENCE_REQUIRED');
@@ -565,7 +566,7 @@ export function buildReferenceMapping(
   if (input.referenceId !== reference.referenceId) {
     throw new Error('REF_PROV_MAPPING_REFERENCE_MISMATCH');
   }
-  assertMappingInput(input, reference);
+  assertMappingInput(input, reference, sourceVerification);
 
   const withoutHash = {
     mappingId: input.mappingId,
@@ -741,7 +742,11 @@ export class ReferenceProvenanceRegistry {
       if (!reference) {
         throw new Error('REF_PROV_MAPPING_ORPHANED');
       }
-      assertMappingInput(mapping, reference);
+      assertMappingInput(
+        mapping,
+        reference,
+        this.sourceVerifications.get(mapping.referenceId),
+      );
     }
 
     for (const start of this.references.values()) {
