@@ -14,3 +14,4 @@ export * from './critic-verification.js';
 export * from './inference-ledger.js';
 export * from './semantic-cache.js';
 export * from './local-model-provider.js';
+export * from './multimodal-perception.js';
