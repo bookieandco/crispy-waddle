@@ -45,6 +45,12 @@ export interface ReasoningEvent {
   systemResponse: string
   confidence: number
   candidateId?: string
+  /** Optional richer Experience lineage; legacy conversation rows default to user/no outcome. */
+  actor?: "user" | "jhadina" | "system" | "external"
+  outcome?: string
+  correlationId?: string
+  causationId?: string
+  metadata?: Record<string, unknown>
 }
 
 export interface Observation {
