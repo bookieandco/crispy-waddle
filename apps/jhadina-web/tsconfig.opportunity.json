@@ -8,6 +8,7 @@
     "src/app/api/opportunities/**/*.ts",
     "src/app/opportunity/page.tsx",
     "src/__tests__/opportunities.test.ts",
+    "src/lib/money-opportunities/canonical-sam-workflow*.ts",
     "src/lib/money-opportunities/sam-*.ts",
     "src/lib/money-opportunities/partner-discovery.ts",
     "src/lib/money-opportunities/economics.ts",
