@@ -10,36 +10,74 @@ function tokenize(value: string): string[] {
   return [...new Set(value.toLowerCase().match(/[a-z0-9][a-z0-9'-]*/g) ?? [])];
 }
 
-function experienceEvidence(experience: Experience): EvidenceRef[] {
-  if (experience.evidence.length > 0) {
-    return experience.evidence.map((ref) => ({ ...ref }));
-  }
+function containsTerm(value: string, term: string): boolean {
+  return tokenize(value).includes(term);
+}
+
+function validEvidence(ref: EvidenceRef): boolean {
+  return Boolean(ref.id.trim() && ref.source.trim() && ref.summary.trim());
+}
+
+function uniqueEvidence(refs: EvidenceRef[]): EvidenceRef[] {
+  const seen = new Set<string>();
+  return refs.filter((ref) => {
+    if (seen.has(ref.id)) return false;
+    seen.add(ref.id);
+    return true;
+  });
+}
+
+function experienceSignal(experience: Experience): string {
+  return [experience.domain ?? '', experience.outcome ?? '', experience.content].join(' ');
+}
+
+/**
+ * Attribute the current observation to evidence that actually supports the
+ * candidate term. If the Experience's attached refs are broader than the term,
+ * the Experience itself is the canonical direct observation.
+ */
+function experienceEvidenceForTerm(experience: Experience, term: string): EvidenceRef[] {
+  const matchingRefs = experience.evidence
+    .filter(validEvidence)
+    .filter((ref) => containsTerm(ref.summary, term))
+    .map((ref) => ({ ...ref }));
+
+  if (matchingRefs.length > 0) return uniqueEvidence(matchingRefs);
 
   return [{
     id: experience.id,
     source: experience.source,
     observedAt: experience.occurredAt,
-    summary: experience.content,
+    summary: experienceSignal(experience).trim(),
     immutable: true,
   }];
 }
 
-function approvedMemoryEvidence(memories: MemoryProposal[]): EvidenceRef[] {
-  return memories
-    .filter((memory) => memory.disposition === 'SAVE')
-    .flatMap((memory) => memory.evidence)
-    .filter((ref) => ref.id.trim() && ref.source.trim() && ref.summary.trim())
-    .map((ref) => ({ ...ref }));
+/**
+ * Historical recurrence support is pattern-specific at both levels:
+ * the approved memory must mention the term and each attributed EvidenceRef
+ * must itself support that term. Broad evidence attached to a SAVE memory is
+ * not allowed to inflate an unrelated pattern.
+ */
+function approvedMemoryEvidenceForTerm(memories: MemoryProposal[], term: string): EvidenceRef[] {
+  return uniqueEvidence(
+    memories
+      .filter((memory) => memory.disposition === 'SAVE' && containsTerm(memory.content, term))
+      .flatMap((memory) => memory.evidence)
+      .filter(validEvidence)
+      .filter((ref) => containsTerm(ref.summary, term))
+      .map((ref) => ({ ...ref })),
+  );
 }
 
 /**
  * Conservative first Pattern strategy: identify terms that recur between the
- * current experience and approved/save memory evidence. It emits hypotheses
- * only; it never marks them personality-eligible.
+ * current experience and pattern-specific approved/save memory evidence. It
+ * emits hypotheses only; it never marks them personality-eligible.
  */
 export class RecurrencePatternStrategy implements PatternDetectionStrategy {
   detect(experience: Experience, memories: MemoryProposal[]): PatternObservation[] {
-    const experienceTerms = tokenize([experience.domain ?? '', experience.outcome ?? '', experience.content].join(' '));
+    const experienceTerms = tokenize(experienceSignal(experience));
     const memoryTerms = new Set(
       memories
         .filter((memory) => memory.disposition === 'SAVE')
@@ -48,30 +86,43 @@ export class RecurrencePatternStrategy implements PatternDetectionStrategy {
     const recurringTerms = experienceTerms.filter((term) => memoryTerms.has(term));
     if (recurringTerms.length === 0) return [];
 
-    const currentEvidence = experienceEvidence(experience);
-    const savedEvidence = approvedMemoryEvidence(memories);
-    const allEvidence = [...currentEvidence, ...savedEvidence];
-    const evidenceCount = Math.max(1, allEvidence.length);
+    const observations: PatternObservation[] = [];
 
-    return recurringTerms.map((term) => {
-      const evidence = allEvidence.map((ref) => ({ ...ref }));
+    for (const term of recurringTerms) {
+      const savedEvidence = approvedMemoryEvidenceForTerm(memories, term);
+
+      // A recurring lexical term is not a supported recurrence unless at least
+      // one historical EvidenceRef is specifically attributable to that term.
+      if (savedEvidence.length === 0) continue;
+
+      const currentEvidence = experienceEvidenceForTerm(experience, term);
+      const evidence = uniqueEvidence([...currentEvidence, ...savedEvidence]);
       const raw: PatternObservation = {
         id: `recurrence:${term}`,
         pattern: `recurring term: ${term}`,
         evidence,
         confidence: 0.5,
-        occurrences: evidenceCount,
+        occurrences: evidence.length,
         contradictions: [],
         lastObservedAt: experience.occurredAt,
         personalityEligible: false,
         personalityDimension: undefined,
       };
 
-      return projectBayesianPattern(
-        raw,
-        evidence.map(() => ({ support: 1, weight: 1 })),
+      observations.push(
+        projectBayesianPattern(
+          raw,
+          evidence.map(() => ({ support: 1, weight: 1 })),
+        ),
       );
-    }).sort((a, b) => a.id.localeCompare(b.id) || a.lastObservedAt.localeCompare(b.lastObservedAt) || a.pattern.localeCompare(b.pattern));
+    }
+
+    return observations.sort(
+      (a, b) =>
+        a.id.localeCompare(b.id) ||
+        a.lastObservedAt.localeCompare(b.lastObservedAt) ||
+        a.pattern.localeCompare(b.pattern),
+    );
   }
 }
 
