@@ -41,8 +41,8 @@ const definition: PredictionMarketDefinition = {
   opensAt: '2026-09-01T00:00:00Z',
   closesAt: '2026-09-30T00:00:00Z',
   outcomes: [
-    { outcomeId: 'YES', label: 'Yes', settlementValue: 1, evidenceRefs: ['yes-definition'] },
-    { outcomeId: 'NO', label: 'No', settlementValue: 0, evidenceRefs: ['no-definition'] },
+    { outcomeId: 'YES', label: 'Yes', evidenceRefs: ['yes-definition'] },
+    { outcomeId: 'NO', label: 'No', evidenceRefs: ['no-definition'] },
   ],
   resolution: {
     authorityId: 'official-authority',
