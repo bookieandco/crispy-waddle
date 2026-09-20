@@ -11,7 +11,6 @@ import {
   type ExecutionAttemptStore,
 } from './execution-attempt.js';
 import type {
-  ExecutionAction,
   ExecutionPermit,
   PermitStore,
 } from './execution-permit.js';
