@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { CreativeGate, ProductionRun } from '@jhadina/shotlist-core/production';
+import type { CreativeGate, ProductionRun } from '../../../../../../../../packages/shotlist-core/src/production';
 import type { CreativeStage, PlannedGeneration, TakeRequest } from '@jhadina/director-core';
 import { createConfiguredDirectorGenerationRuntime } from '@/lib/director-generation-composition';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
