@@ -1,5 +1,5 @@
 import type { Opportunity as CanonicalOpportunity, OpportunityFamily, OpportunityType } from "@jhadina/opportunity-core"
-import type { AutomationLevel, Opportunity as OpportunityView, OpportunityKind, OpportunityVerificationStatus } from "./sideIncome"
+import type { AutomationLevel, Opportunity as OpportunityView, OpportunityKind, OpportunityTriageState, OpportunityVerificationStatus } from "./sideIncome"
 
 export type OpportunityCreateInput = {
   title: string
@@ -18,7 +18,6 @@ export type OpportunityCreateInput = {
   sourceConfidence?: number
 }
 
-export type OpportunityTriageState = "review" | "saved" | "dismissed"
 
 export type StoredCanonicalOpportunity = {
   userId: string
