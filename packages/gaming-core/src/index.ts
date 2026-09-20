@@ -89,3 +89,4 @@ export * from './ps5-experimental-adapters.js';
 export * from './ps5-experimental-ledger.js';
 export * from './ps5-experimental-control-plane.js';
 export * from './steam-achievement-manager-reference.js';
+export * from './emulator-source-registry.js';
