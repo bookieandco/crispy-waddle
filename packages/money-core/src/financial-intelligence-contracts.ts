@@ -107,10 +107,12 @@ export interface CanonicalFinancialAction {
   createdAt: string;
 }
 
+import { isFinancialMutationCapability } from './financial-mutation-capabilities.js';
+
 /** Runtime invariant: intelligence never executes a financial side effect. */
 export function assertIntelligenceOnly(capability: string): void {
-  if (capability.startsWith('money.payment.') || capability.startsWith('money.transfer.')) {
-    throw new Error('Financial intelligence cannot directly execute money movement');
+  if (isFinancialMutationCapability(capability)) {
+    throw new Error('Financial intelligence cannot directly execute a financial mutation');
   }
 }
 

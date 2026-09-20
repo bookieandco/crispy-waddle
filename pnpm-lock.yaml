@@ -28,6 +28,9 @@ importers:
       '@jhadina/director-core':
         specifier: workspace:*
         version: link:../../packages/director-core
+      '@jhadina/money-core':
+        specifier: workspace:*
+        version: link:../../packages/money-core
       '@jhadina/opportunity-core':
         specifier: workspace:*
         version: link:../../packages/opportunity-core
@@ -336,6 +339,9 @@ importers:
 
   packages/money-core:
     dependencies:
+      '@jhadina/action-core':
+        specifier: workspace:*
+        version: link:../jhadina-action-core
       '@jhadina/opportunity-core':
         specifier: workspace:*
         version: link:../opportunity-core
