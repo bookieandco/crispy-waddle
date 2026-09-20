@@ -112,6 +112,14 @@ describe("PERSONALITY-V2.PROD.2-PROD.4 outcome feedback", () => {
       feedbackId: "missing-correction",
       kind: "corrected",
     })).rejects.toThrow("PERSONALITY_FEEDBACK_CORRECTION_REQUIRED")
+
+    await expect(recordPersonalityOutcomeFeedback(storage, {
+      userId: original.userId,
+      targetReasoningEventId: original.id,
+      feedbackId: "before-target",
+      kind: "rejected",
+      observedAt: "2026-09-20T21:59:59.000Z",
+    })).rejects.toThrow("PERSONALITY_FEEDBACK_BEFORE_TARGET")
   })
 
   it("cannot turn outcome feedback alone into durable Personality", async () => {
