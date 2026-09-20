@@ -95,12 +95,16 @@ export async function POST(req: NextRequest) {
           createdAt: result.asset.createdAt,
         },
         scan: result.scan,
-        evidence: result.packet.evidence,
-        uncertainty: result.packet.uncertainty,
-        routing: result.packet.routing,
-        dispatch: result.dispatch,
+        perceptionJob: {
+          id: result.job.id,
+          status: result.job.status,
+          attempt: result.job.attempt,
+          maxAttempts: result.job.maxAttempts,
+          availableAt: result.job.availableAt,
+        },
+        statusPath: `/api/jhadina/perception/${encodeURIComponent(result.job.id)}`,
       },
-    });
+    }, { status: 202 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Upload failed";
     const status =
@@ -108,7 +112,6 @@ export async function POST(req: NextRequest) {
       message.includes("MEDIA_SCANNER_HTTP_") ? 502 :
       message.includes("UPLOAD_TOO_LARGE") ? 413 :
       message.includes("UPLOAD_TYPE_MISMATCH_OR_UNSUPPORTED") ? 415 :
-      message.includes("SUBSYSTEM_SELECTION_REQUIRED") ? 409 :
       message.includes("MEDIA_SECURITY_QUARANTINE") ||
       message.includes("MEDIA_SECURITY_NEEDS_REVIEW") ||
       message.includes("MEDIA_SECURITY_REJECTED") ? 422 :
