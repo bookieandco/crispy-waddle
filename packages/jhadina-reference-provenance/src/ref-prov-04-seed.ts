@@ -472,6 +472,116 @@ export const REF_PROV_04_PROVIDER_CONTRACTS:
       },
     ],
   },
+  {
+    contractId: 'contract:reticulum:bridge:99de23c0',
+    referenceId: 'provider:reticulum',
+    providerId: 'reticulum',
+    protocol: 'LOCAL_ADAPTER',
+    baseLocator: 'urn:provider:reticulum-bridge',
+    versionStrategy: 'UPSTREAM_REVISION',
+    versionValue:
+      '99de23c040d507e3fefca19e87b182302902725d',
+    verifiedAt: VERIFIED_AT,
+    endpoints: [
+      {
+        operationId: 'message.send',
+        method: 'POST',
+        pathTemplate: '/bridge/send',
+        requiredRequestHeaders: [],
+        requiredRequestFields: [
+          'contentRef',
+          'correlationId',
+          'destination',
+        ],
+        requiredResponseFields: ['receiptRef'],
+      },
+    ],
+    evidence: [
+      {
+        evidenceId: 'repo:intelligence:reticulum-contract',
+        kind: 'REPO_PATH',
+        locator:
+          'repo:packages/jhadina-intelligence-core/src/reticulum-adapter.ts',
+      },
+      {
+        evidenceId: 'commit:reticulum:contract-source',
+        kind: 'COMMIT',
+        locator:
+          'https://github.com/markqvist/Reticulum/commit/99de23c040d507e3fefca19e87b182302902725d',
+      },
+    ],
+  },
+  {
+    contractId: 'contract:supabase:runtime:js-2.116.0',
+    referenceId: 'provider:supabase',
+    providerId: 'supabase',
+    protocol: 'LOCAL_ADAPTER',
+    baseLocator: 'urn:provider:supabase-js',
+    versionStrategy: 'PACKAGE_VERSION',
+    versionValue: '@supabase/supabase-js=2.116.0',
+    verifiedAt: VERIFIED_AT,
+    endpoints: [
+      {
+        operationId: 'client.service-role',
+        method: 'POST',
+        pathTemplate: '/client/createServiceRole',
+        requiredRequestHeaders: [],
+        requiredRequestFields: [
+          'NEXT_PUBLIC_SUPABASE_URL',
+          'SUPABASE_SERVICE_ROLE_KEY',
+        ],
+        requiredResponseFields: [],
+      },
+      {
+        operationId: 'audit.append',
+        method: 'POST',
+        pathTemplate: '/rpc/append_jhadina_audit_event',
+        requiredRequestHeaders: [],
+        requiredRequestFields: [
+          'p_actor_id',
+          'p_capability',
+          'p_decision',
+          'p_domain',
+          'p_event_id',
+          'p_metadata',
+          'p_occurred_at',
+          'p_request_id',
+          'p_status',
+        ],
+        requiredResponseFields: [],
+      },
+      {
+        operationId: 'audit.list',
+        method: 'POST',
+        pathTemplate: '/rpc/list_jhadina_audit_events',
+        requiredRequestHeaders: [],
+        requiredRequestFields: [
+          'p_actor_id',
+          'p_domain',
+        ],
+        requiredResponseFields: [],
+      },
+    ],
+    evidence: [
+      {
+        evidenceId: 'repo:platform:supabase-contract',
+        kind: 'REPO_PATH',
+        locator:
+          'repo:apps/jhadina-web/src/lib/supabase/service-role.ts',
+      },
+      {
+        evidenceId: 'repo:action:supabase-audit-contract',
+        kind: 'REPO_PATH',
+        locator:
+          'repo:packages/jhadina-action-core/src/supabase-audit-ledger.ts',
+      },
+      {
+        evidenceId: 'repo:lock:supabase-js-2.116.0',
+        kind: 'REPO_PATH',
+        locator: 'repo:pnpm-lock.yaml',
+      },
+    ],
+  },
 ];
 
 export const REF_PROV_04_ARTIFACT_PINS:
