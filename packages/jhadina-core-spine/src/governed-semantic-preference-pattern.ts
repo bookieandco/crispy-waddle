@@ -149,9 +149,18 @@ export class GovernedSemanticPreferenceStrategy implements PatternDetectionStrat
       const current = semanticSignal(experience.content, definition);
       if (current === 'none') continue;
 
+      const currentEvidence = evidenceFor(experience.evidence, definition);
       const observations: Array<{ support: 0 | 1; evidence: EvidenceRef[] }> = [{
         support: current === 'support' ? 1 : 0,
-        evidence: evidenceFor(experience.evidence, definition),
+        evidence: currentEvidence.length > 0
+          ? currentEvidence
+          : [{
+              id: experience.id,
+              source: experience.source,
+              observedAt: experience.occurredAt,
+              summary: experience.content,
+              immutable: false,
+            }],
       }];
 
       for (const memory of memories) {
