@@ -37,6 +37,9 @@ importers:
       '@jhadina/intelligence-core':
         specifier: workspace:*
         version: link:../../packages/jhadina-intelligence-core
+      '@jhadina/security-core':
+        specifier: workspace:*
+        version: link:../../packages/security-core
       '@jhadina/spatial-intelligence-core':
         specifier: workspace:*
         version: link:../../packages/spatial-intelligence-core
