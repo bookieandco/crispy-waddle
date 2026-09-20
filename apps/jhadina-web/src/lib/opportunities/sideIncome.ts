@@ -8,18 +8,26 @@ export type OpportunityKind =
   | "affiliate"
   | "automation"
   | "overage"
+  | "government_contract"
+  | "subcontract"
+  | "digital_product"
+  | "software"
+
+export type OpportunitySource =
+  | "manual"
+  | "sam_gov"
+  | "sba"
+  | "affiliate_network"
+  | "marketplace"
+  | "social"
+  | "web"
+  | "overageos"
+  | "internal"
 
 export type AutomationLevel = "ai_can_do_it" | "ai_plus_user" | "user_led" | "do_not_pursue"
 
 export type OpportunityVerificationStatus = "not_required" | "human_required" | "verified" | "rejected"
 
-// "new" is the only state a discovered opportunity starts in. "approved"
-// is the one meaningful, external-facing decision this model tracks: the
-// user has greenlit pursuing it. Approving never applies for a job, spends
-// money, or publishes a listing on its own - it only records that the user
-// made that call, with a timestamp for the audit trail. Save/Dismiss are
-// lighter-weight, reversible triage and are handled as local UI state by
-// the command center rather than a server-tracked status.
 export type OpportunityStatus = "new" | "approved"
 
 export type Opportunity = {
@@ -27,6 +35,7 @@ export type Opportunity = {
   userId: string
   title: string
   kind: OpportunityKind
+  source: OpportunitySource
   sourceUrl: string
   sourceName: string
   summary: string
@@ -43,6 +52,7 @@ export type Opportunity = {
   status: OpportunityStatus
   createdAt: string
   approvedAt?: string
+  metadata?: Record<string, string | number | boolean | null>
 }
 
 export const SIDE_INCOME_KINDS: OpportunityKind[] = [
@@ -54,13 +64,12 @@ export const SIDE_INCOME_KINDS: OpportunityKind[] = [
   "creator",
   "affiliate",
   "automation",
+  "digital_product",
+  "software",
 ]
 
-/**
- * Ranks side-income opportunities for review. This is decision support only:
- * it never applies for a job, spends money, publishes listings, or accepts an
- * opportunity without an explicit user approval step.
- */
+export const GOVERNMENT_OPPORTUNITY_KINDS: OpportunityKind[] = ["government_contract", "subcontract"]
+
 export function rankSideIncomeOpportunities(items: Opportunity[]): Opportunity[] {
   return [...items]
     .filter((item) => item.automationLevel !== "do_not_pursue")

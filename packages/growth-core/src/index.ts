@@ -21,6 +21,9 @@ export type { CreativePack, CreativeVariant, CreativeFormat, FunnelStage, Creati
 export * from './intelligence/creative-pack-assembler.js';
 export * from './intelligence/experiment-planner.js';
 export * from './intelligence/growth-loop.js';
+export * from './intelligence/money-opportunity-engine.js';
+export * from './intelligence/government-opportunity-adapter.js';
+export * from './intelligence/sba-readiness.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
