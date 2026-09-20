@@ -16,6 +16,7 @@ import type {
 } from "./supabase-direct-upload-object-store";
 import type { SupabaseUniversalUploadObjectStore } from "./supabase-universal-upload-store";
 import type { UniversalUploadPrivacyClass } from "./production-universal-upload-runtime";
+import type { QuarantineCleanupReceiptStore } from "./supabase-quarantine-cleanup-repository";
 
 const PRIVACY_RANK: Record<UniversalUploadPrivacyClass, number> = {
   internal: 1,
@@ -52,6 +53,11 @@ export type DirectUploadCleanupOutcome =
   | { state: "cleaned"; session: DirectUploadSession }
   | { state: "retry_wait"; session: DirectUploadSession }
   | { state: "lease_lost"; session: DirectUploadSession };
+
+export type DirectUploadOrphanCleanupOutcome =
+  | { state: "idle" }
+  | { state: "cleaned"; objectPath: string }
+  | { state: "failed"; objectPath: string; error: string };
 
 export interface DirectUploadFinalizeSessionStore {
   claimNextFinalize(workerId: string, leaseMs: number): Promise<DirectUploadSession | undefined>;
@@ -114,6 +120,7 @@ export class DirectUploadFinalizationWorker {
     private readonly leaseMs = 5 * 60_000,
     private readonly now: () => Date = () => new Date(),
     private readonly maxPerceptionAttempts = 4,
+    private readonly cleanupReceipts?: QuarantineCleanupReceiptStore,
   ) {
     if (!workerId.trim()) throw new Error("DIRECT_UPLOAD_WORKER_ID_REQUIRED");
     if (!Number.isInteger(leaseMs) || leaseMs < 5000) {
@@ -251,6 +258,11 @@ export class DirectUploadFinalizationWorker {
 
     try {
       await this.objects.removeQuarantine(claimed.quarantinePath);
+      await this.cleanupReceipts?.record({
+        objectPath: claimed.quarantinePath,
+        reason: "session_terminal",
+        sessionId: claimed.id,
+      });
       const completed = await this.sessions.completeCleanup({
         actorId: claimed.actorId,
         sessionId: claimed.id,
@@ -274,6 +286,28 @@ export class DirectUploadFinalizationWorker {
       });
       if (!retried) return { state: "lease_lost", session: claimed };
       return { state: "retry_wait", session: retried };
+    }
+  }
+
+  async runOrphanCleanupNext(): Promise<DirectUploadOrphanCleanupOutcome> {
+    if (!this.cleanupReceipts) return { state: "idle" };
+    const candidates = await this.cleanupReceipts.listOrphans(1);
+    const objectPath = candidates[0];
+    if (!objectPath) return { state: "idle" };
+
+    try {
+      await this.objects.removeQuarantine(objectPath);
+      await this.cleanupReceipts.record({
+        objectPath,
+        reason: "orphan",
+      });
+      return { state: "cleaned", objectPath };
+    } catch (error) {
+      return {
+        state: "failed",
+        objectPath,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
   }
 
