@@ -102,6 +102,16 @@ export class SupabaseDirectUploadObjectStore {
     });
   }
 
+  async removeQuarantine(path: string): Promise<void> {
+    if (!path.startsWith("quarantine/")) {
+      throw new Error("DIRECT_UPLOAD_CLEANUP_SCOPE_MISMATCH");
+    }
+    const { error } = await this.client.storage
+      .from(JHADINA_INTAKE_BUCKET)
+      .remove([path]);
+    if (error) throw error;
+  }
+
   async scanUri(path: string): Promise<string> {
     const { data, error } = await this.client.storage
       .from(JHADINA_INTAKE_BUCKET)
