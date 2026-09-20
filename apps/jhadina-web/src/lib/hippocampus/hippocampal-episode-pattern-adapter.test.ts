@@ -18,6 +18,7 @@ const episode: HippocampalEpisode = {
   actor: 'user',
   content: 'Keep answers direct.',
   evidence: [{ id: 'reason-1', source: 'ask-jhadina', observedAt: '2026-09-19T12:00:00.000Z', summary: 'Keep answers direct.', immutable: true }],
+  indexedTerms: ['keep', 'answers', 'direct'],
 };
 
 describe('HippocampalEpisodePatternAdapter provenance', () => {
@@ -38,6 +39,7 @@ describe('HippocampalEpisodePatternAdapter provenance', () => {
       ...episode,
       content: 'Keep answers direct and concise.',
       evidence: [{ ...episode.evidence[0], summary: 'Keep answers direct and concise.' }],
+      indexedTerms: ['keep', 'answers', 'direct', 'and', 'concise'],
     };
     const conciseCurrent: Experience = {
       ...current,
