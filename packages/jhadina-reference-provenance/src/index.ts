@@ -615,7 +615,7 @@ export class ReferenceProvenanceRegistry {
   registerSourceVerification(
     input: RegisterSourceVerificationInput,
   ): ReferenceSourceVerification {
-    if (this.sourceVerifications.has(input.referenceId)) {
+    if (this.sourceVerifications.has(input.verificationId)) {
       throw new Error(
         'REF_PROV_SOURCE_VERIFICATION_ALREADY_REGISTERED',
       );
@@ -629,7 +629,7 @@ export class ReferenceProvenanceRegistry {
       reference,
     );
     this.sourceVerifications.set(
-      verification.referenceId,
+      verification.verificationId,
       verification,
     );
     return verification;
@@ -648,7 +648,7 @@ export class ReferenceProvenanceRegistry {
     const mapping = buildReferenceMapping(
       input,
       reference,
-      this.sourceVerifications.get(input.referenceId),
+      this.latestSourceVerification(input.referenceId),
     );
     this.mappings.set(mapping.mappingId, mapping);
     return mapping;
@@ -664,10 +664,33 @@ export class ReferenceProvenanceRegistry {
     return this.mappings.get(mappingId);
   }
 
-  getSourceVerification(
+  getSourceVerificationById(
+    verificationId: string,
+  ): ReferenceSourceVerification | undefined {
+    return this.sourceVerifications.get(verificationId);
+  }
+
+  sourceVerificationsForReference(
+    referenceId: string,
+  ): readonly ReferenceSourceVerification[] {
+    return Object.freeze(
+      this.listSourceVerifications().filter(
+        (verification) =>
+          verification.referenceId === referenceId,
+      ),
+    );
+  }
+
+  latestSourceVerification(
     referenceId: string,
   ): ReferenceSourceVerification | undefined {
-    return this.sourceVerifications.get(referenceId);
+    return this.sourceVerificationsForReference(referenceId)
+      .slice()
+      .sort(
+        (a, b) =>
+          Date.parse(b.verifiedAt) - Date.parse(a.verifiedAt) ||
+          b.verificationId.localeCompare(a.verificationId),
+      )[0];
   }
 
   listReferences(): readonly ReferenceRecord[] {
@@ -690,7 +713,7 @@ export class ReferenceProvenanceRegistry {
     readonly ReferenceSourceVerification[] {
     return Object.freeze(
       [...this.sourceVerifications.values()].sort((a, b) =>
-        a.referenceId.localeCompare(b.referenceId),
+        a.verificationId.localeCompare(b.verificationId),
       ),
     );
   }
@@ -745,7 +768,7 @@ export class ReferenceProvenanceRegistry {
       assertMappingInput(
         mapping,
         reference,
-        this.sourceVerifications.get(mapping.referenceId),
+        this.latestSourceVerification(mapping.referenceId),
       );
     }
 
