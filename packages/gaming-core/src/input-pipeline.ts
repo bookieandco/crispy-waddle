@@ -1,35 +1,83 @@
 import {InputIntegrityMonitor,type InputIntegrityEvent,type InputIntegrityResult} from './input-integrity.js';
 import {GamingInputTransportBoundary} from './input-transport.js';
+import {GamingInputDeliveryTracker,type GamingInputDeliverySnapshot} from './input-delivery-state.js';
 import type {ControllerInputGate,ControllerInputGateResult} from './controller-input-gate.js';
 import type {ControllerInputResyncManager} from './input-resync.js';
 
 export interface GamingRuntimeInputAck { inputId:string; sequenceNumber:number; deliveredAtMs:number; }
 export type GamingInputResyncReason='ready'|'not-resynchronized';
 export interface GamingInputResyncResult { allowed:boolean; reason:GamingInputResyncReason; }
-export interface GamingInputPipelineResult extends InputIntegrityResult { transported:boolean; acknowledgement?:GamingRuntimeInputAck; controllerGate:ControllerInputGateResult; resync:GamingInputResyncResult; }
+export interface GamingInputPipelineResult extends InputIntegrityResult { transported:boolean; acknowledgement?:GamingRuntimeInputAck; controllerGate:ControllerInputGateResult; resync:GamingInputResyncResult; delivery:GamingInputDeliverySnapshot; }
 export interface GamingRuntimeInputSink { deliver(event:InputIntegrityEvent):Promise<GamingRuntimeInputAck>; }
 
 export class GamingInputPipeline {
   private submissionTail:Promise<void>=Promise.resolve();
-  constructor(private readonly integrity:InputIntegrityMonitor,private readonly transport:GamingInputTransportBoundary,private readonly runtime:GamingRuntimeInputSink,private readonly controllerGate:ControllerInputGate,private readonly resync:ControllerInputResyncManager){ }
+  private generation=0;
+  private readonly active=new Set<string>();
+  constructor(private readonly integrity:InputIntegrityMonitor,private readonly transport:GamingInputTransportBoundary,private readonly runtime:GamingRuntimeInputSink,private readonly controllerGate:ControllerInputGate,private readonly resync:ControllerInputResyncManager,private readonly delivery=new GamingInputDeliveryTracker()){ }
   submit(event:InputIntegrityEvent,nowMs=Date.now()):Promise<GamingInputPipelineResult>{
-    const run=this.submissionTail.then(()=>this.submitSerialized(event,nowMs));
+    const generation=this.generation;
+    this.delivery.capture(event,nowMs);
+    this.active.add(event.inputId);
+    const run=this.submissionTail.then(()=>this.submitSerialized(event,nowMs,generation));
     this.submissionTail=run.then(()=>undefined,()=>undefined);
+    void run.finally(()=>this.active.delete(event.inputId)).catch(()=>undefined);
     return run;
   }
-  private async submitSerialized(event:InputIntegrityEvent,nowMs:number):Promise<GamingInputPipelineResult>{
+  private async submitSerialized(event:InputIntegrityEvent,nowMs:number,generation:number):Promise<GamingInputPipelineResult>{
+    if(generation!==this.generation)return this.cancelledResult(event);
     const controllerGate=this.controllerGate.authorize(event,nowMs);
-    if(!controllerGate.allowed)return{...this.integritySnapshotResult(),transported:false,controllerGate,resync:{allowed:false,reason:'not-resynchronized'}};
+    if(!controllerGate.allowed){
+      const delivery=this.delivery.transition(event.inputId,'rejected',nowMs,controllerGate.reason);
+      return{...this.integritySnapshotResult(),transported:false,controllerGate,resync:{allowed:false,reason:'not-resynchronized'},delivery};
+    }
+    this.delivery.transition(event.inputId,'authorized',nowMs);
     const resync=this.checkResync(event);
-    if(!resync.allowed)return{...this.integritySnapshotResult(),transported:false,controllerGate,resync};
+    if(!resync.allowed){
+      const delivery=this.delivery.transition(event.inputId,'rejected',nowMs,resync.reason);
+      return{...this.integritySnapshotResult(),transported:false,controllerGate,resync,delivery};
+    }
+    if(generation!==this.generation)return this.cancelledResult(event,controllerGate,resync);
     const integrity=this.integrity.accept(event,nowMs);
-    if(!integrity.accepted)return{...integrity,transported:false,controllerGate,resync};
-    await this.transport.send(event);
+    if(!integrity.accepted){
+      const delivery=this.delivery.transition(event.inputId,integrity.state==='stale'?'stale':'rejected',nowMs,integrity.state);
+      return{...integrity,transported:false,controllerGate,resync,delivery};
+    }
+    this.delivery.transition(event.inputId,'integrity-accepted',nowMs);
+    if(generation!==this.generation)return this.cancelledResult(event,controllerGate,resync);
+    this.delivery.transition(event.inputId,'transport-started',nowMs);
+    try{await this.transport.send(event);}catch(error){
+      this.delivery.transition(event.inputId,'delivery-unknown',Date.now(),error instanceof Error?error.message:'transport-failed');
+      throw error;
+    }
+    this.delivery.transition(event.inputId,'transport-confirmed',Date.now());
+    if(generation!==this.generation)return this.unknownResult(event,controllerGate,resync);
     const acknowledgement=this.transport.deliveryMode==='runtime-delivery'?await this.transport.deliverToRuntime(event):await this.runtime.deliver(event);
-    if(acknowledgement.inputId!==event.inputId||acknowledgement.sequenceNumber!==event.sequenceNumber)throw new Error('Runtime input acknowledgement does not match delivered input');
-    return{...integrity,transported:true,acknowledgement,controllerGate,resync};
+    this.delivery.transition(event.inputId,'runtime-delivered',Math.max(Date.now(),acknowledgement.deliveredAtMs));
+    if(acknowledgement.inputId!==event.inputId||acknowledgement.sequenceNumber!==event.sequenceNumber){
+      this.delivery.transition(event.inputId,'failed',Date.now(),'runtime-ack-mismatch');
+      throw new Error('Runtime input acknowledgement does not match delivered input');
+    }
+    const delivery=this.delivery.transition(event.inputId,'acknowledged',Math.max(Date.now(),acknowledgement.deliveredAtMs));
+    return{...integrity,transported:true,acknowledgement,controllerGate,resync,delivery};
   }
-  disconnect(sessionId:string,deviceId:string):void{this.controllerGate.clearHealth(deviceId);this.resync.disconnect(sessionId,deviceId);}
+  disconnect(sessionId:string,deviceId:string):void{
+    this.generation++;
+    const nowMs=Date.now();
+    for(const inputId of this.active){const snapshot=this.delivery.get(inputId);if(snapshot&&snapshot.sessionId===sessionId&&snapshot.deviceId===deviceId)this.delivery.markDisconnect(inputId,nowMs);}
+    this.controllerGate.clearHealth(deviceId);
+    this.resync.disconnect(sessionId,deviceId);
+  }
+  deliveryState(inputId:string):GamingInputDeliverySnapshot|undefined{return this.delivery.get(inputId);}
+  private cancelledResult(event:InputIntegrityEvent,controllerGate?:ControllerInputGateResult,resync:GamingInputResyncResult={allowed:false,reason:'not-resynchronized'}):GamingInputPipelineResult{
+    const delivery=this.delivery.get(event.inputId)??this.delivery.capture(event);
+    const final=delivery.state==='cancelled-before-send'?delivery:this.delivery.markDisconnect(event.inputId);
+    return{...this.integritySnapshotResult(),transported:false,controllerGate:controllerGate??({allowed:false,reason:'controller-unbound'} as ControllerInputGateResult),resync,delivery:final};
+  }
+  private unknownResult(event:InputIntegrityEvent,controllerGate:ControllerInputGateResult,resync:GamingInputResyncResult):GamingInputPipelineResult{
+    const delivery=this.delivery.get(event.inputId)!;
+    return{...this.integritySnapshotResult(),transported:true,controllerGate,resync,delivery};
+  }
   private integritySnapshotResult():InputIntegrityResult{const snapshot=this.integrity.snapshot();return{accepted:false,state:snapshot.state,lastSequenceNumber:snapshot.lastSequenceNumber,expectedSequenceNumber:snapshot.lastSequenceNumber+1,droppedCount:snapshot.droppedCount};}
   private checkResync(event:InputIntegrityEvent):GamingInputResyncResult{if(!event.sessionId||!event.deviceId)return{allowed:false,reason:'not-resynchronized'};try{this.resync.assertReady(event.sessionId,event.deviceId);return{allowed:true,reason:'ready'};}catch{return{allowed:false,reason:'not-resynchronized'};}}
 }
