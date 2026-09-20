@@ -2,6 +2,7 @@ import type { PatternPort } from './spine.js';
 import { CompositePatternDetectionStrategy } from './composite-pattern-strategy.js';
 import { DeterministicPatternPort, RecurrencePatternStrategy } from './pattern-engine.js';
 import { RelationshipContextPatternStrategy } from './relationship-context-pattern.js';
+import { CommunicationDirectnessPatternStrategy } from './communication-directness-pattern.js';
 
 /**
  * Canonical Strategy composition for the current PatternPort.
@@ -11,6 +12,7 @@ export function createCanonicalPatternPort(): PatternPort {
   const strategy = new CompositePatternDetectionStrategy([
     new RecurrencePatternStrategy(),
     new RelationshipContextPatternStrategy(),
+    new CommunicationDirectnessPatternStrategy(),
   ]);
   return new DeterministicPatternPort(strategy);
 }
