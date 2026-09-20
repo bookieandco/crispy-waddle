@@ -1,0 +1,1 @@
+import type {NBAActionCandidate} from './nba-action-recognition.js';import type {SportsTrack} from './sports-multi-object-tracking.js';import type {PoseMotionState} from './sports-pose-motion.js';export interface NBAActionRuntime{infer(tracks:readonly SportsTrack[],poses:readonly PoseMotionState[],startFrame:number,endFrame:number):Promise<readonly NBAActionCandidate[]>;}
