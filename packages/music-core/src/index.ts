@@ -19,3 +19,4 @@ export * from "./realtime-audio-engine.js";
 export * from "./studio-adapter.js";
 export * from "./mobile-adapter.js";
 export * from "./restoration-engine/index.js";
+export * from "./jhadina-media-intelligence-ingress.js";
