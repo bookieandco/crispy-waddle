@@ -6,12 +6,12 @@ const launchFromRow = (row: any): TokenLaunch => ({
   deployerWalletId: row.deployer_wallet_id ?? undefined, developerEntityId: row.developer_entity_id ?? undefined,
   clusterId: row.cluster_id ?? undefined, launchedAt: row.launched_at, launchpad: row.launchpad ?? undefined,
   initialLiquidityUsd: row.initial_liquidity_usd == null ? undefined : Number(row.initial_liquidity_usd),
-  outcome: row.outcome, evidenceIds: row.evidence_ids ?? [],
+  outcome: row.outcome, outcomeObservedAt: row.outcome_observed_at ?? undefined, evidenceIds: row.evidence_ids ?? [],
 })
 
 export async function runHistoricalObservationBackfill(client: SupabaseClient, options: { coinGeckoApiKey: string; heliusApiKey?: string; limit: number }) {
-  const { data, error } = await client.from('jhadina_token_launches').select('*').order('launched_at', { ascending: false }).limit(options.limit)
-  if (error) throw new Error(`SHARK launch backfill load failed: ${error.message}`)
+  const { data, error } = await client.rpc('jhadina_shark_claim_historical_backfill', { p_limit: options.limit })
+  if (error) throw new Error(`SHARK launch backfill claim failed: ${error.message}`)
   const market = new CoinGeckoHistoricalSource({ apiKey: options.coinGeckoApiKey })
   const actors = options.heliusApiKey ? new HeliusHistoricalSource({ apiKey: options.heliusApiKey }) : undefined
   let persisted = 0; let partial = 0; const failures: Array<{ launchId: string; reason: string }> = []
@@ -19,22 +19,35 @@ export async function runHistoricalObservationBackfill(client: SupabaseClient, o
     const launch = launchFromRow(row)
     try {
       const result = await collectHistoricalObservation({ launch, market, actors })
+      const hasUsableEvidence = Object.values(result.sourceStatus).some(status => status === 'complete')
+      if (!hasUsableEvidence) throw new Error('SHARK historical collection produced no usable evidence')
+
       const o = result.observation
       const { error: persistError } = await client.from('jhadina_launch_outcome_observations').upsert({
         observation_id: o.observationId, launch_id: o.launchId, observed_at: o.observedAt,
         price_return_from_launch_pct: o.priceReturnFromLaunchPct ?? null, peak_return_pct: o.peakReturnPct ?? null,
-        max_drawdown_pct: o.maxDrawdownPct ?? null, current_liquidity_usd: o.currentLiquidityUsd ?? null,
-        peak_liquidity_usd: o.peakLiquidityUsd ?? null, liquidity_drawdown_from_peak: o.liquidityDrawdownFromPeak ?? null,
+        max_drawdown_pct: o.maxDrawdownPct ?? null, initial_liquidity_usd: o.initialLiquidityUsd ?? null,
+        current_liquidity_usd: o.currentLiquidityUsd ?? null, peak_liquidity_usd: o.peakLiquidityUsd ?? null,
+        liquidity_drawdown_from_peak: o.liquidityDrawdownFromPeak ?? null, liquidity_drain_rate: o.liquidityDrainRate ?? null,
+        liquidity_drain_acceleration: o.liquidityDrainAcceleration ?? null, liquidity_stability_score: o.liquidityStabilityScore ?? null,
         holder_count_change_pct: o.holderCountChangePct ?? null, holder_exit_pct: o.holderExitPct ?? null,
         developer_sold_pct: o.developerSoldPct ?? null, liquidity_removed: o.liquidityRemoved ?? null,
         trading_halted: o.tradingHalted ?? null, holder_behavior: o.holderBehavior ?? null,
         evidence_ids: o.evidenceIds, source: o.source,
-      }, { onConflict: 'observation_id' })
+      }, { onConflict: 'observation_id', ignoreDuplicates: true })
       if (persistError) throw new Error(persistError.message)
       persisted += 1
       if (result.errors.length || Object.values(result.sourceStatus).some(status => status !== 'complete')) partial += 1
+
+      const { error: scheduleError } = await client
+        .from('jhadina_shark_historical_backfill_schedule')
+        .update({ last_succeeded_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('launch_id', launch.launchId)
+      if (scheduleError) throw new Error(`SHARK backfill schedule success update failed: ${scheduleError.message}`)
     } catch (error) {
       failures.push({ launchId: launch.launchId, reason: error instanceof Error ? error.message : 'unknown-backfill-failure' })
+      const { error: scheduleError } = await client.rpc('jhadina_shark_record_historical_backfill_failure', { p_launch_id: launch.launchId })
+      if (scheduleError) throw new Error(`SHARK backfill schedule failure update failed: ${scheduleError.message}`)
     }
   }
   return { processed: (data ?? []).length, persisted, partial, failed: failures.length, failures }

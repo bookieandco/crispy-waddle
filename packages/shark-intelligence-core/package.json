@@ -8,7 +8,7 @@
   },
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "vitest run src/meme-trader"
+    "test": "vitest run src/meme-trader --globals"
   },
   "dependencies": {
     "@jhadina/core-spine": "workspace:*"

@@ -20,10 +20,10 @@ describe('DEX pool-state decoders', () => {
     const parsed = parsePumpSwapPoolState({ data, owner: PUMPSWAP_AMM_PROGRAM_ID })
 
     expect(parsed.programId).toBe(PUMPSWAP_AMM_PROGRAM_ID)
-    expect(parsed.baseMint).toHaveLength(44)
-    expect(parsed.quoteMint).toHaveLength(44)
-    expect(parsed.baseVault).toHaveLength(44)
-    expect(parsed.quoteVault).toHaveLength(44)
+    expect(parsed.baseMint).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
+    expect(parsed.quoteMint).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
+    expect(parsed.baseVault).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
+    expect(parsed.quoteVault).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
     expect(parsed.baseMint).not.toBe(parsed.quoteMint)
   })
 
@@ -37,10 +37,10 @@ describe('DEX pool-state decoders', () => {
     const parsed = parseRaydiumAmmV4PoolState({ data, owner: RAYDIUM_AMM_V4_PROGRAM_ID })
 
     expect(parsed.programId).toBe(RAYDIUM_AMM_V4_PROGRAM_ID)
-    expect(parsed.baseMint).toHaveLength(44)
-    expect(parsed.quoteMint).toHaveLength(44)
-    expect(parsed.baseVault).toHaveLength(44)
-    expect(parsed.quoteVault).toHaveLength(44)
+    expect(parsed.baseMint).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
+    expect(parsed.quoteMint).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
+    expect(parsed.baseVault).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
+    expect(parsed.quoteVault).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
     expect(parsed.baseMint).not.toBe(parsed.quoteMint)
   })
 
@@ -59,6 +59,6 @@ describe('DEX pool-state decoders', () => {
     setKey(bytes, 400, 9)
     const base64 = Buffer.from(bytes).toString('base64')
     const parsed = parseRaydiumAmmV4PoolState({ data: base64 })
-    expect(parsed.baseMint).toHaveLength(44)
+    expect(parsed.baseMint).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
   })
 })

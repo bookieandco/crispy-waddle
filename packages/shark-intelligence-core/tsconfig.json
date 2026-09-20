@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "moduleResolution": "Bundler",
+    "types": []
+  },
+  "include": ["src/meme-trader/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.e2e.test.ts", "src/**/__tests__/**"]
+}

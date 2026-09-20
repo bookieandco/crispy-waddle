@@ -24,6 +24,15 @@ const base = {
   },
   tradeType: 'swing-hold' as const,
   strategyFit: { score: 0.7, matchedSignals: ['migration'], conflicts: [] },
+  lpControlRiskInput: {
+    lpOwnerKnown: true,
+    lpOwnerIsDeployer: true,
+    lpBurnedPct: 10,
+    lpLockedPct: 10,
+    withdrawalObserved: true,
+    liquidityHistory: { drawdownFromPeak: 0.9, drainRate: 0.4, drainAcceleration: 0.2 },
+    evidenceIds: ['lp-1'],
+  },
   lpControlRisk: {
     score: 0.95,
     band: 'critical' as const,

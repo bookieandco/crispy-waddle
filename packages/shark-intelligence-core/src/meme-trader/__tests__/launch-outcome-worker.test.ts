@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { evaluateLaunchOutcomeBatch } from '../launch-outcome-worker'
+import { deriveActorOutcomeHistories, evaluateLaunchOutcomeBatch } from '../launch-outcome-worker'
 import type { TokenLaunch } from '../wallet-launch-pipeline'
 
 const launch = (overrides: Partial<TokenLaunch> = {}): TokenLaunch => ({
@@ -60,5 +60,19 @@ describe('evaluateLaunchOutcomeBatch', () => {
 
     expect(result.assessments[0].updatedLaunch.outcome).toBe('RUG')
     expect(result.assessments[0].assessment.evidenceIds).toContain('new')
+  })
+
+  it('derives canonical actor history from the full launch set instead of a recent worker window', () => {
+    const histories = deriveActorOutcomeHistories([
+      launch({ launchId: 'old-rug', tokenAddress: 'OLD', outcome: 'RUG', evidenceIds: ['old-evidence'] }),
+      launch({ launchId: 'recent-healthy', tokenAddress: 'RECENT', outcome: 'HEALTHY', evidenceIds: ['recent-evidence'] }),
+    ])
+
+    const developer = histories.find(x => x.actorKey === 'developer:developer-1')
+    expect(developer?.history.launches).toBe(2)
+    expect(developer?.history.badLaunches).toBe(1)
+    expect(developer?.history.healthyLaunches).toBe(1)
+    expect(developer?.history.rugRate).toBe(.5)
+    expect(developer?.history.evidenceIds).toEqual(expect.arrayContaining(['old-evidence', 'recent-evidence']))
   })
 })

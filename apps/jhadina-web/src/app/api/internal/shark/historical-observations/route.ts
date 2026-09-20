@@ -32,10 +32,10 @@ async function run(request: NextRequest) {
       heliusApiKey: process.env.HELIUS_API_KEY,
       limit,
     })
-    return NextResponse.json({ ok: true, ...result })
+    return NextResponse.json({ ok: true, processed: result.processed, persisted: result.persisted, partial: result.partial, failed: result.failed, failures: result.failures.map(item => ({ launchId: item.launchId, reason: 'source_or_persistence_failure' })) })
   } catch (error) {
-    const reason = error instanceof Error ? error.message : 'Unknown SHARK historical observation worker failure'
-    return NextResponse.json({ ok: false, error: 'shark_historical_observation_worker_failed', reason }, { status: 502 })
+    console.error('SHARK historical observation worker failed', error)
+    return NextResponse.json({ ok: false, error: 'shark_historical_observation_worker_failed', reason: 'worker_execution_failed' }, { status: 502 })
   }
 }
 

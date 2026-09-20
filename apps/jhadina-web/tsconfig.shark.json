@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "types": ["node"]
+  },
+  "include": [
+    "src/app/api/internal/shark/**/*.ts",
+    "src/app/api/wallet/intelligence/**/*.ts",
+    "src/app/api/webhooks/helius/**/*.ts",
+    "src/lib/shark/**/*.ts",
+    "src/lib/supabase/server.ts",
+    "src/lib/supabase/service-role.ts"
+  ],
+  "exclude": ["node_modules", ".next", "dist", "src/**/*.test.ts"]
+}

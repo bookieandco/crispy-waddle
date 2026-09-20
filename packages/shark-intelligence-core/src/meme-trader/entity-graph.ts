@@ -13,13 +13,42 @@ export function buildEntityGraph(nodes: EntityGraphNode[], edges: EntityGraphEdg
   for (const node of nodes) {
     assertObservedAt(node.observedAt)
     if (!node.id || !node.kind) throw new Error('Graph nodes require id and kind.')
-    nodeMap.set(node.id, { ...node, confidence: clamp(node.confidence), evidenceIds: [...new Set(node.evidenceIds)] })
+    const evidenceIds = [...new Set(node.evidenceIds)]
+    if (!evidenceIds.length) throw new Error(`Graph node requires evidence: ${node.id}`)
+    const existing = nodeMap.get(node.id)
+    if (existing) {
+      if (existing.kind !== node.kind || existing.chainId !== node.chainId) throw new Error(`Graph node id collision: ${node.id}`)
+      nodeMap.set(node.id, {
+        ...existing,
+        observedAt: Date.parse(existing.observedAt) <= Date.parse(node.observedAt) ? existing.observedAt : node.observedAt,
+        confidence: Math.max(existing.confidence, clamp(node.confidence)),
+        evidenceIds: [...new Set([...existing.evidenceIds, ...evidenceIds])],
+      })
+    } else {
+      nodeMap.set(node.id, { ...node, confidence: clamp(node.confidence), evidenceIds })
+    }
   }
-  const normalizedEdges = edges.map(edge => {
+  const edgeMap = new Map<string, EntityGraphEdge>()
+  for (const edge of edges) {
     assertObservedAt(edge.observedAt)
+    if (!edge.id) throw new Error('Graph edges require id.')
     if (!nodeMap.has(edge.from) || !nodeMap.has(edge.to)) throw new Error(`Graph edge references unknown node: ${edge.id}`)
-    return { ...edge, confidence: clamp(edge.confidence), evidenceIds: [...new Set(edge.evidenceIds)] }
-  })
+    const evidenceIds = [...new Set(edge.evidenceIds)]
+    if (!evidenceIds.length) throw new Error(`Graph edge requires evidence: ${edge.id}`)
+    const existing = edgeMap.get(edge.id)
+    if (existing) {
+      if (existing.from !== edge.from || existing.to !== edge.to || existing.relation !== edge.relation) throw new Error(`Graph edge id collision: ${edge.id}`)
+      edgeMap.set(edge.id, {
+        ...existing,
+        observedAt: Date.parse(existing.observedAt) <= Date.parse(edge.observedAt) ? existing.observedAt : edge.observedAt,
+        confidence: Math.max(existing.confidence, clamp(edge.confidence)),
+        evidenceIds: [...new Set([...existing.evidenceIds, ...evidenceIds])],
+      })
+    } else {
+      edgeMap.set(edge.id, { ...edge, confidence: clamp(edge.confidence), evidenceIds })
+    }
+  }
+  const normalizedEdges = [...edgeMap.values()]
   const parent = new Map<string, string>()
   const find = (id: string): string => { const current = parent.get(id); if (!current) { parent.set(id, id); return id }; if (current === id) return id; const root = find(current); parent.set(id, root); return root }
   const union = (a: string, b: string) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(rb, ra) }
@@ -41,11 +70,11 @@ export function deriveTokenActorGraph(input: { chainId: string; tokenAddress: st
   const addWallet = (walletId: string, relation: GraphRelationKind) => {
     const walletIdKey = `wallet:${walletId}`
     nodes.push({ id: walletIdKey, kind: 'wallet', chainId: input.chainId, observedAt: input.observedAt, confidence: 1, evidenceIds: input.evidenceIds })
-    edges.push({ id: `${relation}:${walletId}:${input.tokenAddress}`, from: walletIdKey, to: tokenId, relation, observedAt: input.observedAt, confidence: 1, evidenceIds: input.evidenceIds })
+    edges.push({ id: `${relation}:${input.chainId}:${walletId}:${input.tokenAddress}`, from: walletIdKey, to: tokenId, relation, observedAt: input.observedAt, confidence: 1, evidenceIds: input.evidenceIds })
   }
   if (input.deployerWalletId) addWallet(input.deployerWalletId, 'deployed')
-  for (const walletId of input.funderWalletIds ?? []) addWallet(walletId, 'funded-by')
-  for (const walletId of input.liquidityProviderWalletIds ?? []) addWallet(walletId, 'provided-liquidity')
-  for (const walletId of input.earlyBuyerWalletIds ?? []) addWallet(walletId, 'bought-early')
+  for (const walletId of new Set(input.funderWalletIds ?? [])) addWallet(walletId, 'funded-by')
+  for (const walletId of new Set(input.liquidityProviderWalletIds ?? [])) addWallet(walletId, 'provided-liquidity')
+  for (const walletId of new Set(input.earlyBuyerWalletIds ?? [])) addWallet(walletId, 'bought-early')
   return buildEntityGraph(nodes, edges)
 }

@@ -68,4 +68,35 @@ describe('actor intelligence graph and launch ingestion', () => {
     expect(graph.edges.some(e => e.relation === 'bought-early')).toBe(true)
     expect(JSON.stringify(graph)).not.toContain('execute')
   })
+  it('uses chain-aware stable edge ids and collapses duplicate actor inputs', () => {
+    const graph = deriveTokenActorGraph({
+      chainId: 'solana-mainnet',
+      tokenAddress: 'TokenC',
+      observedAt: '2026-01-01T00:00:00Z',
+      funderWalletIds: ['fund1', 'fund1'],
+      evidenceIds: ['obs-chain'],
+    })
+    expect(graph.edges).toHaveLength(1)
+    expect(graph.edges[0].id).toBe('funded-by:solana-mainnet:fund1:TokenC')
+    expect(graph.edges[0].evidenceIds).toEqual(['obs-chain'])
+  })
+
+  it('merges duplicate graph evidence and rejects evidence-free persisted relationships', () => {
+    const graph = buildEntityGraph([
+      { id: 'w1', kind: 'wallet', chainId: 'solana-mainnet', observedAt: '2026-01-01T00:01:00Z', confidence: .8, evidenceIds: ['later'] },
+      { id: 'w1', kind: 'wallet', chainId: 'solana-mainnet', observedAt: '2026-01-01T00:00:00Z', confidence: 1, evidenceIds: ['earlier'] },
+      { id: 't1', kind: 'token', chainId: 'solana-mainnet', observedAt: '2026-01-01T00:00:00Z', confidence: 1, evidenceIds: ['token'] },
+    ], [
+      { id: 'edge1', from: 'w1', to: 't1', relation: 'deployed', observedAt: '2026-01-01T00:01:00Z', confidence: .8, evidenceIds: ['edge-later'] },
+      { id: 'edge1', from: 'w1', to: 't1', relation: 'deployed', observedAt: '2026-01-01T00:00:00Z', confidence: 1, evidenceIds: ['edge-earlier'] },
+    ])
+    expect(graph.nodes.find(node => node.id === 'w1')?.evidenceIds).toEqual(expect.arrayContaining(['later', 'earlier']))
+    expect(graph.edges).toHaveLength(1)
+    expect(graph.edges[0].evidenceIds).toEqual(expect.arrayContaining(['edge-later', 'edge-earlier']))
+    expect(() => buildEntityGraph(
+      [{ id: 'empty', kind: 'wallet', observedAt: '2026-01-01T00:00:00Z', confidence: 1, evidenceIds: [] }],
+      [],
+    )).toThrow('Graph node requires evidence')
+  })
+
 })
