@@ -8,7 +8,7 @@ create table if not exists public.jhadina_perception_jobs (
   asset_id text not null,
   intent text,
   status text not null default 'queued'
-    check (status in ('queued','running','retry_wait','completed','failed')),
+    check (status in ('queued','running','retry_wait','needs_selection','completed','failed')),
   attempt integer not null default 0 check (attempt >= 0),
   max_attempts integer not null default 4 check (max_attempts between 1 and 20),
   available_at timestamptz not null default clock_timestamp(),
@@ -134,6 +134,68 @@ begin
 end;
 $$;
 
+create or replace function public.require_jhadina_perception_job_selection(
+  p_job_id text,
+  p_worker_id text,
+  p_lease_token text,
+  p_packet jsonb
+)
+returns public.jhadina_perception_jobs
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_row public.jhadina_perception_jobs%rowtype;
+  v_now timestamptz := clock_timestamp();
+begin
+  update public.jhadina_perception_jobs
+     set status = 'needs_selection',
+         packet = p_packet,
+         dispatch = null,
+         last_error = null,
+         lease_owner = null,
+         lease_token = null,
+         lease_expires_at = null,
+         updated_at = v_now
+   where id = p_job_id
+     and status = 'running'
+     and lease_owner = p_worker_id
+     and lease_token = p_lease_token
+     and lease_expires_at > v_now
+   returning * into v_row;
+  return v_row;
+end;
+$$;
+
+create or replace function public.requeue_jhadina_perception_job_with_intent(
+  p_actor_id text,
+  p_job_id text,
+  p_intent text
+)
+returns public.jhadina_perception_jobs
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_row public.jhadina_perception_jobs%rowtype;
+begin
+  if nullif(trim(p_intent),'') is null then
+    raise exception 'PERCEPTION_JOB_INTENT_REQUIRED';
+  end if;
+  update public.jhadina_perception_jobs
+     set status = 'queued',
+         intent = p_intent,
+         available_at = clock_timestamp(),
+         packet = null,
+         dispatch = null,
+         last_error = null,
+         updated_at = clock_timestamp()
+   where id = p_job_id
+     and actor_id = p_actor_id
+     and status = 'needs_selection'
+   returning * into v_row;
+  return v_row;
+end;
+$$;
+
 create or replace function public.complete_jhadina_perception_job(
   p_job_id text,
   p_worker_id text,
@@ -232,6 +294,8 @@ $$;
 revoke execute on function public.enqueue_jhadina_perception_job(text,text,text,text,integer) from public,anon,authenticated;
 revoke execute on function public.claim_next_jhadina_perception_job(text,integer) from public,anon,authenticated;
 revoke execute on function public.renew_jhadina_perception_job_lease(text,text,text,integer) from public,anon,authenticated;
+revoke execute on function public.require_jhadina_perception_job_selection(text,text,text,jsonb) from public,anon,authenticated;
+revoke execute on function public.requeue_jhadina_perception_job_with_intent(text,text,text) from public,anon,authenticated;
 revoke execute on function public.complete_jhadina_perception_job(text,text,text,jsonb,jsonb) from public,anon,authenticated;
 revoke execute on function public.retry_jhadina_perception_job(text,text,text,text,timestamptz) from public,anon,authenticated;
 revoke execute on function public.fail_jhadina_perception_job(text,text,text,text) from public,anon,authenticated;
@@ -239,6 +303,8 @@ revoke execute on function public.fail_jhadina_perception_job(text,text,text,tex
 grant execute on function public.enqueue_jhadina_perception_job(text,text,text,text,integer) to service_role;
 grant execute on function public.claim_next_jhadina_perception_job(text,integer) to service_role;
 grant execute on function public.renew_jhadina_perception_job_lease(text,text,text,integer) to service_role;
+grant execute on function public.require_jhadina_perception_job_selection(text,text,text,jsonb) to service_role;
+grant execute on function public.requeue_jhadina_perception_job_with_intent(text,text,text) to service_role;
 grant execute on function public.complete_jhadina_perception_job(text,text,text,jsonb,jsonb) to service_role;
 grant execute on function public.retry_jhadina_perception_job(text,text,text,text,timestamptz) to service_role;
 grant execute on function public.fail_jhadina_perception_job(text,text,text,text) to service_role;
