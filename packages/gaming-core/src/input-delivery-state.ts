@@ -22,7 +22,7 @@ export interface GamingInputDeliverySnapshot {
   reason?:string;
 }
 
-const TERMINAL=new Set<GamingInputDeliveryState>([
+export const TERMINAL_INPUT_DELIVERY_STATES=new Set<GamingInputDeliveryState>([
   'acknowledged','rejected','stale','cancelled-before-send','failed','delivery-unknown',
 ]);
 
@@ -57,7 +57,7 @@ export class GamingInputDeliveryTracker {
   transition(inputId:string,state:GamingInputDeliveryState,nowMs=Date.now(),reason?:string):GamingInputDeliverySnapshot{
     const current=this.require(inputId);
     if(!Number.isFinite(nowMs)||nowMs<current.observedAtMs)throw new Error('Input delivery time must be monotonic');
-    if(TERMINAL.has(current.state))throw new Error(`Input delivery state is terminal: ${current.state}`);
+    if(TERMINAL_INPUT_DELIVERY_STATES.has(current.state))throw new Error(`Input delivery state is terminal: ${current.state}`);
     if(!NEXT[current.state].includes(state))throw new Error(`Invalid input delivery transition: ${current.state} -> ${state}`);
     const next:GamingInputDeliverySnapshot={...current,state,observedAtMs:nowMs,...(reason?{reason}:{})};
     this.states.set(inputId,next);
@@ -66,12 +66,20 @@ export class GamingInputDeliveryTracker {
 
   markDisconnect(inputId:string,nowMs=Date.now()):GamingInputDeliverySnapshot{
     const current=this.require(inputId);
-    if(TERMINAL.has(current.state))return{...current};
+    if(TERMINAL_INPUT_DELIVERY_STATES.has(current.state))return{...current};
     const state:GamingInputDeliveryState=current.state==='captured'||current.state==='authorized'||current.state==='integrity-accepted'
       ?'cancelled-before-send'
       :'delivery-unknown';
     return this.transition(inputId,state,nowMs,'controller-disconnected');
   }
+
+  transitionUnlessTerminal(inputId:string,state:GamingInputDeliveryState,nowMs=Date.now(),reason?:string):GamingInputDeliverySnapshot{
+    const current=this.require(inputId);
+    if(TERMINAL_INPUT_DELIVERY_STATES.has(current.state))return{...current};
+    return this.transition(inputId,state,nowMs,reason);
+  }
+
+  isTerminal(inputId:string):boolean{return TERMINAL_INPUT_DELIVERY_STATES.has(this.require(inputId).state);}
 
   get(inputId:string):GamingInputDeliverySnapshot|undefined{
     const current=this.states.get(inputId);
