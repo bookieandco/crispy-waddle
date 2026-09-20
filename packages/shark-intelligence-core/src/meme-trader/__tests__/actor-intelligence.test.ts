@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildEntityGraph, deriveTokenActorGraph } from '../entity-graph'
 import { ingestTokenLaunch, resetTokenLaunchIngestForTests } from '../token-launch-ingest'
 import { applyActorRiskIntelligence } from '../actor-risk-integration'
+import { aggregatePersistedActorAssociationConfidence } from '../actor-intelligence'
 import type { LPWithdrawalAttribution } from '../lp-withdrawal-attribution'
 
 describe('actor intelligence graph and launch ingestion', () => {
@@ -97,6 +98,17 @@ describe('actor intelligence graph and launch ingestion', () => {
       [{ id: 'empty', kind: 'wallet', observedAt: '2026-01-01T00:00:00Z', confidence: 1, evidenceIds: [] }],
       [],
     )).toThrow('Graph node requires evidence')
+  })
+
+
+  it('does not let one certain actor edge upgrade weaker launch associations', () => {
+    const confidence = aggregatePersistedActorAssociationConfidence([
+      { launchId: 'l1', actorId: 'dev', actorKind: 'developer', confidence: 1 },
+      { launchId: 'l2', actorId: 'dev', actorKind: 'developer', confidence: .4 },
+      { launchId: 'l2', actorId: 'dev', actorKind: 'developer', confidence: .6 },
+      { launchId: 'l3', actorId: 'dev', actorKind: 'developer', confidence: null },
+    ])
+    expect(confidence.get('developer:dev')).toBeCloseTo((1 + .6 + 0) / 3, 10)
   })
 
 })
