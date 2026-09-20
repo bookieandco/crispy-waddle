@@ -31,6 +31,6 @@ describe('Behavioral Kernel', () => {
 
     assert.equal(decision.action, 'answer_directly');
     assert.ok(decision.posture.directness > 0.7);
-    assert.equal(decision.posture.relationshipCalibration, 0.72);
+    assert.ok(Math.abs(decision.posture.relationshipCalibration - 0.72) < 1e-12);
   });
 });
