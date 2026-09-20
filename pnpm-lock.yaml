@@ -25,6 +25,21 @@ importers:
 
   apps/jhadina-web:
     dependencies:
+      '@jhadina/director-core':
+        specifier: workspace:*
+        version: link:../../packages/director-core
+      '@jhadina/opportunity-core':
+        specifier: workspace:*
+        version: link:../../packages/opportunity-core
+      '@jhadina/reference-provenance':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-reference-provenance
+      '@jhadina/shark-intelligence-core':
+        specifier: workspace:*
+        version: link:../../packages/shark-intelligence-core
+      '@jhadina/spatial-intelligence-core':
+        specifier: workspace:*
+        version: link:../../packages/spatial-intelligence-core
       '@jhadina/tv-core':
         specifier: workspace:*
         version: link:../../packages/jhadina-tv-core
@@ -73,28 +88,28 @@ importers:
         version: 4.13.26
       '@react-three/drei':
         specifier: ^10.7.8
-        version: 10.7.8(@react-three/fiber@9.7.0)(@types/three@0.170.0)(react-dom@19.2.8)(react@19.2.8)(three@0.170.0)
+        version: 10.7.8(@react-three/fiber@9.7.0)(@types/three@0.170.0)(react-dom@19.2.3)(react@19.2.3)(three@0.170.0)
       '@react-three/fiber':
         specifier: ^9.4.2
-        version: 9.7.0(react-dom@19.2.8)(react@19.2.8)(three@0.170.0)
+        version: 9.7.0(react-dom@19.2.3)(react@19.2.3)(three@0.170.0)
       framer-motion:
         specifier: ^11.0.0
-        version: 11.18.2(react-dom@19.2.8)(react@19.2.8)
+        version: 11.18.2(react-dom@19.2.3)(react@19.2.3)
       maath:
         specifier: ^0.10.8
         version: 0.10.8(@types/three@0.170.0)(three@0.170.0)
       next:
         specifier: ^15.0.0
-        version: 15.5.23(react-dom@19.2.8)(react@19.2.8)
+        version: 15.5.23(react-dom@19.2.3)(react@19.2.3)
       openai:
         specifier: ^7.4.0
         version: 7.4.0
       react:
         specifier: 19.2.3
-        version: 19.2.8
+        version: 19.2.3
       react-dom:
         specifier: 19.2.3
-        version: 19.2.8(react@19.2.8)
+        version: 19.2.3(react@19.2.3)
       sharp:
         specifier: ^0.35.3
         version: 0.35.3(@types/node@20.19.43)
@@ -125,7 +140,7 @@ importers:
         version: 8.5.26
       tailwindcss:
         specifier: ^3.4.0
-        version: 3.4.19
+        version: 3.4.19(tsx@4.23.12)
       tsx:
         specifier: ^4.20.3
         version: 4.23.12
@@ -150,6 +165,8 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.8(react@19.2.8)
+
+  packages/agent-runtime-core: {}
 
   packages/checkout-orchestrator: {}
 
@@ -178,6 +195,10 @@ importers:
         version: 5.9.3
 
   packages/growth-core:
+    dependencies:
+      '@jhadina/opportunity-core':
+        specifier: workspace:*
+        version: link:../opportunity-core
     devDependencies:
       vitest:
         specifier: ^2.1.8
@@ -207,7 +228,14 @@ importers:
         specifier: ^5.1.0
         version: 5.9.3
 
-  packages/jhadina-core-spine: {}
+  packages/jhadina-core-spine:
+    devDependencies:
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
 
   packages/jhadina-entertainment-core:
     devDependencies:
@@ -245,6 +273,9 @@ importers:
 
   packages/jhadina-intelligence-core:
     dependencies:
+      '@jhadina/action-core':
+        specifier: workspace:*
+        version: link:../jhadina-action-core
       '@jhadina/core-spine':
         specifier: workspace:*
         version: link:../jhadina-core-spine
@@ -259,10 +290,46 @@ importers:
         specifier: ^5.1.0
         version: 5.9.3
 
-  packages/jhadina-tv-core: {}
+  packages/jhadina-reference-provenance:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.12
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+
+  packages/jhadina-research-core: {}
+
+  packages/jhadina-tv-core:
+    devDependencies:
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
+
+  packages/knowledge-graph:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.12
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
 
   packages/money-core:
     dependencies:
+      '@jhadina/opportunity-core':
+        specifier: workspace:*
+        version: link:../opportunity-core
       pg:
         specifier: ^8.16.3
         version: 8.23.0
@@ -291,6 +358,18 @@ importers:
 
   packages/offer-engine: {}
 
+  packages/opportunity-core:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.12
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+
   packages/order-fulfillment-core: {}
 
   packages/payment-core: {}
@@ -316,6 +395,19 @@ importers:
         specifier: ^5.1.0
         version: 5.9.3
 
+  packages/shark-intelligence-core:
+    dependencies:
+      '@jhadina/core-spine':
+        specifier: workspace:*
+        version: link:../jhadina-core-spine
+    devDependencies:
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
+
   packages/shotlist-core:
     devDependencies:
       vitest:
@@ -323,6 +415,28 @@ importers:
         version: 4.1.10(@types/node@20.19.43)(vite@8.2.1)
 
   packages/social-core: {}
+
+  packages/spatial-intelligence-core:
+    dependencies:
+      '@jhadina/core-spine':
+        specifier: workspace:*
+        version: link:../jhadina-core-spine
+      '@jhadina/knowledge-graph':
+        specifier: workspace:*
+        version: link:../knowledge-graph
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.12
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
 
   packages/staffing-core: {}
 
@@ -1642,7 +1756,7 @@ packages:
     dev: true
     optional: true
 
-  /@react-three/drei@10.7.8(@react-three/fiber@9.7.0)(@types/three@0.170.0)(react-dom@19.2.8)(react@19.2.8)(three@0.170.0):
+  /@react-three/drei@10.7.8(@react-three/fiber@9.7.0)(@types/three@0.170.0)(react-dom@19.2.3)(react@19.2.3)(three@0.170.0):
     resolution: {integrity: sha512-rJXyuzLm2Xq0kafHuR47ajDGbOe/pEhzIr4m8E8zwzQs0iNjloFDqBwRhrXmP/w+onLeYyN3EYPFW/cwWK/4yA==}
     peerDependencies:
       '@react-three/fiber': ^9.0.0
@@ -1656,9 +1770,9 @@ packages:
       '@babel/runtime': 7.29.7
       '@mediapipe/tasks-vision': 0.10.17
       '@monogrid/gainmap-js': 3.4.0(three@0.170.0)
-      '@react-three/fiber': 9.7.0(react-dom@19.2.8)(react@19.2.8)(three@0.170.0)
+      '@react-three/fiber': 9.7.0(react-dom@19.2.3)(react@19.2.3)(three@0.170.0)
       '@types/react': 19.2.18
-      '@use-gesture/react': 10.3.1(react@19.2.8)
+      '@use-gesture/react': 10.3.1(react@19.2.3)
       camera-controls: 3.1.2(three@0.170.0)
       cross-env: 7.0.3
       detect-gpu: 5.0.70
@@ -1666,25 +1780,25 @@ packages:
       hls.js: 1.7.0
       maath: 0.10.8(@types/three@0.170.0)(three@0.170.0)
       meshline: 3.3.1(three@0.170.0)
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
       stats-gl: 2.4.2(@types/three@0.170.0)(three@0.170.0)
       stats.js: 0.17.0
-      suspend-react: 0.1.3(react@19.2.8)
+      suspend-react: 0.1.3(react@19.2.3)
       three: 0.170.0
       three-mesh-bvh: 0.8.3(three@0.170.0)
       three-stdlib: 2.36.1(three@0.170.0)
       troika-three-text: 0.52.5(three@0.170.0)
-      tunnel-rat: 0.1.2(@types/react@19.2.18)(react@19.2.8)
-      use-sync-external-store: 1.6.0(react@19.2.8)
+      tunnel-rat: 0.1.2(@types/react@19.2.18)(react@19.2.3)
+      use-sync-external-store: 1.6.0(react@19.2.3)
       utility-types: 3.11.0
-      zustand: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0)
+      zustand: 5.0.15(@types/react@19.2.18)(react@19.2.3)(use-sync-external-store@1.6.0)
     transitivePeerDependencies:
       - '@types/three'
       - immer
     dev: false
 
-  /@react-three/fiber@9.7.0(react-dom@19.2.8)(react@19.2.8)(three@0.170.0):
+  /@react-three/fiber@9.7.0(react-dom@19.2.3)(react@19.2.3)(three@0.170.0):
     resolution: {integrity: sha512-EWm9FwcaOZQu/ExFW5rggoCMM1NJet5YbxVxKaOE+KSncrjU0Wx7017qSyGFvupviK89nMYGCWU3BIK4dI1clw==}
     peerDependencies:
       expo: '>=43.0'
@@ -1714,15 +1828,15 @@ packages:
       '@types/webxr': 0.5.24
       base64-js: 1.5.1
       buffer: 6.0.3
-      its-fine: 2.0.0(@types/react@19.2.18)(react@19.2.8)
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
-      react-use-measure: 2.1.7(react-dom@19.2.8)(react@19.2.8)
+      its-fine: 2.0.0(@types/react@19.2.18)(react@19.2.3)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      react-use-measure: 2.1.7(react-dom@19.2.3)(react@19.2.3)
       scheduler: 0.27.0
-      suspend-react: 0.1.3(react@19.2.8)
+      suspend-react: 0.1.3(react@19.2.3)
       three: 0.170.0
-      use-sync-external-store: 1.6.0(react@19.2.8)
-      zustand: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0)
+      use-sync-external-store: 1.6.0(react@19.2.3)
+      zustand: 5.0.15(@types/react@19.2.18)(react@19.2.3)(use-sync-external-store@1.6.0)
     transitivePeerDependencies:
       - immer
     dev: false
@@ -2631,13 +2745,13 @@ packages:
     resolution: {integrity: sha512-WcINiDt8WjqBdUXye25anHiNxPc0VOrlT8F6LLkU6cycrOGUDyY/yyFmsg3k8i5OLvv25llc0QC45GhR/C8llw==}
     dev: false
 
-  /@use-gesture/react@10.3.1(react@19.2.8):
+  /@use-gesture/react@10.3.1(react@19.2.3):
     resolution: {integrity: sha512-Yy19y6O2GJq8f7CHf7L0nxL8bf4PZCPaVOCgJrusOeFHY1LvHgYXnmnXg6N5iwAnbgbZCDjo60SiM6IPJi9C5g==}
     peerDependencies:
       react: '>= 16.8.0'
     dependencies:
       '@use-gesture/core': 10.3.1
-      react: 19.2.8
+      react: 19.2.3
     dev: false
 
   /@vitest/expect@2.1.9:
@@ -3977,7 +4091,7 @@ packages:
     resolution: {integrity: sha512-1X1NTtiJphryn/uLQz3whtY6jK3fTqoE3ohKs0tT+Ujr1W59oopxmoEh7Lu5p6vBaPbgoM0bzveAW4Qi5RyWDQ==}
     dev: true
 
-  /framer-motion@11.18.2(react-dom@19.2.8)(react@19.2.8):
+  /framer-motion@11.18.2(react-dom@19.2.3)(react@19.2.3):
     resolution: {integrity: sha512-5F5Och7wrvtLVElIpclDT0CBzMVg3dL22B64aZwHtsIY8RB4mXICLrkajK4G9R+ieSAGcgrLeae2SeUTg2pr6w==}
     peerDependencies:
       '@emotion/is-prop-valid': '*'
@@ -3994,8 +4108,8 @@ packages:
       '@types/react': 19.2.18
       motion-dom: 11.18.1
       motion-utils: 11.18.1
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
       tslib: 2.8.1
     dev: false
 
@@ -4488,13 +4602,13 @@ packages:
       set-function-name: 2.0.2
     dev: true
 
-  /its-fine@2.0.0(@types/react@19.2.18)(react@19.2.8):
+  /its-fine@2.0.0(@types/react@19.2.18)(react@19.2.3):
     resolution: {integrity: sha512-KLViCmWx94zOvpLwSlsx6yOCeMhZYaxrJV87Po5k/FoZzcPSahvK5qJ7fYhS61sZi5ikmh2S3Hz55A2l3U69ng==}
     peerDependencies:
       react: ^19.0.0
     dependencies:
       '@types/react-reconciler': 0.28.9(@types/react@19.2.18)
-      react: 19.2.8
+      react: 19.2.3
     transitivePeerDependencies:
       - '@types/react'
     dev: false
@@ -4890,6 +5004,49 @@ packages:
       - babel-plugin-macros
     dev: false
 
+  /next@15.5.23(react-dom@19.2.3)(react@19.2.3):
+    resolution: {integrity: sha512-Gvd2WKgvxIXCGotxcI1im/Uf3rS3J3oZGw0g/uskg6AVBZhyE3aAbujkYWzS3xLmEPEtTLfkaVQUKK0KMTSIkA==}
+    engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
+    hasBin: true
+    peerDependencies:
+      '@opentelemetry/api': ^1.1.0
+      '@playwright/test': ^1.51.1
+      babel-plugin-react-compiler: '*'
+      react: ^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0
+      react-dom: ^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0
+      sass: ^1.3.0
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      '@playwright/test':
+        optional: true
+      babel-plugin-react-compiler:
+        optional: true
+      sass:
+        optional: true
+    dependencies:
+      '@next/env': 15.5.23
+      '@swc/helpers': 0.5.15
+      caniuse-lite: 1.0.30001809
+      postcss: 8.4.31
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      styled-jsx: 5.1.6(react@19.2.3)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 15.5.23
+      '@next/swc-darwin-x64': 15.5.23
+      '@next/swc-linux-arm64-gnu': 15.5.23
+      '@next/swc-linux-arm64-musl': 15.5.23
+      '@next/swc-linux-x64-gnu': 15.5.23
+      '@next/swc-linux-x64-musl': 15.5.23
+      '@next/swc-win32-arm64-msvc': 15.5.23
+      '@next/swc-win32-x64-msvc': 15.5.23
+      sharp: 0.34.5
+    transitivePeerDependencies:
+      - '@babel/core'
+      - babel-plugin-macros
+    dev: false
+
   /next@15.5.23(react-dom@19.2.8)(react@19.2.8):
     resolution: {integrity: sha512-Gvd2WKgvxIXCGotxcI1im/Uf3rS3J3oZGw0g/uskg6AVBZhyE3aAbujkYWzS3xLmEPEtTLfkaVQUKK0KMTSIkA==}
     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
@@ -5250,7 +5407,7 @@ packages:
       postcss: 8.5.26
     dev: true
 
-  /postcss-load-config@6.0.1(jiti@1.21.7)(postcss@8.5.26):
+  /postcss-load-config@6.0.1(jiti@1.21.7)(postcss@8.5.26)(tsx@4.23.12):
     resolution: {integrity: sha512-oPtTM4oerL+UXmx+93ytZVN82RrlY/wPUV8IeDxFrzIjXOLF1pN+EmKPLbubvKHT2HC20xXsCAH2Z+CKV6Oz/g==}
     engines: {node: '>= 18'}
     peerDependencies:
@@ -5271,6 +5428,7 @@ packages:
       jiti: 1.21.7
       lilconfig: 3.1.3
       postcss: 8.5.26
+      tsx: 4.23.12
     dev: true
 
   /postcss-nested@6.2.0(postcss@8.5.26):
@@ -5380,6 +5538,15 @@ packages:
       scheduler: 0.23.2
     dev: false
 
+  /react-dom@19.2.3(react@19.2.3):
+    resolution: {integrity: sha512-yELu4WmLPw5Mr/lmeEpox5rw3RETacE++JgHqQzd2dg+YbJuat3jH4ingc+WPZhxaoFzdv9y33G+F7Nl5O0GBg==}
+    peerDependencies:
+      react: ^19.2.3
+    dependencies:
+      react: 19.2.3
+      scheduler: 0.27.0
+    dev: false
+
   /react-dom@19.2.8(react@19.2.8):
     resolution: {integrity: sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==}
     peerDependencies:
@@ -5393,7 +5560,7 @@ packages:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
     dev: true
 
-  /react-use-measure@2.1.7(react-dom@19.2.8)(react@19.2.8):
+  /react-use-measure@2.1.7(react-dom@19.2.3)(react@19.2.3):
     resolution: {integrity: sha512-KrvcAo13I/60HpwGO5jpW7E9DfusKyLPLvuHlUyP5zqnmAPhNc6qTRjUQrdTADl0lpPpDVU2/Gg51UlOGHXbdg==}
     peerDependencies:
       react: '>=16.13'
@@ -5402,8 +5569,8 @@ packages:
       react-dom:
         optional: true
     dependencies:
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
     dev: false
 
   /react@18.3.1:
@@ -5411,6 +5578,11 @@ packages:
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
+    dev: false
+
+  /react@19.2.3:
+    resolution: {integrity: sha512-Ku/hhYbVjOQnXDZFv2+RibmLFGwFdeeKHFcOTlrt7xplBnya5OGn/hIRDsqDiSUcfORsDC7MPxwork8jBwsIWA==}
+    engines: {node: '>=0.10.0'}
     dev: false
 
   /react@19.2.8:
@@ -5980,6 +6152,23 @@ packages:
       react: 18.3.1
     dev: false
 
+  /styled-jsx@5.1.6(react@19.2.3):
+    resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
+    engines: {node: '>= 12.0.0'}
+    peerDependencies:
+      '@babel/core': '*'
+      babel-plugin-macros: '*'
+      react: '>= 16.8.0 || 17.x.x || ^18.0.0-0 || ^19.0.0-0'
+    peerDependenciesMeta:
+      '@babel/core':
+        optional: true
+      babel-plugin-macros:
+        optional: true
+    dependencies:
+      client-only: 0.0.1
+      react: 19.2.3
+    dev: false
+
   /styled-jsx@5.1.6(react@19.2.8):
     resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
     engines: {node: '>= 12.0.0'}
@@ -6023,15 +6212,15 @@ packages:
     engines: {node: '>= 0.4'}
     dev: true
 
-  /suspend-react@0.1.3(react@19.2.8):
+  /suspend-react@0.1.3(react@19.2.3):
     resolution: {integrity: sha512-aqldKgX9aZqpoDp3e8/BZ8Dm7x1pJl+qI3ZKxDN0i/IQTWUwBx/ManmlVJ3wowqbno6c2bmiIfs+Um6LbsjJyQ==}
     peerDependencies:
       react: '>=17.0'
     dependencies:
-      react: 19.2.8
+      react: 19.2.3
     dev: false
 
-  /tailwindcss@3.4.19:
+  /tailwindcss@3.4.19(tsx@4.23.12):
     resolution: {integrity: sha512-3ofp+LL8E+pK/JuPLPggVAIaEuhvIz4qNcf3nA1Xn2o/7fb7s/TYpHhwGDv1ZU3PkBluUVaF8PyCHcm48cKLWQ==}
     engines: {node: '>=14.0.0'}
     hasBin: true
@@ -6053,7 +6242,7 @@ packages:
       postcss: 8.5.26
       postcss-import: 15.1.0(postcss@8.5.26)
       postcss-js: 4.1.0(postcss@8.5.26)
-      postcss-load-config: 6.0.1(jiti@1.21.7)(postcss@8.5.26)
+      postcss-load-config: 6.0.1(jiti@1.21.7)(postcss@8.5.26)(tsx@4.23.12)
       postcss-nested: 6.2.0(postcss@8.5.26)
       postcss-selector-parser: 6.1.4
       resolve: 1.22.12
@@ -6213,10 +6402,10 @@ packages:
       fsevents: 2.3.3
     dev: true
 
-  /tunnel-rat@0.1.2(@types/react@19.2.18)(react@19.2.8):
+  /tunnel-rat@0.1.2(@types/react@19.2.18)(react@19.2.3):
     resolution: {integrity: sha512-lR5VHmkPhzdhrM092lI2nACsLO4QubF0/yoOhzX7c+wIpbN1GjHNzCc91QlpxBi+cnx8vVJ+Ur6vL5cEoQPFpQ==}
     dependencies:
-      zustand: 4.5.7(@types/react@19.2.18)(react@19.2.8)
+      zustand: 4.5.7(@types/react@19.2.18)(react@19.2.3)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -6358,12 +6547,12 @@ packages:
       punycode: 2.3.1
     dev: true
 
-  /use-sync-external-store@1.6.0(react@19.2.8):
+  /use-sync-external-store@1.6.0(react@19.2.3):
     resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
     dependencies:
-      react: 19.2.8
+      react: 19.2.3
     dev: false
 
   /util-deprecate@1.0.2:
@@ -6726,7 +6915,7 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
-  /zustand@4.5.7(@types/react@19.2.18)(react@19.2.8):
+  /zustand@4.5.7(@types/react@19.2.18)(react@19.2.3):
     resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
     engines: {node: '>=12.7.0'}
     peerDependencies:
@@ -6742,11 +6931,11 @@ packages:
         optional: true
     dependencies:
       '@types/react': 19.2.18
-      react: 19.2.8
-      use-sync-external-store: 1.6.0(react@19.2.8)
+      react: 19.2.3
+      use-sync-external-store: 1.6.0(react@19.2.3)
     dev: false
 
-  /zustand@5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0):
+  /zustand@5.0.15(@types/react@19.2.18)(react@19.2.3)(use-sync-external-store@1.6.0):
     resolution: {integrity: sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A==}
     engines: {node: '>=12.20.0'}
     peerDependencies:
@@ -6765,6 +6954,6 @@ packages:
         optional: true
     dependencies:
       '@types/react': 19.2.18
-      react: 19.2.8
-      use-sync-external-store: 1.6.0(react@19.2.8)
+      react: 19.2.3
+      use-sync-external-store: 1.6.0(react@19.2.3)
     dev: false
