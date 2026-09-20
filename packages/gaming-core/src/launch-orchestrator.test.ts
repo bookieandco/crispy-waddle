@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { InMemoryGameLibrary } from './game-library.js';
 import { UnifiedGameLaunchOrchestrator } from './launch-orchestrator.js';
+import type { GameRuntimeAdapter } from './runtime.js';
 
 describe('UnifiedGameLaunchOrchestrator', () => {
   const game = { id: 'steam:123', title: 'Portal', platform: 'pc' as const, contentUri: 'steam://run/400' };
-  const runtime = {
-    runtime: { id: 'moonlight', name: 'Moonlight', platform: 'pc' as const, kind: 'streaming' as const, capabilities: ['remote-video'] },
+  const runtime:GameRuntimeAdapter = {
+    runtime: { id: 'moonlight', name: 'Moonlight', platform: 'pc', kind: 'cloud', capabilities: ['remote-video'] },
     canLaunch: async () => true,
     launch: async () => ({ id: 'session-1', gameId: game.id, runtimeId: 'moonlight', startedAt: '2026-08-31T00:00:00.000Z' }),
   };
