@@ -17,7 +17,8 @@ export class TransportRegistry {
   list(): readonly TransportRoute[] { return this.routes }
 
   select(dispatch: AuthorizedCommunicationDispatch, required: TransportCapability = 'message.send'): TransportRoute {
-    if (!dispatch.intent.correlationId.trim()) throw new Error('AUTHORIZED_DISPATCH_LINEAGE_REQUIRED')
+    if (!dispatch.correlationId.trim() || !dispatch.intent.correlationId.trim()) throw new Error('AUTHORIZED_DISPATCH_LINEAGE_REQUIRED')
+    if (dispatch.correlationId !== dispatch.intent.correlationId) throw new Error('AUTHORIZED_DISPATCH_LINEAGE_MISMATCH')
     const candidates = this.routes
       .filter(route => route.health !== 'offline' && route.capabilities.includes(required))
       .sort((a, b) => a.priority - b.priority)
