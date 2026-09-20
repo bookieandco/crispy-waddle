@@ -112,3 +112,4 @@ export * from './gaming-core-audit.js';
 export * from './gaming-product-integration.js';
 export * from './gaming-production-release.js';
 export * from './gaming-g31-physical-freeze.js';
+export * from './emulator-hardening.js';
