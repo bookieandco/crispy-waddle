@@ -1,4 +1,9 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm turbo run build --filter=@jhadina/jhadina-web",
+  "outputDirectory": "apps/jhadina-web/.next",
   "crons": [
     {
       "path": "/api/internal/shark/historical-observations?limit=100",

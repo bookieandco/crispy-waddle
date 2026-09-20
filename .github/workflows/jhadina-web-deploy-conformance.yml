@@ -1,0 +1,54 @@
+name: Jhadina Web Deploy Conformance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/jhadina-web/**"
+      - "packages/spatial-intelligence-core/**"
+      - "vercel.json"
+      - "turbo.json"
+      - "pnpm-lock.yaml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/jhadina-web/**"
+      - "packages/spatial-intelligence-core/**"
+      - "vercel.json"
+      - "turbo.json"
+      - "pnpm-lock.yaml"
+
+concurrency:
+  group: jhadina-web-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Filtered Jhadina Web production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+
+      - name: Filtered Jhadina Web build
+        run: pnpm turbo run build --filter=@jhadina/jhadina-web
