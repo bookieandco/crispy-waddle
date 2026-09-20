@@ -1,0 +1,1 @@
+export interface ReIDBenchmark{links:number;correct:number;identitySwitches:number;cameraCutLinks:number;cameraCutCorrect:number;}export function scoreReID(x:ReIDBenchmark){return Object.freeze({accuracy:x.correct/Math.max(1,x.links),cutAccuracy:x.cameraCutCorrect/Math.max(1,x.cameraCutLinks),identitySwitches:x.identitySwitches});}
