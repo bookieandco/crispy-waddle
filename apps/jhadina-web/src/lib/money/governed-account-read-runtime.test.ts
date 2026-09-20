@@ -124,7 +124,7 @@ describe("Money product loop — UI-facing composition root (Jhadina OS Integrat
     expect(result.verifiedUserId).toBe(identity.userId)
     expect(result.accounts.length).toBeGreaterThan(0)
     expect(recordedRequests).toHaveLength(1)
-    expect(supabase.calls.every((call) => call.args.p_user_id === identity.userId)).toBe(true)
+    expect(supabase.calls.every((call) => call.args.p_actor_id === identity.userId)).toBe(true)
   })
 
   it("fails before provider or ledger work when session identity cannot be verified", async () => {
