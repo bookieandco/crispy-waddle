@@ -89,15 +89,26 @@ async function loadAllLaunches(client: SupabaseClient): Promise<TokenLaunch[]> {
 }
 
 export async function runPersistedLaunchOutcomeWorker(client: SupabaseClient, limit = 500) {
-  const [{ data: launchRows, error: launchError }, { data: observationRows, error: observationError }] = await Promise.all([
-    client.from('jhadina_token_launches').select('*').order('launched_at', { ascending: false }).limit(limit),
-    client.from('jhadina_launch_outcome_observations').select('*').order('observed_at', { ascending: false }).limit(limit * 4),
-  ])
+  const { data: launchRows, error: launchError } = await client
+    .from('jhadina_token_launches')
+    .select('*')
+    .order('launched_at', { ascending: false })
+    .limit(limit)
   if (launchError) throw new Error(`SHARK launch load failed: ${launchError.message}`)
-  if (observationError) throw new Error(`SHARK outcome observation load failed: ${observationError.message}`)
 
   const launches = (launchRows ?? []).map(launchFromRow)
-  const observations = (observationRows ?? []).map(observationFromRow)
+  const launchIds = launches.map(launch => launch.launchId)
+  let observationRows: any[] = []
+  if (launchIds.length) {
+    const { data, error: observationError } = await client.rpc(
+      'jhadina_shark_latest_outcome_observations',
+      { p_launch_ids: launchIds },
+    )
+    if (observationError) throw new Error(`SHARK outcome observation load failed: ${observationError.message}`)
+    observationRows = data ?? []
+  }
+
+  const observations = observationRows.map(observationFromRow)
   const latestObservations = latestObservationByLaunch(observations)
   const evaluatedAt = new Date().toISOString()
   const result = evaluateLaunchOutcomeBatch({ launches, observations, evaluatedAt })
