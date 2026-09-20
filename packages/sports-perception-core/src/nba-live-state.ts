@@ -1,4 +1,3 @@
-import type { RandomSource } from './simulation.js';
 import type { PlayerFatigueState } from './player-fatigue.js';
 import { applyPlayerExertion, recoverPlayer } from './player-fatigue.js';
 import type { NBAEventGameState } from './nba-event-state-machine.js';
@@ -91,7 +90,7 @@ export function evolveNBAPlayersFromEvent(
   players: Readonly<Record<string, NBALivePlayerState>>,
   gameState: NBAEventGameState,
   eventId: string,
-  rng: RandomSource,
+  _rng: unknown,
   asOf: string,
 ): Readonly<Record<string, NBALivePlayerState>> {
   const next: Record<string, NBALivePlayerState> = { ...players };
@@ -102,7 +101,9 @@ export function evolveNBAPlayersFromEvent(
   for (const playerId of activeIds) {
     const player = next[playerId];
     if (!player) continue;
-    const intensity = 35 + rng.next() * 35;
+    // Deterministic live evolution: identical canonical events must replay identically.
+    // Stochastic scenario variation belongs in the simulation layer, not reality state.
+    const intensity = 52.5;
     next[playerId] = applyNBALivePlayerUpdate(player, {
       eventId,
       playerId,
