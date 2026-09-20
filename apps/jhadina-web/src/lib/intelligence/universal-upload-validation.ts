@@ -17,6 +17,7 @@ export const UNIVERSAL_UPLOAD_LIMITS: Readonly<Record<IntakeModality, number>> =
 });
 
 export const MAX_UNIVERSAL_UPLOAD_BYTES = UNIVERSAL_UPLOAD_LIMITS.video;
+export const INLINE_UPLOAD_MAX_BYTES = 6 * MiB;
 
 const DECLARED_MEDIA_MODALITY: Readonly<Record<string, IntakeModality>> = Object.freeze({
   "image/jpeg": "image",
