@@ -21,6 +21,7 @@ export class GamingInputTransportBoundary {
   private state:GamingInputTransportConnectionState='disconnected';
   private queueDepth=0;
   private disconnectPromise?:Promise<void>;
+  private connectionEpoch=0;
   constructor(private readonly transport:GamingInputTransport,private readonly policy:GamingInputTransportPolicy={allowRemote:true,maxTransportLatencyMs:25,maxQueueDepth:1}){
     if(!Number.isFinite(policy.maxTransportLatencyMs)||policy.maxTransportLatencyMs<0)throw new Error('maxTransportLatencyMs must be non-negative');
     if(!Number.isInteger(policy.maxQueueDepth)||policy.maxQueueDepth<0)throw new Error('maxQueueDepth must be a non-negative integer');
@@ -33,9 +34,16 @@ export class GamingInputTransportBoundary {
 
   async connect(sessionId:string,deviceId:string):Promise<void>{
     if(this.state!=='disconnected')throw new Error(`Input transport cannot connect while ${this.state}`);
+    const epoch=++this.connectionEpoch;
     this.state='connecting';
-    try{await this.transport.connect(sessionId,deviceId);this.state='connected';}
-    catch(error){this.state='disconnected';throw error;}
+    try{
+      await this.transport.connect(sessionId,deviceId);
+      if(epoch!==this.connectionEpoch||this.state!=='connecting')throw new Error('Input transport connection was revoked before completion');
+      this.state='connected';
+    }catch(error){
+      if(epoch===this.connectionEpoch)this.state='disconnected';
+      throw error;
+    }
   }
 
   async send(event:GamingInputEvent):Promise<GamingInputTransportReceipt>{
@@ -58,6 +66,7 @@ export class GamingInputTransportBoundary {
   disconnect():Promise<void>{
     if(this.state==='disconnected')return Promise.resolve();
     if(this.disconnectPromise)return this.disconnectPromise;
+    this.connectionEpoch++;
     this.state='disconnecting';
     this.disconnectPromise=this.transport.disconnect().then(()=>{this.state='disconnected';},error=>{this.state='disconnected';throw error;}).finally(()=>{this.disconnectPromise=undefined;});
     return this.disconnectPromise;
