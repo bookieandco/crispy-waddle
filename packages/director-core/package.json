@@ -34,7 +34,10 @@
     "./studio-secondary-physics-worker": "./src/studio-secondary-physics-worker.ts",
     "./studio-render": "./src/studio-render.ts",
     "./studio-render-worker": "./src/studio-render-worker.ts",
-    "./studio-asset-approval": "./src/studio-asset-approval.ts"
+    "./studio-asset-approval": "./src/studio-asset-approval.ts",
+    "./generation-plan-adapter": "./src/generation-plan-adapter.ts",
+    "./storyboard-lineage-resolver": "./src/storyboard-lineage-resolver.ts",
+    "./storyboard-persistence": "./src/storyboard-persistence.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
