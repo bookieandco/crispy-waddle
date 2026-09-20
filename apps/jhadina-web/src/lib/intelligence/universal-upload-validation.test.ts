@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateUniversalUpload } from "./universal-upload-validation";
+import { validateUniversalUpload, validateUniversalUploadDeclaration } from "./universal-upload-validation";
 
 describe("validateUniversalUpload", () => {
   it("recognizes PDF by bytes, not extension", () => {
@@ -27,5 +27,26 @@ describe("validateUniversalUpload", () => {
       declaredMediaType: "application/pdf",
       bytes: new Uint8Array(),
     })).toThrow("UPLOAD_EMPTY");
+  });
+  it("accepts declared direct-upload metadata without trusting filename bytes", () => {
+    const result = validateUniversalUploadDeclaration({
+      declaredMediaType: "video/mp4",
+      byteLength: 100 * 1024 * 1024,
+    });
+    expect(result.modality).toBe("video");
+  });
+
+  it("enforces modality limits before issuing a direct-upload token", () => {
+    expect(() => validateUniversalUploadDeclaration({
+      declaredMediaType: "image/png",
+      byteLength: 30 * 1024 * 1024,
+    })).toThrow("UPLOAD_TOO_LARGE_FOR_IMAGE");
+  });
+
+  it("rejects unsupported declared media before direct upload", () => {
+    expect(() => validateUniversalUploadDeclaration({
+      declaredMediaType: "application/x-msdownload",
+      byteLength: 1024,
+    })).toThrow("UPLOAD_TYPE_UNSUPPORTED");
   });
 });
