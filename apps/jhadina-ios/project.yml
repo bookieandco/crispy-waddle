@@ -29,6 +29,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jhadina.safety
         PRODUCT_NAME: Jhadina
+        EXECUTABLE_NAME: Jhadina
         CODE_SIGN_STYLE: Automatic
   JhadinaSafetyTests:
     type: bundle.unit-test
@@ -37,3 +38,7 @@ targets:
       - path: Tests
     dependencies:
       - target: JhadinaSafety
+    settings:
+      base:
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Jhadina.app/Jhadina"
+        BUNDLE_LOADER: "$(TEST_HOST)"
