@@ -105,11 +105,11 @@ describe('PERSONALITY-V2.FINAL certification', () => {
     expect(result.eligibilityDecisions.every((decision) => decision.eligible)).toBe(true);
     expect(result.personality.traits).toHaveLength(supported.length);
     expect(result.personality.traits.every((trait) => trait.status === 'accepted')).toBe(true);
-    expect(result.behavior.directness).toBeGreaterThan(0.7);
-    expect(result.behavior.warmth).toBeGreaterThan(0.6);
-    expect(result.behavior.reasoningDepth).toBeGreaterThan(0.7);
-    expect(result.behavior.workflowContinuity).toBeGreaterThan(0.7);
-    expect(result.behavior.disagreementDirectness).toBeGreaterThan(0.8);
+    expect(result.behavior.posture.directness).toBeGreaterThan(0.7);
+    expect(result.behavior.posture.warmth).toBeGreaterThan(0.6);
+    expect(result.behavior.posture.reasoningDepth).toBeGreaterThan(0.7);
+    expect(result.behavior.posture.workflowContinuity).toBeGreaterThan(0.7);
+    expect(result.behavior.posture.disagreementDirectness).toBeGreaterThan(0.8);
     expect(result.expression.responseLength).toBe('brief');
     expect(result.expression.tone).toBe('formal');
     expect(result.expression.reasoningDepth).toBe('technical');
