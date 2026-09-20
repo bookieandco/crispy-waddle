@@ -144,6 +144,24 @@ export function createSupabaseResearchRuntimeRepository(client?: SupabaseClient 
       if (error) throw new Error(`Unable to commit research execution event: ${error.message}`);
       return (data ?? { accepted: false, stopped: false, reason: "no_result" }) as ResearchCommitResult;
     },
+    async captureEvidence(input) {
+      const evidence = input.evidence;
+      const { data, error } = await supabase.rpc("jhadina_capture_research_evidence", {
+        p_plan_id: input.planId,
+        p_execution_event_id: input.executionEventId,
+        p_source_kind: evidence.sourceKind ?? "web",
+        p_source_uri: evidence.sourceUri,
+        p_publisher: evidence.publisher ?? null,
+        p_authority: evidence.authority ?? "unknown",
+        p_trust_score: evidence.trustScore ?? 0,
+        p_locator: evidence.locator ?? {},
+        p_excerpt: evidence.excerpt ?? null,
+        p_content_hash: evidence.contentHash,
+        p_metadata: evidence.metadata ?? {},
+      });
+      if (error) throw new Error(`Unable to capture research evidence: ${error.message}`);
+      return typeof data === "string" ? data : undefined;
+    },
     async releaseExecution(admission, state) {
       const { data, error } = await supabase.rpc("jhadina_release_research_execution", {
         p_lease_id: admission.leaseId,
