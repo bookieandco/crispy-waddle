@@ -51,6 +51,47 @@ test('parses a real Anthropic Messages API response shape into a DecisionProposa
   assert.equal(proposal.contextId, 'ctx-1');
 });
 
+test('serializes the governed expression directive and tells the model not to invent callbacks or cultural references', async () => {
+  let capturedBody: string | undefined;
+  const fetchImpl = (async (_url: unknown, init?: RequestInit) => {
+    capturedBody = init?.body as string;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        content: [{
+          text: JSON.stringify({
+            disposition: 'ASK',
+            recommendation: 'x',
+            rationale: 'y',
+            evidence: [],
+            uncertainty: [],
+            alternatives: [],
+          }),
+        }],
+      }),
+    } as Response;
+  }) as typeof fetch;
+
+  const context = baseContext();
+  context.expressionDirective = {
+    mode: 'direct',
+    allowProfanity: false,
+    allowQuip: false,
+  };
+
+  const provider = new AnthropicModelProvider({ apiKey: 'test-key', fetchImpl });
+  await provider.propose(context);
+
+  const request = JSON.parse(capturedBody ?? '{}') as {
+    system?: string;
+    messages?: Array<{ content?: string }>;
+  };
+  assert.match(request.system ?? '', /expressionDirective/);
+  assert.match(request.system ?? '', /Never invent a callback or cultural/);
+  assert.match(request.messages?.[0]?.content ?? '', /"expressionDirective"/);
+});
+
 test('an HTTP failure from the provider is a normal, catchable rejection', async () => {
   const provider = new AnthropicModelProvider({
     apiKey: 'test-key',
