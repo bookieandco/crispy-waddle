@@ -1,16 +1,18 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-import { AnimatePresence, motion } from "framer-motion";
-import BoutiqueImage from "./BoutiqueImage";
-import Hotspots from "./Hotspots";
-import ProductModal from "./ProductModal";
-import MusicToggle from "./MusicToggle";
-import Scene3DErrorBoundary from "./Scene3DErrorBoundary";
-import { ActiveProduct } from "@/types/boutique";
-import { MusicProvider } from "@/context/MusicContext";
-import { isWebGLAvailable } from "@/lib/webgl";
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { AnimatePresence, motion } from 'framer-motion';
+import BoutiqueImage from './BoutiqueImage';
+import Hotspots from './Hotspots';
+import ProductModal from './ProductModal';
+import MusicToggle from './MusicToggle';
+import Scene3DErrorBoundary from './Scene3DErrorBoundary';
+import { ActiveProduct } from '@/types/boutique';
+import { MusicProvider } from '@/context/MusicContext';
+import { isWebGLAvailable } from '@/lib/webgl';
+import CartButton from './CartButton';
+import CartDrawer from './CartDrawer';
 
 // three.js/@react-three/fiber need the browser (WebGL) — same reasoning
 // as Product3DEngine's dynamic import in ProductModal.tsx. This is a
@@ -18,33 +20,40 @@ import { isWebGLAvailable } from "@/lib/webgl";
 // scene, not a product. Product3DEngine itself still only ever gets
 // loaded from inside ProductModal, unchanged — tapping a hotspot in 3D
 // mode hands off to the exact same modal/engine flat mode already uses.
-const BoutiqueScene = dynamic(() => import("./BoutiqueScene"), {
+const BoutiqueScene = dynamic(() => import('./BoutiqueScene'), {
   ssr: false,
 });
 
-type Mode = "3d" | "flat";
+type Mode = '3d' | 'flat';
 
 export default function Boutique() {
-  const [activeProduct, setActiveProduct] = useState<ActiveProduct | null>(
-    null
-  );
+  const [activeProduct, setActiveProduct] = useState<ActiveProduct | null>(null);
 
   // null = not checked yet (server render / before first effect). Real
   // capability detection, not an assumption — see lib/webgl.ts.
   const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
-  const [mode, setMode] = useState<Mode>("flat");
+  const [mode, setMode] = useState<Mode>('flat');
   const [sceneReady, setSceneReady] = useState(false);
   const [sceneFailed, setSceneFailed] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+
+  const selectProduct = (product: ActiveProduct) => {
+    if (product.product === 'checkout') {
+      setCartOpen(true);
+      return;
+    }
+    setActiveProduct(product);
+  };
 
   useEffect(() => {
     const supported = isWebGLAvailable();
     setWebglSupported(supported);
     // Default to the 3D boutique when it's actually possible; otherwise
     // stay on the flat photo without ever attempting to mount the scene.
-    if (supported) setMode("3d");
+    if (supported) setMode('3d');
   }, []);
 
-  const show3D = mode === "3d" && webglSupported && !sceneFailed;
+  const show3D = mode === '3d' && webglSupported && !sceneFailed;
 
   return (
     <MusicProvider>
@@ -55,13 +64,10 @@ export default function Boutique() {
               fallback={<FlatFallbackNotice />}
               onError={() => {
                 setSceneFailed(true);
-                setMode("flat");
+                setMode('flat');
               }}
             >
-              <BoutiqueScene
-                onSelectHotspot={setActiveProduct}
-                onReady={() => setSceneReady(true)}
-              />
+              <BoutiqueScene onSelectHotspot={selectProduct} onReady={() => setSceneReady(true)} />
             </Scene3DErrorBoundary>
 
             {!sceneReady && (
@@ -85,17 +91,16 @@ export default function Boutique() {
           */
           <div
             className="relative mx-auto w-full max-w-[1800px]"
-            style={{ aspectRatio: "1568 / 1003" }}
+            style={{ aspectRatio: '1568 / 1003' }}
           >
             <BoutiqueImage />
-            <Hotspots onSelect={setActiveProduct} paused={!!activeProduct} />
+            <Hotspots onSelect={selectProduct} paused={!!activeProduct || cartOpen} />
           </div>
         )}
 
-        <ProductModal
-          activeProduct={activeProduct}
-          onClose={() => setActiveProduct(null)}
-        />
+        <ProductModal activeProduct={activeProduct} onClose={() => setActiveProduct(null)} />
+        <CartButton onClick={() => setCartOpen(true)} />
+        <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
 
         {webglSupported && (
           <ModeToggle
@@ -104,7 +109,7 @@ export default function Boutique() {
               // Re-entering 3D after a failure is allowed — a transient
               // WebGL context loss shouldn't permanently lock the user out
               // of the mode that was actually requested.
-              if (next === "3d") setSceneFailed(false);
+              if (next === '3d') setSceneFailed(false);
               setMode(next);
             }}
           />
@@ -119,8 +124,7 @@ export default function Boutique() {
 function FlatFallbackNotice() {
   return (
     <div className="flex h-[100dvh] w-full items-center justify-center bg-ink px-6 text-center text-sm text-cream/70">
-      The 3D boutique couldn&apos;t load on this device — showing the photo
-      view instead.
+      The 3D boutique couldn&apos;t load on this device — showing the photo view instead.
     </div>
   );
 }
@@ -149,28 +153,22 @@ function TouchHint() {
   );
 }
 
-function ModeToggle({
-  mode,
-  onChange,
-}: {
-  mode: Mode;
-  onChange: (mode: Mode) => void;
-}) {
+function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
   return (
     <div className="fixed bottom-5 left-5 z-30 flex overflow-hidden rounded-full bg-ink/80 text-xs font-medium text-cream backdrop-blur">
       <button
         type="button"
-        onClick={() => onChange("3d")}
-        aria-pressed={mode === "3d"}
-        className={`px-4 py-2.5 transition ${mode === "3d" ? "bg-bronze text-cream" : "text-cream/60 hover:text-cream"}`}
+        onClick={() => onChange('3d')}
+        aria-pressed={mode === '3d'}
+        className={`px-4 py-2.5 transition ${mode === '3d' ? 'bg-bronze text-cream' : 'text-cream/60 hover:text-cream'}`}
       >
         3D Boutique
       </button>
       <button
         type="button"
-        onClick={() => onChange("flat")}
-        aria-pressed={mode === "flat"}
-        className={`px-4 py-2.5 transition ${mode === "flat" ? "bg-bronze text-cream" : "text-cream/60 hover:text-cream"}`}
+        onClick={() => onChange('flat')}
+        aria-pressed={mode === 'flat'}
+        className={`px-4 py-2.5 transition ${mode === 'flat' ? 'bg-bronze text-cream' : 'text-cream/60 hover:text-cream'}`}
       >
         Photo View
       </button>

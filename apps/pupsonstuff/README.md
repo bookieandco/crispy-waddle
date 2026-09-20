@@ -1,4 +1,25 @@
-# PupsonStuff — Static Boutique
+# PupsonStuff
+
+## PS-CLOSE.1–7 — production closeout spine
+
+The storefront now has a durable, fail-closed path from pet-photo upload through
+creative approval, cart/Stripe checkout, order persistence, and Printify
+fulfillment. Private media lives in Supabase Storage; pet identities, creative
+jobs/attempts/outputs, certified catalog variants, fulfillment jobs/events, and
+usage events live in Postgres. The admin routes are protected by a signed,
+HTTP-only staff session and read live order data.
+
+Production fulfillment remains deliberately gated. The default
+`PUPSON_FULFILLMENT_MODE=dry_run` validates and records a request without sending
+it to Printify. Every sellable variant must be certified in
+`pupson_catalog_variants`, credentials must be configured, and the physical
+sample matrix in `docs/launch/ps-close-7-certification.md` must pass before
+changing the mode to `live`. The migration for this closeout is
+`supabase/migrations/20260919135817_pupsonstuff_closeout_core.sql`.
+
+The sections below are the historical milestone log. Statements such as “no
+cart,” “demo orders,” and “no auth gate” describe those earlier milestones and
+have been superseded by PS-CLOSE.
 
 ## Milestone 8 — Printify fulfillment client (lib/printify.ts)
 
