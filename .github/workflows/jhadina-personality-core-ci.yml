@@ -1,0 +1,70 @@
+name: Jhadina Personality Core CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/jhadina-personality-core-ci.yml"
+      - "packages/jhadina-core-spine/**"
+      - "apps/jhadina-web/src/lib/personality/**"
+      - "apps/jhadina-web/src/lib/hippocampus/**"
+      - "apps/jhadina-web/src/lib/context/context-builder.ts"
+      - "apps/jhadina-web/src/lib/context/context-builder.test.ts"
+      - "supabase/migrations/20260902060000_create_jhadina_personality_state.sql"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/jhadina-personality-core-ci.yml"
+      - "packages/jhadina-core-spine/**"
+      - "apps/jhadina-web/src/lib/personality/**"
+      - "apps/jhadina-web/src/lib/hippocampus/**"
+      - "apps/jhadina-web/src/lib/context/context-builder.ts"
+      - "apps/jhadina-web/src/lib/context/context-builder.test.ts"
+      - "supabase/migrations/20260902060000_create_jhadina_personality_state.sql"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  core-spine:
+    name: Core Spine type-check and regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check Core Spine
+        run: pnpm --filter @jhadina/core-spine type-check
+
+      - name: Execute Core Spine regressions
+        run: pnpm --filter @jhadina/core-spine test
+
+      - name: Execute persisted personality and Hippocampus vertical regressions
+        run: |
+          pnpm --filter @jhadina/jhadina-web exec vitest run \
+            src/lib/personality/personality-core.test.ts \
+            src/lib/personality/supabase-personality-state-repository.test.ts \
+            src/lib/hippocampus/persisted-experience-pattern-adapter.test.ts \
+            src/lib/context/context-builder.test.ts
