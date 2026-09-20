@@ -145,3 +145,6 @@ export type { ViewingMemoryProposal, ViewingMemoryProposalPort } from './viewing
 export { proposeViewingMemory, toViewingMemoryProposal } from './viewing-memory';
 export type { MediaPerceptionAdapter } from './perception';
 export { perceiveAuthorizedMedia } from './perception';
+
+export type { MediaEdition, TVEntityKind, TVEpisode, TVHierarchyEntity, TVSeason, TVSeries } from './hierarchy';
+export { assertEpisodeBelongsToSeason, assertTVEpisode, assertTVSeason, canonicalEpisodeId, seriesFromMediaTitle } from './hierarchy';
