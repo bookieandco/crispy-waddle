@@ -86,3 +86,11 @@ export function buildTtmMetric(issuerId: string, conceptId: string, contributing
   assertAccountingValue(value)
   return Object.freeze({ metricId: `${state.stateId}:ttm:${conceptId}`, issuerId, conceptId, value, contributingFactIds: Object.freeze(contributingFacts.map((fact) => fact.factId)), informationCutoff: state.informationCutoff, methodologyVersion, status: 'VALID', evidenceRefs: Object.freeze(evidenceRefs), provenanceHash })
 }
+
+export function assertQuarterlyTtmWindow(facts:readonly FinancialFact[],state:FundamentalState):void {
+ if(facts.length!==4)throw new Error('TTM quarterly window requires exactly four facts')
+ const ordered=[...facts].sort((a,b)=>(a.periodEnd??'').localeCompare(b.periodEnd??''))
+ if(ordered.some(f=>!f.periodStart||!f.periodEnd||f.issuerId!==state.issuerId||!state.factIds.includes(f.factId)))throw new Error('TTM quarterly facts must be duration facts in canonical state')
+ if(ordered.some(f=>Date.parse(f.availableAt)>Date.parse(state.informationCutoff)))throw new Error('TTM contains future information')
+ for(let i=1;i<ordered.length;i++)if((ordered[i-1]!.periodEnd??'')>=(ordered[i]!.periodEnd??''))throw new Error('TTM periods overlap or duplicate')
+}
