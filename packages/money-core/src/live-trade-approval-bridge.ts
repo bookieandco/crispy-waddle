@@ -8,7 +8,7 @@ import type { LiveApprovalCandidate, LiveExecutionPreflight } from './live-prefl
 
 export type LiveTradeApprovalAction=Readonly<{capability:'money.trade.submit';provider:string;accountId:string;instrumentId:string;side:'BUY'|'SELL';notionalMinor:string;currency:string;executionPlanId:string;preflightId:string;approvalCandidateId:string;entitlementId:string}>
 export type LiveTradeApprovalRequest=ActionRequest<LiveTradeApprovalAction>
-export type LiveTradePermitPackage=Readonly<{request:LiveTradeApprovalRequest;authority:MoneyActionCoreAuthority;permit:ExecutionPermit;action:ExecutionAction;approvalReceiptId:string;actionFingerprint:string;authority:'MANUAL_LIVE_ONLY';autonomous:false}>
+export type LiveTradePermitPackage=Readonly<{request:LiveTradeApprovalRequest;authority:MoneyActionCoreAuthority;permit:ExecutionPermit;action:ExecutionAction;approvalReceiptId:string;actionFingerprint:string;mode:'MANUAL_LIVE_ONLY';autonomous:false}>
 
 function stable(value:unknown){return JSON.stringify(value,(_,v)=>typeof v==='bigint'?v.toString():v)}
 export function fingerprintLiveTradeApprovalRequest(request:LiveTradeApprovalRequest){return createHash('sha256').update(stable({id:request.id,userId:request.userId,type:request.type,action:request.action,requestedAt:request.requestedAt})).digest('hex')}
@@ -48,5 +48,5 @@ export async function consumeApprovalAndIssueLiveTradePermit(input:{approvalStor
  const authority=createMoneyActionCoreAuthority(approvedRequest,{authorityId:input.authorityId,decision:'approval_required',policyVersion:input.policyVersion,policyHash:input.policyHash,authorizedAt:input.authorizedAt,expiresAt:input.authorityExpiresAt})
  const permit=issueActionCoreBoundExecutionPermit(approvedRequest,action,authority,{expiresAt:input.permitExpiresAt,now:input.authorizedAt,permitId:input.permitId,nonce:input.nonce})
  await input.permitStore.issue(permit)
- return Object.freeze({request:approvedRequest,authority,permit,action,approvalReceiptId:input.approvalReceiptId,actionFingerprint:fingerprintAction(action),authority:'MANUAL_LIVE_ONLY',autonomous:false})
+ return Object.freeze({request:approvedRequest,authority,permit,action,approvalReceiptId:input.approvalReceiptId,actionFingerprint:fingerprintAction(action),mode:'MANUAL_LIVE_ONLY',autonomous:false})
 }
