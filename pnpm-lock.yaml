@@ -178,6 +178,10 @@ importers:
         version: 5.9.3
 
   packages/growth-core:
+    dependencies:
+      '@jhadina/opportunity-core':
+        specifier: workspace:*
+        version: link:../opportunity-core
     devDependencies:
       vitest:
         specifier: ^2.1.8
