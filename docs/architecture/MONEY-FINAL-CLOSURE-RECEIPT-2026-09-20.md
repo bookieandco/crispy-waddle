@@ -4,7 +4,8 @@
 
 - Repository: `bookieandco/crispy-waddle`
 - Completion branch: `audit/money-final-complete`
-- Pull request: **#486 — feat(money): complete MONEY-FINAL closure**
+- Pull request: **#486 — feat(money): complete MONEY-FINAL closure — MERGED**
+- Merge commit: `5187506c0cd63471d37a8fe30f4776a452762aae`
 - Verified code head: `5dd0a344ae1771c9f0f5058f52fce26222a088f3`
 - Live database: Swlc / `kqbkaozfjubkjevdfvic`
 - Live closure migration: `20260920223551_money_final_least_privilege_closure`
@@ -110,7 +111,7 @@ The prior R13B “next domain” gap is closed with:
 
 ## Final interpretation
 
-**MONEY-FINAL repository/software closure is complete.**
+**MONEY-FINAL repository/software closure is complete and merged to `main` as `5187506c0cd63471d37a8fe30f4776a452762aae`.**
 
 Production banking commissioning is deliberately outside that acceptance because its required deployment/secrets/live-drill receipts do not yet exist. Until they do, the system must remain unable to claim a production Plaid/banking admission.
 
