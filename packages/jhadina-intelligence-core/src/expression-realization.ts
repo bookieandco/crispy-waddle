@@ -11,28 +11,46 @@ export interface GovernedExpressionRealization {
     callback?: string;
     culturalReference?: string;
   };
+  /** Ordered render segments. Governed assets are separate from model prose. */
+  segments: readonly GovernedExpressionSegment[];
 }
+
+export type GovernedExpressionSegment =
+  | { kind: 'semantic'; text: string }
+  | { kind: 'callback'; text: string }
+  | { kind: 'cultural_reference'; text: string };
 
 /**
  * Separates model-authored semantics from deterministic expression assets.
  *
- * The LLM may produce recommendation/rationale text, but callback and cultural
- * reference values can enter the presentation layer only by being copied from
- * the already-governed ExpressionDirective. No model-returned field is ever
- * consulted for these assets.
+ * The LLM owns semantic prose only. Verified callbacks/cultural references are
+ * appended as distinct render segments copied from ExpressionDirective. This
+ * avoids asking the model to paraphrase or "naturally weave in" a governed
+ * asset, which would reopen the invention boundary.
  */
 export function realizeGovernedExpression(
   proposal: DecisionProposal,
   directive?: ExpressionDirective,
 ): GovernedExpressionRealization {
+  const presentation = Object.freeze({
+    mode: directive?.mode ?? 'explanatory',
+    allowProfanity: directive?.allowProfanity ?? false,
+    allowQuip: directive?.allowQuip ?? false,
+    ...(directive?.callback ? { callback: directive.callback } : {}),
+    ...(directive?.culturalReference ? { culturalReference: directive.culturalReference } : {}),
+  });
+
+  const segments: GovernedExpressionSegment[] = [
+    { kind: 'semantic', text: proposal.recommendation },
+  ];
+  if (presentation.callback) segments.push({ kind: 'callback', text: presentation.callback });
+  if (presentation.culturalReference) {
+    segments.push({ kind: 'cultural_reference', text: presentation.culturalReference });
+  }
+
   return Object.freeze({
     proposal,
-    presentation: Object.freeze({
-      mode: directive?.mode ?? 'explanatory',
-      allowProfanity: directive?.allowProfanity ?? false,
-      allowQuip: directive?.allowQuip ?? false,
-      ...(directive?.callback ? { callback: directive.callback } : {}),
-      ...(directive?.culturalReference ? { culturalReference: directive.culturalReference } : {}),
-    }),
+    presentation,
+    segments: Object.freeze(segments.map((segment) => Object.freeze({ ...segment }))),
   });
 }
