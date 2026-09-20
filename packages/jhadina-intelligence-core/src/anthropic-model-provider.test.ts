@@ -83,6 +83,8 @@ test('serializes the governed expression directive and tells the model not to in
     reasoningDepth: 'technical',
     interactionStyle: 'continuous',
     creativeStyle: 'experimental',
+    explanationStyle: 'evidence-first',
+    decisionPresentation: 'options',
   };
 
   const provider = new AnthropicModelProvider({ apiKey: 'test-key', fetchImpl });
@@ -101,6 +103,8 @@ test('serializes the governed expression directive and tells the model not to in
   assert.match(request.messages?.[0]?.content ?? '', /"responseLength":"brief"/);
   assert.match(request.messages?.[0]?.content ?? '', /"reasoningDepth":"technical"/);
   assert.match(request.messages?.[0]?.content ?? '', /"interactionStyle":"continuous"/);
+  assert.match(request.messages?.[0]?.content ?? '', /"explanationStyle":"evidence-first"/);
+  assert.match(request.messages?.[0]?.content ?? '', /"decisionPresentation":"options"/);
 });
 
 test('an HTTP failure from the provider is a normal, catchable rejection', async () => {
