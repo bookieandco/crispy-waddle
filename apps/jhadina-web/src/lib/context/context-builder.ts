@@ -3,7 +3,9 @@ import {
   type ContextPacket,
   type DomainContext,
   type EvidenceRef,
+  type ExpressionDirective,
   type PatternObservation,
+  type PersonalityState,
   type SpatialDomainContext,
 } from "@jhadina/core-spine"
 import { JHADINA_BASE_SECURITY_POLICY, type SecurityPolicy } from "@jhadina/security-core"
@@ -21,6 +23,18 @@ export interface SpatialContextProvider {
     geographicScope?: unknown
     temporalScope?: { from: string | null; to: string | null; asOf: string | null }
   }): Promise<SpatialDomainContext | undefined>
+}
+
+export interface PersonalityContextProvider {
+  getContext(input: {
+    userId: string
+    activeTask: string
+  }): Promise<{
+    patterns: PatternObservation[]
+    personality: PersonalityState
+    expressionDirective: ExpressionDirective
+    limitations: string[]
+  }>
 }
 
 export interface ContextBuilderLimits {
@@ -53,6 +67,8 @@ export interface ContextBuilderDeps {
   policy?: SecurityPolicy
   /** Optional spatial intelligence read adapter. Omitted means no spatial context is assembled. */
   spatialContextProvider?: SpatialContextProvider
+  /** Optional governed personality read/projection adapter. No provider means canonical empty fallback. */
+  personalityContextProvider?: PersonalityContextProvider
 }
 
 export interface AssembledContext {
@@ -161,11 +177,37 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   if (!input.surface) excludedContext.push("surface: not supplied by the caller")
   if (!input.route) excludedContext.push("route: not supplied by the caller")
   if (!input.activeProject) excludedContext.push("activeProject: not supplied — no Project/Workspace entity exists in this repository yet")
-  excludedContext.push("patterns: not assembled — PatternPort is not composed into the direct context fallback")
-  excludedContext.push("personality: not assembled — direct context fallback uses canonical empty state until governed ports are composed")
 
   const { redacted: redactedActiveTask, redactionCount: taskRedactions } = redactSecrets(input.activeTask)
   totalRedactions += taskRedactions
+
+  let patterns: PatternObservation[] = []
+  let personality = emptyPersonalityState(new Date(0).toISOString())
+  let expressionDirective: ExpressionDirective | undefined
+
+  if (deps.personalityContextProvider) {
+    try {
+      const contribution = await deps.personalityContextProvider.getContext({
+        userId: input.userId,
+        activeTask: redactedActiveTask,
+      })
+      patterns = contribution.patterns.map((pattern) => ({
+        ...pattern,
+        evidence: pattern.evidence.map((ref) => ({ ...ref })),
+        contradictions: pattern.contradictions.map((ref) => ({ ...ref })),
+      }))
+      personality = structuredClone(contribution.personality)
+      expressionDirective = structuredClone(contribution.expressionDirective)
+      excludedContext.push(...contribution.limitations)
+    } catch {
+      excludedContext.push(
+        "personality: governed context unavailable — canonical empty state used",
+      )
+    }
+  } else {
+    excludedContext.push("patterns: not assembled — PatternPort is not composed into the direct context fallback")
+    excludedContext.push("personality: not assembled — direct context fallback uses canonical empty state until governed ports are composed")
+  }
 
   let knowledgeRefs = approvalRefs.map((r) => r.ref)
   let memoryEvidenceRefs = memoryRefs.map((r) => r.ref)
@@ -200,12 +242,13 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     purpose: purposeParts.join(" "),
     userGoal: redactedActiveTask,
     relevantMemories: memoryEvidenceRefs,
-    patterns: [] as PatternObservation[],
-    personality: emptyPersonalityState(new Date(0).toISOString()),
+    patterns,
+    personality,
     knowledge: knowledgeRefs,
     constraints: policyConstraints(policy),
     excludedContext,
     ...(domainContext ? { domainContext } : {}),
+    ...(expressionDirective ? { expressionDirective } : {}),
   }
 
   return {
