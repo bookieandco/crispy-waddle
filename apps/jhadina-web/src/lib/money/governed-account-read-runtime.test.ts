@@ -40,6 +40,8 @@ function fakeProviders(recordedRequests: RecordedReferenceRequest[] = []): Money
   return { registry, providerConfig }
 }
 
+const ownedAccounts={async ownedAccountIds(){return new Set(["acc_ref_checking","acc_ref_savings"])}}
+
 describe("Money product loop — UI-facing composition root (Jhadina OS Integration Phase 2, PL-8)", () => {
   it("an authorized read succeeds, calls the provider exactly once, and is recorded in the durable ledger", async () => {
     const identity: ActionRequestIdentity = { userId: "user-money-loop-1", sessionId: "session-money-loop-1" }
@@ -49,6 +51,7 @@ describe("Money product loop — UI-facing composition root (Jhadina OS Integrat
       identityVerifier: staticIdentityVerifier(identity),
       supabase,
       providers: fakeProviders(recordedRequests),
+      ownershipResolver: ownedAccounts,
     }
 
     const result = await runGovernedMoneyAccountRead(identity.userId, "req-money-1", overrides)
@@ -75,6 +78,7 @@ describe("Money product loop — UI-facing composition root (Jhadina OS Integrat
       identityVerifier: staticIdentityVerifier(identity),
       supabase,
       providers: fakeProviders(recordedRequests),
+      ownershipResolver: ownedAccounts,
     }
 
     await expect(
@@ -95,6 +99,8 @@ describe("Money product loop — UI-facing composition root (Jhadina OS Integrat
       identityVerifier: staticIdentityVerifier(identity),
       supabase,
       providers: fakeProviders(),
+      ownershipResolver: ownedAccounts,
+      ownershipResolver: ownedAccounts,
     }
 
     const result = await runGovernedMoneyAccountRead(identity.userId, "req-money-3", overrides)
@@ -119,6 +125,7 @@ describe("Money product loop — UI-facing composition root (Jhadina OS Integrat
       identityVerifier: staticIdentityVerifier(identity),
       supabase,
       providers: fakeProviders(recordedRequests),
+      ownershipResolver: ownedAccounts,
     })
 
     expect(result.verifiedUserId).toBe(identity.userId)
@@ -134,6 +141,7 @@ describe("Money product loop — UI-facing composition root (Jhadina OS Integrat
       identityVerifier: { async verify() { throw new Error("Authenticated session missing") } },
       supabase,
       providers: fakeProviders(recordedRequests),
+      ownershipResolver: ownedAccounts,
     })).rejects.toThrow("Authenticated session missing")
 
     expect(recordedRequests).toHaveLength(0)
