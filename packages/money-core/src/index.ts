@@ -78,8 +78,9 @@ export { MoneyRecoveryChildExecutor } from './recovery-child-executor.js';
 export type { MoneyActionCoreAuthority, MoneyAuthorityBinding } from './action-core-authority-bridge.js';
 export { fingerprintActionRequest, createMoneyActionCoreAuthority, assertActionCoreAuthorityMatches, issueActionCoreBoundExecutionPermit, bindActionCoreAuthority } from './action-core-authority-bridge.js';
 
+export { FINANCIAL_MUTATION_PREFIXES, isFinancialMutationCapability } from './financial-mutation-capabilities.js';
 export type { FinancialExecutionIntent } from './financial-action-governance.js';
-export { isFinancialMutationCapability, createFinancialActionRequestFromAllocation } from './financial-action-governance.js';
+export { createFinancialActionRequestFromAllocation } from './financial-action-governance.js';
 
 export * from './canonical-financial-state.js';
 export * from './accounting-lifecycle-contracts.js';
