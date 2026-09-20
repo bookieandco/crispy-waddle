@@ -167,8 +167,8 @@ class SignedTusUploader {
     this.callbacks.onProgress?.({
       phase: "paused",
       uploadedBytes: this.lastOffset,
-      totalBytes: this.normalizedFile.size,
-      percent: clampPercent(this.lastOffset, this.normalizedFile.size),
+      totalBytes: this.input.file.size,
+      percent: clampPercent(this.lastOffset, this.input.file.size),
       sessionId: this.input.sessionId,
     });
   }
@@ -178,9 +178,9 @@ class SignedTusUploader {
     const url = await this.ensureUploadUrl();
     let offset = await this.readOffset(url);
 
-    while (offset < this.normalizedFile.size) {
+    while (offset < this.input.file.size) {
       if (this.paused) throw new TusPausedError();
-      const next = Math.min(offset + this.input.chunkSizeBytes, this.normalizedFile.size);
+      const next = Math.min(offset + this.input.chunkSizeBytes, this.input.file.size);
       const chunk = this.input.file.slice(offset, next);
       this.abortController = new AbortController();
 
@@ -228,7 +228,7 @@ class SignedTusUploader {
 
       const header = response.headers.get("Upload-Offset");
       const acknowledged = header ? Number(header) : next;
-      if (!Number.isInteger(acknowledged) || acknowledged < next || acknowledged > this.normalizedFile.size) {
+      if (!Number.isInteger(acknowledged) || acknowledged < next || acknowledged > this.input.file.size) {
         throw new Error("TUS_OFFSET_INVALID");
       }
       offset = acknowledged;
@@ -236,8 +236,8 @@ class SignedTusUploader {
       this.callbacks.onProgress?.({
         phase: "uploading",
         uploadedBytes: offset,
-        totalBytes: this.normalizedFile.size,
-        percent: clampPercent(offset, this.normalizedFile.size),
+        totalBytes: this.input.file.size,
+        percent: clampPercent(offset, this.input.file.size),
         sessionId: this.input.sessionId,
       });
     }
@@ -260,7 +260,7 @@ class SignedTusUploader {
       method: "POST",
       headers: {
         "Tus-Resumable": TUS_VERSION,
-        "Upload-Length": String(this.normalizedFile.size),
+        "Upload-Length": String(this.input.file.size),
         "Upload-Metadata": encodeTusMetadata(this.input.metadata),
         "x-signature": this.input.signature,
       },
@@ -284,15 +284,15 @@ class SignedTusUploader {
     if (!response.ok) throw new Error(`TUS_HEAD_HTTP_${response.status}`);
     const raw = response.headers.get("Upload-Offset");
     const offset = raw === null ? 0 : Number(raw);
-    if (!Number.isInteger(offset) || offset < 0 || offset > this.normalizedFile.size) {
+    if (!Number.isInteger(offset) || offset < 0 || offset > this.input.file.size) {
       throw new Error("TUS_OFFSET_INVALID");
     }
     this.lastOffset = offset;
     this.callbacks.onProgress?.({
       phase: "uploading",
       uploadedBytes: offset,
-      totalBytes: this.normalizedFile.size,
-      percent: clampPercent(offset, this.normalizedFile.size),
+      totalBytes: this.input.file.size,
+      percent: clampPercent(offset, this.input.file.size),
       sessionId: this.input.sessionId,
     });
     return offset;
@@ -314,7 +314,7 @@ class SignedTusUploader {
   }
 
   private storageKey(): string {
-    return `jhadina:tus:${this.input.sessionId}:${this.input.file.name}:${this.normalizedFile.size}:${this.input.file.lastModified}`;
+    return `jhadina:tus:${this.input.sessionId}:${this.input.file.name}:${this.input.file.size}:${this.input.file.lastModified}`;
   }
 
   private restoreUploadUrl(): string | undefined {
@@ -450,12 +450,12 @@ export function createUniversalUploadTask(input: {
     callbacks.onProgress?.({
       phase: "failed",
       uploadedBytes: 0,
-      totalBytes: normalizedFile.size,
+      totalBytes: input.file.size,
       percent: 0,
       message: error.message,
     });
     return {
-      direct: normalizedFile.size > INLINE_UPLOAD_MAX_BYTES,
+      direct: input.file.size > INLINE_UPLOAD_MAX_BYTES,
       pause() {},
       async resume() {},
       promise: Promise.reject(error),
