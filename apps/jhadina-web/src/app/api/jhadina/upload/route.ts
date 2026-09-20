@@ -4,7 +4,7 @@ import {
   createProductionUniversalUploadRuntime,
   type UniversalUploadPrivacyClass,
 } from "@/lib/intelligence/production-universal-upload-runtime";
-import { MAX_UNIVERSAL_UPLOAD_BYTES } from "@/lib/intelligence/universal-upload-validation";
+import { INLINE_UPLOAD_MAX_BYTES } from "@/lib/intelligence/universal-upload-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +26,9 @@ export async function POST(req: NextRequest) {
   }
 
   const contentLength = Number(req.headers.get("content-length") || "0");
-  if (Number.isFinite(contentLength) && contentLength > MAX_UNIVERSAL_UPLOAD_BYTES + 2 * 1024 * 1024) {
+  if (Number.isFinite(contentLength) && contentLength > INLINE_UPLOAD_MAX_BYTES + 1024 * 1024) {
     return NextResponse.json(
-      { success: false, error: "Upload exceeds the 512 MiB universal intake limit." },
+      { success: false, error: "Files larger than 6 MiB must use /api/jhadina/upload/session for direct resumable upload." },
       { status: 413 },
     );
   }
@@ -53,9 +53,9 @@ export async function POST(req: NextRequest) {
   if (file.size <= 0) {
     return NextResponse.json({ success: false, error: "Upload is empty." }, { status: 400 });
   }
-  if (file.size > MAX_UNIVERSAL_UPLOAD_BYTES) {
+  if (file.size > INLINE_UPLOAD_MAX_BYTES) {
     return NextResponse.json(
-      { success: false, error: "Upload exceeds the 512 MiB universal intake limit." },
+      { success: false, error: "Files larger than 6 MiB must use /api/jhadina/upload/session for direct resumable upload." },
       { status: 413 },
     );
   }
