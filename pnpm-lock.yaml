@@ -383,6 +383,13 @@ importers:
   packages/social-core: {}
 
   packages/spatial-intelligence-core:
+    dependencies:
+      '@jhadina/core-spine':
+        specifier: workspace:*
+        version: link:../jhadina-core-spine
+      '@jhadina/knowledge-graph':
+        specifier: workspace:*
+        version: link:../knowledge-graph
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -393,6 +400,9 @@ importers:
       typescript:
         specifier: ^5.1.0
         version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
 
   packages/staffing-core: {}
 
