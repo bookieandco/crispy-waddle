@@ -44,6 +44,7 @@ export class ControllerInputGate {
     const deviceId=event.deviceId;
     const sessionId=event.sessionId;
     if(!deviceId||!sessionId)return{allowed:false,reason:'session-mismatch',deviceId:deviceId??'',sessionId:sessionId??''};
+    if(!Object.hasOwn(CONTROLLER_INPUT_CAPABILITY,event.inputKind))return{allowed:false,reason:'controller-capability-mismatch',deviceId,sessionId};
     let binding;
     try{binding=this.bindings.assertBound(sessionId,deviceId);}catch{return{allowed:false,reason:'controller-unbound',deviceId,sessionId};}
     if(binding.sessionId!==sessionId||binding.deviceId!==deviceId)return{allowed:false,reason:'session-mismatch',deviceId,sessionId};
