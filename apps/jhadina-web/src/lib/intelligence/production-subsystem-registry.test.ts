@@ -87,7 +87,7 @@ describe("production subsystem registry", () => {
           { subsystem: "sports-intelligence", reason: "sports", confidence: 0.9 },
           { subsystem: "director-studio", reason: "film", confidence: 0.9 },
         ],
-        requiresHumanSelection: true,
+        requiresHumanSelection: false,
       },
     } as any, request.intent);
 
