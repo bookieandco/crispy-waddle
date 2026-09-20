@@ -1,6 +1,7 @@
 import type { Opportunity, OpportunityStatus } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
-import type { OpportunityTriageState, StoredCanonicalOpportunity } from "./canonical"
+import type { StoredCanonicalOpportunity } from "./canonical"
+import type { OpportunityTriageState } from "./sideIncome"
 
 type OpportunityRow = {
   id: string
