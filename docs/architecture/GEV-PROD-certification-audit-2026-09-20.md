@@ -132,11 +132,15 @@ No source path audited here grants a Spatial consumer truth-mutation or executio
 
 ### GEV-PROD.8 — telemetry/recovery
 
-**SOURCE INSTRUMENTATION REPAIRED; LIVE RECOVERY BLOCKED BY PROD.1.**
+**SOURCE AUDIT PASS; LIVE RECOVERY BLOCKED BY PROD.1.**
 
-Spatial now emits structured, observational-only telemetry for provider health, source failures, evidence writes, Reality admissions, policy denials and workspace replay. The production sink writes low-cardinality JSON events with deployment SHA/environment and intentionally excludes raw observations, source payloads, model inputs, user IDs and secrets. Telemetry sink failures are swallowed so logging cannot alter evidence, policy or Reality behavior. Provider and evidence-store failures remain fail-closed/degraded as before and subsequent requests can produce recovery-success events.
+**2026-09-20 PROD.8 continuation audit:** Spatial telemetry has explicit event classes for provider health, source failure, evidence writes, Reality admission, policy denial and workspace replay, with stable statuses covering healthy/degraded/failed, denied, accepted/deferred/rejected/superseded and replay/miss outcomes. Telemetry is observational only: sink exceptions are swallowed and therefore cannot mutate or relax evidence, policy or Reality decisions. Error reporting is reduced to bounded low-cardinality error codes rather than raw provider/database exception details.
 
-PROD.8 still requires the current Spatial lineage to be deployed, then a live provider interruption and database interruption/recovery drill with Vercel log receipts tied to that deployed SHA.
+The production sink attaches Vercel environment and `VERCEL_GIT_COMMIT_SHA` to every structured event while intentionally excluding raw observations, provider payloads, user IDs, secrets and model inputs. This provides the deployment identity needed to bind operational receipts to the exact certified SHA without turning telemetry into another sensitive-data store.
+
+The production health endpoint is dynamic and no-store. It performs an actual provider reachability check plus read-only reachability checks across all six Spatial/Knowledge Graph tables. It returns `READY`/HTTP 200 only when the provider and complete database surface are configured and reachable; any missing/unreachable side yields `DEGRADED`/HTTP 503. The response exposes only booleans, timestamp, environment and deployed commit SHA—not provider URLs, credentials or row data.
+
+Provider/evidence/admission failures remain degraded/fail-closed and later successful requests can demonstrate recovery without changing the truth-policy gates. No additional PROD.8 source defect was found. **Certification boundary:** after PROD.1, run controlled provider and database interruption/recovery drills and capture health transitions plus telemetry/log receipts tied to the exact deployed SHA. Until those live receipts exist, PROD.8 runtime remains BLOCKED.
 
 ### GEV-PROD.FINAL
 
