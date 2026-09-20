@@ -18,7 +18,7 @@ export type ExecutionRealityComparison=Readonly<{comparisonId:string;executionPl
 export type Money050CertificationCase=Readonly<{caseId:string;name:string;passed:boolean;evidenceIds:readonly string[]}>
 export type Money050CertificationReport=Readonly<{reportId:string;cases:readonly Money050CertificationCase[];passed:boolean;liveMode:'MANUAL_ONLY';autonomousTradingEnabled:false;authority:'CERTIFICATION_ONLY'}>
 
-const hash=(v:unknown)=>{let h=2166136261;const s=JSON.stringify(v);for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(16).padStart(8,'0')}
+const hash=(v:unknown)=>{let h=2166136261;const s=JSON.stringify(v,(_,x)=>typeof x==='bigint'?x.toString():x);for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(16).padStart(8,'0')}
 const day=(iso:string)=>{if(Number.isNaN(Date.parse(iso)))throw new Error('MONEY_050_TIME_INVALID');return new Date(iso).toISOString().slice(0,10)}
 
 export async function executeCanaryGovernedLiveTrade(input:{adapter:ManualLiveBrokerAdapter;permitStore:PermitStore;attemptStore:ExecutionAttemptStore;entitlementStore:BrokerAccountEntitlementStore;canaryStore:LiveCanaryStateStore;policy:LiveCanaryPolicy;riskMetrics:LiveRiskMetricSnapshot;permitPackage:LiveTradePermitPackage;preflight:LiveExecutionPreflight;plan:ExecutionPlan;trigger:ManualLiveExecutionTrigger;now:string;attemptIdFactory?:()=>string}):Promise<CanaryGovernedLiveExecutionResult>{
@@ -31,7 +31,7 @@ export async function executeCanaryGovernedLiveTrade(input:{adapter:ManualLiveBr
 
 export async function applyLiveExecutionTruth(input:{attempt:ExecutionAttempt;event:ProviderExecutionEvent;priorEvents:readonly ProviderExecutionEvent[];recordedAt:string;canaryStore?:LiveCanaryStateStore;accountId?:string}):Promise<LiveExecutionTruthProjection>{
  const reconciliation=reconcileProviderEvent({attempt:input.attempt,event:input.event,priorEvents:input.priorEvents}),receipt=createExecutionReceipt(input.event,input.recordedAt),postingIntents=buildJournalPostingIntents(input.event),outbox=buildExecutionOutbox(input.event,receipt,input.recordedAt),terminal=['FILLED','REJECTED','CANCELLED'].includes(input.event.state)
- if(input.canaryStore&&input.accountId){const tradingDate=day(input.recordedAt);if(input.event.state==='UNKNOWN')await input.canaryStore.markUnknown(input.attempt.provider,input.accountId,tradingDate,input.attempt.attemptId,input.recordedAt);else if(terminal)await input.canaryStore.resolveUnknown(input.attempt.provider,input.accountId,tradingDate,input.attempt.attemptId,input.recordedAt)}
+ if(input.canaryStore&&input.accountId){const tradingDate=day(input.attempt.startedAt);if(input.event.state==='UNKNOWN')await input.canaryStore.markUnknown(input.attempt.provider,input.accountId,tradingDate,input.attempt.attemptId,input.recordedAt);else if(terminal)await input.canaryStore.resolveUnknown(input.attempt.provider,input.accountId,tradingDate,input.attempt.attemptId,input.recordedAt)}
  return Object.freeze({executionId:input.attempt.attemptId,receipt,reconciliation,postingIntents,outbox,terminal,authority:'EVIDENCE_ONLY'})
 }
 
