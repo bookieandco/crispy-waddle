@@ -219,7 +219,14 @@ importers:
         specifier: ^5.1.0
         version: 5.9.3
 
-  packages/jhadina-core-spine: {}
+  packages/jhadina-core-spine:
+    devDependencies:
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
 
   packages/jhadina-entertainment-core:
     devDependencies:
