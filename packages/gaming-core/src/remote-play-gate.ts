@@ -6,7 +6,7 @@ import { RemotePlaySessionCoordinator, type RemotePlaySession } from './remote-p
 export interface RemoteLaunchRequest { game: Game; playClass: RemotePlayClass; quality: RemoteQualitySample; context?: LaunchContext; }
 export class RemotePlayGate {
   private readonly coordinator: RemotePlaySessionCoordinator;
-  constructor(private readonly client: MoonlightClient, private readonly policies = DEFAULT_REMOTE_POLICIES) { this.coordinator = new RemotePlaySessionCoordinator(client); }
+  constructor(client: MoonlightClient, private readonly policies = DEFAULT_REMOTE_POLICIES) { this.coordinator = new RemotePlaySessionCoordinator(client); }
   async start(request: RemoteLaunchRequest): Promise<RemotePlaySession> {
     const decision = evaluateRemoteQuality(request.quality, this.policies[request.playClass]);
     if (!decision.allowed) throw new Error(`Remote launch blocked: ${decision.reasons.join('; ')}`);
