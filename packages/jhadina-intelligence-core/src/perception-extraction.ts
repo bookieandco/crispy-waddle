@@ -1,5 +1,6 @@
 import type { EvidenceRef } from '@jhadina/core-spine';
-import type { IntakeModality, RegisteredIntelligenceAsset } from './asset-registry.js';
+import type { RegisteredIntelligenceAsset } from './asset-registry.js';
+import type { IntakeModality } from './universal-intake.js';
 
 export interface PerceptionExtractionInput {readonly asset:RegisteredIntelligenceAsset;readonly segment?:{startMs:number;endMs:number};}
 export interface PerceptionExtractionOutput {readonly assetId:string;readonly evidence:readonly EvidenceRef[];readonly uncertainty:readonly string[];}
