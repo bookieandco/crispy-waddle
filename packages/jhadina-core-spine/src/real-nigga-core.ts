@@ -18,6 +18,8 @@ export interface RealNiggaBehaviorContext {
 export interface RealNiggaBehavior {
   directness: number;
   warmth: number;
+  /** 0 = terse, 1 = highly detailed. */
+  verbosity: number;
   humor: number;
   profanityAllowed: boolean;
   profanityIntensity: number;
@@ -82,6 +84,15 @@ export function deriveRealNiggaBehavior(
   const learnedDirectnessCalibration = acceptedDirectness
     ? clamp(acceptedDirectness.confidence * acceptedDirectness.stability)
     : 0;
+  const acceptedConcision = personality.traits.find(
+    (trait) =>
+      trait.status === 'accepted' &&
+      trait.dimension === 'communication' &&
+      trait.statement.trim().toLowerCase() === 'prefers concise communication',
+  );
+  const learnedConcisionCalibration = acceptedConcision
+    ? clamp(acceptedConcision.confidence * acceptedConcision.stability)
+    : 0;
   const preferredInteractionModes = normalizeModes(relationship.preferredInteractionModes);
   const prefersDirect = preferredInteractionModes.includes('direct');
   const prefersWarm = preferredInteractionModes.includes('warm');
@@ -93,6 +104,9 @@ export function deriveRealNiggaBehavior(
   );
   const warmth = clamp(
     clamp(voice.warmth) + (prefersWarm ? 0.15 * relationshipCalibration : 0),
+  );
+  const verbosity = clamp(
+    clamp(voice.verbosity) - 0.25 * learnedConcisionCalibration,
   );
 
   const tasteLatitude = creativeLatitude(taste);
@@ -107,6 +121,7 @@ export function deriveRealNiggaBehavior(
   return {
     directness,
     warmth,
+    verbosity,
     humor: serious ? 0 : clamp(voice.humor),
     profanityAllowed: profanityIntensity >= 0.5,
     profanityIntensity,
