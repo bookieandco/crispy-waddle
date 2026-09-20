@@ -47,11 +47,11 @@ export class GamingInputPipeline {
     this.delivery.transition(event.inputId,'integrity-accepted',nowMs);
     if(generation!==this.generation)return this.cancelledResult(event,controllerGate,resync);
     this.delivery.transition(event.inputId,'transport-started',nowMs);
-    try{await this.transport.send(event);}catch(error){
+    let transportReceipt;\n    try{transportReceipt=await this.transport.send(event);}catch(error){
       this.delivery.transition(event.inputId,'delivery-unknown',Date.now(),error instanceof Error?error.message:'transport-failed');
       throw error;
     }
-    this.delivery.transition(event.inputId,'transport-confirmed',Date.now());
+    this.delivery.transition(event.inputId,'transport-confirmed',transportReceipt.confirmedAtMs,transportReceipt.status==='over-budget'?`transport-latency-over-budget:${transportReceipt.latencyMs}ms`:undefined);
     if(generation!==this.generation)return this.unknownResult(event,controllerGate,resync);
     const acknowledgement=this.transport.deliveryMode==='runtime-delivery'?await this.transport.deliverToRuntime(event):await this.runtime.deliver(event);
     this.delivery.transition(event.inputId,'runtime-delivered',Math.max(Date.now(),acknowledgement.deliveredAtMs));
