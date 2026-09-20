@@ -3,13 +3,18 @@ import type {
   SamPursuitSnapshotRepository,
 } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/service-role"
 
 type SnapshotRow = {
   snapshot: SamPursuitSnapshotEnvelope["snapshot"]
   checksum: string
 }
 
-export function createSupabaseSamPursuitSnapshotRepository(): SamPursuitSnapshotRepository {
+export function createSupabaseSamPursuitSnapshotRepository(
+  verifiedUserId: string,
+): SamPursuitSnapshotRepository {
+  if (!verifiedUserId.trim()) throw new Error("Verified user id is required for SAM pursuit persistence")
+
   return {
     async load(opportunityId) {
       const supabase = await createClient()
@@ -27,8 +32,12 @@ export function createSupabaseSamPursuitSnapshotRepository(): SamPursuitSnapshot
     },
 
     async save(envelope, expectedRevision) {
-      const supabase = await createClient()
-      const { data, error } = await supabase.rpc("jhadina_sam_pursuit_snapshot_save", {
+      const trusted = createServiceRoleClient()
+      if (!trusted) {
+        throw new Error("SAM pursuit persistence service role is not configured")
+      }
+      const { data, error } = await trusted.rpc("jhadina_sam_pursuit_snapshot_save_trusted", {
+        p_user_id: verifiedUserId,
         p_envelope: envelope,
         p_expected_revision: expectedRevision,
       })
