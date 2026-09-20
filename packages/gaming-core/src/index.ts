@@ -72,3 +72,14 @@ export * from './controller-health.js';
 export * from './controller-input-gate.js';
 export * from './input-resync.js';
 export * from './controller-capabilities.js';
+
+export * from './unified-gaming-session.js';
+export * from './gaming-session-orchestrator.js';
+export * from './moonlight-session-driver.js';
+export * from './gameboy-session-driver.js';
+export * from './native-pc-session-driver.js';
+export * from './display-routing.js';
+export * from './adaptive-latency-governor.js';
+export * from './gaming-save-sync.js';
+export * from './gaming-api.js';
+export * from './gaming-input-session-controller.js';
