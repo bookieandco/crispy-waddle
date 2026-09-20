@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildHistoricalObservation } from './historical-observation-backfill'
 import { HeliusHistoricalSource } from './helius-historical-source'
+import { CoinGeckoHistoricalSource } from './coingecko-historical-source'
 import type { TokenLaunch } from './wallet-launch-pipeline'
 
 const launch: TokenLaunch = {
@@ -58,4 +59,21 @@ describe('SHARK historical observation regression', () => {
     const rpc = calls[0] as { params: unknown[] }
     expect(rpc.params).toEqual(['developer-1', expect.objectContaining({ mint: 'mint-1', limit: 100 })])
   })
+  it('maps solana-mainnet to CoinGecko solana for holder history', async () => {
+    const urls: string[] = []
+    const fetchImpl = (async (url: string | URL | Request) => {
+      urls.push(String(url))
+      return new Response(JSON.stringify({ data: { attributes: { holders_chart: [] } } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof fetch
+
+    const source = new CoinGeckoHistoricalSource({ apiKey: 'test-key', fetchImpl })
+    await source.holderHistory(launch)
+
+    expect(urls[0]).toContain('/onchain/networks/solana/tokens/mint-1/holders_chart')
+    expect(urls[0]).not.toContain('/onchain/networks/solana-mainnet/')
+  })
+
 })
