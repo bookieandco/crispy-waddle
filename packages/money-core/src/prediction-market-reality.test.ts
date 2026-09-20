@@ -33,8 +33,8 @@ const definition: PredictionMarketDefinition = {
   opensAt: '2026-09-01T00:00:00Z',
   closesAt: '2026-09-30T00:00:00Z',
   outcomes: [
-    { outcomeId: 'YES', label: 'Yes', settlementValue: 1, evidenceRefs: ['outcome:yes'] },
-    { outcomeId: 'NO', label: 'No', settlementValue: 0, evidenceRefs: ['outcome:no'] },
+    { outcomeId: 'YES', label: 'Yes', evidenceRefs: ['outcome:yes'] },
+    { outcomeId: 'NO', label: 'No', evidenceRefs: ['outcome:no'] },
   ],
   resolution: {
     authorityId: 'official-authority',
@@ -148,7 +148,7 @@ test('MONEY-PREDICTION-01 fails closed on crossed quotes, missing outcomes and m
     instrument,
     definition: {
       ...definition,
-      outcomes: [...definition.outcomes, { outcomeId: 'MAYBE', label: 'Maybe', settlementValue: 0, evidenceRefs: ['maybe'] }],
+      outcomes: [...definition.outcomes, { outcomeId: 'MAYBE', label: 'Maybe', evidenceRefs: ['maybe'] }],
     },
     status: 'OPEN',
     quotes: [],
