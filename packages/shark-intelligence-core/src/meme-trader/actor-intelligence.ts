@@ -76,3 +76,37 @@ export function deriveHistoricalActorIntelligence(input: { currentGraph: EntityG
 export function graphEdgeConfidence(edge: EntityGraphEdge): number {
   return clamp(edge.confidence)
 }
+
+
+export type PersistedActorAssociationEdge = Readonly<{
+  launchId: string
+  actorId: string
+  actorKind: 'wallet' | 'developer' | 'cluster'
+  confidence?: number | null
+}>
+
+/**
+ * Actor-history confidence is a property of the full set of launch associations,
+ * not the single strongest edge. Take the strongest edge per launch, then average
+ * across launches so one verified relationship cannot upgrade unrelated inferred
+ * associations to certainty.
+ */
+export function aggregatePersistedActorAssociationConfidence(
+  edges: readonly PersistedActorAssociationEdge[],
+): Map<string, number> {
+  const perActorLaunch = new Map<string, Map<string, number>>()
+  for (const edge of edges) {
+    const key = `${edge.actorKind}:${edge.actorId}`
+    const confidence = clamp(typeof edge.confidence === 'number' && Number.isFinite(edge.confidence) ? edge.confidence : 0)
+    const launches = perActorLaunch.get(key) ?? new Map<string, number>()
+    launches.set(edge.launchId, Math.max(launches.get(edge.launchId) ?? 0, confidence))
+    perActorLaunch.set(key, launches)
+  }
+
+  const result = new Map<string, number>()
+  for (const [key, launches] of perActorLaunch) {
+    const values = [...launches.values()]
+    result.set(key, values.length ? clamp(values.reduce((sum, value) => sum + value, 0) / values.length) : 0)
+  }
+  return result
+}

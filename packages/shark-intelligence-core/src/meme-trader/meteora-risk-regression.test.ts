@@ -36,6 +36,35 @@ describe('Meteora DLMM risk invariants', () => {
     expect(attributeMeteoraDlmmWithdrawal({ delta, graph, tokenAddress: 'mint-1' })).toBeNull()
   })
 
+
+  it('reconstructs mixed per-bin movement without mislabeling it as a withdrawal', () => {
+    const before = createMeteoraDlmmPositionEvidence({
+      evidenceId: 'mixed-before', observedAt: '2026-09-18T20:00:00Z', lbPair: 'pair-1',
+      position: 'position-1', owner: 'dev-wallet', lowerBinId: 10, upperBinId: 11,
+      bins: [{ binId: 10, amountX: 100n, amountY: 20n }, { binId: 11, amountX: 10n, amountY: 100n }],
+    })
+    const after = createMeteoraDlmmPositionEvidence({
+      evidenceId: 'mixed-after', observedAt: '2026-09-18T20:01:00Z', lbPair: 'pair-1',
+      position: 'position-1', owner: 'dev-wallet', lowerBinId: 10, upperBinId: 11,
+      bins: [{ binId: 10, amountX: 40n, amountY: 80n }, { binId: 11, amountX: 50n, amountY: 30n }],
+    })
+    const delta = reconcileMeteoraDlmmPosition(before, after, 'mixed')
+    expect(delta.kind).toBe('REBALANCE')
+    expect(delta.grossRemovedX).toBe(60n)
+    expect(delta.grossAddedX).toBe(40n)
+    expect(delta.grossRemovedY).toBe(70n)
+    expect(delta.grossAddedY).toBe(60n)
+    expect(meteoraDlmmLiquidityEvidence(delta)).toEqual([])
+  })
+
+  it('rejects duplicate bin evidence instead of double-counting BinArray state', () => {
+    expect(() => createMeteoraDlmmPositionEvidence({
+      evidenceId: 'duplicate-bin', observedAt: '2026-09-18T20:00:00Z', lbPair: 'pair-1',
+      position: 'position-1', owner: 'dev-wallet', lowerBinId: 10, upperBinId: 11,
+      bins: [{ binId: 10, amountX: 1n, amountY: 1n }, { binId: 10, amountX: 2n, amountY: 2n }],
+    })).toThrow('Duplicate Meteora DLMM bin evidence')
+  })
+
   it('does not promote cluster-only association to verified adversarial withdrawal', () => {
     const clusterGraph: any = {
       ...graph, edges: [],

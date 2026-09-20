@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
+  aggregatePersistedActorAssociationConfidence,
   deriveActorOutcomeHistories,
   evaluateLaunchOutcomeBatch,
   type PersistedLaunchOutcomeObservation,
@@ -113,50 +114,54 @@ export async function runPersistedLaunchOutcomeWorker(client: SupabaseClient, li
   const evaluatedAt = new Date().toISOString()
   const result = evaluateLaunchOutcomeBatch({ launches, observations, evaluatedAt })
 
-  for (const item of result.assessments) {
+  const evaluationRows = result.assessments.map(item => {
     const previous = launches.find(x => x.launchId === item.launchId)?.outcome ?? 'UNKNOWN'
     const observation = latestObservations.get(item.launchId)
     if (!observation) throw new Error(`SHARK evaluation missing source observation for ${item.launchId}`)
-    const evaluationId = `launch-evaluation:${item.launchId}:${item.assessment.version}:${observationFingerprint(observation)}`
-
-    const evaluation = {
-      evaluation_id: evaluationId,
+    return {
+      evaluation_id: `launch-evaluation:${item.launchId}:${item.assessment.version}:${observationFingerprint(observation)}`,
       launch_id: item.launchId,
       previous_outcome: previous,
       evaluated_outcome: item.assessment.outcome,
       confidence: item.assessment.confidence,
       evaluated_at: evaluatedAt,
+      outcome_observed_at: observation.observedAt,
       evaluator_version: item.assessment.version,
       evidence_ids: item.assessment.evidenceIds,
       reasons: item.assessment.reasons,
     }
-    const { error: evaluationError } = await client.rpc('jhadina_shark_apply_outcome_evaluation', {
-      p_evaluation: evaluation,
-      p_apply_outcome: item.assessment.outcome !== 'UNKNOWN',
-    })
-    if (evaluationError) throw new Error(`SHARK atomic outcome persistence failed: ${evaluationError.message}`)
-  }
+  })
 
+  // Build the derived reputation cache from the post-batch canonical state before
+  // committing anything. The SQL RPC commits evaluation receipts, launch revisions,
+  // and these histories together or rolls the entire batch back.
+  const canonicalLaunches = await loadAllLaunches(client)
+  const revisedByLaunch = new Map(result.assessments.map(item => [item.launchId, item.updatedLaunch]))
+  const postBatchLaunches = canonicalLaunches.map(launch => revisedByLaunch.get(launch.launchId) ?? launch)
   const touchedActorKeys = new Set(result.actorHistories.map(actor => actor.actorKey))
-  const canonicalActorHistories = deriveActorOutcomeHistories(await loadAllLaunches(client))
+  const canonicalActorHistories = deriveActorOutcomeHistories(postBatchLaunches)
     .filter(actor => touchedActorKeys.has(actor.actorKey))
 
-  const actorKeys = canonicalActorHistories.map(actor => ({ kind: actor.actorKind, id: actor.actorId }))
-  const actorIds = [...new Set(actorKeys.map(actor => actor.id))]
+  const actorIds = [...new Set(canonicalActorHistories.map(actor => actor.actorId))]
   const { data: actorEdges, error: actorEdgeError } = actorIds.length
-    ? await client.from('jhadina_token_actor_edges').select('actor_id,actor_kind,confidence').in('actor_id', actorIds)
+    ? await client.from('jhadina_token_actor_edges').select('launch_id,actor_id,actor_kind,confidence').in('actor_id', actorIds)
     : { data: [], error: null }
   if (actorEdgeError) throw new Error(`SHARK actor association confidence load failed: ${actorEdgeError.message}`)
 
-  const associationConfidence = new Map<string, number>()
-  for (const edge of actorEdges ?? []) {
-    const key = `${edge.actor_kind}:${edge.actor_id}`
-    associationConfidence.set(key, Math.max(associationConfidence.get(key) ?? 0, Number(edge.confidence ?? 0)))
-  }
+  const associationConfidence = aggregatePersistedActorAssociationConfidence(
+    (actorEdges ?? [])
+      .filter(edge => edge.actor_kind === 'wallet' || edge.actor_kind === 'developer' || edge.actor_kind === 'cluster')
+      .map(edge => ({
+        launchId: edge.launch_id,
+        actorId: edge.actor_id,
+        actorKind: edge.actor_kind as 'wallet' | 'developer' | 'cluster',
+        confidence: edge.confidence == null ? null : Number(edge.confidence),
+      })),
+  )
 
-  for (const actor of canonicalActorHistories) {
+  const actorHistoryRows = canonicalActorHistories.map(actor => {
     const h = actor.history
-    const { error } = await client.from('jhadina_actor_outcome_history').upsert({
+    return {
       actor_key: actor.actorKey,
       actor_id: actor.actorId,
       actor_kind: actor.actorKind,
@@ -172,9 +177,15 @@ export async function runPersistedLaunchOutcomeWorker(client: SupabaseClient, li
       evidence_ids: h.evidenceIds,
       evaluated_at: evaluatedAt,
       evaluator_version: 'launch-outcome-v2',
-      updated_at: evaluatedAt,
-    }, { onConflict: 'actor_key' })
-    if (error) throw new Error(`SHARK actor history persistence failed: ${error.message}`)
+    }
+  })
+
+  if (evaluationRows.length || actorHistoryRows.length) {
+    const { error: batchError } = await client.rpc('jhadina_shark_apply_outcome_batch', {
+      p_evaluations: evaluationRows,
+      p_actor_histories: actorHistoryRows,
+    })
+    if (batchError) throw new Error(`SHARK atomic outcome batch persistence failed: ${batchError.message}`)
   }
 
   return { ...result, actorHistories: canonicalActorHistories }

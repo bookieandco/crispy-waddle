@@ -48,7 +48,7 @@ export class CoinGeckoHistoricalSource {
         const candle: HistoricalCandle = {
           observedAt: new Date(seconds * 1000).toISOString(),
           open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]), volumeUsd: Number(row[5]),
-          source: 'coingecko-onchain-ohlcv',
+          source: 'coingecko-token-ohlcv-most-liquid-pool',
           evidenceId: `coingecko:ohlcv:${launch.tokenAddress}:${row[0]}`,
         }
         if (Number.isFinite(seconds) && !Number.isNaN(Date.parse(candle.observedAt)) && [candle.open, candle.high, candle.low, candle.close].every(Number.isFinite)) {

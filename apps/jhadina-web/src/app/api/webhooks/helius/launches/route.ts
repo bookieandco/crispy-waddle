@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { collectHeliusLaunch, type HeliusLaunchWebhookEvent } from '@jhadina/shark-intelligence-core/meme-trader'
+import { collectHeliusLaunch, isHeliusWebhookAuthorizationValid, type HeliusLaunchWebhookEvent } from '@jhadina/shark-intelligence-core/meme-trader'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { persistSharkLaunch } from '@/lib/shark/launch-repository'
 
 export const runtime = 'nodejs'
 
-function authorized(request: NextRequest): boolean {
-  const expected = process.env.HELIUS_WEBHOOK_SECRET
-  if (!expected) return false
-  const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? request.headers.get('x-helius-auth')
-  return supplied === expected
+export function authorizedHeliusWebhook(headers: Headers, expected: string | undefined): boolean {
+  return isHeliusWebhookAuthorizationValid(headers.get('authorization'), expected)
 }
 
 export async function POST(request: NextRequest) {
   if (!process.env.HELIUS_WEBHOOK_SECRET) {
     return NextResponse.json({ error: 'shark_launch_ingestion_unavailable' }, { status: 503 })
   }
-  if (!authorized(request)) return NextResponse.json({ error: 'unauthorized_webhook' }, { status: 401 })
+  if (!authorizedHeliusWebhook(request.headers, process.env.HELIUS_WEBHOOK_SECRET)) return NextResponse.json({ error: 'unauthorized_webhook' }, { status: 401 })
 
   let payload: unknown
   try {
