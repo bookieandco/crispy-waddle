@@ -283,6 +283,9 @@ export function assertFulfillmentProviderIntegrity(provider: FulfillmentProvider
   for (const identifier of provider.identifiers) {
     if (!identifier.value.trim()) throw new Error(`Identifier value is required: ${identifier.type}`)
     assertEvidenceRefsExist(provider, identifier.evidenceRefs, `Identifier ${identifier.type}`)
+    if (identifier.verified && !identifier.evidenceRefs.every((ref) => evidenceSupports(provider, ref, 'supports_identity'))) {
+      throw new Error(`Verified identifier requires identity evidence: ${identifier.type}`)
+    }
     if (identifier.verified && identifier.evidenceRefs.length === 0) {
       throw new Error(`Verified identifier requires evidence: ${identifier.type}`)
     }
@@ -297,6 +300,9 @@ export function assertFulfillmentProviderIntegrity(provider: FulfillmentProvider
       throw new Error(`Capability confidence must be between 0 and 1: ${capability.id}`)
     }
     assertEvidenceRefsExist(provider, capability.evidenceRefs, `Capability ${capability.id}`)
+    if (capability.verified && !capability.evidenceRefs.every((ref) => evidenceSupports(provider, ref, 'supports_capability'))) {
+      throw new Error(`Verified capability requires capability evidence: ${capability.id}`)
+    }
     if (capability.verified && capability.evidenceRefs.length === 0) {
       throw new Error(`Verified capability requires evidence: ${capability.id}`)
     }
