@@ -87,4 +87,5 @@ jobs:
             src/lib/personality/production-personality-context-provider.test.ts \
             src/lib/hippocampus/persisted-experience-pattern-adapter.test.ts \
             src/lib/context/context-builder.test.ts \
-            src/lib/intelligence/jhadina-command.test.ts
+            src/lib/intelligence/jhadina-command.test.ts \
+            src/lib/intelligence/governed-intelligence-proposal.test.ts
