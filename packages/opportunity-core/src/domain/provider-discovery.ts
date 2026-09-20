@@ -59,7 +59,7 @@ export function observationsToFulfillmentProviders(observations:ProviderDiscover
     const uei=rows.find(x=>x.uei)?.uei,cage=rows.find(x=>x.cage)?.cage
     if(uei)identifiers.push({type:'uei',value:uei,verified:false,evidenceRefs:evidenceIds})
     if(cage)identifiers.push({type:'cage',value:cage,verified:false,evidenceRefs:evidenceIds})
-    const pastPerformance:FulfillmentProviderPastPerformance[]=rows.filter(x=>x.award).map((o,i)=>{
+    const pastPerformance:FulfillmentProviderPastPerformance[]=rows.filter(x=>x.award).map((o)=>{
       const a=o.award!;awards.push(a)
       return {id:a.id,role:'prime',customer:a.agency??'unknown',agency:a.agency,awardId:a.id,amount:a.amount,currency:a.currency,startedAt:a.startAt,endedAt:a.endAt,capabilityIds:[],verified:false,evidenceRefs:[o.evidenceRef]}
     })
