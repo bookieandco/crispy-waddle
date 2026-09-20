@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { createContractExecutionPacket,recordExternallyExecutedContract,requestContractSignatureApproval } from './subcontract-lifecycle.js'
-const draft={id:'o:contract:p',opportunityId:'o',providerId:'p',negotiationId:'n',version:2,clauses:[{id:'c',kind:'scope',title:'Scope',text:'Do work',sourceRefs:['r']}],redlines:[],readinessEvidenceRefs:['e'],unresolvedRedlineIds:[],draftingOnly:true,signatureAuthorized:false,executionAuthorized:false} as const
+import type { ContractDraftPacket } from './contract-draft.js'
+const draft:ContractDraftPacket={id:'o:contract:p',opportunityId:'o',providerId:'p',negotiationId:'n',version:2,clauses:[{id:'c',kind:'scope',title:'Scope',text:'Do work',sourceRefs:['r']}],redlines:[],readinessEvidenceRefs:['e'],unresolvedRedlineIds:[],draftingOnly:true,signatureAuthorized:false,executionAuthorized:false}
 const packet=createContractExecutionPacket(draft)
 const approved=requestContractSignatureApproval(packet,draft,{approvalRef:'approval:signature-review',approvedByRef:'human:1'})
 assert.equal(approved.signatureAuthorized,false)
