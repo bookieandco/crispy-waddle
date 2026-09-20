@@ -1,0 +1,1 @@
+import {createHash} from 'node:crypto';export function sha256Artifact(bytes:Uint8Array){return createHash('sha256').update(bytes).digest('hex');}export function verifyModelArtifact(bytes:Uint8Array,expected:string){return sha256Artifact(bytes).toLowerCase()===expected.toLowerCase();}
