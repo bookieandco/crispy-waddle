@@ -19,6 +19,9 @@ export interface ExternalControllerMapping {
   platform:string;
   sourceHash:string;
   buttons:Readonly<Partial<Record<string,CanonicalButton>>>;
+  macros?:never;
+  scripts?:never;
+  executables?:never;
 }
 
 export class ControllerMappingGovernance {
