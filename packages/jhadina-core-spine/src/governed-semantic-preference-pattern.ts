@@ -69,6 +69,27 @@ export const GOVERNED_SEMANTIC_PREFERENCES: readonly GovernedSemanticPreferenceD
     contradict: [/\bstop after each (step|part|portion)\b/i, /\bcheckpoint after each (step|part|portion)\b/i, /\bwait for me after each (step|part|portion)\b/i],
   },
   {
+    id: 'personality-signal:communication:step-by-step',
+    statement: 'prefers step-by-step explanations',
+    dimension: 'communication',
+    support: [/\bstep[- ]by[- ]step\b/i, /\bwalk me through (it|this)\b/i],
+    contradict: [/\bno step[- ]by[- ]step\b/i, /\bskip the walkthrough\b/i],
+  },
+  {
+    id: 'personality-signal:communication:evidence-first',
+    statement: 'prefers evidence-first explanations',
+    dimension: 'communication',
+    support: [/\b(evidence|sources?) first\b/i, /\blead with (the )?(evidence|sources?)\b/i],
+    contradict: [/\bdon't lead with (the )?(evidence|sources?)\b/i, /\bevidence last\b/i],
+  },
+  {
+    id: 'personality-signal:preference:multiple-options',
+    statement: 'prefers multiple options',
+    dimension: 'preference',
+    support: [/\bgive me (a few|several|multiple) options\b/i, /\bshow me options\b/i],
+    contradict: [/\bgive me one recommendation\b/i, /\bjust pick one\b/i, /\bno list of options\b/i],
+  },
+  {
     id: 'personality-signal:taste:experimentation',
     statement: 'prefers experimental creativity',
     dimension: 'taste',
