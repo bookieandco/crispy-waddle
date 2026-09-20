@@ -24,6 +24,12 @@ export async function GET(request: Request) {
       ? Math.min(cleanupBatchRaw, 20)
       : 5;
 
+  const orphanBatchRaw = Number(process.env.JHADINA_UPLOAD_ORPHAN_CLEANUP_BATCH_SIZE ?? "5");
+  const orphanBatchSize =
+    Number.isInteger(orphanBatchRaw) && orphanBatchRaw > 0
+      ? Math.min(orphanBatchRaw, 20)
+      : 5;
+
   const leaseMsRaw = Number(process.env.JHADINA_UPLOAD_FINALIZE_LEASE_MS ?? "300000");
   const leaseMs =
     Number.isInteger(leaseMsRaw) && leaseMsRaw >= 5000
@@ -60,12 +66,21 @@ export async function GET(request: Request) {
       if (outcome.state === "idle") break;
     }
 
+    const orphanCleanup = [];
+    for (let index = 0; index < orphanBatchSize; index += 1) {
+      const outcome = await worker.runOrphanCleanupNext();
+      orphanCleanup.push(outcome);
+      if (outcome.state === "idle") break;
+    }
+
     return NextResponse.json({
       ok: true,
       finalizationProcessed: finalization.filter((item) => item.state !== "idle").length,
       cleanupProcessed: cleanup.filter((item) => item.state !== "idle").length,
+      orphanCleanupProcessed: orphanCleanup.filter((item) => item.state !== "idle").length,
       finalization,
       cleanup,
+      orphanCleanup,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Upload finalization worker failed";
