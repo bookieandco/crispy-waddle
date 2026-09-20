@@ -41,6 +41,37 @@ export type ResearchProviderSubmission = {
   providerJobId?: string;
 };
 
+export type ResearchEvidenceSourceKind =
+  | "github"
+  | "web"
+  | "pdf"
+  | "api"
+  | "database"
+  | "conversation"
+  | "user"
+  | "system";
+
+export type ResearchEvidenceAuthority =
+  | "primary"
+  | "official"
+  | "secondary"
+  | "community"
+  | "user"
+  | "system"
+  | "unknown";
+
+export type ResearchEvidenceCapture = {
+  sourceUri: string;
+  contentHash: string;
+  sourceKind?: ResearchEvidenceSourceKind;
+  publisher?: string;
+  authority?: ResearchEvidenceAuthority;
+  trustScore?: number;
+  locator?: Record<string, unknown>;
+  excerpt?: string;
+  metadata?: Record<string, unknown>;
+};
+
 export interface ResearchRuntimeRepository {
   loadPlan(planId: string): Promise<PersistedResearchPlan | undefined>;
   claimExecution(input: {
@@ -75,5 +106,10 @@ export interface ResearchRuntimeRepository {
     usage?: ResearchUsageDelta;
     contentHash?: string;
   }): Promise<ResearchCommitResult>;
+  captureEvidence(input: {
+    planId: string;
+    executionEventId: string;
+    evidence: ResearchEvidenceCapture;
+  }): Promise<string | undefined>;
   releaseExecution(admission: ResearchRuntimeAdmission, state: "released" | "completed" | "failed" | "fenced"): Promise<boolean>;
 }
