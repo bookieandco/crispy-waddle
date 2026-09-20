@@ -89,6 +89,15 @@ export class UnifiedGamingSessionRegistry {
     return this.copy(next);
   }
 
+  setDisplayRoute(sessionId:string,displayRouteId:string,nowMs=Date.now()):UnifiedGamingSession{
+    this.validateId(displayRouteId,'displayRouteId');
+    const current=this.require(sessionId);
+    if(current.status==='stopped'||current.status==='failed')throw new Error('Cannot route display for terminal gaming session');
+    const next={...current,displayRouteId,updatedAtMs:Math.max(current.updatedAtMs,nowMs)};
+    this.sessions.set(sessionId,next);
+    return this.copy(next);
+  }
+
   get(sessionId:string):UnifiedGamingSession|undefined{
     const session=this.sessions.get(sessionId);
     return session?this.copy(session):undefined;
