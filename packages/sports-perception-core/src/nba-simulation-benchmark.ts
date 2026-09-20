@@ -1,0 +1,1 @@
+export interface NBASimulationRealityPoint{predicted:number;actual:0|1;}export function benchmarkNBASimulationReality(x:readonly NBASimulationRealityPoint[]){const mae=x.length?x.reduce((s,a)=>s+Math.abs(a.predicted-a.actual),0)/x.length:0;return Object.freeze({sampleSize:x.length,meanAbsoluteError:mae});}
