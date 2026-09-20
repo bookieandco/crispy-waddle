@@ -563,3 +563,15 @@ export class ReferenceProvenanceRegistry {
 }
 
 export { createInitialReferenceProvenanceRegistry, INITIAL_REFERENCE_IDS } from './seed-registry.js';
+
+export type {
+  ReferenceCoverageStatus,
+  ReferenceSubsystemHint,
+  SubsystemReferenceCoverage,
+  ReferenceCoverageReport,
+} from './coverage.js';
+export {
+  REFERENCE_COVERAGE_SCHEMA_VERSION,
+  DEFAULT_REFERENCE_SUBSYSTEM_HINTS,
+  buildReferenceCoverageReport,
+} from './coverage.js';
