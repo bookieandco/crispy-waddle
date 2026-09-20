@@ -388,7 +388,7 @@ create or replace function public.jhadina_create_revalidation_trigger(
   p_dedupe_key text default null
 ) returns public.jhadina_research_revalidation_triggers
 language plpgsql security invoker set search_path=public,pg_catalog
-as $
+as $$
 declare v_key text; v_row public.jhadina_research_revalidation_triggers%rowtype;
 begin
   v_key:=coalesce(p_dedupe_key,encode(digest(
@@ -407,7 +407,7 @@ begin
   returning * into v_row;
   return v_row;
 end;
-$;
+$$;
 
 create or replace function public.jhadina_compile_research_plan(
   p_decomposition_id uuid,
@@ -420,7 +420,7 @@ create or replace function public.jhadina_compile_research_plan(
   p_budget jsonb default '{}'::jsonb
 ) returns public.jhadina_research_plans
 language plpgsql security invoker set search_path=public,pg_catalog
-as $
+as $$
 declare
   v_d public.jhadina_research_intent_decompositions%rowtype;
   v_version integer;
@@ -463,7 +463,7 @@ begin
   ) returning * into v_row;
   return v_row;
 end;
-$;
+$$;
 
 create or replace function public.jhadina_evaluate_research_policy(
   p_plan_id uuid,
@@ -474,7 +474,7 @@ create or replace function public.jhadina_evaluate_research_policy(
   p_approval_granted boolean default false
 ) returns public.jhadina_research_policy_decisions
 language plpgsql security invoker set search_path=public,pg_catalog
-as $
+as $$
 declare
   v_plan public.jhadina_research_plans%rowtype;
   v_required_caps jsonb;
@@ -526,7 +526,7 @@ begin
   where id=p_plan_id;
   return v_row;
 end;
-$;
+$$;
 
 create or replace function public.jhadina_research_execution_admissible(p_decision_id uuid)
 returns boolean language sql stable security invoker set search_path=public,pg_catalog
