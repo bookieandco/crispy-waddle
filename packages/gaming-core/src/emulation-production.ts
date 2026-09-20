@@ -98,12 +98,12 @@ export const DEFAULT_EMULATOR_CONTROLLER_MAPPING:EmulatorControllerMapping=Objec
     a:'a',b:'b',x:'x',y:'y',l1:'l',r1:'r',l2:'l2',r2:'r2',
     dpad_up:'up',dpad_down:'down',dpad_left:'left',dpad_right:'right',
     start:'start',select:'select',home:'home',
-  },
+  } as const,
   hotkeys:{
     'save-state':'meta+save',
     'load-state':'meta+load',
     'exit':'meta+exit',
-  },
+  } as const,
 });
 
 export function assertGameplayHotkeysSeparated(mapping:EmulatorControllerMapping):void{
