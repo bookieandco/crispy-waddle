@@ -3,3 +3,6 @@ supervision
 opencv-python-headless
 numpy
 scikit-learn
+easyocr
+torch
+torchvision
