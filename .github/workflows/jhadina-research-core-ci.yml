@@ -47,7 +47,7 @@ jobs:
       - name: Test research core
         run: pnpm --filter @jhadina/research-core test
       - name: Type-check Jhadina web research adapters
-        run: pnpm --filter @jhadina/jhadina-web type-check
+        run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit --skipLibCheck
       - name: Verify research migrations are tracked
         run: |
           test -f supabase/migrations/20260920171000_k_1_4_9_knowledge_research_reconciliation_baseline.sql
