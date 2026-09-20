@@ -174,9 +174,11 @@ export function matchFulfillmentProvider(
   const reasons = uniq(matches.flatMap((m) => m.reasons))
   const evidenceRefs = uniq(matches.flatMap((m) => m.evidenceRefs))
 
+  const satisfiedRequired = matches.filter((m) => requiredIds.has(m.requirementId) && m.status === 'satisfied')
   let disposition: ProviderMatchDisposition = 'review_required'
-  if (hardFailures.length > 0 || !isFulfillmentProviderVerified(provider)) disposition = 'blocked'
-  else if (unresolvedRequired.length === 0 && set.unresolved.length === 0) disposition = 'qualified_candidate'
+  if (!isFulfillmentProviderVerified(provider)) disposition = 'blocked'
+  else if (requiredIds.size > 0 && satisfiedRequired.length === 0 && (hardFailures.length > 0 || unresolvedRequired.length > 0)) disposition = 'blocked'
+  else if (hardFailures.length === 0 && unresolvedRequired.length === 0 && set.unresolved.length === 0) disposition = 'qualified_candidate'
 
   return {
     opportunityId: set.opportunityId,
