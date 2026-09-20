@@ -20,6 +20,8 @@ export interface Memory {
   createdAt: string
   approvedAt?: string
   rejectedAt?: string
+  /** Source reasoning event retained across candidate approval for provenance deduplication. */
+  reasoningEventId?: string
 }
 
 export interface MemoryCandidate {
