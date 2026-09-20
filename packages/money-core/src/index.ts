@@ -12,6 +12,12 @@ export type { ProviderAdapterBuilder, ProviderAdapterFactoryOptions } from './pr
 export { ProviderAdapterFactory } from './provider-adapter-factory.js';
 export type { AccountReadAction, AccountReadHandlerDeps } from './account-read-handler.js';
 export { MoneyAccountReadHandler } from './account-read-handler.js';
+export type { TransactionReadAction, MoneyAccountOwnership } from './transaction-read-handler.js';
+export { MoneyTransactionReadHandler } from './transaction-read-handler.js';
+export type { ProductionMoneyTransactionReadOptions } from './production-transaction-read.js';
+export { createProductionMoneyTransactionReadExecutor } from './production-transaction-read.js';
+export type { GovernedProviderTransactionReadOptions } from './governed-provider-transaction-read.js';
+export { createGovernedProviderTransactionReadExecutor } from './governed-provider-transaction-read.js';
 export type { GovernedAccountReadDeps, MoneyAccountReadRequest } from './governed-account-read.js';
 export { MONEY_CORE_SECURITY_POLICY, createMoneyAccountReadSecurityRequest, createMoneyAccountReadHandler, createMoneySecurityCore } from './governed-account-read.js';
 export type { ProductionMoneyAccountReadOptions } from './production-account-read.js';
