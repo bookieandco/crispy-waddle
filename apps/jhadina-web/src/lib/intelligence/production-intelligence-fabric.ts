@@ -23,7 +23,7 @@ export function createProductionIntelligenceFabric(input:{ledger:ActionLedger;ac
  const retrieval=new HybridRetrievalBridge([new ActorScopedMemoryRetrievalSource(input.memoryRepo,input.actorId)])
  const authorized=new AuthorizedRetrievalPipeline(new RepositoryRetrievalAuthorizer(input.memoryRepo))
  const compiler=new CanonicalIntelligenceContextCompiler({augmentation:async(task,packet)=>{
-   const text=packet.goal?.trim()||packet.purpose
+   const text=packet.userGoal?.trim()||packet.purpose
    const query={taskId:task.id,text,limit:8}
    const raw=await retrieval.retrieve(query)
    const safe=await authorized.process({principal:{actorId:input.actorId},query,candidates:raw.candidates})
