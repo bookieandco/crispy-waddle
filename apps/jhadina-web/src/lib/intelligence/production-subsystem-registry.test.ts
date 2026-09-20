@@ -54,4 +54,47 @@ describe("production subsystem registry", () => {
     expect(payload.canonicalGraphAdmissionAllowed).toBe(false);
     expect(payload.actorScopedAdmissionRequired).toBe(true);
   });
+  it("dispatches a multi-route packet with no skipped subsystem when registry is installed", async () => {
+    const { GovernedSubsystemDispatcher } = await import("@jhadina/intelligence-core");
+    const registry = createProductionSubsystemRegistryFromInbox({
+      async enqueue(subsystem, input) {
+        return {
+          inboxId: `i:${subsystem}`,
+          receiptId: `r:${subsystem}`,
+          acceptedEvidenceIds: input.evidence.map((e:any) => e.id),
+        };
+      },
+    });
+    const dispatcher = new GovernedSubsystemDispatcher(registry.adapters);
+    const result = await dispatcher.dispatch({
+      asset: {
+        id: "a1",
+        actorId: "u1",
+        modality: "video",
+        mediaType: "video/mp4",
+        assetRef: "supabase://private/trusted/u1/a.mp4",
+        privacyClass: "sensitive",
+        contentSha256: "a".repeat(64),
+        byteLength: 100,
+        status: "registered",
+        createdAt: "2026-09-19T00:00:00Z",
+      },
+      evidence: request.evidence,
+      uncertainty: [],
+      routing: {
+        assetId: "a1",
+        routes: [
+          { subsystem: "sports-intelligence", reason: "sports", confidence: 0.9 },
+          { subsystem: "director-studio", reason: "film", confidence: 0.9 },
+        ],
+        requiresHumanSelection: true,
+      },
+    } as any, request.intent);
+
+    expect(result.skipped).toEqual([]);
+    expect(result.responses.map((item) => item.subsystem)).toEqual([
+      "sports-intelligence",
+      "director-studio",
+    ]);
+  });
 });
