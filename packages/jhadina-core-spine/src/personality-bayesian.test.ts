@@ -8,46 +8,6 @@ const evidence = (id: string) => ({
   source: 'interaction',
   summary: `evidence ${id}`,
   observedAt: '2026-09-02T00:00:00.000Z',
-  it('moves an accepted trait through contested to retired after independent contradictions', () => {
-    let state = projectPersonality(emptyPersonalityState(), [pattern(1, 3)], [], '2026-09-02T00:00:00.000Z');
-    assert.equal(state.traits[0]?.status, 'accepted');
-
-    for (const [index, expected] of [['1', 'contested'], ['2', 'contested'], ['3', 'retired']] as const) {
-      state = projectPersonality(
-        state,
-        [{
-          ...pattern(0, 1),
-          contradictions: [evidence(`c${index}`)],
-        }],
-        [],
-        `2026-09-02T00:0${index}:00.000Z`,
-      );
-      assert.equal(state.traits[0]?.status, expected);
-    }
-
-    assert.equal(state.traits[0]?.contradictions.length, 3);
-    assert.equal(state.independentAssessmentRequired, false);
-  });
-
-  it('is idempotent when the same governed evidence is replayed', () => {
-    const first = projectPersonality(
-      emptyPersonalityState(),
-      [pattern(1, 3)],
-      [],
-      '2026-09-02T00:00:00.000Z',
-    );
-    const replayed = projectPersonality(
-      first,
-      [pattern(1, 3)],
-      [],
-      '2026-09-02T00:01:00.000Z',
-    );
-
-    assert.equal(replayed, first);
-    assert.equal(replayed.version, 1);
-    assert.equal(replayed.traits[0]?.confidence, first.traits[0]?.confidence);
-  });
-
 });
 
 function pattern(confidence: number, occurrences = 1): PatternObservation {
@@ -87,5 +47,45 @@ describe('Personality Bayesian integration', () => {
     assert.equal(next.traits[0]?.status, 'contested');
     assert.ok((next.traits[0]?.confidence ?? 1) < 0.8);
     assert.equal(next.independentAssessmentRequired, true);
+  });
+
+  it('moves an accepted trait through contested to retired after independent contradictions', () => {
+    let state = projectPersonality(emptyPersonalityState(), [pattern(1, 3)], [], '2026-09-02T00:00:00.000Z');
+    assert.equal(state.traits[0]?.status, 'accepted');
+
+    for (const [index, expected] of [['1', 'contested'], ['2', 'contested'], ['3', 'retired']] as const) {
+      state = projectPersonality(
+        state,
+        [{
+          ...pattern(0, 1),
+          contradictions: [evidence(`c${index}`)],
+        }],
+        [],
+        `2026-09-02T00:0${index}:00.000Z`,
+      );
+      assert.equal(state.traits[0]?.status, expected);
+    }
+
+    assert.equal(state.traits[0]?.contradictions.length, 3);
+    assert.equal(state.independentAssessmentRequired, false);
+  });
+
+  it('is idempotent when the same governed evidence is replayed', () => {
+    const first = projectPersonality(
+      emptyPersonalityState(),
+      [pattern(1, 3)],
+      [],
+      '2026-09-02T00:00:00.000Z',
+    );
+    const replayed = projectPersonality(
+      first,
+      [pattern(1, 3)],
+      [],
+      '2026-09-02T00:01:00.000Z',
+    );
+
+    assert.equal(replayed, first);
+    assert.equal(replayed.version, 1);
+    assert.equal(replayed.traits[0]?.confidence, first.traits[0]?.confidence);
   });
 });
