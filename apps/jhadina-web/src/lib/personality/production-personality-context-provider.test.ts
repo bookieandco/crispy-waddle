@@ -162,4 +162,59 @@ describe("ProductionPersonalityContextProvider", () => {
       "personality update was not persisted — prior durable state retained",
     )
   })
+  it("persists a governed semantic trait and reloads it idempotently across provider restart", async () => {
+    const storage = new InMemoryStorage()
+    for (let index = 1; index <= 3; index += 1) {
+      await storage.createMemory({
+        userId: "user-restart",
+        type: "PREFERENCE",
+        status: "APPROVED",
+        content: index === 1
+          ? "I prefer direct answers."
+          : index === 2
+            ? "Be direct when we plan."
+            : "Keep it direct.",
+        confidence: 0.95,
+        createdAt: `2026-09-1${index}T12:00:00.000Z`,
+        approvedAt: `2026-09-1${index}T12:01:00.000Z`,
+      })
+    }
+
+    let durable = emptyPersonalityState("2026-09-10T00:00:00.000Z")
+    const savedVersions: number[] = []
+    const repository: PersonalityStateRepository = {
+      load: async () => structuredClone(durable),
+      save: async (expectedVersion, next) => {
+        expect(expectedVersion).toBe(durable.version)
+        durable = structuredClone(next)
+        savedVersions.push(next.version)
+      },
+    }
+
+    const firstProvider = new ProductionPersonalityContextProvider(storage, { repository })
+    const first = await firstProvider.getContext({
+      userId: "user-restart",
+      activeTask: "Keep this direct.",
+      occurredAt: "2026-09-20T12:00:00.000Z",
+    })
+
+    expect(first.patterns.find(
+      (pattern) => pattern.id === "personality-signal:communication:directness",
+    )?.personalityEligible).toBe(true)
+    expect(first.personality.version).toBe(1)
+    expect(first.personality.traits[0]?.status).toBe("accepted")
+    expect(savedVersions).toEqual([1])
+
+    const restartedProvider = new ProductionPersonalityContextProvider(storage, { repository })
+    const replay = await restartedProvider.getContext({
+      userId: "user-restart",
+      activeTask: "Keep this direct.",
+      occurredAt: "2026-09-20T12:05:00.000Z",
+    })
+
+    expect(replay.personality).toEqual(durable)
+    expect(replay.personality.version).toBe(1)
+    expect(savedVersions).toEqual([1])
+  })
+
 })
