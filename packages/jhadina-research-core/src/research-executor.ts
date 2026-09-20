@@ -1,17 +1,13 @@
 import { buildResearchQueuePlan, startResearchTask, type ResearchTask } from "./research-queue.js";
 import { assertResearchRuntimeAdmission, researchPlanToQueue } from "./runtime-reconciliation.js";
 import type {
+  ResearchEvidenceCapture,
   ResearchProviderSubmission,
   ResearchRuntimeRepository,
   ResearchUsageDelta,
 } from "./runtime-repository.js";
 
-export type ResearchProviderEvidence = {
-  sourceUri: string;
-  contentHash: string;
-  excerpt?: string;
-  metadata?: Record<string, unknown>;
-};
+export type ResearchProviderEvidence = ResearchEvidenceCapture;
 
 export type ResearchProviderResult = {
   providerJobId?: string;
@@ -29,7 +25,13 @@ export interface ResearchProvider {
 }
 
 export type GovernedResearchExecutionResult =
-  | { status: "completed"; taskId: string; evidence: ResearchProviderEvidence[]; submission: ResearchProviderSubmission }
+  | {
+      status: "completed";
+      taskId: string;
+      evidence: ResearchProviderEvidence[];
+      evidenceIds: string[];
+      submission: ResearchProviderSubmission;
+    }
   | { status: "no_ready_task" }
   | { status: "fenced"; reason: string }
   | { status: "stopped"; reason: string };
@@ -82,7 +84,10 @@ export class GovernedResearchExecutor {
     });
     if (!submission || submission.status === "submitted") {
       await this.repository.releaseExecution(admission, "fenced");
-      return { status: "fenced", reason: submission ? "provider_submission_already_submitted" : "provider_submission_not_reserved" };
+      return {
+        status: "fenced",
+        reason: submission ? "provider_submission_already_submitted" : "provider_submission_not_reserved",
+      };
     }
 
     const started = await this.repository.commitExecutionEvent({
@@ -93,12 +98,17 @@ export class GovernedResearchExecutor {
     });
     if (!started.accepted) {
       await this.repository.releaseExecution(admission, "fenced");
-      return { status: started.stopped ? "stopped" : "fenced", reason: started.reason ?? "task_start_rejected" };
+      return {
+        status: started.stopped ? "stopped" : "fenced",
+        reason: started.reason ?? "task_start_rejected",
+      };
     }
 
     try {
       const providerResult = await this.provider.execute(task, { planId: plan.id, idempotencyKey });
 
+      // Provider output has no authority of its own. Re-establish the lease
+      // after the external call before any durable evidence/result commit.
       const renewed = await this.repository.renewExecutionLease(admission, input.leaseSeconds ?? 300);
       if (!renewed) {
         await this.repository.markProviderRecoveryRequired({
@@ -109,9 +119,12 @@ export class GovernedResearchExecutor {
         return { status: "fenced", reason: "lease_lost_after_provider_call" };
       }
 
-      const committed = await this.repository.commitExecutionEvent({
+      // Charge usage before accepting evidence. If the provider exceeded any
+      // hard plan budget, the DB fences this lease and none of its output is
+      // allowed into the evidence store.
+      const evidenceEvent = await this.repository.commitExecutionEvent({
         admission: renewed,
-        eventType: "task_completed",
+        eventType: "evidence_captured",
         taskId: task.id,
         payload: {
           providerId: this.provider.id,
@@ -121,16 +134,62 @@ export class GovernedResearchExecutor {
         },
         usage: {
           ...providerResult.usage,
-          evidence: providerResult.usage.evidence ?? providerResult.evidence.length,
+          evidence: providerResult.evidence.length,
         },
       });
-      if (!committed.accepted) {
+      if (!evidenceEvent.accepted || !evidenceEvent.eventId) {
         await this.repository.markProviderRecoveryRequired({
           admission: renewed,
           submissionId: submission.id,
-          error: committed.reason ?? "execution_commit_rejected",
+          error: evidenceEvent.reason ?? "evidence_event_rejected",
         });
-        return { status: committed.stopped ? "stopped" : "fenced", reason: committed.reason ?? "execution_commit_rejected" };
+        return {
+          status: evidenceEvent.stopped ? "stopped" : "fenced",
+          reason: evidenceEvent.reason ?? "evidence_event_rejected",
+        };
+      }
+
+      const evidenceIds: string[] = [];
+      for (const evidence of providerResult.evidence) {
+        const evidenceId = await this.repository.captureEvidence({
+          planId: plan.id,
+          executionEventId: evidenceEvent.eventId,
+          evidence,
+        });
+        if (!evidenceId) {
+          await this.repository.markProviderRecoveryRequired({
+            admission: renewed,
+            submissionId: submission.id,
+            error: "evidence_capture_rejected",
+          });
+          await this.repository.releaseExecution(renewed, "fenced");
+          return { status: "fenced", reason: "evidence_capture_rejected" };
+        }
+        evidenceIds.push(evidenceId);
+      }
+
+      // Only after evidence is durably captured do we mark the task complete.
+      // Usage was already charged by evidence_captured, so this event adds none.
+      const completed = await this.repository.commitExecutionEvent({
+        admission: renewed,
+        eventType: "task_completed",
+        taskId: task.id,
+        payload: {
+          providerId: this.provider.id,
+          submissionId: submission.id,
+          evidenceIds,
+        },
+      });
+      if (!completed.accepted) {
+        await this.repository.markProviderRecoveryRequired({
+          admission: renewed,
+          submissionId: submission.id,
+          error: completed.reason ?? "task_completion_rejected",
+        });
+        return {
+          status: completed.stopped ? "stopped" : "fenced",
+          reason: completed.reason ?? "task_completion_rejected",
+        };
       }
 
       const acknowledged = await this.repository.acknowledgeProviderSubmission({
@@ -140,10 +199,14 @@ export class GovernedResearchExecutor {
       });
       if (!acknowledged) return { status: "fenced", reason: "provider_acknowledgement_rejected" };
 
-      // Completing one task does not imply the whole plan is complete. The DB
-      // closes the plan only after every durable task state is terminal.
       await this.repository.releaseExecution(renewed, "released");
-      return { status: "completed", taskId: task.id, evidence: providerResult.evidence, submission: acknowledged };
+      return {
+        status: "completed",
+        taskId: task.id,
+        evidence: providerResult.evidence,
+        evidenceIds,
+        submission: acknowledged,
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await this.repository.markProviderRecoveryRequired({ admission, submissionId: submission.id, error: message });
