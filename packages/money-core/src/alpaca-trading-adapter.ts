@@ -44,7 +44,7 @@ export class AlpacaTradingApiClient implements ProductionBrokerReadSurface{
 export class AlpacaManualLiveBrokerAdapter implements ManualLiveBrokerAdapter,ProductionBrokerReadSurface,MoneyExecutionReconciliationAdapter{
  readonly provider='alpaca';readonly environment='LIVE' as const;readonly adapterId='money-056:alpaca-live';readonly adapterVersion=1
  constructor(private client:AlpacaTradingApiClient,private liveTradingEnabled:boolean){if(client.mode!=='LIVE'||client.baseUrl!==ALPACA_LIVE_BASE_URL)throw new Error('MONEY_056_ALPACA_LIVE_CLIENT_REQUIRED')}
- submitOrder(context:LiveBrokerSubmitContext,request:LiveBrokerOrderRequest){if(!this.liveTradingEnabled)throw new Error('MONEY_056_ALPACA_LIVE_DISABLED');return this.client.submit(request,context)}
+ async submitOrder(context:LiveBrokerSubmitContext,request:LiveBrokerOrderRequest){if(!this.liveTradingEnabled)throw new Error('MONEY_056_ALPACA_LIVE_DISABLED');return this.client.submit(request,context)}
  getAccount(accountId:string,now:string){return this.client.getAccount(accountId,now)}
  listPositions(accountId:string,now:string){return this.client.listPositions(accountId,now)}
  getOrder(providerReference:string|undefined,clientOrderId:string,now:string){return this.client.getOrder(providerReference,clientOrderId,now)}
