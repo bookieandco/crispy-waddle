@@ -7,7 +7,9 @@ export type ActorMovement = { observedAt: string; actorId: string; direction: 'B
 export type HistoricalObservation = {
   observationId: string; launchId: string; observedAt: string
   priceReturnFromLaunchPct?: number; peakReturnPct?: number; maxDrawdownPct?: number
-  currentLiquidityUsd?: number; peakLiquidityUsd?: number; liquidityDrawdownFromPeak?: number
+  initialLiquidityUsd?: number; currentLiquidityUsd?: number; peakLiquidityUsd?: number
+  liquidityDrawdownFromPeak?: number; liquidityDrainRate?: number
+  liquidityDrainAcceleration?: number; liquidityStabilityScore?: number
   holderCountChangePct?: number; holderExitPct?: number; developerSoldPct?: number
   liquidityRemoved?: boolean; tradingHalted?: boolean
   holderBehavior?: 'ACCUMULATING' | 'STABLE' | 'DISTRIBUTING' | 'PANIC_EXIT'
@@ -69,9 +71,13 @@ export function buildHistoricalObservation(input: { launch: TokenLaunch; candles
     priceReturnFromLaunchPct ?? null,
     peakReturnPct ?? null,
     maxDrawdownPct ?? null,
+    input.liquidityHistory?.initialLiquidityUsd ?? input.launch.initialLiquidityUsd ?? null,
     input.liquidityHistory?.currentLiquidityUsd ?? null,
     input.liquidityHistory?.peakLiquidityUsd ?? null,
     input.liquidityHistory?.drawdownFromPeak ?? null,
+    input.liquidityHistory?.drainRate ?? null,
+    input.liquidityHistory?.drainAcceleration ?? null,
+    input.liquidityHistory?.stabilityScore ?? null,
     holderCountChangePct ?? null,
     holderExitPct ?? null,
     developerSoldPct ?? null,
@@ -82,9 +88,13 @@ export function buildHistoricalObservation(input: { launch: TokenLaunch; candles
     observationId: `historical-observation:${input.launch.launchId}:${fingerprint}`,
     launchId: input.launch.launchId, observedAt,
     priceReturnFromLaunchPct, peakReturnPct, maxDrawdownPct,
+    initialLiquidityUsd: input.liquidityHistory?.initialLiquidityUsd ?? input.launch.initialLiquidityUsd,
     currentLiquidityUsd: input.liquidityHistory?.currentLiquidityUsd,
     peakLiquidityUsd: input.liquidityHistory?.peakLiquidityUsd,
     liquidityDrawdownFromPeak: input.liquidityHistory?.drawdownFromPeak,
+    liquidityDrainRate: input.liquidityHistory?.drainRate,
+    liquidityDrainAcceleration: input.liquidityHistory?.drainAcceleration,
+    liquidityStabilityScore: input.liquidityHistory?.stabilityScore,
     holderCountChangePct, holderExitPct, developerSoldPct,
     liquidityRemoved: liquidityRemoved || undefined, holderBehavior, evidenceIds, source: 'historical-backfill',
   }
