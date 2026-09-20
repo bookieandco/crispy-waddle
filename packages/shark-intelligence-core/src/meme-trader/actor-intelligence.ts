@@ -25,7 +25,7 @@ function currentActorIds(graph: EntityGraph, tokenAddress: string): ActorAssocia
     if (!tokenIds.has(edge.to) && !tokenIds.has(edge.from)) continue
     const actorNodeId = tokenIds.has(edge.to) ? edge.from : edge.to
     const node = graph.nodes.find(n => n.id === actorNodeId)
-    if (!node || !['wallet', 'developer', 'cluster'].includes(node.kind)) continue
+    if (!node || (node.kind !== 'wallet' && node.kind !== 'developer' && node.kind !== 'cluster')) continue
     const actorId = node.id.replace(/^(wallet|developer|cluster):/, '')
     const key = `${node.kind}:${actorId}`
     const previous = associations.get(key)
