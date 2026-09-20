@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { assertGevStreamForAdapter, defaultSpatialQueryInterpreter, finalSpatialReadinessGate, normalizeGevCamera, normalizeSpatialGraphContribution, planSpatialQuery, reasonOverSpatialContext, workspaceSnapshot } from './integration.js'
+import { assertGevStreamForAdapter, defaultSpatialQueryInterpreter, finalSpatialReadinessGate, normalizeGevCamera, normalizeSpatialGraphContribution, reasonOverSpatialContext, workspaceSnapshot } from './integration.js'
+import { planSpatialQuery } from './spatial-pipeline.js'
 
 test('spatial query interpretation is conservative and read-only', () => {
   const query = defaultSpatialQueryInterpreter('What changed around LAX?')
