@@ -150,6 +150,8 @@ export interface ExpressionDirective {
   mode: 'direct' | 'explanatory' | 'pushback' | 'clarifying' | 'serious';
   allowProfanity: boolean;
   allowQuip: boolean;
+  /** Governed presentation target; never permission to omit required facts. */
+  responseLength?: 'brief' | 'balanced' | 'detailed';
   callback?: string;
   callbackProvenance?: Array<{
     origin: 'relationship' | 'memory' | 'hippocampus';
