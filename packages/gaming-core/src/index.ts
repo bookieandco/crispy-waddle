@@ -90,3 +90,5 @@ export * from './ps5-experimental-ledger.js';
 export * from './ps5-experimental-control-plane.js';
 export * from './steam-achievement-manager-reference.js';
 export * from './emulator-source-registry.js';
+export * from './playstation-controller-hardware-profile.js';
+export * from './libretro-wasm-runtime.js';
