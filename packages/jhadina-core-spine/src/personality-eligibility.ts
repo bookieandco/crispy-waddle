@@ -49,7 +49,7 @@ export const DEFAULT_PERSONALITY_ELIGIBILITY_RULES: readonly PersonalityEligibil
   dimension: 'communication',
   minimumObservations: 3,
   minimumEvidence: 3,
-  maximumContradictions: 0,
+  maximumContradictions: 3,
   requireImmutableEvidence: false,
 }];
 
