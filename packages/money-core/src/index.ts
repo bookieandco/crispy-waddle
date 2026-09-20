@@ -80,3 +80,5 @@ export * from './risk-simulation-contracts.js';
 export * from './decision-workflow-contracts.js';
 export * from './market-provenance-contracts.js';
 export * from './macro-economic-contracts-v2.js';
+
+export * from './sports-intelligence-ingress.js';
