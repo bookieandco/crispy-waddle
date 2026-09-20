@@ -11,7 +11,7 @@ const route:any={identity:{transportId:'rns-1',adapter:'reticulum',address:'dest
 
 test('end-to-end governed communication preserves lineage into delivery evidence',async()=>{
  const actionLedger=new InMemoryActionLedger(), evidenceLedger=new InMemoryActionLedger()
- const executor=new ActionExecutor({ledger:actionLedger,policy:{evaluate:async()=> 'allow'},handlers:[new CommunicationAuthorizationHandler()]})
+ const executor=new ActionExecutor({evaluate:async()=> 'allow'},actionLedger,[new CommunicationAuthorizationHandler()])
  const receipt=await executeGovernedReticulumCommunication({intent,executor,registry:new TransportRegistry([route]),adapter:new ReticulumTransportAdapter({send:async()=>({receiptRef:'rns:ack:1'})}),receiptId:'receipt-1',occurredAt:'2026-09-19T00:01:00.000Z',ledger:evidenceLedger})
  assert.equal(receipt.correlationId,'corr-1')
  assert.equal(receipt.intentId,'intent-1')
@@ -20,7 +20,7 @@ test('end-to-end governed communication preserves lineage into delivery evidence
 
 test('denied policy prevents transport send',async()=>{
  const ledger=new InMemoryActionLedger(); let sends=0
- const executor=new ActionExecutor({ledger,policy:{evaluate:async()=> 'deny'},handlers:[new CommunicationAuthorizationHandler()]})
+ const executor=new ActionExecutor({evaluate:async()=> 'deny'},ledger,[new CommunicationAuthorizationHandler()])
  await assert.rejects(()=>executeGovernedReticulumCommunication({intent,executor,registry:new TransportRegistry([route]),adapter:new ReticulumTransportAdapter({send:async()=>{sends++;return {receiptRef:'never'}}}),receiptId:'r',occurredAt:'now',ledger}),/Action denied/)
  assert.equal(sends,0)
 })
