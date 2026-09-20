@@ -125,6 +125,7 @@ export async function runPersistedLaunchOutcomeWorker(client: SupabaseClient, li
       evaluated_outcome: item.assessment.outcome,
       confidence: item.assessment.confidence,
       evaluated_at: evaluatedAt,
+      outcome_observed_at: observation.observedAt,
       evaluator_version: item.assessment.version,
       evidence_ids: item.assessment.evidenceIds,
       reasons: item.assessment.reasons,
