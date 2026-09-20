@@ -406,6 +406,7 @@ the real build's route manifest.
 **Human decision (2026-09-19):** Combine JH-042/JH-012/JH-013 under the Jhadina Intelligence & Communications Loop while preserving separate capability boundaries. Shodan is the first passive observation adapter, not an agent or execution authority.
 **Definition of Done:** Provider-neutral observation contract is governed/evidence-bearing; Shodan adapter cannot exceed the declared read-only capabilities; evidence/provenance can enter the existing intelligence/activity path; tests prove unsupported/mutating operations fail closed.
 **Next Step:** Build the provider-neutral passive-observation contract first; do not couple the contract to Shodan response shapes or credentials.
+**Handoff audit (2026-09-19):** Expanded against prior Communications/Homebase requirements. Observation evidence must not confer trust/authorization. Subsequent JH-013 work must preserve endpoint vs transport/gateway identity, explicit trust states, correlation lineage, inbound replay/dedup normalization, encrypted store-and-forward/offline reconciliation, and canonical durable delivery evidence. See `docs/JHADINA_INTCOM_ARCHITECTURE.md`.
 
 ### JH-013
 **Priority:** P2
