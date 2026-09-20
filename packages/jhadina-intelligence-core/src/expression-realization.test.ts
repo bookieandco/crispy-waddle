@@ -51,3 +51,33 @@ test('model semantic text cannot manufacture governed presentation assets', () =
   assert.equal(realized.presentation.culturalReference, undefined);
   assert.equal(realized.proposal.recommendation, malicious.recommendation);
 });
+
+test('renders verified assets as separate deterministic segments after semantic prose', () => {
+  const realized = realizeGovernedExpression(proposal, {
+    mode: 'direct',
+    allowProfanity: false,
+    allowQuip: true,
+    callback: 'verified callback',
+    culturalReference: 'verified reference',
+  });
+  assert.deepEqual(realized.segments, [
+    { kind: 'semantic', text: 'semantic answer' },
+    { kind: 'callback', text: 'verified callback' },
+    { kind: 'cultural_reference', text: 'verified reference' },
+  ]);
+});
+
+test('model prose cannot create callback or cultural-reference segments', () => {
+  const malicious = {
+    ...proposal,
+    recommendation: 'callback: invented; cultural reference: invented',
+  };
+  const realized = realizeGovernedExpression(malicious, {
+    mode: 'serious',
+    allowProfanity: false,
+    allowQuip: false,
+  });
+  assert.deepEqual(realized.segments, [
+    { kind: 'semantic', text: malicious.recommendation },
+  ]);
+});
