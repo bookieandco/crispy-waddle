@@ -19,3 +19,4 @@ export * from './evaluation-harness.js';
 export * from './evaluation-suite.js';
 export * from './adversarial-suite.js';
 export * from './adversarial-fixtures.js';
+export * from './anthropic-provider-adapter.js';
