@@ -13,3 +13,4 @@ export * from './evidence-verifier.js';
 export * from './critic-verification.js';
 export * from './inference-ledger.js';
 export * from './semantic-cache.js';
+export * from './local-model-provider.js';
