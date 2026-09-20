@@ -1,4 +1,4 @@
-import type { Opportunity, OpportunityStatus } from "@jhadina/opportunity-core"
+import type { Opportunity, OpportunityPursuitCase, OpportunityStatus } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
 import type { OpportunityTriageState, StoredCanonicalOpportunity } from "./canonical"
 
@@ -97,6 +97,40 @@ export function createSupabaseOpportunityRepository() {
         .maybeSingle<OpportunityRow>()
       if (error) throw new Error(`Unable to update opportunity triage: ${error.message}`)
       return data ? toStored(data) : undefined
+    },
+
+
+    async startResearch(
+      opportunity: Opportunity,
+      pursuitCase: OpportunityPursuitCase,
+    ): Promise<StoredCanonicalOpportunity> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_opportunity_start_research", {
+        p_opportunity_id: opportunity.id,
+        p_opportunity: opportunity,
+        p_case: pursuitCase,
+        p_tasks: pursuitCase.tasks,
+      })
+
+      if (error || !data) {
+        throw new Error(`Unable to start opportunity research: ${error?.message ?? "no result returned"}`)
+      }
+
+      const result = data as {
+        userId: string
+        opportunity: Opportunity
+        triageState: OpportunityTriageState
+        approvedAt?: string
+        researchCaseId?: string
+      }
+
+      return {
+        userId: result.userId,
+        opportunity: result.opportunity,
+        triageState: result.triageState,
+        approvedAt: result.approvedAt,
+        researchCaseId: result.researchCaseId,
+      }
     },
 
     async updateLifecycle(id: string, opportunity: Opportunity, input?: { approvedAt?: string; researchCaseId?: string }): Promise<StoredCanonicalOpportunity | undefined> {
