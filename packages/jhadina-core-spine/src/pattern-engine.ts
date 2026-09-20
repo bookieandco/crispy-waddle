@@ -41,9 +41,6 @@ function tokenize(value: string): string[] {
   return [...new Set(lexicalTokens(value))];
 }
 
-function containsTerm(value: string, term: string): boolean {
-  return tokenize(value).includes(term);
-}
 
 /**
  * Conservative lexical polarity only. This is not a semantic/commonsense
