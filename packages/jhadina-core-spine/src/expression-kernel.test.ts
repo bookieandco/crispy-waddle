@@ -98,7 +98,7 @@ describe('Expression Kernel', () => {
       tone: 'conversational',
       reasoningDepth: 'standard',
       interactionStyle: 'balanced',
-      creativeStyle: 'experimental',
+      creativeStyle: 'balanced',
       callback: 'callback-1',
       callbackProvenance: [{
         origin: 'relationship',
