@@ -1,10 +1,8 @@
-import AdminSidebar from "@/components/admin/AdminSidebar";
+import AdminSidebar from '@/components/admin/AdminSidebar';
+import { requireAdminPage } from '@/lib/admin-auth';
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  await requireAdminPage();
   return (
     // Opaque background, not the translucent cream/20 the rest of the app
     // uses elsewhere — globals.css sets body { background: #171716 } (the
