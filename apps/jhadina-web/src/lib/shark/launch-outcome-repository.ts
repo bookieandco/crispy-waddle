@@ -12,7 +12,7 @@ const launchFromRow = (row: any): TokenLaunch => ({
   deployerWalletId: row.deployer_wallet_id ?? undefined, developerEntityId: row.developer_entity_id ?? undefined,
   clusterId: row.cluster_id ?? undefined, launchedAt: row.launched_at, launchpad: row.launchpad ?? undefined,
   initialLiquidityUsd: row.initial_liquidity_usd == null ? undefined : Number(row.initial_liquidity_usd),
-  outcome: row.outcome, evidenceIds: row.evidence_ids ?? [],
+  outcome: row.outcome, outcomeObservedAt: row.outcome_observed_at ?? undefined, evidenceIds: row.evidence_ids ?? [],
 })
 
 const observationFromRow = (row: any): PersistedLaunchOutcomeObservation => ({
@@ -135,6 +135,7 @@ export async function runPersistedLaunchOutcomeWorker(client: SupabaseClient, li
     if (item.updatedLaunch.outcome !== previous) {
       const { error } = await client.from('jhadina_token_launches').update({
         outcome: item.updatedLaunch.outcome,
+        outcome_observed_at: item.updatedLaunch.outcomeObservedAt ?? evaluatedAt,
         evidence_ids: item.updatedLaunch.evidenceIds,
         updated_at: evaluatedAt,
       }).eq('launch_id', item.launchId)
@@ -163,7 +164,7 @@ export async function runPersistedLaunchOutcomeWorker(client: SupabaseClient, li
       association_confidence: 1,
       evidence_ids: h.evidenceIds,
       evaluated_at: evaluatedAt,
-      evaluator_version: 'launch-outcome-v1',
+      evaluator_version: 'launch-outcome-v2',
       updated_at: evaluatedAt,
     }, { onConflict: 'actor_key' })
     if (error) throw new Error(`SHARK actor history persistence failed: ${error.message}`)
