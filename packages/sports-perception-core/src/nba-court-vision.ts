@@ -1,0 +1,1 @@
+export interface CourtCalibration{confidence:number;homography:readonly number[];basketCenters:readonly [number,number][];}export function validateCourtCalibration(c:CourtCalibration):void{if(c.confidence<0||c.confidence>1||c.homography.length!==9||c.basketCenters.length!==2)throw new Error('Invalid NBA court calibration');}
