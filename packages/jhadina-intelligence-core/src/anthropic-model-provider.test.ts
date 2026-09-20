@@ -99,6 +99,8 @@ test('serializes the governed expression directive and tells the model not to in
   assert.match(request.system ?? '', /Never invent a callback or cultural/);
   assert.match(request.messages?.[0]?.content ?? '', /"expressionDirective"/);
   assert.match(request.messages?.[0]?.content ?? '', /"responseLength":"brief"/);
+  assert.match(request.messages?.[0]?.content ?? '', /"reasoningDepth":"technical"/);
+  assert.match(request.messages?.[0]?.content ?? '', /"interactionStyle":"continuous"/);
 });
 
 test('an HTTP failure from the provider is a normal, catchable rejection', async () => {
