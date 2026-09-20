@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   InMemoryArtifactAdmissionLedger,
+  InMemoryDeploymentSessionLedger,
+  InMemoryRevocationDistributionSource,
+  RuntimeLeaseGuard,
+  createArtifactRevocation,
+  createRevocationDistributionSnapshot,
+  startDeploymentSession,
   type ArtifactAdmissionReceipt,
+  type ArtifactDeploymentReceipt,
   type RuntimeArtifactAttestation,
 } from '@jhadina/reference-provenance';
 import { createDirectorGenerationRuntimeConfig } from './director-generation-provider-factory';
@@ -70,25 +77,65 @@ describe('director generation provider factory', () => {
     };
     await ledger.appendAdmission(admission);
     await ledger.appendAttestation(attestation);
-    return {
-      ledger,
-      requirement: {
-        deploymentId: 'deployment:director:1',
-        subsystem: 'director',
-        runtimeInstanceId: attestation.runtimeInstanceId,
-        runtime: runtimeDescriptor,
-        artifactId: admission.artifactId,
-        pinId: admission.pinId,
-        admissionId: admission.admissionId,
-        attestationId: attestation.attestationId,
-      },
+
+    const deployment: ArtifactDeploymentReceipt = {
+      schemaVersion: 'REF-PROV-06',
+      deploymentId: 'deployment:director:1',
+      subsystem: 'director',
+      runtimeInstanceId: attestation.runtimeInstanceId,
+      artifactId: admission.artifactId,
+      pinId: admission.pinId,
+      admissionId: admission.admissionId,
+      admissionReceiptHash: admission.receiptHash,
+      attestationId: attestation.attestationId,
+      attestationHash: attestation.attestationHash,
+      artifactDigest: admission.artifactDigest,
       verifiedAt: '2026-09-20T05:02:00Z',
+    };
+    const sessionLedger = new InMemoryDeploymentSessionLedger();
+    const session = await startDeploymentSession(sessionLedger, deployment, {
+      sessionId: 'session:director:1',
+      startedAt: '2026-09-20T05:02:00Z',
+      heartbeatTtlMs: 600_000,
+    });
+    const revocationSource = new InMemoryRevocationDistributionSource(
+      createRevocationDistributionSnapshot({
+        epoch: 1,
+        generatedAt: '2026-09-20T05:02:00Z',
+        expiresAt: '2026-09-20T05:12:00Z',
+        revocations: [],
+      }),
+    );
+    const runtimeLeaseGuard = new RuntimeLeaseGuard({
+      sessionLedger,
+      sessionId: session.sessionId,
+      revocationSource,
+      maxStaleMs: 600_000,
+    });
+    return {
+      artifactDeployment: {
+        ledger,
+        requirement: {
+          deploymentId: deployment.deploymentId,
+          subsystem: deployment.subsystem,
+          runtimeInstanceId: deployment.runtimeInstanceId,
+          runtime: runtimeDescriptor,
+          artifactId: deployment.artifactId,
+          pinId: deployment.pinId,
+          admissionId: deployment.admissionId,
+          attestationId: deployment.attestationId,
+        },
+        verifiedAt: deployment.verifiedAt,
+        runtimeLeaseGuard,
+      },
+      revocationSource,
     };
   }
 
   it('constructs only after durable ComfyUI artifact proof verifies', async () => {
+    const { artifactDeployment } = await deploymentConfig();
     const runtime = await createDirectorGenerationRuntimeConfig({
-      artifactDeployment: await deploymentConfig(),
+      artifactDeployment,
       comfyUi: {
         id: 'comfyui-local',
         name: 'ComfyUI local',
@@ -106,6 +153,44 @@ describe('director generation provider factory', () => {
     );
   });
 
+  it('checks distributed revocation before every provider invocation', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-20T05:03:00Z'));
+    try {
+      const { artifactDeployment, revocationSource } =
+        await deploymentConfig();
+      const runtime = await createDirectorGenerationRuntimeConfig({
+        artifactDeployment,
+        comfyUi: {
+          id: 'comfyui-local',
+          baseUrl: 'http://comfyui:8188',
+          models: [model],
+        },
+      });
+      revocationSource.setSnapshot(
+        createRevocationDistributionSnapshot({
+          epoch: 2,
+          generatedAt: '2026-09-20T05:02:30Z',
+          expiresAt: '2026-09-20T05:12:00Z',
+          revocations: [
+            createArtifactRevocation({
+              revocationId: 'revoke:director:1',
+              targetType: 'ARTIFACT_PIN',
+              targetId: 'artifact:comfyui:model-bundle',
+              reason: 'withdrawn',
+              revokedAt: '2026-09-20T05:02:30Z',
+            }),
+          ],
+        }),
+      );
+      await expect(
+        runtime.providers.get('comfyui-local')!.status('job-1'),
+      ).rejects.toThrow('REF_PROV_08_RUNTIME_LEASE_REVOKED');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('fails closed when deployment proof is missing', async () => {
     await expect(
       createDirectorGenerationRuntimeConfig({
@@ -119,9 +204,10 @@ describe('director generation provider factory', () => {
   });
 
   it('rejects models bound to a different provider after proof', async () => {
+    const { artifactDeployment } = await deploymentConfig();
     await expect(
       createDirectorGenerationRuntimeConfig({
-        artifactDeployment: await deploymentConfig(),
+        artifactDeployment,
         comfyUi: {
           id: 'comfyui-local',
           baseUrl: 'http://comfyui:8188',
@@ -134,9 +220,10 @@ describe('director generation provider factory', () => {
   it('does not construct a provider from catalog metadata', async () => {
     vi.stubEnv('DIRECTOR_COMFYUI_URL', '');
     vi.stubEnv('DIRECTOR_COMFYUI_MODELS_JSON', '');
+    const { artifactDeployment } = await deploymentConfig();
     await expect(
       createDirectorGenerationRuntimeConfig({
-        artifactDeployment: await deploymentConfig(),
+        artifactDeployment,
       }),
     ).rejects.toThrow('DIRECTOR_GENERATION_PROVIDER_NOT_CONFIGURED');
     vi.unstubAllEnvs();
