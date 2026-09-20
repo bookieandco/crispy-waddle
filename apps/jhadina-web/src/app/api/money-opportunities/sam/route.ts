@@ -1,35 +1,33 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { searchSamOpportunities } from '@/lib/money-opportunities/sam-client';
-import { adaptSamResults } from '@/lib/money-opportunities/sam-opportunity-adapter';
-import { rankSideIncomeOpportunities } from '@/lib/opportunities/sideIncome';
+import { NextRequest, NextResponse } from 'next/server'
+import { searchSamOpportunities } from '@/lib/money-opportunities/sam-client'
+import { canonicalizeSamResults } from '@/lib/money-opportunities/canonical-sam-workflow'
+import { parseSamRouteSearch } from '@/lib/money-opportunities/sam-route-input'
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
+  const requestId = crypto.randomUUID()
   try {
-    const search = request.nextUrl.searchParams;
-    const userId = search.get('userId') ?? 'default';
-    const data = await searchSamOpportunities({
-      limit: Number(search.get('limit') ?? 25),
-      offset: Number(search.get('offset') ?? 0),
-      postedFrom: search.get('postedFrom') ?? undefined,
-      postedTo: search.get('postedTo') ?? undefined,
-      keyword: search.get('keyword') ?? undefined,
-      noticeType: search.get('noticeType') ?? undefined,
-      typeOfSetAside: search.get('typeOfSetAside') ?? undefined,
-    });
-
-    const opportunities = rankSideIncomeOpportunities(adaptSamResults(data, userId));
+    const params = parseSamRouteSearch(request.nextUrl.searchParams)
+    const data = await searchSamOpportunities(params)
+    const opportunities = canonicalizeSamResults(data)
     return NextResponse.json({
       ok: true,
+      requestId,
       source: 'sam.gov',
       count: opportunities.length,
       opportunities,
-      raw: data,
-    });
+    }, {
+      headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+    })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown SAM.gov error';
-    const status = message.includes('not configured') ? 503 : 502;
-    return NextResponse.json({ ok: false, error: message }, { status });
+    const message = error instanceof Error ? error.message : 'Unknown SAM.gov error'
+    const configurationError = message.includes('not configured')
+    const validationError = /Invalid|Unsupported|too long|must use/.test(message)
+    const status = configurationError ? 503 : validationError ? 400 : 502
+    return NextResponse.json(
+      { ok: false, requestId, error: validationError ? message : configurationError ? message : 'SAM.gov request failed' },
+      { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } },
+    )
   }
 }
