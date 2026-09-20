@@ -5,7 +5,7 @@ import { CommunicationAuthorizationHandler, toCommunicationActionRequest } from 
 
 const intent = {
   intentId: 'intent-1', correlationId: 'corr-1', actorId: 'actor-1',
-  recipient: { endpointId: 'person-1', kind: 'person' as const, trustState: 'authorized' as const },
+  recipient: { endpointId: 'person-1', kind: 'person' as const, trustState: 'trusted' as const, authorization: { capability: 'communications.send' as const, granted: true, evidenceRef: 'grant:1' } },
   capability: 'communications.send' as const, contentRef: 'content:1', createdAt: '2026-09-19T00:00:00.000Z',
 }
 

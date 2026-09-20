@@ -1,25 +1,44 @@
-import type { ActionExecutor } from '@jhadina/action-core'
-import { appendDeliveryEvidence, type DeliveryReceipt } from './delivery-evidence.js'
-import { toCommunicationActionRequest, type AuthorizedCommunicationDispatch } from './communication-action.js'
+import { ActionExecutor, type ActionLedger, type ActionPolicy, type ApprovalReceiptVerifier } from '@jhadina/action-core'
+import { toCommunicationActionRequest, type GovernedCommunicationAction } from './communication-action.js'
+import { ReticulumCommunicationExecutionHandler, recordCommunicationDeliveryEvidence } from './communication-execution-handler.js'
 import type { CommunicationIntent } from './communication-contracts.js'
+import type { DeliveryReceipt } from './delivery-evidence.js'
 import { ReticulumTransportAdapter } from './reticulum-adapter.js'
 import { TransportRegistry } from './transport-registry.js'
+
+export type GovernedCommunicationResult = Readonly<{
+  receipt: DeliveryReceipt
+  deliveryEvidence: 'recorded' | 'record_failed'
+}>
 
 export async function executeGovernedReticulumCommunication(input: {
   intent: CommunicationIntent
   approvalReceiptId?: string
-  executor: ActionExecutor
+  policy: ActionPolicy<GovernedCommunicationAction>
+  actionLedger: ActionLedger
+  approvalReceipts?: ApprovalReceiptVerifier<GovernedCommunicationAction>
   registry: TransportRegistry
   adapter: ReticulumTransportAdapter
   receiptId: string
   occurredAt: string
-  ledger: Parameters<typeof appendDeliveryEvidence>[0]
-}): Promise<DeliveryReceipt> {
-  const request = toCommunicationActionRequest({ intent: input.intent, approvalReceiptId: input.approvalReceiptId })
-  const dispatch = await input.executor.execute(request) as AuthorizedCommunicationDispatch
-  const route = input.registry.select(dispatch)
-  if (!input.adapter.supports(route)) throw new Error('RETICULUM_ROUTE_REQUIRED')
-  const receipt = await input.adapter.send({ dispatch, route, receiptId: input.receiptId, occurredAt: input.occurredAt })
-  await appendDeliveryEvidence(input.ledger, receipt)
-  return receipt
+  deliveryLedger: ActionLedger
+}): Promise<GovernedCommunicationResult> {
+  const handler=new ReticulumCommunicationExecutionHandler({
+    registry:input.registry,
+    adapter:input.adapter,
+    receiptId:input.receiptId,
+    occurredAt:input.occurredAt,
+  })
+  const executor=new ActionExecutor<GovernedCommunicationAction,DeliveryReceipt>(
+    input.policy,
+    input.actionLedger,
+    [handler],
+    input.approvalReceipts,
+  )
+  const receipt=await executor.execute(toCommunicationActionRequest({
+    intent:input.intent,
+    approvalReceiptId:input.approvalReceiptId,
+  }))
+  const deliveryEvidence=await recordCommunicationDeliveryEvidence({ledger:input.deliveryLedger,receipt})
+  return Object.freeze({receipt,deliveryEvidence})
 }
