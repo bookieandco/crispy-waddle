@@ -216,6 +216,9 @@ export class DirectUploadRuntime {
     try {
       let scanSha256 = claimed.scanSha256;
       if (!scanSha256) {
+        if (PRIVACY_RANK[claimed.privacyClass] > PRIVACY_RANK[this.scannerPrivacyCeiling]) {
+          throw new Error("DIRECT_UPLOAD_SCANNER_PRIVACY_INCOMPATIBLE");
+        }
         const object = await this.directObjects.inspect(claimed.quarantinePath);
         if (!object) throw new Error("DIRECT_UPLOAD_OBJECT_NOT_FOUND");
         if (object.sizeBytes !== claimed.expectedByteLength) {
