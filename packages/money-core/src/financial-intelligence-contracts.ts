@@ -109,8 +109,17 @@ export interface CanonicalFinancialAction {
 
 /** Runtime invariant: intelligence never executes a financial side effect. */
 export function assertIntelligenceOnly(capability: string): void {
-  if (capability.startsWith('money.payment.') || capability.startsWith('money.transfer.')) {
-    throw new Error('Financial intelligence cannot directly execute money movement');
+  const mutationPrefixes = [
+    'money.payment.',
+    'money.transfer.',
+    'money.account.change',
+    'money.order.',
+    'money.trade.',
+    'money.borrow.',
+    'money.allocate.',
+  ] as const;
+  if (mutationPrefixes.some((prefix) => capability.startsWith(prefix))) {
+    throw new Error('Financial intelligence cannot directly execute a financial mutation');
   }
 }
 
