@@ -403,8 +403,11 @@ export function assertFxPair(
     throw new Error('MONEY_FX_PAIR_PRICE_PRECISION_INVALID');
   }
 
-  parsePositiveDecimal(pair.pipSize, 'MONEY_FX_PAIR_PIP_SIZE_INVALID');
-  parsePositiveDecimal(
+  const pip = parsePositiveDecimal(
+    pair.pipSize,
+    'MONEY_FX_PAIR_PIP_SIZE_INVALID',
+  );
+  const minimumIncrement = parsePositiveDecimal(
     pair.minimumPriceIncrement,
     'MONEY_FX_PAIR_MIN_INCREMENT_INVALID',
   );
@@ -412,6 +415,19 @@ export function assertFxPair(
     pair.standardLotBaseUnits,
     'MONEY_FX_PAIR_STANDARD_LOT_INVALID',
   );
+
+  if (minimumIncrement.scale > pair.pricePrecision) {
+    throw new Error('MONEY_FX_PAIR_MIN_INCREMENT_PRECISION_INVALID');
+  }
+  const conventionScale = Math.max(pip.scale, minimumIncrement.scale);
+  const pipScaled = rescaleDecimal(pip, conventionScale);
+  const incrementScaled = rescaleDecimal(
+    minimumIncrement,
+    conventionScale,
+  );
+  if (pipScaled < incrementScaled || pipScaled % incrementScaled !== 0n) {
+    throw new Error('MONEY_FX_PAIR_PIP_CONVENTION_INVALID');
+  }
 
   if (pair.evidenceRefs.length === 0) {
     throw new Error('MONEY_FX_PAIR_EVIDENCE_REQUIRED');
@@ -432,6 +448,12 @@ export function assertFxPair(
   }
   if (instrument.settlementCurrency !== pair.settlementCurrency) {
     throw new Error('MONEY_FX_INSTRUMENT_SETTLEMENT_CURRENCY_MISMATCH');
+  }
+  if (!instrument.instrumentType.trim()) {
+    throw new Error('MONEY_FX_INSTRUMENT_TYPE_REQUIRED');
+  }
+  if (instrument.identifiers.length === 0) {
+    throw new Error('MONEY_FX_INSTRUMENT_IDENTIFIER_REQUIRED');
   }
   if (!instrument.provenanceHash) {
     throw new Error('MONEY_FX_INSTRUMENT_UNPROVEN');
@@ -769,10 +791,15 @@ export function assertFxMacroContext(
   ) {
     throw new Error('MONEY_FX_MACRO_CENTRAL_BANK_MISMATCH');
   }
-  if (
-    Date.parse(context.macroInformationCutoff) >
-    Date.parse(fxInformationCutoff)
-  ) {
+  const macroCutoff = parseTimestamp(
+    context.macroInformationCutoff,
+    'MONEY_FX_MACRO_CONTEXT_CUTOFF_INVALID',
+  );
+  const fxCutoff = parseTimestamp(
+    fxInformationCutoff,
+    'MONEY_FX_MACRO_FX_CUTOFF_INVALID',
+  );
+  if (macroCutoff > fxCutoff) {
     throw new Error('MONEY_FX_MACRO_FUTURE_LEAK');
   }
   if (context.macroArtifactIds.length === 0) {
