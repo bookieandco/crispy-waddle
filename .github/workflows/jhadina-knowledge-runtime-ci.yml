@@ -1,0 +1,24 @@
+name: Jhadina Knowledge Runtime CI
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ["packages/jhadina-knowledge-runtime/**","apps/jhadina-web/src/lib/knowledge/**","apps/jhadina-web/src/lib/context/context-builder.ts","supabase/migrations/**","pnpm-lock.yaml",".github/workflows/jhadina-knowledge-runtime-ci.yml"]
+  push:
+    paths: ["packages/jhadina-knowledge-runtime/**","apps/jhadina-web/src/lib/knowledge/**","apps/jhadina-web/src/lib/context/context-builder.ts","supabase/migrations/**","pnpm-lock.yaml",".github/workflows/jhadina-knowledge-runtime-ci.yml"]
+permissions: { contents: read }
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 8.15.9, run_install: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @jhadina/knowledge-runtime type-check
+      - run: pnpm --filter @jhadina/knowledge-runtime test
+      - run: pnpm --filter @jhadina/jhadina-web type-check
+      - run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/context/context-builder.test.ts
+      - run: test -f supabase/migrations/20260920180000_k_1_5_knowledge_retrieval_runtime.sql
