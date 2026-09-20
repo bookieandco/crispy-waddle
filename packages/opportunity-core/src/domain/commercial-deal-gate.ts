@@ -86,6 +86,7 @@ export function evaluateCommercialDeal(
     if (providerCosts[assignment.providerId] === undefined) {
       warnings.push(`Provider cost is unknown for ${assignment.providerId}.`)
       assumptions.push(`Provider cost for ${assignment.providerId} modeled as $0 until supplied.`)
+      blockers.push(`Provider cost must be supplied before commercial viability: ${assignment.providerId}.`)
     }
   }
 
