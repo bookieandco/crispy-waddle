@@ -60,3 +60,4 @@ jobs:
           test -f supabase/migrations/20260920143311_shark_atomic_outcome_batch.sql
           test -f supabase/migrations/20260920143356_shark_backfill_observation_fairness.sql
           test -f supabase/migrations/20260920143411_shark_provenance_debt_closure.sql
+          test -f supabase/migrations/20260920144042_shark_shared_launch_rls.sql
