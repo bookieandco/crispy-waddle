@@ -3,7 +3,13 @@ import type {
   ReferenceAuthority,
   ReferenceProvenanceRegistry,
 } from './index.js';
-import { NO_REFERENCE_AUTHORITY } from './index.js';
+
+const NO_SOURCE_AUTHORITY: ReferenceAuthority = Object.freeze({
+  runtimeAuthority: 'NONE',
+  policyAuthority: 'NONE',
+  executionAuthority: 'NONE',
+  factualAuthority: 'NONE',
+});
 
 export const REFERENCE_SOURCE_VERIFICATION_SCHEMA_VERSION =
   'REF-PROV-03' as const;
@@ -259,7 +265,7 @@ export function buildReferenceSourceVerification(
       ),
     ),
     note: input.note,
-    authority: NO_REFERENCE_AUTHORITY,
+    authority: NO_SOURCE_AUTHORITY,
   } as const;
 
   return Object.freeze({
