@@ -1,0 +1,68 @@
+name: JLLM Upload Fabric CI
+
+on:
+  push:
+    branches:
+      - jllm-01-intelligence-fabric
+  pull_request:
+    paths:
+      - 'apps/jhadina-web/src/lib/intelligence/**'
+      - 'apps/jhadina-web/src/app/api/jhadina/upload/**'
+      - 'apps/jhadina-web/src/app/api/jhadina/perception/**'
+      - 'apps/jhadina-web/src/app/api/internal/jhadina/upload/**'
+      - 'apps/jhadina-web/src/app/api/internal/jhadina/perception/**'
+      - 'apps/jhadina-web/src/components/UniversalUploadPanel.tsx'
+      - 'apps/jhadina-web/src/app/ask-jhadina/page.tsx'
+      - 'packages/jhadina-intelligence-core/**'
+      - 'packages/director-core/src/ffmpeg-process-adapter*'
+      - 'supabase/migrations/20260919*.sql'
+      - 'supabase/migrations/20260920*.sql'
+      - '.github/workflows/jllm-upload-fabric-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jllm-upload-fabric-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Type-check, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Intelligence core type-check
+        run: pnpm --filter @jhadina/intelligence-core type-check
+
+      - name: Intelligence core tests
+        run: pnpm --filter @jhadina/intelligence-core test
+
+      - name: Jhadina web type-check
+        run: pnpm --filter @jhadina/jhadina-web type-check
+
+      - name: Upload intelligence tests
+        run: pnpm --dir apps/jhadina-web exec vitest run src/lib/intelligence
+
+      - name: Jhadina web production build
+        run: pnpm --filter @jhadina/jhadina-web build
