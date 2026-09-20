@@ -76,6 +76,7 @@ export class GenerationRegistry {
   getModel(id: string): ModelRecord | undefined { return this.models.get(id); }
   getLoRA(id: string): LoRARecord | undefined { return this.loras.get(id); }
   getProvider(id: string): GenerationProviderRecord | undefined { return this.providers.get(id); }
+  hasModel(id: string): boolean { return this.models.has(id); }
 
   listModels(): ModelRecord[] { return [...this.models.values()].map((value) => structuredClone(value)); }
   listLoRAs(): LoRARecord[] { return [...this.loras.values()].map((value) => structuredClone(value)); }

@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const { reconciler } = createConfiguredDirectorGenerationRuntime(client);
+  const { reconciler } = await createConfiguredDirectorGenerationRuntime(client);
   const result = await reconciler.runOnce(25);
   return NextResponse.json({ ok: true, ...result });
 }
