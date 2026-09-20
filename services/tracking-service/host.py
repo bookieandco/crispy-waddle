@@ -1,15 +1,15 @@
 """Minimal HTTP application surface for the sandboxed tracking worker."""
 from typing import Any, Callable
-from worker import run_sam2
+from worker import ArtifactDeploymentProof, run_sam2
 
-def create_app(engine)->Callable[[str,str,dict[str,Any]],tuple[int,dict[str,Any]]]:
+def create_app(engine,deployment_proof:ArtifactDeploymentProof)->Callable[[str,str,dict[str,Any]],tuple[int,dict[str,Any]]]:
     def handle(method:str,path:str,body:dict[str,Any])->tuple[int,dict[str,Any]]:
         if method=="GET" and path=="/health":
             return 200,{"status":"ok"}
         if method!="POST" or path!="/v1/track":
             return 404,{"error":"not_found"}
         try:
-            return 200,run_sam2(engine,body)
+            return 200,run_sam2(engine,body,deployment_proof)
         except ValueError as exc:
             return 400,{"error":"invalid_tracking_request","message":str(exc)}
         except Exception:

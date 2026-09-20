@@ -1306,3 +1306,23 @@ export {
   ARTIFACT_ADMISSION_READINESS_SCHEMA_VERSION,
   buildArtifactAdmissionReadinessReport,
 } from './artifact-admission-readiness.js';
+
+export type {
+  ArtifactAdmissionLedger,
+  ArtifactDeploymentRequirement,
+  ArtifactDeploymentReceipt,
+} from './artifact-deployment.js';
+export {
+  ARTIFACT_DEPLOYMENT_SCHEMA_VERSION,
+  enforceArtifactDeployment,
+  InMemoryArtifactAdmissionLedger,
+} from './artifact-deployment.js';
+
+export type {
+  ArtifactLedgerSqlResult,
+  ArtifactLedgerSqlClient,
+  PostgresArtifactAdmissionLedgerOptions,
+} from './postgres-artifact-admission-ledger.js';
+export {
+  PostgresArtifactAdmissionLedger,
+} from './postgres-artifact-admission-ledger.js';

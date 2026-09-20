@@ -1,4 +1,10 @@
 import {
+  enforceArtifactDeployment,
+  type ArtifactAdmissionLedger,
+  type ArtifactDeploymentRequirement,
+  type ArtifactDeploymentReceipt,
+} from '@jhadina/reference-provenance';
+import {
   ComfyUIProvider,
   createComfyUIHttpClient,
   GenerationRegistry,
@@ -8,6 +14,11 @@ import {
 } from '@jhadina/director-core';
 
 export type DirectorGenerationFactoryConfig = {
+  artifactDeployment?: {
+    ledger: ArtifactAdmissionLedger;
+    requirement: ArtifactDeploymentRequirement;
+    verifiedAt?: string;
+  };
   comfyUi?: {
     id?: string;
     name?: string;
@@ -20,6 +31,7 @@ export type DirectorGenerationFactoryConfig = {
 export type DirectorGenerationProviderRuntime = {
   registry: GenerationRegistry;
   providers: Map<string, GenerationProvider>;
+  artifactDeployment: ArtifactDeploymentReceipt;
 };
 
 function readJsonEnv<T>(name: string): T | undefined {
@@ -79,12 +91,31 @@ function buildWorkflow(request: Parameters<NonNullable<GenerationProvider['submi
  * records are never promoted to live providers. ComfyUI workflow JSON is
  * supplied by the canonical GenerationRequest rather than hard-coded here.
  */
-export function createDirectorGenerationRuntimeConfig(
+export async function createDirectorGenerationRuntimeConfig(
   config: DirectorGenerationFactoryConfig = { comfyUi: defaultComfyUiConfig() },
-): DirectorGenerationProviderRuntime {
+): Promise<DirectorGenerationProviderRuntime> {
   const registry = new GenerationRegistry();
   const providers = new Map<string, GenerationProvider>();
   const comfyUi = config.comfyUi;
+  const deployment = config.artifactDeployment;
+
+  if (!deployment) {
+    throw new Error('DIRECTOR_ARTIFACT_DEPLOYMENT_PROOF_REQUIRED');
+  }
+  const artifactDeployment = await enforceArtifactDeployment(
+    deployment.ledger,
+    deployment.requirement,
+    deployment.verifiedAt ?? new Date().toISOString(),
+  );
+  if (deployment.requirement.subsystem !== 'director') {
+    throw new Error('DIRECTOR_ARTIFACT_DEPLOYMENT_SUBSYSTEM_MISMATCH');
+  }
+  if (
+    deployment.requirement.artifactId !==
+    'comfyui:runtime-model-bundle'
+  ) {
+    throw new Error('DIRECTOR_COMFYUI_MODEL_BUNDLE_PROOF_REQUIRED');
+  }
 
   if (!comfyUi) {
     throw new Error('DIRECTOR_GENERATION_PROVIDER_NOT_CONFIGURED');
@@ -106,19 +137,19 @@ export function createDirectorGenerationRuntimeConfig(
     registry.registerModel(model);
   }
 
-  return { registry, providers };
+  return { registry, providers, artifactDeployment };
 }
 
 /** Canonical provider-only factory used by reconciliation workers. */
-export function createDirectorGenerationProviders(
+export async function createDirectorGenerationProviders(
   config?: DirectorGenerationFactoryConfig,
-): Map<string, GenerationProvider> {
-  return createDirectorGenerationRuntimeConfig(config).providers;
+): Promise<Map<string, GenerationProvider>> {
+  return (await createDirectorGenerationRuntimeConfig(config)).providers;
 }
 
 /** Canonical registry + provider factory used by request handlers. */
-export function createDirectorGenerationRegistryAndProviders(
+export async function createDirectorGenerationRegistryAndProviders(
   config?: DirectorGenerationFactoryConfig,
-): DirectorGenerationProviderRuntime {
+): Promise<DirectorGenerationProviderRuntime> {
   return createDirectorGenerationRuntimeConfig(config);
 }

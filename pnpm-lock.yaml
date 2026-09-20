@@ -28,6 +28,9 @@ importers:
       '@jhadina/director-core':
         specifier: workspace:*
         version: link:../../packages/director-core
+      '@jhadina/reference-provenance':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-reference-provenance
       '@jhadina/opportunity-core':
         specifier: workspace:*
         version: link:../../packages/opportunity-core
