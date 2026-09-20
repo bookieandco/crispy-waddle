@@ -13,6 +13,9 @@ import {
 import {
   createInitialReferenceProvenanceRegistry,
 } from './seed-registry.js';
+import {
+  buildArtifactAdmissionReadinessReport,
+} from './artifact-admission-readiness.js';
 
 const BYTES = new TextEncoder().encode('model-bytes-v1');
 const SOURCE_REVISION =
@@ -443,4 +446,21 @@ test('admission and attestation identifiers are replay-safe', () => {
     () => gate.attest(attestationRequest),
     /ATTESTATION_ID_REPLAY/,
   );
+});
+
+test('current REF-PROV-04 model artifacts remain machine-readable admission blockers', () => {
+  const report = buildArtifactAdmissionReadinessReport(
+    createInitialReferenceProvenanceRegistry(),
+  );
+
+  for (const pinId of [
+    'artifact:sam2:checkpoint',
+    'artifact:comfyui:model-bundle',
+    'artifact:voicefixer:model-weights',
+    'artifact:neuralnote:model',
+    'artifact:ace-step:model',
+  ]) {
+    assert.ok(report.blockedPinIds.includes(pinId));
+  }
+  assert.equal(report.readyPinIds.length, 0);
 });
