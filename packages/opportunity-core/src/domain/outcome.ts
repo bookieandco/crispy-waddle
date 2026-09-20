@@ -128,6 +128,12 @@ export function applyOpportunityOutcome(
   now = new Date().toISOString(),
 ): Opportunity {
   if (outcome.opportunityId !== opportunity.id) throw new Error('Outcome does not belong to opportunity')
+  if (!['ready', 'approved', 'pursuing', 'won', 'lost'].includes(opportunity.status)) {
+    throw new Error(`Opportunity cannot record a realized outcome from status ${opportunity.status}`)
+  }
+  if ((opportunity.status === 'won' || opportunity.status === 'lost') && opportunity.status !== outcome.result) {
+    throw new Error('A closed opportunity cannot be rewritten to the opposite result')
+  }
   return {
     ...opportunity,
     status: outcome.result,
