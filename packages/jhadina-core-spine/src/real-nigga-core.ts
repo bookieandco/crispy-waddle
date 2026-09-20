@@ -3,11 +3,6 @@ import {
   DEFAULT_PERSONALITY_TASTE,
   DEFAULT_PERSONALITY_VOICE,
 } from './personality-core.js';
-import {
-  DEFAULT_PERSONALITY_RELATIONSHIP,
-  DEFAULT_PERSONALITY_TASTE,
-  DEFAULT_PERSONALITY_VOICE,
-} from './personality-core.js';
 import type {
   PersonalityState,
   PersonalityTasteState,
