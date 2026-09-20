@@ -49,3 +49,4 @@ jobs:
           test -f supabase/migrations/20260920000200_shark_service_role_only_rls.sql
           test -f supabase/migrations/20260920000300_shark_schema_reconciliation.sql
           test -f supabase/migrations/20260920000400_shark_latest_observation_rpc.sql
+          test -f supabase/migrations/20260920000500_shark_historical_backfill_scheduler.sql
