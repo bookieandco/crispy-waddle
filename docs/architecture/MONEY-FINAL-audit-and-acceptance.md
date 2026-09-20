@@ -26,6 +26,7 @@ Audited current `main` Money Core, Jhadina web Money composition, Supabase bank 
 4. The browser/session role may resolve only active owned account IDs. It cannot read Item credentials or mutate ownership rows directly.
 5. Removed stale comments claiming the repository still lacks a per-user Plaid ownership map.
 6. Applied the credential-hardening migrations to the live Jhadina Supabase project and verified the legacy browser-callable mutation RPCs are no longer executable by `authenticated`.
+7. Closed an intelligence-authority gap: `assertIntelligenceOnly()` previously rejected only payment/transfer capabilities even though Money's canonical mutation boundary also includes account changes, orders, trades, borrowing and allocation. A single shared mutation classifier now governs both intelligence rejection and ActionRequest eligibility, with regression coverage.
 
 ## Reference/handoff disposition
 - Plaid: implemented read-only banking/provider boundary plus sandbox Link commissioning path.
