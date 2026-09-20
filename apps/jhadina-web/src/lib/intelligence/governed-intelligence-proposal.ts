@@ -67,6 +67,8 @@ export interface GovernedIntelligenceProposalDeps {
 export interface GovernedIntelligenceProposalResult {
   proposal: DecisionProposal
   verifiedUserId: string
+  /** Durable Hippocampal lineage for this successful conversation turn. */
+  reasoningEventId: string
   /** Set only when disposition was PROCEED and the action executed. */
   candidate?: MemoryCandidate
   /** Set only when policy required an explicit approval step. */
@@ -75,7 +77,7 @@ export interface GovernedIntelligenceProposalResult {
 
 /** Deterministic fingerprint binding an approval receipt to this exact proposed content. */
 function fingerprintMemoryPropose(action: MemoryProposeAction): string {
-  return `memory-propose:${action.content}`
+  return `memory-propose:${action.reasoningEventId ?? "legacy"}:${action.content}`
 }
 
 export async function decideAndProposeMemoryGoverned(
@@ -122,7 +124,29 @@ export async function decideAndProposeMemoryGoverned(
     throw error
   }
 
-  // 3. Disposition gate. ASK/DECLINE/DEFER never become an ActionRequest.
+  // 3. Record the successful conversation turn independently of whether
+  // the model proposes a memory action. This is the canonical Experience
+  // that the next turn's Hippocampus reads. The user message comes from the
+  // application-owned ContextPacket; model output is stored only as response
+  // and rationale, never substituted for what the user actually said.
+  const experience = await deps.reasoningRepo.create({
+    userId: identity.userId,
+    userMessage: context.userGoal ?? context.purpose,
+    observation: {
+      raw: context.userGoal ?? context.purpose,
+      extracted: context.userGoal ?? context.purpose,
+      timestamp: now(),
+    },
+    classification: {
+      type: "CONTEXT",
+      confidence: confidenceFor(proposal),
+      reasoning: `model disposition: ${proposal.disposition}; ${proposal.rationale}`,
+    },
+    systemResponse: proposal.recommendation,
+    confidence: confidenceFor(proposal),
+  })
+
+  // 4. Disposition gate. ASK/DECLINE/DEFER never become an ActionRequest.
   if (proposal.disposition !== "PROCEED") {
     await deps.ledger.append({
       id: `${actionId}:proposal-not-actioned`,
@@ -133,7 +157,7 @@ export async function decideAndProposeMemoryGoverned(
       timestamp: now(),
       metadata: { disposition: proposal.disposition, proposalId: proposal.id },
     })
-    return { proposal, verifiedUserId: identity.userId }
+    return { proposal, verifiedUserId: identity.userId, reasoningEventId: experience.id }
   }
 
   const request: ActionRequest<MemoryProposeAction> = {
@@ -145,6 +169,7 @@ export async function decideAndProposeMemoryGoverned(
       content: proposal.recommendation,
       rationale: proposal.rationale,
       confidence: confidenceFor(proposal),
+      reasoningEventId: experience.id,
     },
     requestedAt: now(),
   }
@@ -198,7 +223,7 @@ export async function decideAndProposeMemoryGoverned(
   // 6. ActionExecutor executes (re-validates policy + receipt independently) -> audit.
   const candidate = await executor.execute(approvalReceiptId ? { ...request, approvalReceiptId } : request)
 
-  return { proposal, verifiedUserId: identity.userId, candidate, approvalReceiptId }
+  return { proposal, verifiedUserId: identity.userId, reasoningEventId: experience.id, candidate, approvalReceiptId }
 }
 
 function confidenceFor(proposal: DecisionProposal): number {

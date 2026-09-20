@@ -13,6 +13,9 @@ on:
       - "apps/jhadina-web/src/lib/context/context-builder.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/jhadina-command.ts"
       - "apps/jhadina-web/src/lib/intelligence/jhadina-command.test.ts"
+      - "apps/jhadina-web/src/lib/intelligence/governed-intelligence-proposal.ts"
+      - "apps/jhadina-web/src/lib/intelligence/governed-intelligence-proposal.test.ts"
+      - "apps/jhadina-web/src/lib/intelligence/memory-propose-capability.ts"
       - "supabase/migrations/20260902060000_create_jhadina_personality_state.sql"
       - "pnpm-lock.yaml"
       - "package.json"
@@ -30,6 +33,9 @@ on:
       - "apps/jhadina-web/src/lib/context/context-builder.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/jhadina-command.ts"
       - "apps/jhadina-web/src/lib/intelligence/jhadina-command.test.ts"
+      - "apps/jhadina-web/src/lib/intelligence/governed-intelligence-proposal.ts"
+      - "apps/jhadina-web/src/lib/intelligence/governed-intelligence-proposal.test.ts"
+      - "apps/jhadina-web/src/lib/intelligence/memory-propose-capability.ts"
       - "supabase/migrations/20260902060000_create_jhadina_personality_state.sql"
       - "pnpm-lock.yaml"
       - "package.json"
@@ -81,4 +87,5 @@ jobs:
             src/lib/personality/production-personality-context-provider.test.ts \
             src/lib/hippocampus/persisted-experience-pattern-adapter.test.ts \
             src/lib/context/context-builder.test.ts \
-            src/lib/intelligence/jhadina-command.test.ts
+            src/lib/intelligence/jhadina-command.test.ts \
+            src/lib/intelligence/governed-intelligence-proposal.test.ts

@@ -13,6 +13,7 @@ import type { ActionRequestIdentity, JhadinaActionRequest, JhadinaIdentityVerifi
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { InMemoryStorage } from "../storage/InMemoryStorage"
+import { PersistedExperiencePatternAdapter } from "../hippocampus/persisted-experience-pattern-adapter"
 import {
   decideAndProposeMemoryGoverned,
   type GovernedIntelligenceProposalDeps,
@@ -93,9 +94,10 @@ function providerThatFails(): ModelProvider {
 function freshDeps(
   identity: ActionRequestIdentity,
   router: IntelligenceRouter,
-): GovernedIntelligenceProposalDeps & { ledger: InMemoryActionLedger; memoryRepo: MemoryRepository } {
+): GovernedIntelligenceProposalDeps & { ledger: InMemoryActionLedger; memoryRepo: MemoryRepository; storage: InMemoryStorage } {
   const storage = new InMemoryStorage()
   return {
+    storage,
     identityVerifier: staticIdentityVerifier(identity),
     ledger: new InMemoryActionLedger(),
     router,
@@ -124,6 +126,14 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
     expect(result.candidate).toBeDefined()
     expect(result.candidate?.content).toBe("I prefer cinematic visuals")
     expect(result.candidate?.status).toBe("PENDING") // Step 2's governance untouched: still needs explicit approval.
+    expect(result.reasoningEventId).toBeDefined()
+    expect(result.candidate?.reasoningEventId).toBe(result.reasoningEventId)
+
+    const experiences = await deps.reasoningRepo.list(identity.userId)
+    expect(experiences).toHaveLength(1)
+    expect(experiences[0].id).toBe(result.reasoningEventId)
+    expect(experiences[0].userMessage).toBe("I prefer cinematic visuals")
+    expect(experiences[0].systemResponse).toBe(result.proposal.recommendation)
 
     // The candidate is durably in Step 2's own repository, not just the return value.
     const pending = await deps.memoryRepo.listPending(identity.userId)
@@ -156,7 +166,7 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
     expect(await deps.memoryRepo.listPending(identity.userId)).toHaveLength(0)
   })
 
-  it("ASK/DECLINE/DEFER dispositions never reach ActionExecutor — no candidate, no side effect", async () => {
+  it("ASK/DECLINE/DEFER never reach ActionExecutor but still persist the conversation Experience", async () => {
     for (const disposition of ["ASK", "DECLINE", "DEFER"] as const) {
       const identity: ActionRequestIdentity = { userId: `user-ir-disp-${disposition}`, sessionId: "s" }
       const router = new IntelligenceRouter({
@@ -169,6 +179,10 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
 
       expect(result.candidate).toBeUndefined()
       expect(await deps.memoryRepo.listPending(identity.userId)).toHaveLength(0)
+      const experiences = await deps.reasoningRepo.list(identity.userId)
+      expect(experiences).toHaveLength(1)
+      expect(experiences[0].id).toBe(result.reasoningEventId)
+      expect(experiences[0].userMessage).toBe("I prefer cinematic visuals")
       const trail = deps.ledger.list()
       expect(trail.some((e) => e.metadata?.disposition === disposition)).toBe(true)
       expect(trail.some((e) => e.status === "started" && e.id.includes(":started"))).toBe(false)
@@ -211,6 +225,7 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
       `Action denied by policy: ${MEMORY_PROPOSE_CAPABILITY}`,
     )
     expect(await deps.memoryRepo.listPending(identity.userId)).toHaveLength(0)
+    expect(await deps.reasoningRepo.list(identity.userId)).toHaveLength(1)
     const trail = deps.ledger.list()
     expect(trail.some((e) => e.status === "denied")).toBe(true)
     expect(trail.some((e) => e.status === "completed")).toBe(false)
@@ -255,7 +270,7 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
       actionId: "unrelated-action-id",
       userId: identity.userId,
       type: MEMORY_PROPOSE_CAPABILITY,
-      fingerprint: "memory-propose:I prefer cinematic visuals",
+      fingerprint: `memory-propose:${first.reasoningEventId}:I prefer cinematic visuals`,
     })
     expect(directConsume).toBe(false) // already consumed — cannot be replayed
   })
@@ -299,4 +314,52 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
     }
     await expect(policy.evaluate(request)).resolves.toBe("allow")
   })
+  it("PROD.1 closes the successful conversation loop back into Hippocampus without auto-approving Personality evidence", async () => {
+    const identity: ActionRequestIdentity = { userId: "user-prod-01", sessionId: "session-prod-01" }
+    const router = new IntelligenceRouter({
+      primary: providerReturning(proposalFor("ASK", {
+        recommendation: "I can keep the visuals cinematic.",
+      })),
+      fallback: providerThatFails(),
+    })
+    const deps = freshDeps(identity, router)
+
+    const first = await decideAndProposeMemoryGoverned(
+      deps,
+      identity.userId,
+      {
+        ...baseContext("ctx-prod-01"),
+        userGoal: "I prefer cinematic visuals",
+      },
+    )
+
+    expect(first.candidate).toBeUndefined()
+    expect(await deps.memoryRepo.listApproved(identity.userId)).toHaveLength(0)
+
+    const adapter = new PersistedExperiencePatternAdapter(deps.storage)
+    const next = await adapter.detectExperience({
+      userId: identity.userId,
+      experience: {
+        id: "live-prod-01-next",
+        occurredAt: "2026-09-20T23:00:00.000Z",
+        source: "ask-jhadina",
+        actor: "user",
+        content: "Keep the visuals cinematic",
+        evidence: [{
+          id: "live-prod-01-next",
+          source: "ask-jhadina",
+          observedAt: "2026-09-20T23:00:00.000Z",
+          summary: "Keep the visuals cinematic",
+          immutable: false,
+        }],
+      },
+    })
+
+    expect(next.relatedEpisodes.some((episode) => episode.episodeId === first.reasoningEventId)).toBe(true)
+    const episodic = next.patterns.find((pattern) => pattern.id === "episodic-recurrence:cinematic")
+    expect(episodic?.occurrences).toBe(2)
+    expect(episodic?.personalityEligible).toBe(false)
+    expect(next.memories).toHaveLength(0)
+  })
+
 })
