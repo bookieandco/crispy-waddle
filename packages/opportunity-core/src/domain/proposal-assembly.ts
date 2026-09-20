@@ -1,0 +1,4 @@
+export type ProposalSection={id:string;kind:'compliance_matrix'|'technical'|'staffing'|'past_performance'|'schedule'|'pricing'|'assumptions'|'exceptions';contentRef:string;evidenceRefs:string[];complete:boolean}
+export type ProposalPackage={id:string;opportunityId:string;sections:ProposalSection[];missingSectionKinds:string[];sourceEvidenceRefs:string[];status:'draft'|'review_required'|'submission_ready_for_human';bidSubmissionAuthorized:false}
+const required=['compliance_matrix','technical','staffing','past_performance','schedule','pricing'] as const
+export function assembleProposal(id:string,opportunityId:string,sections:ProposalSection[]):ProposalPackage{const missing=required.filter(k=>!sections.some(s=>s.kind===k&&s.complete));return{id,opportunityId,sections,missingSectionKinds:missing,sourceEvidenceRefs:[...new Set(sections.flatMap(s=>s.evidenceRefs))],status:missing.length?'review_required':'submission_ready_for_human',bidSubmissionAuthorized:false}}
