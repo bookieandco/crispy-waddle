@@ -1,8 +1,8 @@
 // lib/stripe.ts
 // Server-only. Never import this from a client component.
 
-import Stripe from "stripe";
-import { ValidatedCartItem } from "@/lib/catalog";
+import Stripe from 'stripe';
+import { ValidatedCartItem } from '@/lib/catalog';
 
 let client: Stripe | null = null;
 
@@ -32,57 +32,58 @@ export async function createCheckoutSession(
 ): Promise<CreateCheckoutSessionResult | CreateCheckoutSessionError> {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
-    return { success: false, error: "STRIPE_SECRET_KEY is not configured." };
+    return { success: false, error: 'STRIPE_SECRET_KEY is not configured.' };
   }
   if (params.items.length === 0) {
-    return { success: false, error: "Cart is empty." };
+    return { success: false, error: 'Cart is empty.' };
   }
 
   try {
     const stripe = getClient(secretKey);
-    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] =
-      params.items.map((item) => ({
-        quantity: item.quantity,
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: `${item.productName} — ${item.variantLabel}`,
-            metadata: {
-              cart_entry_id: item.id,
-              product_id: item.productId,
-              variant_id: item.variantId,
-              art_style: item.artStyle,
-            },
-            images: item.previewUrl?.startsWith("http")
-              ? [item.previewUrl]
-              : undefined,
+    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = params.items.map((item) => ({
+      quantity: item.quantity,
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: `${item.productName} — ${item.variantLabel}`,
+          metadata: {
+            cart_entry_id: item.id,
+            product_id: item.productId,
+            variant_id: item.variantId,
+            art_style: item.artStyle,
+            creative_output_id: item.creativeOutputId,
           },
-          unit_amount: item.priceCents,
+          images: item.previewUrl?.startsWith('http') ? [item.previewUrl] : undefined,
         },
-      }));
+        unit_amount: item.priceCents,
+      },
+    }));
 
     const session = await stripe.checkout.sessions.create({
-      mode: "payment",
+      mode: 'payment',
       line_items,
       success_url: params.successUrl,
       cancel_url: params.cancelUrl,
+      billing_address_collection: 'required',
+      shipping_address_collection: { allowed_countries: ['US', 'CA', 'MX'] },
+      phone_number_collection: { enabled: true },
     });
 
     if (!session.url) {
-      return { success: false, error: "Stripe did not return a session URL." };
+      return { success: false, error: 'Stripe did not return a session URL.' };
     }
     return { success: true, url: session.url };
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Unknown error calling Stripe.",
+      error: err instanceof Error ? err.message : 'Unknown error calling Stripe.',
     };
   }
 }
 
 export interface CheckoutSessionSummary {
-  status: Stripe.Checkout.Session["status"];
-  paymentStatus: Stripe.Checkout.Session["payment_status"];
+  status: Stripe.Checkout.Session['status'];
+  paymentStatus: Stripe.Checkout.Session['payment_status'];
   amountTotalCents: number | null;
   currency: string | null;
   customerEmail: string | null;
@@ -93,7 +94,7 @@ export async function getCheckoutSession(
 ): Promise<{ success: true; session: CheckoutSessionSummary } | CreateCheckoutSessionError> {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
-    return { success: false, error: "STRIPE_SECRET_KEY is not configured." };
+    return { success: false, error: 'STRIPE_SECRET_KEY is not configured.' };
   }
   try {
     const stripe = getClient(secretKey);
@@ -111,7 +112,7 @@ export async function getCheckoutSession(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Unknown error calling Stripe.",
+      error: err instanceof Error ? err.message : 'Unknown error calling Stripe.',
     };
   }
 }

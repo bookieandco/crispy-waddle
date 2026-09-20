@@ -48,8 +48,12 @@ export type ActiveProduct = Hotspot;
 
 export interface CartItem {
   id: string;
+  productId?: string;
+  variantId?: string;
   productName: string;
   price: number;
   quantity: number;
   previewUrl?: string;
+  artStyle?: ArtStyle;
+  creativeOutputId?: string;
 }
