@@ -6,6 +6,7 @@ import type { ActionIdentityVerifier, AuditRpcClient } from "@jhadina/action-cor
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { createMoneyAuditRpcClient } from "./durable-audit-ledger"
+import { createMoneyOwnershipResolver, type MoneyOwnershipResolver } from "./ownership-resolver"
 import {
   createMoneyPlaidProductionRegistry,
   PLAID_PROVIDER,
@@ -41,6 +42,8 @@ export type GovernedMoneyRuntimeOverrides = {
   supabase?: AuditRpcClient
   /** Test-only: substitutes an already-built provider registry instead of the real Plaid credential-resolution path. */
   providers?: MoneyPlaidProductionRegistry
+  /** Durable user -> bank account authorization. */
+  ownershipResolver?: MoneyOwnershipResolver
 }
 
 export interface GovernedMoneyAccountReadResult {
@@ -83,6 +86,10 @@ export async function runGovernedMoneyAccountRead(
     providerConfig,
   })
 
+  const ownershipResolver = overrides.ownershipResolver ?? (await createMoneyOwnershipResolver())
+  const ownedAccountIds = await ownershipResolver.ownedAccountIds(claimedUserId)
+  if (ownedAccountIds.size === 0) return { accounts: [], verifiedUserId: claimedUserId }
+
   const accounts = await executor.execute({
     id: requestId,
     userId: claimedUserId,
@@ -91,7 +98,7 @@ export async function runGovernedMoneyAccountRead(
     action: { capability: "money.account.read", provider: PLAID_PROVIDER },
   })
 
-  return { accounts, verifiedUserId: claimedUserId }
+  return { accounts: accounts.filter((account) => ownedAccountIds.has(account.externalId)), verifiedUserId: claimedUserId }
 }
 
 
