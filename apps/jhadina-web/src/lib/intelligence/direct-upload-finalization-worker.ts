@@ -6,15 +6,8 @@ import {
   retryDelayMs,
   type PerceptionJobRepository,
 } from "@jhadina/intelligence-core";
-import type {
-  DirectUploadSession,
-  SupabaseDirectUploadSessionRepository,
-} from "./supabase-direct-upload-session-repository";
-import type {
-  DirectUploadObjectInfo,
-  SupabaseDirectUploadObjectStore,
-} from "./supabase-direct-upload-object-store";
-import type { SupabaseUniversalUploadObjectStore } from "./supabase-universal-upload-store";
+import type { DirectUploadSession } from "./supabase-direct-upload-session-repository";
+import type { DirectUploadObjectInfo } from "./supabase-direct-upload-object-store";
 import type { UniversalUploadPrivacyClass } from "./production-universal-upload-runtime";
 import type { QuarantineCleanupReceiptStore } from "./supabase-quarantine-cleanup-repository";
 
