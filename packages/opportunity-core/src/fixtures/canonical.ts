@@ -1,6 +1,7 @@
 import { adaptSamOpportunity } from '../adapters/sam.js'
 import { adaptOverageOpportunity } from '../adapters/overage.js'
 import type { Opportunity } from '../domain/opportunity.js'
+import type { VerificationDecision } from '../domain/verification.js'
 
 export const samFixture: Opportunity = adaptSamOpportunity({
   noticeId: 'FIXTURE-SAM-001',
@@ -18,6 +19,28 @@ export const samFixture: Opportunity = adaptSamOpportunity({
   fetchedAt: '2026-08-28T00:00:00Z',
 })
 
+const verifiedChecks = {
+  source_record: 'verified' as const,
+  property_reference: 'verified' as const,
+  claimant_identity: 'verified' as const,
+  entitlement: 'verified' as const,
+}
+
+const verifiedDecision: VerificationDecision = {
+  id: 'verification:FIXTURE-OVERAGE-001',
+  opportunityId: 'overage:FIXTURE-OVERAGE-001',
+  status: 'verified',
+  checks: Object.entries(verifiedChecks).map(([type, result]) => ({
+    type: type as 'source_record' | 'property_reference' | 'claimant_identity' | 'entitlement',
+    result,
+    evidenceRefs: [`FIXTURE-OVERAGE-001:${type}`],
+  })),
+  evidenceRefs: ['FIXTURE-OVERAGE-001:source'],
+  reviewerRef: 'fixture-reviewer',
+  decidedAt: '2026-08-28T00:00:00Z',
+  verifiedAt: '2026-08-28T00:00:00Z',
+}
+
 export const verifiedOverageFixture: Opportunity = adaptOverageOpportunity({
   id: 'FIXTURE-OVERAGE-001',
   title: 'Verified Excess Proceeds Claim',
@@ -27,10 +50,9 @@ export const verifiedOverageFixture: Opportunity = adaptOverageOpportunity({
   sourceName: 'Example County',
   jurisdiction: { country: 'US', region: 'NV', locality: 'Example County' },
   propertyReference: 'PARCEL-FIXTURE-001',
-  claimantVerified: true,
-  saleVerified: true,
-  entitlementVerified: true,
-  sourceRecordVerified: true,
+  verificationChecks: verifiedChecks,
+  verificationDecision: verifiedDecision,
+  sourceConfidence: 1,
   capturedAt: '2026-08-28T00:00:00Z',
 })
 
@@ -41,10 +63,13 @@ export const pendingOverageFixture: Opportunity = adaptOverageOpportunity({
   sourceUrl: 'https://example.gov/overage/fixture-002',
   sourceName: 'Example County',
   propertyReference: 'PARCEL-FIXTURE-002',
-  claimantVerified: false,
-  saleVerified: true,
-  entitlementVerified: false,
-  sourceRecordVerified: true,
+  verificationChecks: {
+    source_record: 'verified',
+    property_reference: 'pending',
+    claimant_identity: 'pending',
+    entitlement: 'pending',
+  },
+  sourceConfidence: 1,
   capturedAt: '2026-08-28T00:00:00Z',
 })
 
@@ -81,7 +106,7 @@ export const ripplingGrantFixture: Opportunity = {
   sourceConfidence: 0.8,
   riskFlags: ['official_source_not_verified'],
   brokerability: 'unknown',
-  status: 'research_pending',
+  status: 'discovered',
   createdAt: '2026-08-28T00:00:00Z',
   updatedAt: '2026-08-28T00:00:00Z',
 }

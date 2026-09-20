@@ -24,7 +24,7 @@ const AUTOMATION_LABEL: Record<AutomationLevel, string> = {
   do_not_pursue: "Not recommended",
 }
 
-type FilterKind = "all" | "pod" | "dropshipping" | "ai_job" | "remote_gig" | "freelance" | "creator" | "automation"
+type FilterKind = "all" | "pod" | "dropshipping" | "ai_job" | "remote_gig" | "freelance" | "creator" | "affiliate" | "automation" | "overage"
 
 const FILTERS: { id: FilterKind; label: string }[] = [
   { id: "all", label: "All" },
@@ -34,7 +34,9 @@ const FILTERS: { id: FilterKind; label: string }[] = [
   { id: "remote_gig", label: "Remote" },
   { id: "freelance", label: "Freelance" },
   { id: "creator", label: "Creator" },
+  { id: "affiliate", label: "Affiliate" },
   { id: "automation", label: "Automation" },
+  { id: "overage", label: "Unclaimed property" },
 ]
 
 // "Best match" and "deadline approaching" are display thresholds, not part
@@ -48,13 +50,11 @@ export default function OpportunityCommandCenter() {
   const [error, setError] = useState("")
   const [busy, setBusy] = useState<string | null>(null)
   const [filter, setFilter] = useState<FilterKind>("all")
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
 
   async function load() {
     setLoading(true); setError("")
     try {
-      const res = await fetch("/api/opportunities", { headers: { "x-jhadina-user-id": "user_demo" }, cache: "no-store" })
+      const res = await fetch("/api/opportunities", { cache: "no-store" })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Could not load opportunities")
       setOpportunities(rankSideIncomeOpportunities(json.data?.opportunities ?? []))
@@ -71,7 +71,7 @@ export default function OpportunityCommandCenter() {
     try {
       const res = await fetch("/api/opportunities/approve", {
         method: "POST",
-        headers: { "content-type": "application/json", "x-jhadina-user-id": "user_demo" },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ opportunityId: id }),
       })
       const json = await res.json()
@@ -84,23 +84,32 @@ export default function OpportunityCommandCenter() {
     }
   }
 
-  // Save/Dismiss are lightweight triage with no external effect, so they
-  // stay as local UI state instead of round-tripping to the server.
-  function save(id: string) {
-    setSavedIds((prev) => new Set(prev).add(id))
-  }
-  function dismiss(id: string) {
-    setDismissedIds((prev) => new Set(prev).add(id))
+  async function setTriage(id: string, triageState: "saved" | "dismissed") {
+    setBusy(id); setError("")
+    try {
+      const res = await fetch("/api/opportunities/triage", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ opportunityId: id, triageState }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Could not update opportunity")
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update opportunity")
+    } finally {
+      setBusy(null)
+    }
   }
 
-  const undismissed = useMemo(() => opportunities.filter((o) => !dismissedIds.has(o.id)), [opportunities, dismissedIds])
+  const undismissed = useMemo(() => opportunities.filter((o) => o.triageState !== "dismissed"), [opportunities])
   const visible = useMemo(
     () => undismissed.filter((o) => filter === "all" || o.kind === filter),
     [undismissed, filter]
   )
 
-  const needsReview = visible.filter((o) => o.status === "new" && !savedIds.has(o.id))
-  const saved = visible.filter((o) => o.status === "new" && savedIds.has(o.id))
+  const needsReview = visible.filter((o) => o.status === "new" && o.triageState !== "saved")
+  const saved = visible.filter((o) => o.status === "new" && o.triageState === "saved")
   const approved = visible.filter((o) => o.status === "approved")
 
   const summary = useMemo(() => {
@@ -166,8 +175,8 @@ export default function OpportunityCommandCenter() {
                     opportunity={o}
                     busy={busy === o.id}
                     onApprove={() => approve(o.id)}
-                    onSave={() => save(o.id)}
-                    onDismiss={() => dismiss(o.id)}
+                    onSave={() => void setTriage(o.id, "saved")}
+                    onDismiss={() => void setTriage(o.id, "dismissed")}
                   />
                 ))
               )}
@@ -182,7 +191,7 @@ export default function OpportunityCommandCenter() {
                     opportunity={o}
                     busy={busy === o.id}
                     onApprove={() => approve(o.id)}
-                    onDismiss={() => dismiss(o.id)}
+                    onDismiss={() => void setTriage(o.id, "dismissed")}
                   />
                 ))}
               </section>

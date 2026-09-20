@@ -40,7 +40,8 @@ export function isVerificationStatus(value: string): value is VerificationStatus
   return (VERIFICATION_STATUSES as readonly string[]).includes(value);
 }
 
-export function isCompleteVerification(decision: VerificationDecision): boolean {
+export function isCompleteVerification(decision: VerificationDecision | undefined): boolean {
+  if (!decision) return false;
   if (decision.status !== 'verified') return false;
   if (!decision.reviewerRef || !decision.verifiedAt) return false;
   if (decision.evidenceRefs.length === 0) return false;

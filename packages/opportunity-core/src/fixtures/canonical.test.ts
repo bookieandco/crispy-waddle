@@ -7,7 +7,7 @@ const assert = (condition: unknown, message: string): void => {
 
 assert(samFixture.family === 'funding', 'SAM must normalize to funding family')
 assert(samFixture.type === 'contract', 'SAM must normalize to contract type')
-assert(samFixture.verificationStatus === 'verified', 'SAM fixture must be verified from official source')
+assert(samFixture.verificationStatus === 'unverified', 'Official-source SAM evidence must not skip opportunity verification')
 
 assert(verifiedOverageFixture.family === 'recovery', 'Overage must normalize to recovery family')
 assert(verifiedOverageFixture.verificationStatus === 'verified', 'Fully verified overage must be verified')

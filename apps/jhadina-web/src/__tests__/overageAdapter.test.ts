@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { buildOverageOpportunity } from "../lib/opportunities/overageAdapter"
 
-describe("buildOverageOpportunity", () => {
+describe("canonical buildOverageOpportunity", () => {
   const candidate = {
     sourceKey: "washoe:2026",
     externalRecordId: "rec-001",
@@ -16,54 +16,39 @@ describe("buildOverageOpportunity", () => {
     evidenceSummary: "Captured PDF and parsed record.",
   }
 
-  it("maps an overage candidate to a reviewable Jhadina opportunity", () => {
-    const opportunity = buildOverageOpportunity(candidate, "user_1")
+  it("maps an overage candidate to a canonical recovery opportunity", () => {
+    const opportunity = buildOverageOpportunity(candidate)
 
-    expect(opportunity.kind).toBe("overage")
-    expect(opportunity.userId).toBe("user_1")
-    expect(opportunity.estimatedPay?.max).toBe(1250.5)
+    expect(opportunity.family).toBe("recovery")
+    expect(opportunity.type).toBe("recovery")
+    expect(opportunity.amount?.max).toBe(1250.5)
     expect(opportunity.fitScore).toBe(50)
     expect(opportunity.sourceConfidence).toBe(0.8)
-    expect(opportunity.verificationStatus).toBe("human_required")
-    expect(opportunity.requiresUserApproval).toBe(true)
-    expect(opportunity.automationLevel).toBe("user_led")
+    expect(opportunity.verificationStatus).toBe("unverified")
+    expect(opportunity.metadata?.providerId).toBe("provider:overageos")
   })
 
   it("keeps fit independent from source confidence", () => {
-    const lowSource = buildOverageOpportunity({ ...candidate, sourceConfidence: 0.2 }, "user_1")
-    const highSource = buildOverageOpportunity({ ...candidate, sourceConfidence: 1 }, "user_1")
-
+    const lowSource = buildOverageOpportunity({ ...candidate, sourceConfidence: 0.2 })
+    const highSource = buildOverageOpportunity({ ...candidate, sourceConfidence: 1 })
     expect(lowSource.sourceConfidence).toBe(0.2)
     expect(highSource.sourceConfidence).toBe(1)
     expect(lowSource.fitScore).toBe(highSource.fitScore)
-    expect(lowSource.fitScore).toBe(50)
   })
 
-  it("does not turn source confidence into identity verification", () => {
-    const opportunity = buildOverageOpportunity({ ...candidate, sourceConfidence: 1 }, "user_1")
-
+  it("does not turn source confidence into claimant verification", () => {
+    const opportunity = buildOverageOpportunity({ ...candidate, sourceConfidence: 1 })
     expect(opportunity.sourceConfidence).toBe(1)
-    expect(opportunity.verificationStatus).toBe("human_required")
+    expect(opportunity.verificationStatus).toBe("unverified")
   })
 
-  it("cannot be promoted to verified by the input status", () => {
-    const opportunity = buildOverageOpportunity(
-      { ...candidate, verificationStatus: "verified" },
-      "user_1",
-    )
-
-    expect(opportunity.verificationStatus).toBe("human_required")
+  it("cannot be promoted to verified by legacy input status", () => {
+    const opportunity = buildOverageOpportunity({ ...candidate, verificationStatus: "verified" as const })
+    expect(opportunity.verificationStatus).toBe("unverified")
   })
 
-  it("rejects invalid source confidence", () => {
-    expect(() => buildOverageOpportunity({ ...candidate, sourceConfidence: 1.01 }, "user_1")).toThrow(
-      "sourceConfidence must be a finite number between 0 and 1.",
-    )
-  })
-
-  it("rejects missing claimant identity", () => {
-    expect(() => buildOverageOpportunity({ ...candidate, claimantName: "" }, "user_1")).toThrow(
-      "claimantName is required.",
-    )
+  it("rejects invalid source confidence and missing claimant identity", () => {
+    expect(() => buildOverageOpportunity({ ...candidate, sourceConfidence: 1.01 })).toThrow()
+    expect(() => buildOverageOpportunity({ ...candidate, claimantName: "" })).toThrow("claimantName is required.")
   })
 })
