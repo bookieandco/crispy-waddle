@@ -152,3 +152,9 @@ export * from './live-reconciliation-worker.js';
 export * from './production-portfolio-reconciliation.js';
 export * from './live-operations-console.js';
 export * from './money-055-certification.js';
+
+export * from './alpaca-trading-adapter.js';
+export * from './durable-provider-event-processor.js';
+export * from './postgres-durable-provider-event-store.js';
+export * from './tax-accounting-engine.js';
+export * from './money-060-live-canary.js';

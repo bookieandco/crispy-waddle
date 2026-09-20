@@ -67,7 +67,7 @@ jobs:
         run: pnpm --filter @jhadina/money-core test
 
       - name: Money product-boundary tests
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/money/command-center-model.test.ts src/lib/money/governed-account-read-runtime.test.ts
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/money/command-center-model.test.ts src/lib/money/governed-account-read-runtime.test.ts src/lib/money/live-operations-product-model.test.ts
 
       - name: Money production surface build
         run: pnpm --filter @jhadina/money-core build

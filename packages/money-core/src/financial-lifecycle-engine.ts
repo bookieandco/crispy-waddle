@@ -4,12 +4,13 @@ import type { MarketSession } from './market-instrument-contracts.js'
 
 export type LotSelectionPolicy='FIFO'|'LIFO'|'HIFO'|'SPECIFIC_ID'
 export type LotDisposition=Readonly<{lotId:string;quantity:ExactDecimal}>
+function compareLotEconomicUnitCost(a:LotState,b:LotState){if(!a.remainingCostBasis||!b.remainingCostBasis)return compareDecimal(a.unitCost,b.unitCost);if(a.remainingCostBasis.currency!==b.remainingCostBasis.currency)throw new Error('MONEY_LOT_CURRENCY_MISMATCH');const an=a.remainingCostBasis.coefficient*10n**BigInt(a.quantity.scale),ad=a.quantity.coefficient*10n**BigInt(a.remainingCostBasis.scale),bn=b.remainingCostBasis.coefficient*10n**BigInt(b.quantity.scale),bd=b.quantity.coefficient*10n**BigInt(b.remainingCostBasis.scale);const left=an*bd,right=bn*ad;return left<right?-1:left>right?1:0}
 export function selectLotsForDisposition(lots:readonly LotState[],quantityText:string,policy:LotSelectionPolicy,specificIds:readonly string[]=[]):readonly LotDisposition[]{
  let remaining=parseDecimal(quantityText);if(remaining.coefficient<=0n)throw new Error('MONEY_LOT_QUANTITY_INVALID')
  let candidates=[...lots].filter(l=>l.quantity.coefficient>0n)
  if(policy==='FIFO')candidates.sort((a,b)=>a.openedAt.localeCompare(b.openedAt)||a.lotId.localeCompare(b.lotId))
  if(policy==='LIFO')candidates.sort((a,b)=>b.openedAt.localeCompare(a.openedAt)||a.lotId.localeCompare(b.lotId))
- if(policy==='HIFO')candidates.sort((a,b)=>-compareDecimal(a.unitCost,b.unitCost)||a.openedAt.localeCompare(b.openedAt))
+ if(policy==='HIFO')candidates.sort((a,b)=>-compareLotEconomicUnitCost(a,b)||a.openedAt.localeCompare(b.openedAt))
  if(policy==='SPECIFIC_ID'){const order=new Map(specificIds.map((id,i)=>[id,i]));candidates=candidates.filter(l=>order.has(l.lotId)).sort((a,b)=>order.get(a.lotId)!-order.get(b.lotId)!)}
  const out:LotDisposition[]=[]
  for(const lot of candidates){if(remaining.coefficient<=0n)break;const s=Math.max(remaining.scale,lot.quantity.scale),r=remaining.coefficient*10n**BigInt(s-remaining.scale),q=lot.quantity.coefficient*10n**BigInt(s-lot.quantity.scale),take=r<q?r:q;out.push(Object.freeze({lotId:lot.lotId,quantity:Object.freeze({coefficient:take,scale:s})}));remaining={coefficient:r-take,scale:s}}

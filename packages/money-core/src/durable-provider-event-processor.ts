@@ -1,0 +1,18 @@
+import type { ExecutionAttempt } from './execution-attempt.js'
+import type { ExecutionReceipt,ExecutionReconciliationDecision,FinancialOutboxRecord,JournalPostingIntent,ProviderExecutionEvent } from './execution-receipt-contracts.js'
+import type { LiveCanaryStateStore } from './live-canary-contracts.js'
+import { applyLiveExecutionTruth,type LiveExecutionTruthProjection } from './live-execution-governance.js'
+
+export type DurableProviderEventStatus='CLAIMED'|'PROCESSED'
+export type DurableProviderEventRecord=Readonly<{eventId:string;provider:string;providerEventId:string;payloadHash:string;status:DurableProviderEventStatus;event:ProviderExecutionEvent;claimedAt:string;processedAt?:string;receipt?:ExecutionReceipt;reconciliation?:ExecutionReconciliationDecision;postingIntents?:readonly JournalPostingIntent[];outbox?:readonly FinancialOutboxRecord[]}>
+export type DurableProviderClaim=Readonly<{disposition:'CLAIMED'|'REPLAY'|'DUPLICATE'|'CONFLICT';record:DurableProviderEventRecord}>
+export interface DurableProviderEventStore{claim(event:ProviderExecutionEvent,now:string):Promise<DurableProviderClaim>|DurableProviderClaim;complete(eventId:string,projection:LiveExecutionTruthProjection,processedAt:string):Promise<void>|void;get(eventId:string):Promise<DurableProviderEventRecord|undefined>|DurableProviderEventRecord|undefined}
+export type DurableProviderProcessResult=Readonly<{disposition:'PROCESSED'|'DUPLICATE';projection?:LiveExecutionTruthProjection;authority:'EVIDENCE_PIPELINE_ONLY'}>
+
+export class InMemoryDurableProviderEventStore implements DurableProviderEventStore{
+ private rows=new Map<string,DurableProviderEventRecord>()
+ claim(event:ProviderExecutionEvent,now:string):DurableProviderClaim{const key=event.provider+':'+event.providerEventId,prior=[...this.rows.values()].find(x=>x.provider+':'+x.providerEventId===key);if(prior){if(prior.payloadHash!==event.payloadHash)return Object.freeze({disposition:'CONFLICT',record:prior});return Object.freeze({disposition:prior.status==='PROCESSED'?'DUPLICATE':'REPLAY',record:prior})}const record=Object.freeze({eventId:event.eventId,provider:event.provider,providerEventId:event.providerEventId,payloadHash:event.payloadHash,status:'CLAIMED' as const,event,claimedAt:now});this.rows.set(event.eventId,record);return Object.freeze({disposition:'CLAIMED',record})}
+ complete(eventId:string,projection:LiveExecutionTruthProjection,processedAt:string){const prior=this.rows.get(eventId);if(!prior)throw new Error('MONEY_057_EVENT_NOT_CLAIMED');this.rows.set(eventId,Object.freeze({...prior,status:'PROCESSED',processedAt,receipt:projection.receipt,reconciliation:projection.reconciliation,postingIntents:projection.postingIntents,outbox:projection.outbox}))}
+ get(eventId:string){return this.rows.get(eventId)}
+}
+export async function processDurableProviderEvent(input:{store:DurableProviderEventStore;attempt:ExecutionAttempt;event:ProviderExecutionEvent;priorEvents:readonly ProviderExecutionEvent[];recordedAt:string;canaryStore?:LiveCanaryStateStore;accountId?:string}):Promise<DurableProviderProcessResult>{const claim=await input.store.claim(input.event,input.recordedAt);if(claim.disposition==='CONFLICT')throw new Error('MONEY_057_PROVIDER_EVENT_CONFLICT');if(claim.disposition==='DUPLICATE')return Object.freeze({disposition:'DUPLICATE',authority:'EVIDENCE_PIPELINE_ONLY'});const projection=await applyLiveExecutionTruth({attempt:input.attempt,event:input.event,priorEvents:input.priorEvents,recordedAt:input.recordedAt,canaryStore:input.canaryStore,accountId:input.accountId});await input.store.complete(input.event.eventId,projection,input.recordedAt);return Object.freeze({disposition:'PROCESSED',projection,authority:'EVIDENCE_PIPELINE_ONLY'})}
