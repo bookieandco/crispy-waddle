@@ -6,3 +6,4 @@ export * from './supabase-evolution-run-ledger.js';
 export * from './supabase-evolution-ledger-verifier.js';
 export * from './subsystem-doctor.js';
 export * from './app-builder.js';
+export * from './visual-builder.js';
