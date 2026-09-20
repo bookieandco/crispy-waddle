@@ -24,3 +24,4 @@ export * from './universal-intake.js';
 export * from './asset-registry.js';
 export * from './perception-extraction.js';
 export * from './media-extractor-adapters.js';
+export * from './media-pipeline.js';
