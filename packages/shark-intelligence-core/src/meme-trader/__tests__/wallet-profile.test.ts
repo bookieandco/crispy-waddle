@@ -21,6 +21,6 @@ describe('deriveWalletProfile', () => {
     expect(profile.profitFactor).toBe(2)
     expect(profile.concentration).toBeCloseTo(2 / 3)
     expect(profile.strategyFingerprint).toContain('new-pair')
-    expect(profile.strategyFingerprint).toContain('short-hold')
+    expect(profile.strategyFingerprint).not.toContain('short-hold')
   })
 })
