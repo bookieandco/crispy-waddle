@@ -8,6 +8,8 @@ export type OpportunityVertical =
   | 'creator'
   | 'digital_product'
   | 'services'
+  | 'information_broker'
+  | 'energy_compute'
 
 export type OpportunityProviderReadiness = 'live' | 'adapter_ready' | 'contract_only' | 'disabled'
 export type OpportunityProviderCapability = 'discover' | 'normalize' | 'research' | 'execute_handoff'
@@ -77,6 +79,16 @@ export const CANONICAL_OPPORTUNITY_PROVIDERS: readonly OpportunityProviderDescri
     executionOwner: 'PupsonStuff',
   },
   {
+    id: 'provider:ai-pod-store',
+    vertical: 'pod',
+    sourceId: 'jhadina.ai-pod',
+    adapterKey: 'ai-pod.store',
+    readiness: 'contract_only',
+    capabilities: ['normalize', 'research', 'execute_handoff'],
+    executionOwner: 'General AI POD',
+    notes: 'The independent general AI POD storefront exists only on an unmerged foundation branch; it is not treated as a live storefront.',
+  },
+  {
     id: 'provider:commerce-dropshipping',
     vertical: 'dropshipping',
     sourceId: 'jhadina.commerce.dropshipping',
@@ -96,6 +108,16 @@ export const CANONICAL_OPPORTUNITY_PROVIDERS: readonly OpportunityProviderDescri
     executionOwner: 'Growth/Director',
   },
   {
+    id: 'provider:director-faceless-content',
+    vertical: 'creator',
+    sourceId: 'jhadina.director.faceless-content',
+    adapterKey: 'director.faceless-content',
+    readiness: 'adapter_ready',
+    capabilities: ['normalize', 'research', 'execute_handoff'],
+    executionOwner: 'Growth → DirectorOS',
+    notes: 'Opportunity discovery/ranking stays in Growth/Opportunity; DirectorOS owns approved content production, not opportunity truth.',
+  },
+  {
     id: 'provider:digital-products',
     vertical: 'digital_product',
     sourceId: 'jhadina.commerce.digital-products',
@@ -112,6 +134,26 @@ export const CANONICAL_OPPORTUNITY_PROVIDERS: readonly OpportunityProviderDescri
     readiness: 'contract_only',
     capabilities: ['normalize', 'research', 'execute_handoff'],
     executionOwner: 'Placement/Commerce',
+  },
+  {
+    id: 'provider:information-broker',
+    vertical: 'information_broker',
+    sourceId: 'jhadina.opportunity-miner.information-broker',
+    adapterKey: 'opportunity-miner.information-broker',
+    readiness: 'contract_only',
+    capabilities: ['normalize', 'research'],
+    executionOwner: 'Opportunity Miner',
+    notes: 'Historical OCE-3 blueprint exists in an unmerged branch; source discovery and monetization must be revalidated before activation.',
+  },
+  {
+    id: 'provider:energy-compute',
+    vertical: 'energy_compute',
+    sourceId: 'jhadina.energy-opportunity-core',
+    adapterKey: 'energy.compute',
+    readiness: 'disabled',
+    capabilities: ['normalize', 'research'],
+    executionOwner: 'Energy Opportunity Experiment',
+    notes: 'JH-022/023/024 remain blocked by an unresolved architecture fork; no mining, signing, wallet access, or hardware execution is authorized.',
   },
 ] as const
 

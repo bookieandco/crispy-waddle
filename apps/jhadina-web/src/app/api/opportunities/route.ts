@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
+import { CanonicalOpportunityQueue } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
-import { canonicalFromSideIncome, toOpportunityView, type OpportunityCreateInput } from "@/lib/opportunities/canonical"
+import { canonicalFromSideIncome, toOpportunityView, type OpportunityCreateInput, type StoredCanonicalOpportunity } from "@/lib/opportunities/canonical"
 import { createSupabaseOpportunityRepository } from "@/lib/opportunities/supabase-opportunity-repository"
 import type { AutomationLevel, OpportunityKind } from "@/lib/opportunities/sideIncome"
-import { rankSideIncomeOpportunities } from "@/lib/opportunities/sideIncome"
 
 export const dynamic = "force-dynamic"
 
@@ -22,7 +22,15 @@ export async function GET() {
 
   const repository = createSupabaseOpportunityRepository()
   const stored = await repository.list()
-  const ranked = rankSideIncomeOpportunities(stored.map(toOpportunityView))
+  const byId = new Map(stored.map((item) => [item.opportunity.id, item]))
+  const queue = new CanonicalOpportunityQueue()
+  const ranked = queue
+    .ingest(stored.map((item) => item.opportunity))
+    .map((entry) => byId.get(entry.opportunity.id))
+    .filter((item): item is StoredCanonicalOpportunity => item !== undefined)
+    .map(toOpportunityView)
+    .filter((item) => item.automationLevel !== "do_not_pursue")
+
   return NextResponse.json({ success: true, data: { opportunities: ranked } })
 }
 
@@ -48,6 +56,6 @@ function validateCreateInput(body: Partial<OpportunityCreateInput>): string | un
   if (!body.summary?.trim()) return "summary is required"
   if (!body.kind || !KINDS.has(body.kind)) return "kind is invalid"
   if (!body.automationLevel || !AUTOMATION.has(body.automationLevel)) return "automationLevel is invalid"
-  if (typeof body.fitScore !== "number" || !Number.isFinite(body.fitScore) || body.fitScore < 0 || body.fitScore > 100) return "fitScore must be between 0 and 100"
+  if (body.fitScore !== undefined && (typeof body.fitScore !== "number" || !Number.isFinite(body.fitScore) || body.fitScore < 0 || body.fitScore > 100)) return "fitScore must be between 0 and 100"
   return undefined
 }

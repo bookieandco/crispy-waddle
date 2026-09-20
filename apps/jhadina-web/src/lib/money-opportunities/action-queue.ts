@@ -1,4 +1,4 @@
-import type { OpportunityDisposition, OpportunityScore, SamOpportunity } from './sam-types';
+import type { OpportunityScore, SamOpportunity } from './sam-types';
 import type { OpportunityEconomics } from './economics';
 
 export type MoneyAction =
@@ -9,9 +9,15 @@ export type MoneyAction =
   | 'MONITOR'
   | 'PASS';
 
+/**
+ * Advisory planning output only. Action labels describe the recommended next
+ * planning step; they never authorize bid submission, outreach, or execution.
+ */
 export interface MoneyActionItem {
   opportunityId: string;
   action: MoneyAction;
+  advisoryOnly: true;
+  requiresHumanApproval: true;
   priority: 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
   deadline?: string;
   estimatedValue: number;
@@ -67,6 +73,8 @@ export function buildMoneyAction(
   return {
     opportunityId: opportunity.noticeId,
     action,
+    advisoryOnly: true,
+    requiresHumanApproval: true,
     priority,
     deadline: opportunity.responseDeadline,
     estimatedValue: economics.awardValue,

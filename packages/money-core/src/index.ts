@@ -93,3 +93,5 @@ export * from './stock-intelligence-fusion.js';
 export * from './fx-market-reality.js';
 
 export * from './fx-intelligence-fusion.js';
+
+export * from './opportunity-outcome-truth-bridge.js';
