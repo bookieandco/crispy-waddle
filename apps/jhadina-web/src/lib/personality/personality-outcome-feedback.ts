@@ -86,6 +86,9 @@ export async function recordPersonalityOutcomeFeedback(
   if (!Number.isFinite(Date.parse(observedAt))) {
     throw new Error("PERSONALITY_FEEDBACK_OBSERVED_AT_INVALID")
   }
+  if (Date.parse(observedAt) < Date.parse(target.timestamp)) {
+    throw new Error("PERSONALITY_FEEDBACK_BEFORE_TARGET")
+  }
   const content = feedbackContent(input.kind, note)
   const repository = new ReasoningEventRepository(storage)
   const event = await repository.create({
