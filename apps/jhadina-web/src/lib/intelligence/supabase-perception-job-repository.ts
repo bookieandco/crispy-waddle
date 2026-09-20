@@ -11,6 +11,7 @@ type JobRow = {
   actor_id: string;
   asset_id: string;
   intent: string | null;
+  selected_subsystems: PerceptionJob["selectedSubsystems"] | null;
   status: PerceptionJob["status"];
   attempt: number;
   max_attempts: number;
@@ -31,6 +32,7 @@ function toJob(row: JobRow): PerceptionJob {
     actorId: row.actor_id,
     assetId: row.asset_id,
     intent: row.intent ?? undefined,
+    selectedSubsystems: row.selected_subsystems ?? undefined,
     status: row.status,
     attempt: row.attempt,
     maxAttempts: row.max_attempts,
@@ -162,15 +164,15 @@ export class SupabasePerceptionJobRepository implements PerceptionJobRepository 
     return data ? toJob(data as JobRow) : undefined;
   }
 
-  async requeueWithIntent(input: {
+  async requeueWithSelection(input: {
     actorId: string;
     jobId: string;
-    intent: string;
+    subsystems: NonNullable<PerceptionJob["selectedSubsystems"]>;
   }) {
-    const { data, error } = await this.client.rpc("requeue_jhadina_perception_job_with_intent", {
+    const { data, error } = await this.client.rpc("requeue_jhadina_perception_job_with_selection", {
       p_actor_id: input.actorId,
       p_job_id: input.jobId,
-      p_intent: input.intent,
+      p_selected_subsystems: input.subsystems,
     });
     if (error) throw error;
     return data ? toJob(data as JobRow) : undefined;
