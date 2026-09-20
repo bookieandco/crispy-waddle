@@ -19,6 +19,8 @@ export type DirectorGenerationRuntime = {
   generation: GenerationPlanAdapter;
   reconciler: GenerationSubmissionReconciler;
   workerId: string;
+  /** Registry query surface; provider handles remain private. */
+  hasModel(modelId: string): boolean;
 };
 
 function composeDirectorGenerationRuntime(
@@ -44,7 +46,7 @@ function composeDirectorGenerationRuntime(
   const storyboardLineageResolver = new DirectorStoryboardLineageResolver(storyboardRepository);
   const generation = new GenerationPlanAdapter(service, registry, storyboardLineageResolver);
   const reconciler = new GenerationSubmissionReconciler(repository, outboxProviders, workerId);
-  return { generation, reconciler, workerId };
+  return { generation, reconciler, workerId, hasModel: (modelId) => registry.hasModel(modelId) };
 }
 
 /**
@@ -56,8 +58,8 @@ export function createConfiguredDirectorGenerationRuntime(
   client: SupabaseClient,
   config?: DirectorGenerationFactoryConfig,
   workerId = `director-worker:${Math.random().toString(36).slice(2)}`,
-): DirectorGenerationRuntime {
-  const { registry, providers } = createDirectorGenerationRegistryAndProviders(config);
+): Promise<DirectorGenerationRuntime> {
+  const { registry, providers } = await createDirectorGenerationRegistryAndProviders(config);
   return composeDirectorGenerationRuntime(client, registry, providers, workerId);
 }
 
