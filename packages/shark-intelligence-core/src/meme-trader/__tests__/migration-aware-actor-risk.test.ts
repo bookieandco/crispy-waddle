@@ -47,7 +47,7 @@ describe('migration-aware actor risk', () => {
     })
     expect(enriched.riskAssessment.developerRisk).toBe(.8)
     expect(enriched.supplyControl.reasons).not.toContain('verified-developer-lp-withdrawal:1')
-    expect(enriched.supplyControl.reasons).toContain('historical-actor-bad-launch-rate:.800')
+    expect(enriched.supplyControl.reasons).toContain('historical-actor-bad-launch-rate:0.800')
   })
 
   it('does not suppress when migration identity does not match the withdrawal', () => {
