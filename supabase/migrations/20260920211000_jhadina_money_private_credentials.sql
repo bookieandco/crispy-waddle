@@ -8,6 +8,7 @@ create table if not exists public.jhadina_money_bank_credentials (
 );
 alter table public.jhadina_money_bank_credentials enable row level security;
 revoke all on public.jhadina_money_bank_credentials from public, anon, authenticated;
+create policy "money bank credentials service role only" on public.jhadina_money_bank_credentials for all to service_role using (true) with check (true);
 
 insert into public.jhadina_money_bank_credentials(connection_id,encrypted_access_token)
 select id,encrypted_access_token from public.jhadina_money_bank_connections
