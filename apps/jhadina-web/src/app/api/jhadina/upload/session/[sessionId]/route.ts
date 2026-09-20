@@ -35,6 +35,9 @@ function publicSession(session: Awaited<ReturnType<SupabaseDirectUploadSessionRe
     perceptionJobId: session.perceptionJobId,
     lastError: session.lastError,
     cleanupStatus: session.cleanupStatus,
+    cleanupAttempt: session.cleanupAttempt,
+    cleanupError: session.cleanupError,
+    cleanedAt: session.cleanedAt,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
   };
