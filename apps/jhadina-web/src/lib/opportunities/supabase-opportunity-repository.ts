@@ -1,4 +1,4 @@
-import type { Opportunity, OpportunityPursuitCase, OpportunityStatus, PursuitTaskStatus } from "@jhadina/opportunity-core"
+import type { Opportunity, OpportunityLearningSignal, OpportunityOutcome, OpportunityPursuitCase, OpportunityStatus, PursuitTaskStatus } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
 import type { OpportunityTriageState, StoredCanonicalOpportunity } from "./canonical"
 
@@ -180,6 +180,49 @@ export function createSupabaseOpportunityRepository() {
         triageState: result.triageState,
         approvedAt: result.approvedAt,
         researchCaseId: result.researchCaseId,
+      }
+    },
+
+    async recordOutcome(
+      opportunity: Opportunity,
+      outcome: OpportunityOutcome,
+      learningSignal: OpportunityLearningSignal,
+    ): Promise<{
+      stored: StoredCanonicalOpportunity
+      outcome: OpportunityOutcome
+      learningSignal: OpportunityLearningSignal
+    }> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_opportunity_record_outcome", {
+        p_opportunity_id: opportunity.id,
+        p_opportunity: opportunity,
+        p_outcome: outcome,
+        p_learning: learningSignal,
+      })
+      if (error || !data) {
+        throw new Error(`Unable to record opportunity outcome: ${error?.message ?? "no result returned"}`)
+      }
+
+      const result = data as {
+        userId: string
+        opportunity: Opportunity
+        triageState: OpportunityTriageState
+        approvedAt?: string
+        researchCaseId?: string
+        outcome: OpportunityOutcome
+        learningSignal: OpportunityLearningSignal
+      }
+
+      return {
+        stored: {
+          userId: result.userId,
+          opportunity: result.opportunity,
+          triageState: result.triageState,
+          approvedAt: result.approvedAt,
+          researchCaseId: result.researchCaseId,
+        },
+        outcome: result.outcome,
+        learningSignal: result.learningSignal,
       }
     },
 
