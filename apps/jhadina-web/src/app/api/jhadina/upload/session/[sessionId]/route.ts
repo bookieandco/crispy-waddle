@@ -28,9 +28,13 @@ function publicSession(session: Awaited<ReturnType<SupabaseDirectUploadSessionRe
     privacyClass: session.privacyClass,
     status: effectiveStatus,
     expiresAt: session.expiresAt,
+    finalizeAttempt: session.finalizeAttempt,
+    finalizeMaxAttempts: session.finalizeMaxAttempts,
+    finalizeAvailableAt: session.finalizeAvailableAt,
     assetId: session.assetId,
     perceptionJobId: session.perceptionJobId,
     lastError: session.lastError,
+    cleanupStatus: session.cleanupStatus,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
   };
@@ -82,32 +86,30 @@ export async function POST(
   }
 
   try {
-    const result = await createProductionDirectUploadRuntime().finalize({
+    const session = await createProductionDirectUploadRuntime().requestFinalize({
       actorId,
       sessionId: params.sessionId,
     });
 
+    const finalized = session.status === "finalized";
     return NextResponse.json({
       success: true,
       data: {
-        session: publicSession(result.session),
-        assetId: result.assetId,
-        perceptionJob: result.perceptionJob,
-        perceptionStatusPath: `/api/jhadina/perception/${encodeURIComponent(result.perceptionJob.id)}`,
+        session: publicSession(session),
+        statusPath: `/api/jhadina/upload/session/${encodeURIComponent(session.id)}`,
+        perceptionStatusPath: session.perceptionJobId
+          ? `/api/jhadina/perception/${encodeURIComponent(session.perceptionJobId)}`
+          : undefined,
       },
-    }, { status: 202 });
+    }, { status: finalized ? 200 : 202 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to finalize upload session";
+    const message = error instanceof Error ? error.message : "Unable to queue upload finalization";
     const status =
       message.includes("SESSION_NOT_FOUND") ? 404 :
       message.includes("SESSION_EXPIRED") ? 410 :
-      message.includes("FINALIZE_BUSY") ? 409 :
-      message.includes("OBJECT_NOT_FOUND") ? 409 :
-      message.includes("SIZE_MISMATCH") || message.includes("MIME_MISMATCH") ? 422 :
-      message.includes("MEDIA_SECURITY_") ? 422 :
-      message.includes("MEDIA_SCANNER_HTTP_") ? 502 :
+      message.includes("SESSION_REJECTED") ? 422 :
       message.includes("RUNTIME_") ? 503 :
-      message.includes("DIRECT_UPLOAD_") || message.includes("MEDIA_SCANNER_") ? 400 :
+      message.includes("DIRECT_UPLOAD_") ? 400 :
       500;
     return NextResponse.json({ success: false, error: message }, { status });
   }
