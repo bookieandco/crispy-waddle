@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   emptyPersonalityState,
+  type PatternPort,
   type PersonalityState,
   type PersonalityStateRepository,
 } from "@jhadina/core-spine"
@@ -104,15 +105,37 @@ describe("ProductionPersonalityContextProvider", () => {
   it("retains the prior durable personality if a governed update cannot be persisted", async () => {
     const storage = new InMemoryStorage()
     const durable = emptyPersonalityState("2026-09-19T00:00:00.000Z")
+    const attemptedVersions: number[] = []
     const repository: PersonalityStateRepository = {
-      load: async () => durable,
-      save: async () => {
+      load: async () => structuredClone(durable),
+      save: async (_expectedVersion, next) => {
+        attemptedVersions.push(next.version)
         throw new Error("persistence unavailable")
       },
+    }
+    const observedAt = "2026-09-20T12:00:00.000Z"
+    const patternPort: PatternPort = {
+      detect: async () => [{
+        id: "personality-signal:communication:direct",
+        pattern: "prefers direct communication",
+        evidence: [1, 2, 3].map((n) => ({
+          id: `semantic-direct-${n}`,
+          source: "semantic-detector",
+          observedAt,
+          summary: "repeated evidence of direct communication preference",
+          immutable: true,
+        })),
+        confidence: 0.95,
+        occurrences: 3,
+        contradictions: [],
+        lastObservedAt: observedAt,
+        personalityDimension: "communication",
+      }],
     }
 
     const provider = new ProductionPersonalityContextProvider(storage, {
       repository,
+      patternPort,
       eligibilityRules: [{
         ruleId: "test-communication-v1",
         patternIdPrefix: "personality-signal:communication:",
@@ -124,15 +147,19 @@ describe("ProductionPersonalityContextProvider", () => {
       }],
     })
 
-    // No matching semantic detector exists yet, so production remains unchanged
-    // and the repository is never asked to persist a synthetic trait.
     const contribution = await provider.getContext({
       userId: "user-3",
       activeTask: "Use direct communication.",
-      occurredAt: "2026-09-20T12:00:00.000Z",
+      occurredAt: observedAt,
     })
 
+    expect(contribution.patterns).toHaveLength(1)
+    expect(contribution.patterns[0].personalityEligible).toBe(true)
+    expect(attemptedVersions).toEqual([1])
     expect(contribution.personality).toEqual(durable)
-    expect(contribution.patterns.every((pattern) => !pattern.personalityEligible)).toBe(true)
+    expect(contribution.personality.version).toBe(0)
+    expect(contribution.limitations).toContain(
+      "personality update was not persisted — prior durable state retained",
+    )
   })
 })
