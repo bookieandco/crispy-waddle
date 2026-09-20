@@ -105,7 +105,7 @@ The focused workflow is `.github/workflows/shark-intelligence-core-ci.yml` and r
 4. Jhadina web TypeScript integration check;
 5. required SHARK migration presence.
 
-PR #350 was opened specifically to obtain executable evidence after PR #291 had already been merged. Record the final workflow result on issue #309 before considering QA.16I accepted. Vercel's account build-rate-limit status is external to SHARK compiler/test correctness.
+PR #350 produced executable evidence in SHARK Intelligence Core CI run #23. Frozen install, SHARK TypeScript, the full SHARK Vitest suite, focused Jhadina SHARK integration TypeScript, and migration validation all completed successfully. The SHARK suite reported 36 test files / 139 tests passed. This accepts QA.16I for the scoped SHARK closure. Vercel's account build-rate-limit status is external to SHARK compiler/test correctness.
 
 ## QA.16J — handoff/reference reconciliation
 
@@ -122,7 +122,7 @@ PR #350 was opened specifically to obtain executable evidence after PR #291 had 
 
 ### Reference-provenance status
 
-The repository provenance registry currently contains explicit coverage for Pump public docs, Meteora-Rug-Bot, and wallet-cluster-detector families. Exact repository strings for every exploratory handoff reference are not all registered. In particular, the audit did not find exact registry entries for `nirholas/pump-fun-sdk`, `uerax/all-in-one-bot`, or `GeekLad/meteora-profit-analysis`. Their useful concepts are represented in SHARK code, but exact-source admission/attribution should be added through the repository-wide reference-provenance process before copying source artifacts or depending on their code.
+The repository provenance registry now contains explicit handoff records for Pump public docs, Meteora-Rug-Bot, wallet-cluster-detector, `nirholas/pump-fun-sdk`, `uerax/all-in-one-bot`, `GeekLad/meteora-profit-analysis`, and the DexScreener API reference. The newly added exploratory sources remain `HANDOFF_ONLY` with no code-derivation claim; source/license verification is still required before copying source artifacts or depending on upstream code.
 
 ### Intentionally deferred / not production claims
 
@@ -136,4 +136,4 @@ The repository provenance registry currently contains explicit coverage for Pump
 
 ## Closure rule
 
-QA.16C-H are code-complete on this branch. QA.16I closes only with actual workflow evidence. QA.16J is complete when that evidence is recorded, PR #350 remains open for user review/merge, and issue #309 reflects any remaining external blocker. No merge is authorized by this report.
+QA.16C-H are code-complete on this branch. QA.16I has executable green workflow evidence. QA.16J is complete with handoff/reference reconciliation recorded here. PR #350 remains open for user review/merge. No merge is authorized by this report.
