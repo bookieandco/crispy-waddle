@@ -4,7 +4,7 @@ export interface GameRuntime { id:string; name:string; platform:GamePlatform; ki
 export interface GameRuntimeAdapter { runtime:GameRuntime; canLaunch(game:Game):Promise<boolean>; launch(game:Game,input:LaunchContext):Promise<GameSession>; }
 export interface Game { id:string; title:string; platform:GamePlatform; contentUri:string; metadata?:Readonly<Record<string,unknown>>; }
 export interface LaunchContext { controllerProfileId?:string; saveId?:string; performanceProfileId?:string; }
-export interface GameSession { id:string; gameId:string; runtimeId:string; startedAt:string; }
+export interface GameSession { id:string; gameId:string; runtimeId:string; startedAt:string; metadata?:Readonly<Record<string,unknown>>; }
 export interface DeviceCapabilityContext { availableCapabilities?:readonly string[]; requiredCapabilities?:readonly string[]; batteryPercent?:number; networkLatencyMs?:number; networkRequired?:boolean; }
 export interface RuntimeResolutionContext { preferredRuntimeIds?:readonly string[]; device?:DeviceCapabilityContext; }
 export interface RuntimeScore { adapter:GameRuntimeAdapter; score:number; }
