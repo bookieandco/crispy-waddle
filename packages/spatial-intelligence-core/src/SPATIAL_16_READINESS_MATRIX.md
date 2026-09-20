@@ -21,7 +21,7 @@
 | Derived visual perception firewall | PASS | model input policy gate + INFERRED/non-reality output |
 | P10 adversarial tests present | PASS | source policy, authority, replay, inference, reality-admission coverage |
 | Current lockfile importer consistency | PASS (source) | core-spine manifest/importer now match |
-| Fresh Spatial Conformance CI | UNKNOWN | requires current-run evidence |
+| Fresh Spatial Conformance CI | PASS | run 159 / job 106010250704: type-check passed; Vitest 14/14; Node/TAP 42/42 |
 | Live GEV deployment connectivity | UNKNOWN | requires deployed integration evidence |
 | Applied workspace/KG migrations | UNKNOWN | requires deployed DB verification |
 | Live end-to-end source → reality | UNKNOWN | requires real-source conformance execution |
@@ -32,4 +32,4 @@
 
 **SOURCE IMPLEMENTATION COMPLETE THROUGH GEV-P10. PRODUCTION READINESS BLOCKED / FAIL-CLOSED.**
 
-The source-level P1-P10 build is complete. The production gate remains blocked because live deployment, database, privacy/security, telemetry and fresh CI evidence are separate requirements. No UNKNOWN item is promoted to PASS.
+The source-level P1-P10 build is complete. The production gate remains blocked because live deployment, database, privacy/security and telemetry evidence are separate requirements. No UNKNOWN item is promoted to PASS.
