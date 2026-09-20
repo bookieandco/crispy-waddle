@@ -1,0 +1,1 @@
+export interface VisionBenchmarkCounts{truePositive:number;falsePositive:number;falseNegative:number;}export function scoreVisionBenchmark(c:VisionBenchmarkCounts){const precision=c.truePositive/(c.truePositive+c.falsePositive||1),recall=c.truePositive/(c.truePositive+c.falseNegative||1);return Object.freeze({precision,recall,f1:2*precision*recall/(precision+recall||1)});}
