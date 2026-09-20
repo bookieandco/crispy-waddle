@@ -107,3 +107,7 @@ export * from './macro-economic-engine.js';
 
 export * from './information-integrity-engine.js';
 export * from './information-analysis-engine.js';
+
+export * from './cross-asset-fusion-contracts.js';
+export * from './cross-asset-fusion-engine.js';
+export * from './cross-asset-decision-learning.js';
