@@ -9,7 +9,6 @@ export type PredictionResolutionStatus = 'FINAL' | 'PENDING' | 'AMBIGUOUS' | 'VO
 export type PredictionOutcomeDefinition = Readonly<{
   outcomeId: string;
   label: string;
-  settlementValue: number;
   evidenceRefs: readonly string[];
 }>;
 
@@ -201,18 +200,12 @@ export function assertPredictionMarketDefinition(
   }
 
   const ids = new Set<string>();
-  let settlementMass = 0;
   for (const outcome of definition.outcomes) {
     nonEmpty(outcome.outcomeId, 'MONEY_PREDICTION_OUTCOME_ID_REQUIRED');
     nonEmpty(outcome.label, 'MONEY_PREDICTION_OUTCOME_LABEL_REQUIRED');
-    probability(outcome.settlementValue, 'MONEY_PREDICTION_SETTLEMENT_VALUE_INVALID');
     if (outcome.evidenceRefs.length === 0) throw new Error('MONEY_PREDICTION_OUTCOME_EVIDENCE_REQUIRED');
     if (ids.has(outcome.outcomeId)) throw new Error('MONEY_PREDICTION_DUPLICATE_OUTCOME');
     ids.add(outcome.outcomeId);
-    settlementMass += outcome.settlementValue;
-  }
-  if (Math.abs(settlementMass - 1) > 1e-9) {
-    throw new Error('MONEY_PREDICTION_SETTLEMENT_MASS_INVALID');
   }
 
   if (definition.evidenceRefs.length === 0) throw new Error('MONEY_PREDICTION_DEFINITION_EVIDENCE_REQUIRED');
