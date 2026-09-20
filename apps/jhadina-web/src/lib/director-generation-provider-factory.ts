@@ -3,6 +3,7 @@ import {
   type ArtifactAdmissionLedger,
   type ArtifactDeploymentRequirement,
   type ArtifactDeploymentReceipt,
+  type RuntimeLeaseGuard,
 } from '@jhadina/reference-provenance';
 import {
   ComfyUIProvider,
@@ -18,6 +19,7 @@ export type DirectorGenerationFactoryConfig = {
     ledger: ArtifactAdmissionLedger;
     requirement: ArtifactDeploymentRequirement;
     verifiedAt?: string;
+    runtimeLeaseGuard: RuntimeLeaseGuard;
   };
   comfyUi?: {
     id?: string;
@@ -76,6 +78,37 @@ function buildComfyUiDescriptor(config: NonNullable<DirectorGenerationFactoryCon
   };
 }
 
+function leaseGuardProvider(
+  provider: GenerationProvider,
+  guard: RuntimeLeaseGuard,
+): GenerationProvider {
+  const assertLease = () => guard.assertUsable(new Date().toISOString());
+  return {
+    descriptor: provider.descriptor,
+    submissionGuarantee: provider.submissionGuarantee,
+    async submit(request, options) {
+      await assertLease();
+      return provider.submit(request, options);
+    },
+    ...(provider.findByIdempotencyKey
+      ? {
+          async findByIdempotencyKey(idempotencyKey: string) {
+            await assertLease();
+            return provider.findByIdempotencyKey!(idempotencyKey);
+          },
+        }
+      : {}),
+    async status(providerJobId) {
+      await assertLease();
+      return provider.status(providerJobId);
+    },
+    async cancel(providerJobId) {
+      await assertLease();
+      return provider.cancel(providerJobId);
+    },
+  };
+}
+
 function buildWorkflow(request: Parameters<NonNullable<GenerationProvider['submit']>>[0]): Record<string, unknown> {
   const workflow = request.parameters.workflow;
   if (!workflow || typeof workflow !== 'object' || Array.isArray(workflow)) {
@@ -127,7 +160,10 @@ export async function createDirectorGenerationRuntimeConfig(
     ...(comfyUi.apiKey ? { headers: { authorization: `Bearer ${comfyUi.apiKey}` } } : {}),
   });
   const provider = new ComfyUIProvider(descriptor, client, buildWorkflow);
-  providers.set(descriptor.id, provider);
+  providers.set(
+    descriptor.id,
+    leaseGuardProvider(provider, deployment.runtimeLeaseGuard),
+  );
   registry.registerProvider(descriptor);
 
   for (const model of comfyUi.models) {
