@@ -1,0 +1,3 @@
+import type { LearningPromotionEntry } from './learning-promotion-ledger.js';
+export interface LearningTemporalSnapshot{asOf:string;values:Readonly<Record<string,number>>;entryIds:readonly string[];}
+export function learningSnapshotAsOf(entries:readonly LearningPromotionEntry[],asOf:string):LearningTemporalSnapshot{const t=new Date(asOf).getTime();if(!Number.isFinite(t))throw new Error('Invalid snapshot time');const values:Record<string,number>={},ids:string[]=[];for(const e of entries.filter(x=>new Date(x.recordedAt).getTime()<=t).sort((a,b)=>a.recordedAt.localeCompare(b.recordedAt)||a.entryId.localeCompare(b.entryId))){values[e.parameterPath]=e.afterValue;ids.push(e.entryId);}return Object.freeze({asOf,values:Object.freeze(values),entryIds:Object.freeze(ids)});}
