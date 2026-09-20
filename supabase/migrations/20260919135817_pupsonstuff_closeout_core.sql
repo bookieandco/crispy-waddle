@@ -5,6 +5,65 @@
 
 create extension if not exists pgcrypto;
 
+-- Earlier PupsonStuff experiments created five of the canonical table names
+-- with an authenticated-user schema that is incompatible with PS-CLOSE's
+-- signed guest-owner model. Reconcile only when those legacy tables are empty.
+-- A populated legacy table stops the migration so data must be explicitly
+-- mapped instead of being silently discarded.
+do $$
+declare
+  v_table_name text;
+  row_exists boolean;
+  incompatible boolean := false;
+begin
+  incompatible :=
+    (to_regclass('public.pupson_media_assets') is not null and not exists (
+      select 1 from information_schema.columns c
+      where c.table_schema = 'public' and c.table_name = 'pupson_media_assets' and c.column_name = 'owner_token_hash'
+    )) or
+    (to_regclass('public.pupson_pet_identities') is not null and not exists (
+      select 1 from information_schema.columns c
+      where c.table_schema = 'public' and c.table_name = 'pupson_pet_identities' and c.column_name = 'owner_token_hash'
+    )) or
+    (to_regclass('public.pupson_pet_identity_assets') is not null and not exists (
+      select 1 from information_schema.columns c
+      where c.table_schema = 'public' and c.table_name = 'pupson_pet_identity_assets' and c.column_name = 'media_asset_id'
+    )) or
+    (to_regclass('public.pupson_creative_jobs') is not null and not exists (
+      select 1 from information_schema.columns c
+      where c.table_schema = 'public' and c.table_name = 'pupson_creative_jobs' and c.column_name = 'owner_token_hash'
+    )) or
+    (to_regclass('public.pupson_creative_outputs') is not null and not exists (
+      select 1 from information_schema.columns c
+      where c.table_schema = 'public' and c.table_name = 'pupson_creative_outputs' and c.column_name = 'job_id'
+    ));
+
+  if incompatible then
+    foreach v_table_name in array array[
+      'pupson_creative_outputs',
+      'pupson_creative_jobs',
+      'pupson_pet_identity_assets',
+      'pupson_pet_identities',
+      'pupson_media_assets'
+    ]
+    loop
+      if to_regclass(format('public.%I', v_table_name)) is not null then
+        execute format('select exists (select 1 from public.%I limit 1)', v_table_name)
+          into row_exists;
+        if row_exists then
+          raise exception 'PS-CLOSE cannot replace populated legacy table public.%', v_table_name;
+        end if;
+      end if;
+    end loop;
+
+    drop table if exists public.pupson_creative_outputs cascade;
+    drop table if exists public.pupson_creative_jobs cascade;
+    drop table if exists public.pupson_pet_identity_assets cascade;
+    drop table if exists public.pupson_pet_identities cascade;
+    drop table if exists public.pupson_media_assets cascade;
+  end if;
+end $$;
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values
   ('pupson-originals', 'pupson-originals', false, 10485760, array['image/jpeg','image/png','image/webp']),
