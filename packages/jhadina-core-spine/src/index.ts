@@ -15,3 +15,4 @@ export * from './emergency-integration.js';
 export * from './emergency-e2e-harness.js';
 export * from './emergency-scenarios.js';
 export * from './emergency-scenario-tests.js';
+export * from './emergency-test-suite.js';
