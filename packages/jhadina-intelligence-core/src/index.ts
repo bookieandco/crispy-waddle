@@ -27,3 +27,4 @@ export * from './media-extractor-adapters.js';
 export * from './media-pipeline.js';
 export * from './subsystem-dispatcher.js';
 export * from './sports-intelligence-adapter.js';
+export * from './director-studio-adapter.js';
