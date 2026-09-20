@@ -1,5 +1,6 @@
 import type { EvidenceRef } from '@jhadina/core-spine'
-import type { SpatialEvidence, SpatialEvidenceStore } from './evidence.js'
+import type { SpatialEvidence } from './evidence.js'
+import type { SpatialEvidenceStore } from './evidence-store.js'
 import type { SpatialContextPackage, SpatialContextReadProvider } from './integration.js'
 import { evaluateSpatialRealityAdmission } from './reality-admission.js'
 import type { RealityAdmission, SpatialRealityCandidate, SpatialRealityStore } from './reality.js'
