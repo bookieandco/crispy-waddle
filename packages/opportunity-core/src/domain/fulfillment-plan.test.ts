@@ -57,3 +57,16 @@ assert.equal(shortlist.length, 2)
 assert.ok(shortlist.every((match) => match.disposition !== 'blocked'))
 
 console.log('fulfillment-plan tests passed')
+
+const scheduleOnly: OpportunityRequirementSet = {
+  opportunityId: 'sam:schedule',
+  generatedAt: '2026-09-20T00:00:00Z',
+  unresolved: [],
+  requirements: [
+    { id: 'schedule', opportunityId: 'sam:schedule', kind: 'schedule', label: 'Deadline', severity: 'required', evidenceStatus: 'explicit', sourceClaimIds: [], sourceEvidenceIds: [], naicsCodes: [], pscCodes: [], keywords: ['deadline'], attributes: {}, confidence: 1, blockers: [] },
+    { id: 'cloud2', opportunityId: 'sam:schedule', kind: 'capability', label: 'Cloud', severity: 'required', evidenceStatus: 'explicit', sourceClaimIds: [], sourceEvidenceIds: [], naicsCodes: [], pscCodes: [], keywords: ['cloud'], attributes: {}, confidence: 1, blockers: [] },
+  ],
+}
+const schedulePlan = buildFulfillmentPlan(scheduleOnly, [cloud])
+assert.equal(schedulePlan.structure, 'direct_fulfillment')
+assert.deepEqual(schedulePlan.uncoveredRequirementIds, [])
