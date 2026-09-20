@@ -5,12 +5,16 @@ on:
   pull_request:
     paths:
       - 'packages/jhadina-intelligence-core/**'
+      - 'apps/jhadina-web/src/lib/intelligence/**'
+      - 'apps/jhadina-web/src/app/api/intelligence/**'
       - '.github/workflows/intcom-core.yml'
   push:
     branches:
       - main
     paths:
       - 'packages/jhadina-intelligence-core/**'
+      - 'apps/jhadina-web/src/lib/intelligence/**'
+      - 'apps/jhadina-web/src/app/api/intelligence/**'
       - '.github/workflows/intcom-core.yml'
 
 jobs:
@@ -37,3 +41,5 @@ jobs:
         run: pnpm --filter @jhadina/intelligence-core type-check
       - name: Test INTCOM core
         run: pnpm --filter @jhadina/intelligence-core test
+      - name: Test governed observation web boundary
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/intelligence/governed-observation-runtime.test.ts src/lib/intelligence/shodan-observation-request.test.ts
