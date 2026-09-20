@@ -1,0 +1,1 @@
+import type {NBAActionCandidate} from './nba-action-recognition.js';import type {NBAPlaySequence} from './nba-temporal-play-reconstruction.js';import {reconstructNBAPlaySequence} from './nba-temporal-play-reconstruction.js';export function buildNBAPlay(sequenceId:string,actions:readonly NBAActionCandidate[]):NBAPlaySequence{return reconstructNBAPlaySequence(sequenceId,actions);}
