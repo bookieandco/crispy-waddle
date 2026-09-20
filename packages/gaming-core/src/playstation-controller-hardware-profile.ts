@@ -28,11 +28,11 @@ export const DUALSENSE_HARDWARE_PROFILE:PlayStationControllerHardwareProfile=Obj
   id:'dualsense',
   displayName:'Sony DualSense',
   transport:'bluetooth',
-  g13Capabilities:['buttons','axes','triggers','dpad','haptics'],
+  g13Capabilities:['buttons','axes','triggers','dpad','haptics'] as const,
   features:[
     'buttons','axes','dpad','analog-triggers','advanced-haptics',
     'adaptive-triggers','gyro','touchpad','usb-wired','bluetooth',
-  ],
+  ] as const,
   triggerMode:'adaptive',
 });
 
@@ -40,8 +40,8 @@ export const GAMESIR_X5_LITE_HARDWARE_PROFILE:PlayStationControllerHardwareProfi
   id:'gamesir-x5-lite',
   displayName:'GameSir X5 Lite',
   transport:'phone-usb-c',
-  g13Capabilities:['buttons','axes','triggers','dpad'],
-  features:['buttons','axes','dpad','digital-triggers','usb-wired','phone-attached'],
+  g13Capabilities:['buttons','axes','triggers','dpad'] as const,
+  features:['buttons','axes','dpad','digital-triggers','usb-wired','phone-attached'] as const,
   triggerMode:'digital',
 });
 
@@ -95,6 +95,6 @@ export function negotiatePlayStationController(
 }
 
 export const DEFAULT_PS5_REMOTE_PLAY_CONTROLLER_REQUIREMENT:PlayStationControllerRequirement=Object.freeze({
-  required:['buttons','axes','dpad'],
-  optional:['analog-triggers','advanced-haptics','adaptive-triggers','gyro','touchpad'],
+  required:['buttons','axes','dpad'] as const,
+  optional:['analog-triggers','advanced-haptics','adaptive-triggers','gyro','touchpad'] as const,
 });
