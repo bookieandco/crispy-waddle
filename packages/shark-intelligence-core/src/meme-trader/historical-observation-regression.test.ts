@@ -165,7 +165,7 @@ describe('SHARK historical observation regression', () => {
     const candles = await source.candles(launch)
     expect(urls).toHaveLength(2)
     expect(candles).toHaveLength(3)
-    expect(candles[0].observedAt).toBe(launch.launchedAt)
+    expect(Date.parse(candles[0].observedAt)).toBe(Date.parse(launch.launchedAt))
   })
 
 })
