@@ -55,7 +55,10 @@ function cloneProvenance(origin: CallbackProvenanceOrigin, ref: EvidenceRef): Ca
 }
 
 function relationshipProvenance(personality: PersonalityState, callback: string): CallbackProvenance[] {
-  return personality.relationship.evidence
+  const relationship = personality.relationship;
+  if (!relationship) return [];
+
+  return relationship.evidence
     .filter(validEvidence)
     .filter((ref) => supportsCallback(ref.summary, callback))
     .map((ref) => cloneProvenance('relationship', ref));
@@ -130,7 +133,10 @@ export function selectEvidenceBackedCallback(
   const normalized = normalizedCallback(input.callback);
   if (!normalized) return undefined;
 
-  const knownCallback = input.personality.relationship.recurringCallbacks.some(
+  const relationship = input.personality.relationship;
+  if (!relationship) return undefined;
+
+  const knownCallback = relationship.recurringCallbacks.some(
     (candidate) => normalizedCallback(candidate) === normalized,
   );
   if (!knownCallback) return undefined;
