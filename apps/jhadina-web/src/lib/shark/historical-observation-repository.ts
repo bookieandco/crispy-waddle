@@ -19,6 +19,9 @@ export async function runHistoricalObservationBackfill(client: SupabaseClient, o
     const launch = launchFromRow(row)
     try {
       const result = await collectHistoricalObservation({ launch, market, actors })
+      const hasUsableEvidence = Object.values(result.sourceStatus).some(status => status === 'complete')
+      if (!hasUsableEvidence) throw new Error('SHARK historical collection produced no usable evidence')
+
       const o = result.observation
       const { error: persistError } = await client.from('jhadina_launch_outcome_observations').upsert({
         observation_id: o.observationId, launch_id: o.launchId, observed_at: o.observedAt,
