@@ -14,8 +14,7 @@ on:
       - 'apps/jhadina-web/src/__tests__/opportunities.test.ts'
       - 'apps/jhadina-web/src/lib/money-opportunities/**'
       - 'apps/jhadina-web/tsconfig.opportunity.json'
-      - 'supabase/migrations/20260920030000_jhadina_canonical_opportunities.sql'
-      - 'supabase/migrations/20260920033000_opportunity_pursuit_outcome.sql'
+      - 'supabase/migrations/*opportunity*.sql'
       - 'pnpm-lock.yaml'
       - '.github/workflows/opportunity-core-ci.yml'
   pull_request:
@@ -31,8 +30,7 @@ on:
       - 'apps/jhadina-web/src/__tests__/opportunities.test.ts'
       - 'apps/jhadina-web/src/lib/money-opportunities/**'
       - 'apps/jhadina-web/tsconfig.opportunity.json'
-      - 'supabase/migrations/20260920030000_jhadina_canonical_opportunities.sql'
-      - 'supabase/migrations/20260920033000_opportunity_pursuit_outcome.sql'
+      - 'supabase/migrations/*opportunity*.sql'
       - 'pnpm-lock.yaml'
       - '.github/workflows/opportunity-core-ci.yml'
 
