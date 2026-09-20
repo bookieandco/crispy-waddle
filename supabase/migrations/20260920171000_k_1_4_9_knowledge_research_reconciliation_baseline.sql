@@ -391,7 +391,7 @@ language plpgsql security invoker set search_path=public,pg_catalog
 as $$
 declare v_key text; v_row public.jhadina_research_revalidation_triggers%rowtype;
 begin
-  v_key:=coalesce(p_dedupe_key,encode(digest(
+  v_key:=coalesce(p_dedupe_key,encode(extensions.digest(
     concat_ws('|',p_knowledge_record_id::text,p_trigger_reason,p_freshness_state,
       coalesce(p_triggering_evidence_id::text,''),coalesce(p_research_scope,'{}'::jsonb)::text),
     'sha256'),'hex'));
@@ -448,7 +448,7 @@ begin
     'policyVersion',p_policy_version,'requiredCapabilities',coalesce(p_required_capabilities,'[]'::jsonb),
     'requiredAuthorities',coalesce(p_required_authorities,'[]'::jsonb),'approvalMode',p_approval_mode
   );
-  v_hash:=encode(digest(jsonb_build_object(
+  v_hash:=encode(extensions.digest(jsonb_build_object(
     'decompositionId',p_decomposition_id,'version',v_version,'tasks',v_tasks,
     'breadth',p_breadth,'depth',p_depth,'budget',coalesce(p_budget,'{}'::jsonb),'policy',v_snapshot
   )::text,'sha256'),'hex');
