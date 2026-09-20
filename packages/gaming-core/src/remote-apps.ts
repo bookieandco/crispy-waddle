@@ -6,11 +6,13 @@ export interface RemoteApp {
   name: string;
   kind: RemoteAppKind;
   launchTarget: string;
+  platform?: string;
   iconUri?: string;
   metadata?: Readonly<Record<string, string>>;
 }
 
 export interface RemoteAppCatalog {
+  upsert(app: RemoteApp): void;
   list(hostId: string): Promise<readonly RemoteApp[]>;
 }
 
