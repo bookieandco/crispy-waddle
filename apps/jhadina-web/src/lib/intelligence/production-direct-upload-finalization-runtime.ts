@@ -8,6 +8,7 @@ import { SupabaseIntelligenceAssetStore } from "./supabase-intelligence-asset-st
 import { SupabasePerceptionJobRepository } from "./supabase-perception-job-repository";
 import { GovernedAssetRegistry } from "@jhadina/intelligence-core";
 import type { UniversalUploadPrivacyClass } from "./production-universal-upload-runtime";
+import { SupabaseQuarantineCleanupRepository } from "./supabase-quarantine-cleanup-repository";
 
 export function createProductionDirectUploadFinalizationWorker(input: {
   workerId: string;
@@ -51,5 +52,6 @@ export function createProductionDirectUploadFinalizationWorker(input: {
     input.leaseMs ?? 5 * 60_000,
     () => new Date(),
     maxPerceptionAttempts,
+    new SupabaseQuarantineCleanupRepository(client),
   );
 }
