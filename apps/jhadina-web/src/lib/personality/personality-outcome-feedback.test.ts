@@ -9,6 +9,7 @@ import { recordPersonalityOutcomeFeedback } from "./personality-outcome-feedback
 async function target(storage: InMemoryStorage, userId = "user-feedback") {
   return new ReasoningEventRepository(storage).create({
     userId,
+    timestamp: "2026-09-20T22:00:00.000Z",
     userMessage: "Give me the short version",
     observation: {
       raw: "Give me the short version",
