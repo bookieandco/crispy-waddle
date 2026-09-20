@@ -146,9 +146,12 @@ export function createSupabaseResearchRuntimeRepository(client?: SupabaseClient 
     },
     async captureEvidence(input) {
       const evidence = input.evidence;
-      const { data, error } = await supabase.rpc("jhadina_capture_research_evidence", {
-        p_plan_id: input.planId,
+      const { data, error } = await supabase.rpc("jhadina_capture_research_evidence_fenced", {
+        p_plan_id: input.admission.planId,
         p_execution_event_id: input.executionEventId,
+        p_lease_id: input.admission.leaseId,
+        p_worker_id: input.admission.workerId,
+        p_lease_token: input.admission.leaseToken,
         p_source_kind: evidence.sourceKind ?? "web",
         p_source_uri: evidence.sourceUri,
         p_publisher: evidence.publisher ?? null,
