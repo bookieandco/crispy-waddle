@@ -6,6 +6,7 @@ import {
 } from '@jhadina/spatial-intelligence-core'
 import type { SpatialContextProvider } from './context-builder'
 import { createSupabaseSpatialEvidenceStore } from './supabase-spatial-evidence-store'
+import { createSupabaseSpatialKnowledgeSink } from './supabase-spatial-knowledge-sink'
 
 export type ProductionSpatialContextProviderOptions = {
   baseUrl?: string
@@ -31,6 +32,12 @@ export function createProductionSpatialContextProvider(
     ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
   })
   const evidenceStore = createSupabaseSpatialEvidenceStore()
-  const read = createGevSpatialContextReadProvider({ bridge, ...(options.maxEvidence ? { maxEvidence: options.maxEvidence } : {}), ...(evidenceStore ? { evidenceStore } : {}) })
+  const knowledgeSink = createSupabaseSpatialKnowledgeSink()
+  const read = createGevSpatialContextReadProvider({
+    bridge,
+    ...(options.maxEvidence ? { maxEvidence: options.maxEvidence } : {}),
+    ...(evidenceStore ? { evidenceStore } : {}),
+    ...(knowledgeSink ? { knowledgeSink } : {}),
+  })
   return createSpatialContextProvider({ userId, read })
 }

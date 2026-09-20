@@ -8,6 +8,7 @@ import { createGevSourcePolicyRegistry, type SpatialSourcePolicyRegistry } from 
 import type { SpatialContextPackage, SpatialContextReadProvider } from './integration.js'
 import type { SpatialQueryPlan } from './spatial-pipeline.js'
 import type { EvidenceRef } from '@jhadina/core-spine'
+import { spatialObservationToGraphContribution, type SpatialKnowledgeSink } from './spatial-knowledge-projection.js'
 
 export type GevSpatialReadProviderOptions = {
   bridge: GevProviderBridge
@@ -15,6 +16,7 @@ export type GevSpatialReadProviderOptions = {
   now?: () => string
   maxEvidence?: number
   evidenceStore?: SpatialEvidenceStore
+  knowledgeSink?: SpatialKnowledgeSink
 }
 
 type ScopePoint = { lat: number; lon: number; radiusKm?: number }
@@ -174,6 +176,13 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
       await Promise.all(evidence.map((item) => this.options.evidenceStore!.append(item)))
     } else if (evidence.length > 0) {
       limitations.push('Durable spatial evidence store is not configured; evidence is transient and cannot support reality admission.')
+    }
+    if (this.options.knowledgeSink) {
+      await Promise.all(scoped.map((observation, index) => this.options.knowledgeSink!.persist(
+        spatialObservationToGraphContribution(observation, evidence[index].evidenceId),
+      )))
+    } else if (evidence.length > 0) {
+      limitations.push('Durable spatial knowledge graph sink is not configured; entity/source relationships are transient.')
     }
     const observationRefs = scoped.map(observationRef)
     const evidenceRefs = evidence.map(evidenceRef)

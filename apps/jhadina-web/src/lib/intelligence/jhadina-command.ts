@@ -53,17 +53,20 @@ export interface JhadinaCommandResult extends GovernedIntelligenceProposalResult
 const defaultApprovalStore = new InMemoryApprovalReceiptStore()
 
 export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides: JhadinaCommandOverrides = {}): Promise<JhadinaCommandResult> {
+  const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
+  const verifiedIdentity = await identityVerifier.verify({ userId: input.userId })
+
   const storage = getStorage()
   const memoryRepo = new MemoryRepository(storage)
   const reasoningRepo = new ReasoningEventRepository(storage)
-  const spatialContextProvider = overrides.spatialContextProvider ?? createProductionSpatialContextProvider(input.userId)
+  const spatialContextProvider = overrides.spatialContextProvider ?? createProductionSpatialContextProvider(verifiedIdentity.userId)
   const contextDeps: ContextBuilderDeps = {
     memoryRepo,
     timelineRepo: new TimelineRepository(storage),
     spatialContextProvider,
   }
   const assembled = await buildContext(contextDeps, {
-    userId: input.userId,
+    userId: verifiedIdentity.userId,
     activeTask: input.activeTask,
     surface: input.surface,
     route: input.route,
@@ -74,7 +77,6 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     limits: input.contextLimits,
   })
 
-  const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
   const ledger = overrides.ledger ?? (await createIntelligenceAuditLedger())
   const router = overrides.router ?? createProductionIntelligenceRouter(overrides.onEvent)
   const approvalStore = overrides.approvalStore ?? defaultApprovalStore
@@ -82,7 +84,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
 
   const result = await decideAndProposeMemoryGoverned(
     { identityVerifier, ledger, router, memoryRepo, reasoningRepo, approvalStore, policy },
-    input.userId,
+    verifiedIdentity.userId,
     assembled.contextPacket,
   )
 
