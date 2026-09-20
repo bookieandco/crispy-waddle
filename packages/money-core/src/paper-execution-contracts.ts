@@ -3,6 +3,7 @@ import type { ExactAmount } from './portfolio-construction-contracts.js'
 import type { ExecutionMarketSnapshot, ExecutionPlan, ExecutionSlice } from './execution-planning-contracts.js'
 
 export type PaperCapability='money.simulation.order.submit'|'money.simulation.order.cancel'|'money.simulation.portfolio.read'
+export type PaperFillModel=Readonly<{modelVersion:string;liquidityFillBps:number;slippageBps:number;feeBps:number;passiveFillBps:number;assumptionIds:readonly string[]}>
 export type PaperOrderState='OPEN'|'PARTIALLY_FILLED'|'FILLED'|'CANCELLED'|'EXPIRED'|'NO_FILL'
 export type PaperOrder=Readonly<{paperOrderId:string;paperRunId:string;executionPlanId:string;sliceId:string;instrumentId:string;side:'BUY'|'SELL';requestedNotional:ExactAmount;instruction:'MARKETABLE_LIMIT'|'PASSIVE_LIMIT';limitPriceMinor:bigint;submittedAt:string;expiresAt:string;marketSnapshotId:string;state:PaperOrderState;authority:'SIMULATION_ONLY'}>
 export type PaperFill=Readonly<{paperFillId:string;paperOrderId:string;instrumentId:string;side:'BUY'|'SELL';notional:ExactAmount;quantityMicros:bigint;referencePriceMinor:bigint;fillPriceMinor:bigint;fee:ExactAmount;slippageBps:number;filledAt:string;marketSnapshotId:string;evidenceIds:readonly string[];authority:'SIMULATION_ONLY'}>
