@@ -1,0 +1,1 @@
+export type VisionCompute='CPU'|'GPU'|'REMOTE';export interface VisionInferenceReceipt{modelId:string;modelVersion:string;compute:VisionCompute;inputEvidenceIds:readonly string[];startedAt:string;finishedAt:string;}export interface VisionModelRuntime<I,O>{modelId:string;modelVersion:string;infer(input:I,compute:VisionCompute):Promise<{output:O;receipt:VisionInferenceReceipt}>;}
