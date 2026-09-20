@@ -56,7 +56,13 @@ begin
   if coalesce((v_snapshot->>'schemaVersion')::integer, 0) <> 1 then
     raise exception 'unsupported SAM pursuit snapshot schema';
   end if;
-  if coalesce((v_snapshot->>'executionAuthorized')::boolean, false) = true then
+  if jsonb_typeof(v_snapshot->'pursuit') <> 'object' then
+    raise exception 'SAM pursuit snapshot requires governed pursuit state';
+  end if;
+  if coalesce(v_snapshot->'pursuit'->>'opportunityId', '') <> v_opportunity_id then
+    raise exception 'SAM pursuit snapshot opportunity mismatch';
+  end if;
+  if coalesce((v_snapshot->'pursuit'->>'executionAuthorized')::boolean, false) = true then
     raise exception 'SAM pursuit snapshot cannot imply execution authorization';
   end if;
 
