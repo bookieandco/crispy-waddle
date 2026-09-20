@@ -3,7 +3,7 @@ import { MoneyProviderRegistry, type ProviderConfig } from "@jhadina/money-core"
 import type { ActionRequestIdentity, JhadinaActionRequest, JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { createReferenceBankAdapter, createInMemoryAuditRpcClient, type RecordedReferenceRequest } from "./reference-adapters"
 import { PLAID_PROVIDER, type MoneyPlaidProductionRegistry } from "./production-provider"
-import { runGovernedMoneyAccountRead, type GovernedMoneyRuntimeOverrides } from "./governed-account-read-runtime"
+import { runGovernedMoneyAccountRead, runSessionGovernedMoneyAccountRead, type GovernedMoneyRuntimeOverrides } from "./governed-account-read-runtime"
 
 /**
  * PL-8 (Jhadina OS Integration Phase 2, Money real-integration Phase 1).
@@ -21,7 +21,7 @@ import { runGovernedMoneyAccountRead, type GovernedMoneyRuntimeOverrides } from 
 function staticIdentityVerifier(identity: ActionRequestIdentity): JhadinaIdentityVerifier {
   return {
     async verify(request: JhadinaActionRequest) {
-      if (request.userId !== identity.userId) {
+      if (request.userId !== undefined && request.userId !== identity.userId) {
         throw new Error("Action identity mismatch")
       }
       return identity
@@ -110,4 +110,34 @@ describe("Money product loop — UI-facing composition root (Jhadina OS Integrat
     expect((adapter as unknown as Record<string, unknown>).createPayment).toBeUndefined()
     expect((adapter as unknown as Record<string, unknown>).createTransfer).toBeUndefined()
   })
+
+  it("derives the product read actor from the authenticated session without a caller user-id assertion", async () => {
+    const identity: ActionRequestIdentity = { userId: "session-money-user", sessionId: "session-money-id" }
+    const supabase = createInMemoryAuditRpcClient()
+    const recordedRequests: RecordedReferenceRequest[] = []
+    const result = await runSessionGovernedMoneyAccountRead("req-session-money", {
+      identityVerifier: staticIdentityVerifier(identity),
+      supabase,
+      providers: fakeProviders(recordedRequests),
+    })
+
+    expect(result.verifiedUserId).toBe(identity.userId)
+    expect(result.accounts.length).toBeGreaterThan(0)
+    expect(recordedRequests).toHaveLength(1)
+    expect(supabase.calls.every((call) => call.args.p_user_id === identity.userId)).toBe(true)
+  })
+
+  it("fails before provider or ledger work when session identity cannot be verified", async () => {
+    const supabase = createInMemoryAuditRpcClient()
+    const recordedRequests: RecordedReferenceRequest[] = []
+    await expect(runSessionGovernedMoneyAccountRead("req-no-session", {
+      identityVerifier: { async verify() { throw new Error("Authenticated session missing") } },
+      supabase,
+      providers: fakeProviders(recordedRequests),
+    })).rejects.toThrow("Authenticated session missing")
+
+    expect(recordedRequests).toHaveLength(0)
+    expect(supabase.calls).toHaveLength(0)
+  })
+
 })
