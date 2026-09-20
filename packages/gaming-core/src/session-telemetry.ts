@@ -1,4 +1,24 @@
+import type {GamingInputDeliverySnapshot, GamingInputDeliveryState} from './input-delivery-state.js';
+
 export type GamingSessionStatus='starting'|'running'|'stopped'|'failed';
+
+export interface GamingInputTelemetry {
+  inputId:string;
+  sequenceNumber:number;
+  deviceId?:string;
+  deliveryState:GamingInputDeliveryState;
+  capturedAtMs:number;
+  transportStartedAtMs?:number;
+  transportConfirmedAtMs?:number;
+  runtimeDeliveredAtMs?:number;
+  acknowledgedAtMs?:number;
+  frameRenderedAtMs?:number;
+  captureToTransportMs?:number;
+  captureToRuntimeMs?:number;
+  inputToPhotonMs?:number;
+  deliveryUncertain:boolean;
+  reason?:string;
+}
 
 export interface GamingSessionTelemetry {
   sessionId:string;
@@ -17,55 +37,62 @@ export interface GamingSessionTelemetry {
   encodeLatencyMs?:number;
   decodeLatencyMs?:number;
   reconnectCount?:number;
+  latestInput?:GamingInputTelemetry;
+  uncertainInputCount?:number;
 }
 
-export interface GamingSessionState extends GamingSessionTelemetry {
-  startedAtMs:number;
-  lastHeartbeatAtMs:number;
-}
-
-export interface GamingSessionTelemetrySink {
-  record(sample:GamingSessionTelemetry):Promise<void>|void;
-}
+export interface GamingSessionState extends GamingSessionTelemetry {startedAtMs:number;lastHeartbeatAtMs:number;}
+export interface GamingSessionTelemetrySink {record(sample:GamingSessionTelemetry):Promise<void>|void;}
 
 export class GamingSessionMonitor {
   private readonly sessions=new Map<string,GamingSessionState>();
+  private readonly inputStages=new Map<string,Partial<Record<GamingInputDeliveryState,number>>>();
 
-  constructor(private readonly sink?:GamingSessionTelemetrySink){ }
+  constructor(private readonly sink?:GamingSessionTelemetrySink){}
 
   start(sessionId:string,proposalId:string,runtimeId:string,nowMs=Date.now()):GamingSessionState{
-    this.requireId(sessionId,'Session id');
-    this.requireId(proposalId,'Proposal id');
-    this.requireId(runtimeId,'Runtime id');
-    const state:GamingSessionState={sessionId,proposalId,runtimeId,status:'starting',observedAtMs:nowMs,startedAtMs:nowMs,lastHeartbeatAtMs:nowMs,reconnectCount:0};
-    this.sessions.set(sessionId,state);
-    void this.sink?.record(state);
-    return {...state};
+    this.requireId(sessionId,'Session id');this.requireId(proposalId,'Proposal id');this.requireId(runtimeId,'Runtime id');
+    const state:GamingSessionState={sessionId,proposalId,runtimeId,status:'starting',observedAtMs:nowMs,startedAtMs:nowMs,lastHeartbeatAtMs:nowMs,reconnectCount:0,uncertainInputCount:0};
+    this.sessions.set(sessionId,state);void this.sink?.record(state);return{...state};
   }
 
   heartbeat(sessionId:string,sample:Omit<GamingSessionTelemetry,'sessionId'|'proposalId'|'runtimeId'|'status'|'observedAtMs'> & {status?:GamingSessionStatus},nowMs=Date.now()):GamingSessionState{
-    const current=this.requireSession(sessionId);
-    if(current.status==='stopped'||current.status==='failed')throw new Error(`Session is terminal: ${sessionId}`);
+    const current=this.requireSession(sessionId);if(current.status==='stopped'||current.status==='failed')throw new Error(`Session is terminal: ${sessionId}`);
     const next:GamingSessionState={...current,...sample,sessionId,proposalId:current.proposalId,runtimeId:current.runtimeId,status:sample.status??'running',observedAtMs:nowMs,lastHeartbeatAtMs:nowMs};
-    this.sessions.set(sessionId,next);
-    void this.sink?.record(next);
-    return {...next};
+    this.sessions.set(sessionId,next);void this.sink?.record(next);return{...next};
+  }
+
+  recordInputDelivery(snapshot:GamingInputDeliverySnapshot,capturedAtMs:number,frameRenderedAtMs?:number):GamingSessionState{
+    if(!snapshot.sessionId)throw new Error('Input delivery snapshot requires sessionId for telemetry');
+    if(!Number.isFinite(capturedAtMs))throw new Error('capturedAtMs must be finite');
+    const current=this.requireSession(snapshot.sessionId);
+    const stages=this.inputStages.get(snapshot.inputId)??{};
+    stages[snapshot.state]=snapshot.observedAtMs;this.inputStages.set(snapshot.inputId,stages);
+    const transportStartedAtMs=stages['transport-started'];
+    const transportConfirmedAtMs=stages['transport-confirmed'];
+    const runtimeDeliveredAtMs=stages['runtime-delivered'];
+    const acknowledgedAtMs=stages.acknowledged;
+    const deliveryUncertain=snapshot.state==='delivery-unknown';
+    const latestInput:GamingInputTelemetry={
+      inputId:snapshot.inputId,sequenceNumber:snapshot.sequenceNumber,deviceId:snapshot.deviceId,deliveryState:snapshot.state,capturedAtMs,
+      transportStartedAtMs,transportConfirmedAtMs,runtimeDeliveredAtMs,acknowledgedAtMs,frameRenderedAtMs,
+      captureToTransportMs:transportStartedAtMs===undefined?undefined:transportStartedAtMs-capturedAtMs,
+      captureToRuntimeMs:runtimeDeliveredAtMs===undefined?undefined:runtimeDeliveredAtMs-capturedAtMs,
+      inputToPhotonMs:frameRenderedAtMs===undefined?undefined:frameRenderedAtMs-capturedAtMs,
+      deliveryUncertain,reason:snapshot.reason,
+    };
+    const next:GamingSessionState={...current,latestInput,uncertainInputCount:(current.uncertainInputCount??0)+(deliveryUncertain?1:0),observedAtMs:snapshot.observedAtMs,lastHeartbeatAtMs:snapshot.observedAtMs,
+      inputTransportLatencyMs:latestInput.captureToTransportMs??current.inputTransportLatencyMs,
+      inputToRuntimeLatencyMs:latestInput.captureToRuntimeMs??current.inputToRuntimeLatencyMs,
+      inputToPhotonLatencyMs:latestInput.inputToPhotonMs??current.inputToPhotonLatencyMs};
+    this.sessions.set(snapshot.sessionId,next);void this.sink?.record(next);return{...next};
   }
 
   stop(sessionId:string,nowMs=Date.now()):GamingSessionState{return this.transition(sessionId,'stopped',nowMs);}
   fail(sessionId:string,nowMs=Date.now()):GamingSessionState{return this.transition(sessionId,'failed',nowMs);}
-
   get(sessionId:string):GamingSessionState|undefined{const state=this.sessions.get(sessionId);return state?{...state}:undefined;}
 
-  private transition(sessionId:string,status:'stopped'|'failed',nowMs:number):GamingSessionState{
-    const current=this.requireSession(sessionId);
-    if(current.status==='stopped'||current.status==='failed')return {...current};
-    const next={...current,status,observedAtMs:nowMs,lastHeartbeatAtMs:nowMs};
-    this.sessions.set(sessionId,next);
-    void this.sink?.record(next);
-    return {...next};
-  }
-
+  private transition(sessionId:string,status:'stopped'|'failed',nowMs:number):GamingSessionState{const current=this.requireSession(sessionId);if(current.status==='stopped'||current.status==='failed')return{...current};const next={...current,status,observedAtMs:nowMs,lastHeartbeatAtMs:nowMs};this.sessions.set(sessionId,next);void this.sink?.record(next);return{...next};}
   private requireSession(sessionId:string):GamingSessionState{const state=this.sessions.get(sessionId);if(!state)throw new Error(`Unknown gaming session: ${sessionId}`);return state;}
   private requireId(value:string,label:string):void{if(!value.trim())throw new Error(`${label} is required`);}
 }
