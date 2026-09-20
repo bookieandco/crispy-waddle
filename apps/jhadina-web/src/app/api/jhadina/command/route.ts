@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
       success: true,
       data: {
         proposal: result.proposal,
+        expression: result.expression,
         candidate: result.candidate,
         approvalReceiptId: result.approvalReceiptId,
         verified: result.verified,
