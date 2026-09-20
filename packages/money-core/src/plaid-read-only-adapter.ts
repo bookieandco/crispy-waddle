@@ -19,6 +19,8 @@ type PlaidAccount = {
   balances?: {
     iso_currency_code?: string | null;
     unofficial_currency_code?: string | null;
+    current?: number | null;
+    available?: number | null;
   };
 };
 
@@ -32,7 +34,8 @@ export type PlaidReadOnlyAdapterOptions = {
 
 /**
  * Plaid's account-read endpoint is POST /accounts/get. This adapter exposes
- * only cached account metadata; no payment, transfer, or account mutation path.
+ * only account metadata and read-only balances returned by /accounts/get; no
+ * payment, transfer, transaction-read, or account mutation path.
  */
 export class PlaidReadOnlyAdapter implements BankAdapter {
   readonly provider = 'plaid';
@@ -57,6 +60,8 @@ export class PlaidReadOnlyAdapter implements BankAdapter {
         account.balances?.iso_currency_code ||
         account.balances?.unofficial_currency_code ||
         'UNKNOWN',
+      currentBalance: account.balances?.current ?? undefined,
+      availableBalance: account.balances?.available ?? undefined,
       maskedName: account.mask
         ? `${account.name ?? account.official_name ?? 'Account'} ••••${account.mask}`
         : account.name ?? account.official_name ?? undefined,
