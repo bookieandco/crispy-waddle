@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import type { MoneyAccount, MoneyTransaction } from "@jhadina/money-core"
 import { buildMoneyCommandCenterModel } from "@/lib/money/command-center-model"
+import { MoneyConnectBankButton } from "./connect-bank-button"
 
 type TransactionsResponse = { success:true; data:{transactions:MoneyTransaction[]} } | {success:false;error:string}
 
@@ -51,7 +52,7 @@ export default function MoneyCommandCenter() {
       <div style={wrap}>
         <div style={eyebrow}>Money Core</div>
         <h1 style={h1}>Financial Command Center</h1>
-        <p style={sub}>A read-only view through Jhadina&apos;s governed Money boundary. This screen cannot move money.</p>
+        <p style={sub}>A read-only view through Jhadina&apos;s governed Money boundary. This screen cannot move money.</p>\n        <MoneyConnectBankButton />
 
         <section style={hero}>
           <span>Available cash</span>
