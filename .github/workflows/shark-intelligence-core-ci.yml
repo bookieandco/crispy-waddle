@@ -39,7 +39,7 @@ jobs:
       - name: SHARK tests
         run: pnpm --filter @jhadina/shark-intelligence-core test
       - name: Jhadina SHARK integration type-check
-        run: pnpm --filter @jhadina/jhadina-web type-check
+        run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.shark.json
       - name: Validate SHARK migrations
         run: |
           test -f supabase/migrations/20260902010000_shark_launch_outcome_history.sql
