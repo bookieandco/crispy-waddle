@@ -15,3 +15,5 @@ export * from './inference-ledger.js';
 export * from './semantic-cache.js';
 export * from './local-model-provider.js';
 export * from './multimodal-perception.js';
+export * from './evaluation-harness.js';
+export * from './evaluation-suite.js';
