@@ -42,6 +42,31 @@ export function planExpression(
       : decision.posture.verbosity >= 0.7
         ? 'detailed'
         : 'balanced';
+  const tone: NonNullable<ExpressionPlan['tone']> = serious || decision.posture.formality >= 0.7
+    ? 'formal'
+    : decision.posture.warmth >= 0.75
+      ? 'warm'
+      : 'conversational';
+  const reasoningDepth: NonNullable<ExpressionPlan['reasoningDepth']> =
+    decision.posture.reasoningDepth >= 0.7
+      ? 'technical'
+      : decision.posture.reasoningDepth <= 0.35
+        ? 'simple'
+        : 'standard';
+  const interactionStyle: NonNullable<ExpressionPlan['interactionStyle']> =
+    decision.posture.workflowContinuity >= 0.7
+      ? 'continuous'
+      : decision.posture.workflowContinuity <= 0.35
+        ? 'checkpointed'
+        : 'balanced';
+  const creativeStyle: NonNullable<ExpressionPlan['creativeStyle']> =
+    serious
+      ? 'conventional'
+      : decision.posture.creativeLatitude >= 0.7
+        ? 'experimental'
+        : decision.posture.creativeLatitude <= 0.3
+          ? 'conventional'
+          : 'balanced';
   const callback = !serious && isVerifiedCallback(context.callback)
     ? context.callback
     : undefined;
@@ -54,6 +79,12 @@ export function planExpression(
     allowProfanity: !serious && decision.posture.profanityAllowed,
     allowQuip: !serious && decision.posture.quipsAllowed,
     responseLength,
+    tone,
+    reasoningDepth,
+    interactionStyle,
+    creativeStyle,
+    explanationStyle: decision.posture.explanationStyle,
+    decisionPresentation: decision.posture.decisionPresentation,
     callback: callback?.value,
     callbackProvenance: callback?.provenance.map((item) => ({
       origin: item.origin,

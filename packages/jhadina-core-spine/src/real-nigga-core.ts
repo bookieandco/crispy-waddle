@@ -20,6 +20,14 @@ export interface RealNiggaBehavior {
   warmth: number;
   /** 0 = terse, 1 = highly detailed. */
   verbosity: number;
+  /** 0 = casual, 1 = formal. */
+  formality: number;
+  /** 0 = simplified, 1 = deeply technical. */
+  reasoningDepth: number;
+  /** Presentation preference only; never grants autonomous execution authority. */
+  workflowContinuity: number;
+  explanationStyle: 'standard' | 'step-by-step' | 'evidence-first';
+  decisionPresentation: 'balanced' | 'options';
   humor: number;
   profanityAllowed: boolean;
   profanityIntensity: number;
@@ -44,6 +52,15 @@ function normalizeModes(modes: readonly string[]): string[] {
       .map((mode) => mode.trim().toLowerCase())
       .filter(Boolean),
   )].sort();
+}
+
+function acceptedCalibration(personality: PersonalityState, statement: string): number {
+  const trait = personality.traits.find(
+    (candidate) =>
+      candidate.status === 'accepted' &&
+      candidate.statement.trim().toLowerCase() === statement,
+  );
+  return trait ? clamp(trait.confidence * trait.stability) : 0;
 }
 
 function creativeLatitude(taste: PersonalityTasteState): number {
@@ -75,24 +92,20 @@ export function deriveRealNiggaBehavior(
 
   const familiarity = clamp(relationship.familiarity);
   const relationshipCalibration = clamp(familiarity * clamp(relationship.calibrationConfidence));
-  const acceptedDirectness = personality.traits.find(
-    (trait) =>
-      trait.status === 'accepted' &&
-      trait.dimension === 'communication' &&
-      trait.statement.trim().toLowerCase() === 'prefers direct communication',
-  );
-  const learnedDirectnessCalibration = acceptedDirectness
-    ? clamp(acceptedDirectness.confidence * acceptedDirectness.stability)
-    : 0;
-  const acceptedConcision = personality.traits.find(
-    (trait) =>
-      trait.status === 'accepted' &&
-      trait.dimension === 'communication' &&
-      trait.statement.trim().toLowerCase() === 'prefers concise communication',
-  );
-  const learnedConcisionCalibration = acceptedConcision
-    ? clamp(acceptedConcision.confidence * acceptedConcision.stability)
-    : 0;
+  const learnedDirectnessCalibration = acceptedCalibration(personality, 'prefers direct communication');
+  const learnedConcisionCalibration = acceptedCalibration(personality, 'prefers concise communication');
+  const learnedWarmthCalibration = acceptedCalibration(personality, 'prefers warm communication');
+  const learnedFormalityCalibration = acceptedCalibration(personality, 'prefers formal communication');
+  const learnedHumorCalibration = acceptedCalibration(personality, 'prefers humorous communication');
+  const learnedProfanityCalibration = acceptedCalibration(personality, 'allows conversational profanity');
+  const learnedPushbackCalibration = acceptedCalibration(personality, 'prefers active pushback');
+  const learnedTechnicalDepthCalibration = acceptedCalibration(personality, 'prefers technical depth');
+  const learnedWorkflowCalibration = acceptedCalibration(personality, 'prefers continuous workflow');
+  const learnedStepByStepCalibration = acceptedCalibration(personality, 'prefers step-by-step explanations');
+  const learnedEvidenceFirstCalibration = acceptedCalibration(personality, 'prefers evidence-first explanations');
+  const learnedOptionsCalibration = acceptedCalibration(personality, 'prefers multiple options');
+  const learnedExperimentationCalibration = acceptedCalibration(personality, 'prefers experimental creativity');
+  const learnedFamiliarToneCalibration = acceptedCalibration(personality, 'prefers familiar tone');
   const preferredInteractionModes = normalizeModes(relationship.preferredInteractionModes);
   const prefersDirect = preferredInteractionModes.includes('direct');
   const prefersWarm = preferredInteractionModes.includes('warm');
@@ -103,17 +116,38 @@ export function deriveRealNiggaBehavior(
       0.15 * learnedDirectnessCalibration,
   );
   const warmth = clamp(
-    clamp(voice.warmth) + (prefersWarm ? 0.15 * relationshipCalibration : 0),
+    clamp(voice.warmth) +
+      (prefersWarm ? 0.15 * relationshipCalibration : 0) +
+      0.15 * learnedWarmthCalibration +
+      0.1 * learnedFamiliarToneCalibration,
   );
   const verbosity = clamp(
     clamp(voice.verbosity) - 0.25 * learnedConcisionCalibration,
   );
+  const formality = clamp(0.5 + 0.35 * learnedFormalityCalibration);
+  const reasoningDepth = clamp(
+    0.5 + 0.35 * learnedTechnicalDepthCalibration + (context.requiresPrecision ? 0.15 : 0),
+  );
+  const workflowContinuity = clamp(0.5 + 0.35 * learnedWorkflowCalibration);
+  const explanationStyle: RealNiggaBehavior['explanationStyle'] =
+    learnedEvidenceFirstCalibration > 0
+      ? 'evidence-first'
+      : learnedStepByStepCalibration > 0
+        ? 'step-by-step'
+        : 'standard';
+  const decisionPresentation: RealNiggaBehavior['decisionPresentation'] =
+    learnedOptionsCalibration > 0 ? 'options' : 'balanced';
 
-  const tasteLatitude = creativeLatitude(taste);
+  const tasteLatitude = clamp(
+    creativeLatitude(taste) + 0.2 * learnedExperimentationCalibration,
+  );
   const activeCreativeLatitude = serious ? 0 : tasteLatitude;
   const profanityIntensity = serious
     ? 0
-    : clamp(clamp(voice.profanityTolerance) * (0.5 + 0.5 * relationshipCalibration));
+    : clamp(
+        clamp(voice.profanityTolerance) * (0.5 + 0.5 * relationshipCalibration) +
+        0.25 * learnedProfanityCalibration,
+      );
   const quipIntensity = serious
     ? 0
     : clamp(clamp(voice.quipFrequency) * (0.75 + 0.25 * tasteLatitude));
@@ -122,14 +156,19 @@ export function deriveRealNiggaBehavior(
     directness,
     warmth,
     verbosity,
-    humor: serious ? 0 : clamp(voice.humor),
+    formality: serious ? Math.max(formality, 0.75) : formality,
+    reasoningDepth,
+    workflowContinuity,
+    explanationStyle,
+    decisionPresentation,
+    humor: serious ? 0 : clamp(clamp(voice.humor) + 0.2 * learnedHumorCalibration),
     profanityAllowed: profanityIntensity >= 0.5,
     profanityIntensity,
     quipsAllowed: quipIntensity > 0,
     quipIntensity,
     disagreementDirectness: context.userAskedForPushback
       ? Math.max(clamp(voice.disagreementDirectness), 0.5)
-      : clamp(voice.disagreementDirectness),
+      : clamp(clamp(voice.disagreementDirectness) + 0.25 * learnedPushbackCalibration),
     relationshipFamiliarity: familiarity,
     relationshipCalibration,
     preferredInteractionModes,
