@@ -48,6 +48,7 @@ describe('deterministic PatternPort', () => {
     assert.equal(direct.occurrences, 2);
     assert.equal(direct.confidence, 3 / 4);
     assert.deepEqual(direct.evidence.map((ref) => ref.id), ['experience-1', 'evidence-1']);
+    assert.deepEqual(direct.contradictions, []);
   });
 
   it('does not use non-SAVE memory proposals as recurrence evidence', async () => {
@@ -97,6 +98,102 @@ describe('deterministic PatternPort', () => {
 
     const patterns = new RecurrencePatternStrategy().detect(experience, [broadSave]);
     assert.equal(patterns.some((pattern) => pattern.id === 'recurrence:direct'), false);
+  });
+
+  it('counts one approved memory as one Bayesian observation even when it has multiple supporting refs', () => {
+    const multiRefSave: MemoryProposal = {
+      id: 'memory-multi-ref',
+      content: 'User prefers direct communication.',
+      reason: 'one memory proposal backed by multiple refs',
+      evidence: [
+        {
+          id: 'evidence-multi-1',
+          source: 'conversation',
+          observedAt: '2026-08-29T01:00:00.000Z',
+          summary: 'User preferred direct answers.',
+          immutable: true,
+        },
+        {
+          id: 'evidence-multi-2',
+          source: 'conversation',
+          observedAt: '2026-08-29T01:05:00.000Z',
+          summary: 'Direct communication was explicitly requested.',
+          immutable: true,
+        },
+      ],
+      disposition: 'SAVE',
+    };
+
+    const patterns = new RecurrencePatternStrategy().detect(experience, [multiRefSave]);
+    const direct = patterns.find((pattern) => pattern.id === 'recurrence:direct');
+
+    assert.ok(direct);
+    assert.equal(direct.occurrences, 2);
+    assert.equal(direct.confidence, 3 / 4);
+    assert.deepEqual(
+      direct.evidence.map((ref) => ref.id),
+      ['experience-1', 'evidence-multi-1', 'evidence-multi-2'],
+    );
+  });
+
+  it('carries explicit contradiction observations into Bayesian confidence and contradiction provenance', () => {
+    const contradiction: MemoryProposal = {
+      id: 'memory-contradiction',
+      content: 'User requested not direct communication in this context.',
+      reason: 'approved contradictory observation',
+      evidence: [{
+        id: 'evidence-contradiction',
+        source: 'conversation',
+        observedAt: '2026-08-28T01:00:00.000Z',
+        summary: 'User explicitly requested not direct communication.',
+        immutable: true,
+      }],
+      disposition: 'SAVE',
+    };
+
+    const patterns = new RecurrencePatternStrategy().detect(experience, [memories[0], contradiction]);
+    const direct = patterns.find((pattern) => pattern.id === 'recurrence:direct');
+
+    assert.ok(direct);
+    assert.equal(direct.occurrences, 3);
+    assert.equal(direct.confidence, 3 / 5);
+    assert.deepEqual(direct.evidence.map((ref) => ref.id), ['experience-1', 'evidence-1']);
+    assert.deepEqual(direct.contradictions.map((ref) => ref.id), ['evidence-contradiction']);
+    assert.equal(direct.personalityEligible, false);
+  });
+
+  it('does not double-count the same evidence reused by multiple memories', () => {
+    const duplicatedEvidence = {
+      id: 'evidence-shared',
+      source: 'conversation',
+      observedAt: '2026-08-27T01:00:00.000Z',
+      summary: 'User requested direct communication.',
+      immutable: true,
+    };
+    const duplicateMemories: MemoryProposal[] = [
+      {
+        id: 'memory-shared-1',
+        content: 'User prefers direct communication.',
+        reason: 'first proposal over shared source evidence',
+        evidence: [duplicatedEvidence],
+        disposition: 'SAVE',
+      },
+      {
+        id: 'memory-shared-2',
+        content: 'Direct communication is preferred.',
+        reason: 'duplicate proposal over the same source evidence',
+        evidence: [{ ...duplicatedEvidence }],
+        disposition: 'SAVE',
+      },
+    ];
+
+    const patterns = new RecurrencePatternStrategy().detect(experience, duplicateMemories);
+    const direct = patterns.find((pattern) => pattern.id === 'recurrence:direct');
+
+    assert.ok(direct);
+    assert.equal(direct.occurrences, 2);
+    assert.equal(direct.confidence, 3 / 4);
+    assert.deepEqual(direct.evidence.map((ref) => ref.id), ['experience-1', 'evidence-shared']);
   });
 
   it('does not mutate the experience or memories', async () => {
