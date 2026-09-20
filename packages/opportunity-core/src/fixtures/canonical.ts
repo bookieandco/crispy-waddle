@@ -81,7 +81,7 @@ export const ripplingGrantFixture: Opportunity = {
   sourceConfidence: 0.8,
   riskFlags: ['official_source_not_verified'],
   brokerability: 'unknown',
-  status: 'research_pending',
+  status: 'discovered',
   createdAt: '2026-08-28T00:00:00Z',
   updatedAt: '2026-08-28T00:00:00Z',
 }
