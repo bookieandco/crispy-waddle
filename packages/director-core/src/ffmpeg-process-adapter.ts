@@ -1,7 +1,9 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawn, type ChildProcessByStdio } from 'node:child_process';
+import type { Readable } from 'node:stream';
 import type { DecodeRequest, DecodedAudio, DecodedFrame, MediaDecoderAdapter } from './media-decoder-adapter.js';
 
-export type FfmpegProcessFactory = (args: string[]) => ChildProcessWithoutNullStreams;
+export type FfmpegChildProcess = ChildProcessByStdio<null, Readable, Readable>;
+export type FfmpegProcessFactory = (args: string[]) => FfmpegChildProcess;
 
 export function createNodeFfmpegDecoder(
   factory: FfmpegProcessFactory = args => spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] }),
@@ -145,7 +147,7 @@ async function* decodeAudioStream(
   }
 }
 
-function attachCancellation(child: ChildProcessWithoutNullStreams, signal?: AbortSignal): () => void {
+function attachCancellation(child: FfmpegChildProcess, signal?: AbortSignal): () => void {
   if (!signal) return () => {};
   const onAbort = () => { if (!child.killed) child.kill('SIGTERM'); };
   if (signal.aborted) onAbort();
@@ -153,7 +155,7 @@ function attachCancellation(child: ChildProcessWithoutNullStreams, signal?: Abor
   return () => signal.removeEventListener('abort', onAbort);
 }
 
-function waitForExit(child: ChildProcessWithoutNullStreams, signal?: AbortSignal): Promise<void> {
+function waitForExit(child: FfmpegChildProcess, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const onAbort = () => { if (!child.killed) child.kill('SIGTERM'); };
     if (signal?.aborted) onAbort();
