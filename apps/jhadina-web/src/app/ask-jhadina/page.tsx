@@ -149,7 +149,7 @@ function AskJhadina() {
             <div style={eyebrow}>{result.proposal.disposition}</div>
             <p style={{ margin: "10px 0 8px", fontSize: 16, lineHeight: 1.6 }}>{result.proposal.recommendation}</p>
             <div style={{ padding: 13, borderRadius: 16, background: "#eef1ed", color: "#657169", fontSize: 13, lineHeight: 1.55 }}>
-              <strong>Why:</strong> {result.proposal.rationale}
+              <strong>Why:</strong> {result.expression.proposal.rationale}
             </div>
             {result.approvalReceiptId && (
               <p style={{ marginTop: 10, fontSize: 12, color: "#8b7b9d" }}>
