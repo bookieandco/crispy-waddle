@@ -124,7 +124,6 @@ function unique(refs: readonly EvidenceRef[]): EvidenceRef[] {
 }
 
 function evidenceFor(
-  value: string,
   refs: readonly EvidenceRef[],
   definition: GovernedSemanticPreferenceDefinition,
 ): EvidenceRef[] {
@@ -152,14 +151,14 @@ export class GovernedSemanticPreferenceStrategy implements PatternDetectionStrat
 
       const observations: Array<{ support: 0 | 1; evidence: EvidenceRef[] }> = [{
         support: current === 'support' ? 1 : 0,
-        evidence: evidenceFor(experience.content, experience.evidence, definition),
+        evidence: evidenceFor(experience.evidence, definition),
       }];
 
       for (const memory of memories) {
         if (memory.disposition !== 'SAVE') continue;
         const memorySignal = semanticSignal(memory.content, definition);
         if (memorySignal === 'none') continue;
-        const refs = evidenceFor(memory.content, memory.evidence, definition);
+        const refs = evidenceFor(memory.evidence, definition);
         if (refs.length === 0) continue;
         observations.push({ support: memorySignal === 'support' ? 1 : 0, evidence: refs });
       }
