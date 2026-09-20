@@ -64,3 +64,4 @@ export * from './storyboard-shot-adapter';
 export * from './storyboard-stage-binding';
 export * from './storyboard-persistence';
 export * from './storyboard-lineage-resolver';
+export * from './production-authority';

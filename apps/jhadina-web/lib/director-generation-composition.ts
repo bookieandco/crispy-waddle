@@ -7,6 +7,7 @@ import { OutboxGenerationProvider } from '@jhadina/director-core/outbox-generati
 import type { GenerationRegistry } from '@jhadina/director-core/generation-registry';
 import { DirectorStoryboardLineageResolver } from '@jhadina/director-core/storyboard-lineage-resolver';
 import { SupabaseStoryboardRepository } from '@jhadina/director-core/storyboard-persistence';
+import { DirectorProductionAuthorityResolver, SupabaseDirectorProductionAuthorityRepository } from '@jhadina/director-core';
 import { createSupabaseGeneratedAssetRepository } from './supabase-generated-asset-repository';
 import { createSupabaseGenerationRepository } from '../src/lib/supabase-generation-repository';
 import {
@@ -21,6 +22,7 @@ export type DirectorGenerationRuntime = {
   workerId: string;
   /** Registry query surface; provider handles remain private. */
   hasModel(modelId: string): boolean;
+  authority: DirectorProductionAuthorityResolver;
 };
 
 function composeDirectorGenerationRuntime(
@@ -45,8 +47,9 @@ function composeDirectorGenerationRuntime(
   const storyboardRepository = new SupabaseStoryboardRepository(client);
   const storyboardLineageResolver = new DirectorStoryboardLineageResolver(storyboardRepository);
   const generation = new GenerationPlanAdapter(service, registry, storyboardLineageResolver);
+  const authority = new DirectorProductionAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(client), storyboardLineageResolver);
   const reconciler = new GenerationSubmissionReconciler(repository, outboxProviders, workerId);
-  return { generation, reconciler, workerId, hasModel: (modelId) => registry.hasModel(modelId) };
+  return { generation, reconciler, workerId, hasModel: (modelId) => registry.hasModel(modelId), authority };
 }
 
 /**
@@ -54,7 +57,7 @@ function composeDirectorGenerationRuntime(
  * Provider construction and storyboard authority are both assembled here so
  * callers cannot silently construct a weaker generation path.
  */
-export function createConfiguredDirectorGenerationRuntime(
+export async function createConfiguredDirectorGenerationRuntime(
   client: SupabaseClient,
   config?: DirectorGenerationFactoryConfig,
   workerId = `director-worker:${Math.random().toString(36).slice(2)}`,
