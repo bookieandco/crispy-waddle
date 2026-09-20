@@ -1,4 +1,7 @@
-import type { ExecutionPermit, PermitStore } from './execution-permit.js';
+import type {
+  ExecutionPermit,
+  PermitStore,
+} from './execution-permit.js';
 import type { SqlClient } from './postgres-idempotency-store.js';
 
 type PermitRow = {
@@ -8,6 +11,8 @@ type PermitRow = {
   issued_at: string | Date;
   expires_at: string | Date;
   action_fingerprint: string;
+  action_request_fingerprint: string;
+  authority_id: string;
   user_id: string;
   capability: string;
   provider: string;
@@ -32,7 +37,9 @@ function assertSafeIdentifier(value: string): string {
 }
 
 function iso(value: string | Date): string {
-  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+  return value instanceof Date
+    ? value.toISOString()
+    : new Date(value).toISOString();
 }
 
 function toPermit(row: PermitRow): ExecutionPermit {
@@ -44,6 +51,8 @@ function toPermit(row: PermitRow): ExecutionPermit {
     expiresAt: iso(row.expires_at),
     binding: {
       actionFingerprint: row.action_fingerprint,
+      actionRequestFingerprint: row.action_request_fingerprint,
+      authorityId: row.authority_id,
       userId: row.user_id,
       capability: row.capability,
       provider: row.provider,
@@ -52,7 +61,8 @@ function toPermit(row: PermitRow): ExecutionPermit {
       approvalId: row.approval_id ?? undefined,
       opportunityId: row.opportunity_id ?? undefined,
       riskDecisionId: row.risk_decision_id ?? undefined,
-      allocationDecisionId: row.allocation_decision_id ?? undefined,
+      allocationDecisionId:
+        row.allocation_decision_id ?? undefined,
     },
   };
 }
@@ -70,7 +80,9 @@ export class PostgresPermitStore implements PermitStore {
 
   constructor(options: PostgresPermitStoreOptions) {
     this.client = options.client;
-    this.table = assertSafeIdentifier(options.tableName ?? 'money_execution_permits');
+    this.table = assertSafeIdentifier(
+      options.tableName ?? 'money_execution_permits',
+    );
   }
 
   async issue(permit: ExecutionPermit): Promise<void> {
@@ -78,14 +90,16 @@ export class PostgresPermitStore implements PermitStore {
       `
         INSERT INTO ${this.table} (
           permit_id, nonce, state, issued_at, expires_at,
-          action_fingerprint, user_id, capability, provider,
+          action_fingerprint, action_request_fingerprint, authority_id,
+          user_id, capability, provider,
           policy_version, policy_hash, approval_id, opportunity_id,
           risk_decision_id, allocation_decision_id
         ) VALUES (
           $1, $2, $3, $4, $5,
-          $6, $7, $8, $9,
-          $10, $11, $12, $13,
-          $14, $15
+          $6, $7, $8,
+          $9, $10, $11,
+          $12, $13, $14, $15,
+          $16, $17
         )
       `,
       [
@@ -95,6 +109,8 @@ export class PostgresPermitStore implements PermitStore {
         permit.issuedAt,
         permit.expiresAt,
         permit.binding.actionFingerprint,
+        permit.binding.actionRequestFingerprint,
+        permit.binding.authorityId,
         permit.binding.userId,
         permit.binding.capability,
         permit.binding.provider,
@@ -108,11 +124,14 @@ export class PostgresPermitStore implements PermitStore {
     );
   }
 
-  async get(permitId: string): Promise<ExecutionPermit | undefined> {
+  async get(
+    permitId: string,
+  ): Promise<ExecutionPermit | undefined> {
     const result = await this.client.query<PermitRow>(
       `
         SELECT permit_id, nonce, state, issued_at, expires_at,
-               action_fingerprint, user_id, capability, provider,
+               action_fingerprint, action_request_fingerprint, authority_id,
+               user_id, capability, provider,
                policy_version, policy_hash, approval_id, opportunity_id,
                risk_decision_id, allocation_decision_id
         FROM ${this.table}
@@ -126,7 +145,10 @@ export class PostgresPermitStore implements PermitStore {
     return row ? toPermit(row) : undefined;
   }
 
-  async consume(permitId: string, nonce: string): Promise<boolean> {
+  async consume(
+    permitId: string,
+    nonce: string,
+  ): Promise<boolean> {
     const result = await this.client.query<{ permit_id: string }>(
       `
         UPDATE ${this.table}
