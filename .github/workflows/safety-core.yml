@@ -46,7 +46,7 @@ jobs:
       - name: Type-check Safety Core
         run: pnpm --filter @jhadina/core-spine type-check
       - name: Test Safety Core
-        run: pnpm --filter @jhadina/core-spine exec vitest run src/safety-personal-stack.test.ts src/safety-production.test.ts src/emergency-adversarial.test.ts src/safety-drill-3.test.ts src/safety-prod-gate-2.test.ts src/safety-prod-gate-3.test.ts
+        run: pnpm --filter @jhadina/core-spine exec vitest run src/safety-personal-stack.test.ts src/safety-production.test.ts src/emergency-adversarial.test.ts src/safety-drill-3.test.ts src/safety-prod-gate-2.test.ts src/safety-prod-gate-3.test.ts src/safety-prod-gate-4.test.ts
       - name: Type-check governed communications
         run: pnpm --filter @jhadina/intelligence-core type-check
       - name: Test emergency communications bridge
