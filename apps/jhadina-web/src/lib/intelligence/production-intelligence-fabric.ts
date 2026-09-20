@@ -13,6 +13,11 @@ import { ActorScopedMemoryRetrievalSource,RepositoryRetrievalAuthorizer } from "
 
 const classifier=new DeterministicTaskClassifier()
 
+export function buildIntelligenceRetrievalText(packet:ContextPacket):string{
+ const goal=packet.userGoal?.trim()
+ return goal||packet.purpose
+}
+
 export interface ProductionIntelligenceFabric {
  decide(input:IntelligenceTaskClassificationInput,context:ContextPacket):Promise<DecisionProposal>
 }
@@ -23,7 +28,7 @@ export function createProductionIntelligenceFabric(input:{ledger:ActionLedger;ac
  const retrieval=new HybridRetrievalBridge([new ActorScopedMemoryRetrievalSource(input.memoryRepo,input.actorId)])
  const authorized=new AuthorizedRetrievalPipeline(new RepositoryRetrievalAuthorizer(input.memoryRepo))
  const compiler=new CanonicalIntelligenceContextCompiler({augmentation:async(task,packet)=>{
-   const text=packet.userGoal?.trim()||packet.purpose
+   const text=buildIntelligenceRetrievalText(packet)
    const query={taskId:task.id,text,limit:8}
    const raw=await retrieval.retrieve(query)
    const safe=await authorized.process({principal:{actorId:input.actorId},query,candidates:raw.candidates})
