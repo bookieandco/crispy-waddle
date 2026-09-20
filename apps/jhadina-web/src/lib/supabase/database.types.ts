@@ -1690,6 +1690,50 @@ export type Database = {
           },
         ]
       }
+      jhadina_knowledge_gap_events: {
+        Row: {
+          created_at: string
+          gap_kind: string
+          id: string
+          owner_id: string | null
+          query_text: string
+          reason: string
+          research_intent_id: string | null
+          research_required: boolean
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          gap_kind: string
+          id?: string
+          owner_id?: string | null
+          query_text: string
+          reason: string
+          research_intent_id?: string | null
+          research_required?: boolean
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          gap_kind?: string
+          id?: string
+          owner_id?: string | null
+          query_text?: string
+          reason?: string
+          research_intent_id?: string | null
+          research_required?: boolean
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jhadina_knowledge_gap_events_research_intent_id_fkey"
+            columns: ["research_intent_id"]
+            isOneToOne: false
+            referencedRelation: "jhadina_research_intents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jhadina_knowledge_nodes: {
         Row: {
           attributes: Json
@@ -6407,6 +6451,37 @@ export type Database = {
           p_task_id: string
         }
         Returns: Json
+      }
+      jhadina_query_knowledge: {
+        Args: {
+          p_as_of?: string
+          p_limit?: number
+          p_owner_id?: string
+          p_query: string
+          p_require_verified?: boolean
+          p_scope?: string
+        }
+        Returns: {
+          authority_score: number
+          claim: string
+          confidence: number
+          evidence: Json
+          freshness_score: number
+          freshness_state: string
+          id: string
+          knowledge_type: string
+          lexical_score: number
+          object_json: Json
+          observed_at: string
+          owner_id: string
+          predicate: string
+          scope: string
+          subject: string
+          superseded_by: string
+          valid_from: string
+          valid_until: string
+          verification_state: string
+        }[]
       }
       jhadina_release_research_execution: {
         Args: {
