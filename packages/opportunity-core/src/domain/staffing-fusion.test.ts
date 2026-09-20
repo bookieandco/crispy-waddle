@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import type { CareerPassportSnapshot } from '@staffing/core'
+import type { CareerPassportSnapshot } from '@staffing/core/domain'
 import type { OpportunityRequirementSet } from './opportunity-requirement.js'
 import { buildWorkforceFulfillmentPlan, matchStaffingSnapshotToRequirements } from './staffing-fusion.js'
 const set:OpportunityRequirementSet={opportunityId:'o',generatedAt:'x',unresolved:[],requirements:[{id:'r1',opportunityId:'o',kind:'capability',label:'Cloud security',severity:'required',evidenceStatus:'explicit',sourceClaimIds:[],sourceEvidenceIds:[],naicsCodes:[],pscCodes:[],keywords:['cloud','security'],attributes:{},confidence:1,blockers:[]}]}

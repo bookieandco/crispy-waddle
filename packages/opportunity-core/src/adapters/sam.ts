@@ -23,6 +23,11 @@ export function adaptSamOpportunity(input: SamOpportunityInput): Opportunity {
     { id: `${input.noticeId}:title`, field: 'title', value: input.title, sourceId: 'us.sam.gov', sourceType: 'official' as const, confidence: 1, verified: true },
     ...(input.responseDeadline ? [{ id: `${input.noticeId}:deadline`, field: 'deadline', value: input.responseDeadline, sourceId: 'us.sam.gov', sourceType: 'official' as const, confidence: 1, verified: true }] : []),
     ...(input.estimatedValue !== undefined ? [{ id: `${input.noticeId}:amount`, field: 'amount.max', value: input.estimatedValue, sourceId: 'us.sam.gov', sourceType: 'official' as const, confidence: 1, verified: true }] : []),
+    ...(input.naicsCode ? [{ id: `${input.noticeId}:naics`, field: 'eligibility.naicsCode', value: input.naicsCode, sourceId: 'us.sam.gov', sourceType: 'official' as const, confidence: 1, verified: true }] : []),
+    ...(input.setAside ? [{ id: `${input.noticeId}:set-aside`, field: 'eligibility.setAside', value: input.setAside, sourceId: 'us.sam.gov', sourceType: 'official' as const, confidence: 1, verified: true }] : []),
+    ...(input.placeOfPerformance ? [{ id: `${input.noticeId}:place`, field: 'eligibility.placeOfPerformance', value: input.placeOfPerformance, sourceId: 'us.sam.gov', sourceType: 'official' as const, confidence: 1, verified: true }] : []),
+    ...(input.noticeType ? [{ id: `${input.noticeId}:notice-type`, field: 'noticeType', value: input.noticeType, sourceId: 'us.sam.gov', sourceType: 'official' as const, confidence: 1, verified: true }] : []),
+    ...(input.solicitationNumber ? [{ id: `${input.noticeId}:solicitation`, field: 'solicitationNumber', value: input.solicitationNumber, sourceId: 'us.sam.gov', sourceType: 'official' as const, confidence: 1, verified: true }] : []),
   ]
 
   return {

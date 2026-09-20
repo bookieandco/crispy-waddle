@@ -1,4 +1,5 @@
 import { adaptCommercialOpportunity } from './commercial.js'
+import { adaptSamOpportunity } from './sam.js'
 import { adaptEmploymentOpportunity } from './employment.js'
 
 const assert = (condition: unknown, message: string): void => {
@@ -49,3 +50,21 @@ const dropship = adaptCommercialOpportunity({
   sourceName: 'Supplier fixture',
 })
 assert(dropship.metadata?.commercialKind === 'dropshipping', 'Dropshipping source kind must remain explicit')
+
+
+const sam = adaptSamOpportunity({
+  noticeId: 'sam-claim-fixture',
+  title: 'Cloud security services',
+  noticeType: 'Solicitation',
+  solicitationNumber: 'SOL-1',
+  naicsCode: '541512',
+  setAside: 'Small Business',
+  placeOfPerformance: 'California',
+  responseDeadline: '2026-10-01',
+  sourceUrl: 'https://sam.gov/opp/sam-claim-fixture/view',
+  fetchedAt: '2026-09-20T00:00:00Z',
+})
+assert(sam.claims.some((claim) => claim.field === 'eligibility.naicsCode'), 'SAM NAICS must retain field-level provenance')
+assert(sam.claims.some((claim) => claim.field === 'eligibility.setAside'), 'SAM set-aside must retain field-level provenance')
+assert(sam.claims.some((claim) => claim.field === 'eligibility.placeOfPerformance'), 'SAM place of performance must retain field-level provenance')
+assert(sam.claims.some((claim) => claim.field === 'solicitationNumber'), 'SAM solicitation number must retain field-level provenance')

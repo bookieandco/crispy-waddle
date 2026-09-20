@@ -175,9 +175,19 @@ export function matchFulfillmentProvider(
   const evidenceRefs = uniq(matches.flatMap((m) => m.evidenceRefs))
 
   const satisfiedRequired = matches.filter((m) => requiredIds.has(m.requirementId) && m.status === 'satisfied')
+  const substantiveKinds = new Set<OpportunityRequirement['kind']>(['capability', 'credential', 'past_performance', 'capacity', 'socioeconomic', 'security'])
+  const hasSubstantiveRequired = set.requirements.some((r) => requiredIds.has(r.id) && substantiveKinds.has(r.kind))
+  const satisfiedSubstantiveRequired = satisfiedRequired.filter((m) => {
+    const requirement = set.requirements.find((r) => r.id === m.requirementId)
+    return requirement ? substantiveKinds.has(requirement.kind) : false
+  })
   let disposition: ProviderMatchDisposition = 'review_required'
   if (!isFulfillmentProviderVerified(provider)) disposition = 'blocked'
-  else if (requiredIds.size > 0 && satisfiedRequired.length === 0 && (hardFailures.length > 0 || unresolvedRequired.length > 0)) disposition = 'blocked'
+  else if (
+    requiredIds.size > 0 &&
+    (hasSubstantiveRequired ? satisfiedSubstantiveRequired.length === 0 : satisfiedRequired.length === 0) &&
+    (hardFailures.length > 0 || unresolvedRequired.length > 0)
+  ) disposition = 'blocked'
   else if (hardFailures.length === 0 && unresolvedRequired.length === 0 && set.unresolved.length === 0) disposition = 'qualified_candidate'
 
   return {
