@@ -51,6 +51,7 @@ end
 $;
 
 alter table public.jhadina_token_launches
+  add column if not exists owner_id uuid references auth.users(id) on delete cascade,
   add column if not exists source text,
   add column if not exists observation_id text,
   add column if not exists signature text,
