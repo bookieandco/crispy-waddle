@@ -8,6 +8,27 @@ const evidence = (id: string) => ({
   source: 'interaction',
   summary: `evidence ${id}`,
   observedAt: '2026-09-02T00:00:00.000Z',
+  it('moves an accepted trait through contested to retired after independent contradictions', () => {
+    let state = projectPersonality(emptyPersonalityState(), [pattern(1, 3)], [], '2026-09-02T00:00:00.000Z');
+    assert.equal(state.traits[0]?.status, 'accepted');
+
+    for (const [index, expected] of [['1', 'contested'], ['2', 'contested'], ['3', 'retired']] as const) {
+      state = projectPersonality(
+        state,
+        [{
+          ...pattern(0, 1),
+          contradictions: [evidence(`c${index}`)],
+        }],
+        [],
+        `2026-09-02T00:0${index}:00.000Z`,
+      );
+      assert.equal(state.traits[0]?.status, expected);
+    }
+
+    assert.equal(state.traits[0]?.contradictions.length, 3);
+    assert.equal(state.independentAssessmentRequired, false);
+  });
+
 });
 
 function pattern(confidence: number, occurrences = 1): PatternObservation {
