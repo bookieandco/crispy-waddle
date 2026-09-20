@@ -25,6 +25,7 @@ export interface PerceptionWorkerResult {
   schema: "jhadina.perception-result.v1";
   assetId: string;
   contentSha256?: string;
+  completedOperations: readonly PerceptionWorkerOperation[];
   observations: readonly MediaExtractionObservation[];
   uncertainty?: readonly string[];
 }
@@ -100,6 +101,15 @@ export class HttpSemanticPerceptionBackend implements MediaExtractionBackend {
       input.contentSha256 &&
       raw.contentSha256!.toLowerCase() !== input.contentSha256.toLowerCase()
     ) throw new Error("PERCEPTION_WORKER_HASH_MISMATCH");
+    if (!Array.isArray(raw.completedOperations)) throw new Error("PERCEPTION_WORKER_OPERATIONS_INVALID");
+    const requestedOperations = OPS[input.modality];
+    const completed = new Set(raw.completedOperations);
+    if (raw.completedOperations.some((operation) => !requestedOperations.includes(operation))) {
+      throw new Error("PERCEPTION_WORKER_UNREQUESTED_OPERATION");
+    }
+    if (requestedOperations.some((operation) => !completed.has(operation))) {
+      throw new Error("PERCEPTION_WORKER_INCOMPLETE");
+    }
     if (!Array.isArray(raw.observations)) throw new Error("PERCEPTION_WORKER_OBSERVATIONS_INVALID");
     if (raw.observations.length > MAX_OBSERVATIONS) throw new Error("PERCEPTION_WORKER_OBSERVATION_LIMIT_EXCEEDED");
 
