@@ -84,5 +84,8 @@ describe("createUniversalUploadTask", () => {
     expect(offset).toBe(file.size);
     expect(patchAttempts).toBeGreaterThan(2);
     expect(calls.some((call)=>call.startsWith("PATCH https://upload.test/u1"))).toBe(true);
+    expect(calls).toContain("POST /api/jhadina/upload/session/s1");
+    expect(calls).toContain("GET /api/jhadina/upload/session/s1");
+    expect(calls).toContain("GET /api/jhadina/perception/perception%3Au%3Aa");
   });
 });
