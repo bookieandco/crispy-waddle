@@ -40,6 +40,8 @@ jobs:
         run: pnpm --filter @jhadina/shark-intelligence-core test
       - name: Jhadina SHARK integration type-check
         run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.shark.json
+      - name: Jhadina SHARK persistence soak
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/launch-outcome-repository.test.ts
       - name: Validate SHARK migrations
         run: |
           test -f supabase/migrations/20260902010000_shark_launch_outcome_history.sql
@@ -55,3 +57,6 @@ jobs:
           test -f supabase/migrations/20260920000800_shark_atomic_outcome_apply.sql
           test -f supabase/migrations/20260920000900_shark_atomic_launch_bundle.sql
           test -f supabase/migrations/20260920001000_shark_wallet_intelligence_quota.sql
+          test -f supabase/migrations/20260920143311_shark_atomic_outcome_batch.sql
+          test -f supabase/migrations/20260920143356_shark_backfill_observation_fairness.sql
+          test -f supabase/migrations/20260920143411_shark_provenance_debt_closure.sql
