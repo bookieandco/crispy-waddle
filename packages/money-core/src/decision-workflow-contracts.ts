@@ -1,0 +1,4 @@
+export type DecisionDisposition='INFORMATIONAL'|'RESEARCH_ONLY'|'WATCH'|'OPPORTUNITY'|'BLOCKED'|'REQUIRES_REVIEW'|'PROPOSAL_ELIGIBLE'
+export interface DecisionCase{caseId:string;accountId:string;subjectId:string;requestedBy:string;informationCutoff:string;createdAt:string;status:string;provenanceHash:string}
+export interface DecisionAssessment{caseId:string;evidenceStatus:string;freshnessStatus:string;riskStatus:string;stressStatus:string;simulationStatus:string;liquidityStatus:string;calibrationStatus:string;authorityStatus:string;disposition:DecisionDisposition}
+export function assertProposalEligible(a:DecisionAssessment){if(a.disposition!=='PROPOSAL_ELIGIBLE')throw new Error('MONEY_DECISION_NOT_PROPOSAL_ELIGIBLE');if(a.authorityStatus!=='AUTHORIZED')throw new Error('MONEY_DECISION_AUTHORITY_MISSING')}
