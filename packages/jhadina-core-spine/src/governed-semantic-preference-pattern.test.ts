@@ -9,20 +9,6 @@ const exp = (content: string): Experience => ({
   actor: 'user',
   content,
   evidence: [{ id: 'live', source: 'ask-jhadina', observedAt: '2026-09-20T16:00:00.000Z', summary: content, immutable: false }],
-  it('uses the current Experience as mutable Bayesian evidence when its EvidenceRef summary is generic', () => {
-    const current = exp('Be warmer.');
-    current.evidence = [{
-      ...current.evidence[0],
-      summary: 'current request',
-    }];
-    const [pattern] = new GovernedSemanticPreferenceStrategy().detect(
-      current,
-      [mem('e1', 'Be warmer.')],
-    );
-    expect(pattern.occurrences).toBe(2);
-    expect(pattern.evidence.map((ref) => ref.id)).toEqual(['e1']);
-  });
-
 });
 
 const mem = (id: string, content: string): MemoryProposal => ({
@@ -82,5 +68,19 @@ describe('GovernedSemanticPreferenceStrategy', () => {
     );
     expect(pattern.evidence.map((ref) => ref.id)).toEqual(['e1', 'e2', 'e3']);
     expect(pattern.evidence.some((ref) => ref.id === 'live')).toBe(false);
+  });
+
+  it('uses the current Experience as mutable Bayesian evidence when its EvidenceRef summary is generic', () => {
+    const current = exp('Be warmer.');
+    current.evidence = [{
+      ...current.evidence[0],
+      summary: 'current request',
+    }];
+    const [pattern] = new GovernedSemanticPreferenceStrategy().detect(
+      current,
+      [mem('e1', 'Be warmer.')],
+    );
+    expect(pattern.occurrences).toBe(2);
+    expect(pattern.evidence.map((ref) => ref.id)).toEqual(['e1']);
   });
 });
