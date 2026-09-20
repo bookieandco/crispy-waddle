@@ -86,3 +86,5 @@ export * from './sports-intelligence-ingress.js';
 export * from './stock-market-reality.js';
 
 export * from './stock-intelligence-fusion.js';
+
+export * from './fx-market-reality.js';
