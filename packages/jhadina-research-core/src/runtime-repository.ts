@@ -107,7 +107,7 @@ export interface ResearchRuntimeRepository {
     contentHash?: string;
   }): Promise<ResearchCommitResult>;
   captureEvidence(input: {
-    planId: string;
+    admission: ResearchRuntimeAdmission;
     executionEventId: string;
     evidence: ResearchEvidenceCapture;
   }): Promise<string | undefined>;
