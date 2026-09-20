@@ -2,9 +2,11 @@ import {
   createPaperFill,
   createPaperOrder,
   createPaperPosition,
+  createPaperPortfolio,
   type PaperFill,
   type PaperOrder,
   type PaperPosition,
+  type PaperPortfolio,
   type PaperTradeProposal,
 } from './paper-trade-contracts'
 import { planProfitTaking, type ProfitTakingState } from './profit-taking'
@@ -225,4 +227,40 @@ export function simulatePaperExitFill(
     fillIds: [...position.fillIds, fill.fillId],
   })
   return Object.freeze({ order, fill, position: nextPosition })
+}
+
+
+export function applyPaperEntryToPortfolio(
+  portfolio: PaperPortfolio,
+  position: PaperPosition,
+): PaperPortfolio {
+  if (portfolio.quoteAsset !== position.quoteAsset) throw new Error('paper_portfolio_quote_asset_mismatch')
+  if (portfolio.cashBalance + Number.EPSILON < position.costBasisQuote) throw new Error('paper_portfolio_insufficient_cash')
+  return createPaperPortfolio({
+    portfolioId: portfolio.portfolioId,
+    quoteAsset: portfolio.quoteAsset,
+    initialCapital: portfolio.initialCapital,
+    cashBalance: Math.max(0, portfolio.cashBalance - position.costBasisQuote),
+    positionIds: [...new Set([...portfolio.positionIds, position.positionId])],
+    updatedAt: position.openedAt,
+  })
+}
+
+export function applyPaperExitToPortfolio(
+  portfolio: PaperPortfolio,
+  position: PaperPosition,
+  exitFill: PaperFill,
+): PaperPortfolio {
+  if (!portfolio.positionIds.includes(position.positionId)) throw new Error('paper_portfolio_position_not_tracked')
+  if (!position.fillIds.includes(exitFill.fillId)) throw new Error('paper_portfolio_exit_fill_lineage_mismatch')
+  const netProceeds = exitFill.grossQuoteAmount - exitFill.feeQuoteAmount
+  nonNegative(netProceeds, 'exit_net_proceeds')
+  return createPaperPortfolio({
+    portfolioId: portfolio.portfolioId,
+    quoteAsset: portfolio.quoteAsset,
+    initialCapital: portfolio.initialCapital,
+    cashBalance: portfolio.cashBalance + netProceeds,
+    positionIds: [...portfolio.positionIds],
+    updatedAt: exitFill.filledAt,
+  })
 }

@@ -28,7 +28,7 @@ export class HeliusHistoricalProviderAdapter implements HistoricalObservationSou
   readonly capabilities: readonly HistoricalSourceCapability[] = ['actors']
   constructor(private readonly source: HeliusHistoricalSource) {}
 
-  async collect(launch: TokenLaunch, window: { from: string; to?: string }): Promise<HistoricalProviderBundle> {
+  async collect(launch: TokenLaunch, _window: { from: string; to?: string }): Promise<HistoricalProviderBundle> {
     const movements = await this.source.deployerTransfers(launch)
     return { actors: statusFor(this.name, movements, movements.map(x => x.evidenceId)) }
   }

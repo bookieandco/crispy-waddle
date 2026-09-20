@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveTokenActorGraph } from '../entity-graph'
+import { buildEntityGraph } from '../entity-graph'
 import { matchPersistedActorOutcomeHistory, derivePersistedActorIntelligence, type PersistedActorOutcomeRecord } from '../persisted-actor-intelligence'
 
 const record = (actorKey: string, actorKind: PersistedActorOutcomeRecord['actorKind']): PersistedActorOutcomeRecord => ({
@@ -20,14 +20,12 @@ const record = (actorKey: string, actorKind: PersistedActorOutcomeRecord['actorK
 
 describe('persisted actor intelligence', () => {
   it('matches durable reputation only to actors actually associated with the current token', () => {
-    const graph = deriveTokenActorGraph({
-      chainId: 'solana-mainnet',
-      tokenAddress: 'TOKEN-1',
-      deployerWalletId: 'WALLET-1',
-      developerEntityId: 'DEV-1',
-      clusterId: 'CLUSTER-1',
-      evidenceIds: ['graph-1'],
-    })
+    const graph = buildEntityGraph([
+      { id: 'token:solana-mainnet:TOKEN-1', kind: 'token', chainId: 'solana-mainnet', observedAt: '2026-09-01T00:00:00Z', confidence: 1, evidenceIds: ['graph-1'] },
+      { id: 'developer:DEV-1', kind: 'developer', chainId: 'solana-mainnet', observedAt: '2026-09-01T00:00:00Z', confidence: .8, evidenceIds: ['graph-1'] },
+    ], [
+      { id: 'developer-link-1', from: 'developer:DEV-1', to: 'token:solana-mainnet:TOKEN-1', relation: 'associated-with', observedAt: '2026-09-01T00:00:00Z', confidence: .8, evidenceIds: ['graph-1'] },
+    ])
     const associations = graph.edges.length ? [{ actorId: 'DEV-1', kind: 'developer' as const, confidence: 0.8, evidenceIds: ['graph-1'] }] : []
     const matched = matchPersistedActorOutcomeHistory({
       associations,
@@ -52,12 +50,12 @@ describe('persisted actor intelligence', () => {
   })
 
   it('prefers durable reputation when it has stronger confidence than compatibility history', () => {
-    const graph = deriveTokenActorGraph({
-      chainId: 'solana-mainnet',
-      tokenAddress: 'TOKEN-2',
-      developerEntityId: 'DEV-2',
-      evidenceIds: ['graph-2'],
-    })
+    const graph = buildEntityGraph([
+      { id: 'token:solana-mainnet:TOKEN-2', kind: 'token', chainId: 'solana-mainnet', observedAt: '2026-09-01T00:00:00Z', confidence: 1, evidenceIds: ['graph-2'] },
+      { id: 'developer:DEV-2', kind: 'developer', chainId: 'solana-mainnet', observedAt: '2026-09-01T00:00:00Z', confidence: 1, evidenceIds: ['graph-2'] },
+    ], [
+      { id: 'developer-link-2', from: 'developer:DEV-2', to: 'token:solana-mainnet:TOKEN-2', relation: 'associated-with', observedAt: '2026-09-01T00:00:00Z', confidence: 1, evidenceIds: ['graph-2'] },
+    ])
     const result = derivePersistedActorIntelligence({
       currentGraph: graph,
       currentTokenAddress: 'TOKEN-2',

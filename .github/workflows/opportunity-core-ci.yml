@@ -1,0 +1,73 @@
+name: Opportunity Core CI
+
+on:
+  push:
+    paths:
+      - 'packages/opportunity-core/**'
+      - 'packages/growth-core/src/learning/opportunity-outcome-learning*'
+      - 'packages/money-core/src/opportunity-outcome-truth-bridge*'
+      - 'packages/growth-core/package.json'
+      - 'packages/money-core/package.json'
+      - 'apps/jhadina-web/src/lib/opportunities/**'
+      - 'apps/jhadina-web/src/app/api/opportunities/**'
+      - 'apps/jhadina-web/src/app/opportunity/**'
+      - 'apps/jhadina-web/src/__tests__/opportunities.test.ts'
+      - 'apps/jhadina-web/src/lib/money-opportunities/**'
+      - 'apps/jhadina-web/tsconfig.opportunity.json'
+      - 'supabase/migrations/*opportunity*.sql'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/opportunity-core-ci.yml'
+  pull_request:
+    paths:
+      - 'packages/opportunity-core/**'
+      - 'packages/growth-core/src/learning/opportunity-outcome-learning*'
+      - 'packages/money-core/src/opportunity-outcome-truth-bridge*'
+      - 'packages/growth-core/package.json'
+      - 'packages/money-core/package.json'
+      - 'apps/jhadina-web/src/lib/opportunities/**'
+      - 'apps/jhadina-web/src/app/api/opportunities/**'
+      - 'apps/jhadina-web/src/app/opportunity/**'
+      - 'apps/jhadina-web/src/__tests__/opportunities.test.ts'
+      - 'apps/jhadina-web/src/lib/money-opportunities/**'
+      - 'apps/jhadina-web/tsconfig.opportunity.json'
+      - 'supabase/migrations/*opportunity*.sql'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/opportunity-core-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  opportunity-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Type-check Opportunity Core
+        run: pnpm --filter @jhadina/opportunity-core type-check
+      - name: Test Opportunity Core
+        run: pnpm --filter @jhadina/opportunity-core test
+      - name: Type-check Growth bridge
+        run: pnpm --filter @jhadina/growth-core type-check
+      - name: Test Growth outcome learning
+        run: pnpm --filter @jhadina/growth-core exec vitest run src/learning/opportunity-outcome-learning.test.ts
+      - name: Test Money outcome truth bridge
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/opportunity-outcome-truth-bridge.test.ts
+      - name: Type-check Opportunity web boundaries
+        run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.opportunity.json
+      - name: Test Opportunity web boundaries
+        run: |
+          pnpm --filter @jhadina/jhadina-web exec vitest run \
+            src/__tests__/opportunities.test.ts \
+            src/lib/opportunities/overageAdapter.test.ts \
+            src/lib/opportunities/vertical-ingestion.test.ts \
+            src/lib/money-opportunities/sam-opportunity-adapter.test.ts

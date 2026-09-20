@@ -1,4 +1,4 @@
-import type { Opportunity as CanonicalOpportunity, OpportunityFamily, OpportunityType } from "@jhadina/opportunity-core"
+import { classifyOpportunityHubCategory, type Opportunity as CanonicalOpportunity, type OpportunityFamily, type OpportunityType } from "@jhadina/opportunity-core"
 import type { AutomationLevel, Opportunity as OpportunityView, OpportunityKind, OpportunityTriageState, OpportunityVerificationStatus } from "./sideIncome"
 
 export type OpportunityCreateInput = {
@@ -11,7 +11,7 @@ export type OpportunityCreateInput = {
   startupCost?: number
   estimatedHours?: number
   automationLevel: AutomationLevel
-  fitScore: number
+  fitScore?: number
   riskFlags?: string[]
   deadline?: string
   requiresUserApproval?: boolean
@@ -82,7 +82,7 @@ export function canonicalFromSideIncome(
     }],
     verificationStatus: "unverified",
     sourceConfidence: confidence,
-    fitScore: clamp100(input.fitScore),
+    fitScore: clamp100(input.fitScore ?? 50),
     riskFlags: input.riskFlags ?? [],
     status: "discovered",
     metadata: {
@@ -116,6 +116,7 @@ export function toOpportunityView(stored: StoredCanonicalOpportunity): Opportuni
     userId: stored.userId,
     title: opportunity.title,
     kind,
+    hubCategory: classifyOpportunityHubCategory(opportunity),
     sourceUrl: opportunity.sourceUrl,
     sourceName: opportunity.sourceName,
     summary: opportunity.description ?? opportunity.title,
@@ -124,15 +125,17 @@ export function toOpportunityView(stored: StoredCanonicalOpportunity): Opportuni
     estimatedHours,
     automationLevel,
     fitScore: opportunity.fitScore ?? 50,
+    opportunityScore: opportunity.opportunityScore,
     riskFlags: opportunity.riskFlags,
     deadline: opportunity.deadline,
     requiresUserApproval: metadata.requiresUserApproval !== false,
     verificationStatus,
     sourceConfidence: opportunity.sourceConfidence,
-    status: ["approved", "pursuing", "won", "lost"].includes(opportunity.status) ? "approved" : "new",
+    status: stored.approvedAt || ["approved", "pursuing", "won", "lost"].includes(opportunity.status) ? "approved" : "new",
     triageState: stored.triageState,
     createdAt: opportunity.createdAt,
     approvedAt: stored.approvedAt,
+    researchCaseId: stored.researchCaseId,
   }
 }
 

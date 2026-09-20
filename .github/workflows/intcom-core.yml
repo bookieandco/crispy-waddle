@@ -1,0 +1,45 @@
+name: INTCOM Core
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packages/jhadina-intelligence-core/**'
+      - 'apps/jhadina-web/src/lib/intelligence/**'
+      - 'apps/jhadina-web/src/app/api/intelligence/**'
+      - '.github/workflows/intcom-core.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/jhadina-intelligence-core/**'
+      - 'apps/jhadina-web/src/lib/intelligence/**'
+      - 'apps/jhadina-web/src/app/api/intelligence/**'
+      - '.github/workflows/intcom-core.yml'
+
+jobs:
+  verify:
+    name: Intelligence communications type-check and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type-check INTCOM core
+        run: pnpm --filter @jhadina/intelligence-core type-check
+      - name: Test INTCOM core
+        run: pnpm --filter @jhadina/intelligence-core test
+      - name: Test governed observation web boundary
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/intelligence/governed-observation-runtime.test.ts src/lib/intelligence/shodan-observation-request.test.ts

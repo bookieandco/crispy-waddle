@@ -19,14 +19,14 @@ export type ObservationRuntimeOverrides = {
 }
 
 export async function observeShodanGoverned(input: {
-  claimedUserId: string
+  claimedUserId?: string
   observationId: string
   subjectId: string
   capability: ShodanReadCapability
   observedAt?: string
 }, overrides: ObservationRuntimeOverrides = {}) {
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
-  const identity = await identityVerifier.verify({ userId: input.claimedUserId })
+  const identity = await identityVerifier.verify(input.claimedUserId === undefined ? {} : { userId: input.claimedUserId })
   const ledger = overrides.ledger ?? (await createIntelligenceAuditLedger())
   const now = overrides.now ?? (() => new Date().toISOString())
   const http = overrides.http ?? (async (url, init) => {

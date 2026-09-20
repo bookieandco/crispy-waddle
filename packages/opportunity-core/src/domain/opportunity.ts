@@ -1,4 +1,4 @@
-import type { VerificationDecision } from './verification.js'
+import { isCompleteVerification, type VerificationDecision } from './verification.js'
 
 export type OpportunityFamily =
   | 'funding'
@@ -44,6 +44,7 @@ export type OpportunityStatus =
   | 'lost'
   | 'expired'
   | 'rejected'
+  | 'superseded'
 
 export type OpportunityClaim = {
   id: string
@@ -105,6 +106,5 @@ export type Opportunity = {
  */
 export function isOpportunityVerified(opportunity: Opportunity): boolean {
   return opportunity.verificationStatus === 'verified' &&
-    opportunity.status === 'verified' &&
-    opportunity.verificationDecision !== undefined
+    isCompleteVerification(opportunity.verificationDecision, opportunity.id)
 }

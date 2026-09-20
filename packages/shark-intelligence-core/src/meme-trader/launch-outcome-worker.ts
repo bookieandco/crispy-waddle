@@ -47,6 +47,31 @@ const latestByLaunch = (observations: PersistedLaunchOutcomeObservation[]) => {
  * Deterministic batch evaluator. It never treats missing observations as a healthy outcome.
  * Unknown launches remain UNKNOWN until a later observation window supplies enough evidence.
  */
+export function deriveActorOutcomeHistories(launches: TokenLaunch[]): LaunchOutcomeWorkerResult['actorHistories'] {
+  const byActor = new Map<string, { actorId: string; actorKind: 'wallet' | 'developer' | 'cluster'; launches: TokenLaunch[] }>()
+  for (const launch of launches) {
+    const actors: Array<[string, string | undefined, 'wallet' | 'developer' | 'cluster']> = [
+      ['wallet', launch.deployerWalletId, 'wallet'],
+      ['developer', launch.developerEntityId, 'developer'],
+      ['cluster', launch.clusterId, 'cluster'],
+    ]
+    for (const [prefix, actorId, actorKind] of actors) {
+      if (!actorId) continue
+      const actorKey = `${prefix}:${actorId}`
+      const current = byActor.get(actorKey) ?? { actorId, actorKind, launches: [] }
+      current.launches.push(launch)
+      byActor.set(actorKey, current)
+    }
+  }
+
+  return [...byActor.entries()].map(([actorKey, value]) => ({
+    actorKey,
+    actorId: value.actorId,
+    actorKind: value.actorKind,
+    history: deriveActorOutcomeHistory(value.actorId, value.launches),
+  }))
+}
+
 export function evaluateLaunchOutcomeBatch(input: {
   launches: TokenLaunch[]
   observations: PersistedLaunchOutcomeObservation[]
@@ -97,28 +122,9 @@ export function evaluateLaunchOutcomeBatch(input: {
     assessments.push({ launchId: launch.launchId, assessment, updatedLaunch })
   }
 
-  const byActor = new Map<string, { actorId: string; actorKind: 'wallet' | 'developer' | 'cluster'; launches: TokenLaunch[] }>()
-  for (const launch of input.launches.map((candidate) => assessments.find(x => x.launchId === candidate.launchId)?.updatedLaunch ?? candidate)) {
-    const actors: Array<[string, string | undefined, 'wallet' | 'developer' | 'cluster']> = [
-      ['wallet', launch.deployerWalletId, 'wallet'],
-      ['developer', launch.developerEntityId, 'developer'],
-      ['cluster', launch.clusterId, 'cluster'],
-    ]
-    for (const [prefix, actorId, actorKind] of actors) {
-      if (!actorId) continue
-      const actorKey = `${prefix}:${actorId}`
-      const current = byActor.get(actorKey) ?? { actorId, actorKind, launches: [] }
-      current.launches.push(launch)
-      byActor.set(actorKey, current)
-    }
-  }
-
-  const actorHistories = [...byActor.entries()].map(([actorKey, value]) => ({
-    actorKey,
-    actorId: value.actorId,
-    actorKind: value.actorKind,
-    history: deriveActorOutcomeHistory(value.actorId, value.launches),
-  }))
+  const actorHistories = deriveActorOutcomeHistories(
+    input.launches.map((candidate) => assessments.find(x => x.launchId === candidate.launchId)?.updatedLaunch ?? candidate),
+  )
 
   return {
     evaluated: assessments.length,

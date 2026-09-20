@@ -43,12 +43,13 @@ export class ShodanReadOnlyAdapter {
         provider: this.provider,
         capability: input.capability,
         adapterVersion: this.adapterVersion,
+        sourceRef: `shodan:${input.capability}:${input.subjectId}`,
       },
       provenance: {
         observedAt: input.observedAt,
         receivedAt,
         retrievedAt: receivedAt,
-        evidenceRefs: [...(input.evidenceRefs ?? [])],
+        evidenceRefs: [...(input.evidenceRefs ?? [`shodan:${input.capability}:${input.subjectId}`])],
       },
       payload: { capability: input.capability, record },
       limitations: {

@@ -53,7 +53,7 @@ export function derivePersistedActorIntelligence(input: {
   })
   const durable = matchPersistedActorOutcomeHistory({ associations: base.associations, records: input.persistedRecords })
   const merged = new Map<string, ActorOutcomeHistory>()
-  for (const history of base.outcomeHistory) {
+  for (const history of base.outcomeHistory ?? []) {
     const matching = base.associations.find(association => association.actorId === history.actorId)
     merged.set(matching ? `${matching.kind}:${history.actorId}` : `unknown:${history.actorId}`, history)
   }
@@ -65,6 +65,6 @@ export function derivePersistedActorIntelligence(input: {
   return {
     ...base,
     outcomeHistory: [...merged.values()],
-    evidenceIds: [...new Set([...base.evidenceIds, ...durable.flatMap(history => history.evidenceIds)])],
+    evidenceIds: [...new Set([...(base.evidenceIds ?? []), ...durable.flatMap(history => history.evidenceIds)])],
   }
 }

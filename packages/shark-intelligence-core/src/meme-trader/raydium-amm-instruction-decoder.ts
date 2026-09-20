@@ -59,7 +59,7 @@ function readU64LE(data: Uint8Array, offset = 1): bigint | undefined {
   return value
 }
 function makeEvent(input: { transaction: HistoricalPoolTransaction; pool: PoolHistory['pool']; kind: LiquidityEventEvidence['kind']; actorId?: string; lpMint?: string; amountRaw?: bigint; source: string }): LiquidityEventEvidence {
-  return { eventId: `raydium:${input.transaction.signature}:${input.kind}:${input.lpMint ?? 'none'}`, kind: input.kind, observedAt: input.transaction.observedAt, poolAddress: input.pool.poolAddress, actorId: input.actorId, lpMint: input.lpMint, amountRaw: input.amountRaw, source: input.source, evidenceIds: [input.transaction.evidenceId], confidence: 1, semantic: 'EXPLICIT' }
+  return { eventId: `raydium:${input.transaction.signature}:${input.kind}:${input.lpMint ?? 'none'}`, signature: input.transaction.signature, kind: input.kind, observedAt: input.transaction.observedAt, poolAddress: input.pool.poolAddress, actorId: input.actorId, lpMint: input.lpMint, amountRaw: input.amountRaw, source: input.source, evidenceIds: [input.transaction.evidenceId], confidence: 1, semantic: 'EXPLICIT' }
 }
 
 /** Decodes semantic Raydium AMM V4 legacy instructions; valuation stays in the reserve layer. */

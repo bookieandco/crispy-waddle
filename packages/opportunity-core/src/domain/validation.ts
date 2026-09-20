@@ -29,7 +29,7 @@ export function validateOpportunity(opportunity: Opportunity): OpportunityValida
     if (claim.confidence < 0 || claim.confidence > 1) issues.push({ code: 'invalid_claim_confidence', field: `claims.${claim.field}`, message: 'Claim confidence must be between 0 and 1.', severity: 'error' })
   }
 
-  if (opportunity.verificationStatus === 'verified' && !isCompleteVerification(opportunity.verificationDecision)) {
+  if (opportunity.verificationStatus === 'verified' && !isCompleteVerification(opportunity.verificationDecision, opportunity.id)) {
     issues.push({
       code: 'verified_without_complete_decision',
       field: 'verificationDecision',
@@ -38,8 +38,17 @@ export function validateOpportunity(opportunity: Opportunity): OpportunityValida
     })
   }
 
+  if (opportunity.status === 'ready' && opportunity.family === 'recovery' && !isCompleteVerification(opportunity.verificationDecision, opportunity.id)) {
+    issues.push({
+      code: 'recovery_ready_without_complete_verification',
+      field: 'verificationDecision',
+      message: 'A recovery opportunity cannot be ready before claimant identity and entitlement verification are complete.',
+      severity: 'error',
+    })
+  }
+
   const valid = issues.every((issue) => issue.severity !== 'error')
-  const ready = valid && isCompleteVerification(opportunity.verificationDecision) && opportunity.status === 'ready'
+  const ready = valid && opportunity.status === 'ready'
 
   return { valid, ready, issues }
 }

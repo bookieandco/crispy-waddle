@@ -1,4 +1,5 @@
 import type { Opportunity } from './opportunity.js'
+import { isCompleteVerification } from './verification.js'
 
 export type PursuitCaseStatus = 'pending' | 'researching' | 'blocked' | 'ready' | 'closed'
 export type PursuitTaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked'
@@ -17,6 +18,7 @@ export type PursuitTaskKind =
   | 'assess_capability'
   | 'assess_competition'
   | 'assess_compliance'
+  | 'find_partner'
 
 export type PursuitTask = {
   id: string
@@ -83,10 +85,20 @@ export function updatePursuitTask(
   const tasks = pursuitCase.tasks.map((task) => {
     if (task.id !== taskId) return task
     found = true
+    if (task.status === 'completed') {
+      if (update.status !== 'completed') throw new Error('Completed pursuit task cannot regress')
+      if (update.evidenceRefs !== undefined && !sameEvidenceRefs(update.evidenceRefs, task.evidenceRefs)) {
+        throw new Error('Completed pursuit task evidence is immutable')
+      }
+    }
+    const evidenceRefs = update.evidenceRefs ?? task.evidenceRefs
+    if (update.status === 'completed' && !hasValidEvidenceRefs(evidenceRefs)) {
+      throw new Error('Completed pursuit task requires non-empty evidence references')
+    }
     return {
       ...task,
       status: update.status,
-      evidenceRefs: update.evidenceRefs ?? task.evidenceRefs,
+      evidenceRefs,
       completedAt: update.status === 'completed' ? now : undefined,
     }
   })
@@ -102,9 +114,26 @@ export function updatePursuitTask(
   return { ...pursuitCase, tasks, status, updatedAt: now }
 }
 
+export function markOpportunityReady(
+  opportunity: Opportunity,
+  pursuitCase: OpportunityPursuitCase,
+  now = new Date().toISOString(),
+): Opportunity {
+  if (pursuitCase.opportunityId !== opportunity.id) {
+    throw new Error('Pursuit case does not belong to opportunity')
+  }
+  if (!isPursuitReady(pursuitCase)) {
+    throw new Error('Opportunity research is not evidence-complete')
+  }
+  if (opportunity.family === 'recovery' && !isCompleteVerification(opportunity.verificationDecision, opportunity.id)) {
+    throw new Error('Recovery opportunity requires complete claimant/entitlement verification before ready')
+  }
+  return { ...opportunity, status: 'ready', updatedAt: now }
+}
+
 export function isPursuitReady(pursuitCase: OpportunityPursuitCase): boolean {
   return pursuitCase.status === 'ready' &&
-    pursuitCase.tasks.filter((task) => task.required).every((task) => task.status === 'completed' && task.evidenceRefs.length > 0)
+    pursuitCase.tasks.filter((task) => task.required).every((task) => task.status === 'completed' && hasValidEvidenceRefs(task.evidenceRefs))
 }
 
 function researchTasksFor(opportunity: Opportunity): PursuitTaskKind[] {
@@ -117,7 +146,8 @@ function researchTasksFor(opportunity: Opportunity): PursuitTaskKind[] {
         : opportunity.family === 'funding'
           ? ['assess_capability', 'assess_competition', 'assess_compliance']
           : ['verify_provider', 'assess_margin', 'assess_capability', 'assess_competition', 'assess_compliance']
-  return [...new Set([...common, ...vertical])]
+  const partner = opportunity.metadata?.capabilityGap === true ? ['find_partner' as const] : []
+  return [...new Set([...common, ...vertical, ...partner])]
 }
 
 function taskTitle(kind: PursuitTaskKind): string {
@@ -136,6 +166,17 @@ function taskTitle(kind: PursuitTaskKind): string {
     assess_capability: 'Assess capability fit and identify material gaps.',
     assess_competition: 'Assess competition and pursuit difficulty.',
     assess_compliance: 'Assess platform, advertising, disclosure, and policy constraints.',
+    find_partner: 'Research partner candidates for a verified capability gap; do not contact them without separate approval.',
   }
   return titles[kind]
+}
+
+
+function hasValidEvidenceRefs(refs: string[]): boolean {
+  return refs.length > 0 && refs.every((ref) => typeof ref === 'string' && ref.trim().length > 0)
+}
+
+
+function sameEvidenceRefs(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((ref, index) => ref === b[index])
 }

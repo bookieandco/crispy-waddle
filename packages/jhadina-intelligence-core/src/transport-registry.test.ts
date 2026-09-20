@@ -17,3 +17,18 @@ test('fails closed when no route can satisfy required capability', () => {
   const registry = new TransportRegistry([{ identity:{transportId:'x',adapter:'x',address:'a'}, health:'offline', capabilities:['message.send'], priority:0 }])
   assert.throws(() => registry.select(dispatch), /COMMUNICATION_ROUTE_UNAVAILABLE/)
 })
+
+
+test('route selection rejects forged dispatch correlation lineage', () => {
+  const registry = new TransportRegistry([{ identity: { transportId: 't1', adapter: 'test', address: 'a' }, health: 'healthy', capabilities: ['message.send'], priority: 1 }])
+  assert.throws(() => registry.select({ ...dispatch, correlationId: 'forged-correlation' }), /AUTHORIZED_DISPATCH_LINEAGE_MISMATCH/)
+})
+
+
+test('adapter-constrained selection cannot route Reticulum through another transport', () => {
+ const registry=new TransportRegistry([
+  {identity:{transportId:'wifi-1',adapter:'wifi',address:'w'},health:'healthy',capabilities:['message.send'],priority:0},
+  {identity:{transportId:'rns-1',adapter:'reticulum',address:'r'},health:'healthy',capabilities:['message.send'],priority:1},
+ ])
+ assert.equal(registry.select(dispatch,'message.send','reticulum').identity.transportId,'rns-1')
+})

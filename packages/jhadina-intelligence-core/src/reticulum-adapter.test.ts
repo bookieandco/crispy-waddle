@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ReticulumTransportAdapter } from './reticulum-adapter.js'
 
-const dispatch:any={correlationId:'corr-1',intent:{intentId:'intent-1',correlationId:'corr-1',actorId:'actor-1',contentRef:'blob:1'}}
+const dispatch:any={correlationId:'corr-1',intent:{intentId:'intent-1',correlationId:'corr-1',actorId:'actor-1',recipient:{endpointId:'peer-1'},contentRef:'blob:1'}}
 const route:any={identity:{transportId:'rns-1',adapter:'reticulum',address:'dest-hash'},health:'healthy',capabilities:['message.send'],priority:1}
 
 test('Reticulum adapter preserves governed dispatch lineage and returns evidence',async()=>{

@@ -39,3 +39,14 @@ test('fails closed when identity/source/provenance is missing', () => {
     payload: {},
   }), /OBSERVATION_SOURCE_REQUIRED/)
 })
+
+
+test('rejects malformed provenance timestamps before evidence can be persisted', () => {
+  assert.throws(() => createObservationEnvelope({
+    observationId: 'obs-time',
+    subjectId: 'subject',
+    source: { provider: 'provider', capability: 'read', adapterVersion: '1' },
+    provenance: { observedAt: 'not-a-time', receivedAt: '2026-09-20T00:00:00.000Z', evidenceRefs: [] },
+    payload: {},
+  }), /OBSERVATION_PROVENANCE_TIMESTAMP_INVALID/)
+})

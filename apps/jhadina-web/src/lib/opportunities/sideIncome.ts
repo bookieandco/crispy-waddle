@@ -1,3 +1,5 @@
+import type { OpportunityHubCategory } from "@jhadina/opportunity-core"
+
 export type OpportunityKind =
   | "pod"
   | "dropshipping"
@@ -13,13 +15,10 @@ export type AutomationLevel = "ai_can_do_it" | "ai_plus_user" | "user_led" | "do
 
 export type OpportunityVerificationStatus = "not_required" | "human_required" | "verified" | "rejected"
 
-// "new" is the only state a discovered opportunity starts in. "approved"
-// is the one meaningful, external-facing decision this model tracks: the
-// user has greenlit pursuing it. Approving never applies for a job, spends
-// money, or publishes a listing on its own - it only records that the user
-// made that call, with a timestamp for the audit trail. Save/Dismiss are
-// lighter-weight, reversible triage and are handled as local UI state by
-// the command center rather than a server-tracked status.
+// Compatibility projection for the web UI only. Canonical lifecycle,
+// ranking, persistence, research, action, and outcome authority live in
+// @jhadina/opportunity-core plus the authenticated Supabase repository.
+// "approved" here means the user authorized research; it is not execution.
 export type OpportunityStatus = "new" | "approved"
 export type OpportunityTriageState = "review" | "saved" | "dismissed"
 
@@ -28,6 +27,7 @@ export type Opportunity = {
   userId: string
   title: string
   kind: OpportunityKind
+  hubCategory: OpportunityHubCategory
   sourceUrl: string
   sourceName: string
   summary: string
@@ -36,6 +36,7 @@ export type Opportunity = {
   estimatedHours?: number
   automationLevel: AutomationLevel
   fitScore: number
+  opportunityScore?: number
   riskFlags: string[]
   deadline?: string
   requiresUserApproval: boolean
@@ -45,6 +46,7 @@ export type Opportunity = {
   triageState?: OpportunityTriageState
   createdAt: string
   approvedAt?: string
+  researchCaseId?: string
 }
 
 export const SIDE_INCOME_KINDS: OpportunityKind[] = [
@@ -58,27 +60,3 @@ export const SIDE_INCOME_KINDS: OpportunityKind[] = [
   "automation",
   "overage",
 ]
-
-/**
- * Ranks side-income opportunities for review. This is decision support only:
- * it never applies for a job, spends money, publishes listings, or accepts an
- * opportunity without an explicit user approval step.
- */
-export function rankSideIncomeOpportunities(items: Opportunity[]): Opportunity[] {
-  return [...items]
-    .filter((item) => item.automationLevel !== "do_not_pursue")
-    .sort((a, b) => {
-      const aRisk = a.riskFlags.length
-      const bRisk = b.riskFlags.length
-      const aPay = a.estimatedPay?.max ?? a.estimatedPay?.min ?? 0
-      const bPay = b.estimatedPay?.max ?? b.estimatedPay?.min ?? 0
-      const aCost = a.startupCost ?? 0
-      const bCost = b.startupCost ?? 0
-      const aTime = a.estimatedHours ?? 1
-      const bTime = b.estimatedHours ?? 1
-
-      const aValue = a.fitScore + Math.min(aPay / Math.max(aTime, 1), 100) - aRisk * 8 - Math.min(aCost / 10, 25)
-      const bValue = b.fitScore + Math.min(bPay / Math.max(bTime, 1), 100) - bRisk * 8 - Math.min(bCost / 10, 25)
-      return bValue - aValue
-    })
-}

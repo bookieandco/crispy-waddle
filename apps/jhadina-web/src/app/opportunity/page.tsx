@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { rankSideIncomeOpportunities } from "@/lib/opportunities/sideIncome"
+import type { OpportunityHubCategory } from "@jhadina/opportunity-core"
 import type { AutomationLevel, Opportunity, OpportunityKind } from "@/lib/opportunities/sideIncome"
 
 const KIND_LABEL: Record<OpportunityKind, string> = {
@@ -24,19 +24,18 @@ const AUTOMATION_LABEL: Record<AutomationLevel, string> = {
   do_not_pursue: "Not recommended",
 }
 
-type FilterKind = "all" | "pod" | "dropshipping" | "ai_job" | "remote_gig" | "freelance" | "creator" | "affiliate" | "automation" | "overage"
+type FilterKind = "all" | OpportunityHubCategory
 
 const FILTERS: { id: FilterKind; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "pod", label: "POD" },
-  { id: "dropshipping", label: "Dropshipping" },
-  { id: "ai_job", label: "AI jobs" },
-  { id: "remote_gig", label: "Remote" },
+  { id: "earn", label: "Earn" },
   { id: "freelance", label: "Freelance" },
-  { id: "creator", label: "Creator" },
-  { id: "affiliate", label: "Affiliate" },
-  { id: "automation", label: "Automation" },
-  { id: "overage", label: "Unclaimed property" },
+  { id: "products", label: "Products" },
+  { id: "arbitrage", label: "Arbitrage" },
+  { id: "ai_businesses", label: "AI Businesses" },
+  { id: "partnerships", label: "Partnerships" },
+  { id: "assets", label: "Assets" },
+  { id: "experiments", label: "Experiments" },
 ]
 
 // "Best match" and "deadline approaching" are display thresholds, not part
@@ -57,7 +56,7 @@ export default function OpportunityCommandCenter() {
       const res = await fetch("/api/opportunities", { cache: "no-store" })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Could not load opportunities")
-      setOpportunities(rankSideIncomeOpportunities(json.data?.opportunities ?? []))
+      setOpportunities(json.data?.opportunities ?? [])
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load opportunities")
     } finally {
@@ -104,7 +103,7 @@ export default function OpportunityCommandCenter() {
 
   const undismissed = useMemo(() => opportunities.filter((o) => o.triageState !== "dismissed"), [opportunities])
   const visible = useMemo(
-    () => undismissed.filter((o) => filter === "all" || o.kind === filter),
+    () => undismissed.filter((o) => filter === "all" || o.hubCategory === filter),
     [undismissed, filter]
   )
 
@@ -134,7 +133,7 @@ export default function OpportunityCommandCenter() {
       <div style={wrap}>
         <div style={eyebrow}>Jhadina Growth</div>
         <h1 style={h1}>Opportunities, on your terms.</h1>
-        <p style={sub}>Jhadina finds and ranks side-income opportunities for you to review. It never applies for a job, spends money, or publishes a listing without your approval.</p>
+        <p style={sub}>Jhadina finds, verifies, and ranks opportunities for you to review. Research approval never applies for a job, spends money, contacts a claimant, submits a bid, or publishes a listing.</p>
 
         <div style={metricsRow}>
           <Metric label="Found" value={summary.found} />
@@ -199,7 +198,7 @@ export default function OpportunityCommandCenter() {
 
             {approved.length > 0 && (
               <section style={{ marginTop: 38 }}>
-                <h2 style={heading}>Approved</h2>
+                <h2 style={heading}>Research authorized</h2>
                 {approved.map((o) => (
                   <OpportunityCard key={o.id} opportunity={o} busy={false} approved />
                 ))}
@@ -251,10 +250,10 @@ function OpportunityCard({
       </div>
 
       {approved ? (
-        <div style={approvedBadge}>✓ Approved{opportunity.approvedAt ? ` · ${new Date(opportunity.approvedAt).toLocaleDateString()}` : ""}</div>
+        <div style={approvedBadge}>✓ Approved for research{opportunity.approvedAt ? ` · ${new Date(opportunity.approvedAt).toLocaleDateString()}` : ""}{opportunity.researchCaseId ? " · case created" : ""}</div>
       ) : (
         <div style={{ display: "flex", gap: 8, marginTop: 15, flexWrap: "wrap" }}>
-          {onApprove && <button disabled={busy} onClick={onApprove} style={primary}>{busy ? "Working…" : "Approve"}</button>}
+          {onApprove && <button disabled={busy} onClick={onApprove} style={primary}>{busy ? "Working…" : "Approve research"}</button>}
           {onSave && <button disabled={busy} onClick={onSave} style={secondary}>Save</button>}
           {onDismiss && <button disabled={busy} onClick={onDismiss} style={secondary}>Dismiss</button>}
         </div>

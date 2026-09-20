@@ -24,6 +24,7 @@ test('maps an allowlisted passive read into ObservationEnvelope', async () => {
   assert.equal(result.source.provider, 'shodan')
   assert.equal(result.trustEffect, 'NONE')
   assert.equal(result.authorizationEffect, 'NONE')
+  assert.equal(result.source.sourceRef, 'shodan:host.read:203.0.113.10')
 })
 
 test('fails closed before transport for unsupported or mutating capability', async () => {
@@ -37,4 +38,12 @@ test('fails closed before transport for unsupported or mutating capability', asy
   }), /SHODAN_CAPABILITY_NOT_READ_ONLY/)
   assert.equal(called, false)
   await assert.rejects(() => adapter.execute('scan.start'), /SHODAN_MUTATION_UNSUPPORTED/)
+})
+
+
+test('default Shodan evidence reference contains no credential material', async () => {
+  const adapter = new ShodanReadOnlyAdapter({ async read() { return {} } })
+  const result = await adapter.observe({ observationId: 'obs-ref', subjectId: 'example.org', capability: 'dns.read', observedAt: '2026-09-20T00:00:00.000Z', receivedAt: '2026-09-20T00:00:01.000Z' })
+  assert.deepEqual(result.provenance.evidenceRefs, ['shodan:dns.read:example.org'])
+  assert.equal(JSON.stringify(result).includes('key='), false)
 })
