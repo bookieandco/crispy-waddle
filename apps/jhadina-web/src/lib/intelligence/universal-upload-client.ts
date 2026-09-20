@@ -53,6 +53,17 @@ export type UniversalUploadTask = {
   promise: Promise<PerceptionJobView>;
 };
 
+type DirectUploadSessionView = {
+  id: string;
+  status: "issued" | "finalize_queued" | "finalizing" | "finalize_retry" | "finalized" | "rejected" | "expired";
+  finalizeAttempt?: number;
+  finalizeMaxAttempts?: number;
+  finalizeAvailableAt?: string;
+  assetId?: string;
+  perceptionJobId?: string;
+  lastError?: string;
+};
+
 type SignedSessionResponse = {
   success: true;
   data: {
@@ -340,6 +351,50 @@ async function parseJson(response: Response): Promise<any> {
   }
 }
 
+async function pollDirectUploadSession(
+  statusPath: string,
+  headers: Record<string, string>,
+  callbacks: UniversalUploadCallbacks,
+  totalBytes: number,
+  fetchImpl: typeof fetch,
+): Promise<DirectUploadSessionView> {
+  let delay = POLL_MIN_MS;
+  for (;;) {
+    const response = await fetchImpl(statusPath, {
+      headers,
+      cache: "no-store",
+    });
+    const json = await parseJson(response);
+    if (!response.ok) throw new Error(json.error || "DIRECT_UPLOAD_STATUS_FAILED");
+    const session = json.data as DirectUploadSessionView;
+
+    callbacks.onProgress?.({
+      phase: "finalizing",
+      uploadedBytes: totalBytes,
+      totalBytes,
+      percent: 100,
+      sessionId: session.id,
+      message: session.status === "finalize_retry" && session.lastError
+        ? `Finalization retry: ${session.lastError}`
+        : undefined,
+    });
+
+    if (session.status === "finalized") {
+      if (!session.perceptionJobId) throw new Error("DIRECT_UPLOAD_FINALIZED_JOB_MISSING");
+      return session;
+    }
+    if (session.status === "rejected") {
+      throw new Error(session.lastError || "DIRECT_UPLOAD_SESSION_REJECTED");
+    }
+    if (session.status === "expired") {
+      throw new Error("DIRECT_UPLOAD_SESSION_EXPIRED");
+    }
+
+    await sleep(delay);
+    delay = Math.min(POLL_MAX_MS, Math.round(delay * 1.35));
+  }
+}
+
 async function pollPerception(
   jobId: string,
   headers: Record<string, string>,
@@ -542,13 +597,32 @@ export function createUniversalUploadTask(input: {
       sessionId: data.session.id,
     });
 
-    const finalized = await fetchImpl(data.finalizePath, {
+    const finalizeRequest = await fetchImpl(data.finalizePath, {
       method: "POST",
       headers,
     });
-    const finalizedJson = await parseJson(finalized);
-    if (!finalized.ok) throw new Error(finalizedJson.error || "DIRECT_UPLOAD_FINALIZE_FAILED");
-    const job = finalizedJson.data.perceptionJob as PerceptionJobView;
+    const finalizeJson = await parseJson(finalizeRequest);
+    if (!finalizeRequest.ok) {
+      throw new Error(finalizeJson.error || "DIRECT_UPLOAD_FINALIZE_QUEUE_FAILED");
+    }
+
+    const statusPath = finalizeJson.data.statusPath ?? data.finalizePath;
+    const finalizedSession = await pollDirectUploadSession(
+      statusPath,
+      headers,
+      callbacks,
+      normalizedFile.size,
+      fetchImpl,
+    );
+
+    const jobId = finalizedSession.perceptionJobId!;
+    const initialJob: PerceptionJobView = {
+      id: jobId,
+      status: "queued",
+      attempt: 0,
+      maxAttempts: 0,
+      availableAt: finalizedSession.finalizeAvailableAt ?? new Date().toISOString(),
+    };
 
     callbacks.onProgress?.({
       phase: "processing",
@@ -556,9 +630,9 @@ export function createUniversalUploadTask(input: {
       totalBytes: normalizedFile.size,
       percent: 100,
       sessionId: data.session.id,
-      job,
+      job: initialJob,
     });
-    return pollPerception(job.id, headers, callbacks, fetchImpl);
+    return pollPerception(jobId, headers, callbacks, fetchImpl);
   })();
 
   return {
