@@ -20,9 +20,9 @@ describe('Behavioral Kernel', () => {
   it('lets governed relationship calibration influence posture without bypassing behavioral rules', () => {
     const calibrated: PersonalityState = {
       ...personality,
-      voice: { ...personality.voice, directness: 0.62 },
+      voice: { ...personality.voice!, directness: 0.62 },
       relationship: {
-        ...personality.relationship,
+        ...personality.relationship!,
         preferredInteractionModes: ['direct'],
       },
     };
