@@ -76,7 +76,15 @@ CCTV `/sources` and `/health` are now composed in the production read path. Norm
 
 ### GEV-PROD.4 — true live E2E Reality path
 
-**SOURCE COMPOSITION REPAIRED; LIVE RUNTIME BLOCKED BY PROD.1.**
+**SOURCE AUDIT PASS; LIVE RUNTIME BLOCKED BY PROD.1.**
+
+**2026-09-20 PROD.4 continuation audit:** re-audited the complete production composition from normalized GEV observation through SpatialContext. The evidence reader first creates content-hashed immutable SpatialEvidence and, when Supabase is configured, appends it to `jhadina_spatial_evidence`. The governed admission provider then re-reads each evidence item from that durable store before candidate construction; raw observations have no direct admission input. It appends the candidate to `jhadina_spatial_reality_candidates`, evaluates explicit admission with required available + non-fallback + fresh evidence, appends the decision receipt to `jhadina_spatial_reality_admissions`, and exposes a Reality ref only for `ACCEPT`. Missing/unreadable evidence, incomplete candidate inputs, stale evidence and fallback-only evidence defer/fail closed rather than becoming Reality.
+
+The production composition installs this governed layer only when both durable evidence and Reality stores exist; otherwise the provider remains evidence-only. The authenticated `/api/spatial/context` route consumes the resulting context and records evidenceRefs, activeClaimRefs and realityRefs in an append-only Spatial workspace revision when that store is available. Candidate/admission duplicate handling verifies persisted content before accepting idempotent duplicates.
+
+Existing integration coverage proves the no-bypass invariant and explicitly verifies a fallback CCTV candidate is persisted with a `DEFER` admission while fresh non-fallback aircraft evidence can produce admitted Reality. No additional PROD.4 source defect was found in this audit.
+
+**Certification boundary:** source composition PASS is not a live production PASS. PROD.4 remains BLOCKED until PROD.1 deploys the audited lineage and one authenticated live request produces matching Supabase evidence, candidate, admission and workspace receipts tied to that deployed SHA.
 
 The GEV Spatial reader remains evidence-only and cannot self-admit. Production now wraps that reader with a separate governed promotion layer that re-reads durable evidence, appends a candidate, evaluates the explicit admission gate, appends an immutable admission receipt, and exposes Reality refs only for `ACCEPT`. Fallback-only evidence is deferred and production admission additionally requires explicitly fresh non-fallback evidence. Supabase now has a server-only append-only adapter for both reality tables.
 
