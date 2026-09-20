@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@jhadina/director-core": "workspace:*",
+    "@jhadina/money-core": "workspace:*",
     "@jhadina/opportunity-core": "workspace:*",
+    "@jhadina/reference-provenance": "workspace:*",
     "@jhadina/shark-intelligence-core": "workspace:*",
     "@jhadina/spatial-intelligence-core": "workspace:*",
     "@jhadina/tv-core": "workspace:*",
@@ -21,8 +23,7 @@
     "@supabase/supabase-js": "^2.57.0",
     "next": "^14.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@jhadina/reference-provenance": "workspace:*"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
