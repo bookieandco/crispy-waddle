@@ -8,7 +8,7 @@
   },
   "scripts": {
     "type-check": "tsc --noEmit -p tsconfig.json",
-    "test": "tsx src/domain/validation.test.ts && tsx src/domain/provider.test.ts && tsx src/domain/queue.test.ts && tsx src/domain/pursuit.test.ts && tsx src/adapters/vertical-adapters.test.ts && tsx src/fixtures/canonical.test.ts && tsx src/integration/consumer-contract.test.ts"
+    "test": "tsx src/domain/validation.test.ts && tsx src/domain/provider.test.ts && tsx src/domain/queue.test.ts && tsx src/domain/pursuit.test.ts && tsx src/domain/outcome.test.ts && tsx src/adapters/vertical-adapters.test.ts && tsx src/fixtures/canonical.test.ts && tsx src/integration/consumer-contract.test.ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
