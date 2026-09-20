@@ -4,8 +4,8 @@ import { runSamProviderResearch } from './sam-provider-research.js'
 {
   const result=await runSamProviderResearch({
     requirements:{opportunityId:'sam:pilot',generatedAt:'2026-09-20T00:00:00Z',unresolved:[],requirements:[
-      {id:'r1',opportunityId:'sam:pilot',kind:'naics',summary:'541512',severity:'required',evidenceStatus:'explicit',tokens:['541512'],sourceEvidenceIds:['e:sam']},
-      {id:'r2',opportunityId:'sam:pilot',kind:'capability',summary:'cloud migration',severity:'required',evidenceStatus:'explicit',tokens:['cloud','migration'],sourceEvidenceIds:['e:sam']},
+      {id:'r1',opportunityId:'sam:pilot',kind:'naics',label:'NAICS 541512',severity:'required',evidenceStatus:'explicit',sourceClaimIds:['c1'],sourceEvidenceIds:['e:sam'],naicsCodes:['541512'],pscCodes:[],keywords:[],attributes:{code:'541512'},confidence:1,blockers:[]},
+      {id:'r2',opportunityId:'sam:pilot',kind:'capability',label:'cloud migration',severity:'required',evidenceStatus:'explicit',sourceClaimIds:['c2'],sourceEvidenceIds:['e:sam'],naicsCodes:['541512'],pscCodes:[],keywords:['cloud','migration'],attributes:{},confidence:1,blockers:[]},
     ]},
     adapters:[{id:'directory',source:'entity_directory',async discover(input){
       assert.ok(input.naicsCodes.includes('541512'))
