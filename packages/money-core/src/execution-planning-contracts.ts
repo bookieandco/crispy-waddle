@@ -15,4 +15,4 @@ export type ExecutionReplayManifest=Readonly<{replayId:string;executionPlanId:st
 
 export function hash041(v:unknown){return createHash('sha256').update(JSON.stringify(v,(_,x)=>typeof x==='bigint'?x.toString():x)).digest('hex')}
 export function assertBps041(x:number,label:string){if(!Number.isInteger(x)||x<0||x>10000)throw new Error(`MONEY_041_${label}_BPS_INVALID`)}
-export function assertRebalanceIntentExecutable(i:RebalanceIntent){if(i.authority!=='NONE')throw new Error('MONEY_041_REBALANCE_AUTHORITY_FORBIDDEN');if(i.side==='HOLD'||i.notional.minor<=0n)throw new Error('MONEY_041_REBALANCE_NOT_EXECUTABLE')}
+export function assertRebalanceIntentExecutable(i:RebalanceIntent): asserts i is RebalanceIntent & {side:'BUY'|'SELL'}{if(i.authority!=='NONE')throw new Error('MONEY_041_REBALANCE_AUTHORITY_FORBIDDEN');if(i.side==='HOLD'||i.notional.minor<=0n)throw new Error('MONEY_041_REBALANCE_NOT_EXECUTABLE')}
