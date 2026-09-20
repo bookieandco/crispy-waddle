@@ -34,8 +34,8 @@ async function run(request: NextRequest) {
     })
     return NextResponse.json({ ok: true, ...result })
   } catch (error) {
-    const reason = error instanceof Error ? error.message : 'Unknown SHARK historical observation worker failure'
-    return NextResponse.json({ ok: false, error: 'shark_historical_observation_worker_failed', reason }, { status: 502 })
+    console.error('SHARK historical observation worker failed', error)
+    return NextResponse.json({ ok: false, error: 'shark_historical_observation_worker_failed', reason: 'worker_execution_failed' }, { status: 502 })
   }
 }
 
