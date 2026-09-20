@@ -1,0 +1,7 @@
+import test from "node:test";import assert from "node:assert/strict";import {canonicalEntityKey,graphGapToResearchIntent,relationAdmissible,resolveEntity,type CanonicalKnowledgeEntity} from "./entity-intelligence.js"
+const e=(x:Partial<CanonicalKnowledgeEntity>={}):CanonicalKnowledgeEntity=>({nodeId:"1",nodeType:"project",label:"Jhadina",scope:"system",aliases:["Jhadina OS"],externalIds:{},confidence:.9,verificationState:"verified",provenanceRefs:["e1"],...x})
+test("canonical keys are deterministic",()=>assert.equal(canonicalEntityKey("Project","Jhadina OS"),"project:jhadina-os"))
+test("exact alias resolves",()=>assert.equal(resolveEntity("Jhadina OS","project",[e()]).kind,"resolved"))
+test("ambiguous aliases never silently merge",()=>assert.equal(resolveEntity("Jhadina","project",[e(),e({nodeId:"2"})]).kind,"ambiguous"))
+test("unsupported and expired relations are inadmissible",()=>{assert.equal(relationAdmissible({relationId:"r",fromNodeId:"1",toNodeId:"2",relationType:"DEPENDS_ON",scope:"system",confidence:1,verificationState:"verified",provenanceRefs:[]}),false);assert.equal(relationAdmissible({relationId:"r",fromNodeId:"1",toNodeId:"2",relationType:"DEPENDS_ON",scope:"system",confidence:1,verificationState:"verified",provenanceRefs:["e"],validTo:"2020-01-01"},"2026-01-01"),false)})
+test("graph gaps project to research intent",()=>assert.equal(graphGapToResearchIntent({gapKind:"stale_relation",subject:"owns",reason:"expired",nodeOrRelationId:"r"}).intentType,"knowledge_revalidation"))
