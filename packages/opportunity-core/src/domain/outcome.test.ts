@@ -39,7 +39,7 @@ const signal = buildOpportunityLearningSignal(opportunity, outcome)
 assert(signal.providerId === 'provider:growth-affiliate', 'Learning must preserve provider attribution')
 assert(signal.evidenceRefs.length === 2, 'Learning must preserve financial evidence lineage')
 
-const closed = applyOpportunityOutcome(opportunity, outcome, '2026-09-19T13:00:00Z')
+const closed = applyOpportunityOutcome({ ...opportunity, status: 'ready' }, outcome, '2026-09-19T13:00:00Z')
 assert(closed.status === 'won', 'Won outcome must close canonical opportunity as won')
 assert(closed.metadata?.realizedProfit === 550, 'Canonical opportunity must expose realized learning metrics')
 
@@ -61,3 +61,12 @@ try {
   evidenceRequired = true
 }
 assert(evidenceRequired, 'Outcome truth must not be recorded without evidence')
+
+
+let prematureBlocked = false
+try {
+  applyOpportunityOutcome(opportunity, outcome, '2026-09-19T13:00:00Z')
+} catch {
+  prematureBlocked = true
+}
+assert(prematureBlocked, 'Premature outcome recording must be blocked before the opportunity is ready/pursuing')
