@@ -14,6 +14,28 @@ describe("supabaseTusEndpoint", () => {
     expect(supabaseTusEndpoint("https://supabase.example.com"))
       .toBe("https://supabase.example.com/storage/v1/upload/resumable");
   });
+  it("treats an already-missing quarantine object as cleaned", async () => {
+    let removed = false;
+    const client:any = {
+      storage: {
+        from() {
+          return {
+            async list() { return { data: [], error: null }; },
+            async remove() { removed = true; return { data: [], error: null }; },
+          };
+        },
+      },
+    };
+    const store = new SupabaseDirectUploadObjectStore(client, "https://abc.supabase.co");
+    await expect(store.removeQuarantine("quarantine/u1/s1/fight.mp4")).resolves.toBeUndefined();
+    expect(removed).toBe(false);
+  });
+
+  it("refuses cleanup outside quarantine scope", async () => {
+    const store = new SupabaseDirectUploadObjectStore({} as any, "https://abc.supabase.co");
+    await expect(store.removeQuarantine("trusted/u1/s1/fight.mp4"))
+      .rejects.toThrow("CLEANUP_SCOPE_MISMATCH");
+  });
 });
 
 describe("SupabaseDirectUploadObjectStore", () => {
