@@ -122,6 +122,7 @@ export class GevProviderBridge {
     const payload = await this.requestJson<unknown>('gev-cctv', purpose, '/api/cctv/sources')
     const rows = Array.isArray(payload) ? payload : Array.isArray((payload as { sources?: unknown[] })?.sources) ? (payload as { sources: unknown[] }).sources : []
     return rows.filter((row): row is GevCctvSource => {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) return false
       const item = row as Partial<GevCctvSource>
       return typeof item.id === 'string' && Number.isFinite(item.lat) && Number.isFinite(item.lon)
     })
