@@ -1,7 +1,13 @@
 export * from './controller.js';
 export * from './hid-adapter.js';
 export * from './runtime.js';
-export * from './runtime-registry.js';
+export {InMemoryRuntimeRegistry} from './runtime-registry.js';
+export type {
+  GamePlatform as RegisteredGamePlatform,
+  RuntimeKind as RegisteredRuntimeKind,
+  GameRuntime as RegisteredGameRuntime,
+  RuntimeResolver as RuntimeRegistryResolver,
+} from './runtime-registry.js';
 export * from './gameboy-runtime.js';
 export * from './gameboy-runtime-host.js';
 export * from './gameboy-wasm-bridge.js';
@@ -9,12 +15,22 @@ export * from './gameboy-io.js';
 export * from './game-library.js';
 export * from './save.js';
 export * from './moonlight-runtime.js';
-export * from './moonlight-host.js';
+export {InMemoryMoonlightHostRegistry} from './moonlight-host.js';
+export type {
+  MoonlightHost as RegisteredMoonlightHost,
+  MoonlightHostDiscovery,
+  MoonlightPairingService,
+} from './moonlight-host.js';
 export * from './remote-apps.js';
 export * from './game-source.js';
 export * from './launch-orchestrator.js';
 export * from './device-capabilities.js';
-export * from './input-sync.js';
+export {InputSynchronizationEngine} from './input-sync.js';
+export type {
+  InputEvent,
+  InputLatencySample,
+  InputIntegrityResult as SynchronizationIntegrityResult,
+} from './input-sync.js';
 export * from './remote-play-session.js';
 export * from './remote-quality.js';
 export * from './remote-quality-monitor.js';
@@ -28,7 +44,12 @@ export * from './sunshine-pairing.js';
 export * from './sunshine-apps.js';
 export * from './steam-identity.js';
 export * from './game-catalog-reconciliation.js';
-export * from './runtime-selection.js';
+export {selectRuntime} from './runtime-selection.js';
+export type {
+  RuntimeKind as SelectionRuntimeKind,
+  RuntimeCandidate,
+  RuntimeSelectionPolicy,
+} from './runtime-selection.js';
 export * from './runtime-compatibility.js';
 export * from './unified-runtime-resolver.js';
 export * from './launch-authorization.js';
@@ -40,7 +61,13 @@ export * from './input-transport.js';
 export * from './input-pipeline.js';
 export * from './input-delivery-state.js';
 export * from './input-photon-latency.js';
-export * from './controller-session-binding.js';
+export {ControllerSessionBindingManager} from './controller-session-binding.js';
+export type {
+  ControllerBindingState,
+  ControllerSessionBinding,
+  ControllerSessionBindingPolicy,
+  ControllerDevice as ControllerSessionDevice,
+} from './controller-session-binding.js';
 export * from './controller-health.js';
 export * from './controller-input-gate.js';
 export * from './input-resync.js';
