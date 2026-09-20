@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto"
 import { createClient } from "../supabase/server"
+import { PlaidReadOnlyAdapter } from "@jhadina/money-core"
 
 const PLAID_BASE_URL="https://sandbox.plaid.com"
 type PlaidAppCredential={clientId:string;secret:string}
@@ -11,3 +12,5 @@ async function plaid<T>(path:string,body:Record<string,unknown>):Promise<T>{cons
 export async function createMoneyPlaidLinkToken(userId:string){return plaid<{link_token:string;expiration:string}>("/link/token/create",{user:{client_user_id:userId},client_name:"Jhadina",products:["transactions"],country_codes:["US"],language:"en",transactions:{days_requested:30}})}
 export async function exchangeMoneyPlaidPublicToken(publicToken:string){if(!publicToken.trim())throw new Error("PLAID_PUBLIC_TOKEN_REQUIRED");const exchanged=await plaid<{access_token:string;item_id:string}>("/item/public_token/exchange",{public_token:publicToken});const accounts=await plaid<{accounts:Array<{account_id:string}>}>("/accounts/get",{access_token:exchanged.access_token});const supabase=await createClient();const credentialRef=`money/plaid/${exchanged.item_id.toLowerCase().replace(/[^a-z0-9._-]+/g,"-")}`;const {data,error}=await supabase.rpc("jhadina_money_upsert_bank_connection",{p_provider_item_id:exchanged.item_id,p_credential_ref:credentialRef,p_encrypted_access_token:encryptMoneyCredential(exchanged.access_token),p_accounts:accounts.accounts});if(error)throw new Error(`MONEY_BANK_CONNECTION_STORE_FAILED:${error.message}`);return {connectionId:String(data),accountCount:accounts.accounts.length}}
 export async function disconnectMoneyBankConnection(connectionId:string){const supabase=await createClient();const {error}=await supabase.rpc("jhadina_money_disconnect_bank_connection",{p_connection_id:connectionId});if(error)throw new Error(`MONEY_BANK_DISCONNECT_FAILED:${error.message}`)}
+
+export function createOwnedPlaidAdapter(encryptedAccessToken:string){const credential=appCredential();return new PlaidReadOnlyAdapter({baseUrl:PLAID_BASE_URL,credentialBundle:JSON.stringify({...credential,accessToken:decryptMoneyCredential(encryptedAccessToken)})})}
