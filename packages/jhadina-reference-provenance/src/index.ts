@@ -1355,4 +1355,11 @@ export {
   verifyRevocationDistributionSnapshot,
   RuntimeLeaseGuard,
   InMemoryRevocationDistributionSource,
+  HttpRevocationDistributionSource,
 } from './runtime-lease.js';
+export type {
+  RevocationSnapshotFetch,
+} from './runtime-lease.js';
+export {
+  PostgresDeploymentSessionLedger,
+} from './postgres-deployment-session-ledger.js';
