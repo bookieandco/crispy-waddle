@@ -29,7 +29,8 @@ create policy "jhadina_sam_pursuit_snapshots_select_own"
   for select to authenticated
   using ((select auth.uid()) = user_id);
 
-create or replace function public.jhadina_sam_pursuit_snapshot_save(
+create or replace function public.jhadina_sam_pursuit_snapshot_save_trusted(
+  p_user_id uuid,
   p_envelope jsonb,
   p_expected_revision integer default null
 )
@@ -39,7 +40,7 @@ security definer
 set search_path = public
 as $$
 declare
-  v_user uuid := auth.uid();
+  v_user uuid := p_user_id;
   v_snapshot jsonb := p_envelope->'snapshot';
   v_checksum text := p_envelope->>'checksum';
   v_opportunity_id text := v_snapshot->>'opportunityId';
@@ -47,7 +48,7 @@ declare
   v_existing_revision integer;
   v_saved_at timestamptz;
 begin
-  if v_user is null then raise exception 'authentication required'; end if;
+  if v_user is null then raise exception 'trusted SAM pursuit write requires user id'; end if;
   if jsonb_typeof(p_envelope) <> 'object' or jsonb_typeof(v_snapshot) <> 'object' then
     raise exception 'SAM pursuit envelope and snapshot must be objects';
   end if;
@@ -123,5 +124,6 @@ begin
 end;
 $$;
 
-revoke all on function public.jhadina_sam_pursuit_snapshot_save(jsonb, integer) from public;
-grant execute on function public.jhadina_sam_pursuit_snapshot_save(jsonb, integer) to authenticated;
+revoke all on function public.jhadina_sam_pursuit_snapshot_save_trusted(uuid, jsonb, integer) from public;
+revoke all on function public.jhadina_sam_pursuit_snapshot_save_trusted(uuid, jsonb, integer) from authenticated;
+grant execute on function public.jhadina_sam_pursuit_snapshot_save_trusted(uuid, jsonb, integer) to service_role;
