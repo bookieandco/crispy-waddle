@@ -59,7 +59,7 @@ The durable-ingestion migration now bridges that live schema before later SHARK 
 - duplicate actor/history and chain/token indexes are removed.
 - owner-scoped client launch rows remain available only to their owner; service-role SHARK rows with `owner_id is null` are hidden from authenticated Data API reads.
 
-Live data counts at audit time were zero for token launches, outcome observations, actor histories, and outcome evaluations. `jhadina_token_actor_edges` was not yet deployed. No production migration was applied as part of QA.17; these changes remain in the open PR.
+Live data counts at audit time were zero for token launches, outcome observations, actor histories, and outcome evaluations. `jhadina_token_actor_edges` was not yet deployed. No production migration was applied as part of QA.17; these changes are merged in PR #365; production database deployment remains a separate controlled step.
 
 ## QA.17G — provider and Meteora integrity
 
@@ -94,8 +94,8 @@ The Jhadina SHARK persistence soak exercises:
 
 The focused SHARK workflow now runs this app-level soak in addition to SHARK core TypeScript, core Vitest, Jhadina SHARK integration TypeScript, frozen install, and migration presence validation.
 
-Executable evidence: SHARK Intelligence Core CI run #38 completed successfully. Frozen install, SHARK type-check, 37 core test files / 147 tests, Jhadina SHARK integration type-check, the app-level persistence soak, and migration validation all passed.
+Executable evidence: SHARK Intelligence Core CI runs #38 and #39 completed successfully. Frozen install, SHARK type-check, 37 core test files / 147 tests, Jhadina SHARK integration type-check, the app-level persistence soak, and migration validation all passed.
 
 ## Production boundary
 
-QA.17A-H is a repository readiness gate, not a production deployment. The live Jhadina Supabase project has not received the QA.16/17 migration stack during this work. Apply/verify migrations only after PR review/merge through the normal deployment path.
+QA.17A-H is a repository readiness gate, not a production deployment. PR #365 was merged by the repository owner as merge commit `2a3fdec97a1995bd37cedfd9fead3c0b2d8400e2`. The live Jhadina Supabase project has not received the QA.16/17 migration stack during this work. Apply and verify those migrations through the controlled production deployment path.
