@@ -1,69 +1,42 @@
 import { describe, expect, it } from "vitest";
 import {
-  GovernedAssetRegistry,
-  InMemoryIntelligenceAssetStore,
-} from "@jhadina/intelligence-core";
-import {
   DirectUploadRuntime,
   type DirectUploadSessionStore,
 } from "./production-direct-upload-runtime";
 import type { DirectUploadSession } from "./supabase-direct-upload-session-repository";
 
-function sessionStore(): DirectUploadSessionStore & { current?: DirectUploadSession; rejected?: string } {
+function sessionStore(): DirectUploadSessionStore & { current?: DirectUploadSession } {
   const store:any = {
     current: undefined,
     async create(input:any) {
-      const now = "2026-09-19T00:00:00Z";
+      const now = "2026-09-20T06:00:00Z";
       store.current = {
         ...input,
         status: "issued",
+        finalizeAvailableAt: now,
+        finalizeAttempt: 0,
+        finalizeMaxAttempts: 4,
+        cleanupStatus: "none",
+        cleanupAvailableAt: now,
+        cleanupAttempt: 0,
         createdAt: now,
         updatedAt: now,
       };
       return store.current;
     },
     async get(actorId:string, id:string) {
-      return store.current?.actorId === actorId && store.current?.id === id ? store.current : undefined;
+      return store.current?.actorId === actorId && store.current?.id === id
+        ? store.current
+        : undefined;
     },
-    async claimFinalize(input:any) {
-      if (!store.current || store.current.status !== "issued") return undefined;
+    async requestFinalize(input:any) {
+      if (!store.current) return undefined;
       store.current = {
         ...store.current,
-        finalizeLeaseOwner: input.workerId,
-        finalizeLeaseToken: "lease-token",
-        finalizeLeaseExpiresAt: "2026-09-19T01:00:00Z",
-      };
-      return store.current;
-    },
-    async renewFinalizeLease() { return store.current; },
-    async recordScan(input:any) {
-      store.current = { ...store.current, scanSha256: input.sha256, scanAt: input.scannedAt };
-      return store.current;
-    },
-    async complete(input:any) {
-      store.current = {
-        ...store.current,
-        status: "finalized",
-        assetId: input.assetId,
-        perceptionJobId: input.perceptionJobId,
-        finalizeLeaseOwner: undefined,
-        finalizeLeaseToken: undefined,
-        finalizeLeaseExpiresAt: undefined,
-      };
-      return store.current;
-    },
-    async reject(input:any) {
-      store.rejected = input.error;
-      store.current = { ...store.current, status: "rejected", lastError: input.error };
-      return store.current;
-    },
-    async release(input:any) {
-      store.current = {
-        ...store.current,
-        lastError: input.error,
-        finalizeLeaseOwner: undefined,
-        finalizeLeaseToken: undefined,
-        finalizeLeaseExpiresAt: undefined,
+        status: "finalize_queued",
+        finalizeRequestedAt: "2026-09-20T06:01:00Z",
+        finalizeAvailableAt: "2026-09-20T06:01:00Z",
+        finalizeMaxAttempts: input.maxAttempts,
       };
       return store.current;
     },
@@ -71,34 +44,10 @@ function sessionStore(): DirectUploadSessionStore & { current?: DirectUploadSess
   return store;
 }
 
-function jobs() {
-  let job:any;
-  return {
-    async enqueue(input:any) {
-      job = {
-        id: input.id,
-        actorId: input.actorId,
-        assetId: input.assetId,
-        status: "queued",
-        attempt: 0,
-        maxAttempts: input.maxAttempts,
-        availableAt: "2026-09-19T00:00:00Z",
-        createdAt: "2026-09-19T00:00:00Z",
-        updatedAt: "2026-09-19T00:00:00Z",
-      };
-      return job;
-    },
-    async get(actorId:string,id:string) {
-      return job?.actorId === actorId && job?.id === id ? job : undefined;
-    },
-  } as any;
-}
-
 describe("DirectUploadRuntime", () => {
-  it("issues an actor-scoped resumable upload session without receiving file bytes", async () => {
+  it("issues an actor-scoped resumable session without receiving file bytes", async () => {
     const sessions = sessionStore();
     const runtime = new DirectUploadRuntime(
-      { async scan(){throw new Error("not called")} },
       sessions,
       {
         async issue(input) {
@@ -109,15 +58,11 @@ describe("DirectUploadRuntime", () => {
             chunkSizeBytes: 6 * 1024 * 1024,
           };
         },
-        async inspect(){return undefined},
-        async scanUri(){return "signed"},
       },
-      { async promote(){return {assetRef:"trusted"}} },
-      new GovernedAssetRegistry(new InMemoryIntelligenceAssetStore()),
-      jobs(),
       "sensitive",
-      () => new Date("2026-09-19T00:00:00Z"),
+      () => new Date("2026-09-20T06:00:00Z"),
       () => "session-1",
+      4,
     );
 
     const result = await runtime.issue({
@@ -135,76 +80,72 @@ describe("DirectUploadRuntime", () => {
     expect(result.upload.resumable.chunkSizeBytes).toBe(6 * 1024 * 1024);
   });
 
-  it("finalizes only after exact stored metadata and a clean scanner result", async () => {
+  it("queues finalization instead of scanning or hashing in the request", async () => {
     const sessions = sessionStore();
-    const hash = "a".repeat(64);
-    let promoted = false;
+    let issueCalls = 0;
     const runtime = new DirectUploadRuntime(
-      {
-        async scan(input) {
-          return {
-            assetId: input.assetId,
-            sha256: hash,
-            verdict: "clean",
-            mimeType: input.mimeType,
-            sizeBytes: input.sizeBytes,
-            reasons: [],
-            scannedAt: "2026-09-19T00:01:00Z",
-          };
-        },
-      },
       sessions,
       {
         async issue(input) {
-          return { quarantinePath:`quarantine/${input.actorId}/${input.sessionId}/doc.pdf`, token:"t", tusEndpoint:"tus", chunkSizeBytes:6*1024*1024 };
+          issueCalls += 1;
+          return {
+            quarantinePath:`quarantine/${input.actorId}/${input.sessionId}/doc.pdf`,
+            token:"t",
+            tusEndpoint:"tus",
+            chunkSizeBytes:6*1024*1024,
+          };
         },
-        async inspect(path) { return { path, sizeBytes: 1234, mediaType: "application/pdf" }; },
-        async scanUri() { return "https://signed.test/doc.pdf"; },
       },
-      { async promote(){promoted=true;return {assetRef:"supabase://jhadina-intake-private/trusted/u1/session/doc.pdf"}} },
-      new GovernedAssetRegistry(new InMemoryIntelligenceAssetStore(), () => new Date("2026-09-19T00:02:00Z")),
-      jobs(),
       "sensitive",
-      () => new Date("2026-09-19T00:00:00Z"),
-      () => sessions.current ? "worker-id" : "session-id",
+      () => new Date("2026-09-20T06:00:00Z"),
+      () => "s1",
+      5,
     );
 
-    const issued = await runtime.issue({
+    await runtime.issue({
       actorId:"u1",filename:"doc.pdf",declaredMediaType:"application/pdf",
       byteLength:1234,privacyClass:"sensitive",
     });
-    const result = await runtime.finalize({actorId:"u1",sessionId:issued.session.id});
+    const result = await runtime.requestFinalize({actorId:"u1",sessionId:"s1"});
 
-    expect(promoted).toBe(true);
-    expect(result.session.status).toBe("finalized");
-    expect(result.session.scanSha256).toBe(hash);
-    expect(result.perceptionJob.status).toBe("queued");
+    expect(issueCalls).toBe(1);
+    expect(result.status).toBe("finalize_queued");
+    expect(result.finalizeMaxAttempts).toBe(5);
+    expect(result.scanSha256).toBeUndefined();
+    expect(result.assetId).toBeUndefined();
+    expect(result.perceptionJobId).toBeUndefined();
   });
 
-  it("rejects a stored object whose size differs from the issued session", async () => {
+  it("is idempotent while a finalization request is already queued", async () => {
     const sessions = sessionStore();
+    let queueCalls = 0;
+    const original = sessions.requestFinalize.bind(sessions);
+    sessions.requestFinalize = async (input) => {
+      queueCalls += 1;
+      return original(input);
+    };
     const runtime = new DirectUploadRuntime(
-      { async scan(){throw new Error("must not scan")} },
       sessions,
       {
-        async issue(input) { return { quarantinePath:`quarantine/${input.actorId}/${input.sessionId}/x.pdf`, token:"t", tusEndpoint:"tus", chunkSizeBytes:6*1024*1024 }; },
-        async inspect(path) { return { path, sizeBytes: 999, mediaType: "application/pdf" }; },
-        async scanUri(){throw new Error("must not sign")},
+        async issue(input) {
+          return {
+            quarantinePath:`quarantine/${input.actorId}/${input.sessionId}/x.pdf`,
+            token:"t",tusEndpoint:"tus",chunkSizeBytes:6*1024*1024,
+          };
+        },
       },
-      { async promote(){throw new Error("must not promote")} },
-      new GovernedAssetRegistry(new InMemoryIntelligenceAssetStore()),
-      jobs(),
       "sensitive",
-      () => new Date("2026-09-19T00:00:00Z"),
-      (() => { let n=0; return () => n++ === 0 ? "s1" : "w1"; })(),
+      () => new Date("2026-09-20T06:00:00Z"),
+      () => "s1",
     );
 
     await runtime.issue({
       actorId:"u1",filename:"x.pdf",declaredMediaType:"application/pdf",
       byteLength:1000,privacyClass:"sensitive",
     });
-    await expect(runtime.finalize({actorId:"u1",sessionId:"s1"}))
-      .rejects.toThrow("DIRECT_UPLOAD_SIZE_MISMATCH");
-    expect(sessions.rejected).toContain("DIRECT_UPLOAD_SIZE_MISMATCH");
+    await runtime.requestFinalize({actorId:"u1",sessionId:"s1"});
+    await runtime.requestFinalize({actorId:"u1",sessionId:"s1"});
+
+    expect(queueCalls).toBe(1);
   });
 });
