@@ -25,12 +25,12 @@ importers:
 
   apps/jhadina-web:
     dependencies:
-      '@jhadina/opportunity-core':
-        specifier: workspace:*
-        version: link:../../packages/opportunity-core
       '@jhadina/director-core':
         specifier: workspace:*
         version: link:../../packages/director-core
+      '@jhadina/opportunity-core':
+        specifier: workspace:*
+        version: link:../../packages/opportunity-core
       '@jhadina/shark-intelligence-core':
         specifier: workspace:*
         version: link:../../packages/shark-intelligence-core
