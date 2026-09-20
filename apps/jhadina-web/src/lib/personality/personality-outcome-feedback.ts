@@ -90,6 +90,7 @@ export async function recordPersonalityOutcomeFeedback(
   const repository = new ReasoningEventRepository(storage)
   const event = await repository.create({
     userId,
+    timestamp: observedAt,
     userMessage: content,
     observation: { raw: content, extracted: content, timestamp: observedAt },
     classification: {
