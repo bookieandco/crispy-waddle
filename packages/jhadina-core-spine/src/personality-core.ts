@@ -151,6 +151,17 @@ export function projectPersonality(
     const mergedEvidence = uniqueEvidence([...(existing?.evidence ?? []), ...evidence]);
     const mergedContradictions = uniqueEvidence([...(existing?.contradictions ?? []), ...contradictions]);
 
+    // Deterministic replay/idempotency: an already-consumed evidence set is not
+    // a new Bayesian observation. Re-running the same request or rebuilding
+    // from the same durable memories must not ratchet confidence or versions.
+    if (
+      existing &&
+      mergedEvidence.length === existing.evidence.length &&
+      mergedContradictions.length === existing.contradictions.length
+    ) {
+      continue;
+    }
+
     // Treat the pattern's confidence as the observed support for this trait.
     // Existing trait evidence becomes the prior; new evidence contributes
     // weighted pseudo-counts. This prevents a single observation from replacing
