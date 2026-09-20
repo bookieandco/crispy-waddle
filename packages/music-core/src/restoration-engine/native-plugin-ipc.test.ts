@@ -39,7 +39,7 @@ describe("native plugin IPC contract", () => {
 
   it("requires valid source and plugin hashes", () => {
     expect(() => createNativePluginIpcRequest({ ...request("discover", "CREATED"), binding: { ...binding, sourceHash: "not-a-hash" } })).toThrow(/source hash/);
-    expect(() => createNativePluginIpcRequest({ ...request("discover", "CREATED"), binding: { ...binding, plugin: { ...binding.plugin, binaryHash: "not-a-hash" } })).toThrow(/binary hash/);
+    expect(() => createNativePluginIpcRequest({ ...request("discover", "CREATED"), binding: { ...binding, plugin: { ...binding.plugin, binaryHash: "not-a-hash" } } })).toThrow(/binary hash/);
   });
 
   it("rejects sandbox path traversal", () => {
