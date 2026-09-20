@@ -4,6 +4,7 @@ import {
   type RegisterMappingInput,
   type RegisterSourceVerificationInput,
 } from './index.js';
+import { registerRefProv04Seeds } from './ref-prov-04-seed.js';
 
 const tracedReferences: readonly RegisterReferenceInput[] = [
   {
@@ -1209,6 +1210,7 @@ export function createInitialReferenceProvenanceRegistry():
   for (const verification of sourceVerifications) {
     registry.registerSourceVerification(verification);
   }
+  registerRefProv04Seeds(registry);
   for (const mapping of [...mappings, ...repositoryWideMappings]) {
     registry.registerMapping(mapping);
   }

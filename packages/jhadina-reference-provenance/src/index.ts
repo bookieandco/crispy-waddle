@@ -6,6 +6,12 @@ export const REFERENCE_PROVENANCE_SCHEMA_VERSION =
 export const REFERENCE_SOURCE_VERIFICATION_SCHEMA_VERSION =
   'REF-PROV-03' as const;
 
+export const REFERENCE_PROVIDER_CONTRACT_SCHEMA_VERSION =
+  'REF-PROV-04' as const;
+
+export const REFERENCE_ARTIFACT_PIN_SCHEMA_VERSION =
+  'REF-PROV-04' as const;
+
 export type ReferenceKind =
   | 'GITHUB_REPOSITORY'
   | 'API_DOCUMENTATION'
@@ -170,6 +176,89 @@ export type ReferenceSourceVerification = Readonly<{
   verificationHash: string;
 }>;
 
+export type ProviderContractProtocol =
+  | 'HTTP'
+  | 'JSON_RPC'
+  | 'LOCAL_HTTP'
+  | 'LOCAL_ADAPTER';
+
+export type ProviderContractVersionStrategy =
+  | 'HEADER'
+  | 'PATH'
+  | 'PROTOCOL'
+  | 'UPSTREAM_REVISION'
+  | 'PACKAGE_VERSION'
+  | 'CONTRACT_DIGEST';
+
+export type ProviderContractEndpoint = Readonly<{
+  operationId: string;
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  pathTemplate: string;
+  requiredRequestHeaders: readonly string[];
+  requiredRequestFields: readonly string[];
+  requiredResponseFields: readonly string[];
+}>;
+
+export type ProviderContractShape = Readonly<{
+  providerId: string;
+  protocol: ProviderContractProtocol;
+  baseLocator: string;
+  versionStrategy: ProviderContractVersionStrategy;
+  versionValue: string;
+  endpoints: readonly ProviderContractEndpoint[];
+}>;
+
+export type ProviderContractSnapshot = Readonly<{
+  schemaVersion:
+    typeof REFERENCE_PROVIDER_CONTRACT_SCHEMA_VERSION;
+  contractId: string;
+  referenceId: string;
+  providerId: string;
+  protocol: ProviderContractProtocol;
+  baseLocator: string;
+  versionStrategy: ProviderContractVersionStrategy;
+  versionValue: string;
+  endpoints: readonly ProviderContractEndpoint[];
+  verifiedAt: string;
+  evidence: readonly ReferenceEvidence[];
+  contractDigest: string;
+  recordHash: string;
+  authority: ReferenceAuthority;
+}>;
+
+export type ReferenceArtifactKind =
+  | 'MODEL_WEIGHTS'
+  | 'BINARY'
+  | 'WORKFLOW'
+  | 'SCHEMA'
+  | 'DATASET'
+  | 'OTHER';
+
+export type ReferenceArtifactPinStatus =
+  | 'PINNED'
+  | 'REQUIRED_UNRESOLVED'
+  | 'NOT_APPLICABLE';
+
+export type ReferenceArtifactPin = Readonly<{
+  schemaVersion: typeof REFERENCE_ARTIFACT_PIN_SCHEMA_VERSION;
+  pinId: string;
+  referenceId: string;
+  artifactId: string;
+  artifactKind: ReferenceArtifactKind;
+  status: ReferenceArtifactPinStatus;
+  locator?: string;
+  version?: string;
+  sourceRevision?: string;
+  digestAlgorithm: 'SHA256';
+  digest?: string;
+  byteLength?: number;
+  verifiedAt?: string;
+  evidence: readonly ReferenceEvidence[];
+  notes?: string;
+  pinHash: string;
+  authority: ReferenceAuthority;
+}>;
+
 export type ReferenceRegistrySnapshot = Readonly<{
   schemaVersion: typeof REFERENCE_PROVENANCE_SCHEMA_VERSION;
   sourceVerificationSchemaVersion:
@@ -177,6 +266,8 @@ export type ReferenceRegistrySnapshot = Readonly<{
   referenceIds: readonly string[];
   mappingIds: readonly string[];
   sourceVerificationIds: readonly string[];
+  providerContractIds: readonly string[];
+  artifactPinIds: readonly string[];
   generatedAt: string;
   registryHash: string;
   authority: ReferenceAuthority;
@@ -195,6 +286,16 @@ export type RegisterMappingInput = Omit<
 export type RegisterSourceVerificationInput = Omit<
   ReferenceSourceVerification,
   'schemaVersion' | 'authority' | 'verificationHash'
+>;
+
+export type RegisterProviderContractInput = Omit<
+  ProviderContractSnapshot,
+  'schemaVersion' | 'authority' | 'contractDigest' | 'recordHash'
+>;
+
+export type RegisterArtifactPinInput = Omit<
+  ReferenceArtifactPin,
+  'schemaVersion' | 'authority' | 'pinHash'
 >;
 
 function assertNonEmpty(value: string, code: string): void {
@@ -528,6 +629,227 @@ export function buildReferenceSourceVerification(
   });
 }
 
+function normalizeStringArray(
+  values: readonly string[],
+): readonly string[] {
+  return Object.freeze(
+    [...new Set(values)].sort((a, b) => a.localeCompare(b)),
+  );
+}
+
+function normalizeContractEndpoints(
+  endpoints: readonly ProviderContractEndpoint[],
+): readonly ProviderContractEndpoint[] {
+  const operationIds = new Set<string>();
+  const normalized = endpoints.map((endpoint) => {
+    assertNonEmpty(
+      endpoint.operationId,
+      'REF_PROV_CONTRACT_OPERATION_ID_REQUIRED',
+    );
+    if (operationIds.has(endpoint.operationId)) {
+      throw new Error(
+        'REF_PROV_CONTRACT_OPERATION_ID_DUPLICATE',
+      );
+    }
+    operationIds.add(endpoint.operationId);
+    if (!endpoint.pathTemplate.startsWith('/')) {
+      throw new Error('REF_PROV_CONTRACT_PATH_INVALID');
+    }
+    return Object.freeze({
+      operationId: endpoint.operationId,
+      method: endpoint.method,
+      pathTemplate: endpoint.pathTemplate,
+      requiredRequestHeaders: normalizeStringArray(
+        endpoint.requiredRequestHeaders,
+      ),
+      requiredRequestFields: normalizeStringArray(
+        endpoint.requiredRequestFields,
+      ),
+      requiredResponseFields: normalizeStringArray(
+        endpoint.requiredResponseFields,
+      ),
+    });
+  });
+  return Object.freeze(
+    normalized.sort((a, b) =>
+      a.operationId.localeCompare(b.operationId),
+    ),
+  );
+}
+
+export function providerContractShapeDigest(
+  shape: ProviderContractShape,
+): string {
+  const normalized = {
+    providerId: shape.providerId,
+    protocol: shape.protocol,
+    baseLocator: shape.baseLocator.replace(/\/$/, ''),
+    versionStrategy: shape.versionStrategy,
+    versionValue: shape.versionValue,
+    endpoints: normalizeContractEndpoints(shape.endpoints),
+  };
+  return `sha256:${hash(normalized)}`;
+}
+
+export function buildProviderContractSnapshot(
+  input: RegisterProviderContractInput,
+): ProviderContractSnapshot {
+  assertNonEmpty(input.contractId, 'REF_PROV_CONTRACT_ID_REQUIRED');
+  assertNonEmpty(
+    input.referenceId,
+    'REF_PROV_CONTRACT_REFERENCE_REQUIRED',
+  );
+  assertNonEmpty(
+    input.providerId,
+    'REF_PROV_CONTRACT_PROVIDER_REQUIRED',
+  );
+  assertAbsoluteLocator(input.baseLocator);
+  assertNonEmpty(
+    input.versionValue,
+    'REF_PROV_CONTRACT_VERSION_REQUIRED',
+  );
+  if (Number.isNaN(Date.parse(input.verifiedAt))) {
+    throw new Error('REF_PROV_CONTRACT_VERIFIED_AT_INVALID');
+  }
+  if (input.evidence.length === 0) {
+    throw new Error('REF_PROV_CONTRACT_EVIDENCE_REQUIRED');
+  }
+  assertEvidence(input.evidence, 'REF_PROV_CONTRACT');
+  if (input.endpoints.length === 0) {
+    throw new Error('REF_PROV_CONTRACT_ENDPOINT_REQUIRED');
+  }
+
+  const endpoints = normalizeContractEndpoints(input.endpoints);
+  const shape: ProviderContractShape = {
+    providerId: input.providerId,
+    protocol: input.protocol,
+    baseLocator: input.baseLocator.replace(/\/$/, ''),
+    versionStrategy: input.versionStrategy,
+    versionValue: input.versionValue,
+    endpoints,
+  };
+  const contractDigest = providerContractShapeDigest(shape);
+  const withoutHash = {
+    schemaVersion: REFERENCE_PROVIDER_CONTRACT_SCHEMA_VERSION,
+    contractId: input.contractId,
+    referenceId: input.referenceId,
+    ...shape,
+    verifiedAt: input.verifiedAt,
+    evidence: freezeEvidence(input.evidence),
+    contractDigest,
+    authority: NO_REFERENCE_AUTHORITY,
+  } as const;
+
+  return Object.freeze({
+    ...withoutHash,
+    recordHash: hash(withoutHash),
+  });
+}
+
+export function assertProviderContractCompatible(
+  expected: ProviderContractSnapshot,
+  runtime: ProviderContractShape,
+): void {
+  const actualDigest = providerContractShapeDigest(runtime);
+  if (actualDigest !== expected.contractDigest) {
+    throw new Error(
+      `REF_PROV_PROVIDER_CONTRACT_DRIFT:${expected.providerId}`,
+    );
+  }
+}
+
+export function buildReferenceArtifactPin(
+  input: RegisterArtifactPinInput,
+): ReferenceArtifactPin {
+  assertNonEmpty(input.pinId, 'REF_PROV_ARTIFACT_PIN_ID_REQUIRED');
+  assertNonEmpty(
+    input.referenceId,
+    'REF_PROV_ARTIFACT_REFERENCE_REQUIRED',
+  );
+  assertNonEmpty(
+    input.artifactId,
+    'REF_PROV_ARTIFACT_ID_REQUIRED',
+  );
+  if (input.evidence.length === 0) {
+    throw new Error('REF_PROV_ARTIFACT_EVIDENCE_REQUIRED');
+  }
+  assertEvidence(input.evidence, 'REF_PROV_ARTIFACT');
+
+  if (input.status === 'PINNED') {
+    assertAbsoluteLocator(input.locator ?? '');
+    if (!/^sha256:[0-9a-f]{64}$/.test(input.digest ?? '')) {
+      throw new Error('REF_PROV_ARTIFACT_DIGEST_REQUIRED');
+    }
+    if (
+      input.byteLength !== undefined &&
+      (!Number.isInteger(input.byteLength) ||
+        input.byteLength < 0)
+    ) {
+      throw new Error('REF_PROV_ARTIFACT_LENGTH_INVALID');
+    }
+    if (!input.verifiedAt || Number.isNaN(Date.parse(input.verifiedAt))) {
+      throw new Error('REF_PROV_ARTIFACT_VERIFIED_AT_REQUIRED');
+    }
+  } else if (
+    input.digest !== undefined ||
+    input.byteLength !== undefined ||
+    input.verifiedAt !== undefined
+  ) {
+    throw new Error(
+      'REF_PROV_UNRESOLVED_ARTIFACT_CANNOT_CLAIM_DIGEST',
+    );
+  }
+
+  const withoutHash = {
+    schemaVersion: REFERENCE_ARTIFACT_PIN_SCHEMA_VERSION,
+    pinId: input.pinId,
+    referenceId: input.referenceId,
+    artifactId: input.artifactId,
+    artifactKind: input.artifactKind,
+    status: input.status,
+    locator: input.locator,
+    version: input.version,
+    sourceRevision: input.sourceRevision,
+    digestAlgorithm: 'SHA256' as const,
+    digest: input.digest,
+    byteLength: input.byteLength,
+    verifiedAt: input.verifiedAt,
+    evidence: freezeEvidence(input.evidence),
+    notes: input.notes,
+    authority: NO_REFERENCE_AUTHORITY,
+  } as const;
+
+  return Object.freeze({
+    ...withoutHash,
+    pinHash: hash(withoutHash),
+  });
+}
+
+export function verifyArtifactBytes(
+  pin: ReferenceArtifactPin,
+  bytes: Uint8Array,
+): void {
+  if (pin.status !== 'PINNED' || !pin.digest) {
+    throw new Error('REF_PROV_ARTIFACT_NOT_PINNED');
+  }
+  const actual = `sha256:${createHash('sha256')
+    .update(bytes)
+    .digest('hex')}`;
+  if (actual !== pin.digest) {
+    throw new Error(
+      `REF_PROV_ARTIFACT_DIGEST_MISMATCH:${pin.artifactId}`,
+    );
+  }
+  if (
+    pin.byteLength !== undefined &&
+    bytes.byteLength !== pin.byteLength
+  ) {
+    throw new Error(
+      `REF_PROV_ARTIFACT_LENGTH_MISMATCH:${pin.artifactId}`,
+    );
+  }
+}
+
 export function buildReferenceRecord(
   input: RegisterReferenceInput,
 ): ReferenceRecord {
@@ -602,6 +924,14 @@ export class ReferenceProvenanceRegistry {
     string,
     ReferenceSourceVerification
   >();
+  private readonly providerContracts = new Map<
+    string,
+    ProviderContractSnapshot
+  >();
+  private readonly artifactPins = new Map<
+    string,
+    ReferenceArtifactPin
+  >();
 
   registerReference(input: RegisterReferenceInput): ReferenceRecord {
     if (this.references.has(input.referenceId)) {
@@ -635,6 +965,36 @@ export class ReferenceProvenanceRegistry {
     return verification;
   }
 
+  registerProviderContract(
+    input: RegisterProviderContractInput,
+  ): ProviderContractSnapshot {
+    if (this.providerContracts.has(input.contractId)) {
+      throw new Error(
+        'REF_PROV_PROVIDER_CONTRACT_ALREADY_REGISTERED',
+      );
+    }
+    if (!this.references.has(input.referenceId)) {
+      throw new Error('REF_PROV_REFERENCE_NOT_REGISTERED');
+    }
+    const contract = buildProviderContractSnapshot(input);
+    this.providerContracts.set(contract.contractId, contract);
+    return contract;
+  }
+
+  registerArtifactPin(
+    input: RegisterArtifactPinInput,
+  ): ReferenceArtifactPin {
+    if (this.artifactPins.has(input.pinId)) {
+      throw new Error('REF_PROV_ARTIFACT_PIN_ALREADY_REGISTERED');
+    }
+    if (!this.references.has(input.referenceId)) {
+      throw new Error('REF_PROV_REFERENCE_NOT_REGISTERED');
+    }
+    const pin = buildReferenceArtifactPin(input);
+    this.artifactPins.set(pin.pinId, pin);
+    return pin;
+  }
+
   registerMapping(
     input: RegisterMappingInput,
   ): ReferenceImplementationMapping {
@@ -662,6 +1022,18 @@ export class ReferenceProvenanceRegistry {
     mappingId: string,
   ): ReferenceImplementationMapping | undefined {
     return this.mappings.get(mappingId);
+  }
+
+  getProviderContract(
+    contractId: string,
+  ): ProviderContractSnapshot | undefined {
+    return this.providerContracts.get(contractId);
+  }
+
+  getArtifactPin(
+    pinId: string,
+  ): ReferenceArtifactPin | undefined {
+    return this.artifactPins.get(pinId);
   }
 
   getSourceVerificationById(
@@ -718,6 +1090,23 @@ export class ReferenceProvenanceRegistry {
     );
   }
 
+  listProviderContracts():
+    readonly ProviderContractSnapshot[] {
+    return Object.freeze(
+      [...this.providerContracts.values()].sort((a, b) =>
+        a.contractId.localeCompare(b.contractId),
+      ),
+    );
+  }
+
+  listArtifactPins(): readonly ReferenceArtifactPin[] {
+    return Object.freeze(
+      [...this.artifactPins.values()].sort((a, b) =>
+        a.pinId.localeCompare(b.pinId),
+      ),
+    );
+  }
+
   mappingsForReference(
     referenceId: string,
   ): readonly ReferenceImplementationMapping[] {
@@ -758,6 +1147,20 @@ export class ReferenceProvenanceRegistry {
         throw new Error('REF_PROV_SOURCE_VERIFICATION_ORPHANED');
       }
       assertSourceVerificationInput(verification, reference);
+    }
+
+    for (const contract of this.providerContracts.values()) {
+      if (!this.references.has(contract.referenceId)) {
+        throw new Error('REF_PROV_PROVIDER_CONTRACT_ORPHANED');
+      }
+      buildProviderContractSnapshot(contract);
+    }
+
+    for (const pin of this.artifactPins.values()) {
+      if (!this.references.has(pin.referenceId)) {
+        throw new Error('REF_PROV_ARTIFACT_PIN_ORPHANED');
+      }
+      buildReferenceArtifactPin(pin);
     }
 
     for (const mapping of this.mappings.values()) {
@@ -802,6 +1205,12 @@ export class ReferenceProvenanceRegistry {
       this.listSourceVerifications().map(
         (verification) => verification.verificationId,
       );
+    const providerContractIds = this.listProviderContracts().map(
+      (contract) => contract.contractId,
+    );
+    const artifactPinIds = this.listArtifactPins().map(
+      (pin) => pin.pinId,
+    );
     const registryHash = hash({
       schemaVersion: REFERENCE_PROVENANCE_SCHEMA_VERSION,
       sourceVerificationSchemaVersion:
@@ -816,6 +1225,12 @@ export class ReferenceProvenanceRegistry {
         this.listSourceVerifications().map(
           (verification) => verification.verificationHash,
         ),
+      providerContractHashes: this.listProviderContracts().map(
+        (contract) => contract.recordHash,
+      ),
+      artifactPinHashes: this.listArtifactPins().map(
+        (pin) => pin.pinHash,
+      ),
     });
 
     return Object.freeze({
@@ -825,6 +1240,8 @@ export class ReferenceProvenanceRegistry {
       referenceIds: Object.freeze(referenceIds),
       mappingIds: Object.freeze(mappingIds),
       sourceVerificationIds: Object.freeze(sourceVerificationIds),
+      providerContractIds: Object.freeze(providerContractIds),
+      artifactPinIds: Object.freeze(artifactPinIds),
       generatedAt,
       registryHash,
       authority: NO_REFERENCE_AUTHORITY,
@@ -853,3 +1270,12 @@ export {
   SOURCE_VERIFICATION_REPORT_SCHEMA_VERSION,
   buildReferenceSourceVerificationReport,
 } from './source-verification-report.js';
+
+export type {
+  ProviderArtifactCoverageReport,
+} from './provider-artifact-report.js';
+export {
+  PROVIDER_ARTIFACT_REPORT_SCHEMA_VERSION,
+  buildProviderArtifactCoverageReport,
+  unresolvedArtifactPins,
+} from './provider-artifact-report.js';
