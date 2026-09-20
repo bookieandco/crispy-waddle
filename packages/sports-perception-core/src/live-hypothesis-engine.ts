@@ -1,0 +1,2 @@
+import type { TacticalPattern } from './tactical-pattern-engine.js';export interface LiveHypothesis{hypothesisId:string;patternId:string;statement:string;status:'OPEN'|'SUPPORTED'|'CONTRADICTED'|'INCONCLUSIVE';confidence:number;evidenceIds:readonly string[];}
+export function hypothesisFromPattern(p:TacticalPattern):LiveHypothesis{return Object.freeze({hypothesisId:`hypothesis:${p.patternId}`,patternId:p.patternId,statement:`Pattern may persist: ${p.description}`,status:'OPEN',confidence:p.confidence,evidenceIds:Object.freeze([...p.evidenceIds])});}
