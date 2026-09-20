@@ -1,11 +1,11 @@
 import {
   AnthropicProviderAdapter, CapabilityAwareModelRouter, CanonicalIntelligenceContextCompiler,
   CriticVerificationPipeline, DEFAULT_MODEL_REGISTRY, DeterministicTaskClassifier,
-  DurableInferenceLedger, EvidenceBoundProposalVerifier, InMemoryInferenceLedgerSink,
+  DurableInferenceLedger, EvidenceBoundProposalVerifier,
   IntelligenceFabric, RegistryBackedModelProvider,
   type IntelligenceTaskClassificationInput,
 } from "@jhadina/intelligence-core"
-import type { ContextPacket, DecisionProposal } from "@jhadina/core-spine"
+import type { ContextPacket, DecisionProposal } from "@jhadina/core-spine"\nimport type { ActionLedger } from "@jhadina/action-core"\nimport { ActionAuditInferenceLedgerSink } from "./durable-inference-ledger"
 
 const classifier=new DeterministicTaskClassifier()
 const inferenceSink=new InMemoryInferenceLedgerSink()
@@ -15,7 +15,7 @@ export interface ProductionIntelligenceFabric {
  decide(input:IntelligenceTaskClassificationInput,context:ContextPacket):Promise<DecisionProposal>
 }
 
-export function createProductionIntelligenceFabric():ProductionIntelligenceFabric{
+export function createProductionIntelligenceFabric(input:{ledger:ActionLedger;actorId:string}):ProductionIntelligenceFabric{\n const inferenceLedger=new DurableInferenceLedger(new ActionAuditInferenceLedgerSink(input.ledger,input.actorId))
  const anthropic=new RegistryBackedModelProvider({
   modelId:"anthropic.reasoning.default",registry:DEFAULT_MODEL_REGISTRY,adapter:new AnthropicProviderAdapter(),
  })
