@@ -25,3 +25,27 @@ describe("governed observation runtime", () => {
     expect(serialized).toContain("observation.shodan.host.read")
   })
 })
+
+
+  it("uses verified session identity when no caller identity assertion is supplied", async () => {
+    const ledger = new InMemoryActionLedger()
+    const result = await observeShodanGoverned({ observationId: "obs-session", subjectId: "203.0.113.9", capability: "internetdb.read" }, {
+      identityVerifier: { async verify(request) { expect(request?.userId).toBeUndefined(); return { userId: "session-user", sessionId: "s2" } } } as any,
+      ledger: ledger as any,
+      now: () => "2026-09-20T00:00:00.000Z",
+      http: async () => ({ ok: true, status: 200, async json() { return {} } }),
+    })
+    expect(result.verifiedUserId).toBe("session-user")
+    expect(ledger.list()[0]?.userId).toBe("session-user")
+  })
+
+  it("fails before network access when a caller identity assertion mismatches the verified session", async () => {
+    let networkCalls = 0
+    await expect(observeShodanGoverned({ claimedUserId: "forged-user", observationId: "obs-mismatch", subjectId: "203.0.113.9", capability: "internetdb.read" }, {
+      identityVerifier: { async verify() { throw new Error("Action identity mismatch") } } as any,
+      ledger: new InMemoryActionLedger() as any,
+      now: () => "2026-09-20T00:00:00.000Z",
+      http: async () => { networkCalls++; return { ok: true, status: 200, async json() { return {} } } },
+    })).rejects.toThrow(/identity mismatch/i)
+    expect(networkCalls).toBe(0)
+  })
