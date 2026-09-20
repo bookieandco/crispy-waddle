@@ -11,3 +11,4 @@ export * from './opportunity-builder.js';
 export * from './project-executor.js';
 export * from './production-operator.js';
 export * from './builder-intelligence.js';
+export * from './builder-final-acceptance.js';
