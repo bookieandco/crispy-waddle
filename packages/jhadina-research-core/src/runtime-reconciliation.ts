@@ -14,6 +14,8 @@ export interface PersistedResearchPlanTask {
   cost?: number;
   risk?: number;
   authorizationClass?: ResearchAuthorizationClass;
+  state?: ResearchTask["state"];
+  evidenceIds?: string[];
   estimatedDurationMs?: number;
 }
 
@@ -38,11 +40,8 @@ function budgetNumber(budget: Record<string, unknown>, ...keys: string[]): numbe
 }
 
 /**
- * K-1.4.6G canonical bridge.
- *
- * Persisted ResearchPlan is the durable plan contract. ResearchQueue is its
- * application/runtime projection; it is not a second source of authority.
- * Policy/admission must occur before this projection is executed.
+ * Persisted ResearchPlan is durable truth. ResearchQueue is only the runtime
+ * projection and never a second source of authority.
  */
 export function researchPlanToQueue(plan: PersistedResearchPlan): ResearchQueue {
   if (!plan.id || !plan.intentId) throw new Error("Research plan identity is required");
@@ -54,12 +53,11 @@ export function researchPlanToQueue(plan: PersistedResearchPlan): ResearchQueue 
   const maxCost = budgetNumber(plan.budget, "maxCost", "max_cost");
   const maxRisk = budgetNumber(plan.budget, "maxRisk", "max_risk");
 
-  // Missing persisted limits fail closed. They do not become infinity.
   const budget: ResearchBudget = {
     maxCost: maxCost ?? 0,
     maxRisk: maxRisk ?? 0,
-    spentCost: 0,
-    accruedRisk: 0,
+    spentCost: budgetNumber(plan.budget, "spentCost", "spent_cost") ?? 0,
+    accruedRisk: budgetNumber(plan.budget, "accruedRisk", "accrued_risk") ?? 0,
   };
 
   const tasks: ResearchTask[] = plan.tasks.map((task) => ({
@@ -71,8 +69,8 @@ export function researchPlanToQueue(plan: PersistedResearchPlan): ResearchQueue 
     cost: numberOr(task.cost, 0),
     risk: numberOr(task.risk, 0),
     authorizationClass: task.authorizationClass ?? "analysis",
-    state: "ready",
-    evidenceIds: [],
+    state: task.state ?? "ready",
+    evidenceIds: task.evidenceIds ?? [],
     estimatedDurationMs: task.estimatedDurationMs,
   }));
 
@@ -94,10 +92,7 @@ export interface ResearchRuntimeAdmission {
   expiresAt: string;
 }
 
-/**
- * Execution code must carry admission separately from the queue. A queue alone
- * can never be interpreted as permission to execute.
- */
+/** A queue is not permission. Execution requires an unexpired bound lease. */
 export function assertResearchRuntimeAdmission(
   queue: ResearchQueue,
   admission: ResearchRuntimeAdmission,
