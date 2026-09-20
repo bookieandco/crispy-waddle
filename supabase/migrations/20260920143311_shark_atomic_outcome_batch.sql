@@ -18,6 +18,7 @@ declare
   v_evidence text[];
   v_reasons text[];
   v_evaluated_at timestamptz;
+  v_outcome_observed_at timestamptz;
 begin
   if jsonb_typeof(coalesce(p_evaluations, '[]'::jsonb)) <> 'array'
      or jsonb_typeof(coalesce(p_actor_histories, '[]'::jsonb)) <> 'array' then
@@ -28,6 +29,10 @@ begin
     select value from jsonb_array_elements(coalesce(p_evaluations, '[]'::jsonb))
   loop
     v_evaluated_at := (v_evaluation->>'evaluated_at')::timestamptz;
+    v_outcome_observed_at := coalesce(
+      nullif(v_evaluation->>'outcome_observed_at', '')::timestamptz,
+      v_evaluated_at
+    );
     v_evidence := coalesce(
       array(select jsonb_array_elements_text(coalesce(v_evaluation->'evidence_ids', '[]'::jsonb))),
       '{}'::text[]
@@ -56,14 +61,14 @@ begin
     if (v_evaluation->>'evaluated_outcome') <> 'UNKNOWN' then
       update public.jhadina_token_launches l
          set outcome = v_evaluation->>'evaluated_outcome',
-             outcome_observed_at = v_evaluated_at,
+             outcome_observed_at = v_outcome_observed_at,
              evidence_ids = (
                select coalesce(array_agg(distinct evidence_id), '{}'::text[])
                from unnest(coalesce(l.evidence_ids, '{}'::text[]) || v_evidence) evidence_id
              ),
              updated_at = now()
        where l.launch_id = v_evaluation->>'launch_id'
-         and (l.outcome_observed_at is null or v_evaluated_at >= l.outcome_observed_at);
+         and (l.outcome_observed_at is null or v_outcome_observed_at >= l.outcome_observed_at);
     end if;
   end loop;
 
