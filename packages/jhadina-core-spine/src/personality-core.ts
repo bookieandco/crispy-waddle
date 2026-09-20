@@ -193,9 +193,11 @@ export function projectPersonality(
     }
   }
 
-  const independentAssessmentRequired = nextTraits.some(
-    (trait) => trait.status === 'contested' || (trait.dimension === 'opinion' && trait.confidence < 0.8),
-  );
+  const independentAssessmentRequired = nextTraits.length === 0
+    ? current.independentAssessmentRequired
+    : nextTraits.some(
+        (trait) => trait.status === 'contested' || (trait.dimension === 'opinion' && trait.confidence < 0.8),
+      );
 
   if (!changed && independentAssessmentRequired === current.independentAssessmentRequired) return current;
 
