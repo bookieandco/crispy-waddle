@@ -62,12 +62,16 @@ export class GamingInputPipeline {
     const delivery=this.delivery.transition(event.inputId,'acknowledged',Math.max(Date.now(),acknowledgement.deliveredAtMs));
     return{...integrity,transported:true,acknowledgement,controllerGate,resync,delivery};
   }
-  disconnect(sessionId:string,deviceId:string):void{
+  async disconnect(sessionId:string,deviceId:string):Promise<void>{
     this.generation++;
     const nowMs=Date.now();
-    for(const inputId of this.active){const snapshot=this.delivery.get(inputId);if(snapshot&&snapshot.sessionId===sessionId&&snapshot.deviceId===deviceId)this.delivery.markDisconnect(inputId,nowMs);}
+    for(const inputId of this.active){
+      const snapshot=this.delivery.get(inputId);
+      if(snapshot&&snapshot.sessionId===sessionId&&snapshot.deviceId===deviceId)this.delivery.markDisconnect(inputId,nowMs);
+    }
     this.controllerGate.clearHealth(deviceId);
     this.resync.disconnect(sessionId,deviceId);
+    await this.transport.disconnect();
   }
   deliveryState(inputId:string):GamingInputDeliverySnapshot|undefined{return this.delivery.get(inputId);}
   private cancelledResult(event:InputIntegrityEvent,controllerGate?:ControllerInputGateResult,resync:GamingInputResyncResult={allowed:false,reason:'not-resynchronized'}):GamingInputPipelineResult{
