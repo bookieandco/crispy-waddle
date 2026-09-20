@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { encodeTusMetadata, createUniversalUploadTask } from "./universal-upload-client";
+import {
+  encodeTusMetadata,
+  createUniversalUploadTask,
+  effectiveUploadMediaType,
+} from "./universal-upload-client";
+
+describe("effectiveUploadMediaType", () => {
+  it("infers supported MIME when a browser leaves File.type empty", () => {
+    expect(effectiveUploadMediaType({ name: "notes.md", type: "" })).toBe("text/markdown");
+    expect(effectiveUploadMediaType({ name: "fight.MOV", type: "" })).toBe("video/quicktime");
+    expect(effectiveUploadMediaType({ name: "unknown.bin", type: "" })).toBe("");
+  });
+});
 
 describe("encodeTusMetadata", () => {
   it("encodes UTF-8 TUS metadata values", () => {
@@ -16,6 +28,7 @@ describe("createUniversalUploadTask", () => {
       lastModified: 1,
     }) as File;
     let offset = 0;
+    let patchAttempts = 0;
     const calls:string[] = [];
     const fetchImpl:any = async (url:string, init:any = {}) => {
       calls.push(`${init.method ?? "GET"} ${url}`);
@@ -38,6 +51,8 @@ describe("createUniversalUploadTask", () => {
         return new Response(null, { status:200, headers:{"Upload-Offset":String(offset)} });
       }
       if (url === "https://upload.test/u1" && init.method === "PATCH") {
+        patchAttempts += 1;
+        if (patchAttempts === 1) return new Response(null, { status:503 });
         offset += (init.body as Blob).size;
         return new Response(null, { status:204, headers:{"Upload-Offset":String(offset)} });
       }
@@ -60,6 +75,7 @@ describe("createUniversalUploadTask", () => {
     expect(task.direct).toBe(true);
     expect(result.status).toBe("completed");
     expect(offset).toBe(file.size);
+    expect(patchAttempts).toBeGreaterThan(2);
     expect(calls.some((call)=>call.startsWith("PATCH https://upload.test/u1"))).toBe(true);
   });
 });
