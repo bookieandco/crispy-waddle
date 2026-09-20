@@ -21,6 +21,24 @@ as $$
     'storage', jsonb_build_object(
       'intakeBucket', exists(
         select 1 from storage.buckets where id = 'jhadina-intake-private'
+      ),
+      'private', exists(
+        select 1 from storage.buckets
+         where id = 'jhadina-intake-private' and public = false
+      ),
+      'fileSizeLimit', coalesce((
+        select file_size_limit from storage.buckets
+         where id = 'jhadina-intake-private'
+      ), 0),
+      'mimePolicy', exists(
+        select 1 from storage.buckets
+         where id = 'jhadina-intake-private'
+           and allowed_mime_types @> array[
+             'video/mp4',
+             'audio/mpeg',
+             'application/pdf',
+             'image/jpeg'
+           ]::text[]
       )
     ),
     'functions', jsonb_build_object(
