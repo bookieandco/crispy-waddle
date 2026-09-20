@@ -212,7 +212,7 @@ begin
   where l.plan_id=p_plan_id and l.evidence_id=any(p_evidence_ids);
   if v_linked <> v_expected then return null; end if;
 
-  v_hash:=encode(digest(
+  v_hash:=encode(extensions.digest(
     jsonb_build_object(
       'planId',p_plan_id,'eventId',p_execution_event_id,'subject',p_subject,'claim',p_claim,
       'predicate',p_predicate,'object',coalesce(p_object_json,'{}'::jsonb),'evidence',to_jsonb(p_evidence_ids)
