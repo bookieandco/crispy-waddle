@@ -3,8 +3,9 @@ import type {
   SpatialWorkspaceRevision,
   SpatialWorkspaceStore,
 } from '@jhadina/spatial-intelligence-core'
-import { assertSpatialWorkspaceRevision } from '@jhadina/spatial-intelligence-core'
+import { assertSpatialWorkspaceRevision, emitSpatialTelemetry, spatialTelemetryErrorCode, type SpatialTelemetrySink } from '@jhadina/spatial-intelligence-core'
 import { createServiceRoleClient } from '../supabase/service-role'
+import { spatialProductionTelemetry } from './spatial-production-telemetry'
 
 type WorkspaceRow = {
   revision_id: string
@@ -24,8 +25,9 @@ const fromRow = (row: WorkspaceRow): SpatialWorkspaceRevision => ({
   snapshot: row.snapshot,
 })
 
-export function createSupabaseSpatialWorkspaceStore(): SpatialWorkspaceStore | undefined {
+export function createSupabaseSpatialWorkspaceStore(options: { telemetry?: SpatialTelemetrySink } = {}): SpatialWorkspaceStore | undefined {
   const client = createServiceRoleClient()
+  const telemetry = options.telemetry ?? spatialProductionTelemetry
   if (!client) return undefined
 
   return {
@@ -82,7 +84,14 @@ export function createSupabaseSpatialWorkspaceStore(): SpatialWorkspaceStore | u
     },
 
     async atOrBefore(workspaceId, ownerId, timestamp) {
-      if (Number.isNaN(Date.parse(timestamp))) throw new Error('SPATIAL_WORKSPACE_REPLAY_TIMESTAMP_INVALID')
+      const at = new Date().toISOString()
+      if (Number.isNaN(Date.parse(timestamp))) {
+        emitSpatialTelemetry(telemetry, {
+          kind: 'workspace_replay', component: 'spatial-workspace-store', status: 'failed', at,
+          details: { errorCode: 'SPATIAL_WORKSPACE_REPLAY_TIMESTAMP_INVALID' },
+        })
+        throw new Error('SPATIAL_WORKSPACE_REPLAY_TIMESTAMP_INVALID')
+      }
       const { data, error } = await client
         .from('jhadina_spatial_workspace_revisions')
         .select('revision_id,workspace_id,owner_id,captured_at,reason,snapshot')
@@ -93,7 +102,18 @@ export function createSupabaseSpatialWorkspaceStore(): SpatialWorkspaceStore | u
         .order('revision_id', { ascending: false })
         .limit(1)
         .maybeSingle()
-      if (error) throw new Error(`SPATIAL_WORKSPACE_REPLAY_FAILED:${error.message}`)
+      if (error) {
+        const replayError = new Error(`SPATIAL_WORKSPACE_REPLAY_FAILED:${error.message}`)
+        emitSpatialTelemetry(telemetry, {
+          kind: 'workspace_replay', component: 'spatial-workspace-store', status: 'failed', at,
+          details: { errorCode: spatialTelemetryErrorCode(replayError) },
+        })
+        throw replayError
+      }
+      emitSpatialTelemetry(telemetry, {
+        kind: 'workspace_replay', component: 'spatial-workspace-store', status: data ? 'replayed' : 'miss', at,
+        details: { asOf: timestamp, revisionFound: Boolean(data), revisionId: data?.revision_id ?? null },
+      })
       return data ? fromRow(data as WorkspaceRow) : undefined
     },
   }

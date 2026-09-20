@@ -1,4 +1,5 @@
 import { createGevSourcePolicyRegistry, type SpatialSourcePolicyRegistry, type SpatialUsePurpose } from './source-policy.js'
+import { emitSpatialTelemetry, type SpatialTelemetrySink } from './spatial-telemetry.js'
 
 export type GevFetchResponse = {
   ok: boolean
@@ -14,6 +15,8 @@ export type GevProviderBridgeOptions = {
   fetchImpl?: GevFetchLike
   timeoutMs?: number
   policyRegistry?: SpatialSourcePolicyRegistry
+  telemetry?: SpatialTelemetrySink
+  now?: () => string
 }
 
 export type GevCctvSource = {
@@ -86,6 +89,8 @@ export class GevProviderBridge {
   private readonly fetchImpl: GevFetchLike
   private readonly timeoutMs: number
   private readonly policyRegistry: SpatialSourcePolicyRegistry
+  private readonly telemetry?: SpatialTelemetrySink
+  private readonly now: () => string
 
   constructor(options: GevProviderBridgeOptions) {
     this.baseUrl = assertBaseUrl(options.baseUrl)
@@ -93,11 +98,22 @@ export class GevProviderBridge {
     this.timeoutMs = options.timeoutMs ?? 12_000
     if (!Number.isFinite(this.timeoutMs) || this.timeoutMs <= 0 || this.timeoutMs > 60_000) throw new Error('GEV_BRIDGE_TIMEOUT_INVALID')
     this.policyRegistry = options.policyRegistry ?? createGevSourcePolicyRegistry()
+    this.telemetry = options.telemetry
+    this.now = options.now ?? (() => new Date().toISOString())
   }
 
   private assertPurpose(sourceId: string, purpose: SpatialUsePurpose): void {
     const decision = this.policyRegistry.decide(sourceId, purpose)
-    if (!decision.allowed) throw new Error(`GEV_SOURCE_USE_NOT_ALLOWED:${sourceId}:${purpose}:${decision.disposition}`)
+    if (!decision.allowed) {
+      emitSpatialTelemetry(this.telemetry, {
+        kind: 'policy_denial',
+        component: 'gev-provider-bridge',
+        status: 'denied',
+        at: this.now(),
+        details: { sourceId, purpose, disposition: decision.disposition },
+      })
+      throw new Error(`GEV_SOURCE_USE_NOT_ALLOWED:${sourceId}:${purpose}:${decision.disposition}`)
+    }
   }
 
   private async request(path: string): Promise<GevFetchResponse> {

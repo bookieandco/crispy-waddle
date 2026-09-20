@@ -13,6 +13,7 @@ import { evaluateSpatialRealityAdmission } from './reality-admission.js'
 import { InMemorySpatialEvidenceStore } from './evidence-store.js'
 import { createSpatialRealityAdmissionReadProvider } from './spatial-reality-admission-read-provider.js'
 import { InMemorySpatialRealityStore } from './reality.js'
+import type { SpatialTelemetryEvent } from './spatial-telemetry.js'
 
 const response = (body: unknown, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -70,9 +71,11 @@ test('GEV P4 query planning selects source domains rather than always fetching t
 })
 
 test('GEV P4 live read provider produces evidence but cannot self-admit claims or reality', async () => {
-  const bridge = new GevProviderBridge({ baseUrl: 'https://gev.example', fetchImpl: liveFetch() })
+  const telemetry: SpatialTelemetryEvent[] = []
+  const sink = { record: (event: SpatialTelemetryEvent) => telemetry.push(event) }
+  const bridge = new GevProviderBridge({ baseUrl: 'https://gev.example', fetchImpl: liveFetch(), telemetry: sink, now: () => '2026-09-19T20:00:00Z' })
   const evidenceStore = new InMemorySpatialEvidenceStore()
-  const provider = createGevSpatialContextReadProvider({ bridge, evidenceStore, now: () => '2026-09-19T20:00:00Z' })
+  const provider = createGevSpatialContextReadProvider({ bridge, evidenceStore, telemetry: sink, now: () => '2026-09-19T20:00:00Z' })
   const plan = planSpatialQuery({
     queryId: 'q-e2e',
     kind: 'OBSERVE',
@@ -100,18 +103,23 @@ test('GEV P4 live read provider produces evidence but cannot self-admit claims o
   assert.equal(cameraEvidence?.payload.attributes.healthStatus, 'degraded')
   assert.equal(cameraEvidence?.payload.attributes.fallbackActive, true)
   assert.equal(cameraEvidence?.payload.attributes.timestampSemantics, 'provider-health-updated-at')
+  assert.ok(telemetry.some((event) => event.kind === 'provider_health' && event.status === 'ok'))
+  assert.ok(telemetry.some((event) => event.kind === 'evidence_write' && event.status === 'ok'))
 })
 
 
 test('GEV PROD.4 governed admission composes persisted evidence into explicit Reality without a raw-observation bypass', async () => {
-  const bridge = new GevProviderBridge({ baseUrl: 'https://gev.example', fetchImpl: liveFetch() })
+  const telemetry: SpatialTelemetryEvent[] = []
+  const sink = { record: (event: SpatialTelemetryEvent) => telemetry.push(event) }
+  const bridge = new GevProviderBridge({ baseUrl: 'https://gev.example', fetchImpl: liveFetch(), telemetry: sink, now: () => '2026-09-19T20:00:00Z' })
   const evidenceStore = new InMemorySpatialEvidenceStore()
   const realityStore = new InMemorySpatialRealityStore()
-  const evidenceRead = createGevSpatialContextReadProvider({ bridge, evidenceStore, now: () => '2026-09-19T20:00:00Z' })
+  const evidenceRead = createGevSpatialContextReadProvider({ bridge, evidenceStore, telemetry: sink, now: () => '2026-09-19T20:00:00Z' })
   const provider = createSpatialRealityAdmissionReadProvider({
     read: evidenceRead,
     evidenceStore,
     realityStore,
+    telemetry: sink,
     now: () => '2026-09-19T20:00:01Z',
   })
   const plan = planSpatialQuery({
@@ -136,6 +144,8 @@ test('GEV PROD.4 governed admission composes persisted evidence into explicit Re
   assert.equal(cameraAdmissions[0].decision, 'DEFER')
   assert.ok(cameraAdmissions[0].rationale.includes('SPATIAL_REALITY_NON_FALLBACK_EVIDENCE_REQUIRED'))
   assert.ok(!context?.reality.some((item) => item.summary.includes('cam-near')))
+  assert.ok(telemetry.some((event) => event.kind === 'reality_admission' && event.status === 'accepted'))
+  assert.ok(telemetry.some((event) => event.kind === 'reality_admission' && event.status === 'deferred'))
 })
 
 test('GEV P5 workspace history is append-only and supports deterministic replay at a timestamp', async () => {
@@ -193,6 +203,24 @@ test('GEV P8 cross-subsystem projections stay intelligence-only', () => {
   assert.ok(money.prohibitedUses.includes('trade-execution'))
   assert.ok(safety.prohibitedUses.includes('face-recognition'))
   assert.deepEqual(money.reality.map((item) => item.id), ['r1'])
+})
+
+test('GEV PROD.8 policy denials emit structured telemetry without calling an upstream source', async () => {
+  const telemetry: SpatialTelemetryEvent[] = []
+  const sink = { record: (event: SpatialTelemetryEvent) => telemetry.push(event) }
+  let upstreamCalls = 0
+  const bridge = new GevProviderBridge({
+    baseUrl: 'https://gev.example',
+    fetchImpl: async () => { upstreamCalls += 1; return response({}) },
+    telemetry: sink,
+    now: () => '2026-09-19T20:00:00Z',
+  })
+  await assert.rejects(() => bridge.cctvSources('model-input'), /GEV_SOURCE_USE_NOT_ALLOWED/)
+  assert.equal(upstreamCalls, 0)
+  assert.deepEqual(
+    telemetry.filter((event) => event.kind === 'policy_denial').map((event) => event.status),
+    ['denied'],
+  )
 })
 
 test('GEV P9 camera model input fails closed under aggregate CCTV policy', async () => {

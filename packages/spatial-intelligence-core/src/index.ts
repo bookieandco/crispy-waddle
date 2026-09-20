@@ -22,3 +22,4 @@ export * from './spatial-role-composition.js';
 export * from './spatial-consumer-adapters.js';
 export * from './spatial-perception.js';
 export * from './safety-context-reader.js';
+export * from './spatial-telemetry.js';

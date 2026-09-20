@@ -9,6 +9,7 @@ import type { SpatialContextPackage, SpatialContextReadProvider } from './integr
 import type { SpatialQueryPlan } from './spatial-pipeline.js'
 import type { EvidenceRef } from '@jhadina/core-spine'
 import { spatialObservationToGraphContribution, type SpatialKnowledgeSink } from './spatial-knowledge-projection.js'
+import { emitSpatialTelemetry, spatialTelemetryErrorCode, type SpatialTelemetrySink } from './spatial-telemetry.js'
 
 export type GevSpatialReadProviderOptions = {
   bridge: GevProviderBridge
@@ -17,6 +18,7 @@ export type GevSpatialReadProviderOptions = {
   maxEvidence?: number
   evidenceStore?: SpatialEvidenceStore
   knowledgeSink?: SpatialKnowledgeSink
+  telemetry?: SpatialTelemetrySink
 }
 
 type ScopePoint = { lat: number; lon: number; radiusKm?: number }
@@ -149,10 +151,22 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
         const rows = await operation()
         observations.push(...rows)
         sourceHealth.push(`${domain}:available:${rows.length}`)
+        emitSpatialTelemetry(this.options.telemetry, {
+          kind: 'provider_health', component: `gev:${domain}`, status: 'ok', at: receivedAt,
+          details: { domain, observationCount: rows.length },
+        })
       } catch (error) {
         const message = error instanceof Error ? error.message : 'unknown error'
         sourceHealth.push(`${domain}:unavailable`)
         limitations.push(`${domain} source unavailable: ${message}`)
+        emitSpatialTelemetry(this.options.telemetry, {
+          kind: 'provider_health', component: `gev:${domain}`, status: 'degraded', at: receivedAt,
+          details: { domain, errorCode: spatialTelemetryErrorCode(error) },
+        })
+        emitSpatialTelemetry(this.options.telemetry, {
+          kind: 'source_failure', component: `gev:${domain}`, status: 'failed', at: receivedAt,
+          details: { domain, errorCode: spatialTelemetryErrorCode(error) },
+        })
       }
     }
 
@@ -163,11 +177,23 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
         try {
           const health = await this.options.bridge.cctvHealth()
           sourceHealth.push(`camera-health:available:${health.length}`)
+          emitSpatialTelemetry(this.options.telemetry, {
+            kind: 'provider_health', component: 'gev:camera-health', status: 'ok', at: receivedAt,
+            details: { domain: 'camera-health', cameraCount: health.length },
+          })
           return normalizeGevCctvSources(sources, receivedAt, health)
         } catch (error) {
           const message = error instanceof Error ? error.message : 'unknown error'
           sourceHealth.push('camera-health:unavailable')
           limitations.push(`camera health unavailable: ${message}`)
+          emitSpatialTelemetry(this.options.telemetry, {
+            kind: 'provider_health', component: 'gev:camera-health', status: 'degraded', at: receivedAt,
+            details: { domain: 'camera-health', errorCode: spatialTelemetryErrorCode(error) },
+          })
+          emitSpatialTelemetry(this.options.telemetry, {
+            kind: 'source_failure', component: 'gev:camera-health', status: 'failed', at: receivedAt,
+            details: { domain: 'camera-health', errorCode: spatialTelemetryErrorCode(error) },
+          })
           return normalizeGevCctvSources(sources, receivedAt)
         }
       }),
@@ -185,7 +211,23 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
     const scoped = observations.filter((observation) => inScope(observation, plan.scope)).slice(0, this.maxEvidence)
     const evidence = scoped.map((observation) => observationToEvidence(observation, this.registry))
     if (this.options.evidenceStore) {
-      await Promise.all(evidence.map((item) => this.options.evidenceStore!.append(item)))
+      try {
+        const outcomes = await Promise.all(evidence.map((item) => this.options.evidenceStore!.append(item)))
+        emitSpatialTelemetry(this.options.telemetry, {
+          kind: 'evidence_write', component: 'spatial-evidence-store', status: 'ok', at: receivedAt,
+          details: {
+            attempted: outcomes.length,
+            appended: outcomes.filter((outcome) => outcome === 'APPENDED').length,
+            duplicate: outcomes.filter((outcome) => outcome === 'DUPLICATE').length,
+          },
+        })
+      } catch (error) {
+        emitSpatialTelemetry(this.options.telemetry, {
+          kind: 'evidence_write', component: 'spatial-evidence-store', status: 'failed', at: receivedAt,
+          details: { attempted: evidence.length, errorCode: spatialTelemetryErrorCode(error) },
+        })
+        throw error
+      }
     } else if (evidence.length > 0) {
       limitations.push('Durable spatial evidence store is not configured; evidence is transient and cannot support reality admission.')
     }

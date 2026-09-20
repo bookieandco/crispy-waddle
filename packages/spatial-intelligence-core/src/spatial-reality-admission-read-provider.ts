@@ -5,6 +5,7 @@ import type { SpatialContextPackage, SpatialContextReadProvider } from './integr
 import { evaluateSpatialRealityAdmission } from './reality-admission.js'
 import type { RealityAdmission, SpatialRealityCandidate, SpatialRealityStore } from './reality.js'
 import type { SpatialQueryPlan } from './spatial-pipeline.js'
+import { emitSpatialTelemetry, spatialTelemetryErrorCode, type SpatialTelemetrySink } from './spatial-telemetry.js'
 
 export type SpatialRealityAdmissionReadProviderOptions = {
   read: SpatialContextReadProvider
@@ -13,6 +14,7 @@ export type SpatialRealityAdmissionReadProviderOptions = {
   verifier?: string
   now?: () => string
   maxCandidates?: number
+  telemetry?: SpatialTelemetrySink
 }
 
 const asStringArray = (value: unknown): string[] => Array.isArray(value)
@@ -125,6 +127,10 @@ export class SpatialRealityAdmissionReadProvider implements SpatialContextReadPr
         const evidence = await this.options.evidenceStore.get(ref.id)
         if (!evidence) {
           limitations.push(`Reality admission skipped ${ref.id}: durable evidence was not readable.`)
+          emitSpatialTelemetry(this.options.telemetry, {
+            kind: 'reality_admission', component: 'spatial-reality-admission', status: 'deferred', at: this.now(),
+            details: { reasonCode: 'DURABLE_EVIDENCE_UNREADABLE' },
+          })
           continue
         }
 
@@ -132,6 +138,10 @@ export class SpatialRealityAdmissionReadProvider implements SpatialContextReadPr
         const candidate = candidateFromEvidence(evidence, createdAt)
         if (!candidate) {
           limitations.push(`Reality admission skipped ${ref.id}: source observation time or entity identity is unavailable.`)
+          emitSpatialTelemetry(this.options.telemetry, {
+            kind: 'reality_admission', component: 'spatial-reality-admission', status: 'deferred', at: createdAt,
+            details: { reasonCode: 'CANDIDATE_INPUT_INCOMPLETE' },
+          })
           continue
         }
 
@@ -159,12 +169,24 @@ export class SpatialRealityAdmissionReadProvider implements SpatialContextReadPr
           createdAt,
         }
         await this.options.realityStore.appendAdmission(admission)
+        const telemetryStatus = result.decision === 'ACCEPT' ? 'accepted'
+          : result.decision === 'DEFER' ? 'deferred'
+            : result.decision === 'REJECT' ? 'rejected'
+              : 'superseded'
+        emitSpatialTelemetry(this.options.telemetry, {
+          kind: 'reality_admission', component: 'spatial-reality-admission', status: telemetryStatus, at: createdAt,
+          details: { decision: result.decision, candidateId: candidate.candidateId, admissionId: admission.admissionId },
+        })
 
         if (result.decision === 'ACCEPT') reality.push(realityRef(candidate, admission))
         else limitations.push(`Reality admission ${result.decision.toLowerCase()} for ${candidate.entityId}: ${result.rationale.join(' | ')}`)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'unknown error'
         limitations.push(`Reality admission failed closed for ${ref.id}: ${message}`)
+        emitSpatialTelemetry(this.options.telemetry, {
+          kind: 'reality_admission', component: 'spatial-reality-admission', status: 'failed', at: this.now(),
+          details: { errorCode: spatialTelemetryErrorCode(error) },
+        })
       }
     }
 

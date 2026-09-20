@@ -97,9 +97,11 @@ Live cross-subsystem receipts still require the current deployment.
 
 ### GEV-PROD.8 — telemetry/recovery
 
-**NOT CERTIFIABLE YET.**
+**SOURCE INSTRUMENTATION REPAIRED; LIVE RECOVERY BLOCKED BY PROD.1.**
 
-Vercel runtime logs for the active production deployment contain no current Spatial activity because production is still on the pre-Spatial build. This audit also did not find dedicated Spatial production telemetry for all required events (provider health, evidence writes, source failures, Reality admissions, policy denials and workspace replay). PROD.8 requires observable live receipts plus provider/database interruption recovery.
+Spatial now emits structured, observational-only telemetry for provider health, source failures, evidence writes, Reality admissions, policy denials and workspace replay. The production sink writes low-cardinality JSON events with deployment SHA/environment and intentionally excludes raw observations, source payloads, model inputs, user IDs and secrets. Telemetry sink failures are swallowed so logging cannot alter evidence, policy or Reality behavior. Provider and evidence-store failures remain fail-closed/degraded as before and subsequent requests can produce recovery-success events.
+
+PROD.8 still requires the current Spatial lineage to be deployed, then a live provider interruption and database interruption/recovery drill with Vercel log receipts tied to that deployed SHA.
 
 ### GEV-PROD.FINAL
 

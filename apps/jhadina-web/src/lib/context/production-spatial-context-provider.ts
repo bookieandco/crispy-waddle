@@ -9,6 +9,7 @@ import type { SpatialContextProvider } from './context-builder'
 import { createSupabaseSpatialEvidenceStore } from './supabase-spatial-evidence-store'
 import { createSupabaseSpatialKnowledgeSink } from './supabase-spatial-knowledge-sink'
 import { createSupabaseSpatialRealityStore } from './supabase-spatial-reality-store'
+import { spatialProductionTelemetry } from './spatial-production-telemetry'
 
 export type ProductionSpatialContextProviderOptions = {
   baseUrl?: string
@@ -32,6 +33,7 @@ export function createProductionSpatialContextProvider(
     baseUrl,
     ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
     ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+    telemetry: spatialProductionTelemetry,
   })
   const evidenceStore = createSupabaseSpatialEvidenceStore()
   const knowledgeSink = createSupabaseSpatialKnowledgeSink()
@@ -41,9 +43,10 @@ export function createProductionSpatialContextProvider(
     ...(options.maxEvidence ? { maxEvidence: options.maxEvidence } : {}),
     ...(evidenceStore ? { evidenceStore } : {}),
     ...(knowledgeSink ? { knowledgeSink } : {}),
+    telemetry: spatialProductionTelemetry,
   })
   const read = evidenceStore && realityStore
-    ? createSpatialRealityAdmissionReadProvider({ read: evidenceRead, evidenceStore, realityStore })
+    ? createSpatialRealityAdmissionReadProvider({ read: evidenceRead, evidenceStore, realityStore, telemetry: spatialProductionTelemetry })
     : evidenceRead
   return createSpatialContextProvider({ userId, read })
 }
