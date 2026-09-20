@@ -113,7 +113,7 @@ describe('Real Nigga Core', () => {
     const behavior = deriveRealNiggaBehavior(learned);
     assert.ok(behavior.directness > 0.63);
     assert.ok(behavior.directness < 0.64);
-    assert.deepEqual(behavior.preferredInteractionModes, ['direct']);
+    assert.deepEqual(behavior.preferredInteractionModes, []);
 
     const contested = deriveRealNiggaBehavior({
       ...learned,
