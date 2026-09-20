@@ -65,6 +65,7 @@ export interface GovernedIntelligenceProposalDeps {
   /** Backing store for explicit approval receipts (request -> approve -> consume). */
   approvalStore: ApprovalReceiptStore
   policy?: ActionPolicy<MemoryProposeAction>
+  intelligenceAdmission?: IntelligenceAdmissionPolicy
 }
 
 export interface GovernedIntelligenceProposalResult {
@@ -112,11 +113,16 @@ export async function decideAndProposeMemoryGoverned(
   let proposal: DecisionProposal
   try {
     if (deps.fabric) {
+      const admission = (deps.intelligenceAdmission ?? new ConservativeIntelligenceAdmissionPolicy()).classify({
+        actorId: identity.userId,
+        purpose: context.purpose,
+        capability: MEMORY_PROPOSE_CAPABILITY,
+      })
       proposal = await deps.fabric.decide({
         id: `task:${context.id}`,
         purpose: context.purpose,
-        privacyClass: "internal",
-        riskClass: "standard",
+        privacyClass: admission.privacyClass,
+        riskClass: admission.riskClass,
       }, context)
     } else if (deps.router) {
       proposal = await deps.router.decide(context)
