@@ -638,7 +638,7 @@ audit before promoting; see JH-028)
 
 ### JH-028
 **Priority:** P2
-**Status:** ACTIVE
+**Status:** DONE
 **Branch:** `fix/jh028-canonical-money-path` (current reconciliation; source material remains in `feat/jhadina-growth-engine` PR #7) —
 `apps/jhadina-web/src/lib/money/{needsAttentionEngine,
 plaidFinancialData}.ts`, `apps/jhadina-web/src/app/money/command-center/page.tsx`,
@@ -708,7 +708,7 @@ traced UI → API route → provider → (no further boundary). Findings:
 
 **Reconciliation progress (2026-09-20):** The already-landed `/api/money/accounts` -> session-authoritative governed runtime -> governed provider registry -> `PlaidReadOnlyAdapter` chain is the canonical read spine. PR #363 removed caller identity authority from the route. The command-center reconciliation now ports JH-033's safe presentation idea onto that spine: governed `/accounts/get` balances are carried through `MoneyAccount`; `/money/command-center` consumes only `/api/money/accounts`; the duplicate direct Plaid client and `/api/money/financial-data` route are not ported. Transaction-derived bills/subscriptions/attention remain intentionally empty until a separately governed `money.transaction.read` capability exists. Pure review preparation remains non-executing and cannot mint an ActionProposal or approval receipt.
 
-**Next Step:** Verify the reconciled command center in targeted Money CI. If green, close JH-028 and unblock JH-033 for disposition as reconciled/superseded rather than landing its competing demo route. Transaction reads remain separate governed capability work; do not bypass `money.transaction.read` to populate attention data.
+**Completion (2026-09-20):** PR #369 merged the reconciled governed command center. PR #374 repaired the certification-only audit-field assertion; Money R13B Certification and Spatial Conformance passed on its head. JH-028 is DONE. Transaction reads remain a separate governed capability and are not bypassed.
 
 ### JH-029
 **Priority:** P2
@@ -906,8 +906,7 @@ not a git-mechanical merge.
 
 ### JH-033
 **Priority:** P2
-**Status:** BLOCKED (same axis as JH-028 — reconcile before either
-becomes a real financial surface)
+**Status:** SUPERSEDED (safe presentation concepts reconciled into JH-028; competing command-center implementation must not land)
 **Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
 `apps/jhadina-web/src/lib/money/{financialAttention,
 financialDataProvider,plaidAdapter}.ts`,
@@ -949,15 +948,11 @@ demo-data-only and not wired to `money-core`'s governed
 `PlaidReadOnlyAdapter` either. Landing this alongside or instead of
 JH-028 would still leave two competing "what does the money command
 center look like and where does its data come from" answers.
-**Next Step:** Human call, same as JH-028: which design (or a merge of
-JH-033's cleaner `FinancialDataProvider` abstraction with money-core's
-already-governed `PlaidReadOnlyAdapter` as its concrete implementation)
-becomes the one canonical `/money/command-center`. Not decided here.
+**Disposition (2026-09-20):** The human canonical-path decision was implemented by JH-028/PR #369. The useful read-only presentation boundary was reconciled onto `/api/money/accounts`; the competing demo command center and alternate provider path are superseded and must not land.
 
 ### JH-034
 **Priority:** P2
-**Status:** BLOCKED (safety-clean, but not wired to real `money-core`
-— park with JH-033/JH-028 pending the one-canonical-path decision)
+**Status:** REVIEW
 **Branch:** `fix/vercel-build-jhadina-web` (PR #4) —
 `apps/jhadina-web/src/lib/music/{distribution,distributionAdapter,
 moneyCoreBridge,moneyCoreWithdrawal,royaltyLedger,
@@ -996,11 +991,7 @@ currently just naming; making it a genuine bridge (calling the real
 "one canonical Money data path" work the JH-028/JH-033 decision needs
 to resolve first — building a second, parallel bridge here before that
 decision lands would just add a third money-adjacent surface.
-**Next Step:** Park alongside JH-028/JH-033. Once the canonical
-money-core integration path is decided, `moneyCoreBridge.ts`'s
-allocation logic and `moneyCoreWithdrawal.ts`'s request/approve state
-machine are both safe, reusable pieces to wire into it — just not
-ahead of that decision.
+**Implementation (2026-09-20):** Reconciled onto the canonical Money architecture. Music now produces a typed royalty-income observation only after RECONCILED -> explicit CONFIRMED state; it cannot mint a `CanonicalFinancialAction` or execution authority. Withdrawal request/approval remains consent state only and has no EXECUTED state/provider call. Provider-neutral distribution contracts remain adapters with no concrete credential/network implementation. Targeted tests prove confirmation gating, Money ingress gating, non-executing approval, and fail-closed balance checks. Final status becomes DONE after CI verification.
 
 ### JH-035
 **Priority:** P2
