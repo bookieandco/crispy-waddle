@@ -298,14 +298,14 @@ describe("persisted Experience -> Hippocampus -> Pattern vertical", () => {
     ])
   })
 
-  it("deduplicates an approved memory from its originating Hippocampal episode", async () => {
+  it("deduplicates only the memory-covered term from its originating Hippocampal episode", async () => {
     const historical = await storage.createReasoningEvent({
       userId: "user_lineage",
       timestamp: "2026-09-01T12:00:00.000Z",
-      userMessage: "I prefer direct answers when we plan.",
+      userMessage: "I prefer direct concise answers when we plan.",
       observation: {
-        raw: "I prefer direct answers when we plan.",
-        extracted: "prefer direct answers",
+        raw: "I prefer direct concise answers when we plan.",
+        extracted: "prefer direct concise answers",
         timestamp: "2026-09-01T12:00:00.000Z",
       },
       classification: { type: "PREFERENCE", confidence: 0.95 },
@@ -329,12 +329,12 @@ describe("persisted Experience -> Hippocampus -> Pattern vertical", () => {
       occurredAt: "2026-09-02T12:00:00.000Z",
       source: "ask-jhadina",
       actor: "user",
-      content: "Please keep this direct while we plan.",
+      content: "Please keep this direct and concise while we plan.",
       evidence: [{
         id: "live-lineage-1",
         source: "ask-jhadina",
         observedAt: "2026-09-02T12:00:00.000Z",
-        summary: "Please keep this direct while we plan.",
+        summary: "Please keep this direct and concise while we plan.",
         immutable: false,
       }],
     }
@@ -357,6 +357,16 @@ describe("persisted Experience -> Hippocampus -> Pattern vertical", () => {
     expect(
       result.patterns.some((pattern) => pattern.id === "episodic-recurrence:direct"),
     ).toBe(false)
+
+    const concise = result.patterns.find(
+      (pattern) => pattern.id === "episodic-recurrence:concise",
+    )
+    expect(concise).toBeDefined()
+    expect(concise?.occurrences).toBe(2)
+    expect(concise?.evidence.map((item) => item.id)).toEqual([
+      "live-lineage-1",
+      historical.id,
+    ])
   })
 
   it("fails closed when the persisted event belongs to another user", async () => {
