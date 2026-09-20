@@ -26,6 +26,7 @@ export default function SpatialWorkspacePage() {
   const [context, setContext] = useState<SpatialContext | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const [revisionId, setRevisionId] = useState("")
 
   function toggleLayer(layer: string) {
     setLayers((current) => current.includes(layer) ? current.filter((value) => value !== layer) : [...current, layer])
@@ -47,14 +48,16 @@ export default function SpatialWorkspacePage() {
       const response = await fetch("/api/spatial/context", {
         method: "POST",
         headers: { "content-type": "application/json", "x-jhadina-user-id": userId },
-        body: JSON.stringify({ activeTask, geographicScope }),
+        body: JSON.stringify({ activeTask, geographicScope, layers, workspaceId: "spatial-default" }),
       })
       const json = await response.json()
       if (!response.ok) throw new Error(json.error || "Spatial query failed")
       setContext(json.data?.context ?? null)
+      setRevisionId(json.data?.workspaceRevision?.revisionId ?? "")
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Spatial query failed")
       setContext(null)
+      setRevisionId("")
     } finally {
       setBusy(false)
     }
@@ -84,6 +87,7 @@ export default function SpatialWorkspacePage() {
             <button onClick={refresh} disabled={busy || layers.length === 0} style={primary}>{busy ? "Reading sources…" : "Refresh context"}</button>
           </div>
           {error && <div role="alert" style={{ marginTop: 12, color: "#ffb8aa" }}>{error}</div>}
+          {revisionId && <div style={{ marginTop: 10, fontSize: 11, color: "#7f968a" }}>Saved workspace revision · {revisionId.slice(0, 24)}…</div>}
         </section>
 
         <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 12, marginTop: 16 }}>
