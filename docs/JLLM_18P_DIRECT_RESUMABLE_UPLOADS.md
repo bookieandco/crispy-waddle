@@ -1,5 +1,7 @@
 # JLLM-18P — Direct / Resumable Private Upload Sessions
 
+> **JLLM-18R update:** finalization is now asynchronous. The authenticated POST only enqueues a durable finalization request; scanner/hash/promotion/asset registration run in the leased upload worker described in `JLLM_18R_ASYNC_UPLOAD_FINALIZE_CLEANUP.md`. The upload-token and quarantine rules below remain authoritative.
+
 Large uploads no longer pass through the Next.js request body.
 
 Supabase recommends TUS resumable upload for files larger than 6 MiB and supports signed upload tokens for resumable uploads. Jhadina uses that mechanism only for one random private quarantine object.
