@@ -31,7 +31,7 @@ export type LaunchOutcomeAssessment = {
   reasons: string[]
   evidenceIds: string[]
   evaluatedAt: string
-  version: 'launch-outcome-v1'
+  version: 'launch-outcome-v2'
 }
 
 const clamp = (n: number) => Math.max(0, Math.min(1, n))
@@ -45,43 +45,83 @@ export function evaluateLaunchOutcome(input: LaunchOutcomeInput): LaunchOutcomeA
   const evidenceIds = new Set(input.evidence.map(e => e.evidenceId))
   input.liquidityHistory?.evidenceIds.forEach(id => evidenceIds.add(id))
   const history = input.liquidityHistory
-  let rugSignals = 0
-  let healthySignals = 0
-  let pumpDumpSignals = 0
 
-  if (input.liquidityRemoved === true) { rugSignals += 3; reasons.push('liquidity-removal-observed') }
-  if (input.tradingHalted === true) { rugSignals += 2; reasons.push('trading-halted') }
-  if (finite(history?.drawdownFromPeak) && history!.drawdownFromPeak >= 0.8) { rugSignals += 2; reasons.push('severe-liquidity-peak-drawdown') }
-  if (finite(history?.drainRate) && history!.drainRate >= 0.5) { rugSignals += 2; reasons.push('extreme-liquidity-drain') }
-  if (finite(input.developerSoldPct) && input.developerSoldPct >= 0.5) { rugSignals += 2; reasons.push('developer-distribution-observed') }
-  if (finite(input.holderExitPct) && input.holderExitPct >= 0.7) { rugSignals += 1; reasons.push('holder-exit-is-extreme') }
+  const explicitLiquidityRemoval = input.liquidityRemoved === true
+  const severeLiquidityCollapse = finite(history?.drawdownFromPeak) && history!.drawdownFromPeak >= 0.8
+  const extremeLiquidityDrain = finite(history?.drainRate) && history!.drainRate >= 0.5
+  const developerDistribution = finite(input.developerSoldPct) && input.developerSoldPct >= 0.5
+  const extremeHolderExit = finite(input.holderExitPct) && input.holderExitPct >= 0.7
+  const panicExit = input.holderBehavior === 'PANIC_EXIT'
+  const runUpThenCollapse = finite(input.peakReturnPct) && input.peakReturnPct >= 100 &&
+    finite(input.priceReturnFromLaunchPct) && input.priceReturnFromLaunchPct <= 10
+  const extremePriceCollapse = finite(input.priceReturnFromLaunchPct) && input.priceReturnFromLaunchPct <= -80
+  const extremeDrawdown = finite(input.maxDrawdownPct) && input.maxDrawdownPct >= 0.8
+  const stableLiquidity = finite(history?.stabilityScore) && history!.stabilityScore >= 0.8
 
-  if (finite(input.holderCountChangePct) && input.holderCountChangePct >= 25) { healthySignals += 1; reasons.push('holder-base-expanded') }
-  if (finite(history?.stabilityScore) && history!.stabilityScore >= 0.8) { healthySignals += 2; reasons.push('liquidity-remained-stable') }
-  if (finite(input.priceReturnFromLaunchPct) && input.priceReturnFromLaunchPct >= 100 && !input.liquidityRemoved) { healthySignals += 1; reasons.push('positive-price-retention-without-observed-liquidity-removal') }
-  if (input.holderBehavior === 'ACCUMULATING') { healthySignals += 1; reasons.push('holders-accumulating') }
-  if (input.holderBehavior === 'PANIC_EXIT') { pumpDumpSignals += 2; reasons.push('panic-exit-behavior') }
-  if (finite(input.peakReturnPct) && input.peakReturnPct >= 100 && finite(input.priceReturnFromLaunchPct) && input.priceReturnFromLaunchPct <= 10 && !input.liquidityRemoved) { pumpDumpSignals += 2; reasons.push('large-run-up-followed-by-near-baseline-return') }
-  if (finite(input.maxDrawdownPct) && input.maxDrawdownPct >= 0.8 && !input.liquidityRemoved) { pumpDumpSignals += 1; reasons.push('extreme-price-drawdown') }
+  if (explicitLiquidityRemoval) reasons.push('liquidity-removal-observed')
+  if (input.tradingHalted === true) reasons.push('trading-halted')
+  if (severeLiquidityCollapse) reasons.push('severe-liquidity-peak-drawdown')
+  if (extremeLiquidityDrain) reasons.push('extreme-liquidity-drain')
+  if (developerDistribution) reasons.push('developer-distribution-observed')
+  if (extremeHolderExit) reasons.push('holder-exit-is-extreme')
+  if (panicExit) reasons.push('panic-exit-behavior')
+  if (runUpThenCollapse) reasons.push('large-run-up-followed-by-collapse')
+  if (extremeDrawdown) reasons.push('extreme-price-drawdown')
+  if (stableLiquidity) reasons.push('liquidity-remained-stable')
+  if (finite(input.holderCountChangePct) && input.holderCountChangePct >= 25) reasons.push('holder-base-expanded')
+  if (input.holderBehavior === 'ACCUMULATING') reasons.push('holders-accumulating')
 
   let outcome: LaunchOutcome = 'UNKNOWN'
-  if (rugSignals >= 3) outcome = 'RUG'
-  else if (pumpDumpSignals >= 2 && healthySignals < 2) outcome = 'PUMP_AND_DUMP'
-  else if (healthySignals >= 2 && rugSignals === 0) outcome = 'HEALTHY'
-  else if (finite(input.priceReturnFromLaunchPct) && input.priceReturnFromLaunchPct <= -80 && (input.holderExitPct ?? 0) >= 0.5) outcome = 'FAILED'
+  let confidence = 0
 
-  const observedSignals = rugSignals + healthySignals + pumpDumpSignals
-  const confidence = clamp(observedSignals / 6)
-  if (outcome === 'UNKNOWN') reasons.push('insufficient-deterministic-evidence-for-outcome-label')
-  return { outcome, confidence, reasons, evidenceIds: [...evidenceIds], evaluatedAt: input.evaluatedAt, version: 'launch-outcome-v1' }
+  // RUG requires direct liquidity-removal evidence or a corroborated liquidity collapse.
+  // Price/developer/holder behavior alone cannot manufacture a rug label.
+  if (explicitLiquidityRemoval || (severeLiquidityCollapse && extremeLiquidityDrain)) {
+    outcome = 'RUG'
+    confidence = explicitLiquidityRemoval ? 0.9 : 0.8
+    if (input.tradingHalted === true) confidence += 0.05
+    if (developerDistribution) confidence += 0.05
+  } else if ((runUpThenCollapse && (panicExit || extremeDrawdown || developerDistribution)) ||
+             (developerDistribution && panicExit && extremeDrawdown)) {
+    outcome = 'PUMP_AND_DUMP'
+    confidence = runUpThenCollapse ? 0.8 : 0.7
+  } else if (extremePriceCollapse && (extremeHolderExit || panicExit)) {
+    outcome = 'FAILED'
+    confidence = 0.7
+  } else {
+    let healthySignals = 0
+    if (stableLiquidity) healthySignals += 2
+    if (finite(input.holderCountChangePct) && input.holderCountChangePct >= 25) healthySignals += 1
+    if (finite(input.priceReturnFromLaunchPct) && input.priceReturnFromLaunchPct >= 100) healthySignals += 1
+    if (input.holderBehavior === 'ACCUMULATING') healthySignals += 1
+    if (healthySignals >= 2) {
+      outcome = 'HEALTHY'
+      confidence = clamp(healthySignals / 5)
+    }
+  }
+
+  if (outcome === 'UNKNOWN') {
+    const observed = [
+      input.priceReturnFromLaunchPct, input.peakReturnPct, input.maxDrawdownPct,
+      history?.drawdownFromPeak, history?.drainRate, history?.stabilityScore,
+      input.holderCountChangePct, input.holderExitPct, input.developerSoldPct,
+    ].filter(finite).length + (input.liquidityRemoved !== undefined ? 1 : 0) + (input.tradingHalted !== undefined ? 1 : 0)
+    confidence = clamp(observed / 10)
+    reasons.push('insufficient-deterministic-evidence-for-outcome-label')
+  }
+
+  return { outcome, confidence: clamp(confidence), reasons, evidenceIds: [...evidenceIds], evaluatedAt: input.evaluatedAt, version: 'launch-outcome-v2' }
 }
 
 export function applyLaunchOutcome(launch: TokenLaunch, assessment: LaunchOutcomeAssessment): TokenLaunch {
   if (assessment.outcome === 'UNKNOWN') return launch
-  if (launch.outcome !== 'UNKNOWN' && launch.outcome !== assessment.outcome) {
-    throw new Error(`Conflicting launch outcome labels for ${launch.launchId}: ${launch.outcome} vs ${assessment.outcome}.`)
+  if (launch.outcomeObservedAt && Date.parse(assessment.evaluatedAt) < Date.parse(launch.outcomeObservedAt)) return launch
+  return {
+    ...launch,
+    outcome: assessment.outcome,
+    outcomeObservedAt: assessment.evaluatedAt,
+    evidenceIds: [...new Set([...launch.evidenceIds, ...assessment.evidenceIds])],
   }
-  return { ...launch, outcome: assessment.outcome, outcomeObservedAt: assessment.evaluatedAt, evidenceIds: [...new Set([...launch.evidenceIds, ...assessment.evidenceIds])] }
 }
 
 export type ActorOutcomeHistory = {
