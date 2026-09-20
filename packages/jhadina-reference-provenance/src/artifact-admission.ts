@@ -475,8 +475,7 @@ export class ArtifactAdmissionGate {
       request.bytes,
     );
 
-    const reference = this.registry.getReference(pin.referenceId);
-    if (!reference) {
+    if (!this.registry.getReference(pin.referenceId)) {
       throw new Error('REF_PROV_05_REFERENCE_NOT_FOUND');
     }
     const source = assertSourceLineage(
