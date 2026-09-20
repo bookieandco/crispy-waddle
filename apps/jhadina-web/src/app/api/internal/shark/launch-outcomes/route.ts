@@ -30,8 +30,8 @@ async function run(request: NextRequest) {
       unchanged: result.unchanged, unknown: result.unknown, actorHistories: result.actorHistories.length,
     })
   } catch (error) {
-    const reason = error instanceof Error ? error.message : 'Unknown SHARK launch outcome worker failure'
-    return NextResponse.json({ ok: false, error: 'shark_launch_outcome_worker_failed', reason }, { status: 502 })
+    console.error('SHARK launch outcome worker failed', error)
+    return NextResponse.json({ ok: false, error: 'shark_launch_outcome_worker_failed', reason: 'worker_execution_failed' }, { status: 502 })
   }
 }
 
