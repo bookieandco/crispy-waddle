@@ -68,3 +68,6 @@ export { assertRecoveryChildLineage } from './recovery-child-execution.js';
 
 export type { RecoveryChildProviderResult, RecoveryChildExecutorDeps } from './recovery-child-executor.js';
 export { MoneyRecoveryChildExecutor } from './recovery-child-executor.js';
+
+export type { MoneyAuthorityBinding } from './action-core-authority-bridge.js';
+export { fingerprintActionRequest, bindActionCoreAuthority } from './action-core-authority-bridge.js';
