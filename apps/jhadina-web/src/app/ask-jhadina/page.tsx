@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
+import { UniversalUploadPanel } from "@/components/UniversalUploadPanel"
 
 type EvidenceRef = { id: string; source: string; observedAt: string; summary: string }
 type DecisionProposal = {
@@ -141,6 +142,8 @@ function AskJhadina() {
           />
           <button disabled={busy || !activeTask.trim()} onClick={ask} style={primary}>{busy ? "Thinking…" : "Ask"}</button>
         </div>
+
+        <UniversalUploadPanel intent={activeTask} />
 
         {error && <div role="alert" style={{ marginTop: 16, padding: 13, borderRadius: 16, background: "#f5e1dc", color: "#8d5148" }}>{error}</div>}
 
