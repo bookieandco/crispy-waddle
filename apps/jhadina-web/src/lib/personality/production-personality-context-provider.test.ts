@@ -202,7 +202,7 @@ describe("ProductionPersonalityContextProvider", () => {
       (pattern) => pattern.id === "personality-signal:communication:directness",
     )?.personalityEligible).toBe(true)
     expect(first.personality.version).toBe(1)
-    expect(first.personality.traits[0]?.status).toBe("accepted")
+    expect(first.personality.traits[0]?.status).toBe("candidate")
     expect(savedVersions).toEqual([1])
 
     const restartedProvider = new ProductionPersonalityContextProvider(storage, { repository })
