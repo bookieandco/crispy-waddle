@@ -20,7 +20,7 @@ This pass also reconciles the explicit handoff request for precious metals, whic
 
 ### Confirmed current implementation
 
-- `@jhadina/money-core` has a real package surface, exact-money/accounting primitives, durable idempotency/event processing, Action-Core authority binding, execution permits/attempts/recovery, Plaid read-only provider, stock/FX reality/intelligence, sports research ingress, live-canary controls, Alpaca manual-canary work and MONEY-055/MONEY-060 certification contracts.
+- `@jhadina/money-core` has a real package surface, exact-money/accounting primitives, durable idempotency/event processing, Action-Core authority binding, execution permits/attempts/recovery, Plaid read-only provider, stock/FX reality/intelligence, first-class prediction-market reality/intelligence, sports research ingress, live-canary controls, Alpaca manual-canary work and MONEY-055/MONEY-060 certification contracts.
 - SHARK has its own package manifest/tests and materially implements DexScreener, Pump/PumpSwap, Raydium/Meteora liquidity, wallet/entity intelligence and adversarial risk evidence. Historical “package absent” findings are superseded.
 - Sports -> Money is correctly narrow: prediction envelopes may become research evidence only and cannot pre-populate Money risk/authority.
 - The historical duplicate Money `ActionProposal`/`PolicyDecision`/`AuditReceipt` authority concern is superseded by `action-core-authority-bridge.ts`; no duplicate Money authority type was found in current source.
@@ -50,16 +50,25 @@ This pass also reconciles the explicit handoff request for precious metals, whic
     - separate factor/regime/forecast/risk intelligence;
     - `RESEARCH_ONLY` decision cases with `authorityStatus=MISSING` and `financialAuthority=NONE`;
     - adversarial tests proving metals intelligence cannot become proposal-eligible by itself.
+11. Closed the handoff prediction-market gap with **MONEY-PREDICTION-01/02**:
+    - canonical binary/multi-outcome market identity, venue, open/close schedule and payout;
+    - per-outcome point-in-time bid/ask implied-probability reality;
+    - explicit resolution authority, rule version, dispute/void semantics and final-resolution admission;
+    - visible complete-set arbitrage state instead of hidden probability normalization;
+    - independent probability estimates, divergence, liquidity/resolution risk and post-resolution Brier learning;
+    - `RESEARCH_ONLY` DecisionCase/DecisionAssessment with `authorityStatus=MISSING`;
+    - adversarial tests proving prediction-market research cannot become proposal-eligible or self-authorize execution.
 
 ## Reference/handoff disposition
 
 - Plaid: implemented read-only banking/provider boundary plus sandbox Link commissioning path.
 - Coinbase: Capital Lab remains account-read-only and non-executing.
 - OpenBB / StockSharp / Freqtrade: research references only; no current runtime dependency or unverified code reuse found.
-- Polymarket / Kalshi: prediction-market research references only; no autonomous prediction-market execution path found in Money Core.
+- Polymarket / Kalshi: provider/repository references remain non-runtime until separately admitted, while MONEY-PREDICTION-01/02 now supplies the canonical provider-independent prediction-market reality/intelligence domain. No autonomous prediction-market execution path exists.
 - SHARK references: DexScreener/CoinGecko/Helius provider paths are repository-traceable; Pump/Meteora/wallet-cluster references remain governed by the reference-provenance ledger and do not imply source-code derivation.
 - Sports: one-way research ingress only; Money independently evaluates evidence, risk, capital and authority.
-- Precious metals: prior handoff request is now represented by MONEY-METALS-01/02 rather than remaining only as XAU/XAG/XPT/XPD enum declarations.
+- Precious metals: prior handoff request is represented by MONEY-METALS-01/02 rather than remaining only as XAU/XAG/XPT/XPD enum declarations.
+- Prediction markets: prior handoff request is represented by MONEY-PREDICTION-01/02 rather than remaining only as a PREDICTION enum, generic calibration types, and external-reference notes.
 
 ## Verification receipt
 
@@ -84,7 +93,7 @@ The live Swlc schema was re-queried after `20260920223551_money_final_least_priv
 
 ### Repository/software closure — ACCEPTED
 
-The recorded Money architecture, handoff, GitHub-reference, database least-privilege, stock/FX/sports/SHARK boundary, precious-metals, and deterministic CI gaps covered by MONEY-FINAL are closed in PR #486.
+The recorded Money architecture, handoff, GitHub-reference, database least-privilege, stock/FX/sports/SHARK boundary, precious-metals, prediction-market, and deterministic CI gaps covered by MONEY-FINAL are closed in PR #486.
 
 ### Production banking commissioning — NOT ACCEPTED
 
@@ -97,4 +106,4 @@ This is intentionally a separate admission gate and is **not** being misrepresen
 
 That commissioning state does **not** reopen the software closure and does **not** grant production-banking authority. Money remains fail-closed/read-only at that boundary until those receipts exist.
 
-No result in MONEY-FINAL authorizes autonomous stock/forex/metals trading, protected-fund access by SHARK, automatic sports betting, prediction-market auto-execution, or bypass of Action Core.
+No result in MONEY-FINAL authorizes autonomous stock/forex/metals trading, protected-fund access by SHARK, automatic sports betting, prediction-market auto-execution, or bypass of Action Core. Prediction-market provider adapters/executors remain outside this closure.
