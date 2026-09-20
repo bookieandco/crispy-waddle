@@ -27,6 +27,8 @@ export default function SpatialWorkspacePage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [revisionId, setRevisionId] = useState("")
+  const [replayAsOf, setReplayAsOf] = useState("")
+  const [replayBusy, setReplayBusy] = useState(false)
 
   function toggleLayer(layer: string) {
     setLayers((current) => current.includes(layer) ? current.filter((value) => value !== layer) : [...current, layer])
@@ -62,6 +64,36 @@ export default function SpatialWorkspacePage() {
       setBusy(false)
     }
   }
+  
+  async function replay() {
+    if (!replayAsOf.trim()) return
+    setReplayBusy(true)
+    setError("")
+    try {
+      const userId = await getCurrentUserId()
+      if (!userId) throw new Error("Not signed in")
+      const timestamp = new Date(replayAsOf).toISOString()
+      const params = new URLSearchParams({ workspaceId: "spatial-default", asOf: timestamp })
+      const response = await fetch(`/api/spatial/context?${params.toString()}`, { headers: { "x-jhadina-user-id": userId } })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error || "Spatial replay failed")
+      const revision = json.data?.revision
+      if (!revision) throw new Error("No workspace revision exists at or before that time")
+      setRevisionId(revision.revisionId ?? "")
+      const snapshot = revision.snapshot
+      if (Array.isArray(snapshot?.activeLayers)) setLayers(snapshot.activeLayers)
+      const scope = snapshot?.geographicScope
+      if (scope && typeof scope === "object") {
+        if (typeof scope.lat === "number") setLat(String(scope.lat))
+        if (typeof scope.lon === "number") setLon(String(scope.lon))
+        if (typeof scope.radiusKm === "number") setRadiusKm(String(scope.radiusKm))
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Spatial replay failed")
+    } finally {
+      setReplayBusy(false)
+    }
+  }
 
   const refs = context?.evidence ?? []
   return (
@@ -87,7 +119,11 @@ export default function SpatialWorkspacePage() {
             <button onClick={refresh} disabled={busy || layers.length === 0} style={primary}>{busy ? "Reading sources…" : "Refresh context"}</button>
           </div>
           {error && <div role="alert" style={{ marginTop: 12, color: "#ffb8aa" }}>{error}</div>}
-          {revisionId && <div style={{ marginTop: 10, fontSize: 11, color: "#7f968a" }}>Saved workspace revision · {revisionId.slice(0, 24)}…</div>}
+          {revisionId && <div style={{ marginTop: 10, fontSize: 11, color: "#7f968a" }}>Workspace revision · {revisionId.slice(0, 24)}…</div>}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, marginTop: 16 }}>
+            <input aria-label="Replay as of" type="datetime-local" value={replayAsOf} onChange={(event) => setReplayAsOf(event.target.value)} style={input} />
+            <button onClick={replay} disabled={replayBusy || !replayAsOf.trim()} style={secondary}>{replayBusy ? "Replaying…" : "Replay as-of"}</button>
+          </div>
         </section>
 
         <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 12, marginTop: 16 }}>
@@ -127,3 +163,4 @@ const eyebrow = { fontSize: 10, letterSpacing: ".18em", textTransform: "uppercas
 const chip = { border: "1px solid", borderRadius: 999, padding: "8px 13px", font: "inherit", cursor: "pointer" }
 const input = { minWidth: 0, borderRadius: 12, border: "1px solid #344a42", background: "#0f1c18", color: "#eef5ef", padding: "11px 12px", font: "inherit" }
 const primary = { border: 0, borderRadius: 12, background: "#d7f3df", color: "#193027", padding: "11px 14px", fontWeight: 700, cursor: "pointer" }
+const secondary = { border: "1px solid #344a42", borderRadius: 12, background: "#172723", color: "#d7e4dd", padding: "11px 14px", fontWeight: 700, cursor: "pointer" }
