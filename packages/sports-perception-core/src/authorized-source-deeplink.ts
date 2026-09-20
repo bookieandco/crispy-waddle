@@ -1,0 +1,1 @@
+export interface AuthorizedDeepLink{providerId:string;gameId:string;uri:string;authorization:'USER_AUTHORIZED';expiresAt?:string;}export function deepLinkUsable(x:AuthorizedDeepLink,now=Date.now()):boolean{return !x.expiresAt||new Date(x.expiresAt).getTime()>now;}
