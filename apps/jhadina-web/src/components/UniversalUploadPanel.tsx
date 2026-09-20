@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getCurrentUserId } from "@/lib/auth/current-user";
 import {
   createUniversalUploadTask,
@@ -50,6 +50,7 @@ export function UniversalUploadPanel({ intent }: { intent?: string }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const taskRef = useRef<UniversalUploadTask | null>(null);
   const userIdRef = useRef<string | undefined>(undefined);
+  const runRef = useRef(0);
 
   const [file, setFile] = useState<File | null>(null);
   const [privacyClass, setPrivacyClass] = useState<PrivacyClass>("sensitive");
@@ -59,11 +60,19 @@ export function UniversalUploadPanel({ intent }: { intent?: string }) {
   const [routeBusy, setRouteBusy] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    return () => {
+      runRef.current += 1;
+      taskRef.current?.pause();
+    };
+  }, []);
+
   function openPicker() {
     inputRef.current?.click();
   }
 
   async function beginUpload(nextFile: File) {
+    const runId = ++runRef.current;
     setFile(nextFile);
     setJob(null);
     setSelectedRoutes([]);
@@ -87,6 +96,7 @@ export function UniversalUploadPanel({ intent }: { intent?: string }) {
         userId,
         callbacks: {
           onProgress(next) {
+            if (runRef.current !== runId) return;
             setProgress(next);
             if (next.job) setJob(next.job);
           },
@@ -94,8 +104,9 @@ export function UniversalUploadPanel({ intent }: { intent?: string }) {
       });
       taskRef.current = task;
       const result = await task.promise;
-      setJob(result);
+      if (runRef.current === runId) setJob(result);
     } catch (cause) {
+      if (runRef.current !== runId) return;
       const message = cause instanceof Error ? cause.message : "Upload failed";
       setError(message);
       setProgress((current) => ({
@@ -109,6 +120,7 @@ export function UniversalUploadPanel({ intent }: { intent?: string }) {
   }
 
   function reset() {
+    runRef.current += 1;
     taskRef.current?.pause();
     taskRef.current = null;
     setFile(null);
