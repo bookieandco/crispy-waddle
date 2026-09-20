@@ -1,6 +1,7 @@
 export * from './spine.js';
 export * from './types.js';
 export * from './personality-core.js';
+export * from './personality-eligibility.js';
 export * from './bayesian-inference.js';
 export * from './bayesian-pattern.js';
 export * from './hippocampus.js';
