@@ -43,7 +43,15 @@ export interface PersonalityEligibilityDecision {
  * Semantic detector families must be explicitly added here (or injected by a
  * governed composition root) before their observations can reach Personality.
  */
-export const DEFAULT_PERSONALITY_ELIGIBILITY_RULES: readonly PersonalityEligibilityRule[] = [];
+export const DEFAULT_PERSONALITY_ELIGIBILITY_RULES: readonly PersonalityEligibilityRule[] = [{
+  ruleId: 'communication-directness-v1',
+  patternIdPrefix: 'personality-signal:communication:directness',
+  dimension: 'communication',
+  minimumObservations: 3,
+  minimumEvidence: 3,
+  maximumContradictions: 0,
+  requireImmutableEvidence: false,
+}];
 
 function validEvidence(ref: EvidenceRef): boolean {
   return Boolean(
