@@ -40,16 +40,16 @@ export class CriticVerificationPipeline implements IntelligenceProposalVerifier 
         reviewed = Object.freeze({
           ...proposal,
           disposition: 'DEFER',
-          uncertainty: Object.freeze([
+          uncertainty: [
             ...proposal.uncertainty,
             ...critique.uncertainty,
             ...critique.issues.map((issue) => `Critic: ${issue}`),
-          ]),
+          ],
         });
       } else if (critique.uncertainty.length) {
         reviewed = Object.freeze({
           ...proposal,
-          uncertainty: Object.freeze([...proposal.uncertainty, ...critique.uncertainty]),
+          uncertainty: [...proposal.uncertainty, ...critique.uncertainty],
         });
       }
     }
