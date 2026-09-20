@@ -12,6 +12,7 @@ import type {
   ReasoningEvent,
 } from "../storage/InMemoryStorage"
 import type { MemoryStorage } from "../storage/MemoryStorage"
+import { HippocampalEpisodePatternAdapter } from "./hippocampal-episode-pattern-adapter"
 
 export interface PersistedExperiencePatternInput {
   userId: string
@@ -120,6 +121,8 @@ function relevantMemoryProposals(
  *   -> PatternPort
  */
 export class PersistedExperiencePatternAdapter {
+  private readonly episodicPatterns = new HippocampalEpisodePatternAdapter()
+
   constructor(
     private readonly storage: MemoryStorage,
     private readonly patternPort: PatternPort = createCanonicalPatternPort(),
@@ -172,7 +175,14 @@ export class PersistedExperiencePatternAdapter {
       currentEpisode,
       relatedEpisodes,
     )
-    const patterns = await this.patternPort.detect(input.experience, memories)
+    const memoryBackedPatterns = await this.patternPort.detect(input.experience, memories)
+    const episodeBackedPatterns = this.episodicPatterns.detect(
+      input.experience,
+      relatedEpisodes,
+    )
+    const patterns = [...memoryBackedPatterns, ...episodeBackedPatterns].sort(
+      (left, right) => left.id.localeCompare(right.id),
+    )
 
     return {
       experience: input.experience,
