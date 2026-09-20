@@ -7,7 +7,7 @@ const userFrom = vi.fn(() => ({ select }))
 const createClient = vi.fn(async () => ({ from: userFrom }))
 
 const trustedRpc = vi.fn()
-const createServiceRoleClient = vi.fn(() => ({ rpc: trustedRpc }))
+const createServiceRoleClient = vi.fn((): { rpc: typeof trustedRpc } | null => ({ rpc: trustedRpc }))
 
 vi.mock("@/lib/supabase/server", () => ({ createClient }))
 vi.mock("@/lib/supabase/service-role", () => ({ createServiceRoleClient }))
