@@ -35,12 +35,13 @@ export type SpatialContextPackage = {
 }
 
 export function toSpatialDomainContext(pkg: SpatialContextPackage): SpatialDomainContext {
+  const attentionObservedAt = pkg.temporalScope.asOf ?? pkg.evidence[0]?.observedAt ?? pkg.observations[0]?.observedAt ?? new Date(0).toISOString()
   return {
     observations: pkg.observations.map((x) => ({ ...x })),
     evidence: pkg.evidence.map((x) => ({ ...x })),
     claims: pkg.claims.map((x) => ({ ...x })),
     reality: pkg.reality.map((x) => ({ ...x })),
-    attention: pkg.conflicts.map((ref, index) => ({ id: `attention:${index}:${ref}`, source: "spatial-attention", observedAt: null, summary: ref, immutable: true })),
+    attention: pkg.conflicts.map((ref, index) => ({ id: `attention:${index}:${ref}`, source: "spatial-attention", observedAt: attentionObservedAt, summary: ref, immutable: true })),
     conflicts: [...pkg.conflicts],
     uncertainty: [...pkg.uncertainty],
     limitations: [...pkg.limitations],
