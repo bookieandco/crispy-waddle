@@ -158,6 +158,7 @@ export * from './nba-reid-benchmark.js';
 export * from './nba-reid-continuity.js';
 export * from './nba-reid-runtime.js';
 export * from './nba-replay-certification.js';
+export * from './nba-roboflow-detection-receipt.js';
 export * from './nba-roster-filter.js';
 export * from './nba-roster-identity-candidates.js';
 export * from './nba-roster-reference.js';
