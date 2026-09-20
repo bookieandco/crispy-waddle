@@ -15,6 +15,24 @@ const PRIVACY_CLASSES = new Set<UniversalUploadPrivacyClass>([
 ]);
 
 export async function POST(req: NextRequest) {
+  const claimedUserId = req.headers.get("x-jhadina-user-id")?.trim() || undefined;
+  let actorId: string;
+  try {
+    const verifier = await createRequestIdentityVerifier();
+    actorId = (await verifier.verify(claimedUserId ? { userId: claimedUserId } : {})).userId;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Authentication failed";
+    return NextResponse.json({ success: false, error: message }, { status: 401 });
+  }
+
+  const contentLength = Number(req.headers.get("content-length") || "0");
+  if (Number.isFinite(contentLength) && contentLength > MAX_UNIVERSAL_UPLOAD_BYTES + 2 * 1024 * 1024) {
+    return NextResponse.json(
+      { success: false, error: "Upload exceeds the 512 MiB universal intake limit." },
+      { status: 413 },
+    );
+  }
+
   let formData: FormData;
   try {
     formData = await req.formData();
@@ -40,16 +58,6 @@ export async function POST(req: NextRequest) {
       { success: false, error: "Upload exceeds the 512 MiB universal intake limit." },
       { status: 413 },
     );
-  }
-
-  const claimedUserId = req.headers.get("x-jhadina-user-id")?.trim() || undefined;
-  let actorId: string;
-  try {
-    const verifier = await createRequestIdentityVerifier();
-    actorId = (await verifier.verify(claimedUserId ? { userId: claimedUserId } : {})).userId;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Authentication failed";
-    return NextResponse.json({ success: false, error: message }, { status: 401 });
   }
 
   const rawPrivacy = formData.get("privacyClass");
