@@ -115,3 +115,4 @@ export * from './gaming-g31-physical-freeze.js';
 export * from './emulator-hardening.js';
 export * from './gaming-online-streaming.js';
 export * from './gaming-g42-certification.js';
+export * from './gaming-g43-g50-production.js';
