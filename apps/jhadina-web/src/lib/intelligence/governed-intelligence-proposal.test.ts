@@ -270,7 +270,7 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
       actionId: "unrelated-action-id",
       userId: identity.userId,
       type: MEMORY_PROPOSE_CAPABILITY,
-      fingerprint: "memory-propose:I prefer cinematic visuals",
+      fingerprint: `memory-propose:${first.reasoningEventId}:I prefer cinematic visuals`,
     })
     expect(directConsume).toBe(false) // already consumed — cannot be replayed
   })
