@@ -14,8 +14,8 @@ export const referenceModels: ModelRecord[] = [
   { id: 'reference-sdxl', providerId: 'comfyui-local', name: 'Stable Diffusion XL', version: 'reference', modalities: ['image'], capabilities: ['text-to-image', 'image-to-image', 'inpainting', 'outpainting', 'upscale'], baseModel: 'sdxl', metadata: { status: 'reference-only', sourceFamily: 'Stable Diffusion ecosystem' } },
   { id: 'reference-video', providerId: 'comfyui-local', name: 'ComfyUI Video Generation', version: 'reference', modalities: ['video'], capabilities: ['text-to-video', 'image-to-video', 'video-to-video', 'motion'], baseModel: 'video', metadata: { status: 'reference-only', sourceFamily: 'DirectorsConsole / Stable Diffusion ecosystem' } },
   { id: 'reference-seva', providerId: 'comfyui-local', name: 'Stable Virtual Camera', version: '1.1', modalities: ['image', 'video', '3d'], capabilities: ['image-to-image', 'camera-control'], baseModel: 'seva-1.1', metadata: { status: 'reference-only', licenseGate: 'non-commercial-output-license' } },
-  { id: 'reference-easymocap', providerId: 'comfyui-local', name: 'EasyMocap', version: 'reference', modalities: ['motion', '3d'], capabilities: ['motion-capture', 'pose-estimation'], baseModel: 'easymocap', metadata: { status: 'adapter-target', sourceFamily: 'EasyMocap' } },
-  { id: 'reference-icon', providerId: 'comfyui-local', name: 'ICON', version: 'reference', modalities: ['3d'], capabilities: ['human-reconstruction'], baseModel: 'icon', metadata: { status: 'adapter-target', sourceFamily: 'ICON' } },
+  { id: 'reference-easymocap', providerId: 'comfyui-local', name: 'EasyMocap', version: 'reference', modalities: ['motion', '3d'], capabilities: ['motion'], baseModel: 'easymocap', metadata: { status: 'adapter-target', sourceFamily: 'EasyMocap', unsupportedCapabilities: ['motion-capture', 'pose-estimation'] } },
+  { id: 'reference-icon', providerId: 'comfyui-local', name: 'ICON', version: 'reference', modalities: ['3d'], capabilities: [], baseModel: 'icon', metadata: { status: 'adapter-target', sourceFamily: 'ICON', unsupportedCapabilities: ['human-reconstruction'] } },
 ];
 
 export const referenceLoRAs: LoRARecord[] = [
@@ -31,4 +31,5 @@ export const generationCapabilitySources: Record<GenerationModality, string[]> =
   audio: ['Stable-Diffusion ecosystem'],
   '3d': ['Stable Virtual Camera', 'ICON', 'EasyMocap', 'Hotham'],
   motion: ['EasyMocap', 'AI4Animation'],
+  subtitle: [],
 };

@@ -1,7 +1,7 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import type { DecodeRequest, DecodedAudio, DecodedFrame, MediaDecoderAdapter } from './media-decoder-adapter.js';
 
-export type FfmpegProcessFactory = (args: string[]) => ChildProcessWithoutNullStreams;
+export type FfmpegProcessFactory = (args: string[]) => ChildProcess;
 
 export function createNodeFfmpegDecoder(factory: FfmpegProcessFactory = args => spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] })): MediaDecoderAdapter {
   return {
@@ -19,7 +19,7 @@ async function* decodeStream(request: DecodeRequest, factory: FfmpegProcessFacto
   const detach = attachCancellation(child, request.signal);
   try {
     let timestamp = request.startSeconds ?? 0;
-    for await (const chunk of child.stdout) {
+    for await (const chunk of child.stdout ?? []) {
       if (request.signal?.aborted) return;
       yield { assetId: request.assetId, timestampSeconds: timestamp, frameRef: `ffmpeg:${request.assetId}:frame:${timestamp.toFixed(3)}:${Buffer.from(chunk).toString('base64')}` };
       timestamp += 1 / (request.frameRate ?? 2);
@@ -37,7 +37,7 @@ async function* decodeAudioStream(request: DecodeRequest, factory: FfmpegProcess
     let timestamp = request.startSeconds ?? 0;
     const bytesPerWindow = Math.max(1, Math.floor((request.audioSampleRate ?? 16000) * 2 * windowSeconds));
     let buffer = Buffer.alloc(0);
-    for await (const chunk of child.stdout) {
+    for await (const chunk of child.stdout ?? []) {
       if (request.signal?.aborted) return;
       buffer = Buffer.concat([buffer, Buffer.from(chunk)]);
       while (buffer.length >= bytesPerWindow) {
@@ -52,7 +52,7 @@ async function* decodeAudioStream(request: DecodeRequest, factory: FfmpegProcess
   } finally { detach(); }
 }
 
-function attachCancellation(child: ChildProcessWithoutNullStreams, signal?: AbortSignal): () => void {
+function attachCancellation(child: ChildProcess, signal?: AbortSignal): () => void {
   if (!signal) return () => {};
   const onAbort = () => { if (!child.killed) child.kill('SIGTERM'); };
   if (signal.aborted) onAbort();
@@ -60,7 +60,7 @@ function attachCancellation(child: ChildProcessWithoutNullStreams, signal?: Abor
   return () => signal.removeEventListener('abort', onAbort);
 }
 
-function waitForExit(child: ChildProcessWithoutNullStreams, signal?: AbortSignal): Promise<void> {
+function waitForExit(child: ChildProcess, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const onAbort = () => { if (!child.killed) child.kill('SIGTERM'); };
     if (signal?.aborted) onAbort();
