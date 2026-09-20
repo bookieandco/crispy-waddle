@@ -1,14 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchSamOpportunities } from '@/lib/money-opportunities/sam-client';
-import { adaptSamResults } from '@/lib/money-opportunities/sam-opportunity-adapter';
-import { rankSideIncomeOpportunities } from '@/lib/opportunities/sideIncome';
+import { scoreSamOpportunities } from '@/lib/money-opportunities/sam-intelligence';
+import { estimateOpportunityEconomics } from '@/lib/money-opportunities/economics';
+import { buildMoneyActionQueue } from '@/lib/money-opportunities/action-queue';
+import { planResearchCase } from '@/lib/money-opportunities/research-planner';
+import { persistPlannedResearchCases } from '@/lib/money-opportunities/research-batch-persistence';
+import { SupabaseMoneyResearchPersistence } from '@/lib/money-opportunities/supabase-research-persistence';
+import { createServiceRoleClient } from '@/lib/supabase/service-role';
 
 export const dynamic = 'force-dynamic';
+
+const CAPABILITY_PROFILE = {
+  capabilities: [
+    'software development',
+    'web application',
+    'automation',
+    'ai',
+    'data analysis',
+    'marketing',
+    'content',
+    'digital services',
+    'research',
+  ],
+  maxSoloValue: 250000,
+};
 
 export async function GET(request: NextRequest) {
   try {
     const search = request.nextUrl.searchParams;
-    const userId = search.get('userId') ?? 'default';
     const data = await searchSamOpportunities({
       limit: Number(search.get('limit') ?? 25),
       offset: Number(search.get('offset') ?? 0),
@@ -19,13 +38,44 @@ export async function GET(request: NextRequest) {
       typeOfSetAside: search.get('typeOfSetAside') ?? undefined,
     });
 
-    const opportunities = rankSideIncomeOpportunities(adaptSamResults(data, userId));
+    const scored = scoreSamOpportunities(data.opportunities, CAPABILITY_PROFILE);
+    const withEconomics = scored.map((opportunity) => ({
+      opportunity,
+      score: opportunity.intelligence,
+      economics: estimateOpportunityEconomics(opportunity),
+      capabilityGap: opportunity.intelligence.capability < 55,
+    }));
+    const moneyActions = buildMoneyActionQueue(withEconomics);
+
+    const serviceClient = createServiceRoleClient();
+    let persistedResearch: Array<{ opportunityId: string; caseId: string; action: string }> = [];
+    if (serviceClient) {
+      const persistence = new SupabaseMoneyResearchPersistence(serviceClient);
+      const titles = new Map(data.opportunities.map((opportunity) => [opportunity.noticeId, opportunity.title]));
+      const plannedCases = moneyActions
+        .map((action) => planResearchCase({
+          action,
+          title: titles.get(action.opportunityId) ?? `SAM opportunity ${action.opportunityId}`,
+        }))
+        .filter((planned): planned is NonNullable<typeof planned> => planned !== null);
+
+      const persisted = await persistPlannedResearchCases(persistence, plannedCases);
+      persistedResearch = persisted.map((item, index) => ({
+        opportunityId: item.opportunityId,
+        caseId: item.id,
+        action: plannedCases[index].action,
+      }));
+    }
+
     return NextResponse.json({
       ok: true,
       source: 'sam.gov',
-      count: opportunities.length,
-      opportunities,
-      raw: data,
+      count: data.opportunities.length,
+      totalRecords: data.totalRecords,
+      opportunities: withEconomics,
+      moneyActions,
+      persistedResearch,
+      persistence: serviceClient ? 'supabase' : 'not_configured',
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown SAM.gov error';
