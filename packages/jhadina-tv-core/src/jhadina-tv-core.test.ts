@@ -25,6 +25,7 @@ import {
   assertEpisodeBelongsToSeason,
   canonicalEpisodeId,
   seriesFromMediaTitle,
+  normalizeAuthorizedCatalogRecord,
 } from './index';
 
 const title = (id: string, overrides: Partial<MediaTitle> = {}): MediaTitle => ({
@@ -52,6 +53,58 @@ describe('JhadinaTV hierarchy contracts', () => {
     expect(assertEpisodeBelongsToSeason(episode, season)).toBe(episode);
     expect(() => assertEpisodeBelongsToSeason({ ...episode, seasonNumber: 1 }, season)).toThrow(/season number/);
     expect(() => canonicalEpisodeId('series-alpha', 0, 1)).toThrow(/positive integer/);
+  });
+});
+
+describe('JhadinaTV authorized hierarchy normalization', () => {
+  it('normalizes provider episode identity while preserving provider edition identity', () => {
+    const normalized = normalizeAuthorizedCatalogRecord({
+      id: 'provider-episode-77',
+      kind: 'tv',
+      title: 'Episode Three',
+      overview: 'An episode',
+      year: 2026,
+      availability: 'licensed',
+      providerMediaId: 'asset-77',
+      hierarchy: {
+        seriesId: 'series-alpha',
+        season: { id: 'season-2', kind: 'season', seasonNumber: 2 },
+        episode: { kind: 'episode', seasonNumber: 2, episodeNumber: 3, title: 'Episode Three', overview: 'An episode' },
+      },
+    }, 'provider-one');
+    expect(normalized.title.id).toBe('series-alpha:s2:e3');
+    expect(normalized.episode?.id).toBe('series-alpha:s2:e3');
+    expect(normalized.edition).toMatchObject({ mediaId: 'series-alpha:s2:e3', providerId: 'provider-one', providerMediaId: 'asset-77' });
+  });
+
+  it('keeps legacy authorized records backward compatible', () => {
+    const normalized = normalizeAuthorizedCatalogRecord({
+      id: 'legacy',
+      kind: 'movie',
+      title: 'Legacy',
+      overview: '',
+      year: 2026,
+      availability: 'licensed',
+    }, 'provider-one');
+    expect(normalized.title.id).toBe('legacy');
+    expect(normalized.season).toBeUndefined();
+    expect(normalized.episode).toBeUndefined();
+  });
+
+  it('fails closed on malformed provider hierarchy', () => {
+    expect(() => normalizeAuthorizedCatalogRecord({
+      id: 'bad',
+      kind: 'tv',
+      title: 'Bad',
+      overview: '',
+      year: 2026,
+      availability: 'licensed',
+      hierarchy: {
+        seriesId: 'series-alpha',
+        season: { id: 'season-2', kind: 'season', seasonNumber: 2 },
+        episode: { kind: 'episode', seasonNumber: 1, episodeNumber: 3, title: 'Bad', overview: '' },
+      },
+    }, 'provider-one')).toThrow(/season number/);
   });
 });
 
