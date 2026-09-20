@@ -1,4 +1,4 @@
-import type { Opportunity, OpportunityPursuitCase, OpportunityStatus } from "@jhadina/opportunity-core"
+import type { Opportunity, OpportunityPursuitCase, OpportunityStatus, PursuitTaskStatus } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
 import type { OpportunityTriageState, StoredCanonicalOpportunity } from "./canonical"
 
@@ -124,6 +124,56 @@ export function createSupabaseOpportunityRepository() {
         researchCaseId?: string
       }
 
+      return {
+        userId: result.userId,
+        opportunity: result.opportunity,
+        triageState: result.triageState,
+        approvedAt: result.approvedAt,
+        researchCaseId: result.researchCaseId,
+      }
+    },
+
+    async updateResearchTask(input: {
+      researchCaseId: string
+      taskId: string
+      status: PursuitTaskStatus
+      evidenceRefs?: string[]
+    }): Promise<OpportunityPursuitCase> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_opportunity_update_research_task", {
+        p_case_id: input.researchCaseId,
+        p_task_id: input.taskId,
+        p_status: input.status,
+        p_evidence_refs: input.evidenceRefs ?? [],
+      })
+
+      if (error || !data) {
+        throw new Error(`Unable to update research task: ${error?.message ?? "no result returned"}`)
+      }
+      return data as OpportunityPursuitCase
+    },
+
+    async promoteReady(
+      opportunity: Opportunity,
+      researchCaseId: string,
+    ): Promise<StoredCanonicalOpportunity> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_opportunity_promote_ready", {
+        p_opportunity_id: opportunity.id,
+        p_case_id: researchCaseId,
+        p_opportunity: opportunity,
+      })
+      if (error || !data) {
+        throw new Error(`Unable to promote opportunity ready: ${error?.message ?? "no result returned"}`)
+      }
+
+      const result = data as {
+        userId: string
+        opportunity: Opportunity
+        triageState: OpportunityTriageState
+        approvedAt?: string
+        researchCaseId?: string
+      }
       return {
         userId: result.userId,
         opportunity: result.opportunity,
