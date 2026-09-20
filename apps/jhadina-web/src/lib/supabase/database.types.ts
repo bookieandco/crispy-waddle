@@ -5915,81 +5915,43 @@ export type Database = {
         }
         Returns: string
       }
-      jhadina_create_revalidation_trigger:
-        | {
-            Args: {
-              p_dedupe_key?: string
-              p_freshness_state: string
-              p_knowledge_record_id: string
-              p_max_breadth?: number
-              p_max_depth?: number
-              p_policy_requirements?: Json
-              p_required_authority?: string
-              p_research_scope?: Json
-              p_trigger_reason: string
-              p_triggering_evidence_id?: string
-            }
-            Returns: {
-              created_at: string
-              dedupe_key: string
-              freshness_state: string
-              id: string
-              knowledge_record_id: string
-              max_breadth: number
-              max_depth: number
-              policy_requirements: Json
-              required_authority: string
-              research_intent_id: string | null
-              research_scope: Json
-              status: string
-              trigger_reason: string
-              triggering_evidence_id: string | null
-              updated_at: string
-            }
-            SetofOptions: {
-              from: "*"
-              to: "jhadina_research_revalidation_triggers"
-              isOneToOne: true
-              isSetofReturn: false
-            }
-          }
-        | {
-            Args: {
-              p_dedupe_key?: string
-              p_freshness_state?: string
-              p_knowledge_record_id: string
-              p_max_breadth?: number
-              p_max_depth?: number
-              p_policy_requirements?: Json
-              p_required_authority?: string
-              p_research_scope?: Json
-              p_trigger_reason?: string
-              p_triggering_evidence_id?: string
-            }
-            Returns: {
-              created_at: string
-              dedupe_key: string
-              freshness_state: string
-              id: string
-              knowledge_record_id: string
-              max_breadth: number
-              max_depth: number
-              policy_requirements: Json
-              required_authority: string
-              research_intent_id: string | null
-              research_scope: Json
-              status: string
-              trigger_reason: string
-              triggering_evidence_id: string | null
-              updated_at: string
-            }
-            SetofOptions: {
-              from: "*"
-              to: "jhadina_research_revalidation_triggers"
-              isOneToOne: true
-              isSetofReturn: false
-            }
-          }
+      jhadina_create_revalidation_trigger: {
+        Args: {
+          p_dedupe_key?: string
+          p_freshness_state?: string
+          p_knowledge_record_id: string
+          p_max_breadth?: number
+          p_max_depth?: number
+          p_policy_requirements?: Json
+          p_required_authority?: string
+          p_research_scope?: Json
+          p_trigger_reason?: string
+          p_triggering_evidence_id?: string
+        }
+        Returns: {
+          created_at: string
+          dedupe_key: string
+          freshness_state: string
+          id: string
+          knowledge_record_id: string
+          max_breadth: number
+          max_depth: number
+          policy_requirements: Json
+          required_authority: string
+          research_intent_id: string | null
+          research_scope: Json
+          status: string
+          trigger_reason: string
+          triggering_evidence_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jhadina_research_revalidation_triggers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       jhadina_evaluate_knowledge_candidate: {
         Args: { p_candidate_id: string }
         Returns: Json
