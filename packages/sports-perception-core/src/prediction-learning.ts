@@ -57,9 +57,7 @@ function candidateFor(
           ? { target: 'MODEL_CHALLENGER' as const, parameterPath: 'model.challenger', scale: 1 }
           : attribution.kind === 'STATE_RECONSTRUCTION' || attribution.kind === 'DATA_EVIDENCE' || attribution.kind === 'OBSERVATION'
             ? undefined
-            : attribution.kind === 'SCENARIO_PRIOR'
-              ? { target: 'SCENARIO_PRIOR' as const, parameterPath: 'scenario.prior', scale: 0.05 }
-              : undefined;
+            : undefined;
   if (!base) return undefined;
 
   const direction = report.prediction.meanAbsoluteResidual > 0 ? -1 : 1;
