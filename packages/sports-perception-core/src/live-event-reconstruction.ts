@@ -1,0 +1,4 @@
+import type { SportsEvent } from './sports-event.js';
+export interface EventConflict{eventType:string;eventIds:readonly string[];reason:string;}
+export interface EventReconstruction{events:readonly SportsEvent[];conflicts:readonly EventConflict[];}
+export function reconstructLiveEvents(events:readonly SportsEvent[]):EventReconstruction{const ordered=[...events].sort((a,b)=>a.sequence-b.sequence||a.eventId.localeCompare(b.eventId));const conflicts:EventConflict[]=[];const groups=new Map<number,SportsEvent[]>();for(const e of ordered)groups.set(e.sequence,[...(groups.get(e.sequence)??[]),e]);for(const [sequence,g] of groups)if(new Set(g.map(x=>x.eventType)).size>1)conflicts.push(Object.freeze({eventType:`sequence:${sequence}`,eventIds:Object.freeze(g.map(x=>x.eventId)),reason:'Sources disagree on canonical event type'}));return Object.freeze({events:Object.freeze(ordered),conflicts:Object.freeze(conflicts)});}
