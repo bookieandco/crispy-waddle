@@ -33,6 +33,7 @@ const TERMINAL_ERROR_MARKERS = [
   "SUBSYSTEM_RESPONSE_MISMATCH",
   "SUBSYSTEM_INBOX_EVIDENCE_NOT_ASSET_BOUND",
   "INTELLIGENCE_ASSET_ID_CONFLICT",
+  "PERCEPTION_JOB_SELECTION_STALE",
 ];
 
 function isTerminalError(message: string): boolean {
@@ -73,12 +74,28 @@ export class PerceptionJobWorker {
         return { state: "failed", job: failed ?? claimed };
       }
 
-      const packet = await this.media.process({
+      let packet = await this.media.process({
         asset,
         intent: claimed.intent,
       });
 
       if (heartbeat.lost()) return { state: "lease_lost", job: claimed };
+
+      if (claimed.selectedSubsystems?.length) {
+        const selected = new Set(claimed.selectedSubsystems);
+        const proposed = new Set(packet.routing.routes.map((route) => route.subsystem));
+        if ([...selected].some((subsystem) => !proposed.has(subsystem))) {
+          throw new Error("PERCEPTION_JOB_SELECTION_STALE");
+        }
+        packet = Object.freeze({
+          ...packet,
+          routing: Object.freeze({
+            ...packet.routing,
+            routes: Object.freeze(packet.routing.routes.filter((route) => selected.has(route.subsystem))),
+            requiresHumanSelection: false,
+          }),
+        });
+      }
 
       if (packet.routing.requiresHumanSelection) {
         const gated = await this.jobs.requireSelection({
