@@ -40,6 +40,9 @@ create table if not exists public.jhadina_intelligence_asset_provenance (
 create index if not exists jhadina_intelligence_asset_provenance_asset_idx
   on public.jhadina_intelligence_asset_provenance (asset_id, occurred_at);
 
+create unique index if not exists jhadina_intelligence_asset_provenance_registration_idx
+  on public.jhadina_intelligence_asset_provenance (asset_id, type);
+
 alter table public.jhadina_intelligence_assets enable row level security;
 alter table public.jhadina_intelligence_asset_provenance enable row level security;
 
