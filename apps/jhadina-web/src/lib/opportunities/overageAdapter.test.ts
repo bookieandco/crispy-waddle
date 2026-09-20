@@ -35,7 +35,7 @@ describe("buildOverageOpportunity", () => {
 
     expect(opportunity.verificationStatus).toBe("unverified")
     expect(opportunity.verificationDecision).toBeUndefined()
-    expect(opportunity.status).toBe("research_pending")
+    expect(opportunity.status).toBe("discovered")
   })
 
   it("rejects invalid source confidence", () => {
