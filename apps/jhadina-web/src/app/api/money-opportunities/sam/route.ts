@@ -3,6 +3,7 @@ import { searchSamOpportunities } from '@/lib/money-opportunities/sam-client'
 import { canonicalizeSamResults } from '@/lib/money-opportunities/canonical-sam-workflow'
 import { parseSamRouteSearch } from '@/lib/money-opportunities/sam-route-input'
 import { createRequestIdentityVerifier } from '@/lib/auth/request-identity'
+import { persistCanonicalSamOpportunities } from '@/lib/money-opportunities/sam-ingestion-persistence'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,11 +15,14 @@ export async function GET(request: NextRequest) {
     const params = parseSamRouteSearch(request.nextUrl.searchParams)
     const data = await searchSamOpportunities(params)
     const opportunities = canonicalizeSamResults(data)
+    const persisted = await persistCanonicalSamOpportunities(opportunities)
+    if (persisted.userId !== identity.userId) throw new Error('Authenticated SAM ingestion identity mismatch')
     return NextResponse.json({
       ok: true,
       requestId,
       source: 'sam.gov',
       count: opportunities.length,
+      persistedCount: persisted.persistedIds.length,
       opportunities,
       governance: { verifiedUserId: identity.userId },
     }, {
