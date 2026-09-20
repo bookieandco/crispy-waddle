@@ -1,0 +1,1 @@
+import type {SportsDetection} from './sports-object-detection.js';import type {SportsTrack} from './sports-multi-object-tracking.js';export interface ProductionTrackerRuntime{update(frameNumber:number,detections:readonly SportsDetection[]):readonly SportsTrack[];reset(reason:'CAMERA_CUT'|'GAME_CHANGE'):void;}
