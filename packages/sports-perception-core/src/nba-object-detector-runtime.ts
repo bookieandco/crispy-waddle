@@ -1,0 +1,1 @@
+import type {DecodedVideoFrame} from './video-decoder-runtime.js';import type {SportsDetection} from './sports-object-detection.js';import type {VisionModelRuntime} from './vision-model-runtime.js';export type NBAObjectDetectorRuntime=VisionModelRuntime<DecodedVideoFrame,readonly SportsDetection[]>;
