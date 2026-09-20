@@ -73,10 +73,14 @@ function fixture(item: typeof supported[number], index: number): {
 describe('PERSONALITY-V2.FINAL certification', () => {
   it('has one explicit immutable-evidence governance rule for every supported semantic family', () => {
     const classifier = createPersonalityEligibilityClassifier();
-    expect(DEFAULT_PERSONALITY_ELIGIBILITY_RULES).toHaveLength(supported.length);
+    expect(DEFAULT_PERSONALITY_ELIGIBILITY_RULES.length).toBeGreaterThanOrEqual(supported.length);
 
     for (const [index, item] of supported.entries()) {
       const { pattern } = fixture(item, index);
+      const matchingRules = DEFAULT_PERSONALITY_ELIGIBILITY_RULES.filter((rule) =>
+        item.id.startsWith(rule.patternIdPrefix),
+      );
+      expect(matchingRules, item.id).toHaveLength(1);
       const decision = classifier.classify(pattern);
       expect(decision.eligible, item.id).toBe(true);
       expect(decision.dimension, item.id).toBe(item.dimension);
