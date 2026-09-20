@@ -21,6 +21,7 @@ export type OpportunityVerificationStatus = "not_required" | "human_required" | 
 // lighter-weight, reversible triage and are handled as local UI state by
 // the command center rather than a server-tracked status.
 export type OpportunityStatus = "new" | "approved"
+export type OpportunityTriageState = "review" | "saved" | "dismissed"
 
 export type Opportunity = {
   id: string
@@ -41,6 +42,7 @@ export type Opportunity = {
   verificationStatus?: OpportunityVerificationStatus
   sourceConfidence?: number
   status: OpportunityStatus
+  triageState?: OpportunityTriageState
   createdAt: string
   approvedAt?: string
 }
@@ -54,6 +56,7 @@ export const SIDE_INCOME_KINDS: OpportunityKind[] = [
   "creator",
   "affiliate",
   "automation",
+  "overage",
 ]
 
 /**
