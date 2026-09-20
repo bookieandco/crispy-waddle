@@ -16,3 +16,4 @@ export * from './domain/commercial-deal-gate.js'\nexport * from './domain/engage
 export * from './adapters/employment.js'
 export * from './adapters/commercial.js'
 export * from './domain/pursuit.js'
+export * from './domain/contract-readiness.js'
