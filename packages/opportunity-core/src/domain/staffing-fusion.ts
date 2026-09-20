@@ -1,4 +1,4 @@
-import type { CareerPassportSnapshot } from '@staffing/core'
+import type { CareerPassportSnapshot } from '@staffing/core/domain'
 import type { OpportunityRequirementSet } from './opportunity-requirement.js'
 
 export type WorkforceFulfillmentCandidate = {
