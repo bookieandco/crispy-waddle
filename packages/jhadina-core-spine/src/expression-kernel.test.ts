@@ -28,7 +28,6 @@ const personality: PersonalityState = {
   voice: {
     directness: 0.9,
     warmth: 0.7,
-    verbosity: 0.4,
     humor: 0.8,
     profanityTolerance: 0.7,
     quipFrequency: 0.6,
@@ -58,6 +57,7 @@ const decision: BehavioralDecision = {
   posture: {
     directness: 0.9,
     warmth: 0.7,
+    verbosity: 0.4,
     humor: 0.8,
     profanityAllowed: true,
     profanityIntensity: 0.6,
