@@ -26,8 +26,10 @@ export async function runHistoricalObservationBackfill(client: SupabaseClient, o
       const { error: persistError } = await client.from('jhadina_launch_outcome_observations').upsert({
         observation_id: o.observationId, launch_id: o.launchId, observed_at: o.observedAt,
         price_return_from_launch_pct: o.priceReturnFromLaunchPct ?? null, peak_return_pct: o.peakReturnPct ?? null,
-        max_drawdown_pct: o.maxDrawdownPct ?? null, current_liquidity_usd: o.currentLiquidityUsd ?? null,
-        peak_liquidity_usd: o.peakLiquidityUsd ?? null, liquidity_drawdown_from_peak: o.liquidityDrawdownFromPeak ?? null,
+        max_drawdown_pct: o.maxDrawdownPct ?? null, initial_liquidity_usd: o.initialLiquidityUsd ?? null,
+        current_liquidity_usd: o.currentLiquidityUsd ?? null, peak_liquidity_usd: o.peakLiquidityUsd ?? null,
+        liquidity_drawdown_from_peak: o.liquidityDrawdownFromPeak ?? null, liquidity_drain_rate: o.liquidityDrainRate ?? null,
+        liquidity_drain_acceleration: o.liquidityDrainAcceleration ?? null, liquidity_stability_score: o.liquidityStabilityScore ?? null,
         holder_count_change_pct: o.holderCountChangePct ?? null, holder_exit_pct: o.holderExitPct ?? null,
         developer_sold_pct: o.developerSoldPct ?? null, liquidity_removed: o.liquidityRemoved ?? null,
         trading_halted: o.tradingHalted ?? null, holder_behavior: o.holderBehavior ?? null,
