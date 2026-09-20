@@ -159,7 +159,7 @@ const handoffOnlyReferences: readonly RegisterReferenceInput[] = [
     referenceId: 'github:pump-fun/pump-public-docs',
     canonicalName: 'pump-public-docs',
     kind: 'GITHUB_REPOSITORY',
-    roles: ['API_PROVIDER', 'ARCHITECTURE_REFERENCE'],
+    roles: ['ARCHITECTURE_REFERENCE'],
     canonicalLocator:
       'https://github.com/pump-fun/pump-public-docs',
     discoveredFrom: 'HANDOFF',
