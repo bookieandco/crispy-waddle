@@ -17,7 +17,7 @@ function eventFrom(input:{attempt:ExecutionAttempt;result?:LiveBrokerSubmissionR
 
 export async function executeManualLiveTrade(input:{adapter:ManualLiveBrokerAdapter;permitStore:PermitStore;attemptStore:ExecutionAttemptStore;entitlementStore:BrokerAccountEntitlementStore;permitPackage:LiveTradePermitPackage;preflight:LiveExecutionPreflight;plan:ExecutionPlan;trigger:ManualLiveExecutionTrigger;now:string;attemptIdFactory?:()=>string}):Promise<ManualLiveExecutionResult>{
  const {permitPackage:pkg,preflight,plan}=input
- if(pkg.autonomous||pkg.authority!=='MANUAL_LIVE_ONLY')throw new Error('MONEY_049_MANUAL_PERMIT_REQUIRED')
+ if(pkg.autonomous||pkg.mode!=='MANUAL_LIVE_ONLY')throw new Error('MONEY_049_MANUAL_PERMIT_REQUIRED')
  if(pkg.action.capability!=='money.trade.submit'||pkg.request.type!=='money.trade.submit')throw new Error('MONEY_049_TRADE_CAPABILITY_REQUIRED')
  if(input.adapter.environment!=='LIVE'||input.adapter.provider!==pkg.action.provider)throw new Error('MONEY_049_PROVIDER_BINDING_MISMATCH')
  if(preflight.preflightId!==pkg.action.preflightId||preflight.executionPlanId!==pkg.action.executionPlanId||preflight.provider!==pkg.action.provider||preflight.accountId!==pkg.action.accountId)throw new Error('MONEY_049_PREFLIGHT_BINDING_MISMATCH')
