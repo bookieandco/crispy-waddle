@@ -55,6 +55,12 @@ export * from './safety-liveness-runtime.js';
 export * from './safety-personal-runtime.js';
 export * from './safety-chaos-runtime.js';
 export * from './safety-drill.js';
+export * from './safety-drill-mode.js';
+export * from './safety-deadman-service.js';
+export * from './safety-provider-runtime.js';
+export * from './safety-vault-policy.js';
+export * from './safety-production-gate.js';
+export * from './safety-drill-3.js';
 
 export * from './communication-directness-pattern.js';
 
