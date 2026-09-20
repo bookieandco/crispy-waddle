@@ -7,7 +7,8 @@ import { OutboxGenerationProvider } from '@jhadina/director-core/outbox-generati
 import type { GenerationRegistry } from '@jhadina/director-core/generation-registry';
 import { DirectorStoryboardLineageResolver } from '@jhadina/director-core/storyboard-lineage-resolver';
 import { SupabaseStoryboardRepository } from '@jhadina/director-core/storyboard-persistence';
-import { DirectorProductionAuthorityResolver, SupabaseDirectorProductionAuthorityRepository } from '@jhadina/director-core';
+import { DirectorProductionAuthorityResolver, DirectorReviewAuthorityResolver, SupabaseDirectorProductionAuthorityRepository } from '@jhadina/director-core';
+import { SupabaseDirectorReviewRepository } from './director-review-repository';
 import { createSupabaseGeneratedAssetRepository } from './supabase-generated-asset-repository';
 import { createSupabaseGenerationRepository } from '../src/lib/supabase-generation-repository';
 import {
@@ -23,6 +24,8 @@ export type DirectorGenerationRuntime = {
   /** Registry query surface; provider handles remain private. */
   hasModel(modelId: string): boolean;
   authority: DirectorProductionAuthorityResolver;
+  reviewAuthority: DirectorReviewAuthorityResolver;
+  reviewRepository: SupabaseDirectorReviewRepository;
 };
 
 function composeDirectorGenerationRuntime(
@@ -48,8 +51,10 @@ function composeDirectorGenerationRuntime(
   const storyboardLineageResolver = new DirectorStoryboardLineageResolver(storyboardRepository);
   const generation = new GenerationPlanAdapter(service, registry, storyboardLineageResolver);
   const authority = new DirectorProductionAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(client), storyboardLineageResolver);
+  const reviewRepository = new SupabaseDirectorReviewRepository(client);
+  const reviewAuthority = new DirectorReviewAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(client), reviewRepository);
   const reconciler = new GenerationSubmissionReconciler(repository, outboxProviders, workerId);
-  return { generation, reconciler, workerId, hasModel: (modelId) => registry.hasModel(modelId), authority };
+  return { generation, reconciler, workerId, hasModel: (modelId) => registry.hasModel(modelId), authority, reviewAuthority, reviewRepository };
 }
 
 /**
