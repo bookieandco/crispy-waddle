@@ -1,0 +1,20 @@
+{
+  "osVersion": "0.1.0",
+  "shell": "jhadinaos",
+  "assistant": "jhadina",
+  "apps": [
+    { "id": "memory", "name": "Memory", "route": "/memory", "status": "planned" },
+    { "id": "money", "name": "Money", "route": "/money", "status": "planned" },
+    { "id": "media", "name": "Media", "route": "/media", "status": "planned" },
+    { "id": "overage", "name": "Overage", "route": "/overage", "status": "planned" },
+    { "id": "music", "name": "Music", "route": "/music", "status": "planned" },
+    { "id": "directoros", "name": "DirectorOS", "route": "/directoros", "status": "planned" },
+    { "id": "pupsonstuff", "name": "PupsonStuff", "route": "/pupsonstuff", "status": "planned" },
+    { "id": "social", "name": "Social", "route": "/social", "status": "planned" },
+    { "id": "government", "name": "Government", "route": "/government", "status": "planned" },
+    { "id": "files", "name": "Files", "route": "/files", "status": "planned" },
+    { "id": "developer", "name": "Developer", "route": "/developer", "status": "planned" },
+    { "id": "home", "name": "Home", "route": "/home", "status": "planned" },
+    { "id": "safety", "name": "Safety", "route": "/safety", "status": "planned" }
+  ]
+}
