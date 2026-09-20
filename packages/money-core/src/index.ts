@@ -95,3 +95,12 @@ export * from './fx-market-reality.js';
 export * from './fx-intelligence-fusion.js';
 
 export * from './opportunity-outcome-truth-bridge.js';
+
+export * from './exact-money.js';
+export * from './financial-state-engine.js';
+export * from './financial-lifecycle-engine.js';
+export * from './instrument-prediction-engine.js';
+export * from './risk-analysis-engine.js';
+export * from './decision-provenance-engine.js';
+export * from './fundamental-valuation-engine.js';
+export * from './macro-economic-engine.js';
