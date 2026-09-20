@@ -25,8 +25,8 @@ export interface ManagedGamingRuntimeDriver {
 
 export interface GamingControllerLifecycle {
   bind(sessionId:string,deviceId:string):Promise<void>|void;
-  disconnect(sessionId:string,deviceId:string):Promise<void>|void;
-  reconnect?(sessionId:string,deviceId:string):Promise<void>|void;
+  disconnect(sessionId:string,deviceId:string):Promise<number|void>|number|void;
+  reconnect?(sessionId:string,deviceId:string):Promise<number|void>|number|void;
   unbind(sessionId:string,deviceId:string):Promise<void>|void;
 }
 
@@ -91,13 +91,23 @@ export class UnifiedGamingSessionOrchestrator {
     return this.registry.transition(sessionId,'degraded',nowMs);
   }
 
+  async handleControllerDisconnect(sessionId:string,nowMs=Date.now()):Promise<UnifiedGamingSession>{
+    const current=this.require(sessionId);
+    if(!current.controllerDeviceId||!this.controller)throw new Error('Gaming session has no managed controller');
+    const nextSequence=await this.controller.disconnect(sessionId,current.controllerDeviceId);
+    if(typeof nextSequence==='number')this.telemetry.recordReconnect(sessionId,nextSequence,nowMs);
+    return current.status==='reconnecting'?current:this.registry.transition(sessionId,'reconnecting',nowMs);
+  }
+
   async reconnect(sessionId:string,nowMs=Date.now()):Promise<UnifiedGamingSession>{
     const current=this.require(sessionId);
     const reconnecting=current.status==='reconnecting'?current:this.registry.transition(sessionId,'reconnecting',nowMs);
+    let nextSequence=0;
     if(reconnecting.controllerDeviceId&&this.controller?.reconnect){
-      await this.controller.reconnect(sessionId,reconnecting.controllerDeviceId);
+      const result=await this.controller.reconnect(sessionId,reconnecting.controllerDeviceId);
+      if(typeof result==='number')nextSequence=result;
     }
-    this.telemetry.recordReconnect(sessionId,0,nowMs);
+    this.telemetry.recordReconnect(sessionId,nextSequence,nowMs);
     return this.registry.transition(sessionId,'running',nowMs);
   }
 
