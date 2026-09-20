@@ -1,3 +1,6 @@
+drop function if exists public.claim_jhadina_upload_session_finalize(text,uuid,text,integer);
+drop function if exists public.release_jhadina_upload_session_finalize(text,uuid,text,text,text);
+
 -- JLLM-18R — asynchronous direct-upload finalization + quarantine cleanup.
 -- Finalization request becomes a durable queue transition. Heavy scanner/hash work
 -- is performed by a leased worker, not by the user's HTTP request.
