@@ -1,4 +1,5 @@
 import type { Opportunity } from './opportunity.js'
+import { isCompleteVerification } from './verification.js'
 
 export type PursuitCaseStatus = 'pending' | 'researching' | 'blocked' | 'ready' | 'closed'
 export type PursuitTaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked'
@@ -100,6 +101,23 @@ export function updatePursuitTask(
     'pending'
 
   return { ...pursuitCase, tasks, status, updatedAt: now }
+}
+
+export function markOpportunityReady(
+  opportunity: Opportunity,
+  pursuitCase: OpportunityPursuitCase,
+  now = new Date().toISOString(),
+): Opportunity {
+  if (pursuitCase.opportunityId !== opportunity.id) {
+    throw new Error('Pursuit case does not belong to opportunity')
+  }
+  if (!isPursuitReady(pursuitCase)) {
+    throw new Error('Opportunity research is not evidence-complete')
+  }
+  if (opportunity.family === 'recovery' && !isCompleteVerification(opportunity.verificationDecision)) {
+    throw new Error('Recovery opportunity requires complete claimant/entitlement verification before ready')
+  }
+  return { ...opportunity, status: 'ready', updatedAt: now }
 }
 
 export function isPursuitReady(pursuitCase: OpportunityPursuitCase): boolean {
