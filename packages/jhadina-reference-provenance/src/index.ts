@@ -569,9 +569,32 @@ export type {
   ReferenceSubsystemHint,
   SubsystemReferenceCoverage,
   ReferenceCoverageReport,
+  ReferenceLicenseVerificationLookup,
 } from './coverage.js';
 export {
   REFERENCE_COVERAGE_SCHEMA_VERSION,
   DEFAULT_REFERENCE_SUBSYSTEM_HINTS,
   buildReferenceCoverageReport,
 } from './coverage.js';
+
+export type {
+  ReferenceSourceKind,
+  ReferenceRevisionKind,
+  ReferenceSourceVerificationStatus,
+  ReferenceLicenseVerificationStatus,
+  ReferenceSourceRevision,
+  ReferenceLicenseVerification,
+  ReferenceSourceVerificationEvidence,
+  ReferenceSourceVerification,
+  RegisterReferenceSourceVerificationInput,
+  ReferenceSourceVerificationReport,
+} from './source-verification.js';
+export {
+  REFERENCE_SOURCE_VERIFICATION_SCHEMA_VERSION,
+  buildReferenceSourceVerification,
+  ReferenceSourceVerificationRegistry,
+} from './source-verification.js';
+export {
+  INITIAL_SOURCE_VERIFICATIONS,
+  createInitialSourceVerificationRegistry,
+} from './source-verification-seed.js';
