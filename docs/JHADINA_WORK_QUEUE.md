@@ -417,7 +417,7 @@ the real build's route manifest.
 **Dependencies:** JH-001, JH-002, JH-012, JH-042
 **Human decision (2026-09-19):** Communications joins the same Intelligence & Communications Loop but remains a separately governed capability. Transport adapters receive no policy authority.
 **Definition of Done:** Recipient/device identity, communication intent, transport registry/adapter and durable delivery-receipt contracts exist behind canonical governance; Reticulum can plug in without bypassing ActionExecutor; inbound/outbound evidence projects into canonical activity.
-**Next Step:** After JH-012, define communication/recipient/transport contracts before any Reticulum runtime work.
+**Progress (2026-09-19):** INTCOM.3A begins the neutral communications contract layer with separate `EndpointIdentity` and `TransportIdentity`, explicit discovered/reachable/identified/trusted/authorized trust states, and a transport-free `CommunicationIntent`. Intent formation fails closed unless the recipient is explicitly authorized; discovery/reachability/trust alone are insufficient. No Reticulum/runtime send path is introduced.\n**Next Step:** INTCOM.3B — bind CommunicationIntent to the canonical proposal/policy/approval/ActionExecutor path before introducing transport selection.
 
 ### JH-014
 **Priority:** P1
