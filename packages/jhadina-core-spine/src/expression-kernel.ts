@@ -60,11 +60,13 @@ export function planExpression(
         ? 'checkpointed'
         : 'balanced';
   const creativeStyle: NonNullable<ExpressionPlan['creativeStyle']> =
-    decision.posture.creativeLatitude >= 0.7
-      ? 'experimental'
-      : decision.posture.creativeLatitude <= 0.3
-        ? 'conventional'
-        : 'balanced';
+    serious
+      ? 'conventional'
+      : decision.posture.creativeLatitude >= 0.7
+        ? 'experimental'
+        : decision.posture.creativeLatitude <= 0.3
+          ? 'conventional'
+          : 'balanced';
   const callback = !serious && isVerifiedCallback(context.callback)
     ? context.callback
     : undefined;
