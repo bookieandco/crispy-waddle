@@ -1,8 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SolanaLaunchCollection } from '@jhadina/shark-intelligence-core/meme-trader'
 
-const outcomeRank: Record<string, number> = { UNKNOWN: 0, HEALTHY: 1, FAILED: 1, PUMP_AND_DUMP: 1, RUG: 2 }
-
 export async function persistSharkLaunch(client: SupabaseClient, collection: SolanaLaunchCollection) {
   const launch = collection.ingested.launch
   const { data: existing, error: existingError } = await client
@@ -13,11 +11,9 @@ export async function persistSharkLaunch(client: SupabaseClient, collection: Sol
     .maybeSingle()
   if (existingError) throw new Error(`SHARK launch lookup failed: ${existingError.message}`)
 
-  const existingOutcome = existing?.outcome ?? 'UNKNOWN'
-  const incomingOutcome = launch.outcome ?? 'UNKNOWN'
-  const outcome = (outcomeRank[incomingOutcome] ?? 0) >= (outcomeRank[existingOutcome] ?? 0)
-    ? incomingOutcome
-    : existingOutcome
+  // Launch-ingestion observations describe identity/provenance, not outcome revisions.
+  // Never let a duplicate webhook reset or outrank the outcome worker's classification.
+  const outcome = existing?.outcome ?? launch.outcome ?? 'UNKNOWN'
   const evidenceIds = [...new Set([...(existing?.evidence_ids ?? []), ...launch.evidenceIds])]
   const launchedAt = existing?.launched_at && Date.parse(existing.launched_at) <= Date.parse(launch.launchedAt)
     ? existing.launched_at
@@ -34,6 +30,7 @@ export async function persistSharkLaunch(client: SupabaseClient, collection: Sol
     launchpad: launch.launchpad ?? existing?.launchpad ?? null,
     initial_liquidity_usd: launch.initialLiquidityUsd ?? existing?.initial_liquidity_usd ?? null,
     outcome,
+    outcome_observed_at: existing?.outcome_observed_at ?? launch.outcomeObservedAt ?? null,
     evidence_ids: evidenceIds,
     source: collection.observation.source,
     observation_id: collection.observation.observationId,
