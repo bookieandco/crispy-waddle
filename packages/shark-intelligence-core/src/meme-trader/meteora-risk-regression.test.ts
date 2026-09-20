@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createMeteoraDlmmPositionEvidence, reconcileMeteoraDlmmPosition } from './meteora-dlmm'
 import { meteoraDlmmLiquidityEvidence } from './meteora-liquidity-adapter'
 import { attributeMeteoraDlmmWithdrawal, verifiedAdversarialMeteoraWithdrawals } from './meteora-withdrawal-attribution'
+import { applyActorRiskIntelligence } from './actor-risk-integration'
 
 const snapshot = (id: string, lower: number, upper: number, x: bigint, y: bigint) =>
   createMeteoraDlmmPositionEvidence({
@@ -44,5 +45,33 @@ describe('Meteora DLMM risk invariants', () => {
     const attributed = attributeMeteoraDlmmWithdrawal({ delta, graph: clusterGraph, tokenAddress: 'mint-1' })!
     expect(attributed.association).toBe('CLUSTER_ASSOCIATED')
     expect(verifiedAdversarialMeteoraWithdrawals([attributed])).toEqual([])
+  })
+})
+
+const baseAssessment: any = {
+  assessmentId: 'meteora-risk', assessedAt: '2026-09-18T20:00:00Z', token: { chainId: 'solana-mainnet', tokenAddress: 'mint-1' }, tradeType: 'new-pair-speculation',
+  marketActivityQuality: { score: .8, volumeScore: .8, liquidityScore: .8, flowScore: .8, buyerGrowthScore: .8, manipulationPenalty: 0, reasons: [] },
+  supplyControl: { score: 0, deployerRisk: 0, concentrationRisk: 0, bundledSupplyRisk: 0, liquidityControlRisk: 0, reasons: [] },
+  holderCohort: { score: .8, profitableTrackedWallets: 0, accumulatingWallets: 0, distributingWallets: 0, reasons: [] },
+  attention: { score: .8, crossSourceConfirmation: .8, engagementQuality: .8, sourceCredibility: .8, manipulationPenalty: 0, reasons: [] },
+  strategyFit: { score: .8, matchedSignals: [], conflicts: [] },
+  riskAssessment: { marketIntegrity: .1, liquidityRisk: .1, supplyControlRisk: 0, holderConcentrationRisk: .1, walletCohortRisk: 0, socialManipulationRisk: 0, narrativeFragilityRisk: .1, developerRisk: 0, contractRisk: 0, networkRisk: .1, attentionQuality: .8, exitLiquidityRisk: .1, overallRisk: .1, band: 'candidate' },
+  thesis: 'test', invalidation: { conditions: ['liquidity loss'], severity: 'high' }, positionPlan: { maxPositionFraction: .01, entryConditions: [], profitTakingConditions: [], exitConditions: [] }, confidence: .5, evidenceIds: ['base'], assessmentVersion: 'test',
+}
+
+describe('Meteora multi-venue risk fusion', () => {
+  it('does not double-count conventional LP and DLMM developer withdrawals', () => {
+    const delta = reconcileMeteoraDlmmPosition(snapshot('before-risk', 10, 10, 100n, 100n), snapshot('after-risk', 10, 10, 20n, 20n), 'meteora-remove')
+    const meteora = attributeMeteoraDlmmWithdrawal({ delta, graph, tokenAddress: 'mint-1' })!
+    const conventional: any = {
+      signature: 'sig', observedAt: delta.observedAt, poolAddress: 'pool', lpMint: 'lp', lpTokenAccount: 'acct',
+      ownerBefore: 'dev-wallet', lpStateEventId: 'lp-event', developerAssociation: 'MATCHED',
+      evidenceIds: ['conventional-remove'], confidence: .9,
+    }
+    const onlyMeteora = applyActorRiskIntelligence(baseAssessment, { verifiedMeteoraWithdrawals: [meteora] })
+    const both = applyActorRiskIntelligence(baseAssessment, { verifiedMeteoraWithdrawals: [meteora], verifiedLPWithdrawals: [conventional] })
+    expect(onlyMeteora.riskAssessment.developerRisk).toBe(.8)
+    expect(both.riskAssessment.developerRisk).toBe(.8)
+    expect(both.supplyControl.deployerRisk).toBe(onlyMeteora.supplyControl.deployerRisk)
   })
 })
