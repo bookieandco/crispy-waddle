@@ -55,7 +55,7 @@ export class SupabaseDirectUploadObjectStore {
     const quarantinePath = `quarantine/${input.actorId}/${input.sessionId}/${filename}`;
     const { data, error } = await this.client.storage
       .from(JHADINA_INTAKE_BUCKET)
-      .createSignedUploadUrl(quarantinePath, { upsert: false });
+      .createSignedUploadUrl(quarantinePath);
     if (error || !data?.token) {
       throw error ?? new Error("DIRECT_UPLOAD_SIGNED_TOKEN_UNAVAILABLE");
     }
