@@ -25,6 +25,10 @@ export interface ExecutionAction {
   toAccountId?: string;
   payeeId?: string;
   instrumentId?: string;
+  side?: 'BUY' | 'SELL';
+  executionPlanId?: string;
+  preflightId?: string;
+  approvalCandidateId?: string;
   amount: string;
   currency: string;
 }
@@ -110,6 +114,10 @@ export function canonicalizeAction(action: ExecutionAction): string {
     toAccountId: action.toAccountId ?? null,
     payeeId: action.payeeId ?? null,
     instrumentId: action.instrumentId ?? null,
+    side: action.side ?? null,
+    executionPlanId: action.executionPlanId ?? null,
+    preflightId: action.preflightId ?? null,
+    approvalCandidateId: action.approvalCandidateId ?? null,
     amount: action.amount,
     currency: action.currency,
   });
