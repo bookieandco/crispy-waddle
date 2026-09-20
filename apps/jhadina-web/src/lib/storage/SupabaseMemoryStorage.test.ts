@@ -163,11 +163,27 @@ describe("SupabaseMemoryStorage", () => {
       classification: { type: "PREFERENCE", confidence: 0.95 },
       systemResponse: "Noted",
       confidence: 0.95,
+      actor: "user",
+      outcome: "feedback:reinforced",
+      correlationId: "corr-1",
+      causationId: "reason-parent",
+      metadata: { kind: "personality-outcome-feedback", authority: "learning-only" },
     })
 
     const fetched = await storage.getReasoningEvent(event.id)
     expect(fetched?.observation.raw).toBe("I prefer cinematic visuals")
     expect(fetched?.classification.type).toBe("PREFERENCE")
+    expect(fetched?.actor).toBe("user")
+    expect(fetched?.outcome).toBe("feedback:reinforced")
+    expect(fetched?.correlationId).toBe("corr-1")
+    expect(fetched?.causationId).toBe("reason-parent")
+    expect(fetched?.metadata).toMatchObject({ kind: "personality-outcome-feedback" })
+    expect(tables.jhadina_reasoning_events.rows[0]).toMatchObject({
+      actor: "user",
+      outcome: "feedback:reinforced",
+      correlation_id: "corr-1",
+      causation_id: "reason-parent",
+    })
   })
 
   it("round-trips a timeline event including memoryContent", async () => {
