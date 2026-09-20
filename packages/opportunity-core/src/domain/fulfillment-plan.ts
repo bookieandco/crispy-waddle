@@ -108,10 +108,6 @@ export function buildFulfillmentPlan(
   }
 
   if (uncovered.length > 0) blockers.push(`Uncovered required requirements: ${uncovered.join(', ')}`)
-  for (const match of ranked.filter((item) => assignments.some((assignment) => assignment.providerId === item.providerId))) {
-    blockers.push(...match.blockers)
-  }
-
   let structure: FulfillmentPlanStructure = 'unresolved'
   if (assignments.length > 1 && uncovered.length === 0) structure = 'prime_with_subcontractor'
   else if (assignments.length === 1 && uncovered.length === 0) structure = 'direct_fulfillment'
