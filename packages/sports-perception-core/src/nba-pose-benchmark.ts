@@ -1,0 +1,1 @@
+export interface PoseCase{positionErrorFeet:number;speedError:number;}export function benchmarkNBAPose(x:readonly PoseCase[]){return Object.freeze({sampleSize:x.length,positionMAE:x.length?x.reduce((s,a)=>s+Math.abs(a.positionErrorFeet),0)/x.length:0,speedMAE:x.length?x.reduce((s,a)=>s+Math.abs(a.speedError),0)/x.length:0});}
