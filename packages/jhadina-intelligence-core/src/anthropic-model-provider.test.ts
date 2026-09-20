@@ -79,6 +79,10 @@ test('serializes the governed expression directive and tells the model not to in
     allowProfanity: false,
     allowQuip: false,
     responseLength: 'brief',
+    tone: 'formal',
+    reasoningDepth: 'technical',
+    interactionStyle: 'continuous',
+    creativeStyle: 'experimental',
   };
 
   const provider = new AnthropicModelProvider({ apiKey: 'test-key', fetchImpl });
@@ -91,6 +95,7 @@ test('serializes the governed expression directive and tells the model not to in
   assert.match(request.system ?? '', /expressionDirective/);
   assert.match(request.system ?? '', /responseLength/);
   assert.match(request.system ?? '', /without omitting facts needed for correctness/);
+  assert.match(request.system ?? '', /interactionStyle never authorizes/);
   assert.match(request.system ?? '', /Never invent a callback or cultural/);
   assert.match(request.messages?.[0]?.content ?? '', /"expressionDirective"/);
   assert.match(request.messages?.[0]?.content ?? '', /"responseLength":"brief"/);
