@@ -46,7 +46,10 @@ All six tables currently contain zero rows. Therefore no live production GEV eve
 
 ### GEV-PROD.1 — current production deployment
 
-**AUDIT/REPAIR — BLOCKED / FAIL-CLOSED.** Vercel is explicitly tracked as an infrastructure audit/repair item and is not allowed to block source/runtime repair work on later GEV gates. The production certification gate itself remains blocked: the build-rate limit is active and production remains on `dee990b6...`. No later source-code PASS may be interpreted as a deployed-production PASS until Vercel is repaired and the current Spatial lineage is live.
+**AUDIT/REPAIR — BLOCKED / FAIL-CLOSED.**
+
+**2026-09-20 lockfile repair marker:** the prior Vercel deployment-rate blocker cleared far enough for a fresh build attempt. The current concrete blocker is `ERR_PNPM_OUTDATED_LOCKFILE` during `pnpm install`. The repository uses a shared workspace lockfile (`apps/*`, `packages/*`, `infrastructure/*`), and the root pnpm package-extension state has advanced beyond the lockfile generation state. This is marked **AUDIT/REPAIR**. Required repair is to regenerate the complete shared `pnpm-lock.yaml` with the repository-pinned `pnpm@8.15.9`, then prove `pnpm install --frozen-lockfile` before redeployment. Do not bypass the frozen-lockfile gate and do not hand-edit resolution/checksum state. This external execution blocker does not authorize any PROD.2+ production PASS.
+ Vercel is explicitly tracked as an infrastructure audit/repair item and is not allowed to block source/runtime repair work on later GEV gates. The production certification gate itself remains blocked: the build-rate limit is active and production remains on `dee990b6...`. No later source-code PASS may be interpreted as a deployed-production PASS until Vercel is repaired and the current Spatial lineage is live.
 
 ### GEV-PROD.2 — production health gate
 
