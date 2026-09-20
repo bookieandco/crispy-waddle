@@ -105,6 +105,10 @@ export * from './metals-market-reality.js';
 
 export * from './metals-intelligence-fusion.js';
 
+export * from './prediction-market-reality.js';
+
+export * from './prediction-market-intelligence.js';
+
 export * from './opportunity-outcome-truth-bridge.js';
 
 export * from './exact-money.js';
