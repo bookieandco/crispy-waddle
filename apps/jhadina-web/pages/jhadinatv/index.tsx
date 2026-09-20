@@ -8,7 +8,8 @@ export default function JhadinaTVHome() {
 
   useEffect(() => {
     let active = true;
-    const endpoint = query.trim() ? `/api/jhadinatv/ask?q=${encodeURIComponent(query)}` : '/api/jhadinatv/search?q=';\n    fetch(endpoint).then((response) => response.json()).then(({ titles }) => { if (active) setCatalog(titles); });
+    const endpoint = query.trim() ? `/api/jhadinatv/ask?q=${encodeURIComponent(query)}` : '/api/jhadinatv/search?q=';
+    fetch(endpoint).then((response) => response.json()).then(({ titles }) => { if (active) setCatalog(titles); });
     return () => { active = false; };
   }, [query]);
 
