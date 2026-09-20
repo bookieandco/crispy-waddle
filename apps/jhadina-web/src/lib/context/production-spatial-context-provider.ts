@@ -2,11 +2,13 @@ import {
   GevProviderBridge,
   createGevSpatialContextReadProvider,
   createSpatialContextProvider,
+  createSpatialRealityAdmissionReadProvider,
   type GevFetchLike,
 } from '@jhadina/spatial-intelligence-core'
 import type { SpatialContextProvider } from './context-builder'
 import { createSupabaseSpatialEvidenceStore } from './supabase-spatial-evidence-store'
 import { createSupabaseSpatialKnowledgeSink } from './supabase-spatial-knowledge-sink'
+import { createSupabaseSpatialRealityStore } from './supabase-spatial-reality-store'
 
 export type ProductionSpatialContextProviderOptions = {
   baseUrl?: string
@@ -33,11 +35,15 @@ export function createProductionSpatialContextProvider(
   })
   const evidenceStore = createSupabaseSpatialEvidenceStore()
   const knowledgeSink = createSupabaseSpatialKnowledgeSink()
-  const read = createGevSpatialContextReadProvider({
+  const realityStore = createSupabaseSpatialRealityStore()
+  const evidenceRead = createGevSpatialContextReadProvider({
     bridge,
     ...(options.maxEvidence ? { maxEvidence: options.maxEvidence } : {}),
     ...(evidenceStore ? { evidenceStore } : {}),
     ...(knowledgeSink ? { knowledgeSink } : {}),
   })
+  const read = evidenceStore && realityStore
+    ? createSpatialRealityAdmissionReadProvider({ read: evidenceRead, evidenceStore, realityStore })
+    : evidenceRead
   return createSpatialContextProvider({ userId, read })
 }

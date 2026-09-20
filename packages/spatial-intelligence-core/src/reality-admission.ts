@@ -8,6 +8,10 @@ export type SpatialRealityAdmissionInput = {
   fallbackEvidenceRefs?: ReadonlySet<string>;
   /** Minimum number of available non-fallback evidence refs required for admission. Defaults to one. */
   requiredNonFallbackEvidence?: number;
+  /** Evidence refs whose freshness is explicitly established as fresh by the normalized source adapter. */
+  freshEvidenceRefs?: ReadonlySet<string>;
+  /** Minimum number of fresh, non-fallback evidence refs required. Defaults to zero for backwards compatibility. */
+  requiredFreshEvidence?: number;
   acceptDeterminations?: ReadonlySet<SpatialRealityCandidate['determination']>;
   createdAt: string;
 };
@@ -23,9 +27,12 @@ export function evaluateSpatialRealityAdmission(input: SpatialRealityAdmissionIn
   const accepted = input.acceptDeterminations ?? new Set<SpatialRealityCandidate['determination']>(['observed', 'corroborated', 'verified']);
   const fallbackRefs = input.fallbackEvidenceRefs ?? new Set<string>();
   const requiredNonFallbackEvidence = input.requiredNonFallbackEvidence ?? 1;
+  const freshRefs = input.freshEvidenceRefs ?? new Set<string>();
+  const requiredFreshEvidence = input.requiredFreshEvidence ?? 0;
   const availableEvidence = input.candidate.evidenceRefs.filter((ref) => input.evidenceAvailable.has(ref));
   const missingEvidence = input.candidate.evidenceRefs.filter((ref) => !input.evidenceAvailable.has(ref));
   const availableNonFallbackEvidence = availableEvidence.filter((ref) => !fallbackRefs.has(ref));
+  const availableFreshNonFallbackEvidence = availableNonFallbackEvidence.filter((ref) => freshRefs.has(ref));
 
   if (!input.verifier) return { decision: 'DEFER', evidenceRefs: availableEvidence, rationale: ['SPATIAL_REALITY_VERIFIER_REQUIRED'] };
   if (!input.createdAt) return { decision: 'DEFER', evidenceRefs: availableEvidence, rationale: ['SPATIAL_REALITY_ADMISSION_CREATED_AT_REQUIRED'] };
@@ -39,5 +46,12 @@ export function evaluateSpatialRealityAdmission(input: SpatialRealityAdmissionIn
       rationale: ['SPATIAL_REALITY_NON_FALLBACK_EVIDENCE_REQUIRED', `Required ${requiredNonFallbackEvidence} non-fallback evidence ref(s); found ${availableNonFallbackEvidence.length}.`],
     };
   }
-  return { decision: 'ACCEPT', evidenceRefs: availableEvidence, rationale: ['Candidate has the required evidence references, an admissible determination, and sufficient non-fallback evidence.'] };
+  if (requiredFreshEvidence > 0 && availableFreshNonFallbackEvidence.length < requiredFreshEvidence) {
+    return {
+      decision: 'DEFER',
+      evidenceRefs: availableEvidence,
+      rationale: ['SPATIAL_REALITY_FRESH_EVIDENCE_REQUIRED', `Required ${requiredFreshEvidence} fresh non-fallback evidence ref(s); found ${availableFreshNonFallbackEvidence.length}.`],
+    };
+  }
+  return { decision: 'ACCEPT', evidenceRefs: availableEvidence, rationale: ['Candidate has the required evidence references, an admissible determination, and sufficient fresh/non-fallback evidence under the active policy.'] };
 }

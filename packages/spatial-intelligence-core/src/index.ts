@@ -5,6 +5,7 @@ export * from './evidence-store.js';
 export * from './postgres-evidence-store.js';
 export * from './reality.js';
 export * from './reality-admission.js';
+export * from './spatial-reality-admission-read-provider.js';
 export * from './postgres-reality-store.js';
 export * from './temporal.js';
 export * from './spatial-pipeline.js';

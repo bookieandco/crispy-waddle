@@ -11,6 +11,8 @@ import { runSpatialPerception, type SpatialPerceptionAdapter } from './spatial-p
 import { type SpatialWorkspace, planSpatialQuery } from './spatial-pipeline.js'
 import { evaluateSpatialRealityAdmission } from './reality-admission.js'
 import { InMemorySpatialEvidenceStore } from './evidence-store.js'
+import { createSpatialRealityAdmissionReadProvider } from './spatial-reality-admission-read-provider.js'
+import { InMemorySpatialRealityStore } from './reality.js'
 
 const response = (body: unknown, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -98,6 +100,42 @@ test('GEV P4 live read provider produces evidence but cannot self-admit claims o
   assert.equal(cameraEvidence?.payload.attributes.healthStatus, 'degraded')
   assert.equal(cameraEvidence?.payload.attributes.fallbackActive, true)
   assert.equal(cameraEvidence?.payload.attributes.timestampSemantics, 'provider-health-updated-at')
+})
+
+
+test('GEV PROD.4 governed admission composes persisted evidence into explicit Reality without a raw-observation bypass', async () => {
+  const bridge = new GevProviderBridge({ baseUrl: 'https://gev.example', fetchImpl: liveFetch() })
+  const evidenceStore = new InMemorySpatialEvidenceStore()
+  const realityStore = new InMemorySpatialRealityStore()
+  const evidenceRead = createGevSpatialContextReadProvider({ bridge, evidenceStore, now: () => '2026-09-19T20:00:00Z' })
+  const provider = createSpatialRealityAdmissionReadProvider({
+    read: evidenceRead,
+    evidenceStore,
+    realityStore,
+    now: () => '2026-09-19T20:00:01Z',
+  })
+  const plan = planSpatialQuery({
+    queryId: 'q-prod-4',
+    kind: 'OBSERVE',
+    subject: 'nearby spatial context',
+    geographicScope: { lat: 34, lon: -117, radiusKm: 200 },
+    temporalScope: { from: null, to: null, asOf: null },
+    requestedDomains: ['spatial'],
+    requiresEvidence: true,
+  })
+  const context = await provider.read(plan, 'user-1')
+  assert.ok(context)
+  assert.ok((context?.claims.length ?? 0) > 0)
+  assert.ok((context?.reality.length ?? 0) > 0)
+  assert.ok(context?.reality.some((item) => item.summary.includes('aircraft:abc123')))
+
+  const cameraClaim = context?.claims.find((item) => item.summary.includes('cam-near'))
+  assert.ok(cameraClaim)
+  const cameraAdmissions = await realityStore.getAdmissions(cameraClaim!.id)
+  assert.equal(cameraAdmissions.length, 1)
+  assert.equal(cameraAdmissions[0].decision, 'DEFER')
+  assert.ok(cameraAdmissions[0].rationale.includes('SPATIAL_REALITY_NON_FALLBACK_EVIDENCE_REQUIRED'))
+  assert.ok(!context?.reality.some((item) => item.summary.includes('cam-near')))
 })
 
 test('GEV P5 workspace history is append-only and supports deterministic replay at a timestamp', async () => {
@@ -221,4 +259,16 @@ test('GEV P10 reality admission is explicit: fallback-only defers, non-fallback 
     createdAt: '2026-09-19T20:00:01Z',
   })
   assert.equal(admitted.decision, 'ACCEPT')
+
+  const stale = evaluateSpatialRealityAdmission({
+    candidate: { ...candidate, candidateId: 'candidate-3', evidenceRefs: ['e-stale'] },
+    verifier: 'p10-verifier',
+    evidenceAvailable: new Set(['e-stale']),
+    fallbackEvidenceRefs: new Set(),
+    freshEvidenceRefs: new Set(),
+    requiredFreshEvidence: 1,
+    createdAt: '2026-09-19T20:00:01Z',
+  })
+  assert.equal(stale.decision, 'DEFER')
+  assert.ok(stale.rationale.includes('SPATIAL_REALITY_FRESH_EVIDENCE_REQUIRED'))
 })

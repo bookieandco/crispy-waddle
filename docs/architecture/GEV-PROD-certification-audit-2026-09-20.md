@@ -59,27 +59,23 @@ The active production deployment predates this route, so it cannot certify the c
 
 ### GEV-PROD.3 — live-source verification
 
-**BLOCKED BY PROD.1, plus one runtime-evidence gap.**
+**SOURCE GAP REPAIRED; LIVE RUNTIME BLOCKED BY PROD.1.**
 
 The bridge allowlists the expected GEV endpoints for CCTV, OpenSky aircraft, AIS vessels, FIRMS, TomTom and CelesTrak. Source policy metadata carries attribution/licensing/privacy/use restrictions.
 
-CCTV catalog normalization preserves provider identity, source ID, feed/source kind, license and credit. However:
-- CCTV catalog observations intentionally have `observed_at = null`; and
-- the current read provider does not merge per-camera `/api/cctv/health` state into normalized observations.
-
-Upstream GEV tracks `status`, `sourceKind` and `updatedAt` per camera and explicitly distinguishes upstream/snapshot/live/Street View/synthetic fallback. PROD.3 must not be marked PASS until the live receipt proves observation-time semantics and fallback state survive the normalization/certification path.
+CCTV `/sources` and `/health` are now composed in the production read path. Normalized camera source-state evidence preserves provider identity, catalog and effective source kind, health status/label/message, upstream `updatedAt` timestamp semantics, fallback-active state, license and credit. Street View/synthetic/fallback state is explicit and remains evidence-only. PROD.3 still requires a deployed live receipt before PASS.
 
 ### GEV-PROD.4 — true live E2E Reality path
 
-**NOT CERTIFIABLE YET.**
+**SOURCE COMPOSITION REPAIRED; LIVE RUNTIME BLOCKED BY PROD.1.**
 
-The GEV Spatial read provider intentionally emits observations + immutable evidence and returns empty `claims[]` / `reality[]`. This correctly prevents self-admission.
+The GEV Spatial reader remains evidence-only and cannot self-admit. Production now wraps that reader with a separate governed promotion layer that re-reads durable evidence, appends a candidate, evaluates the explicit admission gate, appends an immutable admission receipt, and exposes Reality refs only for `ACCEPT`. Fallback-only evidence is deferred and production admission additionally requires explicitly fresh non-fallback evidence. Supabase now has a server-only append-only adapter for both reality tables.
 
-The repository contains candidate/admission evaluators and durable reality stores, but this audit did not find a deployed-facing Jhadina Web composition that carries one live GEV event through candidate creation and explicit Reality admission. A certification-only/live composition is required to prove:
+The required chain is therefore represented in source as:
 
-`observation -> evidence -> candidate -> admission -> SpatialContext -> Ask Jhadina/DELIA`
+`observation -> durable evidence -> candidate -> explicit admission -> SpatialContext -> Ask Jhadina/DELIA`
 
-without creating any raw-observation-to-Reality bypass.
+A deployed live receipt with Supabase rows is still required before PROD.4 can PASS.
 
 ### GEV-PROD.5 — adversarial live drills
 
