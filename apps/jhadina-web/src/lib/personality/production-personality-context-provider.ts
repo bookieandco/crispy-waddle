@@ -7,6 +7,7 @@ import {
   type Experience,
   type ExpressionDirective,
   type PatternObservation,
+  type PatternPort,
   type PersonalityEligibilityRule,
   type PersonalityState,
   type PersonalityStateRepository,
@@ -32,6 +33,8 @@ export interface PersonalityContextContribution {
 export interface ProductionPersonalityContextProviderOptions {
   repository?: PersonalityStateRepository | null
   eligibilityRules?: readonly PersonalityEligibilityRule[]
+  /** Test/composition seam for governed semantic detectors; defaults to canonical PatternPort. */
+  patternPort?: PatternPort
 }
 
 /**
@@ -52,7 +55,7 @@ export class ProductionPersonalityContextProvider {
     storage: MemoryStorage,
     options: ProductionPersonalityContextProviderOptions = {},
   ) {
-    this.adapter = new PersistedExperiencePatternAdapter(storage)
+    this.adapter = new PersistedExperiencePatternAdapter(storage, options.patternPort)
     this.repository = options.repository ?? null
     this.eligibilityRules = options.eligibilityRules ?? []
   }
