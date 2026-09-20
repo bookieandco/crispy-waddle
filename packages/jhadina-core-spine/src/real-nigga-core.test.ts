@@ -32,6 +32,8 @@ describe('Real Nigga Core', () => {
     assert.equal(behavior.formality, 0.5);
     assert.equal(behavior.reasoningDepth, 0.5);
     assert.equal(behavior.workflowContinuity, 0.5);
+    assert.equal(behavior.explanationStyle, 'standard');
+    assert.equal(behavior.decisionPresentation, 'balanced');
     assert.equal(behavior.humor, 0.8);
     assert.equal(behavior.profanityAllowed, true);
     assert.equal(behavior.quipsAllowed, true);
@@ -174,6 +176,9 @@ describe('Real Nigga Core', () => {
         trait('pushback', 'prefers active pushback', 'communication'),
         trait('depth', 'prefers technical depth', 'communication'),
         trait('workflow', 'prefers continuous workflow', 'preference'),
+        trait('steps', 'prefers step-by-step explanations', 'communication'),
+        trait('evidence-first', 'prefers evidence-first explanations', 'communication'),
+        trait('options', 'prefers multiple options', 'preference'),
         trait('creative', 'prefers experimental creativity', 'taste'),
         trait('familiar', 'prefers familiar tone', 'relationship'),
       ],
@@ -184,6 +189,8 @@ describe('Real Nigga Core', () => {
     assert.ok(behavior.formality > 0.7);
     assert.ok(behavior.reasoningDepth > 0.7);
     assert.ok(behavior.workflowContinuity > 0.7);
+    assert.equal(behavior.explanationStyle, 'evidence-first');
+    assert.equal(behavior.decisionPresentation, 'options');
     assert.ok(behavior.humor > personality.voice.humor);
     assert.ok(behavior.disagreementDirectness > personality.voice.disagreementDirectness);
     assert.ok(behavior.creativeLatitude > 0.5);
