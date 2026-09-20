@@ -22,6 +22,9 @@ import {
   type MediaSource,
   type MediaSessionController,
   type MediaTitle,
+  assertEpisodeBelongsToSeason,
+  canonicalEpisodeId,
+  seriesFromMediaTitle,
 } from './index';
 
 const title = (id: string, overrides: Partial<MediaTitle> = {}): MediaTitle => ({
@@ -33,6 +36,23 @@ const provider = (id: string, results: MediaTitle[] = [title('alpha')]): Catalog
   id, name: id,
   sourceAdapter: { id, name: id, search: async () => results, getSources: async () => [] },
   search: async () => results,
+});
+
+describe('JhadinaTV hierarchy contracts', () => {
+  it('derives a canonical series without changing the legacy MediaTitle boundary', () => {
+    const media = title('series-alpha', { kind: 'tv', title: 'Series Alpha' });
+    expect(seriesFromMediaTitle(media)).toMatchObject({ id: 'series-alpha', kind: 'series', title: 'Series Alpha' });
+    expect(media.kind).toBe('tv');
+  });
+
+  it('creates deterministic episode ids and rejects inconsistent hierarchy', () => {
+    expect(canonicalEpisodeId('series-alpha', 2, 3)).toBe('series-alpha:s2:e3');
+    const season = { id: 'season-2', kind: 'season' as const, seriesId: 'series-alpha', seasonNumber: 2 };
+    const episode = { id: 'episode-3', kind: 'episode' as const, seriesId: 'series-alpha', seasonId: 'season-2', seasonNumber: 2, episodeNumber: 3, title: 'Three', overview: '' };
+    expect(assertEpisodeBelongsToSeason(episode, season)).toBe(episode);
+    expect(() => assertEpisodeBelongsToSeason({ ...episode, seasonNumber: 1 }, season)).toThrow(/season number/);
+    expect(() => canonicalEpisodeId('series-alpha', 0, 1)).toThrow(/positive integer/);
+  });
 });
 
 describe('JhadinaTV production contracts', () => {
