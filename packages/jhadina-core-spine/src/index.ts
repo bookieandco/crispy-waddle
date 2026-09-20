@@ -66,6 +66,8 @@ export * from './safety-live-readiness.js';
 export * from './safety-prod-gate-3.js';
 export * from './safety-live-admission.js';
 export * from './safety-live-mode.js';
+export * from './safety-prod-gate-5.js';
+export * from './safety-live-runtime-proof.js';
 
 export * from './communication-directness-pattern.js';
 
