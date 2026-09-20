@@ -3,6 +3,7 @@ import { CompositePatternDetectionStrategy } from './composite-pattern-strategy.
 import { DeterministicPatternPort, RecurrencePatternStrategy } from './pattern-engine.js';
 import { RelationshipContextPatternStrategy } from './relationship-context-pattern.js';
 import { CommunicationDirectnessPatternStrategy } from './communication-directness-pattern.js';
+import { CommunicationConcisionPatternStrategy } from './communication-concision-pattern.js';
 
 /**
  * Canonical Strategy composition for the current PatternPort.
@@ -13,6 +14,7 @@ export function createCanonicalPatternPort(): PatternPort {
     new RecurrencePatternStrategy(),
     new RelationshipContextPatternStrategy(),
     new CommunicationDirectnessPatternStrategy(),
+    new CommunicationConcisionPatternStrategy(),
   ]);
   return new DeterministicPatternPort(strategy);
 }

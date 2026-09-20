@@ -28,6 +28,7 @@ describe('Real Nigga Core', () => {
 
     assert.equal(behavior.directness, 0.9);
     assert.equal(behavior.warmth, 0.7);
+    assert.equal(behavior.verbosity, 0.4);
     assert.equal(behavior.humor, 0.8);
     assert.equal(behavior.profanityAllowed, true);
     assert.equal(behavior.quipsAllowed, true);
@@ -120,6 +121,29 @@ describe('Real Nigga Core', () => {
       traits: [{ ...learned.traits[0], status: 'contested' }],
     });
     assert.equal(contested.directness, 0.5);
+  });
+
+  it('uses only an accepted governed concision trait to reduce verbosity', () => {
+    const learned: PersonalityState = {
+      ...personality,
+      voice: { ...personality.voice!, verbosity: 0.6 },
+      traits: [{
+        id: 'trait-concise',
+        statement: 'prefers concise communication',
+        dimension: 'communication',
+        confidence: 0.8,
+        stability: 1,
+        evidence: [{ id: 'e1', source: 'memory', observedAt: '2026-09-01T00:00:00.000Z', summary: 'brief answers', immutable: true }],
+        contradictions: [],
+        status: 'accepted',
+      }],
+    };
+
+    assert.equal(deriveRealNiggaBehavior(learned).verbosity, 0.4);
+    assert.equal(deriveRealNiggaBehavior({
+      ...learned,
+      traits: [{ ...learned.traits[0], status: 'candidate' }],
+    }).verbosity, 0.6);
   });
 
 });

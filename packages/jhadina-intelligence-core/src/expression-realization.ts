@@ -8,6 +8,7 @@ export interface GovernedExpressionRealization {
     mode: ExpressionDirective['mode'];
     allowProfanity: boolean;
     allowQuip: boolean;
+    responseLength?: ExpressionDirective['responseLength'];
     callback?: string;
     culturalReference?: string;
   };
@@ -36,6 +37,7 @@ export function realizeGovernedExpression(
     mode: directive?.mode ?? 'explanatory',
     allowProfanity: directive?.allowProfanity ?? false,
     allowQuip: directive?.allowQuip ?? false,
+    ...(directive?.responseLength ? { responseLength: directive.responseLength } : {}),
     ...(directive?.callback ? { callback: directive.callback } : {}),
     ...(directive?.culturalReference ? { culturalReference: directive.culturalReference } : {}),
   });

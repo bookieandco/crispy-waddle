@@ -51,6 +51,14 @@ export const DEFAULT_PERSONALITY_ELIGIBILITY_RULES: readonly PersonalityEligibil
   minimumEvidence: 3,
   maximumContradictions: 3,
   requireImmutableEvidence: true,
+}, {
+  ruleId: 'communication-concision-v1',
+  patternIdPrefix: 'personality-signal:communication:concision',
+  dimension: 'communication',
+  minimumObservations: 3,
+  minimumEvidence: 3,
+  maximumContradictions: 3,
+  requireImmutableEvidence: true,
 }];
 
 function validEvidence(ref: EvidenceRef): boolean {

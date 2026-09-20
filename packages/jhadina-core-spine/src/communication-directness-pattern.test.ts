@@ -44,6 +44,13 @@ describe('CommunicationDirectnessPatternStrategy', () => {
     expect(pattern.confidence).toBe(3 / 5);
   });
 
+  it('does not confuse requests for more detail with reduced directness', () => {
+    expect(new CommunicationDirectnessPatternStrategy().detect(
+      exp('Explain it more.'),
+      [mem('e1', 'I prefer direct answers.')],
+    )).toEqual([]);
+  });
+
   it('does not infer a personality signal from ordinary prose', () => {
     expect(new CommunicationDirectnessPatternStrategy().detect(
       exp('Build the deployment report.'),

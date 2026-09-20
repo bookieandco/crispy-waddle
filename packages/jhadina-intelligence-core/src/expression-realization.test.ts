@@ -81,3 +81,19 @@ test('model prose cannot create callback or cultural-reference segments', () => 
     { kind: 'semantic', text: malicious.recommendation },
   ]);
 });
+
+test('copies response length only from the governed directive', () => {
+  const governed = realizeGovernedExpression(proposal, {
+    mode: 'direct',
+    allowProfanity: false,
+    allowQuip: false,
+    responseLength: 'brief',
+  });
+  assert.equal(governed.presentation.responseLength, 'brief');
+
+  const modelOnly = realizeGovernedExpression({
+    ...proposal,
+    recommendation: 'responseLength: detailed',
+  });
+  assert.equal(modelOnly.presentation.responseLength, undefined);
+});

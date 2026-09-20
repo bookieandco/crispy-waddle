@@ -4,23 +4,26 @@ import type { PatternDetectionStrategy } from './pattern-engine.js';
 
 type SemanticSignal = 'support' | 'contradict' | 'none';
 
-const DIRECT_SUPPORT = [
-  /\b(be|stay|keep it|keep this) direct\b/i,
-  /\bdirect answers?\b/i,
-  /\bstraight to (the )?point\b/i,
-  /\bno sugarcoat(?:ing)?\b/i,
-  /\bdon't sugarcoat\b/i,
+const CONCISE_SUPPORT = [
+  /\b(be|stay|keep it|keep this) concise\b/i,
+  /\bkeep (it|this|answers?) (short|brief)\b/i,
+  /\b(short|brief|concise) answers?\b/i,
+  /\bno long (answer|answers|explanation|explanations)\b/i,
+  /\bget to the point quickly\b/i,
 ];
 
-const DIRECT_CONTRADICTION = [
-  /\bnot (so )?direct\b/i,
-  /\bless direct\b/i,
-  /\bsoften (it|that|the tone)\b/i,
+const CONCISE_CONTRADICTION = [
+  /\b(more|extra) detail(?:ed)?\b/i,
+  /\bexplain (it|this|that) more\b/i,
+  /\b(be|stay) thorough\b/i,
+  /\b(longer|detailed|thorough) answers?\b/i,
+  /\bdon't (be )?(so )?(brief|concise)\b/i,
+  /\bless (brief|concise)\b/i,
 ];
 
 function signal(value: string): SemanticSignal {
-  const support = DIRECT_SUPPORT.some((pattern) => pattern.test(value));
-  const contradict = DIRECT_CONTRADICTION.some((pattern) => pattern.test(value));
+  const support = CONCISE_SUPPORT.some((pattern) => pattern.test(value));
+  const contradict = CONCISE_CONTRADICTION.some((pattern) => pattern.test(value));
   if (support === contradict) return 'none';
   return support ? 'support' : 'contradict';
 }
@@ -51,21 +54,20 @@ function memoryEvidence(memory: MemoryProposal): EvidenceRef[] {
 }
 
 /**
- * Governed semantic detector for an explicit communication preference.
+ * Narrow semantic detector for an explicit answer-length preference.
  *
- * It recognizes only narrow, auditable directness statements. It does not infer
- * directness from tone, sentiment, demographics, model judgment, or generic
- * recurrence confidence. Eligibility remains a separate governance decision.
+ * Concision is intentionally separate from directness: a user can ask for a
+ * detailed answer that is still direct, or a brief answer that is warm.
  */
-export class CommunicationDirectnessPatternStrategy implements PatternDetectionStrategy {
+export class CommunicationConcisionPatternStrategy implements PatternDetectionStrategy {
   detect(experience: Experience, memories: MemoryProposal[]): PatternObservation[] {
-    const observations: Array<{ support: 0 | 1; evidence: EvidenceRef[] }> = [];
     const currentSignal = signal(experience.content);
     if (currentSignal === 'none') return [];
-    observations.push({
+
+    const observations: Array<{ support: 0 | 1; evidence: EvidenceRef[] }> = [{
       support: currentSignal === 'support' ? 1 : 0,
       evidence: experienceEvidence(experience),
-    });
+    }];
 
     for (const memory of memories) {
       if (memory.disposition !== 'SAVE') continue;
@@ -88,10 +90,6 @@ export class CommunicationDirectnessPatternStrategy implements PatternDetectionS
     });
     if (independent.length < 2) return [];
 
-    // Only durable/approved evidence may flow into Personality. The live
-    // Experience can shape the current Bayesian observation, but its mutable
-    // request id must never become durable trait evidence or inflate state on
-    // repeated requests.
     const evidence = unique(
       independent
         .filter((item) => item.support === 1)
@@ -104,9 +102,10 @@ export class CommunicationDirectnessPatternStrategy implements PatternDetectionS
         .flatMap((item) => item.evidence)
         .filter((ref) => ref.immutable === true),
     );
+
     const raw: PatternObservation = {
-      id: 'personality-signal:communication:directness',
-      pattern: 'prefers direct communication',
+      id: 'personality-signal:communication:concision',
+      pattern: 'prefers concise communication',
       evidence,
       contradictions,
       occurrences: independent.length,
