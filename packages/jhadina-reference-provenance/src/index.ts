@@ -3,6 +3,9 @@ import { createHash } from 'node:crypto';
 export const REFERENCE_PROVENANCE_SCHEMA_VERSION =
   'REF-PROV-01' as const;
 
+export const REFERENCE_SOURCE_VERIFICATION_SCHEMA_VERSION =
+  'REF-PROV-03' as const;
+
 export type ReferenceKind =
   | 'GITHUB_REPOSITORY'
   | 'API_DOCUMENTATION'
@@ -128,10 +131,52 @@ export type ReferenceImplementationMapping = Readonly<{
   authority: ReferenceAuthority;
 }>;
 
+export type ReferenceSourceVerificationStatus =
+  | 'PINNED'
+  | 'VERSIONED'
+  | 'UNPINNED'
+  | 'UNRESOLVED';
+
+export type ReferenceLicenseFinding =
+  | 'VERIFIED'
+  | 'NO_LICENSE_FILE'
+  | 'AMBIGUOUS'
+  | 'NOT_APPLICABLE';
+
+export type ReferenceLicenseReusePolicy =
+  | 'PERMISSIVE'
+  | 'COPYLEFT_REVIEW_REQUIRED'
+  | 'CUSTOM_REVIEW_REQUIRED'
+  | 'NO_LICENSE'
+  | 'NOT_APPLICABLE';
+
+export type ReferenceSourceVerification = Readonly<{
+  schemaVersion:
+    typeof REFERENCE_SOURCE_VERIFICATION_SCHEMA_VERSION;
+  verificationId: string;
+  referenceId: string;
+  canonicalSourceLocator: string;
+  sourceVerificationStatus: ReferenceSourceVerificationStatus;
+  sourceRevision?: string;
+  sourceDigest?: string;
+  verifiedAt: string;
+  licenseFinding: ReferenceLicenseFinding;
+  licenseExpression?: string;
+  licenseEvidenceLocator?: string;
+  licenseReusePolicy: ReferenceLicenseReusePolicy;
+  evidence: readonly ReferenceEvidence[];
+  notes?: string;
+  authority: ReferenceAuthority;
+  verificationHash: string;
+}>;
+
 export type ReferenceRegistrySnapshot = Readonly<{
   schemaVersion: typeof REFERENCE_PROVENANCE_SCHEMA_VERSION;
+  sourceVerificationSchemaVersion:
+    typeof REFERENCE_SOURCE_VERIFICATION_SCHEMA_VERSION;
   referenceIds: readonly string[];
   mappingIds: readonly string[];
+  sourceVerificationIds: readonly string[];
   generatedAt: string;
   registryHash: string;
   authority: ReferenceAuthority;
@@ -145,6 +190,11 @@ export type RegisterReferenceInput = Omit<
 export type RegisterMappingInput = Omit<
   ReferenceImplementationMapping,
   'authority' | 'mappingHash'
+>;
+
+export type RegisterSourceVerificationInput = Omit<
+  ReferenceSourceVerification,
+  'schemaVersion' | 'authority' | 'verificationHash'
 >;
 
 function assertNonEmpty(value: string, code: string): void {
@@ -347,12 +397,134 @@ function assertMappingInput(
     );
   }
 
-  if (
-    input.borrowedArtifactKinds.includes('CODE') &&
-    reference.licenseStatus !== 'VERIFIED'
-  ) {
-    throw new Error('REF_PROV_CODE_DERIVATION_LICENSE_NOT_VERIFIED');
+  if (input.borrowedArtifactKinds.includes('CODE')) {
+    const legacyVerified =
+      reference.licenseStatus === 'VERIFIED';
+    const sourceVerified =
+      sourceVerification?.licenseFinding === 'VERIFIED' &&
+      sourceVerification.licenseReusePolicy === 'PERMISSIVE';
+    if (!legacyVerified && !sourceVerified) {
+      throw new Error(
+        'REF_PROV_CODE_DERIVATION_LICENSE_NOT_VERIFIED',
+      );
+    }
+    if (
+      sourceVerification &&
+      sourceVerification.licenseReusePolicy !== 'PERMISSIVE'
+    ) {
+      throw new Error(
+        'REF_PROV_CODE_DERIVATION_REUSE_REVIEW_REQUIRED',
+      );
+    }
   }
+}
+
+function assertSourceVerificationInput(
+  input: RegisterSourceVerificationInput,
+  reference: ReferenceRecord,
+): void {
+  if (input.referenceId !== reference.referenceId) {
+    throw new Error('REF_PROV_SOURCE_REFERENCE_MISMATCH');
+  }
+  assertNonEmpty(
+    input.verificationId,
+    'REF_PROV_SOURCE_VERIFICATION_ID_REQUIRED',
+  );
+  assertAbsoluteLocator(input.canonicalSourceLocator);
+  if (Number.isNaN(Date.parse(input.verifiedAt))) {
+    throw new Error('REF_PROV_SOURCE_VERIFIED_AT_INVALID');
+  }
+  if (input.evidence.length === 0) {
+    throw new Error('REF_PROV_SOURCE_EVIDENCE_REQUIRED');
+  }
+  assertEvidence(input.evidence, 'REF_PROV_SOURCE');
+
+  if (input.sourceVerificationStatus === 'PINNED') {
+    assertNonEmpty(
+      input.sourceRevision ?? '',
+      'REF_PROV_SOURCE_REVISION_REQUIRED',
+    );
+    assertNonEmpty(
+      input.sourceDigest ?? '',
+      'REF_PROV_SOURCE_DIGEST_REQUIRED',
+    );
+    if (
+      !input.evidence.some((item) => item.kind === 'COMMIT')
+    ) {
+      throw new Error('REF_PROV_SOURCE_COMMIT_EVIDENCE_REQUIRED');
+    }
+  }
+
+  if (
+    input.sourceDigest !== undefined &&
+    !/^git-commit-sha1:[0-9a-f]{40}$/.test(input.sourceDigest)
+  ) {
+    throw new Error('REF_PROV_SOURCE_DIGEST_INVALID');
+  }
+
+  if (input.licenseFinding === 'VERIFIED') {
+    assertNonEmpty(
+      input.licenseExpression ?? '',
+      'REF_PROV_SOURCE_LICENSE_EXPRESSION_REQUIRED',
+    );
+    assertNonEmpty(
+      input.licenseEvidenceLocator ?? '',
+      'REF_PROV_SOURCE_LICENSE_EVIDENCE_REQUIRED',
+    );
+    if (
+      input.licenseReusePolicy === 'NO_LICENSE' ||
+      input.licenseReusePolicy === 'NOT_APPLICABLE'
+    ) {
+      throw new Error('REF_PROV_SOURCE_LICENSE_POLICY_INVALID');
+    }
+  } else if (input.licenseEvidenceLocator !== undefined) {
+    throw new Error(
+      'REF_PROV_SOURCE_UNVERIFIED_LICENSE_EVIDENCE_FORBIDDEN',
+    );
+  }
+
+  if (
+    input.licenseFinding === 'NO_LICENSE_FILE' &&
+    input.licenseReusePolicy !== 'NO_LICENSE'
+  ) {
+    throw new Error('REF_PROV_SOURCE_NO_LICENSE_POLICY_REQUIRED');
+  }
+
+  if (
+    input.licenseFinding === 'NOT_APPLICABLE' &&
+    input.licenseReusePolicy !== 'NOT_APPLICABLE'
+  ) {
+    throw new Error('REF_PROV_SOURCE_NA_LICENSE_POLICY_REQUIRED');
+  }
+}
+
+export function buildReferenceSourceVerification(
+  input: RegisterSourceVerificationInput,
+  reference: ReferenceRecord,
+): ReferenceSourceVerification {
+  assertSourceVerificationInput(input, reference);
+  const withoutHash = {
+    schemaVersion: REFERENCE_SOURCE_VERIFICATION_SCHEMA_VERSION,
+    verificationId: input.verificationId,
+    referenceId: input.referenceId,
+    canonicalSourceLocator: input.canonicalSourceLocator,
+    sourceVerificationStatus: input.sourceVerificationStatus,
+    sourceRevision: input.sourceRevision,
+    sourceDigest: input.sourceDigest,
+    verifiedAt: input.verifiedAt,
+    licenseFinding: input.licenseFinding,
+    licenseExpression: input.licenseExpression,
+    licenseEvidenceLocator: input.licenseEvidenceLocator,
+    licenseReusePolicy: input.licenseReusePolicy,
+    evidence: freezeEvidence(input.evidence),
+    notes: input.notes,
+    authority: NO_REFERENCE_AUTHORITY,
+  } as const;
+
+  return Object.freeze({
+    ...withoutHash,
+    verificationHash: hash(withoutHash),
+  });
 }
 
 export function buildReferenceRecord(
@@ -388,6 +560,7 @@ export function buildReferenceRecord(
 export function buildReferenceMapping(
   input: RegisterMappingInput,
   reference: ReferenceRecord,
+  sourceVerification?: ReferenceSourceVerification,
 ): ReferenceImplementationMapping {
   if (input.referenceId !== reference.referenceId) {
     throw new Error('REF_PROV_MAPPING_REFERENCE_MISMATCH');
@@ -424,6 +597,10 @@ export class ReferenceProvenanceRegistry {
     string,
     ReferenceImplementationMapping
   >();
+  private readonly sourceVerifications = new Map<
+    string,
+    ReferenceSourceVerification
+  >();
 
   registerReference(input: RegisterReferenceInput): ReferenceRecord {
     if (this.references.has(input.referenceId)) {
@@ -432,6 +609,29 @@ export class ReferenceProvenanceRegistry {
     const record = buildReferenceRecord(input);
     this.references.set(record.referenceId, record);
     return record;
+  }
+
+  registerSourceVerification(
+    input: RegisterSourceVerificationInput,
+  ): ReferenceSourceVerification {
+    if (this.sourceVerifications.has(input.referenceId)) {
+      throw new Error(
+        'REF_PROV_SOURCE_VERIFICATION_ALREADY_REGISTERED',
+      );
+    }
+    const reference = this.references.get(input.referenceId);
+    if (!reference) {
+      throw new Error('REF_PROV_REFERENCE_NOT_REGISTERED');
+    }
+    const verification = buildReferenceSourceVerification(
+      input,
+      reference,
+    );
+    this.sourceVerifications.set(
+      verification.referenceId,
+      verification,
+    );
+    return verification;
   }
 
   registerMapping(
@@ -444,7 +644,11 @@ export class ReferenceProvenanceRegistry {
     if (!reference) {
       throw new Error('REF_PROV_REFERENCE_NOT_REGISTERED');
     }
-    const mapping = buildReferenceMapping(input, reference);
+    const mapping = buildReferenceMapping(
+      input,
+      reference,
+      this.sourceVerifications.get(input.referenceId),
+    );
     this.mappings.set(mapping.mappingId, mapping);
     return mapping;
   }
@@ -459,6 +663,12 @@ export class ReferenceProvenanceRegistry {
     return this.mappings.get(mappingId);
   }
 
+  getSourceVerification(
+    referenceId: string,
+  ): ReferenceSourceVerification | undefined {
+    return this.sourceVerifications.get(referenceId);
+  }
+
   listReferences(): readonly ReferenceRecord[] {
     return Object.freeze(
       [...this.references.values()].sort((a, b) =>
@@ -471,6 +681,15 @@ export class ReferenceProvenanceRegistry {
     return Object.freeze(
       [...this.mappings.values()].sort((a, b) =>
         a.mappingId.localeCompare(b.mappingId),
+      ),
+    );
+  }
+
+  listSourceVerifications():
+    readonly ReferenceSourceVerification[] {
+    return Object.freeze(
+      [...this.sourceVerifications.values()].sort((a, b) =>
+        a.referenceId.localeCompare(b.referenceId),
       ),
     );
   }
@@ -507,6 +726,16 @@ export class ReferenceProvenanceRegistry {
       }
     }
 
+    for (const verification of this.sourceVerifications.values()) {
+      const reference = this.references.get(
+        verification.referenceId,
+      );
+      if (!reference) {
+        throw new Error('REF_PROV_SOURCE_VERIFICATION_ORPHANED');
+      }
+      assertSourceVerificationInput(verification, reference);
+    }
+
     for (const mapping of this.mappings.values()) {
       const reference = this.references.get(mapping.referenceId);
       if (!reference) {
@@ -541,20 +770,33 @@ export class ReferenceProvenanceRegistry {
     const mappingIds = this.listMappings().map(
       (mapping) => mapping.mappingId,
     );
+    const sourceVerificationIds =
+      this.listSourceVerifications().map(
+        (verification) => verification.verificationId,
+      );
     const registryHash = hash({
       schemaVersion: REFERENCE_PROVENANCE_SCHEMA_VERSION,
+      sourceVerificationSchemaVersion:
+        REFERENCE_SOURCE_VERIFICATION_SCHEMA_VERSION,
       referenceHashes: this.listReferences().map(
         (record) => record.recordHash,
       ),
       mappingHashes: this.listMappings().map(
         (mapping) => mapping.mappingHash,
       ),
+      sourceVerificationHashes:
+        this.listSourceVerifications().map(
+          (verification) => verification.verificationHash,
+        ),
     });
 
     return Object.freeze({
       schemaVersion: REFERENCE_PROVENANCE_SCHEMA_VERSION,
+      sourceVerificationSchemaVersion:
+        REFERENCE_SOURCE_VERIFICATION_SCHEMA_VERSION,
       referenceIds: Object.freeze(referenceIds),
       mappingIds: Object.freeze(mappingIds),
+      sourceVerificationIds: Object.freeze(sourceVerificationIds),
       generatedAt,
       registryHash,
       authority: NO_REFERENCE_AUTHORITY,
