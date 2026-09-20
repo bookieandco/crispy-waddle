@@ -50,7 +50,7 @@ export const DEFAULT_PERSONALITY_ELIGIBILITY_RULES: readonly PersonalityEligibil
   minimumObservations: 3,
   minimumEvidence: 3,
   maximumContradictions: 3,
-  requireImmutableEvidence: false,
+  requireImmutableEvidence: true,
 }];
 
 function validEvidence(ref: EvidenceRef): boolean {
