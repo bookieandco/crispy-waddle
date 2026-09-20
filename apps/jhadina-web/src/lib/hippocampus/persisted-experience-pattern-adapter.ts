@@ -1,6 +1,6 @@
 import {
+  createCanonicalPatternPort,
   createHippocampusIndex,
-  createPatternPort,
   type Experience,
   type HippocampalEpisode,
   type MemoryProposal,
@@ -16,6 +16,13 @@ import type { MemoryStorage } from "../storage/MemoryStorage"
 export interface PersistedExperiencePatternInput {
   userId: string
   experienceId: string
+  query?: string
+  historyLimit?: number
+}
+
+export interface LiveExperiencePatternInput {
+  userId: string
+  experience: Experience
   query?: string
   historyLimit?: number
 }
@@ -84,11 +91,13 @@ function approvedMemoryToProposal(memory: Memory): MemoryProposal {
 
 function relevantMemoryProposals(
   memories: readonly Memory[],
+  currentEpisode: HippocampalEpisode,
   relatedEpisodes: readonly HippocampalEpisode[],
 ): MemoryProposal[] {
-  const relatedTerms = new Set(
-    relatedEpisodes.flatMap((episode) => episode.indexedTerms),
-  )
+  const relatedTerms = new Set([
+    ...currentEpisode.indexedTerms,
+    ...relatedEpisodes.flatMap((episode) => episode.indexedTerms),
+  ])
 
   return memories
     .filter((memory) => memory.status === "APPROVED")
@@ -113,7 +122,7 @@ function relevantMemoryProposals(
 export class PersistedExperiencePatternAdapter {
   constructor(
     private readonly storage: MemoryStorage,
-    private readonly patternPort: PatternPort = createPatternPort(),
+    private readonly patternPort: PatternPort = createCanonicalPatternPort(),
   ) {}
 
   async detect(
@@ -127,24 +136,46 @@ export class PersistedExperiencePatternAdapter {
       throw new Error(`JHADINA_EXPERIENCE_USER_MISMATCH:${input.experienceId}`)
     }
 
-    const experience = reasoningEventToExperience(persisted)
+    return this.detectExperience({
+      userId: input.userId,
+      experience: reasoningEventToExperience(persisted),
+      query: input.query,
+      historyLimit: input.historyLimit,
+    })
+  }
+
+  /**
+   * Analyze the current request before it is persisted. Only historical
+   * episodes and approved memories are read from durable storage; the live
+   * Experience is supplied by the caller and is never silently persisted here.
+   */
+  async detectExperience(
+    input: LiveExperiencePatternInput,
+  ): Promise<PersistedExperiencePatternResult> {
     const history = await this.storage.listReasoningEvents(
       input.userId,
       input.historyLimit ?? 50,
     )
     const hippocampus = createHippocampusIndex()
-    const episodes = history.map((event) => hippocampus.encode(reasoningEventToExperience(event)))
+    const currentEpisode = hippocampus.encode(input.experience)
+    const historicalEpisodes = history.map((event) =>
+      hippocampus.encode(reasoningEventToExperience(event)),
+    )
     const relatedEpisodes = hippocampus.related(
-      episodes,
-      input.query?.trim() || experience.content,
+      historicalEpisodes,
+      input.query?.trim() || input.experience.content,
     )
 
     const durableMemories = await this.storage.listMemories(input.userId)
-    const memories = relevantMemoryProposals(durableMemories, relatedEpisodes)
-    const patterns = await this.patternPort.detect(experience, memories)
+    const memories = relevantMemoryProposals(
+      durableMemories,
+      currentEpisode,
+      relatedEpisodes,
+    )
+    const patterns = await this.patternPort.detect(input.experience, memories)
 
     return {
-      experience,
+      experience: input.experience,
       relatedEpisodes,
       memories,
       patterns,
