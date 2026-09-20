@@ -60,7 +60,11 @@ begin
    where id = p_session_id
      and actor_id = p_actor_id
      and status = 'issued'
-     and expires_at <= v_now;
+     and expires_at <= v_now
+     and (
+       finalize_lease_expires_at is null
+       or finalize_lease_expires_at <= v_now
+     );
 
   update public.jhadina_upload_sessions
      set finalize_lease_owner = p_worker_id,
