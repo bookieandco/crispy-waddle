@@ -10,6 +10,18 @@ export async function POST(request: NextRequest) {
   const { data: { user }, error: userError } = await supabase.auth.getUser()
   if (userError || !user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
+  let body: { address?: unknown }
+  try {
+    body = await request.json() as { address?: unknown }
+  } catch {
+    return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
+  }
+
+  if (typeof body.address !== 'string' || !body.address.trim()) {
+    return NextResponse.json({ error: 'wallet_address_required' }, { status: 400 })
+  }
+  const address = body.address.trim()
+
   const serviceRole = createServiceRoleClient()
   if (!serviceRole) return NextResponse.json({ error: 'shark_intelligence_unavailable' }, { status: 503 })
   const configuredLimit = Number(process.env.SHARK_WALLET_INTELLIGENCE_RATE_LIMIT ?? 30)
@@ -24,18 +36,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'shark_intelligence_unavailable' }, { status: 503 })
   }
   if (!allowed) return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
-
-  let body: { address?: unknown }
-  try {
-    body = await request.json() as { address?: unknown }
-  } catch {
-    return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
-  }
-
-  if (typeof body.address !== 'string' || !body.address.trim()) {
-    return NextResponse.json({ error: 'wallet_address_required' }, { status: 400 })
-  }
-  const address = body.address.trim()
 
   const rpcUrl = process.env.SOLANA_RPC_URL ?? process.env.HELIUS_RPC_URL
   if (!rpcUrl) {
