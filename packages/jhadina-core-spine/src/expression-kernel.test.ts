@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { planExpression } from './expression-kernel.js';
 import { selectEvidenceBackedCallback } from './callback-provenance.js';
+import { verifyFreshCulturalReference } from './cultural-freshness.js';
 import type { BehavioralDecision } from './behavioral-kernel.js';
 import type { PersonalityState } from './types.js';
 
@@ -9,6 +10,14 @@ const callbackEvidence = {
   source: 'conversation',
   observedAt: '2026-09-03T00:00:00.000Z',
   summary: 'callback-1 was used in a prior conversation',
+  immutable: true,
+};
+
+const culturalEvidence = {
+  id: 'cultural-evidence-1',
+  source: 'knowledge',
+  observedAt: '2026-09-03T00:00:00.000Z',
+  summary: 'reference-1 is a current cultural reference.',
   immutable: true,
 };
 
@@ -65,11 +74,18 @@ const decision: BehavioralDecision = {
 };
 
 describe('Expression Kernel', () => {
-  it('maps behavioral action to an expression plan with verified callback provenance', () => {
+  it('maps behavioral action to an expression plan with verified provenance', () => {
     const callback = selectEvidenceBackedCallback({ personality, callback: 'callback-1' });
+    const culturalReference = verifyFreshCulturalReference({
+      reference: 'reference-1',
+      knowledge: [culturalEvidence],
+      now: '2026-09-03T01:00:00.000Z',
+      freshnessWindowMs: 24 * 60 * 60 * 1000,
+    });
     assert.ok(callback);
+    assert.ok(culturalReference);
 
-    assert.deepEqual(planExpression(decision, { callback, culturalReference: 'reference-1' }), {
+    assert.deepEqual(planExpression(decision, { callback, culturalReference }), {
       mode: 'pushback',
       allowProfanity: true,
       allowQuip: true,
@@ -79,19 +95,29 @@ describe('Expression Kernel', () => {
         evidence: callbackEvidence,
       }],
       culturalReference: 'reference-1',
+      culturalReferenceEvidence: [culturalEvidence],
     });
   });
 
-  it('never allows serious mode to re-enable profanity, quips, or callbacks', () => {
+  it('never allows serious mode to re-enable profanity, quips, callbacks, or cultural references', () => {
     const callback = selectEvidenceBackedCallback({ personality, callback: 'callback-1' });
+    const culturalReference = verifyFreshCulturalReference({
+      reference: 'reference-1',
+      knowledge: [culturalEvidence],
+      now: '2026-09-03T01:00:00.000Z',
+      freshnessWindowMs: 24 * 60 * 60 * 1000,
+    });
     assert.ok(callback);
+    assert.ok(culturalReference);
 
     const serious: BehavioralDecision = { ...decision, action: 'stay_serious' };
-    const plan = planExpression(serious, { callback });
+    const plan = planExpression(serious, { callback, culturalReference });
     assert.equal(plan.mode, 'serious');
     assert.equal(plan.allowProfanity, false);
     assert.equal(plan.allowQuip, false);
     assert.equal(plan.callback, undefined);
     assert.equal(plan.callbackProvenance, undefined);
+    assert.equal(plan.culturalReference, undefined);
+    assert.equal(plan.culturalReferenceEvidence, undefined);
   });
 });
