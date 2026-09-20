@@ -19,7 +19,7 @@ function qtext(q:ExactDecimal){const sign=q.coefficient<0n?'-':'';const d=(q.coe
 
 export function deriveFinancialState(input:{accountId:string;currency:string;informationCutoff:string;events:readonly FinancialEvent[]}):DerivedFinancialState{
  let settled=zero(input.currency),unsettled=zero(input.currency),reserved=zero(input.currency),realized=zero(input.currency),costs=zero(input.currency)
- const qty=new Map<string,ExactDecimal>(),lots:LotState[]=[]
+ const qty=new Map<string,ExactDecimal>(),lots:LotState[]=[],fillCash=new Map<string,MoneyAmount>()
  const events=input.events.filter(e=>e.accountId===input.accountId&&e.recordedAt<=input.informationCutoff).sort((a,b)=>a.effectiveAt.localeCompare(b.effectiveAt)||a.recordedAt.localeCompare(b.recordedAt)||a.eventId.localeCompare(b.eventId))
  const seen=new Set<string>()
  for(const e of events){requireEvidence(e);if(seen.has(e.eventId))throw new Error('MONEY_DUPLICATE_EVENT');seen.add(e.eventId)
@@ -27,8 +27,9 @@ export function deriveFinancialState(input:{accountId:string;currency:string;inf
   if(e.kind==='COST'){costs=addMoney(costs,e.amount);settled=subtractMoney(settled,e.amount)}
   if(e.kind==='FILL'){const q=parseDecimal(e.quantity);const signed=e.side==='BUY'?q:{coefficient:-q.coefficient,scale:q.scale};const prev=qty.get(e.instrumentId)??{coefficient:0n,scale:0};const next=(()=>{const s=Math.max(prev.scale,signed.scale),a=prev.coefficient*10n**BigInt(s-prev.scale),b=signed.coefficient*10n**BigInt(s-signed.scale);return{coefficient:a+b,scale:s}})();qty.set(e.instrumentId,next)
    const notional=multiplyMoney(e.price,q);if(e.side==='BUY'){unsettled=subtractMoney(unsettled,notional);lots.push(Object.freeze({lotId:`lot:${e.fillId}`,instrumentId:e.instrumentId,openedAt:e.effectiveAt,quantity:q,unitCost:e.price,sourceFillId:e.fillId}))}else{unsettled=addMoney(unsettled,notional)}
-   if(e.fee){costs=addMoney(costs,e.fee);unsettled=subtractMoney(unsettled,e.fee)}
+   let cashDelta=e.side==='BUY'?money(-notional.coefficient,notional.scale,notional.currency):notional;if(e.fee){costs=addMoney(costs,e.fee);unsettled=subtractMoney(unsettled,e.fee);cashDelta=subtractMoney(cashDelta,e.fee)}fillCash.set(e.fillId,cashDelta)
   }
+  if(e.kind==='SETTLEMENT'&&e.status==='SETTLED'){const delta=fillCash.get(e.fillId);if(!delta)throw new Error('MONEY_SETTLEMENT_FILL_UNKNOWN');unsettled=subtractMoney(unsettled,delta);settled=addMoney(settled,delta)}
   if(e.kind==='CORPORATE_ACTION'&&(e.action==='SPLIT'||e.action==='REVERSE_SPLIT')){if(!e.ratio)throw new Error('MONEY_CORPORATE_ACTION_RATIO_REQUIRED');const r=parseDecimal(e.ratio);const p=qty.get(e.instrumentId);if(p)qty.set(e.instrumentId,{coefficient:p.coefficient*r.coefficient,scale:p.scale+r.scale})}
   if(e.kind==='CORPORATE_ACTION'&&e.action==='DIVIDEND'){if(!e.cashAmount)throw new Error('MONEY_DIVIDEND_AMOUNT_REQUIRED');unsettled=addMoney(unsettled,e.cashAmount)}
  }
