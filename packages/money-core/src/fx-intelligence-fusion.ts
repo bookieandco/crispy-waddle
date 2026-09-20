@@ -71,6 +71,7 @@ export type FxRegimeLabel =
 
 export type FxRegimeAssessment = Readonly<{
   regimeId: string;
+  factorSetId: string;
   pairId: string;
   instrumentId: string;
   informationCutoff: string;
@@ -817,6 +818,7 @@ export function buildFxRegimeAssessment(
 
   return Object.freeze({
     regimeId: input.regimeId,
+    factorSetId: input.factorSet.factorSetId,
     pairId: input.factorSet.pairId,
     instrumentId: input.factorSet.instrumentId,
     informationCutoff: input.factorSet.informationCutoff,
@@ -923,6 +925,9 @@ export function buildFxForecast(
     input.regime.informationCutoff !== input.factorSet.informationCutoff
   ) {
     throw new Error('MONEY_FX_FORECAST_REGIME_CUTOFF_MISMATCH');
+  }
+  if (input.regime.factorSetId !== input.factorSet.factorSetId) {
+    throw new Error('MONEY_FX_FORECAST_REGIME_LINEAGE_MISMATCH');
   }
   if (
     input.factorSet.financialAuthority !== 'NONE' ||
