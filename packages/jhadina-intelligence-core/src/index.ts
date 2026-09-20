@@ -12,3 +12,4 @@ export * from './delivery-evidence.js';
 export * from './inbound-evidence.js';
 export * from './store-forward.js';
 export * from './reticulum-adapter.js';
+export * from './governed-communication-runtime.js';
