@@ -1270,3 +1270,12 @@ export {
   SOURCE_VERIFICATION_REPORT_SCHEMA_VERSION,
   buildReferenceSourceVerificationReport,
 } from './source-verification-report.js';
+
+export type {
+  ProviderArtifactCoverageReport,
+} from './provider-artifact-report.js';
+export {
+  PROVIDER_ARTIFACT_REPORT_SCHEMA_VERSION,
+  buildProviderArtifactCoverageReport,
+  unresolvedArtifactPins,
+} from './provider-artifact-report.js';
