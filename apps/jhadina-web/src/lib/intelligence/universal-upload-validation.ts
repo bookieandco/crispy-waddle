@@ -7,14 +7,16 @@ export type ValidatedUpload = {
 };
 
 const MiB = 1024 * 1024;
-const LIMITS: Record<IntakeModality, number> = {
+export const UNIVERSAL_UPLOAD_LIMITS: Readonly<Record<IntakeModality, number>> = Object.freeze({
   image: 25 * MiB,
   audio: 250 * MiB,
   video: 512 * MiB,
   document: 100 * MiB,
   text: 25 * MiB,
   code: 25 * MiB,
-};
+});
+
+export const MAX_UNIVERSAL_UPLOAD_BYTES = UNIVERSAL_UPLOAD_LIMITS.video;
 
 const ascii = (bytes: Uint8Array, start: number, end: number) =>
   String.fromCharCode(...bytes.slice(start, end));
@@ -37,7 +39,7 @@ export function validateUniversalUpload(input: {
   bytes: Uint8Array;
 }): ValidatedUpload {
   if (!input.bytes.length) throw new Error("UPLOAD_EMPTY");
-  if (input.bytes.byteLength > LIMITS.video) throw new Error("UPLOAD_TOO_LARGE");
+  if (input.bytes.byteLength > MAX_UNIVERSAL_UPLOAD_BYTES) throw new Error("UPLOAD_TOO_LARGE");
 
   const mediaType = input.declaredMediaType.split(";")[0]?.trim().toLowerCase();
   if (!mediaType) throw new Error("UPLOAD_MEDIA_TYPE_REQUIRED");
@@ -59,7 +61,7 @@ export function validateUniversalUpload(input: {
   }
 
   if (!modality) throw new Error("UPLOAD_TYPE_MISMATCH_OR_UNSUPPORTED");
-  if (input.bytes.byteLength > LIMITS[modality]) throw new Error(`UPLOAD_TOO_LARGE_FOR_${modality.toUpperCase()}`);
+  if (input.bytes.byteLength > UNIVERSAL_UPLOAD_LIMITS[modality]) throw new Error(`UPLOAD_TOO_LARGE_FOR_${modality.toUpperCase()}`);
 
-  return Object.freeze({ modality, mediaType, maxBytes: LIMITS[modality] });
+  return Object.freeze({ modality, mediaType, maxBytes: UNIVERSAL_UPLOAD_LIMITS[modality] });
 }
