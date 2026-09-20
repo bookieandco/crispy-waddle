@@ -35,7 +35,7 @@ The canonical evidence/reality boundary remains unchanged:
 
 The previous frozen-lockfile blocker has been source-repaired: the current `packages/jhadina-core-spine` importer in `pnpm-lock.yaml` matches its manifest. That repair is not treated as CI evidence by itself.
 
-The final repository gate still requires a fresh successful Spatial Conformance run on the current `main` lineage. Repository-wide workflows may still expose unrelated subsystem failures; those must be distinguished from spatial-specific failures in the recorded evidence.
+Fresh Spatial Conformance evidence is now recorded: GitHub Actions run 159, job 106010250704 completed successfully after spatial type-check, 14/14 Vitest assertions, and 42/42 Node/TAP conformance tests. Repository-wide workflows may still expose unrelated subsystem failures; those remain separate from the spatial gate.
 
 ## Remaining production evidence
 
