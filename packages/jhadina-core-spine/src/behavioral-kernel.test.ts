@@ -15,4 +15,21 @@ describe('Behavioral Kernel', () => {
   it('asks for clarification when ambiguity is high', () => assert.equal(decideBehavior(personality, { ambiguity: 0.9 }).action, 'ask_clarifying'));
   it('selects pushback for disagreement', () => assert.equal(decideBehavior(personality, { disagreementDetected: true }).action, 'push_back'));
   it('keeps serious contexts serious', () => assert.equal(decideBehavior(personality, { serious: true }).action, 'stay_serious'));
+
+  it('lets governed relationship calibration influence posture without bypassing behavioral rules', () => {
+    const calibrated: PersonalityState = {
+      ...personality,
+      voice: { ...personality.voice, directness: 0.62 },
+      relationship: {
+        ...personality.relationship,
+        preferredInteractionModes: ['direct'],
+      },
+    };
+
+    const decision = decideBehavior(calibrated);
+
+    assert.equal(decision.action, 'answer_directly');
+    assert.ok(decision.posture.directness > 0.7);
+    assert.equal(decision.posture.relationshipCalibration, 0.72);
+  });
 });
