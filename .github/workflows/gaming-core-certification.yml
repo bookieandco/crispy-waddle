@@ -1,6 +1,9 @@
 name: Gaming Core Certification
 
 on:
+  push:
+    branches:
+      - 'jhadina-gaming-*'
   pull_request:
     paths:
       - 'packages/gaming-core/**'
