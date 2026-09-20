@@ -1,7 +1,7 @@
 import type { CatalogProvider } from '../catalog';
 import type { MediaKind, MediaTitle } from '../index';
 import type { MediaEdition, TVEpisode, TVSeason } from '../hierarchy';
-import { assertEpisodeBelongsToSeason, assertTVEpisode, assertTVSeason, canonicalEpisodeId } from '../hierarchy';
+import { assertEpisodeBelongsToSeason, assertTVSeason, canonicalEpisodeId } from '../hierarchy';
 import type { MediaSource, MediaSourceAdapter } from '../source-adapter';
 import { createCatalogProvider } from '../providers';
 
