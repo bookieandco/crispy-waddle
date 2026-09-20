@@ -5,3 +5,4 @@ export * from './intelligence-fabric.js';
 export * from './model-registry.js';
 export * from './task-classifier.js';
 export * from './capability-aware-model-router.js';
+export * from './provider-adapter.js';
