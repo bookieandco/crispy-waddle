@@ -1,4 +1,4 @@
-import type { OpportunityDisposition, OpportunityScore, SamOpportunity } from './sam-types';
+import type { OpportunityScore, SamOpportunity } from './sam-types';
 import type { OpportunityEconomics } from './economics';
 
 export type MoneyAction =
