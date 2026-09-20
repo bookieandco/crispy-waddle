@@ -22,7 +22,8 @@
     "react-dom": "^18.2.0",
     "@jhadina/action-core": "workspace:*",
     "@jhadina/core-spine": "workspace:*",
-    "@jhadina/intelligence-core": "workspace:*"
+    "@jhadina/intelligence-core": "workspace:*",
+    "@jhadina/security-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
