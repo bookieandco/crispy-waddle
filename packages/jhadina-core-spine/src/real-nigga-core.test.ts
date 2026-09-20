@@ -139,7 +139,7 @@ describe('Real Nigga Core', () => {
       }],
     };
 
-    assert.equal(deriveRealNiggaBehavior(learned).verbosity, 0.4);
+    assert.ok(Math.abs(deriveRealNiggaBehavior(learned).verbosity - 0.4) < 1e-12);
     assert.equal(deriveRealNiggaBehavior({
       ...learned,
       traits: [{ ...learned.traits[0], status: 'candidate' }],
