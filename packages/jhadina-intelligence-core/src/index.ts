@@ -12,3 +12,4 @@ export * from './canonical-context-compiler.js';
 export * from './evidence-verifier.js';
 export * from './critic-verification.js';
 export * from './inference-ledger.js';
+export * from './semantic-cache.js';
