@@ -69,3 +69,29 @@ revoke all on function public.jhadina_shark_claim_historical_backfill(integer)
   from public, anon, authenticated;
 grant execute on function public.jhadina_shark_claim_historical_backfill(integer)
   to service_role;
+
+
+create or replace function public.jhadina_shark_record_historical_backfill_failure(
+  p_launch_id text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  update public.jhadina_shark_historical_backfill_schedule
+     set failure_count = failure_count + 1,
+         updated_at = now()
+   where launch_id = p_launch_id;
+
+  if not found then
+    raise exception 'unknown SHARK historical backfill launch';
+  end if;
+end;
+$$;
+
+revoke all on function public.jhadina_shark_record_historical_backfill_failure(text)
+  from public, anon, authenticated;
+grant execute on function public.jhadina_shark_record_historical_backfill_failure(text)
+  to service_role;
