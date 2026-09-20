@@ -42,9 +42,9 @@ describe('Real Nigga Core', () => {
   it('uses evidence-backed preferred interaction modes only as bounded calibration', () => {
     const calibrated: PersonalityState = {
       ...personality,
-      voice: { ...personality.voice, directness: 0.62 },
+      voice: { ...personality.voice!, directness: 0.62 },
       relationship: {
-        ...personality.relationship,
+        ...personality.relationship!,
         preferredInteractionModes: [' direct ', 'DIRECT'],
       },
     };
@@ -60,7 +60,7 @@ describe('Real Nigga Core', () => {
     const expressive: PersonalityState = {
       ...personality,
       taste: {
-        ...personality.taste,
+        ...personality.taste!,
         novelty: 1,
         experimentation: 0.9,
         conventionTolerance: 0.1,
