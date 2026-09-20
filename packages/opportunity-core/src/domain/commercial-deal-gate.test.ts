@@ -38,6 +38,7 @@ assert.equal(fee.engagementAuthorized, false)
 
 const unknownCosts = evaluateCommercialDeal(plan, { contractValue: 100000 })
 assert.ok(unknownCosts.warnings.some((w) => w.includes('Provider cost is unknown')))
+assert.equal(unknownCosts.status, 'blocked')
 assert.equal(unknownCosts.humanApprovalRequired, true)
 
 const gapPlan: FulfillmentPlan = { ...plan, structure: 'unresolved', uncoveredRequirementIds: ['r3'] }
