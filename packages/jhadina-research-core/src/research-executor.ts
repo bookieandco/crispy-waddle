@@ -105,7 +105,9 @@ export class GovernedResearchExecutor {
     }
 
     try {
+      const providerStartedAt = Date.now();
       const providerResult = await this.provider.execute(task, { planId: plan.id, idempotencyKey });
+      const measuredWallClockMs = Math.max(0, Date.now() - providerStartedAt);
 
       // Provider output has no authority of its own. Re-establish the lease
       // after the external call before any durable evidence/result commit.
@@ -134,7 +136,11 @@ export class GovernedResearchExecutor {
         },
         usage: {
           ...providerResult.usage,
+          cost: Math.max(providerResult.usage.cost ?? 0, task.cost),
+          risk: Math.max(providerResult.usage.risk ?? 0, task.risk),
+          sources: new Set(providerResult.evidence.map((item) => item.sourceUri)).size,
           evidence: providerResult.evidence.length,
+          wallClockMs: Math.max(providerResult.usage.wallClockMs ?? 0, measuredWallClockMs),
         },
       });
       if (!evidenceEvent.accepted || !evidenceEvent.eventId) {
@@ -152,7 +158,7 @@ export class GovernedResearchExecutor {
       const evidenceIds: string[] = [];
       for (const evidence of providerResult.evidence) {
         const evidenceId = await this.repository.captureEvidence({
-          planId: plan.id,
+          admission: renewed,
           executionEventId: evidenceEvent.eventId,
           evidence,
         });
