@@ -4,6 +4,7 @@ import { DeterministicPatternPort, RecurrencePatternStrategy } from './pattern-e
 import { RelationshipContextPatternStrategy } from './relationship-context-pattern.js';
 import { CommunicationDirectnessPatternStrategy } from './communication-directness-pattern.js';
 import { CommunicationConcisionPatternStrategy } from './communication-concision-pattern.js';
+import { GovernedSemanticPreferenceStrategy } from './governed-semantic-preference-pattern.js';
 
 /**
  * Canonical Strategy composition for the current PatternPort.
@@ -15,6 +16,7 @@ export function createCanonicalPatternPort(): PatternPort {
     new RelationshipContextPatternStrategy(),
     new CommunicationDirectnessPatternStrategy(),
     new CommunicationConcisionPatternStrategy(),
+    new GovernedSemanticPreferenceStrategy(),
   ]);
   return new DeterministicPatternPort(strategy);
 }
