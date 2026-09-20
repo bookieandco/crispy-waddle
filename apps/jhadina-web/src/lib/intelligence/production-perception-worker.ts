@@ -93,10 +93,12 @@ export class HttpSemanticPerceptionBackend implements MediaExtractionBackend {
 
     if (raw.schema !== "jhadina.perception-result.v1") throw new Error("PERCEPTION_WORKER_SCHEMA_INVALID");
     if (raw.assetId !== input.assetId) throw new Error("PERCEPTION_WORKER_ASSET_MISMATCH");
+    if (input.contentSha256 && typeof raw.contentSha256 !== "string") {
+      throw new Error("PERCEPTION_WORKER_HASH_REQUIRED");
+    }
     if (
       input.contentSha256 &&
-      raw.contentSha256 &&
-      raw.contentSha256.toLowerCase() !== input.contentSha256.toLowerCase()
+      raw.contentSha256!.toLowerCase() !== input.contentSha256.toLowerCase()
     ) throw new Error("PERCEPTION_WORKER_HASH_MISMATCH");
     if (!Array.isArray(raw.observations)) throw new Error("PERCEPTION_WORKER_OBSERVATIONS_INVALID");
     if (raw.observations.length > MAX_OBSERVATIONS) throw new Error("PERCEPTION_WORKER_OBSERVATION_LIMIT_EXCEEDED");
