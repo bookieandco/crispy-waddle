@@ -15,6 +15,10 @@ async function actorIdFor(req: NextRequest): Promise<string> {
 
 function publicSession(session: Awaited<ReturnType<SupabaseDirectUploadSessionRepository["get"]>>) {
   if (!session) return undefined;
+  const effectiveStatus =
+    session.status === "issued" && Date.parse(session.expiresAt) <= Date.now()
+      ? "expired"
+      : session.status;
   return {
     id: session.id,
     filename: session.filename,
@@ -22,7 +26,7 @@ function publicSession(session: Awaited<ReturnType<SupabaseDirectUploadSessionRe
     modality: session.modality,
     byteLength: session.expectedByteLength,
     privacyClass: session.privacyClass,
-    status: session.status,
+    status: effectiveStatus,
     expiresAt: session.expiresAt,
     assetId: session.assetId,
     perceptionJobId: session.perceptionJobId,
