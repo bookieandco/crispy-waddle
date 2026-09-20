@@ -2143,6 +2143,13 @@ packages:
       '@types/react': 19.3.0
     dev: true
 
+  /@types/react-dom@19.2.4(@types/react@19.2.18):
+    resolution: {integrity: sha512-Bsc+QHgp+P/F02XDzNCY9jnZNCUuLki36KT7VKrTXXLdHf+vHMNZnW1rVu5DNW/rCK+fya3DATySbLM4yhtKUw==}
+    peerDependencies:
+      '@types/react': 19.2.18
+    dependencies:
+      '@types/react': 19.2.18
+
   /@types/react-reconciler@0.28.9(@types/react@19.2.18):
     resolution: {integrity: sha512-HHM3nxyUZ3zAylX8ZEyrDNd2XZOnQ0D5XfunJF5FLQnZbHHYq4UWvW1QfelQNXv1ICNkwYhfxjwfnqivYB6bFg==}
     peerDependencies:
