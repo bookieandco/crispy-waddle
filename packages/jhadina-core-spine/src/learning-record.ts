@@ -17,9 +17,14 @@ export function createLearningRecord(input:LearningRecordInput):LearningRecord {
   const outcome=Object.freeze({...input.outcome,evidence:Object.freeze([...input.outcome.evidence])})
   return Object.freeze({...input,schemaVersion:'1.0' as const,experienceId:input.experience.id,evidence:Object.freeze([...input.evidence]),outcome})
 }
+
+type SpinePolicyArtifact = { id:string; proposalId:string; [key:string]:unknown }
+type SpineActionArtifact = { id:string; proposalId:string; [key:string]:unknown }
+type SpineActionResultArtifact = { id:string; requestId:string; [key:string]:unknown }
+
 export function createLearningRecordFromSpine(input:{
  id:string;occurredAt:string;domain:string;experience:{id:string};decision:DecisionProposal;
- policy:{id:string;proposalId:string};action:{id:string;proposalId:string};result:{id:string;requestId:string};
+ policy:SpinePolicyArtifact;action:SpineActionArtifact;result:SpineActionResultArtifact;
  outcome:LearningRecordInput['outcome'];prediction:LearningRecordInput['prediction'];learningUpdate:LearningRecordInput['learningUpdate'];provenance:LearningRecordInput['provenance']
 }):LearningRecord {
  const evidence=[...input.decision.evidence,...input.outcome.evidence]
@@ -27,6 +32,7 @@ export function createLearningRecordFromSpine(input:{
  decision:{proposalId:input.decision.id,policyDecisionId:input.policy.id,actionRequestId:input.action.id,actionResultId:input.result.id},
  evidence,prediction:input.prediction,outcome:input.outcome,learningUpdate:input.learningUpdate,provenance:input.provenance})
 }
+
 export class InMemoryLearningRecordRepository {
  private readonly records=new Map<string,LearningRecord>()
  async append(record:LearningRecord){if(this.records.has(record.id))throw new Error('learning_record_duplicate_id');this.records.set(record.id,record)}
