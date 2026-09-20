@@ -129,4 +129,28 @@ describe("DirectUploadFinalizationWorker",()=>{
     expect(out.state).toBe("cleaned");
     expect(removed).toBe(cleanup.quarantinePath);
   });
+  it("cleans true orphan quarantine objects discovered outside session rows",async()=>{
+    let removed="";
+    let receipt:any;
+    const worker=new DirectUploadFinalizationWorker(
+      {async scan(){throw new Error("unreachable")}},
+      store({async claimNextFinalize(){return undefined},async claimNextCleanup(){return undefined}}),
+      {
+        async inspect(){return undefined},
+        async scanUri(){return"signed"},
+        async removeQuarantine(path){removed=path},
+      },
+      {async promote(){throw new Error("unreachable")}},
+      new GovernedAssetRegistry(new InMemoryIntelligenceAssetStore()),
+      jobs(),"w","sensitive",60000,()=>new Date("2026-09-20T06:00:00Z"),4,
+      {
+        async listOrphans(){return["quarantine/orphan/s9/file.mp4"]},
+        async record(input){receipt=input},
+      },
+    );
+    const out=await worker.runOrphanCleanupNext();
+    expect(out.state).toBe("cleaned");
+    expect(removed).toBe("quarantine/orphan/s9/file.mp4");
+    expect(receipt.reason).toBe("orphan");
+  });
 });
