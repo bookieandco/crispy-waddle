@@ -422,3 +422,159 @@ revoke all on function public.jhadina_opportunity_update_research_task(text, tex
 revoke all on function public.jhadina_opportunity_promote_ready(text, text, jsonb) from public;
 grant execute on function public.jhadina_opportunity_update_research_task(text, text, text, jsonb) to authenticated;
 grant execute on function public.jhadina_opportunity_promote_ready(text, text, jsonb) to authenticated;
+
+
+-- OPP-AUDIT.6: evidence-backed realized outcomes and learning lineage.
+create table if not exists public.jhadina_opportunity_outcomes (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  id text not null,
+  opportunity_id text not null,
+  result text not null check (result in ('won','lost')),
+  currency text not null,
+  gross_revenue double precision not null,
+  refunds double precision not null,
+  direct_costs double precision not null,
+  fees double precision not null,
+  net_revenue double precision not null,
+  total_costs double precision not null,
+  profit double precision not null,
+  margin double precision,
+  hours double precision not null,
+  dollars_per_hour double precision,
+  source_owner text not null,
+  evidence_refs jsonb not null check (jsonb_typeof(evidence_refs) = 'array'),
+  transaction_refs jsonb not null default '[]'::jsonb check (jsonb_typeof(transaction_refs) = 'array'),
+  action_ref text,
+  execution_ref text,
+  payload jsonb not null check (jsonb_typeof(payload) = 'object'),
+  observed_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, id),
+  foreign key (user_id, opportunity_id)
+    references public.jhadina_opportunities(user_id, id) on delete cascade
+);
+
+create index if not exists jhadina_opportunity_outcomes_opportunity_idx
+  on public.jhadina_opportunity_outcomes (user_id, opportunity_id, observed_at desc);
+
+alter table public.jhadina_opportunity_outcomes enable row level security;
+
+create policy "jhadina_opportunity_outcomes_select_own"
+  on public.jhadina_opportunity_outcomes for select to authenticated
+  using ((select auth.uid()) = user_id);
+
+create or replace function public.jhadina_opportunity_record_outcome(
+  p_opportunity_id text,
+  p_opportunity jsonb,
+  p_outcome jsonb,
+  p_learning jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_existing public.jhadina_opportunities%rowtype;
+  v_outcome_id text := p_outcome->>'id';
+  v_now timestamptz := now();
+begin
+  if v_user is null then raise exception 'authentication required'; end if;
+  if coalesce(p_opportunity->>'id','') <> p_opportunity_id then
+    raise exception 'opportunity payload id mismatch';
+  end if;
+  if coalesce(p_outcome->>'opportunityId','') <> p_opportunity_id then
+    raise exception 'outcome does not match opportunity';
+  end if;
+  if coalesce(v_outcome_id,'') = '' then raise exception 'outcome id is required'; end if;
+  if coalesce(p_outcome->>'result','') not in ('won','lost') then raise exception 'outcome result is invalid'; end if;
+  if coalesce(p_opportunity->>'status','') <> p_outcome->>'result' then
+    raise exception 'opportunity status must match outcome result';
+  end if;
+  if jsonb_typeof(p_outcome->'evidenceRefs') <> 'array'
+     or jsonb_array_length(p_outcome->'evidenceRefs') = 0 then
+    raise exception 'outcome requires evidence';
+  end if;
+
+  select * into v_existing
+    from public.jhadina_opportunities
+   where user_id = v_user and id = p_opportunity_id
+   for update;
+  if not found then raise exception 'opportunity not found'; end if;
+
+  if v_existing.status not in ('ready','approved','pursuing','won','lost') then
+    raise exception 'opportunity is not eligible for realized outcome';
+  end if;
+  if v_existing.status in ('won','lost') and v_existing.status <> p_outcome->>'result' then
+    raise exception 'closed opportunity result cannot be reversed';
+  end if;
+
+  insert into public.jhadina_opportunity_outcomes (
+    user_id, id, opportunity_id, result, currency, gross_revenue, refunds,
+    direct_costs, fees, net_revenue, total_costs, profit, margin, hours,
+    dollars_per_hour, source_owner, evidence_refs, transaction_refs,
+    action_ref, execution_ref, payload, observed_at, created_at
+  ) values (
+    v_user,
+    v_outcome_id,
+    p_opportunity_id,
+    p_outcome->>'result',
+    p_outcome->>'currency',
+    (p_outcome->>'grossRevenue')::double precision,
+    (p_outcome->>'refunds')::double precision,
+    (p_outcome->>'directCosts')::double precision,
+    (p_outcome->>'fees')::double precision,
+    (p_outcome->>'netRevenue')::double precision,
+    (p_outcome->>'totalCosts')::double precision,
+    (p_outcome->>'profit')::double precision,
+    nullif(p_outcome->>'margin','')::double precision,
+    (p_outcome->>'hours')::double precision,
+    nullif(p_outcome->>'dollarsPerHour','')::double precision,
+    p_outcome->>'sourceOwner',
+    p_outcome->'evidenceRefs',
+    coalesce(p_outcome->'transactionRefs','[]'::jsonb),
+    nullif(p_outcome->>'actionRef',''),
+    nullif(p_outcome->>'executionRef',''),
+    p_outcome,
+    (p_outcome->>'observedAt')::timestamptz,
+    v_now
+  )
+  on conflict (user_id, id) do nothing;
+
+  update public.jhadina_opportunities
+     set status = p_outcome->>'result',
+         payload = p_opportunity,
+         updated_at = v_now
+   where user_id = v_user and id = p_opportunity_id;
+
+  insert into public.jhadina_opportunity_outbox (
+    user_id, event_id, opportunity_id, event_type, payload, created_at
+  ) values (
+    v_user,
+    v_outcome_id || ':recorded',
+    p_opportunity_id,
+    'opportunity.outcome_recorded',
+    jsonb_build_object(
+      'opportunityId', p_opportunity_id,
+      'outcome', p_outcome,
+      'learningSignal', p_learning
+    ),
+    v_now
+  )
+  on conflict (user_id, event_id) do nothing;
+
+  return jsonb_build_object(
+    'userId', v_user,
+    'opportunity', p_opportunity,
+    'triageState', v_existing.triage_state,
+    'approvedAt', v_existing.approved_at,
+    'researchCaseId', v_existing.research_case_id,
+    'outcome', p_outcome,
+    'learningSignal', p_learning
+  );
+end;
+$$;
+
+revoke all on function public.jhadina_opportunity_record_outcome(text, jsonb, jsonb, jsonb) from public;
+grant execute on function public.jhadina_opportunity_record_outcome(text, jsonb, jsonb, jsonb) to authenticated;
