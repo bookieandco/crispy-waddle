@@ -120,11 +120,15 @@ No additional PROD.6 source defect was found. **Certification boundary:** live p
 
 ### GEV-PROD.7 — cross-Jhadina live integration
 
-**SOURCE BOUNDARY PASS; LIVE RUNTIME BLOCKED.**
+**SOURCE AUDIT PASS; LIVE RUNTIME BLOCKED BY PROD.1.**
 
-DELIA is intelligence-only. JANET is presentation/workspace-only. Spatial consumer projections for Money, Sports, Opportunity, Safety, Research and Media are `INTELLIGENCE_ONLY` and do not grant ActionExecutor authority. Director receives provider-neutral Spatial capabilities; consequential execution remains on the existing policy/approval/ActionExecutor path.
+**2026-09-20 PROD.7 continuation audit:** the cross-Jhadina projection boundary is explicit and capability-limited. Money, Sports, Opportunity, Courier, Safety, Research and Media all receive copied Spatial evidence/Reality/observation refs under `authority: INTELLIGENCE_ONLY`; every projection carries the invariant that Spatial context cannot authorize actions in the consuming subsystem. Their prohibited-use sets explicitly block trade execution/spatial-signal orders, auto-betting, automatic outreach, automatic dispatch/approval bypass, named-person surveillance/face recognition/plate identification/individual tracking, raw-source-to-Reality promotion and publication without a rights check.
 
-Live cross-subsystem receipts still require the current deployment.
+JANET can modify presentation/workspace preferences only and copies evidenceRefs/realityRefs unchanged. DELIA produces reasoning/assessment with `INTELLIGENCE_ONLY` authority. MARISA can prepare a consequential-operation proposal, but it is always emitted as `REQUIRES_POLICY_APPROVAL` with `approved: false` and receives no executor or approval authority.
+
+The Safety bridge is read-only: Spatial records become Safety context signals and preserve evidence class distinctions, while the core interface states that Spatial context may inform policy inputs but cannot authorize actions. Safety-specific consumer restrictions additionally prohibit person/face/plate/individual tracking uses.
+
+No source path audited here grants a Spatial consumer truth-mutation or execution authority. No additional PROD.7 source defect was found. **Certification boundary:** live cross-subsystem receipts still require the current Spatial lineage to deploy; source audit PASS does not make PROD.7 a runtime PASS.
 
 ### GEV-PROD.8 — telemetry/recovery
 
