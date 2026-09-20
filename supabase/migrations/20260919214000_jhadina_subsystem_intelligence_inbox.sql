@@ -14,7 +14,7 @@ create table if not exists public.jhadina_subsystem_intelligence_inbox (
     'knowledge',
     'research'
   )),
-  asset_id text not null references public.jhadina_intelligence_assets(id) on delete cascade,
+  asset_id text not null,
   asset_ref text,
   media_type text,
   privacy_class text,
@@ -24,7 +24,9 @@ create table if not exists public.jhadina_subsystem_intelligence_inbox (
   intent text,
   payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
-  unique (actor_id, subsystem, asset_id)
+  unique (actor_id, subsystem, asset_id),
+  foreign key (actor_id, asset_id)
+    references public.jhadina_intelligence_assets(actor_id, id)
 );
 
 create index if not exists jhadina_subsystem_intelligence_inbox_actor_idx
