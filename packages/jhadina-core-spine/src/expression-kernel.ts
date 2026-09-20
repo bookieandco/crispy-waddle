@@ -1,24 +1,20 @@
 import type { BehavioralDecision } from './behavioral-kernel.js';
 import {
   isVerifiedCallback,
-  type CallbackProvenance,
   type VerifiedCallback,
 } from './callback-provenance.js';
 import {
   isVerifiedCulturalReference,
   type VerifiedCulturalReference,
 } from './cultural-freshness.js';
-import type { EvidenceRef, ExpressionDirective } from './types.js';
+import type { ExpressionDirective } from './types.js';
 
 export interface ExpressionContext {
   callback?: VerifiedCallback;
   culturalReference?: VerifiedCulturalReference;
 }
 
-export interface ExpressionPlan extends ExpressionDirective {
-  callbackProvenance?: CallbackProvenance[];
-  culturalReferenceEvidence?: EvidenceRef[];
-}
+export type ExpressionPlan = ExpressionDirective;
 
 /**
  * Expression selection is separate from language generation. The model may
