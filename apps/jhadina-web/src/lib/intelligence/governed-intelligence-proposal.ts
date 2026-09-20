@@ -9,7 +9,9 @@ import {
   type ApprovalReceiptStore,
 } from "@jhadina/action-core"
 import type { ContextPacket, DecisionProposal } from "@jhadina/core-spine"
-import type { IntelligenceRouter } from "@jhadina/intelligence-core"\nimport type { ProductionIntelligenceFabric } from "./production-intelligence-fabric"\nimport { ConservativeIntelligenceAdmissionPolicy, type IntelligenceAdmissionPolicy } from "./intelligence-admission-policy"
+import type { IntelligenceRouter } from "@jhadina/intelligence-core"
+import type { ProductionIntelligenceFabric } from "./production-intelligence-fabric"
+import { ConservativeIntelligenceAdmissionPolicy, type IntelligenceAdmissionPolicy } from "./intelligence-admission-policy"
 import type { ActionRequestIdentity, JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
@@ -56,7 +58,8 @@ import {
 export interface GovernedIntelligenceProposalDeps {
   identityVerifier: JhadinaIdentityVerifier
   ledger: ActionLedger
-  router: IntelligenceRouter
+  fabric?: ProductionIntelligenceFabric
+  router?: IntelligenceRouter
   memoryRepo: MemoryRepository
   reasoningRepo: ReasoningEventRepository
   /** Backing store for explicit approval receipts (request -> approve -> consume). */
@@ -108,7 +111,18 @@ export async function decideAndProposeMemoryGoverned(
   // no candidate, no side effect of any kind exists yet.
   let proposal: DecisionProposal
   try {
-    if (deps.fabric) {\n      proposal = await deps.fabric.decide({\n        id: `task:${context.id}`,\n        purpose: context.purpose,\n        privacyClass: "internal",\n        riskClass: "standard",\n      }, context)\n    } else if (deps.router) {\n      proposal = await deps.router.decide(context)\n    } else {\n      throw new Error("INTELLIGENCE_DECISION_PROVIDER_NOT_CONFIGURED")\n    }
+    if (deps.fabric) {
+      proposal = await deps.fabric.decide({
+        id: `task:${context.id}`,
+        purpose: context.purpose,
+        privacyClass: "internal",
+        riskClass: "standard",
+      }, context)
+    } else if (deps.router) {
+      proposal = await deps.router.decide(context)
+    } else {
+      throw new Error("INTELLIGENCE_DECISION_PROVIDER_NOT_CONFIGURED")
+    }
   } catch (error) {
     await deps.ledger.append({
       id: `${actionId}:model-unavailable`,
