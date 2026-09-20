@@ -138,3 +138,6 @@ export * from './broker-account-entitlement.js';
 export * from './postgres-broker-account-entitlement-store.js';
 
 export * from './live-trade-approval-bridge.js';
+
+export * from './manual-live-broker-contracts.js';
+export * from './manual-live-broker-executor.js';
