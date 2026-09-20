@@ -7,6 +7,7 @@ import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { getStorage } from "../routes/handlers"
 import { createProductionIntelligenceRouter } from "./production-model-provider"
+import { createProductionIntelligenceFabric } from "./production-intelligence-fabric"
 import { createIntelligenceAuditLedger, INTELLIGENCE_AUDIT_DOMAIN } from "./durable-audit-ledger"
 import {
   decideAndProposeMemoryGoverned,
@@ -32,6 +33,7 @@ export type GovernedIntelligenceRuntimeOverrides = {
   identityVerifier?: JhadinaIdentityVerifier
   ledger?: SupabaseAuditLedger
   router?: IntelligenceRouter
+  fabric?: Awaited<ReturnType<typeof createProductionIntelligenceFabric>>
   approvalStore?: ApprovalReceiptStore
   onEvent?: (event: IntelligenceRouterEvent) => void
 }
@@ -47,9 +49,10 @@ export async function runGovernedIntelligenceProposal(
   const storage = getStorage()
   const memoryRepo = new MemoryRepository(storage)
   const reasoningRepo = new ReasoningEventRepository(storage)
+  const fabric = overrides.fabric ?? createProductionIntelligenceFabric({ ledger, actorId: (await identityVerifier.verify({ userId: claimedUserId })).userId, memoryRepo })
 
   return decideAndProposeMemoryGoverned(
-    { identityVerifier, ledger, router, memoryRepo, reasoningRepo, approvalStore: overrides.approvalStore ?? approvalStore },
+    { identityVerifier, ledger, fabric, router, memoryRepo, reasoningRepo, approvalStore: overrides.approvalStore ?? approvalStore },
     claimedUserId,
     context,
   )
