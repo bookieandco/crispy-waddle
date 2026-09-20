@@ -9,7 +9,7 @@ export type SqlClient = {
   query<T = Record<string, unknown>>(
     text: string,
     values?: readonly unknown[],
-  ): Promise<{ rows: T[] }>;
+  ): Promise<{ rows: T[]; rowCount?: number | null }>;
 };
 
 export type PostgresIdempotencyStoreOptions = {
