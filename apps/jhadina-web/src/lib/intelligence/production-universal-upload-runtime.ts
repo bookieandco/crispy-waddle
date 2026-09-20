@@ -24,6 +24,12 @@ import { createServiceRoleClient } from "../supabase/service-role";
 import { HttpMediaSecurityScanner } from "./http-media-security-scanner";
 import { SupabaseIntelligenceAssetStore } from "./supabase-intelligence-asset-store";
 import { createProductionSubsystemRegistry } from "./production-subsystem-registry";
+import { SupabaseTrustedAssetReadResolver } from "./trusted-asset-read-resolver";
+import { HttpSemanticPerceptionBackend } from "./production-perception-worker";
+import {
+  CompositeMediaExtractionBackend,
+  FfmpegStructuralPerceptionBackend,
+} from "./ffmpeg-structural-perception";
 import {
   SupabaseUniversalUploadObjectStore,
   type UniversalUploadObjectStore,
@@ -123,19 +129,7 @@ export class UniversalUploadRuntime {
   }
 }
 
-class MetadataOnlyExtractionBackend implements MediaExtractionBackend {
-  async extract(input: { assetRef: string; mediaType: string }) {
-    return {
-      observations: [{
-        kind: "asset-metadata",
-        summary: `Validated ${input.mediaType} upload admitted for governed subsystem analysis.`,
-      }],
-      uncertainty: ["Semantic media extraction provider is not configured in this runtime."],
-    };
-  }
-}
-
-function createMetadataExtractors(backend: MediaExtractionBackend) {
+function createProductionExtractors(backend: MediaExtractionBackend) {
   return [
     new VideoPerceptionExtractor(backend),
     new AudioPerceptionExtractor(backend),
@@ -164,10 +158,31 @@ export function createProductionUniversalUploadRuntime(input: {
     configuredCeiling === "internal" || configuredCeiling === "sensitive" || configuredCeiling === "restricted"
       ? configuredCeiling
       : "sensitive";
+  const perceptionWorkerUrl = process.env.JHADINA_PERCEPTION_WORKER_URL;
+  if (!perceptionWorkerUrl) throw new Error("UPLOAD_RUNTIME_PERCEPTION_WORKER_UNAVAILABLE");
+  const perceptionCeilingRaw = process.env.JHADINA_PERCEPTION_WORKER_PRIVACY_CEILING;
+  const perceptionPrivacyCeiling: UniversalUploadPrivacyClass =
+    perceptionCeilingRaw === "internal" || perceptionCeilingRaw === "sensitive" || perceptionCeilingRaw === "restricted"
+      ? perceptionCeilingRaw
+      : "sensitive";
+
   const objects = new SupabaseUniversalUploadObjectStore(client);
   const registry = new GovernedAssetRegistry(new SupabaseIntelligenceAssetStore(client));
-  const backend = new MetadataOnlyExtractionBackend();
-  const perception = new GovernedPerceptionExtractionRouter(createMetadataExtractors(backend));
+  const trustedAssets = new SupabaseTrustedAssetReadResolver(client);
+  const semanticBackend = new HttpSemanticPerceptionBackend(
+    perceptionWorkerUrl,
+    trustedAssets,
+    process.env.JHADINA_PERCEPTION_WORKER_TOKEN || undefined,
+    perceptionPrivacyCeiling,
+  );
+  const backend: MediaExtractionBackend =
+    process.env.JHADINA_LOCAL_FFMPEG_ENABLED === "true"
+      ? new CompositeMediaExtractionBackend([
+          new FfmpegStructuralPerceptionBackend(trustedAssets),
+          semanticBackend,
+        ])
+      : semanticBackend;
+  const perception = new GovernedPerceptionExtractionRouter(createProductionExtractors(backend));
   const media = new GovernedMediaPipeline(perception, new GovernedUniversalIntakeRouter());
   const subsystemAdapters =
     input.subsystemAdapters ?? createProductionSubsystemRegistry(client).adapters;
