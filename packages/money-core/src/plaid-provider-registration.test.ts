@@ -6,7 +6,7 @@ import {
   assertPlaidSandboxBaseUrl,
 } from './plaid-provider-registration.js';
 
-if (PLAID_READ_ONLY_CONFIG.capabilities.length !== 1 || PLAID_READ_ONLY_CONFIG.capabilities[0] !== 'money.account.read') {
+if (PLAID_READ_ONLY_CONFIG.capabilities.length !== 2 || !PLAID_READ_ONLY_CONFIG.capabilities.includes('money.account.read') || !PLAID_READ_ONLY_CONFIG.capabilities.includes('money.transaction.read')) {
   throw new Error('PLAID_CAPABILITY_SCOPE_FAILED');
 }
 
@@ -24,24 +24,7 @@ const factory = createPlaidProviderAdapterFactory(
 const adapter = await factory.create('plaid');
 if (adapter.provider !== 'plaid') throw new Error('PLAID_PROVIDER_NOT_REGISTERED');
 
-// Plaid's adapter is account-read-only: transaction reads are always
-// rejected, regardless of capability, because the path isn't implemented.
-let transactionReadRejected = false;
-try {
-  await adapter.listTransactions(
-    {
-      userId: 'test-user',
-      capability: 'money.transaction.read',
-      requestId: 'test-request',
-    },
-    'test-account',
-  );
-} catch (error) {
-  transactionReadRejected = error instanceof Error && error.message === 'PLAID_TRANSACTION_READ_NOT_IMPLEMENTED';
-}
-if (!transactionReadRejected) throw new Error('PLAID_READ_ONLY_SCOPE_BROKEN');
-
-// Sandbox-boundary assertion: a production Plaid host is rejected before
+// Plaid remains read-only: account and transaction history capabilities only; no mutation capability is registered.\n\n// Sandbox-boundary assertion: a production Plaid host is rejected before
 // any adapter is constructed, even though credentials and capability
 // scope are otherwise identical to the passing case above.
 let productionBaseUrlRejected = false;
