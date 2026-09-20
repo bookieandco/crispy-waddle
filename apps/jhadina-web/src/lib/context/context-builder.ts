@@ -14,6 +14,7 @@ import { TimelineRepository } from "../repositories/TimelineRepository"
 import type { Memory, TimelineEvent } from "../storage/InMemoryStorage"
 import { getWorld, type JhadinaWorldId } from "../jhadina/jhadina-world-registry"
 import { redactSecrets } from "./redact"
+import type { KnowledgeContextProvider } from "../../../../../packages/jhadina-knowledge-runtime/src/index.js"
 
 /** Provider-neutral, read-only spatial contribution. The provider cannot mutate ContextPacket or reality. */
 export interface SpatialContextProvider {
@@ -69,6 +70,8 @@ export interface ContextBuilderDeps {
   spatialContextProvider?: SpatialContextProvider
   /** Optional governed personality read/projection adapter. No provider means canonical empty fallback. */
   personalityContextProvider?: PersonalityContextProvider
+  /** Canonical evidence-aware Knowledge Core retrieval. */
+  knowledgeContextProvider?: KnowledgeContextProvider
 }
 
 export interface AssembledContext {
@@ -210,6 +213,34 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   }
 
   let knowledgeRefs = approvalRefs.map((r) => r.ref)
+  if (deps.knowledgeContextProvider) {
+    try {
+      const knowledgeContext = await deps.knowledgeContextProvider.getKnowledgeContext({
+        text: input.memoryRelevanceQuery ?? redactedActiveTask,
+        ownerId: input.userId,
+        mode: "hybrid",
+        limit: limits.maxRecentApprovals,
+      })
+      const canonicalKnowledge = knowledgeContext.items.map(({ record, score, temporalState }) => {
+        const { redacted, redactionCount } = redactSecrets(record.claim)
+        totalRedactions += redactionCount
+        return {
+          id: record.id,
+          source: "knowledge-core",
+          observedAt: record.observedAt,
+          summary: `${record.subject}: ${redacted} [score=${score.toFixed(3)}; ${temporalState}; ${record.verificationState}; ${record.freshnessState}]`,
+          immutable: false,
+        } satisfies EvidenceRef
+      })
+      knowledgeRefs = [...canonicalKnowledge, ...knowledgeRefs]
+      for (const gap of knowledgeContext.gaps) excludedContext.push(`knowledge gap (${gap.kind}): ${gap.subject} — ${gap.reason}`)
+      for (const limitation of knowledgeContext.limitations) excludedContext.push(`knowledge: ${limitation}`)
+    } catch {
+      excludedContext.push("knowledge: canonical retrieval unavailable — approval evidence fallback used")
+    }
+  } else {
+    excludedContext.push("knowledge: canonical Knowledge Core retrieval provider not composed — approval evidence fallback used")
+  }
   let memoryEvidenceRefs = memoryRefs.map((r) => r.ref)
   const textLength = (refs: EvidenceRef[]) => refs.reduce((sum, r) => sum + r.summary.length, 0)
   let trimmed = 0
