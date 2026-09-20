@@ -1,0 +1,1 @@
+import type {PoseMotionState} from './sports-pose-motion.js';import type {SportsTrack} from './sports-multi-object-tracking.js';export interface PoseSpatialRuntime{infer(track:SportsTrack):Promise<PoseMotionState>;}
