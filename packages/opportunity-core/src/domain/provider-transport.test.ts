@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { transmitAuthorizedProviderPacket } from './provider-transport.js'
 
-const packet={id:'packet:1',opportunityId:'sam:1',providerId:'provider:1',role:'lead',requirementIds:['r1'],evidenceRefs:['e1'],subject:'Request',draftBody:'Exploratory only',diligenceQuestions:[],negotiationPoints:[],commercialSummary:{structure:'direct_fulfillment',modeledGrossRevenue:100,modeledMarginPercent:20},approvalRef:'draft:approval',draftOnly:true,sendAuthorized:false,contractAuthorized:false} as const
+const packet={id:'packet:1',opportunityId:'sam:1',providerId:'provider:1',role:'lead',requirementIds:['r1'] as string[],evidenceRefs:['e1'] as string[],subject:'Request',draftBody:'Exploratory only',diligenceQuestions:[] as string[],negotiationPoints:[] as string[],commercialSummary:{structure:'direct_fulfillment',modeledGrossRevenue:100,modeledMarginPercent:20},approvalRef:'draft:approval',draftOnly:true,sendAuthorized:false,contractAuthorized:false} as const
 const authorization={id:'send:1',packetId:'packet:1',opportunityId:'sam:1',providerId:'provider:1',channel:'email',destinationRef:'provider-contact:1',approvedByRef:'human:1',approvalRef:'send:approval',authorizedAt:'2026-09-20T00:00:00Z',expiresAt:'2026-09-22T00:00:00Z',scope:'single_send',contractAuthority:false} as const
 {
  let sends=0
