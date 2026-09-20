@@ -30,8 +30,14 @@ alter table public.jhadina_money_bank_connections enable row level security;
 alter table public.jhadina_money_bank_accounts enable row level security;
 create policy "money bank connections are owner readable" on public.jhadina_money_bank_connections for select to authenticated using ((select auth.uid()) = user_id);
 create policy "money bank accounts are owner readable" on public.jhadina_money_bank_accounts for select to authenticated using ((select auth.uid()) = user_id);
-revoke insert, update, delete on public.jhadina_money_bank_connections from authenticated;
-revoke insert, update, delete on public.jhadina_money_bank_accounts from authenticated;
+grant insert, update, delete on public.jhadina_money_bank_connections to authenticated;
+grant insert, update, delete on public.jhadina_money_bank_accounts to authenticated;
+create policy "money bank connections are owner insertable" on public.jhadina_money_bank_connections for insert to authenticated with check ((select auth.uid())=user_id);
+create policy "money bank connections are owner mutable" on public.jhadina_money_bank_connections for update to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "money bank connections are owner deletable" on public.jhadina_money_bank_connections for delete to authenticated using ((select auth.uid())=user_id);
+create policy "money bank accounts are owner insertable" on public.jhadina_money_bank_accounts for insert to authenticated with check ((select auth.uid())=user_id);
+create policy "money bank accounts are owner mutable" on public.jhadina_money_bank_accounts for update to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "money bank accounts are owner deletable" on public.jhadina_money_bank_accounts for delete to authenticated using ((select auth.uid())=user_id);
 grant select on public.jhadina_money_bank_connections to authenticated;
 grant select on public.jhadina_money_bank_accounts to authenticated;
 
@@ -42,7 +48,7 @@ as $$ select a.provider_account_id from public.jhadina_money_bank_accounts a joi
 
 
 create or replace function public.jhadina_money_upsert_bank_connection(p_provider_item_id text,p_credential_ref text,p_encrypted_access_token text,p_accounts jsonb)
-returns uuid language plpgsql security definer set search_path=public as $$
+returns uuid language plpgsql security invoker set search_path=public as $$
 declare v_user uuid:=auth.uid(); v_connection uuid; v_account jsonb;
 begin
  if v_user is null then raise exception 'authentication required'; end if;
@@ -59,17 +65,17 @@ begin
  end loop;
  return v_connection;
 end $$;
-revoke all on function public.jhadina_money_upsert_bank_connection(text,text,text,jsonb) from public;
+revoke all on function public.jhadina_money_upsert_bank_connection(text,text,text,jsonb) from public, anon;
 grant execute on function public.jhadina_money_upsert_bank_connection(text,text,text,jsonb) to authenticated;
 
 create or replace function public.jhadina_money_disconnect_bank_connection(p_connection_id uuid)
-returns void language plpgsql security definer set search_path=public as $$
+returns void language plpgsql security invoker set search_path=public as $$
 begin
  if auth.uid() is null then raise exception 'authentication required'; end if;
  update public.jhadina_money_bank_connections set status='disconnected',updated_at=now() where id=p_connection_id and user_id=auth.uid();
  update public.jhadina_money_bank_accounts set status='removed',updated_at=now() where connection_id=p_connection_id and user_id=auth.uid();
 end $$;
-revoke all on function public.jhadina_money_disconnect_bank_connection(uuid) from public;
+revoke all on function public.jhadina_money_disconnect_bank_connection(uuid) from public, anon;
 grant execute on function public.jhadina_money_disconnect_bank_connection(uuid) to authenticated;
 
 grant execute on function public.jhadina_money_owned_account_ids() to authenticated;
