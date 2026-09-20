@@ -90,6 +90,11 @@ jobs:
             src/lib/money-opportunities/sam-opportunity-adapter.test.ts
             src/lib/money-opportunities/canonical-sam-workflow.test.ts
             src/lib/money-opportunities/sam-route-input.test.ts
+            src/lib/money-opportunities/sam-production-pipeline.test.ts
+            src/lib/money-opportunities/sam-production-audit.test.ts
+            src/lib/money-opportunities/sam-operator-view.test.ts
+            src/lib/money-opportunities/sam-outbound-execution.test.ts
+            src/lib/money-opportunities/sam-production-acceptance.test.ts
           )
           existing=()
           for test_file in "${tests[@]}"; do
