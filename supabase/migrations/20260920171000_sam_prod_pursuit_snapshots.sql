@@ -19,7 +19,8 @@ drop policy if exists "jhadina_sam_pursuit_snapshots_select_own" on public.jhadi
 create policy "jhadina_sam_pursuit_snapshots_select_own"
   on public.jhadina_sam_pursuit_snapshots for select to authenticated
   using ((select auth.uid()) = user_id);
-revoke insert, update, delete on table public.jhadina_sam_pursuit_snapshots from anon, authenticated;
+revoke all on table public.jhadina_sam_pursuit_snapshots from anon;
+revoke insert, update, delete on table public.jhadina_sam_pursuit_snapshots from authenticated;
 grant select on table public.jhadina_sam_pursuit_snapshots to authenticated;
 grant select, insert, update, delete on table public.jhadina_sam_pursuit_snapshots to service_role;
 
