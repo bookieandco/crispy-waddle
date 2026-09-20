@@ -1,9 +1,10 @@
-export type TrustState = 'discovered' | 'reachable' | 'identified' | 'trusted' | 'authorized'
+export type TrustState = 'discovered' | 'reachable' | 'identified' | 'trusted'
 
 export type EndpointIdentity = Readonly<{
   endpointId: string
   kind: 'person' | 'device' | 'service'
   trustState: TrustState
+  authorization: Readonly<{ capability: 'communications.send'; granted: boolean; evidenceRef: string }>
 }>
 
 export type TransportIdentity = Readonly<{
@@ -26,8 +27,8 @@ export type CommunicationIntent = Readonly<{
 export function assertCommunicationIntent(input: CommunicationIntent): CommunicationIntent {
   if (!input.intentId.trim() || !input.correlationId.trim()) throw new Error('COMMUNICATION_LINEAGE_REQUIRED')
   if (!input.actorId.trim() || !input.recipient.endpointId.trim()) throw new Error('COMMUNICATION_IDENTITY_REQUIRED')
-  if (input.recipient.trustState !== 'authorized') throw new Error('RECIPIENT_NOT_AUTHORIZED')
+  if (!input.recipient.authorization.granted || !input.recipient.authorization.evidenceRef.trim()) throw new Error('RECIPIENT_NOT_AUTHORIZED')
   if (input.capability !== 'communications.send') throw new Error('COMMUNICATION_CAPABILITY_INVALID')
   if (!input.contentRef.trim()) throw new Error('COMMUNICATION_CONTENT_REF_REQUIRED')
-  return Object.freeze({ ...input, recipient: Object.freeze({ ...input.recipient }) })
+  return Object.freeze({ ...input, recipient: Object.freeze({ ...input.recipient, authorization: Object.freeze({ ...input.recipient.authorization }) }) })
 }
