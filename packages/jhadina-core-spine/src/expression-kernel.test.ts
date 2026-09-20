@@ -61,6 +61,8 @@ const decision: BehavioralDecision = {
     formality: 0.5,
     reasoningDepth: 0.5,
     workflowContinuity: 0.5,
+    explanationStyle: 'standard',
+    decisionPresentation: 'balanced',
     humor: 0.8,
     profanityAllowed: true,
     profanityIntensity: 0.6,
