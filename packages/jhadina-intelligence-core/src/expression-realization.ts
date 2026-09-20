@@ -9,6 +9,10 @@ export interface GovernedExpressionRealization {
     allowProfanity: boolean;
     allowQuip: boolean;
     responseLength?: ExpressionDirective['responseLength'];
+    tone?: ExpressionDirective['tone'];
+    reasoningDepth?: ExpressionDirective['reasoningDepth'];
+    interactionStyle?: ExpressionDirective['interactionStyle'];
+    creativeStyle?: ExpressionDirective['creativeStyle'];
     callback?: string;
     culturalReference?: string;
   };
@@ -38,6 +42,10 @@ export function realizeGovernedExpression(
     allowProfanity: directive?.allowProfanity ?? false,
     allowQuip: directive?.allowQuip ?? false,
     ...(directive?.responseLength ? { responseLength: directive.responseLength } : {}),
+    ...(directive?.tone ? { tone: directive.tone } : {}),
+    ...(directive?.reasoningDepth ? { reasoningDepth: directive.reasoningDepth } : {}),
+    ...(directive?.interactionStyle ? { interactionStyle: directive.interactionStyle } : {}),
+    ...(directive?.creativeStyle ? { creativeStyle: directive.creativeStyle } : {}),
     ...(directive?.callback ? { callback: directive.callback } : {}),
     ...(directive?.culturalReference ? { culturalReference: directive.culturalReference } : {}),
   });
