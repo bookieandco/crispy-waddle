@@ -121,3 +121,6 @@ export * from './execution-planning-engine.js';
 
 export * from './execution-receipt-contracts.js';
 export * from './execution-receipt-engine.js';
+
+export * from './paper-execution-contracts.js';
+export * from './paper-execution-engine.js';
