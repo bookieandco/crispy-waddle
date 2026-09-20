@@ -48,3 +48,4 @@ jobs:
           test -f supabase/migrations/20260920000100_shark_evidence_provenance_contract.sql
           test -f supabase/migrations/20260920000200_shark_service_role_only_rls.sql
           test -f supabase/migrations/20260920000300_shark_schema_reconciliation.sql
+          test -f supabase/migrations/20260920000400_shark_latest_observation_rpc.sql
