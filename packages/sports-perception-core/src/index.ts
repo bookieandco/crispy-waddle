@@ -12,6 +12,7 @@ export * from './evaluation.js';
 export * from './evidence-store.js';
 export * from './identity.js';
 export * from './joint-outcomes.js';
+export * from './learning-replay-certification.js';
 export * from './learning-safety-gate.js';
 export * from './live-game-watcher.js';
 export * from './live-learning-fusion.js';
