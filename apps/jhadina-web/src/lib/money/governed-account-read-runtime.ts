@@ -1,5 +1,7 @@
 import {
   createGovernedProviderAccountReadExecutor,
+  MoneyProviderRegistry,
+  PLAID_READ_ONLY_CONFIG,
   type MoneyAccount,
 } from "@jhadina/money-core"
 import type { ActionIdentityVerifier, AuditRpcClient } from "@jhadina/action-core"
@@ -8,7 +10,6 @@ import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier
 import { createMoneyAuditRpcClient } from "./durable-audit-ledger"
 import { createMoneyOwnershipResolver, type MoneyOwnershipResolver } from "./ownership-resolver"
 import {
-  createMoneyPlaidProductionRegistry,
   PLAID_PROVIDER,
   type MoneyPlaidProductionRegistry,
 } from "./production-provider"
@@ -77,28 +78,18 @@ export async function runGovernedMoneyAccountRead(
 ): Promise<GovernedMoneyAccountReadResult> {
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
   const supabase: AuditRpcClient = overrides.supabase ?? (await createMoneyAuditRpcClient())
-  const { registry, providerConfig } = overrides.providers ?? (await createMoneyPlaidProductionRegistry())
-
-  const executor = createGovernedProviderAccountReadExecutor({
-    identityVerifier: toActionIdentityVerifier(identityVerifier),
-    supabase,
-    providers: registry,
-    providerConfig,
-  })
-
   const ownershipResolver = overrides.ownershipResolver ?? (await createMoneyOwnershipResolver())
   const ownedAccountIds = await ownershipResolver.ownedAccountIds(claimedUserId)
   if (ownedAccountIds.size === 0) return { accounts: [], verifiedUserId: claimedUserId }
-
-  const accounts = await executor.execute({
-    id: requestId,
-    userId: claimedUserId,
-    type: "money.account.read",
-    requestedAt: new Date().toISOString(),
-    action: { capability: "money.account.read", provider: PLAID_PROVIDER },
-  })
-
-  return { accounts: accounts.filter((account) => ownedAccountIds.has(account.externalId)), verifiedUserId: claimedUserId }
+  const providerSets = overrides.providers ? [overrides.providers.registry.get(PLAID_PROVIDER)] : [...await ownershipResolver.ownedAdapters(claimedUserId)]
+  const accounts: MoneyAccount[] = []
+  for (const [index, adapter] of providerSets.entries()) {
+    const registry = new MoneyProviderRegistry(); registry.register(adapter)
+    const executor = createGovernedProviderAccountReadExecutor({identityVerifier:toActionIdentityVerifier(identityVerifier),supabase,providers:registry,providerConfig:{[PLAID_PROVIDER]:PLAID_READ_ONLY_CONFIG}})
+    const itemAccounts = await executor.execute({id:`${requestId}:${index}`,userId:claimedUserId,type:"money.account.read",requestedAt:new Date().toISOString(),action:{capability:"money.account.read",provider:PLAID_PROVIDER}})
+    accounts.push(...itemAccounts.filter(account=>ownedAccountIds.has(account.externalId)))
+  }
+  return { accounts, verifiedUserId: claimedUserId }
 }
 
 
