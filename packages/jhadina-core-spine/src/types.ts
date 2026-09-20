@@ -152,6 +152,11 @@ export interface ExpressionDirective {
   allowQuip: boolean;
   /** Governed presentation target; never permission to omit required facts. */
   responseLength?: 'brief' | 'balanced' | 'detailed';
+  tone?: 'warm' | 'conversational' | 'formal';
+  reasoningDepth?: 'simple' | 'standard' | 'technical';
+  /** Presentation pacing only. It never grants permission to execute actions. */
+  interactionStyle?: 'checkpointed' | 'balanced' | 'continuous';
+  creativeStyle?: 'conventional' | 'balanced' | 'experimental';
   callback?: string;
   callbackProvenance?: Array<{
     origin: 'relationship' | 'memory' | 'hippocampus';
