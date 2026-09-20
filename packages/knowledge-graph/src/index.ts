@@ -58,3 +58,5 @@ export class InMemoryKnowledgeGraph implements KnowledgeGraph {
   }
 }
 export * from './postgres-store.js'
+
+export * from './entity-intelligence.js'
