@@ -17,7 +17,7 @@ export const STEAM_ACHIEVEMENT_MANAGER_REFERENCE:SteamAchievementManagerReferenc
   requiresRunningSteamClient:true,
   requiresLoggedInSteamAccount:true,
   automaticMutationAllowed:false,
-  actions:['achievement-read','achievement-write','stat-read','stat-write'],
+  actions:['achievement-read','achievement-write','stat-read','stat-write'] as const,
 });
 
 export function authorizeSteamAchievementAction(
