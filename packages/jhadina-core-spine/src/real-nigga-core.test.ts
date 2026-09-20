@@ -91,4 +91,35 @@ describe('Real Nigga Core', () => {
     const behavior = deriveRealNiggaBehavior(personality, { userAskedForPushback: true });
     assert.equal(behavior.disagreementDirectness, 0.5);
   });
+  it('uses only an accepted governed communication trait to calibrate directness', () => {
+    const learned: PersonalityState = {
+      ...personality,
+      voice: { ...personality.voice!, directness: 0.5 },
+      traits: [{
+        id: 'trait-direct',
+        statement: 'prefers direct communication',
+        dimension: 'communication',
+        confidence: 0.9,
+        stability: 1,
+        evidence: [{ id: 'e1', source: 'memory', observedAt: '2026-09-01T00:00:00.000Z', summary: 'direct', immutable: true }],
+        contradictions: [],
+        status: 'accepted',
+        firstObservedAt: '2026-09-01T00:00:00.000Z',
+        lastObservedAt: '2026-09-02T00:00:00.000Z',
+        revision: 0,
+      }],
+    };
+
+    const behavior = deriveRealNiggaBehavior(learned);
+    assert.ok(behavior.directness > 0.63);
+    assert.ok(behavior.directness < 0.64);
+    assert.deepEqual(behavior.preferredInteractionModes, ['direct']);
+
+    const contested = deriveRealNiggaBehavior({
+      ...learned,
+      traits: [{ ...learned.traits[0], status: 'contested' }],
+    });
+    assert.equal(contested.directness, 0.5);
+  });
+
 });
