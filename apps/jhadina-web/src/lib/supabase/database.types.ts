@@ -3811,6 +3811,47 @@ export type Database = {
           },
         ]
       }
+      jhadina_sam_pursuit_snapshots: {
+        Row: {
+          checksum: string
+          created_at: string
+          opportunity_id: string
+          revision: number
+          saved_at: string
+          snapshot: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checksum: string
+          created_at?: string
+          opportunity_id: string
+          revision: number
+          saved_at: string
+          snapshot: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          checksum?: string
+          created_at?: string
+          opportunity_id?: string
+          revision?: number
+          saved_at?: string
+          snapshot?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jhadina_sam_pursuit_snapshots_user_id_opportunity_id_fkey"
+            columns: ["user_id", "opportunity_id"]
+            isOneToOne: true
+            referencedRelation: "jhadina_opportunities"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
       jhadina_shark_market_events: {
         Row: {
           chain_id: string
@@ -5813,6 +5854,25 @@ export type Database = {
         }
         Returns: string
       }
+      jhadina_capture_research_evidence_fenced: {
+        Args: {
+          p_authority: string
+          p_content_hash: string
+          p_excerpt: string
+          p_execution_event_id: string
+          p_lease_id: string
+          p_lease_token: string
+          p_locator: Json
+          p_metadata: Json
+          p_plan_id: string
+          p_publisher: string
+          p_source_kind: string
+          p_source_uri: string
+          p_trust_score: number
+          p_worker_id: string
+        }
+        Returns: string
+      }
       jhadina_claim_recovery_attempt: {
         Args: {
           p_actor_id: string
@@ -6182,6 +6242,14 @@ export type Database = {
           p_request_hash: string
           p_task_id: string
           p_worker_id: string
+        }
+        Returns: Json
+      }
+      jhadina_sam_pursuit_snapshot_save_trusted: {
+        Args: {
+          p_envelope: Json
+          p_expected_revision?: number
+          p_user_id: string
         }
         Returns: Json
       }
