@@ -15,11 +15,12 @@ export class GamingInputPipeline {
   private generation=0;
   private readonly active=new Set<string>();
   constructor(private readonly integrity:InputIntegrityMonitor,private readonly transport:GamingInputTransportBoundary,private readonly runtime:GamingRuntimeInputSink,private readonly controllerGate:ControllerInputGate,private readonly resync:ControllerInputResyncManager,private readonly delivery=new GamingInputDeliveryTracker()){ }
-  submit(event:InputIntegrityEvent,nowMs=Date.now()):Promise<GamingInputPipelineResult>{
+  submit(event:InputIntegrityEvent,nowMs?:number):Promise<GamingInputPipelineResult>{
     const generation=this.generation;
-    this.delivery.capture(event,nowMs);
+    const capturedAt=nowMs??Date.now();
+    this.delivery.capture(event,capturedAt);
     this.active.add(event.inputId);
-    const run=this.submissionTail.then(()=>this.submitSerialized(event,nowMs,generation));
+    const run=this.submissionTail.then(()=>this.submitSerialized(event,nowMs??Date.now(),generation));
     this.submissionTail=run.then(()=>undefined,()=>undefined);
     void run.finally(()=>this.active.delete(event.inputId)).catch(()=>undefined);
     return run;
