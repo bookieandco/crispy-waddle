@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "gameId": "0022400408",
+  "gameDate": "2024-12-25",
+  "matchup": "Los Angeles Lakers at Golden State Warriors",
+  "sourceVideo": {
+    "sha256": "047b433bbe174f6968fa6b38475a6220e0e9d7ee5277fd5217d8968813421461",
+    "durationSeconds": 4750.979567,
+    "sizeBytes": 305950593,
+    "videoCodec": "h264",
+    "audioCodec": "aac",
+    "width": 640,
+    "height": 360,
+    "frameRate": 29.97002997002997
+  },
+  "officialContext": {
+    "source": "NBA.com",
+    "homeTeam": "Golden State Warriors",
+    "awayTeam": "Los Angeles Lakers",
+    "finalHome": 113,
+    "finalAway": 115,
+    "quarantineRule": "Official score, roster and play-by-play evidence may validate results only after physical inference for the benchmark is frozen."
+  },
+  "physicalInference": {
+    "modelId": "basketball-ec2xx/1",
+    "executed": false,
+    "reason": "Current commissioning runtime cannot resolve external package/API hosts; no empirical model predictions may be fabricated."
+  },
+  "certification": {
+    "nbaRuntime10": false,
+    "nbaIdPhys10": false
+  }
+}
