@@ -20,8 +20,19 @@ export interface MediaTitle {
 
 export type ViewingSignalKind = 'explicit-preference' | 'observed-behavior' | 'temporary-intent' | 'contextual';
 
+export interface ViewingMediaIdentity {
+  /** Canonical playable media identity. For episodes this is the canonical episode id. */
+  mediaId: string;
+  seriesId?: string;
+  seasonId?: string;
+  seasonNumber?: number;
+  episodeNumber?: number;
+}
+
 export interface ViewingSignal {
+  /** Legacy alias retained for JTV-31 compatibility. Canonical episode signals store the episode id here. */
   titleId: string;
+  media?: ViewingMediaIdentity;
   completed: boolean;
   progressMinutes: number;
   liked?: boolean;
@@ -148,3 +159,7 @@ export { perceiveAuthorizedMedia } from './perception';
 
 export type { MediaEdition, TVEntityKind, TVEpisode, TVHierarchyEntity, TVSeason, TVSeries } from './hierarchy';
 export { assertEpisodeBelongsToSeason, assertTVEpisode, assertTVSeason, canonicalEpisodeId, seriesFromMediaTitle } from './hierarchy';
+
+export function viewingSignalMediaId(signal: ViewingSignal): string {
+  return signal.media?.mediaId ?? signal.titleId;
+}
