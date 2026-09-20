@@ -47,7 +47,10 @@ function reasoningEventToExperience(event: ReasoningEvent): Experience {
     occurredAt: event.timestamp,
     source: "conversation",
     domain: event.classification.type.toLowerCase(),
-    actor: "user",
+    actor: event.actor ?? "user",
+    outcome: event.outcome,
+    correlationId: event.correlationId,
+    causationId: event.causationId,
     provenance: {
       persistence: "jhadina_reasoning_events",
       reasoningEventId: event.id,
@@ -68,6 +71,7 @@ function reasoningEventToExperience(event: ReasoningEvent): Experience {
         confidence: event.classification.confidence,
       },
       candidateId: event.candidateId,
+      ...(event.metadata ?? {}),
     },
   }
 }
