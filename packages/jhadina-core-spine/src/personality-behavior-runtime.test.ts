@@ -73,6 +73,7 @@ describe('Pattern → Personality → Real Nigga → Behavioral → Expression r
       idFactory: () => 'trait-1',
     });
 
+    assert.equal(result.eligibilityDecisions[0]?.reason, 'eligible');
     assert.equal(result.patterns[0]?.personalityEligible, true);
     assert.equal(result.patterns[0]?.personalityDimension, 'communication');
     assert.equal(result.personality.traits[0]?.status, 'accepted');
@@ -96,6 +97,7 @@ describe('Pattern → Personality → Real Nigga → Behavioral → Expression r
       now: '2026-09-03T00:01:00.000Z',
     });
 
+    assert.equal(result.eligibilityDecisions[0]?.reason, 'no_matching_rule');
     assert.equal(result.patterns[0]?.personalityEligible, false);
     assert.equal(result.patterns[0]?.personalityDimension, undefined);
     assert.deepEqual(result.personality.traits, []);
