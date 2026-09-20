@@ -5,6 +5,7 @@ import {
   type SamPursuitSnapshotEnvelope,
   type SamPursuitSnapshotRepository,
 } from "@jhadina/opportunity-core"
+import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { createSupabaseSamPursuitSnapshotRepository } from "./supabase-sam-pursuit-snapshot-repository"
 
 export async function loadSamPursuitSnapshot(
@@ -27,15 +28,22 @@ export async function persistSamPursuitSnapshot(
 export async function loadSessionSamPursuitSnapshot(
   opportunityId: string,
 ): Promise<SamPursuitSnapshot | null> {
-  return loadSamPursuitSnapshot(createSupabaseSamPursuitSnapshotRepository(), opportunityId)
+  const identityVerifier = await createRequestIdentityVerifier()
+  const identity = await identityVerifier.verify({})
+  return loadSamPursuitSnapshot(
+    createSupabaseSamPursuitSnapshotRepository(identity.userId),
+    opportunityId,
+  )
 }
 
 export async function persistSessionSamPursuitSnapshot(
   envelope: SamPursuitSnapshotEnvelope,
   expectedRevision: number | null,
 ): Promise<SamPursuitSnapshot> {
+  const identityVerifier = await createRequestIdentityVerifier()
+  const identity = await identityVerifier.verify({})
   return persistSamPursuitSnapshot(
-    createSupabaseSamPursuitSnapshotRepository(),
+    createSupabaseSamPursuitSnapshotRepository(identity.userId),
     envelope,
     expectedRevision,
   )
