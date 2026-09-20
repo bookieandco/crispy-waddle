@@ -37,7 +37,7 @@ export async function executeAuthorizedSamProviderSend(
   if(input.ledger.events.some(event=>event.type==='send_recorded'&&event.authorizationId===input.authorization.id)){
     throw new Error('Single-send authorization has already been consumed')
   }
-  const body=[input.packet.purpose,...input.packet.scopeSummary,input.packet.proposedNextStep].filter(Boolean).join('\n\n')
+  const body=input.packet.draftBody
   const result=await transport.send({
     channel:input.authorization.channel,
     destinationRef:input.authorization.destinationRef,
