@@ -148,6 +148,12 @@ importers:
         specifier: ^19.0.0
         version: 19.2.8(react@19.2.8)
 
+  packages/agent-runtime-core:
+    devDependencies:
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
+
   packages/checkout-orchestrator: {}
 
   packages/commerce-adapters: {}
@@ -155,6 +161,12 @@ importers:
   packages/courier-fleet-core: {}
 
   packages/delivery-compliance-gate: {}
+
+  packages/director-core:
+    devDependencies:
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
 
   packages/energy-opportunity-core:
     devDependencies:
@@ -287,6 +299,12 @@ importers:
   packages/payment-core: {}
 
   packages/planning-core:
+    devDependencies:
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
+
+  packages/scheduler-core:
     devDependencies:
       vitest:
         specifier: ^2.1.8
