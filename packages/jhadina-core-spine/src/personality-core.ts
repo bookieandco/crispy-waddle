@@ -18,6 +18,8 @@ export interface PersonalityCorePolicy {
   acceptanceConfidence: number;
   minimumStability: number;
   contradictionPenalty: number;
+  /** Repeated independent contradictions retire a previously learned trait. */
+  retirementContradictions: number;
 }
 
 export const DEFAULT_PERSONALITY_CORE_POLICY: PersonalityCorePolicy = {
@@ -25,6 +27,7 @@ export const DEFAULT_PERSONALITY_CORE_POLICY: PersonalityCorePolicy = {
   acceptanceConfidence: 0.8,
   minimumStability: 0.7,
   contradictionPenalty: 0.25,
+  retirementContradictions: 3,
 };
 
 export const DEFAULT_PERSONALITY_VOICE = {
@@ -108,6 +111,7 @@ function traitStatus(
   contradictions: number,
   policy: PersonalityCorePolicy,
 ): PersonalityTrait['status'] {
+  if (contradictions >= policy.retirementContradictions) return 'retired';
   if (contradictions > 0) return 'contested';
   if (evidenceCount >= policy.minimumEvidence && confidence >= policy.acceptanceConfidence && stability >= policy.minimumStability) {
     return 'accepted';
