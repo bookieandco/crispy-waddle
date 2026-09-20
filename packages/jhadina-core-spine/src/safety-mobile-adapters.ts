@@ -10,7 +10,7 @@ export interface SafetyNativeBridge {
 }
 
 abstract class NativeSafetyAdapter {
-  constructor(protected readonly bridge: SafetyNativeBridge, private readonly expectedPlatform: 'ios' | 'android') {
+  constructor(protected readonly bridge: SafetyNativeBridge, expectedPlatform: 'ios' | 'android') {
     if (bridge.platform !== expectedPlatform) throw new Error('Safety native bridge platform mismatch');
   }
 
