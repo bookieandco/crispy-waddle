@@ -29,7 +29,7 @@ export async function assertRecoveryChildLineage(attempts:ExecutionAttemptStore,
  if(input.child.recoveryOfExecutionId!==parent.attemptId)throw new Error('MONEY_RECOVERY_PARENT_LINEAGE_MISMATCH')
  const ancestors=await recoveryAncestors(attempts,parent)
  if(ancestors.some(item=>item.attemptId===input.child.attemptId))throw new Error('MONEY_RECOVERY_LINEAGE_CYCLE')
- if(ancestors.length>=MAX_RECOVERY_GENERATIONS)throw new Error('MONEY_RECOVERY_GENERATION_LIMIT')
+ if(ancestors.length>MAX_RECOVERY_GENERATIONS)throw new Error('MONEY_RECOVERY_GENERATION_LIMIT')
  for(const ancestor of ancestors){
   if(input.child.actionFingerprint!==ancestor.actionFingerprint)throw new Error('MONEY_RECOVERY_ACTION_FINGERPRINT_MISMATCH')
   if(input.child.provider!==ancestor.provider)throw new Error('MONEY_RECOVERY_PROVIDER_MISMATCH')
