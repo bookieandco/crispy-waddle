@@ -109,8 +109,9 @@ function makeRepository(options: RepoOptions = {}) {
       }
       return { accepted: true, stopped: false, eventId: `event-${input.eventType}`, sequenceNo: 2 };
     },
-    async captureEvidence() {
+    async captureEvidence(input) {
       calls.push("captureEvidence");
+      assert.equal(input.admission.leaseToken, "lease-token");
       evidenceSequence += 1;
       return `evidence-${evidenceSequence}`;
     },
