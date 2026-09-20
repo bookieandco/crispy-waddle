@@ -228,7 +228,7 @@ begin
   ) returning id into v_id;
 
   insert into public.jhadina_knowledge_candidate_evidence(candidate_id,evidence_id)
-  select v_id, distinct x from unnest(p_evidence_ids) x;
+  select distinct v_id, x from unnest(p_evidence_ids) x;
 
   return v_id;
 end;
