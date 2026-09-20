@@ -1,0 +1,10 @@
+export type GamingAuditSeverity='blocker'|'repair'|'watch';
+export interface GamingAuditFinding{findingId:string;severity:GamingAuditSeverity;area:string;finding:string;adjustment:string;}
+export const GAMING_CORE_AUDIT_FINDINGS:readonly GamingAuditFinding[]=Object.freeze([
+ {findingId:'AUD-30-01',severity:'repair',area:'controller-mapping',finding:'AntiMicroX can generate macros/scripts and SDL mappings; importing executable/macro semantics would create a second input authority.',adjustment:'Admit only static device normalization/remap metadata before G13; reject runtime injection, scripts and macros.'},
+ {findingId:'AUD-30-02',severity:'repair',area:'playstation-controller',finding:'Supported Remote Play references expose feature fidelity that differs by transport, including DualSense haptics/adaptive triggers/gyro.',adjustment:'Keep capability negotiation transport-aware and preserve generic fallback for X5/non-PlayStation controllers.'},
+ {findingId:'AUD-30-03',severity:'repair',area:'physical-certification',finding:'G27 historical notes referenced GAMING-PROD.FINAL while G28 established the canonical physical evidence gate.',adjustment:'G30 consumes G28 evidence; it never treats CI as physical hardware evidence.'},
+ {findingId:'AUD-30-04',severity:'watch',area:'product-integration',finding:'Core exposes library/session primitives but release needs one stable product projection and one Play decision receipt.',adjustment:'Add G29 product facade with deterministic runtime/display/controller/resume projection.'},
+ {findingId:'AUD-30-05',severity:'repair',area:'release-freeze',finding:'No immutable G30 release manifest binds audit, migration, rollback, supply-chain, physical evidence and certification together.',adjustment:'Add release manifest and freeze gate; acceptance remains evidence-required until physical commissioning receipts pass.'},
+]);
+export function blockingGamingAuditFindings(findings=GAMING_CORE_AUDIT_FINDINGS){return findings.filter(f=>f.severity==='blocker');}

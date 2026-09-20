@@ -1,0 +1,9 @@
+import {describe,expect,it} from 'vitest';
+import {GAMING_CORE_AUDIT_FINDINGS,blockingGamingAuditFindings} from './gaming-core-audit.js';
+import {GamingProductFacade,G29_PRODUCT_ACCEPTANCE} from './gaming-product-integration.js';
+import {G30_RELEASE_GATES,GamingProductionReleaseGate} from './gaming-production-release.js';
+describe('Gaming audit and G29/G30 release gates',()=>{
+ it('closes the audit without hiding repair/watch findings',()=>{expect(blockingGamingAuditFindings()).toEqual([]);expect(GAMING_CORE_AUDIT_FINDINGS.some(x=>x.area==='controller-mapping')).toBe(true);});
+ it('G29 single Play decision remains authorization-gated',()=>{const f=new GamingProductFacade();const r=f.play('g1',[{id:'local',runtimeId:'libretro-wasm',execution:'homebase',display:'tv',available:true,direct:true,offline:true,hops:0,networkLatencyMs:0,inputLatencyMs:5,measured:true}],{maxNetworkLatencyMs:50,maxInputLatencyMs:20,requireMeasured:true,preferOffline:true,preferDirect:true});expect(r).toMatchObject({runtimeId:'libretro-wasm',authorizationRequired:true});expect(G29_PRODUCT_ACCEPTANCE).toContain('assistant-authorization');});
+ it('G30 refuses to freeze without G28 physical acceptance',()=>{const d=new GamingProductionReleaseGate().evaluate({releaseId:'gaming-1',version:'1.0.0',sourceSha:'a'.repeat(40),certificationRunId:'run',softwareTestsPassed:1,softwareTestFilesPassed:1,turboTasksPassed:3,migrationCertified:true,rollbackCertified:true,supplyChainCertified:true,privacyCertified:true,productAcceptanceCertified:true,physicalAcceptance:{status:'evidence-required',generatedAtMs:1,passedCases:0,totalCases:15,passedDrills:0,totalDrills:15,soakPassed:false,missingCaseIds:[],missingDrills:[],limitations:['hardware']},auditFindings:GAMING_CORE_AUDIT_FINDINGS});expect(d).toEqual({status:'evidence-required',reasons:['g28-physical-acceptance']});expect(G30_RELEASE_GATES).toHaveLength(12);});
+});
