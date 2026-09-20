@@ -336,6 +336,9 @@ importers:
 
   packages/money-core:
     dependencies:
+      '@jhadina/action-core':
+        specifier: workspace:*
+        version: link:../jhadina-action-core
       '@jhadina/opportunity-core':
         specifier: workspace:*
         version: link:../opportunity-core
