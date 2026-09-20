@@ -43,3 +43,5 @@ jobs:
           test -f supabase/migrations/20260902010000_shark_launch_outcome_history.sql
           test -f supabase/migrations/20260918000100_shark_durable_launch_ingestion.sql
           test -f supabase/migrations/20260919000100_shark_historical_observation_ratio_contract.sql
+          test -f supabase/migrations/20260920000100_shark_evidence_provenance_contract.sql
+          test -f supabase/migrations/20260920000200_shark_service_role_only_rls.sql
