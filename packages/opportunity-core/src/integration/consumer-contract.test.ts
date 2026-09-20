@@ -24,18 +24,26 @@ assert(overage.verificationStatus !== 'verified', 'Raw Overage input must not ma
 assert(!isCompleteVerification(overage.verificationDecision), 'Raw Overage input must not have a complete verification decision')
 assert(validateOpportunity(overage).valid, 'Raw Overage opportunity should remain structurally valid')
 
+const verifiedChecks = {
+  source_record: 'verified' as const,
+  property_reference: 'verified' as const,
+  claimant_identity: 'verified' as const,
+  entitlement: 'verified' as const,
+}
+
+const verifiedOpportunityId = 'overage:INTEGRATION-OVERAGE-001-VERIFIED'
 const verifiedDecision = {
-  id: 'verification:INTEGRATION-OVERAGE-001',
-  opportunityId: overage.id,
+  id: 'verification:INTEGRATION-OVERAGE-001-VERIFIED',
+  opportunityId: verifiedOpportunityId,
   status: 'verified' as const,
-  checks: {
-    source_record: 'verified' as const,
-    property_reference: 'verified' as const,
-    claimant_identity: 'verified' as const,
-    entitlement: 'verified' as const,
-  },
-  evidenceRefs: ['INTEGRATION-OVERAGE-001:source'],
+  checks: Object.entries(verifiedChecks).map(([type, result]) => ({
+    type: type as 'source_record' | 'property_reference' | 'claimant_identity' | 'entitlement',
+    result,
+    evidenceRefs: [`INTEGRATION-OVERAGE-001-VERIFIED:${type}`],
+  })),
+  evidenceRefs: ['INTEGRATION-OVERAGE-001-VERIFIED:source'],
   reviewerRef: 'integration-reviewer',
+  decidedAt: '2026-08-31T00:00:00.000Z',
   verifiedAt: '2026-08-31T00:00:00.000Z',
 }
 
@@ -43,7 +51,7 @@ const verifiedOverage = adaptOverageOpportunity({
   id: 'INTEGRATION-OVERAGE-001-VERIFIED',
   title: 'Verified Integration Recovery Fixture',
   sourceUrl: 'https://example.gov/overage/fixture',
-  verificationChecks: verifiedDecision.checks,
+  verificationChecks: verifiedChecks,
   verificationDecision: verifiedDecision,
 })
 

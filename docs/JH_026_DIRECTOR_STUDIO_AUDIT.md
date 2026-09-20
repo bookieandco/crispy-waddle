@@ -30,3 +30,30 @@ Ask/Director intent -> Director/Shotlist proposal -> Jhadina policy + explicit a
 
 ## Immediate build boundary
 The first implementation PR after this audit should contain only pure Director Studio contracts and tests. It should not deploy Python services, add credentials, call external models, or introduce a second orchestrator.
+
+
+## Closure audit — 2026-09-18
+
+JH-026 reconstruction is complete at the governed subsystem boundary.
+
+### Landed architecture
+- Director-owned Studio contracts and Character DNA.
+- Canonical ActionRequest / ActionExecutor capability bridge; no parallel Studio authority.
+- Approved tracking and SAM2 worker/runtime boundary.
+- Character-replacement compositor and GPU-ready compositor backend boundary.
+- Voice/lip-sync worker routing plus MuseTalk, Wav2Lip and Rhubarb runtime adapters.
+- Rig/animation worker/runtime boundary.
+- Secondary physics for cloth, hair, fur, puppet-fabric and accessories.
+- Final governed render assembly requiring composite, voice-sync, animation and physics lineage.
+- Machine QC followed by explicit durable asset approval before Workstation/timeline use.
+
+### Closure invariants
+1. Model/media workers cannot approve their own output.
+2. Third-party runtimes receive bounded media inputs, not Jhadina policy or approval authority.
+3. Tracking, continuity, frame and upstream artifact lineage are preserved across worker boundaries.
+4. Final render does not bypass Studio QC.
+5. Workstation use remains behind explicit generated-asset approval.
+6. Historical PR #7 remains source material only and is not a merge target.
+
+### Deferred deployment work
+Concrete model checkpoints, CUDA/Metal/Blender implementations, production worker deployment, credentials and capacity configuration are deployment concerns behind the landed interfaces. They do not block closure of the subsystem architecture and must not be treated as authorization to bypass the canonical governance spine.

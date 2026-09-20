@@ -78,6 +78,8 @@ export type StripeFetch = (input: RequestInfo | URL, init?: RequestInit) => Prom
  * here); a wrong ID fails safely — Stripe returns a clear "no such
  * PaymentMethod" error before any charge occurs.
  */
+export const STRIPE_API_VERSION = "2026-08-26.dahlia" as const
+
 export const STRIPE_SANDBOX_TEST_PAYMENT_METHODS = [
   "pm_card_visa",
   "pm_card_visa_chargeDeclined",
@@ -289,6 +291,7 @@ export class StripeSandboxPaymentProvider implements PaymentProvider {
           accept: "application/json",
           "content-type": "application/x-www-form-urlencoded",
           authorization: `Bearer ${this.options.secret}`,
+          "Stripe-Version": STRIPE_API_VERSION,
           ...(init.idempotencyKey ? { "Idempotency-Key": init.idempotencyKey } : {}),
         },
         body: init.payload ? toStripeFormBody(init.payload) : undefined,

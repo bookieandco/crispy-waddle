@@ -43,3 +43,6 @@ jobs:
 
       - name: Spatial conformance tests
         run: pnpm --filter @jhadina/spatial-intelligence-core test
+
+      - name: Spatial production health gate test
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/app/api/spatial/health/route.test.ts

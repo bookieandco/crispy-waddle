@@ -1,4 +1,5 @@
 import type { Opportunity } from '@/lib/opportunities/sideIncome'
+import type { SamNoticeType, SamOpportunity } from './sam-types'
 
 export type SamNotice = Record<string, unknown>
 
@@ -59,6 +60,7 @@ export function adaptSamNotice(notice: SamNotice, userId = 'default'): Opportuni
     userId,
     title,
     kind: 'automation',
+    hubCategory: 'ai_businesses',
     sourceUrl,
     sourceName: 'SAM.gov',
     summary: summary.slice(0, 1200),
@@ -85,4 +87,59 @@ export function adaptSamResults(data: unknown, userId = 'default'): Opportunity[
   return raw
     .filter((item): item is SamNotice => Boolean(item && typeof item === 'object'))
     .map((item) => adaptSamNotice(item, userId))
+}
+
+
+function normalizeNoticeType(value: unknown): SamNoticeType {
+  const normalized = text(value).toUpperCase().replace(/[-_]+/g, ' ')
+  if (normalized.includes('SOURCES SOUGHT')) return 'SOURCES_SOUGHT'
+  if (normalized.includes('SOLICITATION') || normalized.includes('COMBINED SYNOPSIS')) return 'SOLICITATION'
+  if (normalized.includes('SPECIAL NOTICE')) return 'SPECIAL_NOTICE'
+  if (normalized.includes('PRESOLICITATION') || normalized.includes('PRE SOLICITATION')) return 'PRESOLICITATION'
+  if (normalized.includes('AWARD')) return 'AWARD_NOTICE'
+  return 'OTHER'
+}
+
+function samRows(data: unknown): SamNotice[] {
+  const root = data && typeof data === 'object' ? data as Record<string, unknown> : {}
+  const raw = Array.isArray(root.opportunitiesData) ? root.opportunitiesData
+    : Array.isArray(root.opportunities) ? root.opportunities
+    : Array.isArray(root.results) ? root.results
+    : Array.isArray(data) ? data
+    : []
+  return raw.filter((item): item is SamNotice => Boolean(item && typeof item === 'object'))
+}
+
+export function normalizeSamOpportunityNotice(notice: SamNotice): SamOpportunity {
+  const noticeId = firstText(notice.noticeId, notice.solicitationNumber, notice.contractOpportunityId)
+  if (!noticeId) throw new Error('SAM notice is missing a stable notice identifier')
+
+  const title = firstText(notice.title, notice.subject, 'SAM.gov opportunity')
+  const sourceUrl = firstText(notice.uiLink, notice.url, notice.link) || `https://sam.gov/opp/${noticeId}/view`
+  const place = notice.placeOfPerformance
+  const placeOfPerformance = typeof place === 'string'
+    ? place
+    : place && typeof place === 'object'
+      ? JSON.stringify(place)
+      : undefined
+
+  return {
+    noticeId,
+    title,
+    noticeType: normalizeNoticeType(firstText(notice.type, notice.noticeType, notice.typeOfNotice)),
+    agency: firstText(notice.fullParentPathName, notice.department, notice.organizationName) || undefined,
+    office: firstText(notice.office, notice.officeAddress, notice.subTier) || undefined,
+    postedDate: firstText(notice.postedDate, notice.publishDate) || undefined,
+    responseDeadline: firstText(notice.responseDeadLine, notice.responseDeadline, notice.archiveDate) || undefined,
+    naics: firstText(notice.naicsCode, notice.naics) || undefined,
+    setAside: firstText(notice.typeOfSetAsideDescription, notice.typeOfSetAside, notice.setAside) || undefined,
+    placeOfPerformance,
+    estimatedValue: number(notice.awardCeiling) ?? number(notice.baseAndAllOptionsValue) ?? number(notice.baseAndAllOptionsValueSupplied),
+    description: firstText(notice.description, notice.title) || undefined,
+    sourceUrl,
+  }
+}
+
+export function normalizeSamOpportunityResults(data: unknown): SamOpportunity[] {
+  return samRows(data).map(normalizeSamOpportunityNotice)
 }

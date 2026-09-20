@@ -25,12 +25,18 @@ importers:
 
   apps/jhadina-web:
     dependencies:
-      '@jhadina/shark-intelligence-core':
-        specifier: workspace:*
-        version: link:../../packages/shark-intelligence-core
       '@jhadina/director-core':
         specifier: workspace:*
         version: link:../../packages/director-core
+      '@jhadina/opportunity-core':
+        specifier: workspace:*
+        version: link:../../packages/opportunity-core
+      '@jhadina/reference-provenance':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-reference-provenance
+      '@jhadina/shark-intelligence-core':
+        specifier: workspace:*
+        version: link:../../packages/shark-intelligence-core
       '@jhadina/spatial-intelligence-core':
         specifier: workspace:*
         version: link:../../packages/spatial-intelligence-core
@@ -118,11 +124,11 @@ importers:
         specifier: ^20.14.0
         version: 20.19.43
       '@types/react':
-        specifier: ^19.0.0
-        version: 19.3.0
+        specifier: 19.2.18
+        version: 19.2.18
       '@types/react-dom':
-        specifier: ^19.0.0
-        version: 19.3.0(@types/react@19.3.0)
+        specifier: 19.2.4
+        version: 19.2.4(@types/react@19.2.18)
       '@types/three':
         specifier: ^0.170.0
         version: 0.170.0
@@ -190,6 +196,10 @@ importers:
         version: 5.9.3
 
   packages/growth-core:
+    dependencies:
+      '@jhadina/opportunity-core':
+        specifier: workspace:*
+        version: link:../opportunity-core
     devDependencies:
       vitest:
         specifier: ^2.1.8
@@ -219,7 +229,14 @@ importers:
         specifier: ^5.1.0
         version: 5.9.3
 
-  packages/jhadina-core-spine: {}
+  packages/jhadina-core-spine:
+    devDependencies:
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
 
   packages/jhadina-entertainment-core:
     devDependencies:
@@ -257,9 +274,24 @@ importers:
 
   packages/jhadina-intelligence-core:
     dependencies:
+      '@jhadina/action-core':
+        specifier: workspace:*
+        version: link:../jhadina-action-core
       '@jhadina/core-spine':
         specifier: workspace:*
         version: link:../jhadina-core-spine
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.13
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+
+  packages/jhadina-reference-provenance:
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -296,6 +328,9 @@ importers:
 
   packages/money-core:
     dependencies:
+      '@jhadina/opportunity-core':
+        specifier: workspace:*
+        version: link:../opportunity-core
       pg:
         specifier: ^8.16.3
         version: 8.23.0
@@ -324,7 +359,17 @@ importers:
 
   packages/offer-engine: {}
 
-  packages/opportunity-core: {}
+  packages/opportunity-core:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.13
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
 
   packages/order-fulfillment-core: {}
 
@@ -342,6 +387,15 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.43)
 
+  packages/security-core:
+    devDependencies:
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.13
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+
   packages/shark-intelligence-core:
     dependencies:
       '@jhadina/core-spine':
@@ -355,15 +409,6 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.43)
 
-  packages/security-core:
-    devDependencies:
-      tsx:
-        specifier: ^4.20.3
-        version: 4.23.13
-      typescript:
-        specifier: ^5.1.0
-        version: 5.9.3
-
   packages/shotlist-core:
     devDependencies:
       vitest:
@@ -373,6 +418,13 @@ importers:
   packages/social-core: {}
 
   packages/spatial-intelligence-core:
+    dependencies:
+      '@jhadina/core-spine':
+        specifier: workspace:*
+        version: link:../jhadina-core-spine
+      '@jhadina/knowledge-graph':
+        specifier: workspace:*
+        version: link:../knowledge-graph
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -383,6 +435,9 @@ importers:
       typescript:
         specifier: ^5.1.0
         version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
 
   packages/staffing-core: {}
 
@@ -2101,6 +2156,13 @@ packages:
       '@types/react': ^18.0.0
     dependencies:
       '@types/react': 18.3.31
+
+  /@types/react-dom@19.2.4(@types/react@19.2.18):
+    resolution: {integrity: sha512-Bsc+QHgp+P/F02XDzNCY9jnZNCUuLki36KT7VKrTXXLdHf+vHMNZnW1rVu5DNW/rCK+fya3DATySbLM4yhtKUw==}
+    peerDependencies:
+      '@types/react': 19.2.18
+    dependencies:
+      '@types/react': 19.2.18
 
   /@types/react-dom@19.3.0(@types/react@19.3.0):
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}

@@ -397,57 +397,27 @@ the real build's route manifest.
 **Next Step:** None — done.
 
 ### JH-012
-**Priority:** P3
-**Status:** QUEUED (DISCOVER complete — nothing to land)
-**Branch:** none
-**Objective:** Shodan read-only security connector
-(`shodan.host.read`, `shodan.internetdb.read`, `shodan.dns.read`,
-`shodan.search.read`, `shodan.history.read`), adapter-bounded, evidence
-not conclusions, no active scanning.
-**Dependencies:** JH-001, JH-002
-**DISCOVER result (2026-08-13):** Searched all 32 remote branches, by
-both content (`git grep -i shodan`) and path
-(`packages/{jhadina-action-core,provider-core,security-core}`). `shodan`
-appears nowhere except this queue file. `packages/jhadina-action-core`
-already exists and is merged to `main` (from earlier queue work); no
-`provider-core` or `security-core` package exists anywhere in any
-branch. This is a from-scratch build with no existing implementation to
-audit or land, against infrastructure (`provider-core`, `security-core`)
-that itself doesn't exist yet.
-**Next Step:** Not started — genuinely no code exists for this task.
-Building a live external security-scanning connector (even read-only)
-from a brainstorm description, with no existing `provider-core`/
-`security-core` boundary to adapt into, is a product/security decision
-(what gets scanned, whose Shodan API key, what evidence surfaces where)
-that shouldn't be started implicitly. Left QUEUED pending a human call
-on priority and design.
+**Priority:** P2
+**Status:** ACTIVE
+**Program:** INTCOM.2-3 — passive observation provider + first Shodan adapter.
+**Branch:** new reconstruction from current main; no historical implementation exists.
+**Objective:** Add provider-neutral passive-observation contracts, then a read-only Shodan adapter for host/InternetDB/DNS/search/history observations. Observations are evidence, not conclusions; no active scanning, exploitation, mutation, or autonomous target selection.
+**Dependencies:** JH-001, JH-002, JH-042
+**Human decision (2026-09-19):** Combine JH-042/JH-012/JH-013 under the Jhadina Intelligence & Communications Loop while preserving separate capability boundaries. Shodan is the first passive observation adapter, not an agent or execution authority.
+**Definition of Done:** Provider-neutral observation contract is governed/evidence-bearing; Shodan adapter cannot exceed the declared read-only capabilities; evidence/provenance can enter the existing intelligence/activity path; tests prove unsupported/mutating operations fail closed.
+**Progress (2026-09-19):** INTCOM.2A provider-neutral `ObservationEnvelope` added to `@jhadina/intelligence-core` with source capability/version, provenance/evidence refs, freshness/limitations, and explicit `trustEffect: NONE` / `authorizationEffect: NONE`. Contract is provider-neutral and contains no Shodan credentials or response types. Tests added for normalization and fail-closed required metadata.\n**Progress (2026-09-19):** INTCOM.2B adds a credential/network-agnostic `ShodanReadOnlyAdapter` with an explicit allowlist for host/InternetDB/DNS/search/history reads. Unsupported capabilities fail before transport; mutation execution always fails closed. Returned data is wrapped in canonical `ObservationEnvelope` with no trust or authorization effect.\n**Progress (2026-09-19):** INTCOM.2C adds an injected Shodan HTTP transport with credential-provider boundary and only the existing read allowlist, plus `appendObservationEvidence()` to write observation metadata/provenance/limitations into the canonical ActionLedger. No second evidence ledger is introduced. InternetDB remains credential-free; other reads obtain credentials only through the injected provider.\n**Progress (2026-09-19):** INTCOM.2D composes request identity verification -> read-only Shodan transport/adapter -> canonical ObservationEnvelope -> existing durable intelligence ActionLedger. A test verifies the actor-scoped event is written as `observation.shodan.host.read`, retains no trust effect, and does not serialize the credential. Also repairs the missing declared `@jhadina/action-core` dependency introduced by INTCOM.2C. Activity already projects the `intelligence` domain, so the observation event uses the existing read-side without adding a domain/store.\n**Progress (2026-09-19):** INTCOM.2E adds a server-only POST boundary for Shodan passive observations. It requires a claimed actor, validates observation/subject IDs, allowlists only the five read capabilities, and delegates to the request-scoped governed runtime; no mutation/scan route exists.\n**Verification (2026-09-19):** Jhadina Launch Gate and Spatial Conformance were executed after INTCOM.2E and are red for pre-existing/cross-subsystem blockers outside the Shodan/INTCOM slice. Marked for AUDIT/REPAIR: (1) `packages/jhadina-core-spine/src/learning-record.test.ts` cannot resolve `vitest` and `./learning-record.js`; (2) `apps/jhadina-agent-runtime/src/execution/SkillCapabilityToken.ts` has TypeScript syntax errors; (3) `packages/music-core/src/restoration-engine/native-plugin-ipc.test.ts` has a TypeScript syntax error. `@jhadina/intelligence-core` itself reached type-check without a reported error before the workspace gate stopped.\n**Audit/repair disposition:** These blockers are recorded for their owning subsystems and do not expand JH-012 into unrelated repair work. JH-012 remains ACTIVE pending a clean targeted/full verification pass.\n**Next Step:** Continue INTCOM contract work without claiming JH-012 DONE; repair the recorded CI blockers in their owning audit/repair passes, then rerun closure verification.
+**Handoff audit (2026-09-19):** Expanded against prior Communications/Homebase requirements. Observation evidence must not confer trust/authorization. Subsequent JH-013 work must preserve endpoint vs transport/gateway identity, explicit trust states, correlation lineage, inbound replay/dedup normalization, encrypted store-and-forward/offline reconciliation, and canonical durable delivery evidence. See `docs/JHADINA_INTCOM_ARCHITECTURE.md`.
 
 ### JH-013
-**Priority:** P3
-**Status:** QUEUED (DISCOVER complete — nothing to land)
-**Branch:** none
-**Objective:** "Communications stack" end-to-end wiring (Command API →
-Policy → Planner → Comms Core → Transport Registry → Reticulum Adapter →
-Reticulum, and the inbound/evidence paths back).
-**Dependencies:** JH-001, JH-002
-**DISCOVER result (2026-08-13):** Searched all 32 remote branches for
-every named component, by path and by content. `reticulum` appears
-nowhere except this queue file. The only path match for any of
-"transport-registry / comms-core / communication-planner / command-api
-/ device-identity-registry" is `packages/placement-core/src/command-api.ts`
-on `main` and two PlacementOS-adjacent branches — PlacementOS's own
-command API (a staffing/scheduling domain), unrelated to a
-communications/mesh-networking stack. None of the actual named
-components (Communications Core, Communication Planner, Transport
-Registry, Reticulum Adapter, Device/Identity Registry) exist anywhere.
-**Next Step:** Confirmed purely conceptual — this is not implemented on
-any branch this session has access to. Not something to start from a
-brainstorm description alone; needs a human decision on whether it's
-still a real planned feature before it gets a Definition of Done.
-
----
-
-## PRODUCT
+**Priority:** P2
+**Status:** QUEUED
+**Program:** INTCOM.3-6 — governed communications.
+**Branch:** none; reconstruct from current main.
+**Objective:** Transport-neutral communications intent -> identity/policy/approval -> ActionExecutor -> transport adapter -> delivery evidence. Reticulum is a future adapter, not the core architecture.
+**Dependencies:** JH-001, JH-002, JH-012, JH-042
+**Human decision (2026-09-19):** Communications joins the same Intelligence & Communications Loop but remains a separately governed capability. Transport adapters receive no policy authority.
+**Definition of Done:** Recipient/device identity, communication intent, transport registry/adapter and durable delivery-receipt contracts exist behind canonical governance; Reticulum can plug in without bypassing ActionExecutor; inbound/outbound evidence projects into canonical activity.
+**Progress (2026-09-19):** INTCOM.3A begins the neutral communications contract layer with separate `EndpointIdentity` and `TransportIdentity`, explicit discovered/reachable/identified/trusted/authorized trust states, and a transport-free `CommunicationIntent`. Intent formation fails closed unless the recipient is explicitly authorized; discovery/reachability/trust alone are insufficient. No Reticulum/runtime send path is introduced.\n**Progress (2026-09-19):** INTCOM.3B maps validated `CommunicationIntent` into the canonical `ActionRequest`/`ActionExecutor` boundary. `CommunicationAuthorizationHandler` is deliberately transport-free: it can only produce an authorized dispatch object after ActionExecutor policy/approval processing. Tests cover allowed and denied policy paths; denied policy never reaches dispatch.\n**Progress (2026-09-19):** INTCOM.3C adds a policy-free `TransportRegistry` over explicit transport identity, health, capability and priority metadata. Route selection accepts only an already-authorized dispatch, ignores offline/incapable routes, and fails closed when no route can satisfy the required capability. No adapter can grant authorization.\n**Progress (2026-09-19):** INTCOM.4A adds durable `DeliveryReceipt` evidence with intent, correlation, actor, selected transport/adapter, outcome, provider evidence refs and explicit failure reason. Receipts append to the canonical ActionLedger so communication outcomes remain in the existing evidence/activity spine rather than a parallel ledger.\n**Progress (2026-09-19):** INTCOM.4B normalizes inbound transport data as evidence with explicit authentication state, replay/dedup keys and payload references. Failed authentication and duplicate replay fail closed; accepted observations append to the canonical ActionLedger with `trustEffect: NONE` and `authorizationEffect: NONE`. There is no inbound ActionExecutor call or execution path.\n**Progress (2026-09-19):** INTCOM.5A adds an idempotent store-and-forward queue that accepts only the already-authorized dispatch contract. Duplicate item IDs remain suppressed after reconciliation, failed forwarding stays pending, and reconnect/retry cannot manufacture new authorization semantics. The contract is location-neutral so Homebase/device/cloud can share it without becoming a second authority.\n**Progress (2026-09-19):** INTCOM.5B adds Reticulum as the first concrete transport adapter behind the neutral contracts. It consumes only an `AuthorizedCommunicationDispatch` plus a selected Reticulum route, preserves correlation/content-reference lineage, returns provider receipt evidence, and rejects unavailable routes. Reticulum retains routing mechanics behind an injected bridge and receives no policy/trust/authorization authority.\n**Progress (2026-09-19):** INTCOM.6 composes the governed outbound loop: validated communication intent → canonical ActionExecutor policy/approval boundary → authorized dispatch → TransportRegistry route selection → Reticulum adapter → durable delivery evidence. The integration test asserts correlation/intent lineage and proves denied policy produces zero transport sends. Store-forward remains a retry/reconciliation layer over the same authorized dispatch contract.\n**Next Step:** Audit/repair the INTCOM program against its handoff invariants and run clean targeted/workspace verification before marking JH-013 DONE; JH-012 verification debt remains separately tracked.
 
 ### JH-014
 **Priority:** P1
@@ -570,18 +540,14 @@ JH-021's completion report.
 
 ### JH-026
 **Priority:** P2
-**Status:** QUEUED
-**Branch:** `feat/jhadina-growth-engine` (PR #7) —
-`apps/jhadina-studio-native/**`, `apps/jhadina-web/src/lib/studio/**`,
-`services/{wav2lip,physics-service,rig-service,tracking-service,
-studio-mastering}/**`
-**Objective:** Studio AI-actor/video pipeline — GPU video processing,
-character DNA/appearance/behavior runtime, physics, lip-sync,
-voice-sync, rig/tracking, native Swift AV code, and five new Python
-microservices.
+**Status:** DONE
+**Branch:** reconstructed from current main across PRs #257–#277; historical PR #7 remains unmerged source material.
+**Objective:** Studio AI-actor/video pipeline inside the governed Director/Jhadina subsystem: character replacement, tracking/segmentation, voice/lip-sync, rig/animation, secondary physics, render, QC, explicit asset approval, and Workstation integration.
 **Dependencies:** JH-001
-**Human decision (2026-09-18):** Approved for the subsystem. The Studio AI actor/video pipeline belongs inside the Director/Jhadina subsystem rather than remaining a standalone EXPERIMENT. GPU-heavy media processing must stay behind subsystem adapters/services; this decision does not authorize a parallel orchestration, policy, memory, or execution authority outside Jhadina's canonical governance spine.
-**Next Step:** DISCOVER/AUDIT the old PR #7 implementation against current Director/Shotlist/Media architecture, then reconstruct only compatible components from current main. Do not merge the stale branch wholesale.
+**Human decision (2026-09-18):** Approved for the subsystem. GPU-heavy media processing remains behind subsystem adapters/services and has no parallel orchestration, policy, memory, or execution authority.
+**Definition of Done:** Met. Current main now owns the Studio contracts and governed capability bridge; tracking/SAM2, replacement/compositing, voice-sync, rig/animation, physics and render workers are isolated behind provider interfaces; QC is the final machine gate; generated Studio media requires explicit durable asset approval before Workstation/timeline use. Historical PR #7 was not merged wholesale.
+**Verification:** Merge state was verified through PR #277. Closure audit recorded in `docs/JH_026_DIRECTOR_STUDIO_AUDIT.md`. Concrete model checkpoints, GPU/native solver implementations and production worker deployment remain deployment configuration behind the completed interfaces rather than new governance architecture.
+**Next Step:** None — done.
 
 ### JH-027
 **Priority:** P2
@@ -1452,7 +1418,7 @@ here.
 
 ### JH-042
 **Priority:** P2
-**Status:** QUEUED (narrowed — homepage-rewrite portion rejected)
+**Status:** DONE
 **Branch:** `feat/jhadina-entertainment-intelligence` (PR #16, already
 closed without merging; history preserved) —
 `apps/jhadina-web/{app,lib}/agents/**`, `apps/jhadina-web/src/lib/agents/**`,
@@ -1473,12 +1439,9 @@ bundle — the agents/** operating-loop runtime, the system-status API,
 and a standalone `/activity` page (as a new route, not a homepage
 replacement) — is not itself a homepage proposal and remains a
 legitimate, separately-auditable candidate task.
-**Next Step:** Not yet audited as a standalone slice. If picked up,
-scope it to the agents/system-status/activity surfaces only — do not
-touch `PersonalCommandFeed.tsx` or `pages/index.tsx`. Also note some
-paths here are under root `apps/jhadina-web/app/` and `lib/` (not
-`src/app/`/`src/lib/`) — re-check the app/vs src/app collision class
-from JH-011 before assuming these routes are reachable as authored.
+**Reconciliation (2026-09-19):** Current main already contains the accepted JH-042 slice documented in `docs/JH_042_AGENT_OPERATING_LOOP_AUDIT.md`: standalone /activity, signed-in actor verification, and a read-only projection of the canonical SupabaseAuditLedger. The obsolete PR #16 agent runtime, global in-memory audit store, hard-coded status claims, root app routes and direct agent execution surface remain rejected.
+**Program role:** INTCOM.1 foundation for the Jhadina Intelligence & Communications Loop.
+**Next Step:** None — done; JH-012 is the next active program slice.
 
 ### JH-043
 **Priority:** P2

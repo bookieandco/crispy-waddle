@@ -54,7 +54,7 @@ export type { PostgresExecutionRecoveryLeaseStoreOptions } from './postgres-exec
 export { PostgresExecutionRecoveryLeaseStore } from './postgres-execution-recovery-lease-store.js';
 export type { ExecutionRecoveryServiceOptions } from './execution-recovery-service.js';
 export { MoneyExecutionRecoveryService } from './execution-recovery-service.js';
-export type { MoneyReconciliationAdapter } from './execution-reconciliation-adapter.js';
+export type { MoneyExecutionReconciliationAdapter } from './execution-reconciliation-adapter.js';
 export { ExecutionReconciliationAdapterRegistry, createExecutionReconciler } from './execution-reconciliation-adapter.js';
 export type { ProviderExecutionIdentity } from './provider-execution-identity.js';
 export { createProviderExecutionIdentity, createProviderExecutionIdentityFromAttempt, assertProviderExecutionIdentity } from './provider-execution-identity.js';
@@ -62,3 +62,36 @@ export type { AtomicRecoveryResolver, PostgresAtomicRecoveryResolverOptions } fr
 export { PostgresAtomicRecoveryResolver } from './postgres-atomic-recovery-resolver.js';
 export type { StripePaymentIntentReconciliationAdapterOptions } from './stripe-payment-intent-reconciliation-adapter.js';
 export { StripePaymentIntentReconciliationAdapter } from './stripe-payment-intent-reconciliation-adapter.js';
+
+export type { RecoveryChildLineageInput } from './recovery-child-execution.js';
+export { assertRecoveryChildLineage } from './recovery-child-execution.js';
+
+export type { RecoveryChildProviderResult, RecoveryChildExecutorDeps } from './recovery-child-executor.js';
+export { MoneyRecoveryChildExecutor } from './recovery-child-executor.js';
+
+export type { MoneyActionCoreAuthority, MoneyAuthorityBinding } from './action-core-authority-bridge.js';
+export { fingerprintActionRequest, createMoneyActionCoreAuthority, assertActionCoreAuthorityMatches, issueActionCoreBoundExecutionPermit, bindActionCoreAuthority } from './action-core-authority-bridge.js';
+
+export type { FinancialExecutionIntent } from './financial-action-governance.js';
+export { isFinancialMutationCapability, createFinancialActionRequestFromAllocation } from './financial-action-governance.js';
+
+export * from './canonical-financial-state.js';
+export * from './accounting-lifecycle-contracts.js';
+export * from './market-instrument-contracts.js';
+export * from './prediction-calibration-contracts.js';
+export * from './risk-simulation-contracts.js';
+export * from './decision-workflow-contracts.js';
+export * from './market-provenance-contracts.js';
+export * from './macro-economic-contracts-v2.js';
+
+export * from './sports-intelligence-ingress.js';
+
+export * from './stock-market-reality.js';
+
+export * from './stock-intelligence-fusion.js';
+
+export * from './fx-market-reality.js';
+
+export * from './fx-intelligence-fusion.js';
+
+export * from './opportunity-outcome-truth-bridge.js';

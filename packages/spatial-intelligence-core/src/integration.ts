@@ -35,12 +35,13 @@ export type SpatialContextPackage = {
 }
 
 export function toSpatialDomainContext(pkg: SpatialContextPackage): SpatialDomainContext {
+  const attentionObservedAt = pkg.temporalScope.asOf ?? pkg.evidence[0]?.observedAt ?? pkg.observations[0]?.observedAt ?? new Date(0).toISOString()
   return {
     observations: pkg.observations.map((x) => ({ ...x })),
     evidence: pkg.evidence.map((x) => ({ ...x })),
     claims: pkg.claims.map((x) => ({ ...x })),
     reality: pkg.reality.map((x) => ({ ...x })),
-    attention: pkg.conflicts.map((ref, index) => ({ id: `attention:${index}:${ref}`, source: "spatial-attention", observedAt: null, summary: ref, immutable: true })),
+    attention: pkg.conflicts.map((ref, index) => ({ id: `attention:${index}:${ref}`, source: "spatial-attention", observedAt: attentionObservedAt, summary: ref, immutable: true })),
     conflicts: [...pkg.conflicts],
     uncertainty: [...pkg.uncertainty],
     limitations: [...pkg.limitations],
@@ -49,7 +50,23 @@ export function toSpatialDomainContext(pkg: SpatialContextPackage): SpatialDomai
 }
 
 export type SpatialQueryInterpreter = (text: string) => SpatialQuery | undefined
-const spatialWords = /\b(near|around|at|inside|within|airport|camera|traffic|aircraft|vessel|earthquake|fire|weather|satellite|spatial|map|location|where|changed|change|moved|route|track|investigate|why)\b/i
+const spatialWords = /\b(near|around|at|inside|within|airport|camera|traffic|aircraft|flight|plane|vessel|ship|earthquake|fire|weather|satellite|spatial|map|location|where|changed|change|moved|route|track|investigate|why)\b/i
+const spatialDomainRules: ReadonlyArray<{ domain: string; pattern: RegExp }> = [
+  { domain: "camera", pattern: /\b(cameras?|cctv|views?|frames?)\b/i },
+  { domain: "aircraft", pattern: /\b(aircraft|flight|plane|airport|aviation)\b/i },
+  { domain: "vessel", pattern: /\b(vessel|ship|boat|ais|port|harbor)\b/i },
+  { domain: "fire", pattern: /\b(fire|wildfire|firms|burn)\b/i },
+  { domain: "earthquake", pattern: /\b(earthquake|quake|seismic)\b/i },
+  { domain: "satellite", pattern: /\b(satellite|orbit|iss|tle)\b/i },
+  { domain: "traffic", pattern: /\b(traffic|congestion|road)\b/i },
+  { domain: "weather", pattern: /\b(weather|storm|wind|rain|snow)\b/i },
+  { domain: "infrastructure", pattern: /\b(infrastructure|datacenter|dam|power|facility)\b/i },
+]
+
+export function inferSpatialDomains(text: string): string[] {
+  const domains = spatialDomainRules.filter((rule) => rule.pattern.test(text)).map((rule) => rule.domain)
+  return domains.length ? [...new Set(domains)].sort() : ["spatial"]
+}
 
 /** Conservative intent detection: false positives are preferable to silently issuing an action. */
 export const defaultSpatialQueryInterpreter: SpatialQueryInterpreter = (text) => {
@@ -62,7 +79,7 @@ export const defaultSpatialQueryInterpreter: SpatialQueryInterpreter = (text) =>
     subject: text.trim(),
     geographicScope: null,
     temporalScope: { from: null, to: null, asOf: null },
-    requestedDomains: ["spatial"],
+    requestedDomains: inferSpatialDomains(text),
     requiresEvidence: true,
   }
 }
@@ -82,7 +99,7 @@ export function createSpatialContextProvider(options: { userId: string; read: Sp
       const query = (options.interpreter ?? defaultSpatialQueryInterpreter)(input.activeTask)
       if (!query) return undefined
       const enriched: SpatialQuery = { ...query, geographicScope: input.geographicScope ?? query.geographicScope, temporalScope: input.temporalScope ?? query.temporalScope }
-      const pkg = await options.read(planSpatialQuery(enriched), input.userId || options.userId)
+      const pkg = await options.read.read(planSpatialQuery(enriched), input.userId || options.userId)
       return pkg ? toSpatialDomainContext(pkg) : undefined
     },
   }
@@ -117,10 +134,10 @@ export function assertDirectorSpatialContext(context: DirectorSpatialContext): v
   if (context.evidenceRefs.length === 0) throw new Error("DIRECTOR_SPATIAL_CONTEXT_EVIDENCE_REQUIRED")
 }
 
-export type GevCameraRecord = { id: string; name: string; city: string; lat: number; lon: number; headingDeg?: number; fovDeg?: number; pitchDeg?: number; capability?: SpatialStream["capability"]; frameUrl?: string; mediaUrl?: string }
+export type GevCameraGraphRecord = { id: string; name: string; city: string; lat: number; lon: number; headingDeg?: number; fovDeg?: number; pitchDeg?: number; capability?: SpatialStream["capability"]; frameUrl?: string; mediaUrl?: string }
 
 /** Normalizes GEV CCTV records without importing GEV's application state, renderer, or action layer. */
-export function normalizeGevCamera(record: GevCameraRecord, sourceId: string, adapterVersion: string): SpatialGraphContribution {
+export function normalizeGevCamera(record: GevCameraGraphRecord, sourceId: string, adapterVersion: string): SpatialGraphContribution {
   if (!record.id || !sourceId || !adapterVersion || !Number.isFinite(record.lat) || !Number.isFinite(record.lon)) throw new Error("GEV_CAMERA_RECORD_INVALID")
   if (record.lat < -90 || record.lat > 90 || record.lon < -180 || record.lon > 180) throw new Error("GEV_CAMERA_POSITION_INVALID")
   return normalizeSpatialGraphContribution({

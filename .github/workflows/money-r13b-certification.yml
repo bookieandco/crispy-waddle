@@ -1,0 +1,64 @@
+name: Money R13B Certification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packages/money-core/**'
+      - '.github/workflows/money-r13b-certification.yml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/money-core/**'
+      - '.github/workflows/money-r13b-certification.yml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+
+concurrency:
+  group: money-r13b-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    name: Frozen install, Money certification, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+
+      - name: Money type-check
+        run: pnpm --filter @jhadina/money-core type-check
+
+      - name: R13B authority, concurrency, recovery certification
+        run: pnpm --filter @jhadina/money-core test:certification
+
+      - name: Full Money test suite
+        run: pnpm --filter @jhadina/money-core test
+
+      - name: Money production surface build
+        run: pnpm --filter @jhadina/money-core build

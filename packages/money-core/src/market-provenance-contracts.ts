@@ -1,0 +1,4 @@
+export type ObservationQuality='VALID'|'STALE'|'MISSING'|'DUPLICATE'|'CONFLICTING'|'OUT_OF_ORDER'|'MALFORMED'|'FUTURE_LEAK'|'UNRESOLVED_INSTRUMENT'|'UNIT_ERROR'|'CURRENCY_ERROR'|'CORRUPTED'|'UNVERIFIED'
+export interface MarketObservationRecord{observationId:string;instrumentId:string;provider:string;observationType:string;value:string;observedAt:string;receivedAt:string;effectiveAt:string;availableAt:string;qualityStatus:ObservationQuality;evidenceRef:string;provenanceHash:string}
+export interface MarketSnapshot{snapshotId:string;effectiveAt:string;cutoffAt:string;observationIds:readonly string[];sourceManifest:readonly string[];methodologyVersion:string;snapshotHash:string}
+export function assertPointInTimeObservation(o:MarketObservationRecord,cutoff:string){if(o.availableAt>cutoff)throw new Error('MONEY_FUTURE_LEAK');if(o.qualityStatus!=='VALID')throw new Error('MONEY_OBSERVATION_NOT_VALID')}

@@ -63,3 +63,29 @@ export function reconciliationDecision(opportunity: Opportunity): Reconciliation
   if (opportunity.verificationStatus === 'verified') return 'accept'
   return 'needs_human_review'
 }
+
+
+export function supersedeOpportunity(
+  opportunity: Opportunity,
+  replacementOpportunityId: string,
+  now = new Date().toISOString(),
+): Opportunity {
+  if (!replacementOpportunityId.trim()) throw new Error('Replacement opportunity id is required')
+  if (replacementOpportunityId === opportunity.id) throw new Error('Opportunity cannot supersede itself')
+  return {
+    ...opportunity,
+    status: 'superseded',
+    metadata: {
+      ...opportunity.metadata,
+      supersededByOpportunityId: replacementOpportunityId,
+    },
+    updatedAt: now,
+  }
+}
+
+export function expireOpportunity(
+  opportunity: Opportunity,
+  now = new Date().toISOString(),
+): Opportunity {
+  return { ...opportunity, status: 'expired', updatedAt: now }
+}

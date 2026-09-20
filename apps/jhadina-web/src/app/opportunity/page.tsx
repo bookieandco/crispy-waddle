@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { rankSideIncomeOpportunities } from "@/lib/opportunities/sideIncome"
+import type { OpportunityHubCategory } from "@jhadina/opportunity-core"
 import type { AutomationLevel, Opportunity, OpportunityKind } from "@/lib/opportunities/sideIncome"
 
 const KIND_LABEL: Record<OpportunityKind, string> = {
@@ -24,17 +24,18 @@ const AUTOMATION_LABEL: Record<AutomationLevel, string> = {
   do_not_pursue: "Not recommended",
 }
 
-type FilterKind = "all" | "pod" | "dropshipping" | "ai_job" | "remote_gig" | "freelance" | "creator" | "automation"
+type FilterKind = "all" | OpportunityHubCategory
 
 const FILTERS: { id: FilterKind; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "pod", label: "POD" },
-  { id: "dropshipping", label: "Dropshipping" },
-  { id: "ai_job", label: "AI jobs" },
-  { id: "remote_gig", label: "Remote" },
+  { id: "earn", label: "Earn" },
   { id: "freelance", label: "Freelance" },
-  { id: "creator", label: "Creator" },
-  { id: "automation", label: "Automation" },
+  { id: "products", label: "Products" },
+  { id: "arbitrage", label: "Arbitrage" },
+  { id: "ai_businesses", label: "AI Businesses" },
+  { id: "partnerships", label: "Partnerships" },
+  { id: "assets", label: "Assets" },
+  { id: "experiments", label: "Experiments" },
 ]
 
 // "Best match" and "deadline approaching" are display thresholds, not part
@@ -48,16 +49,14 @@ export default function OpportunityCommandCenter() {
   const [error, setError] = useState("")
   const [busy, setBusy] = useState<string | null>(null)
   const [filter, setFilter] = useState<FilterKind>("all")
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
 
   async function load() {
     setLoading(true); setError("")
     try {
-      const res = await fetch("/api/opportunities", { headers: { "x-jhadina-user-id": "user_demo" }, cache: "no-store" })
+      const res = await fetch("/api/opportunities", { cache: "no-store" })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Could not load opportunities")
-      setOpportunities(rankSideIncomeOpportunities(json.data?.opportunities ?? []))
+      setOpportunities(json.data?.opportunities ?? [])
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load opportunities")
     } finally {
@@ -71,7 +70,7 @@ export default function OpportunityCommandCenter() {
     try {
       const res = await fetch("/api/opportunities/approve", {
         method: "POST",
-        headers: { "content-type": "application/json", "x-jhadina-user-id": "user_demo" },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ opportunityId: id }),
       })
       const json = await res.json()
@@ -84,23 +83,32 @@ export default function OpportunityCommandCenter() {
     }
   }
 
-  // Save/Dismiss are lightweight triage with no external effect, so they
-  // stay as local UI state instead of round-tripping to the server.
-  function save(id: string) {
-    setSavedIds((prev) => new Set(prev).add(id))
-  }
-  function dismiss(id: string) {
-    setDismissedIds((prev) => new Set(prev).add(id))
+  async function setTriage(id: string, triageState: "saved" | "dismissed") {
+    setBusy(id); setError("")
+    try {
+      const res = await fetch("/api/opportunities/triage", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ opportunityId: id, triageState }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Could not update opportunity")
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update opportunity")
+    } finally {
+      setBusy(null)
+    }
   }
 
-  const undismissed = useMemo(() => opportunities.filter((o) => !dismissedIds.has(o.id)), [opportunities, dismissedIds])
+  const undismissed = useMemo(() => opportunities.filter((o) => o.triageState !== "dismissed"), [opportunities])
   const visible = useMemo(
-    () => undismissed.filter((o) => filter === "all" || o.kind === filter),
+    () => undismissed.filter((o) => filter === "all" || o.hubCategory === filter),
     [undismissed, filter]
   )
 
-  const needsReview = visible.filter((o) => o.status === "new" && !savedIds.has(o.id))
-  const saved = visible.filter((o) => o.status === "new" && savedIds.has(o.id))
+  const needsReview = visible.filter((o) => o.status === "new" && o.triageState !== "saved")
+  const saved = visible.filter((o) => o.status === "new" && o.triageState === "saved")
   const approved = visible.filter((o) => o.status === "approved")
 
   const summary = useMemo(() => {
@@ -125,7 +133,7 @@ export default function OpportunityCommandCenter() {
       <div style={wrap}>
         <div style={eyebrow}>Jhadina Growth</div>
         <h1 style={h1}>Opportunities, on your terms.</h1>
-        <p style={sub}>Jhadina finds and ranks side-income opportunities for you to review. It never applies for a job, spends money, or publishes a listing without your approval.</p>
+        <p style={sub}>Jhadina finds, verifies, and ranks opportunities for you to review. Research approval never applies for a job, spends money, contacts a claimant, submits a bid, or publishes a listing.</p>
 
         <div style={metricsRow}>
           <Metric label="Found" value={summary.found} />
@@ -166,8 +174,8 @@ export default function OpportunityCommandCenter() {
                     opportunity={o}
                     busy={busy === o.id}
                     onApprove={() => approve(o.id)}
-                    onSave={() => save(o.id)}
-                    onDismiss={() => dismiss(o.id)}
+                    onSave={() => void setTriage(o.id, "saved")}
+                    onDismiss={() => void setTriage(o.id, "dismissed")}
                   />
                 ))
               )}
@@ -182,7 +190,7 @@ export default function OpportunityCommandCenter() {
                     opportunity={o}
                     busy={busy === o.id}
                     onApprove={() => approve(o.id)}
-                    onDismiss={() => dismiss(o.id)}
+                    onDismiss={() => void setTriage(o.id, "dismissed")}
                   />
                 ))}
               </section>
@@ -190,7 +198,7 @@ export default function OpportunityCommandCenter() {
 
             {approved.length > 0 && (
               <section style={{ marginTop: 38 }}>
-                <h2 style={heading}>Approved</h2>
+                <h2 style={heading}>Research authorized</h2>
                 {approved.map((o) => (
                   <OpportunityCard key={o.id} opportunity={o} busy={false} approved />
                 ))}
@@ -242,10 +250,10 @@ function OpportunityCard({
       </div>
 
       {approved ? (
-        <div style={approvedBadge}>✓ Approved{opportunity.approvedAt ? ` · ${new Date(opportunity.approvedAt).toLocaleDateString()}` : ""}</div>
+        <div style={approvedBadge}>✓ Approved for research{opportunity.approvedAt ? ` · ${new Date(opportunity.approvedAt).toLocaleDateString()}` : ""}{opportunity.researchCaseId ? " · case created" : ""}</div>
       ) : (
         <div style={{ display: "flex", gap: 8, marginTop: 15, flexWrap: "wrap" }}>
-          {onApprove && <button disabled={busy} onClick={onApprove} style={primary}>{busy ? "Working…" : "Approve"}</button>}
+          {onApprove && <button disabled={busy} onClick={onApprove} style={primary}>{busy ? "Working…" : "Approve research"}</button>}
           {onSave && <button disabled={busy} onClick={onSave} style={secondary}>Save</button>}
           {onDismiss && <button disabled={busy} onClick={onDismiss} style={secondary}>Dismiss</button>}
         </div>

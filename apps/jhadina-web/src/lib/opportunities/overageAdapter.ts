@@ -1,4 +1,4 @@
-import type { AutomationLevel, Opportunity, OpportunityVerificationStatus } from "./sideIncome"
+import { adaptOverageOpportunity, type Opportunity } from "@jhadina/opportunity-core"
 
 export type OverageOpportunityCandidate = {
   sourceKey: string
@@ -11,7 +11,7 @@ export type OverageOpportunityCandidate = {
   claimantName: string
   propertyReference?: string
   sourceConfidence: number
-  verificationStatus?: OpportunityVerificationStatus
+  verificationStatus?: "not_required" | "human_required" | "verified" | "rejected"
   evidenceSummary?: string
   riskFlags?: string[]
 }
@@ -24,14 +24,12 @@ function assertUnitInterval(value: number, field: string): number {
 }
 
 /**
- * Converts an OverageOS candidate into the existing Jhadina opportunity shape.
- * This is an adapter only: it does not verify identity, rank the opportunity,
- * contact the claimant, or execute any external action.
+ * Canonical OverageOS -> Opportunity Core boundary.
+ * Source confidence is preserved as evidence quality but never promoted into
+ * claimant identity/entitlement verification. External recovery execution
+ * remains owned by OverageOS.
  */
-export function buildOverageOpportunity(
-  candidate: OverageOpportunityCandidate,
-  userId: string,
-): Omit<Opportunity, "id" | "createdAt" | "status"> {
+export function buildOverageOpportunity(candidate: OverageOpportunityCandidate): Opportunity {
   if (!candidate.sourceKey || !candidate.externalRecordId) {
     throw new Error("sourceKey and externalRecordId are required.")
   }
@@ -41,28 +39,99 @@ export function buildOverageOpportunity(
   }
 
   const sourceConfidence = assertUnitInterval(candidate.sourceConfidence, "sourceConfidence")
-  const automationLevel: AutomationLevel = "user_led"
   const propertyReference = candidate.propertyReference ? ` Property reference: ${candidate.propertyReference}.` : ""
   const family = candidate.recoveryFamily ? ` Recovery family: ${candidate.recoveryFamily}.` : ""
   const evidence = candidate.evidenceSummary ? ` Evidence: ${candidate.evidenceSummary}` : ""
 
-  return {
-    userId,
+  const opportunity = adaptOverageOpportunity({
+    id: `${candidate.sourceKey}:${candidate.externalRecordId}`,
     title: `Unclaimed property opportunity — ${candidate.claimantName}`,
-    kind: "overage",
+    amount: candidate.amount,
+    currency: candidate.currency,
     sourceUrl: candidate.sourceUrl,
     sourceName: candidate.sourceName,
-    summary: `Potential ${candidate.currency} ${candidate.amount.toFixed(2)} overage for ${candidate.claimantName}. Source confidence: ${sourceConfidence.toFixed(2)}.${family}${propertyReference}${evidence}`,
-    estimatedPay: { min: candidate.amount, max: candidate.amount, currency: candidate.currency, cadence: "unknown" },
-    automationLevel,
-    // OverageOS currently supplies source/evidence confidence, not user-fit.
-    // Keep fit neutral until a separate fit signal exists; never derive it from source confidence.
-    fitScore: 50,
-    riskFlags: candidate.riskFlags ?? [],
-    requiresUserApproval: true,
-    // Identity verification remains a Jhadina human decision. A caller cannot
-    // elevate an unverified OverageOS candidate by supplying a status here.
-    verificationStatus: "human_required",
+    propertyReference: candidate.propertyReference,
     sourceConfidence,
+    riskFlags: candidate.riskFlags,
+    description: `Potential ${candidate.currency} ${candidate.amount.toFixed(2)} overage for ${candidate.claimantName}.${family}${propertyReference}${evidence}`,
+  })
+
+  return { ...opportunity, fitScore: 50 }
+}
+
+
+export type RecoveryOpportunityHandoff = {
+  kind: "RecoveryOpportunityCandidate"
+  candidate: {
+    recoveryRecordId: string
+    sourceId: string | null
+    externalRecordId?: string | null
+    owner?: string | null
+    amount: number | null
+    currency?: string | null
+    assetType?: string | null
+    jurisdiction?: string | null
+    propertyReference?: string | null
+    sourceUrl?: string | null
+    evidence?: {
+      sourceName?: string | null
+      sourceUrl?: string | null
+      capturedAt?: string | null
+      rawRecordId?: string | null
+    }
+    verificationLevel?: string | null
+    sourceConfidence?: number | null
+  }
+}
+
+export function buildOverageOpportunityFromHandoff(handoff: RecoveryOpportunityHandoff): Opportunity {
+  if (handoff.kind !== "RecoveryOpportunityCandidate") throw new Error("unsupported recovery handoff kind")
+  const candidate = handoff.candidate
+  if (!candidate.sourceId) throw new Error("recovery sourceId is required")
+  if (!candidate.recoveryRecordId) throw new Error("recoveryRecordId is required")
+  if (!candidate.owner) throw new Error("recovery owner is required")
+  if (candidate.amount === null || !Number.isFinite(candidate.amount) || candidate.amount < 0) {
+    throw new Error("recovery amount must be a finite non-negative number")
+  }
+
+  const sourceUrl = candidate.sourceUrl ?? candidate.evidence?.sourceUrl
+  if (!sourceUrl) throw new Error("recovery sourceUrl is required")
+
+  const sourceConfidence = candidate.sourceConfidence == null
+    ? 0.5
+    : assertUnitInterval(candidate.sourceConfidence, "sourceConfidence")
+
+  const opportunity = buildOverageOpportunity({
+    sourceKey: candidate.sourceId,
+    externalRecordId: candidate.recoveryRecordId,
+    sourceName: candidate.evidence?.sourceName ?? candidate.sourceId,
+    sourceUrl,
+    amount: candidate.amount,
+    currency: candidate.currency ?? "USD",
+    claimantName: candidate.owner,
+    propertyReference: candidate.propertyReference ?? undefined,
+    sourceConfidence,
+    evidenceSummary: candidate.evidence?.rawRecordId
+      ? `OverageOS recovery record ${candidate.evidence.rawRecordId}.`
+      : undefined,
+    riskFlags: [
+      ...(candidate.sourceConfidence == null ? ["source_confidence_not_supplied"] : []),
+      ...(candidate.verificationLevel && candidate.verificationLevel !== "VERIFIED"
+        ? [`overage_verification_level:${candidate.verificationLevel}`]
+        : []),
+    ],
+  })
+
+  return {
+    ...opportunity,
+    metadata: {
+      ...opportunity.metadata,
+      recoveryRecordId: candidate.recoveryRecordId,
+      externalRecordId: candidate.externalRecordId ?? null,
+      overageVerificationLevel: candidate.verificationLevel ?? "V0_UNVERIFIED",
+      assetType: candidate.assetType ?? null,
+      jurisdictionLabel: candidate.jurisdiction ?? null,
+      rawRecordId: candidate.evidence?.rawRecordId ?? null,
+    },
   }
 }

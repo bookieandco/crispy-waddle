@@ -40,19 +40,21 @@ export function isVerificationStatus(value: string): value is VerificationStatus
   return (VERIFICATION_STATUSES as readonly string[]).includes(value);
 }
 
-export function isCompleteVerification(decision: VerificationDecision): boolean {
+export function isCompleteVerification(decision: VerificationDecision | undefined, opportunityId?: string): boolean {
+  if (!decision) return false;
+  if (opportunityId !== undefined && decision.opportunityId !== opportunityId) return false;
   if (decision.status !== 'verified') return false;
   if (!decision.reviewerRef || !decision.verifiedAt) return false;
-  if (decision.evidenceRefs.length === 0) return false;
+  if (decision.evidenceRefs.length === 0 || decision.evidenceRefs.some((ref) => typeof ref !== 'string' || !ref.trim())) return false;
 
   return VERIFICATION_CHECKS.every((required) => {
     const check = decision.checks.find((candidate) => candidate.type === required);
-    return Boolean(check && check.result === 'verified' && check.evidenceRefs.length > 0);
+    return Boolean(check && check.result === 'verified' && check.evidenceRefs.length > 0 && check.evidenceRefs.every((ref) => typeof ref === 'string' && ref.trim().length > 0));
   });
 }
 
-export function assertCompleteVerification(decision: VerificationDecision): void {
-  if (!isCompleteVerification(decision)) {
+export function assertCompleteVerification(decision: VerificationDecision, opportunityId?: string): void {
+  if (!isCompleteVerification(decision, opportunityId)) {
     throw new Error('Verification decision is not complete enough to mark an opportunity verified');
   }
 }

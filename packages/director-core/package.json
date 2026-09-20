@@ -26,7 +26,15 @@
     "./studio-voice-sync": "./src/studio-voice-sync.ts",
     "./studio-rig-animation": "./src/studio-rig-animation.ts",
     "./studio-secondary-physics": "./src/studio-secondary-physics.ts",
-    "./studio-qc": "./src/studio-qc.ts"
+    "./studio-qc": "./src/studio-qc.ts",
+    "./studio-tracking-worker-adapter": "./src/studio-tracking-worker-adapter.ts",
+    "./studio-character-replacement-worker": "./src/studio-character-replacement-worker.ts",
+    "./studio-voice-sync-worker": "./src/studio-voice-sync-worker.ts",
+    "./studio-rig-animation-worker": "./src/studio-rig-animation-worker.ts",
+    "./studio-secondary-physics-worker": "./src/studio-secondary-physics-worker.ts",
+    "./studio-render": "./src/studio-render.ts",
+    "./studio-render-worker": "./src/studio-render-worker.ts",
+    "./studio-asset-approval": "./src/studio-asset-approval.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
