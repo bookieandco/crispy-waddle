@@ -35,7 +35,7 @@ The canonical evidence/reality boundary remains unchanged:
 
 The previous frozen-lockfile blocker has been source-repaired: the current `packages/jhadina-core-spine` importer in `pnpm-lock.yaml` matches its manifest. That repair is not treated as CI evidence by itself.
 
-Fresh Spatial Conformance evidence is recorded on the final P10 verification lineage: GitHub Actions run 168, job 106010467724 completed successfully after spatial type-check, 14/14 Vitest assertions, and 42/42 Node/TAP conformance tests. Repository-wide workflows may still expose unrelated subsystem failures; those remain separate from the spatial gate.
+Fresh Spatial Conformance evidence is recorded on the final P10 verification lineage: GitHub Actions run 168, job 106010467724 completed successfully after spatial type-check, 14/14 Vitest assertions, and 42/42 Node/TAP conformance tests. The production health-route follow-up also passed Spatial Conformance run 204 / job 106013585098, including the same 14/14 + 42/42 core suites and 1/1 dedicated fail-closed `/api/spatial/health` test. Repository-wide workflows may still expose unrelated subsystem failures; those remain separate from the spatial gate.
 
 ## Live database verification
 
@@ -50,19 +50,25 @@ The Jhadina Supabase production project now has the complete spatial persistence
 
 All six spatial/knowledge tables have RLS enabled and a restrictive service-role policy. `anon` and `authenticated` have no direct table privileges. `service_role` is reduced to `SELECT, INSERT` only, closing UPDATE/DELETE/TRUNCATE append-only bypasses. The four spatial append-only trigger functions use `search_path=pg_catalog`, and the Supabase security advisor no longer reports spatial-specific search-path findings.
 
-A read-only `/api/spatial/health` production gate is implemented. It exposes only readiness booleans plus deployment identity; it does not expose provider URLs, credentials, database rows or upstream payloads.
+A read-only `/api/spatial/health` production gate is implemented and independently tested fail-closed. It exposes only readiness booleans plus deployment identity; it does not expose provider URLs, credentials, database rows or upstream payloads.
+
+## Deployment verification
+
+The production alias currently resolves to READY deployment `dpl_GhzhDUFagdyGABQmuZPLNNpS4sLA`, built from commit `dee990b6c5d8d8d8836d7eb9ef706f2656e913ce` ("Style homepage story detail surface"). That deployment predates the GEV Spatial integration, while current `main` contains the merged P1-P10 implementation, database gate, health endpoint, migration-history alignment and fail-closed health test.
+
+GitHub's Vercel status on current `main` is a build-rate-limit failure. Therefore production provider reachability is **BLOCKED**, not merely unknown: the active alias cannot exercise code that has not yet been deployed.
 
 ## Remaining production evidence
 
-The following still require live/deployed verification and therefore remain UNKNOWN rather than PASS:
+The following still require a successful current deployment and live verification:
 
 1. GEV endpoint configuration/connectivity and live CCTV health from the deployed Jhadina runtime.
-2. Live observation → durable evidence → claim → reality admission execution.
-3. Real-source temporal freshness/outage behavior.
-4. Multi-source corroboration with upstream-independence checks against production feeds.
-5. Deployed provider-term/privacy enforcement across real upstream responses.
-6. Production telemetry, audit, recovery and operational monitoring.
-7. Vercel deployment of the current Spatial build while the account build-rate limit is active.
+2. `/api/spatial/health` returning `READY` on the current production commit.
+3. Live observation → durable evidence → claim → reality admission execution.
+4. Real-source temporal freshness/outage behavior.
+5. Multi-source corroboration with upstream-independence checks against production feeds.
+6. Deployed provider-term/privacy enforcement across real upstream responses.
+7. Production telemetry, audit, recovery and operational monitoring.
 
 ## Final gate rule
 
