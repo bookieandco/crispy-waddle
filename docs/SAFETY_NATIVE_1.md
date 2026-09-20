@@ -25,3 +25,6 @@ A macOS GitHub Actions workflow generates the Xcode project with XcodeGen, build
 It does not claim physical-device permissions, background lifecycle behavior, reboot recovery, actual audio/video byte capture, App Store signing, or PROD-GATE.2 device receipts. Those require subsequent native phases and physical-device execution.
 
 No simulated CI result may be promoted into a physical-device receipt.
+
+## Test gate repair
+The shared XcodeGen scheme explicitly includes `JhadinaSafetyTests` in its test action. Native CI must build the simulator target and execute this test bundle; a simulator result still cannot satisfy a physical-device receipt.
