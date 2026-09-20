@@ -22,3 +22,5 @@ export * from "./restoration-engine/index.js";
 export * from "./user-scoped-playback-resolver.js";
 export * from "./playback-host.js";
 export * from "./playback-session.js";
+export * from "./offline-library.js";
+export * from "./offline-downloads.js";
