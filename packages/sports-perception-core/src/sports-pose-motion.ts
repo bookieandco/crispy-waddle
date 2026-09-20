@@ -1,0 +1,1 @@
+export interface PoseMotionState{trackId:string;frameNumber:number;courtX:number;courtY:number;speed:number;directionRadians:number;poseConfidence:number;evidenceIds:readonly string[];}export function validatePoseMotion(x:PoseMotionState):void{if(x.poseConfidence<0||x.poseConfidence>1||x.speed<0)throw new Error('Invalid pose/motion state');}
