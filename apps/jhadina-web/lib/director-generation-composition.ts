@@ -19,6 +19,8 @@ export type DirectorGenerationRuntime = {
   generation: GenerationPlanAdapter;
   reconciler: GenerationSubmissionReconciler;
   workerId: string;
+  /** Read-only durable generation state for server routes. */
+  getTask: ReturnType<typeof createSupabaseGenerationRepository>['getTask'];
 };
 
 function composeDirectorGenerationRuntime(
@@ -44,7 +46,7 @@ function composeDirectorGenerationRuntime(
   const storyboardLineageResolver = new DirectorStoryboardLineageResolver(storyboardRepository);
   const generation = new GenerationPlanAdapter(service, registry, storyboardLineageResolver);
   const reconciler = new GenerationSubmissionReconciler(repository, outboxProviders, workerId);
-  return { generation, reconciler, workerId };
+  return { generation, reconciler, workerId, getTask: repository.getTask.bind(repository) };
 }
 
 /**
