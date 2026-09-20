@@ -46,7 +46,7 @@ All six tables currently contain zero rows. Therefore no live production GEV eve
 
 ### GEV-PROD.1 — current production deployment
 
-**BLOCKED.** Vercel build-rate limit remains active. Production remains on `dee990b6...`.
+**AUDIT/REPAIR — BLOCKED / FAIL-CLOSED.** Vercel is explicitly tracked as an infrastructure audit/repair item and is not allowed to block source/runtime repair work on later GEV gates. The production certification gate itself remains blocked: the build-rate limit is active and production remains on `dee990b6...`. No later source-code PASS may be interpreted as a deployed-production PASS until Vercel is repaired and the current Spatial lineage is live.
 
 ### GEV-PROD.2 — production health gate
 

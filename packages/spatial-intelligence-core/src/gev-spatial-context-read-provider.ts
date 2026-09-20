@@ -158,7 +158,19 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
 
     const point = asScopePoint(plan.scope)
     await Promise.all([
-      capture('camera', async () => normalizeGevCctvSources(await this.options.bridge.cctvSources(), receivedAt)),
+      capture('camera', async () => {
+        const sources = await this.options.bridge.cctvSources()
+        try {
+          const health = await this.options.bridge.cctvHealth()
+          sourceHealth.push(`camera-health:available:${health.length}`)
+          return normalizeGevCctvSources(sources, receivedAt, health)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'unknown error'
+          sourceHealth.push('camera-health:unavailable')
+          limitations.push(`camera health unavailable: ${message}`)
+          return normalizeGevCctvSources(sources, receivedAt)
+        }
+      }),
       capture('aircraft', async () => normalizeOpenSkyPayload(await this.options.bridge.openSky(point ? { lat: point.lat, lon: point.lon } : {}), receivedAt)),
       capture('vessel', async () => normalizeAisPayload(await this.options.bridge.aisLive(), receivedAt)),
       capture('fire', async () => normalizeFirmsPayload(await this.options.bridge.firms(), receivedAt)),

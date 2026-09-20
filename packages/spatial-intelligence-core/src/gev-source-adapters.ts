@@ -1,5 +1,5 @@
 import type { SpatialEntityType, SpatialObservation } from './observation.js'
-import type { GevCctvSource } from './gev-provider-bridge.js'
+import type { GevCctvHealthEntry, GevCctvSource } from './gev-provider-bridge.js'
 
 export type GevNormalizedSpatialRecord = {
   sourceId: string
@@ -63,14 +63,43 @@ export function gevRecordToSpatialObservation(record: GevNormalizedSpatialRecord
   }
 }
 
-export function normalizeGevCctvSources(sources: readonly GevCctvSource[], receivedAt: string): SpatialObservation[] {
-  return sources.map((source) => gevRecordToSpatialObservation({
-    sourceId: 'gev-cctv', provider: source.provider || 'God\'s Eye View CCTV', adapterVersion: 'gev-source-adapters:v1', recordId: source.id,
-    entityId: source.id, entityType: 'camera', observationType: 'camera_catalog_entry', observedAt: null, receivedAt,
-    position: validPosition(source.lat, source.lon),
-    attributes: { name: source.name ?? null, city: source.city ?? null, headingDeg: source.headingDeg ?? null, pitchDeg: source.pitchDeg ?? null, fovDeg: source.fovDeg ?? null, feedType: source.feedType ?? null, sourceKind: source.sourceKind ?? null, license: source.license ?? null, credit: source.credit ?? null },
-    freshness: 'unknown', completeness: 'partial', coverage: 'known',
-  }))
+export function normalizeGevCctvSources(
+  sources: readonly GevCctvSource[],
+  receivedAt: string,
+  health: readonly GevCctvHealthEntry[] = [],
+): SpatialObservation[] {
+  const healthById = new Map(health.map((entry) => [entry.id, entry]))
+  return sources.map((source) => {
+    const healthEntry = healthById.get(source.id)
+    const healthUpdatedAt = isoFromUnknown(healthEntry?.updatedAt)
+    const catalogSourceKind = source.sourceKind ?? null
+    const sourceKind = healthEntry?.sourceKind || catalogSourceKind
+    const fallbackActive = sourceKind === 'fallback' || sourceKind === 'streetview' || sourceKind === 'synthetic'
+    return gevRecordToSpatialObservation({
+      sourceId: 'gev-cctv', provider: source.provider || 'God\'s Eye View CCTV', adapterVersion: 'gev-source-adapters:v2', recordId: source.id,
+      entityId: source.id, entityType: 'camera', observationType: healthEntry ? 'camera_source_state' : 'camera_catalog_entry', observedAt: healthUpdatedAt, receivedAt,
+      position: validPosition(source.lat, source.lon),
+      attributes: {
+        name: source.name ?? null,
+        city: source.city ?? null,
+        headingDeg: source.headingDeg ?? null,
+        pitchDeg: source.pitchDeg ?? null,
+        fovDeg: source.fovDeg ?? null,
+        feedType: source.feedType ?? null,
+        sourceKind: sourceKind ?? null,
+        catalogSourceKind,
+        healthStatus: healthEntry?.status ?? null,
+        healthLabel: healthEntry?.label ?? null,
+        healthMessage: healthEntry?.message ?? null,
+        healthUpdatedAt,
+        fallbackActive,
+        timestampSemantics: healthUpdatedAt ? 'provider-health-updated-at' : 'catalog-no-observation-time',
+        license: source.license ?? null,
+        credit: source.credit ?? null,
+      },
+      freshness: 'unknown', completeness: 'partial', coverage: 'known',
+    })
+  })
 }
 
 /** OpenSky /states/all adapter. Raw array offsets follow the OpenSky state-vector schema. */

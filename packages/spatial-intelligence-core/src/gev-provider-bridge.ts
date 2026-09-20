@@ -32,6 +32,15 @@ export type GevCctvSource = {
   credit?: string
 }
 
+export type GevCctvHealthEntry = {
+  id: string
+  status: string
+  sourceKind: string
+  label?: string
+  message?: string
+  updatedAt?: number | string
+}
+
 export type GevCctvStream = {
   id: string
   feedType: string
@@ -128,8 +137,14 @@ export class GevProviderBridge {
     })
   }
 
-  async cctvHealth(purpose: SpatialUsePurpose = 'private-analysis'): Promise<unknown> {
-    return await this.requestJson<unknown>('gev-cctv', purpose, '/api/cctv/health')
+  async cctvHealth(purpose: SpatialUsePurpose = 'private-analysis'): Promise<GevCctvHealthEntry[]> {
+    const payload = await this.requestJson<unknown>('gev-cctv', purpose, '/api/cctv/health')
+    const rows = Array.isArray(payload) ? payload : Array.isArray((payload as { cameras?: unknown[] })?.cameras) ? (payload as { cameras: unknown[] }).cameras : []
+    return rows.filter((row): row is GevCctvHealthEntry => {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) return false
+      const item = row as Partial<GevCctvHealthEntry>
+      return typeof item.id === 'string' && typeof item.status === 'string' && typeof item.sourceKind === 'string'
+    })
   }
 
   async cctvStream(cameraId: string, purpose: SpatialUsePurpose = 'private-analysis'): Promise<GevCctvStream> {

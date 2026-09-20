@@ -10,6 +10,7 @@ import { toMoneySpatialIntelligence, toSafetySpatialIntelligence } from './spati
 import { runSpatialPerception, type SpatialPerceptionAdapter } from './spatial-perception.js'
 import { type SpatialWorkspace, planSpatialQuery } from './spatial-pipeline.js'
 import { evaluateSpatialRealityAdmission } from './reality-admission.js'
+import { InMemorySpatialEvidenceStore } from './evidence-store.js'
 
 const response = (body: unknown, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -23,6 +24,9 @@ function liveFetch(): GevFetchLike {
     const parsed = new URL(url)
     if (parsed.pathname === '/api/cctv/sources') {
       return response({ sources: [{ id: 'cam-near', name: 'Near Camera', provider: 'Public CCTV', lat: 34, lon: -117, sourceKind: 'configured', feedType: 'image' }] })
+    }
+    if (parsed.pathname === '/api/cctv/health') {
+      return response({ cameras: [{ id: 'cam-near', status: 'degraded', sourceKind: 'streetview', label: 'Google Street View', message: 'Fallback Street View frame', updatedAt: Date.parse('2026-09-19T19:59:30Z') }] })
     }
     if (parsed.pathname === '/api/opensky') {
       return response({ time: 1_758_312_000, states: [['abc123', 'TEST1', 'US', null, 1_758_311_990, -117.2, 33.9, 1000, false, 100, 90, 0, null, 1000, '1200', false, 0, 3]] })
@@ -65,7 +69,8 @@ test('GEV P4 query planning selects source domains rather than always fetching t
 
 test('GEV P4 live read provider produces evidence but cannot self-admit claims or reality', async () => {
   const bridge = new GevProviderBridge({ baseUrl: 'https://gev.example', fetchImpl: liveFetch() })
-  const provider = createGevSpatialContextReadProvider({ bridge, now: () => '2026-09-19T20:00:00Z' })
+  const evidenceStore = new InMemorySpatialEvidenceStore()
+  const provider = createGevSpatialContextReadProvider({ bridge, evidenceStore, now: () => '2026-09-19T20:00:00Z' })
   const plan = planSpatialQuery({
     queryId: 'q-e2e',
     kind: 'OBSERVE',
@@ -83,6 +88,16 @@ test('GEV P4 live read provider produces evidence but cannot self-admit claims o
   assert.ok(context?.observations.every((item) => item.immutable))
   assert.ok(context?.provenance.every((item) => item.immutable))
   assert.ok(context?.limitations.some((item) => item.includes('No named-person search')))
+  assert.ok(context?.sourceHealth.includes('camera-health:available:1'))
+  const cameraRef = context?.evidence.find((item) => item.summary.includes('camera observation cam-near'))
+  assert.ok(cameraRef)
+  const cameraEvidence = await evidenceStore.get(cameraRef!.id)
+  assert.equal(cameraEvidence?.timing.observedAt, '2026-09-19T19:59:30.000Z')
+  assert.equal(cameraEvidence?.payload.attributes.sourceKind, 'streetview')
+  assert.equal(cameraEvidence?.payload.attributes.catalogSourceKind, 'configured')
+  assert.equal(cameraEvidence?.payload.attributes.healthStatus, 'degraded')
+  assert.equal(cameraEvidence?.payload.attributes.fallbackActive, true)
+  assert.equal(cameraEvidence?.payload.attributes.timestampSemantics, 'provider-health-updated-at')
 })
 
 test('GEV P5 workspace history is append-only and supports deterministic replay at a timestamp', async () => {
