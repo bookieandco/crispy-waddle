@@ -1,0 +1,1 @@
+export interface NBAAttributionCase{expected:string;actual:string;}export function benchmarkNBAAttribution(x:readonly NBAAttributionCase[]){const matched=x.filter(a=>a.expected===a.actual).length;return Object.freeze({sampleSize:x.length,accuracy:x.length?matched/x.length:1});}
