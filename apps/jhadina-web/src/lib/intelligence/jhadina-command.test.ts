@@ -217,7 +217,7 @@ describe("Jhadina Command — the instantiated operating loop (Phase 1 Step 5)",
       actionId: "different-action-id",
       userId: identity.userId,
       type: MEMORY_PROPOSE_CAPABILITY,
-      fingerprint: `memory-propose:${result.candidate?.content}`,
+      fingerprint: `memory-propose:${result.reasoningEventId}:${result.candidate?.content}`,
     })
     expect(replayed).toBe(false)
   })
