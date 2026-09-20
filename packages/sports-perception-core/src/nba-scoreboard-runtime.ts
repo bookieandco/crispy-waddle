@@ -1,0 +1,1 @@
+import type {DecodedVideoFrame} from './video-decoder-runtime.js';import type {NBAScoreboardRead} from './nba-scoreboard-vision.js';export interface NBAScoreboardRuntime{read(frame:DecodedVideoFrame):Promise<NBAScoreboardRead>;}export function scoreboardMayInformReality(x:NBAScoreboardRead):boolean{return x.confidence>=.8;}
