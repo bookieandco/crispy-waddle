@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "src/lib/opportunities/**/*.ts",
+    "src/app/api/opportunities/**/*.ts",
+    "src/app/opportunity/page.tsx",
+    "src/__tests__/opportunities.test.ts",
+    "src/lib/money-opportunities/sam-*.ts",
+    "src/lib/money-opportunities/partner-discovery.ts",
+    "src/lib/money-opportunities/economics.ts",
+    "src/lib/money-opportunities/action-queue.ts",
+    "src/app/api/money-opportunities/sam/route.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "dist"
+  ]
+}

@@ -1,5 +1,5 @@
 import type { Opportunity } from '../domain/opportunity.js'
-import type { VerificationDecision } from '../domain/verification.js'
+import { isCompleteVerification, type VerificationDecision } from '../domain/verification.js'
 
 export type OverageVerificationChecks = {
   source_record: 'pending' | 'verified' | 'rejected'
@@ -40,7 +40,8 @@ export function adaptOverageOpportunity(input: OverageOpportunityInput): Opportu
     ...input.verificationChecks,
   }
   const decision = input.verificationDecision
-  const verified = decision !== undefined && decision.status === 'verified'
+  const opportunityId = `overage:${input.id}`
+  const verified = isCompleteVerification(decision, opportunityId)
   const sourceConfidence = Math.max(0, Math.min(1, input.sourceConfidence ?? (checks.source_record === 'verified' ? 1 : 0)))
   const riskFlags = [
     ...Object.entries(checks)
@@ -50,7 +51,7 @@ export function adaptOverageOpportunity(input: OverageOpportunityInput): Opportu
   ]
 
   return {
-    id: `overage:${input.id}`,
+    id: opportunityId,
     title: input.title,
     family: 'recovery',
     type: 'recovery',
@@ -88,7 +89,7 @@ export function adaptOverageOpportunity(input: OverageOpportunityInput): Opportu
     riskFlags,
     brokerability: 'restricted',
     metadata: { providerId: 'provider:overageos', opportunityKind: 'overage', automationLevel: 'user_led', requiresUserApproval: true },
-    status: verified ? 'verified' : 'discovered',
+    status: 'discovered',
     createdAt: now,
     updatedAt: now,
   }

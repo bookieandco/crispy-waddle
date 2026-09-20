@@ -37,8 +37,9 @@ function tokens(value: string): string[] {
 }
 
 function capabilityScore(opportunity: SamOpportunity, profile: CapabilityProfile): number {
-  if (profile.naics?.length && opportunity.naics) {
-    const exact = profile.naics.some((code) => opportunity.naics === code || opportunity.naics.startsWith(code))
+  const naics = opportunity.naics
+  if (profile.naics?.length && naics) {
+    const exact = profile.naics.some((code) => naics === code || naics.startsWith(code))
     if (exact) return 100
   }
 

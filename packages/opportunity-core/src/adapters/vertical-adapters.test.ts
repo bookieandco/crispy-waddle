@@ -1,5 +1,6 @@
 import { adaptCommercialOpportunity } from './commercial.js'
 import { adaptEmploymentOpportunity } from './employment.js'
+import { adaptOverageOpportunity } from './overage.js'
 
 const assert = (condition: unknown, message: string): void => {
   if (!condition) throw new Error(message)
@@ -49,3 +50,67 @@ const dropship = adaptCommercialOpportunity({
   sourceName: 'Supplier fixture',
 })
 assert(dropship.metadata?.commercialKind === 'dropshipping', 'Dropshipping source kind must remain explicit')
+
+
+const verifiedRecovery = adaptOverageOpportunity({
+  id: 'verified-recovery',
+  title: 'Verified recovery fixture',
+  sourceUrl: 'https://example.gov/recovery/verified',
+  sourceName: 'Fixture recovery source',
+  verificationChecks: {
+    source_record: 'verified',
+    property_reference: 'verified',
+    claimant_identity: 'verified',
+    entitlement: 'verified',
+  },
+  verificationDecision: {
+    id: 'verification:verified-recovery',
+    opportunityId: 'overage:verified-recovery',
+    status: 'verified',
+    checks: [
+      { type: 'source_record', result: 'verified', evidenceRefs: ['evidence:source'] },
+      { type: 'property_reference', result: 'verified', evidenceRefs: ['evidence:property'] },
+      { type: 'claimant_identity', result: 'verified', evidenceRefs: ['evidence:identity'] },
+      { type: 'entitlement', result: 'verified', evidenceRefs: ['evidence:entitlement'] },
+    ],
+    evidenceRefs: ['evidence:source','evidence:property','evidence:identity','evidence:entitlement'],
+    reviewerRef: 'reviewer:fixture',
+    decidedAt: '2026-09-19T12:00:00Z',
+    verifiedAt: '2026-09-19T12:00:00Z',
+  },
+  sourceConfidence: 1,
+})
+assert(verifiedRecovery.verificationStatus === 'verified', 'Complete recovery decision must preserve verification truth')
+assert(verifiedRecovery.status === 'discovered', 'Complete recovery verification must not skip discovered lifecycle')
+
+
+const mismatchedRecovery = adaptOverageOpportunity({
+  id: 'claim-a',
+  title: 'Mismatched recovery fixture',
+  sourceUrl: 'https://example.gov/recovery/claim-a',
+  sourceName: 'Fixture recovery source',
+  verificationChecks: {
+    source_record: 'verified',
+    property_reference: 'verified',
+    claimant_identity: 'verified',
+    entitlement: 'verified',
+  },
+  verificationDecision: {
+    id: 'verification:claim-b',
+    opportunityId: 'overage:claim-b',
+    status: 'verified',
+    checks: [
+      { type: 'source_record', result: 'verified', evidenceRefs: ['evidence:source'] },
+      { type: 'property_reference', result: 'verified', evidenceRefs: ['evidence:property'] },
+      { type: 'claimant_identity', result: 'verified', evidenceRefs: ['evidence:identity'] },
+      { type: 'entitlement', result: 'verified', evidenceRefs: ['evidence:entitlement'] },
+    ],
+    evidenceRefs: ['evidence:source','evidence:property','evidence:identity','evidence:entitlement'],
+    reviewerRef: 'reviewer:fixture',
+    decidedAt: '2026-09-19T12:00:00Z',
+    verifiedAt: '2026-09-19T12:00:00Z',
+  },
+  sourceConfidence: 1,
+})
+assert(mismatchedRecovery.verificationStatus !== 'verified', 'Mismatched verification identity must not verify recovery candidate')
+assert(mismatchedRecovery.status === 'discovered', 'Mismatched recovery candidate must remain discovered')
