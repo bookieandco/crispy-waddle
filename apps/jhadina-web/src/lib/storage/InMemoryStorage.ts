@@ -154,9 +154,11 @@ export class InMemoryStorage implements MemoryStorage {
   /**
    * Reasoning event operations
    */
-  async createReasoningEvent(data: Omit<ReasoningEvent, "id">): Promise<ReasoningEvent> {
-    const id = `reason_${++this.idCounters.reasoning}`
-    const event: ReasoningEvent = { id, ...data }
+  async createReasoningEvent(data: Omit<ReasoningEvent, "id"> & { id?: string }): Promise<ReasoningEvent> {
+    const id = data.id ?? `reason_${++this.idCounters.reasoning}`
+    if (this.reasoningEvents.has(id)) throw new Error("JHADINA_REASONING_EVENT_DUPLICATE_ID")
+    const { id: _ignored, ...rest } = data
+    const event: ReasoningEvent = { id, ...rest }
     this.reasoningEvents.set(id, event)
     return event
   }
