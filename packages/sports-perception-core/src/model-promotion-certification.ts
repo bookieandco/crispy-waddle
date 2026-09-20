@@ -1,0 +1,3 @@
+import type { ChampionChallengerDecision,ModelEvaluationSummary } from './champion-challenger.js';import { evaluateChampionChallenger } from './champion-challenger.js';import type { ValidatedLearningRecord } from './validated-learning-store.js';
+export interface ModelPromotionCertification{decision:ChampionChallengerDecision;certified:boolean;outOfSample:boolean;}
+export function certifyModelPromotion(champion:ModelEvaluationSummary,challenger:ModelEvaluationSummary,records:readonly ValidatedLearningRecord[],outOfSample:boolean,minimumSamples=100):ModelPromotionCertification{const decision=evaluateChampionChallenger(champion,challenger,records,minimumSamples);return Object.freeze({decision,certified:outOfSample&&decision.eligibleForPromotion,outOfSample});}
