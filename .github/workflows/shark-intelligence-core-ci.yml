@@ -50,3 +50,8 @@ jobs:
           test -f supabase/migrations/20260920000300_shark_schema_reconciliation.sql
           test -f supabase/migrations/20260920000400_shark_latest_observation_rpc.sql
           test -f supabase/migrations/20260920000500_shark_historical_backfill_scheduler.sql
+          test -f supabase/migrations/20260920000600_shark_outcome_revision_contract.sql
+          test -f supabase/migrations/20260920000700_shark_actor_association_confidence.sql
+          test -f supabase/migrations/20260920000800_shark_atomic_outcome_apply.sql
+          test -f supabase/migrations/20260920000900_shark_atomic_launch_bundle.sql
+          test -f supabase/migrations/20260920001000_shark_wallet_intelligence_quota.sql
