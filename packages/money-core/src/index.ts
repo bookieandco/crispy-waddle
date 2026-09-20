@@ -68,3 +68,15 @@ export { assertRecoveryChildLineage } from './recovery-child-execution.js';
 
 export type { RecoveryChildProviderResult, RecoveryChildExecutorDeps } from './recovery-child-executor.js';
 export { MoneyRecoveryChildExecutor } from './recovery-child-executor.js';
+
+export type { MoneyAuthorityBinding } from './action-core-authority-bridge.js';
+export { fingerprintActionRequest, bindActionCoreAuthority } from './action-core-authority-bridge.js';
+
+export * from './canonical-financial-state.js';
+export * from './accounting-lifecycle-contracts.js';
+export * from './market-instrument-contracts.js';
+export * from './prediction-calibration-contracts.js';
+export * from './risk-simulation-contracts.js';
+export * from './decision-workflow-contracts.js';
+export * from './market-provenance-contracts.js';
+export * from './macro-economic-contracts-v2.js';

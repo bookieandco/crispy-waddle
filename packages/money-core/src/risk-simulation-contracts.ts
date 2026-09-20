@@ -1,0 +1,4 @@
+export interface RelationshipSnapshot{snapshotId:string;effectiveAt:string;methodologyVersion:string;edgeIds:readonly string[];evidenceRefs:readonly string[]}
+export interface StressTestRun{stressTestId:string;portfolioSnapshotId:string;scenarioId:string;methodologyVersion:string;inputSnapshotHash:string;status:'PENDING'|'COMPLETE'|'FAILED';provenanceHash:string}
+export interface SimulationRun{simulationId:string;portfolioSnapshotId:string;marketSnapshotId:string;modelId:string;modelVersion:string;methodologyVersion:string;randomSeed:string;pathCount:number;horizon:string;status:'PENDING'|'COMPLETE'|'FAILED';provenanceHash:string}
+export function assertReplayableSimulation(r:SimulationRun){if(!r.randomSeed||!r.provenanceHash||r.pathCount<1)throw new Error('MONEY_SIMULATION_NOT_REPLAYABLE')}
