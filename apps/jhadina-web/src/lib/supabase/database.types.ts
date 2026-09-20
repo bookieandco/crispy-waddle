@@ -1615,6 +1615,62 @@ export type Database = {
           },
         ]
       }
+      jhadina_knowledge_entity_candidates: {
+        Row: {
+          candidate_label: string
+          candidate_node_ids: Json
+          candidate_type: string
+          confidence: number
+          created_at: string
+          evidence_ids: Json
+          id: string
+          owner_id: string | null
+          proposed_canonical_key: string | null
+          resolution_node_id: string | null
+          scope: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_label: string
+          candidate_node_ids?: Json
+          candidate_type: string
+          confidence?: number
+          created_at?: string
+          evidence_ids?: Json
+          id?: string
+          owner_id?: string | null
+          proposed_canonical_key?: string | null
+          resolution_node_id?: string | null
+          scope?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_label?: string
+          candidate_node_ids?: Json
+          candidate_type?: string
+          confidence?: number
+          created_at?: string
+          evidence_ids?: Json
+          id?: string
+          owner_id?: string | null
+          proposed_canonical_key?: string | null
+          resolution_node_id?: string | null
+          scope?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jhadina_knowledge_entity_candidates_resolution_node_id_fkey"
+            columns: ["resolution_node_id"]
+            isOneToOne: false
+            referencedRelation: "jhadina_knowledge_nodes"
+            referencedColumns: ["node_id"]
+          },
+        ]
+      }
       jhadina_knowledge_evidence: {
         Row: {
           authority_score: number
@@ -1736,36 +1792,71 @@ export type Database = {
       }
       jhadina_knowledge_nodes: {
         Row: {
+          aliases: Json
           attributes: Json
+          canonical_key: string | null
+          confidence: number
           created_at: string
+          external_ids: Json
           label: string
           node_id: string
           node_type: string
+          owner_id: string | null
           provenance_refs: Json
+          scope: string
+          superseded_by: string | null
+          updated_at: string
           valid_from: string | null
           valid_to: string | null
+          verification_state: string
         }
         Insert: {
+          aliases?: Json
           attributes?: Json
+          canonical_key?: string | null
+          confidence?: number
           created_at?: string
+          external_ids?: Json
           label: string
           node_id: string
           node_type: string
+          owner_id?: string | null
           provenance_refs?: Json
+          scope?: string
+          superseded_by?: string | null
+          updated_at?: string
           valid_from?: string | null
           valid_to?: string | null
+          verification_state?: string
         }
         Update: {
+          aliases?: Json
           attributes?: Json
+          canonical_key?: string | null
+          confidence?: number
           created_at?: string
+          external_ids?: Json
           label?: string
           node_id?: string
           node_type?: string
+          owner_id?: string | null
           provenance_refs?: Json
+          scope?: string
+          superseded_by?: string | null
+          updated_at?: string
           valid_from?: string | null
           valid_to?: string | null
+          verification_state?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "jhadina_knowledge_nodes_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "jhadina_knowledge_nodes"
+            referencedColumns: ["node_id"]
+          },
+        ]
       }
       jhadina_knowledge_record_evidence: {
         Row: {
@@ -1896,36 +1987,54 @@ export type Database = {
       jhadina_knowledge_relations: {
         Row: {
           attributes: Json
+          confidence: number
           created_at: string
           from_node_id: string
+          owner_id: string | null
           provenance_refs: Json
           relation_id: string
           relation_type: string
+          scope: string
+          superseded_by: string | null
           to_node_id: string
+          updated_at: string
           valid_from: string | null
           valid_to: string | null
+          verification_state: string
         }
         Insert: {
           attributes?: Json
+          confidence?: number
           created_at?: string
           from_node_id: string
+          owner_id?: string | null
           provenance_refs?: Json
           relation_id: string
           relation_type: string
+          scope?: string
+          superseded_by?: string | null
           to_node_id: string
+          updated_at?: string
           valid_from?: string | null
           valid_to?: string | null
+          verification_state?: string
         }
         Update: {
           attributes?: Json
+          confidence?: number
           created_at?: string
           from_node_id?: string
+          owner_id?: string | null
           provenance_refs?: Json
           relation_id?: string
           relation_type?: string
+          scope?: string
+          superseded_by?: string | null
           to_node_id?: string
+          updated_at?: string
           valid_from?: string | null
           valid_to?: string | null
+          verification_state?: string
         }
         Relationships: [
           {
@@ -1934,6 +2043,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "jhadina_knowledge_nodes"
             referencedColumns: ["node_id"]
+          },
+          {
+            foreignKeyName: "jhadina_knowledge_relations_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "jhadina_knowledge_relations"
+            referencedColumns: ["relation_id"]
           },
           {
             foreignKeyName: "jhadina_knowledge_relations_to_node_id_fkey"
@@ -4011,6 +4127,48 @@ export type Database = {
         }
         Relationships: []
       }
+      jhadina_safety_live_admissions: {
+        Row: {
+          admission_id: string
+          admitted: boolean
+          blockers: Json
+          created_at: string
+          device_ref: string
+          evaluated_at: string
+          evidence_refs: Json
+          expires_at: string
+          gate_version: string
+          owner_id: string
+          revoked_at: string | null
+        }
+        Insert: {
+          admission_id?: string
+          admitted?: boolean
+          blockers?: Json
+          created_at?: string
+          device_ref: string
+          evaluated_at: string
+          evidence_refs?: Json
+          expires_at: string
+          gate_version: string
+          owner_id: string
+          revoked_at?: string | null
+        }
+        Update: {
+          admission_id?: string
+          admitted?: boolean
+          blockers?: Json
+          created_at?: string
+          device_ref?: string
+          evaluated_at?: string
+          evidence_refs?: Json
+          expires_at?: string
+          gate_version?: string
+          owner_id?: string
+          revoked_at?: string | null
+        }
+        Relationships: []
+      }
       jhadina_safety_personal_profiles: {
         Row: {
           ciphertext_ref: string
@@ -4034,6 +4192,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      jhadina_safety_runtime_proofs: {
+        Row: {
+          admission_id: string
+          created_at: string
+          device_ref: string | null
+          evidence_ref: string
+          kind: string
+          metadata: Json
+          observed_at: string
+          owner_id: string
+          passed: boolean
+          proof_id: string
+        }
+        Insert: {
+          admission_id: string
+          created_at?: string
+          device_ref?: string | null
+          evidence_ref: string
+          kind: string
+          metadata?: Json
+          observed_at: string
+          owner_id: string
+          passed: boolean
+          proof_id?: string
+        }
+        Update: {
+          admission_id?: string
+          created_at?: string
+          device_ref?: string | null
+          evidence_ref?: string
+          kind?: string
+          metadata?: Json
+          observed_at?: string
+          owner_id?: string
+          passed?: boolean
+          proof_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jhadina_safety_runtime_proofs_admission_id_fkey"
+            columns: ["admission_id"]
+            isOneToOne: false
+            referencedRelation: "jhadina_safety_live_admissions"
+            referencedColumns: ["admission_id"]
+          },
+        ]
       }
       jhadina_sam_pursuit_snapshots: {
         Row: {
@@ -6254,6 +6459,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      jhadina_detect_graph_gaps: {
+        Args: { p_owner_id?: string; p_scope?: string }
+        Returns: {
+          gap_kind: string
+          node_or_relation_id: string
+          reason: string
+          subject: string
+        }[]
+      }
       jhadina_evaluate_knowledge_candidate: {
         Args: { p_candidate_id: string }
         Returns: Json
@@ -6518,6 +6732,24 @@ export type Database = {
         }
         Returns: Json
       }
+      jhadina_resolve_knowledge_entity: {
+        Args: {
+          p_label: string
+          p_limit?: number
+          p_node_type: string
+          p_owner_id?: string
+          p_scope?: string
+        }
+        Returns: {
+          canonical_key: string
+          confidence: number
+          label: string
+          match_score: number
+          node_id: string
+          node_type: string
+          verification_state: string
+        }[]
+      }
       jhadina_sam_pursuit_snapshot_save_trusted: {
         Args: {
           p_envelope: Json
@@ -6541,6 +6773,27 @@ export type Database = {
       jhadina_set_candidate_contradiction: {
         Args: { p_candidate_id: string; p_state: string }
         Returns: boolean
+      }
+      jhadina_traverse_knowledge_graph: {
+        Args: {
+          p_as_of?: string
+          p_limit?: number
+          p_max_depth?: number
+          p_owner_id?: string
+          p_scope?: string
+          p_seed_node_ids: string[]
+        }
+        Returns: {
+          depth: number
+          from_node_id: string
+          label: string
+          node_id: string
+          node_type: string
+          provenance_refs: Json
+          relation_id: string
+          relation_type: string
+          to_node_id: string
+        }[]
       }
       jhadina_verify_knowledge_evidence: {
         Args: {
