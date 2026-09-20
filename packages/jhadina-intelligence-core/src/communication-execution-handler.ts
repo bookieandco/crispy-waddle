@@ -1,7 +1,7 @@
 import type { ActionHandler, ActionLedger } from '@jhadina/action-core'
 import { type AuthorizedCommunicationDispatch, type GovernedCommunicationAction, COMMUNICATION_SEND_ACTION } from './communication-action.js'
 import { assertCommunicationIntent } from './communication-contracts.js'
-import { createDeliveryReceipt, type DeliveryReceipt } from './delivery-evidence.js'
+import { appendDeliveryEvidence, createDeliveryReceipt, type DeliveryReceipt } from './delivery-evidence.js'
 import { ReticulumTransportAdapter } from './reticulum-adapter.js'
 import { TransportRegistry } from './transport-registry.js'
 
@@ -41,7 +41,6 @@ export async function recordCommunicationDeliveryEvidence(input: {
   ledger: ActionLedger
   receipt: DeliveryReceipt
 }): Promise<'recorded'|'record_failed'> {
-  const { appendDeliveryEvidence }=await import('./delivery-evidence.js')
   try {
     await appendDeliveryEvidence(input.ledger,input.receipt)
     return 'recorded'
