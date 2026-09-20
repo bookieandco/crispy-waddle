@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
+  aggregatePersistedActorAssociationConfidence,
   deriveActorOutcomeHistories,
   evaluateLaunchOutcomeBatch,
   type PersistedLaunchOutcomeObservation,
@@ -144,15 +145,20 @@ export async function runPersistedLaunchOutcomeWorker(client: SupabaseClient, li
   const actorKeys = canonicalActorHistories.map(actor => ({ kind: actor.actorKind, id: actor.actorId }))
   const actorIds = [...new Set(actorKeys.map(actor => actor.id))]
   const { data: actorEdges, error: actorEdgeError } = actorIds.length
-    ? await client.from('jhadina_token_actor_edges').select('actor_id,actor_kind,confidence').in('actor_id', actorIds)
+    ? await client.from('jhadina_token_actor_edges').select('launch_id,actor_id,actor_kind,confidence').in('actor_id', actorIds)
     : { data: [], error: null }
   if (actorEdgeError) throw new Error(`SHARK actor association confidence load failed: ${actorEdgeError.message}`)
 
-  const associationConfidence = new Map<string, number>()
-  for (const edge of actorEdges ?? []) {
-    const key = `${edge.actor_kind}:${edge.actor_id}`
-    associationConfidence.set(key, Math.max(associationConfidence.get(key) ?? 0, Number(edge.confidence ?? 0)))
-  }
+  const associationConfidence = aggregatePersistedActorAssociationConfidence(
+    (actorEdges ?? [])
+      .filter(edge => edge.actor_kind === 'wallet' || edge.actor_kind === 'developer' || edge.actor_kind === 'cluster')
+      .map(edge => ({
+        launchId: edge.launch_id,
+        actorId: edge.actor_id,
+        actorKind: edge.actor_kind as 'wallet' | 'developer' | 'cluster',
+        confidence: edge.confidence == null ? null : Number(edge.confidence),
+      })),
+  )
 
   for (const actor of canonicalActorHistories) {
     const h = actor.history
