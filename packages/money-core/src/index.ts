@@ -27,7 +27,7 @@ export { PLAID_READ_ONLY_CONFIG, PLAID_SANDBOX_BASE_URL, assertPlaidSandboxBaseU
 export type { AssetClass, EvidenceQuality, EvidenceRef, FinancialHypothesis, PredictionDistribution, OpportunityCandidate, AllocationDecision, CapitalAllocationRequest, CapitalAllocationDecision, CanonicalFinancialAction } from './financial-intelligence-contracts.js';
 export { assertIntelligenceOnly, assertProbability, assertPositiveAmount } from './financial-intelligence-contracts.js';
 export type { IssuerStatus, IssuerIdentifierType, IssuerRelationshipType, IssuerInstrumentRelationshipType, FilingStatus, FactStatus, FundamentalStateStatus, ExactFinancialValue, Issuer, IssuerIdentifier, IssuerRelationship, IssuerInstrumentRelationship, Filing, FilingDocument, FinancialFactDimension, FinancialFact, FactRevision, FundamentalState } from './issuer-reality-contracts.js';
-export { assertIssuerIdentifier, selectIssuerIdentifiersAt, assertPointInTimeFact, factWasAvailableAt, selectFactsAtCutoff, revisionsForFact, selectActiveFactsAtCutoff, buildFundamentalState, assertIssuerInstrumentRelationship, relationshipWasEffectiveAt, selectIssuerInstrumentRelationshipsAt } from './issuer-reality-contracts.js';
+export { assertFiling, assertIssuerIdentifier, selectIssuerIdentifiersAt, assertPointInTimeFact, factWasAvailableAt, selectFactsAtCutoff, revisionsForFact, selectActiveFactsAtCutoff, buildFundamentalState, assertIssuerInstrumentRelationship, relationshipWasEffectiveAt, selectIssuerInstrumentRelationshipsAt } from './issuer-reality-contracts.js';
 export type { SharkFundamentalInput } from './shark-fundamental-adapter.js';
 export { toSharkFundamentalInput } from './shark-fundamental-adapter.js';
 export type { AccountingValue, AccountingTreatment, PeriodKind, NormalizationStatus, AccountingConcept, NormalizationRule, NormalizedMetric, TtmMetric } from './fundamental-normalization-contracts.js';
@@ -95,3 +95,12 @@ export * from './fx-market-reality.js';
 export * from './fx-intelligence-fusion.js';
 
 export * from './opportunity-outcome-truth-bridge.js';
+
+export * from './exact-money.js';
+export * from './financial-state-engine.js';
+export * from './financial-lifecycle-engine.js';
+export * from './instrument-prediction-engine.js';
+export * from './risk-analysis-engine.js';
+export * from './decision-provenance-engine.js';
+export * from './fundamental-valuation-engine.js';
+export * from './macro-economic-engine.js';
