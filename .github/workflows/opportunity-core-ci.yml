@@ -70,4 +70,5 @@ jobs:
             src/__tests__/opportunities.test.ts \
             src/lib/opportunities/overageAdapter.test.ts \
             src/lib/opportunities/vertical-ingestion.test.ts \
+            src/lib/opportunities/remoteok-client.test.ts \
             src/lib/money-opportunities/sam-opportunity-adapter.test.ts

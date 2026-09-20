@@ -5,6 +5,7 @@ describe("vertical ingestion provider gate", () => {
   it("accepts the registered normalization owner", () => {
     expect(() => assertProviderVertical("provider:overageos", "recovery")).not.toThrow()
     expect(() => assertProviderVertical("provider:placement-jobs", "employment")).not.toThrow()
+    expect(() => assertProviderVertical("provider:remoteok", "employment")).not.toThrow()
   })
 
   it("rejects cross-vertical provider reuse", () => {

@@ -48,6 +48,7 @@ export default function OpportunityCommandCenter() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [busy, setBusy] = useState<string | null>(null)
+  const [discoveringJobs, setDiscoveringJobs] = useState(false)
   const [filter, setFilter] = useState<FilterKind>("all")
 
   async function load() {
@@ -64,6 +65,20 @@ export default function OpportunityCommandCenter() {
     }
   }
   useEffect(() => { void load() }, [])
+
+  async function discoverAiJobs() {
+    setDiscoveringJobs(true); setError("")
+    try {
+      const res = await fetch("/api/opportunities/jobs/remoteok?limit=25", { cache: "no-store" })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Could not scan AI jobs")
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not scan AI jobs")
+    } finally {
+      setDiscoveringJobs(false)
+    }
+  }
 
   async function approve(id: string) {
     setBusy(id); setError("")
@@ -142,6 +157,20 @@ export default function OpportunityCommandCenter() {
           <Metric label="AI + you" value={summary.aiPlusUser} />
           <Metric label="Deadlines soon" value={summary.deadlinesApproaching} />
           <Metric label="Needs review" value={summary.needsReview} />
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "10px 2px 4px" }}>
+          <button
+            type="button"
+            disabled={discoveringJobs}
+            onClick={() => void discoverAiJobs()}
+            style={primary}
+          >
+            {discoveringJobs ? "Scanning AI jobs…" : "Scan AI jobs"}
+          </button>
+          <span style={{ fontSize: 11, color: "#758179" }}>
+            Remote OK discovery only · research approval required · no automatic applications
+          </span>
         </div>
 
         <div style={filterRow}>

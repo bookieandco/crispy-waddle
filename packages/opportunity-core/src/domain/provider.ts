@@ -50,6 +50,16 @@ export const CANONICAL_OPPORTUNITY_PROVIDERS: readonly OpportunityProviderDescri
     executionOwner: 'OverageOS',
   },
   {
+    id: 'provider:remoteok',
+    vertical: 'employment',
+    sourceId: 'remoteok.public-api',
+    adapterKey: 'remoteok.public-api',
+    readiness: 'live',
+    capabilities: ['discover', 'normalize', 'research', 'execute_handoff'],
+    executionOwner: 'Placement Core',
+    notes: 'Public Remote OK JSON feed. Preserve Remote OK attribution and link every listing back to its Remote OK job URL; employer truth remains research-gated.',
+  },
+  {
     id: 'provider:placement-jobs',
     vertical: 'employment',
     sourceId: 'jhadina.placement.jobs',
