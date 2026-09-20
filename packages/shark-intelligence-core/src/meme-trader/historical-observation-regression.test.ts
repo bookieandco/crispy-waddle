@@ -46,9 +46,9 @@ describe('SHARK historical observation regression', () => {
     const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
       calls.push(JSON.parse(String(init?.body)))
       return new Response(JSON.stringify({ result: { data: [
-        { signature: 'sig-out', blockTime: 1789761660, fromUserAccount: 'developer-1', toUserAccount: 'other', tokenAmount: 25 },
-        { signature: 'sig-in', blockTime: 1789761720, fromUserAccount: 'other', toUserAccount: 'developer-1', tokenAmount: 10 },
-        { signature: 'sig-unrelated', blockTime: 1789761780, fromUserAccount: 'x', toUserAccount: 'y', tokenAmount: 999 },
+        { signature: 'sig-out', blockTime: 1789761660, fromUserAccount: 'developer-1', toUserAccount: 'other', uiAmount: 25, amount: '25000000', decimals: 6 },
+        { signature: 'sig-in', blockTime: 1789761720, fromUserAccount: 'other', toUserAccount: 'developer-1', amount: '10000000', decimals: 6 },
+        { signature: 'sig-unrelated', blockTime: 1789761780, fromUserAccount: 'x', toUserAccount: 'y', uiAmount: 999 },
       ] } }), { status: 200, headers: { 'content-type': 'application/json' } })
     }) as typeof fetch
     const source = new HeliusHistoricalSource({ apiKey: 'test-key', fetchImpl })
@@ -58,7 +58,7 @@ describe('SHARK historical observation regression', () => {
       ['TRANSFER_IN', 10],
     ])
     const rpc = calls[0] as { params: unknown[] }
-    expect(rpc.params).toEqual(['developer-1', expect.objectContaining({ mint: 'mint-1', limit: 100 })])
+    expect(rpc.params).toEqual(['developer-1', expect.objectContaining({ mint: 'mint-1', limit: 100, sortOrder: 'asc' })])
   })
   it('maps solana-mainnet to CoinGecko solana for holder history', async () => {
     const urls: string[] = []
