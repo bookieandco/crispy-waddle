@@ -377,15 +377,15 @@ create index if not exists jhadina_research_execution_events_plan_idx on public.
 
 create or replace function public.jhadina_create_revalidation_trigger(
   p_knowledge_record_id uuid,
+  p_triggering_evidence_id uuid,
   p_trigger_reason text,
   p_freshness_state text,
-  p_triggering_evidence_id uuid default null,
-  p_research_scope jsonb default '{}'::jsonb,
-  p_required_authority text default 'official',
-  p_max_depth integer default 2,
-  p_max_breadth integer default 4,
-  p_policy_requirements jsonb default '{}'::jsonb,
-  p_dedupe_key text default null
+  p_research_scope jsonb,
+  p_required_authority text,
+  p_max_depth integer,
+  p_max_breadth integer,
+  p_policy_requirements jsonb,
+  p_dedupe_key text
 ) returns public.jhadina_research_revalidation_triggers
 language plpgsql security invoker set search_path=public,pg_catalog
 as $$
