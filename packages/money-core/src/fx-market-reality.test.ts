@@ -42,19 +42,6 @@ const eur: FxCurrency = {
   provenanceHash: 'currency:eur:hash',
 };
 
-const jpy: FxCurrency = {
-  currencyId: 'currency:JPY',
-  code: 'JPY',
-  name: 'Japanese Yen',
-  kind: 'FIAT',
-  jurisdiction: 'JP',
-  centralBankId: 'central-bank:boj',
-  settlementCalendarId: 'calendar:JPY',
-  minorUnits: 0,
-  evidenceRefs: ['currency:jpy:e1'],
-  provenanceHash: 'currency:jpy:hash',
-};
-
 const eurusdPair: FxPairDefinition = {
   pairId: 'fx:EURUSD',
   instrumentId: 'instrument:fx:EURUSD',
