@@ -2,7 +2,7 @@
 // Server-only. Never import this from a client component.
 
 import Stripe from 'stripe';
-import { ValidatedCartItem } from '@/lib/catalog';
+import { CertifiedCartItem } from '@/lib/checkout-readiness';
 
 let client: Stripe | null = null;
 
@@ -12,7 +12,7 @@ function getClient(secretKey: string): Stripe {
 }
 
 export interface CreateCheckoutSessionParams {
-  items: ValidatedCartItem[];
+  items: CertifiedCartItem[];
   successUrl: string;
   cancelUrl: string;
 }
@@ -52,6 +52,14 @@ export async function createCheckoutSession(
             variant_id: item.variantId,
             art_style: item.artStyle,
             creative_output_id: item.creativeOutputId,
+            print_asset_id: item.printAssetId,
+            fulfillment_provider: item.fulfillmentProvider,
+            provider_product_id: item.providerProductId,
+            provider_variant_id: item.providerVariantId,
+            blueprint_id: item.blueprintId,
+            print_provider_id: item.printProviderId,
+            print_area: item.printArea,
+            catalog_certification_status: item.catalogCertificationStatus,
           },
           images: item.previewUrl?.startsWith('http') ? [item.previewUrl] : undefined,
         },
