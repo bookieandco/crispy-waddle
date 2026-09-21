@@ -99,6 +99,8 @@ describe('SHARK QA17 persisted outcome soak', () => {
       .toBe('2026-09-20T01:00:00.000Z')
 
     const developer = fixture.histories.get('developer:dev-1')
+    expect(developer).toBeDefined()
+    if (!developer) throw new Error('developer history missing')
     expect(developer.launches).toBe(2)
     expect(developer.bad_launches).toBe(1)
     expect(developer.failed_launches).toBe(1)
