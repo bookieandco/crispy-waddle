@@ -45,7 +45,7 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
     const {data:analysis}=await client.from('jhadina_sam_analysis').select('requirements').eq('notice_id',noticeId).maybeSingle()
     const {data:catalog}=await client.from('jhadina_sam_catalog').select('naics_codes').eq('notice_id',noticeId).maybeSingle()
     if(!analysis||!catalog)continue
-    const rawReq=Array.isArray((analysis as Record<string,unknown>).requirements)?((analysis as Record<string,unknown>).requirements as Record<string,unknown>):[]
+    const rawReq=rows((analysis as Record<string,unknown>).requirements)
     const naics=Array.isArray((catalog as Record<string,unknown>).naics_codes)?((catalog as Record<string,unknown>).naics_codes as string[]):[]
     const requirements:BrokerRequirement[]=rawReq.length?rawReq.map((r,i)=>({id:text(r.id)||`${noticeId}:req:${i+1}`,label:text(r.label)||'contract requirement',naicsCodes:Array.isArray(r.naicsCodes)?r.naicsCodes.filter((x):x is string=>typeof x==='string'):naics,keywords:Array.isArray(r.keywords)?r.keywords.filter((x):x is string=>typeof x==='string'):[]})):[{id:`${noticeId}:scope`,label:'solicitation scope',naicsCodes:naics}]
     const primaryNaics=naics[0]||requirements.flatMap(r=>r.naicsCodes??[])[0]
