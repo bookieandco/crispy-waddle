@@ -1,0 +1,56 @@
+name: UX Final Certification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/jhadina-web/**"
+      - "packages/director-core/**"
+      - ".github/workflows/ux-final-certification.yml"
+      - "pnpm-lock.yaml"
+
+concurrency:
+  group: ux-final-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    name: UX-FINAL runtime certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+
+      - name: Jhadina Web type-check
+        run: pnpm --filter @jhadina/jhadina-web type-check
+
+      - name: UX truthfulness and subsystem tests
+        run: >
+          pnpm --filter @jhadina/jhadina-web exec vitest run
+          src/lib/system/execution-ux.test.ts
+          src/lib/jhadina/jhadina-world-registry.test.ts
+          components/home/storyTypes.test.ts
+
+      - name: Full Jhadina Web test suite
+        run: pnpm --filter @jhadina/jhadina-web test
+
+      - name: Production build
+        run: pnpm turbo run build --filter=@jhadina/jhadina-web
