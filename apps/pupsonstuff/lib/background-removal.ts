@@ -1,6 +1,5 @@
 import { toFile } from 'openai';
-
-export type BackgroundMode = 'auto' | 'transparent' | 'keep' | 'generate';
+import type { BackgroundMode } from '@/types/creative';
 export type BackgroundRemovalProvider = 'backgroundremover' | 'knockout';
 
 export interface BackgroundRemovalResult {
