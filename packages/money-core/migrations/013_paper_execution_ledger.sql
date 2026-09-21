@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS money_paper_execution_events (
  event_id TEXT PRIMARY KEY,
  paper_run_id TEXT NOT NULL,
- kind TEXT NOT NULL CHECK (kind IN ('ORDER','FILL','PORTFOLIO_SNAPSHOT','OUTCOME')),
+ kind TEXT NOT NULL CHECK (kind IN ('ORDER','FILL','PORTFOLIO_SNAPSHOT','OUTCOME','STRATEGY_RESULT')),
  occurred_at TIMESTAMPTZ NOT NULL,
  payload_json JSONB NOT NULL,
  payload_hash TEXT NOT NULL,
