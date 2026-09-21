@@ -125,6 +125,30 @@ async function ensureDomains() {
       `${redirectDomain} is already attached but does not redirect to ${canonicalDomain}. Refusing to overwrite it automatically.`
     );
   }
+
+  const refreshed = await listDomains();
+  const relevant = refreshed.filter((domain) =>
+    [canonicalDomain, redirectDomain].includes(domain.name)
+  );
+  for (const domain of relevant) {
+    console.log(
+      JSON.stringify({
+        domain: domain.name,
+        verified: Boolean(domain.verified),
+        redirect: domain.redirect || null,
+        redirectStatusCode: domain.redirectStatusCode || null,
+        verification: Array.isArray(domain.verification)
+          ? domain.verification.map((item) => ({
+              type: item.type,
+              domain: item.domain,
+              value: item.value,
+              reason: item.reason,
+            }))
+          : [],
+      })
+    );
+  }
+  return relevant;
 }
 
 const requiredSecrets = [
@@ -222,7 +246,7 @@ async function upsertEnvironment() {
 }
 
 const project = await ensureProject();
-await ensureDomains();
+const domains = await ensureDomains();
 await upsertEnvironment();
 
 console.log(
@@ -234,6 +258,11 @@ console.log(
       repository,
       rootDirectory,
       canonicalOrigin: 'https://www.pupsonstuff.com',
+      domains: domains.map((domain) => ({
+        name: domain.name,
+        verified: Boolean(domain.verified),
+        redirect: domain.redirect || null,
+      })),
       fulfillmentMode: 'dry_run',
     },
     null,
