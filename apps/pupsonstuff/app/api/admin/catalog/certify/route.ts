@@ -29,7 +29,7 @@ interface MappingInput {
   sampleEvidence?: SampleEvidence;
 }
 
-function validSampleEvidence(value: SampleEvidence | undefined): value is SampleEvidence {
+export function validSampleEvidence(value: SampleEvidence | undefined): value is SampleEvidence {
   if (!value) return false;
   const receivedAt = Date.parse(value.receivedAt);
   if (
