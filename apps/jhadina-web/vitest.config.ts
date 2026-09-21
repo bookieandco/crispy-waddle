@@ -25,6 +25,8 @@ export default defineConfig({
       { find: "@jhadina/checkout-orchestrator", replacement: path.resolve(__dirname, "../../packages/checkout-orchestrator/src") },
       { find: "@jhadina/payment-core", replacement: path.resolve(__dirname, "../../packages/payment-core/src") },
       { find: "@jhadina/order-fulfillment-core", replacement: path.resolve(__dirname, "../../packages/order-fulfillment-core/src") },
+      { find: "@jhadina/commerce-adapters", replacement: path.resolve(__dirname, "../../packages/commerce-adapters/src") },
+      { find: "@jhadina/opportunity-core", replacement: path.resolve(__dirname, "../../packages/opportunity-core/src") },
       { find: "@jhadina/money-core", replacement: path.resolve(__dirname, "../../packages/money-core/src") },
       { find: "@jhadina/growth-core", replacement: path.resolve(__dirname, "../../packages/growth-core/src") },
       { find: "@jhadina/social-core", replacement: path.resolve(__dirname, "../../packages/social-core/src") },

@@ -1,4 +1,5 @@
 import type { ActionHandler, ActionPolicy, ActionRequest } from './action-executor.js';
+import type { ApprovalReceiptVerifier } from './approval-receipt.js';
 import { SupabaseAuditLedger, type AuditRpcClient } from './supabase-audit-ledger.js';
 import { VerifiedActionExecutor, type ActionIdentityVerifier } from './verified-action-executor.js';
 
@@ -9,6 +10,7 @@ export type ProductionActionExecutorOptions<TAction = unknown, TResult = unknown
   supabase: AuditRpcClient;
   domain?: string;
   capabilityForType?: (type: string) => string;
+  approvalReceipts?: ApprovalReceiptVerifier<TAction>;
 };
 
 /** Production composition root: verified identity + policy + durable audit. */
@@ -26,6 +28,7 @@ export function createProductionActionExecutor<TAction = unknown, TResult = unkn
     options.policy,
     ledger,
     options.handlers,
+    options.approvalReceipts,
   );
 }
 
