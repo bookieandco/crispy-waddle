@@ -100,7 +100,6 @@ describe("Money product loop — UI-facing composition root (Jhadina OS Integrat
       supabase,
       providers: fakeProviders(),
       ownershipResolver: ownedAccounts,
-      ownershipResolver: ownedAccounts,
     }
 
     const result = await runGovernedMoneyAccountRead(identity.userId, "req-money-3", overrides)
