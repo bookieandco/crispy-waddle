@@ -519,7 +519,8 @@ $$;
 create or replace function public.jhadina_social_fail_outbox(
   p_outbox_id uuid,
   p_error text,
-  p_ambiguous boolean default false
+  p_ambiguous boolean default false,
+  p_provider_post_id text default null
 )
 returns public.jhadina_social_outbox
 language plpgsql
@@ -531,6 +532,7 @@ begin
   if auth.uid() is null then raise exception 'authentication required'; end if;
   update public.jhadina_social_outbox
      set status = case when p_ambiguous then 'ambiguous' else 'failed' end,
+         provider_post_id = coalesce(p_provider_post_id, provider_post_id),
          last_error = left(coalesce(p_error, 'provider failure'), 1000),
          updated_at = now()
    where id = p_outbox_id
@@ -601,7 +603,7 @@ revoke all on function public.jhadina_social_refresh_proposal_status(uuid) from 
 revoke all on function public.jhadina_social_enqueue_outbox(uuid) from public, anon;
 revoke all on function public.jhadina_social_begin_outbox_attempt(uuid) from public, anon;
 revoke all on function public.jhadina_social_complete_outbox(uuid,text) from public, anon;
-revoke all on function public.jhadina_social_fail_outbox(uuid,text,boolean) from public, anon;
+revoke all on function public.jhadina_social_fail_outbox(uuid,text,boolean,text) from public, anon;
 revoke all on function public.jhadina_social_record_observation(uuid,uuid,text,text,text,text,uuid,text,text,timestamptz,text,jsonb,jsonb,jsonb) from public, anon;
 
 grant execute on function public.jhadina_social_upsert_account(text,text,text,text,text,text) to authenticated;
@@ -613,5 +615,5 @@ grant execute on function public.jhadina_social_consume_approval_receipt(uuid,te
 grant execute on function public.jhadina_social_enqueue_outbox(uuid) to authenticated;
 grant execute on function public.jhadina_social_begin_outbox_attempt(uuid) to authenticated;
 grant execute on function public.jhadina_social_complete_outbox(uuid,text) to authenticated;
-grant execute on function public.jhadina_social_fail_outbox(uuid,text,boolean) to authenticated;
+grant execute on function public.jhadina_social_fail_outbox(uuid,text,boolean,text) to authenticated;
 grant execute on function public.jhadina_social_record_observation(uuid,uuid,text,text,text,text,uuid,text,text,timestamptz,text,jsonb,jsonb,jsonb) to authenticated;
