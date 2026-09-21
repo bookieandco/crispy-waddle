@@ -5,16 +5,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=5000 \
     U2NETP_PATH=/tmp/u2net
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg build-essential && \
-    rm -rf /var/lib/apt/lists/*
-
-# Pin the exact audited BackgroundRemover source revision. Use GitHub's
-# immutable commit archive so git itself is not needed in the runtime image.
+# This service handles still-image segmentation only. The upstream package
+# also supports video, but installing Debian ffmpeg here drags in hundreds of
+# packages we do not need for PupsonStuff's POST image path.
+#
+# Install CPU-only PyTorch first so backgroundremover's broad "torch>=1.13"
+# requirement cannot resolve to multi-gigabyte CUDA/NVIDIA wheels.
 RUN pip install --no-cache-dir \
-    "https://github.com/nadermx/backgroundremover/archive/fa480627829759b902f8c233388d7aa67ab38099.tar.gz" \
-    flask \
-    waitress
+      --index-url https://download.pytorch.org/whl/cpu \
+      torch torchvision && \
+    pip install --no-cache-dir \
+      "https://github.com/nadermx/backgroundremover/archive/fa480627829759b902f8c233388d7aa67ab38099.tar.gz" \
+      flask \
+      waitress
 
 RUN mkdir -p /tmp/u2net
 
