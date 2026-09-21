@@ -11,6 +11,7 @@ import {
   type ParcelTrackingSnapshot,
   type ParcelTrackingStatus,
   type ParcelTrackingWebhook,
+  type ParcelWebhookVerification,
 } from "@jhadina/order-fulfillment-core"
 
 export interface ShipEngineMoney {
@@ -158,7 +159,17 @@ export class ShipEngineParcelShippingAdapter implements ParcelShippingAdapter {
     return normalizeTracking(await this.client.getTracking(trackingNumber, carrierCode))
   }
 
-  normalizeTrackingWebhook(payload: unknown): ParcelTrackingWebhook {
+  normalizeTrackingWebhook(
+    payload: unknown,
+    verification: ParcelWebhookVerification,
+  ): ParcelTrackingWebhook {
+    if (
+      !verification.verified ||
+      verification.provider !== this.provider ||
+      !Number.isFinite(Date.parse(verification.verifiedAt))
+    ) {
+      throw new Error("ShipEngine tracking webhook must be signature-verified before normalization")
+    }
     if (!payload || typeof payload !== "object" || !("data" in payload)) {
       throw new Error("Invalid ShipEngine tracking webhook")
     }
@@ -235,17 +246,25 @@ function normalizeTracking(row: ShipEngineTrackingResponse): ParcelTrackingSnaps
 
 function normalizeTrackingStatus(value?: string): ParcelTrackingStatus {
   switch ((value ?? "").toLowerCase()) {
+    case "ac":
+    case "ny":
     case "pre_transit":
     case "label_created":
     case "accepted":
       return "pre_transit"
+    case "it":
     case "in_transit":
     case "transit":
       return "in_transit"
     case "out_for_delivery":
       return "out_for_delivery"
+    case "sp":
+      return "available_for_pickup"
+    case "de":
     case "delivered":
       return "delivered"
+    case "ex":
+    case "at":
     case "exception":
     case "delivery_exception":
       return "exception"
