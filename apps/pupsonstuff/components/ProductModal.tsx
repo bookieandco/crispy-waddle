@@ -61,6 +61,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
   const [petName, setPetName] = useState('My Pet');
   const [prompt, setPrompt] = useState('');
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>('auto');
+  const [processingConsent, setProcessingConsent] = useState(false);
   const [artworkTransform, setArtworkTransform] = useState<ArtworkTransform>({
     ...DEFAULT_ARTWORK_TRANSFORM,
   });
@@ -101,6 +102,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
     setUploadedFiles([]);
     setPrompt('');
     setBackgroundMode('auto');
+    setProcessingConsent(false);
     setArtworkTransform({ ...DEFAULT_ARTWORK_TRANSFORM });
     setPreviewUrl(null);
     setGenerateError(null);
@@ -152,7 +154,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
       form.append('artStyleId', selectedStyle);
       form.append('prompt', prompt);
       form.append('backgroundMode', backgroundMode);
-      form.append('consent', 'true');
+      form.append('consent', processingConsent ? 'true' : 'false');
 
       const res = await fetch('/api/creative/jobs', {
         method: 'POST',
@@ -470,6 +472,18 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                     </p>
                   </div>
 
+                  <label className="mb-6 flex items-start gap-2 rounded-md border border-greige/40 bg-white/40 p-3 text-xs text-ink/60">
+                    <input
+                      type="checkbox"
+                      checked={processingConsent}
+                      onChange={(event) => setProcessingConsent(event.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      I have permission to use these photos and agree to have them processed to create this custom product.
+                    </span>
+                  </label>
+
                   {/* Art style */}
                   <div className="mb-6">
                     <span className="mb-2 block text-sm font-medium text-bronze">Art style</span>
@@ -573,7 +587,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                   {!previewUrl ? (
                     <button
                       onClick={handleGeneratePreview}
-                      disabled={uploadedFiles.length === 0 || generating}
+                      disabled={uploadedFiles.length === 0 || !processingConsent || generating}
                       className="mb-3 w-full rounded-md bg-bronze py-3 text-sm font-medium text-cream transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {generating ? 'Generating…' : 'Generate Preview'}
