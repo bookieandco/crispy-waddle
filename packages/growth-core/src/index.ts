@@ -33,3 +33,5 @@ export * from './customer/lifecycle.js';
 export * from './economics/customer-economics.js';
 export * from './intelligence/audience-intelligence.js';
 export * from './channels/paid-media.js';
+export * from './intelligence/competitor-ad-observation.js';
+export * from './intelligence/creator-outreach.js';
