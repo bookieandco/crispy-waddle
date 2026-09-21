@@ -67,7 +67,7 @@ async function resolveBaseDeps(overrides: CommerceProposalRuntimeOverrides) {
 }
 
 export async function runProposeCommerceAction(
-  claimedUserId: string,
+  claimedUserId: string | undefined,
   payload: CommerceProposalPayload,
   overrides: CommerceProposalRuntimeOverrides = {},
 ): Promise<CommerceProposalResult> {
@@ -76,7 +76,7 @@ export async function runProposeCommerceAction(
 }
 
 export async function runApproveCommerceProposal(
-  claimedUserId: string,
+  claimedUserId: string | undefined,
   proposalId: string,
   overrides: CommerceProposalRuntimeOverrides = {},
 ): Promise<CommerceProposalApprovalResult> {
@@ -85,7 +85,7 @@ export async function runApproveCommerceProposal(
 }
 
 export async function runExecuteCommerceProposal(
-  claimedUserId: string,
+  claimedUserId: string | undefined,
   proposalId: string,
   overrides: CommerceProposalRuntimeOverrides = {},
 ): Promise<CommerceProposalExecutionResult> {
