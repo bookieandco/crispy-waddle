@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validSampleEvidence } from '../app/api/admin/catalog/certify/route';
+import { validSampleEvidence } from '../lib/catalog-certification';
 
 describe('physical sample certification evidence', () => {
   const passing = {
