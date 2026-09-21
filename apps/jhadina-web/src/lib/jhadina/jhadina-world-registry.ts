@@ -62,7 +62,7 @@ const worldRows: WorldRow[] = [
   { id:"music", label:"Music", description:"Listen, discover and manage music", capabilities:["search","recommendations","playback"], inputs:["music","activity"], href:"/music", group:"media" },
   { id:"tv", label:"JhadinaTV", description:"Watch and discover visual media", capabilities:["search","recommendations","watchlist"], inputs:["media","activity"], href:"/jhadinatv", group:"media" },
   { id:"publishing", label:"Publishing", description:"Books, ebooks, digital files and print-on-demand", capabilities:["write","format","proof","catalog"], inputs:["studio","knowledge","commerce"], group:"media" },
-  { id:"social", label:"Social", description:"Social discovery, review and governed publishing", capabilities:["draft","schedule","review"], inputs:["content","activity"], group:"media" },
+  { id:"social", label:"Social", description:"Social discovery, review and governed publishing", capabilities:["draft","schedule","review"], inputs:["content","activity"], href:"/social", group:"media" },
 
   { id:"pupsonstuff", label:"PupsonStuff", description:"Pet products, creative generation and commerce", capabilities:["products","creative","orders"], inputs:["shopping","commerce"], group:"business" },
   { id:"shopping", label:"Shopping", description:"Universal product discovery and purchasing", capabilities:["search","watchlist","compare","cart"], inputs:["products","prices","orders"], group:"business" },
