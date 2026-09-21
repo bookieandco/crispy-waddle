@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPaidCampaignOutbox, fingerprintPaidCampaign, type PaidCampaignPlan } from './paid-media.js';
+import { assertBudgetWithinCeiling, buildPaidCampaignOutbox, fingerprintPaidCampaign, type PaidCampaignPlan } from './paid-media.js';
 
 const plan: PaidCampaignPlan = {
   id: 'campaign:1',
@@ -39,5 +39,10 @@ describe('paid media governance contracts', () => {
 
   it('rejects unsafe budgets', () => {
     expect(() => fingerprintPaidCampaign({ ...plan, dailyBudgetMinor: 0 })).toThrow('GROWTH_PAID_DAILY_BUDGET_INVALID');
+  });
+
+  it('fails closed when spend exceeds a configured ceiling', () => {
+    expect(() => assertBudgetWithinCeiling(10_001, 10_000)).toThrow('GROWTH_PAID_AD_BUDGET_EXCEEDS_CEILING');
+    expect(() => assertBudgetWithinCeiling(100, 0)).toThrow('GROWTH_PAID_AD_BUDGET_CEILING_NOT_CONFIGURED');
   });
 });
