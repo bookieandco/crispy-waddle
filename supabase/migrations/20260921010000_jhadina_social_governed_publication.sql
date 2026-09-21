@@ -438,13 +438,21 @@ declare inserted_count integer;
 begin
   if auth.uid() is null then raise exception 'authentication required'; end if;
   if not exists (
-    select 1 from public.jhadina_social_publication_proposals
-     where id = p_proposal_id
-       and user_id = auth.uid()
-       and status = 'pending_approval'
-       and approval_receipt_id is not null
+    select 1
+      from public.jhadina_social_publication_proposals proposal
+      join public.jhadina_social_approval_receipts receipt
+        on receipt.id = proposal.approval_receipt_id
+       and receipt.user_id = proposal.user_id
+       and receipt.action_id = proposal.action_id
+     where proposal.id = p_proposal_id
+       and proposal.user_id = auth.uid()
+       and proposal.status = 'pending_approval'
+       and receipt.type = 'public.publish'
+       and receipt.status = 'consumed'
+       and receipt.fingerprint =
+         'social-public-publish:v1:' || proposal.id::text || ':' || proposal.request_fingerprint
   ) then
-    raise exception 'social proposal cannot be enqueued';
+    raise exception 'social proposal cannot be enqueued without a consumed matching approval';
   end if;
 
   insert into public.jhadina_social_outbox (
