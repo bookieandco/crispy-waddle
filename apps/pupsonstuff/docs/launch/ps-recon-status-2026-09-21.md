@@ -77,6 +77,8 @@ Verified:
 - PS-RECON creative-intent migrations are present.
 - `user_prompt` and `background_mode` are live.
 - `(job_id, attempt)` has a unique attempt identity.
+- The redundant PS-RECON attempt index was removed; the canonical UNIQUE constraint remains and the Supabase duplicate-index warning is cleared.
+- The performance advisor now reports only legacy `pupson_creations` / `pupson_creation_assets` / `pupson_pod_jobs` RLS-initplan warnings plus unused-index informational notices; those older-table warnings were not mutated as part of this production path repair.
 - `pupson-originals`, `pupson-creative`, and `pupson-print-ready` are private.
 - PupsonStuff server tables remain RLS-enabled with no browser policy; the security advisor reports those as informational `rls_enabled_no_policy` notices, consistent with the server-only/service-role boundary.
 
