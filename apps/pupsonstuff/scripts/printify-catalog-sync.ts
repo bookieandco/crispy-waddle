@@ -2,11 +2,10 @@
 //
 // scripts/printify-catalog-sync.ts
 //
-// DRY RUN ONLY. This script never writes to data/hotspots.ts and never
-// calls createProduct()/submitOrder()/anything mutating on Printify —
-// read-only catalog discovery, start to finish. Existing PupsonStuff
-// product IDs, hotspot data, and storefront UX are untouched; this is a
-// reconnaissance/reporting tool, not a migration.
+// DRY RUN ONLY. This script never writes to data/hotspots.ts or the live
+// certification table and never mutates Printify. Static product IDs are
+// grouping/discovery identifiers only; production checkout trusts only
+// certified pupson_catalog_variants rows.
 //
 // Uses lib/printify.ts as the sole Printify API boundary — no second
 // client, no raw fetch() calls to api.printify.com anywhere in this
