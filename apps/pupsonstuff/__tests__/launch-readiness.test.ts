@@ -79,7 +79,7 @@ describe('PupsonStuff launch readiness', () => {
         certification_status: 'sandbox_verified',
       },
     ]);
-    expect(checks.find((check) => check.id === 'catalog.sandbox')?.status).toBe('pass');
+    expect(checks.find((check) => check.id === 'catalog.sandbox')?.status).toBe('block');
     expect(checks.find((check) => check.id === 'catalog.samples')?.status).toBe('block');
   });
 });
