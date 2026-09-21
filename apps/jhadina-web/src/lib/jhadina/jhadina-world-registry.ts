@@ -59,6 +59,8 @@ const worldRows: WorldRow[] = [
   { id:"placement", label:"PlacementOS", description:"Worker, agency and employer placement workflows", capabilities:["opportunities","offers","jobs"], inputs:["jobs","people"], href:"/placement/worker/opportunities", group:"work" },
   { id:"calendar", label:"Calendar", description:"Schedule and time-aware coordination", capabilities:["schedule","review"], inputs:["time","work"], href:"/calendar", group:"work" },
   { id:"overage", label:"OverageOS", description:"Unclaimed-property discovery and recovery operations", capabilities:["discover","cases","recovery"], inputs:["public-records","opportunities"], group:"work" },
+  { id:"evolution", label:"Evolution / Coding", description:"Governed code-change proposals, verification and repository work", capabilities:["propose","verify","code"], inputs:["repository","policy","activity"], group:"work" },
+  { id:"staffing", label:"Staffing / Subcontracting", description:"Staffing, placement and subcontractor operations", capabilities:["staff","match","contracts"], inputs:["people","opportunities"], group:"work" },
 
   { id:"music", label:"Music", description:"Listen, discover and manage music", capabilities:["search","recommendations","playback"], inputs:["music","activity"], href:"/music", group:"media" },
   { id:"tv", label:"JhadinaTV", description:"Watch and discover visual media", capabilities:["search","recommendations","watchlist"], inputs:["media","activity"], href:"/jhadinatv", group:"media" },
@@ -66,6 +68,8 @@ const worldRows: WorldRow[] = [
   { id:"social", label:"Social", description:"Social discovery, review and governed publishing", capabilities:["draft","schedule","review"], inputs:["content","activity"], href:"/social", group:"media" },
 
   { id:"pupsonstuff", label:"PupsonStuff", description:"Pet products, creative generation and commerce", capabilities:["products","creative","orders"], inputs:["shopping","commerce"], group:"business" },
+  { id:"pod", label:"AI POD Shop", description:"Generalized AI print-on-demand creation, product studio and fulfillment", capabilities:["generate","products","fulfillment"], inputs:["creative","commerce"], group:"business" },
+  { id:"homebase", label:"Homebase", description:"Connectivity, local compute, cloud/offline continuity and device support", capabilities:["connectivity","compute","continuity"], inputs:["network","device","cloud"], group:"business" },
   { id:"pod", label:"AI POD Studio", description:"Generalized AI product design, 3D product studio and print-on-demand workflow", capabilities:["generate","customize","products"], inputs:["creative","commerce"], group:"business" },
   { id:"shopping", label:"Shopping", description:"Universal product discovery and purchasing", capabilities:["search","watchlist","compare","cart"], inputs:["products","prices","orders"], group:"business" },
   { id:"trucker", label:"TruckerOS", description:"Driving, work and trip intelligence", capabilities:["loads","trips","profit"], inputs:["money","travel"], group:"business" },
