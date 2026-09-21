@@ -192,3 +192,27 @@ PR #498's PupsonStuff CI is green. The broader Jhadina Launch Gate is separately
 **PS-RECON.8: BLOCKED BY REAL-WORLD CERTIFICATION INPUTS.**
 
 No provider purchase was placed, no customer fulfillment was enabled, and `PUPSON_FULFILLMENT_MODE` must remain `dry_run`.
+
+
+## Railway media-services state
+
+A private Railway project now exists for PupsonStuff preprocessing:
+
+- project: `PupsonStuff Media Services`
+- raw U2Net runtime: `backgroundremover-runtime`
+- authenticated public boundary: `pupson-media-gateway-runtime`
+
+The raw BackgroundRemover service must remain private. It is based on the upstream
+`nadermx/backgroundremover` implementation / published Docker image and is not
+assigned a public Railway domain.
+
+Only the authenticated gateway may receive a public HTTPS Railway domain. Vercel
+must receive exactly:
+
+- `PUPSON_BACKGROUND_REMOVER_PROVIDER=backgroundremover`
+- `PUPSON_BACKGROUND_REMOVER_URL=https://<gateway-domain>/`
+- `PUPSON_BACKGROUND_REMOVER_TOKEN=<same Railway gateway bearer token>`
+
+Do not put the raw Railway private hostname or raw remover service on the public
+internet. The gateway enforces a 15 MB request cap, POST-only inference, bearer
+authentication, and does not expose the upstream URL-fetch API.
