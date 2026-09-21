@@ -1,3 +1,4 @@
+import type { SupplierProcurementPreview } from "@jhadina/commerce-adapters"
 import type { StripeSandboxTestPaymentMethod } from "./stripe-sandbox-provider"
 
 /**
@@ -7,11 +8,32 @@ import type { StripeSandboxTestPaymentMethod } from "./stripe-sandbox-provider"
  * itself refuses anything but a sk_test_ secret; this restricts the
  * request-level payload the same way).
  */
-export interface CommerceProposalPayload {
+export interface StripeSandboxCommerceProposalPayload {
+  /** Omitted by legacy rows created before proposal payloads were generalized. */
+  kind?: "stripe_sandbox_payment"
   amountMinor: number
   currency: string
   description: string
   testPaymentMethod: StripeSandboxTestPaymentMethod
+}
+
+export interface SupplierProcurementCommerceProposalPayload {
+  kind: "supplier_procurement"
+  opportunityActionId: string
+  opportunityId: string
+  researchCaseId: string
+  handoffExpiresAt: string
+  preview: SupplierProcurementPreview
+}
+
+export type CommerceProposalPayload =
+  | StripeSandboxCommerceProposalPayload
+  | SupplierProcurementCommerceProposalPayload
+
+export function isSupplierProcurementProposalPayload(
+  payload: CommerceProposalPayload,
+): payload is SupplierProcurementCommerceProposalPayload {
+  return payload.kind === "supplier_procurement"
 }
 
 export type CommerceProposalStatus = "pending" | "approved" | "executed"
