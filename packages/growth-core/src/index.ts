@@ -27,3 +27,6 @@ export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
 export * from './learning/opportunity-outcome-learning.js';
+
+export * from './intelligence/competitor-ad-observation.js';
+export * from './intelligence/creator-outreach.js';
