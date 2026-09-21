@@ -14,7 +14,7 @@ export async function GET(request:Request){
   if(!process.env.SAM_GOV_API_KEY)return NextResponse.json({ok:false,error:'SAM_GOV_API_KEY_NOT_CONFIGURED'},{status:503})
   try{
     const window=await nextSamBackfillWindow(client,7)
-    const result=await runSamUsablePipeline(client,{...window,maxPages:20,maxProcessNotices:10})
+    const result=await runSamUsablePipeline(client,{...window,maxPages:20,maxProcessNotices:10,scanKind:'backfill'})
     return NextResponse.json({ok:true,mode:'backfill',window,...result},{headers:{'cache-control':'no-store'}})
   }catch(error){
     return NextResponse.json({ok:false,error:error instanceof Error?error.message:'SAM_BACKFILL_FAILED'},{status:502,headers:{'cache-control':'no-store'}})
