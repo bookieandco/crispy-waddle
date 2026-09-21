@@ -11,7 +11,10 @@
     "src/lib/commerce/commerce-proposal-store.ts",
     "src/lib/commerce/commerce-security-policy.ts",
     "src/lib/commerce/supplier-contracts.test.ts",
-    "src/lib/commerce/governed-supplier-procurement.test.ts"
+    "src/lib/commerce/governed-supplier-procurement.test.ts",
+    "src/lib/commerce/shipengine-parcel-shipping.ts",
+    "src/lib/commerce/shipengine-parcel-shipping.test.ts",
+    "src/lib/commerce/supplier-discovery-reference.test.ts"
   ],
   "exclude": [
     "node_modules",

@@ -1,3 +1,5 @@
+export * from "./parcel-shipping";
+
 export type OrderStatus =
   | "created"
   | "authorized"
