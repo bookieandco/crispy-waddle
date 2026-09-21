@@ -33,6 +33,18 @@ describe('product-specific print master', () => {
     expect(result.quality.score).toBeGreaterThanOrEqual(90);
   });
 
+  it('does not require upscaling when a 1024px source meets the actual placed DPI', async () => {
+    const product = hotspots.find((item) => item.id === 'concertShirt')!;
+    const result = await buildPrintMaster({
+      generatedBytes: await squarePng(1024),
+      hotspot: product,
+      variantId: 'tee-concert-m',
+      transform: { x: 0.5, y: 0.5, scale: 1, rotation: 0 },
+    });
+    expect(result.source.upscaleProvider).toBe('none');
+    expect(result.quality.productionReady).toBe(true);
+  });
+
   it('fails closed when an enlarged placement needs an upscaler that is not configured', async () => {
     const product = hotspots.find((item) => item.id === 'concertShirt')!;
     await expect(
