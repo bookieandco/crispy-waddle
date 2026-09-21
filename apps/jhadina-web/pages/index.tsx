@@ -3,6 +3,7 @@ import Link from "next/link"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { PersonalCommandFeed } from "../components/home/PersonalCommandFeed"
 import type { FeedSource } from "../components/home/storyTypes"
+import { connectorExecutionState } from "@/lib/system/execution-ux"
 
 type Event={id:string;actionId:string;type:string;status:"started"|"approval_required"|"completed"|"denied"|"failed";timestamp:string;domain:string}
 type Candidate={id:string}
@@ -41,8 +42,10 @@ export default function Home(){
   const approvalEvents=latest.filter(event=>event.status==="approval_required").length
   const active=latest.filter(event=>event.status==="started").length
   const exceptions=latest.filter(event=>event.status==="failed"||event.status==="denied").length
-  const recoveryRequired=recoveries.filter(item=>item.state==="recovery_required").length
-  return {needs:candidates.length+approvalEvents,active,exceptions:exceptions+recoveryRequired,recoveryRequired,recent:[...events].sort((a,b)=>b.timestamp.localeCompare(a.timestamp)).slice(0,6)}
+  const recoveryStates=recoveries.map(item=>connectorExecutionState({state:item.state,recoveryOfExecutionId:undefined,reconciliation:item.reconciliation?{status:item.reconciliation.status}:null}))
+  const recoveryRequired=recoveryStates.filter(item=>item==="recovery_required").length
+  const retrySafe=recoveryStates.filter(item=>item==="retry_safe").length
+  return {needs:candidates.length+approvalEvents+retrySafe,active,exceptions:exceptions+recoveryRequired,recoveryRequired,retrySafe,recent:[...events].sort((a,b)=>b.timestamp.localeCompare(a.timestamp)).slice(0,6)}
  },[events,candidates,recoveries])
 
  return <main className="jh-page"><div className="jh-wrap">
@@ -52,7 +55,7 @@ export default function Home(){
   <div className="jh-grid">
    <Link className="jh-card jh-card--third" href="/approvals"><div className="jh-metric">{loading?"—":model.needs}</div><div className="jh-label">Needs you</div><p className="jh-card-copy">Memory proposals and governed approval-required work.</p></Link>
    <Link className="jh-card jh-card--third" href="/work"><div className="jh-metric">{loading?"—":model.active}</div><div className="jh-label">Active work</div><p className="jh-card-copy">Current governed actions plus route-backed workspaces.</p></Link>
-   <Link className="jh-card jh-card--third" href="/activity"><div className="jh-metric">{loading?"—":model.exceptions}</div><div className="jh-label">Exceptions</div><p className="jh-card-copy">{loading?"Loading evidence…":model.recoveryRequired+" recovery-required connector execution(s)."}</p></Link>
+   <Link className="jh-card jh-card--third" href="/activity"><div className="jh-metric">{loading?"—":model.exceptions}</div><div className="jh-label">Exceptions</div><p className="jh-card-copy">{loading?"Loading evidence…":model.recoveryRequired+" recovery-required · "+model.retrySafe+" retry-safe awaiting fresh authorization."}</p></Link>
   </div>
 
   <section className="jh-section"><div className="jh-between"><div><p className="jh-eyebrow">Continue</p><h2 className="jh-section-title">Your operating surfaces</h2></div><Link className="jh-button" href="/worlds">All worlds</Link></div>
