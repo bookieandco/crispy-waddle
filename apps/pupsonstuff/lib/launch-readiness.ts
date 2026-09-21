@@ -71,6 +71,7 @@ export function evaluateLaunchEnvironment(
   }
 
   checks.push(
+    secretLengthCheck('env.CRON_SECRET', 'Creative worker cron secret', env.CRON_SECRET, 32),
     secretLengthCheck(
       'env.PUPSON_ADMIN_SESSION_SECRET',
       'Admin session secret',
@@ -108,6 +109,25 @@ export function evaluateLaunchEnvironment(
         : 'PUPSON_FULFILLMENT_MODE must remain dry_run until physical samples pass.',
   });
 
+
+  const removerProvider = env.PUPSON_BACKGROUND_REMOVER_PROVIDER?.trim();
+  const removerUrl = env.PUPSON_BACKGROUND_REMOVER_URL?.trim();
+  const knockoutToken = env.KNOCKOUT_TOKEN?.trim();
+  const selfHostedRemover =
+    (!removerProvider || removerProvider === 'backgroundremover') &&
+    Boolean(removerUrl?.startsWith('https://'));
+  const knockoutRemover =
+    removerProvider === 'knockout' && Boolean(knockoutToken);
+  checks.push({
+    id: 'env.PUPSON_BACKGROUND_REMOVER',
+    status: selfHostedRemover || knockoutRemover ? 'pass' : 'block',
+    message: selfHostedRemover
+      ? 'Self-hosted background removal is configured over HTTPS.'
+      : knockoutRemover
+        ? 'BiRefNet background removal is configured.'
+        : 'Configure an HTTPS self-hosted background-removal service or a BiRefNet provider token.',
+  });
+
   const origin = env.PUPSON_PUBLIC_ORIGIN;
   checks.push({
     id: 'env.PUPSON_PUBLIC_ORIGIN',
@@ -142,6 +162,9 @@ export function evaluateLaunchEnvironment(
     'PUPSON_ADMIN_PASSWORD',
     'PUPSON_ADMIN_SESSION_SECRET',
     'PUPSON_PRINTIFY_WEBHOOK_SECRET',
+    'CRON_SECRET',
+    'PUPSON_BACKGROUND_REMOVER_TOKEN',
+    'KNOCKOUT_TOKEN',
   ]) {
     checks.push({
       id: `env.public.${key}`,
