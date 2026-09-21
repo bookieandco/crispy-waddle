@@ -4,16 +4,17 @@ import {
   type ArtifactAdmissionReceipt,
   type RuntimeArtifactAttestation,
 } from '@jhadina/reference-provenance';
+import type { ModelRecord } from '@jhadina/director-core';
 import { createDirectorGenerationRuntimeConfig } from './director-generation-provider-factory';
 
 describe('director generation provider factory', () => {
-  const model = {
+  const model: ModelRecord = {
     id: 'flux-test',
     providerId: 'comfyui-local',
     name: 'Test model',
     version: '1.0.0',
-    modalities: ['image'] as const,
-    capabilities: ['text-to-image'] as const,
+    modalities: ['image'],
+    capabilities: ['text-to-image'],
   };
   const runtimeDescriptor = {
     runtimeName: 'comfyui-host',
