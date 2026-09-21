@@ -8,7 +8,7 @@ import type { GenerationRegistry } from '@jhadina/director-core/generation-regis
 import { DirectorStoryboardLineageResolver } from '@jhadina/director-core/storyboard-lineage-resolver';
 import { SupabaseStoryboardRepository, type SupabaseStoryboardClient } from '@jhadina/director-core/storyboard-persistence';
 import { DirectorProductionAuthorityResolver, DirectorReviewAuthorityResolver, SupabaseDirectorProductionAuthorityRepository, type ProductionAuthorityClient } from '@jhadina/director-core';
-import { SupabaseDirectorReviewRepository } from './director-review-repository';
+import { SupabaseDirectorReviewRepository, type ReviewClient } from './director-review-repository';
 import { createSupabaseGeneratedAssetRepository } from './supabase-generated-asset-repository';
 import { createSupabaseGenerationRepository } from '../src/lib/supabase-generation-repository';
 import {
@@ -61,7 +61,9 @@ function composeDirectorGenerationRuntime(
     new SupabaseDirectorProductionAuthorityRepository(authorityClient),
     storyboardLineageResolver,
   );
-  const reviewRepository = new SupabaseDirectorReviewRepository(client);
+  const reviewRepository = new SupabaseDirectorReviewRepository(
+    client as unknown as ReviewClient,
+  );
   const reviewAuthority = new DirectorReviewAuthorityResolver(
     new SupabaseDirectorProductionAuthorityRepository(authorityClient),
     reviewRepository,
