@@ -21,6 +21,6 @@ export const baseStories: Story[] = [
     title: 'Director work appears here before publishing.',
     body: 'Creative output can move from Director to Growth planning and then into the governed Social publication queue.',
     age: 'Workspace',
-    action: { label: 'Open Director' },
+    action: { label: 'Open Workstation', href: '/workstation' },
   },
 ];
