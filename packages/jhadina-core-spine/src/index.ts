@@ -16,6 +16,7 @@ export * from './expression-kernel.js';
 export * from './personality-behavior-expression.js';
 export * from './personality-behavior-pipeline.js';
 export * from './personality-behavior-runtime.js';
+export * from './personality-drift.js';
 export * from './evolution.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
