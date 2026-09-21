@@ -111,6 +111,15 @@ export async function createCreativeJob(input: {
   }
 
   const ownerHash = ownerTokenHash(input.ownerToken);
+  const idempotencyKey = input.idempotencyKey.trim();
+  if (!idempotencyKey || idempotencyKey.length > 200) {
+    throw new Error('Creative idempotency key must be between 1 and 200 characters.');
+  }
+  const existing = await rest<RowId[]>(
+    `pupson_creative_jobs?select=id&owner_token_hash=eq.${ownerHash}&idempotency_key=eq.${encodeURIComponent(idempotencyKey)}&limit=1`
+  );
+  if (existing[0]) return { jobId: existing[0].id };
+
   const windowStart = encodeURIComponent(new Date(Date.now() - 60 * 60 * 1000).toISOString());
   const recent = await rest<RowId[]>(
     `pupson_usage_events?select=id&owner_token_hash=eq.${ownerHash}&action=eq.creative_job&created_at=gte.${windowStart}&limit=6`
@@ -195,7 +204,7 @@ export async function createCreativeJob(input: {
         product_id: input.productId,
         art_style: input.artStyle,
         status: 'queued',
-        idempotency_key: input.idempotencyKey,
+        idempotency_key: idempotencyKey,
         user_prompt: prompt,
         background_mode: backgroundMode,
       }),
