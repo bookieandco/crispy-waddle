@@ -21,6 +21,8 @@ export interface CatalogVariantSummary {
   certification_status: string;
 }
 
+export const PUPSON_PRODUCTION_ORIGIN = 'https://pupsonstuff.com';
+
 export const REQUIRED_LAUNCH_VARIANTS = [
   { productId: 'frame1', variantId: 'canvas-12x16', label: '12×16 canvas' },
   { productId: 'mugWhite', variantId: 'mug-11oz', label: '11oz white mug' },
@@ -145,13 +147,21 @@ export function evaluateLaunchEnvironment(
         : 'PUPSON_FULFILLMENT_MODE must remain dry_run until physical samples pass.',
   });
 
-  const origin = env.PUPSON_PUBLIC_ORIGIN;
+  const origin = env.PUPSON_PUBLIC_ORIGIN?.replace(/\/$/, '');
+  const productionOriginCorrect =
+    env.VERCEL_ENV !== 'production' || origin === PUPSON_PRODUCTION_ORIGIN;
   checks.push({
     id: 'env.PUPSON_PUBLIC_ORIGIN',
-    status: origin?.startsWith('https://') ? 'pass' : 'block',
-    message: origin?.startsWith('https://')
-      ? 'Public origin uses HTTPS.'
-      : 'PUPSON_PUBLIC_ORIGIN must be the canonical HTTPS deployment origin.',
+    status:
+      origin?.startsWith('https://') && productionOriginCorrect ? 'pass' : 'block',
+    message:
+      env.VERCEL_ENV === 'production'
+        ? origin === PUPSON_PRODUCTION_ORIGIN
+          ? `Production origin is canonical (${PUPSON_PRODUCTION_ORIGIN}).`
+          : `Production must use ${PUPSON_PRODUCTION_ORIGIN} as PUPSON_PUBLIC_ORIGIN.`
+        : origin?.startsWith('https://')
+          ? 'Preview/staging public origin uses HTTPS.'
+          : 'PUPSON_PUBLIC_ORIGIN must be an HTTPS deployment origin.',
   });
 
   const stripeKey = env.STRIPE_SECRET_KEY;
