@@ -591,3 +591,23 @@ test('R13B: Money migration numbers are unique and authority migration is fail-c
   assert.match(sql, /state = 'REVOKED'/);
   assert.match(sql, /SET NOT NULL/);
 });
+
+
+test('R13B: recovery lineage migration requires fresh authority and canonical retry-safe evidence', () => {
+  const migrationsDirectory = fileURLToPath(
+    new URL('../migrations/', import.meta.url),
+  );
+  const sql = readFileSync(
+    `${migrationsDirectory}/006_recovery_execution_lineage.sql`,
+    'utf8',
+  );
+
+  assert.match(sql, /recovery_of_execution_id/);
+  assert.match(sql, /MONEY_RECOVERY_FRESH_PERMIT_REQUIRED/);
+  assert.match(sql, /MONEY_RECOVERY_PERMIT_NOT_CONSUMED/);
+  assert.match(sql, /MONEY_RECOVERY_RETRY_EVIDENCE_REQUIRED/);
+  assert.match(sql, /MONEY_RECOVERY_RETRY_NOT_SAFE/);
+  assert.match(sql, /MONEY_RECOVERY_GENERATION_LIMIT/);
+  assert.match(sql, /SECURITY INVOKER/);
+  assert.match(sql, /REVOKE ALL[\s\S]*authenticated/);
+});
