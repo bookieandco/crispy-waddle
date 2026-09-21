@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
       petName: String(form.get('petName') ?? 'My Pet'),
       productId: String(form.get('productId') ?? ''),
       artStyle: String(form.get('artStyleId') ?? ''),
+      prompt: String(form.get('prompt') ?? ''),
+      backgroundMode: String(form.get('backgroundMode') ?? 'auto'),
       files: await Promise.all(
         photos.map(async (photo) => ({
           fileName: photo.name,
