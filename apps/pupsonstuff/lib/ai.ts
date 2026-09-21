@@ -14,6 +14,8 @@ export interface GenerateArtParams {
   basePrompt: string;
   /** hotspot.aiTemplate — the product-specific addition, see data/hotspots.ts */
   productPrompt?: string;
+  /** shopper-authored direction; bounded by the route before reaching this adapter */
+  userPrompt?: string;
   artStyleLabel: string;
 }
 
@@ -72,6 +74,7 @@ export async function generatePetPortrait(
   const fullPrompt = [
     params.basePrompt,
     params.productPrompt,
+    params.userPrompt ? `Shopper direction: ${params.userPrompt}` : undefined,
     `Art style: ${params.artStyleLabel}.`,
   ]
     .filter(Boolean)
