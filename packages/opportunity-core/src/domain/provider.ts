@@ -93,10 +93,10 @@ export const CANONICAL_OPPORTUNITY_PROVIDERS: readonly OpportunityProviderDescri
     vertical: 'dropshipping',
     sourceId: 'jhadina.commerce.dropshipping',
     adapterKey: 'commerce.dropshipping',
-    readiness: 'contract_only',
+    readiness: 'adapter_ready',
     capabilities: ['normalize', 'research', 'execute_handoff'],
     executionOwner: 'Commerce',
-    notes: 'Supplier/product feeds are not yet bound to a live provider.',
+    notes: 'Supplier research normalization and governed procurement handoff are implemented; live supplier transport/credentials remain unbound.',
   },
   {
     id: 'provider:growth-creator',
