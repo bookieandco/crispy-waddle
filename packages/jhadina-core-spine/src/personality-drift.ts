@@ -133,7 +133,7 @@ export function evaluateBehaviorDrift(
   pairs: ReadonlyArray<{ expected: ExpectedBehavior; observed: ObservedBehavior }>,
   policy: DriftPolicy = DEFAULT_DRIFT_POLICY,
   evaluatedAt = new Date().toISOString(),
-  receiptId = crypto.randomUUID(),
+  receiptId: string = crypto.randomUUID(),
 ): DriftAssessment {
   if (pairs.length === 0) throw new RangeError('at least one behavior pair is required');
   const samples = pairs.map(({ expected, observed }): DriftSample => {
