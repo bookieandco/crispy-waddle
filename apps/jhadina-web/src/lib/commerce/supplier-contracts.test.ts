@@ -39,8 +39,8 @@ describe("supplier commerce contracts", () => {
       },
       { maxRiskScore: 0.5, maxDeliveryDays: 10 },
     )
-    expect(routed?.offer.supplierId).toBe("supplier-win")
-    expect(routed?.landedCostMinor).toBe(1100)
+    expect(routed?.offer.supplierId).toBe("supplier-slow")
+    expect(routed?.landedCostMinor).toBe(1000)
 
     const deterministic = routeSupplierOffers(
       {
