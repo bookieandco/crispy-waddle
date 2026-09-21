@@ -2,7 +2,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   AgentCheckpoint,
   AgentPlan,
-  AgentPolicyDecision,
   AgentRun,
   AgentRuntimeRepository,
   AgentStep,
@@ -12,7 +11,6 @@ type RunRow = { id: string; objective: string; status: AgentRun['status']; plan_
 type PlanRow = { id: string; run_id: string; revision: number; objective: string; rationale: string; steps: AgentPlan['steps']; supersedes_plan_id: string | null; created_at: string };
 type StepRow = { id: string; run_id: string; plan_id: string; plan_revision: number; ordinal: number; kind: AgentStep['kind']; status: AgentStep['status']; capability: string | null; operation: string | null; input: unknown; output: unknown; error: string | null; policy_decision_id: string | null; started_at: string | null; completed_at: string | null; attempt: number };
 type CheckpointRow = { id: string; run_id: string; step_id: string | null; plan_id: string | null; plan_revision: number; reason: AgentCheckpoint['reason']; state: Record<string, unknown>; created_at: string };
-type PolicyRow = { id: string; run_id: string; step_id: string | null; allowed: boolean; required_approval: boolean; reason: string; evaluated_at: string };
 
 const toRun = (row: RunRow): AgentRun => ({ id: row.id, objective: row.objective, status: row.status, planRevision: row.plan_revision, currentStepId: row.current_step_id ?? undefined, policyDecisionId: row.policy_decision_id ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at, version: row.version });
 const toPlan = (row: PlanRow): AgentPlan => ({ id: row.id, runId: row.run_id, revision: row.revision, objective: row.objective, rationale: row.rationale, steps: row.steps, supersedesPlanId: row.supersedes_plan_id ?? undefined, createdAt: row.created_at });
