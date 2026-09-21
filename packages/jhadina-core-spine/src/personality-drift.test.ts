@@ -5,7 +5,7 @@ import { emptyPersonalityState } from './personality-core.js';
 import { evaluateBehaviorDrift, expectedBehaviorFromDecision, type BehaviorVector } from './personality-drift.js';
 
 function observedVector(expected: BehaviorVector, delta = 0): BehaviorVector {
-  return Object.fromEntries(Object.entries(expected).map(([k,v]) => [k, Math.max(0, Math.min(1, v + delta))])) as unknown as BehaviorVector;
+  return Object.fromEntries(Object.entries(expected as Record<string, number>).map(([k,v]) => [k, Math.max(0, Math.min(1, v + delta))])) as unknown as BehaviorVector;
 }
 
 describe('PERSONALITY-DRIFT.10 certification', () => {
