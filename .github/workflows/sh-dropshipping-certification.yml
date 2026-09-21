@@ -6,6 +6,7 @@ on:
       - "packages/commerce-adapters/**"
       - "packages/jhadina-action-core/**"
       - "packages/opportunity-core/**"
+      - "packages/order-fulfillment-core/**"
       - "apps/jhadina-web/src/lib/commerce/**"
       - "apps/jhadina-web/tsconfig.sh-dropshipping.json"
       - "docs/SH_*"
@@ -15,6 +16,7 @@ on:
       - "packages/commerce-adapters/**"
       - "packages/jhadina-action-core/**"
       - "packages/opportunity-core/**"
+      - "packages/order-fulfillment-core/**"
       - "apps/jhadina-web/src/lib/commerce/**"
       - "apps/jhadina-web/tsconfig.sh-dropshipping.json"
       - "docs/SH_*"
@@ -56,6 +58,9 @@ jobs:
       - name: Type-check Opportunity Core
         run: pnpm --filter @jhadina/opportunity-core type-check
 
+      - name: Type-check Order Fulfillment Core
+        run: pnpm --filter @jhadina/order-fulfillment-core type-check
+
       - name: Test Opportunity dropshipping handoff
         run: pnpm --filter @jhadina/opportunity-core exec tsx src/domain/handoff-contracts.test.ts
 
@@ -65,7 +70,9 @@ jobs:
           pnpm exec vitest run \
             src/lib/commerce/supplier-contracts.test.ts \
             src/lib/commerce/governed-supplier-procurement.test.ts \
-            src/lib/commerce/commerce-proposal-lifecycle.test.ts
+            src/lib/commerce/commerce-proposal-lifecycle.test.ts \
+            src/lib/commerce/supplier-discovery-reference.test.ts \
+            src/lib/commerce/shipengine-parcel-shipping.test.ts
 
       - name: Type-check governed dropshipping web boundary
         run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.sh-dropshipping.json
