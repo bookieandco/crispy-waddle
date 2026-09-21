@@ -3,10 +3,6 @@ export * from './assessment'
 export * from './actor-intelligence'
 export * from './decision-proposal'
 export * from './profit-taking'
-export * from './paper-trade-contracts'
-export * from './paper-execution'
-export * from './paper-trade-outcome'
-export * from './paper-trade-learning'
 export * from './paper-strategy-calibration'
 export * from './wallet-intelligence'
 export * from './wallet-launch-pipeline'
@@ -29,3 +25,6 @@ export * from './actor-aware-assessment'
 export * from './persisted-actor-intelligence'
 
 export * from './entity-graph'
+
+/** Legacy SHARK-local fill/accounting modules remain internal regression fixtures. Canonical paper execution is owned by Money Core. */
+export const SHARK_LEGACY_PAPER_RUNTIME = 'COMPATIBILITY_ONLY' as const
