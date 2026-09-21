@@ -5,6 +5,7 @@ import { normalizeArtworkTransform, type ArtworkTransform } from '@/types/creati
 
 export interface ProductPrintProfile extends PrintProfile {
   targetDpi: number;
+  productId: string;
   variantId: string;
   variantLabel: string;
 }
@@ -67,6 +68,7 @@ export function resolveProductPrintProfile(hotspot: Hotspot, variantId: string):
     minDpi: 150,
     safeMarginInches: hotspot.product === 'canvas' ? 0.125 : 0.25,
     targetDpi: 300,
+    productId: hotspot.id,
     variantId: variant.variantId,
     variantLabel: variant.label,
   };
