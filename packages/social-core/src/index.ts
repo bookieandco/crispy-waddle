@@ -6,3 +6,4 @@ export * from "./observations.js";
 export * from "./creativeSignals.js";
 export * from "./hootsuite.js";
 export * from "./voice-profiles.js";
+export * from "./messaging.js";
