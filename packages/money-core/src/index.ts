@@ -70,8 +70,11 @@ export type { StripePaymentIntentReconciliationAdapterOptions } from './stripe-p
 export { StripePaymentIntentReconciliationAdapter } from './stripe-payment-intent-reconciliation-adapter.js';
 
 export type { RecoveryChildLineageInput } from './recovery-child-execution.js';
-export { assertRecoveryChildLineage } from './recovery-child-execution.js';
-
+export { assertRecoveryChildLineage, MAX_RECOVERY_GENERATIONS } from './recovery-child-execution.js';
+export type { RecoveryRetryEvidenceStore } from './recovery-retry-evidence.js';
+export { assertRetrySafeRecoveryEvidence } from './recovery-retry-evidence.js';
+export { PostgresRecoveryRetryEvidenceStore } from './postgres-recovery-retry-evidence-store.js';
+export type { RecoveryChildProviderResult, RecoveryChildExecutorDeps, RecoveryChildExecutionInput } from './recovery-child-executor.js';
 export { MoneyRecoveryChildExecutor } from './recovery-child-executor.js';
 
 export type { MoneyActionCoreAuthority, MoneyAuthorityBinding } from './action-core-authority-bridge.js';
