@@ -92,6 +92,34 @@ export function evaluateLaunchEnvironment(
     )
   );
 
+  const removerProvider = env.PUPSON_BACKGROUND_REMOVER_PROVIDER?.trim();
+  const removerConfigured =
+    removerProvider === 'backgroundremover'
+      ? present(env.PUPSON_BACKGROUND_REMOVER_URL)
+      : removerProvider === 'knockout'
+        ? present(env.KNOCKOUT_TOKEN)
+        : present(env.PUPSON_BACKGROUND_REMOVER_URL) || present(env.KNOCKOUT_TOKEN);
+  checks.push({
+    id: 'env.BACKGROUND_REMOVER',
+    status: removerConfigured ? 'pass' : 'block',
+    message: removerConfigured
+      ? 'A server-side background-removal provider is configured.'
+      : 'Configure PUPSON_BACKGROUND_REMOVER_URL or KNOCKOUT_TOKEN; removal is the shopper default.',
+  });
+
+  const upscalerConfigured = present(env.PUPSON_UPSCALER_URL) || present(env.KNOCKOUT_TOKEN);
+  checks.push({
+    id: 'env.IMAGE_UPSCALER',
+    status: upscalerConfigured ? 'pass' : 'block',
+    message: upscalerConfigured
+      ? 'A print-resolution AI upscaler is configured.'
+      : 'Configure PUPSON_UPSCALER_URL or KNOCKOUT_TOKEN so low-resolution generations cannot be stretched past the print gate.',
+  });
+
+  checks.push(
+    secretLengthCheck('env.CRON_SECRET', 'Creative worker cron secret', env.CRON_SECRET, 32)
+  );
+
   checks.push({
     id: 'env.PUPSON_ADMIN_USERNAME',
     status: present(env.PUPSON_ADMIN_USERNAME) ? 'pass' : 'block',
