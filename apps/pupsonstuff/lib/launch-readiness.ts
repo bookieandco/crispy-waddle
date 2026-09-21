@@ -21,6 +21,12 @@ export interface CatalogVariantSummary {
   certification_status: string;
 }
 
+export const REQUIRED_LAUNCH_VARIANTS = [
+  { productId: 'frame1', variantId: 'canvas-12x16', label: '12×16 canvas' },
+  { productId: 'mugWhite', variantId: 'mug-11oz', label: '11oz white mug' },
+  { productId: 'concertShirt', variantId: 'tee-concert-m', label: 'medium concert tee' },
+] as const;
+
 const REQUIRED_PRIVATE_BUCKETS = [
   'pupson-originals',
   'pupson-creative',
@@ -99,7 +105,8 @@ export function evaluateLaunchEnvironment(
     (!removerProvider || removerProvider === 'backgroundremover') &&
     Boolean(removerUrl?.startsWith('https://'));
   const knockoutRemover =
-    removerProvider === 'knockout' && Boolean(knockoutToken);
+    (removerProvider === 'knockout' || (!removerProvider && !removerUrl)) &&
+    Boolean(knockoutToken);
   checks.push({
     id: 'env.BACKGROUND_REMOVER',
     status: selfHostedRemover || knockoutRemover ? 'pass' : 'block',
@@ -205,29 +212,41 @@ export function evaluateStorageBuckets(buckets: StorageBucketSummary[]): GateChe
 }
 
 export function evaluateCatalog(rows: CatalogVariantSummary[]): GateCheck[] {
-  const certified = rows.filter(
-    (row) =>
-      row.active &&
+  const byKey = new Map(
+    rows.map((row) => [`${row.product_id}:${row.variant_id}`, row] as const)
+  );
+  const sandboxMissing = REQUIRED_LAUNCH_VARIANTS.filter(({ productId, variantId }) => {
+    const row = byKey.get(`${productId}:${variantId}`);
+    return !(
+      row?.active &&
       row.provider === 'printify' &&
       ['sandbox_verified', 'sample_verified'].includes(row.certification_status)
-  );
-  const samples = certified.filter((row) => row.certification_status === 'sample_verified');
+    );
+  });
+  const sampleMissing = REQUIRED_LAUNCH_VARIANTS.filter(({ productId, variantId }) => {
+    const row = byKey.get(`${productId}:${variantId}`);
+    return !(
+      row?.active &&
+      row.provider === 'printify' &&
+      row.certification_status === 'sample_verified'
+    );
+  });
   return [
     {
       id: 'catalog.sandbox',
-      status: certified.length > 0 ? 'pass' : 'block',
+      status: sandboxMissing.length === 0 ? 'pass' : 'block',
       message:
-        certified.length > 0
-          ? `${certified.length} active Printify variant(s) passed sandbox certification.`
-          : 'No active Printify variants have passed sandbox certification.',
+        sandboxMissing.length === 0
+          ? `All ${REQUIRED_LAUNCH_VARIANTS.length} prototype variants passed Printify sandbox certification.`
+          : `Sandbox certification is missing for: ${sandboxMissing.map((item) => item.label).join(', ')}.`,
     },
     {
       id: 'catalog.samples',
-      status: samples.length > 0 ? 'pass' : 'block',
+      status: sampleMissing.length === 0 ? 'pass' : 'block',
       message:
-        samples.length > 0
-          ? `${samples.length} active Printify variant(s) passed physical-sample certification.`
-          : 'No active Printify variants have passed the physical-sample gate.',
+        sampleMissing.length === 0
+          ? `All ${REQUIRED_LAUNCH_VARIANTS.length} prototype variants passed physical-sample certification.`
+          : `Physical-sample certification is missing for: ${sampleMissing.map((item) => item.label).join(', ')}.`,
     },
   ];
 }
