@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { instantiateAuthorizedVst3 } from "./vst3-instantiation.js";
 import type { PluginDescriptor } from "./plugin-automation.js";
 
 const descriptor: PluginDescriptor = {
-  id: "plugin-1", vendor: "Acme", name: "Restorer", version: "1.0.0", format: "vst3", binaryHash: "abcdef0123456789abcdef0123456789",
+  id: "plugin-1", vendor: "Acme", name: "Restorer", version: "1.0.0", format: "vst3", parameters: [], binaryHash: "abcdef0123456789abcdef0123456789",
 };
 
 const discovery = {

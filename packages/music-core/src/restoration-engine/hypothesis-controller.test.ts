@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { stepHypothesisController } from "./hypothesis-controller.js";
 import type { RestorationHypothesis } from "./restoration-hypothesis.js";
 import type { RestorationExperimentCandidate } from "./hypothesis-experiment.js";
@@ -92,18 +92,22 @@ describe("stepHypothesisController", () => {
     expect(result.decision).toEqual({ kind: "stop", reason: "budget-exhausted" });
   });
 
-  it("abstains when authorization fails", async () => {
+  it.each(["caseId", "sourceVersionId"] as const)("abstains before execution when authorization has a different %s", async (field) => {
     const state = { caseId: "case-1", sourceVersionId: "v1", hypotheses, iteration: 0, spentCost: 0, evidence: [] };
     const args = input(state);
     args.authorizationFactory = () => ({
-      caseId: "wrong-case",
+      caseId: state.caseId,
       sourceVersionId: "v1",
       experimentId: experiment.id,
       authorizationClass: experiment.authorizationClass,
       allowedRegionIds: ["region-1"],
       allowDestructive: false,
+      [field]: "wrong-binding",
     });
+    const run = vi.fn(args.runner.run);
+    args.runner.run = run;
     const result = await stepHypothesisController(args);
+    expect(run).not.toHaveBeenCalled();
     expect(result.decision).toEqual({ kind: "abstain", reason: "execution-failed" });
     expect(result.state).toEqual(state);
   });

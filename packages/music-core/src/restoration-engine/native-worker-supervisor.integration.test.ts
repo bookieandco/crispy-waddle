@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { createNativePluginWorker, type NativePluginBackend } from "./native-plugin-worker.js";
 import { createNativePluginIpcBinding, type NativePluginRuntimeMetadata } from "./native-plugin-ipc.js";
 import { createNativeWorkerSupervisor } from "./native-worker-supervisor.js";

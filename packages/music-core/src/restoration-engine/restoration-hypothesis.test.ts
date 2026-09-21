@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "vitest";
 import {
   normalizeHypothesisPosteriors,
   updateHypothesisPosterior,
@@ -37,6 +37,6 @@ test("updates and normalizes posterior mass", () => {
     updateHypothesisPosterior(hypothesis, hypothesis.id === "damage" ? 0.5 : 0.25),
   );
   const normalized = normalizeHypothesisPosteriors(updated);
-  assert.equal(normalized[0].posterior, 0.75);
-  assert.equal(normalized[1].posterior, 0.25);
+  expect(normalized[0].posterior).toBeCloseTo(0.75, 12);
+  expect(normalized[1].posterior).toBeCloseTo(0.25, 12);
 });

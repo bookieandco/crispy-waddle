@@ -32,6 +32,7 @@ export interface ProvenanceLedgerEntry {
   versionId?: string;
   sourceArtifactId?: string;
   executionId?: string;
+  outputArtifactId?: string;
   receiptId?: string;
   contentHash?: string;
   createdAt: string;

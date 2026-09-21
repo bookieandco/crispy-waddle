@@ -50,7 +50,7 @@ export function calibrateAudioInput(input: RestorationAudioInput): CalibrationOb
   validateRestorationAudioInput(input);
 
   const sampleCount = input.channels[0]?.length ?? 0;
-  return input.channels.map((channel, channelIndex) => {
+  return input.channels.map((channel) => {
     const rms = Math.sqrt(meanSquare(channel));
     return {
       sampleRate: input.sampleRate,

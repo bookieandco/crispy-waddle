@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { authorizeCompiledRestorationPlan } from "./plan-gate-integration.js";
 import type { MusicDirectorJudgment } from "./music-director-judgment.js";
 import type { RestorationPlan, RestorationQcResult } from "./types.js";

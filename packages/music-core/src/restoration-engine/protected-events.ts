@@ -142,12 +142,13 @@ export function protectedEventConflict(input: {
   assessment: DamageAssessment;
   events: ProtectedMusicalEvent[];
 }): { conflict: boolean; reasons: string[] } {
-  if (!validRegion(input.assessment.region)) {
+  const region = input.assessment.region;
+  if (!validRegion(region)) {
     return { conflict: false, reasons: [] };
   }
 
   const conflicts = input.events.filter(
-    (event) => event.protection === "protected" && overlaps(event.region, input.assessment.region),
+    (event) => event.protection === "protected" && overlaps(event.region, region),
   );
 
   if (!conflicts.length) return { conflict: false, reasons: [] };

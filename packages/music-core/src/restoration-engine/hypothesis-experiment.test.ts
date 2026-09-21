@@ -52,7 +52,7 @@ describe("hypothesis experiment selection", () => {
   it("rejects incomplete outcome probability models", () => {
     expect(() => calculateExpectedInformationGain(hypotheses, {
       ...discriminating,
-      outcomes: [{ outcomeId: "only", hypothesisLikelihoods: { damage: 1, intentional: 1 } }],
+      outcomes: [{ outcomeId: "only", hypothesisLikelihoods: { damage: 0.9, intentional: 0.1 } }],
     })).toThrow(/sum to 1/);
   });
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { Vst3ProcessorLifecycle, type Vst3ProcessorConfiguration } from "./vst3-processor-lifecycle.js";
 
 const configuration: Vst3ProcessorConfiguration = {
@@ -13,15 +13,15 @@ const configuration: Vst3ProcessorConfiguration = {
 function fixture() {
   const calls: string[] = [];
   const host = {
-    initialize: async () => calls.push("initialize"),
-    setupProcessing: async (_: Vst3ProcessorConfiguration) => calls.push("setupProcessing"),
-    setBusArrangements: async () => calls.push("setBusArrangements"),
-    setActive: async (active: boolean) => calls.push(`setActive:${active}`),
-    setProcessing: async (processing: boolean) => calls.push(`setProcessing:${processing}`),
-    process: async () => calls.push("process"),
-    terminate: async () => calls.push("terminate"),
+    initialize: async () => { calls.push("initialize"); },
+    setupProcessing: async (_: Vst3ProcessorConfiguration) => { calls.push("setupProcessing"); },
+    setBusArrangements: async () => { calls.push("setBusArrangements"); },
+    setActive: async (active: boolean) => { calls.push(`setActive:${active}`); },
+    setProcessing: async (processing: boolean) => { calls.push(`setProcessing:${processing}`); },
+    process: async () => { calls.push("process"); },
+    terminate: async () => { calls.push("terminate"); },
   };
-  const handle = { release: async () => calls.push("release") };
+  const handle = { release: async () => { calls.push("release"); } };
   return { lifecycle: new Vst3ProcessorLifecycle(host, handle), calls };
 }
 

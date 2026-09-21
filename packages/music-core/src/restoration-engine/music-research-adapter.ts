@@ -1,5 +1,5 @@
 import type { ResearchQueue, ResearchTask } from "../../../jhadina-research-core/src/research-queue.js";
-import type { RestorationHypothesis, RestorationHypothesisSet } from "./restoration-hypothesis.js";
+import type { RestorationHypothesisSet } from "./restoration-hypothesis.js";
 import type { DamageAssessment } from "./damage-assessment.js";
 import { applyResearchOutcome, buildResearchQueuePlan, startResearchTask } from "../../../jhadina-research-core/src/research-queue.js";
 

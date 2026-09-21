@@ -144,7 +144,11 @@ export function compareListeningFrames(original: ListeningFrame, candidate: List
   ].filter((item): item is ListeningNumericChange => item !== undefined);
 
   const perceptualChanges = descriptorDiff(original.perceptualDescriptors, candidate.perceptualDescriptors, "perceptual");
-  const intentChanges = descriptorDiff(original.musicalIntentHypotheses, candidate.musicalIntentHypotheses, "intent-hypothesis");
+  const intentChanges = descriptorDiff(
+    original.musicalIntentHypotheses.map(({ hypothesis, ...rest }) => ({ descriptor: hypothesis, ...rest })),
+    candidate.musicalIntentHypotheses.map(({ hypothesis, ...rest }) => ({ descriptor: hypothesis, ...rest })),
+    "intent-hypothesis",
+  );
   const events = eventDiff(original, candidate);
 
   const damageEvidenceAdded = candidate.anomalies.damageEvidenceIds.filter((id) => !original.anomalies.damageEvidenceIds.includes(id));
