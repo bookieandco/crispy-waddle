@@ -111,7 +111,7 @@ All current registry references carrying API_PROVIDER are covered.
 - SAM.gov Opportunities — path v2
 - ComfyUI — pinned upstream revision
 - Reticulum bridge — pinned upstream revision
-- Supabase — installed @supabase/supabase-js 2.116.0
+- Supabase — installed @supabase/supabase-js 2.112.3
 
 The REF-PROV-04 coverage report requires zero uncontracted provider
 references.
