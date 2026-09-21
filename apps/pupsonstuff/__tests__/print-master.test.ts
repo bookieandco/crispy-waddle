@@ -22,12 +22,12 @@ describe('product-specific print master', () => {
     const result = await buildPrintMaster({
       generatedBytes: await squarePng(2048),
       hotspot: product,
-      variantId: 'FUL-TEE-CONCERT-M',
+      variantId: 'tee-concert-m',
       transform: { x: 0.5, y: 0.45, scale: 1.2, rotation: 8 },
     });
     expect(result.width).toBe(3600);
     expect(result.height).toBe(4800);
-    expect(result.profile.variantId).toBe('FUL-TEE-CONCERT-M');
+    expect(result.profile.variantId).toBe('tee-concert-m');
     expect(result.transform).toMatchObject({ x: 0.5, y: 0.45, scale: 1.2, rotation: 8 });
     expect(result.quality.productionReady).toBe(true);
     expect(result.quality.score).toBeGreaterThanOrEqual(90);
@@ -39,7 +39,7 @@ describe('product-specific print master', () => {
       buildPrintMaster({
         generatedBytes: await squarePng(512),
         hotspot: product,
-        variantId: 'FUL-TEE-CONCERT-M',
+        variantId: 'tee-concert-m',
         transform: { x: 0.5, y: 0.5, scale: 2, rotation: 0 },
       })
     ).rejects.toThrow('Configure PUPSON_UPSCALER_URL or KNOCKOUT_TOKEN');
@@ -47,7 +47,7 @@ describe('product-specific print master', () => {
 
   it('uses variant dimensions for canvas products', () => {
     const product = hotspots.find((item) => item.id === 'frame1')!;
-    const profile = resolveProductPrintProfile(product, 'FUL-CANVAS-16x20');
+    const profile = resolveProductPrintProfile(product, 'canvas-16x20');
     expect(profile.printWidthInches).toBe(16);
     expect(profile.printHeightInches).toBe(20);
     expect(profile.targetDpi).toBe(300);
