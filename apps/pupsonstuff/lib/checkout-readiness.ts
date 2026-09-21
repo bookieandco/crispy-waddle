@@ -10,7 +10,7 @@ interface OutputReadiness {
   job: { owner_token_hash: string; product_id: string } | null;
 }
 
-function passedPrintQualityGate(
+export function passedPrintQualityGate(
   value: Record<string, unknown> | null,
   expectedProductId: string,
   expectedVariantId: string
