@@ -94,6 +94,9 @@ jobs:
       - name: Type-check Intelligence Core
         run: pnpm --filter @jhadina/intelligence-core type-check
 
+      - name: Certify Personality behavioral drift
+        run: pnpm --filter @jhadina/core-spine exec vitest run src/personality-drift.test.ts
+
       - name: Execute Intelligence Core regressions
         run: pnpm --filter @jhadina/intelligence-core test
 
