@@ -25,6 +25,7 @@ import { JHADINA_BASE_SECURITY_POLICY, type SecurityPolicy } from "@jhadina/secu
 export const COMMERCE_CHECKOUT_CAPABILITY = "commerce.checkout"
 export const COMMERCE_PAYMENT_CHARGE_CAPABILITY = "commerce.payment.charge"
 export const COMMERCE_PAYMENT_REFUND_CAPABILITY = "commerce.payment.refund"
+export const COMMERCE_SUPPLIER_PROCURE_CAPABILITY = "commerce.supplier.procure"
 
 export const COMMERCE_SECURITY_POLICY: SecurityPolicy = {
   ...JHADINA_BASE_SECURITY_POLICY,
@@ -33,10 +34,12 @@ export const COMMERCE_SECURITY_POLICY: SecurityPolicy = {
     COMMERCE_CHECKOUT_CAPABILITY,
     COMMERCE_PAYMENT_CHARGE_CAPABILITY,
     COMMERCE_PAYMENT_REFUND_CAPABILITY,
+    COMMERCE_SUPPLIER_PROCURE_CAPABILITY,
   ],
   approvalCapabilities: [
     ...JHADINA_BASE_SECURITY_POLICY.approvalCapabilities,
     COMMERCE_PAYMENT_CHARGE_CAPABILITY,
     COMMERCE_PAYMENT_REFUND_CAPABILITY,
+    COMMERCE_SUPPLIER_PROCURE_CAPABILITY,
   ],
 }
