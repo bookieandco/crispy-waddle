@@ -4,6 +4,7 @@ import { runSamEnrichment } from '@/lib/money-opportunities/sam-usable-runtime'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
+export const maxDuration=300
 
 function authorized(request:NextRequest){
   const secret=process.env.CRON_SECRET
