@@ -65,7 +65,16 @@ export async function runApproveSupplierProcurement(
   overrides: SupplierProcurementRuntimeOverrides = {},
 ): Promise<CommerceProposalApprovalResult> {
   const deps = await resolveSupplierProcurementDeps(adapter, overrides)
-  return approveCommerceProposal(deps, claimedUserId, proposalId)
+  return approveCommerceProposal(
+    {
+      identityVerifier: deps.identityVerifier,
+      ledger: deps.ledger,
+      proposalStore: deps.proposalStore,
+      approvalStore: deps.approvalStore,
+    },
+    claimedUserId,
+    proposalId,
+  )
 }
 
 export async function runExecuteSupplierProcurement(
