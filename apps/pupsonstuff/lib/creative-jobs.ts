@@ -456,6 +456,46 @@ export async function runCreativeJob(jobId: string, ownerToken: string): Promise
   await claimAndRun(job);
 }
 
+export async function failStaleCreativeJobs(
+  maxAgeMs = 10 * 60 * 1000,
+  limit = 10
+): Promise<{ checked: number; failed: number }> {
+  const safeLimit = Math.min(50, Math.max(1, Math.trunc(limit)));
+  const cutoff = encodeURIComponent(new Date(Date.now() - maxAgeMs).toISOString());
+  const jobs = await rest<JobRow[]>(
+    `pupson_creative_jobs?select=*&status=eq.running&started_at=lt.${cutoff}&order=started_at.asc&limit=${safeLimit}`
+  );
+  let failed = 0;
+  for (const job of jobs) {
+    const message =
+      'Creative worker lease expired. The job was not automatically resubmitted because provider submission state is unknown; regenerate to avoid a duplicate provider charge.';
+    const rows = await rest<JobRow[]>(`pupson_creative_jobs?id=eq.${job.id}&status=eq.running`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        status: 'failed',
+        last_error: message,
+        completed_at: new Date().toISOString(),
+      }),
+    });
+    if (!rows[0]) continue;
+    failed += 1;
+    await rest(
+      `pupson_creative_job_attempts?job_id=eq.${job.id}&attempt=eq.${job.attempt_count}&status=eq.running`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          status: 'failed',
+          error: message,
+          completed_at: new Date().toISOString(),
+        }),
+      }
+    );
+  }
+  return { checked: jobs.length, failed };
+}
+
 export async function runQueuedCreativeJobs(limit = 2): Promise<{ checked: number; claimed: number; failed: number }> {
   const safeLimit = Math.min(10, Math.max(1, Math.trunc(limit)));
   const jobs = await rest<JobRow[]>(
