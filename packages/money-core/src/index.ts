@@ -93,7 +93,7 @@ export * from './decision-workflow-contracts.js';
 export * from './market-provenance-contracts.js';
 export * from './macro-economic-contracts-v2.js';
 
-export * from './sports-intelligence-ingress.js';
+export * from './sports-intelligence-ingress.js';\nexport * from './shark-intelligence-ingress.js';
 
 export * from './stock-market-reality.js';
 
