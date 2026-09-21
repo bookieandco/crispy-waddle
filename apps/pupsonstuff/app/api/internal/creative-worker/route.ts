@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runQueuedCreativeJobs } from '@/lib/creative-jobs';
+import { failStaleCreativeJobs, runQueuedCreativeJobs } from '@/lib/creative-jobs';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   if (!authorized(request)) {
     return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });
   }
-  const result = await runQueuedCreativeJobs(2);
-  return NextResponse.json({ success: true, ...result });
+  const stale = await failStaleCreativeJobs();
+  const queued = await runQueuedCreativeJobs(2);
+  return NextResponse.json({ success: true, stale, queued });
 }
