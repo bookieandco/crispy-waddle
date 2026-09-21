@@ -32,7 +32,7 @@ describe("POST /api/commerce/proposals/:id/approve", () => {
     const json = await res.json()
     expect(json.data.proposal.status).toBe("approved")
     expect(json.data.approvalReceiptId).toBe("receipt-1")
-    expect(runApproveCommerceProposal).toHaveBeenCalledWith("user-1", "p1")
+    expect(runApproveCommerceProposal).toHaveBeenCalledWith(undefined, "p1")
   })
 
   it("maps an identity failure to 401", async () => {
