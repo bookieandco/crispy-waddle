@@ -111,7 +111,7 @@ Do not deploy the PupsonStuff app over the Jhadina web project. PS-RECON.8 requi
 
 ### 8.1 Dedicated deployment
 
-Create/link a dedicated Vercel project with root directory `apps/pupsonstuff`, Node 22+, preview/production environments, and the five-minute creative-worker cron. Attach the owned `pupsonstuff.com` domain and use **https://pupsonstuff.com** as the production canonical origin. `www.pupsonstuff.com` may be an alias/redirect, but must not be configured as `PUPSON_PUBLIC_ORIGIN`.
+Create/link a dedicated Vercel project with root directory `apps/pupsonstuff`, Node 22+, preview/production environments, and the five-minute creative-worker cron. Attach both owned domain hosts. Use **https://www.pupsonstuff.com** as the production canonical origin and redirect `pupsonstuff.com` to it. `PUPSON_PUBLIC_ORIGIN` must be `https://www.pupsonstuff.com` in production.
 
 ### 8.2 Server-only environment
 
@@ -124,7 +124,7 @@ Configure and verify the server-only values required by `launch:preflight`, incl
 - background remover and AI upscaler;
 - admin credentials/session secret;
 - `CRON_SECRET`;
-- `PUPSON_PUBLIC_ORIGIN` (production must be `https://pupsonstuff.com`);
+- `PUPSON_PUBLIC_ORIGIN` (production must be `https://www.pupsonstuff.com`);
 - `PUPSON_FULFILLMENT_MODE=dry_run`.
 
 No server secret may exist under a `NEXT_PUBLIC_` alias.
@@ -192,3 +192,27 @@ PR #498's PupsonStuff CI is green. The broader Jhadina Launch Gate is separately
 **PS-RECON.8: BLOCKED BY REAL-WORLD CERTIFICATION INPUTS.**
 
 No provider purchase was placed, no customer fulfillment was enabled, and `PUPSON_FULFILLMENT_MODE` must remain `dry_run`.
+
+
+## Railway media-services state
+
+A private Railway project now exists for PupsonStuff preprocessing:
+
+- project: `PupsonStuff Media Services`
+- raw U2Net runtime: `backgroundremover-runtime`
+- authenticated public boundary: `pupson-media-gateway-runtime`
+
+The raw BackgroundRemover service must remain private. It is based on the upstream
+`nadermx/backgroundremover` implementation / published Docker image and is not
+assigned a public Railway domain.
+
+Only the authenticated gateway may receive a public HTTPS Railway domain. Vercel
+must receive exactly:
+
+- `PUPSON_BACKGROUND_REMOVER_PROVIDER=backgroundremover`
+- `PUPSON_BACKGROUND_REMOVER_URL=https://<gateway-domain>/`
+- `PUPSON_BACKGROUND_REMOVER_TOKEN=<same Railway gateway bearer token>`
+
+Do not put the raw Railway private hostname or raw remover service on the public
+internet. The gateway enforces a 15 MB request cap, POST-only inference, bearer
+authentication, and does not expose the upstream URL-fetch API.

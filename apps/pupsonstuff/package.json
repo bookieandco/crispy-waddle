@@ -10,7 +10,8 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "launch:preflight": "node --env-file-if-exists=.env.local --import tsx scripts/launch-preflight.ts",
-    "printify:sync": "node --env-file-if-exists=.env.local --import tsx scripts/printify-catalog-sync.ts"
+    "printify:sync": "node --env-file-if-exists=.env.local --import tsx scripts/printify-catalog-sync.ts",
+    "vercel:bootstrap": "node scripts/vercel-bootstrap.mjs"
   },
   "dependencies": {
     "@huggingface/inference": "^4.13.25",

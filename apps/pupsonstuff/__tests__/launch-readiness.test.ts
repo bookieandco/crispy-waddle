@@ -51,7 +51,7 @@ describe('PupsonStuff launch readiness', () => {
     );
   });
 
-  it('requires pupsonstuff.com as the production origin on Vercel production', () => {
+  it('requires www.pupsonstuff.com as the production origin on Vercel production', () => {
     const wrong = evaluateLaunchEnvironment({
       ...validEnv,
       VERCEL_ENV: 'production',
@@ -62,7 +62,7 @@ describe('PupsonStuff launch readiness', () => {
     const canonical = evaluateLaunchEnvironment({
       ...validEnv,
       VERCEL_ENV: 'production',
-      PUPSON_PUBLIC_ORIGIN: 'https://pupsonstuff.com',
+      PUPSON_PUBLIC_ORIGIN: 'https://www.pupsonstuff.com',
     });
     expect(canonical.find((check) => check.id === 'env.PUPSON_PUBLIC_ORIGIN')?.status).toBe('pass');
   });

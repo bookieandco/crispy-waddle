@@ -1,0 +1,90 @@
+name: PupsonStuff Vercel Bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Create/link PupsonStuff Vercel project
+    runs-on: ubuntu-latest
+    environment: pupsonstuff-production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Bootstrap dedicated Vercel project and domain
+        id: bootstrap
+        run: node apps/pupsonstuff/scripts/vercel-bootstrap.mjs
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          PRINTIFY_API_KEY: ${{ secrets.PRINTIFY_API_KEY }}
+          PRINTIFY_SHOP_ID: ${{ secrets.PRINTIFY_SHOP_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          MUAPI_API_KEY: ${{ secrets.MUAPI_API_KEY }}
+          HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
+
+          PUPSON_ADMIN_USERNAME: ${{ secrets.PUPSON_ADMIN_USERNAME }}
+          PUPSON_ADMIN_PASSWORD: ${{ secrets.PUPSON_ADMIN_PASSWORD }}
+          PUPSON_ADMIN_SESSION_SECRET: ${{ secrets.PUPSON_ADMIN_SESSION_SECRET }}
+          PUPSON_PRINTIFY_WEBHOOK_SECRET: ${{ secrets.PUPSON_PRINTIFY_WEBHOOK_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+          PUPSON_BACKGROUND_REMOVER_URL: ${{ secrets.PUPSON_BACKGROUND_REMOVER_URL }}
+          PUPSON_BACKGROUND_REMOVER_TOKEN: ${{ secrets.PUPSON_BACKGROUND_REMOVER_TOKEN }}
+          KNOCKOUT_TOKEN: ${{ secrets.KNOCKOUT_TOKEN }}
+          PUPSON_KNOCKOUT_URL: ${{ secrets.PUPSON_KNOCKOUT_URL }}
+          PUPSON_UPSCALER_URL: ${{ secrets.PUPSON_UPSCALER_URL }}
+          PUPSON_UPSCALER_TOKEN: ${{ secrets.PUPSON_UPSCALER_TOKEN }}
+
+      - name: Install pinned Vercel CLI
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: npm install --global vercel@59.19.1
+
+      - name: Pull preview project settings
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+          VERCEL_PROJECT_ID: ${{ steps.bootstrap.outputs.project_id }}
+
+      - name: Build preview artifact
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: vercel build --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+          VERCEL_PROJECT_ID: ${{ steps.bootstrap.outputs.project_id }}
+
+      - name: Deploy preview artifact
+        id: deploy
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: |
+          preview_url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff)"
+          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "### PupsonStuff preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "$preview_url" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+          VERCEL_PROJECT_ID: ${{ steps.bootstrap.outputs.project_id }}
+
+      - name: Record blocked preview state
+        if: steps.bootstrap.outputs.environment_ready != 'true'
+        run: |
+          echo "### PupsonStuff preview not deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "The project/domain bootstrap ran, but required server/provider environment inputs are incomplete." >> "$GITHUB_STEP_SUMMARY"
