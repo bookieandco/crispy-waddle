@@ -1,6 +1,8 @@
 import React,{useEffect,useMemo,useState} from "react"
 import Link from "next/link"
 import { getCurrentUserId } from "@/lib/auth/current-user"
+import { PersonalCommandFeed } from "../components/home/PersonalCommandFeed"
+import type { FeedSource } from "../components/home/storyTypes"
 
 type Event={id:string;actionId:string;type:string;status:"started"|"approval_required"|"completed"|"denied"|"failed";timestamp:string;domain:string}
 type Candidate={id:string}
@@ -12,6 +14,7 @@ export default function Home(){
  const [recoveries,setRecoveries]=useState<Recovery[]>([])
  const [loading,setLoading]=useState(true)
  const [error,setError]=useState("")
+ const [streamSource,setStreamSource]=useState<FeedSource>("All")
 
  useEffect(()=>{void(async()=>{
   setLoading(true);setError("")
@@ -61,6 +64,14 @@ export default function Home(){
     <Link className="jh-card jh-card--third" href="/music"><h3 className="jh-card-title">Music</h3><p className="jh-card-copy">Listening, discovery and the music intelligence layer.</p></Link>
     <Link className="jh-card jh-card--third" href="/jhadinatv"><h3 className="jh-card-title">JhadinaTV</h3><p className="jh-card-copy">Media discovery, playback and entertainment intelligence.</p></Link>
    </div>
+  </section>
+
+  <section className="jh-section">
+   <div className="jh-between"><div><p className="jh-eyebrow">Your stream</p><h2 className="jh-section-title">Social, media & Jhadina intelligence</h2><p className="jh-card-copy">A source-preserving scroll across connected social activity, media, Growth proposals and Jhadina context. This is discovery/awareness—not a second navigation system.</p></div><Link className="jh-button" href="/social">Open Social</Link></div>
+   <div aria-label="Filter your stream" style={{display:"flex",gap:8,overflowX:"auto",padding:"12px 0 18px",scrollbarWidth:"none"}}>
+    {(["All","Social","TikTok","Facebook","Snapchat","Instagram","YouTube","Reddit","X","LinkedIn","Threads","Bluesky","Tumblr","VK","Director"] as FeedSource[]).map(source=><button key={source} type="button" aria-pressed={streamSource===source} onClick={()=>setStreamSource(source)} className={streamSource===source?"jh-button jh-button--primary":"jh-button"} style={{flex:"0 0 auto"}}>{source}</button>)}
+   </div>
+   <PersonalCommandFeed source={streamSource}/>
   </section>
 
   <section className="jh-section"><div className="jh-between"><div><p className="jh-eyebrow">Recent evidence</p><h2 className="jh-section-title">Black-box trail</h2></div><Link className="jh-button" href="/activity">Open Activity</Link></div>
