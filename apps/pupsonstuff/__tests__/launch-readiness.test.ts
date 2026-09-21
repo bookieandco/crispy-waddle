@@ -51,6 +51,22 @@ describe('PupsonStuff launch readiness', () => {
     );
   });
 
+  it('requires pupsonstuff.com as the production origin on Vercel production', () => {
+    const wrong = evaluateLaunchEnvironment({
+      ...validEnv,
+      VERCEL_ENV: 'production',
+      PUPSON_PUBLIC_ORIGIN: 'https://pupsonstuff-preview.vercel.app',
+    });
+    expect(wrong.find((check) => check.id === 'env.PUPSON_PUBLIC_ORIGIN')?.status).toBe('block');
+
+    const canonical = evaluateLaunchEnvironment({
+      ...validEnv,
+      VERCEL_ENV: 'production',
+      PUPSON_PUBLIC_ORIGIN: 'https://pupsonstuff.com',
+    });
+    expect(canonical.find((check) => check.id === 'env.PUPSON_PUBLIC_ORIGIN')?.status).toBe('pass');
+  });
+
   it('blocks secrets exposed through NEXT_PUBLIC aliases', () => {
     const checks = evaluateLaunchEnvironment({
       ...validEnv,
