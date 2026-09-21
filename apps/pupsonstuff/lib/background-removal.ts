@@ -9,7 +9,7 @@ export interface BackgroundRemovalResult {
   model?: string;
 }
 
-function configuredProvider(env: NodeJS.ProcessEnv = process.env): BackgroundRemovalProvider | null {
+function configuredProvider(env: Record<string, string | undefined> = process.env): BackgroundRemovalProvider | null {
   const explicit = env.PUPSON_BACKGROUND_REMOVER_PROVIDER?.trim();
   if (explicit === 'backgroundremover' || explicit === 'knockout') return explicit;
   if (env.PUPSON_BACKGROUND_REMOVER_URL?.trim()) return 'backgroundremover';
@@ -24,7 +24,7 @@ function contentType(response: Response): string {
 async function removeWithBackgroundRemover(
   bytes: Buffer,
   mimeType: string,
-  env: NodeJS.ProcessEnv
+  env: Record<string, string | undefined>
 ): Promise<BackgroundRemovalResult> {
   const baseUrl = env.PUPSON_BACKGROUND_REMOVER_URL?.replace(/\/$/, '');
   if (!baseUrl) throw new Error('PUPSON_BACKGROUND_REMOVER_URL is not configured.');
@@ -57,7 +57,7 @@ async function removeWithBackgroundRemover(
 async function removeWithKnockout(
   bytes: Buffer,
   mimeType: string,
-  env: NodeJS.ProcessEnv
+  env: Record<string, string | undefined>
 ): Promise<BackgroundRemovalResult> {
   const token = env.KNOCKOUT_TOKEN?.trim();
   if (!token) throw new Error('KNOCKOUT_TOKEN is not configured.');
@@ -90,7 +90,7 @@ export async function removeBackground(
   bytes: Buffer,
   mimeType: string,
   mode: BackgroundMode,
-  env: NodeJS.ProcessEnv = process.env
+  env: Record<string, string | undefined> = process.env
 ): Promise<BackgroundRemovalResult> {
   if (mode === 'keep' || mode === 'generate') {
     return { bytes, mimeType, provider: 'none' };
@@ -106,6 +106,6 @@ export async function removeBackground(
     : removeWithBackgroundRemover(bytes, mimeType, env);
 }
 
-export function backgroundRemovalConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+export function backgroundRemovalConfigured(env: Record<string, string | undefined> = process.env): boolean {
   return configuredProvider(env) !== null;
 }
