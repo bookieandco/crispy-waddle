@@ -13,11 +13,11 @@ export interface MerchantConnection {
   updatedAt: string;
 }
 
-export interface ExternalReference {
-  provider: string;
-  externalId: string;
-  externalVersion?: string;
-}
+import type { ExternalReference } from "./shared";
+
+export type { ExternalReference } from "./shared";
+export * from "./supplier";
+export * from "./supplier-1688";
 
 export interface NormalizedProduct {
   productId: string;
