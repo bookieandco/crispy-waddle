@@ -1,66 +1,52 @@
 import type { ActionRequest } from '@jhadina/action-core'
-import { createExecutionAttempt,type ExecutionAttempt,type ExecutionAttemptOutcome,type ExecutionAttemptStore } from './execution-attempt.js'
+import type { ExecutionAttempt,ExecutionAttemptOutcome,ExecutionAttemptStore } from './execution-attempt.js'
 import { authorizeAndConsumeMoneyPermit,type MoneyExecutionPermit } from './execution-permit-gate.js'
 import type { PermitStore } from './execution-permit.js'
-import { createProviderExecutionIdentityFromAttempt,type ProviderExecutionIdentity } from './provider-execution-identity.js'
 import { assertRecoveryChildLineage } from './recovery-child-execution.js'
 import { assertRetrySafeRecoveryEvidence,type RecoveryRetryEvidenceStore } from './recovery-retry-evidence.js'
 
 export type RecoveryChildProviderResult={providerReference:string}
-export type RecoveryChildExecutionInput={
-  parentExecutionId:string
-  attemptId:string
-  request:ActionRequest<unknown>
-  permit:MoneyExecutionPermit
-  now:string
-}
 export type RecoveryChildExecutorDeps={
   attempts:ExecutionAttemptStore
   permitStore:PermitStore
   retryEvidence:RecoveryRetryEvidenceStore
-  executeProvider:(child:ExecutionAttempt,identity:ProviderExecutionIdentity)=>Promise<RecoveryChildProviderResult>
+  executeProvider:(child:ExecutionAttempt)=>Promise<RecoveryChildProviderResult>
+  now?:()=>string
+}
+export type RecoveryChildExecutionInput={
+  child:ExecutionAttempt
+  request:ActionRequest<unknown>
+  permit:MoneyExecutionPermit
 }
 
-function assertRequestMatchesParent(request:ActionRequest<unknown>,parent:ExecutionAttempt):void{
-  if(request.id!==parent.requestId)throw new Error('MONEY_RECOVERY_AUTH_REQUEST_MISMATCH')
-  if(request.userId!==parent.actionSnapshot.userId)throw new Error('MONEY_RECOVERY_AUTH_USER_MISMATCH')
-  if(request.type!==parent.operation)throw new Error('MONEY_RECOVERY_AUTH_CAPABILITY_MISMATCH')
-  if(!request.action||typeof request.action!=='object')throw new Error('MONEY_RECOVERY_AUTH_ACTION_INVALID')
-  const requested=request.action as Record<string,unknown>
-  const expected=parent.actionSnapshot as unknown as Record<string,unknown>
-  const fields=['provider','accountId','fromAccountId','toAccountId','payeeId','instrumentId','side','executionPlanId','preflightId','approvalCandidateId','currency'] as const
-  for(const field of fields){
-    if(expected[field]!==undefined&&requested[field]!==expected[field])throw new Error(`MONEY_RECOVERY_AUTH_ACTION_MISMATCH:${field}`)
-  }
-  if(String(requested.amount)!==String(expected.amount))throw new Error('MONEY_RECOVERY_AUTH_ACTION_MISMATCH:amount')
-}
-
+/**
+ * The only Money Core primitive that should execute a recovery child.
+ *
+ * Provider I/O is impossible until all three independent proofs hold:
+ * 1. canonical reconciliation evidence says the parent is RETRY_SAFE;
+ * 2. the child preserves the complete immutable parent lineage;
+ * 3. a fresh, exact, single-use Action-Core-bound Money permit verifies and
+ *    is consumed for the child's immutable action snapshot.
+ */
 export class MoneyRecoveryChildExecutor{
   constructor(private readonly deps:RecoveryChildExecutorDeps){}
   async execute(input:RecoveryChildExecutionInput):Promise<RecoveryChildProviderResult>{
-    const parent=await this.deps.attempts.get(input.parentExecutionId)
-    if(!parent)throw new Error('MONEY_RECOVERY_PARENT_NOT_FOUND')
+    const {child,request,permit}=input
+    if(!child.recoveryOfExecutionId)throw new Error('MONEY_RECOVERY_PARENT_REQUIRED')
+    const parent=await assertRecoveryChildLineage(this.deps.attempts,{parentExecutionId:child.recoveryOfExecutionId,child})
     const observation=await this.deps.retryEvidence.getLatestObservation(parent.attemptId)
     assertRetrySafeRecoveryEvidence(parent,observation)
-    assertRequestMatchesParent(input.request,parent)
-    if(input.permit.permitId===parent.permitId)throw new Error('MONEY_RECOVERY_FRESH_PERMIT_REQUIRED')
-
-    const child=createExecutionAttempt({
-      attemptId:input.attemptId,
-      requestId:parent.requestId,
-      permitId:input.permit.permitId,
-      action:parent.actionSnapshot,
-      operation:parent.operation,
-      now:input.now,
-      recoveryOfExecutionId:parent.attemptId,
-    })
-    await assertRecoveryChildLineage(this.deps.attempts,{parentExecutionId:parent.attemptId,child})
-    await authorizeAndConsumeMoneyPermit(this.deps.permitStore,input.permit,input.request,parent.actionSnapshot,input.now)
+    if(permit.permitId!==child.permitId)throw new Error('MONEY_RECOVERY_PERMIT_ID_MISMATCH')
+    await authorizeAndConsumeMoneyPermit(
+      this.deps.permitStore,
+      permit,
+      request,
+      child.actionSnapshot,
+      this.deps.now?.()??new Date().toISOString(),
+    )
     await this.deps.attempts.start(child)
-
-    const identity=createProviderExecutionIdentityFromAttempt(child)
     try{
-      const result=await this.deps.executeProvider(child,identity)
+      const result=await this.deps.executeProvider(child)
       const outcome:ExecutionAttemptOutcome={state:'SUCCEEDED',providerReference:result.providerReference,recoveryRequired:false}
       await this.deps.attempts.complete(child.attemptId,outcome)
       return result
