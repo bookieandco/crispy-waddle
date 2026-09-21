@@ -21,3 +21,5 @@ export * from './helius-webhook-auth'
 export * from './meteora-dlmm'
 export * from './meteora-liquidity-adapter'
 export * from './meteora-withdrawal-attribution'
+
+export * from './money-simulation-learning'
