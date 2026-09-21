@@ -66,37 +66,71 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
   if (!order) throw new Error('Supabase order was not returned after upsert.');
 
   for (const item of items) {
+    if (
+      !item.printAssetId ||
+      item.fulfillmentProvider !== 'printify' ||
+      !item.providerProductId ||
+      !item.providerVariantId ||
+      !item.blueprintId ||
+      !item.printProviderId ||
+      !item.printArea ||
+      !item.catalogCertificationStatus
+    ) {
+      throw new Error('Paid line item is missing its signed production snapshot.');
+    }
+
     const outputResponse = await supabaseFetch(
-      `pupson_creative_outputs?select=id,print_asset_id,approval_status&id=eq.${encodeURIComponent(item.creativeOutputId)}&limit=1`
+      `pupson_creative_outputs?select=id&id=eq.${encodeURIComponent(item.creativeOutputId)}&limit=1`
     );
     if (!outputResponse.ok)
       throw new Error(`Creative output lookup failed (${outputResponse.status}).`);
-    const output = (
-      (await outputResponse.json()) as Array<{
+    const output = ((await outputResponse.json()) as Array<{ id: string }>)[0];
+    if (!output) throw new Error('Paid line item creative output no longer exists.');
+
+    const printAssetResponse = await supabaseFetch(
+      `pupson_media_assets?select=id,kind,provenance&id=eq.${encodeURIComponent(item.printAssetId)}&limit=1`
+    );
+    if (!printAssetResponse.ok)
+      throw new Error(`Print asset lookup failed (${printAssetResponse.status}).`);
+    const printAsset = (
+      (await printAssetResponse.json()) as Array<{
         id: string;
-        print_asset_id: string | null;
-        approval_status: string;
+        kind: string;
+        provenance: Record<string, unknown> | null;
       }>
     )[0];
-    if (!output?.print_asset_id || output.approval_status !== 'approved')
-      throw new Error('Paid line item does not have an approved print asset.');
-    const catalogResponse = await supabaseFetch(
-      `pupson_catalog_variants?select=*&product_id=eq.${encodeURIComponent(item.productId)}&variant_id=eq.${encodeURIComponent(item.variantId)}&active=eq.true&limit=1`
-    );
-    if (!catalogResponse.ok)
-      throw new Error(`Catalog mapping lookup failed (${catalogResponse.status}).`);
-    const catalog = ((await catalogResponse.json()) as Array<Record<string, unknown>>)[0];
+    const provenance = printAsset?.provenance;
+    const printProfile =
+      provenance?.printProfile && typeof provenance.printProfile === 'object'
+        ? (provenance.printProfile as Record<string, unknown>)
+        : null;
     if (
-      !catalog ||
-      !['sandbox_verified', 'sample_verified'].includes(String(catalog.certification_status))
-    )
-      throw new Error('Paid line item catalog mapping is not certified.');
+      !printAsset ||
+      printAsset.kind !== 'print_ready' ||
+      provenance?.creativeOutputId !== item.creativeOutputId ||
+      printProfile?.productId !== item.productId ||
+      printProfile?.variantId !== item.variantId
+    ) {
+      throw new Error('Paid line item print asset does not match its signed approval snapshot.');
+    }
+
+    const catalogSnapshot = {
+      provider: item.fulfillmentProvider,
+      provider_product_id: item.providerProductId,
+      provider_variant_id: item.providerVariantId,
+      blueprint_id: item.blueprintId,
+      print_provider_id: item.printProviderId,
+      print_area: item.printArea,
+      certification_status: item.catalogCertificationStatus,
+      product_id: item.productId,
+      variant_id: item.variantId,
+    };
+
     const itemResponse = await supabaseFetch('pupson_order_items?on_conflict=stripe_line_item_id', {
       method: 'POST',
       headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
       body: JSON.stringify({
         order_id: order.id,
-        // item.id is the actual Stripe line-item ID from the signed webhook.
         stripe_line_item_id: item.id,
         product_id: item.productId,
         variant_id: item.variantId,
@@ -105,19 +139,18 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
         art_style: item.artStyle,
         quantity: item.quantity,
         unit_amount_cents: item.priceCents,
-        fulfillment_provider: catalog.provider,
-        fulfillment_product_id: catalog.provider_product_id,
-        fulfillment_variant_id: catalog.provider_variant_id,
+        fulfillment_provider: item.fulfillmentProvider,
+        fulfillment_product_id: item.providerProductId,
+        fulfillment_variant_id: item.providerVariantId,
         creative_output_id: output.id,
-        print_asset_id: output.print_asset_id,
-        catalog_snapshot: catalog,
+        print_asset_id: item.printAssetId,
+        catalog_snapshot: catalogSnapshot,
         preview_path: null,
       }),
     });
     if (!itemResponse.ok)
       throw new Error(`Supabase order-item insert failed (${itemResponse.status}).`);
   }
-
   return order;
 }
 

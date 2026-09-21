@@ -2,11 +2,10 @@
 //
 // scripts/printify-catalog-sync.ts
 //
-// DRY RUN ONLY. This script never writes to data/hotspots.ts and never
-// calls createProduct()/submitOrder()/anything mutating on Printify —
-// read-only catalog discovery, start to finish. Existing PupsonStuff
-// product IDs, hotspot data, and storefront UX are untouched; this is a
-// reconnaissance/reporting tool, not a migration.
+// DRY RUN ONLY. This script never writes to data/hotspots.ts or the live
+// certification table and never mutates Printify. Static product IDs are
+// grouping/discovery identifiers only; production checkout trusts only
+// certified pupson_catalog_variants rows.
 //
 // Uses lib/printify.ts as the sole Printify API boundary — no second
 // client, no raw fetch() calls to api.printify.com anywhere in this
@@ -15,10 +14,10 @@
 //
 // What it does:
 //   1. Reads data/hotspots.ts and groups every sellable hotspot by its
-//      current (placeholder) fulfillment.productId — hotspots that
-//      share a placeholder ID (the 6 canvas frames, the 2 mugs) share
-//      one real physical Printify product too, so they're one catalog
-//      lookup, not six.
+//      provider-neutral fulfillment.productId. Hotspots that share a
+//      storefront product family (for example canvas frames or mugs) are
+//      one catalog-discovery target, while real Printify IDs stay outside
+//      source and are admitted only through the certification ledger.
 //   2. For each group, searches the real Printify blueprint catalog
 //      (listBlueprints()) for title matches against the product type's
 //      keywords, ranks candidates, and for the top candidates fetches

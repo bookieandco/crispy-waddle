@@ -4,11 +4,10 @@ import {
   getSellableHotspots,
   getCategoryCounts,
   getPriceStats,
-  getUnfulfilledListings,
   getArtStyleEngineCounts,
   formatPriceCents,
 } from '@/lib/admin/stats';
-import { getAdminOrders } from '@/lib/admin/live-data';
+import { getAdminCatalogVariants, getAdminOrders } from '@/lib/admin/live-data';
 
 export const metadata = { title: 'Dashboard — PupsonStuff Admin' };
 
@@ -18,9 +17,17 @@ export default async function AdminDashboardPage() {
   const products = getSellableHotspots();
   const categories = getCategoryCounts();
   const price = getPriceStats();
-  const unfulfilled = getUnfulfilledListings();
   const engines = getArtStyleEngineCounts();
-  const { configured, orders } = await getAdminOrders(5);
+  const [{ configured, orders }, catalog] = await Promise.all([
+    getAdminOrders(5),
+    getAdminCatalogVariants(),
+  ]);
+  const certifiedVariants = catalog.variants.filter(
+    (variant) =>
+      variant.active &&
+      variant.provider === 'printify' &&
+      ['sandbox_verified', 'sample_verified'].includes(variant.certification_status)
+  );
 
   return (
     <div>
@@ -37,10 +44,12 @@ export default async function AdminDashboardPage() {
           note={price ? `up to ${formatPriceCents(price.maxCents)}` : undefined}
         />
         <StatCard
-          label="Unmapped to Printful"
-          value={String(unfulfilled.length)}
+          label="Certified variants"
+          value={catalog.configured ? String(certifiedVariants.length) : '—'}
           note={
-            unfulfilled.length > 0 ? 'still using PLACEHOLDER product IDs' : 'all listings mapped'
+            catalog.configured
+              ? `${catalog.variants.length} live mapping record(s)`
+              : 'Supabase catalog unavailable'
           }
         />
         <StatCard

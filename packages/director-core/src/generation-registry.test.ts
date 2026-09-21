@@ -44,4 +44,117 @@ describe('GenerationService', () => {
       parameters: {},
     })).rejects.toThrow('LoRA is not registered: missing');
   });
+
+  it('routes referenced image requests through image-to-image capability', async () => {
+    const registry = new GenerationRegistry();
+    registry.registerProvider({
+      id: 'image-provider',
+      name: 'Image Provider',
+      kind: 'local',
+      capabilities: ['image-to-image'],
+      models: [],
+      health: 'healthy',
+    });
+    registry.registerModel({
+      id: 'image-edit',
+      providerId: 'image-provider',
+      name: 'Image Edit',
+      version: '1',
+      modalities: ['image'],
+      capabilities: ['image-to-image'],
+    });
+    let submitted = false;
+    const provider: GenerationProvider = {
+      descriptor: registry.getProvider('image-provider')!,
+      submit: async (request) => {
+        submitted = true;
+        return {
+          requestId: request.requestId,
+          providerId: 'image-provider',
+          status: 'queued',
+          assetIds: [],
+          providerJobId: 'image-job',
+        };
+      },
+      status: async () => ({
+        requestId: 'image-job',
+        providerId: 'image-provider',
+        status: 'running',
+        assetIds: [],
+        providerJobId: 'image-job',
+      }),
+      cancel: async () => undefined,
+    };
+
+    const service = new GenerationService(
+      registry,
+      new Map([['image-provider', provider]])
+    );
+    await service.submit({
+      requestId: 'image-request',
+      projectId: 'project',
+      modality: 'image',
+      prompt: 'preserve the pet identity',
+      model: registry.getModel('image-edit')!,
+      references: [{ assetId: 'pet-1', role: 'image', uri: 'asset://pet-1' }],
+      parameters: {},
+    });
+
+    expect(submitted).toBe(true);
+  });
+
+  it('rejects a referenced image request when the model is text-only', async () => {
+    const registry = new GenerationRegistry();
+    registry.registerProvider({
+      id: 'image-provider',
+      name: 'Image Provider',
+      kind: 'local',
+      capabilities: ['text-to-image', 'image-to-image'],
+      models: [],
+      health: 'healthy',
+    });
+    registry.registerModel({
+      id: 'text-only',
+      providerId: 'image-provider',
+      name: 'Text Only',
+      version: '1',
+      modalities: ['image'],
+      capabilities: ['text-to-image'],
+    });
+    const provider: GenerationProvider = {
+      descriptor: registry.getProvider('image-provider')!,
+      submit: async (request) => ({
+        requestId: request.requestId,
+        providerId: 'image-provider',
+        status: 'queued',
+        assetIds: [],
+        providerJobId: 'image-job',
+      }),
+      status: async () => ({
+        requestId: 'image-job',
+        providerId: 'image-provider',
+        status: 'running',
+        assetIds: [],
+        providerJobId: 'image-job',
+      }),
+      cancel: async () => undefined,
+    };
+    const service = new GenerationService(
+      registry,
+      new Map([['image-provider', provider]])
+    );
+
+    await expect(
+      service.submit({
+        requestId: 'image-request',
+        projectId: 'project',
+        modality: 'image',
+        prompt: 'edit this image',
+        model: registry.getModel('text-only')!,
+        references: [{ assetId: 'pet-1', role: 'image', uri: 'asset://pet-1' }],
+        parameters: {},
+      })
+    ).rejects.toThrow('Model text-only does not support capability: image-to-image');
+  });
+
 });

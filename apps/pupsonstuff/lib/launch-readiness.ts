@@ -21,6 +21,14 @@ export interface CatalogVariantSummary {
   certification_status: string;
 }
 
+export const PUPSON_PRODUCTION_ORIGIN = 'https://pupsonstuff.com';
+
+export const REQUIRED_LAUNCH_VARIANTS = [
+  { productId: 'frame1', variantId: 'canvas-12x16', label: '12×16 canvas' },
+  { productId: 'mugWhite', variantId: 'mug-11oz', label: '11oz white mug' },
+  { productId: 'concertShirt', variantId: 'tee-concert-m', label: 'medium concert tee' },
+] as const;
+
 const REQUIRED_PRIVATE_BUCKETS = [
   'pupson-originals',
   'pupson-creative',
@@ -71,6 +79,7 @@ export function evaluateLaunchEnvironment(
   }
 
   checks.push(
+    secretLengthCheck('env.CRON_SECRET', 'Creative worker cron secret', env.CRON_SECRET, 32),
     secretLengthCheck(
       'env.PUPSON_ADMIN_SESSION_SECRET',
       'Admin session secret',
@@ -91,6 +100,36 @@ export function evaluateLaunchEnvironment(
     )
   );
 
+  const removerProvider = env.PUPSON_BACKGROUND_REMOVER_PROVIDER?.trim();
+  const removerUrl = env.PUPSON_BACKGROUND_REMOVER_URL?.trim();
+  const knockoutToken = env.KNOCKOUT_TOKEN?.trim();
+  const selfHostedRemover =
+    (!removerProvider || removerProvider === 'backgroundremover') &&
+    Boolean(removerUrl?.startsWith('https://'));
+  const knockoutRemover =
+    (removerProvider === 'knockout' || (!removerProvider && !removerUrl)) &&
+    Boolean(knockoutToken);
+  checks.push({
+    id: 'env.BACKGROUND_REMOVER',
+    status: selfHostedRemover || knockoutRemover ? 'pass' : 'block',
+    message: selfHostedRemover
+      ? 'Self-hosted background removal is configured over HTTPS.'
+      : knockoutRemover
+        ? 'BiRefNet background removal is configured.'
+        : 'Configure an HTTPS self-hosted background-removal service or a BiRefNet provider token.',
+  });
+
+  const upscalerUrl = env.PUPSON_UPSCALER_URL?.trim();
+  const upscalerConfigured =
+    Boolean(upscalerUrl?.startsWith('https://')) || Boolean(knockoutToken);
+  checks.push({
+    id: 'env.IMAGE_UPSCALER',
+    status: upscalerConfigured ? 'pass' : 'block',
+    message: upscalerConfigured
+      ? 'A print-resolution AI upscaler is configured.'
+      : 'Configure an HTTPS PUPSON_UPSCALER_URL or KNOCKOUT_TOKEN so enlarged artwork cannot bypass the source-resolution gate.',
+  });
+
   checks.push({
     id: 'env.PUPSON_ADMIN_USERNAME',
     status: present(env.PUPSON_ADMIN_USERNAME) ? 'pass' : 'block',
@@ -108,13 +147,21 @@ export function evaluateLaunchEnvironment(
         : 'PUPSON_FULFILLMENT_MODE must remain dry_run until physical samples pass.',
   });
 
-  const origin = env.PUPSON_PUBLIC_ORIGIN;
+  const origin = env.PUPSON_PUBLIC_ORIGIN?.replace(/\/$/, '');
+  const productionOriginCorrect =
+    env.VERCEL_ENV !== 'production' || origin === PUPSON_PRODUCTION_ORIGIN;
   checks.push({
     id: 'env.PUPSON_PUBLIC_ORIGIN',
-    status: origin?.startsWith('https://') ? 'pass' : 'block',
-    message: origin?.startsWith('https://')
-      ? 'Public origin uses HTTPS.'
-      : 'PUPSON_PUBLIC_ORIGIN must be the canonical HTTPS deployment origin.',
+    status:
+      origin?.startsWith('https://') && productionOriginCorrect ? 'pass' : 'block',
+    message:
+      env.VERCEL_ENV === 'production'
+        ? origin === PUPSON_PRODUCTION_ORIGIN
+          ? `Production origin is canonical (${PUPSON_PRODUCTION_ORIGIN}).`
+          : `Production must use ${PUPSON_PRODUCTION_ORIGIN} as PUPSON_PUBLIC_ORIGIN.`
+        : origin?.startsWith('https://')
+          ? 'Preview/staging public origin uses HTTPS.'
+          : 'PUPSON_PUBLIC_ORIGIN must be an HTTPS deployment origin.',
   });
 
   const stripeKey = env.STRIPE_SECRET_KEY;
@@ -142,6 +189,10 @@ export function evaluateLaunchEnvironment(
     'PUPSON_ADMIN_PASSWORD',
     'PUPSON_ADMIN_SESSION_SECRET',
     'PUPSON_PRINTIFY_WEBHOOK_SECRET',
+    'CRON_SECRET',
+    'PUPSON_BACKGROUND_REMOVER_TOKEN',
+    'PUPSON_UPSCALER_TOKEN',
+    'KNOCKOUT_TOKEN',
   ]) {
     checks.push({
       id: `env.public.${key}`,
@@ -171,29 +222,41 @@ export function evaluateStorageBuckets(buckets: StorageBucketSummary[]): GateChe
 }
 
 export function evaluateCatalog(rows: CatalogVariantSummary[]): GateCheck[] {
-  const certified = rows.filter(
-    (row) =>
-      row.active &&
+  const byKey = new Map(
+    rows.map((row) => [`${row.product_id}:${row.variant_id}`, row] as const)
+  );
+  const sandboxMissing = REQUIRED_LAUNCH_VARIANTS.filter(({ productId, variantId }) => {
+    const row = byKey.get(`${productId}:${variantId}`);
+    return !(
+      row?.active &&
       row.provider === 'printify' &&
       ['sandbox_verified', 'sample_verified'].includes(row.certification_status)
-  );
-  const samples = certified.filter((row) => row.certification_status === 'sample_verified');
+    );
+  });
+  const sampleMissing = REQUIRED_LAUNCH_VARIANTS.filter(({ productId, variantId }) => {
+    const row = byKey.get(`${productId}:${variantId}`);
+    return !(
+      row?.active &&
+      row.provider === 'printify' &&
+      row.certification_status === 'sample_verified'
+    );
+  });
   return [
     {
       id: 'catalog.sandbox',
-      status: certified.length > 0 ? 'pass' : 'block',
+      status: sandboxMissing.length === 0 ? 'pass' : 'block',
       message:
-        certified.length > 0
-          ? `${certified.length} active Printify variant(s) passed sandbox certification.`
-          : 'No active Printify variants have passed sandbox certification.',
+        sandboxMissing.length === 0
+          ? `All ${REQUIRED_LAUNCH_VARIANTS.length} prototype variants passed Printify sandbox certification.`
+          : `Sandbox certification is missing for: ${sandboxMissing.map((item) => item.label).join(', ')}.`,
     },
     {
       id: 'catalog.samples',
-      status: samples.length > 0 ? 'pass' : 'block',
+      status: sampleMissing.length === 0 ? 'pass' : 'block',
       message:
-        samples.length > 0
-          ? `${samples.length} active Printify variant(s) passed physical-sample certification.`
-          : 'No active Printify variants have passed the physical-sample gate.',
+        sampleMissing.length === 0
+          ? `All ${REQUIRED_LAUNCH_VARIANTS.length} prototype variants passed physical-sample certification.`
+          : `Physical-sample certification is missing for: ${sampleMissing.map((item) => item.label).join(', ')}.`,
     },
   ];
 }

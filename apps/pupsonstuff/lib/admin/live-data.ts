@@ -27,3 +27,25 @@ export async function getAdminOrders(
   );
   return { configured: true, orders };
 }
+
+
+export interface AdminCatalogVariant {
+  product_id: string;
+  variant_id: string;
+  provider: string;
+  active: boolean;
+  certification_status: string;
+  provider_product_id: string;
+  provider_variant_id: string;
+}
+
+export async function getAdminCatalogVariants(): Promise<{
+  configured: boolean;
+  variants: AdminCatalogVariant[];
+}> {
+  if (!getPlatformConfig()) return { configured: false, variants: [] };
+  const variants = await rest<AdminCatalogVariant[]>(
+    'pupson_catalog_variants?select=product_id,variant_id,provider,active,certification_status,provider_product_id,provider_variant_id&order=product_id.asc,variant_id.asc'
+  );
+  return { configured: true, variants };
+}

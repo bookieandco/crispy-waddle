@@ -24,24 +24,37 @@ import {
   Product3DPluginContext,
 } from "@/lib/product3d/types";
 import Scene3DErrorBoundary from "./Scene3DErrorBoundary";
+import type { ArtworkTransform } from "@/types/creative";
 
 interface AreaDecalProps {
   url: string;
   position: [number, number, number];
   rotation: [number, number, number];
   scale: number;
+  transform?: ArtworkTransform;
 }
 
 /** Isolated so useTexture only ever runs with a real image URL — a print
  * area with nothing generated for it yet simply isn't mounted, rather than
  * being fed a placeholder path that isn't actually an image. */
-function AreaDecal({ url, position, rotation, scale }: AreaDecalProps) {
+function AreaDecal({ url, position, rotation, scale, transform }: AreaDecalProps) {
   const texture = useTexture(url);
+  const adjustedPosition: [number, number, number] = transform
+    ? [
+        position[0] + (transform.x - 0.5) * scale,
+        position[1] - (transform.y - 0.5) * scale,
+        position[2],
+      ]
+    : position;
+  const adjustedRotation: [number, number, number] = transform
+    ? [rotation[0], rotation[1], rotation[2] + (transform.rotation * Math.PI) / 180]
+    : rotation;
+  const adjustedScale = scale * (transform?.scale ?? 1);
   return (
     <Decal
-      position={position}
-      rotation={rotation}
-      scale={scale}
+      position={adjustedPosition}
+      rotation={adjustedRotation}
+      scale={adjustedScale}
       map={texture}
       map-anisotropy={16}
       depthTest={false}
@@ -58,9 +71,10 @@ interface ProductMeshProps {
   config: Product3DConfig;
   color: string;
   decals: DecalMap;
+  decalTransforms?: Partial<Record<string, ArtworkTransform>>;
 }
 
-function ProductMesh({ config, color, decals }: ProductMeshProps) {
+function ProductMesh({ config, color, decals, decalTransforms }: ProductMeshProps) {
   const { nodes, materials } = useGLTF(config.glbPath) as unknown as {
     nodes: Record<string, THREE.Mesh>;
     materials: Record<string, THREE.MeshStandardMaterial>;
@@ -101,6 +115,7 @@ function ProductMesh({ config, color, decals }: ProductMeshProps) {
               position={area.position}
               rotation={area.rotation}
               scale={area.scale}
+              transform={decalTransforms?.[area.name]}
             />
           ) : null;
         })}
@@ -115,6 +130,8 @@ interface Props {
   color?: string;
   /** map of print-area name -> generated texture URL (or null if not generated yet) */
   decals: DecalMap;
+  /** optional shopper placement transform per print area */
+  decalTransforms?: Partial<Record<string, ArtworkTransform>>;
   /** roadmap item 6: extension seam for future capabilities (screenshot export today; text-to-3D/AR later) */
   plugins?: Product3DPlugin[];
 }
@@ -123,6 +140,7 @@ export default function Product3DEngine({
   config,
   color,
   decals,
+  decalTransforms,
   plugins = [],
 }: Props) {
   const anyDecal = Object.values(decals).some(Boolean);
@@ -141,13 +159,13 @@ export default function Product3DEngine({
       <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-greige/40 bg-white/40">
         {failed ? (
           <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-ink/50">
-            3D preview couldn&apos;t load — try the flat preview instead.
+            3D preview couldn&apos;t load — use the placement preview below.
           </div>
         ) : (
           <Scene3DErrorBoundary
             fallback={
               <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-ink/50">
-                3D preview couldn&apos;t load — try the flat preview instead.
+                3D preview couldn&apos;t load — use the placement preview below.
               </div>
             }
             onError={() => setFailed(true)}
@@ -182,6 +200,7 @@ export default function Product3DEngine({
                   config={config}
                   color={color ?? config.defaultColor ?? "#ffffff"}
                   decals={decals}
+                  decalTransforms={decalTransforms}
                 />
               </Suspense>
               <OrbitControls

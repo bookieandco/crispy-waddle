@@ -61,10 +61,9 @@ export function getPriceStats(): PriceStats | null {
   };
 }
 
-/** Listings whose fulfillment.productId is still a PLACEHOLDER string —
- * i.e. not actually connected to a real Printful product yet. A real,
- * useful admin signal: how much of the catalog is launch-ready vs. still
- * needs its fulfillment mapping filled in. */
+/** Listings whose storefront discovery mapping is still a PLACEHOLDER.
+ * This is intentionally only a source-config signal; live sellability is
+ * determined by certified rows in pupson_catalog_variants. */
 export function getUnfulfilledListings(): Hotspot[] {
   return getSellableHotspots().filter((h) =>
     h.fulfillment?.productId?.includes("PLACEHOLDER")

@@ -71,16 +71,33 @@ describe('PupsonStuff fulfillment safety', () => {
         return [
           {
             id: 'line-1',
+            product_id: 'product-local',
+            variant_id: 'variant-local',
             quantity: 1,
             fulfillment_provider: 'printify',
             fulfillment_product_id: 'product-1',
             fulfillment_variant_id: 'variant-1',
             catalog_snapshot: {
+              provider_product_id: 'product-1',
+              provider_variant_id: 'variant-1',
               blueprint_id: '1',
               print_provider_id: '2',
               print_area: 'front',
             },
             print_asset: { bucket_id: 'pupson-print-ready', object_path: 'print.png' },
+          },
+        ];
+      if (path.startsWith('pupson_catalog_variants?select='))
+        return [
+          {
+            provider: 'printify',
+            provider_product_id: 'product-1',
+            provider_variant_id: 'variant-1',
+            blueprint_id: '1',
+            print_provider_id: '2',
+            print_area: 'front',
+            active: true,
+            certification_status: 'sandbox_verified',
           },
         ];
       if (init?.method === 'PATCH' || init?.method === 'POST') return undefined;
@@ -132,12 +149,33 @@ describe('PupsonStuff fulfillment safety', () => {
         return [
           {
             id: 'line-1',
+            product_id: 'product-local',
+            variant_id: 'variant-local',
             quantity: 1,
             fulfillment_provider: 'printify',
             fulfillment_product_id: 'product-1',
             fulfillment_variant_id: 'variant-1',
-            catalog_snapshot: {},
+            catalog_snapshot: {
+              provider_product_id: 'product-1',
+              provider_variant_id: 'variant-1',
+              blueprint_id: '1',
+              print_provider_id: '2',
+              print_area: 'front',
+            },
             print_asset: { bucket_id: 'pupson-print-ready', object_path: 'print.png' },
+          },
+        ];
+      if (path.startsWith('pupson_catalog_variants?select='))
+        return [
+          {
+            provider: 'printify',
+            provider_product_id: 'product-1',
+            provider_variant_id: 'variant-1',
+            blueprint_id: '1',
+            print_provider_id: '2',
+            print_area: 'front',
+            active: true,
+            certification_status: 'sample_verified',
           },
         ];
       throw new Error(`Unexpected REST call: ${path}`);

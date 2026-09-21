@@ -20,6 +20,10 @@ const validEnv = {
   PUPSON_ADMIN_PASSWORD: 'a-very-long-admin-password',
   PUPSON_ADMIN_SESSION_SECRET: 'a'.repeat(32),
   PUPSON_PRINTIFY_WEBHOOK_SECRET: 'b'.repeat(32),
+  CRON_SECRET: 'c'.repeat(32),
+  PUPSON_BACKGROUND_REMOVER_PROVIDER: 'backgroundremover',
+  PUPSON_BACKGROUND_REMOVER_URL: 'https://background.example',
+  PUPSON_UPSCALER_URL: 'https://upscale.example',
   PUPSON_FULFILLMENT_MODE: 'dry_run',
   PUPSON_PUBLIC_ORIGIN: 'https://pupsonstuff.example',
 } as NodeJS.ProcessEnv;
@@ -29,11 +33,38 @@ describe('PupsonStuff launch readiness', () => {
     expect(summarizeGate(evaluateLaunchEnvironment(validEnv)).block).toBe(0);
   });
 
+  it('blocks launch when creative preprocessing is not configured', () => {
+    const checks = evaluateLaunchEnvironment({
+      ...validEnv,
+      PUPSON_BACKGROUND_REMOVER_URL: '',
+      PUPSON_UPSCALER_URL: '',
+      KNOCKOUT_TOKEN: '',
+    });
+    expect(checks.find((check) => check.id === 'env.BACKGROUND_REMOVER')?.status).toBe('block');
+    expect(checks.find((check) => check.id === 'env.IMAGE_UPSCALER')?.status).toBe('block');
+  });
+
   it('blocks live fulfillment before physical certification', () => {
     const checks = evaluateLaunchEnvironment({ ...validEnv, PUPSON_FULFILLMENT_MODE: 'live' });
     expect(checks.find((check) => check.id === 'env.PUPSON_FULFILLMENT_MODE')?.status).toBe(
       'block'
     );
+  });
+
+  it('requires pupsonstuff.com as the production origin on Vercel production', () => {
+    const wrong = evaluateLaunchEnvironment({
+      ...validEnv,
+      VERCEL_ENV: 'production',
+      PUPSON_PUBLIC_ORIGIN: 'https://pupsonstuff-preview.vercel.app',
+    });
+    expect(wrong.find((check) => check.id === 'env.PUPSON_PUBLIC_ORIGIN')?.status).toBe('block');
+
+    const canonical = evaluateLaunchEnvironment({
+      ...validEnv,
+      VERCEL_ENV: 'production',
+      PUPSON_PUBLIC_ORIGIN: 'https://pupsonstuff.com',
+    });
+    expect(canonical.find((check) => check.id === 'env.PUPSON_PUBLIC_ORIGIN')?.status).toBe('pass');
   });
 
   it('blocks secrets exposed through NEXT_PUBLIC aliases', () => {
@@ -64,7 +95,7 @@ describe('PupsonStuff launch readiness', () => {
         certification_status: 'sandbox_verified',
       },
     ]);
-    expect(checks.find((check) => check.id === 'catalog.sandbox')?.status).toBe('pass');
+    expect(checks.find((check) => check.id === 'catalog.sandbox')?.status).toBe('block');
     expect(checks.find((check) => check.id === 'catalog.samples')?.status).toBe('block');
   });
 });
