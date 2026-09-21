@@ -32,9 +32,9 @@ describe('PS-RECON creative and print contracts', () => {
       } as NodeJS.ProcessEnv)
     ).toBe(true);
     expect(
-      backgroundRemovalConfigured({ KNOCKOUT_TOKEN: 'token' } as NodeJS.ProcessEnv)
+      backgroundRemovalConfigured({ NODE_ENV: 'test', KNOCKOUT_TOKEN: 'token' } as NodeJS.ProcessEnv)
     ).toBe(true);
-    expect(upscalerConfigured({ PUPSON_UPSCALER_URL: 'https://upscale.example' } as NodeJS.ProcessEnv)).toBe(
+    expect(upscalerConfigured({ NODE_ENV: 'test', PUPSON_UPSCALER_URL: 'https://upscale.example' } as NodeJS.ProcessEnv)).toBe(
       true
     );
   });
