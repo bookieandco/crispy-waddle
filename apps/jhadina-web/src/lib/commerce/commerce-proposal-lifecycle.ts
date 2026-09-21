@@ -11,7 +11,12 @@ import type { PaymentProvider } from "@jhadina/payment-core"
 import type { ActionRequestIdentity, JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { COMMERCE_PAYMENT_CHARGE_CAPABILITY, COMMERCE_SECURITY_POLICY } from "./commerce-security-policy"
 import { GovernedPaymentProvider } from "./governed-payment-provider"
-import type { CommerceProposal, CommerceProposalPayload, CommerceProposalStore } from "./commerce-proposal-store"
+import {
+  isSupplierProcurementProposalPayload,
+  type CommerceProposal,
+  type CommerceProposalPayload,
+  type CommerceProposalStore,
+} from "./commerce-proposal-store"
 
 export interface CommerceProposalLifecycleDeps {
   identityVerifier: JhadinaIdentityVerifier
@@ -36,6 +41,39 @@ function buildPolicy(policy?: ActionPolicy<{ capability: string }>) {
 }
 
 export function computeProposalFingerprint(proposalId: string, capability: string, payload: CommerceProposalPayload): string {
+  if (isSupplierProcurementProposalPayload(payload)) {
+    const preview = payload.preview
+    return [
+      "commerce-proposal",
+      proposalId,
+      capability,
+      payload.opportunityActionId,
+      payload.opportunityId,
+      payload.researchCaseId,
+      payload.handoffExpiresAt,
+      preview.previewId,
+      preview.provider,
+      preview.connectionId,
+      preview.supplierId,
+      preview.productId,
+      preview.inventoryId,
+      preview.externalProduct.provider,
+      preview.externalProduct.externalId,
+      preview.internalOrderId,
+      preview.internalOrderItemId,
+      preview.quantity,
+      preview.unitAmountMinor,
+      preview.shippingAmountMinor,
+      preview.totalAmountMinor,
+      preview.currency,
+      preview.destinationCountry,
+      preview.estimatedDeliveryDays,
+      preview.idempotencyKey,
+      preview.preparedAt,
+      preview.expiresAt,
+      [...preview.evidenceRefs].sort().join(","),
+    ].join(":")
+  }
   return `commerce-proposal:${proposalId}:${capability}:${payload.amountMinor}:${payload.currency}:${payload.testPaymentMethod}`
 }
 
@@ -48,6 +86,9 @@ export async function proposeCommerceAction(
   claimedUserId: string | undefined,
   payload: CommerceProposalPayload,
 ): Promise<CommerceProposalResult> {
+  if (isSupplierProcurementProposalPayload(payload)) {
+    throw new Error("Supplier procurement must use the governed supplier-procurement lifecycle")
+  }
   const now = () => new Date().toISOString()
   const identity = await verifyIdentity(deps.identityVerifier, claimedUserId)
   const policy = buildPolicy(deps.policy)
@@ -92,6 +133,9 @@ export async function executeCommerceProposal(
   const identity = await verifyIdentity(deps.identityVerifier, claimedUserId)
   const proposal = await deps.proposalStore.get(proposalId, identity.userId)
   if (!proposal) throw new Error("Commerce proposal not found")
+  if (isSupplierProcurementProposalPayload(proposal.payload)) {
+    throw new Error("Supplier procurement must use the governed supplier-procurement executor")
+  }
   if (proposal.status !== "approved" || !proposal.receiptId) throw new Error(`Commerce proposal is not approved and ready to execute: ${proposal.status}`)
   const fingerprint = computeProposalFingerprint(proposal.id, proposal.capability, proposal.payload)
   const verifier = createApprovalReceiptVerifier(deps.approvalStore, () => fingerprint)
