@@ -72,7 +72,6 @@ export { StripePaymentIntentReconciliationAdapter } from './stripe-payment-inten
 export type { RecoveryChildLineageInput } from './recovery-child-execution.js';
 export { assertRecoveryChildLineage } from './recovery-child-execution.js';
 
-export type { RecoveryChildProviderResult, RecoveryChildExecutorDeps } from './recovery-child-executor.js';
 export { MoneyRecoveryChildExecutor } from './recovery-child-executor.js';
 
 export type { MoneyActionCoreAuthority, MoneyAuthorityBinding } from './action-core-authority-bridge.js';
