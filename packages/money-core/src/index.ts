@@ -175,8 +175,3 @@ export * from './durable-provider-event-processor.js';
 export * from './postgres-durable-provider-event-store.js';
 export * from './tax-accounting-engine.js';
 export * from './money-060-live-canary.js';
-
-export type { RecoveryRetryEvidenceStore } from './recovery-retry-evidence.js';
-export { assertRetrySafeRecoveryEvidence } from './recovery-retry-evidence.js';
-export { PostgresRecoveryRetryEvidenceStore } from './postgres-recovery-retry-evidence-store.js';
-export type { RecoveryChildExecutionInput, RecoveryChildProviderResult, RecoveryChildExecutorDeps } from './recovery-child-executor.js';
