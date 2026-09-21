@@ -108,7 +108,6 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
           endSeconds,
           metadata: {
             manifestEntryId: selectedAsset.assetId,
-            approvalState: 'approved',
             ...selectedAsset.metadata,
           },
         },
@@ -117,7 +116,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       const response = await fetch('/api/workstation/timeline/command', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ timeline: timelineRef.current, command, approved: true }),
+        body: JSON.stringify({ timeline: timelineRef.current, command }),
       });
       const data = await response.json() as { ok?: boolean; error?: string; reason?: string; timeline?: EditableTimeline };
       if (!response.ok || !data.ok || !data.timeline) throw new Error(data.error ?? data.reason ?? 'Generated asset insertion failed.');
