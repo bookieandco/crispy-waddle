@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import type { Hotspot } from '@/data/hotspots';
 import { evaluateImageQuality, type PrintProfile, type QualityReport } from '@/lib/pod/quality-gate';
 import { normalizeArtworkTransform, type ArtworkTransform } from '@/types/creative';
+import { ensureSourceResolution } from '@/lib/image-upscale';
 
 export interface ProductPrintProfile extends PrintProfile {
   targetDpi: number;
@@ -22,6 +23,10 @@ export interface PrintMasterResult {
     height: number;
     effectiveDpi: number;
     resampled: boolean;
+    upscaleProvider: string;
+    upscaleModel?: string;
+    originalWidth: number;
+    originalHeight: number;
   };
 }
 
@@ -99,22 +104,28 @@ export async function buildPrintMaster(input: {
   const safeWidth = Math.max(1, targetWidth - margin * 2);
   const safeHeight = Math.max(1, targetHeight - margin * 2);
 
-  const sourceMeta = await sharp(input.generatedBytes, { failOn: 'error' }).metadata();
-  const sourceWidth = sourceMeta.width ?? 0;
-  const sourceHeight = sourceMeta.height ?? 0;
-  if (!sourceWidth || !sourceHeight) throw new Error('Generated artwork has no usable dimensions.');
+  // scale=1 occupies half the safe area; scale=2 can fill it completely.
+  // Required source pixels are calculated from the actual approved printed
+  // footprint, not from the final canvas dimensions.
+  const footprintWidth = safeWidth * 0.5 * transform.scale;
+  const footprintHeight = safeHeight * 0.5 * transform.scale;
+  const requiredSourceWidth = (footprintWidth / profile.targetDpi) * profile.minDpi;
+  const requiredSourceHeight = (footprintHeight / profile.targetDpi) * profile.minDpi;
+  const source = await ensureSourceResolution({
+    bytes: input.generatedBytes,
+    mimeType: 'image/png',
+    requiredWidth: requiredSourceWidth,
+    requiredHeight: requiredSourceHeight,
+  });
 
-  const rotated = await sharp(input.generatedBytes, { failOn: 'error' })
+  const rotated = await sharp(source.bytes, { failOn: 'error' })
     .rotate(transform.rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer();
   const rotatedMeta = await sharp(rotated).metadata();
-  const rotatedWidth = rotatedMeta.width ?? sourceWidth;
-  const rotatedHeight = rotatedMeta.height ?? sourceHeight;
+  const rotatedWidth = rotatedMeta.width ?? source.width;
+  const rotatedHeight = rotatedMeta.height ?? source.height;
 
-  // scale=1 occupies half the safe area; scale=2 can fill it completely.
-  const footprintWidth = safeWidth * 0.5 * transform.scale;
-  const footprintHeight = safeHeight * 0.5 * transform.scale;
   const fit = Math.min(footprintWidth / rotatedWidth, footprintHeight / rotatedHeight);
   const artworkWidth = Math.max(1, Math.round(rotatedWidth * fit));
   const artworkHeight = Math.max(1, Math.round(rotatedHeight * fit));
@@ -125,8 +136,12 @@ export async function buildPrintMaster(input: {
 
   const centerX = margin + transform.x * safeWidth;
   const centerY = margin + transform.y * safeHeight;
-  const left = Math.round(clamp(centerX - artworkWidth / 2, margin, targetWidth - margin - artworkWidth));
-  const top = Math.round(clamp(centerY - artworkHeight / 2, margin, targetHeight - margin - artworkHeight));
+  const left = Math.round(
+    clamp(centerX - artworkWidth / 2, margin, targetWidth - margin - artworkWidth)
+  );
+  const top = Math.round(
+    clamp(centerY - artworkHeight / 2, margin, targetHeight - margin - artworkHeight)
+  );
 
   const bytes = await sharp({
     create: {
@@ -140,7 +155,11 @@ export async function buildPrintMaster(input: {
     .png({ compressionLevel: 9 })
     .toBuffer();
 
-  const quality = evaluateImageQuality(
+  const effectiveDpi = Math.min(
+    source.width / Math.max(0.01, (artworkWidth / targetWidth) * profile.printWidthInches),
+    source.height / Math.max(0.01, (artworkHeight / targetHeight) * profile.printHeightInches)
+  );
+  const baseQuality = evaluateImageQuality(
     {
       width: targetWidth,
       height: targetHeight,
@@ -151,10 +170,28 @@ export async function buildPrintMaster(input: {
     },
     profile
   );
-  const effectiveDpi = Math.min(
-    sourceWidth / Math.max(0.01, (artworkWidth / targetWidth) * profile.printWidthInches),
-    sourceHeight / Math.max(0.01, (artworkHeight / targetHeight) * profile.printHeightInches)
-  );
+  const sourceScore = Math.min(100, Math.round((effectiveDpi / profile.minDpi) * 100));
+  const sourceCheck = {
+    id: 'source-resolution',
+    label: 'Source detail',
+    score: sourceScore,
+    status: sourceScore >= 90 ? ('pass' as const) : sourceScore >= 75 ? ('warn' as const) : ('fail' as const),
+    detail: `${Math.round(effectiveDpi)} effective source DPI; target ≥ ${profile.minDpi} DPI for the approved placement.`,
+  };
+  const checks = [...baseQuality.checks, sourceCheck];
+  const score = Math.round(checks.reduce((sum, check) => sum + check.score, 0) / checks.length);
+  const quality: QualityReport = {
+    checks,
+    score,
+    status:
+      checks.some((check) => check.status === 'fail')
+        ? 'fail'
+        : checks.some((check) => check.status === 'warn')
+          ? 'warn'
+          : 'pass',
+    productionReady:
+      !checks.some((check) => check.status !== 'pass') && effectiveDpi >= profile.minDpi,
+  };
 
   return {
     bytes,
@@ -164,10 +201,14 @@ export async function buildPrintMaster(input: {
     profile,
     quality,
     source: {
-      width: sourceWidth,
-      height: sourceHeight,
+      width: source.width,
+      height: source.height,
       effectiveDpi: Math.round(effectiveDpi * 10) / 10,
       resampled: artworkWidth > rotatedWidth || artworkHeight > rotatedHeight,
+      upscaleProvider: source.provider,
+      upscaleModel: source.model,
+      originalWidth: source.originalWidth,
+      originalHeight: source.originalHeight,
     },
   };
 }
