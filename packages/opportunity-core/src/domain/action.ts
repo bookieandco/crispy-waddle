@@ -63,3 +63,25 @@ export function createOpportunityActionIntent(input: {
     expiresAt: input.expiresAt,
   }
 }
+
+
+export function createDropshippingProcurementActionIntent(input: {
+  opportunity: Opportunity
+  pursuitCase: OpportunityPursuitCase
+  evidenceRefs: string[]
+  createdAt: string
+  expiresAt: string
+}): OpportunityActionIntent {
+  if (input.opportunity.metadata?.commercialKind !== 'dropshipping') {
+    throw new Error('Dropshipping procurement handoff requires a dropshipping opportunity')
+  }
+  return createOpportunityActionIntent({
+    opportunity: input.opportunity,
+    pursuitCase: input.pursuitCase,
+    executionOwner: 'commerce',
+    capability: 'commerce.supplier.procure',
+    evidenceRefs: input.evidenceRefs,
+    createdAt: input.createdAt,
+    expiresAt: input.expiresAt,
+  })
+}
