@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createAdminSession, isAdminSession } from '../lib/admin-auth';
 import { validateCart } from '../lib/catalog';
-import { catalogHasNoPlaceholders } from '../lib/checkout-readiness';
+import { catalogUsesProviderNeutralIds } from '../lib/checkout-readiness';
 import { newOwnerToken, ownerTokenHash } from '../lib/platform';
 import { hotspots } from '../data/hotspots';
 
@@ -58,8 +58,8 @@ describe('PupsonStuff closeout contracts', () => {
     expect(result?.[0].priceCents).toBe(variant.priceCents);
   });
 
-  it('keeps launch blocked while source catalog placeholders remain', () => {
-    expect(catalogHasNoPlaceholders()).toBe(false);
+  it('keeps provider IDs out of the source storefront catalog', () => {
+    expect(catalogUsesProviderNeutralIds()).toBe(true);
   });
 
   it('ships a private, RLS-enabled production schema', () => {
