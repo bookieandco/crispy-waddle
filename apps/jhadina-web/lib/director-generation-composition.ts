@@ -55,7 +55,7 @@ function composeDirectorGenerationRuntime(
   const generation = new GenerationPlanAdapter(service, registry, storyboardLineageResolver);
   const authority = new DirectorProductionAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(productionClient), storyboardLineageResolver);
   const reviewRepository = new SupabaseDirectorReviewRepository(reviewClient);
-  const reviewAuthority = new DirectorReviewAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(client), reviewRepository);
+  const reviewAuthority = new DirectorReviewAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(productionClient), reviewRepository);
   const reconciler = new GenerationSubmissionReconciler(repository, outboxProviders, workerId);
   return { generation, reconciler, workerId, hasModel: (modelId) => registry.hasModel(modelId), authority, reviewAuthority, reviewRepository };
 }
