@@ -19,6 +19,43 @@ export interface SupplierOfferSnapshot {
   observedAt: string;
 }
 
+
+
+export interface SupplierDiscoveryObservation {
+  provider: string;
+  sourceId: string;
+  productId: string;
+  title: string;
+  supplierId?: string;
+  supplierName?: string;
+  supplierStoreUrl?: string;
+  productUrl?: string;
+  imageUrl?: string;
+  minUnitAmountMinor?: number;
+  maxUnitAmountMinor?: number;
+  currency?: string;
+  minimumOrderQuantity?: number;
+  sellerFeedbackPercent?: number;
+  reviewCount?: number;
+  freeShipping?: boolean;
+  sponsored?: boolean;
+  destinationCountry?: string;
+  observedAt: string;
+  metadata?: Record<string, string>;
+}
+
+export interface SupplierDiscoveryQuery {
+  query: string;
+  destinationCountry?: string;
+  currency?: string;
+  limit?: number;
+}
+
+export interface SupplierDiscoveryAdapter {
+  readonly name: string;
+  search(query: SupplierDiscoveryQuery): Promise<SupplierDiscoveryObservation[]>;
+}
+
 export interface SupplierSourcingQuery {
   query: string;
   destinationCountry: string;
