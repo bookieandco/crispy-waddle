@@ -3,7 +3,8 @@ import test from 'node:test'
 import {
   assertSharkMoneyResearchOnly,
   assertSharkResearchIngress,
-  ingestSharkResearch,\n  sharkResearchToGovernedIntelligence,
+  ingestSharkResearch,
+  sharkResearchToGovernedIntelligence,
   type SharkMoneyTransportEnvelope,
   type SharkResearchIngressContext,
 } from './shark-intelligence-ingress.js'
