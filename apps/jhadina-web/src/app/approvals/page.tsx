@@ -6,7 +6,6 @@ import { getCurrentUserId } from "@/lib/auth/current-user"
 
 type MemoryCandidate={id:string;content:string;type:string;confidence:number;status:string;createdAt?:string}
 type GrowthDraft={id:string;brand:string;kind:string;title?:string;body:string;rationale:string;status:string;platforms:string[]}
-type SocialProposal={id:string;actionId:string;brand:string;text:string;status:string;approvalReceiptId?:string;targets:Array<{platform:string;providerProfileId:string}>;createdAt:string}
 type SocialTarget={accountId:string;platform:string;provider:string;providerProfileId:string;brand:string}
 type SocialProposal={id:string;actionId:string;brand:string;text:string;targets:SocialTarget[];status:string;approvalReceiptId?:string;createdAt:string;scheduledAt?:string}
 type ActivityEvent={id:string;actionId:string;type:string;status:"started"|"approval_required"|"completed"|"denied"|"failed";timestamp:string;domain:string;metadata?:Record<string,unknown>}
@@ -21,7 +20,6 @@ export default function ApprovalsPage(){
  const [growth,setGrowth]=useState<GrowthDraft[]>([])
  const [social,setSocial]=useState<SocialProposal[]>([])
  const [events,setEvents]=useState<ActivityEvent[]>([])
- const [social,setSocial]=useState<SocialProposal[]>([])
  const [loading,setLoading]=useState(true)
  const [error,setError]=useState("")
  const [busy,setBusy]=useState<string|null>(null)
