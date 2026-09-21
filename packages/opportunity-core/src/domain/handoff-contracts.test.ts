@@ -1,5 +1,5 @@
 import { adaptCommercialOpportunity } from '../adapters/commercial.js'
-import { createOpportunityActionIntent } from './action.js'
+import { createDropshippingProcurementActionIntent, createOpportunityActionIntent } from './action.js'
 import { validateCommercialDealContract, qualifyProviderMatch } from './brokerage.js'
 import { applyOpportunityIntelligence, buildOpportunityMatch, scoreOpportunity } from './intelligence.js'
 import { approveOpportunityForResearch, markOpportunityReady, updatePursuitTask } from './pursuit.js'
@@ -106,6 +106,17 @@ const intent = createOpportunityActionIntent({
   expiresAt: '2026-09-20T02:00:00Z',
 })
 assert(intent.requiresPolicy && intent.requiresApproval, 'Opportunity action handoff must preserve governance gates')
+
+const procurementIntent = createDropshippingProcurementActionIntent({
+  opportunity: ready,
+  pursuitCase: researchCase,
+  evidenceRefs: ['evidence:supplier', 'evidence:economics'],
+  createdAt: '2026-09-19T02:00:00Z',
+  expiresAt: '2026-09-20T02:00:00Z',
+})
+assert(procurementIntent.executionOwner === 'commerce', 'Dropshipping procurement must hand off to Commerce')
+assert(procurementIntent.capability === 'commerce.supplier.procure', 'Dropshipping procurement must use the governed supplier capability')
+assert(procurementIntent.requiresPolicy && procurementIntent.requiresApproval, 'Dropshipping procurement must preserve policy and approval gates')
 
 
 let blankMatchEvidenceBlocked = false
