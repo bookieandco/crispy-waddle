@@ -51,6 +51,18 @@ function canonicalValues(values: readonly string[]): string {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort().join(',');
 }
 
+export function assertBudgetWithinCeiling(budgetMinor: number, ceilingMinor: number): void {
+  if (!Number.isSafeInteger(ceilingMinor) || ceilingMinor <= 0) {
+    throw new Error('GROWTH_PAID_AD_BUDGET_CEILING_NOT_CONFIGURED');
+  }
+  if (!Number.isSafeInteger(budgetMinor) || budgetMinor <= 0) {
+    throw new Error('GROWTH_PAID_AD_BUDGET_INVALID');
+  }
+  if (budgetMinor > ceilingMinor) {
+    throw new Error('GROWTH_PAID_AD_BUDGET_EXCEEDS_CEILING');
+  }
+}
+
 export function assertPaidCampaignPlan(plan: PaidCampaignPlan): void {
   if (!plan.id.trim() || !plan.brandId.trim() || !plan.name.trim()) throw new Error('GROWTH_PAID_CAMPAIGN_IDENTITY_REQUIRED');
   if (!plan.providerAccountId.trim()) throw new Error('GROWTH_PAID_PROVIDER_ACCOUNT_REQUIRED');
