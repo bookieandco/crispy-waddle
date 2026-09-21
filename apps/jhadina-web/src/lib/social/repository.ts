@@ -188,7 +188,7 @@ export interface SocialRepository {
   listOutbox(userId: string, proposalId?: string): Promise<SocialOutboxJob[]>
   beginOutboxAttempt(userId: string, outboxId: string): Promise<SocialOutboxJob>
   completeOutbox(userId: string, outboxId: string, providerPostId: string): Promise<SocialOutboxJob>
-  failOutbox(userId: string, outboxId: string, error: string, ambiguous?: boolean): Promise<SocialOutboxJob>
+  failOutbox(userId: string, outboxId: string, error: string, ambiguous?: boolean, providerPostId?: string): Promise<SocialOutboxJob>
   recordObservation(input: {
     userId: string
     proposalId?: string
@@ -373,13 +373,14 @@ export function createSocialRepository(): SocialRepository {
       return outboxFromRow(data)
     },
 
-    async failOutbox(userId, outboxId, errorMessage, ambiguous = false) {
+    async failOutbox(userId, outboxId, errorMessage, ambiguous = false, providerPostId) {
       const supabase = await createClient()
       const { data, error } = await supabase
         .rpc("jhadina_social_fail_outbox", {
           p_outbox_id: outboxId,
           p_error: errorMessage,
           p_ambiguous: ambiguous,
+          p_provider_post_id: providerPostId ?? null,
         })
         .single<OutboxRow>()
       if (error || !data) throw new Error(`Unable to fail social dispatch: ${error?.message ?? "job unavailable"}`)
