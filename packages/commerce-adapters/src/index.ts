@@ -18,6 +18,8 @@ import type { ExternalReference } from "./shared";
 export type { ExternalReference } from "./shared";
 export * from "./supplier";
 export * from "./supplier-1688";
+export * from "./supplier-dhgate";
+export * from "./supliful-shopify";
 
 export interface NormalizedProduct {
   productId: string;
