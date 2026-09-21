@@ -57,7 +57,7 @@ export default function ApprovalsPage(){
     if(!previous||previous.timestamp<event.timestamp)requests.set(event.actionId,event)
    }
   }
-  return [...requests.values()].map(request=>{
+  return [...requests.values()].filter(request=>!["growth","social","intelligence"].includes(request.domain)).map(request=>{
    const later=events.filter(event=>event.actionId===request.actionId&&event.timestamp>request.timestamp&&["completed","denied","failed"].includes(event.status)).sort((a,b)=>b.timestamp.localeCompare(a.timestamp))[0]
    return {actionId:request.actionId,type:request.type,domain:request.domain,timestamp:request.timestamp,state:later?"resolved":"needs_review",terminal:later?.status}
   }).filter(item=>item.state==="needs_review").sort((a,b)=>b.timestamp.localeCompare(a.timestamp))
