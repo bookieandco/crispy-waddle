@@ -1,4 +1,4 @@
-import type { CreativeProvenance, DirectorReviewRepository, GeneratedAssetRecord, MediaQualityEvidence, MediaReviewDecisionRecord } from '@jhadina/director-core';
+import type { DirectorReviewRepository, GeneratedAssetRecord, MediaQualityEvidence, MediaReviewDecisionRecord } from '@jhadina/director-core';
 type Result={data:unknown;error:{message:string}|null};
 type Q={select(s:string):Q;eq(k:string,v:string|number):Q;maybeSingle():Promise<Result>};
 type FromQ={select(s:string):Q;insert(v:unknown):Promise<Result>};
