@@ -21,6 +21,7 @@ jobs:
           node-version: 22
 
       - name: Bootstrap dedicated Vercel project and domain
+        id: bootstrap
         run: node apps/pupsonstuff/scripts/vercel-bootstrap.mjs
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -48,3 +49,42 @@ jobs:
           PUPSON_KNOCKOUT_URL: ${{ secrets.PUPSON_KNOCKOUT_URL }}
           PUPSON_UPSCALER_URL: ${{ secrets.PUPSON_UPSCALER_URL }}
           PUPSON_UPSCALER_TOKEN: ${{ secrets.PUPSON_UPSCALER_TOKEN }}
+
+      - name: Install pinned Vercel CLI
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: npm install --global vercel@59.19.1
+
+      - name: Pull preview project settings
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+          VERCEL_PROJECT_ID: ${{ steps.bootstrap.outputs.project_id }}
+
+      - name: Build preview artifact
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: vercel build --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+          VERCEL_PROJECT_ID: ${{ steps.bootstrap.outputs.project_id }}
+
+      - name: Deploy preview artifact
+        id: deploy
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: |
+          preview_url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff)"
+          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "### PupsonStuff preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "$preview_url" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+          VERCEL_PROJECT_ID: ${{ steps.bootstrap.outputs.project_id }}
+
+      - name: Record blocked preview state
+        if: steps.bootstrap.outputs.environment_ready != 'true'
+        run: |
+          echo "### PupsonStuff preview not deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "The project/domain bootstrap ran, but required server/provider environment inputs are incomplete." >> "$GITHUB_STEP_SUMMARY"
