@@ -84,6 +84,27 @@ export interface SocialMessageAction {
   requestFingerprint: string;
 }
 
+export interface SocialMessageOutboxJob {
+  id: string;
+  proposalId: string;
+  userId: string;
+  actionId: string;
+  senderAccountId: string;
+  provider: SocialProviderName;
+  providerProfileId: string;
+  platform: SocialPlatform;
+  providerRecipientId: string;
+  conversationRef?: string;
+  text: string;
+  status: "pending" | "attempting" | "delivered" | "failed" | "ambiguous" | "cancelled";
+  idempotencyKey: string;
+  attemptCount: number;
+  providerMessageId?: string;
+  lastError?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SocialProviderMessageRequest {
   senderProviderProfileId: string;
   platform: SocialPlatform;
