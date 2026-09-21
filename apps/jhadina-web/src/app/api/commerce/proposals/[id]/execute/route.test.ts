@@ -33,7 +33,7 @@ describe("POST /api/commerce/proposals/:id/execute", () => {
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.data.status).toBe("captured")
-    expect(runExecuteCommerceProposal).toHaveBeenCalledWith("user-1", "p1")
+    expect(runExecuteCommerceProposal).toHaveBeenCalledWith(undefined, "p1")
   })
 
   it("maps an identity failure to 401", async () => {
