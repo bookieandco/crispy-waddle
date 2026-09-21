@@ -23,3 +23,9 @@ export * from './meteora-liquidity-adapter'
 export * from './meteora-withdrawal-attribution'
 
 export * from './money-simulation-learning'
+
+export * from './actor-aware-assessment'
+
+export * from './persisted-actor-intelligence'
+
+export * from './entity-graph'
