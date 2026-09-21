@@ -17,6 +17,8 @@ interface OrderRow {
 
 interface OrderItemRow {
   id: string;
+  product_id: string;
+  variant_id: string;
   quantity: number;
   fulfillment_provider: 'printful' | 'printify';
   fulfillment_product_id: string;
@@ -79,12 +81,65 @@ export async function submitFulfillment(
   const order = orders[0];
   if (!order) throw new Error('Commerce order not found.');
   const items = await rest<OrderItemRow[]>(
-    `pupson_order_items?select=id,quantity,fulfillment_provider,fulfillment_product_id,fulfillment_variant_id,catalog_snapshot,print_asset:pupson_media_assets!print_asset_id(bucket_id,object_path)&order_id=eq.${order.id}`
+    `pupson_order_items?select=id,product_id,variant_id,quantity,fulfillment_provider,fulfillment_product_id,fulfillment_variant_id,catalog_snapshot,print_asset:pupson_media_assets!print_asset_id(bucket_id,object_path)&order_id=eq.${order.id}`
   );
   if (items.length === 0) throw new Error('Order has no fulfillment items.');
   if (items.some((item) => item.fulfillment_provider !== 'printify'))
     throw new Error('Launch fulfillment supports one Printify order at a time.');
   const mode = process.env.PUPSON_FULFILLMENT_MODE ?? 'dry_run';
+
+  for (const item of items) {
+    const currentRows = await rest<
+      Array<{
+        provider: string;
+        provider_product_id: string;
+        provider_variant_id: string;
+        blueprint_id: string | null;
+        print_provider_id: string | null;
+        print_area: string;
+        active: boolean;
+        certification_status: string;
+      }>
+    >(
+      `pupson_catalog_variants?select=provider,provider_product_id,provider_variant_id,blueprint_id,print_provider_id,print_area,active,certification_status&product_id=eq.${encodeURIComponent(item.product_id)}&variant_id=eq.${encodeURIComponent(item.variant_id)}&limit=1`
+    );
+    const current = currentRows[0];
+    const snapshot = item.catalog_snapshot;
+    const certificationSafe =
+      mode === 'live'
+        ? current?.certification_status === 'sample_verified'
+        : ['sandbox_verified', 'sample_verified'].includes(String(current?.certification_status));
+    const mappingSafe =
+      current?.active === true &&
+      current.provider === 'printify' &&
+      certificationSafe &&
+      current.provider_product_id === String(snapshot.provider_product_id ?? '') &&
+      current.provider_variant_id === String(snapshot.provider_variant_id ?? '') &&
+      String(current.blueprint_id ?? '') === String(snapshot.blueprint_id ?? '') &&
+      String(current.print_provider_id ?? '') === String(snapshot.print_provider_id ?? '') &&
+      current.print_area === String(snapshot.print_area ?? '');
+    if (!mappingSafe) {
+      const message =
+        mode === 'live'
+          ? 'Current catalog mapping is suspended, changed, or has not passed physical-sample certification.'
+          : 'Current catalog mapping is suspended, changed, or no longer sandbox certified.';
+      await rest(`pupson_fulfillment_orders?id=eq.${fulfillment.id}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ status: 'blocked', last_error: message }),
+      });
+      await rest('pupson_fulfillment_events', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          fulfillment_order_id: fulfillment.id,
+          event_type: 'catalog_gate_blocked',
+          payload: { productId: item.product_id, variantId: item.variant_id, mode },
+        }),
+      });
+      return { status: 'blocked' };
+    }
+  }
   if (mode !== 'live') {
     await rest(`pupson_fulfillment_orders?id=eq.${fulfillment.id}`, {
       method: 'PATCH',
