@@ -31,8 +31,13 @@ export function passedPrintQualityGate(
 
 export interface CertifiedCartItem extends ValidatedCartItem {
   printAssetId: string;
+  fulfillmentProvider: 'printify';
   providerProductId: string;
   providerVariantId: string;
+  blueprintId: string;
+  printProviderId: string;
+  printArea: string;
+  catalogCertificationStatus: 'sandbox_verified' | 'sample_verified';
 }
 
 export async function certifyCartForCheckout(
@@ -70,24 +75,45 @@ export async function certifyCartForCheckout(
         provider_variant_id: string;
         active: boolean;
         certification_status: string;
+        blueprint_id: string | null;
+        print_provider_id: string | null;
+        print_area: string;
       }>
     >(
-      `pupson_catalog_variants?select=provider,provider_product_id,provider_variant_id,active,certification_status&product_id=eq.${encodeURIComponent(item.productId)}&variant_id=eq.${encodeURIComponent(item.variantId)}&limit=1`
+      `pupson_catalog_variants?select=provider,provider_product_id,provider_variant_id,active,certification_status,blueprint_id,print_provider_id,print_area&product_id=eq.${encodeURIComponent(item.productId)}&variant_id=eq.${encodeURIComponent(item.variantId)}&limit=1`
     );
     const live = liveRows[0];
+    const requiredCertification =
+      process.env.PUPSON_FULFILLMENT_MODE === 'live'
+        ? 'sample_verified'
+        : null;
     if (
       !live?.active ||
-      !['sandbox_verified', 'sample_verified'].includes(live.certification_status)
+      !['sandbox_verified', 'sample_verified'].includes(live.certification_status) ||
+      (requiredCertification && live.certification_status !== requiredCertification)
     ) {
-      throw new Error(`${item.productName} has not passed catalog certification.`);
+      throw new Error(
+        requiredCertification
+          ? `${item.productName} has not passed physical-sample certification.`
+          : `${item.productName} has not passed catalog certification.`
+      );
     }
     if (live.provider !== 'printify')
       throw new Error(`${item.productName} is not mapped to the launch fulfillment provider.`);
+    if (!live.blueprint_id || !live.print_provider_id || !live.print_area)
+      throw new Error(`${item.productName} has an incomplete Printify production mapping.`);
     certified.push({
       ...item,
       printAssetId: output.print_asset_id,
+      fulfillmentProvider: 'printify',
       providerProductId: live.provider_product_id,
       providerVariantId: live.provider_variant_id,
+      blueprintId: live.blueprint_id,
+      printProviderId: live.print_provider_id,
+      printArea: live.print_area,
+      catalogCertificationStatus: live.certification_status as
+        | 'sandbox_verified'
+        | 'sample_verified',
     });
   }
   return certified;
