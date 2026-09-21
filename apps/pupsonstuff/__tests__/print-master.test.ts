@@ -20,7 +20,7 @@ describe('product-specific print master', () => {
   it('builds a 12x16 apparel master at target DPI and records placement', async () => {
     const product = hotspots.find((item) => item.id === 'concertShirt')!;
     const result = await buildPrintMaster({
-      generatedBytes: await squarePng(),
+      generatedBytes: await squarePng(2048),
       hotspot: product,
       variantId: 'FUL-TEE-CONCERT-M',
       transform: { x: 0.5, y: 0.45, scale: 1.2, rotation: 8 },
@@ -31,6 +31,18 @@ describe('product-specific print master', () => {
     expect(result.transform).toMatchObject({ x: 0.5, y: 0.45, scale: 1.2, rotation: 8 });
     expect(result.quality.productionReady).toBe(true);
     expect(result.quality.score).toBeGreaterThanOrEqual(90);
+  });
+
+  it('fails closed when an enlarged placement needs an upscaler that is not configured', async () => {
+    const product = hotspots.find((item) => item.id === 'concertShirt')!;
+    await expect(
+      buildPrintMaster({
+        generatedBytes: await squarePng(512),
+        hotspot: product,
+        variantId: 'FUL-TEE-CONCERT-M',
+        transform: { x: 0.5, y: 0.5, scale: 2, rotation: 0 },
+      })
+    ).rejects.toThrow('Configure PUPSON_UPSCALER_URL or KNOCKOUT_TOKEN');
   });
 
   it('uses variant dimensions for canvas products', () => {
