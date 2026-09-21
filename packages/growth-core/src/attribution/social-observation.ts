@@ -7,6 +7,7 @@ export interface SocialAttributionObservation {
   observedAt: string;
   metrics: Readonly<Record<string, number>>;
   source: string;
+  confidence?: number;
 }
 
 export function socialObservationToAttributionEvents(
@@ -30,7 +31,7 @@ export function socialObservationToAttributionEvents(
       creativeId: observation.contentId,
       channelId: `social:${observation.platform}`,
       source: observation.source,
-      confidence: 1,
+      confidence: Math.min(1, Math.max(0, observation.confidence ?? 0.5)),
     }];
   });
 }
