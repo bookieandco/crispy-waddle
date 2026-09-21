@@ -20,6 +20,7 @@ export { createCreativePack, countCreativeVariants, conceptIds } from './intelli
 export type { CreativePack, CreativeVariant, CreativeFormat, FunnelStage, CreativeConcept as CreativePackConcept } from './intelligence/creative-pack.js';
 export * from './intelligence/creative-pack-assembler.js';
 export * from './intelligence/experiment-planner.js';
+export * from './intelligence/experiment-opportunity.js';
 export * from './intelligence/growth-loop.js';
 export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
