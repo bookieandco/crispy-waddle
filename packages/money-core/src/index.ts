@@ -140,7 +140,7 @@ export * from './execution-receipt-contracts.js';
 export * from './execution-receipt-engine.js';
 
 export * from './paper-execution-contracts.js';
-export * from './paper-execution-engine.js';
+export * from './paper-execution-engine.js';\nexport * from './paper-ledger.js';\nexport * from './postgres-paper-ledger-store.js';
 
 export * from './sandbox-broker-contracts.js';
 export * from './sandbox-broker-engine.js';
