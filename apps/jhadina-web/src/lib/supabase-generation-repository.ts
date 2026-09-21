@@ -1,8 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { GenerationExecution } from '@jhadina/director-core/generation-execution';
-import type { AtomicSubmissionAcknowledgement, GenerationRepository, GenerationSubmissionOutbox } from '@jhadina/director-core/generation-repository';
-import type { GenerationSubmissionRepository } from '@jhadina/director-core/generation-submission-repository';
-import type { GenerationTask } from '@jhadina/director-core/generation-task';
+import type { GenerationExecution, GenerationRepository, GenerationSubmissionOutbox, GenerationSubmissionRepository, GenerationTask } from '@jhadina/director-core';
 
 type TaskRow = { id: string; project_id: string; edit_plan_id: string | null; operation_id: string | null; idempotency_key: string; request: GenerationTask['request']; status: GenerationTask['status']; error: string | null; created_at: string; updated_at: string };
 type ExecutionRow = { id: string; task_id: string; provider_id: string; provider_job_id: string | null; attempt: number; status: GenerationExecution['status']; error: string | null; lease_owner: string | null; lease_token: string | null; lease_expires_at: string | null; created_at: string; updated_at: string };
