@@ -3,7 +3,7 @@ export type JhadinaWorldId =
   | "music" | "tv" | "studio" | "social" | "pupsonstuff" | "trucker"
   | "cooking" | "shopping" | "radar" | "knowledge" | "money" | "wallet"
   | "opportunities" | "spatial" | "publishing" | "campaign" | "placement"
-  | "sports" | "safety" | "overage" | "homebase" | "pod";
+  | "sports" | "safety" | "overage" | "homebase" | "pod" | "evolution" | "staffing";
 
 export interface WorldCapability {
   id: string;
@@ -68,8 +68,6 @@ const worldRows: WorldRow[] = [
   { id:"social", label:"Social", description:"Social discovery, review and governed publishing", capabilities:["draft","schedule","review"], inputs:["content","activity"], href:"/social", group:"media" },
 
   { id:"pupsonstuff", label:"PupsonStuff", description:"Pet products, creative generation and commerce", capabilities:["products","creative","orders"], inputs:["shopping","commerce"], group:"business" },
-  { id:"pod", label:"AI POD Shop", description:"Generalized AI print-on-demand creation, product studio and fulfillment", capabilities:["generate","products","fulfillment"], inputs:["creative","commerce"], group:"business" },
-  { id:"homebase", label:"Homebase", description:"Connectivity, local compute, cloud/offline continuity and device support", capabilities:["connectivity","compute","continuity"], inputs:["network","device","cloud"], group:"business" },
   { id:"pod", label:"AI POD Studio", description:"Generalized AI product design, 3D product studio and print-on-demand workflow", capabilities:["generate","customize","products"], inputs:["creative","commerce"], group:"business" },
   { id:"shopping", label:"Shopping", description:"Universal product discovery and purchasing", capabilities:["search","watchlist","compare","cart"], inputs:["products","prices","orders"], group:"business" },
   { id:"trucker", label:"TruckerOS", description:"Driving, work and trip intelligence", capabilities:["loads","trips","profit"], inputs:["money","travel"], group:"business" },
