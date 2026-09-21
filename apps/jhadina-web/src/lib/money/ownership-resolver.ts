@@ -4,7 +4,7 @@ import type { BankAdapter } from "@jhadina/money-core"
 import { createOwnedPlaidAdapter } from "./bank-link-runtime"
 
 export type MoneyOwnershipResolver={ownedAccountIds(userId:string):Promise<ReadonlySet<string>>;adapterForAccount(userId:string,accountId:string):Promise<BankAdapter>;ownedAdapters(userId:string):Promise<readonly BankAdapter[]>}
-async function assertIdentity(supabase:Awaited<ReturnType<typeof createClient>>,userId:string){const {data:{claims},error}=await supabase.auth.getClaims();if(error||!claims?.sub||claims.sub!==userId)throw new Error("MONEY_OWNERSHIP_IDENTITY_MISMATCH")}
+async function assertIdentity(supabase:Awaited<ReturnType<typeof createClient>>,userId:string){const {data,error}=await supabase.auth.getClaims();const claims=data?.claims;if(error||!claims?.sub||claims.sub!==userId)throw new Error("MONEY_OWNERSHIP_IDENTITY_MISMATCH")}
 function privateClient(){const client=createServiceRoleClient();if(!client)throw new Error("MONEY_PRIVATE_STORE_NOT_CONFIGURED");return client}
 export async function createMoneyOwnershipResolver():Promise<MoneyOwnershipResolver>{
   const supabase=await createClient()
