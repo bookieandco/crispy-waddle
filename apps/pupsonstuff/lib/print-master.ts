@@ -109,8 +109,20 @@ export async function buildPrintMaster(input: {
   // footprint, not from the final canvas dimensions.
   const footprintWidth = safeWidth * 0.5 * transform.scale;
   const footprintHeight = safeHeight * 0.5 * transform.scale;
-  const requiredSourceWidth = (footprintWidth / profile.targetDpi) * profile.minDpi;
-  const requiredSourceHeight = (footprintHeight / profile.targetDpi) * profile.minDpi;
+  const originalMeta = await sharp(input.generatedBytes, { failOn: 'error' }).metadata();
+  const originalWidth = originalMeta.width ?? 0;
+  const originalHeight = originalMeta.height ?? 0;
+  if (!originalWidth || !originalHeight) {
+    throw new Error('Generated artwork has no usable dimensions.');
+  }
+  const placementFit = Math.min(
+    footprintWidth / originalWidth,
+    footprintHeight / originalHeight
+  );
+  const placedWidth = originalWidth * placementFit;
+  const placedHeight = originalHeight * placementFit;
+  const requiredSourceWidth = (placedWidth / profile.targetDpi) * profile.minDpi;
+  const requiredSourceHeight = (placedHeight / profile.targetDpi) * profile.minDpi;
   const source = await ensureSourceResolution({
     bytes: input.generatedBytes,
     mimeType: 'image/png',
