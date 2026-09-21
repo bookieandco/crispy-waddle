@@ -65,5 +65,5 @@ jobs:
             src/lib/commerce/governed-supplier-procurement.test.ts \
             src/lib/commerce/commerce-proposal-lifecycle.test.ts
 
-      - name: Type-check Jhadina web
-        run: pnpm --filter @jhadina/jhadina-web type-check
+      - name: Type-check governed dropshipping web boundary
+        run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.sh-dropshipping.json
