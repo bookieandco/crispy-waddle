@@ -263,7 +263,7 @@ function OpportunityCard({
         <Link href="/ask-jhadina?surface=opportunities&route=/opportunity" style={linkChip}>Ask Jhadina</Link>
         <Link href="/money/command-center" style={linkChip}>Send to Money</Link>
         <Link href="/campaign/polls" style={linkChip}>Send to CampaignOS</Link>
-        <Link href="/director-studio" style={linkChip}>Send to Director Studio</Link>
+        <Link href="/workstation" style={linkChip}>Send to Workstation</Link>
       </div>
     </article>
   )
