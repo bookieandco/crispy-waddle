@@ -36,8 +36,6 @@ export type ProductType =
   | "upload"
   | "checkout";
 
-export type FulfillmentProvider = "printful" | "printify";
-
 export interface InventoryVariant {
   variantId: string;
   label: string;
@@ -54,10 +52,8 @@ export interface PrintArea {
 }
 
 export interface FulfillmentMapping {
-  provider: FulfillmentProvider;
+  /** Stable storefront grouping key, never a Printify/Printful provider product ID. */
   productId: string;
-  blueprintId?: string;
-  printProviderId?: string;
   variants: InventoryVariant[];
   printArea: PrintArea;
 }
@@ -99,12 +95,12 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-CANVAS-PLACEHOLDER",
+      productId: "canvas",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
-        { variantId: "FUL-CANVAS-12x16", label: "12×16 in", priceCents: 6900 },
-        { variantId: "FUL-CANVAS-16x20", label: "16×20 in", priceCents: 8900 },
-        { variantId: "FUL-CANVAS-20x30", label: "20×30 in", priceCents: 12900 },
+        { variantId: "canvas-12x16", label: "12×16 in", priceCents: 6900 },
+        { variantId: "canvas-16x20", label: "16×20 in", priceCents: 8900 },
+        { variantId: "canvas-20x30", label: "20×30 in", priceCents: 12900 },
       ],
     },
     aiTemplate: "Render as an astronaut-suited pet portrait, dramatic space lighting.",
@@ -123,12 +119,12 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-CANVAS-PLACEHOLDER",
+      productId: "canvas",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
-        { variantId: "FUL-CANVAS-12x16", label: "12×16 in", priceCents: 6900 },
-        { variantId: "FUL-CANVAS-16x20", label: "16×20 in", priceCents: 8900 },
-        { variantId: "FUL-CANVAS-20x30", label: "20×30 in", priceCents: 12900 },
+        { variantId: "canvas-12x16", label: "12×16 in", priceCents: 6900 },
+        { variantId: "canvas-16x20", label: "16×20 in", priceCents: 8900 },
+        { variantId: "canvas-20x30", label: "20×30 in", priceCents: 12900 },
       ],
     },
     aiTemplate: "Render in a royal military uniform style, medals and sash.",
@@ -147,12 +143,12 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-CANVAS-PLACEHOLDER",
+      productId: "canvas",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
-        { variantId: "FUL-CANVAS-12x16", label: "12×16 in", priceCents: 6900 },
-        { variantId: "FUL-CANVAS-16x20", label: "16×20 in", priceCents: 8900 },
-        { variantId: "FUL-CANVAS-20x30", label: "20×30 in", priceCents: 12900 },
+        { variantId: "canvas-12x16", label: "12×16 in", priceCents: 6900 },
+        { variantId: "canvas-16x20", label: "16×20 in", priceCents: 8900 },
+        { variantId: "canvas-20x30", label: "20×30 in", priceCents: 12900 },
       ],
     },
     aiTemplate: "Render as bold geometric pop-art, saturated color blocks.",
@@ -171,12 +167,12 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-CANVAS-PLACEHOLDER",
+      productId: "canvas",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
-        { variantId: "FUL-CANVAS-12x16", label: "12×16 in", priceCents: 6900 },
-        { variantId: "FUL-CANVAS-16x20", label: "16×20 in", priceCents: 8900 },
-        { variantId: "FUL-CANVAS-20x30", label: "20×30 in", priceCents: 12900 },
+        { variantId: "canvas-12x16", label: "12×16 in", priceCents: 6900 },
+        { variantId: "canvas-16x20", label: "16×20 in", priceCents: 8900 },
+        { variantId: "canvas-20x30", label: "20×30 in", priceCents: 12900 },
       ],
     },
     aiTemplate: "Render wearing a jeweled crown and ornate collar, regal lighting.",
@@ -195,12 +191,12 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-CANVAS-PLACEHOLDER",
+      productId: "canvas",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
-        { variantId: "FUL-CANVAS-12x16", label: "12×16 in", priceCents: 6900 },
-        { variantId: "FUL-CANVAS-16x20", label: "16×20 in", priceCents: 8900 },
-        { variantId: "FUL-CANVAS-20x30", label: "20×30 in", priceCents: 12900 },
+        { variantId: "canvas-12x16", label: "12×16 in", priceCents: 6900 },
+        { variantId: "canvas-16x20", label: "16×20 in", priceCents: 8900 },
+        { variantId: "canvas-20x30", label: "20×30 in", priceCents: 12900 },
       ],
     },
     aiTemplate: "Render as a soft pastel watercolor wash, gentle brush texture.",
@@ -219,12 +215,12 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-CANVAS-PLACEHOLDER",
+      productId: "canvas",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
-        { variantId: "FUL-CANVAS-12x16", label: "12×16 in", priceCents: 6900 },
-        { variantId: "FUL-CANVAS-16x20", label: "16×20 in", priceCents: 8900 },
-        { variantId: "FUL-CANVAS-20x30", label: "20×30 in", priceCents: 12900 },
+        { variantId: "canvas-12x16", label: "12×16 in", priceCents: 6900 },
+        { variantId: "canvas-16x20", label: "16×20 in", priceCents: 8900 },
+        { variantId: "canvas-20x30", label: "20×30 in", priceCents: 12900 },
       ],
     },
     aiTemplate: "Render in formal dress uniform, crisp studio portrait lighting.",
@@ -245,10 +241,10 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [4, 7],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-PILLOW-PLACEHOLDER",
+      productId: "pillow",
       printArea: { name: "center", x: 20, y: 20, width: 60, height: 60 },
       variants: [
-        { variantId: "FUL-PILLOW-18x18", label: "18×18 in", priceCents: 4500 },
+        { variantId: "pillow-18x18", label: "18×18 in", priceCents: 4500 },
       ],
     },
     aiTemplate: "Render as a soft textile print, centered, cozy home decor tone.",
@@ -269,10 +265,10 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [4, 7],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-BOTTLE-PLACEHOLDER",
+      productId: "bottle",
       printArea: { name: "wrap", x: 0, y: 15, width: 100, height: 70 },
       variants: [
-        { variantId: "FUL-BOTTLE-STD", label: "20oz", priceCents: 3400 },
+        { variantId: "bottle-20oz", label: "20oz", priceCents: 3400 },
       ],
     },
     aiTemplate: "Render as a wraparound bottle print, bold and legible at small scale.",
@@ -291,10 +287,10 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [4, 7],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-MUG-PLACEHOLDER",
+      productId: "mug",
       printArea: { name: "wrap", x: 5, y: 10, width: 70, height: 80 },
       variants: [
-        { variantId: "FUL-MUG-11OZ", label: "11oz", priceCents: 2200 },
+        { variantId: "mug-11oz", label: "11oz", priceCents: 2200 },
       ],
     },
     aiTemplate: "Render as a wraparound mug print, bold geometric color blocks.",
@@ -313,10 +309,10 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [4, 7],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-MUG-PLACEHOLDER",
+      productId: "mug",
       printArea: { name: "wrap", x: 5, y: 10, width: 70, height: 80 },
       variants: [
-        { variantId: "FUL-MUG-11OZ", label: "11oz", priceCents: 2200 },
+        { variantId: "mug-11oz", label: "11oz", priceCents: 2200 },
       ],
     },
     aiTemplate: "Render as a wraparound mug print, clean and legible on white ceramic.",
@@ -337,13 +333,13 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [5, 9],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-HOODIE-WHITE-PLACEHOLDER",
+      productId: "hoodie-white",
       printArea: { name: "front chest", x: 28, y: 22, width: 44, height: 34 },
       variants: [
-        { variantId: "FUL-HOODIE-WHITE-S", label: "S", priceCents: 5400 },
-        { variantId: "FUL-HOODIE-WHITE-M", label: "M", priceCents: 5400 },
-        { variantId: "FUL-HOODIE-WHITE-L", label: "L", priceCents: 5400 },
-        { variantId: "FUL-HOODIE-WHITE-XL", label: "XL", priceCents: 5800 },
+        { variantId: "hoodie-white-s", label: "S", priceCents: 5400 },
+        { variantId: "hoodie-white-m", label: "M", priceCents: 5400 },
+        { variantId: "hoodie-white-l", label: "L", priceCents: 5400 },
+        { variantId: "hoodie-white-xl", label: "XL", priceCents: 5800 },
       ],
     },
     aiTemplate: "Render as a front-chest apparel graphic, clean edges, off-white garment.",
@@ -362,13 +358,13 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [5, 9],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-TEE-CONCERT-PLACEHOLDER",
+      productId: "tee-concert",
       printArea: { name: "front", x: 25, y: 20, width: 50, height: 40 },
       variants: [
-        { variantId: "FUL-TEE-CONCERT-S", label: "S", priceCents: 3400 },
-        { variantId: "FUL-TEE-CONCERT-M", label: "M", priceCents: 3400 },
-        { variantId: "FUL-TEE-CONCERT-L", label: "L", priceCents: 3400 },
-        { variantId: "FUL-TEE-CONCERT-XL", label: "XL", priceCents: 3800 },
+        { variantId: "tee-concert-s", label: "S", priceCents: 3400 },
+        { variantId: "tee-concert-m", label: "M", priceCents: 3400 },
+        { variantId: "tee-concert-l", label: "L", priceCents: 3400 },
+        { variantId: "tee-concert-xl", label: "XL", priceCents: 3800 },
       ],
     },
     aiTemplate:
@@ -388,13 +384,13 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [5, 9],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-TEE-FOLDED-PLACEHOLDER",
+      productId: "tee-folded",
       printArea: { name: "front", x: 25, y: 20, width: 50, height: 40 },
       variants: [
-        { variantId: "FUL-TEE-FOLDED-S", label: "S", priceCents: 3200 },
-        { variantId: "FUL-TEE-FOLDED-M", label: "M", priceCents: 3200 },
-        { variantId: "FUL-TEE-FOLDED-L", label: "L", priceCents: 3200 },
-        { variantId: "FUL-TEE-FOLDED-XL", label: "XL", priceCents: 3600 },
+        { variantId: "tee-folded-s", label: "S", priceCents: 3200 },
+        { variantId: "tee-folded-m", label: "M", priceCents: 3200 },
+        { variantId: "tee-folded-l", label: "L", priceCents: 3200 },
+        { variantId: "tee-folded-xl", label: "XL", priceCents: 3600 },
       ],
     },
     aiTemplate: "Render as a soft front-chest graphic tee print, everyday casual tone.",
@@ -416,13 +412,13 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [5, 9],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-HOODIE-BLACK-PLACEHOLDER",
+      productId: "hoodie-black",
       printArea: { name: "front chest", x: 28, y: 22, width: 44, height: 34 },
       variants: [
-        { variantId: "FUL-HOODIE-BLACK-S", label: "S", priceCents: 5400 },
-        { variantId: "FUL-HOODIE-BLACK-M", label: "M", priceCents: 5400 },
-        { variantId: "FUL-HOODIE-BLACK-L", label: "L", priceCents: 5400 },
-        { variantId: "FUL-HOODIE-BLACK-XL", label: "XL", priceCents: 5800 },
+        { variantId: "hoodie-black-s", label: "S", priceCents: 5400 },
+        { variantId: "hoodie-black-m", label: "M", priceCents: 5400 },
+        { variantId: "hoodie-black-l", label: "L", priceCents: 5400 },
+        { variantId: "hoodie-black-xl", label: "XL", priceCents: 5800 },
       ],
     },
     aiTemplate: "Render as a front-chest apparel graphic, high contrast, black garment.",
@@ -443,10 +439,10 @@ export const hotspots: Hotspot[] = [
     estimatedDeliveryDays: [4, 7],
     fulfillment: {
       provider: "printify",
-      productId: "FUL-TOTE-PLACEHOLDER",
+      productId: "tote",
       printArea: { name: "front", x: 20, y: 25, width: 60, height: 50 },
       variants: [
-        { variantId: "FUL-TOTE-STD", label: "Standard", priceCents: 2800 },
+        { variantId: "tote-standard", label: "Standard", priceCents: 2800 },
       ],
     },
     aiTemplate: "Render as a single-color screen-print style graphic, natural canvas tote.",
