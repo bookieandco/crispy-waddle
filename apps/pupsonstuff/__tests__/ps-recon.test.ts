@@ -91,4 +91,49 @@ describe('PS-RECON creative and print contracts', () => {
       'pass'
     );
   });
+  it('requires real alpha when the shopper requested background removal', async () => {
+    const hotspot = hotspots.find((item) => item.id === 'frame1')!;
+    const variant = hotspot.fulfillment!.variants[0];
+    const transparent = await sharp({
+      create: {
+        width: 2400,
+        height: 3200,
+        channels: 4,
+        background: { r: 100, g: 120, b: 140, alpha: 0.6 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const transparentMaster = await buildPrintMaster({
+      generatedBytes: transparent,
+      hotspot,
+      variantId: variant.variantId,
+      backgroundMode: 'auto',
+    });
+    expect(
+      transparentMaster.quality.checks.find((check) => check.id === 'background')?.status
+    ).toBe('pass');
+
+    const opaque = await sharp({
+      create: {
+        width: 2400,
+        height: 3200,
+        channels: 4,
+        background: { r: 100, g: 120, b: 140, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const opaqueMaster = await buildPrintMaster({
+      generatedBytes: opaque,
+      hotspot,
+      variantId: variant.variantId,
+      backgroundMode: 'auto',
+    });
+    expect(
+      opaqueMaster.quality.checks.find((check) => check.id === 'background')?.status
+    ).toBe('fail');
+    expect(opaqueMaster.quality.productionReady).toBe(false);
+  });
+
 });
