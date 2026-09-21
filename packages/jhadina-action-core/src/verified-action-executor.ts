@@ -1,4 +1,5 @@
 import type { ActionHandler, ActionLedger, ActionPolicy, ActionRequest } from './action-executor.js';
+import type { ApprovalReceiptVerifier } from './approval-receipt.js';
 import { ActionExecutor } from './action-executor.js';
 
 export interface VerifiedIdentity {
@@ -22,8 +23,9 @@ export class VerifiedActionExecutor<TAction = unknown, TResult = unknown> {
     policy: ActionPolicy<TAction>,
     ledger: ActionLedger,
     handlers: readonly ActionHandler<TAction, TResult>[],
+    approvalReceipts?: ApprovalReceiptVerifier<TAction>,
   ) {
-    this.executor = new ActionExecutor(policy, ledger, handlers);
+    this.executor = new ActionExecutor(policy, ledger, handlers, approvalReceipts);
   }
 
   async execute(request: ActionRequest<TAction>): Promise<TResult> {
