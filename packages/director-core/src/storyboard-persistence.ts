@@ -10,8 +10,17 @@ type SupabaseQuery = {
   maybeSingle(): Promise<SupabaseQueryResult>;
 };
 
-/** Minimal structural query surface; keeps Director Core independent of a Supabase SDK package. */
-export type SupabaseStoryboardClient = { from(table: string): SupabaseQuery };
+type SupabaseFromQuery = {
+  select(columns: string): SupabaseQuery;
+};
+
+/**
+ * Minimal structural query surface; keeps Director Core independent of a
+ * Supabase SDK package. The SDK's from() builder only guarantees select()
+ * before a filter builder exists, so do not require eq/order/limit directly
+ * on the pre-select builder.
+ */
+export type SupabaseStoryboardClient = { from(table: string): SupabaseFromQuery };
 
 export interface StoryboardRepository {
   getSequence(sequenceId: string, projectId: string): Promise<StoryboardSequence | null>;
