@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { getCurrentUserId } from "@/lib/auth/current-user"
+import { auditExecutionState,connectorExecutionState,executionStateLabel,executionStateTone,type JhadinaExecutionState } from "@/lib/system/execution-ux"
 
 type ActivityEvent={
  id:string;actionId:string;type:string;status:"started"|"approval_required"|"completed"|"denied"|"failed";timestamp:string;domain:string;metadata?:Record<string,unknown>
@@ -43,10 +44,10 @@ export default function ActivityPage(){
  useEffect(()=>{void load()},[])
 
  const timeline=useMemo<TimelineItem[]>(()=>{
-  const audit=events.map<TimelineItem>(event=>({id:"audit:"+event.id,source:"audit",domain:event.domain,title:event.type,state:event.status,timestamp:event.timestamp,detail:"Governed ActionAudit event",actionId:event.actionId,metadata:event.metadata}))
+  const audit=events.map<TimelineItem>(event=>({id:"audit:"+event.id,source:"audit",domain:event.domain,title:event.type,state:auditExecutionState(event.status),timestamp:event.timestamp,detail:"Governed ActionAudit event",actionId:event.actionId,metadata:event.metadata}))
   const connectors=recovery.flatMap<TimelineItem>(execution=>{
-   const items:TimelineItem[]=[{id:"connector:"+execution.id,source:"connector",domain:"connector",title:execution.operation||execution.connectorId||"Connector execution",state:execution.state,timestamp:execution.startedAt,detail:execution.recoveryOfExecutionId?"Recovery child of "+execution.recoveryOfExecutionId:"Connector execution "+execution.id,actionId:execution.proposalId??execution.approvalId??undefined}]
-   if(execution.reconciliation)items.push({id:"reconcile:"+execution.id+":"+execution.reconciliation.checkedAt,source:"connector",domain:"connector",title:execution.reconciliation.providerOperation||execution.operation||"Reconciliation",state:execution.reconciliation.status,timestamp:execution.reconciliation.checkedAt,detail:"Observed provider state: "+(execution.reconciliation.observedState??"not reported"),actionId:execution.proposalId??undefined})
+   const items:TimelineItem[]=[{id:"connector:"+execution.id,source:"connector",domain:"connector",title:execution.operation||execution.connectorId||"Connector execution",state:connectorExecutionState({state:execution.state,recoveryOfExecutionId:execution.recoveryOfExecutionId,reconciliation:execution.reconciliation}),timestamp:execution.startedAt,detail:execution.recoveryOfExecutionId?"Recovery child of "+execution.recoveryOfExecutionId:"Connector execution "+execution.id,actionId:execution.proposalId??execution.approvalId??undefined}]
+   if(execution.reconciliation)items.push({id:"reconcile:"+execution.id+":"+execution.reconciliation.checkedAt,source:"connector",domain:"connector",title:execution.reconciliation.providerOperation||execution.operation||"Reconciliation",state:connectorExecutionState({state:execution.state,recoveryOfExecutionId:execution.recoveryOfExecutionId,reconciliation:execution.reconciliation}),timestamp:execution.reconciliation.checkedAt,detail:"Observed provider state: "+(execution.reconciliation.observedState??"not reported"),actionId:execution.proposalId??undefined})
    return items
   })
   return [...audit,...connectors].sort((a,b)=>b.timestamp.localeCompare(a.timestamp))
@@ -61,15 +62,15 @@ export default function ActivityPage(){
   <div className="jh-between"><div><h1 className="jh-title">What happened, in order.</h1><p className="jh-copy">This timeline combines the canonical ActionAudit domains currently implemented in Jhadina Web with actor-scoped connector execution and reconciliation evidence. It does not invent events for subsystems that have not joined those durable stores yet.</p></div><button className="jh-button" onClick={()=>void load()} disabled={loading}>Refresh</button></div>
   <div className="jh-row" style={{marginTop:24}}>
    <label><span className="jh-meta">Domain</span><select className="jh-select" value={domain} onChange={event=>setDomain(event.target.value)}>{domains.map(value=><option key={value} value={value}>{value}</option>)}</select></label>
-   <label><span className="jh-meta">State</span><select className="jh-select" value={state} onChange={event=>setState(event.target.value)}>{states.map(value=><option key={value} value={value}>{value==="all"?"all":stateLabel(value)}</option>)}</select></label>
+   <label><span className="jh-meta">State</span><select className="jh-select" value={state} onChange={event=>setState(event.target.value)}>{states.map(value=><option key={value} value={value}>{value==="all"?"all":executionStateLabel(value as JhadinaExecutionState)}</option>)}</select></label>
   </div>
   {error&&<div className="jh-error" role="alert">{error}</div>}
   {loading?<div className="jh-list"><div className="jh-skeleton"/><div className="jh-skeleton"/><div className="jh-skeleton"/></div>:visible.length===0?<div className="jh-empty">No governed evidence matches this filter.</div>:<div className="jh-list">
    {visible.map(item=><details className="jh-item" key={item.id}>
-    <summary style={{cursor:"pointer",listStyle:"none"}}><div className="jh-between"><div><p className="jh-eyebrow" style={{marginBottom:6}}>{item.domain} · {item.source}</p><strong>{item.title}</strong><p className="jh-meta" style={{margin:"7px 0 0"}}>{new Date(item.timestamp).toLocaleString()}</p></div><span className={stateTone(item.state)}><span className="jh-dot"/>{stateLabel(item.state)}</span></div></summary>
+    <summary style={{cursor:"pointer",listStyle:"none"}}><div className="jh-between"><div><p className="jh-eyebrow" style={{marginBottom:6}}>{item.domain} · {item.source}</p><strong>{item.title}</strong><p className="jh-meta" style={{margin:"7px 0 0"}}>{new Date(item.timestamp).toLocaleString()}</p></div><span className={stateClass(item.state)}><span className="jh-dot"/>{executionStateLabel(item.state)}</span></div></summary>
     <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--jh-border)"}}><p className="jh-card-copy">{item.detail}</p>{item.actionId?<p className="jh-meta">Action / proposal: {item.actionId}</p>:null}{item.metadata&&Object.keys(item.metadata).length?<pre style={{overflow:"auto",whiteSpace:"pre-wrap",fontSize:11,color:"var(--jh-muted)"}}>{JSON.stringify(item.metadata,null,2)}</pre>:null}</div>
    </details>)}
   </div>}
-  <section className="jh-section"><div className="jh-card jh-card--wide"><h2 className="jh-card-title">Current coverage</h2><p className="jh-card-copy">ActionAudit: intelligence, Growth, Commerce and Money. Connector black box: execution plus reconciliation. Other worlds remain visible in Worlds and Work, but their domain-specific ledgers are not presented here as universal evidence until a canonical adapter exists.</p></div></section>
+  <section className="jh-section"><div className="jh-card jh-card--wide"><h2 className="jh-card-title">Current coverage</h2><p className="jh-card-copy">ActionAudit: Intelligence, Growth, Commerce, Money and Social. Connector black box: execution plus reconciliation. Other worlds remain visible in Worlds and Work, but their domain-specific ledgers are not presented here as universal evidence until a canonical adapter exists.</p></div></section>
  </div></main>
 }
