@@ -15,15 +15,15 @@ function parseUsDate(value:string):Date{
   return new Date(Date.UTC(Number(m[3]),Number(m[1])-1,Number(m[2])))
 }
 export async function nextSamBackfillWindow(client:SupabaseClient,windowDays=7){
-  const {data}=await client.from('jhadina_sam_scan_runs').select('posted_from').eq('status','completed').order('started_at',{ascending:true}).limit(200)
+  const {data}=await client.from('jhadina_sam_scan_runs').select('posted_from').eq('status','completed').eq('scan_kind','backfill').order('id',{ascending:false}).limit(1)
   const dates=(Array.isArray(data)?data:[]).map(x=>typeof x.posted_from==='string'?parseUsDate(x.posted_from):null).filter((x):x is Date=>Boolean(x))
-  const anchor=dates.length?new Date(Math.min(...dates.map(x=>x.getTime()))):new Date(Date.now()-3*86400000)
+  const anchor=dates[0]??new Date(Date.now()-3*86400000)
   const end=new Date(anchor.getTime()-86400000)
   const start=new Date(end.getTime()-(Math.max(1,windowDays)-1)*86400000)
   return {postedFrom:fmt(start),postedTo:fmt(end)}
 }
-export async function runSamUsablePipeline(client:SupabaseClient,input:{postedFrom:string;postedTo:string;maxPages?:number;maxProcessNotices?:number}){
-  const scan=await runSamWideScan(client,{postedFrom:input.postedFrom,postedTo:input.postedTo,maxPages:input.maxPages??20,pageSize:1000})
+export async function runSamUsablePipeline(client:SupabaseClient,input:{postedFrom:string;postedTo:string;maxPages?:number;maxProcessNotices?:number;scanKind?:'recent'|'backfill'|'manual'}){
+  const scan=await runSamWideScan(client,{postedFrom:input.postedFrom,postedTo:input.postedTo,maxPages:input.maxPages??20,pageSize:1000,scanKind:input.scanKind??'manual'})
   const processLimit=Math.max(1,Math.min(input.maxProcessNotices??12,50))
   const noticeIds=(scan.changedNoticeIds.length?scan.changedNoticeIds:await recentSamNoticeIds(client,processLimit)).slice(0,processLimit)
   const documents=await harvestSamDocuments(client,noticeIds,80)
