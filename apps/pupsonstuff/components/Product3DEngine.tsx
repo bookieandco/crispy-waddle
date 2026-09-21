@@ -159,13 +159,13 @@ export default function Product3DEngine({
       <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-greige/40 bg-white/40">
         {failed ? (
           <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-ink/50">
-            3D preview couldn&apos;t load — try the flat preview instead.
+            3D preview couldn&apos;t load — use the placement preview below.
           </div>
         ) : (
           <Scene3DErrorBoundary
             fallback={
               <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-ink/50">
-                3D preview couldn&apos;t load — try the flat preview instead.
+                3D preview couldn&apos;t load — use the placement preview below.
               </div>
             }
             onError={() => setFailed(true)}
