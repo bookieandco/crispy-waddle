@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { GeneratedAssetRecord, GeneratedAssetRepository } from '@jhadina/director-core/generated-asset-resolver';
+import type { GeneratedAssetRecord, GeneratedAssetRepository } from '@jhadina/director-core';
 
 type AssetRow = {
   id: string;
