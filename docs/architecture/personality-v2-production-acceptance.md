@@ -97,3 +97,43 @@ passes. Personality PROD.10 means the Personality production contract is
 accepted on the exact code head. A live deployment still requires the normal
 Jhadina Web/Launch/hosting gates to be green and the production alias to serve
 that accepted lineage.
+
+
+## PROD.10 acceptance receipt — 2026-09-20
+
+Accepted Personality production lineage: `a20ec7b014bc94d1c449e96c8f499516e399f4a6`
+(PR #488).
+
+Dedicated **Jhadina Personality Core CI** run `35543361194` passed on that
+exact merge commit. Its production gate completed all of the following
+successfully:
+
+- Core Spine type-check;
+- Core Spine regressions;
+- Intelligence Core type-check;
+- Intelligence Core regressions;
+- persisted Personality/Hippocampus/Ask Jhadina vertical regressions;
+- outcome-feedback regressions;
+- feedback HTTP/audit-boundary regressions;
+- Supabase outcome-lineage/restart regressions.
+
+The persisted production vertical reported **10 test files / 67 tests passed**.
+
+Subsequent mainline changes through the receipt's base commit do not alter the
+Personality PROD.10 implementation. They are therefore downstream mainline
+changes rather than a replacement Personality certification lineage.
+
+### Independent repository-wide blockers at acceptance time
+
+These are intentionally **not** reclassified as Personality failures:
+
+- Jhadina Web production build: Director review route imports the missing
+  `@/lib/director-review-transition-repository` module.
+- Repository Launch Gate: `@jhadina/tv-core` type-check reports unused
+  `assertTVEpisode` in `src/providers/authorized.ts`.
+
+Those failures remain normal application/release blockers for their owning
+subsystems. They do not weaken, skip, or replace the dedicated Personality
+acceptance gate above.
+
+**PERSONALITY-V2.PROD.10: ACCEPTED.**
