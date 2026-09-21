@@ -14,10 +14,10 @@
 //
 // What it does:
 //   1. Reads data/hotspots.ts and groups every sellable hotspot by its
-//      current (placeholder) fulfillment.productId — hotspots that
-//      share a placeholder ID (the 6 canvas frames, the 2 mugs) share
-//      one real physical Printify product too, so they're one catalog
-//      lookup, not six.
+//      provider-neutral fulfillment.productId. Hotspots that share a
+//      storefront product family (for example canvas frames or mugs) are
+//      one catalog-discovery target, while real Printify IDs stay outside
+//      source and are admitted only through the certification ledger.
 //   2. For each group, searches the real Printify blueprint catalog
 //      (listBlueprints()) for title matches against the product type's
 //      keywords, ranks candidates, and for the top candidates fetches
