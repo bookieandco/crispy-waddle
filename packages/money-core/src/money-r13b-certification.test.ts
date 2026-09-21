@@ -605,6 +605,11 @@ test('R13B: recovery lineage migration requires fresh authority and canonical re
   assert.match(sql, /recovery_of_execution_id/);
   assert.match(sql, /MONEY_RECOVERY_FRESH_PERMIT_REQUIRED/);
   assert.match(sql, /MONEY_RECOVERY_PERMIT_NOT_CONSUMED/);
+  assert.match(sql, /MONEY_RECOVERY_ACTION_SNAPSHOT_MISMATCH/);
+  assert.match(sql, /MONEY_RECOVERY_PERMIT_USER_MISMATCH/);
+  assert.match(sql, /action_request_fingerprint/);
+  assert.match(sql, /provider_operation/);
+  assert.match(sql, /confirmed_not_executed/);
   assert.match(sql, /MONEY_RECOVERY_RETRY_EVIDENCE_REQUIRED/);
   assert.match(sql, /MONEY_RECOVERY_RETRY_NOT_SAFE/);
   assert.match(sql, /MONEY_RECOVERY_GENERATION_LIMIT/);
