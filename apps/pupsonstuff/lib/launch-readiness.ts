@@ -21,7 +21,7 @@ export interface CatalogVariantSummary {
   certification_status: string;
 }
 
-export const PUPSON_PRODUCTION_ORIGIN = 'https://pupsonstuff.com';
+export const PUPSON_PRODUCTION_ORIGIN = 'https://www.pupsonstuff.com';
 
 export const REQUIRED_LAUNCH_VARIANTS = [
   { productId: 'frame1', variantId: 'canvas-12x16', label: '12×16 canvas' },
