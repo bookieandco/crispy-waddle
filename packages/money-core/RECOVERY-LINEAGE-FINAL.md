@@ -28,6 +28,8 @@ Live rollback-only PostgreSQL probes verified:
 - unconsumed retry permits are rejected;
 - stale NOT_FOUND evidence followed by PENDING is rejected;
 - forged fingerprint/provider/operation/request lineage is rejected;
+- mutated persisted action snapshots are rejected even when the fingerprint column is left unchanged;
+- retry permits bound to a different user are rejected;
 - non-recoverable parents and cycles are rejected;
 - generation 3 is accepted and generation 4 is rejected;
 - all synthetic records are rolled back.
@@ -43,4 +45,6 @@ Production drift discovered during certification was repaired fail-closed: the l
 - `migrations/005_bind_permits_to_action_core_authority.sql`
 - `migrations/006_recovery_execution_lineage.sql`
 
-Final certification runner: Money R13B Certification run 35551528235 — SUCCESS. Type-check, targeted R13B certification, full Money test suite, Money product-boundary tests, and Money production build all passed.
+Final re-certification runner: Money R13B Certification run 35551998802 — SUCCESS on PR #497, merged as `4c9a11f5e373fc821379fb234a10299bd4789250`. Frozen install, Money type-check, targeted R13B authority/concurrency/recovery certification, full Money test suite, Money product-boundary tests, and Money production surface build all passed.
+
+Post-certification merge audit also removed a duplicate `006_` migration and duplicate public exports, preserving one canonical migration: `006_recovery_execution_lineage.sql`.
