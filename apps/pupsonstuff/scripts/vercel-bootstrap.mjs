@@ -1,3 +1,4 @@
+import { appendFileSync } from 'node:fs';
 const API = 'https://api.vercel.com';
 const token = process.env.VERCEL_TOKEN?.trim();
 const teamId =
@@ -236,18 +237,34 @@ async function upsertEnvironment() {
   if (!hasBackgroundRemover) missingRequired.push('BACKGROUND_REMOVER_PROVIDER');
   if (!hasUpscaler) missingRequired.push('IMAGE_UPSCALER_PROVIDER');
 
-  if (missingRequired.length) {
+  const environmentReady = missingRequired.length === 0;
+  if (!environmentReady) {
     console.log(
       `Project/domain bootstrap complete, but provider certification remains blocked by: ${missingRequired.join(', ')}`
     );
   } else {
     console.log('All required PS-RECON server environment inputs were supplied to bootstrap.');
   }
+  return { environmentReady, missingRequired };
 }
 
 const project = await ensureProject();
 const domains = await ensureDomains();
-await upsertEnvironment();
+const environment = await upsertEnvironment();
+
+if (process.env.GITHUB_OUTPUT) {
+  appendFileSync(
+    process.env.GITHUB_OUTPUT,
+    [
+      `project_id=${project.id}`,
+      `environment_ready=${environment.environmentReady ? 'true' : 'false'}`,
+      `canonical_domain_verified=${
+        domains.find((domain) => domain.name === canonicalDomain)?.verified ? 'true' : 'false'
+      }`,
+      '',
+    ].join('\n')
+  );
+}
 
 console.log(
   JSON.stringify(
@@ -263,6 +280,8 @@ console.log(
         verified: Boolean(domain.verified),
         redirect: domain.redirect || null,
       })),
+      environmentReady: environment.environmentReady,
+      missingRequired: environment.missingRequired,
       fulfillmentMode: 'dry_run',
     },
     null,
