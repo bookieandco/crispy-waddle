@@ -6,7 +6,7 @@ describe("Jhadina world registry",()=>{
   const required=[
    "assistant","money","wallet","sports","safety","spatial","knowledge","studio","music","tv","social",
    "opportunities","overage","campaign","placement","pupsonstuff","pod","homebase","publishing","trucker",
-   "cooking","shopping","radar",
+   "cooking","shopping","radar","evolution","staffing",
   ]
   const ids=new Set(JHADINA_WORLDS.map(world=>world.id))
   for(const id of required)expect(ids.has(id as never)).toBe(true)
