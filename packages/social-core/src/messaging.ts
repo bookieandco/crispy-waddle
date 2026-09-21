@@ -4,7 +4,7 @@ import type {
   SocialProviderName,
 } from "./types.js";
 
-export const DIRECT_MESSAGE_CAPABILITY = "social.message.send";
+export const DIRECT_MESSAGE_CAPABILITY = "consequential.outreach";
 
 export type SocialContactState =
   | "eligible"
