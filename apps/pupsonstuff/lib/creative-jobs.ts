@@ -337,7 +337,17 @@ async function executeClaimedCreativeJob(job: JobRow): Promise<void> {
     const generated = await generate(job, identity, references);
     const sharp = (await import('sharp')).default;
     const providerBytes = Buffer.from(generated.imageBase64, 'base64');
-    const generatedBytes = await sharp(providerBytes, { failOn: 'error' }).png().toBuffer();
+    const normalizedProviderBytes = await sharp(providerBytes, { failOn: 'error' }).png().toBuffer();
+    // The shopper-facing default is a genuinely background-free design, not
+    // merely a cleaned reference image. Generators are allowed to synthesize
+    // pixels outside the subject, so enforce the chosen background intent on
+    // the generated output as a second, explicit preprocessing stage.
+    const outputRemoval = await removeBackground(
+      normalizedProviderBytes,
+      'image/png',
+      job.background_mode
+    );
+    const generatedBytes = await sharp(outputRemoval.bytes, { failOn: 'error' }).png().toBuffer();
     const generatedMeta = await sharp(generatedBytes).metadata();
     const generatedId = randomUUID();
     const generatedPath = `${ownerHash}/${job.id}/${generatedId}.png`;
@@ -374,6 +384,10 @@ async function executeClaimedCreativeJob(job: JobRow): Promise<void> {
             provider: reference.removalProvider,
             model: reference.removalModel ?? null,
           })),
+          outputBackgroundRemoval: {
+            provider: outputRemoval.provider,
+            model: outputRemoval.model ?? null,
+          },
           userPromptSha256: job.user_prompt ? sha256(Buffer.from(job.user_prompt)) : null,
         },
       }),
@@ -555,10 +569,14 @@ export async function approveCreativeOutput(
     Array<{
       id: string;
       generated_asset: { bucket_id: string; object_path: string; id: string } | null;
-      job: { owner_token_hash: string; product_id: string } | null;
+      job: {
+        owner_token_hash: string;
+        product_id: string;
+        background_mode: BackgroundMode;
+      } | null;
     }>
   >(
-    `pupson_creative_outputs?select=id,generated_asset:pupson_media_assets!generated_asset_id(id,bucket_id,object_path),job:pupson_creative_jobs!inner(owner_token_hash,product_id)&id=eq.${encodeURIComponent(outputId)}&job.owner_token_hash=eq.${ownerHash}&limit=1`
+    `pupson_creative_outputs?select=id,generated_asset:pupson_media_assets!generated_asset_id(id,bucket_id,object_path),job:pupson_creative_jobs!inner(owner_token_hash,product_id,background_mode)&id=eq.${encodeURIComponent(outputId)}&job.owner_token_hash=eq.${ownerHash}&limit=1`
   );
   const output = rows[0];
   if (!output?.job || !output.generated_asset) throw new Error('Creative output was not found.');
@@ -581,6 +599,7 @@ export async function approveCreativeOutput(
     hotspot,
     variantId: input.variantId,
     transform: input.transform,
+    backgroundMode: output.job.background_mode,
   });
   if (!master.quality.productionReady || master.quality.score < 90) {
     throw new Error(`Print quality gate failed with score ${master.quality.score}.`);
