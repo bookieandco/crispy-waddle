@@ -27,11 +27,8 @@
         "./*"
       ]
     },
-    "types": [
-      "node",
-      "react",
-      "react-dom"
-    ]
+    "jsxFactory": "PupsonReact.createElement",
+    "jsxFragmentFactory": "PupsonReact.Fragment"
   },
   "include": [
     "next-env.d.ts",
