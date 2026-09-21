@@ -6,10 +6,15 @@ import { createSocialRepository } from "@/lib/social/repository"
 
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const verifier = await createRequestIdentityVerifier()
     const identity = await verifier.verify({})
+    if (req.nextUrl.searchParams.get("discover") === "hootsuite") {
+      const provider = createSocialProviderForUser(identity.userId, "hootsuite")
+      const profiles = await provider.discoverProfiles()
+      return NextResponse.json({ success: true, provider: provider.name, data: profiles })
+    }
     const accounts = await createSocialRepository().listAccounts(identity.userId)
     return NextResponse.json({ success: true, data: accounts })
   } catch (error) {
