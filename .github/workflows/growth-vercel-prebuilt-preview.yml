@@ -1,0 +1,99 @@
+name: Growth Vercel Prebuilt Preview
+
+on:
+  pull_request:
+    paths:
+      - 'apps/jhadina-web/**'
+      - 'packages/growth-core/**'
+      - 'packages/security-core/**'
+      - 'packages/jhadina-action-core/**'
+      - 'supabase/migrations/*growth*'
+      - 'supabase/migrations/*social*'
+      - '.github/workflows/growth-vercel-prebuilt-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: growth-vercel-prebuilt-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Prebuilt Growth preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+      VERCEL_PROJECT_ID: prj_QK9bYgb8lwUvJgsYfJG6YLSzVPco
+    steps:
+      - name: Check Vercel CI credential
+        id: preflight
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "### Growth Vercel prebuilt preview" >> "$GITHUB_STEP_SUMMARY"
+            echo "BLOCKED_EXTERNAL_CREDENTIAL: VERCEL_TOKEN repository secret is not configured." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        if: steps.preflight.outputs.configured == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Frozen install
+        if: steps.preflight.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Install pinned Vercel CLI
+        if: steps.preflight.outputs.configured == 'true'
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel preview environment
+        if: steps.preflight.outputs.configured == 'true'
+        run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+
+      - name: Build locally for Vercel
+        if: steps.preflight.outputs.configured == 'true'
+        run: vercel build --token="$VERCEL_TOKEN"
+
+      - name: Deploy prebuilt preview
+        if: steps.preflight.outputs.configured == 'true'
+        id: deploy
+        shell: bash
+        run: |
+          url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Growth Vercel prebuilt preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Probe Growth production health contract
+        if: steps.preflight.outputs.configured == 'true'
+        shell: bash
+        run: |
+          url="${{ steps.deploy.outputs.url }}"
+          code="$(curl -sS -o /tmp/growth-health.json -w '%{http_code}' "$url/api/growth/production/health" || true)"
+          cat /tmp/growth-health.json || true
+          echo "HTTP $code"
+          if [ "$code" != "200" ] && [ "$code" != "503" ]; then
+            echo "::error::Growth health endpoint did not return READY/DEGRADED contract"
+            exit 1
+          fi
+          grep -Eq '"status":"(READY|DEGRADED)"' /tmp/growth-health.json
