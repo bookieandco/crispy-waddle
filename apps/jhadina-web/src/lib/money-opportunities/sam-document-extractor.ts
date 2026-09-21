@@ -95,8 +95,9 @@ function extractXlsx(bytes:Uint8Array){
 }
 
 function pdfLiteral(value:string){
-  return value.replace(/\\([nrtbf()\\])/g,(_,c)=>({n:'\n',r:'\r',t:'\t',b:'\b',f:'\f','(':'(',')':')','\\':'\\'}[c]??c))
-    .replace(/\\([0-7]{1,3})/g,(_,o)=>String.fromCharCode(Number.parseInt(o,8)))
+  const escapes:Record<string,string>={n:'\n',r:'\r',t:'\t',b:'\b',f:'\f','(':'(',')':')','\\':'\\'}
+  return value.replace(/\\([nrtbf()\\])/g,(_match:string,c:string)=>escapes[c]??c)
+    .replace(/\\([0-7]{1,3})/g,(_match:string,o:string)=>String.fromCharCode(Number.parseInt(o,8)))
 }
 function extractPdfOperators(source:string){
   const chunks:string[]=[]
