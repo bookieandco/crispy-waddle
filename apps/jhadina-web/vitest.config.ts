@@ -26,6 +26,8 @@ export default defineConfig({
       { find: "@jhadina/payment-core", replacement: path.resolve(__dirname, "../../packages/payment-core/src") },
       { find: "@jhadina/order-fulfillment-core", replacement: path.resolve(__dirname, "../../packages/order-fulfillment-core/src") },
       { find: "@jhadina/money-core", replacement: path.resolve(__dirname, "../../packages/money-core/src") },
+      { find: "@jhadina/growth-core", replacement: path.resolve(__dirname, "../../packages/growth-core/src") },
+      { find: "@jhadina/social-core", replacement: path.resolve(__dirname, "../../packages/social-core/src") },
       { find: "@", replacement: path.resolve(__dirname, "src") },
     ],
     extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
