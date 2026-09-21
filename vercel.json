@@ -12,6 +12,18 @@
     {
       "path": "/api/internal/shark/launch-outcomes?limit=500",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/internal/sam/scan?lookbackDays=2&maxPages=20",
+      "schedule": "5 */6 * * *"
+    },
+    {
+      "path": "/api/internal/sam/enrich?limit=5&maxDocuments=40&maxProviders=8",
+      "schedule": "20 */6 * * *"
+    },
+    {
+      "path": "/api/internal/sam/certify",
+      "schedule": "35 */6 * * *"
     }
   ]
 }
