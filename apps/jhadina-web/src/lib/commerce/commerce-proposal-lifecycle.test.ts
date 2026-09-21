@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { InMemoryActionLedger, InMemoryApprovalReceiptStore, type ActionPolicy, type ActionPolicyDecision, type ActionRequest } from "@jhadina/action-core"
 import type { ActionRequestIdentity, JhadinaActionRequest, JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
-import { createInMemoryCommerceProposalStore, type CommerceProposalPayload } from "./commerce-proposal-store"
+import { createInMemoryCommerceProposalStore, type StripeSandboxCommerceProposalPayload } from "./commerce-proposal-store"
 import { InMemoryPaymentProvider } from "./reference-adapters"
 import {
   approveCommerceProposal,
@@ -51,7 +51,7 @@ function alwaysDenyPolicy(): ActionPolicy<CommerceCapabilityAction> {
   }
 }
 
-function payload(overrides: Partial<CommerceProposalPayload> = {}): CommerceProposalPayload {
+function payload(overrides: Partial<StripeSandboxCommerceProposalPayload> = {}): StripeSandboxCommerceProposalPayload {
   return {
     amountMinor: 1500,
     currency: "usd",
@@ -204,7 +204,7 @@ describe("Commerce proposal lifecycle — propose -> approve -> execute", () => 
     // execute() must recompute the fingerprint from current stored
     // content and refuse the now-mismatched receipt rather than trust it.
     const row = await deps.proposalStore.get(proposed.proposal.id, USER_ID)
-    if (row) row.payload = { ...row.payload, amountMinor: 999_999 }
+    if (row && row.payload.kind !== "supplier_procurement") row.payload = { ...row.payload, amountMinor: 999_999 }
 
     await expect(executeCommerceProposal(executionDeps(deps), USER_ID, proposed.proposal.id)).rejects.toThrow(
       "Invalid, expired, or already-consumed commerce approval receipt",
