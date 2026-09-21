@@ -15,8 +15,7 @@ type TimelineItem={
  id:string;source:"audit"|"connector";domain:string;title:string;state:JhadinaExecutionState;timestamp:string;detail:string;actionId?:string;metadata?:Record<string,unknown>
 }
 
-function stateTone(state:string){if(["completed","succeeded","recovered","confirmed_executed"].includes(state))return "jh-status jh-status--success";if(["approval_required","recovery_required","executing","unknown","confirmed_not_executed"].includes(state))return "jh-status jh-status--warning";if(["failed","denied"].includes(state))return "jh-status jh-status--danger";return "jh-status"}
-function stateLabel(state:string){return state.replaceAll("_"," ").replace(/w/g,letter=>letter.toUpperCase())}
+function stateClass(state:JhadinaExecutionState){const tone=executionStateTone(state);return tone==="success"?"jh-status jh-status--success":tone==="warning"?"jh-status jh-status--warning":tone==="danger"?"jh-status jh-status--danger":"jh-status"}
 
 export default function ActivityPage(){
  const [events,setEvents]=useState<ActivityEvent[]>([])
