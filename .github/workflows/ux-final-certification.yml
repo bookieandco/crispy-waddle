@@ -6,6 +6,7 @@ on:
     paths:
       - "apps/jhadina-web/**"
       - "packages/director-core/**"
+      - "packages/jhadina-core-spine/**"
       - ".github/workflows/ux-final-certification.yml"
       - "pnpm-lock.yaml"
 
