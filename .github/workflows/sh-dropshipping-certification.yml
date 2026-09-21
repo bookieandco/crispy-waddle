@@ -1,0 +1,69 @@
+name: SH Dropshipping Certification
+
+on:
+  push:
+    paths:
+      - "packages/commerce-adapters/**"
+      - "packages/jhadina-action-core/**"
+      - "packages/opportunity-core/**"
+      - "apps/jhadina-web/src/lib/commerce/**"
+      - "docs/SH_*"
+      - ".github/workflows/sh-dropshipping-certification.yml"
+  pull_request:
+    paths:
+      - "packages/commerce-adapters/**"
+      - "packages/jhadina-action-core/**"
+      - "packages/opportunity-core/**"
+      - "apps/jhadina-web/src/lib/commerce/**"
+      - "docs/SH_*"
+      - ".github/workflows/sh-dropshipping-certification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    name: SH-RECON.10
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check Action Core
+        run: pnpm --filter @jhadina/action-core type-check
+
+      - name: Test Action Core approval path
+        run: pnpm --filter @jhadina/action-core test
+
+      - name: Type-check Commerce adapters
+        run: pnpm --filter @jhadina/commerce-adapters type-check
+
+      - name: Type-check Opportunity Core
+        run: pnpm --filter @jhadina/opportunity-core type-check
+
+      - name: Test Opportunity dropshipping handoff
+        run: pnpm --filter @jhadina/opportunity-core exec tsx src/domain/handoff-contracts.test.ts
+
+      - name: Test governed dropshipping Commerce path
+        working-directory: apps/jhadina-web
+        run: |
+          pnpm exec vitest run \
+            src/lib/commerce/supplier-contracts.test.ts \
+            src/lib/commerce/governed-supplier-procurement.test.ts \
+            src/lib/commerce/commerce-proposal-lifecycle.test.ts
+
+      - name: Type-check Jhadina web
+        run: pnpm --filter @jhadina/jhadina-web type-check
