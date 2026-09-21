@@ -122,6 +122,26 @@ describe("PERSONALITY-V2.PROD.2-PROD.4 outcome feedback", () => {
     })).rejects.toThrow("PERSONALITY_FEEDBACK_BEFORE_TARGET")
   })
 
+  it("does not permit feedback-on-feedback chains to masquerade as fresh outcome evidence", async () => {
+    const storage = new InMemoryStorage()
+    const original = await target(storage)
+    const first = await recordPersonalityOutcomeFeedback(storage, {
+      userId: original.userId,
+      targetReasoningEventId: original.id,
+      feedbackId: "feedback-parent",
+      kind: "reinforced",
+      observedAt: "2026-09-20T22:01:00.000Z",
+    })
+
+    await expect(recordPersonalityOutcomeFeedback(storage, {
+      userId: original.userId,
+      targetReasoningEventId: first.event.id,
+      feedbackId: "feedback-child",
+      kind: "reinforced",
+      observedAt: "2026-09-20T22:02:00.000Z",
+    })).rejects.toThrow("PERSONALITY_FEEDBACK_TARGET_INVALID")
+  })
+
   it("cannot turn outcome feedback alone into durable Personality", async () => {
     const storage = new InMemoryStorage()
     const original = await target(storage)
