@@ -205,7 +205,11 @@ export async function createCreativeJob(input: {
   return { jobId: jobs[0].id };
 }
 
-async function generate(job: JobRow, bytes: Buffer, mimeType: string, fileName: string) {
+async function generate(
+  job: JobRow,
+  identity: { bytes: Buffer; mimeType: string; fileName: string },
+  references: Array<{ bytes: Buffer; mimeType: string; assetId: string }>
+) {
   const hotspot = hotspots.find((item) => item.id === job.product_id);
   if (!hotspot) throw new Error('Creative job product is no longer available.');
   const label = artStyles.find((style) => style.id === job.art_style)?.label ?? job.art_style;
@@ -213,15 +217,15 @@ async function generate(job: JobRow, bytes: Buffer, mimeType: string, fileName: 
     return {
       provider: 'local',
       model: 'ascii-v1',
-      imageBase64: (await imageToAsciiArt(bytes)).toString('base64'),
+      imageBase64: (await imageToAsciiArt(identity.bytes)).toString('base64'),
     };
   }
   if (job.art_style === 'studio-ghibli' || job.art_style === 'flux-dreamscape') {
     const model = job.art_style === 'studio-ghibli' ? 'ai-ghibli-style' : 'flux-kontext-pro-i2i';
     const result = await generateWithMuapi({
-      imageBuffer: bytes,
-      imageFilename: fileName,
-      imageMimeType: mimeType,
+      imageBuffer: identity.bytes,
+      imageFilename: identity.fileName,
+      imageMimeType: identity.mimeType,
       model,
       prompt:
         job.art_style === 'flux-dreamscape'
@@ -239,17 +243,24 @@ async function generate(job: JobRow, bytes: Buffer, mimeType: string, fileName: 
     return { provider: 'muapi', model, imageBase64: result.imageBase64 };
   }
 
+  const primary = references[0];
+  if (!primary) throw new Error('Pet Identity has no usable reference image.');
   const result = await generatePetPortrait({
-    imageBuffer: bytes,
-    imageFilename: fileName,
-    imageMimeType: mimeType,
+    imageBuffer: primary.bytes,
+    imageFilename: 'pet-primary.png',
+    imageMimeType: primary.mimeType,
+    referenceImages: references.slice(1).map((reference, index) => ({
+      imageBuffer: reference.bytes,
+      imageFilename: `pet-reference-${index + 2}.png`,
+      imageMimeType: reference.mimeType,
+    })),
     basePrompt: AI_PROMPT_TEMPLATE,
     productPrompt: hotspot.aiTemplate,
     userPrompt: job.user_prompt ?? undefined,
     artStyleLabel: label,
   });
   if (!result.success) throw new Error(result.error);
-  return { provider: 'openai', model: 'gpt-image-1', imageBase64: result.imageBase64 };
+  return { provider: 'openai', model: result.model, imageBase64: result.imageBase64 };
 }
 
 async function fetchPetReferences(job: JobRow) {
@@ -323,7 +334,7 @@ async function executeClaimedCreativeJob(job: JobRow): Promise<void> {
         assetId: reference.assetId,
       }))
     );
-    const generated = await generate(job, identity.bytes, identity.mimeType, identity.fileName);
+    const generated = await generate(job, identity, references);
     const sharp = (await import('sharp')).default;
     const providerBytes = Buffer.from(generated.imageBase64, 'base64');
     const generatedBytes = await sharp(providerBytes, { failOn: 'error' }).png().toBuffer();
