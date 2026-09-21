@@ -15,6 +15,10 @@ export type FeedSource =
   | 'VK'
   | 'Director';
 
+export const HOME_FEED_SOURCES: FeedSource[] = [
+  'All','Social','TikTok','Facebook','Snapchat','Instagram','YouTube','Reddit','X','LinkedIn','Threads','Bluesky','Tumblr','VK','Director',
+];
+
 export type StoryKind = 'social' | 'youtube' | 'director' | 'jhadina';
 
 export type StoryDetail = { label: string; value: string };
