@@ -4,6 +4,7 @@ import { searchViaAgentReach } from "@/lib/growth/agentReachProvider"
 import type { TrendSource } from "@/lib/growth/trendScout"
 import { proposalFromScout } from "@/lib/growth/trendScoutWorker"
 import { searchWebTrends } from "@/lib/growth/webTrendProvider"
+import { persistSocialTrendObservations } from "@/lib/social/trend-observation"
 
 export const dynamic = "force-dynamic"
 
@@ -15,7 +16,7 @@ const DEFAULT_QUERIES = [
 
 export async function POST(req: NextRequest) {
   try {
-    await requireRequestIdentity()
+    const identity = await requireRequestIdentity()
     const body = await req.json().catch(() => ({}))
     const queries = Array.isArray(body.queries) && body.queries.length ? body.queries : DEFAULT_QUERIES
     const provider = body.provider === "agent-reach" ? "agent-reach" : "web"
@@ -29,10 +30,11 @@ export async function POST(req: NextRequest) {
       ),
     )).flat()
 
+    const persistedSocialObservations = await persistSocialTrendObservations(identity.userId, provider, observations)
     const proposal = observations.length ? proposalFromScout(observations) : null
     return NextResponse.json({
       success: true,
-      data: { provider, observations, proposal, originalityRule: "INSPIRED_NOT_COPIED" },
+      data: { provider, observations, persistedSocialObservations, proposal, originalityRule: "INSPIRED_NOT_COPIED" },
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Trend scout failed"
