@@ -28,8 +28,8 @@ const automation: PluginAutomationPlan = {
   tracks: [], allowedParameterIds: [], protectedRegions: [], maxParameterDelta: {}, evidenceIds: [],
 };
 
-function request(type: NativePluginIpcRequest["type"], state: NativePluginIpcRequest["state"], extra: Record<string, unknown> = {}): NativePluginIpcRequest {
-  return { ...base, type, state, ...extra } as NativePluginIpcRequest;
+function request<T extends NativePluginIpcRequest["type"]>(type: T, state: NativePluginIpcRequest["state"], extra: Record<string, unknown> = {}): Extract<NativePluginIpcRequest, { type: T }> {
+  return { ...base, pluginPath: "/workspace/plugin.vst3", sampleOffset: 0, numSamples: 512, type, state, ...extra } as unknown as Extract<NativePluginIpcRequest, { type: T }>;
 }
 
 describe("native plugin IPC contract", () => {
@@ -40,6 +40,12 @@ describe("native plugin IPC contract", () => {
   it("requires valid source and plugin hashes", () => {
     expect(() => createNativePluginIpcRequest({ ...request("discover", "CREATED"), binding: { ...binding, sourceHash: "not-a-hash" } })).toThrow(/source hash/);
     expect(() => createNativePluginIpcRequest({ ...request("discover", "CREATED"), binding: { ...binding, plugin: { ...binding.plugin, binaryHash: "not-a-hash" } } })).toThrow(/binary hash/);
+  });
+
+  it("rejects unsupported plugin formats", () => {
+    for (const format of ["vst2", "lv2"] as const) {
+      expect(() => createNativePluginIpcRequest({ ...request("discover", "CREATED"), binding: { ...binding, plugin: { ...binding.plugin, format } } })).toThrow(/Unsupported native plugin format/);
+    }
   });
 
   it("rejects sandbox path traversal", () => {

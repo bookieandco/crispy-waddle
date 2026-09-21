@@ -1,5 +1,6 @@
 import type { PluginAutomationPlan, PluginDescriptor } from "./plugin-automation.js";
 import type { PluginHostFormat, PluginHostRequest, PluginHostResult } from "./plugin-host.js";
+import { nativePluginHostFormat } from "./native-plugin-ipc.js";
 import { validatePluginHostRequest } from "./plugin-host.js";
 
 export interface NativePluginParameter { id: string; name: string; stepCount: number; defaultNormalizedValue: number; automatable: boolean; }
@@ -28,15 +29,15 @@ function assertIdentityMatchesDescriptor(descriptor: PluginDescriptor, identity:
 
 export async function discoverAuthorizedPlugin(descriptor: PluginDescriptor, pluginPath: string, host: NativePluginHost): Promise<NativePluginIdentity> {
   if (!sandboxPath(pluginPath)) throw new Error("Native plugin path must remain inside the sandbox workspace.");
-  const identity = await host.discover({ format: descriptor.format, pluginPath });
+  const identity = await host.discover({ format: nativePluginHostFormat(descriptor.format), pluginPath });
   assertIdentityMatchesDescriptor(descriptor, identity);
   return identity;
 }
 
 export async function renderAuthorizedPlugin(descriptor: PluginDescriptor, request: PluginHostRequest, host: NativePluginHost): Promise<PluginHostResult> {
-  validatePluginHostRequest(request);
   if (request.plugin.id !== descriptor.id) throw new Error("Host request plugin does not match registered descriptor.");
   if (request.plugin.binaryHash !== descriptor.binaryHash) throw new Error("Host request binary hash does not match registered descriptor.");
+  validatePluginHostRequest(request);
   const identity = await discoverAuthorizedPlugin(descriptor, `/workspace/plugins/${descriptor.id}`, host);
   if (request.automation.pluginBinaryHash !== identity.binaryHash) throw new Error("Automation binary hash does not match discovered native plugin.");
   return host.render({ identity, request, automation: request.automation });

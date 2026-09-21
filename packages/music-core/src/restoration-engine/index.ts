@@ -57,3 +57,6 @@ export * from "./music-research-adapter.js";
 export * from "./music-perception-adapters.js";
 export * from "./music-pitch-fingerprint-adapters.js";
 export * from "./music-continuity-graph.js";
+
+export type { MusicalEventKind } from "./event-perception.js";
+export type { MusicalEventKind as ProtectedMusicalEventKind } from "./protected-events.js";

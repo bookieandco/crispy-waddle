@@ -38,7 +38,7 @@ describe("createFfmpegDspCommand", () => {
   });
 
   it("rejects traversal paths", () => {
-    expect(() => createFfmpegDspCommand({ ...job, inputPath: "/work/input.wav" }, {
+    expect(() => createFfmpegDspCommand({ ...job, inputPath: "/work/../secret.wav" }, {
       operation: "copy", inputPath: "/work/../secret.wav", outputPath: job.outputPath, sampleRate: 48000, channels: 2,
     })).toThrow("absolute sandbox paths");
   });

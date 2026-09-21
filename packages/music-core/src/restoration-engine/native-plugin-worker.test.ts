@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { assertWorkerCannotAuthorizeOrPromote, createNativePluginIpcBinding, createNativePluginIpcRequest } from "./native-plugin-ipc.js";
 
 test("native worker contract rejects authorization and promotion authority", () => {

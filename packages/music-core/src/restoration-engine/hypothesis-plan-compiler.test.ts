@@ -27,7 +27,7 @@ const input = {
 describe("hypothesis plan compiler", () => {
   it("compiles a resolved damage hypothesis into a bounded proposed plan", () => {
     const plan = compileResolvedHypothesisToPlan(input);
-    expect(plan.operationClass).toBeUndefined();
+    expect(plan).not.toHaveProperty("operationClass");
     expect(plan.declaredDamageRegion).toEqual({ startSample: 100, endSample: 200 });
     expect(plan.allowedPropagationRegion).toEqual({ startSample: 100, endSample: 200 });
     expect(plan.protectedRegions).toEqual([]);

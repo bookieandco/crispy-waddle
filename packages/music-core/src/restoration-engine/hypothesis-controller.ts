@@ -77,6 +77,9 @@ export async function stepHypothesisController(
   let evidence: ExperimentEvidence;
   try {
     const authorization = input.authorizationFactory(experiment);
+    if (authorization.caseId !== input.state.caseId || authorization.sourceVersionId !== input.state.sourceVersionId) {
+      throw new Error("Experiment authorization does not match the controller case and source version.");
+    }
     evidence = await executeAuthorizedExperiment(experiment, authorization, input.runner, input.idFactory);
   } catch {
     return result(input.state, { kind: "abstain", reason: "execution-failed" });

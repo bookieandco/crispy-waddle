@@ -1,3 +1,4 @@
+import { NATIVE_PLUGIN_IPC_PROTOCOL, NATIVE_PLUGIN_IPC_VERSION } from "./native-plugin-ipc.js";
 import type { NativePluginIpcBinding, NativePluginIpcResponse } from "./native-plugin-ipc.js";
 
 export const NATIVE_HOST_WORKER_PROTOCOL = "jhadina.music.native-host-worker.v1" as const;
@@ -45,7 +46,7 @@ export function assertNativeHostWorkerResponse(
   request: NativeHostWorkerEnvelope,
   response: NativePluginIpcResponse,
 ): void {
-  if (response.protocol !== request.binding.protocol || response.version !== request.binding.version) {
+  if (response.protocol !== NATIVE_PLUGIN_IPC_PROTOCOL || response.version !== NATIVE_PLUGIN_IPC_VERSION) {
     throw new Error("Native host worker IPC protocol mismatch.");
   }
   if (response.sequence !== request.sequence || response.jobId !== request.binding.jobId || response.executionId !== request.binding.executionId) {

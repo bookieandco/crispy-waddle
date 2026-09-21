@@ -1,5 +1,5 @@
 import type { NativePluginIpcBinding, NativePluginIpcRequest, NativePluginIpcResponse, NativePluginIpcState, NativePluginRuntimeMetadata } from "./native-plugin-ipc.js";
-import { NATIVE_PLUGIN_IPC_PROTOCOL, NATIVE_PLUGIN_IPC_VERSION, assertWorkerCannotAuthorizeOrPromote, validateNativePluginIpcRequest } from "./native-plugin-ipc.js";
+import { NATIVE_PLUGIN_IPC_PROTOCOL, NATIVE_PLUGIN_IPC_VERSION, assertWorkerCannotAuthorizeOrPromote, nativePluginHostFormat, validateNativePluginIpcRequest } from "./native-plugin-ipc.js";
 import type { PluginDescriptor } from "./plugin-automation.js";
 
 export interface NativePluginBackend {
@@ -26,7 +26,7 @@ export function createNativePluginWorker(binding: NativePluginIpcBinding, backen
     assertWorkerCannotAuthorizeOrPromote(request.type);
     try {
       switch (request.type) {
-        case "discover": discovered = await backend.discover(request.pluginPath, binding); state = "DISCOVERED"; return response(request, { metadata: { plugin: discovered, hostVersion: "jhadina-native-host", runtimeVersion: "1.0.0", format: binding.plugin.format, state } });
+        case "discover": discovered = await backend.discover(request.pluginPath, binding); state = "DISCOVERED"; return response(request, { metadata: { plugin: discovered, hostVersion: "jhadina-native-host", runtimeVersion: "1.0.0", format: nativePluginHostFormat(binding.plugin.format), state } });
         case "load": if (!discovered) throw new Error("Plugin must be discovered before load."); await backend.load(request.pluginPath, binding); state = "LOADED"; return response(request);
         case "configure": await backend.configure(request.audio); state = "CONFIGURED"; return response(request);
         case "set_automation": await backend.setAutomation(request); state = "AUTOMATION_BOUND"; return response(request);

@@ -20,7 +20,7 @@ export function createNativePluginProcessAdapter(binding: NativePluginIpcBinding
     discover: (pluginPath) => dispatch("discover", { pluginPath }),
     load: (pluginPath) => dispatch("load", { pluginPath }),
     configure: () => dispatch("configure", { audio: binding.audio }),
-    bindAutomation: (automation) => dispatch("set_automation", { automation }),
+    bindAutomation: (request) => dispatch("set_automation", { automation: request.automation }),
     processBlock: (sampleOffset, numSamples) => dispatch("process_block", { sampleOffset, numSamples }),
     flush: () => dispatch("flush"), collectMetadata: () => dispatch("collect_metadata"),
     shutdown: async () => { const response = await dispatch("shutdown"); await process?.terminate(); process = undefined; return response; },

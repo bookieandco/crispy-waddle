@@ -69,6 +69,7 @@ export function buildVocalLayerDecomposition(input: {
   sourceArtifactId: string;
   decomposition: DeepStemDecomposition;
 }): VocalLayerDecomposition {
+  const { decomposition } = input;
   const reasons: string[] = [];
   const observations = decomposition.nodes
     .filter((node) => node.sourceArtifactId === input.sourceArtifactId)

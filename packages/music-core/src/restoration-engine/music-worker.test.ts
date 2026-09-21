@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import type { AudioSandboxJob } from "./audio-execution-sandbox.js";
 import { createMusicWorkerManifest, validateMusicWorkerResult } from "./music-worker.js";
 

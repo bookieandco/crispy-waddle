@@ -19,11 +19,14 @@ describe("native worker supervisor", () => {
   it("requires handshake before RUNNING and cleans up normally", async () => {
     const events: string[] = [];
     const supervisor = createNativeWorkerSupervisor({ binding, sandboxJob: job, sandbox: makeSandbox(events), processFactory: makeProcess(), heartbeat: { check: async () => { events.push("heartbeat"); } }, quarantine: { quarantine: async () => { events.push("quarantine"); } }, policy: { heartbeatIntervalMs: 20, heartbeatTimeoutMs: 100 } });
-    await expect(supervisor.run(async () => undefined)).rejects.toThrow(/READY/);
+    await expect(supervisor.run(async () => undefined)).rejects.toThrow(/cannot run from CREATED/);
     await supervisor.start("/workspace/plugin.vst3");
     expect(supervisor.state).toBe("READY");
-    await supervisor.run(async () => "ok");
-    expect(supervisor.state).toBe("RUNNING");
+    await supervisor.run(async () => {
+      expect(supervisor.state).toBe("RUNNING");
+      return "ok";
+    });
+    expect(supervisor.state).toBe("TERMINATED");
     await supervisor.terminate();
     expect(supervisor.state).toBe("TERMINATED");
     expect(events).toEqual(expect.arrayContaining(["create", "heartbeat", "destroy"]));
