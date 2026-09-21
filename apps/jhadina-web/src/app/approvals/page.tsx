@@ -6,6 +6,7 @@ import { getCurrentUserId } from "@/lib/auth/current-user"
 
 type MemoryCandidate={id:string;content:string;type:string;confidence:number;status:string;createdAt?:string}
 type GrowthDraft={id:string;brand:string;kind:string;title?:string;body:string;rationale:string;status:string;platforms:string[]}
+type SocialProposal={id:string;actionId:string;brand:string;text:string;status:string;approvalReceiptId?:string;targets:Array<{platform:string;providerProfileId:string}>;createdAt:string}
 type SocialTarget={accountId:string;platform:string;provider:string;providerProfileId:string;brand:string}
 type SocialProposal={id:string;actionId:string;brand:string;text:string;targets:SocialTarget[];status:string;approvalReceiptId?:string;createdAt:string;scheduledAt?:string}
 type ActivityEvent={id:string;actionId:string;type:string;status:"started"|"approval_required"|"completed"|"denied"|"failed";timestamp:string;domain:string;metadata?:Record<string,unknown>}
@@ -20,6 +21,7 @@ export default function ApprovalsPage(){
  const [growth,setGrowth]=useState<GrowthDraft[]>([])
  const [social,setSocial]=useState<SocialProposal[]>([])
  const [events,setEvents]=useState<ActivityEvent[]>([])
+ const [social,setSocial]=useState<SocialProposal[]>([])
  const [loading,setLoading]=useState(true)
  const [error,setError]=useState("")
  const [busy,setBusy]=useState<string|null>(null)
@@ -114,6 +116,10 @@ export default function ApprovalsPage(){
     <div className="jh-between"><div><span className="jh-status jh-status--warning"><span className="jh-dot"/>Provider call blocked</span><h3 className="jh-card-title" style={{marginTop:12}}>{proposal.brand}</h3><p className="jh-card-copy">{proposal.text}</p><p className="jh-meta">{proposal.targets.map(target=>target.platform+" · "+target.providerProfileId).join(" · ")} · receipt {proposal.approvalReceiptId}</p></div><Link className="jh-button" href="/social">Open Social</Link></div>
     <div className="jh-row" style={{marginTop:14}}><button className="jh-button jh-button--primary" disabled={busy==="social:"+proposal.id} onClick={()=>void socialApprove(proposal)}>{busy==="social:"+proposal.id?"Publishing…":"Approve & publish"}</button></div>
     <p className="jh-meta">This action consumes the exact stored approval receipt and then enters Social’s governed ActionExecutor/outbox. No generic reject mutation exists, so this center does not invent one.</p>
+   </article>)}</div></section>:null}
+   {social.length>0?<section className="jh-section"><h2 className="jh-section-title">Social publication</h2><div className="jh-list">{social.map(proposal=><article className="jh-item" key={proposal.id}>
+    <div className="jh-between"><div><span className="jh-status jh-status--warning"><span className="jh-dot"/>Publish approval</span><h3 className="jh-card-title" style={{marginTop:12}}>{proposal.brand}</h3><p className="jh-card-copy">{proposal.text}</p><p className="jh-meta">{proposal.targets.map(target=>target.platform).join(" · ")} · receipt {proposal.approvalReceiptId?.slice(0,10)}… · created {new Date(proposal.createdAt).toLocaleString()}</p></div><Link className="jh-button" href="/social">Open Social</Link></div>
+    <div className="jh-row" style={{marginTop:14}}><button className="jh-button jh-button--primary" disabled={busy==="social:"+proposal.id} onClick={()=>void socialApprove(proposal)}>{busy==="social:"+proposal.id?"Publishing…":"Approve & publish"}</button></div>
    </article>)}</div></section>:null}
    {governed.length>0?<section className="jh-section"><h2 className="jh-section-title">Other governed requests</h2><div className="jh-list">{governed.map(item=><article className="jh-item" key={item.actionId}>
     <div className="jh-between"><div><span className="jh-status jh-status--warning"><span className="jh-dot"/>Approval evidence</span><h3 className="jh-card-title" style={{marginTop:12}}>{item.type}</h3><p className="jh-card-copy">Jhadina’s durable audit ledger records an approval-required transition. This center will not invent an approve button without the owning subsystem’s exact authorization contract.</p><p className="jh-meta">{item.domain} · {new Date(item.timestamp).toLocaleString()} · action {item.actionId}</p></div><Link className="jh-button" href={domainHref[item.domain]??"/worlds"}>Open owner</Link></div>
