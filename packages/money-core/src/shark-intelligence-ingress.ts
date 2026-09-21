@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { DecisionAssessment, DecisionCase } from './decision-workflow-contracts.js'
-import type { EvidenceQuality, EvidenceRef } from './financial-intelligence-contracts.js'
+import type { EvidenceQuality, EvidenceRef } from './financial-intelligence-contracts.js'\nimport type { GovernedIntelligenceArtifact } from './cross-asset-fusion-adapters.js'\nimport type { ThesisDirection } from './cross-asset-fusion-contracts.js'
 
 export const SHARK_MONEY_BRIDGE_VERSION = 'SHARK-MONEY-01' as const
 export const SUPPORTED_SHARK_MONEY_SCHEMA_VERSION = 'SHARK-MONEY-01' as const
@@ -273,4 +273,36 @@ export function assertSharkMoneyResearchOnly(artifact: SharkMoneyResearchArtifac
   ) {
     throw new Error('MONEY_SHARK_RESEARCH_ONLY_BOUNDARY_VIOLATED')
   }
+}
+
+
+export function sharkResearchToGovernedIntelligence(input: {
+  artifact: SharkMoneyResearchArtifact
+  instrumentId: string
+  direction: ThesisDirection
+  strength: number
+  expiresAt: string
+}): GovernedIntelligenceArtifact {
+  assertSharkMoneyResearchOnly(input.artifact)
+  nonEmpty(input.instrumentId, 'MONEY_SHARK_INSTRUMENT_ID_REQUIRED')
+  unitInterval(input.strength, 'MONEY_SHARK_FUSION_STRENGTH_INVALID')
+  iso(input.expiresAt, 'MONEY_SHARK_FUSION_EXPIRY_INVALID')
+  if (input.expiresAt <= input.artifact.informationCutoff) {
+    throw new Error('MONEY_SHARK_FUSION_EXPIRY_NOT_AFTER_CUTOFF')
+  }
+  return Object.freeze({
+    artifactId: `shark:${input.artifact.sourceAssessmentId}`,
+    domain: 'SHARK',
+    subjectId: input.artifact.subjectId,
+    instrumentId: input.instrumentId,
+    assetClass: 'MEME',
+    direction: input.direction,
+    strength: input.strength,
+    confidence: input.artifact.sourceConfidence,
+    informationCutoff: input.artifact.informationCutoff,
+    expiresAt: input.expiresAt,
+    evidenceRefs: Object.freeze(input.artifact.evidence.map((evidence) => evidence.evidenceId).sort()),
+    provenanceHash: input.artifact.sourceProvenance.contentHash,
+    financialAuthority: 'NONE',
+  })
 }
