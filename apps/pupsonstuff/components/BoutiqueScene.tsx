@@ -9,7 +9,7 @@
 // Boutique.tsx, which still owns ProductModal and passes it the same
 // onSelect callback the 2D Hotspots component already uses.
 
-import { Suspense, useMemo, useRef } from "react";
+import { Suspense, useMemo, useRef, type RefObject } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Html, OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -28,7 +28,7 @@ interface ShellModelProps {
    * specifically (see ProductMarker) — targeted raycasting against one
    * 234-triangle mesh, not drei's whole-scene "raycast" occlusion mode,
    * which would test against every object in the Canvas every frame. */
-  shellRef: React.RefObject<THREE.Object3D>;
+  shellRef: RefObject<THREE.Object3D>;
 }
 
 function BoutiqueShellModel({ shellRef }: ShellModelProps) {
@@ -97,7 +97,7 @@ interface MarkerProps {
   hotspot: HotspotConfig;
   position: [number, number, number];
   onSelect: (hotspot: HotspotConfig) => void;
-  occludeAgainst: React.RefObject<THREE.Object3D>;
+  occludeAgainst: RefObject<THREE.Object3D>;
 }
 
 function ProductMarker({ hotspot, position, onSelect, occludeAgainst }: MarkerProps) {
