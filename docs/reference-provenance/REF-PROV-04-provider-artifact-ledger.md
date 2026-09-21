@@ -15,7 +15,7 @@
 | SAM.gov | path | Opportunities v2 |
 | ComfyUI | upstream revision | c8ed2c8ce957475459731135c4ca31c6856a4542 |
 | Reticulum | upstream revision | 99de23c040d507e3fefca19e87b182302902725d |
-| Supabase | package version | @supabase/supabase-js 2.116.0 |
+| Supabase | package version | @supabase/supabase-js 2.112.3 |
 
 ## Artifact admission debt
 

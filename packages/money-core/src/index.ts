@@ -94,6 +94,8 @@ export * from './market-provenance-contracts.js';
 export * from './macro-economic-contracts-v2.js';
 
 export * from './sports-intelligence-ingress.js';
+export * from './shark-intelligence-ingress.js';
+export * from './shark-simulation-learning.js';
 
 export * from './stock-market-reality.js';
 
@@ -141,6 +143,9 @@ export * from './execution-receipt-engine.js';
 
 export * from './paper-execution-contracts.js';
 export * from './paper-execution-engine.js';
+export * from './paper-strategy-result.js';
+export * from './paper-ledger.js';
+export * from './postgres-paper-ledger-store.js';
 
 export * from './sandbox-broker-contracts.js';
 export * from './sandbox-broker-engine.js';

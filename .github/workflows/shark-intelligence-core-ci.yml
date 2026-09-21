@@ -41,7 +41,7 @@ jobs:
       - name: Jhadina SHARK integration type-check
         run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.shark.json
       - name: Jhadina SHARK persistence soak
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/launch-outcome-repository.test.ts
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/launch-outcome-repository.test.ts src/lib/shark/actor-aware-assessment-service.test.ts
       - name: Validate SHARK migrations
         run: |
           test -f supabase/migrations/20260902010000_shark_launch_outcome_history.sql

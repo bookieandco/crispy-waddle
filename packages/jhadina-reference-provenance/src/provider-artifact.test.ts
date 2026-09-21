@@ -182,7 +182,7 @@ test('REF-PROV-04 closes live provider contract coverage without inventing model
     'contract:sam-gov:opportunities:v2',
     'contract:comfyui:http:c8ed2c8c',
     'contract:reticulum:bridge:99de23c0',
-    'contract:supabase:runtime:js-2.116.0',
+    'contract:supabase:runtime:js-2.112.3',
   ]) {
     assert.ok(registry.getProviderContract(contractId));
   }

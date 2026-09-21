@@ -512,13 +512,13 @@ export const REF_PROV_04_PROVIDER_CONTRACTS:
     ],
   },
   {
-    contractId: 'contract:supabase:runtime:js-2.116.0',
+    contractId: 'contract:supabase:runtime:js-2.112.3',
     referenceId: 'provider:supabase',
     providerId: 'supabase',
     protocol: 'LOCAL_ADAPTER',
     baseLocator: 'urn:provider:supabase-js',
     versionStrategy: 'PACKAGE_VERSION',
-    versionValue: '@supabase/supabase-js=2.116.0',
+    versionValue: '@supabase/supabase-js=2.112.3',
     verifiedAt: VERIFIED_AT,
     endpoints: [
       {
@@ -576,7 +576,7 @@ export const REF_PROV_04_PROVIDER_CONTRACTS:
           'repo:packages/jhadina-action-core/src/supabase-audit-ledger.ts',
       },
       {
-        evidenceId: 'repo:lock:supabase-js-2.116.0',
+        evidenceId: 'repo:lock:supabase-js-2.112.3',
         kind: 'REPO_PATH',
         locator: 'repo:pnpm-lock.yaml',
       },

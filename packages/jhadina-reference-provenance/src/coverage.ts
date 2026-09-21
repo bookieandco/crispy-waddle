@@ -80,6 +80,16 @@ export const DEFAULT_REFERENCE_SUBSYSTEM_HINTS:
       rationale: 'SHARK handoff wallet clustering reference.',
     },
     {
+      referenceId: 'github:MitulMistry/paper-trader',
+      subsystem: 'SHARK',
+      rationale: 'SHARK handoff paper-trading ledger architecture reference.',
+    },
+    {
+      referenceId: 'github:Open-Papertrade/Open-Papertrade',
+      subsystem: 'SHARK',
+      rationale: 'SHARK handoff paper-trading and backtesting architecture reference.',
+    },
+    {
       referenceId: 'github:assafelovic/gpt-researcher',
       subsystem: 'Knowledge',
       rationale: 'Knowledge handoff research-agent reference.',
