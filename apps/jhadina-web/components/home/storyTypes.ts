@@ -1,4 +1,19 @@
-export type FeedSource = 'All' | 'TikTok' | 'Facebook' | 'Snapchat' | 'Instagram' | 'YouTube' | 'Reddit' | 'Director';
+export type FeedSource =
+  | 'All'
+  | 'Social'
+  | 'TikTok'
+  | 'Facebook'
+  | 'Snapchat'
+  | 'Instagram'
+  | 'YouTube'
+  | 'Reddit'
+  | 'X'
+  | 'LinkedIn'
+  | 'Threads'
+  | 'Bluesky'
+  | 'Tumblr'
+  | 'VK'
+  | 'Director';
 
 export type StoryKind = 'social' | 'youtube' | 'director' | 'jhadina';
 
