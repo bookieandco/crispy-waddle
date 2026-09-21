@@ -4,7 +4,8 @@ import type { DirectorStoryboardLineage, DirectorStoryboardLineageResolver } fro
 
 type QueryResult = { data: unknown; error: { message: string } | null };
 type Query = { select(columns: string): Query; eq(column: string, value: string): Query; maybeSingle(): Promise<QueryResult> };
-export type ProductionAuthorityClient = { from(table: string): Query };
+type FromQuery = { select(columns: string): Query };
+export type ProductionAuthorityClient = { from(table: string): FromQuery };
 
 export interface DirectorProductionAuthorityRepository {
   getRun(runId: string, projectId: string): Promise<ProductionRun | null>;
