@@ -129,7 +129,7 @@ function useSocialHubStories(): Story[] {
 }
 
 function StoryCard({ story, onOpen }: { story: Story; onOpen: (story: Story) => void }) {
-  return <article className={styles.card} onClick={() => onOpen(story)}>
+  return <article className={styles.card} role="button" tabIndex={0} onClick={() => onOpen(story)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(story); } }}>
     <div className={styles.cardHeader}>
       <div className={styles.glyph} aria-hidden="true">{glyph[story.kind]}</div>
       <div className={styles.source}>{story.source}</div>
@@ -152,6 +152,12 @@ export function PersonalCommandFeed({ source }: { source?: FeedSource }) {
   const [selectedSource, setSelectedSource] = useState<FeedSource>(source ?? 'All');
 
   useEffect(() => { if (source) setSelectedSource(source); }, [source]);
+  useEffect(() => {
+    if (!selected) return;
+    function closeOnEscape(event: KeyboardEvent) { if (event.key === 'Escape') setSelected(null); }
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [selected]);
   const activeSource = source ?? selectedSource;
 
   const stories = useMemo(() => {
