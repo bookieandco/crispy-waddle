@@ -28,6 +28,7 @@ describe('PS-RECON creative and print contracts', () => {
   it('recognizes either self-hosted or Knockout-compatible preprocessing', () => {
     expect(
       backgroundRemovalConfigured({
+        NODE_ENV: 'test',
         PUPSON_BACKGROUND_REMOVER_URL: 'https://background.example',
       } as NodeJS.ProcessEnv)
     ).toBe(true);
@@ -56,7 +57,7 @@ describe('PS-RECON creative and print contracts', () => {
         mimeType: 'image/png',
         requiredWidth: 1200,
         requiredHeight: 1200,
-        env: {} as NodeJS.ProcessEnv,
+        env: { NODE_ENV: 'test' } as NodeJS.ProcessEnv,
       })
     ).rejects.toThrow(/Configure PUPSON_UPSCALER_URL or KNOCKOUT_TOKEN/);
   });
