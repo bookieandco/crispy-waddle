@@ -409,3 +409,127 @@ Reference only:
 - unverified scraped email/creator databases
 - scraper repositories with no inspectable implementation
 - duplicate social schedulers/databases.
+
+
+## Meta Ad Library intelligence references
+
+Additional references:
+- RamsesAguirre777/facebook-ads-library-mcp
+- promisingcoder/MetaAdsCollector
+
+### Current Meta platform boundary
+
+Meta's official Ad Library API currently supports:
+- social-issue/election/political ads globally;
+- all ad types delivered to the UK/EU during the supported retention window.
+
+For currently running commercial ads more broadly, Meta directs users to the public Ad Library UI.
+
+Therefore Jhadina must distinguish:
+- official API observations;
+- public Ad Library UI observations;
+- third-party collector transport.
+
+A collector being able to retrieve a field does not make that field official or authoritative.
+
+### facebook-ads-library-mcp — HIGH VALUE PARSER/WORKFLOW REFERENCE
+
+Useful:
+- advertiser/page
+- started-running date
+- ad copy
+- headline/link text
+- CTA
+- landing URL/domain
+- creative thumbnail/reference
+- Ad Library detail locator
+- rough creative reuse count
+- country-scoped search
+- advertiser grouping
+- landing-page teardown workflow
+
+Important limitations from the repository itself:
+- DOM/SPA parser is fragile to Meta layout changes;
+- no caching/rate-limit handling;
+- commercial spend/impressions are unavailable in the ordinary public-UI path;
+- some platform markers are lost because they render as icons;
+- it can receive HTTP 403 while still parsing rendered cards.
+
+Disposition:
+Adapt its normalization and research workflow; do not make its headless-browser behavior a production authority.
+
+### MetaAdsCollector — HIGH VALUE DATA-MODEL / COLLECTION REFERENCE
+
+Useful concepts:
+- canonical ad/page/creative models;
+- page-level collection;
+- active/inactive filters;
+- media type/platform/language filters;
+- persistent deduplication;
+- incremental collection / since-last-run;
+- creative media references;
+- enrichment as failure-safe optional data;
+- event lifecycle for collection/rate-limit/error state;
+- JSON/CSV/JSONL export shapes;
+- collection reporting.
+
+Do not import as canonical transport:
+- TLS/browser impersonation;
+- rotating-proxy evasion;
+- session-token extraction;
+- any transport behavior whose compatibility with Meta terms/authorization is not established.
+
+Jhadina should use a compliant provider transport and keep the normalized evidence contract independent of how the observation was obtained.
+
+### Canonical Jhadina addition
+
+Growth Core now has a provider-neutral CompetitorAdObservation contract.
+
+It preserves:
+- source/provider/source record ID;
+- advertiser identity;
+- platform/country;
+- active/inactive state;
+- observed start/end dates;
+- body/headline/description/CTA;
+- landing URL/domain;
+- creative references;
+- optional creative reuse count;
+- optional observed spend/impression/reach ranges only when actually provided;
+- source locator;
+- evidence refs;
+- observation timestamp.
+
+It deliberately does NOT contain:
+- "winning ad";
+- estimated ROAS;
+- estimated profitability;
+- inferred spend from longevity;
+- inferred sales;
+- automatic campaign recommendations.
+
+Those belong to separately labeled CompetitorCreativePattern / Growth analysis derived from multiple evidence-backed observations.
+
+### Meta creative intelligence flow
+
+Meta Ad Library / approved provider
+-> CompetitorAdObservation
+-> deduped evidence history
+-> creative-pattern inference
+-> Growth opportunity / Creative Brief
+-> experiment proposal
+-> Action Core approval
+-> Meta campaign connector
+-> actual impressions/clicks/spend/conversions
+-> Attribution + Money
+-> Growth learning.
+
+### Cross-platform extension
+
+The same CompetitorAdObservation shape can normalize:
+- Meta competitor ads;
+- TikTok ad/Shop creative observations;
+- Google competitor creative observations;
+- other supported public/authorized ad-intelligence sources.
+
+This prevents each platform from creating its own competitor-intelligence database.
