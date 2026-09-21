@@ -18,7 +18,7 @@ function AskJhadina(){
  const params=useSearchParams()
  const surface=params.get("surface")??"assistant"
  const route=params.get("route")??"/ask-jhadina"
- const [task,setTask]=useState("")
+ const [task,setTask]=useState(()=>params.get("prompt")??"")
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState("")
  const [result,setResult]=useState<CommandResult|null>(null)
