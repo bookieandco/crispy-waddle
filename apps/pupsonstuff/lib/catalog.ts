@@ -12,6 +12,14 @@ export interface ValidatedCartItem {
   quantity: number;
   previewUrl?: string;
   creativeOutputId: string;
+  printAssetId?: string;
+  fulfillmentProvider?: 'printify';
+  providerProductId?: string;
+  providerVariantId?: string;
+  blueprintId?: string;
+  printProviderId?: string;
+  printArea?: string;
+  catalogCertificationStatus?: 'sandbox_verified' | 'sample_verified';
   fulfillment?: Hotspot['fulfillment'];
 }
 
@@ -115,7 +123,44 @@ export function validateStripeLineItems(items: unknown): ValidatedCartItem[] | n
       raw.price <= 0
     )
       return null;
-    validated.push({ ...catalogItem, priceCents: raw.price });
+    const snapshot = {
+      printAssetId: raw.printAssetId,
+      fulfillmentProvider: raw.fulfillmentProvider,
+      providerProductId: raw.providerProductId,
+      providerVariantId: raw.providerVariantId,
+      blueprintId: raw.blueprintId,
+      printProviderId: raw.printProviderId,
+      printArea: raw.printArea,
+      catalogCertificationStatus: raw.catalogCertificationStatus,
+    };
+    if (
+      typeof snapshot.printAssetId !== 'string' ||
+      snapshot.fulfillmentProvider !== 'printify' ||
+      typeof snapshot.providerProductId !== 'string' ||
+      typeof snapshot.providerVariantId !== 'string' ||
+      typeof snapshot.blueprintId !== 'string' ||
+      typeof snapshot.printProviderId !== 'string' ||
+      typeof snapshot.printArea !== 'string' ||
+      !['sandbox_verified', 'sample_verified'].includes(
+        String(snapshot.catalogCertificationStatus)
+      )
+    ) {
+      return null;
+    }
+    validated.push({
+      ...catalogItem,
+      priceCents: raw.price,
+      printAssetId: snapshot.printAssetId,
+      fulfillmentProvider: 'printify',
+      providerProductId: snapshot.providerProductId,
+      providerVariantId: snapshot.providerVariantId,
+      blueprintId: snapshot.blueprintId,
+      printProviderId: snapshot.printProviderId,
+      printArea: snapshot.printArea,
+      catalogCertificationStatus: snapshot.catalogCertificationStatus as
+        | 'sandbox_verified'
+        | 'sample_verified',
+    });
   }
   return validated;
 }
