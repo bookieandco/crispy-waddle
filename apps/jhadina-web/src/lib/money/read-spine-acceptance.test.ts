@@ -4,7 +4,7 @@ import type {JhadinaIdentityVerifier} from "../auth/supabase-identity-verifier"
 import {createInMemoryAuditRpcClient} from "./reference-adapters"
 import {runSessionGovernedMoneyTransactionRead} from "./governed-transaction-read-runtime"
 
-const identity: JhadinaIdentityVerifier={async verify(request){if(request.userId&&request.userId!=="u1")throw new Error("Action identity mismatch");return {userId:"u1",sessionId:"s1"}}}
+const identity: JhadinaIdentityVerifier={async verify(request){if(request?.userId&&request.userId!=="u1")throw new Error("Action identity mismatch");return {userId:"u1",sessionId:"s1"}}}
 function providers(adapter:BankAdapter){const registry=new MoneyProviderRegistry();registry.register(adapter);const providerConfig:Readonly<Record<string,ProviderConfig>>={plaid:{enabled:true,credentialRef:"money/plaid/default",capabilities:["money.account.read","money.transaction.read"]}};return {registry,providerConfig}}
 
 describe("Money read-spine acceptance",()=>{
