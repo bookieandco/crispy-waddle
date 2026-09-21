@@ -1,18 +1,27 @@
 import { getSellableHotspots, formatPriceCents } from "@/lib/admin/stats";
+import { getAdminCatalogVariants } from "@/lib/admin/live-data";
 
 export const metadata = { title: "Products — PupsonStuff Admin" };
 
-export default function AdminProductsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function AdminProductsPage() {
   const products = getSellableHotspots();
+  const catalog = await getAdminCatalogVariants();
+  const certification = new Map(
+    catalog.variants.map((variant) => [
+      `${variant.product_id}:${variant.variant_id}`,
+      variant,
+    ])
+  );
 
   return (
     <div>
       <h1 className="font-display text-2xl text-ink">Products</h1>
       <p className="mt-1 text-sm text-ink/60">
-        {products.length} active listings, read straight from
-        data/hotspots.ts — the same file the boutique&apos;s hotspots and
-        pricing already come from. This is a read-only view; editing here
-        doesn&apos;t write anything back yet (no CMS/DB behind the catalog).
+        {products.length} active storefront listings. Product names, prices, and local variant IDs
+        come from the boutique catalog; provider IDs and certification status come from the live
+        catalog ledger.
       </p>
 
       <div className="mt-6 overflow-x-auto rounded-lg border border-greige/40 bg-white/50">
@@ -36,7 +45,18 @@ export default function AdminProductsPage() {
                   : prices.length === 1 || Math.min(...prices) === Math.max(...prices)
                   ? formatPriceCents(prices[0])
                   : `${formatPriceCents(Math.min(...prices))} – ${formatPriceCents(Math.max(...prices))}`;
-              const isPlaceholder = p.fulfillment?.productId?.includes("PLACEHOLDER");
+              const statuses = variants.map((variant) =>
+                certification.get(`${p.id}:${variant.variantId}`)
+              );
+              const sampleVerified = statuses.filter(
+                (row) => row?.active && row.provider === "printify" && row.certification_status === "sample_verified"
+              ).length;
+              const sandboxVerified = statuses.filter(
+                (row) =>
+                  row?.active &&
+                  row.provider === "printify" &&
+                  ["sandbox_verified", "sample_verified"].includes(row.certification_status)
+              ).length;
 
               return (
                 <tr key={p.id}>
@@ -51,13 +71,21 @@ export default function AdminProductsPage() {
                       : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    {isPlaceholder ? (
+                    {!catalog.configured ? (
                       <span className="rounded-full bg-gold/20 px-2 py-0.5 text-[11px] font-medium text-bronze">
-                        Placeholder ID
+                        Catalog unavailable
+                      </span>
+                    ) : sampleVerified === variants.length && variants.length > 0 ? (
+                      <span className="rounded-full bg-honey-oak/15 px-2 py-0.5 text-[11px] font-medium text-honey-oak">
+                        Sample verified
+                      </span>
+                    ) : sandboxVerified > 0 ? (
+                      <span className="rounded-full bg-gold/20 px-2 py-0.5 text-[11px] font-medium text-bronze">
+                        {sandboxVerified}/{variants.length} sandbox verified
                       </span>
                     ) : (
-                      <span className="rounded-full bg-honey-oak/15 px-2 py-0.5 text-[11px] font-medium text-honey-oak">
-                        Mapped
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">
+                        Uncertified
                       </span>
                     )}
                   </td>
