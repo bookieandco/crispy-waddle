@@ -302,7 +302,7 @@ begin
      where proposal.id = p_proposal_id
        and proposal.user_id = auth.uid()
        and proposal.status = 'pending_approval'
-       and receipt.type = 'social.message.send'
+       and receipt.type = 'consequential.outreach'
        and receipt.status = 'consumed'
        and receipt.fingerprint =
          'social-direct-message:v1:' || proposal.id::text || ':' || proposal.request_fingerprint
