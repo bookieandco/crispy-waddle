@@ -142,6 +142,7 @@ export * from './execution-receipt-engine.js';
 
 export * from './paper-execution-contracts.js';
 export * from './paper-execution-engine.js';
+export * from './paper-strategy-result.js';
 export * from './paper-ledger.js';
 export * from './postgres-paper-ledger-store.js';
 
