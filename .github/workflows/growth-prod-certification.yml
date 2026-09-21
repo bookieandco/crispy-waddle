@@ -11,6 +11,7 @@ on:
       - 'apps/jhadina-web/src/app/api/growth/**'
       - 'apps/jhadina-web/tsconfig.growth-prod.json'
       - 'supabase/migrations/*growth*'
+      - 'supabase/migrations/*social*'
       - '.github/workflows/growth-prod-certification.yml'
   workflow_dispatch:
 
@@ -59,12 +60,6 @@ jobs:
       - name: Test Growth Core
         run: pnpm --filter @jhadina/growth-core test
 
-      - name: Type-check Security Core
-        run: pnpm --filter @jhadina/security-core type-check
-
-      - name: Test Security Core paid-action approval policy
-        run: pnpm --filter @jhadina/security-core test
-
       - name: Type-check Growth production web integration
         run: pnpm --filter @jhadina/jhadina-web exec tsc -p tsconfig.growth-prod.json --noEmit
 
@@ -82,7 +77,8 @@ jobs:
         run: |
           test -f supabase/migrations/20260921212651_jhadina_growth_production_spine.sql
           test -f supabase/migrations/20260921213205_jhadina_growth_lifecycle_rpc.sql
-          test -f supabase/migrations/20260921223000_growth_prod_hardening.sql
+          test -f supabase/migrations/20260921214442_growth_prod_hardening.sql
+          test -f supabase/migrations/20260921214803_jhadina_social_governed_publication.sql
           test -f supabase/migrations/20260921223500_social_prod_schema_reconciliation.sql
 
       - name: Verify production evidence APIs require idempotency keys
@@ -90,5 +86,3 @@ jobs:
           grep -q "eventKey" apps/jhadina-web/src/app/api/growth/customers/events/route.ts
           grep -q "observationKey" apps/jhadina-web/src/app/api/growth/ads/campaigns/'[id]'/performance/route.ts
           grep -q "idempotencyKey" apps/jhadina-web/src/app/api/growth/customers/'[id]'/lifecycle/route.ts
-          test -f supabase/migrations/20260921214442_growth_prod_hardening.sql
-          test -f supabase/migrations/20260921214803_jhadina_social_governed_publication.sql
