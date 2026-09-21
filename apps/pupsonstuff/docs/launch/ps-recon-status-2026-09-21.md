@@ -111,7 +111,7 @@ Do not deploy the PupsonStuff app over the Jhadina web project. PS-RECON.8 requi
 
 ### 8.1 Dedicated deployment
 
-Create/link a dedicated Vercel project with root directory `apps/pupsonstuff`, Node 22+, preview/production environments, and the five-minute creative-worker cron. Attach the owned `pupsonstuff.com` domain and use **https://pupsonstuff.com** as the production canonical origin. `www.pupsonstuff.com` may be an alias/redirect, but must not be configured as `PUPSON_PUBLIC_ORIGIN`.
+Create/link a dedicated Vercel project with root directory `apps/pupsonstuff`, Node 22+, preview/production environments, and the five-minute creative-worker cron. Attach both owned domain hosts. Use **https://www.pupsonstuff.com** as the production canonical origin and redirect `pupsonstuff.com` to it. `PUPSON_PUBLIC_ORIGIN` must be `https://www.pupsonstuff.com` in production.
 
 ### 8.2 Server-only environment
 
@@ -124,7 +124,7 @@ Configure and verify the server-only values required by `launch:preflight`, incl
 - background remover and AI upscaler;
 - admin credentials/session secret;
 - `CRON_SECRET`;
-- `PUPSON_PUBLIC_ORIGIN` (production must be `https://pupsonstuff.com`);
+- `PUPSON_PUBLIC_ORIGIN` (production must be `https://www.pupsonstuff.com`);
 - `PUPSON_FULFILLMENT_MODE=dry_run`.
 
 No server secret may exist under a `NEXT_PUBLIC_` alias.
