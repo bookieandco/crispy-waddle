@@ -1,5 +1,5 @@
 export type JhadinaWorldId =
-  | "home" | "assistant" | "work" | "activity" | "memory" | "health"
+  | "home" | "assistant" | "work" | "activity" | "memory" | "health" | "growth" | "calendar"
   | "music" | "tv" | "studio" | "social" | "pupsonstuff" | "trucker"
   | "cooking" | "shopping" | "radar" | "knowledge" | "money" | "wallet"
   | "opportunities" | "spatial" | "publishing" | "campaign" | "placement"
@@ -52,11 +52,11 @@ const worldRows: WorldRow[] = [
   { id:"safety", label:"SafetyOS", description:"Personal safety runtime, drills and governed escalation evidence", capabilities:["monitor","drill","evidence"], inputs:["safety","spatial"], group:"intelligence" },
 
   { id:"studio", label:"Director Workstation", description:"Creative editing and generated-asset workstation", capabilities:["projects","assets","timeline"], inputs:["projects","media"], href:"/workstation", group:"work" },
-  { id:"growth", label:"Growth", description:"Draft, approval and scheduling workflow", capabilities:["draft","approve","schedule"], inputs:["content","activity"], href:"/growth", group:"work" } as never,
+  { id:"growth", label:"Growth", description:"Draft, approval and scheduling workflow", capabilities:["draft","approve","schedule"], inputs:["content","activity"], href:"/growth", group:"work" },
   { id:"opportunities", label:"Opportunities", description:"Find, qualify and authorize research on opportunities", capabilities:["discover","qualify","track"], inputs:["research","money"], href:"/opportunity", group:"work" },
   { id:"campaign", label:"CampaignOS", description:"Campaign intelligence and polling surfaces", capabilities:["polls","research"], inputs:["polling","knowledge"], href:"/campaign/polls", group:"work" },
   { id:"placement", label:"PlacementOS", description:"Worker, agency and employer placement workflows", capabilities:["opportunities","offers","jobs"], inputs:["jobs","people"], href:"/placement/worker/opportunities", group:"work" },
-  { id:"calendar", label:"Calendar", description:"Schedule and time-aware coordination", capabilities:["schedule","review"], inputs:["time","work"], href:"/calendar", group:"work" } as never,
+  { id:"calendar", label:"Calendar", description:"Schedule and time-aware coordination", capabilities:["schedule","review"], inputs:["time","work"], href:"/calendar", group:"work" },
   { id:"overage", label:"OverageOS", description:"Unclaimed-property discovery and recovery operations", capabilities:["discover","cases","recovery"], inputs:["public-records","opportunities"], group:"work" },
 
   { id:"music", label:"Music", description:"Listen, discover and manage music", capabilities:["search","recommendations","playback"], inputs:["music","activity"], href:"/music", group:"media" },
