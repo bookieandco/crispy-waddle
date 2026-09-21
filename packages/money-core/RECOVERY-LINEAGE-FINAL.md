@@ -1,6 +1,6 @@
 # RECOVERY-LINEAGE.FINAL
 
-Status: certification candidate
+Status: CERTIFIED
 
 ## Frozen invariants
 
@@ -43,4 +43,4 @@ Production drift discovered during certification was repaired fail-closed: the l
 - `migrations/005_bind_permits_to_action_core_authority.sql`
 - `migrations/006_recovery_execution_lineage.sql`
 
-Final certification requires the Money R13B GitHub Actions workflow to pass on this branch.
+Final certification runner: Money R13B Certification run 35551528235 — SUCCESS. Type-check, targeted R13B certification, full Money test suite, Money product-boundary tests, and Money production build all passed.
