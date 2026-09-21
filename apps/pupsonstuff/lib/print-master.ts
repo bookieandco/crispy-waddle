@@ -1,8 +1,13 @@
 import sharp from 'sharp';
 import type { Hotspot } from '@/data/hotspots';
 import { evaluateImageQuality, type PrintProfile, type QualityReport } from '@/lib/pod/quality-gate';
-import { normalizeArtworkTransform, type ArtworkTransform } from '@/types/creative';
+import {
+  normalizeArtworkTransform,
+  type ArtworkTransform,
+  type BackgroundMode,
+} from '@/types/creative';
 import { ensureSourceResolution } from '@/lib/image-upscale';
+import { removeBackground } from '@/lib/background-removal';
 
 export interface ProductPrintProfile extends PrintProfile {
   targetDpi: number;
@@ -27,6 +32,10 @@ export interface PrintMasterResult {
     upscaleModel?: string;
     originalWidth: number;
     originalHeight: number;
+    backgroundMode: BackgroundMode;
+    hasTransparency: boolean;
+    postUpscaleBackgroundRemovalProvider?: string;
+    postUpscaleBackgroundRemovalModel?: string;
   };
 }
 
@@ -95,6 +104,7 @@ export async function buildPrintMaster(input: {
   hotspot: Hotspot;
   variantId: string;
   transform?: Partial<ArtworkTransform>;
+  backgroundMode?: BackgroundMode;
 }): Promise<PrintMasterResult> {
   const profile = resolveProductPrintProfile(input.hotspot, input.variantId);
   const transform = normalizeArtworkTransform(input.transform);
@@ -129,14 +139,29 @@ export async function buildPrintMaster(input: {
     requiredWidth: requiredSourceWidth,
     requiredHeight: requiredSourceHeight,
   });
+  const backgroundMode = input.backgroundMode ?? 'keep';
+  const requiresTransparency =
+    backgroundMode === 'auto' || backgroundMode === 'transparent';
+  const postUpscaleRemoval =
+    requiresTransparency && source.provider !== 'none'
+      ? await removeBackground(source.bytes, source.mimeType, backgroundMode)
+      : null;
+  const productionSourceBytes = postUpscaleRemoval?.bytes ?? source.bytes;
+  const productionSourceMimeType = postUpscaleRemoval?.mimeType ?? source.mimeType;
+  const productionMeta = await sharp(productionSourceBytes, { failOn: 'error' }).metadata();
+  const productionWidth = productionMeta.width ?? source.width;
+  const productionHeight = productionMeta.height ?? source.height;
+  const alphaStats = await sharp(productionSourceBytes, { failOn: 'error' }).ensureAlpha().stats();
+  const alphaChannel = alphaStats.channels[3];
+  const hasTransparency = Boolean(alphaChannel && alphaChannel.min < 255);
 
-  const rotated = await sharp(source.bytes, { failOn: 'error' })
+  const rotated = await sharp(productionSourceBytes, { failOn: 'error' })
     .rotate(transform.rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer();
   const rotatedMeta = await sharp(rotated).metadata();
-  const rotatedWidth = rotatedMeta.width ?? source.width;
-  const rotatedHeight = rotatedMeta.height ?? source.height;
+  const rotatedWidth = rotatedMeta.width ?? productionWidth;
+  const rotatedHeight = rotatedMeta.height ?? productionHeight;
 
   const fit = Math.min(footprintWidth / rotatedWidth, footprintHeight / rotatedHeight);
   const artworkWidth = Math.max(1, Math.round(rotatedWidth * fit));
@@ -168,8 +193,8 @@ export async function buildPrintMaster(input: {
     .toBuffer();
 
   const effectiveDpi = Math.min(
-    source.width / Math.max(0.01, (artworkWidth / targetWidth) * profile.printWidthInches),
-    source.height / Math.max(0.01, (artworkHeight / targetHeight) * profile.printHeightInches)
+    productionWidth / Math.max(0.01, (artworkWidth / targetWidth) * profile.printWidthInches),
+    productionHeight / Math.max(0.01, (artworkHeight / targetHeight) * profile.printHeightInches)
   );
   const baseQuality = evaluateImageQuality(
     {
@@ -190,7 +215,18 @@ export async function buildPrintMaster(input: {
     status: sourceScore >= 90 ? ('pass' as const) : sourceScore >= 75 ? ('warn' as const) : ('fail' as const),
     detail: `${Math.round(effectiveDpi)} effective source DPI; target ≥ ${profile.minDpi} DPI for the approved placement.`,
   };
-  const checks = [...baseQuality.checks, sourceCheck];
+  const backgroundCheck = {
+    id: 'background',
+    label: 'Background intent',
+    score: !requiresTransparency || hasTransparency ? 100 : 0,
+    status: !requiresTransparency || hasTransparency ? ('pass' as const) : ('fail' as const),
+    detail: requiresTransparency
+      ? hasTransparency
+        ? 'Approved artwork retains transparent pixels for product composition.'
+        : 'Background removal was requested, but the approved artwork is fully opaque.'
+      : 'This design does not require a transparent background.',
+  };
+  const checks = [...baseQuality.checks, sourceCheck, backgroundCheck];
   const score = Math.round(checks.reduce((sum, check) => sum + check.score, 0) / checks.length);
   const quality: QualityReport = {
     checks,
@@ -213,14 +249,18 @@ export async function buildPrintMaster(input: {
     profile,
     quality,
     source: {
-      width: source.width,
-      height: source.height,
+      width: productionWidth,
+      height: productionHeight,
       effectiveDpi: Math.round(effectiveDpi * 10) / 10,
       resampled: artworkWidth > rotatedWidth || artworkHeight > rotatedHeight,
       upscaleProvider: source.provider,
       upscaleModel: source.model,
       originalWidth: source.originalWidth,
       originalHeight: source.originalHeight,
+      backgroundMode,
+      hasTransparency,
+      postUpscaleBackgroundRemovalProvider: postUpscaleRemoval?.provider,
+      postUpscaleBackgroundRemovalModel: postUpscaleRemoval?.model,
     },
   };
 }
