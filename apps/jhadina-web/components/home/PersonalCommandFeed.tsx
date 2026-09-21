@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { baseStories } from './storyCatalog';
-import { storyMatchesSource, type FeedSource, type Story } from './storyTypes';
+import { HOME_FEED_SOURCES, storyMatchesSource, type FeedSource, type Story } from './storyTypes';
 import styles from './PersonalCommandFeed.module.css';
 
 const glyph: Record<Story['kind'], string> = {
@@ -129,7 +129,7 @@ function useSocialHubStories(): Story[] {
 }
 
 function StoryCard({ story, onOpen }: { story: Story; onOpen: (story: Story) => void }) {
-  return <article className={styles.card} onClick={() => onOpen(story)}>
+  return <article className={styles.card} role="button" tabIndex={0} onClick={() => onOpen(story)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(story); } }}>
     <div className={styles.cardHeader}>
       <div className={styles.glyph} aria-hidden="true">{glyph[story.kind]}</div>
       <div className={styles.source}>{story.source}</div>
@@ -145,10 +145,20 @@ function StoryCard({ story, onOpen }: { story: Story; onOpen: (story: Story) => 
   </article>;
 }
 
-export function PersonalCommandFeed({ source = 'All' }: { source?: FeedSource }) {
+export function PersonalCommandFeed({ source }: { source?: FeedSource }) {
   const growthStory = useGrowthProposal();
   const socialStories = useSocialHubStories();
   const [selected, setSelected] = useState<Story | null>(null);
+  const [selectedSource, setSelectedSource] = useState<FeedSource>(source ?? 'All');
+
+  useEffect(() => { if (source) setSelectedSource(source); }, [source]);
+  useEffect(() => {
+    if (!selected) return;
+    function closeOnEscape(event: KeyboardEvent) { if (event.key === 'Escape') setSelected(null); }
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [selected]);
+  const activeSource = source ?? selectedSource;
 
   const stories = useMemo(() => {
     const all = [
@@ -156,18 +166,21 @@ export function PersonalCommandFeed({ source = 'All' }: { source?: FeedSource })
       ...(growthStory ? [growthStory] : []),
       ...baseStories,
     ];
-    return all.filter((story) => storyMatchesSource(story, source));
-  }, [source, growthStory, socialStories]);
+    return all.filter((story) => storyMatchesSource(story, activeSource));
+  }, [activeSource, growthStory, socialStories]);
 
   return <section className={styles.feed}>
     <div className={styles.intro}>
-      <div className={styles.eyebrow}>Jhadina Home</div>
-      <h2 className={styles.title}>Your world, in one stream.</h2>
+      <div className={styles.eyebrow}>Social + media intelligence</div>
+      <h2 className={styles.title}>Your world, in one scroll.</h2>
       <p className={styles.description}>
-        Social, media, and Jhadina activity — mixed by context while preserving source, account, and approval state.
+        TikTok, Instagram, YouTube, X, Facebook, Reddit and the rest of Jhadina’s social/media stream stay browseable here with source, provenance and approval state intact.
       </p>
     </div>
-    <div className={styles.list}>
+    {!source && <div className={styles.filters} role="tablist" aria-label="Filter social and media stream">
+      {HOME_FEED_SOURCES.map((item) => <button key={item} type="button" role="tab" aria-selected={activeSource === item} className={activeSource === item ? styles.filterActive : styles.filter} onClick={() => setSelectedSource(item)}>{item}</button>)}
+    </div>}
+    <div className={styles.list} aria-label={activeSource + " feed"}>
       {stories.length
         ? stories.map((story) => <StoryCard key={story.id} story={story} onOpen={setSelected} />)
         : <div className={styles.empty}>Nothing is in this source yet.</div>}

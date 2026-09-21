@@ -1,10 +1,14 @@
 .feed { width: 100%; }
-.intro { margin-bottom: 28px; }
+.intro { margin-bottom: 18px; }
 .eyebrow { font-size: 11px; letter-spacing: .28em; text-transform: uppercase; opacity: .42; }
 .title { font-size: clamp(30px, 4vw, 38px); line-height: 1.05; margin: 10px 0 8px; }
 .description { margin: 0; line-height: 1.6; opacity: .52; }
-.list { display: grid; gap: 14px; }
-.card { border: 1px solid rgba(255,255,255,.09); border-radius: 24px; padding: 22px; background: rgba(255,255,255,.035); box-shadow: 0 14px 50px rgba(0,0,0,.18); transition: border-color .18s ease, background .18s ease, transform .18s ease; cursor: pointer; }
+.filters { display:flex; gap:8px; overflow-x:auto; padding:2px 0 14px; scrollbar-width:none; scroll-snap-type:x proximity; }
+.filters::-webkit-scrollbar { display:none; }
+.filter,.filterActive { flex:0 0 auto; border:1px solid rgba(255,255,255,.1); border-radius:999px; padding:8px 12px; background:transparent; color:rgba(255,255,255,.58); cursor:pointer; scroll-snap-align:start; }
+.filterActive { background:rgba(255,255,255,.11); color:#fff; border-color:rgba(255,255,255,.16); }
+.list { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(290px,390px); grid-template-rows:1fr; gap:14px; overflow-x:auto; overscroll-behavior-inline:contain; scroll-snap-type:x mandatory; padding:2px 2px 14px; scrollbar-width:thin; }
+.card { scroll-snap-align:start; min-height:240px; border: 1px solid rgba(255,255,255,.09); border-radius: 24px; padding: 22px; background: rgba(255,255,255,.035); box-shadow: 0 14px 50px rgba(0,0,0,.18); transition: border-color .18s ease, background .18s ease, transform .18s ease; cursor: pointer; }
 .card:hover { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.05); transform: translateY(-1px); }
 .cardHeader { display: flex; align-items: center; gap: 12px; }
 .glyph { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 13px; display: grid; place-items: center; background: rgba(255,255,255,.08); font-size: 18px; }
@@ -25,6 +29,7 @@
 .close { position: absolute; top: 18px; right: 18px; width: 36px; height: 36px; border: 1px solid rgba(255,255,255,.1); border-radius: 50%; background: rgba(255,255,255,.05); color: inherit; font-size: 22px; line-height: 1; cursor: pointer; }
 .detailTitle { margin: 16px 0 10px; padding-right: 42px; font-size: 30px; line-height: 1.15; }
 @media (max-width: 600px) {
+  .list { grid-auto-columns:minmax(82vw,88vw); }
   .card { padding: 18px; border-radius: 20px; }
   .detailGrid { grid-template-columns: 1fr; }
   .meta { display: none; }

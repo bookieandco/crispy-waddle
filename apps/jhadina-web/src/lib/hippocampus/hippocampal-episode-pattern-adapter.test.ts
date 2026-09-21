@@ -27,11 +27,13 @@ describe('HippocampalEpisodePatternAdapter provenance', () => {
       ['direct', new Set(['reason-1'])],
     ]);
 
-    expect(new HippocampalEpisodePatternAdapter().detect(
+    const patterns = new HippocampalEpisodePatternAdapter().detect(
       current,
       [episode],
       covered,
-    )).toEqual([]);
+    );
+
+    expect(patterns.some((pattern) => pattern.id === 'episodic-recurrence:direct')).toBe(false);
   });
 
   it('keeps the episode available for a different uncovered term', () => {

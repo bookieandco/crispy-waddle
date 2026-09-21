@@ -1,265 +1,91 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import Link from "next/link"
+import { Suspense,useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 
-type EvidenceRef = { id: string; source: string; observedAt: string; summary: string }
-type DecisionProposal = {
-  id: string
-  disposition: "PROCEED" | "ASK" | "DECLINE" | "DEFER"
-  recommendation: string
-  rationale: string
-  evidence: EvidenceRef[]
-  uncertainty: string[]
-  alternatives: string[]
+type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
+type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
+type MemoryCandidate={id:string;content:string;type:string;confidence:number;status:string}
+type GovernedExpressionSegment={kind:"semantic"|"callback"|"cultural_reference";text:string}
+type GovernedExpression={proposal:DecisionProposal;presentation:{mode:"direct"|"explanatory"|"pushback"|"clarifying"|"serious";allowProfanity:boolean;allowQuip:boolean;callback?:string;culturalReference?:string};segments:GovernedExpressionSegment[]}
+type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string}
+
+export default function AskJhadinaPage(){return <Suspense fallback={<main className="jh-page"><div className="jh-wrap"><div className="jh-skeleton"/></div></main>}><AskJhadina/></Suspense>}
+
+function AskJhadina(){
+ const params=useSearchParams()
+ const surface=params.get("surface")??"assistant"
+ const route=params.get("route")??"/ask-jhadina"
+ const [task,setTask]=useState(()=>params.get("prompt")??"")
+ const [busy,setBusy]=useState(false)
+ const [error,setError]=useState("")
+ const [result,setResult]=useState<CommandResult|null>(null)
+ const [feedbackBusy,setFeedbackBusy]=useState(false)
+ const [feedbackRecorded,setFeedbackRecorded]=useState<"reinforced"|"rejected"|null>(null)
+
+ async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
+ async function ask(){
+  if(!task.trim()||busy)return
+  setBusy(true);setError("");setResult(null);setFeedbackRecorded(null)
+  try{
+   const userId=await identity()
+   const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:task.trim(),surface,route})})
+   const json=await response.json();if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
+   setResult(json.data);setTask("")
+  }catch(cause){setError(cause instanceof Error?cause.message:"Jhadina could not process that")}
+  finally{setBusy(false)}
+ }
+ async function feedback(kind:"reinforced"|"rejected"){
+  if(!result?.reasoningEventId||feedbackBusy||feedbackRecorded)return
+  setFeedbackBusy(true);setError("")
+  try{
+   const userId=await identity()
+   const response=await fetch("/api/jhadina/personality/feedback",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({targetReasoningEventId:result.reasoningEventId,feedbackId:crypto.randomUUID(),kind})})
+   const json=await response.json();if(!response.ok)throw new Error(json.error||"Could not record feedback");setFeedbackRecorded(kind)
+  }catch(cause){setError(cause instanceof Error?cause.message:"Could not record feedback")}
+  finally{setFeedbackBusy(false)}
+ }
+
+ return <main className="jh-page"><div className="jh-wrap" style={{maxWidth:900}}>
+  <p className="jh-eyebrow">Ask Jhadina · {surface}</p>
+  <h1 className="jh-title">Think across the whole OS.</h1>
+  <p className="jh-copy">Ask is Jhadina’s governed LLM surface. It can reason across approved context and subsystem intelligence, explain its evidence, and propose next steps. The model itself does not mutate policy, memory, values, money, or external systems.</p>
+  <div className="jh-card jh-card--wide" style={{marginTop:28}}>
+   <label htmlFor="jhadina-command" className="jh-eyebrow">What are we doing?</label>
+   <div className="jh-row" style={{alignItems:"stretch"}}>
+    <textarea id="jhadina-command" className="jh-textarea" rows={3} value={task} onChange={event=>setTask(event.target.value)} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")void ask()}} placeholder="Ask a question, connect subsystems, inspect a decision, or tell Jhadina what you want to accomplish…" style={{flex:"1 1 560px",resize:"vertical"}}/>
+    <button className="jh-button jh-button--primary" disabled={busy||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":"Ask"}</button>
+   </div>
+   <p className="jh-meta">Context surface: {surface} · route: {route} · ⌘/Ctrl + Enter to send</p>
+  </div>
+  {error&&<div className="jh-error" role="alert">{error}</div>}
+  {result?<section className="jh-section">
+   <article className="jh-card jh-card--wide">
+    <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.verified?"Verified response":"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
+    <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
+    <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
+    {result.proposal.evidence.length?<div className="jh-section" style={{marginTop:20}}><h2 className="jh-card-title">Evidence used</h2><div className="jh-list">{result.proposal.evidence.map(evidence=><div className="jh-item" key={evidence.id}><strong>{evidence.source}</strong><p className="jh-card-copy">{evidence.summary}</p><p className="jh-meta">{new Date(evidence.observedAt).toLocaleString()} · {evidence.id}</p></div>)}</div></div>:null}
+    {result.proposal.uncertainty.length?<div style={{marginTop:18}}><strong>Uncertainty</strong><ul>{result.proposal.uncertainty.map(item=><li key={item} className="jh-card-copy">{item}</li>)}</ul></div>:null}
+    {result.proposal.alternatives.length?<div style={{marginTop:18}}><strong>Alternatives</strong><ul>{result.proposal.alternatives.map(item=><li key={item} className="jh-card-copy">{item}</li>)}</ul></div>:null}
+    {result.approvalReceiptId?<p className="jh-meta">Approval receipt: {result.approvalReceiptId}. This receipt belongs to the exact governed request; it is not general permission.</p>:null}
+    {!result.verified?<div className="jh-error" role="alert">Verification did not pass: {result.verificationReason??"no verification reason returned"}</div>:null}
+    {result.candidate?<div className="jh-empty">Jhadina proposed a memory candidate. It is not durable memory until you decide in <Link href="/approvals">Approval Center</Link>.</div>:null}
+    {!result.candidate&&!result.approvalReceiptId?<p className="jh-meta">No persistence or external action is implied by this response.</p>:null}
+    <div className="jh-row" style={{marginTop:18}}>
+     {feedbackRecorded?<span className="jh-status jh-status--success"><span className="jh-dot"/>Feedback recorded</span>:<>
+      <span className="jh-meta">Did this reasoning help?</span>
+      <button className="jh-button" disabled={feedbackBusy} onClick={()=>void feedback("reinforced")}>Worked</button>
+      <button className="jh-button" disabled={feedbackBusy} onClick={()=>void feedback("rejected")}>Not quite</button>
+     </>}
+    </div>
+   </article>
+  </section>:null}
+  <section className="jh-section"><div className="jh-grid">
+   <Link className="jh-card jh-card--third" href="/approvals"><h2 className="jh-card-title">Approvals</h2><p className="jh-card-copy">Decisions waiting on you.</p></Link>
+   <Link className="jh-card jh-card--third" href="/activity"><h2 className="jh-card-title">Black box</h2><p className="jh-card-copy">Inspect what actually happened.</p></Link>
+   <Link className="jh-card jh-card--third" href="/worlds"><h2 className="jh-card-title">Worlds</h2><p className="jh-card-copy">Open or query any subsystem.</p></Link>
+  </div></section>
+ </div></main>
 }
-type MemoryCandidate = { id: string; content: string; type: string; confidence: number; status: string }
-type GovernedExpressionSegment = {
-  kind: "semantic" | "callback" | "cultural_reference"
-  text: string
-}
-type GovernedExpression = {
-  proposal: DecisionProposal
-  presentation: {
-    mode: "direct" | "explanatory" | "pushback" | "clarifying" | "serious"
-    allowProfanity: boolean
-    allowQuip: boolean
-    callback?: string
-    culturalReference?: string
-  }
-  segments: GovernedExpressionSegment[]
-}
-type CommandResult = {
-  proposal: DecisionProposal
-  reasoningEventId: string
-  expression: GovernedExpression
-  candidate?: MemoryCandidate
-  approvalReceiptId?: string
-  verified: boolean
-  verificationReason?: string
-}
-
-/**
- * Phase 1 Step 6 — Ask Jhadina.
- *
- * Connects the app's ✦ shell to the real governed loop: this page is a
- * thin client for POST /api/jhadina/command (Step 6), which calls the
- * real handleJhadinaCommand() (Step 5) with no overrides — the real
- * Context Builder, the real IntelligenceRouter, the real
- * SecurityCoreActionPolicy/ApprovalReceipt/ActionExecutor/audit chain.
- * This page executes nothing directly and makes no policy decisions —
- * it only submits a command and renders what the governed pipeline
- * returned.
- *
- * A PROCEED disposition whose action succeeds produces a PENDING memory
- * candidate — Step 2's explicit human approval boundary is preserved
- * here exactly: the Approve/Reject buttons below call the same
- * pre-existing /api/memory/approve and /api/memory/reject routes Step 2
- * already built. Nothing on this page turns a proposal directly into a
- * durable memory.
- */
-export default function AskJhadinaPage() {
-  return (
-    <Suspense fallback={null}>
-      <AskJhadina />
-    </Suspense>
-  )
-}
-
-function AskJhadina() {
-  const searchParams = useSearchParams()
-  const surface = searchParams.get("surface") ?? "assistant"
-  const route = searchParams.get("route") ?? "/ask-jhadina"
-
-  const [activeTask, setActiveTask] = useState("")
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState("")
-  const [result, setResult] = useState<CommandResult | null>(null)
-  const [pending, setPending] = useState<MemoryCandidate[]>([])
-  const [candidateBusy, setCandidateBusy] = useState<string | null>(null)
-  const [feedbackBusy, setFeedbackBusy] = useState(false)
-  const [feedbackRecorded, setFeedbackRecorded] = useState<"reinforced" | "rejected" | null>(null)
-
-  async function userHeader(): Promise<Record<string, string>> {
-    const userId = await getCurrentUserId()
-    if (!userId) throw new Error("Not signed in")
-    return { "x-jhadina-user-id": userId }
-  }
-
-  async function loadPending() {
-    try {
-      const headers = await userHeader()
-      const res = await fetch("/api/candidates", { headers: { "x-user-id": headers["x-jhadina-user-id"] } })
-      const json = await res.json()
-      if (res.ok) setPending(json.data?.candidates ?? [])
-    } catch {
-      // Loading the pending list is a convenience, not the governed
-      // action itself — a failure here doesn't block asking Jhadina.
-    }
-  }
-  useEffect(() => { void loadPending() }, [])
-
-  async function ask() {
-    if (!activeTask.trim()) return
-    setBusy(true); setError(""); setResult(null); setFeedbackRecorded(null)
-    try {
-      const headers = await userHeader()
-      const res = await fetch("/api/jhadina/command", {
-        method: "POST",
-        headers: { "content-type": "application/json", ...headers },
-        body: JSON.stringify({ activeTask: activeTask.trim(), surface, route }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Jhadina could not process that")
-      setResult(json.data)
-      setActiveTask("")
-      await loadPending()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Jhadina could not process that")
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function sendOutcomeFeedback(kind: "reinforced" | "rejected") {
-    if (!result?.reasoningEventId || feedbackBusy || feedbackRecorded) return
-    setFeedbackBusy(true)
-    try {
-      const headers = await userHeader()
-      const res = await fetch("/api/jhadina/personality/feedback", {
-        method: "POST",
-        headers: { "content-type": "application/json", ...headers },
-        body: JSON.stringify({
-          targetReasoningEventId: result.reasoningEventId,
-          feedbackId: crypto.randomUUID(),
-          kind,
-        }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Could not record feedback")
-      setFeedbackRecorded(kind)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not record feedback")
-    } finally {
-      setFeedbackBusy(false)
-    }
-  }
-
-  async function decideCandidate(candidateId: string, decision: "approve" | "reject") {
-    setCandidateBusy(candidateId)
-    try {
-      const headers = await userHeader()
-      const res = await fetch(`/api/memory/${decision}`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-user-id": headers["x-jhadina-user-id"] },
-        body: JSON.stringify({ candidateId }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Could not update memory")
-      await loadPending()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not update memory")
-    } finally {
-      setCandidateBusy(null)
-    }
-  }
-
-  return (
-    <main style={{ minHeight: "100vh", background: "linear-gradient(180deg,#f5f1ea,#edf2ed 55%,#f3eee8)", color: "#29332e", padding: "28px 18px 110px", fontFamily: 'ui-rounded,"Avenir Next",Avenir,system-ui,sans-serif' }}>
-      <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        <div style={eyebrow}>✦ Jhadina</div>
-        <h1 style={{ margin: "12px 0 8px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400, fontSize: "clamp(32px,8vw,52px)", letterSpacing: "-.045em", lineHeight: 1 }}>Ask Jhadina.</h1>
-        <p style={{ margin: 0, color: "#718078", lineHeight: 1.65, maxWidth: 560 }}>
-          Jhadina reasons, but never decides alone — every proposal passes through real policy and, where required, your explicit approval before anything happens.
-        </p>
-
-        <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
-          <input
-            value={activeTask}
-            onChange={(e) => setActiveTask(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !busy && ask()}
-            placeholder="Tell Jhadina something…"
-            style={{ flex: 1, minWidth: 0, borderRadius: 16, border: "1px solid #d6ddd7", padding: "13px 16px", background: "rgba(255,255,255,.8)", color: "#29332e", font: "inherit" }}
-          />
-          <button disabled={busy || !activeTask.trim()} onClick={ask} style={primary}>{busy ? "Thinking…" : "Ask"}</button>
-        </div>
-
-        {error && <div role="alert" style={{ marginTop: 16, padding: 13, borderRadius: 16, background: "#f5e1dc", color: "#8d5148" }}>{error}</div>}
-
-        {result && (
-          <section style={{ marginTop: 24, padding: 20, borderRadius: 22, background: "rgba(255,255,255,.78)", border: "1px solid #dce2dd" }}>
-            <div style={eyebrow}>{result.proposal.disposition} · {result.expression.presentation.mode}</div>
-            {result.expression.segments.map((segment, index) => (
-              <p
-                key={`${segment.kind}-${index}`}
-                data-expression-kind={segment.kind}
-                style={segment.kind === "semantic"
-                  ? { margin: "10px 0 8px", fontSize: 16, lineHeight: 1.6 }
-                  : { margin: "8px 0", color: "#59675f", fontSize: 14 }}
-              >
-                {segment.text}
-              </p>
-            ))}
-            <div style={{ padding: 13, borderRadius: 16, background: "#eef1ed", color: "#657169", fontSize: 13, lineHeight: 1.55 }}>
-              <strong>Why:</strong> {result.expression.proposal.rationale}
-            </div>
-            {result.approvalReceiptId && (
-              <p style={{ marginTop: 10, fontSize: 12, color: "#8b7b9d" }}>
-                This required approval — receipt {result.approvalReceiptId.slice(0, 8)}… granted for this request.
-              </p>
-            )}
-            {!result.verified && (
-              <p role="alert" style={{ marginTop: 10, fontSize: 12, color: "#8d5148" }}>
-                Verification did not pass: {result.verificationReason}
-              </p>
-            )}
-            {!result.candidate && (
-              <p style={{ marginTop: 10, fontSize: 13, color: "#7d8982" }}>
-                Nothing was executed for this request ({result.verificationReason ?? "no action was proposed"}).
-              </p>
-            )}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
-              {feedbackRecorded ? (
-                <span style={{ fontSize: 12, color: "#68756e" }}>
-                  Feedback recorded for learning.
-                </span>
-              ) : (
-                <>
-                  <span style={{ fontSize: 12, color: "#7d8982" }}>Did this response work?</span>
-                  <button disabled={feedbackBusy} onClick={() => sendOutcomeFeedback("reinforced")} style={secondary}>Worked</button>
-                  <button disabled={feedbackBusy} onClick={() => sendOutcomeFeedback("rejected")} style={secondary}>Not quite</button>
-                </>
-              )}
-            </div>
-          </section>
-        )}
-
-        <section style={{ marginTop: 38 }}>
-          <h2 style={heading}>Waiting on you</h2>
-          {pending.length === 0 ? (
-            <div style={{ padding: 20, borderRadius: 20, background: "rgba(255,255,255,.55)", border: "1px solid #dce2dd", color: "#68756e" }}>
-              Nothing pending — anything Jhadina proposes to remember shows up here until you approve or reject it.
-            </div>
-          ) : (
-            pending.map((candidate) => (
-              <article key={candidate.id} style={{ padding: 18, marginBottom: 12, borderRadius: 22, background: "rgba(255,255,255,.72)", border: "1px solid #dce2dd" }}>
-                <div style={eyebrow}>{candidate.type} · pending</div>
-                <p style={{ margin: "8px 0 12px" }}>{candidate.content}</p>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button disabled={candidateBusy === candidate.id} onClick={() => decideCandidate(candidate.id, "approve")} style={primary}>Approve</button>
-                  <button disabled={candidateBusy === candidate.id} onClick={() => decideCandidate(candidate.id, "reject")} style={secondary}>Reject</button>
-                </div>
-              </article>
-            ))
-          )}
-        </section>
-      </div>
-    </main>
-  )
-}
-
-const heading = { margin: "0 4px 14px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400 as const, fontSize: 24 }
-const eyebrow = { fontSize: 10, letterSpacing: ".2em", textTransform: "uppercase" as const, color: "#77847c" }
-const primary = { border: 0, borderRadius: 999, padding: "10px 17px", background: "#34443c", color: "#f8f6f1", fontWeight: 600, cursor: "pointer" }
-const secondary = { border: "1px solid #d4dcd5", borderRadius: 999, padding: "9px 16px", background: "rgba(255,255,255,.5)", color: "#56635c", fontWeight: 600, cursor: "pointer" }

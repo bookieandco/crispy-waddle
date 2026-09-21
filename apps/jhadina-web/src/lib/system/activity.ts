@@ -3,7 +3,7 @@ import { createClient } from "../supabase/server"
 
 export type JhadinaActivityEvent = ActionAuditEvent & { domain: string }
 
-const ACTIVITY_DOMAINS = ["intelligence", "growth", "commerce", "money"] as const
+const ACTIVITY_DOMAINS = ["intelligence", "growth", "commerce", "money", "social"] as const
 
 function rpcClient(supabase: Awaited<ReturnType<typeof createClient>>): AuditRpcClient {
   return {

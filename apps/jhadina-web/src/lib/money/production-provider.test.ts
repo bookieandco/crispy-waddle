@@ -77,7 +77,7 @@ describe("Money production Plaid provider — PL-8 credential-resolution and san
     const { registry, providerConfig } = await createMoneyPlaidProductionRegistry({ credentialResolver })
 
     expect(registry.list()).toEqual([PLAID_PROVIDER])
-    expect(providerConfig[PLAID_PROVIDER].capabilities).toEqual(["money.account.read"])
+    expect(providerConfig[PLAID_PROVIDER].capabilities).toEqual(["money.account.read", "money.transaction.read"])
 
     const adapter = registry.get(PLAID_PROVIDER)
     expect((adapter as unknown as Record<string, unknown>).createPayment).toBeUndefined()

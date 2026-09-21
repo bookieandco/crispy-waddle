@@ -35,7 +35,6 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
   const [playheadSeconds, setPlayheadSeconds] = useState(0);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
-  const [approval, setApproval] = useState<{ status: 'idle' | 'pending' | 'approved' | 'rejected'; regionId?: string }>({ status: 'idle' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [redoStack, setRedoStack] = useState<string[]>([]);
@@ -61,7 +60,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
       const response = await fetch('/api/workstation/timeline/command', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ timeline, command, approved: command.type !== 'generative-region' || approval.status === 'approved' }),
+        body: JSON.stringify({ timeline, command }),
       });
       const data = await response.json() as { ok?: boolean; status?: string; error?: string; reason?: string; timeline?: EditableTimeline };
       if (!response.ok || !data.ok || !data.timeline) {
@@ -158,13 +157,15 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
     if (result) setRedoStack(stack => stack.slice(0, -1));
   }
 
-  async function askJhadina() {
+  function askJhadina() {
     if (!selectedClip || !prompt.trim()) return;
-    setApproval({ status: 'pending' });
-    const response = await fetch('/api/workstation/timeline/generative-region', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projectId, clipId: selectedClip.id, startSeconds: playheadSeconds, durationSeconds: Math.max(0.1, Math.min(selectedClip.durationSeconds, durationSeconds - playheadSeconds)), instruction: prompt.trim() }) });
-    const data = await response.json();
-    if (!response.ok) { setApproval({ status: 'rejected' }); return; }
-    setApproval({ status: 'pending', regionId: data.region.id });
+    const context = [
+      "Workstation project " + projectId,
+      "clip " + selectedClip.id,
+      "playhead " + playheadSeconds.toFixed(2) + "s",
+      "requested edit: " + prompt.trim(),
+    ].join(" · ");
+    window.location.assign("/ask-jhadina?surface=studio&route=/workstation&prompt=" + encodeURIComponent(context));
   }
 
   return <section className="flex min-h-[700px] flex-col overflow-hidden rounded-xl border bg-background select-none">
@@ -182,7 +183,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
 
       <div className="rounded-lg border p-3"><div className="flex items-center justify-between"><h3 className="font-semibold">History</h3><span className="text-xs text-muted-foreground">v{currentVersion?.version ?? 0}</span></div><div className="mt-2 max-h-48 space-y-1 overflow-auto">{[...timeline.versions].reverse().map(version => <div key={version.id} className={`rounded border px-2 py-1.5 text-xs ${version.id === currentVersion?.id ? 'ring-1 ring-primary' : ''}`}><div className="flex items-center justify-between gap-2"><span className="font-medium">v{version.version} · {version.message}</span><span className="text-muted-foreground">{new Date(version.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>{version.revertsVersionId ? <div className="mt-0.5 text-muted-foreground">reverts {timeline.versions.find(v => v.id === version.revertsVersionId)?.version ?? '?'}</div> : null}{version.restoresVersionId ? <div className="mt-0.5 text-muted-foreground">restores {timeline.versions.find(v => v.id === version.restoresVersionId)?.version ?? '?'}</div> : null}</div>)}</div></div>
 
-      <div className="rounded-lg border p-3 lg:col-span-2"><h3 className="font-semibold">Ask Jhadina to edit this region</h3><textarea className="mt-2 min-h-20 w-full rounded border p-2 text-sm" placeholder="Remove, replace, extend, reframe, make funnier, etc." value={prompt} onChange={e => setPrompt(e.target.value)} /><button className="mt-2 rounded bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50" disabled={!prompt.trim() || approval.status === 'pending'} onClick={askJhadina}>{approval.status === 'pending' ? 'Awaiting approval…' : 'Create generative edit'}</button>{approval.regionId && <p className="mt-2 text-xs text-muted-foreground">Generative region {approval.regionId} is pending approval. The source clip remains unchanged.</p>}</div>
+      <div className="rounded-lg border p-3 lg:col-span-2"><h3 className="font-semibold">Ask Jhadina about this region</h3><textarea className="mt-2 min-h-20 w-full rounded border p-2 text-sm" placeholder="Remove, replace, extend, reframe, make funnier, etc." value={prompt} onChange={e => setPrompt(e.target.value)} /><button className="mt-2 rounded bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50" disabled={!prompt.trim()} onClick={askJhadina}>Open governed Ask Jhadina</button><p className="mt-2 text-xs text-muted-foreground">This sends the edit intent to Jhadina for reasoning and proposal. It does not mutate the timeline or self-approve a generative edit.</p></div>
     </aside>
   </section>;
 }

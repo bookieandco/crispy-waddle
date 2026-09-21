@@ -214,7 +214,7 @@ describe("Context Builder (Phase 1 Step 4)", () => {
 
     expect(proposal.contextId).toBe(assembled.contextPacket.id)
     expect(proposal.evidence).toEqual(assembled.contextPacket.relevantMemories)
-    expect(proposal.recommendation).toContain("Studio")
+    expect(proposal.recommendation).toContain("Director Workstation")
   })
 
   it("composes governed patterns, personality, and expression directive when a personality provider is present", async () => {

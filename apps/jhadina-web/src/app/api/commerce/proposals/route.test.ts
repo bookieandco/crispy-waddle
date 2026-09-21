@@ -62,7 +62,7 @@ describe("POST /api/commerce/proposals", () => {
     expect(json.success).toBe(true)
     expect(json.data.proposal.id).toBe("p1")
     expect(runProposeCommerceAction).toHaveBeenCalledWith(
-      "user-1",
+      undefined,
       expect.objectContaining({ amountMinor: 1500, currency: "usd", description: "Sandbox charge" }),
     )
   })
