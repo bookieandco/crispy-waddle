@@ -89,6 +89,7 @@ export type ParcelTrackingStatus =
   | "pre_transit"
   | "in_transit"
   | "out_for_delivery"
+  | "available_for_pickup"
   | "delivered"
   | "exception"
   | "cancelled";
@@ -108,6 +109,13 @@ export interface ParcelTrackingSnapshot {
   deliveredAt?: string;
   events: ParcelTrackingEvent[];
   observedAt: string;
+}
+
+export interface ParcelWebhookVerification {
+  provider: string;
+  verified: boolean;
+  verifiedAt: string;
+  keyId?: string;
 }
 
 export interface ParcelTrackingWebhook {
@@ -132,7 +140,10 @@ export interface ParcelShippingAdapter {
   purchaseLabel(request: ParcelLabelPurchaseRequest): Promise<ParcelLabel>;
   voidLabel(labelId: string, idempotencyKey: string): Promise<ParcelLabelVoidResult>;
   getTracking(trackingNumber: string, carrierCode?: string): Promise<ParcelTrackingSnapshot>;
-  normalizeTrackingWebhook(payload: unknown): ParcelTrackingWebhook;
+  normalizeTrackingWebhook(
+    payload: unknown,
+    verification: ParcelWebhookVerification,
+  ): ParcelTrackingWebhook;
 }
 
 export function assertParcelRateRequest(request: ParcelRateRequest): void {
