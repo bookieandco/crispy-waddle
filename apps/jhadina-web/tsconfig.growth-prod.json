@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "noEmit": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/types/**/*.d.ts",
+    "src/lib/auth/**/*.ts",
+    "src/lib/growth/**/*.ts",
+    "src/lib/social/**/*.ts",
+    "src/lib/supabase/**/*.ts",
+    "src/app/api/growth/**/*.ts"
+  ],
+  "exclude": ["node_modules", ".next", "dist"]
+}

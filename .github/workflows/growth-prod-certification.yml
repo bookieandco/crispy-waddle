@@ -1,0 +1,94 @@
+name: Growth Production Certification
+
+on:
+  pull_request:
+    paths:
+      - 'packages/growth-core/**'
+      - 'packages/jhadina-action-core/**'
+      - 'packages/security-core/**'
+      - 'apps/jhadina-web/src/lib/growth/**'
+      - 'apps/jhadina-web/src/lib/auth/**'
+      - 'apps/jhadina-web/src/app/api/growth/**'
+      - 'apps/jhadina-web/tsconfig.growth-prod.json'
+      - 'supabase/migrations/*growth*'
+      - '.github/workflows/growth-prod-certification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    name: GROWTH-PROD source certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Frozen dependency install
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check Action Core
+        run: pnpm --filter @jhadina/action-core type-check
+
+      - name: Test Action Core approval receipts
+        run: pnpm --filter @jhadina/action-core test
+
+      - name: Type-check Security Core
+        run: pnpm --filter @jhadina/security-core type-check
+
+      - name: Test Security Core paid-ad gate
+        run: pnpm --filter @jhadina/security-core test
+
+      - name: Type-check Growth Core
+        run: pnpm --filter @jhadina/growth-core type-check
+
+      - name: Test Growth Core
+        run: pnpm --filter @jhadina/growth-core test
+
+      - name: Type-check Security Core
+        run: pnpm --filter @jhadina/security-core type-check
+
+      - name: Test Security Core paid-action approval policy
+        run: pnpm --filter @jhadina/security-core test
+
+      - name: Type-check Growth production web integration
+        run: pnpm --filter @jhadina/jhadina-web exec tsc -p tsconfig.growth-prod.json --noEmit
+
+      - name: Test Growth production web integration
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/growth
+
+      - name: Fail if production paid provider silently falls back to mock
+        run: |
+          if grep -R "MockChannelAdapter" apps/jhadina-web/src/lib/growth apps/jhadina-web/src/app/api/growth; then
+            echo "Mock advertising adapter referenced by production Growth runtime"
+            exit 1
+          fi
+
+      - name: Verify production migration source is present
+        run: |
+          test -f supabase/migrations/20260921212651_jhadina_growth_production_spine.sql
+          test -f supabase/migrations/20260921213205_jhadina_growth_lifecycle_rpc.sql
+          test -f supabase/migrations/20260921223000_growth_prod_hardening.sql
+          test -f supabase/migrations/20260921223500_social_prod_schema_reconciliation.sql
+
+      - name: Verify production evidence APIs require idempotency keys
+        run: |
+          grep -q "eventKey" apps/jhadina-web/src/app/api/growth/customers/events/route.ts
+          grep -q "observationKey" apps/jhadina-web/src/app/api/growth/ads/campaigns/'[id]'/performance/route.ts
+          grep -q "idempotencyKey" apps/jhadina-web/src/app/api/growth/customers/'[id]'/lifecycle/route.ts
+          test -f supabase/migrations/20260921214442_growth_prod_hardening.sql
+          test -f supabase/migrations/20260921214803_jhadina_social_governed_publication.sql

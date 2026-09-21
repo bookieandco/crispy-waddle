@@ -1,7 +1,7 @@
 import type { GrowthId, ISODateTime } from '../domain/types.js';
 import type { AdAsset } from '../creative/ad-asset.js';
 
-export type AdChannel = 'meta' | 'google' | 'x' | 'amazon' | 'ctv';
+export type AdChannel = 'meta' | 'google' | 'tiktok' | 'linkedin' | 'reddit' | 'microsoft' | 'pinterest' | 'snapchat' | 'amazon' | 'dv360' | 'x' | 'ctv';
 
 export interface ChannelCampaign {
   id: GrowthId;

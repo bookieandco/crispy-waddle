@@ -27,3 +27,9 @@ export * from './experiments/experiment-intelligence.js';
 export * from './learning/growth-learning.js';
 export * from './learning/creative-feedback-loop.js';
 export * from './learning/opportunity-outcome-learning.js';
+
+export * from './customer/customer-graph.js';
+export * from './customer/lifecycle.js';
+export * from './economics/customer-economics.js';
+export * from './intelligence/audience-intelligence.js';
+export * from './channels/paid-media.js';
