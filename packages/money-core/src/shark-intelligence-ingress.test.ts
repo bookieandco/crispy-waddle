@@ -3,7 +3,7 @@ import test from 'node:test'
 import {
   assertSharkMoneyResearchOnly,
   assertSharkResearchIngress,
-  ingestSharkResearch,
+  ingestSharkResearch,\n  sharkResearchToGovernedIntelligence,
   type SharkMoneyTransportEnvelope,
   type SharkResearchIngressContext,
 } from './shark-intelligence-ingress.js'
@@ -117,4 +117,23 @@ test('SHARK-MONEY.4 rejects mutable, duplicated, and future evidence', () => {
   const future = structuredClone(envelope()) as any
   future.assessment.evidenceRefs[0].observedAt = '2026-09-21T20:00:01Z'
   assert.throws(() => assertSharkResearchIngress(future, context), /MONEY_SHARK_EVIDENCE_AFTER_ASSESSMENT/)
+})
+
+
+test('SHARK-MONEY.5 cross-asset admission remains evidence-only and cannot skip Money governance', () => {
+  const research = ingestSharkResearch(envelope(), context)
+  const artifact = sharkResearchToGovernedIntelligence({
+    artifact: research,
+    instrumentId: 'crypto:solana-mainnet:TOKEN1',
+    direction: 'BULLISH',
+    strength: 0.6,
+    expiresAt: '2026-09-21T21:00:00Z',
+  })
+  assert.equal(artifact.domain, 'SHARK')
+  assert.equal(artifact.assetClass, 'MEME')
+  assert.equal(artifact.financialAuthority, 'NONE')
+  assert.equal(artifact.confidence, 0.7)
+  assert.deepEqual(artifact.evidenceRefs, ['dexscreener:obs:1'])
+  assert.equal('riskDecisionId' in artifact, false)
+  assert.equal('allocationDecisionId' in artifact, false)
 })
