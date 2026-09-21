@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import type { DecisionAssessment, DecisionCase } from './decision-workflow-contracts.js'
-import type { EvidenceQuality, EvidenceRef } from './financial-intelligence-contracts.js'\nimport type { GovernedIntelligenceArtifact } from './cross-asset-fusion-adapters.js'\nimport type { ThesisDirection } from './cross-asset-fusion-contracts.js'
+import type { EvidenceQuality, EvidenceRef } from './financial-intelligence-contracts.js'
+import type { GovernedIntelligenceArtifact } from './cross-asset-fusion-adapters.js'
+import type { ThesisDirection } from './cross-asset-fusion-contracts.js'
 
 export const SHARK_MONEY_BRIDGE_VERSION = 'SHARK-MONEY-01' as const
 export const SUPPORTED_SHARK_MONEY_SCHEMA_VERSION = 'SHARK-MONEY-01' as const
