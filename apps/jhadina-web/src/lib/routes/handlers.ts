@@ -25,6 +25,7 @@ import { InMemoryStorage } from "../storage/InMemoryStorage"
 import { SupabaseMemoryStorage } from "../storage/SupabaseMemoryStorage"
 import { createServiceRoleClient } from "../supabase/service-role"
 import type { MemoryStorage } from "../storage/MemoryStorage"
+import { createRequestIdentityVerifier } from "../auth/request-identity"
 
 // Global singleton (in production, this would be dependency injection)
 let storage: MemoryStorage
@@ -71,11 +72,11 @@ function getJanetService(): JanetService {
   return janet
 }
 
-function extractUserId(req: NextRequest): string | null {
-  // In production: extract from auth context
-  // For now: from header or default to demo
-  const userId = req.headers.get("x-user-id") || "user_demo"
-  return userId
+async function extractUserId(req: NextRequest): Promise<string> {
+  const claimedUserId = req.headers.get("x-user-id") ?? undefined
+  const verifier = await createRequestIdentityVerifier()
+  const identity = await verifier.verify(claimedUserId ? { userId: claimedUserId } : {})
+  return identity.userId
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -84,7 +85,7 @@ function extractUserId(req: NextRequest): string | null {
 
 export async function handleMessage(req: NextRequest) {
   try {
-    const userId = extractUserId(req)
+    const userId = await extractUserId(req)
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -136,7 +137,7 @@ export async function handleMessage(req: NextRequest) {
 
 export async function handleApproveMemory(req: NextRequest) {
   try {
-    const userId = extractUserId(req)
+    const userId = await extractUserId(req)
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -175,7 +176,7 @@ export async function handleApproveMemory(req: NextRequest) {
 
 export async function handleRejectMemory(req: NextRequest) {
   try {
-    const userId = extractUserId(req)
+    const userId = await extractUserId(req)
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -213,7 +214,7 @@ export async function handleRejectMemory(req: NextRequest) {
 
 export async function handleListCandidates(req: NextRequest) {
   try {
-    const userId = extractUserId(req)
+    const userId = await extractUserId(req)
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -245,7 +246,7 @@ export async function handleListCandidates(req: NextRequest) {
 
 export async function handleListMemories(req: NextRequest) {
   try {
-    const userId = extractUserId(req)
+    const userId = await extractUserId(req)
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -277,7 +278,7 @@ export async function handleListMemories(req: NextRequest) {
 
 export async function handleSearchMemories(req: NextRequest) {
   try {
-    const userId = extractUserId(req)
+    const userId = await extractUserId(req)
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
