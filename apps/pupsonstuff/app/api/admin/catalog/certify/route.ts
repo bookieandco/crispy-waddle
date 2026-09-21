@@ -2,19 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ADMIN_COOKIE, isAdminSession } from '@/lib/admin-auth';
 import { hotspots } from '@/data/hotspots';
 import { rest } from '@/lib/platform';
-
-interface SampleEvidence {
-  providerOrderId: string;
-  receivedAt: string;
-  approvedBy: string;
-  inspection: {
-    printPlacementPass: boolean;
-    colorPass: boolean;
-    materialPass: boolean;
-    damageFree: boolean;
-    notes?: string;
-  };
-}
+import {
+  validSampleEvidence,
+  type SampleEvidence,
+} from '@/lib/catalog-certification';
 
 interface MappingInput {
   productId: string;
@@ -27,26 +18,6 @@ interface MappingInput {
   baseCostCents?: number;
   certificationStatus: 'sandbox_verified' | 'sample_verified';
   sampleEvidence?: SampleEvidence;
-}
-
-export function validSampleEvidence(value: SampleEvidence | undefined): value is SampleEvidence {
-  if (!value) return false;
-  const receivedAt = Date.parse(value.receivedAt);
-  if (
-    !value.providerOrderId.trim() ||
-    !value.approvedBy.trim() ||
-    !Number.isFinite(receivedAt) ||
-    receivedAt > Date.now() ||
-    !value.inspection
-  ) {
-    return false;
-  }
-  return (
-    value.inspection.printPlacementPass === true &&
-    value.inspection.colorPass === true &&
-    value.inspection.materialPass === true &&
-    value.inspection.damageFree === true
-  );
 }
 
 export async function POST(request: NextRequest) {
