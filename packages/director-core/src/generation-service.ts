@@ -14,8 +14,27 @@ function assertRequestCompatibility(registry: GenerationRegistry, request: Gener
   if (!model.modalities.includes(request.modality)) throw new Error(`Model ${model.id} does not support modality: ${request.modality}`);
   const provider = registry.getProvider(model.providerId);
   if (!provider) throw new Error(`Provider is not registered: ${model.providerId}`);
-  const requiredCapability = request.modality === 'video' ? (request.references?.some((reference) => reference.role === 'image') ? 'image-to-video' : 'text-to-video') : request.modality === 'image' ? 'text-to-image' : request.modality === 'subtitle' ? 'text-to-subtitle' : undefined;
-  if (requiredCapability && !provider.capabilities.includes(requiredCapability)) throw new Error(`Provider ${provider.id} does not support capability: ${requiredCapability}`);
+  const hasImageReference = request.references?.some((reference) =>
+    ['image', 'character', 'composition', 'style', 'location'].includes(reference.role)
+  ) ?? false;
+  const requiredCapability =
+    request.modality === 'video'
+      ? hasImageReference
+        ? 'image-to-video'
+        : 'text-to-video'
+      : request.modality === 'image'
+        ? hasImageReference
+          ? 'image-to-image'
+          : 'text-to-image'
+        : request.modality === 'subtitle'
+          ? 'text-to-subtitle'
+          : undefined;
+  if (requiredCapability && !model.capabilities.includes(requiredCapability)) {
+    throw new Error(`Model ${model.id} does not support capability: ${requiredCapability}`);
+  }
+  if (requiredCapability && !provider.capabilities.includes(requiredCapability)) {
+    throw new Error(`Provider ${provider.id} does not support capability: ${requiredCapability}`);
+  }
   for (const selected of request.loras ?? []) {
     const registeredLoRA = registry.getLoRA(selected.lora.id);
     if (!registeredLoRA) throw new Error(`LoRA is not registered: ${selected.lora.id}`);
