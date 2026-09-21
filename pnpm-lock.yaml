@@ -25,6 +25,9 @@ importers:
 
   apps/jhadina-web:
     dependencies:
+      '@jhadina/action-core':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-action-core
       '@jhadina/director-core':
         specifier: workspace:*
         version: link:../../packages/director-core
