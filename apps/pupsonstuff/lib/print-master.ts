@@ -147,7 +147,6 @@ export async function buildPrintMaster(input: {
       ? await removeBackground(source.bytes, source.mimeType, backgroundMode)
       : null;
   const productionSourceBytes = postUpscaleRemoval?.bytes ?? source.bytes;
-  const productionSourceMimeType = postUpscaleRemoval?.mimeType ?? source.mimeType;
   const productionMeta = await sharp(productionSourceBytes, { failOn: 'error' }).metadata();
   const productionWidth = productionMeta.width ?? source.width;
   const productionHeight = productionMeta.height ?? source.height;
