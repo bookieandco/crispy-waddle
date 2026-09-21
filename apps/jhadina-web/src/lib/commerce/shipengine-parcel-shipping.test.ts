@@ -74,7 +74,7 @@ describe("ShipEngine parcel adapter", () => {
       async findLabelByIdempotencyKey() { return null },
       async createLabelFromRate() { purchaseCalls += 1; return label() },
       async voidLabel() { return { approved: true, message: "voided" } },
-      async getTracking() { return { tracking_number: "TRACK123", status_code: "in_transit" } },
+      async getTracking() { return { tracking_number: "TRACK123", status_code: "IT" } },
     }
 
     const adapter = new ShipEngineParcelShippingAdapter(client)
@@ -102,7 +102,7 @@ describe("ShipEngine parcel adapter", () => {
         return persisted
       },
       async voidLabel() { return { approved: true, message: "voided" } },
-      async getTracking() { return { tracking_number: "TRACK123", status_code: "in_transit" } },
+      async getTracking() { return { tracking_number: "TRACK123", status_code: "IT" } },
     }
     const adapter = new ShipEngineParcelShippingAdapter(client)
     const request = {
@@ -131,7 +131,7 @@ describe("ShipEngine parcel adapter", () => {
         return {
           tracking_number: "TRACK123",
           carrier_code: "ups",
-          status_code: "delivered",
+          status_code: "DE",
           actual_delivery_date: "2026-09-25T12:00:00Z",
         }
       },
@@ -143,15 +143,23 @@ describe("ShipEngine parcel adapter", () => {
     const tracking = await adapter.getTracking("TRACK123", "ups")
     expect(tracking.status).toBe("delivered")
 
+    expect(() => adapter.normalizeTrackingWebhook({
+      data: { tracking_number: "TRACK123", status_code: "IT" },
+    }, {
+      provider: "shipengine",
+      verified: false,
+      verifiedAt: "2026-09-25T12:00:00Z",
+    })).toThrow(/signature-verified/)
+
     const webhook = adapter.normalizeTrackingWebhook({
       event_id: "event-1",
       occurred_at: "2026-09-25T12:00:00Z",
       data: {
         tracking_number: "TRACK123",
         carrier_code: "ups",
-        status_code: "out_for_delivery",
+        status_code: "IT",
         events: [{
-          status_code: "in_transit",
+          status_code: "IT",
           description: "Departed facility",
           occurred_at: "2026-09-24T12:00:00Z",
           city_locality: "Riverside",
@@ -159,9 +167,14 @@ describe("ShipEngine parcel adapter", () => {
           country_code: "US",
         }],
       },
+    }, {
+      provider: "shipengine",
+      verified: true,
+      verifiedAt: "2026-09-25T12:00:00Z",
+      keyId: "kid-1",
     })
     expect(webhook.eventId).toBe("event-1")
-    expect(webhook.snapshot.status).toBe("out_for_delivery")
+    expect(webhook.snapshot.status).toBe("in_transit")
     expect(webhook.snapshot.events[0].location).toBe("Riverside, CA, US")
   })
 })
