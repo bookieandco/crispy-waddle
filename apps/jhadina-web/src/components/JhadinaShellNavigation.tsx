@@ -21,6 +21,7 @@ const worlds=[
  ["media","JhadinaTV","/jhadinatv"],
  ["studio","Director Workstation","/workstation"],
  ["growth","Growth","/growth"],
+ ["growth","Social","/social"],
  ["opportunity","Opportunities","/opportunity"],
  ["spatial","Spatial","/spatial"],
  ["calendar","Calendar","/calendar"],
