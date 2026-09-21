@@ -3,6 +3,7 @@ import Link from "next/link"
 const workspaces=[
  {title:"Director Workstation",copy:"Edit projects, review generated assets and continue creative work.",href:"/workstation",kind:"Create"},
  {title:"Growth",copy:"Review drafts, approvals and schedules before anything publishes.",href:"/growth",kind:"Publish"},
+ {title:"Social",copy:"Connect exact accounts, prepare publication proposals and explicitly approve provider dispatch.",href:"/social",kind:"Publish"},
  {title:"Opportunities",copy:"Review ranked opportunities and authorize research without authorizing spend or submission.",href:"/opportunity",kind:"Pursue"},
  {title:"Money Command Center",copy:"Review governed financial awareness and account-read surfaces.",href:"/money/command-center",kind:"Money"},
  {title:"Money Live Operations",copy:"Operational view for explicitly governed live-money execution surfaces.",href:"/money/live-operations",kind:"Operations"},
