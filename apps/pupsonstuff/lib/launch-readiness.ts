@@ -93,32 +93,33 @@ export function evaluateLaunchEnvironment(
   );
 
   const removerProvider = env.PUPSON_BACKGROUND_REMOVER_PROVIDER?.trim();
-  const removerConfigured =
-    removerProvider === 'backgroundremover'
-      ? present(env.PUPSON_BACKGROUND_REMOVER_URL)
-      : removerProvider === 'knockout'
-        ? present(env.KNOCKOUT_TOKEN)
-        : present(env.PUPSON_BACKGROUND_REMOVER_URL) || present(env.KNOCKOUT_TOKEN);
+  const removerUrl = env.PUPSON_BACKGROUND_REMOVER_URL?.trim();
+  const knockoutToken = env.KNOCKOUT_TOKEN?.trim();
+  const selfHostedRemover =
+    (!removerProvider || removerProvider === 'backgroundremover') &&
+    Boolean(removerUrl?.startsWith('https://'));
+  const knockoutRemover =
+    removerProvider === 'knockout' && Boolean(knockoutToken);
   checks.push({
     id: 'env.BACKGROUND_REMOVER',
-    status: removerConfigured ? 'pass' : 'block',
-    message: removerConfigured
-      ? 'A server-side background-removal provider is configured.'
-      : 'Configure PUPSON_BACKGROUND_REMOVER_URL or KNOCKOUT_TOKEN; removal is the shopper default.',
+    status: selfHostedRemover || knockoutRemover ? 'pass' : 'block',
+    message: selfHostedRemover
+      ? 'Self-hosted background removal is configured over HTTPS.'
+      : knockoutRemover
+        ? 'BiRefNet background removal is configured.'
+        : 'Configure an HTTPS self-hosted background-removal service or a BiRefNet provider token.',
   });
 
-  const upscalerConfigured = present(env.PUPSON_UPSCALER_URL) || present(env.KNOCKOUT_TOKEN);
+  const upscalerUrl = env.PUPSON_UPSCALER_URL?.trim();
+  const upscalerConfigured =
+    Boolean(upscalerUrl?.startsWith('https://')) || Boolean(knockoutToken);
   checks.push({
     id: 'env.IMAGE_UPSCALER',
     status: upscalerConfigured ? 'pass' : 'block',
     message: upscalerConfigured
       ? 'A print-resolution AI upscaler is configured.'
-      : 'Configure PUPSON_UPSCALER_URL or KNOCKOUT_TOKEN so low-resolution generations cannot be stretched past the print gate.',
+      : 'Configure an HTTPS PUPSON_UPSCALER_URL or KNOCKOUT_TOKEN so enlarged artwork cannot bypass the source-resolution gate.',
   });
-
-  checks.push(
-    secretLengthCheck('env.CRON_SECRET', 'Creative worker cron secret', env.CRON_SECRET, 32)
-  );
 
   checks.push({
     id: 'env.PUPSON_ADMIN_USERNAME',
@@ -135,25 +136,6 @@ export function evaluateLaunchEnvironment(
       env.PUPSON_FULFILLMENT_MODE === 'dry_run'
         ? 'Fulfillment is safely locked to dry_run.'
         : 'PUPSON_FULFILLMENT_MODE must remain dry_run until physical samples pass.',
-  });
-
-
-  const removerProvider = env.PUPSON_BACKGROUND_REMOVER_PROVIDER?.trim();
-  const removerUrl = env.PUPSON_BACKGROUND_REMOVER_URL?.trim();
-  const knockoutToken = env.KNOCKOUT_TOKEN?.trim();
-  const selfHostedRemover =
-    (!removerProvider || removerProvider === 'backgroundremover') &&
-    Boolean(removerUrl?.startsWith('https://'));
-  const knockoutRemover =
-    removerProvider === 'knockout' && Boolean(knockoutToken);
-  checks.push({
-    id: 'env.PUPSON_BACKGROUND_REMOVER',
-    status: selfHostedRemover || knockoutRemover ? 'pass' : 'block',
-    message: selfHostedRemover
-      ? 'Self-hosted background removal is configured over HTTPS.'
-      : knockoutRemover
-        ? 'BiRefNet background removal is configured.'
-        : 'Configure an HTTPS self-hosted background-removal service or a BiRefNet provider token.',
   });
 
   const origin = env.PUPSON_PUBLIC_ORIGIN;
@@ -192,6 +174,7 @@ export function evaluateLaunchEnvironment(
     'PUPSON_PRINTIFY_WEBHOOK_SECRET',
     'CRON_SECRET',
     'PUPSON_BACKGROUND_REMOVER_TOKEN',
+    'PUPSON_UPSCALER_TOKEN',
     'KNOCKOUT_TOKEN',
   ]) {
     checks.push({
