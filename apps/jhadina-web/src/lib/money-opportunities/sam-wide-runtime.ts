@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { classifySamNoticeChange, normalizeSamWideNotice, type SamWideNotice } from '@jhadina/opportunity-core'
 import { scanSamOpportunityWindow } from './sam-client'
 import { extractSamAttachmentText } from './sam-document-extractor'
+import { getSamApiKey } from './sam-config'
 
 export type SamWideScanReceipt={
   runId:number
@@ -81,6 +82,25 @@ function allowedResource(url:string){
   try{const u=new URL(url);const h=u.hostname.toLowerCase();return u.protocol==='https:'&&(h==='sam.gov'||h.endsWith('.sam.gov')||h.endsWith('.gsa.gov')||h.endsWith('.gov')||h.endsWith('.mil'))}catch{return false}
 }
 const sourceKind=(url:string)=>{const p=new URL(url).pathname.toLowerCase();if(p.endsWith('.pdf'))return'pdf';if(p.endsWith('.docx'))return'docx';if(p.endsWith('.xlsx')||p.endsWith('.xls'))return'xlsx';if(p.endsWith('.csv'))return'csv';if(p.endsWith('.zip'))return'zip';return'attachment'}
+function authorizedSamUrl(rawUrl:string){
+  const url=new URL(rawUrl)
+  const host=url.hostname.toLowerCase()
+  if((host==='api.sam.gov'||host==='api-alpha.sam.gov')&&!url.searchParams.has('api_key')){
+    const apiKey=getSamApiKey()
+    if(!apiKey)throw new Error('SAM_GOV_API_KEY is not configured')
+    url.searchParams.set('api_key',apiKey)
+  }
+  return url
+}
+async function fetchGovernmentResource(rawUrl:string){
+  if(!allowedResource(rawUrl))throw new Error('RESOURCE_HOST_NOT_ALLOWED')
+  const response=await fetch(authorizedSamUrl(rawUrl),{cache:'no-store',signal:AbortSignal.timeout(20000)})
+  if(!response.ok)throw new Error(`HTTP ${response.status}`)
+  return response
+}
+function isHttpUrl(value:string){
+  try{const url=new URL(value);return url.protocol==='https:'||url.protocol==='http:'}catch{return false}
+}
 
 export async function harvestSamDocuments(client:SupabaseClient,noticeIds:string[],maxDocuments=60){
   if(!noticeIds.length)return {attempted:0,textCaptured:0,binaryCaptured:0,needsOcr:0,unsupported:0,failed:0}
@@ -90,9 +110,36 @@ export async function harvestSamDocuments(client:SupabaseClient,noticeIds:string
   for(const row of rows(data)){
     const noticeId=String(row.notice_id),description=typeof row.description==='string'?row.description:'',sourceUrl=String(row.source_url)
     if(description){
-      const body=new TextEncoder().encode(description)
-      await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:sourceUrl,source_kind:'notice',checksum:sha(body),content_type:'text/plain',byte_length:body.byteLength,extracted_text:description,fetch_status:'text_captured',evidence:{source:'sam_notice',parser:'sam_api'},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'})
-      textCaptured+=1
+      if(isHttpUrl(description)){
+        try{
+          if(!allowedResource(description))throw new Error('DESCRIPTION_HOST_NOT_ALLOWED')
+          const response=await fetchGovernmentResource(description)
+          const body=new Uint8Array(await response.arrayBuffer())
+          const contentType=response.headers.get('content-type')??'text/plain'
+          const extraction=extractSamAttachmentText({bytes:body,contentType,sourceKind:'notice',url:description})
+          const extracted=extraction.text?.slice(0,1_000_000)??null
+          await client.from('jhadina_sam_documents').upsert({
+            notice_id:noticeId,source_url:description,source_kind:'notice',checksum:sha(body),content_type:contentType,
+            byte_length:body.byteLength,extracted_text:extracted,
+            fetch_status:extracted?'text_captured':'binary_captured',
+            evidence:{source:'sam_notice_description',parser:extraction.parser,parse_status:extraction.status},
+            updated_at:new Date().toISOString(),
+          },{onConflict:'notice_id,source_url'})
+          if(extracted)textCaptured+=1
+          else binaryCaptured+=1
+        }catch(error){
+          failed+=1
+          await client.from('jhadina_sam_documents').upsert({
+            notice_id:noticeId,source_url:description,source_kind:'notice',fetch_status:'fetch_failed',
+            evidence:{source:'sam_notice_description',error:error instanceof Error?error.message:'fetch failed'},
+            updated_at:new Date().toISOString(),
+          },{onConflict:'notice_id,source_url'})
+        }
+      }else{
+        const body=new TextEncoder().encode(description)
+        await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:sourceUrl,source_kind:'notice',checksum:sha(body),content_type:'text/plain',byte_length:body.byteLength,extracted_text:description,fetch_status:'text_captured',evidence:{source:'sam_notice',parser:'sam_api'},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'})
+        textCaptured+=1
+      }
     }
     const links=Array.isArray(row.resource_links)?row.resource_links.filter((x):x is string=>typeof x==='string'):[]
     for(const url of links){
@@ -100,9 +147,8 @@ export async function harvestSamDocuments(client:SupabaseClient,noticeIds:string
       attempted+=1
       if(!allowedResource(url)){failed+=1;await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:url,source_kind:'attachment',fetch_status:'blocked_host',evidence:{reason:'non-government-resource-host'},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'});continue}
       try{
-        const response=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(20000)})
+        const response=await fetchGovernmentResource(url)
         const contentType=response.headers.get('content-type')??'application/octet-stream'
-        if(!response.ok)throw new Error(`HTTP ${response.status}`)
         const declared=Number(response.headers.get('content-length')??0)
         if(declared>10_000_000){failed+=1;await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:url,source_kind:sourceKind(url),content_type:contentType,byte_length:declared,fetch_status:'too_large',evidence:{maxBytes:10_000_000},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'});continue}
         const bytes=new Uint8Array(await response.arrayBuffer())
