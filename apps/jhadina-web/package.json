@@ -27,7 +27,8 @@
     "@jhadina/action-core": "workspace:*",
     "@jhadina/growth-core": "workspace:*",
     "@jhadina/security-core": "workspace:*",
-    "@jhadina/social-core": "workspace:*"
+    "@jhadina/social-core": "workspace:*",
+    "@jhadina/commerce-adapters": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
