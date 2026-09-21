@@ -28,6 +28,9 @@ importers:
       '@jhadina/director-core':
         specifier: workspace:*
         version: link:../../packages/director-core
+      '@jhadina/growth-core':
+        specifier: workspace:*
+        version: link:../../packages/growth-core
       '@jhadina/money-core':
         specifier: workspace:*
         version: link:../../packages/money-core
@@ -37,9 +40,15 @@ importers:
       '@jhadina/reference-provenance':
         specifier: workspace:*
         version: link:../../packages/jhadina-reference-provenance
+      '@jhadina/security-core':
+        specifier: workspace:*
+        version: link:../../packages/security-core
       '@jhadina/shark-intelligence-core':
         specifier: workspace:*
         version: link:../../packages/shark-intelligence-core
+      '@jhadina/social-core':
+        specifier: workspace:*
+        version: link:../../packages/social-core
       '@jhadina/spatial-intelligence-core':
         specifier: workspace:*
         version: link:../../packages/spatial-intelligence-core
@@ -433,7 +442,11 @@ importers:
         specifier: ^4.0.0
         version: 4.1.10(@types/node@20.19.43)(vite@8.2.1)
 
-  packages/social-core: {}
+  packages/social-core:
+    devDependencies:
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
 
   packages/spatial-intelligence-core:
     dependencies:
