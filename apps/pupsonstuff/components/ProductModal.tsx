@@ -4,11 +4,17 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ActiveProduct, ArtStyle, artStyles } from '@/types/boutique';
+import {
+  DEFAULT_ARTWORK_TRANSFORM,
+  type ArtworkTransform,
+  type BackgroundMode,
+} from '@/types/creative';
 import { useMusic } from '@/context/MusicContext';
 import { useCart } from '@/context/CartContext';
 import { getProduct3DConfig } from '@/config/product3dModels';
 import { screenshotPlugin } from './product3d-plugins/screenshotPlugin';
 import AsciiSpinner from './AsciiSpinner';
+import ArtworkEditor from './ArtworkEditor';
 
 // three.js/@react-three/fiber need the browser (WebGL), so this can't be
 // server-rendered. Only loaded at all for hotspots that map to a
@@ -53,6 +59,11 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
   const [quantity, setQuantity] = useState(1);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [petName, setPetName] = useState('My Pet');
+  const [prompt, setPrompt] = useState('');
+  const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>('auto');
+  const [artworkTransform, setArtworkTransform] = useState<ArtworkTransform>({
+    ...DEFAULT_ARTWORK_TRANSFORM,
+  });
   const [generating, setGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -70,7 +81,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
   // from the others, instead of needing to remember to clear view3D
   // whenever an animated view is added later (which is exactly what
   // happened here — this replaces the old standalone view3D boolean).
-  const [viewMode, setViewMode] = useState<'flat' | '3d' | 'animated'>('flat');
+  const [viewMode, setViewMode] = useState<'flat' | '3d' | 'animated'>('3d');
   const [animating, setAnimating] = useState(false);
   const [animatedVideoUrl, setAnimatedVideoUrl] = useState<string | null>(null);
   const [animateError, setAnimateError] = useState<string | null>(null);
@@ -88,16 +99,19 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
     setSelectedVariant(variants[0]?.variantId ?? null);
     setQuantity(1);
     setUploadedFiles([]);
+    setPrompt('');
+    setBackgroundMode('auto');
+    setArtworkTransform({ ...DEFAULT_ARTWORK_TRANSFORM });
     setPreviewUrl(null);
     setGenerateError(null);
     setApproved(false);
     setCreativeOutputId(null);
-    setViewMode('flat');
+    setViewMode(supports3D ? '3d' : 'flat');
     setAnimatedVideoUrl(null);
     setAnimateError(null);
     return () => duck(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, activeProduct?.id]);
+  }, [open, activeProduct?.id, supports3D]);
 
   const waitForCreativeJob = async (jobId: string) => {
     for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -136,6 +150,8 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
       form.append('petName', petName);
       form.append('productId', activeProduct.id);
       form.append('artStyleId', selectedStyle);
+      form.append('prompt', prompt);
+      form.append('backgroundMode', backgroundMode);
       form.append('consent', 'true');
 
       const res = await fetch('/api/creative/jobs', {
@@ -153,6 +169,8 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
         const job = await waitForCreativeJob(data.jobId);
         setPreviewUrl(job.previewUrl);
         setCreativeOutputId(job.outputId);
+        setArtworkTransform({ ...DEFAULT_ARTWORK_TRANSFORM });
+        setViewMode(supports3D ? '3d' : 'flat');
       }
     } catch (error) {
       setGenerateError(
@@ -168,8 +186,14 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
 
   const handleApprove = async () => {
     if (!creativeOutputId) return;
+    if (!activeVariant) return;
     const response = await fetch(`/api/creative/outputs/${creativeOutputId}/approve`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        variantId: activeVariant.variantId,
+        transform: artworkTransform,
+      }),
     });
     const body = await response.json();
     if (!response.ok || !body.success) {
@@ -271,43 +295,29 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                 </div>
               ) : (
                 <>
-                  {/* Product preview */}
-                  {(supports3D || animatedVideoUrl) && (
-                    <div className="mb-3 flex flex-wrap gap-2">
+                  {/* Product preview: 3D is the default whenever a real model exists. */}
+                  {animatedVideoUrl && (
+                    <div className="mb-3 flex gap-2">
                       <button
-                        onClick={() => setViewMode('flat')}
+                        onClick={() => setViewMode(supports3D ? '3d' : 'flat')}
                         className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                          viewMode === 'flat'
+                          viewMode !== 'animated'
                             ? 'bg-bronze text-cream'
                             : 'border border-greige/50 text-ink/60'
                         }`}
                       >
-                        Flat Preview
+                        Product
                       </button>
-                      {supports3D && (
-                        <button
-                          onClick={() => setViewMode('3d')}
-                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                            viewMode === '3d'
-                              ? 'bg-bronze text-cream'
-                              : 'border border-greige/50 text-ink/60'
-                          }`}
-                        >
-                          View in 3D
-                        </button>
-                      )}
-                      {animatedVideoUrl && (
-                        <button
-                          onClick={() => setViewMode('animated')}
-                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                            viewMode === 'animated'
-                              ? 'bg-bronze text-cream'
-                              : 'border border-greige/50 text-ink/60'
-                          }`}
-                        >
-                          Animated
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setViewMode('animated')}
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                          viewMode === 'animated'
+                            ? 'bg-bronze text-cream'
+                            : 'border border-greige/50 text-ink/60'
+                        }`}
+                      >
+                        Animated
+                      </button>
                     </div>
                   )}
 
@@ -319,12 +329,13 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                         }
                       />
                     </div>
-                  ) : viewMode === '3d' && supports3D && threeDConfig && threeDMapping ? (
+                  ) : viewMode !== 'animated' && supports3D && threeDConfig && threeDMapping ? (
                     <div className="mb-6">
                       <Product3DEngine
                         config={threeDConfig}
                         color={threeDMapping.color}
                         decals={{ [threeDMapping.printArea]: previewUrl }}
+                        decalTransforms={{ [threeDMapping.printArea]: artworkTransform }}
                         plugins={[screenshotPlugin]}
                       />
                     </div>
@@ -385,20 +396,66 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                   </label>
 
                   {/* Upload */}
-                  <label className="mb-6 block">
-                    <span className="mb-2 block text-sm font-medium text-bronze">
-                      Upload 1–5 pet photos
+                  <label className="mb-4 block">
+                    <span className="mb-1 block text-sm font-medium text-bronze">
+                      Pet reference photos
+                    </span>
+                    <span className="mb-2 block text-xs text-ink/50">
+                      One strong photo is enough. Add a second or third only when it shows useful markings or another angle.
                     </span>
                     <input
                       type="file"
                       multiple
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       onChange={(event) =>
-                        setUploadedFiles(Array.from(event.target.files ?? []).slice(0, 5))
+                        setUploadedFiles(Array.from(event.target.files ?? []).slice(0, 3))
                       }
                       className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-md file:border-0 file:bg-honey-oak file:px-4 file:py-2 file:text-sm file:font-medium file:text-cream hover:file:bg-bronze"
                     />
                   </label>
+
+                  <label className="mb-4 block">
+                    <span className="mb-2 block text-sm font-medium text-bronze">
+                      Describe what you want
+                    </span>
+                    <textarea
+                      value={prompt}
+                      onChange={(event) => setPrompt(event.target.value.slice(0, 2000))}
+                      rows={3}
+                      placeholder="Optional — pose, mood, clothing, composition, or background direction."
+                      className="w-full resize-none rounded-md border border-greige/50 bg-white/70 px-3 py-2 text-sm"
+                    />
+                  </label>
+
+                  <div className="mb-6">
+                    <span className="mb-2 block text-sm font-medium text-bronze">Photo background</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        ['auto', 'Remove'],
+                        ['keep', 'Keep'],
+                        ['generate', 'Generate'],
+                      ] as const).map(([mode, label]) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => {
+                            setBackgroundMode(mode);
+                            setApproved(false);
+                          }}
+                          className={`rounded-md border px-2 py-2 text-xs transition ${
+                            backgroundMode === mode
+                              ? 'border-honey-oak bg-honey-oak text-cream'
+                              : 'border-greige/50 text-ink/70 hover:border-honey-oak'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-ink/45">
+                      Remove is the default. Generate keeps the subject but lets your prompt define a new background.
+                    </p>
+                  </div>
 
                   {/* Art style */}
                   <div className="mb-6">
@@ -430,7 +487,10 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                         {variants.map((v) => (
                           <button
                             key={v.variantId}
-                            onClick={() => setSelectedVariant(v.variantId)}
+                            onClick={() => {
+                              setSelectedVariant(v.variantId);
+                              setApproved(false);
+                            }}
                             className={`rounded-md border px-3 py-2 text-sm transition ${
                               activeVariant?.variantId === v.variantId
                                 ? 'border-honey-oak bg-honey-oak text-cream'
@@ -444,7 +504,23 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                     </div>
                   )}
 
-                  {/* Quantity */}
+                  {previewUrl && (
+                    <div className="mb-6">
+                      <span className="mb-2 block text-sm font-medium text-bronze">
+                        Place your artwork
+                      </span>
+                      <ArtworkEditor
+                        imageUrl={previewUrl}
+                        transform={artworkTransform}
+                        onTransformChange={(next) => {
+                          setArtworkTransform(next);
+                          setApproved(false);
+                        }}
+                      />
+                    </div>
+                  )}
+
+                                    {/* Quantity */}
                   <div className="mb-6 flex items-center gap-3">
                     <span className="text-sm font-medium text-bronze">Quantity</span>
                     <div className="flex items-center rounded-md border border-greige/50">
