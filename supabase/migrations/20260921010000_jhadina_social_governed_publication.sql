@@ -78,6 +78,7 @@ create table if not exists public.jhadina_social_outbox (
   id uuid primary key default gen_random_uuid(),
   proposal_id uuid not null references public.jhadina_social_publication_proposals(id) on delete cascade,
   target_id uuid not null references public.jhadina_social_publication_targets(id) on delete cascade,
+  account_id uuid not null references public.jhadina_social_accounts(id),
   user_id uuid not null references auth.users(id) on delete cascade,
   action_id text not null,
   brand text not null,
@@ -447,11 +448,11 @@ begin
   end if;
 
   insert into public.jhadina_social_outbox (
-    proposal_id, target_id, user_id, action_id, brand, provider,
+    proposal_id, target_id, account_id, user_id, action_id, brand, provider,
     provider_profile_id, platform, text, media_urls, scheduled_at,
     idempotency_key
   )
-  select proposal.id, target.id, proposal.user_id, proposal.action_id,
+  select proposal.id, target.id, target.account_id, proposal.user_id, proposal.action_id,
          target.brand, target.provider, target.provider_profile_id, target.platform,
          proposal.text, proposal.media_urls, proposal.scheduled_at,
          proposal.id::text || ':' || target.account_id::text

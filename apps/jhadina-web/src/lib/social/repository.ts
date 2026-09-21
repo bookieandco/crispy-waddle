@@ -67,6 +67,7 @@ type OutboxRow = {
   created_at: string
   updated_at: string
   target_id: string
+  account_id: string
 }
 
 type ObservationRow = {
@@ -119,7 +120,7 @@ function outboxFromRow(row: OutboxRow): SocialOutboxJob {
     userId: row.user_id,
     actionId: row.action_id,
     target: {
-      accountId: row.target_id,
+      accountId: row.account_id,
       brand: row.brand,
       provider: row.provider,
       providerProfileId: row.provider_profile_id,
