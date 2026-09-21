@@ -32,6 +32,9 @@ export function buildSocialLearningProjection(observation: SocialObservation) {
       observedAt: performance.observedAt,
       metrics: performance.metrics,
       source: performance.source,
+      confidence: typeof performance.attributes?.confidence === "number"
+        ? performance.attributes.confidence
+        : 0.5,
     }),
   }
 }
