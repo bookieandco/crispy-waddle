@@ -16,9 +16,11 @@
 // automatic contour extraction (GrabCut) was tried and discarded because
 // it kept finding noisy/wrong shapes against this photo's backgrounds.
 //
-// FULFILLMENT PROVIDER: this project's actual accounts are Printful. The
-// schema is provider-agnostic (`provider` field) so this can point at
-// Printify per-hotspot later without touching any component.
+// FULFILLMENT IDENTITY: these storefront mappings are discovery/display
+// contracts only. Production provider IDs are never trusted from this file;
+// checkout resolves the active certified Printify mapping from
+// pupson_catalog_variants. PLACEHOLDER IDs intentionally keep uncatalogued
+// variants fail-closed.
 
 import { SilhouetteId } from "@/lib/silhouettes";
 
@@ -96,7 +98,7 @@ export const hotspots: Hotspot[] = [
     description: "Framed astronaut-style pet portrait, gallery quality.",
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-CANVAS-PLACEHOLDER",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
@@ -120,7 +122,7 @@ export const hotspots: Hotspot[] = [
     description: "Framed royal-uniform pet portrait, gallery quality.",
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-CANVAS-PLACEHOLDER",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
@@ -144,7 +146,7 @@ export const hotspots: Hotspot[] = [
     description: "Framed geometric pop-art pet portrait, gallery quality.",
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-CANVAS-PLACEHOLDER",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
@@ -168,7 +170,7 @@ export const hotspots: Hotspot[] = [
     description: "Framed crowned-and-collared pet portrait, gallery quality.",
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-CANVAS-PLACEHOLDER",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
@@ -192,7 +194,7 @@ export const hotspots: Hotspot[] = [
     description: "Framed soft watercolor pet portrait, gallery quality.",
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-CANVAS-PLACEHOLDER",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
@@ -216,7 +218,7 @@ export const hotspots: Hotspot[] = [
     description: "Framed dress-uniform pet portrait, gallery quality.",
     estimatedDeliveryDays: [5, 8],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-CANVAS-PLACEHOLDER",
       printArea: { name: "full bleed", x: 8, y: 8, width: 84, height: 84 },
       variants: [
@@ -242,7 +244,7 @@ export const hotspots: Hotspot[] = [
     description: "Soft-cover throw pillow, portrait centered front and back.",
     estimatedDeliveryDays: [4, 7],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-PILLOW-PLACEHOLDER",
       printArea: { name: "center", x: 20, y: 20, width: 60, height: 60 },
       variants: [
@@ -266,7 +268,7 @@ export const hotspots: Hotspot[] = [
     description: "Insulated water bottle, wraparound portrait print.",
     estimatedDeliveryDays: [4, 7],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-BOTTLE-PLACEHOLDER",
       printArea: { name: "wrap", x: 0, y: 15, width: 100, height: 70 },
       variants: [
@@ -288,7 +290,7 @@ export const hotspots: Hotspot[] = [
     description: "Ceramic mug, full-color geometric portrait print.",
     estimatedDeliveryDays: [4, 7],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-MUG-PLACEHOLDER",
       printArea: { name: "wrap", x: 5, y: 10, width: 70, height: 80 },
       variants: [
@@ -310,7 +312,7 @@ export const hotspots: Hotspot[] = [
     description: "Ceramic mug, clean portrait print on classic white.",
     estimatedDeliveryDays: [4, 7],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-MUG-PLACEHOLDER",
       printArea: { name: "wrap", x: 5, y: 10, width: 70, height: 80 },
       variants: [
@@ -334,7 +336,7 @@ export const hotspots: Hotspot[] = [
     description: "Heavyweight hoodie, front-chest portrait print.",
     estimatedDeliveryDays: [5, 9],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-HOODIE-WHITE-PLACEHOLDER",
       printArea: { name: "front chest", x: 28, y: 22, width: 44, height: 34 },
       variants: [
@@ -359,7 +361,7 @@ export const hotspots: Hotspot[] = [
     description: "Distressed vintage-style tee with a retro halftone portrait.",
     estimatedDeliveryDays: [5, 9],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-TEE-CONCERT-PLACEHOLDER",
       printArea: { name: "front", x: 25, y: 20, width: 50, height: 40 },
       variants: [
@@ -385,7 +387,7 @@ export const hotspots: Hotspot[] = [
     description: "Everyday soft-cotton graphic tee, front-chest print.",
     estimatedDeliveryDays: [5, 9],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-TEE-FOLDED-PLACEHOLDER",
       printArea: { name: "front", x: 25, y: 20, width: 50, height: 40 },
       variants: [
@@ -413,7 +415,7 @@ export const hotspots: Hotspot[] = [
     description: "Heavyweight hoodie, front-chest portrait print, black garment.",
     estimatedDeliveryDays: [5, 9],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-HOODIE-BLACK-PLACEHOLDER",
       printArea: { name: "front chest", x: 28, y: 22, width: 44, height: 34 },
       variants: [
@@ -440,7 +442,7 @@ export const hotspots: Hotspot[] = [
     description: "Natural canvas tote, single-color front print.",
     estimatedDeliveryDays: [4, 7],
     fulfillment: {
-      provider: "printful",
+      provider: "printify",
       productId: "FUL-TOTE-PLACEHOLDER",
       printArea: { name: "front", x: 20, y: 25, width: 60, height: 50 },
       variants: [
