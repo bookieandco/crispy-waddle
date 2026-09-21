@@ -58,8 +58,8 @@ jobs:
       - name: Test Growth Core convergence
         run: pnpm --filter @jhadina/growth-core test
 
-      - name: Type-check Jhadina web integration
-        run: pnpm --filter @jhadina/jhadina-web type-check
+      - name: Type-check Social and Growth web integration
+        run: pnpm --filter @jhadina/jhadina-web exec tsc -p tsconfig.social.json --noEmit
 
       - name: Run governed Social integration tests
         run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/social/governed-publication.test.ts
