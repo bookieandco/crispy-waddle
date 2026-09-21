@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { auditExecutionState,connectorExecutionState,executionStateLabel,executionStateTone,type JhadinaExecutionState } from "@/lib/system/execution-ux"
+import { auditExecutionState,connectorExecutionState,executionStateLabel,executionStateTone,type JhadinaExecutionState } from "@/lib/system/execution-ux"
 
 type ActivityEvent={
  id:string;actionId:string;type:string;status:"started"|"approval_required"|"completed"|"denied"|"failed";timestamp:string;domain:string;metadata?:Record<string,unknown>
@@ -12,7 +13,7 @@ type RecoveryExecution={
  reconciliation:null|{status:string;providerOperation:string|null;providerReference:string|null;observedState:string|null;checkedAt:string}
 }
 type TimelineItem={
- id:string;source:"audit"|"connector";domain:string;title:string;state:string;timestamp:string;detail:string;actionId?:string;metadata?:Record<string,unknown>
+ id:string;source:"audit"|"connector";domain:string;title:string;state:JhadinaExecutionState;timestamp:string;detail:string;actionId?:string;metadata?:Record<string,unknown>
 }
 
 function stateTone(state:string){if(["completed","succeeded","recovered","confirmed_executed"].includes(state))return "jh-status jh-status--success";if(["approval_required","recovery_required","executing","unknown","confirmed_not_executed"].includes(state))return "jh-status jh-status--warning";if(["failed","denied"].includes(state))return "jh-status jh-status--danger";return "jh-status"}
