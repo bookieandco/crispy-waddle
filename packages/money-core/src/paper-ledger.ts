@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
 import type { PaperExecutionOutcome, PaperFill, PaperOrder, PaperPortfolio } from './paper-execution-contracts.js'
+import type { PaperStrategyResult } from './paper-strategy-result.js'
 
-export type PaperLedgerEventKind = 'ORDER' | 'FILL' | 'PORTFOLIO_SNAPSHOT' | 'OUTCOME'
-export type PaperLedgerPayload = PaperOrder | PaperFill | PaperPortfolio | PaperExecutionOutcome
+export type PaperLedgerEventKind = 'ORDER' | 'FILL' | 'PORTFOLIO_SNAPSHOT' | 'OUTCOME' | 'STRATEGY_RESULT'
+export type PaperLedgerPayload = PaperOrder | PaperFill | PaperPortfolio | PaperExecutionOutcome | PaperStrategyResult
 
 export type PaperLedgerEvent = Readonly<{
   eventId: string
@@ -72,7 +73,7 @@ function assertIso(value: string, code: string): void {
 
 function assertPayloadAuthority(kind: PaperLedgerEventKind, payload: PaperLedgerPayload): void {
   const authority = (payload as { authority?: string }).authority
-  if (kind === 'OUTCOME') {
+  if (kind === 'OUTCOME' || kind === 'STRATEGY_RESULT') {
     if (authority !== 'LEARNING_ONLY') throw new Error('MONEY_043_LEDGER_OUTCOME_AUTHORITY_INVALID')
   } else if (authority !== 'SIMULATION_ONLY') {
     throw new Error('MONEY_043_LEDGER_SIMULATION_AUTHORITY_INVALID')
@@ -89,6 +90,7 @@ function payloadOccurrence(kind: PaperLedgerEventKind, payload: PaperLedgerPaylo
   if (kind === 'FILL' && 'filledAt' in payload) return payload.filledAt
   if (kind === 'PORTFOLIO_SNAPSHOT' && 'asOf' in payload) return payload.asOf
   if (kind === 'OUTCOME' && 'createdAt' in payload) return payload.createdAt
+  if (kind === 'STRATEGY_RESULT' && 'endedAt' in payload) return payload.endedAt
   return undefined
 }
 
