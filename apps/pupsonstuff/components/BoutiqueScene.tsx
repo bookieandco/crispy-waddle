@@ -28,7 +28,7 @@ interface ShellModelProps {
    * specifically (see ProductMarker) — targeted raycasting against one
    * 234-triangle mesh, not drei's whole-scene "raycast" occlusion mode,
    * which would test against every object in the Canvas every frame. */
-  shellRef: React.RefObject<THREE.Object3D | null>;
+  shellRef: React.RefObject<THREE.Object3D>;
 }
 
 function BoutiqueShellModel({ shellRef }: ShellModelProps) {
@@ -97,7 +97,7 @@ interface MarkerProps {
   hotspot: HotspotConfig;
   position: [number, number, number];
   onSelect: (hotspot: HotspotConfig) => void;
-  occludeAgainst: React.RefObject<THREE.Object3D | null>;
+  occludeAgainst: React.RefObject<THREE.Object3D>;
 }
 
 function ProductMarker({ hotspot, position, onSelect, occludeAgainst }: MarkerProps) {
@@ -112,15 +112,10 @@ function ProductMarker({ hotspot, position, onSelect, occludeAgainst }: MarkerPr
       <Html
         center
         distanceFactor={6}
-        // drei's HtmlProps types `occlude` as RefObject<Object3D>[]
-        // (non-nullable) — predates React 19's stricter useRef typing,
-        // where a ref created with an initial value of `null` types as
-        // RefObject<T | null>. Functionally always populated by the time
-        // this matters: ProductMarker and BoutiqueShellModel are siblings
-        // under the same <Suspense>, which reveals its whole subtree in
-        // one commit once the shell's GLTF resolves, so shellRef.current
-        // is set before any marker's per-frame occlusion check runs.
-        occlude={[occludeAgainst as React.RefObject<THREE.Object3D>]}
+        // Html's occlusion contract expects a stable Object3D ref. The ref
+        // is created once below and populated by the sibling shell primitive
+        // before drei performs frame-level occlusion raycasts.
+        occlude={[occludeAgainst]}
         zIndexRange={[10, 0]}
       >
         <button
@@ -162,7 +157,7 @@ export default function BoutiqueScene({ onSelectHotspot, onReady }: Props) {
     Math.max(x1 - x0, z1 - z0) * 0.48,
     shellMeta.ceilingHeightMeters * 1.4
   );
-  const shellRef = useRef<THREE.Object3D | null>(null);
+  const shellRef = useRef<THREE.Object3D>(null!);
 
   return (
     <Canvas
