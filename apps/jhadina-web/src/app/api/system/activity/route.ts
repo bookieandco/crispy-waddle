@@ -9,8 +9,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    const identity = createRequestIdentityVerifier(request)
-    const verifiedUserId = await identity.verify(claimedUserId)
+    const identity = await createRequestIdentityVerifier()
+    const verified = await identity.verify({ userId: claimedUserId })
+    const verifiedUserId = verified.userId
     const events = await listJhadinaActivity(verifiedUserId)
     return NextResponse.json({ ok: true, events })
   } catch (error) {
