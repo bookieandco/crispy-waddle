@@ -5,7 +5,8 @@ const teamId =
 const projectName = process.env.PUPSON_VERCEL_PROJECT?.trim() || 'pupsonstuff';
 const repository = 'bookieandco/crispy-waddle';
 const rootDirectory = 'apps/pupsonstuff';
-const canonicalDomain = 'pupsonstuff.com';
+const canonicalDomain = 'www.pupsonstuff.com';
+const redirectDomain = 'pupsonstuff.com';
 
 if (!token) {
   throw new Error('VERCEL_TOKEN is required. No Vercel mutation was attempted.');
@@ -112,17 +113,16 @@ async function ensureDomains() {
     console.log(`Canonical domain already attached: ${canonicalDomain}`);
   }
 
-  const www = `www.${canonicalDomain}`;
-  const existingWww = byName.get(www);
-  if (!existingWww) {
-    await addDomain(www, {
+  const existingRedirect = byName.get(redirectDomain);
+  if (!existingRedirect) {
+    await addDomain(redirectDomain, {
       redirect: canonicalDomain,
       redirectStatusCode: 308,
     });
-    console.log(`Attached redirect: ${www} -> ${canonicalDomain}`);
-  } else if (existingWww.redirect !== canonicalDomain) {
+    console.log(`Attached redirect: ${redirectDomain} -> ${canonicalDomain}`);
+  } else if (existingRedirect.redirect !== canonicalDomain) {
     throw new Error(
-      `${www} is already attached but does not redirect to ${canonicalDomain}. Refusing to overwrite it automatically.`
+      `${redirectDomain} is already attached but does not redirect to ${canonicalDomain}. Refusing to overwrite it automatically.`
     );
   }
 }
@@ -157,7 +157,7 @@ async function upsertEnvironment() {
   const envs = [
     {
       key: 'PUPSON_PUBLIC_ORIGIN',
-      value: 'https://pupsonstuff.com',
+      value: 'https://www.pupsonstuff.com',
       type: 'plain',
       target: ['production'],
       comment: 'Canonical PupsonStuff production origin.',
@@ -233,7 +233,7 @@ console.log(
       teamId,
       repository,
       rootDirectory,
-      canonicalOrigin: 'https://pupsonstuff.com',
+      canonicalOrigin: 'https://www.pupsonstuff.com',
       fulfillmentMode: 'dry_run',
     },
     null,
