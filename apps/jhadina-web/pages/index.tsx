@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState} from "react"
 import Link from "next/link"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { PersonalCommandFeed } from "../components/home/PersonalCommandFeed"
+import { PersonalCommandFeed } from "../components/home/PersonalCommandFeed"
 import type { FeedSource } from "../components/home/storyTypes"
 
 type Event={id:string;actionId:string;type:string;status:"started"|"approval_required"|"completed"|"denied"|"failed";timestamp:string;domain:string}
@@ -73,6 +74,8 @@ export default function Home(){
    </div>
    <PersonalCommandFeed source={streamSource}/>
   </section>
+
+  <section className="jh-section"><PersonalCommandFeed /></section>
 
   <section className="jh-section"><div className="jh-between"><div><p className="jh-eyebrow">Recent evidence</p><h2 className="jh-section-title">Black-box trail</h2></div><Link className="jh-button" href="/activity">Open Activity</Link></div>
    {loading?<div className="jh-list"><div className="jh-skeleton"/><div className="jh-skeleton"/></div>:model.recent.length===0?<div className="jh-empty">No governed activity has been recorded for this identity yet.</div>:<div className="jh-list">{model.recent.map(event=><article className="jh-item" key={event.id}><div className="jh-between"><div><strong>{event.type}</strong><p className="jh-meta">{event.domain} · {new Date(event.timestamp).toLocaleString()}</p></div><span className={event.status==="completed"?"jh-status jh-status--success":event.status==="failed"||event.status==="denied"?"jh-status jh-status--danger":"jh-status jh-status--warning"}>{event.status.replaceAll("_"," ")}</span></div></article>)}</div>}
