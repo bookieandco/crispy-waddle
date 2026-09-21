@@ -38,6 +38,7 @@ export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:str
   try{
     const result=await scanSamOpportunityWindow({postedFrom:input.postedFrom,postedTo:input.postedTo,pageSize:input.pageSize??1000,maxPages:input.maxPages??20})
     receipt.pages=result.pages;receipt.totalRecords=result.totalRecords;receipt.seenRecords=result.opportunities.length
+    if(!result.complete)throw new Error(`SAM_SCAN_INCOMPLETE: fetched ${result.opportunities.length} of ${result.totalRecords}; next offset ${result.nextOffset??result.opportunities.length}`)
     const notices=result.opportunities.map(raw=>normalizeSamWideNotice(raw,new Date().toISOString()))
     receipt.resourceLinks=notices.reduce((n,row)=>n+row.resourceLinks.length,0)
     for(let start=0;start<notices.length;start+=250){
