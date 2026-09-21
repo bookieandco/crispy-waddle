@@ -29,9 +29,9 @@ const catalogRow=(n:SamWideNotice,version:number)=>({
   place_of_performance:n.placeOfPerformance??null,description:n.description??null,source_url:n.sourceUrl,
   resource_links:n.resourceLinks,checksum:n.checksum,version,raw:n.raw,last_seen_at:n.capturedAt,updated_at:n.capturedAt,
 })
-export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:string;postedTo:string;maxPages?:number;pageSize?:number}):Promise<SamWideScanReceipt>{
+export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:string;postedTo:string;maxPages?:number;pageSize?:number;scanKind?:'recent'|'backfill'|'manual'}):Promise<SamWideScanReceipt>{
   const started=new Date().toISOString()
-  const {data:run,error:runError}=await client.from('jhadina_sam_scan_runs').insert({posted_from:input.postedFrom,posted_to:input.postedTo,status:'running',started_at:started}).select('id').single()
+  const {data:run,error:runError}=await client.from('jhadina_sam_scan_runs').insert({posted_from:input.postedFrom,posted_to:input.postedTo,scan_kind:input.scanKind??'manual',status:'running',started_at:started}).select('id').single()
   if(runError||!run)throw new Error(`Unable to create SAM scan receipt: ${runError?.message??'no row'}`)
   const runId=Number((run as {id:number}).id)
   const receipt:SamWideScanReceipt={runId,status:'completed',postedFrom:input.postedFrom,postedTo:input.postedTo,pages:0,totalRecords:0,seenRecords:0,newRecords:0,amendedRecords:0,unchangedRecords:0,resourceLinks:0,changedNoticeIds:[],errors:[]}
