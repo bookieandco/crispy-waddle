@@ -533,3 +533,33 @@ The same CompetitorAdObservation shape can normalize:
 - other supported public/authorized ad-intelligence sources.
 
 This prevents each platform from creating its own competitor-intelligence database.
+
+
+## Implemented in this branch
+
+### Growth Core
+- `CompetitorAdObservation`
+  - provider/source/source-record identity
+  - advertiser/platform/country
+  - observed creative/copy/CTA/landing facts
+  - optional source-provided spend/impression/reach ranges
+  - source locator + evidence refs + observed timestamp
+- `CompetitorCreativePattern`
+  - explicitly inferred analysis kept separate from observations
+- `CreatorEvidence`
+- `CreatorFitAssessment`
+- `OutreachPlan`
+- `OutreachTouchDraft`
+- `OutreachTouchProposal`
+- exact message fingerprint bound to creator, channel, offer, and voice-profile refs
+- fail-closed eligibility and stop-state handling
+- bounded max-touch cadence
+
+### Social Core
+- `BrandVoiceProfile`
+- `ChannelVoiceProfile`
+- `VoiceRealizationConstraints`
+- profile validation/versioning
+- expression-only composition
+
+These contracts deliberately stop before direct messaging. A future Social message proposal/outbox/Action Core execution path must reuse the same governance model as governed public publication.
