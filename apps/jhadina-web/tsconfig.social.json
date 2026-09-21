@@ -5,6 +5,7 @@
     "noEmit": true
   },
   "include": [
+    "next-env.d.ts",
     "src/lib/social/**/*.ts",
     "src/lib/growth/**/*.ts",
     "src/app/api/social/**/*.ts",
