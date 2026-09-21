@@ -1,4 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "npx turbo-ignore"
+  "ignoreCommand": "npx turbo-ignore",
+  "crons": [
+    {
+      "path": "/api/internal/sam/scan",
+      "schedule": "17 9 * * *"
+    },
+    {
+      "path": "/api/internal/sam/backfill",
+      "schedule": "47 9 * * *"
+    }
+  ]
 }

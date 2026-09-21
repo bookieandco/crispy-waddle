@@ -1,9 +1,9 @@
 import type { SamSearchParams } from './sam-client'
 
 const DATE=/^\d{2}\/\d{2}\/\d{4}$/
-const TOKEN=/^[A-Za-z0-9 _()&.,\/-]{1,80}$/
+const TOKEN=/^[A-Za-z0-9 _()&.,\/-]{1,120}$/
 
-function int(value:string|null, fallback:number, min:number, max:number, name:string):number{
+function int(value:string|null,fallback:number,min:number,max:number,name:string):number{
   if(value===null)return fallback
   const n=Number(value)
   if(!Number.isInteger(n)||n<min||n>max)throw new Error(`Invalid ${name}`)
@@ -17,21 +17,29 @@ function optional(value:string|null,name:string,max=200):string|undefined{
   return v
 }
 export function parseSamRouteSearch(search:URLSearchParams):SamSearchParams{
-  const allowed=new Set(['limit','offset','postedFrom','postedTo','keyword','noticeType','typeOfSetAside'])
+  const allowed=new Set(['limit','offset','postedFrom','postedTo','keyword','noticeType','typeOfSetAside','naicsCode','classificationCode','state','zip','solicitationNumber','noticeId','title','organizationName'])
   for(const key of search.keys())if(!allowed.has(key))throw new Error(`Unsupported SAM search parameter: ${key}`)
   const postedFrom=optional(search.get('postedFrom'),'postedFrom',10)
   const postedTo=optional(search.get('postedTo'),'postedTo',10)
-  const noticeType=optional(search.get('noticeType'),'noticeType',80)
-  const typeOfSetAside=optional(search.get('typeOfSetAside'),'typeOfSetAside',80)
+  const noticeType=optional(search.get('noticeType'),'noticeType',120)
+  const typeOfSetAside=optional(search.get('typeOfSetAside'),'typeOfSetAside',120)
   if(postedFrom&&!DATE.test(postedFrom))throw new Error('postedFrom must use MM/DD/YYYY')
   if(postedTo&&!DATE.test(postedTo))throw new Error('postedTo must use MM/DD/YYYY')
   if(noticeType&&!TOKEN.test(noticeType))throw new Error('Invalid noticeType')
   if(typeOfSetAside&&!TOKEN.test(typeOfSetAside))throw new Error('Invalid typeOfSetAside')
   return {
-    limit:int(search.get('limit'),25,1,100,'limit'),
-    offset:int(search.get('offset'),0,0,100000,'offset'),
+    limit:int(search.get('limit'),25,1,1000,'limit'),
+    offset:int(search.get('offset'),0,0,10_000_000,'offset'),
     postedFrom,postedTo,
     keyword:optional(search.get('keyword'),'keyword',200),
     noticeType,typeOfSetAside,
+    naicsCode:optional(search.get('naicsCode'),'naicsCode',16),
+    classificationCode:optional(search.get('classificationCode'),'classificationCode',16),
+    state:optional(search.get('state'),'state',40),
+    zip:optional(search.get('zip'),'zip',12),
+    solicitationNumber:optional(search.get('solicitationNumber'),'solicitationNumber',120),
+    noticeId:optional(search.get('noticeId'),'noticeId',120),
+    title:optional(search.get('title'),'title',200),
+    organizationName:optional(search.get('organizationName'),'organizationName',200),
   }
 }
