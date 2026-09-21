@@ -139,7 +139,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
     // was made from the previous image, not this one.
     setAnimatedVideoUrl(null);
     setAnimateError(null);
-    if (viewMode === 'animated') setViewMode('flat');
+    if (viewMode === 'animated') setViewMode(supports3D ? '3d' : 'flat');
     duck(true); // extra duck request stacks with the "modal open" one; music
     // stays ducked as long as either condition holds, and un-ducks only
     // once both clear.
@@ -420,7 +420,10 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                     </span>
                     <textarea
                       value={prompt}
-                      onChange={(event) => setPrompt(event.target.value.slice(0, 2000))}
+                      onChange={(event) => {
+                        setPrompt(event.target.value.slice(0, 2000));
+                        setApproved(false);
+                      }}
                       rows={3}
                       placeholder="Optional — pose, mood, clothing, composition, or background direction."
                       className="w-full resize-none rounded-md border border-greige/50 bg-white/70 px-3 py-2 text-sm"
@@ -464,7 +467,12 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                       {artStyles.map((style) => (
                         <button
                           key={style.id}
-                          onClick={() => setSelectedStyle(style.id)}
+                          onClick={() => {
+                            setSelectedStyle(style.id);
+                            setApproved(false);
+                            setPreviewUrl(null);
+                            setCreativeOutputId(null);
+                          }}
                           className={`rounded-md border px-3 py-2 text-sm transition ${
                             selectedStyle === style.id
                               ? 'border-honey-oak bg-honey-oak text-cream'
@@ -477,7 +485,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                     </div>
                   </div>
 
-                  {/* Variant (size/color from Printful mapping) */}
+                  {/* Variant selection; provider mapping is resolved server-side from the certified catalog. */}
                   {variants.length > 0 && (
                     <div className="mb-6">
                       <span className="mb-2 block text-sm font-medium text-bronze">
@@ -520,7 +528,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                     </div>
                   )}
 
-                                    {/* Quantity */}
+                  {/* Quantity */}
                   <div className="mb-6 flex items-center gap-3">
                     <span className="text-sm font-medium text-bronze">Quantity</span>
                     <div className="flex items-center rounded-md border border-greige/50">
