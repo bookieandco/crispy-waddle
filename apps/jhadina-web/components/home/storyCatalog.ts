@@ -2,14 +2,25 @@ import type { Story } from './storyTypes';
 
 export const baseStories: Story[] = [
   {
-    id: 'jhadina-day-at-a-glance', kind: 'jhadina', source: 'Jhadina',
+    id: 'jhadina-day-at-a-glance',
+    kind: 'jhadina',
+    source: 'Social',
     title: 'Your day, at a glance.',
-    body: 'A mixed stream for social, media, and Jhadina activity.',
+    body: 'Authorized social activity and Jhadina proposals appear here with their real source and status.',
     age: 'Now',
-    details: [{ label: 'Stream', value: 'Social + Media' }, { label: 'Sources', value: 'Connected' }, { label: 'Posting', value: 'Paused' }],
-    filters: ['All', 'Today'],
+    details: [
+      { label: 'Stream', value: 'Social + Media' },
+      { label: 'Authority', value: 'Human gated' },
+      { label: 'Publishing', value: 'Approval required' },
+    ],
   },
-  { id: 'director-review', kind: 'director', source: 'Director', title: 'A new video is ready for review.', body: 'Creative output from your Director workspace can appear here before anything is published.', age: 'Recent', action: { label: 'Watch' }, filters: ['All', 'Today', 'Focus'] },
-  { id: 'youtube-space', kind: 'youtube', source: 'YouTube', title: 'Recommended video space.', body: 'Connected YouTube content can appear here once the account is authorized.', age: 'Not connected', action: { label: 'Connect' }, filters: ['All'] },
-  { id: 'social-world', kind: 'social', source: 'Social', title: 'Your social world, mixed into the stream.', body: 'Facebook, Instagram, TikTok, and Snapchat content can appear here through authorized integrations.', age: 'Connections', action: { label: 'Connect' }, filters: ['All', 'Today', 'Saved'] },
+  {
+    id: 'director-review',
+    kind: 'director',
+    source: 'Director',
+    title: 'Director work appears here before publishing.',
+    body: 'Creative output can move from Director to Growth planning and then into the governed Social publication queue.',
+    age: 'Workspace',
+    action: { label: 'Open Director' },
+  },
 ];

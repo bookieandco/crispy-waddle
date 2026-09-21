@@ -1,4 +1,10 @@
-import type { SocialPostDraft, SocialProfile, SocialProvider } from "./types";
+import type {
+  SocialProfile,
+  SocialProvider,
+  SocialProviderDelivery,
+  SocialProviderDeliveryReceipt,
+  SocialProviderPublishRequest,
+} from "./types.js";
 
 const BASE_URL = "https://platform.hootsuite.com";
 
@@ -17,17 +23,31 @@ interface HootsuiteMessage {
   socialProfile?: { id?: string; externalURL?: string };
 }
 
+type Fetcher = typeof fetch;
+
+export interface HootsuiteProviderOptions {
+  token?: string;
+  fetcher?: Fetcher;
+}
+
 export class HootsuiteProvider implements SocialProvider {
-  readonly name = "hootsuite";
+  readonly name = "hootsuite" as const;
+  private readonly configuredToken?: string;
+  private readonly fetcher: Fetcher;
+
+  constructor(options: HootsuiteProviderOptions = {}) {
+    this.configuredToken = options.token;
+    this.fetcher = options.fetcher ?? fetch;
+  }
 
   private get token(): string {
-    const token = process.env.HOOTSUITE_ACCESS_TOKEN;
+    const token = this.configuredToken ?? process.env.HOOTSUITE_ACCESS_TOKEN;
     if (!token) throw new Error("HOOTSUITE_ACCESS_TOKEN is not configured");
     return token;
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await this.fetcher(`${BASE_URL}${path}`, {
       ...init,
       headers: {
         Authorization: `Bearer ${this.token}`,
@@ -39,104 +59,119 @@ export class HootsuiteProvider implements SocialProvider {
 
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const message = Array.isArray(body?.errors)
-        ? body.errors.map((e: { message?: string }) => e.message).filter(Boolean).join("; ")
+      const record = body as { errors?: Array<{ message?: string }> };
+      const message = Array.isArray(record.errors)
+        ? record.errors.map((error) => error.message).filter(Boolean).join("; ")
         : `Hootsuite request failed with ${response.status}`;
-      throw new Error(message);
+      throw new Error(message || `Hootsuite request failed with ${response.status}`);
     }
-    return body?.data as T;
+    return (body as { data?: T }).data as T;
   }
 
-  async getProfiles(): Promise<SocialProfile[]> {
+  async discoverProfiles(): Promise<SocialProfile[]> {
     const profiles = await this.request<HootsuiteProfile[]>("/v1/me/socialProfiles");
     return (profiles ?? []).map((profile) => ({
       id: profile.id,
-      platform: normalizePlatform(profile.socialNetwork),
+      provider: this.name,
+      platform: normalizeHootsuitePlatform(profile.socialNetwork),
       name: profile.socialProfile?.name ?? profile.name ?? profile.id,
       handle: profile.socialProfile?.handle,
       connected: true,
     }));
   }
 
-  async createPost(input: Omit<SocialPostDraft, "id" | "status">): Promise<SocialPostDraft> {
-    if (input.requiresApproval && !input.approvedAt) {
-      throw new Error("Social post requires approval before provider submission");
+  async publish(input: SocialProviderPublishRequest): Promise<SocialProviderDeliveryReceipt[]> {
+    if (!input.targets.length) throw new Error("SOCIAL_TARGETS_REQUIRED");
+
+    const seen = new Set<string>();
+    for (const target of input.targets) {
+      if (target.provider !== this.name) throw new Error("SOCIAL_PROVIDER_TARGET_MISMATCH");
+      if (seen.has(target.providerProfileId)) throw new Error("SOCIAL_DUPLICATE_TARGET");
+      seen.add(target.providerProfileId);
     }
 
-    const profiles = await this.getProfiles();
-    const targetIds = profiles
-      .filter((profile) => input.platforms.includes(profile.platform))
-      .map((profile) => profile.id);
-
-    if (!targetIds.length) throw new Error("No connected Hootsuite profiles match the requested platforms");
-    if (!input.scheduledAt) throw new Error("scheduledAt is required for Hootsuite publishing");
+    const payload: Record<string, unknown> = {
+      text: input.text,
+      socialProfileIds: input.targets.map((target) => target.providerProfileId),
+      mediaUrls: input.mediaUrls,
+    };
+    if (input.scheduledAt) payload.scheduledSendTime = new Date(input.scheduledAt).toISOString();
 
     const messages = await this.request<HootsuiteMessage[]>("/v1/messages", {
       method: "POST",
-      body: JSON.stringify({
-        text: input.text,
-        socialProfileIds: targetIds,
-        scheduledSendTime: new Date(input.scheduledAt).toISOString(),
-        mediaUrls: input.mediaUrls ?? [],
-      }),
+      headers: { "Idempotency-Key": input.idempotencyKey },
+      body: JSON.stringify(payload),
     });
 
-    const providerPostIds: Record<string, string> = {};
-    for (const message of messages ?? []) {
-      const profile = profiles.find((p) => p.id === message.socialProfile?.id);
-      if (profile) providerPostIds[profile.platform] = message.id;
-    }
-
-    return {
-      ...input,
-      id: `hs:${Date.now()}`,
-      status: "scheduled",
-      providerPostIds,
-    };
+    const observedAt = new Date().toISOString();
+    return input.targets.map((target) => {
+      const message = (messages ?? []).find(
+        (candidate) => candidate.socialProfile?.id === target.providerProfileId,
+      );
+      if (!message?.id) throw new Error("HOOTSUITE_AMBIGUOUS_DELIVERY_RECEIPT");
+      return {
+        provider: this.name,
+        providerProfileId: target.providerProfileId,
+        platform: target.platform,
+        providerPostId: message.id,
+        state: normalizeHootsuiteStatus(message.state),
+        observedAt,
+      };
+    });
   }
 
-  async getPosts(): Promise<SocialPostDraft[]> {
-    const end = new Date();
-    const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+  async listDeliveries(input: { since?: string; until?: string } = {}): Promise<SocialProviderDelivery[]> {
+    const end = input.until ? new Date(input.until) : new Date();
+    const start = input.since ? new Date(input.since) : new Date(end.getTime() - 24 * 60 * 60 * 1000);
+    const profiles = await this.discoverProfiles();
     const query = new URLSearchParams({
       startTime: start.toISOString(),
       endTime: end.toISOString(),
       limit: "100",
     });
     const messages = await this.request<HootsuiteMessage[]>(`/v1/messages?${query.toString()}`);
-    return (messages ?? []).map((message) => ({
-      id: `hs:${message.id}`,
-      brand: "jhadinatv",
-      platforms: [],
-      text: message.text ?? "",
-      scheduledAt: message.scheduledSendTime,
-      status: normalizeStatus(message.state),
-      requiresApproval: false,
-      providerPostIds: { hootsuite: message.id },
-    }));
+
+    return (messages ?? []).flatMap((message) => {
+      const profile = profiles.find((candidate) => candidate.id === message.socialProfile?.id);
+      if (!profile) return [];
+      return [{
+        provider: this.name,
+        providerProfileId: profile.id,
+        platform: profile.platform,
+        providerPostId: message.id,
+        state: normalizeHootsuiteStatus(message.state),
+        observedAt: new Date().toISOString(),
+        text: message.text,
+        scheduledAt: message.scheduledSendTime,
+      }];
+    });
   }
 
-  async deletePost(providerPostId: string): Promise<void> {
+  async deleteDelivery(providerPostId: string): Promise<void> {
     await this.request(`/v1/messages/${providerPostId}`, { method: "DELETE" });
   }
 }
 
-function normalizePlatform(value?: string): SocialProfile["platform"] {
+export function normalizeHootsuitePlatform(value?: string): SocialProfile["platform"] {
   switch ((value ?? "").toUpperCase()) {
     case "FACEBOOKPAGE": return "facebook";
     case "INSTAGRAMBUSINESS": return "instagram";
     case "TIKTOKBUSINESS": return "tiktok";
     case "YOUTUBECHANNEL": return "youtube";
-    default: return "facebook";
+    case "TWITTERPROFILE":
+    case "TWITTER": return "x";
+    case "LINKEDINCOMPANY":
+    case "LINKEDINPROFILE": return "linkedin";
+    default: throw new Error(`HOOTSUITE_UNSUPPORTED_SOCIAL_NETWORK:${value ?? "unknown"}`);
   }
 }
 
-function normalizeStatus(value?: string): SocialPostDraft["status"] {
+export function normalizeHootsuiteStatus(value?: string): SocialProviderDeliveryReceipt["state"] {
   switch (value) {
-    case "SCHEDULED": return "scheduled";
+    case "SCHEDULED":
+    case "PENDING_APPROVAL": return "scheduled";
     case "SENT": return "published";
-    case "PENDING_APPROVAL": return "approved";
     case "SEND_FAILED_PERMANENTLY": return "failed";
-    default: return "draft";
+    default: return "unknown";
   }
 }

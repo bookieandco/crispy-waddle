@@ -1,0 +1,65 @@
+name: Social Core Certification
+
+on:
+  pull_request:
+    paths:
+      - 'packages/social-core/**'
+      - 'packages/growth-core/**'
+      - 'apps/jhadina-web/src/lib/social/**'
+      - 'apps/jhadina-web/src/lib/growth/**'
+      - 'apps/jhadina-web/src/app/api/social/**'
+      - 'apps/jhadina-web/src/app/api/growth/**'
+      - 'apps/jhadina-web/src/app/social/**'
+      - 'apps/jhadina-web/src/app/growth/**'
+      - 'apps/jhadina-web/components/home/**'
+      - 'supabase/migrations/*social*'
+      - 'apps/jhadina-web/package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/social-core-certification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    name: SOCIAL.10 source certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Frozen dependency install
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check Social Core
+        run: pnpm --filter @jhadina/social-core type-check
+
+      - name: Test Social Core
+        run: pnpm --filter @jhadina/social-core test
+
+      - name: Type-check Growth Core convergence
+        run: pnpm --filter @jhadina/growth-core type-check
+
+      - name: Test Growth Core convergence
+        run: pnpm --filter @jhadina/growth-core test
+
+      - name: Type-check Social and Growth web integration
+        run: pnpm --filter @jhadina/jhadina-web exec tsc -p tsconfig.social.json --noEmit
+
+      - name: Run Social web integration tests
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/social

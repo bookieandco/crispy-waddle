@@ -1,51 +1,64 @@
-import { NextRequest, NextResponse } from "next/server";
-import { HootsuiteProvider, type JhadinaBrand, type SocialPlatform } from "@jhadina/social-core";
+import { NextRequest, NextResponse } from "next/server"
+import type { JhadinaBrand } from "@jhadina/social-core"
+import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
+import { requestSocialPublication } from "@/lib/social/governed-publication"
+import { createSocialRepository } from "@/lib/social/repository"
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"
 
 interface CreatePostBody {
-  brand: JhadinaBrand;
-  platforms: SocialPlatform[];
-  text: string;
-  mediaUrls?: string[];
-  scheduledAt?: string;
-  approved?: boolean;
+  brand?: JhadinaBrand
+  text?: string
+  mediaUrls?: string[]
+  scheduledAt?: string
+  targetAccountIds?: string[]
+  idempotencyKey?: string
 }
 
 export async function GET() {
   try {
-    const provider = new HootsuiteProvider();
-    const posts = await provider.getPosts();
-    return NextResponse.json({ success: true, provider: provider.name, data: posts });
+    const verifier = await createRequestIdentityVerifier()
+    const identity = await verifier.verify({})
+    const proposals = await createSocialRepository().listProposals(identity.userId)
+    return NextResponse.json({ success: true, data: proposals })
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Unable to load social posts" },
-      { status: 503 },
-    );
+    const message = error instanceof Error ? error.message : "Unable to load social proposals"
+    return NextResponse.json({ success: false, error: message }, { status: 401 })
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as CreatePostBody;
-    if (!body.brand || !body.platforms?.length || !body.text?.trim()) {
-      return NextResponse.json({ success: false, error: "brand, platforms and text are required" }, { status: 400 });
+    const body = await req.json() as CreatePostBody
+    if (!body.brand || !body.text?.trim() || !body.targetAccountIds?.length) {
+      return NextResponse.json(
+        { success: false, error: "brand, text, and targetAccountIds are required" },
+        { status: 400 },
+      )
     }
 
-    const provider = new HootsuiteProvider();
-    const post = await provider.createPost({
+    const result = await requestSocialPublication({
       brand: body.brand,
-      platforms: body.platforms,
-      text: body.text.trim(),
+      text: body.text,
       mediaUrls: body.mediaUrls,
       scheduledAt: body.scheduledAt,
-      requiresApproval: true,
-      approvedAt: body.approved ? new Date().toISOString() : undefined,
-    });
+      targetAccountIds: body.targetAccountIds,
+      idempotencyKey: body.idempotencyKey,
+    })
 
-    return NextResponse.json({ success: true, data: post }, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      data: {
+        proposal: result.proposal,
+        approval: {
+          required: true,
+          receiptId: result.approvalReceiptId,
+        },
+      },
+    }, { status: 202 })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create social post";
-    return NextResponse.json({ success: false, error: message }, { status: 400 });
+    const message = error instanceof Error ? error.message : "Unable to create social publication proposal"
+    const status = message.includes("Authenticated") || message.includes("session") ? 401 : 400
+    return NextResponse.json({ success: false, error: message }, { status })
   }
 }

@@ -1,4 +1,15 @@
-export type TrendSource = "youtube" | "tiktok" | "instagram" | "facebook" | "web" | "internal"
+export type TrendSource =
+  | "youtube"
+  | "tiktok"
+  | "instagram"
+  | "facebook"
+  | "x"
+  | "reddit"
+  | "linkedin"
+  | "threads"
+  | "bluesky"
+  | "web"
+  | "internal"
 
 export type TrendObservation = {
   source: TrendSource
@@ -26,12 +37,11 @@ export type InspirationIdea = {
   createdAt: string
 }
 
-/**
- * Converts observed trends into original creative experiments.
- * This layer deliberately does not scrape or publish: connectors provide
- * observations, while Jhadina turns patterns into proposals for approval.
- */
-export function createInspirationIdea(observations: TrendObservation[], title: string, rationale: string): InspirationIdea {
+export function createInspirationIdea(
+  observations: TrendObservation[],
+  title: string,
+  rationale: string,
+): InspirationIdea {
   if (!observations.length) throw new Error("At least one trend observation is required")
   return {
     id: `inspiration_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -45,8 +55,18 @@ export function createInspirationIdea(observations: TrendObservation[], title: s
 }
 
 export function summarizeTrend(observations: TrendObservation[]) {
-  const patterns = observations.flatMap(o => [o.signals.hook, o.signals.format, o.signals.topic, o.signals.visualPattern, o.signals.pacing]).filter(Boolean) as string[]
+  const patterns = observations
+    .flatMap((observation) => [
+      observation.signals.hook,
+      observation.signals.format,
+      observation.signals.topic,
+      observation.signals.visualPattern,
+      observation.signals.pacing,
+    ])
+    .filter(Boolean) as string[]
   const counts = new Map<string, number>()
   for (const pattern of patterns) counts.set(pattern, (counts.get(pattern) || 0) + 1)
-  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([pattern, count]) => ({ pattern, count }))
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([pattern, count]) => ({ pattern, count }))
 }
