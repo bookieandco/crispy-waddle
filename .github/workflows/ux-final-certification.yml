@@ -6,6 +6,7 @@ on:
     paths:
       - "apps/jhadina-web/**"
       - "packages/director-core/**"
+      - "packages/jhadina-core-spine/**"
       - ".github/workflows/ux-final-certification.yml"
       - "pnpm-lock.yaml"
 
@@ -33,7 +34,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Frozen install
