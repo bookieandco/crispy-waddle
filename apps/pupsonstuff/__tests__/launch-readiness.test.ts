@@ -25,6 +25,9 @@ const validEnv = {
   PUPSON_BACKGROUND_REMOVER_URL: 'https://remover.example',
   PUPSON_FULFILLMENT_MODE: 'dry_run',
   PUPSON_PUBLIC_ORIGIN: 'https://pupsonstuff.example',
+  PUPSON_BACKGROUND_REMOVER_URL: 'https://background.example',
+  PUPSON_UPSCALER_URL: 'https://upscale.example',
+  CRON_SECRET: 'c'.repeat(32),
 } as NodeJS.ProcessEnv;
 
 describe('PupsonStuff launch readiness', () => {
@@ -47,6 +50,17 @@ describe('PupsonStuff launch readiness', () => {
     expect(checks.find((check) => check.id === 'env.PUPSON_FULFILLMENT_MODE')?.status).toBe(
       'block'
     );
+  });
+
+  it('blocks launch when creative preprocessing is not configured', () => {
+    const checks = evaluateLaunchEnvironment({
+      ...validEnv,
+      PUPSON_BACKGROUND_REMOVER_URL: '',
+      PUPSON_UPSCALER_URL: '',
+      KNOCKOUT_TOKEN: '',
+    });
+    expect(checks.find((check) => check.id === 'env.BACKGROUND_REMOVER')?.status).toBe('block');
+    expect(checks.find((check) => check.id === 'env.IMAGE_UPSCALER')?.status).toBe('block');
   });
 
   it('blocks secrets exposed through NEXT_PUBLIC aliases', () => {
