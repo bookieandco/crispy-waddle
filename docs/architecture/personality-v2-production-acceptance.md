@@ -2,19 +2,28 @@
 
 Status: **CERTIFIED — PERSONALITY-V2.PROD.10 complete**.
 
-Acceptance lineage: PR #488 merged as `a20ec7b014bc94d1c449e96c8f499516e399f4a6`.
-The dedicated **Jhadina Personality Core CI** passed on that exact merge head
-(run `35543361194`): Core Spine type-check passed; Core Spine regressions
-passed (**31 files / 128 tests**); Intelligence Core type-check passed;
-Intelligence regressions passed (**64 tests**); and the persisted
-Personality/Hippocampus/Ask-Jhadina production vertical passed
-(**10 files / 67 tests**).
+Production implementation originally landed in PR #488 as
+`a20ec7b014bc94d1c449e96c8f499516e399f4a6`.
 
-That accepted lineage is an ancestor of current `main`. Repository-wide
-deployment failures outside Personality remain separate release blockers and
-must not be hidden by this subsystem certification. At certification time,
-Launch/Web failures were in unrelated Media/restoration/Director surfaces,
-not the Personality acceptance suite.
+Proof-complete acceptance lineage is PR #492, merged to `main` as
+`1694495fc0dacce9d3eac91df1c8d9fd3ccbcdbf`. The dedicated
+**Jhadina Personality Core CI** passed in run `35547738944` against GitHub's
+synthetic merge ref `fb9e4995d37308872698882a58fd78bce5070d61`
+(`refs/remotes/pull/492/merge`), which contains the PR head
+`3086cf5f53a91a1e22096fc5d8fb42e1cd9927a3` merged onto the exact base
+`6a2cc109a8efa5014da7563ef4dd9e262a2bd7ab`. Comparing that tested merge
+tree with the final merge commit shows no file differences.
+
+The proof-complete gate passed Core Spine type-check; Core Spine regressions
+(**31 files / 128 tests**); Intelligence Core type-check; Intelligence
+regressions (**64 tests**); and the persisted
+Personality/Hippocampus/Ask-Jhadina production vertical
+(**10 files / 68 tests**). The extra regression proves that an outcome-feedback
+event cannot itself become a feedback target and masquerade as fresh,
+independent evidence.
+
+Repository-wide deployment failures outside Personality remain separate release
+blockers and must not be hidden by this subsystem certification.
 
 ## Canonical production loop
 
@@ -112,12 +121,14 @@ that accepted lineage.
 
 ## PROD.10 acceptance receipt — 2026-09-20
 
-Accepted Personality production lineage: `a20ec7b014bc94d1c449e96c8f499516e399f4a6`
-(PR #488).
+Accepted proof-complete Personality production lineage:
+`1694495fc0dacce9d3eac91df1c8d9fd3ccbcdbf` (PR #492), building on the
+runtime implementation merged in PR #488.
 
-Dedicated **Jhadina Personality Core CI** run `35543361194` passed on that
-exact merge commit. Its production gate completed all of the following
-successfully:
+Dedicated **Jhadina Personality Core CI** run `35547738944` passed on the
+tested PR merge ref `fb9e4995d37308872698882a58fd78bce5070d61`.
+That tested merge tree and the final PR #492 merge commit have no file
+differences. Its production gate completed all of the following successfully:
 
 - Core Spine type-check;
 - Core Spine regressions;
@@ -128,7 +139,8 @@ successfully:
 - feedback HTTP/audit-boundary regressions;
 - Supabase outcome-lineage/restart regressions.
 
-The persisted production vertical reported **10 test files / 67 tests passed**.
+The persisted production vertical reported **10 test files / 68 tests passed**,
+including the feedback-on-feedback rejection regression.
 
 Subsequent mainline changes through the receipt's base commit do not alter the
 Personality PROD.10 implementation. They are therefore downstream mainline
@@ -138,10 +150,15 @@ changes rather than a replacement Personality certification lineage.
 
 These are intentionally **not** reclassified as Personality failures:
 
-- Jhadina Web production build: Director review route imports the missing
-  `@/lib/director-review-transition-repository` module.
-- Repository Launch Gate: `@jhadina/tv-core` type-check reports unused
-  `assertTVEpisode` in `src/providers/authorized.ts`.
+- Jhadina Web Deploy Conformance run `35547738957` fails in the Director
+  storyboard Supabase client typing surface
+  (`SupabaseClient` vs `SupabaseStoryboardClient`).
+- Jhadina Launch Gate run `35547738972` fails in unrelated Music restoration
+  type-check errors.
+- Media Production Certification run `35547738935` fails in the same Music
+  restoration/type-contract area.
+- Vercel deployment remains independently blocked by the existing daily
+  deployment-rate limit.
 
 Those failures remain normal application/release blockers for their owning
 subsystems. They do not weaken, skip, or replace the dedicated Personality
