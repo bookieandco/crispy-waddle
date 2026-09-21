@@ -10,6 +10,12 @@ export interface GenerateArtParams {
   imageBuffer: Buffer;
   imageFilename: string;
   imageMimeType: string;
+  /** additional Pet Identity views. The primary image above is always first. */
+  referenceImages?: Array<{
+    imageBuffer: Buffer;
+    imageFilename: string;
+    imageMimeType: string;
+  }>;
   /** base template from the master prompt, e.g. from AI_PROMPT_TEMPLATE below */
   basePrompt: string;
   /** hotspot.aiTemplate — the product-specific addition, see data/hotspots.ts */
@@ -33,6 +39,7 @@ Luxury pet artwork.`;
 export interface GenerateArtResult {
   success: true;
   imageBase64: string;
+  model: string;
 }
 
 export interface GenerateArtError {
@@ -56,12 +63,10 @@ function getClient(apiKey: string): OpenAI {
  * Calls the OpenAI Images API to generate a stylized pet portrait, via the
  * official `openai` SDK (client.images.edit) rather than a raw fetch().
  *
- * This is real, functional code — not a placeholder. It will actually
- * call OpenAI once OPENAI_API_KEY is set in your environment. It hasn't
- * been exercised against a live key in this build pass (no network access
- * in the sandbox that built it), so treat the first real run as a test:
- * check the response shape against OpenAI's current Images API docs before
- * trusting it in production, since that API does change over time.
+ * The current Image API accepts multiple reference images, so Pet Identity
+ * photos are supplied independently rather than collapsed into one contact
+ * sheet. The model remains environment-configurable for certification and
+ * controlled upgrades.
  */
 export async function generatePetPortrait(
   params: GenerateArtParams
@@ -82,15 +87,27 @@ export async function generatePetPortrait(
 
   try {
     const openai = getClient(apiKey);
-    const image = await toFile(params.imageBuffer, params.imageFilename, {
-      type: params.imageMimeType,
-    });
+    const references = [
+      {
+        imageBuffer: params.imageBuffer,
+        imageFilename: params.imageFilename,
+        imageMimeType: params.imageMimeType,
+      },
+      ...(params.referenceImages ?? []),
+    ].slice(0, 3);
+    const images = await Promise.all(
+      references.map((reference) =>
+        toFile(reference.imageBuffer, reference.imageFilename, {
+          type: reference.imageMimeType,
+        })
+      )
+    );
+    const model = process.env.PUPSON_OPENAI_IMAGE_MODEL?.trim() || "gpt-image-2.5-sunburst";
 
     const response = await openai.images.edit({
-      image,
+      image: images,
       prompt: fullPrompt,
-      model: "gpt-image-1",
-      size: "1024x1024",
+      model,
       n: 1,
     });
 
@@ -102,7 +119,7 @@ export async function generatePetPortrait(
       };
     }
 
-    return { success: true, imageBase64: b64 };
+    return { success: true, imageBase64: b64, model };
   } catch (err) {
     // The SDK throws APIError (with .status/.message already formatted
     // from OpenAI's error body) for non-2xx responses, and plain Errors
