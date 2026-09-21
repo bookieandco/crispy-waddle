@@ -57,7 +57,7 @@ export function createCanonicalMoneySimulationLearningRecord(
  if(!evidenceIds.length)throw new Error('shark_money_simulation_evidence_required')
  const fillConfidence=envelope.aggregateFillRateBps/10000
  const executionQuality=1-Math.min(10000,Math.abs(envelope.weightedSlippageBps))/10000
- const experience:Object extends never?never:SharkExperience=Object.freeze({
+ const experience:SharkExperience=Object.freeze({
   experienceId:`money-paper-experience:${envelope.strategyResultId}`,
   occurredAt:envelope.evaluatedAt,
   scenarioId:envelope.scenarioId,
