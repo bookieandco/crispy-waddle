@@ -13,7 +13,7 @@ export async function GET(request:Request){
   if(!client)return NextResponse.json({ok:false,error:'SAM_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED'},{status:503})
   if(!process.env.SAM_GOV_API_KEY)return NextResponse.json({ok:false,error:'SAM_GOV_API_KEY_NOT_CONFIGURED'},{status:503})
   try{
-    const result=await runSamUsablePipeline(client,{...defaultSamScanWindow(2),maxPages:20,maxProcessNotices:12})
+    const result=await runSamUsablePipeline(client,{...defaultSamScanWindow(2),maxPages:20,maxProcessNotices:12,scanKind:'recent'})
     return NextResponse.json({ok:true,...result},{headers:{'cache-control':'no-store'}})
   }catch(error){
     return NextResponse.json({ok:false,error:error instanceof Error?error.message:'SAM_PIPELINE_FAILED'},{status:502,headers:{'cache-control':'no-store'}})
