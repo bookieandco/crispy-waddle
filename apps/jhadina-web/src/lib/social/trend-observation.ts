@@ -29,7 +29,7 @@ export async function persistSocialTrendObservations(
     const platform = SOCIAL_SOURCE_PLATFORM[observation.source]
     if (!platform) return Promise.resolve(null)
 
-    const metrics = typeof observation.signals.engagement === "number"
+    const metrics: Record<string, number> = typeof observation.signals.engagement === "number"
       ? { engagements: observation.signals.engagement }
       : {}
     const attributes: Record<string, string | number | boolean | null> = {
