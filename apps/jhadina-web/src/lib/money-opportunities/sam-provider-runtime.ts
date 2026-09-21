@@ -59,7 +59,8 @@ async function samEntityProviders(naics:string,limit=25):Promise<ExtendedProvide
   url.searchParams.set('naicsCode',naics)
   url.searchParams.set('registrationStatus','A')
   url.searchParams.set('page','0')
-  url.searchParams.set('size',String(Math.max(1,Math.min(limit,100))))
+  url.searchParams.set('size',String(Math.max(1,Math.min(limit,10))))
+  url.searchParams.set('includeSections','entityRegistration,coreData,assertions')
   const response=await fetch(url,{headers:{accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(20000)})
   if(!response.ok)throw new Error(`SAM_ENTITY_HTTP_${response.status}`)
   const body=await response.json() as Record<string,unknown>
