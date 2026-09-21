@@ -20,6 +20,9 @@ const validEnv = {
   PUPSON_ADMIN_PASSWORD: 'a-very-long-admin-password',
   PUPSON_ADMIN_SESSION_SECRET: 'a'.repeat(32),
   PUPSON_PRINTIFY_WEBHOOK_SECRET: 'b'.repeat(32),
+  CRON_SECRET: 'c'.repeat(32),
+  PUPSON_BACKGROUND_REMOVER_PROVIDER: 'backgroundremover',
+  PUPSON_BACKGROUND_REMOVER_URL: 'https://remover.example',
   PUPSON_FULFILLMENT_MODE: 'dry_run',
   PUPSON_PUBLIC_ORIGIN: 'https://pupsonstuff.example',
 } as NodeJS.ProcessEnv;
@@ -27,6 +30,16 @@ const validEnv = {
 describe('PupsonStuff launch readiness', () => {
   it('passes a complete dry-run certification environment', () => {
     expect(summarizeGate(evaluateLaunchEnvironment(validEnv)).block).toBe(0);
+  });
+
+  it('blocks missing background-removal runtime', () => {
+    const checks = evaluateLaunchEnvironment({
+      ...validEnv,
+      PUPSON_BACKGROUND_REMOVER_URL: '',
+    });
+    expect(checks.find((check) => check.id === 'env.PUPSON_BACKGROUND_REMOVER')?.status).toBe(
+      'block'
+    );
   });
 
   it('blocks live fulfillment before physical certification', () => {
