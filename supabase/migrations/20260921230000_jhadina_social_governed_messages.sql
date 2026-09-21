@@ -91,15 +91,18 @@ alter table public.jhadina_social_message_proposals enable row level security;
 alter table public.jhadina_social_message_outbox enable row level security;
 
 create policy "social contact states owner readable"
-  on public.jhadina_social_contact_states for select using (auth.uid() = user_id);
+  on public.jhadina_social_contact_states for select
+  to authenticated using ((select auth.uid()) = user_id);
 create policy "social message proposals owner readable"
-  on public.jhadina_social_message_proposals for select using (auth.uid() = user_id);
+  on public.jhadina_social_message_proposals for select
+  to authenticated using ((select auth.uid()) = user_id);
 create policy "social message outbox owner readable"
-  on public.jhadina_social_message_outbox for select using (auth.uid() = user_id);
+  on public.jhadina_social_message_outbox for select
+  to authenticated using ((select auth.uid()) = user_id);
 
-revoke all on public.jhadina_social_contact_states from anon;
-revoke all on public.jhadina_social_message_proposals from anon;
-revoke all on public.jhadina_social_message_outbox from anon;
+revoke all on public.jhadina_social_contact_states from anon, authenticated;
+revoke all on public.jhadina_social_message_proposals from anon, authenticated;
+revoke all on public.jhadina_social_message_outbox from anon, authenticated;
 
 grant select on public.jhadina_social_contact_states to authenticated;
 grant select on public.jhadina_social_message_proposals to authenticated;
@@ -339,9 +342,14 @@ begin
          proposal.id::text || ':' || proposal.provider_recipient_id
     from public.jhadina_social_message_proposals proposal
    where proposal.id = p_proposal_id and proposal.user_id = auth.uid()
-  on conflict (proposal_id) do update
-    set updated_at = public.jhadina_social_message_outbox.updated_at
-  returning * into result;
+  on conflict (proposal_id) do nothing;
+
+  select * into result
+    from public.jhadina_social_message_outbox
+   where proposal_id = p_proposal_id
+     and user_id = auth.uid();
+
+  if result.id is null then raise exception 'social message outbox unavailable'; end if;
 
   update public.jhadina_social_message_proposals
      set status = 'queued', updated_at = now()
