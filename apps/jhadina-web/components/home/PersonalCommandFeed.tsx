@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { baseStories } from './storyCatalog';
-import { storyMatchesSource, type FeedSource, type Story } from './storyTypes';
+import { HOME_FEED_SOURCES, storyMatchesSource, type FeedSource, type Story } from './storyTypes';
 import styles from './PersonalCommandFeed.module.css';
 
 const glyph: Record<Story['kind'], string> = {
@@ -145,8 +145,6 @@ function StoryCard({ story, onOpen }: { story: Story; onOpen: (story: Story) => 
   </article>;
 }
 
-const feedSources: FeedSource[] = ['All','Social','TikTok','Facebook','Snapchat','Instagram','YouTube','Reddit','X','LinkedIn','Threads','Bluesky','Tumblr','VK','Director'];
-
 export function PersonalCommandFeed({ source }: { source?: FeedSource }) {
   const growthStory = useGrowthProposal();
   const socialStories = useSocialHubStories();
@@ -174,7 +172,7 @@ export function PersonalCommandFeed({ source }: { source?: FeedSource }) {
       </p>
     </div>
     {!source && <div className={styles.filters} role="tablist" aria-label="Filter social and media stream">
-      {feedSources.map((item) => <button key={item} type="button" role="tab" aria-selected={activeSource === item} className={activeSource === item ? styles.filterActive : styles.filter} onClick={() => setSelectedSource(item)}>{item}</button>)}
+      {HOME_FEED_SOURCES.map((item) => <button key={item} type="button" role="tab" aria-selected={activeSource === item} className={activeSource === item ? styles.filterActive : styles.filter} onClick={() => setSelectedSource(item)}>{item}</button>)}
     </div>}
     <div className={styles.list} aria-label={activeSource + " feed"}>
       {stories.length
