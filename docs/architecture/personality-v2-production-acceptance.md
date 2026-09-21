@@ -1,9 +1,20 @@
 # PERSONALITY-V2.PROD.10 — Production Acceptance
 
-Status: **subsystem acceptance gate implemented**. The Personality v2 production
-lane is accepted when the dedicated Personality Core CI is green on the exact
-merge head. Repository-wide deployment failures outside this subsystem remain
-separate release blockers and must not be hidden by this gate.
+Status: **CERTIFIED — PERSONALITY-V2.PROD.10 complete**.
+
+Acceptance lineage: PR #488 merged as `a20ec7b014bc94d1c449e96c8f499516e399f4a6`.
+The dedicated **Jhadina Personality Core CI** passed on that exact merge head
+(run `35543361194`): Core Spine type-check passed; Core Spine regressions
+passed (**31 files / 128 tests**); Intelligence Core type-check passed;
+Intelligence regressions passed (**64 tests**); and the persisted
+Personality/Hippocampus/Ask-Jhadina production vertical passed
+(**10 files / 67 tests**).
+
+That accepted lineage is an ancestor of current `main`. Repository-wide
+deployment failures outside Personality remain separate release blockers and
+must not be hidden by this subsystem certification. At certification time,
+Launch/Web failures were in unrelated Media/restoration/Director surfaces,
+not the Personality acceptance suite.
 
 ## Canonical production loop
 
