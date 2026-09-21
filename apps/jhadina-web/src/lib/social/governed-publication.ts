@@ -203,7 +203,13 @@ async function dispatchJob(
 
     const receipt = receipts[0]
     if (receipt.state === "unknown") {
-      await repository.failOutbox(attempting.userId, attempting.id, "SOCIAL_PROVIDER_STATE_UNKNOWN", true)
+      await repository.failOutbox(
+        attempting.userId,
+        attempting.id,
+        "SOCIAL_PROVIDER_STATE_UNKNOWN",
+        true,
+        receipt.providerPostId,
+      )
       return "ambiguous"
     }
     if (receipt.state === "failed") {
