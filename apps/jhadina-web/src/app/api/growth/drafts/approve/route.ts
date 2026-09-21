@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { runGovernedGrowthDraftApproval } from "@/lib/growth/governed-approval-runtime"
 
 export const dynamic = "force-dynamic"
 
-/**
- * Spine Proof #1 (Jhadina OS Integration Phase 1): approving a Growth
- * draft now goes through the full governed lifecycle — identity
- * verification, policy evaluation, an explicit approval receipt, and
- * the hardened ActionExecutor — instead of calling the engine directly.
- * See src/lib/growth/governed-approval.ts for the composed pipeline.
- */
 export async function POST(req: NextRequest) {
   const { draftId } = await req.json()
-  const claimedUserId = req.headers.get("x-jhadina-user-id") || "default-user"
-
   if (!draftId || typeof draftId !== "string") {
     return NextResponse.json({ success: false, error: "draftId is required" }, { status: 400 })
   }
 
   try {
-    const result = await runGovernedGrowthDraftApproval(claimedUserId, draftId)
+    const identityVerifier = await createRequestIdentityVerifier()
+    const identity = await identityVerifier.verify({})
+    const result = await runGovernedGrowthDraftApproval(identity.userId, draftId, { identityVerifier })
     return NextResponse.json({
       success: true,
       data: {
@@ -32,7 +26,10 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Approval failed"
-    const status = message.includes("identity") || message.includes("session") ? 401 : message.includes("not found") ? 404 : 500
+    const status =
+      message.includes("identity") || message.includes("session") || message.includes("Authenticated")
+        ? 401
+        : message.includes("not found") ? 404 : 500
     return NextResponse.json({ success: false, error: message }, { status })
   }
 }
