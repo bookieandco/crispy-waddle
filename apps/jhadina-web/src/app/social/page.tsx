@@ -83,9 +83,9 @@ export default function SocialCommandCenter() {
   )
 
   useEffect(() => {
-    setSelected((current) => current.filter((id) => eligibleAccounts.some((account) => account.id === id)))
+    setSelected([])
     setPending(null)
-  }, [brand, eligibleAccounts])
+  }, [brand])
 
   async function discover() {
     setBusy("discover"); setError("")
