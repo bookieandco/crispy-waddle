@@ -1,5 +1,8 @@
 import type { CreativeProvenance, DirectorReviewRepository, GeneratedAssetRecord, MediaQualityEvidence, MediaReviewDecisionRecord } from '@jhadina/director-core';
-type Result={data:unknown;error:{message:string}|null}; type Q={select(s:string):Q;eq(k:string,v:string|number):Q;maybeSingle():Promise<Result>;insert(v:unknown):Promise<Result>}; export type ReviewClient={from(t:string):Q};
+type Result={data:unknown;error:{message:string}|null};
+type Q={select(s:string):Q;eq(k:string,v:string|number):Q;maybeSingle():Promise<Result>};
+type FromQ={select(s:string):Q;insert(v:unknown):Promise<Result>};
+export type ReviewClient={from(t:string):FromQ};
 export class SupabaseDirectorReviewRepository implements DirectorReviewRepository{
  constructor(private readonly c:ReviewClient){}
  async getAsset(id:string,p:string){const {data,error}=await this.c.from('director_generated_assets').select('*').eq('id',id).eq('project_id',p).maybeSingle();if(error)throw new Error(error.message);if(!data)return null;const a=data as any;return {id:a.id,projectId:a.project_id,generationJobId:a.generation_job_id,providerId:a.provider_id,mediaType:a.media_type,uri:a.uri,mimeType:a.mime_type,sha256:a.sha256,modelId:a.model_id,workflowId:a.workflow_id,workflowVersion:a.workflow_version,loras:a.loras,prompt:a.prompt,createdAt:a.created_at,provenance:a.provenance,metadata:a.metadata} as GeneratedAssetRecord;}
