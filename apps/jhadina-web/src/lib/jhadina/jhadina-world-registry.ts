@@ -3,7 +3,7 @@ export type JhadinaWorldId =
   | "music" | "tv" | "studio" | "social" | "pupsonstuff" | "trucker"
   | "cooking" | "shopping" | "radar" | "knowledge" | "money" | "wallet"
   | "opportunities" | "spatial" | "publishing" | "campaign" | "placement"
-  | "sports" | "safety" | "overage";
+  | "sports" | "safety" | "overage" | "homebase" | "pod";
 
 export interface WorldCapability {
   id: string;
@@ -50,6 +50,7 @@ const worldRows: WorldRow[] = [
   { id:"knowledge", label:"Knowledge", description:"Research, evidence, provenance and governed knowledge admission", capabilities:["search","research","provenance"], inputs:["evidence","memory"], group:"intelligence" },
   { id:"sports", label:"Sports Intelligence", description:"Perception, simulation and coach-facing win-path intelligence", capabilities:["observe","simulate","explain"], inputs:["games","evidence"], group:"intelligence" },
   { id:"safety", label:"SafetyOS", description:"Personal safety runtime, drills and governed escalation evidence", capabilities:["monitor","drill","evidence"], inputs:["safety","spatial"], group:"intelligence" },
+  { id:"homebase", label:"Homebase", description:"Connectivity, offline knowledge, mesh and remote-compute coordination", capabilities:["connectivity","offline","mesh"], inputs:["network","knowledge","devices"], group:"intelligence" },
 
   { id:"studio", label:"Director Workstation", description:"Creative editing and generated-asset workstation", capabilities:["projects","assets","timeline"], inputs:["projects","media"], href:"/workstation", group:"work" },
   { id:"growth", label:"Growth", description:"Draft, approval and scheduling workflow", capabilities:["draft","approve","schedule"], inputs:["content","activity"], href:"/growth", group:"work" },
@@ -65,6 +66,7 @@ const worldRows: WorldRow[] = [
   { id:"social", label:"Social", description:"Social discovery, review and governed publishing", capabilities:["draft","schedule","review"], inputs:["content","activity"], href:"/social", group:"media" },
 
   { id:"pupsonstuff", label:"PupsonStuff", description:"Pet products, creative generation and commerce", capabilities:["products","creative","orders"], inputs:["shopping","commerce"], group:"business" },
+  { id:"pod", label:"AI POD Studio", description:"Generalized AI product design, 3D product studio and print-on-demand workflow", capabilities:["generate","customize","products"], inputs:["creative","commerce"], group:"business" },
   { id:"shopping", label:"Shopping", description:"Universal product discovery and purchasing", capabilities:["search","watchlist","compare","cart"], inputs:["products","prices","orders"], group:"business" },
   { id:"trucker", label:"TruckerOS", description:"Driving, work and trip intelligence", capabilities:["loads","trips","profit"], inputs:["money","travel"], group:"business" },
   { id:"cooking", label:"Cooking", description:"Recipes, ingredients and drinks", capabilities:["recipes","recommendations","timers"], inputs:["food","shopping"], group:"business" },
