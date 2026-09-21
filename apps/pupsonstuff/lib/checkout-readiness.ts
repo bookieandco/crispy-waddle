@@ -6,7 +6,13 @@ interface OutputReadiness {
   id: string;
   approval_status: string;
   print_asset_id: string | null;
+  quality_gate: Record<string, unknown> | null;
   job: { owner_token_hash: string } | null;
+}
+
+function passedPrintQualityGate(value: Record<string, unknown> | null): boolean {
+  if (!value) return false;
+  return value.productionReady === true && typeof value.score === 'number' && value.score >= 90;
 }
 
 export interface CertifiedCartItem extends ValidatedCartItem {
@@ -22,7 +28,7 @@ export async function certifyCartForCheckout(
   const ownerHash = ownerTokenHash(ownerToken);
   const outputIds = [...new Set(items.map((item) => item.creativeOutputId))];
   const outputs = await rest<OutputReadiness[]>(
-    `pupson_creative_outputs?select=id,approval_status,print_asset_id,job:pupson_creative_jobs!inner(owner_token_hash)&id=in.(${outputIds.map(encodeURIComponent).join(',')})`
+    `pupson_creative_outputs?select=id,approval_status,print_asset_id,quality_gate,job:pupson_creative_jobs!inner(owner_token_hash)&id=in.(${outputIds.map(encodeURIComponent).join(',')})`
   );
   const outputMap = new Map(outputs.map((output) => [output.id, output]));
   const certified: CertifiedCartItem[] = [];
@@ -32,9 +38,10 @@ export async function certifyCartForCheckout(
       !output ||
       output.job?.owner_token_hash !== ownerHash ||
       output.approval_status !== 'approved' ||
-      !output.print_asset_id
+      !output.print_asset_id ||
+      !passedPrintQualityGate(output.quality_gate)
     ) {
-      throw new Error('Every cart item must reference your approved, print-ready artwork.');
+      throw new Error('Every cart item must reference your approved artwork with a passing print-quality gate.');
     }
     const mapping = item.fulfillment;
     const variant = mapping?.variants.find((candidate) => candidate.variantId === item.variantId);
