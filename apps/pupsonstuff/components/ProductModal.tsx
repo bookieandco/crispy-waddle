@@ -407,9 +407,13 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                       type="file"
                       multiple
                       accept="image/jpeg,image/png,image/webp"
-                      onChange={(event) =>
-                        setUploadedFiles(Array.from(event.target.files ?? []).slice(0, 3))
-                      }
+                      onChange={(event) => {
+                        setUploadedFiles(Array.from(event.target.files ?? []).slice(0, 3));
+                        setPreviewUrl(null);
+                        setCreativeOutputId(null);
+                        setApproved(false);
+                        setAnimatedVideoUrl(null);
+                      }}
                       className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-md file:border-0 file:bg-honey-oak file:px-4 file:py-2 file:text-sm file:font-medium file:text-cream hover:file:bg-bronze"
                     />
                   </label>
@@ -422,7 +426,10 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                       value={prompt}
                       onChange={(event) => {
                         setPrompt(event.target.value.slice(0, 2000));
+                        setPreviewUrl(null);
+                        setCreativeOutputId(null);
                         setApproved(false);
+                        setAnimatedVideoUrl(null);
                       }}
                       rows={3}
                       placeholder="Optional — pose, mood, clothing, composition, or background direction."
@@ -443,7 +450,10 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                           type="button"
                           onClick={() => {
                             setBackgroundMode(mode);
+                            setPreviewUrl(null);
+                            setCreativeOutputId(null);
                             setApproved(false);
+                            setAnimatedVideoUrl(null);
                           }}
                           className={`rounded-md border px-2 py-2 text-xs transition ${
                             backgroundMode === mode
