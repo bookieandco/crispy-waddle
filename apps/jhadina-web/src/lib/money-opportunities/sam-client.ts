@@ -65,7 +65,7 @@ export async function searchSamOpportunities(params: SamSearchParams = {}): Prom
 export async function scanSamOpportunityWindow(input: Omit<SamSearchParams, 'limit'|'offset'> & {
   pageSize?: number;
   maxPages?: number;
-}): Promise<{pages:number;totalRecords:number;opportunities:Array<Record<string,unknown>>}> {
+}): Promise<{pages:number;totalRecords:number;opportunities:Array<Record<string,unknown>>;truncated:boolean}> {
   const pageSize=Math.max(1,Math.min(input.pageSize??1000,1000));
   const maxPages=Math.max(1,Math.min(input.maxPages??100,1000));
   const opportunities:Array<Record<string,unknown>>=[];
@@ -79,5 +79,5 @@ export async function scanSamOpportunityWindow(input: Omit<SamSearchParams, 'lim
     pages+=1;
     if(rows.length<pageSize||opportunities.length>=totalRecords)break;
   }
-  return {pages,totalRecords,opportunities};
+  return {pages,totalRecords,opportunities,truncated:opportunities.length<totalRecords};
 }
