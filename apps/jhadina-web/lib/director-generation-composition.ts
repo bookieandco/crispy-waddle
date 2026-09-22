@@ -11,6 +11,7 @@ import { SupabaseStoryboardRepository } from '@jhadina/director-core/storyboard-
 import { DirectorProductionAuthorityResolver, DirectorReviewAuthorityResolver, SupabaseDirectorProductionAuthorityRepository } from '@jhadina/director-core';
 import { SupabaseDirectorReviewRepository } from './director-review-repository';
 import { SupabaseDirectorCastResolver } from '../src/lib/director-cast-repository';
+import { SupabaseDirectorCharacterReferenceAssetResolver } from '../src/lib/director-reference-asset-resolver';
 import { createSupabaseGeneratedAssetRepository } from './supabase-generated-asset-repository';
 import { createSupabaseGenerationRepository } from '../src/lib/supabase-generation-repository';
 import {
@@ -53,7 +54,8 @@ function composeDirectorGenerationRuntime(
   const storyboardRepository = new SupabaseStoryboardRepository(readClient);
   const storyboardLineageResolver = new DirectorStoryboardLineageResolver(storyboardRepository);
   const castResolver = new SupabaseDirectorCastResolver(client);
-  const generation = new GenerationPlanAdapter(service, registry, storyboardLineageResolver, castResolver);
+  const characterReferenceAssetResolver = new SupabaseDirectorCharacterReferenceAssetResolver(client);
+  const generation = new GenerationPlanAdapter(service, registry, storyboardLineageResolver, castResolver, characterReferenceAssetResolver);
   const authority = new DirectorProductionAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(readClient), storyboardLineageResolver);
   const reviewRepository = new SupabaseDirectorReviewRepository(client);
   const reviewAuthority = new DirectorReviewAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(readClient), reviewRepository);
