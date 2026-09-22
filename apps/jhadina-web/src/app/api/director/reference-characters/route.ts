@@ -37,6 +37,14 @@ function parseLanguages(raw: FormDataEntryValue | null): string[] {
 }
 
 export async function POST(request: Request) {
+  const contentLength = Number(request.headers.get('content-length') ?? '0');
+  if (Number.isFinite(contentLength) && contentLength > 32 * 1024 * 1024) {
+    return NextResponse.json(
+      { ok: false, error: 'DIRECTOR_REFERENCE_MULTIPART_TOO_LARGE' },
+      { status: 413 },
+    );
+  }
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false, error: 'Authentication required' }, { status: 401 });
@@ -90,13 +98,19 @@ export async function POST(request: Request) {
       ? String(form.get('rightsRef')).trim()
       : 'user-provided-reference';
     const targetLanguages = parseLanguages(form.get('targetLanguages'));
-    const files = form.getAll('references')
-      .filter((value): value is File => typeof value !== 'string')
-      .map(async (file) => ({
-        fileName: file.name,
-        mimeType: file.type,
-        bytes: Buffer.from(await file.arrayBuffer()),
-      }));
+    const rawFiles = form.getAll('references')
+      .filter((value): value is File => typeof value !== 'string');
+    if (!rawFiles.length || rawFiles.length > 3) {
+      return NextResponse.json(
+        { ok: false, error: 'DIRECTOR_REFERENCE_FILE_COUNT_INVALID' },
+        { status: 400 },
+      );
+    }
+    const files = rawFiles.map(async (file) => ({
+      fileName: file.name,
+      mimeType: file.type,
+      bytes: Buffer.from(await file.arrayBuffer()),
+    }));
 
     const prepared = await Promise.all(files);
     const result = await createDirectorReferenceCharacter(privileged, {
