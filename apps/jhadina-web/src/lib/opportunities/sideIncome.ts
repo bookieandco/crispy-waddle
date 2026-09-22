@@ -1,4 +1,4 @@
-import type { OpportunityHubCategory } from "@jhadina/opportunity-core"
+import type { OpportunityHubCategory, SideHustleProfile } from "@jhadina/opportunity-core"
 
 export type OpportunityKind =
   | "pod"
@@ -47,6 +47,7 @@ export type Opportunity = {
   createdAt: string
   approvedAt?: string
   researchCaseId?: string
+  sideHustleProfile?: SideHustleProfile
 }
 
 export const SIDE_INCOME_KINDS: OpportunityKind[] = [
