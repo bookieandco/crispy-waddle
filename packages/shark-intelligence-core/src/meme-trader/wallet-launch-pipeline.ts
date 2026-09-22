@@ -1,3 +1,4 @@
+import type { PumpLaunchFeatures } from './pump-v2-launch-features'
 export type WalletRole = 'developer' | 'deployer' | 'funder' | 'early-buyer' | 'liquidity-provider' | 'unknown'
 export type EntityKind = 'wallet' | 'developer' | 'organization' | 'cluster'
 export type LaunchOutcome = 'UNKNOWN' | 'HEALTHY' | 'RUG' | 'FAILED' | 'PUMP_AND_DUMP'
@@ -23,6 +24,7 @@ export type TokenLaunch = {
   launchedAt: string
   launchpad?: string
   initialLiquidityUsd?: number
+  pumpFeatures?: PumpLaunchFeatures
   outcome: LaunchOutcome
   outcomeObservedAt?: string
   evidenceIds: string[]
