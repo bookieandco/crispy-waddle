@@ -23,6 +23,8 @@ export type CopyTradeSignalTelemetry=Readonly<{
   tokenAddress:string
   side:'BUY'|'SELL'
   venue:CopyTradeVenue
+  observedAt:string
+  availableAt:string
   observationLagMs:number
   timingClass:'SUB_SECOND'|'FAST'|'DELAYED'
   memoryTier:'KNOWN'
@@ -44,7 +46,7 @@ export function observeWalletTradeSignal(input:ObservedWalletTrade):CopyTradeSig
   return Object.freeze({
     signalId:`copy-signal:${input.chainId}:${input.transactionId}:${input.walletId}`,
     evidenceId:input.evidenceId,walletId:input.walletId,tokenAddress:input.tokenAddress,side:input.side,venue:input.venue,
-    observationLagMs:lag,timingClass,memoryTier:'KNOWN',authority:'EVIDENCE_ONLY',canAutoCopy:false,canAuthorizeTrade:false,
+    observedAt:input.observedAt,availableAt:input.availableAt,observationLagMs:lag,timingClass,memoryTier:'KNOWN',authority:'EVIDENCE_ONLY',canAutoCopy:false,canAuthorizeTrade:false,
   })
 }
 
@@ -65,6 +67,7 @@ export function resolveCopyTradeSignal(input:{
   evidenceIds:readonly string[]
 }):CopyTradeResolvedOutcome{
   iso(input.resolvedAt,'shark_copy_trade_resolution_time_invalid')
+  if(Date.parse(input.resolvedAt)<Date.parse(input.signal.availableAt))throw new Error('shark_copy_trade_resolution_before_signal_available')
   if(!Number.isFinite(input.returnBps)||!input.evidenceIds.length)throw new Error('shark_copy_trade_resolution_invalid')
   return Object.freeze({
     signalId:input.signal.signalId,resolvedAt:input.resolvedAt,returnBps:input.returnBps,
