@@ -2,19 +2,52 @@ export type TrackKind = 'video' | 'audio' | 'overlay' | 'subtitle' | 'effect';
 export type BlendMode = 'normal' | 'screen' | 'multiply' | 'overlay' | 'add';
 export type GenerativeOperation = 'extend' | 'replace' | 'remove' | 'insert' | 'fill' | 'reframe' | 'retime';
 export type SfxGenerationStatus = 'requested' | 'approved' | 'generating' | 'ready' | 'rejected' | 'failed';
+export type TrackRelationship = 'primary-storyline' | 'connected' | 'lane';
+export type AudioRole = 'dialogue' | 'music' | 'sfx' | 'ambience' | 'foley' | 'other';
+
+export type ClipTransform = {
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+  rotationDegrees: number;
+};
+
+export type ClipCrop = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+};
+
+export type TimelineKeyframe = {
+  id: string;
+  property: string;
+  timeSeconds: number;
+  value: number | string | boolean;
+  interpolation?: 'linear' | 'smooth' | 'hold';
+};
 
 export type TimelineClip = {
   id: string;
   assetId: string;
   trackId: string;
+  name?: string;
   startSeconds: number;
   durationSeconds: number;
   sourceInSeconds?: number;
   sourceOutSeconds?: number;
+  sourceDurationSeconds?: number;
   muted?: boolean;
   volume?: number;
   opacity?: number;
   blendMode?: BlendMode;
+  speed?: number;
+  reverse?: boolean;
+  audioRole?: AudioRole;
+  transform?: ClipTransform;
+  crop?: ClipCrop;
+  keyframes?: TimelineKeyframe[];
   effects: EffectInstance[];
   generativeRegions: GenerativeRegion[];
 };
@@ -24,6 +57,8 @@ export type TimelineTrack = {
   name: string;
   kind: TrackKind;
   index: number;
+  relationship?: TrackRelationship;
+  connectedToClipId?: string;
   muted?: boolean;
   solo?: boolean;
   locked?: boolean;
