@@ -28,5 +28,5 @@ const coverage=computeSamMarketCoverage({intervals:[{postedFrom:'09/01/2025',pos
 assert.equal(coverage.complete,true)
 assert.equal(nextSamBootstrapWindow({intervals:[{postedFrom:'09/15/2026',postedTo:'09/21/2026'}],today:'2026-09-21',historyDays:365,windowDays:7})?.to,'2026-09-14')
 
-assert.equal(certifySamUsableFinal({runtimeBound:true,scanReceipts:1,marketCoverageComplete:true,marketCoverageDays:365,realNotices:3,noticesWithDocuments:3,noticesWithSubcontractability:3,noticesWithProviderCandidates:3,realProviderCandidates:3,provenanceComplete:true,unauthorizedExternalActions:0,silentFallbacks:0}).status,'pass')
+assert.equal(certifySamUsableFinal({runtimeBound:true,scanReceipts:1,marketCoverageComplete:true,marketCoverageDays:365,realNotices:3,noticesWithDocuments:3,noticesWithSubcontractability:3,noticesWithProviderCandidates:3,realProviderCandidates:3,noticesWithPursuitOptions:3,noticesWithTeamCoverage:3,noticesWithCommercialReadiness:3,provenanceComplete:true,unauthorizedExternalActions:0,silentFallbacks:0}).status,'pass')
 console.log('sam usable final domain tests passed')
