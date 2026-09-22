@@ -34,6 +34,9 @@ importers:
       '@jhadina/growth-core':
         specifier: workspace:*
         version: link:../../packages/growth-core
+      '@jhadina/music-core':
+        specifier: workspace:*
+        version: link:../../packages/music-core
       '@jhadina/money-core':
         specifier: workspace:*
         version: link:../../packages/money-core
