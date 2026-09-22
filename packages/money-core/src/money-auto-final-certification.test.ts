@@ -6,7 +6,7 @@ import { createMoneyActionCoreAuthority } from './action-core-authority-bridge.j
 import { createBrokerAccountEntitlement, InMemoryBrokerAccountEntitlementStore } from './broker-account-entitlement.js'
 import type { ExecutionAttempt, ExecutionAttemptOutcome, ExecutionAttemptStore } from './execution-attempt.js'
 import type { ExecutionPermit, PermitStore } from './execution-permit.js'
-import type { ExecutionPlan } from './execution-planning-contracts.js'
+import type { ExecutionPlan, ExecutionSlice } from './execution-planning-contracts.js'
 import type { LiveExecutionPreflight } from './live-preflight-contracts.js'
 import { InMemoryLiveCanaryStateStore } from './live-canary-store.js'
 import type { LiveCanaryPolicy, LiveRiskMetricSnapshot } from './live-canary-contracts.js'
@@ -73,7 +73,7 @@ const riskSnapshot=(overrides:Partial<AutonomousRiskSnapshot>={}):AutonomousRisk
 const plan:ExecutionPlan=Object.freeze({
   executionPlanId:'plan-1',rebalanceIntentId:'rebalance-1',portfolioPlanId:'portfolio-1',instrumentId:'stock:AAPL',side:'BUY',
   notional:{minor:5000n,currency:'USD'},urgency:'NORMAL',routeId:'route-1',marketSnapshotId:'market-1',
-  slices:Object.freeze([{sliceId:'slice-1',sequence:1,notional:{minor:5000n,currency:'USD'},instruction:'MARKETABLE_LIMIT',limitPriceMinor:20000n,earliestAt:t.childRequest,expiresAt:t.expiry,idempotencyKey:'slice-idem',authority:'NONE'}]),
+  slices:Object.freeze([{sliceId:'slice-1',sequence:1,notional:{minor:5000n,currency:'USD'},instruction:'MARKETABLE_LIMIT',limitPriceMinor:20000n,earliestAt:t.childRequest,expiresAt:t.expiry,idempotencyKey:'slice-idem',authority:'NONE'} satisfies ExecutionSlice]),
   maxSpreadBps:100,maxParticipationBps:1000,informationCutoff:t.childRequest,expiresAt:t.expiry,inputHash:'plan-input',provenanceHash:'plan-prov',authority:'ANALYSIS_ONLY',requiresHumanApproval:true,
 })
 const preflight:LiveExecutionPreflight=Object.freeze({
@@ -160,7 +160,7 @@ test('AUTO.6 autonomous executor submits without forging an interactive human tr
   canary.updateRiskMetrics(metric,'2026-09-21',t.execute)
   const policy:LiveCanaryPolicy={policyId:'auto-canary',currency:'USD',maxOrderNotionalMinor:10000n,maxDailySubmittedNotionalMinor:50000n,maxDailyOrders:5,maxDailyRealizedLossMinor:5000n,maxGrossExposureMinor:30000n,maxOpenUnknownExecutions:0,maxRiskMetricAgeSeconds:300,authority:'RISK_POLICY_ONLY'}
   let executionMode=''
-  const adapter:ManualLiveBrokerAdapter={provider:'broker-x',environment:'LIVE',async submitOrder(context){executionMode=context.executionMode;assert.equal(context.executionMode,'AUTONOMOUS');if(context.executionMode==='AUTONOMOUS')assert.equal(context.mandateId,m.mandateId);return{providerReference:'provider-1',providerEventId:'event-1',state:'ACKNOWLEDGED',occurredAt:t.execute,observedAt:t.execute,receivedAt:t.execute,availableAt:t.execute,evidenceIds:['provider:ack']}}}
+  const adapter:ManualLiveBrokerAdapter={provider:'broker-x',environment:'LIVE',async submitOrder(context){executionMode=context.executionMode ?? '';assert.equal(context.executionMode,'AUTONOMOUS');if(context.executionMode==='AUTONOMOUS')assert.equal(context.mandateId,m.mandateId);return{providerReference:'provider-1',providerEventId:'event-1',state:'ACKNOWLEDGED',occurredAt:t.execute,observedAt:t.execute,receivedAt:t.execute,availableAt:t.execute,evidenceIds:['provider:ack']}}}
   const result=await executeAutonomousLiveTrade({adapter,permitStore:permits,attemptStore:attempts,entitlementStore:entitlements,canaryStore:canary,canaryPolicy:policy,mandate:m,package:pkg,plan,now:t.execute,commandId:'auto-command-1',attemptIdFactory:()=> 'attempt-auto-1'})
   assert.equal(executionMode,'AUTONOMOUS');assert.equal(result.state,'SUBMITTED');assert.equal(permits.get('permit-exec')?.state,'CONSUMED')
   await assert.rejects(()=>executeAutonomousLiveTrade({adapter,permitStore:permits,attemptStore:attempts,entitlementStore:entitlements,canaryStore:canary,canaryPolicy:policy,mandate:m,package:pkg,plan,now:t.execute,commandId:'auto-command-replay',attemptIdFactory:()=> 'attempt-auto-2'}),/Permit is not executable|Permit replay|EXECUTION_PERMIT/)
