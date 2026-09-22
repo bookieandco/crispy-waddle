@@ -46,7 +46,7 @@ export function rankMonetizationRails(
   return [...groups.values()].map(group=>{
     const evidence=group.reduce((sum,item)=>sum+clamp(item.evidenceQuality),0)/group.length;
     const friction=group.reduce((sum,item)=>sum+clamp(item.frictionScore),0)/group.length;
-    const state=group.some(item=>item.state==='observed')?'observed':
+    const state:MonetizationRailSignal['state']=group.some(item=>item.state==='observed')?'observed':
       group.some(item=>item.state==='emerging')?'emerging':'hypothesis';
     const stateWeight=state==='observed'?1:state==='emerging'?0.7:0.35;
     const score=clamp(evidence*0.55+(1-friction)*0.25+stateWeight*0.2);
