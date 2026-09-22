@@ -1,6 +1,7 @@
 import type { GrowthId, ISODateTime } from "../domain/types.js";
 import type { CompetitorCreativePattern } from "./competitor-ad-observation.js";
 import type { CreativeEvidenceSignal } from "./creative-evidence-engine.js";
+import type { BinaryCreativeExperiment } from "../experiments/creative-ab-experiment.js";
 
 export type MetaAdCreativeFormat = "static_image" | "carousel" | "video" | "ugc_video";
 
@@ -164,4 +165,38 @@ export function buildDirectorIntentForMetaAdConcept(input: {
     "Do not invent product features, prices, reviews, endorsements, performance claims, or guarantees.",
     "Return creative production only. No campaign launch, spend, or publishing authority.",
   ].join("\n");
+}
+
+
+export function buildMetaCreativeExperimentBlueprints(input: {
+  plan: ResearchBackedMetaAdPlan;
+  controlConceptId: GrowthId;
+  minimumExposuresPerVariant?: number;
+  minimumConversionsPerVariant?: number;
+  alpha?: number;
+  minimumRelativeLift?: number;
+}): readonly BinaryCreativeExperiment[] {
+  const control = input.plan.concepts.find((concept) => concept.id === input.controlConceptId);
+  if (!control) throw new Error("GROWTH_META_RESEARCH_CONTROL_CONCEPT_NOT_FOUND");
+
+  const minimumExposuresPerVariant = input.minimumExposuresPerVariant ?? 1000;
+  const minimumConversionsPerVariant = input.minimumConversionsPerVariant ?? 20;
+  const alpha = input.alpha ?? 0.05;
+  const minimumRelativeLift = input.minimumRelativeLift ?? 0.1;
+
+  return Object.freeze(
+    input.plan.concepts
+      .filter((concept) => concept.id !== control.id)
+      .map((treatment) => Object.freeze({
+        id: `meta-ab:${input.plan.id}:${control.id}:vs:${treatment.id}`,
+        controlVariantId: control.id,
+        treatmentVariantId: treatment.id,
+        hypothesis: treatment.testHypothesis,
+        minimumExposuresPerVariant,
+        minimumConversionsPerVariant,
+        alpha,
+        minimumRelativeLift,
+        requireNonNegativeIncrementalContribution: true,
+      })),
+  );
 }
