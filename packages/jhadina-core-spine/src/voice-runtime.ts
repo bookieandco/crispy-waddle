@@ -94,11 +94,20 @@ export class JhadinaVoiceRuntime {
   ){}
 
   async listen(audio:VoiceTurnAudio,signal?:AbortSignal):Promise<JhadinaVoiceTurn>{
-    const provider=this.asr.find(item=>item.supports(audio.languageHint));
-    if(!provider)throw new Error('JHADINA_VOICE_ASR_UNAVAILABLE');
-    const transcript=await provider.transcribe(audio,signal);
-    const acousticSignals=this.observer?await this.observer.observe(audio,transcript,signal):undefined;
-    return Object.freeze({transcript,...(acousticSignals?{acousticSignals}: {})});
+    const candidates=this.asr.filter(item=>item.supports(audio.languageHint));
+    if(!candidates.length)throw new Error('JHADINA_VOICE_ASR_UNAVAILABLE');
+    const failures:string[]=[];
+    for(const provider of candidates){
+      try{
+        const transcript=await provider.transcribe(audio,signal);
+        const acousticSignals=this.observer?await this.observer.observe(audio,transcript,signal):undefined;
+        return Object.freeze({transcript,...(acousticSignals?{acousticSignals}: {})});
+      }catch(error){
+        if(signal?.aborted)throw error;
+        failures.push(`${provider.id}:${error instanceof Error?error.message:'failed'}`);
+      }
+    }
+    throw new Error(`JHADINA_VOICE_ASR_FAILED:${failures.join('|')}`);
   }
 
   async speak(request:VoiceSynthesisRequest,signal?:AbortSignal):Promise<VoiceSynthesisResult>{
@@ -106,9 +115,20 @@ export class JhadinaVoiceRuntime {
       .map(id=>this.tts.find(item=>item.id===id))
       .find((item):item is JhadinaTtsProvider=>Boolean(item?.supports(request.language)));
     const fallback=this.tts.find(item=>item.supports(request.language));
-    const provider=preferred??fallback;
-    if(!provider)throw new Error('JHADINA_VOICE_TTS_UNAVAILABLE');
-    return provider.synthesize(request,signal);
+    const ordered=[
+      ...(preferred?[preferred]:[]),
+      ...this.tts.filter(item=>item!==preferred && item.supports(request.language)),
+    ];
+    if(!ordered.length)throw new Error('JHADINA_VOICE_TTS_UNAVAILABLE');
+    const failures:string[]=[];
+    for(const provider of ordered){
+      try{return await provider.synthesize(request,signal);}
+      catch(error){
+        if(signal?.aborted)throw error;
+        failures.push(`${provider.id}:${error instanceof Error?error.message:'failed'}`);
+      }
+    }
+    throw new Error(`JHADINA_VOICE_TTS_FAILED:${failures.join('|')}`);
   }
 }
 
