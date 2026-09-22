@@ -16,6 +16,8 @@ describe('Meteora DLMM profitability evidence',()=>{
   expect(r.realizedPnlMinor).toBe(12000n)
   expect(r.realizationStatus).toBe('CLOSED_COMPLETE')
   expect(r.authority).toBe('RESEARCH_ONLY')
+  expect(r.methodology).toBe('OBSERVED_CASH_FLOW_RECONCILIATION')
+  expect(r.estimateStatus).toBe('OBSERVED_ONLY')
  })
 
  it('does not call deployed/open capital a realized loss',()=>{
@@ -45,6 +47,7 @@ describe('Meteora DLMM profitability evidence',()=>{
   expect(r.realizedPnlMinor).toBeNull()
   expect(r.realizationStatus).toBe('PROVISIONAL_INCOMPLETE')
   expect(r.excludedFutureEvidenceIds).toEqual(['future-withdraw'])
+  expect(r.estimateStatus).toBe('ESTIMATE_BLOCKED_INCOMPLETE')
  })
 
  it('fails closed on duplicate or mismatched cash-flow evidence',()=>{
