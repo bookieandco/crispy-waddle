@@ -38,8 +38,8 @@ export function createSharkSimulationLearningEnvelope(input:{
  assertOpportunityBoundary(input.opportunity)
  if(input.opportunity.subjectId!==input.research.subjectId)throw new Error('MONEY_SHARK_LEARNING_SUBJECT_MISMATCH')
  if(input.opportunity.riskStatus!=='ASSESSED'||input.opportunity.liquidityStatus!=='ASSESSED')throw new Error('MONEY_SHARK_LEARNING_OPPORTUNITY_NOT_GOVERNED')
- const expectedEvidenceId=`fusion-evidence:shark:${input.research.sourceAssessmentId}`
- if(!input.opportunity.evidenceIds.includes(expectedEvidenceId))throw new Error('MONEY_SHARK_LEARNING_SOURCE_LINEAGE_MISSING')
+ const expectedEvidencePrefix=`fusion-evidence:shark:${input.research.sourceAssessmentId}:`
+ if(!input.opportunity.evidenceIds.some(id=>id.startsWith(expectedEvidencePrefix)))throw new Error('MONEY_SHARK_LEARNING_SOURCE_LINEAGE_MISSING')
  if(input.result.authority!=='LEARNING_ONLY'||input.result.paperRunId.trim()==='')throw new Error('MONEY_SHARK_LEARNING_RESULT_INVALID')
  if(!input.strategyId.trim()||!input.scenarioId.trim())throw new Error('MONEY_SHARK_LEARNING_IDENTITY_REQUIRED')
  if(!input.createdAt||Number.isNaN(Date.parse(input.createdAt))||input.createdAt<input.result.endedAt)throw new Error('MONEY_SHARK_LEARNING_TIME_INVALID')

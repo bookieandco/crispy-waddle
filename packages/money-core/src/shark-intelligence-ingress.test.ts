@@ -4,6 +4,7 @@ import {
   assertSharkMoneyResearchOnly,
   assertSharkResearchIngress,
   ingestSharkResearch,
+  sharkResearchToFusionEvidence,
   sharkResearchToGovernedIntelligence,
   type SharkMoneyTransportEnvelope,
   type SharkResearchIngressContext,
@@ -19,7 +20,7 @@ const context: SharkResearchIngressContext = {
 
 function envelope(): SharkMoneyTransportEnvelope {
   return {
-    schemaVersion: 'SHARK-MONEY-01',
+    schemaVersion: 'SHARK-MONEY-02',
     envelopeId: 'shark-envelope-1',
     proposal: {
       proposalId: 'meme-trade-proposal_a1',
@@ -35,8 +36,9 @@ function envelope(): SharkMoneyTransportEnvelope {
       chainId: 'solana-mainnet',
       tokenAddress: 'TOKEN1',
       assessedAt: '2026-09-21T20:00:00Z',
+      informationCutoff: '2026-09-21T19:59:59Z',
       tradeType: 'new-pair-speculation',
-      assessmentVersion: 'meme-trader-assessment-v5-authoritative-lp',
+      assessmentVersion: 'meme-trader-assessment-v6-multi-venue-liquidity-control',
       thesis: 'Candidate has strong activity but requires independent Money review.',
       confidence: 0.7,
       sourceRisk: { overallRisk: 0.3, band: 'candidate' },
@@ -44,8 +46,14 @@ function envelope(): SharkMoneyTransportEnvelope {
       evidenceRefs: [
         {
           evidenceId: 'dexscreener:obs:1',
-          source: 'meme-trader',
-          observedAt: '2026-09-21T19:59:59Z',
+          source: 'dexscreener',
+          sourceGroup: 'dexscreener-market',
+          stance: 'SUPPORTS',
+          direction: 'BULLISH',
+          strength: 0.7,
+          confidence: 0.8,
+          observedAt: '2026-09-21T19:59:58Z',
+          availableAt: '2026-09-21T19:59:59Z',
           summary: 'Market observation used by SHARK.',
           immutable: true,
         },
@@ -73,55 +81,135 @@ test('SHARK-MONEY.1 ingests SHARK as research-only and forces independent Money 
   assert.equal(artifact.assessment.liquidityStatus, 'UNEVALUATED')
   assert.equal(artifact.assessment.simulationStatus, 'UNEVALUATED')
   assert.equal(artifact.assessment.authorityStatus, 'MISSING')
+  assert.equal(artifact.informationCutoff, '2026-09-21T19:59:59Z')
+  assert.deepEqual(artifact.evidenceIntegrity.sourceGroups, ['shark:dexscreener-market'])
   assert.equal(artifact.financialAuthority, 'NONE')
   assert.equal(artifact.capitalAuthority, 'NONE')
   assert.equal(artifact.executionAuthority, 'NONE')
   assert.equal(artifact.protectedFundAuthority, 'NONE')
-  assert.equal(artifact.sourceRisk.overallRisk, 0.3)
   assertSharkMoneyResearchOnly(artifact)
 })
 
-test('SHARK-MONEY.2 rejects a source PROCEED decision at the ingress boundary', () => {
-  const bad = structuredClone(envelope()) as any
-  bad.proposal.disposition = 'PROCEED'
-  assert.throws(
-    () => assertSharkResearchIngress(bad, context),
-    /MONEY_SHARK_PROCEED_DISPOSITION_FORBIDDEN/,
-  )
-})
+test('SHARK-MONEY.2 rejects old schema, source PROCEED, and authority escalation', () => {
+  const old = structuredClone(envelope()) as any
+  old.schemaVersion = 'SHARK-MONEY-01'
+  assert.throws(() => assertSharkResearchIngress(old, context), /SCHEMA_VERSION_UNSUPPORTED/)
 
-test('SHARK-MONEY.3 rejects execution or protected-capital authority escalation', () => {
+  const proceed = structuredClone(envelope()) as any
+  proceed.proposal.disposition = 'PROCEED'
+  assert.throws(() => assertSharkResearchIngress(proceed, context), /PROCEED_DISPOSITION_FORBIDDEN/)
+
   const capital = structuredClone(envelope()) as any
   capital.authority.capitalAccess = 'GRANTED'
-  assert.throws(
-    () => assertSharkResearchIngress(capital, context),
-    /MONEY_SHARK_AUTHORITY_ESCALATION_FORBIDDEN/,
-  )
+  assert.throws(() => assertSharkResearchIngress(capital, context), /AUTHORITY_ESCALATION_FORBIDDEN/)
 
   const trade = structuredClone(envelope()) as any
   trade.proposal.recommendation = 'use money.trade.submit now'
-  assert.throws(
-    () => assertSharkResearchIngress(trade, context),
-    /MONEY_SHARK_EXECUTION_MATERIAL_FORBIDDEN/,
-  )
+  assert.throws(() => assertSharkResearchIngress(trade, context), /EXECUTION_MATERIAL_FORBIDDEN/)
 })
 
-test('SHARK-MONEY.4 rejects mutable, duplicated, and future evidence', () => {
+test('SHARK-MONEY.3 information cutoff is PIT and evidence availability cannot leak forward', () => {
+  const futureCutoff = structuredClone(envelope()) as any
+  futureCutoff.assessment.informationCutoff = '2026-09-21T20:00:01Z'
+  assert.throws(() => assertSharkResearchIngress(futureCutoff, context), /CUTOFF_AFTER_ASSESSMENT/)
+
+  const afterCutoff = structuredClone(envelope()) as any
+  afterCutoff.assessment.evidenceRefs[0].availableAt = '2026-09-21T20:00:00Z'
+  assert.throws(() => assertSharkResearchIngress(afterCutoff, context), /EVIDENCE_AFTER_CUTOFF/)
+
+  const impossibleAvailability = structuredClone(envelope()) as any
+  impossibleAvailability.assessment.evidenceRefs[0].observedAt = '2026-09-21T19:59:59Z'
+  impossibleAvailability.assessment.evidenceRefs[0].availableAt = '2026-09-21T19:59:58Z'
+  assert.throws(() => assertSharkResearchIngress(impossibleAvailability, context), /AVAILABLE_BEFORE_OBSERVED/)
+})
+
+test('SHARK-MONEY.4 rejects mutable, duplicated, and unclassified evidence', () => {
   const mutable = structuredClone(envelope()) as any
   mutable.assessment.evidenceRefs[0].immutable = false
-  assert.throws(() => assertSharkResearchIngress(mutable, context), /MONEY_SHARK_MUTABLE_EVIDENCE_FORBIDDEN/)
+  assert.throws(() => assertSharkResearchIngress(mutable, context), /MUTABLE_EVIDENCE_FORBIDDEN/)
 
   const duplicate = structuredClone(envelope()) as any
   duplicate.assessment.evidenceRefs.push({ ...duplicate.assessment.evidenceRefs[0] })
-  assert.throws(() => assertSharkResearchIngress(duplicate, context), /MONEY_SHARK_DUPLICATE_EVIDENCE/)
+  assert.throws(() => assertSharkResearchIngress(duplicate, context), /DUPLICATE_EVIDENCE/)
 
-  const future = structuredClone(envelope()) as any
-  future.assessment.evidenceRefs[0].observedAt = '2026-09-21T20:00:01Z'
-  assert.throws(() => assertSharkResearchIngress(future, context), /MONEY_SHARK_EVIDENCE_AFTER_ASSESSMENT/)
+  const noGroup = structuredClone(envelope()) as any
+  noGroup.assessment.evidenceRefs[0].sourceGroup = ''
+  assert.throws(() => assertSharkResearchIngress(noGroup, context), /SOURCE_GROUP_REQUIRED/)
+
+  const badStance = structuredClone(envelope()) as any
+  badStance.assessment.evidenceRefs[0].stance = 'MAYBE'
+  assert.throws(() => assertSharkResearchIngress(badStance, context), /EVIDENCE_STANCE_INVALID/)
 })
 
+test('SHARK-MONEY.5 preserves independent source groups as separate Money fusion evidence', () => {
+  const multi = structuredClone(envelope()) as any
+  multi.assessment.evidenceRefs.push({
+    evidenceId: 'helius:wallet:1',
+    source: 'helius',
+    sourceGroup: 'helius-chain',
+    stance: 'SUPPORTS',
+    direction: 'BULLISH',
+    strength: 0.6,
+    confidence: 0.9,
+    observedAt: '2026-09-21T19:59:57Z',
+    availableAt: '2026-09-21T19:59:59Z',
+    summary: 'Independent chain evidence.',
+    immutable: true,
+  })
+  const research = ingestSharkResearch(multi, context)
+  const evidence = sharkResearchToFusionEvidence({
+    artifact: research,
+    instrumentId: 'crypto:solana-mainnet:TOKEN1',
+    expiresAt: '2026-09-21T21:00:00Z',
+  })
+  assert.equal(evidence.length, 2)
+  assert.deepEqual(evidence.map((item) => item.sourceGroup).sort(), ['shark:dexscreener-market', 'shark:helius-chain'])
+  assert.ok(evidence.every((item) => item.authority === 'NONE'))
+  assert.ok(evidence.every((item) => item.availableAt <= research.informationCutoff))
+  assert.throws(() => sharkResearchToGovernedIntelligence({
+    artifact: research,
+    instrumentId: 'crypto:solana-mainnet:TOKEN1',
+    direction: 'BULLISH',
+    strength: 0.6,
+    expiresAt: '2026-09-21T21:00:00Z',
+  }), /AGGREGATE_SOURCE_INDEPENDENCE_LOSS/)
+})
 
-test('SHARK-MONEY.5 cross-asset admission remains evidence-only and cannot skip Money governance', () => {
+test('SHARK-MONEY.6 contradictions survive ingress and force review', () => {
+  const conflicting = structuredClone(envelope()) as any
+  conflicting.assessment.evidenceRefs.push({
+    evidenceId: 'liquidity:drain:1',
+    source: 'onchain-liquidity',
+    sourceGroup: 'pool-state',
+    stance: 'CONTRADICTS',
+    direction: 'BEARISH',
+    strength: 0.9,
+    confidence: 0.95,
+    observedAt: '2026-09-21T19:59:58Z',
+    availableAt: '2026-09-21T19:59:59Z',
+    summary: 'Liquidity deterioration contradicts the positive thesis.',
+    immutable: true,
+  })
+  const research = ingestSharkResearch(conflicting, context)
+  assert.equal(research.assessment.disposition, 'REQUIRES_REVIEW')
+  assert.deepEqual(research.evidenceIntegrity.contradictingEvidenceIds, ['liquidity:drain:1'])
+  assert.deepEqual(research.evidenceIntegrity.unresolvedContradictionIds, ['shark-contradiction:a1:liquidity:drain:1'])
+  const fusion = sharkResearchToFusionEvidence({
+    artifact: research,
+    instrumentId: 'crypto:solana-mainnet:TOKEN1',
+    expiresAt: '2026-09-21T21:00:00Z',
+  })
+  assert.equal(fusion.find((item) => item.evidenceId.endsWith('liquidity:drain:1'))?.stance, 'CONTRADICTS')
+  assert.throws(() => sharkResearchToGovernedIntelligence({
+    artifact: research,
+    instrumentId: 'crypto:solana-mainnet:TOKEN1',
+    direction: 'BULLISH',
+    strength: 0.6,
+    expiresAt: '2026-09-21T21:00:00Z',
+  }), /AGGREGATE_CONTRADICTION_FORBIDDEN/)
+})
+
+test('SHARK-MONEY.7 single-source non-contradictory compatibility adapter remains evidence-only', () => {
   const research = ingestSharkResearch(envelope(), context)
   const artifact = sharkResearchToGovernedIntelligence({
     artifact: research,
