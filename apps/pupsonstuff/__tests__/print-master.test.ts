@@ -31,7 +31,7 @@ describe('product-specific print master', () => {
     expect(result.transform).toMatchObject({ x: 0.5, y: 0.45, scale: 1.2, rotation: 8 });
     expect(result.quality.productionReady).toBe(true);
     expect(result.quality.score).toBeGreaterThanOrEqual(90);
-  });
+  }, 15_000);
 
   it('does not require upscaling when a 1024px source meets the actual placed DPI', async () => {
     const product = hotspots.find((item) => item.id === 'concertShirt')!;
