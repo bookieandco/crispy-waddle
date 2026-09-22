@@ -54,7 +54,9 @@ describe('GenerationSubmissionCoordinator', () => {
     const staleResult = await repository.acknowledgeSubmissionAndSaveState(reservation!.id, 'worker-a', claimed!.leaseToken!, execution!.leaseToken!, 'provider-job-stale-1', { ...task, status: 'completed', updatedAt: '2026-09-01T00:00:01.000Z' }, { ...execution!, status: 'completed', providerJobId: 'provider-job-stale-1', updatedAt: '2026-09-01T00:00:01.000Z' });
     expect(replacement?.leaseToken).not.toBe(execution?.leaseToken); expect(staleResult).toBeUndefined();
     await expect(repository.getTask(task.id)).resolves.toMatchObject({ status: 'queued' });
-    await expect(repository.getExecution(execution!.id)).resolves.toMatchObject({ leaseOwner: 'worker-b', providerJobId: undefined });
+    const durableExecution = await repository.getExecution(execution!.id);
+    expect(durableExecution).toMatchObject({ leaseOwner: 'worker-b' });
+    expect(durableExecution?.providerJobId).toBeUndefined();
     await expect(repository.getSubmissionByIdempotencyKey('provider-1', task.idempotencyKey)).resolves.toMatchObject({ status: 'submitting', leaseOwner: 'worker-a' });
   });
 
@@ -66,7 +68,9 @@ describe('GenerationSubmissionCoordinator', () => {
     const second = await repository.claimSubmission(reservation!.id, 'worker-b', 30_000); expect(second?.leaseToken).not.toBe(first?.leaseToken);
     const rejected = await repository.acknowledgeSubmissionAndSaveState(reservation!.id, 'worker-a', first!.leaseToken!, execution!.leaseToken!, 'provider-job-stale-submission', { ...task, status: 'completed' }, { ...execution!, status: 'completed', providerJobId: 'provider-job-stale-submission' });
     expect(rejected).toBeUndefined();
-    await expect(repository.getSubmissionByIdempotencyKey('provider-1', task.idempotencyKey)).resolves.toMatchObject({ status: 'submitting', leaseOwner: 'worker-b', providerJobId: undefined });
+    const durableSubmission = await repository.getSubmissionByIdempotencyKey('provider-1', task.idempotencyKey);
+    expect(durableSubmission).toMatchObject({ status: 'submitting', leaseOwner: 'worker-b' });
+    expect(durableSubmission?.providerJobId).toBeUndefined();
     await expect(repository.getTask(task.id)).resolves.toMatchObject({ status: 'queued' });
   });
 });
