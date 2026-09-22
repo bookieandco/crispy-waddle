@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 type Body = {
   projectId?: string;
-  productBible?: ProductIdentityBible;
+  productBibleId?: string;
   styleBible?: VisualStyleBible;
   concept?: Omit<CommercialCreativeConcept, 'authority'> | CommercialCreativeConcept;
   sourceContentProjectId?: string;
@@ -36,13 +36,13 @@ export async function POST(request: Request) {
   }
 
   const projectId = body.projectId?.trim() ?? '';
-  const productBible = body.productBible;
+  const productBibleId = body.productBibleId?.trim() ?? '';
   const styleBible = body.styleBible;
   const conceptInput = body.concept;
-  if (!projectId || !productBible || !styleBible || !conceptInput) {
+  if (!projectId || !productBibleId || !styleBible || !conceptInput) {
     return NextResponse.json({
       ok: false,
-      error: 'projectId, productBible, styleBible and concept are required',
+      error: 'projectId, productBibleId, styleBible and concept are required',
     }, { status: 400 });
   }
 
@@ -60,10 +60,25 @@ export async function POST(request: Request) {
     );
   }
 
-  if (productBible.projectId !== projectId || styleBible.projectId !== projectId || conceptInput.projectId !== projectId) {
+  if (styleBible.projectId !== projectId || conceptInput.projectId !== projectId) {
     return NextResponse.json({ ok: false, error: 'DIRECTOR_AD_PROJECT_MISMATCH' }, { status: 409 });
   }
 
+  const { data: productBibleRow, error: productBibleReadError } = await privileged
+    .from('director_product_bibles')
+    .select('id,project_id,product_id,canonical_variant_id,bible')
+    .eq('id', productBibleId)
+    .eq('project_id', projectId)
+    .maybeSingle();
+
+  if (productBibleReadError) {
+    return NextResponse.json({ ok: false, error: productBibleReadError.message }, { status: 500 });
+  }
+  if (!productBibleRow) {
+    return NextResponse.json({ ok: false, error: 'DIRECTOR_AD_PRODUCT_BIBLE_NOT_FOUND' }, { status: 404 });
+  }
+
+  const productBible = productBibleRow.bible as ProductIdentityBible;
   const productErrors = validateProductIdentityBible(productBible);
   const styleErrors = validateVisualStyleBible(styleBible);
   if (productErrors.length || styleErrors.length) {
@@ -88,7 +103,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (concept.productBibleId !== productBible.id || concept.styleBibleId !== styleBible.id) {
+  if (concept.productBibleId !== productBibleId || concept.styleBibleId !== styleBible.id) {
     return NextResponse.json({ ok: false, error: 'DIRECTOR_AD_BIBLE_MISMATCH' }, { status: 409 });
   }
 
@@ -96,7 +111,7 @@ export async function POST(request: Request) {
   const { data, error } = await privileged.rpc('save_director_commercial_creative_bundle', {
     p_user_id: user.id,
     p_project_id: projectId,
-    p_product_bible: productBible,
+    p_product_bible_id: productBibleId,
     p_style_bible: styleBible,
     p_concept: concept,
     p_source_content_project_id: body.sourceContentProjectId?.trim() ?? '',
@@ -111,7 +126,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     creative: data,
-    productBibleId: productBible.id,
+    productBibleId,
     styleBibleId: styleBible.id,
     conceptId: concept.id,
     authority: concept.authority,
