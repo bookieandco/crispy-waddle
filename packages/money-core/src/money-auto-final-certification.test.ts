@@ -144,8 +144,8 @@ test('AUTO.5 child trade authority remains Action Core bound and permit is singl
   const m=mandate(),i=intent(),risk=evaluateAutonomousRisk({mandate:m,intent:i,snapshot:riskSnapshot(),now:t.childAuthorized})
   const request=buildAutonomousTradeActionRequest({actionId:'trade-1',mandate:m,intent:i,requestedAt:t.childRequest})
   const authority=createMoneyActionCoreAuthority(request,{authorityId:'authority-child-1',decision:'allow',policyVersion:m.policyVersion,policyHash:m.policyHash,authorizedAt:t.childAuthorized,expiresAt:t.expiry})
-  const permits=new MemoryPermitStore()
-  const pkg=await issueAutonomousTradePermitPackage({permitStore:permits,request,authority,mandate:m,intent:i,risk,plan,preflight,entitlement,authorizedAt:t.childAuthorized,permitExpiresAt:t.permitExpiry,permitId:'permit-auto-1',nonce:'nonce-auto-1'})
+  const permits=new MemoryPermitStore(),mandates=new InMemoryAutonomousTradingMandateStore();mandates.put(m)
+  const pkg=await issueAutonomousTradePermitPackage({permitStore:permits,mandateStore:mandates,request,authority,mandate:m,intent:i,risk,plan,preflight,entitlement,authorizedAt:t.childAuthorized,permitExpiresAt:t.permitExpiry,permitId:'permit-auto-1',nonce:'nonce-auto-1'})
   assert.equal(pkg.permit.binding.approvalId,m.approvalReceiptId);assert.equal(pkg.action.mandateId,m.mandateId);assert.equal(pkg.action.strategyId,i.strategyId)
   assert.equal(permits.get('permit-auto-1')?.state,'ISSUED')
 })
@@ -154,17 +154,17 @@ test('AUTO.6 autonomous executor submits without forging an interactive human tr
   const m=mandate(),i=intent(),risk=evaluateAutonomousRisk({mandate:m,intent:i,snapshot:riskSnapshot(),now:t.childAuthorized})
   const request=buildAutonomousTradeActionRequest({actionId:'trade-exec-1',mandate:m,intent:i,requestedAt:t.childRequest})
   const authority=createMoneyActionCoreAuthority(request,{authorityId:'authority-child-exec',decision:'allow',policyVersion:m.policyVersion,policyHash:m.policyHash,authorizedAt:t.childAuthorized,expiresAt:t.expiry})
-  const permits=new MemoryPermitStore(),attempts=new MemoryAttemptStore(),entitlements=new InMemoryBrokerAccountEntitlementStore();entitlements.put(entitlement)
-  const pkg=await issueAutonomousTradePermitPackage({permitStore:permits,request,authority,mandate:m,intent:i,risk,plan,preflight,entitlement,authorizedAt:t.childAuthorized,permitExpiresAt:t.permitExpiry,permitId:'permit-exec',nonce:'nonce-exec'})
+  const permits=new MemoryPermitStore(),attempts=new MemoryAttemptStore(),entitlements=new InMemoryBrokerAccountEntitlementStore(),mandates=new InMemoryAutonomousTradingMandateStore();entitlements.put(entitlement);mandates.put(m)
+  const pkg=await issueAutonomousTradePermitPackage({permitStore:permits,mandateStore:mandates,request,authority,mandate:m,intent:i,risk,plan,preflight,entitlement,authorizedAt:t.childAuthorized,permitExpiresAt:t.permitExpiry,permitId:'permit-exec',nonce:'nonce-exec'})
   const canary=new InMemoryLiveCanaryStateStore()
   const metric:LiveRiskMetricSnapshot={snapshotId:'live-risk-1',provider:'broker-x',accountId:'acct-1',currency:'USD',grossExposureMinor:5000n,realizedPnlMinor:0n,observedAt:t.childRequest,availableAt:t.childRequest,evidenceIds:['live-risk'],authority:'EVIDENCE_ONLY'}
   canary.updateRiskMetrics(metric,'2026-09-21',t.execute)
   const policy:LiveCanaryPolicy={policyId:'auto-canary',currency:'USD',maxOrderNotionalMinor:10000n,maxDailySubmittedNotionalMinor:50000n,maxDailyOrders:5,maxDailyRealizedLossMinor:5000n,maxGrossExposureMinor:30000n,maxOpenUnknownExecutions:0,maxRiskMetricAgeSeconds:300,authority:'RISK_POLICY_ONLY'}
   let executionMode=''
   const adapter:ManualLiveBrokerAdapter={provider:'broker-x',environment:'LIVE',async submitOrder(context){executionMode=context.executionMode??'';assert.equal(context.executionMode,'AUTONOMOUS');if(context.executionMode==='AUTONOMOUS')assert.equal(context.mandateId,m.mandateId);return{providerReference:'provider-1',providerEventId:'event-1',state:'ACKNOWLEDGED',occurredAt:t.execute,observedAt:t.execute,receivedAt:t.execute,availableAt:t.execute,evidenceIds:['provider:ack']}}}
-  const result=await executeAutonomousLiveTrade({adapter,permitStore:permits,attemptStore:attempts,entitlementStore:entitlements,canaryStore:canary,canaryPolicy:policy,mandate:m,package:pkg,plan,now:t.execute,commandId:'auto-command-1',attemptIdFactory:()=> 'attempt-auto-1'})
+  const result=await executeAutonomousLiveTrade({adapter,permitStore:permits,mandateStore:mandates,attemptStore:attempts,entitlementStore:entitlements,canaryStore:canary,canaryPolicy:policy,mandate:m,package:pkg,plan,now:t.execute,commandId:'auto-command-1',attemptIdFactory:()=> 'attempt-auto-1'})
   assert.equal(executionMode,'AUTONOMOUS');assert.equal(result.state,'SUBMITTED');assert.equal(permits.get('permit-exec')?.state,'CONSUMED')
-  await assert.rejects(()=>executeAutonomousLiveTrade({adapter,permitStore:permits,attemptStore:attempts,entitlementStore:entitlements,canaryStore:canary,canaryPolicy:policy,mandate:m,package:pkg,plan,now:t.execute,commandId:'auto-command-replay',attemptIdFactory:()=> 'attempt-auto-2'}),/Permit is not executable|Permit replay|EXECUTION_PERMIT/)
+  await assert.rejects(()=>executeAutonomousLiveTrade({adapter,permitStore:permits,mandateStore:mandates,attemptStore:attempts,entitlementStore:entitlements,canaryStore:canary,canaryPolicy:policy,mandate:m,package:pkg,plan,now:t.execute,commandId:'auto-command-replay',attemptIdFactory:()=> 'attempt-auto-2'}),/Permit is not executable|Permit replay|EXECUTION_PERMIT/)
 })
 
 test('AUTO.7 manual mode remains semantically separate and rejects autonomous trigger substitution',()=>{
