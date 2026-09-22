@@ -1,4 +1,4 @@
-import type { Opportunity, OpportunityLearningSignal, OpportunityOutcome, OpportunityPursuitCase, OpportunityStatus, PursuitTaskStatus } from "@jhadina/opportunity-core"
+import { evaluateSideHustleExperiment } from "@jhadina/opportunity-core"\nimport type { Opportunity, OpportunityLearningSignal, OpportunityOutcome, OpportunityPursuitCase, OpportunityStatus, PursuitTaskStatus, SideHustleExperiment, SideHustleExperimentEvaluation, SideHustleExperimentObservation } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
 import type { StoredCanonicalOpportunity } from "./canonical"
 import type { OpportunityTriageState } from "./sideIncome"
@@ -19,6 +19,20 @@ type OpportunityRow = {
   payload: Opportunity
   created_at: string
   updated_at: string
+}
+
+type SideHustleExperimentRow = {
+  payload: SideHustleExperiment
+}
+
+type SideHustleExperimentObservationRow = {
+  payload: SideHustleExperimentObservation
+}
+
+export type StoredSideHustleExperiment = {
+  experiment: SideHustleExperiment
+  observations: SideHustleExperimentObservation[]
+  evaluation?: SideHustleExperimentEvaluation
 }
 
 function toStored(row: OpportunityRow): StoredCanonicalOpportunity {
