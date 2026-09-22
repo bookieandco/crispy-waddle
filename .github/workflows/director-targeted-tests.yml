@@ -68,6 +68,7 @@ jobs:
           src/whole-video-provider.test.ts
           src/commercial-creative-lab.test.ts
           src/product-reference-bootstrap.test.ts
+          src/paid-video-generation.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
       - name: Workstation authority, Studio QC and Social bridge
         run: >
