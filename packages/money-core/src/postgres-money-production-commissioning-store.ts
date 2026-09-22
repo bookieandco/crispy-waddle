@@ -1,5 +1,5 @@
 import type { SqlClient } from './postgres-idempotency-store.js'
-import type { MoneyProductionCommissioningReceipt,MoneyProductionLane,MoneyProductionReceiptKind } from './money-production-commissioning.js'
+import type { MoneyProductionCommissioningReceipt,MoneyProductionLane,MoneyProductionReceiptKind,MoneyProductionPlatformReceipt,MoneyProductionPlatformReceiptKind } from './money-production-commissioning.js'
 
 type ReceiptRow=Readonly<{
   receipt_id:string
@@ -48,5 +48,44 @@ export class PostgresMoneyProductionCommissioningStore{
   async listAll():Promise<readonly MoneyProductionCommissioningReceipt[]>{
     const r=await this.client.query<ReceiptRow>(`SELECT receipt_id,lane,kind,provider,environment,passed,recorded_at,evidence_ids,issuer FROM ${this.table} ORDER BY recorded_at ASC,receipt_id ASC`)
     return Object.freeze(r.rows.map(mapRow))
+  }
+}
+
+
+type PlatformRow=Readonly<{
+  receipt_id:string
+  kind:MoneyProductionPlatformReceiptKind
+  environment:'LIVE'
+  passed:boolean
+  revision:string|null
+  recorded_at:string|Date
+  evidence_ids:string[]
+  issuer:'MONEY_CERTIFICATION'|'OPERATIONS'
+}>
+
+function mapPlatformRow(row:PlatformRow):MoneyProductionPlatformReceipt{
+  return Object.freeze({
+    receiptId:row.receipt_id,kind:row.kind,environment:'LIVE',passed:row.passed,revision:row.revision??undefined,
+    recordedAt:iso(row.recorded_at),evidenceIds:Object.freeze(row.evidence_ids??[]),issuer:row.issuer,authority:'CERTIFICATION_ONLY',canExecute:false,
+  })
+}
+
+export class PostgresMoneyProductionPlatformStore{
+  private readonly table:string
+  constructor(private readonly client:SqlClient,tableName='money_production_platform_receipts'){this.table=safe(tableName)}
+  async put(receipt:MoneyProductionPlatformReceipt):Promise<void>{
+    if(receipt.authority!=='CERTIFICATION_ONLY'||receipt.canExecute!==false)throw new Error('MONEY_PROD_PLATFORM_RECEIPT_AUTHORITY_FORBIDDEN')
+    const r=await this.client.query(
+      `INSERT INTO ${this.table}(receipt_id,kind,environment,passed,revision,recorded_at,evidence_ids,issuer)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT(receipt_id) DO NOTHING
+       RETURNING receipt_id`,
+      [receipt.receiptId,receipt.kind,receipt.environment,receipt.passed,receipt.revision??null,receipt.recordedAt,[...receipt.evidenceIds],receipt.issuer],
+    )
+    if((r.rowCount??r.rows.length)!==1)throw new Error('MONEY_PROD_PLATFORM_RECEIPT_EXISTS')
+  }
+  async listAll():Promise<readonly MoneyProductionPlatformReceipt[]>{
+    const r=await this.client.query<PlatformRow>(`SELECT receipt_id,kind,environment,passed,revision,recorded_at,evidence_ids,issuer FROM ${this.table} ORDER BY recorded_at ASC,receipt_id ASC`)
+    return Object.freeze(r.rows.map(mapPlatformRow))
   }
 }
