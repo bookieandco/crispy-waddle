@@ -77,7 +77,9 @@ export async function POST(request: Request) {
 
   let concept: CommercialCreativeConcept;
   try {
-    const { authority: _ignored, ...withoutAuthority } = conceptInput as CommercialCreativeConcept;
+    const withoutAuthority = Object.fromEntries(
+      Object.entries(conceptInput).filter(([key]) => key !== 'authority'),
+    ) as Omit<CommercialCreativeConcept, 'authority'>;
     concept = createCommercialCreativeConcept(withoutAuthority);
   } catch (error) {
     return NextResponse.json(
