@@ -161,6 +161,22 @@ The join fails if:
 
 The fused state records `fundamentalLagMs` so later intelligence can distinguish same-cutoff fundamentals from older reported fundamentals.
 
+## Visual chart-pattern research source
+
+The Roboflow Universe dataset `MOD5GEN20/stocks-2ulc2` is captured as an **external research/training reference** for a future chart-vision layer.
+
+Verified source facts:
+
+- dataset URL: `https://universe.roboflow.com/mod5gen20-cnkzt/stocks-2ulc2`;
+- task: object detection;
+- images: 6,572;
+- license: CC BY 4.0;
+- labeled classes: `Triangle`, `Head and shoulders bottom`, `Head and shoulders top`, `M_Head`, `StockLine`, `W_Bottom`.
+
+This dataset is useful for teaching a visual feature extractor to recognize chart-shape candidates. It is **not** market-price evidence and must never substitute for canonical bars, quotes, corporate actions, order-book state, or point-in-time provider observations.
+
+Any future output derived from this dataset must enter Money Core as `RESEARCH_ONLY` / `INTELLIGENCE_ONLY` evidence and must be calibrated against resolved market outcomes before it can influence confidence. It cannot create an execution permit, expand an autonomous mandate, or bypass Action Core.
+
 ## Authority boundary
 
 Both layers are non-executable:
