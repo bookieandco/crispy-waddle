@@ -217,6 +217,11 @@ const handoffOnlyReferences: readonly RegisterReferenceInput[] = [
         locator:
           'urn:jhadina:handoff:shark:wallet-cluster-detector',
       },
+      {
+        evidenceId: 'repo:shark:wallet-cluster-calibration',
+        kind: 'REPO_PATH',
+        locator: 'repo:packages/shark-intelligence-core/src/meme-trader/wallet-cluster-calibration.ts',
+      },
     ],
   },
   {
@@ -1195,7 +1200,7 @@ const sourceVerifications:
     licenseExpression: 'MIT',
     licenseEvidenceLocator: 'https://raw.githubusercontent.com/baronguyen001/wallet-cluster-detector/e4b6d75c75ffa3d40f61f974998b097128957355/LICENSE',
     licenseReusePolicy: 'PERMISSIVE',
-    notes: 'Upstream is verified; current Jhadina source mapping remains HANDOFF_ONLY.',
+    notes: 'Pinned methodology reference. Jhadina independently implements EVM wallet-address normalization and threshold sensitivity calibration; no source-code derivation is asserted.',
     evidence: [{ evidenceId: 'commit:wallet-cluster:e4b6d75c', kind: 'COMMIT', locator: 'https://github.com/baronguyen001/wallet-cluster-detector/commit/e4b6d75c75ffa3d40f61f974998b097128957355' }],
   },
   {
