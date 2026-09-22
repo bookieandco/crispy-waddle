@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import { type FadeCurve } from '@jhadina/director-core/timeline-editing';
 import type { EditableTimeline, TimelineClip, TimelineTrack, TimelineVersion, Transition } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
+import { planClipExtension } from '@jhadina/director-core/generative-extend';
 
 type Clip = TimelineClip & { name: string; kind: 'video' | 'audio'; fade?: { fadeInSeconds: number; fadeOutSeconds: number; curve: FadeCurve } };
 type Track = Omit<TimelineTrack, 'clips'> & { clips: Clip[] };
@@ -38,7 +39,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [redoStack, setRedoStack] = useState<string[]>([]);
-  const dragRef = useRef<{ clipId: string; trackId: string; mode: DragMode; startX: number; originalStart: number; originalDuration: number } | null>(null);
+  const dragRef = useRef<{ clipId: string; trackId: string; mode: DragMode; startX: number; originalStart: number; originalDuration: number; originalClip: TimelineClip; baselineTimeline: EditableTimeline } | null>(null);
 
   const tracks = timeline.tracks as Track[];
   const selectedClip = useMemo(() => tracks.flatMap(t => t.clips).find(c => c.id === selectedClipId) ?? null, [tracks, selectedClipId]);
@@ -52,7 +53,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
     onTimelineChange?.({ tracks: next.tracks as Track[], transitions: next.transitions, markers: next.markers as Marker[], playheadSeconds: next.playheadSeconds, versions: next.versions });
   }
 
-  async function dispatch(command: HistoryCommand, options?: { clearRedo?: boolean; recordRedoVersionId?: string }) {
+  async function dispatch(command: HistoryCommand, options?: { clearRedo?: boolean; recordRedoVersionId?: string }, timelineOverride?: EditableTimeline) {
     if (busy) return null;
     setBusy(true);
     setError(null);
@@ -60,7 +61,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
       const response = await fetch('/api/workstation/timeline/command', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ timeline, command }),
+        body: JSON.stringify({ timeline: timelineOverride ?? timeline, command }),
       });
       const data = await response.json() as { ok?: boolean; status?: string; error?: string; reason?: string; timeline?: EditableTimeline };
       if (!response.ok || !data.ok || !data.timeline) {
@@ -86,7 +87,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
   function pointerDown(event: React.PointerEvent, clip: TimelineClip, mode: DragMode) {
     if (selectedClip?.id !== clip.id) setSelectedClipId(clip.id);
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { clipId: clip.id, trackId: clip.trackId, mode, startX: event.clientX, originalStart: clip.startSeconds, originalDuration: clip.durationSeconds };
+    dragRef.current = { clipId: clip.id, trackId: clip.trackId, mode, startX: event.clientX, originalStart: clip.startSeconds, originalDuration: clip.durationSeconds, originalClip: { ...clip }, baselineTimeline: timeline };
   }
 
   function pointerMove(event: React.PointerEvent) {
@@ -109,8 +110,67 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
     if (!drag) return;
     const clip = timeline.tracks.flatMap(track => track.clips).find(item => item.id === drag.clipId);
     if (!clip) return;
-    if (drag.mode === 'move') await dispatch({ type: 'move', clipId: drag.clipId, startSeconds: clip.startSeconds });
-    if (drag.mode === 'trim-start' || drag.mode === 'trim-end') await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds });
+
+    if (drag.mode === 'move') {
+      await dispatch({ type: 'move', clipId: drag.clipId, startSeconds: clip.startSeconds }, undefined, drag.baselineTimeline);
+      return;
+    }
+
+    if (drag.mode === 'trim-start') {
+      const extensionSeconds = Math.max(0, drag.originalStart - clip.startSeconds);
+      if (extensionSeconds > 0) {
+        const plan = planClipExtension(drag.originalClip, { side: 'start', seconds: extensionSeconds });
+        if (plan.mode === 'generative-proposal') {
+          const realStart = drag.originalStart - plan.sourceHandleSeconds;
+          const realDuration = drag.originalDuration + plan.sourceHandleSeconds;
+          if (plan.sourceHandleSeconds > 0) {
+            await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: realStart, durationSeconds: realDuration }, undefined, drag.baselineTimeline);
+          } else {
+            publish(drag.baselineTimeline);
+          }
+          openGenerativeExtendRequest(drag.originalClip, 'start', plan.generatedSeconds);
+          return;
+        }
+      }
+      await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds }, undefined, drag.baselineTimeline);
+      return;
+    }
+
+    const extensionSeconds = Math.max(0, clip.durationSeconds - drag.originalDuration);
+    if (extensionSeconds > 0) {
+      const plan = planClipExtension(drag.originalClip, { side: 'end', seconds: extensionSeconds });
+      if (plan.mode === 'generative-proposal') {
+        if (plan.sourceHandleSeconds > 0) {
+          await dispatch({
+            type: 'trim',
+            clipId: drag.clipId,
+            startSeconds: drag.originalStart,
+            durationSeconds: drag.originalDuration + plan.sourceHandleSeconds,
+          }, undefined, drag.baselineTimeline);
+        } else {
+          publish(drag.baselineTimeline);
+        }
+        openGenerativeExtendRequest(drag.originalClip, 'end', plan.generatedSeconds);
+        return;
+      }
+    }
+    await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds }, undefined, drag.baselineTimeline);
+  }
+
+  function openGenerativeExtendRequest(clip: TimelineClip, side: 'start' | 'end', seconds: number) {
+    const track = timeline.tracks.find(item => item.id === clip.trackId);
+    const role = clip.audioRole ?? track?.role ?? 'unknown';
+    const context = [
+      `Workstation project ${projectId}`,
+      `clip ${clip.id}`,
+      `asset ${clip.assetId}`,
+      `generatively extend ${side} by ${seconds.toFixed(2)} seconds`,
+      `track kind ${track?.kind ?? 'unknown'}`,
+      `audio role ${role}`,
+      `preserve source continuity and mark the generated range AI-generated`,
+      `return the extension as a new governed asset/version instead of overwriting source media`,
+    ].join(' · ');
+    window.location.assign('/ask-jhadina?surface=studio&route=/workstation&prompt=' + encodeURIComponent(context));
   }
 
   async function splitAtPlayhead() {

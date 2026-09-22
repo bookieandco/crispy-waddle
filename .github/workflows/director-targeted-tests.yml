@@ -1,16 +1,74 @@
 name: Director Targeted Tests
 on:
   pull_request:
+    paths:
+      - "packages/director-core/**"
+      - "apps/jhadina-web/src/app/api/workstation/**"
+      - "apps/jhadina-web/src/app/workstation/**"
+      - "apps/jhadina-web/src/lib/director-**"
+      - "apps/jhadina-web/src/lib/social/director-bridge*"
+      - "apps/jhadina-web/src/app/api/social/director/**"
+      - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
+      - "apps/jhadina-web/lib/supabase-generated-asset-repository.ts"
+      - "packages/social-core/src/content-projects*"
+      - "docs/DIRECTOR*.md"
+      - "supabase/migrations/*director*"
+      - ".github/workflows/director-targeted-tests.yml"
+      - "pnpm-lock.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/director-core/**"
+      - "apps/jhadina-web/src/app/api/workstation/**"
+      - "apps/jhadina-web/src/app/workstation/**"
+      - "apps/jhadina-web/src/lib/director-**"
+      - "apps/jhadina-web/src/lib/social/director-bridge*"
+      - "apps/jhadina-web/src/app/api/social/director/**"
+      - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
+      - "apps/jhadina-web/lib/supabase-generated-asset-repository.ts"
+      - "packages/social-core/src/content-projects*"
+      - "docs/DIRECTOR*.md"
+      - "supabase/migrations/*director*"
+      - ".github/workflows/director-targeted-tests.yml"
+      - "pnpm-lock.yaml"
 jobs:
   director-targeted:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with: { version: 8.15.9, run_install: false }
       - uses: actions/setup-node@v4
         with: { node-version: 20, cache: pnpm }
-      - run: pnpm install --no-frozen-lockfile
-      - run: pnpm --filter @jhadina/director-core exec vitest run src/creative-gate-adapter.test.ts src/storyboard-sequence.test.ts src/storyboard-stage-binding.test.ts src/storyboard-shot-adapter.test.ts src/generation-plan-adapter.test.ts src/media-quality-evidence.test.ts src/media-review-gate-adapter.test.ts src/production-authority.test.ts src/media-review-lifecycle.test.ts src/review-transition.test.ts src/production-orchestrator.test.ts src/final-lifecycle.test.ts src/social-production-bridge.test.ts
+      - run: pnpm install --frozen-lockfile
+      - name: Director Core authority and lifecycle
+        run: >
+          pnpm --filter @jhadina/director-core exec vitest run
+          src/creative-gate-adapter.test.ts
+          src/storyboard-sequence.test.ts
+          src/storyboard-stage-binding.test.ts
+          src/storyboard-shot-adapter.test.ts
+          src/generation-plan-adapter.test.ts
+          src/media-quality-evidence.test.ts
+          src/media-review-gate-adapter.test.ts
+          src/production-authority.test.ts
+          src/media-review-lifecycle.test.ts
+          src/review-transition.test.ts
+          src/production-orchestrator.test.ts
+          src/final-lifecycle.test.ts
+          src/social-production-bridge.test.ts
+          src/studio-qc.test.ts
+          src/studio-asset-approval.test.ts
+          src/reference-derived-contracts.test.ts
+          src/cast-bible.test.ts
+          src/character-reference-and-extend.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
+      - name: Workstation authority, Studio QC and Social bridge
+        run: >
+          pnpm --filter @jhadina/jhadina-web exec vitest run
+          src/lib/director-project-authority.test.ts
+          src/lib/director-studio-qc-repository.test.ts
+          src/app/api/workstation/editing-assets/route.test.ts
+          src/lib/social/director-bridge.test.ts
+      - run: pnpm --filter @jhadina/jhadina-web run type-check

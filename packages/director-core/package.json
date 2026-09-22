@@ -42,7 +42,16 @@
     "./generation-execution": "./src/generation-execution.ts",
     "./generation-repository": "./src/generation-repository.ts",
     "./generation-submission-repository": "./src/generation-submission-repository.ts",
-    "./generation-task": "./src/generation-task.ts"
+    "./generation-task": "./src/generation-task.ts",
+    "./ask-video-production": "./src/ask-video-production.ts",
+    "./whole-video-provider": "./src/whole-video-provider.ts",
+    "./ffmpeg-media-qc": "./src/ffmpeg-media-qc.ts",
+    "./generative-extend": "./src/generative-extend.ts",
+    "./character-reference-bootstrap": "./src/character-reference-bootstrap.ts",
+    "./reference-character-video": "./src/reference-character-video.ts",
+    "./cast-bible": "./src/cast-bible.ts",
+    "./voice-identity": "./src/voice-identity.ts",
+    "./movie-audio-bible": "./src/movie-audio-bible.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
@@ -50,5 +59,8 @@
   },
   "devDependencies": {
     "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "@jhadina/action-core": "workspace:*"
   }
 }
