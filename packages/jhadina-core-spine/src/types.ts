@@ -148,10 +148,23 @@ export interface SocialDomainContext {
   provenance: EvidenceRef[];
 }
 
+/** Provider-neutral Growth context contribution. It is read-only intelligence, never spend/publish authority. */
+export interface GrowthDomainContext {
+  campaigns: EvidenceRef[];
+  audiences: EvidenceRef[];
+  pendingWork: EvidenceRef[];
+  performance: EvidenceRef[];
+  attention: EvidenceRef[];
+  uncertainty: string[];
+  limitations: string[];
+  provenance: EvidenceRef[];
+}
+
 /** Domain extensions are additive; existing ContextPacket consumers remain valid. */
 export interface DomainContext {
   spatial?: SpatialDomainContext;
   social?: SocialDomainContext;
+  growth?: GrowthDomainContext;
 }
 
 /**
