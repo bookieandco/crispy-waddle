@@ -62,7 +62,7 @@ export function evaluateAutonomousRisk(input:{
   if(i.opensShort&&!m.allowOpeningShorts)reasons.push('OPENING_SHORT_NOT_ALLOWED')
   if(i.modelConfidenceBps<m.limits.minModelConfidenceBps)reasons.push('MODEL_CONFIDENCE_BELOW_FLOOR')
   if(!bps(s.drawdownBps)||s.drawdownBps>m.limits.maxDrawdownBps)reasons.push('DRAWDOWN_LIMIT')
-  if(!bps(s.leverageBps)||s.leverageBps>m.limits.maxLeverageBps)reasons.push('LEVERAGE_LIMIT')
+  if(!Number.isInteger(s.leverageBps)||s.leverageBps<0||s.leverageBps>100000||s.leverageBps>m.limits.maxLeverageBps)reasons.push('LEVERAGE_LIMIT')
   const realizedLoss=s.realizedPnlMinor<0n?-s.realizedPnlMinor:0n
   if(realizedLoss>m.limits.maxDailyRealizedLossMinor)reasons.push('DAILY_REALIZED_LOSS_LIMIT')
   const projected=i.side==='BUY'?s.grossExposureMinor+i.notionalMinor:s.grossExposureMinor
