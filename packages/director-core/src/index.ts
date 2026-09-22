@@ -72,3 +72,8 @@ export * from './production-orchestrator';
 export * from './rerun-command';
 export * from './recovery-plan';
 export * from './social-production-bridge';
+
+export * from './visual-observation-evidence';
+export * from './creative-review-panel';
+export * from './dramaturgy-gate';
+export * from './phase-checkpoint';
