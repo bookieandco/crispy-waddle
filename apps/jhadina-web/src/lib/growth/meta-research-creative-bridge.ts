@@ -58,14 +58,14 @@ export function buildMetaResearchCreativeProductionJobs(input: {
     throw new Error("META_CREATIVE_CHARACTER_BRAND_MISMATCH")
   }
 
+  if (Boolean(production.productIdentityRef) !== Boolean(production.styleIdentityRef)) {
+    throw new Error("META_CREATIVE_PRODUCT_STYLE_IDENTITY_PAIR_REQUIRED")
+  }
+
   const commercialProductBibleId = production.productBibleId?.trim() || production.productIdentityRef?.trim()
   const commercialStyleBibleId = production.styleBibleId?.trim() || production.styleIdentityRef?.trim()
   if (!commercialProductBibleId) throw new Error("META_CREATIVE_PRODUCT_BIBLE_REQUIRED")
   if (!commercialStyleBibleId) throw new Error("META_CREATIVE_STYLE_BIBLE_REQUIRED")
-
-  if (Boolean(production.productIdentityRef) !== Boolean(production.styleIdentityRef)) {
-    throw new Error("META_CREATIVE_PRODUCT_STYLE_IDENTITY_PAIR_REQUIRED")
-  }
   if (production.productIdentityRef !== undefined && !production.productIdentityRef.trim()) {
     throw new Error("META_CREATIVE_PRODUCT_IDENTITY_INVALID")
   }
