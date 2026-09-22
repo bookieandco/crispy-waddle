@@ -135,6 +135,15 @@ export default function OpportunityCommandCenter() {
         <h1 style={h1}>Opportunities, on your terms.</h1>
         <p style={sub}>Jhadina finds, verifies, and ranks opportunities for you to review. Research approval never applies for a job, spends money, contacts a claimant, submits a bid, or publishes a listing.</p>
 
+        <Link href="/opportunity/sam" style={federalCard}>
+          <div>
+            <div style={eyebrowSmall}>Federal contracts</div>
+            <div style={federalTitle}>SAM.gov → requirements → fulfillment companies</div>
+            <div style={federalCopy}>Review subcontractability, matched providers, team coverage, quote needs, and commercial blockers.</div>
+          </div>
+          <span style={federalArrow}>→</span>
+        </Link>
+
         <div style={metricsRow}>
           <Metric label="Found" value={summary.found} />
           <Metric label="Best matches" value={summary.bestMatches} />
@@ -340,3 +349,8 @@ const secondary = { border: "1px solid #d5ddd7", borderRadius: 999, padding: "10
 const linkChip = { display: "inline-block", padding: "7px 9px", borderRadius: 999, background: "#f0f3f0", color: "#647169", textDecoration: "none", fontSize: 11 }
 const approvedBadge = { marginTop: 15, padding: "10px 12px", borderRadius: 14, background: "#e6eee8", color: "#52635a", fontSize: 12 }
 const warning = { padding: 12, borderRadius: 14, background: "#f3ebe1", color: "#785f49", marginBottom: 12 }
+
+const federalCard = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginTop: 20, padding: 16, borderRadius: 20, background: "rgba(255,255,255,.72)", border: "1px solid #dce2dd", color: "#34453c", textDecoration: "none", boxShadow: "0 8px 30px rgba(63,76,67,.04)" }
+const federalTitle = { fontFamily: 'Georgia,"Times New Roman",serif', fontSize: 20, marginTop: 4 }
+const federalCopy = { color: "#6f7b74", fontSize: 11, marginTop: 4, lineHeight: 1.45 }
+const federalArrow = { fontSize: 24, color: "#69766e" }
