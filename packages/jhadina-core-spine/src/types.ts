@@ -176,6 +176,23 @@ export interface EphemeralArtifactContext {
   base64?: string;
 }
 
+/** Turn-scoped acoustic cues. These are descriptive observations, never
+ * mental-state diagnoses and never authority. */
+export interface ConversationSignalContext {
+  source: 'live-microphone' | 'media-artifact';
+  observedAt: string;
+  language?: string;
+  utteranceDurationMs?: number;
+  speakingRateWpm?: number;
+  pauseRatio?: number;
+  rmsMean?: number;
+  rmsPeak?: number;
+  energyVariance?: number;
+  pitchMeanHz?: number;
+  pitchVariance?: number;
+  interpretationLimits: string[];
+}
+
 /** Domain extensions are additive; existing ContextPacket consumers remain valid. */
 export interface DomainContext {
   spatial?: SpatialDomainContext;
@@ -221,6 +238,7 @@ export interface ContextPacket {
   constraints: string[];
   excludedContext: string[];
   artifacts?: EphemeralArtifactContext[];
+  conversationSignals?: ConversationSignalContext;
   domainContext?: DomainContext;
   expressionDirective?: ExpressionDirective;
 }
