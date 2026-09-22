@@ -147,7 +147,7 @@ This gives Director a proper home for "photoreal vs watercolor vs pencil" or alt
 
 Open Edit's strongest concept is translating vague film language into executable edit/shot parameters.
 
-Director should eventually own a **TechniqueSpec registry** with fields such as:
+Director now has the first provider-neutral **TechniqueSpec** contract in `packages/director-core/src/editing-technique-spec.ts`. The registry/runtime layer can build on fields such as:
 
 ```
 technique id
@@ -282,7 +282,7 @@ After R1/R2:
 4. **DIRECTOR-EDIT.3** — annotation/vision provider bridge (CVAT-compatible) and protected-region timeline.
 5. **DIRECTOR-EDIT.4** — visual-layout, zoom/crop/reframe QC.
 6. **DIRECTOR-AUDIT.R4** — temporal ShotContract with canonical beats/time remapping.
-7. **DIRECTOR-CRAFT.1** — TechniqueSpec + dramaturgy evidence.
+7. **DIRECTOR-CRAFT.1** — persist/register the now-landed TechniqueSpec + dramaturgy evidence and compile approved plans to timeline commands.
 8. **DIRECTOR-REVIEW.1** — independent multi-family review panel integration into media review lifecycle.
 9. **DIRECTOR-RUNTIME.1** — durable phase checkpoints, cost ledger, deterministic render conformance.
 10. **DIRECTOR-AUDIT.R5** — Study, Music and Spatial evidence bridges.
