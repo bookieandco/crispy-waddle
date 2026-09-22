@@ -157,7 +157,7 @@ const server = http.createServer(async (req, res) => {
       const [backgroundReachable, upscalerReachable] = await Promise.all([
         // BackgroundRemover returns 400 for GET without ?url=; that still
         // proves the private Flask service is alive.
-        reachable(backgroundRemoverUrl, [200, 400]),
+        reachable(backgroundRemoverUrl, [200, 400, 405]),
         upscalerUrl ? reachable(new URL('/health', upscalerUrl), [200]) : Promise.resolve(false),
       ]);
       const healthy = backgroundReachable && (!upscalerUrl || upscalerReachable);
