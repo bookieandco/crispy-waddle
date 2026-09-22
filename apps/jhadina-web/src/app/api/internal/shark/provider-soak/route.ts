@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { runSharkProviderSoak } from '@/lib/shark/provider-soak'
+import { runSharkProviderSoak } from '@jhadina/shark-intelligence-core/meme-trader'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
