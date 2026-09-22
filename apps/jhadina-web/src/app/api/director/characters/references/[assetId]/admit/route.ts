@@ -41,9 +41,10 @@ export async function POST(
 
   const { data: asset, error: readError } = await privileged
     .from('director_reference_media_assets')
-    .select('id,project_id,bucket_id,object_path,mime_type,byte_size,sha256,admission_status,scan_status')
+    .select('id,project_id,bucket_id,object_path,mime_type,byte_size,sha256,reference_kind,admission_status,scan_status')
     .eq('id', assetId)
     .eq('project_id', projectId)
+    .eq('reference_kind', 'character')
     .maybeSingle();
 
   if (readError) return NextResponse.json({ ok: false, error: readError.message }, { status: 500 });
