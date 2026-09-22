@@ -1,6 +1,6 @@
 export type BrokerRequirement={id:string;label:string;naicsCodes?:string[];pscCodes?:string[];geography?:string;keywords?:string[]}
 export type ProviderSearchIntent={requirementId:string;keywords:string[];naicsCodes:string[];pscCodes:string[];geography?:string;allowForeign:true}
-export type BrokerProviderEvidence={id:string;source:'sam_entity'|'sam_award'|'usaspending'|'fpds'|'entity_directory'|'web_search'|'local_business'|'manual';url?:string}
+export type BrokerProviderEvidence={id:string;source:'sam_entity'|'sam_award'|'usaspending'|'fpds'|'entity_directory'|'web_search'|'local_business'|'manual';url?:string;details?:Record<string,unknown>}
 export type BrokerProviderCandidate={
   id:string
   legalName:string
@@ -25,9 +25,11 @@ export function assessBrokerProvider(intent:ProviderSearchIntent,p:BrokerProvide
   if(naics){score+=45;reasons.push('NAICS capability match')}
   if(keyword){score+=25;reasons.push('requirement keyword match')}
   if((p.awardCount??0)>0){score+=20;reasons.push('federal award history observed')}
-  if(p.evidence.length>=2){score+=10;reasons.push('multi-source provider evidence')}
-  const status=p.evidence.length===0?'blocked':score>=50?'candidate':'review_required'
-  if(p.country&&p.country.toUpperCase()!=='US')reasons.push('foreign provider: run solicitation-specific subcontractability/origin gate')
+  const sourceTypes=new Set(p.evidence.map(e=>e.source))
+  if(sourceTypes.size>=2){score+=10;reasons.push('multi-source provider evidence')}
+  const status=p.evidence.length===0?'blocked':sourceTypes.size>=2&&score>=50?'candidate':'review_required'
+  const country=(p.country??'').trim().toUpperCase().replace(/[^A-Z]/g,'')
+  if(country&&!['US','USA','UNITEDSTATES','UNITEDSTATESOFAMERICA'].includes(country))reasons.push('foreign provider: run solicitation-specific subcontractability/origin gate')
   return {providerId:p.id,requirementId:intent.requirementId,status,score:Math.min(100,score),reasons,evidenceRefs:p.evidence.map(e=>e.id)}
 }
 export function buildBrokerShortlist(requirements:BrokerRequirement[],providers:BrokerProviderCandidate[]){

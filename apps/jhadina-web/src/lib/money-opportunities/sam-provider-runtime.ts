@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buildBrokerShortlist, evaluateSamSubcontractability, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
+import { buildBrokerShortlist, evaluateSamSubcontractability, expandProviderTaxonomy, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
 import { getSamApiKey } from './sam-config'
 
 const rows=(x:unknown):Record<string,unknown>[]=>Array.isArray(x)?x.filter((v):v is Record<string,unknown>=>Boolean(v&&typeof v==='object')):[]
@@ -27,55 +27,109 @@ function complianceInput(value:unknown):SubcontractabilityInput|null{
   }
 }
 function isoDate(d:Date){return d.toISOString().slice(0,10)}
-async function usaSpendingProviders(naics:string,limit=30):Promise<BrokerProviderCandidate[]>{
+async function usaSpendingProviders(search:{naicsCodes?:string[];pscCodes?:string[];keywords?:string[]},limit=30):Promise<RuntimeProvider[]>{
   const end=new Date(),start=new Date(Date.UTC(end.getUTCFullYear()-5,end.getUTCMonth(),end.getUTCDate()))
-  const response=await fetch('https://api.usaspending.gov/api/v2/search/spending_by_award/',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({filters:{time_period:[{start_date:isoDate(start),end_date:isoDate(end)}],award_type_codes:['A','B','C','D'],naics_codes:[naics]},fields:['Award ID','Recipient Name','Recipient UEI','Award Amount','Awarding Agency','Award Description','NAICS Code'],limit:Math.max(1,Math.min(limit,100)),page:1,sort:'Award Amount',order:'desc'}),cache:'no-store',signal:AbortSignal.timeout(20000)})
+  const filters:Record<string,unknown>={time_period:[{start_date:isoDate(start),end_date:isoDate(end)}],award_type_codes:['A','B','C','D']}
+  if(search.naicsCodes?.length)filters.naics_codes={require:search.naicsCodes.slice(0,5)}
+  if(search.pscCodes?.length)filters.psc_codes=search.pscCodes.slice(0,5)
+  if(search.keywords?.length)filters.keywords=search.keywords.slice(0,3)
+  const response=await fetch('https://api.usaspending.gov/api/v2/search/spending_by_award/',{
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body:JSON.stringify({
+      filters,
+      fields:['Award ID','Recipient Name','Recipient UEI','Award Amount','Awarding Agency','Description','NAICS','PSC'],
+      limit:Math.max(1,Math.min(limit,100)),
+      page:1,sort:'Award Amount',order:'desc',
+    }),
+    cache:'no-store',
+    signal:AbortSignal.timeout(20000),
+  })
   if(!response.ok)throw new Error(`USASPENDING_HTTP_${response.status}`)
   const body=await response.json() as Record<string,unknown>
-  const grouped=new Map<string,BrokerProviderCandidate>()
+  const grouped=new Map<string,RuntimeProvider>()
   for(const r of rows(body.results)){
     const name=text(r['Recipient Name']);if(!name)continue
-    const k=key(name),existing=grouped.get(k)
-    const evidence={id:`usaspending:${text(r['Award ID'])||k}`,source:'usaspending' as const,url:'https://www.usaspending.gov/'}
-    if(existing){existing.awardCount=(existing.awardCount??0)+1;existing.evidence.push(evidence);continue}
-    grouped.set(k,{id:`provider:award:${k}`,legalName:name,naicsCodes:[text(r['NAICS Code'])||naics].filter(Boolean),keywords:[text(r['Award Description'])].filter(Boolean),awardCount:1,evidence:[evidence]})
+    const uei=text(r['Recipient UEI'])
+    const identity=uei?`uei:${uei.toUpperCase()}`:`name:${key(name)}`
+    const existing=grouped.get(identity)
+    const evidence={id:`usaspending:${text(r['Award ID'])||key(name)}`,source:'usaspending' as const,url:'https://www.usaspending.gov/'}
+    const naicsObj=r['NAICS']&&typeof r['NAICS']==='object'?(r['NAICS'] as Record<string,unknown>):{}
+    const pscObj=r['PSC']&&typeof r['PSC']==='object'?(r['PSC'] as Record<string,unknown>):{}
+    const awardNaics=text(naicsObj.code)||text(r['NAICS Code'])
+    const awardPsc=text(pscObj.code)||text(r['PSC Code'])
+    const description=text(r['Description'])||text(r['Award Description'])
+    if(existing){
+      existing.awardCount=(existing.awardCount??0)+1
+      existing.evidence.push(evidence)
+      if(awardNaics&&!existing.naicsCodes.includes(awardNaics))existing.naicsCodes.push(awardNaics)
+      if(description&&!existing.keywords.includes(description))existing.keywords.push(description)
+      if(awardPsc&&!existing.keywords.includes(`PSC ${awardPsc}`))existing.keywords.push(`PSC ${awardPsc}`)
+      continue
+    }
+    grouped.set(identity,{
+      id:`provider:award:${uei||key(name)}`,
+      legalName:name,
+      naicsCodes:[awardNaics,...(search.naicsCodes??[])].filter(Boolean),
+      keywords:[description,awardPsc?`PSC ${awardPsc}`:''].filter(Boolean),
+      awardCount:1,
+      evidence:[evidence],
+      _uei:uei||undefined,
+    })
   }
   return [...grouped.values()]
 }
 type RuntimeProvider=BrokerProviderCandidate & {_uei?:string;_cage?:string}
 
-async function samEntityProvidersByNaics(naics:string,limit=10):Promise<RuntimeProvider[]>{
+async function samEntityRequest(params:Record<string,string>):Promise<Record<string,unknown>>{
   const apiKey=getSamApiKey()
-  if(!apiKey)return[]
+  if(!apiKey)return{}
   const url=new URL('https://api.sam.gov/entity-information/v3/entities')
   url.searchParams.set('api_key',apiKey)
   url.searchParams.set('registrationStatus','A')
   url.searchParams.set('samRegistered','Yes')
   url.searchParams.set('purposeOfRegistrationCode','Z2')
-  url.searchParams.set('naicsCode',naics)
-  url.searchParams.set('includeSections','entityRegistration,coreData')
-  url.searchParams.set('page','0')
-  url.searchParams.set('size',String(Math.max(1,Math.min(limit,10))))
+  url.searchParams.set('includeSections','entityRegistration,coreData,assertions')
+  url.searchParams.set('sensitivity','public')
+  for(const [name,value] of Object.entries(params))url.searchParams.set(name,value)
   const response=await fetch(url,{headers:{accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(20000)})
   if(!response.ok)throw new Error(`SAM_ENTITY_HTTP_${response.status}`)
-  const body=await response.json() as Record<string,unknown>
+  return response.json() as Promise<Record<string,unknown>>
+}
+
+function parseSamEntities(body:Record<string,unknown>,fallbackNaics:string[]=[]):RuntimeProvider[]{
   const out:RuntimeProvider[]=[]
   for(const entity of rows(body.entityData)){
     const registration=(entity.entityRegistration&&typeof entity.entityRegistration==='object'?entity.entityRegistration:{}) as Record<string,unknown>
     const core=(entity.coreData&&typeof entity.coreData==='object'?entity.coreData:{}) as Record<string,unknown>
     const address=(core.physicalAddress&&typeof core.physicalAddress==='object'?core.physicalAddress:{}) as Record<string,unknown>
+    const assertions=(entity.assertions&&typeof entity.assertions==='object'?entity.assertions:{}) as Record<string,unknown>
+    const goods=(assertions.goodsAndServices&&typeof assertions.goodsAndServices==='object'?assertions.goodsAndServices:{}) as Record<string,unknown>
     const name=text(registration.legalBusinessName)||text(entity.legalBusinessName)
     if(!name)continue
     const uei=text(registration.ueiSAM)||text(entity.ueiSAM)
     const cage=text(registration.cageCode)||text(entity.cageCode)
     const country=text(address.countryCode)||text(address.countryCode3)
+    const registeredNaics=rows(goods.naicsList).map(row=>text(row.naicsCode)).filter(Boolean)
+    const registeredPsc=rows(goods.pscList).map(row=>text(row.pscCode)).filter(Boolean)
+    const smallBusinessNaics=rows(goods.naicsList).filter(row=>['Y','YES','TRUE'].includes(text(row.sbaSmallBusiness).toUpperCase())).map(row=>text(row.naicsCode)).filter(Boolean)
     out.push({
       id:`provider:sam:${uei||key(name)}`,
       legalName:name,
       country:country||undefined,
-      naicsCodes:[naics],
-      keywords:[],
-      evidence:[{id:`sam-entity:${uei||cage||key(name)}`,source:'sam_entity',url:'https://sam.gov/'}],
+      naicsCodes:[...new Set([...registeredNaics,...fallbackNaics])],
+      keywords:registeredPsc.map(code=>`PSC ${code}`),
+      evidence:[{
+        id:`sam-entity:${uei||cage||key(name)}`,
+        source:'sam_entity',
+        url:'https://sam.gov/',
+        details:{
+          uei:uei||null,cage:cage||null,registrationStatus:text(registration.registrationStatus)||null,
+          registrationPurpose:text(registration.purposeOfRegistrationDesc)||text(registration.purposeOfRegistrationCode)||null,
+          smallBusinessNaicsCodes:smallBusinessNaics,pscCodes:registeredPsc,
+          cageVerificationSource:'sam_entity_api',directDlaCageAutomation:false,
+        },
+      }],
       _uei:uei||undefined,
       _cage:cage||undefined,
     })
@@ -83,13 +137,28 @@ async function samEntityProvidersByNaics(naics:string,limit=10):Promise<RuntimeP
   return out
 }
 
+async function samEntityProvidersByNaics(naics:string,limit=10):Promise<RuntimeProvider[]>{
+  return parseSamEntities(await samEntityRequest({naicsCode:naics,page:'0',size:String(Math.max(1,Math.min(limit,10)))}),[naics])
+}
+
+async function samEntityProvidersByUei(ueis:string[]):Promise<RuntimeProvider[]>{
+  const values=[...new Set(ueis.map(value=>value.trim().toUpperCase()).filter(Boolean))].slice(0,100)
+  if(!values.length)return[]
+  return parseSamEntities(await samEntityRequest({ueiSAM:values.join('~'),page:'0',size:String(Math.min(values.length,10))}))
+}
 function mergeProviderPools(...pools:RuntimeProvider[][]):RuntimeProvider[]{
-  const merged=new Map<string,RuntimeProvider>()
+  const byUei=new Map<string,RuntimeProvider>()
+  const byName=new Map<string,RuntimeProvider>()
+  const merged:RuntimeProvider[]=[]
   for(const pool of pools)for(const provider of pool){
-    const k=key(provider.legalName)
-    const existing=merged.get(k)
+    const uei=provider._uei?.toUpperCase()
+    const nameKey=key(provider.legalName)
+    const existing=(uei?byUei.get(uei):undefined)??byName.get(nameKey)
     if(!existing){
-      merged.set(k,{...provider,evidence:[...provider.evidence],naicsCodes:[...provider.naicsCodes],keywords:[...provider.keywords]})
+      const copy={...provider,evidence:[...provider.evidence],naicsCodes:[...provider.naicsCodes],keywords:[...provider.keywords]}
+      merged.push(copy)
+      byName.set(nameKey,copy)
+      if(uei)byUei.set(uei,copy)
       continue
     }
     existing.naicsCodes=[...new Set([...existing.naicsCodes,...provider.naicsCodes])]
@@ -99,73 +168,109 @@ function mergeProviderPools(...pools:RuntimeProvider[][]):RuntimeProvider[]{
     existing.country=existing.country??provider.country
     existing._uei=existing._uei??provider._uei
     existing._cage=existing._cage??provider._cage
-    if(existing._uei)existing.id=`provider:sam:${existing._uei}`
+    if(existing._uei){existing.id=`provider:sam:${existing._uei}`;byUei.set(existing._uei.toUpperCase(),existing)}
   }
-  return [...merged.values()]
+  return merged
 }
-
 export async function discoverSamProviders(client:SupabaseClient,noticeIds:string[],maxProvidersPerNotice=20){
   let notices=0,candidates=0
   const errors:string[]=[]
-  const requestedBudget=Number(process.env.SAM_ENTITY_REQUEST_BUDGET_PER_ENRICHMENT??2)
-  let entityRequestsRemaining=Number.isFinite(requestedBudget)?Math.max(0,Math.min(Math.floor(requestedBudget),10)):2
-  const entityCache=new Map<string,RuntimeProvider[]>()
+  const requestedEntityBudget=Number(process.env.SAM_ENTITY_REQUEST_BUDGET_PER_ENRICHMENT??2)
+  let entityRequestsRemaining=Number.isFinite(requestedEntityBudget)?Math.max(0,Math.min(Math.floor(requestedEntityBudget),10)):2
+  const requestedSpendingBudget=Number(process.env.USASPENDING_REQUEST_BUDGET_PER_ENRICHMENT??6)
+  let spendingRequestsRemaining=Number.isFinite(requestedSpendingBudget)?Math.max(0,Math.min(Math.floor(requestedSpendingBudget),30)):6
+  const entityNaicsCache=new Map<string,RuntimeProvider[]>()
+  const spendingCache=new Map<string,RuntimeProvider[]>()
+
   for(const noticeId of noticeIds){
     const {data:analysis}=await client.from('jhadina_sam_analysis').select('requirements,subcontractability').eq('notice_id',noticeId).maybeSingle()
-    const {data:catalog}=await client.from('jhadina_sam_catalog').select('naics_codes').eq('notice_id',noticeId).maybeSingle()
+    const {data:catalog}=await client.from('jhadina_sam_catalog').select('naics_codes,classification_codes').eq('notice_id',noticeId).maybeSingle()
     if(!analysis||!catalog)continue
     const analysisRow=analysis as Record<string,unknown>
     const rawReq=Array.isArray(analysisRow.requirements)?(analysisRow.requirements as Record<string,unknown>[]):[]
     const complianceBase=complianceInput(analysisRow.subcontractability)
-    const naics=Array.isArray((catalog as Record<string,unknown>).naics_codes)?((catalog as Record<string,unknown>).naics_codes as string[]):[]
-    const requirements:BrokerRequirement[]=rawReq.length?rawReq.map((r,i)=>({id:text(r.id)||`${noticeId}:req:${i+1}`,label:text(r.label)||'contract requirement',naicsCodes:Array.isArray(r.naicsCodes)?r.naicsCodes.filter((x):x is string=>typeof x==='string'):naics,keywords:Array.isArray(r.keywords)?r.keywords.filter((x):x is string=>typeof x==='string'):[]})):[{id:`${noticeId}:scope`,label:'solicitation scope',naicsCodes:naics}]
-    const primaryNaics=naics[0]||requirements.flatMap(r=>r.naicsCodes??[])[0]
-    if(!primaryNaics){errors.push(`${noticeId}: no NAICS available for provider discovery`);continue}
+    const noticeNaics=Array.isArray((catalog as Record<string,unknown>).naics_codes)?((catalog as Record<string,unknown>).naics_codes as string[]):[]
+    const noticePsc=Array.isArray((catalog as Record<string,unknown>).classification_codes)?((catalog as Record<string,unknown>).classification_codes as string[]):[]
+    const requirements:BrokerRequirement[]=rawReq.length?rawReq.map((r,i)=>({
+      id:text(r.id)||`${noticeId}:req:${i+1}`,
+      label:text(r.label)||'contract requirement',
+      naicsCodes:Array.isArray(r.naicsCodes)?r.naicsCodes.filter((x):x is string=>typeof x==='string'):noticeNaics,
+      pscCodes:Array.isArray(r.pscCodes)?r.pscCodes.filter((x):x is string=>typeof x==='string'):noticePsc,
+      keywords:Array.isArray(r.keywords)?r.keywords.filter((x):x is string=>typeof x==='string'):[],
+    })):[{id:`${noticeId}:scope`,label:'solicitation scope',naicsCodes:noticeNaics,pscCodes:noticePsc}]
+
     try{
-      const awardProviders=(await usaSpendingProviders(primaryNaics,maxProvidersPerNotice)) as RuntimeProvider[]
-      let entityProviders=entityCache.get(primaryNaics)??null
-      if(entityProviders===null&&entityRequestsRemaining>0){
-        entityRequestsRemaining-=1
-        try{
-          entityProviders=await samEntityProvidersByNaics(primaryNaics,10)
-          entityCache.set(primaryNaics,entityProviders)
-        }catch(error){
-          errors.push(`${noticeId}: ${error instanceof Error?error.message:'SAM entity discovery failed'}`)
-          entityProviders=[]
-          entityCache.set(primaryNaics,entityProviders)
+      let pool:RuntimeProvider[]=[]
+      for(const requirement of requirements){
+        const expansion=expandProviderTaxonomy(requirement)
+        const requirementPools:RuntimeProvider[][]=[]
+
+        for(const naics of expansion.naicsCodes.slice(0,2)){
+          const cacheKey=`naics:${naics}`
+          let awards=spendingCache.get(cacheKey)
+          if(!awards&&spendingRequestsRemaining>0){
+            spendingRequestsRemaining-=1
+            awards=await usaSpendingProviders({naicsCodes:[naics]},maxProvidersPerNotice)
+            spendingCache.set(cacheKey,awards)
+          }
+          if(awards)requirementPools.push(awards)
+
+          let entities=entityNaicsCache.get(naics)
+          if(!entities&&entityRequestsRemaining>0){
+            entityRequestsRemaining-=1
+            try{entities=await samEntityProvidersByNaics(naics,10)}
+            catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'SAM entity discovery failed'}`);entities=[]}
+            entityNaicsCache.set(naics,entities)
+          }
+          if(entities)requirementPools.push(entities)
         }
+
+        if(expansion.pscCodes.length&&spendingRequestsRemaining>0){
+          const keyName=`psc:${expansion.pscCodes.slice(0,2).join(',')}`
+          let awards=spendingCache.get(keyName)
+          if(!awards){
+            spendingRequestsRemaining-=1
+            awards=await usaSpendingProviders({pscCodes:expansion.pscCodes.slice(0,2)},maxProvidersPerNotice)
+            spendingCache.set(keyName,awards)
+          }
+          requirementPools.push(awards)
+        }
+
+        if(expansion.keywords.length&&spendingRequestsRemaining>0){
+          const terms=expansion.keywords.slice(0,2)
+          const keyName=`keywords:${terms.join('|').toLowerCase()}`
+          let awards=spendingCache.get(keyName)
+          if(!awards){
+            spendingRequestsRemaining-=1
+            awards=await usaSpendingProviders({keywords:terms},maxProvidersPerNotice)
+            spendingCache.set(keyName,awards)
+          }
+          requirementPools.push(awards)
+        }
+
+        pool=mergeProviderPools(pool,...requirementPools)
       }
-      const pool=mergeProviderPools(entityProviders??[],awardProviders)
+
+      const awardUeis=pool.map(provider=>provider._uei).filter((value):value is string=>Boolean(value))
+      if(awardUeis.length&&entityRequestsRemaining>0){
+        entityRequestsRemaining-=1
+        try{pool=mergeProviderPools(pool,await samEntityProvidersByUei(awardUeis))}
+        catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'SAM entity verification failed'}`)}
+      }
+
+      if(!pool.length){errors.push(`${noticeId}: no providers found within current source budgets`);continue}
       const shortlist=buildBrokerShortlist(requirements,pool)
       const inserts:Array<Record<string,unknown>>=[]
       for(const group of shortlist)for(const assessment of group.candidates.slice(0,maxProvidersPerNotice)){
         const p=pool.find(x=>x.id===assessment.providerId);if(!p)continue
         const ext=p as RuntimeProvider
-        const compliance=complianceBase
-          ?evaluateSamSubcontractability({...complianceBase,providerCountry:p.country})
-          :null
-        const finalStatus=compliance?.status==='blocked'
-          ?'blocked'
-          :compliance&&(compliance.status==='conditional'||compliance.status==='review_required')&&assessment.status==='candidate'
-            ?'review_required'
-            :assessment.status
-        const evidence=compliance
-          ?[...p.evidence,{id:`subcontractability:${noticeId}:${key(p.legalName)}`,source:'subcontractability',decision:compliance}]
-          :p.evidence
+        const compliance=complianceBase?evaluateSamSubcontractability({...complianceBase,providerCountry:p.country}):null
+        const finalStatus=compliance?.status==='blocked'?'blocked':compliance&&(compliance.status==='conditional'||compliance.status==='review_required')&&assessment.status==='candidate'?'review_required':assessment.status
+        const evidence=compliance?[...p.evidence,{id:`subcontractability:${noticeId}:${key(p.legalName)}`,source:'subcontractability',decision:compliance}]:p.evidence
         inserts.push({
-          notice_id:noticeId,
-          requirement_id:group.intent.requirementId,
-          provider_key:key(p.legalName),
-          provider_name:p.legalName,
-          country:p.country??null,
-          uei:ext._uei??null,
-          cage:ext._cage??null,
-          naics_codes:p.naicsCodes,
-          score:assessment.score,
-          status:finalStatus,
-          sources:p.evidence.map(e=>e.source),
-          evidence,
-          discovered_at:new Date().toISOString(),
+          notice_id:noticeId,requirement_id:group.intent.requirementId,provider_key:key(p.legalName),provider_name:p.legalName,
+          country:p.country??null,uei:ext._uei??null,cage:ext._cage??null,naics_codes:p.naicsCodes,score:assessment.score,status:finalStatus,
+          sources:p.evidence.map(e=>e.source),evidence,discovered_at:new Date().toISOString(),
         })
       }
       if(inserts.length){
@@ -176,5 +281,5 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
       notices+=1
     }catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'provider discovery failed'}`)}
   }
-  return {notices,candidates,errors}
+  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,usaspending:spendingRequestsRemaining}}
 }
