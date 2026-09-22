@@ -56,5 +56,5 @@ jobs:
         run: >
           pnpm --filter @jhadina/jhadina-web exec vitest run
           src/lib/director-project-authority.test.ts
-          src/lib/director-studio-qc-repository.test.ts
+          src/lib/director-studio-qc-repository.test.ts\n          src/app/api/workstation/editing-assets/route.test.ts
       - run: pnpm --filter @jhadina/jhadina-web run type-check
