@@ -154,6 +154,9 @@ export interface GrowthDomainContext {
   audiences: EvidenceRef[];
   pendingWork: EvidenceRef[];
   performance: EvidenceRef[];
+  experiments: EvidenceRef[];
+  evidenceHealth: EvidenceRef[];
+  learning: EvidenceRef[];
   attention: EvidenceRef[];
   uncertainty: string[];
   limitations: string[];
