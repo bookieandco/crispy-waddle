@@ -3,7 +3,7 @@
 Personality, memory, authorization and subsystem execution remain outside this service.
 """
 from __future__ import annotations
-import base64, io, os, subprocess, tempfile
+import base64, subprocess, tempfile
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -54,3 +54,24 @@ class VoiceRouter:
             except Exception as exc:
                 failures.append(f"{engine.id}:{type(exc).__name__}")
         raise RuntimeError("VOICE_TTS_FAILED:"+"|".join(failures))
+
+
+class FasterWhisperEngine:
+    id = "faster-whisper"
+    def __init__(self, model_size: str = "small", device: str = "auto", compute_type: str = "int8"):
+        from faster_whisper import WhisperModel
+        self.model = WhisperModel(model_size, device=device, compute_type=compute_type)
+
+    def transcribe(self, wav_path: str, language: str | None = None) -> dict:
+        segments, info = self.model.transcribe(
+            wav_path,
+            language=(language.split("-")[0] if language else None),
+            vad_filter=True,
+            word_timestamps=True,
+        )
+        rows=[]; text=[]
+        for seg in segments:
+            value=seg.text.strip()
+            if value: text.append(value)
+            rows.append({"startMs":round(seg.start*1000),"endMs":round(seg.end*1000),"text":value})
+        return {"language":getattr(info,"language",language or "und"),"text":" ".join(text),"segments":rows}
