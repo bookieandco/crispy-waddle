@@ -69,7 +69,7 @@ export function mapWholeVideoProviderStatus(
 export function selectWholeVideoProvider(
   providers: readonly WholeVideoProductionProvider[],
   intent: AskVideoCreationIntent,
-  requirements: { characterReference?: boolean; productReference?: boolean } = {},
+  requirements: { characterReference?: boolean; productReference?: boolean; paidProviderAuthorized?: boolean } = {},
 ): WholeVideoProductionProvider | undefined {
   const compatible = providers.filter((provider) =>
     provider.descriptor.supportedModes.includes(intent.mode) &&
@@ -79,7 +79,9 @@ export function selectWholeVideoProvider(
     (requirements.productReference || provider.descriptor.requiresProductReference !== true),
   );
   const safe = compatible.filter((provider) =>
-    provider.descriptor.costClass !== 'paid' || intent.providerPolicy.allowPaidWithoutApproval,
+    provider.descriptor.costClass !== 'paid'
+    || intent.providerPolicy.allowPaidWithoutApproval
+    || requirements.paidProviderAuthorized === true,
   );
   return [...safe].sort((a, b) => {
     const costRank = (provider: WholeVideoProductionProvider) =>
