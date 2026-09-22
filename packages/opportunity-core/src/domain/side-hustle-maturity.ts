@@ -152,6 +152,7 @@ export function assessSideHustleMaturityPromotion(input: {
   }
 
   const validationEvaluations = input.evidence.validationEvaluations.map((evaluation) => {
+    requireDate(evaluation.evaluatedAt, 'validation evaluation evaluatedAt')
     if (evaluation.opportunityId !== input.opportunity.id) {
       throw new Error('Validation evaluation does not belong to opportunity')
     }
@@ -162,6 +163,7 @@ export function assessSideHustleMaturityPromotion(input: {
   })
 
   const outcomes = input.evidence.outcomes.map((outcome) => {
+    requireDate(outcome.observedAt, 'outcome observedAt')
     if (outcome.opportunityId !== input.opportunity.id) {
       throw new Error('Outcome does not belong to opportunity')
     }
