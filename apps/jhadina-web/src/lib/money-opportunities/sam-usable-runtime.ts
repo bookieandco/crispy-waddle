@@ -36,18 +36,19 @@ export async function readSamUsableCertification(client:SupabaseClient):Promise<
   const [scan,catalog,documents,analysis,providers]=await Promise.all([
     client.from('jhadina_sam_scan_runs').select('id,errors').eq('status','completed').limit(100),
     client.from('jhadina_sam_catalog').select('notice_id').limit(1000),
-    client.from('jhadina_sam_documents').select('notice_id,source_url,fetch_status').limit(1000),
+    client.from('jhadina_sam_documents').select('notice_id,source_url,source_kind,checksum,fetch_status,evidence').limit(1000),
     client.from('jhadina_sam_analysis').select('notice_id,requirements,subcontractability').limit(1000),
     client.from('jhadina_sam_provider_candidates').select('notice_id,provider_name,evidence').limit(1000),
   ])
   const providerRows=Array.isArray(providers.data)?providers.data:[]
   const documentRows=Array.isArray(documents.data)?documents.data:[]
-  const provenanceComplete=documentRows.every(x=>Boolean(x.source_url))&&providerRows.every(x=>Array.isArray(x.evidence)&&x.evidence.length>0)
+  const parsedAttachmentRows=documentRows.filter(x=>x.source_kind!=='notice'&&(x.fetch_status==='text_captured'||x.fetch_status==='text_extracted'))
+  const provenanceComplete=parsedAttachmentRows.every(x=>Boolean(x.source_url&&x.checksum))&&providerRows.every(x=>Array.isArray(x.evidence)&&x.evidence.length>0)
   return certifySamUsableFinal({
     runtimeBound:Boolean(process.env.SAM_GOV_API_KEY&&process.env.NEXT_PUBLIC_SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY),
     scanReceipts:Array.isArray(scan.data)?scan.data.length:0,
     realNotices:unique(catalog.data,'notice_id'),
-    noticesWithDocuments:unique(documents.data,'notice_id'),
+    noticesWithDocuments:unique(parsedAttachmentRows,'notice_id'),
     noticesWithSubcontractability:unique(analysis.data,'notice_id'),
     noticesWithProviderCandidates:unique(providers.data,'notice_id'),
     realProviderCandidates:providerRows.length,
