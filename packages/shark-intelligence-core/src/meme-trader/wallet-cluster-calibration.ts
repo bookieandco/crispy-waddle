@@ -30,6 +30,9 @@ export type WalletClusterCalibrationRow=Readonly<{
   healthyRate:number|null
   adverseRate:number|null
   medianWalletCount:number|null
+  healthyRate95:readonly [number,number]|null
+  adverseRate95:readonly [number,number]|null
+  sampleAdequacy:'NO_LABELS'|'LOW'|'MODERATE'|'HIGH'
   evidenceIds:readonly string[]
   authority:'RESEARCH_ONLY'
   canSelectProductionThreshold:false
@@ -46,6 +49,14 @@ export type WalletClusterCalibrationReport=Readonly<{
 
 const assertIso=(value:string,code:string)=>{if(!value||Number.isNaN(Date.parse(value)))throw new Error(code)}
 const ratio=(n:number,d:number)=>d?n/d:0
+const wilson95=(successes:number,total:number):readonly [number,number]|null=>{
+  if(!total)return null
+  const z=1.959963984540054,p=successes/total,z2=z*z,den=1+z2/total
+  const center=(p+z2/(2*total))/den
+  const margin=z*Math.sqrt((p*(1-p)+z2/(4*total))/total)/den
+  return Object.freeze([Math.max(0,center-margin),Math.min(1,center+margin)] as [number,number])
+}
+const adequacy=(n:number):'NO_LABELS'|'LOW'|'MODERATE'|'HIGH'=>n===0?'NO_LABELS':n<20?'LOW':n<100?'MODERATE':'HIGH'
 const median=(values:number[]):number|null=>{
   if(!values.length)return null
   const xs=[...values].sort((a,b)=>a-b),mid=Math.floor(xs.length/2)
@@ -101,6 +112,9 @@ export function evaluateWalletClusterThresholdSensitivity(input:{
       healthyRate:labeled.length?ratio(healthy,labeled.length):null,
       adverseRate:labeled.length?ratio(adverse,labeled.length):null,
       medianWalletCount:median(matched.map(o=>o.distinctWallets)),
+      healthyRate95:wilson95(healthy,labeled.length),
+      adverseRate95:wilson95(adverse,labeled.length),
+      sampleAdequacy:adequacy(labeled.length),
       evidenceIds:Object.freeze([...new Set(matched.flatMap(o=>o.evidenceIds))].sort()),
       authority:'RESEARCH_ONLY' as const,
       canSelectProductionThreshold:false as const,
