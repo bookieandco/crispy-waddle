@@ -32,9 +32,12 @@ vi.mock('@/lib/director-reference-character-service', () => ({
 
 import { POST } from './route';
 
-function request(fields: Record<string,string>) {
+function request(fields: Record<string,string>, includeReference = true) {
   const form = new FormData();
   for (const [key,value] of Object.entries(fields)) form.set(key,value);
+  if (includeReference) {
+    form.append('references', new Blob([Buffer.from('test-image')], { type: 'image/png' }), 'reference.png');
+  }
   return new Request('http://localhost/api/director/reference-characters', {
     method: 'POST',
     body: form,
