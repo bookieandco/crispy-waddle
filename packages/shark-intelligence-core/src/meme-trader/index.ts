@@ -31,3 +31,5 @@ export * from './entity-graph'
 export const SHARK_LEGACY_PAPER_RUNTIME = 'COMPATIBILITY_ONLY' as const
 
 export * from './chain-identity'
+
+export * from './wallet-cluster-calibration'
