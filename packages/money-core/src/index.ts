@@ -188,3 +188,8 @@ export * from './autonomous-trading-contracts.js';
 export * from './autonomous-trading-engine.js';
 export * from './autonomous-strategy-learning.js';
 export * from './postgres-autonomous-trading-mandate-store.js';
+
+export * from './sports-paper-betting.js';
+export * from './money-production-commissioning.js';
+export * from './money-prod-software-certification.js';
+export * from './postgres-money-production-commissioning-store.js';
