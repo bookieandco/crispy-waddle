@@ -1,6 +1,8 @@
 import type { GenerationResult } from './generation-provider';
 import type { CreativeProvenance } from './creative-provenance';
 
+export type DirectorAssetApprovalPolicy = 'standard' | 'studio_qc';
+
 /** Canonical persisted Director-generated asset contract. */
 export type GeneratedAssetRecord = {
   id: string;
@@ -16,6 +18,7 @@ export type GeneratedAssetRecord = {
   workflowVersion?: number;
   loras?: Array<{ id: string; weight: number }>;
   prompt?: string;
+  approvalPolicy?: DirectorAssetApprovalPolicy;
   createdAt: string;
   provenance?: CreativeProvenance;
   metadata?: Record<string, unknown>;
@@ -60,7 +63,7 @@ export type ProviderOutput = {
 
 export function resolveGenerationOutputs(
   result: GenerationResult,
-  context: Pick<GeneratedAssetRecord, 'projectId' | 'modelId' | 'workflowId' | 'workflowVersion' | 'loras' | 'prompt'> & { provenance?: CreativeProvenance },
+  context: Pick<GeneratedAssetRecord, 'projectId' | 'modelId' | 'workflowId' | 'workflowVersion' | 'loras' | 'prompt' | 'approvalPolicy'> & { provenance?: CreativeProvenance },
   outputs: ProviderOutput[],
 ): GeneratedAssetRecord[] {
   const createdAt = new Date().toISOString();
@@ -78,6 +81,7 @@ export function resolveGenerationOutputs(
     workflowVersion: context.workflowVersion,
     loras: context.loras,
     prompt: context.prompt,
+    approvalPolicy: context.approvalPolicy ?? 'standard',
     createdAt,
     provenance: context.provenance,
     metadata: output.metadata,
