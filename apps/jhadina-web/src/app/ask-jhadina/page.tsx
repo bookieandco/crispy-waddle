@@ -43,6 +43,12 @@ function AskJhadina(){
  function isVideoRequest(text:string){return /\b(make|create|generate|produce|build|render|turn)\b/i.test(text)&&/\b(video|movie|film|short|reel|tiktok|youtube\s+short|youtube\s+video)\b/i.test(text)}
  function slugReference(value:string,prefix:"character"|"product"){const slug=value.trim().toLowerCase().replace(/[^a-z0-9._:-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60);return slug||`${prefix}-${crypto.randomUUID().slice(0,8)}`}
  async function jsonOrThrow(response:Response,fallback:string){const json=await response.json();if(!response.ok||json?.ok===false)throw new Error(json?.error||fallback);return json}
+ async function videoJsonOrBlocked(response:Response,fallback:string){
+  const json=await response.json()
+  if(response.ok&&json?.ok!==false)return json
+  if(response.status===409&&json?.videoJob&&["blocked","failed"].includes(String(json.videoJob.status??"")))return json
+  throw new Error(json?.error||fallback)
+ }
 
  async function ensureDirectorProject(){
   const queryProject=params.get("project")?.trim()
@@ -85,7 +91,7 @@ function AskJhadina(){
   })}),"Unable to create recurring character identity")
 
   setReferenceStage("Starting full video production…")
-  const video=await jsonOrThrow(await fetch("/api/director/videos/reference-character",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+  const video=await videoJsonOrBlocked(await fetch("/api/director/videos/reference-character",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
    projectId,characterId,prompt:task.trim(),clientRequestId:crypto.randomUUID(),
   })}),"Unable to start reference-character video")
   const job=video.videoJob as VideoJobSummary
@@ -148,7 +154,7 @@ function AskJhadina(){
   })}),"Unable to create Product Bible")
 
   setReferenceStage("Starting product-consistent video production…")
-  const video=await jsonOrThrow(await fetch("/api/director/videos/reference-product",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+  const video=await videoJsonOrBlocked(await fetch("/api/director/videos/reference-product",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
    projectId,productId,productBibleId:String(locked.productBibleId??""),prompt:task.trim(),clientRequestId:crypto.randomUUID(),
   })}),"Unable to start product-reference video")
   const job=video.videoJob as VideoJobSummary
