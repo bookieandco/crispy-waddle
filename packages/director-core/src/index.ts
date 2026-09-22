@@ -103,3 +103,4 @@ export * from './movie-audio-bible';
 export * from './character-reference-bootstrap';
 export * from './generative-extend';
 export * from './reference-character-video';
+export * from './character-identity-qc';
