@@ -12,6 +12,26 @@ describe('JLLM runtime acceptance contracts',()=>{
     expect(calls).toEqual(['jhadina:canonical']);
   });
 
+  it('falls through a failed TTS provider without changing canonical identity',async()=>{
+    const identities:string[]=[];
+    const runtime=new JhadinaVoiceRuntime([],[
+      {id:'voxcpm2',supports:()=>true,synthesize:async()=>{throw new Error('offline')}},
+      {id:'qwen3-tts',supports:()=>true,synthesize:async(req)=>{identities.push(req.profile.id);return{provider:'qwen3-tts',mimeType:'audio/wav',audioBase64:'AA=='}}},
+    ]);
+    const result=await runtime.speak({text:'hola',language:'es-US',profile:JHADINA_CANONICAL_VOICE_PROFILE});
+    expect(result.provider).toBe('qwen3-tts');
+    expect(identities).toEqual(['jhadina:canonical']);
+  });
+
+  it('falls through a failed ASR provider',async()=>{
+    const runtime=new JhadinaVoiceRuntime([
+      {id:'faster-whisper',supports:()=>true,transcribe:async()=>{throw new Error('offline')}},
+      {id:'whisper-timestamped',supports:()=>true,transcribe:async()=>({language:'es-US',text:'hola',segments:[{startMs:0,endMs:500,text:'hola'}],provider:'whisper-timestamped'})},
+    ],[]);
+    const result=await runtime.listen({mimeType:'audio/wav',bytesBase64:'AA==',languageHint:'es-US'});
+    expect(result.transcript.provider).toBe('whisper-timestamped');
+  });
+
   it('keeps transcript and acoustic observations separate',async()=>{
     const runtime=new JhadinaVoiceRuntime([
       {id:'whisper',supports:()=>true,transcribe:async()=>({language:'en-US',text:'Jhadina, look at this',segments:[{startMs:0,endMs:1000,text:'Jhadina, look at this'}],provider:'whisper'})},
