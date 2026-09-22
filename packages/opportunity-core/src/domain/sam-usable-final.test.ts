@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { buildSamDateWindows, classifySamNoticeChange, normalizeSamWideNotice } from './sam-wide.js'
-import { evaluateSamSubcontractability } from './sam-subcontractability.js'
+import { evaluateSamSubcontractability, isUsCountry, normalizeCountryCode } from './sam-subcontractability.js'
 import { buildBrokerShortlist } from './sam-provider-broker.js'
 import { certifySamUsableFinal } from './sam-usable-final.js'
 import { computeSamMarketCoverage, nextSamBootstrapWindow } from './sam-market-coverage.js'
@@ -11,6 +11,10 @@ assert.equal(n.noticeId,'N1');assert.equal(n.resourceLinks.length,1)
 assert.equal(classifySamNoticeChange(undefined,n.checksum),'new')
 assert.equal(classifySamNoticeChange(n.checksum,n.checksum),'unchanged')
 assert.equal(buildSamDateWindows({from:'2026-09-01',to:'2026-09-10',windowDays:7}).length,2)
+
+assert.equal(isUsCountry('USA'),true)
+assert.equal(isUsCountry('United States of America'),true)
+assert.equal(normalizeCountryCode('Mexico'),'MX')
 
 const blocked=evaluateSamSubcontractability({agencyKind:'dod',contractKind:'supply',isFood:true,clauses:['DFARS 252.225-7012'],providerCountry:'MX',productCountry:'MX'})
 assert.equal(blocked.status,'blocked')

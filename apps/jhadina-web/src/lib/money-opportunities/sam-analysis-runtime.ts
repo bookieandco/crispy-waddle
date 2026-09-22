@@ -62,16 +62,17 @@ export async function analyzeSamNotices(client:SupabaseClient,noticeIds:string[]
     const text=`${description}\n${docs.filter(d=>d.source_kind!=='notice').map(d=>typeof d.extracted_text==='string'?d.extracted_text:'').filter(Boolean).join('\n')}`
     const food=/\b(food|meal|grocery|groceries|meat|dairy|produce|beverage|catering|ration)\b/i.test(text)
     const clauses=detectedClauses(text,extraction.clauses)
-    const decision=evaluateSamSubcontractability({
+    const subcontractabilityInput={
       agencyKind:agencyKind(String((catalog as Record<string,unknown>).agency??'')),
       contractKind:contractKind(text,food),
       isFood:food,
       setAside:typeof (catalog as Record<string,unknown>).set_aside==='string'?String((catalog as Record<string,unknown>).set_aside):undefined,
       clauses,
-    })
+    }
+    const decision=evaluateSamSubcontractability(subcontractabilityInput)
     const naics=Array.isArray((catalog as Record<string,unknown>).naics_codes)?((catalog as Record<string,unknown>).naics_codes as string[]):[]
     const requirements=extraction.requirements.map(r=>({...r,naicsCodes:naics,keywords:r.label.toLowerCase().split(/[^a-z0-9]+/).filter(x=>x.length>3).slice(0,12)}))
-    const {error}=await client.from('jhadina_sam_analysis').upsert({notice_id:noticeId,requirements,solicitation:{...extraction,clauses},subcontractability:decision,analyzed_at:new Date().toISOString()},{onConflict:'notice_id'})
+    const {error}=await client.from('jhadina_sam_analysis').upsert({notice_id:noticeId,requirements,solicitation:{...extraction,clauses},subcontractability:{...decision,evaluationInput:subcontractabilityInput},analyzed_at:new Date().toISOString()},{onConflict:'notice_id'})
     if(!error)analyzed+=1
   }
   return {analyzed}

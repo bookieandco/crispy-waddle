@@ -26,13 +26,21 @@ export type SubcontractabilityDecision={
 }
 
 const has=(clauses:string[],re:RegExp)=>clauses.some(x=>re.test(x))
+export function normalizeCountryCode(value?:string){
+  const normalized=value?.trim().toUpperCase().replace(/[^A-Z]/g,'')??''
+  if(['US','USA','UNITEDSTATES','UNITEDSTATESOFAMERICA'].includes(normalized))return'US'
+  if(['MX','MEX','MEXICO'].includes(normalized))return'MX'
+  if(['CA','CAN','CANADA'].includes(normalized))return'CA'
+  return normalized||undefined
+}
+export function isUsCountry(value?:string){return normalizeCountryCode(value)==='US'}
 const limitFor=(kind:SamContractKind)=>kind==='general_construction'?85:kind==='specialty_construction'?75:kind==='service'||kind==='supply'?50:undefined
 
 export function evaluateSamSubcontractability(input:SubcontractabilityInput):SubcontractabilityDecision{
   const clauses=input.clauses.map(x=>x.trim()).filter(Boolean)
   const hardBlockers:string[]=[],conditions:string[]=[],detectedRules:string[]=[]
   const setAside=Boolean(input.setAside?.trim())
-  const foreignProvider=Boolean(input.providerCountry&&input.providerCountry.toUpperCase()!=='US')
+  const foreignProvider=Boolean(input.providerCountry&&!isUsCountry(input.providerCountry))
   const berry=has(clauses,/252\.225-7012|berry amendment/i)
   const limitation=has(clauses,/52\.219-14|limitations? on subcontracting/i)||setAside
   const nonmanufacturer=has(clauses,/nonmanufacturer|52\.219-33/i)
@@ -41,7 +49,7 @@ export function evaluateSamSubcontractability(input:SubcontractabilityInput):Sub
   if(limitation){detectedRules.push('limitations-on-subcontracting analysis required')}
   if(nonmanufacturer){detectedRules.push('nonmanufacturer-rule analysis required')}
 
-  if(input.isFood&&input.agencyKind==='dod'&&berry&&input.productCountry&&input.productCountry.toUpperCase()!=='US'&&!input.domesticPreferenceException){
+  if(input.isFood&&input.agencyKind==='dod'&&berry&&input.productCountry&&!isUsCountry(input.productCountry)&&!input.domesticPreferenceException){
     hardBlockers.push('Proposed non-U.S. food origin conflicts with detected DoD domestic-source requirement unless a solicitation-specific exception applies.')
   }
 
@@ -57,7 +65,7 @@ export function evaluateSamSubcontractability(input:SubcontractabilityInput):Sub
 
   if(foreignProvider){
     conditions.push('Foreign ownership alone is not treated as an automatic bar; verify solicitation-specific nationality, origin, security, export/import and place-of-performance restrictions.')
-    if(input.isFood&&input.productCountry&&input.providerCountry!==input.productCountry)conditions.push('Treat provider nationality and food/product origin as separate compliance facts.')
+    if(input.isFood&&input.productCountry&&normalizeCountryCode(input.providerCountry)!==normalizeCountryCode(input.productCountry))conditions.push('Treat provider nationality and food/product origin as separate compliance facts.')
   }
   if(input.isFood)conditions.push('Verify food-safety, import, cold-chain and agency-specific source requirements from the solicitation.')
 
