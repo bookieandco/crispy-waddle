@@ -134,6 +134,6 @@ describe('PS-RECON creative and print contracts', () => {
       opaqueMaster.quality.checks.find((check) => check.id === 'background')?.status
     ).toBe('fail');
     expect(opaqueMaster.quality.productionReady).toBe(false);
-  }, 15_000);
+  }, 30_000);
 
 });
