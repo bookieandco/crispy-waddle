@@ -334,12 +334,12 @@ function truncate(value: string, max: number): string {
 }
 
 function isGrowthContextRelevant(activeTask: string): boolean {
-  const normalized = activeTask.toLowerCase().replace(/[^a-z0-9]+/g, " ")
+  const normalized = activeTask.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim()
   const signals = [
-    "growth", "campaign", "ad campaign", "paid ad", "paid media", "meta", "google ads",
-    "tiktok ads", "linkedin ads", "reddit ads", "audience", "lookalike", "retarget",
-    "attribution", "cac", "roas", "mer", "spend", "budget", "creative test",
-    "experiment", "lifecycle", "customer acquisition", "conversion", "performance",
+    "growth", "campaign", "campaigns", "ad campaign", "paid ad", "paid ads", "paid media",
+    "meta", "google ads", "tiktok ads", "linkedin ads", "reddit ads", "audience", "audiences",
+    "lookalike", "retarget", "retargeting", "attribution", "cac", "roas", "mer",
+    "ad spend", "ad budget", "creative test", "creative experiment", "lifecycle", "customer acquisition",
   ]
-  return signals.some((signal) => normalized.includes(signal))
+  return signals.some((signal) => ` ${normalized} `.includes(` ${signal} `))
 }
