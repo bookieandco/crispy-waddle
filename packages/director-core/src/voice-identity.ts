@@ -223,6 +223,10 @@ export type VoiceProviderCapability =
   | 'word-timestamps'
   | 'speaker-similarity-qc';
 
+function voiceCapabilities(...values: VoiceProviderCapability[]): readonly VoiceProviderCapability[] {
+  return Object.freeze(values);
+}
+
 export interface VoiceProviderProfile {
   id: string;
   name: string;
@@ -238,7 +242,7 @@ export const DIRECTOR_VOICE_PROVIDER_PROFILES: readonly VoiceProviderProfile[] =
     id: 'qwen3-tts',
     name: 'Qwen3-TTS',
     license: 'Apache-2.0',
-    capabilities: Object.freeze(['voice-clone','voice-design','multilingual','streaming','style-control']),
+    capabilities: voiceCapabilities('voice-clone','voice-design','multilingual','streaming','style-control'),
     languageCount: 10,
     notes: Object.freeze(['Supports reusable clone prompts; strong canonical-character voice candidate.']),
     runtimeRole: 'generation-provider',
@@ -247,7 +251,7 @@ export const DIRECTOR_VOICE_PROVIDER_PROFILES: readonly VoiceProviderProfile[] =
     id: 'voxcpm2',
     name: 'VoxCPM2',
     license: 'Apache-2.0',
-    capabilities: Object.freeze(['voice-clone','voice-design','multilingual','streaming','style-control','word-timestamps']),
+    capabilities: voiceCapabilities('voice-clone','voice-design','multilingual','streaming','style-control','word-timestamps'),
     languageCount: 30,
     notes: Object.freeze(['48kHz output; broad multilingual fallback/alternate character voice renderer.']),
     runtimeRole: 'generation-provider',
@@ -256,7 +260,7 @@ export const DIRECTOR_VOICE_PROVIDER_PROFILES: readonly VoiceProviderProfile[] =
     id: 'voicebox',
     name: 'Voicebox',
     license: 'MIT',
-    capabilities: Object.freeze(['voice-clone','voice-design','multilingual','style-control']),
+    capabilities: voiceCapabilities('voice-clone','voice-design','multilingual','style-control'),
     languageCount: 23,
     notes: Object.freeze(['Local multi-engine profile/generation gateway; provider profiles remain Director-owned.']),
     runtimeRole: 'gateway',
@@ -265,7 +269,7 @@ export const DIRECTOR_VOICE_PROVIDER_PROFILES: readonly VoiceProviderProfile[] =
     id: 'amphion',
     name: 'Amphion',
     license: 'MIT code; model/dataset licenses vary',
-    capabilities: Object.freeze(['voice-clone','multilingual','accent-conversion','singing','speaker-similarity-qc']),
+    capabilities: voiceCapabilities('voice-clone','multilingual','accent-conversion','singing','speaker-similarity-qc'),
     notes: Object.freeze(['Useful for voice conversion and QC metrics; each checkpoint/dataset needs separate license admission.']),
     runtimeRole: 'qc-toolkit',
   }),
@@ -273,7 +277,7 @@ export const DIRECTOR_VOICE_PROVIDER_PROFILES: readonly VoiceProviderProfile[] =
     id: 'voice-pro',
     name: 'Voice-Pro',
     license: 'GPL-3.0',
-    capabilities: Object.freeze(['voice-clone','multilingual']),
+    capabilities: voiceCapabilities('voice-clone','multilingual'),
     notes: Object.freeze(['Keep behind optional external boundary; celebrity-reference workflows require separate rights review.']),
     runtimeRole: 'reference-only',
   }),
