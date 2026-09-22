@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EditingAssetManifestEntry } from '@jhadina/director-core';
 import { LiveGeneratedEditingAssetShelf } from '../../../components/workstation/LiveGeneratedEditingAssetShelf';
 import { WorkstationTimeline } from '../../../components/workstation/WorkstationTimeline';
@@ -14,7 +14,6 @@ type WorkstationPageProps = {
 type WorkstationClip = TimelineClip & { name: string; kind: 'video' | 'audio' };
 type WorkstationTrack = TimelineTrack & { clips: WorkstationClip[] };
 
-const DEFAULT_PROJECT_ID = 'demo-project';
 const DURATION_SECONDS = 30;
 
 function createInitialTracks(): WorkstationTrack[] {
@@ -68,14 +67,45 @@ function makeTimeline(projectId: string, tracks: WorkstationTrack[]): EditableTi
 }
 
 export default function WorkstationPage({ searchParams }: WorkstationPageProps) {
-  const projectId = searchParams.projectId?.trim() || DEFAULT_PROJECT_ID;
+  const requestedProjectId = searchParams.projectId?.trim() || '';
   const initialTracks = useMemo(() => createInitialTracks(), []);
+  const [projectId, setProjectId] = useState(requestedProjectId);
+  const [projectError, setProjectError] = useState<string | null>(null);
   const [timelineTracks, setTimelineTracks] = useState<WorkstationTrack[]>(initialTracks);
   const [timelineKey, setTimelineKey] = useState(0);
   const [selectedAsset, setSelectedAsset] = useState<EditingAssetManifestEntry | null>(null);
   const [inserting, setInserting] = useState(false);
   const [insertError, setInsertError] = useState<string | null>(null);
-  const timelineRef = useRef<EditableTimeline>(makeTimeline(projectId, initialTracks));
+  const timelineRef = useRef<EditableTimeline>(makeTimeline(requestedProjectId, initialTracks));
+
+  useEffect(() => {
+    if (requestedProjectId) {
+      timelineRef.current = makeTimeline(requestedProjectId, initialTracks);
+      setProjectId(requestedProjectId);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch('/api/workstation/projects', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ defaultProject: true }),
+        });
+        const data = await response.json() as { ok?: boolean; projectId?: string; error?: string };
+        if (!response.ok || !data.ok || !data.projectId) throw new Error(data.error ?? 'Unable to create Director project');
+        if (cancelled) return;
+        timelineRef.current = makeTimeline(data.projectId, initialTracks);
+        setProjectId(data.projectId);
+        setProjectError(null);
+      } catch (error) {
+        if (!cancelled) setProjectError(error instanceof Error ? error.message : 'Unable to create Director project');
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [initialTracks, requestedProjectId]);
 
   function handleTimelineChange(snapshot: { tracks: WorkstationTrack[]; transitions: EditableTimeline['transitions']; markers: EditableTimeline['markers']; playheadSeconds: number; versions: EditableTimeline['versions'] }) {
     const next = { ...timelineRef.current, tracks: snapshot.tracks, transitions: snapshot.transitions, markers: snapshot.markers, playheadSeconds: snapshot.playheadSeconds, versions: snapshot.versions };
@@ -84,7 +114,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
   }
 
   async function insertSelectedAsset() {
-    if (!selectedAsset || inserting) return;
+    if (!selectedAsset || inserting || !projectId) return;
     setInserting(true);
     setInsertError(null);
 
@@ -129,6 +159,20 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
     } finally {
       setInserting(false);
     }
+  }
+
+  if (!projectId) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-[1600px] flex-col gap-4 p-4">
+        <header className="rounded-xl border bg-background p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">DirectorOS Workstation</p>
+          <h1 className="text-2xl font-semibold">Preparing project</h1>
+          <p className={projectError ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'}>
+            {projectError ?? 'Creating your owner-scoped Director project…'}
+          </p>
+        </header>
+      </main>
+    );
   }
 
   return (
