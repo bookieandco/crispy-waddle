@@ -1,4 +1,4 @@
-import {describe,expect,it} from 'vitest'
+import {describe,expect,it,vi} from 'vitest'
 import {runSharkProviderSoak,SHARK_PROVIDER_PROGRAMS} from './provider-soak'
 
 function response(body:unknown,status=200):Response{
