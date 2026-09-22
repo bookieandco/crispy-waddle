@@ -1,4 +1,26 @@
 export type CapabilityRisk = 'read' | 'write' | 'external' | 'financial' | 'destructive';
+export type JhadinaCapabilityVerb = 'observe'|'read'|'analyze'|'plan'|'propose'|'execute';
+
+export interface JhadinaSubsystemSurface {
+  readonly subsystemId:string;
+  readonly verbs:Readonly<Record<JhadinaCapabilityVerb,readonly string[]>>;
+}
+
+export function buildSubsystemSurface(registry:CapabilityRegistry,subsystemId:string):JhadinaSubsystemSurface {
+  const capabilities=registry.list().filter(item=>item.subsystemId===subsystemId);
+  const buckets:Record<JhadinaCapabilityVerb,string[]>={observe:[],read:[],analyze:[],plan:[],propose:[],execute:[]};
+  for(const capability of capabilities){
+    const name=capability.name.toLowerCase();
+    const verb:JhadinaCapabilityVerb =
+      /observe|watch|inspect/.test(name)?'observe':
+      /read|get|list|review/.test(name)?'read':
+      /analy|score|model|simulate/.test(name)?'analyze':
+      /plan|draft/.test(name)?'plan':
+      /propose|recommend/.test(name)?'propose':'execute';
+    buckets[verb].push(capability.name);
+  }
+  return Object.freeze({subsystemId,verbs:Object.freeze(Object.fromEntries(Object.entries(buckets).map(([k,v])=>[k,Object.freeze(v.sort())])) as unknown as Record<JhadinaCapabilityVerb,readonly string[]>)});
+}
 
 export interface SubsystemHealthDefinition {
   readonly subsystemId: string;
