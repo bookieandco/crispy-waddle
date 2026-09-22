@@ -19,6 +19,17 @@ describe('Director Social production bridge', () => {
     platform: 'tiktok',
     aspectRatio: '9:16',
     targetRuntimeSeconds: 30,
+    creativeIdentity: {
+      productIdentityRef: 'product-bible:demo:v1',
+      styleIdentityRef: 'style-bible:demo:v1',
+      platformCreativeProfileRef: 'profile:tiktok:short:v1',
+      experimentVariantId: 'variant:hook-b',
+      mutationAxis: 'hook',
+      fixedDimensionRefs: {
+        audience: 'audience:1',
+        offer: 'offer:1',
+      },
+    },
     referenceAssetIds: ['ref-1'],
     rightsEvidenceRefs: ['rights:owned:ref-1'],
     evidenceRefs: ['social:evidence:1'],
@@ -36,6 +47,8 @@ describe('Director Social production bridge', () => {
     expect(take.projectId).toBe('director-project-1');
     expect(take.storyboardBoardId).toBe('board-1');
     expect(take.prompt).toContain('target platform: tiktok');
+    expect(take.prompt).toContain('locked product identity: product-bible:demo:v1');
+    expect(take.prompt).toContain('only intended creative mutation: hook');
     expect(brief.authority).toBe('PLANNING_ONLY');
     expect(brief.publicationAuthority).toBe('NONE');
   });
@@ -101,6 +114,8 @@ describe('Director Social production bridge', () => {
     });
 
     expect(receipt.directorAssetId).toBe('director-asset-1');
+    expect(receipt.creativeIdentity?.experimentVariantId).toBe('variant:hook-b');
+    expect(receipt.creativeIdentity?.productIdentityRef).toBe('product-bible:demo:v1');
     expect(receipt.authority).toBe('DIRECTOR_ASSET_APPROVED');
     expect(receipt.publicationAuthority).toBe('NONE');
   });

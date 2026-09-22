@@ -51,7 +51,9 @@
     "./reference-character-video": "./src/reference-character-video.ts",
     "./cast-bible": "./src/cast-bible.ts",
     "./voice-identity": "./src/voice-identity.ts",
-    "./movie-audio-bible": "./src/movie-audio-bible.ts"
+    "./movie-audio-bible": "./src/movie-audio-bible.ts",
+    "./commercial-creative-lab": "./src/commercial-creative-lab.ts",
+    "./product-reference-bootstrap": "./src/product-reference-bootstrap.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
