@@ -195,6 +195,10 @@ importers:
   packages/delivery-compliance-gate: {}
 
   packages/director-core:
+    dependencies:
+      '@jhadina/action-core':
+        specifier: workspace:*
+        version: link:../jhadina-action-core
     devDependencies:
       vitest:
         specifier: ^2.1.8
