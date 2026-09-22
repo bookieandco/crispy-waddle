@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import type { Opportunity } from './opportunity.js'
 import { calculateOpportunityOutcome, type OpportunityOutcome } from './outcome.js'
-import type { SideHustleExperimentEvaluation } from './side-hustle-experiment.js'
+import {
+  completeSideHustleExperiment,
+  createSideHustleExperiment,
+  startSideHustleExperiment,
+  type SideHustleExperimentEvaluation,
+} from './side-hustle-experiment.js'
 import {
   applySideHustleMaturityPromotion,
   assessSideHustleMaturityPromotion,
@@ -59,6 +64,28 @@ function opportunity(
   }
 }
 
+function completedValidationExperiment() {
+  const planned = createSideHustleExperiment({
+    opportunity: opportunity('unvalidated'),
+    hypothesis: 'A buyer will pay for an AI discovery audit.',
+    targetCustomer: 'Local service businesses',
+    channel: 'Permissioned outreach',
+    offer: '$250 audit',
+    maxSpend: 100,
+    currency: 'USD',
+    maxHours: 8,
+    maxDurationDays: 14,
+    minimumObservations: 1,
+    successCriteria: [
+      { id: 'paid', metric: 'paid_commitments', operator: 'gte', threshold: 1, aggregation: 'sum', unit: 'customers' },
+    ],
+    evidenceRefs: ['experiment:plan:1'],
+    createdAt: '2026-09-20T01:00:00.000Z',
+  })
+  const running = startSideHustleExperiment(planned, '2026-09-20T02:00:00.000Z')
+  return completeSideHustleExperiment(running, '2026-09-20T23:00:00.000Z')
+}
+
 function promotedValidation(): SideHustleExperimentEvaluation {
   return {
     experimentId: 'experiment:1',
@@ -98,7 +125,10 @@ function wonOutcome(id: string): OpportunityOutcome {
 
 function evidence(outcomeCount: number) {
   return {
-    validationEvaluations: [promotedValidation()],
+    validationRecords: [{
+      experiment: completedValidationExperiment(),
+      evaluation: promotedValidation(),
+    }],
     outcomes: Array.from({ length: outcomeCount }, (_, index) => wonOutcome(`outcome:${index + 1}`)),
     workflowEvidenceRefs: ['workflow:1'],
     aiAssistEvidenceRefs: ['ai-assist:1'],
@@ -223,7 +253,7 @@ function evidence(outcomeCount: number) {
 
 {
   const noValidation = evidence(1)
-  noValidation.validationEvaluations = []
+  noValidation.validationRecords = []
   const assessment = assessSideHustleMaturityPromotion({
     opportunity: opportunity('unvalidated'),
     target: 'human_delivered',
@@ -248,9 +278,12 @@ function evidence(outcomeCount: number) {
 
 {
   const future = evidence(1)
-  future.validationEvaluations = [{
-    ...promotedValidation(),
-    evaluatedAt: '2026-09-23T00:00:00.000Z',
+  future.validationRecords = [{
+    experiment: completedValidationExperiment(),
+    evaluation: {
+      ...promotedValidation(),
+      evaluatedAt: '2026-09-23T00:00:00.000Z',
+    },
   }]
   assert.throws(
     () => assessSideHustleMaturityPromotion({
@@ -260,6 +293,40 @@ function evidence(outcomeCount: number) {
       assessedAt,
     }),
     /future validation evidence/,
+  )
+}
+
+{
+  const runningEvidence = evidence(1)
+  runningEvidence.validationRecords = [{
+    experiment: startSideHustleExperiment(
+      createSideHustleExperiment({
+        opportunity: opportunity('unvalidated'),
+        hypothesis: 'Still running',
+        targetCustomer: 'Buyer',
+        channel: 'Permissioned',
+        offer: 'Offer',
+        maxSpend: 10,
+        currency: 'USD',
+        maxHours: 2,
+        maxDurationDays: 7,
+        minimumObservations: 1,
+        successCriteria: [{ id: 'paid', metric: 'paid', operator: 'gte', threshold: 1, aggregation: 'sum', unit: 'customers' }],
+        evidenceRefs: ['plan:running'],
+        createdAt: '2026-09-20T01:00:00.000Z',
+      }),
+      '2026-09-20T02:00:00.000Z',
+    ),
+    evaluation: promotedValidation(),
+  }]
+  assert.throws(
+    () => assessSideHustleMaturityPromotion({
+      opportunity: opportunity('unvalidated'),
+      target: 'human_delivered',
+      evidence: runningEvidence,
+      assessedAt,
+    }),
+    /requires completed validation experiments/,
   )
 }
 
