@@ -6,6 +6,7 @@
   "include": [
     "src/lib/opportunities/**/*.ts",
     "src/app/api/opportunities/**/*.ts",
+    "src/app/api/internal/subnet/**/*.ts",
     "src/app/opportunity/**/*.tsx",
     "src/__tests__/opportunities.test.ts",
     "src/lib/money-opportunities/canonical-sam-workflow*.ts",

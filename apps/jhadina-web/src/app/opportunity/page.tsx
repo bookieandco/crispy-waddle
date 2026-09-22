@@ -144,6 +144,15 @@ export default function OpportunityCommandCenter() {
           <span style={federalArrow}>→</span>
         </Link>
 
+        <Link href="/opportunity/subnet" style={federalCard}>
+          <div>
+            <div style={eyebrowSmall}>Prime subcontracting</div>
+            <div style={federalTitle}>SBA SUBNet → primes actively seeking subcontractors</div>
+            <div style={federalCopy}>Browse posted scopes, NAICS codes, deadlines, performance locations, and the prime's public point of contact.</div>
+          </div>
+          <span style={federalArrow}>→</span>
+        </Link>
+
         <div style={metricsRow}>
           <Metric label="Found" value={summary.found} />
           <Metric label="Best matches" value={summary.bestMatches} />
