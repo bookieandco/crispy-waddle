@@ -104,3 +104,5 @@ export * from './character-reference-bootstrap';
 export * from './generative-extend';
 export * from './reference-character-video';
 export * from './character-identity-qc';
+export * from './commercial-creative-lab';
+export * from './product-reference-bootstrap';
