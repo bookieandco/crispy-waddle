@@ -52,6 +52,56 @@ export async function POST(req: NextRequest) {
       })
       if (social) {
         const clarifying = social.proposal.disposition === "ASK"
+        const videoIntent = inspectAskVideoIntent(activeTask)
+        const shouldStartDirectorVideo =
+          !clarifying
+          && social.workPlan.nextBoundary === "director_production"
+          && Boolean(videoIntent)
+
+        if (shouldStartDirectorVideo) {
+          const video = await createAndSubmitAskVideoJob({
+            userId: verifiedIdentity.userId,
+            activeTask,
+            activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
+            clientRequestId: typeof body?.clientRequestId === "string" ? body.clientRequestId : undefined,
+          })
+          const started = !["blocked", "failed", "cancelled"].includes(video.job.status)
+          const message = started
+            ? `${social.proposal.recommendation} Director started video job ${video.job.id}; status=${video.job.status}.`
+            : `${social.proposal.recommendation} Director created video job ${video.job.id}, but status=${video.job.status}: ${video.job.error ?? "provider action is required"}.`
+          const combinedProposal = {
+            ...social.proposal,
+            disposition: started ? "PROCEED" as const : "DEFER" as const,
+            recommendation: message,
+            rationale: `${social.proposal.rationale} Because the user explicitly requested video production, the resolved Social scope continued into Director's governed video job boundary. This does not grant publication or spend authority.`,
+            uncertainty: [
+              ...social.proposal.uncertainty,
+              ...(video.job.error ? [video.job.error] : []),
+            ],
+          }
+          return NextResponse.json({
+            success: true,
+            data: {
+              proposal: combinedProposal,
+              reasoningEventId: social.reasoningEventId,
+              expression: {
+                proposal: combinedProposal,
+                presentation: {
+                  mode: "direct",
+                  allowProfanity: false,
+                  allowQuip: false,
+                },
+                segments: [{ kind: "semantic", text: message }],
+              },
+              verified: social.verified,
+              verificationReason: `${social.verificationReason} Director video job persisted before provider submission.`,
+              socialWorkPlan: social.workPlan,
+              videoJob: video.job,
+              feedbackEligible: false,
+            },
+          })
+        }
+
         return NextResponse.json({
           success: true,
           data: {
