@@ -136,9 +136,22 @@ export interface SpatialDomainContext {
   provenance: EvidenceRef[];
 }
 
+/** Provider-neutral Social/Growth context contribution. It is read-only intelligence, never execution authority. */
+export interface SocialDomainContext {
+  accounts: EvidenceRef[];
+  characters: EvidenceRef[];
+  pendingWork: EvidenceRef[];
+  performance: EvidenceRef[];
+  attention: EvidenceRef[];
+  uncertainty: string[];
+  limitations: string[];
+  provenance: EvidenceRef[];
+}
+
 /** Domain extensions are additive; existing ContextPacket consumers remain valid. */
 export interface DomainContext {
   spatial?: SpatialDomainContext;
+  social?: SocialDomainContext;
 }
 
 /**
