@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
+import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
+import { createAndSubmitAskVideoJob, inspectAskVideoIntent } from "@/lib/director-video-job-service"
 
 export const dynamic = "force-dynamic"
 
@@ -36,6 +38,52 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const videoIntent = inspectAskVideoIntent(activeTask)
+    if (videoIntent) {
+      const verifier = await createRequestIdentityVerifier()
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const video = await createAndSubmitAskVideoJob({
+        userId: verifiedIdentity.userId,
+        activeTask,
+        activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
+        clientRequestId: typeof body?.clientRequestId === "string" ? body.clientRequestId : undefined,
+      })
+      const started = !["blocked", "failed", "cancelled"].includes(video.job.status)
+      const now = new Date().toISOString()
+      const message = started
+        ? `Director started creating the video. Job ${video.job.id} is ${video.job.status}.`
+        : `Director created the video job, but it is currently ${video.job.status}: ${video.job.error ?? "provider action is required"}.`
+      const proposal = {
+        id: `video-proposal:${video.job.id}`,
+        disposition: started ? "PROCEED" as const : "DEFER" as const,
+        recommendation: message,
+        rationale: "The request is an explicit video-creation command, so Ask Jhadina routed it to the governed Director production job path instead of treating it as a general chat response.",
+        evidence: [{
+          id: `director-video-job:${video.job.id}`,
+          source: "Director",
+          observedAt: now,
+          summary: `Project ${video.job.projectId}; mode ${video.job.mode}; aspect ${video.job.aspectRatio}; provider ${video.job.providerId ?? "not configured"}.`,
+        }],
+        uncertainty: video.job.error ? [video.job.error] : [],
+        alternatives: [],
+      }
+      return NextResponse.json({
+        success: true,
+        data: {
+          proposal,
+          reasoningEventId: `director-video:${video.job.id}`,
+          expression: {
+            proposal,
+            presentation: { mode: "direct", allowProfanity: false, allowQuip: false },
+            segments: [{ kind: "semantic", text: message }],
+          },
+          verified: true,
+          verificationReason: "Director video job persisted with project authority before provider submission.",
+          videoJob: video.job,
+        },
+      })
+    }
+
     const result = await handleJhadinaCommand({
       userId: claimedUserId,
       activeTask,
