@@ -1,4 +1,6 @@
 import type { DecisionProposal, EvidenceRef, GrowthDomainContext } from "@jhadina/core-spine"
+import { listGrowthBrands } from "@jhadina/growth-core"
+import { resolveSocialCharacterProfiles } from "@jhadina/social-core"
 import {
   createProductionGrowthContextProvider,
   type ProductionGrowthContextProvider,
@@ -15,6 +17,8 @@ export type AskGrowthReadOperation =
 export interface AskGrowthReadIntent {
   operation: AskGrowthReadOperation
   matched: true
+  requestedChannels: readonly string[]
+  requestedBrandIds: readonly string[]
 }
 
 export interface AskGrowthWorkPlan {
@@ -70,8 +74,7 @@ export function inspectAskGrowthReadIntent(activeTask: string): AskGrowthReadInt
   else if (/\b(performance|results?|metrics?|roas|cac|mer|spend|doing)\b/.test(text)) operation = "performance"
   else if (/\bcampaigns?\b/.test(text) || /\bmeta\b/.test(text)) operation = "list_campaigns"
 
-  return { matched: true, operation }
-}
+  return {\n    matched: true,\n    operation,\n    requestedChannels: inferChannels(text),\n    requestedBrandIds: inferBrandIds(activeTask),\n  }\n}
 
 export async function handleAskGrowthReadCommand(
   input: {
@@ -86,17 +89,18 @@ export async function handleAskGrowthReadCommand(
   const provider = overrides.provider ?? createProductionGrowthContextProvider()
   const context = await provider.getContext(input)
   if (!context) return null
+  const scoped = scopeContext(context, intent)
 
   const workPlan: AskGrowthWorkPlan = {
     kind: "growth_intelligence",
     operation: intent.operation,
     authority: "READ_ONLY",
     nextBoundary: "growth_read_only",
-    campaigns: context.campaigns,
-    audiences: context.audiences,
-    pendingWork: context.pendingWork,
-    performance: context.performance,
-    attention: context.attention,
+    campaigns: scoped.campaigns,
+    audiences: scoped.audiences,
+    pendingWork: scoped.pendingWork,
+    performance: scoped.performance,
+    attention: scoped.attention,
     notes: [
       "This is authenticated read-only Growth intelligence.",
       "No paid-ad approval receipt was created, approved, consumed, or widened.",
@@ -105,15 +109,15 @@ export async function handleAskGrowthReadCommand(
     ],
   }
 
-  const selectedEvidence = evidenceFor(intent.operation, context)
+  const selectedEvidence = evidenceFor(intent.operation, scoped)
   const proposal: DecisionProposal = {
     id: `ask-growth:${crypto.randomUUID()}`,
     contextId: `growth-command:${crypto.randomUUID()}`,
     disposition: "PROCEED",
-    recommendation: recommendationFor(intent.operation, context),
+    recommendation: recommendationFor(intent.operation, scoped),
     rationale: "The request is a Growth-state read. Jhadina used authenticated durable Growth records and returned evidence without crossing the paid-media or lifecycle execution boundary.",
     evidence: selectedEvidence,
-    uncertainty: [...context.uncertainty, ...context.limitations],
+    uncertainty: [...scoped.uncertainty, ...scoped.limitations],
     alternatives: [],
   }
 
@@ -189,4 +193,83 @@ function summarizeAttention(summary: string): string {
 
 function normalize(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim()
+}
+
+function inferChannels(text: string): string[] {
+  const aliases: Array<[string, readonly string[]]> = [
+    ["meta", ["meta", "facebook ads", "instagram ads"]],
+    ["google", ["google ads", "google"]],
+    ["tiktok", ["tiktok ads", "tik tok ads"]],
+    ["linkedin", ["linkedin ads"]],
+    ["reddit", ["reddit ads"]],
+    ["microsoft", ["microsoft ads", "bing ads"]],
+    ["pinterest", ["pinterest ads"]],
+    ["snapchat", ["snapchat ads", "snap ads"]],
+    ["amazon", ["amazon ads"]],
+    ["dv360", ["dv360", "display video 360"]],
+  ]
+  return aliases
+    .filter(([, terms]) => terms.some((term) => text.includes(term)))
+    .map(([channel]) => channel)
+}
+
+function inferBrandIds(activeTask: string): string[] {
+  const text = normalize(activeTask)
+  const ids = new Set<string>()
+
+  for (const brand of listGrowthBrands()) {
+    const rawId = String(brand.brandId)
+    const terms = [brand.name, rawId, rawId.replace(/^brand:/, "")]
+    if (terms.some((term) => text.includes(normalize(term)))) ids.add(rawId)
+  }
+
+  for (const profile of resolveSocialCharacterProfiles(activeTask)) {
+    ids.add("brand:" + profile.brand)
+  }
+
+  return [...ids].sort()
+}
+
+function scopeContext(context: GrowthDomainContext, intent: AskGrowthReadIntent): GrowthDomainContext {
+  const channels = new Set(intent.requestedChannels)
+  const brands = new Set(intent.requestedBrandIds)
+  const campaignMatches = (ref: EvidenceRef) =>
+    (!channels.size || channels.has(field(ref.summary, "channel") ?? ""))
+    && (!brands.size || brands.has(field(ref.summary, "brand") ?? ""))
+
+  const campaigns = context.campaigns.filter(campaignMatches)
+  const campaignIds = new Set(campaigns.map((ref) => field(ref.summary, "campaignId")).filter((value): value is string => !!value))
+  const hasCampaignScope = channels.size > 0 || brands.size > 0
+
+  const attention = context.attention.filter((ref) => !hasCampaignScope || campaignMatches(ref))
+  const performance = context.performance.filter((ref) => {
+    if (!hasCampaignScope) return true
+    const campaignId = field(ref.summary, "campaignId")
+    return !!campaignId && campaignIds.has(campaignId)
+  })
+  const pendingWork = context.pendingWork.filter((ref) => {
+    if (!hasCampaignScope) return true
+    const campaignId = field(ref.summary, "campaignId")
+    return !!campaignId && campaignIds.has(campaignId)
+  })
+  const audiences = context.audiences.filter((ref) =>
+    !brands.size || brands.has(field(ref.summary, "brand") ?? ""),
+  )
+
+  const uncertainty = [...context.uncertainty]
+  if (hasCampaignScope && campaigns.length === 0) {
+    const scope = [
+      brands.size ? "brand(s) " + [...brands].join(", ") : "",
+      channels.size ? "channel(s) " + [...channels].join(", ") : "",
+    ].filter(Boolean).join("; ")
+    uncertainty.push("No durable paid campaigns matched the requested scope: " + scope + ".")
+  }
+
+  return { ...context, campaigns, audiences, pendingWork, performance, attention, uncertainty }
+}
+
+function field(summary: string, name: string): string | undefined {
+  const prefix = name + "="
+  const part = summary.split(";").map((item) => item.trim()).find((item) => item.startsWith(prefix))
+  return part?.slice(prefix.length).trim()
 }
