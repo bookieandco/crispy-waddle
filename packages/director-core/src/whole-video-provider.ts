@@ -34,6 +34,7 @@ export interface WholeVideoProviderDescriptor {
   supportedModes: readonly AskVideoCreationIntent['mode'][];
   health: 'unknown' | 'healthy' | 'degraded' | 'offline';
   supportsCharacterReference?: boolean;
+  requiresCharacterReference?: boolean;
 }
 
 export interface WholeVideoProductionProvider {
@@ -62,7 +63,8 @@ export function selectWholeVideoProvider(
 ): WholeVideoProductionProvider | undefined {
   const compatible = providers.filter((provider) =>
     provider.descriptor.supportedModes.includes(intent.mode) &&
-    (!requirements.characterReference || provider.descriptor.supportsCharacterReference === true),
+    (!requirements.characterReference || provider.descriptor.supportsCharacterReference === true) &&
+    (requirements.characterReference || provider.descriptor.requiresCharacterReference !== true),
   );
   const safe = compatible.filter((provider) =>
     provider.descriptor.costClass !== 'paid' || intent.providerPolicy.allowPaidWithoutApproval,
