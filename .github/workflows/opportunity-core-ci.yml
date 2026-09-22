@@ -94,4 +94,5 @@ jobs:
             src/lib/money-opportunities/sam-analysis-runtime.test.ts \
             src/lib/money-opportunities/sam-command-center.test.ts \
             src/lib/money-opportunities/foreign-provider-sources.test.ts \
-            src/lib/money-opportunities/us-food-logistics-provider-sources.test.ts
+            src/lib/money-opportunities/us-food-logistics-provider-sources.test.ts \
+            src/lib/money-opportunities/exa-company-provider-source.test.ts
