@@ -1,4 +1,4 @@
-import { classifyOpportunityHubCategory, isSideHustleProfile, type Opportunity as CanonicalOpportunity, type OpportunityFamily, type OpportunityType, type SideHustleProfile } from "@jhadina/opportunity-core"
+import { classifyOpportunityHubCategory, getSideHustleDefinition, isSideHustleProfile, type Opportunity as CanonicalOpportunity, type OpportunityFamily, type OpportunityType, type SideHustleProfile } from "@jhadina/opportunity-core"
 import type { AutomationLevel, Opportunity as OpportunityView, OpportunityKind, OpportunityTriageState, OpportunityVerificationStatus } from "./sideIncome"
 
 export type OpportunityCreateInput = {
@@ -94,6 +94,7 @@ export function canonicalFromSideIncome(
       payCadence: input.estimatedPay?.cadence ?? "unknown",
       requiresUserApproval: input.requiresUserApproval ?? true,
       sideHustleProfile: input.sideHustleProfile ?? null,
+      hubCategory: input.sideHustleProfile ? getSideHustleDefinition(input.sideHustleProfile.family).hubCategory : undefined,
     },
     createdAt: now,
     updatedAt: now,
