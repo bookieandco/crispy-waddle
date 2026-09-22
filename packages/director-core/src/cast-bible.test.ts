@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateCharacterSceneBinding, validateMovieGradeCastRecord } from './cast-bible';
-import { resolveDialogueVoice, validateGeneratedDialogueVoice, validateMovieGradeVoiceIdentity } from './voice-identity';
+import { DIRECTOR_VOICE_PROVIDER_PROFILES, resolveDialogueVoice, validateGeneratedDialogueVoice, validateMovieGradeVoiceIdentity } from './voice-identity';
 import { validateMovieAudioBible, validateMovieGradeAudioBible } from './movie-audio-bible';
 import { evaluateCharacterIdentityContinuity } from './character-identity-qc';
 import { LONG_FORM_TAKE_POLICY, rankMultimodalTakes, withCharacterIdentityQc } from './multimodal-take-selection';
@@ -389,5 +389,18 @@ describe('Director cast and voice continuity', () => {
     expect(result.selectedTakeId).toBe('correct-character');
     expect(result.ranked.find((take) => take.takeId === 'beautiful-wrong-face')?.reasons)
       .toContain('DIRECTOR_CHARACTER_IDENTITY_DRIFT');
+  });
+  it('keeps VibeVoiceFusion reference-only until its repository license is explicitly admitted', () => {
+    const profile = DIRECTOR_VOICE_PROVIDER_PROFILES.find((item) => item.id === 'vibevoice-fusion');
+    expect(profile).toBeDefined();
+    expect(profile?.runtimeRole).toBe('reference-only');
+    expect(profile?.license).toContain('UNVERIFIED');
+    expect(profile?.capabilities).toEqual(expect.arrayContaining([
+      'voice-clone',
+      'multi-speaker',
+      'lora-adaptation',
+      'batch-variation',
+      'queue-management',
+    ]));
   });
 });
