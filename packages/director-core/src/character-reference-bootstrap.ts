@@ -105,6 +105,16 @@ export function planCharacterReferenceBootstrap(
     'lock',
   ];
 
+  const targetViews: readonly CharacterReferenceView[] = Object.freeze([
+    'front',
+    'profile-left',
+    'profile-right',
+    'three-quarter-left',
+    'three-quarter-right',
+    'full-body',
+    'close-up',
+  ] as const);
+
   return Object.freeze({
     id: request.id,
     projectId: request.projectId,
@@ -112,15 +122,7 @@ export function planCharacterReferenceBootstrap(
     continuityRef: `character:${request.characterId}:v1`,
     canonicalUploadId: canonical.id,
     stages: Object.freeze(stages),
-    targetViews: Object.freeze([
-      'front',
-      'profile-left',
-      'profile-right',
-      'three-quarter-left',
-      'three-quarter-right',
-      'full-body',
-      'close-up',
-    ]),
+    targetViews,
     authority: 'PROPOSAL_ONLY',
   });
 }
