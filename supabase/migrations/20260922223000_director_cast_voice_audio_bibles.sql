@@ -102,6 +102,25 @@ create table if not exists public.director_voice_language_variants (
 create unique index if not exists director_voice_language_variant_unique_idx
   on public.director_voice_language_variants(voice_identity_id, language, coalesce(locale,''));
 
+
+create table if not exists public.director_scene_character_bindings (
+  id text primary key,
+  project_id text not null,
+  scene_id text not null,
+  character_id text not null,
+  appearance_variant_id text not null references public.director_character_appearance_variants(id) on delete restrict,
+  voice_identity_id text references public.director_voice_identities(id) on delete restrict,
+  voice_variant_id text references public.director_voice_language_variants(id) on delete restrict,
+  language text,
+  approved_at timestamptz not null,
+  approved_by uuid not null references auth.users(id) on delete restrict,
+  created_at timestamptz not null default now(),
+  foreign key(project_id, character_id)
+    references public.director_cast_characters(project_id, character_id)
+    on delete cascade,
+  unique(project_id, scene_id, character_id)
+);
+
 create table if not exists public.director_score_themes (
   id text primary key,
   project_id text not null,
@@ -134,6 +153,7 @@ create table if not exists public.director_scene_score_cues (
 create index if not exists director_cast_project_idx on public.director_cast_characters(project_id, character_id);
 create index if not exists director_appearance_character_idx on public.director_character_appearance_variants(project_id, character_id);
 create index if not exists director_voice_character_idx on public.director_voice_identities(project_id, character_id);
+create index if not exists director_scene_character_binding_idx on public.director_scene_character_bindings(project_id, scene_id, character_id);
 create index if not exists director_score_project_idx on public.director_score_themes(project_id);
 create index if not exists director_score_cue_scene_idx on public.director_scene_score_cues(project_id, scene_id);
 
@@ -143,6 +163,7 @@ alter table public.director_voice_identities enable row level security;
 alter table public.director_voice_reference_samples enable row level security;
 alter table public.director_voice_provider_bindings enable row level security;
 alter table public.director_voice_language_variants enable row level security;
+alter table public.director_scene_character_bindings enable row level security;
 alter table public.director_score_themes enable row level security;
 alter table public.director_scene_score_cues enable row level security;
 
@@ -152,6 +173,7 @@ revoke all on public.director_voice_identities from public,anon,authenticated;
 revoke all on public.director_voice_reference_samples from public,anon,authenticated;
 revoke all on public.director_voice_provider_bindings from public,anon,authenticated;
 revoke all on public.director_voice_language_variants from public,anon,authenticated;
+revoke all on public.director_scene_character_bindings from public,anon,authenticated;
 revoke all on public.director_score_themes from public,anon,authenticated;
 revoke all on public.director_scene_score_cues from public,anon,authenticated;
 
@@ -161,6 +183,7 @@ grant select,insert,update,delete on public.director_voice_identities to service
 grant select,insert,update,delete on public.director_voice_reference_samples to service_role;
 grant select,insert,update,delete on public.director_voice_provider_bindings to service_role;
 grant select,insert,update,delete on public.director_voice_language_variants to service_role;
+grant select,insert,update,delete on public.director_scene_character_bindings to service_role;
 grant select,insert,update,delete on public.director_score_themes to service_role;
 grant select,insert,update,delete on public.director_scene_score_cues to service_role;
 
@@ -199,4 +222,10 @@ for each row execute function public.assert_director_cast_authority();
 drop trigger if exists director_voice_authority_guard on public.director_voice_identities;
 create trigger director_voice_authority_guard
 before insert or update on public.director_voice_identities
+for each row execute function public.assert_director_cast_authority();
+
+
+drop trigger if exists director_scene_character_binding_authority_guard on public.director_scene_character_bindings;
+create trigger director_scene_character_binding_authority_guard
+before insert or update on public.director_scene_character_bindings
 for each row execute function public.assert_director_cast_authority();
