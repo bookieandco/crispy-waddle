@@ -304,6 +304,13 @@ function resolveAccounts(input: {
       })
     : []
 
+  if (intent.accountTerms.length && explicitMatches.length === 0) {
+    return {
+      accounts: [],
+      error: `I could not resolve the explicit connected account reference(s) ${intent.accountTerms.map((term) => `@${term}`).join(", ")}. I will not broaden that request to other accounts.`,
+    }
+  }
+
   if (explicitMatches.length) {
     candidates = explicitMatches.filter((account) =>
       (!intent.requestedBrand || account.brand === intent.requestedBrand)
