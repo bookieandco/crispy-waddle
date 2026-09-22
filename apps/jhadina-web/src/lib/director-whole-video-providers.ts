@@ -163,7 +163,7 @@ export class ComfyUIReferenceVideoProductionProvider implements WholeVideoProduc
       throw new Error('DIRECTOR_REFERENCE_VIDEO_REFERENCE_DIGEST_MISMATCH');
     }
 
-    const existing = await this.client.findByIdempotencyKey?.(idempotencyKey);
+    const existing = await this.client.findPromptByClientId?.(idempotencyKey);
     if (existing) return this.status(existing);
 
     const uploadedReferences: string[] = [];
