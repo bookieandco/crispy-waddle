@@ -116,7 +116,7 @@ export async function issueAutonomousTradePermitPackage(input:{
   assertAutonomousMandateActive(m,input.authorizedAt);assertAutonomousIntent(i);assertActionCoreAuthorityMatches(request,authority)
   if(authority.decision!=='allow')throw new Error('MONEY_AUTO_CHILD_AUTHORITY_MUST_ALLOW')
   if(authority.approvalReceiptId!==m.approvalReceiptId)throw new Error('MONEY_AUTO_MANDATE_APPROVAL_LINEAGE_MISMATCH')
-  if(authority.authorizedAt<input.authorizedAt||input.authorizedAt>=authority.expiresAt)throw new Error('MONEY_AUTO_CHILD_AUTHORITY_WINDOW_INVALID')
+  if(input.authorizedAt<authority.authorizedAt||input.authorizedAt>=authority.expiresAt)throw new Error('MONEY_AUTO_CHILD_AUTHORITY_WINDOW_INVALID')
   if(i.mandateId!==m.mandateId||risk.mandateId!==m.mandateId||risk.intentId!==i.intentId||!risk.allowed||risk.authority!=='RISK_VETO_ONLY')throw new Error('MONEY_AUTO_RISK_VETO')
   if(plan.executionPlanId!==i.executionPlanId||plan.instrumentId!==i.instrumentId||plan.side!==i.side||plan.notional.minor!==i.notionalMinor||plan.notional.currency!==i.currency)throw new Error('MONEY_AUTO_PLAN_BINDING_MISMATCH')
   if(preflight.preflightId!==i.preflightId||preflight.executionPlanId!==plan.executionPlanId||preflight.provider!==m.provider||preflight.accountId!==m.accountId||preflight.status!=='PASS_FOR_HUMAN_APPROVAL'||preflight.canSubmitOrders||preflight.canAuthorizeLive)throw new Error('MONEY_AUTO_PREFLIGHT_INVALID')
