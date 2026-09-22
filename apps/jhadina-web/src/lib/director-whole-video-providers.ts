@@ -258,6 +258,7 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
     health: 'unknown',
     supportsCharacterReference: true,
     requiresCharacterReference: true,
+    supportsExpressionGuidance: true,
   };
 
   private readonly baseUrl: string;
