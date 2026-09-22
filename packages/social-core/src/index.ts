@@ -11,3 +11,4 @@ export * from "./content-projects.js";
 export * from "./automation.js";
 export * from "./voice-profiles.js";
 export * from "./messaging.js";
+export * from "./content-calendar.js";

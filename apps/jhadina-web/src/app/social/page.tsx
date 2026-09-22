@@ -36,6 +36,21 @@ type PendingApproval = {
   receiptId: string
 }
 
+type PublicationProposal = {
+  id: string
+  brand: string
+  text: string
+  scheduledAt?: string
+  status: string
+  approvalReceiptId?: string
+  targets: Array<{
+    accountId: string
+    platform: string
+    provider: string
+    providerProfileId: string
+  }>
+}
+
 const brands = [
   ["jhadinatv", "JhadinaTV"],
   ["jhadina-music", "Jhadina Music"],
@@ -55,6 +70,8 @@ export default function SocialCommandCenter() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [profiles, setProfiles] = useState<ProviderProfile[]>([])
   const [items, setItems] = useState<HubItem[]>([])
+  const [proposals, setProposals] = useState<PublicationProposal[]>([])
+  const [batchSelected, setBatchSelected] = useState<string[]>([])
   const [brand, setBrand] = useState("jhadinatv")
   const [provider, setProvider] = useState("hootsuite")
   const [text, setText] = useState("")
@@ -67,16 +84,20 @@ export default function SocialCommandCenter() {
   async function load() {
     setError("")
     try {
-      const [accountsResponse, hubResponse] = await Promise.all([
+      const [accountsResponse, hubResponse, proposalsResponse] = await Promise.all([
         fetch("/api/social/profiles", { cache: "no-store" }),
         fetch("/api/social/hub", { cache: "no-store" }),
+        fetch("/api/social/posts", { cache: "no-store" }),
       ])
       const accountsJson = await accountsResponse.json()
       const hubJson = await hubResponse.json()
+      const proposalsJson = await proposalsResponse.json()
       if (!accountsResponse.ok) throw new Error(accountsJson.error || "Could not load social accounts")
       if (!hubResponse.ok) throw new Error(hubJson.error || "Could not load Social Hub")
+      if (!proposalsResponse.ok) throw new Error(proposalsJson.error || "Could not load publication proposals")
       setAccounts(accountsJson.data ?? [])
       setItems(hubJson.data?.items ?? [])
+      setProposals(proposalsJson.data ?? [])
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not load Social")
     }
@@ -89,9 +110,24 @@ export default function SocialCommandCenter() {
     [accounts, brand],
   )
 
+  const pendingCalendar = useMemo(
+    () => proposals
+      .filter((proposal) =>
+        proposal.brand === brand &&
+        proposal.status === "pending_approval" &&
+        !!proposal.approvalReceiptId &&
+        !!proposal.scheduledAt &&
+        proposal.targets.length === 1 &&
+        Date.parse(proposal.scheduledAt) > Date.now(),
+      )
+      .sort((a, b) => Date.parse(a.scheduledAt!) - Date.parse(b.scheduledAt!)),
+    [proposals, brand],
+  )
+
   useEffect(() => {
     setSelected([])
     setPending(null)
+    setBatchSelected([])
   }, [brand])
 
   useEffect(() => {
@@ -149,6 +185,30 @@ export default function SocialCommandCenter() {
       await load()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Proposal failed")
+    } finally { setBusy("") }
+  }
+
+  async function approveCalendarBatch() {
+    if (!batchSelected.length) return
+    setBusy("batch"); setError("")
+    try {
+      const response = await fetch("/api/social/calendar/batches/approve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          batchId: `social-calendar:${brand}:${crypto.randomUUID()}`,
+          proposalIds: batchSelected,
+        }),
+      })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error || "Calendar batch approval failed")
+      if (json.data?.status === "partial") {
+        setError("Some scheduled posts were approved while others failed. Review the remaining pending items before retrying.")
+      }
+      setBatchSelected([])
+      await load()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Calendar batch approval failed")
     } finally { setBusy("") }
   }
 
@@ -263,6 +323,51 @@ export default function SocialCommandCenter() {
         {pending && <p style={{ color: "#725f42", lineHeight: 1.5 }}>
           Approval is pending. The provider has not been called yet. Approval consumes this receipt once and binds the exact text, media, destination accounts, and schedule.
         </p>}
+      </section>
+
+      <section style={panel}>
+        <div style={eyebrow}>CONTENT CALENDAR</div>
+        <h2 style={{ fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400 }}>Batch review scheduled posts</h2>
+        <p style={{ color: "#69766f", lineHeight: 1.55 }}>
+          Select exact pending posts for this brand and approve them together. Each post keeps its own immutable public.publish receipt; this does not grant open-ended future posting authority.
+        </p>
+        <div style={{ display: "grid", gap: 8, margin: "14px 0" }}>
+          {pendingCalendar.length
+            ? pendingCalendar.map((proposal) => <label key={proposal.id} style={row}>
+                <div>
+                  <div style={{ fontWeight: 650 }}>{proposal.text.length > 90 ? `${proposal.text.slice(0, 90)}…` : proposal.text}</div>
+                  <div style={{ fontSize: 12, color: "#76827b", marginTop: 4 }}>
+                    {proposal.targets[0]?.platform} · {proposal.targets[0]?.provider} · {new Date(proposal.scheduledAt!).toLocaleString()}
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={batchSelected.includes(proposal.id)}
+                  onChange={(event) => setBatchSelected((current) =>
+                    event.target.checked ? [...current, proposal.id] : current.filter((id) => id !== proposal.id),
+                  )}
+                />
+              </label>)
+            : <div style={{ color: "#748078" }}>No future scheduled posts are waiting for approval for this brand.</div>}
+        </div>
+        {pendingCalendar.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            style={secondary}
+            disabled={!!busy}
+            onClick={() => setBatchSelected(pendingCalendar.map((proposal) => proposal.id))}
+          >
+            Select all
+          </button>
+          <button
+            type="button"
+            style={primary}
+            disabled={!!busy || batchSelected.length === 0}
+            onClick={approveCalendarBatch}
+          >
+            {busy === "batch" ? "Approving calendar…" : `Approve ${batchSelected.length} scheduled post${batchSelected.length === 1 ? "" : "s"}`}
+          </button>
+        </div>}
       </section>
 
       <section style={panel}>
