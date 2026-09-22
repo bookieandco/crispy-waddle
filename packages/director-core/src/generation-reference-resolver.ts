@@ -36,6 +36,9 @@ export class ReferenceResolvingGenerationProvider implements GenerationProvider 
   ) {
     this.descriptor = provider.descriptor;
     this.submissionGuarantee = provider.submissionGuarantee;
+    if (provider.submissionGuarantee === 'recoverable' && !provider.findByIdempotencyKey) {
+      throw new Error(`Provider ${provider.descriptor.id} declares recoverable submission without recovery lookup`);
+    }
   }
 
   async submit(
@@ -61,8 +64,10 @@ export class ReferenceResolvingGenerationProvider implements GenerationProvider 
     return this.provider.submit({ ...request, references }, options);
   }
 
-  findByIdempotencyKey(idempotencyKey: string): Promise<GenerationResult | undefined> | undefined {
-    return this.provider.findByIdempotencyKey?.(idempotencyKey);
+  async findByIdempotencyKey(idempotencyKey: string): Promise<GenerationResult | undefined> {
+    return this.provider.findByIdempotencyKey
+      ? this.provider.findByIdempotencyKey(idempotencyKey)
+      : undefined;
   }
 
   status(providerJobId: string): Promise<GenerationResult> {
