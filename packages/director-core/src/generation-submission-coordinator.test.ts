@@ -31,8 +31,8 @@ describe('GenerationSubmissionCoordinator', () => {
     const repository = new InMemoryGenerationRepository(); const task = createTask(); await repository.claimTask(task);
     const execution = await repository.claimExecution(task.id, 'provider-1', 'worker-a', 30_000);
     const reserved = await repository.reserveSubmission(task, execution!, 'provider-1', task.idempotencyKey);
-    const stale = await repository.claimSubmission(reserved!.id, 'worker-a', 1); expect(stale?.status).toBe('submitting');
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    const stale = await repository.claimSubmission(reserved!.id, 'worker-a', 0); expect(stale?.status).toBe('submitting');
+    await repository.saveExecution({ ...execution!, leaseExpiresAt: new Date(Date.now() - 1).toISOString() });
     const replacement = await repository.claimExecution(task.id, 'provider-1', 'worker-b', 30_000);
     const recovered = result(task);
     const recoveringProvider = provider(task, recovered);
@@ -49,6 +49,7 @@ describe('GenerationSubmissionCoordinator', () => {
     const execution = await repository.claimExecution(task.id, 'provider-1', 'worker-a', 30_000);
     const reservation = await repository.reserveSubmission(task, execution!, 'provider-1', task.idempotencyKey);
     const claimed = await repository.claimSubmission(reservation!.id, 'worker-a', 30_000);
+    await repository.saveExecution({ ...execution!, leaseExpiresAt: new Date(Date.now() - 1).toISOString() });
     const replacement = await repository.claimExecution(task.id, 'provider-1', 'worker-b', 30_000);
     const staleResult = await repository.acknowledgeSubmissionAndSaveState(reservation!.id, 'worker-a', claimed!.leaseToken!, execution!.leaseToken!, 'provider-job-stale-1', { ...task, status: 'completed', updatedAt: '2026-09-01T00:00:01.000Z' }, { ...execution!, status: 'completed', providerJobId: 'provider-job-stale-1', updatedAt: '2026-09-01T00:00:01.000Z' });
     expect(replacement?.leaseToken).not.toBe(execution?.leaseToken); expect(staleResult).toBeUndefined();
@@ -61,7 +62,7 @@ describe('GenerationSubmissionCoordinator', () => {
     const repository = new InMemoryGenerationRepository(); const task = createTask(); await repository.claimTask(task);
     const execution = await repository.claimExecution(task.id, 'provider-1', 'worker-a', 30_000);
     const reservation = await repository.reserveSubmission(task, execution!, 'provider-1', task.idempotencyKey);
-    const first = await repository.claimSubmission(reservation!.id, 'worker-a', 1); await new Promise((resolve) => setTimeout(resolve, 5));
+    const first = await repository.claimSubmission(reservation!.id, 'worker-a', 0);
     const second = await repository.claimSubmission(reservation!.id, 'worker-b', 30_000); expect(second?.leaseToken).not.toBe(first?.leaseToken);
     const rejected = await repository.acknowledgeSubmissionAndSaveState(reservation!.id, 'worker-a', first!.leaseToken!, execution!.leaseToken!, 'provider-job-stale-submission', { ...task, status: 'completed' }, { ...execution!, status: 'completed', providerJobId: 'provider-job-stale-submission' });
     expect(rejected).toBeUndefined();

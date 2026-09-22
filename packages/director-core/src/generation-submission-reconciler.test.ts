@@ -18,8 +18,8 @@ describe('GenerationSubmissionReconciler', () => {
     const t = task(); await repository.claimTask(t);
     const execution = await repository.claimExecution(t.id, 'provider-1', 'worker-a', 30_000);
     const reserved = await repository.reserveSubmission(t, execution!, 'provider-1', t.idempotencyKey);
-    const old = await repository.claimSubmission(reserved!.id, 'worker-a', 1); expect(old?.status).toBe('submitting');
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    const old = await repository.claimSubmission(reserved!.id, 'worker-a', 0); expect(old?.status).toBe('submitting');
+    await repository.saveExecution({ ...execution!, leaseExpiresAt: new Date(Date.now() - 1).toISOString() });
 
     const reconciler = new GenerationSubmissionReconciler(repository, new Map([['provider-1', provider(t)]]), 'worker-b', 30_000);
     const outcome = await reconciler.runOnce(10);
@@ -35,8 +35,8 @@ describe('GenerationSubmissionReconciler', () => {
     const t = task(); await repository.claimTask(t);
     const execution = await repository.claimExecution(t.id, 'provider-1', 'worker-a', 30_000);
     const reserved = await repository.reserveSubmission(t, execution!, 'provider-1', t.idempotencyKey);
-    const old = await repository.claimSubmission(reserved!.id, 'worker-a', 1); expect(old?.status).toBe('submitting');
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    const old = await repository.claimSubmission(reserved!.id, 'worker-a', 0); expect(old?.status).toBe('submitting');
+    await repository.saveExecution({ ...execution!, leaseExpiresAt: new Date(Date.now() - 1).toISOString() });
 
     const providers = new Map([['provider-1', provider(t)]]);
     const a = new GenerationSubmissionReconciler(repository, providers, 'worker-b', 30_000);
@@ -53,8 +53,8 @@ describe('GenerationSubmissionReconciler', () => {
     const t = task(); await repository.claimTask(t);
     const execution = await repository.claimExecution(t.id, 'provider-1', 'worker-a', 30_000);
     const reserved = await repository.reserveSubmission(t, execution!, 'provider-1', t.idempotencyKey);
-    const old = await repository.claimSubmission(reserved!.id, 'worker-a', 1); expect(old?.status).toBe('submitting');
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    const old = await repository.claimSubmission(reserved!.id, 'worker-a', 0); expect(old?.status).toBe('submitting');
+    await repository.saveExecution({ ...execution!, leaseExpiresAt: new Date(Date.now() - 1).toISOString() });
 
     const nonIdempotent: GenerationProvider = { descriptor: { id: 'provider-1', name: 'Unsafe Provider', kind: 'comfyui', endpoint: 'http://provider.test', capabilities: ['text-to-image'], models: ['model-1'], health: 'healthy' }, submissionGuarantee: 'non-idempotent', async submit(): Promise<GenerationResult> { throw new Error('must not resubmit'); }, async status(providerJobId: string): Promise<GenerationResult> { return { ...recovered(t), providerJobId }; }, async cancel(): Promise<void> {} };
     const reconciler = new GenerationSubmissionReconciler(repository, new Map([['provider-1', nonIdempotent]]), 'worker-b', 30_000);

@@ -72,9 +72,9 @@ describe('GenerationRepository', () => {
 
   it('rejects a stale worker from overwriting a replacement worker lease', async () => {
     const repository = new InMemoryGenerationRepository();
-    const first = await repository.claimExecution('task-1', 'provider-1', 'worker-a', 1);
+    const first = await repository.claimExecution('task-1', 'provider-1', 'worker-a', 30_000);
     expect(first?.leaseOwner).toBe('worker-a');
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await repository.saveExecution({ ...first!, leaseExpiresAt: new Date(Date.now() - 1).toISOString() });
     const replacement = await repository.claimExecution('task-1', 'provider-1', 'worker-b', 30_000);
     expect(replacement?.leaseOwner).toBe('worker-b');
     const staleWrite = await repository.saveExecution({ ...first!, providerJobId: 'stale-provider-job', status: 'queued', leaseOwner: 'worker-a', updatedAt: new Date().toISOString() });
@@ -99,8 +99,8 @@ describe('GenerationRepository', () => {
     const repository = new InMemoryGenerationRepository();
     const originalTask = task();
     await repository.claimTask(originalTask);
-    const first = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-a', 1);
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    const first = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-a', 30_000);
+    await repository.saveExecution({ ...first!, leaseExpiresAt: new Date(Date.now() - 1).toISOString() });
     const replacement = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-b', 30_000);
     expect(replacement?.leaseToken).not.toBe(first?.leaseToken);
     const staleTask = { ...originalTask, status: 'completed' as const, error: undefined, updatedAt: '2026-09-01T00:00:02.000Z' };
@@ -133,16 +133,18 @@ describe('GenerationRepository', () => {
     await expect(repository.reserveSubmission(originalTask, replacement!, 'provider-1', originalTask.idempotencyKey)).resolves.toMatchObject({ leaseOwner: 'worker-b' });
   });
 
-  it('does not reuse a submission key across different executions', async () => {
+  it('adopts one durable submission intent across a replacement execution lease', async () => {
     const repository = new InMemoryGenerationRepository();
     const originalTask = task();
     await repository.claimTask(originalTask);
     const first = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-a', 30_000);
     const reservation = await repository.reserveSubmission(originalTask, first!, 'provider-1', originalTask.idempotencyKey);
     expect(reservation).toBeDefined();
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await repository.saveExecution({ ...first!, leaseExpiresAt: new Date(Date.now() - 1).toISOString() });
     const replacement = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-b', 30_000);
-    await expect(repository.reserveSubmission(originalTask, replacement!, 'provider-1', originalTask.idempotencyKey)).rejects.toThrow('belongs to another generation execution');
+    const adopted = await repository.reserveSubmission(originalTask, replacement!, 'provider-1', originalTask.idempotencyKey);
+    expect(adopted?.id).toBe(reservation?.id);
+    expect(adopted).toMatchObject({ taskId: originalTask.id, executionId: replacement!.id, leaseOwner: 'worker-b', leaseToken: replacement!.leaseToken });
   });
 
   it('atomically acknowledges submission and persists task plus execution state', async () => {
@@ -167,8 +169,7 @@ describe('GenerationRepository', () => {
     await repository.claimTask(originalTask);
     const leased = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-a', 30_000);
     const reservation = await repository.reserveSubmission(originalTask, leased!, 'provider-1', originalTask.idempotencyKey);
-    const staleSubmission = await repository.claimSubmission(reservation!.id, 'worker-a', 1);
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    const staleSubmission = await repository.claimSubmission(reservation!.id, 'worker-a', 0);
     const replacement = await repository.claimSubmission(reservation!.id, 'worker-b', 30_000);
     const result = await repository.acknowledgeSubmissionAndSaveState(reservation!.id, 'worker-a', staleSubmission!.leaseToken!, leased!.leaseToken!, 'stale-job', { ...originalTask, status: 'completed', updatedAt: '2026-09-01T00:00:04.000Z' }, { ...leased!, status: 'completed', providerJobId: 'stale-job', updatedAt: '2026-09-01T00:00:04.000Z' });
     expect(result).toBeUndefined();
@@ -184,6 +185,7 @@ describe('GenerationRepository', () => {
     const leased = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-a', 30_000);
     const reservation = await repository.reserveSubmission(originalTask, leased!, 'provider-1', originalTask.idempotencyKey);
     const claimed = await repository.claimSubmission(reservation!.id, 'worker-a', 30_000);
+    await repository.saveExecution({ ...leased!, leaseExpiresAt: new Date(Date.now() - 1).toISOString() });
     const replacement = await repository.claimExecution(originalTask.id, 'provider-1', 'worker-b', 30_000);
     const result = await repository.acknowledgeSubmissionAndSaveState(reservation!.id, 'worker-a', claimed!.leaseToken!, leased!.leaseToken!, 'stale-execution-job', { ...originalTask, status: 'completed', updatedAt: '2026-09-01T00:00:05.000Z' }, { ...leased!, status: 'completed', providerJobId: 'stale-execution-job', updatedAt: '2026-09-01T00:00:05.000Z' });
     expect(result).toBeUndefined();
