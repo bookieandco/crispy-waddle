@@ -77,6 +77,7 @@ jobs:
           src/lib/director-studio-qc-repository.test.ts
           src/lib/director-cast-repository.test.ts
           src/lib/director-reference-media.test.ts
+          src/lib/director-whole-video-providers.test.ts
           src/app/api/workstation/editing-assets/route.test.ts
           src/lib/social/director-bridge.test.ts
       - run: pnpm --filter @jhadina/jhadina-web run type-check
