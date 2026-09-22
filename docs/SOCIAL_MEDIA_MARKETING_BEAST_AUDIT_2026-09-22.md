@@ -373,3 +373,52 @@ A "social media marketing beast" means:
 - organic + creator + paid + marketplace connected;
 - contribution/economic outcomes over vanity metrics;
 - durable lineage so every result teaches the next campaign.
+
+
+## Source certification receipt
+
+Certified branch head:
+- `ec26f73e2a38e6061c92601d3e553bde5baab454`
+- PR #592 is open and mergeable.
+
+Green executable evidence:
+- Social Core Certification #100 — run `35754992412` — SUCCESS
+  - frozen install
+  - Social Core type-check
+  - Social Core tests
+  - Growth Core type-check
+  - Growth Core tests
+  - Social/Growth web integration type-check
+  - Social web integration tests
+- Jhadina Web Deploy Conformance #399 — SUCCESS
+- Growth Vercel Prebuilt Preview #89 — SUCCESS
+- UX Final Certification #163 — SUCCESS
+- Media Production Certification #296 — SUCCESS
+- Director Targeted Tests #648 — SUCCESS
+- Spatial Conformance #1362 — SUCCESS
+- Staffing Postgres Integration #2360 — SUCCESS
+
+The broad Jhadina Launch Gate #3975 is not green, but its failures are outside this Social change:
+- `packages/director-core/src/studio-governed-action.test.ts` cannot resolve `@jhadina/action-core`;
+- `packages/director-core/src/ffmpeg-cancellation.test.ts` timed out at 5 seconds.
+
+The same Launch Gate run shows Social Core type-check and the new Social test files passing. This branch does not alter Director Core, so the launch-gate failure is recorded as unrelated monorepo debt rather than a Social certification failure.
+
+## Readiness verdict
+
+**SOURCE_CERTIFIED / RUNTIME_PROVIDER_CONFIGURATION_REQUIRED**
+
+What is ready now:
+- governed multi-provider publishing contract;
+- Hootsuite + Ayrshare runtime selection;
+- exact-account provider binding;
+- immutable scheduled publishing after approval;
+- content-project lineage and evidence gates;
+- existing Social observation -> Growth learning path.
+
+What still requires live operational evidence:
+- real production provider credentials/account binding;
+- a controlled scheduled publish canary;
+- provider-rate-limit / revoked-token / outage drills;
+- Ayrshare analytics ingestion and webhook reconciliation;
+- final convergence with open Growth intelligence PR #589.
