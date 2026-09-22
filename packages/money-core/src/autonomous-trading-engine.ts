@@ -7,7 +7,7 @@ import type { ExecutionAction, ExecutionPermit, PermitStore } from './execution-
 import type { ExecutionPlan } from './execution-planning-contracts.js'
 import type { LiveExecutionPreflight } from './live-preflight-contracts.js'
 import type { LiveBrokerOrderRequest, LiveBrokerSubmissionResult, ManualLiveBrokerAdapter } from './manual-live-broker-contracts.js'
-import { assertAutonomousIntent, assertAutonomousMandateActive, type AutonomousCertificationCase, type AutonomousCertificationReport, type AutonomousRiskDecision, type AutonomousRiskSnapshot, type AutonomousTradeActionRequest, type AutonomousTradeIntent, type AutonomousTradingMandate } from './autonomous-trading-contracts.js'
+import { assertAutonomousIntent, assertAutonomousMandateActive, type AutonomousCertificationCase, type AutonomousCertificationReport, type AutonomousRiskDecision, type AutonomousRiskSnapshot, type AutonomousTradeActionRequest, type AutonomousTradeIntent, type AutonomousTradingMandate, type AutonomousTradingMandateStore } from './autonomous-trading-contracts.js'
 import type { MoneyActionCoreAuthority } from './action-core-authority-bridge.js'
 import { type CanaryReservation, type LiveCanaryPolicy, type LiveCanaryStateStore } from './live-canary-contracts.js'
 import type { ProviderExecutionEvent } from './execution-receipt-contracts.js'
@@ -43,6 +43,17 @@ const bps=(n:number)=>Number.isInteger(n)&&n>=0&&n<=10000
 const day=(iso:string)=>{if(Number.isNaN(Date.parse(iso)))throw new Error('MONEY_AUTO_TIME_INVALID');return new Date(iso).toISOString().slice(0,10)}
 
 function instrumentAllowed(m:AutonomousTradingMandate,instrumentId:string){return m.allowedInstrumentPrefixes.some(prefix=>instrumentId.startsWith(prefix))}
+
+function mandateFingerprint(m:AutonomousTradingMandate){
+  return hash({mandateId:m.mandateId,userId:m.userId,provider:m.provider,accountId:m.accountId,currency:m.currency,mode:m.mode,allowedInstrumentPrefixes:[...m.allowedInstrumentPrefixes].sort(),allowedStrategyIds:[...m.allowedStrategyIds].sort(),allowOpeningShorts:m.allowOpeningShorts,limits:m.limits,startsAt:m.startsAt,expiresAt:m.expiresAt,approvalReceiptId:m.approvalReceiptId,actionCoreAuthorityId:m.actionCoreAuthorityId,policyVersion:m.policyVersion,policyHash:m.policyHash,evidenceIds:[...m.evidenceIds].sort(),status:m.status,activatedAt:m.activatedAt,revokedAt:m.revokedAt??null})
+}
+async function requireCanonicalMandate(store:AutonomousTradingMandateStore,provided:AutonomousTradingMandate,now:string){
+  const stored=await store.get(provided.mandateId)
+  if(!stored)throw new Error('MONEY_AUTO_CANONICAL_MANDATE_NOT_FOUND')
+  if(mandateFingerprint(stored)!==mandateFingerprint(provided))throw new Error('MONEY_AUTO_CANONICAL_MANDATE_MISMATCH')
+  assertAutonomousMandateActive(stored,now)
+  return stored
+}
 
 export function evaluateAutonomousRisk(input:{
   mandate:AutonomousTradingMandate
@@ -99,6 +110,7 @@ function actionFrom(request:AutonomousTradeActionRequest):ExecutionAction{
 
 export async function issueAutonomousTradePermitPackage(input:{
   permitStore:PermitStore
+  mandateStore:AutonomousTradingMandateStore
   request:AutonomousTradeActionRequest
   authority:MoneyActionCoreAuthority
   mandate:AutonomousTradingMandate
@@ -113,7 +125,7 @@ export async function issueAutonomousTradePermitPackage(input:{
   nonce?:string
 }):Promise<AutonomousTradePermitPackage>{
   const {request,authority,mandate:m,intent:i,risk,plan,preflight,entitlement}=input
-  assertAutonomousMandateActive(m,input.authorizedAt);assertAutonomousIntent(i);assertActionCoreAuthorityMatches(request,authority)
+  await requireCanonicalMandate(input.mandateStore,m,input.authorizedAt);assertAutonomousIntent(i);assertActionCoreAuthorityMatches(request,authority)
   if(authority.decision!=='allow')throw new Error('MONEY_AUTO_CHILD_AUTHORITY_MUST_ALLOW')
   if(authority.approvalReceiptId!==m.approvalReceiptId)throw new Error('MONEY_AUTO_MANDATE_APPROVAL_LINEAGE_MISMATCH')
   if(input.authorizedAt<authority.authorizedAt||input.authorizedAt>=authority.expiresAt)throw new Error('MONEY_AUTO_CHILD_AUTHORITY_WINDOW_INVALID')
@@ -145,6 +157,7 @@ function completedAttempt(a:ExecutionAttempt,state:'SUCCEEDED'|'FAILED'|'UNKNOWN
 export async function executeAutonomousLiveTrade(input:{
   adapter:ManualLiveBrokerAdapter
   permitStore:PermitStore
+  mandateStore:AutonomousTradingMandateStore
   attemptStore:ExecutionAttemptStore
   entitlementStore:BrokerAccountEntitlementStore
   canaryStore:LiveCanaryStateStore
@@ -157,7 +170,7 @@ export async function executeAutonomousLiveTrade(input:{
   attemptIdFactory?:()=>string
 }):Promise<AutonomousLiveExecutionResult>{
   const {mandate:m,package:pkg,plan}=input
-  assertAutonomousMandateActive(m,input.now)
+  await requireCanonicalMandate(input.mandateStore,m,input.now)
   if(pkg.mode!=='LIVE_AUTONOMOUS'||!pkg.autonomous||pkg.mandateId!==m.mandateId||pkg.request.approvalReceiptId!==m.approvalReceiptId)throw new Error('MONEY_AUTO_PACKAGE_INVALID')
   if(input.adapter.environment!=='LIVE'||input.adapter.provider!==m.provider)throw new Error('MONEY_AUTO_ADAPTER_BINDING_MISMATCH')
   await requireBrokerAccountEntitlement(input.entitlementStore,{userId:m.userId,provider:m.provider,accountId:m.accountId,capability:'money.trade.submit',now:input.now})
