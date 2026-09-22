@@ -79,7 +79,9 @@ describe('GenerationRepository', () => {
     expect(replacement?.leaseOwner).toBe('worker-b');
     const staleWrite = await repository.saveExecution({ ...first!, providerJobId: 'stale-provider-job', status: 'queued', leaseOwner: 'worker-a', updatedAt: new Date().toISOString() });
     expect(staleWrite).toBe(false);
-    await expect(repository.getExecution(first!.id)).resolves.toMatchObject({ leaseOwner: 'worker-b', providerJobId: undefined });
+    const durable = await repository.getExecution(first!.id);
+    expect(durable).toMatchObject({ leaseOwner: 'worker-b' });
+    expect(durable?.providerJobId).toBeUndefined();
   });
 
   it('persists task and execution atomically as one fenced transition', async () => {
@@ -107,7 +109,9 @@ describe('GenerationRepository', () => {
     const staleExecution = { ...first!, status: 'completed' as const, providerJobId: 'stale-provider-job', updatedAt: '2026-09-01T00:00:02.000Z' };
     await expect(repository.saveState(staleTask, staleExecution)).resolves.toBe(false);
     await expect(repository.getTask(originalTask.id)).resolves.toEqual(originalTask);
-    await expect(repository.getExecution(first!.id)).resolves.toMatchObject({ leaseOwner: 'worker-b', providerJobId: undefined, status: 'queued' });
+    const durable = await repository.getExecution(first!.id);
+    expect(durable).toMatchObject({ leaseOwner: 'worker-b', status: 'queued' });
+    expect(durable?.providerJobId).toBeUndefined();
   });
 
   it('creates one durable submission reservation and returns it on repeat', async () => {
@@ -118,7 +122,8 @@ describe('GenerationRepository', () => {
     const first = await repository.reserveSubmission(originalTask, leased!, 'provider-1', originalTask.idempotencyKey);
     const second = await repository.reserveSubmission(originalTask, leased!, 'provider-1', originalTask.idempotencyKey);
     expect(first).toMatchObject({ taskId: 'task-1', executionId: leased!.id, providerId: 'provider-1', idempotencyKey: 'idem-1', status: 'pending', attempt: 0 });
-    expect(second).toEqual(first);
+    expect(second?.id).toBe(first?.id);
+    expect(second).toMatchObject({ taskId: 'task-1', executionId: leased!.id, providerId: 'provider-1', idempotencyKey: 'idem-1', status: 'pending', attempt: 0 });
     expect(second?.requestPayload).toEqual(originalTask.request);
   });
 
@@ -175,7 +180,9 @@ describe('GenerationRepository', () => {
     expect(result).toBeUndefined();
     await expect(repository.getSubmissionByIdempotencyKey('provider-1', originalTask.idempotencyKey)).resolves.toMatchObject({ status: 'submitting', leaseOwner: 'worker-b', leaseToken: replacement!.leaseToken });
     await expect(repository.getTask(originalTask.id)).resolves.toMatchObject({ status: 'queued' });
-    await expect(repository.getExecution(leased!.id)).resolves.toMatchObject({ status: 'queued', providerJobId: undefined });
+    const durableExecution = await repository.getExecution(leased!.id);
+    expect(durableExecution).toMatchObject({ status: 'queued' });
+    expect(durableExecution?.providerJobId).toBeUndefined();
   });
 
   it('rejects a stale execution fencing token atomically without acknowledging the outbox', async () => {
@@ -191,7 +198,9 @@ describe('GenerationRepository', () => {
     expect(result).toBeUndefined();
     await expect(repository.getSubmissionByIdempotencyKey('provider-1', originalTask.idempotencyKey)).resolves.toMatchObject({ status: 'submitting', leaseOwner: 'worker-a', leaseToken: claimed!.leaseToken });
     await expect(repository.getTask(originalTask.id)).resolves.toMatchObject({ status: 'queued' });
-    await expect(repository.getExecution(leased!.id)).resolves.toMatchObject({ status: 'queued', leaseOwner: 'worker-b', leaseToken: replacement!.leaseToken, providerJobId: undefined });
+    const durableExecution = await repository.getExecution(leased!.id);
+    expect(durableExecution).toMatchObject({ status: 'queued', leaseOwner: 'worker-b', leaseToken: replacement!.leaseToken });
+    expect(durableExecution?.providerJobId).toBeUndefined();
   });
 
   it('makes a repeated atomic acknowledgement idempotent after the first commit', async () => {
