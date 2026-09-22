@@ -7,6 +7,8 @@ export type WalletClusterCalibrationObservation=Readonly<{
   windowSeconds:number
   aggregateWalletScore:number
   totalUsd?:number
+  chainId?:string
+  walletAddresses?:readonly string[]
   observedAt:string
   availableAt:string
   outcome:WalletClusterOutcome
@@ -30,6 +32,7 @@ export type WalletClusterCalibrationRow=Readonly<{
   healthyRate:number|null
   adverseRate:number|null
   medianWalletCount:number|null
+  representedChains:readonly string[]
   evidenceIds:readonly string[]
   authority:'RESEARCH_ONLY'
   canSelectProductionThreshold:false
@@ -45,6 +48,16 @@ export type WalletClusterCalibrationReport=Readonly<{
 }>
 
 const assertIso=(value:string,code:string)=>{if(!value||Number.isNaN(Date.parse(value)))throw new Error(code)}
+const EVM_CHAINS=new Set(['ethereum','base','arbitrum','optimism','polygon','avalanche','bsc'])
+export function normalizeWalletClusterAddress(chainId:string,address:string):string{
+  const chain=chainId.trim().toLowerCase(),raw=address.trim()
+  if(!chain||!raw)throw new Error('shark_cluster_calibration_wallet_identity_required')
+  if(EVM_CHAINS.has(chain)){
+    if(!/^0x[0-9a-fA-F]{40}$/.test(raw))throw new Error('shark_cluster_calibration_evm_address_invalid')
+    return raw.toLowerCase()
+  }
+  return raw
+}
 const ratio=(n:number,d:number)=>d?n/d:0
 const median=(values:number[]):number|null=>{
   if(!values.length)return null
@@ -78,6 +91,11 @@ export function evaluateWalletClusterThresholdSensitivity(input:{
     assertIso(o.availableAt,'shark_cluster_calibration_available_at_invalid')
     if(Date.parse(o.availableAt)<Date.parse(o.observedAt))throw new Error('shark_cluster_calibration_availability_invalid')
     if(!Number.isInteger(o.distinctWallets)||o.distinctWallets<1||!Number.isFinite(o.windowSeconds)||o.windowSeconds<0||!Number.isFinite(o.aggregateWalletScore)||o.aggregateWalletScore<0)throw new Error('shark_cluster_calibration_metrics_invalid')
+    if(o.walletAddresses){
+      if(!o.chainId)throw new Error('shark_cluster_calibration_chain_required')
+      const normalized=o.walletAddresses.map(address=>normalizeWalletClusterAddress(o.chainId!,address))
+      if(new Set(normalized).size!==o.distinctWallets)throw new Error('shark_cluster_calibration_distinct_wallet_mismatch')
+    }
   }
 
   const eligible=input.observations.filter(o=>Date.parse(o.availableAt)<=Date.parse(input.informationCutoff))
@@ -101,6 +119,7 @@ export function evaluateWalletClusterThresholdSensitivity(input:{
       healthyRate:labeled.length?ratio(healthy,labeled.length):null,
       adverseRate:labeled.length?ratio(adverse,labeled.length):null,
       medianWalletCount:median(matched.map(o=>o.distinctWallets)),
+      representedChains:Object.freeze([...new Set(matched.map(o=>o.chainId?.trim().toLowerCase()).filter((x):x is string=>Boolean(x)))].sort()),
       evidenceIds:Object.freeze([...new Set(matched.flatMap(o=>o.evidenceIds))].sort()),
       authority:'RESEARCH_ONLY' as const,
       canSelectProductionThreshold:false as const,
