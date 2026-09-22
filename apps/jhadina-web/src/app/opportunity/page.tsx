@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import type { OpportunityHubCategory } from "@jhadina/opportunity-core"
+import { getSideHustleDefinition, type OpportunityHubCategory } from "@jhadina/opportunity-core"
 import type { AutomationLevel, Opportunity, OpportunityKind } from "@/lib/opportunities/sideIncome"
 
 const KIND_LABEL: Record<OpportunityKind, string> = {
@@ -239,10 +239,12 @@ function OpportunityCard({
   onSave?: () => void
   onDismiss?: () => void
 }) {
+  const sideHustle = opportunity.sideHustleProfile
+  const opportunityLabel = sideHustle ? getSideHustleDefinition(sideHustle.family).label : KIND_LABEL[opportunity.kind]
   return (
     <article style={card}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <span style={eyebrowSmall}>{KIND_LABEL[opportunity.kind]} · {opportunity.sourceName}</span>
+        <span style={eyebrowSmall}>{opportunityLabel} · {opportunity.sourceName}</span>
         <span style={{ ...eyebrowSmall, color: "#8b7b9d" }}>Fit {opportunity.fitScore}/100</span>
       </div>
 
@@ -258,6 +260,7 @@ function OpportunityCard({
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
         <span style={automationBadge}>{AUTOMATION_LABEL[opportunity.automationLevel]}</span>
+        {sideHustle && <span style={automationBadge}>{sideHustle.role.replace("_", " ")} · {sideHustle.automationMaturity.replaceAll("_", " ")}</span>}
         {opportunity.riskFlags.map((flag) => (
           <span key={flag} style={riskBadge}>⚠ {flag}</span>
         ))}
