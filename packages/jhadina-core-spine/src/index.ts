@@ -75,3 +75,5 @@ export * from './communication-directness-pattern.js';
 export * from './communication-concision-pattern.js';
 
 export * from './governed-semantic-preference-pattern.js';
+export * from './voice-runtime.js';
+export * from './work-session.js';
