@@ -146,6 +146,19 @@ export default function SideHustleValidationPage({ params }: { params: { id: str
       setError("At least one evidence reference is required for every observation.")
       return
     }
+    const spend = Number(draft.spend)
+    const hours = Number(draft.hours)
+    if (
+      draft.spend.trim() === "" ||
+      draft.hours.trim() === "" ||
+      !Number.isFinite(spend) ||
+      !Number.isFinite(hours) ||
+      spend < 0 ||
+      hours < 0
+    ) {
+      setError("Spend and hours must be explicit non-negative numbers.")
+      return
+    }
 
     setBusy(experiment.id)
     setError("")
@@ -157,8 +170,8 @@ export default function SideHustleValidationPage({ params }: { params: { id: str
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             metrics,
-            spend: Number(draft.spend),
-            hours: Number(draft.hours),
+            spend,
+            hours,
             evidenceRefs,
             notes: draft.notes,
           }),
