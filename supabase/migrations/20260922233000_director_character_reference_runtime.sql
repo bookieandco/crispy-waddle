@@ -182,7 +182,7 @@ create or replace function public.create_director_character_bootstrap_job(
 )
 returns public.director_character_bootstrap_jobs
 language plpgsql
-security definer
+security invoker
 set search_path=public
 as $$
 declare
