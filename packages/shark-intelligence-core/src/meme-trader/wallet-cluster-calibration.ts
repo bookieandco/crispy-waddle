@@ -11,6 +11,8 @@ export type WalletClusterCalibrationObservation=Readonly<{
   availableAt:string
   outcome:WalletClusterOutcome
   evidenceIds:readonly string[]
+  chainFamily?:'SOLANA'|'EVM'|'OTHER'
+  normalizationVersion?:string
 }>
 
 export type WalletClusterThresholdSpec=Readonly<{
@@ -30,6 +32,8 @@ export type WalletClusterCalibrationRow=Readonly<{
   healthyRate:number|null
   adverseRate:number|null
   medianWalletCount:number|null
+  chainFamilies:readonly string[]
+  normalizationVersions:readonly string[]
   evidenceIds:readonly string[]
   authority:'RESEARCH_ONLY'
   canSelectProductionThreshold:false
@@ -101,6 +105,8 @@ export function evaluateWalletClusterThresholdSensitivity(input:{
       healthyRate:labeled.length?ratio(healthy,labeled.length):null,
       adverseRate:labeled.length?ratio(adverse,labeled.length):null,
       medianWalletCount:median(matched.map(o=>o.distinctWallets)),
+      chainFamilies:Object.freeze([...new Set(matched.map(o=>o.chainFamily??'OTHER'))].sort()),
+      normalizationVersions:Object.freeze([...new Set(matched.map(o=>o.normalizationVersion??'UNSPECIFIED'))].sort()),
       evidenceIds:Object.freeze([...new Set(matched.flatMap(o=>o.evidenceIds))].sort()),
       authority:'RESEARCH_ONLY' as const,
       canSelectProductionThreshold:false as const,
