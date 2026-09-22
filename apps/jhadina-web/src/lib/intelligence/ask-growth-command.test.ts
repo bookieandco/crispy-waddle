@@ -105,7 +105,7 @@ describe("Ask Jhadina Growth read command", () => {
   it("recognizes read-only campaign queries", () => {
     expect(inspectAskGrowthReadIntent("Show me my Meta campaigns")?.operation).toBe("list_campaigns")
     expect(inspectAskGrowthReadIntent("Which paid campaigns need attention?")?.operation).toBe("campaign_attention")
-    expect(inspectAskGrowthReadIntent("What is awaiting paid ad approval?")?.operation).toBe("pending_work")
+    expect(inspectAskGrowthReadIntent("What is awaiting paid ad approval?")?.operation).toBe("pending_work")\n    expect(inspectAskGrowthReadIntent("How are the campaigns performing?")?.operation).toBe("performance")
   })
 
   it("does not intercept mutating paid-media requests", () => {
