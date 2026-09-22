@@ -118,8 +118,18 @@ begin
 
   if tg_table_name='director_product_bibles'
      and tg_op='UPDATE'
-     and old.product_id<>new.product_id then
-    raise exception 'Director product identity is immutable';
+     and (
+       old.product_id<>new.product_id
+       or old.canonical_variant_id<>new.canonical_variant_id
+       or old.bible is distinct from new.bible
+     ) then
+    raise exception 'Director product bible identity is immutable';
+  end if;
+
+  if tg_table_name='director_visual_style_bibles'
+     and tg_op='UPDATE'
+     and old.bible is distinct from new.bible then
+    raise exception 'Director visual style bible identity is immutable';
   end if;
 
   return new;
@@ -165,6 +175,7 @@ declare
   role_value text;
   result_row public.director_commercial_creatives%rowtype;
   persisted_product_bible public.director_product_bibles%rowtype;
+  persisted_style_bible jsonb;
 begin
   select role into role_value
   from public.director_project_memberships
@@ -202,6 +213,16 @@ begin
     raise exception 'Director style bible project identity mismatch';
   end if;
 
+  select bible into persisted_style_bible
+  from public.director_visual_style_bibles
+  where id=p_style_bible->>'id'
+    and project_id=p_project_id;
+
+  if persisted_style_bible is not null
+     and persisted_style_bible is distinct from p_style_bible then
+    raise exception 'Director visual style bible id already exists with different content';
+  end if;
+
   insert into public.director_visual_style_bibles(
     id,project_id,bible,approved_by_user_id,created_at,updated_at
   ) values(
@@ -212,11 +233,7 @@ begin
     p_now,
     p_now
   )
-  on conflict(id) do update
-  set bible=excluded.bible,
-      approved_by_user_id=excluded.approved_by_user_id,
-      updated_at=excluded.updated_at
-  where director_visual_style_bibles.project_id=excluded.project_id;
+  on conflict(id) do nothing;
 
   insert into public.director_commercial_creatives(
     id,project_id,product_bible_id,style_bible_id,concept,
