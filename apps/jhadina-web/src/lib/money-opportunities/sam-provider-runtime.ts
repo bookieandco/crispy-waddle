@@ -51,6 +51,7 @@ async function samEntityProvidersByNaics(naics:string,limit=10):Promise<RuntimeP
   url.searchParams.set('api_key',apiKey)
   url.searchParams.set('registrationStatus','A')
   url.searchParams.set('samRegistered','Yes')
+  url.searchParams.set('purposeOfRegistrationCode','Z2')
   url.searchParams.set('naicsCode',naics)
   url.searchParams.set('includeSections','entityRegistration,coreData')
   url.searchParams.set('page','0')
