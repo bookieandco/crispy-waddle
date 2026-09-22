@@ -68,8 +68,9 @@ export async function POST(request: Request) {
 
   const { data: rows, error: referenceError } = await privileged
     .from('director_reference_media_assets')
-    .select('id,project_id,sha256,width,height,view_hint,rights_ref,consent_ref,scan_evidence_ids,admission_status,scan_status')
+    .select('id,project_id,sha256,width,height,reference_kind,view_hint,rights_ref,consent_ref,scan_evidence_ids,admission_status,scan_status')
     .eq('project_id', projectId)
+    .eq('reference_kind', 'character')
     .in('id', referenceAssetIds);
 
   if (referenceError) return NextResponse.json({ ok: false, error: referenceError.message }, { status: 500 });
