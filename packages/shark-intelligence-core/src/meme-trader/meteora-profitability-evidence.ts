@@ -23,6 +23,8 @@ export type MeteoraDlmmProfitabilityEvidence=Readonly<{
   realizationStatus:'CLOSED_COMPLETE'|'PROVISIONAL_OPEN'|'PROVISIONAL_INCOMPLETE'
   impermanentLossMinor:null
   impermanentLossStatus:'BENCHMARK_REQUIRED'
+  methodology:'OBSERVED_CASH_FLOW_RECONCILIATION'
+  estimateStatus:'OBSERVED_ONLY'|'ESTIMATE_BLOCKED_INCOMPLETE'
   evidenceIds:readonly string[]
   excludedFutureEvidenceIds:readonly string[]
   authority:'RESEARCH_ONLY'
@@ -74,6 +76,8 @@ export function reconcileMeteoraDlmmCashFlowProfitability(input:{
     // prices/times. Cash-flow delta alone must never be relabeled as IL.
     impermanentLossMinor:null,
     impermanentLossStatus:'BENCHMARK_REQUIRED',
+    methodology:'OBSERVED_CASH_FLOW_RECONCILIATION',
+    estimateStatus:realizationStatus==='PROVISIONAL_INCOMPLETE'?'ESTIMATE_BLOCKED_INCOMPLETE':'OBSERVED_ONLY',
     evidenceIds:Object.freeze([...new Set(eligible.map(flow=>flow.evidenceId))].sort()),
     excludedFutureEvidenceIds:Object.freeze(future.map(flow=>flow.evidenceId).sort()),
     authority:'RESEARCH_ONLY',

@@ -3,6 +3,7 @@ export type WalletClusterOutcome='HEALTHY'|'ADVERSE'|'UNKNOWN'
 export type WalletClusterCalibrationObservation=Readonly<{
   observationId:string
   tokenId:string
+  chainFamily?:'SOLANA'|'EVM'|'OTHER'
   distinctWallets:number
   windowSeconds:number
   aggregateWalletScore:number
@@ -29,6 +30,9 @@ export type WalletClusterCalibrationRow=Readonly<{
   outcomeCoverage:number
   healthyRate:number|null
   adverseRate:number|null
+  falsePositiveRate:number|null
+  falseNegativeRate:number|null
+  balancedAccuracy:number|null
   medianWalletCount:number|null
   evidenceIds:readonly string[]
   authority:'RESEARCH_ONLY'
@@ -40,6 +44,8 @@ export type WalletClusterCalibrationReport=Readonly<{
   observationCount:number
   excludedFutureObservationIds:readonly string[]
   rows:readonly WalletClusterCalibrationRow[]
+  bestThresholdId:null
+  selectionStatus:'SENSITIVITY_ONLY'
   authority:'RESEARCH_ONLY'
   canMutateRuntimeThresholds:false
 }>
@@ -92,6 +98,12 @@ export function evaluateWalletClusterThresholdSensitivity(input:{
     const labeled=matched.filter(o=>o.outcome!=='UNKNOWN')
     const healthy=labeled.filter(o=>o.outcome==='HEALTHY').length
     const adverse=labeled.filter(o=>o.outcome==='ADVERSE').length
+    const labeledEligible=eligible.filter(o=>o.outcome!=='UNKNOWN')
+    const missedAdverse=labeledEligible.filter(o=>o.outcome==='ADVERSE'&&!matched.includes(o)).length
+    const totalAdverse=labeledEligible.filter(o=>o.outcome==='ADVERSE').length
+    const falsePositiveRate=labeled.length?ratio(healthy,labeled.length):null
+    const falseNegativeRate=totalAdverse?ratio(missedAdverse,totalAdverse):null
+    const balancedAccuracy=falsePositiveRate===null||falseNegativeRate===null?null:1-(falsePositiveRate+falseNegativeRate)/2
     return Object.freeze({
       thresholdId:t.thresholdId,
       matchedObservations:matched.length,
@@ -100,6 +112,9 @@ export function evaluateWalletClusterThresholdSensitivity(input:{
       outcomeCoverage:ratio(labeled.length,matched.length),
       healthyRate:labeled.length?ratio(healthy,labeled.length):null,
       adverseRate:labeled.length?ratio(adverse,labeled.length):null,
+      falsePositiveRate,
+      falseNegativeRate,
+      balancedAccuracy,
       medianWalletCount:median(matched.map(o=>o.distinctWallets)),
       evidenceIds:Object.freeze([...new Set(matched.flatMap(o=>o.evidenceIds))].sort()),
       authority:'RESEARCH_ONLY' as const,
@@ -111,6 +126,8 @@ export function evaluateWalletClusterThresholdSensitivity(input:{
     observationCount:eligible.length,
     excludedFutureObservationIds:Object.freeze(future),
     rows:Object.freeze(rows),
+    bestThresholdId:null,
+    selectionStatus:'SENSITIVITY_ONLY',
     authority:'RESEARCH_ONLY',
     canMutateRuntimeThresholds:false,
   })
