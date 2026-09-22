@@ -29,6 +29,8 @@ export interface ExecutionAction {
   executionPlanId?: string;
   preflightId?: string;
   approvalCandidateId?: string;
+  mandateId?: string;
+  strategyId?: string;
   amount: string;
   currency: string;
 }
@@ -118,6 +120,8 @@ export function canonicalizeAction(action: ExecutionAction): string {
     executionPlanId: action.executionPlanId ?? null,
     preflightId: action.preflightId ?? null,
     approvalCandidateId: action.approvalCandidateId ?? null,
+    mandateId: action.mandateId ?? null,
+    strategyId: action.strategyId ?? null,
     amount: action.amount,
     currency: action.currency,
   });

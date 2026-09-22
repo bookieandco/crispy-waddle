@@ -226,6 +226,7 @@ export async function executeManualLiveTrade(input: {
     const result = await input.adapter.submitOrder(
       Object.freeze({
         environment: 'LIVE',
+        executionMode: 'MANUAL',
         executionId: attempt.attemptId,
         idempotencyKey: attempt.idempotencyKey,
         actionFingerprint: attempt.actionFingerprint,

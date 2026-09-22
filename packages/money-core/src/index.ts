@@ -180,3 +180,8 @@ export * from './durable-provider-event-processor.js';
 export * from './postgres-durable-provider-event-store.js';
 export * from './tax-accounting-engine.js';
 export * from './money-060-live-canary.js';
+
+export * from './autonomous-trading-contracts.js';
+export * from './autonomous-trading-engine.js';
+export * from './autonomous-strategy-learning.js';
+export * from './postgres-autonomous-trading-mandate-store.js';
