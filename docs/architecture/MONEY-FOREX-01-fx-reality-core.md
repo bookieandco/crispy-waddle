@@ -200,6 +200,30 @@ It includes:
 
 Future quotes are excluded even when they are passed into the builder.
 
+## External market-data and chart-vision references
+
+MONEY-PROD.FINAL adds two provider/reference surfaces without changing the FX authority boundary.
+
+### Finnhub market data
+
+`packages/money-core/src/finnhub-forex-market-data.ts` implements an HTTPS **read-only** adapter for the Finnhub Forex exchange, symbol, and candle endpoints. The design is informed by the archived MIT-licensed `m1/go-finnhub` client, which separates `forex/exchange`, `forex/symbol`, and `forex/candle` reads.
+
+Finnhub contributes market evidence only. It has no order, account mutation, broker entitlement, execution permit, or autonomous-trading method and can never satisfy the Forex execution-provider commissioning receipt.
+
+### Roboflow Forex vision
+
+The Roboflow Universe projects `forex-sells/forex-buys` and `forex-sells/forex-sells` are registered as **research references only**.
+
+Current public metadata shows small classification datasets (126 and 199 images respectively) with opaque/numeric class labels. Their project titles are therefore not treated as semantic BUY/SELL ground truth.
+
+`packages/money-core/src/fx-chart-vision-research.ts` fixes their default direction to `UNRESOLVED`. A label may only acquire a directional research mapping after an independent resolved-outcome calibration sample passes explicit sample-size and quality floors. Even then, the result remains `RESEARCH_ONLY`, `financialAuthority='NONE'`, and `canAuthorizeLive=false`.
+
+The public dataset license was not verified during this audit, so the registry records `licenseStatus='UNVERIFIED'` rather than guessing.
+
+### ForexTradingBot reference
+
+`Opselon/ForexTradingBot` is retained as an external architecture reference for signal orchestration, queues/background processing, resilience, and provider separation. Its Telegram auto-forwarding concept is **not** treated as a certified Money broker adapter or execution receipt.
+
 ## Authority boundary
 
 FX reality is not an FX trading bot.
