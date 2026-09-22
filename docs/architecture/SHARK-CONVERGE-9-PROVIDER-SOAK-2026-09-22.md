@@ -11,8 +11,7 @@ This gate certifies read-only provider availability for SHARK intelligence. It d
 Required live checks:
 
 - DexScreener token-pair API;
-- Helius JSON-RPC health;
-- CoinGecko Pro on-chain OHLCV;
+- Helius JSON-RPC health;\n- Helius active webhook registration for `/api/webhooks/helius/launches`;\n- CoinGecko Pro on-chain OHLCV;
 - configured Solana RPC;
 - Pump program visibility;
 - PumpSwap program visibility;
@@ -31,7 +30,7 @@ Production Vercel logs for the current main deployment showed no SHARK route act
 - /api/wallet/intelligence
 - /api/internal/shark/*
 
-No SHARK runtime error cluster was present in that window. The absence of rows is therefore currently best explained by lack of runtime invocation/provider flow, not by a demonstrated persistence failure.
+No SHARK runtime error cluster was present in that window. The absence of rows is therefore currently best explained by lack of runtime invocation/provider flow, not by a demonstrated persistence failure.\n\nA repository audit also found no durable receipt or provisioning record proving that a Helius webhook is currently registered against the production launch-ingestion route. The soak therefore verifies registration read-only through Helius's list-webhooks API; it never creates, edits, toggles, or deletes a webhook.
 
 ## Soak implementation
 
@@ -73,7 +72,7 @@ The dedicated SHARK workflow on main currently has a malformed PL/pgSQL dollar-q
 
 CONVERGE.9 becomes PASS only when the deployed production route is invoked with authorized internal credentials and returns:
 
-- every required provider/program check = `READY`
+- every required provider/program check = `READY`\n- active Helius webhook registration points at the canonical `/api/webhooks/helius/launches` production route
 - `passed = true`
 - no secret material in the response
 - `writesPerformed = 0`
