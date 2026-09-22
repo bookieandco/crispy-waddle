@@ -8,7 +8,13 @@ import {
 import {
   mapWholeVideoProviderStatus,
   selectWholeVideoProvider,
+  type WholeVideoReferenceCharacter,
 } from '@jhadina/director-core/whole-video-provider';
+import {
+  resolveCharacterSceneIdentity,
+  validateCharacterCastRecord,
+  type CharacterCastRecord,
+} from '@jhadina/director-core';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { createConfiguredWholeVideoProviders } from '@/lib/director-whole-video-providers';
 
@@ -97,11 +103,18 @@ async function appendJobEvent(
   if (error) throw error;
 }
 
+export interface AskVideoReferenceCharacterInput {
+  characterId: string;
+  appearanceVariantId?: string;
+  targetLanguages?: readonly string[];
+}
+
 export interface AskVideoJobInput {
   userId: string;
   activeTask: string;
   activeProject?: string;
   clientRequestId?: string;
+  referenceCharacters?: readonly AskVideoReferenceCharacterInput[];
 }
 
 export interface AskVideoJobResult {
@@ -111,6 +124,53 @@ export interface AskVideoJobResult {
 
 export function inspectAskVideoIntent(activeTask: string): AskVideoCreationIntent | undefined {
   return detectAskVideoCreationIntent(activeTask);
+}
+
+async function resolveReferenceCharacters(
+  client: SupabaseClient,
+  projectId: string,
+  requested: readonly AskVideoReferenceCharacterInput[],
+): Promise<WholeVideoReferenceCharacter[]> {
+  const resolved: WholeVideoReferenceCharacter[] = [];
+  for (const item of requested) {
+    const characterId = item.characterId.trim();
+    if (!characterId) throw new Error('DIRECTOR_REFERENCE_CHARACTER_ID_REQUIRED');
+
+    const { data, error } = await client
+      .from('director_cast_records')
+      .select('cast_record')
+      .eq('project_id', projectId)
+      .eq('character_id', characterId)
+      .maybeSingle();
+    if (error) throw new Error(`DIRECTOR_CAST_READ_FAILED:${error.message}`);
+    if (!data?.cast_record) throw new Error(`DIRECTOR_CAST_NOT_FOUND:${characterId}`);
+
+    const cast = data.cast_record as CharacterCastRecord;
+    const castErrors = validateCharacterCastRecord(cast);
+    if (castErrors.length) throw new Error(`DIRECTOR_CAST_INVALID:${castErrors.join(';')}`);
+    if (cast.projectId !== projectId || cast.characterId !== characterId) {
+      throw new Error('DIRECTOR_CAST_ROW_IDENTITY_MISMATCH');
+    }
+
+    const appearanceVariantId = item.appearanceVariantId?.trim() || cast.canonicalAppearanceVariantId;
+    const identity = resolveCharacterSceneIdentity(cast, {
+      projectId,
+      characterId,
+      continuityRef: cast.continuityRef,
+      appearanceVariantId,
+    });
+
+    resolved.push({
+      characterId,
+      continuityRef: identity.continuityRef,
+      appearanceVariantId: identity.sceneAppearanceVariantId,
+      referenceAssetIds: identity.referenceAssetIds,
+      ...(item.targetLanguages?.length
+        ? { targetLanguages: [...new Set(item.targetLanguages.map((value) => value.trim()).filter(Boolean))] }
+        : {}),
+    });
+  }
+  return resolved;
 }
 
 export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promise<AskVideoJobResult> {
@@ -123,7 +183,13 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
   const clientRequestId = input.clientRequestId?.trim() || randomUUID();
   const jobId = `video:${randomUUID()}`;
   const existingProject = input.activeProject?.trim();
+  if (input.referenceCharacters?.length && !existingProject) {
+    throw new Error('DIRECTOR_REFERENCE_CHARACTER_PROJECT_REQUIRED');
+  }
   const projectId = existingProject || `director:ask:${jobId}`;
+  const resolvedReferenceCharacters = input.referenceCharacters?.length
+    ? await resolveReferenceCharacters(client, projectId, input.referenceCharacters)
+    : [];
   const now = new Date().toISOString();
 
   const { data, error } = await client.rpc('create_director_video_job', {
@@ -141,6 +207,7 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
       captions: intent.captions,
       foley: intent.foley,
       commercialSafeOnly: intent.commercialSafeOnly,
+      referenceCharacters: resolvedReferenceCharacters,
     },
     p_provider_policy: intent.providerPolicy,
     p_now: now,
@@ -152,18 +219,26 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
     return { intent, job };
   }
 
-  const provider = selectWholeVideoProvider(createConfiguredWholeVideoProviders(), intent);
+  const provider = selectWholeVideoProvider(createConfiguredWholeVideoProviders(), intent, {
+    referenceCharacterCount: resolvedReferenceCharacters.length,
+  });
   if (!provider) {
+    const providerError = resolvedReferenceCharacters.length
+      ? 'DIRECTOR_REFERENCE_CHARACTER_PROVIDER_NOT_CONFIGURED'
+      : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED';
     job = await updateJob(client, job.id, {
       status: 'blocked',
       current_phase: 'provider-selection',
-      error: 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+      error: providerError,
     });
     await appendJobEvent(client, {
       jobId: job.id,
       eventType: 'provider_selection',
       status: 'blocked',
-      error: 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+      error: providerError,
+      metadata: resolvedReferenceCharacters.length
+        ? { requiredReferenceCharacters: resolvedReferenceCharacters.map((item) => item.characterId) }
+        : undefined,
     });
     return { intent, job };
   }
@@ -188,6 +263,9 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
       prompt: job.prompt,
       intent,
       creativeName: `Jhadina ${job.id.slice(-8)}`,
+      ...(resolvedReferenceCharacters.length
+        ? { referenceCharacters: resolvedReferenceCharacters }
+        : {}),
     }, `director-video:${job.id}`);
 
     job = await updateJob(client, job.id, {
