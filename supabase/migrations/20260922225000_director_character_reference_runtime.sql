@@ -158,3 +158,115 @@ drop trigger if exists director_character_bootstrap_events_immutable on public.d
 create trigger director_character_bootstrap_events_immutable
 before update or delete on public.director_character_bootstrap_events
 for each row execute function public.reject_director_character_bootstrap_event_mutation();
+
+
+create or replace function public.create_director_character_bootstrap_job(
+  p_job_id text,
+  p_project_id text,
+  p_user_id uuid,
+  p_character_id text,
+  p_display_name text,
+  p_archetype text,
+  p_reference_asset_ids text[],
+  p_requested_appearance_labels text[],
+  p_build_motion_probes boolean,
+  p_commercial_use boolean,
+  p_bootstrap_plan jsonb,
+  p_cast_record jsonb,
+  p_now timestamptz
+)
+returns public.director_character_bootstrap_jobs
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  role_value text;
+  admitted_count integer;
+  result_row public.director_character_bootstrap_jobs%rowtype;
+begin
+  if cardinality(p_reference_asset_ids) < 1 then
+    raise exception 'Director character reference required';
+  end if;
+
+  select role into role_value
+  from public.director_project_memberships
+  where project_id=p_project_id and user_id=p_user_id;
+
+  if role_value is null or role_value not in ('owner','editor') then
+    raise exception 'Director character bootstrap requires project edit authority';
+  end if;
+
+  select count(*) into admitted_count
+  from public.director_reference_media_assets
+  where project_id=p_project_id
+    and id=any(p_reference_asset_ids)
+    and admission_status='admitted'
+    and scan_status='clean';
+
+  if admitted_count <> cardinality(p_reference_asset_ids) then
+    raise exception 'All Director character references must be admitted and clean';
+  end if;
+
+  if exists (
+    select 1 from public.director_cast_records
+    where project_id=p_project_id and character_id=p_character_id
+  ) then
+    raise exception 'Director character already exists; use an explicit cast update path';
+  end if;
+
+  if p_cast_record->>'projectId' <> p_project_id
+     or p_cast_record->>'characterId' <> p_character_id then
+    raise exception 'Director cast record identity mismatch';
+  end if;
+
+  insert into public.director_cast_records(
+    id,project_id,character_id,continuity_ref,canonical_appearance_variant_id,
+    cast_record,approved_by_user_id,created_at,updated_at
+  ) values(
+    p_cast_record->>'id',
+    p_project_id,
+    p_character_id,
+    p_cast_record->>'continuityRef',
+    p_cast_record->>'canonicalAppearanceVariantId',
+    p_cast_record,
+    p_user_id,
+    p_now,
+    p_now
+  );
+
+  insert into public.director_character_bootstrap_jobs(
+    id,project_id,user_id,character_id,display_name,archetype,
+    reference_asset_ids,requested_appearance_labels,build_motion_probes,
+    commercial_use,bootstrap_plan,status,created_at,updated_at
+  ) values(
+    p_job_id,p_project_id,p_user_id,p_character_id,p_display_name,p_archetype,
+    p_reference_asset_ids,coalesce(p_requested_appearance_labels,'{}'),
+    p_build_motion_probes,p_commercial_use,p_bootstrap_plan,'reference_locked',p_now,p_now
+  )
+  returning * into result_row;
+
+  insert into public.director_character_bootstrap_events(
+    job_id,event_type,status,metadata,created_at
+  ) values(
+    p_job_id,
+    'canonical-reference-locked',
+    'completed',
+    jsonb_build_object(
+      'characterId',p_character_id,
+      'referenceAssetIds',p_reference_asset_ids,
+      'continuityRef',p_cast_record->>'continuityRef'
+    ),
+    p_now
+  );
+
+  return result_row;
+end;
+$$;
+
+revoke all on function public.create_director_character_bootstrap_job(
+  text,text,uuid,text,text,text,text[],text[],boolean,boolean,jsonb,jsonb,timestamptz
+) from public,anon,authenticated;
+grant execute on function public.create_director_character_bootstrap_job(
+  text,text,uuid,text,text,text,text[],text[],boolean,boolean,jsonb,jsonb,timestamptz
+) to service_role;
