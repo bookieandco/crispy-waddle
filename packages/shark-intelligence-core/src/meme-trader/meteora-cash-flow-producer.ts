@@ -46,6 +46,7 @@ export function deriveMeteoraNativeCashFlowEvidence(input:MeteoraTransactionCash
     const evidenceId=`meteora-cash-flow:${input.transactionId}:${input.position}:${input.kind.toLowerCase()}:${asset.currency}`
     rows.push(Object.freeze({
       evidenceId,
+      rootFlowId:evidenceId,
       transactionId:input.transactionId,
       position:input.position,
       kind:input.kind,
@@ -78,6 +79,7 @@ export function applyVerifiedMeteoraCashFlowValuation(
   return Object.freeze({
     ...flow,
     evidenceId:`${flow.evidenceId}:valuation:${valuation.valuationId}`,
+    rootFlowId:flow.rootFlowId??flow.evidenceId,
     amountMinor:valuation.valuedAmountMinor,
     currency:valuation.targetCurrency,
     amountSemantics:'VERIFIED_VALUATION',
