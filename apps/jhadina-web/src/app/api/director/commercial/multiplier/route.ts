@@ -46,7 +46,9 @@ export async function POST(request: Request) {
 
   let plan: AdMultiplierPlan;
   try {
-    const { authority: _ignored, ...withoutAuthority } = body.plan as AdMultiplierPlan;
+    const withoutAuthority = Object.fromEntries(
+      Object.entries(body.plan).filter(([key]) => key !== 'authority'),
+    ) as Omit<AdMultiplierPlan, 'authority'>;
     plan = createAdMultiplierPlan(withoutAuthority);
   } catch (error) {
     return NextResponse.json(
