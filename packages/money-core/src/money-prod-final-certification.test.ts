@@ -130,3 +130,15 @@ test('MONEY-PROD.7 platform deployment and schema are independently required',()
   assert.ok(noPlatform.blockers.includes('PLATFORM:COMMISSIONING_DATABASE_SCHEMA_REQUIRED'))
   assert.ok(noPlatform.blockers.includes('PLATFORM:CURRENT_PRODUCTION_DEPLOYMENT_REQUIRED'))
 })
+
+
+test('MONEY-PROD.7 live runtime substrate migration restores durable entitlement/canary/provider/paper stores',()=>{
+  const migration=readFileSync(fileURLToPath(new URL('../migrations/016_live_runtime_substrate.sql',import.meta.url)),'utf8')
+  for(const table of ['money_broker_account_entitlements','money_live_canary_state','money_live_canary_reservations','money_provider_execution_events','money_execution_outbox','money_paper_execution_events']) assert.match(migration,new RegExp('CREATE TABLE IF NOT EXISTS '+table))
+  assert.match(migration,/FORCE ROW LEVEL SECURITY/)
+  assert.match(migration,/REVOKE ALL ON TABLE %I FROM anon/)
+  assert.match(migration,/REVOKE ALL ON TABLE %I FROM authenticated/)
+  assert.match(migration,/GRANT SELECT, INSERT, UPDATE ON money_broker_account_entitlements TO service_role/)
+  assert.match(migration,/GRANT SELECT, INSERT ON money_paper_execution_events TO service_role/)
+  assert.doesNotMatch(migration,/private_key|secret_key|api_key|access_token/i)
+})
