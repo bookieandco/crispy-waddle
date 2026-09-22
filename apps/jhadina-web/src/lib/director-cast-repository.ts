@@ -116,7 +116,7 @@ export async function saveDirectorVoiceIdentity(
   if (!input.identity.id.trim() || !input.identity.projectId.trim() || !input.identity.characterId.trim()) {
     throw new Error('DIRECTOR_VOICE_IDENTITY_REQUIRED');
   }
-  const { error } = await client.from('director_voice_identities').upsert({
+  const { error } = await client.from('director_voice_identity_records').upsert({
     id: input.identity.id,
     project_id: input.identity.projectId,
     character_id: input.identity.characterId,
@@ -132,7 +132,7 @@ export async function getDirectorVoiceIdentity(
   input: { projectId: string; characterId: string; voiceIdentityId: string },
 ): Promise<CharacterVoiceIdentity | undefined> {
   const { data, error } = await client
-    .from('director_voice_identities')
+    .from('director_voice_identity_records')
     .select('voice_identity')
     .eq('id', input.voiceIdentityId)
     .eq('project_id', input.projectId)
