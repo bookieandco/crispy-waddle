@@ -80,3 +80,4 @@ export * from './phase-checkpoint';
 export * from './render-determinism';
 export * from './emotion-storyboard-evidence';
 export * from './creative-experiment';
+export * from './editing-technique-spec';
