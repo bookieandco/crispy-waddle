@@ -112,7 +112,7 @@ export function planCharacterReferenceBootstrap(
     continuityRef: `character:${request.characterId}:v1`,
     canonicalUploadId: canonical.id,
     stages: Object.freeze(stages),
-    targetViews: Object.freeze([
+    targetViews: Object.freeze<CharacterReferenceView[]>([
       'front',
       'profile-left',
       'profile-right',
