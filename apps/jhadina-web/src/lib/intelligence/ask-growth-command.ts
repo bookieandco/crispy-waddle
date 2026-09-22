@@ -60,6 +60,8 @@ export function inspectAskGrowthReadIntent(activeTask: string): AskGrowthReadInt
   const mutating =
     /\b(create|launch|start|pause|resume|approve|publish|schedule|send|increase|decrease|set|change|duplicate)\b/.test(text)
     || /\brun\s+(?:a|an|the|this|new)\b/.test(text)
+    || /\bshould\s+(?:i|we|jhadina)\s+(?:run|launch|target|use|create)\b/.test(text)
+    || /\b(recommend|recommendation|strategy)\b/.test(text)
   if (mutating) return null
 
   const readSignal =
