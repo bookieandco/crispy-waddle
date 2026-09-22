@@ -1,3 +1,5 @@
+import { assertSafeMedia, type MediaScanResult } from '@jhadina/security-core';
+
 export const DIRECTOR_REFERENCE_MAX_BYTES = 20 * 1024 * 1024;
 export const DIRECTOR_REFERENCE_MIN_DIMENSION = 128;
 export const DIRECTOR_REFERENCE_MAX_DIMENSION = 16_384;
@@ -161,6 +163,18 @@ export async function scanDirectorReferenceMedia(input: {
       ? raw.evidenceIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
       : [];
     if (!evidenceIds.length) throw new Error('DIRECTOR_MEDIA_SCANNER_EVIDENCE_REQUIRED');
+
+    const securityResult: MediaScanResult = {
+      assetId: input.sha256,
+      sha256: input.sha256,
+      verdict: raw.clean && raw.safe ? 'clean' : 'rejected',
+      mimeType: input.mimeType,
+      sizeBytes: input.byteSize,
+      reasons: typeof raw.reason === 'string' && raw.reason.trim() ? [raw.reason.trim()] : [],
+      scannedAt: new Date().toISOString(),
+    };
+    if (raw.clean && raw.safe) assertSafeMedia(securityResult);
+
     return {
       clean: raw.clean,
       safe: raw.safe,
