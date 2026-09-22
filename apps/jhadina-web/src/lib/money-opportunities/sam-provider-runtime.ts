@@ -42,26 +42,73 @@ async function usaSpendingProviders(naics:string,limit=30):Promise<BrokerProvide
   }
   return [...grouped.values()]
 }
-async function verifySamEntity(provider:BrokerProviderCandidate){
-  const apiKey=getSamApiKey();if(!apiKey)return provider
+type RuntimeProvider=BrokerProviderCandidate & {_uei?:string;_cage?:string}
+
+async function samEntityProvidersByNaics(naics:string,limit=10):Promise<RuntimeProvider[]>{
+  const apiKey=getSamApiKey()
+  if(!apiKey)return[]
   const url=new URL('https://api.sam.gov/entity-information/v3/entities')
-  url.searchParams.set('api_key',apiKey);url.searchParams.set('legalBusinessName',provider.legalName)
-  const response=await fetch(url,{headers:{accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(15000)})
-  if(!response.ok)return provider
+  url.searchParams.set('api_key',apiKey)
+  url.searchParams.set('registrationStatus','A')
+  url.searchParams.set('samRegistered','Yes')
+  url.searchParams.set('naicsCode',naics)
+  url.searchParams.set('includeSections','entityRegistration,coreData')
+  url.searchParams.set('page','0')
+  url.searchParams.set('size',String(Math.max(1,Math.min(limit,10))))
+  const response=await fetch(url,{headers:{accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(20000)})
+  if(!response.ok)throw new Error(`SAM_ENTITY_HTTP_${response.status}`)
   const body=await response.json() as Record<string,unknown>
-  const entity=rows(body.entityData)[0];if(!entity)return provider
-  const registration=(entity.entityRegistration&&typeof entity.entityRegistration==='object'?entity.entityRegistration:{}) as Record<string,unknown>
-  const core=(entity.coreData&&typeof entity.coreData==='object'?entity.coreData:{}) as Record<string,unknown>
-  const address=(core.physicalAddress&&typeof core.physicalAddress==='object'?core.physicalAddress:{}) as Record<string,unknown>
-  const uei=text(registration.ueiSAM)||text(entity.ueiSAM)
-  const cage=text(registration.cageCode)||text(entity.cageCode)
-  const country=text(address.countryCode)||text(address.countryCode3)
-  return {...provider,country:country||provider.country,evidence:[...provider.evidence,{id:`sam-entity:${uei||cage||key(provider.legalName)}`,source:'sam_entity' as const,url:'https://sam.gov/'}],...(uei?{id:`provider:sam:${uei}`}:{}) ,_uei:uei,_cage:cage} as BrokerProviderCandidate & {_uei?:string;_cage?:string}
+  const out:RuntimeProvider[]=[]
+  for(const entity of rows(body.entityData)){
+    const registration=(entity.entityRegistration&&typeof entity.entityRegistration==='object'?entity.entityRegistration:{}) as Record<string,unknown>
+    const core=(entity.coreData&&typeof entity.coreData==='object'?entity.coreData:{}) as Record<string,unknown>
+    const address=(core.physicalAddress&&typeof core.physicalAddress==='object'?core.physicalAddress:{}) as Record<string,unknown>
+    const name=text(registration.legalBusinessName)||text(entity.legalBusinessName)
+    if(!name)continue
+    const uei=text(registration.ueiSAM)||text(entity.ueiSAM)
+    const cage=text(registration.cageCode)||text(entity.cageCode)
+    const country=text(address.countryCode)||text(address.countryCode3)
+    out.push({
+      id:`provider:sam:${uei||key(name)}`,
+      legalName:name,
+      country:country||undefined,
+      naicsCodes:[naics],
+      keywords:[],
+      evidence:[{id:`sam-entity:${uei||cage||key(name)}`,source:'sam_entity',url:'https://sam.gov/'}],
+      _uei:uei||undefined,
+      _cage:cage||undefined,
+    })
+  }
+  return out
+}
+
+function mergeProviderPools(...pools:RuntimeProvider[][]):RuntimeProvider[]{
+  const merged=new Map<string,RuntimeProvider>()
+  for(const pool of pools)for(const provider of pool){
+    const k=key(provider.legalName)
+    const existing=merged.get(k)
+    if(!existing){
+      merged.set(k,{...provider,evidence:[...provider.evidence],naicsCodes:[...provider.naicsCodes],keywords:[...provider.keywords]})
+      continue
+    }
+    existing.naicsCodes=[...new Set([...existing.naicsCodes,...provider.naicsCodes])]
+    existing.keywords=[...new Set([...existing.keywords,...provider.keywords])]
+    existing.evidence=[...new Map([...existing.evidence,...provider.evidence].map(e=>[e.id,e])).values()]
+    existing.awardCount=(existing.awardCount??0)+(provider.awardCount??0)
+    existing.country=existing.country??provider.country
+    existing._uei=existing._uei??provider._uei
+    existing._cage=existing._cage??provider._cage
+    if(existing._uei)existing.id=`provider:sam:${existing._uei}`
+  }
+  return [...merged.values()]
 }
 
 export async function discoverSamProviders(client:SupabaseClient,noticeIds:string[],maxProvidersPerNotice=20){
   let notices=0,candidates=0
   const errors:string[]=[]
+  const requestedBudget=Number(process.env.SAM_ENTITY_REQUEST_BUDGET_PER_ENRICHMENT??2)
+  let entityRequestsRemaining=Number.isFinite(requestedBudget)?Math.max(0,Math.min(Math.floor(requestedBudget),10)):2
+  const entityCache=new Map<string,RuntimeProvider[]>()
   for(const noticeId of noticeIds){
     const {data:analysis}=await client.from('jhadina_sam_analysis').select('requirements,subcontractability').eq('notice_id',noticeId).maybeSingle()
     const {data:catalog}=await client.from('jhadina_sam_catalog').select('naics_codes').eq('notice_id',noticeId).maybeSingle()
@@ -74,15 +121,25 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
     const primaryNaics=naics[0]||requirements.flatMap(r=>r.naicsCodes??[])[0]
     if(!primaryNaics){errors.push(`${noticeId}: no NAICS available for provider discovery`);continue}
     try{
-      const awardProviders=await usaSpendingProviders(primaryNaics,maxProvidersPerNotice)
-      const verified:BrokerProviderCandidate[]=[]
-      for(const p of awardProviders.slice(0,Math.min(maxProvidersPerNotice,10)))verified.push(await verifySamEntity(p))
-      const pool=[...verified,...awardProviders.slice(verified.length)]
+      const awardProviders=(await usaSpendingProviders(primaryNaics,maxProvidersPerNotice)) as RuntimeProvider[]
+      let entityProviders=entityCache.get(primaryNaics)??null
+      if(entityProviders===null&&entityRequestsRemaining>0){
+        entityRequestsRemaining-=1
+        try{
+          entityProviders=await samEntityProvidersByNaics(primaryNaics,10)
+          entityCache.set(primaryNaics,entityProviders)
+        }catch(error){
+          errors.push(`${noticeId}: ${error instanceof Error?error.message:'SAM entity discovery failed'}`)
+          entityProviders=[]
+          entityCache.set(primaryNaics,entityProviders)
+        }
+      }
+      const pool=mergeProviderPools(entityProviders??[],awardProviders)
       const shortlist=buildBrokerShortlist(requirements,pool)
       const inserts:Array<Record<string,unknown>>=[]
       for(const group of shortlist)for(const assessment of group.candidates.slice(0,maxProvidersPerNotice)){
         const p=pool.find(x=>x.id===assessment.providerId);if(!p)continue
-        const ext=p as BrokerProviderCandidate & {_uei?:string;_cage?:string}
+        const ext=p as RuntimeProvider
         const compliance=complianceBase
           ?evaluateSamSubcontractability({...complianceBase,providerCountry:p.country})
           :null
