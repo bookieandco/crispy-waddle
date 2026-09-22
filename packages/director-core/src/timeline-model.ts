@@ -1,13 +1,20 @@
 export type TrackKind = 'video' | 'audio' | 'overlay' | 'subtitle' | 'effect';
+export type AudioRole = 'dialogue' | 'voiceover' | 'music' | 'sfx' | 'foley' | 'ambience' | 'other';
 export type BlendMode = 'normal' | 'screen' | 'multiply' | 'overlay' | 'add';
 export type GenerativeOperation = 'extend' | 'replace' | 'remove' | 'insert' | 'fill' | 'reframe' | 'retime';
 export type SfxGenerationStatus = 'requested' | 'approved' | 'generating' | 'ready' | 'rejected' | 'failed';
-export type TrackRelationship = 'primary-storyline' | 'connected' | 'lane';
-export type AudioRole = 'dialogue' | 'music' | 'sfx' | 'ambience' | 'foley' | 'other';
+
+export type TimelineKeyframe = {
+  id: string;
+  timeSeconds: number;
+  property: 'positionX' | 'positionY' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity' | 'volume';
+  value: number;
+  interpolation?: 'linear' | 'smooth' | 'hold' | 'ease-in' | 'ease-out';
+};
 
 export type ClipTransform = {
-  x: number;
-  y: number;
+  positionX: number;
+  positionY: number;
   scaleX: number;
   scaleY: number;
   rotationDegrees: number;
@@ -20,23 +27,15 @@ export type ClipCrop = {
   bottom: number;
 };
 
-export type TimelineKeyframe = {
-  id: string;
-  property: string;
-  timeSeconds: number;
-  value: number | string | boolean;
-  interpolation?: 'linear' | 'smooth' | 'hold';
-};
-
 export type TimelineClip = {
   id: string;
   assetId: string;
   trackId: string;
-  name?: string;
   startSeconds: number;
   durationSeconds: number;
   sourceInSeconds?: number;
   sourceOutSeconds?: number;
+  /** Known source-media duration. Enables deterministic handle extension without generation. */
   sourceDurationSeconds?: number;
   muted?: boolean;
   volume?: number;
@@ -44,10 +43,14 @@ export type TimelineClip = {
   blendMode?: BlendMode;
   speed?: number;
   reverse?: boolean;
-  audioRole?: AudioRole;
   transform?: ClipTransform;
   crop?: ClipCrop;
   keyframes?: TimelineKeyframe[];
+  audioRole?: AudioRole;
+  linkedClipIds?: string[];
+  text?: string;
+  takeGroupId?: string;
+  takeId?: string;
   effects: EffectInstance[];
   generativeRegions: GenerativeRegion[];
 };
@@ -57,11 +60,11 @@ export type TimelineTrack = {
   name: string;
   kind: TrackKind;
   index: number;
-  relationship?: TrackRelationship;
-  connectedToClipId?: string;
+  role?: AudioRole;
   muted?: boolean;
   solo?: boolean;
   locked?: boolean;
+  hidden?: boolean;
   clips: TimelineClip[];
 };
 
