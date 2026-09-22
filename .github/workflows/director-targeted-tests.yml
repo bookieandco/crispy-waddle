@@ -6,6 +6,7 @@ on:
       - "apps/jhadina-web/src/app/api/workstation/**"
       - "apps/jhadina-web/src/app/api/director/**"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.ts"
+      - "apps/jhadina-web/src/app/ask-jhadina/**"
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
