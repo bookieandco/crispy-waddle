@@ -129,6 +129,15 @@ function repository(): SocialRepository {
 }
 
 describe("Ask Jhadina Social command resolver", () => {
+  it("does not hijack a question about Jhadina's learned personality", () => {
+    expect(inspectAskSocialIntent("What is Jhadina's personality like?")).toBeNull()
+  })
+
+  it("does route an explicit public Jhadina social-character request", () => {
+    const intent = inspectAskSocialIntent("Use the Jhadina character voice for our social content")
+    expect(intent?.requestedBrand).toBe("jhadina")
+  })
+
   it("lists governed character personalities without granting execution authority", async () => {
     const result = await handleAskSocialCommand({
       userId: "user-1",
