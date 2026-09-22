@@ -10,6 +10,7 @@ import {
 } from './generative-extend';
 import type { TimelineClip } from './timeline-model';
 import { planReferenceCharacterVideo } from './reference-character-video';
+import { selectWholeVideoProvider, type WholeVideoProductionProvider } from './whole-video-provider';
 
 describe('reference-character bootstrap and generative extension', () => {
   it('can bootstrap a reusable character identity from one uploaded reference', () => {
@@ -314,5 +315,43 @@ describe('reference-character bootstrap and generative extension', () => {
       'qc',
       'preview',
     ]));
+  });
+  it('never selects a whole-video provider that would silently drop a locked character', () => {
+    const makeProvider = (
+      id: string,
+      referenceCharacterSupport: 'none' | 'single' | 'multiple',
+    ): WholeVideoProductionProvider => ({
+      descriptor: {
+        id,
+        name: id,
+        costClass: 'free-local',
+        supportedModes: ['standard'],
+        referenceCharacterSupport,
+        health: 'healthy',
+      },
+      async submit() { return { providerJobId: id + ':job', status: 'queued' as const }; },
+      async status(providerJobId) { return { providerJobId, status: 'processing' as const }; },
+      async download() { return { bytes: new Uint8Array(), contentType: 'video/mp4' }; },
+      async cancel() {},
+    });
+
+    const intent = {
+      mode: 'standard' as const,
+      prompt: 'Create a movie with Ela',
+      aspectRatio: '16:9' as const,
+      narration: true,
+      captions: true,
+      foley: true,
+      commercialSafeOnly: true as const,
+      providerPolicy: { localFreeFirst: true as const, allowPaidWithoutApproval: false as const },
+    };
+
+    const noReference = makeProvider('plain-video', 'none');
+    const lockedCharacter = makeProvider('character-video', 'single');
+
+    expect(selectWholeVideoProvider([noReference], intent, { referenceCharacterCount: 1 })).toBeUndefined();
+    expect(selectWholeVideoProvider([noReference, lockedCharacter], intent, { referenceCharacterCount: 1 })?.descriptor.id)
+      .toBe('character-video');
+    expect(selectWholeVideoProvider([lockedCharacter], intent, { referenceCharacterCount: 2 })).toBeUndefined();
   });
 });
