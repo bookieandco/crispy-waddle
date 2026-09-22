@@ -21,6 +21,13 @@ type Body = {
     referenceAssetIds?: string[]
     rightsEvidenceRefs?: string[]
     continuityLocks?: ContinuityLock[]
+    commercialCreative?: {
+      conceptId: string
+      productBibleId: string
+      styleBibleId: string
+      multiplierVariantId?: string
+      experimentId?: string
+    }
   }
 }
 
@@ -47,6 +54,7 @@ export async function POST(req: NextRequest) {
       targetRuntimeSeconds: body.director.targetRuntimeSeconds,
       referenceAssetIds: body.director.referenceAssetIds,
       rightsEvidenceRefs: body.director.rightsEvidenceRefs,
+      commercialCreative: body.director.commercialCreative,
     })
 
     const take = compileDirectorSocialTakeRequest(brief, {
