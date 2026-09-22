@@ -4,6 +4,7 @@ import type { TakeRequest } from './generation-orchestrator';
 import type { DirectorGenerationGateInput, AuthoritativeDirectorGenerationGateInput } from './creative-gate-adapter';
 import { evaluateDirectorGenerationGate } from './creative-gate-adapter';
 import type { DirectorStoryboardLineageResolver } from './storyboard-lineage-resolver';
+import type { DirectorCastResolver, ResolvedCharacterSceneIdentity } from './cast-bible';
 
 export type PlannedGeneration = {
   modelId: string;
@@ -19,6 +20,7 @@ export class GenerationPlanAdapter {
     private readonly generation: GenerationService,
     private readonly registry: GenerationRegistry,
     private readonly lineageResolver: DirectorStoryboardLineageResolver,
+    private readonly castResolver?: DirectorCastResolver,
   ) {}
 
   async submitTake(
@@ -60,10 +62,31 @@ export class GenerationPlanAdapter {
       return { lora, weight: selected.weight };
     });
 
+    const characterIds = [...new Set(request.referenceCharacterIds ?? [])];
+    let characterIdentities: ResolvedCharacterSceneIdentity[] = [];
+    if (characterIds.length) {
+      if (!this.castResolver) {
+        throw new Error('Generation submission blocked: DIRECTOR_CAST_RESOLVER_REQUIRED');
+      }
+      characterIdentities = await Promise.all(
+        characterIds.map(async (characterId) => {
+          try {
+            return await this.castResolver!.resolve(characterId, request.projectId, request.sceneId);
+          } catch (error) {
+            throw new Error(`Generation submission blocked: character ${characterId} could not be resolved: ${error instanceof Error ? error.message : 'DIRECTOR_CAST_RESOLUTION_FAILED'}`);
+          }
+        }),
+      );
+    }
+
     const references = [
-      ...(request.referenceCharacterIds ?? []).map((assetId) => ({ assetId, role: 'character' as const })),
+      ...characterIdentities.flatMap((identity) =>
+        identity.referenceAssetIds.map((assetId) => ({ assetId, role: 'character' as const })),
+      ),
       ...(request.referenceAssetIds ?? []).map((assetId) => ({ assetId, role: 'image' as const })),
-    ];
+    ].filter((reference, index, all) =>
+      all.findIndex((candidate) => candidate.assetId === reference.assetId && candidate.role === reference.role) === index,
+    );
 
     const requestId = `director:${request.projectId}:take:${request.takeId}`;
     const creativeProvenance = {
@@ -88,6 +111,20 @@ export class GenerationPlanAdapter {
         parentTakeId: request.parentTakeId,
         storyboardBoardId: request.storyboardBoardId,
         continuityLocks: request.locked,
+        characterContinuity: characterIdentities.map((identity) => ({
+          characterId: identity.characterId,
+          continuityRef: identity.continuityRef,
+          canonicalAppearanceVariantId: identity.canonicalAppearanceVariantId,
+          sceneAppearanceVariantId: identity.sceneAppearanceVariantId,
+          referenceAssetIds: [...identity.referenceAssetIds],
+          referenceSha256s: [...identity.referenceSha256s],
+          voiceIdentityId: identity.voiceIdentityId,
+          voiceVariantId: identity.voiceVariantId,
+          language: identity.language,
+          behaviorDnaRef: identity.behaviorDnaRef,
+          rigAssetId: identity.rigAssetId,
+          lockedTraits: [...identity.lockedTraits],
+        })),
         cinematography: request.cinematography,
       },
       creativeProvenance,
