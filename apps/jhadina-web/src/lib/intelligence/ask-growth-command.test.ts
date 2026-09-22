@@ -112,6 +112,8 @@ describe("Ask Jhadina Growth read command", () => {
     expect(inspectAskGrowthReadIntent("Launch a Meta campaign for PupsonStuff")).toBeNull()
     expect(inspectAskGrowthReadIntent("Increase the Meta campaign budget to $100")).toBeNull()
     expect(inspectAskGrowthReadIntent("Approve the pending paid ad")).toBeNull()
+    expect(inspectAskGrowthReadIntent("Which campaign should I run next?")).toBeNull()
+    expect(inspectAskGrowthReadIntent("Recommend a Meta campaign strategy")).toBeNull()
   })
 
   it("does not intercept unrelated Ask requests", () => {
@@ -129,6 +131,20 @@ describe("Ask Jhadina Growth read command", () => {
     expect(result?.proposal.recommendation).toContain("2 durable paid campaign")
     expect(result?.proposal.evidence.some((ref) => ref.id === "growth-campaign:campaign-1")).toBe(true)
     expect(result?.verificationReason).toContain("no external or financial action")
+  })
+
+  it("scopes campaign reads by channel and brand", async () => {
+    const meta = await handleAskGrowthReadCommand({
+      userId: "user-1",
+      activeTask: "Show me my Meta campaigns",
+    }, { provider: provider() })
+    expect(meta?.workPlan.campaigns.map((ref) => ref.id)).toEqual(["growth-campaign:campaign-1"])
+
+    const pups = await handleAskGrowthReadCommand({
+      userId: "user-1",
+      activeTask: "Show me PupsonStuff campaigns",
+    }, { provider: provider() })
+    expect(pups?.workPlan.campaigns.map((ref) => ref.id)).toEqual(["growth-campaign:campaign-1"])
   })
 
   it("surfaces pending approval as evidence but never as granted permission", async () => {
