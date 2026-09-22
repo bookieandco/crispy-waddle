@@ -1,13 +1,12 @@
 import http from 'node:http';
 
 const port = Number(process.env.PORT || 3000);
-const backgroundRemoverUrl = process.env.BACKGROUND_REMOVER_INTERNAL_URL?.replace(/\/$/, '');
-const upscalerUrl = process.env.UPSCALER_INTERNAL_URL?.replace(/\/$/, '');
+const mediaWorkerUrl = process.env.MEDIA_WORKER_INTERNAL_URL?.replace(/\/$/, '');
 const token = process.env.PUPSON_MEDIA_GATEWAY_TOKEN?.trim();
 const maxBytes = 15 * 1024 * 1024;
 
-if (!backgroundRemoverUrl) {
-  throw new Error('BACKGROUND_REMOVER_INTERNAL_URL is required.');
+if (!mediaWorkerUrl) {
+  throw new Error('MEDIA_WORKER_INTERNAL_URL is required.');
 }
 if (!token || token.length < 32) {
   throw new Error('PUPSON_MEDIA_GATEWAY_TOKEN must be at least 32 characters.');
@@ -49,13 +48,13 @@ async function collectBody(req) {
   return Buffer.concat(chunks);
 }
 
-async function reachable(url, expectedStatuses = [200]) {
+async function workerHealthy() {
   try {
-    const response = await fetch(url, {
+    const response = await fetch(new URL('/health', mediaWorkerUrl), {
       method: 'GET',
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(10000),
     });
-    return expectedStatuses.includes(response.status);
+    return response.ok;
   } catch {
     return false;
   }
@@ -63,7 +62,7 @@ async function reachable(url, expectedStatuses = [200]) {
 
 async function proxyBackgroundRemoval(req, res, requestUrl) {
   const body = await collectBody(req);
-  const target = new URL(backgroundRemoverUrl);
+  const target = new URL('/background', mediaWorkerUrl);
   target.search = requestUrl.search;
 
   const headers = {};
@@ -87,10 +86,6 @@ async function proxyBackgroundRemoval(req, res, requestUrl) {
 }
 
 async function proxyUpscale(req, res) {
-  if (!upscalerUrl) {
-    return json(res, 503, { error: 'upscaler_not_configured' });
-  }
-
   const body = await collectBody(req);
   const contentType = req.headers['content-type'];
   if (!contentType?.toLowerCase().startsWith('multipart/form-data')) {
@@ -118,10 +113,6 @@ async function proxyUpscale(req, res) {
     return json(res, 400, { error: 'unsupported_format' });
   }
 
-  // PupsonStuff's generic upscaler contract permits scale=2 or scale=4.
-  // Real-ESRGAN x4plus always creates learned 4x detail. Returning a 4x
-  // source for a 2x request is acceptable because the caller only requires
-  // a minimum source resolution and performs the final print-master resize.
   const upstreamForm = new FormData();
   upstreamForm.append(
     'image',
@@ -129,7 +120,7 @@ async function proxyUpscale(req, res) {
     source.name || 'artwork'
   );
 
-  const target = new URL('/upscale', upscalerUrl);
+  const target = new URL('/upscale', mediaWorkerUrl);
   target.searchParams.set('ext', format === 'jpeg' ? 'jpg' : format);
 
   const response = await fetch(target, {
@@ -154,22 +145,11 @@ const server = http.createServer(async (req, res) => {
     const requestUrl = new URL(req.url || '/', 'http://gateway.local');
 
     if (requestUrl.pathname === '/health' && req.method === 'GET') {
-      const [backgroundReachable, upscalerReachable] = await Promise.all([
-        // BackgroundRemover returns 400 for GET without ?url=; that still
-        // proves the private Flask service is alive.
-        reachable(backgroundRemoverUrl, [200, 400, 405]),
-        upscalerUrl ? reachable(new URL('/health', upscalerUrl), [200]) : Promise.resolve(false),
-      ]);
-      const healthy = backgroundReachable && (!upscalerUrl || upscalerReachable);
+      const healthy = await workerHealthy();
       return json(res, healthy ? 200 : 503, {
         service: 'pupson-media-gateway',
         status: healthy ? 'ok' : 'degraded',
-        background_remover: backgroundReachable ? 'reachable' : 'unreachable',
-        upscaler: upscalerUrl
-          ? upscalerReachable
-            ? 'reachable'
-            : 'unreachable'
-          : 'not_configured',
+        media_worker: healthy ? 'ready' : 'unavailable',
       });
     }
 
