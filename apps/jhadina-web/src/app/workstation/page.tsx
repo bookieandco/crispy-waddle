@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EditingAssetManifestEntry } from '@jhadina/director-core';
 import { LiveGeneratedEditingAssetShelf } from '../../../components/workstation/LiveGeneratedEditingAssetShelf';
 import { WorkstationTimeline } from '../../../components/workstation/WorkstationTimeline';
+import { ReferenceCharacterVideoPanel } from '../../../components/workstation/ReferenceCharacterVideoPanel';
 import type { EditableTimeline, TimelineClip, TimelineTrack } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
 
@@ -182,6 +183,8 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
         <h1 className="text-2xl font-semibold">Edit project</h1>
         <p className="text-sm text-muted-foreground">Project: {projectId}</p>
       </header>
+
+      <ReferenceCharacterVideoPanel projectId={projectId} />
 
       <section className="rounded-xl border bg-background p-4">
         <div className="mb-3">
