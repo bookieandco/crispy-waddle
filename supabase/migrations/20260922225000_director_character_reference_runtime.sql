@@ -25,8 +25,13 @@ create table if not exists public.director_reference_media_assets (
   width integer not null check(width >= 128),
   height integer not null check(height >= 128),
   sha256 text not null,
+  reference_kind text not null default 'character'
+    check(reference_kind in ('character','product')),
   view_hint text not null default 'unknown'
-    check(view_hint in ('unknown','front','profile-left','profile-right','three-quarter-left','three-quarter-right','full-body','close-up')),
+    check(view_hint in (
+      'unknown','front','profile-left','profile-right','three-quarter-left','three-quarter-right','full-body','close-up',
+      'hero','back','left','right','top','bottom','detail','in-use'
+    )),
   rights_ref text not null,
   consent_ref text,
   admission_status text not null default 'quarantined'
@@ -38,7 +43,7 @@ create table if not exists public.director_reference_media_assets (
   admitted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique(project_id, sha256)
+  unique(project_id, reference_kind, sha256)
 );
 
 create index if not exists director_reference_assets_project_idx
