@@ -45,4 +45,33 @@ describe("Opportunity Command Center canonical projection", () => {
     expect(view.researchCaseId).toBe("research:opportunity:job")
     expect(view.hubCategory).toBe("earn")
   })
+
+  it("preserves rich side hustle classification without changing canonical lifecycle authority", () => {
+    const canonical = canonicalFromSideIncome({
+      title: "AI discovery audit",
+      kind: "automation",
+      sourceUrl: "https://example.test/aeo",
+      sourceName: "Fixture",
+      summary: "AI discovery service",
+      automationLevel: "ai_plus_user",
+      sideHustleProfile: {
+        family: "ai_discovery_seo",
+        role: "standalone",
+        automationMaturity: "ai_assisted",
+        executionOwners: ["growth", "opportunity"],
+        monetizationModels: ["service_fee", "subscription"],
+      },
+    }, "opportunity:aeo")
+
+    const view = toOpportunityView({
+      userId: "00000000-0000-0000-0000-000000000001",
+      opportunity: canonical,
+      triageState: "review",
+    })
+
+    expect(view.hubCategory).toBe("ai_businesses")
+    expect(view.sideHustleProfile?.family).toBe("ai_discovery_seo")
+    expect(view.sideHustleProfile?.automationMaturity).toBe("ai_assisted")
+    expect(canonical.status).toBe("discovered")
+  })
 })

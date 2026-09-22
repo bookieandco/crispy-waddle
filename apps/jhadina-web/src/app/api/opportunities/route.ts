@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { CanonicalOpportunityQueue } from "@jhadina/opportunity-core"
+import { CanonicalOpportunityQueue, isSideHustleProfile } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
 import { canonicalFromSideIncome, toOpportunityView, type OpportunityCreateInput, type StoredCanonicalOpportunity } from "@/lib/opportunities/canonical"
 import { createSupabaseOpportunityRepository } from "@/lib/opportunities/supabase-opportunity-repository"
@@ -57,5 +57,6 @@ function validateCreateInput(body: Partial<OpportunityCreateInput>): string | un
   if (!body.kind || !KINDS.has(body.kind)) return "kind is invalid"
   if (!body.automationLevel || !AUTOMATION.has(body.automationLevel)) return "automationLevel is invalid"
   if (body.fitScore !== undefined && (typeof body.fitScore !== "number" || !Number.isFinite(body.fitScore) || body.fitScore < 0 || body.fitScore > 100)) return "fitScore must be between 0 and 100"
+  if (body.sideHustleProfile !== undefined && !isSideHustleProfile(body.sideHustleProfile)) return "sideHustleProfile is invalid"
   return undefined
 }

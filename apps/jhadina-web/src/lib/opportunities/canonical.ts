@@ -1,4 +1,4 @@
-import { classifyOpportunityHubCategory, type Opportunity as CanonicalOpportunity, type OpportunityFamily, type OpportunityType } from "@jhadina/opportunity-core"
+import { classifyOpportunityHubCategory, getSideHustleDefinition, isSideHustleProfile, type Opportunity as CanonicalOpportunity, type OpportunityFamily, type OpportunityType, type SideHustleProfile } from "@jhadina/opportunity-core"
 import type { AutomationLevel, Opportunity as OpportunityView, OpportunityKind, OpportunityTriageState, OpportunityVerificationStatus } from "./sideIncome"
 
 export type OpportunityCreateInput = {
@@ -16,6 +16,7 @@ export type OpportunityCreateInput = {
   deadline?: string
   requiresUserApproval?: boolean
   sourceConfidence?: number
+  sideHustleProfile?: SideHustleProfile
 }
 
 
@@ -92,6 +93,8 @@ export function canonicalFromSideIncome(
       estimatedHours: input.estimatedHours ?? null,
       payCadence: input.estimatedPay?.cadence ?? "unknown",
       requiresUserApproval: input.requiresUserApproval ?? true,
+      sideHustleProfile: input.sideHustleProfile ?? null,
+      hubCategory: input.sideHustleProfile ? getSideHustleDefinition(input.sideHustleProfile.family).hubCategory : undefined,
     },
     createdAt: now,
     updatedAt: now,
@@ -106,6 +109,7 @@ export function toOpportunityView(stored: StoredCanonicalOpportunity): Opportuni
   const startupCost = typeof metadata.startupCost === "number" ? metadata.startupCost : undefined
   const estimatedHours = typeof metadata.estimatedHours === "number" ? metadata.estimatedHours : undefined
   const payCadence = isPayCadence(metadata.payCadence) ? metadata.payCadence : "unknown"
+  const sideHustleProfile = isSideHustleProfile(metadata.sideHustleProfile) ? metadata.sideHustleProfile : undefined
   const verificationStatus: OpportunityVerificationStatus =
     opportunity.verificationStatus === "verified" ? "verified" :
     opportunity.verificationStatus === "rejected" ? "rejected" :
@@ -136,6 +140,7 @@ export function toOpportunityView(stored: StoredCanonicalOpportunity): Opportuni
     createdAt: opportunity.createdAt,
     approvedAt: stored.approvedAt,
     researchCaseId: stored.researchCaseId,
+    sideHustleProfile,
   }
 }
 
