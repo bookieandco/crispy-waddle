@@ -3,12 +3,22 @@ import {
   assessmentToDecisionProposal,
   type MemeTradeAssessment,
 } from '@jhadina/shark-intelligence-core/meme-trader'
-import type { SharkMoneyTransportEnvelope } from '@jhadina/money-core'
+import type {
+  EvidenceStance,
+  SharkMoneyTransportEnvelope,
+  ThesisDirection,
+} from '@jhadina/money-core'
 
 export type SharkMoneyEvidenceMetadata = Readonly<{
   evidenceId: string
   source: string
+  sourceGroup: string
+  stance: EvidenceStance
+  direction: ThesisDirection
+  strength: number
+  confidence: number
   observedAt: string
+  availableAt: string
   summary: string
   immutable: true
 }>
@@ -17,12 +27,26 @@ function hash(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex')
 }
 
+function informationCutoff(evidence: readonly SharkMoneyEvidenceMetadata[]): string {
+  if (!evidence.length) throw new Error('SHARK_MONEY_EVIDENCE_REQUIRED')
+  for (const item of evidence) {
+    if (!item.availableAt || Number.isNaN(Date.parse(item.availableAt))) {
+      throw new Error(`SHARK_MONEY_EVIDENCE_AVAILABLE_AT_INVALID:${item.evidenceId}`)
+    }
+  }
+  return [...evidence].sort((a, b) => a.availableAt.localeCompare(b.availableAt)).at(-1)!.availableAt
+}
+
 export function createSharkMoneyResearchEnvelope(input: {
   assessment: MemeTradeAssessment
   contextId: string
   evidence: readonly SharkMoneyEvidenceMetadata[]
 }): SharkMoneyTransportEnvelope {
-  const evidenceById = new Map(input.evidence.map((item) => [item.evidenceId, item] as const))
+  const evidenceById = new Map<string, SharkMoneyEvidenceMetadata>()
+  for (const item of input.evidence) {
+    if (evidenceById.has(item.evidenceId)) throw new Error(`SHARK_MONEY_DUPLICATE_EVIDENCE_METADATA:${item.evidenceId}`)
+    evidenceById.set(item.evidenceId, item)
+  }
   const missing = input.assessment.evidenceIds.filter((id) => !evidenceById.has(id))
   if (missing.length) throw new Error(`SHARK_MONEY_EVIDENCE_METADATA_MISSING:${missing.sort().join(',')}`)
 
@@ -38,12 +62,19 @@ export function createSharkMoneyResearchEnvelope(input: {
       return Object.freeze({
         evidenceId: metadata.evidenceId,
         source: metadata.source,
+        sourceGroup: metadata.sourceGroup,
+        stance: metadata.stance,
+        direction: metadata.direction,
+        strength: metadata.strength,
+        confidence: metadata.confidence,
         observedAt: metadata.observedAt,
+        availableAt: metadata.availableAt,
         summary: metadata.summary,
         immutable: true as const,
       })
     }),
   )
+  const cutoff = informationCutoff(evidenceRefs)
 
   const contentHash = hash({
     proposalId: proposal.id,
@@ -53,6 +84,7 @@ export function createSharkMoneyResearchEnvelope(input: {
     chainId: input.assessment.token.chainId,
     tokenAddress: input.assessment.token.tokenAddress,
     assessedAt: input.assessment.assessedAt,
+    informationCutoff: cutoff,
     assessmentVersion: input.assessment.assessmentVersion,
     thesis: input.assessment.thesis,
     confidence: input.assessment.confidence,
@@ -64,12 +96,18 @@ export function createSharkMoneyResearchEnvelope(input: {
     evidenceRefs: evidenceRefs.map((item) => ({
       evidenceId: item.evidenceId,
       source: item.source,
+      sourceGroup: item.sourceGroup,
+      stance: item.stance,
+      direction: item.direction,
+      strength: item.strength,
+      confidence: item.confidence,
       observedAt: item.observedAt,
+      availableAt: item.availableAt,
     })),
   })
 
   return Object.freeze({
-    schemaVersion: 'SHARK-MONEY-01',
+    schemaVersion: 'SHARK-MONEY-02',
     envelopeId: `shark-money:${contentHash}`,
     proposal: Object.freeze({
       proposalId: proposal.id,
@@ -85,6 +123,7 @@ export function createSharkMoneyResearchEnvelope(input: {
       chainId: input.assessment.token.chainId,
       tokenAddress: input.assessment.token.tokenAddress,
       assessedAt: input.assessment.assessedAt,
+      informationCutoff: cutoff,
       tradeType: input.assessment.tradeType,
       assessmentVersion: input.assessment.assessmentVersion,
       thesis: input.assessment.thesis,
