@@ -1,4 +1,5 @@
 export type TrackKind = 'video' | 'audio' | 'overlay' | 'subtitle' | 'effect';
+export type TrackRelationship = 'primary' | 'connected' | 'lane';
 export type AudioRole = 'dialogue' | 'voiceover' | 'music' | 'sfx' | 'foley' | 'ambience' | 'other';
 export type BlendMode = 'normal' | 'screen' | 'multiply' | 'overlay' | 'add';
 export type GenerativeOperation = 'extend' | 'replace' | 'remove' | 'insert' | 'fill' | 'reframe' | 'retime';
@@ -30,6 +31,7 @@ export type ClipCrop = {
 export type TimelineClip = {
   id: string;
   assetId: string;
+  name?: string;
   trackId: string;
   startSeconds: number;
   durationSeconds: number;
@@ -65,6 +67,8 @@ export type TimelineTrack = {
   solo?: boolean;
   locked?: boolean;
   hidden?: boolean;
+  relationship?: TrackRelationship;
+  connectedToClipId?: string;
   clips: TimelineClip[];
 };
 
