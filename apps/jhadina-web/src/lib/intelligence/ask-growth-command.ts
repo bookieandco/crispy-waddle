@@ -65,7 +65,7 @@ export function inspectAskGrowthReadIntent(activeTask: string): AskGrowthReadInt
   if (mutating) return null
 
   const readSignal =
-    /\b(show|list|what|which|status|current|existing|how|performance|results?|metrics?|attention|pending|awaiting|overview|doing|spend|roas|cac|mer)\b/.test(text)
+    /\b(show|list|what|which|status|current|existing|how|performance|performing|results?|metrics?|attention|pending|awaiting|overview|doing|spend|roas|cac|mer)\b/.test(text)
     || /need(?:s)?\s+(?:work|attention)/.test(text)
   if (!readSignal) return null
 
@@ -73,7 +73,7 @@ export function inspectAskGrowthReadIntent(activeTask: string): AskGrowthReadInt
   if (/\b(pending|awaiting|approval|approvals|queue|queued)\b/.test(text)) operation = "pending_work"
   else if (/\b(audience|audiences|lookalike|retargeting|retarget)\b/.test(text)) operation = "list_audiences"
   else if (/\b(attention|failed|failure|error|errors|problem|problems|fix)\b/.test(text) || /need(?:s)?\s+(?:work|attention)/.test(text)) operation = "campaign_attention"
-  else if (/\b(performance|results?|metrics?|roas|cac|mer|spend|doing)\b/.test(text)) operation = "performance"
+  else if (/\b(performance|performing|results?|metrics?|roas|cac|mer|spend|doing)\b/.test(text)) operation = "performance"
   else if (/\bcampaigns?\b/.test(text) || /\bmeta\b/.test(text)) operation = "list_campaigns"
 
   return {
