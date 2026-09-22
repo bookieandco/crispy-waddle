@@ -37,6 +37,7 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
     supportedModes: ['standard', 'short', 'long-form'],
     health: 'unknown',
     supportsCharacterReference: true,
+    requiresCharacterReference: true,
   };
 
   private readonly baseUrl: string;
