@@ -46,8 +46,14 @@ describe('foreign provider source adapters',()=>{
   })
 
   it('matches Canadian HS6 descriptions then produces importer evidence',()=>{
-    const descriptions='HS6,Description\\n040610,Fresh cheese and curd\\n870421,Motor vehicles for transport of goods\\n'
-    const importers='HS6,Importer Name,City,Province\\n040610,Maple Foods Inc,Toronto,Ontario\\n870421,Truck Co,Windsor,Ontario\\n'
+    const descriptions=`HS6,Description
+040610,Fresh cheese and curd
+870421,Motor vehicles for transport of goods
+`
+    const importers=`HS6,Importer Name,City,Province
+040610,Maple Foods Inc,Toronto,Ontario
+870421,Truck Co,Windsor,Ontario
+`
     const matches=matchCanadaHs6Descriptions(descriptions,['fresh cheese food'],5)
     expect(matches[0].hs6).toBe('040610')
     const providers=parseCanadaImporterProviders(importers,matches,10)
@@ -59,7 +65,10 @@ describe('foreign provider source adapters',()=>{
   })
 
   it('searches a cached Statistics Canada ODBus CSV without claiming complete coverage',()=>{
-    const csv='Name,Business Sector,NAICS Code,Status,Province,Municipality\\nPolar Cold Storage,Warehousing and storage,493120,Active,Ontario,Toronto\\nDesign Shop,Graphic design,541430,Active,Quebec,Montreal\\n'
+    const csv=`Name,Business Sector,NAICS Code,Status,Province,Municipality
+Polar Cold Storage,Warehousing and storage,493120,Active,Ontario,Toronto
+Design Shop,Graphic design,541430,Active,Quebec,Montreal
+`
     const providers=searchCanadaOdbusCsv({csv,keywords:['cold storage'],naicsCodes:['493120'],limit:10})
     expect(providers).toHaveLength(1)
     expect(providers[0].country).toBe('CAN')
