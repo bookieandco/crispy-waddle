@@ -46,7 +46,8 @@ describe('reference generation catalog', () => {
   it('keeps reference records non-installing and internally compatible', () => {
     expect(referenceProviders.map((provider) => provider.id)).toContain('comfyui-local');
     expect(referenceModels.every((model) => referenceProviders.some((provider) => provider.id === model.providerId))).toBe(true);
-    expect(referenceLoRAs.every((lora) => lora.metadata?.status === 'reference-only')).toBe(true);
+    expect(referenceLoRAs.every((lora) => ['reference-only', 'template'].includes(String(lora.metadata?.status)))).toBe(true);
+    expect(referenceLoRAs.some((lora) => lora.metadata?.status === 'installed')).toBe(false);
     expect(generationCapabilitySources.image).toContain('loras-dev');
   });
 });
