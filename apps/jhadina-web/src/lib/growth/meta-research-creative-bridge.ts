@@ -20,6 +20,9 @@ export interface MetaResearchCreativeProductionInput {
   brandPointOfViewEvidenceRefs: readonly string[]
   character?: SocialCharacterProfile
   directorProjectId: string
+  productBibleId?: string
+  styleBibleId?: string
+  experimentIdsByConceptId?: Readonly<Record<string, string>>
   platform: Extract<SocialPlatform, "facebook" | "instagram">
   aspectRatio?: string
   productIdentityRef?: string
@@ -54,6 +57,12 @@ export function buildMetaResearchCreativeProductionJobs(input: {
   if (production.character && production.character.brand !== production.brand) {
     throw new Error("META_CREATIVE_CHARACTER_BRAND_MISMATCH")
   }
+
+  const commercialProductBibleId = production.productBibleId?.trim() || production.productIdentityRef?.trim()
+  const commercialStyleBibleId = production.styleBibleId?.trim() || production.styleIdentityRef?.trim()
+  if (!commercialProductBibleId) throw new Error("META_CREATIVE_PRODUCT_BIBLE_REQUIRED")
+  if (!commercialStyleBibleId) throw new Error("META_CREATIVE_STYLE_BIBLE_REQUIRED")
+
   if (Boolean(production.productIdentityRef) !== Boolean(production.styleIdentityRef)) {
     throw new Error("META_CREATIVE_PRODUCT_STYLE_IDENTITY_PAIR_REQUIRED")
   }
@@ -80,6 +89,8 @@ export function buildMetaResearchCreativeProductionJobs(input: {
         ...production.brandPointOfViewEvidenceRefs,
         ...(production.character?.evidenceRefs ?? []),
         ...(production.character ? [production.character.id, production.character.voiceProfileRef] : []),
+        `director-product-bible:${commercialProductBibleId}`,
+        `director-style-bible:${commercialStyleBibleId}`,
       ]),
     ]
     const intent = [
@@ -125,6 +136,14 @@ export function buildMetaResearchCreativeProductionJobs(input: {
           mutationAxis: "net_new_concept",
           fixedDimensionRefs: production.fixedDimensionRefs,
         } : undefined,
+        commercialCreative: {
+          conceptId: concept.id,
+          productBibleId: commercialProductBibleId,
+          styleBibleId: commercialStyleBibleId,
+          ...(production.experimentIdsByConceptId?.[concept.id]
+            ? { experimentId: production.experimentIdsByConceptId[concept.id] }
+            : {}),
+        },
         createdAt,
       },
     )
