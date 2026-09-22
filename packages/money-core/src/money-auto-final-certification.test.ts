@@ -9,6 +9,7 @@ import type { ExecutionPermit, PermitStore } from './execution-permit.js'
 import type { ExecutionPlan, ExecutionSlice } from './execution-planning-contracts.js'
 import type { LiveExecutionPreflight } from './live-preflight-contracts.js'
 import { InMemoryLiveCanaryStateStore } from './live-canary-store.js'
+import { activateMoney050KillSwitch } from './live-execution-governance.js'
 import type { LiveCanaryPolicy, LiveRiskMetricSnapshot } from './live-canary-contracts.js'
 import type { ManualLiveBrokerAdapter } from './manual-live-broker-contracts.js'
 import { assertManualTrigger } from './manual-live-broker-contracts.js'
@@ -108,6 +109,7 @@ test('AUTO.1 mandate requires explicit Action Core approval and cannot authorize
 
 test('AUTO.2 durable mandate lifecycle expires and revokes independently of model state',()=>{
   const store=new InMemoryAutonomousTradingMandateStore(),m=mandate();store.put(m);assert.equal(store.findActive({userId:'user-1',provider:'broker-x',accountId:'acct-1',now:t.execute})?.mandateId,m.mandateId)
+  assert.equal(store.findActive({userId:'user-1',provider:'broker-x',accountId:'acct-1',now:t.expiry}),undefined)
   store.revoke(m.mandateId,t.execute);assert.equal(store.findActive({userId:'user-1',provider:'broker-x',accountId:'acct-1',now:t.execute}),undefined)
 })
 
@@ -148,6 +150,8 @@ test('AUTO.5 child trade authority remains Action Core bound and permit is singl
   const pkg=await issueAutonomousTradePermitPackage({permitStore:permits,mandateStore:mandates,request,authority,mandate:m,intent:i,risk,plan,preflight,entitlement,authorizedAt:t.childAuthorized,permitExpiresAt:t.permitExpiry,permitId:'permit-auto-1',nonce:'nonce-auto-1'})
   assert.equal(pkg.permit.binding.approvalId,m.approvalReceiptId);assert.equal(pkg.action.mandateId,m.mandateId);assert.equal(pkg.action.strategyId,i.strategyId)
   assert.equal(permits.get('permit-auto-1')?.state,'ISSUED')
+  const tampered=Object.freeze({...m,limits:Object.freeze({...m.limits,maxOrderNotionalMinor:9000n})})
+  await assert.rejects(()=>issueAutonomousTradePermitPackage({permitStore:permits,mandateStore:mandates,request,authority,mandate:tampered,intent:i,risk,plan,preflight,entitlement,authorizedAt:t.childAuthorized,permitExpiresAt:t.permitExpiry,permitId:'permit-tampered',nonce:'nonce-tampered'}),/CANONICAL_MANDATE_MISMATCH/)
 })
 
 test('AUTO.6 autonomous executor submits without forging an interactive human trigger while preserving broker entitlement and canary gates',async()=>{
@@ -165,6 +169,40 @@ test('AUTO.6 autonomous executor submits without forging an interactive human tr
   const result=await executeAutonomousLiveTrade({adapter,permitStore:permits,mandateStore:mandates,attemptStore:attempts,entitlementStore:entitlements,canaryStore:canary,canaryPolicy:policy,mandate:m,package:pkg,plan,now:t.execute,commandId:'auto-command-1',attemptIdFactory:()=> 'attempt-auto-1'})
   assert.equal(executionMode,'AUTONOMOUS');assert.equal(result.state,'SUBMITTED');assert.equal(permits.get('permit-exec')?.state,'CONSUMED')
   await assert.rejects(()=>executeAutonomousLiveTrade({adapter,permitStore:permits,mandateStore:mandates,attemptStore:attempts,entitlementStore:entitlements,canaryStore:canary,canaryPolicy:policy,mandate:m,package:pkg,plan,now:t.execute,commandId:'auto-command-replay',attemptIdFactory:()=> 'attempt-auto-2'}),/Permit is not executable|Permit replay|EXECUTION_PERMIT/)
+})
+
+test('AUTO.6b live canary independently enforces daily orders, notional, realized loss, and unresolved execution',()=>{
+  const policy:LiveCanaryPolicy={policyId:'tight-auto-canary',currency:'USD',maxOrderNotionalMinor:5000n,maxDailySubmittedNotionalMinor:6000n,maxDailyOrders:1,maxDailyRealizedLossMinor:5000n,maxGrossExposureMinor:20000n,maxOpenUnknownExecutions:0,maxRiskMetricAgeSeconds:300,authority:'RISK_POLICY_ONLY'}
+  const store=new InMemoryLiveCanaryStateStore()
+  store.updateRiskMetrics({snapshotId:'r1',provider:'broker-x',accountId:'acct-limit',currency:'USD',grossExposureMinor:0n,realizedPnlMinor:0n,observedAt:t.childRequest,availableAt:t.childRequest,evidenceIds:['r1'],authority:'EVIDENCE_ONLY'},'2026-09-21',t.execute)
+  const first=store.reserve({provider:'broker-x',accountId:'acct-limit',tradingDate:'2026-09-21',currency:'USD',notionalMinor:5000n,side:'BUY',policy,now:t.execute})
+  assert.equal(first.allowed,true)
+  const second=store.reserve({provider:'broker-x',accountId:'acct-limit',tradingDate:'2026-09-21',currency:'USD',notionalMinor:2000n,side:'BUY',policy,now:t.execute})
+  assert.equal(second.allowed,false);if(!second.allowed){assert.ok(second.reasonCodes.includes('MAX_DAILY_NOTIONAL'));assert.ok(second.reasonCodes.includes('MAX_DAILY_ORDERS'))}
+
+  const lossStore=new InMemoryLiveCanaryStateStore()
+  lossStore.updateRiskMetrics({snapshotId:'r2',provider:'broker-x',accountId:'acct-loss',currency:'USD',grossExposureMinor:0n,realizedPnlMinor:-6000n,observedAt:t.childRequest,availableAt:t.childRequest,evidenceIds:['r2'],authority:'EVIDENCE_ONLY'},'2026-09-21',t.execute)
+  const loss=lossStore.reserve({provider:'broker-x',accountId:'acct-loss',tradingDate:'2026-09-21',currency:'USD',notionalMinor:1000n,side:'BUY',policy,now:t.execute})
+  assert.equal(loss.allowed,false);if(!loss.allowed)assert.ok(loss.reasonCodes.includes('MAX_DAILY_LOSS'))
+
+  const unknownStore=new InMemoryLiveCanaryStateStore()
+  unknownStore.updateRiskMetrics({snapshotId:'r3',provider:'broker-x',accountId:'acct-unknown',currency:'USD',grossExposureMinor:0n,realizedPnlMinor:0n,observedAt:t.childRequest,availableAt:t.childRequest,evidenceIds:['r3'],authority:'EVIDENCE_ONLY'},'2026-09-21',t.execute)
+  unknownStore.markUnknown('broker-x','acct-unknown','2026-09-21','unknown-exec-1',t.execute)
+  const unknown=unknownStore.reserve({provider:'broker-x',accountId:'acct-unknown',tradingDate:'2026-09-21',currency:'USD',notionalMinor:1000n,side:'BUY',policy,now:t.execute})
+  assert.equal(unknown.allowed,false);if(!unknown.allowed)assert.ok(unknown.reasonCodes.includes('UNRESOLVED_EXECUTION_BLOCK'))
+})
+
+test('AUTO.6c kill switch halts outstanding autonomous permits',async()=>{
+  const m=mandate(),i=intent(),risk=evaluateAutonomousRisk({mandate:m,intent:i,snapshot:riskSnapshot(),now:t.childAuthorized})
+  const request=buildAutonomousTradeActionRequest({actionId:'trade-kill-1',mandate:m,intent:i,requestedAt:t.childRequest})
+  const authority=createMoneyActionCoreAuthority(request,{authorityId:'authority-child-kill',decision:'allow',policyVersion:m.policyVersion,policyHash:m.policyHash,authorizedAt:t.childAuthorized,expiresAt:t.expiry})
+  const permits=new MemoryPermitStore(),mandates=new InMemoryAutonomousTradingMandateStore();mandates.put(m)
+  await issueAutonomousTradePermitPackage({permitStore:permits,mandateStore:mandates,request,authority,mandate:m,intent:i,risk,plan,preflight,entitlement,authorizedAt:t.childAuthorized,permitExpiresAt:t.permitExpiry,permitId:'permit-kill',nonce:'nonce-kill'})
+  const canary=new InMemoryLiveCanaryStateStore()
+  canary.updateRiskMetrics({snapshotId:'r-kill',provider:'broker-x',accountId:'acct-1',currency:'USD',grossExposureMinor:0n,realizedPnlMinor:0n,observedAt:t.childRequest,availableAt:t.childRequest,evidenceIds:['r-kill'],authority:'EVIDENCE_ONLY'},'2026-09-21',t.execute)
+  await activateMoney050KillSwitch({store:canary,permitStore:permits,provider:'broker-x',accountId:'acct-1',now:t.execute,reason:'operator emergency stop'})
+  assert.equal(permits.get('permit-kill')?.state,'HALTED')
+  assert.equal(canary.get('broker-x','acct-1','2026-09-21')?.halted,true)
 })
 
 test('AUTO.7 manual mode remains semantically separate and rejects autonomous trigger substitution',()=>{
