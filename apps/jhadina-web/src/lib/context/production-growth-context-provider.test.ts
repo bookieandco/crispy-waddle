@@ -151,12 +151,17 @@ describe("Production Growth context provider", () => {
     } satisfies GrowthIntelligenceReadRepository
 
     const provider = new ProductionGrowthContextProvider({ repository: guarded })
-    const context = await provider.getContext({
+    const calendar = await provider.getContext({
       userId: "user-1",
       activeTask: "What is on my calendar tomorrow?",
     })
+    const performance = await provider.getContext({
+      userId: "user-1",
+      activeTask: "How is overall system performance?",
+    })
 
-    expect(context).toBeUndefined()
+    expect(calendar).toBeUndefined()
+    expect(performance).toBeUndefined()
     expect(reads).toBe(0)
   })
 
