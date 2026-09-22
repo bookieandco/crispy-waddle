@@ -44,7 +44,8 @@ jobs:
         run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/launch-outcome-repository.test.ts src/lib/shark/actor-aware-assessment-service.test.ts src/lib/shark/money-research-bridge.test.ts src/lib/shark/research-evidence-repository.test.ts
       - name: Reject malformed SHARK PL/pgSQL dollar quotes
         run: |
-          if grep -nE '^[[:space:]]*(do|as)[[:space:]]+\$[[:space:]]*$|^[[:space:]]*\$;[[:space:]]*
+          if grep -nE '^[[:space:]]*(do|as)[[:space:]]+\$[[:space:]]*$|^[[:space:]]*\$;[[:space:]]*      - name: Validate SHARK migrations
+        run: |
           test -f supabase/migrations/20260902010000_shark_launch_outcome_history.sql
           test -f supabase/migrations/20260918000100_shark_durable_launch_ingestion.sql
           test -f supabase/migrations/20260919000100_shark_historical_observation_ratio_contract.sql
