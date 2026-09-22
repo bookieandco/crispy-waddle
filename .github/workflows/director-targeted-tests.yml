@@ -62,6 +62,7 @@ jobs:
           src/studio-asset-approval.test.ts
           src/reference-derived-contracts.test.ts
           src/cast-bible.test.ts
+          src/character-reference-and-extend.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
       - name: Workstation authority, Studio QC and Social bridge
         run: >
