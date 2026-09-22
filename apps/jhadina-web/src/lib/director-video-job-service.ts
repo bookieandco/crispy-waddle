@@ -102,6 +102,18 @@ export interface AskVideoJobInput {
   activeTask: string;
   activeProject?: string;
   clientRequestId?: string;
+  referenceCharacter?: {
+    characterId: string;
+    continuityRef: string;
+    appearanceVariantId: string;
+    characterDescription?: string;
+    appearanceDescription?: string;
+    performanceNotes?: readonly string[];
+    referenceAssetIds: readonly string[];
+    referenceSha256s: readonly string[];
+    referenceUris: readonly string[];
+    productionPlan?: unknown;
+  };
 }
 
 export interface AskVideoJobResult {
@@ -141,6 +153,19 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
       captions: intent.captions,
       foley: intent.foley,
       commercialSafeOnly: intent.commercialSafeOnly,
+      ...(input.referenceCharacter ? {
+        referenceCharacter: {
+          characterId: input.referenceCharacter.characterId,
+          continuityRef: input.referenceCharacter.continuityRef,
+          appearanceVariantId: input.referenceCharacter.appearanceVariantId,
+          characterDescription: input.referenceCharacter.characterDescription,
+          appearanceDescription: input.referenceCharacter.appearanceDescription,
+          performanceNotes: [...(input.referenceCharacter.performanceNotes ?? [])],
+          referenceAssetIds: [...input.referenceCharacter.referenceAssetIds],
+          referenceSha256s: [...input.referenceCharacter.referenceSha256s],
+          productionPlan: input.referenceCharacter.productionPlan,
+        },
+      } : {}),
     },
     p_provider_policy: intent.providerPolicy,
     p_now: now,
@@ -152,18 +177,22 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
     return { intent, job };
   }
 
-  const provider = selectWholeVideoProvider(createConfiguredWholeVideoProviders(), intent);
+  const provider = selectWholeVideoProvider(createConfiguredWholeVideoProviders(), intent, { characterReference: Boolean(input.referenceCharacter) });
   if (!provider) {
     job = await updateJob(client, job.id, {
       status: 'blocked',
       current_phase: 'provider-selection',
-      error: 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+      error: input.referenceCharacter
+        ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
+        : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
     });
     await appendJobEvent(client, {
       jobId: job.id,
       eventType: 'provider_selection',
       status: 'blocked',
-      error: 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+      error: input.referenceCharacter
+        ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
+        : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
     });
     return { intent, job };
   }
@@ -188,6 +217,18 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
       prompt: job.prompt,
       intent,
       creativeName: `Jhadina ${job.id.slice(-8)}`,
+      ...(input.referenceCharacter ? {
+        character: {
+          characterId: input.referenceCharacter.characterId,
+          continuityRef: input.referenceCharacter.continuityRef,
+          appearanceVariantId: input.referenceCharacter.appearanceVariantId,
+          characterDescription: input.referenceCharacter.characterDescription,
+          appearanceDescription: input.referenceCharacter.appearanceDescription,
+          performanceNotes: [...(input.referenceCharacter.performanceNotes ?? [])],
+          referenceUris: [...input.referenceCharacter.referenceUris],
+          referenceSha256s: [...input.referenceCharacter.referenceSha256s],
+        },
+      } : {}),
     }, `director-video:${job.id}`);
 
     job = await updateJob(client, job.id, {
