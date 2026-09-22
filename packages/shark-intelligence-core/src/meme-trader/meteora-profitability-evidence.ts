@@ -25,6 +25,18 @@ export type MeteoraDlmmPositionStateEvidence=Readonly<{
   evidenceIds:readonly string[]
 }>
 
+export type MeteoraDlmmBenchmarkEvidence=Readonly<{
+  benchmarkId:string
+  position:string
+  currency:string
+  hodlValueMinor:bigint
+  lpTerminalValueMinor:bigint
+  methodology:'MATCHED_HODL_COUNTERFACTUAL'
+  observedAt:string
+  availableAt:string
+  evidenceIds:readonly string[]
+}>
+
 export type MeteoraDlmmProfitabilityEvidence=Readonly<{
   position:string
   currency:string
@@ -36,8 +48,8 @@ export type MeteoraDlmmProfitabilityEvidence=Readonly<{
   realizedPnlMinor:bigint|null
   realizationStatus:'CLOSED_COMPLETE'|'PROVISIONAL_OPEN'|'PROVISIONAL_INCOMPLETE'
   valuationStatus:'VERIFIED'|'VALUATION_REQUIRED'
-  impermanentLossMinor:null
-  impermanentLossStatus:'BENCHMARK_REQUIRED'
+  impermanentLossMinor:bigint|null
+  impermanentLossStatus:'BENCHMARK_REQUIRED'|'BENCHMARKED'
   evidenceIds:readonly string[]
   excludedFutureEvidenceIds:readonly string[]
   authority:'RESEARCH_ONLY'
@@ -65,6 +77,15 @@ export function assertMeteoraDlmmPositionStateEvidence(state:MeteoraDlmmPosition
   if(Date.parse(state.availableAt)<Date.parse(state.observedAt))throw new Error('meteora_profitability_state_availability_invalid')
 }
 
+export function assertMeteoraDlmmBenchmarkEvidence(benchmark:MeteoraDlmmBenchmarkEvidence):void{
+  if(!benchmark.benchmarkId.trim()||!benchmark.position.trim()||!benchmark.currency.trim()||!benchmark.evidenceIds.length)throw new Error('meteora_profitability_benchmark_identity_required')
+  if(benchmark.methodology!=='MATCHED_HODL_COUNTERFACTUAL')throw new Error('meteora_profitability_benchmark_methodology_invalid')
+  if(benchmark.hodlValueMinor<0n||benchmark.lpTerminalValueMinor<0n)throw new Error('meteora_profitability_benchmark_value_invalid')
+  assertIso(benchmark.observedAt,'meteora_profitability_benchmark_observed_at_invalid')
+  assertIso(benchmark.availableAt,'meteora_profitability_benchmark_available_at_invalid')
+  if(Date.parse(benchmark.availableAt)<Date.parse(benchmark.observedAt))throw new Error('meteora_profitability_benchmark_availability_invalid')
+}
+
 export function reconcileMeteoraDlmmCashFlowProfitability(input:{
   position:string
   currency:string
@@ -73,6 +94,7 @@ export function reconcileMeteoraDlmmCashFlowProfitability(input:{
   positionClosed:boolean
   transactionHistoryComplete:boolean
   positionStateEvidenceIds?:readonly string[]
+  benchmark?:MeteoraDlmmBenchmarkEvidence
 }):MeteoraDlmmProfitabilityEvidence{
   if(!input.position.trim()||!input.currency.trim())throw new Error('meteora_profitability_identity_required')
   assertIso(input.informationCutoff,'meteora_profitability_cutoff_invalid')
@@ -97,9 +119,23 @@ export function reconcileMeteoraDlmmCashFlowProfitability(input:{
     !input.transactionHistoryComplete?'PROVISIONAL_INCOMPLETE':input.positionClosed?'CLOSED_COMPLETE':'PROVISIONAL_OPEN'
   const valuationVerified=eligible.every(flow=>flow.amountSemantics==='VERIFIED_VALUATION'&&flow.valuationEvidenceIds.length>0)
   const valuationStatus:MeteoraDlmmProfitabilityEvidence['valuationStatus']=valuationVerified?'VERIFIED':'VALUATION_REQUIRED'
+  let benchmarkUsable=false
+  let impermanentLossMinor:bigint|null=null
+  const excludedFutureEvidenceIds=[...future.map(flow=>flow.evidenceId)]
+  if(input.benchmark){
+    if(input.benchmark.position!==input.position||input.benchmark.currency!==input.currency)throw new Error('meteora_profitability_benchmark_identity_mismatch')
+    assertMeteoraDlmmBenchmarkEvidence(input.benchmark)
+    if(Date.parse(input.benchmark.availableAt)>cutoff){
+      excludedFutureEvidenceIds.push(...input.benchmark.evidenceIds)
+    }else if(realizationStatus==='CLOSED_COMPLETE'&&valuationVerified&&(input.positionStateEvidenceIds?.length??0)>0){
+      benchmarkUsable=true
+      impermanentLossMinor=input.benchmark.lpTerminalValueMinor-input.benchmark.hodlValueMinor
+    }
+  }
   const evidenceIds=[...new Set([
     ...eligible.flatMap(flow=>[flow.evidenceId,...flow.valuationEvidenceIds]),
     ...(input.positionStateEvidenceIds??[]),
+    ...(benchmarkUsable&&input.benchmark?input.benchmark.evidenceIds:[]),
   ])].sort()
   return Object.freeze({
     position:input.position,
@@ -112,12 +148,12 @@ export function reconcileMeteoraDlmmCashFlowProfitability(input:{
     realizedPnlMinor:realizationStatus==='CLOSED_COMPLETE'&&valuationVerified?netCashFlowMinor:null,
     realizationStatus,
     valuationStatus,
-    // True impermanent loss requires a counterfactual HODL benchmark at matched
-    // prices/times. Cash-flow delta alone must never be relabeled as IL.
-    impermanentLossMinor:null,
-    impermanentLossStatus:'BENCHMARK_REQUIRED',
+    // LP-vs-HODL divergence is admitted only from explicit, point-in-time
+    // benchmark evidence and never inferred from cash-flow PnL alone.
+    impermanentLossMinor,
+    impermanentLossStatus:benchmarkUsable?'BENCHMARKED':'BENCHMARK_REQUIRED',
     evidenceIds:Object.freeze(evidenceIds),
-    excludedFutureEvidenceIds:Object.freeze(future.map(flow=>flow.evidenceId).sort()),
+    excludedFutureEvidenceIds:Object.freeze([...new Set(excludedFutureEvidenceIds)].sort()),
     authority:'RESEARCH_ONLY',
   })
 }
@@ -128,6 +164,7 @@ export function reconcileMeteoraDlmmCashFlowProfitabilityFromState(input:{
   flows:readonly MeteoraDlmmCashFlowEvidence[]
   informationCutoff:string
   state:MeteoraDlmmPositionStateEvidence
+  benchmark?:MeteoraDlmmBenchmarkEvidence
 }):MeteoraDlmmProfitabilityEvidence{
   assertMeteoraDlmmPositionStateEvidence(input.state)
   if(input.state.position!==input.position||input.state.currency!==input.currency)throw new Error('meteora_profitability_state_identity_mismatch')
@@ -140,5 +177,6 @@ export function reconcileMeteoraDlmmCashFlowProfitabilityFromState(input:{
     positionClosed:input.state.positionClosed,
     transactionHistoryComplete:input.state.transactionHistoryComplete,
     positionStateEvidenceIds:input.state.evidenceIds,
+    benchmark:input.benchmark,
   })
 }
