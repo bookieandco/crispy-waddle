@@ -15,6 +15,11 @@ import { ROBOFLOW_CARTOON_56LLR_V11, visionModelAllowsClass } from './vision-mod
 import { validateShortFormProductionSpec } from './short-form-production';
 import { validateLockedCharacterShot } from './locked-character-reference';
 import { authorizeGenerationSpend } from './generation-spend-gate';
+import { rankMultimodalTakes, LONG_FORM_TAKE_POLICY, CARTOON_TAKE_POLICY, FACELESS_TAKE_POLICY } from './multimodal-take-selection';
+import { DIRECTOR_VIDEO_PROFILES, evaluateVideoProductionReadiness } from './video-production-profile';
+import { validateFoleyEventPlan } from './foley-event-plan';
+import { validateGeneratedFoleyArtifact } from './foley-generation';
+import { validateAudioMixSafety } from './audio-mix-safety';
 
 describe('reference-derived Director contracts', () => {
   it('fails visual edits closed when no frame evidence covers the interval', () => {
@@ -581,5 +586,140 @@ describe('reference-derived Director contracts', () => {
       approvedBy: 'user-1',
       approvedAt: '2026-09-22T00:00:01Z',
     }).authorized).toBe(true);
+  });
+  it('selects the best long-form take from multimodal evidence and preserves alternates', () => {
+    const candidate = (takeId: string, base: number, hardFailures: string[] = []) => ({
+      takeId,
+      assetId: `asset-${takeId}`,
+      hardFailures,
+      observationIds: [`obs-${takeId}`],
+      dimensions: [
+        { dimension: 'technical' as const, score: base, confidence: 0.95, evidenceIds: [`tech-${takeId}`] },
+        { dimension: 'visual-readability' as const, score: base, confidence: 0.9, evidenceIds: [`visual-${takeId}`] },
+        { dimension: 'performance' as const, score: base, confidence: 0.9, evidenceIds: [`perf-${takeId}`] },
+        { dimension: 'dialogue' as const, score: base, confidence: 0.9, evidenceIds: [`dialogue-${takeId}`] },
+        { dimension: 'story-function' as const, score: base, confidence: 0.9, evidenceIds: [`story-${takeId}`] },
+        { dimension: 'continuity' as const, score: base, confidence: 0.95, evidenceIds: [`continuity-${takeId}`] },
+      ],
+    });
+
+    const result = rankMultimodalTakes([
+      candidate('take-a', 0.74),
+      candidate('take-b', 0.91),
+      candidate('take-c', 0.88, ['DIRECTOR_TAKE_RIGHTS_BLOCKED']),
+    ], LONG_FORM_TAKE_POLICY);
+
+    expect(result.selectedTakeId).toBe('take-b');
+    expect(result.alternates).toContain('take-a');
+    expect(result.ranked.find((item) => item.takeId === 'take-c')?.admissible).toBe(false);
+  });
+
+  it('uses different evidence priorities for cartoons and faceless edits', () => {
+    const cartoon = rankMultimodalTakes([{
+      takeId: 'cartoon-take',
+      assetId: 'cartoon-asset',
+      hardFailures: [],
+      observationIds: ['cartoon-observation'],
+      dimensions: [
+        { dimension: 'technical', score: 0.95, confidence: 0.9, evidenceIds: ['tech'] },
+        { dimension: 'visual-readability', score: 0.9, confidence: 0.9, evidenceIds: ['visual'] },
+        { dimension: 'story-function', score: 0.85, confidence: 0.9, evidenceIds: ['story'] },
+        { dimension: 'continuity', score: 0.96, confidence: 0.95, evidenceIds: ['continuity'] },
+        { dimension: 'motion', score: 0.88, confidence: 0.9, evidenceIds: ['motion'] },
+      ],
+    }], CARTOON_TAKE_POLICY);
+    expect(cartoon.selectedTakeId).toBe('cartoon-take');
+
+    const faceless = rankMultimodalTakes([{
+      takeId: 'clip-unknown-rights',
+      assetId: 'clip-1',
+      hardFailures: [],
+      observationIds: ['clip-observation'],
+      dimensions: [
+        { dimension: 'technical', score: 0.9, confidence: 0.9, evidenceIds: ['tech'] },
+        { dimension: 'visual-readability', score: 0.9, confidence: 0.9, evidenceIds: ['visual'] },
+        { dimension: 'source-relevance', score: 0.95, confidence: 0.9, evidenceIds: ['relevance'] },
+      ],
+    }], FACELESS_TAKE_POLICY);
+    expect(faceless.selectedTakeId).toBeUndefined();
+    expect(faceless.ranked[0].reasons).toContain('DIRECTOR_TAKE_DIMENSION_MISSING:rights-confidence');
+  });
+
+  it('makes format readiness explicit for long-form, cartoon, short-form and faceless production', () => {
+    const longForm = DIRECTOR_VIDEO_PROFILES['long-form'];
+    const longAvailable = [...longForm.requiredCapabilities];
+    expect(evaluateVideoProductionReadiness(longForm, longAvailable).ready).toBe(true);
+
+    const cartoon = DIRECTOR_VIDEO_PROFILES.cartoon;
+    const missingVoiceSync = cartoon.requiredCapabilities.filter((capability) => capability !== 'voice-sync');
+    expect(evaluateVideoProductionReadiness(cartoon, missingVoiceSync)).toEqual({
+      ready: false,
+      missing: ['voice-sync'],
+    });
+
+    expect(DIRECTOR_VIDEO_PROFILES['short-form'].takePolicyId).toBe('short-form:v1');
+    expect(DIRECTOR_VIDEO_PROFILES.faceless.takePolicyId).toBe('faceless:v1');
+  });
+
+  it('keeps Foley evidence-bound, synchronized, rights-safe and subordinate to the dialogue mix', () => {
+    const plan = {
+      id: 'foley-plan-1',
+      projectId: 'p',
+      timelineVersionId: 'timeline-v5',
+      authority: 'PROPOSAL_ONLY' as const,
+      events: [{
+        id: 'footstep',
+        projectId: 'p',
+        sourceAssetId: 'video-1',
+        startSeconds: 1,
+        endSeconds: 1.5,
+        action: 'footstep on wood',
+        material: 'wood',
+        sourceKind: 'generated' as const,
+        rightsStatus: 'generated' as const,
+        evidenceIds: ['track:foot'],
+        prompt: 'single shoe step on old wood floor',
+      }],
+    };
+    expect(validateFoleyEventPlan(plan, { durationSeconds: 10, commercialUse: true }).valid).toBe(true);
+
+    const request = {
+      id: 'foley-request',
+      projectId: 'p',
+      sourceVideoAssetId: 'video-1',
+      sourceVideoSha256: 'video-sha',
+      startSeconds: 1,
+      endSeconds: 1.5,
+      prompt: 'single shoe step on old wood floor',
+      evidenceIds: ['track:foot'],
+    };
+    const artifact = {
+      id: 'foley-artifact',
+      requestId: 'foley-request',
+      audioAssetId: 'audio-1',
+      provider: 'video-foley',
+      modelId: 'model-v1',
+      sampleRateHz: 48000,
+      durationSeconds: 0.5,
+      audioSha256: 'audio-sha',
+      evidenceIds: ['alignment:1'],
+      measuredDesyncSeconds: 0.02,
+      semanticAlignmentScore: 0.92,
+    };
+    expect(validateGeneratedFoleyArtifact(request, artifact, {
+      maximumDesyncSeconds: 0.05,
+      minimumSemanticAlignment: 0.8,
+      durationToleranceSeconds: 0.05,
+    }).admissible).toBe(true);
+
+    const mix = validateAudioMixSafety([
+      { id: 'dialogue', assetId: 'voice', role: 'dialogue', startSeconds: 0, endSeconds: 5, gainDb: -3, evidenceIds: ['voice-qc'] },
+      { id: 'footstep', assetId: 'audio-1', role: 'foley', startSeconds: 1, endSeconds: 1.5, gainDb: -9, duckUnderRoles: ['dialogue'], limiterPeakDbfs: -1.5, evidenceIds: ['foley-qc'] },
+    ], {
+      minimumPeakHeadroomDb: 1,
+      maximumLayerGainDb: 0,
+      requireDialogueDuckingForFoley: true,
+    });
+    expect(mix.admissible).toBe(true);
   });
 });
