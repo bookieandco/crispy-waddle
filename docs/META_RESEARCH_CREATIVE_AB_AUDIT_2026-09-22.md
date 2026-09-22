@@ -122,3 +122,62 @@ Director approval != spend authority
 statistical lift != profitable lift
 ML prediction != causal treatment evidence
 ```
+
+
+## Monte Carlo Agent Toolkit reference
+
+Reference:
+- `monte-carlo-data/mc-agent-toolkit`
+- license: Apache-2.0
+
+High-value patterns absorbed:
+- asset health before downstream use;
+- monitoring coverage analysis;
+- freshness / volume / schema / validation monitor planning;
+- lineage-aware blast radius and root-cause analysis;
+- active incident awareness;
+- upstream dependency health;
+- AI-agent trace observability;
+- prevent-before-change / validate-after-change workflow.
+
+Jhadina adaptation is provider-neutral. Monte Carlo is an optional observability provider, not a new authority layer.
+
+Growth now has a `GrowthEvidenceFeedHealthAssessment` that evaluates:
+- freshness against an explicit SLA;
+- completeness;
+- monitor coverage;
+- active incidents;
+- upstream issues;
+- schema anomalies;
+- volume anomalies;
+- lineage completeness;
+- evidence references.
+
+A blocked assessment cannot be used to promote experiment results into first-party learning. This means even a statistically significant and contribution-positive creative test is not allowed to teach the Big Idea engine if its source data is stale, incident-affected, schema-broken, materially incomplete, weakly monitored, or missing lineage.
+
+`GrowthEvidenceMonitorPlan` also defines required coverage for critical marketing data assets:
+- freshness;
+- volume;
+- schema;
+- validation;
+- lineage;
+- agent traces when an AI agent produces the evidence.
+
+For revenue/conversion truth, incidents default to `block_learning`, not merely warning.
+
+### Observability invariant
+
+```
+measured result
+-> evidence feed health
+-> lineage/incident/monitor checks
+-> statistical + economic experiment assessment
+-> first-party learning admission
+```
+
+Never:
+
+```
+provider dashboard number
+-> automatic learning
+```
