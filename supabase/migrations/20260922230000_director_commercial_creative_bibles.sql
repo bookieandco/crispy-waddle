@@ -116,6 +116,12 @@ begin
     raise exception 'Director commercial project identity is immutable';
   end if;
 
+  if tg_table_name='director_product_bibles'
+     and tg_op='UPDATE'
+     and old.product_id<>new.product_id then
+    raise exception 'Director product identity is immutable';
+  end if;
+
   return new;
 end;
 $$;
@@ -143,7 +149,7 @@ for each row execute function public.assert_director_commercial_authority();
 create or replace function public.save_director_commercial_creative_bundle(
   p_user_id uuid,
   p_project_id text,
-  p_product_bible jsonb,
+  p_product_bible_id text,
   p_style_bible jsonb,
   p_concept jsonb,
   p_source_content_project_id text,
@@ -158,6 +164,7 @@ as $$
 declare
   role_value text;
   result_row public.director_commercial_creatives%rowtype;
+  persisted_product_bible public.director_product_bibles%rowtype;
 begin
   select role into role_value
   from public.director_project_memberships
@@ -167,35 +174,33 @@ begin
     raise exception 'Director commercial creative requires project edit authority';
   end if;
 
-  if p_product_bible->>'projectId' <> p_project_id
-     or p_style_bible->>'projectId' <> p_project_id
+  select * into persisted_product_bible
+  from public.director_product_bibles
+  where id=p_product_bible_id
+    and project_id=p_project_id;
+
+  if persisted_product_bible.id is null then
+    raise exception 'Director persisted product bible not found';
+  end if;
+
+  if p_style_bible->>'projectId' <> p_project_id
      or p_concept->>'projectId' <> p_project_id then
     raise exception 'Director commercial creative project mismatch';
   end if;
 
-  if p_concept->>'productBibleId' <> p_product_bible->>'id'
+  if p_concept->>'productBibleId' <> p_product_bible_id
      or p_concept->>'styleBibleId' <> p_style_bible->>'id' then
     raise exception 'Director commercial creative bible mismatch';
   end if;
 
-  insert into public.director_product_bibles(
-    id,project_id,product_id,canonical_variant_id,bible,approved_by_user_id,created_at,updated_at
-  ) values(
-    p_product_bible->>'id',
-    p_project_id,
-    p_product_bible->>'productId',
-    p_product_bible->>'canonicalVariantId',
-    p_product_bible,
-    p_user_id,
-    p_now,
-    p_now
-  )
-  on conflict(id) do update
-  set bible=excluded.bible,
-      canonical_variant_id=excluded.canonical_variant_id,
-      approved_by_user_id=excluded.approved_by_user_id,
-      updated_at=excluded.updated_at
-  where director_product_bibles.project_id=excluded.project_id;
+  if exists (
+    select 1
+    from public.director_visual_style_bibles
+    where id=p_style_bible->>'id'
+      and project_id<>p_project_id
+  ) then
+    raise exception 'Director style bible project identity mismatch';
+  end if;
 
   insert into public.director_visual_style_bibles(
     id,project_id,bible,approved_by_user_id,created_at,updated_at
@@ -220,7 +225,7 @@ begin
   ) values(
     p_concept->>'id',
     p_project_id,
-    p_product_bible->>'id',
+    p_product_bible_id,
     p_style_bible->>'id',
     p_concept,
     nullif(p_source_content_project_id,''),
@@ -236,8 +241,8 @@ end;
 $$;
 
 revoke all on function public.save_director_commercial_creative_bundle(
-  uuid,text,jsonb,jsonb,jsonb,text,text,timestamptz
+  uuid,text,text,jsonb,jsonb,text,text,timestamptz
 ) from public,anon,authenticated;
 grant execute on function public.save_director_commercial_creative_bundle(
-  uuid,text,jsonb,jsonb,jsonb,text,text,timestamptz
+  uuid,text,text,jsonb,jsonb,text,text,timestamptz
 ) to service_role;
