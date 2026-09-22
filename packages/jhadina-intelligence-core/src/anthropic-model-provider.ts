@@ -51,7 +51,7 @@ export class AnthropicModelProvider implements ModelProvider {
     const model = this.options.model ?? DEFAULT_MODEL;
 
     const artifacts = context.artifacts ?? [];
-    const contextForText = { ...context, artifacts: artifacts.map(({ base64: _base64, ...artifact }) => artifact) };
+    const contextForText = { ...context, artifacts: artifacts.map(({ base64: _base64, text: _text, ...artifact }) => artifact) };
     const textArtifacts = artifacts
       .filter((artifact) => artifact.kind === 'text' && typeof artifact.text === 'string')
       .map((artifact) => `\n\n[EPHEMERAL ARTIFACT: ${artifact.name ?? artifact.id} | ${artifact.mimeType}]\n${artifact.text}`)
