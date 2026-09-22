@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 
 export type MoneyProductionLane='STOCK'|'FOREX'|'SHARK_MEME'|'SPORTS_BETTING'
+export type MoneyProductionPlatformReceiptKind='DATABASE_SCHEMA'|'PRODUCTION_DEPLOYMENT'
+
 export type MoneyProductionReceiptKind=
   |'SOFTWARE_CERTIFICATION'
   |'MARKET_DATA'
@@ -21,6 +23,19 @@ export type MoneyProductionCommissioningReceipt=Readonly<{
   recordedAt:string
   evidenceIds:readonly string[]
   issuer:'MONEY_CERTIFICATION'|'PROVIDER_RUNTIME'|'OPERATIONS'
+  authority:'CERTIFICATION_ONLY'
+  canExecute:false
+}>
+
+export type MoneyProductionPlatformReceipt=Readonly<{
+  receiptId:string
+  kind:MoneyProductionPlatformReceiptKind
+  environment:'LIVE'
+  passed:boolean
+  revision?:string
+  recordedAt:string
+  evidenceIds:readonly string[]
+  issuer:'MONEY_CERTIFICATION'|'OPERATIONS'
   authority:'CERTIFICATION_ONLY'
   canExecute:false
 }>
@@ -70,6 +85,7 @@ export type MoneyProdFinalReport=Readonly<{
   productionAccepted:boolean
   status:'BLOCKED_SOFTWARE'|'SOFTWARE_COMPLETE_EXTERNAL_COMMISSIONING_REQUIRED'|'PRODUCTION_ACCEPTED'
   lanes:readonly MoneyProductionLaneAssessment[]
+  platformReceiptIds:readonly string[]
   blockers:readonly string[]
   receiptIds:readonly string[]
   evidenceIds:readonly string[]
@@ -99,6 +115,13 @@ export function createMoneyProductionCommissioningReceipt(input:Omit<MoneyProduc
     authority:'CERTIFICATION_ONLY',
     canExecute:false,
   })
+}
+
+export function createMoneyProductionPlatformReceipt(input:Omit<MoneyProductionPlatformReceipt,'receiptId'|'authority'|'canExecute'>):MoneyProductionPlatformReceipt{
+  iso(input.recordedAt,'MONEY_PROD_PLATFORM_RECEIPT_TIME_INVALID')
+  if(!input.evidenceIds.length)throw new Error('MONEY_PROD_PLATFORM_RECEIPT_EVIDENCE_REQUIRED')
+  if(input.kind==='PRODUCTION_DEPLOYMENT'&&!input.revision?.trim())throw new Error('MONEY_PROD_DEPLOYMENT_REVISION_REQUIRED')
+  return Object.freeze({...input,evidenceIds:unique(input.evidenceIds),receiptId:'money-prod-platform:'+hash({kind:input.kind,passed:input.passed,revision:input.revision??null,recordedAt:input.recordedAt,evidenceIds:[...input.evidenceIds].sort(),issuer:input.issuer}),authority:'CERTIFICATION_ONLY',canExecute:false})
 }
 
 export function certifyMoneyShadowSoak(input:{
@@ -202,6 +225,7 @@ function evaluateLane(lane:MoneyProductionLane,receipts:readonly MoneyProduction
 export function certifyMoneyProdFinal(input:{
   receipts:readonly MoneyProductionCommissioningReceipt[]
   shadowSoak:MoneyShadowSoakReport
+  platformReceipts:readonly MoneyProductionPlatformReceipt[]
   generatedAt:string
 }):MoneyProdFinalReport{
   iso(input.generatedAt,'MONEY_PROD_GENERATED_AT_INVALID')
@@ -212,16 +236,26 @@ export function certifyMoneyProdFinal(input:{
     receiptIds.add(r.receiptId)
   }
   if(input.shadowSoak.authority!=='CERTIFICATION_ONLY'||input.shadowSoak.canExecute!==false)throw new Error('MONEY_PROD_SOAK_AUTHORITY_FORBIDDEN')
+  const platformIds=new Set<string>()
+  for(const r of input.platformReceipts){
+    if(r.authority!=='CERTIFICATION_ONLY'||r.canExecute!==false)throw new Error('MONEY_PROD_PLATFORM_RECEIPT_AUTHORITY_FORBIDDEN')
+    if(platformIds.has(r.receiptId))throw new Error('MONEY_PROD_DUPLICATE_PLATFORM_RECEIPT')
+    platformIds.add(r.receiptId)
+  }
   const lanes=Object.freeze(MONEY_PROD_REQUIRED_LANES.map(lane=>evaluateLane(lane,input.receipts,input.shadowSoak)))
   const softwareComplete=lanes.every(x=>x.status!=='BLOCKED_SOFTWARE')
-  const productionAccepted=softwareComplete&&input.shadowSoak.passed&&lanes.every(x=>x.status==='LIVE_ACCEPTED')
-  const blockers=unique(lanes.flatMap(x=>x.reasonCodes.map(reason=>x.lane+':'+reason)))
+  const platformPassed=new Map(input.platformReceipts.filter(x=>x.passed).map(x=>[x.kind,x] as const))
+  const platformBlockers:string[]=[]
+  if(!platformPassed.get('DATABASE_SCHEMA'))platformBlockers.push('PLATFORM:COMMISSIONING_DATABASE_SCHEMA_REQUIRED')
+  if(!platformPassed.get('PRODUCTION_DEPLOYMENT'))platformBlockers.push('PLATFORM:CURRENT_PRODUCTION_DEPLOYMENT_REQUIRED')
+  const productionAccepted=softwareComplete&&input.shadowSoak.passed&&platformBlockers.length===0&&lanes.every(x=>x.status==='LIVE_ACCEPTED')
+  const blockers=unique([...lanes.flatMap(x=>x.reasonCodes.map(reason=>x.lane+':'+reason)),...platformBlockers])
   const status:MoneyProdFinalReport['status']=!softwareComplete?'BLOCKED_SOFTWARE':productionAccepted?'PRODUCTION_ACCEPTED':'SOFTWARE_COMPLETE_EXTERNAL_COMMISSIONING_REQUIRED'
   return Object.freeze({
     reportId:'money-prod-final:'+hash({receipts:[...input.receipts].map(x=>x.receiptId).sort(),soak:input.shadowSoak.soakId,generatedAt:input.generatedAt}),
-    softwareComplete,productionAccepted,status,lanes,blockers,
+    softwareComplete,productionAccepted,status,lanes,platformReceiptIds:unique(input.platformReceipts.map(x=>x.receiptId)),blockers,
     receiptIds:unique(input.receipts.map(x=>x.receiptId)),
-    evidenceIds:unique([...input.receipts.flatMap(x=>x.evidenceIds),...input.shadowSoak.evidenceIds]),
+    evidenceIds:unique([...input.receipts.flatMap(x=>x.evidenceIds),...input.platformReceipts.flatMap(x=>x.evidenceIds),...input.shadowSoak.evidenceIds]),
     generatedAt:input.generatedAt,authority:'CERTIFICATION_ONLY',canExecute:false,
   })
 }
