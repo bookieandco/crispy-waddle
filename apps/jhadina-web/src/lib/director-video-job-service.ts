@@ -116,6 +116,19 @@ export interface AskVideoJobInput {
   activeTask: string;
   activeProject?: string;
   clientRequestId?: string;
+  socialExpression?: {
+    brand: string;
+    characterProfileRef?: string;
+    voiceProfileRef?: string;
+    toneTraits?: readonly string[];
+    pointOfView?: string;
+    accountScopes: readonly {
+      accountId: string;
+      platform: string;
+      provider: string;
+      displayName: string;
+    }[];
+  };
   referenceCharacter?: {
     characterId: string;
     continuityRef: string;
@@ -158,11 +171,32 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
   const projectId = existingProject || `director:ask:${jobId}`;
   const now = new Date().toISOString();
 
+  if (input.socialExpression) {
+    if (!input.socialExpression.brand.trim()) throw new Error('DIRECTOR_SOCIAL_EXPRESSION_BRAND_REQUIRED');
+    if (!!input.socialExpression.characterProfileRef !== !!input.socialExpression.voiceProfileRef) {
+      throw new Error('DIRECTOR_SOCIAL_EXPRESSION_CHARACTER_VOICE_PAIR_REQUIRED');
+    }
+    if (!input.socialExpression.accountScopes.length) {
+      throw new Error('DIRECTOR_SOCIAL_EXPRESSION_ACCOUNT_SCOPE_REQUIRED');
+    }
+  }
+
   const requestedSpec: Record<string, unknown> = {
     narration: intent.narration,
     captions: intent.captions,
     foley: intent.foley,
     commercialSafeOnly: intent.commercialSafeOnly,
+    ...(input.socialExpression ? {
+      socialExpression: {
+        brand: input.socialExpression.brand,
+        characterProfileRef: input.socialExpression.characterProfileRef,
+        voiceProfileRef: input.socialExpression.voiceProfileRef,
+        toneTraits: [...(input.socialExpression.toneTraits ?? [])],
+        pointOfView: input.socialExpression.pointOfView,
+        accountScopes: input.socialExpression.accountScopes.map((scope) => ({ ...scope })),
+        authority: 'EXPRESSION_ONLY',
+      },
+    } : {}),
     ...(input.referenceCharacter ? {
       referenceCharacter: {
         characterId: input.referenceCharacter.characterId,
@@ -228,6 +262,7 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
   const provider = selectWholeVideoProvider(createConfiguredWholeVideoProviders(), intent, {
     characterReference: Boolean(input.referenceCharacter),
     productReference: Boolean(input.referenceProduct),
+    expressionGuidance: Boolean(input.socialExpression),
   });
   if (!provider) {
     job = await updateJob(client, job.id, {
@@ -237,7 +272,9 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
         ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
         : input.referenceProduct
           ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
-          : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+          : input.socialExpression
+            ? 'DIRECTOR_SOCIAL_EXPRESSION_PROVIDER_NOT_CONFIGURED'
+            : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
     });
     await appendJobEvent(client, {
       jobId: job.id,
@@ -247,7 +284,9 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
         ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
         : input.referenceProduct
           ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
-          : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+          : input.socialExpression
+            ? 'DIRECTOR_SOCIAL_EXPRESSION_PROVIDER_NOT_CONFIGURED'
+            : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
     });
     return { intent, job };
   }
@@ -265,6 +304,18 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
     providerId: provider.descriptor.id,
   });
 
+  const socialStyle = input.socialExpression
+    ? [
+        `Public brand: ${input.socialExpression.brand}.`,
+        input.socialExpression.characterProfileRef ? `Character profile: ${input.socialExpression.characterProfileRef}.` : '',
+        input.socialExpression.voiceProfileRef ? `Voice profile: ${input.socialExpression.voiceProfileRef}.` : '',
+        input.socialExpression.toneTraits?.length ? `Tone: ${input.socialExpression.toneTraits.join(', ')}.` : '',
+        input.socialExpression.pointOfView?.trim() ? `Point of view: ${input.socialExpression.pointOfView.trim()}` : '',
+        `Target Social scope: ${input.socialExpression.accountScopes.map((scope) => `${scope.platform}:${scope.displayName}`).join(', ')}.`,
+        'These are expression constraints only. Do not publish, message, or spend.',
+      ].filter(Boolean).join(' ')
+    : undefined;
+
   try {
     const result = await provider.submit({
       jobId: job.id,
@@ -272,6 +323,7 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
       prompt: job.prompt,
       intent,
       creativeName: `Jhadina ${job.id.slice(-8)}`,
+      ...(socialStyle ? { style: socialStyle } : {}),
       ...(input.referenceCharacter ? {
         character: {
           characterId: input.referenceCharacter.characterId,
