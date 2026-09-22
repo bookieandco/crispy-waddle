@@ -81,3 +81,8 @@ export * from './render-determinism';
 export * from './emotion-storyboard-evidence';
 export * from './creative-experiment';
 export * from './editing-technique-spec';
+export * from './rough-cut-evidence';
+export * from './timeline-edit-proposal';
+export * from './animation-performance-state';
+export * from './object-detection-observation';
+export * from './vision-model-profile';
