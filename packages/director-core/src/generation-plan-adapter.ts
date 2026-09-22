@@ -6,6 +6,10 @@ import { evaluateDirectorGenerationGate } from './creative-gate-adapter';
 import type { DirectorStoryboardLineageResolver } from './storyboard-lineage-resolver';
 import type { DirectorCastResolver, ResolvedCharacterSceneIdentity } from './cast-bible';
 
+export interface DirectorCharacterReferenceAssetResolver {
+  resolve(assetId: string, projectId: string): Promise<{ uri: string; sha256?: string; mimeType?: string }>;
+}
+
 export type PlannedGeneration = {
   modelId: string;
   modality: GenerationModality;
@@ -21,6 +25,7 @@ export class GenerationPlanAdapter {
     private readonly registry: GenerationRegistry,
     private readonly lineageResolver: DirectorStoryboardLineageResolver,
     private readonly castResolver?: DirectorCastResolver,
+    private readonly characterReferenceAssetResolver?: DirectorCharacterReferenceAssetResolver,
   ) {}
 
   async submitTake(
@@ -79,10 +84,22 @@ export class GenerationPlanAdapter {
       );
     }
 
+    const characterReferenceIds = [...new Set(characterIdentities.flatMap((identity) => identity.referenceAssetIds))];
+    let resolvedCharacterReferences: Array<{ assetId: string; role: 'character'; uri?: string }> =
+      characterReferenceIds.map((assetId) => ({ assetId, role: 'character' as const }));
+
+    if (characterReferenceIds.length) {
+      if (!this.characterReferenceAssetResolver) {
+        throw new Error('Generation submission blocked: DIRECTOR_CHARACTER_REFERENCE_ASSET_RESOLVER_REQUIRED');
+      }
+      resolvedCharacterReferences = await Promise.all(characterReferenceIds.map(async (assetId) => {
+        const resolved = await this.characterReferenceAssetResolver!.resolve(assetId, request.projectId);
+        return { assetId, role: 'character' as const, uri: resolved.uri };
+      }));
+    }
+
     const references = [
-      ...characterIdentities.flatMap((identity) =>
-        identity.referenceAssetIds.map((assetId) => ({ assetId, role: 'character' as const })),
-      ),
+      ...resolvedCharacterReferences,
       ...(request.referenceAssetIds ?? []).map((assetId) => ({ assetId, role: 'image' as const })),
     ].filter((reference, index, all) =>
       all.findIndex((candidate) => candidate.assetId === reference.assetId && candidate.role === reference.role) === index,
