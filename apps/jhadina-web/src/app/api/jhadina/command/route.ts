@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import type { EphemeralArtifactContext } from "@jhadina/core-spine"
+import type { ConversationSignalContext, EphemeralArtifactContext } from "@jhadina/core-spine"
 import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
@@ -19,6 +19,30 @@ const MAX_EPHEMERAL_ARTIFACTS = 4
 const MAX_IMAGE_BASE64_CHARS = 5_500_000
 const MAX_TEXT_ARTIFACT_CHARS = 20_000
 const IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"])
+
+function parseConversationSignals(value: unknown): ConversationSignalContext | undefined {
+  if (!value || typeof value !== "object") return undefined
+  const raw = value as Record<string, unknown>
+  if (raw.source !== "live-microphone" && raw.source !== "media-artifact") throw new Error("Unsupported conversation signal source")
+  const bounded = (key:string,min:number,max:number) => {
+    const v = raw[key]
+    return typeof v === "number" && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : undefined
+  }
+  return {
+    source: raw.source,
+    observedAt: typeof raw.observedAt === "string" ? raw.observedAt : new Date().toISOString(),
+    ...(typeof raw.language === "string" ? { language: raw.language.slice(0, 32) } : {}),
+    ...(bounded("utteranceDurationMs",0,120000) !== undefined ? { utteranceDurationMs: bounded("utteranceDurationMs",0,120000) } : {}),
+    ...(bounded("speakingRateWpm",0,500) !== undefined ? { speakingRateWpm: bounded("speakingRateWpm",0,500) } : {}),
+    ...(bounded("pauseRatio",0,1) !== undefined ? { pauseRatio: bounded("pauseRatio",0,1) } : {}),
+    ...(bounded("rmsMean",0,1) !== undefined ? { rmsMean: bounded("rmsMean",0,1) } : {}),
+    ...(bounded("rmsPeak",0,1) !== undefined ? { rmsPeak: bounded("rmsPeak",0,1) } : {}),
+    ...(bounded("energyVariance",0,1) !== undefined ? { energyVariance: bounded("energyVariance",0,1) } : {}),
+    ...(bounded("pitchMeanHz",40,1200) !== undefined ? { pitchMeanHz: bounded("pitchMeanHz",40,1200) } : {}),
+    ...(bounded("pitchVariance",0,1000000) !== undefined ? { pitchVariance: bounded("pitchVariance",0,1000000) } : {}),
+    interpretationLimits: ["Acoustic cues are contextual observations only; do not infer emotion, intent, truthfulness, health, or identity from them alone."],
+  }
+}
 
 function parseEphemeralArtifacts(value: unknown): EphemeralArtifactContext[] {
   if (!Array.isArray(value)) return []
@@ -87,6 +111,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const artifacts = parseEphemeralArtifacts(body?.artifacts)
+    const conversationSignals = parseConversationSignals(body?.conversationSignals)
     const growthReadIntent = inspectAskGrowthReadIntent(activeTask)
     if (growthReadIntent) {
       const verifier = await createRequestIdentityVerifier()
@@ -212,6 +237,7 @@ export async function POST(req: NextRequest) {
       activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
       geographicScope: body?.geographicScope ?? undefined,
       artifacts,
+      conversationSignals,
       temporalScope: body?.temporalScope && typeof body.temporalScope === "object"
         ? {
             from: typeof body.temporalScope.from === "string" ? body.temporalScope.from : null,
