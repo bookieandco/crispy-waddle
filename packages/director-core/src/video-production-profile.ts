@@ -45,7 +45,7 @@ export const DIRECTOR_VIDEO_PROFILES: Readonly<Record<DirectorVideoFormat, Video
       'script','storyboard','shotlist','take-generation','take-observation','take-selection',
       'timeline-edit','music','captions','foley','render','render-inspection','media-qc','review',
     ),
-    optionalCapabilities: productionCapabilities('locked-character','animation','voice-sync','rights']),
+    optionalCapabilities: productionCapabilities('locked-character','animation','voice-sync','rights'),
     takePolicyId: 'long-form:v1',
   }),
   'short-form': Object.freeze({
@@ -55,7 +55,7 @@ export const DIRECTOR_VIDEO_PROFILES: Readonly<Record<DirectorVideoFormat, Video
       'script','shotlist','take-generation','take-observation','take-selection','timeline-edit',
       'captions','render','render-inspection','media-qc',
     ),
-    optionalCapabilities: productionCapabilities('storyboard','music','foley','voice-sync','rights']),
+    optionalCapabilities: productionCapabilities('storyboard','music','foley','voice-sync','rights'),
     takePolicyId: 'short-form:v1',
   }),
   faceless: Object.freeze({
@@ -65,7 +65,7 @@ export const DIRECTOR_VIDEO_PROFILES: Readonly<Record<DirectorVideoFormat, Video
       'script','shotlist','take-observation','take-selection','timeline-edit','rights',
       'captions','music','render','render-inspection','media-qc',
     ),
-    optionalCapabilities: productionCapabilities('take-generation','storyboard','foley','voice-sync']),
+    optionalCapabilities: productionCapabilities('take-generation','storyboard','foley','voice-sync'),
     takePolicyId: 'faceless:v1',
   }),
   cartoon: Object.freeze({
@@ -76,7 +76,7 @@ export const DIRECTOR_VIDEO_PROFILES: Readonly<Record<DirectorVideoFormat, Video
       'locked-character','animation','voice-sync','foley','music','timeline-edit',
       'render','render-inspection','media-qc','review',
     ),
-    optionalCapabilities: productionCapabilities('captions','rights']),
+    optionalCapabilities: productionCapabilities('captions','rights'),
     takePolicyId: 'cartoon:v1',
   }),
   hybrid: Object.freeze({
@@ -86,7 +86,7 @@ export const DIRECTOR_VIDEO_PROFILES: Readonly<Record<DirectorVideoFormat, Video
       'script','storyboard','shotlist','take-generation','take-observation','take-selection',
       'timeline-edit','rights','render','render-inspection','media-qc','review',
     ),
-    optionalCapabilities: productionCapabilities('locked-character','animation','voice-sync','foley','music','captions']),
+    optionalCapabilities: productionCapabilities('locked-character','animation','voice-sync','foley','music','captions'),
     takePolicyId: 'long-form:v1',
   }),
 });
