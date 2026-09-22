@@ -5,7 +5,9 @@ import {
   type CharacterCastRecord,
   type CharacterReferenceBootstrapPlan,
 } from '@jhadina/director-core';
+import { assertSafeMedia, type MediaSecurityScanner } from '@jhadina/security-core';
 import { saveDirectorCastRecord } from '@/lib/director-cast-repository';
+import { DirectorSanitizedImageScanner } from '@/lib/director-reference-media-scanner';
 
 const MAX_REFERENCE_FILES = 3;
 const MAX_SOURCE_BYTES = 10 * 1024 * 1024;
@@ -120,6 +122,7 @@ export async function createDirectorReferenceCharacter(
     consentRef: string;
     files: readonly DirectorReferenceUpload[];
   },
+  scanner: MediaSecurityScanner = new DirectorSanitizedImageScanner(),
 ): Promise<DirectorReferenceCharacterResult> {
   const projectId = input.projectId.trim();
   const characterId = safePathSegment(input.characterId);
@@ -183,15 +186,15 @@ export async function createDirectorReferenceCharacter(
       });
     if (uploadError) throw new Error(`DIRECTOR_REFERENCE_STORAGE_FAILED:${uploadError.message}`);
 
-    const sanitizationReceipt = {
-      status: 'passed',
+    const baseReceipt = {
+      status: 'sanitized',
       policy: 'director-image-decode-reencode-v1',
       sourceMimeType: upload.mimeType,
       decodedMimeType: sanitized.decodedMimeType,
       normalizedMimeType: 'image/png',
       metadataPreserved: false,
       sourceBytesPersisted: false,
-      checkedAt: now,
+      sanitizedAt: now,
     };
 
     const { error: rowError } = await client.from('director_reference_media').insert({
@@ -212,15 +215,53 @@ export async function createDirectorReferenceCharacter(
       normalized_sha256: normalizedDigest,
       rights_ref: rightsRef,
       consent_ref: consentRef,
-      admission_status: 'admitted',
-      sanitization_receipt: sanitizationReceipt,
-      admitted_at: now,
+      admission_status: 'quarantined',
+      sanitization_receipt: baseReceipt,
+      admitted_at: null,
     });
 
     if (rowError) {
       await client.storage.from('director-media').remove([objectPath]);
       throw new Error(`DIRECTOR_REFERENCE_PERSIST_FAILED:${rowError.message}`);
     }
+
+    const { data: signed, error: signedError } = await client.storage
+      .from('director-media')
+      .createSignedUrl(objectPath, 120);
+    if (signedError || !signed?.signedUrl) {
+      throw new Error(`DIRECTOR_REFERENCE_SCAN_URL_FAILED:${signedError?.message ?? 'missing signed URL'}`);
+    }
+
+    const scan = await scanner.scan({
+      assetId: id,
+      uri: signed.signedUrl,
+      mimeType: 'image/png',
+      sizeBytes: sanitized.bytes.length,
+    });
+    if (scan.sha256 !== normalizedDigest) {
+      throw new Error('DIRECTOR_REFERENCE_SCAN_DIGEST_MISMATCH');
+    }
+    assertSafeMedia(scan);
+
+    const admittedAt = new Date().toISOString();
+    const sanitizationReceipt = {
+      ...baseReceipt,
+      status: 'passed',
+      checkedAt: admittedAt,
+      mediaSecurityScan: scan,
+    };
+    const { error: admitError } = await client
+      .from('director_reference_media')
+      .update({
+        admission_status: 'admitted',
+        sanitization_receipt: sanitizationReceipt,
+        admitted_at: admittedAt,
+      })
+      .eq('id', id)
+      .eq('project_id', projectId)
+      .eq('character_id', characterId)
+      .eq('admission_status', 'quarantined');
+    if (admitError) throw new Error(`DIRECTOR_REFERENCE_ADMISSION_FAILED:${admitError.message}`);
 
     references.push({
       id,
