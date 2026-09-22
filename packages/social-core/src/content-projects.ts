@@ -124,6 +124,34 @@ export function addContentDerivative(
   });
 }
 
+export function bindContentAssetMedia(
+  project: ContentProject,
+  assetId: string,
+  mediaRefs: readonly string[],
+  evidenceRefs: readonly string[],
+  updatedAt: string,
+): ContentProject {
+  if (!Number.isFinite(Date.parse(updatedAt))) throw new Error("SOCIAL_CONTENT_UPDATED_AT_INVALID");
+  if (!mediaRefs.length) throw new Error("SOCIAL_CONTENT_MEDIA_REQUIRED");
+  if (!evidenceRefs.length) throw new Error("SOCIAL_CONTENT_MEDIA_EVIDENCE_REQUIRED");
+  let found = false;
+  const assets = project.assets.map((asset) => {
+    if (asset.id !== assetId) return asset;
+    found = true;
+    return freezeAsset({
+      ...asset,
+      mediaRefs: [...new Set([...asset.mediaRefs, ...mediaRefs])],
+      evidenceRefs: [...new Set([...asset.evidenceRefs, ...evidenceRefs])],
+    });
+  });
+  if (!found) throw new Error("SOCIAL_CONTENT_ASSET_NOT_FOUND");
+  return Object.freeze({
+    ...project,
+    assets: Object.freeze(assets),
+    updatedAt,
+  });
+}
+
 export function contentLineage(project: ContentProject, assetId: string): readonly string[] {
   const byId = new Map(project.assets.map((asset) => [asset.id, asset] as const));
   const lineage: string[] = [];
