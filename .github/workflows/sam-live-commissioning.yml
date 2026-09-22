@@ -19,6 +19,14 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: https://kqbkaozfjubkjevdfvic.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SAM_GOV_API_KEY: ${{ secrets.SAM_GOV_API_KEY }}
+      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+      INEGI_DENUE_TOKEN: ${{ secrets.INEGI_DENUE_TOKEN }}
+      FMCSA_APP_TOKEN: ${{ secrets.FMCSA_APP_TOKEN }}
+      FSIS_MPI_CSV_URL: ${{ vars.FSIS_MPI_CSV_URL }}
+      FSIS_MPI_DEMOGRAPHIC_CSV_URL: ${{ vars.FSIS_MPI_DEMOGRAPHIC_CSV_URL }}
+      CANADA_CID_HS6_DESCRIPTION_URL: ${{ vars.CANADA_CID_HS6_DESCRIPTION_URL }}
+      CANADA_CID_IMPORTERS_HS6_URL: ${{ vars.CANADA_CID_IMPORTERS_HS6_URL }}
+      CANADA_ODBUS_CSV_URL: ${{ vars.CANADA_ODBUS_CSV_URL }}
     steps:
       - name: Check live credentials
         id: preflight
@@ -27,6 +35,14 @@ jobs:
           missing=""
           if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then missing="$missing SUPABASE_SERVICE_ROLE_KEY"; fi
           if [ -z "$SAM_GOV_API_KEY" ]; then missing="$missing SAM_GOV_API_KEY"; fi
+          echo "PROVIDER_SOURCE_READINESS:"
+          if [ -n "$EXA_API_KEY" ]; then echo "  exa=configured"; else echo "  exa=unconfigured"; fi
+          if [ -n "$INEGI_DENUE_TOKEN" ]; then echo "  denue=configured"; else echo "  denue=unconfigured"; fi
+          if [ -n "$FMCSA_APP_TOKEN" ]; then echo "  fmcsa=keyless+app-token"; else echo "  fmcsa=keyless"; fi
+          if [ -n "$FSIS_MPI_CSV_URL" ]; then echo "  fsis=configured"; else echo "  fsis=unconfigured"; fi
+          echo "  usaspending=keyless"
+          echo "  canada_importer=keyless"
+          if [ -n "$CANADA_ODBUS_CSV_URL" ]; then echo "  canada_odbusiness=configured"; else echo "  canada_odbusiness=unconfigured"; fi
           if [ -n "$missing" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
             echo "BLOCKED_EXTERNAL_CREDENTIAL:$missing"

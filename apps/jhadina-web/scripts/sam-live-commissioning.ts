@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { certifySamUsableFinal } from '@jhadina/opportunity-core'
 import { runSamMarketBootstrap } from '../src/lib/money-opportunities/sam-wide-runtime'
 import { runSamEnrichment, collectSamUsableEvidence } from '../src/lib/money-opportunities/sam-usable-runtime'
+import { summarizeSamProviderSourceReadiness } from '../src/lib/money-opportunities/sam-provider-source-readiness'
 
 function required(name:string){
   const value=process.env[name]?.trim()
@@ -36,10 +37,12 @@ async function main(){
   // Keep runtimeBound=false so SAM-USABLE.FINAL cannot be falsely certified.
   const evidence=await collectSamUsableEvidence(client,false)
   const certification=certifySamUsableFinal(evidence)
+  const providerSources=summarizeSamProviderSourceReadiness()
 
   const result={
     executionSurface:'github_actions_commissioning',
     runtimeBound:false,
+    providerSources,
     bootstrap:{
       complete:bootstrap.complete,
       coverage:bootstrap.coverage,
@@ -64,6 +67,7 @@ async function main(){
       providerNotices:enrichment.providers.notices,
       providerCandidates:enrichment.providers.candidates,
       providerErrors:enrichment.providers.errors,
+      providerSourceBudgets:'remainingBudgets' in enrichment.providers?enrichment.providers.remainingBudgets:{},
       pursuitGenerated:enrichment.pursuit.generated,
       pursuitTeamCovered:enrichment.pursuit.teamCovered,
       pursuitReadyForQuote:enrichment.pursuit.readyForQuote,

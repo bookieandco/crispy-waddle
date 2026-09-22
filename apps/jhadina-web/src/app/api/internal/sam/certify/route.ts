@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { certifySamUsableRuntime } from '@/lib/money-opportunities/sam-usable-runtime'
+import { summarizeSamProviderSourceReadiness } from '@/lib/money-opportunities/sam-provider-source-readiness'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -16,7 +17,8 @@ async function run(request:NextRequest){
   if(!client)return NextResponse.json({ok:false,error:'sam_persistence_unavailable'},{status:503})
   try{
     const certification=await certifySamUsableRuntime(client)
-    return NextResponse.json({ok:true,certification},{status:certification.status==='pass'?200:409})
+    const providerSources=summarizeSamProviderSourceReadiness()
+    return NextResponse.json({ok:true,certification,providerSources},{status:certification.status==='pass'?200:409})
   }catch(error){
     console.error('SAM usable-final certification failed',error)
     return NextResponse.json({ok:false,error:'sam_certification_failed',reason:error instanceof Error?error.message:'worker_execution_failed'},{status:502})
