@@ -3,15 +3,14 @@ import type { StoryboardStageBinding } from './storyboard-stage-binding.js';
 
 type SupabaseQueryResult = { data: unknown; error: { message: string } | null };
 type SupabaseQuery = {
-  select(columns: string): SupabaseQuery;
   eq(column: string, value: string): SupabaseQuery;
   order(column: string, options: { ascending: boolean }): SupabaseQuery;
   limit(count: number): SupabaseQuery;
-  maybeSingle(): Promise<SupabaseQueryResult>;
+  maybeSingle(): PromiseLike<SupabaseQueryResult>;
 };
 
 /** Minimal structural query surface; keeps Director Core independent of a Supabase SDK package. */
-export type SupabaseStoryboardClient = { from(table: string): SupabaseQuery };
+export type SupabaseStoryboardClient = { from(table: string): { select(columns: string): SupabaseQuery } };
 
 export interface StoryboardRepository {
   getSequence(sequenceId: string, projectId: string): Promise<StoryboardSequence | null>;
