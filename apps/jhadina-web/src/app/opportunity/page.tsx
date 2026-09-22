@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { getSideHustleDefinition, type OpportunityHubCategory } from "@jhadina/opportunity-core"
+import type { OpportunityHubCategory } from "@jhadina/opportunity-core"
 import type { AutomationLevel, Opportunity, OpportunityKind } from "@/lib/opportunities/sideIncome"
 
 const KIND_LABEL: Record<OpportunityKind, string> = {
@@ -240,7 +240,7 @@ function OpportunityCard({
   onDismiss?: () => void
 }) {
   const sideHustle = opportunity.sideHustleProfile
-  const opportunityLabel = sideHustle ? getSideHustleDefinition(sideHustle.family).label : KIND_LABEL[opportunity.kind]
+  const opportunityLabel = opportunity.sideHustleLabel ?? KIND_LABEL[opportunity.kind]
   return (
     <article style={card}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
