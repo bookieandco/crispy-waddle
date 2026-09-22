@@ -5,6 +5,7 @@ import {
 } from "./director-bridge"
 import { createContentProject } from "@jhadina/social-core"
 import {
+  compileDirectorSocialTakeRequest,
   expectedDirectorSocialGenerationJobId,
   type GeneratedAssetRecord,
   type MediaReviewDecisionRecord,
@@ -56,6 +57,47 @@ describe("Social Director bridge", () => {
     expect(brief.intent).toContain("Character tone: direct, intelligent, evidence-aware, adaptive")
     expect(brief.intent).toContain("Character point of view: Make complex systems useful")
     expect(brief.intent).toContain("constrain expression only")
+  })
+
+  it("carries product/style/ad-experiment lineage without losing Social character identity", () => {
+    const brief = buildDirectorBriefFromSocial(socialProject(), "asset-anchor", {
+      directorProjectId: "director-project-1",
+      aspectRatio: "9:16",
+      targetRuntimeSeconds: 15,
+      referenceAssetIds: ["product:zesta:hero", "product:zesta:label"],
+      rightsEvidenceRefs: ["rights:zesta"],
+      creativeIdentity: {
+        productIdentityRef: "product-bible:zesta",
+        styleIdentityRef: "style:zesta-cinematic",
+        experimentVariantId: "variant:horse-hook",
+        mutationAxis: "hook",
+        fixedDimensionRefs: { offer: "offer:zesta:base" },
+      },
+      commercialCreative: {
+        conceptId: "creative:zesta:horse",
+        productBibleId: "product-bible:zesta",
+        styleBibleId: "style:zesta-cinematic",
+        multiplierVariantId: "ad:zesta:mango",
+        experimentId: "ab:zesta-hooks",
+      },
+      createdAt: "2026-09-22T16:05:00.000Z",
+    })
+
+    const take = compileDirectorSocialTakeRequest(brief, {
+      storyboardBoardId: "board-ad",
+      sceneId: "scene-ad",
+    })
+
+    expect(brief.commercialCreative?.productBibleId).toBe("product-bible:zesta")
+    expect(brief.creativeIdentity?.mutationAxis).toBe("hook")
+    expect(brief.intent).toContain("Social character: character:jhadina")
+    expect(take.prompt).toContain("commercial concept: creative:zesta:horse")
+    expect(take.prompt).toContain("product identity bible: product-bible:zesta")
+    expect(take.prompt).toContain("visual style bible: style:zesta-cinematic")
+    expect(take.prompt).toContain("ad multiplier variant: ad:zesta:mango")
+    expect(take.prompt).toContain("growth experiment: ab:zesta-hooks")
+    expect(take.prompt).toContain("experiment variant: variant:horse-hook")
+    expect(take.prompt).toContain("only intended creative mutation: hook")
   })
 
   it("fails closed when a ContentProject carries an unknown Social character", () => {
