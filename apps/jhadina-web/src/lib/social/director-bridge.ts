@@ -120,6 +120,9 @@ function directorIntent(project: ContentProject, asset: ContentAsset): string {
     `Content pillar: ${project.pillarRef}.`,
     `Big Idea: ${project.bigIdeaRef}.`,
     `Content job: ${project.primaryJob}.`,
+    project.characterProfileRef ? `Social character: ${project.characterProfileRef}.` : "",
+    project.voiceProfileRef ? `Brand voice profile: ${project.voiceProfileRef}.` : "",
+    "Character/voice references constrain expression only; they do not grant identity, publishing, or spend authority.",
     "Return media production only; do not publish or alter Social approval state.",
-  ].join("\n")
+  ].filter(Boolean).join("\n")
 }
