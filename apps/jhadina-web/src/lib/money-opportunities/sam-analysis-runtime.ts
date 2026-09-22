@@ -2,7 +2,16 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { evaluateSamSubcontractability, extractSolicitationIntelligence, type SamContractKind, type SolicitationDocument } from '@jhadina/opportunity-core'
 
 const rows=(x:unknown):Record<string,unknown>[]=>Array.isArray(x)?x.filter((v):v is Record<string,unknown>=>Boolean(v&&typeof v==='object')):[]
-const allText=(docs:Record<string,unknown>[])=>docs.map(d=>typeof d.extracted_text==='string'?d.extracted_text:'').filter(Boolean).join('\n')
+export function selectSamNoticeText(rawDescription:string,docs:Record<string,unknown>[]){
+  const fetchedNotice=docs.find(d=>d.source_kind==='notice'&&typeof d.extracted_text==='string'&&String(d.extracted_text).trim().length>0)
+  const fetchedNoticeText=fetchedNotice?String(fetchedNotice.extracted_text):''
+  return {
+    text:/^https?:\/\//i.test(rawDescription)?fetchedNoticeText:rawDescription,
+    sourceRef:String(fetchedNotice?.source_url??''),
+    capturedAt:String(fetchedNotice?.fetched_at??''),
+  }
+}
+
 const agencyKind=(agency:string)=>/department of defense|\bdod\b|army|navy|air force|marine corps|defense logistics/i.test(agency)?'dod' as const:agency?'civilian' as const:'unknown' as const
 function contractKind(text:string,isFood:boolean):SamContractKind{
   if(/specialty construction|electrical|plumbing|hvac|roofing/i.test(text))return'specialty_construction'
@@ -32,16 +41,15 @@ export async function analyzeSamNotices(client:SupabaseClient,noticeIds:string[]
     const docs=rows(documentRows)
     const solicitationDocs:SolicitationDocument[]=[]
     const rawDescription=typeof (catalog as Record<string,unknown>).description==='string'?String((catalog as Record<string,unknown>).description):''
-    const fetchedNotice=docs.find(d=>d.source_kind==='notice'&&typeof d.extracted_text==='string'&&String(d.extracted_text).trim().length>0)
-    const fetchedNoticeText=fetchedNotice?String(fetchedNotice.extracted_text):''
-    const description=/^https?:\/\//i.test(rawDescription)?fetchedNoticeText:rawDescription
+    const resolvedNotice=selectSamNoticeText(rawDescription,docs)
+    const description=resolvedNotice.text
     if(description)solicitationDocs.push({
       id:`${noticeId}:notice`,
       opportunityId:noticeId,
       kind:'notice',
       version:String((catalog as Record<string,unknown>).version??1),
-      capturedAt:String(fetchedNotice?.fetched_at??new Date().toISOString()),
-      sourceRef:String(fetchedNotice?.source_url??(catalog as Record<string,unknown>).source_url),
+      capturedAt:resolvedNotice.capturedAt||new Date().toISOString(),
+      sourceRef:resolvedNotice.sourceRef||String((catalog as Record<string,unknown>).source_url),
       text:description,
     })
     for(const d of docs){
