@@ -1,0 +1,3 @@
+# Native Jhadina voice runtime. Pin exact versions before production image admission.
+# faster-whisper is the first ASR adapter target; TTS engines run behind the same provider-neutral boundary.
+faster-whisper
