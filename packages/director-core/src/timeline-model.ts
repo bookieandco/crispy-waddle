@@ -33,6 +33,7 @@ export type TimelineClip = {
   /** Optional editable display label; asset identity remains assetId. */
   name?: string;
   assetId: string;
+  name?: string;
   trackId: string;
   startSeconds: number;
   durationSeconds: number;
