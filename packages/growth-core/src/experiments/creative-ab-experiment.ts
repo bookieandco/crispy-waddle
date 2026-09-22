@@ -1,4 +1,5 @@
 import type { GrowthId, ISODateTime } from "../domain/types.js";
+import type { CreativeEvidenceSignal } from "../intelligence/creative-evidence-engine.js";
 
 export interface BinaryCreativeVariantObservation {
   variantId: GrowthId;
@@ -281,4 +282,46 @@ function normalCdf(x: number): number {
         + t * (1.781477937
           + t * (-1.821255978 + t * 1.330274429))));
   return 1 - d * polynomial;
+}
+
+
+export function promoteSupportedCreativeExperimentToEvidence(input: {
+  assessment: BinaryCreativeExperimentAssessment;
+  bigIdea: string;
+  observedAt: ISODateTime;
+  spend: number;
+  conversions: number;
+  contributionMargin: number;
+  sourceRefs?: readonly string[];
+}): CreativeEvidenceSignal {
+  if (input.assessment.status !== "statistically_supported"
+    || input.assessment.decision !== "promote_treatment_for_next_test") {
+    throw new Error("GROWTH_AB_NOT_PROMOTABLE");
+  }
+  if (!input.bigIdea.trim()) throw new Error("GROWTH_AB_BIG_IDEA_REQUIRED");
+  if (!Number.isFinite(Date.parse(input.observedAt))) {
+    throw new Error("GROWTH_AB_OBSERVED_AT_INVALID");
+  }
+  if (!Number.isFinite(input.spend) || input.spend < 0
+    || !Number.isInteger(input.conversions) || input.conversions < 0
+    || !Number.isFinite(input.contributionMargin)) {
+    throw new Error("GROWTH_AB_PROMOTION_METRICS_INVALID");
+  }
+
+  return Object.freeze({
+    id: `ab-evidence:${input.assessment.experimentId}:${input.assessment.treatmentVariantId}`,
+    evidenceClass: "first_party_performance",
+    bigIdea: input.bigIdea.trim(),
+    sourceRefs: Object.freeze([
+      ...input.assessment.evidenceRefs,
+      ...(input.sourceRefs ?? []),
+      `experiment:${input.assessment.experimentId}`,
+      `variant:${input.assessment.treatmentVariantId}`,
+    ]),
+    observedAt: input.observedAt,
+    recurrence: 1,
+    spend: input.spend,
+    conversions: input.conversions,
+    contributionMargin: input.contributionMargin,
+  });
 }
