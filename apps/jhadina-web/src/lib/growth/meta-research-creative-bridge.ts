@@ -6,6 +6,7 @@ import {
   createContentProject,
   type ContentProject,
   type JhadinaBrand,
+  type SocialCharacterProfile,
   type SocialPlatform,
 } from "@jhadina/social-core"
 import { buildDirectorBriefFromSocial } from "../social/director-bridge"
@@ -17,6 +18,7 @@ export interface MetaResearchCreativeProductionInput {
   brandPointOfViewRef: string
   brandPointOfView: string
   brandPointOfViewEvidenceRefs: readonly string[]
+  character?: SocialCharacterProfile
   directorProjectId: string
   platform: Extract<SocialPlatform, "facebook" | "instagram">
   aspectRatio?: string
@@ -45,6 +47,9 @@ export function buildMetaResearchCreativeProductionJobs(input: {
   if (!production.brandPointOfViewEvidenceRefs.length) {
     throw new Error("META_CREATIVE_BRAND_POV_EVIDENCE_REQUIRED")
   }
+  if (production.character && production.character.brand !== production.brand) {
+    throw new Error("META_CREATIVE_CHARACTER_BRAND_MISMATCH")
+  }
 
   const createdAt = production.createdAt ?? new Date().toISOString()
 
@@ -57,6 +62,8 @@ export function buildMetaResearchCreativeProductionJobs(input: {
         ...plan.sourceObservationIds.map((id) => `competitor-observation:${id}`),
         production.brandPointOfViewRef,
         ...production.brandPointOfViewEvidenceRefs,
+        ...(production.character?.evidenceRefs ?? []),
+        ...(production.character ? [production.character.id, production.character.voiceProfileRef] : []),
       ]),
     ]
     const intent = [
@@ -72,6 +79,8 @@ export function buildMetaResearchCreativeProductionJobs(input: {
       bigIdeaRef: `meta-research-plan:${plan.id}`,
       primaryJob: "conversion",
       origin: "research_synthesis",
+      characterProfileRef: production.character?.id,
+      voiceProfileRef: production.character?.voiceProfileRef,
       evidenceRefs,
       createdAt,
       anchor: {
