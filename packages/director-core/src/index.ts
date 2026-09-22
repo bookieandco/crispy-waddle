@@ -100,7 +100,6 @@ export * from './video-production-profile';
 export * from './cast-bible';
 export * from './voice-identity';
 export * from './movie-audio-bible';
-export * from './voice-provider-profile';
 export * from './voice-quality';
 export * from './character-reference-bootstrap';
 export * from './generative-extend';
