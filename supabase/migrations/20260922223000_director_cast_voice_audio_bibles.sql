@@ -12,6 +12,7 @@ create table if not exists public.director_cast_characters (
   rig_asset_id text,
   canonical_appearance_variant_id text not null,
   locked_traits text[] not null default '{}',
+  identity_fingerprint_refs text[] not null default '{}',
   approved_at timestamptz not null,
   approved_by uuid not null references auth.users(id) on delete restrict,
   created_at timestamptz not null default now(),
@@ -46,6 +47,8 @@ create table if not exists public.director_voice_identities (
   consent_ref text,
   primary_language text not null,
   default_variant_id text not null,
+  speaker_fingerprint_refs text[] not null default '{}',
+  minimum_speaker_similarity numeric not null default 0.75 check(minimum_speaker_similarity > 0 and minimum_speaker_similarity <= 1),
   approved_at timestamptz not null,
   approved_by uuid not null references auth.users(id) on delete restrict,
   created_at timestamptz not null default now(),
@@ -74,6 +77,8 @@ create table if not exists public.director_voice_provider_bindings (
   provider text not null,
   model_id text not null,
   provider_voice_ref text,
+  reusable_prompt_ref text,
+  speaker_embedding_ref text,
   reference_sample_ids text[] not null default '{}',
   supported_languages text[] not null default '{}',
   sample_rate_hz integer,
@@ -107,6 +112,8 @@ create table if not exists public.director_score_themes (
   tempo_bpm numeric,
   musical_key text,
   usage_notes text[] not null default '{}',
+  source text not null default 'generated' check(source in ('owned','licensed','generated','commissioned')),
+  rights_evidence_ids text[] not null default '{}',
   created_at timestamptz not null default now()
 );
 
@@ -119,6 +126,7 @@ create table if not exists public.director_scene_score_cues (
   end_seconds numeric not null check(end_seconds > start_seconds),
   intensity numeric not null check(intensity between 0 and 1),
   dialogue_priority boolean not null default true,
+  dramatic_purpose text not null default 'support scene intent',
   evidence_ids text[] not null default '{}',
   created_at timestamptz not null default now()
 );
