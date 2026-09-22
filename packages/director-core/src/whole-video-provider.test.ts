@@ -23,6 +23,7 @@ function provider(
     requiresCharacter?: boolean;
     product?: boolean;
     requiresProduct?: boolean;
+    expression?: boolean;
   } = {},
 ): WholeVideoProductionProvider {
   return {
@@ -36,6 +37,7 @@ function provider(
       requiresCharacterReference: input.requiresCharacter ?? false,
       supportsProductReference: input.product ?? false,
       requiresProductReference: input.requiresProduct ?? false,
+      supportsExpressionGuidance: input.expression ?? false,
     },
     async submit() { return { providerJobId: 'job', status: 'queued' }; },
     async status() { return { providerJobId: 'job', status: 'processing' }; },
@@ -74,6 +76,18 @@ describe('whole video provider selection', () => {
     expect(selectWholeVideoProvider([
       provider('product-only', { product: true, requiresProduct: true }),
     ], intent)).toBeUndefined();
+  });
+
+  it('requires a provider that can preserve Social expression guidance', () => {
+    const selected = selectWholeVideoProvider([
+      provider('generic-free'),
+      provider('style-aware', { expression: true }),
+    ], intent, { expressionGuidance: true });
+    expect(selected?.descriptor.id).toBe('style-aware');
+
+    expect(selectWholeVideoProvider([
+      provider('generic-free'),
+    ], intent, { expressionGuidance: true })).toBeUndefined();
   });
 
   it('returns no provider instead of losing character identity', () => {
