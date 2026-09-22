@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildBrokerShortlist, evaluateSamSubcontractability, expandProviderTaxonomy, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
 import { getSamApiKey } from './sam-config'
 import { searchCanadaImporterProviders, searchConfiguredCanadaOdbusProviders, searchDenueProviders } from './foreign-provider-sources'
+import { searchConfiguredFsisProviders, searchFmcsaProviders, shouldSearchFmcsa, shouldSearchFsis } from './us-food-logistics-provider-sources'
 
 const rows=(x:unknown):Record<string,unknown>[]=>Array.isArray(x)?x.filter((v):v is Record<string,unknown>=>Boolean(v&&typeof v==='object')):[]
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
@@ -184,10 +185,16 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
   let denueSearchesRemaining=Number.isFinite(requestedDenueBudget)?Math.max(0,Math.min(Math.floor(requestedDenueBudget),10)):2
   const requestedCanadaBudget=Number(process.env.CANADA_SEARCH_BUDGET_PER_ENRICHMENT??2)
   let canadaSearchesRemaining=Number.isFinite(requestedCanadaBudget)?Math.max(0,Math.min(Math.floor(requestedCanadaBudget),10)):2
+  const requestedFmcsaBudget=Number(process.env.FMCSA_SEARCH_BUDGET_PER_ENRICHMENT??2)
+  let fmcsaSearchesRemaining=Number.isFinite(requestedFmcsaBudget)?Math.max(0,Math.min(Math.floor(requestedFmcsaBudget),10)):2
+  const requestedFsisBudget=Number(process.env.FSIS_SEARCH_BUDGET_PER_ENRICHMENT??2)
+  let fsisSearchesRemaining=Number.isFinite(requestedFsisBudget)?Math.max(0,Math.min(Math.floor(requestedFsisBudget),10)):2
   const entityNaicsCache=new Map<string,RuntimeProvider[]>()
   const spendingCache=new Map<string,RuntimeProvider[]>()
   const denueCache=new Map<string,RuntimeProvider[]>()
   const canadaCache=new Map<string,RuntimeProvider[]>()
+  const fmcsaCache=new Map<string,RuntimeProvider[]>()
+  const fsisCache=new Map<string,RuntimeProvider[]>()
 
   for(const noticeId of noticeIds){
     const {data:analysis}=await client.from('jhadina_sam_analysis').select('requirements,subcontractability').eq('notice_id',noticeId).maybeSingle()
@@ -255,6 +262,32 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
           requirementPools.push(awards)
         }
 
+        if(expansion.keywords.length&&shouldSearchFmcsa(expansion.keywords)&&fmcsaSearchesRemaining>0){
+          const terms=expansion.keywords.slice(0,4)
+          const cacheKey=`fmcsa:${terms.join('|').toLowerCase()}`
+          let providers=fmcsaCache.get(cacheKey)
+          if(!providers){
+            fmcsaSearchesRemaining-=1
+            try{providers=await searchFmcsaProviders({keywords:terms,limit:maxProvidersPerNotice}) as RuntimeProvider[]}
+            catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'FMCSA carrier discovery failed'}`);providers=[]}
+            fmcsaCache.set(cacheKey,providers)
+          }
+          if(providers.length)requirementPools.push(providers)
+        }
+
+        if(expansion.keywords.length&&shouldSearchFsis(expansion.keywords)&&fsisSearchesRemaining>0&&process.env.FSIS_MPI_CSV_URL?.trim()){
+          const terms=expansion.keywords.slice(0,4)
+          const cacheKey=`fsis:${terms.join('|').toLowerCase()}`
+          let providers=fsisCache.get(cacheKey)
+          if(!providers){
+            fsisSearchesRemaining-=1
+            try{providers=await searchConfiguredFsisProviders({keywords:terms,limit:maxProvidersPerNotice}) as RuntimeProvider[]}
+            catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'FSIS establishment discovery failed'}`);providers=[]}
+            fsisCache.set(cacheKey,providers)
+          }
+          if(providers.length)requirementPools.push(providers)
+        }
+
         if(process.env.INEGI_DENUE_TOKEN?.trim()&&expansion.keywords.length&&denueSearchesRemaining>0){
           const terms=expansion.keywords.slice(0,3)
           const cacheKey=`denue:${terms.join('|').toLowerCase()}`
@@ -320,5 +353,5 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
       notices+=1
     }catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'provider discovery failed'}`)}
   }
-  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,usaspending:spendingRequestsRemaining,denue:denueSearchesRemaining,canada:canadaSearchesRemaining}}
+  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,usaspending:spendingRequestsRemaining,fmcsa:fmcsaSearchesRemaining,fsis:fsisSearchesRemaining,denue:denueSearchesRemaining,canada:canadaSearchesRemaining}}
 }
