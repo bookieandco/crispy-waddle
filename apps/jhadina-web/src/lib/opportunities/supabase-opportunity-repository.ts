@@ -207,6 +207,80 @@ export function createSupabaseOpportunityRepository() {
       }
     },
 
+    async listSideHustleExperiments(opportunityId: string): Promise<StoredSideHustleExperiment[]> {
+      const supabase = await createClient()
+      const [{ data: experimentRows, error: experimentError }, { data: observationRows, error: observationError }] = await Promise.all([
+        supabase
+          .from("jhadina_side_hustle_experiments")
+          .select("payload")
+          .eq("opportunity_id", opportunityId)
+          .order("created_at", { ascending: false })
+          .returns<SideHustleExperimentRow[]>(),
+        supabase
+          .from("jhadina_side_hustle_experiment_observations")
+          .select("payload")
+          .eq("opportunity_id", opportunityId)
+          .order("observed_at", { ascending: true })
+          .returns<SideHustleExperimentObservationRow[]>(),
+      ])
+      if (experimentError) throw new Error(`Unable to list side hustle experiments: ${experimentError.message}`)
+      if (observationError) throw new Error(`Unable to list side hustle observations: ${observationError.message}`)
+
+      const observations = (observationRows ?? []).map((row) => row.payload)
+      return (experimentRows ?? []).map((row) => {
+        const experiment = row.payload
+        const experimentObservations = observations.filter((observation) => observation.experimentId === experiment.id)
+        const evaluation = ["running", "completed"].includes(experiment.status)
+          ? evaluateSideHustleExperiment({
+              experiment,
+              observations: experimentObservations,
+              evaluatedAt: new Date().toISOString(),
+            })
+          : undefined
+        return { experiment, observations: experimentObservations, evaluation }
+      })
+    },
+
+    async createSideHustleExperiment(experiment: SideHustleExperiment): Promise<SideHustleExperiment> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_side_hustle_experiment_create", {
+        p_experiment: experiment,
+      })
+      if (error || !data) throw new Error(`Unable to create side hustle experiment: ${error?.message ?? "no result returned"}`)
+      return data as SideHustleExperiment
+    },
+
+    async startSideHustleExperiment(experimentId: string, startedAt: string): Promise<SideHustleExperiment> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_side_hustle_experiment_start", {
+        p_experiment_id: experimentId,
+        p_started_at: startedAt,
+      })
+      if (error || !data) throw new Error(`Unable to start side hustle experiment: ${error?.message ?? "no result returned"}`)
+      return data as SideHustleExperiment
+    },
+
+    async recordSideHustleExperimentObservation(
+      observation: SideHustleExperimentObservation,
+    ): Promise<SideHustleExperimentObservation> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_side_hustle_experiment_record_observation", {
+        p_observation: observation,
+      })
+      if (error || !data) throw new Error(`Unable to record side hustle observation: ${error?.message ?? "no result returned"}`)
+      return data as SideHustleExperimentObservation
+    },
+
+    async completeSideHustleExperiment(experimentId: string, completedAt: string): Promise<SideHustleExperiment> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_side_hustle_experiment_complete", {
+        p_experiment_id: experimentId,
+        p_completed_at: completedAt,
+      })
+      if (error || !data) throw new Error(`Unable to complete side hustle experiment: ${error?.message ?? "no result returned"}`)
+      return data as SideHustleExperiment
+    },
+
     async recordOutcome(
       opportunity: Opportunity,
       outcome: OpportunityOutcome,
