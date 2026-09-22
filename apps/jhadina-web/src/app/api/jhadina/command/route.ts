@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import type { EphemeralArtifactContext } from "@jhadina/core-spine"
 import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
@@ -13,6 +14,45 @@ import {
 } from "@/lib/intelligence/ask-growth-command"
 
 export const dynamic = "force-dynamic"
+
+const MAX_EPHEMERAL_ARTIFACTS = 4
+const MAX_IMAGE_BASE64_CHARS = 5_500_000
+const MAX_TEXT_ARTIFACT_CHARS = 20_000
+const IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"])
+
+function parseEphemeralArtifacts(value: unknown): EphemeralArtifactContext[] {
+  if (!Array.isArray(value)) return []
+  if (value.length > MAX_EPHEMERAL_ARTIFACTS) throw new Error("Too many ephemeral artifacts; maximum is 4")
+  return value.map((raw, index) => {
+    if (!raw || typeof raw !== "object") throw new Error(`Artifact ${index + 1} is invalid`)
+    const item = raw as Record<string, unknown>
+    const kind = item.kind
+    const mimeType = typeof item.mimeType === "string" ? item.mimeType.toLowerCase() : ""
+    const source = item.source
+    if (kind !== "screen" && kind !== "image" && kind !== "text") throw new Error(`Artifact ${index + 1} has unsupported kind`)
+    if (source !== "screen-share" && source !== "file-picker" && source !== "clipboard") throw new Error(`Artifact ${index + 1} has unsupported source`)
+    const artifact: EphemeralArtifactContext = {
+      id: typeof item.id === "string" && item.id ? item.id.slice(0, 160) : `artifact:${crypto.randomUUID()}`,
+      kind,
+      mimeType,
+      source,
+      observedAt: typeof item.observedAt === "string" ? item.observedAt : new Date().toISOString(),
+      ...(typeof item.name === "string" ? { name: item.name.slice(0, 240) } : {}),
+    }
+    if (kind === "text") {
+      if (!mimeType.startsWith("text/") && mimeType !== "application/json") throw new Error(`Artifact ${index + 1} is not a supported text type`)
+      if (typeof item.text !== "string" || item.text.length > MAX_TEXT_ARTIFACT_CHARS) throw new Error(`Artifact ${index + 1} text is missing or too large`)
+      artifact.text = item.text
+      return artifact
+    }
+    if (!IMAGE_MIME.has(mimeType)) throw new Error(`Artifact ${index + 1} is not a supported image type`)
+    if (typeof item.base64 !== "string" || item.base64.length === 0 || item.base64.length > MAX_IMAGE_BASE64_CHARS || !/^[A-Za-z0-9+/=]+$/.test(item.base64)) {
+      throw new Error(`Artifact ${index + 1} image payload is missing or too large`)
+    }
+    artifact.base64 = item.base64
+    return artifact
+  })
+}
 
 /**
  * Phase 1 Step 6 — Ask Jhadina's real, governed entry point.
@@ -37,6 +77,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const claimedUserId = req.headers.get("x-jhadina-user-id") || ""
   const activeTask = typeof body?.activeTask === "string" ? body.activeTask.trim() : ""
+  const artifacts = parseEphemeralArtifacts(body?.artifacts)
 
   if (!claimedUserId) {
     return NextResponse.json({ success: false, error: "Not signed in" }, { status: 401 })
@@ -170,6 +211,7 @@ export async function POST(req: NextRequest) {
       route: typeof body?.route === "string" ? body.route : undefined,
       activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
       geographicScope: body?.geographicScope ?? undefined,
+      artifacts,
       temporalScope: body?.temporalScope && typeof body.temporalScope === "object"
         ? {
             from: typeof body.temporalScope.from === "string" ? body.temporalScope.from : null,
