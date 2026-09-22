@@ -8,8 +8,8 @@ import { OutboxGenerationProvider } from '@jhadina/director-core/outbox-generati
 import type { GenerationRegistry } from '@jhadina/director-core/generation-registry';
 import { DirectorStoryboardLineageResolver } from '@jhadina/director-core/storyboard-lineage-resolver';
 import { SupabaseStoryboardRepository } from '@jhadina/director-core/storyboard-persistence';
-import { DirectorProductionAuthorityResolver, DirectorReviewAuthorityResolver, SupabaseDirectorProductionAuthorityRepository, type ProductionAuthorityClient, type SupabaseStoryboardClient } from '@jhadina/director-core';
-import { SupabaseDirectorReviewRepository, type ReviewClient } from './director-review-repository';
+import { DirectorProductionAuthorityResolver, DirectorReviewAuthorityResolver, SupabaseDirectorProductionAuthorityRepository } from '@jhadina/director-core';
+import { SupabaseDirectorReviewRepository } from './director-review-repository';
 import { createSupabaseGeneratedAssetRepository } from './supabase-generated-asset-repository';
 import { createSupabaseGenerationRepository } from '../src/lib/supabase-generation-repository';
 import {
@@ -48,15 +48,13 @@ function composeDirectorGenerationRuntime(
     repository,
     workerId,
   );
-  const storyboardClient = client as unknown as SupabaseStoryboardClient;
-  const productionClient = client as unknown as ProductionAuthorityClient;
-  const reviewClient = client as unknown as ReviewClient;
-  const storyboardRepository = new SupabaseStoryboardRepository(storyboardClient);
+  const readClient = createDirectorReadClient(client);
+  const storyboardRepository = new SupabaseStoryboardRepository(readClient);
   const storyboardLineageResolver = new DirectorStoryboardLineageResolver(storyboardRepository);
   const generation = new GenerationPlanAdapter(service, registry, storyboardLineageResolver);
-  const authority = new DirectorProductionAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(productionClient), storyboardLineageResolver);
-  const reviewRepository = new SupabaseDirectorReviewRepository(reviewClient);
-  const reviewAuthority = new DirectorReviewAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(productionClient), reviewRepository);
+  const authority = new DirectorProductionAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(readClient), storyboardLineageResolver);
+  const reviewRepository = new SupabaseDirectorReviewRepository(client);
+  const reviewAuthority = new DirectorReviewAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(readClient), reviewRepository);
   const reconciler = new GenerationSubmissionReconciler(repository, outboxProviders, workerId);
   return { generation, reconciler, workerId, hasModel: (modelId) => registry.hasModel(modelId), authority, reviewAuthority, reviewRepository };
 }
