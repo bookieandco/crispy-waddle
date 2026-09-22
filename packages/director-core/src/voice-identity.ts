@@ -16,6 +16,10 @@ export interface VoiceProviderBinding {
   provider: string;
   modelId: string;
   providerVoiceRef?: string;
+  /** Reusable provider-native clone/design prompt, never a canonical identity by itself. */
+  reusablePromptRef?: string;
+  /** Optional speaker embedding artifact for provider-side identity conditioning. */
+  speakerEmbeddingRef?: string;
   referenceSampleIds: readonly string[];
   supportedLanguages: readonly string[];
   sampleRateHz?: number;
@@ -45,6 +49,10 @@ export interface CharacterVoiceIdentity {
   providerBindings: readonly VoiceProviderBinding[];
   languageVariants: readonly VoiceLanguageVariant[];
   defaultVariantId: string;
+  /** Provider-neutral speaker identity fingerprints used for post-generation QC. */
+  speakerFingerprintRefs?: readonly string[];
+  /** Per-character minimum similarity floor across every language/provider. */
+  minimumSpeakerSimilarity?: number;
   approvedAt: string;
   approvedBy: string;
 }
@@ -112,4 +120,36 @@ export function resolveDialogueVoice(
     reasons: Object.freeze(reasons),
     providerBindings: Object.freeze(bindings),
   });
+}
+
+/**
+ * Feature-length production requires provider-independent speaker fingerprints
+ * so a provider swap or language change cannot silently create a new voice.
+ */
+export function validateMovieGradeVoiceIdentity(identity: CharacterVoiceIdentity): readonly string[] {
+  const reasons: string[] = [];
+  if (!identity.id.trim() || !identity.characterId.trim() || !identity.projectId.trim()) {
+    reasons.push('DIRECTOR_VOICE_IDENTITY_REQUIRED');
+  }
+  if (!identity.defaultVariantId.trim() || !identity.languageVariants.some((variant) => variant.id === identity.defaultVariantId)) {
+    reasons.push('DIRECTOR_VOICE_DEFAULT_VARIANT_INVALID');
+  }
+  if (!identity.providerBindings.length) reasons.push('DIRECTOR_VOICE_PROVIDER_BINDING_REQUIRED');
+  if (!identity.speakerFingerprintRefs?.length) reasons.push('DIRECTOR_VOICE_SPEAKER_FINGERPRINT_REQUIRED');
+  if (
+    identity.minimumSpeakerSimilarity === undefined ||
+    !Number.isFinite(identity.minimumSpeakerSimilarity) ||
+    identity.minimumSpeakerSimilarity <= 0 ||
+    identity.minimumSpeakerSimilarity > 1
+  ) reasons.push('DIRECTOR_VOICE_SIMILARITY_FLOOR_REQUIRED');
+
+  const sampleIds = new Set(identity.referenceSamples.map((sample) => sample.id));
+  for (const binding of identity.providerBindings) {
+    if (!binding.provenanceRefs.length) reasons.push(`DIRECTOR_VOICE_PROVIDER_PROVENANCE_REQUIRED:${binding.id}`);
+    if (binding.referenceSampleIds.some((id) => !sampleIds.has(id))) {
+      reasons.push(`DIRECTOR_VOICE_PROVIDER_REFERENCE_UNKNOWN:${binding.id}`);
+    }
+  }
+
+  return Object.freeze(reasons);
 }
