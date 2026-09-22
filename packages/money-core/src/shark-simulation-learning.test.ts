@@ -6,9 +6,12 @@ import type { PaperStrategyResult } from './paper-strategy-result.js'
 import type { SharkMoneyResearchArtifact } from './shark-intelligence-ingress.js'
 
 const research:SharkMoneyResearchArtifact={
- bridgeVersion:'SHARK-MONEY-01',sourceSchemaVersion:'SHARK-MONEY-01',sourceEnvelopeId:'env1',sourceProposalId:'proposal1',sourceAssessmentId:'a1',
+ bridgeVersion:'SHARK-MONEY-02',sourceSchemaVersion:'SHARK-MONEY-02',sourceEnvelopeId:'env1',sourceProposalId:'proposal1',sourceAssessmentId:'a1',
  subjectId:'crypto:solana:TOKEN',chainId:'solana',tokenAddress:'TOKEN',informationCutoff:'2026-09-21T20:00:00Z',thesis:'test',sourceConfidence:.7,
- sourceRisk:{overallRisk:.2,band:'candidate'},invalidationConditions:['liquidity-collapse'],evidence:[],sourceProvenance:{contentHash:'p',generatedBy:'shark'},
+ sourceRisk:{overallRisk:.2,band:'candidate'},invalidationConditions:['liquidity-collapse'],
+ evidence:[{evidenceId:'shark-e1',sourceId:'shark:dexscreener',sourceGroup:'shark:dexscreener-market',stance:'SUPPORTS',direction:'BULLISH',strength:.7,confidence:.8,observedAt:'2026-09-21T19:59:59Z',availableAt:'2026-09-21T20:00:00Z',receivedAt:'2026-09-21T20:00:01Z',quality:'SUPPORTED',summary:'market',inputHash:'e1'}],
+ evidenceIntegrity:{informationCutoff:'2026-09-21T20:00:00Z',sourceGroups:['shark:dexscreener-market'],supportingEvidenceIds:['shark-e1'],contradictingEvidenceIds:[],neutralEvidenceIds:[],unresolvedContradictionIds:[]},
+ sourceProvenance:{contentHash:'p',generatedBy:'shark'},
  decisionCase:{caseId:'c',accountId:'acct',subjectId:'crypto:solana:TOKEN',requestedBy:'u',informationCutoff:'2026-09-21T20:00:00Z',createdAt:'2026-09-21T20:00:01Z',status:'RESEARCH_ONLY',provenanceHash:'p'},
  assessment:{caseId:'c',evidenceStatus:'INGESTED',freshnessStatus:'UNEVALUATED',riskStatus:'UNEVALUATED',stressStatus:'UNEVALUATED',simulationStatus:'UNEVALUATED',liquidityStatus:'UNEVALUATED',calibrationStatus:'UNEVALUATED',authorityStatus:'MISSING',disposition:'RESEARCH_ONLY'},
  financialAuthority:'NONE',capitalAuthority:'NONE',executionAuthority:'NONE',protectedFundAuthority:'NONE'
@@ -16,7 +19,7 @@ const research:SharkMoneyResearchArtifact={
 const opportunity:OpportunityCandidateV2={
  opportunityId:'opp1',thesisId:'thesis1',subjectId:research.subjectId,instrumentIds:['meme:solana:TOKEN'],assetClasses:['MEME'],direction:'BULLISH',horizon:'INTRADAY',
  expectedUpside:.2,expectedDownside:-.1,confidence:.6,liquidityStatus:'ASSESSED',riskStatus:'ASSESSED',invalidationConditions:['liquidity-collapse'],
- evidenceIds:['fusion-evidence:shark:a1'],informationCutoff:'2026-09-21T20:00:00Z',expiresAt:'2026-09-22T20:00:00Z',provenanceHash:'op',authority:'NONE'
+ evidenceIds:['fusion-evidence:shark:a1:shark-e1'],informationCutoff:'2026-09-21T20:00:00Z',expiresAt:'2026-09-22T20:00:00Z',provenanceHash:'op',authority:'NONE'
 }
 const result:PaperStrategyResult={
  strategyResultId:'result1',paperRunId:'run1',currency:'USD',startingValue:{minor:100000n,currency:'USD'},endingValue:{minor:110000n,currency:'USD'},
@@ -34,6 +37,7 @@ test('SHARK-SIM.2 learning cannot skip independent Money risk/liquidity governan
  assert.throws(()=>createSharkSimulationLearningEnvelope({research,opportunity:{...opportunity,riskStatus:'UNKNOWN'},result,strategyId:'s',scenarioId:'x',createdAt:'2026-09-21T20:10:01Z'}),/OPPORTUNITY_NOT_GOVERNED/)
 })
 
-test('SHARK-SIM.3 learning requires proof the Money opportunity actually consumed this SHARK assessment',()=>{
+test('SHARK-SIM.3 learning requires proof the Money opportunity consumed a concrete SHARK evidence item',()=>{
+ assert.throws(()=>createSharkSimulationLearningEnvelope({research,opportunity:{...opportunity,evidenceIds:['fusion-evidence:shark:a1']},result,strategyId:'s',scenarioId:'x',createdAt:'2026-09-21T20:10:01Z'}),/SOURCE_LINEAGE_MISSING/)
  assert.throws(()=>createSharkSimulationLearningEnvelope({research,opportunity:{...opportunity,evidenceIds:['other']},result,strategyId:'s',scenarioId:'x',createdAt:'2026-09-21T20:10:01Z'}),/SOURCE_LINEAGE_MISSING/)
 })
