@@ -52,3 +52,6 @@ export * from './intelligence/research-backed-meta-creative.js';
 export * from './experiments/creative-ab-experiment.js';
 
 export * from './evidence/evidence-health.js';
+
+export * from './intelligence/platform-ad-creative.js';
+export * from './experiments/ad-creative-lineage.js';
