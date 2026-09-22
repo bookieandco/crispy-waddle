@@ -5,6 +5,7 @@ import {
   promoteSupportedCreativeExperimentToEvidence,
   type BinaryCreativeExperiment,
 } from "./creative-ab-experiment.js";
+import { assessGrowthEvidenceFeedHealth } from "../evidence/evidence-health.js";
 
 const experiment: BinaryCreativeExperiment = {
   id: "experiment:creative-1",
@@ -135,8 +136,26 @@ describe("creative A/B experiment evaluator", () => {
       ],
     });
 
+    const dataHealth = assessGrowthEvidenceFeedHealth({
+      id: "health:meta-test",
+      source: "meta+capi+orders",
+      assetRef: "experiment:creative-1",
+      observedAt: "2026-09-22T18:59:00.000Z",
+      checkedAt: "2026-09-22T19:00:00.000Z",
+      freshnessSlaSeconds: 600,
+      completeness: 0.995,
+      monitorCoverage: 0.95,
+      activeIncidentCount: 0,
+      upstreamIssueCount: 0,
+      schemaAnomaly: false,
+      volumeAnomaly: false,
+      lineageComplete: true,
+      evidenceRefs: ["monitor:freshness", "lineage:meta-orders"],
+    });
+
     const evidence = promoteSupportedCreativeExperimentToEvidence({
       assessment,
+      dataHealth,
       bigIdea: "Compression demo beats generic organization message",
       observedAt: "2026-09-22T19:00:00.000Z",
       spend: 1550,
@@ -148,6 +167,59 @@ describe("creative A/B experiment evaluator", () => {
     expect(evidence.evidenceClass).toBe("first_party_performance");
     expect(evidence.sourceRefs).toContain("experiment:experiment:creative-1");
     expect(evidence.contributionMargin).toBe(4700);
+    expect(evidence.sourceRefs).toContain("data-health:health:meta-test");
+  });
+
+  it("refuses to learn a supported treatment from an unhealthy attribution feed", () => {
+    const assessment = assessBinaryCreativeExperiment({
+      experiment,
+      observations: [
+        {
+          variantId: "creative:control",
+          exposures: 5000,
+          conversions: 250,
+          spend: 1500,
+          contributionMargin: 4000,
+          observedAt: "2026-09-22T18:00:00.000Z",
+          evidenceRefs: ["meta:control"],
+        },
+        {
+          variantId: "creative:treatment",
+          exposures: 5000,
+          conversions: 340,
+          spend: 1550,
+          contributionMargin: 4700,
+          observedAt: "2026-09-22T18:00:00.000Z",
+          evidenceRefs: ["meta:treatment"],
+        },
+      ],
+    });
+    const dataHealth = assessGrowthEvidenceFeedHealth({
+      id: "health:bad",
+      source: "meta+capi+orders",
+      assetRef: "experiment:creative-1",
+      observedAt: "2026-09-22T16:00:00.000Z",
+      checkedAt: "2026-09-22T19:00:00.000Z",
+      freshnessSlaSeconds: 600,
+      completeness: 0.8,
+      monitorCoverage: 0.2,
+      activeIncidentCount: 1,
+      upstreamIssueCount: 2,
+      schemaAnomaly: true,
+      volumeAnomaly: true,
+      lineageComplete: false,
+      evidenceRefs: ["incident:1"],
+    });
+
+    expect(() => promoteSupportedCreativeExperimentToEvidence({
+      assessment,
+      dataHealth,
+      bigIdea: "Compression demo beats generic organization message",
+      observedAt: "2026-09-22T19:00:00.000Z",
+      spend: 1550,
+      conversions: 340,
+      contributionMargin: 4700,
+    })).toThrow(/GROWTH_EVIDENCE_NOT_HEALTHY_FOR_LEARNING/);
   });
 
   it("preserves strata for downstream regression or ML without treating model output as causal authority", () => {
