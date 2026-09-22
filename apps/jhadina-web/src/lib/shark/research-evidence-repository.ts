@@ -258,6 +258,28 @@ export async function runPersistedWalletClusterCalibrationProducer(
   return Object.freeze({tokens:groups.size,emitted,inserted,replayed,skippedUnlabeled})
 }
 
+export async function runAllPersistedWalletClusterCalibrationProducers(
+  client:SupabaseClient,
+  input:{limit?:number;maxScoreModels?:number}={},
+):Promise<Readonly<{scoreModels:number;tokens:number;emitted:number;inserted:number;replayed:number;skippedUnlabeled:number}>>{
+  const maxScoreModels=input.maxScoreModels??32
+  if(!Number.isInteger(maxScoreModels)||maxScoreModels<1||maxScoreModels>128)throw new Error('SHARK_CLUSTER_PRODUCER_MODEL_LIMIT_INVALID')
+  const {data,error}=await client.rpc('jhadina_shark_wallet_score_models')
+  if(error)throw new Error(`SHARK wallet score model load failed: ${error.message}`)
+  const scoreModels=[...new Set((data??[]).map((row:any)=>String(row.score_model_id)).filter(Boolean))].sort()
+  if(scoreModels.length>maxScoreModels)throw new Error('SHARK_CLUSTER_PRODUCER_SCORE_MODEL_SET_TOO_LARGE')
+  let tokens=0,emitted=0,inserted=0,replayed=0,skippedUnlabeled=0
+  for(const scoreModelId of scoreModels){
+    const result=await runPersistedWalletClusterCalibrationProducer(client,{scoreModelId,limit:input.limit})
+    tokens+=result.tokens
+    emitted+=result.emitted
+    inserted+=result.inserted
+    replayed+=result.replayed
+    skippedUnlabeled+=result.skippedUnlabeled
+  }
+  return Object.freeze({scoreModels:scoreModels.length,tokens,emitted,inserted,replayed,skippedUnlabeled})
+}
+
 export async function appendMeteoraCashFlowEvidence(
   client:SupabaseClient,
   input:{flow:MeteoraDlmmCashFlowEvidence;source:string},
