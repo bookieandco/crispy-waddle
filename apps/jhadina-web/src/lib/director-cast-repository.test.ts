@@ -43,6 +43,7 @@ describe('Supabase Director cast resolver', () => {
       director_character_appearance_variants: [
         {
           id: 'hero-base',
+          project_id: 'movie-1',
           character_id: 'hero',
           kind: 'base',
           label: 'Base',
@@ -56,6 +57,7 @@ describe('Supabase Director cast resolver', () => {
         },
         {
           id: 'hero-suit',
+          project_id: 'movie-1',
           character_id: 'hero',
           kind: 'wardrobe',
           label: 'Suit',
