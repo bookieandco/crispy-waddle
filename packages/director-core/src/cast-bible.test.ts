@@ -29,7 +29,7 @@ describe('Director cast and voice continuity', () => {
         characterId: 'hero',
         kind: 'wardrobe' as const,
         label: 'Suit',
-        referenceAssetIds: ['hero-ref-base', 'hero-ref-suit'],
+        referenceAssetIds: ['hero-ref-suit'],
         referenceSha256s: ['sha-suit'],
         wardrobeNotes: ['black suit'],
         approvedAt: '2026-09-22T00:00:00Z',
@@ -56,7 +56,7 @@ describe('Director cast and voice continuity', () => {
       voiceIdentityId: 'voice-hero',
       voiceVariantId: 'voice-hero-en',
       language: 'en',
-      referenceAssetIds: ['hero-ref-suit'],
+      referenceAssetIds: ['hero-ref-base', 'hero-ref-suit'],
     }).valid).toBe(true);
   });
 
