@@ -80,3 +80,20 @@ Repair owner:
 the Vercel/Git integration audit. Verify the project is connected to `bookieandco/crispy-waddle`, production branch is `main`, deployment triggering is enabled, account/usage is not in DEPLOYMENT_DISABLED state, and the GitHub App still has required repository permissions. Do not weaken JLLM runtime gates to compensate.
 
 JLLM may continue source/runtime-contract work while this infrastructure blocker is open, but FINAL.1/2/3/4/5/6/7/8/10/12/15 cannot be promoted to real-world PASS without current executable runtime evidence.
+
+
+## FINAL.10 persistence commissioning receipt — 2026-09-22
+
+Merged lineage: `a71fc6f6f26020e31221434589a162a53d6741e4` (#618).
+
+The canonical WorkSession migration was applied to the active Jhadina/SWLC Supabase project. Post-apply verification confirmed:
+- `public.jhadina_work_sessions` exists;
+- RLS is enabled;
+- `anon` SELECT = false;
+- `authenticated` SELECT = false;
+- `service_role` SELECT/INSERT/UPDATE = true;
+- a transactional insert → update → read probe preserved the expected goal, subsystem and decision reference and was rolled back afterward.
+
+Supabase security advisors report the expected informational `rls_enabled_no_policy` finding for service-only tables. This is intentional for WorkSession: public client roles have their table privileges revoked and no client RLS policy is admitted.
+
+**FINAL.10 status: INFRASTRUCTURE PASS / APP-RUNTIME BLOCKED.** Durable persistence is commissioned and verified at the database boundary. Cross-reload/device behavior through the web repository adapter still requires a current executable Jhadina deployment, which remains blocked by the separately marked Vercel Git-trigger audit/repair.
