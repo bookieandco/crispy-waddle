@@ -161,6 +161,32 @@ The join fails if:
 
 The fused state records `fundamentalLagMs` so later intelligence can distinguish same-cutoff fundamentals from older reported fundamentals.
 
+## Visual chart-pattern research sources
+
+Two Roboflow Universe datasets are registered as **research/training references** for a separate stock-chart vision layer:
+
+1. `MOD5GEN20/stocks-2ulc2`
+   - object detection;
+   - 6,572 images;
+   - CC BY 4.0;
+   - classes: `Triangle`, `Head and shoulders bottom`, `Head and shoulders top`, `M_Head`, `StockLine`, `W_Bottom`.
+
+2. `glitch-gyhbu/shitty-stocks-patterns`
+   - object detection;
+   - 2,000 images;
+   - CC BY 4.0;
+   - classes: `Bearish_Engulfing`, `Evining-star`, `Inside_Bar`, `Long_Wicks`, `Shooting_Star`;
+   - public model: `shitty-stocks-patterns/6`;
+   - Roboflow currently reports mAP@50 98.5%, precision 94.2%, recall 96.7% for that published model.
+
+These sources are complementary: the first is aimed at larger chart formations while the second is aimed at candlestick/micro-patterns.
+
+The canonical contract is `packages/money-core/src/stock-chart-vision-research.ts`.
+
+Important boundary: chart-image detections are **not canonical market observations**. They do not replace quotes, bars, order books, corporate actions, or benchmark state. A detection is `RESEARCH_ONLY`, has `financialAuthority='NONE'`, and `canAuthorizeLive=false`.
+
+Any directional usefulness must be established separately through resolved-outcome calibration. Dataset/model-reported metrics describe detection quality on that source's evaluation data; they are not evidence of trading profitability.
+
 ## Authority boundary
 
 Both layers are non-executable:
