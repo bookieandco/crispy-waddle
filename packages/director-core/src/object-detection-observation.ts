@@ -84,7 +84,7 @@ export function objectDetectionsToVisualEvidence(
     observedAt: input.observedAt,
     provider: `${input.provider}:${input.modelId}`,
     frameStart: input.frame,
-    frameEnd: input.frame,
+    frameEnd: input.frame + 1,
     confidence,
     evidenceRefs: Object.freeze([...input.evidenceRefs]),
     limitations: Object.freeze([...(input.limitations ?? [])]),
