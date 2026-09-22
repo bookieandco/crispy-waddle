@@ -20,6 +20,8 @@ export type MeteoraDlmmProfitabilityEvidence=Readonly<{
   feesMinor:bigint
   netCashFlowMinor:bigint
   realizedPnlMinor:bigint|null
+  estimatedProfitabilityMinor:bigint
+  estimatedProfitabilityStatus:'CASH_FLOW_ESTIMATE_ONLY'
   realizationStatus:'CLOSED_COMPLETE'|'PROVISIONAL_OPEN'|'PROVISIONAL_INCOMPLETE'
   impermanentLossMinor:null
   impermanentLossStatus:'BENCHMARK_REQUIRED'
@@ -69,6 +71,8 @@ export function reconcileMeteoraDlmmCashFlowProfitability(input:{
     feesMinor,
     netCashFlowMinor,
     realizedPnlMinor:realizationStatus==='CLOSED_COMPLETE'?netCashFlowMinor:null,
+    estimatedProfitabilityMinor:netCashFlowMinor,
+    estimatedProfitabilityStatus:'CASH_FLOW_ESTIMATE_ONLY',
     realizationStatus,
     // True impermanent loss requires a counterfactual HODL benchmark at matched
     // prices/times. Cash-flow delta alone must never be relabeled as IL.
