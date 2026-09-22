@@ -262,6 +262,23 @@ export class GenerationService {
     const job = await this.getJobDurable(id);
     if (!job) throw new Error(`Generation job not found: ${id}`);
     if (!job.providerJobId) return job;
+    if (this.generationRepository) {
+      const currentTask = await this.generationRepository.getTask(id);
+      const currentExecution = (await this.generationRepository.listExecutions(id)).at(-1);
+      if (currentExecution?.leaseToken && currentExecution.leaseOwner && currentExecution.leaseOwner !== this.workerId) {
+        const durable = jobFromTask(currentTask ?? {
+          id,
+          projectId: job.request.projectId,
+          idempotencyKey: id,
+          request: job.request,
+          status: job.status,
+          createdAt: job.createdAt,
+          updatedAt: job.updatedAt,
+        }, currentExecution);
+        this.jobs.set(id, durable);
+        return durable;
+      }
+    }
     const provider = this.providers.get(job.providerId);
     if (!provider) throw new Error(`Provider is not configured: ${job.providerId}`);
     const result = await provider.status(job.providerJobId);
