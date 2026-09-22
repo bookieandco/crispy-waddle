@@ -86,7 +86,6 @@ describe('Director commercial creative -> Growth A/B bridge', () => {
         ],
       },
       dataHealth: healthyFeed,
-      dataHealth: healthyFeed,
       observations: [],
       policy: { minimumExposuresPerVariant: 1000 },
     })).toThrow('GROWTH_AD_MULTIPLIER_CAUSAL_TEST_REQUIRES_SINGLE_AXIS');
@@ -95,7 +94,6 @@ describe('Director commercial creative -> Growth A/B bridge', () => {
   it('rejects performance rows that do not belong to the experiment lineage', () => {
     expect(() => assessDirectorCommercialCreativeExperiment({
       plan,
-      dataHealth: healthyFeed,
       dataHealth: healthyFeed,
       observations: [
         { variantId: 'creative:unknown', exposures: 1000, conversions: 100 },
