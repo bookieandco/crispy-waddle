@@ -48,6 +48,7 @@ export type Opportunity = {
   approvedAt?: string
   researchCaseId?: string
   sideHustleProfile?: SideHustleProfile
+  sideHustleLabel?: string
 }
 
 export const SIDE_INCOME_KINDS: OpportunityKind[] = [
