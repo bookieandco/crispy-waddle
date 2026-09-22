@@ -5,6 +5,7 @@ import {
   type ArtifactDeploymentReceipt,
 } from '@jhadina/reference-provenance';
 import {
+  bindComfyUIWorkflowReferences,
   ComfyUIProvider,
   createComfyUIHttpClient,
   GenerationRegistry,
@@ -81,7 +82,10 @@ function buildWorkflow(request: Parameters<NonNullable<GenerationProvider['submi
   if (!workflow || typeof workflow !== 'object' || Array.isArray(workflow)) {
     throw new Error('DIRECTOR_COMFYUI_WORKFLOW_REQUIRED');
   }
-  return workflow as Record<string, unknown>;
+  return bindComfyUIWorkflowReferences(
+    workflow as Record<string, unknown>,
+    request.references ?? [],
+  ).workflow;
 }
 
 /**
