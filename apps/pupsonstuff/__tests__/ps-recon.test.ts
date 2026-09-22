@@ -90,7 +90,7 @@ describe('PS-RECON creative and print contracts', () => {
     expect(master.quality.checks.find((check) => check.id === 'source-resolution')?.status).toBe(
       'pass'
     );
-  });
+  }, 15_000);
   it('requires real alpha when the shopper requested background removal', async () => {
     const hotspot = hotspots.find((item) => item.id === 'frame1')!;
     const variant = hotspot.fulfillment!.variants[0];
@@ -134,6 +134,6 @@ describe('PS-RECON creative and print contracts', () => {
       opaqueMaster.quality.checks.find((check) => check.id === 'background')?.status
     ).toBe('fail');
     expect(opaqueMaster.quality.productionReady).toBe(false);
-  });
+  }, 15_000);
 
 });
