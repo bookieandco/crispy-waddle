@@ -17,6 +17,11 @@ function referenceProviderCostClass(): WholeVideoProviderCostClass {
   return value === 'paid' || value === 'external-free' || value === 'free-local' ? value : 'free-local';
 }
 
+function productProviderCostClass(): WholeVideoProviderCostClass {
+  const value = process.env.DIRECTOR_PRODUCT_VIDEO_PROVIDER_COST_CLASS;
+  return value === 'paid' || value === 'external-free' || value === 'free-local' ? value : 'free-local';
+}
+
 function providerHeaders(token?: string): HeadersInit | undefined {
   return token ? { authorization: `Bearer ${token}` } : undefined;
 }
@@ -124,8 +129,8 @@ export class ReferenceProductVideoProductionProvider implements WholeVideoProduc
   readonly descriptor: WholeVideoProviderDescriptor = {
     id: process.env.DIRECTOR_PRODUCT_VIDEO_PROVIDER_ID ?? 'product-reference-video-local',
     name: process.env.DIRECTOR_PRODUCT_VIDEO_PROVIDER_NAME ?? 'Product Reference Video',
-    costClass: referenceProviderCostClass(),
-    supportedModes: ['standard', 'short', 'long-form'],
+    costClass: productProviderCostClass(),
+    supportedModes: ['standard', 'short', 'faceless', 'long-form'],
     health: 'unknown',
     supportsProductReference: true,
     requiresProductReference: true,
