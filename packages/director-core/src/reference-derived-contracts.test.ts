@@ -3,6 +3,9 @@ import { evaluateVisualEditEvidence, overlayAvoidsProtectedRegions } from './vis
 import { decideCreativeReviewPanel } from './creative-review-panel';
 import { evaluateShotDramaturgy } from './dramaturgy-gate';
 import { canResumeDirectorPhase, invalidateDirectorPhase } from './phase-checkpoint';
+import { validateFrameExactRenderContract, verifyPureSeekSamples } from './render-determinism';
+import { evaluateSceneEmotionEvidence } from './emotion-storyboard-evidence';
+import { validateCreativeExperiment } from './creative-experiment';
 
 describe('reference-derived Director contracts', () => {
   it('fails visual edits closed when no frame evidence covers the interval', () => {
@@ -168,5 +171,75 @@ describe('reference-derived Director contracts', () => {
       runId: 'run-1', projectId: 'p', phase: 'render', inputFingerprint: 'input-v2',
     })).toBe(false);
     expect(invalidateDirectorPhase(checkpoint, 'input-v2').status).toBe('stale');
+  });
+  it('requires frame-exact duration and detects hidden mutable render state', () => {
+    expect(validateFrameExactRenderContract({
+      fps: 30, width: 1920, height: 1080, durationSeconds: 2, pureSeekRequired: true,
+    })).toMatchObject({ deterministic: true, frameCount: 60 });
+
+    expect(validateFrameExactRenderContract({
+      fps: 30, width: 1920, height: 1080, durationSeconds: 2.05, pureSeekRequired: true,
+    }).reasons).toContain('DIRECTOR_RENDER_DURATION_NOT_FRAME_EXACT');
+
+    expect(verifyPureSeekSamples([
+      { timeSeconds: 1, frameSha256: 'frame-a' },
+      { timeSeconds: 2, frameSha256: 'frame-b' },
+      { timeSeconds: 1, frameSha256: 'frame-changed' },
+    ]).reasons).toContain('DIRECTOR_RENDER_HIDDEN_STATE_DETECTED');
+  });
+
+  it('keeps emotion classification advisory and rejects fallback labels as creative truth', () => {
+    const fallback = evaluateSceneEmotionEvidence({
+      id: 'emotion-1',
+      projectId: 'p',
+      sceneId: 'scene-1',
+      label: 'neutral',
+      confidence: 1,
+      provider: 'classifier',
+      status: 'fallback',
+      evidenceRefs: ['classifier-unavailable'],
+      limitations: ['model unavailable'],
+      observedAt: '2026-09-22T00:00:00Z',
+    });
+    expect(fallback.usableAsAdvisoryEvidence).toBe(false);
+    expect(fallback.authority).toBe('ADVISORY_ONLY');
+    expect(fallback.reasons).toContain('DIRECTOR_EMOTION_NOT_OBSERVED');
+
+    const observed = evaluateSceneEmotionEvidence({
+      id: 'emotion-2',
+      projectId: 'p',
+      sceneId: 'scene-1',
+      label: 'tension',
+      confidence: 0.87,
+      provider: 'classifier',
+      modelId: 'emotion-model-v1',
+      status: 'observed',
+      evidenceRefs: ['scene-text:1'],
+      limitations: [],
+      observedAt: '2026-09-22T00:00:01Z',
+    });
+    expect(observed.usableAsAdvisoryEvidence).toBe(true);
+  });
+
+  it('preserves creative variants and requires an explicit selection receipt', () => {
+    const experiment = {
+      id: 'exp-1',
+      projectId: 'p',
+      hypothesis: 'A hand-drawn treatment carries the intended emotional contrast better than photorealism',
+      variable: 'visual-style',
+      status: 'completed' as const,
+      variants: [
+        { id: 'photo', label: 'photoreal', artifactIds: ['a1'], generationAttemptIds: ['g1'] },
+        { id: 'drawn', label: 'hand-drawn', artifactIds: ['a2'], generationAttemptIds: ['g2', 'g3'] },
+      ],
+      evidenceRefs: ['review:1'],
+      selectedVariantId: 'drawn',
+    };
+    expect(validateCreativeExperiment(experiment).reasons).toContain('DIRECTOR_EXPERIMENT_SELECTION_RECEIPT_REQUIRED');
+    expect(validateCreativeExperiment({
+      ...experiment,
+      selectedBy: 'user-1',
+      selectedAt: '2026-09-22T00:00:00Z',
+    }).valid).toBe(true);
   });
 });
