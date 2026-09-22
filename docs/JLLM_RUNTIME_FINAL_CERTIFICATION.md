@@ -59,3 +59,24 @@ This is an intentional fail-closed result. The remaining blockers require actual
 - PR #615 merged as `12ee3876365d051198c53008e1d53694238d00e1` and removed the root Vercel `ignoreCommand`.
 - No deployment for that main SHA was visible immediately after merge, so this documentation-only main change intentionally retriggers the Git integration after the configuration repair.
 - Certification remains fail-closed until a deployment for the post-#615 main lineage reaches READY and runtime drills pass.
+
+
+## Audit/repair disposition — Vercel production trigger
+
+Status: **MARKED FOR AUDIT/REPAIR**.
+
+Evidence captured after PR #616:
+- current main: `40208ab39441a87a0e597dd77a56e3ee176ce3a5`
+- GitHub combined status: Vercel = failure
+- GitHub workflow runs for that main SHA: none
+- Vercel deployment inventory contains no deployment for `40208ab...`
+- latest visible JLLM deployments are older canceled feature-branch deployments
+- a historical deployment `dpl_4Y9uHzmMJLeSvtrGfiHRqpvwACGr` is READY, proving the Vercel project can build this application lineage in principle
+
+Classification:
+`VERCEL-GIT-TRIGGER / PROJECT-CONNECTION`, not a JLLM source-certification failure.
+
+Repair owner:
+the Vercel/Git integration audit. Verify the project is connected to `bookieandco/crispy-waddle`, production branch is `main`, deployment triggering is enabled, account/usage is not in DEPLOYMENT_DISABLED state, and the GitHub App still has required repository permissions. Do not weaken JLLM runtime gates to compensate.
+
+JLLM may continue source/runtime-contract work while this infrastructure blocker is open, but FINAL.1/2/3/4/5/6/7/8/10/12/15 cannot be promoted to real-world PASS without current executable runtime evidence.
