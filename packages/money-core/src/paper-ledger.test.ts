@@ -14,7 +14,7 @@ const order:PaperOrder={
   submittedAt:'2026-09-21T20:00:00Z',expiresAt:'2026-09-21T20:05:00Z',marketSnapshotId:'market-1',state:'OPEN',authority:'SIMULATION_ONLY'
 }
 const fill:PaperFill={
-  paperFillId:'paper-fill-1',paperOrderId:order.paperOrderId,instrumentId:order.instrumentId,side:'BUY',
+  paperFillId:'paper-fill-1',paperRunId:'run-1',paperOrderId:order.paperOrderId,instrumentId:order.instrumentId,side:'BUY',
   notional:{minor:100000n,currency:'USD'},quantityMicros:10000000n,referencePriceMinor:10000n,fillPriceMinor:10010n,
   fee:{minor:50n,currency:'USD'},slippageBps:10,filledAt:'2026-09-21T20:00:01Z',marketSnapshotId:'market-1',
   evidenceIds:['market:1','assumption:fee'],authority:'SIMULATION_ONLY'
