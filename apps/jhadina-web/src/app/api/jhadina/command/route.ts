@@ -77,7 +77,6 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const claimedUserId = req.headers.get("x-jhadina-user-id") || ""
   const activeTask = typeof body?.activeTask === "string" ? body.activeTask.trim() : ""
-  const artifacts = parseEphemeralArtifacts(body?.artifacts)
 
   if (!claimedUserId) {
     return NextResponse.json({ success: false, error: "Not signed in" }, { status: 401 })
@@ -87,6 +86,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const artifacts = parseEphemeralArtifacts(body?.artifacts)
     const growthReadIntent = inspectAskGrowthReadIntent(activeTask)
     if (growthReadIntent) {
       const verifier = await createRequestIdentityVerifier()
