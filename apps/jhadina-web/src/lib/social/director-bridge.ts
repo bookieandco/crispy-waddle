@@ -11,6 +11,7 @@ import {
   type GeneratedAssetRecord,
   type MediaReviewDecisionRecord,
   type SocialProductionMediaType,
+  type DirectorSocialCommercialCreativeRef,
 } from "@jhadina/director-core"
 
 export interface SocialDirectorProductionInput {
@@ -20,6 +21,7 @@ export interface SocialDirectorProductionInput {
   rightsEvidenceRefs?: readonly string[]
   aspectRatio?: string
   targetRuntimeSeconds?: number
+  commercialCreative?: DirectorSocialCommercialCreativeRef
   createdAt?: string
 }
 
@@ -45,6 +47,7 @@ export function buildDirectorBriefFromSocial(
     referenceAssetIds: input.referenceAssetIds,
     rightsEvidenceRefs: input.rightsEvidenceRefs,
     evidenceRefs: [...new Set([...project.evidenceRefs, ...asset.evidenceRefs])],
+    commercialCreative: input.commercialCreative,
     createdAt: input.createdAt ?? new Date().toISOString(),
   }
 
