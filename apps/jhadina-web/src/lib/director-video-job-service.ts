@@ -30,9 +30,23 @@ type VideoJobRow = {
   output_asset_ids: string[] | null;
   preview_asset_id: string | null;
   error: string | null;
+  spec: Record<string, unknown> | null;
+  provider_policy: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 };
+
+function stableJobJson(value: unknown): string {
+  if (value === null) return 'null';
+  if (typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableJobJson).join(',')}]`;
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().filter((key) => record[key] !== undefined)
+      .map((key) => `${JSON.stringify(key)}:${stableJobJson(record[key])}`).join(',')}}`;
+  }
+  throw new Error('DIRECTOR_VIDEO_JOB_SPEC_UNSUPPORTED_VALUE');
+}
 
 function toJob(row: VideoJobRow): DirectorVideoJob {
   return {
@@ -144,6 +158,34 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
   const projectId = existingProject || `director:ask:${jobId}`;
   const now = new Date().toISOString();
 
+  const requestedSpec: Record<string, unknown> = {
+    narration: intent.narration,
+    captions: intent.captions,
+    foley: intent.foley,
+    commercialSafeOnly: intent.commercialSafeOnly,
+    ...(input.referenceCharacter ? {
+      referenceCharacter: {
+        characterId: input.referenceCharacter.characterId,
+        continuityRef: input.referenceCharacter.continuityRef,
+        appearanceVariantId: input.referenceCharacter.appearanceVariantId,
+        referenceAssetIds: [...input.referenceCharacter.referenceAssetIds],
+        referenceSha256s: [...input.referenceCharacter.referenceSha256s],
+        productionPlan: input.referenceCharacter.productionPlan,
+      },
+    } : {}),
+    ...(input.referenceProduct ? {
+      referenceProduct: {
+        productId: input.referenceProduct.productId,
+        productBibleId: input.referenceProduct.productBibleId,
+        canonicalVariantId: input.referenceProduct.canonicalVariantId,
+        referenceAssetIds: [...input.referenceProduct.referenceAssetIds],
+        referenceSha256s: [...input.referenceProduct.referenceSha256s],
+        labelAuthorities: input.referenceProduct.labelAuthorities.map((authority) => ({ ...authority })),
+      },
+    } : {}),
+  };
+  const requestedProviderPolicy = intent.providerPolicy;
+
   const { data, error } = await client.rpc('create_director_video_job', {
     p_job_id: jobId,
     p_client_request_id: clientRequestId,
@@ -154,38 +196,31 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
     p_mode: intent.mode,
     p_aspect_ratio: intent.aspectRatio,
     p_target_duration_seconds: intent.targetDurationSeconds ?? null,
-    p_spec: {
-      narration: intent.narration,
-      captions: intent.captions,
-      foley: intent.foley,
-      commercialSafeOnly: intent.commercialSafeOnly,
-      ...(input.referenceCharacter ? {
-        referenceCharacter: {
-          characterId: input.referenceCharacter.characterId,
-          continuityRef: input.referenceCharacter.continuityRef,
-          appearanceVariantId: input.referenceCharacter.appearanceVariantId,
-          referenceAssetIds: [...input.referenceCharacter.referenceAssetIds],
-          referenceSha256s: [...input.referenceCharacter.referenceSha256s],
-          productionPlan: input.referenceCharacter.productionPlan,
-        },
-      } : {}),
-      ...(input.referenceProduct ? {
-        referenceProduct: {
-          productId: input.referenceProduct.productId,
-          productBibleId: input.referenceProduct.productBibleId,
-          canonicalVariantId: input.referenceProduct.canonicalVariantId,
-          referenceAssetIds: [...input.referenceProduct.referenceAssetIds],
-          referenceSha256s: [...input.referenceProduct.referenceSha256s],
-          labelAuthorities: input.referenceProduct.labelAuthorities.map((authority) => ({ ...authority })),
-        },
-      } : {}),
-    },
-    p_provider_policy: intent.providerPolicy,
+    p_spec: requestedSpec,
+    p_provider_policy: requestedProviderPolicy,
     p_now: now,
   });
   if (error) throw error;
 
-  let job = toJob(data as VideoJobRow);
+  const row = data as VideoJobRow;
+  const durationMatches =
+    row.target_duration_seconds === null
+      ? intent.targetDurationSeconds === undefined
+      : Number(row.target_duration_seconds) === intent.targetDurationSeconds;
+  if (
+    row.user_id !== input.userId ||
+    row.project_id !== projectId ||
+    row.prompt !== intent.prompt ||
+    row.mode !== intent.mode ||
+    row.aspect_ratio !== intent.aspectRatio ||
+    !durationMatches ||
+    stableJobJson(row.spec ?? {}) !== stableJobJson(requestedSpec) ||
+    stableJobJson(row.provider_policy ?? {}) !== stableJobJson(requestedProviderPolicy)
+  ) {
+    throw new Error('DIRECTOR_VIDEO_CLIENT_REQUEST_ID_BINDING_MISMATCH');
+  }
+
+  let job = toJob(row);
   if (job.providerJobId || ['submitted','generating','ingesting','preview_ready'].includes(job.status)) {
     return { intent, job };
   }
