@@ -83,6 +83,26 @@ function allowedResource(url:string){
 const textType=(t:string)=>/^text\//i.test(t)||/json|xml|csv|html|javascript/i.test(t)
 const sourceKind=(url:string)=>{const p=new URL(url).pathname.toLowerCase();if(p.endsWith('.pdf'))return'pdf';if(p.endsWith('.docx'))return'docx';if(p.endsWith('.xlsx')||p.endsWith('.xls'))return'xlsx';if(p.endsWith('.csv'))return'csv';if(p.endsWith('.zip'))return'zip';return'attachment'}
 
+async function extractBinaryDocument(bytes:Uint8Array,contentType:string,url:string){
+  if(bytes.byteLength>4_000_000)return {text:null as string|null,status:'binary_captured',parser:null as string|null,error:'EXTRACTOR_SIZE_LIMIT'}
+  const base=process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key=process.env.SUPABASE_SERVICE_ROLE_KEY
+  if(!base||!key)return {text:null as string|null,status:'binary_captured',parser:null as string|null,error:'EXTRACTOR_NOT_CONFIGURED'}
+  const fileName=(()=>{try{return decodeURIComponent(new URL(url).pathname.split('/').pop()||'document')}catch{return'document'}})()
+  const response=await fetch(`${base}/functions/v1/sam-document-extract`,{
+    method:'POST',
+    headers:{authorization:`Bearer ${key}`,apikey:key,'content-type':'application/json'},
+    body:JSON.stringify({base64:Buffer.from(bytes).toString('base64'),contentType,fileName}),
+    cache:'no-store',
+    signal:AbortSignal.timeout(30000),
+  })
+  const body=await response.json().catch(()=>({})) as {ok?:boolean;text?:unknown;parser?:unknown;error?:unknown}
+  if(response.ok&&body.ok&&typeof body.text==='string'&&body.text.trim()){
+    return {text:body.text.slice(0,1_000_000),status:'text_extracted',parser:typeof body.parser==='string'?body.parser:null,error:null}
+  }
+  return {text:null as string|null,status:'binary_captured',parser:typeof body.parser==='string'?body.parser:null,error:typeof body.error==='string'?body.error:`EXTRACTOR_HTTP_${response.status}`}
+}
+
 export async function harvestSamDocuments(client:SupabaseClient,noticeIds:string[],maxDocuments=60){
   if(!noticeIds.length)return {attempted:0,textCaptured:0,binaryCaptured:0,failed:0}
   const {data,error}=await client.from('jhadina_sam_catalog').select('notice_id,description,source_url,resource_links').in('notice_id',noticeIds)
@@ -108,10 +128,19 @@ export async function harvestSamDocuments(client:SupabaseClient,noticeIds:string
         if(declared>10_000_000){failed+=1;await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:url,source_kind:sourceKind(url),content_type:contentType,byte_length:declared,fetch_status:'too_large',evidence:{maxBytes:10_000_000},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'});continue}
         const bytes=new Uint8Array(await response.arrayBuffer())
         if(bytes.byteLength>10_000_000)throw new Error('RESOURCE_TOO_LARGE')
-        const extracted=textType(contentType)?new TextDecoder().decode(bytes).slice(0,1_000_000):null
-        const status=extracted!==null?'text_captured':'binary_captured'
-        await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:url,source_kind:sourceKind(url),checksum:sha(bytes),content_type:contentType,byte_length:bytes.byteLength,extracted_text:extracted,fetch_status:status,evidence:{source:'sam_resource_link'},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'})
-        if(extracted!==null)textCaptured+=1;else binaryCaptured+=1
+        let extracted:string|null=null
+        let status='binary_captured'
+        let parser:string|null=null
+        let extractionError:string|null=null
+        if(textType(contentType)){
+          extracted=new TextDecoder().decode(bytes).slice(0,1_000_000)
+          status='text_captured'
+        }else{
+          const parsed=await extractBinaryDocument(bytes,contentType,url)
+          extracted=parsed.text;status=parsed.status;parser=parsed.parser;extractionError=parsed.error
+        }
+        await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:url,source_kind:sourceKind(url),checksum:sha(bytes),content_type:contentType,byte_length:bytes.byteLength,extracted_text:extracted,fetch_status:status,evidence:{source:'sam_resource_link',parser,extractionError},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'})
+        if(extracted!==null)textCaptured+=1;else{binaryCaptured+=1;if(extractionError)failed+=1}
       }catch(error){
         failed+=1
         await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:url,source_kind:sourceKind(url),fetch_status:'fetch_failed',evidence:{error:error instanceof Error?error.message:'fetch failed'},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'})
