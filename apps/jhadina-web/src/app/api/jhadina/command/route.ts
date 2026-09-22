@@ -98,11 +98,57 @@ export async function POST(req: NextRequest) {
           && Boolean(videoIntent)
 
         if (shouldStartDirectorVideo) {
+          const character = social.workPlan.character
+          const resolvedBrands = new Set([
+            ...social.workPlan.accounts.map((account) => account.brand),
+            ...(character ? [character.brand] : []),
+          ])
+          if (resolvedBrands.size !== 1 || social.workPlan.accounts.length === 0) {
+            const recommendation = resolvedBrands.size !== 1
+              ? "Choose one Social brand before starting Director production."
+              : "Choose at least one connected Social account before starting Director production."
+            const scopedProposal = {
+              ...social.proposal,
+              disposition: "ASK" as const,
+              recommendation,
+              rationale: `${social.proposal.rationale} Director auto-start requires one resolved brand and at least one connected account so expression/account scope cannot be broadened implicitly.`,
+            }
+            return NextResponse.json({
+              success: true,
+              data: {
+                proposal: scopedProposal,
+                reasoningEventId: social.reasoningEventId,
+                expression: {
+                  proposal: scopedProposal,
+                  presentation: { mode: "clarifying", allowProfanity: false, allowQuip: false },
+                  segments: [{ kind: "semantic", text: recommendation }],
+                },
+                verified: social.verified,
+                verificationReason: social.verificationReason,
+                socialWorkPlan: social.workPlan,
+                feedbackEligible: false,
+              },
+            })
+          }
+
           const video = await createAndSubmitAskVideoJob({
             userId: verifiedIdentity.userId,
             activeTask,
             activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
             clientRequestId: typeof body?.clientRequestId === "string" ? body.clientRequestId : undefined,
+            socialExpression: {
+              brand: [...resolvedBrands][0]!,
+              characterProfileRef: character?.id,
+              voiceProfileRef: character?.voiceProfileRef,
+              toneTraits: character?.toneTraits,
+              pointOfView: character?.pointOfView,
+              accountScopes: social.workPlan.accounts.map((account) => ({
+                accountId: account.accountId,
+                platform: account.platform,
+                provider: account.provider,
+                displayName: account.displayName,
+              })),
+            },
           })
           const started = !["blocked", "failed", "cancelled"].includes(video.job.status)
           const message = started
