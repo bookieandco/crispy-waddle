@@ -1,4 +1,7 @@
 import http from 'node:http';
+import dns from 'node:dns';
+
+dns.setDefaultResultOrder('ipv4first');
 
 const port = Number(process.env.PORT || 3000);
 const mediaWorkerUrl = process.env.MEDIA_WORKER_INTERNAL_URL?.replace(/\/$/, '');
