@@ -5,9 +5,12 @@ import {
   appendMeteoraPositionStateEvidence,
   evaluatePersistedMeteoraProfitability,
 } from '@/lib/shark/research-evidence-repository'
-import type {
-  MeteoraDlmmCashFlowEvidence,
-  MeteoraDlmmPositionStateEvidence,
+import {
+  applyVerifiedMeteoraCashFlowValuation,
+  deriveMeteoraNativeCashFlowEvidence,
+  type MeteoraCashFlowValuationEvidence,
+  type MeteoraDlmmPositionStateEvidence,
+  type MeteoraTransactionCashFlowInput,
 } from '@jhadina/shark-intelligence-core/meme-trader'
 
 export const runtime='nodejs'
@@ -31,6 +34,31 @@ function serialize(result:Awaited<ReturnType<typeof evaluatePersistedMeteoraProf
     feesMinor:result.feesMinor.toString(),
     netCashFlowMinor:result.netCashFlowMinor.toString(),
     realizedPnlMinor:result.realizedPnlMinor===null?null:result.realizedPnlMinor.toString(),
+  }
+}
+function transactionFromJson(value:any):MeteoraTransactionCashFlowInput{
+  if(!value||!Array.isArray(value.assets))throw new Error('invalid_transaction_cash_flow')
+  return {
+    transactionId:String(value.transactionId??''),
+    position:String(value.position??''),
+    kind:value.kind,
+    assets:value.assets.map((asset:any)=>({currency:String(asset.currency??''),amountMinor:BigInt(String(asset.amountMinor))})),
+    observedAt:String(value.observedAt??''),
+    availableAt:String(value.availableAt??''),
+    evidenceIds:Array.isArray(value.evidenceIds)?value.evidenceIds.map(String):[],
+  }
+}
+function valuationFromJson(value:any):MeteoraCashFlowValuationEvidence{
+  return {
+    valuationId:String(value?.valuationId??''),
+    sourceCurrency:String(value?.sourceCurrency??''),
+    targetCurrency:String(value?.targetCurrency??''),
+    sourceAmountMinor:BigInt(String(value?.sourceAmountMinor)),
+    valuedAmountMinor:BigInt(String(value?.valuedAmountMinor)),
+    informationCutoff:String(value?.informationCutoff??''),
+    observedAt:String(value?.observedAt??''),
+    availableAt:String(value?.availableAt??''),
+    evidenceIds:Array.isArray(value?.evidenceIds)?value.evidenceIds.map(String):[],
   }
 }
 
@@ -61,16 +89,37 @@ export async function POST(request:NextRequest){
   if(!client)return NextResponse.json({ok:false,error:'shark_persistence_unavailable'},{status:503})
   try{
     const body=await request.json() as {
-      recordType?:'cash-flow'|'position-state'
+      recordType?:'transaction-cash-flow'|'position-state'
       source?:string
-      flow?:Omit<MeteoraDlmmCashFlowEvidence,'amountMinor'>&{amountMinor:string|number}
+      transaction?:unknown
+      valuations?:unknown[]
       state?:MeteoraDlmmPositionStateEvidence
     }
     if(typeof body.source!=='string')return NextResponse.json({ok:false,error:'invalid_payload'},{status:400})
-    if(body.recordType==='cash-flow'&&body.flow){
-      const flow:MeteoraDlmmCashFlowEvidence={...body.flow,amountMinor:BigInt(String(body.flow.amountMinor))}
-      const disposition=await appendMeteoraCashFlowEvidence(client,{flow,source:body.source})
-      return NextResponse.json({ok:true,disposition})
+    if(body.recordType==='transaction-cash-flow'&&body.transaction){
+      const transaction=transactionFromJson(body.transaction)
+      const nativeFlows=deriveMeteoraNativeCashFlowEvidence(transaction)
+      let inserted=0,replayed=0
+      for(const flow of nativeFlows){
+        const disposition=await appendMeteoraCashFlowEvidence(client,{flow,source:body.source})
+        if(disposition==='INSERTED')inserted+=1
+        else replayed+=1
+      }
+
+      const valuations=(body.valuations??[]).map(valuationFromJson)
+      const seenValuations=new Set<string>()
+      for(const valuation of valuations){
+        const key=`${valuation.sourceCurrency}->${valuation.targetCurrency}`
+        if(seenValuations.has(key))throw new Error('duplicate_flow_valuation_in_request')
+        seenValuations.add(key)
+        const native=nativeFlows.find(flow=>flow.currency===valuation.sourceCurrency&&flow.amountMinor===valuation.sourceAmountMinor)
+        if(!native)throw new Error('valuation_source_flow_not_found')
+        const valued=applyVerifiedMeteoraCashFlowValuation(native,valuation)
+        const disposition=await appendMeteoraCashFlowEvidence(client,{flow:valued,source:body.source})
+        if(disposition==='INSERTED')inserted+=1
+        else replayed+=1
+      }
+      return NextResponse.json({ok:true,nativeFlows:nativeFlows.length,valuedFlows:valuations.length,inserted,replayed})
     }
     if(body.recordType==='position-state'&&body.state){
       const disposition=await appendMeteoraPositionStateEvidence(client,{state:body.state,source:body.source})

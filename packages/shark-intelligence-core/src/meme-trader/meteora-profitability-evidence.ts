@@ -3,6 +3,7 @@ export type MeteoraDlmmCashFlowAmountSemantics='NATIVE_TRANSFER'|'VERIFIED_VALUA
 
 export type MeteoraDlmmCashFlowEvidence=Readonly<{
   evidenceId:string
+  rootFlowId?:string
   transactionId:string
   position:string
   kind:MeteoraDlmmCashFlowKind
@@ -47,6 +48,7 @@ const assertIso=(v:string,code:string)=>{if(!v||Number.isNaN(Date.parse(v)))thro
 
 export function assertMeteoraDlmmCashFlowEvidence(flow:MeteoraDlmmCashFlowEvidence):void{
   if(!flow.evidenceId.trim()||!flow.transactionId.trim()||!flow.position.trim()||!flow.currency.trim())throw new Error('meteora_profitability_flow_identity_required')
+  if(flow.rootFlowId!==undefined&&!flow.rootFlowId.trim())throw new Error('meteora_profitability_root_flow_invalid')
   if(flow.amountMinor<0n)throw new Error('meteora_profitability_negative_amount')
   if(!['DEPOSIT','WITHDRAWAL','FEE'].includes(flow.kind))throw new Error('meteora_profitability_flow_kind_invalid')
   if(!['NATIVE_TRANSFER','VERIFIED_VALUATION'].includes(flow.amountSemantics))throw new Error('meteora_profitability_amount_semantics_invalid')
@@ -87,7 +89,21 @@ export function reconcileMeteoraDlmmCashFlowProfitability(input:{
   const eligible=input.flows.filter(flow=>Date.parse(flow.availableAt)<=cutoff)
   const future=input.flows.filter(flow=>Date.parse(flow.availableAt)>cutoff)
   if(!eligible.length)throw new Error('meteora_profitability_evidence_required')
-  const sum=(kind:MeteoraDlmmCashFlowKind)=>eligible.filter(flow=>flow.kind===kind).reduce((n,flow)=>n+flow.amountMinor,0n)
+  const byRoot=new Map<string,MeteoraDlmmCashFlowEvidence[]>()
+  for(const flow of eligible){
+    const root=(flow.rootFlowId??flow.evidenceId).trim()
+    const xs=byRoot.get(root)??[]
+    xs.push(flow)
+    byRoot.set(root,xs)
+  }
+  const selectedEligible:MeteoraDlmmCashFlowEvidence[]=[]
+  for(const xs of byRoot.values()){
+    if(xs.length===1){selectedEligible.push(xs[0]!);continue}
+    const valued=xs.filter(flow=>flow.amountSemantics==='VERIFIED_VALUATION')
+    if(valued.length===1){selectedEligible.push(valued[0]!);continue}
+    throw new Error('meteora_profitability_competing_flow_representations')
+  }
+  const sum=(kind:MeteoraDlmmCashFlowKind)=>selectedEligible.filter(flow=>flow.kind===kind).reduce((n,flow)=>n+flow.amountMinor,0n)
   const depositsMinor=sum('DEPOSIT'),withdrawalsMinor=sum('WITHDRAWAL'),feesMinor=sum('FEE')
   const netCashFlowMinor=withdrawalsMinor+feesMinor-depositsMinor
   // Point-in-time status is determined only by evidence available at the cutoff.
@@ -95,10 +111,10 @@ export function reconcileMeteoraDlmmCashFlowProfitability(input:{
   // whether the position was believed closed/complete at that historical time.
   const realizationStatus:MeteoraDlmmProfitabilityEvidence['realizationStatus']=
     !input.transactionHistoryComplete?'PROVISIONAL_INCOMPLETE':input.positionClosed?'CLOSED_COMPLETE':'PROVISIONAL_OPEN'
-  const valuationVerified=eligible.every(flow=>flow.amountSemantics==='VERIFIED_VALUATION'&&flow.valuationEvidenceIds.length>0)
+  const valuationVerified=selectedEligible.every(flow=>flow.amountSemantics==='VERIFIED_VALUATION'&&flow.valuationEvidenceIds.length>0)
   const valuationStatus:MeteoraDlmmProfitabilityEvidence['valuationStatus']=valuationVerified?'VERIFIED':'VALUATION_REQUIRED'
   const evidenceIds=[...new Set([
-    ...eligible.flatMap(flow=>[flow.evidenceId,...flow.valuationEvidenceIds]),
+    ...selectedEligible.flatMap(flow=>[flow.evidenceId,...flow.valuationEvidenceIds]),
     ...(input.positionStateEvidenceIds??[]),
   ])].sort()
   return Object.freeze({

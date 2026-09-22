@@ -62,3 +62,4 @@ jobs:
           test -f supabase/migrations/20260920143411_shark_provenance_debt_closure.sql
           test -f supabase/migrations/20260920144042_shark_shared_launch_rls.sql
           test -f supabase/migrations/20260922025000_shark_research_evidence_runtime.sql
+          test -f supabase/migrations/20260922031500_shark_wallet_cluster_evidence_producers.sql

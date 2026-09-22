@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { runPersistedLaunchOutcomeWorker } from '@/lib/shark/launch-outcome-repository'
+import { runPersistedLaunchOutcomeWorker } from '@/lib/shark/launch-outcome-repository'\nimport { runAllPersistedWalletClusterCalibrationProducers } from '@/lib/shark/research-evidence-repository'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -25,9 +25,11 @@ async function run(request: NextRequest) {
   if (!client) return NextResponse.json({ ok: false, error: 'shark_persistence_unavailable' }, { status: 503 })
   try {
     const result = await runPersistedLaunchOutcomeWorker(client, limit)
+    const calibration = await runAllPersistedWalletClusterCalibrationProducers(client, { limit: 5000 })
     return NextResponse.json({
       ok: true, evaluated: result.evaluated, changed: result.changed,
       unchanged: result.unchanged, unknown: result.unknown, actorHistories: result.actorHistories.length,
+      calibration,
     })
   } catch (error) {
     console.error('SHARK launch outcome worker failed', error)

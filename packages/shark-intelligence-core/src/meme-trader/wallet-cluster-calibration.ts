@@ -3,6 +3,7 @@ export type WalletClusterOutcome='HEALTHY'|'ADVERSE'|'UNKNOWN'
 export type WalletClusterCalibrationObservation=Readonly<{
   observationId:string
   tokenId:string
+  scoreModelId:string
   distinctWallets:number
   windowSeconds:number
   aggregateWalletScore:number
@@ -36,9 +37,11 @@ export type WalletClusterCalibrationRow=Readonly<{
 }>
 
 export type WalletClusterCalibrationReport=Readonly<{
+  scoreModelId:string
   informationCutoff:string
   observationCount:number
   excludedFutureObservationIds:readonly string[]
+  excludedScoreModelObservationIds:readonly string[]
   rows:readonly WalletClusterCalibrationRow[]
   authority:'RESEARCH_ONLY'
   canMutateRuntimeThresholds:false
@@ -53,7 +56,7 @@ const median=(values:number[]):number|null=>{
 }
 
 export function assertWalletClusterCalibrationObservation(o:WalletClusterCalibrationObservation):void{
-  if(!o.observationId.trim()||!o.tokenId.trim()||!o.evidenceIds.length)throw new Error('shark_cluster_calibration_observation_incomplete')
+  if(!o.observationId.trim()||!o.tokenId.trim()||!o.scoreModelId.trim()||!o.evidenceIds.length)throw new Error('shark_cluster_calibration_observation_incomplete')
   assertIso(o.observedAt,'shark_cluster_calibration_observed_at_invalid')
   assertIso(o.availableAt,'shark_cluster_calibration_available_at_invalid')
   if(Date.parse(o.availableAt)<Date.parse(o.observedAt))throw new Error('shark_cluster_calibration_availability_invalid')
@@ -70,12 +73,37 @@ function validateThreshold(t:WalletClusterThresholdSpec):void{
   if(t.minUsd!==undefined&&(!Number.isFinite(t.minUsd)||t.minUsd<0))throw new Error('shark_cluster_calibration_usd_invalid')
 }
 
+function representativeByToken(rows:readonly WalletClusterCalibrationObservation[]):WalletClusterCalibrationObservation[]{
+  const grouped=new Map<string,WalletClusterCalibrationObservation[]>()
+  for(const row of rows){
+    const xs=grouped.get(row.tokenId)??[]
+    xs.push(row)
+    grouped.set(row.tokenId,xs)
+  }
+  const result:WalletClusterCalibrationObservation[]=[]
+  for(const [tokenId,xs] of grouped){
+    const labels=new Set(xs.filter(x=>x.outcome!=='UNKNOWN').map(x=>x.outcome))
+    if(labels.size>1)throw new Error(`shark_cluster_calibration_conflicting_outcomes:${tokenId}`)
+    // One token should count once per threshold. Prefer the earliest matching signal;
+    // if tied, prefer the one with more wallets, then stable observation ID ordering.
+    const sorted=[...xs].sort((a,b)=>
+      Date.parse(a.observedAt)-Date.parse(b.observedAt)
+      || b.distinctWallets-a.distinctWallets
+      || a.observationId.localeCompare(b.observationId)
+    )
+    result.push(sorted[0]!)
+  }
+  return result
+}
+
 export function evaluateWalletClusterThresholdSensitivity(input:{
   observations:readonly WalletClusterCalibrationObservation[]
   thresholds:readonly WalletClusterThresholdSpec[]
+  scoreModelId:string
   informationCutoff:string
 }):WalletClusterCalibrationReport{
   assertIso(input.informationCutoff,'shark_cluster_calibration_cutoff_invalid')
+  if(!input.scoreModelId.trim())throw new Error('shark_cluster_calibration_score_model_required')
   if(!input.thresholds.length)throw new Error('shark_cluster_calibration_thresholds_required')
   const thresholdIds=new Set<string>()
   input.thresholds.forEach(t=>{validateThreshold(t);if(thresholdIds.has(t.thresholdId))throw new Error('shark_cluster_calibration_duplicate_threshold');thresholdIds.add(t.thresholdId)})
@@ -86,8 +114,10 @@ export function evaluateWalletClusterThresholdSensitivity(input:{
     observationIds.add(o.observationId)
   }
 
-  const eligible=input.observations.filter(o=>Date.parse(o.availableAt)<=Date.parse(input.informationCutoff))
-  const future=input.observations.filter(o=>Date.parse(o.availableAt)>Date.parse(input.informationCutoff)).map(o=>o.observationId).sort()
+  const cutoff=Date.parse(input.informationCutoff)
+  const future=input.observations.filter(o=>Date.parse(o.availableAt)>cutoff).map(o=>o.observationId).sort()
+  const wrongModel=input.observations.filter(o=>o.scoreModelId!==input.scoreModelId).map(o=>o.observationId).sort()
+  const eligible=input.observations.filter(o=>Date.parse(o.availableAt)<=cutoff&&o.scoreModelId===input.scoreModelId)
   const rows=input.thresholds.map(t=>{
     const matched=eligible.filter(o=>
       o.distinctWallets>=t.minWallets&&
@@ -95,27 +125,30 @@ export function evaluateWalletClusterThresholdSensitivity(input:{
       o.aggregateWalletScore>=t.minAggregateWalletScore&&
       (t.minUsd===undefined||o.totalUsd!==undefined&&o.totalUsd>=t.minUsd)
     )
-    const labeled=matched.filter(o=>o.outcome!=='UNKNOWN')
+    const representatives=representativeByToken(matched)
+    const labeled=representatives.filter(o=>o.outcome!=='UNKNOWN')
     const healthy=labeled.filter(o=>o.outcome==='HEALTHY').length
     const adverse=labeled.filter(o=>o.outcome==='ADVERSE').length
     return Object.freeze({
       thresholdId:t.thresholdId,
       matchedObservations:matched.length,
-      matchedTokens:new Set(matched.map(o=>o.tokenId)).size,
+      matchedTokens:representatives.length,
       labeledObservations:labeled.length,
-      outcomeCoverage:ratio(labeled.length,matched.length),
+      outcomeCoverage:ratio(labeled.length,representatives.length),
       healthyRate:labeled.length?ratio(healthy,labeled.length):null,
       adverseRate:labeled.length?ratio(adverse,labeled.length):null,
-      medianWalletCount:median(matched.map(o=>o.distinctWallets)),
-      evidenceIds:Object.freeze([...new Set(matched.flatMap(o=>o.evidenceIds))].sort()),
+      medianWalletCount:median(representatives.map(o=>o.distinctWallets)),
+      evidenceIds:Object.freeze([...new Set(representatives.flatMap(o=>o.evidenceIds))].sort()),
       authority:'RESEARCH_ONLY' as const,
       canSelectProductionThreshold:false as const,
     })
   })
   return Object.freeze({
+    scoreModelId:input.scoreModelId,
     informationCutoff:input.informationCutoff,
     observationCount:eligible.length,
     excludedFutureObservationIds:Object.freeze(future),
+    excludedScoreModelObservationIds:Object.freeze(wrongModel),
     rows:Object.freeze(rows),
     authority:'RESEARCH_ONLY',
     canMutateRuntimeThresholds:false,

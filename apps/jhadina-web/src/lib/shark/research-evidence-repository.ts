@@ -2,15 +2,23 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   assertMeteoraDlmmCashFlowEvidence,
   assertMeteoraDlmmPositionStateEvidence,
+  assertWalletBuyEvidence,
   assertWalletClusterCalibrationObservation,
+  assertWalletResearchScoreEvidence,
+  deriveWalletClusterCalibrationObservations,
   evaluateWalletClusterThresholdSensitivity,
+  normalizeChainAddress,
   reconcileMeteoraDlmmCashFlowProfitabilityFromState,
+  type LaunchOutcome,
   type MeteoraDlmmCashFlowEvidence,
   type MeteoraDlmmPositionStateEvidence,
   type MeteoraDlmmProfitabilityEvidence,
+  type WalletBuyEvidence,
   type WalletClusterCalibrationObservation,
   type WalletClusterCalibrationReport,
+  type WalletClusterOutcomeEvidence,
   type WalletClusterThresholdSpec,
+  type WalletResearchScoreEvidence,
 } from '@jhadina/shark-intelligence-core/meme-trader'
 
 export type SharkResearchAppendDisposition='INSERTED'|'REPLAY'
@@ -41,6 +49,56 @@ function appendResult(value:unknown,code:string):SharkResearchAppendDisposition{
   throw new Error(code)
 }
 
+export async function appendWalletResearchScoreEvidence(
+  client:SupabaseClient,
+  input:{score:WalletResearchScoreEvidence;source:string},
+):Promise<SharkResearchAppendDisposition>{
+  assertWalletResearchScoreEvidence(input.score)
+  nonEmpty(input.source,'SHARK_WALLET_SCORE_RUNTIME_SOURCE_REQUIRED')
+  const chainId=input.score.chainId.trim()
+  const payload={
+    scoreId:input.score.scoreId,
+    chainId,
+    walletId:normalizeChainAddress(chainId,input.score.walletId),
+    scoreModelId:input.score.scoreModelId,
+    score:input.score.score,
+    informationCutoff:input.score.informationCutoff,
+    observedAt:input.score.observedAt,
+    availableAt:input.score.availableAt,
+    evidenceIds:sortedUnique(input.score.evidenceIds),
+    authority:'RESEARCH_ONLY' as const,
+    source:input.source.trim(),
+  }
+  const {data,error}=await client.rpc('jhadina_shark_append_wallet_score_evidence',{p_payload:payload})
+  if(error)throw new Error(`SHARK wallet score append failed: ${error.message}`)
+  return appendResult(data,'SHARK_WALLET_SCORE_RUNTIME_APPEND_RESULT_INVALID')
+}
+
+export async function appendWalletBuyEvidence(
+  client:SupabaseClient,
+  input:{buy:WalletBuyEvidence;source?:string},
+):Promise<SharkResearchAppendDisposition>{
+  assertWalletBuyEvidence(input.buy)
+  const chainId=input.buy.chainId.trim()
+  const source=(input.source??input.buy.source).trim()
+  nonEmpty(source,'SHARK_WALLET_BUY_RUNTIME_SOURCE_REQUIRED')
+  const payload={
+    evidenceId:input.buy.evidenceId,
+    signature:input.buy.signature,
+    chainId,
+    tokenAddress:normalizeChainAddress(chainId,input.buy.tokenAddress),
+    walletId:normalizeChainAddress(chainId,input.buy.walletId),
+    ...(input.buy.amountUsd===undefined?{}:{amountUsd:input.buy.amountUsd}),
+    observedAt:input.buy.observedAt,
+    availableAt:input.buy.availableAt,
+    evidenceIds:sortedUnique(input.buy.evidenceIds),
+    source,
+  }
+  const {data,error}=await client.rpc('jhadina_shark_append_wallet_buy_evidence',{p_payload:payload})
+  if(error)throw new Error(`SHARK wallet buy append failed: ${error.message}`)
+  return appendResult(data,'SHARK_WALLET_BUY_RUNTIME_APPEND_RESULT_INVALID')
+}
+
 export async function appendWalletClusterCalibrationObservation(
   client:SupabaseClient,
   input:{observation:WalletClusterCalibrationObservation;source:string},
@@ -50,6 +108,7 @@ export async function appendWalletClusterCalibrationObservation(
   const payload={
     observationId:input.observation.observationId,
     tokenId:input.observation.tokenId,
+    scoreModelId:input.observation.scoreModelId,
     distinctWallets:input.observation.distinctWallets,
     windowSeconds:input.observation.windowSeconds,
     aggregateWalletScore:input.observation.aggregateWalletScore,
@@ -67,8 +126,9 @@ export async function appendWalletClusterCalibrationObservation(
 
 export async function evaluatePersistedWalletClusterCalibration(
   client:SupabaseClient,
-  input:{informationCutoff:string;thresholds?:readonly WalletClusterThresholdSpec[];limit?:number},
+  input:{informationCutoff:string;scoreModelId:string;thresholds?:readonly WalletClusterThresholdSpec[];limit?:number},
 ):Promise<WalletClusterCalibrationReport>{
+  nonEmpty(input.scoreModelId,'SHARK_CLUSTER_RUNTIME_SCORE_MODEL_REQUIRED')
   const limit=limitValue(input.limit,'SHARK_CLUSTER_RUNTIME_LIMIT_INVALID')
   const {data,error}=await client
     .from('jhadina_shark_wallet_cluster_calibration_observations')
@@ -82,8 +142,142 @@ export async function evaluatePersistedWalletClusterCalibration(
   return evaluateWalletClusterThresholdSensitivity({
     observations,
     thresholds:input.thresholds??SHARK_RESEARCH_CLUSTER_THRESHOLD_GRID,
+    scoreModelId:input.scoreModelId,
     informationCutoff:input.informationCutoff,
   })
+}
+
+function scoreFromPayload(payload:any):WalletResearchScoreEvidence{
+  return {
+    scoreId:String(payload.scoreId),
+    chainId:String(payload.chainId),
+    walletId:String(payload.walletId),
+    scoreModelId:String(payload.scoreModelId),
+    score:Number(payload.score),
+    informationCutoff:String(payload.informationCutoff),
+    observedAt:String(payload.observedAt),
+    availableAt:String(payload.availableAt),
+    evidenceIds:Array.isArray(payload.evidenceIds)?payload.evidenceIds.map(String):[],
+    authority:'RESEARCH_ONLY',
+  }
+}
+
+function buyFromPayload(payload:any):WalletBuyEvidence{
+  return {
+    evidenceId:String(payload.evidenceId),
+    signature:String(payload.signature),
+    chainId:String(payload.chainId),
+    tokenAddress:String(payload.tokenAddress),
+    walletId:String(payload.walletId),
+    ...(payload.amountUsd===undefined?{}:{amountUsd:Number(payload.amountUsd)}),
+    observedAt:String(payload.observedAt),
+    availableAt:String(payload.availableAt),
+    evidenceIds:Array.isArray(payload.evidenceIds)?payload.evidenceIds.map(String):[],
+    source:String(payload.source),
+  }
+}
+
+export async function runPersistedWalletClusterCalibrationProducer(
+  client:SupabaseClient,
+  input:{scoreModelId:string;limit?:number},
+):Promise<Readonly<{tokens:number;emitted:number;inserted:number;replayed:number;skippedUnlabeled:number}>>{
+  nonEmpty(input.scoreModelId,'SHARK_CLUSTER_PRODUCER_SCORE_MODEL_REQUIRED')
+  const limit=limitValue(input.limit,'SHARK_CLUSTER_PRODUCER_LIMIT_INVALID')
+
+  const {data:buyRows,error:buyError}=await client
+    .from('jhadina_shark_wallet_buy_evidence')
+    .select('payload')
+    .order('available_at',{ascending:true})
+    .limit(limit+1)
+  if(buyError)throw new Error(`SHARK wallet buy load failed: ${buyError.message}`)
+  if((buyRows??[]).length>limit)throw new Error('SHARK_CLUSTER_PRODUCER_BUY_WINDOW_TRUNCATED')
+  const buys=(buyRows??[]).map((row:any)=>buyFromPayload(row.payload))
+
+  const {data:scoreRows,error:scoreError}=await client
+    .from('jhadina_shark_wallet_score_evidence')
+    .select('payload')
+    .eq('score_model_id',input.scoreModelId)
+    .order('available_at',{ascending:true})
+    .limit(limit+1)
+  if(scoreError)throw new Error(`SHARK wallet score load failed: ${scoreError.message}`)
+  if((scoreRows??[]).length>limit)throw new Error('SHARK_CLUSTER_PRODUCER_SCORE_WINDOW_TRUNCATED')
+  const scores=(scoreRows??[]).map((row:any)=>scoreFromPayload(row.payload))
+
+  const tokenAddresses=[...new Set(buys.map(b=>b.tokenAddress))]
+  if(!tokenAddresses.length)return Object.freeze({tokens:0,emitted:0,inserted:0,replayed:0,skippedUnlabeled:0})
+
+  const {data:launchRows,error:launchError}=await client
+    .from('jhadina_token_launches')
+    .select('launch_id,chain_id,token_address,outcome,outcome_observed_at,evidence_ids,updated_at')
+    .in('token_address',tokenAddresses)
+    .limit(limit+1)
+  if(launchError)throw new Error(`SHARK cluster producer launch load failed: ${launchError.message}`)
+  if((launchRows??[]).length>limit)throw new Error('SHARK_CLUSTER_PRODUCER_LAUNCH_WINDOW_TRUNCATED')
+
+  const groups=new Map<string,{chainId:string;tokenAddress:string;buys:WalletBuyEvidence[]}>()
+  for(const buy of buys){
+    const key=JSON.stringify([buy.chainId,buy.tokenAddress])
+    const existing=groups.get(key)??{chainId:buy.chainId,tokenAddress:buy.tokenAddress,buys:[]}
+    existing.buys.push(buy)
+    groups.set(key,existing)
+  }
+
+  let emitted=0,inserted=0,replayed=0,skippedUnlabeled=0
+  for(const {chainId,tokenAddress,buys:groupBuys} of groups.values()){
+    const launch=(launchRows??[]).find((row:any)=>row.chain_id===chainId&&row.token_address===tokenAddress)
+    if(!launch||launch.outcome==='UNKNOWN'||!launch.outcome_observed_at){
+      skippedUnlabeled+=1
+      continue
+    }
+    const outcome:WalletClusterOutcomeEvidence={
+      tokenId:String(launch.launch_id),
+      outcome:String(launch.outcome) as LaunchOutcome,
+      observedAt:String(launch.outcome_observed_at),
+      availableAt:String(launch.updated_at??launch.outcome_observed_at),
+      evidenceIds:Array.isArray(launch.evidence_ids)?launch.evidence_ids.map(String):[],
+    }
+    const observations=deriveWalletClusterCalibrationObservations({
+      chainId,
+      tokenAddress,
+      tokenId:String(launch.launch_id),
+      scoreModelId:input.scoreModelId,
+      buys:groupBuys,
+      scores,
+      outcome,
+    })
+    for(const observation of observations){
+      emitted+=1
+      const disposition=await appendWalletClusterCalibrationObservation(client,{
+        observation,
+        source:`wallet-cluster-evidence-producer:${input.scoreModelId}`,
+      })
+      if(disposition==='INSERTED')inserted+=1
+      else replayed+=1
+    }
+  }
+  return Object.freeze({tokens:groups.size,emitted,inserted,replayed,skippedUnlabeled})
+}
+
+export async function runAllPersistedWalletClusterCalibrationProducers(
+  client:SupabaseClient,
+  input:{limit?:number;maxScoreModels?:number}={},
+):Promise<Readonly<{scoreModels:number;tokens:number;emitted:number;inserted:number;replayed:number;skippedUnlabeled:number}>>{
+  const maxScoreModels=input.maxScoreModels??32
+  if(!Number.isInteger(maxScoreModels)||maxScoreModels<1||maxScoreModels>128)throw new Error('SHARK_CLUSTER_PRODUCER_MODEL_LIMIT_INVALID')
+  const {data,error}=await client.rpc('jhadina_shark_wallet_score_models')
+  if(error)throw new Error(`SHARK wallet score model load failed: ${error.message}`)
+  const scoreModels=[...new Set((data??[]).map((row:any)=>String(row.score_model_id)).filter(Boolean))].sort()
+  if(scoreModels.length>maxScoreModels)throw new Error('SHARK_CLUSTER_PRODUCER_SCORE_MODEL_SET_TOO_LARGE')
+  let tokens=0,emitted=0,inserted=0,replayed=0,skippedUnlabeled=0
+  for(const scoreModelId of scoreModels){
+    const result=await runPersistedWalletClusterCalibrationProducer(client,{scoreModelId,limit:input.limit})
+    tokens+=result.tokens
+    emitted+=result.emitted
+    inserted+=result.inserted
+    replayed+=result.replayed
+    skippedUnlabeled+=result.skippedUnlabeled
+  }
+  return Object.freeze({scoreModels:scoreModels.length,tokens,emitted,inserted,replayed,skippedUnlabeled})
 }
 
 export async function appendMeteoraCashFlowEvidence(
@@ -94,6 +288,7 @@ export async function appendMeteoraCashFlowEvidence(
   nonEmpty(input.source,'SHARK_METEORA_RUNTIME_SOURCE_REQUIRED')
   const payload={
     evidenceId:input.flow.evidenceId,
+    rootFlowId:input.flow.rootFlowId??input.flow.evidenceId,
     transactionId:input.flow.transactionId,
     position:input.flow.position,
     kind:input.flow.kind,
@@ -135,6 +330,7 @@ export async function appendMeteoraPositionStateEvidence(
 function flowFromPayload(payload:any):MeteoraDlmmCashFlowEvidence{
   return {
     evidenceId:String(payload.evidenceId),
+    rootFlowId:String(payload.rootFlowId??payload.evidenceId),
     transactionId:String(payload.transactionId),
     position:String(payload.position),
     kind:payload.kind,
