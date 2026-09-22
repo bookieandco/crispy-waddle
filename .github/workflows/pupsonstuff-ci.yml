@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - "apps/pupsonstuff/**"
+      - "services/pupson-background-remover/**"
+      - "services/pupson-media-gateway/**"
+      - "services/pupson-upscaler/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "package.json"
@@ -16,6 +19,9 @@ on:
       - pupsonstuff-main-integration
     paths:
       - "apps/pupsonstuff/**"
+      - "services/pupson-background-remover/**"
+      - "services/pupson-media-gateway/**"
+      - "services/pupson-upscaler/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "package.json"
@@ -45,6 +51,11 @@ jobs:
 
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Validate media service syntax
+        run: |
+          node --check services/pupson-media-gateway/server.mjs
+          python -m py_compile services/pupson-background-remover/media_worker.py
 
       - name: Type-check PupsonStuff
         run: pnpm --filter @jhadina/pupsonstuff type-check
