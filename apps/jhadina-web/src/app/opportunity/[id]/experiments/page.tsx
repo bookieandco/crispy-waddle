@@ -6,6 +6,7 @@ import type {
   SideHustleExperiment,
   SideHustleExperimentEvaluation,
   SideHustleExperimentObservation,
+  SideHustleExperimentProposal,
 } from "@jhadina/opportunity-core"
 
 type ExperimentRecord = {
@@ -19,6 +20,8 @@ export default function SideHustleValidationPage({ params }: { params: { id: str
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState("")
+  const [proposal, setProposal] = useState<SideHustleExperimentProposal | null>(null)
+  const [proposalBusy, setProposalBusy] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -36,6 +39,61 @@ export default function SideHustleValidationPage({ params }: { params: { id: str
   }
 
   useEffect(() => { void load() }, [params.id])
+
+  async function generateProposal() {
+    setProposalBusy(true)
+    setError("")
+    try {
+      const response = await fetch(
+        `/api/opportunities/${encodeURIComponent(params.id)}/experiments/proposal`,
+        { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
+      )
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error || "Unable to generate validation proposal")
+      setProposal(json.data?.proposal ?? null)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to generate validation proposal")
+    } finally {
+      setProposalBusy(false)
+    }
+  }
+
+  async function createProposal() {
+    if (!proposal) return
+    setProposalBusy(true)
+    setError("")
+    try {
+      const response = await fetch(
+        `/api/opportunities/${encodeURIComponent(params.id)}/experiments`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            hypothesis: proposal.hypothesis,
+            targetCustomer: proposal.targetCustomer,
+            channel: proposal.channel,
+            offer: proposal.offer,
+            maxSpend: proposal.maxSpend,
+            currency: proposal.currency,
+            maxHours: proposal.maxHours,
+            maxDurationDays: proposal.maxDurationDays,
+            minimumObservations: proposal.minimumObservations,
+            successCriteria: proposal.successCriteria,
+            killCriteria: proposal.killCriteria,
+            evidenceRefs: proposal.evidenceRefs,
+          }),
+        },
+      )
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error || "Unable to create validation plan")
+      setProposal(null)
+      await load()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to create validation plan")
+    } finally {
+      setProposalBusy(false)
+    }
+  }
 
   async function transition(experimentId: string, action: "start" | "complete") {
     setBusy(experimentId)
@@ -66,6 +124,108 @@ export default function SideHustleValidationPage({ params }: { params: { id: str
         </p>
 
         {error && <div role="alert" style={warning}>{error}</div>}
+
+        <div style={proposalBar}>
+          <button style={secondary} disabled={proposalBusy} onClick={() => void generateProposal()}>
+            {proposalBusy ? "Working…" : proposal ? "Regenerate proposal" : "Generate Jhadina proposal"}
+          </button>
+          <span style={proposalHint}>Proposal generation never starts outreach or spends money.</span>
+        </div>
+
+        {proposal && (
+          <article style={proposalCard}>
+            <div style={topRow}>
+              <span style={badge}>proposal</span>
+              <span style={badge}>{proposal.familyLabel}</span>
+              <span style={badge}>{proposal.archetype.replace(/_/g, " ")}</span>
+            </div>
+            <h2 style={cardTitle}>{proposal.hypothesis}</h2>
+
+            <label style={fieldLabel}>
+              Target customer
+              <input
+                style={input}
+                value={proposal.targetCustomer}
+                onChange={(event) => setProposal({ ...proposal, targetCustomer: event.target.value })}
+              />
+            </label>
+            <label style={fieldLabel}>
+              Offer
+              <input
+                style={input}
+                value={proposal.offer}
+                onChange={(event) => setProposal({ ...proposal, offer: event.target.value })}
+              />
+            </label>
+            <p style={copy}><strong>Channel:</strong> {proposal.channel}</p>
+
+            <div style={metricGrid}>
+              <label style={fieldLabel}>
+                Spend cap
+                <input
+                  style={input}
+                  type="number"
+                  min={0}
+                  max={500}
+                  value={proposal.maxSpend}
+                  onChange={(event) => setProposal({ ...proposal, maxSpend: Number(event.target.value) })}
+                />
+              </label>
+              <label style={fieldLabel}>
+                Hours cap
+                <input
+                  style={input}
+                  type="number"
+                  min={1}
+                  max={40}
+                  value={proposal.maxHours}
+                  onChange={(event) => setProposal({ ...proposal, maxHours: Number(event.target.value) })}
+                />
+              </label>
+              <label style={fieldLabel}>
+                Duration days
+                <input
+                  style={input}
+                  type="number"
+                  min={1}
+                  max={45}
+                  value={proposal.maxDurationDays}
+                  onChange={(event) => setProposal({ ...proposal, maxDurationDays: Number(event.target.value) })}
+                />
+              </label>
+              <Metric label="Min evidence" value={String(proposal.minimumObservations)} />
+            </div>
+
+            <div style={section}>
+              <div style={sectionTitle}>Suggested success criteria</div>
+              {proposal.successCriteria.map((criterion) => (
+                <div key={criterion.id} style={criterionRow}>
+                  <span>{criterion.metric}</span>
+                  <span>{criterion.operator} {criterion.threshold} {criterion.unit}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={section}>
+              <div style={sectionTitle}>Assumptions to review</div>
+              {proposal.assumptions.map((assumption) => (
+                <div key={assumption} style={assumptionRow}>• {assumption}</div>
+              ))}
+            </div>
+
+            <div style={actions}>
+              <button
+                style={primary}
+                disabled={proposalBusy || records.some((item) => ["planned", "running"].includes(item.experiment.status))}
+                onClick={() => void createProposal()}
+              >
+                {records.some((item) => ["planned", "running"].includes(item.experiment.status))
+                  ? "Finish active experiment first"
+                  : proposalBusy ? "Working…" : "Create bounded plan"}
+              </button>
+            </div>
+          </article>
+        )}
 
         {loading ? (
           <p style={muted}>Loading validation evidence…</p>
@@ -206,6 +366,13 @@ const criterionRow = { display: "flex", justifyContent: "space-between", gap: 12
 const evaluationBox = { marginTop: 16, padding: 14, borderRadius: 16, background: "#f0f2ef", fontSize: 12, color: "#58665e", lineHeight: 1.55 }
 const actions = { display: "flex", gap: 8, marginTop: 16 }
 const primary = { border: 0, borderRadius: 999, padding: "10px 15px", background: "#34453c", color: "white", cursor: "pointer" }
+const secondary = { border: "1px solid #d5ddd7", borderRadius: 999, padding: "10px 15px", background: "white", color: "#526158", cursor: "pointer" }
 const warning = { marginTop: 16, padding: 12, borderRadius: 14, background: "#f3ebe1", color: "#785f49" }
+const proposalBar = { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" as const, marginTop: 18 }
+const proposalHint = { color: "#7b877f", fontSize: 11 }
+const proposalCard = { ...card, border: "1px solid #cbd8cf", background: "rgba(244,248,244,.92)" }
+const fieldLabel = { display: "grid", gap: 5, color: "#69766e", fontSize: 10, textTransform: "uppercase" as const, letterSpacing: ".08em", marginTop: 10 }
+const input = { width: "100%", boxSizing: "border-box" as const, border: "1px solid #d2dad4", borderRadius: 10, background: "white", padding: "9px 10px", color: "#34453c", fontSize: 13 }
+const assumptionRow = { margin: "5px 0", color: "#5f6d65", fontSize: 12, lineHeight: 1.5 }
 const empty = { marginTop: 20, padding: 22, borderRadius: 20, background: "rgba(255,255,255,.6)", border: "1px solid #dce2dd", color: "#68756e" }
 const muted = { marginTop: 20, color: "#7b877f" }
