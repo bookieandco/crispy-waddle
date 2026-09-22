@@ -47,10 +47,10 @@ export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBoun
     getSamMarketCoverage(client,{historyDays:365}),
     count(client,'jhadina_sam_catalog'),
     count(client,'jhadina_sam_analysis'),
-    count(client,'jhadina_sam_provider_candidates'),
+    count(client,'jhadina_sam_provider_candidates',q=>q.neq('status','blocked')),
     client.from('jhadina_sam_catalog').select('notice_id,source_url,checksum').limit(500),
     client.from('jhadina_sam_documents').select('notice_id,source_url,source_kind,checksum,fetch_status,evidence').neq('source_kind','notice').limit(1000),
-    client.from('jhadina_sam_provider_candidates').select('notice_id,evidence,sources').limit(1000),
+    client.from('jhadina_sam_provider_candidates').select('notice_id,status,evidence,sources').limit(1000),
   ])
 
   if(catalogResult.error)throw new Error(`Unable to inspect SAM catalog provenance: ${catalogResult.error.message}`)
@@ -69,8 +69,9 @@ export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBoun
       .filter(row=>row.fetch_status==='text_captured'&&typeof row.checksum==='string'&&row.checksum.length>0)
       .map(row=>String(row.notice_id)),
   )
+  const viableProviders=providers.filter(row=>row.status!=='blocked')
   const providerNoticeIds=new Set(
-    providers
+    viableProviders
       .filter(row=>Array.isArray(row.evidence)&&row.evidence.length>0)
       .map(row=>String(row.notice_id)),
   )
@@ -81,7 +82,7 @@ export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBoun
   const documentProvenance=documents
     .filter(row=>row.fetch_status==='text_captured')
     .every(row=>typeof row.source_url==='string'&&row.source_url.length>0&&typeof row.checksum==='string'&&row.checksum.length>0)
-  const providerProvenance=providers.every(row=>Array.isArray(row.evidence)&&row.evidence.length>0&&Array.isArray(row.sources)&&row.sources.length>0)
+  const providerProvenance=viableProviders.every(row=>Array.isArray(row.evidence)&&row.evidence.length>0&&Array.isArray(row.sources)&&row.sources.length>0)
 
   return {
     runtimeBound,
