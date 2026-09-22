@@ -376,12 +376,18 @@ export function slideClip(timeline: EditableTimeline, clipId: string, deltaSecon
   };
 }
 
-export function duplicateClip(timeline: EditableTimeline, clipId: string, offsetSeconds = 0): EditableTimeline {
+export function duplicateClip(
+  timeline: EditableTimeline,
+  clipId: string,
+  duplicateId: string,
+  offsetSeconds = 0,
+): EditableTimeline {
   const info = findClip(timeline, clipId);
-  if (!info || info.track.locked) return timeline;
+  if (!info || info.track.locked || !duplicateId.trim()) return timeline;
+  if (timeline.tracks.some(track => track.clips.some(clip => clip.id === duplicateId))) return timeline;
   const duplicate: TimelineClip = {
     ...info.clip,
-    id: `${info.clip.id}:copy:${Math.random().toString(36).slice(2, 8)}`,
+    id: duplicateId,
     startSeconds: Math.max(0, info.clip.startSeconds + offsetSeconds),
   };
   return updateTrack(timeline, info.track.id, track => ({
