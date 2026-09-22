@@ -23,6 +23,10 @@ export type MoneyProdSoftwareCaseName=
   |'sports-learning-no-betting-authority'
   |'cross-domain-learning-no-truth-contamination'
   |'commissioning-receipt-ledger-service-only'
+  |'broker-entitlement-durable'
+  |'live-canary-durable'
+  |'provider-event-replay-durable'
+  |'paper-ledger-durable'
 
 export type MoneyProdSoftwareCase=Readonly<{
   name:MoneyProdSoftwareCaseName
@@ -46,13 +50,13 @@ const REQUIRED:readonly MoneyProdSoftwareCaseName[]=Object.freeze([
   'forex-point-in-time-reality','forex-finnhub-read-only-market-data','forex-vision-opaque-until-calibrated','forex-learning-paper-shadow',
   'shark-money-research-isolation','shark-paper-learning','shark-no-protected-fund-authority',
   'sports-prediction-research-isolation','sports-native-paper-wager-settlement','sports-learning-no-betting-authority',
-  'cross-domain-learning-no-truth-contamination','commissioning-receipt-ledger-service-only',
+  'cross-domain-learning-no-truth-contamination','commissioning-receipt-ledger-service-only','broker-entitlement-durable','live-canary-durable','provider-event-replay-durable','paper-ledger-durable',
 ])
 
 const LANE_CASES:Readonly<Record<MoneyProductionLane,readonly MoneyProdSoftwareCaseName[]>>=Object.freeze({
-  STOCK:Object.freeze<MoneyProdSoftwareCaseName[]>(['stock-point-in-time-reality','stock-chart-vision-research-only','stock-alpaca-live-adapter','autonomous-mandate-action-core','autonomous-hard-risk-limits','single-use-permit-replay-block','provider-account-entitlement','unknown-execution-reconciliation','global-kill-switch']),
-  FOREX:Object.freeze<MoneyProdSoftwareCaseName[]>(['forex-point-in-time-reality','forex-finnhub-read-only-market-data','forex-vision-opaque-until-calibrated','forex-learning-paper-shadow','autonomous-mandate-action-core','autonomous-hard-risk-limits','single-use-permit-replay-block','unknown-execution-reconciliation','global-kill-switch']),
-  SHARK_MEME:Object.freeze<MoneyProdSoftwareCaseName[]>(['shark-money-research-isolation','shark-paper-learning','shark-no-protected-fund-authority','autonomous-mandate-action-core','autonomous-hard-risk-limits','single-use-permit-replay-block','unknown-execution-reconciliation','global-kill-switch']),
+  STOCK:Object.freeze<MoneyProdSoftwareCaseName[]>(['stock-point-in-time-reality','stock-chart-vision-research-only','stock-alpaca-live-adapter','autonomous-mandate-action-core','autonomous-hard-risk-limits','single-use-permit-replay-block','provider-account-entitlement','unknown-execution-reconciliation','global-kill-switch','broker-entitlement-durable','live-canary-durable','provider-event-replay-durable','paper-ledger-durable']),
+  FOREX:Object.freeze<MoneyProdSoftwareCaseName[]>(['forex-point-in-time-reality','forex-finnhub-read-only-market-data','forex-vision-opaque-until-calibrated','forex-learning-paper-shadow','autonomous-mandate-action-core','autonomous-hard-risk-limits','single-use-permit-replay-block','unknown-execution-reconciliation','global-kill-switch','broker-entitlement-durable','live-canary-durable','provider-event-replay-durable','paper-ledger-durable']),
+  SHARK_MEME:Object.freeze<MoneyProdSoftwareCaseName[]>(['shark-money-research-isolation','shark-paper-learning','shark-no-protected-fund-authority','autonomous-mandate-action-core','autonomous-hard-risk-limits','single-use-permit-replay-block','unknown-execution-reconciliation','global-kill-switch','broker-entitlement-durable','live-canary-durable','provider-event-replay-durable','paper-ledger-durable']),
   SPORTS_BETTING:Object.freeze<MoneyProdSoftwareCaseName[]>(['sports-prediction-research-isolation','sports-native-paper-wager-settlement','sports-learning-no-betting-authority','cross-domain-learning-no-truth-contamination']),
 })
 
