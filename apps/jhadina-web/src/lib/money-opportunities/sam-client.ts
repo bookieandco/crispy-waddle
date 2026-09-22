@@ -26,6 +26,8 @@ export type SamSearchPage = {
   [key: string]: unknown;
 };
 
+const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms))
+
 export async function searchSamOpportunities(params: SamSearchParams = {}): Promise<SamSearchPage> {
   const apiKey = getSamApiKey();
   if (!apiKey) throw new Error('SAM_GOV_API_KEY is not configured');
@@ -48,18 +50,27 @@ export async function searchSamOpportunities(params: SamSearchParams = {}): Prom
   if (params.classificationCode) url.searchParams.set('ccode', params.classificationCode);
   if (params.organizationName) url.searchParams.set('organizationName', params.organizationName);
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-    cache: 'no-store',
-  });
+  let lastStatus=0;
+  for(let attempt=0;attempt<3;attempt+=1){
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(30_000),
+    });
+    if(response.ok)return response.json() as Promise<SamSearchPage>;
 
-  if (!response.ok) {
+    lastStatus=response.status;
+    const retryable=response.status===429||response.status===408||response.status>=500;
+    const retryAfter=Number(response.headers.get('retry-after')??'');
     await response.body?.cancel().catch(() => undefined);
-    throw new Error(`SAM.gov request failed with status ${response.status}`);
+    if(!retryable||attempt===2)break;
+    const retryMs=Number.isFinite(retryAfter)&&retryAfter>0
+      ? Math.min(retryAfter*1000,10_000)
+      : Math.min(500*(2**attempt),2_000);
+    await sleep(retryMs);
   }
-
-  return response.json() as Promise<SamSearchPage>;
+  throw new Error(`SAM.gov request failed with status ${lastStatus||'unknown'}`);
 }
 
 export async function scanSamOpportunityWindow(input: Omit<SamSearchParams, 'limit'|'offset'> & {
@@ -70,15 +81,32 @@ export async function scanSamOpportunityWindow(input: Omit<SamSearchParams, 'lim
   const maxPages=Math.max(1,Math.min(input.maxPages??100,1000));
   const opportunities:Array<Record<string,unknown>>=[];
   let totalRecords=0;
+  let totalRecordsKnown=false;
+  let exhausted=false;
   let pages=0;
   for(let page=0;page<maxPages;page+=1){
     // SAM.gov defines offset as the page index, not a record displacement.
     const data=await searchSamOpportunities({...input,limit:pageSize,offset:page});
     const rows=Array.isArray(data.opportunitiesData)?data.opportunitiesData:[];
-    totalRecords=typeof data.totalRecords==='number'?data.totalRecords:Math.max(totalRecords,opportunities.length+rows.length);
+    if(typeof data.totalRecords==='number'){
+      totalRecords=data.totalRecords;
+      totalRecordsKnown=true;
+    }else{
+      totalRecords=Math.max(totalRecords,opportunities.length+rows.length);
+    }
     opportunities.push(...rows);
     pages+=1;
-    if(rows.length<pageSize||opportunities.length>=totalRecords)break;
+    if(rows.length<pageSize){
+      exhausted=true;
+      break;
+    }
+    if(totalRecordsKnown&&opportunities.length>=totalRecords){
+      exhausted=true;
+      break;
+    }
   }
-  return {pages,totalRecords,opportunities,truncated:opportunities.length<totalRecords};
+  // If SAM omitted totalRecords and every fetched page was full, the only
+  // safe conclusion at the page budget is that the window may be incomplete.
+  const truncated=totalRecordsKnown?opportunities.length<totalRecords:!exhausted;
+  return {pages,totalRecords,opportunities,truncated};
 }
