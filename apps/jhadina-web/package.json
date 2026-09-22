@@ -28,7 +28,8 @@
     "@jhadina/growth-core": "workspace:*",
     "@jhadina/security-core": "workspace:*",
     "@jhadina/social-core": "workspace:*",
-    "@jhadina/music-core": "workspace:*"
+    "@jhadina/music-core": "workspace:*",
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
