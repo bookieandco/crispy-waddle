@@ -14,10 +14,15 @@ on:
       - "apps/jhadina-web/src/lib/context/production-social-context-provider.ts"
       - "apps/jhadina-web/src/lib/context/production-social-context-provider.test.ts"
       - "apps/jhadina-web/src/lib/context/social-context.integration.test.ts"
+      - "apps/jhadina-web/src/lib/context/production-growth-context-provider.ts"
+      - "apps/jhadina-web/src/lib/context/production-growth-context-provider.test.ts"
+      - "apps/jhadina-web/src/lib/context/growth-context.integration.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/jhadina-command.ts"
       - "apps/jhadina-web/src/lib/intelligence/jhadina-command.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-social-command.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-social-command.test.ts"
+      - "apps/jhadina-web/src/lib/intelligence/ask-growth-command.ts"
+      - "apps/jhadina-web/src/lib/intelligence/ask-growth-command.test.ts"
       - "packages/social-core/src/character-profiles.ts"
       - "packages/social-core/src/character-profiles.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/governed-intelligence-proposal.ts"
@@ -29,6 +34,7 @@ on:
       - "apps/jhadina-web/src/lib/storage/SupabaseMemoryStorage.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.social.test.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/command/route.growth.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.ts"
       - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.test.ts"
       - "apps/jhadina-web/src/app/ask-jhadina/page.tsx"
@@ -51,10 +57,15 @@ on:
       - "apps/jhadina-web/src/lib/context/production-social-context-provider.ts"
       - "apps/jhadina-web/src/lib/context/production-social-context-provider.test.ts"
       - "apps/jhadina-web/src/lib/context/social-context.integration.test.ts"
+      - "apps/jhadina-web/src/lib/context/production-growth-context-provider.ts"
+      - "apps/jhadina-web/src/lib/context/production-growth-context-provider.test.ts"
+      - "apps/jhadina-web/src/lib/context/growth-context.integration.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/jhadina-command.ts"
       - "apps/jhadina-web/src/lib/intelligence/jhadina-command.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-social-command.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-social-command.test.ts"
+      - "apps/jhadina-web/src/lib/intelligence/ask-growth-command.ts"
+      - "apps/jhadina-web/src/lib/intelligence/ask-growth-command.test.ts"
       - "packages/social-core/src/character-profiles.ts"
       - "packages/social-core/src/character-profiles.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/governed-intelligence-proposal.ts"
@@ -66,6 +77,7 @@ on:
       - "apps/jhadina-web/src/lib/storage/SupabaseMemoryStorage.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.social.test.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/command/route.growth.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.ts"
       - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.test.ts"
       - "apps/jhadina-web/src/app/ask-jhadina/page.tsx"
@@ -126,9 +138,13 @@ jobs:
             src/lib/context/context-builder.test.ts \
             src/lib/context/production-social-context-provider.test.ts \
             src/lib/context/social-context.integration.test.ts \
+            src/lib/context/production-growth-context-provider.test.ts \
+            src/lib/context/growth-context.integration.test.ts \
             src/lib/intelligence/jhadina-command.test.ts \
             src/lib/intelligence/ask-social-command.test.ts \
+            src/lib/intelligence/ask-growth-command.test.ts \
             src/app/api/jhadina/command/route.social.test.ts \
+            src/app/api/jhadina/command/route.growth.test.ts \
             src/lib/intelligence/governed-intelligence-proposal.test.ts \
             src/lib/personality/personality-outcome-feedback.test.ts \
             src/lib/storage/SupabaseMemoryStorage.test.ts \

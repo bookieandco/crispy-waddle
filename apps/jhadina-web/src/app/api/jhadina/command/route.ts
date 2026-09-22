@@ -7,6 +7,10 @@ import {
   handleAskSocialCommand,
   inspectAskSocialIntent,
 } from "@/lib/intelligence/ask-social-command"
+import {
+  handleAskGrowthReadCommand,
+  inspectAskGrowthReadIntent,
+} from "@/lib/intelligence/ask-growth-command"
 
 export const dynamic = "force-dynamic"
 
@@ -42,6 +46,41 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const growthReadIntent = inspectAskGrowthReadIntent(activeTask)
+    if (growthReadIntent) {
+      const verifier = await createRequestIdentityVerifier()
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const growth = await handleAskGrowthReadCommand({
+        userId: verifiedIdentity.userId,
+        activeTask,
+      })
+      if (growth) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            proposal: growth.proposal,
+            reasoningEventId: growth.reasoningEventId,
+            expression: {
+              proposal: growth.proposal,
+              presentation: {
+                mode: "direct",
+                allowProfanity: false,
+                allowQuip: false,
+              },
+              segments: [{
+                kind: "semantic",
+                text: growth.proposal.recommendation,
+              }],
+            },
+            verified: growth.verified,
+            verificationReason: growth.verificationReason,
+            growthWorkPlan: growth.workPlan,
+            feedbackEligible: false,
+          },
+        })
+      }
+    }
+
     const socialIntent = inspectAskSocialIntent(activeTask)
     if (socialIntent) {
       const verifier = await createRequestIdentityVerifier()

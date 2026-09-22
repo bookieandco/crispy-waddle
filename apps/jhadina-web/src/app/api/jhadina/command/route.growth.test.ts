@@ -46,7 +46,7 @@ function request(activeTask: string) {
   })
 }
 
-describe("Ask Jhadina Social routing", () => {
+describe("Ask Jhadina Growth routing", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     inspectGrowth.mockReturnValue(null)
@@ -54,23 +54,72 @@ describe("Ask Jhadina Social routing", () => {
     inspectVideo.mockReturnValue(null)
   })
 
-  it("routes a Social video request through Social before the generic Director video shortcut", async () => {
+  it("routes a Growth state read before Social planning", async () => {
+    inspectGrowth.mockReturnValue({ matched: true, operation: "list_campaigns" })
     inspectSocial.mockReturnValue({
       matched: true,
-      operation: "produce_creative",
-      requestedPlatforms: ["tiktok"],
+      operation: "paid_campaign",
+      requestedPlatforms: ["instagram"],
+      requestedCharacterProfiles: [],
+      accountTerms: [],
+    })
+    handleGrowth.mockResolvedValue({
+      proposal: {
+        id: "proposal-growth",
+        contextId: "ctx-growth",
+        disposition: "PROCEED",
+        recommendation: "I found 2 durable paid campaign records.",
+        rationale: "Read-only Growth state.",
+        evidence: [],
+        uncertainty: [],
+        alternatives: [],
+      },
+      reasoningEventId: "growth-command:1",
+      workPlan: {
+        kind: "growth_intelligence",
+        operation: "list_campaigns",
+        authority: "READ_ONLY",
+        nextBoundary: "growth_read_only",
+        campaigns: [],
+        audiences: [],
+        pendingWork: [],
+        performance: [],
+        attention: [],
+        notes: [],
+      },
+      verified: true,
+      verificationReason: "read-only",
+    })
+
+    const response = await POST(request("Show me my Meta campaigns"))
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.data.growthWorkPlan.operation).toBe("list_campaigns")
+    expect(json.data.feedbackEligible).toBe(false)
+    expect(handleGrowth).toHaveBeenCalledTimes(1)
+    expect(handleSocial).not.toHaveBeenCalled()
+    expect(createVideo).not.toHaveBeenCalled()
+    expect(handleGeneric).not.toHaveBeenCalled()
+  })
+
+  it("lets a mutating paid-media request continue to Social planning", async () => {
+    inspectGrowth.mockReturnValue(null)
+    inspectSocial.mockReturnValue({
+      matched: true,
+      operation: "paid_campaign",
+      requestedPlatforms: ["instagram"],
       requestedCharacterProfiles: [],
       requestedBrand: "pupsonstuff",
       accountTerms: [],
     })
-    inspectVideo.mockReturnValue({ mode: "text-to-video" })
     handleSocial.mockResolvedValue({
       proposal: {
         id: "proposal-social",
         contextId: "ctx-social",
         disposition: "PROCEED",
-        recommendation: "Route PupsonStuff TikTok creative to Director.",
-        rationale: "Resolved from Social.",
+        recommendation: "Prepare a governed campaign plan.",
+        rationale: "Planning only.",
         evidence: [],
         uncertainty: [],
         alternatives: [],
@@ -78,55 +127,28 @@ describe("Ask Jhadina Social routing", () => {
       reasoningEventId: "social-command:1",
       workPlan: {
         kind: "social_marketing",
-        operation: "produce_creative",
+        operation: "paid_campaign",
         accounts: [],
-        requestedPlatforms: ["tiktok"],
-        nextBoundary: "director_production",
+        requestedPlatforms: ["instagram"],
+        nextBoundary: "growth_paid_media",
         authority: "PLANNING_ONLY",
-        requiresExplicitApprovalForExecution: false,
+        requiresExplicitApprovalForExecution: true,
         notes: [],
       },
       verified: true,
-      verificationReason: "resolved",
+      verificationReason: "planning only",
     })
 
-    const response = await POST(request("Make a TikTok video for PupsonStuff"))
+    const response = await POST(request("Launch a Meta campaign for PupsonStuff"))
     const json = await response.json()
 
     expect(response.status).toBe(200)
-    expect(json.data.socialWorkPlan.nextBoundary).toBe("director_production")
-    expect(json.data.feedbackEligible).toBe(false)
+    expect(json.data.socialWorkPlan.nextBoundary).toBe("growth_paid_media")
     expect(handleSocial).toHaveBeenCalledTimes(1)
-    expect(createVideo).not.toHaveBeenCalled()
-    expect(handleGeneric).not.toHaveBeenCalled()
+    expect(handleGrowth).not.toHaveBeenCalled()
   })
 
-  it("preserves the generic Director shortcut when the request is not Social", async () => {
-    inspectSocial.mockReturnValue(null)
-    inspectVideo.mockReturnValue({ mode: "text-to-video" })
-    createVideo.mockResolvedValue({
-      job: {
-        id: "video-job-1",
-        projectId: "project-1",
-        mode: "text-to-video",
-        aspectRatio: "16:9",
-        status: "queued",
-        providerId: "provider-1",
-      },
-    })
-
-    const response = await POST(request("Make a cinematic video about a lighthouse"))
-    const json = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(json.data.videoJob.id).toBe("video-job-1")
-    expect(createVideo).toHaveBeenCalledTimes(1)
-    expect(handleSocial).not.toHaveBeenCalled()
-  })
-
-  it("falls through to main intelligence when neither specialized intent matches", async () => {
-    inspectSocial.mockReturnValue(null)
-    inspectVideo.mockReturnValue(null)
+  it("falls through when no specialized reader or planner matches", async () => {
     handleGeneric.mockResolvedValue({
       proposal: {
         id: "proposal-generic",
@@ -148,13 +170,11 @@ describe("Ask Jhadina Social routing", () => {
       verificationReason: "verified",
     })
 
-    const response = await POST(request("What is your personality like?"))
+    const response = await POST(request("Explain Bayesian updating"))
     const json = await response.json()
 
     expect(response.status).toBe(200)
     expect(json.data.reasoningEventId).toBe("reason-1")
     expect(handleGeneric).toHaveBeenCalledTimes(1)
-    expect(createVideo).not.toHaveBeenCalled()
-    expect(handleSocial).not.toHaveBeenCalled()
   })
 })

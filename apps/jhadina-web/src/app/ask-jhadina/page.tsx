@@ -13,7 +13,8 @@ type GovernedExpression={proposal:DecisionProposal;presentation:{mode:"direct"|"
 type SocialCharacter={id:string;brand:string;label:string;description:string;toneTraits:readonly string[];pointOfView:string;voiceProfileRef:string;authority:"EXPRESSION_ONLY"}
 type SocialAccountChoice={accountId:string;brand:string;platform:string;provider:string;displayName:string;handle?:string;attentionScore:number;attentionReasons:readonly string[]}
 type SocialWorkPlan={kind:"social_marketing";operation:string;character?:SocialCharacter;availableCharacters?:readonly SocialCharacter[];accounts:readonly SocialAccountChoice[];requestedPlatforms:readonly string[];nextBoundary:"social_read_only"|"growth_research"|"director_production"|"social_publication"|"growth_paid_media";authority:"READ_ONLY"|"PLANNING_ONLY";requiresExplicitApprovalForExecution:boolean;notes:readonly string[]}
-type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;feedbackEligible?:boolean}
+type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ_ONLY";nextBoundary:"growth_read_only";campaigns:readonly EvidenceRef[];audiences:readonly EvidenceRef[];pendingWork:readonly EvidenceRef[];performance:readonly EvidenceRef[];attention:readonly EvidenceRef[];notes:readonly string[]}
+type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;feedbackEligible?:boolean}
 
 export default function AskJhadinaPage(){return <Suspense fallback={<main className="jh-page"><div className="jh-wrap"><div className="jh-skeleton"/></div></main>}><AskJhadina/></Suspense>}
 
@@ -68,6 +69,8 @@ function AskJhadina(){
      "Which social accounts should I work on right now?",
      "Use the PupsonStuff personality on Instagram and TikTok",
      "Research Meta ad concepts for PupsonStuff on Instagram",
+     "Which paid campaigns need attention?",
+     "What is awaiting paid ad approval?",
     ].map(example=><button key={example} type="button" className="jh-button" disabled={busy} onClick={()=>setTask(example)}>{example}</button>)}
    </div>
   </div>
@@ -78,6 +81,7 @@ function AskJhadina(){
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.socialWorkPlan?<SocialWorkPlanCard plan={result.socialWorkPlan}/>:null}
+    {result.growthWorkPlan?<GrowthWorkPlanCard plan={result.growthWorkPlan}/>:null}
     {result.proposal.evidence.length?<div className="jh-section" style={{marginTop:20}}><h2 className="jh-card-title">Evidence used</h2><div className="jh-list">{result.proposal.evidence.map(evidence=><div className="jh-item" key={evidence.id}><strong>{evidence.source}</strong><p className="jh-card-copy">{evidence.summary}</p><p className="jh-meta">{new Date(evidence.observedAt).toLocaleString()} · {evidence.id}</p></div>)}</div></div>:null}
     {result.proposal.uncertainty.length?<div style={{marginTop:18}}><strong>Uncertainty</strong><ul>{result.proposal.uncertainty.map(item=><li key={item} className="jh-card-copy">{item}</li>)}</ul></div>:null}
     {result.proposal.alternatives.length?<div style={{marginTop:18}}><strong>Alternatives</strong><ul>{result.proposal.alternatives.map(item=><li key={item} className="jh-card-copy">{item}</li>)}</ul></div>:null}
@@ -136,6 +140,27 @@ function SocialWorkPlanCard({plan}:{plan:SocialWorkPlan}){
    </div>:null}
    <p className="jh-meta" style={{marginTop:12}}>Next boundary: {plan.nextBoundary.replaceAll("_"," ")}{plan.requiresExplicitApprovalForExecution?" · explicit approval still required":""}</p>
    <div className="jh-row" style={{marginTop:12}}><Link className="jh-button" href={boundaryHref[plan.nextBoundary]}>Open {plan.nextBoundary==="director_production"?"Director":plan.nextBoundary.startsWith("growth_")?"Growth":"Social"}</Link></div>
+  </div>
+ </div>
+}
+
+
+function GrowthWorkPlanCard({plan}:{plan:GrowthWorkPlan}){
+ const section=plan.operation==="list_audiences"?plan.audiences:plan.operation==="pending_work"?plan.pendingWork:plan.operation==="performance"?plan.performance:plan.operation==="campaign_attention"?plan.attention:plan.campaigns
+ return <div className="jh-section" style={{marginTop:20}}>
+  <div className="jh-item">
+   <div className="jh-between">
+    <div><p className="jh-eyebrow">Growth intelligence</p><h2 className="jh-card-title">{plan.operation.replaceAll("_"," ")}</h2></div>
+    <span className="jh-status jh-status--success"><span className="jh-dot"/>{plan.authority}</span>
+   </div>
+   <p className="jh-card-copy">Authenticated durable Growth state. Reading this card does not approve ads, change budgets, mutate audiences, or send lifecycle actions.</p>
+   {section.length?<div className="jh-list" style={{marginTop:12}}>{section.slice(0,10).map(item=><div className="jh-item" key={item.id}>
+    <strong>{item.source}</strong>
+    <p className="jh-card-copy">{item.summary}</p>
+    <p className="jh-meta">{new Date(item.observedAt).toLocaleString()} · {item.id}</p>
+   </div>)}</div>:<div className="jh-empty" style={{marginTop:12}}>No durable records are available for this Growth view.</div>}
+   <p className="jh-meta" style={{marginTop:12}}>Campaigns {plan.campaigns.length} · audiences {plan.audiences.length} · pending work {plan.pendingWork.length} · observations {plan.performance.length}</p>
+   <div className="jh-row" style={{marginTop:12}}><Link className="jh-button" href="/growth">Open Growth</Link></div>
   </div>
  </div>
 }
