@@ -8,6 +8,7 @@ import {
 import { JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION } from "@jhadina/security-core"
 import { IntelligenceRouter, realizeGovernedExpression, type GovernedExpressionRealization, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
 import type {
+  GrowthContextProvider,
   PersonalityContextProvider,
   SocialContextProvider,
   SpatialContextProvider,
@@ -26,6 +27,7 @@ import { MEMORY_PROPOSE_CAPABILITY, type MemoryProposeAction } from "./memory-pr
 import { createProductionIntelligenceRouter } from "./production-model-provider"
 import { createProductionSpatialContextProvider } from "../context/production-spatial-context-provider"
 import { createProductionSocialContextProvider } from "../context/production-social-context-provider"
+import { createProductionGrowthContextProvider } from "../context/production-growth-context-provider"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
 
 export interface JhadinaCommandInput {
@@ -51,8 +53,10 @@ export interface JhadinaCommandOverrides {
   spatialContextProvider?: SpatialContextProvider
   /** Governed read/projection adapter for Pattern -> Personality -> Expression context. */
   personalityContextProvider?: PersonalityContextProvider
-  /** Read-only Social/Growth adapter. It grants no publish, spend, or account-mutation authority. */
+  /** Read-only Social adapter. It grants no publish or account-mutation authority. */
   socialContextProvider?: SocialContextProvider
+  /** Read-only Growth adapter. It grants no spend, publish, lifecycle-send, or audience-mutation authority. */
+  growthContextProvider?: GrowthContextProvider
 }
 
 export interface JhadinaCommandResult extends GovernedIntelligenceProposalResult {
@@ -77,12 +81,16 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   const socialContextProvider =
     overrides.socialContextProvider ??
     createProductionSocialContextProvider()
+  const growthContextProvider =
+    overrides.growthContextProvider ??
+    createProductionGrowthContextProvider()
   const contextDeps: ContextBuilderDeps = {
     memoryRepo,
     timelineRepo: new TimelineRepository(storage),
     spatialContextProvider,
     personalityContextProvider,
     socialContextProvider,
+    growthContextProvider,
   }
   const assembled = await buildContext(contextDeps, {
     userId: verifiedIdentity.userId,
@@ -137,6 +145,6 @@ async function verifyCandidateDurable(memoryRepo: MemoryRepository, userId: stri
 
 /**
  * Policy/action execution remains in the existing governed pipeline. This command layer only composes
- * the read-only spatial contribution into the canonical ContextPacket; it does not create a spatial
- * executor, policy engine, or alternate authority boundary.
+ * read-only domain contributions into the canonical ContextPacket; it does not create spatial, Social,
+ * or Growth execution authority, policy bypasses, or alternate action boundaries.
  */
