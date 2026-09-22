@@ -67,7 +67,6 @@ export function decideRoughCutPlacement(
     if (!take.kinds.some((kind) =>
       kind === 'spoken-step-label' ||
       kind === 'manual-label' ||
-      kind === 'procedure-order' ||
       kind === 'filename'
     )) reasons.push('DIRECTOR_ROUGH_CUT_RELEVANCE_UNPROVEN');
 
