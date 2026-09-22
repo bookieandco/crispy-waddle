@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto'
 import type { DecisionAssessment, DecisionCase } from './decision-workflow-contracts.js'
 import type { EvidenceQuality, EvidenceRef } from './financial-intelligence-contracts.js'
 import type { GovernedIntelligenceArtifact } from './cross-asset-fusion-adapters.js'
-import type { ThesisDirection } from './cross-asset-fusion-contracts.js'
+import type { EvidenceStance, FusionEvidence, ThesisDirection } from './cross-asset-fusion-contracts.js'
 
-export const SHARK_MONEY_BRIDGE_VERSION = 'SHARK-MONEY-01' as const
-export const SUPPORTED_SHARK_MONEY_SCHEMA_VERSION = 'SHARK-MONEY-01' as const
+export const SHARK_MONEY_BRIDGE_VERSION = 'SHARK-MONEY-02' as const
+export const SUPPORTED_SHARK_MONEY_SCHEMA_VERSION = 'SHARK-MONEY-02' as const
 
 export type SharkProposalDisposition = 'ASK' | 'DEFER' | 'DECLINE'
 export type SharkRiskBand = 'candidate' | 'watch' | 'high-risk' | 'blocked'
@@ -27,6 +27,7 @@ export type SharkMoneyTransportEnvelope = Readonly<{
     chainId: string
     tokenAddress: string
     assessedAt: string
+    informationCutoff: string
     tradeType: string
     assessmentVersion: string
     thesis: string
@@ -39,7 +40,13 @@ export type SharkMoneyTransportEnvelope = Readonly<{
     evidenceRefs: readonly Readonly<{
       evidenceId: string
       source: string
+      sourceGroup: string
+      stance: EvidenceStance
+      direction: ThesisDirection
+      strength: number
+      confidence: number
       observedAt: string
+      availableAt: string
       summary: string
       immutable: true
     }>[]
@@ -66,6 +73,25 @@ export type SharkResearchIngressContext = Readonly<{
   evidenceQuality: EvidenceQuality
 }>
 
+export type SharkMoneyEvidence = Readonly<EvidenceRef & {
+  sourceGroup: string
+  stance: EvidenceStance
+  direction: ThesisDirection
+  strength: number
+  confidence: number
+  availableAt: string
+  summary: string
+}>
+
+export type SharkEvidenceIntegrity = Readonly<{
+  informationCutoff: string
+  sourceGroups: readonly string[]
+  supportingEvidenceIds: readonly string[]
+  contradictingEvidenceIds: readonly string[]
+  neutralEvidenceIds: readonly string[]
+  unresolvedContradictionIds: readonly string[]
+}>
+
 export type SharkMoneyResearchArtifact = Readonly<{
   bridgeVersion: typeof SHARK_MONEY_BRIDGE_VERSION
   sourceSchemaVersion: typeof SUPPORTED_SHARK_MONEY_SCHEMA_VERSION
@@ -80,7 +106,8 @@ export type SharkMoneyResearchArtifact = Readonly<{
   sourceConfidence: number
   sourceRisk: SharkMoneyTransportEnvelope['assessment']['sourceRisk']
   invalidationConditions: readonly string[]
-  evidence: readonly EvidenceRef[]
+  evidence: readonly SharkMoneyEvidence[]
+  evidenceIntegrity: SharkEvidenceIntegrity
   sourceProvenance: SharkMoneyTransportEnvelope['sourceProvenance']
   decisionCase: DecisionCase
   assessment: DecisionAssessment
@@ -147,7 +174,11 @@ export function assertSharkResearchIngress(
   nonEmpty(context.sourceNamespace, 'MONEY_SHARK_SOURCE_NAMESPACE_REQUIRED')
 
   iso(envelope.assessment.assessedAt, 'MONEY_SHARK_ASSESSED_AT_INVALID')
+  iso(envelope.assessment.informationCutoff, 'MONEY_SHARK_INFORMATION_CUTOFF_INVALID')
   iso(context.receivedAt, 'MONEY_SHARK_RECEIVED_AT_INVALID')
+  if (Date.parse(envelope.assessment.informationCutoff) > Date.parse(envelope.assessment.assessedAt)) {
+    throw new Error('MONEY_SHARK_CUTOFF_AFTER_ASSESSMENT')
+  }
   if (Date.parse(context.receivedAt) < Date.parse(envelope.assessment.assessedAt)) {
     throw new Error('MONEY_SHARK_RECEIVED_BEFORE_ASSESSMENT')
   }
@@ -165,10 +196,23 @@ export function assertSharkResearchIngress(
   for (const evidence of envelope.assessment.evidenceRefs) {
     nonEmpty(evidence.evidenceId, 'MONEY_SHARK_EVIDENCE_ID_REQUIRED')
     nonEmpty(evidence.source, 'MONEY_SHARK_EVIDENCE_SOURCE_REQUIRED')
+    nonEmpty(evidence.sourceGroup, 'MONEY_SHARK_SOURCE_GROUP_REQUIRED')
     nonEmpty(evidence.summary, 'MONEY_SHARK_EVIDENCE_SUMMARY_REQUIRED')
     iso(evidence.observedAt, 'MONEY_SHARK_EVIDENCE_OBSERVED_AT_INVALID')
-    if (Date.parse(evidence.observedAt) > Date.parse(envelope.assessment.assessedAt)) {
-      throw new Error('MONEY_SHARK_EVIDENCE_AFTER_ASSESSMENT')
+    iso(evidence.availableAt, 'MONEY_SHARK_EVIDENCE_AVAILABLE_AT_INVALID')
+    if (!['SUPPORTS', 'CONTRADICTS', 'NEUTRAL'].includes(evidence.stance)) {
+      throw new Error('MONEY_SHARK_EVIDENCE_STANCE_INVALID')
+    }
+    if (!['BULLISH', 'BEARISH', 'NEUTRAL', 'MIXED', 'UNKNOWN'].includes(evidence.direction)) {
+      throw new Error('MONEY_SHARK_EVIDENCE_DIRECTION_INVALID')
+    }
+    unitInterval(evidence.strength, 'MONEY_SHARK_EVIDENCE_STRENGTH_INVALID')
+    unitInterval(evidence.confidence, 'MONEY_SHARK_EVIDENCE_CONFIDENCE_INVALID')
+    if (Date.parse(evidence.availableAt) < Date.parse(evidence.observedAt)) {
+      throw new Error('MONEY_SHARK_EVIDENCE_AVAILABLE_BEFORE_OBSERVED')
+    }
+    if (Date.parse(evidence.availableAt) > Date.parse(envelope.assessment.informationCutoff)) {
+      throw new Error('MONEY_SHARK_EVIDENCE_AFTER_CUTOFF')
     }
     if (evidence.immutable !== true) throw new Error('MONEY_SHARK_MUTABLE_EVIDENCE_FORBIDDEN')
     if (evidenceIds.has(evidence.evidenceId)) throw new Error('MONEY_SHARK_DUPLICATE_EVIDENCE')
@@ -184,23 +228,52 @@ export function assertSharkResearchIngress(
 function toMoneyEvidence(
   envelope: SharkMoneyTransportEnvelope,
   context: SharkResearchIngressContext,
-): readonly EvidenceRef[] {
+): readonly SharkMoneyEvidence[] {
   return Object.freeze(
     envelope.assessment.evidenceRefs.map((evidence) =>
       Object.freeze({
         evidenceId: evidence.evidenceId,
         sourceId: `${context.sourceNamespace}:${evidence.source}`,
+        sourceGroup: `${context.sourceNamespace}:${evidence.sourceGroup}`,
+        stance: evidence.stance,
+        direction: evidence.direction,
+        strength: evidence.strength,
+        confidence: evidence.confidence,
         observedAt: evidence.observedAt,
+        availableAt: evidence.availableAt,
         receivedAt: context.receivedAt,
         quality: context.evidenceQuality,
+        summary: evidence.summary,
         inputHash: hash({
           envelope: envelope.envelopeId,
           evidenceId: evidence.evidenceId,
+          sourceGroup: evidence.sourceGroup,
+          stance: evidence.stance,
+          direction: evidence.direction,
+          availableAt: evidence.availableAt,
           provenance: envelope.sourceProvenance.contentHash,
         }),
       }),
     ),
   )
+}
+
+function buildEvidenceIntegrity(
+  assessmentId: string,
+  informationCutoff: string,
+  evidence: readonly SharkMoneyEvidence[],
+): SharkEvidenceIntegrity {
+  const support = evidence.filter((item) => item.stance === 'SUPPORTS').map((item) => item.evidenceId).sort()
+  const contradict = evidence.filter((item) => item.stance === 'CONTRADICTS').map((item) => item.evidenceId).sort()
+  const neutral = evidence.filter((item) => item.stance === 'NEUTRAL').map((item) => item.evidenceId).sort()
+  return Object.freeze({
+    informationCutoff,
+    sourceGroups: Object.freeze([...new Set(evidence.map((item) => item.sourceGroup))].sort()),
+    supportingEvidenceIds: Object.freeze(support),
+    contradictingEvidenceIds: Object.freeze(contradict),
+    neutralEvidenceIds: Object.freeze(neutral),
+    unresolvedContradictionIds: Object.freeze(contradict.map((id) => `shark-contradiction:${assessmentId}:${id}`)),
+  })
 }
 
 export function ingestSharkResearch(
@@ -209,13 +282,18 @@ export function ingestSharkResearch(
 ): SharkMoneyResearchArtifact {
   assertSharkResearchIngress(envelope, context)
   const evidence = toMoneyEvidence(envelope, context)
+  const evidenceIntegrity = buildEvidenceIntegrity(
+    envelope.assessment.assessmentId,
+    envelope.assessment.informationCutoff,
+    evidence,
+  )
   const subjectId = `crypto:${envelope.assessment.chainId}:${envelope.assessment.tokenAddress}`
   const decisionCase: DecisionCase = Object.freeze({
     caseId: `shark:${envelope.envelopeId}`,
     accountId: context.accountId,
     subjectId,
     requestedBy: context.requestedBy,
-    informationCutoff: envelope.assessment.assessedAt,
+    informationCutoff: envelope.assessment.informationCutoff,
     createdAt: context.receivedAt,
     status: 'RESEARCH_ONLY',
     provenanceHash: envelope.sourceProvenance.contentHash,
@@ -230,7 +308,7 @@ export function ingestSharkResearch(
     liquidityStatus: 'UNEVALUATED',
     calibrationStatus: 'UNEVALUATED',
     authorityStatus: 'MISSING',
-    disposition: 'RESEARCH_ONLY',
+    disposition: evidenceIntegrity.unresolvedContradictionIds.length ? 'REQUIRES_REVIEW' : 'RESEARCH_ONLY',
   })
 
   return Object.freeze({
@@ -242,12 +320,13 @@ export function ingestSharkResearch(
     subjectId,
     chainId: envelope.assessment.chainId,
     tokenAddress: envelope.assessment.tokenAddress,
-    informationCutoff: envelope.assessment.assessedAt,
+    informationCutoff: envelope.assessment.informationCutoff,
     thesis: envelope.assessment.thesis,
     sourceConfidence: envelope.assessment.confidence,
     sourceRisk: Object.freeze({ ...envelope.assessment.sourceRisk }),
     invalidationConditions: Object.freeze([...envelope.assessment.invalidationConditions]),
     evidence,
+    evidenceIntegrity,
     sourceProvenance: Object.freeze({ ...envelope.sourceProvenance }),
     decisionCase,
     assessment,
@@ -266,7 +345,7 @@ export function assertSharkMoneyResearchOnly(artifact: SharkMoneyResearchArtifac
     throw new Error('MONEY_SHARK_BRIDGE_VERSION_INVALID')
   }
   if (
-    artifact.assessment.disposition !== 'RESEARCH_ONLY' ||
+    !['RESEARCH_ONLY', 'REQUIRES_REVIEW'].includes(artifact.assessment.disposition) ||
     artifact.assessment.authorityStatus !== 'MISSING' ||
     artifact.financialAuthority !== 'NONE' ||
     artifact.capitalAuthority !== 'NONE' ||
@@ -275,9 +354,52 @@ export function assertSharkMoneyResearchOnly(artifact: SharkMoneyResearchArtifac
   ) {
     throw new Error('MONEY_SHARK_RESEARCH_ONLY_BOUNDARY_VIOLATED')
   }
+  if (artifact.evidenceIntegrity.informationCutoff !== artifact.informationCutoff) {
+    throw new Error('MONEY_SHARK_INFORMATION_INTEGRITY_MISMATCH')
+  }
 }
 
+export function sharkResearchToFusionEvidence(input: {
+  artifact: SharkMoneyResearchArtifact
+  instrumentId: string
+  expiresAt: string
+}): readonly FusionEvidence[] {
+  assertSharkMoneyResearchOnly(input.artifact)
+  nonEmpty(input.instrumentId, 'MONEY_SHARK_INSTRUMENT_ID_REQUIRED')
+  iso(input.expiresAt, 'MONEY_SHARK_FUSION_EXPIRY_INVALID')
+  if (input.expiresAt <= input.artifact.informationCutoff) {
+    throw new Error('MONEY_SHARK_FUSION_EXPIRY_NOT_AFTER_CUTOFF')
+  }
 
+  return Object.freeze(input.artifact.evidence.map((evidence) => Object.freeze({
+    evidenceId: `fusion-evidence:shark:${input.artifact.sourceAssessmentId}:${evidence.evidenceId}`,
+    domain: 'SHARK' as const,
+    subjectId: input.artifact.subjectId,
+    instrumentId: input.instrumentId,
+    assetClass: 'MEME' as const,
+    stance: evidence.stance,
+    direction: evidence.direction,
+    strength: evidence.strength,
+    confidence: evidence.confidence,
+    effectiveAt: evidence.observedAt,
+    availableAt: evidence.availableAt,
+    expiresAt: input.expiresAt,
+    sourceGroup: evidence.sourceGroup,
+    inputHash: evidence.inputHash,
+    provenanceHash: hash({
+      source: input.artifact.sourceProvenance.contentHash,
+      evidenceId: evidence.evidenceId,
+      sourceGroup: evidence.sourceGroup,
+    }),
+    authority: 'NONE' as const,
+  })))
+}
+
+/**
+ * Compatibility adapter for single-source, non-contradictory SHARK artifacts.
+ * Multi-source or contradictory research must use sharkResearchToFusionEvidence()
+ * so Money does not erase source independence or opposition.
+ */
 export function sharkResearchToGovernedIntelligence(input: {
   artifact: SharkMoneyResearchArtifact
   instrumentId: string
@@ -291,6 +413,12 @@ export function sharkResearchToGovernedIntelligence(input: {
   iso(input.expiresAt, 'MONEY_SHARK_FUSION_EXPIRY_INVALID')
   if (input.expiresAt <= input.artifact.informationCutoff) {
     throw new Error('MONEY_SHARK_FUSION_EXPIRY_NOT_AFTER_CUTOFF')
+  }
+  if (input.artifact.evidenceIntegrity.unresolvedContradictionIds.length) {
+    throw new Error('MONEY_SHARK_AGGREGATE_CONTRADICTION_FORBIDDEN')
+  }
+  if (input.artifact.evidenceIntegrity.sourceGroups.length !== 1) {
+    throw new Error('MONEY_SHARK_AGGREGATE_SOURCE_INDEPENDENCE_LOSS')
   }
   return Object.freeze({
     artifactId: `shark:${input.artifact.sourceAssessmentId}`,
