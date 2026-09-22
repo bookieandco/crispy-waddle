@@ -47,6 +47,10 @@ export interface RankedMultimodalTake {
   observationIds: readonly string[];
 }
 
+function takeDimensions(...values: TakeScoreDimension[]): readonly TakeScoreDimension[] {
+  return Object.freeze(values);
+}
+
 export interface TakeSelectionResult {
   selectedTakeId?: string;
   ranked: readonly RankedMultimodalTake[];
@@ -125,7 +129,7 @@ export function rankMultimodalTakes(
 
 export const LONG_FORM_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
   id: 'long-form:v1',
-  requiredDimensions: Object.freeze(['technical','visual-readability','performance','dialogue','story-function','continuity']),
+  requiredDimensions: takeDimensions('technical','visual-readability','performance','dialogue','story-function','continuity'),
   weights: Object.freeze({
     performance: 1.5,
     dialogue: 1.4,
@@ -142,7 +146,7 @@ export const LONG_FORM_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
 
 export const CARTOON_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
   id: 'cartoon:v1',
-  requiredDimensions: Object.freeze(['technical','visual-readability','story-function','continuity','motion']),
+  requiredDimensions: takeDimensions('technical','visual-readability','story-function','continuity','motion'),
   weights: Object.freeze({
     continuity: 1.6,
     'story-function': 1.4,
@@ -158,7 +162,7 @@ export const CARTOON_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
 
 export const SHORT_FORM_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
   id: 'short-form:v1',
-  requiredDimensions: Object.freeze(['technical','visual-readability','story-function','motion']),
+  requiredDimensions: takeDimensions('technical','visual-readability','story-function','motion'),
   weights: Object.freeze({
     'story-function': 1.5,
     motion: 1.4,
@@ -174,7 +178,7 @@ export const SHORT_FORM_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
 
 export const FACELESS_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
   id: 'faceless:v1',
-  requiredDimensions: Object.freeze(['technical','visual-readability','source-relevance','rights-confidence']),
+  requiredDimensions: takeDimensions('technical','visual-readability','source-relevance','rights-confidence'),
   weights: Object.freeze({
     'source-relevance': 1.7,
     'rights-confidence': 1.6,
