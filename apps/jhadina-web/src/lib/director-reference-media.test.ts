@@ -35,6 +35,6 @@ describe('Director reference media admission', () => {
 
   it('normalizes uploaded filenames before using them in private object paths', () => {
     expect(safeDirectorReferenceFilename('../../ Ela face (final)!!.png'))
-      .toBe('..-..-Ela-face-final-.png');
+      .toBe('Ela-face-final-.png');
   });
 });
