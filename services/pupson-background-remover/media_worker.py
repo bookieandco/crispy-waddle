@@ -161,4 +161,4 @@ def not_found(_error):
 
 if __name__ == "__main__":
     from waitress import serve
-    # Railway private networking resolves service domains over IPv6. Binding\n    # to :: keeps the worker reachable from the public gateway while the two\n    # inference children remain private on IPv4 loopback.\n    serve(app, host="::", port=PORT, threads=4)
+    # Railway private networking is IPv6, while platform health routing may\n    # use IPv4. Waitress wildcard listen binds both families when available.\n    serve(app, listen=f"*:{PORT}", threads=4)
