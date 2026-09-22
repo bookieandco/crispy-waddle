@@ -1,6 +1,7 @@
 import type {
   WholeVideoProductionBrief,
   WholeVideoProductionProvider,
+  WholeVideoProviderCostClass,
   WholeVideoProviderDescriptor,
   WholeVideoProviderResult,
 } from '@jhadina/director-core/whole-video-provider';
@@ -9,6 +10,11 @@ type ProviderHttpConfig = { baseUrl: string; token?: string };
 
 function cleanBaseUrl(value: string): string {
   return value.replace(/\/+$/, '');
+}
+
+function referenceProviderCostClass(): WholeVideoProviderCostClass {
+  const value = process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_COST_CLASS;
+  return value === 'paid' || value === 'external-free' || value === 'free-local' ? value : 'free-local';
 }
 
 function providerHeaders(token?: string): HeadersInit | undefined {
@@ -26,6 +32,92 @@ function searchTerms(text: string): string[] {
   const words = text.toLowerCase().match(/[a-z0-9][a-z0-9'-]*/g) ?? [];
   const unique = [...new Set(words.filter((word) => word.length > 2 && !stop.has(word)))];
   return unique.slice(0, 4).length >= 2 ? unique.slice(0, 4) : ['cinematic', 'story'];
+}
+
+
+export class ReferenceCharacterVideoProductionProvider implements WholeVideoProductionProvider {
+  readonly descriptor: WholeVideoProviderDescriptor = {
+    id: process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_ID ?? 'reference-video-local',
+    name: process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_NAME ?? 'Reference Character Video',
+    costClass: referenceProviderCostClass(),
+    supportedModes: ['standard', 'short', 'long-form'],
+    health: 'unknown',
+    supportsCharacterReference: true,
+    requiresCharacterReference: true,
+  };
+
+  private readonly baseUrl: string;
+  constructor(private readonly config: ProviderHttpConfig) {
+    this.baseUrl = cleanBaseUrl(config.baseUrl);
+  }
+
+  async submit(brief: WholeVideoProductionBrief, idempotencyKey: string): Promise<WholeVideoProviderResult> {
+    if (!brief.character?.referenceUris.length) {
+      throw new Error('DIRECTOR_REFERENCE_VIDEO_CHARACTER_REQUIRED');
+    }
+    const response = await fetch(`${this.baseUrl}/jobs`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'idempotency-key': idempotencyKey,
+        ...(this.config.token ? { authorization: `Bearer ${this.config.token}` } : {}),
+      },
+      body: JSON.stringify({
+        jobId: brief.jobId,
+        projectId: brief.projectId,
+        prompt: brief.prompt,
+        intent: brief.intent,
+        creativeName: brief.creativeName,
+        style: brief.style,
+        scenes: brief.scenes,
+        character: brief.character,
+      }),
+    });
+    if (!response.ok) throw new Error(`DIRECTOR_REFERENCE_VIDEO_SUBMIT_FAILED:${response.status}`);
+    const body = await response.json() as {
+      providerJobId?: string;
+      status?: WholeVideoProviderResult['status'];
+      metadata?: Record<string, unknown>;
+    };
+    if (!body.providerJobId) throw new Error('DIRECTOR_REFERENCE_VIDEO_PROVIDER_JOB_ID_MISSING');
+    return {
+      providerJobId: body.providerJobId,
+      status: body.status ?? 'queued',
+      ...(body.metadata ? { metadata: body.metadata } : {}),
+    };
+  }
+
+  async status(providerJobId: string): Promise<WholeVideoProviderResult> {
+    const response = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(providerJobId)}`, {
+      headers: providerHeaders(this.config.token),
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`DIRECTOR_REFERENCE_VIDEO_STATUS_FAILED:${response.status}`);
+    const body = await response.json() as WholeVideoProviderResult;
+    return { ...body, providerJobId };
+  }
+
+  async download(providerJobId: string): Promise<{ bytes: Uint8Array; contentType: string }> {
+    const response = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(providerJobId)}/output`, {
+      headers: providerHeaders(this.config.token),
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`DIRECTOR_REFERENCE_VIDEO_DOWNLOAD_FAILED:${response.status}`);
+    return {
+      bytes: new Uint8Array(await response.arrayBuffer()),
+      contentType: response.headers.get('content-type') ?? 'video/mp4',
+    };
+  }
+
+  async cancel(providerJobId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(providerJobId)}`, {
+      method: 'DELETE',
+      headers: providerHeaders(this.config.token),
+    });
+    if (!response.ok && response.status !== 404) {
+      throw new Error(`DIRECTOR_REFERENCE_VIDEO_CANCEL_FAILED:${response.status}`);
+    }
+  }
 }
 
 export class ShortVideoMakerProductionProvider implements WholeVideoProductionProvider {
@@ -206,6 +298,12 @@ export class AgnesVideoProductionProvider implements WholeVideoProductionProvide
 
 export function createConfiguredWholeVideoProviders(): WholeVideoProductionProvider[] {
   const providers: WholeVideoProductionProvider[] = [];
+  if (process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_URL) {
+    providers.push(new ReferenceCharacterVideoProductionProvider({
+      baseUrl: process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_URL,
+      token: process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_TOKEN,
+    }));
+  }
   if (process.env.DIRECTOR_AGNES_VIDEO_URL) {
     providers.push(new AgnesVideoProductionProvider({
       baseUrl: process.env.DIRECTOR_AGNES_VIDEO_URL,
