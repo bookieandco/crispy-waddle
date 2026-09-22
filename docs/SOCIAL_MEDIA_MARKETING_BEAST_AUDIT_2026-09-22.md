@@ -422,3 +422,47 @@ What still requires live operational evidence:
 - provider-rate-limit / revoked-token / outage drills;
 - Ayrshare analytics ingestion and webhook reconciliation;
 - final convergence with open Growth intelligence PR #589.
+
+
+## Director subsystem integration
+
+Social content production now has an explicit Director bridge.
+
+Canonical path:
+
+```
+Growth / Social intelligence
+-> Content Project
+-> Social asset plan
+-> POST /api/social/director/handoff
+-> DirectorSocialProductionBrief
+-> Director TakeRequest
+-> canonical Director storyboard/run/gate resolution
+-> /api/director/generation/takes
+-> generation provider
+-> GeneratedAssetRecord
+-> Director media quality evidence
+-> Director media-review decision
+-> DirectorSocialApprovedAssetReceipt
+-> bind media back to the exact Social ContentAsset
+-> Social publication approval
+-> scheduled provider publishing
+```
+
+Authority remains separated:
+- Social can request/plan media production.
+- Director owns storyboard, production run, creative gate, generation, continuity, generated-asset provenance, QC, and review.
+- A Social handoff has `PLANNING_ONLY` authority and `publicationAuthority=NONE`.
+- A Director-approved asset receipt proves only that the media passed Director review; it still has `publicationAuthority=NONE`.
+- Social publication still requires the existing `public.publish` approval receipt.
+- Paid media still requires the separate Growth `paid-ad.publish` approval.
+
+The return bridge verifies:
+- Director project matches the Social brief;
+- asset and review refer to the same Director asset;
+- generation job matches the deterministic Social brief take identity;
+- Director creative provenance is present and matches the review;
+- review decision is `approved`;
+- review evidence exists.
+
+Text-only Social assets stay in Social. Director receives media-production asset kinds such as anchor video, short video, live/video assets, image/carousel, and creative ad media.
