@@ -30,6 +30,7 @@ export async function persistSharkLaunch(client: SupabaseClient, collection: Sol
     launched_at: launch.launchedAt,
     launchpad: launch.launchpad ?? null,
     initial_liquidity_usd: launch.initialLiquidityUsd ?? null,
+    pump_features: launch.pumpFeatures ?? null,
     outcome: launch.outcome ?? 'UNKNOWN',
     outcome_observed_at: launch.outcomeObservedAt ?? null,
     evidence_ids: launch.evidenceIds,
