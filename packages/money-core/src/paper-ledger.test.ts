@@ -43,7 +43,8 @@ test('043-ledger.3 run history is time ordered and preserves simulation authorit
   const store=new InMemoryPaperLedgerStore()
   const fillEvent=createPaperLedgerEvent({paperRunId:'run-1',kind:'FILL',payload:fill})
   const orderEvent=createPaperLedgerEvent({paperRunId:'run-1',kind:'ORDER',payload:order})
-  const portfolioEvent=createPaperLedgerEvent({paperRunId:'run-1',kind:'PORTFOLIO_SNAPSHOT',payload:portfolio,evidenceIds:['paper-fill-1']})
+  const runPortfolio:PaperPortfolio={...portfolio,paperRunId:'run-1'}
+  const portfolioEvent=createPaperLedgerEvent({paperRunId:'run-1',kind:'PORTFOLIO_SNAPSHOT',payload:runPortfolio,evidenceIds:['paper-fill-1']})
   store.append(portfolioEvent);store.append(fillEvent);store.append(orderEvent)
   const events=store.list('run-1')
   assert.deepEqual(events.map(x=>x.kind),['ORDER','FILL','PORTFOLIO_SNAPSHOT'])
