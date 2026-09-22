@@ -10,7 +10,7 @@ type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";r
 type MemoryCandidate={id:string;content:string;type:string;confidence:number;status:string}
 type GovernedExpressionSegment={kind:"semantic"|"callback"|"cultural_reference";text:string}
 type GovernedExpression={proposal:DecisionProposal;presentation:{mode:"direct"|"explanatory"|"pushback"|"clarifying"|"serious";allowProfanity:boolean;allowQuip:boolean;callback?:string;culturalReference?:string};segments:GovernedExpressionSegment[]}
-type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string}
+type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;videoJob?:{id:string;projectId:string;status:string;error?:string}}
 
 export default function AskJhadinaPage(){return <Suspense fallback={<main className="jh-page"><div className="jh-wrap"><div className="jh-skeleton"/></div></main>}><AskJhadina/></Suspense>}
 
@@ -24,6 +24,9 @@ function AskJhadina(){
  const [result,setResult]=useState<CommandResult|null>(null)
  const [feedbackBusy,setFeedbackBusy]=useState(false)
  const [feedbackRecorded,setFeedbackRecorded]=useState<"reinforced"|"rejected"|null>(null)
+ const [referenceFiles,setReferenceFiles]=useState<File[]>([])
+ const [characterName,setCharacterName]=useState("Reference character")
+ const [referenceConsent,setReferenceConsent]=useState(false)
 
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
  async function ask(){
@@ -31,9 +34,28 @@ function AskJhadina(){
   setBusy(true);setError("");setResult(null);setFeedbackRecorded(null)
   try{
    const userId=await identity()
-   const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:task.trim(),surface,route})})
+   let activeProject=params.get("projectId")??undefined
+   let referenceCharacters:unknown[]|undefined
+
+   if(referenceFiles.length){
+    if(!referenceConsent)throw new Error("Confirm that you have permission to use the reference image(s).")
+    const form=new FormData()
+    if(activeProject)form.set("projectId",activeProject)
+    form.set("displayName",characterName.trim()||"Reference character")
+    form.set("archetype","human")
+    form.set("rightsRef","user-provided-reference")
+    form.set("consent","true")
+    referenceFiles.slice(0,3).forEach(file=>form.append("references",file))
+    const uploadResponse=await fetch("/api/director/reference-characters",{method:"POST",body:form})
+    const uploadJson=await uploadResponse.json()
+    if(!uploadResponse.ok||!uploadJson.ok)throw new Error(uploadJson.error||"Could not admit the character reference")
+    activeProject=uploadJson.projectId
+    referenceCharacters=[uploadJson.referenceCharacter]
+   }
+
+   const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:task.trim(),surface,route,activeProject,referenceCharacters})})
    const json=await response.json();if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
-   setResult(json.data);setTask("")
+   setResult(json.data);setTask("");setReferenceFiles([]);setReferenceConsent(false)
   }catch(cause){setError(cause instanceof Error?cause.message:"Jhadina could not process that")}
   finally{setBusy(false)}
  }
@@ -58,6 +80,16 @@ function AskJhadina(){
     <textarea id="jhadina-command" className="jh-textarea" rows={3} value={task} onChange={event=>setTask(event.target.value)} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")void ask()}} placeholder="Ask a question, connect subsystems, inspect a decision, or tell Jhadina what you want to accomplish…" style={{flex:"1 1 560px",resize:"vertical"}}/>
     <button className="jh-button jh-button--primary" disabled={busy||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":"Ask"}</button>
    </div>
+   <div className="jh-item" style={{marginTop:14}}>
+    <strong>Reference character (optional)</strong>
+    <p className="jh-card-copy">Attach 1–3 JPEG, PNG, or WebP images. Director sanitizes them, locks one Cast Bible identity, and refuses video providers that cannot preserve that character.</p>
+    <div className="jh-row" style={{marginTop:8,alignItems:"center"}}>
+     <input aria-label="Character name" className="jh-input" value={characterName} onChange={event=>setCharacterName(event.target.value)} style={{minWidth:210}}/>
+     <input aria-label="Reference character images" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={event=>setReferenceFiles(Array.from(event.target.files??[]).slice(0,3))}/>
+     <span className="jh-meta">{referenceFiles.length?referenceFiles.length+" reference(s) selected":"No character reference selected"}</span>
+    </div>
+    {referenceFiles.length?<label className="jh-meta" style={{display:"flex",gap:8,alignItems:"center",marginTop:8}}><input type="checkbox" checked={referenceConsent} onChange={event=>setReferenceConsent(event.target.checked)}/>I have permission to use these images for AI character/video generation.</label>:null}
+   </div>
    <p className="jh-meta">Context surface: {surface} · route: {route} · ⌘/Ctrl + Enter to send</p>
   </div>
   {error&&<div className="jh-error" role="alert">{error}</div>}
@@ -72,7 +104,8 @@ function AskJhadina(){
     {result.approvalReceiptId?<p className="jh-meta">Approval receipt: {result.approvalReceiptId}. This receipt belongs to the exact governed request; it is not general permission.</p>:null}
     {!result.verified?<div className="jh-error" role="alert">Verification did not pass: {result.verificationReason??"no verification reason returned"}</div>:null}
     {result.candidate?<div className="jh-empty">Jhadina proposed a memory candidate. It is not durable memory until you decide in <Link href="/approvals">Approval Center</Link>.</div>:null}
-    {!result.candidate&&!result.approvalReceiptId?<p className="jh-meta">No persistence or external action is implied by this response.</p>:null}
+    {result.videoJob?<p className="jh-meta">Director video job: {result.videoJob.id} · {result.videoJob.status}{result.videoJob.error?" · "+result.videoJob.error:""}</p>:null}
+    {!result.candidate&&!result.approvalReceiptId&&!result.videoJob?<p className="jh-meta">No persistence or external action is implied by this response.</p>:null}
     <div className="jh-row" style={{marginTop:18}}>
      {feedbackRecorded?<span className="jh-status jh-status--success"><span className="jh-dot"/>Feedback recorded</span>:<>
       <span className="jh-meta">Did this reasoning help?</span>
