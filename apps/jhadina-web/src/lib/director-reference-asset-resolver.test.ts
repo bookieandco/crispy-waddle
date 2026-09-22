@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { SupabaseDirectorCharacterReferenceAssetResolver } from './director-reference-asset-resolver';
+import {
+  SupabaseDirectorCharacterReferenceAssetResolver,
+  SupabaseDirectorProductReferenceAssetResolver,
+} from './director-reference-asset-resolver';
 
 function fakeClient(row: Record<string, unknown> | null) {
   const query: any = {
@@ -53,6 +56,27 @@ describe('Director character reference asset resolver', () => {
     const resolver = new SupabaseDirectorCharacterReferenceAssetResolver(fake.client);
     await expect(resolver.resolve('ref-1','project-a')).rejects.toThrow('DIRECTOR_CHARACTER_REFERENCE_NOT_ADMITTED');
     expect(fake.createSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it('scopes product resolution to reference_kind=product', async () => {
+    const fake = fakeClient({
+      id: 'product-ref-1',
+      project_id: 'project-a',
+      bucket_id: 'director-reference-media',
+      object_path: 'project-a/product-ref-1/hero.png',
+      sha256: 'def456',
+      mime_type: 'image/png',
+      reference_kind: 'product',
+      admission_status: 'admitted',
+      scan_status: 'clean',
+    });
+
+    const resolver = new SupabaseDirectorProductReferenceAssetResolver(fake.client, 600);
+    await expect(resolver.resolve('product-ref-1','project-a')).resolves.toMatchObject({
+      sha256: 'def456',
+      mimeType: 'image/png',
+    });
+    expect(fake.query.eq).toHaveBeenCalledWith('reference_kind','product');
   });
 
   it('fails closed for a missing project-scoped reference', async () => {
