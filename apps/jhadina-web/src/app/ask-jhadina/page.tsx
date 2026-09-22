@@ -40,7 +40,7 @@ function AskJhadina(){
  function slugCharacter(value:string){const slug=value.trim().toLowerCase().replace(/[^a-z0-9._:-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60);return slug||`character-${crypto.randomUUID().slice(0,8)}`}
  async function jsonOrThrow(response:Response,fallback:string){const json=await response.json();if(!response.ok||json?.ok===false)throw new Error(json?.error||fallback);return json}
 
- async function askWithReferenceCharacter(userId:string){
+ async function askWithReferenceCharacter(){
   if(!referenceFile)throw new Error("Reference image is required")
   if(!referenceRightsConfirmed)throw new Error("Confirm that you own or have permission to use the reference image and likeness.")
   if(!isVideoRequest(task))throw new Error("A reference character attachment currently requires a video, movie, film, short, reel, or YouTube video request.")
@@ -113,7 +113,7 @@ function AskJhadina(){
   try{
    const userId=await identity()
    if(referenceFile){
-    await askWithReferenceCharacter(userId)
+    await askWithReferenceCharacter()
    }else{
     const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:task.trim(),surface,route,activeProject:params.get("project")??undefined,clientRequestId:crypto.randomUUID()})})
     const json=await response.json();if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
