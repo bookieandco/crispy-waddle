@@ -95,3 +95,5 @@ export * from './audio-mix-safety';
 export * from './ask-video-production';
 export * from './whole-video-provider';
 export * from './ffmpeg-media-qc';
+export * from './multimodal-take-selection';
+export * from './video-production-profile';
