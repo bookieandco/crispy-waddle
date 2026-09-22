@@ -6,8 +6,9 @@ const EVM_CHAIN_NAMES=new Set([
   'optimism','optimism-mainnet',
   'arbitrum','arbitrum-one',
   'polygon','polygon-mainnet',
+  'robinhood','robinhood-mainnet','robinhood-chain','robinhood-chain-mainnet','robinhood-testnet','robinhood-chain-testnet',
 ])
-const EVM_NUMERIC_CHAIN_IDS=new Set(['1','10','137','8453','42161'])
+const EVM_NUMERIC_CHAIN_IDS=new Set(['1','10','137','8453','42161','4663','46630'])
 
 export function chainIdentityFamily(chainId:string):ChainIdentityFamily{
   const value=chainId.trim().toLowerCase()
