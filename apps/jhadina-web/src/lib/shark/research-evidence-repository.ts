@@ -266,6 +266,7 @@ export async function appendMeteoraCashFlowEvidence(
   nonEmpty(input.source,'SHARK_METEORA_RUNTIME_SOURCE_REQUIRED')
   const payload={
     evidenceId:input.flow.evidenceId,
+    rootFlowId:input.flow.rootFlowId??input.flow.evidenceId,
     transactionId:input.flow.transactionId,
     position:input.flow.position,
     kind:input.flow.kind,
@@ -307,6 +308,7 @@ export async function appendMeteoraPositionStateEvidence(
 function flowFromPayload(payload:any):MeteoraDlmmCashFlowEvidence{
   return {
     evidenceId:String(payload.evidenceId),
+    rootFlowId:String(payload.rootFlowId??payload.evidenceId),
     transactionId:String(payload.transactionId),
     position:String(payload.position),
     kind:payload.kind,
