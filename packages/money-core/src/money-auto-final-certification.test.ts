@@ -215,6 +215,10 @@ test('AUTO.8 durable mandate schema is service-role-only and model-unwritable',(
   assert.match(migration,/GRANT SELECT, INSERT, UPDATE, DELETE ON money_autonomous_trading_mandates TO service_role/)
   assert.match(migration,/FORCE ROW LEVEL SECURITY/)
   assert.match(migration,/approval_receipt_id TEXT NOT NULL/)
+  const productionMigration=readFileSync(fileURLToPath(new URL('../../../supabase/migrations/20260922002247_money_auto_autonomous_trading_mandates.sql',import.meta.url)),'utf8')
+  assert.match(productionMigration,/REVOKE ALL ON money_autonomous_trading_mandates FROM authenticated/)
+  assert.match(productionMigration,/FORCE ROW LEVEL SECURITY/)
+  assert.match(productionMigration,/approval_receipt_id TEXT NOT NULL/)
 })
 
 test('MONEY-AUTO.FINAL certification requires all autonomous safety invariants',()=>{
