@@ -1,17 +1,40 @@
 import type {
   AudioRole,
+  BlendMode,
   ClipCrop,
   ClipTransform,
   EditableTimeline,
   GenerativeRegion,
   SfxGenerationRequest,
-  TimelineClip,
   TimelineKeyframe,
   TimelineTrack,
-  TrackKind,
 } from './timeline-model.js';
 import { addGenerativeRegion } from './timeline-model.js';
-import { splitClip, setClipFade, addTransition, updateClip } from './timeline-editing.js';
+import {
+  addTrack,
+  addTransition,
+  duplicateClip,
+  moveClipToTrack,
+  removeClipWithoutRipple,
+  removeTimelineKeyframe,
+  removeTrack,
+  reorderTrack,
+  rippleDeleteClip,
+  rollEdit,
+  setClipBlendMode,
+  setClipCrop,
+  setClipEffect,
+  setClipFade,
+  setClipSpeed,
+  setClipTransform,
+  setTimelineKeyframe,
+  slideClip,
+  slipClip,
+  sourceAwareTrim,
+  splitClip,
+  updateClip,
+  updateTrack,
+} from './timeline-editing.js';
 
 export type GeneratedAssetInsertion = {
   assetId: string;
@@ -28,27 +51,32 @@ export type GeneratedAssetInsertion = {
 
 export type TimelineCommand =
   | { type: 'move'; clipId: string; startSeconds: number }
-  | { type: 'move-to-track'; clipId: string; trackId: string; startSeconds: number }
+  | { type: 'move-to-track'; clipId: string; trackId: string; startSeconds?: number }
   | { type: 'trim'; clipId: string; startSeconds: number; durationSeconds: number }
-  | { type: 'extend-source'; clipId: string; direction: 'start' | 'end'; seconds: number }
-  | { type: 'set-speed'; clipId: string; speed: number }
-  | { type: 'set-reverse'; clipId: string; reverse: boolean }
-  | { type: 'set-transform'; clipId: string; transform: Partial<ClipTransform> }
-  | { type: 'set-crop'; clipId: string; crop: Partial<ClipCrop> }
-  | { type: 'set-keyframes'; clipId: string; keyframes: TimelineKeyframe[] }
-  | { type: 'set-text'; clipId: string; text: string }
-  | { type: 'set-audio-role'; clipId: string; role: AudioRole }
+  | { type: 'slip'; clipId: string; deltaSourceSeconds: number }
+  | { type: 'slide'; clipId: string; deltaSeconds: number }
+  | { type: 'roll'; leftClipId: string; rightClipId: string; deltaSeconds: number }
   | { type: 'set-volume'; clipId: string; volume: number }
   | { type: 'set-opacity'; clipId: string; opacity: number }
-  | { type: 'link-clips'; clipIds: string[] }
-  | { type: 'unlink-clip'; clipId: string }
-  | { type: 'add-track'; track: { id: string; name: string; kind: TrackKind; role?: AudioRole } }
-  | { type: 'set-track-state'; trackId: string; muted?: boolean; solo?: boolean; locked?: boolean; hidden?: boolean; role?: AudioRole }
-  | { type: 'remove-track'; trackId: string }
+  | { type: 'set-speed'; clipId: string; speed: number }
+  | { type: 'set-blend-mode'; clipId: string; blendMode: BlendMode }
+  | { type: 'set-transform'; clipId: string; transform: Partial<ClipTransform> }
+  | { type: 'set-crop'; clipId: string; crop: Partial<ClipCrop> }
+  | { type: 'set-clip-name'; clipId: string; name: string }
+  | { type: 'set-clip-state'; clipId: string; muted?: boolean; reverse?: boolean; audioRole?: AudioRole }
+  | { type: 'set-keyframe'; clipId: string; keyframe: TimelineKeyframe }
+  | { type: 'remove-keyframe'; clipId: string; keyframeId: string }
+  | { type: 'set-effect'; clipId: string; effect: Parameters<typeof setClipEffect>[2] }
   | { type: 'split'; clipId: string; atSeconds: number }
   | { type: 'ripple-delete'; clipId: string }
+  | { type: 'lift-delete'; clipId: string }
+  | { type: 'duplicate'; clipId: string; duplicateId: string; offsetSeconds?: number }
   | { type: 'fade'; clipId: string; fadeInSeconds?: number; fadeOutSeconds?: number; curve?: 'linear' | 'equal-power' | 'exponential' }
   | { type: 'transition'; transition: Parameters<typeof addTransition>[1] }
+  | { type: 'add-track'; track: TimelineTrack }
+  | { type: 'remove-track'; trackId: string }
+  | { type: 'reorder-track'; trackId: string; index: number }
+  | { type: 'set-track-state'; trackId: string; name?: string; muted?: boolean; solo?: boolean; locked?: boolean; relationship?: TimelineTrack['relationship']; connectedToClipId?: string }
   | { type: 'generative-region'; region: GenerativeRegion }
   | { type: 'generate-sfx'; request: SfxGenerationRequest }
   | { type: 'insert-generated-asset'; asset: GeneratedAssetInsertion };
@@ -56,62 +84,90 @@ export type TimelineCommand =
 export function applyTimelineCommand(timeline: EditableTimeline, command: TimelineCommand): EditableTimeline {
   switch (command.type) {
     case 'move':
-      return updateUnlockedClip(timeline, command.clipId, clip => ({ ...clip, startSeconds: Math.max(0, command.startSeconds) }));
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return updateClip(timeline, command.clipId, clip => ({ ...clip, startSeconds: Math.max(0, command.startSeconds) }));
     case 'move-to-track':
       return moveClipToTrack(timeline, command.clipId, command.trackId, command.startSeconds);
     case 'trim':
-      return updateUnlockedClip(timeline, command.clipId, clip => ({
-        ...clip,
-        startSeconds: Math.max(0, command.startSeconds),
-        durationSeconds: Math.max(0.1, command.durationSeconds),
-      }));
-    case 'extend-source':
-      return extendClipFromSource(timeline, command.clipId, command.direction, command.seconds);
-    case 'set-speed':
-      return setClipSpeed(timeline, command.clipId, command.speed);
-    case 'set-reverse':
-      return updateUnlockedClip(timeline, command.clipId, clip => ({ ...clip, reverse: command.reverse }));
-    case 'set-transform':
-      return updateUnlockedClip(timeline, command.clipId, clip => ({
-        ...clip,
-        transform: normalizeTransform({ ...defaultTransform(), ...(clip.transform ?? {}), ...command.transform }),
-      }));
-    case 'set-crop':
-      return updateUnlockedClip(timeline, command.clipId, clip => ({
-        ...clip,
-        crop: normalizeCrop({ ...defaultCrop(), ...(clip.crop ?? {}), ...command.crop }),
-      }));
-    case 'set-keyframes':
-      return updateUnlockedClip(timeline, command.clipId, clip => ({
-        ...clip,
-        keyframes: normalizeKeyframes(command.keyframes, clip.durationSeconds),
-      }));
-    case 'set-text':
-      return updateUnlockedClip(timeline, command.clipId, clip => ({ ...clip, text: command.text }));
-    case 'set-audio-role':
-      return updateUnlockedClip(timeline, command.clipId, clip => ({ ...clip, audioRole: command.role }));
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return sourceAwareTrim(timeline, command.clipId, command.startSeconds, command.durationSeconds);
+    case 'slip':
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return slipClip(timeline, command.clipId, command.deltaSourceSeconds);
+    case 'slide':
+      return slideClip(timeline, command.clipId, command.deltaSeconds);
+    case 'roll':
+      return rollEdit(timeline, command.leftClipId, command.rightClipId, command.deltaSeconds);
     case 'set-volume':
-      return updateUnlockedClip(timeline, command.clipId, clip => ({ ...clip, volume: Math.max(0, Math.min(2, command.volume)) }));
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return updateClip(timeline, command.clipId, clip => ({ ...clip, volume: Math.max(0, Math.min(2, command.volume)) }));
     case 'set-opacity':
-      return updateUnlockedClip(timeline, command.clipId, clip => ({ ...clip, opacity: Math.max(0, Math.min(1, command.opacity)) }));
-    case 'link-clips':
-      return linkClips(timeline, command.clipIds);
-    case 'unlink-clip':
-      return unlinkClip(timeline, command.clipId);
-    case 'add-track':
-      return addTrack(timeline, command.track);
-    case 'set-track-state':
-      return setTrackState(timeline, command);
-    case 'remove-track':
-      return removeTrack(timeline, command.trackId);
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return updateClip(timeline, command.clipId, clip => ({ ...clip, opacity: Math.max(0, Math.min(1, command.opacity)) }));
+    case 'set-speed':
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return setClipSpeed(timeline, command.clipId, command.speed);
+    case 'set-blend-mode':
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return setClipBlendMode(timeline, command.clipId, command.blendMode);
+    case 'set-transform':
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return setClipTransform(timeline, command.clipId, command.transform);
+    case 'set-crop':
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return setClipCrop(timeline, command.clipId, command.crop);
+    case 'set-clip-name':
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return updateClip(timeline, command.clipId, clip => ({ ...clip, name: command.name.trim() || clip.name }));
+    case 'set-clip-state':
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return updateClip(timeline, command.clipId, clip => ({
+        ...clip,
+        ...(command.muted !== undefined ? { muted: command.muted } : {}),
+        ...(command.reverse !== undefined ? { reverse: command.reverse } : {}),
+        ...(command.audioRole !== undefined ? { audioRole: command.audioRole } : {}),
+      }));
+    case 'set-keyframe':
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return setTimelineKeyframe(timeline, command.clipId, command.keyframe);
+    case 'remove-keyframe':
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return removeTimelineKeyframe(timeline, command.clipId, command.keyframeId);
+    case 'set-effect':
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return setClipEffect(timeline, command.clipId, command.effect);
     case 'split':
-      return splitUnlockedClip(timeline, command.clipId, command.atSeconds);
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return splitClip(timeline, command.clipId, command.atSeconds);
     case 'ripple-delete':
-      return rippleDelete(timeline, command.clipId);
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return rippleDeleteClip(timeline, command.clipId);
+    case 'lift-delete':
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return removeClipWithoutRipple(timeline, command.clipId);
+    case 'duplicate':
+      return duplicateClip(timeline, command.clipId, command.duplicateId, command.offsetSeconds ?? 0);
     case 'fade':
-      return assertClipUnlockedAndApply(timeline, command.clipId, current => setClipFade(current, command.clipId, command));
+      if (clipTrackLocked(timeline, command.clipId)) return timeline;
+      return setClipFade(timeline, command.clipId, command);
     case 'transition':
       return addTransition(timeline, command.transition);
+    case 'add-track':
+      return addTrack(timeline, command.track);
+    case 'remove-track':
+      return removeTrack(timeline, command.trackId);
+    case 'reorder-track':
+      return reorderTrack(timeline, command.trackId, command.index);
+    case 'set-track-state':
+      return updateTrack(timeline, command.trackId, track => ({
+        ...track,
+        ...(command.name !== undefined ? { name: command.name.trim() || track.name } : {}),
+        ...(command.muted !== undefined ? { muted: command.muted } : {}),
+        ...(command.solo !== undefined ? { solo: command.solo } : {}),
+        ...(command.locked !== undefined ? { locked: command.locked } : {}),
+        ...(command.relationship !== undefined ? { relationship: command.relationship } : {}),
+        ...(command.connectedToClipId !== undefined ? { connectedToClipId: command.connectedToClipId || undefined } : {}),
+      }));
     case 'generative-region':
       return addGenerativeRegion(timeline, command.region);
     case 'generate-sfx':
@@ -121,257 +177,23 @@ export function applyTimelineCommand(timeline: EditableTimeline, command: Timeli
   }
 }
 
-function updateUnlockedClip(
-  timeline: EditableTimeline,
-  clipId: string,
-  updater: (clip: TimelineClip) => TimelineClip,
-): EditableTimeline {
-  assertClipUnlocked(timeline, clipId);
-  return updateClip(timeline, clipId, updater);
-}
-
-function assertClipUnlocked(timeline: EditableTimeline, clipId: string): void {
-  const track = timeline.tracks.find(item => item.clips.some(clip => clip.id === clipId));
-  if (!track) throw new Error('DIRECTOR_TIMELINE_CLIP_NOT_FOUND');
-  if (track.locked) throw new Error('DIRECTOR_TIMELINE_TRACK_LOCKED');
-}
-
-function assertClipUnlockedAndApply(
-  timeline: EditableTimeline,
-  clipId: string,
-  apply: (timeline: EditableTimeline) => EditableTimeline,
-): EditableTimeline {
-  assertClipUnlocked(timeline, clipId);
-  return apply(timeline);
-}
-
-function moveClipToTrack(
-  timeline: EditableTimeline,
-  clipId: string,
-  targetTrackId: string,
-  startSeconds: number,
-): EditableTimeline {
-  const sourceTrack = timeline.tracks.find(track => track.clips.some(clip => clip.id === clipId));
-  const targetTrack = timeline.tracks.find(track => track.id === targetTrackId);
-  if (!sourceTrack) throw new Error('DIRECTOR_TIMELINE_CLIP_NOT_FOUND');
-  if (!targetTrack) throw new Error('DIRECTOR_TIMELINE_TRACK_NOT_FOUND');
-  if (sourceTrack.locked || targetTrack.locked) throw new Error('DIRECTOR_TIMELINE_TRACK_LOCKED');
-
-  const clip = sourceTrack.clips.find(item => item.id === clipId)!;
-  if (!trackAcceptsClip(targetTrack, clip)) throw new Error('DIRECTOR_TIMELINE_TRACK_KIND_INCOMPATIBLE');
-
-  const moved = { ...clip, trackId: targetTrack.id, startSeconds: Math.max(0, startSeconds) };
-  return {
-    ...timeline,
-    tracks: timeline.tracks.map(track => {
-      if (track.id === sourceTrack.id && track.id === targetTrack.id) {
-        return { ...track, clips: track.clips.map(item => item.id === clipId ? moved : item) };
-      }
-      if (track.id === sourceTrack.id) return { ...track, clips: track.clips.filter(item => item.id !== clipId) };
-      if (track.id === targetTrack.id) return { ...track, clips: [...track.clips, moved].sort((a, b) => a.startSeconds - b.startSeconds) };
-      return track;
-    }),
-  };
-}
-
-function trackAcceptsClip(track: TimelineTrack, clip: TimelineClip): boolean {
-  if (track.kind === 'audio') return clip.audioRole !== undefined || clip.assetId.toLowerCase().match(/\.(wav|mp3|aac|m4a|flac)$/) !== null;
-  if (track.kind === 'subtitle') return Boolean(clip.text) || clip.assetId.toLowerCase().endsWith('.srt') || clip.assetId.toLowerCase().endsWith('.vtt');
-  return track.kind === 'video' || track.kind === 'overlay' || track.kind === 'effect';
-}
-
-function extendClipFromSource(
-  timeline: EditableTimeline,
-  clipId: string,
-  direction: 'start' | 'end',
-  seconds: number,
-): EditableTimeline {
-  if (!Number.isFinite(seconds) || seconds <= 0) throw new Error('DIRECTOR_SOURCE_HANDLE_EXTENSION_INVALID');
-  assertClipUnlocked(timeline, clipId);
-
-  const clip = timeline.tracks.flatMap(track => track.clips).find(item => item.id === clipId);
-  if (!clip) throw new Error('DIRECTOR_TIMELINE_CLIP_NOT_FOUND');
-  if (!Number.isFinite(clip.sourceDurationSeconds) || (clip.sourceDurationSeconds ?? 0) <= 0) {
-    throw new Error('DIRECTOR_SOURCE_DURATION_REQUIRED');
-  }
-
-  const sourceIn = clip.sourceInSeconds ?? 0;
-  const sourceOut = clip.sourceOutSeconds ?? Math.min(clip.sourceDurationSeconds!, sourceIn + clip.durationSeconds * (clip.speed ?? 1));
-  const speed = clip.speed ?? 1;
-
-  if (direction === 'start') {
-    const sourceSeconds = seconds * speed;
-    if (sourceIn - sourceSeconds < -1e-9) throw new Error('DIRECTOR_SOURCE_HANDLE_EXTENSION_EXCEEDS_MEDIA');
-    if (clip.startSeconds - seconds < -1e-9) throw new Error('DIRECTOR_SOURCE_HANDLE_EXTENSION_BEFORE_TIMELINE');
-    return updateClip(timeline, clipId, current => ({
-      ...current,
-      startSeconds: current.startSeconds - seconds,
-      durationSeconds: current.durationSeconds + seconds,
-      sourceInSeconds: sourceIn - sourceSeconds,
-      sourceOutSeconds: sourceOut,
-    }));
-  }
-
-  const sourceSeconds = seconds * speed;
-  if (sourceOut + sourceSeconds > clip.sourceDurationSeconds! + 1e-9) {
-    throw new Error('DIRECTOR_SOURCE_HANDLE_EXTENSION_EXCEEDS_MEDIA');
-  }
-
-  const next = updateClip(timeline, clipId, current => ({
-    ...current,
-    durationSeconds: current.durationSeconds + seconds,
-    sourceInSeconds: sourceIn,
-    sourceOutSeconds: sourceOut + sourceSeconds,
-  }));
-  const nextEnd = clip.startSeconds + clip.durationSeconds + seconds;
-  return nextEnd > next.durationSeconds ? { ...next, durationSeconds: nextEnd } : next;
-}
-
-function setClipSpeed(timeline: EditableTimeline, clipId: string, speed: number): EditableTimeline {
-  if (!Number.isFinite(speed) || speed < 0.05 || speed > 16) throw new Error('DIRECTOR_TIMELINE_SPEED_INVALID');
-  assertClipUnlocked(timeline, clipId);
-  const clip = timeline.tracks.flatMap(track => track.clips).find(item => item.id === clipId);
-  if (!clip) throw new Error('DIRECTOR_TIMELINE_CLIP_NOT_FOUND');
-
-  const previousSpeed = clip.speed ?? 1;
-  const sourceIn = clip.sourceInSeconds ?? 0;
-  const sourceOut = clip.sourceOutSeconds;
-  const durationSeconds = sourceOut !== undefined
-    ? Math.max(0.1, (sourceOut - sourceIn) / speed)
-    : Math.max(0.1, clip.durationSeconds * previousSpeed / speed);
-
-  const next = updateClip(timeline, clipId, current => ({ ...current, speed, durationSeconds }));
-  const nextEnd = clip.startSeconds + durationSeconds;
-  return nextEnd > next.durationSeconds ? { ...next, durationSeconds: nextEnd } : next;
-}
-
-function normalizeTransform(transform: ClipTransform): ClipTransform {
-  if (![transform.positionX, transform.positionY, transform.scaleX, transform.scaleY, transform.rotationDegrees].every(Number.isFinite)) {
-    throw new Error('DIRECTOR_TIMELINE_TRANSFORM_INVALID');
-  }
-  if (transform.scaleX <= 0 || transform.scaleY <= 0) throw new Error('DIRECTOR_TIMELINE_SCALE_INVALID');
-  return transform;
-}
-
-function normalizeCrop(crop: ClipCrop): ClipCrop {
-  const values = [crop.left, crop.right, crop.top, crop.bottom];
-  if (values.some(value => !Number.isFinite(value) || value < 0 || value > 1)) throw new Error('DIRECTOR_TIMELINE_CROP_INVALID');
-  if (crop.left + crop.right >= 1 || crop.top + crop.bottom >= 1) throw new Error('DIRECTOR_TIMELINE_CROP_COLLAPSES_FRAME');
-  return crop;
-}
-
-function normalizeKeyframes(keyframes: TimelineKeyframe[], clipDurationSeconds: number): TimelineKeyframe[] {
-  const ids = new Set<string>();
-  return [...keyframes].sort((a, b) => a.timeSeconds - b.timeSeconds).map(keyframe => {
-    if (!keyframe.id.trim() || ids.has(keyframe.id)) throw new Error('DIRECTOR_TIMELINE_KEYFRAME_ID_INVALID');
-    ids.add(keyframe.id);
-    if (!Number.isFinite(keyframe.timeSeconds) || keyframe.timeSeconds < 0 || keyframe.timeSeconds > clipDurationSeconds) {
-      throw new Error('DIRECTOR_TIMELINE_KEYFRAME_TIME_INVALID');
-    }
-    if (!Number.isFinite(keyframe.value)) throw new Error('DIRECTOR_TIMELINE_KEYFRAME_VALUE_INVALID');
-    return keyframe;
-  });
-}
-
-function defaultTransform(): ClipTransform {
-  return { positionX: 0, positionY: 0, scaleX: 1, scaleY: 1, rotationDegrees: 0 };
-}
-
-function defaultCrop(): ClipCrop {
-  return { left: 0, right: 0, top: 0, bottom: 0 };
-}
-
-function linkClips(timeline: EditableTimeline, clipIds: string[]): EditableTimeline {
-  const unique = [...new Set(clipIds)];
-  if (unique.length < 2) throw new Error('DIRECTOR_TIMELINE_LINK_REQUIRES_MULTIPLE_CLIPS');
-  for (const id of unique) {
-    if (!timeline.tracks.some(track => track.clips.some(clip => clip.id === id))) throw new Error('DIRECTOR_TIMELINE_CLIP_NOT_FOUND');
-  }
-  return {
-    ...timeline,
-    tracks: timeline.tracks.map(track => ({
-      ...track,
-      clips: track.clips.map(clip => unique.includes(clip.id)
-        ? { ...clip, linkedClipIds: unique.filter(id => id !== clip.id) }
-        : clip),
-    })),
-  };
-}
-
-function unlinkClip(timeline: EditableTimeline, clipId: string): EditableTimeline {
-  const linked = timeline.tracks.flatMap(track => track.clips).find(clip => clip.id === clipId)?.linkedClipIds ?? [];
-  const all = new Set([clipId, ...linked]);
-  return {
-    ...timeline,
-    tracks: timeline.tracks.map(track => ({
-      ...track,
-      clips: track.clips.map(clip => all.has(clip.id)
-        ? { ...clip, linkedClipIds: (clip.linkedClipIds ?? []).filter(id => id !== clipId) }
-        : clip),
-    })),
-  };
-}
-
-function addTrack(
-  timeline: EditableTimeline,
-  input: { id: string; name: string; kind: TrackKind; role?: AudioRole },
-): EditableTimeline {
-  if (!input.id.trim() || !input.name.trim()) throw new Error('DIRECTOR_TIMELINE_TRACK_IDENTITY_REQUIRED');
-  if (timeline.tracks.some(track => track.id === input.id)) throw new Error('DIRECTOR_TIMELINE_TRACK_EXISTS');
-  const track: TimelineTrack = {
-    id: input.id,
-    name: input.name,
-    kind: input.kind,
-    index: timeline.tracks.length,
-    ...(input.role ? { role: input.role } : {}),
-    clips: [],
-  };
-  return { ...timeline, tracks: [...timeline.tracks, track] };
-}
-
-function setTrackState(
-  timeline: EditableTimeline,
-  command: Extract<TimelineCommand, { type: 'set-track-state' }>,
-): EditableTimeline {
-  if (!timeline.tracks.some(track => track.id === command.trackId)) throw new Error('DIRECTOR_TIMELINE_TRACK_NOT_FOUND');
-  return {
-    ...timeline,
-    tracks: timeline.tracks.map(track => track.id === command.trackId
-      ? {
-          ...track,
-          ...(command.muted !== undefined ? { muted: command.muted } : {}),
-          ...(command.solo !== undefined ? { solo: command.solo } : {}),
-          ...(command.locked !== undefined ? { locked: command.locked } : {}),
-          ...(command.hidden !== undefined ? { hidden: command.hidden } : {}),
-          ...(command.role !== undefined ? { role: command.role } : {}),
-        }
-      : track),
-  };
-}
-
-function removeTrack(timeline: EditableTimeline, trackId: string): EditableTimeline {
-  const track = timeline.tracks.find(item => item.id === trackId);
-  if (!track) throw new Error('DIRECTOR_TIMELINE_TRACK_NOT_FOUND');
-  if (track.clips.length) throw new Error('DIRECTOR_TIMELINE_TRACK_NOT_EMPTY');
-  return {
-    ...timeline,
-    tracks: timeline.tracks
-      .filter(item => item.id !== trackId)
-      .map((item, index) => ({ ...item, index })),
-  };
-}
-
-function splitUnlockedClip(timeline: EditableTimeline, clipId: string, atSeconds: number): EditableTimeline {
-  assertClipUnlocked(timeline, clipId);
-  return splitClip(timeline, clipId, atSeconds);
+function clipTrackLocked(timeline: EditableTimeline, clipId: string): boolean {
+  return Boolean(timeline.tracks.find(track => track.locked && track.clips.some(clip => clip.id === clipId)));
 }
 
 function insertGeneratedAsset(timeline: EditableTimeline, asset: GeneratedAssetInsertion): EditableTimeline {
   const startSeconds = Math.max(0, asset.startSeconds);
   const endSeconds = Math.max(startSeconds + 0.1, asset.endSeconds);
-  const durationSeconds = Math.max(0.1, endSeconds - startSeconds);
+  const durationSeconds = Math.min(timeline.durationSeconds - startSeconds, endSeconds - startSeconds);
+  if (durationSeconds <= 0) return timeline;
 
-  const trackKind = asset.mediaType === 'subtitle' ? 'subtitle' : asset.mediaType === 'audio' ? 'audio' : asset.mediaType === 'image' || asset.mediaType === 'video' || asset.mediaType === 'motion' ? 'overlay' : 'effect';
+  const trackKind = asset.mediaType === 'subtitle'
+    ? 'subtitle'
+    : asset.mediaType === 'audio'
+      ? 'audio'
+      : asset.mediaType === 'image' || asset.mediaType === 'video' || asset.mediaType === 'motion'
+        ? 'overlay'
+        : 'effect';
   const existingTrack = timeline.tracks.find(track => track.kind === trackKind && !track.locked);
   const trackId = existingTrack?.id ?? `generated-${trackKind}`;
 
@@ -394,36 +216,40 @@ function insertGeneratedAsset(timeline: EditableTimeline, asset: GeneratedAssetI
     },
   };
 
-  const clip: TimelineClip = {
+  const clip = {
     id: `generated:${asset.assetId}`,
     assetId: asset.assetId,
     trackId,
+    name: typeof asset.metadata?.name === 'string' ? asset.metadata.name : `Generated ${asset.mediaType}`,
     startSeconds,
     durationSeconds,
+    sourceInSeconds: 0,
+    sourceOutSeconds: durationSeconds,
+    sourceDurationSeconds: durationSeconds,
     effects: [],
     generativeRegions: [generativeRegion],
   };
 
-  let next: EditableTimeline;
   if (existingTrack) {
-    next = {
+    return {
       ...timeline,
-      tracks: timeline.tracks.map(track => track.id === existingTrack.id ? { ...track, clips: [...track.clips, clip].sort((a, b) => a.startSeconds - b.startSeconds) } : track),
+      tracks: timeline.tracks.map(track => track.id === existingTrack.id
+        ? { ...track, clips: [...track.clips, clip].sort((a, b) => a.startSeconds - b.startSeconds) }
+        : track),
     };
-  } else {
-    const nextIndex = timeline.tracks.length;
-    const newTrack: TimelineTrack = {
-      id: trackId,
-      name: `Generated ${trackKind}`,
-      kind: trackKind,
-      index: nextIndex,
-      clips: [clip],
-    };
-    next = { ...timeline, tracks: [...timeline.tracks, newTrack] };
   }
 
-  const clipEnd = startSeconds + durationSeconds;
-  return clipEnd > next.durationSeconds ? { ...next, durationSeconds: clipEnd } : next;
+  const nextIndex = timeline.tracks.length;
+  const newTrack: TimelineTrack = {
+    id: trackId,
+    name: `Generated ${trackKind}`,
+    kind: trackKind,
+    relationship: trackKind === 'audio' || trackKind === 'overlay' ? 'connected' : 'lane',
+    index: nextIndex,
+    clips: [clip],
+  };
+
+  return { ...timeline, tracks: [...timeline.tracks, newTrack] };
 }
 
 function addSfxRequest(timeline: EditableTimeline, request: SfxGenerationRequest): EditableTimeline {
@@ -449,31 +275,17 @@ function addSfxRequest(timeline: EditableTimeline, request: SfxGenerationRequest
   return addGenerativeRegion(timeline, region);
 }
 
-function rippleDelete(timeline: EditableTimeline, clipId: string): EditableTimeline {
-  assertClipUnlocked(timeline, clipId);
-  const target = timeline.tracks.flatMap(track => track.clips).find(clip => clip.id === clipId);
-  if (!target) return timeline;
-  const end = target.startSeconds + target.durationSeconds;
-  const linked = new Set([clipId, ...(target.linkedClipIds ?? [])]);
-  return {
-    ...timeline,
-    tracks: timeline.tracks.map(track => ({
-      ...track,
-      clips: track.clips
-        .filter(clip => !linked.has(clip.id))
-        .map(clip => clip.startSeconds >= end ? { ...clip, startSeconds: Math.max(0, clip.startSeconds - target.durationSeconds) } : clip),
-    })),
-    transitions: timeline.transitions.filter(transition => !linked.has(transition.fromClipId) && !linked.has(transition.toClipId)),
-  };
-}
-
 export function timelineCommandReason(command: TimelineCommand): string {
   if (command.type === 'generative-region') return `Generative edit: ${command.region.instruction}`;
   if (command.type === 'generate-sfx') return `Generate SFX: ${command.request.prompt}`;
   if (command.type === 'insert-generated-asset') return `Insert generated ${command.asset.mediaType} asset: ${command.asset.assetId}`;
   if (command.type === 'transition') return 'Add timeline transition';
-  if (command.type === 'extend-source') return `Extend clip from source handles: ${command.direction} +${command.seconds}s`;
-  if (command.type === 'move-to-track') return `Move clip to track ${command.trackId}`;
-  if (command.type === 'set-track-state') return `Update track state: ${command.trackId}`;
+  if (command.type === 'set-track-state') return 'Update track controls';
+  if (command.type === 'add-track') return `Add ${command.track.kind} track`;
+  if (command.type === 'remove-track') return 'Remove empty track';
+  if (command.type === 'move-to-track') return 'Move clip between tracks';
+  if (command.type === 'roll') return 'Roll edit';
+  if (command.type === 'slide') return 'Slide edit';
+  if (command.type === 'slip') return 'Slip edit';
   return `Timeline ${command.type}`;
 }
