@@ -1,5 +1,5 @@
 import type { ActionRequest } from '@jhadina/action-core'
-import type { MoneyActionCoreAuthority } from './action-core-authority-bridge.js'
+import { assertActionCoreAuthorityMatches, type MoneyActionCoreAuthority } from './action-core-authority-bridge.js'
 
 export type AutonomousTradingMode='DISABLED'|'PAPER'|'SHADOW'|'LIVE_AUTONOMOUS'
 export type AutonomousMandateStatus='ACTIVE'|'REVOKED'|'EXPIRED'
@@ -207,7 +207,7 @@ export function createAutonomousTradingMandate(input:{
   activatedAt:string
 }):AutonomousTradingMandate{
   const {request,authority}=input,a=request.action
-  if(authority.actionRequestId!==request.id||authority.actionRequestFingerprint.length===0||authority.userId!==request.userId||authority.capability!==request.type)throw new Error('MONEY_AUTO_ACTION_CORE_AUTHORITY_MISMATCH')
+  try{assertActionCoreAuthorityMatches(request,authority)}catch{throw new Error('MONEY_AUTO_ACTION_CORE_AUTHORITY_MISMATCH')}
   if(authority.decision!=='approval_required'||!authority.approvalReceiptId||authority.approvalReceiptId!==request.approvalReceiptId)throw new Error('MONEY_AUTO_ACTION_CORE_APPROVAL_REQUIRED')
   if(!input.mandateId.trim()||!input.evidenceIds.length)throw new Error('MONEY_AUTO_MANDATE_PROVENANCE_REQUIRED')
   if(!a.allowedInstrumentPrefixes.length||!a.allowedStrategyIds.length)throw new Error('MONEY_AUTO_ALLOWLIST_REQUIRED')
