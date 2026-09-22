@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
             verified: social.verified,
             verificationReason: social.verificationReason,
             socialWorkPlan: social.workPlan,
+            feedbackEligible: false,
           },
         })
       }
