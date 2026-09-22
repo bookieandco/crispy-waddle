@@ -4,6 +4,8 @@ on:
     paths:
       - "packages/director-core/**"
       - "apps/jhadina-web/src/app/api/workstation/**"
+      - "apps/jhadina-web/src/app/api/director/**"
+      - "apps/jhadina-web/src/app/api/jhadina/command/route.ts"
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
@@ -65,6 +67,7 @@ jobs:
           src/character-reference-and-extend.test.ts
           src/commercial-creative-lab.test.ts
           src/product-reference-bootstrap.test.ts
+          src/whole-video-provider.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
       - name: Workstation authority, Studio QC and Social bridge
         run: >
@@ -72,6 +75,7 @@ jobs:
           src/lib/director-project-authority.test.ts
           src/lib/director-studio-qc-repository.test.ts
           src/lib/director-cast-repository.test.ts
+          src/lib/director-reference-media.test.ts
           src/app/api/workstation/editing-assets/route.test.ts
           src/lib/social/director-bridge.test.ts
       - run: pnpm --filter @jhadina/jhadina-web run type-check
