@@ -4,6 +4,14 @@ import type { TakeRequest, ContinuityLock } from './generation-orchestrator.js';
 
 export type SocialProductionMediaType = 'image' | 'video' | 'motion';
 
+export interface DirectorSocialCommercialCreativeRef {
+  conceptId: string;
+  productBibleId: string;
+  styleBibleId: string;
+  multiplierVariantId?: string;
+  experimentId?: string;
+}
+
 export interface DirectorSocialProductionBrief {
   id: string;
   sourceSystem: 'social';
@@ -18,6 +26,7 @@ export interface DirectorSocialProductionBrief {
   referenceAssetIds: readonly string[];
   rightsEvidenceRefs: readonly string[];
   evidenceRefs: readonly string[];
+  commercialCreative?: DirectorSocialCommercialCreativeRef;
   createdAt: string;
   authority: 'PLANNING_ONLY';
   publicationAuthority: 'NONE';
@@ -36,6 +45,7 @@ export interface CreateDirectorSocialProductionBriefInput {
   referenceAssetIds?: readonly string[];
   rightsEvidenceRefs?: readonly string[];
   evidenceRefs: readonly string[];
+  commercialCreative?: DirectorSocialCommercialCreativeRef;
   createdAt: string;
 }
 
@@ -74,6 +84,17 @@ export function createDirectorSocialProductionBrief(
   nonEmpty(input.directorProjectId, 'DIRECTOR_SOCIAL_DIRECTOR_PROJECT_ID_REQUIRED');
   nonEmpty(input.intent, 'DIRECTOR_SOCIAL_INTENT_REQUIRED');
   if (!input.evidenceRefs.length) throw new Error('DIRECTOR_SOCIAL_EVIDENCE_REQUIRED');
+  if (input.commercialCreative) {
+    nonEmpty(input.commercialCreative.conceptId, 'DIRECTOR_SOCIAL_AD_CONCEPT_REQUIRED');
+    nonEmpty(input.commercialCreative.productBibleId, 'DIRECTOR_SOCIAL_AD_PRODUCT_BIBLE_REQUIRED');
+    nonEmpty(input.commercialCreative.styleBibleId, 'DIRECTOR_SOCIAL_AD_STYLE_BIBLE_REQUIRED');
+    if (input.commercialCreative.multiplierVariantId !== undefined) {
+      nonEmpty(input.commercialCreative.multiplierVariantId, 'DIRECTOR_SOCIAL_AD_MULTIPLIER_VARIANT_INVALID');
+    }
+    if (input.commercialCreative.experimentId !== undefined) {
+      nonEmpty(input.commercialCreative.experimentId, 'DIRECTOR_SOCIAL_AD_EXPERIMENT_INVALID');
+    }
+  }
   if (!Number.isFinite(Date.parse(input.createdAt))) throw new Error('DIRECTOR_SOCIAL_CREATED_AT_INVALID');
   if (input.targetRuntimeSeconds !== undefined && (!Number.isFinite(input.targetRuntimeSeconds) || input.targetRuntimeSeconds <= 0)) {
     throw new Error('DIRECTOR_SOCIAL_RUNTIME_INVALID');
@@ -98,6 +119,7 @@ export function createDirectorSocialProductionBrief(
     referenceAssetIds: Object.freeze(refs),
     rightsEvidenceRefs: Object.freeze(rights),
     evidenceRefs: Object.freeze([...input.evidenceRefs]),
+    ...(input.commercialCreative ? { commercialCreative: Object.freeze({ ...input.commercialCreative }) } : {}),
     createdAt: input.createdAt,
     authority: 'PLANNING_ONLY',
     publicationAuthority: 'NONE',
@@ -116,6 +138,11 @@ export function compileDirectorSocialTakeRequest(
     brief.platform ? `target platform: ${brief.platform}` : null,
     brief.aspectRatio ? `aspect ratio: ${brief.aspectRatio}` : null,
     `deliverable: ${brief.mediaType}`,
+    brief.commercialCreative ? `commercial concept: ${brief.commercialCreative.conceptId}` : null,
+    brief.commercialCreative ? `product identity bible: ${brief.commercialCreative.productBibleId}` : null,
+    brief.commercialCreative ? `visual style bible: ${brief.commercialCreative.styleBibleId}` : null,
+    brief.commercialCreative?.multiplierVariantId ? `ad multiplier variant: ${brief.commercialCreative.multiplierVariantId}` : null,
+    brief.commercialCreative?.experimentId ? `growth experiment: ${brief.commercialCreative.experimentId}` : null,
   ].filter(Boolean).join('; ');
 
   return {
