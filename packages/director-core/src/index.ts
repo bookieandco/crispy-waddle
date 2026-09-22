@@ -97,3 +97,6 @@ export * from './whole-video-provider';
 export * from './ffmpeg-media-qc';
 export * from './multimodal-take-selection';
 export * from './video-production-profile';
+export * from './cast-bible';
+export * from './voice-identity';
+export * from './movie-audio-bible';
