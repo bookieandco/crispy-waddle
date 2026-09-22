@@ -30,5 +30,11 @@
       "schedule": "50 */6 * * *"
     }
   ],
-  "ignoreCommand": "turbo query affected --base=$VERCEL_GIT_PREVIOUS_SHA --packages @jhadina/jhadina-web --exit-code"
+  "ignoreCommand": "turbo query affected --base=$VERCEL_GIT_PREVIOUS_SHA --packages @jhadina/jhadina-web --exit-code",
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "main": true
+    }
+  }
 }
