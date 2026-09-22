@@ -16,7 +16,7 @@ test('SPORT-PAPER.1 normalizes odds without granting betting authority',()=>{
 
 test('SPORT-PAPER.2 creates a paper-only wager from point-in-time odds',()=>{
   const wager=createSportsPaperWager({strategyId:'nba-edge-v1',quote:quote(),fairProbability:.48,stakeMinor:1000n,currency:'USD',placedAt:'2026-09-21T17:05:00Z',informationCutoff:'2026-09-21T17:00:01Z',evidenceIds:['prediction:p1']})
-  assert.equal(wager.estimatedEdge,.08)
+  assert.ok(Math.abs(wager.estimatedEdge-.08)<1e-12)
   assert.equal(wager.simulationAuthority,'PAPER_ONLY')
   assert.equal(wager.bettingAuthority,'NONE')
   assert.equal(wager.financialAuthority,'NONE')
