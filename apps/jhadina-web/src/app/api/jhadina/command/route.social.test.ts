@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 
 const verify = vi.fn(async () => ({ userId: "user-1", sessionId: "session-1" }))
+const handleGrowth = vi.fn()
+const inspectGrowth = vi.fn()
 const handleSocial = vi.fn()
 const inspectSocial = vi.fn()
 const inspectVideo = vi.fn()
@@ -10,6 +12,11 @@ const handleGeneric = vi.fn()
 
 vi.mock("@/lib/auth/request-identity", () => ({
   createRequestIdentityVerifier: async () => ({ verify }),
+}))
+
+vi.mock("@/lib/intelligence/ask-growth-command", () => ({
+  inspectAskGrowthReadIntent: (...args: unknown[]) => inspectGrowth(...args),
+  handleAskGrowthReadCommand: (...args: unknown[]) => handleGrowth(...args),
 }))
 
 vi.mock("@/lib/intelligence/ask-social-command", () => ({
@@ -42,6 +49,7 @@ function request(activeTask: string) {
 describe("Ask Jhadina Social routing", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    inspectGrowth.mockReturnValue(null)
     inspectSocial.mockReturnValue(null)
     inspectVideo.mockReturnValue(null)
   })
