@@ -141,6 +141,7 @@ export function toOpportunityView(stored: StoredCanonicalOpportunity): Opportuni
     approvedAt: stored.approvedAt,
     researchCaseId: stored.researchCaseId,
     sideHustleProfile,
+    sideHustleLabel: sideHustleProfile ? getSideHustleDefinition(sideHustleProfile.family).label : undefined,
   }
 }
 
