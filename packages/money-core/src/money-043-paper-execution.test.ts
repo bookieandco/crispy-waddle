@@ -26,8 +26,8 @@ test('043.10 PIT paper replay excludes market evidence unavailable at cutoff',()
 test('043.11 paper portfolio releases average acquisition basis and records realized PnL on partial exits',()=>{
   const buy:PaperOrder={paperOrderId:'buy-o',paperRunId:'run-ledger',executionPlanId:'ep-buy',sliceId:'s-buy',instrumentId:'stock:x',side:'BUY',requestedNotional:{minor:100000n,currency:'USD'},instruction:'MARKETABLE_LIMIT',limitPriceMinor:10000n,submittedAt:'2026-01-02T00:00:00Z',expiresAt:'2026-01-03T00:00:00Z',marketSnapshotId:'mb',state:'FILLED',authority:'SIMULATION_ONLY'}
   const sell:PaperOrder={paperOrderId:'sell-o',paperRunId:'run-ledger',executionPlanId:'ep-sell',sliceId:'s-sell',instrumentId:'stock:x',side:'SELL',requestedNotional:{minor:60000n,currency:'USD'},instruction:'MARKETABLE_LIMIT',limitPriceMinor:15000n,submittedAt:'2026-01-02T00:10:00Z',expiresAt:'2026-01-03T00:00:00Z',marketSnapshotId:'ms',state:'FILLED',authority:'SIMULATION_ONLY'}
-  const buyFill:PaperFill={paperFillId:'buy-f',paperOrderId:'buy-o',instrumentId:'stock:x',side:'BUY',notional:{minor:100000n,currency:'USD'},quantityMicros:10000000n,referencePriceMinor:10000n,fillPriceMinor:10000n,fee:{minor:100n,currency:'USD'},slippageBps:0,filledAt:'2026-01-02T00:00:01Z',marketSnapshotId:'mb',evidenceIds:['buy-evidence'],authority:'SIMULATION_ONLY'}
-  const sellFill:PaperFill={paperFillId:'sell-f',paperOrderId:'sell-o',instrumentId:'stock:x',side:'SELL',notional:{minor:60000n,currency:'USD'},quantityMicros:4000000n,referencePriceMinor:15000n,fillPriceMinor:15000n,fee:{minor:100n,currency:'USD'},slippageBps:0,filledAt:'2026-01-02T00:10:01Z',marketSnapshotId:'ms',evidenceIds:['sell-evidence'],authority:'SIMULATION_ONLY'}
+  const buyFill:PaperFill={paperFillId:'buy-f',paperRunId:'run-ledger',paperOrderId:'buy-o',instrumentId:'stock:x',side:'BUY',notional:{minor:100000n,currency:'USD'},quantityMicros:10000000n,referencePriceMinor:10000n,fillPriceMinor:10000n,fee:{minor:100n,currency:'USD'},slippageBps:0,filledAt:'2026-01-02T00:00:01Z',marketSnapshotId:'mb',evidenceIds:['buy-evidence'],authority:'SIMULATION_ONLY'}
+  const sellFill:PaperFill={paperFillId:'sell-f',paperRunId:'run-ledger',paperOrderId:'sell-o',instrumentId:'stock:x',side:'SELL',notional:{minor:60000n,currency:'USD'},quantityMicros:4000000n,referencePriceMinor:15000n,fillPriceMinor:15000n,fee:{minor:100n,currency:'USD'},slippageBps:0,filledAt:'2026-01-02T00:10:01Z',marketSnapshotId:'ms',evidenceIds:['sell-evidence'],authority:'SIMULATION_ONLY'}
   const p=buildPaperPortfolio({paperRunId:'run-ledger',currency:'USD',initialCash:{minor:200000n,currency:'USD'},orders:[buy,sell],fills:[sellFill,buyFill],marks:{'stock:x':14000n},asOf:'2026-01-02T00:11:00Z'})
   assert.equal(p.cash.minor,159800n)
   assert.equal(p.realizedPnl.minor,19860n)
@@ -40,12 +40,12 @@ test('043.11 paper portfolio releases average acquisition basis and records real
 
 test('043.12 paper portfolio rejects duplicate, unbound, future, and naked-sell fills',()=>{
   const buy:PaperOrder={paperOrderId:'buy-o',paperRunId:'run-ledger',executionPlanId:'ep-buy',sliceId:'s-buy',instrumentId:'stock:x',side:'BUY',requestedNotional:{minor:100000n,currency:'USD'},instruction:'MARKETABLE_LIMIT',limitPriceMinor:10000n,submittedAt:'2026-01-02T00:00:00Z',expiresAt:'2026-01-03T00:00:00Z',marketSnapshotId:'mb',state:'FILLED',authority:'SIMULATION_ONLY'}
-  const fill:PaperFill={paperFillId:'buy-f',paperOrderId:'buy-o',instrumentId:'stock:x',side:'BUY',notional:{minor:100000n,currency:'USD'},quantityMicros:10000000n,referencePriceMinor:10000n,fillPriceMinor:10000n,fee:{minor:0n,currency:'USD'},slippageBps:0,filledAt:'2026-01-02T00:00:01Z',marketSnapshotId:'mb',evidenceIds:['e'],authority:'SIMULATION_ONLY'}
+  const fill:PaperFill={paperFillId:'buy-f',paperRunId:'run-ledger',paperOrderId:'buy-o',instrumentId:'stock:x',side:'BUY',notional:{minor:100000n,currency:'USD'},quantityMicros:10000000n,referencePriceMinor:10000n,fillPriceMinor:10000n,fee:{minor:0n,currency:'USD'},slippageBps:0,filledAt:'2026-01-02T00:00:01Z',marketSnapshotId:'mb',evidenceIds:['e'],authority:'SIMULATION_ONLY'}
   const base={paperRunId:'run-ledger',currency:'USD',initialCash:{minor:200000n,currency:'USD'},orders:[buy],marks:{'stock:x':10000n},asOf:'2026-01-02T00:00:02Z'} as const
   assert.throws(()=>buildPaperPortfolio({...base,fills:[fill,fill]}),/DUPLICATE_FILL_ID/)
   assert.throws(()=>buildPaperPortfolio({...base,fills:[{...fill,paperFillId:'other-f',paperOrderId:'other-o'}]}),/FILL_ORDER_BINDING_MISMATCH/)
   assert.throws(()=>buildPaperPortfolio({...base,fills:[{...fill,paperFillId:'future-f',filledAt:'2026-01-02T00:00:03Z'}]}),/FUTURE_FILL/)
   const sellOrder:PaperOrder={...buy,paperOrderId:'sell-o',side:'SELL',executionPlanId:'ep-sell',sliceId:'s-sell'}
-  const sellFill:PaperFill={...fill,paperFillId:'sell-f',paperOrderId:'sell-o',side:'SELL'}
+  const sellFill:PaperFill={...fill,paperFillId:'sell-f',paperRunId:'run-ledger',paperOrderId:'sell-o',side:'SELL'}
   assert.throws(()=>buildPaperPortfolio({...base,orders:[sellOrder],fills:[sellFill]}),/SELL_EXCEEDS_LONG_POSITION/)
 })
