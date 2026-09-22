@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
-import { createAndSubmitAskVideoJob, inspectAskVideoIntent } from "@/lib/director-video-job-service"
+import { createAndSubmitAskVideoJob, inspectAskVideoIntent, type AskVideoReferenceCharacterInput } from "@/lib/director-video-job-service"
 
 export const dynamic = "force-dynamic"
 
@@ -29,6 +29,21 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const claimedUserId = req.headers.get("x-jhadina-user-id") || ""
   const activeTask = typeof body?.activeTask === "string" ? body.activeTask.trim() : ""
+  const referenceCharacters: AskVideoReferenceCharacterInput[] = Array.isArray(body?.referenceCharacters)
+    ? body.referenceCharacters.flatMap((value: unknown) => {
+        if (!value || typeof value !== "object") return []
+        const record = value as Record<string, unknown>
+        const characterId = typeof record.characterId === "string" ? record.characterId.trim() : ""
+        if (!characterId) return []
+        const appearanceVariantId = typeof record.appearanceVariantId === "string"
+          ? record.appearanceVariantId.trim()
+          : undefined
+        const targetLanguages = Array.isArray(record.targetLanguages)
+          ? [...new Set(record.targetLanguages.map(String).map((item) => item.trim()).filter(Boolean))].slice(0, 20)
+          : undefined
+        return [{ characterId, appearanceVariantId, targetLanguages }]
+      })
+    : []
 
   if (!claimedUserId) {
     return NextResponse.json({ success: false, error: "Not signed in" }, { status: 401 })
@@ -47,6 +62,7 @@ export async function POST(req: NextRequest) {
         activeTask,
         activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
         clientRequestId: typeof body?.clientRequestId === "string" ? body.clientRequestId : undefined,
+        ...(referenceCharacters.length ? { referenceCharacters } : {}),
       })
       const started = !["blocked", "failed", "cancelled"].includes(video.job.status)
       const now = new Date().toISOString()
@@ -62,7 +78,7 @@ export async function POST(req: NextRequest) {
           id: `director-video-job:${video.job.id}`,
           source: "Director",
           observedAt: now,
-          summary: `Project ${video.job.projectId}; mode ${video.job.mode}; aspect ${video.job.aspectRatio}; provider ${video.job.providerId ?? "not configured"}.`,
+          summary: `Project ${video.job.projectId}; mode ${video.job.mode}; aspect ${video.job.aspectRatio}; provider ${video.job.providerId ?? "not configured"}; reference characters ${referenceCharacters.length}.`,
         }],
         uncertainty: video.job.error ? [video.job.error] : [],
         alternatives: [],
