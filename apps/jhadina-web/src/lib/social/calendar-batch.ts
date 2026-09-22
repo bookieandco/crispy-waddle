@@ -34,6 +34,7 @@ export interface SocialCalendarBatchApprovalResult {
 export interface SocialCalendarBatchRuntimeOverrides extends SocialPublicationRuntimeOverrides {
   identityVerifier?: JhadinaIdentityVerifier
   repository?: SocialRepository
+  approveProposal?: typeof approveAndPublishSocialProposal
 }
 
 export async function approveSocialCalendarBatch(
@@ -49,6 +50,7 @@ export async function approveSocialCalendarBatch(
   const identityVerifier = overrides.identityVerifier ?? await createRequestIdentityVerifier()
   const repository = overrides.repository ?? createSocialRepository()
   const identity = await identityVerifier.verify({})
+  const approveProposal = overrides.approveProposal ?? approveAndPublishSocialProposal
 
   const proposals = await Promise.all(
     input.proposalIds.map((proposalId) => repository.getProposal(identity.userId, proposalId)),
@@ -63,7 +65,7 @@ export async function approveSocialCalendarBatch(
   const outcomes: SocialCalendarBatchOutcome[] = []
   for (const entry of batch.entries) {
     try {
-      const approved = await approveAndPublishSocialProposal(
+      const approved = await approveProposal(
         entry.proposalId,
         entry.approvalReceiptId,
         {
