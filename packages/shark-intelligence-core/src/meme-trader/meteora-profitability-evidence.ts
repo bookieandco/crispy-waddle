@@ -3,6 +3,7 @@ export type MeteoraDlmmCashFlowAmountSemantics='NATIVE_TRANSFER'|'VERIFIED_VALUA
 
 export type MeteoraDlmmCashFlowEvidence=Readonly<{
   evidenceId:string
+  rootFlowId?:string
   transactionId:string
   position:string
   kind:MeteoraDlmmCashFlowKind
@@ -47,6 +48,7 @@ const assertIso=(v:string,code:string)=>{if(!v||Number.isNaN(Date.parse(v)))thro
 
 export function assertMeteoraDlmmCashFlowEvidence(flow:MeteoraDlmmCashFlowEvidence):void{
   if(!flow.evidenceId.trim()||!flow.transactionId.trim()||!flow.position.trim()||!flow.currency.trim())throw new Error('meteora_profitability_flow_identity_required')
+  if(flow.rootFlowId!==undefined&&!flow.rootFlowId.trim())throw new Error('meteora_profitability_root_flow_invalid')
   if(flow.amountMinor<0n)throw new Error('meteora_profitability_negative_amount')
   if(!['DEPOSIT','WITHDRAWAL','FEE'].includes(flow.kind))throw new Error('meteora_profitability_flow_kind_invalid')
   if(!['NATIVE_TRANSFER','VERIFIED_VALUATION'].includes(flow.amountSemantics))throw new Error('meteora_profitability_amount_semantics_invalid')
@@ -87,6 +89,13 @@ export function reconcileMeteoraDlmmCashFlowProfitability(input:{
   const eligible=input.flows.filter(flow=>Date.parse(flow.availableAt)<=cutoff)
   const future=input.flows.filter(flow=>Date.parse(flow.availableAt)>cutoff)
   if(!eligible.length)throw new Error('meteora_profitability_evidence_required')
+  const representedRoots=new Map<string,string>()
+  for(const flow of eligible){
+    const root=(flow.rootFlowId??flow.evidenceId).trim()
+    const existing=representedRoots.get(root)
+    if(existing&&existing!==flow.evidenceId)throw new Error('meteora_profitability_competing_flow_representations')
+    representedRoots.set(root,flow.evidenceId)
+  }
   const sum=(kind:MeteoraDlmmCashFlowKind)=>eligible.filter(flow=>flow.kind===kind).reduce((n,flow)=>n+flow.amountMinor,0n)
   const depositsMinor=sum('DEPOSIT'),withdrawalsMinor=sum('WITHDRAWAL'),feesMinor=sum('FEE')
   const netCashFlowMinor=withdrawalsMinor+feesMinor-depositsMinor
