@@ -31,8 +31,19 @@ export async function analyzeSamNotices(client:SupabaseClient,noticeIds:string[]
     const {data:documentRows}=await client.from('jhadina_sam_documents').select('*').eq('notice_id',noticeId)
     const docs=rows(documentRows)
     const solicitationDocs:SolicitationDocument[]=[]
-    const description=typeof (catalog as Record<string,unknown>).description==='string'?String((catalog as Record<string,unknown>).description):''
-    if(description)solicitationDocs.push({id:`${noticeId}:notice`,opportunityId:noticeId,kind:'notice',version:String((catalog as Record<string,unknown>).version??1),capturedAt:new Date().toISOString(),sourceRef:String((catalog as Record<string,unknown>).source_url),text:description})
+    const rawDescription=typeof (catalog as Record<string,unknown>).description==='string'?String((catalog as Record<string,unknown>).description):''
+    const fetchedNotice=docs.find(d=>d.source_kind==='notice'&&typeof d.extracted_text==='string'&&String(d.extracted_text).trim().length>0)
+    const fetchedNoticeText=fetchedNotice?String(fetchedNotice.extracted_text):''
+    const description=/^https?:\/\//i.test(rawDescription)?fetchedNoticeText:rawDescription
+    if(description)solicitationDocs.push({
+      id:`${noticeId}:notice`,
+      opportunityId:noticeId,
+      kind:'notice',
+      version:String((catalog as Record<string,unknown>).version??1),
+      capturedAt:String(fetchedNotice?.fetched_at??new Date().toISOString()),
+      sourceRef:String(fetchedNotice?.source_url??(catalog as Record<string,unknown>).source_url),
+      text:description,
+    })
     for(const d of docs){
       const text=typeof d.extracted_text==='string'?d.extracted_text:''
       if(!text||d.source_kind==='notice')continue
@@ -40,7 +51,7 @@ export async function analyzeSamNotices(client:SupabaseClient,noticeIds:string[]
     }
     if(!solicitationDocs.length)continue
     const extraction=extractSolicitationIntelligence(solicitationDocs)
-    const text=`${description}\n${allText(docs)}`
+    const text=`${description}\n${docs.filter(d=>d.source_kind!=='notice').map(d=>typeof d.extracted_text==='string'?d.extracted_text:'').filter(Boolean).join('\n')}`
     const food=/\b(food|meal|grocery|groceries|meat|dairy|produce|beverage|catering|ration)\b/i.test(text)
     const clauses=detectedClauses(text,extraction.clauses)
     const decision=evaluateSamSubcontractability({
