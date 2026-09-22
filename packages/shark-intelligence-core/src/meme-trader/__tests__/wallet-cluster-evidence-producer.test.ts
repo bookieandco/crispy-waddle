@@ -66,7 +66,7 @@ describe('wallet cluster evidence producer',()=>{
       score('W1',2,'2026-09-01T00:00:05Z','2026-09-01T00:00:05Z'),
       score('W2',3,'2026-09-01T00:00:30Z','2026-09-01T00:00:30Z'),
       // W3's score uses information from after the cluster signal and must not count.
-      score('W3',9,'2026-09-01T00:02:00Z','2026-09-01T00:04:00Z'),
+      score('W3',9,'2026-09-01T00:04:01Z','2026-09-01T00:04:00Z'),
     ]
     const rows=deriveWalletClusterCalibrationObservations({
       chainId:'solana-mainnet',
