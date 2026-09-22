@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {evaluateWalletClusterThresholdSensitivity} from '../wallet-cluster-calibration'
+import {assertWalletClusterCalibrationObservation,evaluateWalletClusterThresholdSensitivity} from '../wallet-cluster-calibration'
 
 const observations:any[]=[
  {observationId:'o1',tokenId:'t1',distinctWallets:3,windowSeconds:600,aggregateWalletScore:7,totalUsd:1000,observedAt:'2026-09-01T00:00:00Z',availableAt:'2026-09-01T00:00:01Z',outcome:'HEALTHY',evidenceIds:['e1']},
@@ -25,6 +25,11 @@ describe('wallet cluster threshold sensitivity',()=>{
   expect(r.rows.find(x=>x.thresholdId==='strict')?.healthyRate).toBe(1)
   expect(r.canMutateRuntimeThresholds).toBe(false)
   expect(r.rows.every(x=>x.canSelectProductionThreshold===false)).toBe(true)
+ })
+ it('exports the same fail-closed observation validator used by runtime ingestion',()=>{
+  expect(()=>assertWalletClusterCalibrationObservation({...observations[0],totalUsd:-1})).toThrow('usd_invalid')
+  expect(()=>assertWalletClusterCalibrationObservation({...observations[0],outcome:'NOPE'})).toThrow('outcome_invalid')
+  expect(()=>assertWalletClusterCalibrationObservation(observations[0])).not.toThrow()
  })
  it('fails closed on duplicate observations and impossible availability',()=>{
   expect(()=>evaluateWalletClusterThresholdSensitivity({observations:[observations[0],observations[0]],thresholds:[{thresholdId:'x',minWallets:1,maxWindowSeconds:60,minAggregateWalletScore:0}],informationCutoff:'2026-09-03T00:00:00Z'})).toThrow('duplicate_observation')

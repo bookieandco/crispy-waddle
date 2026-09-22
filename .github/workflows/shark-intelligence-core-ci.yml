@@ -41,7 +41,7 @@ jobs:
       - name: Jhadina SHARK integration type-check
         run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.shark.json
       - name: Jhadina SHARK persistence soak
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/launch-outcome-repository.test.ts src/lib/shark/actor-aware-assessment-service.test.ts src/lib/shark/money-research-bridge.test.ts
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/launch-outcome-repository.test.ts src/lib/shark/actor-aware-assessment-service.test.ts src/lib/shark/money-research-bridge.test.ts src/lib/shark/research-evidence-repository.test.ts
       - name: Validate SHARK migrations
         run: |
           test -f supabase/migrations/20260902010000_shark_launch_outcome_history.sql
@@ -61,3 +61,4 @@ jobs:
           test -f supabase/migrations/20260920143356_shark_backfill_observation_fairness.sql
           test -f supabase/migrations/20260920143411_shark_provenance_debt_closure.sql
           test -f supabase/migrations/20260920144042_shark_shared_launch_rls.sql
+          test -f supabase/migrations/20260922025000_shark_research_evidence_runtime.sql
