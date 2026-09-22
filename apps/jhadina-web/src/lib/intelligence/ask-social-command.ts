@@ -94,13 +94,6 @@ const PLATFORM_ALIASES: Readonly<Record<SocialPlatform, readonly string[]>> = {
   vk: ["vk"],
 }
 
-const SOCIAL_MARKERS = [
-  "social", "instagram", "tiktok", "tik tok", "facebook", "linkedin", "youtube",
-  "reddit", "twitter", "threads", "snapchat", "post", "content", "account",
-  "personality", "character", "voice", "meta ad", "meta ads", "campaign",
-  "creative", "reel", "shorts",
-]
-
 export function inspectAskSocialIntent(activeTask: string): AskSocialIntent | null {
   const text = normalize(activeTask)
   if (!text) return null
