@@ -52,6 +52,16 @@ const median=(values:number[]):number|null=>{
   return xs.length%2?xs[mid]!:(xs[mid-1]!+xs[mid]!)/2
 }
 
+export function assertWalletClusterCalibrationObservation(o:WalletClusterCalibrationObservation):void{
+  if(!o.observationId.trim()||!o.tokenId.trim()||!o.evidenceIds.length)throw new Error('shark_cluster_calibration_observation_incomplete')
+  assertIso(o.observedAt,'shark_cluster_calibration_observed_at_invalid')
+  assertIso(o.availableAt,'shark_cluster_calibration_available_at_invalid')
+  if(Date.parse(o.availableAt)<Date.parse(o.observedAt))throw new Error('shark_cluster_calibration_availability_invalid')
+  if(!Number.isInteger(o.distinctWallets)||o.distinctWallets<1||!Number.isFinite(o.windowSeconds)||o.windowSeconds<0||!Number.isFinite(o.aggregateWalletScore)||o.aggregateWalletScore<0)throw new Error('shark_cluster_calibration_metrics_invalid')
+  if(o.totalUsd!==undefined&&(!Number.isFinite(o.totalUsd)||o.totalUsd<0))throw new Error('shark_cluster_calibration_usd_invalid')
+  if(!['HEALTHY','ADVERSE','UNKNOWN'].includes(o.outcome))throw new Error('shark_cluster_calibration_outcome_invalid')
+}
+
 function validateThreshold(t:WalletClusterThresholdSpec):void{
   if(!t.thresholdId.trim())throw new Error('shark_cluster_calibration_threshold_id_required')
   if(!Number.isInteger(t.minWallets)||t.minWallets<1)throw new Error('shark_cluster_calibration_min_wallets_invalid')
@@ -71,13 +81,9 @@ export function evaluateWalletClusterThresholdSensitivity(input:{
   input.thresholds.forEach(t=>{validateThreshold(t);if(thresholdIds.has(t.thresholdId))throw new Error('shark_cluster_calibration_duplicate_threshold');thresholdIds.add(t.thresholdId)})
   const observationIds=new Set<string>()
   for(const o of input.observations){
-    if(!o.observationId.trim()||!o.tokenId.trim()||!o.evidenceIds.length)throw new Error('shark_cluster_calibration_observation_incomplete')
+    assertWalletClusterCalibrationObservation(o)
     if(observationIds.has(o.observationId))throw new Error('shark_cluster_calibration_duplicate_observation')
     observationIds.add(o.observationId)
-    assertIso(o.observedAt,'shark_cluster_calibration_observed_at_invalid')
-    assertIso(o.availableAt,'shark_cluster_calibration_available_at_invalid')
-    if(Date.parse(o.availableAt)<Date.parse(o.observedAt))throw new Error('shark_cluster_calibration_availability_invalid')
-    if(!Number.isInteger(o.distinctWallets)||o.distinctWallets<1||!Number.isFinite(o.windowSeconds)||o.windowSeconds<0||!Number.isFinite(o.aggregateWalletScore)||o.aggregateWalletScore<0)throw new Error('shark_cluster_calibration_metrics_invalid')
   }
 
   const eligible=input.observations.filter(o=>Date.parse(o.availableAt)<=Date.parse(input.informationCutoff))
