@@ -92,4 +92,5 @@ jobs:
             src/lib/money-opportunities/sam-route-input.test.ts \
             src/lib/money-opportunities/sam-client.test.ts \
             src/lib/money-opportunities/sam-analysis-runtime.test.ts \
-            src/lib/money-opportunities/sam-command-center.test.ts
+            src/lib/money-opportunities/sam-command-center.test.ts \
+            src/lib/money-opportunities/foreign-provider-sources.test.ts
