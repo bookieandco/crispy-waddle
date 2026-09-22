@@ -43,6 +43,7 @@ export interface CharacterCastRecord {
   /** Monotonic revision for the human-authored description fields. */
   descriptionRevision?: number;
   descriptionUpdatedAt?: string;
+  descriptionUpdatedBy?: string;
   behaviorDnaRef?: string;
   rigAssetId?: string;
   canonicalAppearanceVariantId: string;
@@ -109,6 +110,7 @@ export function validateCharacterCastRecord(cast: CharacterCastRecord): readonly
   if (cast.performanceNotes?.some((note) => !note.trim())) reasons.push('DIRECTOR_CAST_PERFORMANCE_NOTE_INVALID');
   if (cast.descriptionRevision !== undefined && (!Number.isInteger(cast.descriptionRevision) || cast.descriptionRevision < 1)) reasons.push('DIRECTOR_CAST_DESCRIPTION_REVISION_INVALID');
   if (cast.descriptionUpdatedAt !== undefined && !Number.isFinite(Date.parse(cast.descriptionUpdatedAt))) reasons.push('DIRECTOR_CAST_DESCRIPTION_UPDATED_AT_INVALID');
+  if (cast.descriptionUpdatedBy !== undefined && !cast.descriptionUpdatedBy.trim()) reasons.push('DIRECTOR_CAST_DESCRIPTION_UPDATED_BY_INVALID');
   if (!cast.appearanceVariants.length) reasons.push('DIRECTOR_CAST_APPEARANCE_REQUIRED');
 
   const variantIds = new Set<string>();
