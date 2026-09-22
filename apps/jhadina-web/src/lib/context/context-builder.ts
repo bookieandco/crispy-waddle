@@ -3,6 +3,7 @@ import {
   type ContextPacket,
   type DomainContext,
   type EvidenceRef,
+  type EphemeralArtifactContext,
   type ExpressionDirective,
   type GrowthDomainContext,
   type PatternObservation,
@@ -74,6 +75,7 @@ export interface ContextBuilderInput {
   memoryRelevanceQuery?: string
   geographicScope?: unknown
   temporalScope?: { from: string | null; to: string | null; asOf: string | null }
+  artifacts?: EphemeralArtifactContext[]
   limits?: Partial<ContextBuilderLimits>
 }
 
@@ -323,6 +325,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     knowledge: knowledgeRefs,
     constraints: policyConstraints(policy),
     excludedContext,
+    ...(input.artifacts?.length ? { artifacts: input.artifacts.map((artifact) => ({ ...artifact })) } : {}),
     ...(domainContext ? { domainContext } : {}),
     ...(expressionDirective ? { expressionDirective } : {}),
   }
