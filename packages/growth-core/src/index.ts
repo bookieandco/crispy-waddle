@@ -35,3 +35,10 @@ export * from './intelligence/audience-intelligence.js';
 export * from './channels/paid-media.js';
 export * from './intelligence/competitor-ad-observation.js';
 export * from './intelligence/creator-outreach.js';
+
+export * from './intelligence/creative-evidence-engine.js';
+export * from './intelligence/paid-social-playbooks.js';
+export * from './intelligence/creative-formula-factory.js';
+export * from './intelligence/search-everywhere.js';
+export * from './intelligence/content-research-system.js';
+export * from './intelligence/social-commerce-opportunity.js';
