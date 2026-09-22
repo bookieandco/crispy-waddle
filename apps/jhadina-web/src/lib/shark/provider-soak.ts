@@ -85,7 +85,7 @@ async function helius(fetchImpl:FetchLike,options:SoakOptions,timeoutMs:number):
   const started=Date.now()
   try{
     const result=await jsonRpc(fetchImpl,url,'getHealth',[],timeoutMs)
-    return check('helius',result==='ok'||result===undefined?'READY':'DEGRADED',elapsed(started),result==='ok'?'health_ok':'health_response_received')
+    return check('helius',result==='ok'?'READY':'DEGRADED',elapsed(started),result==='ok'?'health_ok':'unexpected_health_response')
   }catch{return check('helius','FAILED',elapsed(started),'rpc_request_failed')}
 }
 
