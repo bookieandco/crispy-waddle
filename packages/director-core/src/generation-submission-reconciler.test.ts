@@ -62,6 +62,8 @@ describe('GenerationSubmissionReconciler', () => {
 
     expect(outcome.failed).toBe(0);
     expect(outcome.deferred).toBe(1);
-    await expect(repository.getSubmissionByIdempotencyKey('provider-1', t.idempotencyKey)).resolves.toMatchObject({ status: 'recovery_required', providerJobId: undefined });
+    const durableSubmission = await repository.getSubmissionByIdempotencyKey('provider-1', t.idempotencyKey);
+    expect(durableSubmission).toMatchObject({ status: 'recovery_required' });
+    expect(durableSubmission?.providerJobId).toBeUndefined();
   });
 });
