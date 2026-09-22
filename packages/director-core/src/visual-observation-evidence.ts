@@ -28,6 +28,7 @@ export interface VisualRegion {
   kind: ProtectedVisualRegionKind;
   startSeconds: number;
   endSeconds: number;
+  /** Normalized 0..1 coordinates relative to the source frame. */
   bounds: { x: number; y: number; width: number; height: number };
   confidence: number;
   trackId?: string;
@@ -100,6 +101,9 @@ export function evaluateVisualEditEvidence(input: VisualEditEvidenceRequest): Vi
 
   const evidenceIds = [...new Set(covering.map((item) => item.id))];
   const protectedRegions = covering.flatMap((item) => item.protectedRegions);
+  if (protectedRegions.some((region) => !validNormalizedRegion(region))) {
+    reasons.push('DIRECTOR_VISUAL_REGION_INVALID');
+  }
 
   return Object.freeze({
     admissible: reasons.length === 0,
@@ -128,6 +132,24 @@ export function overlayAvoidsProtectedRegions(
     if (!overlapsTime) return false;
     return rectanglesOverlap(candidate, region.bounds);
   });
+}
+
+function validNormalizedRegion(region: VisualRegion): boolean {
+  const { x, y, width, height } = region.bounds;
+  return Number.isFinite(x) &&
+    Number.isFinite(y) &&
+    Number.isFinite(width) &&
+    Number.isFinite(height) &&
+    x >= 0 &&
+    y >= 0 &&
+    width > 0 &&
+    height > 0 &&
+    x + width <= 1 &&
+    y + height <= 1 &&
+    region.startSeconds >= 0 &&
+    region.endSeconds > region.startSeconds &&
+    region.confidence >= 0 &&
+    region.confidence <= 1;
 }
 
 function rectanglesOverlap(
