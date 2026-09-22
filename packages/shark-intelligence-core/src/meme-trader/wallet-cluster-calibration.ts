@@ -57,7 +57,7 @@ export function assertWalletClusterCalibrationObservation(o:WalletClusterCalibra
   assertIso(o.observedAt,'shark_cluster_calibration_observed_at_invalid')
   assertIso(o.availableAt,'shark_cluster_calibration_available_at_invalid')
   if(Date.parse(o.availableAt)<Date.parse(o.observedAt))throw new Error('shark_cluster_calibration_availability_invalid')
-  if(!Number.isInteger(o.distinctWallets)||o.distinctWallets<1||!Number.isFinite(o.windowSeconds)||o.windowSeconds<0||!Number.isFinite(o.aggregateWalletScore)||o.aggregateWalletScore<0)throw new Error('shark_cluster_calibration_metrics_invalid')
+  if(!Number.isInteger(o.distinctWallets)||o.distinctWallets<1||!Number.isInteger(o.windowSeconds)||o.windowSeconds<0||!Number.isFinite(o.aggregateWalletScore)||o.aggregateWalletScore<0)throw new Error('shark_cluster_calibration_metrics_invalid')
   if(o.totalUsd!==undefined&&(!Number.isFinite(o.totalUsd)||o.totalUsd<0))throw new Error('shark_cluster_calibration_usd_invalid')
   if(!['HEALTHY','ADVERSE','UNKNOWN'].includes(o.outcome))throw new Error('shark_cluster_calibration_outcome_invalid')
 }
