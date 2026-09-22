@@ -69,6 +69,9 @@ describe("Meta research creative production bridge", () => {
         brandPointOfView: "Travel gear should remove packing friction without inventing extra complexity.",
         brandPointOfViewEvidenceRefs: ["brand-strategy:packnest:v1"],
         directorProjectId: "director:packnest",
+        productBibleId: "product-bible:packnest:v1",
+        styleBibleId: "style-bible:packnest:v1",
+        experimentIdsByConceptId: { "concept:2": "meta-ab:plan:1:concept:1:vs:concept:2" },
         platform: "instagram",
         createdAt: "2026-09-22T18:20:00.000Z",
       },
@@ -78,6 +81,17 @@ describe("Meta research creative production bridge", () => {
     expect(jobs[0]?.contentProject.primaryJob).toBe("conversion")
     expect(jobs[0]?.directorBrief.mediaType).toBe("image")
     expect(jobs[1]?.directorBrief.mediaType).toBe("video")
+    expect(jobs[0]?.directorBrief.commercialCreative).toEqual({
+      conceptId: "concept:1",
+      productBibleId: "product-bible:packnest:v1",
+      styleBibleId: "style-bible:packnest:v1",
+    })
+    expect(jobs[1]?.directorBrief.commercialCreative).toEqual({
+      conceptId: "concept:2",
+      productBibleId: "product-bible:packnest:v1",
+      styleBibleId: "style-bible:packnest:v1",
+      experimentId: "meta-ab:plan:1:concept:1:vs:concept:2",
+    })
     expect(jobs.every((job) => job.campaignAuthority === "NONE")).toBe(true)
     expect(jobs[0]?.directorBrief.intent).toContain("Do not reproduce competitor")
   })
@@ -116,6 +130,8 @@ describe("Meta research creative production bridge", () => {
         brandPointOfView: "",
         brandPointOfViewEvidenceRefs: [],
         directorProjectId: "director:packnest",
+        productBibleId: "product-bible:packnest:v1",
+        styleBibleId: "style-bible:packnest:v1",
         platform: "facebook",
       },
     })).toThrow("META_CREATIVE_BRAND_POV_REQUIRED")
