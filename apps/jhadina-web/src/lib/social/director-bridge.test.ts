@@ -19,6 +19,8 @@ function socialProject() {
     bigIdeaRef: "idea:director-integration",
     primaryJob: "useful",
     origin: "human_written",
+    characterProfileRef: "character:jhadina",
+    voiceProfileRef: "brand-voice:jhadina",
     humanSourceRefs: ["note:1"],
     evidenceRefs: ["evidence:1"],
     createdAt: "2026-09-22T16:00:00.000Z",
@@ -49,6 +51,9 @@ describe("Social Director bridge", () => {
     expect(brief.authority).toBe("PLANNING_ONLY")
     expect(brief.publicationAuthority).toBe("NONE")
     expect(brief.intent).toContain("Big Idea: idea:director-integration")
+    expect(brief.intent).toContain("Social character: character:jhadina")
+    expect(brief.intent).toContain("Brand voice profile: brand-voice:jhadina")
+    expect(brief.intent).toContain("constrain expression only")
   })
 
   it("does not send text-only Social assets through Director media production", () => {
