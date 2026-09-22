@@ -106,3 +106,4 @@ export * from './reference-character-video';
 export * from './character-identity-qc';
 export * from './commercial-creative-lab';
 export * from './product-reference-bootstrap';
+export * from './paid-video-generation';
