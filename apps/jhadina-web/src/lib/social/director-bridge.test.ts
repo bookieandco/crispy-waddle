@@ -51,6 +51,36 @@ describe("Social Director bridge", () => {
     expect(brief.intent).toContain("Big Idea: idea:director-integration")
   })
 
+  it("keeps Product/Style Bible and experiment lineage through Director production", async () => {
+    const brief = buildDirectorBriefFromSocial(socialProject(), "asset-anchor", {
+      directorProjectId: "director-project-1",
+      mediaType: "video",
+      aspectRatio: "9:16",
+      targetRuntimeSeconds: 15,
+      commercialCreative: {
+        conceptId: "concept:zesta:horse",
+        productBibleId: "product-bible:zesta",
+        styleBibleId: "style-bible:zesta",
+        multiplierVariantId: "variant:mango",
+        experimentId: "experiment:zesta-hook",
+      },
+      createdAt: "2026-09-22T16:05:00.000Z",
+    })
+
+    const { compileDirectorSocialTakeRequest } = await import("@jhadina/director-core")
+    const take = compileDirectorSocialTakeRequest(brief, {
+      storyboardBoardId: "board-ad",
+      sceneId: "scene-ad",
+    })
+
+    expect(brief.commercialCreative?.productBibleId).toBe("product-bible:zesta")
+    expect(take.prompt).toContain("commercial concept: concept:zesta:horse")
+    expect(take.prompt).toContain("product identity bible: product-bible:zesta")
+    expect(take.prompt).toContain("visual style bible: style-bible:zesta")
+    expect(take.prompt).toContain("ad multiplier variant: variant:mango")
+    expect(take.prompt).toContain("growth experiment: experiment:zesta-hook")
+  })
+
   it("does not send text-only Social assets through Director media production", () => {
     const project = createContentProject({
       id: "social-project-2",
