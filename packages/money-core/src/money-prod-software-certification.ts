@@ -49,7 +49,7 @@ const REQUIRED:readonly MoneyProdSoftwareCaseName[]=Object.freeze([
   'cross-domain-learning-no-truth-contamination','commissioning-receipt-ledger-service-only',
 ])
 
-const LANE_CASES:Readonly<Record<MoneyProductionLane,readonly MoneyProdSoftwareCaseName[]>>={
+const LANE_CASES:Readonly<Record<MoneyProductionLane,readonly MoneyProdSoftwareCaseName[]>>=Object.freeze({
   STOCK:Object.freeze<MoneyProdSoftwareCaseName[]>(['stock-point-in-time-reality','stock-chart-vision-research-only','stock-alpaca-live-adapter','autonomous-mandate-action-core','autonomous-hard-risk-limits','single-use-permit-replay-block','provider-account-entitlement','unknown-execution-reconciliation','global-kill-switch']),
   FOREX:Object.freeze<MoneyProdSoftwareCaseName[]>(['forex-point-in-time-reality','forex-finnhub-read-only-market-data','forex-vision-opaque-until-calibrated','forex-learning-paper-shadow','autonomous-mandate-action-core','autonomous-hard-risk-limits','single-use-permit-replay-block','unknown-execution-reconciliation','global-kill-switch']),
   SHARK_MEME:Object.freeze<MoneyProdSoftwareCaseName[]>(['shark-money-research-isolation','shark-paper-learning','shark-no-protected-fund-authority','autonomous-mandate-action-core','autonomous-hard-risk-limits','single-use-permit-replay-block','unknown-execution-reconciliation','global-kill-switch']),
