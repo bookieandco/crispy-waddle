@@ -1,8 +1,10 @@
 import type { AdMultiplierPlan } from '@jhadina/director-core';
 import {
   assessCreativeAbExperiment,
+  assertGrowthEvidenceHealthyForLearning,
   type CreativeAbAssessment,
   type CreativeAbVariantObservation,
+  type GrowthEvidenceFeedHealthAssessment,
 } from '@jhadina/growth-core';
 
 export interface CommercialCreativeAbPolicy {
@@ -16,8 +18,10 @@ export interface CommercialCreativeAbPolicy {
 export function assessDirectorCommercialCreativeExperiment(input: {
   plan: AdMultiplierPlan;
   observations: readonly CreativeAbVariantObservation[];
+  dataHealth: GrowthEvidenceFeedHealthAssessment;
   policy: CommercialCreativeAbPolicy;
 }): CreativeAbAssessment {
+  assertGrowthEvidenceHealthyForLearning(input.dataHealth);
   if (input.plan.experimentIsolation !== 'single-axis') {
     throw new Error('GROWTH_AD_MULTIPLIER_CAUSAL_TEST_REQUIRES_SINGLE_AXIS');
   }
