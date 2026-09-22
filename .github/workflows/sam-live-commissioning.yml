@@ -2,6 +2,9 @@ name: SAM Live Commissioning
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - ops/sam-live-commissioning-once-20260921
 
 permissions:
   contents: read
