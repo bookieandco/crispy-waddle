@@ -9,6 +9,7 @@ import { JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION } fr
 import { IntelligenceRouter, realizeGovernedExpression, type GovernedExpressionRealization, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
 import type {
   PersonalityContextProvider,
+  SocialContextProvider,
   SpatialContextProvider,
 } from "../context/context-builder"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
@@ -24,6 +25,7 @@ import { decideAndProposeMemoryGoverned, type GovernedIntelligenceProposalResult
 import { MEMORY_PROPOSE_CAPABILITY, type MemoryProposeAction } from "./memory-propose-capability"
 import { createProductionIntelligenceRouter } from "./production-model-provider"
 import { createProductionSpatialContextProvider } from "../context/production-spatial-context-provider"
+import { createProductionSocialContextProvider } from "../context/production-social-context-provider"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
 
 export interface JhadinaCommandInput {
@@ -49,6 +51,8 @@ export interface JhadinaCommandOverrides {
   spatialContextProvider?: SpatialContextProvider
   /** Governed read/projection adapter for Pattern -> Personality -> Expression context. */
   personalityContextProvider?: PersonalityContextProvider
+  /** Read-only Social/Growth adapter. It grants no publish, spend, or account-mutation authority. */
+  socialContextProvider?: SocialContextProvider
 }
 
 export interface JhadinaCommandResult extends GovernedIntelligenceProposalResult {
@@ -70,11 +74,15 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   const personalityContextProvider =
     overrides.personalityContextProvider ??
     createProductionPersonalityContextProvider(storage, verifiedIdentity.userId)
+  const socialContextProvider =
+    overrides.socialContextProvider ??
+    createProductionSocialContextProvider()
   const contextDeps: ContextBuilderDeps = {
     memoryRepo,
     timelineRepo: new TimelineRepository(storage),
     spatialContextProvider,
     personalityContextProvider,
+    socialContextProvider,
   }
   const assembled = await buildContext(contextDeps, {
     userId: verifiedIdentity.userId,

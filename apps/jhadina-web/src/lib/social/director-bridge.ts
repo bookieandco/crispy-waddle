@@ -1,5 +1,6 @@
 import {
   bindContentAssetMedia,
+  getSocialCharacterProfile,
   type ContentAsset,
   type ContentProject,
 } from "@jhadina/social-core"
@@ -113,6 +114,26 @@ function directorMediaType(asset: ContentAsset): SocialProductionMediaType {
 function directorIntent(project: ContentProject, asset: ContentAsset): string {
   const text = asset.text?.trim()
   if (!text) throw new Error("SOCIAL_DIRECTOR_ASSET_INTENT_REQUIRED")
+
+  let characterLines: string[] = []
+  if (project.characterProfileRef || project.voiceProfileRef) {
+    if (!project.characterProfileRef || !project.voiceProfileRef) {
+      throw new Error("SOCIAL_DIRECTOR_CHARACTER_VOICE_PAIR_REQUIRED")
+    }
+    const character = getSocialCharacterProfile(project.characterProfileRef)
+    if (!character) throw new Error("SOCIAL_DIRECTOR_CHARACTER_NOT_FOUND")
+    if (character.brand !== project.brand) throw new Error("SOCIAL_DIRECTOR_CHARACTER_BRAND_MISMATCH")
+    if (character.voiceProfileRef !== project.voiceProfileRef) {
+      throw new Error("SOCIAL_DIRECTOR_VOICE_PROFILE_MISMATCH")
+    }
+    characterLines = [
+      `Social character: ${character.id} (${character.label}).`,
+      `Brand voice profile: ${character.voiceProfileRef}.`,
+      `Character tone: ${character.toneTraits.join(", ")}.`,
+      `Character point of view: ${character.pointOfView}`,
+    ]
+  }
+
   return [
     text,
     `Preserve Social content project ${project.id}.`,
@@ -120,6 +141,8 @@ function directorIntent(project: ContentProject, asset: ContentAsset): string {
     `Content pillar: ${project.pillarRef}.`,
     `Big Idea: ${project.bigIdeaRef}.`,
     `Content job: ${project.primaryJob}.`,
+    ...characterLines,
+    "Character/voice references constrain expression only; they do not grant identity, publishing, or spend authority.",
     "Return media production only; do not publish or alter Social approval state.",
-  ].join("\n")
+  ].filter(Boolean).join("\n")
 }

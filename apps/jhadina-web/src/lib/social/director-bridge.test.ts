@@ -19,6 +19,8 @@ function socialProject() {
     bigIdeaRef: "idea:director-integration",
     primaryJob: "useful",
     origin: "human_written",
+    characterProfileRef: "character:jhadina",
+    voiceProfileRef: "brand-voice:jhadina",
     humanSourceRefs: ["note:1"],
     evidenceRefs: ["evidence:1"],
     createdAt: "2026-09-22T16:00:00.000Z",
@@ -49,6 +51,40 @@ describe("Social Director bridge", () => {
     expect(brief.authority).toBe("PLANNING_ONLY")
     expect(brief.publicationAuthority).toBe("NONE")
     expect(brief.intent).toContain("Big Idea: idea:director-integration")
+    expect(brief.intent).toContain("Social character: character:jhadina")
+    expect(brief.intent).toContain("Brand voice profile: brand-voice:jhadina")
+    expect(brief.intent).toContain("Character tone: direct, intelligent, evidence-aware, adaptive")
+    expect(brief.intent).toContain("Character point of view: Make complex systems useful")
+    expect(brief.intent).toContain("constrain expression only")
+  })
+
+  it("fails closed when a ContentProject carries an unknown Social character", () => {
+    const project = createContentProject({
+      id: "social-project-unknown-character",
+      brand: "jhadina",
+      authorityPositionRef: "authority:jhadina",
+      pillarRef: "pillar:social",
+      bigIdeaRef: "idea:unknown-character",
+      primaryJob: "reach",
+      origin: "human_written",
+      characterProfileRef: "character:not-real",
+      voiceProfileRef: "brand-voice:not-real",
+      humanSourceRefs: ["note:unknown"],
+      evidenceRefs: ["evidence:unknown"],
+      createdAt: "2026-09-22T16:00:00.000Z",
+      anchor: {
+        id: "asset-unknown",
+        kind: "short_video",
+        transformation: "original",
+        text: "Unknown character should not reach Director.",
+        mediaRefs: [],
+        evidenceRefs: ["evidence:unknown"],
+      },
+    })
+
+    expect(() => buildDirectorBriefFromSocial(project, "asset-unknown", {
+      directorProjectId: "director-project-1",
+    })).toThrow("SOCIAL_DIRECTOR_CHARACTER_NOT_FOUND")
   })
 
   it("does not send text-only Social assets through Director media production", () => {

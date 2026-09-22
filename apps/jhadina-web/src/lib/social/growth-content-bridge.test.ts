@@ -4,6 +4,7 @@ import {
   rankBigIdeas,
   type CreativeEvidenceSignal,
 } from "@jhadina/growth-core"
+import { getSocialCharacterProfileForBrand } from "@jhadina/social-core"
 import { createSocialContentProjectFromGrowth } from "./growth-content-bridge"
 import { buildDirectorBriefFromSocial } from "./director-bridge"
 
@@ -47,6 +48,7 @@ describe("Growth -> Social -> Director convergence", () => {
       bigIdea,
       humanPointOfView: pov,
       sourceEvidenceRefs: ["experiment:content-flywheel"],
+      character: getSocialCharacterProfileForBrand("jhadina"),
       anchor: {
         id: "anchor:1",
         kind: "anchor_video",
@@ -58,6 +60,8 @@ describe("Growth -> Social -> Director convergence", () => {
     expect(project.bigIdeaRef).toContain("one-strong-idea")
     expect(project.origin).toBe("human_written")
     expect(project.evidenceRefs).toContain("growth-signal:signal:1")
+    expect(project.characterProfileRef).toBe("character:jhadina")
+    expect(project.voiceProfileRef).toBe("brand-voice:jhadina")
 
     const director = buildDirectorBriefFromSocial(project, "anchor:1", {
       directorProjectId: "director-project:1",
@@ -68,6 +72,7 @@ describe("Growth -> Social -> Director convergence", () => {
 
     expect(director.socialContentProjectId).toBe(project.id)
     expect(director.intent).toContain(project.bigIdeaRef)
+    expect(director.intent).toContain("Social character: character:jhadina")
     expect(director.publicationAuthority).toBe("NONE")
   })
 
@@ -95,6 +100,30 @@ describe("Growth -> Social -> Director convergence", () => {
 
     expect(project.origin).toBe("research_synthesis")
     expect(project.evidenceRefs).toContain("brand-pov:creative-system:v1")
+  })
+
+  it("rejects a character whose brand does not match the content project", () => {
+    expect(() => createSocialContentProjectFromGrowth({
+      id: "social-project:mismatch",
+      brand: "pupsonstuff",
+      authorityPositionRef: "authority:pups",
+      pillarRef: "pillar:pet",
+      primaryJob: "reach",
+      bigIdea: rankBigIdeas(signals)[0]!,
+      brandPointOfView: {
+        ref: "brand-pov:pups:v1",
+        text: "Make pet products recognizable and delightful.",
+        evidenceRefs: ["brand-policy:pups:v1"],
+      },
+      sourceEvidenceRefs: ["experiment:pups"],
+      character: getSocialCharacterProfileForBrand("atwood-bookie"),
+      anchor: {
+        id: "anchor:mismatch",
+        kind: "short_video",
+        platform: "tiktok",
+      },
+      createdAt: "2026-09-22T12:00:00.000Z",
+    })).toThrow("GROWTH_SOCIAL_CHARACTER_BRAND_MISMATCH")
   })
 
   it("fails closed when Growth has an idea but no approved POV", () => {

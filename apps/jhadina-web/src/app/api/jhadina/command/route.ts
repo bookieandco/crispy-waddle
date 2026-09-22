@@ -3,6 +3,10 @@ import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { createAndSubmitAskVideoJob, inspectAskVideoIntent } from "@/lib/director-video-job-service"
+import {
+  handleAskSocialCommand,
+  inspectAskSocialIntent,
+} from "@/lib/intelligence/ask-social-command"
 
 export const dynamic = "force-dynamic"
 
@@ -38,6 +42,42 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const socialIntent = inspectAskSocialIntent(activeTask)
+    if (socialIntent) {
+      const verifier = await createRequestIdentityVerifier()
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const social = await handleAskSocialCommand({
+        userId: verifiedIdentity.userId,
+        activeTask,
+      })
+      if (social) {
+        const clarifying = social.proposal.disposition === "ASK"
+        return NextResponse.json({
+          success: true,
+          data: {
+            proposal: social.proposal,
+            reasoningEventId: social.reasoningEventId,
+            expression: {
+              proposal: social.proposal,
+              presentation: {
+                mode: clarifying ? "clarifying" : "direct",
+                allowProfanity: false,
+                allowQuip: false,
+              },
+              segments: [{
+                kind: "semantic",
+                text: social.proposal.recommendation,
+              }],
+            },
+            verified: social.verified,
+            verificationReason: social.verificationReason,
+            socialWorkPlan: social.workPlan,
+            feedbackEligible: false,
+          },
+        })
+      }
+    }
+
     const videoIntent = inspectAskVideoIntent(activeTask)
     if (videoIntent) {
       const verifier = await createRequestIdentityVerifier()

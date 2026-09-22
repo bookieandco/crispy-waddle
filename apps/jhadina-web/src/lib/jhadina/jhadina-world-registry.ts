@@ -38,7 +38,7 @@ type WorldRow = {
 
 const worldRows: WorldRow[] = [
   { id:"home", label:"Home", description:"Attention, continuity and recent governed work", capabilities:["recommendations","awareness"], inputs:["discover","coordinate"], href:"/", group:"core" },
-  { id:"assistant", label:"Ask Jhadina", description:"Governed LLM and Intelligence Router surface", capabilities:["reason","propose","explain"], inputs:["memory","activity","spatial"], href:"/ask-jhadina", group:"core" },
+  { id:"assistant", label:"Ask Jhadina", description:"Governed LLM and Intelligence Router surface", capabilities:["reason","propose","explain","route"], inputs:["memory","activity","spatial","social","growth","director"], href:"/ask-jhadina", group:"core" },
   { id:"work", label:"Work", description:"Cross-subsystem workspaces and execution surfaces", capabilities:["open","continue","review"], inputs:["projects","activity"], href:"/work", group:"core" },
   { id:"activity", label:"Activity", description:"Unified governed audit and action timeline", capabilities:["timeline","audit"], inputs:["all-worlds"], href:"/activity", group:"core" },
   { id:"memory", label:"Memory", description:"Approved memories and pending memory decisions", capabilities:["review","search"], inputs:["memory"], href:"/memory", group:"core" },
@@ -53,7 +53,7 @@ const worldRows: WorldRow[] = [
   { id:"homebase", label:"Homebase", description:"Connectivity, offline knowledge, mesh and remote-compute coordination", capabilities:["connectivity","offline","mesh"], inputs:["network","knowledge","devices"], group:"intelligence" },
 
   { id:"studio", label:"Director Workstation", description:"Creative editing and generated-asset workstation", capabilities:["projects","assets","timeline"], inputs:["projects","media"], href:"/workstation", group:"work" },
-  { id:"growth", label:"Growth", description:"Draft, approval and scheduling workflow", capabilities:["draft","approve","schedule"], inputs:["content","activity"], href:"/growth", group:"work" },
+  { id:"growth", label:"Growth", description:"Audience, research, creative experiments, paid media, attribution and governed growth decisions", capabilities:["research","audiences","creative","experiments","ads","attribution","draft","approve","schedule"], inputs:["content","activity","social","commerce","money","director"], href:"/growth", group:"work" },
   { id:"opportunities", label:"Opportunities", description:"Find, qualify and authorize research on opportunities", capabilities:["discover","qualify","track"], inputs:["research","money"], href:"/opportunity", group:"work" },
   { id:"campaign", label:"CampaignOS", description:"Campaign intelligence and polling surfaces", capabilities:["polls","research"], inputs:["polling","knowledge"], href:"/campaign/polls", group:"work" },
   { id:"placement", label:"PlacementOS", description:"Worker, agency and employer placement workflows", capabilities:["opportunities","offers","jobs"], inputs:["jobs","people"], href:"/placement/worker/opportunities", group:"work" },
@@ -65,7 +65,7 @@ const worldRows: WorldRow[] = [
   { id:"music", label:"Music", description:"Listen, discover and manage music", capabilities:["search","recommendations","playback"], inputs:["music","activity"], href:"/music", group:"media" },
   { id:"tv", label:"JhadinaTV", description:"Watch and discover visual media", capabilities:["search","recommendations","watchlist"], inputs:["media","activity"], href:"/jhadinatv", group:"media" },
   { id:"publishing", label:"Publishing", description:"Books, ebooks, digital files and print-on-demand", capabilities:["write","format","proof","catalog"], inputs:["studio","knowledge","commerce"], group:"media" },
-  { id:"social", label:"Social", description:"Social discovery, review and governed publishing", capabilities:["draft","schedule","review"], inputs:["content","activity"], href:"/social", group:"media" },
+  { id:"social", label:"Social", description:"Connected accounts, character voices, performance intelligence, creative coordination and governed publishing", capabilities:["accounts","characters","performance","research","draft","schedule","review","publish"], inputs:["content","activity","growth","director","accounts","performance"], href:"/social", group:"media" },
 
   { id:"pupsonstuff", label:"PupsonStuff", description:"Pet products, creative generation and commerce", capabilities:["products","creative","orders"], inputs:["shopping","commerce"], group:"business" },
   { id:"pod", label:"AI POD Shop", description:"Generalized AI print-on-demand creation, product studio and fulfillment", capabilities:["generate","products","fulfillment"], inputs:["creative","commerce"], group:"business" },

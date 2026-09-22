@@ -6,6 +6,7 @@ import {
   type ExpressionDirective,
   type PatternObservation,
   type PersonalityState,
+  type SocialDomainContext,
   type SpatialDomainContext,
 } from "@jhadina/core-spine"
 import { JHADINA_BASE_SECURITY_POLICY, type SecurityPolicy } from "@jhadina/security-core"
@@ -23,6 +24,13 @@ export interface SpatialContextProvider {
     geographicScope?: unknown
     temporalScope?: { from: string | null; to: string | null; asOf: string | null }
   }): Promise<SpatialDomainContext | undefined>
+}
+
+export interface SocialContextProvider {
+  getContext(input: {
+    userId: string
+    activeTask: string
+  }): Promise<SocialDomainContext | undefined>
 }
 
 export interface PersonalityContextProvider {
@@ -69,6 +77,8 @@ export interface ContextBuilderDeps {
   spatialContextProvider?: SpatialContextProvider
   /** Optional governed personality read/projection adapter. No provider means canonical empty fallback. */
   personalityContextProvider?: PersonalityContextProvider
+  /** Optional read-only Social/Growth context adapter. It cannot publish, spend, or mutate account state. */
+  socialContextProvider?: SocialContextProvider
 }
 
 export interface AssembledContext {
@@ -132,6 +142,20 @@ function policyConstraints(policy: SecurityPolicy): string[] {
   )
   for (const denied of policy.deniedCapabilities ?? []) constraints.push(`denied: ${denied}`)
   return constraints
+}
+
+function normalizeSocialContext(social: SocialDomainContext): SocialDomainContext {
+  const copyRefs = (refs: EvidenceRef[]) => refs.map((ref) => ({ ...ref }))
+  return {
+    accounts: copyRefs(social.accounts),
+    characters: copyRefs(social.characters),
+    pendingWork: copyRefs(social.pendingWork),
+    performance: copyRefs(social.performance),
+    attention: copyRefs(social.attention),
+    uncertainty: [...social.uncertainty],
+    limitations: [...social.limitations],
+    provenance: copyRefs(social.provenance),
+  }
 }
 
 function normalizeSpatialContext(spatial: SpatialDomainContext): SpatialDomainContext {
@@ -229,7 +253,21 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
       geographicScope: input.geographicScope,
       temporalScope: input.temporalScope,
     })
-    if (spatial) domainContext = { spatial: normalizeSpatialContext(spatial) }
+    if (spatial) domainContext = { ...(domainContext ?? {}), spatial: normalizeSpatialContext(spatial) }
+  }
+  if (deps.socialContextProvider) {
+    try {
+      const social = await deps.socialContextProvider.getContext({
+        userId: input.userId,
+        activeTask: redactedActiveTask,
+      })
+      if (social) {
+        domainContext = { ...(domainContext ?? {}), social: normalizeSocialContext(social) }
+        excludedContext.push(...social.limitations.map((item) => `social: ${item}`))
+      }
+    } catch {
+      excludedContext.push("social: governed context unavailable")
+    }
   }
 
   const surfaceLabel = world?.label ?? input.surface

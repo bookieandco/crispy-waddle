@@ -50,6 +50,8 @@ export interface ContentProject {
   bigIdeaRef: string;
   primaryJob: ContentJob;
   origin: ContentOrigin;
+  characterProfileRef?: string;
+  voiceProfileRef?: string;
   humanSourceRefs: readonly string[];
   evidenceRefs: readonly string[];
   assets: readonly ContentAsset[];
@@ -65,6 +67,8 @@ export interface CreateContentProjectInput {
   bigIdeaRef: string;
   primaryJob: ContentJob;
   origin: ContentOrigin;
+  characterProfileRef?: string;
+  voiceProfileRef?: string;
   humanSourceRefs?: readonly string[];
   evidenceRefs: readonly string[];
   anchor: ContentAsset;
@@ -77,6 +81,15 @@ export function createContentProject(input: CreateContentProjectInput): ContentP
   if (!input.pillarRef.trim()) throw new Error("SOCIAL_CONTENT_PILLAR_REQUIRED");
   if (!input.bigIdeaRef.trim()) throw new Error("SOCIAL_BIG_IDEA_REQUIRED");
   if (!input.evidenceRefs.length) throw new Error("SOCIAL_CONTENT_EVIDENCE_REQUIRED");
+  if (!!input.characterProfileRef !== !!input.voiceProfileRef) {
+    throw new Error("SOCIAL_CONTENT_CHARACTER_VOICE_PAIR_REQUIRED");
+  }
+  if (input.characterProfileRef !== undefined && !input.characterProfileRef.trim()) {
+    throw new Error("SOCIAL_CONTENT_CHARACTER_REF_REQUIRED");
+  }
+  if (input.voiceProfileRef !== undefined && !input.voiceProfileRef.trim()) {
+    throw new Error("SOCIAL_CONTENT_VOICE_REF_REQUIRED");
+  }
   if (!Number.isFinite(Date.parse(input.createdAt))) throw new Error("SOCIAL_CONTENT_CREATED_AT_INVALID");
   if (input.anchor.parentAssetId) throw new Error("SOCIAL_ANCHOR_CANNOT_HAVE_PARENT");
   if (input.anchor.transformation !== "original") throw new Error("SOCIAL_ANCHOR_MUST_BE_ORIGINAL");
@@ -95,11 +108,39 @@ export function createContentProject(input: CreateContentProjectInput): ContentP
     bigIdeaRef: input.bigIdeaRef,
     primaryJob: input.primaryJob,
     origin: input.origin,
+    characterProfileRef: input.characterProfileRef,
+    voiceProfileRef: input.voiceProfileRef,
     humanSourceRefs: Object.freeze(humanRefs),
     evidenceRefs: Object.freeze([...input.evidenceRefs]),
     assets: Object.freeze([freezeAsset(input.anchor)]),
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
+  });
+}
+
+
+export function bindContentProjectCharacter(
+  project: ContentProject,
+  input: {
+    characterProfileRef: string;
+    voiceProfileRef: string;
+    evidenceRefs: readonly string[];
+    updatedAt: string;
+  },
+): ContentProject {
+  if (!input.characterProfileRef.trim()) throw new Error("SOCIAL_CONTENT_CHARACTER_REF_REQUIRED");
+  if (!input.voiceProfileRef.trim()) throw new Error("SOCIAL_CONTENT_VOICE_REF_REQUIRED");
+  if (!input.evidenceRefs.length) throw new Error("SOCIAL_CONTENT_CHARACTER_EVIDENCE_REQUIRED");
+  if (!Number.isFinite(Date.parse(input.updatedAt))) throw new Error("SOCIAL_CONTENT_UPDATED_AT_INVALID");
+
+  return Object.freeze({
+    ...project,
+    characterProfileRef: input.characterProfileRef,
+    voiceProfileRef: input.voiceProfileRef,
+    evidenceRefs: Object.freeze([
+      ...new Set([...project.evidenceRefs, ...input.evidenceRefs]),
+    ]),
+    updatedAt: input.updatedAt,
   });
 }
 
