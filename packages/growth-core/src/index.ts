@@ -42,3 +42,5 @@ export * from './intelligence/creative-formula-factory.js';
 export * from './intelligence/search-everywhere.js';
 export * from './intelligence/content-research-system.js';
 export * from './intelligence/social-commerce-opportunity.js';
+
+export * from './intelligence/funnel-learning.js';
