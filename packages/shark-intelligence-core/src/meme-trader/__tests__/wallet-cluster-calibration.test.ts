@@ -2,9 +2,9 @@ import {describe,expect,it} from 'vitest'
 import {evaluateWalletClusterThresholdSensitivity} from '../wallet-cluster-calibration'
 
 const observations:any[]=[
- {observationId:'o1',tokenId:'t1',distinctWallets:3,windowSeconds:600,aggregateWalletScore:7,totalUsd:1000,observedAt:'2026-09-01T00:00:00Z',availableAt:'2026-09-01T00:00:01Z',outcome:'HEALTHY',evidenceIds:['e1']},
- {observationId:'o2',tokenId:'t2',distinctWallets:2,windowSeconds:240,aggregateWalletScore:5,totalUsd:200,observedAt:'2026-09-01T00:01:00Z',availableAt:'2026-09-01T00:01:01Z',outcome:'ADVERSE',evidenceIds:['e2']},
- {observationId:'future',tokenId:'t3',distinctWallets:8,windowSeconds:60,aggregateWalletScore:20,totalUsd:10000,observedAt:'2026-09-02T00:00:00Z',availableAt:'2026-09-02T00:00:01Z',outcome:'HEALTHY',evidenceIds:['future-e']},
+ {observationId:'o1',tokenId:'t1',distinctWallets:3,windowSeconds:600,aggregateWalletScore:7,totalUsd:1000,observedAt:'2026-09-01T00:00:00Z',availableAt:'2026-09-01T00:00:01Z',outcome:'HEALTHY',evidenceIds:['e1'],chainFamily:'SOLANA',normalizationVersion:'swap-v1'},
+ {observationId:'o2',tokenId:'t2',distinctWallets:2,windowSeconds:240,aggregateWalletScore:5,totalUsd:200,observedAt:'2026-09-01T00:01:00Z',availableAt:'2026-09-01T00:01:01Z',outcome:'ADVERSE',evidenceIds:['e2'],chainFamily:'EVM',normalizationVersion:'swap-v1'},
+ {observationId:'future',tokenId:'t3',distinctWallets:8,windowSeconds:60,aggregateWalletScore:20,totalUsd:10000,observedAt:'2026-09-02T00:00:00Z',availableAt:'2026-09-02T00:00:01Z',outcome:'HEALTHY',evidenceIds:['future-e'],chainFamily:'EVM',normalizationVersion:'swap-v2'},
 ]
 
 describe('wallet cluster threshold sensitivity',()=>{
@@ -21,6 +21,8 @@ describe('wallet cluster threshold sensitivity',()=>{
   expect(r.excludedFutureObservationIds).toEqual(['future'])
   expect(r.rows.find(x=>x.thresholdId==='loose')?.matchedObservations).toBe(2)
   expect(r.rows.find(x=>x.thresholdId==='loose')?.adverseRate).toBe(.5)
+  expect(r.rows.find(x=>x.thresholdId==='loose')?.chainFamilies).toEqual(['EVM','SOLANA'])
+  expect(r.rows.find(x=>x.thresholdId==='loose')?.normalizationVersions).toEqual(['swap-v1'])
   expect(r.rows.find(x=>x.thresholdId==='strict')?.matchedObservations).toBe(1)
   expect(r.rows.find(x=>x.thresholdId==='strict')?.healthyRate).toBe(1)
   expect(r.canMutateRuntimeThresholds).toBe(false)
