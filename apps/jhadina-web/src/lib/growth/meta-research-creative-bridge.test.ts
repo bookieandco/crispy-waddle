@@ -70,6 +70,9 @@ describe("Meta research creative production bridge", () => {
         brandPointOfViewEvidenceRefs: ["brand-strategy:packnest:v1"],
         directorProjectId: "director:packnest",
         platform: "instagram",
+        productBibleId: "product-bible:packnest:v1",
+        styleBibleId: "style-bible:packnest:v1",
+        experimentIds: { "concept:2": "experiment:packnest:video" },
         createdAt: "2026-09-22T18:20:00.000Z",
       },
     })
@@ -78,6 +81,12 @@ describe("Meta research creative production bridge", () => {
     expect(jobs[0]?.contentProject.primaryJob).toBe("conversion")
     expect(jobs[0]?.directorBrief.mediaType).toBe("image")
     expect(jobs[1]?.directorBrief.mediaType).toBe("video")
+    expect(jobs[0]?.directorBrief.commercialCreative).toMatchObject({
+      conceptId: "concept:1",
+      productBibleId: "product-bible:packnest:v1",
+      styleBibleId: "style-bible:packnest:v1",
+    })
+    expect(jobs[1]?.directorBrief.commercialCreative?.experimentId).toBe("experiment:packnest:video")
     expect(jobs.every((job) => job.campaignAuthority === "NONE")).toBe(true)
     expect(jobs[0]?.directorBrief.intent).toContain("Do not reproduce competitor")
   })
