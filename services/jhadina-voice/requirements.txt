@@ -1,3 +1,1 @@
-# Native Jhadina voice runtime. Pin exact versions before production image admission.
-# faster-whisper is the first ASR adapter target; TTS engines run behind the same provider-neutral boundary.
-faster-whisper
+# Native Jhadina voice runtime — production dependency admission.\n# SYSTRAN faster-whisper latest upstream release verified before pinning.\nfaster-whisper==1.2.1\n
