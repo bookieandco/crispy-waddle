@@ -35,3 +35,9 @@ export * from './chain-identity'
 export * from './wallet-cluster-calibration'
 
 export * from './meteora-profitability-evidence'
+
+export * from './external-signal-ingest'
+
+export * from './evm-token-control-risk'
+
+export * from './copy-trade-observation'
