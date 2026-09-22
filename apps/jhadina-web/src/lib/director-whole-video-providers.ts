@@ -125,6 +125,144 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
   }
 }
 
+type HiggsfieldApiStatus = 'queued' | 'in_progress' | 'completed' | 'failed' | 'nsfw' | 'canceled';
+type HiggsfieldApiResponse = {
+  status?: HiggsfieldApiStatus;
+  request_id?: string;
+  status_url?: string;
+  cancel_url?: string;
+  video?: { url?: string };
+  error?: string;
+};
+
+function mapHiggsfieldStatus(status: HiggsfieldApiStatus | undefined): WholeVideoProviderResult['status'] {
+  if (status === 'completed') return 'ready';
+  if (status === 'failed' || status === 'nsfw' || status === 'canceled') return 'failed';
+  if (status === 'in_progress') return 'processing';
+  return 'queued';
+}
+
+export class HiggsfieldReferenceVideoProductionProvider implements WholeVideoProductionProvider {
+  readonly descriptor: WholeVideoProviderDescriptor = {
+    id: process.env.DIRECTOR_HIGGSFIELD_PROVIDER_ID ?? 'higgsfield-seedance-2-reference',
+    name: process.env.DIRECTOR_HIGGSFIELD_PROVIDER_NAME ?? 'Higgsfield Seedance 2.0 Reference',
+    costClass: 'paid',
+    supportedModes: ['standard', 'short', 'faceless'],
+    health: 'unknown',
+    supportsCharacterReference: true,
+    supportsProductReference: true,
+  };
+
+  private readonly baseUrl = 'https://api.higgsfield.ai';
+  private readonly credentials: string;
+  private readonly resolution: '480p' | '720p' | '1080p' | '4k';
+
+  constructor(input: { keyId: string; keySecret: string; resolution?: '480p' | '720p' | '1080p' | '4k' }) {
+    if (!input.keyId.trim() || !input.keySecret.trim()) throw new Error('DIRECTOR_HIGGSFIELD_CREDENTIALS_REQUIRED');
+    this.credentials = `${input.keyId.trim()}:${input.keySecret.trim()}`;
+    this.resolution = input.resolution ?? '720p';
+  }
+
+  private headers(): Record<string, string> {
+    return {
+      authorization: `Key ${this.credentials}`,
+      'content-type': 'application/json',
+    };
+  }
+
+  async submit(brief: WholeVideoProductionBrief): Promise<WholeVideoProviderResult> {
+    const target = Math.ceil(brief.intent.targetDurationSeconds ?? 5);
+    if (target > 15) throw new Error('DIRECTOR_HIGGSFIELD_WHOLE_VIDEO_DURATION_EXCEEDS_CLIP_LIMIT');
+    const duration = Math.max(4, Math.min(15, target));
+
+    const imageUrls = [
+      ...(brief.character?.referenceUris ?? []),
+      ...(brief.product?.referenceUris ?? []),
+    ].filter((value, index, all) => Boolean(value) && all.indexOf(value) === index).slice(0, 9);
+
+    const endpoint = imageUrls.length
+      ? '/bytedance/seedance-2.0/reference-to-video'
+      : '/bytedance/seedance-2.0/text-to-video';
+
+    const body: Record<string, unknown> = {
+      prompt: brief.prompt,
+      duration,
+      resolution: this.resolution,
+      aspect_ratio: brief.intent.aspectRatio,
+      generate_audio: brief.intent.narration || brief.intent.foley,
+    };
+    if (imageUrls.length) body.image_urls = imageUrls;
+
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: this.headers(),
+      body: JSON.stringify(body),
+    });
+    const raw = await response.json().catch(() => ({})) as HiggsfieldApiResponse;
+    if (!response.ok) {
+      throw new Error(`DIRECTOR_HIGGSFIELD_SUBMIT_FAILED:${response.status}:${raw.error ?? 'unknown'}`);
+    }
+    if (!raw.request_id) throw new Error('DIRECTOR_HIGGSFIELD_REQUEST_ID_MISSING');
+
+    return {
+      providerJobId: raw.request_id,
+      status: mapHiggsfieldStatus(raw.status),
+      ...(raw.video?.url ? { resultUri: raw.video.url } : {}),
+      ...(raw.error ? { error: raw.error } : {}),
+      metadata: {
+        endpoint,
+        statusUrl: raw.status_url,
+        cancelUrl: raw.cancel_url,
+        referenceCount: imageUrls.length,
+        modelId: imageUrls.length
+          ? 'bytedance/seedance-2.0/reference-to-video'
+          : 'bytedance/seedance-2.0/text-to-video',
+      },
+    };
+  }
+
+  async status(providerJobId: string): Promise<WholeVideoProviderResult> {
+    const response = await fetch(`${this.baseUrl}/requests/${encodeURIComponent(providerJobId)}/status`, {
+      headers: this.headers(),
+      cache: 'no-store',
+    });
+    const raw = await response.json().catch(() => ({})) as HiggsfieldApiResponse;
+    if (!response.ok) {
+      throw new Error(`DIRECTOR_HIGGSFIELD_STATUS_FAILED:${response.status}:${raw.error ?? 'unknown'}`);
+    }
+    return {
+      providerJobId,
+      status: mapHiggsfieldStatus(raw.status),
+      ...(raw.video?.url ? { resultUri: raw.video.url } : {}),
+      ...(raw.error ? { error: raw.error } : {}),
+      metadata: { statusUrl: raw.status_url, cancelUrl: raw.cancel_url },
+    };
+  }
+
+  async download(providerJobId: string): Promise<{ bytes: Uint8Array; contentType: string }> {
+    const state = await this.status(providerJobId);
+    if (state.status !== 'ready' || !state.resultUri) {
+      throw new Error('DIRECTOR_HIGGSFIELD_OUTPUT_NOT_READY');
+    }
+    const response = await fetch(state.resultUri, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`DIRECTOR_HIGGSFIELD_DOWNLOAD_FAILED:${response.status}`);
+    return {
+      bytes: new Uint8Array(await response.arrayBuffer()),
+      contentType: response.headers.get('content-type') ?? 'video/mp4',
+    };
+  }
+
+  async cancel(providerJobId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/requests/${encodeURIComponent(providerJobId)}/cancel`, {
+      method: 'POST',
+      headers: this.headers(),
+    });
+    if (!response.ok && response.status !== 404 && response.status !== 409) {
+      throw new Error(`DIRECTOR_HIGGSFIELD_CANCEL_FAILED:${response.status}`);
+    }
+  }
+}
+
 export class ReferenceProductVideoProductionProvider implements WholeVideoProductionProvider {
   readonly descriptor: WholeVideoProviderDescriptor = {
     id: process.env.DIRECTOR_PRODUCT_VIDEO_PROVIDER_ID ?? 'product-reference-video-local',
@@ -398,6 +536,17 @@ export function createConfiguredWholeVideoProviders(): WholeVideoProductionProvi
     providers.push(new ReferenceProductVideoProductionProvider({
       baseUrl: process.env.DIRECTOR_PRODUCT_VIDEO_PROVIDER_URL,
       token: process.env.DIRECTOR_PRODUCT_VIDEO_PROVIDER_TOKEN,
+    }));
+  }
+  if (process.env.DIRECTOR_HIGGSFIELD_API_KEY_ID && process.env.DIRECTOR_HIGGSFIELD_API_KEY_SECRET) {
+    const configuredResolution = process.env.DIRECTOR_HIGGSFIELD_RESOLUTION;
+    const resolution = configuredResolution === '480p' || configuredResolution === '1080p' || configuredResolution === '4k'
+      ? configuredResolution
+      : '720p';
+    providers.push(new HiggsfieldReferenceVideoProductionProvider({
+      keyId: process.env.DIRECTOR_HIGGSFIELD_API_KEY_ID,
+      keySecret: process.env.DIRECTOR_HIGGSFIELD_API_KEY_SECRET,
+      resolution,
     }));
   }
   if (process.env.DIRECTOR_AGNES_VIDEO_URL) {
