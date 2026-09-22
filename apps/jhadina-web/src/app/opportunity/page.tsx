@@ -260,7 +260,7 @@ function OpportunityCard({
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
         <span style={automationBadge}>{AUTOMATION_LABEL[opportunity.automationLevel]}</span>
-        {sideHustle && <span style={automationBadge}>{sideHustle.role.replace("_", " ")} · {sideHustle.automationMaturity.replaceAll("_", " ")}</span>}
+        {sideHustle && <span style={automationBadge}>{sideHustle.role.replace("_", " ")} · {sideHustle.automationMaturity.replace(/_/g, " ")}</span>}
         {opportunity.riskFlags.map((flag) => (
           <span key={flag} style={riskBadge}>⚠ {flag}</span>
         ))}
