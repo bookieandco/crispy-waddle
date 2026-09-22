@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateCharacterSceneBinding, validateMovieGradeCastRecord } from './cast-bible';
+import { resolveCharacterSceneIdentity, validateCharacterSceneBinding, validateMovieGradeCastRecord } from './cast-bible';
 import { resolveDialogueVoice, validateGeneratedDialogueVoice, validateMovieGradeVoiceIdentity } from './voice-identity';
 import { validateMovieAudioBible, validateMovieGradeAudioBible } from './movie-audio-bible';
 import { evaluateCharacterIdentityContinuity } from './character-identity-qc';
@@ -47,6 +47,31 @@ describe('Director cast and voice continuity', () => {
     approvedAt: '2026-09-22T00:00:00Z',
     approvedBy: 'user-1',
   };
+
+  it('keeps written character descriptions beside the canonical reference sheet', () => {
+    const described = {
+      ...cast,
+      characterDescription: 'A guarded former boxer who uses dry humor when nervous and protects younger characters instinctively.',
+      appearanceDescription: 'Tall, broad-shouldered, close-cropped hair, tired eyes, and a thin scar above the left eyebrow.',
+      performanceNotes: ['economical movement', 'rarely smiles', 'looks away before admitting vulnerability'],
+      descriptionRevision: 3,
+      descriptionUpdatedAt: '2026-09-22T12:00:00Z',
+      descriptionUpdatedBy: 'user-1',
+    };
+
+    const resolved = resolveCharacterSceneIdentity(described);
+    expect(resolved.referenceAssetIds).toContain('hero-ref-base');
+    expect(resolved.characterDescription).toContain('former boxer');
+    expect(resolved.appearanceDescription).toContain('thin scar');
+    expect(resolved.performanceNotes).toContain('economical movement');
+    expect(validateCharacterSceneBinding(described, {
+      projectId: 'movie-1',
+      characterId: 'hero',
+      continuityRef: 'character:hero:v1',
+      appearanceVariantId: 'hero-base',
+      referenceAssetIds: [],
+    }).valid).toBe(false);
+  });
 
   it('allows outfit changes without changing canonical character identity', () => {
     expect(validateCharacterSceneBinding(cast, {
