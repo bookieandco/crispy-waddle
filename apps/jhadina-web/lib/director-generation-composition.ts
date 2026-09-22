@@ -8,9 +8,15 @@ import { OutboxGenerationProvider } from '@jhadina/director-core/outbox-generati
 import type { GenerationRegistry } from '@jhadina/director-core/generation-registry';
 import { DirectorStoryboardLineageResolver } from '@jhadina/director-core/storyboard-lineage-resolver';
 import { SupabaseStoryboardRepository } from '@jhadina/director-core/storyboard-persistence';
-import { DirectorProductionAuthorityResolver, DirectorReviewAuthorityResolver, SupabaseDirectorProductionAuthorityRepository } from '@jhadina/director-core';
+import {
+  DirectorProductionAuthorityResolver,
+  DirectorReviewAuthorityResolver,
+  ReferenceResolvingGenerationProvider,
+  SupabaseDirectorProductionAuthorityRepository,
+} from '@jhadina/director-core';
 import { SupabaseDirectorReviewRepository } from './director-review-repository';
 import { SupabaseDirectorCastResolver } from '../src/lib/director-cast-repository';
+import { SupabaseDirectorReferenceUriResolver } from '../src/lib/director-generation-reference-resolver';
 import { createSupabaseGeneratedAssetRepository } from './supabase-generated-asset-repository';
 import { createSupabaseGenerationRepository } from '../src/lib/supabase-generation-repository';
 import {
@@ -37,9 +43,13 @@ function composeDirectorGenerationRuntime(
   workerId: string,
 ): DirectorGenerationRuntime {
   const repository = createSupabaseGenerationRepository(client);
+  const referenceResolver = new SupabaseDirectorReferenceUriResolver(client);
+  const submissionProviders = new Map<string, GenerationProvider>();
   const outboxProviders = new Map<string, GenerationProvider>();
   for (const [providerId, provider] of providers) {
-    outboxProviders.set(providerId, new OutboxGenerationProvider(provider, repository, workerId));
+    const submissionProvider = new ReferenceResolvingGenerationProvider(provider, referenceResolver);
+    submissionProviders.set(providerId, submissionProvider);
+    outboxProviders.set(providerId, new OutboxGenerationProvider(submissionProvider, repository, workerId));
   }
 
   const service = new GenerationService(
@@ -57,7 +67,7 @@ function composeDirectorGenerationRuntime(
   const authority = new DirectorProductionAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(readClient), storyboardLineageResolver);
   const reviewRepository = new SupabaseDirectorReviewRepository(client);
   const reviewAuthority = new DirectorReviewAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(readClient), reviewRepository);
-  const reconciler = new GenerationSubmissionReconciler(repository, outboxProviders, workerId);
+  const reconciler = new GenerationSubmissionReconciler(repository, submissionProviders, workerId);
   return { generation, reconciler, workerId, hasModel: (modelId) => registry.hasModel(modelId), authority, reviewAuthority, reviewRepository };
 }
 
