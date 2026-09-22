@@ -34,6 +34,7 @@ export class ShortVideoMakerProductionProvider implements WholeVideoProductionPr
     name: 'Short Video Maker',
     costClass: 'free-local',
     supportedModes: ['short', 'faceless', 'standard'],
+    referenceCharacterSupport: 'none',
     health: 'unknown',
   };
 
@@ -111,6 +112,7 @@ export class AgnesVideoProductionProvider implements WholeVideoProductionProvide
     name: 'Agnes Video Generator',
     costClass: 'external-free',
     supportedModes: ['standard', 'short', 'faceless', 'long-form'],
+    referenceCharacterSupport: 'none',
     health: 'unknown',
   };
 
