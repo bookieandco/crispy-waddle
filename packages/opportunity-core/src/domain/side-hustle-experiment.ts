@@ -197,6 +197,13 @@ export function evaluateSideHustleExperiment(input: {
   if (input.observations.some((observation) => Date.parse(observation.observedAt) > Date.parse(input.evaluatedAt))) {
     throw new Error('Experiment evaluation cannot include future observations')
   }
+  if (
+    experiment.status === 'completed' &&
+    experiment.completedAt &&
+    input.observations.some((observation) => Date.parse(observation.observedAt) > Date.parse(experiment.completedAt!))
+  ) {
+    throw new Error('Completed experiment cannot include observations after completion')
+  }
 
   const observations = input.observations.map((observation) =>
     recordSideHustleExperimentObservation({
