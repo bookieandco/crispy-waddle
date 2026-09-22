@@ -53,3 +53,9 @@ This is an intentional fail-closed result. The remaining blockers require actual
 6. Bridge Ask Jhadina to governed SubsystemDoctor execution.
 7. Run physical microphone/screen/multilingual/provider-failover/repair drills and attach receipts.
 8. Change this document to CERTIFIED only when every required real-world gate has evidence.
+
+## Deployment retrigger receipt — 2026-09-22
+
+- PR #615 merged as `12ee3876365d051198c53008e1d53694238d00e1` and removed the root Vercel `ignoreCommand`.
+- No deployment for that main SHA was visible immediately after merge, so this documentation-only main change intentionally retriggers the Git integration after the configuration repair.
+- Certification remains fail-closed until a deployment for the post-#615 main lineage reaches READY and runtime drills pass.
