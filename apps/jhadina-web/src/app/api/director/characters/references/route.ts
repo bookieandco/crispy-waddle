@@ -75,8 +75,9 @@ export async function POST(request: Request) {
   const sha256 = createHash('sha256').update(bytes).digest('hex');
   const { data: existing, error: existingError } = await privileged
     .from('director_reference_media_assets')
-    .select('id,project_id,mime_type,byte_size,width,height,sha256,view_hint,admission_status,scan_status')
+    .select('id,project_id,mime_type,byte_size,width,height,sha256,reference_kind,view_hint,admission_status,scan_status')
     .eq('project_id', projectId)
+    .eq('reference_kind', 'character')
     .eq('sha256', sha256)
     .maybeSingle();
 
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
     width: inspection.width,
     height: inspection.height,
     sha256,
+    reference_kind: 'character',
     view_hint: viewHint,
     rights_ref: rightsRef,
     consent_ref: consentRef || null,
@@ -126,7 +128,7 @@ export async function POST(request: Request) {
   const { data, error } = await privileged
     .from('director_reference_media_assets')
     .insert(row)
-    .select('id,project_id,mime_type,byte_size,width,height,sha256,view_hint,admission_status,scan_status,created_at')
+    .select('id,project_id,mime_type,byte_size,width,height,sha256,reference_kind,view_hint,admission_status,scan_status,created_at')
     .single();
 
   if (error) {
