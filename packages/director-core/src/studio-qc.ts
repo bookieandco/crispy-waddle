@@ -54,7 +54,21 @@ export function createStudioQCProvider(adapter:StudioQCAdapter):DirectorStudioCa
    if(action.capability!=='qc') throw new Error('QC provider received wrong capability')
    const input=readInput(action),artifact=await adapter.inspect(input),decision=decideStudioQC(input,artifact)
    if(!decision.passed) throw new Error(`Studio QC failed: ${decision.failedChecks.join(', ')}`)
-   return {capability:'qc',projectId:action.projectId,outputAssetIds:[input.assetId],evidenceIds:[...input.evidenceIds,...artifact.evidenceIds,...artifact.metrics.flatMap(m=>m.evidenceIds),`qc-report:${artifact.reportId}`,`qc-provider:${artifact.provider}`,`qc-min-score:${decision.minimumObservedScore}`]}
+   const canonicalCheckEvidence=artifact.metrics.map(metric=>`qc-check:${metric.check}:${metric.score}`)
+   return {
+    capability:'qc',
+    projectId:action.projectId,
+    outputAssetIds:[input.assetId],
+    evidenceIds:[
+      ...input.evidenceIds,
+      ...artifact.evidenceIds,
+      ...artifact.metrics.flatMap(m=>m.evidenceIds),
+      ...canonicalCheckEvidence,
+      `qc-report:${artifact.reportId}`,
+      `qc-provider:${artifact.provider}`,
+      `qc-min-score:${decision.minimumObservedScore}`,
+    ],
+   }
   }
  }
 }
