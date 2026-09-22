@@ -7,6 +7,11 @@ import { validateFrameExactRenderContract, verifyPureSeekSamples } from './rende
 import { evaluateSceneEmotionEvidence } from './emotion-storyboard-evidence';
 import { validateCreativeExperiment } from './creative-experiment';
 import { validateEditingTechniquePlan } from './editing-technique-spec';
+import { decideRoughCutPlacement } from './rough-cut-evidence';
+import { validateTimelineProposalSelection } from './timeline-edit-proposal';
+import { validateAnimationPerformanceState } from './animation-performance-state';
+import { objectDetectionsToVisualEvidence } from './object-detection-observation';
+import { ROBOFLOW_CARTOON_56LLR_V11, visionModelAllowsClass } from './vision-model-profile';
 
 describe('reference-derived Director contracts', () => {
   it('fails visual edits closed when no frame evidence covers the interval', () => {
@@ -292,5 +297,197 @@ describe('reference-derived Director contracts', () => {
       'DIRECTOR_TECHNIQUE_EVIDENCE_REQUIRED',
       'DIRECTOR_TECHNIQUE_PARAMETER_MAX:overlapSeconds',
     ]));
+  });
+  it('preserves ambiguous and repeated rough-cut takes instead of guessing', () => {
+    const decision = decideRoughCutPlacement(
+      [
+        { id: 'step-1', order: 1, text: 'Open the cover' },
+        { id: 'step-2', order: 2, text: 'Remove the module' },
+      ],
+      [
+        {
+          id: 'take-1a',
+          assetId: 'asset-a',
+          sourceStartSeconds: 0,
+          sourceEndSeconds: 5,
+          stepId: 'step-1',
+          confidence: 0.9,
+          kinds: ['spoken-step-label'],
+          evidenceRefs: ['transcript:a'],
+          repeatedTakeGroupId: 'step-1-takes',
+        },
+        {
+          id: 'take-1b',
+          assetId: 'asset-b',
+          sourceStartSeconds: 1,
+          sourceEndSeconds: 6,
+          stepId: 'step-1',
+          confidence: 0.88,
+          kinds: ['manual-label'],
+          evidenceRefs: ['marker:b'],
+          repeatedTakeGroupId: 'step-1-takes',
+        },
+        {
+          id: 'take-unknown',
+          assetId: 'asset-c',
+          sourceStartSeconds: 0,
+          sourceEndSeconds: 4,
+          stepId: 'step-2',
+          confidence: 0.99,
+          kinds: ['procedure-order'],
+          evidenceRefs: ['recording-order:c'],
+        },
+      ],
+    );
+    expect(decision.placements.map((item) => item.takeId)).toEqual(['take-1a', 'take-1b']);
+    expect(decision.reviewQueue.map((item) => item.takeId)).toContain('take-unknown');
+    expect(decision.missingStepIds).toContain('step-2');
+  });
+
+  it('requires ghost edit proposals to match the exact timeline snapshot and dependency closure', () => {
+    const proposal = {
+      id: 'proposal-1',
+      projectId: 'p',
+      baseTimelineVersionId: 'timeline-v2',
+      baseSnapshotHash: 'hash-v2',
+      status: 'ready' as const,
+      createdBy: 'jhadina' as const,
+      authority: 'PROPOSAL_ONLY' as const,
+      changes: [
+        {
+          id: 'cut-a',
+          command: { type: 'delete', clipId: 'clip-a' } as any,
+          dependsOn: [],
+          evidenceIds: ['silence:a'],
+          previewArtifactIds: ['preview:a'],
+          explanation: 'Remove confirmed dead air',
+        },
+        {
+          id: 'transition-b',
+          command: { type: 'transition', transition: { id: 't', fromClipId: 'clip-b', toClipId: 'clip-c', type: 'crossfade', durationSeconds: 0.2 } } as any,
+          dependsOn: ['cut-a'],
+          evidenceIds: ['continuity:b'],
+          previewArtifactIds: ['preview:b'],
+          explanation: 'Repair continuity after cut',
+        },
+      ],
+    };
+
+    expect(validateTimelineProposalSelection(proposal, {
+      currentTimelineVersionId: 'timeline-v2',
+      currentSnapshotHash: 'hash-v2',
+      selectedChangeIds: ['transition-b'],
+    }).reasons).toContain('DIRECTOR_TIMELINE_PROPOSAL_DEPENDENCY_REQUIRED:transition-b:cut-a');
+
+    expect(validateTimelineProposalSelection(proposal, {
+      currentTimelineVersionId: 'timeline-v3',
+      currentSnapshotHash: 'hash-v3',
+      selectedChangeIds: ['cut-a', 'transition-b'],
+    }).reasons).toEqual(expect.arrayContaining([
+      'DIRECTOR_TIMELINE_PROPOSAL_BASE_VERSION_STALE',
+      'DIRECTOR_TIMELINE_PROPOSAL_BASE_HASH_STALE',
+    ]));
+
+    expect(validateTimelineProposalSelection(proposal, {
+      currentTimelineVersionId: 'timeline-v2',
+      currentSnapshotHash: 'hash-v2',
+      selectedChangeIds: ['cut-a', 'transition-b'],
+    }).valid).toBe(true);
+  });
+
+  it('keeps animation state frame-exact so blink or gesture changes cannot lengthen the movie', () => {
+    const valid = validateAnimationPerformanceState({
+      id: 'anim-state-1',
+      projectId: 'p',
+      fps: 24,
+      frameCount: 48,
+      audioDurationSeconds: 2,
+      runs: [
+        {
+          id: 'run-a',
+          frameStart: 0,
+          frameEndExclusive: 24,
+          characterAssetId: 'char-1',
+          expression: 'neutral',
+          viseme: 'X',
+          evidenceIds: ['word:a'],
+        },
+        {
+          id: 'run-b',
+          frameStart: 24,
+          frameEndExclusive: 48,
+          characterAssetId: 'char-1',
+          expression: 'smile',
+          viseme: 'A',
+          evidenceIds: ['word:b'],
+        },
+      ],
+    });
+    expect(valid.valid).toBe(true);
+
+    const drifted = validateAnimationPerformanceState({
+      id: 'anim-state-2',
+      projectId: 'p',
+      fps: 24,
+      frameCount: 48,
+      audioDurationSeconds: 2,
+      runs: [
+        {
+          id: 'run-a',
+          frameStart: 0,
+          frameEndExclusive: 24,
+          characterAssetId: 'char-1',
+          evidenceIds: ['word:a'],
+        },
+        {
+          id: 'blink-inserted',
+          frameStart: 24,
+          frameEndExclusive: 27,
+          characterAssetId: 'char-1',
+          eyes: 'blink',
+          evidenceIds: ['blink:1'],
+        },
+        {
+          id: 'run-b',
+          frameStart: 27,
+          frameEndExclusive: 51,
+          characterAssetId: 'char-1',
+          evidenceIds: ['word:b'],
+        },
+      ],
+    });
+    expect(drifted.valid).toBe(false);
+    expect(drifted.reasons).toContain('DIRECTOR_ANIMATION_DURATION_DRIFT');
+  });
+
+  it('maps admitted object detections into normalized one-frame visual evidence', () => {
+    const evidence = objectDetectionsToVisualEvidence({
+      id: 'rf-1',
+      projectId: 'p',
+      assetId: 'frame-asset',
+      provider: 'roboflow-serverless',
+      modelId: ROBOFLOW_CARTOON_56LLR_V11.modelId,
+      observedAt: '2026-09-22T00:00:00Z',
+      frame: 30,
+      fps: 30,
+      imageWidth: 1000,
+      imageHeight: 500,
+      predictions: [
+        { className: 'mickey', confidence: 0.9, x: 500, y: 250, width: 200, height: 100 },
+        { className: 'unknown', confidence: 0.99, x: 100, y: 100, width: 50, height: 50 },
+      ],
+      allowedClasses: ROBOFLOW_CARTOON_56LLR_V11.classes,
+      evidenceRefs: ['roboflow-response:sha256'],
+    });
+    expect(visionModelAllowsClass(ROBOFLOW_CARTOON_56LLR_V11, 'mickey')).toBe(true);
+    expect(visionModelAllowsClass(ROBOFLOW_CARTOON_56LLR_V11, 'unknown')).toBe(false);
+    expect(evidence.frameStart).toBe(30);
+    expect(evidence.frameEnd).toBe(31);
+    expect(evidence.protectedRegions).toHaveLength(1);
+    expect(evidence.protectedRegions[0]).toMatchObject({
+      startSeconds: 1,
+      endSeconds: 31 / 30,
+      bounds: { x: 0.4, y: 0.4, width: 0.2, height: 0.2 },
+    });
   });
 });
