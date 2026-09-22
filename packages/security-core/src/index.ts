@@ -115,3 +115,5 @@ export function createSecurityRequest(input: Omit<SecurityRequest, 'nonce' | 'ex
 export * from './capability-classification.js';
 export * from './values-configuration.js';
 export * from './risk-boundary-policy.js';
+
+export * from './media-security.js';
