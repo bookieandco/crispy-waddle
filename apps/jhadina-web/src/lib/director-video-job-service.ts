@@ -111,6 +111,15 @@ export interface AskVideoJobInput {
     referenceUris: readonly string[];
     productionPlan?: unknown;
   };
+  referenceProduct?: {
+    productId: string;
+    productBibleId: string;
+    canonicalVariantId: string;
+    referenceAssetIds: readonly string[];
+    referenceSha256s: readonly string[];
+    referenceUris: readonly string[];
+    labelAuthorities: readonly { text: string; surface: string }[];
+  };
 }
 
 export interface AskVideoJobResult {
@@ -160,6 +169,16 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
           productionPlan: input.referenceCharacter.productionPlan,
         },
       } : {}),
+      ...(input.referenceProduct ? {
+        referenceProduct: {
+          productId: input.referenceProduct.productId,
+          productBibleId: input.referenceProduct.productBibleId,
+          canonicalVariantId: input.referenceProduct.canonicalVariantId,
+          referenceAssetIds: [...input.referenceProduct.referenceAssetIds],
+          referenceSha256s: [...input.referenceProduct.referenceSha256s],
+          labelAuthorities: input.referenceProduct.labelAuthorities.map((authority) => ({ ...authority })),
+        },
+      } : {}),
     },
     p_provider_policy: intent.providerPolicy,
     p_now: now,
@@ -171,14 +190,19 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
     return { intent, job };
   }
 
-  const provider = selectWholeVideoProvider(createConfiguredWholeVideoProviders(), intent, { characterReference: Boolean(input.referenceCharacter) });
+  const provider = selectWholeVideoProvider(createConfiguredWholeVideoProviders(), intent, {
+    characterReference: Boolean(input.referenceCharacter),
+    productReference: Boolean(input.referenceProduct),
+  });
   if (!provider) {
     job = await updateJob(client, job.id, {
       status: 'blocked',
       current_phase: 'provider-selection',
       error: input.referenceCharacter
         ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
-        : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+        : input.referenceProduct
+          ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
+          : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
     });
     await appendJobEvent(client, {
       jobId: job.id,
@@ -186,7 +210,9 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
       status: 'blocked',
       error: input.referenceCharacter
         ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
-        : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+        : input.referenceProduct
+          ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
+          : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
     });
     return { intent, job };
   }
@@ -218,6 +244,16 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
           appearanceVariantId: input.referenceCharacter.appearanceVariantId,
           referenceUris: [...input.referenceCharacter.referenceUris],
           referenceSha256s: [...input.referenceCharacter.referenceSha256s],
+        },
+      } : {}),
+      ...(input.referenceProduct ? {
+        product: {
+          productId: input.referenceProduct.productId,
+          productBibleId: input.referenceProduct.productBibleId,
+          canonicalVariantId: input.referenceProduct.canonicalVariantId,
+          referenceUris: [...input.referenceProduct.referenceUris],
+          referenceSha256s: [...input.referenceProduct.referenceSha256s],
+          labelAuthorities: input.referenceProduct.labelAuthorities.map((authority) => ({ ...authority })),
         },
       } : {}),
     }, `director-video:${job.id}`);
