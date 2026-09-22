@@ -34,7 +34,7 @@ function informationCutoff(evidence: readonly SharkMoneyEvidenceMetadata[]): str
       throw new Error(`SHARK_MONEY_EVIDENCE_AVAILABLE_AT_INVALID:${item.evidenceId}`)
     }
   }
-  return [...evidence].sort((a, b) => a.availableAt.localeCompare(b.availableAt)).at(-1)!.availableAt
+  return evidence.reduce((latest, item) => Date.parse(item.availableAt) > Date.parse(latest) ? item.availableAt : latest, evidence[0]!.availableAt)
 }
 
 export function createSharkMoneyResearchEnvelope(input: {
