@@ -12,6 +12,7 @@ describe('Growth creative A/B testing',()=>{
         {variantId:'horse-hook',exposures:40,conversions:6,spend:40,contributionMargin:90},
       ],
       minimumExposuresPerVariant:500,
+      minimumConversionsPerVariant:20,
       minimumRelativeLift:0.1,
       minimumContributionRoas:1,
     });
@@ -61,6 +62,49 @@ describe('Growth creative A/B testing',()=>{
     expect(result.comparisons[0]?.reasonCodes).toContain('GROWTH_AB_CONTRIBUTION_ROAS_BELOW_FLOOR');
   });
 
+  it('requires a minimum conversion count when configured',()=>{
+    const result=assessCreativeAbExperiment({
+      id:'ab:conversion-floor',
+      controlVariantId:'control',
+      treatmentVariantIds:['hook'],
+      observations:[
+        {variantId:'control',exposures:10000,conversions:5},
+        {variantId:'hook',exposures:10000,conversions:12},
+      ],
+      minimumExposuresPerVariant:1000,
+      minimumConversionsPerVariant:20,
+      significanceLevel:0.05,
+    });
+    expect(result.status).toBe('insufficient-data');
+    expect(result.comparisons[0]?.reasonCodes).toContain('GROWTH_AB_CONVERSIONS_INSUFFICIENT');
+  });
+
+  it('rejects duplicate or unrelated observation rows instead of silently overwriting them',()=>{
+    expect(()=>assessCreativeAbExperiment({
+      id:'ab:duplicate',
+      controlVariantId:'control',
+      treatmentVariantIds:['hook'],
+      observations:[
+        {variantId:'control',exposures:1000,conversions:50},
+        {variantId:'hook',exposures:1000,conversions:60},
+        {variantId:'hook',exposures:1000,conversions:61},
+      ],
+      minimumExposuresPerVariant:100,
+    })).toThrow('GROWTH_AB_OBSERVATION_DUPLICATE:hook');
+
+    expect(()=>assessCreativeAbExperiment({
+      id:'ab:unknown',
+      controlVariantId:'control',
+      treatmentVariantIds:['hook'],
+      observations:[
+        {variantId:'control',exposures:1000,conversions:50},
+        {variantId:'hook',exposures:1000,conversions:60},
+        {variantId:'other',exposures:1000,conversions:70},
+      ],
+      minimumExposuresPerVariant:100,
+    })).toThrow('GROWTH_AB_OBSERVATION_UNKNOWN:other');
+  });
+
   it('applies a multiple-comparison correction when testing several mutations',()=>{
     const result=assessCreativeAbExperiment({
       id:'ab:multi',
@@ -77,7 +121,11 @@ describe('Growth creative A/B testing',()=>{
       minimumRelativeLift:0.05,
     });
     expect(result.comparisons).toHaveLength(3);
-    expect(result.comparisons.every(item=>item.confidenceLevel>0.98)).toBe(true);
+    expect(result.comparisons.every(item=>item.adjustedConfidenceLevel>0.98)).toBe(true);
+    expect(result.comparisons.every(item=>
+      item.adjustedConfidenceInterval[0] <= item.confidenceInterval95[0] &&
+      item.adjustedConfidenceInterval[1] >= item.confidenceInterval95[1]
+    )).toBe(true);
     expect(result.authority).toBe('LEARNING_EVIDENCE_ONLY');
   });
 });
