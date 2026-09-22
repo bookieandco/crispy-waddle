@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-
 export type ExternalSignalPlatform='TELEGRAM'|'DISCORD'|'X'|'OTHER'
 export type SharkMemoryTier='KNOWN'|'INFERRED'|'LEARNED'
 
@@ -29,6 +27,15 @@ const dexscreener=/https?:\/\/dexscreener\.com\/solana\/([1-9A-HJ-NP-Za-km-z]{20
 const birdeye=/https?:\/\/(?:www\.)?birdeye\.so\/token\/([1-9A-HJ-NP-Za-km-z]{32,44})(?:\?[^\s]*)?/gi
 
 const assertIso=(v:string,c:string)=>{if(!v||Number.isNaN(Date.parse(v)))throw new Error(c)}
+const stableHash=(value:string):string=>{
+  let a=0x811c9dc5,b=0x9e3779b9
+  for(let i=0;i<value.length;i++){
+    const code=value.charCodeAt(i)
+    a=Math.imul(a^code,0x01000193)>>>0
+    b=Math.imul((b+code+(i<<6))>>>0,0x85ebca6b)>>>0
+  }
+  return a.toString(16).padStart(8,'0')+b.toString(16).padStart(8,'0')
+}
 const push=(out:ExternalSignalCandidate[],kind:ExternalSignalCandidate['kind'],value:string,confidence:number)=>{
   if(!out.some(x=>x.kind===kind&&x.value===value))out.push(Object.freeze({kind,value,confidence}))
 }
@@ -50,7 +57,7 @@ export function ingestExternalSignal(input:{
   for(const m of input.text.matchAll(dexscreener))push(candidates,'DEXSCREENER_SOLANA',m[1]!,.9)
   for(const m of input.text.matchAll(birdeye))push(candidates,'BIRDEYE_SOLANA',m[1]!,.9)
   for(const m of input.text.matchAll(solanaAddress))push(candidates,'SOLANA_ADDRESS',m[0],.55)
-  const textHash=createHash('sha256').update(input.text).digest('hex')
+  const textHash=stableHash(input.text)
   return Object.freeze({
     observationId:input.observationId,platform:input.platform,sourceHandle:input.sourceHandle,channelId:input.channelId,
     observedAt:input.observedAt,availableAt:input.availableAt,textHash,
@@ -79,7 +86,7 @@ export function createSignalHypothesis(input:{
   if(input.observation.authority!=='EVIDENCE_ONLY'||input.observation.canAuthorizeTrade!==false)throw new Error('shark_signal_authority_invalid')
   if(!input.tokenCandidate.trim()||!input.rationale.trim()||!input.evidenceIds.length)throw new Error('shark_signal_hypothesis_incomplete')
   return Object.freeze({
-    hypothesisId:`signal-hypothesis:${createHash('sha256').update(JSON.stringify({o:input.observation.observationId,t:input.tokenCandidate,r:input.rationale,e:[...input.evidenceIds].sort()})).digest('hex')}`,
+    hypothesisId:`signal-hypothesis:${stableHash(JSON.stringify({o:input.observation.observationId,t:input.tokenCandidate,r:input.rationale,e:[...input.evidenceIds].sort()}))}`,
     signalObservationId:input.observation.observationId,tokenCandidate:input.tokenCandidate,rationale:input.rationale,
     evidenceIds:Object.freeze([...new Set(input.evidenceIds)].sort()),memoryTier:'INFERRED',authority:'RESEARCH_ONLY',canAuthorizeTrade:false,
   })
