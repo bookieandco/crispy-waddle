@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {reconcileMeteoraDlmmCashFlowProfitability} from '../meteora-profitability-evidence'
+import {estimateMeteoraDlmmImpermanentLoss,reconcileMeteoraDlmmCashFlowProfitability} from '../meteora-profitability-evidence'
 
 const flow=(evidenceId:string,kind:'DEPOSIT'|'WITHDRAWAL'|'FEE',amountMinor:bigint,availableAt='2026-09-01T00:00:01Z')=>({
  evidenceId,transactionId:'tx:'+evidenceId,position:'position-1',kind,amountMinor,currency:'USDC',
@@ -51,5 +51,21 @@ describe('Meteora DLMM profitability evidence',()=>{
   const d=flow('dup','DEPOSIT',1n)
   expect(()=>reconcileMeteoraDlmmCashFlowProfitability({position:'position-1',currency:'USDC',informationCutoff:'2026-09-02T00:00:00Z',positionClosed:true,transactionHistoryComplete:true,flows:[d,d]})).toThrow('duplicate_evidence')
   expect(()=>reconcileMeteoraDlmmCashFlowProfitability({position:'position-1',currency:'USDC',informationCutoff:'2026-09-02T00:00:00Z',positionClosed:true,transactionHistoryComplete:true,flows:[{...d,currency:'SOL'}]})).toThrow('flow_identity_mismatch')
+ })
+ it('labels matched-entry HODL comparison as estimated economics rather than realized PnL',()=>{
+  const r=estimateMeteoraDlmmImpermanentLoss({
+   benchmarkId:'b1',position:'position-1',currency:'USDC',informationCutoff:'2026-09-01T01:00:00Z',
+   lpTerminalValueMinor:105000n,hodlTerminalValueMinor:110000n,methodology:'MATCHED_ENTRY_HODL',evidenceIds:['lp-value','hodl-value'],
+  })
+  expect(r.estimatedImpermanentLossMinor).toBe(-5000n)
+  expect(r.status).toBe('ESTIMATED_NOT_REALIZED')
+  expect(r.authority).toBe('RESEARCH_ONLY')
+ })
+
+ it('fails closed on malformed benchmark evidence',()=>{
+  expect(()=>estimateMeteoraDlmmImpermanentLoss({
+   benchmarkId:'',position:'position-1',currency:'USDC',informationCutoff:'2026-09-01T01:00:00Z',
+   lpTerminalValueMinor:1n,hodlTerminalValueMinor:1n,methodology:'MATCHED_ENTRY_HODL',evidenceIds:['e'],
+  })).toThrow('benchmark_identity_required')
  })
 })
