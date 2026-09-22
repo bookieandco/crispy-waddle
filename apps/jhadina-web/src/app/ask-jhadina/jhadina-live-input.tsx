@@ -301,3 +301,18 @@ function readAsDataUrl(file: File): Promise<string> {
     reader.readAsDataURL(file)
   })
 }
+
+
+function estimatePitchHz(buffer:Float32Array,sampleRate:number):number|undefined{
+  let rms=0;for(const v of buffer)rms+=v*v;rms=Math.sqrt(rms/buffer.length)
+  if(rms<0.01)return undefined
+  const minLag=Math.floor(sampleRate/500),maxLag=Math.min(buffer.length-1,Math.floor(sampleRate/70))
+  let bestLag=0,best=0
+  for(let lag=minLag;lag<=maxLag;lag++){
+    let corr=0,normA=0,normB=0
+    for(let i=0;i<buffer.length-lag;i++){const a=buffer[i]!,b=buffer[i+lag]!;corr+=a*b;normA+=a*a;normB+=b*b}
+    const score=corr/Math.sqrt((normA*normB)||1)
+    if(score>best){best=score;bestLag=lag}
+  }
+  return best>.55&&bestLag?sampleRate/bestLag:undefined
+}
