@@ -64,7 +64,7 @@ jobs:
 
       - name: Install pinned Vercel CLI
         if: steps.preflight.outputs.configured == 'true'
-        run: npm install --global vercel@latest
+        run: npm install --global vercel@59.19.1
 
       - name: Pull Vercel preview environment
         if: steps.preflight.outputs.configured == 'true'
@@ -75,7 +75,7 @@ jobs:
         run: vercel build --token="$VERCEL_TOKEN"
 
       - name: Deploy prebuilt preview
-        if: steps.preflight.outputs.configured == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.preflight.outputs.configured == 'true'
         id: deploy
         shell: bash
         run: |
@@ -85,7 +85,7 @@ jobs:
           echo "$url" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Probe Growth production health contract
-        if: steps.preflight.outputs.configured == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.preflight.outputs.configured == 'true'
         shell: bash
         run: |
           url="${{ steps.deploy.outputs.url }}"
