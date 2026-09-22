@@ -95,6 +95,26 @@ export const DEFAULT_REFERENCE_SUBSYSTEM_HINTS:
       rationale: 'SHARK handoff paper-trading and backtesting architecture reference.',
     },
     {
+      referenceId: 'github:x402agent/NemoClawd',
+      subsystem: 'SHARK',
+      rationale: 'SHARK read-only multi-agent research, memory-tier and approval-boundary reference.',
+    },
+    {
+      referenceId: 'github:CryptoRonaldo/solana-sniper',
+      subsystem: 'SHARK',
+      rationale: 'SHARK Telegram signal-extraction reference; execution and ban-evasion guidance excluded.',
+    },
+    {
+      referenceId: 'github:Stormeye85/robinhood-token-sniper',
+      subsystem: 'SHARK',
+      rationale: 'SHARK EVM token owner/mint-control risk and Robinhood Chain read-only reference.',
+    },
+    {
+      referenceId: 'github:mortdeus/solana-copy-sniper-mev-trading-bot',
+      subsystem: 'SHARK',
+      rationale: 'SHARK observed-wallet transaction/latency telemetry reference; MEV and auto-copy execution excluded.',
+    },
+    {
       referenceId: 'github:assafelovic/gpt-researcher',
       subsystem: 'Knowledge',
       rationale: 'Knowledge handoff research-agent reference.',

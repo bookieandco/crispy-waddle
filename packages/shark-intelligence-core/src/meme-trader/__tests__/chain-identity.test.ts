@@ -27,3 +27,12 @@ describe('chain-aware SHARK identity normalization',()=>{
     expect(()=>normalizeChainAddress('base','0x1234')).toThrow('chain_identity_evm_address_invalid')
   })
 })
+
+
+it('recognizes Robinhood Chain mainnet and testnet as EVM identities',()=>{
+  expect(chainIdentityFamily('4663')).toBe('EVM')
+  expect(chainIdentityFamily('46630')).toBe('EVM')
+  expect(chainIdentityFamily('robinhood-mainnet')).toBe('EVM')
+  expect(chainIdentityFamily('robinhood-chain-testnet')).toBe('EVM')
+  expect(normalizeChainAddress('4663','0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')).toBe('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+})
