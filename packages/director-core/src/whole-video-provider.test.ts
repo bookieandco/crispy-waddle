@@ -17,7 +17,7 @@ const intent = {
 
 function provider(
   id: string,
-  input: { costClass?: 'free-local'|'external-free'|'paid'; character?: boolean; requiresCharacter?: boolean } = {},
+  input: { costClass?: 'free-local'|'external-free'|'paid'; character?: boolean; requiresCharacter?: boolean; product?: boolean; requiresProduct?: boolean } = {},
 ): WholeVideoProductionProvider {
   return {
     descriptor: {
@@ -28,6 +28,8 @@ function provider(
       health: 'healthy',
       supportsCharacterReference: input.character ?? false,
       requiresCharacterReference: input.requiresCharacter ?? false,
+      supportsProductReference: input.product ?? false,
+      requiresProductReference: input.requiresProduct ?? false,
     },
     async submit() { return { providerJobId: 'job', status: 'queued' }; },
     async status() { return { providerJobId: 'job', status: 'processing' }; },
@@ -52,6 +54,15 @@ describe('whole video provider selection', () => {
       provider('reference-free', { character: true, requiresCharacter: true }),
     ], intent, { characterReference: true });
     expect(selected?.descriptor.id).toBe('reference-free');
+  });
+
+  it('requires a product-aware provider when a locked product reference is present', () => {
+    const selected = selectWholeVideoProvider([
+      provider('generic-free'),
+      provider('reference-free', { product: true }),
+    ], intent, { productReference: true });
+    expect(selected?.descriptor.id).toBe('reference-free');
+    expect(selectWholeVideoProvider([provider('generic-free')], intent, { productReference: true })).toBeUndefined();
   });
 
   it('returns no provider instead of losing character identity', () => {
