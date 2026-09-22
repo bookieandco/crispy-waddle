@@ -87,6 +87,12 @@ export function acceptDirectorAssetIntoSocial(input: {
       `director-asset:${receipt.directorAssetId}`,
       `director-review:${receipt.reviewDecisionId}`,
       ...receipt.reviewEvidenceIds,
+      ...(receipt.creativeIdentity?.productIdentityRef ? [`product-identity:${receipt.creativeIdentity.productIdentityRef}`] : []),
+      ...(receipt.creativeIdentity?.styleIdentityRef ? [`style-identity:${receipt.creativeIdentity.styleIdentityRef}`] : []),
+      ...(receipt.creativeIdentity?.platformCreativeProfileRef ? [`platform-creative-profile:${receipt.creativeIdentity.platformCreativeProfileRef}`] : []),
+      ...(receipt.creativeIdentity?.experimentVariantId ? [`experiment-variant:${receipt.creativeIdentity.experimentVariantId}`] : []),
+      ...(receipt.creativeIdentity?.mutationAxis ? [`creative-mutation-axis:${receipt.creativeIdentity.mutationAxis}`] : []),
+      ...Object.entries(receipt.creativeIdentity?.fixedDimensionRefs ?? {}).map(([key,value]) => `creative-invariant:${key}:${value}`),
     ],
     input.updatedAt ?? receipt.approvedAt,
   )
