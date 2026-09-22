@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { certifySamUsableFinal } from '@jhadina/opportunity-core'
-import { runSamWideScan } from '../src/lib/money-opportunities/sam-wide-runtime'
+import { runSamMarketBootstrap } from '../src/lib/money-opportunities/sam-wide-runtime'
 import { runSamEnrichment, collectSamUsableEvidence } from '../src/lib/money-opportunities/sam-usable-runtime'
 
 function required(name:string){
@@ -8,10 +8,6 @@ function required(name:string){
   if(!value)throw new Error(`${name} is not configured`)
   return value
 }
-function mmddyyyy(date:Date){
-  return `${String(date.getUTCMonth()+1).padStart(2,'0')}/${String(date.getUTCDate()).padStart(2,'0')}/${date.getUTCFullYear()}`
-}
-
 async function main(){
   console.log(JSON.stringify({phase:'sam-live-commissioning',version:1,runtimeBound:false}))
   // SAM_GOV_API_KEY is consumed by the existing server-side SAM client.
@@ -22,14 +18,12 @@ async function main(){
     auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
   })
 
-  const end=new Date()
-  const start=new Date(end.getTime()-7*86_400_000)
-
-  const scan=await runSamWideScan(client,{
-    postedFrom:mmddyyyy(start),
-    postedTo:mmddyyyy(end),
+  const bootstrap=await runSamMarketBootstrap(client,{
+    historyDays:365,
+    windowDays:7,
+    maxWindows:1,
     pageSize:1000,
-    maxPages:3,
+    maxPages:20,
   })
 
   const enrichment=await runSamEnrichment(client,{
@@ -46,16 +40,22 @@ async function main(){
   const result={
     executionSurface:'github_actions_commissioning',
     runtimeBound:false,
-    scan:{
-      runId:scan.runId,
-      pages:scan.pages,
-      totalRecords:scan.totalRecords,
-      seenRecords:scan.seenRecords,
-      newRecords:scan.newRecords,
-      amendedRecords:scan.amendedRecords,
-      unchangedRecords:scan.unchangedRecords,
-      resourceLinks:scan.resourceLinks,
-      changedNoticeCount:scan.changedNoticeIds.length,
+    bootstrap:{
+      complete:bootstrap.complete,
+      coverage:bootstrap.coverage,
+      successfulWindows:bootstrap.successfulWindows,
+      attempts:bootstrap.attempts,
+      scanReceipts:bootstrap.receipts.map(scan=>({
+        runId:scan.runId,
+        pages:scan.pages,
+        totalRecords:scan.totalRecords,
+        seenRecords:scan.seenRecords,
+        newRecords:scan.newRecords,
+        amendedRecords:scan.amendedRecords,
+        unchangedRecords:scan.unchangedRecords,
+        resourceLinks:scan.resourceLinks,
+        changedNoticeCount:scan.changedNoticeIds.length,
+      })),
     },
     enrichment:{
       noticeCount:enrichment.noticeIds.length,
