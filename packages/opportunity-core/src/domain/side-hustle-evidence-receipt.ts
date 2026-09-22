@@ -70,7 +70,7 @@ export function compileSideHustleObservationFromReceipt(input: {
   }
 
   const trackedMetrics = trackedSideHustleExperimentMetrics(experiment)
-  const missingMetrics = trackedMetrics.filter((metric) => !Object.hasOwn(receipt.metrics, metric))
+  const missingMetrics = trackedMetrics.filter((metric) => !Object.prototype.hasOwnProperty.call(receipt.metrics, metric))
   if (missingMetrics.length > 0) {
     throw new Error(`Evidence receipt is missing tracked metrics: ${missingMetrics.join(', ')}`)
   }
