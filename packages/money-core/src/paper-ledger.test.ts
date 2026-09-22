@@ -40,6 +40,7 @@ test('043-ledger.2 append is deterministic and replay-idempotent',()=>{
 })
 
 test('043-ledger.3 run history is time ordered and preserves simulation authority',()=>{
+  assert.equal(portfolio.paperRunId,'run-1')
   const store=new InMemoryPaperLedgerStore()
   const fillEvent=createPaperLedgerEvent({paperRunId:'run-1',kind:'FILL',payload:fill})
   const orderEvent=createPaperLedgerEvent({paperRunId:'run-1',kind:'ORDER',payload:order})
