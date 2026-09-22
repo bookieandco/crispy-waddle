@@ -9,6 +9,7 @@ import {
 
 export interface CommercialCreativeAbPolicy {
   minimumExposuresPerVariant: number;
+  minimumConversionsPerVariant?: number;
   significanceLevel?: number;
   minimumRelativeLift?: number;
   minimumContributionRoas?: number;
@@ -51,6 +52,7 @@ export function assessDirectorCommercialCreativeExperiment(input: {
     treatmentVariantIds,
     observations: input.observations,
     minimumExposuresPerVariant: input.policy.minimumExposuresPerVariant,
+    minimumConversionsPerVariant: input.policy.minimumConversionsPerVariant,
     significanceLevel: input.policy.significanceLevel,
     minimumRelativeLift: input.policy.minimumRelativeLift,
     minimumContributionRoas: input.policy.minimumContributionRoas,
