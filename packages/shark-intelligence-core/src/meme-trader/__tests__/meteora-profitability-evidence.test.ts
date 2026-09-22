@@ -53,6 +53,21 @@ describe('Meteora DLMM profitability evidence',()=>{
   expect(r.valuationStatus).toBe('VALUATION_REQUIRED')
  })
 
+ it('uses one verified representation of a native root flow and refuses competing valuations',()=>{
+  const native={...nativeFlow('native-deposit','DEPOSIT',100000n),rootFlowId:'root-deposit'}
+  const valued={...valuedFlow('valued-deposit','DEPOSIT',100000n),rootFlowId:'root-deposit'}
+  const withdrawal={...valuedFlow('withdraw','WITHDRAWAL',110000n),rootFlowId:'root-withdraw'}
+  const r=reconcileMeteoraDlmmCashFlowProfitability({
+   position:'position-1',currency:'USDC',informationCutoff:'2026-09-01T01:00:00Z',positionClosed:true,transactionHistoryComplete:true,
+   flows:[native,valued,withdrawal],
+  })
+  expect(r.realizedPnlMinor).toBe(10000n)
+  expect(()=>reconcileMeteoraDlmmCashFlowProfitability({
+   position:'position-1',currency:'USDC',informationCutoff:'2026-09-01T01:00:00Z',positionClosed:true,transactionHistoryComplete:true,
+   flows:[valued,{...valued,evidenceId:'valued-deposit-2',amountMinor:99000n},withdrawal],
+  })).toThrow('competing_flow_representations')
+ })
+
  it('refuses to manufacture impermanent loss without a HODL benchmark',()=>{
   const r=reconcileMeteoraDlmmCashFlowProfitability({
    position:'position-1',currency:'USDC',informationCutoff:'2026-09-01T01:00:00Z',positionClosed:true,transactionHistoryComplete:true,
