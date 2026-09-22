@@ -63,7 +63,7 @@ export function validateMovieGradeAudioBible(
   for (const theme of bible.scoreThemes) {
     if (!theme.source) reasons.push(`DIRECTOR_SCORE_THEME_SOURCE_REQUIRED:${theme.id}`);
     if (!theme.rightsEvidenceIds?.length) reasons.push(`DIRECTOR_SCORE_THEME_RIGHTS_REQUIRED:${theme.id}`);
-    if (commercialUse && theme.source === 'licensed' && !theme.rightsEvidenceIds.length) {
+    if (commercialUse && theme.source === 'licensed' && !theme.rightsEvidenceIds?.length) {
       reasons.push(`DIRECTOR_SCORE_COMMERCIAL_RIGHTS_REQUIRED:${theme.id}`);
     }
   }
