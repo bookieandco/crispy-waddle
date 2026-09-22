@@ -173,6 +173,6 @@ export async function scanDirectorReferenceMedia(input: {
 }
 
 export function safeDirectorReferenceFilename(name: string): string {
-  const normalized = name.normalize('NFKC').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/^-+|-+$/g,'');
+  const normalized = name.normalize('NFKC').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/^[.-]+|[-.]+$/g,'');
   return normalized.slice(0,120) || 'reference-image';
 }
