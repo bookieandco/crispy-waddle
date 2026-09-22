@@ -97,3 +97,14 @@ The canonical WorkSession migration was applied to the active Jhadina/SWLC Supab
 Supabase security advisors report the expected informational `rls_enabled_no_policy` finding for service-only tables. This is intentional for WorkSession: public client roles have their table privileges revoked and no client RLS policy is admitted.
 
 **FINAL.10 status: INFRASTRUCTURE PASS / APP-RUNTIME BLOCKED.** Durable persistence is commissioned and verified at the database boundary. Cross-reload/device behavior through the web repository adapter still requires a current executable Jhadina deployment, which remains blocked by the separately marked Vercel Git-trigger audit/repair.
+
+
+## Native voice deployment attempt — 2026-09-22
+
+Merged lineage: `c158188b603004a2a2b7d726183ad9dcfdfd89de` (#621).
+
+A real deployment attempt was made against the connected Railway workspace using a dedicated `Jhadina Voice Runtime` project. Railway rejected project creation with: `Free plan resource provision limit exceeded. Please upgrade to provision more resources!`
+
+This is an external infrastructure-capacity blocker, not a source-runtime pass. No service URL was created and therefore no real microphone/audio transcription drill was performed.
+
+**FINAL.4 status remains SOURCE READY / REAL-AUDIO BLOCKED.** The deployable container, authenticated HTTP boundary, FFmpeg normalization and Faster-Whisper adapter are merged. Certification must remain fail-closed until compute capacity is available and an actual audio sample completes the deployed FFmpeg → Faster-Whisper path.
