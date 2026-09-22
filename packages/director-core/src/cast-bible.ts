@@ -34,6 +34,12 @@ export interface CharacterCastRecord {
   displayName: string;
   archetype: 'human' | 'cartoon' | 'puppet' | 'creature';
   continuityRef: string;
+  /** Human-authored canonical description. This informs performance and context but never overrides approved visual references. */
+  characterDescription?: string;
+  /** Human-authored canonical visual description used together with the reference sheet. */
+  appearanceDescription?: string;
+  /** Stable acting/mannerism/delivery notes for the character across scenes. */
+  performanceNotes?: readonly string[];
   behaviorDnaRef?: string;
   rigAssetId?: string;
   canonicalAppearanceVariantId: string;
@@ -67,6 +73,9 @@ export interface ResolvedCharacterSceneIdentity {
   characterId: string;
   continuityRef: string;
   canonicalAppearanceVariantId: string;
+  characterDescription?: string;
+  appearanceDescription?: string;
+  performanceNotes?: readonly string[];
   sceneAppearanceVariantId: string;
   referenceAssetIds: readonly string[];
   referenceSha256s: readonly string[];
@@ -92,6 +101,9 @@ export function validateCharacterCastRecord(cast: CharacterCastRecord): readonly
     reasons.push('DIRECTOR_CAST_IDENTITY_REQUIRED');
   }
   if (!cast.continuityRef.trim()) reasons.push('DIRECTOR_CAST_CONTINUITY_REQUIRED');
+  if (cast.characterDescription !== undefined && !cast.characterDescription.trim()) reasons.push('DIRECTOR_CAST_DESCRIPTION_INVALID');
+  if (cast.appearanceDescription !== undefined && !cast.appearanceDescription.trim()) reasons.push('DIRECTOR_CAST_APPEARANCE_DESCRIPTION_INVALID');
+  if (cast.performanceNotes?.some((note) => !note.trim())) reasons.push('DIRECTOR_CAST_PERFORMANCE_NOTE_INVALID');
   if (!cast.appearanceVariants.length) reasons.push('DIRECTOR_CAST_APPEARANCE_REQUIRED');
 
   const variantIds = new Set<string>();
@@ -203,6 +215,9 @@ export function resolveCharacterSceneIdentity(
     continuityRef: cast.continuityRef,
     canonicalAppearanceVariantId: cast.canonicalAppearanceVariantId,
     sceneAppearanceVariantId: selected.id,
+    ...(cast.characterDescription?.trim() ? { characterDescription: cast.characterDescription.trim() } : {}),
+    ...(cast.appearanceDescription?.trim() ? { appearanceDescription: cast.appearanceDescription.trim() } : {}),
+    ...(cast.performanceNotes?.length ? { performanceNotes: Object.freeze(cast.performanceNotes.map((note) => note.trim()).filter(Boolean)) } : {}),
     referenceAssetIds: Object.freeze(references),
     referenceSha256s: Object.freeze(digests),
     ...(cast.voice ? {
