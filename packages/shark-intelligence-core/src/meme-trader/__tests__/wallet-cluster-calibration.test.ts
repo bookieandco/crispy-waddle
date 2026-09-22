@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {evaluateWalletClusterThresholdSensitivity} from '../wallet-cluster-calibration'
+import {evaluateWalletClusterThresholdSensitivity,normalizeWalletClusterAddress} from '../wallet-cluster-calibration'
 
 const observations:any[]=[
  {observationId:'o1',tokenId:'t1',distinctWallets:3,windowSeconds:600,aggregateWalletScore:7,totalUsd:1000,observedAt:'2026-09-01T00:00:00Z',availableAt:'2026-09-01T00:00:01Z',outcome:'HEALTHY',evidenceIds:['e1']},
@@ -29,5 +29,13 @@ describe('wallet cluster threshold sensitivity',()=>{
  it('fails closed on duplicate observations and impossible availability',()=>{
   expect(()=>evaluateWalletClusterThresholdSensitivity({observations:[observations[0],observations[0]],thresholds:[{thresholdId:'x',minWallets:1,maxWindowSeconds:60,minAggregateWalletScore:0}],informationCutoff:'2026-09-03T00:00:00Z'})).toThrow('duplicate_observation')
   expect(()=>evaluateWalletClusterThresholdSensitivity({observations:[{...observations[0],availableAt:'2026-08-31T23:59:59Z'}],thresholds:[{thresholdId:'x',minWallets:1,maxWindowSeconds:60,minAggregateWalletScore:0}],informationCutoff:'2026-09-03T00:00:00Z'})).toThrow('availability_invalid')
+ })
+ it('normalizes EVM wallet identity before distinct-wallet calibration',()=>{
+  expect(normalizeWalletClusterAddress('base','0xAa000000000000000000000000000000000000Bb')).toBe('0xaa000000000000000000000000000000000000bb')
+  expect(()=>evaluateWalletClusterThresholdSensitivity({
+   observations:[{...observations[0],chainId:'base',distinctWallets:2,walletAddresses:['0xAa000000000000000000000000000000000000Bb','0xaa000000000000000000000000000000000000bb']}],
+   thresholds:[{thresholdId:'x',minWallets:1,maxWindowSeconds:900,minAggregateWalletScore:0}],
+   informationCutoff:'2026-09-03T00:00:00Z',
+  })).toThrow('distinct_wallet_mismatch')
  })
 })
