@@ -51,6 +51,7 @@ export type SideHustleExperimentObservation = {
 
 export type SideHustleExperimentEvaluation = {
   experimentId: string
+  opportunityId: string
   decision: SideHustleExperimentDecision
   observationCount: number
   totalSpend: number
@@ -227,6 +228,7 @@ export function evaluateSideHustleExperiment(input: {
 
   return {
     experimentId: experiment.id,
+    opportunityId: experiment.opportunityId,
     decision,
     observationCount: observations.length,
     totalSpend,
@@ -250,7 +252,7 @@ export function applySideHustleExperimentEvaluation(
   evaluation: SideHustleExperimentEvaluation,
   now = new Date().toISOString(),
 ): Opportunity {
-  if (evaluation.experimentId.split(':').slice(1, -1).join(':') !== opportunity.id) {
+  if (evaluation.opportunityId !== opportunity.id) {
     throw new Error('Experiment evaluation does not belong to opportunity')
   }
   return {
