@@ -25,7 +25,7 @@ create table if not exists public.jhadina_token_launches (
 -- Reconcile the earlier wallet-launch/sniper table that may already exist in
 -- production. That schema used jsonb evidence_ids and omitted SHARK ingestion
 -- provenance columns. Canonical SHARK persistence uses text[] evidence IDs.
-do $
+do $$
 begin
   if exists (
     select 1
@@ -48,7 +48,7 @@ begin
     alter table public.jhadina_token_launches rename column evidence_ids_shark_text to evidence_ids;
   end if;
 end
-$;
+$$;
 
 alter table public.jhadina_token_launches
   add column if not exists owner_id uuid references auth.users(id) on delete cascade,
