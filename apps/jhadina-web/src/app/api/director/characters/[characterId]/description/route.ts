@@ -31,30 +31,6 @@ function cleanNotes(value: string[] | null | undefined): string[] | null | undef
   return cleaned;
 }
 
-async function requestContext(
-  context: { params: Promise<{ characterId: string }> },
-  request?: Request,
-) {
-  const characterId = (await context.params).characterId.trim();
-  if (!characterId) throw new Error('DIRECTOR_CHARACTER_ID_REQUIRED');
-
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('AUTHENTICATION_REQUIRED');
-
-  let projectId = '';
-  let body: PatchBody | undefined;
-  if (request) {
-    body = await request.json() as PatchBody;
-    projectId = body.projectId?.trim() ?? '';
-  } else {
-    const url = new URL('http://local');
-    void url;
-  }
-
-  return { characterId, user, projectId, body };
-}
-
 export async function GET(
   request: Request,
   context: { params: Promise<{ characterId: string }> },
