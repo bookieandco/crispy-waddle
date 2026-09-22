@@ -1,6 +1,6 @@
 # MEDIA-PROD.FINAL — Production Certification Receipt
 
-Status: **BLOCKED — CI execution evidence unavailable**
+Status: **IN PROGRESS — certification workflow unblocked; rerun required after lockfile repair**
 Branch: `feat/media-prod-reconcile`
 PR: #471
 Certification head: `491f9ac0240d82fd1814ab959865c3f065600259`
@@ -36,3 +36,9 @@ A real TV provider still requires verified rights/credentials/product selection.
 
 ## Final disposition
 MEDIA-PROD.FINAL audit/certification procedure is complete. Production admission is **BLOCKED**, not READY, until the dedicated CI workflow executes successfully and the environment-backed provider/RLS/handoff gates have evidence. This receipt must not be upgraded to READY from code review alone.
+
+## MEDIA-PROD.UNBLOCK follow-up
+- PR #538 repaired the workflow package selector, restored the web Music Core dependency, and enabled manual/current-main certification triggers.
+- The first real certification execution reached frozen installation and failed because the web Music Core dependency was absent from the lockfile importer.
+- PR #539 repaired that lockfile importer on current main.
+- This documentation-only commit intentionally retriggers the Media Production Certification workflow after the lockfile repair. READY still requires green Music Core type-check/tests, TV Core type-check/tests, and Jhadina Web type-check evidence.
