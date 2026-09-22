@@ -8,7 +8,7 @@ create table if not exists public.director_cast_characters (
   display_name text not null,
   archetype text not null check (archetype in ('human','cartoon','puppet','creature')),
   continuity_ref text not null,
-  behavior_dna jsonb,
+  behavior_dna_ref text,
   rig_asset_id text,
   canonical_appearance_variant_id text not null,
   locked_traits text[] not null default '{}',

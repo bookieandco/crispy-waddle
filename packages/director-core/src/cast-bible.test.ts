@@ -3,6 +3,7 @@ import { validateCharacterSceneBinding, validateMovieGradeCastRecord } from './c
 import { resolveDialogueVoice, validateGeneratedDialogueVoice, validateMovieGradeVoiceIdentity } from './voice-identity';
 import { validateMovieAudioBible, validateMovieGradeAudioBible } from './movie-audio-bible';
 import { evaluateCharacterIdentityContinuity } from './character-identity-qc';
+import { LONG_FORM_TAKE_POLICY, rankMultimodalTakes, withCharacterIdentityQc } from './multimodal-take-selection';
 
 describe('Director cast and voice continuity', () => {
   const cast = {
@@ -350,5 +351,43 @@ describe('Director cast and voice continuity', () => {
       ...bible,
       scoreThemes: [{ ...bible.scoreThemes[0], rightsEvidenceIds: [] }],
     }, true)).toContain('DIRECTOR_SCORE_THEME_RIGHTS_REQUIRED:theme-hero');
+  });
+  it('never selects a visually strong take when canonical character identity drifted', () => {
+    const baseCandidate = (takeId: string, score: number) => ({
+      takeId,
+      assetId: `asset-${takeId}`,
+      observationIds: [`obs-${takeId}`],
+      hardFailures: [] as string[],
+      dimensions: [
+        { dimension: 'technical' as const, score, confidence: 0.95, evidenceIds: [`tech-${takeId}`] },
+        { dimension: 'visual-readability' as const, score, confidence: 0.95, evidenceIds: [`visual-${takeId}`] },
+        { dimension: 'performance' as const, score, confidence: 0.95, evidenceIds: [`perf-${takeId}`] },
+        { dimension: 'dialogue' as const, score, confidence: 0.95, evidenceIds: [`dialogue-${takeId}`] },
+        { dimension: 'story-function' as const, score, confidence: 0.95, evidenceIds: [`story-${takeId}`] },
+        { dimension: 'continuity' as const, score, confidence: 0.95, evidenceIds: [`continuity-${takeId}`] },
+      ],
+    });
+
+    const wrongFace = withCharacterIdentityQc(baseCandidate('beautiful-wrong-face', 0.98), [{
+      admissible: false,
+      identityScore: 0.62,
+      appearanceScore: 0.94,
+      coverage: 1,
+      reasons: ['DIRECTOR_CHARACTER_IDENTITY_DRIFT'],
+      evidenceIds: ['identity-qc:wrong'],
+    }]);
+    const correctFace = withCharacterIdentityQc(baseCandidate('correct-character', 0.86), [{
+      admissible: true,
+      identityScore: 0.93,
+      appearanceScore: 0.88,
+      coverage: 1,
+      reasons: [],
+      evidenceIds: ['identity-qc:correct'],
+    }]);
+
+    const result = rankMultimodalTakes([wrongFace, correctFace], LONG_FORM_TAKE_POLICY);
+    expect(result.selectedTakeId).toBe('correct-character');
+    expect(result.ranked.find((take) => take.takeId === 'beautiful-wrong-face')?.reasons)
+      .toContain('DIRECTOR_CHARACTER_IDENTITY_DRIFT');
   });
 });

@@ -120,8 +120,8 @@ export function setClipTransform(timeline: EditableTimeline, clipId: string, tra
   return updateClip(timeline, clipId, clip => ({
     ...clip,
     transform: {
-      x: transform.x ?? clip.transform?.x ?? 0,
-      y: transform.y ?? clip.transform?.y ?? 0,
+      positionX: transform.positionX ?? clip.transform?.positionX ?? 0,
+      positionY: transform.positionY ?? clip.transform?.positionY ?? 0,
       scaleX: Math.max(0.01, transform.scaleX ?? clip.transform?.scaleX ?? 1),
       scaleY: Math.max(0.01, transform.scaleY ?? clip.transform?.scaleY ?? 1),
       rotationDegrees: transform.rotationDegrees ?? clip.transform?.rotationDegrees ?? 0,

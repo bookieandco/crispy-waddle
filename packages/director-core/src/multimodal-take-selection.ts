@@ -1,3 +1,5 @@
+import type { CharacterIdentityQcDecision } from './character-identity-qc';
+
 export type TakeScoreDimension =
   | 'continuity'
   | 'technical'
@@ -123,9 +125,13 @@ export function rankMultimodalTakes(
   });
 }
 
+function takeDimensions(...dimensions: TakeScoreDimension[]): readonly TakeScoreDimension[] {
+  return Object.freeze(dimensions);
+}
+
 export const LONG_FORM_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
   id: 'long-form:v1',
-  requiredDimensions: Object.freeze(['technical','visual-readability','performance','dialogue','story-function','continuity']),
+  requiredDimensions: takeDimensions('technical','visual-readability','performance','dialogue','story-function','continuity'),
   weights: Object.freeze({
     performance: 1.5,
     dialogue: 1.4,
@@ -142,7 +148,7 @@ export const LONG_FORM_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
 
 export const CARTOON_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
   id: 'cartoon:v1',
-  requiredDimensions: Object.freeze(['technical','visual-readability','story-function','continuity','motion']),
+  requiredDimensions: takeDimensions('technical','visual-readability','story-function','continuity','motion'),
   weights: Object.freeze({
     continuity: 1.6,
     'story-function': 1.4,
@@ -158,7 +164,7 @@ export const CARTOON_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
 
 export const SHORT_FORM_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
   id: 'short-form:v1',
-  requiredDimensions: Object.freeze(['technical','visual-readability','story-function','motion']),
+  requiredDimensions: takeDimensions('technical','visual-readability','story-function','motion'),
   weights: Object.freeze({
     'story-function': 1.5,
     motion: 1.4,
@@ -174,7 +180,7 @@ export const SHORT_FORM_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
 
 export const FACELESS_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
   id: 'faceless:v1',
-  requiredDimensions: Object.freeze(['technical','visual-readability','source-relevance','rights-confidence']),
+  requiredDimensions: takeDimensions('technical','visual-readability','source-relevance','rights-confidence'),
   weights: Object.freeze({
     'source-relevance': 1.7,
     'rights-confidence': 1.6,
@@ -187,3 +193,47 @@ export const FACELESS_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
   minimumOverallScore: 0.68,
   preserveAlternates: 2,
 });
+
+
+/**
+ * Folds one or more canonical character-identity QC results into the existing
+ * continuity evidence. Any character drift is a hard failure; otherwise the
+ * weakest identity/coverage result bounds the take's continuity score.
+ */
+export function withCharacterIdentityQc(
+  candidate: MultimodalTakeCandidate,
+  decisions: readonly CharacterIdentityQcDecision[],
+): MultimodalTakeCandidate {
+  if (!decisions.length) return candidate;
+
+  const identityFailures = decisions.flatMap((decision) => decision.admissible ? [] : decision.reasons);
+  const identityScore = Math.min(...decisions.map((decision) => decision.identityScore));
+  const identityCoverage = Math.min(...decisions.map((decision) => decision.coverage));
+  const identityEvidence = [...new Set(decisions.flatMap((decision) => decision.evidenceIds))];
+
+  const existing = candidate.dimensions.find((dimension) => dimension.dimension === 'continuity');
+  const continuity: TakeDimensionEvidence = existing
+    ? {
+        ...existing,
+        score: Math.min(existing.score, identityScore),
+        confidence: Math.min(existing.confidence, identityCoverage),
+        evidenceIds: Object.freeze([...new Set([...existing.evidenceIds, ...identityEvidence])]),
+        notes: Object.freeze([...(existing.notes ?? []), 'Canonical character identity QC fused into continuity.']),
+      }
+    : {
+        dimension: 'continuity',
+        score: identityScore,
+        confidence: identityCoverage,
+        evidenceIds: Object.freeze(identityEvidence),
+        notes: Object.freeze(['Canonical character identity QC supplied continuity evidence.']),
+      };
+
+  return Object.freeze({
+    ...candidate,
+    dimensions: Object.freeze([
+      ...candidate.dimensions.filter((dimension) => dimension.dimension !== 'continuity'),
+      continuity,
+    ]),
+    hardFailures: Object.freeze([...new Set([...candidate.hardFailures, ...identityFailures])]),
+  });
+}
