@@ -1,0 +1,11 @@
+create index jhadina_growth_experiment_observations_experiment_fk_idx
+  on public.jhadina_growth_creative_experiment_observations(experiment_id);
+
+create index jhadina_growth_evidence_health_experiment_fk_idx
+  on public.jhadina_growth_evidence_health_assessments(experiment_id);
+
+create index jhadina_growth_experiment_assessments_experiment_fk_idx
+  on public.jhadina_growth_creative_experiment_assessments(experiment_id);
+
+create index jhadina_growth_experiment_assessments_health_fk_idx
+  on public.jhadina_growth_creative_experiment_assessments(health_assessment_id);
