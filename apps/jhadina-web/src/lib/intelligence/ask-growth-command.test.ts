@@ -118,6 +118,8 @@ describe("Ask Jhadina Growth read command", () => {
 
   it("does not intercept unrelated Ask requests", () => {
     expect(inspectAskGrowthReadIntent("What is Jhadina's personality like?")).toBeNull()
+    expect(inspectAskGrowthReadIntent("Show me the metadata for this file")).toBeNull()
+    expect(inspectAskGrowthReadIntent("How is overall system performance?")).toBeNull()
   })
 
   it("returns authenticated campaign state without creating authority", async () => {
