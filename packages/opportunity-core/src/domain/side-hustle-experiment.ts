@@ -184,6 +184,16 @@ export function evaluateSideHustleExperiment(input: {
   if (experiment.startedAt && Date.parse(input.evaluatedAt) < Date.parse(experiment.startedAt)) {
     throw new Error('Experiment cannot be evaluated before it started')
   }
+  if (experiment.status === 'completed') {
+    if (!experiment.completedAt) throw new Error('Completed experiment requires completedAt')
+    requireIsoDate(experiment.completedAt, 'completedAt')
+    if (experiment.startedAt && Date.parse(experiment.completedAt) < Date.parse(experiment.startedAt)) {
+      throw new Error('Completed experiment cannot end before it started')
+    }
+    if (Date.parse(experiment.completedAt) > Date.parse(input.evaluatedAt)) {
+      throw new Error('Experiment cannot be evaluated before it completed')
+    }
+  }
   if (input.observations.some((observation) => Date.parse(observation.observedAt) > Date.parse(input.evaluatedAt))) {
     throw new Error('Experiment evaluation cannot include future observations')
   }
@@ -207,7 +217,10 @@ export function evaluateSideHustleExperiment(input: {
   if (totalSpend > experiment.maxSpend) boundsReasons.push(`spend cap exceeded: ${totalSpend} > ${experiment.maxSpend}`)
   if (totalHours > experiment.maxHours) boundsReasons.push(`hour cap exceeded: ${totalHours} > ${experiment.maxHours}`)
   if (experiment.startedAt) {
-    const elapsedDays = (Date.parse(input.evaluatedAt) - Date.parse(experiment.startedAt)) / 86_400_000
+    const durationEnd = experiment.status === 'completed' && experiment.completedAt
+      ? experiment.completedAt
+      : input.evaluatedAt
+    const elapsedDays = (Date.parse(durationEnd) - Date.parse(experiment.startedAt)) / 86_400_000
     if (elapsedDays > experiment.maxDurationDays) {
       boundsReasons.push(`duration cap exceeded: ${round(elapsedDays)} > ${experiment.maxDurationDays} days`)
     }
