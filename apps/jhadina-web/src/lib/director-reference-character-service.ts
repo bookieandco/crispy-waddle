@@ -52,7 +52,7 @@ function normalizeArchetype(value: string): CharacterCastRecord['archetype'] {
   return 'human';
 }
 
-async function sanitizeImage(upload: DirectorReferenceUpload): Promise<{
+export async function sanitizeDirectorReferenceImage(upload: DirectorReferenceUpload): Promise<{
   bytes: Buffer;
   width: number;
   height: number;
@@ -140,7 +140,7 @@ export async function createDirectorReferenceCharacter(
   const references: DirectorReferenceMedia[] = [];
 
   for (const upload of input.files) {
-    const sanitized = await sanitizeImage(upload);
+    const sanitized = await sanitizeDirectorReferenceImage(upload);
     const id = `reference:${randomUUID()}`;
     const objectPath = [
       'references',
