@@ -20,6 +20,10 @@ export interface MetaResearchCreativeProductionInput {
   directorProjectId: string
   platform: Extract<SocialPlatform, "facebook" | "instagram">
   aspectRatio?: string
+  productBibleId?: string
+  styleBibleId?: string
+  multiplierVariantIds?: Readonly<Record<string,string>>
+  experimentIds?: Readonly<Record<string,string>>
   createdAt?: string
 }
 
@@ -44,6 +48,9 @@ export function buildMetaResearchCreativeProductionJobs(input: {
   }
   if (!production.brandPointOfViewEvidenceRefs.length) {
     throw new Error("META_CREATIVE_BRAND_POV_EVIDENCE_REQUIRED")
+  }
+  if (Boolean(production.productBibleId) !== Boolean(production.styleBibleId)) {
+    throw new Error("META_CREATIVE_PRODUCT_STYLE_BIBLE_PAIR_REQUIRED")
   }
 
   const createdAt = production.createdAt ?? new Date().toISOString()
@@ -92,6 +99,15 @@ export function buildMetaResearchCreativeProductionJobs(input: {
         directorProjectId: production.directorProjectId,
         mediaType: concept.format === "static_image" || concept.format === "carousel" ? "image" : "video",
         aspectRatio: production.aspectRatio ?? (concept.format === "static_image" ? "1:1" : "4:5"),
+        ...(production.productBibleId && production.styleBibleId ? {
+          commercialCreative: {
+            conceptId: concept.id,
+            productBibleId: production.productBibleId,
+            styleBibleId: production.styleBibleId,
+            ...(production.multiplierVariantIds?.[concept.id] ? { multiplierVariantId: production.multiplierVariantIds[concept.id] } : {}),
+            ...(production.experimentIds?.[concept.id] ? { experimentId: production.experimentIds[concept.id] } : {}),
+          },
+        } : {}),
         createdAt,
       },
     )
