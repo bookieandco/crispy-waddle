@@ -1,6 +1,7 @@
 import type {
   WholeVideoProductionBrief,
   WholeVideoProductionProvider,
+  WholeVideoProviderCostClass,
   WholeVideoProviderDescriptor,
   WholeVideoProviderResult,
 } from '@jhadina/director-core/whole-video-provider';
@@ -9,6 +10,11 @@ type ProviderHttpConfig = { baseUrl: string; token?: string };
 
 function cleanBaseUrl(value: string): string {
   return value.replace(/\/+$/, '');
+}
+
+function referenceProviderCostClass(): WholeVideoProviderCostClass {
+  const value = process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_COST_CLASS;
+  return value === 'paid' || value === 'external-free' || value === 'free-local' ? value : 'free-local';
 }
 
 function providerHeaders(token?: string): HeadersInit | undefined {
@@ -33,7 +39,7 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
   readonly descriptor: WholeVideoProviderDescriptor = {
     id: process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_ID ?? 'reference-video-local',
     name: process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_NAME ?? 'Reference Character Video',
-    costClass: 'free-local',
+    costClass: referenceProviderCostClass(),
     supportedModes: ['standard', 'short', 'long-form'],
     health: 'unknown',
     supportsCharacterReference: true,
