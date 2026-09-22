@@ -6,6 +6,7 @@ import { canResumeDirectorPhase, invalidateDirectorPhase } from './phase-checkpo
 import { validateFrameExactRenderContract, verifyPureSeekSamples } from './render-determinism';
 import { evaluateSceneEmotionEvidence } from './emotion-storyboard-evidence';
 import { validateCreativeExperiment } from './creative-experiment';
+import { validateEditingTechniquePlan } from './editing-technique-spec';
 
 describe('reference-derived Director contracts', () => {
   it('fails visual edits closed when no frame evidence covers the interval', () => {
@@ -241,5 +242,38 @@ describe('reference-derived Director contracts', () => {
       selectedBy: 'user-1',
       selectedAt: '2026-09-22T00:00:00Z',
     }).valid).toBe(true);
+  });
+  it('keeps editing technique knowledge provider-neutral and proposal-only', () => {
+    const spec = {
+      id: 'match-cut:v1',
+      kind: 'match-cut' as const,
+      purpose: 'preserve a visual action or composition across a cut',
+      requiredEvidenceKinds: ['visual-observation'],
+      requiredCapabilities: ['timeline.transition'],
+      parameters: [
+        { key: 'overlapSeconds', type: 'number' as const, required: false, minimum: 0, maximum: 1 },
+      ],
+      qcChecks: ['composition-continuity', 'subject-visibility'],
+      reversible: true,
+    };
+    const plan = {
+      id: 'tech-plan-1',
+      specId: spec.id,
+      projectId: 'p',
+      timelineVersionId: 'timeline-v4',
+      sourceClipIds: ['clip-a', 'clip-b'],
+      parameters: { overlapSeconds: 0.25 },
+      evidenceIds: ['visual:1'],
+      authority: 'PROPOSAL_ONLY' as const,
+    };
+    expect(validateEditingTechniquePlan(spec, plan).valid).toBe(true);
+    expect(validateEditingTechniquePlan(spec, {
+      ...plan,
+      evidenceIds: [],
+      parameters: { overlapSeconds: 2 },
+    }).reasons).toEqual(expect.arrayContaining([
+      'DIRECTOR_TECHNIQUE_EVIDENCE_REQUIRED',
+      'DIRECTOR_TECHNIQUE_PARAMETER_MAX:overlapSeconds',
+    ]));
   });
 });
