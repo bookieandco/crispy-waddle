@@ -152,6 +152,28 @@ export async function createDirectorReferenceCharacter(
     const originalDigest = sha256(upload.bytes);
     const normalizedDigest = sha256(sanitized.bytes);
 
+    const { data: existing, error: existingError } = await client
+      .from('director_reference_media')
+      .select('id,object_path,normalized_sha256,width,height,admission_status')
+      .eq('project_id', projectId)
+      .eq('character_id', characterId)
+      .eq('normalized_sha256', normalizedDigest)
+      .maybeSingle();
+    if (existingError) throw new Error(`DIRECTOR_REFERENCE_DEDUPE_READ_FAILED:${existingError.message}`);
+    if (existing?.admission_status === 'admitted') {
+      references.push({
+        id: String(existing.id),
+        assetId: String(existing.id),
+        objectPath: String(existing.object_path),
+        originalSha256: originalDigest,
+        normalizedSha256: String(existing.normalized_sha256),
+        width: Number(existing.width),
+        height: Number(existing.height),
+        mimeType: 'image/png',
+      });
+      continue;
+    }
+
     const { error: uploadError } = await client.storage
       .from('director-media')
       .upload(objectPath, sanitized.bytes, {
