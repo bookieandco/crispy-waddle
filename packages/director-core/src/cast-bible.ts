@@ -40,6 +40,8 @@ export interface CharacterCastRecord {
   appearanceVariants: readonly CharacterAppearanceVariant[];
   voice?: CharacterVoiceIdentityRef;
   lockedTraits: readonly string[];
+  /** Provider-neutral face/body identity embeddings or similarity fingerprints. */
+  identityFingerprintRefs?: readonly string[];
   approvedAt: string;
   approvedBy: string;
 }
@@ -154,6 +156,13 @@ export function validateCharacterSceneBinding(
   if (binding.voiceVariantId && !binding.voiceIdentityId) reasons.push('DIRECTOR_CAST_VOICE_VARIANT_REQUIRES_IDENTITY');
 
   return Object.freeze({ valid: reasons.length === 0, reasons: Object.freeze(reasons) });
+}
+
+export function validateMovieGradeCastRecord(cast: CharacterCastRecord): readonly string[] {
+  const reasons = [...validateCharacterCastRecord(cast)];
+  if (!cast.identityFingerprintRefs?.length) reasons.push('DIRECTOR_CAST_IDENTITY_FINGERPRINT_REQUIRED');
+  if (!cast.voice) reasons.push('DIRECTOR_CAST_VOICE_REQUIRED_FOR_DIALOGUE_CHARACTER');
+  return Object.freeze([...new Set(reasons)]);
 }
 
 export function resolveCharacterSceneIdentity(
