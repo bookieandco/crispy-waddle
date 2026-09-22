@@ -200,6 +200,40 @@ describe("Ask Jhadina Social command resolver", () => {
     expect(result?.proposal.alternatives.length).toBeGreaterThan(0)
   })
 
+  it("asks for one brand before an action can span multiple connected brands", async () => {
+    const result = await handleAskSocialCommand({
+      userId: "user-1",
+      activeTask: "Make a social video for Instagram",
+    }, {
+      repository: repository(),
+      now: () => new Date("2026-09-22T12:00:00.000Z"),
+    })
+
+    expect(result?.workPlan.operation).toBe("produce_creative")
+    expect(result?.proposal.disposition).toBe("ASK")
+    expect(result?.proposal.recommendation).toContain("more than one brand")
+  })
+
+  it("asks for a connected account before an action continues", async () => {
+    const emptyRepo = {
+      listAccounts: async () => [],
+      listProposals: async () => [],
+      listOutbox: async () => [],
+      listObservations: async () => [],
+    } as unknown as SocialRepository
+
+    const result = await handleAskSocialCommand({
+      userId: "user-1",
+      activeTask: "Make a TikTok video for PupsonStuff",
+    }, {
+      repository: emptyRepo,
+      now: () => new Date("2026-09-22T12:00:00.000Z"),
+    })
+
+    expect(result?.proposal.disposition).toBe("ASK")
+    expect(result?.proposal.recommendation).toContain("connected Social account")
+  })
+
   it("recognizes social video production before generic Director video routing", () => {
     const intent = inspectAskSocialIntent(
       "Make a TikTok video for PupsonStuff using the PupsonStuff personality",
