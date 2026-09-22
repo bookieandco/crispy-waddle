@@ -59,7 +59,7 @@ export async function loadDirectorCastRecord(
     await Promise.all([
       client
         .from('director_cast_characters')
-        .select('id,project_id,character_id,display_name,archetype,continuity_ref,character_description,appearance_description,performance_notes,behavior_dna_ref,rig_asset_id,canonical_appearance_variant_id,locked_traits,identity_fingerprint_refs,approved_at,approved_by')
+        .select('id,project_id,character_id,display_name,archetype,continuity_ref,character_description,appearance_description,performance_notes,description_revision,description_updated_at,behavior_dna_ref,rig_asset_id,canonical_appearance_variant_id,locked_traits,identity_fingerprint_refs,approved_at,approved_by')
         .eq('project_id', input.projectId)
         .eq('character_id', input.characterId)
         .maybeSingle(),
@@ -110,6 +110,8 @@ export async function loadDirectorCastRecord(
     ...(cast.character_description ? { characterDescription: String(cast.character_description) } : {}),
     ...(cast.appearance_description ? { appearanceDescription: String(cast.appearance_description) } : {}),
     ...(asStringArray(cast.performance_notes).length ? { performanceNotes: asStringArray(cast.performance_notes) } : {}),
+    ...(cast.description_revision ? { descriptionRevision: Number(cast.description_revision) } : {}),
+    ...(cast.description_updated_at ? { descriptionUpdatedAt: String(cast.description_updated_at) } : {}),
     ...(cast.behavior_dna_ref ? { behaviorDnaRef: String(cast.behavior_dna_ref) } : {}),
     ...(cast.rig_asset_id ? { rigAssetId: String(cast.rig_asset_id) } : {}),
     canonicalAppearanceVariantId: String(cast.canonical_appearance_variant_id),
@@ -149,6 +151,8 @@ export async function saveDirectorCastRecord(
     character_description: input.cast.characterDescription?.trim() || null,
     appearance_description: input.cast.appearanceDescription?.trim() || null,
     performance_notes: [...(input.cast.performanceNotes ?? [])],
+    description_revision: input.cast.descriptionRevision ?? 1,
+    description_updated_at: input.cast.descriptionUpdatedAt ?? input.cast.approvedAt,
     behavior_dna_ref: input.cast.behaviorDnaRef ?? null,
     rig_asset_id: input.cast.rigAssetId ?? null,
     canonical_appearance_variant_id: input.cast.canonicalAppearanceVariantId,
