@@ -8,6 +8,7 @@ export * from './channels/delivery-reconciliation.js';
 export * from './attribution/event-resolution.js';
 export * from './attribution/attribution-model.js';
 export * from './attribution/performance-aggregator.js';
+export * from './attribution/allocation-measurement.js';
 export * from './attribution/social-observation.js';
 export { buildGrowthDecisionFeed } from './intelligence/growth-decision-feed.js';
 export type { GrowthDecision, GrowthAction as GrowthDecisionAction } from './intelligence/growth-decision-feed.js';
@@ -35,3 +36,5 @@ export * from './intelligence/audience-intelligence.js';
 export * from './channels/paid-media.js';
 export * from './intelligence/competitor-ad-observation.js';
 export * from './intelligence/creator-outreach.js';
+
+export * from './learning/side-hustle-evidence.js';
