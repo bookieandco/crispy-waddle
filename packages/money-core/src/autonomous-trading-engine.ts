@@ -180,5 +180,5 @@ export async function executeAutonomousLiveTrade(input:{
 export function certifyMoneyAuto(input:{cases:readonly AutonomousCertificationCase[]}):AutonomousCertificationReport{
   const required=['explicit-mandate-approval','action-core-child-authority','mandate-expiry-revocation','instrument-strategy-allowlists','order-daily-loss-exposure-limits','drawdown-leverage-confidence-veto','opening-short-policy','paper-shadow-promotion-is-review-only','single-use-child-permit','provider-account-entitlement','unknown-execution-block','kill-switch-halts-permits','manual-mode-preserved','model-cannot-mutate-hard-limits','cross-domain-learning-no-authority']
   const passedNames=new Set(input.cases.filter(x=>x.passed).map(x=>x.name)),passed=required.every(x=>passedNames.has(x))&&input.cases.every(x=>x.passed)
-  return Object.freeze({reportId:'money-auto-final:'+hash({cases:input.cases,required}),cases:Object.freeze([...input.cases]),passed,mode:'LIVE_AUTONOMOUS',authority:'CERTIFICATION_ONLY',autonomousTradingEnabled:true,hardRiskLimitsMutableByModel:false})
+  return Object.freeze({reportId:'money-auto-final:'+hash({cases:input.cases,required}),cases:Object.freeze([...input.cases]),passed,mode:'LIVE_AUTONOMOUS',authority:'CERTIFICATION_ONLY',autonomousTradingEnabled:passed,hardRiskLimitsMutableByModel:false})
 }
