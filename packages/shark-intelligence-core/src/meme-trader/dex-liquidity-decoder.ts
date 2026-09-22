@@ -147,6 +147,25 @@ export abstract class BaseDexLiquidityDecoder implements DexLiquidityDecoder {
     if (kind !== 'SNAPSHOT' && kind !== 'LIQUIDITY_ADD' && kind !== 'LIQUIDITY_REMOVE') return undefined
     return { baseReserve, quoteReserve, liquidityUsd, kind }
   }
+
+  protected static pumpSwapReserveState(raw: unknown): { baseReserve: number; quoteReserve: number; liquidityUsd: number; kind: NormalizedReserveState['kind'] } | undefined {
+    const base = BaseDexLiquidityDecoder.rawReserveState(raw)
+    if (!base || !raw || typeof raw !== 'object') return base
+    const reserve = (raw as Record<string, unknown>).reserveState
+    if (!reserve || typeof reserve !== 'object') return base
+    const r = reserve as Record<string, unknown>
+    const virtualQuoteReserve = r.virtualQuoteReserve === undefined ? 0 : Number(r.virtualQuoteReserve)
+    if (!Number.isFinite(virtualQuoteReserve) || virtualQuoteReserve < 0) return undefined
+    if (virtualQuoteReserve === 0) return base
+
+    const quoteReserveSemantics = r.quoteReserveSemantics
+    const liquidityReserveSemantics = r.liquidityReserveSemantics
+    if (quoteReserveSemantics === 'EFFECTIVE' && liquidityReserveSemantics === 'EFFECTIVE') return base
+    if (quoteReserveSemantics === 'RAW_VAULT' && liquidityReserveSemantics === 'EFFECTIVE') {
+      return { ...base, quoteReserve: base.quoteReserve + virtualQuoteReserve }
+    }
+    return undefined
+  }
 }
 
 export class RaydiumAmmLiquidityDecoder extends BaseDexLiquidityDecoder {
@@ -173,7 +192,7 @@ export class PumpSwapLiquidityDecoder extends BaseDexLiquidityDecoder {
   }
 
   decodeTransaction(transaction: HistoricalPoolTransaction, pool: PoolHistory['pool']): NormalizedReserveState[] {
-    const state = BaseDexLiquidityDecoder.rawReserveState(transaction.raw)
+    const state = BaseDexLiquidityDecoder.pumpSwapReserveState(transaction.raw)
     if (!state) return []
     return [{ ...state, observedAt: transaction.observedAt, poolAddress: pool.poolAddress, source: `pumpswap:${transaction.signature}`, evidenceId: transaction.evidenceId }]
   }
