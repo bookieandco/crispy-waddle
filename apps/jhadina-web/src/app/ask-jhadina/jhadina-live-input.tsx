@@ -17,6 +17,7 @@ type Props = {
   busy: boolean
   onArtifactsChange: (artifacts: JhadinaEphemeralArtifact[]) => void
   onVoiceCommand: (command: string) => void
+  onLanguageChange?: (language: string) => void
   onStatus?: (message: string) => void
 }
 
@@ -36,13 +37,14 @@ const LANGUAGES = [
   ["vi-VN", "Tiếng Việt"],
 ] as const
 
-export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onStatus }: Props) {
+export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onLanguageChange, onStatus }: Props) {
   const [wakeEnabled, setWakeEnabled] = useState(false)
   const [language, setLanguage] = useState("en-US")
   const [voiceState, setVoiceState] = useState<"off"|"listening"|"unsupported"|"error">("off")
   const [screenActive, setScreenActive] = useState(false)
   const [artifacts, setArtifacts] = useState<JhadinaEphemeralArtifact[]>([])
   const recognitionRef = useRef<any>(null)
+  const shouldWakeRef = useRef(false)
   const streamRef = useRef<MediaStream|null>(null)
   const videoRef = useRef<HTMLVideoElement|null>(null)
   const captureTimerRef = useRef<ReturnType<typeof setInterval>|null>(null)
@@ -56,6 +58,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onSt
   }, [])
 
   function stopWake() {
+    shouldWakeRef.current = false
     recognitionRef.current?.stop?.()
     recognitionRef.current = null
     setWakeEnabled(false)
@@ -76,10 +79,11 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onSt
     recognition.continuous = true
     recognition.interimResults = false
     recognition.maxAlternatives = 1
+    shouldWakeRef.current = true
     recognition.onstart = () => { setWakeEnabled(true); setVoiceState("listening") }
     recognition.onerror = () => setVoiceState("error")
     recognition.onend = () => {
-      if (recognitionRef.current === recognition && wakeEnabled) {
+      if (recognitionRef.current === recognition && shouldWakeRef.current) {
         try { recognition.start() } catch {}
       }
     }
@@ -103,6 +107,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onSt
   }
 
   useEffect(() => {
+    onLanguageChange?.(language)
     if (!wakeEnabled || !recognitionRef.current) return
     const recognition = recognitionRef.current
     recognition.lang = language
