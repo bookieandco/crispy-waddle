@@ -214,18 +214,16 @@ export async function runPersistedWalletClusterCalibrationProducer(
   if(launchError)throw new Error(`SHARK cluster producer launch load failed: ${launchError.message}`)
   if((launchRows??[]).length>limit)throw new Error('SHARK_CLUSTER_PRODUCER_LAUNCH_WINDOW_TRUNCATED')
 
-  const groups=new Map<string,WalletBuyEvidence[]>()
+  const groups=new Map<string,{chainId:string;tokenAddress:string;buys:WalletBuyEvidence[]}>()
   for(const buy of buys){
-    const key=`${buy.chainId}:${buy.tokenAddress}`
-    const xs=groups.get(key)??[]
-    xs.push(buy)
-    groups.set(key,xs)
+    const key=JSON.stringify([buy.chainId,buy.tokenAddress])
+    const existing=groups.get(key)??{chainId:buy.chainId,tokenAddress:buy.tokenAddress,buys:[]}
+    existing.buys.push(buy)
+    groups.set(key,existing)
   }
 
   let emitted=0,inserted=0,replayed=0,skippedUnlabeled=0
-  for(const [key,groupBuys] of groups){
-    const [chainId,...addressParts]=key.split(':')
-    const tokenAddress=addressParts.join(':')
+  for(const {chainId,tokenAddress,buys:groupBuys} of groups.values()){
     const launch=(launchRows??[]).find((row:any)=>row.chain_id===chainId&&row.token_address===tokenAddress)
     if(!launch||launch.outcome==='UNKNOWN'||!launch.outcome_observed_at){
       skippedUnlabeled+=1
