@@ -20,6 +20,10 @@ export interface MetaResearchCreativeProductionInput {
   directorProjectId: string
   platform: Extract<SocialPlatform, "facebook" | "instagram">
   aspectRatio?: string
+  productIdentityRef?: string
+  styleIdentityRef?: string
+  platformCreativeProfileRef?: string
+  fixedDimensionRefs?: Readonly<Record<string, string>>
   createdAt?: string
 }
 
@@ -44,6 +48,18 @@ export function buildMetaResearchCreativeProductionJobs(input: {
   }
   if (!production.brandPointOfViewEvidenceRefs.length) {
     throw new Error("META_CREATIVE_BRAND_POV_EVIDENCE_REQUIRED")
+  }
+  if (Boolean(production.productIdentityRef) !== Boolean(production.styleIdentityRef)) {
+    throw new Error("META_CREATIVE_PRODUCT_STYLE_IDENTITY_PAIR_REQUIRED")
+  }
+  if (production.productIdentityRef !== undefined && !production.productIdentityRef.trim()) {
+    throw new Error("META_CREATIVE_PRODUCT_IDENTITY_INVALID")
+  }
+  if (production.styleIdentityRef !== undefined && !production.styleIdentityRef.trim()) {
+    throw new Error("META_CREATIVE_STYLE_IDENTITY_INVALID")
+  }
+  if (production.platformCreativeProfileRef !== undefined && !production.platformCreativeProfileRef.trim()) {
+    throw new Error("META_CREATIVE_PLATFORM_PROFILE_INVALID")
   }
 
   const createdAt = production.createdAt ?? new Date().toISOString()
@@ -92,6 +108,14 @@ export function buildMetaResearchCreativeProductionJobs(input: {
         directorProjectId: production.directorProjectId,
         mediaType: concept.format === "static_image" || concept.format === "carousel" ? "image" : "video",
         aspectRatio: production.aspectRatio ?? (concept.format === "static_image" ? "1:1" : "4:5"),
+        creativeIdentity: production.productIdentityRef && production.styleIdentityRef ? {
+          productIdentityRef: production.productIdentityRef,
+          styleIdentityRef: production.styleIdentityRef,
+          platformCreativeProfileRef: production.platformCreativeProfileRef,
+          experimentVariantId: `meta-creative:${plan.id}:${concept.id}`,
+          mutationAxis: "net_new_concept",
+          fixedDimensionRefs: production.fixedDimensionRefs,
+        } : undefined,
         createdAt,
       },
     )
