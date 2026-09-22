@@ -5,6 +5,7 @@ const assert = (condition: unknown, message: string): void => {
 }
 
 assertOpportunityProviderRegistry()
+assert(opportunityProvider('provider:sba-subnet')?.readiness === 'adapter_ready', 'SBA SUBNet must remain a governed discovery adapter, not autonomous execution')
 assert(opportunityProvider('provider:overageos')?.executionOwner === 'OverageOS', 'Recovery execution must remain owned by OverageOS')
 assert(opportunityProvider('provider:placement-jobs')?.readiness === 'contract_only', 'External job discovery must not be represented as live')
 assert(opportunityProvider('provider:commerce-dropshipping')?.readiness === 'adapter_ready', 'Dropshipping must reflect its implemented Commerce adapter boundary without claiming a live provider')

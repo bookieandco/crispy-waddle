@@ -41,6 +41,16 @@ export const CANONICAL_OPPORTUNITY_PROVIDERS: readonly OpportunityProviderDescri
     executionOwner: 'Opportunity/contract pursuit governance',
   },
   {
+    id: 'provider:sba-subnet',
+    vertical: 'government',
+    sourceId: 'us.sba.subnet',
+    adapterKey: 'sba.subnet',
+    readiness: 'adapter_ready',
+    capabilities: ['discover', 'normalize', 'research', 'execute_handoff'],
+    executionOwner: 'Opportunity/prime-subcontract pursuit governance',
+    notes: 'Public SBA SUBNet listing. Discovery does not authorize contacting the posted prime, submitting a quote, signing, or payment.',
+  },
+  {
     id: 'provider:overageos',
     vertical: 'recovery',
     sourceId: 'jhadina.overageos',

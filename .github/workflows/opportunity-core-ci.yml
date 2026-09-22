@@ -12,6 +12,7 @@ on:
       - 'apps/jhadina-web/src/app/api/opportunities/**'
       - 'apps/jhadina-web/src/app/api/money-opportunities/**'
       - 'apps/jhadina-web/src/app/api/internal/sam/**'
+      - 'apps/jhadina-web/src/app/api/internal/subnet/**'
       - 'apps/jhadina-web/scripts/sam-live-commissioning.ts'
       - 'apps/jhadina-web/src/app/opportunity/**'
       - 'apps/jhadina-web/src/__tests__/opportunities.test.ts'
@@ -20,6 +21,7 @@ on:
       - 'supabase/migrations/*opportunity*.sql'
       - 'supabase/migrations/*sam_pursuit*.sql'
       - 'supabase/migrations/*sam_prod*.sql'
+      - 'supabase/migrations/*subnet*.sql'
       - 'packages/staffing-core/package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/opportunity-core-ci.yml'
@@ -34,6 +36,7 @@ on:
       - 'apps/jhadina-web/src/app/api/opportunities/**'
       - 'apps/jhadina-web/src/app/api/money-opportunities/**'
       - 'apps/jhadina-web/src/app/api/internal/sam/**'
+      - 'apps/jhadina-web/src/app/api/internal/subnet/**'
       - 'apps/jhadina-web/scripts/sam-live-commissioning.ts'
       - 'apps/jhadina-web/src/app/opportunity/**'
       - 'apps/jhadina-web/src/__tests__/opportunities.test.ts'
@@ -83,6 +86,7 @@ jobs:
             src/lib/opportunities/vertical-ingestion.test.ts \
             src/lib/opportunities/supabase-sam-pursuit-snapshot-repository.test.ts \
             src/lib/opportunities/sam-pursuit-snapshot-runtime.test.ts \
+            src/lib/opportunities/subnet-client.test.ts \
             src/lib/money-opportunities/sam-opportunity-adapter.test.ts \
             src/lib/money-opportunities/canonical-sam-workflow.test.ts \
             src/lib/money-opportunities/sam-route-input.test.ts \
