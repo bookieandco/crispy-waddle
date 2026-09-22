@@ -64,10 +64,19 @@ async function workerHealth() {
       detail,
     };
   } catch (error) {
+    const cause = error && typeof error === 'object' ? error.cause : null;
+    const causeCode =
+      cause && typeof cause === 'object' && 'code' in cause ? String(cause.code) : 'unknown';
+    const causeMessage =
+      cause && typeof cause === 'object' && 'message' in cause
+        ? String(cause.message)
+        : error instanceof Error
+          ? error.message
+          : 'worker_probe_failed';
     return {
       ok: false,
       status: 0,
-      detail: error instanceof Error ? error.message.slice(0, 500) : 'worker_probe_failed',
+      detail: `${causeCode}: ${causeMessage}`.slice(0, 500),
     };
   }
 }
@@ -211,6 +220,22 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, '0.0.0.0', () => {
   console.log(`pupson-media-gateway listening on :${port}`);
   setTimeout(async () => {
+    const target = new URL(mediaWorkerUrl);
+    try {
+      const addresses = await dns.promises.lookup(target.hostname, { all: true });
+      console.log(
+        `media worker dns: host=${target.hostname} port=${target.port || '80'} addresses=${addresses
+          .map((entry) => `${entry.family}:${entry.address}`)
+          .join(',')}`
+      );
+    } catch (error) {
+      console.warn(
+        `media worker dns failed: host=${target.hostname} detail=${
+          error instanceof Error ? error.message : 'lookup_failed'
+        }`
+      );
+    }
+
     const worker = await workerHealth();
     console.log(
       `media worker startup probe: ok=${worker.ok} status=${worker.status} detail=${worker.detail}`
