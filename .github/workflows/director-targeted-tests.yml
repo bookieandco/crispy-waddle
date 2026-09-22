@@ -4,6 +4,7 @@ on:
     paths:
       - "packages/director-core/**"
       - "apps/jhadina-web/src/app/api/workstation/**"
+      - "apps/jhadina-web/src/app/api/director/**"
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
@@ -20,6 +21,7 @@ on:
     paths:
       - "packages/director-core/**"
       - "apps/jhadina-web/src/app/api/workstation/**"
+      - "apps/jhadina-web/src/app/api/director/**"
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
@@ -63,6 +65,7 @@ jobs:
           src/reference-derived-contracts.test.ts
           src/cast-bible.test.ts
           src/character-reference-and-extend.test.ts
+          src/whole-video-provider.test.ts
           src/commercial-creative-lab.test.ts
           src/product-reference-bootstrap.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
@@ -72,6 +75,10 @@ jobs:
           src/lib/director-project-authority.test.ts
           src/lib/director-studio-qc-repository.test.ts
           src/lib/director-cast-repository.test.ts
+          src/app/api/director/characters/bootstrap/route.test.ts
+          src/lib/director-reference-video-provider.test.ts
+          src/lib/director-reference-asset-resolver.test.ts
+          src/lib/director-reference-media.test.ts
           src/app/api/workstation/editing-assets/route.test.ts
           src/lib/social/director-bridge.test.ts
       - run: pnpm --filter @jhadina/jhadina-web run type-check
