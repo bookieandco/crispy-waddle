@@ -8,6 +8,7 @@ import {
   type ContentJob,
   type ContentProject,
   type JhadinaBrand,
+  type SocialCharacterProfile,
   type SocialPlatform,
 } from "@jhadina/social-core"
 
@@ -25,6 +26,7 @@ export interface GrowthToSocialContentInput {
     evidenceRefs: readonly string[]
   }
   sourceEvidenceRefs: readonly string[]
+  character?: SocialCharacterProfile
   anchor: {
     id: string
     kind: ContentAssetKind
@@ -40,6 +42,9 @@ export function createSocialContentProjectFromGrowth(
   if (!input.bigIdea.bigIdea.trim()) throw new Error("GROWTH_SOCIAL_BIG_IDEA_REQUIRED")
   if (!input.bigIdea.supportingSignalIds.length) throw new Error("GROWTH_SOCIAL_BIG_IDEA_EVIDENCE_REQUIRED")
   if (!input.sourceEvidenceRefs.length) throw new Error("GROWTH_SOCIAL_SOURCE_EVIDENCE_REQUIRED")
+  if (input.character && input.character.brand !== input.brand) {
+    throw new Error("GROWTH_SOCIAL_CHARACTER_BRAND_MISMATCH")
+  }
   if (!input.humanPointOfView && !input.brandPointOfView) {
     throw new Error("GROWTH_SOCIAL_POV_REQUIRED")
   }
@@ -76,6 +81,8 @@ export function createSocialContentProjectFromGrowth(
       ...input.bigIdea.supportingSignalIds.map((id) => `growth-signal:${id}`),
       ...pointOfView.evidenceRefs,
       pointOfView.ref,
+      ...(input.character?.evidenceRefs ?? []),
+      ...(input.character ? [input.character.id, input.character.voiceProfileRef] : []),
     ]),
   ]
 
@@ -93,6 +100,8 @@ export function createSocialContentProjectFromGrowth(
     bigIdeaRef: `growth-big-idea:${slug(input.bigIdea.bigIdea)}`,
     primaryJob: input.primaryJob,
     origin: pointOfView.origin,
+    characterProfileRef: input.character?.id,
+    voiceProfileRef: input.character?.voiceProfileRef,
     humanSourceRefs: pointOfView.humanSourceRefs,
     evidenceRefs,
     createdAt,
