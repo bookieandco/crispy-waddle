@@ -123,6 +123,7 @@ export class ComfyUIReferenceVideoProductionProvider implements WholeVideoProduc
     health: 'unknown',
     supportsCharacterReference: true,
     requiresCharacterReference: true,
+    supportsExpressionGuidance: true,
   };
 
   private readonly baseUrl: string;
@@ -342,6 +343,7 @@ export class ReferenceProductVideoProductionProvider implements WholeVideoProduc
     health: 'unknown',
     supportsProductReference: true,
     requiresProductReference: true,
+    supportsExpressionGuidance: true,
   };
 
   private readonly baseUrl: string;
@@ -502,6 +504,7 @@ export class AgnesVideoProductionProvider implements WholeVideoProductionProvide
     costClass: 'external-free',
     supportedModes: ['standard', 'short', 'faceless', 'long-form'],
     health: 'unknown',
+    supportsExpressionGuidance: true,
   };
 
   private readonly baseUrl: string;
