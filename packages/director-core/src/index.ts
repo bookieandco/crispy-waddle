@@ -86,3 +86,6 @@ export * from './timeline-edit-proposal';
 export * from './animation-performance-state';
 export * from './object-detection-observation';
 export * from './vision-model-profile';
+export * from './short-form-production';
+export * from './locked-character-reference';
+export * from './generation-spend-gate';
