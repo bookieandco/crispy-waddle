@@ -58,6 +58,7 @@ jobs:
           src/storyboard-stage-binding.test.ts
           src/storyboard-shot-adapter.test.ts
           src/generation-plan-adapter.test.ts
+          src/generation-reference-resolver.test.ts
           src/media-quality-evidence.test.ts
           src/media-review-gate-adapter.test.ts
           src/production-authority.test.ts
