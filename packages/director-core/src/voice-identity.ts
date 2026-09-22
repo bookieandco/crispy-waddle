@@ -221,7 +221,11 @@ export type VoiceProviderCapability =
   | 'accent-conversion'
   | 'singing'
   | 'word-timestamps'
-  | 'speaker-similarity-qc';
+  | 'speaker-similarity-qc'
+  | 'multi-speaker'
+  | 'lora-adaptation'
+  | 'batch-variation'
+  | 'queue-management';
 
 function voiceCapabilities(...values: VoiceProviderCapability[]): readonly VoiceProviderCapability[] {
   return Object.freeze(values);
@@ -279,6 +283,26 @@ export const DIRECTOR_VOICE_PROVIDER_PROFILES: readonly VoiceProviderProfile[] =
     license: 'GPL-3.0',
     capabilities: voiceCapabilities('voice-clone','multilingual'),
     notes: Object.freeze(['Keep behind optional external boundary; celebrity-reference workflows require separate rights review.']),
+    runtimeRole: 'reference-only',
+  }),
+  Object.freeze({
+    id: 'vibevoice-fusion',
+    name: 'VibeVoiceFusion',
+    license: 'UNVERIFIED — README badge says MIT, GitHub repository metadata reports no license',
+    capabilities: voiceCapabilities(
+      'voice-clone',
+      'multi-speaker',
+      'multilingual',
+      'style-control',
+      'lora-adaptation',
+      'batch-variation',
+      'queue-management',
+    ),
+    notes: Object.freeze([
+      'Full-stack VibeVoice workflow with persistent speaker samples, ordered dialogue sessions, narration, 2-20 seeded batch variations, LoRA adaptation and GPU/CPU offloading.',
+      'REST API is suitable for an optional local provider adapter after explicit license admission.',
+      'Director Voice Identity remains canonical; VibeVoice project/speaker IDs are implementation references only.',
+    ]),
     runtimeRole: 'reference-only',
   }),
 ]);
