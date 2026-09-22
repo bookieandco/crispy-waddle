@@ -1,4 +1,5 @@
 export type TrackKind = 'video' | 'audio' | 'overlay' | 'subtitle' | 'effect';
+export type TrackRelationship = 'primary' | 'connected' | 'lane';
 export type AudioRole = 'dialogue' | 'voiceover' | 'music' | 'sfx' | 'foley' | 'ambience' | 'other';
 export type BlendMode = 'normal' | 'screen' | 'multiply' | 'overlay' | 'add';
 export type GenerativeOperation = 'extend' | 'replace' | 'remove' | 'insert' | 'fill' | 'reframe' | 'retime';
@@ -29,6 +30,8 @@ export type ClipCrop = {
 
 export type TimelineClip = {
   id: string;
+  /** Human-facing clip label; assetId remains the stable media identity. */
+  name?: string;
   assetId: string;
   trackId: string;
   startSeconds: number;
@@ -65,6 +68,10 @@ export type TimelineTrack = {
   solo?: boolean;
   locked?: boolean;
   hidden?: boolean;
+  /** Final Cut-style semantic relationship: primary storyline, connected clip, or lane. */
+  relationship?: TrackRelationship;
+  /** Optional anchor clip for connected secondary material. */
+  connectedToClipId?: string;
   clips: TimelineClip[];
 };
 
