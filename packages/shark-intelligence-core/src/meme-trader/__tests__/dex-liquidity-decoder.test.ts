@@ -1,6 +1,7 @@
 import {
   PUMPSWAP_AMM_PROGRAM_ID,
   RAYDIUM_AMM_V4_PROGRAM_ID,
+  PumpSwapLiquidityDecoder,
   parsePumpSwapPoolState,
   parseRaydiumAmmV4PoolState,
 } from '../dex-liquidity-decoder'
@@ -60,5 +61,36 @@ describe('DEX pool-state decoders', () => {
     const base64 = Buffer.from(bytes).toString('base64')
     const parsed = parseRaydiumAmmV4PoolState({ data: base64 })
     expect(parsed.baseMint).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
+  })
+  it('fails closed when non-zero PumpSwap virtual reserves are not reflected in liquidity semantics', () => {
+    const decoder = new PumpSwapLiquidityDecoder()
+    const pool = { poolAddress: 'pool-1' } as any
+    const tx = {
+      signature: 'sig-1',
+      observedAt: '2026-09-21T20:00:00Z',
+      evidenceId: 'e1',
+      raw: { reserveState: { baseReserve: 100, quoteReserve: 200, virtualQuoteReserve: 50, liquidityUsd: 300, kind: 'SNAPSHOT' } },
+    } as any
+    expect(decoder.decodeTransaction(tx, pool)).toEqual([])
+  })
+
+  it('adds raw vault + virtual quote reserve only when liquidity is explicitly effective-valued', () => {
+    const decoder = new PumpSwapLiquidityDecoder()
+    const pool = { poolAddress: 'pool-1' } as any
+    const tx = {
+      signature: 'sig-2',
+      observedAt: '2026-09-21T20:00:00Z',
+      evidenceId: 'e2',
+      raw: { reserveState: {
+        baseReserve: 100,
+        quoteReserve: 200,
+        virtualQuoteReserve: 50,
+        quoteReserveSemantics: 'RAW_VAULT',
+        liquidityReserveSemantics: 'EFFECTIVE',
+        liquidityUsd: 350,
+        kind: 'SNAPSHOT',
+      } },
+    } as any
+    expect(decoder.decodeTransaction(tx, pool)[0]?.quoteReserve).toBe(250)
   })
 })
