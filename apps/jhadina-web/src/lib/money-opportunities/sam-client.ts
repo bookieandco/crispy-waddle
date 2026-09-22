@@ -72,7 +72,8 @@ export async function scanSamOpportunityWindow(input: Omit<SamSearchParams, 'lim
   let totalRecords=0;
   let pages=0;
   for(let page=0;page<maxPages;page+=1){
-    const data=await searchSamOpportunities({...input,limit:pageSize,offset:page*pageSize});
+    // SAM.gov defines offset as the page index, not a record displacement.
+    const data=await searchSamOpportunities({...input,limit:pageSize,offset:page});
     const rows=Array.isArray(data.opportunitiesData)?data.opportunitiesData:[];
     totalRecords=typeof data.totalRecords==='number'?data.totalRecords:Math.max(totalRecords,opportunities.length+rows.length);
     opportunities.push(...rows);
