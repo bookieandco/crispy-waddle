@@ -136,3 +136,18 @@ revoke all on function public.jhadina_shark_append_wallet_score_evidence(jsonb) 
 revoke all on function public.jhadina_shark_append_wallet_buy_evidence(jsonb) from public, anon, authenticated;
 grant execute on function public.jhadina_shark_append_wallet_score_evidence(jsonb) to service_role;
 grant execute on function public.jhadina_shark_append_wallet_buy_evidence(jsonb) to service_role;
+
+
+create or replace function public.jhadina_shark_wallet_score_models()
+returns table(score_model_id text)
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+  select distinct s.score_model_id
+  from public.jhadina_shark_wallet_score_evidence s
+  order by s.score_model_id;
+$$;
+
+revoke all on function public.jhadina_shark_wallet_score_models() from public, anon, authenticated;
+grant execute on function public.jhadina_shark_wallet_score_models() to service_role;
