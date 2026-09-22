@@ -16,6 +16,7 @@ type JobRow = {
   submission_state: string;
   output_asset_ids: string[] | null;
   preview_asset_id: string | null;
+  spec: Record<string, unknown> | null;
   updated_at: string;
 };
 
@@ -79,7 +80,7 @@ export async function reconcileDirectorVideoJobs(
   const limit = Math.max(1, Math.min(25, options.limit ?? 5));
   const { data, error } = await client
     .from('director_video_jobs')
-    .select('id,user_id,project_id,production_run_id,prompt,status,provider_id,provider_job_id,submission_state,output_asset_ids,preview_asset_id,updated_at')
+    .select('id,user_id,project_id,production_run_id,prompt,status,provider_id,provider_job_id,submission_state,output_asset_ids,preview_asset_id,spec,updated_at')
     .in('status', ['submitted','generating','ingesting'])
     .order('updated_at', { ascending: true })
     .limit(limit);
@@ -185,6 +186,9 @@ export async function reconcileDirectorVideoJobs(
           privateBucket: 'director-media',
           objectPath,
           ffmpegQc: 'pending-runtime-inspection',
+          ...(job.spec?.referenceCharacter && typeof job.spec.referenceCharacter === 'object'
+            ? { referenceCharacter: job.spec.referenceCharacter }
+            : {}),
         },
       });
 
