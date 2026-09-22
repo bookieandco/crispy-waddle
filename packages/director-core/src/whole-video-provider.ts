@@ -45,6 +45,7 @@ export interface WholeVideoProviderDescriptor {
   requiresCharacterReference?: boolean;
   supportsProductReference?: boolean;
   requiresProductReference?: boolean;
+  supportsExpressionGuidance?: boolean;
 }
 
 export interface WholeVideoProductionProvider {
@@ -69,12 +70,18 @@ export function mapWholeVideoProviderStatus(
 export function selectWholeVideoProvider(
   providers: readonly WholeVideoProductionProvider[],
   intent: AskVideoCreationIntent,
-  requirements: { characterReference?: boolean; productReference?: boolean; paidProviderAuthorized?: boolean } = {},
+  requirements: {
+    characterReference?: boolean;
+    productReference?: boolean;
+    expressionGuidance?: boolean;
+    paidProviderAuthorized?: boolean;
+  } = {},
 ): WholeVideoProductionProvider | undefined {
   const compatible = providers.filter((provider) =>
     provider.descriptor.supportedModes.includes(intent.mode) &&
     (!requirements.characterReference || provider.descriptor.supportsCharacterReference === true) &&
     (!requirements.productReference || provider.descriptor.supportsProductReference === true) &&
+    (!requirements.expressionGuidance || provider.descriptor.supportsExpressionGuidance === true) &&
     (requirements.characterReference || provider.descriptor.requiresCharacterReference !== true) &&
     (requirements.productReference || provider.descriptor.requiresProductReference !== true),
   );
