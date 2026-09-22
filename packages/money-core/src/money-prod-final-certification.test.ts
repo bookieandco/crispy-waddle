@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import {
   MONEY_PROD_REQUIRED_LANES,
   certifyMoneyProdFinal,
@@ -95,4 +97,13 @@ test('MONEY-PROD.5 certification receipts cannot carry execution authority',()=>
   assert.equal(r.authority,'CERTIFICATION_ONLY');assert.equal(r.canExecute,false)
   const invalid={...r,authority:'EXECUTION' as const}
   assert.throws(()=>certifyMoneyProdFinal({receipts:[invalid as never],shadowSoak:soak(),generatedAt:at}),/RECEIPT_AUTHORITY_FORBIDDEN/)
+})
+
+test('MONEY-PROD.6 commissioning migration is service-role only and stores no secrets',()=>{
+  const migration=readFileSync(fileURLToPath(new URL('../migrations/015_production_commissioning_receipts.sql',import.meta.url)),'utf8')
+  assert.match(migration,/FORCE ROW LEVEL SECURITY/)
+  assert.match(migration,/REVOKE ALL ON money_production_commissioning_receipts FROM anon/)
+  assert.match(migration,/REVOKE ALL ON money_production_commissioning_receipts FROM authenticated/)
+  assert.match(migration,/GRANT SELECT, INSERT, DELETE ON money_production_commissioning_receipts TO service_role/)
+  assert.doesNotMatch(migration,/private_key|secret_key|api_key|access_token/i)
 })
