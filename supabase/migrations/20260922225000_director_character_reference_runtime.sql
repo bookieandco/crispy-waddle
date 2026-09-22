@@ -2,8 +2,8 @@
 
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values(
-  'director-character-references',
-  'director-character-references',
+  'director-reference-media',
+  'director-reference-media',
   false,
   20971520,
   array['image/jpeg','image/png','image/webp']
@@ -17,7 +17,7 @@ create table if not exists public.director_reference_media_assets (
   id text primary key,
   project_id text not null,
   user_id uuid not null references auth.users(id) on delete restrict,
-  bucket_id text not null default 'director-character-references',
+  bucket_id text not null default 'director-reference-media',
   object_path text not null unique,
   original_filename text not null,
   mime_type text not null check(mime_type in ('image/jpeg','image/png','image/webp')),
