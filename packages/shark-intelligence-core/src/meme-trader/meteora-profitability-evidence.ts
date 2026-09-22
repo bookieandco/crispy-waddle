@@ -79,3 +79,45 @@ export function reconcileMeteoraDlmmCashFlowProfitability(input:{
     authority:'RESEARCH_ONLY',
   })
 }
+
+export type MeteoraDlmmBenchmarkEvidence=Readonly<{
+  benchmarkId:string
+  position:string
+  currency:string
+  informationCutoff:string
+  lpTerminalValueMinor:bigint
+  hodlTerminalValueMinor:bigint
+  methodology:'MATCHED_ENTRY_HODL'
+  evidenceIds:readonly string[]
+}>
+
+export type MeteoraDlmmEstimatedEconomics=Readonly<{
+  position:string
+  currency:string
+  informationCutoff:string
+  lpTerminalValueMinor:bigint
+  hodlTerminalValueMinor:bigint
+  estimatedImpermanentLossMinor:bigint
+  methodology:'MATCHED_ENTRY_HODL'
+  status:'ESTIMATED_NOT_REALIZED'
+  evidenceIds:readonly string[]
+  authority:'RESEARCH_ONLY'
+}>
+
+export function estimateMeteoraDlmmImpermanentLoss(input:MeteoraDlmmBenchmarkEvidence):MeteoraDlmmEstimatedEconomics{
+  if(!input.benchmarkId.trim()||!input.position.trim()||!input.currency.trim()||!input.evidenceIds.length)throw new Error('meteora_benchmark_identity_required')
+  assertIso(input.informationCutoff,'meteora_benchmark_cutoff_invalid')
+  if(input.lpTerminalValueMinor<0n||input.hodlTerminalValueMinor<0n)throw new Error('meteora_benchmark_value_invalid')
+  return Object.freeze({
+    position:input.position,
+    currency:input.currency,
+    informationCutoff:input.informationCutoff,
+    lpTerminalValueMinor:input.lpTerminalValueMinor,
+    hodlTerminalValueMinor:input.hodlTerminalValueMinor,
+    estimatedImpermanentLossMinor:input.lpTerminalValueMinor-input.hodlTerminalValueMinor,
+    methodology:'MATCHED_ENTRY_HODL',
+    status:'ESTIMATED_NOT_REALIZED',
+    evidenceIds:Object.freeze([...new Set(input.evidenceIds)].sort()),
+    authority:'RESEARCH_ONLY',
+  })
+}

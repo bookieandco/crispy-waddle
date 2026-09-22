@@ -21,6 +21,10 @@ describe('wallet cluster threshold sensitivity',()=>{
   expect(r.excludedFutureObservationIds).toEqual(['future'])
   expect(r.rows.find(x=>x.thresholdId==='loose')?.matchedObservations).toBe(2)
   expect(r.rows.find(x=>x.thresholdId==='loose')?.adverseRate).toBe(.5)
+  expect(r.rows.find(x=>x.thresholdId==='loose')?.sampleAdequacy).toBe('LOW')
+  const interval=r.rows.find(x=>x.thresholdId==='loose')?.adverseRate95
+  expect(interval?.[0]).toBeLessThan(.5)
+  expect(interval?.[1]).toBeGreaterThan(.5)
   expect(r.rows.find(x=>x.thresholdId==='strict')?.matchedObservations).toBe(1)
   expect(r.rows.find(x=>x.thresholdId==='strict')?.healthyRate).toBe(1)
   expect(r.canMutateRuntimeThresholds).toBe(false)

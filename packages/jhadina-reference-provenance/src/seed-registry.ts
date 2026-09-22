@@ -206,16 +206,20 @@ const handoffOnlyReferences: readonly RegisterReferenceInput[] = [
     canonicalLocator:
       'https://github.com/baronguyen001/wallet-cluster-detector',
     discoveredFrom: 'HANDOFF',
-    traceabilityStatus: 'HANDOFF_ONLY',
-    licenseStatus: 'UNKNOWN',
+    traceabilityStatus: 'REPO_TRACEABLE',
+    licenseStatus: 'VERIFIED',
     notes:
-      'Named in SHARK handoff history; no durable source-to-implementation mapping found on current main.',
+      'Pinned MIT methodology reference. Jhadina independently uses cross-chain normalization and offline threshold-sensitivity concepts; runtime threshold selection remains prohibited.',
     evidence: [
       {
-        evidenceId: 'handoff:shark:wallet-cluster-detector',
-        kind: 'HANDOFF_NOTE',
-        locator:
-          'urn:jhadina:handoff:shark:wallet-cluster-detector',
+        evidenceId: 'repo:shark:wallet-cluster-normalization',
+        kind: 'REPO_PATH',
+        locator: 'repo:packages/shark-intelligence-core/src/meme-trader/wallet-cluster-normalization.ts',
+      },
+      {
+        evidenceId: 'repo:shark:wallet-cluster-calibration',
+        kind: 'REPO_PATH',
+        locator: 'repo:packages/shark-intelligence-core/src/meme-trader/wallet-cluster-calibration.ts',
       },
     ],
   },
@@ -264,15 +268,15 @@ const handoffOnlyReferences: readonly RegisterReferenceInput[] = [
     roles: ['ALGORITHM_REFERENCE', 'DATA_SOURCE'],
     canonicalLocator: 'https://github.com/GeekLad/meteora-profit-analysis',
     discoveredFrom: 'HANDOFF',
-    traceabilityStatus: 'HANDOFF_ONLY',
-    licenseStatus: 'UNKNOWN',
+    traceabilityStatus: 'REPO_TRACEABLE',
+    licenseStatus: 'VERIFIED',
     notes:
-      'Named in SHARK handoff history for Meteora position/profit analysis research. Audited as methodology-only: cash-flow profitability concepts are independently reimplemented with stricter realized-PnL and impermanent-loss semantics; no source-code derivation is asserted.',
+      'Pinned GPL-3.0 methodology reference only. Jhadina independently implements conservative cash-flow profitability and explicitly separates estimated HODL-benchmark economics from realized PnL; no source-code derivation is asserted.',
     evidence: [
       {
-        evidenceId: 'handoff:shark:meteora-profit-analysis',
-        kind: 'HANDOFF_NOTE',
-        locator: 'urn:jhadina:handoff:shark:meteora-profit-analysis',
+        evidenceId: 'repo:shark:meteora-profitability-evidence',
+        kind: 'REPO_PATH',
+        locator: 'repo:packages/shark-intelligence-core/src/meme-trader/meteora-profitability-evidence.ts',
       },
     ],
   },

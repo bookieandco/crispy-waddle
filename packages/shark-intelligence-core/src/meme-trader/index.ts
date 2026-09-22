@@ -35,3 +35,5 @@ export * from './chain-identity'
 export * from './wallet-cluster-calibration'
 
 export * from './meteora-profitability-evidence'
+
+export * from './wallet-cluster-normalization'
