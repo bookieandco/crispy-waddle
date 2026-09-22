@@ -69,6 +69,7 @@ export interface DirectorSocialApprovedAssetReceipt {
   sha256?: string;
   reviewDecisionId: string;
   reviewEvidenceIds: readonly string[];
+  commercialCreative?: DirectorSocialCommercialCreativeRef;
   approvedAt: string;
   provenance: NonNullable<GeneratedAssetRecord['provenance']>;
   authority: 'DIRECTOR_ASSET_APPROVED';
@@ -202,6 +203,7 @@ export function issueDirectorSocialApprovedAssetReceipt(input: {
     sha256: asset.sha256,
     reviewDecisionId: review.id,
     reviewEvidenceIds: Object.freeze([...review.evidenceIds]),
+    ...(brief.commercialCreative ? { commercialCreative: Object.freeze({ ...brief.commercialCreative }) } : {}),
     approvedAt: review.decidedAt,
     provenance: Object.freeze({ ...asset.provenance, storyboardBoardIds: Object.freeze([...asset.provenance.storyboardBoardIds]) }) as NonNullable<GeneratedAssetRecord['provenance']>,
     authority: 'DIRECTOR_ASSET_APPROVED',
