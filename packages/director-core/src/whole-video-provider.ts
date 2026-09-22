@@ -10,6 +10,13 @@ export interface WholeVideoProductionBrief {
   creativeName: string;
   style?: string;
   scenes?: readonly { text: string; searchTerms: readonly string[] }[];
+  character?: {
+    characterId: string;
+    continuityRef: string;
+    appearanceVariantId: string;
+    referenceUris: readonly string[];
+    referenceSha256s: readonly string[];
+  };
 }
 
 export interface WholeVideoProviderResult {
@@ -26,6 +33,7 @@ export interface WholeVideoProviderDescriptor {
   costClass: WholeVideoProviderCostClass;
   supportedModes: readonly AskVideoCreationIntent['mode'][];
   health: 'unknown' | 'healthy' | 'degraded' | 'offline';
+  supportsCharacterReference?: boolean;
 }
 
 export interface WholeVideoProductionProvider {
@@ -50,8 +58,12 @@ export function mapWholeVideoProviderStatus(
 export function selectWholeVideoProvider(
   providers: readonly WholeVideoProductionProvider[],
   intent: AskVideoCreationIntent,
+  requirements: { characterReference?: boolean } = {},
 ): WholeVideoProductionProvider | undefined {
-  const compatible = providers.filter((provider) => provider.descriptor.supportedModes.includes(intent.mode));
+  const compatible = providers.filter((provider) =>
+    provider.descriptor.supportedModes.includes(intent.mode) &&
+    (!requirements.characterReference || provider.descriptor.supportsCharacterReference === true),
+  );
   const safe = compatible.filter((provider) =>
     provider.descriptor.costClass !== 'paid' || intent.providerPolicy.allowPaidWithoutApproval,
   );
