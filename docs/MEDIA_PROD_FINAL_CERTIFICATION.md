@@ -1,44 +1,53 @@
 # MEDIA-PROD.FINAL — Production Certification Receipt
 
-Status: **IN PROGRESS — certification workflow unblocked; rerun required after lockfile repair**
-Branch: `feat/media-prod-reconcile`
-PR: #471
-Certification head: `491f9ac0240d82fd1814ab959865c3f065600259`
+Status: **CI CERTIFIED — ENVIRONMENT ADMISSION PENDING**
 
-## Certified by static/repository audit
-- Reconciled from current main rather than the stale MEDIA-2 branch.
-- Music and TV remain separate domain cores with a thin Entertainment continuity contract.
-- TV canonical Series/Season/Episode identity is separate from provider-native asset identity.
-- TV authorization remains fail-closed for authorization expiry, territory and scoped rights.
+Certification workflow: `Media Production Certification`
+Workflow run: `35677440575` (run #239)
+Certification commit: `d9458fff3fafc888a2c4cdf14eb698904f9d1c6c`
+Repair chain: PR #538 → PR #539 → PR #543
+
+## Repository/runtime certification
+
+GitHub Actions produced a successful execution receipt for the dedicated Media certification job.
+
+The following gates completed successfully:
+- `pnpm install --frozen-lockfile`
+- `pnpm --filter @jhadina/music-core type-check`
+- `pnpm --filter @jhadina/music-core test`
+- `pnpm --filter @jhadina/tv-core type-check`
+- `pnpm --filter @jhadina/tv-core test`
+- `pnpm --filter @jhadina/jhadina-web type-check`
+
+## Architecture and policy invariants
+
+- Music and TV remain separate domain cores.
+- TV canonical Series/Season/Episode identity remains separate from provider-native asset identity.
+- TV authorization remains fail-closed for authorization expiry, territory, and scoped rights.
 - Music playback resolves through user-scoped authorized sources/assets.
-- Offline Music requires authorized source identity and resolver output matching canonical track/source.
+- Offline Music requires authorized source identity and canonical track/source matching.
 - Operational playback checkpoints remain separate from approval-required preference memory.
-- Spotify integration is catalog/library metadata only; it does not grant playback/download rights.
-- YouTube Music DRM/extraction bypass is not introduced.
-- Amazon Vega is a TV UX/reference input only; VS Live is behavioral reference only.
+- Spotify integration remains catalog/library metadata only and does not grant playback/download rights.
+- No YouTube Music DRM/extraction bypass is introduced.
 
-## Automated certification gates added
-Dedicated workflow: `.github/workflows/media-production-certification.yml`
-- frozen-lockfile install
-- Music Core TypeScript
-- Music Core tests
-- TV Core TypeScript
-- TV Core tests
-- Jhadina Web TypeScript
+## MEDIA-PROD.UNBLOCK repairs
 
-Additional production tests cover canonical/provider TV identity, canonical source rebinding, approval-required viewing memory, Music checkpoint completion threshold, negative-position clamping, and unloaded playback-host rejection.
+1. PR #538 corrected the Jhadina Web workspace filter, restored the Music Core workspace dependency, and enabled current/manual certification triggers.
+2. The resulting real CI run exposed a frozen-lockfile mismatch.
+3. PR #539 synchronized the Jhadina Web Music Core lockfile importer.
+4. PR #543 corrected certification receipt path triggering.
+5. Run #239 then passed every repository certification gate.
 
-## Blocking evidence
-At certification head, GitHub returned **zero associated workflow runs**. Therefore no claim is made that TypeScript, tests, or web checks passed. PR #471 is intentionally left draft/unmerged.
+## Remaining environment admission
 
-## External/product admission blockers
-A real TV provider still requires verified rights/credentials/product selection. Device-to-device handoff and live Supabase/RLS cross-user isolation require an execution environment and configured backing services. These cannot be certified from repository inspection alone.
+CI certification does not itself prove external production integrations. Production environment admission still requires evidence for any enabled real TV provider/rights credentials, live Supabase/RLS cross-user isolation, and physical device handoff/casting targets. These gates must remain fail-closed when their dependencies are not configured.
+
+The Vercel account has separately reported a build-rate-limit status in this repair sequence; that is deployment infrastructure evidence, not a failure of the Media certification suite.
 
 ## Final disposition
-MEDIA-PROD.FINAL audit/certification procedure is complete. Production admission is **BLOCKED**, not READY, until the dedicated CI workflow executes successfully and the environment-backed provider/RLS/handoff gates have evidence. This receipt must not be upgraded to READY from code review alone.
 
-## MEDIA-PROD.UNBLOCK follow-up
-- PR #538 repaired the workflow package selector, restored the web Music Core dependency, and enabled manual/current-main certification triggers.
-- The first real certification execution reached frozen installation and failed because the web Music Core dependency was absent from the lockfile importer.
-- PR #539 repaired that lockfile importer on current main.
-- This documentation-only commit intentionally retriggers the Media Production Certification workflow after the lockfile repair. READY still requires green Music Core type-check/tests, TV Core type-check/tests, and Jhadina Web type-check evidence.
+**MEDIA-PROD.UNBLOCK is COMPLETE.**
+
+**MEDIA-PROD.FINAL repository/CI certification is COMPLETE and GREEN.**
+
+Overall production admission is **ENVIRONMENT PENDING**, rather than fully READY, until the external provider/RLS/device/deployment gates have execution evidence. Do not weaken those gates to obtain a READY label.
