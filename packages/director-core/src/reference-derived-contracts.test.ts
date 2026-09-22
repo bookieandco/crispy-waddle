@@ -59,6 +59,23 @@ describe('reference-derived Director contracts', () => {
     expect(overlayAvoidsProtectedRegions({
       x: 0.02, y: 0.75, width: 0.25, height: 0.15, startSeconds: 2, endSeconds: 4,
     }, decision.protectedRegions)).toBe(true);
+
+    const malformed = evaluateVisualEditEvidence({
+      editKind: 'overlay',
+      startSeconds: 2,
+      endSeconds: 4,
+      timebase: { fps: 30, durationSeconds: 10, width: 1920, height: 1080 },
+      observations: [{
+        ...observation,
+        id: 'obs-malformed',
+        protectedRegions: [{
+          ...observation.protectedRegions[0],
+          bounds: { x: 0.9, y: 0.2, width: 0.4, height: 0.2 },
+        }],
+      }],
+    });
+    expect(malformed.admissible).toBe(false);
+    expect(malformed.reasons).toContain('DIRECTOR_VISUAL_REGION_INVALID');
   });
 
   it('does not let a producer family self-acquit an artifact', () => {
@@ -91,8 +108,8 @@ describe('reference-derived Director contracts', () => {
       requireProducerIndependence: true,
     });
     expect(decision.accepted).toBe(false);
-    expect(decision.reasons).toContain('DIRECTOR_REVIEW_SELF_ACQUITTAL_EXCLUDED');
     expect(decision.reasons).toContain('DIRECTOR_REVIEW_FAMILY_QUORUM_NOT_MET');
+    expect(decision.excludedReviewIds).toContain('r-self');
   });
 
   it('accepts two independent reviewer families over the same exact artifact digest', () => {
