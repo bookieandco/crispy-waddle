@@ -1,6 +1,6 @@
 import type { Opportunity } from './opportunity.js'
 import type { OpportunityOutcome } from './outcome.js'
-import type { SideHustleExperimentEvaluation } from './side-hustle-experiment.js'
+import type { SideHustleExperiment, SideHustleExperimentEvaluation } from './side-hustle-experiment.js'
 import {
   isSideHustleProfile,
   type SideHustleAutomationMaturity,
@@ -9,8 +9,13 @@ import {
 
 export type SideHustleMaturityPromotionDecision = 'eligible' | 'blocked'
 
+export type SideHustleMaturityValidationRecord = {
+  experiment: SideHustleExperiment
+  evaluation: SideHustleExperimentEvaluation
+}
+
 export type SideHustleMaturityEvidence = {
-  validationEvaluations: SideHustleExperimentEvaluation[]
+  validationRecords: SideHustleMaturityValidationRecord[]
   outcomes: OpportunityOutcome[]
   workflowEvidenceRefs?: string[]
   aiAssistEvidenceRefs?: string[]
@@ -151,15 +156,26 @@ export function assessSideHustleMaturityPromotion(input: {
     )
   }
 
-  const validationEvaluations = input.evidence.validationEvaluations.map((evaluation) => {
+  const validationRecords = input.evidence.validationRecords.map((record) => {
+    const { experiment, evaluation } = record
     requireDate(evaluation.evaluatedAt, 'validation evaluation evaluatedAt')
-    if (evaluation.opportunityId !== input.opportunity.id) {
-      throw new Error('Validation evaluation does not belong to opportunity')
+    if (experiment.status !== 'completed' || !experiment.completedAt) {
+      throw new Error('Maturity evidence requires completed validation experiments')
     }
-    if (Date.parse(evaluation.evaluatedAt) > Date.parse(input.assessedAt)) {
+    requireDate(experiment.completedAt, 'validation experiment completedAt')
+    if (experiment.opportunityId !== input.opportunity.id || evaluation.opportunityId !== input.opportunity.id) {
+      throw new Error('Validation evidence does not belong to opportunity')
+    }
+    if (evaluation.experimentId !== experiment.id) {
+      throw new Error('Validation evaluation does not match experiment')
+    }
+    if (
+      Date.parse(evaluation.evaluatedAt) > Date.parse(input.assessedAt) ||
+      Date.parse(experiment.completedAt) > Date.parse(input.assessedAt)
+    ) {
       throw new Error('Maturity assessment cannot include future validation evidence')
     }
-    return evaluation
+    return record
   })
 
   const outcomes = input.evidence.outcomes.map((outcome) => {
@@ -174,8 +190,8 @@ export function assessSideHustleMaturityPromotion(input: {
   })
 
   const validationPromotions = uniqueBy(
-    validationEvaluations.filter((evaluation) => evaluation.decision === 'promote'),
-    (evaluation) => evaluation.experimentId,
+    validationRecords.filter(({ evaluation }) => evaluation.decision === 'promote'),
+    ({ experiment }) => experiment.id,
   )
   const successfulDeliveries = uniqueBy(
     outcomes.filter((outcome) => outcome.result === 'won'),
@@ -208,7 +224,10 @@ export function assessSideHustleMaturityPromotion(input: {
   }
 
   const evidenceRefs = unique([
-    ...validationPromotions.flatMap((evaluation) => evaluation.evidenceRefs),
+    ...validationPromotions.flatMap(({ experiment, evaluation }) => [
+      ...experiment.evidenceRefs,
+      ...evaluation.evidenceRefs,
+    ]),
     ...successfulDeliveries.flatMap((outcome) => [
       ...outcome.evidenceRefs,
       ...(outcome.transactionRefs ?? []),
