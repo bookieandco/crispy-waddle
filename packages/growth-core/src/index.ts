@@ -38,3 +38,11 @@ export * from './intelligence/competitor-ad-observation.js';
 export * from './intelligence/creator-outreach.js';
 
 export * from './learning/side-hustle-evidence.js';
+
+export * from './intelligence/creative-evidence-engine.js';
+export * from './intelligence/paid-social-playbooks.js';
+export * from './intelligence/creative-formula-factory.js';
+export * from './intelligence/search-everywhere.js';
+export * from './intelligence/content-research-system.js';
+export * from './intelligence/social-commerce-opportunity.js';
+export * from './intelligence/funnel-learning.js';
