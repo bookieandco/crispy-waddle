@@ -16,6 +16,7 @@ async function run(request:NextRequest){
     heliusRpcUrl:process.env.HELIUS_RPC_URL,
     heliusApiKey:process.env.HELIUS_API_KEY,
     coinGeckoApiKey:process.env.COINGECKO_API_KEY,
+    publicOrigin:process.env.SHARK_PUBLIC_ORIGIN ?? request.nextUrl.origin,
   })
   return NextResponse.json({ok:receipt.passed,receipt},{status:receipt.passed?200:503})
 }
