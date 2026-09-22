@@ -17,6 +17,7 @@ export interface ObjectDetectionObservationInput {
   modelId: string;
   observedAt: string;
   frame: number;
+  fps: number;
   imageWidth: number;
   imageHeight: number;
   predictions: readonly ObjectDetectionPrediction[];
@@ -51,6 +52,8 @@ function normalizedBounds(
 export function objectDetectionsToVisualEvidence(
   input: ObjectDetectionObservationInput,
 ): VisualAnnotationEvidence {
+  if (!Number.isFinite(input.fps) || input.fps <= 0) throw new Error('DIRECTOR_OBJECT_DETECTION_FPS_INVALID');
+  if (!Number.isInteger(input.frame) || input.frame < 0) throw new Error('DIRECTOR_OBJECT_DETECTION_FRAME_INVALID');
   const allow = input.allowedClasses ? new Set(input.allowedClasses) : undefined;
   const protectedRegions: VisualRegion[] = input.predictions.flatMap((prediction, index) => {
     if (!prediction.className.trim()) return [];
@@ -61,8 +64,8 @@ export function objectDetectionsToVisualEvidence(
     return [{
       id: `${input.id}:prediction:${index}`,
       kind: 'critical-object',
-      startSeconds: input.frame,
-      endSeconds: input.frame + 1,
+      startSeconds: input.frame / input.fps,
+      endSeconds: (input.frame + 1) / input.fps,
       bounds,
       confidence: prediction.confidence,
       trackId: `${input.modelId}:${prediction.className}`,
