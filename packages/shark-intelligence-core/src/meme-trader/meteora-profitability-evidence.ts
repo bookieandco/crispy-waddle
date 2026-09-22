@@ -19,6 +19,8 @@ export type MeteoraDlmmProfitabilityEvidence=Readonly<{
   withdrawalsMinor:bigint
   feesMinor:bigint
   netCashFlowMinor:bigint
+  cashFlowEstimateMinor:bigint
+  profitabilityLabel:'OBSERVED_CASH_FLOW'|'ESTIMATED_PROFITABILITY'
   realizedPnlMinor:bigint|null
   realizationStatus:'CLOSED_COMPLETE'|'PROVISIONAL_OPEN'|'PROVISIONAL_INCOMPLETE'
   impermanentLossMinor:null
@@ -68,6 +70,8 @@ export function reconcileMeteoraDlmmCashFlowProfitability(input:{
     withdrawalsMinor,
     feesMinor,
     netCashFlowMinor,
+    cashFlowEstimateMinor:netCashFlowMinor,
+    profitabilityLabel:realizationStatus==='CLOSED_COMPLETE'?'OBSERVED_CASH_FLOW':'ESTIMATED_PROFITABILITY',
     realizedPnlMinor:realizationStatus==='CLOSED_COMPLETE'?netCashFlowMinor:null,
     realizationStatus,
     // True impermanent loss requires a counterfactual HODL benchmark at matched

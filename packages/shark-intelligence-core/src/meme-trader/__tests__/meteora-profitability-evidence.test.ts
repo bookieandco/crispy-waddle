@@ -15,6 +15,7 @@ describe('Meteora DLMM profitability evidence',()=>{
   expect(r.netCashFlowMinor).toBe(12000n)
   expect(r.realizedPnlMinor).toBe(12000n)
   expect(r.realizationStatus).toBe('CLOSED_COMPLETE')
+  expect(r.profitabilityLabel).toBe('OBSERVED_CASH_FLOW')
   expect(r.authority).toBe('RESEARCH_ONLY')
  })
 
@@ -26,6 +27,7 @@ describe('Meteora DLMM profitability evidence',()=>{
   expect(r.netCashFlowMinor).toBe(-99000n)
   expect(r.realizedPnlMinor).toBeNull()
   expect(r.realizationStatus).toBe('PROVISIONAL_OPEN')
+  expect(r.profitabilityLabel).toBe('ESTIMATED_PROFITABILITY')
  })
 
  it('refuses to manufacture impermanent loss without a HODL benchmark',()=>{

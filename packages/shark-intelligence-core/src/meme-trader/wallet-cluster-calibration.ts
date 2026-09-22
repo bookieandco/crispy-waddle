@@ -3,6 +3,9 @@ export type WalletClusterOutcome='HEALTHY'|'ADVERSE'|'UNKNOWN'
 export type WalletClusterCalibrationObservation=Readonly<{
   observationId:string
   tokenId:string
+  chainId?:string
+  venue?:string
+  normalizationSchema?:string
   distinctWallets:number
   windowSeconds:number
   aggregateWalletScore:number
@@ -30,6 +33,9 @@ export type WalletClusterCalibrationRow=Readonly<{
   healthyRate:number|null
   adverseRate:number|null
   medianWalletCount:number|null
+  chainIds:readonly string[]
+  venues:readonly string[]
+  normalizationSchemas:readonly string[]
   evidenceIds:readonly string[]
   authority:'RESEARCH_ONLY'
   canSelectProductionThreshold:false
@@ -101,6 +107,9 @@ export function evaluateWalletClusterThresholdSensitivity(input:{
       healthyRate:labeled.length?ratio(healthy,labeled.length):null,
       adverseRate:labeled.length?ratio(adverse,labeled.length):null,
       medianWalletCount:median(matched.map(o=>o.distinctWallets)),
+      chainIds:Object.freeze([...new Set(matched.map(o=>o.chainId).filter((v):v is string=>Boolean(v)))].sort()),
+      venues:Object.freeze([...new Set(matched.map(o=>o.venue).filter((v):v is string=>Boolean(v)))].sort()),
+      normalizationSchemas:Object.freeze([...new Set(matched.map(o=>o.normalizationSchema).filter((v):v is string=>Boolean(v)))].sort()),
       evidenceIds:Object.freeze([...new Set(matched.flatMap(o=>o.evidenceIds))].sort()),
       authority:'RESEARCH_ONLY' as const,
       canSelectProductionThreshold:false as const,
