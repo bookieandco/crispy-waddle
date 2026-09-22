@@ -9,6 +9,7 @@ import {
   validateGenerativeExtendRequest,
 } from './generative-extend';
 import type { TimelineClip } from './timeline-model';
+import { planReferenceCharacterVideo } from './reference-character-video';
 
 describe('reference-character bootstrap and generative extension', () => {
   it('can bootstrap a reusable character identity from one uploaded reference', () => {
@@ -222,5 +223,96 @@ describe('reference-character bootstrap and generative extension', () => {
     ], policy);
 
     expect(selected?.id).toBe('candidate-2');
+  });
+  it('turns a locked uploaded character into a complete Director production plan', () => {
+    const bootstrapPlan = planCharacterReferenceBootstrap({
+      id: 'bootstrap-movie',
+      projectId: 'movie-1',
+      characterId: 'ela',
+      displayName: 'Ela',
+      archetype: 'cartoon',
+      uploads: [{
+        id: 'upload-1',
+        assetId: 'ela-source',
+        sha256: 'sha-source',
+        width: 1024,
+        height: 1024,
+        view: 'full-body',
+        rightsRef: 'rights:client-provided',
+        evidenceIds: ['upload-admission:1'],
+      }],
+      buildMotionProbes: true,
+      commercialUse: true,
+    });
+
+    const cast = {
+      id: 'cast-ela',
+      projectId: 'movie-1',
+      characterId: 'ela',
+      displayName: 'Ela',
+      archetype: 'cartoon' as const,
+      continuityRef: bootstrapPlan.continuityRef,
+      canonicalAppearanceVariantId: 'ela-base',
+      appearanceVariants: [{
+        id: 'ela-base',
+        characterId: 'ela',
+        kind: 'base' as const,
+        label: 'Base',
+        referenceAssetIds: ['ela-source'],
+        referenceSha256s: ['sha-source'],
+        approvedAt: '2026-09-22T00:00:00Z',
+        approvedBy: 'user-1',
+      }],
+      voice: {
+        voiceIdentityId: 'voice-ela',
+        primaryLanguage: 'en',
+        defaultVariantId: 'voice-ela-en',
+      },
+      lockedTraits: ['canonical face', 'canonical proportions'],
+      approvedAt: '2026-09-22T00:00:00Z',
+      approvedBy: 'user-1',
+    };
+
+    const plan = planReferenceCharacterVideo({
+      id: 'movie-plan-1',
+      projectId: 'movie-1',
+      prompt: 'Create a short story about Ela learning beekeeping.',
+      intent: {
+        mode: 'standard',
+        prompt: 'Create a short story about Ela learning beekeeping.',
+        aspectRatio: '16:9',
+        targetDurationSeconds: 90,
+        narration: true,
+        captions: true,
+        foley: true,
+        commercialSafeOnly: true,
+        providerPolicy: { localFreeFirst: true, allowPaidWithoutApproval: false },
+      },
+      bootstrapPlan,
+      cast,
+      defaultAppearanceVariantId: 'ela-base',
+      dialogueRequired: true,
+      targetLanguages: ['en', 'es'],
+    });
+
+    expect(plan.characterId).toBe('ela');
+    expect(plan.continuityRef).toBe('character:ela:v1');
+    expect(plan.targetLanguages).toEqual(['en', 'es']);
+    expect(plan.stages).toEqual(expect.arrayContaining([
+      'character-bootstrap',
+      'cast-lock',
+      'script',
+      'storyboard',
+      'take-generation',
+      'take-selection',
+      'dialogue',
+      'voice-sync',
+      'foley',
+      'score',
+      'edit',
+      'render',
+      'qc',
+      'preview',
+    ]));
   });
 });
