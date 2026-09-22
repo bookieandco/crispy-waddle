@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildBrokerShortlist, evaluateSamSubcontractability, expandProviderTaxonomy, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
 import { getSamApiKey } from './sam-config'
+import { searchCanadaImporterProviders, searchConfiguredCanadaOdbusProviders, searchDenueProviders } from './foreign-provider-sources'
 
 const rows=(x:unknown):Record<string,unknown>[]=>Array.isArray(x)?x.filter((v):v is Record<string,unknown>=>Boolean(v&&typeof v==='object')):[]
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
@@ -179,8 +180,14 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
   let entityRequestsRemaining=Number.isFinite(requestedEntityBudget)?Math.max(0,Math.min(Math.floor(requestedEntityBudget),10)):2
   const requestedSpendingBudget=Number(process.env.USASPENDING_REQUEST_BUDGET_PER_ENRICHMENT??6)
   let spendingRequestsRemaining=Number.isFinite(requestedSpendingBudget)?Math.max(0,Math.min(Math.floor(requestedSpendingBudget),30)):6
+  const requestedDenueBudget=Number(process.env.DENUE_SEARCH_BUDGET_PER_ENRICHMENT??2)
+  let denueSearchesRemaining=Number.isFinite(requestedDenueBudget)?Math.max(0,Math.min(Math.floor(requestedDenueBudget),10)):2
+  const requestedCanadaBudget=Number(process.env.CANADA_SEARCH_BUDGET_PER_ENRICHMENT??2)
+  let canadaSearchesRemaining=Number.isFinite(requestedCanadaBudget)?Math.max(0,Math.min(Math.floor(requestedCanadaBudget),10)):2
   const entityNaicsCache=new Map<string,RuntimeProvider[]>()
   const spendingCache=new Map<string,RuntimeProvider[]>()
+  const denueCache=new Map<string,RuntimeProvider[]>()
+  const canadaCache=new Map<string,RuntimeProvider[]>()
 
   for(const noticeId of noticeIds){
     const {data:analysis}=await client.from('jhadina_sam_analysis').select('requirements,subcontractability').eq('notice_id',noticeId).maybeSingle()
@@ -248,6 +255,38 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
           requirementPools.push(awards)
         }
 
+        if(process.env.INEGI_DENUE_TOKEN?.trim()&&expansion.keywords.length&&denueSearchesRemaining>0){
+          const terms=expansion.keywords.slice(0,3)
+          const cacheKey=`denue:${terms.join('|').toLowerCase()}`
+          let providers=denueCache.get(cacheKey)
+          if(!providers){
+            denueSearchesRemaining-=1
+            try{providers=await searchDenueProviders({keywords:terms,limit:maxProvidersPerNotice}) as RuntimeProvider[]}
+            catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'DENUE provider discovery failed'}`);providers=[]}
+            denueCache.set(cacheKey,providers)
+          }
+          if(providers.length)requirementPools.push(providers)
+        }
+
+        if(expansion.keywords.length&&canadaSearchesRemaining>0){
+          const terms=expansion.keywords.slice(0,3)
+          const cacheKey=`canada:${expansion.naicsCodes.slice(0,2).join(',')}:${terms.join('|').toLowerCase()}`
+          let providers=canadaCache.get(cacheKey)
+          if(!providers){
+            canadaSearchesRemaining-=1
+            const discovered:RuntimeProvider[]=[]
+            try{
+              discovered.push(...await searchCanadaImporterProviders({keywords:terms,limit:maxProvidersPerNotice}) as RuntimeProvider[])
+            }catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'Canadian importer discovery failed'}`)}
+            try{
+              discovered.push(...await searchConfiguredCanadaOdbusProviders({keywords:terms,naicsCodes:expansion.naicsCodes.slice(0,2),limit:maxProvidersPerNotice}) as RuntimeProvider[])
+            }catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'Statistics Canada business discovery failed'}`)}
+            providers=mergeProviderPools(discovered)
+            canadaCache.set(cacheKey,providers)
+          }
+          if(providers.length)requirementPools.push(providers)
+        }
+
         pool=mergeProviderPools(pool,...requirementPools)
       }
 
@@ -281,5 +320,5 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
       notices+=1
     }catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'provider discovery failed'}`)}
   }
-  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,usaspending:spendingRequestsRemaining}}
+  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,usaspending:spendingRequestsRemaining,denue:denueSearchesRemaining,canada:canadaSearchesRemaining}}
 }
