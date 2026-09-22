@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assessBinaryCreativeExperiment,
   buildCreativeExperimentFeatureRows,
+  promoteSupportedCreativeExperimentToEvidence,
   type BinaryCreativeExperiment,
 } from "./creative-ab-experiment.js";
 
@@ -107,6 +108,46 @@ describe("creative A/B experiment evaluator", () => {
 
     expect(result.status).toBe("statistically_supported_but_economically_weak");
     expect(result.decision).toBe("do_not_scale_treatment");
+  });
+
+  it("promotes only statistically and economically supported treatment into first-party creative evidence", () => {
+    const assessment = assessBinaryCreativeExperiment({
+      experiment,
+      observations: [
+        {
+          variantId: "creative:control",
+          exposures: 5000,
+          conversions: 250,
+          spend: 1500,
+          contributionMargin: 4000,
+          observedAt: "2026-09-22T18:00:00.000Z",
+          evidenceRefs: ["meta:control"],
+        },
+        {
+          variantId: "creative:treatment",
+          exposures: 5000,
+          conversions: 340,
+          spend: 1550,
+          contributionMargin: 4700,
+          observedAt: "2026-09-22T18:00:00.000Z",
+          evidenceRefs: ["meta:treatment"],
+        },
+      ],
+    });
+
+    const evidence = promoteSupportedCreativeExperimentToEvidence({
+      assessment,
+      bigIdea: "Compression demo beats generic organization message",
+      observedAt: "2026-09-22T19:00:00.000Z",
+      spend: 1550,
+      conversions: 340,
+      contributionMargin: 4700,
+      sourceRefs: ["meta-campaign:test-1"],
+    });
+
+    expect(evidence.evidenceClass).toBe("first_party_performance");
+    expect(evidence.sourceRefs).toContain("experiment:experiment:creative-1");
+    expect(evidence.contributionMargin).toBe(4700);
   });
 
   it("preserves strata for downstream regression or ML without treating model output as causal authority", () => {
