@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assessGrowthEvidenceFeedHealth,
   assertGrowthEvidenceHealthyForLearning,
+  buildGrowthEvidenceMonitorPlan,
 } from "./evidence-health.js";
 
 describe("growth evidence feed health", () => {
@@ -52,6 +53,32 @@ describe("growth evidence feed health", () => {
     expect(() => assertGrowthEvidenceHealthyForLearning(assessment)).toThrow(
       /GROWTH_EVIDENCE_NOT_HEALTHY_FOR_LEARNING/,
     );
+  });
+
+  it("creates blocking monitor coverage for revenue/conversion truth", () => {
+    const plan = buildGrowthEvidenceMonitorPlan({
+      assetRef: "growth:meta:attribution",
+      criticality: "high",
+      carriesRevenueOrConversionTruth: true,
+      producedByAgent: false,
+    });
+
+    expect(plan.incidentPolicy).toBe("block_learning");
+    expect(plan.requirements.find((item) => item.type === "freshness")?.required).toBe(true);
+    expect(plan.requirements.find((item) => item.type === "validation")?.required).toBe(true);
+    expect(plan.requirements.find((item) => item.type === "lineage")?.required).toBe(true);
+  });
+
+  it("adds agent-trace monitoring only when an AI agent produces the evidence", () => {
+    const plan = buildGrowthEvidenceMonitorPlan({
+      assetRef: "growth:research-agent",
+      criticality: "medium",
+      carriesRevenueOrConversionTruth: false,
+      producedByAgent: true,
+    });
+
+    expect(plan.requirements.find((item) => item.type === "agent_trace")?.required).toBe(true);
+    expect(plan.incidentPolicy).toBe("degrade_learning");
   });
 
   it("degrades but does not block when monitoring is partial and an upstream warning exists", () => {
