@@ -7,6 +7,7 @@ import {
   certifyMoneyProdFinal,
   certifyMoneyShadowSoak,
   createMoneyProductionCommissioningReceipt,
+  createMoneyProductionPlatformReceipt,
   type MoneyProductionCommissioningReceipt,
   type MoneyProductionLane,
 } from './money-production-commissioning.js'
@@ -28,6 +29,11 @@ const soak=(overrides:Record<string,Partial<{sampleSize:number;resolvedSampleSiz
   minimumSamplesPerLane:50,minimumResolutionRateBps:9000,maximumDrawdownBps:1500,
 })
 
+const platform=()=>[
+  createMoneyProductionPlatformReceipt({kind:'DATABASE_SCHEMA',environment:'LIVE',passed:true,recordedAt:at,evidenceIds:['db:schema'],issuer:'OPERATIONS'}),
+  createMoneyProductionPlatformReceipt({kind:'PRODUCTION_DEPLOYMENT',environment:'LIVE',passed:true,revision:'main:test',recordedAt:at,evidenceIds:['vercel:deploy'],issuer:'OPERATIONS'}),
+]
+
 const receipt=(lane:MoneyProductionLane,kind:MoneyProductionCommissioningReceipt['kind'],provider:string,environment:MoneyProductionCommissioningReceipt['environment']='LIVE')=>
   createMoneyProductionCommissioningReceipt({lane,kind,provider,environment,passed:true,recordedAt:at,evidenceIds:[lane+':'+kind],issuer:kind==='SOFTWARE_CERTIFICATION'?'MONEY_CERTIFICATION':'OPERATIONS'})
 
@@ -42,7 +48,7 @@ test('MONEY-PROD.1 shadow soak rejects leakage, unresolved execution and truth c
 
 test('MONEY-PROD.2 software certification alone produces external commissioning required',()=>{
   const receipts=MONEY_PROD_REQUIRED_LANES.map(lane=>receipt(lane,'SOFTWARE_CERTIFICATION','jhadina','SHADOW'))
-  const report=certifyMoneyProdFinal({receipts,shadowSoak:soak(),generatedAt:at})
+  const report=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:platform(),generatedAt:at})
   assert.equal(report.softwareComplete,true)
   assert.equal(report.productionAccepted,false)
   assert.equal(report.status,'SOFTWARE_COMPLETE_EXTERNAL_COMMISSIONING_REQUIRED')
@@ -61,7 +67,7 @@ test('MONEY-PROD.3 Finnhub market data can satisfy evidence but never forex exec
     receipt('SHARK_MEME','SOFTWARE_CERTIFICATION','jhadina','SHADOW'),
     receipt('SPORTS_BETTING','SOFTWARE_CERTIFICATION','jhadina','SHADOW'),
   ]
-  const report=certifyMoneyProdFinal({receipts,shadowSoak:soak(),generatedAt:at})
+  const report=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:platform(),generatedAt:at})
   const fx=report.lanes.find(x=>x.lane==='FOREX')!
   assert.ok(fx.reasonCodes.includes('FINNHUB_CANNOT_EXECUTE'))
   assert.notEqual(fx.status,'LIVE_ACCEPTED')
@@ -79,7 +85,7 @@ test('MONEY-PROD.4 every lane requires independent live receipts before final ac
     receipts.push(receipt(lane,'RECONCILIATION',provider[lane]))
     receipts.push(receipt(lane,'KILL_SWITCH',provider[lane]))
   }
-  const report=certifyMoneyProdFinal({receipts,shadowSoak:soak(),generatedAt:at})
+  const report=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:platform(),generatedAt:at})
   assert.equal(report.status,'PRODUCTION_ACCEPTED')
   assert.equal(report.productionAccepted,true)
   assert.ok(report.lanes.every(x=>x.status==='LIVE_ACCEPTED'))
@@ -87,7 +93,7 @@ test('MONEY-PROD.4 every lane requires independent live receipts before final ac
   assert.equal(report.canExecute,false)
 
   const withoutSportsKill=receipts.filter(x=>!(x.lane==='SPORTS_BETTING'&&x.kind==='KILL_SWITCH'))
-  const blocked=certifyMoneyProdFinal({receipts:withoutSportsKill,shadowSoak:soak(),generatedAt:at})
+  const blocked=certifyMoneyProdFinal({receipts:withoutSportsKill,shadowSoak:soak(),platformReceipts:platform(),generatedAt:at})
   assert.equal(blocked.productionAccepted,false)
   assert.ok(blocked.blockers.includes('SPORTS_BETTING:BETTING_KILL_SWITCH_DRILL_REQUIRED'))
 })
@@ -96,7 +102,7 @@ test('MONEY-PROD.5 certification receipts cannot carry execution authority',()=>
   const r=receipt('STOCK','SOFTWARE_CERTIFICATION','jhadina','SHADOW')
   assert.equal(r.authority,'CERTIFICATION_ONLY');assert.equal(r.canExecute,false)
   const invalid={...r,authority:'EXECUTION' as const}
-  assert.throws(()=>certifyMoneyProdFinal({receipts:[invalid as never],shadowSoak:soak(),generatedAt:at}),/RECEIPT_AUTHORITY_FORBIDDEN/)
+  assert.throws(()=>certifyMoneyProdFinal({receipts:[invalid as never],shadowSoak:soak(),platformReceipts:platform(),generatedAt:at}),/RECEIPT_AUTHORITY_FORBIDDEN/)
 })
 
 test('MONEY-PROD.6 commissioning migration is service-role only and stores no secrets',()=>{
@@ -106,4 +112,18 @@ test('MONEY-PROD.6 commissioning migration is service-role only and stores no se
   assert.match(migration,/REVOKE ALL ON money_production_commissioning_receipts FROM authenticated/)
   assert.match(migration,/GRANT SELECT, INSERT, DELETE ON money_production_commissioning_receipts TO service_role/)
   assert.doesNotMatch(migration,/private_key|secret_key|api_key|access_token/i)
+})
+
+test('MONEY-PROD.7 platform deployment and schema are independently required',()=>{
+  const receipts=MONEY_PROD_REQUIRED_LANES.flatMap(lane=>{
+    const provider:Record<MoneyProductionLane,string>={STOCK:'alpaca',FOREX:'fx-broker',SHARK_MEME:'dex-router',SPORTS_BETTING:'sportsbook-provider'}
+    const rows=[receipt(lane,'SOFTWARE_CERTIFICATION','jhadina','SHADOW')]
+    if(lane==='FOREX')rows.push(receipt(lane,'MARKET_DATA','finnhub','LIVE'))
+    rows.push(receipt(lane,'PROVIDER_CONFIGURATION',provider[lane]),receipt(lane,'CREDENTIAL_VERIFICATION',provider[lane]),receipt(lane,'LIVE_CANARY',provider[lane]),receipt(lane,'RECONCILIATION',provider[lane]),receipt(lane,'KILL_SWITCH',provider[lane]))
+    return rows
+  })
+  const noPlatform=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:[],generatedAt:at})
+  assert.equal(noPlatform.productionAccepted,false)
+  assert.ok(noPlatform.blockers.includes('PLATFORM:COMMISSIONING_DATABASE_SCHEMA_REQUIRED'))
+  assert.ok(noPlatform.blockers.includes('PLATFORM:CURRENT_PRODUCTION_DEPLOYMENT_REQUIRED'))
 })
