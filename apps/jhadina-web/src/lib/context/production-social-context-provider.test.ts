@@ -93,6 +93,29 @@ describe("Production Social context provider", () => {
     expect(context?.provenance.some((ref) => ref.id === "social-context:character-profiles")).toBe(true)
   })
 
+  it("does not query Social for an unrelated Ask Jhadina task", async () => {
+    let reads = 0
+    const guarded = {
+      listAccounts: async () => { reads += 1; return accounts },
+      listProposals: async () => { reads += 1; return proposals },
+      listOutbox: async () => { reads += 1; return outbox },
+      listObservations: async () => { reads += 1; return observations },
+    } as unknown as SocialRepository
+
+    const provider = new ProductionSocialContextProvider({
+      repository: guarded,
+      now: () => new Date("2026-09-22T12:00:00.000Z"),
+    })
+
+    const context = await provider.getContext({
+      userId: "user-1",
+      activeTask: "What is on my calendar tomorrow?",
+    })
+
+    expect(context).toBeUndefined()
+    expect(reads).toBe(0)
+  })
+
   it("degrades honestly when repository reads fail instead of inventing empty healthy state", async () => {
     const broken = {
       listAccounts: async () => { throw new Error("down") },
