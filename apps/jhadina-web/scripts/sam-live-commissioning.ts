@@ -13,6 +13,7 @@ function mmddyyyy(date:Date){
 }
 
 async function main(){
+  console.log(JSON.stringify({phase:'sam-live-commissioning',version:1,runtimeBound:false}))
   // SAM_GOV_API_KEY is consumed by the existing server-side SAM client.
   required('SAM_GOV_API_KEY')
   const supabaseUrl=required('NEXT_PUBLIC_SUPABASE_URL')
