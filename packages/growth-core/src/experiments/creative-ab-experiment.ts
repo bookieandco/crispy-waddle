@@ -1,5 +1,9 @@
 import type { GrowthId, ISODateTime } from "../domain/types.js";
 import type { CreativeEvidenceSignal } from "../intelligence/creative-evidence-engine.js";
+import {
+  assertGrowthEvidenceHealthyForLearning,
+  type GrowthEvidenceFeedHealthAssessment,
+} from "../evidence/evidence-health.js";
 
 export interface BinaryCreativeVariantObservation {
   variantId: GrowthId;
@@ -293,7 +297,9 @@ export function promoteSupportedCreativeExperimentToEvidence(input: {
   conversions: number;
   contributionMargin: number;
   sourceRefs?: readonly string[];
+  dataHealth: GrowthEvidenceFeedHealthAssessment;
 }): CreativeEvidenceSignal {
+  assertGrowthEvidenceHealthyForLearning(input.dataHealth);
   if (input.assessment.status !== "statistically_supported"
     || input.assessment.decision !== "promote_treatment_for_next_test") {
     throw new Error("GROWTH_AB_NOT_PROMOTABLE");
@@ -315,6 +321,8 @@ export function promoteSupportedCreativeExperimentToEvidence(input: {
     sourceRefs: Object.freeze([
       ...input.assessment.evidenceRefs,
       ...(input.sourceRefs ?? []),
+      `data-health:${input.dataHealth.id}`,
+      ...input.dataHealth.evidenceRefs,
       `experiment:${input.assessment.experimentId}`,
       `variant:${input.assessment.treatmentVariantId}`,
     ]),

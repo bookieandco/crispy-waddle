@@ -50,3 +50,5 @@ export * from './intelligence/funnel-learning.js';
 export * from './intelligence/research-backed-meta-creative.js';
 
 export * from './experiments/creative-ab-experiment.js';
+
+export * from './evidence/evidence-health.js';
