@@ -77,6 +77,7 @@ export async function POST(request: Request) {
     .from('director_reference_media_assets')
     .select('id,project_id,mime_type,byte_size,width,height,sha256,view_hint,admission_status,scan_status')
     .eq('project_id', projectId)
+    .eq('reference_kind', 'character')
     .eq('sha256', sha256)
     .maybeSingle();
 
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
     width: inspection.width,
     height: inspection.height,
     sha256,
+    reference_kind: 'character',
     view_hint: viewHint,
     rights_ref: rightsRef,
     consent_ref: consentRef || null,
