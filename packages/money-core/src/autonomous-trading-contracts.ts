@@ -153,7 +153,7 @@ export type AutonomousCertificationReport=Readonly<{
   passed:boolean
   mode:'LIVE_AUTONOMOUS'
   authority:'CERTIFICATION_ONLY'
-  autonomousTradingEnabled:true
+  autonomousTradingEnabled:boolean
   hardRiskLimitsMutableByModel:false
 }>
 
