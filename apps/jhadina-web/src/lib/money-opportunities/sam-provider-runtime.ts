@@ -1,10 +1,31 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buildBrokerShortlist, type BrokerProviderCandidate, type BrokerRequirement } from '@jhadina/opportunity-core'
+import { buildBrokerShortlist, evaluateSamSubcontractability, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
 import { getSamApiKey } from './sam-config'
 
 const rows=(x:unknown):Record<string,unknown>[]=>Array.isArray(x)?x.filter((v):v is Record<string,unknown>=>Boolean(v&&typeof v==='object')):[]
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
 const key=(name:string)=>name.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,120)
+function complianceInput(value:unknown):SubcontractabilityInput|null{
+  if(!value||typeof value!=='object')return null
+  const root=value as Record<string,unknown>
+  const raw=root.evaluationInput
+  if(!raw||typeof raw!=='object')return null
+  const x=raw as Record<string,unknown>
+  const agencyKind=x.agencyKind
+  const contractKind=x.contractKind
+  const isFood=x.isFood
+  const clauses=Array.isArray(x.clauses)?x.clauses.filter((v):v is string=>typeof v==='string'):[]
+  if(!['dod','civilian','unknown'].includes(String(agencyKind)))return null
+  if(!['service','supply','general_construction','specialty_construction','mixed','unknown'].includes(String(contractKind)))return null
+  if(typeof isFood!=='boolean')return null
+  return {
+    agencyKind:agencyKind as SubcontractabilityInput['agencyKind'],
+    contractKind:contractKind as SubcontractabilityInput['contractKind'],
+    isFood,
+    clauses,
+    ...(typeof x.setAside==='string'?{setAside:x.setAside}:{}),
+  }
+}
 function isoDate(d:Date){return d.toISOString().slice(0,10)}
 async function usaSpendingProviders(naics:string,limit=30):Promise<BrokerProviderCandidate[]>{
   const end=new Date(),start=new Date(Date.UTC(end.getUTCFullYear()-5,end.getUTCMonth(),end.getUTCDate()))
@@ -42,10 +63,12 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
   let notices=0,candidates=0
   const errors:string[]=[]
   for(const noticeId of noticeIds){
-    const {data:analysis}=await client.from('jhadina_sam_analysis').select('requirements').eq('notice_id',noticeId).maybeSingle()
+    const {data:analysis}=await client.from('jhadina_sam_analysis').select('requirements,subcontractability').eq('notice_id',noticeId).maybeSingle()
     const {data:catalog}=await client.from('jhadina_sam_catalog').select('naics_codes').eq('notice_id',noticeId).maybeSingle()
     if(!analysis||!catalog)continue
-    const rawReq=Array.isArray((analysis as Record<string,unknown>).requirements)?((analysis as Record<string,unknown>).requirements as Record<string,unknown>[]):[]
+    const analysisRow=analysis as Record<string,unknown>
+    const rawReq=Array.isArray(analysisRow.requirements)?(analysisRow.requirements as Record<string,unknown>[]):[]
+    const complianceBase=complianceInput(analysisRow.subcontractability)
     const naics=Array.isArray((catalog as Record<string,unknown>).naics_codes)?((catalog as Record<string,unknown>).naics_codes as string[]):[]
     const requirements:BrokerRequirement[]=rawReq.length?rawReq.map((r,i)=>({id:text(r.id)||`${noticeId}:req:${i+1}`,label:text(r.label)||'contract requirement',naicsCodes:Array.isArray(r.naicsCodes)?r.naicsCodes.filter((x):x is string=>typeof x==='string'):naics,keywords:Array.isArray(r.keywords)?r.keywords.filter((x):x is string=>typeof x==='string'):[]})):[{id:`${noticeId}:scope`,label:'solicitation scope',naicsCodes:naics}]
     const primaryNaics=naics[0]||requirements.flatMap(r=>r.naicsCodes??[])[0]
@@ -60,7 +83,32 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
       for(const group of shortlist)for(const assessment of group.candidates.slice(0,maxProvidersPerNotice)){
         const p=pool.find(x=>x.id===assessment.providerId);if(!p)continue
         const ext=p as BrokerProviderCandidate & {_uei?:string;_cage?:string}
-        inserts.push({notice_id:noticeId,requirement_id:group.intent.requirementId,provider_key:key(p.legalName),provider_name:p.legalName,country:p.country??null,uei:ext._uei??null,cage:ext._cage??null,naics_codes:p.naicsCodes,score:assessment.score,status:assessment.status,sources:p.evidence.map(e=>e.source),evidence:p.evidence,discovered_at:new Date().toISOString()})
+        const compliance=complianceBase
+          ?evaluateSamSubcontractability({...complianceBase,providerCountry:p.country})
+          :null
+        const finalStatus=compliance?.status==='blocked'
+          ?'blocked'
+          :compliance&&(compliance.status==='conditional'||compliance.status==='review_required')&&assessment.status==='candidate'
+            ?'review_required'
+            :assessment.status
+        const evidence=compliance
+          ?[...p.evidence,{id:`subcontractability:${noticeId}:${key(p.legalName)}`,source:'subcontractability',decision:compliance}]
+          :p.evidence
+        inserts.push({
+          notice_id:noticeId,
+          requirement_id:group.intent.requirementId,
+          provider_key:key(p.legalName),
+          provider_name:p.legalName,
+          country:p.country??null,
+          uei:ext._uei??null,
+          cage:ext._cage??null,
+          naics_codes:p.naicsCodes,
+          score:assessment.score,
+          status:finalStatus,
+          sources:p.evidence.map(e=>e.source),
+          evidence,
+          discovered_at:new Date().toISOString(),
+        })
       }
       if(inserts.length){
         const {error}=await client.from('jhadina_sam_provider_candidates').upsert(inserts,{onConflict:'notice_id,requirement_id,provider_key'})
