@@ -181,6 +181,12 @@ export function evaluateSideHustleExperiment(input: {
   if (!['running', 'completed'].includes(experiment.status)) {
     throw new Error('Experiment must be running or completed before evaluation')
   }
+  if (experiment.startedAt && Date.parse(input.evaluatedAt) < Date.parse(experiment.startedAt)) {
+    throw new Error('Experiment cannot be evaluated before it started')
+  }
+  if (input.observations.some((observation) => Date.parse(observation.observedAt) > Date.parse(input.evaluatedAt))) {
+    throw new Error('Experiment evaluation cannot include future observations')
+  }
 
   const observations = input.observations.map((observation) =>
     recordSideHustleExperimentObservation({
