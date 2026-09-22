@@ -10,18 +10,18 @@ export async function GET(req: NextRequest) {
   try {
     const verifier = await createRequestIdentityVerifier()
     const identity = await verifier.verify({})
-    if (req.nextUrl.searchParams.get("discover") === "hootsuite") {
-      const provider = createSocialProviderForUser(identity.userId, "hootsuite")
+    const providerName = req.nextUrl.searchParams.get("discover")
+    if (providerName) {
+      const provider = createSocialProviderForUser(identity.userId, providerName)
       const profiles = await provider.discoverProfiles()
       return NextResponse.json({ success: true, provider: provider.name, data: profiles })
     }
     const accounts = await createSocialRepository().listAccounts(identity.userId)
     return NextResponse.json({ success: true, data: accounts })
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Unable to load social accounts" },
-      { status: 401 },
-    )
+    const message = error instanceof Error ? error.message : "Unable to load social accounts"
+    const status = message.includes("OWNER") || message.includes("Authenticated") || message.includes("session") ? 401 : 400
+    return NextResponse.json({ success: false, error: message }, { status })
   }
 }
 
@@ -29,7 +29,11 @@ export async function POST(req: NextRequest) {
   try {
     const verifier = await createRequestIdentityVerifier()
     const identity = await verifier.verify({})
-    const body = await req.json() as { brand?: JhadinaBrand; providerProfileId?: string }
+    const body = await req.json() as {
+      brand?: JhadinaBrand
+      provider?: string
+      providerProfileId?: string
+    }
     if (!body.brand || !body.providerProfileId) {
       return NextResponse.json(
         { success: false, error: "brand and providerProfileId are required" },
@@ -37,7 +41,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const provider = createSocialProviderForUser(identity.userId, "hootsuite")
+    const providerName = body.provider?.trim() || "hootsuite"
+    const provider = createSocialProviderForUser(identity.userId, providerName)
     const profiles = await provider.discoverProfiles()
     const profile = profiles.find((candidate) => candidate.id === body.providerProfileId)
     if (!profile) {
