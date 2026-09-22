@@ -260,3 +260,21 @@ console.log('side hustle validation experiment tests passed')
     /requires completedAt/,
   )
 }
+
+
+{
+  let experiment = startSideHustleExperiment(experimentFixture(), '2026-09-22T16:00:00.000Z')
+  experiment = completeSideHustleExperiment(experiment, '2026-09-24T15:00:00.000Z')
+  const afterClose = {
+    ...observation(experiment.id, 'obs:after-close', { paid_customers: 1, reply_rate: 0.2, refund_rate: 0 }),
+    observedAt: '2026-09-25T15:00:00.000Z',
+  }
+  assert.throws(
+    () => evaluateSideHustleExperiment({
+      experiment,
+      observations: [afterClose],
+      evaluatedAt: '2026-09-26T15:00:00.000Z',
+    }),
+    /cannot include observations after completion/,
+  )
+}
