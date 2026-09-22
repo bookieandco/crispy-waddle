@@ -51,3 +51,26 @@ The Vercel account has separately reported a build-rate-limit status in this rep
 **MEDIA-PROD.FINAL repository/CI certification is COMPLETE and GREEN.**
 
 Overall production admission is **ENVIRONMENT PENDING**, rather than fully READY, until the external provider/RLS/device/deployment gates have execution evidence. Do not weaken those gates to obtain a READY label.
+
+## MEDIA-PROD.ENV execution — 2026-09-22
+
+### Deployment
+Vercel project `crispy-waddle-jhadina-web` is reachable through the connected production account and is producing READY deployments again. The earlier build-rate-limit condition is no longer preventing all builds. The latest observed production-target deployment remains on an older main SHA, so current-main production lineage is not yet admitted.
+
+### Supabase / Music RLS
+The production Jhadina Supabase project `kqbkaozfjubkjevdfvic` was inspected. The Music Core tables required by the repository were absent, so the canonical `packages/music-core/sql/001_music_core.sql` schema was applied as migration `media_prod_music_core_rls`, followed by RLS enablement and owner-only authenticated policies for all nine Music Core tables.
+
+Verified policy predicate for every Music Core table:
+`user_id = auth.uid()::text` for both visibility and write checks.
+
+This closes the missing-schema/RLS structural blocker. A two-real-user adversarial session test is still required for a runtime isolation receipt.
+
+### Admission boundary
+MEDIA-PROD.READY remains fail-closed until all of these are evidenced:
+- current-main production-target Vercel deployment,
+- two-user Supabase isolation drill,
+- one authorized real Music playback,
+- one authorized real TV playback,
+- physical iPhone background/PiP/AirPlay/Bluetooth/Cast/Homebase handoff drill.
+
+Repository/CI GREEN does not substitute for these physical/provider/environment receipts.
