@@ -83,6 +83,15 @@ export function planProductReferenceBootstrap(
     ?[...new Set(request.requestedViews)]
     :['front','back','left','right','top','bottom','detail','in-use'] as ProductBootstrapView[];
   const buildLabelCloseups=(request.requiredLabelText?.length??0)>0;
+  const stages: Array<ProductReferenceBootstrapPlan['stages'][number]> = [
+    'admit-reference',
+    'normalize',
+    'multi-view',
+    ...(buildLabelCloseups ? ['label-closeups' as const] : []),
+    'geometry',
+    'qa',
+    'lock',
+  ];
   return Object.freeze({
     id:request.id,
     projectId:request.projectId,
@@ -90,15 +99,7 @@ export function planProductReferenceBootstrap(
     canonicalUploadId:canonical.id,
     targetViews:Object.freeze(targetViews),
     buildLabelCloseups,
-    stages:Object.freeze([
-      'admit-reference',
-      'normalize',
-      'multi-view',
-      ...(buildLabelCloseups?['label-closeups' as const]:[]),
-      'geometry',
-      'qa',
-      'lock',
-    ]),
+    stages:Object.freeze(stages),
     authority:'PROPOSAL_ONLY',
   });
 }
