@@ -17,7 +17,7 @@ ON money_production_commissioning_receipts(lane, kind, recorded_at DESC);
 REVOKE ALL ON money_production_commissioning_receipts FROM PUBLIC;
 REVOKE ALL ON money_production_commissioning_receipts FROM anon;
 REVOKE ALL ON money_production_commissioning_receipts FROM authenticated;
-GRANT SELECT, INSERT, DELETE ON money_production_commissioning_receipts TO service_role;
+GRANT SELECT, INSERT ON money_production_commissioning_receipts TO service_role;
 
 ALTER TABLE money_production_commissioning_receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE money_production_commissioning_receipts FORCE ROW LEVEL SECURITY;
