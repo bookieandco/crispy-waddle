@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS money_live_canary_reservations (
 CREATE INDEX IF NOT EXISTS idx_money_live_canary_unresolved
   ON money_live_canary_state(provider,account_id,trading_date)
   WHERE cardinality(unresolved_execution_ids)>0;
+CREATE INDEX IF NOT EXISTS idx_money_live_canary_reservation_parent
+  ON money_live_canary_reservations(provider,account_id,trading_date);
 
 CREATE TABLE IF NOT EXISTS money_provider_execution_events (
   event_id TEXT PRIMARY KEY,
@@ -114,6 +116,7 @@ BEGIN
     EXECUTE format('REVOKE ALL ON TABLE %I FROM PUBLIC', t);
     EXECUTE format('REVOKE ALL ON TABLE %I FROM anon', t);
     EXECUTE format('REVOKE ALL ON TABLE %I FROM authenticated', t);
+    EXECUTE format('REVOKE ALL ON TABLE %I FROM service_role', t);
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
   END LOOP;
