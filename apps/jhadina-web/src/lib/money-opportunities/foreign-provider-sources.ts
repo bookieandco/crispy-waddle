@@ -54,45 +54,46 @@ function significantTerms(values:string[]){
 export function parseDenueProviders(body:unknown,searchTerms:string[]):BrokerProviderCandidate[]{
   if(!Array.isArray(body))return[]
   const terms=significantTerms(searchTerms)
-  return body
-    .filter((row):row is Record<string,unknown>=>Boolean(row&&typeof row==='object'))
-    .map(row=>{
-      const establishmentName=text(row.Nombre)
-      const legalName=text(row.Razon_social)||establishmentName
-      const activity=text(row.Clase_actividad)
-      const id=text(row.Id)||text(row.CLEE)||key(legalName)
-      if(!legalName)return null
-      return {
-        id:'provider:denue:'+id,
-        legalName,
-        country:'MEX',
-        naicsCodes:[],
-        keywords:uniq([establishmentName,legalName,activity,text(row.Ubicacion)]),
-        evidence:[{
-          id:'denue:'+id,
-          source:'denue' as const,
-          url:DENUE_DOC_URL,
-          details:{
-            establishmentId:text(row.Id)||null,
-            clee:text(row.CLEE)||null,
-            establishmentName:establishmentName||null,
-            legalName,
-            activity:activity||null,
-            employeeBand:text(row.Estrato)||null,
-            location:text(row.Ubicacion)||null,
-            phone:text(row.Telefono)||null,
-            email:text(row.Correo_e)||null,
-            website:text(row.Sitio_internet)||null,
-            latitude:text(row.Latitud)||null,
-            longitude:text(row.Longitud)||null,
-            classificationSystem:'SCIAN/DENUE',
-            naicsCompatibility:'review_required',
-            searchTerms:terms,
-          },
-        }],
-      } satisfies BrokerProviderCandidate
+  const out:BrokerProviderCandidate[]=[]
+  for(const value of body){
+    if(!value||typeof value!=='object')continue
+    const row=value as Record<string,unknown>
+    const establishmentName=text(row.Nombre)
+    const legalName=text(row.Razon_social)||establishmentName
+    if(!legalName)continue
+    const activity=text(row.Clase_actividad)
+    const id=text(row.Id)||text(row.CLEE)||key(legalName)
+    out.push({
+      id:'provider:denue:'+id,
+      legalName,
+      country:'MEX',
+      naicsCodes:[],
+      keywords:uniq([establishmentName,legalName,activity,text(row.Ubicacion)]),
+      evidence:[{
+        id:'denue:'+id,
+        source:'denue',
+        url:DENUE_DOC_URL,
+        details:{
+          establishmentId:text(row.Id)||null,
+          clee:text(row.CLEE)||null,
+          establishmentName:establishmentName||null,
+          legalName,
+          activity:activity||null,
+          employeeBand:text(row.Estrato)||null,
+          location:text(row.Ubicacion)||null,
+          phone:text(row.Telefono)||null,
+          email:text(row.Correo_e)||null,
+          website:text(row.Sitio_internet)||null,
+          latitude:text(row.Latitud)||null,
+          longitude:text(row.Longitud)||null,
+          classificationSystem:'SCIAN/DENUE',
+          naicsCompatibility:'review_required',
+          searchTerms:terms,
+        },
+      }],
     })
-    .filter((value):value is BrokerProviderCandidate=>Boolean(value))
+  }
+  return out
 }
 
 export async function searchDenueProviders(input:{keywords:string[];limit?:number}):Promise<BrokerProviderCandidate[]>{
