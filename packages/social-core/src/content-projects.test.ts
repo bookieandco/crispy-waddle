@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addContentDerivative, bindContentAssetMedia, contentLineage, createContentProject } from "./content-projects.js";
+import { addContentDerivative, bindContentAssetMedia, bindContentProjectCharacter, contentLineage, createContentProject } from "./content-projects.js";
 
 describe("content projects", () => {
   it("preserves one idea across derivative assets with lineage", () => {
@@ -72,6 +72,65 @@ describe("content projects", () => {
     expect(bound.bigIdeaRef).toBe(project.bigIdeaRef);
     expect(bound.assets[0].mediaRefs).toEqual(["https://media.example/director.mp4"]);
     expect(bound.assets[0].evidenceRefs).toContain("director-review:review-1");
+  });
+
+  it("binds a Social character and voice to the project lineage", () => {
+    const project = createContentProject({
+      id: "project-character",
+      brand: "atwood-bookie",
+      authorityPositionRef: "authority:atwood",
+      pillarRef: "pillar:music",
+      bigIdeaRef: "idea:identity",
+      primaryJob: "reach",
+      origin: "human_written",
+      humanSourceRefs: ["note:atwood"],
+      evidenceRefs: ["evidence:1"],
+      createdAt: "2026-09-22T12:00:00.000Z",
+      anchor: {
+        id: "asset-anchor",
+        kind: "short_video",
+        platform: "tiktok",
+        transformation: "original",
+        text: "Anchor",
+        mediaRefs: [],
+        evidenceRefs: ["evidence:1"],
+      },
+    });
+
+    const bound = bindContentProjectCharacter(project, {
+      characterProfileRef: "character:atwood-bookie",
+      voiceProfileRef: "brand-voice:atwood-bookie",
+      evidenceRefs: ["character:atwood-bookie", "voice-profile:atwood-bookie"],
+      updatedAt: "2026-09-22T12:05:00.000Z",
+    });
+
+    expect(bound.characterProfileRef).toBe("character:atwood-bookie");
+    expect(bound.voiceProfileRef).toBe("brand-voice:atwood-bookie");
+    expect(bound.evidenceRefs).toContain("character:atwood-bookie");
+  });
+
+  it("requires character and voice refs to travel as a pair", () => {
+    expect(() => createContentProject({
+      id: "project-character-invalid",
+      brand: "atwood-bookie",
+      authorityPositionRef: "authority:atwood",
+      pillarRef: "pillar:music",
+      bigIdeaRef: "idea:identity",
+      primaryJob: "reach",
+      origin: "human_written",
+      characterProfileRef: "character:atwood-bookie",
+      humanSourceRefs: ["note:atwood"],
+      evidenceRefs: ["evidence:1"],
+      createdAt: "2026-09-22T12:00:00.000Z",
+      anchor: {
+        id: "asset-anchor",
+        kind: "short_video",
+        transformation: "original",
+        text: "Anchor",
+        mediaRefs: [],
+        evidenceRefs: ["evidence:1"],
+      },
+    })).toThrow("SOCIAL_CONTENT_CHARACTER_VOICE_PAIR_REQUIRED");
   });
 
   it("requires source evidence instead of allowing context-free filler", () => {
