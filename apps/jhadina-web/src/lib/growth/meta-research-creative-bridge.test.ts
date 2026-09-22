@@ -80,6 +80,7 @@ describe("Meta research creative production bridge", () => {
           offer: "offer:packnest:base",
           landingMessage: "landing:packnest:v1",
         },
+        experimentIdsByConceptId: { "concept:2": "meta-ab:plan:1:concept:1:vs:concept:2" },
         createdAt: "2026-09-22T18:20:00.000Z",
       },
     })
@@ -104,6 +105,58 @@ describe("Meta research creative production bridge", () => {
       offer: "offer:packnest:base",
       landingMessage: "landing:packnest:v1",
     })
+    expect(jobs[0]?.directorBrief.commercialCreative).toEqual({
+      conceptId: "concept:1",
+      productBibleId: "product-bible:packnest:v1",
+      styleBibleId: "style-bible:packnest:clean-demo:v1",
+    })
+    expect(jobs[1]?.directorBrief.commercialCreative).toEqual({
+      conceptId: "concept:2",
+      productBibleId: "product-bible:packnest:v1",
+      styleBibleId: "style-bible:packnest:clean-demo:v1",
+      experimentId: "meta-ab:plan:1:concept:1:vs:concept:2",
+    })
+    expect(jobs[1]?.directorBrief.intent).toContain("Brand voice profile: brand-voice:jhadina")
+  })
+
+  it("requires a commercial Product and Style Bible before Meta research becomes production", () => {
+    const plan = buildResearchBackedMetaAdPlan({
+      id: "plan:no-bibles",
+      brandId: "brand:packnest",
+      productId: "product:packnest",
+      productName: "PackNest",
+      productDescription: "Compression packing cubes.",
+      productTruthRefs: ["catalog:packnest:v1"],
+      patterns: patterns(),
+      createdAt: "2026-09-22T18:10:00.000Z",
+      concepts: [{
+        id: "concept:no-bibles",
+        name: "Static demo",
+        hook: "Compress more.",
+        message: "Zip and compress.",
+        visualDirection: "Original product demo.",
+        format: "static_image",
+        sourcePatternIds: ["pattern:hook"],
+        productTruthRefs: ["catalog:packnest:v1"],
+        differentiation: "Original.",
+        testHypothesis: "Test.",
+      }],
+    })
+
+    expect(() => buildMetaResearchCreativeProductionJobs({
+      plan,
+      production: {
+        brand: "jhadina",
+        authorityPositionRef: "authority:packnest",
+        pillarRef: "pillar:travel",
+        brandPointOfViewRef: "brand-pov:packnest:v1",
+        brandPointOfView: "Remove packing friction.",
+        brandPointOfViewEvidenceRefs: ["brand-strategy:packnest:v1"],
+        character: getSocialCharacterProfileForBrand("jhadina"),
+        directorProjectId: "director:packnest",
+        platform: "instagram",
+      },
+    })).toThrow("META_CREATIVE_PRODUCT_BIBLE_REQUIRED")
   })
 
   it("requires product and style identity to be supplied together", () => {

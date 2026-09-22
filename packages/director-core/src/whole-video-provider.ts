@@ -10,6 +10,21 @@ export interface WholeVideoProductionBrief {
   creativeName: string;
   style?: string;
   scenes?: readonly { text: string; searchTerms: readonly string[] }[];
+  character?: {
+    characterId: string;
+    continuityRef: string;
+    appearanceVariantId: string;
+    referenceUris: readonly string[];
+    referenceSha256s: readonly string[];
+  };
+  product?: {
+    productId: string;
+    productBibleId: string;
+    canonicalVariantId: string;
+    referenceUris: readonly string[];
+    referenceSha256s: readonly string[];
+    labelAuthorities: readonly { text: string; surface: string }[];
+  };
 }
 
 export interface WholeVideoProviderResult {
@@ -26,6 +41,10 @@ export interface WholeVideoProviderDescriptor {
   costClass: WholeVideoProviderCostClass;
   supportedModes: readonly AskVideoCreationIntent['mode'][];
   health: 'unknown' | 'healthy' | 'degraded' | 'offline';
+  supportsCharacterReference?: boolean;
+  requiresCharacterReference?: boolean;
+  supportsProductReference?: boolean;
+  requiresProductReference?: boolean;
 }
 
 export interface WholeVideoProductionProvider {
@@ -50,10 +69,19 @@ export function mapWholeVideoProviderStatus(
 export function selectWholeVideoProvider(
   providers: readonly WholeVideoProductionProvider[],
   intent: AskVideoCreationIntent,
+  requirements: { characterReference?: boolean; productReference?: boolean; paidProviderAuthorized?: boolean } = {},
 ): WholeVideoProductionProvider | undefined {
-  const compatible = providers.filter((provider) => provider.descriptor.supportedModes.includes(intent.mode));
+  const compatible = providers.filter((provider) =>
+    provider.descriptor.supportedModes.includes(intent.mode) &&
+    (!requirements.characterReference || provider.descriptor.supportsCharacterReference === true) &&
+    (!requirements.productReference || provider.descriptor.supportsProductReference === true) &&
+    (requirements.characterReference || provider.descriptor.requiresCharacterReference !== true) &&
+    (requirements.productReference || provider.descriptor.requiresProductReference !== true),
+  );
   const safe = compatible.filter((provider) =>
-    provider.descriptor.costClass !== 'paid' || intent.providerPolicy.allowPaidWithoutApproval,
+    provider.descriptor.costClass !== 'paid'
+    || intent.providerPolicy.allowPaidWithoutApproval
+    || requirements.paidProviderAuthorized === true,
   );
   return [...safe].sort((a, b) => {
     const costRank = (provider: WholeVideoProductionProvider) =>

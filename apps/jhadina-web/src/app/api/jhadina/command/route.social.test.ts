@@ -46,7 +46,7 @@ describe("Ask Jhadina Social routing", () => {
     inspectVideo.mockReturnValue(null)
   })
 
-  it("routes a Social video request through Social before the generic Director video shortcut", async () => {
+  it("resolves Social scope first and then starts Director for an explicit Social video request", async () => {
     inspectSocial.mockReturnValue({
       matched: true,
       operation: "produce_creative",
@@ -56,6 +56,16 @@ describe("Ask Jhadina Social routing", () => {
       accountTerms: [],
     })
     inspectVideo.mockReturnValue({ mode: "text-to-video" })
+    createVideo.mockResolvedValue({
+      job: {
+        id: "video-job-social-1",
+        projectId: "project-social-1",
+        mode: "short",
+        aspectRatio: "9:16",
+        status: "queued",
+        providerId: "provider-1",
+      },
+    })
     handleSocial.mockResolvedValue({
       proposal: {
         id: "proposal-social",
@@ -87,10 +97,56 @@ describe("Ask Jhadina Social routing", () => {
 
     expect(response.status).toBe(200)
     expect(json.data.socialWorkPlan.nextBoundary).toBe("director_production")
+    expect(json.data.videoJob.id).toBe("video-job-social-1")
+    expect(json.data.proposal.recommendation).toContain("Director started video job video-job-social-1")
     expect(json.data.feedbackEligible).toBe(false)
     expect(handleSocial).toHaveBeenCalledTimes(1)
-    expect(createVideo).not.toHaveBeenCalled()
+    expect(createVideo).toHaveBeenCalledTimes(1)
     expect(handleGeneric).not.toHaveBeenCalled()
+  })
+
+  it("does not start Director when Social needs clarification", async () => {
+    inspectSocial.mockReturnValue({
+      matched: true,
+      operation: "produce_creative",
+      requestedPlatforms: ["tiktok"],
+      requestedCharacterProfiles: [],
+      requestedBrand: "pupsonstuff",
+      accountTerms: [],
+    })
+    inspectVideo.mockReturnValue({ mode: "short" })
+    handleSocial.mockResolvedValue({
+      proposal: {
+        id: "proposal-ask",
+        contextId: "ctx-ask",
+        disposition: "ASK",
+        recommendation: "Choose a connected TikTok account.",
+        rationale: "Account scope is ambiguous.",
+        evidence: [],
+        uncertainty: [],
+        alternatives: [],
+      },
+      reasoningEventId: "social-command:ask",
+      workPlan: {
+        kind: "social_marketing",
+        operation: "produce_creative",
+        accounts: [],
+        requestedPlatforms: ["tiktok"],
+        nextBoundary: "director_production",
+        authority: "PLANNING_ONLY",
+        requiresExplicitApprovalForExecution: false,
+        notes: [],
+      },
+      verified: true,
+      verificationReason: "resolved with clarification",
+    })
+
+    const response = await POST(request("Make a TikTok video for PupsonStuff"))
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.data.proposal.disposition).toBe("ASK")
+    expect(createVideo).not.toHaveBeenCalled()
   })
 
   it("preserves the generic Director shortcut when the request is not Social", async () => {

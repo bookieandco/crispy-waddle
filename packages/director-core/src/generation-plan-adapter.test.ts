@@ -8,6 +8,7 @@ import type { CreativeStage } from './creative-stage-graph.js';
 import type { StoryboardStageBinding } from './storyboard-stage-binding';
 import type { DirectorStoryboardLineage, DirectorStoryboardLineageResolver } from './storyboard-lineage-resolver';
 import type { DirectorCastResolver } from './cast-bible';
+import type { DirectorCharacterReferenceAssetResolver } from './generation-plan-adapter';
 
 describe('GenerationPlanAdapter', () => {
   const run: ProductionRun = {
@@ -89,7 +90,23 @@ describe('GenerationPlanAdapter', () => {
         };
       },
     };
-    return new GenerationPlanAdapter(new GenerationService(registry, new Map([['comfy-local', provider]])), registry, resolver, castResolver);
+    const characterReferenceAssetResolver: DirectorCharacterReferenceAssetResolver = {
+      async resolve(assetId, projectId) {
+        if (projectId !== 'p') throw new Error('wrong project');
+        return {
+          uri: `https://private.test/${encodeURIComponent(assetId)}?signed=1`,
+          sha256: assetId === 'maya-face-v4' ? 'sha-face' : 'sha-coat',
+          mimeType: 'image/png',
+        };
+      },
+    };
+    return new GenerationPlanAdapter(
+      new GenerationService(registry, new Map([['comfy-local', provider]])),
+      registry,
+      resolver,
+      castResolver,
+      characterReferenceAssetResolver,
+    );
   }
 
   it('submits only after the approved Director generation gate', async () => {
@@ -203,8 +220,8 @@ describe('GenerationPlanAdapter', () => {
 
     const generated = submitted.requests[0]!;
     expect(generated.references).toEqual(expect.arrayContaining([
-      { assetId: 'maya-face-v4', role: 'character' },
-      { assetId: 'maya-red-coat-ref', role: 'character' },
+      { assetId: 'maya-face-v4', role: 'character', uri: 'https://private.test/maya-face-v4?signed=1' },
+      { assetId: 'maya-red-coat-ref', role: 'character', uri: 'https://private.test/maya-red-coat-ref?signed=1' },
       { assetId: 'apartment', role: 'image' },
     ]));
     expect(generated.references).not.toContainEqual({ assetId: 'maya', role: 'character' });
@@ -219,6 +236,46 @@ describe('GenerationPlanAdapter', () => {
         rigAssetId: 'rig:maya:v3',
       }],
     });
+  });
+
+  it('fails closed when resolved character media lacks a reference asset resolver', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    const registry = new GenerationRegistry();
+    registry.registerProvider({ id: 'comfy-local', name: 'ComfyUI Local', kind: 'comfyui', capabilities: ['image-to-video'], models: ['video-model'], health: 'healthy' });
+    registry.registerModel({ id: 'video-model', providerId: 'comfy-local', name: 'Video Model', version: '1', modalities: ['video'], capabilities: ['image-to-video'], baseModel: 'video-base' });
+    const provider: GenerationProvider = {
+      descriptor: registry.getProvider('comfy-local')!,
+      async submit(input) { submitted.requests.push(input); return { requestId: input.requestId, providerId: 'comfy-local', status: 'queued', assetIds: [], providerJobId: 'p1' }; },
+      async status(providerJobId): Promise<GenerationResult> { return { requestId: providerJobId, providerId: 'comfy-local', status: 'completed', assetIds: [] }; },
+      async cancel() {},
+    };
+    const resolver = { resolve: async () => lineage } as unknown as DirectorStoryboardLineageResolver;
+    const castResolver: DirectorCastResolver = {
+      async resolve() {
+        return {
+          projectId: 'p',
+          characterId: 'maya',
+          continuityRef: 'cast:maya:v4',
+          canonicalAppearanceVariantId: 'maya-base',
+          sceneAppearanceVariantId: 'maya-base',
+          referenceAssetIds: ['maya-face-v4'],
+          referenceSha256s: ['sha-face'],
+          lockedTraits: [],
+        };
+      },
+    };
+    const adapter = new GenerationPlanAdapter(
+      new GenerationService(registry, new Map([['comfy-local', provider]])),
+      registry,
+      resolver,
+      castResolver,
+    );
+    await expect(adapter.submitTake(
+      { ...request(), referenceAssetIds: [] },
+      { modelId: 'video-model', modality: 'video' },
+      gateInput(),
+    )).rejects.toThrow('DIRECTOR_CHARACTER_REFERENCE_ASSET_RESOLVER_REQUIRED');
+    expect(submitted.requests).toHaveLength(0);
   });
 
   it('fails closed when a character is requested without a cast resolver', async () => {

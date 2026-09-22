@@ -9,6 +9,7 @@ import {
   issueDirectorSocialApprovedAssetReceipt,
   type CreateDirectorSocialProductionBriefInput,
   type DirectorSocialApprovedAssetReceipt,
+  type DirectorSocialCommercialCreativeRef,
   type GeneratedAssetRecord,
   type MediaReviewDecisionRecord,
   type SocialProductionMediaType,
@@ -22,6 +23,7 @@ export interface SocialDirectorProductionInput {
   aspectRatio?: string
   targetRuntimeSeconds?: number
   creativeIdentity?: CreateDirectorSocialProductionBriefInput["creativeIdentity"]
+  commercialCreative?: DirectorSocialCommercialCreativeRef
   createdAt?: string
 }
 
@@ -45,6 +47,7 @@ export function buildDirectorBriefFromSocial(
     aspectRatio: input.aspectRatio,
     targetRuntimeSeconds: input.targetRuntimeSeconds,
     creativeIdentity: input.creativeIdentity,
+    commercialCreative: input.commercialCreative,
     referenceAssetIds: input.referenceAssetIds,
     rightsEvidenceRefs: input.rightsEvidenceRefs,
     evidenceRefs: [...new Set([...project.evidenceRefs, ...asset.evidenceRefs])],
@@ -94,6 +97,11 @@ export function acceptDirectorAssetIntoSocial(input: {
       ...(receipt.creativeIdentity?.experimentVariantId ? [`experiment-variant:${receipt.creativeIdentity.experimentVariantId}`] : []),
       ...(receipt.creativeIdentity?.mutationAxis ? [`creative-mutation-axis:${receipt.creativeIdentity.mutationAxis}`] : []),
       ...Object.entries(receipt.creativeIdentity?.fixedDimensionRefs ?? {}).map(([key, value]) => `creative-invariant:${key}:${value}`),
+      ...(receipt.commercialCreative?.conceptId ? [`commercial-concept:${receipt.commercialCreative.conceptId}`] : []),
+      ...(receipt.commercialCreative?.productBibleId ? [`director-product-bible:${receipt.commercialCreative.productBibleId}`] : []),
+      ...(receipt.commercialCreative?.styleBibleId ? [`director-style-bible:${receipt.commercialCreative.styleBibleId}`] : []),
+      ...(receipt.commercialCreative?.multiplierVariantId ? [`ad-multiplier-variant:${receipt.commercialCreative.multiplierVariantId}`] : []),
+      ...(receipt.commercialCreative?.experimentId ? [`growth-experiment:${receipt.commercialCreative.experimentId}`] : []),
     ],
     input.updatedAt ?? receipt.approvedAt,
   )
