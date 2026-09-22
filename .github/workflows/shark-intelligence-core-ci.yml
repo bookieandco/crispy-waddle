@@ -1,4 +1,5 @@
 name: SHARK Intelligence Core CI
+# SHARK-559 certification probe
 
 on:
   workflow_dispatch:
