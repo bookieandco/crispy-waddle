@@ -164,6 +164,24 @@ export async function handleAskSocialCommand(
   })
 
   const workPlan = buildWorkPlan(intent, characterResolution.character, accountResolution.accounts)
+  const actionScopedOperations = new Set<AskSocialOperation>([
+    "select_character_accounts",
+    "research_creative",
+    "produce_creative",
+    "schedule_publish",
+    "paid_campaign",
+  ])
+  const resolvedBrands = new Set([
+    ...accountResolution.accounts.map((account) => account.brand),
+    ...(characterResolution.character ? [characterResolution.character.brand] : []),
+  ])
+  const scopeError = !characterResolution.error && !accountResolution.error && actionScopedOperations.has(intent.operation)
+    ? accountResolution.accounts.length === 0
+      ? "This Social action needs at least one connected account. Choose a connected account before continuing."
+      : resolvedBrands.size > 1
+        ? `This Social action spans more than one brand (${[...resolvedBrands].sort().join(", ")}). Choose one brand before continuing.`
+        : undefined
+    : undefined
   const observedAt = now().toISOString()
   const evidence: EvidenceRef[] = [
     ...accountResolution.accounts.map((account) => ({
@@ -211,7 +229,7 @@ export async function handleAskSocialCommand(
     }
   }
 
-  const clarification = characterResolution.error ?? accountResolution.error
+  const clarification = characterResolution.error ?? accountResolution.error ?? scopeError
   const recommendation = clarification
     ? clarification
     : recommendationFor(workPlan)
