@@ -86,9 +86,11 @@ function completedValidationExperiment() {
   return completeSideHustleExperiment(running, '2026-09-20T23:00:00.000Z')
 }
 
-function promotedValidation(): SideHustleExperimentEvaluation {
+function promotedValidation(
+  experimentId = completedValidationExperiment().id,
+): SideHustleExperimentEvaluation {
   return {
-    experimentId: 'experiment:1',
+    experimentId,
     opportunityId: 'opportunity:maturity-1',
     decision: 'promote',
     observationCount: 3,
