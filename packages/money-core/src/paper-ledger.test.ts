@@ -20,7 +20,7 @@ const fill:PaperFill={
   evidenceIds:['market:1','assumption:fee'],authority:'SIMULATION_ONLY'
 }
 const portfolio:PaperPortfolio={
-  paperPortfolioId:'portfolio-1',paperRunId:'run-1',accountId:'paper-account-1',currency:'USD',cash:{minor:99950n,currency:'USD'},positions:[],
+  paperPortfolioId:'portfolio-1',paperRunId:'run-1',currency:'USD',cash:{minor:99950n,currency:'USD'},positions:[],
   realizedPnl:{minor:0n,currency:'USD'},feesPaid:{minor:50n,currency:'USD'},asOf:'2026-09-21T20:00:02Z',stateHash:'state-1',authority:'SIMULATION_ONLY'
 }
 
