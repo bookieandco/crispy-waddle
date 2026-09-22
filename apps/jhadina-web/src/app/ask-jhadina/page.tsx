@@ -62,6 +62,14 @@ function AskJhadina(){
     <button className="jh-button jh-button--primary" disabled={busy||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":"Ask"}</button>
    </div>
    <p className="jh-meta">Context surface: {surface} · route: {route} · ⌘/Ctrl + Enter to send</p>
+   <div className="jh-row" style={{marginTop:10}}>
+    {[
+     "Show me the social character personalities I can use",
+     "Which social accounts should I work on right now?",
+     "Use the PupsonStuff personality on Instagram and TikTok",
+     "Research Meta ad concepts for PupsonStuff on Instagram",
+    ].map(example=><button key={example} type="button" className="jh-button" disabled={busy} onClick={()=>setTask(example)}>{example}</button>)}
+   </div>
   </div>
   {error&&<div className="jh-error" role="alert">{error}</div>}
   {result?<section className="jh-section">
