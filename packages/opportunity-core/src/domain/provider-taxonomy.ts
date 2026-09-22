@@ -27,7 +27,7 @@ function significantWords(value:string){
   return value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g,' ')
-    .split(/s+/)
+    .split(/\s+/)
     .filter(word=>word.length>2&&!stopwords.has(word))
     .slice(0,10)
 }
@@ -38,22 +38,22 @@ function phraseAliases(label:string){
   if(words.length>=2)aliases.push(words.slice(0,4).join(' '))
   for(let i=0;i<Math.min(words.length-1,5);i+=1)aliases.push(words.slice(i,i+2).join(' '))
   const hay=words.join(' ')
-  if(/(food|grocery|meal|meat|produce|dairy)/.test(hay)){
+  if(/\b(food|grocery|meal|meat|produce|dairy)\b/.test(hay)){
     aliases.push('food supplier','food distributor','food wholesaler')
   }
-  if(/(refrigerated|cold|frozen)/.test(hay)){
+  if(/\b(refrigerated|cold|frozen)\b/.test(hay)){
     aliases.push('cold chain logistics','refrigerated distribution')
   }
-  if(/(delivery|logistics|freight|transport|shipping)/.test(hay)){
+  if(/\b(delivery|logistics|freight|transport|shipping)\b/.test(hay)){
     aliases.push('logistics provider','freight carrier','distribution service')
   }
-  if(/(construction|building|renovation|repair)/.test(hay)){
+  if(/\b(construction|building|renovation|repair)\b/.test(hay)){
     aliases.push('general contractor','specialty contractor')
   }
-  if(/(software|technology|cyber|network|computer|information)/.test(hay)){
+  if(/\b(software|technology|cyber|network|computer|information)\b/.test(hay)){
     aliases.push('technology services','software company','IT contractor')
   }
-  if(/(medical|health|hospital|clinical)/.test(hay)){
+  if(/\b(medical|health|hospital|clinical)\b/.test(hay)){
     aliases.push('medical supplier','healthcare services')
   }
   return uniq(aliases)
