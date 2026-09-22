@@ -71,3 +71,4 @@ export * from './review-transition';
 export * from './production-orchestrator';
 export * from './rerun-command';
 export * from './recovery-plan';
+export * from './social-production-bridge';
