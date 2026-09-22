@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { applyTimelineCommand,timelineCommandReason,type TimelineCommand } from "@jhadina/director-core/timeline-command"
 import type { EditableTimeline,TimelineSnapshot,TimelineVersion } from "@jhadina/director-core/timeline-model"
 import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import { requireDirectorProjectAuthority } from "@/lib/director-project-authority"
 
 type HistoryCommand=TimelineCommand|{type:"undo";targetVersionId?:string}|{type:"redo";targetVersionId:string}
 
@@ -27,14 +29,12 @@ function restore(timeline:EditableTimeline,targetId:string,kind:"undo"|"redo",us
  const entry:TimelineVersion={id,version,parentVersionId:current?.id,createdAt:new Date().toISOString(),createdBy:"user",message:kind==="undo"?"Undo timeline edit":"Redo timeline edit",snapshotHash:id+":"+version+":"+userId,snapshot:target.snapshot,...(kind==="undo"?{revertsVersionId:current?.id}:{restoresVersionId:target.id})}
  return withSnapshot(restored,entry)
 }
-async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:"insert-generated-asset"}>,timeline:EditableTimeline,userId:string):Promise<TimelineCommand>{
- const privileged=createServiceRoleClient()
- if(!privileged)throw new Error("DIRECTOR_ASSET_STORE_NOT_CONFIGURED")
+async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:"insert-generated-asset"}>,timeline:EditableTimeline,userId:string,privileged:SupabaseClient):Promise<TimelineCommand>{
  const assetId=command.asset.assetId
  const approvalId="approval:"+assetId+":"+userId
  const [{data:asset,error:assetError},{data:approval,error:approvalError}]=await Promise.all([
   privileged.from("director_generated_editing_assets").select("id,project_id,generation_job_id,media_type,uri,mime_type,metadata").eq("id",assetId).eq("project_id",timeline.projectId).maybeSingle(),
-  privileged.from("director_editing_asset_approvals").select("asset_id,approval_id,approved_at").eq("asset_id",assetId).eq("approval_id",approvalId).maybeSingle(),
+  privileged.from("director_editing_asset_approvals").select("asset_id,approval_id,approved_at,approved_by_user_id").eq("asset_id",assetId).eq("approval_id",approvalId).eq("approved_by_user_id",userId).maybeSingle(),
  ])
  if(assetError)throw new Error("DIRECTOR_ASSET_READ_FAILED:"+assetError.message)
  if(approvalError)throw new Error("DIRECTOR_ASSET_APPROVAL_READ_FAILED:"+approvalError.message)
@@ -62,6 +62,11 @@ export async function POST(request:Request){
   if(!user)return NextResponse.json({ok:false,error:"Authentication required"},{status:401})
   const body=await request.json() as {timeline?:EditableTimeline;command?:HistoryCommand}
   if(!body.timeline||!body.command)return NextResponse.json({ok:false,error:"timeline and command are required"},{status:400})
+
+  const privileged=createServiceRoleClient()
+  if(!privileged)return NextResponse.json({ok:false,error:"DIRECTOR_PROJECT_STORE_NOT_CONFIGURED"},{status:503})
+  await requireDirectorProjectAuthority(privileged,{projectId:body.timeline.projectId,userId:user.id,capability:"edit"})
+
   let timeline=baseline(body.timeline,user.id)
   if(body.command.type==="undo"){
    const current=timeline.versions.at(-1)
@@ -75,7 +80,7 @@ export async function POST(request:Request){
   if(body.command.type==="generative-region"||body.command.type==="generate-sfx"){
    return NextResponse.json({ok:false,status:"approval_required",error:"DIRECTOR_GENERATIVE_MUTATION_REQUIRES_DURABLE_APPROVAL"},{status:409})
   }
-  const command=body.command.type==="insert-generated-asset"?await canonicalizeGeneratedAsset(body.command,timeline,user.id):body.command
+  const command=body.command.type==="insert-generated-asset"?await canonicalizeGeneratedAsset(body.command,timeline,user.id,privileged):body.command
   const next=applyTimelineCommand(timeline,command)
   const previous=timeline.versions.at(-1)
   const version=(previous?.version??0)+1
@@ -85,7 +90,7 @@ export async function POST(request:Request){
   return NextResponse.json({ok:true,status:"completed",timeline,audit:{event:"director.timeline.mutated",projectId:timeline.projectId,operation:command.type,versionId,version}})
  }catch(error){
   const message=error instanceof Error?error.message:"Timeline command failed"
-  const status=message.includes("APPROVAL_REQUIRED")?409:message.includes("NOT_FOUND")?404:400
+  const status=message.includes("ACCESS_DENIED")||message.includes("CAPABILITY_DENIED")?403:message.includes("APPROVAL_REQUIRED")?409:message.includes("NOT_FOUND")?404:400
   return NextResponse.json({ok:false,error:message},{status})
  }
 }
