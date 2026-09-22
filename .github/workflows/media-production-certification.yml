@@ -7,6 +7,7 @@ on:
       - 'packages/jhadina-tv-core/**'
       - 'apps/jhadina-web/**'
       - '.github/workflows/media-production-certification.yml'
+      - 'docs/MEDIA_PROD_FINAL_CERTIFICATION.md'
   push:
     branches:
       - main
