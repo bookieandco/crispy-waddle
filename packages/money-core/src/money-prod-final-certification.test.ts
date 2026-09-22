@@ -115,6 +115,11 @@ test('MONEY-PROD.6 commissioning migration is service-role only and stores no se
   assert.match(migration,/REVOKE ALL ON money_production_platform_receipts FROM authenticated/)
   assert.match(migration,/GRANT SELECT, INSERT, DELETE ON money_production_platform_receipts TO service_role/)
   assert.doesNotMatch(migration,/private_key|secret_key|api_key|access_token/i)
+  const productionMigration=readFileSync(fileURLToPath(new URL('../../../supabase/migrations/20260922022338_money_prod_final_commissioning_receipts.sql',import.meta.url)),'utf8')
+  assert.match(productionMigration,/money_production_commissioning_receipts/)
+  assert.match(productionMigration,/money_production_platform_receipts/)
+  assert.match(productionMigration,/FORCE ROW LEVEL SECURITY/)
+  assert.doesNotMatch(productionMigration,/private_key|secret_key|api_key|access_token/i)
 })
 
 test('MONEY-PROD.7 platform deployment and schema are independently required',()=>{
