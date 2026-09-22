@@ -4,6 +4,7 @@ import {
   createCompetitorCreativePattern,
   type CompetitorCreativePattern,
 } from "@jhadina/growth-core"
+import { getSocialCharacterProfileForBrand } from "@jhadina/social-core"
 import { buildMetaResearchCreativeProductionJobs } from "./meta-research-creative-bridge"
 
 function patterns(): CompetitorCreativePattern[] {
@@ -68,6 +69,7 @@ describe("Meta research creative production bridge", () => {
         brandPointOfViewRef: "brand-pov:packnest:v1",
         brandPointOfView: "Travel gear should remove packing friction without inventing extra complexity.",
         brandPointOfViewEvidenceRefs: ["brand-strategy:packnest:v1"],
+        character: getSocialCharacterProfileForBrand("jhadina"),
         directorProjectId: "director:packnest",
         platform: "instagram",
         createdAt: "2026-09-22T18:20:00.000Z",
@@ -80,6 +82,48 @@ describe("Meta research creative production bridge", () => {
     expect(jobs[1]?.directorBrief.mediaType).toBe("video")
     expect(jobs.every((job) => job.campaignAuthority === "NONE")).toBe(true)
     expect(jobs[0]?.directorBrief.intent).toContain("Do not reproduce competitor")
+    expect(jobs[0]?.contentProject.characterProfileRef).toBe("character:jhadina")
+    expect(jobs[0]?.directorBrief.intent).toContain("Brand voice profile: brand-voice:jhadina")
+  })
+
+  it("rejects a Social character from a different brand", () => {
+    const plan = buildResearchBackedMetaAdPlan({
+      id: "plan:mismatch",
+      brandId: "brand:packnest",
+      productId: "product:packnest",
+      productName: "PackNest",
+      productDescription: "Compression packing cubes.",
+      productTruthRefs: ["catalog:packnest:v1"],
+      patterns: patterns(),
+      createdAt: "2026-09-22T18:10:00.000Z",
+      concepts: [{
+        id: "concept:1",
+        name: "Static demo",
+        hook: "Compress more.",
+        message: "Zip and compress.",
+        visualDirection: "Original product demo.",
+        format: "static_image",
+        sourcePatternIds: ["pattern:hook"],
+        productTruthRefs: ["catalog:packnest:v1"],
+        differentiation: "Original.",
+        testHypothesis: "Test.",
+      }],
+    })
+
+    expect(() => buildMetaResearchCreativeProductionJobs({
+      plan,
+      production: {
+        brand: "pupsonstuff",
+        authorityPositionRef: "authority:pups",
+        pillarRef: "pillar:pet",
+        brandPointOfViewRef: "brand-pov:pups:v1",
+        brandPointOfView: "Make pet products delightful.",
+        brandPointOfViewEvidenceRefs: ["brand-strategy:pups:v1"],
+        character: getSocialCharacterProfileForBrand("atwood-bookie"),
+        directorProjectId: "director:pups",
+        platform: "instagram",
+      },
+    })).toThrow("META_CREATIVE_CHARACTER_BRAND_MISMATCH")
   })
 
   it("requires a brand POV before research can become produced advertising", () => {
