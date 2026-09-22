@@ -8,6 +8,7 @@ import {
   handleAskSocialCommand,
   inspectAskSocialIntent,
 } from "@/lib/intelligence/ask-social-command"
+import { inspectAskDoctorIntent, doctorProposal } from "@/lib/intelligence/ask-doctor-command"
 import {
   handleAskGrowthReadCommand,
   inspectAskGrowthReadIntent,
@@ -112,6 +113,37 @@ export async function POST(req: NextRequest) {
   try {
     const artifacts = parseEphemeralArtifacts(body?.artifacts)
     const conversationSignals = parseConversationSignals(body?.conversationSignals)
+    const doctorIntent = inspectAskDoctorIntent(activeTask)
+    if (doctorIntent) {
+      const verifier = await createRequestIdentityVerifier()
+      await verifier.verify({ userId: claimedUserId })
+      const doctor = doctorProposal(doctorIntent)
+      return NextResponse.json({
+        success: true,
+        data: {
+          proposal: {
+            id: `doctor-proposal:${crypto.randomUUID()}`,
+            disposition: doctor.disposition,
+            recommendation: doctor.recommendation,
+            rationale: doctor.rationale,
+            evidence: [],
+            uncertainty: ["Runtime diagnostic evidence has not yet been collected in this HTTP request."],
+            alternatives: [],
+          },
+          reasoningEventId: null,
+          expression: {
+            presentation: { mode: "direct", allowProfanity: false, allowQuip: false },
+            segments: [{ kind: "semantic", text: doctor.recommendation }],
+          },
+          doctorIntent: doctor.doctorIntent,
+          approvalRequired: true,
+          executionStarted: false,
+          verified: true,
+          verificationReason: "Identity verified; Doctor intent classified. No repair authority was granted.",
+        },
+      })
+    }
+
     const growthReadIntent = inspectAskGrowthReadIntent(activeTask)
     if (growthReadIntent) {
       const verifier = await createRequestIdentityVerifier()
