@@ -15,6 +15,12 @@ async function png(width: number, height: number): Promise<Buffer> {
   }).png().toBuffer();
 }
 
+function responseBody(buffer: Buffer): ArrayBuffer {
+  const copy = new Uint8Array(buffer.length);
+  copy.set(buffer);
+  return copy.buffer;
+}
+
 describe('Director reference-character image admission', () => {
   it('decodes and losslessly normalizes an admitted image to metadata-free PNG', async () => {
     const source = await png(512, 640);
@@ -78,7 +84,7 @@ describe('Director reference-character image admission', () => {
     });
 
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => new Response(sanitized.bytes, {
+    globalThis.fetch = async () => new Response(responseBody(sanitized.bytes), {
       status: 200,
       headers: { 'content-type': 'image/png' },
     });
@@ -107,7 +113,7 @@ describe('Director reference-character image admission', () => {
     });
 
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => new Response(sanitized.bytes, { status: 200 });
+    globalThis.fetch = async () => new Response(responseBody(sanitized.bytes), { status: 200 });
 
     try {
       const result = await new DirectorSanitizedImageScanner().scan({
