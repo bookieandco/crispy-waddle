@@ -15,6 +15,7 @@ import {
 
 export interface SocialDirectorProductionInput {
   directorProjectId: string
+  mediaType?: SocialProductionMediaType
   referenceAssetIds?: readonly string[]
   rightsEvidenceRefs?: readonly string[]
   aspectRatio?: string
@@ -30,7 +31,7 @@ export function buildDirectorBriefFromSocial(
   const asset = project.assets.find((candidate) => candidate.id === assetId)
   if (!asset) throw new Error("SOCIAL_DIRECTOR_ASSET_NOT_FOUND")
 
-  const mediaType = directorMediaType(asset)
+  const mediaType = input.mediaType ?? directorMediaType(asset)
   const briefInput: CreateDirectorSocialProductionBriefInput = {
     id: `social:${project.id}:${asset.id}`,
     socialContentProjectId: project.id,
