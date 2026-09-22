@@ -76,7 +76,12 @@ jobs:
           src/lib/director-studio-qc-repository.test.ts
           src/lib/director-cast-repository.test.ts
           src/app/api/director/characters/bootstrap/route.test.ts
+          src/app/api/director/products/references/route.test.ts
+          src/app/api/director/products/references/[assetId]/admit/route.test.ts
           src/app/api/director/products/bootstrap/route.test.ts
+          src/app/api/director/videos/reference-product/route.test.ts
+          src/app/api/director/commercial/creative/route.test.ts
+          src/app/api/director/commercial/multiplier/route.test.ts
           src/lib/director-reference-video-provider.test.ts
           src/lib/director-reference-asset-resolver.test.ts
           src/lib/director-reference-media.test.ts
