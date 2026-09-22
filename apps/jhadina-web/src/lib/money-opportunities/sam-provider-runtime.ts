@@ -149,19 +149,49 @@ async function samEntityProvidersByUei(ueis:string[]):Promise<RuntimeProvider[]>
   if(!values.length)return[]
   return parseSamEntities(await samEntityRequest({ueiSAM:values.join('~'),page:'0',size:String(Math.min(values.length,10))}))
 }
-function mergeProviderPools(...pools:RuntimeProvider[][]):RuntimeProvider[]{
+function evidenceDomain(raw:string){
+  const value=raw.trim()
+  if(!value)return''
+  try{
+    const url=new URL(/^https?:\/\//i.test(value)?value:'https://'+value)
+    return url.hostname.toLowerCase().replace(/^www\./,'')
+  }catch{return''}
+}
+function providerDomains(provider:RuntimeProvider){
+  const domains:string[]=[]
+  for(const evidence of provider.evidence){
+    if(evidence.source==='web_search'&&evidence.url){
+      const domain=evidenceDomain(evidence.url);if(domain)domains.push(domain)
+    }
+    const details=evidence.details
+    if(details&&typeof details==='object'){
+      for(const key of ['website','companyWebsite','site']){
+        const value=details[key]
+        if(typeof value==='string'){
+          const domain=evidenceDomain(value);if(domain)domains.push(domain)
+        }
+      }
+    }
+  }
+  return [...new Set(domains)]
+}
+export function mergeProviderPools(...pools:RuntimeProvider[][]):RuntimeProvider[]{
   const byUei=new Map<string,RuntimeProvider>()
   const byName=new Map<string,RuntimeProvider>()
+  const byDomain=new Map<string,RuntimeProvider>()
   const merged:RuntimeProvider[]=[]
   for(const pool of pools)for(const provider of pool){
     const uei=provider._uei?.toUpperCase()
     const nameKey=key(provider.legalName)
-    const existing=(uei?byUei.get(uei):undefined)??byName.get(nameKey)
+    const domains=providerDomains(provider)
+    const domainMatch=domains.map(domain=>byDomain.get(domain)).find(Boolean)
+    const existing=(uei?byUei.get(uei):undefined)??domainMatch??byName.get(nameKey)
     if(!existing){
       const copy={...provider,evidence:[...provider.evidence],naicsCodes:[...provider.naicsCodes],keywords:[...provider.keywords]}
       merged.push(copy)
       byName.set(nameKey,copy)
       if(uei)byUei.set(uei,copy)
+      for(const domain of domains)byDomain.set(domain,copy)
       continue
     }
     existing.naicsCodes=[...new Set([...existing.naicsCodes,...provider.naicsCodes])]
@@ -172,6 +202,7 @@ function mergeProviderPools(...pools:RuntimeProvider[][]):RuntimeProvider[]{
     existing._uei=existing._uei??provider._uei
     existing._cage=existing._cage??provider._cage
     if(existing._uei){existing.id=`provider:sam:${existing._uei}`;byUei.set(existing._uei.toUpperCase(),existing)}
+    for(const domain of [...providerDomains(existing),...domains])byDomain.set(domain,existing)
   }
   return merged
 }
@@ -192,6 +223,8 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
   let fsisSearchesRemaining=Number.isFinite(requestedFsisBudget)?Math.max(0,Math.min(Math.floor(requestedFsisBudget),10)):2
   const requestedExaBudget=Number(process.env.EXA_SEARCH_BUDGET_PER_ENRICHMENT??2)
   let exaSearchesRemaining=Number.isFinite(requestedExaBudget)?Math.max(0,Math.min(Math.floor(requestedExaBudget),10)):2
+  const requestedForeignExaBudget=Number(process.env.EXA_FOREIGN_CORROBORATION_BUDGET_PER_ENRICHMENT??2)
+  let foreignExaSearchesRemaining=Number.isFinite(requestedForeignExaBudget)?Math.max(0,Math.min(Math.floor(requestedForeignExaBudget),10)):2
   const entityNaicsCache=new Map<string,RuntimeProvider[]>()
   const spendingCache=new Map<string,RuntimeProvider[]>()
   const denueCache=new Map<string,RuntimeProvider[]>()
@@ -272,7 +305,7 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
           let providers=exaCache.get(cacheKey)
           if(!providers){
             exaSearchesRemaining-=1
-            try{providers=await searchExaCompanyProviders({keywords:terms,naicsCodes:expansion.naicsCodes.slice(0,2),geography:requirement.geography,limit:maxProvidersPerNotice}) as RuntimeProvider[]}
+            try{providers=await searchExaCompanyProviders({keywords:terms,naicsCodes:expansion.naicsCodes.slice(0,2),geography:requirement.geography,targetCountry:'US',limit:maxProvidersPerNotice}) as RuntimeProvider[]}
             catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'Exa company discovery failed'}`);providers=[]}
             exaCache.set(cacheKey,providers)
           }
@@ -315,7 +348,20 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
             catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'DENUE provider discovery failed'}`);providers=[]}
             denueCache.set(cacheKey,providers)
           }
-          if(providers.length)requirementPools.push(providers)
+          if(providers.length){
+            requirementPools.push(providers)
+            if(process.env.EXA_API_KEY?.trim()&&foreignExaSearchesRemaining>0){
+              const exaKey=`exa:MEX:${terms.join('|').toLowerCase()}`
+              let webProviders=exaCache.get(exaKey)
+              if(!webProviders){
+                foreignExaSearchesRemaining-=1
+                try{webProviders=await searchExaCompanyProviders({keywords:terms,targetCountry:'MEX',limit:maxProvidersPerNotice}) as RuntimeProvider[]}
+                catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'Mexico web corroboration failed'}`);webProviders=[]}
+                exaCache.set(exaKey,webProviders)
+              }
+              if(webProviders.length)requirementPools.push(webProviders)
+            }
+          }
         }
 
         if(expansion.keywords.length&&canadaSearchesRemaining>0){
@@ -334,7 +380,20 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
             providers=mergeProviderPools(discovered)
             canadaCache.set(cacheKey,providers)
           }
-          if(providers.length)requirementPools.push(providers)
+          if(providers.length){
+            requirementPools.push(providers)
+            if(process.env.EXA_API_KEY?.trim()&&foreignExaSearchesRemaining>0){
+              const exaKey=`exa:CAN:${expansion.naicsCodes.slice(0,2).join(',')}:${terms.join('|').toLowerCase()}`
+              let webProviders=exaCache.get(exaKey)
+              if(!webProviders){
+                foreignExaSearchesRemaining-=1
+                try{webProviders=await searchExaCompanyProviders({keywords:terms,naicsCodes:expansion.naicsCodes.slice(0,2),targetCountry:'CAN',limit:maxProvidersPerNotice}) as RuntimeProvider[]}
+                catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'Canada web corroboration failed'}`);webProviders=[]}
+                exaCache.set(exaKey,webProviders)
+              }
+              if(webProviders.length)requirementPools.push(webProviders)
+            }
+          }
         }
 
         pool=mergeProviderPools(pool,...requirementPools)
@@ -370,5 +429,5 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
       notices+=1
     }catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'provider discovery failed'}`)}
   }
-  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,usaspending:spendingRequestsRemaining,exa:exaSearchesRemaining,fmcsa:fmcsaSearchesRemaining,fsis:fsisSearchesRemaining,denue:denueSearchesRemaining,canada:canadaSearchesRemaining}}
+  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,usaspending:spendingRequestsRemaining,exa:exaSearchesRemaining,exaForeign:foreignExaSearchesRemaining,fmcsa:fmcsaSearchesRemaining,fsis:fsisSearchesRemaining,denue:denueSearchesRemaining,canada:canadaSearchesRemaining}}
 }

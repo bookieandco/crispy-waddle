@@ -32,7 +32,7 @@ describe('Exa company provider discovery',()=>{
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('uses the current Exa search request shape when configured',async()=>{
+  it('uses the current Exa search request shape when configured for the U.S.',async()=>{
     process.env.EXA_API_KEY='secret'
     let requested=''
     let requestBody:Record<string,unknown>={}
@@ -62,5 +62,55 @@ describe('Exa company provider discovery',()=>{
     expect(String(requestBody.query)).toContain('811310')
     expect(requestBody.contents).toEqual({highlights:true})
     expect(providers[0].evidence[0].source).toBe('web_search')
+    expect(providers[0].evidence[0].details?.targetCountry).toBe('US')
+  })
+
+  it('targets Mexico without pretending U.S. NAICS verifies a Mexican company',async()=>{
+    process.env.EXA_API_KEY='secret'
+    let requestBody:Record<string,unknown>={}
+    vi.stubGlobal('fetch',vi.fn(async(_input:RequestInfo|URL,init?:RequestInit)=>{
+      requestBody=JSON.parse(String(init?.body??'{}')) as Record<string,unknown>
+      return new Response(JSON.stringify({
+        results:[{
+          id:'mx1',url:'https://frio.example.mx',title:'Frio Logistica SA de CV',
+          highlights:['Almacenamiento refrigerado y distribución de alimentos en México.'],
+        }],
+      }),{status:200,headers:{'content-type':'application/json'}})
+    }))
+    const providers=await searchExaCompanyProviders({
+      keywords:['cold storage food'],
+      naicsCodes:['493120'],
+      targetCountry:'MEX',
+      limit:5,
+    })
+    expect(String(requestBody.query)).toContain('Mexico')
+    expect(String(requestBody.query)).not.toContain('NAICS 493120')
+    expect(providers[0].country).toBeUndefined()
+    expect(providers[0].evidence[0].details?.targetCountry).toBe('MEX')
+    expect(providers[0].evidence[0].details?.countryVerified).toBe(false)
+  })
+
+  it('targets Canada and may use NAICS search language without asserting domicile',async()=>{
+    process.env.EXA_API_KEY='secret'
+    let requestBody:Record<string,unknown>={}
+    vi.stubGlobal('fetch',vi.fn(async(_input:RequestInfo|URL,init?:RequestInit)=>{
+      requestBody=JSON.parse(String(init?.body??'{}')) as Record<string,unknown>
+      return new Response(JSON.stringify({
+        results:[{
+          id:'ca1',url:'https://maple.example.ca',title:'Maple Cold Storage Ltd',
+          highlights:['Canadian cold-storage and food distribution provider.'],
+        }],
+      }),{status:200,headers:{'content-type':'application/json'}})
+    }))
+    const providers=await searchExaCompanyProviders({
+      keywords:['cold storage food'],
+      naicsCodes:['493120'],
+      targetCountry:'CAN',
+      limit:5,
+    })
+    expect(String(requestBody.query)).toContain('Canada')
+    expect(String(requestBody.query)).toContain('NAICS 493120')
+    expect(providers[0].country).toBeUndefined()
+    expect(providers[0].evidence[0].details?.targetCountry).toBe('CAN')
   })
 })

@@ -3,6 +3,13 @@ import type { BrokerProviderCandidate } from '@jhadina/opportunity-core'
 const EXA_SEARCH_URL='https://api.exa.ai/search'
 const EXA_DOC_URL='https://exa.ai/docs/reference/search'
 
+export type ExaTargetCountry='US'|'MEX'|'CAN'
+const TARGETS:Record<ExaTargetCountry,{queryPrefix:string}>={
+  US:{queryPrefix:'United States company supplier contractor manufacturer distributor service provider'},
+  MEX:{queryPrefix:'Mexico empresa company supplier proveedor fabricante distribuidor contratista service provider'},
+  CAN:{queryPrefix:'Canada company supplier contractor manufacturer distributor service provider'},
+}
+
 const uniq=(values:string[])=>[...new Set(values.map(value=>value.trim()).filter(Boolean))]
 const text=(value:unknown)=>typeof value==='string'?value.trim():''
 
@@ -22,7 +29,7 @@ function resultHighlights(row:Record<string,unknown>){
   return[]
 }
 
-export function parseExaCompanyProviders(body:unknown,query:string,limit=20):BrokerProviderCandidate[]{
+export function parseExaCompanyProviders(body:unknown,query:string,limit=20,targetCountry:ExaTargetCountry='US'):BrokerProviderCandidate[]{
   if(!body||typeof body!=='object')return[]
   const root=body as Record<string,unknown>
   const results=Array.isArray(root.results)?root.results:[]
@@ -50,7 +57,7 @@ export function parseExaCompanyProviders(body:unknown,query:string,limit=20):Bro
         details:{
           query,
           resultTitle:title||null,
-          targetCountry:'US',
+          targetCountry,
           countryVerified:false,
           identityVerified:false,
           naicsVerified:false,
@@ -68,15 +75,18 @@ export async function searchExaCompanyProviders(input:{
   keywords:string[]
   naicsCodes?:string[]
   geography?:string
+  targetCountry?:ExaTargetCountry
   limit?:number
 }):Promise<BrokerProviderCandidate[]>{
   const apiKey=process.env.EXA_API_KEY?.trim()
   if(!apiKey)return[]
   const keywords=uniq(input.keywords).slice(0,6)
   if(!keywords.length)return[]
-  const naics=uniq(input.naicsCodes??[]).slice(0,3)
+  const targetCountry=input.targetCountry??'US'
+  const target=TARGETS[targetCountry]
+  const naics=targetCountry==='MEX'?[]:uniq(input.naicsCodes??[]).slice(0,3)
   const query=[
-    'United States company supplier contractor manufacturer distributor service provider',
+    target.queryPrefix,
     keywords.join(' '),
     naics.length?'NAICS '+naics.join(' '):'',
     input.geography??'',
@@ -100,5 +110,5 @@ export async function searchExaCompanyProviders(input:{
     signal:AbortSignal.timeout(20000),
   })
   if(!response.ok)throw new Error('EXA_SEARCH_HTTP_'+response.status)
-  return parseExaCompanyProviders(await response.json(),query,limit)
+  return parseExaCompanyProviders(await response.json(),query,limit,targetCountry)
 }
