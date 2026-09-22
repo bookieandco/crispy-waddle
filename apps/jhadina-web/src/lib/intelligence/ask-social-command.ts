@@ -103,9 +103,17 @@ const SOCIAL_MARKERS = [
 
 export function inspectAskSocialIntent(activeTask: string): AskSocialIntent | null {
   const text = normalize(activeTask)
-  if (!text || !SOCIAL_MARKERS.some((marker) => text.includes(normalize(marker)))) return null
+  if (!text) return null
 
   const requestedCharacterProfiles = resolveSocialCharacterProfiles(activeTask)
+  const strongSocialMarkers = [
+    "social", "instagram", "tiktok", "tik tok", "facebook", "linkedin", "youtube",
+    "reddit", "twitter", "threads", "snapchat", "meta ad", "meta ads", "reel", "shorts",
+  ]
+  const hasStrongSocialSignal = strongSocialMarkers.some((marker) => text.includes(normalize(marker)))
+  const hasKnownCharacterSignal = requestedCharacterProfiles.length > 0
+  if (!hasStrongSocialSignal && !hasKnownCharacterSignal) return null
+
   const requestedBrand = requestedCharacterProfiles.length === 1
     ? requestedCharacterProfiles[0]!.brand
     : inferBrand(activeTask)
