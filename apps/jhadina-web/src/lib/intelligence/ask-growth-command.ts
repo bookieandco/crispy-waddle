@@ -51,10 +51,10 @@ export function inspectAskGrowthReadIntent(activeTask: string): AskGrowthReadInt
   if (!text) return null
 
   const growthSignal = [
-    "growth", "campaign", "paid ad", "paid media", "meta", "google ads",
-    "tiktok ads", "linkedin ads", "reddit ads", "audience", "lookalike",
-    "retarget", "attribution", "roas", "cac", "mer", "lifecycle",
-  ].some((signal) => text.includes(signal))
+    "growth", "campaign", "campaigns", "paid ad", "paid ads", "paid media", "meta", "google ads",
+    "tiktok ads", "linkedin ads", "reddit ads", "audience", "audiences", "lookalike",
+    "retarget", "retargeting", "attribution", "roas", "cac", "mer", "lifecycle",
+  ].some((signal) => hasTerm(text, signal))
   if (!growthSignal) return null
 
   const mutating =
@@ -217,7 +217,7 @@ function inferChannels(text: string): string[] {
     ["dv360", ["dv360", "display video 360"]],
   ]
   return aliases
-    .filter(([, terms]) => terms.some((term) => text.includes(term)))
+    .filter(([, terms]) => terms.some((term) => hasTerm(text, term)))
     .map(([channel]) => channel)
 }
 
@@ -280,4 +280,8 @@ function field(summary: string, name: string): string | undefined {
   const prefix = name + "="
   const part = summary.split(";").map((item) => item.trim()).find((item) => item.startsWith(prefix))
   return part?.slice(prefix.length).trim()
+}
+
+function hasTerm(text: string, term: string): boolean {
+  return ` ${text} `.includes(` ${term} `)
 }
