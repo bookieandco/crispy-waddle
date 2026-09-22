@@ -125,3 +125,79 @@ export function assertGrowthEvidenceHealthyForLearning(
     );
   }
 }
+
+
+export type GrowthEvidenceMonitorType =
+  | "freshness"
+  | "volume"
+  | "schema"
+  | "validation"
+  | "lineage"
+  | "agent_trace";
+
+export interface GrowthEvidenceMonitorRequirement {
+  type: GrowthEvidenceMonitorType;
+  required: boolean;
+  rationale: string;
+}
+
+export interface GrowthEvidenceMonitorPlan {
+  assetRef: string;
+  criticality: "low" | "medium" | "high";
+  requirements: readonly GrowthEvidenceMonitorRequirement[];
+  incidentPolicy: "observe" | "degrade_learning" | "block_learning";
+}
+
+export function buildGrowthEvidenceMonitorPlan(input: {
+  assetRef: string;
+  criticality: "low" | "medium" | "high";
+  carriesRevenueOrConversionTruth: boolean;
+  producedByAgent?: boolean;
+}): GrowthEvidenceMonitorPlan {
+  if (!input.assetRef.trim()) throw new Error("GROWTH_EVIDENCE_MONITOR_ASSET_REQUIRED");
+
+  const requirements: GrowthEvidenceMonitorRequirement[] = [
+    {
+      type: "freshness",
+      required: input.criticality !== "low" || input.carriesRevenueOrConversionTruth,
+      rationale: "Prevent stale delivery, attribution, conversion, or economic data from driving decisions.",
+    },
+    {
+      type: "volume",
+      required: input.criticality !== "low",
+      rationale: "Detect drops/spikes that can bias rates, attribution, and experiment outcomes.",
+    },
+    {
+      type: "schema",
+      required: true,
+      rationale: "Detect field/contract changes before downstream learning silently misreads data.",
+    },
+    {
+      type: "validation",
+      required: input.carriesRevenueOrConversionTruth,
+      rationale: "Validate required identifiers, amounts, event semantics, and conversion fields.",
+    },
+    {
+      type: "lineage",
+      required: input.criticality === "high" || input.carriesRevenueOrConversionTruth,
+      rationale: "Preserve upstream/downstream provenance and blast-radius analysis.",
+    },
+    {
+      type: "agent_trace",
+      required: input.producedByAgent === true,
+      rationale: "Observe agent trajectory, latency, errors, and validation outcomes when AI produces the data.",
+    },
+  ];
+
+  return Object.freeze({
+    assetRef: input.assetRef,
+    criticality: input.criticality,
+    requirements: Object.freeze(requirements.map((item) => Object.freeze(item))),
+    incidentPolicy:
+      input.criticality === "high" || input.carriesRevenueOrConversionTruth
+        ? "block_learning"
+        : input.criticality === "medium"
+          ? "degrade_learning"
+          : "observe",
+  });
+}
