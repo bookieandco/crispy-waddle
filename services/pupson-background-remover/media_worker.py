@@ -161,4 +161,4 @@ def not_found(_error):
 
 if __name__ == "__main__":
     from waitress import serve
-    # Railway private networking is IPv6, while platform health routing may\n    # use IPv4. Waitress wildcard listen binds both families when available.\n    serve(app, listen=f"*:{PORT}", threads=4)
+    # Bind explicit IPv4 and IPv6 sockets so Railway health routing and\n    # private service-to-service traffic both reach the same worker.\n    serve(app, listen=f"0.0.0.0:{PORT} [::]:{PORT}", threads=4)
