@@ -110,7 +110,7 @@ test('MONEY-PROD.6 commissioning migration is service-role only and stores no se
   assert.match(migration,/FORCE ROW LEVEL SECURITY/)
   assert.match(migration,/REVOKE ALL ON money_production_commissioning_receipts FROM anon/)
   assert.match(migration,/REVOKE ALL ON money_production_commissioning_receipts FROM authenticated/)
-  assert.match(migration,/GRANT SELECT, INSERT, DELETE ON money_production_commissioning_receipts TO service_role/)
+  assert.match(migration,/GRANT SELECT, INSERT ON money_production_commissioning_receipts TO service_role/)
   assert.match(migration,/FORCE ROW LEVEL SECURITY[\s\S]*money_production_platform_receipts/)
   assert.match(migration,/REVOKE ALL ON money_production_platform_receipts FROM authenticated/)
   assert.match(migration,/GRANT SELECT, INSERT, DELETE ON money_production_platform_receipts TO service_role/)
