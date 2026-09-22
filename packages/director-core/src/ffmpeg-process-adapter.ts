@@ -17,6 +17,7 @@ export function createNodeFfmpegDecoder(factory: FfmpegProcessFactory = args => 
 async function* decodeStream(request: DecodeRequest, factory: FfmpegProcessFactory, mode: 'video'): AsyncIterable<DecodedFrame> {
   const child = factory(['-hide_banner', '-loglevel', 'error', '-ss', String(request.startSeconds ?? 0), '-i', request.source, '-an', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-r', String(request.frameRate ?? 2), 'pipe:1']);
   const detach = attachCancellation(child, request.signal);
+  const exit = waitForExit(child, request.signal);
   try {
     let timestamp = request.startSeconds ?? 0;
     for await (const chunk of child.stdout ?? []) {
@@ -24,7 +25,7 @@ async function* decodeStream(request: DecodeRequest, factory: FfmpegProcessFacto
       yield { assetId: request.assetId, timestampSeconds: timestamp, frameRef: `ffmpeg:${request.assetId}:frame:${timestamp.toFixed(3)}:${Buffer.from(chunk).toString('base64')}` };
       timestamp += 1 / (request.frameRate ?? 2);
     }
-    await waitForExit(child, request.signal);
+    await exit;
   } finally { detach(); }
   void mode;
 }
@@ -32,6 +33,7 @@ async function* decodeStream(request: DecodeRequest, factory: FfmpegProcessFacto
 async function* decodeAudioStream(request: DecodeRequest, factory: FfmpegProcessFactory): AsyncIterable<DecodedAudio> {
   const child = factory(['-hide_banner', '-loglevel', 'error', '-ss', String(request.startSeconds ?? 0), '-i', request.source, '-vn', '-ac', '1', '-ar', String(request.audioSampleRate ?? 16000), '-f', 's16le', 'pipe:1']);
   const detach = attachCancellation(child, request.signal);
+  const exit = waitForExit(child, request.signal);
   try {
     const windowSeconds = 2;
     let timestamp = request.startSeconds ?? 0;
@@ -48,7 +50,7 @@ async function* decodeAudioStream(request: DecodeRequest, factory: FfmpegProcess
         timestamp += windowSeconds;
       }
     }
-    await waitForExit(child, request.signal);
+    await exit;
   } finally { detach(); }
 }
 
