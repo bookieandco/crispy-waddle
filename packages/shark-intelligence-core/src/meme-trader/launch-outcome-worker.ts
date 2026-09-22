@@ -1,3 +1,4 @@
+import { normalizeChainAddress } from './chain-identity'
 import { applyLaunchOutcome, deriveActorOutcomeHistory, evaluateLaunchOutcome, type LaunchOutcomeAssessment } from './launch-outcome-engine'
 import type { TokenLaunch } from './wallet-launch-pipeline'
 
@@ -51,7 +52,7 @@ export function deriveActorOutcomeHistories(launches: TokenLaunch[]): LaunchOutc
   const byActor = new Map<string, { actorId: string; actorKind: 'wallet' | 'developer' | 'cluster'; launches: TokenLaunch[] }>()
   for (const launch of launches) {
     const actors: Array<[string, string | undefined, 'wallet' | 'developer' | 'cluster']> = [
-      ['wallet', launch.deployerWalletId, 'wallet'],
+      ['wallet', launch.deployerWalletId ? normalizeChainAddress(launch.chainId,launch.deployerWalletId) : undefined, 'wallet'],
       ['developer', launch.developerEntityId, 'developer'],
       ['cluster', launch.clusterId, 'cluster'],
     ]

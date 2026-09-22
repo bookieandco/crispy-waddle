@@ -80,6 +80,11 @@ export const DEFAULT_REFERENCE_SUBSYSTEM_HINTS:
       rationale: 'SHARK handoff wallet clustering reference.',
     },
     {
+      referenceId: 'github:GeekLad/meteora-profit-analysis',
+      subsystem: 'SHARK',
+      rationale: 'SHARK handoff Meteora profitability methodology reference; cash-flow concepts only, with GPL-aware no-derivation boundary.',
+    },
+    {
       referenceId: 'github:MitulMistry/paper-trader',
       subsystem: 'SHARK',
       rationale: 'SHARK handoff paper-trading ledger architecture reference.',

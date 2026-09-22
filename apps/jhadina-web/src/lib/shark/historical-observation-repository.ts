@@ -1,9 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { CoinGeckoHistoricalSource, HeliusHistoricalSource, collectHistoricalObservation, type TokenLaunch } from '@jhadina/shark-intelligence-core/meme-trader'
+import { CoinGeckoHistoricalSource, HeliusHistoricalSource, collectHistoricalObservation, normalizeChainAddress, type TokenLaunch } from '@jhadina/shark-intelligence-core/meme-trader'
 
 const launchFromRow = (row: any): TokenLaunch => ({
-  launchId: row.launch_id, chainId: row.chain_id, tokenAddress: row.token_address,
-  deployerWalletId: row.deployer_wallet_id ?? undefined, developerEntityId: row.developer_entity_id ?? undefined,
+  launchId: row.launch_id, chainId: row.chain_id, tokenAddress: normalizeChainAddress(row.chain_id,row.token_address),
+  deployerWalletId: row.deployer_wallet_id == null ? undefined : normalizeChainAddress(row.chain_id,row.deployer_wallet_id), developerEntityId: row.developer_entity_id ?? undefined,
   clusterId: row.cluster_id ?? undefined, launchedAt: row.launched_at, launchpad: row.launchpad ?? undefined,
   initialLiquidityUsd: row.initial_liquidity_usd == null ? undefined : Number(row.initial_liquidity_usd),
   outcome: row.outcome, outcomeObservedAt: row.outcome_observed_at ?? undefined, evidenceIds: row.evidence_ids ?? [],

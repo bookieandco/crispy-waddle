@@ -1,3 +1,4 @@
+import { canonicalTokenNodeId, canonicalWalletNodeId, normalizeChainAddress } from './chain-identity'
 export type GraphNodeKind = 'wallet' | 'developer' | 'organization' | 'cluster' | 'token'
 export type GraphRelationKind = 'controls' | 'funded-by' | 'deployed' | 'provided-liquidity' | 'bought-early' | 'associated-with' | 'same-entity'
 
@@ -64,13 +65,21 @@ export function buildEntityGraph(nodes: EntityGraphNode[], edges: EntityGraphEdg
 }
 
 export function deriveTokenActorGraph(input: { chainId: string; tokenAddress: string; observedAt: string; deployerWalletId?: string; funderWalletIds?: string[]; liquidityProviderWalletIds?: string[]; earlyBuyerWalletIds?: string[]; evidenceIds: string[] }): EntityGraph {
-  const tokenId = `token:${input.chainId}:${input.tokenAddress}`
-  const nodes: EntityGraphNode[] = [{ id: tokenId, kind: 'token', chainId: input.chainId, observedAt: input.observedAt, confidence: 1, evidenceIds: input.evidenceIds }]
+  const chainId=input.chainId.trim()
+  if(!chainId)throw new Error('Graph chain identity required.')
+  const tokenAddress=normalizeChainAddress(chainId,input.tokenAddress)
+  const tokenId = canonicalTokenNodeId(chainId,tokenAddress)
+  const nodes: EntityGraphNode[] = [{ id: tokenId, kind: 'token', chainId, observedAt: input.observedAt, confidence: 1, evidenceIds: input.evidenceIds }]
   const edges: EntityGraphEdge[] = []
+  const addedWallets=new Set<string>()
   const addWallet = (walletId: string, relation: GraphRelationKind) => {
-    const walletIdKey = `wallet:${walletId}`
-    nodes.push({ id: walletIdKey, kind: 'wallet', chainId: input.chainId, observedAt: input.observedAt, confidence: 1, evidenceIds: input.evidenceIds })
-    edges.push({ id: `${relation}:${input.chainId}:${walletId}:${input.tokenAddress}`, from: walletIdKey, to: tokenId, relation, observedAt: input.observedAt, confidence: 1, evidenceIds: input.evidenceIds })
+    const normalizedWallet=normalizeChainAddress(chainId,walletId)
+    const walletIdKey = canonicalWalletNodeId(chainId,normalizedWallet)
+    if(!addedWallets.has(walletIdKey)){
+      nodes.push({ id: walletIdKey, kind: 'wallet', chainId, observedAt: input.observedAt, confidence: 1, evidenceIds: input.evidenceIds })
+      addedWallets.add(walletIdKey)
+    }
+    edges.push({ id: `${relation}:${chainId}:${normalizedWallet}:${tokenAddress}`, from: walletIdKey, to: tokenId, relation, observedAt: input.observedAt, confidence: 1, evidenceIds: input.evidenceIds })
   }
   if (input.deployerWalletId) addWallet(input.deployerWalletId, 'deployed')
   for (const walletId of new Set(input.funderWalletIds ?? [])) addWallet(walletId, 'funded-by')

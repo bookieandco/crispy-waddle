@@ -111,4 +111,24 @@ describe('actor intelligence graph and launch ingestion', () => {
     expect(confidence.get('developer:dev')).toBeCloseTo((1 + .6 + 0) / 3, 10)
   })
 
+  it('deduplicates Base launches and graph wallets across checksum casing', () => {
+    resetTokenLaunchIngestForTests()
+    const tokenUpper='0xAbCdEf0000000000000000000000000000001234'
+    const tokenLower='0xabcdef0000000000000000000000000000001234'
+    const walletUpper='0xFfEeDd0000000000000000000000000000005678'
+    const walletLower='0xffeedd0000000000000000000000000000005678'
+    const first=ingestTokenLaunch({
+      observationId:'base-1',chainId:'base-mainnet',tokenAddress:tokenUpper,observedAt:'2026-01-01T00:00:00Z',
+      deployerWalletId:walletUpper,funderWalletIds:[walletUpper,walletLower],evidenceIds:['base-e1'],source:'base-rpc',
+    })
+    const second=ingestTokenLaunch({
+      observationId:'base-2',chainId:'base-mainnet',tokenAddress:tokenLower,observedAt:'2026-01-01T00:01:00Z',
+      deployerWalletId:walletLower,evidenceIds:['base-e2'],source:'base-rpc',
+    })
+    expect(first.duplicate).toBe(false)
+    expect(second.duplicate).toBe(true)
+    expect(first.launch.tokenAddress).toBe(tokenLower)
+    expect(first.launch.deployerWalletId).toBe(walletLower)
+    expect(first.graph.nodes.filter(n=>n.id===`wallet:${walletLower}`)).toHaveLength(1)
+  })
 })

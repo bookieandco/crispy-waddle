@@ -13,6 +13,18 @@ const launch = (overrides: Partial<TokenLaunch> = {}): TokenLaunch => ({
   outcome: 'UNKNOWN',
   evidenceIds: ['launch:e1'],
   ...overrides,
+  it('groups Base actor history by canonical wallet identity across checksum casing', () => {
+    const upper='0xFfEeDd0000000000000000000000000000005678'
+    const lower='0xffeedd0000000000000000000000000000005678'
+    const histories=deriveActorOutcomeHistories([
+      launch({launchId:'base-a',chainId:'base-mainnet',tokenAddress:'0xabcdef0000000000000000000000000000001111',deployerWalletId:upper,outcome:'RUG',developerEntityId:undefined,clusterId:undefined}),
+      launch({launchId:'base-b',chainId:'base-mainnet',tokenAddress:'0xabcdef0000000000000000000000000000002222',deployerWalletId:lower,outcome:'HEALTHY',developerEntityId:undefined,clusterId:undefined}),
+    ])
+    const wallet=histories.find(x=>x.actorKey===`wallet:${lower}`)
+    expect(histories.filter(x=>x.actorKind==='wallet')).toHaveLength(1)
+    expect(wallet?.history.launches).toBe(2)
+    expect(wallet?.history.rugRate).toBe(.5)
+  })
 })
 
 describe('evaluateLaunchOutcomeBatch', () => {

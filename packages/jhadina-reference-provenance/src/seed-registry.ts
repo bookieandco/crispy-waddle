@@ -267,7 +267,7 @@ const handoffOnlyReferences: readonly RegisterReferenceInput[] = [
     traceabilityStatus: 'HANDOFF_ONLY',
     licenseStatus: 'UNKNOWN',
     notes:
-      'Named in SHARK handoff history for Meteora position/profit analysis research. No code derivation is asserted.',
+      'Named in SHARK handoff history for Meteora position/profit analysis research. Audited as methodology-only: cash-flow profitability concepts are independently reimplemented with stricter realized-PnL and impermanent-loss semantics; no source-code derivation is asserted.',
     evidence: [
       {
         evidenceId: 'handoff:shark:meteora-profit-analysis',
@@ -1197,6 +1197,21 @@ const sourceVerifications:
     licenseReusePolicy: 'PERMISSIVE',
     notes: 'Upstream is verified; current Jhadina source mapping remains HANDOFF_ONLY.',
     evidence: [{ evidenceId: 'commit:wallet-cluster:e4b6d75c', kind: 'COMMIT', locator: 'https://github.com/baronguyen001/wallet-cluster-detector/commit/e4b6d75c75ffa3d40f61f974998b097128957355' }],
+  },
+  {
+    verificationId: 'verify:meteora-profit-analysis:9113c1d5',
+    referenceId: 'github:GeekLad/meteora-profit-analysis',
+    canonicalSourceLocator: 'https://github.com/GeekLad/meteora-profit-analysis',
+    sourceVerificationStatus: 'PINNED',
+    sourceRevision: '9113c1d5df3e0aa4a0415967c60491472c7e7ba3',
+    sourceDigest: 'git-commit-sha1:9113c1d5df3e0aa4a0415967c60491472c7e7ba3',
+    verifiedAt: '2026-09-22T00:18:00Z',
+    licenseFinding: 'VERIFIED',
+    licenseExpression: 'GPL-3.0-only',
+    licenseEvidenceLocator: 'https://raw.githubusercontent.com/GeekLad/meteora-profit-analysis/9113c1d5df3e0aa4a0415967c60491472c7e7ba3/LICENSE.md',
+    licenseReusePolicy: 'COPYLEFT_REVIEW_REQUIRED',
+    notes: 'Pinned for profitability-methodology comparison only. Jhadina independently implements conservative cash-flow evidence semantics and does not derive code from this GPL source.',
+    evidence: [{ evidenceId: 'commit:meteora-profit-analysis:9113c1d5', kind: 'COMMIT', locator: 'https://github.com/GeekLad/meteora-profit-analysis/commit/9113c1d5df3e0aa4a0415967c60491472c7e7ba3' }],
   },
   {
     verificationId: 'verify:paper-trader:1e99cd07',

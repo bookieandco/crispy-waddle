@@ -1,7 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   buildEntityGraph,
+  canonicalTokenNodeId,
+  canonicalWalletNodeId,
   createActorAwareMemeTradeAssessment,
+  normalizeChainAddress,
+  sameChainAddress,
   type ActorAwareAssessmentInput,
   type EntityGraph,
   type EntityGraphEdge,
@@ -57,17 +61,20 @@ const finite=(value:number|string|null|undefined,field:string):number=>{
  return n
 }
 
-function nodeId(kind:GraphNodeKind,id:string):string{return `${kind}:${id}`}
+function nodeId(chainId:string,kind:GraphNodeKind,id:string):string{
+ if(kind==='wallet')return canonicalWalletNodeId(chainId,id)
+ return `${kind}:${id}`
+}
 
 export function buildPersistedActorGraph(launch:LaunchRow,edges:readonly EdgeRow[]):EntityGraph{
  if(!launch.launch_id||!launch.chain_id||!launch.token_address||!launch.launched_at||!launch.evidence_ids?.length)throw new Error('SHARK persisted launch graph identity/evidence is incomplete')
- const tokenId=`token:${launch.chain_id}:${launch.token_address}`
+ const tokenId=canonicalTokenNodeId(launch.chain_id,launch.token_address)
  const nodes:EntityGraphNode[]=[{id:tokenId,kind:'token',chainId:launch.chain_id,observedAt:launch.launched_at,confidence:1,evidenceIds:[...launch.evidence_ids]}]
  const graphEdges:EntityGraphEdge[]=[]
  const seenNodes=new Set([tokenId])
  for(const row of edges){
   if(!row.edge_id||!row.actor_id||!row.actor_kind||!row.role||!row.observed_at||!row.evidence_ids?.length)throw new Error('SHARK persisted actor edge is incomplete')
-  const id=nodeId(row.actor_kind,row.actor_id)
+  const id=nodeId(launch.chain_id,row.actor_kind,row.actor_id)
   if(!seenNodes.has(id)){
    nodes.push({id,kind:row.actor_kind,chainId:launch.chain_id,observedAt:row.observed_at,confidence:1,evidenceIds:[...row.evidence_ids]})
    seenNodes.add(id)
@@ -113,7 +120,8 @@ export function createActorAwareAssessmentFromPersistedContext(input:{
  edges:readonly EdgeRow[]
  histories:readonly HistoryRow[]
 }):MemeTradeAssessment{
- if(input.assessment.market.chainId!==input.launch.chain_id||input.assessment.market.subjectId!==input.launch.token_address)throw new Error('SHARK assessment/persisted launch identity mismatch')
+ if(input.assessment.market.chainId!==input.launch.chain_id)throw new Error('SHARK assessment/persisted launch identity mismatch')
+ if(!sameChainAddress(input.launch.chain_id,input.assessment.market.subjectId,input.launch.token_address))throw new Error('SHARK assessment/persisted launch identity mismatch')
  const actorGraph=buildPersistedActorGraph(input.launch,input.edges)
  const persistedActorOutcomeHistory=mapPersistedActorHistory(input.histories)
  return createActorAwareMemeTradeAssessment({
@@ -127,7 +135,7 @@ export async function createPersistedActorAwareMemeTradeAssessment(
  client:SupabaseClient,
  assessment:PersistedActorAwareAssessmentInput,
 ):Promise<MemeTradeAssessment>{
- const chainId=assessment.market.chainId,tokenAddress=assessment.market.subjectId
+ const chainId=assessment.market.chainId,tokenAddress=normalizeChainAddress(assessment.market.chainId,assessment.market.subjectId)
  const {data:launch,error:launchError}=await client
   .from('jhadina_token_launches')
   .select('launch_id,chain_id,token_address,launched_at,evidence_ids')

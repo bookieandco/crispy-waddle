@@ -29,3 +29,9 @@ export * from './entity-graph'
 
 /** Legacy SHARK-local fill/accounting modules remain internal regression fixtures. Canonical paper execution is owned by Money Core. */
 export const SHARK_LEGACY_PAPER_RUNTIME = 'COMPATIBILITY_ONLY' as const
+
+export * from './chain-identity'
+
+export * from './wallet-cluster-calibration'
+
+export * from './meteora-profitability-evidence'

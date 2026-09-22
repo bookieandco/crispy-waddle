@@ -38,4 +38,17 @@ describe('persisted actor-aware assessment orchestration',()=>{
    assessment:{assessmentId:'a1',assessedAt:'2026-09-21T20:00:02Z',market,tradeType:'new-pair-speculation',strategyFit:{score:.7,matchedSignals:[],conflicts:[]},thesis:'x',invalidation:{conditions:['x'],severity:'high'},positionPlan:{maxPositionFraction:.01,entryConditions:[],profitTakingConditions:[],exitConditions:[]},confidence:.5}
   })).toThrow('identity mismatch')
  })
+ it('canonicalizes Base wallet casing when reconstructing persisted actor graphs',()=>{
+  const baseLaunch={...launch,chain_id:'base-mainnet',token_address:'0xAbCdEf0000000000000000000000000000001234'}
+  const baseEdge={...edge,actor_id:'0xFfEeDd0000000000000000000000000000005678'}
+  const graph=buildPersistedActorGraph(baseLaunch,[baseEdge])
+  expect(graph.nodes.some(n=>n.id==='token:base-mainnet:0xabcdef0000000000000000000000000000001234')).toBe(true)
+  expect(graph.nodes.some(n=>n.id==='wallet:0xffeedd0000000000000000000000000000005678')).toBe(true)
+ })
+
+ it('preserves Solana wallet casing in persisted graph reconstruction',()=>{
+  const graph=buildPersistedActorGraph(launch,[{...edge,actor_id:'AbC123'}])
+  expect(graph.nodes.some(n=>n.id==='wallet:AbC123')).toBe(true)
+  expect(graph.nodes.some(n=>n.id==='wallet:abc123')).toBe(false)
+ })
 })

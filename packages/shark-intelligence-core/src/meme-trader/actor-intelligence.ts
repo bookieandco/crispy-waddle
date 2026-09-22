@@ -1,3 +1,4 @@
+import { canonicalTokenNodeId, sameChainAddress } from './chain-identity'
 import type { EntityGraph, EntityGraphEdge } from './entity-graph'
 import { deriveActorOutcomeHistory } from './launch-outcome-engine'
 import type { ActorOutcomeHistory } from './launch-outcome-engine'
@@ -19,7 +20,11 @@ export type HistoricalActorIntelligence = ActorRiskIntelligence & {
 const clamp = (n: number) => Math.max(0, Math.min(1, n))
 
 function currentActorIds(graph: EntityGraph, tokenAddress: string): ActorAssociation[] {
-  const tokenIds = new Set(graph.nodes.filter(n => n.kind === 'token' && n.id.endsWith(`:${tokenAddress}`)).map(n => n.id))
+  const tokenIds = new Set(graph.nodes.filter(n => {
+    if(n.kind!=='token')return false
+    if(!n.chainId)return n.id.endsWith(`:${tokenAddress}`)
+    try{return n.id===canonicalTokenNodeId(n.chainId,tokenAddress)}catch{return false}
+  }).map(n => n.id))
   const associations = new Map<string, ActorAssociation>()
   for (const edge of graph.edges) {
     if (!tokenIds.has(edge.to) && !tokenIds.has(edge.from)) continue
@@ -36,7 +41,7 @@ function currentActorIds(graph: EntityGraph, tokenAddress: string): ActorAssocia
 }
 
 function matchesActor(launch: TokenLaunch, association: ActorAssociation): boolean {
-  if (association.kind === 'wallet') return launch.deployerWalletId === association.actorId
+  if (association.kind === 'wallet') return !!launch.deployerWalletId && sameChainAddress(launch.chainId, launch.deployerWalletId, association.actorId)
   if (association.kind === 'developer') return launch.developerEntityId === association.actorId
   return launch.clusterId === association.actorId
 }
