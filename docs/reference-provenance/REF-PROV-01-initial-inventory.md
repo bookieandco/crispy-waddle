@@ -10,6 +10,8 @@ reference ever discussed with Jhadina has already been recovered.
 | Godot Engine | `apps/pupsonstuff/.pupsonstuff-engine-plan.md` | PLANNED / idea-only |
 | Turbulenz Engine | `apps/pupsonstuff/.pupsonstuff-engine-plan.md` | PLANNED / idea-only |
 | DexScreener API | SHARK DexScreener ingest + pool discovery source | IMPLEMENTED / provider interface |
+| Roboflow `MOD5GEN20/stocks-2ulc2` | Verified Universe dataset page; 6,572 object-detection images, CC BY 4.0, six structural chart labels | CAPTURED / stock vision research reference |
+| Roboflow `glitch-gyhbu/shitty-stocks-patterns` | Verified Universe dataset/model page; 2,000 images, CC BY 4.0, five candlestick labels, public model `shitty-stocks-patterns/6` | CAPTURED / stock vision research reference |
 
 ## Captured handoff-only debt
 
