@@ -12,6 +12,9 @@ import { validateTimelineProposalSelection } from './timeline-edit-proposal';
 import { validateAnimationPerformanceState } from './animation-performance-state';
 import { objectDetectionsToVisualEvidence } from './object-detection-observation';
 import { ROBOFLOW_CARTOON_56LLR_V11, visionModelAllowsClass } from './vision-model-profile';
+import { validateShortFormProductionSpec } from './short-form-production';
+import { validateLockedCharacterShot } from './locked-character-reference';
+import { authorizeGenerationSpend } from './generation-spend-gate';
 
 describe('reference-derived Director contracts', () => {
   it('fails visual edits closed when no frame evidence covers the interval', () => {
@@ -489,5 +492,94 @@ describe('reference-derived Director contracts', () => {
       endSeconds: 31 / 30,
       bounds: { x: 0.4, y: 0.4, width: 0.2, height: 0.2 },
     });
+  });
+  it('validates short-form timing and safe-region contracts without hard-coding one beat grammar', () => {
+    const spec = {
+      id: 'short-1',
+      projectId: 'p',
+      width: 1080,
+      height: 1920,
+      fps: 30,
+      durationSeconds: 40,
+      beats: [
+        { id: 'hook', kind: 'hook' as const, startSeconds: 0, endSeconds: 3, intent: 'show payoff immediately', evidenceIds: ['idea:1'] },
+        { id: 'setup', kind: 'setup' as const, startSeconds: 3, endSeconds: 12, intent: 'establish problem', evidenceIds: ['script:1'] },
+        { id: 'reveal', kind: 'reveal' as const, startSeconds: 12, endSeconds: 34, intent: 'deliver explanation', evidenceIds: ['script:2'] },
+        { id: 'loop', kind: 'loop' as const, startSeconds: 34, endSeconds: 40, intent: 'return to opening state', evidenceIds: ['loop:1'] },
+      ],
+      reservedRegions: [
+        { id: 'platform-right', purpose: 'platform-ui' as const, x: 0.85, y: 0, width: 0.15, height: 1 },
+        { id: 'platform-bottom', purpose: 'platform-ui' as const, x: 0, y: 0.82, width: 1, height: 0.18 },
+      ],
+      frameZeroRole: 'thumbnail-candidate' as const,
+      loopMode: 'exact-frame-loop' as const,
+    };
+    expect(validateShortFormProductionSpec(spec).valid).toBe(true);
+    expect(validateShortFormProductionSpec({
+      ...spec,
+      reservedRegions: [{ id: 'bad', purpose: 'custom' as const, x: 0.9, y: 0, width: 0.2, height: 1 }],
+    }).reasons).toContain('DIRECTOR_SHORT_SAFE_REGION_INVALID:bad');
+  });
+
+  it('forbids re-inventing a locked recurring character from text', () => {
+    const lock = {
+      id: 'lock-1',
+      projectId: 'p',
+      characterId: 'blue-man',
+      referenceAssetId: 'character-ref',
+      referenceSha256: 'sha256-ref',
+      continuityRef: 'continuity:blue-man:v1',
+      approvedAt: '2026-09-22T00:00:00Z',
+      approvedBy: 'user-1',
+    };
+    expect(validateLockedCharacterShot(lock, {
+      id: 'shot-1',
+      projectId: 'p',
+      characterId: 'blue-man',
+      continuityRef: 'continuity:blue-man:v1',
+      referenceAssetIds: ['character-ref', 'scene-ref'],
+      generationMode: 'image-to-video',
+    }).valid).toBe(true);
+
+    expect(validateLockedCharacterShot(lock, {
+      id: 'shot-2',
+      projectId: 'p',
+      characterId: 'blue-man',
+      continuityRef: 'continuity:blue-man:v1',
+      referenceAssetIds: [],
+      generationMode: 'text-only',
+    }).reasons).toEqual(expect.arrayContaining([
+      'DIRECTOR_CHARACTER_TEXT_ONLY_REGEN_FORBIDDEN',
+      'DIRECTOR_CHARACTER_LOCKED_REFERENCE_REQUIRED',
+    ]));
+  });
+
+  it('requires a traceable generation estimate and explicit spend ceiling before paid generation', () => {
+    const estimate = {
+      id: 'cost-1',
+      projectId: 'p',
+      provider: 'video-provider',
+      modelId: 'video-model-v1',
+      pricingUnit: 'per-second' as const,
+      pricingSourceRef: 'provider-pricing-snapshot:2026-09-22',
+      quantity: 10,
+      unitPriceUsd: 0.05,
+      estimatedCostUsd: 0.5,
+      derivedAt: '2026-09-22T00:00:00Z',
+      assumptions: ['audio disabled'],
+    };
+    expect(authorizeGenerationSpend(estimate, undefined).reasons).toContain('DIRECTOR_COST_AUTHORIZATION_REQUIRED');
+    expect(authorizeGenerationSpend(estimate, {
+      estimateId: 'cost-1',
+      approvedMaximumUsd: 0.4,
+      approvedBy: 'user-1',
+      approvedAt: '2026-09-22T00:00:01Z',
+    }).reasons).toContain('DIRECTOR_COST_BUDGET_EXCEEDED');
+    expect(authorizeGenerationSpend(estimate, {
+      estimateId: 'cost-1',
+      approvedMaximumUsd: 1,
+      approvedBy: 'user-1',
+      approvedAt: '2026-09-22T00:00:01Z',
+    }).authorized).toBe(true);
   });
 });
