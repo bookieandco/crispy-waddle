@@ -31,6 +31,7 @@ function AskJhadina(){
  const [feedbackRecorded,setFeedbackRecorded]=useState<"reinforced"|"rejected"|null>(null)
  const [artifacts,setArtifacts]=useState<JhadinaEphemeralArtifact[]>([])
  const [inputStatus,setInputStatus]=useState("")
+ const [voiceLanguage,setVoiceLanguage]=useState("en-US")
 
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
  async function ask(commandOverride?:string){
@@ -44,7 +45,7 @@ function AskJhadina(){
    setResult(json.data);setTask("")
    if(commandOverride && typeof window!=="undefined" && "speechSynthesis" in window){
     const spoken=(json.data?.expression?.segments??[]).filter((segment:GovernedExpressionSegment)=>segment.kind==="semantic").map((segment:GovernedExpressionSegment)=>segment.text).join(" ")
-    if(spoken){window.speechSynthesis.cancel();window.speechSynthesis.speak(new SpeechSynthesisUtterance(spoken))}
+    if(spoken){const utterance=new SpeechSynthesisUtterance(spoken);utterance.lang=voiceLanguage;window.speechSynthesis.cancel();window.speechSynthesis.speak(utterance)}
    }
   }catch(cause){setError(cause instanceof Error?cause.message:"Jhadina could not process that")}
   finally{setBusy(false)}
@@ -70,7 +71,7 @@ function AskJhadina(){
     <textarea id="jhadina-command" className="jh-textarea" rows={3} value={task} onChange={event=>setTask(event.target.value)} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")void ask()}} placeholder="Ask a question, connect subsystems, inspect a decision, or tell Jhadina what you want to accomplish…" style={{flex:"1 1 560px",resize:"vertical"}}/>
     <button className="jh-button jh-button--primary" disabled={busy||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":"Ask"}</button>
    </div>
-   <JhadinaLiveInput busy={busy} onArtifactsChange={setArtifacts} onVoiceCommand={(command)=>void ask(command)} onStatus={setInputStatus}/>
+   <JhadinaLiveInput busy={busy} onArtifactsChange={setArtifacts} onVoiceCommand={(command)=>void ask(command)} onLanguageChange={setVoiceLanguage} onStatus={setInputStatus}/>
    {inputStatus?<p className="jh-meta" role="status" style={{marginTop:8}}>{inputStatus}</p>:null}
    <p className="jh-meta">Context surface: {surface} · route: {route} · ⌘/Ctrl + Enter to send · screen/files are ephemeral unless a governed flow explicitly proposes persistence</p>
    <div className="jh-row" style={{marginTop:10}}>
@@ -88,7 +89,7 @@ function AskJhadina(){
   {result?<section className="jh-section">
    <article className="jh-card jh-card--wide">
     <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.verified?"Verified response":"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
-    <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{if(typeof window==="undefined"||!("speechSynthesis" in window))return;const text=result.expression.segments.filter(segment=>segment.kind==="semantic").map(segment=>segment.text).join(" ");window.speechSynthesis.cancel();window.speechSynthesis.speak(new SpeechSynthesisUtterance(text))}}>Speak response</button></div>
+    <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{if(typeof window==="undefined"||!("speechSynthesis" in window))return;const text=result.expression.segments.filter(segment=>segment.kind==="semantic").map(segment=>segment.text).join(" ");const utterance=new SpeechSynthesisUtterance(text);utterance.lang=voiceLanguage;window.speechSynthesis.cancel();window.speechSynthesis.speak(utterance)}}>Speak response</button></div>
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.socialWorkPlan?<SocialWorkPlanCard plan={result.socialWorkPlan}/>:null}
