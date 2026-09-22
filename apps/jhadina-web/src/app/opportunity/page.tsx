@@ -148,7 +148,7 @@ export default function OpportunityCommandCenter() {
           <div>
             <div style={eyebrowSmall}>Prime subcontracting</div>
             <div style={federalTitle}>SBA SUBNet → primes actively seeking subcontractors</div>
-            <div style={federalCopy}>Browse posted scopes, NAICS codes, deadlines, performance locations, and the prime's public point of contact.</div>
+            <div style={federalCopy}>Browse posted scopes, NAICS codes, deadlines, performance locations, and the prime&apos;s public point of contact.</div>
           </div>
           <span style={federalArrow}>→</span>
         </Link>
