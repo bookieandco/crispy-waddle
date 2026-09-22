@@ -45,6 +45,9 @@ export interface CharacterVoiceIdentity {
   providerBindings: readonly VoiceProviderBinding[];
   languageVariants: readonly VoiceLanguageVariant[];
   defaultVariantId: string;
+  /** Provider-neutral speaker identity evidence shared across languages/providers. */
+  speakerFingerprintRefs?: readonly string[];
+  minimumSpeakerSimilarity?: number;
   approvedAt: string;
   approvedBy: string;
 }
@@ -87,6 +90,7 @@ export interface GeneratedDialogueVoiceArtifact {
   speakerSimilarity?: number;
   intelligibilityScore?: number;
   prosodyMatchScore?: number;
+  pronunciationConfidence?: number;
   clippingDetected?: boolean;
   evidenceIds: readonly string[];
 }
@@ -95,6 +99,7 @@ export interface DialogueVoiceQcPolicy {
   minimumSpeakerSimilarity: number;
   minimumIntelligibility: number;
   minimumProsodyMatch?: number;
+  minimumPronunciationConfidence?: number;
   maximumDurationDriftSeconds?: number;
   requireWordTimingEvidence: boolean;
 }
@@ -177,7 +182,9 @@ export function validateGeneratedDialogueVoice(
   }
   if (artifact.clippingDetected) reasons.push('DIRECTOR_VOICE_CLIPPING_DETECTED');
 
-  if (artifact.speakerSimilarity === undefined || artifact.speakerSimilarity < policy.minimumSpeakerSimilarity) {
+  const identitySimilarityFloor = identity.minimumSpeakerSimilarity ?? 0;
+  const speakerSimilarityFloor = Math.max(identitySimilarityFloor, policy.minimumSpeakerSimilarity);
+  if (artifact.speakerSimilarity === undefined || artifact.speakerSimilarity < speakerSimilarityFloor) {
     reasons.push('DIRECTOR_VOICE_SPEAKER_SIMILARITY_LOW');
   }
   if (artifact.intelligibilityScore === undefined || artifact.intelligibilityScore < policy.minimumIntelligibility) {
@@ -187,6 +194,10 @@ export function validateGeneratedDialogueVoice(
     policy.minimumProsodyMatch !== undefined &&
     (artifact.prosodyMatchScore === undefined || artifact.prosodyMatchScore < policy.minimumProsodyMatch)
   ) reasons.push('DIRECTOR_VOICE_PROSODY_MATCH_LOW');
+  if (
+    policy.minimumPronunciationConfidence !== undefined &&
+    (artifact.pronunciationConfidence === undefined || artifact.pronunciationConfidence < policy.minimumPronunciationConfidence)
+  ) reasons.push('DIRECTOR_VOICE_PRONUNCIATION_LOW');
 
   if (
     request.targetDurationSeconds !== undefined &&
@@ -267,3 +278,32 @@ export const DIRECTOR_VOICE_PROVIDER_PROFILES: readonly VoiceProviderProfile[] =
     runtimeRole: 'reference-only',
   }),
 ]);
+
+
+/** Feature-film voice identities need provider-independent speaker fingerprints. */
+export function validateMovieGradeVoiceIdentity(identity: CharacterVoiceIdentity): readonly string[] {
+  const reasons: string[] = [];
+  if (!identity.id.trim() || !identity.projectId.trim() || !identity.characterId.trim()) {
+    reasons.push('DIRECTOR_VOICE_IDENTITY_REQUIRED');
+  }
+  if (!identity.languageVariants.some((variant) => variant.id === identity.defaultVariantId)) {
+    reasons.push('DIRECTOR_VOICE_DEFAULT_VARIANT_INVALID');
+  }
+  if (!identity.providerBindings.length) reasons.push('DIRECTOR_VOICE_PROVIDER_BINDING_REQUIRED');
+  if (!identity.speakerFingerprintRefs?.length) reasons.push('DIRECTOR_VOICE_SPEAKER_FINGERPRINT_REQUIRED');
+  if (
+    identity.minimumSpeakerSimilarity === undefined ||
+    !Number.isFinite(identity.minimumSpeakerSimilarity) ||
+    identity.minimumSpeakerSimilarity <= 0 ||
+    identity.minimumSpeakerSimilarity > 1
+  ) reasons.push('DIRECTOR_VOICE_SIMILARITY_FLOOR_REQUIRED');
+
+  const sampleIds = new Set(identity.referenceSamples.map((sample) => sample.id));
+  for (const binding of identity.providerBindings) {
+    if (!binding.provenanceRefs.length) reasons.push(`DIRECTOR_VOICE_PROVIDER_PROVENANCE_REQUIRED:${binding.id}`);
+    if (binding.referenceSampleIds.some((id) => !sampleIds.has(id))) {
+      reasons.push(`DIRECTOR_VOICE_PROVIDER_REFERENCE_UNKNOWN:${binding.id}`);
+    }
+  }
+  return Object.freeze([...new Set(reasons)]);
+}
