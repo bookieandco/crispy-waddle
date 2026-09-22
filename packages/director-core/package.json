@@ -48,6 +48,9 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@jhadina/action-core": "workspace:*"
+  },
   "devDependencies": {
     "vitest": "^2.1.8"
   }
