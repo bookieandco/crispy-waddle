@@ -48,15 +48,24 @@ async function collectBody(req) {
   return Buffer.concat(chunks);
 }
 
-async function workerHealthy() {
+async function workerHealth() {
   try {
     const response = await fetch(new URL('/health', mediaWorkerUrl), {
       method: 'GET',
       signal: AbortSignal.timeout(10000),
     });
-    return response.ok;
-  } catch {
-    return false;
+    const detail = (await response.text()).slice(0, 500);
+    return {
+      ok: response.ok,
+      status: response.status,
+      detail,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      detail: error instanceof Error ? error.message.slice(0, 500) : 'worker_probe_failed',
+    };
   }
 }
 
@@ -144,12 +153,25 @@ const server = http.createServer(async (req, res) => {
   try {
     const requestUrl = new URL(req.url || '/', 'http://gateway.local');
 
-    if (requestUrl.pathname === '/health' && req.method === 'GET') {
-      const healthy = await workerHealthy();
-      return json(res, healthy ? 200 : 503, {
+    if (requestUrl.pathname === '/live' && req.method === 'GET') {
+      return json(res, 200, {
         service: 'pupson-media-gateway',
-        status: healthy ? 'ok' : 'degraded',
-        media_worker: healthy ? 'ready' : 'unavailable',
+        status: 'live',
+      });
+    }
+
+    if (requestUrl.pathname === '/health' && req.method === 'GET') {
+      const worker = await workerHealth();
+      if (!worker.ok) {
+        console.warn(
+          `media worker readiness failed: status=${worker.status} detail=${worker.detail}`
+        );
+      }
+      return json(res, worker.ok ? 200 : 503, {
+        service: 'pupson-media-gateway',
+        status: worker.ok ? 'ok' : 'degraded',
+        media_worker: worker.ok ? 'ready' : 'unavailable',
+        worker_status: worker.status,
       });
     }
 
@@ -185,4 +207,10 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, '0.0.0.0', () => {
   console.log(`pupson-media-gateway listening on :${port}`);
+  setTimeout(async () => {
+    const worker = await workerHealth();
+    console.log(
+      `media worker startup probe: ok=${worker.ok} status=${worker.status} detail=${worker.detail}`
+    );
+  }, 1500).unref();
 });
