@@ -76,7 +76,13 @@ export function inspectAskGrowthReadIntent(activeTask: string): AskGrowthReadInt
   else if (/\b(performance|results?|metrics?|roas|cac|mer|spend|doing)\b/.test(text)) operation = "performance"
   else if (/\bcampaigns?\b/.test(text) || /\bmeta\b/.test(text)) operation = "list_campaigns"
 
-  return {\n    matched: true,\n    operation,\n    requestedChannels: inferChannels(text),\n    requestedBrandIds: inferBrandIds(activeTask),\n  }\n}
+  return {
+    matched: true,
+    operation,
+    requestedChannels: inferChannels(text),
+    requestedBrandIds: inferBrandIds(activeTask),
+  }
+}
 
 export async function handleAskGrowthReadCommand(
   input: {
