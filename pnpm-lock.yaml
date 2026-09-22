@@ -37,6 +37,9 @@ importers:
       '@jhadina/money-core':
         specifier: workspace:*
         version: link:../../packages/money-core
+      '@jhadina/music-core':
+        specifier: workspace:*
+        version: link:../../packages/music-core
       '@jhadina/opportunity-core':
         specifier: workspace:*
         version: link:../../packages/opportunity-core
