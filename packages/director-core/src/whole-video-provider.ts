@@ -2,6 +2,14 @@ import type { AskVideoCreationIntent, DirectorVideoJobStatus } from './ask-video
 
 export type WholeVideoProviderCostClass = 'free-local' | 'external-free' | 'paid';
 
+export interface WholeVideoReferenceCharacter {
+  characterId: string;
+  continuityRef: string;
+  appearanceVariantId: string;
+  referenceAssetIds: readonly string[];
+  targetLanguages?: readonly string[];
+}
+
 export interface WholeVideoProductionBrief {
   jobId: string;
   projectId: string;
@@ -10,6 +18,7 @@ export interface WholeVideoProductionBrief {
   creativeName: string;
   style?: string;
   scenes?: readonly { text: string; searchTerms: readonly string[] }[];
+  referenceCharacters?: readonly WholeVideoReferenceCharacter[];
 }
 
 export interface WholeVideoProviderResult {
@@ -25,6 +34,8 @@ export interface WholeVideoProviderDescriptor {
   name: string;
   costClass: WholeVideoProviderCostClass;
   supportedModes: readonly AskVideoCreationIntent['mode'][];
+  /** Omitted is treated as unsupported so identity is never silently dropped. */
+  referenceCharacterSupport?: 'none' | 'single' | 'multiple';
   health: 'unknown' | 'healthy' | 'degraded' | 'offline';
 }
 
@@ -50,8 +61,17 @@ export function mapWholeVideoProviderStatus(
 export function selectWholeVideoProvider(
   providers: readonly WholeVideoProductionProvider[],
   intent: AskVideoCreationIntent,
+  requirements?: { referenceCharacterCount?: number },
 ): WholeVideoProductionProvider | undefined {
-  const compatible = providers.filter((provider) => provider.descriptor.supportedModes.includes(intent.mode));
+  const requiredReferences = Math.max(0, requirements?.referenceCharacterCount ?? 0);
+  const compatible = providers.filter((provider) => {
+    if (!provider.descriptor.supportedModes.includes(intent.mode)) return false;
+    if (!requiredReferences) return true;
+    const support = provider.descriptor.referenceCharacterSupport ?? 'none';
+    if (support === 'none') return false;
+    if (support === 'single' && requiredReferences > 1) return false;
+    return true;
+  });
   const safe = compatible.filter((provider) =>
     provider.descriptor.costClass !== 'paid' || intent.providerPolicy.allowPaidWithoutApproval,
   );
