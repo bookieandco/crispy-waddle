@@ -70,12 +70,12 @@ const riskSnapshot=(overrides:Partial<AutonomousRiskSnapshot>={}):AutonomousRisk
   snapshotId:'risk-snapshot-1',provider:'broker-x',accountId:'acct-1',currency:'USD',grossExposureMinor:5000n,realizedPnlMinor:0n,
   drawdownBps:100,leverageBps:10000,unresolvedExecutions:0,observedAt:t.childRequest,availableAt:t.childRequest,evidenceIds:Object.freeze(['risk:1']),authority:'EVIDENCE_ONLY',...overrides,
 })
-const plan:ExecutionPlan=Object.freeze({
+const plan:ExecutionPlan={
   executionPlanId:'plan-1',rebalanceIntentId:'rebalance-1',portfolioPlanId:'portfolio-1',instrumentId:'stock:AAPL',side:'BUY',
   notional:{minor:5000n,currency:'USD'},urgency:'NORMAL',routeId:'route-1',marketSnapshotId:'market-1',
   slices:Object.freeze([{sliceId:'slice-1',sequence:1,notional:{minor:5000n,currency:'USD'},instruction:'MARKETABLE_LIMIT',limitPriceMinor:20000n,earliestAt:t.childRequest,expiresAt:t.expiry,idempotencyKey:'slice-idem',authority:'NONE'}]),
   maxSpreadBps:100,maxParticipationBps:1000,informationCutoff:t.childRequest,expiresAt:t.expiry,inputHash:'plan-input',provenanceHash:'plan-prov',authority:'ANALYSIS_ONLY',requiresHumanApproval:true,
-})
+}
 const preflight:LiveExecutionPreflight=Object.freeze({
   preflightId:'preflight-1',executionPlanId:'plan-1',provider:'broker-x',accountId:'acct-1',status:'PASS_FOR_HUMAN_APPROVAL',reasonCodes:Object.freeze([]),
   accountCapabilitySnapshotId:'account-snap',routeSnapshotId:'route-1',marketSnapshotId:'market-1',shadowCertificationReportId:'shadow-cert',
@@ -159,7 +159,7 @@ test('AUTO.6 autonomous executor submits without forging an interactive human tr
   const metric:LiveRiskMetricSnapshot={snapshotId:'live-risk-1',provider:'broker-x',accountId:'acct-1',currency:'USD',grossExposureMinor:5000n,realizedPnlMinor:0n,observedAt:t.childRequest,availableAt:t.childRequest,evidenceIds:['live-risk'],authority:'EVIDENCE_ONLY'}
   canary.updateRiskMetrics(metric,'2026-09-21',t.execute)
   const policy:LiveCanaryPolicy={policyId:'auto-canary',currency:'USD',maxOrderNotionalMinor:10000n,maxDailySubmittedNotionalMinor:50000n,maxDailyOrders:5,maxDailyRealizedLossMinor:5000n,maxGrossExposureMinor:30000n,maxOpenUnknownExecutions:0,maxRiskMetricAgeSeconds:300,authority:'RISK_POLICY_ONLY'}
-  let executionMode=''
+  let executionMode:string|undefined=''
   const adapter:ManualLiveBrokerAdapter={provider:'broker-x',environment:'LIVE',async submitOrder(context){executionMode=context.executionMode;assert.equal(context.executionMode,'AUTONOMOUS');if(context.executionMode==='AUTONOMOUS')assert.equal(context.mandateId,m.mandateId);return{providerReference:'provider-1',providerEventId:'event-1',state:'ACKNOWLEDGED',occurredAt:t.execute,observedAt:t.execute,receivedAt:t.execute,availableAt:t.execute,evidenceIds:['provider:ack']}}}
   const result=await executeAutonomousLiveTrade({adapter,permitStore:permits,attemptStore:attempts,entitlementStore:entitlements,canaryStore:canary,canaryPolicy:policy,mandate:m,package:pkg,plan,now:t.execute,commandId:'auto-command-1',attemptIdFactory:()=> 'attempt-auto-1'})
   assert.equal(executionMode,'AUTONOMOUS');assert.equal(result.state,'SUBMITTED');assert.equal(permits.get('permit-exec')?.state,'CONSUMED')
