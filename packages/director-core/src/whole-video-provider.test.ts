@@ -17,7 +17,7 @@ const intent = {
 
 function provider(
   id: string,
-  input: { costClass?: 'free-local'|'external-free'|'paid'; character?: boolean } = {},
+  input: { costClass?: 'free-local'|'external-free'|'paid'; character?: boolean; requiresCharacter?: boolean } = {},
 ): WholeVideoProductionProvider {
   return {
     descriptor: {
@@ -27,6 +27,7 @@ function provider(
       supportedModes: ['standard'],
       health: 'healthy',
       supportsCharacterReference: input.character ?? false,
+      requiresCharacterReference: input.requiresCharacter ?? false,
     },
     async submit() { return { providerJobId: 'job', status: 'queued' }; },
     async status() { return { providerJobId: 'job', status: 'processing' }; },
@@ -39,15 +40,16 @@ describe('whole video provider selection', () => {
   it('keeps generic video providers available for ordinary Ask Jhadina video jobs', () => {
     const selected = selectWholeVideoProvider([
       provider('generic-free'),
-      provider('reference-free', { character: true }),
+      provider('reference-free', { character: true, requiresCharacter: true }),
     ], intent);
     expect(selected?.descriptor.id).toBe('generic-free');
+    expect(selectWholeVideoProvider([provider('reference-only', { character: true, requiresCharacter: true })], intent)).toBeUndefined();
   });
 
   it('refuses generic providers when a locked reference character is required', () => {
     const selected = selectWholeVideoProvider([
       provider('generic-free'),
-      provider('reference-free', { character: true }),
+      provider('reference-free', { character: true, requiresCharacter: true }),
     ], intent, { characterReference: true });
     expect(selected?.descriptor.id).toBe('reference-free');
   });
