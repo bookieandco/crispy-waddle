@@ -211,3 +211,18 @@ function observation(experimentId: string, id: string, metrics: Record<string, n
 }
 
 console.log('side hustle validation experiment tests passed')
+
+
+{
+  const experiment = startSideHustleExperiment(experimentFixture(), '2026-09-22T16:00:00.000Z')
+  assert.throws(
+    () => evaluateSideHustleExperiment({
+      experiment,
+      observations: [
+        observation(experiment.id, 'obs:future', { paid_customers: 1, reply_rate: 0.2, refund_rate: 0 }),
+      ].map((item) => ({ ...item, observedAt: '2026-09-25T15:00:00.000Z' })),
+      evaluatedAt: '2026-09-24T15:00:00.000Z',
+    }),
+    /cannot include future observations/,
+  )
+}
