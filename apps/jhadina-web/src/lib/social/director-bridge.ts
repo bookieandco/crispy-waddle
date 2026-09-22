@@ -20,6 +20,7 @@ export interface SocialDirectorProductionInput {
   rightsEvidenceRefs?: readonly string[]
   aspectRatio?: string
   targetRuntimeSeconds?: number
+  creativeIdentity?: CreateDirectorSocialProductionBriefInput["creativeIdentity"]
   createdAt?: string
 }
 
@@ -42,6 +43,7 @@ export function buildDirectorBriefFromSocial(
     platform: asset.platform,
     aspectRatio: input.aspectRatio,
     targetRuntimeSeconds: input.targetRuntimeSeconds,
+    creativeIdentity: input.creativeIdentity,
     referenceAssetIds: input.referenceAssetIds,
     rightsEvidenceRefs: input.rightsEvidenceRefs,
     evidenceRefs: [...new Set([...project.evidenceRefs, ...asset.evidenceRefs])],
