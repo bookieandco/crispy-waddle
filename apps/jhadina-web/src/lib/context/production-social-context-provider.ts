@@ -38,6 +38,8 @@ export class ProductionSocialContextProvider {
     userId: string
     activeTask: string
   }): Promise<SocialDomainContext | undefined> {
+    if (!isSocialContextRelevant(input.activeTask)) return undefined
+
     const limitations: string[] = []
     const uncertainty: string[] = []
 
@@ -299,4 +301,17 @@ function buildAttentionEvidence(
     })
     .sort((a, b) => b.score - a.score || a.ref.id.localeCompare(b.ref.id))
     .map((entry) => entry.ref)
+}
+
+
+function isSocialContextRelevant(activeTask: string): boolean {
+  const normalized = activeTask.toLowerCase().replace(/[^a-z0-9]+/g, " ")
+  const signals = [
+    "social", "marketing", "instagram", "tiktok", "tik tok", "facebook", "linkedin",
+    "youtube", "reddit", "twitter", "threads", "snapchat", "meta ad", "meta ads",
+    "creator", "influencer", "audience", "content", "post", "campaign", "brand",
+    "pupsonstuff", "atwood bookie", "jhadinatv", "jhadina tv", "overageos",
+    "jhadina music", "bookie and co",
+  ]
+  return signals.some((signal) => normalized.includes(signal))
 }
