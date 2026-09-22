@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   const assetId = `ref:${crypto.randomUUID()}`;
   const filename = safeDirectorReferenceFilename(file.name);
   const objectPath = `${projectId}/${assetId}/${filename}`;
-  const bucketId = 'director-character-references';
+  const bucketId = 'director-reference-media';
 
   const { error: uploadError } = await privileged.storage
     .from(bucketId)
