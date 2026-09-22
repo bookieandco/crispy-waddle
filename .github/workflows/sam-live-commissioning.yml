@@ -2,14 +2,6 @@ name: SAM Live Commissioning
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - ops/sam-live-commissioning
-    paths:
-      - 'apps/jhadina-web/scripts/sam-live-commissioning.ts'
-      - '.github/workflows/sam-live-commissioning.yml'
-      - 'apps/jhadina-web/src/lib/money-opportunities/sam-*.ts'
-      - 'packages/opportunity-core/src/domain/sam-*.ts'
 
 permissions:
   contents: read
