@@ -226,3 +226,55 @@ console.log('side hustle validation experiment tests passed')
     /cannot include future observations/,
   )
 }
+
+
+{
+  let experiment = startSideHustleExperiment(experimentFixture(), '2026-09-22T16:00:00.000Z')
+  const observations = [
+    observation(experiment.id, 'obs:stable-1', { paid_customers: 1, reply_rate: 0.2, refund_rate: 0 }),
+    observation(experiment.id, 'obs:stable-2', { paid_customers: 0, reply_rate: 0.15, refund_rate: 0 }),
+  ]
+  experiment = completeSideHustleExperiment(experiment, '2026-09-24T15:00:00.000Z')
+
+  const evaluation = evaluateSideHustleExperiment({
+    experiment,
+    observations,
+    evaluatedAt: '2026-10-30T15:00:00.000Z',
+  })
+
+  assert.equal(evaluation.decision, 'promote')
+  assert.ok(!evaluation.reasons.some((reason) => reason.includes('duration cap exceeded')))
+}
+
+{
+  const malformed = {
+    ...startSideHustleExperiment(experimentFixture(), '2026-09-22T16:00:00.000Z'),
+    status: 'completed' as const,
+  }
+  assert.throws(
+    () => evaluateSideHustleExperiment({
+      experiment: malformed,
+      observations: [],
+      evaluatedAt: '2026-09-24T15:00:00.000Z',
+    }),
+    /requires completedAt/,
+  )
+}
+
+
+{
+  let experiment = startSideHustleExperiment(experimentFixture(), '2026-09-22T16:00:00.000Z')
+  experiment = completeSideHustleExperiment(experiment, '2026-09-24T15:00:00.000Z')
+  const afterClose = {
+    ...observation(experiment.id, 'obs:after-close', { paid_customers: 1, reply_rate: 0.2, refund_rate: 0 }),
+    observedAt: '2026-09-25T15:00:00.000Z',
+  }
+  assert.throws(
+    () => evaluateSideHustleExperiment({
+      experiment,
+      observations: [afterClose],
+      evaluatedAt: '2026-09-26T15:00:00.000Z',
+    }),
+    /cannot include observations after completion/,
+  )
+}
