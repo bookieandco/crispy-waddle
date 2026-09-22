@@ -1,6 +1,6 @@
 export type BrokerRequirement={id:string;label:string;naicsCodes?:string[];pscCodes?:string[];geography?:string;keywords?:string[]}
 export type ProviderSearchIntent={requirementId:string;keywords:string[];naicsCodes:string[];pscCodes:string[];geography?:string;allowForeign:true}
-export type BrokerProviderEvidence={id:string;source:'sam_entity'|'sam_award'|'usaspending'|'fpds'|'entity_directory'|'web_search'|'local_business'|'denue'|'canada_importer'|'canada_odbusiness'|'manual';url?:string;details?:Record<string,unknown>}
+export type BrokerProviderEvidence={id:string;source:'sam_entity'|'sam_award'|'usaspending'|'fpds'|'entity_directory'|'web_search'|'local_business'|'denue'|'canada_importer'|'canada_odbusiness'|'fsis_establishment'|'fmcsa_carrier'|'manual';url?:string;details?:Record<string,unknown>}
 export type BrokerProviderCandidate={
   id:string
   legalName:string
