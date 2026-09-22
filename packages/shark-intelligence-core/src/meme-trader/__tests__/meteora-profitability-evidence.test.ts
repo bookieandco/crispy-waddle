@@ -14,6 +14,8 @@ describe('Meteora DLMM profitability evidence',()=>{
   })
   expect(r.netCashFlowMinor).toBe(12000n)
   expect(r.realizedPnlMinor).toBe(12000n)
+  expect(r.estimatedProfitabilityMinor).toBe(12000n)
+  expect(r.estimatedProfitabilityStatus).toBe('CASH_FLOW_ESTIMATE_ONLY')
   expect(r.realizationStatus).toBe('CLOSED_COMPLETE')
   expect(r.authority).toBe('RESEARCH_ONLY')
  })
@@ -25,6 +27,8 @@ describe('Meteora DLMM profitability evidence',()=>{
   })
   expect(r.netCashFlowMinor).toBe(-99000n)
   expect(r.realizedPnlMinor).toBeNull()
+  expect(r.estimatedProfitabilityMinor).toBe(-99000n)
+  expect(r.estimatedProfitabilityStatus).toBe('CASH_FLOW_ESTIMATE_ONLY')
   expect(r.realizationStatus).toBe('PROVISIONAL_OPEN')
  })
 
