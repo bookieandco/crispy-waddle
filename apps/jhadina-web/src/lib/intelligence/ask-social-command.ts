@@ -104,7 +104,12 @@ export function inspectAskSocialIntent(activeTask: string): AskSocialIntent | nu
     "reddit", "twitter", "threads", "snapchat", "meta ad", "meta ads", "reel", "shorts",
   ]
   const hasStrongSocialSignal = strongSocialMarkers.some((marker) => text.includes(normalize(marker)))
-  const hasKnownCharacterSignal = requestedCharacterProfiles.length > 0
+  const hasNonJhadinaCharacterSignal = requestedCharacterProfiles.some((profile) => profile.brand !== "jhadina")
+  const hasJhadinaPublicCharacterSignal =
+    requestedCharacterProfiles.some((profile) => profile.brand === "jhadina")
+    && ["social", "brand", "content", "account", "post", "campaign", "voice", "character"]
+      .some((marker) => text.includes(marker))
+  const hasKnownCharacterSignal = hasNonJhadinaCharacterSignal || hasJhadinaPublicCharacterSignal
   if (!hasStrongSocialSignal && !hasKnownCharacterSignal) return null
 
   const requestedBrand = requestedCharacterProfiles.length === 1
