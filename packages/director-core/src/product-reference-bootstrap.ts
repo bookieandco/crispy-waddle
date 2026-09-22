@@ -1,4 +1,4 @@
-export type ProductReferenceView =
+export type ProductBootstrapView =
   | 'unknown'
   | 'hero'
   | 'front'
@@ -14,7 +14,7 @@ export interface ProductReferenceUpload {
   id:string;
   assetId:string;
   sha256:string;
-  view:ProductReferenceView;
+  view:ProductBootstrapView;
   rightsRef:string;
   evidenceIds:readonly string[];
 }
@@ -26,7 +26,7 @@ export interface ProductReferenceBootstrapRequest {
   displayName:string;
   uploads:readonly ProductReferenceUpload[];
   requiredLabelText?:readonly string[];
-  requestedViews?:readonly ProductReferenceView[];
+  requestedViews?:readonly ProductBootstrapView[];
 }
 
 export interface ProductReferenceBootstrapPlan {
@@ -34,7 +34,7 @@ export interface ProductReferenceBootstrapPlan {
   projectId:string;
   productId:string;
   canonicalUploadId:string;
-  targetViews:readonly ProductReferenceView[];
+  targetViews:readonly ProductBootstrapView[];
   buildLabelCloseups:boolean;
   stages:readonly (
     | 'admit-reference'
@@ -53,7 +53,7 @@ export interface ProductDerivedReferenceCandidate {
   productId:string;
   assetId:string;
   sha256:string;
-  view:ProductReferenceView;
+  view:ProductBootstrapView;
   parentReferenceAssetIds:readonly string[];
   identityScore:number;
   geometryScore:number;
@@ -76,12 +76,12 @@ export function planProductReferenceBootstrap(
     }
   }
   const canonical=[...request.uploads].sort((a,b)=>{
-    const rank=(view:ProductReferenceView)=>view==='front'?0:view==='hero'?1:view==='detail'?2:3;
+    const rank=(view:ProductBootstrapView)=>view==='front'?0:view==='hero'?1:view==='detail'?2:3;
     return rank(a.view)-rank(b.view)||a.id.localeCompare(b.id);
   })[0]!;
   const targetViews=request.requestedViews?.length
     ?[...new Set(request.requestedViews)]
-    :['front','back','left','right','top','bottom','detail','in-use'] as ProductReferenceView[];
+    :['front','back','left','right','top','bottom','detail','in-use'] as ProductBootstrapView[];
   const buildLabelCloseups=(request.requiredLabelText?.length??0)>0;
   return Object.freeze({
     id:request.id,
