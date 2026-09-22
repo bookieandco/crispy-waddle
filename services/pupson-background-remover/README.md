@@ -1,15 +1,24 @@
-# PupsonStuff BackgroundRemover Runtime
+# PupsonStuff Private Media Worker
 
-Railway-compatible runtime for the audited `nadermx/backgroundremover` engine.
+Railway-compatible private worker used by the authenticated
+`pupson-media-gateway-runtime`.
 
-- Upstream commit: `fa480627829759b902f8c233388d7aa67ab38099`
-- License: MIT (upstream)
-- HTTP server dependencies (`flask`, `waitress`) are installed explicitly.
-- No Docker `VOLUME` directive is used because Railway rejects Dockerfile volumes.
-- PyTorch is installed from the official CPU-only wheel index; the service does not pull CUDA/NVIDIA runtime libraries.
-- FFmpeg is intentionally omitted because PupsonStuff uses only the still-image POST path.
-- The service is intended to stay Railway-private.
-- Only the authenticated `pupson-media-gateway` should receive a public domain.
+It hosts two audited CPU inference engines in one Railway service:
 
-The U2Net model cache is currently ephemeral. A Railway volume can be added later
-without changing the app contract.
+- Background removal: `nadermx/backgroundremover@fa480627829759b902f8c233388d7aa67ab38099`
+- Super resolution: `ls-ads/real-esrgan-serve@064efcf90bd5130373e5f756c5b2c77a24081245`
+- Real-ESRGAN model: `realesrgan-x4plus_fp16.onnx`
+- Model SHA-256: `e662cfd8c4280d1247b0bf248a09b9a410b5ee231e1c1b24374f03546d53ae6b`
+
+The service stays Railway-private and exposes one internal port:
+
+- `GET /health` — healthy only when both inference engines are reachable.
+- `POST /background` — forwards the BackgroundRemover multipart contract.
+- `POST /upscale` — forwards Real-ESRGAN's multipart `image` contract.
+
+The public gateway performs bearer authentication, request-size enforcement and
+provider-contract translation. No raw inference service receives a public domain.
+
+PyTorch is installed from the official CPU-only wheel index. Real-ESRGAN uses
+ONNX Runtime CPU. The upscaler server code's Apache-2.0 license and bundled
+third-party notices are copied into the runtime image.
