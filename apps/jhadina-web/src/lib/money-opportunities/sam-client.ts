@@ -65,19 +65,20 @@ export async function searchSamOpportunities(params: SamSearchParams = {}): Prom
 export async function scanSamOpportunityWindow(input: Omit<SamSearchParams, 'limit'|'offset'> & {
   pageSize?: number;
   maxPages?: number;
-}): Promise<{pages:number;totalRecords:number;opportunities:Array<Record<string,unknown>>}> {
+}): Promise<{pages:number;totalRecords:number;opportunities:Array<Record<string,unknown>>;truncated:boolean}> {
   const pageSize=Math.max(1,Math.min(input.pageSize??1000,1000));
   const maxPages=Math.max(1,Math.min(input.maxPages??100,1000));
   const opportunities:Array<Record<string,unknown>>=[];
   let totalRecords=0;
   let pages=0;
   for(let page=0;page<maxPages;page+=1){
-    const data=await searchSamOpportunities({...input,limit:pageSize,offset:page*pageSize});
+    // SAM.gov defines offset as the page index, not a record displacement.
+    const data=await searchSamOpportunities({...input,limit:pageSize,offset:page});
     const rows=Array.isArray(data.opportunitiesData)?data.opportunitiesData:[];
     totalRecords=typeof data.totalRecords==='number'?data.totalRecords:Math.max(totalRecords,opportunities.length+rows.length);
     opportunities.push(...rows);
     pages+=1;
     if(rows.length<pageSize||opportunities.length>=totalRecords)break;
   }
-  return {pages,totalRecords,opportunities};
+  return {pages,totalRecords,opportunities,truncated:opportunities.length<totalRecords};
 }

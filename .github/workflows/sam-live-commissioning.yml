@@ -1,0 +1,67 @@
+name: SAM Live Commissioning
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sam-live-commissioning
+  cancel-in-progress: true
+
+jobs:
+  commission:
+    name: Real SAM evidence commissioning
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://kqbkaozfjubkjevdfvic.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SAM_GOV_API_KEY: ${{ secrets.SAM_GOV_API_KEY }}
+    steps:
+      - name: Check live credentials
+        id: preflight
+        shell: bash
+        run: |
+          missing=""
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then missing="$missing SUPABASE_SERVICE_ROLE_KEY"; fi
+          if [ -z "$SAM_GOV_API_KEY" ]; then missing="$missing SAM_GOV_API_KEY"; fi
+          if [ -n "$missing" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "### SAM live commissioning" >> "$GITHUB_STEP_SUMMARY"
+            echo "BLOCKED_EXTERNAL_CREDENTIAL:$missing" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        if: steps.preflight.outputs.configured == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Frozen install
+        if: steps.preflight.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Commission real SAM evidence
+        if: steps.preflight.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @jhadina/opportunity-core exec tsx ../../apps/jhadina-web/scripts/sam-live-commissioning.ts | tee /tmp/sam-commissioning.json
+          echo "### SAM live commissioning" >> "$GITHUB_STEP_SUMMARY"
+          tail -n 120 /tmp/sam-commissioning.json >> "$GITHUB_STEP_SUMMARY"

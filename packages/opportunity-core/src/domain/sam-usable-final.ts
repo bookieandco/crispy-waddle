@@ -1,6 +1,8 @@
 export type SamUsableEvidence={
   runtimeBound:boolean
   scanReceipts:number
+  marketCoverageComplete:boolean
+  marketCoverageDays:number
   realNotices:number
   noticesWithDocuments:number
   noticesWithSubcontractability:number
@@ -15,6 +17,8 @@ export function certifySamUsableFinal(evidence:SamUsableEvidence):SamUsableCerti
   const failures:string[]=[]
   if(!evidence.runtimeBound)failures.push('Production runtime is not bound.')
   if(evidence.scanReceipts<1)failures.push('No successful production scanner receipt.')
+  if(!evidence.marketCoverageComplete)failures.push('SAM market bootstrap coverage is incomplete.')
+  if(evidence.marketCoverageDays<365)failures.push('SAM market bootstrap covers fewer than 365 days.')
   if(evidence.realNotices<3)failures.push('Fewer than three real SAM notices have traversed the pipeline.')
   if(evidence.noticesWithDocuments<3)failures.push('Fewer than three real notices have solicitation/document evidence.')
   if(evidence.noticesWithSubcontractability<3)failures.push('Fewer than three real notices have subcontractability decisions.')

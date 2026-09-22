@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { certifySamUsableFinal, type SamUsableCertification, type SamUsableEvidence } from '@jhadina/opportunity-core'
 import { analyzeSamNotices } from './sam-analysis-runtime'
 import { discoverSamProviders } from './sam-provider-runtime'
-import { harvestSamDocuments, recentSamNoticeIds } from './sam-wide-runtime'
+import { getSamMarketCoverage, harvestSamDocuments, recentSamNoticeIds } from './sam-wide-runtime'
 
 const rows=(value:unknown):Record<string,unknown>[]=>Array.isArray(value)?value.filter((row):row is Record<string,unknown>=>Boolean(row&&typeof row==='object')):[]
 
@@ -35,6 +35,7 @@ async function count(client:SupabaseClient,table:string,filter?:(query:any)=>any
 export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBound=true):Promise<SamUsableEvidence>{
   const [
     scanReceipts,
+    marketCoverage,
     realNotices,
     noticesWithSubcontractability,
     realProviderCandidates,
@@ -43,6 +44,7 @@ export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBoun
     providerResult,
   ]=await Promise.all([
     count(client,'jhadina_sam_scan_runs',q=>q.eq('status','completed')),
+    getSamMarketCoverage(client,{historyDays:365}),
     count(client,'jhadina_sam_catalog'),
     count(client,'jhadina_sam_analysis'),
     count(client,'jhadina_sam_provider_candidates'),
@@ -84,6 +86,8 @@ export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBoun
   return {
     runtimeBound,
     scanReceipts,
+    marketCoverageComplete:marketCoverage.complete,
+    marketCoverageDays:marketCoverage.coverageDays,
     realNotices,
     noticesWithDocuments:documentNoticeIds.size,
     noticesWithSubcontractability,

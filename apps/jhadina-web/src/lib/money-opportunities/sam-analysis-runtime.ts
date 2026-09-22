@@ -2,7 +2,16 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { evaluateSamSubcontractability, extractSolicitationIntelligence, type SamContractKind, type SolicitationDocument } from '@jhadina/opportunity-core'
 
 const rows=(x:unknown):Record<string,unknown>[]=>Array.isArray(x)?x.filter((v):v is Record<string,unknown>=>Boolean(v&&typeof v==='object')):[]
-const allText=(docs:Record<string,unknown>[])=>docs.map(d=>typeof d.extracted_text==='string'?d.extracted_text:'').filter(Boolean).join('\n')
+export function selectSamNoticeText(rawDescription:string,docs:Record<string,unknown>[]){
+  const fetchedNotice=docs.find(d=>d.source_kind==='notice'&&typeof d.extracted_text==='string'&&String(d.extracted_text).trim().length>0)
+  const fetchedNoticeText=fetchedNotice?String(fetchedNotice.extracted_text):''
+  return {
+    text:/^https?:\/\//i.test(rawDescription)?fetchedNoticeText:rawDescription,
+    sourceRef:String(fetchedNotice?.source_url??''),
+    capturedAt:String(fetchedNotice?.fetched_at??''),
+  }
+}
+
 const agencyKind=(agency:string)=>/department of defense|\bdod\b|army|navy|air force|marine corps|defense logistics/i.test(agency)?'dod' as const:agency?'civilian' as const:'unknown' as const
 function contractKind(text:string,isFood:boolean):SamContractKind{
   if(/specialty construction|electrical|plumbing|hvac|roofing/i.test(text))return'specialty_construction'
@@ -31,8 +40,18 @@ export async function analyzeSamNotices(client:SupabaseClient,noticeIds:string[]
     const {data:documentRows}=await client.from('jhadina_sam_documents').select('*').eq('notice_id',noticeId)
     const docs=rows(documentRows)
     const solicitationDocs:SolicitationDocument[]=[]
-    const description=typeof (catalog as Record<string,unknown>).description==='string'?String((catalog as Record<string,unknown>).description):''
-    if(description)solicitationDocs.push({id:`${noticeId}:notice`,opportunityId:noticeId,kind:'notice',version:String((catalog as Record<string,unknown>).version??1),capturedAt:new Date().toISOString(),sourceRef:String((catalog as Record<string,unknown>).source_url),text:description})
+    const rawDescription=typeof (catalog as Record<string,unknown>).description==='string'?String((catalog as Record<string,unknown>).description):''
+    const resolvedNotice=selectSamNoticeText(rawDescription,docs)
+    const description=resolvedNotice.text
+    if(description)solicitationDocs.push({
+      id:`${noticeId}:notice`,
+      opportunityId:noticeId,
+      kind:'notice',
+      version:String((catalog as Record<string,unknown>).version??1),
+      capturedAt:resolvedNotice.capturedAt||new Date().toISOString(),
+      sourceRef:resolvedNotice.sourceRef||String((catalog as Record<string,unknown>).source_url),
+      text:description,
+    })
     for(const d of docs){
       const text=typeof d.extracted_text==='string'?d.extracted_text:''
       if(!text||d.source_kind==='notice')continue
@@ -40,7 +59,7 @@ export async function analyzeSamNotices(client:SupabaseClient,noticeIds:string[]
     }
     if(!solicitationDocs.length)continue
     const extraction=extractSolicitationIntelligence(solicitationDocs)
-    const text=`${description}\n${allText(docs)}`
+    const text=`${description}\n${docs.filter(d=>d.source_kind!=='notice').map(d=>typeof d.extracted_text==='string'?d.extracted_text:'').filter(Boolean).join('\n')}`
     const food=/\b(food|meal|grocery|groceries|meat|dairy|produce|beverage|catering|ration)\b/i.test(text)
     const clauses=detectedClauses(text,extraction.clauses)
     const decision=evaluateSamSubcontractability({

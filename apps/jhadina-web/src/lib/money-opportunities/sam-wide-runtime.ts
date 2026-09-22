@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { classifySamNoticeChange, normalizeSamWideNotice, type SamWideNotice } from '@jhadina/opportunity-core'
+import { classifySamNoticeChange, computeSamMarketCoverage, nextSamBootstrapWindow, normalizeSamWideNotice, type SamCoverageInterval, type SamMarketCoverage, type SamWideNotice } from '@jhadina/opportunity-core'
 import { scanSamOpportunityWindow } from './sam-client'
 import { extractSamAttachmentText } from './sam-document-extractor'
 import { getSamApiKey } from './sam-config'
@@ -40,6 +40,7 @@ export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:str
   try{
     const result=await scanSamOpportunityWindow({postedFrom:input.postedFrom,postedTo:input.postedTo,pageSize:input.pageSize??1000,maxPages:input.maxPages??20})
     receipt.pages=result.pages;receipt.totalRecords=result.totalRecords;receipt.seenRecords=result.opportunities.length
+    if(result.truncated)throw new Error(`SAM_SCAN_WINDOW_TRUNCATED:${result.opportunities.length}/${result.totalRecords}`)
     const notices=result.opportunities.map(raw=>normalizeSamWideNotice(raw,new Date().toISOString()))
     receipt.resourceLinks=notices.reduce((n,row)=>n+row.resourceLinks.length,0)
     for(let start=0;start<notices.length;start+=250){
@@ -174,4 +175,114 @@ export async function recentSamNoticeIds(client:SupabaseClient,limit=10):Promise
   const {data,error}=await client.from('jhadina_sam_catalog').select('notice_id').order('last_seen_at',{ascending:false}).limit(Math.max(1,Math.min(limit,100)))
   if(error)throw new Error(`Unable to load recent SAM notices: ${error.message}`)
   return rows(data).map(x=>String(x.notice_id))
+}
+
+
+const isoDay=(date:Date)=>date.toISOString().slice(0,10)
+const apiDay=(iso:string)=>{
+  const match=iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if(!match)throw new Error('Invalid SAM ISO day')
+  return `${match[2]}/${match[3]}/${match[1]}`
+}
+const spanDays=(from:string,to:string)=>{
+  const a=new Date(from+'T00:00:00.000Z').getTime()
+  const b=new Date(to+'T00:00:00.000Z').getTime()
+  return Math.floor((b-a)/86_400_000)+1
+}
+
+export async function completedSamScanIntervals(client:SupabaseClient):Promise<SamCoverageInterval[]>{
+  const {data,error}=await client
+    .from('jhadina_sam_scan_runs')
+    .select('posted_from,posted_to')
+    .eq('status','completed')
+    .order('id',{ascending:true})
+    .limit(5000)
+  if(error)throw new Error(`Unable to load SAM scan coverage: ${error.message}`)
+  return rows(data)
+    .filter(row=>typeof row.posted_from==='string'&&typeof row.posted_to==='string')
+    .map(row=>({postedFrom:String(row.posted_from),postedTo:String(row.posted_to)}))
+}
+
+export async function getSamMarketCoverage(
+  client:SupabaseClient,
+  input:{historyDays?:number;today?:string}={},
+):Promise<SamMarketCoverage>{
+  const historyDays=Math.max(1,Math.min(Math.floor(input.historyDays??365),3650))
+  const today=input.today??isoDay(new Date())
+  const targetEnd=new Date(today+'T00:00:00.000Z')
+  if(Number.isNaN(targetEnd.getTime()))throw new Error('Invalid SAM coverage date')
+  const targetStart=new Date(targetEnd.getTime()-(historyDays-1)*86_400_000)
+  return computeSamMarketCoverage({
+    intervals:await completedSamScanIntervals(client),
+    targetFrom:isoDay(targetStart),
+    targetTo:today,
+  })
+}
+
+export type SamBootstrapReceipt={
+  complete:boolean
+  coverage:SamMarketCoverage
+  successfulWindows:number
+  attempts:number
+  receipts:SamWideScanReceipt[]
+}
+
+export async function runSamMarketBootstrap(
+  client:SupabaseClient,
+  input:{
+    historyDays?:number
+    windowDays?:number
+    maxWindows?:number
+    maxPages?:number
+    pageSize?:number
+    today?:string
+  }={},
+):Promise<SamBootstrapReceipt>{
+  const historyDays=Math.max(1,Math.min(Math.floor(input.historyDays??365),3650))
+  const preferredWindowDays=Math.max(1,Math.min(Math.floor(input.windowDays??7),31))
+  const maxWindows=Math.max(1,Math.min(Math.floor(input.maxWindows??4),31))
+  const maxPages=Math.max(1,Math.min(Math.floor(input.maxPages??20),100))
+  const pageSize=Math.max(1,Math.min(Math.floor(input.pageSize??1000),1000))
+  const today=input.today??isoDay(new Date())
+  let intervals=await completedSamScanIntervals(client)
+  let coverage=computeSamMarketCoverage({
+    intervals,
+    targetFrom:isoDay(new Date(new Date(today+'T00:00:00.000Z').getTime()-(historyDays-1)*86_400_000)),
+    targetTo:today,
+  })
+  const receipts:SamWideScanReceipt[]=[]
+  let successfulWindows=0
+  let attempts=0
+  let activeWindowDays=preferredWindowDays
+
+  while(!coverage.complete&&successfulWindows<maxWindows&&attempts<maxWindows*6){
+    const window=nextSamBootstrapWindow({intervals,today,historyDays,windowDays:activeWindowDays})
+    if(!window)break
+    attempts+=1
+    try{
+      const receipt=await runSamWideScan(client,{
+        postedFrom:apiDay(window.from),
+        postedTo:apiDay(window.to),
+        maxPages,
+        pageSize,
+      })
+      receipts.push(receipt)
+      successfulWindows+=1
+      intervals.push({postedFrom:receipt.postedFrom,postedTo:receipt.postedTo})
+      activeWindowDays=preferredWindowDays
+      coverage=computeSamMarketCoverage({
+        intervals,
+        targetFrom:coverage.targetFrom,
+        targetTo:coverage.targetTo,
+      })
+    }catch(error){
+      const message=error instanceof Error?error.message:String(error)
+      if(message.includes('SAM_SCAN_WINDOW_TRUNCATED')&&spanDays(window.from,window.to)>1){
+        activeWindowDays=Math.max(1,Math.floor(spanDays(window.from,window.to)/2))
+        continue
+      }
+      throw error
+    }
+  }
+  return {complete:coverage.complete,coverage,successfulWindows,attempts,receipts}
 }
