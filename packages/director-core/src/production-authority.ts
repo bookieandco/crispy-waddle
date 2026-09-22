@@ -3,8 +3,8 @@ import type { CreativeStage } from './creative-stage-graph.js';
 import type { DirectorStoryboardLineage, DirectorStoryboardLineageResolver } from './storyboard-lineage-resolver.js';
 
 type QueryResult = { data: unknown; error: { message: string } | null };
-type Query = { select(columns: string): Query; eq(column: string, value: string): Query; maybeSingle(): Promise<QueryResult> };
-export type ProductionAuthorityClient = { from(table: string): Query };
+type Query = { eq(column: string, value: string): Query; maybeSingle(): PromiseLike<QueryResult> };
+export type ProductionAuthorityClient = { from(table: string): { select(columns: string): Query } };
 
 export interface DirectorProductionAuthorityRepository {
   getRun(runId: string, projectId: string): Promise<ProductionRun | null>;

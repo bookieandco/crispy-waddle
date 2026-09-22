@@ -1,3 +1,4 @@
+import { createDirectorReadClient } from './director-read-client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { GenerationProvider } from '@jhadina/director-core/generation-provider';
 import { GenerationService } from '@jhadina/director-core/generation-service';

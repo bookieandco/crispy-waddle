@@ -37,7 +37,12 @@
     "./studio-asset-approval": "./src/studio-asset-approval.ts",
     "./generation-plan-adapter": "./src/generation-plan-adapter.ts",
     "./storyboard-lineage-resolver": "./src/storyboard-lineage-resolver.ts",
-    "./storyboard-persistence": "./src/storyboard-persistence.ts"
+    "./storyboard-persistence": "./src/storyboard-persistence.ts",
+    "./generated-asset-resolver": "./src/generated-asset-resolver.ts",
+    "./generation-execution": "./src/generation-execution.ts",
+    "./generation-repository": "./src/generation-repository.ts",
+    "./generation-submission-repository": "./src/generation-submission-repository.ts",
+    "./generation-task": "./src/generation-task.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
