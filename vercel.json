@@ -25,5 +25,6 @@
       "path": "/api/internal/sam/certify",
       "schedule": "35 */6 * * *"
     }
-  ]
+  ],
+  "ignoreCommand": "turbo query affected --base=$VERCEL_GIT_PREVIOUS_SHA --packages @jhadina/jhadina-web --exit-code"
 }
