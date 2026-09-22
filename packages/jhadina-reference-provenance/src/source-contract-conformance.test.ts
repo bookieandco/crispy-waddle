@@ -211,7 +211,7 @@ test('Supabase source and lock remain on the registered client/RPC contract', ()
     lock,
     [
       "'@supabase/supabase-js':",
-      'version: 2.112.3',
+      'version: 2.116.0',
     ],
     'Supabase lockfile',
   );
