@@ -29,7 +29,10 @@ function AskJhadina(){
  const [feedbackBusy,setFeedbackBusy]=useState(false)
  const [feedbackRecorded,setFeedbackRecorded]=useState<"reinforced"|"rejected"|null>(null)
  const [referenceFile,setReferenceFile]=useState<File|null>(null)
+ const [referenceKind,setReferenceKind]=useState<"character"|"product">("character")
  const [characterName,setCharacterName]=useState("")
+ const [productName,setProductName]=useState("")
+ const [productLabelText,setProductLabelText]=useState("")
  const [characterArchetype,setCharacterArchetype]=useState<"human"|"cartoon"|"puppet"|"creature">("human")
  const [referenceRightsConfirmed,setReferenceRightsConfirmed]=useState(false)
  const [referenceStage,setReferenceStage]=useState("")
@@ -37,7 +40,7 @@ function AskJhadina(){
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
 
  function isVideoRequest(text:string){return /\b(make|create|generate|produce|build|render|turn)\b/i.test(text)&&/\b(video|movie|film|short|reel|tiktok|youtube\s+short|youtube\s+video)\b/i.test(text)}
- function slugCharacter(value:string){const slug=value.trim().toLowerCase().replace(/[^a-z0-9._:-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60);return slug||`character-${crypto.randomUUID().slice(0,8)}`}
+ function slugReference(value:string,prefix:"character"|"product"){const slug=value.trim().toLowerCase().replace(/[^a-z0-9._:-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60);return slug||`${prefix}-${crypto.randomUUID().slice(0,8)}`}
  async function jsonOrThrow(response:Response,fallback:string){const json=await response.json();if(!response.ok||json?.ok===false)throw new Error(json?.error||fallback);return json}
 
  async function askWithReferenceCharacter(){
@@ -46,7 +49,7 @@ function AskJhadina(){
   if(!isVideoRequest(task))throw new Error("A reference character attachment currently requires a video, movie, film, short, reel, or YouTube video request.")
 
   const requestedName=characterName.trim()||referenceFile.name.replace(/\.[^.]+$/,"").replace(/[-_]+/g," ").trim()||"Reference Character"
-  const characterId=slugCharacter(requestedName)
+  const characterId=slugReference(requestedName,"character")
   const queryProject=params.get("project")?.trim()
 
   setReferenceStage("Creating Director project…")
@@ -107,13 +110,81 @@ function AskJhadina(){
   setReferenceStage("")
  }
 
+ async function askWithReferenceProduct(){
+  if(!referenceFile)throw new Error("Product reference image is required")
+  if(!referenceRightsConfirmed)throw new Error("Confirm that you own or have permission to use the product reference image.")
+  if(!isVideoRequest(task))throw new Error("A product reference attachment currently requires a video, movie, film, short, reel, or YouTube video request.")
+
+  const requestedName=productName.trim()||referenceFile.name.replace(/\.[^.]+$/,"").replace(/[-_]+/g," ").trim()||"Reference Product"
+  const productId=slugReference(requestedName,"product")
+  const queryProject=params.get("project")?.trim()
+
+  setReferenceStage("Creating Director project…")
+  let projectId=queryProject
+  if(!projectId){
+   const project=await jsonOrThrow(await fetch("/api/workstation/projects",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({})}),"Unable to create Director project")
+   projectId=String(project.projectId)
+  }
+
+  const attestation=`ask-jhadina:product-rights-attested:${new Date().toISOString()}`
+  setReferenceStage("Uploading private product reference…")
+  const form=new FormData()
+  form.set("file",referenceFile)
+  form.set("projectId",projectId)
+  form.set("rightsRef",attestation)
+  form.set("viewHint","hero")
+  const uploaded=await jsonOrThrow(await fetch("/api/director/products/references",{method:"POST",body:form}),"Unable to upload product reference")
+  const assetId=String(uploaded.asset?.id??"")
+  if(!assetId)throw new Error("Director did not return a product reference asset ID")
+
+  setReferenceStage("Scanning and admitting product reference…")
+  await jsonOrThrow(await fetch(`/api/director/characters/references/${encodeURIComponent(assetId)}/admit`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId})}),"Product reference could not be admitted")
+
+  const requiredLabelText=[...new Set(productLabelText.split(/[\n,]+/).map(value=>value.trim()).filter(Boolean))]
+  setReferenceStage("Locking Product Bible…")
+  const locked=await jsonOrThrow(await fetch("/api/director/products/bootstrap",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+   projectId,productId,displayName:requestedName,referenceAssetIds:[assetId],requiredLabelText,
+  })}),"Unable to create Product Bible")
+
+  setReferenceStage("Starting product-consistent video production…")
+  const video=await jsonOrThrow(await fetch("/api/director/videos/reference-product",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+   projectId,productId,productBibleId:String(locked.productBibleId??""),prompt:task.trim(),clientRequestId:crypto.randomUUID(),
+  })}),"Unable to start product-reference video")
+  const job=video.videoJob as VideoJobSummary
+  const now=new Date().toISOString()
+  const message=job?.status==="blocked"
+   ? `Director locked ${requestedName} into a Product Bible, but video generation is blocked: ${job.error??"a product-reference-aware provider must be configured"}.`
+   : `Director locked ${requestedName} into a Product Bible and started the product-consistent video. Job ${job?.id??"created"} is ${job?.status??"queued"}.`
+  const proposal:DecisionProposal={
+   id:`product-video:${job?.id??crypto.randomUUID()}`,
+   disposition:job?.status==="blocked"?"DEFER":"PROCEED",
+   recommendation:message,
+   rationale:"The uploaded product reference was privately quarantined, scanned, admitted, locked into Director's Product Bible, and then bound to a product-aware video job. Generic providers that cannot preserve product identity are excluded.",
+   evidence:[{id:`director-product:${productId}`,source:"Director Product Bible",observedAt:now,summary:`Project ${projectId}; product ${productId}; Product Bible ${String(locked.productBibleId??"created")}; admitted reference ${assetId}.`}],
+   uncertainty:job?.error?[job.error]:[],
+   alternatives:[],
+  }
+  setResult({
+   proposal,
+   reasoningEventId:`product-video:${job?.id??productId}`,
+   expression:{proposal,presentation:{mode:"direct",allowProfanity:false,allowQuip:false},segments:[{kind:"semantic",text:message}]},
+   verified:true,
+   verificationReason:"Product reference admission and project authority completed before product-aware production submission.",
+   videoJob:job,
+   feedbackEligible:false,
+  })
+  setTask("")
+  setReferenceStage("")
+ }
+
  async function ask(){
   if(!task.trim()||busy)return
   setBusy(true);setError("");setResult(null);setFeedbackRecorded(null)
   try{
    const userId=await identity()
    if(referenceFile){
-    await askWithReferenceCharacter()
+    if(referenceKind==="product")await askWithReferenceProduct()
+    else await askWithReferenceCharacter()
    }else{
     const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:task.trim(),surface,route,activeProject:params.get("project")??undefined,clientRequestId:crypto.randomUUID()})})
     const json=await response.json();if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
@@ -144,12 +215,15 @@ function AskJhadina(){
     <button className="jh-button jh-button--primary" disabled={busy||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":"Ask"}</button>
    </div>
    <div className="jh-item" style={{marginTop:14}}>
-    <div className="jh-between"><div><strong>Optional recurring character reference</strong><p className="jh-card-copy">Attach one image and Jhadina can lock the character identity before generating the video.</p></div>{referenceFile?<button type="button" className="jh-button" disabled={busy} onClick={()=>{setReferenceFile(null);setCharacterName("");setReferenceRightsConfirmed(false)}}>Remove</button>:null}</div>
+    <div className="jh-between"><div><strong>Optional identity reference</strong><p className="jh-card-copy">Attach one image as a recurring character or as a product whose packaging and labels must stay consistent.</p></div>{referenceFile?<button type="button" className="jh-button" disabled={busy} onClick={()=>{setReferenceFile(null);setCharacterName("");setProductName("");setProductLabelText("");setReferenceRightsConfirmed(false)}}>Remove</button>:null}</div>
     <div className="jh-row" style={{marginTop:10,alignItems:"center"}}>
-     <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={event=>{const file=event.target.files?.[0]??null;setReferenceFile(file);if(file&&!characterName)setCharacterName(file.name.replace(/\.[^.]+$/,"").replace(/[-_]+/g," "))}}/>
-     {referenceFile?<><input className="jh-input" value={characterName} onChange={event=>setCharacterName(event.target.value)} placeholder="Character name" style={{minWidth:180}}/><select className="jh-input" value={characterArchetype} onChange={event=>setCharacterArchetype(event.target.value as typeof characterArchetype)}><option value="human">Human</option><option value="cartoon">Cartoon</option><option value="puppet">Puppet</option><option value="creature">Creature</option></select></>:null}
+     <select className="jh-input" value={referenceKind} disabled={busy} onChange={event=>setReferenceKind(event.target.value as "character"|"product")}><option value="character">Recurring character</option><option value="product">Product / packaging</option></select>
+     <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={event=>{const file=event.target.files?.[0]??null;setReferenceFile(file);const name=file?.name.replace(/\.[^.]+$/,"").replace(/[-_]+/g," ")??"";if(file&&referenceKind==="character"&&!characterName)setCharacterName(name);if(file&&referenceKind==="product"&&!productName)setProductName(name)}}/>
+     {referenceFile&&referenceKind==="character"?<><input className="jh-input" value={characterName} onChange={event=>setCharacterName(event.target.value)} placeholder="Character name" style={{minWidth:180}}/><select className="jh-input" value={characterArchetype} onChange={event=>setCharacterArchetype(event.target.value as typeof characterArchetype)}><option value="human">Human</option><option value="cartoon">Cartoon</option><option value="puppet">Puppet</option><option value="creature">Creature</option></select></>:null}
+     {referenceFile&&referenceKind==="product"?<input className="jh-input" value={productName} onChange={event=>setProductName(event.target.value)} placeholder="Product name" style={{minWidth:180}}/>:null}
     </div>
-    {referenceFile?<label className="jh-row" style={{marginTop:10,alignItems:"center"}}><input type="checkbox" checked={referenceRightsConfirmed} onChange={event=>setReferenceRightsConfirmed(event.target.checked)} disabled={busy}/><span className="jh-card-copy">I own or have permission to use this image and the depicted likeness/character for this production.</span></label>:null}
+    {referenceFile&&referenceKind==="product"?<textarea className="jh-textarea" rows={2} value={productLabelText} onChange={event=>setProductLabelText(event.target.value)} placeholder="Optional exact label text, one phrase per line — used as packaging text authority." style={{marginTop:10,width:"100%"}}/>:null}
+    {referenceFile?<label className="jh-row" style={{marginTop:10,alignItems:"center"}}><input type="checkbox" checked={referenceRightsConfirmed} onChange={event=>setReferenceRightsConfirmed(event.target.checked)} disabled={busy}/><span className="jh-card-copy">{referenceKind==="character"?"I own or have permission to use this image and the depicted likeness/character for this production.":"I own or have permission to use this product image, packaging, and brand assets for this production."}</span></label>:null}
     {referenceStage?<p className="jh-meta" style={{marginTop:8}}>{referenceStage}</p>:null}
    </div>
    <p className="jh-meta">Context surface: {surface} · route: {route} · ⌘/Ctrl + Enter to send</p>
