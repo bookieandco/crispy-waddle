@@ -251,3 +251,46 @@ Provider IDs are implementations attached to the canonical character/voice recor
 The repo was not starting from zero. It already had character DNA, continuity locks, references, replacement continuity, rig continuity and voice-sync timing. The missing layer was the persistent **Cast Bible + Voice Bible + Audio Bible** that turns those pieces into feature-film continuity.
 
 That layer is now represented in Director core and a repo migration, pending CI/schema certification.
+
+
+### VibeVoiceFusion — strong multi-speaker orchestration reference, license admission pending
+
+Verified repository capabilities:
+- persistent projects and speaker reference samples;
+- multi-speaker dialogue editor and narration mode;
+- voice cloning from uploaded samples;
+- batch generation of 2–20 seeded variations;
+- LoRA fine-tuning and selectable LoRA weight;
+- queue-based generation/training task management;
+- REST API and CLI;
+- consumer-GPU optimization through FP8 and CPU/GPU layer offloading;
+- bilingual English/Chinese workflow support.
+
+Director placement:
+- good optional local dialogue/ADR provider for scenes with multiple characters;
+- good candidate for generating several alternate reads of the same line/session so Director can score/select the best one;
+- LoRA can become an implementation detail behind a Director `VoiceProviderBinding`;
+- VibeVoice project/speaker/session IDs must never replace Director `characterId` or `voiceIdentityId`;
+- output still requires Director speaker-similarity, intelligibility, prosody, pronunciation, clipping, timing and provenance QC.
+
+Licensing caveat:
+- the README shows an MIT badge;
+- GitHub repository metadata currently reports `license: null`;
+- a root `LICENSE` file was not retrievable in this audit.
+
+Therefore `DIRECTOR_VOICE_PROVIDER_PROFILES` registers VibeVoiceFusion as `reference-only` with an **UNVERIFIED** license state. It must not be automatically admitted into commercial runtime routing until the license is explicitly verified.
+
+Recommended future adapter flow:
+
+```
+Director Voice Identity
+-> selected language/provider binding
+-> VibeVoiceFusion project/speaker materialization
+-> dialogue session
+-> N seeded generations
+-> ingest WAV candidates
+-> Director speaker/prosody/intelligibility/timing QC
+-> select best candidate
+-> phoneme/viseme sync
+-> Workstation dialogue track
+```
