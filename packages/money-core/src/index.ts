@@ -100,6 +100,7 @@ export * from './shark-simulation-learning.js';
 export * from './stock-market-reality.js';
 
 export * from './stock-intelligence-fusion.js';
+export * from './stock-chart-vision-research.js';
 
 export * from './fx-market-reality.js';
 
