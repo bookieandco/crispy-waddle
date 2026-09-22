@@ -8,7 +8,7 @@ import {
   type JhadinaBrand,
   type SocialPlatform,
 } from "@jhadina/social-core"
-import { buildDirectorBriefFromSocial } from "./director-bridge"
+import { buildDirectorBriefFromSocial } from "../social/director-bridge"
 
 export interface MetaResearchCreativeProductionInput {
   brand: JhadinaBrand
