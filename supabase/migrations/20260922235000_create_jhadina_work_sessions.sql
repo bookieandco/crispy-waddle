@@ -14,5 +14,6 @@ create table if not exists public.jhadina_work_sessions (
 );
 alter table public.jhadina_work_sessions enable row level security;
 revoke all on public.jhadina_work_sessions from anon, authenticated;
+grant select, insert, update, delete on public.jhadina_work_sessions to service_role;
 comment on table public.jhadina_work_sessions is 'Durable Jhadina task/session context. Contains references and continuity only; grants no subsystem execution authority.';
 create index if not exists jhadina_work_sessions_owner_updated_idx on public.jhadina_work_sessions(owner_user_id,updated_at desc);
