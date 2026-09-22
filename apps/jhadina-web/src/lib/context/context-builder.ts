@@ -4,6 +4,7 @@ import {
   type DomainContext,
   type EvidenceRef,
   type ExpressionDirective,
+  type GrowthDomainContext,
   type PatternObservation,
   type PersonalityState,
   type SocialDomainContext,
@@ -24,6 +25,13 @@ export interface SpatialContextProvider {
     geographicScope?: unknown
     temporalScope?: { from: string | null; to: string | null; asOf: string | null }
   }): Promise<SpatialDomainContext | undefined>
+}
+
+export interface GrowthContextProvider {
+  getContext(input: {
+    userId: string
+    activeTask: string
+  }): Promise<GrowthDomainContext | undefined>
 }
 
 export interface SocialContextProvider {
@@ -77,8 +85,10 @@ export interface ContextBuilderDeps {
   spatialContextProvider?: SpatialContextProvider
   /** Optional governed personality read/projection adapter. No provider means canonical empty fallback. */
   personalityContextProvider?: PersonalityContextProvider
-  /** Optional read-only Social/Growth context adapter. It cannot publish, spend, or mutate account state. */
+  /** Optional read-only Social context adapter. It cannot publish or mutate account state. */
   socialContextProvider?: SocialContextProvider
+  /** Optional read-only Growth context adapter. It cannot spend, publish, send lifecycle actions, or mutate audiences. */
+  growthContextProvider?: GrowthContextProvider
 }
 
 export interface AssembledContext {
@@ -142,6 +152,20 @@ function policyConstraints(policy: SecurityPolicy): string[] {
   )
   for (const denied of policy.deniedCapabilities ?? []) constraints.push(`denied: ${denied}`)
   return constraints
+}
+
+function normalizeGrowthContext(growth: GrowthDomainContext): GrowthDomainContext {
+  const copyRefs = (refs: EvidenceRef[]) => refs.map((ref) => ({ ...ref }))
+  return {
+    campaigns: copyRefs(growth.campaigns),
+    audiences: copyRefs(growth.audiences),
+    pendingWork: copyRefs(growth.pendingWork),
+    performance: copyRefs(growth.performance),
+    attention: copyRefs(growth.attention),
+    uncertainty: [...growth.uncertainty],
+    limitations: [...growth.limitations],
+    provenance: copyRefs(growth.provenance),
+  }
 }
 
 function normalizeSocialContext(social: SocialDomainContext): SocialDomainContext {
@@ -267,6 +291,20 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
       }
     } catch {
       excludedContext.push("social: governed context unavailable")
+    }
+  }
+  if (deps.growthContextProvider) {
+    try {
+      const growth = await deps.growthContextProvider.getContext({
+        userId: input.userId,
+        activeTask: redactedActiveTask,
+      })
+      if (growth) {
+        domainContext = { ...(domainContext ?? {}), growth: normalizeGrowthContext(growth) }
+        excludedContext.push(...growth.limitations.map((item) => `growth: ${item}`))
+      }
+    } catch {
+      excludedContext.push("growth: governed context unavailable")
     }
   }
 
