@@ -1,8 +1,10 @@
 import { afterEach,describe,expect,it,vi } from 'vitest'
 import {
   matchCanadaHs6Descriptions,
+  parseCanadaImporterProductReport,
   parseCanadaImporterProviders,
   parseDenueProviders,
+  searchCanadaImporterProviders,
   searchCanadaOdbusCsv,
   searchDenueProviders,
 } from './foreign-provider-sources'
@@ -10,6 +12,9 @@ import {
 afterEach(()=>{
   vi.unstubAllGlobals()
   delete process.env.INEGI_DENUE_TOKEN
+  delete process.env.CANADA_CID_HS6_DESCRIPTION_URL
+  delete process.env.CANADA_CID_IMPORTERS_HS6_URL
+  delete process.env.CANADA_CID_LIVE_HS6_LIMIT
 })
 
 describe('foreign provider source adapters',()=>{
@@ -62,6 +67,49 @@ describe('foreign provider source adapters',()=>{
     expect(providers[0].legalName).toBe('Maple Foods Inc')
     expect(providers[0].evidence[0].source).toBe('canada_importer')
     expect(providers[0].evidence[0].details?.datasetYear).toBe(2022)
+  })
+
+
+  it('parses current ISED product reports with the published importer year',()=>{
+    const html=`
+      <h2>Market concentration & Major Canadian importers</h2>
+      <div>Major Canadian importers in 2024</div>
+      <table>
+        <tr><th>Company name</th><th>City</th><th>Province</th><th>Postal code</th></tr>
+        <tr><td>MAPLE FOODS INC</td><td>Toronto</td><td>Ontario</td><td>M1A 1A1</td></tr>
+      </table>
+    `
+    const providers=parseCanadaImporterProductReport(html,{hs6:'040610',description:'Fresh cheese and curd'},10)
+    expect(providers).toHaveLength(1)
+    expect(providers[0].legalName).toBe('MAPLE FOODS INC')
+    expect(providers[0].country).toBe('CAN')
+    expect(providers[0].evidence[0].details?.datasetYear).toBe(2024)
+    expect(providers[0].evidence[0].details?.evidenceRole).toBe('current_product_importer_report')
+  })
+
+  it('prefers the current ISED product report before the historical bulk fallback',async()=>{
+    process.env.CANADA_CID_HS6_DESCRIPTION_URL='https://example.test/descriptions.csv'
+    process.env.CANADA_CID_IMPORTERS_HS6_URL='https://example.test/fallback.csv'
+    process.env.CANADA_CID_LIVE_HS6_LIMIT='1'
+    const requested:string[]=[]
+    vi.stubGlobal('fetch',vi.fn(async(input:RequestInfo|URL)=>{
+      const url=String(input);requested.push(url)
+      if(url.includes('descriptions.csv')){
+        return new Response('HS6,Description\n040610,Fresh cheese and curd\n',{status:200})
+      }
+      if(url.includes('productReport.html')){
+        return new Response(`
+          <div>Major Canadian importers in 2024</div>
+          <table><tr><th>Company</th><th>City</th><th>Province</th><th>Postal code</th></tr>
+          <tr><td>LIVE MAPLE FOODS</td><td>Toronto</td><td>Ontario</td><td>M1A 1A1</td></tr></table>
+        `,{status:200})
+      }
+      throw new Error('historical fallback should not be requested when live data exists')
+    }))
+    const providers=await searchCanadaImporterProviders({keywords:['fresh cheese food'],limit:10})
+    expect(providers[0].legalName).toBe('LIVE MAPLE FOODS')
+    expect(providers[0].evidence[0].details?.datasetYear).toBe(2024)
+    expect(requested.some(url=>url.includes('fallback.csv'))).toBe(false)
   })
 
   it('searches a cached Statistics Canada ODBus CSV without claiming complete coverage',()=>{

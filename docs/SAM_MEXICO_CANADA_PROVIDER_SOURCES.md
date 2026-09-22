@@ -54,16 +54,19 @@ into Canada by HS6/HS10 and other views.
 
 Runtime behavior:
 
-- uses the official 2022 CSV release because it is directly machine-readable;
-- matches requirement language to HS6 descriptions;
-- uses matching HS6 codes to identify named importers;
-- stores the source as `canada_importer`;
-- explicitly records `datasetYear: 2022` and
-  `currentCapability: review_required`.
+- matches requirement language to the official HS6 description vocabulary;
+- prefers ISED's current public product report for the matched HS6 code;
+- current product reports expose named major Canadian importers and their
+  published data year (currently 2024);
+- uses the official 2022 CSV importer release only as a machine-readable
+  historical fallback when the current report returns no named importers;
+- stores both forms as `canada_importer` evidence while recording the actual
+  dataset year and evidence role;
+- keeps `currentCapability: review_required`.
 
-The importer database is **historical trade evidence**, not proof that the
-company is currently active, has stock, can meet the contract schedule, or is
-eligible under a U.S. solicitation.
+The importer database is trade/import evidence, not proof that the company has
+stock, capacity, can meet the contract schedule, or is eligible under a U.S.
+solicitation.
 
 ## Canada — Statistics Canada Open Database of Businesses
 

@@ -5,6 +5,7 @@ const CANADA_CID_DATASET_URL='https://open.canada.ca/data/en/dataset/2e7c5a58-98
 const DEFAULT_CID_HS6_DESCRIPTION_URL='https://ised-isde.canada.ca/site/ised/sites/default/files/documents/cid-bdic-hs6description2022.csv'
 const DEFAULT_CID_IMPORTERS_HS6_URL='https://ised-isde.canada.ca/site/ised/sites/default/files/documents/cid-bdic-majorimportersbyhs62022.csv'
 const CANADA_ODBUS_INFO_URL='https://www150.statcan.gc.ca/n1/pub/21-26-0003/212600032023001-eng.htm'
+const CANADA_CID_PRODUCT_REPORT_URL='https://ised-isde.canada.ca/app/ixb/cid-bdic/productReport.html'
 
 const text=(value:unknown)=>typeof value==='string'?value.trim():''
 const key=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,120)
@@ -34,6 +35,19 @@ function parseCsvRows(input:string):Record<string,string>[]{
   return rows
     .filter(values=>values.some(Boolean))
     .map(values=>Object.fromEntries(header.map((name,index)=>[name,values[index]??''])))
+}
+
+function htmlText(value:string){
+  const named:Record<string,string>={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' '}
+  return value
+    .replace(/<script\b[\s\S]*?<\/script>/gi,' ')
+    .replace(/<style\b[\s\S]*?<\/style>/gi,' ')
+    .replace(/<[^>]+>/g,' ')
+    .replace(/&#x([0-9a-f]+);/gi,(_match,hex)=>String.fromCodePoint(Number.parseInt(hex,16)))
+    .replace(/&#([0-9]+);/g,(_match,dec)=>String.fromCodePoint(Number.parseInt(dec,10)))
+    .replace(/&([a-z]+);/gi,(all,name)=>named[name.toLowerCase()]??all)
+    .replace(/\s+/g,' ')
+    .trim()
 }
 
 const normalizeHeader=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g,'')
@@ -177,6 +191,61 @@ export function parseCanadaImporterProviders(importersCsv:string,matches:CanadaC
   return [...providers.values()]
 }
 
+
+export function parseCanadaImporterProductReport(html:string,match:CanadaCidMatch,limit=30):BrokerProviderCandidate[]{
+  const pageText=htmlText(html)
+  const year=Number(pageText.match(/Major Canadian importers[\s\S]{0,120}?\bin\s+(20\d{2})/i)?.[1]??0)||null
+  const providers:BrokerProviderCandidate[]=[]
+  for(const row of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
+    const cells=[...row[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map(cell=>htmlText(cell[1]))
+    if(cells.length<4)continue
+    const name=cells[0]
+    const city=cells[1]
+    const province=cells[2]
+    const postalCode=cells[3]
+    if(!name||/^company name$/i.test(name)||/^all$/i.test(name)||/^\d+$/.test(name))continue
+    const identity=key(name)
+    const url=CANADA_CID_PRODUCT_REPORT_URL+'?hsCode='+encodeURIComponent(match.hs6)
+    providers.push({
+      id:'provider:canada-importer-live:'+identity,
+      legalName:name,
+      country:'CAN',
+      naicsCodes:[],
+      keywords:uniq([name,match.description,'HS6 '+match.hs6,city,province]),
+      evidence:[{
+        id:'canada-importer-live:'+match.hs6+':'+identity,
+        source:'canada_importer',
+        url,
+        details:{
+          hs6:match.hs6,
+          hsDescription:match.description,
+          city:city||null,
+          province:province||null,
+          postalCode:postalCode||null,
+          datasetYear:year,
+          licence:'Open Government Licence - Canada',
+          evidenceRole:'current_product_importer_report',
+          currentCapability:'review_required',
+        },
+      }],
+    })
+    if(providers.length>=Math.max(1,Math.min(Math.floor(limit),100)))break
+  }
+  return providers
+}
+
+async function fetchCanadaImporterProductReport(match:CanadaCidMatch,limit:number){
+  const url=new URL(CANADA_CID_PRODUCT_REPORT_URL)
+  url.searchParams.set('hsCode',match.hs6)
+  const response=await fetch(url,{
+    headers:{accept:'text/html,application/xhtml+xml'},
+    cache:'force-cache',
+    signal:AbortSignal.timeout(30000),
+  })
+  if(!response.ok)throw new Error('CANADA_CID_LIVE_HTTP_'+response.status)
+  return parseCanadaImporterProductReport(await response.text(),match,limit)
+}
+
 let canadaDescriptionPromise:Promise<string>|null=null
 let canadaImporterPromise:Promise<string>|null=null
 async function cachedText(kind:'descriptions'|'importers',url:string){
@@ -199,12 +268,31 @@ async function cachedText(kind:'descriptions'|'importers',url:string){
 export async function searchCanadaImporterProviders(input:{keywords:string[];limit?:number}):Promise<BrokerProviderCandidate[]>{
   const descriptionUrl=process.env.CANADA_CID_HS6_DESCRIPTION_URL?.trim()||DEFAULT_CID_HS6_DESCRIPTION_URL
   const importersUrl=process.env.CANADA_CID_IMPORTERS_HS6_URL?.trim()||DEFAULT_CID_IMPORTERS_HS6_URL
-  const [descriptions,importers]=await Promise.all([
-    cachedText('descriptions',descriptionUrl),
-    cachedText('importers',importersUrl),
-  ])
+  const descriptions=await cachedText('descriptions',descriptionUrl)
   const matches=matchCanadaHs6Descriptions(descriptions,input.keywords,5)
-  return parseCanadaImporterProviders(importers,matches,Math.max(1,Math.min(Math.floor(input.limit??30),100)))
+  if(!matches.length)return[]
+
+  const limit=Math.max(1,Math.min(Math.floor(input.limit??30),100))
+  const requestedLiveLimit=Number(process.env.CANADA_CID_LIVE_HS6_LIMIT??2)
+  const liveLimit=Number.isFinite(requestedLiveLimit)?Math.max(0,Math.min(Math.floor(requestedLiveLimit),5)):2
+  const live=new Map<string,BrokerProviderCandidate>()
+  for(const match of matches.slice(0,liveLimit)){
+    try{
+      for(const provider of await fetchCanadaImporterProductReport(match,limit)){
+        const existing=live.get(key(provider.legalName))
+        if(existing){
+          existing.keywords=uniq([...existing.keywords,...provider.keywords])
+          existing.evidence=[...existing.evidence,...provider.evidence.filter(e=>!existing.evidence.some(x=>x.id===e.id))]
+        }else live.set(key(provider.legalName),provider)
+      }
+    }catch{}
+  }
+  if(live.size)return[...live.values()].slice(0,limit)
+
+  // Historical machine-readable fallback. This is intentionally labelled 2022
+  // evidence and is used only when the current product report yields no rows.
+  const importers=await cachedText('importers',importersUrl)
+  return parseCanadaImporterProviders(importers,matches,limit)
 }
 
 export function searchCanadaOdbusCsv(input:{csv:string;keywords:string[];naicsCodes?:string[];limit?:number}):BrokerProviderCandidate[]{
