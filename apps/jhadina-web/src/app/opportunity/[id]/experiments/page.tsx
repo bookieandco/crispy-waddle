@@ -15,6 +15,14 @@ type ExperimentRecord = {
   evaluation?: SideHustleExperimentEvaluation
 }
 
+type ObservationDraft = {
+  metrics: Record<string, string>
+  spend: string
+  hours: string
+  evidenceRefs: string
+  notes: string
+}
+
 export default function SideHustleValidationPage({ params }: { params: { id: string } }) {
   const [records, setRecords] = useState<ExperimentRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,6 +30,7 @@ export default function SideHustleValidationPage({ params }: { params: { id: str
   const [error, setError] = useState("")
   const [proposal, setProposal] = useState<SideHustleExperimentProposal | null>(null)
   const [proposalBusy, setProposalBusy] = useState(false)
+  const [observationDrafts, setObservationDrafts] = useState<Record<string, ObservationDraft>>({})
 
   async function load() {
     setLoading(true)
@@ -92,6 +101,81 @@ export default function SideHustleValidationPage({ params }: { params: { id: str
       setError(caught instanceof Error ? caught.message : "Unable to create validation plan")
     } finally {
       setProposalBusy(false)
+    }
+  }
+
+  function observationDraft(experiment: SideHustleExperiment): ObservationDraft {
+    return observationDrafts[experiment.id] ?? {
+      metrics: Object.fromEntries(
+        [...experiment.successCriteria, ...experiment.killCriteria]
+          .map((criterion) => criterion.metric)
+          .filter((metric, index, values) => values.indexOf(metric) === index)
+          .map((metric) => [metric, ""]),
+      ),
+      spend: "0",
+      hours: "0",
+      evidenceRefs: "",
+      notes: "",
+    }
+  }
+
+  function patchObservationDraft(
+    experiment: SideHustleExperiment,
+    patch: (draft: ObservationDraft) => ObservationDraft,
+  ) {
+    setObservationDrafts((current) => ({
+      ...current,
+      [experiment.id]: patch(current[experiment.id] ?? observationDraft(experiment)),
+    }))
+  }
+
+  async function recordObservation(experiment: SideHustleExperiment) {
+    const draft = observationDraft(experiment)
+    const metrics = Object.fromEntries(
+      Object.entries(draft.metrics).map(([metric, value]) => [metric, Number(value)]),
+    )
+    if (Object.values(draft.metrics).some((value) => value.trim() === "" || !Number.isFinite(Number(value)))) {
+      setError("Every experiment metric needs a numeric observation.")
+      return
+    }
+    const evidenceRefs = draft.evidenceRefs
+      .split(/[\n,]/)
+      .map((value) => value.trim())
+      .filter(Boolean)
+    if (evidenceRefs.length === 0) {
+      setError("At least one evidence reference is required for every observation.")
+      return
+    }
+
+    setBusy(experiment.id)
+    setError("")
+    try {
+      const response = await fetch(
+        `/api/opportunities/${encodeURIComponent(params.id)}/experiments/${encodeURIComponent(experiment.id)}/observations`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            metrics,
+            spend: Number(draft.spend),
+            hours: Number(draft.hours),
+            evidenceRefs,
+            notes: draft.notes,
+          }),
+        },
+      )
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error || "Unable to record validation evidence")
+      setObservationDrafts((current) => {
+        const next = { ...current }
+        delete next[experiment.id]
+        return next
+      })
+      await load()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to record validation evidence")
+    } finally {
+      setBusy(null)
     }
   }
 
@@ -279,6 +363,103 @@ export default function SideHustleValidationPage({ params }: { params: { id: str
                 </div>
               )}
 
+              {experiment.status === "running" && (() => {
+                const draft = observationDraft(experiment)
+                return (
+                  <div style={evidenceCapture}>
+                    <div style={sectionTitle}>Record evidence observation</div>
+                    <div style={evidenceGrid}>
+                      {Object.keys(draft.metrics).map((metric) => (
+                        <label key={metric} style={fieldLabel}>
+                          {metric.replace(/_/g, " ")}
+                          <input
+                            style={input}
+                            type="number"
+                            step="any"
+                            value={draft.metrics[metric]}
+                            onChange={(event) => patchObservationDraft(experiment, (current) => ({
+                              ...current,
+                              metrics: { ...current.metrics, [metric]: event.target.value },
+                            }))}
+                          />
+                        </label>
+                      ))}
+                      <label style={fieldLabel}>
+                        Spend used
+                        <input
+                          style={input}
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={draft.spend}
+                          onChange={(event) => patchObservationDraft(experiment, (current) => ({ ...current, spend: event.target.value }))}
+                        />
+                      </label>
+                      <label style={fieldLabel}>
+                        Hours used
+                        <input
+                          style={input}
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={draft.hours}
+                          onChange={(event) => patchObservationDraft(experiment, (current) => ({ ...current, hours: event.target.value }))}
+                        />
+                      </label>
+                    </div>
+                    <label style={fieldLabel}>
+                      Evidence references
+                      <textarea
+                        style={textarea}
+                        value={draft.evidenceRefs}
+                        placeholder="Paste source URLs or internal evidence IDs, separated by commas or new lines"
+                        onChange={(event) => patchObservationDraft(experiment, (current) => ({ ...current, evidenceRefs: event.target.value }))}
+                      />
+                    </label>
+                    <label style={fieldLabel}>
+                      Notes
+                      <textarea
+                        style={textarea}
+                        value={draft.notes}
+                        placeholder="What happened in this observation?"
+                        onChange={(event) => patchObservationDraft(experiment, (current) => ({ ...current, notes: event.target.value }))}
+                      />
+                    </label>
+                    <div style={actions}>
+                      <button
+                        style={primary}
+                        disabled={busy === experiment.id}
+                        onClick={() => void recordObservation(experiment)}
+                      >
+                        {busy === experiment.id ? "Recording…" : "Record observation"}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {observations.length > 0 && (
+                <div style={section}>
+                  <div style={sectionTitle}>Evidence history</div>
+                  {[...observations].reverse().map((observation) => (
+                    <div key={observation.id} style={observationRow}>
+                      <div>
+                        <strong>{new Date(observation.observedAt).toLocaleString()}</strong>
+                        {observation.notes ? <div style={observationNote}>{observation.notes}</div> : null}
+                        <div style={observationMetrics}>
+                          {Object.entries(observation.metrics).map(([metric, value]) => (
+                            <span key={metric} style={miniBadge}>{metric.replace(/_/g, " ")}: {value}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={observationMeta}>
+                        {money(observation.spend, experiment.currency)} · {observation.hours}h · {observation.evidenceRefs.length} evidence ref{observation.evidenceRefs.length === 1 ? "" : "s"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {evaluation && (
                 <div style={evaluationBox}>
                   <div style={sectionTitle}>Current evaluation</div>
@@ -374,5 +555,13 @@ const proposalCard = { ...card, border: "1px solid #cbd8cf", background: "rgba(2
 const fieldLabel = { display: "grid", gap: 5, color: "#69766e", fontSize: 10, textTransform: "uppercase" as const, letterSpacing: ".08em", marginTop: 10 }
 const input = { width: "100%", boxSizing: "border-box" as const, border: "1px solid #d2dad4", borderRadius: 10, background: "white", padding: "9px 10px", color: "#34453c", fontSize: 13 }
 const assumptionRow = { margin: "5px 0", color: "#5f6d65", fontSize: 12, lineHeight: 1.5 }
+const evidenceCapture = { marginTop: 18, padding: 14, borderRadius: 16, background: "#f5f7f4", border: "1px solid #dce4de" }
+const evidenceGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10 }
+const textarea = { ...input, minHeight: 72, resize: "vertical" as const, fontFamily: "inherit" }
+const observationRow = { display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", padding: "10px 0", borderBottom: "1px solid #e7ebe7", fontSize: 12, color: "#59675f", flexWrap: "wrap" as const }
+const observationNote = { marginTop: 4, color: "#6f7b74" }
+const observationMetrics = { display: "flex", gap: 6, flexWrap: "wrap" as const, marginTop: 7 }
+const miniBadge = { display: "inline-flex", padding: "4px 7px", borderRadius: 999, background: "#edf1ed", fontSize: 10 }
+const observationMeta = { color: "#7a867e", fontSize: 11 }
 const empty = { marginTop: 20, padding: 22, borderRadius: 20, background: "rgba(255,255,255,.6)", border: "1px solid #dce2dd", color: "#68756e" }
 const muted = { marginTop: 20, color: "#7b877f" }
