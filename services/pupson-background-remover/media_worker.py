@@ -161,4 +161,4 @@ def not_found(_error):
 
 if __name__ == "__main__":
     from waitress import serve
-    serve(app, host="0.0.0.0", port=PORT, threads=4)
+    # Railway private networking resolves service domains over IPv6. Binding\n    # to :: keeps the worker reachable from the public gateway while the two\n    # inference children remain private on IPv4 loopback.\n    serve(app, host="::", port=PORT, threads=4)
