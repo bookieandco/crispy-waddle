@@ -17,6 +17,7 @@ ON money_production_commissioning_receipts(lane, kind, recorded_at DESC);
 REVOKE ALL ON money_production_commissioning_receipts FROM PUBLIC;
 REVOKE ALL ON money_production_commissioning_receipts FROM anon;
 REVOKE ALL ON money_production_commissioning_receipts FROM authenticated;
+REVOKE ALL ON money_production_commissioning_receipts FROM service_role;
 GRANT SELECT, INSERT ON money_production_commissioning_receipts TO service_role;
 
 ALTER TABLE money_production_commissioning_receipts ENABLE ROW LEVEL SECURITY;
@@ -52,7 +53,8 @@ ON money_production_platform_receipts(kind, recorded_at DESC);
 REVOKE ALL ON money_production_platform_receipts FROM PUBLIC;
 REVOKE ALL ON money_production_platform_receipts FROM anon;
 REVOKE ALL ON money_production_platform_receipts FROM authenticated;
-GRANT SELECT, INSERT, DELETE ON money_production_platform_receipts TO service_role;
+REVOKE ALL ON money_production_platform_receipts FROM service_role;
+GRANT SELECT, INSERT ON money_production_platform_receipts TO service_role;
 
 ALTER TABLE money_production_platform_receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE money_production_platform_receipts FORCE ROW LEVEL SECURITY;
