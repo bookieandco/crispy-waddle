@@ -91,9 +91,11 @@ create table if not exists public.director_voice_language_variants (
   accent_policy text not null check(accent_policy in ('preserve-identity','native-target','directed')),
   delivery_style text,
   provider_binding_ids text[] not null default '{}',
-  created_at timestamptz not null default now(),
-  unique(voice_identity_id, language, coalesce(locale,''))
+  created_at timestamptz not null default now()
 );
+
+create unique index if not exists director_voice_language_variant_unique_idx
+  on public.director_voice_language_variants(voice_identity_id, language, coalesce(locale,''));
 
 create table if not exists public.director_score_themes (
   id text primary key,
