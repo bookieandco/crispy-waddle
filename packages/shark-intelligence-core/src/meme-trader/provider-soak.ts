@@ -10,7 +10,7 @@ export const SHARK_PROVIDER_PROGRAMS=Object.freeze({
 
 export type SharkProviderSoakState='READY'|'UNCONFIGURED'|'DEGRADED'|'FAILED'
 export type SharkProviderSoakCheck=Readonly<{
-  provider:'dexscreener'|'helius'|'coingecko'|'solana-rpc'|'pump'|'pumpswap'|'raydium'|'meteora'
+  provider:'dexscreener'|'helius'|'helius-webhook'|'coingecko'|'solana-rpc'|'pump'|'pumpswap'|'raydium'|'meteora'
   state:SharkProviderSoakState
   latencyMs:number|null
   detail:string
@@ -38,6 +38,7 @@ type SoakOptions=Readonly<{
   heliusRpcUrl?:string
   heliusApiKey?:string
   coinGeckoApiKey?:string
+  publicOrigin?:string
 }>
 
 const elapsed=(start:number)=>Math.max(0,Date.now()-start)
@@ -87,6 +88,37 @@ async function helius(fetchImpl:FetchLike,options:SoakOptions,timeoutMs:number):
     const result=await jsonRpc(fetchImpl,url,'getHealth',[],timeoutMs)
     return check('helius',result==='ok'?'READY':'DEGRADED',elapsed(started),result==='ok'?'health_ok':'unexpected_health_response')
   }catch{return check('helius','FAILED',elapsed(started),'rpc_request_failed')}
+}
+
+
+function normalizedOrigin(value:string):string{
+  const url=new URL(value)
+  if(url.protocol!=='https:'&&url.hostname!=='localhost'&&url.hostname!=='127.0.0.1')throw new Error('invalid_public_origin')
+  return url.origin
+}
+
+async function heliusWebhookRegistration(fetchImpl:FetchLike,apiKey:string|undefined,publicOrigin:string|undefined,timeoutMs:number):Promise<SharkProviderSoakCheck>{
+  if(!apiKey?.trim()||!publicOrigin?.trim())return check('helius-webhook','UNCONFIGURED',null,'registration_check_not_configured')
+  const started=Date.now()
+  let expected:string
+  try{expected=`${normalizedOrigin(publicOrigin.trim())}/api/webhooks/helius/launches`}
+  catch{return check('helius-webhook','FAILED',elapsed(started),'public_origin_invalid')}
+  try{
+    const url=`https://api-mainnet.helius-rpc.com/v0/webhooks?api-key=${encodeURIComponent(apiKey.trim())}`
+    const response=await boundedFetch(fetchImpl,url,{method:'GET',headers:{accept:'application/json'}},timeoutMs)
+    if(!response.ok)return check('helius-webhook','FAILED',elapsed(started),`http_${response.status}`)
+    const body=await response.json() as unknown
+    if(!Array.isArray(body))return check('helius-webhook','DEGRADED',elapsed(started),'unexpected_response_shape')
+    const match=body.find(row=>{
+      if(!row||typeof row!=='object')return false
+      const candidate=(row as Record<string,unknown>).webhookURL
+      if(typeof candidate!=='string')return false
+      try{return new URL(candidate).toString()===new URL(expected).toString()}catch{return false}
+    }) as Record<string,unknown>|undefined
+    if(!match)return check('helius-webhook','FAILED',elapsed(started),'registration_missing')
+    if(match.active===false)return check('helius-webhook','DEGRADED',elapsed(started),'registration_inactive')
+    return check('helius-webhook','READY',elapsed(started),'registration_found')
+  }catch{return check('helius-webhook','FAILED',elapsed(started),'registration_request_failed')}
 }
 
 async function coinGecko(fetchImpl:FetchLike,apiKey:string|undefined,timeoutMs:number):Promise<SharkProviderSoakCheck>{
@@ -141,13 +173,14 @@ export async function runSharkProviderSoak(options:SoakOptions={}):Promise<Shark
   const fetchImpl=options.fetchImpl??fetch
   const timeoutMs=Number.isInteger(options.timeoutMs)&&Number(options.timeoutMs)>=1000&&Number(options.timeoutMs)<=15000?Number(options.timeoutMs):5000
   const rpcUrl=options.solanaRpcUrl?.trim()||options.heliusRpcUrl?.trim()||heliusUrl(options)
-  const [dex,heliusCheck,coin,programChecks]=await Promise.all([
+  const [dex,heliusCheck,heliusWebhookCheck,coin,programChecks]=await Promise.all([
     dexScreener(fetchImpl,timeoutMs),
     helius(fetchImpl,options,timeoutMs),
+    heliusWebhookRegistration(fetchImpl,options.heliusApiKey,options.publicOrigin,timeoutMs),
     coinGecko(fetchImpl,options.coinGeckoApiKey,timeoutMs),
     solanaPrograms(fetchImpl,rpcUrl,timeoutMs),
   ])
-  const checks=Object.freeze([dex,heliusCheck,coin,...programChecks])
+  const checks=Object.freeze([dex,heliusCheck,heliusWebhookCheck,coin,...programChecks])
   const blockers=Object.freeze(checks.filter(item=>item.state!=='READY').map(item=>`${item.provider}:${item.state.toLowerCase()}`))
   return Object.freeze({
     receiptVersion:'SHARK-PROVIDER-SOAK-01',
