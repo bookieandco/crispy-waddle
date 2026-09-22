@@ -46,12 +46,19 @@ const brands = [
   ["atwood-bookie", "Atwood Bookie"],
 ] as const
 
+const providers = [
+  ["hootsuite", "Hootsuite"],
+  ["ayrshare", "Ayrshare"],
+] as const
+
 export default function SocialCommandCenter() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [profiles, setProfiles] = useState<ProviderProfile[]>([])
   const [items, setItems] = useState<HubItem[]>([])
   const [brand, setBrand] = useState("jhadinatv")
+  const [provider, setProvider] = useState("hootsuite")
   const [text, setText] = useState("")
+  const [scheduledAt, setScheduledAt] = useState("")
   const [selected, setSelected] = useState<string[]>([])
   const [pending, setPending] = useState<PendingApproval | null>(null)
   const [busy, setBusy] = useState("")
@@ -87,12 +94,16 @@ export default function SocialCommandCenter() {
     setPending(null)
   }, [brand])
 
+  useEffect(() => {
+    setProfiles([])
+  }, [provider])
+
   async function discover() {
     setBusy("discover"); setError("")
     try {
-      const response = await fetch("/api/social/profiles?discover=hootsuite", { cache: "no-store" })
+      const response = await fetch(`/api/social/profiles?discover=${encodeURIComponent(provider)}`, { cache: "no-store" })
       const json = await response.json()
-      if (!response.ok) throw new Error(json.error || "Could not discover Hootsuite profiles")
+      if (!response.ok) throw new Error(json.error || `Could not discover ${provider} profiles`)
       setProfiles(json.data ?? [])
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Discovery failed")
@@ -105,7 +116,7 @@ export default function SocialCommandCenter() {
       const response = await fetch("/api/social/profiles", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ brand, providerProfileId: profile.id }),
+        body: JSON.stringify({ brand, provider, providerProfileId: profile.id }),
       })
       const json = await response.json()
       if (!response.ok) throw new Error(json.error || "Could not connect social profile")
@@ -124,6 +135,7 @@ export default function SocialCommandCenter() {
         body: JSON.stringify({
           brand,
           text,
+          scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
           targetAccountIds: selected,
           idempotencyKey: crypto.randomUUID(),
         }),
@@ -153,6 +165,7 @@ export default function SocialCommandCenter() {
       if (!response.ok) throw new Error(json.error || "Publication failed")
       setPending(null)
       setText("")
+      setScheduledAt("")
       setSelected([])
       await load()
     } catch (caught) {
@@ -164,7 +177,9 @@ export default function SocialCommandCenter() {
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
       <div style={eyebrow}>Jhadina Social</div>
       <h1 style={{ margin: "10px 0 8px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400, fontSize: "clamp(38px,8vw,60px)", lineHeight: 1 }}>One social control plane.</h1>
-      <p style={{ maxWidth: 650, lineHeight: 1.65, color: "#69766f" }}>Connect exact accounts, prepare one publication proposal, then explicitly approve it. Jhadina never expands a platform selection into every connected profile.</p>
+      <p style={{ maxWidth: 700, lineHeight: 1.65, color: "#69766f" }}>
+        Connect exact accounts, prepare platform-specific content, schedule it, approve the immutable publication, and let the provider deliver automatically at the approved time. Jhadina never expands an account selection or silently self-approves generated content.
+      </p>
 
       {error && <div role="alert" style={{ margin: "18px 0", padding: 14, borderRadius: 16, background: "#f5e1dc", color: "#8d5148" }}>{error}</div>}
 
@@ -174,8 +189,11 @@ export default function SocialCommandCenter() {
           <select value={brand} onChange={(event) => setBrand(event.target.value)} style={input}>
             {brands.map(([id, label]) => <option value={id} key={id}>{label}</option>)}
           </select>
+          <select value={provider} onChange={(event) => setProvider(event.target.value)} style={input}>
+            {providers.map(([id, label]) => <option value={id} key={id}>{label}</option>)}
+          </select>
           <button type="button" onClick={discover} disabled={!!busy} style={secondary}>
-            {busy === "discover" ? "Checking…" : "Discover Hootsuite profiles"}
+            {busy === "discover" ? "Checking…" : `Discover ${providers.find(([id]) => id === provider)?.[1] ?? provider} profiles`}
           </button>
         </div>
         {profiles.length > 0 && <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
@@ -189,7 +207,7 @@ export default function SocialCommandCenter() {
         <div style={{ display: "grid", gap: 8 }}>
           {eligibleAccounts.length
             ? eligibleAccounts.map((account) => <label key={account.id} style={row}>
-                <span><strong>{account.displayName}</strong> · {account.platform}{account.handle ? ` · @${account.handle}` : ""}</span>
+                <span><strong>{account.displayName}</strong> · {account.platform} · {account.provider}{account.handle ? ` · @${account.handle}` : ""}</span>
                 <input
                   type="checkbox"
                   checked={selected.includes(account.id)}
@@ -203,7 +221,7 @@ export default function SocialCommandCenter() {
       </section>
 
       <section style={panel}>
-        <div style={eyebrow}>PUBLICATION PROPOSAL</div>
+        <div style={eyebrow}>PUBLICATION + AUTOMATION</div>
         <textarea
           value={text}
           onChange={(event) => { setText(event.target.value); setPending(null) }}
@@ -211,6 +229,20 @@ export default function SocialCommandCenter() {
           placeholder="Write or paste the post Jhadina should prepare for approval…"
           style={{ ...input, width: "100%", resize: "vertical", margin: "12px 0" }}
         />
+        <div style={{ display: "grid", gap: 7, maxWidth: 420, marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: "#66736c" }} htmlFor="social-schedule">Optional publish time</label>
+          <input
+            id="social-schedule"
+            type="datetime-local"
+            value={scheduledAt}
+            min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+            onChange={(event) => { setScheduledAt(event.target.value); setPending(null) }}
+            style={input}
+          />
+          <div style={{ fontSize: 11, color: "#879089" }}>
+            Leave blank to publish after approval now. Set a future time to approve once and have the provider publish automatically then.
+          </div>
+        </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             type="button"
@@ -221,10 +253,16 @@ export default function SocialCommandCenter() {
             {busy === "proposal" ? "Preparing…" : "Request publication approval"}
           </button>
           {pending && <button type="button" onClick={approveAndPublish} disabled={!!busy} style={primary}>
-            {busy === "publish" ? "Publishing…" : "Approve & publish"}
+            {busy === "publish"
+              ? "Dispatching…"
+              : scheduledAt
+                ? "Approve & schedule"
+                : "Approve & publish"}
           </button>}
         </div>
-        {pending && <p style={{ color: "#725f42", lineHeight: 1.5 }}>Approval is pending. The provider has not been called yet. “Approve & publish” consumes this receipt once.</p>}
+        {pending && <p style={{ color: "#725f42", lineHeight: 1.5 }}>
+          Approval is pending. The provider has not been called yet. Approval consumes this receipt once and binds the exact text, media, destination accounts, and schedule.
+        </p>}
       </section>
 
       <section style={panel}>
