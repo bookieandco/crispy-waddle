@@ -169,7 +169,7 @@ export function assertAutonomousMandateLimits(l:AutonomousMandateLimits):void{
   positive(l.maxGrossExposureMinor,'MONEY_AUTO_GROSS_EXPOSURE_INVALID')
   if(!Number.isInteger(l.maxDailyOrders)||l.maxDailyOrders<1)throw new Error('MONEY_AUTO_DAILY_ORDERS_INVALID')
   bps(l.maxDrawdownBps,'MONEY_AUTO_DRAWDOWN_INVALID')
-  bps(l.maxLeverageBps,'MONEY_AUTO_LEVERAGE_INVALID')
+  if(!Number.isInteger(l.maxLeverageBps)||l.maxLeverageBps<10000||l.maxLeverageBps>100000)throw new Error('MONEY_AUTO_LEVERAGE_INVALID')
   if(l.maxLeverageBps<10000)throw new Error('MONEY_AUTO_LEVERAGE_BELOW_ONE_X')
   bps(l.minModelConfidenceBps,'MONEY_AUTO_CONFIDENCE_INVALID')
   if(l.maxOrderNotionalMinor>l.maxDailySubmittedNotionalMinor)throw new Error('MONEY_AUTO_ORDER_EXCEEDS_DAILY_LIMIT')
