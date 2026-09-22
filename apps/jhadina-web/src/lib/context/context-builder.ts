@@ -1,8 +1,10 @@
 import {
   emptyPersonalityState,
   type ContextPacket,
+  type ConversationSignalContext,
   type DomainContext,
   type EvidenceRef,
+  type EphemeralArtifactContext,
   type ExpressionDirective,
   type GrowthDomainContext,
   type PatternObservation,
@@ -74,6 +76,8 @@ export interface ContextBuilderInput {
   memoryRelevanceQuery?: string
   geographicScope?: unknown
   temporalScope?: { from: string | null; to: string | null; asOf: string | null }
+  artifacts?: EphemeralArtifactContext[]
+  conversationSignals?: ConversationSignalContext
   limits?: Partial<ContextBuilderLimits>
 }
 
@@ -323,6 +327,8 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     knowledge: knowledgeRefs,
     constraints: policyConstraints(policy),
     excludedContext,
+    ...(input.artifacts?.length ? { artifacts: input.artifacts.map((artifact) => ({ ...artifact })) } : {}),
+    ...(input.conversationSignals ? { conversationSignals: structuredClone(input.conversationSignals) } : {}),
     ...(domainContext ? { domainContext } : {}),
     ...(expressionDirective ? { expressionDirective } : {}),
   }

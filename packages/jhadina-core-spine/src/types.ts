@@ -160,6 +160,39 @@ export interface GrowthDomainContext {
   provenance: EvidenceRef[];
 }
 
+/** Ephemeral user-provided evidence for the current reasoning turn only.
+ * These artifacts are read-only context. They are never an authority grant,
+ * never durable memory by themselves, and uploaded code is never executed. */
+export interface EphemeralArtifactContext {
+  id: string;
+  kind: 'screen' | 'image' | 'text';
+  mimeType: string;
+  source: 'screen-share' | 'file-picker' | 'clipboard';
+  name?: string;
+  observedAt: string;
+  /** UTF-8 text content for bounded text artifacts. */
+  text?: string;
+  /** Base64 payload only, without a data: URL prefix, for bounded image artifacts. */
+  base64?: string;
+}
+
+/** Turn-scoped acoustic cues. These are descriptive observations, never
+ * mental-state diagnoses and never authority. */
+export interface ConversationSignalContext {
+  source: 'live-microphone' | 'media-artifact';
+  observedAt: string;
+  language?: string;
+  utteranceDurationMs?: number;
+  speakingRateWpm?: number;
+  pauseRatio?: number;
+  rmsMean?: number;
+  rmsPeak?: number;
+  energyVariance?: number;
+  pitchMeanHz?: number;
+  pitchVariance?: number;
+  interpretationLimits: string[];
+}
+
 /** Domain extensions are additive; existing ContextPacket consumers remain valid. */
 export interface DomainContext {
   spatial?: SpatialDomainContext;
@@ -204,6 +237,8 @@ export interface ContextPacket {
   knowledge: EvidenceRef[];
   constraints: string[];
   excludedContext: string[];
+  artifacts?: EphemeralArtifactContext[];
+  conversationSignals?: ConversationSignalContext;
   domainContext?: DomainContext;
   expressionDirective?: ExpressionDirective;
 }
