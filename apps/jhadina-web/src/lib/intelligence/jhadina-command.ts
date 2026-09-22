@@ -7,7 +7,7 @@ import {
 } from "@jhadina/action-core"
 import { JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION } from "@jhadina/security-core"
 import { IntelligenceRouter, realizeGovernedExpression, type GovernedExpressionRealization, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
-import type { EphemeralArtifactContext } from "@jhadina/core-spine"
+import type { ConversationSignalContext, EphemeralArtifactContext } from "@jhadina/core-spine"
 import type {
   GrowthContextProvider,
   PersonalityContextProvider,
@@ -41,6 +41,7 @@ export interface JhadinaCommandInput {
   geographicScope?: unknown
   temporalScope?: { from: string | null; to: string | null; asOf: string | null }
   artifacts?: EphemeralArtifactContext[]
+  conversationSignals?: ConversationSignalContext
   contextLimits?: Partial<ContextBuilderLimits>
 }
 
@@ -104,6 +105,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     geographicScope: input.geographicScope,
     temporalScope: input.temporalScope,
     artifacts: input.artifacts,
+    conversationSignals: input.conversationSignals,
     limits: input.contextLimits,
   })
 
