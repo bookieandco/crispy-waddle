@@ -1,3 +1,10 @@
+import type {
+  GrowthCreativeExperimentAssessmentRow,
+  GrowthCreativeExperimentObservationRow,
+  GrowthCreativeExperimentRow,
+  GrowthCreativeVariantLineageRow,
+  GrowthEvidenceHealthAssessmentRow,
+} from "./creative-experiment-repository"
 import { createClient } from "../supabase/server"
 
 export type GrowthIntelligenceCampaignRow = {
@@ -96,6 +103,11 @@ export interface GrowthIntelligenceReadRepository {
   listOutbox(userId: string): Promise<GrowthIntelligenceOutboxRow[]>
   listObservations(userId: string): Promise<GrowthIntelligenceObservationRow[]>
   listLifecycleProposals(userId: string): Promise<GrowthIntelligenceLifecycleRow[]>
+  listCreativeExperiments(userId: string): Promise<GrowthCreativeExperimentRow[]>
+  listCreativeVariantLineage(userId: string): Promise<GrowthCreativeVariantLineageRow[]>
+  listCreativeExperimentObservations(userId: string): Promise<GrowthCreativeExperimentObservationRow[]>
+  listEvidenceHealthAssessments(userId: string): Promise<GrowthEvidenceHealthAssessmentRow[]>
+  listCreativeExperimentAssessments(userId: string): Promise<GrowthCreativeExperimentAssessmentRow[]>
 }
 
 export function createGrowthIntelligenceReadRepository(): GrowthIntelligenceReadRepository {
@@ -166,6 +178,66 @@ export function createGrowthIntelligenceReadRepository(): GrowthIntelligenceRead
         .limit(100)
       if (error) throw new Error(`GROWTH_INTELLIGENCE_LIFECYCLE_FAILED:${error.message}`)
       return (data ?? []) as GrowthIntelligenceLifecycleRow[]
+    },
+
+    async listCreativeExperiments(userId) {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_growth_creative_experiments")
+        .select("*")
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false })
+        .limit(100)
+      if (error) throw new Error(`GROWTH_INTELLIGENCE_EXPERIMENTS_FAILED:${error.message}`)
+      return (data ?? []) as GrowthCreativeExperimentRow[]
+    },
+
+    async listCreativeVariantLineage(userId) {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_growth_creative_variant_lineage")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(300)
+      if (error) throw new Error(`GROWTH_INTELLIGENCE_VARIANT_LINEAGE_FAILED:${error.message}`)
+      return (data ?? []) as GrowthCreativeVariantLineageRow[]
+    },
+
+    async listCreativeExperimentObservations(userId) {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_growth_creative_experiment_observations")
+        .select("*")
+        .eq("user_id", userId)
+        .order("observed_at", { ascending: false })
+        .limit(500)
+      if (error) throw new Error(`GROWTH_INTELLIGENCE_EXPERIMENT_OBSERVATIONS_FAILED:${error.message}`)
+      return (data ?? []) as GrowthCreativeExperimentObservationRow[]
+    },
+
+    async listEvidenceHealthAssessments(userId) {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_growth_evidence_health_assessments")
+        .select("*")
+        .eq("user_id", userId)
+        .order("checked_at", { ascending: false })
+        .limit(200)
+      if (error) throw new Error(`GROWTH_INTELLIGENCE_EVIDENCE_HEALTH_FAILED:${error.message}`)
+      return (data ?? []) as GrowthEvidenceHealthAssessmentRow[]
+    },
+
+    async listCreativeExperimentAssessments(userId) {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_growth_creative_experiment_assessments")
+        .select("*")
+        .eq("user_id", userId)
+        .order("assessed_at", { ascending: false })
+        .limit(300)
+      if (error) throw new Error(`GROWTH_INTELLIGENCE_EXPERIMENT_ASSESSMENTS_FAILED:${error.message}`)
+      return (data ?? []) as GrowthCreativeExperimentAssessmentRow[]
     },
   }
 }
