@@ -37,6 +37,8 @@ on:
       - "apps/jhadina-web/src/lib/storage/SupabaseMemoryStorage.ts"
       - "apps/jhadina-web/src/lib/storage/SupabaseMemoryStorage.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/expression/route.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/expression/route.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.social.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.growth.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.ts"
@@ -84,6 +86,8 @@ on:
       - "apps/jhadina-web/src/lib/storage/SupabaseMemoryStorage.ts"
       - "apps/jhadina-web/src/lib/storage/SupabaseMemoryStorage.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/expression/route.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/expression/route.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.social.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.growth.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.ts"
@@ -155,6 +159,7 @@ jobs:
             src/lib/intelligence/ask-growth-command.test.ts \
             src/app/api/jhadina/command/route.social.test.ts \
             src/app/api/jhadina/command/route.growth.test.ts \
+            src/app/api/jhadina/expression/route.test.ts \
             src/lib/intelligence/governed-intelligence-proposal.test.ts \
             src/lib/personality/personality-outcome-feedback.test.ts \
             src/lib/storage/SupabaseMemoryStorage.test.ts \
