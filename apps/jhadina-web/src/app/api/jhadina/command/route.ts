@@ -202,6 +202,128 @@ export async function POST(req: NextRequest) {
       if (social) {
         const clarifying = social.proposal.disposition === "ASK"
         const videoIntent = inspectAskVideoIntent(activeTask)
+        const shouldStartDirectorVideo =
+          !clarifying
+          && social.workPlan.nextBoundary === "director_production"
+          && Boolean(videoIntent)
+
+        if (shouldStartDirectorVideo) {
+          const character = social.workPlan.character
+          const resolvedBrands = new Set([
+            ...social.workPlan.accounts.map((account) => account.brand),
+            ...(character ? [character.brand] : []),
+          ])
+          if (resolvedBrands.size !== 1 || social.workPlan.accounts.length === 0) {
+            const recommendation = resolvedBrands.size !== 1
+              ? "Choose one Social brand before starting Director production."
+              : "Choose at least one connected Social account before starting Director production."
+            const scopedProposal = {
+              ...social.proposal,
+              disposition: "ASK" as const,
+              recommendation,
+              rationale: `${social.proposal.rationale} Director auto-start requires one resolved brand and at least one connected account so expression/account scope cannot be broadened implicitly.`,
+            }
+            return NextResponse.json({
+              success: true,
+              data: {
+                proposal: scopedProposal,
+                reasoningEventId: social.reasoningEventId,
+                expression: {
+                  proposal: scopedProposal,
+                  presentation: { mode: "clarifying", allowProfanity: false, allowQuip: false },
+                  segments: [{ kind: "semantic", text: recommendation }],
+                },
+                verified: social.verified,
+                verificationReason: social.verificationReason,
+                socialWorkPlan: social.workPlan,
+                feedbackEligible: false,
+              },
+            })
+          }
+
+          const video = await createAndSubmitAskVideoJob({
+            userId: verifiedIdentity.userId,
+            activeTask,
+            activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
+            clientRequestId: typeof body?.clientRequestId === "string" ? body.clientRequestId : undefined,
+            socialExpression: {
+              brand: [...resolvedBrands][0]!,
+              characterProfileRef: character?.id,
+              voiceProfileRef: character?.voiceProfileRef,
+              toneTraits: character?.toneTraits,
+              pointOfView: character?.pointOfView,
+              accountScopes: social.workPlan.accounts.map((account) => ({
+                accountId: account.accountId,
+                platform: account.platform,
+                provider: account.provider,
+                displayName: account.displayName,
+              })),
+            },
+          })
+          const started = !["blocked", "failed", "cancelled"].includes(video.job.status)
+          const message = started
+            ? `${social.proposal.recommendation} Director started video job ${video.job.id}; status=${video.job.status}.`
+            : `${social.proposal.recommendation} Director created video job ${video.job.id}, but status=${video.job.status}: ${video.job.error ?? "provider action is required"}.`
+          const combinedProposal = {
+            ...social.proposal,
+            disposition: started ? "PROCEED" as const : "DEFER" as const,
+            recommendation: message,
+            rationale: `${social.proposal.rationale} Because the user explicitly requested video production, the resolved Social scope continued into Director's governed video job boundary. This does not grant publication or spend authority.`,
+            uncertainty: [
+              ...social.proposal.uncertainty,
+              ...(video.job.error ? [video.job.error] : []),
+            ],
+          }
+          return NextResponse.json({
+            success: true,
+            data: {
+              proposal: combinedProposal,
+              reasoningEventId: social.reasoningEventId,
+              expression: {
+                proposal: combinedProposal,
+                presentation: {
+                  mode: "direct",
+                  allowProfanity: false,
+                  allowQuip: false,
+                },
+                segments: [{ kind: "semantic", text: message }],
+              },
+              verified: social.verified,
+              verificationReason: `${social.verificationReason} Director video job persisted before provider submission.`,
+              socialWorkPlan: social.workPlan,
+              videoJob: video.job,
+              feedbackEligible: false,
+            },
+          })
+        }
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            proposal: social.proposal,
+            reasoningEventId: social.reasoningEventId,
+            expression: {
+              proposal: social.proposal,
+              presentation: {
+                mode: clarifying ? "clarifying" : "direct",
+                allowProfanity: false,
+                allowQuip: false,
+              },
+              segments: [{
+                kind: "semantic",
+                text: social.proposal.recommendation,
+              }],
+            },
+            verified: social.verified,
+            verificationReason: social.verificationReason,
+            socialWorkPlan: social.workPlan,
+            feedbackEligible: false,
+          },
+        })
+      }
+    }
+
+    const videoIntent = inspectAskVideoIntent(activeTask)
     if (videoIntent) {
       const verifier = await createRequestIdentityVerifier()
       const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
