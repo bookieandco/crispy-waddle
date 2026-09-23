@@ -1,5 +1,6 @@
 import {
   emptyPersonalityState,
+  type BehavioralKernelContext,
   type ContextPacket,
   type ConversationSignalContext,
   type DomainContext,
@@ -47,6 +48,7 @@ export interface PersonalityContextProvider {
   getContext(input: {
     userId: string
     activeTask: string
+    behaviorContext?: BehavioralKernelContext
   }): Promise<{
     patterns: PatternObservation[]
     personality: PersonalityState
@@ -88,6 +90,7 @@ export interface ContextBuilderInput {
   temporalScope?: { from: string | null; to: string | null; asOf: string | null }
   artifacts?: EphemeralArtifactContext[]
   conversationSignals?: ConversationSignalContext
+  behaviorContext?: BehavioralKernelContext
   limits?: Partial<ContextBuilderLimits>
 }
 
@@ -115,6 +118,23 @@ export interface AssembledContext {
   activeTask: string
   activeProject?: string
   assembledAt: string
+}
+
+export function deriveBehaviorContext(activeTask: string): BehavioralKernelContext {
+  const text = activeTask.toLowerCase()
+  const serious = /\b(emergency|urgent|danger|dangerous|safety|critical|crisis|serious)\b/.test(text)
+  const requiresPrecision = /\b(exact|exactly|precise|precision|verify|verified|audit|certif(?:y|ication)|calculate|calculation|compliance|legal requirement|source|citation)\b/.test(text)
+  const userAskedForPushback = /\b(push back|challenge me|disagree with me|tell me if i'?m wrong)\b/.test(text)
+  const disagreementDetected = /\b(i disagree|that'?s wrong|you'?re wrong|not what i said|incorrect)\b/.test(text)
+  const ambiguity = /\b(unclear|not sure what|which one do you mean|ambiguous|confused about which)\b/.test(text) ? 0.8 : 0
+
+  return {
+    serious,
+    requiresPrecision,
+    userAskedForPushback,
+    disagreementDetected,
+    ambiguity,
+  }
 }
 
 function extractKeywords(text: string): string[] {
@@ -254,6 +274,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
       const contribution = await deps.personalityContextProvider.getContext({
         userId: input.userId,
         activeTask: redactedActiveTask,
+        behaviorContext: input.behaviorContext ?? deriveBehaviorContext(redactedActiveTask),
       })
       patterns = contribution.patterns.map((pattern) => ({
         ...pattern,
