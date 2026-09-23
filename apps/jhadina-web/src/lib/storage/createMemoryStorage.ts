@@ -1,6 +1,7 @@
 import type { MemoryStorage } from "./MemoryStorage"
 import { InMemoryStorage } from "./InMemoryStorage"
 import { SupabaseMemoryStorage } from "./SupabaseMemoryStorage"
+import { VercelOidcMemoryStorage } from "./VercelOidcMemoryStorage"
 import { createServiceRoleClient } from "../supabase/service-role"
 
 let canonicalStorage: MemoryStorage | undefined
@@ -15,6 +16,13 @@ let canonicalStorage: MemoryStorage | undefined
 export function createMemoryStorageForRuntime(): MemoryStorage {
   const client = createServiceRoleClient()
   if (client) return new SupabaseMemoryStorage(client)
+
+  if (
+    process.env.NODE_ENV === "production" &&
+    (process.env.VERCEL === "1" || process.env.VERCEL_ENV?.trim())
+  ) {
+    return new VercelOidcMemoryStorage()
+  }
 
   if (process.env.NODE_ENV === "production") {
     throw new Error("JHADINA_MEMORY_DURABLE_STORAGE_REQUIRED")
