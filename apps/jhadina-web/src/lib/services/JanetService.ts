@@ -186,18 +186,14 @@ export class JanetService {
    * Called by the rejection endpoint
    */
   async rejectMemory(userId: string, candidateId: string): Promise<void> {
-    await this.memoryRepo.reject(candidateId, userId)
+    const candidate = await this.memoryRepo.reject(candidateId, userId)
 
-    // Record on timeline
-    const candidate = await this.memoryRepo["storage"]?.getCandidate?.(candidateId)
-    if (candidate) {
-      await this.timelineRepo.recordRejection({
-        userId,
-        memoryId: candidateId,
-        memoryType: candidate.type,
-        memoryContent: candidate.content,
-      })
-    }
+    await this.timelineRepo.recordRejection({
+      userId,
+      memoryId: candidateId,
+      memoryType: candidate.type,
+      memoryContent: candidate.content,
+    })
   }
 
   /**
