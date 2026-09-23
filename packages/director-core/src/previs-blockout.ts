@@ -427,3 +427,228 @@ function pushUnique(values: string[], value: string): void {
 function format(value: number): string {
   return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(3)));
 }
+
+
+export type PrevisExecutorFeature =
+  | 'scene-primitives'
+  | 'multi-shot'
+  | 'character-posing'
+  | 'ik-posing'
+  | 'camera-keyframes'
+  | 'object-keyframes'
+  | 'focal-length-control'
+  | 'camera-rails'
+  | 'reference-image-overlay'
+  | 'reference-clip-export'
+  | 'first-last-frame-export'
+  | 'depth-pass'
+  | 'normal-pass'
+  | 'storyboard-export'
+  | 'otio-export'
+  | 'project-export'
+  | 'mcp-control'
+  | 'live-readback'
+  | 'undo-receipts';
+
+export interface PrevisExecutorProfile {
+  id: string;
+  name: string;
+  runtime: 'browser' | 'desktop' | 'blender' | 'headless';
+  features: readonly PrevisExecutorFeature[];
+  maxShotSeconds?: number;
+  supportedAspectRatios?: readonly string[];
+  provenanceRefs: readonly string[];
+}
+
+export interface PrevisExecutionRequirements {
+  features: readonly PrevisExecutorFeature[];
+  longestShotSeconds: number;
+  aspectRatio: string;
+}
+
+export interface PrevisExecutorDecision {
+  admissible: boolean;
+  reasons: readonly string[];
+}
+
+export interface PrevisObservedShot {
+  shotId: string;
+  observedStartFrame: number;
+  observedEndFrameExclusive: number;
+  observedSemanticRoles: readonly string[];
+  confidence: number;
+  evidenceIds: readonly string[];
+}
+
+export interface PrevisObservationDecision {
+  valid: boolean;
+  reasons: readonly string[];
+}
+
+export type PrevisExportKind =
+  | 'reference-clip'
+  | 'first-frame'
+  | 'last-frame'
+  | 'camera-json'
+  | 'prompt'
+  | 'depth-pass'
+  | 'normal-pass'
+  | 'storyboard'
+  | 'otio'
+  | 'project';
+
+export interface PrevisExportArtifact {
+  kind: PrevisExportKind;
+  assetId: string;
+  sha256: string;
+  sourcePlanId: string;
+  evidenceIds: readonly string[];
+}
+
+export function inferPrevisExecutionRequirements(
+  plan: PrevisBlockoutPlan,
+): PrevisExecutionRequirements {
+  assertPrevisBlockout(plan);
+  const features = new Set<PrevisExecutorFeature>([
+    'scene-primitives',
+    'multi-shot',
+    'focal-length-control',
+    'reference-clip-export',
+  ]);
+
+  if (plan.shots.some((shot) => shot.cameraPlan.keyframes?.length)) {
+    features.add('camera-keyframes');
+  }
+  if (plan.shots.some((shot) => shot.cameraPlan.movements.some((movement) =>
+    ['dolly-in', 'dolly-out', 'truck', 'orbit', 'tracking', 'pov-travel'].includes(movement.kind)
+  ))) {
+    features.add('camera-keyframes');
+  }
+  if (plan.objects.some((object) => /character|person|actor|human/i.test(object.semanticRole))) {
+    features.add('character-posing');
+  }
+
+  const longestShotSeconds = Math.max(
+    ...plan.shots.map((shot) => (shot.endFrameExclusive - shot.startFrame) / plan.fps),
+  );
+  const aspectRatio = aspect(plan.width, plan.height);
+
+  return Object.freeze({
+    features: Object.freeze([...features]),
+    longestShotSeconds,
+    aspectRatio,
+  });
+}
+
+export function evaluatePrevisExecutor(
+  plan: PrevisBlockoutPlan,
+  executor: PrevisExecutorProfile,
+): PrevisExecutorDecision {
+  const requirements = inferPrevisExecutionRequirements(plan);
+  const supported = new Set(executor.features);
+  const reasons: string[] = [];
+
+  for (const feature of requirements.features) {
+    if (!supported.has(feature)) reasons.push(`DIRECTOR_PREVIS_EXECUTOR_FEATURE_MISSING:${feature}`);
+  }
+  if (
+    executor.maxShotSeconds !== undefined &&
+    requirements.longestShotSeconds > executor.maxShotSeconds + 1e-6
+  ) {
+    reasons.push('DIRECTOR_PREVIS_EXECUTOR_SHOT_DURATION_UNSUPPORTED');
+  }
+  if (
+    executor.supportedAspectRatios?.length &&
+    !executor.supportedAspectRatios.includes(requirements.aspectRatio)
+  ) {
+    reasons.push('DIRECTOR_PREVIS_EXECUTOR_ASPECT_UNSUPPORTED');
+  }
+  if (!executor.provenanceRefs.length) reasons.push('DIRECTOR_PREVIS_EXECUTOR_PROVENANCE_REQUIRED');
+
+  return Object.freeze({ admissible: reasons.length === 0, reasons: Object.freeze(reasons) });
+}
+
+/**
+ * Ensures the frame-reading/vision pass covered the authored previs instead of
+ * sampling a few frames and inventing the missing shot timing or semantics.
+ */
+export function evaluatePrevisObservationCoverage(
+  plan: PrevisBlockoutPlan,
+  observations: readonly PrevisObservedShot[],
+  minimumConfidence = 0.6,
+): PrevisObservationDecision {
+  assertPrevisBlockout(plan);
+  const reasons: string[] = [];
+  const byShot = new Map(observations.map((observation) => [observation.shotId, observation]));
+  const objects = new Map(plan.objects.map((object) => [object.id, object]));
+
+  for (const shot of plan.shots) {
+    const observation = byShot.get(shot.id);
+    if (!observation) {
+      reasons.push(`DIRECTOR_PREVIS_OBSERVATION_MISSING:${shot.id}`);
+      continue;
+    }
+    if (!observation.evidenceIds.length) {
+      reasons.push(`DIRECTOR_PREVIS_OBSERVATION_EVIDENCE_REQUIRED:${shot.id}`);
+    }
+    if (!Number.isFinite(observation.confidence) || observation.confidence < minimumConfidence) {
+      reasons.push(`DIRECTOR_PREVIS_OBSERVATION_CONFIDENCE_LOW:${shot.id}`);
+    }
+    if (
+      observation.observedStartFrame !== shot.startFrame ||
+      observation.observedEndFrameExclusive !== shot.endFrameExclusive
+    ) {
+      reasons.push(`DIRECTOR_PREVIS_TIMING_MISMATCH:${shot.id}`);
+    }
+
+    const requiredRoles = shot.visibleObjectIds
+      .map((id) => objects.get(id)?.semanticRole)
+      .filter((role): role is string => Boolean(role));
+    const observed = new Set(observation.observedSemanticRoles);
+    for (const role of requiredRoles) {
+      if (!observed.has(role)) reasons.push(`DIRECTOR_PREVIS_ROLE_MISSING:${shot.id}:${role}`);
+    }
+  }
+
+  return Object.freeze({ valid: reasons.length === 0, reasons: Object.freeze([...new Set(reasons)]) });
+}
+
+export function validatePrevisExports(
+  plan: PrevisBlockoutPlan,
+  artifacts: readonly PrevisExportArtifact[],
+  requiredKinds: readonly PrevisExportKind[],
+): readonly string[] {
+  const reasons: string[] = [];
+  const byKind = new Map<PrevisExportKind, PrevisExportArtifact[]>();
+  for (const artifact of artifacts) {
+    const list = byKind.get(artifact.kind) ?? [];
+    list.push(artifact);
+    byKind.set(artifact.kind, list);
+    if (!artifact.assetId.trim() || !artifact.sha256.trim() || !artifact.evidenceIds.length) {
+      reasons.push(`DIRECTOR_PREVIS_EXPORT_PROVENANCE_REQUIRED:${artifact.kind}`);
+    }
+    if (artifact.sourcePlanId !== plan.id) {
+      reasons.push(`DIRECTOR_PREVIS_EXPORT_PLAN_MISMATCH:${artifact.kind}`);
+    }
+  }
+  for (const kind of requiredKinds) {
+    if (!byKind.get(kind)?.length) reasons.push(`DIRECTOR_PREVIS_EXPORT_REQUIRED:${kind}`);
+  }
+  return Object.freeze([...new Set(reasons)]);
+}
+
+function aspect(width: number, height: number): string {
+  const divisor = gcd(width, height);
+  return `${width / divisor}:${height / divisor}`;
+}
+
+function gcd(a: number, b: number): number {
+  let left = Math.abs(Math.round(a));
+  let right = Math.abs(Math.round(b));
+  while (right) {
+    const next = left % right;
+    left = right;
+    right = next;
+  }
+  return left || 1;
+}
