@@ -192,6 +192,7 @@ jobs:
             src/lib/intelligence/governed-intelligence-proposal.test.ts \
             src/lib/personality/personality-outcome-feedback.test.ts \
             src/lib/storage/SupabaseMemoryStorage.test.ts \
+            src/lib/storage/createMemoryStorage.test.ts \
             src/app/api/jhadina/personality/feedback/route.test.ts
 
       - name: Build Jhadina Web production bundle
