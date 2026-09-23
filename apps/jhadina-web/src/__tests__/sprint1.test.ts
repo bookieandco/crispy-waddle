@@ -460,6 +460,7 @@ describe("JanetService", () => {
 
     expect(response.response).toBeDefined()
     expect(response.reasoningEventId).toMatch(/^reason_/)
+    expect(response.memoryCandidate.reasoningEventId).toBe(response.reasoningEventId)
     expect(response.memoryCandidate.status).toBe("PENDING")
     expect(response.classification.type).toBe("PREFERENCE")
   })
@@ -473,6 +474,23 @@ describe("JanetService", () => {
     const approval = await service.approveMemory("user_1", response.memoryCandidate.id)
     expect(approval.status).toBe("APPROVED")
     expect(approval.memoryId).toBeDefined()
+  })
+
+  it("should persist a rejection audit before removing the pending candidate", async () => {
+    const response = await service.processMessage({
+      userId: "user_1",
+      message: "I prefer cinematic visuals",
+    })
+
+    await service.rejectMemory("user_1", response.memoryCandidate.id)
+
+    expect(await memoryRepo.listPending("user_1")).toHaveLength(0)
+    const timeline = await timelineRepo.list("user_1")
+    expect(timeline.some((event) =>
+      event.type === "REJECTION" &&
+      event.memoryId === response.memoryCandidate.id &&
+      event.memoryContent === "I prefer cinematic visuals"
+    )).toBe(true)
   })
 
   it("should create reasoning event", async () => {
