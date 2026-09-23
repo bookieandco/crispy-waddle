@@ -102,6 +102,8 @@ test('serializes the governed expression directive and tells the model not to in
   assert.match(request.system ?? '', /Never invent a callback or cultural/);
   assert.match(request.system ?? '', /Every evidence id must exactly match/);
   assert.match(request.system ?? '', /Never invent evidence ids, sources, summaries, or citations/);
+  assert.match(request.system ?? '', /owner-scoped WorkSession state/);
+  assert.match(request.system ?? '', /decisionRefs\/outputRefs\/artifactRefs are identifiers/);
   assert.match(request.system ?? '', /return an empty evidence/);
   assert.match(messageText, /"expressionDirective"/);
   assert.match(messageText, /"responseLength":"brief"/);

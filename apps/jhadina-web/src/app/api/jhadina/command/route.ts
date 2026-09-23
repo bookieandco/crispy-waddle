@@ -411,6 +411,7 @@ export async function POST(req: NextRequest) {
       surface: typeof body?.surface === "string" ? (body.surface as JhadinaWorldId) : undefined,
       route: typeof body?.route === "string" ? body.route : undefined,
       activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
+      workSessionId: typeof body?.workSessionId === "string" ? body.workSessionId : undefined,
       geographicScope: body?.geographicScope ?? undefined,
       artifacts,
       conversationSignals,

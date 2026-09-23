@@ -11,6 +11,7 @@ import {
   type PersonalityState,
   type SocialDomainContext,
   type SpatialDomainContext,
+  type WorkSessionContext,
 } from "@jhadina/core-spine"
 import { JHADINA_BASE_SECURITY_POLICY, type SecurityPolicy } from "@jhadina/security-core"
 import { MemoryRepository } from "../repositories/MemoryRepository"
@@ -65,6 +66,16 @@ export interface KnowledgeContextProvider {
   }>
 }
 
+export interface WorkSessionContextProvider {
+  getContext(input: {
+    userId: string
+    workSessionId: string
+  }): Promise<{
+    workSession?: WorkSessionContext
+    limitations: string[]
+  }>
+}
+
 export interface ContextBuilderLimits {
   maxMemories: number
   maxRecentApprovals: number
@@ -83,6 +94,7 @@ export interface ContextBuilderInput {
   surface?: JhadinaWorldId
   route?: string
   activeProject?: string
+  workSessionId?: string
   memoryRelevanceQuery?: string
   geographicScope?: unknown
   temporalScope?: { from: string | null; to: string | null; asOf: string | null }
@@ -101,6 +113,8 @@ export interface ContextBuilderDeps {
   personalityContextProvider?: PersonalityContextProvider
   /** Optional read-only canonical Knowledge Graph adapter. It grants no admission or mutation authority. */
   knowledgeContextProvider?: KnowledgeContextProvider
+  /** Optional owner-scoped durable WorkSession adapter. Session contents are re-read server-side. */
+  workSessionContextProvider?: WorkSessionContextProvider
   /** Optional read-only Social context adapter. It cannot publish or mutate account state. */
   socialContextProvider?: SocialContextProvider
   /** Optional read-only Growth context adapter. It cannot spend, publish, send lifecycle actions, or mutate audiences. */
@@ -304,6 +318,24 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   if (trimmed > 0) excludedContext.push(`${trimmed} item(s) trimmed to stay within the ${limits.maxTotalChars}-character budget`)
   if (totalRedactions > 0) excludedContext.push(`${totalRedactions} secret-like pattern(s) redacted from assembled text`)
 
+  let workSession: WorkSessionContext | undefined
+  if (input.workSessionId) {
+    if (deps.workSessionContextProvider) {
+      try {
+        const contribution = await deps.workSessionContextProvider.getContext({
+          userId: input.userId,
+          workSessionId: input.workSessionId,
+        })
+        workSession = contribution.workSession ? structuredClone(contribution.workSession) : undefined
+        excludedContext.push(...contribution.limitations.map((item) => `workSession: ${item}`))
+      } catch {
+        excludedContext.push("workSession: durable session context unavailable")
+      }
+    } else {
+      excludedContext.push("workSession: session id supplied but no owner-scoped provider is composed")
+    }
+  }
+
   let domainContext: DomainContext | undefined
   if (deps.spatialContextProvider) {
     const spatial = await deps.spatialContextProvider.getContext({
@@ -361,6 +393,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     ...(input.artifacts?.length ? { artifacts: input.artifacts.map((artifact) => ({ ...artifact })) } : {}),
     ...(input.conversationSignals ? { conversationSignals: structuredClone(input.conversationSignals) } : {}),
     ...(domainContext ? { domainContext } : {}),
+    ...(workSession ? { workSession } : {}),
     ...(expressionDirective ? { expressionDirective } : {}),
   }
 

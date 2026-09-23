@@ -322,6 +322,60 @@ describe("Jhadina Command — the instantiated operating loop (Phase 1 Step 5)",
     expect(capturedContextId).toMatch(/^ctx_/) // context-builder.ts's real id prefix, not a test fixture's id
   })
 
+  it("passes owner-scoped WorkSession state into the model ContextPacket when a session id is supplied", async () => {
+    const identity: ActionRequestIdentity = { userId: "user-step5-session", sessionId: "s-session" }
+    let capturedSession: unknown
+    const capturingProvider: ModelProvider = {
+      name: "capturing-session-provider",
+      propose: async (context) => {
+        capturedSession = context.workSession
+        return proposalFor("ASK", { contextId: context.id })
+      },
+    }
+    const router = new IntelligenceRouter({ primary: capturingProvider, fallback: providerThatFails() })
+    const overrides = freshOverrides(identity, router, {
+      workSessionContextProvider: {
+        getContext: async ({ userId, workSessionId }) => ({
+          workSession: {
+            id: workSessionId,
+            goal: "Finish JLLM integration",
+            status: "active",
+            activeSubsystems: ["jllm"],
+            artifactRefs: [],
+            decisionRefs: ["decision-1"],
+            outputRefs: ["output-1"],
+            updatedAt: "2026-09-22T12:00:00.000Z",
+            evidence: [{
+              id: `work-session:${workSessionId}`,
+              source: "work-session",
+              observedAt: "2026-09-22T12:00:00.000Z",
+              summary: `owner=${userId}; goal=Finish JLLM integration`,
+              immutable: false,
+            }],
+          },
+          limitations: [],
+        }),
+      },
+    })
+
+    await handleJhadinaCommand(
+      {
+        userId: identity.userId,
+        activeTask: "what should I do next?",
+        workSessionId: "ws-step5-1",
+      },
+      overrides,
+    )
+
+    expect(capturedSession).toMatchObject({
+      id: "ws-step5-1",
+      goal: "Finish JLLM integration",
+      activeSubsystems: ["jllm"],
+      decisionRefs: ["decision-1"],
+      outputRefs: ["output-1"],
+    })
+  })
+
   it("returns governed expression assets only through the deterministic realization boundary", async () => {
     const identity: ActionRequestIdentity = { userId: "user-step5-expression", sessionId: "s-expression" }
     const router = new IntelligenceRouter({
