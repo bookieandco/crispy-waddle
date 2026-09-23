@@ -102,3 +102,68 @@ test('a provider cannot be swapped for another without any router code change (p
   assert.equal((await routerWithA.decide(baseContext())).disposition, 'PROCEED');
   assert.equal((await routerWithB.decide(baseContext())).disposition, 'DECLINE');
 });
+
+
+test('canonicalizes provider evidence against the governed ContextPacket', async () => {
+  const context = baseContext();
+  context.knowledge = [{
+    id: 'knowledge-1',
+    source: 'knowledge-core',
+    observedAt: '2026-09-22T12:00:00.000Z',
+    summary: 'canonical knowledge',
+    immutable: false,
+  }];
+  const modelProposal = proposalFor('PROCEED');
+  modelProposal.evidence = [
+    {
+      id: 'knowledge-1',
+      source: 'fabricated-source',
+      observedAt: '2099-01-01T00:00:00.000Z',
+      summary: 'fabricated summary',
+    },
+    {
+      id: 'invented-1',
+      source: 'model',
+      observedAt: '2099-01-01T00:00:00.000Z',
+      summary: 'invented evidence',
+    },
+  ];
+
+  const router = new IntelligenceRouter({
+    primary: providerThatSucceeds('primary', modelProposal),
+    fallback: providerThatFails('fallback'),
+  });
+  const result = await router.decide(context);
+
+  assert.deepEqual(result.evidence, [context.knowledge[0]]);
+  assert.match(result.uncertainty.at(-1) ?? '', /1 provider evidence reference/);
+});
+
+test('binds fallback evidence too, so provider failover cannot bypass provenance', async () => {
+  const context = baseContext();
+  context.relevantMemories = [{
+    id: 'memory-1',
+    source: 'memory-core',
+    observedAt: '2026-09-22T12:00:00.000Z',
+    summary: 'approved memory',
+    immutable: false,
+  }];
+  const fallbackProposal = proposalFor('ASK');
+  fallbackProposal.evidence = [{
+    id: 'memory-1',
+    source: 'wrong-source',
+    observedAt: '2099-01-01T00:00:00.000Z',
+    summary: 'wrong summary',
+  }];
+
+  const events: IntelligenceRouterEvent[] = [];
+  const router = new IntelligenceRouter({
+    primary: providerThatFails('primary'),
+    fallback: providerThatSucceeds('legacy-classifier', fallbackProposal),
+    onEvent: (event) => events.push(event),
+  });
+  const result = await router.decide(context);
+
+  assert.deepEqual(result.evidence, [context.relevantMemories[0]]);
+  assert.deepEqual(events.map((event) => event.stage), ['primary_failed', 'fallback_used']);
+});

@@ -1,4 +1,5 @@
 import type { ContextPacket, DecisionProposal } from '@jhadina/core-spine';
+import { bindProposalEvidenceToContext } from './evidence-binding.js';
 
 /**
  * Jhadina Intelligence Router (Phase 1, Step 3).
@@ -80,11 +81,11 @@ export class IntelligenceRouter {
     const { primary, fallback, onEvent } = this.options;
 
     try {
-      return await primary.propose(context);
+      return bindProposalEvidenceToContext(await primary.propose(context), context);
     } catch (error) {
       onEvent?.({ stage: 'primary_failed', provider: primary.name, error });
       try {
-        const proposal = await fallback.propose(context);
+        const proposal = bindProposalEvidenceToContext(await fallback.propose(context), context);
         onEvent?.({ stage: 'fallback_used', provider: fallback.name });
         return proposal;
       } catch (fallbackError) {
