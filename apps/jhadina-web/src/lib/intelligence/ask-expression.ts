@@ -3,7 +3,7 @@ import {
   realizeGovernedExpression,
   type GovernedExpressionRealization,
 } from "@jhadina/intelligence-core"
-import type { PersonalityContextProvider } from "../context/context-builder"
+import { deriveBehaviorContext, type PersonalityContextProvider } from "../context/context-builder"
 import { redactSecrets } from "../context/redact"
 import { getStorage } from "../routes/handlers"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
@@ -49,6 +49,7 @@ export async function realizeAskJhadinaExpression(
     const contribution = await provider.getContext({
       userId: input.userId,
       activeTask,
+      behaviorContext: deriveBehaviorContext(activeTask),
     })
     directive = contribution.expressionDirective
   } catch {
