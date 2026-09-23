@@ -1,3 +1,4 @@
+import { headers } from "next/headers"
 import type { MemoryStorage } from "./MemoryStorage"
 import type {
   Memory,
@@ -11,13 +12,25 @@ const DEFAULT_GATEWAY_URL =
 
 type GatewayOptions = {
   endpoint?: string
-  tokenProvider?: () => string | undefined
+  tokenProvider?: () => string | undefined | Promise<string | undefined>
   fetchImpl?: typeof fetch
+}
+
+async function defaultVercelOidcToken(): Promise<string | undefined> {
+  const environmentToken = process.env.VERCEL_OIDC_TOKEN?.trim()
+  if (environmentToken) return environmentToken
+
+  try {
+    const requestHeaders = await headers()
+    return requestHeaders.get("x-vercel-oidc-token")?.trim() || undefined
+  } catch {
+    return undefined
+  }
 }
 
 export class VercelOidcMemoryStorage implements MemoryStorage {
   private readonly endpoint: string
-  private readonly tokenProvider: () => string | undefined
+  private readonly tokenProvider: () => string | undefined | Promise<string | undefined>
   private readonly fetchImpl: typeof fetch
 
   constructor(options: GatewayOptions = {}) {
@@ -25,14 +38,12 @@ export class VercelOidcMemoryStorage implements MemoryStorage {
       options.endpoint ??
       process.env.JHADINA_MEMORY_GATEWAY_URL?.trim() ??
       DEFAULT_GATEWAY_URL
-    this.tokenProvider =
-      options.tokenProvider ??
-      (() => process.env.VERCEL_OIDC_TOKEN?.trim())
+    this.tokenProvider = options.tokenProvider ?? defaultVercelOidcToken
     this.fetchImpl = options.fetchImpl ?? fetch
   }
 
   private async call<T>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
-    const token = this.tokenProvider()
+    const token = await this.tokenProvider()
     if (!token) {
       throw new Error("JHADINA_MEMORY_VERCEL_OIDC_REQUIRED")
     }
