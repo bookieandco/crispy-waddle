@@ -54,9 +54,12 @@ function claimsAreTrusted(claims: SchedulerClaims, nowSeconds: number): boolean 
   return true
 }
 
-async function githubSigningKeys(fetchImpl: typeof fetch): Promise<JsonWebKeyWithKid[]> {
+async function githubSigningKeys(
+  fetchImpl: typeof fetch,
+  forceRefresh = false,
+): Promise<JsonWebKeyWithKid[]> {
   const now = Date.now()
-  if (cachedKeys && cachedKeys.expiresAt > now) return cachedKeys.keys
+  if (!forceRefresh && cachedKeys && cachedKeys.expiresAt > now) return cachedKeys.keys
 
   const response = await fetchImpl(GITHUB_OIDC_JWKS, {
     method: 'GET',
@@ -95,7 +98,12 @@ async function verifyGitHubOidc(
   if (!claimsAreTrusted(claims, nowSeconds)) return false
 
   try {
-    const jwk = (await githubSigningKeys(fetchImpl)).find((candidate) => candidate.kid === header.kid)
+    let jwk = (await githubSigningKeys(fetchImpl)).find((candidate) => candidate.kid === header.kid)
+    if (!jwk) {
+      // GitHub may rotate signing keys while a warm function still holds a
+      // valid cached JWKS set. Refresh once on an unknown kid before denying.
+      jwk = (await githubSigningKeys(fetchImpl, true)).find((candidate) => candidate.kid === header.kid)
+    }
     if (!jwk) return false
     const key = await crypto.subtle.importKey(
       'jwk',
