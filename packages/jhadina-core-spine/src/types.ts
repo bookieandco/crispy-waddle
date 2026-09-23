@@ -162,6 +162,23 @@ export interface GrowthDomainContext {
   provenance: EvidenceRef[];
 }
 
+export interface WorkSessionContext {
+  id: string;
+  goal: string;
+  status: 'active' | 'waiting-approval' | 'completed' | 'abandoned';
+  activeSubsystems: string[];
+  artifactRefs: Array<{
+    id: string;
+    kind: 'screen' | 'image' | 'audio' | 'video' | 'document' | 'code' | 'data';
+    provenanceRef: string;
+    admitted: boolean;
+  }>;
+  decisionRefs: string[];
+  outputRefs: string[];
+  updatedAt: string;
+  evidence: EvidenceRef[];
+}
+
 /** Ephemeral user-provided evidence for the current reasoning turn only.
  * These artifacts are read-only context. They are never an authority grant,
  * never durable memory by themselves, and uploaded code is never executed. */
@@ -242,6 +259,7 @@ export interface ContextPacket {
   artifacts?: EphemeralArtifactContext[];
   conversationSignals?: ConversationSignalContext;
   domainContext?: DomainContext;
+  workSession?: WorkSessionContext;
   expressionDirective?: ExpressionDirective;
 }
 

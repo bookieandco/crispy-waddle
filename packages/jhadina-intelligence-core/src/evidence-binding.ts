@@ -64,6 +64,7 @@ export function collectContextEvidence(context: ContextPacket): EvidenceRef[] {
     refs.push(item.evidence);
   }
   pushAll(refs, context.expressionDirective?.culturalReferenceEvidence);
+  pushAll(refs, context.workSession?.evidence);
 
   for (const artifact of context.artifacts ?? []) {
     refs.push({

@@ -57,14 +57,14 @@ vi.mock("@/lib/intelligence/ask-expression", () => ({
 
 import { POST } from "./route"
 
-function request(activeTask: string) {
+function request(activeTask: string, extras: Record<string, unknown> = {}) {
   return new NextRequest("http://localhost/api/jhadina/command", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "x-jhadina-user-id": "user-1",
     },
-    body: JSON.stringify({ activeTask, surface: "assistant", route: "/ask-jhadina" }),
+    body: JSON.stringify({ activeTask, surface: "assistant", route: "/ask-jhadina", ...extras }),
   })
 }
 
@@ -236,11 +236,14 @@ describe("Ask Jhadina Growth routing", () => {
       verificationReason: "verified",
     })
 
-    const response = await POST(request("Explain Bayesian updating"))
+    const response = await POST(request("Explain Bayesian updating", { workSessionId: "ws-route-1" }))
     const json = await response.json()
 
     expect(response.status).toBe(200)
     expect(json.data.reasoningEventId).toBe("reason-1")
     expect(handleGeneric).toHaveBeenCalledTimes(1)
+    expect(handleGeneric).toHaveBeenCalledWith(expect.objectContaining({
+      workSessionId: "ws-route-1",
+    }))
   })
 })

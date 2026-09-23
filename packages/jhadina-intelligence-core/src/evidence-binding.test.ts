@@ -42,6 +42,17 @@ function context(): ContextPacket {
       updatedAt: '2026-09-22T12:00:00.000Z',
     },
     knowledge: [ref('knowledge-1', 'knowledge-core', 'canonical knowledge')],
+    workSession: {
+      id: 'ws-1',
+      goal: 'Finish JLLM integration',
+      status: 'active',
+      activeSubsystems: ['jllm'],
+      artifactRefs: [],
+      decisionRefs: ['decision-1'],
+      outputRefs: [],
+      updatedAt: '2026-09-22T12:00:00.000Z',
+      evidence: [ref('work-session:ws-1', 'work-session', 'active JLLM work session')],
+    },
     constraints: [],
     excludedContext: [],
     artifacts: [{
@@ -88,6 +99,7 @@ test('collects canonical evidence across Memory, Knowledge, Personality, domain,
     'pattern-evidence-1',
     'trait-evidence-1',
     'social-account-1',
+    'work-session:ws-1',
     'artifact-1',
   ]);
 });
@@ -105,6 +117,21 @@ test('rebinds known model evidence to canonical ContextPacket values and drops i
   assert.deepEqual(result.evidence, [ref('knowledge-1', 'knowledge-core', 'canonical knowledge')]);
   assert.equal(result.uncertainty.length, 1);
   assert.match(result.uncertainty[0] ?? '', /1 provider evidence reference/);
+});
+
+test('allows canonical WorkSession provenance evidence but not raw decision/output ids', () => {
+  const result = bindProposalEvidenceToContext(
+    proposal([
+      ref('work-session:ws-1', 'fake', 'fake'),
+      ref('decision-1', 'model', 'invented decision details'),
+    ]),
+    context(),
+  );
+
+  assert.deepEqual(result.evidence, [
+    ref('work-session:ws-1', 'work-session', 'active JLLM work session'),
+  ]);
+  assert.match(result.uncertainty.at(-1) ?? '', /1 provider evidence reference/);
 });
 
 test('allows an artifact ID but canonicalizes its evidence metadata', () => {

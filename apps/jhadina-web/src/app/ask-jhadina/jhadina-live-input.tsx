@@ -36,6 +36,7 @@ type Props = {
   onVoiceCommand: (command: string, signals?: JhadinaConversationSignals) => void
   onBargeIn?: () => void
   onArtifactRefsChange?: (artifactRefs: string[]) => void
+  resumeArtifactRefs?: readonly string[]
   onLanguageChange?: (language: string) => void
   onStatus?: (message: string) => void
 }
@@ -56,13 +57,14 @@ const LANGUAGES = [
   ["vi-VN", "Tiếng Việt"],
 ] as const
 
-export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBargeIn, onArtifactRefsChange, onLanguageChange, onStatus }: Props) {
+export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBargeIn, onArtifactRefsChange, resumeArtifactRefs = [], onLanguageChange, onStatus }: Props) {
   const [wakeEnabled, setWakeEnabled] = useState(false)
   const [language, setLanguage] = useState("en-US")
   const [voiceState, setVoiceState] = useState<"off"|"listening"|"unsupported"|"error">("off")
   const [screenActive, setScreenActive] = useState(false)
   const [artifacts, setArtifacts] = useState<JhadinaEphemeralArtifact[]>([])
   const [durableArtifacts, setDurableArtifacts] = useState<DurableArtifactDisplay[]>([])
+  const [hydratedResumeKey, setHydratedResumeKey] = useState("")
   const [uploading, setUploading] = useState(false)
   const [retryingId, setRetryingId] = useState<string|null>(null)
   const [nativeRecording,setNativeRecording]=useState(false)
@@ -80,8 +82,45 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
   const nativeStreamRef=useRef<MediaStream|null>(null)
   const nativeChunksRef=useRef<Blob[]>([])
 
+  const resumeKey=[...new Set(resumeArtifactRefs.filter(Boolean))].slice(0,4).join("|")
+  const suppressArtifactRefEmission=Boolean(resumeKey)&&hydratedResumeKey!==resumeKey
+
   useEffect(() => { onArtifactsChange(artifacts) }, [artifacts, onArtifactsChange])
-  useEffect(() => { onArtifactRefsChange?.(durableArtifacts.filter((artifact)=>artifact.status==="clean"&&artifact.contextReady).map((artifact)=>artifact.id)) }, [durableArtifacts, onArtifactRefsChange])
+  useEffect(() => {
+    if(suppressArtifactRefEmission)return
+    onArtifactRefsChange?.(durableArtifacts.filter((artifact)=>artifact.status==="clean"&&artifact.contextReady).map((artifact)=>artifact.id))
+  }, [durableArtifacts, onArtifactRefsChange, suppressArtifactRefEmission])
+
+  useEffect(()=>{
+    let cancelled=false
+    const refs=resumeKey?resumeKey.split("|").filter(Boolean):[]
+    if(!refs.length){setHydratedResumeKey("");return()=>{cancelled=true}}
+    setHydratedResumeKey("")
+    void (async()=>{
+      const userId=await getCurrentUserId()
+      if(!userId){if(!cancelled)setHydratedResumeKey(resumeKey);return}
+      const restored:DurableArtifactDisplay[]=[]
+      for(const id of refs){
+        try{
+          const response=await fetch(`/api/jhadina/artifacts/${encodeURIComponent(id)}`,{headers:{"x-jhadina-user-id":userId}})
+          if(!response.ok)continue
+          const json=await response.json()
+          if(json?.artifact&&typeof json.artifact.id==="string")restored.push(json.artifact as DurableArtifactDisplay)
+        }catch{}
+      }
+      if(cancelled)return
+      setDurableArtifacts(current=>{
+        const byId=new Map<string,DurableArtifactDisplay>()
+        for(const artifact of current)byId.set(artifact.id,artifact)
+        for(const artifact of restored)byId.set(artifact.id,artifact)
+        return [...byId.values()].slice(-4)
+      })
+      setHydratedResumeKey(resumeKey)
+      const ready=restored.filter((artifact)=>artifact.status==="clean"&&artifact.contextReady).length
+      if(ready)onStatus?.(`Resumed ${ready} clean file${ready===1?"":"s"} from this WorkSession.`)
+    })().catch(()=>{if(!cancelled)setHydratedResumeKey(resumeKey)})
+    return()=>{cancelled=true}
+  },[resumeKey,onStatus])
 
   useEffect(() => () => {
     recognitionRef.current?.stop?.()
