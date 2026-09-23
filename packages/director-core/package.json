@@ -56,7 +56,8 @@
     "./product-reference-bootstrap": "./src/product-reference-bootstrap.ts",
     "./camera-language": "./src/camera-language.ts",
     "./performance-direction": "./src/performance-direction.ts",
-    "./realism-direction": "./src/realism-direction.ts"
+    "./realism-direction": "./src/realism-direction.ts",
+    "./directed-take-qc": "./src/directed-take-qc.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
