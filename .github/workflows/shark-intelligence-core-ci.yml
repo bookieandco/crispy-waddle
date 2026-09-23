@@ -2,8 +2,10 @@ name: SHARK Intelligence Core CI
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths: &shark_paths
+  push:
+    branches:
+      - main
+    paths:
       - ".github/workflows/shark-intelligence-core-ci.yml"
       - "packages/shark-intelligence-core/**"
       - "apps/jhadina-web/src/lib/shark/**"
@@ -14,10 +16,18 @@ on:
       - "pnpm-lock.yaml"
       - "package.json"
       - "pnpm-workspace.yaml"
-  push:
-    branches:
-      - main
-    paths: *shark_paths
+  pull_request:
+    paths:
+      - ".github/workflows/shark-intelligence-core-ci.yml"
+      - "packages/shark-intelligence-core/**"
+      - "apps/jhadina-web/src/lib/shark/**"
+      - "apps/jhadina-web/src/app/api/internal/shark/**"
+      - "apps/jhadina-web/src/app/api/wallet/intelligence/**"
+      - "apps/jhadina-web/src/app/api/webhooks/helius/**"
+      - "supabase/migrations/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
 
 permissions:
   contents: read
@@ -28,44 +38,30 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
         with:
           version: 8.15.9
           run_install: false
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-
       - name: Frozen install
         run: pnpm install --frozen-lockfile
-
       - name: SHARK type-check
         run: pnpm --filter @jhadina/shark-intelligence-core type-check
-
       - name: SHARK tests
         run: pnpm --filter @jhadina/shark-intelligence-core test
-
       - name: Jhadina SHARK integration type-check
         run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.shark.json
-
       - name: Jhadina SHARK persistence soak
-        run: >-
-          pnpm --filter @jhadina/jhadina-web exec vitest run
-          src/lib/shark/launch-outcome-repository.test.ts
-          src/lib/shark/actor-aware-assessment-service.test.ts
-          src/lib/shark/money-research-bridge.test.ts
-          src/lib/shark/research-evidence-repository.test.ts
-
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/launch-outcome-repository.test.ts src/lib/shark/actor-aware-assessment-service.test.ts src/lib/shark/money-research-bridge.test.ts src/lib/shark/research-evidence-repository.test.ts
       - name: Reject malformed SHARK PL/pgSQL dollar quotes
         run: |
           if grep -nE '^[[:space:]]*(do|as)[[:space:]]+\$[[:space:]]*$|^[[:space:]]*\$;[[:space:]]*$' supabase/migrations/*shark*.sql; then
             echo "Malformed lone dollar quote found in SHARK migration"
             exit 1
           fi
-
       - name: Validate SHARK migrations
         run: |
           test -f supabase/migrations/20260902010000_shark_launch_outcome_history.sql
