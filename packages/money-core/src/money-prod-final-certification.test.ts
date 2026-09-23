@@ -113,13 +113,21 @@ test('MONEY-PROD.6 commissioning migration is service-role only and stores no se
   assert.match(migration,/GRANT SELECT, INSERT ON money_production_commissioning_receipts TO service_role/)
   assert.match(migration,/FORCE ROW LEVEL SECURITY[\s\S]*money_production_platform_receipts/)
   assert.match(migration,/REVOKE ALL ON money_production_platform_receipts FROM authenticated/)
-  assert.match(migration,/GRANT SELECT, INSERT, DELETE ON money_production_platform_receipts TO service_role/)
+  assert.match(migration,/GRANT SELECT, INSERT ON money_production_platform_receipts TO service_role/)
+  assert.doesNotMatch(migration,/GRANT[^\n]*DELETE[^\n]*money_production_platform_receipts/i)
   assert.doesNotMatch(migration,/private_key|secret_key|api_key|access_token/i)
   const productionMigration=readFileSync(fileURLToPath(new URL('../../../supabase/migrations/20260922022338_money_prod_final_commissioning_receipts.sql',import.meta.url)),'utf8')
   assert.match(productionMigration,/money_production_commissioning_receipts/)
   assert.match(productionMigration,/money_production_platform_receipts/)
   assert.match(productionMigration,/FORCE ROW LEVEL SECURITY/)
   assert.doesNotMatch(productionMigration,/private_key|secret_key|api_key|access_token/i)
+
+  const appendOnlyMigration=readFileSync(fileURLToPath(new URL('../../../supabase/migrations/20260923142900_money_prod_receipts_append_only.sql',import.meta.url)),'utf8')
+  assert.match(appendOnlyMigration,/REVOKE ALL ON TABLE public\.money_production_commissioning_receipts FROM service_role/)
+  assert.match(appendOnlyMigration,/GRANT SELECT, INSERT ON TABLE public\.money_production_commissioning_receipts TO service_role/)
+  assert.match(appendOnlyMigration,/REVOKE ALL ON TABLE public\.money_production_platform_receipts FROM service_role/)
+  assert.match(appendOnlyMigration,/GRANT SELECT, INSERT ON TABLE public\.money_production_platform_receipts TO service_role/)
+  assert.doesNotMatch(appendOnlyMigration,/GRANT[^\n]*(?:UPDATE|DELETE|TRUNCATE)[^\n]*TO service_role/i)
 })
 
 test('MONEY-PROD.7 platform deployment and schema are independently required',()=>{
