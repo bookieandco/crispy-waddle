@@ -1,3 +1,5 @@
+import { compileDirectorCameraDirective, type DirectorCameraPlan } from './camera-language.js';
+
 export type ReferenceCrop = {
   x: number;
   y: number;
@@ -47,6 +49,8 @@ export type StoryboardReferenceFrame = {
   notes?: string;
   prompt?: string;
   promptProfile?: string;
+  promptEvidenceIds?: readonly string[];
+  cameraPlan?: DirectorCameraPlan;
   evidenceIds: readonly string[];
 };
 
@@ -56,6 +60,7 @@ export type StoryboardReferenceBoard = {
   title: string;
   frames: readonly StoryboardReferenceFrame[];
   scratchAudioAssetId?: string;
+  version: number;
   authority: 'DIRECTOR_REFERENCE_BOARD';
 };
 
@@ -66,6 +71,7 @@ export type StoryboardReferenceIssue = {
     | 'REFERENCE_FRAME_IDENTITY_REQUIRED'
     | 'REFERENCE_FRAME_HASH_REQUIRED'
     | 'REFERENCE_FRAME_EVIDENCE_REQUIRED'
+    | 'REFERENCE_PROMPT_EVIDENCE_REQUIRED'
     | 'REFERENCE_FRAME_TIME_INVALID'
     | 'REFERENCE_FRAME_HOLD_INVALID'
     | 'REFERENCE_CROP_INVALID'
@@ -92,6 +98,23 @@ export type StoryboardReferenceExportManifest = {
   totalDurationSeconds: number;
   animatic: readonly ReferenceBoardAnimaticFrame[];
   scratchAudioAssetId?: string;
+  boardVersion: number;
+};
+
+export type StoryboardReferenceDeliverableKind =
+  | 'board-package'
+  | 'animatic'
+  | 'storyboard-pdf'
+  | 'shot-list'
+  | 'contact-sheet'
+  | 'machine-readable-board';
+
+export type StoryboardReferenceDeliverable = {
+  kind: StoryboardReferenceDeliverableKind;
+  assetId: string;
+  sha256: string;
+  boardVersion: number;
+  evidenceIds: readonly string[];
 };
 
 export function validateStoryboardReferenceBoard(board: StoryboardReferenceBoard): StoryboardReferenceIssue[] {
@@ -116,6 +139,9 @@ export function validateStoryboardReferenceBoard(board: StoryboardReferenceBoard
     }
     if (!frame.evidenceIds.length) {
       issues.push(issue('REFERENCE_FRAME_EVIDENCE_REQUIRED', `frames[${index}].evidenceIds`, 'Reference frame needs provenance/evidence.'));
+    }
+    if (frame.prompt?.trim() && !frame.promptEvidenceIds?.length) {
+      issues.push(issue('REFERENCE_PROMPT_EVIDENCE_REQUIRED', `frames[${index}].promptEvidenceIds`, 'Vision/model-derived reference prompts require evidence.'));
     }
     if (
       frame.sourceTimeSeconds !== undefined &&
@@ -179,6 +205,7 @@ export function compileReferenceBoardExport(board: StoryboardReferenceBoard): St
     totalDurationSeconds: cursor,
     animatic: Object.freeze(animatic),
     ...(board.scratchAudioAssetId ? { scratchAudioAssetId: board.scratchAudioAssetId } : {}),
+    boardVersion: board.version,
   });
 }
 
@@ -193,6 +220,7 @@ export function compileReferenceFrameDirective(frame: StoryboardReferenceFrame):
     meta.movement && `Camera movement: ${meta.movement}`,
     meta.lighting && `Lighting: ${meta.lighting}`,
     meta.mood && `Mood: ${meta.mood}`,
+    frame.cameraPlan ? compileDirectorCameraDirective(frame.cameraPlan) : undefined,
     frame.notes && `Notes: ${frame.notes}`,
     frame.annotations.length
       ? `Annotations: ${frame.annotations.map(compileAnnotation).join(' | ')}`
@@ -242,4 +270,26 @@ function issue(
 
 function fmt(value: number): string {
   return String(Number(value.toFixed(4)));
+}
+
+
+export function validateStoryboardReferenceDeliverables(
+  board: StoryboardReferenceBoard,
+  deliverables: readonly StoryboardReferenceDeliverable[],
+): readonly string[] {
+  const reasons: string[] = [];
+  const seen = new Set<StoryboardReferenceDeliverableKind>();
+  for (const deliverable of deliverables) {
+    if (seen.has(deliverable.kind)) {
+      reasons.push(`DIRECTOR_REFERENCE_DELIVERABLE_DUPLICATE:${deliverable.kind}`);
+    }
+    seen.add(deliverable.kind);
+    if (!deliverable.assetId.trim() || !deliverable.sha256.trim() || !deliverable.evidenceIds.length) {
+      reasons.push(`DIRECTOR_REFERENCE_DELIVERABLE_PROVENANCE_REQUIRED:${deliverable.kind}`);
+    }
+    if (deliverable.boardVersion !== board.version) {
+      reasons.push(`DIRECTOR_REFERENCE_DELIVERABLE_STALE:${deliverable.kind}`);
+    }
+  }
+  return Object.freeze([...new Set(reasons)]);
 }
