@@ -77,7 +77,9 @@ async function proxyBackgroundRemoval(req, res, requestUrl) {
   const target = new URL('/background', mediaWorkerUrl);
   target.search = requestUrl.search;
 
-  const headers = {};
+  const headers = {
+    authorization: `Bearer ${token}`,
+  };
   const contentType = req.headers['content-type'];
   if (contentType) headers['content-type'] = contentType;
 
@@ -137,6 +139,9 @@ async function proxyUpscale(req, res) {
 
   const response = await fetch(target, {
     method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
     body: upstreamForm,
     signal: AbortSignal.timeout(180000),
   });
@@ -198,7 +203,9 @@ const server = http.createServer(async (req, res) => {
     if (requestUrl.pathname === '/dog-vision') {
       const body = await collectBody(req);
       const target = new URL('/dog-vision', mediaWorkerUrl);
-      const headers = {};
+      const headers = {
+        authorization: `Bearer ${token}`,
+      };
       const contentType = req.headers['content-type'];
       if (contentType) headers['content-type'] = contentType;
 
