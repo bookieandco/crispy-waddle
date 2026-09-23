@@ -69,6 +69,12 @@ jobs:
           src/paid-video-generation.test.ts
           src/commercial-creative-lab.test.ts
           src/product-reference-bootstrap.test.ts
+          src/camera-language.test.ts
+          src/performance-direction.test.ts
+          src/realism-direction.test.ts
+          src/directed-take-qc.test.ts
+          src/ugc-production.test.ts
+          src/previs-blockout.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
       - name: Workstation authority, Studio QC and Social bridge
         run: >
