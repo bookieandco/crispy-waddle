@@ -1,0 +1,95 @@
+name: Jhadina Production Workers
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+    - cron: "30 * * * *"
+    - cron: "5 */6 * * *"
+    - cron: "20 */6 * * *"
+    - cron: "35 */6 * * *"
+    - cron: "50 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      worker:
+        description: "Worker to run"
+        required: true
+        default: "shark-launch-outcomes"
+        type: choice
+        options:
+          - shark-launch-outcomes
+          - shark-historical-observations
+          - sam-scan
+          - sam-enrich
+          - sam-certify
+          - sam-bootstrap
+          - all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-production-workers-${{ github.event.schedule || inputs.worker || 'manual' }}
+  cancel-in-progress: false
+
+jobs:
+  run-workers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      JHADINA_PRODUCTION_ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Require scheduler configuration
+        run: |
+          test -n "${CRON_SECRET:-}" || { echo "CRON_SECRET repository secret is required"; exit 1; }
+          case "$JHADINA_PRODUCTION_ORIGIN" in
+            https://*) ;;
+            *) echo "JHADINA_PRODUCTION_ORIGIN must be HTTPS"; exit 1 ;;
+          esac
+
+      - name: Invoke scheduled worker
+        env:
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          MANUAL_WORKER: ${{ inputs.worker }}
+        run: |
+          set -euo pipefail
+
+          invoke() {
+            local path="$1"
+            echo "Invoking $path"
+            curl --silent --show-error --fail-with-body \
+              --retry 2 --retry-all-errors --max-time 290 \
+              --header "Authorization: Bearer $CRON_SECRET" \
+              "${JHADINA_PRODUCTION_ORIGIN}${path}"
+          }
+
+          requested="${MANUAL_WORKER:-}"
+          schedule="${EVENT_SCHEDULE:-}"
+
+          if [[ "$requested" == "all" ]]; then
+            invoke "/api/internal/shark/launch-outcomes"
+            invoke "/api/internal/shark/historical-observations"
+            invoke "/api/internal/sam/scan?lookbackDays=2&maxPages=20"
+            invoke "/api/internal/sam/enrich?limit=5&maxDocuments=40&maxProviders=8"
+            invoke "/api/internal/sam/certify"
+            invoke "/api/internal/sam/bootstrap?historyDays=365&windowDays=7&maxWindows=4&maxPages=20"
+            exit 0
+          fi
+
+          case "${requested:-$schedule}" in
+            shark-launch-outcomes|"0 * * * *")
+              invoke "/api/internal/shark/launch-outcomes" ;;
+            shark-historical-observations|"30 * * * *")
+              invoke "/api/internal/shark/historical-observations" ;;
+            sam-scan|"5 */6 * * *")
+              invoke "/api/internal/sam/scan?lookbackDays=2&maxPages=20" ;;
+            sam-enrich|"20 */6 * * *")
+              invoke "/api/internal/sam/enrich?limit=5&maxDocuments=40&maxProviders=8" ;;
+            sam-certify|"35 */6 * * *")
+              invoke "/api/internal/sam/certify" ;;
+            sam-bootstrap|"50 */6 * * *")
+              invoke "/api/internal/sam/bootstrap?historyDays=365&windowDays=7&maxWindows=4&maxPages=20" ;;
+            *)
+              echo "Unknown worker/schedule: ${requested:-$schedule}"
+              exit 2 ;;
+          esac
