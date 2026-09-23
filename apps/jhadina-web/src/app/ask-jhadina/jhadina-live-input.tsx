@@ -298,15 +298,6 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
   </div>
 }
 
-function readAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result ?? ""))
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read file"))
-    reader.readAsDataURL(file)
-  })
-}
-
 
 function estimatePitchHz(buffer:Float32Array,sampleRate:number):number|undefined{
   let rms=0;for(const v of buffer)rms+=v*v;rms=Math.sqrt(rms/buffer.length)
