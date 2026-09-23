@@ -1,9 +1,12 @@
 import {
+  DEFAULT_PERSONALITY_EXPRESSION,
   DEFAULT_PERSONALITY_RELATIONSHIP,
   DEFAULT_PERSONALITY_TASTE,
   DEFAULT_PERSONALITY_VOICE,
 } from './personality-core.js';
 import type {
+  ExpressionRegister,
+  PersonalityExpressionState,
   PersonalityState,
   PersonalityTasteState,
   PersonalityVoiceState,
@@ -12,7 +15,17 @@ import type {
 export interface RealNiggaBehaviorContext {
   serious?: boolean;
   requiresPrecision?: boolean;
+  highStakes?: boolean;
+  distress?: boolean;
   userAskedForPushback?: boolean;
+  register?: ExpressionRegister;
+  banterEligible?: boolean;
+  symbolicFramingEligible?: boolean;
+  intimacyEligible?: boolean;
+  operationalContext?: boolean;
+  userBuildingBit?: boolean;
+  conversationTemperature?: number;
+  workloadPressure?: number;
 }
 
 export interface RealNiggaBehavior {
@@ -39,6 +52,28 @@ export interface RealNiggaBehavior {
   preferredInteractionModes: string[];
   creativeLatitude: number;
   conventionTolerance: number;
+  register: ExpressionRegister;
+  lyricality: number;
+  poeticCompression: number;
+  cadenceSpaciousness: number;
+  emotionalIntimacy: number;
+  resilienceHumor: number;
+  absurdEscalation: number;
+  callbackAffinity: number;
+  conceptualPlayfulness: number;
+  culturalFluency: number;
+  selfAuthorship: number;
+  gracefulRelease: number;
+  ordinaryEnchantment: number;
+  operationalSass: number;
+  affectionateTeasing: number;
+  protocolPushback: number;
+  edginessBudget: number;
+  symbolicFramingAllowed: boolean;
+  intimacyEligible: boolean;
+  banterEligible: boolean;
+  conversationTemperature: number;
+  workloadPressure: number;
   authenticityRequired: boolean;
 }
 
@@ -95,7 +130,19 @@ export function deriveRealNiggaBehavior(
   const voice: PersonalityVoiceState = personality.voice ?? DEFAULT_PERSONALITY_VOICE;
   const relationship = personality.relationship ?? DEFAULT_PERSONALITY_RELATIONSHIP;
   const taste: PersonalityTasteState = personality.taste ?? DEFAULT_PERSONALITY_TASTE;
-  const serious = context.serious === true || context.requiresPrecision === true;
+  const expression: PersonalityExpressionState = personality.expression ?? DEFAULT_PERSONALITY_EXPRESSION;
+  const serious =
+    context.serious === true ||
+    context.requiresPrecision === true ||
+    context.highStakes === true ||
+    context.distress === true;
+  const requestedRegister = context.register ?? 'default';
+  const register: ExpressionRegister = serious ? 'serious' : requestedRegister;
+  const conversationTemperature = clamp(context.conversationTemperature ?? 0.5);
+  const workloadPressure = clamp(context.workloadPressure ?? 0);
+  const banterEligible = !serious && context.banterEligible !== false;
+  const intimacyEligible = !serious && context.intimacyEligible === true;
+  const symbolicFramingAllowed = !serious && context.symbolicFramingEligible === true;
 
   const familiarity = clamp(relationship.familiarity);
   const relationshipCalibration = clamp(familiarity * clamp(relationship.calibrationConfidence));
@@ -158,6 +205,20 @@ export function deriveRealNiggaBehavior(
   const quipIntensity = serious
     ? 0
     : clamp(clamp(voice.quipFrequency) * (0.75 + 0.25 * tasteLatitude));
+  const operationalSass = !serious && context.operationalContext === true
+    ? clamp(clamp(expression.operationalSass) * (0.45 + 0.55 * relationshipCalibration))
+    : 0;
+  const affectionateTeasing = banterEligible
+    ? clamp(clamp(expression.affectionateTeasing) * (0.35 + 0.65 * relationshipCalibration))
+    : 0;
+  const protocolPushback = clamp(expression.protocolPushback);
+  const edginessBudget = serious
+    ? 0
+    : clamp(
+        0.4 * clamp(voice.profanityTolerance) +
+        0.3 * clamp(voice.humor) +
+        0.3 * relationshipCalibration,
+      );
 
   return {
     directness,
@@ -181,6 +242,28 @@ export function deriveRealNiggaBehavior(
     preferredInteractionModes,
     creativeLatitude: activeCreativeLatitude,
     conventionTolerance: clamp(taste.conventionTolerance),
+    register,
+    lyricality: serious ? 0 : clamp(expression.lyricality),
+    poeticCompression: serious ? 0 : clamp(expression.poeticCompression),
+    cadenceSpaciousness: serious ? Math.min(clamp(expression.cadenceSpaciousness), 0.25) : clamp(expression.cadenceSpaciousness),
+    emotionalIntimacy: serious ? 0 : clamp(expression.emotionalIntimacy),
+    resilienceHumor: serious ? 0 : clamp(expression.resilienceHumor),
+    absurdEscalation: serious ? 0 : clamp(expression.absurdEscalation),
+    callbackAffinity: serious ? 0 : clamp(expression.callbackAffinity),
+    conceptualPlayfulness: serious ? 0 : clamp(expression.conceptualPlayfulness),
+    culturalFluency: serious ? 0 : clamp(expression.culturalFluency),
+    selfAuthorship: clamp(expression.selfAuthorship),
+    gracefulRelease: serious ? 0 : clamp(expression.gracefulRelease),
+    ordinaryEnchantment: serious ? 0 : clamp(expression.ordinaryEnchantment),
+    operationalSass,
+    affectionateTeasing,
+    protocolPushback,
+    edginessBudget,
+    symbolicFramingAllowed,
+    intimacyEligible,
+    banterEligible,
+    conversationTemperature,
+    workloadPressure,
     authenticityRequired: true,
   };
 }
