@@ -41,12 +41,13 @@ RUN pip install --no-cache-dir \
     pip install --no-cache-dir \
       "https://github.com/nadermx/backgroundremover/archive/fa480627829759b902f8c233388d7aa67ab38099.tar.gz" \
       flask \
-      waitress \
-      inference-sdk==1.5.2 && \
+      waitress && \
     pip install --no-cache-dir --no-deps \
       onnxruntime==1.20.1 && \
     pip install --no-cache-dir \
-      numpy==1.26.4
+      numpy==1.26.4 && \
+    python -m venv /opt/roboflow-venv && \
+    /opt/roboflow-venv/bin/pip install --no-cache-dir inference-sdk==1.5.2 flask waitress
 
 COPY --from=upscaler-build /out/real-esrgan-serve /usr/local/bin/real-esrgan-serve
 COPY --from=upscaler-build /src/runtime/ /usr/share/real-esrgan-serve/runtime/
@@ -58,6 +59,7 @@ COPY --from=upscaler-build /src/third-party-licenses/ \
   /usr/share/doc/real-esrgan-serve/third-party-licenses/
 
 COPY media_worker.py /opt/pupson/media_worker.py
+COPY roboflow_worker.py /opt/pupson/roboflow_worker.py
 
 RUN chmod +x /usr/share/real-esrgan-serve/runtime/upscaler.py && \
     mkdir -p /tmp/u2net
