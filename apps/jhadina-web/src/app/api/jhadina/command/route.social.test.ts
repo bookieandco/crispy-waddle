@@ -159,6 +159,15 @@ describe("Ask Jhadina Social routing", () => {
       shortcut: "social",
       userId: "user-1",
       activeTask: "Make a TikTok video for PupsonStuff",
+      proposal: expect.objectContaining({
+        disposition: "PROCEED",
+        recommendation: expect.stringContaining("Director started video job video-job-social-1"),
+      }),
+      metadata: expect.objectContaining({
+        directorOutcome: "started",
+        videoJobId: "video-job-social-1",
+        videoStatus: "queued",
+      }),
     }))
     expect(createVideo).toHaveBeenCalledWith(expect.objectContaining({
       socialExpression: expect.objectContaining({
@@ -231,6 +240,15 @@ describe("Ask Jhadina Social routing", () => {
     expect(json.data.proposal.disposition).toBe("ASK")
     expect(json.data.proposal.recommendation).toContain("connected Social account")
     expect(createVideo).not.toHaveBeenCalled()
+    expect(recordShortcutExperience).toHaveBeenCalledWith(expect.objectContaining({
+      proposal: expect.objectContaining({
+        disposition: "ASK",
+        recommendation: expect.stringContaining("connected Social account"),
+      }),
+      metadata: expect.objectContaining({
+        directorOutcome: "scope_clarification",
+      }),
+    }))
   })
 
   it("does not start Director when Social needs clarification", async () => {
@@ -275,6 +293,12 @@ describe("Ask Jhadina Social routing", () => {
     expect(response.status).toBe(200)
     expect(json.data.proposal.disposition).toBe("ASK")
     expect(createVideo).not.toHaveBeenCalled()
+    expect(recordShortcutExperience).toHaveBeenCalledWith(expect.objectContaining({
+      proposal: expect.objectContaining({
+        disposition: "ASK",
+        recommendation: "Choose a connected TikTok account.",
+      }),
+    }))
   })
 
   it("routes an explicit personal/history Social read through full JLLM context", async () => {
