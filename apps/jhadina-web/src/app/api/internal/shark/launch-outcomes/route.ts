@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authorizedSchedulerRequest } from '@/lib/internal-scheduler-auth'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { runPersistedLaunchOutcomeWorker } from '@/lib/shark/launch-outcome-repository'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-function authorized(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  return Boolean(secret && request.headers.get('authorization') === `Bearer ${secret}`)
-}
 
 function parseLimit(request: NextRequest): number | null {
   const raw = request.nextUrl.searchParams.get('limit')
@@ -18,7 +15,7 @@ function parseLimit(request: NextRequest): number | null {
 }
 
 async function run(request: NextRequest) {
-  if (!authorized(request)) return NextResponse.json({ ok: false }, { status: 401 })
+  if (!(await authorizedSchedulerRequest(request))) return NextResponse.json({ ok: false }, { status: 401 })
   const limit = parseLimit(request)
   if (limit === null) return NextResponse.json({ ok: false, error: 'invalid_limit' }, { status: 400 })
   const client = createServiceRoleClient()
