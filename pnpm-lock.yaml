@@ -31,6 +31,9 @@ importers:
       '@jhadina/director-core':
         specifier: workspace:*
         version: link:../../packages/director-core
+      '@jhadina/evolution-core':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-evolution-core
       '@jhadina/growth-core':
         specifier: workspace:*
         version: link:../../packages/growth-core
