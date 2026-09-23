@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authorizedSchedulerRequest } from '@/lib/internal-scheduler-auth'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { runSamWideScan } from '@/lib/money-opportunities/sam-wide-runtime'
 
@@ -6,10 +7,6 @@ export const runtime='nodejs'
 export const dynamic='force-dynamic'
 export const maxDuration=300
 
-function authorized(request:NextRequest){
-  const secret=process.env.CRON_SECRET
-  return Boolean(secret&&request.headers.get('authorization')===`Bearer ${secret}`)
-}
 const mmddyyyy=(d:Date)=>`${String(d.getUTCMonth()+1).padStart(2,'0')}/${String(d.getUTCDate()).padStart(2,'0')}/${d.getUTCFullYear()}`
 function intParam(request:NextRequest,key:string,fallback:number,min:number,max:number){
   const raw=request.nextUrl.searchParams.get(key)
@@ -18,7 +15,7 @@ function intParam(request:NextRequest,key:string,fallback:number,min:number,max:
   return Number.isInteger(value)&&value>=min&&value<=max?value:null
 }
 async function run(request:NextRequest){
-  if(!authorized(request))return NextResponse.json({ok:false},{status:401})
+  if(!(await authorizedSchedulerRequest(request)))return NextResponse.json({ok:false},{status:401})
   if(!process.env.SAM_GOV_API_KEY)return NextResponse.json({ok:false,error:'sam_api_unavailable'},{status:503})
   const lookbackDays=intParam(request,'lookbackDays',2,0,31)
   const maxPages=intParam(request,'maxPages',20,1,100)

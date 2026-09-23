@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authorizedSchedulerRequest } from '@/lib/internal-scheduler-auth'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { certifySamUsableRuntime } from '@/lib/money-opportunities/sam-usable-runtime'
 
@@ -6,12 +7,8 @@ export const runtime='nodejs'
 export const dynamic='force-dynamic'
 export const maxDuration=300
 
-function authorized(request:NextRequest){
-  const secret=process.env.CRON_SECRET
-  return Boolean(secret&&request.headers.get('authorization')===`Bearer ${secret}`)
-}
 async function run(request:NextRequest){
-  if(!authorized(request))return NextResponse.json({ok:false},{status:401})
+  if(!(await authorizedSchedulerRequest(request)))return NextResponse.json({ok:false},{status:401})
   const client=createServiceRoleClient()
   if(!client)return NextResponse.json({ok:false,error:'sam_persistence_unavailable'},{status:503})
   try{

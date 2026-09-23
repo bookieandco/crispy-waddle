@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authorizedSchedulerRequest } from '@/lib/internal-scheduler-auth'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { runSamEnrichment } from '@/lib/money-opportunities/sam-usable-runtime'
 
@@ -6,10 +7,6 @@ export const runtime='nodejs'
 export const dynamic='force-dynamic'
 export const maxDuration=300
 
-function authorized(request:NextRequest){
-  const secret=process.env.CRON_SECRET
-  return Boolean(secret&&request.headers.get('authorization')===`Bearer ${secret}`)
-}
 function intParam(request:NextRequest,key:string,fallback:number,min:number,max:number){
   const raw=request.nextUrl.searchParams.get(key)
   if(raw===null)return fallback
@@ -17,7 +14,7 @@ function intParam(request:NextRequest,key:string,fallback:number,min:number,max:
   return Number.isInteger(value)&&value>=min&&value<=max?value:null
 }
 async function run(request:NextRequest){
-  if(!authorized(request))return NextResponse.json({ok:false},{status:401})
+  if(!(await authorizedSchedulerRequest(request)))return NextResponse.json({ok:false},{status:401})
   if(!process.env.SAM_GOV_API_KEY)return NextResponse.json({ok:false,error:'sam_api_unavailable'},{status:503})
   const limit=intParam(request,'limit',5,3,20)
   const maxDocuments=intParam(request,'maxDocuments',40,1,100)

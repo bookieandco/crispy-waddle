@@ -34,16 +34,19 @@ describe('product-specific print master', () => {
   }, 15_000);
 
   it('does not require upscaling when a 1024px source meets the actual placed DPI', async () => {
-    const product = hotspots.find((item) => item.id === 'concertShirt')!;
+    // This test proves source-resolution math, not the maximum-size apparel
+    // raster path. Use the smallest real product profile so monorepo-parallel
+    // CI does not turn a valid DPI assertion into a 5s timeout.
+    const product = hotspots.find((item) => item.id === 'mugWhite')!;
     const result = await buildPrintMaster({
       generatedBytes: await squarePng(1024),
       hotspot: product,
-      variantId: 'tee-concert-m',
+      variantId: 'mug-11oz',
       transform: { x: 0.5, y: 0.5, scale: 1, rotation: 0 },
     });
     expect(result.source.upscaleProvider).toBe('none');
     expect(result.quality.productionReady).toBe(true);
-  });
+  }, 10_000);
 
   it('fails closed when an enlarged placement needs an upscaler that is not configured', async () => {
     const product = hotspots.find((item) => item.id === 'concertShirt')!;

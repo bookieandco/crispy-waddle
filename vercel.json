@@ -4,32 +4,6 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm turbo run build --filter=@jhadina/jhadina-web",
   "outputDirectory": "apps/jhadina-web/.next",
-  "crons": [
-    {
-      "path": "/api/internal/shark/historical-observations",
-      "schedule": "30 * * * *"
-    },
-    {
-      "path": "/api/internal/shark/launch-outcomes",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/internal/sam/scan?lookbackDays=2&maxPages=20",
-      "schedule": "5 */6 * * *"
-    },
-    {
-      "path": "/api/internal/sam/enrich?limit=5&maxDocuments=40&maxProviders=8",
-      "schedule": "20 */6 * * *"
-    },
-    {
-      "path": "/api/internal/sam/certify",
-      "schedule": "35 */6 * * *"
-    },
-    {
-      "path": "/api/internal/sam/bootstrap?historyDays=365&windowDays=7&maxWindows=4&maxPages=20",
-      "schedule": "50 */6 * * *"
-    }
-  ],
   "git": {
     "deploymentEnabled": {
       "**": false,

@@ -1,0 +1,180 @@
+name: Jhadina Production Scheduler
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/jhadina-production-scheduler.yml"
+      - "apps/jhadina-web/src/lib/internal-scheduler-auth.ts"
+      - "apps/jhadina-web/src/app/api/internal/scheduler/health/**"
+      - "vercel.json"
+      - "apps/jhadina-web/vercel.json"
+  schedule:
+    - cron: "0 * * * *"
+    - cron: "30 * * * *"
+    - cron: "5 */6 * * *"
+    - cron: "20 */6 * * *"
+    - cron: "35 */6 * * *"
+    - cron: "50 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Production worker to invoke"
+        required: true
+        type: choice
+        options:
+          - shark-launch-outcomes
+          - shark-historical-observations
+          - sam-scan
+          - sam-enrich
+          - sam-certify
+          - sam-bootstrap
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: jhadina-production-scheduler-${{ github.event_name }}-${{ github.event.schedule || inputs.job || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  admission-smoke:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Request scoped GitHub OIDC token
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-production-scheduler')
+            core.setSecret(token)
+            core.setOutput('token', token)
+
+      - name: Wait for exact production deployment
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          url="${ORIGIN%/}/api/internal/scheduler/health"
+
+          for attempt in $(seq 1 40); do
+            response_file="$(mktemp)"
+            status="$(curl --silent --show-error --location \
+              --connect-timeout 20 \
+              --max-time 30 \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${OIDC_TOKEN}" \
+              --header "User-Agent: jhadina-production-admission/${GITHUB_RUN_ID}" \
+              "$url" || true)"
+
+            if [[ "$status" == "200" ]]; then
+              deployed_sha="$(jq -r '.commitSha // empty' "$response_file")"
+              environment="$(jq -r '.environment // empty' "$response_file")"
+              echo "attempt=${attempt} environment=${environment} deployed_sha=${deployed_sha}"
+
+              if [[ "$environment" == "production" && "$deployed_sha" == "$EXPECTED_SHA" ]]; then
+                echo "Exact production deployment admitted: $EXPECTED_SHA"
+                exit 0
+              fi
+            else
+              echo "attempt=${attempt} status=${status}"
+            fi
+
+            sleep 15
+          done
+
+          echo "Production never reported exact SHA $EXPECTED_SHA within the admission window" >&2
+          exit 1
+
+  invoke:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve protected production worker
+        id: target
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT_JOB: ${{ inputs.job }}
+        run: |
+          set -euo pipefail
+
+          case "${INPUT_JOB:-}:${SCHEDULE:-}" in
+            shark-launch-outcomes:*|*:0\ \*\ \*\ \*\ \*)
+              job="shark-launch-outcomes"
+              path="/api/internal/shark/launch-outcomes"
+              ;;
+            shark-historical-observations:*|*:30\ \*\ \*\ \*\ \*)
+              job="shark-historical-observations"
+              path="/api/internal/shark/historical-observations"
+              ;;
+            sam-scan:*|*:5\ \*/6\ \*\ \*\ \*)
+              job="sam-scan"
+              path="/api/internal/sam/scan?lookbackDays=2&maxPages=20"
+              ;;
+            sam-enrich:*|*:20\ \*/6\ \*\ \*\ \*)
+              job="sam-enrich"
+              path="/api/internal/sam/enrich?limit=5&maxDocuments=40&maxProviders=8"
+              ;;
+            sam-certify:*|*:35\ \*/6\ \*\ \*\ \*)
+              job="sam-certify"
+              path="/api/internal/sam/certify"
+              ;;
+            sam-bootstrap:*|*:50\ \*/6\ \*\ \*\ \*)
+              job="sam-bootstrap"
+              path="/api/internal/sam/bootstrap?historyDays=365&windowDays=7&maxWindows=4&maxPages=20"
+              ;;
+            *)
+              echo "Unknown scheduler invocation: input=${INPUT_JOB:-} schedule=${SCHEDULE:-}" >&2
+              exit 2
+              ;;
+          esac
+
+          echo "job=${job}" >> "$GITHUB_OUTPUT"
+          echo "path=${path}" >> "$GITHUB_OUTPUT"
+
+      - name: Request scoped GitHub OIDC token
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-production-scheduler')
+            core.setSecret(token)
+            core.setOutput('token', token)
+
+      - name: Invoke production worker
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          PATHNAME: ${{ steps.target.outputs.path }}
+          JOB: ${{ steps.target.outputs.job }}
+        run: |
+          set -euo pipefail
+          url="${ORIGIN%/}${PATHNAME}"
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --location \
+            --connect-timeout 20 \
+            --max-time 320 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --header "Authorization: Bearer ${OIDC_TOKEN}" \
+            --header "User-Agent: jhadina-production-scheduler/${GITHUB_RUN_ID}" \
+            "$url")"
+
+          echo "worker=${JOB} status=${status}"
+          cat "$response_file"
+
+          case "$status" in
+            2??) ;;
+            *)
+              echo "Production scheduler worker failed with HTTP ${status}" >&2
+              exit 1
+              ;;
+          esac
