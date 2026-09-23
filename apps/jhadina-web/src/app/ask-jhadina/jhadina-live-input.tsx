@@ -120,7 +120,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
       if(ready)onStatus?.(`Resumed ${ready} clean file${ready===1?"":"s"} from this WorkSession.`)
     })().catch(()=>{if(!cancelled)setHydratedResumeKey(resumeKey)})
     return()=>{cancelled=true}
-  },[resumeKey])
+  },[resumeKey,onStatus])
 
   useEffect(() => () => {
     recognitionRef.current?.stop?.()
