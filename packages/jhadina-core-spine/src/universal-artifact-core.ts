@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto"
 import { MEDIA_SECURITY_RULES, assertSafeMedia, type MediaScanResult, type MediaSecurityScanner } from "@jhadina/security-core"
 
 export type ArtifactStatus="quarantine"|"clean"|"rejected"|"needs_review"
@@ -20,7 +19,8 @@ export class UniversalArtifactCore {
   if(!input.bytes.length||input.bytes.length>MAX_BYTES) throw new Error("ARTIFACT_SIZE_NOT_ADMITTED")
   if(!input.detectedMimeType||input.detectedMimeType==="application/octet-stream") throw new Error("ARTIFACT_MIME_UNVERIFIED")
   if(input.declaredMimeType!==input.detectedMimeType) throw new Error("ARTIFACT_MIME_MISMATCH")
-  const sha256=createHash("sha256").update(input.bytes).digest("hex")
+  const digest=await crypto.subtle.digest("SHA-256",input.bytes)
+  const sha256=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,"0")).join("")
   const id=crypto.randomUUID(); const safeName=input.name.replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,180)
   const stored=await this.blobs.putQuarantine(`${input.ownerUserId}/${id}/${safeName}`,input.bytes,input.detectedMimeType)
   const record=await this.repo.createQuarantined({id,ownerUserId:input.ownerUserId,originalName:safeName,declaredMimeType:input.declaredMimeType,detectedMimeType:input.detectedMimeType,sizeBytes:input.bytes.length,sha256,storageBucket:stored.bucket,storagePath:stored.path,provenance:input.provenance??{}})
