@@ -44,11 +44,11 @@ export class ProductionWorkSessionContextProvider implements WorkSessionContextP
     const workSession = toContext(session, goal)
     const limitations: string[] = []
     if (redactionCount > 0) {
-      limitations.push(\`\${redactionCount} secret-like pattern(s) redacted from WorkSession goal\`)
+      limitations.push(`${redactionCount} secret-like pattern(s) redacted from WorkSession goal`)
     }
     const excludedArtifacts = session.artifactRefs.filter((ref) => !ref.admitted).length
     if (excludedArtifacts > 0) {
-      limitations.push(\`\${excludedArtifacts} non-admitted WorkSession artifact reference(s) remain identifiers only and are not model content\`)
+      limitations.push(`${excludedArtifacts} non-admitted WorkSession artifact reference(s) remain identifiers only and are not model content`)
     }
 
     return { workSession, limitations }
@@ -66,16 +66,16 @@ function toContext(session: JhadinaWorkSession, redactedGoal: string): WorkSessi
   const decisionRefs = [...session.decisionRefs].slice(0, MAX_DECISION_REFS)
   const outputRefs = [...session.outputRefs].slice(0, MAX_OUTPUT_REFS)
   const evidence = [{
-    id: \`work-session:\${session.id}\`,
+    id: `work-session:${session.id}`,
     source: "work-session",
     observedAt: session.updatedAt,
     summary: [
-      \`status=\${session.status}\`,
-      \`goal=\${redactedGoal}\`,
-      \`activeSubsystems=\${activeSubsystems.join(",") || "none"}\`,
-      \`artifactRefs=\${artifactRefs.length}\`,
-      \`decisionRefs=\${decisionRefs.length}\`,
-      \`outputRefs=\${outputRefs.length}\`,
+      `status=${session.status}`,
+      `goal=${redactedGoal}`,
+      `activeSubsystems=${activeSubsystems.join(",") || "none"}`,
+      `artifactRefs=${artifactRefs.length}`,
+      `decisionRefs=${decisionRefs.length}`,
+      `outputRefs=${outputRefs.length}`,
     ].join("; "),
     immutable: false,
   }]
