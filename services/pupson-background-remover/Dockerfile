@@ -41,7 +41,8 @@ RUN pip install --no-cache-dir \
     pip install --no-cache-dir \
       "https://github.com/nadermx/backgroundremover/archive/fa480627829759b902f8c233388d7aa67ab38099.tar.gz" \
       flask \
-      waitress && \
+      waitress \
+      inference-sdk==1.5.2 && \
     pip install --no-cache-dir --no-deps \
       onnxruntime==1.20.1 && \
     pip install --no-cache-dir \
