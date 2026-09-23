@@ -15,6 +15,7 @@ on:
       - "apps/jhadina-web/src/app/api/memory/**"
       - "supabase/migrations/20260923045337_personality_memory_final_lifecycle.sql"
       - "supabase/migrations/20260923045340_personality_drift_observation_receipts.sql"
+      - "supabase/functions/jhadina-memory-gateway/**"
       - "apps/jhadina-web/src/lib/hippocampus/**"
       - "apps/jhadina-web/src/lib/context/context-builder.ts"
       - "apps/jhadina-web/src/lib/context/context-builder.test.ts"
@@ -75,6 +76,7 @@ on:
       - "apps/jhadina-web/src/app/api/memory/**"
       - "supabase/migrations/20260923045337_personality_memory_final_lifecycle.sql"
       - "supabase/migrations/20260923045340_personality_drift_observation_receipts.sql"
+      - "supabase/functions/jhadina-memory-gateway/**"
       - "apps/jhadina-web/src/lib/hippocampus/**"
       - "apps/jhadina-web/src/lib/context/context-builder.ts"
       - "apps/jhadina-web/src/lib/context/context-builder.test.ts"
@@ -192,6 +194,7 @@ jobs:
             src/lib/intelligence/governed-intelligence-proposal.test.ts \
             src/lib/personality/personality-outcome-feedback.test.ts \
             src/lib/storage/SupabaseMemoryStorage.test.ts \
+            src/lib/storage/VercelOidcMemoryStorage.test.ts \
             src/lib/storage/createMemoryStorage.test.ts \
             src/lib/application/createJhadinaApplication.test.ts \
             src/__tests__/sprint1.test.ts \
