@@ -21,9 +21,11 @@ function makeOidcFixture(overrides: Record<string, unknown> = {}) {
   const claims = base64UrlJson({
     iss: 'https://token.actions.githubusercontent.com',
     aud: 'jhadina-production-scheduler',
-    sub: 'repo:bookieandco/crispy-waddle:ref:refs/heads/main',
+    sub: 'repo:bookieandco@289295074/crispy-waddle@1320251374:ref:refs/heads/main',
     repository: 'bookieandco/crispy-waddle',
+    repository_id: '1320251374',
     repository_owner: 'bookieandco',
+    repository_owner_id: '289295074',
     ref: 'refs/heads/main',
     event_name: 'schedule',
     workflow_ref:
@@ -88,6 +90,23 @@ describe('internal scheduler authorization', () => {
         nowSeconds: 1_800_000_100,
       }),
     ).resolves.toBe(true)
+  })
+
+  it('rejects a legacy name-only subject even when other claims look valid', async () => {
+    vi.stubEnv('CRON_SECRET', '')
+    const fixture = makeOidcFixture({
+      sub: 'repo:bookieandco/crispy-waddle:ref:refs/heads/main',
+    })
+    const request = new Request('https://example.test/internal', {
+      headers: { authorization: `Bearer ${fixture.token}` },
+    })
+
+    await expect(
+      authorizedSchedulerRequest(request, {
+        fetchImpl: fixture.fetchImpl,
+        nowSeconds: 1_800_000_100,
+      }),
+    ).resolves.toBe(false)
   })
 
   it('rejects a validly signed token from a different workflow or ref', async () => {
