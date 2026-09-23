@@ -217,6 +217,7 @@ describe('GenerationPlanAdapter', () => {
     expect(submitted.requests[0]?.references?.[1]).toMatchObject({
       assetId: 'maya-face-v4',
       role: 'character',
+      media: 'image',
       uri: 'https://private.test/maya-face-v4?signed=1',
     });
     expect(submitted.requests[0]?.prompt).toContain('[REFERENCE MANIFEST]');
