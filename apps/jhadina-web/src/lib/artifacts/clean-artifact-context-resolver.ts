@@ -5,6 +5,7 @@ export type DurableArtifactRef={id:string}
 
 const MAX_CONTEXT_IMAGE_BYTES=4_000_000
 const MAX_CONTEXT_TEXT_BYTES=20_000
+const MAX_EXTRACTED_CONTEXT_BYTES=80_000
 const DIRECT_IMAGE_MIME=new Set(["image/jpeg","image/png"])
 
 export class CleanArtifactContextResolver{
@@ -36,7 +37,11 @@ export class CleanArtifactContextResolver{
     continue
    }
    if(row.extracted_text_ref){
-    resolved.push({...base,kind:"text",text:`[clean artifact extraction reference: ${row.extracted_text_ref}]`})
+    const ref=parsePrivateRef(String(row.extracted_text_ref))
+    if(!ref)throw new Error("ARTIFACT_CONTEXT_EXTRACTION_REF_INVALID")
+    const bytes=await this.download(ref.bucket,ref.path)
+    if(bytes.byteLength>MAX_EXTRACTED_CONTEXT_BYTES)throw new Error("ARTIFACT_CONTEXT_EXTRACTION_TOO_LARGE")
+    resolved.push({...base,kind:"text",text:new TextDecoder().decode(bytes).slice(0,MAX_EXTRACTED_CONTEXT_BYTES)})
     continue
    }
    throw new Error("ARTIFACT_CONTEXT_REPRESENTATION_UNAVAILABLE")
@@ -48,4 +53,14 @@ export class CleanArtifactContextResolver{
   if(error||!data)throw new Error(`ARTIFACT_CONTEXT_DOWNLOAD_FAILED: ${error?.message??"missing object"}`)
   return new Uint8Array(await data.arrayBuffer())
  }
+}
+
+
+function parsePrivateRef(value:string):{bucket:string;path:string}|null{
+ const prefix="supabase-private://"
+ if(!value.startsWith(prefix))return null
+ const remainder=value.slice(prefix.length)
+ const slash=remainder.indexOf("/")
+ if(slash<=0||slash===remainder.length-1)return null
+ return {bucket:remainder.slice(0,slash),path:remainder.slice(slash+1)}
 }
