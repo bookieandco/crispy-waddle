@@ -1,0 +1,26 @@
+name: Jhadina Artifact Extractor CI
+
+on:
+  pull_request:
+    paths:
+      - "services/jhadina-artifact-extractor/**"
+      - "apps/jhadina-web/src/lib/artifacts/**"
+      - "apps/jhadina-web/src/app/api/jhadina/artifacts/route.ts"
+      - "supabase/migrations/*artifact_derived*"
+      - ".github/workflows/jhadina-artifact-extractor.yml"
+
+jobs:
+  extractor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install document extractor dependencies
+        run: pip install -r services/jhadina-artifact-extractor/requirements-ci.txt
+      - name: Compile extractor
+        run: python -m compileall -q services/jhadina-artifact-extractor
+      - name: Document extractor unit tests
+        working-directory: services/jhadina-artifact-extractor
+        run: python -m unittest -v
