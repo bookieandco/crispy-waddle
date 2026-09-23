@@ -66,6 +66,21 @@ export class ReasoningEventRepository {
   }
 
   /**
+   * Finalize mutable outcome fields on an existing owner-scoped event.
+   * Identity, original user message, observation, and timestamp stay immutable.
+   */
+  async update(eventId: string, userId: string, updates: Pick<
+    Partial<ReasoningEvent>,
+    "classification" | "systemResponse" | "confidence" | "candidateId" | "actor" | "outcome" | "correlationId" | "causationId" | "metadata"
+  >): Promise<ReasoningEvent | null> {
+    if (!this.storage.updateReasoningEvent) {
+      throw new Error("JHADINA_REASONING_EVENT_UPDATE_UNSUPPORTED")
+    }
+    const event = await this.storage.updateReasoningEvent(eventId, userId, updates)
+    return event || null
+  }
+
+  /**
    * List reasoning events for a user
    */
   async list(

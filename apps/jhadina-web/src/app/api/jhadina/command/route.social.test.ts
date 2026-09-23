@@ -10,6 +10,7 @@ const inspectVideo = vi.fn()
 const createVideo = vi.fn()
 const handleGeneric = vi.fn()
 const recordShortcutExperience = vi.fn(async (input: { shortcut: string }) => `reason-${input.shortcut}`)
+const finalizeShortcutExperience = vi.fn(async (input: { reasoningEventId: string }) => input.reasoningEventId)
 const realizeExpression = vi.fn(async (input: {
   proposal: { recommendation: string; disposition: string }
 }) => ({
@@ -47,6 +48,7 @@ vi.mock("@/lib/intelligence/jhadina-command", () => ({
 
 vi.mock("@/lib/intelligence/ask-shortcut-experience", () => ({
   recordAskShortcutExperience: (input: unknown) => recordShortcutExperience(input as { shortcut: string }),
+  finalizeAskShortcutExperience: (input: unknown) => finalizeShortcutExperience(input as { reasoningEventId: string }),
 }))
 
 vi.mock("@/lib/intelligence/ask-expression", () => ({
@@ -71,6 +73,7 @@ function request(activeTask: string) {
 describe("Ask Jhadina Social routing", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    finalizeShortcutExperience.mockImplementation(async (input: { reasoningEventId: string }) => input.reasoningEventId)
     inspectGrowth.mockReturnValue(null)
     inspectSocial.mockReturnValue(null)
     inspectVideo.mockReturnValue(null)
@@ -159,6 +162,25 @@ describe("Ask Jhadina Social routing", () => {
       shortcut: "social",
       userId: "user-1",
       activeTask: "Make a TikTok video for PupsonStuff",
+      proposal: expect.objectContaining({
+        disposition: "PROCEED",
+        recommendation: "Route PupsonStuff TikTok creative to Director.",
+      }),
+      metadata: expect.objectContaining({
+        directorOutcome: "pending",
+      }),
+    }))
+    expect(finalizeShortcutExperience).toHaveBeenCalledWith(expect.objectContaining({
+      reasoningEventId: "reason-social",
+      proposal: expect.objectContaining({
+        disposition: "PROCEED",
+        recommendation: expect.stringContaining("Director started video job video-job-social-1"),
+      }),
+      metadata: expect.objectContaining({
+        directorOutcome: "started",
+        videoJobId: "video-job-social-1",
+        videoStatus: "queued",
+      }),
     }))
     expect(createVideo).toHaveBeenCalledWith(expect.objectContaining({
       socialExpression: expect.objectContaining({
@@ -173,6 +195,88 @@ describe("Ask Jhadina Social routing", () => {
       }),
     }))
     expect(handleGeneric).not.toHaveBeenCalled()
+  })
+
+  it("does not turn a completed Director job into an API failure when Experience finalization fails", async () => {
+    inspectSocial.mockReturnValue({
+      matched: true,
+      operation: "produce_creative",
+      requestedPlatforms: ["tiktok"],
+      requestedCharacterProfiles: [],
+      requestedBrand: "pupsonstuff",
+      accountTerms: [],
+    })
+    inspectVideo.mockReturnValue({ mode: "text-to-video" })
+    createVideo.mockResolvedValue({
+      job: {
+        id: "video-job-finalize-fail",
+        projectId: "project-finalize-fail",
+        mode: "short",
+        aspectRatio: "9:16",
+        status: "queued",
+        providerId: "provider-1",
+      },
+    })
+    handleSocial.mockResolvedValue({
+      proposal: {
+        id: "proposal-finalize-fail",
+        contextId: "ctx-finalize-fail",
+        disposition: "PROCEED",
+        recommendation: "Route PupsonStuff TikTok creative to Director.",
+        rationale: "Resolved from Social.",
+        evidence: [],
+        uncertainty: [],
+        alternatives: [],
+      },
+      reasoningEventId: "social-command:finalize-fail",
+      workPlan: {
+        kind: "social_marketing",
+        operation: "produce_creative",
+        character: {
+          id: "character:pupsonstuff",
+          brand: "pupsonstuff",
+          label: "PupsonStuff",
+          aliases: ["pupsonstuff"],
+          description: "Pet-product character",
+          toneTraits: ["playful"],
+          pointOfView: "Pet products.",
+          voiceProfileRef: "brand-voice:pupsonstuff",
+          evidenceRefs: ["character:pupsonstuff"],
+          status: "active",
+          authority: "EXPRESSION_ONLY",
+        },
+        accounts: [{
+          accountId: "acct-pups-tiktok",
+          brand: "pupsonstuff",
+          platform: "tiktok",
+          provider: "ayrshare",
+          displayName: "PupsonStuff TikTok",
+          handle: "pupsonstuff",
+          attentionScore: 0,
+          attentionReasons: [],
+        }],
+        requestedPlatforms: ["tiktok"],
+        nextBoundary: "director_production",
+        authority: "PLANNING_ONLY",
+        requiresExplicitApprovalForExecution: false,
+        notes: [],
+      },
+      verified: true,
+      verificationReason: "resolved",
+    })
+    finalizeShortcutExperience.mockRejectedValueOnce(new Error("reasoning store unavailable"))
+
+    const response = await POST(request("Make a TikTok video for PupsonStuff"))
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.data.videoJob.id).toBe("video-job-finalize-fail")
+    expect(json.data.proposal.recommendation).toContain("Director started video job video-job-finalize-fail")
+    expect(json.data.proposal.uncertainty).toContain(
+      "Director outcome is durable, but the conversation Experience could not be finalized in Hippocampus. Do not retry the video solely for this logging failure.",
+    )
+    expect(json.data.verificationReason).toContain("video job remains authoritative")
+    expect(createVideo).toHaveBeenCalledTimes(1)
   })
 
   it("does not start Director when a resolved Social work plan lacks an exact connected account", async () => {
@@ -231,6 +335,15 @@ describe("Ask Jhadina Social routing", () => {
     expect(json.data.proposal.disposition).toBe("ASK")
     expect(json.data.proposal.recommendation).toContain("connected Social account")
     expect(createVideo).not.toHaveBeenCalled()
+    expect(recordShortcutExperience).toHaveBeenCalledWith(expect.objectContaining({
+      proposal: expect.objectContaining({
+        disposition: "ASK",
+        recommendation: expect.stringContaining("connected Social account"),
+      }),
+      metadata: expect.objectContaining({
+        directorOutcome: "scope_clarification",
+      }),
+    }))
   })
 
   it("does not start Director when Social needs clarification", async () => {
@@ -275,6 +388,12 @@ describe("Ask Jhadina Social routing", () => {
     expect(response.status).toBe(200)
     expect(json.data.proposal.disposition).toBe("ASK")
     expect(createVideo).not.toHaveBeenCalled()
+    expect(recordShortcutExperience).toHaveBeenCalledWith(expect.objectContaining({
+      proposal: expect.objectContaining({
+        disposition: "ASK",
+        recommendation: "Choose a connected TikTok account.",
+      }),
+    }))
   })
 
   it("routes an explicit personal/history Social read through full JLLM context", async () => {
