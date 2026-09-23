@@ -84,6 +84,22 @@ describe('JHADINA-EXPRESSION.FINAL', () => {
     expect(expression.evidenceDiscipline).toBe('strict');
   });
 
+  it('keeps perceptual inquiry grounded while allowing interpretive symbolism', () => {
+    const decision = decideBehavior(familiarPersonality(), {
+      register: 'perceptual-inquiry',
+      symbolicFramingEligible: true,
+      banterEligible: false,
+    });
+    const expression = planExpression(decision);
+
+    expect(expression.register).toBe('perceptual-inquiry');
+    expect(expression.evidenceDiscipline).toBe('strict');
+    expect(expression.symbolicFraming).toBe('interpretive');
+    expect(expression.bitDepth).toBe(0);
+    expect(expression.edginess).toBe('none');
+    expect(expression.operationalSass).toBe('off');
+  });
+
   it('keeps clinical case reasoning strict even without a global serious override', () => {
     const decision = decideBehavior(familiarPersonality(), {
       register: 'clinical',
