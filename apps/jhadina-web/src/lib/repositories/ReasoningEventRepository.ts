@@ -73,6 +73,9 @@ export class ReasoningEventRepository {
     Partial<ReasoningEvent>,
     "classification" | "systemResponse" | "confidence" | "candidateId" | "actor" | "outcome" | "correlationId" | "causationId" | "metadata"
   >): Promise<ReasoningEvent | null> {
+    if (!this.storage.updateReasoningEvent) {
+      throw new Error("JHADINA_REASONING_EVENT_UPDATE_UNSUPPORTED")
+    }
     const event = await this.storage.updateReasoningEvent(eventId, userId, updates)
     return event || null
   }
