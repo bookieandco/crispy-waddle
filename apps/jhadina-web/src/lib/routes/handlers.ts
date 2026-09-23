@@ -27,41 +27,7 @@ import { createServiceRoleClient } from "../supabase/service-role"
 import type { MemoryStorage } from "../storage/MemoryStorage"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 
-// Global singleton (in production, this would be dependency injection)
-let storage: MemoryStorage
-let janet: JanetService
-
-/**
- * Durable by default: uses the real Supabase-backed store whenever a
- * service-role client is configured. Falls back to InMemoryStorage only
- * when it isn't (local dev without env configured, or tests) — loudly,
- * once, rather than silently pretending memory is durable when it isn't.
- */
-function createStorage(): MemoryStorage {
-  const client = createServiceRoleClient()
-  if (client) return new SupabaseMemoryStorage(client)
-
-  console.warn(
-    "[jhadina-web] SUPABASE_SERVICE_ROLE_KEY not configured — falling back " +
-    "to InMemoryStorage. Memory will NOT survive an application restart. " +
-    "See supabase/migrations/20260822000000_create_jhadina_memory_core.sql."
-  )
-  return new InMemoryStorage()
-}
-
-/**
- * Exported so other composition roots (e.g. the Intelligence Router's
- * governed-intelligence-runtime.ts) share this same storage instance
- * rather than standing up a second one — a model-proposed candidate and
- * a Classifier-proposed candidate both need to land in the one real
- * /api/candidates list, not two disconnected stores.
- */
-export function getStorage(): MemoryStorage {
-  if (!storage) storage = createStorage()
-  return storage
-}
-
-function getJanetService(): JanetService {
+// Janet is process-local, while Memory storage comes from the one canonical\n// runtime storage graph shared by every composition root.\nlet janet: JanetService\n\nexport function getStorage(): MemoryStorage {\n  return getCanonicalMemoryStorage()\n}\n\nfunction getJanetService(): JanetService {
   if (!janet) {
     const memoryRepo = new MemoryRepository(getStorage())
     const reasoningRepo = new ReasoningEventRepository(getStorage())
