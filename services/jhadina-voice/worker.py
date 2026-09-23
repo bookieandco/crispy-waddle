@@ -3,7 +3,7 @@
 Personality, memory, authorization and subsystem execution remain outside this service.
 """
 from __future__ import annotations
-import base64, subprocess, tempfile
+import base64, json, subprocess, tempfile, urllib.request
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -75,3 +75,49 @@ class FasterWhisperEngine:
             if value: text.append(value)
             rows.append({"startMs":round(seg.start*1000),"endMs":round(seg.end*1000),"text":value})
         return {"language":getattr(info,"language",language or "und"),"text":" ".join(text),"segments":rows}
+
+
+class AuthenticatedHttpTtsEngine:
+    """Adapter for an admitted native TTS provider service.
+
+    The provider service owns model loading. Jhadina owns identity, routing,
+    authorization and the canonical voice profile.
+    """
+    def __init__(self, engine_id: str, endpoint: str, token: str, languages: list[str] | None = None):
+        self.id = engine_id
+        self.endpoint = endpoint.rstrip("/")
+        self.token = token
+        self.languages = set(languages or [])
+
+    def supports(self, language: str) -> bool:
+        return bool(self.endpoint and self.token) and (not self.languages or language in self.languages or language.split("-")[0] in self.languages)
+
+    def synthesize(self, text: str, language: str, voice_profile_id: str) -> bytes:
+        if voice_profile_id != "jhadina:canonical":
+            raise ValueError("VOICE_IDENTITY_NOT_ADMITTED")
+        if not self.supports(language):
+            raise RuntimeError(f"{self.id}:LANGUAGE_NOT_SUPPORTED")
+        body = json.dumps({
+            "text": text,
+            "language": language,
+            "voiceProfileId": voice_profile_id,
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            self.endpoint,
+            data=body,
+            method="POST",
+            headers={
+                "content-type": "application/json",
+                "authorization": f"Bearer {self.token}",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=90) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        if payload.get("voiceProfileId") != voice_profile_id:
+            raise RuntimeError(f"{self.id}:VOICE_PROFILE_MISMATCH")
+        if payload.get("mimeType") != "audio/wav":
+            raise RuntimeError(f"{self.id}:UNSUPPORTED_AUDIO_FORMAT")
+        encoded = payload.get("audioBase64")
+        if not isinstance(encoded, str) or not encoded:
+            raise RuntimeError(f"{self.id}:EMPTY_AUDIO")
+        return base64.b64decode(encoded, validate=True)

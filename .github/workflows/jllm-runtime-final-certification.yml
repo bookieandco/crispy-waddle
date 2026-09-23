@@ -1,0 +1,102 @@
+name: JLLM Runtime Final Certification
+
+on:
+  pull_request:
+    paths:
+      - "apps/jhadina-web/**"
+      - "packages/jhadina-core-spine/**"
+      - "packages/jhadina-intelligence-core/**"
+      - "packages/jhadina-evolution-core/**"
+      - "packages/jhadina-capability-registry/**"
+      - "packages/security-core/**"
+      - "services/jhadina-voice/**"
+      - "services/jhadina-artifact-scanner/**"
+      - "services/jhadina-artifact-extractor/**"
+      - "docs/JLLM_RUNTIME_FINAL_CERTIFICATION.md"
+      - ".github/workflows/jllm-runtime-final-certification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-certification:
+    name: JLLM source certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+
+      - name: Security Core
+        run: |
+          pnpm --filter @jhadina/security-core type-check
+          pnpm --filter @jhadina/security-core test
+
+      - name: Core Spine
+        run: |
+          pnpm --filter @jhadina/core-spine type-check
+          pnpm --filter @jhadina/core-spine test
+
+      - name: Intelligence Core
+        run: |
+          pnpm --filter @jhadina/intelligence-core type-check
+          pnpm --filter @jhadina/intelligence-core test
+
+      - name: Evolution Core
+        run: |
+          pnpm --filter @jhadina/evolution-core type-check
+          pnpm --filter @jhadina/evolution-core test
+
+      - name: Capability Registry
+        run: |
+          pnpm --filter @jhadina/capability-registry type-check
+          pnpm --filter @jhadina/capability-registry test
+
+      - name: Ask Jhadina type-check and full tests
+        run: |
+          pnpm --filter @jhadina/jhadina-web type-check
+          pnpm --filter @jhadina/jhadina-web test
+
+      - name: Ask Jhadina production build
+        run: pnpm --filter @jhadina/jhadina-web build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile voice/scanner/extractor runtimes
+        run: |
+          python -m compileall -q services/jhadina-voice
+          python -m compileall -q services/jhadina-artifact-scanner
+          python -m compileall -q services/jhadina-artifact-extractor
+
+      - name: Install voice CI dependencies
+        run: pip install -r services/jhadina-voice/requirements-ci.txt
+
+      - name: Voice boundary tests
+        working-directory: services/jhadina-voice
+        run: python -m unittest -v test_worker.py test_app.py
+
+      - name: Artifact scanner tests
+        working-directory: services/jhadina-artifact-scanner
+        run: python -m unittest -v test_clamd_client.py
+
+      - name: Install document extractor CI dependencies
+        run: pip install -r services/jhadina-artifact-extractor/requirements-ci.txt
+
+      - name: Artifact extractor tests
+        working-directory: services/jhadina-artifact-extractor
+        run: python -m unittest -v test_extractors.py

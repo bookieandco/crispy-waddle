@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Suspense,useState } from "react"
+import { Suspense,useEffect,useRef,useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
@@ -42,8 +42,86 @@ function AskJhadina(){
  const [characterArchetype,setCharacterArchetype]=useState<"human"|"cartoon"|"puppet"|"creature">("human")
  const [referenceRightsConfirmed,setReferenceRightsConfirmed]=useState(false)
  const [referenceStage,setReferenceStage]=useState("")
+ const [workSessionId,setWorkSessionId]=useState(()=>params.get("session")??"")
+ const [workSessionGoal,setWorkSessionGoal]=useState("")
+ const nativeAudioRef=useRef<HTMLAudioElement|null>(null)
+
+ useEffect(()=>{
+  let cancelled=false
+  void (async()=>{
+   const userId=await getCurrentUserId()
+   if(!userId||typeof window==="undefined")return
+   const query=params.get("session")?.trim()
+   const remembered=window.localStorage.getItem("jhadina:work-session")?.trim()
+   const id=query||remembered||crypto.randomUUID()
+   window.localStorage.setItem("jhadina:work-session",id)
+   if(cancelled)return
+   setWorkSessionId(id)
+   const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{headers:{"x-jhadina-user-id":userId}})
+   if(!response.ok)return
+   const json=await response.json()
+   const goal=typeof json?.session?.goal==="string"?json.session.goal:""
+   if(cancelled)return
+   setWorkSessionGoal(goal)
+   if(goal)setTask(current=>current.trim()?current:goal)
+  })().catch(()=>{})
+  return()=>{cancelled=true}
+ },[])
+
+ async function persistWorkSession(userId:string,command:string,data:CommandResult){
+  if(typeof window==="undefined")return
+  const id=workSessionId||crypto.randomUUID()
+  if(!workSessionId)setWorkSessionId(id)
+  window.localStorage.setItem("jhadina:work-session",id)
+  const activeSubsystems=[
+   ...(data.socialWorkPlan?["social"]:[]),
+   ...(data.growthWorkPlan?["growth"]:[]),
+   ...(data.videoJob?["director"]:[]),
+  ]
+  const decisionRefs=[data.proposal?.id,data.reasoningEventId].filter((value):value is string=>typeof value==="string"&&Boolean(value))
+  const outputRefs=data.videoJob?.id?[data.videoJob.id]:[]
+  const durableRefs=artifactRefs.map(id=>({id,kind:"data" as const,provenanceRef:`artifact:${id}`,admitted:true}))
+  const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{
+   method:"PUT",
+   headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+   body:JSON.stringify({goal:command,status:"active",activeSubsystems,artifactRefs:durableRefs,decisionRefs,outputRefs}),
+  })
+  if(!response.ok)return
+  const json=await response.json()
+  if(typeof json?.session?.goal==="string")setWorkSessionGoal(json.session.goal)
+ }
 
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
+ function stopSpeech(){
+  nativeAudioRef.current?.pause()
+  nativeAudioRef.current=null
+  if(typeof window!=="undefined"&&"speechSynthesis" in window)window.speechSynthesis.cancel()
+ }
+ async function speakText(text:string,userId?:string){
+  if(!text.trim())return
+  stopSpeech()
+  const uid=userId??await identity()
+  try{
+   const response=await fetch("/api/jhadina/voice/speak",{
+    method:"POST",
+    headers:{"content-type":"application/json","x-jhadina-user-id":uid},
+    body:JSON.stringify({text,language:voiceLanguage,voiceProfileId:"jhadina:canonical"}),
+   })
+   if(!response.ok)throw new Error("native voice unavailable")
+   const json=await response.json()
+   if(typeof json.audioBase64!=="string"||!json.audioBase64)throw new Error("native voice returned no audio")
+   const audio=new Audio(`data:${json.mimeType??"audio/wav"};base64,${json.audioBase64}`)
+   nativeAudioRef.current=audio
+   audio.onended=()=>{if(nativeAudioRef.current===audio)nativeAudioRef.current=null}
+   await audio.play()
+   return
+  }catch{
+   if(typeof window==="undefined"||!("speechSynthesis" in window))return
+   const utterance=new SpeechSynthesisUtterance(text)
+   utterance.lang=voiceLanguage
+   window.speechSynthesis.speak(utterance)
+  }
+ }
  function isVideoRequest(text:string){return /\b(make|create|generate|produce|build|render|turn)\b/i.test(text)&&/\b(video|movie|film|short|reel|tiktok|youtube\s+short|youtube\s+video)\b/i.test(text)}
  function slugReference(value:string,prefix:"character"|"product"){const slug=value.trim().toLowerCase().replace(/[^a-z0-9._:-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60);return slug||`${prefix}-${crypto.randomUUID().slice(0,8)}`}
  async function jsonOrThrow(response:Response,fallback:string){const json=await response.json();if(!response.ok||json?.ok===false)throw new Error(json?.error||fallback);return json}
@@ -126,10 +204,11 @@ function AskJhadina(){
    }else{
     const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,activeProject:params.get("project")??undefined,clientRequestId:crypto.randomUUID()})})
     const json=await response.json();if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
+    await persistWorkSession(userId,command,json.data as CommandResult)
     setResult(json.data);setTask("")
-    if(commandOverride && typeof window!=="undefined" && "speechSynthesis" in window){
+    if(commandOverride){
      const spoken=(json.data?.expression?.segments??[]).filter((segment:GovernedExpressionSegment)=>segment.kind==="semantic").map((segment:GovernedExpressionSegment)=>segment.text).join(" ")
-     if(spoken){const utterance=new SpeechSynthesisUtterance(spoken);utterance.lang=voiceLanguage;window.speechSynthesis.cancel();window.speechSynthesis.speak(utterance)}
+     if(spoken)await speakText(spoken,userId)
     }
    }
   }catch(cause){setError(cause instanceof Error?cause.message:"Jhadina could not process that")}
@@ -156,7 +235,7 @@ function AskJhadina(){
     <textarea id="jhadina-command" className="jh-textarea" rows={3} value={task} onChange={event=>setTask(event.target.value)} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")void ask()}} placeholder="Ask a question, connect subsystems, inspect a decision, or tell Jhadina what you want to accomplish…" style={{flex:"1 1 560px",resize:"vertical"}}/>
     <button className="jh-button jh-button--primary" disabled={busy||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":"Ask"}</button>
    </div>
-   <JhadinaLiveInput busy={busy} onArtifactsChange={setArtifacts} onArtifactRefsChange={setArtifactRefs} onVoiceCommand={(command,signals)=>void ask(command,signals)} onLanguageChange={setVoiceLanguage} onStatus={setInputStatus}/>
+   <JhadinaLiveInput busy={busy} onArtifactsChange={setArtifacts} onArtifactRefsChange={setArtifactRefs} onBargeIn={stopSpeech} onVoiceCommand={(command,signals)=>void ask(command,signals)} onLanguageChange={setVoiceLanguage} onStatus={setInputStatus}/>
    {inputStatus?<p className="jh-meta" role="status" style={{marginTop:8}}>{inputStatus}</p>:null}
    <div className="jh-item" style={{marginTop:14}}>
     <div className="jh-between">
@@ -173,7 +252,7 @@ function AskJhadina(){
     {referenceFile?<label className="jh-row" style={{marginTop:10,alignItems:"center"}}><input type="checkbox" checked={referenceRightsConfirmed} onChange={event=>setReferenceRightsConfirmed(event.target.checked)} disabled={busy}/><span className="jh-card-copy">{referenceKind==="character"?"I own or have permission to use this image and the depicted likeness/character for this production.":"I own or have permission to use this product image, packaging, and brand assets for this production."}</span></label>:null}
     {referenceStage?<p className="jh-meta" style={{marginTop:8}}>{referenceStage}</p>:null}
    </div>
-   <p className="jh-meta">Context surface: {surface} · route: {route} · ⌘/Ctrl + Enter to send · screen frames stay ephemeral · attached files use private quarantine and only clean files enter reasoning; identity-reference uploads persist only through the explicit governed Director flow above</p>
+   <p className="jh-meta">Context surface: {surface} · route: {route} · work session: {workSessionId?workSessionId.slice(0,12):"initializing"}{workSessionGoal?` · resumed goal: ${workSessionGoal.slice(0,80)}`:""} · ⌘/Ctrl + Enter to send · screen frames stay ephemeral · attached files use private quarantine and only clean files enter reasoning; identity-reference uploads persist only through the explicit governed Director flow above</p>
    <div className="jh-row" style={{marginTop:10}}>
     {[
      "Show me the social character personalities I can use",
@@ -189,7 +268,7 @@ function AskJhadina(){
   {result?<section className="jh-section">
    <article className="jh-card jh-card--wide">
     <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.verified?"Verified response":"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
-    <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{if(typeof window==="undefined"||!("speechSynthesis" in window))return;const text=result.expression.segments.filter(segment=>segment.kind==="semantic").map(segment=>segment.text).join(" ");const utterance=new SpeechSynthesisUtterance(text);utterance.lang=voiceLanguage;window.speechSynthesis.cancel();window.speechSynthesis.speak(utterance)}}>Speak response</button></div>
+    <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{const text=result.expression.segments.filter(segment=>segment.kind==="semantic").map(segment=>segment.text).join(" ");void speakText(text)}}>Speak response</button><button type="button" className="jh-button" onClick={stopSpeech}>Stop speech</button></div>
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.socialWorkPlan?<SocialWorkPlanCard plan={result.socialWorkPlan}/>:null}

@@ -34,6 +34,7 @@ type Props = {
   busy: boolean
   onArtifactsChange: (artifacts: JhadinaEphemeralArtifact[]) => void
   onVoiceCommand: (command: string, signals?: JhadinaConversationSignals) => void
+  onBargeIn?: () => void
   onArtifactRefsChange?: (artifactRefs: string[]) => void
   onLanguageChange?: (language: string) => void
   onStatus?: (message: string) => void
@@ -55,7 +56,7 @@ const LANGUAGES = [
   ["vi-VN", "Tiếng Việt"],
 ] as const
 
-export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onArtifactRefsChange, onLanguageChange, onStatus }: Props) {
+export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBargeIn, onArtifactRefsChange, onLanguageChange, onStatus }: Props) {
   const [wakeEnabled, setWakeEnabled] = useState(false)
   const [language, setLanguage] = useState("en-US")
   const [voiceState, setVoiceState] = useState<"off"|"listening"|"unsupported"|"error">("off")
@@ -64,6 +65,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
   const [durableArtifacts, setDurableArtifacts] = useState<DurableArtifactDisplay[]>([])
   const [uploading, setUploading] = useState(false)
   const [retryingId, setRetryingId] = useState<string|null>(null)
+  const [nativeRecording,setNativeRecording]=useState(false)
   const recognitionRef = useRef<any>(null)
   const shouldWakeRef = useRef(false)
   const streamRef = useRef<MediaStream|null>(null)
@@ -74,6 +76,9 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
   const acousticSamplesRef = useRef<Array<{at:number;rms:number;pitch?:number}>>([])
   const videoRef = useRef<HTMLVideoElement|null>(null)
   const captureTimerRef = useRef<ReturnType<typeof setInterval>|null>(null)
+  const nativeRecorderRef=useRef<MediaRecorder|null>(null)
+  const nativeStreamRef=useRef<MediaStream|null>(null)
+  const nativeChunksRef=useRef<Blob[]>([])
 
   useEffect(() => { onArtifactsChange(artifacts) }, [artifacts, onArtifactsChange])
   useEffect(() => { onArtifactRefsChange?.(durableArtifacts.filter((artifact)=>artifact.status==="clean"&&artifact.contextReady).map((artifact)=>artifact.id)) }, [durableArtifacts, onArtifactRefsChange])
@@ -85,6 +90,8 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
     micStreamRef.current?.getTracks().forEach((track) => track.stop())
     audioContextRef.current?.close().catch(()=>{})
     if (acousticTimerRef.current) clearInterval(acousticTimerRef.current)
+    nativeRecorderRef.current?.stop?.()
+    nativeStreamRef.current?.getTracks().forEach((track)=>track.stop())
   }, [])
 
   async function startAcousticMonitor() {
@@ -163,6 +170,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
     shouldWakeRef.current = true
     recognition.onstart = () => { setWakeEnabled(true); setVoiceState("listening") }
     recognition.onerror = () => setVoiceState("error")
+    recognition.onspeechstart = () => onBargeIn?.()
     recognition.onend = () => {
       if (recognitionRef.current === recognition && shouldWakeRef.current) {
         try { recognition.start() } catch {}
@@ -251,6 +259,52 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
     setArtifacts((current) => [artifact, ...current.filter((item) => item.kind !== "screen")].slice(0, 4))
   }
 
+  async function toggleNativeRecording(){
+    if(nativeRecording){
+      nativeRecorderRef.current?.stop()
+      return
+    }
+    if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==="undefined"){
+      onStatus?.("Native microphone capture is unavailable in this browser.")
+      return
+    }
+    const userId=await getCurrentUserId()
+    if(!userId){onStatus?.("Sign in before using native voice.");return}
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false}})
+    nativeStreamRef.current=stream
+    const candidates=["audio/webm;codecs=opus","audio/mp4","audio/webm"]
+    const mime=candidates.find(value=>MediaRecorder.isTypeSupported(value))??""
+    const recorder=new MediaRecorder(stream,mime?{mimeType:mime}:undefined)
+    nativeRecorderRef.current=recorder
+    nativeChunksRef.current=[]
+    recorder.ondataavailable=(event)=>{if(event.data.size)nativeChunksRef.current.push(event.data)}
+    recorder.onstart=()=>{setNativeRecording(true);onBargeIn?.();onStatus?.("Native Whisper microphone recording… tap again to transcribe.")}
+    recorder.onstop=()=>{
+      void (async()=>{
+        setNativeRecording(false)
+        stream.getTracks().forEach(track=>track.stop())
+        nativeStreamRef.current=null
+        const blob=new Blob(nativeChunksRef.current,{type:recorder.mimeType||nativeChunksRef.current[0]?.type||"audio/webm"})
+        nativeChunksRef.current=[]
+        if(!blob.size)return
+        const base64=await blobToBase64(blob)
+        const mimeType=(blob.type||"audio/webm").split(";")[0]!
+        const response=await fetch("/api/jhadina/voice/listen",{
+          method:"POST",
+          headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+          body:JSON.stringify({mimeType,audioBase64:base64,languageHint:language}),
+        })
+        const json=await response.json()
+        if(!response.ok){onStatus?.(json.detail??json.error??"Native transcription failed.");return}
+        const transcript=String(json.text??"").trim()
+        if(!transcript){onStatus?.("Native Whisper returned no speech.");return}
+        onStatus?.(`Native Whisper heard: ${transcript}`)
+        onVoiceCommand(transcript,{source:"live-microphone",observedAt:new Date().toISOString(),language:String(json.language??language)})
+      })().catch(cause=>onStatus?.(cause instanceof Error?cause.message:"Native transcription failed."))
+    }
+    recorder.start()
+  }
+
   async function addFiles(files: FileList | null) {
     if (!files?.length || uploading) return
     const userId=await getCurrentUserId()
@@ -298,6 +352,9 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
       <select className="jh-input" value={language} onChange={(event)=>setLanguage(event.target.value)} aria-label="Voice language" style={{maxWidth:180}}>
         {LANGUAGES.map(([value,label])=><option key={value} value={value}>{label}</option>)}
       </select>
+      <button type="button" className="jh-button" disabled={busy} onClick={()=>void toggleNativeRecording()}>
+        {nativeRecording?"Stop native mic":"Native mic"}
+      </button>
       <button type="button" className="jh-button" disabled={busy} onClick={()=>void (screenActive?Promise.resolve(stopScreenShare()):startScreenShare())}>
         {screenActive ? "Stop screen" : "Share screen"}
       </button>
@@ -330,4 +387,19 @@ function estimatePitchHz(buffer:Float32Array,sampleRate:number):number|undefined
     if(score>best){best=score;bestLag=lag}
   }
   return best>.55&&bestLag?sampleRate/bestLag:undefined
+}
+
+
+async function blobToBase64(blob:Blob):Promise<string>{
+ return await new Promise((resolve,reject)=>{
+  const reader=new FileReader()
+  reader.onerror=()=>reject(reader.error??new Error("VOICE_FILE_READ_FAILED"))
+  reader.onload=()=>{
+   const value=String(reader.result??"")
+   const comma=value.indexOf(",")
+   if(comma<0)return reject(new Error("VOICE_FILE_READ_FAILED"))
+   resolve(value.slice(comma+1))
+  }
+  reader.readAsDataURL(blob)
+ })
 }
