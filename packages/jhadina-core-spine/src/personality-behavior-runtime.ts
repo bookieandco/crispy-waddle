@@ -18,6 +18,8 @@ export interface PersonalityBehaviorRuntimeInput {
   now?: string;
   personalityPolicy?: PersonalityCorePolicy;
   idFactory?: () => string;
+  /** Full active approved Memory evidence set; independent of turn relevance. */
+  activeMemoryEvidenceIds?: ReadonlySet<string>;
 }
 
 export interface PersonalityBehaviorRuntimeResult {
@@ -54,6 +56,7 @@ export function runPersonalityBehaviorRuntime(
     input.now,
     input.personalityPolicy,
     input.idFactory,
+    input.activeMemoryEvidenceIds,
   );
   const behavior = decideBehavior(personality, input.behaviorContext);
   const expression = planExpression(behavior, input.expressionContext);
