@@ -327,6 +327,7 @@ export async function POST(req: NextRequest) {
         : `Director created the video job, but it is currently ${video.job.status}: ${video.job.error ?? "provider action is required"}.`
       const proposal = {
         id: `video-proposal:${video.job.id}`,
+        contextId: `director-video-context:${video.job.id}`,
         disposition: started ? "PROCEED" as const : "DEFER" as const,
         recommendation: message,
         rationale: "The request is an explicit video-creation command, so Ask Jhadina routed it to the governed Director production job path instead of treating it as a general chat response.",
