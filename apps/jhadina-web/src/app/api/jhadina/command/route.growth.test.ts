@@ -9,6 +9,7 @@ const inspectSocial = vi.fn()
 const inspectVideo = vi.fn()
 const createVideo = vi.fn()
 const handleGeneric = vi.fn()
+const recordShortcutExperience = vi.fn(async (input: { shortcut: string }) => `reason-${input.shortcut}`)
 const realizeExpression = vi.fn(async (input: {
   proposal: { recommendation: string; disposition: string }
 }) => ({
@@ -42,6 +43,10 @@ vi.mock("@/lib/director-video-job-service", () => ({
 
 vi.mock("@/lib/intelligence/jhadina-command", () => ({
   handleJhadinaCommand: (...args: unknown[]) => handleGeneric(...args),
+}))
+
+vi.mock("@/lib/intelligence/ask-shortcut-experience", () => ({
+  recordAskShortcutExperience: (input: unknown) => recordShortcutExperience(input as { shortcut: string }),
 }))
 
 vi.mock("@/lib/intelligence/ask-expression", () => ({
@@ -116,6 +121,11 @@ describe("Ask Jhadina Growth routing", () => {
     expect(json.data.feedbackEligible).toBe(false)
     expect(handleGrowth).toHaveBeenCalledTimes(1)
     expect(realizeExpression).toHaveBeenCalledTimes(1)
+    expect(recordShortcutExperience).toHaveBeenCalledWith(expect.objectContaining({
+      shortcut: "growth",
+      userId: "user-1",
+      activeTask: "Show me my Meta campaigns",
+    }))
     expect(handleSocial).not.toHaveBeenCalled()
     expect(createVideo).not.toHaveBeenCalled()
     expect(handleGeneric).not.toHaveBeenCalled()
