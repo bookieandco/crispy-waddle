@@ -101,10 +101,8 @@ export class ReasoningEventRepository {
     lines.push("ReasoningEventRepository")
     lines.push("─".repeat(40))
 
-    const events = await this.storage.listReasoningEvents(
-      userId || "user_demo",
-      10
-    )
+    if (!userId) return "ReasoningEventRepository\n" + "─".repeat(40) + "\nUser scope required"
+    const events = await this.storage.listReasoningEvents(userId, 10)
     lines.push(`Total Events: ${events.length}`)
 
     if (events.length > 0) {

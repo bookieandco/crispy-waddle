@@ -94,6 +94,7 @@ export class ProductionPersonalityContextProvider {
       memories: detected.memories,
       eligibilityRules: this.eligibilityRules,
       behaviorContext: input.behaviorContext,
+      activeMemoryEvidenceIds: new Set(detected.activeMemoryEvidenceIds),
       now: occurredAt,
     })
 

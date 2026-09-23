@@ -54,11 +54,18 @@ function normalizeModes(modes: readonly string[]): string[] {
   )].sort();
 }
 
-function acceptedCalibration(personality: PersonalityState, statement: string): number {
+function acceptedCalibration(
+  personality: PersonalityState,
+  sourcePatternId: string,
+  legacyStatement: string,
+): number {
   const trait = personality.traits.find(
     (candidate) =>
       candidate.status === 'accepted' &&
-      candidate.statement.trim().toLowerCase() === statement,
+      (
+        candidate.sourcePatternId === sourcePatternId ||
+        (!candidate.sourcePatternId && candidate.statement.trim().toLowerCase() === legacyStatement)
+      ),
   );
   return trait ? clamp(trait.confidence * trait.stability) : 0;
 }
@@ -92,20 +99,20 @@ export function deriveRealNiggaBehavior(
 
   const familiarity = clamp(relationship.familiarity);
   const relationshipCalibration = clamp(familiarity * clamp(relationship.calibrationConfidence));
-  const learnedDirectnessCalibration = acceptedCalibration(personality, 'prefers direct communication');
-  const learnedConcisionCalibration = acceptedCalibration(personality, 'prefers concise communication');
-  const learnedWarmthCalibration = acceptedCalibration(personality, 'prefers warm communication');
-  const learnedFormalityCalibration = acceptedCalibration(personality, 'prefers formal communication');
-  const learnedHumorCalibration = acceptedCalibration(personality, 'prefers humorous communication');
-  const learnedProfanityCalibration = acceptedCalibration(personality, 'allows conversational profanity');
-  const learnedPushbackCalibration = acceptedCalibration(personality, 'prefers active pushback');
-  const learnedTechnicalDepthCalibration = acceptedCalibration(personality, 'prefers technical depth');
-  const learnedWorkflowCalibration = acceptedCalibration(personality, 'prefers continuous workflow');
-  const learnedStepByStepCalibration = acceptedCalibration(personality, 'prefers step-by-step explanations');
-  const learnedEvidenceFirstCalibration = acceptedCalibration(personality, 'prefers evidence-first explanations');
-  const learnedOptionsCalibration = acceptedCalibration(personality, 'prefers multiple options');
-  const learnedExperimentationCalibration = acceptedCalibration(personality, 'prefers experimental creativity');
-  const learnedFamiliarToneCalibration = acceptedCalibration(personality, 'prefers familiar tone');
+  const learnedDirectnessCalibration = acceptedCalibration(personality, 'personality-signal:communication:directness', 'prefers direct communication');
+  const learnedConcisionCalibration = acceptedCalibration(personality, 'personality-signal:communication:concision', 'prefers concise communication');
+  const learnedWarmthCalibration = acceptedCalibration(personality, 'personality-signal:communication:warmth', 'prefers warm communication');
+  const learnedFormalityCalibration = acceptedCalibration(personality, 'personality-signal:communication:formality', 'prefers formal communication');
+  const learnedHumorCalibration = acceptedCalibration(personality, 'personality-signal:humor:enabled', 'prefers humorous communication');
+  const learnedProfanityCalibration = acceptedCalibration(personality, 'personality-signal:communication:profanity', 'allows conversational profanity');
+  const learnedPushbackCalibration = acceptedCalibration(personality, 'personality-signal:communication:pushback', 'prefers active pushback');
+  const learnedTechnicalDepthCalibration = acceptedCalibration(personality, 'personality-signal:communication:technical-depth', 'prefers technical depth');
+  const learnedWorkflowCalibration = acceptedCalibration(personality, 'personality-signal:preference:continuous-workflow', 'prefers continuous workflow');
+  const learnedStepByStepCalibration = acceptedCalibration(personality, 'personality-signal:communication:step-by-step', 'prefers step-by-step explanations');
+  const learnedEvidenceFirstCalibration = acceptedCalibration(personality, 'personality-signal:communication:evidence-first', 'prefers evidence-first explanations');
+  const learnedOptionsCalibration = acceptedCalibration(personality, 'personality-signal:preference:multiple-options', 'prefers multiple options');
+  const learnedExperimentationCalibration = acceptedCalibration(personality, 'personality-signal:taste:experimentation', 'prefers experimental creativity');
+  const learnedFamiliarToneCalibration = acceptedCalibration(personality, 'personality-signal:relationship:familiar-tone', 'prefers familiar tone');
   const preferredInteractionModes = normalizeModes(relationship.preferredInteractionModes);
   const prefersDirect = preferredInteractionModes.includes('direct');
   const prefersWarm = preferredInteractionModes.includes('warm');

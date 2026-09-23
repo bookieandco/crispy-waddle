@@ -73,6 +73,40 @@ export class TimelineRepository {
     })
   }
 
+  async recordCorrection(params: {
+    userId: string
+    memoryId: string
+    memoryType: MemoryType
+    memoryContent: string
+    reasoningEventId: string
+  }): Promise<TimelineEvent> {
+    return this.storage.appendTimelineEvent({
+      userId: params.userId,
+      timestamp: new Date().toISOString(),
+      type: "CORRECTION",
+      reasoningEventId: params.reasoningEventId,
+      memoryId: params.memoryId,
+      memoryType: params.memoryType,
+      memoryContent: params.memoryContent,
+      decision: "APPROVED",
+    })
+  }
+
+  async recordForget(params: {
+    userId: string
+    memoryId: string
+    memoryType: MemoryType
+  }): Promise<TimelineEvent> {
+    return this.storage.appendTimelineEvent({
+      userId: params.userId,
+      timestamp: new Date().toISOString(),
+      type: "FORGET",
+      memoryId: params.memoryId,
+      memoryType: params.memoryType,
+      decision: "RETIRED",
+    })
+  }
+
   /**
    * List timeline events for a user
    */
@@ -101,7 +135,8 @@ export class TimelineRepository {
     lines.push("TimelineRepository")
     lines.push("─".repeat(40))
 
-    const events = await this.storage.listTimeline(userId || "user_demo", 10)
+    if (!userId) return "TimelineRepository\n" + "─".repeat(40) + "\nUser scope required"
+    const events = await this.storage.listTimeline(userId, 10)
     lines.push(`Total Events: ${events.length}`)
 
     if (events.length > 0) {
