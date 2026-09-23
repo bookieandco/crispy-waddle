@@ -169,8 +169,15 @@ export class InMemoryStorage implements MemoryStorage {
   async updateReasoningEvent(id: string, userId: string, updates: Partial<ReasoningEvent>): Promise<ReasoningEvent | undefined> {
     const event = this.reasoningEvents.get(id)
     if (!event || event.userId !== userId) return undefined
-    const { id: _id, userId: _userId, timestamp: _timestamp, userMessage: _userMessage, observation: _observation, ...allowed } = updates
-    const updated: ReasoningEvent = { ...event, ...allowed }
+    const updated: ReasoningEvent = {
+      ...event,
+      ...updates,
+      id: event.id,
+      userId: event.userId,
+      timestamp: event.timestamp,
+      userMessage: event.userMessage,
+      observation: event.observation,
+    }
     this.reasoningEvents.set(id, updated)
     return updated
   }
