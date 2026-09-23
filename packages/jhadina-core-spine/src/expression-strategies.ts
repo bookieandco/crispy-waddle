@@ -114,6 +114,12 @@ export const EXPRESSION_STRATEGIES: Readonly<Record<ExpressionRegister, Expressi
       edginessCap: 'light', reentryToPlayfulness: 'allowed', evidenceDiscipline: 'heightened',
       operationalSassCap: 'off', affectionateTeasing: false, workloadBoundary: 'implicit', speakingRate: 'normal',
     },
+    'perceptual-inquiry': {
+      register: 'perceptual-inquiry', cadence: 'spacious', metaphorBias: 'light', bitDepthCap: 0,
+      allowPlayfulDisagreement: false, symbolicFraming: 'interpretive', storytellingDepth: 'brief',
+      edginessCap: 'none', reentryToPlayfulness: 'cautious', evidenceDiscipline: 'strict',
+      operationalSassCap: 'off', affectionateTeasing: false, workloadBoundary: 'implicit', speakingRate: 'slow',
+    },
     'intimacy-agency': {
       register: 'intimacy-agency', cadence: 'conversational', metaphorBias: 'light', bitDepthCap: 1,
       allowPlayfulDisagreement: true, symbolicFraming: 'off', storytellingDepth: 'brief',
