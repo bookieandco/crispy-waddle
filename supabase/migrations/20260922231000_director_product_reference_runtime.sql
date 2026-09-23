@@ -66,7 +66,7 @@ create or replace function public.create_director_product_bootstrap_job(
 )
 returns public.director_product_bootstrap_jobs
 language plpgsql
-security definer
+security invoker
 set search_path=public
 as $$
 declare
