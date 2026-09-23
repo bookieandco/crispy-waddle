@@ -206,11 +206,32 @@ describe('previs blockout', () => {
       id: 'browser-previs',
       name: 'Browser Previs',
       runtime: 'browser',
-      features: ['scene-primitives', 'multi-shot', 'focal-length-control', 'reference-clip-export', 'camera-keyframes'],
+      features: [
+        'scene-primitives',
+        'multi-shot',
+        'focal-length-control',
+        'reference-clip-export',
+        'camera-keyframes',
+        'camera-rails',
+        'object-keyframes',
+      ],
       supportedAspectRatios: ['16:9'],
       provenanceRefs: ['reference:capability-audit'],
     });
     expect(decision.admissible).toBe(true);
+  });
+
+  it('rejects a previs executor that cannot reproduce an authored camera rail', () => {
+    const decision = evaluatePrevisExecutor(plan(), {
+      id: 'keyframes-only',
+      name: 'Keyframes Only',
+      runtime: 'browser',
+      features: ['scene-primitives', 'multi-shot', 'focal-length-control', 'reference-clip-export', 'camera-keyframes', 'object-keyframes'],
+      supportedAspectRatios: ['16:9'],
+      provenanceRefs: ['reference:capability-audit'],
+    });
+    expect(decision.admissible).toBe(false);
+    expect(decision.reasons).toContain('DIRECTOR_PREVIS_EXECUTOR_FEATURE_MISSING:camera-rails');
   });
 
   it('fails if a vision pass samples around authored shots instead of covering them', () => {
