@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   compileUgcGenerationBrief,
+  evaluateUgcBriefReadiness,
   evaluateUgcGenerationReadiness,
   nextUgcStage,
   type UgcProductionPlan,
@@ -97,6 +98,16 @@ describe('UGC production', () => {
     expect(decision.ready).toBe(false);
     expect(decision.reasons).toContain('DIRECTOR_UGC_APPROVAL_REQUIRED:script');
     expect(nextUgcStage(incomplete)).toBe('script');
+  });
+
+  it('can draft the generation brief after script approval but before generation-brief approval', () => {
+    const draft = plan();
+    draft.approvals = draft.approvals.filter((approval) => approval.stage !== 'generation-brief');
+
+    expect(evaluateUgcBriefReadiness(draft).ready).toBe(true);
+    expect(evaluateUgcGenerationReadiness(draft).ready).toBe(false);
+    expect(nextUgcStage(draft)).toBe('generation-brief');
+    expect(() => compileUgcGenerationBrief(draft)).not.toThrow();
   });
 
   it('compiles only an approved creator, location, concept and script', () => {
