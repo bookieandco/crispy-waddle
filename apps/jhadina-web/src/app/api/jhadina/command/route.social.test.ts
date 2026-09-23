@@ -9,6 +9,7 @@ const inspectSocial = vi.fn()
 const inspectVideo = vi.fn()
 const createVideo = vi.fn()
 const handleGeneric = vi.fn()
+const recordShortcutExperience = vi.fn(async (input: { shortcut: string }) => `reason-${input.shortcut}`)
 const realizeExpression = vi.fn(async (input: {
   proposal: { recommendation: string; disposition: string }
 }) => ({
@@ -42,6 +43,10 @@ vi.mock("@/lib/director-video-job-service", () => ({
 
 vi.mock("@/lib/intelligence/jhadina-command", () => ({
   handleJhadinaCommand: (...args: unknown[]) => handleGeneric(...args),
+}))
+
+vi.mock("@/lib/intelligence/ask-shortcut-experience", () => ({
+  recordAskShortcutExperience: (input: unknown) => recordShortcutExperience(input as { shortcut: string }),
 }))
 
 vi.mock("@/lib/intelligence/ask-expression", () => ({
@@ -150,6 +155,11 @@ describe("Ask Jhadina Social routing", () => {
     expect(handleSocial).toHaveBeenCalledTimes(1)
     expect(createVideo).toHaveBeenCalledTimes(1)
     expect(realizeExpression).toHaveBeenCalledTimes(1)
+    expect(recordShortcutExperience).toHaveBeenCalledWith(expect.objectContaining({
+      shortcut: "social",
+      userId: "user-1",
+      activeTask: "Make a TikTok video for PupsonStuff",
+    }))
     expect(createVideo).toHaveBeenCalledWith(expect.objectContaining({
       socialExpression: expect.objectContaining({
         brand: "pupsonstuff",
@@ -288,6 +298,10 @@ describe("Ask Jhadina Social routing", () => {
     expect(json.data.videoJob.id).toBe("video-job-1")
     expect(createVideo).toHaveBeenCalledTimes(1)
     expect(handleSocial).not.toHaveBeenCalled()
+    expect(recordShortcutExperience).toHaveBeenCalledWith(expect.objectContaining({
+      shortcut: "director",
+      userId: "user-1",
+    }))
   })
 
   it("falls through to main intelligence when neither specialized intent matches", async () => {
