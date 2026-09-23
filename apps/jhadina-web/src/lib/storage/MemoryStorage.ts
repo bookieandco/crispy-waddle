@@ -25,6 +25,7 @@ export interface MemoryStorage {
 
   createReasoningEvent(data: Omit<ReasoningEvent, "id"> & { id?: string }): Promise<ReasoningEvent>
   getReasoningEvent(id: string): Promise<ReasoningEvent | undefined>
+  updateReasoningEvent?(id: string, userId: string, updates: Partial<ReasoningEvent>): Promise<ReasoningEvent | undefined>
   listReasoningEvents(userId: string, limit?: number): Promise<ReasoningEvent[]>
 
   appendTimelineEvent(data: Omit<TimelineEvent, "id">): Promise<TimelineEvent>

@@ -281,6 +281,29 @@ export class SupabaseMemoryStorage implements MemoryStorage {
     return data ? reasoningEventFromRow(data as ReasoningEventRow) : undefined
   }
 
+  async updateReasoningEvent(id: string, userId: string, updates: Partial<ReasoningEvent>): Promise<ReasoningEvent | undefined> {
+    const patch: Record<string, unknown> = {}
+    if (updates.classification !== undefined) patch.classification = updates.classification
+    if (updates.systemResponse !== undefined) patch.system_response = updates.systemResponse
+    if (updates.confidence !== undefined) patch.confidence = updates.confidence
+    if (updates.candidateId !== undefined) patch.candidate_id = updates.candidateId
+    if (updates.actor !== undefined) patch.actor = updates.actor
+    if (updates.outcome !== undefined) patch.outcome = updates.outcome
+    if (updates.correlationId !== undefined) patch.correlation_id = updates.correlationId
+    if (updates.causationId !== undefined) patch.causation_id = updates.causationId
+    if (updates.metadata !== undefined) patch.metadata = updates.metadata
+
+    const { data, error } = await this.client
+      .from("jhadina_reasoning_events")
+      .update(patch)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select("*")
+      .maybeSingle()
+    assertNoError(error, "updateReasoningEvent")
+    return data ? reasoningEventFromRow(data as ReasoningEventRow) : undefined
+  }
+
   async listReasoningEvents(userId: string, limit: number = 50): Promise<ReasoningEvent[]> {
     const { data, error } = await this.client
       .from("jhadina_reasoning_events")
