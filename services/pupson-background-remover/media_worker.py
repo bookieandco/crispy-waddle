@@ -13,6 +13,7 @@ from urllib.error import HTTPError, URLError
 from flask import Flask, Response, request
 
 PORT = int(os.environ.get("PORT", "5000"))
+WORKER_PORT = int(os.environ.get("PUPSON_MEDIA_WORKER_LOCAL_PORT", "5003"))
 BACKGROUND_URL = "http://127.0.0.1:5001/"
 UPSCALER_URL = "http://127.0.0.1:8311"
 ROBOFLOW_URL = "http://127.0.0.1:5002"
@@ -30,6 +31,42 @@ ROBOFLOW_REQUIRED = os.environ.get("PUPSON_ROBOFLOW_REQUIRED", "0").strip().lowe
 
 app = Flask(__name__)
 
+NGINX_CONFIG = f"""
+worker_processes 1;
+pid /tmp/pupson-nginx.pid;
+error_log /dev/stderr warn;
+
+events {{
+    worker_connections 1024;
+}}
+
+http {{
+    access_log /dev/stdout;
+    client_max_body_size 15m;
+    proxy_connect_timeout 10s;
+    proxy_read_timeout 190s;
+    proxy_send_timeout 190s;
+
+    server {{
+        listen 0.0.0.0:{PORT};
+        listen [::]:{PORT};
+        server_name _;
+
+        location / {{
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header Authorization $http_authorization;
+            proxy_set_header Content-Type $content_type;
+            proxy_set_header Content-Length $content_length;
+            proxy_pass http://127.0.0.1:{WORKER_PORT};
+        }}
+    }}
+}}
+"""
+
+with open("/tmp/pupson-nginx.conf", "w", encoding="utf-8") as nginx_config:
+    nginx_config.write(NGINX_CONFIG)
+
 children = [
     subprocess.Popen([
         "python", "-m", "backgroundremover.cmd.server",
@@ -45,6 +82,11 @@ children = [
     subprocess.Popen([
         "/opt/roboflow-venv/bin/python",
         "/opt/pupson/roboflow_worker.py",
+    ]),
+    subprocess.Popen([
+        "nginx",
+        "-c", "/tmp/pupson-nginx.conf",
+        "-g", "daemon off;",
     ]),
 ]
 
@@ -204,7 +246,6 @@ def not_found(_error):
 if __name__ == "__main__":
     from waitress import serve
 
-    # Public Railway ingress is the certified fallback when project-private
-    # service networking is unavailable. Bind one conventional Railway socket;
-    # all inference routes remain bearer-protected by this worker.
-    serve(app, host="0.0.0.0", port=PORT, threads=4)
+    # Keep the authenticated Python API on loopback. nginx owns Railway's
+    # public/private ingress port and proxies requests into this worker.
+    serve(app, host="127.0.0.1", port=WORKER_PORT, threads=4)
