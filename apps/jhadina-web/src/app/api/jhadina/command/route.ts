@@ -16,7 +16,7 @@ import {
   inspectAskGrowthReadIntent,
 } from "@/lib/intelligence/ask-growth-command"
 import { realizeAskJhadinaExpression } from "@/lib/intelligence/ask-expression"
-import { recordAskShortcutExperience } from "@/lib/intelligence/ask-shortcut-experience"
+import { finalizeAskShortcutExperience, recordAskShortcutExperience } from "@/lib/intelligence/ask-shortcut-experience"
 import { requiresFullJllmContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 
 export const dynamic = "force-dynamic"
@@ -277,6 +277,18 @@ export async function POST(req: NextRequest) {
             })
           }
 
+          const reasoningEventId = await recordAskShortcutExperience({
+            userId: verifiedIdentity.userId,
+            activeTask,
+            proposal: social.proposal,
+            shortcut: "social",
+            metadata: {
+              operation: social.workPlan.operation,
+              authority: social.workPlan.authority,
+              nextBoundary: social.workPlan.nextBoundary,
+              directorOutcome: "pending",
+            },
+          })
           const video = await createAndSubmitAskVideoJob({
             userId: verifiedIdentity.userId,
             activeTask,
@@ -310,33 +322,46 @@ export async function POST(req: NextRequest) {
               ...(video.job.error ? [video.job.error] : []),
             ],
           }
-          const reasoningEventId = await recordAskShortcutExperience({
-            userId: verifiedIdentity.userId,
-            activeTask,
-            proposal: combinedProposal,
-            shortcut: "social",
-            metadata: {
-              operation: social.workPlan.operation,
-              authority: social.workPlan.authority,
-              nextBoundary: social.workPlan.nextBoundary,
-              directorOutcome: started ? "started" : "deferred",
-              videoJobId: video.job.id,
-              projectId: video.job.projectId,
-              videoStatus: video.job.status,
-            },
-          })
+          let finalProposal = combinedProposal
+          let experienceFinalized = true
+          try {
+            await finalizeAskShortcutExperience({
+              userId: verifiedIdentity.userId,
+              reasoningEventId,
+              proposal: combinedProposal,
+              shortcut: "social",
+              metadata: {
+                operation: social.workPlan.operation,
+                authority: social.workPlan.authority,
+                nextBoundary: social.workPlan.nextBoundary,
+                directorOutcome: started ? "started" : "deferred",
+                videoJobId: video.job.id,
+                projectId: video.job.projectId,
+                videoStatus: video.job.status,
+              },
+            })
+          } catch {
+            experienceFinalized = false
+            finalProposal = {
+              ...combinedProposal,
+              uncertainty: [
+                ...combinedProposal.uncertainty,
+                "Director outcome is durable, but the conversation Experience could not be finalized in Hippocampus. Do not retry the video solely for this logging failure.",
+              ],
+            }
+          }
           return NextResponse.json({
             success: true,
             data: {
-              proposal: combinedProposal,
+              proposal: finalProposal,
               reasoningEventId,
               expression: await realizeAskJhadinaExpression({
                 userId: verifiedIdentity.userId,
                 activeTask,
-                proposal: combinedProposal,
+                proposal: finalProposal,
               }),
               verified: social.verified,
-              verificationReason: `${social.verificationReason} Director video job persisted before provider submission.`,
+              verificationReason: `${social.verificationReason} Director video job persisted before provider submission.${experienceFinalized ? "" : " Hippocampus finalization failed after the durable Director outcome; the video job remains authoritative."}`,
               socialWorkPlan: social.workPlan,
               videoJob: video.job,
               feedbackEligible: false,
