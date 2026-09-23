@@ -10,8 +10,17 @@ export type MediaScanResult = {
   scannedAt: string;
 };
 
+export type MediaScanInput = {
+  assetId: string;
+  uri: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  bytes: Uint8Array;
+};
+
 export interface MediaSecurityScanner {
-  scan(input: { assetId: string; uri: string; mimeType: string; sizeBytes: number }): Promise<MediaScanResult>;
+  scan(input: MediaScanInput): Promise<MediaScanResult>;
 }
 
 /**
