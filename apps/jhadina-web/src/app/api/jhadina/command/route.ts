@@ -201,33 +201,7 @@ export async function POST(req: NextRequest) {
       })
       if (social) {
         const clarifying = social.proposal.disposition === "ASK"
-        return NextResponse.json({
-          success: true,
-          data: {
-            proposal: social.proposal,
-            reasoningEventId: social.reasoningEventId,
-            expression: {
-              proposal: social.proposal,
-              presentation: {
-                mode: clarifying ? "clarifying" : "direct",
-                allowProfanity: false,
-                allowQuip: false,
-              },
-              segments: [{
-                kind: "semantic",
-                text: social.proposal.recommendation,
-              }],
-            },
-            verified: social.verified,
-            verificationReason: social.verificationReason,
-            socialWorkPlan: social.workPlan,
-            feedbackEligible: false,
-          },
-        })
-      }
-    }
-
-    const videoIntent = inspectAskVideoIntent(activeTask)
+        const videoIntent = inspectAskVideoIntent(activeTask)
     if (videoIntent) {
       const verifier = await createRequestIdentityVerifier()
       const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
