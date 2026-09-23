@@ -77,7 +77,11 @@ jobs:
             if [[ "$status" == "200" ]]; then
               deployed_sha="$(jq -r '.commitSha // empty' "$response_file")"
               environment="$(jq -r '.environment // empty' "$response_file")"
-              echo "attempt=${attempt} environment=${environment} deployed_sha=${deployed_sha}"
+              has_next_public_url="$(jq -r '.configuration.hasNextPublicSupabaseUrl // false' "$response_file")"
+              has_server_url="$(jq -r '.configuration.hasServerSupabaseUrl // false' "$response_file")"
+              has_service_role="$(jq -r '.configuration.hasSupabaseServiceRoleKey // false' "$response_file")"
+              has_publishable="$(jq -r '.configuration.hasSupabasePublishableKey // false' "$response_file")"
+              echo "attempt=${attempt} environment=${environment} deployed_sha=${deployed_sha} next_public_url=${has_next_public_url} server_url=${has_server_url} service_role=${has_service_role} publishable=${has_publishable}"
 
               if [[ "$environment" == "production" && "$deployed_sha" == "$EXPECTED_SHA" ]]; then
                 echo "Exact production deployment admitted: $EXPECTED_SHA"
