@@ -193,6 +193,8 @@ jobs:
             src/lib/personality/personality-outcome-feedback.test.ts \
             src/lib/storage/SupabaseMemoryStorage.test.ts \
             src/lib/storage/createMemoryStorage.test.ts \
+            src/lib/application/createJhadinaApplication.test.ts \
+            src/__tests__/sprint1.test.ts \
             src/app/api/jhadina/personality/feedback/route.test.ts
 
       - name: Build Jhadina Web production bundle
