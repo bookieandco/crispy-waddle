@@ -13,6 +13,14 @@ export interface DirectorSocialCreativeIdentity {
   fixedDimensionRefs?: Readonly<Record<string, string>>;
 }
 
+export interface DirectorSocialCommercialCreativeRef {
+  conceptId: string;
+  productBibleId: string;
+  styleBibleId: string;
+  multiplierVariantId?: string;
+  experimentId?: string;
+}
+
 export interface DirectorSocialProductionBrief {
   id: string;
   sourceSystem: 'social';
@@ -25,6 +33,7 @@ export interface DirectorSocialProductionBrief {
   aspectRatio?: string;
   targetRuntimeSeconds?: number;
   creativeIdentity?: DirectorSocialCreativeIdentity;
+  commercialCreative?: DirectorSocialCommercialCreativeRef;
   referenceAssetIds: readonly string[];
   rightsEvidenceRefs: readonly string[];
   evidenceRefs: readonly string[];
@@ -44,6 +53,7 @@ export interface CreateDirectorSocialProductionBriefInput {
   aspectRatio?: string;
   targetRuntimeSeconds?: number;
   creativeIdentity?: DirectorSocialCreativeIdentity;
+  commercialCreative?: DirectorSocialCommercialCreativeRef;
   referenceAssetIds?: readonly string[];
   rightsEvidenceRefs?: readonly string[];
   evidenceRefs: readonly string[];
@@ -73,6 +83,7 @@ export interface DirectorSocialApprovedAssetReceipt {
   approvedAt: string;
   provenance: NonNullable<GeneratedAssetRecord['provenance']>;
   creativeIdentity?: DirectorSocialCreativeIdentity;
+  commercialCreative?: DirectorSocialCommercialCreativeRef;
   authority: 'DIRECTOR_ASSET_APPROVED';
   publicationAuthority: 'NONE';
 }
@@ -90,6 +101,18 @@ export function createDirectorSocialProductionBrief(
   if (input.targetRuntimeSeconds !== undefined && (!Number.isFinite(input.targetRuntimeSeconds) || input.targetRuntimeSeconds <= 0)) {
     throw new Error('DIRECTOR_SOCIAL_RUNTIME_INVALID');
   }
+  if (input.commercialCreative) {
+    nonEmpty(input.commercialCreative.conceptId, 'DIRECTOR_SOCIAL_AD_CONCEPT_REQUIRED');
+    nonEmpty(input.commercialCreative.productBibleId, 'DIRECTOR_SOCIAL_AD_PRODUCT_BIBLE_REQUIRED');
+    nonEmpty(input.commercialCreative.styleBibleId, 'DIRECTOR_SOCIAL_AD_STYLE_BIBLE_REQUIRED');
+    if (input.commercialCreative.multiplierVariantId !== undefined) {
+      nonEmpty(input.commercialCreative.multiplierVariantId, 'DIRECTOR_SOCIAL_AD_MULTIPLIER_VARIANT_INVALID');
+    }
+    if (input.commercialCreative.experimentId !== undefined) {
+      nonEmpty(input.commercialCreative.experimentId, 'DIRECTOR_SOCIAL_AD_EXPERIMENT_INVALID');
+    }
+  }
+
   if (input.creativeIdentity) {
     for (const [key, value] of Object.entries(input.creativeIdentity.fixedDimensionRefs ?? {})) {
       if (!key.trim() || !value.trim()) throw new Error('DIRECTOR_SOCIAL_CREATIVE_FIXED_DIMENSION_INVALID');
@@ -128,6 +151,7 @@ export function createDirectorSocialProductionBrief(
         ? Object.freeze({ ...input.creativeIdentity.fixedDimensionRefs })
         : undefined,
     }) : undefined,
+    commercialCreative: input.commercialCreative ? Object.freeze({ ...input.commercialCreative }) : undefined,
     referenceAssetIds: Object.freeze(refs),
     rightsEvidenceRefs: Object.freeze(rights),
     evidenceRefs: Object.freeze([...input.evidenceRefs]),
@@ -154,6 +178,11 @@ export function compileDirectorSocialTakeRequest(
     brief.creativeIdentity?.platformCreativeProfileRef ? `platform creative profile: ${brief.creativeIdentity.platformCreativeProfileRef}` : null,
     brief.creativeIdentity?.experimentVariantId ? `experiment variant: ${brief.creativeIdentity.experimentVariantId}` : null,
     brief.creativeIdentity?.mutationAxis ? `only intended creative mutation: ${brief.creativeIdentity.mutationAxis}` : null,
+    brief.commercialCreative ? `commercial concept: ${brief.commercialCreative.conceptId}` : null,
+    brief.commercialCreative ? `product identity bible: ${brief.commercialCreative.productBibleId}` : null,
+    brief.commercialCreative ? `visual style bible: ${brief.commercialCreative.styleBibleId}` : null,
+    brief.commercialCreative?.multiplierVariantId ? `ad multiplier variant: ${brief.commercialCreative.multiplierVariantId}` : null,
+    brief.commercialCreative?.experimentId ? `growth experiment: ${brief.commercialCreative.experimentId}` : null,
   ].filter(Boolean).join('; ');
 
   return {
@@ -221,6 +250,7 @@ export function issueDirectorSocialApprovedAssetReceipt(input: {
         ? Object.freeze({ ...brief.creativeIdentity.fixedDimensionRefs })
         : undefined,
     }) : undefined,
+    commercialCreative: brief.commercialCreative ? Object.freeze({ ...brief.commercialCreative }) : undefined,
     authority: 'DIRECTOR_ASSET_APPROVED',
     publicationAuthority: 'NONE',
   });
