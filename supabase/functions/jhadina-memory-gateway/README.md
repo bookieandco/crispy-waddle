@@ -28,3 +28,7 @@ supabase functions deploy jhadina-memory-gateway --no-verify-jwt
 ```
 
 Never expose the Supabase service-role key to Vercel, browsers, logs, or source.
+
+Production acceptance additionally requires the Vercel `/api/health` route to
+complete the gateway's read-only `probe` operation successfully on the exact
+Git SHA being admitted.
