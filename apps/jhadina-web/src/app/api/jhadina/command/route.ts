@@ -16,6 +16,7 @@ import {
   inspectAskGrowthReadIntent,
 } from "@/lib/intelligence/ask-growth-command"
 import { realizeAskJhadinaExpression } from "@/lib/intelligence/ask-expression"
+import { recordAskShortcutExperience } from "@/lib/intelligence/ask-shortcut-experience"
 
 export const dynamic = "force-dynamic"
 
@@ -141,6 +142,13 @@ export async function POST(req: NextRequest) {
         uncertainty: ["Runtime diagnostic evidence has not yet been collected in this HTTP request."],
         alternatives: [],
       }
+      const reasoningEventId = await recordAskShortcutExperience({
+        userId: verifiedIdentity.userId,
+        activeTask,
+        proposal,
+        shortcut: "doctor",
+        metadata: { approvalRequired: true, executionStarted: false },
+      })
       const expression = await realizeAskJhadinaExpression({
         userId: verifiedIdentity.userId,
         activeTask,
@@ -150,7 +158,7 @@ export async function POST(req: NextRequest) {
         success: true,
         data: {
           proposal,
-          reasoningEventId: null,
+          reasoningEventId,
           expression,
           doctorIntent: doctor.doctorIntent,
           approvalRequired: true,
@@ -170,11 +178,18 @@ export async function POST(req: NextRequest) {
         activeTask,
       })
       if (growth) {
+        const reasoningEventId = await recordAskShortcutExperience({
+          userId: verifiedIdentity.userId,
+          activeTask,
+          proposal: growth.proposal,
+          shortcut: "growth",
+          metadata: { operation: growth.workPlan.operation, authority: growth.workPlan.authority },
+        })
         return NextResponse.json({
           success: true,
           data: {
             proposal: growth.proposal,
-            reasoningEventId: growth.reasoningEventId,
+            reasoningEventId,
             expression: await realizeAskJhadinaExpression({
               userId: verifiedIdentity.userId,
               activeTask,
@@ -198,6 +213,17 @@ export async function POST(req: NextRequest) {
         activeTask,
       })
       if (social) {
+        const reasoningEventId = await recordAskShortcutExperience({
+          userId: verifiedIdentity.userId,
+          activeTask,
+          proposal: social.proposal,
+          shortcut: "social",
+          metadata: {
+            operation: social.workPlan.operation,
+            authority: social.workPlan.authority,
+            nextBoundary: social.workPlan.nextBoundary,
+          },
+        })
         const clarifying = social.proposal.disposition === "ASK"
         const videoIntent = inspectAskVideoIntent(activeTask)
         const shouldStartDirectorVideo =
@@ -225,7 +251,7 @@ export async function POST(req: NextRequest) {
               success: true,
               data: {
                 proposal: scopedProposal,
-                reasoningEventId: social.reasoningEventId,
+                reasoningEventId,
                 expression: await realizeAskJhadinaExpression({
                   userId: verifiedIdentity.userId,
                   activeTask,
@@ -276,7 +302,7 @@ export async function POST(req: NextRequest) {
             success: true,
             data: {
               proposal: combinedProposal,
-              reasoningEventId: social.reasoningEventId,
+              reasoningEventId,
               expression: await realizeAskJhadinaExpression({
                 userId: verifiedIdentity.userId,
                 activeTask,
@@ -295,7 +321,7 @@ export async function POST(req: NextRequest) {
           success: true,
           data: {
             proposal: social.proposal,
-            reasoningEventId: social.reasoningEventId,
+            reasoningEventId,
             expression: await realizeAskJhadinaExpression({
               userId: verifiedIdentity.userId,
               activeTask,
@@ -340,11 +366,22 @@ export async function POST(req: NextRequest) {
         uncertainty: video.job.error ? [video.job.error] : [],
         alternatives: [],
       }
+      const reasoningEventId = await recordAskShortcutExperience({
+        userId: verifiedIdentity.userId,
+        activeTask,
+        proposal,
+        shortcut: "director",
+        metadata: {
+          videoJobId: video.job.id,
+          projectId: video.job.projectId,
+          status: video.job.status,
+        },
+      })
       return NextResponse.json({
         success: true,
         data: {
           proposal,
-          reasoningEventId: `director-video:${video.job.id}`,
+          reasoningEventId,
           expression: await realizeAskJhadinaExpression({
             userId: verifiedIdentity.userId,
             activeTask,
