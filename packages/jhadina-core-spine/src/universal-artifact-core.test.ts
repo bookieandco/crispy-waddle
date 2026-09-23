@@ -6,7 +6,6 @@ const base={ownerUserId:"u1",name:"note.txt",declaredMimeType:"text/plain",detec
 
 describe("UniversalArtifactCore",()=>{
  it("keeps scanner failures quarantined",async()=>{
-  let status="quarantine"
   const core=new UniversalArtifactCore(
    {putQuarantine:async(path)=>({bucket:"q",path,uri:`private://${path}`})},
    {createQuarantined:async(i)=>({...i,status:"quarantine",scanReasons:[],derivativeRefs:[]}),applyScan:async()=>{throw new Error("should not")}},

@@ -260,6 +260,10 @@ importers:
         version: 5.9.3
 
   packages/jhadina-core-spine:
+    dependencies:
+      '@jhadina/security-core':
+        specifier: workspace:*
+        version: link:../security-core
     devDependencies:
       typescript:
         specifier: ^5.1.0
