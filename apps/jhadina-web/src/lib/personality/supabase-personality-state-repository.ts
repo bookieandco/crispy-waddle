@@ -53,6 +53,9 @@ function assertTrait(value: unknown, index: number): void {
   if (!isRecord(value)) throw new Error(`Invalid persisted personality ${label}`)
   if (typeof value.id !== "string" || !value.id.trim()) throw new Error(`Invalid persisted personality ${label}.id`)
   if (typeof value.statement !== "string" || !value.statement.trim()) throw new Error(`Invalid persisted personality ${label}.statement`)
+  if (value.sourcePatternId !== undefined && (typeof value.sourcePatternId !== "string" || !value.sourcePatternId.trim())) {
+    throw new Error(`Invalid persisted personality ${label}.sourcePatternId`)
+  }
   if (value.dimension !== undefined && (typeof value.dimension !== "string" || !dimensions.has(value.dimension))) {
     throw new Error(`Invalid persisted personality ${label}.dimension`)
   }
