@@ -134,13 +134,13 @@ function AskJhadina(){
   if(!projectId)throw new Error("Director did not return a project ID")
   return projectId
  }
- async function governReferenceProposal(userId:string,command:string,proposal:DecisionProposal){
+ async function governReferenceProposal(userId:string,command:string,proposal:DecisionProposal,shortcut:"reference-character"|"reference-product"){
   const json=await jsonOrThrow(await fetch("/api/jhadina/expression",{
    method:"POST",
    headers:{"content-type":"application/json","x-jhadina-user-id":userId},
-   body:JSON.stringify({activeTask:command,proposal}),
+   body:JSON.stringify({activeTask:command,proposal,shortcut}),
   }),"Jhadina could not realize the governed reference response")
-  return {proposal:json.data.proposal as DecisionProposal,expression:json.data.expression as GovernedExpression}
+  return {proposal:json.data.proposal as DecisionProposal,expression:json.data.expression as GovernedExpression,reasoningEventId:String(json.data.reasoningEventId)}
  }
  async function askWithReferenceCharacter(command:string,userId:string):Promise<CommandResult>{
   if(!referenceFile)throw new Error("Reference image is required")
@@ -168,8 +168,8 @@ function AskJhadina(){
   const blocked=job?.status==="blocked"||job?.status==="failed"
   const message=blocked?`Director locked ${requestedName} as the recurring character, but video generation is blocked: ${job.error??"a reference-aware provider must be configured"}.`:`Director locked ${requestedName} as the recurring character and started the full video. Job ${job?.id??"created"} is ${job?.status??"queued"}.`
   const proposal:DecisionProposal={id:`reference-video:${job?.id??crypto.randomUUID()}`,disposition:blocked?"DEFER":"PROCEED",recommendation:message,rationale:"The uploaded reference was privately quarantined, scanned, admitted, locked into Director's Cast Bible, and then bound to a reference-aware video production job.",evidence:[{id:`director-character:${characterId}`,source:"Director Cast Bible",observedAt:now,summary:`Project ${projectId}; character ${characterId}; admitted reference ${assetId}.`}],uncertainty:job?.error?[job.error]:[],alternatives:[]}
-  const governed=await governReferenceProposal(userId,command,proposal)
-  return {proposal:governed.proposal,reasoningEventId:`reference-video:${job?.id??characterId}`,expression:governed.expression,verified:true,verificationReason:"Reference media admission and project authority completed before production submission; presentation was realized through the governed Personality/RNC path.",videoJob:job,feedbackEligible:false}
+  const governed=await governReferenceProposal(userId,command,proposal,"reference-character")
+  return {proposal:governed.proposal,reasoningEventId:governed.reasoningEventId,expression:governed.expression,verified:true,verificationReason:"Reference media admission and project authority completed before production submission; presentation was realized through the governed Personality/RNC path and the turn was persisted to Hippocampus.",videoJob:job,feedbackEligible:false}
  }
  async function askWithReferenceProduct(command:string,userId:string):Promise<CommandResult>{
   if(!referenceFile)throw new Error("Product reference image is required")
@@ -198,8 +198,8 @@ function AskJhadina(){
   const blocked=job?.status==="blocked"||job?.status==="failed"
   const message=blocked?`Director locked ${requestedName} into a Product Bible, but video generation is blocked: ${job.error??"a product-reference-aware provider must be configured"}.`:`Director locked ${requestedName} into a Product Bible and started the product-consistent video. Job ${job?.id??"created"} is ${job?.status??"queued"}.`
   const proposal:DecisionProposal={id:`product-video:${job?.id??crypto.randomUUID()}`,disposition:blocked?"DEFER":"PROCEED",recommendation:message,rationale:"The uploaded product reference was privately quarantined, scanned, admitted, locked into Director's Product Bible, and then bound to a product-aware video job. Generic providers that cannot preserve product identity are excluded.",evidence:[{id:`director-product:${productId}`,source:"Director Product Bible",observedAt:now,summary:`Project ${projectId}; product ${productId}; Product Bible ${String(locked.productBibleId??"created")}; admitted reference ${assetId}.`}],uncertainty:job?.error?[job.error]:[],alternatives:[]}
-  const governed=await governReferenceProposal(userId,command,proposal)
-  return {proposal:governed.proposal,reasoningEventId:`product-video:${job?.id??productId}`,expression:governed.expression,verified:true,verificationReason:"Product reference admission and project authority completed before product-aware production submission; presentation was realized through the governed Personality/RNC path.",videoJob:job,feedbackEligible:false}
+  const governed=await governReferenceProposal(userId,command,proposal,"reference-product")
+  return {proposal:governed.proposal,reasoningEventId:governed.reasoningEventId,expression:governed.expression,verified:true,verificationReason:"Product reference admission and project authority completed before product-aware production submission; presentation was realized through the governed Personality/RNC path and the turn was persisted to Hippocampus.",videoJob:job,feedbackEligible:false}
  }
  async function ask(commandOverride?:string, conversationSignals?:JhadinaConversationSignals){
   const command=(commandOverride??task).trim()
