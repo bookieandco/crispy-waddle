@@ -3,6 +3,7 @@ import {
   compilePrevisShotList,
   secondsToFrames,
   validatePrevisBlockout,
+  validatePrevisShotPackage,
   type PrevisBlockoutPlan,
 } from './previs-blockout.js';
 
@@ -50,6 +51,23 @@ function plan(): PrevisBlockoutPlan {
         endFrameExclusive: 24,
         purpose: 'macro introduction on hero can',
         cameraPlan: camera('establish product identity'),
+        cameraControl: 'rail',
+        cameraRail: {
+          points: [
+            { x: 0, y: 1.4, z: 4 },
+            { x: 0, y: 1.4, z: 2.5 },
+          ],
+          startFrame: 0,
+          endFrameExclusive: 24,
+          interpolation: 'ease-out',
+        },
+        objectTracks: {
+          'hero-can': [
+            { frame: 0, rotationDegrees: { x: 0, y: 0, z: 0 } },
+            { frame: 20, rotationDegrees: { x: 0, y: 25, z: 0 }, interpolation: 'smooth' },
+          ],
+        },
+        actorPoseTracks: [],
         visibleObjectIds: ['hero-can'],
         generationGaps: [],
         holdFrames: 4,
@@ -106,6 +124,13 @@ describe('previs blockout', () => {
     expect(result.shotList).toContain('MODEL-FILL ONLY: realistic carbonated soda pouring');
   });
 
+  it('keeps camera rails and authored object tracks in the compiled shot list', () => {
+    const result = compilePrevisShotList(plan());
+    expect(result.shotList).toContain('Camera control: rail');
+    expect(result.shotList).toContain('Camera rail: frames 0-23, 2 points');
+    expect(result.shotList).toContain('Object tracks: hero-can(2 keys)');
+  });
+
   it('omits unrelated references instead of confusing the generator', () => {
     const result = compilePrevisShotList(plan());
     expect(result.orderedReferenceAssetIds).toEqual([
@@ -132,6 +157,45 @@ describe('previs blockout', () => {
     expect(issues).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: 'PREVIS_OBJECT_SEMANTIC_ROLE_REQUIRED' }),
     ]));
+  });
+
+  it('validates that an exported shot package matches the authored shot exactly', () => {
+    const reasons = validatePrevisShotPackage(plan(), 'shot:3', {
+      shotId: 'shot:3',
+      projectId: 'ad:soda',
+      frameRange: { startFrame: 48, endFrameExclusive: 72 },
+      fps: 24,
+      resolution: { width: 1920, height: 1080 },
+      firstFrameAssetId: 'asset:first',
+      lastFrameAssetId: 'asset:last',
+      greyboxClipAssetId: 'asset:greybox',
+      cameraMetadataAssetId: 'asset:camera-json',
+      promptAssetId: 'asset:prompt',
+      conditioningPasses: {
+        depth: 'asset:depth',
+        normal: 'asset:normal',
+      },
+      referenceAssetIds: ['ref:lime-can', 'ref:finished-glass'],
+      provenanceEvidenceIds: ['export:receipt'],
+    });
+    expect(reasons).toEqual([]);
+  });
+
+  it('rejects a shot package missing an authored reference', () => {
+    const reasons = validatePrevisShotPackage(plan(), 'shot:3', {
+      shotId: 'shot:3',
+      projectId: 'ad:soda',
+      frameRange: { startFrame: 48, endFrameExclusive: 72 },
+      fps: 24,
+      resolution: { width: 1920, height: 1080 },
+      greyboxClipAssetId: 'asset:greybox',
+      cameraMetadataAssetId: 'asset:camera-json',
+      promptAssetId: 'asset:prompt',
+      conditioningPasses: {},
+      referenceAssetIds: ['ref:lime-can'],
+      provenanceEvidenceIds: ['export:receipt'],
+    });
+    expect(reasons).toContain('DIRECTOR_PREVIS_PACKAGE_REFERENCE_MISSING:ref:finished-glass');
   });
 
   it('converts time to exact frame boundaries and rejects fractional frames', () => {
