@@ -54,7 +54,7 @@ describe("Ask Jhadina Social routing", () => {
     inspectVideo.mockReturnValue(null)
   })
 
-  it("routes a Social video request through Social before the generic Director video shortcut", async () => {
+  it("resolves Social scope first and then starts Director for an explicit Social video request", async () => {
     inspectSocial.mockReturnValue({
       matched: true,
       operation: "produce_creative",
@@ -64,6 +64,16 @@ describe("Ask Jhadina Social routing", () => {
       accountTerms: [],
     })
     inspectVideo.mockReturnValue({ mode: "text-to-video" })
+    createVideo.mockResolvedValue({
+      job: {
+        id: "video-job-social-1",
+        projectId: "project-social-1",
+        mode: "short",
+        aspectRatio: "9:16",
+        status: "queued",
+        providerId: "provider-1",
+      },
+    })
     handleSocial.mockResolvedValue({
       proposal: {
         id: "proposal-social",
@@ -79,7 +89,29 @@ describe("Ask Jhadina Social routing", () => {
       workPlan: {
         kind: "social_marketing",
         operation: "produce_creative",
-        accounts: [],
+        character: {
+          id: "character:pupsonstuff",
+          brand: "pupsonstuff",
+          label: "PupsonStuff",
+          aliases: ["pupsonstuff"],
+          description: "Pet-product character",
+          toneTraits: ["playful", "warm"],
+          pointOfView: "Make personalized pet products recognizable and delightful.",
+          voiceProfileRef: "brand-voice:pupsonstuff",
+          evidenceRefs: ["character:pupsonstuff"],
+          status: "active",
+          authority: "EXPRESSION_ONLY",
+        },
+        accounts: [{
+          accountId: "acct-pups-tiktok",
+          brand: "pupsonstuff",
+          platform: "tiktok",
+          provider: "ayrshare",
+          displayName: "PupsonStuff TikTok",
+          handle: "pupsonstuff",
+          attentionScore: 0,
+          attentionReasons: ["no operational exception detected"],
+        }],
         requestedPlatforms: ["tiktok"],
         nextBoundary: "director_production",
         authority: "PLANNING_ONLY",
@@ -95,10 +127,126 @@ describe("Ask Jhadina Social routing", () => {
 
     expect(response.status).toBe(200)
     expect(json.data.socialWorkPlan.nextBoundary).toBe("director_production")
+    expect(json.data.videoJob.id).toBe("video-job-social-1")
+    expect(json.data.proposal.recommendation).toContain("Director started video job video-job-social-1")
     expect(json.data.feedbackEligible).toBe(false)
     expect(handleSocial).toHaveBeenCalledTimes(1)
-    expect(createVideo).not.toHaveBeenCalled()
+    expect(createVideo).toHaveBeenCalledTimes(1)
+    expect(createVideo).toHaveBeenCalledWith(expect.objectContaining({
+      socialExpression: expect.objectContaining({
+        brand: "pupsonstuff",
+        characterProfileRef: "character:pupsonstuff",
+        voiceProfileRef: "brand-voice:pupsonstuff",
+        accountScopes: [expect.objectContaining({
+          accountId: "acct-pups-tiktok",
+          platform: "tiktok",
+          provider: "ayrshare",
+        })],
+      }),
+    }))
     expect(handleGeneric).not.toHaveBeenCalled()
+  })
+
+  it("does not start Director when a resolved Social work plan lacks an exact connected account", async () => {
+    inspectSocial.mockReturnValue({
+      matched: true,
+      operation: "produce_creative",
+      requestedPlatforms: ["tiktok"],
+      requestedCharacterProfiles: [],
+      requestedBrand: "pupsonstuff",
+      accountTerms: [],
+    })
+    inspectVideo.mockReturnValue({ mode: "short" })
+    handleSocial.mockResolvedValue({
+      proposal: {
+        id: "proposal-no-account",
+        contextId: "ctx-no-account",
+        disposition: "PROCEED",
+        recommendation: "Route PupsonStuff creative to Director.",
+        rationale: "Resolved brand but no account.",
+        evidence: [],
+        uncertainty: [],
+        alternatives: [],
+      },
+      reasoningEventId: "social-command:no-account",
+      workPlan: {
+        kind: "social_marketing",
+        operation: "produce_creative",
+        character: {
+          id: "character:pupsonstuff",
+          brand: "pupsonstuff",
+          label: "PupsonStuff",
+          aliases: ["pupsonstuff"],
+          description: "Pet-product character",
+          toneTraits: ["playful"],
+          pointOfView: "Pet products.",
+          voiceProfileRef: "brand-voice:pupsonstuff",
+          evidenceRefs: ["character:pupsonstuff"],
+          status: "active",
+          authority: "EXPRESSION_ONLY",
+        },
+        accounts: [],
+        requestedPlatforms: ["tiktok"],
+        nextBoundary: "director_production",
+        authority: "PLANNING_ONLY",
+        requiresExplicitApprovalForExecution: false,
+        notes: [],
+      },
+      verified: true,
+      verificationReason: "resolved",
+    })
+
+    const response = await POST(request("Make a TikTok video for PupsonStuff"))
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.data.proposal.disposition).toBe("ASK")
+    expect(json.data.proposal.recommendation).toContain("connected Social account")
+    expect(createVideo).not.toHaveBeenCalled()
+  })
+
+  it("does not start Director when Social needs clarification", async () => {
+    inspectSocial.mockReturnValue({
+      matched: true,
+      operation: "produce_creative",
+      requestedPlatforms: ["tiktok"],
+      requestedCharacterProfiles: [],
+      requestedBrand: "pupsonstuff",
+      accountTerms: [],
+    })
+    inspectVideo.mockReturnValue({ mode: "short" })
+    handleSocial.mockResolvedValue({
+      proposal: {
+        id: "proposal-ask",
+        contextId: "ctx-ask",
+        disposition: "ASK",
+        recommendation: "Choose a connected TikTok account.",
+        rationale: "Account scope is ambiguous.",
+        evidence: [],
+        uncertainty: [],
+        alternatives: [],
+      },
+      reasoningEventId: "social-command:ask",
+      workPlan: {
+        kind: "social_marketing",
+        operation: "produce_creative",
+        accounts: [],
+        requestedPlatforms: ["tiktok"],
+        nextBoundary: "director_production",
+        authority: "PLANNING_ONLY",
+        requiresExplicitApprovalForExecution: false,
+        notes: [],
+      },
+      verified: true,
+      verificationReason: "resolved with clarification",
+    })
+
+    const response = await POST(request("Make a TikTok video for PupsonStuff"))
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.data.proposal.disposition).toBe("ASK")
+    expect(createVideo).not.toHaveBeenCalled()
   })
 
   it("preserves the generic Director shortcut when the request is not Social", async () => {
