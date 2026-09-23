@@ -21,13 +21,19 @@ import { Classifier } from "../services/Classifier"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
-import { InMemoryStorage } from "../storage/InMemoryStorage"
-import { SupabaseMemoryStorage } from "../storage/SupabaseMemoryStorage"
-import { createServiceRoleClient } from "../supabase/service-role"
 import type { MemoryStorage } from "../storage/MemoryStorage"
+import { getCanonicalMemoryStorage } from "../storage/createMemoryStorage"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 
-// Janet is process-local, while Memory storage comes from the one canonical\n// runtime storage graph shared by every composition root.\nlet janet: JanetService\n\nexport function getStorage(): MemoryStorage {\n  return getCanonicalMemoryStorage()\n}\n\nfunction getJanetService(): JanetService {
+// Janet is process-local, while Memory storage comes from the one canonical
+// runtime storage graph shared by every composition root.
+let janet: JanetService
+
+export function getStorage(): MemoryStorage {
+  return getCanonicalMemoryStorage()
+}
+
+function getJanetService(): JanetService {
   if (!janet) {
     const memoryRepo = new MemoryRepository(getStorage())
     const reasoningRepo = new ReasoningEventRepository(getStorage())
