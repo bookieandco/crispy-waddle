@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const ephemeralArtifacts = parseEphemeralArtifacts(body?.artifacts)
-    const durableRefs = Array.isArray(body?.artifactRefs) ? body.artifactRefs.filter((x:unknown)=>typeof x==="string").slice(0,8).map((id:string)=>({id})) : []
+    const durableRefs: Array<{ id: string }> = Array.isArray(body?.artifactRefs) ? body.artifactRefs.filter((x:unknown):x is string=>typeof x==="string").slice(0,8).map((id:string)=>({id})) : []
     let durableArtifacts: EphemeralArtifactContext[] = []
     if (durableRefs.length) {
       const verifier = await createRequestIdentityVerifier()
