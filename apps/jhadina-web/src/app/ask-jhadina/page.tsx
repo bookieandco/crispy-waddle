@@ -211,7 +211,7 @@ function AskJhadina(){
    if(referenceFile){
     data=referenceKind==="product"?await askWithReferenceProduct(command,userId):await askWithReferenceCharacter(command,userId)
    }else{
-    const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,activeProject:params.get("project")??undefined,clientRequestId:crypto.randomUUID()})})
+    const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,activeProject:params.get("project")??undefined,workSessionId:workSessionId||undefined,clientRequestId:crypto.randomUUID()})})
     const json=await response.json();if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
     data=json.data as CommandResult
    }
