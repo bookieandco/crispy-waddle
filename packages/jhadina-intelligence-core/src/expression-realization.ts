@@ -8,6 +8,22 @@ export interface GovernedExpressionRealization {
     mode: ExpressionDirective['mode'];
     allowProfanity: boolean;
     allowQuip: boolean;
+    register?: ExpressionDirective['register'];
+    cadenceStyle?: ExpressionDirective['cadenceStyle'];
+    pauseDensity?: ExpressionDirective['pauseDensity'];
+    metaphorDensity?: ExpressionDirective['metaphorDensity'];
+    bitDepth?: ExpressionDirective['bitDepth'];
+    allowPlayfulDisagreement?: ExpressionDirective['allowPlayfulDisagreement'];
+    symbolicFraming?: ExpressionDirective['symbolicFraming'];
+    storytellingDepth?: ExpressionDirective['storytellingDepth'];
+    edginess?: ExpressionDirective['edginess'];
+    reentryToPlayfulness?: ExpressionDirective['reentryToPlayfulness'];
+    operationalSass?: ExpressionDirective['operationalSass'];
+    affectionateTeasing?: ExpressionDirective['affectionateTeasing'];
+    workloadBoundary?: ExpressionDirective['workloadBoundary'];
+    evidenceDiscipline?: ExpressionDirective['evidenceDiscipline'];
+    speakingRate?: ExpressionDirective['speakingRate'];
+    deliberatePauses?: ExpressionDirective['deliberatePauses'];
     responseLength?: ExpressionDirective['responseLength'];
     tone?: ExpressionDirective['tone'];
     reasoningDepth?: ExpressionDirective['reasoningDepth'];
@@ -43,6 +59,22 @@ export function realizeGovernedExpression(
     mode: directive?.mode ?? 'explanatory',
     allowProfanity: directive?.allowProfanity ?? false,
     allowQuip: directive?.allowQuip ?? false,
+    ...(directive?.register ? { register: directive.register } : {}),
+    ...(directive?.cadenceStyle ? { cadenceStyle: directive.cadenceStyle } : {}),
+    ...(directive?.pauseDensity ? { pauseDensity: directive.pauseDensity } : {}),
+    ...(directive?.metaphorDensity ? { metaphorDensity: directive.metaphorDensity } : {}),
+    ...(directive?.bitDepth !== undefined ? { bitDepth: directive.bitDepth } : {}),
+    ...(directive?.allowPlayfulDisagreement !== undefined ? { allowPlayfulDisagreement: directive.allowPlayfulDisagreement } : {}),
+    ...(directive?.symbolicFraming ? { symbolicFraming: directive.symbolicFraming } : {}),
+    ...(directive?.storytellingDepth ? { storytellingDepth: directive.storytellingDepth } : {}),
+    ...(directive?.edginess ? { edginess: directive.edginess } : {}),
+    ...(directive?.reentryToPlayfulness ? { reentryToPlayfulness: directive.reentryToPlayfulness } : {}),
+    ...(directive?.operationalSass ? { operationalSass: directive.operationalSass } : {}),
+    ...(directive?.affectionateTeasing !== undefined ? { affectionateTeasing: directive.affectionateTeasing } : {}),
+    ...(directive?.workloadBoundary ? { workloadBoundary: directive.workloadBoundary } : {}),
+    ...(directive?.evidenceDiscipline ? { evidenceDiscipline: directive.evidenceDiscipline } : {}),
+    ...(directive?.speakingRate ? { speakingRate: directive.speakingRate } : {}),
+    ...(directive?.deliberatePauses !== undefined ? { deliberatePauses: directive.deliberatePauses } : {}),
     ...(directive?.responseLength ? { responseLength: directive.responseLength } : {}),
     ...(directive?.tone ? { tone: directive.tone } : {}),
     ...(directive?.reasoningDepth ? { reasoningDepth: directive.reasoningDepth } : {}),
