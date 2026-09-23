@@ -71,8 +71,8 @@ describe('PS-RECON creative and print contracts', () => {
 
     const bytes = await sharp({
       create: {
-        width: 2400,
-        height: 3200,
+        width: 1200,
+        height: 600,
         channels: 4,
         background: { r: 100, g: 120, b: 140, alpha: 1 },
       },
@@ -92,12 +92,16 @@ describe('PS-RECON creative and print contracts', () => {
     );
   }, 15_000);
   it('requires real alpha when the shopper requested background removal', async () => {
-    const hotspot = hotspots.find((item) => item.id === 'frame1')!;
+    // Keep this as a full buildPrintMaster integration test, but use the
+    // smallest real product profile so the repository-wide parallel launch
+    // gate is deterministic. The previous 12x16 canvas fixture rendered two
+    // 3600x4800 masters and could exceed Vitest's 15s timeout under CI load.
+    const hotspot = hotspots.find((item) => item.id === 'mugWhite')!;
     const variant = hotspot.fulfillment!.variants[0];
     const transparent = await sharp({
       create: {
-        width: 2400,
-        height: 3200,
+        width: 1200,
+        height: 600,
         channels: 4,
         background: { r: 100, g: 120, b: 140, alpha: 0.6 },
       },
