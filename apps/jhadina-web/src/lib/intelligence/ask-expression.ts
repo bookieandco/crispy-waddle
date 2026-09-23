@@ -1,4 +1,4 @@
-import type { DecisionProposal, ExpressionDirective } from "@jhadina/core-spine"
+import type { DecisionProposal, ExpressionDirective, PersonalityState } from "@jhadina/core-spine"
 import {
   realizeGovernedExpression,
   type GovernedExpressionRealization,
@@ -47,7 +47,7 @@ export async function realizeAskJhadinaExpression(
 
   const behaviorContext = deriveBehaviorContext(activeTask)
   let directive: ExpressionDirective | undefined
-  let personality
+  let personality: PersonalityState | undefined
   try {
     const contribution = await provider.getContext({
       userId: input.userId,
