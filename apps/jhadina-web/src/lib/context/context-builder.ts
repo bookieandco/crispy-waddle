@@ -8,6 +8,7 @@ import {
   type EphemeralArtifactContext,
   type ExpressionDirective,
   type GrowthDomainContext,
+  type OwnerContextContribution,
   type PatternObservation,
   type PersonalityState,
   type SocialDomainContext,
@@ -67,6 +68,13 @@ export interface KnowledgeContextProvider {
   }>
 }
 
+export interface OwnerContextProvider {
+  getContext(input: {
+    userId: string
+    activeTask: string
+  }): Promise<OwnerContextContribution | undefined>
+}
+
 export interface ContextBuilderLimits {
   maxMemories: number
   maxRecentApprovals: number
@@ -104,6 +112,8 @@ export interface ContextBuilderDeps {
   personalityContextProvider?: PersonalityContextProvider
   /** Optional read-only canonical Knowledge Graph adapter. It grants no admission or mutation authority. */
   knowledgeContextProvider?: KnowledgeContextProvider
+  /** Optional provenance-aware owner/public-context adapter. It cannot write Memory or Personality. */
+  ownerContextProvider?: OwnerContextProvider
   /** Optional read-only Social context adapter. It cannot publish or mutate account state. */
   socialContextProvider?: SocialContextProvider
   /** Optional read-only Growth context adapter. It cannot spend, publish, send lifecycle actions, or mutate audiences. */
@@ -227,6 +237,17 @@ function policyConstraints(policy: SecurityPolicy): string[] {
   )
   for (const denied of policy.deniedCapabilities ?? []) constraints.push(`denied: ${denied}`)
   return constraints
+}
+
+function normalizeOwnerContext(owner: OwnerContextContribution): OwnerContextContribution {
+  return {
+    ...(owner.hub ? { hub: owner.hub } : {}),
+    references: owner.references.map((reference) => ({
+      ...reference,
+      evidence: { ...reference.evidence },
+    })),
+    limitations: [...owner.limitations],
+  }
 }
 
 function normalizeGrowthContext(growth: GrowthDomainContext): GrowthDomainContext {
@@ -354,6 +375,27 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     excludedContext.push("knowledge: canonical Knowledge Graph provider not composed; recent approval evidence only")
   }
 
+  let ownerContext: OwnerContextContribution | undefined
+  if (deps.ownerContextProvider) {
+    try {
+      const contribution = await deps.ownerContextProvider.getContext({
+        userId: input.userId,
+        activeTask: redactedActiveTask,
+      })
+      if (contribution) {
+        ownerContext = normalizeOwnerContext(contribution)
+        const byId = new Map(knowledgeRefs.map((ref) => [ref.id, ref]))
+        for (const reference of ownerContext.references) {
+          if (!byId.has(reference.evidence.id)) byId.set(reference.evidence.id, { ...reference.evidence })
+        }
+        knowledgeRefs = [...byId.values()]
+        excludedContext.push(...ownerContext.limitations.map((item) => `owner-context: ${item}`))
+      }
+    } catch {
+      excludedContext.push("owner-context: governed public context unavailable")
+    }
+  }
+
   let memoryEvidenceRefs = memoryRefs.map((r) => r.ref)
   const textLength = (refs: EvidenceRef[]) => refs.reduce((sum, r) => sum + r.summary.length, 0)
   let trimmed = 0
@@ -421,6 +463,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     excludedContext,
     ...(input.artifacts?.length ? { artifacts: input.artifacts.map((artifact) => ({ ...artifact })) } : {}),
     ...(input.conversationSignals ? { conversationSignals: structuredClone(input.conversationSignals) } : {}),
+    ...(ownerContext ? { ownerContext } : {}),
     ...(domainContext ? { domainContext } : {}),
     ...(expressionDirective ? { expressionDirective } : {}),
   }
