@@ -196,6 +196,39 @@ export interface SocialDomainContext {
   provenance: EvidenceRef[];
 }
 
+export type OwnerContextContentType =
+  | 'hub'
+  | 'music'
+  | 'video'
+  | 'social-post'
+  | 'website'
+  | 'interview'
+  | 'other';
+
+export type OwnerContextReuseScope =
+  | 'context-only'
+  | 'callback-eligible'
+  | 'personality-candidate';
+
+/**
+ * Public/owner-authored context is a provenance-aware signal, not automatic
+ * durable Memory or factual authority about the owner.
+ */
+export interface OwnerContextReference {
+  evidence: EvidenceRef;
+  ownerAuthored: boolean;
+  contentType: OwnerContextContentType;
+  sourceUrl?: string;
+  reuseScope: OwnerContextReuseScope;
+  freshnessWindowMs?: number;
+}
+
+export interface OwnerContextContribution {
+  hub?: string;
+  references: OwnerContextReference[];
+  limitations: string[];
+}
+
 /** Provider-neutral Growth context contribution. It is read-only intelligence, never spend/publish authority. */
 export interface GrowthDomainContext {
   campaigns: EvidenceRef[];
@@ -304,6 +337,7 @@ export interface ContextPacket {
   excludedContext: string[];
   artifacts?: EphemeralArtifactContext[];
   conversationSignals?: ConversationSignalContext;
+  ownerContext?: OwnerContextContribution;
   domainContext?: DomainContext;
   expressionDirective?: ExpressionDirective;
 }
