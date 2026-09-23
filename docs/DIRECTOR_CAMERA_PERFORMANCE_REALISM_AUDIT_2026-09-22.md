@@ -1,4 +1,4 @@
-# Director Camera, Performance & Realism Sharpening — 2026-09-22
+# Director Camera, Performance, Realism, UGC & Previs Sharpening — 2026-09-22
 
 ## Goal
 
@@ -11,7 +11,8 @@ creative intent
 -> structured camera plan
 -> structured performance plan
 -> structured realism/source-preservation plan
--> storyboard persistence
+-> storyboard/reference-board evidence
+-> ordered generation-reference manifest
 -> provider-neutral compiled take
 -> generation/capture/previs
 -> directed-take QC
@@ -174,6 +175,20 @@ Reference imagery can now become governed storyboard evidence with:
 - optional approved prompt/profile;
 - deterministic animatic timing and scratch audio handoff.
 
+### `generation-reference-manifest.ts`
+
+Provider attachments are now explicit and deterministic:
+
+- one-based ordered slots;
+- image/video/audio media identity;
+- semantic roles such as source-video, product identity, character identity, location, style, composition and motion;
+- stable prompt tokens independent of vendor syntax;
+- duplicate/gapped slot rejection;
+- irrelevant optional-reference filtering with compacted slots;
+- fail-closed provider submission when a resolved character/product/location asset would be inserted outside a declared manifest.
+
+Generation capability admission now distinguishes a video control/reference from an image reference, so a greybox/reference clip requires `video-to-video` rather than being misclassified as text-to-video.
+
 ### `directed-take-qc.ts`
 
 Post-generation evidence can now fail a take for:
@@ -197,7 +212,7 @@ Failed QC can also be converted into a **proposal-only** repair scope: audio-onl
 
 ## Integration changes
 
-- `StoryboardBoard` can persist camera, performance and realism plans.
+- `StoryboardBoard` and storyboard→take handoff carry camera, performance and realism plans in the contract layer. **Durable Supabase persistence for those new structured fields is not yet certified because the current storyboard table migration does not contain dedicated `camera_plan`, `performance_plan`, or `realism_plan` columns.**
 - `buildStoryboardShotPlan` validates and carries the latest structured plans.
 - `TakeRequest` carries all three plans.
 - `compileTakePrompt` translates structured direction into provider-facing sections.
@@ -205,19 +220,21 @@ Failed QC can also be converted into a **proposal-only** repair scope: audio-onl
 - Legacy `CinematographyPreset`, `cameraLanguage` and plain prompt fields remain supported.
 - UGC generation is gated behind staged product/creator/location/concept/script/generation-brief approvals.
 - Previs exports can be validated against exact shot frame range, fps, resolution, references and provenance.
-- Reference boards can preserve crops, annotations and animatic timing without destructively altering source media.
+- Reference boards preserve crops, annotations, prompt evidence, board versions and animatic timing without destructively altering source media; stale exports can be rejected when the board version changes.
+- Ordered reference manifests prevent positional provider tags from drifting when references are added/removed and preserve video-reference media identity through submission.
 
 ## What still should come next
 
 This change sharpens the contract layer. The next runtime work should be:
 
-1. Add mobile-camera provider adapters for a React Native VisionCamera-class executor and a native iOS/Mijick-class executor.
-2. Add a virtual-camera/previs adapter capable of applying `PrevisBlockoutPlan` in Blender/Three.js/Bevy or equivalent and returning a validated `PrevisShotPackage`.
-3. Add Director workstation panels for greybox scene hierarchy, shot list, reference board, dual camera/actor timeline and shot-camera monitor.
-4. Bind frame/audio observations to `DirectedTakeQcObservation` using Director Vision Relay/FFmpeg/vision providers.
-5. Feed `DirectedTakeQcDecision` into multimodal take selection and the existing governed review/re-run lifecycle; repair proposals remain non-authorizing.
-6. Add a provider adapter for UGC image/video generation that consumes approved product/creator/location/script references without hard-coding one vendor.
-7. Certify one real generative-video provider, one physical camera provider, and one virtual/previs provider against the same Director contracts.
+1. Add and certify the durable storyboard schema migration for structured `camera_plan`, `performance_plan`, and `realism_plan` fields before claiming database-level persistence.
+2. Add mobile-camera provider adapters for a React Native VisionCamera-class executor and a native iOS/Mijick-class executor.
+3. Add a virtual-camera/previs adapter capable of applying `PrevisBlockoutPlan` in Blender/Three.js/Bevy or an external executor such as a CozyClay-class service, returning a validated `PrevisShotPackage` without surrendering Director authority.
+4. Add Director workstation panels for greybox scene hierarchy, shot list, reference board, dual camera/actor timeline and shot-camera monitor.
+5. Bind frame/audio observations to `DirectedTakeQcObservation` using Director Vision Relay/FFmpeg/vision providers.
+6. Feed `DirectedTakeQcDecision` into multimodal take selection and the existing governed review/re-run lifecycle; repair proposals remain non-authorizing.
+7. Add a provider adapter for UGC image/video generation that consumes approved product/creator/location/script references without hard-coding one vendor.
+8. Certify one real generative-video provider (including video-reference control), one physical camera provider, and one virtual/previs provider against the same Director contracts.
 
 ## Invariant
 
