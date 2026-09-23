@@ -47,7 +47,7 @@ function claimsAreTrusted(claims: SchedulerClaims, nowSeconds: number): boolean 
   if (claims.repository_owner !== 'bookieandco') return false
   if (claims.ref !== GITHUB_MAIN_REF) return false
   if (claims.workflow_ref !== GITHUB_WORKFLOW_REF) return false
-  if (!['schedule', 'workflow_dispatch'].includes(claims.event_name ?? '')) return false
+  if (!['schedule', 'workflow_dispatch', 'push'].includes(claims.event_name ?? '')) return false
   if (typeof claims.exp !== 'number' || claims.exp <= nowSeconds) return false
   if (typeof claims.nbf === 'number' && claims.nbf > nowSeconds + 30) return false
   if (typeof claims.sub !== 'string' || !claims.sub.startsWith(`repo:${GITHUB_REPOSITORY}:`)) return false
