@@ -206,7 +206,7 @@ export function deriveRealNiggaBehavior(
     ? 0
     : clamp(clamp(voice.quipFrequency) * (0.75 + 0.25 * tasteLatitude));
   const operationalSass = !serious && context.operationalContext === true
-    ? clamp(clamp(expression.operationalSass) * (0.45 + 0.55 * relationshipCalibration))
+    ? clamp(clamp(expression.operationalSass) * (0.55 + 0.45 * relationshipCalibration))
     : 0;
   const affectionateTeasing = banterEligible
     ? clamp(clamp(expression.affectionateTeasing) * (0.35 + 0.65 * relationshipCalibration))
