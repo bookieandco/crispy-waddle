@@ -47,6 +47,28 @@ const boards: StoryboardBoard[] = [
       },
       preserve: ['shot-size', 'lens'],
     },
+    performancePlan: {
+      version: 1,
+      sceneFunction: 'turn recognition into visible unease',
+      actors: [{ actorId: 'character', startingState: 'neutral', endingState: 'uneasy' }],
+      beats: [{
+        id: 'notice',
+        kind: 'reaction',
+        actorId: 'character',
+        trigger: 'the character notices the camera',
+        action: 'freeze for a fraction, then tighten the jaw',
+        endState: 'held eye contact with restrained tension',
+      }],
+    },
+    realismPlan: {
+      version: 1,
+      goal: 'retain natural body timing and subtle imperfection',
+      naturalismCues: ['breathing', 'weight-shift', 'skin-texture'],
+      physicalResponses: [{
+        trigger: 'the character freezes',
+        subjectResponse: 'breathing becomes shallower while posture remains weighted',
+      }],
+    },
     version: 3, artifactIds: ['art-2'], updatedAt: '2026-09-09T00:00:00Z',
   },
 ];
@@ -62,6 +84,8 @@ describe('storyboard shot adapter', () => {
     expect(plan.prompt).toContain('Character looks toward camera');
     expect(plan.cameraPlan?.intent.narrativeFunction).toContain('compress distance');
     expect(plan.cameraPlan?.optics?.focalLengthMm).toBe(50);
+    expect(plan.performancePlan?.sceneFunction).toContain('visible unease');
+    expect(plan.realismPlan?.naturalismCues).toContain('breathing');
   });
 
   it('creates a queued take without executing generation', () => {
@@ -70,6 +94,8 @@ describe('storyboard shot adapter', () => {
     expect(result.take.takeNumber).toBe(2);
     expect(result.shot.shotId).toBe('shot-1');
     expect(result.shot.cameraPlan?.movements[0]?.kind).toBe('dolly-in');
+    expect(result.shot.performancePlan?.beats[0]?.kind).toBe('reaction');
+    expect(result.shot.realismPlan?.goal).toContain('natural body timing');
   });
 
   it('fails closed when the latest storyboard camera plan is contradictory', () => {
