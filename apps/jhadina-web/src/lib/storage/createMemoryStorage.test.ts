@@ -17,7 +17,8 @@ describe("canonical Memory storage composition", () => {
     vi.stubEnv("NODE_ENV", "production")
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "")
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
-    vi.stubEnv("VERCEL_OIDC_TOKEN", "")
+    vi.stubEnv("VERCEL", "")
+    vi.stubEnv("VERCEL_ENV", "")
 
     expect(() => createMemoryStorageForRuntime()).toThrow(
       "JHADINA_MEMORY_DURABLE_STORAGE_REQUIRED",
@@ -28,7 +29,8 @@ describe("canonical Memory storage composition", () => {
     vi.stubEnv("NODE_ENV", "production")
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "")
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
-    vi.stubEnv("VERCEL_OIDC_TOKEN", "workload-token")
+    vi.stubEnv("VERCEL", "1")
+    vi.stubEnv("VERCEL_ENV", "production")
 
     expect(createMemoryStorageForRuntime()).toBeInstanceOf(VercelOidcMemoryStorage)
   })
