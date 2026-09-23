@@ -108,3 +108,22 @@ A real deployment attempt was made against the connected Railway workspace using
 This is an external infrastructure-capacity blocker, not a source-runtime pass. No service URL was created and therefore no real microphone/audio transcription drill was performed.
 
 **FINAL.4 status remains SOURCE READY / REAL-AUDIO BLOCKED.** The deployable container, authenticated HTTP boundary, FFmpeg normalization and Faster-Whisper adapter are merged. Certification must remain fail-closed until compute capacity is available and an actual audio sample completes the deployed FFmpeg → Faster-Whisper path.
+
+
+## FINAL.9 Artifact Scanner source-certification receipt — 2026-09-22
+
+Wave 11 PR: #632.
+
+The durable Artifact Core now has a concrete malware scanner runtime rather than a placeholder provider contract:
+
+- scan requests are bound to the original upload bytes, Artifact Core SHA-256, MIME type, asset ID and byte count;
+- the HTTP adapter sends authenticated multipart bytes to a dedicated scanner service rather than granting the scanner Supabase service-role access;
+- the scanner streams bytes to ClamAV `clamd` with `INSTREAM`, recomputes SHA-256 while scanning, and rejects size/hash mismatches;
+- ClamAV detections return `rejected`;
+- scanner outages, malformed responses, transport failures, hash/size mismatches and protocol errors remain fail-closed in `quarantine`;
+- UniversalArtifactCore refuses to apply any scanner result whose artifact ID, SHA-256, MIME type or byte count differs from the quarantined record;
+- dedicated scanner CI passes, and Core Spine regressions pass with the byte-bound scanner contract.
+
+ClamAV's daemon socket must remain private. Its TCP protocol has no authentication or encryption, so production must use a Unix socket or a private service network; the public boundary is the authenticated Jhadina scanner HTTP service.
+
+**FINAL.9 status: SOURCE-CERTIFIED SCANNER / LIVE DEPLOYMENT + BINARY DRILL BLOCKED.** The remaining proof is operational: deploy ClamAV with current signatures, deploy the scanner service, configure `JHADINA_MEDIA_SCANNER_URL` and `JHADINA_MEDIA_SCANNER_TOKEN`, then prove a benign file reaches `clean` and an EICAR test file reaches `rejected` while scanner outage remains `quarantine`. Railway still cannot admit an additional service under the currently observed workspace resource limit, so this gate is not promoted to real-world PASS.

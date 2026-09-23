@@ -1,0 +1,27 @@
+name: Jhadina Artifact Scanner CI
+
+on:
+  pull_request:
+    paths:
+      - "services/jhadina-artifact-scanner/**"
+      - "packages/security-core/src/media-security.ts"
+      - "packages/jhadina-core-spine/src/universal-artifact-core.ts"
+      - "packages/jhadina-core-spine/src/universal-artifact-core.test.ts"
+      - "apps/jhadina-web/src/lib/artifacts/http-media-security-scanner.ts"
+      - ".github/workflows/jhadina-artifact-scanner.yml"
+
+jobs:
+  scanner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install scanner dependencies
+        run: pip install -r services/jhadina-artifact-scanner/requirements.txt
+      - name: Compile scanner
+        run: python -m compileall -q services/jhadina-artifact-scanner
+      - name: Scanner unit tests
+        working-directory: services/jhadina-artifact-scanner
+        run: python -m unittest -v

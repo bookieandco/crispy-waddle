@@ -13,6 +13,17 @@ describe("UniversalArtifactCore",()=>{
   const result=await core.ingest(base)
   expect(result.status).toBe("quarantine")
  })
+ it("keeps scanner identity/hash mismatches quarantined",async()=>{
+  let applied=false
+  const core=new UniversalArtifactCore(
+   {putQuarantine:async(path)=>({bucket:"q",path,uri:`private://${path}`})},
+   {createQuarantined:async(i)=>({...i,status:"quarantine",scanReasons:[],derivativeRefs:[]}),applyScan:async()=>{applied=true;throw new Error("should not")}},
+   {scan:async(input)=>({assetId:input.assetId,sha256:"0".repeat(64),verdict:"clean" as const,mimeType:input.mimeType,sizeBytes:input.sizeBytes,reasons:[],scannedAt:new Date().toISOString()})},
+  )
+  const result=await core.ingest(base)
+  expect(result.status).toBe("quarantine")
+  expect(applied).toBe(false)
+ })
  it("rejects MIME disagreement before storage",async()=>{
   let stored=false
   const core=new UniversalArtifactCore(
