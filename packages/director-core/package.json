@@ -59,7 +59,8 @@
     "./realism-direction": "./src/realism-direction.ts",
     "./directed-take-qc": "./src/directed-take-qc.ts",
     "./ugc-production": "./src/ugc-production.ts",
-    "./previs-blockout": "./src/previs-blockout.ts"
+    "./previs-blockout": "./src/previs-blockout.ts",
+    "./storyboard-reference-board": "./src/storyboard-reference-board.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
