@@ -3,6 +3,8 @@ import type { ConversationSignalContext, EphemeralArtifactContext } from "@jhadi
 import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
+import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import { CleanArtifactContextResolver } from "@/lib/artifacts/clean-artifact-context-resolver"
 import { createAndSubmitAskVideoJob, inspectAskVideoIntent } from "@/lib/director-video-job-service"
 import {
   handleAskSocialCommand,
@@ -111,7 +113,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const artifacts = parseEphemeralArtifacts(body?.artifacts)
+    const ephemeralArtifacts = parseEphemeralArtifacts(body?.artifacts)
+    const durableRefs = Array.isArray(body?.artifactRefs) ? body.artifactRefs.filter((x:unknown)=>typeof x==="string").slice(0,8).map((id:string)=>({id})) : []
+    let durableArtifacts: EphemeralArtifactContext[] = []
+    if (durableRefs.length) {
+      const verifier = await createRequestIdentityVerifier()
+      const verified = await verifier.verify({ userId: claimedUserId })
+      const client = createServiceRoleClient()
+      if (!client) throw new Error("ARTIFACT_CONTEXT_STORAGE_NOT_CONFIGURED")
+      durableArtifacts = await new CleanArtifactContextResolver(client, verified.userId).resolve(durableRefs)
+    }
+    const artifacts = [...ephemeralArtifacts, ...durableArtifacts]
     const conversationSignals = parseConversationSignals(body?.conversationSignals)
     const doctorIntent = inspectAskDoctorIntent(activeTask)
     if (doctorIntent) {
