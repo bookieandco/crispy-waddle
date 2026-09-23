@@ -224,17 +224,6 @@ export async function POST(req: NextRequest) {
         activeTask,
       })
       if (social) {
-        const reasoningEventId = await recordAskShortcutExperience({
-          userId: verifiedIdentity.userId,
-          activeTask,
-          proposal: social.proposal,
-          shortcut: "social",
-          metadata: {
-            operation: social.workPlan.operation,
-            authority: social.workPlan.authority,
-            nextBoundary: social.workPlan.nextBoundary,
-          },
-        })
         const clarifying = social.proposal.disposition === "ASK"
         const videoIntent = inspectAskVideoIntent(activeTask)
         const shouldStartDirectorVideo =
@@ -258,6 +247,18 @@ export async function POST(req: NextRequest) {
               recommendation,
               rationale: `${social.proposal.rationale} Director auto-start requires one resolved brand and at least one connected account so expression/account scope cannot be broadened implicitly.`,
             }
+            const reasoningEventId = await recordAskShortcutExperience({
+              userId: verifiedIdentity.userId,
+              activeTask,
+              proposal: scopedProposal,
+              shortcut: "social",
+              metadata: {
+                operation: social.workPlan.operation,
+                authority: social.workPlan.authority,
+                nextBoundary: social.workPlan.nextBoundary,
+                directorOutcome: "scope_clarification",
+              },
+            })
             return NextResponse.json({
               success: true,
               data: {
@@ -309,6 +310,21 @@ export async function POST(req: NextRequest) {
               ...(video.job.error ? [video.job.error] : []),
             ],
           }
+          const reasoningEventId = await recordAskShortcutExperience({
+            userId: verifiedIdentity.userId,
+            activeTask,
+            proposal: combinedProposal,
+            shortcut: "social",
+            metadata: {
+              operation: social.workPlan.operation,
+              authority: social.workPlan.authority,
+              nextBoundary: social.workPlan.nextBoundary,
+              directorOutcome: started ? "started" : "deferred",
+              videoJobId: video.job.id,
+              projectId: video.job.projectId,
+              videoStatus: video.job.status,
+            },
+          })
           return NextResponse.json({
             success: true,
             data: {
@@ -328,6 +344,17 @@ export async function POST(req: NextRequest) {
           })
         }
 
+        const reasoningEventId = await recordAskShortcutExperience({
+          userId: verifiedIdentity.userId,
+          activeTask,
+          proposal: social.proposal,
+          shortcut: "social",
+          metadata: {
+            operation: social.workPlan.operation,
+            authority: social.workPlan.authority,
+            nextBoundary: social.workPlan.nextBoundary,
+          },
+        })
         return NextResponse.json({
           success: true,
           data: {
