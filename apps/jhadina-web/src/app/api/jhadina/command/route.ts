@@ -15,6 +15,7 @@ import {
   handleAskGrowthReadCommand,
   inspectAskGrowthReadIntent,
 } from "@/lib/intelligence/ask-growth-command"
+import { realizeAskJhadinaExpression } from "@/lib/intelligence/ask-expression"
 
 export const dynamic = "force-dynamic"
 
@@ -128,25 +129,29 @@ export async function POST(req: NextRequest) {
     const doctorIntent = inspectAskDoctorIntent(activeTask)
     if (doctorIntent) {
       const verifier = await createRequestIdentityVerifier()
-      await verifier.verify({ userId: claimedUserId })
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
       const doctor = doctorProposal(doctorIntent)
+      const proposal = {
+        id: `doctor-proposal:${crypto.randomUUID()}`,
+        contextId: `doctor-context:${crypto.randomUUID()}`,
+        disposition: doctor.disposition,
+        recommendation: doctor.recommendation,
+        rationale: doctor.rationale,
+        evidence: [],
+        uncertainty: ["Runtime diagnostic evidence has not yet been collected in this HTTP request."],
+        alternatives: [],
+      }
+      const expression = await realizeAskJhadinaExpression({
+        userId: verifiedIdentity.userId,
+        activeTask,
+        proposal,
+      })
       return NextResponse.json({
         success: true,
         data: {
-          proposal: {
-            id: `doctor-proposal:${crypto.randomUUID()}`,
-            disposition: doctor.disposition,
-            recommendation: doctor.recommendation,
-            rationale: doctor.rationale,
-            evidence: [],
-            uncertainty: ["Runtime diagnostic evidence has not yet been collected in this HTTP request."],
-            alternatives: [],
-          },
+          proposal,
           reasoningEventId: null,
-          expression: {
-            presentation: { mode: "direct", allowProfanity: false, allowQuip: false },
-            segments: [{ kind: "semantic", text: doctor.recommendation }],
-          },
+          expression,
           doctorIntent: doctor.doctorIntent,
           approvalRequired: true,
           executionStarted: false,
@@ -170,18 +175,11 @@ export async function POST(req: NextRequest) {
           data: {
             proposal: growth.proposal,
             reasoningEventId: growth.reasoningEventId,
-            expression: {
+            expression: await realizeAskJhadinaExpression({
+              userId: verifiedIdentity.userId,
+              activeTask,
               proposal: growth.proposal,
-              presentation: {
-                mode: "direct",
-                allowProfanity: false,
-                allowQuip: false,
-              },
-              segments: [{
-                kind: "semantic",
-                text: growth.proposal.recommendation,
-              }],
-            },
+            }),
             verified: growth.verified,
             verificationReason: growth.verificationReason,
             growthWorkPlan: growth.workPlan,
@@ -228,11 +226,11 @@ export async function POST(req: NextRequest) {
               data: {
                 proposal: scopedProposal,
                 reasoningEventId: social.reasoningEventId,
-                expression: {
+                expression: await realizeAskJhadinaExpression({
+                  userId: verifiedIdentity.userId,
+                  activeTask,
                   proposal: scopedProposal,
-                  presentation: { mode: "clarifying", allowProfanity: false, allowQuip: false },
-                  segments: [{ kind: "semantic", text: recommendation }],
-                },
+                }),
                 verified: social.verified,
                 verificationReason: social.verificationReason,
                 socialWorkPlan: social.workPlan,
@@ -279,15 +277,11 @@ export async function POST(req: NextRequest) {
             data: {
               proposal: combinedProposal,
               reasoningEventId: social.reasoningEventId,
-              expression: {
+              expression: await realizeAskJhadinaExpression({
+                userId: verifiedIdentity.userId,
+                activeTask,
                 proposal: combinedProposal,
-                presentation: {
-                  mode: "direct",
-                  allowProfanity: false,
-                  allowQuip: false,
-                },
-                segments: [{ kind: "semantic", text: message }],
-              },
+              }),
               verified: social.verified,
               verificationReason: `${social.verificationReason} Director video job persisted before provider submission.`,
               socialWorkPlan: social.workPlan,
@@ -302,18 +296,11 @@ export async function POST(req: NextRequest) {
           data: {
             proposal: social.proposal,
             reasoningEventId: social.reasoningEventId,
-            expression: {
+            expression: await realizeAskJhadinaExpression({
+              userId: verifiedIdentity.userId,
+              activeTask,
               proposal: social.proposal,
-              presentation: {
-                mode: clarifying ? "clarifying" : "direct",
-                allowProfanity: false,
-                allowQuip: false,
-              },
-              segments: [{
-                kind: "semantic",
-                text: social.proposal.recommendation,
-              }],
-            },
+            }),
             verified: social.verified,
             verificationReason: social.verificationReason,
             socialWorkPlan: social.workPlan,
@@ -357,11 +344,11 @@ export async function POST(req: NextRequest) {
         data: {
           proposal,
           reasoningEventId: `director-video:${video.job.id}`,
-          expression: {
+          expression: await realizeAskJhadinaExpression({
+            userId: verifiedIdentity.userId,
+            activeTask,
             proposal,
-            presentation: { mode: "direct", allowProfanity: false, allowQuip: false },
-            segments: [{ kind: "semantic", text: message }],
-          },
+          }),
           verified: true,
           verificationReason: "Director video job persisted with project authority before provider submission.",
           videoJob: video.job,
