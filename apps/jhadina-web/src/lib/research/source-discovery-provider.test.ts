@@ -1,5 +1,6 @@
 import {describe,expect,it} from "vitest"
 import {
+  buildRecoverySearchQuery,
   candidateFromSearchResult,
   inferRecoverySourceKind,
   isGovernmentDomain,
@@ -47,6 +48,32 @@ describe("recovery source discovery provider",()=>{
       snippet:"Department of corrections inmate trust account directory.",
     })
     expect(privateDirectory).not.toBeNull()
+    expect(privateDirectory?.officialSourceVerified).toBe(false)
+  })
+
+  it("uses discovery hints only to sharpen the query",()=>{
+    const query=buildRecoverySearchQuery({
+      query:"site:.gov Example County CA sheriff jail inmate trust account",
+      authorityRole:"COUNTY_JAIL_OR_SHERIFF",
+      stateCode:"CA",
+      countyName:"Example County",
+      discoveryHints:[{
+        name:"Example County Sheriff",
+        url:"https://www.jail411.com/directory/example",
+        allowedUse:"COUNTY_OPERATOR_AND_FACILITY_DISCOVERY_ONLY",
+        requiresOfficialConfirmation:true,
+      }],
+    })
+    expect(query).toContain("Example County Sheriff")
+    const privateDirectory=candidateFromSearchResult({
+      query,
+      authorityRole:"COUNTY_JAIL_OR_SHERIFF",
+      discoveryHints:[{name:"Example County Sheriff"}],
+    },{
+      title:"Example County Sheriff inmate trust account",
+      url:"https://www.jail411.com/directory/example",
+      snippet:"inmate trust account",
+    })
     expect(privateDirectory?.officialSourceVerified).toBe(false)
   })
 
