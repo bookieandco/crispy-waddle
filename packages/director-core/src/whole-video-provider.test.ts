@@ -17,7 +17,14 @@ const intent = {
 
 function provider(
   id: string,
-  input: { costClass?: 'free-local'|'external-free'|'paid'; character?: boolean; requiresCharacter?: boolean } = {},
+  input: {
+    costClass?: 'free-local'|'external-free'|'paid';
+    character?: boolean;
+    requiresCharacter?: boolean;
+    product?: boolean;
+    requiresProduct?: boolean;
+    expression?: boolean;
+  } = {},
 ): WholeVideoProductionProvider {
   return {
     descriptor: {
@@ -28,6 +35,9 @@ function provider(
       health: 'healthy',
       supportsCharacterReference: input.character ?? false,
       requiresCharacterReference: input.requiresCharacter ?? false,
+      supportsProductReference: input.product ?? false,
+      requiresProductReference: input.requiresProduct ?? false,
+      supportsExpressionGuidance: input.expression ?? false,
     },
     async submit() { return { providerJobId: 'job', status: 'queued' }; },
     async status() { return { providerJobId: 'job', status: 'processing' }; },
@@ -52,6 +62,32 @@ describe('whole video provider selection', () => {
       provider('reference-free', { character: true, requiresCharacter: true }),
     ], intent, { characterReference: true });
     expect(selected?.descriptor.id).toBe('reference-free');
+  });
+
+  it('refuses generic providers when a locked product reference is required', () => {
+    const selected = selectWholeVideoProvider([
+      provider('generic-free'),
+      provider('product-free', { product: true, requiresProduct: true }),
+    ], intent, { productReference: true });
+    expect(selected?.descriptor.id).toBe('product-free');
+  });
+
+  it('does not select a product-only provider for an ordinary video', () => {
+    expect(selectWholeVideoProvider([
+      provider('product-only', { product: true, requiresProduct: true }),
+    ], intent)).toBeUndefined();
+  });
+
+  it('requires a provider that can preserve Social expression guidance', () => {
+    const selected = selectWholeVideoProvider([
+      provider('generic-free'),
+      provider('style-aware', { expression: true }),
+    ], intent, { expressionGuidance: true });
+    expect(selected?.descriptor.id).toBe('style-aware');
+
+    expect(selectWholeVideoProvider([
+      provider('generic-free'),
+    ], intent, { expressionGuidance: true })).toBeUndefined();
   });
 
   it('returns no provider instead of losing character identity', () => {
