@@ -1,3 +1,5 @@
+import { compileDirectorCameraDirective, type DirectorCameraPlan } from './camera-language.js';
+
 export type CinematographyPreset = {
   id: string;
   name: string;
@@ -38,7 +40,10 @@ export type TakeRequest = {
   sceneCount?: number;
   takeCount?: number;
   locked: ContinuityLock[];
+  /** Legacy/free-form preset retained for backwards compatibility. */
   cinematography?: CinematographyPreset;
+  /** Canonical structured camera intent for new Director camera-aware flows. */
+  cameraPlan?: DirectorCameraPlan;
   referenceCharacterIds?: string[];
   referenceAssetIds?: string[];
 };
@@ -94,6 +99,8 @@ export function buildGenerationBrief(request: TakeRequest) {
       assetReferences: request.referenceAssetIds ?? [],
     },
     cinematography: request.cinematography,
+    cameraPlan: request.cameraPlan,
+    cameraDirective: request.cameraPlan ? compileDirectorCameraDirective(request.cameraPlan) : undefined,
     approvalRequired: true,
   };
 }
