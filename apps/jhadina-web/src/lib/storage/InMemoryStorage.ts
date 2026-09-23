@@ -166,6 +166,15 @@ export class InMemoryStorage implements MemoryStorage {
     return this.reasoningEvents.get(id)
   }
 
+  async updateReasoningEvent(id: string, userId: string, updates: Partial<ReasoningEvent>): Promise<ReasoningEvent | undefined> {
+    const event = this.reasoningEvents.get(id)
+    if (!event || event.userId !== userId) return undefined
+    const { id: _id, userId: _userId, timestamp: _timestamp, userMessage: _userMessage, observation: _observation, ...allowed } = updates
+    const updated: ReasoningEvent = { ...event, ...allowed }
+    this.reasoningEvents.set(id, updated)
+    return updated
+  }
+
   async listReasoningEvents(userId: string, limit: number = 50): Promise<ReasoningEvent[]> {
     // Reverse insertion order rather than sorting by timestamp: events
     // created within the same millisecond (common in tests and fast
