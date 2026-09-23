@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   compilePrevisShotList,
+  evaluatePrevisExecutor,
+  evaluatePrevisObservationCoverage,
   secondsToFrames,
   validatePrevisBlockout,
+  validatePrevisExports,
   validatePrevisShotPackage,
   type PrevisBlockoutPlan,
 } from './previs-blockout.js';
