@@ -6,17 +6,17 @@ function base64UrlJson(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString('base64url')
 }
 
-function makeOidcFixture(overrides: Record<string, unknown> = {}) {
-  const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
-  const jwk = publicKey.export({ format: 'jwk' }) as JsonWebKey & {
-    kid?: string
-    alg?: string
-    use?: string
-  }
-  jwk.kid = 'test-key'
-  jwk.alg = 'RS256'
-  jwk.use = 'sig'
+const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
+const jwk = publicKey.export({ format: 'jwk' }) as JsonWebKey & {
+  kid?: string
+  alg?: string
+  use?: string
+}
+jwk.kid = 'test-key'
+jwk.alg = 'RS256'
+jwk.use = 'sig'
 
+function makeOidcFixture(overrides: Record<string, unknown> = {}) {
   const header = base64UrlJson({ alg: 'RS256', kid: 'test-key', typ: 'JWT' })
   const claims = base64UrlJson({
     iss: 'https://token.actions.githubusercontent.com',
