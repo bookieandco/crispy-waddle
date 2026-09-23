@@ -5,6 +5,7 @@ import type { DirectorGenerationGateInput, AuthoritativeDirectorGenerationGateIn
 import { evaluateDirectorGenerationGate } from './creative-gate-adapter';
 import type { DirectorStoryboardLineageResolver } from './storyboard-lineage-resolver';
 import type { DirectorCastResolver, ResolvedCharacterSceneIdentity } from './cast-bible';
+import type { OrderedGenerationReference } from './generation-reference-manifest.js';
 
 export interface DirectorCharacterReferenceAssetResolver {
   resolve(assetId: string, projectId: string): Promise<{ uri: string; sha256?: string; mimeType?: string }>;
@@ -166,15 +167,12 @@ export class GenerationPlanAdapter {
 
 
 function buildManifestReferences(
-  manifestReferences: TakeRequest['referenceManifest'] extends infer T
-    ? T extends { references: infer R } ? R : never
-    : never,
+  manifestReferences: readonly OrderedGenerationReference[],
   characterReferenceIds: readonly string[],
   requestReferenceAssetIds: readonly string[],
   resolvedCharacterByAsset: ReadonlyMap<string, { assetId: string; role: 'character'; uri?: string }>,
 ) {
-  const ordered = [...(manifestReferences as NonNullable<TakeRequest['referenceManifest']>['references'])]
-    .sort((a, b) => a.slot - b.slot);
+  const ordered = [...manifestReferences].sort((a, b) => a.slot - b.slot);
   const manifestAssetIds = new Set(ordered.map((reference) => reference.assetId));
 
   for (const assetId of characterReferenceIds) {
@@ -199,7 +197,7 @@ function buildManifestReferences(
 }
 
 function providerReferenceRole(
-  role: NonNullable<TakeRequest['referenceManifest']>['references'][number]['role'],
+  role: OrderedGenerationReference['role'],
 ): 'character' | 'location' | 'style' | 'composition' | 'motion' | 'image' {
   switch (role) {
     case 'character-identity':
