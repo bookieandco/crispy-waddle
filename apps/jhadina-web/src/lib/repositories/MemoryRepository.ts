@@ -96,7 +96,7 @@ export class MemoryRepository {
    * Reject a pending candidate
    * Moves it from PENDING → REJECTED (discarded)
    */
-  async reject(candidateId: string, userId: string): Promise<void> {
+  async reject(candidateId: string, userId: string): Promise<MemoryCandidate> {
     const candidate = await this.storage.getCandidate(candidateId)
 
     if (!candidate) {
@@ -113,8 +113,9 @@ export class MemoryRepository {
       throw new Error(`User not authorized for candidate: ${candidateId}`)
     }
 
-    // Simply remove it (rejected memories don't persist)
+    // Remove the pending candidate after capturing its immutable audit payload.
     await this.storage.removeCandidate(candidateId)
+    return candidate
   }
 
   /**
