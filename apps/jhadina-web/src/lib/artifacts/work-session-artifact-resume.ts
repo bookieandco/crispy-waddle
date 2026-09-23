@@ -10,6 +10,7 @@ export interface WorkSessionArtifactResumeInput {
   ownerUserId: string
   workSessionId: string
   excludeArtifactIds?: readonly string[]
+  maxArtifacts?: number
 }
 
 export interface WorkSessionArtifactResumeResult {
@@ -50,12 +51,16 @@ export async function resolveWorkSessionArtifactContext(
   }
 
   const excluded = new Set(input.excludeArtifactIds ?? [])
+  const maxArtifacts = Math.max(
+    0,
+    Math.min(MAX_RESUMED_ARTIFACTS, input.maxArtifacts ?? MAX_RESUMED_ARTIFACTS),
+  )
   const ids = [...new Set(
     session.artifactRefs
       .filter((ref) => ref.admitted && !excluded.has(ref.id))
       .map((ref) => ref.id)
       .filter(Boolean),
-  )].slice(0, MAX_RESUMED_ARTIFACTS)
+  )].slice(0, maxArtifacts)
 
   const resolver = overrides.resolver
     ?? new CleanArtifactContextResolver(input.client, input.ownerUserId)
