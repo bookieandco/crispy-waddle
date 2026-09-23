@@ -105,7 +105,7 @@ function decodePersonalityState(value: unknown): PersonalityState {
   if (!isDateString(value.updatedAt)) {
     throw new Error("Invalid persisted personality updatedAt")
   }
-  return structuredClone(value) as PersonalityState
+  return structuredClone(value) as unknown as PersonalityState
 }
 
 export class SupabasePersonalityStateRepository implements PersonalityStateRepository {
