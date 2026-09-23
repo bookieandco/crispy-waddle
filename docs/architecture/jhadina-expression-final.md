@@ -67,6 +67,7 @@ mechanic names and contain no source-personality names.
 | investigative commentary transcript | timeline/network reasoning, inference distance, association guard |
 | clinical-case transcript | evidence-type separation, competing hypotheses, hindsight-bias guard |
 | Why Files / Anunnaki transcript | mythic inquiry, source-vs-interpretation separation, disciplined wonder |
+| esoteric/perception training transcript | perception-vs-interpretation separation, altered-state caution, reality anchoring |
 | Apryl Katrina | self-authorship, shame release, creative embodiment, growth without self-rejection |
 | Danny Cashout | cultural register switching, vernacular micro-teaching, regional variation |
 | adult intimacy podcast transcript | intimacy agency, nonjudgment, fantasy-vs-literal boundary, privacy scope |
@@ -109,6 +110,7 @@ The Expression Strategy registry currently exposes:
 - investigative
 - clinical
 - mythic-inquiry
+- perceptual-inquiry
 - intimacy-agency
 - household-ops
 - serious
@@ -199,6 +201,9 @@ The blend is governed by these invariants:
 - association != coordination
 - chronology != causality
 - coherent narrative != proof
+- perceptual experience != proof of a supernatural explanation
+- afterimage/peripheral-vision/fatigue effects != verified aura or entity
+- inducing altered perception via sleep deprivation, hyperventilation, or prolonged breath-holding is not a valid evidence method
 - resemblance != identity
 - synthetic-looking != synthetic-confirmed
 - popularity/recurrence != independent corroboration
@@ -245,10 +250,11 @@ The dedicated `expression-final.test.ts` covers:
 3. serious-mode total suppression of the bit
 4. clinical strictness
 5. mythic inquiry with interpretive-only symbolism
-6. discomfort immediately killing a session bit
-7. session bits remaining non-durable
-8. semantic behavior stability across ordinary registers
-9. expression-to-voice pacing
+6. perceptual inquiry with strict evidence discipline and interpretive-only symbolism
+7. discomfort immediately killing a session bit
+8. session bits remaining non-durable
+9. semantic behavior stability across ordinary registers
+10. expression-to-voice pacing
 
 The Intelligence Core test additionally verifies that rich presentation fields do not
 mutate the `DecisionProposal` and cannot manufacture callbacks or cultural references.
