@@ -44,6 +44,17 @@ export async function POST(request: NextRequest) {
       stateCode: typeof body.stateCode === "string" ? body.stateCode : undefined,
       countyName: typeof body.countyName === "string" ? body.countyName : undefined,
       desiredSourceTypes: Array.isArray(body.desiredSourceTypes) ? body.desiredSourceTypes : undefined,
+      discoveryHints: Array.isArray(body.discoveryHints)
+        ? body.discoveryHints.slice(0, 20).map((hint: unknown) => {
+            const value = hint && typeof hint === "object" ? hint as Record<string, unknown> : {}
+            return {
+              name: typeof value.name === "string" ? value.name : undefined,
+              url: typeof value.url === "string" ? value.url : undefined,
+              allowedUse: typeof value.allowedUse === "string" ? value.allowedUse : undefined,
+              requiresOfficialConfirmation: true,
+            }
+          })
+        : undefined,
       maxResults: Number.isInteger(body.maxResults) ? body.maxResults : 8,
     })
 
@@ -58,6 +69,7 @@ export async function POST(request: NextRequest) {
         searchResultDoesNotVerifyClaimant: true,
         searchResultDoesNotVerifyEntitlement: true,
         accessReviewSeparate: true,
+        discoveryHintsNeverVerifySource: true,
         noExternalActionAuthority: true,
       },
     })

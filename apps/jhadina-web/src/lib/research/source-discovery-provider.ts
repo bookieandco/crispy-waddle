@@ -5,12 +5,20 @@ export type RecoveryAuthorityRole =
   | "COUNTY_TREASURER"
   | "STATE_TREASURER_OR_UNCLAIMED_PROPERTY"
 
+export type RecoveryDiscoveryHint = {
+  name?: string
+  url?: string
+  allowedUse?: string
+  requiresOfficialConfirmation?: boolean
+}
+
 export type RecoverySearchRequest = {
   query: string
   authorityRole: RecoveryAuthorityRole
   stateCode?: string
   countyName?: string
   desiredSourceTypes?: string[]
+  discoveryHints?: RecoveryDiscoveryHint[]
   maxResults?: number
 }
 
@@ -138,6 +146,15 @@ export function candidateFromSearchResult(
   }
 }
 
+export function buildRecoverySearchQuery(request: RecoverySearchRequest): string {
+  const base = clean(request.query)
+  const hintNames = (Array.isArray(request.discoveryHints) ? request.discoveryHints : [])
+    .slice(0, 8)
+    .map(hint => clean(hint?.name))
+    .filter(Boolean)
+  return [base, ...new Set(hintNames)].filter(Boolean).join(" ").replace(/\s+/g, " ").trim()
+}
+
 export async function searchRecoverySources(request: RecoverySearchRequest): Promise<RecoverySourceCandidate[]> {
   const endpoint = process.env.WEB_SEARCH_URL
   const apiKey = process.env.WEB_SEARCH_API_KEY
@@ -145,8 +162,8 @@ export async function searchRecoverySources(request: RecoverySearchRequest): Pro
     throw new Error("JHADINA_WEB_SEARCH_NOT_CONFIGURED")
   }
 
-  const query = clean(request.query)
-  if (!query || query.length > 500) throw new Error("RECOVERY_SEARCH_QUERY_INVALID")
+  const query = buildRecoverySearchQuery(request)
+  if (!query || query.length > 700) throw new Error("RECOVERY_SEARCH_QUERY_INVALID")
 
   const maxResults = Math.max(1, Math.min(Number(request.maxResults || 8), 20))
   const url = new URL(endpoint)
