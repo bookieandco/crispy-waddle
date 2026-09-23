@@ -3,6 +3,12 @@ import {
   compileDirectorCameraDirective,
   type DirectorCameraPlan,
 } from './camera-language.js';
+import {
+  validateGenerationReferenceManifest,
+  type GenerationReferenceManifest,
+  type GenerationReferenceRole,
+  type OrderedGenerationReference,
+} from './generation-reference-manifest.js';
 
 export type PrevisPrimitiveKind =
   | 'cube'
@@ -78,7 +84,15 @@ export interface PrevisShotBlock {
 export interface PrevisReferenceBinding {
   assetId: string;
   semanticRole: string;
-  usage: 'identity' | 'appearance' | 'texture' | 'environment' | 'style';
+  usage:
+    | 'identity'
+    | 'product-identity'
+    | 'character-identity'
+    | 'appearance'
+    | 'texture'
+    | 'environment'
+    | 'style';
+  evidenceIds?: readonly string[];
 }
 
 export interface PrevisBlockoutPlan {
@@ -354,6 +368,116 @@ export function validatePrevisShotPackage(
   return Object.freeze([...new Set(reasons)]);
 }
 
+export function buildPrevisGenerationReferenceManifest(
+  plan: PrevisBlockoutPlan,
+  shotId: string,
+  pkg: PrevisShotPackage,
+): GenerationReferenceManifest {
+  const packageReasons = validatePrevisShotPackage(plan, shotId, pkg);
+  if (packageReasons.length) {
+    throw new Error(`DIRECTOR_PREVIS_PACKAGE_INVALID: ${packageReasons.join(', ')}`);
+  }
+
+  const shot = plan.shots.find((candidate) => candidate.id === shotId)!;
+  const bindingByAsset = new Map(plan.referenceBindings.map((binding) => [binding.assetId, binding]));
+  const references: OrderedGenerationReference[] = [];
+  const seen = new Set<string>();
+
+  const push = (
+    assetId: string | undefined,
+    media: OrderedGenerationReference['media'],
+    role: GenerationReferenceRole,
+    semanticLabel: string,
+    promptToken: string,
+    evidenceIds: readonly string[],
+  ) => {
+    if (!assetId?.trim() || seen.has(assetId)) return;
+    seen.add(assetId);
+    references.push({
+      slot: references.length + 1,
+      assetId,
+      media,
+      role,
+      semanticLabel,
+      promptToken,
+      required: true,
+      evidenceIds: [...evidenceIds],
+    });
+  };
+
+  push(
+    pkg.greyboxClipAssetId,
+    'video',
+    'motion',
+    `authored greybox timing, camera movement and blocking for ${shot.id}`,
+    'GREYBOX',
+    pkg.provenanceEvidenceIds,
+  );
+  push(
+    pkg.firstFrameAssetId,
+    'image',
+    'first-frame',
+    `authored first frame for ${shot.id}`,
+    'FIRST_FRAME',
+    pkg.provenanceEvidenceIds,
+  );
+  push(
+    pkg.lastFrameAssetId,
+    'image',
+    'last-frame',
+    `authored last frame for ${shot.id}`,
+    'LAST_FRAME',
+    pkg.provenanceEvidenceIds,
+  );
+
+  for (const assetId of pkg.referenceAssetIds) {
+    const binding = bindingByAsset.get(assetId);
+    push(
+      assetId,
+      'image',
+      generationRoleForPrevisBinding(binding?.usage),
+      binding?.semanticRole ?? `shot reference for ${shot.id}`,
+      `SHOT_REF_${references.length + 1}`,
+      binding?.evidenceIds?.length ? binding.evidenceIds : pkg.provenanceEvidenceIds,
+    );
+  }
+
+  push(
+    pkg.conditioningPasses.depth,
+    'image',
+    'depth',
+    `depth conditioning for ${shot.id}`,
+    'DEPTH',
+    pkg.provenanceEvidenceIds,
+  );
+  push(
+    pkg.conditioningPasses.normal,
+    'image',
+    'normal',
+    `normal conditioning for ${shot.id}`,
+    'NORMAL',
+    pkg.provenanceEvidenceIds,
+  );
+
+  const manifest: GenerationReferenceManifest = Object.freeze({
+    id: `${plan.id}:${shot.id}:generation-references`,
+    projectId: plan.projectId,
+    shotId: shot.id,
+    references: Object.freeze(references.map((reference) => Object.freeze({
+      ...reference,
+      evidenceIds: Object.freeze([...reference.evidenceIds]),
+    }))),
+    authority: 'DIRECTOR_REFERENCE_MANIFEST',
+  });
+
+  const issues = validateGenerationReferenceManifest(manifest);
+  if (issues.length) {
+    throw new Error(`DIRECTOR_PREVIS_REFERENCE_MANIFEST_INVALID: ${issues.map((issue) => issue.code).join(', ')}`);
+  }
+
+  return manifest;
+}
+
 export function secondsToFrames(seconds: number, fps: number): number {
   if (!Number.isFinite(seconds) || seconds < 0) throw new Error('DIRECTOR_PREVIS_SECONDS_INVALID');
   if (!Number.isFinite(fps) || fps <= 0) throw new Error('DIRECTOR_PREVIS_FPS_INVALID');
@@ -413,6 +537,23 @@ function validatePoseTracks(shot: PrevisShotBlock, index: number, issues: Previs
       break;
     }
     previous = key.frame;
+  }
+}
+
+function generationRoleForPrevisBinding(
+  usage: PrevisReferenceBinding['usage'] | undefined,
+): GenerationReferenceRole {
+  switch (usage) {
+    case 'product-identity':
+      return 'product-identity';
+    case 'character-identity':
+      return 'character-identity';
+    case 'environment':
+      return 'location';
+    case 'style':
+      return 'style';
+    default:
+      return 'custom';
   }
 }
 
