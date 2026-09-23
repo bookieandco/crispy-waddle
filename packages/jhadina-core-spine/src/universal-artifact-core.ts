@@ -27,8 +27,9 @@ export class UniversalArtifactCore {
   const stored=await this.blobs.putQuarantine(`${input.ownerUserId}/${id}/${safeName}`,input.bytes,input.detectedMimeType)
   const record=await this.repo.createQuarantined({id,ownerUserId:input.ownerUserId,originalName:safeName,declaredMimeType:input.declaredMimeType,detectedMimeType:input.detectedMimeType,sizeBytes:input.bytes.length,sha256,storageBucket:stored.bucket,storagePath:stored.path,provenance:input.provenance??{}})
   let scan:MediaScanResult
-  try { scan=await this.scanner.scan({assetId:id,uri:stored.uri,mimeType:input.detectedMimeType,sizeBytes:input.bytes.length}) }
+  try { scan=await this.scanner.scan({assetId:id,uri:stored.uri,mimeType:input.detectedMimeType,sizeBytes:input.bytes.length,sha256,bytes:input.bytes}) }
   catch { return record } // scanner failure stays quarantined
+  if(scan.assetId!==id||scan.sha256!==sha256||scan.mimeType!==input.detectedMimeType||scan.sizeBytes!==input.bytes.length) return record
   const updated=await this.repo.applyScan(id,scan)
   if(scan.verdict==="clean") assertSafeMedia(scan)
   return updated
