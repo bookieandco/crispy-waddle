@@ -134,6 +134,24 @@ describe('Director camera language', () => {
     ]));
   });
 
+  it('compiles triggered rack-focus direction', () => {
+    const plan = basePlan({
+      focusEvents: [
+        {
+          trigger: 'the second subject enters the background doorway',
+          fromTarget: 'foreground subject',
+          toTarget: 'background subject',
+          transitionSeconds: 0.35,
+          holdSeconds: 0.8,
+        },
+      ],
+    });
+    const directive = compileDirectorCameraDirective(plan);
+    expect(directive).toContain('Focus events:');
+    expect(directive).toContain('from foreground subject');
+    expect(directive).toContain('to background subject');
+  });
+
   it('converts BPM to beat duration and frame timing', () => {
     expect(beatDurationSeconds(120)).toBe(0.5);
     expect(beatDurationSeconds(120, 2)).toBe(0.25);
