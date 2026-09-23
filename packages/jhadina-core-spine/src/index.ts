@@ -12,6 +12,8 @@ export * from './real-nigga-core.js';
 export * from './behavioral-kernel.js';
 export * from './callback-provenance.js';
 export * from './cultural-freshness.js';
+export * from './expression-strategies.js';
+export * from './session-expression.js';
 export * from './expression-kernel.js';
 export * from './personality-behavior-expression.js';
 export * from './personality-behavior-pipeline.js';
