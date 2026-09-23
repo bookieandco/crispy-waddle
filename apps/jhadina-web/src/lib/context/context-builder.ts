@@ -154,9 +154,11 @@ export function deriveBehaviorContext(activeTask: string): BehavioralKernelConte
   const register: BehavioralKernelContext["register"] =
     /\b(medical|clinical|diagnos|medication|psychiatr|symptom)\b/.test(text)
       ? "clinical"
-      : /\b(anunnaki|ufo|alien|paranormal|myth|conspiracy|anomaly)\b/.test(text)
-        ? "mythic-inquiry"
-        : /\b(tarot|soulmate|soul bond|spiritual love|relationship reading)\b/.test(text)
+      : /\b(aura|afterimage|after-image|hallucinat|vision|visions|sleep deprivation|breathwork|hyperventilat|pineal|third eye|peripheral vision|altered perception|geometric patterns)\b/.test(text)
+        ? "perceptual-inquiry"
+        : /\b(anunnaki|ufo|alien|paranormal|myth|conspiracy|anomaly)\b/.test(text)
+          ? "mythic-inquiry"
+          : /\b(tarot|soulmate|soul bond|spiritual love|relationship reading)\b/.test(text)
           ? "sacred-love"
           : /\b(transformation|letting go|transition|becoming|reinvent|shame release)\b/.test(text)
             ? "threshold"
