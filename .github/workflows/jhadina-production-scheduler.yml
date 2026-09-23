@@ -7,9 +7,7 @@ on:
     paths:
       - ".github/workflows/jhadina-production-scheduler.yml"
       - "apps/jhadina-web/src/lib/internal-scheduler-auth.ts"
-      - "apps/jhadina-web/src/app/api/internal/scheduler/**"
-      - "apps/jhadina-web/src/app/api/internal/shark/**"
-      - "apps/jhadina-web/src/app/api/internal/sam/**"
+      - "apps/jhadina-web/src/app/api/internal/scheduler/health/**"
       - "vercel.json"
       - "apps/jhadina-web/vercel.json"
   schedule:
@@ -38,82 +36,109 @@ permissions:
   id-token: write
 
 concurrency:
-  group: jhadina-production-scheduler-${{ github.event.schedule || inputs.job || github.run_id }}
+  group: jhadina-production-scheduler-${{ github.event_name }}-${{ github.event.schedule || inputs.job || github.ref }}
   cancel-in-progress: false
 
 jobs:
-  invoke:
+  admission-smoke:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
+    steps:
+      - name: Request scoped GitHub OIDC token
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-production-scheduler')
+            core.setSecret(token)
+            core.setOutput('token', token)
+
+      - name: Wait for exact production deployment
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          url="${ORIGIN%/}/api/internal/scheduler/health"
+
+          for attempt in $(seq 1 40); do
+            response_file="$(mktemp)"
+            status="$(curl --silent --show-error --location \
+              --connect-timeout 20 \
+              --max-time 30 \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${OIDC_TOKEN}" \
+              --header "User-Agent: jhadina-production-admission/${GITHUB_RUN_ID}" \
+              "$url" || true)"
+
+            if [[ "$status" == "200" ]]; then
+              deployed_sha="$(jq -r '.commitSha // empty' "$response_file")"
+              environment="$(jq -r '.environment // empty' "$response_file")"
+              echo "attempt=${attempt} environment=${environment} deployed_sha=${deployed_sha}"
+
+              if [[ "$environment" == "production" && "$deployed_sha" == "$EXPECTED_SHA" ]]; then
+                echo "Exact production deployment admitted: $EXPECTED_SHA"
+                exit 0
+              fi
+            else
+              echo "attempt=${attempt} status=${status}"
+            fi
+
+            sleep 15
+          done
+
+          echo "Production never reported exact SHA $EXPECTED_SHA within the admission window" >&2
+          exit 1
+
+  invoke:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Resolve protected production worker
         id: target
         env:
-          EVENT_NAME: ${{ github.event_name }}
           SCHEDULE: ${{ github.event.schedule }}
           INPUT_JOB: ${{ inputs.job }}
         run: |
           set -euo pipefail
 
-          if [ "${EVENT_NAME}" = "push" ]; then
-            job="deployment-auth-smoke"
-            path="/api/internal/scheduler/health"
-          else
-            case "${INPUT_JOB:-}:${SCHEDULE:-}" in
-              shark-launch-outcomes:*|*:0\ \*\ \*\ \*\ \*)
-                job="shark-launch-outcomes"
-                path="/api/internal/shark/launch-outcomes"
-                ;;
-              shark-historical-observations:*|*:30\ \*\ \*\ \*\ \*)
-                job="shark-historical-observations"
-                path="/api/internal/shark/historical-observations"
-                ;;
-              sam-scan:*|*:5\ \*/6\ \*\ \*\ \*)
-                job="sam-scan"
-                path="/api/internal/sam/scan?lookbackDays=2&maxPages=20"
-                ;;
-              sam-enrich:*|*:20\ \*/6\ \*\ \*\ \*)
-                job="sam-enrich"
-                path="/api/internal/sam/enrich?limit=5&maxDocuments=40&maxProviders=8"
-                ;;
-              sam-certify:*|*:35\ \*/6\ \*\ \*\ \*)
-                job="sam-certify"
-                path="/api/internal/sam/certify"
-                ;;
-              sam-bootstrap:*|*:50\ \*/6\ \*\ \*\ \*)
-                job="sam-bootstrap"
-                path="/api/internal/sam/bootstrap?historyDays=365&windowDays=7&maxWindows=4&maxPages=20"
-                ;;
-              *)
-                echo "Unknown scheduler invocation: input=${INPUT_JOB:-} schedule=${SCHEDULE:-}" >&2
-                exit 2
-                ;;
-            esac
-          fi
+          case "${INPUT_JOB:-}:${SCHEDULE:-}" in
+            shark-launch-outcomes:*|*:0\ \*\ \*\ \*\ \*)
+              job="shark-launch-outcomes"
+              path="/api/internal/shark/launch-outcomes"
+              ;;
+            shark-historical-observations:*|*:30\ \*\ \*\ \*\ \*)
+              job="shark-historical-observations"
+              path="/api/internal/shark/historical-observations"
+              ;;
+            sam-scan:*|*:5\ \*/6\ \*\ \*\ \*)
+              job="sam-scan"
+              path="/api/internal/sam/scan?lookbackDays=2&maxPages=20"
+              ;;
+            sam-enrich:*|*:20\ \*/6\ \*\ \*\ \*)
+              job="sam-enrich"
+              path="/api/internal/sam/enrich?limit=5&maxDocuments=40&maxProviders=8"
+              ;;
+            sam-certify:*|*:35\ \*/6\ \*\ \*\ \*)
+              job="sam-certify"
+              path="/api/internal/sam/certify"
+              ;;
+            sam-bootstrap:*|*:50\ \*/6\ \*\ \*\ \*)
+              job="sam-bootstrap"
+              path="/api/internal/sam/bootstrap?historyDays=365&windowDays=7&maxWindows=4&maxPages=20"
+              ;;
+            *)
+              echo "Unknown scheduler invocation: input=${INPUT_JOB:-} schedule=${SCHEDULE:-}" >&2
+              exit 2
+              ;;
+          esac
 
           echo "job=${job}" >> "$GITHUB_OUTPUT"
           echo "path=${path}" >> "$GITHUB_OUTPUT"
-
-      - name: Wait for exact production deployment
-        if: github.event_name == 'push'
-        env:
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          EXPECTED_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 75); do
-            body="$(mktemp)"
-            curl --silent --show-error --max-time 20               --output "$body"               "${ORIGIN%/}/api/spatial/health" || true
-            deployed="$(jq -r '.deployment.commitSha // empty' "$body" 2>/dev/null || true)"
-            echo "deployment attempt=${attempt} expected=${EXPECTED_SHA} observed=${deployed:-none}"
-            if [ "$deployed" = "$EXPECTED_SHA" ]; then
-              exit 0
-            fi
-            sleep 10
-          done
-
-          echo "Exact main SHA did not reach the production alias within the admission window." >&2
-          exit 1
 
       - name: Request scoped GitHub OIDC token
         id: oidc
@@ -134,7 +159,14 @@ jobs:
           set -euo pipefail
           url="${ORIGIN%/}${PATHNAME}"
           response_file="$(mktemp)"
-          status="$(curl --silent --show-error --location             --connect-timeout 20             --max-time 320             --output "$response_file"             --write-out '%{http_code}'             --header "Authorization: Bearer ${OIDC_TOKEN}"             --header "User-Agent: jhadina-production-scheduler/${GITHUB_RUN_ID}"             "$url")"
+          status="$(curl --silent --show-error --location \
+            --connect-timeout 20 \
+            --max-time 320 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --header "Authorization: Bearer ${OIDC_TOKEN}" \
+            --header "User-Agent: jhadina-production-scheduler/${GITHUB_RUN_ID}" \
+            "$url")"
 
           echo "worker=${JOB} status=${status}"
           cat "$response_file"
@@ -146,43 +178,3 @@ jobs:
               exit 1
               ;;
           esac
-
-      - name: Exact-SHA production smoke
-        if: github.event_name == 'push'
-        env:
-          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          EXPECTED_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-
-          probe_public() {
-            path="$1"
-            body="$(mktemp)"
-            status="$(curl --silent --show-error --max-time 60               --output "$body" --write-out '%{http_code}' "${ORIGIN%/}${path}")"
-            echo "public path=${path} status=${status}"
-            cat "$body"
-            [ "$status" = "200" ]
-          }
-
-          probe_protected() {
-            path="$1"
-            body="$(mktemp)"
-            status="$(curl --silent --show-error --max-time 320               --output "$body" --write-out '%{http_code}'               --header "Authorization: Bearer ${OIDC_TOKEN}"               "${ORIGIN%/}${path}")"
-            echo "protected path=${path} status=${status}"
-            cat "$body"
-            [ "$status" = "200" ]
-          }
-
-          probe_public "/api/health"
-
-          spatial_body="$(mktemp)"
-          spatial_status="$(curl --silent --show-error --max-time 60             --output "$spatial_body" --write-out '%{http_code}'             "${ORIGIN%/}/api/spatial/health")"
-          cat "$spatial_body"
-          [ "$spatial_status" = "200" ]
-          [ "$(jq -r '.status' "$spatial_body")" = "READY" ]
-          [ "$(jq -r '.deployment.commitSha' "$spatial_body")" = "$EXPECTED_SHA" ]
-
-          probe_protected "/api/internal/shark/launch-outcomes?limit=1"
-          probe_protected "/api/internal/shark/historical-observations?limit=1"
-          probe_protected "/api/internal/sam/certify"
