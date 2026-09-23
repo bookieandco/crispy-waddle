@@ -50,6 +50,7 @@ jobs:
           src/creative-gate-adapter.test.ts
           src/storyboard-sequence.test.ts
           src/storyboard-stage-binding.test.ts
+          src/storyboard-persistence.test.ts
           src/storyboard-shot-adapter.test.ts
           src/generation-plan-adapter.test.ts
           src/media-quality-evidence.test.ts
