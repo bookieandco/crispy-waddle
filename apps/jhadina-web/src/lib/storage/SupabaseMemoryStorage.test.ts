@@ -21,6 +21,65 @@ function makeFakeClient(): { client: SupabaseClient; tables: Record<string, Fake
   const table = (name: string) => (tables[name] ??= new FakeTable())
 
   const client = {
+    async rpc(name: string, args: Record<string, unknown>) {
+      if (name === "jhadina_retire_memory") {
+        const row = table("jhadina_memories").rows.find(
+          (item) =>
+            item.id === args.p_memory_id &&
+            item.user_id === args.p_user_id &&
+            item.status === "APPROVED",
+        )
+        if (!row) return { data: null, error: { message: "JHADINA_MEMORY_RETIRE_TARGET_INVALID" } }
+        Object.assign(row, {
+          status: "RETIRED",
+          revoked_at: args.p_revoked_at,
+          revocation_reason: args.p_reason,
+        })
+        return { data: { ...row }, error: null }
+      }
+
+      if (name === "jhadina_correct_memory") {
+        const rows = table("jhadina_memories").rows
+        const old = rows.find(
+          (item) =>
+            item.id === args.p_memory_id &&
+            item.user_id === args.p_user_id &&
+            item.status === "APPROVED",
+        )
+        if (!old) return { data: null, error: { message: "JHADINA_MEMORY_CORRECTION_TARGET_INVALID" } }
+
+        Object.assign(old, {
+          status: "RETIRED",
+          revoked_at: args.p_corrected_at,
+          revocation_reason: "corrected",
+        })
+        const replacement = {
+          id: args.p_new_memory_id,
+          user_id: old.user_id,
+          type: old.type,
+          status: "APPROVED",
+          content: args.p_content,
+          confidence: args.p_confidence,
+          created_at: args.p_corrected_at,
+          approved_at: args.p_corrected_at,
+          rejected_at: null,
+          reasoning_event_id: args.p_reasoning_event_id,
+          revoked_at: null,
+          revocation_reason: null,
+          supersedes_memory_id: old.id,
+        }
+        rows.push(replacement)
+        return {
+          data: [{
+            retired: { ...old },
+            replacement: { ...replacement },
+          }],
+          error: null,
+        }
+      }
+
+      return { data: null, error: { message: `unexpected rpc: ${name}` } }
+    },
     from(name: string) {
       const filters: Array<[string, unknown]> = []
       let orderBy: { column: string; ascending: boolean } | null = null
@@ -152,6 +211,90 @@ describe("SupabaseMemoryStorage", () => {
     await storage.removeCandidate(candidate.id)
     expect(await storage.getCandidate(candidate.id)).toBeUndefined()
     expect(await storage.listCandidates("user_1", "PENDING")).toHaveLength(0)
+  })
+
+  it("retires active Memory durably across adapter restart", async () => {
+    const fake = makeFakeClient()
+    const first = new SupabaseMemoryStorage(fake.client)
+    const memory = await first.createMemory({
+      userId: "user_lifecycle",
+      type: "PREFERENCE",
+      status: "APPROVED",
+      content: "Keep it direct.",
+      confidence: 1,
+      createdAt: "2026-09-22T20:00:00.000Z",
+      approvedAt: "2026-09-22T20:00:00.000Z",
+      reasoningEventId: "reason-direct",
+    })
+
+    const retired = await first.retireMemory(
+      memory.id,
+      "user_lifecycle",
+      "forgotten",
+      "2026-09-22T20:01:00.000Z",
+    )
+    expect(retired).toMatchObject({
+      id: memory.id,
+      status: "RETIRED",
+      content: "Keep it direct.",
+      revocationReason: "forgotten",
+    })
+
+    const restarted = new SupabaseMemoryStorage(fake.client)
+    const fetched = await restarted.getMemory(memory.id)
+    expect(fetched).toMatchObject({
+      status: "RETIRED",
+      content: "Keep it direct.",
+      revocationReason: "forgotten",
+    })
+  })
+
+  it("corrects by appending a durable superseding revision", async () => {
+    const fake = makeFakeClient()
+    const first = new SupabaseMemoryStorage(fake.client)
+    const original = await first.createMemory({
+      userId: "user_lifecycle",
+      type: "PREFERENCE",
+      status: "APPROVED",
+      content: "Keep it direct.",
+      confidence: 0.9,
+      createdAt: "2026-09-22T20:00:00.000Z",
+      approvedAt: "2026-09-22T20:00:00.000Z",
+      reasoningEventId: "reason-direct",
+    })
+
+    const corrected = await first.correctMemory({
+      memoryId: original.id,
+      userId: "user_lifecycle",
+      content: "Keep it concise.",
+      confidence: 1,
+      reasoningEventId: "reason-concise",
+      correctedAt: "2026-09-22T20:02:00.000Z",
+    })
+
+    expect(corrected.retired).toMatchObject({
+      id: original.id,
+      status: "RETIRED",
+      content: "Keep it direct.",
+      revocationReason: "corrected",
+    })
+    expect(corrected.replacement).toMatchObject({
+      status: "APPROVED",
+      content: "Keep it concise.",
+      supersedesMemoryId: original.id,
+      reasoningEventId: "reason-concise",
+    })
+
+    const restarted = new SupabaseMemoryStorage(fake.client)
+    expect((await restarted.getMemory(original.id))?.status).toBe("RETIRED")
+    const active = (await restarted.listMemories("user_lifecycle")).filter(
+      (item) => item.status === "APPROVED",
+    )
+    expect(active).toHaveLength(1)
+    expect(active[0]).toMatchObject({
+      content: "Keep it concise.",
+      supersedesMemoryId: original.id,
+    })
   })
 
   it("round-trips a reasoning event including nested jsonb fields", async () => {
