@@ -428,6 +428,11 @@ export async function handleHealth(_req: NextRequest) {
       success: true,
       status: health.status,
       timestamp: new Date().toISOString(),
+      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
+      commitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? null,
+      durableMemory: "ready",
+    }, {
+      headers: { "cache-control": "no-store" },
     })
   } catch (error) {
     console.error("Error checking health:", error)
