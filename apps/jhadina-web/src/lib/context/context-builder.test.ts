@@ -5,7 +5,7 @@ import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { InMemoryStorage } from "../storage/InMemoryStorage"
-import { buildContext, type ContextBuilderDeps } from "./context-builder"
+import { buildContext, deriveBehaviorContext, type ContextBuilderDeps } from "./context-builder"
 
 function freshDeps(): ContextBuilderDeps & { memoryRepo: MemoryRepository; timelineRepo: TimelineRepository; reasoningRepo: ReasoningEventRepository } {
   const storage = new InMemoryStorage()
@@ -47,6 +47,40 @@ async function approveMemory(
 }
 
 describe("Context Builder (Phase 1 Step 4)", () => {
+  it("derives serious, precision, pushback, and ambiguity posture from explicit request language", () => {
+    expect(deriveBehaviorContext("This is an urgent safety audit. Verify the exact values.")).toMatchObject({
+      serious: true,
+      requiresPrecision: true,
+    })
+    expect(deriveBehaviorContext("Push back and tell me if I'm wrong.")).toMatchObject({
+      userAskedForPushback: true,
+    })
+    expect(deriveBehaviorContext("I'm unclear which one you mean.").ambiguity).toBeGreaterThanOrEqual(0.7)
+  })
+
+  it("passes derived behavioral context into the governed Personality provider", async () => {
+    const deps = freshDeps()
+    let observed: unknown
+    deps.personalityContextProvider = {
+      getContext: async (input) => {
+        observed = input.behaviorContext
+        return {
+          patterns: [],
+          personality: emptyPersonalityState("2026-09-22T00:00:00.000Z"),
+          expressionDirective: { mode: "serious", allowProfanity: false, allowQuip: false },
+          limitations: [],
+        }
+      },
+    }
+
+    await buildContext(deps, {
+      userId: "user-serious",
+      activeTask: "This is a critical safety audit. Verify the exact result.",
+    })
+
+    expect(observed).toMatchObject({ serious: true, requiresPrecision: true })
+  })
+
   it("1. produces a valid, empty-but-honest context for a brand-new user with nothing recorded", async () => {
     const deps = freshDeps()
     const assembled = await buildContext(deps, { userId: "user-empty", activeTask: "hello there" })
