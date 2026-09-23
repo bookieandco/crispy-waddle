@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Suspense,useState } from "react"
+import { Suspense,useEffect,useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
@@ -42,6 +42,53 @@ function AskJhadina(){
  const [characterArchetype,setCharacterArchetype]=useState<"human"|"cartoon"|"puppet"|"creature">("human")
  const [referenceRightsConfirmed,setReferenceRightsConfirmed]=useState(false)
  const [referenceStage,setReferenceStage]=useState("")
+ const [workSessionId,setWorkSessionId]=useState(()=>params.get("session")??"")
+ const [workSessionGoal,setWorkSessionGoal]=useState("")
+
+ useEffect(()=>{
+  let cancelled=false
+  void (async()=>{
+   const userId=await getCurrentUserId()
+   if(!userId||typeof window==="undefined")return
+   const query=params.get("session")?.trim()
+   const remembered=window.localStorage.getItem("jhadina:work-session")?.trim()
+   const id=query||remembered||crypto.randomUUID()
+   window.localStorage.setItem("jhadina:work-session",id)
+   if(cancelled)return
+   setWorkSessionId(id)
+   const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{headers:{"x-jhadina-user-id":userId}})
+   if(!response.ok)return
+   const json=await response.json()
+   const goal=typeof json?.session?.goal==="string"?json.session.goal:""
+   if(cancelled)return
+   setWorkSessionGoal(goal)
+   if(goal&&!task.trim())setTask(goal)
+  })().catch(()=>{})
+  return()=>{cancelled=true}
+ },[])
+
+ async function persistWorkSession(userId:string,command:string,data:CommandResult){
+  if(typeof window==="undefined")return
+  const id=workSessionId||crypto.randomUUID()
+  if(!workSessionId)setWorkSessionId(id)
+  window.localStorage.setItem("jhadina:work-session",id)
+  const activeSubsystems=[
+   ...(data.socialWorkPlan?["social"]:[]),
+   ...(data.growthWorkPlan?["growth"]:[]),
+   ...(data.videoJob?["director"]:[]),
+  ]
+  const decisionRefs=[data.proposal?.id,data.reasoningEventId].filter((value):value is string=>typeof value==="string"&&Boolean(value))
+  const outputRefs=data.videoJob?.id?[data.videoJob.id]:[]
+  const durableRefs=artifactRefs.map(id=>({id,kind:"data" as const,provenanceRef:`artifact:${id}`,admitted:true}))
+  const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{
+   method:"PUT",
+   headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+   body:JSON.stringify({goal:command,status:"active",activeSubsystems,artifactRefs:durableRefs,decisionRefs,outputRefs}),
+  })
+  if(!response.ok)return
+  const json=await response.json()
+  if(typeof json?.session?.goal==="string")setWorkSessionGoal(json.session.goal)
+ }
 
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
  function isVideoRequest(text:string){return /\b(make|create|generate|produce|build|render|turn)\b/i.test(text)&&/\b(video|movie|film|short|reel|tiktok|youtube\s+short|youtube\s+video)\b/i.test(text)}
@@ -126,6 +173,7 @@ function AskJhadina(){
    }else{
     const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,activeProject:params.get("project")??undefined,clientRequestId:crypto.randomUUID()})})
     const json=await response.json();if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
+    await persistWorkSession(userId,command,json.data as CommandResult)
     setResult(json.data);setTask("")
     if(commandOverride && typeof window!=="undefined" && "speechSynthesis" in window){
      const spoken=(json.data?.expression?.segments??[]).filter((segment:GovernedExpressionSegment)=>segment.kind==="semantic").map((segment:GovernedExpressionSegment)=>segment.text).join(" ")
@@ -173,7 +221,7 @@ function AskJhadina(){
     {referenceFile?<label className="jh-row" style={{marginTop:10,alignItems:"center"}}><input type="checkbox" checked={referenceRightsConfirmed} onChange={event=>setReferenceRightsConfirmed(event.target.checked)} disabled={busy}/><span className="jh-card-copy">{referenceKind==="character"?"I own or have permission to use this image and the depicted likeness/character for this production.":"I own or have permission to use this product image, packaging, and brand assets for this production."}</span></label>:null}
     {referenceStage?<p className="jh-meta" style={{marginTop:8}}>{referenceStage}</p>:null}
    </div>
-   <p className="jh-meta">Context surface: {surface} · route: {route} · ⌘/Ctrl + Enter to send · screen frames stay ephemeral · attached files use private quarantine and only clean files enter reasoning; identity-reference uploads persist only through the explicit governed Director flow above</p>
+   <p className="jh-meta">Context surface: {surface} · route: {route} · work session: {workSessionId?workSessionId.slice(0,12):"initializing"}{workSessionGoal?` · resumed goal: ${workSessionGoal.slice(0,80)}`:""} · ⌘/Ctrl + Enter to send · screen frames stay ephemeral · attached files use private quarantine and only clean files enter reasoning; identity-reference uploads persist only through the explicit governed Director flow above</p>
    <div className="jh-row" style={{marginTop:10}}>
     {[
      "Show me the social character personalities I can use",
