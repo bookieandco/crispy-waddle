@@ -15,6 +15,8 @@ on:
       - "apps/jhadina-web/src/lib/context/production-knowledge-context-provider.test.ts"
       - "apps/jhadina-web/src/lib/context/production-work-session-context-provider.ts"
       - "apps/jhadina-web/src/lib/context/production-work-session-context-provider.test.ts"
+      - "apps/jhadina-web/src/lib/artifacts/work-session-artifact-resume.ts"
+      - "apps/jhadina-web/src/lib/artifacts/work-session-artifact-resume.test.ts"
       - "apps/jhadina-web/src/lib/context/production-social-context-provider.ts"
       - "apps/jhadina-web/src/lib/context/production-social-context-provider.test.ts"
       - "apps/jhadina-web/src/lib/context/social-context.integration.test.ts"
@@ -47,6 +49,8 @@ on:
       - "apps/jhadina-web/src/app/api/jhadina/expression/route.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.social.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.growth.test.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/command/route.work-session-artifact.test.ts"
+      - "apps/jhadina-web/src/app/ask-jhadina/jhadina-live-input.tsx"
       - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.ts"
       - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.test.ts"
       - "apps/jhadina-web/src/app/ask-jhadina/page.tsx"
@@ -70,6 +74,8 @@ on:
       - "apps/jhadina-web/src/lib/context/production-knowledge-context-provider.test.ts"
       - "apps/jhadina-web/src/lib/context/production-work-session-context-provider.ts"
       - "apps/jhadina-web/src/lib/context/production-work-session-context-provider.test.ts"
+      - "apps/jhadina-web/src/lib/artifacts/work-session-artifact-resume.ts"
+      - "apps/jhadina-web/src/lib/artifacts/work-session-artifact-resume.test.ts"
       - "apps/jhadina-web/src/lib/context/production-social-context-provider.ts"
       - "apps/jhadina-web/src/lib/context/production-social-context-provider.test.ts"
       - "apps/jhadina-web/src/lib/context/social-context.integration.test.ts"
@@ -102,6 +108,8 @@ on:
       - "apps/jhadina-web/src/app/api/jhadina/expression/route.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.social.test.ts"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.growth.test.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/command/route.work-session-artifact.test.ts"
+      - "apps/jhadina-web/src/app/ask-jhadina/jhadina-live-input.tsx"
       - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.ts"
       - "apps/jhadina-web/src/app/api/jhadina/personality/feedback/route.test.ts"
       - "apps/jhadina-web/src/app/ask-jhadina/page.tsx"
@@ -162,6 +170,7 @@ jobs:
             src/lib/context/context-builder.test.ts \
             src/lib/context/production-knowledge-context-provider.test.ts \
             src/lib/context/production-work-session-context-provider.test.ts \
+            src/lib/artifacts/work-session-artifact-resume.test.ts \
             src/lib/context/production-social-context-provider.test.ts \
             src/lib/context/social-context.integration.test.ts \
             src/lib/context/production-growth-context-provider.test.ts \
@@ -174,6 +183,7 @@ jobs:
             src/lib/intelligence/ask-growth-command.test.ts \
             src/app/api/jhadina/command/route.social.test.ts \
             src/app/api/jhadina/command/route.growth.test.ts \
+            src/app/api/jhadina/command/route.work-session-artifact.test.ts \
             src/app/api/jhadina/expression/route.test.ts \
             src/lib/intelligence/governed-intelligence-proposal.test.ts \
             src/lib/personality/personality-outcome-feedback.test.ts \
