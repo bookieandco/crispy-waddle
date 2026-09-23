@@ -117,6 +117,7 @@ export interface AssembledContext {
   route?: string
   activeTask: string
   activeProject?: string
+  behaviorContext: BehavioralKernelContext
   assembledAt: string
 }
 
@@ -264,6 +265,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
 
   const { redacted: redactedActiveTask, redactionCount: taskRedactions } = redactSecrets(input.activeTask)
   totalRedactions += taskRedactions
+  const behaviorContext = input.behaviorContext ?? deriveBehaviorContext(redactedActiveTask)
 
   let patterns: PatternObservation[] = []
   let personality = emptyPersonalityState(new Date(0).toISOString())
@@ -274,7 +276,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
       const contribution = await deps.personalityContextProvider.getContext({
         userId: input.userId,
         activeTask: redactedActiveTask,
-        behaviorContext: input.behaviorContext ?? deriveBehaviorContext(redactedActiveTask),
+        behaviorContext,
       })
       patterns = contribution.patterns.map((pattern) => ({
         ...pattern,
@@ -392,6 +394,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     route: input.route,
     activeTask: redactedActiveTask,
     activeProject: input.activeProject,
+    behaviorContext,
     assembledAt: new Date().toISOString(),
   }
 }
