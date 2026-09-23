@@ -74,7 +74,9 @@ function request(): Request {
   form.set('projectId', 'project-a');
   form.set('rightsRef', 'rights:owned');
   form.set('viewHint', 'front');
-  form.set('file', new File([png(1024,768)], 'packnest.png', { type: 'image/png' }));
+  const image = png(1024,768);
+  const imageBuffer = image.buffer.slice(image.byteOffset, image.byteOffset + image.byteLength) as ArrayBuffer;
+  form.set('file', new File([imageBuffer], 'packnest.png', { type: 'image/png' }));
   return new Request('http://localhost/api/director/products/references', {
     method: 'POST',
     body: form,
