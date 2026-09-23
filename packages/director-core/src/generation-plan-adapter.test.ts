@@ -116,6 +116,52 @@ describe('GenerationPlanAdapter', () => {
     expect(submitted.requests[0]?.model.id).toBe('video-model');
   });
 
+  it('compiles structured direction into the provider prompt and retains the plans as parameters', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    const directed = {
+      ...request(),
+      cameraPlan: {
+        version: 1 as const,
+        target: 'generative-video' as const,
+        intent: { narrativeFunction: 'close emotional distance', emotionalEffect: 'unease' },
+        composition: { shotSize: 'medium-close-up' as const, angle: 'eye-level' as const },
+        movements: [{ kind: 'dolly-in' as const, motivation: 'pressure builds as Maya realizes she is watched' }],
+      },
+      performancePlan: {
+        version: 1 as const,
+        sceneFunction: 'show delayed recognition',
+        actors: [{ actorId: 'maya', startingState: 'distracted', endingState: 'alert' }],
+        beats: [{
+          id: 'notice',
+          kind: 'reaction' as const,
+          actorId: 'maya',
+          trigger: 'a sound behind her',
+          action: 'stop walking and look back',
+          endState: 'body still, eyes fixed behind her',
+        }],
+      },
+      realismPlan: {
+        version: 1 as const,
+        goal: 'keep the take physically grounded',
+        naturalismCues: ['weight-shift' as const, 'breathing' as const],
+        physicalResponses: [{
+          trigger: 'Maya stops walking',
+          subjectResponse: 'momentum settles through one corrective step',
+        }],
+      },
+    };
+
+    await makeAdapter(submitted).submitTake(directed, plan(), gateInput());
+    expect(submitted.requests[0]?.prompt).toContain('[CAMERA DIRECTION]');
+    expect(submitted.requests[0]?.prompt).toContain('[PERFORMANCE DIRECTION]');
+    expect(submitted.requests[0]?.prompt).toContain('[REALISM / SOURCE PRESERVATION]');
+    expect(submitted.requests[0]?.parameters).toMatchObject({
+      cameraPlan: { target: 'generative-video' },
+      performancePlan: { sceneFunction: 'show delayed recognition' },
+      realismPlan: { goal: 'keep the take physically grounded' },
+    });
+  });
+
   it('derives creative provenance from the canonical resolver result', async () => {
     const submitted = { requests: [] as GenerationRequest[] };
     const job = await makeAdapter(submitted).submitTake(request(), plan(), gateInput());
