@@ -1,13 +1,35 @@
+const ascii=(b:Uint8Array,start=0,end=b.length)=>new TextDecoder("latin1").decode(b.slice(start,end))
+const starts=(b:Uint8Array,values:number[])=>b.length>=values.length&&values.every((v,i)=>b[i]===v)
+const isTextLike=(b:Uint8Array)=>!b.slice(0,8192).some(v=>v===0)
+const isZip=(b:Uint8Array)=>starts(b,[0x50,0x4b,0x03,0x04])||starts(b,[0x50,0x4b,0x05,0x06])||starts(b,[0x50,0x4b,0x07,0x08])
+
 const signatures:[string,(b:Uint8Array)=>boolean][]=[
- ["image/png",b=>b.length>=8&&[137,80,78,71,13,10,26,10].every((v,i)=>b[i]===v)],
- ["image/jpeg",b=>b[0]===0xff&&b[1]===0xd8&&b[2]===0xff],
- ["application/pdf",b=>new TextDecoder().decode(b.slice(0,5))==="%PDF-"],
- ["audio/wav",b=>new TextDecoder().decode(b.slice(0,4))==="RIFF"&&new TextDecoder().decode(b.slice(8,12))==="WAVE"],
+ ["image/png",b=>starts(b,[137,80,78,71,13,10,26,10])],
+ ["image/jpeg",b=>starts(b,[0xff,0xd8,0xff])],
+ ["application/pdf",b=>ascii(b,0,5)==="%PDF-"],
+ ["audio/wav",b=>ascii(b,0,4)==="RIFF"&&ascii(b,8,12)==="WAVE"],
+ ["audio/mpeg",b=>ascii(b,0,3)==="ID3"||(b[0]===0xff&&((b[1]??0)&0xe0)===0xe0)],
+ ["video/mp4",b=>b.length>=12&&ascii(b,4,8)==="ftyp"],
+ ["video/webm",b=>starts(b,[0x1a,0x45,0xdf,0xa3])],
 ]
+
+function detectOoxml(bytes:Uint8Array):string|undefined{
+ if(!isZip(bytes))return undefined
+ const sample=ascii(bytes,0,Math.min(bytes.length,2_000_000))
+ if(sample.includes("word/"))return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+ if(sample.includes("xl/"))return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ return undefined
+}
+
 export function detectArtifactMime(bytes:Uint8Array,declared:string):string{
- for(const [mime,test] of signatures) if(test(bytes)) return mime
- if(declared==="text/plain"){
-  const sample=bytes.slice(0,4096); if(!sample.some(v=>v===0)) return "text/plain"
+ const ooxml=detectOoxml(bytes)
+ if(ooxml)return ooxml
+ for(const [mime,test] of signatures)if(test(bytes))return mime
+ if(declared==="audio/mp4"&&bytes.length>=12&&ascii(bytes,4,8)==="ftyp")return "audio/mp4"
+ if(declared==="audio/webm"&&starts(bytes,[0x1a,0x45,0xdf,0xa3]))return "audio/webm"
+ if(declared==="application/json"&&isTextLike(bytes)){
+  try{JSON.parse(new TextDecoder().decode(bytes));return "application/json"}catch{}
  }
+ if((declared==="text/plain"||declared==="text/csv")&&isTextLike(bytes))return declared
  throw new Error("ARTIFACT_MIME_UNVERIFIED")
 }
