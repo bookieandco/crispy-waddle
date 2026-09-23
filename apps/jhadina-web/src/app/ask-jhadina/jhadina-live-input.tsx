@@ -63,6 +63,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
   const [artifacts, setArtifacts] = useState<JhadinaEphemeralArtifact[]>([])
   const [durableArtifacts, setDurableArtifacts] = useState<DurableArtifactDisplay[]>([])
   const [uploading, setUploading] = useState(false)
+  const [retryingId, setRetryingId] = useState<string|null>(null)
   const recognitionRef = useRef<any>(null)
   const shouldWakeRef = useRef(false)
   const streamRef = useRef<MediaStream|null>(null)
@@ -269,6 +270,25 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
     }finally{setUploading(false)}
   }
 
+  async function retryExtraction(artifact:DurableArtifactDisplay){
+    if(retryingId)return
+    const userId=await getCurrentUserId()
+    if(!userId){onStatus?.("Sign in before retrying extraction.");return}
+    setRetryingId(artifact.id)
+    onStatus?.(`Retrying extraction for ${artifact.name}…`)
+    try{
+      const response=await fetch(`/api/jhadina/artifacts/${encodeURIComponent(artifact.id)}`,{
+        method:"POST",
+        headers:{"x-jhadina-user-id":userId},
+      })
+      const json=await response.json()
+      if(!response.ok){onStatus?.(`${artifact.name}: ${json.error??"extraction retry failed"}`);return}
+      const updated=json.artifact as DurableArtifactDisplay
+      setDurableArtifacts(current=>current.map(item=>item.id===updated.id?updated:item))
+      onStatus?.(updated.contextReady?`${artifact.name} extraction completed and is ready for Jhadina.`:`${artifact.name} is still not context-ready.`)
+    }finally{setRetryingId(null)}
+  }
+
   return <div style={{marginTop:12}}>
     <video ref={videoRef} muted playsInline style={{display:"none"}} />
     <div className="jh-row">
@@ -291,7 +311,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
     </p>
     {(artifacts.length||durableArtifacts.length)?<div className="jh-row" style={{marginTop:8}}>
       {artifacts.map((artifact)=><span key={artifact.id} className="jh-status"><span className="jh-dot"/>{artifact.kind==="screen"?"Screen":artifact.name??artifact.kind}</span>)}
-      {durableArtifacts.map((artifact)=><span key={artifact.id} className={artifact.status==="clean"?"jh-status jh-status--success":"jh-status jh-status--warning"}><span className="jh-dot"/>{artifact.name} · {artifact.status==="clean"?(artifact.contextReady?(artifact.extractionStatus==="ready"?"clean · extracted":"clean · ready"):"clean · extraction pending"):artifact.status}</span>)}
+      {durableArtifacts.map((artifact)=><span key={artifact.id} className={artifact.status==="clean"?"jh-status jh-status--success":"jh-status jh-status--warning"}><span className="jh-dot"/>{artifact.name} · {artifact.status==="clean"?(artifact.contextReady?(artifact.extractionStatus==="ready"?"clean · extracted":"clean · ready"):"clean · extraction pending"):artifact.status}{artifact.status==="clean"&&!artifact.contextReady&&artifact.extractionStatus==="pending"?<button type="button" className="jh-button" disabled={retryingId===artifact.id} onClick={()=>void retryExtraction(artifact)}>{retryingId===artifact.id?"Retrying…":"Retry extraction"}</button>:null}</span>)}
       {durableArtifacts.length?<button type="button" className="jh-button" onClick={()=>setDurableArtifacts([])}>Clear files</button>:null}
     </div>:null}
   </div>
