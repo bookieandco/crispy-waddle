@@ -7,6 +7,8 @@
  *   POST   /api/message          - Process user message
  *   POST   /api/memory/approve   - Approve a memory candidate
  *   POST   /api/memory/reject    - Reject a memory candidate
+ *   POST   /api/memory/correct   - Correct approved memory by revision
+ *   POST   /api/memory/forget    - Retire approved memory from active recall
  *   GET    /api/candidates       - List pending candidates
  *   GET    /api/memories         - List approved memories
  *   GET    /api/memories/search  - Search memories
@@ -176,6 +178,127 @@ export async function handleRejectMemory(req: NextRequest) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
+    )
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// POST /api/memory/correct
+// ═══════════════════════════════════════════════════════════════
+
+export async function handleCorrectMemory(req: NextRequest) {
+  try {
+    const userId = await extractUserId(req)
+    const { memoryId, content } = await req.json()
+    if (typeof memoryId !== "string" || !memoryId.trim()) {
+      return NextResponse.json({ error: "memoryId is required" }, { status: 400 })
+    }
+    if (typeof content !== "string" || !content.trim()) {
+      return NextResponse.json({ error: "content is required" }, { status: 400 })
+    }
+
+    const memoryRepo = new MemoryRepository(getStorage())
+    const reasoningRepo = new ReasoningEventRepository(getStorage())
+    const timelineRepo = new TimelineRepository(getStorage())
+    const current = await memoryRepo.getById(userId, memoryId)
+    if (!current || current.status !== "APPROVED") {
+      return NextResponse.json({ error: "Approved memory not found" }, { status: 404 })
+    }
+
+    const now = new Date().toISOString()
+    const reasoning = await reasoningRepo.create({
+      userId,
+      userMessage: content.trim(),
+      observation: { raw: content.trim(), extracted: content.trim(), timestamp: now },
+      classification: { type: current.type, confidence: 1, reasoning: "explicit user memory correction" },
+      systemResponse: "Memory correction recorded.",
+      confidence: 1,
+      actor: "user",
+      outcome: "memory:corrected",
+      causationId: current.reasoningEventId,
+      metadata: { kind: "memory-correction", targetMemoryId: current.id, authority: "explicit-user" },
+    })
+    const corrected = await memoryRepo.correct({
+      memoryId: current.id,
+      userId,
+      content,
+      reasoningEventId: reasoning.id,
+      confidence: 1,
+    })
+    await timelineRepo.recordCorrection({
+      userId,
+      memoryId: corrected.replacement.id,
+      memoryType: corrected.replacement.type,
+      memoryContent: corrected.replacement.content,
+      reasoningEventId: reasoning.id,
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        retiredMemoryId: corrected.retired.id,
+        memory: corrected.replacement,
+        reasoningEventId: reasoning.id,
+      },
+    })
+  } catch (error) {
+    console.error("Error correcting memory:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    )
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// POST /api/memory/forget
+// ═══════════════════════════════════════════════════════════════
+
+export async function handleForgetMemory(req: NextRequest) {
+  try {
+    const userId = await extractUserId(req)
+    const { memoryId } = await req.json()
+    if (typeof memoryId !== "string" || !memoryId.trim()) {
+      return NextResponse.json({ error: "memoryId is required" }, { status: 400 })
+    }
+
+    const memoryRepo = new MemoryRepository(getStorage())
+    const reasoningRepo = new ReasoningEventRepository(getStorage())
+    const timelineRepo = new TimelineRepository(getStorage())
+    const current = await memoryRepo.getById(userId, memoryId)
+    if (!current || current.status !== "APPROVED") {
+      return NextResponse.json({ error: "Approved memory not found" }, { status: 404 })
+    }
+
+    const now = new Date().toISOString()
+    const reasoning = await reasoningRepo.create({
+      userId,
+      userMessage: `Forget memory ${current.id}`,
+      observation: { raw: `Forget memory ${current.id}`, extracted: current.id, timestamp: now },
+      classification: { type: current.type, confidence: 1, reasoning: "explicit user memory forget request" },
+      systemResponse: "Memory retired from active recall.",
+      confidence: 1,
+      actor: "user",
+      outcome: "memory:forgotten",
+      causationId: current.reasoningEventId,
+      metadata: { kind: "memory-forget", targetMemoryId: current.id, authority: "explicit-user" },
+    })
+    const retired = await memoryRepo.forget(current.id, userId)
+    await timelineRepo.recordForget({
+      userId,
+      memoryId: retired.id,
+      memoryType: retired.type,
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: { memoryId: retired.id, status: retired.status, reasoningEventId: reasoning.id },
+    })
+  } catch (error) {
+    console.error("Error forgetting memory:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
     )
   }
 }
