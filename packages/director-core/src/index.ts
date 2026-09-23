@@ -112,6 +112,7 @@ export * from './commercial-creative-lab';
 export * from './product-reference-bootstrap';
 export * from './ugc-production';
 export * from './previs-blockout';
+export * from './storyboard-reference-board';
 export * from './conversation-prosody-observer';
 
 export * from './paid-video-generation';
