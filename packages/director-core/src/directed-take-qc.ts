@@ -18,6 +18,8 @@ export type DirectedTakeQcObservation = {
   confidence: number;
   evidenceIds: readonly string[];
   hardFailure?: boolean;
+  startSeconds?: number;
+  endSeconds?: number;
   notes?: readonly string[];
 };
 
@@ -34,6 +36,16 @@ export type DirectedTakeQcDecision = {
   reasons: readonly string[];
   observations: readonly DirectedTakeQcObservation[];
   authority: 'DIRECTOR_QC';
+};
+
+export type DirectedTakeRepairProposal = {
+  scope: 'none' | 'audio-only' | 'region' | 'shot' | 'manual-review';
+  failingMetrics: readonly DirectedTakeQcMetric[];
+  startSeconds?: number;
+  endSeconds?: number;
+  preserve: readonly string[];
+  instruction: string;
+  authority: 'PROPOSAL_ONLY';
 };
 
 /**
@@ -84,6 +96,91 @@ export function evaluateDirectedTakeQc(
     observations: Object.freeze([...observations]),
     authority: 'DIRECTOR_QC',
   });
+}
+
+/**
+ * Converts deterministic QC failures into a narrow repair proposal.
+ * It never authorizes regeneration; normal review/generation gates still decide.
+ */
+export function planDirectedTakeRepair(
+  decision: DirectedTakeQcDecision,
+): DirectedTakeRepairProposal {
+  if (decision.admissible) {
+    return Object.freeze({
+      scope: 'none',
+      failingMetrics: Object.freeze([]),
+      preserve: Object.freeze([]),
+      instruction: 'No repair required.',
+      authority: 'PROPOSAL_ONLY',
+    });
+  }
+
+  const failing = decision.observations.filter((observation) =>
+    decision.reasons.some((reason) => reason.endsWith(`:${observation.metric}`))
+  );
+  const failingMetrics = [...new Set(failing.map((observation) => observation.metric))];
+
+  if (!failingMetrics.length) {
+    return Object.freeze({
+      scope: 'manual-review',
+      failingMetrics: Object.freeze([]),
+      preserve: Object.freeze([]),
+      instruction: 'QC failed without a localized metric; preserve the take and route it to manual review.',
+      authority: 'PROPOSAL_ONLY',
+    });
+  }
+
+  const audioMetrics = new Set<DirectedTakeQcMetric>(['dialogue-prosody', 'audio-sync']);
+  const audioOnly = failingMetrics.every((metric) => audioMetrics.has(metric));
+
+  const ranged = failing.filter((observation) =>
+    observation.startSeconds !== undefined &&
+    observation.endSeconds !== undefined &&
+    Number.isFinite(observation.startSeconds) &&
+    Number.isFinite(observation.endSeconds) &&
+    observation.endSeconds! > observation.startSeconds!
+  );
+  const allRanged = ranged.length === failing.length && ranged.length > 0;
+  const startSeconds = allRanged ? Math.min(...ranged.map((observation) => observation.startSeconds!)) : undefined;
+  const endSeconds = allRanged ? Math.max(...ranged.map((observation) => observation.endSeconds!)) : undefined;
+
+  const preserve = preserveForFailures(failingMetrics);
+  const scope = audioOnly ? 'audio-only' : allRanged ? 'region' : 'shot';
+
+  return Object.freeze({
+    scope,
+    failingMetrics: Object.freeze(failingMetrics),
+    ...(startSeconds !== undefined && endSeconds !== undefined ? { startSeconds, endSeconds } : {}),
+    preserve: Object.freeze(preserve),
+    instruction: scope === 'audio-only'
+      ? `Repair only dialogue/audio failures: ${failingMetrics.join(', ')}. Preserve picture and camera timing.`
+      : scope === 'region'
+        ? `Repair only ${formatRange(startSeconds!, endSeconds!)} for: ${failingMetrics.join(', ')}. Preserve unaffected shot intent and continuity.`
+        : `Re-film/regenerate this shot for: ${failingMetrics.join(', ')}. Preserve the authored dimensions listed in preserve.`,
+    authority: 'PROPOSAL_ONLY',
+  });
+}
+
+function preserveForFailures(failingMetrics: readonly DirectedTakeQcMetric[]): string[] {
+  const preserve = new Set([
+    'story-function',
+    'approved-dialogue',
+    'product/character identity',
+    'shot timing',
+  ]);
+
+  if (!failingMetrics.includes('camera-plan-match')) preserve.add('camera-plan');
+  if (!failingMetrics.includes('focus-plan-match')) preserve.add('focus-plan');
+  if (!failingMetrics.includes('performance-plan-match')) preserve.add('performance-plan');
+  if (!failingMetrics.includes('background-geometry')) preserve.add('environment/blocking');
+  if (!failingMetrics.includes('source-preservation')) preserve.add('source-preservation locks');
+
+  return [...preserve];
+}
+
+function formatRange(start: number, end: number): string {
+  const fmt = (value: number) => Number.isInteger(value) ? String(value) : String(Number(value.toFixed(3)));
+  return `${fmt(start)}-${fmt(end)}s`;
 }
 
 export const REALISTIC_CHARACTER_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({

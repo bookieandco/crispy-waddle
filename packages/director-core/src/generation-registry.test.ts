@@ -103,6 +103,66 @@ describe('GenerationService', () => {
     expect(submitted).toBe(true);
   });
 
+  it('routes greybox video references through video-to-video capability', async () => {
+    const registry = new GenerationRegistry();
+    registry.registerProvider({
+      id: 'video-control-provider',
+      name: 'Video Control Provider',
+      kind: 'local',
+      capabilities: ['video-to-video'],
+      models: [],
+      health: 'healthy',
+    });
+    registry.registerModel({
+      id: 'video-control-model',
+      providerId: 'video-control-provider',
+      name: 'Video Control Model',
+      version: '1',
+      modalities: ['video'],
+      capabilities: ['video-to-video'],
+    });
+    let submitted = false;
+    const provider: GenerationProvider = {
+      descriptor: registry.getProvider('video-control-provider')!,
+      submit: async (request) => {
+        submitted = true;
+        return {
+          requestId: request.requestId,
+          providerId: 'video-control-provider',
+          status: 'queued',
+          assetIds: [],
+          providerJobId: 'video-job',
+        };
+      },
+      status: async () => ({
+        requestId: 'video-job',
+        providerId: 'video-control-provider',
+        status: 'running',
+        assetIds: [],
+        providerJobId: 'video-job',
+      }),
+      cancel: async () => undefined,
+    };
+    const service = new GenerationService(registry, new Map([['video-control-provider', provider]]));
+
+    await service.submit({
+      requestId: 'video-control-request',
+      projectId: 'project',
+      modality: 'video',
+      prompt: 'follow the authored blocking and camera timing',
+      model: registry.getModel('video-control-model')!,
+      references: [{
+        assetId: 'greybox:shot-1',
+        role: 'motion',
+        media: 'video',
+        uri: 'asset://greybox-shot-1.mp4',
+      }],
+      parameters: {},
+    });
+
+    expect(submitted).toBe(true);
+  });
+
   it('rejects a referenced image request when the model is text-only', async () => {
     const registry = new GenerationRegistry();
     registry.registerProvider({

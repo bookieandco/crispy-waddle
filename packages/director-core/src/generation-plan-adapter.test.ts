@@ -162,6 +162,97 @@ describe('GenerationPlanAdapter', () => {
     });
   });
 
+  it('preserves exact provider reference order when a manifest is present', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    const directed = {
+      ...request(),
+      referenceAssetIds: ['apartment'],
+      referenceManifest: {
+        id: 'refs:take-001',
+        projectId: 'p',
+        shotId: 'shot-1',
+        authority: 'DIRECTOR_REFERENCE_MANIFEST' as const,
+        references: [
+          {
+            slot: 1,
+            assetId: 'apartment',
+            media: 'image' as const,
+            role: 'location' as const,
+            semanticLabel: 'approved apartment location',
+            promptToken: 'LOCATION',
+            required: true,
+            evidenceIds: ['e:apartment'],
+          },
+          {
+            slot: 2,
+            assetId: 'maya-face-v4',
+            media: 'image' as const,
+            role: 'character-identity' as const,
+            semanticLabel: 'Maya canonical face reference',
+            promptToken: 'MAYA_FACE',
+            required: true,
+            evidenceIds: ['e:maya-face'],
+          },
+          {
+            slot: 3,
+            assetId: 'maya-red-coat-ref',
+            media: 'image' as const,
+            role: 'character-identity' as const,
+            semanticLabel: 'Maya scene wardrobe reference',
+            promptToken: 'MAYA_WARDROBE',
+            required: true,
+            evidenceIds: ['e:maya-coat'],
+          },
+        ],
+      },
+    };
+
+    await makeAdapter(submitted).submitTake(directed, plan(), gateInput());
+
+    expect(submitted.requests[0]?.references?.map((reference) => reference.assetId)).toEqual([
+      'apartment',
+      'maya-face-v4',
+      'maya-red-coat-ref',
+    ]);
+    expect(submitted.requests[0]?.references?.[1]).toMatchObject({
+      assetId: 'maya-face-v4',
+      role: 'character',
+      media: 'image',
+      uri: 'https://private.test/maya-face-v4?signed=1',
+    });
+    expect(submitted.requests[0]?.prompt).toContain('[REFERENCE MANIFEST]');
+    expect(submitted.requests[0]?.parameters).toMatchObject({
+      referenceManifest: { id: 'refs:take-001' },
+    });
+  });
+
+  it('fails closed if a resolved character reference would shift a declared manifest', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    const incompleteManifest = {
+      ...request(),
+      referenceAssetIds: ['apartment'],
+      referenceManifest: {
+        id: 'refs:incomplete',
+        projectId: 'p',
+        shotId: 'shot-1',
+        authority: 'DIRECTOR_REFERENCE_MANIFEST' as const,
+        references: [{
+          slot: 1,
+          assetId: 'apartment',
+          media: 'image' as const,
+          role: 'location' as const,
+          semanticLabel: 'approved apartment location',
+          required: true,
+          evidenceIds: ['e:apartment'],
+        }],
+      },
+    };
+
+    await expect(makeAdapter(submitted).submitTake(incompleteManifest, plan(), gateInput()))
+      .rejects.toThrow('DIRECTOR_REFERENCE_MANIFEST_CHARACTER_ASSET_MISSING');
+    expect(submitted.requests).toHaveLength(0);
+  });
+
   it('derives creative provenance from the canonical resolver result', async () => {
     const submitted = { requests: [] as GenerationRequest[] };
     const job = await makeAdapter(submitted).submitTake(request(), plan(), gateInput());

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   evaluateDirectedTakeQc,
+  planDirectedTakeRepair,
   REALISTIC_CHARACTER_TAKE_QC,
   SOURCE_PRESERVING_VIDEO_EDIT_QC,
   type DirectedTakeQcObservation,
@@ -37,6 +38,44 @@ describe('directed take QC', () => {
     expect(decision.admissible).toBe(false);
     expect(decision.reasons).toContain('DIRECTOR_DIRECTED_TAKE_QC_SCORE_LOW:hand-anatomy');
     expect(decision.reasons).toContain('DIRECTOR_DIRECTED_TAKE_QC_HARD_FAILURE:hand-anatomy');
+  });
+
+  it('proposes a narrow region repair when QC localizes the failure', () => {
+    const observations = REALISTIC_CHARACTER_TAKE_QC.requiredMetrics.map((metric) =>
+      metric === 'hand-anatomy'
+        ? {
+            ...observation(metric, 0.4),
+            hardFailure: true,
+            startSeconds: 3.7,
+            endSeconds: 4.1,
+          }
+        : observation(metric),
+    );
+    const decision = evaluateDirectedTakeQc(observations, REALISTIC_CHARACTER_TAKE_QC);
+    const repair = planDirectedTakeRepair(decision);
+    expect(repair.scope).toBe('region');
+    expect(repair.startSeconds).toBe(3.7);
+    expect(repair.endSeconds).toBe(4.1);
+    expect(repair.failingMetrics).toContain('hand-anatomy');
+    expect(repair.preserve).toContain('camera-plan');
+    expect(repair.authority).toBe('PROPOSAL_ONLY');
+  });
+
+  it('proposes audio-only repair when picture passes and only audio metrics fail', () => {
+    const policy = {
+      id: 'dialogue',
+      requiredMetrics: ['dialogue-prosody', 'audio-sync'] as const,
+      minimumScoreByMetric: { 'dialogue-prosody': 0.8, 'audio-sync': 0.8 },
+      minimumConfidence: 0.5,
+      failOnHardFailure: true,
+    };
+    const decision = evaluateDirectedTakeQc([
+      observation('dialogue-prosody', 0.5),
+      observation('audio-sync', 0.6),
+    ], policy);
+    const repair = planDirectedTakeRepair(decision);
+    expect(repair.scope).toBe('audio-only');
+    expect(repair.instruction).toContain('Preserve picture and camera timing');
   });
 
   it('fails closed when source preservation has not been observed', () => {
