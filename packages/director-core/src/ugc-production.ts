@@ -1,6 +1,6 @@
 import type { GenerationReferenceManifest, OrderedGenerationReference } from './generation-reference-manifest.js';
-import type { PerformanceDirectionPlan } from './performance-direction.js';
-import type { RealismDirectionPlan } from './realism-direction.js';
+import { compilePerformanceDirective, type PerformanceDirectionPlan } from './performance-direction.js';
+import { compileRealismDirective, type RealismDirectionPlan } from './realism-direction.js';
 
 export type UgcPlatform = 'tiktok' | 'instagram-reels' | 'youtube-shorts' | 'facebook-reels' | 'other';
 export type UgcCreatorNature = 'synthetic' | 'licensed-human' | 'brand-employee';
@@ -24,6 +24,7 @@ export interface UgcProductBrief {
   prohibitedClaimRefs: readonly string[];
   requiredClaimEvidenceIds: readonly string[];
   referenceAssetIds: readonly string[];
+  referenceEvidenceIds: readonly string[];
 }
 
 export interface UgcCreatorCandidate {
@@ -120,10 +121,16 @@ export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGene
   if (!plan.product.productBibleId.trim()) reasons.push('DIRECTOR_UGC_PRODUCT_BIBLE_REQUIRED');
   if (!plan.product.requiredClaimEvidenceIds.length) reasons.push('DIRECTOR_UGC_CLAIM_EVIDENCE_REQUIRED');
   if (!plan.product.referenceAssetIds.length) reasons.push('DIRECTOR_UGC_PRODUCT_REFERENCE_REQUIRED');
+  if (!plan.product.referenceEvidenceIds.length) reasons.push('DIRECTOR_UGC_PRODUCT_REFERENCE_EVIDENCE_REQUIRED');
 
   const receipts = new Map(plan.approvals.map((approval) => [approval.stage, approval]));
   for (const stage of REQUIRED_APPROVAL_STAGES) {
     if (!receipts.has(stage)) reasons.push(`DIRECTOR_UGC_APPROVAL_REQUIRED:${stage}`);
+  }
+
+  const productApproval = receipts.get('product-reference');
+  if (productApproval && productApproval.selectedRef !== plan.product.productBibleId) {
+    reasons.push('DIRECTOR_UGC_PRODUCT_APPROVAL_MISMATCH');
   }
 
   const creator = resolveSelected(plan.creatorCandidates, receipts.get('creator')?.selectedRef);
@@ -210,6 +217,12 @@ export function compileUgcGenerationBrief(plan: UgcProductionPlan): {
     `Location: ${location.description}. Realism purpose: ${location.realismPurpose}.`,
     `Concept: ${concept.premise}. Product use: ${concept.productUse}.`,
     `Script: ${script.spokenText}`,
+    Object.keys(script.pronunciationNotes).length
+      ? `Pronunciation: ${Object.entries(script.pronunciationNotes).map(([term, pronunciation]) => `${term} = ${pronunciation}`).join('; ')}`
+      : undefined,
+    creator.voiceDirection ? `Voice direction: ${creator.voiceDirection}` : undefined,
+    `[PERFORMANCE DIRECTION]\n${compilePerformanceDirective(script.performancePlan)}`,
+    script.realismPlan ? `[REALISM DIRECTION]\n${compileRealismDirective(script.realismPlan)}` : undefined,
     script.disclosureLine ? `Disclosure: ${script.disclosureLine}` : undefined,
     `Do not introduce claims outside approved refs: ${plan.product.valuePropositionRefs.join(', ')}.`,
     `Prohibited claims: ${plan.product.prohibitedClaimRefs.join(', ') || 'none listed'}.`,
@@ -226,7 +239,7 @@ export function compileUgcGenerationBrief(plan: UgcProductionPlan): {
       semanticLabel: `approved product identity for ${plan.product.brandName} ${plan.product.productName}`,
       promptToken: `PRODUCT_${slot - 1}`,
       required: true,
-      evidenceIds: plan.product.requiredClaimEvidenceIds,
+      evidenceIds: plan.product.referenceEvidenceIds,
     });
   }
   for (const assetId of creator.referenceAssetIds) {
