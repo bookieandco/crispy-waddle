@@ -415,6 +415,8 @@ export async function handleSearchMemories(req: NextRequest) {
 
 export async function handleHealth(_req: NextRequest) {
   try {
+    const storage = getStorage()
+    await storage.probe()
     const service = getJanetService()
     const health = await service.health()
 
