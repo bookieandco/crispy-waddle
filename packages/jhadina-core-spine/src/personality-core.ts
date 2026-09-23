@@ -255,11 +255,12 @@ export function projectPersonality(
   now = new Date().toISOString(),
   policy: PersonalityCorePolicy = DEFAULT_PERSONALITY_CORE_POLICY,
   idFactory: () => string = () => crypto.randomUUID(),
+  activeMemoryEvidenceIds?: ReadonlySet<string>,
 ): PersonalityState {
   const approvedMemoryIds = approvedMemoryEvidence(memories);
-  const nextTraits = current.traits.map((trait) =>
-    reconcileTraitEvidence(trait, approvedMemoryIds, policy)
-  );
+  const nextTraits = activeMemoryEvidenceIds
+    ? current.traits.map((trait) => reconcileTraitEvidence(trait, new Set(activeMemoryEvidenceIds), policy))
+    : [...current.traits];
   let changed = nextTraits.some((trait, index) => trait !== current.traits[index]);
 
   for (const pattern of patterns) {
