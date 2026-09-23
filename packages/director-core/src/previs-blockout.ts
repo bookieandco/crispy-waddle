@@ -119,6 +119,24 @@ export interface PrevisIssue {
   message: string;
 }
 
+export type PrevisConditioningPass = 'plate' | 'depth' | 'normal' | 'mask';
+
+export interface PrevisShotPackage {
+  shotId: string;
+  projectId: string;
+  frameRange: { startFrame: number; endFrameExclusive: number };
+  fps: number;
+  resolution: { width: number; height: number };
+  firstFrameAssetId?: string;
+  lastFrameAssetId?: string;
+  greyboxClipAssetId?: string;
+  cameraMetadataAssetId?: string;
+  promptAssetId?: string;
+  conditioningPasses: Readonly<Partial<Record<PrevisConditioningPass, string>>>;
+  referenceAssetIds: readonly string[];
+  provenanceEvidenceIds: readonly string[];
+}
+
 export interface PrevisCompiledPrompt {
   shotList: string;
   orderedReferenceAssetIds: readonly string[];
@@ -292,6 +310,48 @@ export function compilePrevisShotList(plan: PrevisBlockoutPlan): PrevisCompiledP
     orderedReferenceAssetIds: Object.freeze(usedReferences),
     cutFrames: Object.freeze(shots.slice(1).map((shot) => shot.startFrame)),
   });
+}
+
+export function validatePrevisShotPackage(
+  plan: PrevisBlockoutPlan,
+  shotId: string,
+  pkg: PrevisShotPackage,
+): readonly string[] {
+  const reasons: string[] = [];
+  const shot = plan.shots.find((candidate) => candidate.id === shotId);
+
+  if (!shot) return Object.freeze(['DIRECTOR_PREVIS_PACKAGE_SHOT_UNKNOWN']);
+  if (pkg.shotId !== shot.id || pkg.projectId !== plan.projectId) {
+    reasons.push('DIRECTOR_PREVIS_PACKAGE_IDENTITY_MISMATCH');
+  }
+  if (
+    pkg.frameRange.startFrame !== shot.startFrame ||
+    pkg.frameRange.endFrameExclusive !== shot.endFrameExclusive
+  ) reasons.push('DIRECTOR_PREVIS_PACKAGE_FRAME_RANGE_MISMATCH');
+  if (pkg.fps !== plan.fps) reasons.push('DIRECTOR_PREVIS_PACKAGE_FPS_MISMATCH');
+  if (pkg.resolution.width !== plan.width || pkg.resolution.height !== plan.height) {
+    reasons.push('DIRECTOR_PREVIS_PACKAGE_RESOLUTION_MISMATCH');
+  }
+  if (!pkg.greyboxClipAssetId?.trim()) reasons.push('DIRECTOR_PREVIS_PACKAGE_GREYBOX_REQUIRED');
+  if (!pkg.cameraMetadataAssetId?.trim()) reasons.push('DIRECTOR_PREVIS_PACKAGE_CAMERA_METADATA_REQUIRED');
+  if (!pkg.promptAssetId?.trim()) reasons.push('DIRECTOR_PREVIS_PACKAGE_PROMPT_REQUIRED');
+  if (!pkg.provenanceEvidenceIds.length) reasons.push('DIRECTOR_PREVIS_PACKAGE_PROVENANCE_REQUIRED');
+
+  const expectedReferences = new Set<string>();
+  for (const objectId of shot.visibleObjectIds) {
+    const object = plan.objects.find((candidate) => candidate.id === objectId);
+    for (const assetId of object?.referenceAssetIds ?? []) expectedReferences.add(assetId);
+  }
+  for (const gap of shot.generationGaps) {
+    for (const assetId of gap.requiredReferenceAssetIds) expectedReferences.add(assetId);
+  }
+  for (const assetId of expectedReferences) {
+    if (!pkg.referenceAssetIds.includes(assetId)) {
+      reasons.push(`DIRECTOR_PREVIS_PACKAGE_REFERENCE_MISSING:${assetId}`);
+    }
+  }
+
+  return Object.freeze([...new Set(reasons)]);
 }
 
 export function secondsToFrames(seconds: number, fps: number): number {
