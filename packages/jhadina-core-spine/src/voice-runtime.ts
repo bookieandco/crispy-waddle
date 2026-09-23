@@ -1,3 +1,5 @@
+import type { ExpressionDirective } from './types.js';
+
 export type JhadinaVoiceStage = 'decode'|'asr'|'reason'|'tts'|'viseme';
 
 export interface JhadinaVoiceProfile {
@@ -139,3 +141,30 @@ export const JHADINA_CANONICAL_VOICE_PROFILE:JhadinaVoiceProfile=Object.freeze({
   delivery:Object.freeze({defaultRate:1,pauseScale:1,expressiveness:.72,interruptionPolicy:'barge-in'}),
   providerPriority:Object.freeze(['voxcpm2','qwen3-tts','cosyvoice','f5-tts','vibevoice-fusion','browser-tts']),
 });
+
+
+/**
+ * Deterministically maps governed expression presentation into provider-neutral
+ * TTS delivery. It does not infer emotion or mutate the expression plan.
+ */
+export function voiceDeliveryFromExpression(
+  directive: ExpressionDirective,
+  profile: JhadinaVoiceProfile = JHADINA_CANONICAL_VOICE_PROFILE,
+): NonNullable<VoiceSynthesisRequest['delivery']> {
+  const rateMultiplier = directive.speakingRate === 'slow'
+    ? 0.9
+    : directive.speakingRate === 'fast'
+      ? 1.08
+      : 1;
+  const pauseMultiplier = directive.pauseDensity === 'high'
+    ? 1.3
+    : directive.pauseDensity === 'moderate'
+      ? 1.12
+      : 0.95;
+
+  return Object.freeze({
+    rate: Math.max(0.75, Math.min(1.25, profile.delivery.defaultRate * rateMultiplier)),
+    pauseScale: Math.max(0.75, Math.min(1.5, profile.delivery.pauseScale * pauseMultiplier)),
+    style: directive.register ?? 'default',
+  });
+}
