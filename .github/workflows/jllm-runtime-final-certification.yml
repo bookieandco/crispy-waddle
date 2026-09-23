@@ -83,9 +83,12 @@ jobs:
           python -m compileall -q services/jhadina-artifact-scanner
           python -m compileall -q services/jhadina-artifact-extractor
 
+      - name: Install voice CI dependencies
+        run: pip install -r services/jhadina-voice/requirements-ci.txt
+
       - name: Voice boundary tests
         working-directory: services/jhadina-voice
-        run: python -m unittest -v test_worker.py
+        run: python -m unittest -v test_worker.py test_app.py
 
       - name: Artifact scanner tests
         working-directory: services/jhadina-artifact-scanner
