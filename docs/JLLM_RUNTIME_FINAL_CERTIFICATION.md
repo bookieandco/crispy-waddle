@@ -6,6 +6,8 @@ Certification branch: `cert/jllm-runtime-final-20260922`
 
 Canonical main observed before the rerun: `bb4aa5a4bb54839a30de921470eac6154a2b1937`.
 
+Source-closure PR #638 merged as `f7a401ca534be5547d01cc262acaf4d58bbb51ab` after its dedicated JLLM certification run completed successfully.
+
 ## Certification rule
 
 Four different claims are tracked separately:
@@ -21,7 +23,7 @@ A source-complete feature is not a live-runtime feature. Missing deployment capa
 
 | Gate | Requirement | Source | Infrastructure | Live runtime | Final decision |
 |---|---|---|---|---|---|
-| FINAL.1 | JLLM-owned repo type-check/build/tests | PENDING — dedicated `JLLM Runtime Final Certification` workflow added on this branch | N/A | N/A | PENDING PR CI |
+| FINAL.1 | JLLM-owned repo type-check/build/tests | **PASS** — dedicated `JLLM Runtime Final Certification` run 35809914013 succeeded on source head `6b11f1d5c31cd3456842c77fe1ceb76d301fc2c4` | N/A | N/A | **PASS** |
 | FINAL.2 | Ask Jhadina available on a current READY deployment | PASS — Ask surface + governed command route exist | **BLOCKED** — no current-main READY Vercel deployment; direct Git integration continues to fail/cancel | **BLOCKED** | **BLOCKED** |
 | FINAL.3 | “Jhadina” / “Hey Jhadina” wake from a real microphone | PASS — browser continuous wake path exists; wake never grants authority | Browser/device permission dependent | **BLOCKED** — no physical microphone drill on current deployment | **BLOCKED** |
 | FINAL.4 | Native multilingual Whisper STT | PASS — authenticated voice service + Faster-Whisper + FFmpeg + native mic web bridge | **BLOCKED** — no deployed Jhadina Voice service | **BLOCKED** — no deployed real-audio transcription receipt | **BLOCKED** |
@@ -41,9 +43,11 @@ A source-complete feature is not a live-runtime feature. Missing deployment capa
 
 ### Source stage
 
-**JLLM source closure is NOT YET COMPLETE.**
+**JLLM source verification PASS; JLLM source feature closure remains PARTIAL.**
 
-The dedicated certification workflow on this PR is the authority for FINAL.1. Most required source contracts are now present, including native voice app routing and durable WorkSession resume. Two substantive source gaps intentionally remain visible:
+Dedicated `JLLM Runtime Final Certification` run `35809914013` completed successfully on source head `6b11f1d5c31cd3456842c77fe1ceb76d301fc2c4`. It passed Security Core, Core Spine, Intelligence Core, Evolution Core, Capability Registry, the full Ask Jhadina type-check/test suite, the Ask production build, Python runtime compilation, voice boundary tests, scanner tests, and extractor tests.
+
+Most required source contracts are now present, including native voice app routing and durable WorkSession resume. Two substantive feature gaps intentionally remain visible:
 
 - FINAL.6: true streaming synthesis/playback is not implemented; only interruption/barge-in cancellation is.
 - FINAL.12: Ask Jhadina still stops at a governed Doctor proposal rather than executing the complete evidence → independent approval → isolated repair → verified draft-PR chain.
@@ -144,8 +148,8 @@ Only after those receipts exist should the overall line change to **JLLM-RUNTIME
 ## Rerun evidence snapshot
 
 ### GitHub / source
-- FINAL branch created from current Jhadina main lineage.
-- Dedicated `JLLM Runtime Final Certification` workflow added to test the JLLM-owned packages, Ask Jhadina app, production build, native voice boundary, scanner and extractor in one reproducible run.
+- FINAL source-closure branch was created from current Jhadina main lineage and merged through PR #638 as `f7a401ca534be5547d01cc262acaf4d58bbb51ab`.
+- Dedicated `JLLM Runtime Final Certification` run `35809914013` passed on source head `6b11f1d5c31cd3456842c77fe1ceb76d301fc2c4`, covering JLLM-owned packages, Ask Jhadina app, production build, native voice boundary, scanner and extractor.
 - WorkSession API + Ask persist/resume path added.
 - native voice HTTP bridge added to Ask.
 - native microphone path added.
