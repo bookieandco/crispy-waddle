@@ -4,7 +4,12 @@ const GITHUB_OIDC_ISSUER = 'https://token.actions.githubusercontent.com'
 const GITHUB_OIDC_JWKS = 'https://token.actions.githubusercontent.com/.well-known/jwks'
 const GITHUB_OIDC_AUDIENCE = 'jhadina-production-scheduler'
 const GITHUB_REPOSITORY = 'bookieandco/crispy-waddle'
+const GITHUB_REPOSITORY_ID = '1320251374'
+const GITHUB_REPOSITORY_OWNER = 'bookieandco'
+const GITHUB_REPOSITORY_OWNER_ID = '289295074'
 const GITHUB_MAIN_REF = 'refs/heads/main'
+const GITHUB_IMMUTABLE_SUBJECT =
+  'repo:bookieandco@289295074/crispy-waddle@1320251374:ref:refs/heads/main'
 const GITHUB_WORKFLOW_REF =
   'bookieandco/crispy-waddle/.github/workflows/jhadina-production-scheduler.yml@refs/heads/main'
 
@@ -16,7 +21,9 @@ type SchedulerClaims = {
   exp?: number
   nbf?: number
   repository?: string
+  repository_id?: string
   repository_owner?: string
+  repository_owner_id?: string
   ref?: string
   event_name?: string
   workflow_ref?: string
@@ -44,13 +51,15 @@ function claimsAreTrusted(claims: SchedulerClaims, nowSeconds: number): boolean 
   if (claims.iss !== GITHUB_OIDC_ISSUER) return false
   if (!audienceMatches(claims.aud)) return false
   if (claims.repository !== GITHUB_REPOSITORY) return false
-  if (claims.repository_owner !== 'bookieandco') return false
+  if (claims.repository_id !== GITHUB_REPOSITORY_ID) return false
+  if (claims.repository_owner !== GITHUB_REPOSITORY_OWNER) return false
+  if (claims.repository_owner_id !== GITHUB_REPOSITORY_OWNER_ID) return false
   if (claims.ref !== GITHUB_MAIN_REF) return false
   if (claims.workflow_ref !== GITHUB_WORKFLOW_REF) return false
   if (!['schedule', 'workflow_dispatch', 'push'].includes(claims.event_name ?? '')) return false
   if (typeof claims.exp !== 'number' || claims.exp <= nowSeconds) return false
   if (typeof claims.nbf === 'number' && claims.nbf > nowSeconds + 30) return false
-  if (typeof claims.sub !== 'string' || !claims.sub.startsWith(`repo:${GITHUB_REPOSITORY}:`)) return false
+  if (claims.sub !== GITHUB_IMMUTABLE_SUBJECT) return false
   return true
 }
 
