@@ -26,7 +26,12 @@ export function decideBehavior(
   const ambiguity = clamp(context.ambiguity ?? 0);
   const reasons: string[] = [];
 
-  if (context.serious === true || context.requiresPrecision === true) {
+  if (
+    context.serious === true ||
+    context.requiresPrecision === true ||
+    context.highStakes === true ||
+    context.distress === true
+  ) {
     reasons.push('serious-or-precision context');
     return { action: 'stay_serious', posture, confidence: 1 - ambiguity, reasons };
   }
