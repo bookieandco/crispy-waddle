@@ -23,6 +23,23 @@ describe("VercelOidcMemoryStorage", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 
+  it("supports an async runtime OIDC token provider", async () => {
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      const requestHeaders = new Headers(init?.headers)
+      expect(requestHeaders.get("authorization")).toBe("Bearer runtime-oidc")
+      return new Response(JSON.stringify({ data: { ok: true } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    })
+    const storage = new VercelOidcMemoryStorage({
+      tokenProvider: async () => "runtime-oidc",
+      fetchImpl: fetchImpl as typeof fetch,
+    })
+
+    await expect(storage.probe()).resolves.toBeUndefined()
+  })
+
   it("round-trips typed Memory results through the gateway", async () => {
     const memory = {
       id: "mem-1",
