@@ -131,6 +131,7 @@ export async function POST(req: NextRequest) {
       const verifier = await createRequestIdentityVerifier()
       const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
       const doctor = doctorProposal(doctorIntent)
+      const reasoningEventId = `doctor-command:${crypto.randomUUID()}`
       const proposal = {
         id: `doctor-proposal:${crypto.randomUUID()}`,
         contextId: `doctor-context:${crypto.randomUUID()}`,
@@ -150,7 +151,7 @@ export async function POST(req: NextRequest) {
         success: true,
         data: {
           proposal,
-          reasoningEventId: null,
+          reasoningEventId,
           expression,
           doctorIntent: doctor.doctorIntent,
           approvalRequired: true,
