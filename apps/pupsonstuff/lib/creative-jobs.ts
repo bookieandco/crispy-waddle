@@ -9,6 +9,11 @@ import { removeBackground } from '@/lib/background-removal';
 import { buildPetIdentitySheet } from '@/lib/pet-identity-sheet';
 import { buildPrintMaster } from '@/lib/print-master';
 import {
+  analyzeDogReference,
+  dogReferenceQuality,
+  type DogVisionResult,
+} from '@/lib/roboflow-dog-vision';
+import {
   createSignedAssetUrl,
   ownerTokenHash,
   rest,
@@ -87,6 +92,22 @@ async function inspectUpload(bytes: Buffer, mimeType: string) {
   return { width, height };
 }
 
+function dogVisionProvenance(result: DogVisionResult) {
+  if (result.status !== 'ok') return { status: result.status };
+  return {
+    status: result.status,
+    modelId: result.model_id,
+    workflowId: result.workflow_id,
+    dogDetected: result.dog_detected,
+    detectionCount: result.detection_count,
+    segmentationCount: result.segmentation_count,
+    maxConfidence: result.max_confidence,
+    largestSubjectFraction: result.largest_subject_fraction,
+    predictions: result.predictions.slice(0, 5),
+    segments: result.segments.slice(0, 5),
+  };
+}
+
 export async function createCreativeJob(input: {
   ownerToken: string;
   petName: string;
@@ -132,8 +153,15 @@ export async function createCreativeJob(input: {
   });
 
   const preparedAssets = [];
+  const referenceQuality: Array<{ score: number; findings: string[] }> = [];
   for (const [index, file] of input.files.entries()) {
     const dimensions = await inspectUpload(file.bytes, file.mimeType);
+    const dogVision = await analyzeDogReference({
+      bytes: file.bytes,
+      mimeType: file.mimeType,
+      runWorkflow: index === 0,
+    });
+    referenceQuality.push(dogReferenceQuality(dogVision));
     const id = randomUUID();
     const extension = file.mimeType === 'image/jpeg' ? 'jpg' : file.mimeType.split('/')[1];
     const objectPath = `${ownerHash}/${id}.${extension}`;
@@ -154,7 +182,11 @@ export async function createCreativeJob(input: {
       width: dimensions.width,
       height: dimensions.height,
       sha256: sha256(file.bytes),
-      provenance: { originalFileName: file.fileName, referenceIndex: index },
+      provenance: {
+        originalFileName: file.fileName,
+        referenceIndex: index,
+        dogVision: dogVisionProvenance(dogVision),
+      },
     });
   }
 
@@ -187,8 +219,8 @@ export async function createCreativeJob(input: {
         pet_identity_id: pet.id,
         media_asset_id: item.id,
         role: index === 0 ? 'primary' : 'reference',
-        quality_score: 100,
-        quality_findings: [],
+        quality_score: referenceQuality[index]?.score ?? 100,
+        quality_findings: referenceQuality[index]?.findings ?? [],
       }))
     ),
   });
