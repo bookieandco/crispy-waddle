@@ -43,7 +43,7 @@ create or replace function public.jhadina_retire_memory(
 )
 returns public.jhadina_memories
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
@@ -80,7 +80,7 @@ create or replace function public.jhadina_correct_memory(
 )
 returns table(retired jsonb, replacement jsonb)
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
