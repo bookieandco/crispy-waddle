@@ -104,6 +104,10 @@ export class InMemoryStorage implements MemoryStorage {
     timeline: 0,
   }
 
+  async probe(): Promise<void> {
+    // Dev/test storage is process-local by design; construction is sufficient.
+  }
+
   /**
    * Memory operations
    */
