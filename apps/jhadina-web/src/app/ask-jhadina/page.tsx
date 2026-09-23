@@ -73,8 +73,12 @@ function AskJhadina(){
     if(!response.ok){setWorkSessionReady(true);return}
     const json=await response.json()
     const goal=typeof json?.session?.goal==="string"?json.session.goal:""
-    const restoredRefs=Array.isArray(json?.session?.artifactRefs)
-     ?[...new Set(json.session.artifactRefs.filter((ref:unknown)=>Boolean(ref&&typeof ref==="object"&&(ref as {admitted?:unknown}).admitted===true&&typeof (ref as {id?:unknown}).id==="string")).map((ref:{id:string})=>ref.id))].slice(0,8)
+    const restoredRefs:string[]=Array.isArray(json?.session?.artifactRefs)
+     ?[...new Set<string>(json.session.artifactRefs.flatMap((ref:unknown)=>{
+       if(!ref||typeof ref!=="object")return[]
+       const candidate=ref as {id?:unknown;admitted?:unknown}
+       return candidate.admitted===true&&typeof candidate.id==="string"?[candidate.id]:[]
+      }))].slice(0,8)
      :[]
     if(cancelled)return
     setWorkSessionGoal(goal)
