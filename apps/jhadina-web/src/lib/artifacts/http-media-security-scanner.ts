@@ -9,7 +9,9 @@ export class HttpMediaSecurityScanner implements MediaSecurityScanner {
   form.set("mimeType",input.mimeType)
   form.set("sizeBytes",String(input.sizeBytes))
   form.set("expectedSha256",input.sha256)
-  form.set("file",new Blob([input.bytes],{type:input.mimeType}),input.assetId)
+  const uploadBytes=new Uint8Array(input.bytes.byteLength)
+  uploadBytes.set(input.bytes)
+  form.set("file",new Blob([uploadBytes],{type:input.mimeType}),input.assetId)
   const response=await fetch(this.endpoint,{
    method:"POST",
    headers:{authorization:`Bearer ${this.bearerToken}`},
