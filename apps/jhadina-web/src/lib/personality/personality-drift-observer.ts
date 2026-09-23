@@ -11,6 +11,7 @@ import {
   type PersonalityState,
 } from "@jhadina/core-spine"
 import type { GovernedExpressionRealization } from "@jhadina/intelligence-core"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { createServiceRoleClient } from "../supabase/service-role"
 
 export interface PersonalityDriftObservationResult {
@@ -72,8 +73,8 @@ export async function recordPersonalityDriftObservation(input: {
   behaviorContext: BehavioralKernelContext
   realization: GovernedExpressionRealization
   attribution?: Partial<BehaviorAttribution>
-}): Promise<PersonalityDriftObservationResult> {
-  const client = createServiceRoleClient()
+}, clientOverride?: SupabaseClient | null): Promise<PersonalityDriftObservationResult> {
+  const client = clientOverride === undefined ? createServiceRoleClient() : clientOverride
   if (!client) {
     return { recorded: false, limitation: "personality drift persistence unavailable" }
   }
