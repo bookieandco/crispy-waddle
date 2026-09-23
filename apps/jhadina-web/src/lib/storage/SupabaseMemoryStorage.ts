@@ -160,6 +160,14 @@ function assertNoError(error: { message: string } | null, context: string): void
 export class SupabaseMemoryStorage implements MemoryStorage {
   constructor(private readonly client: SupabaseClient) {}
 
+  async probe(): Promise<void> {
+    const { error } = await this.client
+      .from("jhadina_memories")
+      .select("id", { head: true, count: "exact" })
+      .limit(1)
+    assertNoError(error, "probe")
+  }
+
   async createMemory(data: Omit<Memory, "id">): Promise<Memory> {
     const row: MemoryRow = {
       id: nextId("mem"),
