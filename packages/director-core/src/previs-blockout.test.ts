@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildPrevisGenerationReferenceManifest,
   compilePrevisShotList,
   evaluatePrevisExecutor,
   evaluatePrevisObservationCoverage,
@@ -41,7 +42,7 @@ function plan(): PrevisBlockoutPlan {
       { id: 'lime', primitive: 'sphere', semanticRole: 'lime wedge placeholder', referenceAssetIds: ['ref:lime'] },
     ],
     referenceBindings: [
-      { assetId: 'ref:lime-can', semanticRole: 'lime soda can identity', usage: 'identity' },
+      { assetId: 'ref:lime-can', semanticRole: 'lime soda can identity', usage: 'product-identity', evidenceIds: ['e:lime-can'] },
       { assetId: 'ref:finished-glass', semanticRole: 'finished drink appearance', usage: 'appearance' },
       { assetId: 'ref:lime', semanticRole: 'lime appearance', usage: 'appearance' },
       { assetId: 'ref:unused-box', semanticRole: '12-pack carton', usage: 'appearance' },
@@ -182,6 +183,37 @@ describe('previs blockout', () => {
       provenanceEvidenceIds: ['export:receipt'],
     });
     expect(reasons).toEqual([]);
+  });
+
+  it('turns a validated shot package into exact provider reference order', () => {
+    const manifest = buildPrevisGenerationReferenceManifest(plan(), 'shot:3', {
+      shotId: 'shot:3',
+      projectId: 'ad:soda',
+      frameRange: { startFrame: 48, endFrameExclusive: 72 },
+      fps: 24,
+      resolution: { width: 1920, height: 1080 },
+      firstFrameAssetId: 'asset:first',
+      lastFrameAssetId: 'asset:last',
+      greyboxClipAssetId: 'asset:greybox',
+      cameraMetadataAssetId: 'asset:camera-json',
+      promptAssetId: 'asset:prompt',
+      conditioningPasses: {
+        depth: 'asset:depth',
+        normal: 'asset:normal',
+      },
+      referenceAssetIds: ['ref:lime-can', 'ref:finished-glass'],
+      provenanceEvidenceIds: ['export:receipt'],
+    });
+
+    expect(manifest.references.map((reference) => [reference.slot, reference.assetId, reference.media, reference.role])).toEqual([
+      [1, 'asset:greybox', 'video', 'motion'],
+      [2, 'asset:first', 'image', 'first-frame'],
+      [3, 'asset:last', 'image', 'last-frame'],
+      [4, 'ref:lime-can', 'image', 'product-identity'],
+      [5, 'ref:finished-glass', 'image', 'custom'],
+      [6, 'asset:depth', 'image', 'depth'],
+      [7, 'asset:normal', 'image', 'normal'],
+    ]);
   });
 
   it('rejects a shot package missing an authored reference', () => {
