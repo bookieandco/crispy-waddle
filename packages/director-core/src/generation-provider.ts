@@ -6,8 +6,9 @@ import type {
 } from './generation-registry';
 import type { CreativeProvenance } from './creative-provenance';
 import { resolveComfyUIHistoryOutputs } from './comfyui-output-resolver';
+import type { GenerationReferenceMedia } from './generation-reference-manifest.js';
 
-export type GenerationReference = { assetId: string; role: 'character' | 'location' | 'style' | 'composition' | 'motion' | 'image'; uri?: string };
+export type GenerationReference = { assetId: string; role: 'character' | 'location' | 'style' | 'composition' | 'motion' | 'image'; media?: GenerationReferenceMedia; uri?: string };
 export type GenerationRequest = { requestId: string; projectId: string; modality: GenerationModality; prompt: string; negativePrompt?: string; model: ModelRecord; loras?: Array<{ lora: LoRARecord; weight?: number }>; references?: GenerationReference[]; parameters: Record<string, unknown>; creativeProvenance?: CreativeProvenance };
 export type GenerationResult = { requestId: string; providerId: string; status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'; assetIds: string[]; providerJobId?: string; error?: string; metadata?: Record<string, unknown> };
 export type GenerationSubmissionGuarantee = 'strong-idempotent' | 'recoverable' | 'non-idempotent';
