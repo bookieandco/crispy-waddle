@@ -168,7 +168,7 @@ create or replace function public.save_director_commercial_creative_bundle(
 )
 returns public.director_commercial_creatives
 language plpgsql
-security definer
+security invoker
 set search_path=public
 as $$
 declare
