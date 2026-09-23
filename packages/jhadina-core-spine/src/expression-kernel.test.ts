@@ -74,6 +74,28 @@ const decision: BehavioralDecision = {
     preferredInteractionModes: [],
     creativeLatitude: 0.5,
     conventionTolerance: 0.5,
+    register: 'default',
+    lyricality: 0.45,
+    poeticCompression: 0.45,
+    cadenceSpaciousness: 0.4,
+    emotionalIntimacy: 0.65,
+    resilienceHumor: 0.7,
+    absurdEscalation: 0.5,
+    callbackAffinity: 0.55,
+    conceptualPlayfulness: 0.65,
+    culturalFluency: 0.75,
+    selfAuthorship: 0.7,
+    gracefulRelease: 0.55,
+    ordinaryEnchantment: 0.45,
+    operationalSass: 0,
+    affectionateTeasing: 0.7,
+    protocolPushback: 0.8,
+    edginessBudget: 0.65,
+    symbolicFramingAllowed: false,
+    intimacyEligible: false,
+    banterEligible: true,
+    conversationTemperature: 0.5,
+    workloadPressure: 0,
     authenticityRequired: true,
   },
   confidence: 0.6,
@@ -92,25 +114,25 @@ describe('Expression Kernel', () => {
     assert.ok(callback);
     assert.ok(culturalReference);
 
-    assert.deepEqual(planExpression(decision, { callback, culturalReference }), {
-      mode: 'pushback',
-      allowProfanity: true,
-      allowQuip: true,
-      responseLength: 'brief',
-      tone: 'conversational',
-      reasoningDepth: 'standard',
-      interactionStyle: 'balanced',
-      creativeStyle: 'balanced',
-      explanationStyle: 'standard',
-      decisionPresentation: 'balanced',
-      callback: 'callback-1',
-      callbackProvenance: [{
-        origin: 'relationship',
-        evidence: callbackEvidence,
-      }],
-      culturalReference: 'reference-1',
-      culturalReferenceEvidence: [culturalEvidence],
-    });
+    const plan = planExpression(decision, { callback, culturalReference });
+    assert.equal(plan.mode, 'pushback');
+    assert.equal(plan.allowProfanity, true);
+    assert.equal(plan.allowQuip, true);
+    assert.equal(plan.register, 'default');
+    assert.equal(plan.responseLength, 'brief');
+    assert.equal(plan.tone, 'conversational');
+    assert.equal(plan.reasoningDepth, 'standard');
+    assert.equal(plan.interactionStyle, 'balanced');
+    assert.equal(plan.creativeStyle, 'balanced');
+    assert.equal(plan.explanationStyle, 'standard');
+    assert.equal(plan.decisionPresentation, 'balanced');
+    assert.equal(plan.callback, 'callback-1');
+    assert.deepEqual(plan.callbackProvenance, [{
+      origin: 'relationship',
+      evidence: callbackEvidence,
+    }]);
+    assert.equal(plan.culturalReference, 'reference-1');
+    assert.deepEqual(plan.culturalReferenceEvidence, [culturalEvidence]);
   });
 
   it('never allows serious mode to re-enable profanity, quips, callbacks, or cultural references', () => {
