@@ -18,7 +18,58 @@ const boards: StoryboardBoard[] = [
     id: 'b-2', sequenceId: 'seq-1', projectId: 'project-1', shotId: 'shot-1', order: 2,
     status: 'approved', action: 'Character looks toward camera', notes: 'Hold expression',
     referenceAssetIds: ['ref-b', 'ref-a'], continuityAnchorIds: ['char-a'],
-    continuityLocks: ['character', 'composition'], version: 3, artifactIds: ['art-2'], updatedAt: '2026-09-09T00:00:00Z',
+    continuityLocks: ['character', 'composition'],
+    cameraPlan: {
+      version: 1,
+      target: 'generative-video',
+      intent: {
+        narrativeFunction: 'compress distance as the character notices the camera',
+        emotionalEffect: 'rising unease',
+      },
+      composition: {
+        shotSize: 'medium-close-up',
+        angle: 'eye-level',
+      },
+      optics: {
+        focalLengthMm: 50,
+      },
+      movements: [
+        {
+          kind: 'dolly-in',
+          intensity: 'low',
+          speed: 'slow',
+          motivation: 'the camera closes emotional distance at the realization beat',
+        },
+      ],
+      timing: {
+        durationSeconds: 6,
+        oneTake: true,
+      },
+      preserve: ['shot-size', 'lens'],
+    },
+    performancePlan: {
+      version: 1,
+      sceneFunction: 'turn recognition into visible unease',
+      actors: [{ actorId: 'character', startingState: 'neutral', endingState: 'uneasy' }],
+      beats: [{
+        id: 'notice',
+        kind: 'reaction',
+        actorId: 'character',
+        trigger: 'the character notices the camera',
+        action: 'freeze for a fraction, then tighten the jaw',
+        endState: 'held eye contact with restrained tension',
+      }],
+    },
+    realismPlan: {
+      version: 1,
+      goal: 'retain natural body timing and subtle imperfection',
+      naturalismCues: ['breathing', 'weight-shift', 'skin-texture'],
+      physicalResponses: [{
+        trigger: 'the character freezes',
+        subjectResponse: 'breathing becomes shallower while posture remains weighted',
+      }],
+    },
+    version: 3, artifactIds: ['art-2'], updatedAt: '2026-09-09T00:00:00Z',
   },
 ];
 
@@ -31,6 +82,10 @@ describe('storyboard shot adapter', () => {
     expect(plan.continuityLocks).toEqual(['character', 'camera', 'composition']);
     expect(plan.prompt).toContain('Character enters');
     expect(plan.prompt).toContain('Character looks toward camera');
+    expect(plan.cameraPlan?.intent.narrativeFunction).toContain('compress distance');
+    expect(plan.cameraPlan?.optics?.focalLengthMm).toBe(50);
+    expect(plan.performancePlan?.sceneFunction).toContain('visible unease');
+    expect(plan.realismPlan?.naturalismCues).toContain('breathing');
   });
 
   it('creates a queued take without executing generation', () => {
@@ -38,6 +93,27 @@ describe('storyboard shot adapter', () => {
     expect(result.take.status).toBe('queued');
     expect(result.take.takeNumber).toBe(2);
     expect(result.shot.shotId).toBe('shot-1');
+    expect(result.shot.cameraPlan?.movements[0]?.kind).toBe('dolly-in');
+    expect(result.shot.performancePlan?.beats[0]?.kind).toBe('reaction');
+    expect(result.shot.realismPlan?.goal).toContain('natural body timing');
+  });
+
+  it('fails closed when the latest storyboard camera plan is contradictory', () => {
+    const invalidBoards = boards.map((board) => (
+      board.id === 'b-2'
+        ? {
+            ...board,
+            cameraPlan: {
+              ...board.cameraPlan!,
+              movements: [
+                { kind: 'locked' as const },
+                { kind: 'pan' as const, motivation: 'follow the entering character' },
+              ],
+            },
+          }
+        : board
+    ));
+    expect(() => buildStoryboardShotPlan(sequence, invalidBoards, 'shot-1')).toThrow('DIRECTOR_CAMERA_PLAN_INVALID');
   });
 
   it('rejects a shot with no boards', () => {

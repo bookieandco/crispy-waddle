@@ -1,3 +1,6 @@
+import { assertDirectorCameraPlan } from './camera-language.js';
+import { assertPerformanceDirectionPlan } from './performance-direction.js';
+import { assertRealismDirectionPlan } from './realism-direction.js';
 import type { ContinuityLock, TakePlan, TakeRequest } from './generation-orchestrator.js';
 import type { StoryboardBoard, StoryboardSequence } from './storyboard-sequence.js';
 
@@ -11,6 +14,9 @@ export interface StoryboardShotPlan {
   referenceAssetIds: string[];
   continuityLocks: ContinuityLock[];
   cinematography?: TakeRequest['cinematography'];
+  cameraPlan?: TakeRequest['cameraPlan'];
+  performancePlan?: TakeRequest['performancePlan'];
+  realismPlan?: TakeRequest['realismPlan'];
 }
 
 export interface StoryboardTakePlan {
@@ -40,6 +46,12 @@ export function buildStoryboardShotPlan(
   const continuityLocks = unique(
     shotBoards.flatMap((board) => board.continuityLocks?.length ? board.continuityLocks : DEFAULT_LOCKS),
   );
+  const cameraPlan = cameraPlanFrom(shotBoards);
+  const performancePlan = performancePlanFrom(shotBoards);
+  const realismPlan = realismPlanFrom(shotBoards);
+  if (cameraPlan) assertDirectorCameraPlan(cameraPlan);
+  if (performancePlan) assertPerformanceDirectionPlan(performancePlan);
+  if (realismPlan) assertRealismDirectionPlan(realismPlan);
 
   return {
     projectId: sequence.projectId,
@@ -51,6 +63,9 @@ export function buildStoryboardShotPlan(
     referenceAssetIds,
     continuityLocks,
     cinematography: cinematographyFrom(shotBoards),
+    cameraPlan,
+    performancePlan,
+    realismPlan,
   };
 }
 
@@ -73,6 +88,9 @@ export function buildStoryboardTakePlan(
     takeCount: overrides.takeCount,
     locked: shot.continuityLocks,
     cinematography: shot.cinematography,
+    cameraPlan: shot.cameraPlan,
+    performancePlan: shot.performancePlan,
+    realismPlan: shot.realismPlan,
     referenceAssetIds: shot.referenceAssetIds,
   };
 
@@ -98,6 +116,21 @@ function boardPrompt(board: StoryboardBoard): string {
 function cinematographyFrom(boards: StoryboardBoard[]): TakeRequest['cinematography'] {
   const board = boards[boards.length - 1];
   return board?.cinematography;
+}
+
+function cameraPlanFrom(boards: StoryboardBoard[]): TakeRequest['cameraPlan'] {
+  const board = [...boards].reverse().find((candidate) => candidate.cameraPlan);
+  return board?.cameraPlan;
+}
+
+function performancePlanFrom(boards: StoryboardBoard[]): TakeRequest['performancePlan'] {
+  const board = [...boards].reverse().find((candidate) => candidate.performancePlan);
+  return board?.performancePlan;
+}
+
+function realismPlanFrom(boards: StoryboardBoard[]): TakeRequest['realismPlan'] {
+  const board = [...boards].reverse().find((candidate) => candidate.realismPlan);
+  return board?.realismPlan;
 }
 
 function unique<T>(values: T[]): T[] {
