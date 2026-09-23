@@ -174,8 +174,8 @@ function projectTasteAndRelationship(
   current: PersonalityState,
   traits: readonly PersonalityTrait[],
 ): Pick<PersonalityState, 'taste' | 'relationship'> {
-  const taste = current.taste ?? DEFAULT_PERSONALITY_TASTE;
-  const relationship = current.relationship ?? DEFAULT_PERSONALITY_RELATIONSHIP;
+  const currentTaste = current.taste ?? DEFAULT_PERSONALITY_TASTE;
+  const currentRelationship = current.relationship ?? DEFAULT_PERSONALITY_RELATIONSHIP;
 
   const experimental = acceptedTrait(
     traits,
@@ -199,20 +199,15 @@ function projectTasteAndRelationship(
   );
 
   const experimentalCalibration = calibration(experimental);
-  const familiarCalibration = calibration(familiar);
   const relationshipTraits = [familiar, direct, warm].filter(
     (trait): trait is PersonalityTrait => Boolean(trait),
   );
-  const relationshipEvidence = uniqueEvidence([
-    ...relationship.evidence,
-    ...relationshipTraits.flatMap((trait) => trait.evidence),
-  ]);
-  const tasteEvidence = uniqueEvidence([
-    ...taste.evidence,
-    ...(experimental?.evidence ?? []),
-  ]);
+  const relationshipEvidence = uniqueEvidence(
+    relationshipTraits.flatMap((trait) => trait.evidence),
+  );
+  const tasteEvidence = uniqueEvidence(experimental?.evidence ?? []);
 
-  const modes = new Set(relationship.preferredInteractionModes.map((mode) => mode.trim().toLowerCase()).filter(Boolean));
+  const modes = new Set<string>();
   if (familiar) modes.add('familiar');
   if (direct) modes.add('direct');
   if (warm) modes.add('warm');
@@ -220,23 +215,29 @@ function projectTasteAndRelationship(
   const evidenceFamiliarity = Math.min(1, relationshipEvidence.length / 10);
   return {
     taste: {
-      ...taste,
-      experimentation: Math.max(taste.experimentation, experimentalCalibration),
+      // Novelty/aesthetic intensity are not currently projected from semantic
+      // preference traits, so preserve their independently governed values.
+      novelty: currentTaste.novelty,
+      aestheticIntensity: currentTaste.aestheticIntensity,
+      experimentation: experimental
+        ? Math.max(DEFAULT_PERSONALITY_TASTE.experimentation, experimentalCalibration)
+        : DEFAULT_PERSONALITY_TASTE.experimentation,
       conventionTolerance: experimental
-        ? Math.min(taste.conventionTolerance, 1 - 0.5 * experimentalCalibration)
-        : taste.conventionTolerance,
+        ? Math.min(DEFAULT_PERSONALITY_TASTE.conventionTolerance, 1 - 0.5 * experimentalCalibration)
+        : DEFAULT_PERSONALITY_TASTE.conventionTolerance,
       evidence: tasteEvidence,
     },
     relationship: {
-      ...relationship,
-      familiarity: Math.max(relationship.familiarity, evidenceFamiliarity),
+      familiarity: evidenceFamiliarity,
       calibrationConfidence: Math.max(
-        relationship.calibrationConfidence,
-        familiarCalibration,
+        calibration(familiar),
         calibration(direct),
         calibration(warm),
       ),
       preferredInteractionModes: [...modes].sort(),
+      // Recurring callbacks have their own provenance gate and are not learned
+      // from the semantic communication traits projected here.
+      recurringCallbacks: [...currentRelationship.recurringCallbacks],
       evidence: relationshipEvidence,
     },
   };
