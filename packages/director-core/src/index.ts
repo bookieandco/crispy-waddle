@@ -15,6 +15,7 @@ export * from './generation-orchestrator';
 export * from './camera-language';
 export * from './performance-direction';
 export * from './realism-direction';
+export * from './directed-take-qc';
 export * from './generation-plan-adapter';
 export * from './generation-assets';
 export * from './generated-asset-resolver';
