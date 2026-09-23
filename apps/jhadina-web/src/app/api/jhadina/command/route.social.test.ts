@@ -45,7 +45,9 @@ vi.mock("@/lib/intelligence/jhadina-command", () => ({
 }))
 
 vi.mock("@/lib/intelligence/ask-expression", () => ({
-  realizeAskJhadinaExpression: (...args: unknown[]) => realizeExpression(...args as [Parameters<typeof realizeExpression>[0]]),
+  realizeAskJhadinaExpression: (input: unknown) => realizeExpression(input as {
+    proposal: { recommendation: string; disposition: string }
+  }),
 }))
 
 import { POST } from "./route"
