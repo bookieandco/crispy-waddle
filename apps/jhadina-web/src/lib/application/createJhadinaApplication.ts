@@ -3,7 +3,8 @@ import { JanetService } from "../services/JanetService"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
-import { InMemoryStorage } from "../storage/InMemoryStorage"
+import type { MemoryStorage } from "../storage/MemoryStorage"
+import { getCanonicalMemoryStorage } from "../storage/createMemoryStorage"
 import {
   SupabaseActionIdentityVerifier,
   type JhadinaIdentityVerifier,
@@ -19,7 +20,7 @@ export type ExecutionReadiness =
     }
 
 export interface JhadinaApplication {
-  storage: InMemoryStorage
+  storage: MemoryStorage
   memoryRepo: MemoryRepository
   reasoningRepo: ReasoningEventRepository
   timelineRepo: TimelineRepository
@@ -30,8 +31,9 @@ export interface JhadinaApplication {
   execution: ExecutionReadiness
 }
 
-export function createJhadinaApplication(): JhadinaApplication {
-  const storage = new InMemoryStorage()
+export function createJhadinaApplication(
+  storage: MemoryStorage = getCanonicalMemoryStorage(),
+): JhadinaApplication {
   const memoryRepo = new MemoryRepository(storage)
   const reasoningRepo = new ReasoningEventRepository(storage)
   const timelineRepo = new TimelineRepository(storage)

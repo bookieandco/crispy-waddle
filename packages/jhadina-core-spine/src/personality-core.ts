@@ -119,6 +119,194 @@ function traitStatus(
   return evidenceCount > 0 ? 'candidate' : 'retired';
 }
 
+function reconcileTraitEvidence(
+  trait: PersonalityTrait,
+  approvedMemoryIds: Set<string>,
+  policy: PersonalityCorePolicy,
+): PersonalityTrait {
+  const evidence = uniqueEvidence(
+    trait.evidence.filter((ref) => ref.source !== 'memory' || approvedMemoryIds.has(ref.id)),
+  );
+  const contradictions = uniqueEvidence(
+    trait.contradictions.filter((ref) => ref.source !== 'memory' || approvedMemoryIds.has(ref.id)),
+  );
+  if (
+    evidence.length === trait.evidence.length &&
+    contradictions.length === trait.contradictions.length
+  ) return trait;
+
+  const evidenceRatio = trait.evidence.length === 0 ? 0 : evidence.length / trait.evidence.length;
+  const confidence = Math.max(0, Math.min(1, trait.confidence * evidenceRatio));
+  const stability = Math.min(
+    trait.stability,
+    Math.min(1, evidence.length / Math.max(policy.minimumEvidence, 1)),
+  );
+  return {
+    ...trait,
+    confidence,
+    stability,
+    evidence,
+    contradictions,
+    status: traitStatus(evidence.length, confidence, stability, contradictions.length, policy),
+    revision: (trait.revision ?? 0) + 1,
+  };
+}
+
+function acceptedTrait(
+  traits: readonly PersonalityTrait[],
+  sourcePatternId: string,
+  legacyStatement: string,
+): PersonalityTrait | undefined {
+  return traits.find((trait) =>
+    trait.status === 'accepted' &&
+    (
+      trait.sourcePatternId === sourcePatternId ||
+      (!trait.sourcePatternId && normalizeStatement(trait.statement) === legacyStatement)
+    ),
+  );
+}
+
+function calibration(trait: PersonalityTrait | undefined): number {
+  return trait ? Math.max(0, Math.min(1, trait.confidence * trait.stability)) : 0;
+}
+
+function projectTasteAndRelationship(
+  current: PersonalityState,
+  traits: readonly PersonalityTrait[],
+): Pick<PersonalityState, 'taste' | 'relationship'> {
+  const currentTaste = current.taste ?? DEFAULT_PERSONALITY_TASTE;
+  const currentRelationship = current.relationship ?? DEFAULT_PERSONALITY_RELATIONSHIP;
+
+  const experimental = acceptedTrait(
+    traits,
+    'personality-signal:taste:experimentation',
+    'prefers experimental creativity',
+  );
+  const familiar = acceptedTrait(
+    traits,
+    'personality-signal:relationship:familiar-tone',
+    'prefers familiar tone',
+  );
+  const direct = acceptedTrait(
+    traits,
+    'personality-signal:communication:directness',
+    'prefers direct communication',
+  );
+  const warm = acceptedTrait(
+    traits,
+    'personality-signal:communication:warmth',
+    'prefers warm communication',
+  );
+
+  const experimentalCalibration = calibration(experimental);
+  const relationshipTraits = [familiar, direct, warm].filter(
+    (trait): trait is PersonalityTrait => Boolean(trait),
+  );
+  const relationshipEvidence = uniqueEvidence(
+    relationshipTraits.flatMap((trait) => trait.evidence),
+  );
+  const tasteEvidence = uniqueEvidence(experimental?.evidence ?? []);
+
+  // Existing submodel fields without evidence are independently governed
+  // configuration/state. Do not overwrite or retract them just because a new
+  // semantic trait was learned. Once this projector has attached evidence,
+  // however, those evidence-derived fields can be recomputed/retracted when
+  // the underlying approved Memory is later corrected or forgotten.
+  const tasteWasEvidenceDerived = currentTaste.evidence.length > 0;
+  const relationshipWasEvidenceDerived = currentRelationship.evidence.length > 0;
+
+  const learnedModes = new Set<string>();
+  if (familiar) learnedModes.add('familiar');
+  if (direct) learnedModes.add('direct');
+  if (warm) learnedModes.add('warm');
+
+  const preferredInteractionModes = relationshipWasEvidenceDerived
+    ? [...learnedModes].sort()
+    : [...new Set([
+        ...currentRelationship.preferredInteractionModes
+          .map((mode) => mode.trim().toLowerCase())
+          .filter(Boolean),
+        ...learnedModes,
+      ])].sort();
+
+  const evidenceFamiliarity = Math.min(1, relationshipEvidence.length / 10);
+  const evidenceCalibration = Math.max(
+    calibration(familiar),
+    calibration(direct),
+    calibration(warm),
+  );
+
+  return {
+    taste: {
+      novelty: currentTaste.novelty,
+      aestheticIntensity: currentTaste.aestheticIntensity,
+      experimentation: experimental
+        ? Math.max(currentTaste.experimentation, experimentalCalibration)
+        : tasteWasEvidenceDerived
+          ? DEFAULT_PERSONALITY_TASTE.experimentation
+          : currentTaste.experimentation,
+      conventionTolerance: experimental
+        ? Math.min(currentTaste.conventionTolerance, 1 - 0.5 * experimentalCalibration)
+        : tasteWasEvidenceDerived
+          ? DEFAULT_PERSONALITY_TASTE.conventionTolerance
+          : currentTaste.conventionTolerance,
+      evidence: tasteEvidence,
+    },
+    relationship: {
+      familiarity: relationshipEvidence.length > 0
+        ? Math.max(
+            relationshipWasEvidenceDerived ? 0 : currentRelationship.familiarity,
+            evidenceFamiliarity,
+          )
+        : relationshipWasEvidenceDerived
+          ? 0
+          : currentRelationship.familiarity,
+      calibrationConfidence: relationshipEvidence.length > 0
+        ? Math.max(
+            relationshipWasEvidenceDerived ? 0 : currentRelationship.calibrationConfidence,
+            evidenceCalibration,
+          )
+        : relationshipWasEvidenceDerived
+          ? 0
+          : currentRelationship.calibrationConfidence,
+      preferredInteractionModes,
+      // Recurring callbacks have a separate provenance gate. This semantic
+      // projector never creates or removes them.
+      recurringCallbacks: [...currentRelationship.recurringCallbacks],
+      evidence: relationshipEvidence,
+    },
+  };
+}
+
+function evidenceArraysEqual(left: readonly EvidenceRef[], right: readonly EvidenceRef[]): boolean {
+  return left.length === right.length &&
+    left.every((ref, index) => JSON.stringify(ref) === JSON.stringify(right[index]));
+}
+
+function tasteStatesEqual(
+  left: NonNullable<PersonalityState['taste']>,
+  right: NonNullable<PersonalityState['taste']>,
+): boolean {
+  return left.novelty === right.novelty &&
+    left.experimentation === right.experimentation &&
+    left.conventionTolerance === right.conventionTolerance &&
+    left.aestheticIntensity === right.aestheticIntensity &&
+    evidenceArraysEqual(left.evidence, right.evidence);
+}
+
+function relationshipStatesEqual(
+  left: NonNullable<PersonalityState['relationship']>,
+  right: NonNullable<PersonalityState['relationship']>,
+): boolean {
+  return left.familiarity === right.familiarity &&
+    left.calibrationConfidence === right.calibrationConfidence &&
+    left.preferredInteractionModes.length === right.preferredInteractionModes.length &&
+    left.preferredInteractionModes.every((mode, index) => mode === right.preferredInteractionModes[index]) &&
+    left.recurringCallbacks.length === right.recurringCallbacks.length &&
+    left.recurringCallbacks.every((callback, index) => callback === right.recurringCallbacks[index]) &&
+    evidenceArraysEqual(left.evidence, right.evidence);
+}
+
 /**
  * Pure projection from explicitly personality-eligible PatternObservations.
  * Bayesian evidence updating supplies the belief/confidence estimate; this
@@ -132,10 +320,13 @@ export function projectPersonality(
   now = new Date().toISOString(),
   policy: PersonalityCorePolicy = DEFAULT_PERSONALITY_CORE_POLICY,
   idFactory: () => string = () => crypto.randomUUID(),
+  activeMemoryEvidenceIds?: ReadonlySet<string>,
 ): PersonalityState {
   const approvedMemoryIds = approvedMemoryEvidence(memories);
-  const nextTraits = [...current.traits];
-  let changed = false;
+  const nextTraits = activeMemoryEvidenceIds
+    ? current.traits.map((trait) => reconcileTraitEvidence(trait, new Set(activeMemoryEvidenceIds), policy))
+    : [...current.traits];
+  let changed = nextTraits.some((trait, index) => trait !== current.traits[index]);
 
   for (const pattern of patterns) {
     if (!pattern.personalityEligible || !pattern.personalityDimension) continue;
@@ -190,6 +381,7 @@ export function projectPersonality(
     const trait: PersonalityTrait = {
       id: existing?.id ?? idFactory(),
       statement: existing?.statement ?? pattern.pattern.trim(),
+      sourcePatternId: existing?.sourcePatternId ?? pattern.id,
       dimension: pattern.personalityDimension,
       confidence,
       stability,
@@ -214,12 +406,19 @@ export function projectPersonality(
         (trait) => trait.status === 'contested' || (trait.dimension === 'opinion' && trait.confidence < 0.8),
       );
 
-  if (!changed && independentAssessmentRequired === current.independentAssessmentRequired) return current;
+  const derived = projectTasteAndRelationship(current, nextTraits);
+  const submodelsChanged =
+    !tasteStatesEqual(derived.taste!, current.taste ?? DEFAULT_PERSONALITY_TASTE) ||
+    !relationshipStatesEqual(derived.relationship!, current.relationship ?? DEFAULT_PERSONALITY_RELATIONSHIP);
+
+  if (!changed && !submodelsChanged && independentAssessmentRequired === current.independentAssessmentRequired) return current;
 
   return {
     ...current,
     version: current.version + 1,
     traits: nextTraits,
+    taste: derived.taste,
+    relationship: derived.relationship,
     independentAssessmentRequired,
     updatedAt: now,
   };

@@ -29,13 +29,16 @@ type MemoryRow = {
   id: string
   user_id: string
   type: MemoryType
-  status: "APPROVED" | "REJECTED"
+  status: "APPROVED" | "REJECTED" | "RETIRED"
   content: string
   confidence: number
   created_at: string
   approved_at: string | null
   rejected_at: string | null
   reasoning_event_id: string | null
+  revoked_at: string | null
+  revocation_reason: "corrected" | "forgotten" | "retired" | null
+  supersedes_memory_id: string | null
 }
 
 type CandidateRow = {
@@ -75,7 +78,7 @@ type TimelineEventRow = {
   memory_id: string | null
   memory_type: MemoryType | null
   memory_content: string | null
-  decision: "APPROVED" | "REJECTED" | null
+  decision: "APPROVED" | "REJECTED" | "RETIRED" | null
 }
 
 function memoryFromRow(row: MemoryRow): Memory {
@@ -90,6 +93,9 @@ function memoryFromRow(row: MemoryRow): Memory {
     approvedAt: row.approved_at ?? undefined,
     rejectedAt: row.rejected_at ?? undefined,
     reasoningEventId: row.reasoning_event_id ?? undefined,
+    revokedAt: row.revoked_at ?? undefined,
+    revocationReason: row.revocation_reason ?? undefined,
+    supersedesMemoryId: row.supersedes_memory_id ?? undefined,
   }
 }
 
@@ -159,13 +165,16 @@ export class SupabaseMemoryStorage implements MemoryStorage {
       id: nextId("mem"),
       user_id: data.userId,
       type: data.type,
-      status: data.status as "APPROVED" | "REJECTED",
+      status: data.status as "APPROVED" | "REJECTED" | "RETIRED",
       content: data.content,
       confidence: data.confidence,
       created_at: data.createdAt,
       approved_at: data.approvedAt ?? null,
       rejected_at: data.rejectedAt ?? null,
       reasoning_event_id: data.reasoningEventId ?? null,
+      revoked_at: data.revokedAt ?? null,
+      revocation_reason: data.revocationReason ?? null,
+      supersedes_memory_id: data.supersedesMemoryId ?? null,
     }
     const { error } = await this.client.from("jhadina_memories").insert(row)
     assertNoError(error, "createMemory")
@@ -191,23 +200,54 @@ export class SupabaseMemoryStorage implements MemoryStorage {
     return (data ?? []).map((row) => memoryFromRow(row as MemoryRow))
   }
 
-  async updateMemory(id: string, updates: Partial<Memory>): Promise<Memory | undefined> {
-    const patch: Record<string, unknown> = {}
-    if (updates.status !== undefined) patch.status = updates.status
-    if (updates.content !== undefined) patch.content = updates.content
-    if (updates.confidence !== undefined) patch.confidence = updates.confidence
-    if (updates.approvedAt !== undefined) patch.approved_at = updates.approvedAt
-    if (updates.rejectedAt !== undefined) patch.rejected_at = updates.rejectedAt
-    if (updates.reasoningEventId !== undefined) patch.reasoning_event_id = updates.reasoningEventId
+  async retireMemory(
+    id: string,
+    userId: string,
+    reason: "corrected" | "forgotten" | "retired",
+    revokedAt: string,
+  ): Promise<Memory | undefined> {
+    const { data, error } = await this.client.rpc("jhadina_retire_memory", {
+      p_memory_id: id,
+      p_user_id: userId,
+      p_reason: reason,
+      p_revoked_at: revokedAt,
+    })
+    assertNoError(error, "retireMemory")
+    const row = Array.isArray(data) ? data[0] : data
+    return row ? memoryFromRow(row as MemoryRow) : undefined
+  }
 
-    const { data, error } = await this.client
-      .from("jhadina_memories")
-      .update(patch)
-      .eq("id", id)
-      .select("*")
-      .maybeSingle()
-    assertNoError(error, "updateMemory")
-    return data ? memoryFromRow(data as MemoryRow) : undefined
+  async correctMemory(params: {
+    memoryId: string
+    userId: string
+    content: string
+    confidence: number
+    reasoningEventId: string
+    correctedAt: string
+  }): Promise<{ retired: Memory; replacement: Memory }> {
+    const newMemoryId = nextId("mem")
+    const { data, error } = await this.client.rpc("jhadina_correct_memory", {
+      p_memory_id: params.memoryId,
+      p_user_id: params.userId,
+      p_new_memory_id: newMemoryId,
+      p_content: params.content,
+      p_confidence: params.confidence,
+      p_reasoning_event_id: params.reasoningEventId,
+      p_corrected_at: params.correctedAt,
+    })
+    assertNoError(error, "correctMemory")
+    const row = Array.isArray(data) ? data[0] : data
+    if (!row || typeof row !== "object") {
+      throw new Error("JHADINA_MEMORY_STORAGE_FAILED:correctMemory:empty result")
+    }
+    const result = row as { retired?: MemoryRow; replacement?: MemoryRow }
+    if (!result.retired || !result.replacement) {
+      throw new Error("JHADINA_MEMORY_STORAGE_FAILED:correctMemory:invalid result")
+    }
+    return {
+      retired: memoryFromRow(result.retired),
+      replacement: memoryFromRow(result.replacement),
+    }
   }
 
   async createCandidate(data: Omit<MemoryCandidate, "id">): Promise<MemoryCandidate> {

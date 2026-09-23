@@ -98,7 +98,7 @@ export const REALISTIC_CHARACTER_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({
     'focus-plan-match',
     'performance-plan-match',
     'background-geometry',
-  ]),
+  ] as DirectedTakeQcMetric[]),
   minimumScoreByMetric: Object.freeze({
     'identity-stability': 0.82,
     'face-stability': 0.78,
@@ -122,7 +122,7 @@ export const SOURCE_PRESERVING_VIDEO_EDIT_QC: DirectedTakeQcPolicy = Object.free
     'motion-plausibility',
     'camera-plan-match',
     'background-geometry',
-  ]),
+  ] as DirectedTakeQcMetric[]),
   minimumScoreByMetric: Object.freeze({
     'identity-stability': 0.88,
     'source-preservation': 0.9,

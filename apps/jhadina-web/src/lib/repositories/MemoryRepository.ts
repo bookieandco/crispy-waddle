@@ -37,6 +37,9 @@ export class MemoryRepository {
     confidence: number
     reasoningEventId: string
   }): Promise<MemoryCandidate> {
+    if (!params.reasoningEventId.trim()) {
+      throw new Error("JHADINA_MEMORY_REASONING_LINEAGE_REQUIRED")
+    }
     const candidate = await this.storage.createCandidate({
       userId: params.userId,
       content: params.content,
@@ -93,7 +96,7 @@ export class MemoryRepository {
    * Reject a pending candidate
    * Moves it from PENDING → REJECTED (discarded)
    */
-  async reject(candidateId: string, userId: string): Promise<void> {
+  async reject(candidateId: string, userId: string): Promise<MemoryCandidate> {
     const candidate = await this.storage.getCandidate(candidateId)
 
     if (!candidate) {
@@ -110,8 +113,62 @@ export class MemoryRepository {
       throw new Error(`User not authorized for candidate: ${candidateId}`)
     }
 
-    // Simply remove it (rejected memories don't persist)
+    // Remove the pending candidate after capturing its immutable audit payload.
     await this.storage.removeCandidate(candidateId)
+    return candidate
+  }
+
+  /**
+   * Correct an approved memory without rewriting history.
+   * The original revision is retired and a new approved revision supersedes it.
+   */
+  async correct(params: {
+    memoryId: string
+    userId: string
+    content: string
+    reasoningEventId: string
+    confidence?: number
+  }): Promise<{ retired: Memory; replacement: Memory }> {
+    const content = params.content.trim()
+    if (!content) throw new Error("JHADINA_MEMORY_CORRECTION_CONTENT_REQUIRED")
+    if (!params.reasoningEventId.trim()) throw new Error("JHADINA_MEMORY_REASONING_LINEAGE_REQUIRED")
+
+    const current = await this.getById(params.userId, params.memoryId)
+    if (!current || current.status !== "APPROVED") {
+      throw new Error("JHADINA_MEMORY_CORRECTION_TARGET_INVALID")
+    }
+    const reasoning = await this.storage.getReasoningEvent(params.reasoningEventId)
+    if (!reasoning || reasoning.userId !== params.userId) {
+      throw new Error("JHADINA_MEMORY_CORRECTION_REASONING_INVALID")
+    }
+
+    return this.storage.correctMemory({
+      memoryId: current.id,
+      userId: params.userId,
+      content,
+      confidence: params.confidence ?? current.confidence,
+      reasoningEventId: params.reasoningEventId,
+      correctedAt: new Date().toISOString(),
+    })
+  }
+
+  /**
+   * Forget removes a memory from active recall while preserving its audit
+   * lineage. Historical content remains append-only and cannot be rewritten.
+   */
+  async forget(memoryId: string, userId: string): Promise<Memory> {
+    const current = await this.getById(userId, memoryId)
+    if (!current || current.status !== "APPROVED") {
+      throw new Error("JHADINA_MEMORY_FORGET_TARGET_INVALID")
+    }
+    const retired = await this.storage.retireMemory(
+      memoryId,
+      userId,
+      "forgotten",
+      new Date().toISOString(),
+    )
+    if (!retired) throw new Error("JHADINA_MEMORY_FORGET_TARGET_INVALID")
+    return retired
   }
 
   /**
@@ -229,12 +286,10 @@ export class MemoryRepository {
     lines.push("MemoryRepository")
     lines.push("─".repeat(40))
 
-    const allMemories = await this.storage.listMemories(userId || "user_demo")
+    if (!userId) return "MemoryRepository\n" + "─".repeat(40) + "\nUser scope required"
+    const allMemories = await this.storage.listMemories(userId)
     const memories = allMemories.filter((m: Memory) => m.status === "APPROVED")
-    const candidates = await this.storage.listCandidates(
-      userId || "user_demo",
-      "PENDING"
-    )
+    const candidates = await this.storage.listCandidates(userId, "PENDING")
 
     lines.push(`Approved Memories: ${memories.length}`)
     lines.push(`Pending Candidates: ${candidates.length}`)

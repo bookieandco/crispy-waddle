@@ -34,7 +34,7 @@ describe("InMemoryStorage", () => {
       const memory = await storage.createMemory({
         userId: "user_1",
         type: "PREFERENCE",
-        status: "PENDING",
+        status: "APPROVED",
         content: "I prefer cinematic visuals",
         confidence: 0.95,
         createdAt: new Date().toISOString(),
@@ -42,14 +42,14 @@ describe("InMemoryStorage", () => {
 
       expect(memory.id).toMatch(/^mem_/)
       expect(memory.content).toBe("I prefer cinematic visuals")
-      expect(memory.status).toBe("PENDING")
+      expect(memory.status).toBe("APPROVED")
     })
 
     it("should retrieve a memory by ID", async () => {
       const created = await storage.createMemory({
         userId: "user_1",
         type: "PREFERENCE",
-        status: "PENDING",
+        status: "APPROVED",
         content: "Test content",
         confidence: 0.9,
         createdAt: new Date().toISOString(),
@@ -93,23 +93,27 @@ describe("InMemoryStorage", () => {
       expect(user1Memories.every(m => m.userId === "user_1")).toBe(true)
     })
 
-    it("should update a memory", async () => {
+    it("should retire approved memory without mutating its content", async () => {
       const created = await storage.createMemory({
         userId: "user_1",
         type: "PREFERENCE",
-        status: "PENDING",
+        status: "APPROVED",
         content: "Original",
         confidence: 0.9,
         createdAt: new Date().toISOString(),
-      })
-
-      const updated = await storage.updateMemory(created.id, {
-        status: "APPROVED",
         approvedAt: new Date().toISOString(),
       })
 
-      expect(updated?.status).toBe("APPROVED")
-      expect(updated?.approvedAt).toBeDefined()
+      const retired = await storage.retireMemory(
+        created.id,
+        "user_1",
+        "forgotten",
+        new Date().toISOString(),
+      )
+
+      expect(retired?.status).toBe("RETIRED")
+      expect(retired?.content).toBe("Original")
+      expect(retired?.revocationReason).toBe("forgotten")
     })
   })
 
@@ -456,6 +460,7 @@ describe("JanetService", () => {
 
     expect(response.response).toBeDefined()
     expect(response.reasoningEventId).toMatch(/^reason_/)
+    expect(response.memoryCandidate.reasoningEventId).toBe(response.reasoningEventId)
     expect(response.memoryCandidate.status).toBe("PENDING")
     expect(response.classification.type).toBe("PREFERENCE")
   })
@@ -469,6 +474,23 @@ describe("JanetService", () => {
     const approval = await service.approveMemory("user_1", response.memoryCandidate.id)
     expect(approval.status).toBe("APPROVED")
     expect(approval.memoryId).toBeDefined()
+  })
+
+  it("should persist a rejection audit before removing the pending candidate", async () => {
+    const response = await service.processMessage({
+      userId: "user_1",
+      message: "I prefer cinematic visuals",
+    })
+
+    await service.rejectMemory("user_1", response.memoryCandidate.id)
+
+    expect(await memoryRepo.listPending("user_1")).toHaveLength(0)
+    const timeline = await timelineRepo.list("user_1")
+    expect(timeline.some((event) =>
+      event.type === "REJECTION" &&
+      event.memoryId === response.memoryCandidate.id &&
+      event.memoryContent === "I prefer cinematic visuals"
+    )).toBe(true)
   })
 
   it("should create reasoning event", async () => {

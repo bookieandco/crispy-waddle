@@ -1,12 +1,13 @@
-import type { DecisionProposal, ExpressionDirective } from "@jhadina/core-spine"
+import type { DecisionProposal, ExpressionDirective, PersonalityState } from "@jhadina/core-spine"
 import {
   realizeGovernedExpression,
   type GovernedExpressionRealization,
 } from "@jhadina/intelligence-core"
-import type { PersonalityContextProvider } from "../context/context-builder"
+import { deriveBehaviorContext, type PersonalityContextProvider } from "../context/context-builder"
 import { redactSecrets } from "../context/redact"
 import { getStorage } from "../routes/handlers"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
+import { recordPersonalityDriftObservation } from "../personality/personality-drift-observer"
 
 export interface AskJhadinaExpressionInput {
   userId: string
@@ -44,13 +45,17 @@ export async function realizeAskJhadinaExpression(
     ?? createProductionPersonalityContextProvider(getStorage(), input.userId)
   const { redacted: activeTask } = redactSecrets(input.activeTask)
 
+  const behaviorContext = deriveBehaviorContext(activeTask)
   let directive: ExpressionDirective | undefined
+  let personality: PersonalityState | undefined
   try {
     const contribution = await provider.getContext({
       userId: input.userId,
       activeTask,
+      behaviorContext,
     })
     directive = contribution.expressionDirective
+    personality = contribution.personality
   } catch {
     directive = undefined
   }
@@ -65,5 +70,15 @@ export async function realizeAskJhadinaExpression(
     }
   }
 
-  return realizeGovernedExpression(input.proposal, directive)
+  const realization = realizeGovernedExpression(input.proposal, directive)
+  if (personality) {
+    await recordPersonalityDriftObservation({
+      userId: input.userId,
+      requestId: input.proposal.id,
+      personality,
+      behaviorContext,
+      realization,
+    })
+  }
+  return realization
 }

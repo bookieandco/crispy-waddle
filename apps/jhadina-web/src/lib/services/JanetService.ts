@@ -61,17 +61,22 @@ export class JanetService {
     // Step 2: Classify (replaceable component)
     const classification = this.classifier.classify(message)
 
+    // Pre-allocate one canonical reasoning id so the candidate and the
+    // reasoning event are linked from their first durable writes.
+    const reasoningEventId = `reason_${crypto.randomUUID()}`
+
     // Step 3: Create memory candidate (PENDING - awaiting approval)
     const candidate = await this.memoryRepo.createCandidate({
       userId,
       content: message,
       type: classification.type,
       confidence: classification.confidence,
-      reasoningEventId: "", // Will be set after reasoning event created
+      reasoningEventId,
     })
 
     // Step 4: Record reasoning event (audit trail)
     const reasoningEvent = await this.reasoningRepo.create({
+      id: reasoningEventId,
       userId,
       userMessage: message,
       observation,
@@ -80,9 +85,6 @@ export class JanetService {
       confidence: classification.confidence,
       candidateId: candidate.id,
     })
-
-    // Update candidate with reasoning event ID
-    // (Note: In real implementation, this would be transactional)
 
     // Step 5: Record on timeline
     await this.timelineRepo.recordReasoning({
@@ -184,18 +186,14 @@ export class JanetService {
    * Called by the rejection endpoint
    */
   async rejectMemory(userId: string, candidateId: string): Promise<void> {
-    await this.memoryRepo.reject(candidateId, userId)
+    const candidate = await this.memoryRepo.reject(candidateId, userId)
 
-    // Record on timeline
-    const candidate = await this.memoryRepo["storage"]?.getCandidate?.(candidateId)
-    if (candidate) {
-      await this.timelineRepo.recordRejection({
-        userId,
-        memoryId: candidateId,
-        memoryType: candidate.type,
-        memoryContent: candidate.content,
-      })
-    }
+    await this.timelineRepo.recordRejection({
+      userId,
+      memoryId: candidateId,
+      memoryType: candidate.type,
+      memoryContent: candidate.content,
+    })
   }
 
   /**

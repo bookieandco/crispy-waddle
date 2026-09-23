@@ -20,6 +20,9 @@ export interface Memory {
   createdAt: string
   approvedAt?: string
   rejectedAt?: string
+  revokedAt?: string
+  revocationReason?: "corrected" | "forgotten" | "retired"
+  supersedesMemoryId?: string
   /** Source reasoning event retained across candidate approval for provenance deduplication. */
   reasoningEventId?: string
 }
@@ -69,16 +72,16 @@ export interface TimelineEvent {
   id: string
   userId: string
   timestamp: string
-  type: "REASONING" | "APPROVAL" | "REJECTION"
+  type: "REASONING" | "APPROVAL" | "REJECTION" | "CORRECTION" | "FORGET"
   reasoningEventId?: string
   memoryId?: string
   memoryContent?: string
   memoryType?: MemoryType
-  decision?: "APPROVED" | "REJECTED"
+  decision?: "APPROVED" | "REJECTED" | "RETIRED"
 }
 
 export type MemoryType = "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT"
-export type MemoryStatus = "PENDING" | "APPROVED" | "REJECTED"
+export type MemoryStatus = "APPROVED" | "REJECTED" | "RETIRED"
 
 /**
  * InMemoryStorage class
@@ -119,12 +122,50 @@ export class InMemoryStorage implements MemoryStorage {
     return Array.from(this.memories.values()).filter(m => m.userId === userId)
   }
 
-  async updateMemory(id: string, updates: Partial<Memory>): Promise<Memory | undefined> {
+  async retireMemory(
+    id: string,
+    userId: string,
+    reason: "corrected" | "forgotten" | "retired",
+    revokedAt: string,
+  ): Promise<Memory | undefined> {
     const memory = this.memories.get(id)
-    if (!memory) return undefined
-    const updated = { ...memory, ...updates }
-    this.memories.set(id, updated)
-    return updated
+    if (!memory || memory.userId !== userId || memory.status !== "APPROVED") return undefined
+    const retired: Memory = {
+      ...memory,
+      status: "RETIRED",
+      revokedAt,
+      revocationReason: reason,
+    }
+    this.memories.set(id, retired)
+    return retired
+  }
+
+  async correctMemory(params: {
+    memoryId: string
+    userId: string
+    content: string
+    confidence: number
+    reasoningEventId: string
+    correctedAt: string
+  }): Promise<{ retired: Memory; replacement: Memory }> {
+    const current = this.memories.get(params.memoryId)
+    if (!current || current.userId !== params.userId || current.status !== "APPROVED") {
+      throw new Error("JHADINA_MEMORY_CORRECTION_TARGET_INVALID")
+    }
+    const retired = await this.retireMemory(current.id, params.userId, "corrected", params.correctedAt)
+    if (!retired) throw new Error("JHADINA_MEMORY_CORRECTION_TARGET_INVALID")
+    const replacement = await this.createMemory({
+      userId: current.userId,
+      type: current.type,
+      status: "APPROVED",
+      content: params.content,
+      confidence: params.confidence,
+      createdAt: params.correctedAt,
+      approvedAt: params.correctedAt,
+      reasoningEventId: params.reasoningEventId,
+      supersedesMemoryId: current.id,
+    })
+    return { retired, replacement }
   }
 
   /**
@@ -284,7 +325,3 @@ export class InMemoryStorage implements MemoryStorage {
   }
 }
 
-/**
- * Global singleton instance
- */
-export const storage = new InMemoryStorage()

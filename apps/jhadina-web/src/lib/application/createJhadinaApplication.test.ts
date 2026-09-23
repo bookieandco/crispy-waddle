@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest"
+import { InMemoryStorage } from "../storage/InMemoryStorage"
+import { getStorage } from "../routes/handlers"
 import { createJhadinaApplication, getJhadinaApplication } from "./createJhadinaApplication"
 
 describe("Jhadina application composition", () => {
   it("creates one coherent dependency graph", () => {
-    const app = createJhadinaApplication()
+    const app = createJhadinaApplication(new InMemoryStorage())
 
     expect(app.storage).toBeDefined()
     expect(app.memoryRepo).toBeDefined()
@@ -16,8 +18,12 @@ describe("Jhadina application composition", () => {
     expect(getJhadinaApplication()).toBe(getJhadinaApplication())
   })
 
+  it("shares the canonical route storage with the process application graph", () => {
+    expect(getJhadinaApplication().storage).toBe(getStorage())
+  })
+
   it("shares storage across repositories in the composed graph", () => {
-    const app = createJhadinaApplication()
+    const app = createJhadinaApplication(new InMemoryStorage())
 
     // Repository constructors receive the same storage instance from the
     // composition root. The private field is intentionally inspected here so
