@@ -55,7 +55,7 @@ jobs:
       - name: Validate media service syntax
         run: |
           node --check services/pupson-media-gateway/server.mjs
-          python -m py_compile services/pupson-background-remover/media_worker.py
+          python -m py_compile services/pupson-background-remover/media_worker.py services/pupson-background-remover/roboflow_worker.py
 
       - name: Type-check PupsonStuff
         run: pnpm --filter @jhadina/pupsonstuff type-check
