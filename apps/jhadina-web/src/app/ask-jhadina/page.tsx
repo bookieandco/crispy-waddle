@@ -30,6 +30,7 @@ function AskJhadina(){
  const [feedbackBusy,setFeedbackBusy]=useState(false)
  const [feedbackRecorded,setFeedbackRecorded]=useState<"reinforced"|"rejected"|null>(null)
  const [artifacts,setArtifacts]=useState<JhadinaEphemeralArtifact[]>([])
+ const [artifactRefs,setArtifactRefs]=useState<string[]>([])
  const [inputStatus,setInputStatus]=useState("")
  const [voiceLanguage,setVoiceLanguage]=useState("en-US")
 
@@ -40,7 +41,7 @@ function AskJhadina(){
   setBusy(true);setError("");setResult(null);setFeedbackRecorded(null)
   try{
    const userId=await identity()
-   const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:command,surface,route,artifacts,conversationSignals})})
+   const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals})})
    const json=await response.json();if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
    setResult(json.data);setTask("")
    if(commandOverride && typeof window!=="undefined" && "speechSynthesis" in window){
@@ -71,9 +72,9 @@ function AskJhadina(){
     <textarea id="jhadina-command" className="jh-textarea" rows={3} value={task} onChange={event=>setTask(event.target.value)} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")void ask()}} placeholder="Ask a question, connect subsystems, inspect a decision, or tell Jhadina what you want to accomplish…" style={{flex:"1 1 560px",resize:"vertical"}}/>
     <button className="jh-button jh-button--primary" disabled={busy||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":"Ask"}</button>
    </div>
-   <JhadinaLiveInput busy={busy} onArtifactsChange={setArtifacts} onVoiceCommand={(command,signals)=>void ask(command,signals)} onLanguageChange={setVoiceLanguage} onStatus={setInputStatus}/>
+   <JhadinaLiveInput busy={busy} onArtifactsChange={setArtifacts} onArtifactRefsChange={setArtifactRefs} onVoiceCommand={(command,signals)=>void ask(command,signals)} onLanguageChange={setVoiceLanguage} onStatus={setInputStatus}/>
    {inputStatus?<p className="jh-meta" role="status" style={{marginTop:8}}>{inputStatus}</p>:null}
-   <p className="jh-meta">Context surface: {surface} · route: {route} · ⌘/Ctrl + Enter to send · screen/files are ephemeral unless a governed flow explicitly proposes persistence</p>
+   <p className="jh-meta">Context surface: {surface} · route: {route} · ⌘/Ctrl + Enter to send · screen frames stay ephemeral · attached files use private quarantine and only clean files enter reasoning</p>
    <div className="jh-row" style={{marginTop:10}}>
     {[
      "Show me the social character personalities I can use",
