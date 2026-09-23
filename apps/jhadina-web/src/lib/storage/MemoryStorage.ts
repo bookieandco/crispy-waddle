@@ -16,7 +16,20 @@ export interface MemoryStorage {
   createMemory(data: Omit<Memory, "id">): Promise<Memory>
   getMemory(id: string): Promise<Memory | undefined>
   listMemories(userId: string): Promise<Memory[]>
-  updateMemory(id: string, updates: Partial<Memory>): Promise<Memory | undefined>
+  retireMemory(
+    id: string,
+    userId: string,
+    reason: "corrected" | "forgotten" | "retired",
+    revokedAt: string,
+  ): Promise<Memory | undefined>
+  correctMemory(params: {
+    memoryId: string
+    userId: string
+    content: string
+    confidence: number
+    reasoningEventId: string
+    correctedAt: string
+  }): Promise<{ retired: Memory; replacement: Memory }>
 
   createCandidate(data: Omit<MemoryCandidate, "id">): Promise<MemoryCandidate>
   getCandidate(id: string): Promise<MemoryCandidate | undefined>
