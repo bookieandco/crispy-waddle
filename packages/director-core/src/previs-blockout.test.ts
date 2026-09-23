@@ -198,6 +198,48 @@ describe('previs blockout', () => {
     expect(reasons).toContain('DIRECTOR_PREVIS_PACKAGE_REFERENCE_MISSING:ref:finished-glass');
   });
 
+  it('requires a previs executor to satisfy authored shot capabilities', () => {
+    const decision = evaluatePrevisExecutor(plan(), {
+      id: 'browser-previs',
+      name: 'Browser Previs',
+      runtime: 'browser',
+      features: ['scene-primitives', 'multi-shot', 'focal-length-control', 'reference-clip-export', 'camera-keyframes'],
+      supportedAspectRatios: ['16:9'],
+      provenanceRefs: ['reference:capability-audit'],
+    });
+    expect(decision.admissible).toBe(true);
+  });
+
+  it('fails if a vision pass samples around authored shots instead of covering them', () => {
+    const observations = plan().shots.slice(0, 3).map((shot) => ({
+      shotId: shot.id,
+      observedStartFrame: shot.startFrame,
+      observedEndFrameExclusive: shot.endFrameExclusive,
+      observedSemanticRoles: shot.visibleObjectIds.map((id) =>
+        plan().objects.find((object) => object.id === id)!.semanticRole,
+      ),
+      confidence: 0.9,
+      evidenceIds: [`evidence:${shot.id}`],
+    }));
+    const decision = evaluatePrevisObservationCoverage(plan(), observations);
+    expect(decision.valid).toBe(false);
+    expect(decision.reasons).toContain('DIRECTOR_PREVIS_OBSERVATION_MISSING:shot:4');
+  });
+
+  it('requires export provenance from the exact previs plan', () => {
+    const reasons = validatePrevisExports(plan(), [{
+      kind: 'reference-clip',
+      assetId: 'asset:previs-mp4',
+      sha256: 'sha:previs',
+      sourcePlanId: 'wrong-plan',
+      evidenceIds: ['evidence:render'],
+    }], ['reference-clip', 'camera-json']);
+    expect(reasons).toEqual(expect.arrayContaining([
+      'DIRECTOR_PREVIS_EXPORT_PLAN_MISMATCH:reference-clip',
+      'DIRECTOR_PREVIS_EXPORT_REQUIRED:camera-json',
+    ]));
+  });
+
   it('converts time to exact frame boundaries and rejects fractional frames', () => {
     expect(secondsToFrames(1.5, 24)).toBe(36);
     expect(() => secondsToFrames(1 / 25, 24)).toThrow('DIRECTOR_PREVIS_NON_INTEGER_FRAME_BOUNDARY');
