@@ -1,4 +1,6 @@
 import type { DirectorCameraPlan } from './camera-language.js';
+import type { PerformanceDirectionPlan } from './performance-direction.js';
+import type { RealismDirectionPlan } from './realism-direction.js';
 import type { CinematographyPreset, ContinuityLock } from './generation-orchestrator.js';
 
 export type StoryboardBoardStatus = 'draft' | 'ready' | 'approved' | 'stale' | 'rejected';
@@ -23,6 +25,8 @@ export interface StoryboardBoard {
   cinematography?: CinematographyPreset;
   /** Structured camera plan; free-form cameraLanguage remains available for legacy boards. */
   cameraPlan?: DirectorCameraPlan;
+  performancePlan?: PerformanceDirectionPlan;
+  realismPlan?: RealismDirectionPlan;
   version: number;
   artifactIds: string[];
   updatedAt: string;
