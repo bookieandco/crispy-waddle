@@ -36,7 +36,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Roboflow's inference SDK imports OpenCV. The slim base omits its shared
 # GL/GLib runtime, so install only the headless system libraries it needs.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && \
+    apt-get install -y --no-install-recommends libgl1 libglib2.0-0 nginx && \
     rm -rf /var/lib/apt/lists/*
 
 # BackgroundRemover needs PyTorch. Pin the CPU wheels so the private Railway
