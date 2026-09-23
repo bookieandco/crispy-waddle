@@ -519,6 +519,18 @@ export function inferPrevisExecutionRequirements(
   if (plan.shots.some((shot) => shot.cameraPlan.keyframes?.length)) {
     features.add('camera-keyframes');
   }
+  if (plan.shots.some((shot) => shot.cameraControl === 'rail' || Boolean(shot.cameraRail))) {
+    features.add('camera-rails');
+  }
+  if (plan.shots.some((shot) => Object.keys(shot.objectTracks ?? {}).length > 0)) {
+    features.add('object-keyframes');
+  }
+  if (plan.shots.some((shot) => (shot.actorPoseTracks?.length ?? 0) > 0)) {
+    features.add('character-posing');
+  }
+  if (plan.shots.some((shot) => shot.actorPoseTracks?.some((key) => key.footLock))) {
+    features.add('ik-posing');
+  }
   if (plan.shots.some((shot) => shot.cameraPlan.movements.some((movement) =>
     ['dolly-in', 'dolly-out', 'truck', 'orbit', 'tracking', 'pov-travel'].includes(movement.kind)
   ))) {
