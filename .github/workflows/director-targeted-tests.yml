@@ -66,6 +66,7 @@ jobs:
           src/cast-bible.test.ts
           src/character-reference-and-extend.test.ts
           src/whole-video-provider.test.ts
+          src/paid-video-generation.test.ts
           src/commercial-creative-lab.test.ts
           src/product-reference-bootstrap.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
@@ -76,6 +77,12 @@ jobs:
           src/lib/director-studio-qc-repository.test.ts
           src/lib/director-cast-repository.test.ts
           src/app/api/director/characters/bootstrap/route.test.ts
+          src/app/api/director/commercial/multiplier/route.test.ts
+          src/app/api/director/commercial/creative/route.test.ts
+          src/app/api/director/videos/reference-product/route.test.ts
+          src/app/api/director/products/bootstrap/route.test.ts
+          src/app/api/director/products/references/[assetId]/admit/route.test.ts
+          src/app/api/director/products/references/route.test.ts
           src/lib/director-reference-video-provider.test.ts
           src/lib/director-reference-asset-resolver.test.ts
           src/lib/director-reference-media.test.ts
