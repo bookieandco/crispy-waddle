@@ -295,6 +295,47 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     )
   })
 
+  it("composes an owner-scoped WorkSession snapshot when a session id is supplied", async () => {
+    const deps = freshDeps()
+    deps.workSessionContextProvider = {
+      getContext: async ({ userId, workSessionId }) => ({
+        workSession: {
+          id: workSessionId,
+          goal: "Finish the JLLM integration",
+          status: "active",
+          activeSubsystems: ["jllm", "social"],
+          artifactRefs: [],
+          decisionRefs: ["decision-1"],
+          outputRefs: ["output-1"],
+          updatedAt: "2026-09-22T12:00:00.000Z",
+          evidence: [{
+            id: `work-session:${workSessionId}`,
+            source: "work-session",
+            observedAt: "2026-09-22T12:00:00.000Z",
+            summary: `owner=${userId}; goal=Finish the JLLM integration`,
+            immutable: false,
+          }],
+        },
+        limitations: ["test WorkSession snapshot"],
+      }),
+    }
+
+    const assembled = await buildContext(deps, {
+      userId: "user-session",
+      activeTask: "what should I do next?",
+      workSessionId: "ws-context-1",
+    })
+
+    expect(assembled.contextPacket.workSession).toMatchObject({
+      id: "ws-context-1",
+      goal: "Finish the JLLM integration",
+      activeSubsystems: ["jllm", "social"],
+      decisionRefs: ["decision-1"],
+      outputRefs: ["output-1"],
+    })
+    expect(assembled.contextPacket.excludedContext).toContain("workSession: test WorkSession snapshot")
+  })
+
   it("reflects the current base Security Core policy as human-readable constraints, without duplicating or modifying it", async () => {
     const deps = freshDeps()
     const assembled = await buildContext(deps, { userId: "user-i", activeTask: "what can you do" })
