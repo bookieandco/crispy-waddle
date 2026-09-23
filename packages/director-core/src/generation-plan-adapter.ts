@@ -191,6 +191,7 @@ function buildManifestReferences(
     return {
       assetId: reference.assetId,
       role: providerReferenceRole(reference.role),
+      media: reference.media,
       ...(resolvedCharacter?.uri ? { uri: resolvedCharacter.uri } : {}),
     };
   });
