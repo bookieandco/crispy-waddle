@@ -1,5 +1,4 @@
-import { describe,it } from "node:test"
-import assert from "node:assert/strict"
+import { describe, expect, it } from "vitest"
 import { UniversalArtifactCore } from "./universal-artifact-core.js"
 
 const base={ownerUserId:"u1",name:"note.txt",declaredMimeType:"text/plain",detectedMimeType:"text/plain",bytes:new TextEncoder().encode("hello")}
@@ -12,7 +11,7 @@ describe("UniversalArtifactCore",()=>{
    {scan:async()=>{throw new Error("offline")}},
   )
   const result=await core.ingest(base)
-  assert.equal(result.status,"quarantine")
+  expect(result.status).toBe("quarantine")
  })
  it("rejects MIME disagreement before storage",async()=>{
   let stored=false
@@ -20,7 +19,7 @@ describe("UniversalArtifactCore",()=>{
    {putQuarantine:async()=>{stored=true;throw new Error("no")}},
    {} as never,{} as never,
   )
-  await assert.rejects(()=>core.ingest({...base,detectedMimeType:"application/pdf"}),/ARTIFACT_MIME_MISMATCH/)
-  assert.equal(stored,false)
+  await expect(core.ingest({...base,detectedMimeType:"application/pdf"})).rejects.toThrow(/ARTIFACT_MIME_MISMATCH/)
+  expect(stored).toBe(false)
  })
 })
