@@ -103,16 +103,23 @@ export interface UgcGenerationReadiness {
   };
 }
 
-const REQUIRED_APPROVAL_STAGES: readonly UgcApprovalReceipt['stage'][] = Object.freeze([
+const BRIEF_APPROVAL_STAGES: readonly UgcApprovalReceipt['stage'][] = Object.freeze([
   'product-reference',
   'creator',
   'location',
   'concept',
   'script',
+]);
+
+const REQUIRED_APPROVAL_STAGES: readonly UgcApprovalReceipt['stage'][] = Object.freeze([
+  ...BRIEF_APPROVAL_STAGES,
   'generation-brief',
 ]);
 
-export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGenerationReadiness {
+function evaluateUgcReadiness(
+  plan: UgcProductionPlan,
+  requiredApprovalStages: readonly UgcApprovalReceipt['stage'][],
+): UgcGenerationReadiness {
   const reasons: string[] = [];
   if (!plan.id.trim() || !plan.projectId.trim()) reasons.push('DIRECTOR_UGC_IDENTITY_REQUIRED');
   if (!Number.isFinite(plan.targetRuntimeSeconds) || plan.targetRuntimeSeconds <= 0 || plan.targetRuntimeSeconds > 180) {
@@ -124,7 +131,7 @@ export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGene
   if (!plan.product.referenceEvidenceIds.length) reasons.push('DIRECTOR_UGC_PRODUCT_REFERENCE_EVIDENCE_REQUIRED');
 
   const receipts = new Map(plan.approvals.map((approval) => [approval.stage, approval]));
-  for (const stage of REQUIRED_APPROVAL_STAGES) {
+  for (const stage of requiredApprovalStages) {
     if (!receipts.has(stage)) reasons.push(`DIRECTOR_UGC_APPROVAL_REQUIRED:${stage}`);
   }
 
@@ -181,6 +188,14 @@ export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGene
   });
 }
 
+export function evaluateUgcBriefReadiness(plan: UgcProductionPlan): UgcGenerationReadiness {
+  return evaluateUgcReadiness(plan, BRIEF_APPROVAL_STAGES);
+}
+
+export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGenerationReadiness {
+  return evaluateUgcReadiness(plan, REQUIRED_APPROVAL_STAGES);
+}
+
 export function assertUgcGenerationReady(plan: UgcProductionPlan): UgcGenerationReadiness {
   const decision = evaluateUgcGenerationReadiness(plan);
   if (!decision.ready) throw new Error(decision.reasons.join(';'));
@@ -206,7 +221,8 @@ export function compileUgcGenerationBrief(plan: UgcProductionPlan): {
   scriptId: string;
   referenceManifest: GenerationReferenceManifest;
 } {
-  const ready = assertUgcGenerationReady(plan);
+  const ready = evaluateUgcBriefReadiness(plan);
+  if (!ready.ready) throw new Error(ready.reasons.join(';'));
   const { creator, location, concept, script } = ready.selected;
   if (!creator || !location || !concept || !script) throw new Error('DIRECTOR_UGC_SELECTION_REQUIRED');
 
