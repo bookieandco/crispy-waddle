@@ -81,3 +81,57 @@ export async function recordAskShortcutExperience(
 
   return event.id
 }
+
+
+export interface FinalizeAskShortcutExperienceInput {
+  userId: string
+  reasoningEventId: string
+  proposal: DecisionProposal
+  shortcut: AskShortcutKind
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * Finalizes the mutable outcome fields of a previously persisted shortcut
+ * Experience without creating a second user turn.
+ *
+ * This is used when a governed subsystem action (for example Director job
+ * submission) can change the final user-visible proposal after the initial
+ * Experience was durably recorded. Original user text/observation/timestamp
+ * remain immutable.
+ */
+export async function finalizeAskShortcutExperience(
+  input: FinalizeAskShortcutExperienceInput,
+  overrides: RecordAskShortcutExperienceOverrides = {},
+): Promise<string> {
+  const storage = overrides.storage ?? getStorage()
+  const repository = new ReasoningEventRepository(storage)
+  const existing = await repository.get(input.reasoningEventId)
+  if (!existing || existing.userId !== input.userId) {
+    throw new Error("ASK_SHORTCUT_EXPERIENCE_NOT_FOUND")
+  }
+
+  const confidence = confidenceFor(input.proposal)
+  const updated = await repository.update(input.reasoningEventId, input.userId, {
+    classification: {
+      type: "CONTEXT",
+      confidence,
+      reasoning: `deterministic Ask shortcut=${input.shortcut}; disposition=${input.proposal.disposition}; ${input.proposal.rationale}`,
+    },
+    systemResponse: input.proposal.recommendation,
+    confidence,
+    outcome: `ask-shortcut:${input.shortcut}:${input.proposal.disposition.toLowerCase()}`,
+    correlationId: input.proposal.contextId,
+    metadata: {
+      ...(existing.metadata ?? {}),
+      shortcut: input.shortcut,
+      proposalId: input.proposal.id,
+      disposition: input.proposal.disposition,
+      authority: "experience-only",
+      evidenceIds: input.proposal.evidence.map((ref) => ref.id),
+      ...(input.metadata ?? {}),
+    },
+  })
+  if (!updated) throw new Error("ASK_SHORTCUT_EXPERIENCE_UPDATE_FAILED")
+  return updated.id
+}
