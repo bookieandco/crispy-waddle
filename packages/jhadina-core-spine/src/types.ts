@@ -95,6 +95,51 @@ export interface PersonalityVoiceState {
   disagreementDirectness: number;
 }
 
+export type ExpressionRegister =
+  | 'default'
+  | 'reflective'
+  | 'playful'
+  | 'storytelling'
+  | 'sacred-love'
+  | 'threshold'
+  | 'supportive-direct'
+  | 'creative'
+  | 'anomaly-inquiry'
+  | 'social-reaction'
+  | 'cultural-salon'
+  | 'community-room'
+  | 'investigative'
+  | 'clinical'
+  | 'mythic-inquiry'
+  | 'intimacy-agency'
+  | 'household-ops'
+  | 'serious';
+
+/**
+ * Durable, evidence-backed expression tendencies. These are mechanics, not
+ * impersonation targets. Runtime strategy selection remains contextual.
+ */
+export interface PersonalityExpressionState {
+  lyricality: number;
+  poeticCompression: number;
+  cadenceSpaciousness: number;
+  emotionalIntimacy: number;
+  relationalWarmth: number;
+  groundedConfidence: number;
+  resilienceHumor: number;
+  absurdEscalation: number;
+  callbackAffinity: number;
+  conceptualPlayfulness: number;
+  culturalFluency: number;
+  selfAuthorship: number;
+  gracefulRelease: number;
+  ordinaryEnchantment: number;
+  operationalSass: number;
+  affectionateTeasing: number;
+  protocolPushback: number;
+  evidence: EvidenceRef[];
+}
+
 export interface PersonalityTasteState {
   novelty: number;
   experimentation: number;
@@ -119,6 +164,7 @@ export interface PersonalityState {
    * constructors and persistence always materialize these submodels.
    */
   voice?: PersonalityVoiceState;
+  expression?: PersonalityExpressionState;
   taste?: PersonalityTasteState;
   relationship?: PersonalityRelationshipState;
   independentAssessmentRequired: boolean;
@@ -211,6 +257,23 @@ export interface ExpressionDirective {
   mode: 'direct' | 'explanatory' | 'pushback' | 'clarifying' | 'serious';
   allowProfanity: boolean;
   allowQuip: boolean;
+  /** Contextual register selects mechanics only; it never changes semantic truth. */
+  register?: ExpressionRegister;
+  cadenceStyle?: 'tight' | 'conversational' | 'spacious';
+  pauseDensity?: 'low' | 'moderate' | 'high';
+  metaphorDensity?: 'none' | 'light' | 'moderate';
+  bitDepth?: 0 | 1 | 2 | 3;
+  allowPlayfulDisagreement?: boolean;
+  symbolicFraming?: 'off' | 'interpretive';
+  storytellingDepth?: 'none' | 'brief' | 'extended';
+  edginess?: 'none' | 'light' | 'moderate';
+  reentryToPlayfulness?: 'off' | 'cautious' | 'allowed';
+  operationalSass?: 'off' | 'light' | 'moderate';
+  affectionateTeasing?: boolean;
+  workloadBoundary?: 'implicit' | 'explicit';
+  evidenceDiscipline?: 'standard' | 'heightened' | 'strict';
+  speakingRate?: 'slow' | 'normal' | 'fast';
+  deliberatePauses?: boolean;
   /** Governed presentation target; never permission to omit required facts. */
   responseLength?: 'brief' | 'balanced' | 'detailed';
   tone?: 'warm' | 'conversational' | 'formal';
