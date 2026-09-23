@@ -29,6 +29,7 @@ export type JhadinaEphemeralArtifact = {
 }
 
 type DurableArtifactDisplay = { id:string; name:string; mimeType:string; sizeBytes:number; status:"quarantine"|"clean"|"rejected"|"needs_review" }
+const isDirectContextMime=(mime:string)=>mime==="image/png"||mime==="image/jpeg"||mime==="text/plain"
 
 type Props = {
   busy: boolean
@@ -75,7 +76,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
   const captureTimerRef = useRef<ReturnType<typeof setInterval>|null>(null)
 
   useEffect(() => { onArtifactsChange(artifacts) }, [artifacts, onArtifactsChange])
-  useEffect(() => { onArtifactRefsChange?.(durableArtifacts.filter((artifact)=>artifact.status==="clean").map((artifact)=>artifact.id)) }, [durableArtifacts, onArtifactRefsChange])
+  useEffect(() => { onArtifactRefsChange?.(durableArtifacts.filter((artifact)=>artifact.status==="clean"&&isDirectContextMime(artifact.mimeType)).map((artifact)=>artifact.id)) }, [durableArtifacts, onArtifactRefsChange])
 
   useEffect(() => () => {
     recognitionRef.current?.stop?.()
@@ -264,7 +265,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
         if(!response.ok){onStatus?.(`${file.name}: ${json.error??"upload failed"}`);continue}
         const artifact=json.artifact as DurableArtifactDisplay
         setDurableArtifacts(current=>[...current.filter(item=>item.id!==artifact.id),artifact].slice(-4))
-        onStatus?.(artifact.status==="clean"?`${file.name} passed scanning and is ready for Jhadina.`:`${file.name} is ${artifact.status}; it will not enter Jhadina's reasoning context.`)
+        onStatus?.(artifact.status==="clean"?(isDirectContextMime(artifact.mimeType)?`${file.name} passed scanning and is ready for Jhadina.`:`${file.name} passed scanning; extraction is still required before Jhadina can reason over it.`):`${file.name} is ${artifact.status}; it will not enter Jhadina's reasoning context.`)
       }
     }finally{setUploading(false)}
   }
@@ -287,11 +288,11 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
       </label>
     </div>
     <p className="jh-meta" style={{marginTop:8}}>
-      Wake {voiceState==="listening"?"listening":voiceState==="unsupported"?"unsupported in this browser":voiceState==="error"?"needs microphone permission":"off"} · screen {screenActive?"live":"off"} · {durableArtifacts.filter(a=>a.status==="clean").length} clean file{durableArtifacts.filter(a=>a.status==="clean").length===1?"":"s"}
+      Wake {voiceState==="listening"?"listening":voiceState==="unsupported"?"unsupported in this browser":voiceState==="error"?"needs microphone permission":"off"} · screen {screenActive?"live":"off"} · {durableArtifacts.filter(a=>a.status==="clean"&&isDirectContextMime(a.mimeType)).length} ready file{durableArtifacts.filter(a=>a.status==="clean"&&isDirectContextMime(a.mimeType)).length===1?"":"s"}
     </p>
     {(artifacts.length||durableArtifacts.length)?<div className="jh-row" style={{marginTop:8}}>
       {artifacts.map((artifact)=><span key={artifact.id} className="jh-status"><span className="jh-dot"/>{artifact.kind==="screen"?"Screen":artifact.name??artifact.kind}</span>)}
-      {durableArtifacts.map((artifact)=><span key={artifact.id} className={artifact.status==="clean"?"jh-status jh-status--success":"jh-status jh-status--warning"}><span className="jh-dot"/>{artifact.name} · {artifact.status}</span>)}
+      {durableArtifacts.map((artifact)=><span key={artifact.id} className={artifact.status==="clean"?"jh-status jh-status--success":"jh-status jh-status--warning"}><span className="jh-dot"/>{artifact.name} · {artifact.status==="clean"&&!isDirectContextMime(artifact.mimeType)?"clean · extraction pending":artifact.status}</span>)}
       {durableArtifacts.length?<button type="button" className="jh-button" onClick={()=>setDurableArtifacts([])}>Clear files</button>:null}
     </div>:null}
   </div>
