@@ -9,6 +9,17 @@ const inspectSocial = vi.fn()
 const inspectVideo = vi.fn()
 const createVideo = vi.fn()
 const handleGeneric = vi.fn()
+const realizeExpression = vi.fn(async (input: {
+  proposal: { recommendation: string; disposition: string }
+}) => ({
+  proposal: input.proposal,
+  presentation: {
+    mode: input.proposal.disposition === "ASK" ? "clarifying" : "direct",
+    allowProfanity: false,
+    allowQuip: true,
+  },
+  segments: [{ kind: "semantic", text: input.proposal.recommendation }],
+}))
 
 vi.mock("@/lib/auth/request-identity", () => ({
   createRequestIdentityVerifier: async () => ({ verify }),
@@ -31,6 +42,10 @@ vi.mock("@/lib/director-video-job-service", () => ({
 
 vi.mock("@/lib/intelligence/jhadina-command", () => ({
   handleJhadinaCommand: (...args: unknown[]) => handleGeneric(...args),
+}))
+
+vi.mock("@/lib/intelligence/ask-expression", () => ({
+  realizeAskJhadinaExpression: (...args: unknown[]) => realizeExpression(...args as [Parameters<typeof realizeExpression>[0]]),
 }))
 
 import { POST } from "./route"
@@ -98,6 +113,7 @@ describe("Ask Jhadina Growth routing", () => {
     expect(json.data.growthWorkPlan.operation).toBe("list_campaigns")
     expect(json.data.feedbackEligible).toBe(false)
     expect(handleGrowth).toHaveBeenCalledTimes(1)
+    expect(realizeExpression).toHaveBeenCalledTimes(1)
     expect(handleSocial).not.toHaveBeenCalled()
     expect(createVideo).not.toHaveBeenCalled()
     expect(handleGeneric).not.toHaveBeenCalled()
