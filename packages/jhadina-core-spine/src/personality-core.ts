@@ -190,6 +190,7 @@ export function projectPersonality(
     const trait: PersonalityTrait = {
       id: existing?.id ?? idFactory(),
       statement: existing?.statement ?? pattern.pattern.trim(),
+      sourcePatternId: existing?.sourcePatternId ?? pattern.id,
       dimension: pattern.personalityDimension,
       confidence,
       stability,
