@@ -13,12 +13,20 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js"
  * (e.g. in-memory storage) instead of silently doing nothing against a
  * durable store that was never actually reachable.
  */
-export function createServiceRoleClient(): SupabaseClient | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+export function resolveServiceRoleConfig(): { url: string; key: string } | null {
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
+    process.env.SUPABASE_URL?.trim()
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!url || !key) return null
+  return { url, key }
+}
 
-  return createClient(url, key, {
+export function createServiceRoleClient(): SupabaseClient | null {
+  const config = resolveServiceRoleConfig()
+  if (!config) return null
+
+  return createClient(config.url, config.key, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 }
