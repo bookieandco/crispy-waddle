@@ -183,9 +183,13 @@ function formatRange(start: number, end: number): string {
   return `${fmt(start)}-${fmt(end)}s`;
 }
 
+function qcMetrics(...metrics: DirectedTakeQcMetric[]): readonly DirectedTakeQcMetric[] {
+  return Object.freeze(metrics);
+}
+
 export const REALISTIC_CHARACTER_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({
   id: 'realistic-character:v1',
-  requiredMetrics: Object.freeze([
+  requiredMetrics: qcMetrics(
     'identity-stability',
     'face-stability',
     'hand-anatomy',
@@ -195,7 +199,7 @@ export const REALISTIC_CHARACTER_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({
     'focus-plan-match',
     'performance-plan-match',
     'background-geometry',
-  ]),
+  ),
   minimumScoreByMetric: Object.freeze({
     'identity-stability': 0.82,
     'face-stability': 0.78,
@@ -213,13 +217,13 @@ export const REALISTIC_CHARACTER_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({
 
 export const SOURCE_PRESERVING_VIDEO_EDIT_QC: DirectedTakeQcPolicy = Object.freeze({
   id: 'source-preserving-video-edit:v1',
-  requiredMetrics: Object.freeze([
+  requiredMetrics: qcMetrics(
     'identity-stability',
     'source-preservation',
     'motion-plausibility',
     'camera-plan-match',
     'background-geometry',
-  ]),
+  ),
   minimumScoreByMetric: Object.freeze({
     'identity-stability': 0.88,
     'source-preservation': 0.9,
