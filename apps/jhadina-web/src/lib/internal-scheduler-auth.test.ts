@@ -75,6 +75,21 @@ describe('internal scheduler authorization', () => {
     ).resolves.toBe(true)
   })
 
+  it('accepts exact-main push OIDC for post-deploy admission smoke', async () => {
+    vi.stubEnv('CRON_SECRET', '')
+    const fixture = makeOidcFixture({ event_name: 'push' })
+    const request = new Request('https://example.test/internal', {
+      headers: { authorization: `Bearer ${fixture.token}` },
+    })
+
+    await expect(
+      authorizedSchedulerRequest(request, {
+        fetchImpl: fixture.fetchImpl,
+        nowSeconds: 1_800_000_100,
+      }),
+    ).resolves.toBe(true)
+  })
+
   it('rejects a validly signed token from a different workflow or ref', async () => {
     vi.stubEnv('CRON_SECRET', '')
     const fixture = makeOidcFixture({
