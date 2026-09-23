@@ -2,6 +2,9 @@ name: PupsonStuff Vercel Bootstrap
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - ops/pupsonstuff-vercel-bootstrap-run
 
 permissions:
   contents: read
