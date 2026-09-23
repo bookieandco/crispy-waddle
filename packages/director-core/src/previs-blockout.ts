@@ -28,6 +28,36 @@ export interface PrevisGenerationGap {
   requiredReferenceAssetIds: readonly string[];
 }
 
+export type PrevisInterpolation = 'linear' | 'smooth' | 'hold' | 'ease-in' | 'ease-out';
+
+export interface PrevisTransformKeyframe {
+  frame: number;
+  position?: { x: number; y: number; z: number };
+  rotationDegrees?: { x: number; y: number; z: number };
+  scale?: { x: number; y: number; z: number };
+  interpolation?: PrevisInterpolation;
+}
+
+export interface PrevisPoseKeyframe {
+  frame: number;
+  actorId: string;
+  poseRef?: string;
+  action?: string;
+  phase?: number;
+  lookAtObjectId?: string;
+  footLock?: boolean;
+  interpolation?: PrevisInterpolation;
+}
+
+export interface PrevisCameraRail {
+  points: readonly { x: number; y: number; z: number }[];
+  startFrame: number;
+  endFrameExclusive: number;
+  interpolation?: PrevisInterpolation;
+  heightMeters?: number;
+  craneMeters?: number;
+};
+
 export interface PrevisShotBlock {
   id: string;
   order: number;
@@ -35,6 +65,10 @@ export interface PrevisShotBlock {
   endFrameExclusive: number;
   purpose: string;
   cameraPlan: DirectorCameraPlan;
+  cameraControl?: 'keyframes' | 'rail' | 'locked' | 'free';
+  cameraRail?: PrevisCameraRail;
+  objectTracks?: Readonly<Record<string, readonly PrevisTransformKeyframe[]>>;
+  actorPoseTracks?: readonly PrevisPoseKeyframe[];
   visibleObjectIds: readonly string[];
   generationGaps: readonly PrevisGenerationGap[];
   holdFrames?: number;
@@ -57,6 +91,7 @@ export interface PrevisBlockoutPlan {
   objects: readonly PrevisObject[];
   shots: readonly PrevisShotBlock[];
   referenceBindings: readonly PrevisReferenceBinding[];
+  timelineCoverage?: 'continuous' | 'allow-gaps';
   authority: 'DIRECTOR_PREVIS_PLAN';
 }
 
@@ -76,7 +111,10 @@ export interface PrevisIssue {
     | 'PREVIS_REFERENCE_UNKNOWN'
     | 'PREVIS_OBJECT_SEMANTIC_ROLE_REQUIRED'
     | 'PREVIS_GENERATION_GAP_INVALID'
-    | 'PREVIS_CAMERA_INVALID';
+    | 'PREVIS_CAMERA_INVALID'
+    | 'PREVIS_CAMERA_RAIL_INVALID'
+    | 'PREVIS_TRACK_KEYFRAME_INVALID'
+    | 'PREVIS_POSE_ACTOR_REQUIRED';
   path: string;
   message: string;
 }
@@ -135,7 +173,7 @@ export function validatePrevisBlockout(plan: PrevisBlockoutPlan): PrevisIssue[] 
       issues.push(issue('PREVIS_SHOT_RANGE_INVALID', `shots[${index}]`, 'Shot frame range is invalid.'));
       return;
     }
-    if (shot.startFrame > cursor) {
+    if (shot.startFrame > cursor && (plan.timelineCoverage ?? 'continuous') === 'continuous') {
       issues.push(issue('PREVIS_TIMELINE_GAP', `shots[${index}].startFrame`, 'Previs timeline has an uncovered frame gap.'));
     }
     if (shot.startFrame < cursor) {
@@ -148,6 +186,10 @@ export function validatePrevisBlockout(plan: PrevisBlockoutPlan): PrevisIssue[] 
         issues.push(issue('PREVIS_OBJECT_UNKNOWN', `shots[${index}].visibleObjectIds`, `Unknown blockout object: ${objectId}`));
       }
     }
+
+    validateCameraRail(shot, index, issues);
+    validateObjectTracks(shot, index, issues);
+    validatePoseTracks(shot, index, issues);
 
     shot.generationGaps.forEach((gap, gapIndex) => {
       if (!gap.id.trim() || !gap.description.trim() || !gap.purpose.trim()) {
@@ -204,7 +246,9 @@ export function compilePrevisShotList(plan: PrevisBlockoutPlan): PrevisCompiledP
   for (const shot of shots) {
     const startSeconds = shot.startFrame / plan.fps;
     const endSeconds = shot.endFrameExclusive / plan.fps;
-    const visible = shot.visibleObjectIds.map((id) => objects.get(id)!).filter(Boolean);
+    const visible = shot.visibleObjectIds
+      .map((id) => objects.get(id))
+      .filter((object): object is PrevisObject => Boolean(object));
 
     const semantics = visible.map((object) => {
       for (const assetId of object.referenceAssetIds) pushUnique(usedReferences, assetId);
@@ -215,18 +259,32 @@ export function compilePrevisShotList(plan: PrevisBlockoutPlan): PrevisCompiledP
       for (const assetId of gap.requiredReferenceAssetIds) pushUnique(usedReferences, assetId);
     }
 
-    lines.push(
+    const authoredTracks = [
+      shot.cameraControl && `Camera control: ${shot.cameraControl}`,
+      shot.cameraRail && `Camera rail: frames ${shot.cameraRail.startFrame}-${shot.cameraRail.endFrameExclusive - 1}, ${shot.cameraRail.points.length} points`,
+      shot.objectTracks && Object.keys(shot.objectTracks).length
+        ? `Object tracks: ${Object.entries(shot.objectTracks).map(([id, keys]) => `${id}(${keys.length} keys)`).join(', ')}`
+        : undefined,
+      shot.actorPoseTracks?.length
+        ? `Actor pose keys: ${shot.actorPoseTracks.map((key) => `${key.actorId}@${key.frame}${key.poseRef ? `:${key.poseRef}` : ''}`).join(', ')}`
+        : undefined,
+    ].filter((line): line is string => Boolean(line));
+
+    const shotLines = [
       '',
       `SHOT ${shot.order} [frames ${shot.startFrame}-${shot.endFrameExclusive - 1}; ${format(startSeconds)}-${format(endSeconds)}s]`,
       `Purpose: ${shot.purpose}`,
       semantics.length ? `Blockout semantics: ${semantics.join('; ')}` : 'Blockout semantics: intentionally empty',
+      ...authoredTracks,
       compileDirectorCameraDirective(shot.cameraPlan),
       shot.generationGaps.length
         ? `MODEL-FILL ONLY: ${shot.generationGaps.map((gap) => `${gap.description} — ${gap.purpose}`).join(' | ')}`
         : 'MODEL-FILL ONLY: none; preserve authored staging',
       shot.holdFrames ? `End hold: ${shot.holdFrames} frames` : undefined,
       shot.cutStyle ? `Cut: ${shot.cutStyle}` : undefined,
-    );
+    ].filter((line): line is string => Boolean(line));
+
+    lines.push(...shotLines);
   }
 
   return Object.freeze({
@@ -242,6 +300,60 @@ export function secondsToFrames(seconds: number, fps: number): number {
   const frames = seconds * fps;
   if (!Number.isInteger(frames)) throw new Error('DIRECTOR_PREVIS_NON_INTEGER_FRAME_BOUNDARY');
   return frames;
+}
+
+function validateCameraRail(shot: PrevisShotBlock, index: number, issues: PrevisIssue[]): void {
+  if (shot.cameraControl !== 'rail' && !shot.cameraRail) return;
+  const rail = shot.cameraRail;
+  if (
+    !rail ||
+    rail.points.length < 2 ||
+    rail.points.some((point) => ![point.x, point.y, point.z].every(Number.isFinite)) ||
+    !Number.isInteger(rail.startFrame) ||
+    !Number.isInteger(rail.endFrameExclusive) ||
+    rail.startFrame < shot.startFrame ||
+    rail.endFrameExclusive > shot.endFrameExclusive ||
+    rail.endFrameExclusive <= rail.startFrame
+  ) {
+    issues.push(issue('PREVIS_CAMERA_RAIL_INVALID', `shots[${index}].cameraRail`, 'Rail camera control requires at least two finite points and a valid authored frame range inside the shot.'));
+  }
+}
+
+function validateObjectTracks(shot: PrevisShotBlock, index: number, issues: PrevisIssue[]): void {
+  for (const [objectId, keys] of Object.entries(shot.objectTracks ?? {})) {
+    let previous = -Infinity;
+    for (const key of keys) {
+      if (
+        !Number.isInteger(key.frame) ||
+        key.frame < shot.startFrame ||
+        key.frame >= shot.endFrameExclusive ||
+        key.frame < previous
+      ) {
+        issues.push(issue('PREVIS_TRACK_KEYFRAME_INVALID', `shots[${index}].objectTracks.${objectId}`, 'Object keyframes must be ordered integer frames inside the shot.'));
+        break;
+      }
+      previous = key.frame;
+    }
+  }
+}
+
+function validatePoseTracks(shot: PrevisShotBlock, index: number, issues: PrevisIssue[]): void {
+  let previous = -Infinity;
+  for (const key of shot.actorPoseTracks ?? []) {
+    if (!key.actorId.trim()) {
+      issues.push(issue('PREVIS_POSE_ACTOR_REQUIRED', `shots[${index}].actorPoseTracks`, 'Actor pose keyframes require a stable actor ID.'));
+    }
+    if (
+      !Number.isInteger(key.frame) ||
+      key.frame < shot.startFrame ||
+      key.frame >= shot.endFrameExclusive ||
+      key.frame < previous
+    ) {
+      issues.push(issue('PREVIS_TRACK_KEYFRAME_INVALID', `shots[${index}].actorPoseTracks`, 'Actor pose keyframes must be ordered integer frames inside the shot.'));
+      break;
+    }
+    previous = key.frame;
+  }
 }
 
 function issue(code: PrevisIssue['code'], path: string, message: string): PrevisIssue {
