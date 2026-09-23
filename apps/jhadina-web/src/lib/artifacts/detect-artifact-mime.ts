@@ -13,7 +13,9 @@ const signatures:[string,(b:Uint8Array)=>boolean][]=[
 
 function detectOoxml(bytes:Uint8Array):string|undefined{
  if(!isZip(bytes))return undefined
- const sample=ascii(bytes,0,Math.min(bytes.length,2_000_000))
+ const head=ascii(bytes,0,Math.min(bytes.length,1_000_000))
+ const tail=bytes.length>1_000_000?ascii(bytes,Math.max(0,bytes.length-1_000_000)):head
+ const sample=head+tail
  if(sample.includes("word/"))return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
  if(sample.includes("xl/"))return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
  return undefined
