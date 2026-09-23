@@ -11,6 +11,18 @@ export class SupabaseArtifactBlobStore implements ArtifactBlobStore {
  }
 }
 
+export class SupabaseArtifactDerivativeStore {
+ constructor(private readonly client:SupabaseClient,private readonly bucket="jhadina-artifact-derived"){}
+ async putExtractedText(ownerUserId:string,assetId:string,text:string){
+  const bytes=new TextEncoder().encode(text)
+  if(!bytes.length||bytes.length>10*1024*1024)throw new Error("ARTIFACT_DERIVATIVE_SIZE_NOT_ADMITTED")
+  const path=`${ownerUserId}/${assetId}/extracted.txt`
+  const {error}=await this.client.storage.from(this.bucket).upload(path,bytes,{contentType:"text/plain; charset=utf-8",upsert:true})
+  if(error)throw new Error(`ARTIFACT_DERIVATIVE_WRITE_FAILED: ${error.message}`)
+  return {bucket:this.bucket,path,uri:`supabase-private://${this.bucket}/${path}`,sizeBytes:bytes.length}
+ }
+}
+
 export class SupabaseArtifactRepository implements ArtifactRepository {
  constructor(private readonly client:SupabaseClient,private readonly ownerUserId:string){}
  async createQuarantined(input:Omit<ArtifactRecord,"status"|"scanReasons"|"derivativeRefs">){
@@ -27,6 +39,16 @@ export class SupabaseArtifactRepository implements ArtifactRepository {
    scan_reasons:result.reasons,scanned_at:result.scannedAt,
   }).eq("id",assetId).eq("owner_user_id",this.ownerUserId).select("*").single()
   if(error) throw new Error(`ARTIFACT_SCAN_WRITE_FAILED: ${error.message}`)
+  return fromRow(data)
+ }
+ async applyExtraction(assetId:string,input:{extractedTextRef:string;derivativeRefs:string[]}){
+  const {data:current,error:readError}=await this.client.from("jhadina_artifacts").select("derivative_refs,status").eq("id",assetId).eq("owner_user_id",this.ownerUserId).single()
+  if(readError)throw new Error(`ARTIFACT_EXTRACTION_READ_FAILED: ${readError.message}`)
+  if(current?.status!=="clean")throw new Error("ARTIFACT_EXTRACTION_REQUIRES_CLEAN")
+  const existing=Array.isArray(current.derivative_refs)?current.derivative_refs.filter((value:unknown):value is string=>typeof value==="string"):[]
+  const derivativeRefs=[...new Set([...existing,...input.derivativeRefs])]
+  const {data,error}=await this.client.from("jhadina_artifacts").update({extracted_text_ref:input.extractedTextRef,derivative_refs:derivativeRefs}).eq("id",assetId).eq("owner_user_id",this.ownerUserId).eq("status","clean").select("*").single()
+  if(error)throw new Error(`ARTIFACT_EXTRACTION_WRITE_FAILED: ${error.message}`)
   return fromRow(data)
  }
 }
