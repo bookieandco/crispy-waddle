@@ -17,6 +17,7 @@ import {
 } from "@/lib/intelligence/ask-growth-command"
 import { realizeAskJhadinaExpression } from "@/lib/intelligence/ask-expression"
 import { recordAskShortcutExperience } from "@/lib/intelligence/ask-shortcut-experience"
+import { requiresFullJllmContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 
 export const dynamic = "force-dynamic"
 
@@ -170,7 +171,8 @@ export async function POST(req: NextRequest) {
     }
 
     const growthReadIntent = inspectAskGrowthReadIntent(activeTask)
-    if (growthReadIntent) {
+    const contextualRead = requiresFullJllmContextForRead(activeTask)
+    if (growthReadIntent && !contextualRead) {
       const verifier = await createRequestIdentityVerifier()
       const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
       const growth = await handleAskGrowthReadCommand({
@@ -205,7 +207,16 @@ export async function POST(req: NextRequest) {
     }
 
     const socialIntent = inspectAskSocialIntent(activeTask)
-    if (socialIntent) {
+    const contextualSocialRead = socialIntent
+      && contextualRead
+      && new Set([
+        "list_characters",
+        "account_attention",
+        "select_character_accounts",
+        "analyze_performance",
+        "social_general",
+      ]).has(socialIntent.operation)
+    if (socialIntent && !contextualSocialRead) {
       const verifier = await createRequestIdentityVerifier()
       const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
       const social = await handleAskSocialCommand({

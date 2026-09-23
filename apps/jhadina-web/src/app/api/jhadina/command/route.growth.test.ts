@@ -131,6 +131,44 @@ describe("Ask Jhadina Growth routing", () => {
     expect(handleGeneric).not.toHaveBeenCalled()
   })
 
+  it("routes an explicit personal/history Growth read through full JLLM context", async () => {
+    inspectGrowth.mockReturnValue({
+      matched: true,
+      operation: "campaign_attention",
+      requestedChannels: ["meta"],
+      requestedBrandIds: [],
+    })
+    handleGeneric.mockResolvedValue({
+      proposal: {
+        id: "proposal-contextual",
+        contextId: "ctx-contextual",
+        disposition: "PROCEED",
+        recommendation: "Contextual answer",
+        rationale: "Full JLLM context",
+        evidence: [],
+        uncertainty: [],
+        alternatives: [],
+      },
+      reasoningEventId: "reason-contextual",
+      expression: {
+        proposal: { id: "proposal-contextual" },
+        presentation: { mode: "direct", allowProfanity: false, allowQuip: false },
+        segments: [{ kind: "semantic", text: "Contextual answer" }],
+      },
+      verified: true,
+      verificationReason: "verified",
+    })
+
+    const response = await POST(request("Use my goals and preferences to tell me which Meta campaign needs attention"))
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.data.reasoningEventId).toBe("reason-contextual")
+    expect(handleGeneric).toHaveBeenCalledTimes(1)
+    expect(handleGrowth).not.toHaveBeenCalled()
+    expect(recordShortcutExperience).not.toHaveBeenCalled()
+  })
+
   it("lets a mutating paid-media request continue to Social planning", async () => {
     inspectGrowth.mockReturnValue(null)
     inspectSocial.mockReturnValue({

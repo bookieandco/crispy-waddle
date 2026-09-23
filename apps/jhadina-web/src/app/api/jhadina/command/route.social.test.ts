@@ -277,6 +277,47 @@ describe("Ask Jhadina Social routing", () => {
     expect(createVideo).not.toHaveBeenCalled()
   })
 
+  it("routes an explicit personal/history Social read through full JLLM context", async () => {
+    inspectSocial.mockReturnValue({
+      matched: true,
+      operation: "account_attention",
+      requestedPlatforms: ["instagram"],
+      requestedCharacterProfiles: [],
+      requestedBrand: "pupsonstuff",
+      accountTerms: [],
+    })
+    handleGeneric.mockResolvedValue({
+      proposal: {
+        id: "proposal-contextual",
+        contextId: "ctx-contextual",
+        disposition: "PROCEED",
+        recommendation: "Contextual answer",
+        rationale: "Full JLLM context",
+        evidence: [],
+        uncertainty: [],
+        alternatives: [],
+      },
+      reasoningEventId: "reason-contextual",
+      expression: {
+        proposal: { id: "proposal-contextual" },
+        presentation: { mode: "direct", allowProfanity: false, allowQuip: false },
+        segments: [{ kind: "semantic", text: "Contextual answer" }],
+      },
+      verified: true,
+      verificationReason: "verified",
+    })
+
+    const response = await POST(request("Based on what you know about me, which Instagram account should I work on?"))
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.data.reasoningEventId).toBe("reason-contextual")
+    expect(handleGeneric).toHaveBeenCalledTimes(1)
+    expect(handleSocial).not.toHaveBeenCalled()
+    expect(createVideo).not.toHaveBeenCalled()
+    expect(recordShortcutExperience).not.toHaveBeenCalled()
+  })
+
   it("preserves the generic Director shortcut when the request is not Social", async () => {
     inspectSocial.mockReturnValue(null)
     inspectVideo.mockReturnValue({ mode: "text-to-video" })
