@@ -1,6 +1,6 @@
 import type { GenerationModality, GenerationRegistry } from './generation-registry';
 import type { GenerationService, GenerationJob } from './generation-service';
-import type { TakeRequest } from './generation-orchestrator';
+import { compileTakePrompt, type TakeRequest } from './generation-orchestrator';
 import type { DirectorGenerationGateInput, AuthoritativeDirectorGenerationGateInput } from './creative-gate-adapter';
 import { evaluateDirectorGenerationGate } from './creative-gate-adapter';
 import type { DirectorStoryboardLineageResolver } from './storyboard-lineage-resolver';
@@ -115,7 +115,7 @@ export class GenerationPlanAdapter {
       requestId,
       projectId: request.projectId,
       modality: plan.modality,
-      prompt: request.prompt,
+      prompt: compileTakePrompt(request),
       negativePrompt: plan.negativePrompt,
       model,
       loras,
@@ -143,6 +143,9 @@ export class GenerationPlanAdapter {
           lockedTraits: [...identity.lockedTraits],
         })),
         cinematography: request.cinematography,
+        cameraPlan: request.cameraPlan,
+        performancePlan: request.performancePlan,
+        realismPlan: request.realismPlan,
       },
       creativeProvenance,
     });
