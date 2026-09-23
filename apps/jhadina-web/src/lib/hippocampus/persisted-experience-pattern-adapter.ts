@@ -32,6 +32,8 @@ export interface PersistedExperiencePatternResult {
   experience: Experience
   relatedEpisodes: HippocampalEpisode[]
   memories: MemoryProposal[]
+  /** Full active approved Memory evidence IDs for revocation reconciliation. */
+  activeMemoryEvidenceIds: string[]
   patterns: PatternObservation[]
 }
 
@@ -178,6 +180,9 @@ export class PersistedExperiencePatternAdapter {
     )
 
     const durableMemories = await this.storage.listMemories(input.userId)
+    const activeMemoryEvidenceIds = durableMemories
+      .filter((memory) => memory.status === "APPROVED")
+      .map((memory) => memory.reasoningEventId ?? memory.id)
     const memories = relevantMemoryProposals(
       durableMemories,
       currentEpisode,
@@ -216,6 +221,7 @@ export class PersistedExperiencePatternAdapter {
       experience: input.experience,
       relatedEpisodes,
       memories,
+      activeMemoryEvidenceIds,
       patterns,
     }
   }
