@@ -1,3 +1,4 @@
+import { assertDirectorCameraPlan } from './camera-language.js';
 import type { ContinuityLock, TakePlan, TakeRequest } from './generation-orchestrator.js';
 import type { StoryboardBoard, StoryboardSequence } from './storyboard-sequence.js';
 
@@ -11,6 +12,7 @@ export interface StoryboardShotPlan {
   referenceAssetIds: string[];
   continuityLocks: ContinuityLock[];
   cinematography?: TakeRequest['cinematography'];
+  cameraPlan?: TakeRequest['cameraPlan'];
 }
 
 export interface StoryboardTakePlan {
@@ -40,6 +42,8 @@ export function buildStoryboardShotPlan(
   const continuityLocks = unique(
     shotBoards.flatMap((board) => board.continuityLocks?.length ? board.continuityLocks : DEFAULT_LOCKS),
   );
+  const cameraPlan = cameraPlanFrom(shotBoards);
+  if (cameraPlan) assertDirectorCameraPlan(cameraPlan);
 
   return {
     projectId: sequence.projectId,
@@ -51,6 +55,7 @@ export function buildStoryboardShotPlan(
     referenceAssetIds,
     continuityLocks,
     cinematography: cinematographyFrom(shotBoards),
+    cameraPlan,
   };
 }
 
@@ -73,6 +78,7 @@ export function buildStoryboardTakePlan(
     takeCount: overrides.takeCount,
     locked: shot.continuityLocks,
     cinematography: shot.cinematography,
+    cameraPlan: shot.cameraPlan,
     referenceAssetIds: shot.referenceAssetIds,
   };
 
@@ -98,6 +104,11 @@ function boardPrompt(board: StoryboardBoard): string {
 function cinematographyFrom(boards: StoryboardBoard[]): TakeRequest['cinematography'] {
   const board = boards[boards.length - 1];
   return board?.cinematography;
+}
+
+function cameraPlanFrom(boards: StoryboardBoard[]): TakeRequest['cameraPlan'] {
+  const board = [...boards].reverse().find((candidate) => candidate.cameraPlan);
+  return board?.cameraPlan;
 }
 
 function unique<T>(values: T[]): T[] {
