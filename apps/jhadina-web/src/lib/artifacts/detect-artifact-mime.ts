@@ -9,8 +9,6 @@ const signatures:[string,(b:Uint8Array)=>boolean][]=[
  ["application/pdf",b=>ascii(b,0,5)==="%PDF-"],
  ["audio/wav",b=>ascii(b,0,4)==="RIFF"&&ascii(b,8,12)==="WAVE"],
  ["audio/mpeg",b=>ascii(b,0,3)==="ID3"||(b[0]===0xff&&((b[1]??0)&0xe0)===0xe0)],
- ["video/mp4",b=>b.length>=12&&ascii(b,4,8)==="ftyp"],
- ["video/webm",b=>starts(b,[0x1a,0x45,0xdf,0xa3])],
 ]
 
 function detectOoxml(bytes:Uint8Array):string|undefined{
@@ -24,9 +22,9 @@ function detectOoxml(bytes:Uint8Array):string|undefined{
 export function detectArtifactMime(bytes:Uint8Array,declared:string):string{
  const ooxml=detectOoxml(bytes)
  if(ooxml)return ooxml
+ if((declared==="audio/mp4"||declared==="video/mp4")&&bytes.length>=12&&ascii(bytes,4,8)==="ftyp")return declared
+ if((declared==="audio/webm"||declared==="video/webm")&&starts(bytes,[0x1a,0x45,0xdf,0xa3]))return declared
  for(const [mime,test] of signatures)if(test(bytes))return mime
- if(declared==="audio/mp4"&&bytes.length>=12&&ascii(bytes,4,8)==="ftyp")return "audio/mp4"
- if(declared==="audio/webm"&&starts(bytes,[0x1a,0x45,0xdf,0xa3]))return "audio/webm"
  if(declared==="application/json"&&isTextLike(bytes)){
   try{JSON.parse(new TextDecoder().decode(bytes));return "application/json"}catch{}
  }
