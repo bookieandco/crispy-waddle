@@ -1,4 +1,6 @@
 import { compileDirectorCameraDirective, type DirectorCameraPlan } from './camera-language.js';
+import { compilePerformanceDirective, type PerformanceDirectionPlan } from './performance-direction.js';
+import { compileRealismDirective, type RealismDirectionPlan } from './realism-direction.js';
 
 export type CinematographyPreset = {
   id: string;
@@ -44,6 +46,10 @@ export type TakeRequest = {
   cinematography?: CinematographyPreset;
   /** Canonical structured camera intent for new Director camera-aware flows. */
   cameraPlan?: DirectorCameraPlan;
+  /** Pre-generation actor/blocking/dialogue direction. */
+  performancePlan?: PerformanceDirectionPlan;
+  /** Physical plausibility, naturalism and source-preservation direction. */
+  realismPlan?: RealismDirectionPlan;
   referenceCharacterIds?: string[];
   referenceAssetIds?: string[];
 };
@@ -68,7 +74,7 @@ export function planTake(request: TakeRequest): TakePlan {
     takeNumber: (request.takeCount ?? 1),
     parentTakeId: request.parentTakeId,
     continuityLocks: request.locked,
-    prompt: request.prompt,
+    prompt: compileTakePrompt(request),
     status: 'queued',
   };
 }
@@ -82,6 +88,17 @@ export const CINEMATOGRAPHY_PRESETS: CinematographyPreset[] = [
   { id: 'youtube', name: 'YouTube', shot: 'medium', lens: '35mm/50mm', movement: 'purposeful', lighting: 'clear subject key', framing: 'mobile-friendly', mood: 'direct' },
 ];
 
+export function compileTakePrompt(request: TakeRequest): string {
+  const sections = [
+    request.prompt.trim(),
+    request.cameraPlan ? section('CAMERA DIRECTION', compileDirectorCameraDirective(request.cameraPlan)) : undefined,
+    request.performancePlan ? section('PERFORMANCE DIRECTION', compilePerformanceDirective(request.performancePlan)) : undefined,
+    request.realismPlan ? section('REALISM / SOURCE PRESERVATION', compileRealismDirective(request.realismPlan)) : undefined,
+  ].filter((value): value is string => Boolean(value?.trim()));
+
+  return sections.join('\n\n');
+}
+
 export function buildGenerationBrief(request: TakeRequest) {
   return {
     takeId: request.takeId,
@@ -89,7 +106,8 @@ export function buildGenerationBrief(request: TakeRequest) {
     sceneId: request.sceneId,
     storyboardBoardId: request.storyboardBoardId,
     parentTakeId: request.parentTakeId,
-    prompt: request.prompt,
+    prompt: compileTakePrompt(request),
+    basePrompt: request.prompt,
     targetRuntimeSeconds: request.targetRuntimeSeconds,
     sceneCount: request.sceneCount,
     takeCount: request.takeCount,
@@ -101,6 +119,14 @@ export function buildGenerationBrief(request: TakeRequest) {
     cinematography: request.cinematography,
     cameraPlan: request.cameraPlan,
     cameraDirective: request.cameraPlan ? compileDirectorCameraDirective(request.cameraPlan) : undefined,
+    performancePlan: request.performancePlan,
+    performanceDirective: request.performancePlan ? compilePerformanceDirective(request.performancePlan) : undefined,
+    realismPlan: request.realismPlan,
+    realismDirective: request.realismPlan ? compileRealismDirective(request.realismPlan) : undefined,
     approvalRequired: true,
   };
+}
+
+function section(title: string, body: string): string {
+  return `[${title}]\n${body}`;
 }
