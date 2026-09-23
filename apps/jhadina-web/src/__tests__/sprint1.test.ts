@@ -34,7 +34,7 @@ describe("InMemoryStorage", () => {
       const memory = await storage.createMemory({
         userId: "user_1",
         type: "PREFERENCE",
-        status: "PENDING",
+        status: "APPROVED",
         content: "I prefer cinematic visuals",
         confidence: 0.95,
         createdAt: new Date().toISOString(),
@@ -42,14 +42,14 @@ describe("InMemoryStorage", () => {
 
       expect(memory.id).toMatch(/^mem_/)
       expect(memory.content).toBe("I prefer cinematic visuals")
-      expect(memory.status).toBe("PENDING")
+      expect(memory.status).toBe("APPROVED")
     })
 
     it("should retrieve a memory by ID", async () => {
       const created = await storage.createMemory({
         userId: "user_1",
         type: "PREFERENCE",
-        status: "PENDING",
+        status: "APPROVED",
         content: "Test content",
         confidence: 0.9,
         createdAt: new Date().toISOString(),
@@ -93,23 +93,27 @@ describe("InMemoryStorage", () => {
       expect(user1Memories.every(m => m.userId === "user_1")).toBe(true)
     })
 
-    it("should update a memory", async () => {
+    it("should retire approved memory without mutating its content", async () => {
       const created = await storage.createMemory({
         userId: "user_1",
         type: "PREFERENCE",
-        status: "PENDING",
+        status: "APPROVED",
         content: "Original",
         confidence: 0.9,
         createdAt: new Date().toISOString(),
-      })
-
-      const updated = await storage.updateMemory(created.id, {
-        status: "APPROVED",
         approvedAt: new Date().toISOString(),
       })
 
-      expect(updated?.status).toBe("APPROVED")
-      expect(updated?.approvedAt).toBeDefined()
+      const retired = await storage.retireMemory(
+        created.id,
+        "user_1",
+        "forgotten",
+        new Date().toISOString(),
+      )
+
+      expect(retired?.status).toBe("RETIRED")
+      expect(retired?.content).toBe("Original")
+      expect(retired?.revocationReason).toBe("forgotten")
     })
   })
 
