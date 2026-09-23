@@ -5,6 +5,7 @@ import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { CleanArtifactContextResolver } from "@/lib/artifacts/clean-artifact-context-resolver"
+import { resolveWorkSessionArtifactContext } from "@/lib/artifacts/work-session-artifact-resume"
 import { createAndSubmitAskVideoJob, inspectAskVideoIntent } from "@/lib/director-video-job-service"
 import {
   handleAskSocialCommand,
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const ephemeralArtifacts = parseEphemeralArtifacts(body?.artifacts)
-    const durableRefs = Array.isArray(body?.artifactRefs) ? body.artifactRefs.filter((x:unknown)=>typeof x==="string").slice(0,8).map((id:string)=>({id})) : []
+    const durableRefs: Array<{ id: string }> = Array.isArray(body?.artifactRefs) ? body.artifactRefs.filter((x:unknown):x is string=>typeof x==="string").slice(0,8).map((id:string)=>({id})) : []
     let durableArtifacts: EphemeralArtifactContext[] = []
     if (durableRefs.length) {
       const verifier = await createRequestIdentityVerifier()
@@ -405,15 +406,40 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    let genericArtifacts = artifacts
+    const workSessionId = typeof body?.workSessionId === "string" ? body.workSessionId.trim() : ""
+    if (workSessionId) {
+      const verifier = await createRequestIdentityVerifier()
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const client = createServiceRoleClient()
+      if (client) {
+        const explicitArtifactIds = [...new Set(durableRefs.map((ref) => ref.id))]
+        const resumed = await resolveWorkSessionArtifactContext({
+          client,
+          ownerUserId: verifiedIdentity.userId,
+          workSessionId,
+          excludeArtifactIds: explicitArtifactIds,
+          maxArtifacts: Math.max(0, 8 - explicitArtifactIds.length),
+        })
+        if (resumed.artifacts.length) {
+          const byId = new Map(genericArtifacts.map((artifact) => [artifact.id, artifact]))
+          for (const artifact of resumed.artifacts) {
+            if (!byId.has(artifact.id)) byId.set(artifact.id, artifact)
+          }
+          genericArtifacts = [...byId.values()]
+        }
+      }
+    }
+
     const result = await handleJhadinaCommand({
       userId: claimedUserId,
       activeTask,
       surface: typeof body?.surface === "string" ? (body.surface as JhadinaWorldId) : undefined,
       route: typeof body?.route === "string" ? body.route : undefined,
       activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
-      workSessionId: typeof body?.workSessionId === "string" ? body.workSessionId : undefined,
+      workSessionId: workSessionId || undefined,
       geographicScope: body?.geographicScope ?? undefined,
-      artifacts,
+      artifacts: genericArtifacts,
       conversationSignals,
       temporalScope: body?.temporalScope && typeof body.temporalScope === "object"
         ? {

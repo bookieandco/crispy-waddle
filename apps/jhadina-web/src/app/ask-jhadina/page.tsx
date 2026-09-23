@@ -32,6 +32,10 @@ function AskJhadina(){
  const [feedbackRecorded,setFeedbackRecorded]=useState<"reinforced"|"rejected"|null>(null)
  const [artifacts,setArtifacts]=useState<JhadinaEphemeralArtifact[]>([])
  const [artifactRefs,setArtifactRefs]=useState<string[]>([])
+ const [resumeArtifactRefs,setResumeArtifactRefs]=useState<string[]>([])
+ const [artifactRefsTouched,setArtifactRefsTouched]=useState(false)
+ const [workSessionReady,setWorkSessionReady]=useState(false)
+ const [workSessionArtifactsKnown,setWorkSessionArtifactsKnown]=useState(false)
  const [inputStatus,setInputStatus]=useState("")
  const [voiceLanguage,setVoiceLanguage]=useState("en-US")
  const [referenceFile,setReferenceFile]=useState<File|null>(null)
@@ -50,21 +54,44 @@ function AskJhadina(){
   let cancelled=false
   void (async()=>{
    const userId=await getCurrentUserId()
-   if(!userId||typeof window==="undefined")return
+   if(typeof window==="undefined")return
+   if(!userId){if(!cancelled)setWorkSessionReady(true);return}
    const query=params.get("session")?.trim()
    const remembered=window.localStorage.getItem("jhadina:work-session")?.trim()
    const id=query||remembered||crypto.randomUUID()
    window.localStorage.setItem("jhadina:work-session",id)
    if(cancelled)return
    setWorkSessionId(id)
-   const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{headers:{"x-jhadina-user-id":userId}})
-   if(!response.ok)return
-   const json=await response.json()
-   const goal=typeof json?.session?.goal==="string"?json.session.goal:""
-   if(cancelled)return
-   setWorkSessionGoal(goal)
-   if(goal)setTask(current=>current.trim()?current:goal)
-  })().catch(()=>{})
+   try{
+    const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{headers:{"x-jhadina-user-id":userId}})
+    if(cancelled)return
+    if(response.status===404){
+     setWorkSessionArtifactsKnown(true)
+     setWorkSessionReady(true)
+     return
+    }
+    if(!response.ok){setWorkSessionReady(true);return}
+    const json=await response.json()
+    const goal=typeof json?.session?.goal==="string"?json.session.goal:""
+    const restoredRefs:string[]=Array.isArray(json?.session?.artifactRefs)
+     ?[...new Set<string>(json.session.artifactRefs.flatMap((ref:unknown)=>{
+       if(!ref||typeof ref!=="object")return[]
+       const candidate=ref as {id?:unknown;admitted?:unknown}
+       return candidate.admitted===true&&typeof candidate.id==="string"?[candidate.id]:[]
+      }))].slice(0,8)
+     :[]
+    if(cancelled)return
+    setWorkSessionGoal(goal)
+    setArtifactRefs(restoredRefs)
+    setResumeArtifactRefs(restoredRefs)
+    setArtifactRefsTouched(false)
+    setWorkSessionArtifactsKnown(true)
+    setWorkSessionReady(true)
+    if(goal)setTask(current=>current.trim()?current:goal)
+   }catch{
+    if(!cancelled)setWorkSessionReady(true)
+   }
+  })()
   return()=>{cancelled=true}
  },[])
 
@@ -81,10 +108,11 @@ function AskJhadina(){
   const decisionRefs=[data.proposal?.id,data.reasoningEventId].filter((value):value is string=>typeof value==="string"&&Boolean(value))
   const outputRefs=data.videoJob?.id?[data.videoJob.id]:[]
   const durableRefs=artifactRefs.map(id=>({id,kind:"data" as const,provenanceRef:`artifact:${id}`,admitted:true}))
+  const shouldWriteArtifactRefs=artifactRefsTouched||(workSessionArtifactsKnown&&resumeArtifactRefs.length===0)
   const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{
    method:"PUT",
    headers:{"content-type":"application/json","x-jhadina-user-id":userId},
-   body:JSON.stringify({goal:command,status:"active",activeSubsystems,artifactRefs:durableRefs,decisionRefs,outputRefs}),
+   body:JSON.stringify({goal:command,status:"active",activeSubsystems,...(shouldWriteArtifactRefs?{artifactRefs:durableRefs}:{}),decisionRefs,outputRefs}),
   })
   if(!response.ok)return
   const json=await response.json()
@@ -203,7 +231,7 @@ function AskJhadina(){
  }
  async function ask(commandOverride?:string, conversationSignals?:JhadinaConversationSignals){
   const command=(commandOverride??task).trim()
-  if(!command||busy)return
+  if(!command||busy||!workSessionReady)return
   setBusy(true);setError("");setResult(null);setFeedbackRecorded(null)
   try{
    const userId=await identity()
@@ -243,9 +271,9 @@ function AskJhadina(){
    <label htmlFor="jhadina-command" className="jh-eyebrow">What are we doing?</label>
    <div className="jh-row" style={{alignItems:"stretch"}}>
     <textarea id="jhadina-command" className="jh-textarea" rows={3} value={task} onChange={event=>setTask(event.target.value)} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")void ask()}} placeholder="Ask a question, connect subsystems, inspect a decision, or tell Jhadina what you want to accomplish…" style={{flex:"1 1 560px",resize:"vertical"}}/>
-    <button className="jh-button jh-button--primary" disabled={busy||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":"Ask"}</button>
+    <button className="jh-button jh-button--primary" disabled={busy||!workSessionReady||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":!workSessionReady?"Resuming…":"Ask"}</button>
    </div>
-   <JhadinaLiveInput busy={busy} onArtifactsChange={setArtifacts} onArtifactRefsChange={setArtifactRefs} onBargeIn={stopSpeech} onVoiceCommand={(command,signals)=>void ask(command,signals)} onLanguageChange={setVoiceLanguage} onStatus={setInputStatus}/>
+   <JhadinaLiveInput busy={busy||!workSessionReady} resumeArtifactRefs={resumeArtifactRefs} onArtifactsChange={setArtifacts} onArtifactRefsChange={(refs)=>{setArtifactRefs(refs);if(workSessionReady)setArtifactRefsTouched(true)}} onBargeIn={stopSpeech} onVoiceCommand={(command,signals)=>void ask(command,signals)} onLanguageChange={setVoiceLanguage} onStatus={setInputStatus}/>
    {inputStatus?<p className="jh-meta" role="status" style={{marginTop:8}}>{inputStatus}</p>:null}
    <div className="jh-item" style={{marginTop:14}}>
     <div className="jh-between">
