@@ -266,6 +266,35 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     ).toBe(false)
   })
 
+  it("composes bounded canonical Knowledge Graph evidence into the model context", async () => {
+    const deps = freshDeps()
+    deps.knowledgeContextProvider = {
+      getContext: async () => ({
+        knowledge: [{
+          id: "knowledge-node:brand:pupsonstuff",
+          source: "knowledge-graph",
+          observedAt: "2026-09-22T12:00:00.000Z",
+          summary: "PupsonStuff [brand] attributes={\"channel\":\"social\"}",
+          immutable: true,
+        }],
+        limitations: ["test provider is read-only"],
+      }),
+    }
+
+    const assembled = await buildContext(deps, {
+      userId: "user-knowledge",
+      activeTask: "What do we know about PupsonStuff social?",
+    })
+
+    expect(assembled.contextPacket.knowledge).toContainEqual(expect.objectContaining({
+      id: "knowledge-node:brand:pupsonstuff",
+      source: "knowledge-graph",
+    }))
+    expect(assembled.contextPacket.excludedContext).toContain(
+      "knowledge: test provider is read-only",
+    )
+  })
+
   it("reflects the current base Security Core policy as human-readable constraints, without duplicating or modifying it", async () => {
     const deps = freshDeps()
     const assembled = await buildContext(deps, { userId: "user-i", activeTask: "what can you do" })

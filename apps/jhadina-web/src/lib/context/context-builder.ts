@@ -55,6 +55,16 @@ export interface PersonalityContextProvider {
   }>
 }
 
+export interface KnowledgeContextProvider {
+  getContext(input: {
+    userId: string
+    activeTask: string
+  }): Promise<{
+    knowledge: EvidenceRef[]
+    limitations: string[]
+  }>
+}
+
 export interface ContextBuilderLimits {
   maxMemories: number
   maxRecentApprovals: number
@@ -89,6 +99,8 @@ export interface ContextBuilderDeps {
   spatialContextProvider?: SpatialContextProvider
   /** Optional governed personality read/projection adapter. No provider means canonical empty fallback. */
   personalityContextProvider?: PersonalityContextProvider
+  /** Optional read-only canonical Knowledge Graph adapter. It grants no admission or mutation authority. */
+  knowledgeContextProvider?: KnowledgeContextProvider
   /** Optional read-only Social context adapter. It cannot publish or mutate account state. */
   socialContextProvider?: SocialContextProvider
   /** Optional read-only Growth context adapter. It cannot spend, publish, send lifecycle actions, or mutate audiences. */
@@ -262,6 +274,25 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   }
 
   let knowledgeRefs = approvalRefs.map((r) => r.ref)
+  if (deps.knowledgeContextProvider) {
+    try {
+      const contribution = await deps.knowledgeContextProvider.getContext({
+        userId: input.userId,
+        activeTask: redactedActiveTask,
+      })
+      const byId = new Map<string, EvidenceRef>()
+      for (const ref of [...contribution.knowledge, ...knowledgeRefs]) {
+        if (!byId.has(ref.id)) byId.set(ref.id, { ...ref })
+      }
+      knowledgeRefs = [...byId.values()]
+      excludedContext.push(...contribution.limitations.map((item) => `knowledge: ${item}`))
+    } catch {
+      excludedContext.push("knowledge: canonical Knowledge Graph context unavailable")
+    }
+  } else {
+    excludedContext.push("knowledge: canonical Knowledge Graph provider not composed; recent approval evidence only")
+  }
+
   let memoryEvidenceRefs = memoryRefs.map((r) => r.ref)
   const textLength = (refs: EvidenceRef[]) => refs.reduce((sum, r) => sum + r.summary.length, 0)
   let trimmed = 0
