@@ -56,6 +56,14 @@ describe("Context Builder (Phase 1 Step 4)", () => {
       userAskedForPushback: true,
     })
     expect(deriveBehaviorContext("I'm unclear which one you mean.").ambiguity).toBeGreaterThanOrEqual(0.7)
+    expect(deriveBehaviorContext("Activate the pre-launch sequence now.")).toMatchObject({
+      operationalContext: true,
+      register: "household-ops",
+    })
+    expect(deriveBehaviorContext("Review these clinical medication symptoms.")).toMatchObject({
+      highStakes: true,
+      register: "clinical",
+    })
   })
 
   it("passes derived behavioral context into the governed Personality provider", async () => {
@@ -327,6 +335,42 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     expect(assembled.contextPacket.excludedContext).toContain(
       "knowledge: test provider is read-only",
     )
+  })
+
+  it("composes owner context as read-only Knowledge evidence without promoting it to Memory or Personality", async () => {
+    const deps = freshDeps()
+    deps.ownerContextProvider = {
+      getContext: async () => ({
+        hub: "https://solo.to/bookieandco",
+        references: [{
+          evidence: {
+            id: "owner-context:bookieandco:hub",
+            source: "owner-context:user-supplied-hub",
+            observedAt: "2026-09-23T00:00:00.000Z",
+            summary: "Canonical public owner-context hub supplied by the owner: solo.to/bookieandco",
+            immutable: true,
+          },
+          ownerAuthored: true,
+          contentType: "hub",
+          sourceUrl: "https://solo.to/bookieandco",
+          reuseScope: "context-only",
+        }],
+        limitations: ["read-only owner context"],
+      }),
+    }
+
+    const assembled = await buildContext(deps, {
+      userId: "user-owner-context",
+      activeTask: "What does my public creative context add here?",
+    })
+
+    expect(assembled.contextPacket.ownerContext?.hub).toBe("https://solo.to/bookieandco")
+    expect(assembled.contextPacket.knowledge).toContainEqual(expect.objectContaining({
+      id: "owner-context:bookieandco:hub",
+    }))
+    expect(assembled.contextPacket.relevantMemories).toEqual([])
+    expect(assembled.contextPacket.personality.version).toBe(0)
+    expect(assembled.contextPacket.excludedContext).toContain("owner-context: read-only owner context")
   })
 
   it("reflects the current base Security Core policy as human-readable constraints, without duplicating or modifying it", async () => {
