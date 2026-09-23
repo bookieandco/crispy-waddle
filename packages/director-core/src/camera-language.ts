@@ -96,6 +96,15 @@ export type CameraMovementInstruction = {
   motivation?: string;
 };
 
+export type CameraFocusEvent = {
+  /** Event or performance beat that motivates the focus change. */
+  trigger: string;
+  fromTarget?: string;
+  toTarget: string;
+  transitionSeconds?: number;
+  holdSeconds?: number;
+};
+
 export type CameraTiming = {
   durationSeconds?: number;
   oneTake?: boolean;
@@ -135,6 +144,7 @@ export type DirectorCameraPlan = {
   composition: CameraComposition;
   optics?: CameraOptics;
   movements: CameraMovementInstruction[];
+  focusEvents?: CameraFocusEvent[];
   timing?: CameraTiming;
   capture?: CameraCaptureSettings;
   keyframes?: CameraKeyframe[];
@@ -184,6 +194,8 @@ export type CameraPlanIssue = {
     | 'INVALID_FOV'
     | 'INVALID_DURATION'
     | 'INVALID_BPM'
+    | 'INVALID_FOCUS_EVENT'
+    | 'FOCUS_EVENT_REQUIRED'
     | 'INVALID_CAPTURE_FPS'
     | 'INVALID_CAPTURE_SIZE'
     | 'INVALID_CAPTURE_ZOOM'
@@ -255,6 +267,7 @@ export function validateDirectorCameraPlan(
     issues.push(issue('INVALID_BPM', 'error', 'timing.bpm', 'BPM must be a positive finite number.'));
   }
 
+  validateFocusEvents(plan.focusEvents, issues);
   validateCapture(plan.capture, issues);
   validateKeyframes(plan, issues);
 
@@ -307,6 +320,10 @@ export function compileDirectorCameraDirective(plan: DirectorCameraPlan): string
     parts.push(`Movement: ${plan.movements.map(compileMovement).join(' | ')}`);
   }
 
+  if (plan.focusEvents?.length) {
+    parts.push(`Focus events: ${plan.focusEvents.map(compileFocusEvent).join(' | ')}`);
+  }
+
   const timing = [
     plan.timing?.durationSeconds !== undefined && `${formatNumber(plan.timing.durationSeconds)}s`,
     plan.timing?.oneTake === true && 'one take',
@@ -335,6 +352,19 @@ export function framesPerBeat(fps: number, bpm: number, subdivision = 1): number
   return fps * beatDurationSeconds(bpm, subdivision);
 }
 
+function compileFocusEvent(event: CameraFocusEvent): string {
+  const timing = [
+    event.transitionSeconds !== undefined && `transition ${formatNumber(event.transitionSeconds)}s`,
+    event.holdSeconds !== undefined && `hold ${formatNumber(event.holdSeconds)}s`,
+  ].filter(Boolean).join(', ');
+  return [
+    `when ${event.trigger}`,
+    event.fromTarget && `from ${event.fromTarget}`,
+    `to ${event.toTarget}`,
+    timing || undefined,
+  ].filter(Boolean).join('; ');
+}
+
 function compileMovement(movement: CameraMovementInstruction): string {
   const details = [
     movement.intensity && `${movement.intensity} intensity`,
@@ -346,6 +376,31 @@ function compileMovement(movement: CameraMovementInstruction): string {
     movement.motivation && `because ${movement.motivation}`,
   ].filter(Boolean);
   return details.length ? `${movement.kind} (${details.join('; ')})` : movement.kind;
+}
+
+function validateFocusEvents(events: CameraFocusEvent[] | undefined, issues: CameraPlanIssue[]): void {
+  if (!events) return;
+  events.forEach((event, index) => {
+    if (!event.trigger.trim() || !event.toTarget.trim()) {
+      issues.push(issue(
+        'FOCUS_EVENT_REQUIRED',
+        'error',
+        `focusEvents[${index}]`,
+        'Focus events require both a trigger and a destination focus target.',
+      ));
+    }
+    if (
+      (event.transitionSeconds !== undefined && (!Number.isFinite(event.transitionSeconds) || event.transitionSeconds < 0)) ||
+      (event.holdSeconds !== undefined && (!Number.isFinite(event.holdSeconds) || event.holdSeconds < 0))
+    ) {
+      issues.push(issue(
+        'INVALID_FOCUS_EVENT',
+        'error',
+        `focusEvents[${index}]`,
+        'Focus event transition/hold durations must be non-negative finite numbers.',
+      ));
+    }
+  });
 }
 
 function validateCapture(capture: CameraCaptureSettings | undefined, issues: CameraPlanIssue[]): void {
