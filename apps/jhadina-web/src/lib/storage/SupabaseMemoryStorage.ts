@@ -213,7 +213,8 @@ export class SupabaseMemoryStorage implements MemoryStorage {
       p_revoked_at: revokedAt,
     })
     assertNoError(error, "retireMemory")
-    return data ? memoryFromRow(data as MemoryRow) : undefined
+    const row = Array.isArray(data) ? data[0] : data
+    return row ? memoryFromRow(row as MemoryRow) : undefined
   }
 
   async correctMemory(params: {
