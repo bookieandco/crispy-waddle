@@ -40,6 +40,40 @@ describe("SupabasePersonalityStateRepository", () => {
     await expect(repository.load()).rejects.toThrow("version does not match")
   })
 
+  it("rejects malformed nested personality state instead of casting through it", async () => {
+    const state = emptyPersonalityState("2026-09-02T00:00:00.000Z")
+    const invalid = {
+      ...state,
+      voice: { ...state.voice!, directness: 2 },
+    }
+    const repository = new SupabasePersonalityStateRepository(
+      fakeClient({ state: invalid, version: 0 }) as never,
+    )
+    await expect(repository.load()).rejects.toThrow("voice.directness")
+  })
+
+  it("rejects malformed trait evidence and semantic IDs", async () => {
+    const state = emptyPersonalityState("2026-09-02T00:00:00.000Z")
+    const invalid = {
+      ...state,
+      traits: [{
+        id: "trait-1",
+        statement: "prefers direct communication",
+        sourcePatternId: "",
+        dimension: "communication",
+        confidence: 0.9,
+        stability: 1,
+        evidence: [{ id: "", source: "memory", summary: "x", observedAt: "not-a-date" }],
+        contradictions: [],
+        status: "accepted",
+      }],
+    }
+    const repository = new SupabasePersonalityStateRepository(
+      fakeClient({ state: invalid, version: 0 }) as never,
+    )
+    await expect(repository.load()).rejects.toThrow("sourcePatternId")
+  })
+
   it("writes through the atomic RPC with the expected version", async () => {
     const state = emptyPersonalityState("2026-09-02T00:00:00.000Z")
     const client = fakeClient({ state, version: 0 })
