@@ -92,19 +92,20 @@ test('serializes the governed expression directive and tells the model not to in
 
   const request = JSON.parse(capturedBody ?? '{}') as {
     system?: string;
-    messages?: Array<{ content?: string }>;
+    messages?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
   };
+  const messageText = request.messages?.[0]?.content?.find((block) => block.type === 'text')?.text ?? '';
   assert.match(request.system ?? '', /expressionDirective/);
   assert.match(request.system ?? '', /responseLength/);
   assert.match(request.system ?? '', /without omitting facts needed for correctness/);
   assert.match(request.system ?? '', /interactionStyle never authorizes/);
   assert.match(request.system ?? '', /Never invent a callback or cultural/);
-  assert.match(request.messages?.[0]?.content ?? '', /"expressionDirective"/);
-  assert.match(request.messages?.[0]?.content ?? '', /"responseLength":"brief"/);
-  assert.match(request.messages?.[0]?.content ?? '', /"reasoningDepth":"technical"/);
-  assert.match(request.messages?.[0]?.content ?? '', /"interactionStyle":"continuous"/);
-  assert.match(request.messages?.[0]?.content ?? '', /"explanationStyle":"evidence-first"/);
-  assert.match(request.messages?.[0]?.content ?? '', /"decisionPresentation":"options"/);
+  assert.match(messageText, /"expressionDirective"/);
+  assert.match(messageText, /"responseLength":"brief"/);
+  assert.match(messageText, /"reasoningDepth":"technical"/);
+  assert.match(messageText, /"interactionStyle":"continuous"/);
+  assert.match(messageText, /"explanationStyle":"evidence-first"/);
+  assert.match(messageText, /"decisionPresentation":"options"/);
 });
 
 test('an HTTP failure from the provider is a normal, catchable rejection', async () => {
