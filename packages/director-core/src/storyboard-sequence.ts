@@ -1,3 +1,4 @@
+import type { DirectorCameraPlan } from './camera-language.js';
 import type { CinematographyPreset, ContinuityLock } from './generation-orchestrator.js';
 
 export type StoryboardBoardStatus = 'draft' | 'ready' | 'approved' | 'stale' | 'rejected';
@@ -20,6 +21,8 @@ export interface StoryboardBoard {
   action?: string;
   notes?: string;
   cinematography?: CinematographyPreset;
+  /** Structured camera plan; free-form cameraLanguage remains available for legacy boards. */
+  cameraPlan?: DirectorCameraPlan;
   version: number;
   artifactIds: string[];
   updatedAt: string;
