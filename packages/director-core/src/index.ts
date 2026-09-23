@@ -109,6 +109,9 @@ export * from './generative-extend';
 export * from './reference-character-video';
 export * from './character-identity-qc';
 export * from './commercial-creative-lab';
-export * from './product-reference-bootstrap';export * from './conversation-prosody-observer';
+export * from './product-reference-bootstrap';
+export * from './ugc-production';
+export * from './previs-blockout';
+export * from './conversation-prosody-observer';
 
 export * from './paid-video-generation';
