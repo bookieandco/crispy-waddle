@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { getCurrentUserId } from "@/lib/auth/current-user"
 
 export type JhadinaConversationSignals = {
   source: "live-microphone"
@@ -27,10 +28,14 @@ export type JhadinaEphemeralArtifact = {
   base64?: string
 }
 
+type DurableArtifactDisplay = { id:string; name:string; mimeType:string; sizeBytes:number; status:"quarantine"|"clean"|"rejected"|"needs_review" }
+const isDirectContextMime=(mime:string)=>mime==="image/png"||mime==="image/jpeg"||mime==="text/plain"
+
 type Props = {
   busy: boolean
   onArtifactsChange: (artifacts: JhadinaEphemeralArtifact[]) => void
   onVoiceCommand: (command: string, signals?: JhadinaConversationSignals) => void
+  onArtifactRefsChange?: (artifactRefs: string[]) => void
   onLanguageChange?: (language: string) => void
   onStatus?: (message: string) => void
 }
@@ -51,12 +56,14 @@ const LANGUAGES = [
   ["vi-VN", "Tiếng Việt"],
 ] as const
 
-export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onLanguageChange, onStatus }: Props) {
+export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onArtifactRefsChange, onLanguageChange, onStatus }: Props) {
   const [wakeEnabled, setWakeEnabled] = useState(false)
   const [language, setLanguage] = useState("en-US")
   const [voiceState, setVoiceState] = useState<"off"|"listening"|"unsupported"|"error">("off")
   const [screenActive, setScreenActive] = useState(false)
   const [artifacts, setArtifacts] = useState<JhadinaEphemeralArtifact[]>([])
+  const [durableArtifacts, setDurableArtifacts] = useState<DurableArtifactDisplay[]>([])
+  const [uploading, setUploading] = useState(false)
   const recognitionRef = useRef<any>(null)
   const shouldWakeRef = useRef(false)
   const streamRef = useRef<MediaStream|null>(null)
@@ -69,6 +76,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onLa
   const captureTimerRef = useRef<ReturnType<typeof setInterval>|null>(null)
 
   useEffect(() => { onArtifactsChange(artifacts) }, [artifacts, onArtifactsChange])
+  useEffect(() => { onArtifactRefsChange?.(durableArtifacts.filter((artifact)=>artifact.status==="clean"&&isDirectContextMime(artifact.mimeType)).map((artifact)=>artifact.id)) }, [durableArtifacts, onArtifactRefsChange])
 
   useEffect(() => () => {
     recognitionRef.current?.stop?.()
@@ -244,26 +252,22 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onLa
   }
 
   async function addFiles(files: FileList | null) {
-    if (!files?.length) return
-    const next: JhadinaEphemeralArtifact[] = []
-    for (const file of Array.from(files).slice(0, 4)) {
-      const id = `file:${crypto.randomUUID()}`
-      const observedAt = new Date().toISOString()
-      if (file.type.startsWith("image/")) {
-        if (file.size > 4_000_000) { onStatus?.(`${file.name} is larger than the 4 MB ephemeral image limit.`); continue }
-        const dataUrl = await readAsDataUrl(file)
-        next.push({ id, kind:"image", mimeType:file.type || "image/jpeg", source:"file-picker", name:file.name, observedAt, base64:dataUrl.slice(dataUrl.indexOf(",")+1) })
-        continue
+    if (!files?.length || uploading) return
+    const userId=await getCurrentUserId()
+    if(!userId){onStatus?.("Sign in before attaching durable files.");return}
+    setUploading(true)
+    try{
+      for(const file of Array.from(files).slice(0,4)){
+        onStatus?.(`Uploading ${file.name} to Jhadina's private quarantine…`)
+        const form=new FormData();form.append("file",file)
+        const response=await fetch("/api/jhadina/artifacts",{method:"POST",headers:{"x-jhadina-user-id":userId},body:form})
+        const json=await response.json()
+        if(!response.ok){onStatus?.(`${file.name}: ${json.error??"upload failed"}`);continue}
+        const artifact=json.artifact as DurableArtifactDisplay
+        setDurableArtifacts(current=>[...current.filter(item=>item.id!==artifact.id),artifact].slice(-4))
+        onStatus?.(artifact.status==="clean"?(isDirectContextMime(artifact.mimeType)?`${file.name} passed scanning and is ready for Jhadina.`:`${file.name} passed scanning; extraction is still required before Jhadina can reason over it.`):`${file.name} is ${artifact.status}; it will not enter Jhadina's reasoning context.`)
       }
-      const textLike = file.type.startsWith("text/") || file.type === "application/json" || /\.(txt|md|json|csv)$/i.test(file.name)
-      if (textLike) {
-        const text = (await file.text()).slice(0, 20_000)
-        next.push({ id, kind:"text", mimeType:file.type || "text/plain", source:"file-picker", name:file.name, observedAt, text })
-        continue
-      }
-      onStatus?.(`${file.name} is not yet supported in this direct Ask lane. Video/audio continue through Director while the universal artifact pipeline is completed.`)
-    }
-    if (next.length) setArtifacts((current) => [...current.filter((item) => item.kind === "screen"), ...next].slice(0, 4))
+    }finally{setUploading(false)}
   }
 
   return <div style={{marginTop:12}}>
@@ -280,15 +284,16 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onLa
       </button>
       <label className="jh-button" style={{cursor:"pointer"}}>
         Attach
-        <input type="file" multiple accept="image/*,.txt,.md,.json,.csv,text/plain,application/json" style={{display:"none"}} onChange={(event)=>void addFiles(event.target.files)} />
+        <input type="file" multiple disabled={busy||uploading} accept="image/png,image/jpeg,application/pdf,audio/wav,text/plain,.png,.jpg,.jpeg,.pdf,.wav,.txt" style={{display:"none"}} onChange={(event)=>void addFiles(event.target.files)} />
       </label>
     </div>
     <p className="jh-meta" style={{marginTop:8}}>
-      Wake {voiceState==="listening"?"listening":voiceState==="unsupported"?"unsupported in this browser":voiceState==="error"?"needs microphone permission":"off"} · screen {screenActive?"live":"off"} · {artifacts.length} ephemeral artifact{artifacts.length===1?"":"s"}
+      Wake {voiceState==="listening"?"listening":voiceState==="unsupported"?"unsupported in this browser":voiceState==="error"?"needs microphone permission":"off"} · screen {screenActive?"live":"off"} · {durableArtifacts.filter(a=>a.status==="clean"&&isDirectContextMime(a.mimeType)).length} ready file{durableArtifacts.filter(a=>a.status==="clean"&&isDirectContextMime(a.mimeType)).length===1?"":"s"}
     </p>
-    {artifacts.length?<div className="jh-row" style={{marginTop:8}}>
+    {(artifacts.length||durableArtifacts.length)?<div className="jh-row" style={{marginTop:8}}>
       {artifacts.map((artifact)=><span key={artifact.id} className="jh-status"><span className="jh-dot"/>{artifact.kind==="screen"?"Screen":artifact.name??artifact.kind}</span>)}
-      <button type="button" className="jh-button" onClick={()=>setArtifacts((current)=>current.filter((item)=>item.kind==="screen"))}>Clear files</button>
+      {durableArtifacts.map((artifact)=><span key={artifact.id} className={artifact.status==="clean"?"jh-status jh-status--success":"jh-status jh-status--warning"}><span className="jh-dot"/>{artifact.name} · {artifact.status==="clean"&&!isDirectContextMime(artifact.mimeType)?"clean · extraction pending":artifact.status}</span>)}
+      {durableArtifacts.length?<button type="button" className="jh-button" onClick={()=>setDurableArtifacts([])}>Clear files</button>:null}
     </div>:null}
   </div>
 }
