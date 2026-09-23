@@ -119,6 +119,129 @@ function traitStatus(
   return evidenceCount > 0 ? 'candidate' : 'retired';
 }
 
+function reconcileTraitEvidence(
+  trait: PersonalityTrait,
+  approvedMemoryIds: Set<string>,
+  policy: PersonalityCorePolicy,
+): PersonalityTrait {
+  const evidence = uniqueEvidence(
+    trait.evidence.filter((ref) => ref.source !== 'memory' || approvedMemoryIds.has(ref.id)),
+  );
+  const contradictions = uniqueEvidence(
+    trait.contradictions.filter((ref) => ref.source !== 'memory' || approvedMemoryIds.has(ref.id)),
+  );
+  if (
+    evidence.length === trait.evidence.length &&
+    contradictions.length === trait.contradictions.length
+  ) return trait;
+
+  const evidenceRatio = trait.evidence.length === 0 ? 0 : evidence.length / trait.evidence.length;
+  const confidence = Math.max(0, Math.min(1, trait.confidence * evidenceRatio));
+  const stability = Math.min(
+    trait.stability,
+    Math.min(1, evidence.length / Math.max(policy.minimumEvidence, 1)),
+  );
+  return {
+    ...trait,
+    confidence,
+    stability,
+    evidence,
+    contradictions,
+    status: traitStatus(evidence.length, confidence, stability, contradictions.length, policy),
+    revision: (trait.revision ?? 0) + 1,
+  };
+}
+
+function acceptedTrait(
+  traits: readonly PersonalityTrait[],
+  sourcePatternId: string,
+  legacyStatement: string,
+): PersonalityTrait | undefined {
+  return traits.find((trait) =>
+    trait.status === 'accepted' &&
+    (
+      trait.sourcePatternId === sourcePatternId ||
+      (!trait.sourcePatternId && normalizeStatement(trait.statement) === legacyStatement)
+    ),
+  );
+}
+
+function calibration(trait: PersonalityTrait | undefined): number {
+  return trait ? Math.max(0, Math.min(1, trait.confidence * trait.stability)) : 0;
+}
+
+function projectTasteAndRelationship(
+  current: PersonalityState,
+  traits: readonly PersonalityTrait[],
+): Pick<PersonalityState, 'taste' | 'relationship'> {
+  const taste = current.taste ?? DEFAULT_PERSONALITY_TASTE;
+  const relationship = current.relationship ?? DEFAULT_PERSONALITY_RELATIONSHIP;
+
+  const experimental = acceptedTrait(
+    traits,
+    'personality-signal:taste:experimentation',
+    'prefers experimental creativity',
+  );
+  const familiar = acceptedTrait(
+    traits,
+    'personality-signal:relationship:familiar-tone',
+    'prefers familiar tone',
+  );
+  const direct = acceptedTrait(
+    traits,
+    'personality-signal:communication:directness',
+    'prefers direct communication',
+  );
+  const warm = acceptedTrait(
+    traits,
+    'personality-signal:communication:warmth',
+    'prefers warm communication',
+  );
+
+  const experimentalCalibration = calibration(experimental);
+  const familiarCalibration = calibration(familiar);
+  const relationshipTraits = [familiar, direct, warm].filter(
+    (trait): trait is PersonalityTrait => Boolean(trait),
+  );
+  const relationshipEvidence = uniqueEvidence([
+    ...relationship.evidence,
+    ...relationshipTraits.flatMap((trait) => trait.evidence),
+  ]);
+  const tasteEvidence = uniqueEvidence([
+    ...taste.evidence,
+    ...(experimental?.evidence ?? []),
+  ]);
+
+  const modes = new Set(relationship.preferredInteractionModes.map((mode) => mode.trim().toLowerCase()).filter(Boolean));
+  if (familiar) modes.add('familiar');
+  if (direct) modes.add('direct');
+  if (warm) modes.add('warm');
+
+  const evidenceFamiliarity = Math.min(1, relationshipEvidence.length / 10);
+  return {
+    taste: {
+      ...taste,
+      experimentation: Math.max(taste.experimentation, experimentalCalibration),
+      conventionTolerance: experimental
+        ? Math.min(taste.conventionTolerance, 1 - 0.5 * experimentalCalibration)
+        : taste.conventionTolerance,
+      evidence: tasteEvidence,
+    },
+    relationship: {
+      ...relationship,
+      familiarity: Math.max(relationship.familiarity, evidenceFamiliarity),
+      calibrationConfidence: Math.max(
+        relationship.calibrationConfidence,
+        familiarCalibration,
+        calibration(direct),
+        calibration(warm),
+      ),
+      preferredInteractionModes: [...modes].sort(),
+      evidence: relationshipEvidence,
+    },
+  };
+}
+
 /**
  * Pure projection from explicitly personality-eligible PatternObservations.
  * Bayesian evidence updating supplies the belief/confidence estimate; this
@@ -134,8 +257,10 @@ export function projectPersonality(
   idFactory: () => string = () => crypto.randomUUID(),
 ): PersonalityState {
   const approvedMemoryIds = approvedMemoryEvidence(memories);
-  const nextTraits = [...current.traits];
-  let changed = false;
+  const nextTraits = current.traits.map((trait) =>
+    reconcileTraitEvidence(trait, approvedMemoryIds, policy)
+  );
+  let changed = nextTraits.some((trait, index) => trait !== current.traits[index]);
 
   for (const pattern of patterns) {
     if (!pattern.personalityEligible || !pattern.personalityDimension) continue;
@@ -215,12 +340,19 @@ export function projectPersonality(
         (trait) => trait.status === 'contested' || (trait.dimension === 'opinion' && trait.confidence < 0.8),
       );
 
-  if (!changed && independentAssessmentRequired === current.independentAssessmentRequired) return current;
+  const derived = projectTasteAndRelationship(current, nextTraits);
+  const submodelsChanged =
+    JSON.stringify(derived.taste) !== JSON.stringify(current.taste ?? DEFAULT_PERSONALITY_TASTE) ||
+    JSON.stringify(derived.relationship) !== JSON.stringify(current.relationship ?? DEFAULT_PERSONALITY_RELATIONSHIP);
+
+  if (!changed && !submodelsChanged && independentAssessmentRequired === current.independentAssessmentRequired) return current;
 
   return {
     ...current,
     version: current.version + 1,
     traits: nextTraits,
+    taste: derived.taste,
+    relationship: derived.relationship,
     independentAssessmentRequired,
     updatedAt: now,
   };
