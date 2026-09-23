@@ -1,5 +1,6 @@
-import type { PerformanceDirectionPlan } from './performance-direction.js';
-import type { RealismDirectionPlan } from './realism-direction.js';
+import type { GenerationReferenceManifest, OrderedGenerationReference } from './generation-reference-manifest.js';
+import { compilePerformanceDirective, type PerformanceDirectionPlan } from './performance-direction.js';
+import { compileRealismDirective, type RealismDirectionPlan } from './realism-direction.js';
 
 export type UgcPlatform = 'tiktok' | 'instagram-reels' | 'youtube-shorts' | 'facebook-reels' | 'other';
 export type UgcCreatorNature = 'synthetic' | 'licensed-human' | 'brand-employee';
@@ -22,6 +23,8 @@ export interface UgcProductBrief {
   valuePropositionRefs: readonly string[];
   prohibitedClaimRefs: readonly string[];
   requiredClaimEvidenceIds: readonly string[];
+  referenceAssetIds: readonly string[];
+  referenceEvidenceIds: readonly string[];
 }
 
 export interface UgcCreatorCandidate {
@@ -32,6 +35,7 @@ export interface UgcCreatorCandidate {
   appearanceDirection: readonly string[];
   wardrobeDirection: readonly string[];
   voiceDirection?: string;
+  referenceAssetIds: readonly string[];
   rightsEvidenceIds: readonly string[];
 }
 
@@ -99,16 +103,23 @@ export interface UgcGenerationReadiness {
   };
 }
 
-const REQUIRED_APPROVAL_STAGES: readonly UgcApprovalReceipt['stage'][] = Object.freeze([
+const BRIEF_APPROVAL_STAGES: readonly UgcApprovalReceipt['stage'][] = Object.freeze([
   'product-reference',
   'creator',
   'location',
   'concept',
   'script',
+]);
+
+const REQUIRED_APPROVAL_STAGES: readonly UgcApprovalReceipt['stage'][] = Object.freeze([
+  ...BRIEF_APPROVAL_STAGES,
   'generation-brief',
 ]);
 
-export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGenerationReadiness {
+function evaluateUgcReadiness(
+  plan: UgcProductionPlan,
+  requiredApprovalStages: readonly UgcApprovalReceipt['stage'][],
+): UgcGenerationReadiness {
   const reasons: string[] = [];
   if (!plan.id.trim() || !plan.projectId.trim()) reasons.push('DIRECTOR_UGC_IDENTITY_REQUIRED');
   if (!Number.isFinite(plan.targetRuntimeSeconds) || plan.targetRuntimeSeconds <= 0 || plan.targetRuntimeSeconds > 180) {
@@ -116,10 +127,17 @@ export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGene
   }
   if (!plan.product.productBibleId.trim()) reasons.push('DIRECTOR_UGC_PRODUCT_BIBLE_REQUIRED');
   if (!plan.product.requiredClaimEvidenceIds.length) reasons.push('DIRECTOR_UGC_CLAIM_EVIDENCE_REQUIRED');
+  if (!plan.product.referenceAssetIds.length) reasons.push('DIRECTOR_UGC_PRODUCT_REFERENCE_REQUIRED');
+  if (!plan.product.referenceEvidenceIds.length) reasons.push('DIRECTOR_UGC_PRODUCT_REFERENCE_EVIDENCE_REQUIRED');
 
   const receipts = new Map(plan.approvals.map((approval) => [approval.stage, approval]));
-  for (const stage of REQUIRED_APPROVAL_STAGES) {
+  for (const stage of requiredApprovalStages) {
     if (!receipts.has(stage)) reasons.push(`DIRECTOR_UGC_APPROVAL_REQUIRED:${stage}`);
+  }
+
+  const productApproval = receipts.get('product-reference');
+  if (productApproval && productApproval.selectedRef !== plan.product.productBibleId) {
+    reasons.push('DIRECTOR_UGC_PRODUCT_APPROVAL_MISMATCH');
   }
 
   const creator = resolveSelected(plan.creatorCandidates, receipts.get('creator')?.selectedRef);
@@ -133,6 +151,7 @@ export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGene
   if (!script) reasons.push('DIRECTOR_UGC_SCRIPT_SELECTION_INVALID');
 
   if (creator && !creator.rightsEvidenceIds.length) reasons.push('DIRECTOR_UGC_CREATOR_RIGHTS_REQUIRED');
+  if (creator && !creator.referenceAssetIds.length) reasons.push('DIRECTOR_UGC_CREATOR_REFERENCE_REQUIRED');
   if (location && !location.rightsEvidenceIds.length) reasons.push('DIRECTOR_UGC_LOCATION_RIGHTS_REQUIRED');
 
   if (script) {
@@ -169,6 +188,14 @@ export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGene
   });
 }
 
+export function evaluateUgcBriefReadiness(plan: UgcProductionPlan): UgcGenerationReadiness {
+  return evaluateUgcReadiness(plan, BRIEF_APPROVAL_STAGES);
+}
+
+export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGenerationReadiness {
+  return evaluateUgcReadiness(plan, REQUIRED_APPROVAL_STAGES);
+}
+
 export function assertUgcGenerationReady(plan: UgcProductionPlan): UgcGenerationReadiness {
   const decision = evaluateUgcGenerationReadiness(plan);
   if (!decision.ready) throw new Error(decision.reasons.join(';'));
@@ -192,8 +219,10 @@ export function compileUgcGenerationBrief(plan: UgcProductionPlan): {
   creatorRef: string;
   conceptId: string;
   scriptId: string;
+  referenceManifest: GenerationReferenceManifest;
 } {
-  const ready = assertUgcGenerationReady(plan);
+  const ready = evaluateUgcBriefReadiness(plan);
+  if (!ready.ready) throw new Error(ready.reasons.join(';'));
   const { creator, location, concept, script } = ready.selected;
   if (!creator || !location || !concept || !script) throw new Error('DIRECTOR_UGC_SELECTION_REQUIRED');
 
@@ -204,18 +233,75 @@ export function compileUgcGenerationBrief(plan: UgcProductionPlan): {
     `Location: ${location.description}. Realism purpose: ${location.realismPurpose}.`,
     `Concept: ${concept.premise}. Product use: ${concept.productUse}.`,
     `Script: ${script.spokenText}`,
+    Object.keys(script.pronunciationNotes).length
+      ? `Pronunciation: ${Object.entries(script.pronunciationNotes).map(([term, pronunciation]) => `${term} = ${pronunciation}`).join('; ')}`
+      : undefined,
+    creator.voiceDirection ? `Voice direction: ${creator.voiceDirection}` : undefined,
+    `[PERFORMANCE DIRECTION]\n${compilePerformanceDirective(script.performancePlan)}`,
+    script.realismPlan ? `[REALISM DIRECTION]\n${compileRealismDirective(script.realismPlan)}` : undefined,
     script.disclosureLine ? `Disclosure: ${script.disclosureLine}` : undefined,
     `Do not introduce claims outside approved refs: ${plan.product.valuePropositionRefs.join(', ')}.`,
     `Prohibited claims: ${plan.product.prohibitedClaimRefs.join(', ') || 'none listed'}.`,
   ].filter(Boolean).join('\n');
 
+  const references: OrderedGenerationReference[] = [];
+  let slot = 1;
+  for (const assetId of plan.product.referenceAssetIds) {
+    references.push({
+      slot: slot++,
+      assetId,
+      media: 'image',
+      role: 'product-identity',
+      semanticLabel: `approved product identity for ${plan.product.brandName} ${plan.product.productName}`,
+      promptToken: `PRODUCT_${slot - 1}`,
+      required: true,
+      evidenceIds: plan.product.referenceEvidenceIds,
+    });
+  }
+  for (const assetId of creator.referenceAssetIds) {
+    references.push({
+      slot: slot++,
+      assetId,
+      media: 'image',
+      role: 'character-identity',
+      semanticLabel: `approved creator identity ${creator.characterRef}`,
+      promptToken: `CREATOR_${slot - 1}`,
+      required: true,
+      evidenceIds: creator.rightsEvidenceIds,
+    });
+  }
+  for (const assetId of location.referenceAssetIds) {
+    references.push({
+      slot: slot++,
+      assetId,
+      media: 'image',
+      role: 'location',
+      semanticLabel: `approved UGC location: ${location.description}`,
+      promptToken: `LOCATION_${slot - 1}`,
+      required: true,
+      evidenceIds: location.rightsEvidenceIds,
+    });
+  }
+
+  const referenceManifest: GenerationReferenceManifest = Object.freeze({
+    id: `${plan.id}:references`,
+    projectId: plan.projectId,
+    shotId: plan.id,
+    references: Object.freeze(references.map((reference) => Object.freeze({
+      ...reference,
+      evidenceIds: Object.freeze([...reference.evidenceIds]),
+    }))),
+    authority: 'DIRECTOR_REFERENCE_MANIFEST',
+  });
+
   return Object.freeze({
     prompt,
-    referenceAssetIds: Object.freeze([...new Set(location.referenceAssetIds)]),
+    referenceAssetIds: Object.freeze(references.map((reference) => reference.assetId)),
     productBibleId: plan.product.productBibleId,
     creatorRef: creator.characterRef,
     conceptId: concept.id,
     scriptId: script.id,
+    referenceManifest,
   });
 }
 

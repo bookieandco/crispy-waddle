@@ -1,4 +1,4 @@
-# Director Camera, Performance & Realism Sharpening — 2026-09-22
+# Director Camera, Performance, Realism, UGC & Previs Sharpening — 2026-09-22
 
 ## Goal
 
@@ -11,7 +11,8 @@ creative intent
 -> structured camera plan
 -> structured performance plan
 -> structured realism/source-preservation plan
--> storyboard persistence
+-> storyboard/reference-board evidence
+-> ordered generation-reference manifest
 -> provider-neutral compiled take
 -> generation/capture/previs
 -> directed-take QC
@@ -33,6 +34,10 @@ A model, camera library, virtual-camera engine or vision system may execute/obse
 | `SharpAI/DeepCamera` | Pluggable visual skills, frame processing, object detection/segmentation, local vision inference | Observation/QC provider pattern. Director may use comparable local visual evidence, but the surveillance/security product itself is not a Director dependency. MIT metadata was present. |
 | `margelo/react-native-vision-camera` | High-performance mobile capture, multi-camera, FPS/resolution, HDR/night, smooth zoom and frame processors | Strong React Native physical-camera adapter candidate. Director owns the shot plan; VisionCamera-class providers expose capabilities and execute capture. MIT metadata was present. |
 | `Mijick/Camera` | SwiftUI capture with manual focus/zoom/FPS/resolution/exposure/ISO/HDR controls | Strong native iOS capture-adapter candidate. Apache-2.0 metadata was present. |
+| `NomaDamas/CozyClay` | Browser previs, cast/object blocking, camera rails/cuts, camera+prompt shot packages, depth/normal conditioning, deterministic project/export concepts and agent-driven scene edits | High-value previs/runtime reference. Repository is AGPL-3.0-or-later, so Director keeps an independent implementation and treats the repo as a capability/architecture reference unless AGPL adoption is explicitly intended. |
+| `GuiYi-Xi/monoform-previs-studio` | Lightweight browser greybox studio, per-shot scene state, camera and actor/object keyframes, pose/IK workflow, focal-length presets, MP4/JSON export | Strong UX/workflow reference for Director previs. No LICENSE/NOTICE file or GitHub license metadata was found during this audit, so concepts only; no code copied. |
+| `wassermanproductions/storyboard-reference-studio` | Reference-frame extraction, normalized reframing, shot metadata, camera/action annotations, per-frame prompts, hold timing, animatic and deterministic export packages | Strong reference-board and animatic reference. Apache-2.0 with NOTICE/attribution requirements; Director's new contract is independently implemented and records provenance explicitly. |
+| `LudwigKienle/ai-video-production-editor` | Full script→director→storyboard→filming→continuity review→re-film→edit/color/sound/deliver loop, 3D previs and model-per-shot routing | Whole-production workflow reference. GPL-3.0-or-later; no source code copied into Director. |
 
 ## User-supplied realism/directing transcript: concepts absorbed
 
@@ -54,6 +59,36 @@ Director now treats the following as first-class planning/QC concerns:
 - editing/selection as part of the generation loop rather than assuming one generation must be final.
 
 The transcript's named products/models are not hard-coded as Director truth. They remain provider examples that must enter through capability/provenance review.
+
+## User-supplied UGC + Blender/white-model workflows: concepts absorbed
+
+The later workflows add two production patterns:
+
+### Cheap-first staged UGC production
+
+Before an expensive 30-second generation, Director should separately establish and approve:
+
+1. product identity / multi-view reference sheet;
+2. creator identity and creator nature (synthetic, licensed human or brand employee);
+3. believable location;
+4. creative concept;
+5. exact script, pronunciation and performance direction;
+6. final generation brief.
+
+`ugc-production.ts` now models that as explicit approval receipts. Generation readiness fails closed if one of the cheap upstream decisions is missing, if script claims are not in approved product truth, or if a synthetic-creator project requires disclosure and none is present.
+
+### Greybox/white-model control before rendering
+
+The supplied Blender workflow reinforces:
+
+- block camera and timing before visual polish;
+- give every primitive a semantic role instead of expecting a model to infer whether a cylinder is a can, glass or prop;
+- leave intentionally model-generated phenomena (pouring liquid, bubbles, fire, etc.) explicit as generation gaps rather than accidentally blank;
+- preserve exact cut frames;
+- use only references that actually matter to the shot;
+- export the authored control source as a machine-readable shot package.
+
+`previs-blockout.ts` now models exact camera rails/keyframes, actor/object tracks, generation gaps, references and shot packages.
 
 ## Contracts added
 
@@ -100,6 +135,60 @@ This moves performance control before generation rather than only scoring perfor
 
 "Realism" is therefore not equivalent to grain/noise or generic "cinematic" language.
 
+### `ugc-production.ts`
+
+Synthetic/creator-style ad production can now carry:
+
+- product truth and prohibited claims;
+- multiple creator/location/concept/script candidates;
+- explicit human approval receipts between stages;
+- pronunciation notes;
+- performance + realism direction;
+- creator rights/provenance;
+- synthetic-creator disclosure policy;
+- a hard generation-readiness gate.
+
+### `previs-blockout.ts`
+
+Director previs now carries:
+
+- semantic greybox objects;
+- exact frame ranges and cut frames;
+- camera plan plus rail/keyframe/locked/free ownership;
+- camera rail geometry and authored schedule;
+- actor pose tracks and object transform tracks;
+- intentional model-fill gaps;
+- shot-specific reference bindings;
+- optional continuous vs intentionally gapped timelines;
+- deterministic shot-package validation for greybox clip, camera metadata, prompt, reference assets and conditioning passes such as depth/normal.
+
+### `storyboard-reference-board.ts`
+
+Reference imagery can now become governed storyboard evidence with:
+
+- source asset/time provenance;
+- immutable extracted-still identity/hash;
+- normalized non-destructive crop/framing;
+- shot/lens/movement/lighting metadata;
+- arrow/text direction annotations;
+- per-frame hold time;
+- optional approved prompt/profile;
+- deterministic animatic timing and scratch audio handoff.
+
+### `generation-reference-manifest.ts`
+
+Provider attachments are now explicit and deterministic:
+
+- one-based ordered slots;
+- image/video/audio media identity;
+- semantic roles such as source-video, product identity, character identity, location, style, composition and motion;
+- stable prompt tokens independent of vendor syntax;
+- duplicate/gapped slot rejection;
+- irrelevant optional-reference filtering with compacted slots;
+- fail-closed provider submission when a resolved character/product/location asset would be inserted outside a declared manifest.
+
+Generation capability admission now distinguishes a video control/reference from an image reference, so a greybox/reference clip requires `video-to-video` rather than being misclassified as text-to-video.
+
 ### `directed-take-qc.ts`
 
 Post-generation evidence can now fail a take for:
@@ -119,25 +208,33 @@ Post-generation evidence can now fail a take for:
 
 Perception models supply evidence and confidence. Director deterministically applies policy; a model never self-approves.
 
+Failed QC can also be converted into a **proposal-only** repair scope: audio-only, localized time region, whole shot, or manual review. The repair proposal preserves unaffected authored dimensions; it does not bypass the normal review or generation gate.
+
 ## Integration changes
 
-- `StoryboardBoard` can persist camera, performance and realism plans.
+- `StoryboardBoard` and storyboard→take handoff carry camera, performance and realism plans in the contract layer. The repo now includes a migration adding `camera_plan`, `performance_plan`, and `realism_plan` JSONB columns to canonical boards and immutable board-version history, and the Supabase read adapter hydrates them. Remote migration deployment remains a runtime-certification step.
 - `buildStoryboardShotPlan` validates and carries the latest structured plans.
 - `TakeRequest` carries all three plans.
 - `compileTakePrompt` translates structured direction into provider-facing sections.
 - `GenerationPlanAdapter` sends the compiled direction and retains the structured plan objects in provider parameters for lineage/QC.
 - Legacy `CinematographyPreset`, `cameraLanguage` and plain prompt fields remain supported.
+- UGC generation is gated behind staged product/creator/location/concept/script/generation-brief approvals.
+- Previs exports can be validated against exact shot frame range, fps, resolution, references and provenance.
+- Reference boards preserve crops, annotations, prompt evidence, board versions and animatic timing without destructively altering source media; stale exports can be rejected when the board version changes.
+- Ordered reference manifests prevent positional provider tags from drifting when references are added/removed and preserve video-reference media identity through submission.
 
 ## What still should come next
 
 This change sharpens the contract layer. The next runtime work should be:
 
-1. Add mobile-camera provider adapters for a React Native VisionCamera-class executor and a native iOS/Mijick-class executor.
-2. Add a virtual-camera adapter capable of text/keyframe execution in Blender/Unity/Bevy or equivalent.
-3. Bind frame/audio observations to `DirectedTakeQcObservation` using Director Vision Relay/FFmpeg/vision providers.
-4. Feed `DirectedTakeQcDecision` into multimodal take selection so failed anatomy/source-preservation/camera matches are hard failures.
-5. Add camera/performance plan editing controls in the Director workstation.
-6. Certify one real generative-video provider, one physical camera provider, and one virtual/previs provider against the same `DirectorCameraPlan`.
+1. Apply and verify the committed storyboard direction-plan migration in the target Supabase environment; repository-level schema/read-path support is implemented, remote deployment is not yet certified.
+2. Add mobile-camera provider adapters for a React Native VisionCamera-class executor and a native iOS/Mijick-class executor.
+3. Add a virtual-camera/previs adapter capable of applying `PrevisBlockoutPlan` in Blender/Three.js/Bevy or an external executor such as a CozyClay-class service, returning a validated `PrevisShotPackage` without surrendering Director authority.
+4. Add Director workstation panels for greybox scene hierarchy, shot list, reference board, dual camera/actor timeline and shot-camera monitor.
+5. Bind frame/audio observations to `DirectedTakeQcObservation` using Director Vision Relay/FFmpeg/vision providers.
+6. Feed `DirectedTakeQcDecision` into multimodal take selection and the existing governed review/re-run lifecycle; repair proposals remain non-authorizing.
+7. Add a provider adapter for UGC image/video generation that consumes approved product/creator/location/script references without hard-coding one vendor.
+8. Certify one real generative-video provider (including video-reference control), one physical camera provider, and one virtual/previs provider against the same Director contracts.
 
 ## Invariant
 
