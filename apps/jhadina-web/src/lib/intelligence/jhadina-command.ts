@@ -32,6 +32,7 @@ import { createProductionSocialContextProvider } from "../context/production-soc
 import { createProductionGrowthContextProvider } from "../context/production-growth-context-provider"
 import { createProductionKnowledgeContextProvider } from "../context/production-knowledge-context-provider"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
+import { recordPersonalityDriftObservation, type PersonalityDriftObservationResult } from "../personality/personality-drift-observer"
 
 export interface JhadinaCommandInput {
   userId: string
@@ -70,6 +71,7 @@ export interface JhadinaCommandResult extends GovernedIntelligenceProposalResult
   expression: GovernedExpressionRealization
   verified: boolean
   verificationReason?: string
+  personalityDrift: PersonalityDriftObservationResult
 }
 
 const defaultApprovalStore = new InMemoryApprovalReceiptStore()
@@ -129,8 +131,21 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   )
 
   const expression = realizeGovernedExpression(result.proposal, assembled.contextPacket.expressionDirective)
+  const personalityDrift = await recordPersonalityDriftObservation({
+    userId: verifiedIdentity.userId,
+    requestId: result.proposal.id,
+    personality: assembled.contextPacket.personality,
+    behaviorContext: assembled.behaviorContext,
+    realization: expression,
+  })
 
-  if (!result.candidate) return { ...result, expression, verified: true, verificationReason: "no action was executed for this proposal" }
+  if (!result.candidate) return {
+    ...result,
+    expression,
+    verified: true,
+    verificationReason: "no action was executed for this proposal",
+    personalityDrift,
+  }
 
   const verification = await verifyCandidateDurable(memoryRepo, result.verifiedUserId, result.candidate)
   const verifyEventId = `verify:${result.candidate.id}:${Date.now()}`
@@ -144,7 +159,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     metadata: { stage: "verify", reason: verification.reason ?? "durable read-back matched executed content" },
   })
   if (!verification.verified) throw new Error(`JHADINA_COMMAND_VERIFICATION_FAILED:${verification.reason}`)
-  return { ...result, expression, verified: true, verificationReason: verification.reason }
+  return { ...result, expression, verified: true, verificationReason: verification.reason, personalityDrift }
 }
 
 async function verifyCandidateDurable(memoryRepo: MemoryRepository, userId: string, candidate: NonNullable<GovernedIntelligenceProposalResult["candidate"]>): Promise<{ verified: boolean; reason?: string }> {
