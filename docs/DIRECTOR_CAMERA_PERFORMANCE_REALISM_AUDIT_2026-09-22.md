@@ -212,7 +212,7 @@ Failed QC can also be converted into a **proposal-only** repair scope: audio-onl
 
 ## Integration changes
 
-- `StoryboardBoard` and storyboard→take handoff carry camera, performance and realism plans in the contract layer. **Durable Supabase persistence for those new structured fields is not yet certified because the current storyboard table migration does not contain dedicated `camera_plan`, `performance_plan`, or `realism_plan` columns.**
+- `StoryboardBoard` and storyboard→take handoff carry camera, performance and realism plans in the contract layer. The repo now includes a migration adding `camera_plan`, `performance_plan`, and `realism_plan` JSONB columns to canonical boards and immutable board-version history, and the Supabase read adapter hydrates them. Remote migration deployment remains a runtime-certification step.
 - `buildStoryboardShotPlan` validates and carries the latest structured plans.
 - `TakeRequest` carries all three plans.
 - `compileTakePrompt` translates structured direction into provider-facing sections.
@@ -227,7 +227,7 @@ Failed QC can also be converted into a **proposal-only** repair scope: audio-onl
 
 This change sharpens the contract layer. The next runtime work should be:
 
-1. Add and certify the durable storyboard schema migration for structured `camera_plan`, `performance_plan`, and `realism_plan` fields before claiming database-level persistence.
+1. Apply and verify the committed storyboard direction-plan migration in the target Supabase environment; repository-level schema/read-path support is implemented, remote deployment is not yet certified.
 2. Add mobile-camera provider adapters for a React Native VisionCamera-class executor and a native iOS/Mijick-class executor.
 3. Add a virtual-camera/previs adapter capable of applying `PrevisBlockoutPlan` in Blender/Three.js/Bevy or an external executor such as a CozyClay-class service, returning a validated `PrevisShotPackage` without surrendering Director authority.
 4. Add Director workstation panels for greybox scene hierarchy, shot list, reference board, dual camera/actor timeline and shot-camera monitor.
