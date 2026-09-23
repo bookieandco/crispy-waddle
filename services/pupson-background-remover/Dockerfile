@@ -33,6 +33,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     REAL_ESRGAN_FLAVOR=cpu \
     REAL_ESRGAN_MODEL=/var/cache/real-esrgan-serve/models/realesrgan-x4plus_fp16.onnx
 
+# Roboflow's inference SDK imports OpenCV. The slim base omits its shared
+# GL/GLib runtime, so install only the headless system libraries it needs.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && \
+    rm -rf /var/lib/apt/lists/*
+
 # BackgroundRemover needs PyTorch. Pin the CPU wheels so the private Railway
 # worker never pulls multi-gigabyte CUDA/NVIDIA dependencies.
 RUN pip install --no-cache-dir \
