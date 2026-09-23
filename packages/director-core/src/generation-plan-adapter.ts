@@ -98,12 +98,23 @@ export class GenerationPlanAdapter {
       }));
     }
 
-    const references = [
-      ...resolvedCharacterReferences,
-      ...(request.referenceAssetIds ?? []).map((assetId) => ({ assetId, role: 'image' as const })),
-    ].filter((reference, index, all) =>
-      all.findIndex((candidate) => candidate.assetId === reference.assetId && candidate.role === reference.role) === index,
+    const resolvedCharacterByAsset = new Map(
+      resolvedCharacterReferences.map((reference) => [reference.assetId, reference]),
     );
+
+    const references = request.referenceManifest
+      ? buildManifestReferences(
+          request.referenceManifest.references,
+          characterReferenceIds,
+          request.referenceAssetIds ?? [],
+          resolvedCharacterByAsset,
+        )
+      : [
+          ...resolvedCharacterReferences,
+          ...(request.referenceAssetIds ?? []).map((assetId) => ({ assetId, role: 'image' as const })),
+        ].filter((reference, index, all) =>
+          all.findIndex((candidate) => candidate.assetId === reference.assetId && candidate.role === reference.role) === index,
+        );
 
     const requestId = `director:${request.projectId}:take:${request.takeId}`;
     const creativeProvenance = {
@@ -146,8 +157,65 @@ export class GenerationPlanAdapter {
         cameraPlan: request.cameraPlan,
         performancePlan: request.performancePlan,
         realismPlan: request.realismPlan,
+        referenceManifest: request.referenceManifest,
       },
       creativeProvenance,
     });
+  }
+}
+
+
+function buildManifestReferences(
+  manifestReferences: TakeRequest['referenceManifest'] extends infer T
+    ? T extends { references: infer R } ? R : never
+    : never,
+  characterReferenceIds: readonly string[],
+  requestReferenceAssetIds: readonly string[],
+  resolvedCharacterByAsset: ReadonlyMap<string, { assetId: string; role: 'character'; uri?: string }>,
+) {
+  const ordered = [...(manifestReferences as NonNullable<TakeRequest['referenceManifest']>['references'])]
+    .sort((a, b) => a.slot - b.slot);
+  const manifestAssetIds = new Set(ordered.map((reference) => reference.assetId));
+
+  for (const assetId of characterReferenceIds) {
+    if (!manifestAssetIds.has(assetId)) {
+      throw new Error(`Generation submission blocked: DIRECTOR_REFERENCE_MANIFEST_CHARACTER_ASSET_MISSING:${assetId}`);
+    }
+  }
+  for (const assetId of requestReferenceAssetIds) {
+    if (!manifestAssetIds.has(assetId)) {
+      throw new Error(`Generation submission blocked: DIRECTOR_REFERENCE_MANIFEST_ASSET_MISSING:${assetId}`);
+    }
+  }
+
+  return ordered.map((reference) => {
+    const resolvedCharacter = resolvedCharacterByAsset.get(reference.assetId);
+    return {
+      assetId: reference.assetId,
+      role: providerReferenceRole(reference.role),
+      ...(resolvedCharacter?.uri ? { uri: resolvedCharacter.uri } : {}),
+    };
+  });
+}
+
+function providerReferenceRole(
+  role: NonNullable<TakeRequest['referenceManifest']>['references'][number]['role'],
+): 'character' | 'location' | 'style' | 'composition' | 'motion' | 'image' {
+  switch (role) {
+    case 'character-identity':
+      return 'character';
+    case 'location':
+      return 'location';
+    case 'style':
+      return 'style';
+    case 'composition':
+    case 'depth':
+    case 'normal':
+      return 'composition';
+    case 'source-video':
+    case 'motion':
+      return 'motion';
+    default:
+      return 'image';
   }
 }
