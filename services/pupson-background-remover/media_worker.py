@@ -204,6 +204,7 @@ def not_found(_error):
 if __name__ == "__main__":
     from waitress import serve
 
-    # Explicit dual-stack sockets keep Railway health routing and private
-    # service-to-service traffic on the same worker.
-    serve(app, listen=f"0.0.0.0:{PORT} [::]:{PORT}", threads=4)
+    # Public Railway ingress is the certified fallback when project-private
+    # service networking is unavailable. Bind one conventional Railway socket;
+    # all inference routes remain bearer-protected by this worker.
+    serve(app, host="0.0.0.0", port=PORT, threads=4)
