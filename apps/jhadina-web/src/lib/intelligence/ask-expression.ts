@@ -7,6 +7,7 @@ import { deriveBehaviorContext, type PersonalityContextProvider } from "../conte
 import { redactSecrets } from "../context/redact"
 import { getStorage } from "../routes/handlers"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
+import { recordPersonalityDriftObservation } from "../personality/personality-drift-observer"
 
 export interface AskJhadinaExpressionInput {
   userId: string
@@ -44,14 +45,17 @@ export async function realizeAskJhadinaExpression(
     ?? createProductionPersonalityContextProvider(getStorage(), input.userId)
   const { redacted: activeTask } = redactSecrets(input.activeTask)
 
+  const behaviorContext = deriveBehaviorContext(activeTask)
   let directive: ExpressionDirective | undefined
+  let personality
   try {
     const contribution = await provider.getContext({
       userId: input.userId,
       activeTask,
-      behaviorContext: deriveBehaviorContext(activeTask),
+      behaviorContext,
     })
     directive = contribution.expressionDirective
+    personality = contribution.personality
   } catch {
     directive = undefined
   }
@@ -66,5 +70,15 @@ export async function realizeAskJhadinaExpression(
     }
   }
 
-  return realizeGovernedExpression(input.proposal, directive)
+  const realization = realizeGovernedExpression(input.proposal, directive)
+  if (personality) {
+    await recordPersonalityDriftObservation({
+      userId: input.userId,
+      requestId: input.proposal.id,
+      personality,
+      behaviorContext,
+      realization,
+    })
+  }
+  return realization
 }
