@@ -23,6 +23,8 @@ on:
       - "apps/jhadina-web/src/lib/intelligence/jhadina-command.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-expression.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-expression.test.ts"
+      - "apps/jhadina-web/src/lib/intelligence/ask-shortcut-experience.ts"
+      - "apps/jhadina-web/src/lib/intelligence/ask-shortcut-experience.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-social-command.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-social-command.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-growth-command.ts"
@@ -72,6 +74,8 @@ on:
       - "apps/jhadina-web/src/lib/intelligence/jhadina-command.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-expression.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-expression.test.ts"
+      - "apps/jhadina-web/src/lib/intelligence/ask-shortcut-experience.ts"
+      - "apps/jhadina-web/src/lib/intelligence/ask-shortcut-experience.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-social-command.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-social-command.test.ts"
       - "apps/jhadina-web/src/lib/intelligence/ask-growth-command.ts"
@@ -155,6 +159,7 @@ jobs:
             src/lib/context/growth-context.integration.test.ts \
             src/lib/intelligence/jhadina-command.test.ts \
             src/lib/intelligence/ask-expression.test.ts \
+            src/lib/intelligence/ask-shortcut-experience.test.ts \
             src/lib/intelligence/ask-social-command.test.ts \
             src/lib/intelligence/ask-growth-command.test.ts \
             src/app/api/jhadina/command/route.social.test.ts \

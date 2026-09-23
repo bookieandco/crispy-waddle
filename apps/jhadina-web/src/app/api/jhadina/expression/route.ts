@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { InvalidModelProposalError, parseDecisionProposal } from "@jhadina/intelligence-core"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { realizeAskJhadinaExpression } from "@/lib/intelligence/ask-expression"
+import { recordAskShortcutExperience, type AskShortcutKind } from "@/lib/intelligence/ask-shortcut-experience"
 
 export const dynamic = "force-dynamic"
 
@@ -26,6 +27,10 @@ export async function POST(req: NextRequest) {
   if (!activeTask) {
     return NextResponse.json({ success: false, error: "activeTask is required" }, { status: 400 })
   }
+  const shortcut = body?.shortcut
+  if (shortcut !== "reference-character" && shortcut !== "reference-product") {
+    return NextResponse.json({ success: false, error: "reference shortcut is required" }, { status: 400 })
+  }
   if (!body?.proposal || typeof body.proposal !== "object") {
     return NextResponse.json({ success: false, error: "proposal is required" }, { status: 400 })
   }
@@ -42,11 +47,19 @@ export async function POST(req: NextRequest) {
       activeTask,
       proposal,
     })
+    const reasoningEventId = await recordAskShortcutExperience({
+      userId: verified.userId,
+      activeTask,
+      proposal,
+      shortcut: shortcut as AskShortcutKind,
+      metadata: { presentationOnlyBoundary: true },
+    })
 
     return NextResponse.json({
       success: true,
       data: {
         proposal,
+        reasoningEventId,
         expression,
         verified: true,
         verificationReason: "Identity verified; presentation realized through the governed Personality/RNC expression path.",
