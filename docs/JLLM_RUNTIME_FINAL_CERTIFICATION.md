@@ -127,3 +127,23 @@ The durable Artifact Core now has a concrete malware scanner runtime rather than
 ClamAV's daemon socket must remain private. Its TCP protocol has no authentication or encryption, so production must use a Unix socket or a private service network; the public boundary is the authenticated Jhadina scanner HTTP service.
 
 **FINAL.9 status: SOURCE-CERTIFIED SCANNER / LIVE DEPLOYMENT + BINARY DRILL BLOCKED.** The remaining proof is operational: deploy ClamAV with current signatures, deploy the scanner service, configure `JHADINA_MEDIA_SCANNER_URL` and `JHADINA_MEDIA_SCANNER_TOKEN`, then prove a benign file reaches `clean` and an EICAR test file reaches `rejected` while scanner outage remains `quarantine`. Railway still cannot admit an additional service under the currently observed workspace resource limit, so this gate is not promoted to real-world PASS.
+
+
+## FINAL.9 extraction source-certification receipt — 2026-09-22
+
+Wave 12 adds the post-scan representation layer required for clean non-image artifacts to become usable Jhadina context.
+
+Landed source contracts in this wave:
+- private `jhadina-artifact-derived` Storage bucket migration;
+- authenticated extraction adapter bound to the source artifact ID, SHA-256, MIME type and byte count;
+- clean-only extraction persistence under the owning user's derivative path;
+- Context Resolver hydration of actual private extracted text rather than placeholder Storage references;
+- content-verified admission for PDF, DOCX, XLSX, CSV, JSON, MP3, M4A/MP4, WAV and WebM containers;
+- document extraction for PDF/DOCX/XLSX/CSV/JSON/plain text;
+- audio/video transcription path through FFmpeg normalization + Faster-Whisper;
+- bounded OOXML expansion, spreadsheet-cell and extracted-text limits;
+- extraction failure remains fail-closed for reasoning: the source may remain scanner-clean, but `contextReady=false` until a verified derivative exists.
+
+The extractor does not make malware decisions and cannot bypass the scanner. It runs only after Artifact Core returns `clean`. The extractor also recomputes the source SHA-256 before producing a derivative.
+
+**FINAL.9 extraction status: SOURCE READY / DERIVED STORAGE DEPLOYMENT + LIVE FILE DRILLS BLOCKED.** After merge, the private derived bucket migration must be applied to SWLC. Real-world evidence still requires deployed extractor compute and live PDF/DOCX/XLSX/audio/video uploads proving scan → extraction → private derivative → ContextPacket.

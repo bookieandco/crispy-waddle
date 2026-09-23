@@ -2,8 +2,9 @@ import { NextRequest,NextResponse } from "next/server"
 import { UniversalArtifactCore } from "@jhadina/core-spine"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { SupabaseArtifactBlobStore,SupabaseArtifactRepository } from "@/lib/artifacts/supabase-artifact-adapters"
+import { SupabaseArtifactBlobStore,SupabaseArtifactDerivativeStore,SupabaseArtifactRepository } from "@/lib/artifacts/supabase-artifact-adapters"
 import { HttpMediaSecurityScanner } from "@/lib/artifacts/http-media-security-scanner"
+import { DIRECT_CONTEXT_MIME,EXTRACTABLE_CONTEXT_MIME,HttpArtifactExtractor } from "@/lib/artifacts/http-artifact-extractor"
 import { detectArtifactMime } from "@/lib/artifacts/detect-artifact-mime"
 
 export const runtime="nodejs"
@@ -18,9 +19,29 @@ export async function POST(req:NextRequest){
   const bytes=new Uint8Array(await file.arrayBuffer())
   const detected=detectArtifactMime(bytes,file.type)
   const scanner=new HttpMediaSecurityScanner(process.env.JHADINA_MEDIA_SCANNER_URL??"",process.env.JHADINA_MEDIA_SCANNER_TOKEN??"")
-  const core=new UniversalArtifactCore(new SupabaseArtifactBlobStore(client),new SupabaseArtifactRepository(client,identity.userId),scanner)
-  const artifact=await core.ingest({ownerUserId:identity.userId,name:file.name,declaredMimeType:file.type,detectedMimeType:detected,bytes,provenance:{source:"ask-jhadina-upload"}})
-  return NextResponse.json({success:true,artifact:{id:artifact.id,name:artifact.originalName,mimeType:artifact.detectedMimeType,sizeBytes:artifact.sizeBytes,status:artifact.status}})
+  const repository=new SupabaseArtifactRepository(client,identity.userId)
+  const core=new UniversalArtifactCore(new SupabaseArtifactBlobStore(client),repository,scanner)
+  let artifact=await core.ingest({ownerUserId:identity.userId,name:file.name,declaredMimeType:file.type,detectedMimeType:detected,bytes,provenance:{source:"ask-jhadina-upload"}})
+
+  let contextReady=artifact.status==="clean"&&DIRECT_CONTEXT_MIME.has(detected)
+  let extractionStatus: "not_required"|"pending"|"ready"|"unsupported" =
+   contextReady?"not_required":artifact.status==="clean"&&EXTRACTABLE_CONTEXT_MIME.has(detected)?"pending":"unsupported"
+
+  if(artifact.status==="clean"&&EXTRACTABLE_CONTEXT_MIME.has(detected)){
+   try{
+    const extractor=new HttpArtifactExtractor(process.env.JHADINA_ARTIFACT_EXTRACTOR_URL??"",process.env.JHADINA_ARTIFACT_EXTRACTOR_TOKEN??"")
+    const extraction=await extractor.extract({assetId:artifact.id,sha256:artifact.sha256,mimeType:detected,sizeBytes:artifact.sizeBytes,bytes})
+    const derivative=await new SupabaseArtifactDerivativeStore(client).putExtractedText(identity.userId,artifact.id,extraction.text)
+    artifact=await repository.applyExtraction(artifact.id,{extractedTextRef:derivative.uri,derivativeRefs:[derivative.uri]})
+    contextReady=true
+    extractionStatus="ready"
+   }catch{
+    contextReady=false
+    extractionStatus="pending"
+   }
+  }
+
+  return NextResponse.json({success:true,artifact:{id:artifact.id,name:artifact.originalName,mimeType:artifact.detectedMimeType,sizeBytes:artifact.sizeBytes,status:artifact.status,contextReady,extractionStatus}})
  }catch(error){
   const message=error instanceof Error?error.message:"Artifact ingest failed"
   const status=/identity|session/.test(message)?401:/SIZE/.test(message)?413:/MIME/.test(message)?415:503
