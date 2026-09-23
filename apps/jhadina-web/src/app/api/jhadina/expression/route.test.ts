@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 
 const verify = vi.fn(async () => ({ userId: "verified-user", sessionId: "session-1" }))
+const recordShortcutExperience = vi.fn(async (input: { shortcut: string }) => `reason-${input.shortcut}`)
 const realizeExpression = vi.fn(async (input: {
   proposal: { id: string; recommendation: string; disposition: string }
 }) => ({
@@ -18,6 +19,10 @@ vi.mock("@/lib/auth/request-identity", () => ({
   createRequestIdentityVerifier: async () => ({ verify }),
 }))
 
+vi.mock("@/lib/intelligence/ask-shortcut-experience", () => ({
+  recordAskShortcutExperience: (input: unknown) => recordShortcutExperience(input as { shortcut: string }),
+}))
+
 vi.mock("@/lib/intelligence/ask-expression", () => ({
   realizeAskJhadinaExpression: (input: unknown) => realizeExpression(input as {
     proposal: { id: string; recommendation: string; disposition: string }
@@ -26,14 +31,18 @@ vi.mock("@/lib/intelligence/ask-expression", () => ({
 
 import { POST } from "./route"
 
-function request(proposal: Record<string, unknown>, activeTask = "Make a product video") {
+function request(
+  proposal: Record<string, unknown>,
+  activeTask = "Make a product video",
+  shortcut: "reference-character" | "reference-product" = "reference-product",
+) {
   return new NextRequest("http://localhost/api/jhadina/expression", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "x-jhadina-user-id": "claimed-user",
     },
-    body: JSON.stringify({ activeTask, proposal }),
+    body: JSON.stringify({ activeTask, proposal, shortcut }),
   })
 }
 
@@ -70,6 +79,12 @@ describe("Ask Jhadina expression-only route", () => {
       }),
     }))
     expect(json.data.expression.presentation.allowQuip).toBe(true)
+    expect(json.data.reasoningEventId).toBe("reason-reference-product")
+    expect(recordShortcutExperience).toHaveBeenCalledWith(expect.objectContaining({
+      shortcut: "reference-product",
+      userId: "verified-user",
+      activeTask: "Make a product video",
+    }))
   })
 
   it("rejects malformed presentation proposals before expression realization", async () => {
@@ -82,6 +97,30 @@ describe("Ask Jhadina expression-only route", () => {
     expect(response.status).toBe(400)
     expect(json.error).toContain("INVALID_MODEL_PROPOSAL")
     expect(realizeExpression).not.toHaveBeenCalled()
+    expect(recordShortcutExperience).not.toHaveBeenCalled()
+  })
+
+
+  it("requires the reference shortcut discriminator before realization or persistence", async () => {
+    const response = await POST(new NextRequest("http://localhost/api/jhadina/expression", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-jhadina-user-id": "claimed-user",
+      },
+      body: JSON.stringify({
+        activeTask: "Make a video",
+        proposal: {
+          disposition: "PROCEED",
+          recommendation: "Ready.",
+          rationale: "Ready.",
+        },
+      }),
+    }))
+
+    expect(response.status).toBe(400)
+    expect(realizeExpression).not.toHaveBeenCalled()
+    expect(recordShortcutExperience).not.toHaveBeenCalled()
   })
 
   it("requires a signed-in identity claim", async () => {
