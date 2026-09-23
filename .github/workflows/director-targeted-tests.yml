@@ -75,6 +75,7 @@ jobs:
           src/directed-take-qc.test.ts
           src/ugc-production.test.ts
           src/previs-blockout.test.ts
+          src/storyboard-reference-board.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
       - name: Workstation authority, Studio QC and Social bridge
         run: >
