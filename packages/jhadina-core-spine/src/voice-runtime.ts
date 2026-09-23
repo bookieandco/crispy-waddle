@@ -114,7 +114,6 @@ export class JhadinaVoiceRuntime {
     const preferred=request.profile.providerPriority
       .map(id=>this.tts.find(item=>item.id===id))
       .find((item):item is JhadinaTtsProvider=>Boolean(item?.supports(request.language)));
-    const fallback=this.tts.find(item=>item.supports(request.language));
     const ordered=[
       ...(preferred?[preferred]:[]),
       ...this.tts.filter(item=>item!==preferred && item.supports(request.language)),
