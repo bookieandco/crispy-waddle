@@ -23,7 +23,28 @@ export interface ExpectedBehavior {
   requestId: string;
   observedAt: string;
   vector: BehaviorVector;
-  expression: Pick<ExpressionPlan, 'mode' | 'responseLength' | 'tone' | 'reasoningDepth' | 'interactionStyle' | 'creativeStyle' | 'explanationStyle' | 'decisionPresentation'>;
+  expression: Pick<
+    ExpressionPlan,
+    | 'mode'
+    | 'register'
+    | 'cadenceStyle'
+    | 'metaphorDensity'
+    | 'bitDepth'
+    | 'symbolicFraming'
+    | 'storytellingDepth'
+    | 'edginess'
+    | 'operationalSass'
+    | 'affectionateTeasing'
+    | 'workloadBoundary'
+    | 'evidenceDiscipline'
+    | 'responseLength'
+    | 'tone'
+    | 'reasoningDepth'
+    | 'interactionStyle'
+    | 'creativeStyle'
+    | 'explanationStyle'
+    | 'decisionPresentation'
+  >;
   context: { serious: boolean; requiresPrecision: boolean };
   attribution: BehaviorAttribution;
 }
@@ -106,7 +127,13 @@ export function expectedBehaviorFromDecision(
       disagreementDirectness: clamp(p.disagreementDirectness), creativeLatitude: clamp(p.creativeLatitude),
     },
     expression: {
-      mode: expression.mode, responseLength: expression.responseLength, tone: expression.tone,
+      mode: expression.mode, register: expression.register, cadenceStyle: expression.cadenceStyle,
+      metaphorDensity: expression.metaphorDensity, bitDepth: expression.bitDepth,
+      symbolicFraming: expression.symbolicFraming, storytellingDepth: expression.storytellingDepth,
+      edginess: expression.edginess, operationalSass: expression.operationalSass,
+      affectionateTeasing: expression.affectionateTeasing, workloadBoundary: expression.workloadBoundary,
+      evidenceDiscipline: expression.evidenceDiscipline,
+      responseLength: expression.responseLength, tone: expression.tone,
       reasoningDepth: expression.reasoningDepth, interactionStyle: expression.interactionStyle,
       creativeStyle: expression.creativeStyle, explanationStyle: expression.explanationStyle,
       decisionPresentation: expression.decisionPresentation,
