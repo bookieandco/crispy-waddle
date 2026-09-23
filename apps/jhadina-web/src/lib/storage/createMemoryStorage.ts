@@ -19,7 +19,7 @@ export function createMemoryStorageForRuntime(): MemoryStorage {
 
   if (
     process.env.NODE_ENV === "production" &&
-    process.env.VERCEL_OIDC_TOKEN?.trim()
+    (process.env.VERCEL === "1" || process.env.VERCEL_ENV?.trim())
   ) {
     return new VercelOidcMemoryStorage()
   }
