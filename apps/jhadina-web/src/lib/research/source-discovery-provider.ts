@@ -17,7 +17,7 @@ export type RecoverySearchRequest = {
 export type RecoverySourceCandidate = {
   sourceName: string
   sourceUrl: string
-  sourceKind: "API" | "JSON" | "CSV" | "XLSX" | "PDF" | "DOWNLOAD" | "HTML" | "PORTAL"
+  sourceKind: "API" | "JSON" | "CSV" | "XLSX" | "PDF" | "DOWNLOAD" | "INFO_PAGE" | "HTML" | "PORTAL"
   authorityName: string
   officialSourceVerified: boolean
   accessReviewApproved: false
@@ -96,7 +96,8 @@ export function inferRecoverySourceKind(rawUrl: string, title = "", snippet = ""
   if (/\.pdf(?:$|\?)/.test(path)) return "PDF"
   if (/(download|export|spreadsheet|dataset)/.test(combined)) return "DOWNLOAD"
   if (/(search|lookup|claim search|portal)/.test(combined) || /\/(search|lookup|claim)/.test(path)) return "PORTAL"
-  return "HTML"
+  if (/(list|roster|ledger|table|balances|records)/.test(combined)) return "HTML"
+  return "INFO_PAGE"
 }
 
 export function candidateFromSearchResult(
