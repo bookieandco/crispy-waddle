@@ -167,7 +167,7 @@ export interface EphemeralArtifactContext {
   id: string;
   kind: 'screen' | 'image' | 'text';
   mimeType: string;
-  source: 'screen-share' | 'file-picker' | 'clipboard';
+  source: 'screen-share' | 'file-picker' | 'clipboard' | 'durable-artifact';
   name?: string;
   observedAt: string;
   /** UTF-8 text content for bounded text artifacts. */
