@@ -111,6 +111,7 @@ export type ExpressionRegister =
   | 'investigative'
   | 'clinical'
   | 'mythic-inquiry'
+  | 'perceptual-inquiry'
   | 'intimacy-agency'
   | 'household-ops'
   | 'serious';
