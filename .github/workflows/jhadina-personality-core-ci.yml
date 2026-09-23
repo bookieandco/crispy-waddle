@@ -8,6 +8,20 @@ on:
       - "packages/jhadina-core-spine/**"
       - "packages/jhadina-intelligence-core/**"
       - "apps/jhadina-web/src/lib/personality/**"
+      - "apps/jhadina-web/src/lib/storage/**"
+      - "apps/jhadina-web/src/lib/repositories/**"
+      - "apps/jhadina-web/src/lib/routes/**"
+      - "apps/jhadina-web/src/lib/application/**"
+      - "apps/jhadina-web/src/app/api/memory/**"
+      - "supabase/migrations/20260923031500_personality_memory_final_lifecycle.sql"
+      - "supabase/migrations/20260923032500_personality_drift_observation_receipts.sql"
+      - "apps/jhadina-web/src/lib/storage/**"
+      - "apps/jhadina-web/src/lib/repositories/**"
+      - "apps/jhadina-web/src/lib/routes/**"
+      - "apps/jhadina-web/src/lib/application/**"
+      - "apps/jhadina-web/src/app/api/memory/**"
+      - "supabase/migrations/20260923031500_personality_memory_final_lifecycle.sql"
+      - "supabase/migrations/20260923032500_personality_drift_observation_receipts.sql"
       - "apps/jhadina-web/src/lib/hippocampus/**"
       - "apps/jhadina-web/src/lib/context/context-builder.ts"
       - "apps/jhadina-web/src/lib/context/context-builder.test.ts"
@@ -136,12 +150,17 @@ jobs:
       - name: Execute Intelligence Core regressions
         run: pnpm --filter @jhadina/intelligence-core test
 
+      - name: Type-check Jhadina Web integration
+        run: pnpm --filter @jhadina/jhadina-web type-check
+
       - name: Execute persisted personality, Hippocampus, and Ask Jhadina vertical regressions
         run: |
           pnpm --filter @jhadina/jhadina-web exec vitest run \
             src/lib/personality/personality-core.test.ts \
             src/lib/personality/supabase-personality-state-repository.test.ts \
             src/lib/personality/production-personality-context-provider.test.ts \
+            src/lib/personality/personality-memory-final.test.ts \
+            src/lib/personality/personality-drift-observer.test.ts \
             src/lib/hippocampus/persisted-experience-pattern-adapter.test.ts \
             src/lib/context/context-builder.test.ts \
             src/lib/context/production-knowledge-context-provider.test.ts \
@@ -159,3 +178,6 @@ jobs:
             src/lib/personality/personality-outcome-feedback.test.ts \
             src/lib/storage/SupabaseMemoryStorage.test.ts \
             src/app/api/jhadina/personality/feedback/route.test.ts
+
+      - name: Build Jhadina Web production bundle
+        run: pnpm --filter @jhadina/jhadina-web build
