@@ -8,6 +8,10 @@ on:
       - ".github/workflows/jhadina-production-scheduler.yml"
       - "apps/jhadina-web/src/lib/internal-scheduler-auth.ts"
       - "apps/jhadina-web/src/app/api/internal/scheduler/health/**"
+      - "apps/jhadina-web/src/lib/storage/**"
+      - "apps/jhadina-web/src/lib/supabase/service-role.ts"
+      - "apps/jhadina-web/src/lib/routes/handlers.ts"
+      - "supabase/functions/jhadina-memory-gateway/**"
       - "vercel.json"
       - "apps/jhadina-web/vercel.json"
   schedule:
@@ -84,8 +88,21 @@ jobs:
               echo "attempt=${attempt} environment=${environment} deployed_sha=${deployed_sha} next_public_url=${has_next_public_url} server_url=${has_server_url} service_role=${has_service_role} publishable=${has_publishable}"
 
               if [[ "$environment" == "production" && "$deployed_sha" == "$EXPECTED_SHA" ]]; then
-                echo "Exact production deployment admitted: $EXPECTED_SHA"
-                exit 0
+                public_health_file="$(mktemp)"
+                public_health_status="$(curl --silent --show-error --location \
+                  --connect-timeout 20 \
+                  --max-time 30 \
+                  --output "$public_health_file" \
+                  --write-out '%{http_code}' \
+                  --header "User-Agent: jhadina-production-admission/${GITHUB_RUN_ID}" \
+                  "${ORIGIN%/}/api/health" || true)"
+                public_health_success="$(jq -r '.success // false' "$public_health_file" 2>/dev/null || echo false)"
+                echo "public_health_status=${public_health_status} public_health_success=${public_health_success}"
+
+                if [[ "$public_health_status" == "200" && "$public_health_success" == "true" ]]; then
+                  echo "Exact production deployment and durable Memory health admitted: $EXPECTED_SHA"
+                  exit 0
+                fi
               fi
             else
               echo "attempt=${attempt} status=${status}"
