@@ -1,4 +1,7 @@
 import http from 'node:http';
+import dns from 'node:dns';
+
+dns.setDefaultResultOrder('ipv4first');
 
 const port = Number(process.env.PORT || 3000);
 const mediaWorkerUrl = process.env.MEDIA_WORKER_INTERNAL_URL?.replace(/\/$/, '');
@@ -190,6 +193,28 @@ const server = http.createServer(async (req, res) => {
 
     if (requestUrl.pathname === '/upscale') {
       return await proxyUpscale(req, res);
+    }
+
+    if (requestUrl.pathname === '/dog-vision') {
+      const body = await collectBody(req);
+      const target = new URL('/dog-vision', mediaWorkerUrl);
+      const headers = {};
+      const contentType = req.headers['content-type'];
+      if (contentType) headers['content-type'] = contentType;
+
+      const response = await fetch(target, {
+        method: 'POST',
+        headers,
+        body,
+        signal: AbortSignal.timeout(180000),
+      });
+      const output = Buffer.from(await response.arrayBuffer());
+      res.writeHead(response.status, {
+        'content-type': response.headers.get('content-type') || 'application/json',
+        'content-length': String(output.length),
+        'cache-control': 'no-store',
+      });
+      return res.end(output);
     }
 
     return json(res, 404, { error: 'not_found' });
