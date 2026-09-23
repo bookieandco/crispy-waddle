@@ -243,6 +243,35 @@ function projectTasteAndRelationship(
   };
 }
 
+function evidenceArraysEqual(left: readonly EvidenceRef[], right: readonly EvidenceRef[]): boolean {
+  return left.length === right.length &&
+    left.every((ref, index) => JSON.stringify(ref) === JSON.stringify(right[index]));
+}
+
+function tasteStatesEqual(
+  left: NonNullable<PersonalityState['taste']>,
+  right: NonNullable<PersonalityState['taste']>,
+): boolean {
+  return left.novelty === right.novelty &&
+    left.experimentation === right.experimentation &&
+    left.conventionTolerance === right.conventionTolerance &&
+    left.aestheticIntensity === right.aestheticIntensity &&
+    evidenceArraysEqual(left.evidence, right.evidence);
+}
+
+function relationshipStatesEqual(
+  left: NonNullable<PersonalityState['relationship']>,
+  right: NonNullable<PersonalityState['relationship']>,
+): boolean {
+  return left.familiarity === right.familiarity &&
+    left.calibrationConfidence === right.calibrationConfidence &&
+    left.preferredInteractionModes.length === right.preferredInteractionModes.length &&
+    left.preferredInteractionModes.every((mode, index) => mode === right.preferredInteractionModes[index]) &&
+    left.recurringCallbacks.length === right.recurringCallbacks.length &&
+    left.recurringCallbacks.every((callback, index) => callback === right.recurringCallbacks[index]) &&
+    evidenceArraysEqual(left.evidence, right.evidence);
+}
+
 /**
  * Pure projection from explicitly personality-eligible PatternObservations.
  * Bayesian evidence updating supplies the belief/confidence estimate; this
@@ -344,8 +373,8 @@ export function projectPersonality(
 
   const derived = projectTasteAndRelationship(current, nextTraits);
   const submodelsChanged =
-    JSON.stringify(derived.taste) !== JSON.stringify(current.taste ?? DEFAULT_PERSONALITY_TASTE) ||
-    JSON.stringify(derived.relationship) !== JSON.stringify(current.relationship ?? DEFAULT_PERSONALITY_RELATIONSHIP);
+    !tasteStatesEqual(derived.taste!, current.taste ?? DEFAULT_PERSONALITY_TASTE) ||
+    !relationshipStatesEqual(derived.relationship!, current.relationship ?? DEFAULT_PERSONALITY_RELATIONSHIP);
 
   if (!changed && !submodelsChanged && independentAssessmentRequired === current.independentAssessmentRequired) return current;
 
