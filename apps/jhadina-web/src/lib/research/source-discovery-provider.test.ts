@@ -24,6 +24,7 @@ const official = candidateFromSearchResult(request, {
 })
 assert.ok(official)
 assert.equal(official?.officialSourceVerified, true)
+assert.equal(official?.sourceKind, "INFO_PAGE")
 assert.equal(official?.accessReviewApproved, false)
 
 const unrelatedGov = candidateFromSearchResult(request, {
