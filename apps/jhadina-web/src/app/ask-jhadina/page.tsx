@@ -63,7 +63,7 @@ function AskJhadina(){
    const goal=typeof json?.session?.goal==="string"?json.session.goal:""
    if(cancelled)return
    setWorkSessionGoal(goal)
-   if(goal&&!task.trim())setTask(goal)
+   if(goal)setTask(current=>current.trim()?current:goal)
   })().catch(()=>{})
   return()=>{cancelled=true}
  },[])
