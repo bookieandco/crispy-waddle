@@ -4,7 +4,7 @@ import { InMemoryStorage } from "../storage/InMemoryStorage"
 import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { PersistedExperiencePatternAdapter } from "../hippocampus/persisted-experience-pattern-adapter"
-import { recordAskShortcutExperience } from "./ask-shortcut-experience"
+import { finalizeAskShortcutExperience, recordAskShortcutExperience } from "./ask-shortcut-experience"
 
 function proposal(): DecisionProposal {
   return {
@@ -57,6 +57,49 @@ describe("Ask Jhadina shortcut experience persistence", () => {
     })
     expect(detected.experience.id).toBe(eventId)
     expect(detected.experience.content).toBe("Which Instagram account should I work on?")
+  })
+
+  it("finalizes the same Experience after a subsystem outcome without creating a duplicate turn", async () => {
+    const storage = new InMemoryStorage()
+    const initial = proposal()
+    const eventId = await recordAskShortcutExperience({
+      userId: "user-finalize",
+      activeTask: "Make the PupsonStuff video",
+      proposal: initial,
+      shortcut: "social",
+      metadata: { stage: "pre-director" },
+    }, { storage })
+
+    const finalProposal: DecisionProposal = {
+      ...initial,
+      disposition: "DEFER",
+      recommendation: "Director created the job, but provider submission is uncertain.",
+      rationale: "The persisted Director job is authoritative while provider reconciliation is pending.",
+      uncertainty: ["DIRECTOR_VIDEO_SUBMISSION_UNCERTAIN"],
+    }
+
+    await finalizeAskShortcutExperience({
+      userId: "user-finalize",
+      reasoningEventId: eventId,
+      proposal: finalProposal,
+      shortcut: "social",
+      metadata: { stage: "post-director", videoJobId: "video-1" },
+    }, { storage })
+
+    const repository = new ReasoningEventRepository(storage)
+    const events = await repository.list("user-finalize")
+    expect(events).toHaveLength(1)
+    expect(events[0].id).toBe(eventId)
+    expect(events[0].userMessage).toBe("Make the PupsonStuff video")
+    expect(events[0].systemResponse).toBe(finalProposal.recommendation)
+    expect(events[0].outcome).toBe("ask-shortcut:social:defer")
+    expect(events[0].metadata).toMatchObject({
+      stage: "post-director",
+      videoJobId: "video-1",
+      proposalId: finalProposal.id,
+      disposition: "DEFER",
+      authority: "experience-only",
+    })
   })
 
   it("never creates a pending or approved Memory record", async () => {
