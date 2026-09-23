@@ -69,6 +69,8 @@ export interface PatternObservation {
 export interface PersonalityTrait {
   id: string;
   statement: string;
+  /** Stable semantic detector identity. Human-readable statement wording may evolve. */
+  sourcePatternId?: string;
   /** Legacy mainline field retained during migration to governed dimensions. */
   category?: 'preference' | 'value' | 'tendency' | 'communication' | 'decision';
   /** Governed v2 dimension. New personality projection always writes this. */
