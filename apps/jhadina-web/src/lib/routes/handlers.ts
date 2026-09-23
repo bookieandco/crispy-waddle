@@ -416,7 +416,11 @@ export async function handleSearchMemories(req: NextRequest) {
 export async function handleHealth(_req: NextRequest) {
   try {
     const storage = getStorage()
-    await storage.probe()
+    if (storage.probe) {
+      await storage.probe()
+    } else if (process.env.NODE_ENV === "production") {
+      throw new Error("JHADINA_MEMORY_DURABLE_PROBE_REQUIRED")
+    }
     const service = getJanetService()
     const health = await service.health()
 
