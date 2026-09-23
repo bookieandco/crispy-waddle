@@ -108,8 +108,9 @@ export function sessionBitDepth(
   strategyCap: 0 | 1 | 2 | 3,
   humor: number,
 ): 0 | 1 | 2 | 3 {
-  if (!state || state.discomfortDetected || strategyCap === 0) return 0;
-  if (humor < 0.25) return 0;
+  if (strategyCap === 0 || humor < 0.25) return 0;
+  if (!state) return Math.min(strategyCap, 1) as 0 | 1 | 2 | 3;
+  if (state.discomfortDetected) return 0;
   const desired = state.userBuildingBit
     ? Math.min(strategyCap, humor >= 0.75 ? 3 : 2)
     : Math.min(strategyCap, 1);
