@@ -13,5 +13,11 @@ export async function GET(request: Request) {
     ok: true,
     environment: process.env.VERCEL_ENV ?? 'unknown',
     commitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? null,
+    configuration: {
+      hasNextPublicSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+      hasServerSupabaseUrl: Boolean(process.env.SUPABASE_URL),
+      hasSupabaseServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      hasSupabasePublishableKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
+    },
   })
 }
