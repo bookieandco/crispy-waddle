@@ -3,6 +3,7 @@ import {
   compileReferenceBoardExport,
   compileReferenceFrameDirective,
   validateStoryboardReferenceBoard,
+  validateStoryboardReferenceDeliverables,
   type StoryboardReferenceBoard,
 } from './storyboard-reference-board.js';
 
@@ -12,6 +13,7 @@ function board(): StoryboardReferenceBoard {
     projectId: 'film:1',
     title: 'Reference board',
     scratchAudioAssetId: 'audio:scratch',
+    version: 3,
     frames: [
       {
         id: 'frame:1',
@@ -40,6 +42,7 @@ function board(): StoryboardReferenceBoard {
         }],
         holdSeconds: 2,
         prompt: 'Approved provider-neutral frame prompt.',
+        promptEvidenceIds: ['evidence:vision-prompt:1'],
         evidenceIds: ['capture:frame:1'],
       },
       {
@@ -73,6 +76,7 @@ describe('storyboard reference board', () => {
       expect.objectContaining({ frameId: 'frame:2', startSeconds: 2, endSeconds: 3.5 }),
     ]);
     expect(result.promptFrameIds).toEqual(['frame:1']);
+    expect(result.boardVersion).toBe(3);
   });
 
   it('compiles crop, lens and annotations into a reusable frame directive', () => {
@@ -90,6 +94,25 @@ describe('storyboard reference board', () => {
     }];
     expect(validateStoryboardReferenceBoard(invalid)).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: 'REFERENCE_CROP_INVALID' }),
+    ]));
+  });
+
+  it('marks stale deliverables when the board changes after export', () => {
+    const reasons = validateStoryboardReferenceDeliverables(board(), [{
+      kind: 'animatic',
+      assetId: 'asset:animatic',
+      sha256: 'sha:animatic',
+      boardVersion: 2,
+      evidenceIds: ['evidence:render'],
+    }]);
+    expect(reasons).toContain('DIRECTOR_REFERENCE_DELIVERABLE_STALE:animatic');
+  });
+
+  it('requires evidence for reference-derived prompts', () => {
+    const invalid = board();
+    invalid.frames = [{ ...invalid.frames[0]!, promptEvidenceIds: [] }];
+    expect(validateStoryboardReferenceBoard(invalid)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'REFERENCE_PROMPT_EVIDENCE_REQUIRED' }),
     ]));
   });
 
