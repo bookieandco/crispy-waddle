@@ -28,8 +28,7 @@ export type JhadinaEphemeralArtifact = {
   base64?: string
 }
 
-type DurableArtifactDisplay = { id:string; name:string; mimeType:string; sizeBytes:number; status:"quarantine"|"clean"|"rejected"|"needs_review" }
-const isDirectContextMime=(mime:string)=>mime==="image/png"||mime==="image/jpeg"||mime==="text/plain"
+type DurableArtifactDisplay = { id:string; name:string; mimeType:string; sizeBytes:number; status:"quarantine"|"clean"|"rejected"|"needs_review"; contextReady:boolean; extractionStatus:"not_required"|"pending"|"ready"|"unsupported" }
 
 type Props = {
   busy: boolean
@@ -76,7 +75,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
   const captureTimerRef = useRef<ReturnType<typeof setInterval>|null>(null)
 
   useEffect(() => { onArtifactsChange(artifacts) }, [artifacts, onArtifactsChange])
-  useEffect(() => { onArtifactRefsChange?.(durableArtifacts.filter((artifact)=>artifact.status==="clean"&&isDirectContextMime(artifact.mimeType)).map((artifact)=>artifact.id)) }, [durableArtifacts, onArtifactRefsChange])
+  useEffect(() => { onArtifactRefsChange?.(durableArtifacts.filter((artifact)=>artifact.status==="clean"&&artifact.contextReady).map((artifact)=>artifact.id)) }, [durableArtifacts, onArtifactRefsChange])
 
   useEffect(() => () => {
     recognitionRef.current?.stop?.()
@@ -284,15 +283,15 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
       </button>
       <label className="jh-button" style={{cursor:"pointer"}}>
         Attach
-        <input type="file" multiple disabled={busy||uploading} accept="image/png,image/jpeg,application/pdf,audio/wav,text/plain,.png,.jpg,.jpeg,.pdf,.wav,.txt" style={{display:"none"}} onChange={(event)=>void addFiles(event.target.files)} />
+        <input type="file" multiple disabled={busy||uploading} accept="image/png,image/jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv,application/json,audio/wav,audio/mpeg,audio/mp4,audio/webm,video/mp4,video/webm,.png,.jpg,.jpeg,.pdf,.docx,.xlsx,.txt,.csv,.json,.wav,.mp3,.m4a,.webm,.mp4" style={{display:"none"}} onChange={(event)=>void addFiles(event.target.files)} />
       </label>
     </div>
     <p className="jh-meta" style={{marginTop:8}}>
-      Wake {voiceState==="listening"?"listening":voiceState==="unsupported"?"unsupported in this browser":voiceState==="error"?"needs microphone permission":"off"} · screen {screenActive?"live":"off"} · {durableArtifacts.filter(a=>a.status==="clean"&&isDirectContextMime(a.mimeType)).length} ready file{durableArtifacts.filter(a=>a.status==="clean"&&isDirectContextMime(a.mimeType)).length===1?"":"s"}
+      Wake {voiceState==="listening"?"listening":voiceState==="unsupported"?"unsupported in this browser":voiceState==="error"?"needs microphone permission":"off"} · screen {screenActive?"live":"off"} · {durableArtifacts.filter(a=>a.status==="clean"&&a.contextReady).length} ready file{durableArtifacts.filter(a=>a.status==="clean"&&a.contextReady).length===1?"":"s"}
     </p>
     {(artifacts.length||durableArtifacts.length)?<div className="jh-row" style={{marginTop:8}}>
       {artifacts.map((artifact)=><span key={artifact.id} className="jh-status"><span className="jh-dot"/>{artifact.kind==="screen"?"Screen":artifact.name??artifact.kind}</span>)}
-      {durableArtifacts.map((artifact)=><span key={artifact.id} className={artifact.status==="clean"?"jh-status jh-status--success":"jh-status jh-status--warning"}><span className="jh-dot"/>{artifact.name} · {artifact.status==="clean"&&!isDirectContextMime(artifact.mimeType)?"clean · extraction pending":artifact.status}</span>)}
+      {durableArtifacts.map((artifact)=><span key={artifact.id} className={artifact.status==="clean"?"jh-status jh-status--success":"jh-status jh-status--warning"}><span className="jh-dot"/>{artifact.name} · {artifact.status==="clean"?(artifact.contextReady?(artifact.extractionStatus==="ready"?"clean · extracted":"clean · ready"):"clean · extraction pending"):artifact.status}</span>)}
       {durableArtifacts.length?<button type="button" className="jh-button" onClick={()=>setDurableArtifacts([])}>Clear files</button>:null}
     </div>:null}
   </div>
