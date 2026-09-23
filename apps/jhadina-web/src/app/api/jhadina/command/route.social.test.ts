@@ -9,6 +9,17 @@ const inspectSocial = vi.fn()
 const inspectVideo = vi.fn()
 const createVideo = vi.fn()
 const handleGeneric = vi.fn()
+const realizeExpression = vi.fn(async (input: {
+  proposal: { recommendation: string; disposition: string }
+}) => ({
+  proposal: input.proposal,
+  presentation: {
+    mode: input.proposal.disposition === "ASK" ? "clarifying" : "direct",
+    allowProfanity: false,
+    allowQuip: true,
+  },
+  segments: [{ kind: "semantic", text: input.proposal.recommendation }],
+}))
 
 vi.mock("@/lib/auth/request-identity", () => ({
   createRequestIdentityVerifier: async () => ({ verify }),
@@ -31,6 +42,12 @@ vi.mock("@/lib/director-video-job-service", () => ({
 
 vi.mock("@/lib/intelligence/jhadina-command", () => ({
   handleJhadinaCommand: (...args: unknown[]) => handleGeneric(...args),
+}))
+
+vi.mock("@/lib/intelligence/ask-expression", () => ({
+  realizeAskJhadinaExpression: (input: unknown) => realizeExpression(input as {
+    proposal: { recommendation: string; disposition: string }
+  }),
 }))
 
 import { POST } from "./route"
@@ -132,6 +149,7 @@ describe("Ask Jhadina Social routing", () => {
     expect(json.data.feedbackEligible).toBe(false)
     expect(handleSocial).toHaveBeenCalledTimes(1)
     expect(createVideo).toHaveBeenCalledTimes(1)
+    expect(realizeExpression).toHaveBeenCalledTimes(1)
     expect(createVideo).toHaveBeenCalledWith(expect.objectContaining({
       socialExpression: expect.objectContaining({
         brand: "pupsonstuff",
