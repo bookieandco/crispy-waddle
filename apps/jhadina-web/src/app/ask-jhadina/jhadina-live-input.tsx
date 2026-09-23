@@ -264,7 +264,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onAr
         if(!response.ok){onStatus?.(`${file.name}: ${json.error??"upload failed"}`);continue}
         const artifact=json.artifact as DurableArtifactDisplay
         setDurableArtifacts(current=>[...current.filter(item=>item.id!==artifact.id),artifact].slice(-4))
-        onStatus?.(artifact.status==="clean"?(isDirectContextMime(artifact.mimeType)?`${file.name} passed scanning and is ready for Jhadina.`:`${file.name} passed scanning; extraction is still required before Jhadina can reason over it.`):`${file.name} is ${artifact.status}; it will not enter Jhadina's reasoning context.`)
+        onStatus?.(artifact.status==="clean"?(artifact.contextReady?`${file.name} passed scanning${artifact.extractionStatus==="ready"?" and extraction":""} and is ready for Jhadina.`:`${file.name} passed scanning; extraction is still pending before Jhadina can reason over it.`):`${file.name} is ${artifact.status}; it will not enter Jhadina\'s reasoning context.`)
       }
     }finally{setUploading(false)}
   }

@@ -147,3 +147,19 @@ Landed source contracts in this wave:
 The extractor does not make malware decisions and cannot bypass the scanner. It runs only after Artifact Core returns `clean`. The extractor also recomputes the source SHA-256 before producing a derivative.
 
 **FINAL.9 extraction status: SOURCE READY / DERIVED STORAGE DEPLOYMENT + LIVE FILE DRILLS BLOCKED.** After merge, the private derived bucket migration must be applied to SWLC. Real-world evidence still requires deployed extractor compute and live PDF/DOCX/XLSX/audio/video uploads proving scan → extraction → private derivative → ContextPacket.
+
+
+## FINAL.9 derivative-storage commissioning receipt — 2026-09-22
+
+Merged Wave 12 lineage: `f80ce02158c20b5f784597a0198367a8b7a3d6d5` (#634).
+
+The canonical `jhadina-artifact-derived` bucket migration was applied to the active SWLC Supabase project. Verification confirmed:
+- bucket exists as `jhadina-artifact-derived`;
+- `public=false`;
+- file size limit = 10 MiB;
+- no bucket-specific `storage.objects` policies exist for anon/authenticated access;
+- a transactional clean-artifact metadata probe successfully persisted `extracted_text_ref` and `derivative_refs` and was rolled back.
+
+This matches the intended server/service-role-only Storage model documented by Supabase: Storage objects are protected by RLS by default and trusted service credentials bypass Storage RLS from server code only.
+
+**FINAL.9 derivative storage: INFRASTRUCTURE PASS / EXTRACTOR COMPUTE + LIVE FILE DRILLS BLOCKED.** The metadata and private Storage substrate are commissioned. Real-world extraction still requires deployed extractor compute and live PDF/DOCX/XLSX/audio/video evidence.

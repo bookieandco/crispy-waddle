@@ -1,4 +1,4 @@
-import { strict as assert } from "node:assert"
+import {describe,expect,it} from "vitest"
 import {
   candidateFromSearchResult,
   inferRecoverySourceKind,
@@ -12,37 +12,45 @@ const request: RecoverySearchRequest = {
   stateCode: "CA",
 }
 
-assert.equal(isGovernmentDomain("https://www.cdcr.ca.gov/inmate-trust/"), true)
-assert.equal(isGovernmentDomain("https://example.org/jail"), false)
-assert.equal(inferRecoverySourceKind("https://example.gov/list.pdf"), "PDF")
-assert.equal(inferRecoverySourceKind("https://example.gov/claim-search", "Claim Search"), "PORTAL")
+describe("recovery source discovery provider",()=>{
+  it("recognizes government domains and source kinds",()=>{
+    expect(isGovernmentDomain("https://www.cdcr.ca.gov/inmate-trust/")).toBe(true)
+    expect(isGovernmentDomain("https://example.org/jail")).toBe(false)
+    expect(inferRecoverySourceKind("https://example.gov/list.pdf")).toBe("PDF")
+    expect(inferRecoverySourceKind("https://example.gov/claim-search","Claim Search")).toBe("PORTAL")
+  })
 
-const official = candidateFromSearchResult(request, {
-  title: "Department of Corrections - Inmate Trust Account",
-  url: "https://corrections.example.gov/inmate-trust/",
-  snippet: "Information about inmate trust account balances and release funds.",
+  it("marks a relevant government source official but keeps access unapproved",()=>{
+    const official=candidateFromSearchResult(request,{
+      title:"Department of Corrections - Inmate Trust Account",
+      url:"https://corrections.example.gov/inmate-trust/",
+      snippet:"Information about inmate trust account balances and release funds.",
+    })
+    expect(official).not.toBeNull()
+    expect(official?.officialSourceVerified).toBe(true)
+    expect(official?.sourceKind).toBe("INFO_PAGE")
+    expect(official?.accessReviewApproved).toBe(false)
+  })
+
+  it("does not treat unrelated government or private directory results as verified official sources",()=>{
+    const unrelatedGov=candidateFromSearchResult(request,{
+      title:"State Parks",
+      url:"https://parks.example.gov/",
+      snippet:"Find a state park.",
+    })
+    expect(unrelatedGov).not.toBeNull()
+    expect(unrelatedGov?.officialSourceVerified).toBe(false)
+
+    const privateDirectory=candidateFromSearchResult(request,{
+      title:"Jail directory",
+      url:"https://directory.example.org/jails",
+      snippet:"Department of corrections inmate trust account directory.",
+    })
+    expect(privateDirectory).not.toBeNull()
+    expect(privateDirectory?.officialSourceVerified).toBe(false)
+  })
+
+  it("rejects non-http search result URLs",()=>{
+    expect(candidateFromSearchResult(request,{url:"javascript:alert(1)"})).toBeNull()
+  })
 })
-assert.ok(official)
-assert.equal(official?.officialSourceVerified, true)
-assert.equal(official?.sourceKind, "INFO_PAGE")
-assert.equal(official?.accessReviewApproved, false)
-
-const unrelatedGov = candidateFromSearchResult(request, {
-  title: "State Parks",
-  url: "https://parks.example.gov/",
-  snippet: "Find a state park.",
-})
-assert.ok(unrelatedGov)
-assert.equal(unrelatedGov?.officialSourceVerified, false)
-
-const privateDirectory = candidateFromSearchResult(request, {
-  title: "Jail directory",
-  url: "https://directory.example.org/jails",
-  snippet: "Department of corrections inmate trust account directory.",
-})
-assert.ok(privateDirectory)
-assert.equal(privateDirectory?.officialSourceVerified, false)
-
-assert.equal(candidateFromSearchResult(request, { url: "javascript:alert(1)" }), null)
-
-console.log("Jhadina recovery source discovery provider tests passed")
