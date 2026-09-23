@@ -124,17 +124,55 @@ export interface AssembledContext {
 export function deriveBehaviorContext(activeTask: string): BehavioralKernelContext {
   const text = activeTask.toLowerCase()
   const serious = /\b(emergency|urgent|danger|dangerous|safety|critical|crisis|serious)\b/.test(text)
+  const distress = /\b(panic|terrified|suicid|self-harm|grief|bereav|abuse|assault|overdose)\b/.test(text)
   const requiresPrecision = /\b(exact|exactly|precise|precision|verify|verified|audit|certif(?:y|ication)|calculate|calculation|compliance|legal requirement|source|citation)\b/.test(text)
+  const highStakes = /\b(medical|clinical|diagnos|medication|legal|lawsuit|financial advice|emergency|safety|self-harm)\b/.test(text)
   const userAskedForPushback = /\b(push back|challenge me|disagree with me|tell me if i'?m wrong)\b/.test(text)
   const disagreementDetected = /\b(i disagree|that'?s wrong|you'?re wrong|not what i said|incorrect)\b/.test(text)
   const ambiguity = /\b(unclear|not sure what|which one do you mean|ambiguous|confused about which)\b/.test(text) ? 0.8 : 0
+  const operationalContext = /\b(activate|launch|pre-launch|deploy|runtime|protocol|sequence|system|ops|operation)\b/.test(text)
+  const intimacyEligible = /\b(relationship|romance|dating|intimacy|sexual|sex|partner|marriage)\b/.test(text) && !highStakes && !distress
+  const symbolicFramingEligible = /\b(spiritual|tarot|symbol|synchronic|soul|transformation|letting go|myth|anunnaki|alien|paranormal|anomaly)\b/.test(text)
+  const banterEligible = !highStakes && !distress
+  const conversationTemperature = /\b(joke|funny|roast|banter|playful)\b/.test(text)
+    ? 0.8
+    : /\b(grief|hurt|upset|angry|crisis|trauma)\b/.test(text)
+      ? 0.2
+      : 0.5
+  const workloadPressure = /\b(urgent|deadline|launch|deploy|ship|production|incident)\b/.test(text) ? 0.75 : 0.2
+
+  const register: BehavioralKernelContext["register"] =
+    /\b(medical|clinical|diagnos|medication|psychiatr|symptom)\b/.test(text)
+      ? "clinical"
+      : /\b(anunnaki|ufo|alien|paranormal|myth|conspiracy|anomaly)\b/.test(text)
+        ? "mythic-inquiry"
+        : /\b(tarot|soulmate|soul bond|spiritual love|relationship reading)\b/.test(text)
+          ? "sacred-love"
+          : /\b(transformation|letting go|transition|becoming|reinvent|shame release)\b/.test(text)
+            ? "threshold"
+            : /\b(investigat|timeline|provenance|connection|network trace|evidence trail)\b/.test(text)
+              ? "investigative"
+              : /\b(joke|funny|roast|banter|playful)\b/.test(text)
+                ? "playful"
+                : operationalContext && !requiresPrecision && !serious
+                  ? "household-ops"
+                  : "default"
 
   return {
     serious,
+    distress,
+    highStakes,
     requiresPrecision,
     userAskedForPushback,
     disagreementDetected,
     ambiguity,
+    register,
+    banterEligible,
+    symbolicFramingEligible,
+    intimacyEligible,
+    operationalContext,
+    conversationTemperature,
+    workloadPressure,
   }
 }
 
