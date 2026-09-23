@@ -14,6 +14,7 @@ import type {
   PersonalityContextProvider,
   SocialContextProvider,
   SpatialContextProvider,
+  WorkSessionContextProvider,
 } from "../context/context-builder"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
@@ -31,6 +32,7 @@ import { createProductionSpatialContextProvider } from "../context/production-sp
 import { createProductionSocialContextProvider } from "../context/production-social-context-provider"
 import { createProductionGrowthContextProvider } from "../context/production-growth-context-provider"
 import { createProductionKnowledgeContextProvider } from "../context/production-knowledge-context-provider"
+import { createProductionWorkSessionContextProvider } from "../context/production-work-session-context-provider"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
 
 export interface JhadinaCommandInput {
@@ -39,6 +41,7 @@ export interface JhadinaCommandInput {
   surface?: JhadinaWorldId
   route?: string
   activeProject?: string
+  workSessionId?: string
   memoryRelevanceQuery?: string
   geographicScope?: unknown
   temporalScope?: { from: string | null; to: string | null; asOf: string | null }
@@ -60,6 +63,8 @@ export interface JhadinaCommandOverrides {
   personalityContextProvider?: PersonalityContextProvider
   /** Read-only canonical Knowledge Graph adapter. It grants no knowledge-admission or mutation authority. */
   knowledgeContextProvider?: KnowledgeContextProvider
+  /** Owner-scoped durable WorkSession adapter. It grants no artifact admission or execution authority. */
+  workSessionContextProvider?: WorkSessionContextProvider
   /** Read-only Social adapter. It grants no publish or account-mutation authority. */
   socialContextProvider?: SocialContextProvider
   /** Read-only Growth adapter. It grants no spend, publish, lifecycle-send, or audience-mutation authority. */
@@ -88,6 +93,9 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   const knowledgeContextProvider =
     overrides.knowledgeContextProvider ??
     createProductionKnowledgeContextProvider()
+  const workSessionContextProvider =
+    overrides.workSessionContextProvider ??
+    createProductionWorkSessionContextProvider()
   const socialContextProvider =
     overrides.socialContextProvider ??
     createProductionSocialContextProvider()
@@ -100,6 +108,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     spatialContextProvider,
     personalityContextProvider,
     knowledgeContextProvider,
+    workSessionContextProvider,
     socialContextProvider,
     growthContextProvider,
   }
@@ -109,6 +118,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     surface: input.surface,
     route: input.route,
     activeProject: input.activeProject,
+    workSessionId: input.workSessionId,
     memoryRelevanceQuery: input.memoryRelevanceQuery,
     geographicScope: input.geographicScope,
     temporalScope: input.temporalScope,
