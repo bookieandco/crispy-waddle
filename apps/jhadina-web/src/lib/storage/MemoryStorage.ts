@@ -13,6 +13,8 @@ import type {
  * repository layer.
  */
 export interface MemoryStorage {
+  /** Read-only durable connectivity probe used by production health. */
+  probe(): Promise<void>
   createMemory(data: Omit<Memory, "id">): Promise<Memory>
   getMemory(id: string): Promise<Memory | undefined>
   listMemories(userId: string): Promise<Memory[]>
