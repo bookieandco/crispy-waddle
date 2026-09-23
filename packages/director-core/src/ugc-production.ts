@@ -1,3 +1,4 @@
+import type { GenerationReferenceManifest, OrderedGenerationReference } from './generation-reference-manifest.js';
 import type { PerformanceDirectionPlan } from './performance-direction.js';
 import type { RealismDirectionPlan } from './realism-direction.js';
 
@@ -22,6 +23,7 @@ export interface UgcProductBrief {
   valuePropositionRefs: readonly string[];
   prohibitedClaimRefs: readonly string[];
   requiredClaimEvidenceIds: readonly string[];
+  referenceAssetIds: readonly string[];
 }
 
 export interface UgcCreatorCandidate {
@@ -32,6 +34,7 @@ export interface UgcCreatorCandidate {
   appearanceDirection: readonly string[];
   wardrobeDirection: readonly string[];
   voiceDirection?: string;
+  referenceAssetIds: readonly string[];
   rightsEvidenceIds: readonly string[];
 }
 
@@ -116,6 +119,7 @@ export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGene
   }
   if (!plan.product.productBibleId.trim()) reasons.push('DIRECTOR_UGC_PRODUCT_BIBLE_REQUIRED');
   if (!plan.product.requiredClaimEvidenceIds.length) reasons.push('DIRECTOR_UGC_CLAIM_EVIDENCE_REQUIRED');
+  if (!plan.product.referenceAssetIds.length) reasons.push('DIRECTOR_UGC_PRODUCT_REFERENCE_REQUIRED');
 
   const receipts = new Map(plan.approvals.map((approval) => [approval.stage, approval]));
   for (const stage of REQUIRED_APPROVAL_STAGES) {
@@ -133,6 +137,7 @@ export function evaluateUgcGenerationReadiness(plan: UgcProductionPlan): UgcGene
   if (!script) reasons.push('DIRECTOR_UGC_SCRIPT_SELECTION_INVALID');
 
   if (creator && !creator.rightsEvidenceIds.length) reasons.push('DIRECTOR_UGC_CREATOR_RIGHTS_REQUIRED');
+  if (creator && !creator.referenceAssetIds.length) reasons.push('DIRECTOR_UGC_CREATOR_REFERENCE_REQUIRED');
   if (location && !location.rightsEvidenceIds.length) reasons.push('DIRECTOR_UGC_LOCATION_RIGHTS_REQUIRED');
 
   if (script) {
@@ -192,6 +197,7 @@ export function compileUgcGenerationBrief(plan: UgcProductionPlan): {
   creatorRef: string;
   conceptId: string;
   scriptId: string;
+  referenceManifest: GenerationReferenceManifest;
 } {
   const ready = assertUgcGenerationReady(plan);
   const { creator, location, concept, script } = ready.selected;
@@ -209,13 +215,64 @@ export function compileUgcGenerationBrief(plan: UgcProductionPlan): {
     `Prohibited claims: ${plan.product.prohibitedClaimRefs.join(', ') || 'none listed'}.`,
   ].filter(Boolean).join('\n');
 
+  const references: OrderedGenerationReference[] = [];
+  let slot = 1;
+  for (const assetId of plan.product.referenceAssetIds) {
+    references.push({
+      slot: slot++,
+      assetId,
+      media: 'image',
+      role: 'product-identity',
+      semanticLabel: `approved product identity for ${plan.product.brandName} ${plan.product.productName}`,
+      promptToken: `PRODUCT_${slot - 1}`,
+      required: true,
+      evidenceIds: plan.product.requiredClaimEvidenceIds,
+    });
+  }
+  for (const assetId of creator.referenceAssetIds) {
+    references.push({
+      slot: slot++,
+      assetId,
+      media: 'image',
+      role: 'character-identity',
+      semanticLabel: `approved creator identity ${creator.characterRef}`,
+      promptToken: `CREATOR_${slot - 1}`,
+      required: true,
+      evidenceIds: creator.rightsEvidenceIds,
+    });
+  }
+  for (const assetId of location.referenceAssetIds) {
+    references.push({
+      slot: slot++,
+      assetId,
+      media: 'image',
+      role: 'location',
+      semanticLabel: `approved UGC location: ${location.description}`,
+      promptToken: `LOCATION_${slot - 1}`,
+      required: true,
+      evidenceIds: location.rightsEvidenceIds,
+    });
+  }
+
+  const referenceManifest: GenerationReferenceManifest = Object.freeze({
+    id: `${plan.id}:references`,
+    projectId: plan.projectId,
+    shotId: plan.id,
+    references: Object.freeze(references.map((reference) => Object.freeze({
+      ...reference,
+      evidenceIds: Object.freeze([...reference.evidenceIds]),
+    }))),
+    authority: 'DIRECTOR_REFERENCE_MANIFEST',
+  });
+
   return Object.freeze({
     prompt,
-    referenceAssetIds: Object.freeze([...new Set(location.referenceAssetIds)]),
+    referenceAssetIds: Object.freeze(references.map((reference) => reference.assetId)),
     productBibleId: plan.product.productBibleId,
     creatorRef: creator.characterRef,
     conceptId: concept.id,
     scriptId: script.id,
+    referenceManifest,
   });
 }
 
