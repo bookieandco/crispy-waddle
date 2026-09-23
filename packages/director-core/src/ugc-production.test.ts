@@ -22,6 +22,7 @@ function plan(): UgcProductionPlan {
       prohibitedClaimRefs: ['claim:treats-acne'],
       requiredClaimEvidenceIds: ['evidence:brand-copy'],
       referenceAssetIds: ['asset:serum-front', 'asset:serum-open'],
+      referenceEvidenceIds: ['evidence:product-sheet'],
     },
     creatorCandidates: [{
       id: 'creator:1',
@@ -105,6 +106,9 @@ describe('UGC production', () => {
     expect(result.scriptId).toBe('script:1');
     expect(result.prompt).toContain('Made with a virtual creator.');
     expect(result.prompt).toContain('Do not introduce claims outside approved refs');
+    expect(result.prompt).toContain('Pronunciation: Nalvori = nal-VOR-ee');
+    expect(result.prompt).toContain('[PERFORMANCE DIRECTION]');
+    expect(result.prompt).toContain('[REALISM DIRECTION]');
     expect(result.referenceAssetIds).toEqual([
       'asset:serum-front',
       'asset:serum-open',
@@ -120,14 +124,27 @@ describe('UGC production', () => {
     expect(result.referenceManifest.references.map((reference) => reference.slot)).toEqual([1, 2, 3, 4]);
   });
 
+  it('rejects a product approval receipt bound to the wrong product bible', () => {
+    const invalid = plan();
+    invalid.approvals = invalid.approvals.map((approval) =>
+      approval.stage === 'product-reference'
+        ? { ...approval, selectedRef: 'product:wrong' }
+        : approval,
+    );
+    const decision = evaluateUgcGenerationReadiness(invalid);
+    expect(decision.ready).toBe(false);
+    expect(decision.reasons).toContain('DIRECTOR_UGC_PRODUCT_APPROVAL_MISMATCH');
+  });
+
   it('requires concrete product and creator references before generation', () => {
     const invalid = plan();
-    invalid.product = { ...invalid.product, referenceAssetIds: [] };
+    invalid.product = { ...invalid.product, referenceAssetIds: [], referenceEvidenceIds: [] };
     invalid.creatorCandidates = [{ ...invalid.creatorCandidates[0]!, referenceAssetIds: [] }];
     const decision = evaluateUgcGenerationReadiness(invalid);
     expect(decision.ready).toBe(false);
     expect(decision.reasons).toEqual(expect.arrayContaining([
       'DIRECTOR_UGC_PRODUCT_REFERENCE_REQUIRED',
+      'DIRECTOR_UGC_PRODUCT_REFERENCE_EVIDENCE_REQUIRED',
       'DIRECTOR_UGC_CREATOR_REFERENCE_REQUIRED',
     ]));
   });
