@@ -81,7 +81,7 @@ export interface TimelineEvent {
 }
 
 export type MemoryType = "PREFERENCE" | "IDENTITY" | "GOAL" | "CONTEXT"
-export type MemoryStatus = "PENDING" | "APPROVED" | "REJECTED" | "RETIRED"
+export type MemoryStatus = "APPROVED" | "REJECTED" | "RETIRED"
 
 /**
  * InMemoryStorage class
@@ -325,7 +325,3 @@ export class InMemoryStorage implements MemoryStorage {
   }
 }
 
-/**
- * Global singleton instance
- */
-export const storage = new InMemoryStorage()
