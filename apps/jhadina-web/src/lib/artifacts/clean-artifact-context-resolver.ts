@@ -13,6 +13,6 @@ export class CleanArtifactContextResolver{
   const found=new Set(rows.map(r=>r.id))
   const missing=ids.filter(id=>!found.has(id));if(missing.length)throw new Error("ARTIFACT_CONTEXT_NOT_FOUND")
   const unclean=rows.filter(r=>r.status!=="clean");if(unclean.length)throw new Error("ARTIFACT_CONTEXT_NOT_CLEAN")
-  return rows.map(r=>({id:r.id,kind:r.detected_mime_type?.startsWith("image/")?"image":"text",mimeType:r.detected_mime_type,source:"file-picker",name:r.original_name,observedAt:r.scanned_at??new Date(0).toISOString(),...(r.extracted_text_ref?{text:`[extracted artifact reference: ${r.extracted_text_ref}]`}:{})}))
+  return rows.map(r=>({id:r.id,kind:r.detected_mime_type?.startsWith("image/")?"image":"text",mimeType:r.detected_mime_type,source:"durable-artifact",name:r.original_name,observedAt:r.scanned_at??new Date(0).toISOString(),...(r.extracted_text_ref?{text:`[extracted artifact reference: ${r.extracted_text_ref}]`}:{})}))
  }
 }
