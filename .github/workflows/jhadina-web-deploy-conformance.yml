@@ -47,6 +47,9 @@ jobs:
           node-version: 20
           cache: pnpm
 
+      - name: Verify Vercel deployment guard
+        run: node apps/jhadina-web/scripts/verify-vercel-deployment-guard.mjs
+
       - name: Frozen install
         run: pnpm install --frozen-lockfile
 
