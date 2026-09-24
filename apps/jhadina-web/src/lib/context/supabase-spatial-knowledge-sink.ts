@@ -1,5 +1,6 @@
 import type { SpatialGraphContribution, SpatialKnowledgeSink } from '@jhadina/spatial-intelligence-core'
 import { createServiceRoleClient } from '../supabase/service-role'
+import { createOidcSpatialKnowledgeSink } from './spatial-oidc-gateway'
 
 type NodeRow = {
   node_id: string
@@ -63,7 +64,7 @@ const relationRow = (edge: SpatialGraphContribution['edges'][number]): RelationR
  */
 export function createSupabaseSpatialKnowledgeSink(): SpatialKnowledgeSink | undefined {
   const client = createServiceRoleClient()
-  if (!client) return undefined
+  if (!client) return createOidcSpatialKnowledgeSink()
 
   return {
     async persist(contribution) {
