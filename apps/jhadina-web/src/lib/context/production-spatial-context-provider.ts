@@ -20,9 +20,9 @@ export type ProductionSpatialContextProviderOptions = {
 }
 
 /**
- * Production Ask-Jhadina composition seam. No configured GEV endpoint means no
- * spatial provider is installed; the command path remains functional and
- * explicitly lacks spatial context rather than silently inventing it.
+ * Production Ask-Jhadina composition seam. Live GEV is optional at composition
+ * time so independent governed sources such as the CCTV specification catalog
+ * can still contribute. Missing GEV remains explicit/fail-closed in source health.
  */
 export function createProductionSpatialContextProvider(
   userId: string,
@@ -40,7 +40,7 @@ export function createProductionSpatialContextProvider(
   const realityStore = createSupabaseSpatialRealityStore()
   const cameraCatalog = createCctvCameraCatalogClient()
   const evidenceRead = createGevSpatialContextReadProvider({
-    bridge,
+    ...(bridge ? { bridge } : {}),
     cameraCatalog,
     purpose: 'model-input',
     ...(options.maxEvidence ? { maxEvidence: options.maxEvidence } : {}),
