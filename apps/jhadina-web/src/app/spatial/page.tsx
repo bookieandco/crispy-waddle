@@ -105,12 +105,19 @@ export default function SpatialWorkspacePage() {
   const askLat = lat.trim() ? Number(lat) : Number.NaN
   const askLon = lon.trim() ? Number(lon) : Number.NaN
   const askRadius = radiusKm.trim() ? Number(radiusKm) : Number.NaN
-  if (Number.isFinite(askLat) && Number.isFinite(askLon)) {
-    askParams.set("lat", String(askLat))
-    askParams.set("lon", String(askLon))
-    if (Number.isFinite(askRadius) && askRadius > 0) askParams.set("radiusKm", String(askRadius))
-  }
   const askHref = `/ask-jhadina?${askParams.toString()}`
+  const stageAskScope = () => {
+    if (typeof window === "undefined") return
+    if (Number.isFinite(askLat) && Number.isFinite(askLon)) {
+      window.sessionStorage.setItem("jhadina:spatial-scope", JSON.stringify({
+        lat: askLat,
+        lon: askLon,
+        ...(Number.isFinite(askRadius) && askRadius > 0 ? { radiusKm: askRadius } : {}),
+      }))
+    } else {
+      window.sessionStorage.removeItem("jhadina:spatial-scope")
+    }
+  }
   return (
     <main style={{ minHeight: "100vh", padding: "28px 18px 120px", background: "linear-gradient(180deg,#0c1417,#111d1c 50%,#17221e)", color: "#eef5ef", fontFamily: 'ui-rounded,"Avenir Next",Avenir,system-ui,sans-serif' }}>
       <div style={{ maxWidth: 980, margin: "0 auto" }}>
@@ -132,7 +139,7 @@ export default function SpatialWorkspacePage() {
             <input aria-label="Longitude" value={lon} onChange={(event) => setLon(event.target.value)} placeholder="Longitude (optional)" style={input} />
             <input aria-label="Radius km" value={radiusKm} onChange={(event) => setRadiusKm(event.target.value)} placeholder="Radius km" style={input} />
             <button onClick={refresh} disabled={busy || layers.length === 0} style={primary}>{busy ? "Reading sources…" : "Refresh context"}</button>
-            <Link href={askHref} style={{ ...secondary, textDecoration: "none", textAlign: "center" }}>Ask Jhadina about this view</Link>
+            <Link href={askHref} onClick={stageAskScope} style={{ ...secondary, textDecoration: "none", textAlign: "center" }}>Ask Jhadina about this view</Link>
           </div>
           {error && <div role="alert" style={{ marginTop: 12, color: "#ffb8aa" }}>{error}</div>}
           {revisionId && <div style={{ marginTop: 10, fontSize: 11, color: "#7f968a" }}>Workspace revision · {revisionId.slice(0, 24)}…</div>}
