@@ -3,6 +3,7 @@ import { compilePerformanceDirective, type PerformanceDirectionPlan } from './pe
 import { compileRealismDirective, type RealismDirectionPlan } from './realism-direction.js';
 import { compileGenerationReferenceManifest, type GenerationReferenceManifest } from './generation-reference-manifest.js';
 import { compileAnimationPrinciplesDirective, type AnimationPrinciplesPlan } from './animation-principles.js';
+import { compileContinuityStrategyDirective, type ContinuityStrategyPlan } from './continuity-reference-strategy.js';
 
 export type CinematographyPreset = {
   id: string;
@@ -54,6 +55,8 @@ export type TakeRequest = {
   realismPlan?: RealismDirectionPlan;
   /** Governed animation motion grammar derived from classical animation principles. */
   animationPlan?: AnimationPrinciplesPlan;
+  /** Director-selected cross-shot identity/world continuity strategy. */
+  continuityStrategy?: ContinuityStrategyPlan;
   /** Optional exact provider attachment order. When present, adapters must preserve it. */
   referenceManifest?: GenerationReferenceManifest;
   referenceCharacterIds?: string[];
@@ -95,19 +98,22 @@ export const CINEMATOGRAPHY_PRESETS: CinematographyPreset[] = [
 ];
 
 export function compileTakePrompt(request: TakeRequest): string {
+  const referenceManifest = request.referenceManifest ?? request.continuityStrategy?.referenceManifest;
   const sections = [
     request.prompt.trim(),
     request.cameraPlan ? section('CAMERA DIRECTION', compileDirectorCameraDirective(request.cameraPlan)) : undefined,
     request.performancePlan ? section('PERFORMANCE DIRECTION', compilePerformanceDirective(request.performancePlan)) : undefined,
     request.realismPlan ? section('REALISM / SOURCE PRESERVATION', compileRealismDirective(request.realismPlan)) : undefined,
     request.animationPlan ? section('ANIMATION PRINCIPLES', compileAnimationPrinciplesDirective(request.animationPlan)) : undefined,
-    request.referenceManifest ? section('REFERENCE MANIFEST', compileGenerationReferenceManifest(request.referenceManifest).directive) : undefined,
+    request.continuityStrategy ? section('CONTINUITY STRATEGY', compileContinuityStrategyDirective(request.continuityStrategy)) : undefined,
+    referenceManifest ? section('REFERENCE MANIFEST', compileGenerationReferenceManifest(referenceManifest).directive) : undefined,
   ].filter((value): value is string => Boolean(value?.trim()));
 
   return sections.join('\n\n');
 }
 
 export function buildGenerationBrief(request: TakeRequest) {
+  const referenceManifest = request.referenceManifest ?? request.continuityStrategy?.referenceManifest;
   return {
     takeId: request.takeId,
     projectId: request.projectId,
@@ -133,8 +139,10 @@ export function buildGenerationBrief(request: TakeRequest) {
     realismDirective: request.realismPlan ? compileRealismDirective(request.realismPlan) : undefined,
     animationPlan: request.animationPlan,
     animationDirective: request.animationPlan ? compileAnimationPrinciplesDirective(request.animationPlan) : undefined,
-    referenceManifest: request.referenceManifest,
-    referenceDirective: request.referenceManifest ? compileGenerationReferenceManifest(request.referenceManifest).directive : undefined,
+    continuityStrategy: request.continuityStrategy,
+    continuityDirective: request.continuityStrategy ? compileContinuityStrategyDirective(request.continuityStrategy) : undefined,
+    referenceManifest,
+    referenceDirective: referenceManifest ? compileGenerationReferenceManifest(referenceManifest).directive : undefined,
     approvalRequired: true,
   };
 }
