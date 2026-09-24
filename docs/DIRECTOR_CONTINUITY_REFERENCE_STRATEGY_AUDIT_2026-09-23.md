@@ -128,6 +128,36 @@ Director evaluates intermediate checkpoints rather than assuming the final train
 
 Only an approved checkpoint is promoted into the existing `LoRARecord` registry contract. The LoRA remains a **continuity assist**, not the canonical character identity; Cast Bible / approved reference evidence remains authoritative.
 
+## Low-VRAM 4K finishing
+
+The supplied workflow also describes an advanced video-finishing path that breaks a video into smaller pieces, upscales each piece, and recombines them to keep memory demand manageable.
+
+`video-upscale-finishing.ts` now models that as a governed post-render step:
+
+- exact source and target dimensions;
+- fixed FPS and frame count;
+- configurable maximum frames per chunk;
+- contiguous frame-exact chunk coverage;
+- audio preservation;
+- optional finishing effects:
+  - chromatic aberration;
+  - sharpening;
+  - bloom;
+  - grain.
+
+Effects carry normalized strength and purpose. They are finishing decisions, not permission to alter timing, character identity, shot structure, or audio.
+
+The output is rejected if the upscale:
+
+- changes target dimensions;
+- changes FPS;
+- changes frame count;
+- drops required audio;
+- produces the wrong number of chunk artifacts;
+- lacks evidence/provenance.
+
+This turns a low-memory chunked 4K workflow into a deterministic Director finishing contract rather than a free-form provider trick.
+
 ## Runtime path
 
 ```
