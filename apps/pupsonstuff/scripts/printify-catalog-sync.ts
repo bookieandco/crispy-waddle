@@ -492,8 +492,7 @@ export async function findLaunchCandidates(
   const scored = blueprints
     .map((bp) => ({ bp, score: scoreBlueprint(bp, target.searchKeywords) }))
     .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, MAX_BLUEPRINT_CANDIDATES);
+    .sort((a, b) => b.score - a.score);
 
   const candidates: LaunchCandidate[] = [];
   for (const { bp } of scored) {
@@ -544,13 +543,16 @@ export async function findLaunchCandidates(
     ).values()
   );
 
+  const actionable = unique.filter((candidate) => candidate.printArea !== null);
   return {
     target,
-    status: unique.length > 0 ? "CANDIDATES" : "UNRESOLVED",
+    status: actionable.length > 0 ? "CANDIDATES" : "UNRESOLVED",
     reason:
-      unique.length > 0
+      actionable.length > 0
         ? undefined
-        : "No exact blueprint/provider/variant candidate matched the launch variant label, color constraints, and catalog keyword search.",
+        : unique.length > 0
+          ? "Exact variants were found, but none had a confidently resolved print area. Human print-area review is required before sandbox certification."
+          : "No exact blueprint/provider/variant candidate matched the launch variant label, color constraints, and catalog keyword search.",
     candidates: unique,
   };
 }
