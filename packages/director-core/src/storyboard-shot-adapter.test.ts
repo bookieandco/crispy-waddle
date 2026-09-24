@@ -69,6 +69,21 @@ const boards: StoryboardBoard[] = [
         subjectResponse: 'breathing becomes shallower while posture remains weighted',
       }],
     },
+    animationPlan: {
+      version: 1,
+      narrativeGoal: 'make recognition land clearly before the next action',
+      primaryAction: 'character turns and freezes',
+      method: 'pose-to-pose',
+      poseHierarchy: { keys: ['neutral walk', 'anticipation glance', 'turned freeze'] },
+      anticipation: { cues: ['eyes move before the head turn'] },
+      staging: {
+        primaryRead: 'recognition reaction',
+        audienceAttentionTarget: 'eyes and jaw',
+        competingActionPolicy: 'subordinate',
+      },
+      timing: { fps: 24, exposure: 'twos', primaryActionFrames: 18, readableHoldFrames: 4 },
+      solidForm: { preserveVolume: true, preserveWeight: true, preserveBalance: true, avoidTwinning: true },
+    },
     version: 3, artifactIds: ['art-2'], updatedAt: '2026-09-09T00:00:00Z',
   },
 ];
@@ -86,6 +101,7 @@ describe('storyboard shot adapter', () => {
     expect(plan.cameraPlan?.optics?.focalLengthMm).toBe(50);
     expect(plan.performancePlan?.sceneFunction).toContain('visible unease');
     expect(plan.realismPlan?.naturalismCues).toContain('breathing');
+    expect(plan.animationPlan?.anticipation?.cues[0]).toContain('eyes move');
   });
 
   it('creates a queued take without executing generation', () => {
@@ -96,6 +112,7 @@ describe('storyboard shot adapter', () => {
     expect(result.shot.cameraPlan?.movements[0]?.kind).toBe('dolly-in');
     expect(result.shot.performancePlan?.beats[0]?.kind).toBe('reaction');
     expect(result.shot.realismPlan?.goal).toContain('natural body timing');
+    expect(result.shot.animationPlan?.method).toBe('pose-to-pose');
   });
 
   it('fails closed when the latest storyboard camera plan is contradictory', () => {
