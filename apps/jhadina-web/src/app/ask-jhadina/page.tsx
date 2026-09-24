@@ -77,6 +77,8 @@ function AskJhadina(){
   return()=>{cancelled=true}
  },[])
 
+ useEffect(()=>()=>{commandAbortRef.current?.abort();stopSpeech()},[])
+
  async function persistWorkSession(userId:string,command:string,data:CommandResult){
   if(typeof window==="undefined")return
   const id=workSessionId||crypto.randomUUID()
@@ -366,17 +368,54 @@ function AskJhadina(){
   finally{setFeedbackBusy(false)}
  }
 
+ const phaseCopy:Record<JhadinaInteractivePhase,string>={
+  idle:"Ready",
+  listening:"Listening",
+  understanding:"Understanding",
+  thinking:"Thinking",
+  speaking:"Speaking",
+  interrupted:"Interrupted — listening",
+  error:"Needs attention",
+ }
+
  return <main className="jh-page"><div className="jh-wrap" style={{maxWidth:900}}>
   <p className="jh-eyebrow">Ask Jhadina · {surface}</p>
   <h1 className="jh-title">Think across the whole OS.</h1>
   <p className="jh-copy">Ask is Jhadina’s governed LLM surface. It can reason across approved context and subsystem intelligence, explain its evidence, and propose next steps. The model itself does not mutate policy, memory, values, money, or external systems.</p>
   <div className="jh-card jh-card--wide" style={{marginTop:28}}>
-   <label htmlFor="jhadina-command" className="jh-eyebrow">What are we doing?</label>
+   <div className="jh-between" style={{gap:16,alignItems:"center"}}>
+    <div>
+     <p className="jh-eyebrow">Live presence</p>
+     <div className="jh-row" style={{alignItems:"center"}}>
+      <span aria-hidden="true" style={{width:18,height:18,borderRadius:"50%",display:"inline-block",background:"var(--jh-accent, currentColor)",opacity:interactivePhase==="idle"?.45:1}}/>
+      <strong>{phaseCopy[interactivePhase]}</strong>
+      <span className={conversationActive?"jh-status jh-status--success":"jh-status"}><span className="jh-dot"/>{conversationActive?"conversation active":"wake required"}</span>
+     </div>
+     <p className="jh-card-copy">Say “Jhadina” once, then keep talking naturally. Speaking while she is thinking or talking interrupts that turn and starts the new one.</p>
+    </div>
+    {(busy||interactivePhase==="speaking")?<button type="button" className="jh-button" onClick={interruptCurrentTurn}>Interrupt</button>:null}
+   </div>
+   {conversationLines.length?<div className="jh-list" aria-label="Recent live conversation" style={{marginTop:14}}>
+    {conversationLines.slice(-6).map(line=><div key={line.id} className="jh-item">
+     <p className="jh-eyebrow">{line.speaker==="jhadina"?"Jhadina":"You"}</p>
+     <p className="jh-card-copy">{line.text}</p>
+    </div>)}
+   </div>:null}
+   <label htmlFor="jhadina-command" className="jh-eyebrow" style={{marginTop:16,display:"block"}}>What are we doing?</label>
    <div className="jh-row" style={{alignItems:"stretch"}}>
     <textarea id="jhadina-command" className="jh-textarea" rows={3} value={task} onChange={event=>setTask(event.target.value)} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")void ask()}} placeholder="Ask a question, connect subsystems, inspect a decision, or tell Jhadina what you want to accomplish…" style={{flex:"1 1 560px",resize:"vertical"}}/>
     <button className="jh-button jh-button--primary" disabled={busy||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":"Ask"}</button>
    </div>
-   <JhadinaLiveInput busy={busy} onArtifactsChange={setArtifacts} onArtifactRefsChange={setArtifactRefs} onBargeIn={stopSpeech} onVoiceCommand={(command,signals)=>void ask(command,signals)} onLanguageChange={setVoiceLanguage} onStatus={setInputStatus}/>
+   <JhadinaLiveInput
+    busy={busy}
+    onArtifactsChange={setArtifacts}
+    onArtifactRefsChange={setArtifactRefs}
+    onBargeIn={interruptCurrentTurn}
+    onVoiceCommand={(command,signals)=>void ask(command,signals,"voice")}
+    onLanguageChange={setVoiceLanguage}
+    onConversationActiveChange={(active)=>{setConversationActive(active);if(!busyRef.current)setInteractivePhase(active?"listening":"idle")}}
+    onStatus={setInputStatus}
+   />
    {inputStatus?<p className="jh-meta" role="status" style={{marginTop:8}}>{inputStatus}</p>:null}
    <div className="jh-item" style={{marginTop:14}}>
     <div className="jh-between">
@@ -409,7 +448,7 @@ function AskJhadina(){
   {result?<section className="jh-section">
    <article className="jh-card jh-card--wide">
     <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.verified?"Verified response":"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
-    <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{const text=result.expression.segments.filter(segment=>segment.kind==="semantic").map(segment=>segment.text).join(" ");void speakText(text)}}>Speak response</button><button type="button" className="jh-button" onClick={stopSpeech}>Stop speech</button></div>
+    <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{const text=result.expression.segments.filter(segment=>segment.kind==="semantic").map(segment=>segment.text).join(" ");void speakText(text,undefined,result.expression.presentation).finally(()=>setInteractivePhase(conversationActive?"listening":"idle"))}}>Speak response</button><button type="button" className="jh-button" onClick={()=>{stopSpeech();setInteractivePhase(conversationActive?"listening":"idle")}}>Stop speech</button></div>
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.socialWorkPlan?<SocialWorkPlanCard plan={result.socialWorkPlan}/>:null}
