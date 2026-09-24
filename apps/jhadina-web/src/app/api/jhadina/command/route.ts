@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import type { ConversationSignalContext, EphemeralArtifactContext } from "@jhadina/core-spine"
+import type { ConversationSignalContext, EphemeralArtifactContext, LiveContextContribution } from "@jhadina/core-spine"
 import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
@@ -47,6 +47,57 @@ function parseConversationSignals(value: unknown): ConversationSignalContext | u
     ...(bounded("pitchMeanHz",40,1200) !== undefined ? { pitchMeanHz: bounded("pitchMeanHz",40,1200) } : {}),
     ...(bounded("pitchVariance",0,1000000) !== undefined ? { pitchVariance: bounded("pitchVariance",0,1000000) } : {}),
     interpretationLimits: ["Acoustic cues are contextual observations only; do not infer emotion, intent, truthfulness, health, or identity from them alone."],
+  }
+}
+
+function parseLiveContext(value: unknown): LiveContextContribution | undefined {
+  if (!value || typeof value !== "object") return undefined
+  const raw = value as Record<string, unknown>
+  if (raw.source !== "ask-jhadina-live") throw new Error("Unsupported live context source")
+
+  const recentTurns = Array.isArray(raw.recentTurns)
+    ? raw.recentTurns.slice(-8).flatMap((value, index) => {
+        if (!value || typeof value !== "object") return []
+        const turn = value as Record<string, unknown>
+        const speaker = turn.speaker
+        const text = typeof turn.text === "string" ? turn.text.trim().slice(0, 1200) : ""
+        if ((speaker !== "user" && speaker !== "jhadina") || !text) return []
+        return [{
+          id: typeof turn.id === "string" && turn.id.trim() ? turn.id.slice(0, 160) : `live-turn:${index}`,
+          speaker,
+          text,
+          createdAt: typeof turn.createdAt === "string" ? turn.createdAt : new Date().toISOString(),
+        }]
+      })
+    : []
+
+  let workSession: LiveContextContribution["workSession"]
+  if (raw.workSession && typeof raw.workSession === "object") {
+    const session = raw.workSession as Record<string, unknown>
+    const id = typeof session.id === "string" ? session.id.trim().slice(0, 160) : ""
+    if (id) {
+      workSession = {
+        id,
+        ...(typeof session.goal === "string" && session.goal.trim() ? { goal: session.goal.trim().slice(0, 1200) } : {}),
+        activeSubsystems: Array.isArray(session.activeSubsystems)
+          ? session.activeSubsystems.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, 16).map((value) => value.slice(0, 80))
+          : [],
+        admittedArtifactIds: Array.isArray(session.admittedArtifactIds)
+          ? session.admittedArtifactIds.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, 16).map((value) => value.slice(0, 160))
+          : [],
+      }
+    }
+  }
+
+  return {
+    source: "ask-jhadina-live",
+    observedAt: typeof raw.observedAt === "string" ? raw.observedAt : new Date().toISOString(),
+    recentTurns,
+    ...(workSession ? { workSession } : {}),
+    limitations: [
+      "Recent turns and WorkSession metadata are bounded continuity context only; they are not durable Memory, independent evidence, or authority.",
+      "Resolve pronouns against supplied screen/file artifacts, recent turns, and active WorkSession only when the referent is unambiguous; otherwise ask for clarification.",
+    ],
   }
 }
 
@@ -128,6 +179,7 @@ export async function POST(req: NextRequest) {
     }
     const artifacts = [...ephemeralArtifacts, ...durableArtifacts]
     const conversationSignals = parseConversationSignals(body?.conversationSignals)
+    const liveContext = parseLiveContext(body?.liveContext)
     const doctorIntent = inspectAskDoctorIntent(activeTask)
     if (doctorIntent) {
       const verifier = await createRequestIdentityVerifier()
@@ -466,6 +518,7 @@ export async function POST(req: NextRequest) {
       geographicScope: body?.geographicScope ?? undefined,
       artifacts,
       conversationSignals,
+      liveContext,
       temporalScope: body?.temporalScope && typeof body.temporalScope === "object"
         ? {
             from: typeof body.temporalScope.from === "string" ? body.temporalScope.from : null,
