@@ -17,10 +17,10 @@ type SpatialContext = {
   provenance: EvidenceRef[]
 }
 
-const layerOptions = ["camera", "aircraft", "vessel", "fire"] as const
+const layerOptions = ["camera", "aircraft", "vessel", "fire", "satellite"] as const
 
 export default function SpatialWorkspacePage() {
-  const [layers, setLayers] = useState<string[]>(["camera", "aircraft", "vessel", "fire"])
+  const [layers, setLayers] = useState<string[]>(["camera", "aircraft", "vessel", "fire", "satellite"])
   const [lat, setLat] = useState("")
   const [lon, setLon] = useState("")
   const [radiusKm, setRadiusKm] = useState("50")
