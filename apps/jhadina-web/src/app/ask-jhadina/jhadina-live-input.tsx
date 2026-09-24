@@ -69,6 +69,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
   const [uploading, setUploading] = useState(false)
   const [retryingId, setRetryingId] = useState<string|null>(null)
   const [nativeRecording,setNativeRecording]=useState(false)
+  const [nativeVoiceState,setNativeVoiceState]=useState<"checking"|"ready"|"fallback">("checking")
   const recognitionRef = useRef<any>(null)
   const shouldWakeRef = useRef(false)
   const conversationActiveRef = useRef(false)
@@ -86,6 +87,18 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
 
   useEffect(() => { onArtifactsChange(artifacts) }, [artifacts, onArtifactsChange])
   useEffect(() => { onArtifactRefsChange?.(durableArtifacts.filter((artifact)=>artifact.status==="clean"&&artifact.contextReady).map((artifact)=>artifact.id)) }, [durableArtifacts, onArtifactRefsChange])
+  useEffect(()=>{
+    let cancelled=false
+    void (async()=>{
+      const userId=await getCurrentUserId()
+      if(!userId)return
+      const response=await fetch("/api/jhadina/voice/health",{headers:{"x-jhadina-user-id":userId},cache:"no-store"})
+      const json=await response.json().catch(()=>({}))
+      if(cancelled)return
+      setNativeVoiceState(response.ok&&json?.native===true?"ready":"fallback")
+    })().catch(()=>{if(!cancelled)setNativeVoiceState("fallback")})
+    return()=>{cancelled=true}
+  },[])
   useEffect(() => {
     conversationActiveRef.current=conversationActive
     onConversationActiveChange?.(conversationActive)
@@ -288,6 +301,10 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
       nativeRecorderRef.current?.stop()
       return
     }
+    if(nativeVoiceState!=="ready"){
+      onStatus?.("Native Whisper is not deployed yet. Use Wake: Jhadina for live browser conversation.")
+      return
+    }
     if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==="undefined"){
       onStatus?.("Native microphone capture is unavailable in this browser.")
       return
@@ -376,8 +393,8 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
       <select className="jh-input" value={language} onChange={(event)=>setLanguage(event.target.value)} aria-label="Voice language" style={{maxWidth:180}}>
         {LANGUAGES.map(([value,label])=><option key={value} value={value}>{label}</option>)}
       </select>
-      <button type="button" className="jh-button" onClick={()=>void toggleNativeRecording()}>
-        {nativeRecording?"Stop native mic":"Native mic"}
+      <button type="button" className="jh-button" disabled={nativeVoiceState==="checking"} onClick={()=>void toggleNativeRecording()}>
+        {nativeRecording?"Stop native mic":nativeVoiceState==="ready"?"Native mic":"Native mic unavailable"}
       </button>
       <button type="button" className="jh-button" disabled={busy} onClick={()=>void (screenActive?Promise.resolve(stopScreenShare()):startScreenShare())}>
         {screenActive ? "Stop screen" : "Share screen"}
@@ -388,7 +405,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
       </label>
     </div>
     <p className="jh-meta" style={{marginTop:8}}>
-      Wake {voiceState==="listening"?"listening":voiceState==="unsupported"?"unsupported in this browser":voiceState==="error"?"needs microphone permission":"off"} · conversation {conversationActive?"active":"waiting for “Jhadina”"} · screen {screenActive?"live":"off"} · {durableArtifacts.filter(a=>a.status==="clean"&&a.contextReady).length} ready file{durableArtifacts.filter(a=>a.status==="clean"&&a.contextReady).length===1?"":"s"}
+      Wake {voiceState==="listening"?"listening":voiceState==="unsupported"?"unsupported in this browser":voiceState==="error"?"needs microphone permission":"off"} · conversation {conversationActive?"active":"waiting for “Jhadina”"} · native voice {nativeVoiceState==="ready"?"ready":nativeVoiceState==="checking"?"checking":"browser fallback"} · screen {screenActive?"live":"off"} · {durableArtifacts.filter(a=>a.status==="clean"&&a.contextReady).length} ready file{durableArtifacts.filter(a=>a.status==="clean"&&a.contextReady).length===1?"":"s"}
     </p>
     {(artifacts.length||durableArtifacts.length)?<div className="jh-row" style={{marginTop:8}}>
       {artifacts.map((artifact)=><span key={artifact.id} className="jh-status"><span className="jh-dot"/>{artifact.kind==="screen"?"Screen":artifact.name??artifact.kind}</span>)}
