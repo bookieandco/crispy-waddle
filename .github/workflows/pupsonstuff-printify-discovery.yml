@@ -61,9 +61,9 @@ jobs:
               blockedReason,
               groups: [
                 .groups[]
-                | select(.fulfillmentProductId == "frame1"
-                    or .fulfillmentProductId == "mugWhite"
-                    or .fulfillmentProductId == "concertShirt")
+                | select(.fulfillmentProductId == "canvas"
+                    or .fulfillmentProductId == "mug"
+                    or .fulfillmentProductId == "tee-concert")
               ]
             }' "$report" > "$out"
           else
@@ -81,6 +81,11 @@ jobs:
             echo "~~~json" >> "$GITHUB_STEP_SUMMARY"
             jq '{generatedAt, blocked, blockedReason, groups: [.groups[] | {
               fulfillmentProductId,
+              launchTarget:
+                (if .fulfillmentProductId == "canvas" then "frame1 / canvas-12x16"
+                 elif .fulfillmentProductId == "mug" then "mugWhite / mug-11oz"
+                 elif .fulfillmentProductId == "tee-concert" then "concertShirt / tee-concert-m"
+                 else null end),
               status,
               chosenBlueprint,
               chosenProvider,
