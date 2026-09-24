@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import assert from 'node:assert/strict';
+import test from 'node:test';
 import type { DecisionProposal, ExpressionDirective, ExpressionRegister } from '@jhadina/core-spine';
 import { realizeGovernedExpression } from './expression-realization.js';
 
@@ -13,28 +14,26 @@ const proposal: DecisionProposal = {
   alternatives: [],
 };
 
-describe('JHADINA-INTERACTION-QUALITY subsystem semantic preservation', () => {
-  it('keeps Director/Social/Growth-style semantic proposals unchanged across presentation registers', () => {
-    const registers: ExpressionRegister[] = ['creative', 'social-reaction', 'community-room', 'household-ops', 'serious'];
+test('JHADINA-INTERACTION-QUALITY preserves subsystem semantics across presentation registers', () => {
+  const registers: ExpressionRegister[] = ['creative', 'social-reaction', 'community-room', 'household-ops', 'serious'];
 
-    for (const register of registers) {
-      const directive: ExpressionDirective = {
-        mode: register === 'serious' ? 'serious' : 'direct',
-        allowProfanity: register !== 'serious',
-        allowQuip: register !== 'serious',
-        register,
-        symbolicFraming: 'off',
-        evidenceDiscipline: register === 'serious' ? 'strict' : 'standard',
-      };
-      const realized = realizeGovernedExpression(proposal, directive);
+  for (const register of registers) {
+    const directive: ExpressionDirective = {
+      mode: register === 'serious' ? 'serious' : 'direct',
+      allowProfanity: register !== 'serious',
+      allowQuip: register !== 'serious',
+      register,
+      symbolicFraming: 'off',
+      evidenceDiscipline: register === 'serious' ? 'strict' : 'standard',
+    };
+    const realized = realizeGovernedExpression(proposal, directive);
 
-      expect(realized.proposal).toBe(proposal);
-      expect(realized.proposal.recommendation).toBe('Keep the subsystem result exactly as produced.');
-      expect(realized.proposal.evidence).toEqual(proposal.evidence);
-      expect(realized.segments[0]).toEqual({
-        kind: 'semantic',
-        text: 'Keep the subsystem result exactly as produced.',
-      });
-    }
-  });
+    assert.equal(realized.proposal, proposal);
+    assert.equal(realized.proposal.recommendation, 'Keep the subsystem result exactly as produced.');
+    assert.deepEqual(realized.proposal.evidence, proposal.evidence);
+    assert.deepEqual(realized.segments[0], {
+      kind: 'semantic',
+      text: 'Keep the subsystem result exactly as produced.',
+    });
+  }
 });
