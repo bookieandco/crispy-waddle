@@ -91,6 +91,17 @@ Repair:
 
 ## Production truth
 
+Live audit on 2026-09-23 / 2026-09-24 UTC:
+
+- current Vercel production deployment is READY at main commit `0b6a8b651ad42b7e86ffe8b571f7abd445244278`;
+- `GET /api/spatial/health` on the production alias returns HTTP 503 with `status=DEGRADED`;
+- provider reports `configured=false`, so `JHADINA_GEV_BASE_URL` / `GEV_BASE_URL` is not available to the deployed runtime;
+- database reports `configured=false`, so the deployed runtime does not have the complete server-side Supabase service-role configuration used by `createServiceRoleClient()`;
+- independent Supabase inspection of the connected SWLC/Jhadina project confirms all six Spatial/Knowledge tables exist and have RLS enabled:
+  `jhadina_spatial_evidence`, `jhadina_spatial_reality_candidates`, `jhadina_spatial_reality_admissions`, `jhadina_spatial_workspace_revisions`, `jhadina_knowledge_nodes`, and `jhadina_knowledge_relations`.
+
+Therefore the database schema is present; the immediate live blocker is production runtime configuration, not missing Spatial migrations. The deployed Jhadina Web project needs the correct production values for the GEV base URL plus the Supabase URL/service-role key before the health gate can become READY. No secret values belong in Git.
+
 Source wiring is repaired on this branch. Production runtime certification still requires the merged lineage to deploy and a real authenticated spatial turn to prove:
 
 1. `/api/spatial/health` is READY for the deployed lineage;
