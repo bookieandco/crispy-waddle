@@ -89,6 +89,7 @@ export * from './editing-technique-spec';
 export * from './rough-cut-evidence';
 export * from './timeline-edit-proposal';
 export * from './animation-performance-state';
+export * from './animation-principles';
 export * from './object-detection-observation';
 export * from './vision-model-profile';
 export * from './short-form-production';

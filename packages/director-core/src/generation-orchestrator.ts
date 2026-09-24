@@ -2,6 +2,7 @@ import { compileDirectorCameraDirective, type DirectorCameraPlan } from './camer
 import { compilePerformanceDirective, type PerformanceDirectionPlan } from './performance-direction.js';
 import { compileRealismDirective, type RealismDirectionPlan } from './realism-direction.js';
 import { compileGenerationReferenceManifest, type GenerationReferenceManifest } from './generation-reference-manifest.js';
+import { compileAnimationPrinciplesDirective, type AnimationPrinciplesPlan } from './animation-principles.js';
 
 export type CinematographyPreset = {
   id: string;
@@ -51,6 +52,8 @@ export type TakeRequest = {
   performancePlan?: PerformanceDirectionPlan;
   /** Physical plausibility, naturalism and source-preservation direction. */
   realismPlan?: RealismDirectionPlan;
+  /** Governed animation motion grammar derived from classical animation principles. */
+  animationPlan?: AnimationPrinciplesPlan;
   /** Optional exact provider attachment order. When present, adapters must preserve it. */
   referenceManifest?: GenerationReferenceManifest;
   referenceCharacterIds?: string[];
@@ -97,6 +100,7 @@ export function compileTakePrompt(request: TakeRequest): string {
     request.cameraPlan ? section('CAMERA DIRECTION', compileDirectorCameraDirective(request.cameraPlan)) : undefined,
     request.performancePlan ? section('PERFORMANCE DIRECTION', compilePerformanceDirective(request.performancePlan)) : undefined,
     request.realismPlan ? section('REALISM / SOURCE PRESERVATION', compileRealismDirective(request.realismPlan)) : undefined,
+    request.animationPlan ? section('ANIMATION PRINCIPLES', compileAnimationPrinciplesDirective(request.animationPlan)) : undefined,
     request.referenceManifest ? section('REFERENCE MANIFEST', compileGenerationReferenceManifest(request.referenceManifest).directive) : undefined,
   ].filter((value): value is string => Boolean(value?.trim()));
 
@@ -127,6 +131,8 @@ export function buildGenerationBrief(request: TakeRequest) {
     performanceDirective: request.performancePlan ? compilePerformanceDirective(request.performancePlan) : undefined,
     realismPlan: request.realismPlan,
     realismDirective: request.realismPlan ? compileRealismDirective(request.realismPlan) : undefined,
+    animationPlan: request.animationPlan,
+    animationDirective: request.animationPlan ? compileAnimationPrinciplesDirective(request.animationPlan) : undefined,
     referenceManifest: request.referenceManifest,
     referenceDirective: request.referenceManifest ? compileGenerationReferenceManifest(request.referenceManifest).directive : undefined,
     approvalRequired: true,

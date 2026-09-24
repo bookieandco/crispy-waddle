@@ -28,7 +28,12 @@ type BoardRow = {
   script_ref: string | null; reference_asset_ids: string[]; continuity_anchor_ids: string[];
   continuity_locks: StoryboardBoard['continuityLocks'] | null; camera_language: string | null;
   framing: string | null; action: string | null; notes: string | null;
-  cinematography: StoryboardBoard['cinematography'] | null; version: number;
+  cinematography: StoryboardBoard['cinematography'] | null;
+  camera_plan: StoryboardBoard['cameraPlan'] | null;
+  performance_plan: StoryboardBoard['performancePlan'] | null;
+  realism_plan: StoryboardBoard['realismPlan'] | null;
+  animation_plan: StoryboardBoard['animationPlan'] | null;
+  version: number;
   artifact_ids: string[]; updated_at: string;
 };
 type BindingRow = {
@@ -55,6 +60,10 @@ function mapBoard(row: BoardRow): StoryboardBoard {
     ...(row.action == null ? {} : { action: row.action }),
     ...(row.notes == null ? {} : { notes: row.notes }),
     ...(row.cinematography == null ? {} : { cinematography: row.cinematography }),
+    ...(row.camera_plan == null ? {} : { cameraPlan: row.camera_plan }),
+    ...(row.performance_plan == null ? {} : { performancePlan: row.performance_plan }),
+    ...(row.realism_plan == null ? {} : { realismPlan: row.realism_plan }),
+    ...(row.animation_plan == null ? {} : { animationPlan: row.animation_plan }),
     version: row.version, artifactIds: [...row.artifact_ids], updatedAt: row.updated_at,
   };
 }
@@ -88,7 +97,7 @@ export class SupabaseStoryboardRepository implements StoryboardBindingRepository
 
   async getBoard(boardId: string, projectId: string): Promise<StoryboardBoard | null> {
     const { data, error } = await this.client.from('director_storyboard_boards')
-      .select('id,sequence_id,project_id,shot_id,ordinal,status,title,description,script_ref,reference_asset_ids,continuity_anchor_ids,continuity_locks,camera_language,framing,action,notes,cinematography,version,artifact_ids,updated_at')
+      .select('id,sequence_id,project_id,shot_id,ordinal,status,title,description,script_ref,reference_asset_ids,continuity_anchor_ids,continuity_locks,camera_language,framing,action,notes,cinematography,camera_plan,performance_plan,realism_plan,animation_plan,version,artifact_ids,updated_at')
       .eq('id', boardId).eq('project_id', projectId).maybeSingle();
     if (error) throw new Error(`Failed to load storyboard board: ${error.message}`);
     return data ? mapBoard(data as BoardRow) : null;
