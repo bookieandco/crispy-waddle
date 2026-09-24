@@ -10,6 +10,7 @@ import type { SpatialQueryPlan } from './spatial-pipeline.js'
 import type { EvidenceRef } from '@jhadina/core-spine'
 import { spatialObservationToGraphContribution, type SpatialKnowledgeSink } from './spatial-knowledge-projection.js'
 import { emitSpatialTelemetry, spatialTelemetryErrorCode, type SpatialTelemetrySink } from './spatial-telemetry.js'
+import type { CctvCameraCatalogClient } from './cctv-camera-catalog.js'
 
 export type GevSpatialReadProviderOptions = {
   bridge: GevProviderBridge
@@ -19,6 +20,7 @@ export type GevSpatialReadProviderOptions = {
   evidenceStore?: SpatialEvidenceStore
   knowledgeSink?: SpatialKnowledgeSink
   telemetry?: SpatialTelemetrySink
+  cameraCatalog?: CctvCameraCatalogClient
   /** Governs provider/source reuse at this consumer boundary. Ask Jhadina uses model-input; Spatial workspace defaults to private-analysis. */
   purpose?: SpatialUsePurpose
 }
@@ -106,11 +108,26 @@ const formatPosition = (position: unknown): string => {
   return ` at ${lat.toFixed(4)}, ${lon.toFixed(4)}${altitude !== null && Number.isFinite(altitude) ? ` alt ${Math.round(altitude)}m` : ''}`
 }
 
+const catalogSummary = (attributes: Record<string, unknown>): string | null => {
+  if (attributes.catalogKind !== 'camera-specification') return null
+  const brand = typeof attributes.brand === 'string' ? attributes.brand : 'Unknown brand'
+  const model = typeof attributes.model === 'string' ? attributes.model : 'unknown model'
+  const cameraType = typeof attributes.cameraType === 'string' ? attributes.cameraType : null
+  const resolution = typeof attributes.resolutionLabel === 'string' ? attributes.resolutionLabel : null
+  const megapixels = Number.isFinite(Number(attributes.megapixels)) ? `${Number(attributes.megapixels)}MP` : null
+  const protocols = Array.isArray(attributes.protocols)
+    ? attributes.protocols.filter((item): item is string => typeof item === 'string').slice(0, 8)
+    : []
+  const capabilities = [cameraType, resolution ?? megapixels, protocols.length ? `protocols ${protocols.join(', ')}` : null].filter(Boolean)
+  return `CCTV catalog specification for ${brand} ${model}${capabilities.length ? `: ${capabilities.join('; ')}` : ''}. Catalog metadata only; not evidence of deployment, location, or live-feed availability.`
+}
+
 const evidenceRef = (evidence: SpatialEvidence): EvidenceRef => ({
   id: evidence.evidenceId,
   source: evidence.source.provider,
   observedAt: evidence.timing.observedAt ?? evidence.timing.receivedAt,
-  summary: `${String(evidence.payload.entity.type ?? 'spatial')} observation ${String(evidence.payload.entity.id ?? evidence.observationId)}${formatPosition(evidence.payload.position)} from ${evidence.source.provider}`,
+  summary: catalogSummary(evidence.payload.attributes)
+    ?? `${String(evidence.payload.entity.type ?? 'spatial')} observation ${String(evidence.payload.entity.id ?? evidence.observationId)}${formatPosition(evidence.payload.position)} from ${evidence.source.provider}`,
   immutable: true,
 })
 
@@ -118,7 +135,8 @@ const observationRef = (observation: SpatialObservation): EvidenceRef => ({
   id: observation.observation_id,
   source: observation.source.provider,
   observedAt: observation.observed_at ?? observation.received_at,
-  summary: `${observation.observation_type}: ${observation.entity.id}${formatPosition(observation.position)}`,
+  summary: catalogSummary(observation.attributes)
+    ?? `${observation.observation_type}: ${observation.entity.id}${formatPosition(observation.position)}`,
   immutable: true,
 })
 
@@ -130,6 +148,7 @@ function requestedDomains(plan: SpatialQueryPlan): Set<string> {
     domains.add('vessel')
     domains.add('fire')
   }
+  if (domains.has('camera')) domains.add('camera-catalog')
   return domains
 }
 
@@ -217,8 +236,27 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
       capture('fire', async () => normalizeFirmsPayload(await this.options.bridge.firms(this.purpose), receivedAt)),
     ])
 
+    if (domains.has('camera-catalog') && this.options.cameraCatalog && plan.subject?.trim()) {
+      try {
+        const rows = await this.options.cameraCatalog.searchObservations(plan.subject, this.purpose, receivedAt)
+        observations.push(...rows)
+        sourceHealth.push(`camera-catalog:available:${rows.length}`)
+        emitSpatialTelemetry(this.options.telemetry, {
+          kind: 'provider_health', component: 'cctv-database:catalog', status: 'ok', at: receivedAt,
+          details: { domain: 'camera-catalog', observationCount: rows.length },
+        })
+      } catch (error) {
+        limitations.push(`camera catalog unavailable: ${error instanceof Error ? error.message : 'unknown error'}`)
+        sourceHealth.push('camera-catalog:unavailable')
+        emitSpatialTelemetry(this.options.telemetry, {
+          kind: 'source_failure', component: 'cctv-database:catalog', status: 'failed', at: receivedAt,
+          details: { domain: 'camera-catalog', errorCode: spatialTelemetryErrorCode(error) },
+        })
+      }
+    }
+
     for (const domain of domains) {
-      if (!['spatial', 'camera', 'aircraft', 'vessel', 'fire'].includes(domain)) {
+      if (!['spatial', 'camera', 'camera-catalog', 'aircraft', 'vessel', 'fire'].includes(domain)) {
         limitations.push(`${domain} adapter is available at the normalization layer but has no live GEV bridge endpoint in this provider configuration.`)
       }
     }
@@ -258,7 +296,7 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
     const policyLimitations = [...new Set(scoped.flatMap((observation) => this.registry.require(observation.provenance.source_ref).limitations))]
 
     return {
-      subject: null,
+      subject: plan.subject ?? null,
       geographicScope: plan.scope,
       temporalScope: { ...plan.temporalScope },
       observations: observationRefs,
