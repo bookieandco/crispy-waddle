@@ -83,7 +83,7 @@ function parseLiveContext(value: unknown): LiveContextContribution | undefined {
           ? session.activeSubsystems.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, JHADINA_LIVE_CONTEXT_LIMITS.maxActiveSubsystems).map((value) => value.slice(0, 80))
           : [],
         admittedArtifactIds: Array.isArray(session.admittedArtifactIds)
-          ? session.admittedArtifactIds.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, JHADINA_LIVE_CONTEXT_LIMITS.maxActiveSubsystems).map((value) => value.slice(0, 160))
+          ? session.admittedArtifactIds.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, JHADINA_LIVE_CONTEXT_LIMITS.maxAdmittedArtifactIds).map((value) => value.slice(0, 160))
           : [],
       }
     }
