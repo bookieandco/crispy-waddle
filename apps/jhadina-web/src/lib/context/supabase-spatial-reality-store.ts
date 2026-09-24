@@ -5,6 +5,7 @@ import {
   type SpatialRealityStore,
 } from '@jhadina/spatial-intelligence-core'
 import { createServiceRoleClient } from '../supabase/service-role'
+import { createOidcSpatialRealityStore } from './spatial-oidc-gateway'
 
 type CandidateRow = {
   candidate_id: string
@@ -56,7 +57,7 @@ const admissionFromRow = (row: AdmissionRow): RealityAdmission => ({
 
 export function createSupabaseSpatialRealityStore(): SpatialRealityStore | undefined {
   const client = createServiceRoleClient()
-  if (!client) return undefined
+  if (!client) return createOidcSpatialRealityStore()
 
   return {
     async appendCandidate(candidate) {
