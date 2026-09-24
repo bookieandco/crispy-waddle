@@ -95,10 +95,15 @@ const observationToEvidence = (observation: SpatialObservation, registry: Spatia
   return { ...withoutIntegrity, integrity: { contentHash: spatialEvidenceHash(withoutIntegrity) } }
 }
 
-const formatPosition = (position: { lat: number; lon: number; altitude_m?: number | null } | { lat: number; lon: number; altitudeM?: number | null } | null | undefined): string => {
-  if (!position || !Number.isFinite(position.lat) || !Number.isFinite(position.lon)) return ''
-  const altitude = 'altitude_m' in position ? position.altitude_m : position.altitudeM
-  return ` at ${position.lat.toFixed(4)}, ${position.lon.toFixed(4)}${typeof altitude === 'number' && Number.isFinite(altitude) ? ` alt ${Math.round(altitude)}m` : ''}`
+const formatPosition = (position: unknown): string => {
+  if (!position || typeof position !== 'object') return ''
+  const raw = position as Record<string, unknown>
+  const lat = Number(raw.lat)
+  const lon = Number(raw.lon)
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return ''
+  const altitudeRaw = raw.altitude_m ?? raw.altitudeM
+  const altitude = altitudeRaw === null || altitudeRaw === undefined ? null : Number(altitudeRaw)
+  return ` at ${lat.toFixed(4)}, ${lon.toFixed(4)}${altitude !== null && Number.isFinite(altitude) ? ` alt ${Math.round(altitude)}m` : ''}`
 }
 
 const evidenceRef = (evidence: SpatialEvidence): EvidenceRef => ({
