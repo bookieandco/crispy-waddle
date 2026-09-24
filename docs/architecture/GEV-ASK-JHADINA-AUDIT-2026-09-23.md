@@ -143,3 +143,43 @@ Source wiring is repaired on this branch. Production runtime certification still
 5. outage/stale/fallback/malformed cases remain fail-closed.
 
 No source-level test is treated as a substitute for those live receipts.
+
+
+## Satellite live-certification extension
+
+Satellite is now a first-class governed Spatial source rather than normalization-only support.
+
+### Live providers
+
+- **CelesTrak GP/OMM JSON** — fixed-origin public orbital-element reads with a minimum two-hour in-process cache. The adapter uses OMM-compatible JSON so it is not limited by legacy five-digit TLE catalog identifiers.
+- **NASA GIBS / Worldview VIIRS** — fixed-origin public daily true-color imagery tiles. The evidence record preserves layer/date, requested scope, tile coordinates, content type, byte length, URL and SHA-256 checksum.
+
+### Derived orbital context boundary
+
+CelesTrak OMM elements are source observations. Jhadina derives a bounded current subpoint and six-hour closest-approach context with a two-body Kepler model. Those calculations are explicitly labeled `context-only-not-operational` and must not be represented as SGP4-grade navigation, collision-avoidance, antenna-pointing or safety-of-flight data.
+
+Both orbital derived context and NASA imagery assets carry `realityAdmissionEligible=false`. The Reality admission provider fails closed on that marker. Satellite evidence may inform Ask Jhadina, fusion, investigation and change-analysis work, but cannot self-promote into canonical Reality.
+
+### Durable lineage repair
+
+Spatial Knowledge source/entity nodes are stable identities. Per-observation evidence now remains on the `observed` relation rather than mutating node provenance on every new receipt. Satellite observation IDs include receipt time, making repeated live reads append-safe while retaining source epoch/date and asset checksum in the evidence payload.
+
+### Ask Jhadina / UI
+
+- satellite/orbit/overpass/overhead/imagery/Worldview/VIIRS/CelesTrak language routes through canonical Spatial Context;
+- device-relative satellite prompts request browser location only when the user explicitly asks relative to their device;
+- LAX/KLAX named-place scope continues through the deterministic OurAirports resolver;
+- the Spatial workspace exposes a `satellite` layer;
+- `/api/spatial/satellite/health` is a public-safe health contract that exposes only provider reachability/count/asset metadata, never raw provider payloads or secrets.
+
+### Certification ladder
+
+Satellite certification is not a single boolean:
+
+1. **SOURCE PASS** — spatial type-check, deterministic provider tests, Reality firewall, routing tests and Jhadina production build pass on the exact head.
+2. **PUBLIC-PROVIDER LIVE PASS** — the exact source head performs one real CelesTrak read and one real NASA GIBS tile read through the production Spatial factory and receives non-empty evidence from both.
+3. **DURABLE INFRASTRUCTURE PASS** — that same live read is appended through `createSupabaseSpatialEvidenceStore` and read back by evidence ID; Knowledge projection succeeds; Reality remains empty.
+4. **DEPLOYED RUNTIME PASS** — an exact-SHA READY Jhadina deployment returns `READY` from `/api/spatial/satellite/health`.
+5. **GEV-SATELLITE.LIVE.FINAL** — all four gates above are proven with receipts on the same admitted lineage.
+
+Feature-branch automatic Vercel deployment remains disabled by the repository deployment-rate guard. A controlled preview may be used for gate 4 only when an authorized Vercel deploy credential/action is available; the guard must not be weakened to obtain a certification receipt.
