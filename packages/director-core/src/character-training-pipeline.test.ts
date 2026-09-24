@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GenerationRegistry } from './generation-registry.js';
 import {
   curateCharacterDataset,
+  planCharacterDatasetGeneration,
   promoteCharacterLora,
   selectCharacterLoraCheckpoint,
   validateCharacterLoraTrainingRequest,
@@ -84,6 +85,74 @@ function dataset(): CharacterTrainingDataset {
 }
 
 describe('character training pipeline', () => {
+  it('plans multi-view, expression, pose-transfer, wardrobe and environment coverage from one canonical asset', () => {
+    const plan = planCharacterDatasetGeneration({
+      id: 'dataset-plan:mary',
+      projectId: 'movie-1',
+      characterId: 'mary',
+      continuityRef: 'character:mary:v1',
+      canonicalAssetId: 'asset:mary-face',
+      triggerWord: 'MARYX7',
+      targetViews: ['front', 'profile-left', 'profile-right', 'full-body'],
+      expressions: ['smile', 'surprised'],
+      poseReferences: [{
+        id: 'pose:walk',
+        assetId: 'asset:pose-walk',
+        label: 'walking profile',
+        evidenceIds: ['pose:source'],
+      }],
+      wardrobeReferences: [{
+        id: 'wardrobe:winter',
+        assetId: 'asset:winter-coat',
+        label: 'gray winter coat',
+        evidenceIds: ['wardrobe:source'],
+      }],
+      styleIntent: 'cinematic photorealism',
+      includeEnvironmentProbes: true,
+      evidenceIds: ['character:approved'],
+    });
+
+    expect(plan.stages).toEqual([
+      'generate',
+      'curate',
+      'caption',
+      'upscale',
+      'optional-train-lora',
+    ]);
+    expect(plan.tasks.map((task) => task.kind)).toEqual(expect.arrayContaining([
+      'angle',
+      'expression',
+      'pose',
+      'wardrobe',
+      'environment',
+    ]));
+    const pose = plan.tasks.find((task) => task.kind === 'pose');
+    const wardrobe = plan.tasks.find((task) => task.kind === 'wardrobe');
+    expect(pose?.sourceAssetIds).toEqual(['asset:mary-face', 'asset:pose-walk']);
+    expect(wardrobe?.sourceAssetIds).toEqual(['asset:mary-face', 'asset:winter-coat']);
+    expect(plan.authority).toBe('DIRECTOR_CHARACTER_DATASET_PLAN');
+  });
+
+  it('fails dataset planning when pose references have no provenance', () => {
+    expect(() => planCharacterDatasetGeneration({
+      id: 'dataset-plan:invalid',
+      projectId: 'movie-1',
+      characterId: 'mary',
+      continuityRef: 'character:mary:v1',
+      canonicalAssetId: 'asset:mary-face',
+      triggerWord: 'MARYX7',
+      targetViews: ['front'],
+      expressions: [],
+      poseReferences: [{
+        id: 'pose:bad',
+        assetId: 'asset:pose-bad',
+        label: 'bad pose',
+        evidenceIds: [],
+      }],
+      evidenceIds: ['character:approved'],
+    })).toThrow('DIRECTOR_CHARACTER_DATASET_POSE_REFERENCE_INVALID:pose:bad');
+  });
+
   it('validates a curated multi-view, pose and expression dataset with captions/upscales', () => {
     expect(validateCharacterTrainingDataset(dataset(), policy)).toEqual([]);
   });
