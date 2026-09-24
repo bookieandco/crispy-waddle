@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buildGenerationBrief, compileTakePrompt } from './generation-orchestrator.js';
 import {
   buildStoryboardBatches,
   evaluateContinuityQc,
@@ -164,6 +165,28 @@ describe('Director continuity reference strategy', () => {
       'composition',
       'style',
     ]));
+  });
+
+  it('feeds the continuity strategy and derived manifest directly into take generation', () => {
+    const continuityStrategy = planContinuityStrategy(request());
+    const take = {
+      takeId: 'take-12',
+      projectId: 'movie-1',
+      sceneId: 'scene-4',
+      storyboardBoardId: 'board-12',
+      prompt: 'Mary turns through the hangar while speaking.',
+      locked: ['character', 'wardrobe', 'location', 'audio'] as const,
+      continuityStrategy,
+    };
+
+    const prompt = compileTakePrompt({ ...take, locked: [...take.locked] });
+    const brief = buildGenerationBrief({ ...take, locked: [...take.locked] });
+
+    expect(prompt).toContain('[CONTINUITY STRATEGY]');
+    expect(prompt).toContain('[REFERENCE MANIFEST]');
+    expect(prompt).toContain('Single continuous shot: yes');
+    expect(brief.referenceManifest?.id).toBe(continuityStrategy.referenceManifest.id);
+    expect(brief.continuityStrategy?.authority).toBe('DIRECTOR_CONTINUITY_STRATEGY');
   });
 
   it('requires both start and end frames for large motion', () => {
