@@ -18,11 +18,15 @@ export async function POST(req:NextRequest,context:{params:Promise<{action:strin
   const body=await req.text()
   if(body.length>40_500_000)throw new Error("JHADINA_VOICE_REQUEST_TOO_LARGE")
   const timeout=action==="listen"?90_000:action==="speak-stream"?180_000:120_000
+  const timeoutSignal=AbortSignal.timeout(timeout)
+  const signal=typeof AbortSignal.any==="function"
+   ? AbortSignal.any([req.signal,timeoutSignal])
+   : timeoutSignal
   const response=await fetch(`${base}/v1/${action}`,{
    method:"POST",
    headers:{"content-type":"application/json",authorization:`Bearer ${token}`},
    body,
-   signal:AbortSignal.timeout(timeout),
+   signal,
   })
   const contentType=response.headers.get("content-type")??"application/json"
 
