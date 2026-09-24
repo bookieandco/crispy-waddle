@@ -305,7 +305,7 @@ function AskJhadina(){
   setError("")
   setResult(null)
   setFeedbackRecorded(null)
-  setConversationLines(current=>[...current,{id:`user:${turnId}`,speaker:"user",text:command,createdAt:new Date().toISOString(),turnId}].slice(-16))
+  setConversationLines(current=>[...current,{id:`user:${turnId}`,speaker:"user" as const,text:command,createdAt:new Date().toISOString(),turnId}].slice(-16))
   let failed=false
 
   try{
@@ -337,7 +337,7 @@ function AskJhadina(){
     .map((segment:GovernedExpressionSegment)=>segment.text)
     .join(" ")
    if(spoken){
-    setConversationLines(current=>[...current,{id:`jhadina:${turnId}`,speaker:"jhadina",text:spoken,createdAt:new Date().toISOString(),turnId}].slice(-16))
+    setConversationLines(current=>[...current,{id:`jhadina:${turnId}`,speaker:"jhadina" as const,text:spoken,createdAt:new Date().toISOString(),turnId}].slice(-16))
    }
 
    if(source==="voice"&&spoken){
