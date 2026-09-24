@@ -158,6 +158,7 @@ export class GenerationPlanAdapter {
         cameraPlan: request.cameraPlan,
         performancePlan: request.performancePlan,
         realismPlan: request.realismPlan,
+        animationPlan: request.animationPlan,
         referenceManifest: request.referenceManifest,
       },
       creativeProvenance,
