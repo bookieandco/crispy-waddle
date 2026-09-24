@@ -149,16 +149,32 @@ describe('GenerationPlanAdapter', () => {
           subjectResponse: 'momentum settles through one corrective step',
         }],
       },
+      animationPlan: {
+        version: 1 as const,
+        narrativeGoal: 'make the stop-and-look reaction readable',
+        primaryAction: 'Maya stops and turns toward the sound',
+        method: 'pose-to-pose' as const,
+        poseHierarchy: { keys: ['walking', 'anticipation stop', 'turned reaction'] },
+        anticipation: { cues: ['eyes shift before the head and shoulders turn'] },
+        staging: {
+          primaryRead: 'Maya notices the sound',
+          audienceAttentionTarget: 'Maya face and shoulders',
+          competingActionPolicy: 'subordinate' as const,
+        },
+        timing: { fps: 24, exposure: 'twos' as const, primaryActionFrames: 18 },
+      },
     };
 
     await makeAdapter(submitted).submitTake(directed, plan(), gateInput());
     expect(submitted.requests[0]?.prompt).toContain('[CAMERA DIRECTION]');
     expect(submitted.requests[0]?.prompt).toContain('[PERFORMANCE DIRECTION]');
     expect(submitted.requests[0]?.prompt).toContain('[REALISM / SOURCE PRESERVATION]');
+    expect(submitted.requests[0]?.prompt).toContain('[ANIMATION PRINCIPLES]');
     expect(submitted.requests[0]?.parameters).toMatchObject({
       cameraPlan: { target: 'generative-video' },
       performancePlan: { sceneFunction: 'show delayed recognition' },
       realismPlan: { goal: 'keep the take physically grounded' },
+      animationPlan: { method: 'pose-to-pose' },
     });
   });
 
