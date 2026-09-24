@@ -8,8 +8,6 @@ const live = process.env.SATELLITE_LIVE_CERT === "1" ? describe : describe.skip
 live("GEV satellite live certification", () => {
   it("reads real public satellite sources through the production Spatial factory and durably reads evidence back", async () => {
     const config = resolveServiceRoleConfig()
-    expect(config, "Supabase service-role configuration is required for durable live certification").not.toBeNull()
-
     const userId = "satellite-live-certification"
     const provider = createProductionSpatialContextProvider(userId, { timeoutMs: 12_000, maxEvidence: 30 })
     expect(provider).toBeDefined()
@@ -46,6 +44,19 @@ live("GEV satellite live certification", () => {
     expect(summaries).toContain("CelesTrak orbit elements")
     expect(summaries).toContain("derived context-only")
     expect(summaries).toContain("NASA GIBS satellite imagery asset")
+
+    console.log(JSON.stringify({
+      certification: "GEV-SATELLITE-LIVE-PROVIDERS",
+      status: "PASS",
+      authority: "INTELLIGENCE_ONLY",
+      scope: "LAX",
+      evidenceCount: context!.evidence.length,
+      sources: [...sources].sort(),
+      checkedAt: new Date().toISOString(),
+      commitSha: process.env.GITHUB_SHA ?? null,
+    }))
+
+    expect(config, "Supabase service-role configuration is required for durable live certification").not.toBeNull()
 
     const store = createSupabaseSpatialEvidenceStore()
     expect(store).toBeDefined()
