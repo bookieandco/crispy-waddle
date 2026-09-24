@@ -1,0 +1,70 @@
+name: Jhadina Interaction Quality Final Certification
+
+on:
+  pull_request:
+    paths:
+      - "packages/jhadina-core-spine/src/interaction-quality*"
+      - "packages/jhadina-core-spine/src/index.ts"
+      - "packages/jhadina-intelligence-core/src/interaction-quality*"
+      - "packages/jhadina-intelligence-core/src/anthropic-model-provider.ts"
+      - "packages/jhadina-intelligence-core/src/index.ts"
+      - "apps/jhadina-web/src/lib/context/context-builder.ts"
+      - "apps/jhadina-web/src/lib/context/context-builder.test.ts"
+      - "apps/jhadina-web/src/lib/context/expression-production-health.ts"
+      - "apps/jhadina-web/src/lib/context/interaction-quality-production-health*"
+      - "apps/jhadina-web/src/app/api/jhadina/interaction-quality/**"
+      - "docs/JHADINA_INTERACTION_QUALITY_FINAL.md"
+      - ".github/workflows/jhadina-interaction-quality-final.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  interaction-quality-final:
+    name: Interaction quality source certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+
+      - name: Core interaction quality tests
+        run: |
+          pnpm --filter @jhadina/core-spine exec vitest run \
+            src/interaction-quality.test.ts \
+            src/interaction-quality-longrun.test.ts \
+            src/expression-final.test.ts
+
+      - name: Intelligence quality tests
+        run: pnpm --filter @jhadina/intelligence-core test
+
+      - name: Context and production health tests
+        run: |
+          pnpm --filter @jhadina/jhadina-web exec vitest run \
+            src/lib/context/context-builder.test.ts \
+            src/lib/context/interaction-quality-production-health.test.ts
+
+      - name: Core Spine type-check
+        run: pnpm --filter @jhadina/core-spine type-check
+
+      - name: Intelligence Core type-check
+        run: pnpm --filter @jhadina/intelligence-core type-check
+
+      - name: Jhadina Web type-check
+        run: pnpm --filter @jhadina/jhadina-web type-check
+
+      - name: Jhadina Web production build
+        run: pnpm --filter @jhadina/jhadina-web build

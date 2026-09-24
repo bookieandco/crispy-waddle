@@ -66,6 +66,22 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     })
   })
 
+  it("routes natural conversation into the intended governed expression register", () => {
+    expect(deriveBehaviorContext("My partner and I need to talk about intimacy without judgment.").register).toBe("intimacy-agency")
+    expect(deriveBehaviorContext("React to this viral TikTok clip and the comments.").register).toBe("social-reaction")
+    expect(deriveBehaviorContext("Let's talk about this artist's legacy and cultural impact.").register).toBe("cultural-salon")
+    expect(deriveBehaviorContext("We have a community roundtable with callers tonight.").register).toBe("community-room")
+    expect(deriveBehaviorContext("Tell me a long-form story about how this happened.").register).toBe("storytelling")
+    expect(deriveBehaviorContext("Sit with this and help me reflect on what it means to me.").register).toBe("reflective")
+    expect(deriveBehaviorContext("I am grieving and I need help processing this.")).toMatchObject({
+      distress: true,
+      banterEligible: false,
+    })
+    expect(deriveBehaviorContext("Audit this production result exactly.")).toMatchObject({
+      requiresPrecision: true,
+    })
+  })
+
   it("passes derived behavioral context into the governed Personality provider", async () => {
     const deps = freshDeps()
     let observed: unknown

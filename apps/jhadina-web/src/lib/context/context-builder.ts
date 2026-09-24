@@ -134,7 +134,7 @@ export interface AssembledContext {
 export function deriveBehaviorContext(activeTask: string): BehavioralKernelContext {
   const text = activeTask.toLowerCase()
   const serious = /\b(emergency|urgent|danger|dangerous|safety|critical|crisis|serious)\b/.test(text)
-  const distress = /\b(panic|terrified|suicid|self-harm|grief|bereav|abuse|assault|overdose)\b/.test(text)
+  const distress = /\b(panic|terrified|suicid|self-harm|grief|griev(?:e|ed|ing)?|bereav(?:e|ed|ement|ing)?|abuse|assault|overdose)\b/.test(text)
   const requiresPrecision = /\b(exact|exactly|precise|precision|verify|verified|audit|certif(?:y|ication)|calculate|calculation|compliance|legal requirement|source|citation)\b/.test(text)
   const highStakes = /\b(medical|clinical|diagnos|medication|legal|lawsuit|financial advice|emergency|safety|self-harm|hallucinat|sleep deprivation|hyperventilat|prolonged breath)\b/.test(text)
   const userAskedForPushback = /\b(push back|challenge me|disagree with me|tell me if i'?m wrong)\b/.test(text)
@@ -146,7 +146,7 @@ export function deriveBehaviorContext(activeTask: string): BehavioralKernelConte
   const banterEligible = !highStakes && !distress
   const conversationTemperature = /\b(joke|funny|roast|banter|playful)\b/.test(text)
     ? 0.8
-    : /\b(grief|hurt|upset|angry|crisis|trauma)\b/.test(text)
+    : /\b(grief|griev(?:e|ed|ing)?|bereav(?:e|ed|ement|ing)?|hurt|upset|angry|crisis|trauma)\b/.test(text)
       ? 0.2
       : 0.5
   const workloadPressure = /\b(urgent|deadline|launch|deploy|ship|production|incident)\b/.test(text) ? 0.75 : 0.2
@@ -164,11 +164,23 @@ export function deriveBehaviorContext(activeTask: string): BehavioralKernelConte
             ? "threshold"
             : /\b(investigat|timeline|provenance|connection|network trace|evidence trail)\b/.test(text)
               ? "investigative"
-              : /\b(joke|funny|roast|banter|playful)\b/.test(text)
-                ? "playful"
-                : operationalContext && !requiresPrecision && !serious
-                  ? "household-ops"
-                  : "default"
+              : intimacyEligible && /\b(intimacy|sexual|sex|dating|partner|relationship|marriage|fantasy|bedroom)\b/.test(text)
+                ? "intimacy-agency"
+                : /\b(viral|clip|post|comments|social media|tiktok|instagram|reel|timeline reaction|react to)\b/.test(text)
+                  ? "social-reaction"
+                  : /\b(music history|artist legacy|legacy|album|discography|hip[- ]?hop history|cultural impact|influence on culture|give .* flowers)\b/.test(text)
+                    ? "cultural-salon"
+                    : /\b(audience|callers|community discussion|roundtable|panel discussion|room discussion)\b/.test(text)
+                      ? "community-room"
+                      : /\b(tell me a story|storytime|story time|long-form story|recount the story|narrative)\b/.test(text)
+                        ? "storytelling"
+                        : /\b(reflect|sit with this|think this through|what does this mean to me|process this with me)\b/.test(text)
+                          ? "reflective"
+                          : /\b(joke|funny|roast|banter|playful)\b/.test(text)
+                            ? "playful"
+                            : operationalContext && !requiresPrecision && !serious
+                              ? "household-ops"
+                              : "default"
 
   return {
     serious,
