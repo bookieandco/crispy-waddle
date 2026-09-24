@@ -158,6 +158,37 @@ The output is rejected if the upscale:
 
 This turns a low-memory chunked 4K workflow into a deterministic Director finishing contract rather than a free-form provider trick.
 
+## Governed runtime execution
+
+The dataset/training/upscale path is now executable through the same Director Studio action boundary used by tracking, rigging, physics, render, and QC.
+
+New governed capabilities:
+
+- `character-dataset`
+- `lora-train`
+- `video-upscale`
+
+`studio-character-training.ts` converts approved action requests into provider calls while preserving project/asset lineage.
+
+`studio-character-training-worker.ts` provides strict worker adapters for:
+
+- dataset generation;
+- character LoRA training;
+- chunked video upscale.
+
+Workers cannot silently change:
+
+- dataset plan IDs;
+- training request IDs;
+- checkpoint ownership;
+- source asset lineage;
+- upscale plan IDs;
+- frame count / FPS / target resolution.
+
+LoRA training returns one or more candidate checkpoints. Director applies checkpoint policy and produces a **candidate LoRA promotion**; it does not silently register or publish the LoRA. The resulting Studio asset still requires approval.
+
+Likewise, chunked upscale results are rejected if a worker changes governed timing, dimensions, chunk coverage, or required audio.
+
 ## Runtime path
 
 ```
