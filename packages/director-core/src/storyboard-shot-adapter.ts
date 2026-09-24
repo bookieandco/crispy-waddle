@@ -1,6 +1,7 @@
 import { assertDirectorCameraPlan } from './camera-language.js';
 import { assertPerformanceDirectionPlan } from './performance-direction.js';
 import { assertRealismDirectionPlan } from './realism-direction.js';
+import { assertAnimationPrinciplesPlan } from './animation-principles.js';
 import type { ContinuityLock, TakePlan, TakeRequest } from './generation-orchestrator.js';
 import type { StoryboardBoard, StoryboardSequence } from './storyboard-sequence.js';
 
@@ -17,6 +18,7 @@ export interface StoryboardShotPlan {
   cameraPlan?: TakeRequest['cameraPlan'];
   performancePlan?: TakeRequest['performancePlan'];
   realismPlan?: TakeRequest['realismPlan'];
+  animationPlan?: TakeRequest['animationPlan'];
 }
 
 export interface StoryboardTakePlan {
@@ -49,9 +51,11 @@ export function buildStoryboardShotPlan(
   const cameraPlan = cameraPlanFrom(shotBoards);
   const performancePlan = performancePlanFrom(shotBoards);
   const realismPlan = realismPlanFrom(shotBoards);
+  const animationPlan = animationPlanFrom(shotBoards);
   if (cameraPlan) assertDirectorCameraPlan(cameraPlan);
   if (performancePlan) assertPerformanceDirectionPlan(performancePlan);
   if (realismPlan) assertRealismDirectionPlan(realismPlan);
+  if (animationPlan) assertAnimationPrinciplesPlan(animationPlan);
 
   return {
     projectId: sequence.projectId,
@@ -66,6 +70,7 @@ export function buildStoryboardShotPlan(
     cameraPlan,
     performancePlan,
     realismPlan,
+    animationPlan,
   };
 }
 
@@ -91,6 +96,7 @@ export function buildStoryboardTakePlan(
     cameraPlan: shot.cameraPlan,
     performancePlan: shot.performancePlan,
     realismPlan: shot.realismPlan,
+    animationPlan: shot.animationPlan,
     referenceAssetIds: shot.referenceAssetIds,
   };
 
@@ -131,6 +137,11 @@ function performancePlanFrom(boards: StoryboardBoard[]): TakeRequest['performanc
 function realismPlanFrom(boards: StoryboardBoard[]): TakeRequest['realismPlan'] {
   const board = [...boards].reverse().find((candidate) => candidate.realismPlan);
   return board?.realismPlan;
+}
+
+function animationPlanFrom(boards: StoryboardBoard[]): TakeRequest['animationPlan'] {
+  const board = [...boards].reverse().find((candidate) => candidate.animationPlan);
+  return board?.animationPlan;
 }
 
 function unique<T>(values: T[]): T[] {
