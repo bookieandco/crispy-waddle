@@ -1,3 +1,4 @@
+import { JHADINA_LIVE_CONTEXT_LIMITS } from "@jhadina/core-spine"
 import type { JhadinaConversationLine } from "./interactive-runtime"
 
 export interface LiveContextWorkSessionInput {
@@ -14,7 +15,7 @@ export function buildLiveContext(
   return {
     source: "ask-jhadina-live" as const,
     observedAt: new Date().toISOString(),
-    recentTurns: conversationLines.slice(-8).map(({ id, speaker, text, createdAt }) => ({
+    recentTurns: conversationLines.slice(-JHADINA_LIVE_CONTEXT_LIMITS.maxRecentTurns).map(({ id, speaker, text, createdAt }) => ({
       id,
       speaker,
       text,
@@ -24,8 +25,8 @@ export function buildLiveContext(
       workSession: {
         id: workSession.id,
         ...(workSession.goal ? { goal: workSession.goal } : {}),
-        activeSubsystems: [...workSession.activeSubsystems].slice(0, 16),
-        admittedArtifactIds: [...workSession.admittedArtifactIds].slice(0, 8),
+        activeSubsystems: [...workSession.activeSubsystems].slice(0, JHADINA_LIVE_CONTEXT_LIMITS.maxActiveSubsystems),
+        admittedArtifactIds: [...workSession.admittedArtifactIds].slice(0, JHADINA_LIVE_CONTEXT_LIMITS.maxAdmittedArtifactIds),
       },
     } : {}),
     limitations: [] as string[],
@@ -35,7 +36,7 @@ export function buildLiveContext(
 export function isMeaningfulScreenChange(
   previous: Uint8Array | null,
   next: Uint8Array,
-  meanAbsoluteThreshold = 7,
+  meanAbsoluteThreshold = JHADINA_LIVE_CONTEXT_LIMITS.screenMeanAbsoluteChangeThreshold,
 ): boolean {
   if (!previous || previous.length !== next.length) return true
   if (next.length === 0) return false
@@ -60,7 +61,7 @@ export function restoreWorkSessionContinuity(session: unknown): RestoredWorkSess
   const raw=session as Record<string, unknown>
   const goal=typeof raw.goal==="string"?raw.goal:""
   const activeSubsystems=Array.isArray(raw.activeSubsystems)
-    ? raw.activeSubsystems.filter((item):item is string=>typeof item==="string"&&Boolean(item.trim())).slice(0,16)
+    ? raw.activeSubsystems.filter((item):item is string=>typeof item==="string"&&Boolean(item.trim())).slice(0,JHADINA_LIVE_CONTEXT_LIMITS.maxActiveSubsystems)
     : []
   const admittedArtifactIds=Array.isArray(raw.artifactRefs)
     ? raw.artifactRefs
