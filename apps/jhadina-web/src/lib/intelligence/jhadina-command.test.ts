@@ -322,6 +322,55 @@ describe("Jhadina Command — the instantiated operating loop (Phase 1 Step 5)",
     expect(capturedContextId).toMatch(/^ctx_/) // context-builder.ts's real id prefix, not a test fixture's id
   })
 
+  it("reports governed GEV/Spatial participation and exposes the same context to the IntelligenceRouter", async () => {
+    const identity: ActionRequestIdentity = { userId: "user-step5-spatial", sessionId: "s-spatial" }
+    let capturedSpatialEvidence = 0
+    const capturingProvider: ModelProvider = {
+      name: "spatial-capturing-provider",
+      propose: async (context) => {
+        capturedSpatialEvidence = context.domainContext?.spatial?.evidence.length ?? 0
+        return proposalFor("ASK", { contextId: context.id })
+      },
+    }
+    const router = new IntelligenceRouter({ primary: capturingProvider, fallback: providerThatFails() })
+    const spatialContextProvider = {
+      async getContext() {
+        return {
+          observations: [{ id: "obs-flight-1", source: "OpenSky Network", observedAt: "2026-09-23T20:00:00Z", summary: "aircraft_state: aircraft:abc123", immutable: true }],
+          evidence: [{ id: "gev:evidence:flight-1", source: "OpenSky Network", observedAt: "2026-09-23T20:00:00Z", summary: "aircraft observation aircraft:abc123 from OpenSky Network", immutable: true }],
+          claims: [{ id: "claim-flight-1", source: "spatial-reality-candidate", observedAt: "2026-09-23T20:00:00Z", summary: "Candidate spatial reality for aircraft:abc123", immutable: true }],
+          reality: [{ id: "reality-flight-1", source: "spatial-reality-admission", observedAt: "2026-09-23T20:00:00Z", summary: "Admitted spatial reality for aircraft:abc123", immutable: true }],
+          attention: [],
+          conflicts: [],
+          uncertainty: ["Coverage is partial."],
+          limitations: ["Spatial context is intelligence only."],
+          provenance: [{ id: "gev:evidence:flight-1", source: "OpenSky Network", observedAt: "2026-09-23T20:00:00Z", summary: "aircraft observation aircraft:abc123 from OpenSky Network", immutable: true }],
+        }
+      },
+    }
+    const overrides = freshOverrides(identity, router, { spatialContextProvider })
+
+    const result = await handleJhadinaCommand(
+      { userId: identity.userId, activeTask: "What flights are around the airport right now?" },
+      overrides,
+    )
+
+    expect(capturedSpatialEvidence).toBe(1)
+    expect(result.spatialContext).toEqual({
+      used: true,
+      authority: "INTELLIGENCE_ONLY",
+      observationCount: 1,
+      evidenceCount: 1,
+      claimCount: 1,
+      realityCount: 1,
+      provenanceCount: 1,
+      sources: ["OpenSky Network"],
+      conflictCount: 0,
+      uncertaintyCount: 1,
+      limitationCount: 1,
+    })
+  })
+
   it("returns governed expression assets only through the deterministic realization boundary", async () => {
     const identity: ActionRequestIdentity = { userId: "user-step5-expression", sessionId: "s-expression" }
     const router = new IntelligenceRouter({
