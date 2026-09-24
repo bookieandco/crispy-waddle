@@ -61,7 +61,8 @@
     "./ugc-production": "./src/ugc-production.ts",
     "./previs-blockout": "./src/previs-blockout.ts",
     "./storyboard-reference-board": "./src/storyboard-reference-board.ts",
-    "./generation-reference-manifest": "./src/generation-reference-manifest.ts"
+    "./generation-reference-manifest": "./src/generation-reference-manifest.ts",
+    "./animation-principles": "./src/animation-principles.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
