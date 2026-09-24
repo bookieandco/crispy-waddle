@@ -29,13 +29,12 @@ export function createProductionSpatialContextProvider(
   options: ProductionSpatialContextProviderOptions = {},
 ): SpatialContextProvider | undefined {
   const baseUrl = options.baseUrl ?? process.env.JHADINA_GEV_BASE_URL ?? process.env.GEV_BASE_URL
-  if (!baseUrl) return undefined
-  const bridge = new GevProviderBridge({
+  const bridge = baseUrl ? new GevProviderBridge({
     baseUrl,
     ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
     ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
     telemetry: spatialProductionTelemetry,
-  })
+  }) : undefined
   const evidenceStore = createSupabaseSpatialEvidenceStore()
   const knowledgeSink = createSupabaseSpatialKnowledgeSink()
   const realityStore = createSupabaseSpatialRealityStore()
