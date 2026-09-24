@@ -40,6 +40,7 @@ export function createProductionSpatialContextProvider(
   const realityStore = createSupabaseSpatialRealityStore()
   const evidenceRead = createGevSpatialContextReadProvider({
     bridge,
+    purpose: 'model-input',
     ...(options.maxEvidence ? { maxEvidence: options.maxEvidence } : {}),
     ...(evidenceStore ? { evidenceStore } : {}),
     ...(knowledgeSink ? { knowledgeSink } : {}),
