@@ -67,7 +67,8 @@
     "./character-training-pipeline": "./src/character-training-pipeline.ts",
     "./video-upscale-finishing": "./src/video-upscale-finishing.ts",
     "./studio-character-training": "./src/studio-character-training.ts",
-    "./studio-character-training-worker": "./src/studio-character-training-worker.ts"
+    "./studio-character-training-worker": "./src/studio-character-training-worker.ts",
+    "./character-lora-approval": "./src/character-lora-approval.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
