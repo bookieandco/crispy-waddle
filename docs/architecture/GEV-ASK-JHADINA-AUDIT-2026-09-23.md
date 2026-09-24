@@ -55,19 +55,20 @@ Repair:
 
 The receipt exposes metadata only. It does not expose provider secrets, raw restricted CCTV frames, arbitrary upstream URLs, or execution authority.
 
-### Gap 4 — no geographic handoff from Ask Jhadina
+### Gap 4 — geographic scope handoff and privacy
 
 The command contract already accepted `geographicScope`, but the Ask Jhadina browser surface never supplied it. Device-relative prompts such as “what flights are near me?” could therefore invoke spatial reasoning without a local query boundary.
 
 Repair:
 - classify only explicitly device-relative prompts (near me, around here, my area, current location);
-- request browser geolocation only for those prompts, using the browser permission boundary;
+- request browser geolocation only for those prompts, using the browser permission boundary and `enableHighAccuracy: false`;
 - send a bounded 25 km point scope on that turn;
 - do not add the coordinates to WorkSession memory;
-- accept explicit `lat` / `lon` / `radiusKm` query parameters when Ask Jhadina is opened from a scoped Spatial workspace;
-- add a Spatial-workspace “Ask Jhadina about this view” handoff that carries the current scope and active layers.
+- hand a Spatial-workspace point/radius to Ask through ephemeral `sessionStorage`, not URL query parameters, so coordinates do not unnecessarily enter browser history or ordinary URL logging;
+- only attach the staged scope when the active Ask prompt is spatial;
+- add a Spatial-workspace “Ask Jhadina about this view” handoff that carries the current scope and active layers without putting coordinates in the URL.
 
-Named-place text is not silently geocoded by this repair. If no explicit coordinates or device-relative permission exists, the query remains unscoped rather than inventing a location.
+Named-place text is not silently geocoded by this repair. If no staged/explicit coordinates or device-relative permission exists, the query remains unscoped rather than inventing a location.
 
 ### Gap 5 — evidence summaries were not spatially useful enough for JLLM reasoning
 
