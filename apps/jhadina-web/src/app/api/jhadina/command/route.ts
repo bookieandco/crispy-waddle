@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { JHADINA_LIVE_CONTEXT_LIMITS, type ConversationSignalContext, type EphemeralArtifactContext, type LiveContextContribution } from "@jhadina/core-spine"
+import { JHADINA_LIVE_CONTEXT_LIMITS, type ConversationSignalContext, type EphemeralArtifactContext, type LiveContextContribution, type LiveConversationTurnContext } from "@jhadina/core-spine"
 import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
@@ -55,21 +55,23 @@ function parseLiveContext(value: unknown): LiveContextContribution | undefined {
   const raw = value as Record<string, unknown>
   if (raw.source !== "ask-jhadina-live") throw new Error("Unsupported live context source")
 
-  const recentTurns = Array.isArray(raw.recentTurns)
-    ? raw.recentTurns.slice(-JHADINA_LIVE_CONTEXT_LIMITS.maxRecentTurns).flatMap((value, index) => {
-        if (!value || typeof value !== "object") return []
-        const turn = value as Record<string, unknown>
-        const speaker = turn.speaker === "user" || turn.speaker === "jhadina" ? turn.speaker : undefined
-        const text = typeof turn.text === "string" ? turn.text.trim().slice(0, 1200) : ""
-        if (!speaker || !text) return []
-        return [{
-          id: typeof turn.id === "string" && turn.id.trim() ? turn.id.slice(0, 160) : `live-turn:${index}`,
-          speaker,
-          text,
-          createdAt: typeof turn.createdAt === "string" ? turn.createdAt : new Date().toISOString(),
-        }]
+  const recentTurns: LiveConversationTurnContext[] = []
+  if (Array.isArray(raw.recentTurns)) {
+    for (const [index, value] of raw.recentTurns.slice(-JHADINA_LIVE_CONTEXT_LIMITS.maxRecentTurns).entries()) {
+      if (!value || typeof value !== "object") continue
+      const turn = value as Record<string, unknown>
+      const speaker: LiveConversationTurnContext["speaker"] | undefined =
+        turn.speaker === "user" || turn.speaker === "jhadina" ? turn.speaker : undefined
+      const text = typeof turn.text === "string" ? turn.text.trim().slice(0, 1200) : ""
+      if (!speaker || !text) continue
+      recentTurns.push({
+        id: typeof turn.id === "string" && turn.id.trim() ? turn.id.slice(0, 160) : `live-turn:${index}`,
+        speaker,
+        text,
+        createdAt: typeof turn.createdAt === "string" ? turn.createdAt : new Date().toISOString(),
       })
-    : []
+    }
+  }
 
   let workSession: LiveContextContribution["workSession"]
   if (raw.workSession && typeof raw.workSession === "object") {
