@@ -121,3 +121,6 @@ export * from './storyboard-reference-board';
 export * from './conversation-prosody-observer';
 
 export * from './paid-video-generation';
+
+export * from './studio-character-training';
+export * from './studio-character-training-worker';
