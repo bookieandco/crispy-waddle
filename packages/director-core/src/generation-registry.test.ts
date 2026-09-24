@@ -103,6 +103,66 @@ describe('GenerationService', () => {
     expect(submitted).toBe(true);
   });
 
+  it('treats a black-video voice reference as audio transport, not visual video-to-video control', async () => {
+    const registry = new GenerationRegistry();
+    registry.registerProvider({
+      id: 'dialogue-provider',
+      name: 'Dialogue Video Provider',
+      kind: 'local',
+      capabilities: ['text-to-video'],
+      models: [],
+      health: 'healthy',
+    });
+    registry.registerModel({
+      id: 'dialogue-model',
+      providerId: 'dialogue-provider',
+      name: 'Dialogue Model',
+      version: '1',
+      modalities: ['video'],
+      capabilities: ['text-to-video'],
+    });
+    let submitted = false;
+    const provider: GenerationProvider = {
+      descriptor: registry.getProvider('dialogue-provider')!,
+      submit: async (request) => {
+        submitted = true;
+        return {
+          requestId: request.requestId,
+          providerId: 'dialogue-provider',
+          status: 'queued',
+          assetIds: [],
+          providerJobId: 'dialogue-job',
+        };
+      },
+      status: async () => ({
+        requestId: 'dialogue-job',
+        providerId: 'dialogue-provider',
+        status: 'running',
+        assetIds: [],
+        providerJobId: 'dialogue-job',
+      }),
+      cancel: async () => undefined,
+    };
+
+    const service = new GenerationService(registry, new Map([['dialogue-provider', provider]]));
+    await service.submit({
+      requestId: 'dialogue-request',
+      projectId: 'project',
+      modality: 'video',
+      prompt: 'speak with the locked voice',
+      model: registry.getModel('dialogue-model')!,
+      references: [{
+        assetId: 'voice:mary:black-video',
+        role: 'audio',
+        media: 'video',
+        uri: 'asset://mary-voice-black.mp4',
+      }],
+      parameters: {},
+    });
+
+    expect(submitted).toBe(true);
+  });
+
   it('routes greybox video references through video-to-video capability', async () => {
     const registry = new GenerationRegistry();
     registry.registerProvider({
