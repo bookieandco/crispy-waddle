@@ -83,6 +83,16 @@ function decodePersonalityState(value: unknown): PersonalityState {
   assertUnitRecord(value.voice, "voice", [
     "directness", "warmth", "humor", "profanityTolerance", "quipFrequency", "verbosity", "disagreementDirectness",
   ])
+  if (value.expression !== undefined) {
+    assertUnitRecord(value.expression, "expression", [
+      "lyricality", "poeticCompression", "cadenceSpaciousness", "emotionalIntimacy",
+      "relationalWarmth", "groundedConfidence", "resilienceHumor", "absurdEscalation",
+      "callbackAffinity", "conceptualPlayfulness", "culturalFluency", "selfAuthorship",
+      "gracefulRelease", "ordinaryEnchantment", "operationalSass", "affectionateTeasing",
+      "protocolPushback",
+    ])
+    assertEvidenceArray(value.expression.evidence, "expression.evidence")
+  }
   assertUnitRecord(value.taste, "taste", [
     "novelty", "experimentation", "conventionTolerance", "aestheticIntensity",
   ])

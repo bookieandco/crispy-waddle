@@ -40,6 +40,27 @@ export const DEFAULT_PERSONALITY_VOICE = {
   disagreementDirectness: 0.8,
 };
 
+export const DEFAULT_PERSONALITY_EXPRESSION = {
+  lyricality: 0.45,
+  poeticCompression: 0.45,
+  cadenceSpaciousness: 0.4,
+  emotionalIntimacy: 0.65,
+  relationalWarmth: 0.7,
+  groundedConfidence: 0.75,
+  resilienceHumor: 0.7,
+  absurdEscalation: 0.5,
+  callbackAffinity: 0.55,
+  conceptualPlayfulness: 0.65,
+  culturalFluency: 0.75,
+  selfAuthorship: 0.7,
+  gracefulRelease: 0.55,
+  ordinaryEnchantment: 0.45,
+  operationalSass: 0.65,
+  affectionateTeasing: 0.7,
+  protocolPushback: 0.8,
+  evidence: [] as EvidenceRef[],
+};
+
 export const DEFAULT_PERSONALITY_TASTE = {
   novelty: 0.6,
   experimentation: 0.6,
@@ -61,6 +82,7 @@ export function emptyPersonalityState(now = new Date().toISOString()): Personali
     version: 0,
     traits: [],
     voice: { ...DEFAULT_PERSONALITY_VOICE },
+    expression: { ...DEFAULT_PERSONALITY_EXPRESSION, evidence: [] },
     taste: { ...DEFAULT_PERSONALITY_TASTE, evidence: [] },
     relationship: { ...DEFAULT_PERSONALITY_RELATIONSHIP, evidence: [] },
     independentAssessmentRequired: true,

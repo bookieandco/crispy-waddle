@@ -8,6 +8,7 @@ import {
   type EphemeralArtifactContext,
   type ExpressionDirective,
   type GrowthDomainContext,
+  type OwnerContextContribution,
   type PatternObservation,
   type PersonalityState,
   type SocialDomainContext,
@@ -67,6 +68,13 @@ export interface KnowledgeContextProvider {
   }>
 }
 
+export interface OwnerContextProvider {
+  getContext(input: {
+    userId: string
+    activeTask: string
+  }): Promise<OwnerContextContribution | undefined>
+}
+
 export interface ContextBuilderLimits {
   maxMemories: number
   maxRecentApprovals: number
@@ -104,6 +112,8 @@ export interface ContextBuilderDeps {
   personalityContextProvider?: PersonalityContextProvider
   /** Optional read-only canonical Knowledge Graph adapter. It grants no admission or mutation authority. */
   knowledgeContextProvider?: KnowledgeContextProvider
+  /** Optional provenance-aware owner/public-context adapter. It cannot write Memory or Personality. */
+  ownerContextProvider?: OwnerContextProvider
   /** Optional read-only Social context adapter. It cannot publish or mutate account state. */
   socialContextProvider?: SocialContextProvider
   /** Optional read-only Growth context adapter. It cannot spend, publish, send lifecycle actions, or mutate audiences. */
@@ -124,17 +134,57 @@ export interface AssembledContext {
 export function deriveBehaviorContext(activeTask: string): BehavioralKernelContext {
   const text = activeTask.toLowerCase()
   const serious = /\b(emergency|urgent|danger|dangerous|safety|critical|crisis|serious)\b/.test(text)
+  const distress = /\b(panic|terrified|suicid|self-harm|grief|bereav|abuse|assault|overdose)\b/.test(text)
   const requiresPrecision = /\b(exact|exactly|precise|precision|verify|verified|audit|certif(?:y|ication)|calculate|calculation|compliance|legal requirement|source|citation)\b/.test(text)
+  const highStakes = /\b(medical|clinical|diagnos|medication|legal|lawsuit|financial advice|emergency|safety|self-harm|hallucinat|sleep deprivation|hyperventilat|prolonged breath)\b/.test(text)
   const userAskedForPushback = /\b(push back|challenge me|disagree with me|tell me if i'?m wrong)\b/.test(text)
   const disagreementDetected = /\b(i disagree|that'?s wrong|you'?re wrong|not what i said|incorrect)\b/.test(text)
   const ambiguity = /\b(unclear|not sure what|which one do you mean|ambiguous|confused about which)\b/.test(text) ? 0.8 : 0
+  const operationalContext = /\b(activate|launch|pre-launch|deploy|runtime|protocol|sequence|system|ops|operation)\b/.test(text)
+  const intimacyEligible = /\b(relationship|romance|dating|intimacy|sexual|sex|partner|marriage)\b/.test(text) && !highStakes && !distress
+  const symbolicFramingEligible = /\b(spiritual|tarot|symbol|synchronic|soul|transformation|letting go|myth|anunnaki|alien|paranormal|anomaly|aura|pineal|third eye|energy field)\b/.test(text)
+  const banterEligible = !highStakes && !distress
+  const conversationTemperature = /\b(joke|funny|roast|banter|playful)\b/.test(text)
+    ? 0.8
+    : /\b(grief|hurt|upset|angry|crisis|trauma)\b/.test(text)
+      ? 0.2
+      : 0.5
+  const workloadPressure = /\b(urgent|deadline|launch|deploy|ship|production|incident)\b/.test(text) ? 0.75 : 0.2
+
+  const register: BehavioralKernelContext["register"] =
+    /\b(medical|clinical|diagnos|medication|psychiatr|symptom)\b/.test(text)
+      ? "clinical"
+      : /\b(aura|afterimage|after-image|hallucinat|vision|visions|sleep deprivation|breathwork|hyperventilat|pineal|third eye|peripheral vision|altered perception|geometric patterns)\b/.test(text)
+        ? "perceptual-inquiry"
+        : /\b(anunnaki|ufo|alien|paranormal|myth|conspiracy|anomaly)\b/.test(text)
+          ? "mythic-inquiry"
+          : /\b(tarot|soulmate|soul bond|spiritual love|relationship reading)\b/.test(text)
+          ? "sacred-love"
+          : /\b(transformation|letting go|transition|becoming|reinvent|shame release)\b/.test(text)
+            ? "threshold"
+            : /\b(investigat|timeline|provenance|connection|network trace|evidence trail)\b/.test(text)
+              ? "investigative"
+              : /\b(joke|funny|roast|banter|playful)\b/.test(text)
+                ? "playful"
+                : operationalContext && !requiresPrecision && !serious
+                  ? "household-ops"
+                  : "default"
 
   return {
     serious,
+    distress,
+    highStakes,
     requiresPrecision,
     userAskedForPushback,
     disagreementDetected,
     ambiguity,
+    register,
+    banterEligible,
+    symbolicFramingEligible,
+    intimacyEligible,
+    operationalContext,
+    conversationTemperature,
+    workloadPressure,
   }
 }
 
@@ -189,6 +239,17 @@ function policyConstraints(policy: SecurityPolicy): string[] {
   )
   for (const denied of policy.deniedCapabilities ?? []) constraints.push(`denied: ${denied}`)
   return constraints
+}
+
+function normalizeOwnerContext(owner: OwnerContextContribution): OwnerContextContribution {
+  return {
+    ...(owner.hub ? { hub: owner.hub } : {}),
+    references: owner.references.map((reference) => ({
+      ...reference,
+      evidence: { ...reference.evidence },
+    })),
+    limitations: [...owner.limitations],
+  }
 }
 
 function normalizeGrowthContext(growth: GrowthDomainContext): GrowthDomainContext {
@@ -316,6 +377,27 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     excludedContext.push("knowledge: canonical Knowledge Graph provider not composed; recent approval evidence only")
   }
 
+  let ownerContext: OwnerContextContribution | undefined
+  if (deps.ownerContextProvider) {
+    try {
+      const contribution = await deps.ownerContextProvider.getContext({
+        userId: input.userId,
+        activeTask: redactedActiveTask,
+      })
+      if (contribution) {
+        ownerContext = normalizeOwnerContext(contribution)
+        const byId = new Map(knowledgeRefs.map((ref) => [ref.id, ref]))
+        for (const reference of ownerContext.references) {
+          if (!byId.has(reference.evidence.id)) byId.set(reference.evidence.id, { ...reference.evidence })
+        }
+        knowledgeRefs = [...byId.values()]
+        excludedContext.push(...ownerContext.limitations.map((item) => `owner-context: ${item}`))
+      }
+    } catch {
+      excludedContext.push("owner-context: governed public context unavailable")
+    }
+  }
+
   let memoryEvidenceRefs = memoryRefs.map((r) => r.ref)
   const textLength = (refs: EvidenceRef[]) => refs.reduce((sum, r) => sum + r.summary.length, 0)
   let trimmed = 0
@@ -383,6 +465,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     excludedContext,
     ...(input.artifacts?.length ? { artifacts: input.artifacts.map((artifact) => ({ ...artifact })) } : {}),
     ...(input.conversationSignals ? { conversationSignals: structuredClone(input.conversationSignals) } : {}),
+    ...(ownerContext ? { ownerContext } : {}),
     ...(domainContext ? { domainContext } : {}),
     ...(expressionDirective ? { expressionDirective } : {}),
   }

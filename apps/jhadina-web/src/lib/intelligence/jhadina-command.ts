@@ -11,6 +11,7 @@ import type { ConversationSignalContext, EphemeralArtifactContext } from "@jhadi
 import type {
   GrowthContextProvider,
   KnowledgeContextProvider,
+  OwnerContextProvider,
   PersonalityContextProvider,
   SocialContextProvider,
   SpatialContextProvider,
@@ -31,6 +32,7 @@ import { createProductionSpatialContextProvider } from "../context/production-sp
 import { createProductionSocialContextProvider } from "../context/production-social-context-provider"
 import { createProductionGrowthContextProvider } from "../context/production-growth-context-provider"
 import { createProductionKnowledgeContextProvider } from "../context/production-knowledge-context-provider"
+import { createProductionOwnerContextProvider } from "../context/production-owner-context-provider"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
 import { recordPersonalityDriftObservation, type PersonalityDriftObservationResult } from "../personality/personality-drift-observer"
 
@@ -61,6 +63,8 @@ export interface JhadinaCommandOverrides {
   personalityContextProvider?: PersonalityContextProvider
   /** Read-only canonical Knowledge Graph adapter. It grants no knowledge-admission or mutation authority. */
   knowledgeContextProvider?: KnowledgeContextProvider
+  /** Read-only public owner-context adapter. It grants no Memory/Personality mutation authority. */
+  ownerContextProvider?: OwnerContextProvider
   /** Read-only Social adapter. It grants no publish or account-mutation authority. */
   socialContextProvider?: SocialContextProvider
   /** Read-only Growth adapter. It grants no spend, publish, lifecycle-send, or audience-mutation authority. */
@@ -90,6 +94,9 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   const knowledgeContextProvider =
     overrides.knowledgeContextProvider ??
     createProductionKnowledgeContextProvider()
+  const ownerContextProvider =
+    overrides.ownerContextProvider ??
+    createProductionOwnerContextProvider()
   const socialContextProvider =
     overrides.socialContextProvider ??
     createProductionSocialContextProvider()
@@ -102,6 +109,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     spatialContextProvider,
     personalityContextProvider,
     knowledgeContextProvider,
+    ownerContextProvider,
     socialContextProvider,
     growthContextProvider,
   }

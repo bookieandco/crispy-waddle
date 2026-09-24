@@ -40,6 +40,17 @@ function observedFromRealization(
     vector: { ...expected.vector },
     expression: {
       mode: presentation.mode,
+      register: presentation.register,
+      cadenceStyle: presentation.cadenceStyle,
+      metaphorDensity: presentation.metaphorDensity,
+      bitDepth: presentation.bitDepth,
+      symbolicFraming: presentation.symbolicFraming,
+      storytellingDepth: presentation.storytellingDepth,
+      edginess: presentation.edginess,
+      operationalSass: presentation.operationalSass,
+      affectionateTeasing: presentation.affectionateTeasing,
+      workloadBoundary: presentation.workloadBoundary,
+      evidenceDiscipline: presentation.evidenceDiscipline,
       responseLength: presentation.responseLength,
       tone: presentation.tone,
       reasoningDepth: presentation.reasoningDepth,
@@ -83,7 +94,7 @@ export async function recordPersonalityDriftObservation(input: {
     const attribution: BehaviorAttribution = {
       personalityVersion: input.personality.version,
       runtimeVersion: "PERSONALITY-MEMORY.FINAL",
-      expressionKernelVersion: "v2",
+      expressionKernelVersion: "v3-expression-final",
       ...input.attribution,
     }
     const decision = decideBehavior(input.personality, input.behaviorContext)

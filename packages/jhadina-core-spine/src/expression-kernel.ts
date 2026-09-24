@@ -7,14 +7,38 @@ import {
   isVerifiedCulturalReference,
   type VerifiedCulturalReference,
 } from './cultural-freshness.js';
-import type { ExpressionDirective } from './types.js';
+import { getExpressionStrategy } from './expression-strategies.js';
+import { sessionBitDepth, type SessionExpressionState } from './session-expression.js';
+import type { ExpressionDirective, ExpressionRegister } from './types.js';
 
 export interface ExpressionContext {
   callback?: VerifiedCallback;
   culturalReference?: VerifiedCulturalReference;
+  /** Optional turn/session override. Serious posture always wins. */
+  register?: ExpressionRegister;
+  /** Ephemeral only; never persisted by the Expression Kernel. */
+  session?: SessionExpressionState;
 }
 
 export type ExpressionPlan = ExpressionDirective;
+
+function cappedLevel(
+  value: number,
+  cap: 'off' | 'light' | 'moderate',
+): 'off' | 'light' | 'moderate' {
+  if (cap === 'off' || value < 0.35) return 'off';
+  if (cap === 'light' || value < 0.7) return 'light';
+  return 'moderate';
+}
+
+function cappedEdginess(
+  value: number,
+  cap: 'none' | 'light' | 'moderate',
+): 'none' | 'light' | 'moderate' {
+  if (cap === 'none' || value < 0.35) return 'none';
+  if (cap === 'light' || value < 0.7) return 'light';
+  return 'moderate';
+}
 
 /**
  * Expression selection is separate from language generation. The model may
@@ -22,6 +46,7 @@ export type ExpressionPlan = ExpressionDirective;
  *
  * Callback and cultural-reference strings enter only through their verification
  * gates. Serious mode suppresses both even when they are otherwise verified.
+ * Registers select mechanics, never factual conclusions or authorization.
  */
 export function planExpression(
   decision: BehavioralDecision,
@@ -36,6 +61,11 @@ export function planExpression(
   }[decision.action] as ExpressionPlan['mode'];
 
   const serious = mode === 'serious';
+  const register: ExpressionRegister = serious
+    ? 'serious'
+    : context.register ?? decision.posture.register;
+  const strategy = getExpressionStrategy(register);
+
   const responseLength: NonNullable<ExpressionPlan['responseLength']> =
     decision.posture.verbosity <= 0.4
       ? 'brief'
@@ -67,6 +97,7 @@ export function planExpression(
         : decision.posture.creativeLatitude <= 0.3
           ? 'conventional'
           : 'balanced';
+
   const callback = !serious && isVerifiedCallback(context.callback)
     ? context.callback
     : undefined;
@@ -74,10 +105,65 @@ export function planExpression(
     ? context.culturalReference
     : undefined;
 
+  const cadenceStyle: NonNullable<ExpressionPlan['cadenceStyle']> = serious
+    ? 'tight'
+    : decision.posture.cadenceSpaciousness >= 0.65
+      ? 'spacious'
+      : strategy.cadence;
+  const pauseDensity: NonNullable<ExpressionPlan['pauseDensity']> = cadenceStyle === 'spacious'
+    ? 'high'
+    : decision.posture.cadenceSpaciousness >= 0.35
+      ? 'moderate'
+      : 'low';
+  const metaphorDensity: NonNullable<ExpressionPlan['metaphorDensity']> =
+    serious || strategy.metaphorBias === 'none'
+      ? 'none'
+      : strategy.metaphorBias === 'moderate' &&
+          (decision.posture.lyricality + decision.posture.conceptualPlayfulness) / 2 >= 0.55
+        ? 'moderate'
+        : 'light';
+
+  const bitDepth = serious || !decision.posture.banterEligible
+    ? 0
+    : sessionBitDepth(context.session, strategy.bitDepthCap, decision.posture.humor);
+  const symbolicFraming: NonNullable<ExpressionPlan['symbolicFraming']> =
+    !serious &&
+    strategy.symbolicFraming === 'interpretive' &&
+    decision.posture.symbolicFramingAllowed
+      ? 'interpretive'
+      : 'off';
+  const operationalSass = serious
+    ? 'off'
+    : cappedLevel(decision.posture.operationalSass, strategy.operationalSassCap);
+  const affectionateTeasing =
+    !serious &&
+    strategy.affectionateTeasing &&
+    decision.posture.affectionateTeasing >= 0.5 &&
+    context.session?.discomfortDetected !== true;
+
   return {
     mode,
     allowProfanity: !serious && decision.posture.profanityAllowed,
     allowQuip: !serious && decision.posture.quipsAllowed,
+    register,
+    cadenceStyle,
+    pauseDensity,
+    metaphorDensity,
+    bitDepth,
+    allowPlayfulDisagreement:
+      !serious &&
+      strategy.allowPlayfulDisagreement &&
+      decision.posture.banterEligible,
+    symbolicFraming,
+    storytellingDepth: serious ? 'none' : strategy.storytellingDepth,
+    edginess: serious ? 'none' : cappedEdginess(decision.posture.edginessBudget, strategy.edginessCap),
+    reentryToPlayfulness: serious ? 'off' : strategy.reentryToPlayfulness,
+    operationalSass,
+    affectionateTeasing,
+    workloadBoundary: strategy.workloadBoundary,
+    evidenceDiscipline: serious ? 'strict' : strategy.evidenceDiscipline,
+    speakingRate: strategy.speakingRate,
+    deliberatePauses: pauseDensity !== 'low',
     responseLength,
     tone,
     reasoningDepth,
