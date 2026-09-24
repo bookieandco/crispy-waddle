@@ -7,6 +7,7 @@ import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
 import { chunkSpeechText, isAbortLike, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
+import { requiresDeviceLocationForSpatialRead } from "@/lib/intelligence/ask-contextual-read-routing"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -20,6 +21,7 @@ type SocialWorkPlan={kind:"social_marketing";operation:string;character?:SocialC
 type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ_ONLY";nextBoundary:"growth_read_only";campaigns:readonly EvidenceRef[];audiences:readonly EvidenceRef[];pendingWork:readonly EvidenceRef[];performance:readonly EvidenceRef[];attention:readonly EvidenceRef[];notes:readonly string[]}
 type VideoJobSummary={id:string;projectId:string;status:string;mode?:string;aspectRatio?:string;providerId?:string;error?:string;previewAssetId?:string}
 type SpatialContextUsageReceipt={used:boolean;authority:"INTELLIGENCE_ONLY";observationCount:number;evidenceCount:number;claimCount:number;realityCount:number;provenanceCount:number;sources:string[];conflictCount:number;uncertaintyCount:number;limitationCount:number}
+type SpatialGeographicScope={lat:number;lon:number;radiusKm?:number}
 type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;feedbackEligible?:boolean}
 
 export default function AskJhadinaPage(){return <Suspense fallback={<main className="jh-page"><div className="jh-wrap"><div className="jh-skeleton"/></div></main>}><AskJhadina/></Suspense>}
@@ -113,6 +115,27 @@ function AskJhadina(){
  }
 
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
+ function spatialScopeFromParams():SpatialGeographicScope|undefined{
+  const latRaw=params.get("lat"),lonRaw=params.get("lon")
+  if(latRaw===null||lonRaw===null)return undefined
+  const lat=Number(latRaw),lon=Number(lonRaw),radius=Number(params.get("radiusKm")??"")
+  if(!Number.isFinite(lat)||lat<-90||lat>90||!Number.isFinite(lon)||lon<-180||lon>180)return undefined
+  return{lat,lon,...(Number.isFinite(radius)&&radius>0?{radiusKm:radius}:{})}
+ }
+ async function resolveSpatialGeographicScope(command:string):Promise<SpatialGeographicScope|undefined>{
+  const explicit=spatialScopeFromParams()
+  if(explicit)return explicit
+  if(!requiresDeviceLocationForSpatialRead(command))return undefined
+  if(typeof navigator==="undefined"||!navigator.geolocation)throw new Error("Device location is unavailable. Specify a location or open Ask Jhadina from the Spatial workspace.")
+  setInputStatus("Location permission is needed to scope this GEV query. Your coordinates are used for this request and are not added to WorkSession memory.")
+  return await new Promise<SpatialGeographicScope>((resolve,reject)=>{
+   navigator.geolocation.getCurrentPosition(
+    position=>resolve({lat:position.coords.latitude,lon:position.coords.longitude,radiusKm:25}),
+    ()=>reject(new Error("Location permission is required for a near-me GEV query. Allow location or specify a location.")),
+    {enableHighAccuracy:false,maximumAge:60000,timeout:8000},
+   )
+  })
+ }
  function stopSpeech(){
   speechAbortRef.current?.abort()
   speechAbortRef.current=null
@@ -334,10 +357,11 @@ function AskJhadina(){
       admittedArtifactIds:artifactRefs,
      }:undefined,
     )
+    const geographicScope=await resolveSpatialGeographicScope(command)
     const response=await fetch("/api/jhadina/command",{
      method:"POST",
      headers:{"content-type":"application/json","x-jhadina-user-id":userId},
-     body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,liveContext,activeProject:params.get("project")??undefined,clientRequestId:turnId}),
+     body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,liveContext,geographicScope,activeProject:params.get("project")??undefined,clientRequestId:turnId}),
      signal:controller.signal,
     })
     const json=await response.json()
