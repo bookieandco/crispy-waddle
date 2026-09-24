@@ -14,7 +14,9 @@ function assertRequestCompatibility(registry: GenerationRegistry, request: Gener
   if (!model.modalities.includes(request.modality)) throw new Error(`Model ${model.id} does not support modality: ${request.modality}`);
   const provider = registry.getProvider(model.providerId);
   if (!provider) throw new Error(`Provider is not registered: ${model.providerId}`);
-  const hasVideoReference = request.references?.some((reference) => reference.media === 'video') ?? false;
+  const hasVideoReference = request.references?.some((reference) =>
+    reference.media === 'video' && reference.role !== 'audio'
+  ) ?? false;
   const hasImageReference = request.references?.some((reference) =>
     reference.media === 'image' ||
     (reference.media === undefined && ['image', 'character', 'composition', 'style', 'location'].includes(reference.role))
