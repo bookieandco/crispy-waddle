@@ -32,7 +32,7 @@ export function passedPrintQualityGate(
 export interface CertifiedCartItem extends ValidatedCartItem {
   printAssetId: string;
   fulfillmentProvider: 'printify';
-  providerProductId: string;
+  providerProductId?: string;
   providerVariantId: string;
   blueprintId: string;
   printProviderId: string;
@@ -71,7 +71,7 @@ export async function certifyCartForCheckout(
     const liveRows = await rest<
       Array<{
         provider: string;
-        provider_product_id: string;
+        provider_product_id: string | null;
         provider_variant_id: string;
         active: boolean;
         certification_status: string;
@@ -106,7 +106,7 @@ export async function certifyCartForCheckout(
       ...item,
       printAssetId: output.print_asset_id,
       fulfillmentProvider: 'printify',
-      providerProductId: live.provider_product_id,
+      ...(live.provider_product_id ? { providerProductId: live.provider_product_id } : {}),
       providerVariantId: live.provider_variant_id,
       blueprintId: live.blueprint_id,
       printProviderId: live.print_provider_id,
