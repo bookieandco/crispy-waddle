@@ -8,8 +8,10 @@ import {
   ComfyUIProvider,
   createComfyUIHttpClient,
   GenerationRegistry,
+  validateApprovedCharacterLoraRecord,
   type GenerationProvider,
   type GenerationProviderRecord,
+  type LoRARecord,
   type ModelRecord,
 } from '@jhadina/director-core';
 
@@ -26,6 +28,7 @@ export type DirectorGenerationFactoryConfig = {
     apiKey?: string;
     models: ModelRecord[];
   };
+  approvedLoras?: LoRARecord[];
 };
 
 export type DirectorGenerationProviderRuntime = {
@@ -42,6 +45,10 @@ function readJsonEnv<T>(name: string): T | undefined {
   } catch {
     throw new Error(`DIRECTOR_CONFIG_INVALID_JSON:${name}`);
   }
+}
+
+function defaultApprovedLoras(): LoRARecord[] | undefined {
+  return readJsonEnv<LoRARecord[]>('DIRECTOR_APPROVED_LORAS_JSON');
 }
 
 function defaultComfyUiConfig(): DirectorGenerationFactoryConfig['comfyUi'] | undefined {
@@ -92,7 +99,10 @@ function buildWorkflow(request: Parameters<NonNullable<GenerationProvider['submi
  * supplied by the canonical GenerationRequest rather than hard-coded here.
  */
 export async function createDirectorGenerationRuntimeConfig(
-  config: DirectorGenerationFactoryConfig = { comfyUi: defaultComfyUiConfig() },
+  config: DirectorGenerationFactoryConfig = {
+    comfyUi: defaultComfyUiConfig(),
+    approvedLoras: defaultApprovedLoras(),
+  },
 ): Promise<DirectorGenerationProviderRuntime> {
   const registry = new GenerationRegistry();
   const providers = new Map<string, GenerationProvider>();
@@ -135,6 +145,22 @@ export async function createDirectorGenerationRuntimeConfig(
       throw new Error(`DIRECTOR_MODEL_PROVIDER_MISMATCH:${model.id}`);
     }
     registry.registerModel(model);
+  }
+
+  for (const lora of config.approvedLoras ?? []) {
+    const approvalErrors = validateApprovedCharacterLoraRecord(lora);
+    if (approvalErrors.length) {
+      throw new Error(`DIRECTOR_APPROVED_LORA_INVALID:${lora.id}:${approvalErrors.join(',')}`);
+    }
+    const compatibleModel = registry.listModels().some((model) =>
+      Boolean(model.baseModel) &&
+      model.baseModel === lora.baseModel &&
+      lora.modalities.some((modality) => model.modalities.includes(modality))
+    );
+    if (!compatibleModel) {
+      throw new Error(`DIRECTOR_APPROVED_LORA_BASE_MODEL_UNAVAILABLE:${lora.id}`);
+    }
+    registry.registerLoRA(lora);
   }
 
   return { registry, providers, artifactDeployment };
