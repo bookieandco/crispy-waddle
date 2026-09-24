@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { requiresFullJllmContextForRead } from "./ask-contextual-read-routing"
+import { requiresFullJllmContextForRead, requiresSpatialContextForRead } from "./ask-contextual-read-routing"
 
 describe("Ask contextual read routing", () => {
   it.each([
@@ -11,6 +11,24 @@ describe("Ask contextual read routing", () => {
     "Given my personality, what social account fits me?",
   ])("routes explicit personal/history reads through full JLLM context: %s", (input) => {
     expect(requiresFullJllmContextForRead(input)).toBe(true)
+  })
+
+  it.each([
+    "Which social accounts should react to what is happening near Dodger Stadium?",
+    "Which campaign should I prioritize given traffic around LAX?",
+    "Use GEV to tell me which social account should cover the nearby wildfire.",
+    "What flights are around the airport right now?",
+  ])("routes spatial/GEV reads through full JLLM context: %s", (input) => {
+    expect(requiresSpatialContextForRead(input)).toBe(true)
+    expect(requiresFullJllmContextForRead(input)).toBe(true)
+  })
+
+  it.each([
+    "Why did campaign performance change?",
+    "Route this social draft to the right account",
+    "Investigate why my ad CTR dropped",
+  ])("does not mistake ordinary analysis verbs for spatial intent: %s", (input) => {
+    expect(requiresSpatialContextForRead(input)).toBe(false)
   })
 
   it.each([
