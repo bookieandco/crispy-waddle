@@ -51,11 +51,13 @@ class VoiceWorkerTest(unittest.TestCase):
         engine=FakeTts("voxcpm2",True)
         router=VoiceRouter([],[engine])
         events=list(router.speak_stream(
-            "One sentence. Two sentence. Three sentence.",
+            "First sentence establishes the point clearly. "
+            "Second sentence adds enough detail that progressive synthesis should emit another bounded chunk. "
+            "Third sentence closes the response without changing the canonical voice identity.",
             "en-US",
             "jhadina:canonical",
             {"style":"playful"},
-            max_chars=20,
+            max_chars=80,
         ))
         self.assertGreaterEqual(len(events),3)
         self.assertTrue(all(event["type"]=="audio" for event in events[:-1]))
