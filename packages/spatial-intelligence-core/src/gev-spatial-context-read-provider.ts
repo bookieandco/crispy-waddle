@@ -237,7 +237,7 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
       ...(this.options.bridge ? [capture('camera', async () => {
         const sources = await this.options.bridge!.cctvSources(this.purpose)
         try {
-          const health = await this.options.bridge.cctvHealth(this.purpose)
+          const health = await this.options.bridge!.cctvHealth(this.purpose)
           sourceHealth.push(`camera-health:available:${health.length}`)
           emitSpatialTelemetry(this.options.telemetry, {
             kind: 'provider_health', component: 'gev:camera-health', status: 'ok', at: receivedAt,
