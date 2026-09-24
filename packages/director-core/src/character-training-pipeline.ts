@@ -47,6 +47,160 @@ export interface CharacterUpscaleResult {
   evidenceIds: readonly string[];
 }
 
+
+export interface CharacterPoseReference {
+  id: string;
+  assetId: string;
+  label: string;
+  evidenceIds: readonly string[];
+}
+
+export interface CharacterWardrobeReference {
+  id: string;
+  assetId: string;
+  label: string;
+  evidenceIds: readonly string[];
+}
+
+export interface CharacterDatasetGenerationRequest {
+  id: string;
+  projectId: string;
+  characterId: string;
+  continuityRef: string;
+  canonicalAssetId: string;
+  triggerWord: string;
+  targetViews: readonly CharacterReferenceView[];
+  expressions: readonly string[];
+  poseReferences?: readonly CharacterPoseReference[];
+  wardrobeReferences?: readonly CharacterWardrobeReference[];
+  styleIntent?: string;
+  includeEnvironmentProbes?: boolean;
+  evidenceIds: readonly string[];
+}
+
+export interface CharacterDatasetGenerationTask {
+  id: string;
+  kind: CharacterDatasetKind;
+  label: string;
+  sourceAssetIds: readonly string[];
+  targetView?: CharacterReferenceView;
+  expression?: string;
+  poseReferenceId?: string;
+  wardrobeReferenceId?: string;
+  instruction: string;
+}
+
+export interface CharacterDatasetGenerationPlan {
+  id: string;
+  projectId: string;
+  characterId: string;
+  continuityRef: string;
+  canonicalAssetId: string;
+  triggerWord: string;
+  tasks: readonly CharacterDatasetGenerationTask[];
+  stages: readonly ('generate' | 'curate' | 'caption' | 'upscale' | 'optional-train-lora')[];
+  authority: 'DIRECTOR_CHARACTER_DATASET_PLAN';
+}
+
+export function planCharacterDatasetGeneration(
+  request: CharacterDatasetGenerationRequest,
+): CharacterDatasetGenerationPlan {
+  const reasons: string[] = [];
+  if (
+    !request.id.trim() ||
+    !request.projectId.trim() ||
+    !request.characterId.trim() ||
+    !request.continuityRef.trim() ||
+    !request.canonicalAssetId.trim()
+  ) {
+    reasons.push('DIRECTOR_CHARACTER_DATASET_PLAN_IDENTITY_REQUIRED');
+  }
+  if (!isValidTriggerWord(request.triggerWord)) reasons.push('DIRECTOR_CHARACTER_DATASET_TRIGGER_WORD_INVALID');
+  if (!request.evidenceIds.length) reasons.push('DIRECTOR_CHARACTER_DATASET_PLAN_EVIDENCE_REQUIRED');
+
+  const tasks: CharacterDatasetGenerationTask[] = [];
+  const pushTask = (task: Omit<CharacterDatasetGenerationTask, 'id'>) => {
+    tasks.push(Object.freeze({ id: `${request.id}:task:${tasks.length + 1}`, ...task }));
+  };
+
+  for (const view of [...new Set(request.targetViews)]) {
+    if (view === 'unknown') continue;
+    pushTask({
+      kind: 'angle',
+      label: `view:${view}`,
+      sourceAssetIds: [request.canonicalAssetId],
+      targetView: view,
+      instruction: [
+        `Preserve ${request.characterId} identity from the canonical reference.`,
+        `Generate a ${view} character reference on a simple neutral background with neutral lighting.`,
+        request.styleIntent?.trim() ? `Preserve style intent: ${request.styleIntent.trim()}.` : undefined,
+      ].filter((value): value is string => Boolean(value)).join(' '),
+    });
+  }
+
+  for (const expression of [...new Set(request.expressions.map((value) => value.trim()).filter(Boolean))]) {
+    pushTask({
+      kind: 'expression',
+      label: `expression:${expression}`,
+      sourceAssetIds: [request.canonicalAssetId],
+      expression,
+      instruction: `Preserve identity and apply only the expression "${expression}" to the canonical face reference.`,
+    });
+  }
+
+  for (const pose of request.poseReferences ?? []) {
+    if (!pose.id.trim() || !pose.assetId.trim() || !pose.label.trim() || !pose.evidenceIds.length) {
+      reasons.push(`DIRECTOR_CHARACTER_DATASET_POSE_REFERENCE_INVALID:${pose.id || 'unknown'}`);
+      continue;
+    }
+    pushTask({
+      kind: 'pose',
+      label: `pose:${pose.label}`,
+      sourceAssetIds: [request.canonicalAssetId, pose.assetId],
+      poseReferenceId: pose.id,
+      instruction: `Preserve character identity and transfer only the body pose from pose reference "${pose.label}".`,
+    });
+  }
+
+  for (const wardrobe of request.wardrobeReferences ?? []) {
+    if (!wardrobe.id.trim() || !wardrobe.assetId.trim() || !wardrobe.label.trim() || !wardrobe.evidenceIds.length) {
+      reasons.push(`DIRECTOR_CHARACTER_DATASET_WARDROBE_REFERENCE_INVALID:${wardrobe.id || 'unknown'}`);
+      continue;
+    }
+    pushTask({
+      kind: 'wardrobe',
+      label: `wardrobe:${wardrobe.label}`,
+      sourceAssetIds: [request.canonicalAssetId, wardrobe.assetId],
+      wardrobeReferenceId: wardrobe.id,
+      instruction: `Preserve character identity and body proportions; apply only wardrobe reference "${wardrobe.label}".`,
+    });
+  }
+
+  if (request.includeEnvironmentProbes) {
+    pushTask({
+      kind: 'environment',
+      label: 'environment:walking-natural',
+      sourceAssetIds: [request.canonicalAssetId],
+      instruction: 'Preserve identity while placing the character in a simple natural walking environment for generalization coverage.',
+    });
+  }
+
+  if (!tasks.length) reasons.push('DIRECTOR_CHARACTER_DATASET_PLAN_TASKS_REQUIRED');
+  if (reasons.length) throw new Error(`DIRECTOR_CHARACTER_DATASET_PLAN_INVALID: ${[...new Set(reasons)].join(', ')}`);
+
+  return Object.freeze({
+    id: request.id,
+    projectId: request.projectId,
+    characterId: request.characterId,
+    continuityRef: request.continuityRef,
+    canonicalAssetId: request.canonicalAssetId,
+    triggerWord: request.triggerWord,
+    tasks: Object.freeze(tasks),
+    stages: Object.freeze(['generate', 'curate', 'caption', 'upscale', 'optional-train-lora']),
+    authority: 'DIRECTOR_CHARACTER_DATASET_PLAN',
+  });
+}
+
 export interface CharacterDatasetPolicy {
   minimumItems: number;
   maximumItems: number;
