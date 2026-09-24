@@ -1,4 +1,4 @@
--- Persist structured Director camera, performance, and realism plans.
+-- Persist structured Director camera, performance, realism, and animation plans.
 --
 -- This extends both canonical storyboard heads and append-only board history so
 -- downstream generation/QC can reconstruct the exact authored direction used
@@ -13,7 +13,8 @@ alter table if exists public.director_storyboard_boards
 alter table if exists public.director_storyboard_board_versions
   add column if not exists camera_plan jsonb,
   add column if not exists performance_plan jsonb,
-  add column if not exists realism_plan jsonb;
+  add column if not exists realism_plan jsonb,
+  add column if not exists animation_plan jsonb;
 
 create or replace function public.capture_director_storyboard_board_version()
 returns trigger
