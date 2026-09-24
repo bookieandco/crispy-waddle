@@ -45,3 +45,29 @@ export function isMeaningfulScreenChange(
   }
   return total / next.length >= meanAbsoluteThreshold
 }
+
+
+export interface RestoredWorkSessionContinuity {
+  goal: string
+  activeSubsystems: string[]
+  admittedArtifactIds: string[]
+}
+
+export function restoreWorkSessionContinuity(session: unknown): RestoredWorkSessionContinuity {
+  if (!session || typeof session !== "object") {
+    return { goal: "", activeSubsystems: [], admittedArtifactIds: [] }
+  }
+  const raw=session as Record<string, unknown>
+  const goal=typeof raw.goal==="string"?raw.goal:""
+  const activeSubsystems=Array.isArray(raw.activeSubsystems)
+    ? raw.activeSubsystems.filter((item):item is string=>typeof item==="string"&&Boolean(item.trim())).slice(0,16)
+    : []
+  const admittedArtifactIds=Array.isArray(raw.artifactRefs)
+    ? raw.artifactRefs
+      .filter((item):item is {id:string;admitted?:boolean}=>Boolean(item&&typeof item==="object"&&typeof (item as {id?:unknown}).id==="string"))
+      .filter((item)=>item.admitted!==false)
+      .map((item)=>item.id)
+      .slice(0,8)
+    : []
+  return { goal, activeSubsystems, admittedArtifactIds }
+}
