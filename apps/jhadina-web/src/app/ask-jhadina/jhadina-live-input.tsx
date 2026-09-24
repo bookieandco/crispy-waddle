@@ -169,6 +169,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
     recognitionRef.current?.stop?.()
     recognitionRef.current = null
     setWakeEnabled(false)
+    conversationActiveRef.current=false
     setConversationActive(false)
     setVoiceState("off")
     stopAcousticMonitor()
@@ -214,16 +215,18 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
         const decision=classifyWakeSpeech(transcript,conversationActiveRef.current)
         if(decision.action==="ignore")continue
         if(decision.action==="deactivate"){
+          conversationActiveRef.current=false
           setConversationActive(false)
           onStatus?.("Conversation paused. Say “Jhadina” to wake me again.")
           continue
         }
         if(decision.action==="activate"){
+          conversationActiveRef.current=true
           setConversationActive(true)
           onStatus?.("I’m listening. You can keep talking without repeating my name.")
           continue
         }
-        if(decision.activates)setConversationActive(true)
+        if(decision.activates){conversationActiveRef.current=true;setConversationActive(true)}
         onStatus?.(`Heard: ${decision.command}`)
         onVoiceCommand(decision.command, summarizeAcoustics(decision.command))
       }
@@ -319,7 +322,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
     nativeRecorderRef.current=recorder
     nativeChunksRef.current=[]
     recorder.ondataavailable=(event)=>{if(event.data.size)nativeChunksRef.current.push(event.data)}
-    recorder.onstart=()=>{setNativeRecording(true);setConversationActive(true);onBargeIn?.();onStatus?.("Native Whisper microphone recording… tap again to transcribe.")}
+    recorder.onstart=()=>{setNativeRecording(true);conversationActiveRef.current=true;setConversationActive(true);onBargeIn?.();onStatus?.("Native Whisper microphone recording… tap again to transcribe.")}
     recorder.onstop=()=>{
       void (async()=>{
         setNativeRecording(false)
@@ -388,7 +391,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
     <video ref={videoRef} muted playsInline style={{display:"none"}} />
     <div className="jh-row">
       <button type="button" className="jh-button" disabled={!wakeEnabled&&busy} onClick={wakeEnabled?stopWake:startWake}>
-        {wakeEnabled ? (conversationActive ? "Pause conversation" : "Stop wake word") : "Wake: Jhadina"}
+        {wakeEnabled ? "Stop wake word" : "Wake: Jhadina"}
       </button>
       <select className="jh-input" value={language} onChange={(event)=>setLanguage(event.target.value)} aria-label="Voice language" style={{maxWidth:180}}>
         {LANGUAGES.map(([value,label])=><option key={value} value={value}>{label}</option>)}
