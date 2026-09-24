@@ -263,6 +263,26 @@ test('GEV P6 spatial graph projects into the canonical knowledge graph with prov
   assert.ok(node?.provenanceRefs?.includes('e-camera-1'))
 })
 
+test('Knowledge identity projection keeps dynamic evidence on relations so repeated observations remain append-safe', () => {
+  const observation = {
+    observation_id: 'obs:1',
+    entity: { id: 'satellite:25544', type: 'satellite' as const },
+    observation_type: 'satellite_orbit_elements',
+    observed_at: '2026-09-24T04:00:00.000Z',
+    received_at: '2026-09-24T04:01:00.000Z',
+    source: { provider: 'CelesTrak', record_id: '25544' },
+    position: null,
+    attributes: {},
+    quality: { freshness: 'unknown' as const, completeness: 'partial' as const, coverage: 'partial' as const },
+    provenance: { source_ref: 'gev-celestrak', adapter_version: 'test:v1' },
+    inference: false as const,
+  }
+  const contribution = spatialObservationToGraphContribution(observation, 'evidence:1')
+  assert.deepEqual(contribution.evidenceRefs, [])
+  assert.equal(contribution.edges.length, 1)
+  assert.deepEqual(contribution.edges[0].evidenceRefs, ['evidence:1'])
+})
+
 test('GEV P7 JANET cannot change truth lineage; DELIA is intelligence-only; MARISA requires policy approval', () => {
   const workspace: SpatialWorkspace = {
     workspaceId: 'workspace-1', ownerId: 'user-1', geographicScope: null, selectedRefs: [], activeLayers: ['camera'], filters: {},
