@@ -1,0 +1,110 @@
+name: PupsonStuff Printify Catalog Discovery
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    name: Read-only Printify launch catalog discovery
+    runs-on: ubuntu-latest
+    environment: pupsonstuff-production
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Printify discovery credential
+        shell: bash
+        run: |
+          if [ -z "$PRINTIFY_API_KEY" ]; then
+            echo "::error::PRINTIFY_API_KEY is empty in the pupsonstuff-production GitHub environment."
+            exit 1
+          fi
+        env:
+          PRINTIFY_API_KEY: ${{ secrets.PRINTIFY_API_KEY }}
+
+      - name: Run read-only live catalog discovery
+        id: discovery
+        continue-on-error: true
+        run: pnpm --filter @jhadina/pupsonstuff printify:sync
+        env:
+          PRINTIFY_API_KEY: ${{ secrets.PRINTIFY_API_KEY }}
+
+      - name: Extract launch product families
+        if: always()
+        shell: bash
+        run: |
+          report="apps/pupsonstuff/docs/fulfillment/catalog-mapping-report.json"
+          out="apps/pupsonstuff/docs/fulfillment/launch-catalog-candidates.json"
+          if [ -f "$report" ]; then
+            jq '{
+              generatedAt,
+              blocked,
+              blockedReason,
+              groups: [
+                .groups[]
+                | select(.fulfillmentProductId == "frame1"
+                    or .fulfillmentProductId == "mugWhite"
+                    or .fulfillmentProductId == "concertShirt")
+              ]
+            }' "$report" > "$out"
+          else
+            printf '%s\n' '{"blocked":true,"blockedReason":"catalog-mapping-report.json was not produced","groups":[]}' > "$out"
+          fi
+
+      - name: Add launch discovery summary
+        if: always()
+        shell: bash
+        run: |
+          out="apps/pupsonstuff/docs/fulfillment/launch-catalog-candidates.json"
+          echo "### PupsonStuff Printify launch discovery" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$out" ]; then
+            echo "~~~json" >> "$GITHUB_STEP_SUMMARY"
+            jq '{generatedAt, blocked, blockedReason, groups: [.groups[] | {
+              fulfillmentProductId,
+              status,
+              chosenBlueprint,
+              chosenProvider,
+              matchedVariants,
+              unmatchedCustomization,
+              artworkPlacement
+            }]}' "$out" >> "$GITHUB_STEP_SUMMARY"
+            echo "~~~" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload discovery reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pupsonstuff-printify-catalog-discovery
+          path: |
+            apps/pupsonstuff/docs/fulfillment/catalog-mapping-report.json
+            apps/pupsonstuff/docs/fulfillment/catalog-mapping-report.md
+            apps/pupsonstuff/docs/fulfillment/launch-catalog-candidates.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Fail when live discovery did not succeed
+        if: steps.discovery.outcome != 'success'
+        run: |
+          echo "::error::Read-only Printify catalog discovery did not complete successfully. Review the uploaded report artifact."
+          exit 1
