@@ -9,7 +9,7 @@ describe("JHADINA-INTERACTION-QUALITY.FINAL production health", () => {
     expect(health.status).toBe("READY")
     expect(health.modelGuidanceRules).toBeGreaterThanOrEqual(15)
     expect(health.certification.status).toBe("READY")
-    expect(health.certification.gates).toHaveLength(12)
+    expect(health.certification.gates).toHaveLength(13)
     expect(health.certification.gates.every((gate) => gate.ready)).toBe(true)
   })
 })
