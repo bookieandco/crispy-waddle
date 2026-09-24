@@ -326,7 +326,7 @@ export class PublicSatelliteSpatialProvider {
       const sha256 = [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, '0')).join('')
       const contentType = response.headers?.get('content-type') ?? 'image/jpeg'
       return {
-        observation_id: `nasa-gibs:viirs-snpp:${date}:${tile.z}:${tile.x}:${tile.y}:${sha256.slice(0, 16)}`,
+        observation_id: `nasa-gibs:viirs-snpp:${date}:${tile.z}:${tile.x}:${tile.y}:${sha256.slice(0, 16)}:${receivedAt}`,
         entity: { id: `satellite-imagery:viirs-snpp:${date}:${tile.z}:${tile.x}:${tile.y}`, type: 'satellite' },
         observation_type: 'satellite_imagery_asset',
         observed_at: `${date}T12:00:00.000Z`,
@@ -375,7 +375,7 @@ export class PublicSatelliteSpatialProvider {
     }).slice(0, MAX_SATELLITE_RESULTS)
 
     return ranked.map(({ record, subpoint, distanceToScopeKm, nextClosestApproach }) => ({
-      observation_id: `celestrak:${record.noradCatId}:${record.epoch}`,
+      observation_id: `celestrak:${record.noradCatId}:${record.epoch}:${receivedAt}`,
       entity: { id: `satellite:${record.noradCatId}`, type: 'satellite' },
       observation_type: 'satellite_orbit_elements',
       observed_at: new Date(record.epoch).toISOString(),
