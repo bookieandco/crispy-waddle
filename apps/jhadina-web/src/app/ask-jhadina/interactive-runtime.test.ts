@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   beginInteractiveTurn,
   chunkSpeechText,
+  classifyWakeSpeech,
   completeInteractiveTurn,
   createInteractiveSnapshot,
   interruptInteractiveTurn,
@@ -73,5 +74,27 @@ describe("JHADINA-INTERACTIVE runtime", () => {
 
   it("does not emit empty speech chunks", () => {
     expect(chunkSpeechText("   ")).toEqual([])
+  })
+
+  it("activates once and accepts natural follow-up turns", () => {
+    expect(classifyWakeSpeech("Jhadina", false)).toEqual({action:"activate"})
+    expect(classifyWakeSpeech("Jhadina look at this", false)).toEqual({
+      action:"command",
+      command:"look at this",
+      activates:true,
+    })
+    expect(classifyWakeSpeech("and compare it to yesterday", true)).toEqual({
+      action:"command",
+      command:"and compare it to yesterday",
+      activates:false,
+    })
+  })
+
+  it("requires an explicit wake before ordinary background speech becomes a command", () => {
+    expect(classifyWakeSpeech("turn the music down", false)).toEqual({action:"ignore"})
+  })
+
+  it("honors an explicit sleep phrase inside an active conversation", () => {
+    expect(classifyWakeSpeech("Jhadina go to sleep", true)).toEqual({action:"deactivate"})
   })
 })
