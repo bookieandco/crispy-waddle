@@ -68,7 +68,7 @@ Repair:
 - only attach the staged scope when the active Ask prompt is spatial;
 - add a Spatial-workspace “Ask Jhadina about this view” handoff that carries the current scope and active layers without putting coordinates in the URL.
 
-Named-place text is not silently geocoded by this repair. If no staged/explicit coordinates or device-relative permission exists, the query remains unscoped rather than inventing a location.
+Named-place handling now has a deterministic public-airport fast path for LAX/KLAX/Los Angeles International Airport using the Public Domain OurAirports record (33.942501, -118.407997). Explicit/staged coordinates still win. "at LAX" uses a 5 km scope, "near/around LAX" uses 25 km, and explicit 0.5–250 km / equivalent-mile distances are honored. Out-of-policy distances and unresolved place names fail closed. General free-text geocoding beyond the seeded airport gazetteer remains a separate expansion; the system does not invent coordinates.
 
 ### Gap 5 — evidence summaries were not spatially useful enough for JLLM reasoning
 
@@ -94,6 +94,22 @@ Boundary:
 - protocol/configuration metadata is capability information only and never authorizes camera access or bypasses authentication.
 
 Source: https://www.cctv-database.com/api/ and https://github.com/ch-bas/cctv-camera-database (CC0 1.0).
+
+### Gap 7 — deterministic named-place scope
+
+Ask Jhadina can now resolve the explicit public airport aliases `LAX`, `KLAX`, and `Los Angeles International Airport` before Context Builder assembly when no explicit geographic scope was supplied.
+
+Boundary:
+- authoritative explicit/browser/Spatial-workspace scope wins over named-place resolution;
+- source record: OurAirports `KLAX`, Public Domain;
+- coordinates: `33.942501, -118.407997`;
+- default `near/around` radius: 25 km;
+- `at/inside` radius: 5 km;
+- explicit distances from 0.5–250 km (or mile equivalents) override the default;
+- out-of-range distances and unresolved names fail closed;
+- resolver metadata is carried in the request scope for provenance but does not become user Memory.
+
+General landmark/city/address geocoding is not claimed by this airport fast path.
 
 ## Regression coverage
 
