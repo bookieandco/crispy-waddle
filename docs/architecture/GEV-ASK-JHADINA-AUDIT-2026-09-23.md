@@ -55,13 +55,38 @@ Repair:
 
 The receipt exposes metadata only. It does not expose provider secrets, raw restricted CCTV frames, arbitrary upstream URLs, or execution authority.
 
+### Gap 4 — no geographic handoff from Ask Jhadina
+
+The command contract already accepted `geographicScope`, but the Ask Jhadina browser surface never supplied it. Device-relative prompts such as “what flights are near me?” could therefore invoke spatial reasoning without a local query boundary.
+
+Repair:
+- classify only explicitly device-relative prompts (near me, around here, my area, current location);
+- request browser geolocation only for those prompts, using the browser permission boundary;
+- send a bounded 25 km point scope on that turn;
+- do not add the coordinates to WorkSession memory;
+- accept explicit `lat` / `lon` / `radiusKm` query parameters when Ask Jhadina is opened from a scoped Spatial workspace;
+- add a Spatial-workspace “Ask Jhadina about this view” handoff that carries the current scope and active layers.
+
+Named-place text is not silently geocoded by this repair. If no explicit coordinates or device-relative permission exists, the query remains unscoped rather than inventing a location.
+
+### Gap 5 — evidence summaries were not spatially useful enough for JLLM reasoning
+
+The governed ContextPacket carried evidence IDs and entity IDs, but normalized GEV evidence summaries omitted coordinates. That made the attachment observable without giving Jhadina enough bounded spatial detail to explain where admitted evidence was located.
+
+Repair:
+- include normalized latitude/longitude (and altitude when present) in observation/evidence summaries;
+- keep raw provider payloads outside the ContextPacket;
+- rely on the model-input source-use gate above so restricted/unknown sources are blocked before these summaries can reach Ask Jhadina.
+
 ## Regression coverage
 
 - explicit GEV/spatial prompts require the full canonical JLLM context;
 - mixed Social/Growth + spatial prompts cannot be swallowed by narrow shortcuts;
 - generic words such as “change”, “route” and “investigate” do not by themselves wake spatial context;
 - the IntelligenceRouter receives the spatial ContextPacket contribution;
-- the returned usage receipt matches the actual governed contribution.
+- the returned usage receipt matches the actual governed contribution;
+- device-relative prompts request a device scope while named-place prompts do not;
+- model-input source policy blocks restricted/unknown GEV sources before upstream fetch and permits explicitly allowed FIRMS evidence.
 
 ## Production truth
 
