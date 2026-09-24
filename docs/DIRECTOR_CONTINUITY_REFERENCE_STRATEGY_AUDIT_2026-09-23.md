@@ -189,6 +189,49 @@ LoRA training returns one or more candidate checkpoints. Director applies checkp
 
 Likewise, chunked upscale results are rejected if a worker changes governed timing, dimensions, chunk coverage, or required audio.
 
+## Approval-to-inference LoRA gate
+
+Training completion is not inference authority.
+
+`character-lora-approval.ts` now requires a matching approval receipt after checkpoint promotion. The receipt is bound to:
+
+- candidate LoRA ID;
+- checkpoint ID;
+- dataset ID;
+- character continuity reference;
+- identity score;
+- quality score;
+- overfit score;
+- approval evidence;
+- approving user and timestamp.
+
+The approval metrics must exactly match the promoted checkpoint evidence and still satisfy Director policy.
+
+Only then is an `approved-character-lora` record created.
+
+The canonical production generation factory now accepts an explicit approved-LoRA set (or `DIRECTOR_APPROVED_LORAS_JSON`) and fails closed unless each record includes:
+
+- approval metadata/evidence;
+- model artifact URI and digest;
+- trigger word;
+- continuity/dataset/checkpoint lineage;
+- a base model/modalities compatible with a currently admitted generation model.
+
+A bare trained checkpoint, candidate LoRA, or approval-free LoRA cannot enter the production `GenerationRegistry`.
+
+This closes the authority chain:
+
+```
+training
+  -> candidate checkpoint
+  -> Director checkpoint QC
+  -> candidate LoRA
+  -> explicit approval
+  -> approved LoRA record
+  -> production registry admission
+  -> generation selection
+```
+
 ## Runtime path
 
 ```
