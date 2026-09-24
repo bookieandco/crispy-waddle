@@ -279,28 +279,81 @@ function AskJhadina(){
   const governed=await governReferenceProposal(userId,command,proposal,"reference-product")
   return {proposal:governed.proposal,reasoningEventId:governed.reasoningEventId,expression:governed.expression,verified:true,verificationReason:"Product reference admission and project authority completed before product-aware production submission; presentation was realized through the governed Personality/RNC path and the turn was persisted to Hippocampus.",videoJob:job,feedbackEligible:false}
  }
- async function ask(commandOverride?:string, conversationSignals?:JhadinaConversationSignals){
+ async function ask(commandOverride?:string, conversationSignals?:JhadinaConversationSignals, source:"typed"|"voice"=commandOverride?"voice":"typed"){
   const command=(commandOverride??task).trim()
-  if(!command||busy)return
-  setBusy(true);setError("");setResult(null);setFeedbackRecorded(null)
+  if(!command)return
+
+  if(busyRef.current){
+   if(source!=="voice")return
+   if(referenceFile){
+    setInputStatus("That governed production turn is already committing work; I won’t start a duplicate. I’m still listening.")
+    return
+   }
+   commandAbortRef.current?.abort()
+   stopSpeech()
+  }
+
+  const turnId=crypto.randomUUID()
+  const controller=new AbortController()
+  activeTurnRef.current=turnId
+  commandAbortRef.current=controller
+  busyRef.current=true
+  setBusy(true)
+  setInteractivePhase("thinking")
+  setError("")
+  setResult(null)
+  setFeedbackRecorded(null)
+  setConversationLines(current=>[...current,{id:`user:${turnId}`,speaker:"user",text:command,createdAt:new Date().toISOString(),turnId}].slice(-16))
+
   try{
    const userId=await identity()
    let data:CommandResult
    if(referenceFile){
     data=referenceKind==="product"?await askWithReferenceProduct(command,userId):await askWithReferenceCharacter(command,userId)
    }else{
-    const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,activeProject:params.get("project")??undefined,clientRequestId:crypto.randomUUID()})})
-    const json=await response.json();if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
+    const response=await fetch("/api/jhadina/command",{
+     method:"POST",
+     headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+     body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,activeProject:params.get("project")??undefined,clientRequestId:turnId}),
+     signal:controller.signal,
+    })
+    const json=await response.json()
+    if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
     data=json.data as CommandResult
    }
+
+   if(controller.signal.aborted||activeTurnRef.current!==turnId)return
    await persistWorkSession(userId,command,data)
-   setResult(data);setTask("")
-   if(commandOverride){
-    const spoken=(data.expression?.segments??[]).filter((segment:GovernedExpressionSegment)=>segment.kind==="semantic").map((segment:GovernedExpressionSegment)=>segment.text).join(" ")
-    if(spoken)await speakText(spoken,userId)
+   if(controller.signal.aborted||activeTurnRef.current!==turnId)return
+
+   setResult(data)
+   setTask("")
+   const spoken=(data.expression?.segments??[])
+    .filter((segment:GovernedExpressionSegment)=>segment.kind==="semantic")
+    .map((segment:GovernedExpressionSegment)=>segment.text)
+    .join(" ")
+   if(spoken){
+    setConversationLines(current=>[...current,{id:`jhadina:${turnId}`,speaker:"jhadina",text:spoken,createdAt:new Date().toISOString(),turnId}].slice(-16))
    }
-  }catch(cause){setError(cause instanceof Error?cause.message:"Jhadina could not process that")}
-  finally{setBusy(false);setReferenceStage("")}
+
+   if(source==="voice"&&spoken){
+    await speakText(spoken,userId,data.expression.presentation)
+   }
+   if(activeTurnRef.current===turnId)setInteractivePhase(conversationActive?"listening":"idle")
+  }catch(cause){
+   if(!isAbortLike(cause)&&!controller.signal.aborted){
+    setInteractivePhase("error")
+    setError(cause instanceof Error?cause.message:"Jhadina could not process that")
+   }
+  }finally{
+   if(activeTurnRef.current===turnId){
+    busyRef.current=false
+    commandAbortRef.current=null
+    setBusy(false)
+    setReferenceStage("")
+    if(interactivePhase!=="error"&&interactivePhase!=="speaking")setInteractivePhase(conversationActive?"listening":"idle")
+   }
+  }
  }
  async function feedback(kind:"reinforced"|"rejected"){
   if(!result?.reasoningEventId||feedbackBusy||feedbackRecorded)return
