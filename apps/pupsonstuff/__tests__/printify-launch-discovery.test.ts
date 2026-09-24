@@ -82,5 +82,8 @@ describe('Printify exact launch candidate matching', () => {
     expect(
       launchVariantMatches(canvas, variant(21, '16 x 20', { size: '16″ x 20″' }))
     ).toBe(false);
+    expect(
+      launchVariantMatches(canvas, variant(22, 'Gallery Canvas 12 x 16', {}))
+    ).toBe(true);
   });
 });
