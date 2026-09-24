@@ -95,11 +95,17 @@ const observationToEvidence = (observation: SpatialObservation, registry: Spatia
   return { ...withoutIntegrity, integrity: { contentHash: spatialEvidenceHash(withoutIntegrity) } }
 }
 
+const formatPosition = (position: { lat: number; lon: number; altitude_m?: number | null } | { lat: number; lon: number; altitudeM?: number | null } | null | undefined): string => {
+  if (!position || !Number.isFinite(position.lat) || !Number.isFinite(position.lon)) return ''
+  const altitude = 'altitude_m' in position ? position.altitude_m : position.altitudeM
+  return ` at ${position.lat.toFixed(4)}, ${position.lon.toFixed(4)}${typeof altitude === 'number' && Number.isFinite(altitude) ? ` alt ${Math.round(altitude)}m` : ''}`
+}
+
 const evidenceRef = (evidence: SpatialEvidence): EvidenceRef => ({
   id: evidence.evidenceId,
   source: evidence.source.provider,
   observedAt: evidence.timing.observedAt ?? evidence.timing.receivedAt,
-  summary: `${String(evidence.payload.entity.type ?? 'spatial')} observation ${String(evidence.payload.entity.id ?? evidence.observationId)} from ${evidence.source.provider}`,
+  summary: `${String(evidence.payload.entity.type ?? 'spatial')} observation ${String(evidence.payload.entity.id ?? evidence.observationId)}${formatPosition(evidence.payload.position)} from ${evidence.source.provider}`,
   immutable: true,
 })
 
@@ -107,7 +113,7 @@ const observationRef = (observation: SpatialObservation): EvidenceRef => ({
   id: observation.observation_id,
   source: observation.source.provider,
   observedAt: observation.observed_at ?? observation.received_at,
-  summary: `${observation.observation_type}: ${observation.entity.id}`,
+  summary: `${observation.observation_type}: ${observation.entity.id}${formatPosition(observation.position)}`,
   immutable: true,
 })
 
