@@ -1,4 +1,4 @@
-# Director Camera, Performance, Realism, UGC & Previs Sharpening — 2026-09-22
+# Director Camera, Performance, Realism, Animation, UGC & Previs Sharpening — 2026-09-22
 
 ## Goal
 
@@ -11,6 +11,7 @@ creative intent
 -> structured camera plan
 -> structured performance plan
 -> structured realism/source-preservation plan
+-> structured animation-principles plan
 -> storyboard/reference-board evidence
 -> ordered generation-reference manifest
 -> provider-neutral compiled take
@@ -59,6 +60,26 @@ Director now treats the following as first-class planning/QC concerns:
 - editing/selection as part of the generation loop rather than assuming one generation must be final.
 
 The transcript's named products/models are not hard-coded as Director truth. They remain provider examples that must enter through capability/provenance review.
+
+## User-supplied 12 principles of animation: concepts absorbed
+
+The supplied animation lesson adds a classical motion grammar that Director previously lacked. It is now modeled as governed direction rather than a loose prompt checklist:
+
+- **squash and stretch:** amount communicates softness/mass, overall volume must remain consistent, and maximum stretch should occur where motion justifies it rather than continuously;
+- **anticipation:** preparatory pose, gaze or movement makes an action readable and may use multiple anticipation levels;
+- **staging:** one primary idea/action should control audience attention through acting, timing, camera/framing, negative space and deliberate pauses;
+- **straight ahead vs pose-to-pose:** pose-to-pose is the default control strategy for designed character action; straight-ahead remains useful for less predictable phenomena, with hybrid workflows supported;
+- **keys / extremes / breakdowns:** pose hierarchy is explicit before in-betweening;
+- **follow-through / overlapping action / drag:** driver/follower body parts use lag and settle timing to communicate mass;
+- **slow in / slow out:** easing is explicit, while impacts/collisions can opt out of easing into contact;
+- **arcs:** organic motion paths are authored rather than accepting mechanical midpoint interpolation;
+- **secondary action:** supporting gestures reinforce the primary action and must not obscure it;
+- **timing:** FPS, frame budget and exposure on ones/twos/threes/mixed are explicit;
+- **exaggeration:** amplify the idea/read while preserving believability rather than merely distorting anatomy;
+- **solid drawing/form:** preserve volume, weight, balance and perspective while avoiding accidental twinning;
+- **appeal:** shape language, proportion emphasis, detail simplification and personality read are explicit design intent.
+
+`animation-principles.ts` owns this plan and deterministic QC. Storyboards can persist it, generation prompts/parameters carry it, canonical animation timelines verify FPS agreement, and rig workers receive the same governed plan.
 
 ## User-supplied UGC + Blender/white-model workflows: concepts absorbed
 
