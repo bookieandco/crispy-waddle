@@ -445,7 +445,8 @@ function normalizedLabel(value: string): string {
     .replace(/[″"]/g, "in")
     .replace(/[×]/g, "x")
     .replace(/\s+/g, "")
-    .replace(/[^a-z0-9x]/g, "");
+    .replace(/[^a-z0-9x]/g, "")
+    .replace(/in$/, "");
 }
 
 export function launchVariantMatches(
