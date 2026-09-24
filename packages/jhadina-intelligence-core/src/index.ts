@@ -17,3 +17,4 @@ export * from './governed-communication-runtime.js';
 export * from './communication-execution-handler.js';
 export * from './emergency-communication-bridge.js';
 export * from './expression-realization.js';
+export * from './interaction-quality-guidance.js';
