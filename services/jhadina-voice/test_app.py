@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import unittest
@@ -70,7 +71,9 @@ class VoiceAppContractTest(unittest.TestCase):
         )
         with patch.dict(os.environ,{"JHADINA_VOICE_TOKEN":"secret"},clear=True), patch("app.router",return_value=fake):
             response=app.speak_stream(body,"Bearer secret")
-            lines=list(response.body_iterator)
+            async def collect():
+                return [line async for line in response.body_iterator]
+            lines=asyncio.run(collect())
         decoded=[json.loads(line.decode() if isinstance(line,bytes) else line) for line in lines]
         self.assertEqual(decoded[0]["type"],"audio")
         self.assertEqual(decoded[-1]["type"],"done")
