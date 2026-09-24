@@ -77,6 +77,57 @@ Storyboard reference frames are split into batches of at most four panels. The b
 
 When exact composition control or prior-shot continuity is requested, Director includes approved prior-shot references as explicit composition parents instead of re-creating the next shot from text alone.
 
+## Character dataset + LoRA training pipeline
+
+The supplied local workflow adds an optional escalation path when reference-only consistency is not enough:
+
+```
+approved canonical character reference
+  -> multi-view / expression / pose / wardrobe generation
+  -> dataset curation
+  -> trigger-word captions
+  -> identity-preserving upscale
+  -> optional character LoRA training
+  -> checkpoint sample QC
+  -> approved LoRA promotion
+```
+
+`character-training-pipeline.ts` now owns this path.
+
+Director can plan dataset tasks from one canonical asset, including:
+
+- front/profile/full-body views;
+- expression variations;
+- explicit pose-transfer references;
+- virtual-try-on / wardrobe references;
+- optional environment probes for generalization.
+
+Dataset admission rejects:
+
+- identity drift;
+- anatomy failures;
+- low-quality frames;
+- duplicate-heavy groups;
+- missing provenance;
+- missing trigger-word captions;
+- upscales that improve detail by changing the character.
+
+The upscale contract uses a provider-neutral `fidelityBias` instead of hard-coding one ComfyUI sampler/start-step implementation.
+
+LoRA training remains optional. A training request records:
+
+- trigger word;
+- base model;
+- image/video modality compatibility;
+- local vs remote-GPU execution target;
+- maximum training resolution;
+- checkpoint save interval;
+- sample interval and sample prompts.
+
+Director evaluates intermediate checkpoints rather than assuming the final training step is best. A later checkpoint that overfits can lose to an earlier one with better identity/quality balance.
+
+Only an approved checkpoint is promoted into the existing `LoRARecord` registry contract. The LoRA remains a **continuity assist**, not the canonical character identity; Cast Bible / approved reference evidence remains authoritative.
+
 ## Runtime path
 
 ```
