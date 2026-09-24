@@ -3,6 +3,45 @@ import {createRequestIdentityVerifier} from "@/lib/auth/request-identity"
 
 export const runtime="nodejs"
 
+export async function GET(req:NextRequest,context:{params:Promise<{action:string}>}){
+ const claimed=req.headers.get("x-jhadina-user-id")||""
+ if(!claimed)return NextResponse.json({success:false,error:"Not signed in"},{status:401})
+ try{
+  await (await createRequestIdentityVerifier()).verify({userId:claimed})
+  const {action}=await context.params
+  if(action!=="health")return NextResponse.json({success:false,error:"Unsupported voice action"},{status:404})
+  const base=(process.env.JHADINA_VOICE_URL??"").replace(/\/$/,"")
+  const token=process.env.JHADINA_VOICE_TOKEN??""
+  if(!base||!token){
+   return NextResponse.json({
+    success:true,
+    native:false,
+    status:"browser-fallback",
+    canonicalVoiceProfile:"jhadina:canonical",
+   })
+  }
+  const response=await fetch(`${base}/health`,{signal:AbortSignal.timeout(12_000),cache:"no-store"})
+  const health=await response.json().catch(()=>({}))
+  return NextResponse.json({
+   success:true,
+   native:response.ok,
+   status:response.ok?String(health?.status??"reachable"):"unavailable",
+   health,
+   canonicalVoiceProfile:"jhadina:canonical",
+  },{status:200})
+ }catch(error){
+  const message=error instanceof Error?error.message:"Voice health failed"
+  const status=/identity|session/.test(message)?401:200
+  return NextResponse.json({
+   success:status===200,
+   native:false,
+   status:"browser-fallback",
+   error:message,
+   canonicalVoiceProfile:"jhadina:canonical",
+  },{status})
+ }
+}
+
 export async function POST(req:NextRequest,context:{params:Promise<{action:string}>}){
  const claimed=req.headers.get("x-jhadina-user-id")||""
  if(!claimed)return NextResponse.json({success:false,error:"Not signed in"},{status:401})
