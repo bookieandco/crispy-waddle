@@ -138,9 +138,27 @@ export const GEV_SOURCE_POLICIES: readonly SpatialSourcePolicy[] = [
   },
   {
     sourceId: 'gev-celestrak', provider: 'CelesTrak', domains: ['satellite'],
-    attribution: 'CelesTrak / Dr. T.S. Kelso', termsRef: 'GEV DATA_SOURCES.md: CelesTrak',
-    privacyClass: 'public-non-personal', commercialUse: 'unknown', publication: 'unknown', modelInput: 'unknown', replay: 'unknown', redistribution: 'unknown', retention: 'unknown',
-    sourceIndependenceKey: 'celestrak', limitations: ['Respect CelesTrak fetch cadence and citation guidance.'],
+    attribution: 'CelesTrak / Dr. T.S. Kelso', termsRef: 'https://celestrak.org/usage-policy.php · GP JSON/OMM',
+    privacyClass: 'public-non-personal', commercialUse: 'unknown', publication: 'unknown', modelInput: 'allowed', replay: 'unknown', redistribution: 'unknown', retention: 'allowed',
+    sourceIndependenceKey: 'celestrak',
+    limitations: [
+      'Respect CelesTrak usage policy: fetch only needed GP data and cache for at least the approximately two-hour update interval.',
+      'Use OMM-compatible JSON/CSV/XML/KVN for catalog numbers above the legacy five-digit TLE ceiling.',
+      'Derived ground positions in Jhadina are context-only unless independently verified with an operational SGP4-grade source.',
+      'Do not use Jhadina orbital context for collision avoidance, navigation, antenna pointing, or safety-of-flight decisions.',
+    ],
+  },
+  {
+    sourceId: 'nasa-gibs-viirs', provider: 'NASA GIBS / Worldview', domains: ['satellite', 'imagery'],
+    attribution: 'NASA GIBS / Worldview, NASA EOSDIS', termsRef: 'NASA Earthdata open-data guidance · NASA Worldview imagery citation guidance',
+    privacyClass: 'public-non-personal', commercialUse: 'allowed', publication: 'allowed', modelInput: 'allowed', replay: 'allowed', redistribution: 'allowed', retention: 'allowed',
+    sourceIndependenceKey: 'nasa-gibs:viirs',
+    limitations: [
+      'Daily GIBS layer date is not the exact sensor acquisition timestamp.',
+      'Tile coverage and imagery resolution do not establish object-level identity or precise ground truth.',
+      'Preserve NASA/ESDIS attribution and the source layer/date when presenting or publishing imagery.',
+      'Commercial NASA-procured imagery is outside this policy; this registration covers the public NASA GIBS layer only.',
+    ],
   },
   {
     sourceId: 'gev-usgs', provider: 'USGS', domains: ['earthquake'],
