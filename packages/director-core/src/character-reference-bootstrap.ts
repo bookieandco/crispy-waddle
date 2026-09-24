@@ -86,10 +86,11 @@ export function planCharacterReferenceBootstrap(
 
   const canonical = [...request.uploads].sort((a,b) => {
     const rank = (view: CharacterReferenceView) =>
-      view === 'front' ? 0 :
-      view === 'three-quarter-left' || view === 'three-quarter-right' ? 1 :
-      view === 'full-body' ? 2 :
-      view === 'close-up' ? 3 : 4;
+      view === 'close-up' ? 0 :
+      view === 'front' ? 1 :
+      view === 'three-quarter-left' || view === 'three-quarter-right' ? 2 :
+      view === 'profile-left' || view === 'profile-right' ? 3 :
+      view === 'full-body' ? 4 : 5;
     return rank(a.view)-rank(b.view) || b.width*b.height-a.width*a.height || a.id.localeCompare(b.id);
   })[0];
 

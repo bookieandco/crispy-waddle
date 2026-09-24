@@ -48,6 +48,41 @@ describe('reference-character bootstrap and generative extension', () => {
     ]));
   });
 
+  it('prefers a high-detail close-up as the canonical identity upload when body and face references coexist', () => {
+    const plan = planCharacterReferenceBootstrap({
+      id: 'bootstrap-face-anchor',
+      projectId: 'movie-1',
+      characterId: 'mary',
+      displayName: 'Mary',
+      archetype: 'human',
+      uploads: [
+        {
+          id: 'body',
+          assetId: 'mary-body',
+          sha256: 'sha-body',
+          width: 2048,
+          height: 2048,
+          view: 'full-body',
+          rightsRef: 'rights:owned',
+          evidenceIds: ['upload:body'],
+        },
+        {
+          id: 'face',
+          assetId: 'mary-face-closeup',
+          sha256: 'sha-face',
+          width: 1024,
+          height: 1024,
+          view: 'close-up',
+          rightsRef: 'rights:owned',
+          evidenceIds: ['upload:face'],
+        },
+      ],
+      commercialUse: true,
+    });
+
+    expect(plan.canonicalUploadId).toBe('face');
+  });
+
   it('keeps the best identity-preserving derived reference instead of the prettiest drifter', () => {
     const policy = {
       minimumIdentityScore: 0.85,

@@ -103,9 +103,10 @@ export class GenerationPlanAdapter {
       resolvedCharacterReferences.map((reference) => [reference.assetId, reference]),
     );
 
-    const references = request.referenceManifest
+    const referenceManifest = request.referenceManifest ?? request.continuityStrategy?.referenceManifest;
+    const references = referenceManifest
       ? buildManifestReferences(
-          request.referenceManifest.references,
+          referenceManifest.references,
           characterReferenceIds,
           request.referenceAssetIds ?? [],
           resolvedCharacterByAsset,
@@ -159,7 +160,8 @@ export class GenerationPlanAdapter {
         performancePlan: request.performancePlan,
         realismPlan: request.realismPlan,
         animationPlan: request.animationPlan,
-        referenceManifest: request.referenceManifest,
+        continuityStrategy: request.continuityStrategy,
+        referenceManifest,
       },
       creativeProvenance,
     });
@@ -200,7 +202,7 @@ function buildManifestReferences(
 
 function providerReferenceRole(
   role: OrderedGenerationReference['role'],
-): 'character' | 'location' | 'style' | 'composition' | 'motion' | 'image' {
+): 'character' | 'location' | 'style' | 'composition' | 'motion' | 'audio' | 'image' {
   switch (role) {
     case 'character-identity':
       return 'character';
@@ -215,6 +217,8 @@ function providerReferenceRole(
     case 'source-video':
     case 'motion':
       return 'motion';
+    case 'audio':
+      return 'audio';
     default:
       return 'image';
   }
