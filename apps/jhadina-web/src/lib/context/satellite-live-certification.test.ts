@@ -1,20 +1,19 @@
 import { describe, expect, it } from "vitest"
 import { createProductionSpatialContextProvider } from "./production-spatial-context-provider"
 import { createSupabaseSpatialEvidenceStore } from "./supabase-spatial-evidence-store"
-import { resolveServiceRoleConfig } from "../supabase/service-role"
+import { createSpatialOidcGatewayClient } from "./spatial-oidc-gateway"
 
 const live = process.env.SATELLITE_LIVE_CERT === "1" ? describe : describe.skip
 
 live("GEV satellite live certification", () => {
   it("reads real public satellite sources through the production Spatial factory and durably reads evidence back", async () => {
-    const config = resolveServiceRoleConfig()
     const userId = "satellite-live-certification"
     const provider = createProductionSpatialContextProvider(userId, { timeoutMs: 12_000, maxEvidence: 30 })
     expect(provider).toBeDefined()
 
     const context = await provider!.getContext({
       userId,
-      activeTask: "Show satellite imagery near LAX and the next approximate satellite overpass context.",
+      activeTask: "Show ISS satellite imagery near LAX and the next approximate satellite overpass context.",
       geographicScope: {
         lat: 33.942501,
         lon: -118.407997,
@@ -56,7 +55,16 @@ live("GEV satellite live certification", () => {
       commitSha: process.env.GITHUB_SHA ?? null,
     }))
 
-    expect(config, "Supabase service-role configuration is required for durable live certification").not.toBeNull()
+    const gateway = createSpatialOidcGatewayClient()
+    expect(gateway, "Workload-OIDC Spatial gateway is required for durable live certification").toBeDefined()
+    const probe = await gateway!.probe()
+    expect(probe).toEqual({
+      evidence: true,
+      realityCandidates: true,
+      realityAdmissions: true,
+      knowledgeNodes: true,
+      knowledgeRelations: true,
+    })
 
     const store = createSupabaseSpatialEvidenceStore()
     expect(store).toBeDefined()
@@ -77,6 +85,7 @@ live("GEV satellite live certification", () => {
       evidenceCount: context!.evidence.length,
       sources: [...sources].sort(),
       durableReadback: true,
+      persistenceTransport: "workload-oidc-supabase-gateway",
       realityCount: context!.reality.length,
       claimCount: context!.claims.length,
       checkedAt: new Date().toISOString(),
