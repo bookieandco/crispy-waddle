@@ -45,7 +45,7 @@ const AIRPORT_GAZETTEER: readonly AirportGazetteerEntry[] = [
 
 const milesToKm = (miles: number): number => miles * 1.609344
 
-function explicitRadiusKm(text: string): number | null {
+function explicitRadiusKm(text: string): number | null | undefined {
   const patterns = [
     /\bwithin\s+(\d+(?:\.\d+)?)\s*(km|kilometers?|kilometres?|mi|miles?)\b/i,
     /\b(\d+(?:\.\d+)?)\s*(km|kilometers?|kilometres?|mi|miles?)\s+(?:of|around|from|near)\b/i,
@@ -60,7 +60,7 @@ function explicitRadiusKm(text: string): number | null {
     if (km < 0.5 || km > 250) return null
     return Number(km.toFixed(3))
   }
-  return null
+  return undefined
 }
 
 function defaultRadiusKm(text: string): number {
@@ -90,6 +90,7 @@ export function resolveNamedPlaceScope(text: string): ResolvedNamedPlaceScope | 
 
   const airport = matches[0]
   const explicit = explicitRadiusKm(input)
+  if (explicit === null) return undefined
   return {
     lat: airport.lat,
     lon: airport.lon,
