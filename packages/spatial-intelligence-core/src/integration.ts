@@ -50,14 +50,14 @@ export function toSpatialDomainContext(pkg: SpatialContextPackage): SpatialDomai
 }
 
 export type SpatialQueryInterpreter = (text: string) => SpatialQuery | undefined
-const spatialWords = /\b(near|around|at|inside|within|airport|camera|cctv|onvif|rtsp|frigate|traffic|aircraft|flight|plane|vessel|ship|earthquake|fire|weather|satellite|spatial|map|location|where|changed|change|moved|route|track|investigate|why)\b/i
+const spatialWords = /\b(near|around|at|inside|within|airport|camera|cctv|onvif|rtsp|frigate|traffic|aircraft|flight|plane|vessel|ship|earthquake|fire|weather|satellite|imagery|image|overpass|overhead|orbit|worldview|viirs|celestrak|spatial|map|location|where|changed|change|moved|route|track|investigate|why)\b/i
 const spatialDomainRules: ReadonlyArray<{ domain: string; pattern: RegExp }> = [
   { domain: "camera", pattern: /\b(cameras?|cctv|onvif|rtsp|frigate|camera\s+specs?|camera\s+models?|views?|frames?)\b/i },
   { domain: "aircraft", pattern: /\b(aircraft|flight|plane|airport|aviation)\b/i },
   { domain: "vessel", pattern: /\b(vessel|ship|boat|ais|port|harbor)\b/i },
   { domain: "fire", pattern: /\b(fire|wildfire|firms|burn)\b/i },
   { domain: "earthquake", pattern: /\b(earthquake|quake|seismic)\b/i },
-  { domain: "satellite", pattern: /\b(satellite|orbit|iss|tle)\b/i },
+  { domain: "satellite", pattern: /\b(satellites?|orbit|iss|tle|omm|overpass|overhead|ground\s+track|imagery|earth\s+observation|worldview|viirs|celestrak)\b/i },
   { domain: "traffic", pattern: /\b(traffic|congestion|road)\b/i },
   { domain: "weather", pattern: /\b(weather|storm|wind|rain|snow)\b/i },
   { domain: "infrastructure", pattern: /\b(infrastructure|datacenter|dam|power|facility)\b/i },
