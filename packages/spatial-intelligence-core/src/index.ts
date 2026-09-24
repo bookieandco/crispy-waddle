@@ -13,6 +13,7 @@ export * from './integration.js';
 export * from './gev-adapter.js';
 export * from './source-policy.js';
 export * from './cctv-camera-catalog.js';
+export * from './public-satellite-provider.js';
 export * from './gev-provider-bridge.js';
 export * from './gev-source-adapters.js';
 export * from './gev-spatial-context-read-provider.js';
