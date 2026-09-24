@@ -11,6 +11,7 @@ import type { EvidenceRef } from '@jhadina/core-spine'
 import { spatialObservationToGraphContribution, type SpatialKnowledgeSink } from './spatial-knowledge-projection.js'
 import { emitSpatialTelemetry, spatialTelemetryErrorCode, type SpatialTelemetrySink } from './spatial-telemetry.js'
 import type { CctvCameraCatalogClient } from './cctv-camera-catalog.js'
+import type { PublicSatelliteSpatialProvider } from './public-satellite-provider.js'
 
 export type GevSpatialReadProviderOptions = {
   bridge?: GevProviderBridge
@@ -21,6 +22,7 @@ export type GevSpatialReadProviderOptions = {
   knowledgeSink?: SpatialKnowledgeSink
   telemetry?: SpatialTelemetrySink
   cameraCatalog?: CctvCameraCatalogClient
+  satelliteProvider?: PublicSatelliteSpatialProvider
   /** Governs provider/source reuse at this consumer boundary. Ask Jhadina uses model-input; Spatial workspace defaults to private-analysis. */
   purpose?: SpatialUsePurpose
 }
@@ -141,11 +143,39 @@ const catalogSummary = (attributes: Record<string, unknown>): string | null => {
   return `CCTV catalog specification for ${brand} ${model}${capabilities.length ? `: ${capabilities.join('; ')}` : ''}. Catalog metadata only; not evidence of deployment, location, or live-feed availability.`
 }
 
+const satelliteSummary = (attributes: Record<string, unknown>): string | null => {
+  if (attributes.sourceId === 'gev-celestrak') {
+    const name = typeof attributes.objectName === 'string' ? attributes.objectName : 'satellite'
+    const norad = typeof attributes.noradCatId === 'string' ? attributes.noradCatId : 'unknown'
+    const subpoint = attributes.derivedSubpoint && typeof attributes.derivedSubpoint === 'object'
+      ? attributes.derivedSubpoint as Record<string, unknown>
+      : null
+    const lat = Number(subpoint?.lat)
+    const lon = Number(subpoint?.lon)
+    const altitudeM = Number(subpoint?.altitudeM)
+    const distance = Number(attributes.distanceToScopeKm)
+    const location = Number.isFinite(lat) && Number.isFinite(lon)
+      ? ` approximate subpoint ${lat.toFixed(2)}, ${lon.toFixed(2)}${Number.isFinite(altitudeM) ? ` at ${Math.round(altitudeM / 1000)} km altitude` : ''}`
+      : ''
+    const proximity = Number.isFinite(distance) ? `; about ${Math.round(distance)} km from requested scope` : ''
+    return `CelesTrak orbit elements for ${name} (NORAD ${norad});${location}${proximity}. Ground position is derived context-only, not an operational position fix.`
+  }
+  if (attributes.sourceId === 'nasa-gibs-viirs') {
+    const date = typeof attributes.layerDate === 'string' ? attributes.layerDate : 'unknown date'
+    const layer = typeof attributes.layer === 'string' ? attributes.layer : 'VIIRS imagery'
+    const bytes = Number(attributes.byteLength)
+    const sha = typeof attributes.sha256 === 'string' ? attributes.sha256.slice(0, 16) : 'unknown'
+    return `NASA GIBS satellite imagery asset ${layer} for ${date}${Number.isFinite(bytes) ? ` (${bytes} bytes)` : ''}; content checksum ${sha}…. Layer date is not the exact sensor acquisition time.`
+  }
+  return null
+}
+
 const evidenceRef = (evidence: SpatialEvidence): EvidenceRef => ({
   id: evidence.evidenceId,
   source: evidence.source.provider,
   observedAt: evidence.timing.observedAt ?? evidence.timing.receivedAt,
   summary: catalogSummary(evidence.payload.attributes)
+    ?? satelliteSummary(evidence.payload.attributes)
     ?? `${String(evidence.payload.entity.type ?? 'spatial')} observation ${String(evidence.payload.entity.id ?? evidence.observationId)}${formatPosition(evidence.payload.position)} from ${evidence.source.provider}`,
   immutable: true,
 })
@@ -155,6 +185,7 @@ const observationRef = (observation: SpatialObservation): EvidenceRef => ({
   source: observation.source.provider,
   observedAt: observation.observed_at ?? observation.received_at,
   summary: catalogSummary(observation.attributes)
+    ?? satelliteSummary(observation.attributes)
     ?? `${observation.observation_type}: ${observation.entity.id}${formatPosition(observation.position)}`,
   immutable: true,
 })
@@ -265,6 +296,31 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
       ] : []),
     ])
 
+    if (domains.has('satellite')) {
+      if (!this.options.satelliteProvider) {
+        sourceHealth.push('satellite:unconfigured')
+        limitations.push('Public satellite provider is not configured.')
+      } else {
+        try {
+          const satellite = await this.options.satelliteProvider.read(plan, this.purpose, receivedAt)
+          observations.push(...satellite.observations)
+          sourceHealth.push(...satellite.sourceHealth)
+          limitations.push(...satellite.limitations)
+          emitSpatialTelemetry(this.options.telemetry, {
+            kind: 'provider_health', component: 'satellite:public', status: satellite.observations.length ? 'ok' : 'degraded', at: receivedAt,
+            details: { domain: 'satellite', observationCount: satellite.observations.length },
+          })
+        } catch (error) {
+          sourceHealth.push('satellite:unavailable')
+          limitations.push(`satellite source unavailable: ${error instanceof Error ? error.message : 'unknown error'}`)
+          emitSpatialTelemetry(this.options.telemetry, {
+            kind: 'source_failure', component: 'satellite:public', status: 'failed', at: receivedAt,
+            details: { domain: 'satellite', errorCode: spatialTelemetryErrorCode(error) },
+          })
+        }
+      }
+    }
+
     if (domains.has('camera-catalog') && this.options.cameraCatalog && plan.subject?.trim()) {
       try {
         const rows = await this.options.cameraCatalog.searchObservations(plan.subject, this.purpose, receivedAt)
@@ -285,7 +341,7 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
     }
 
     for (const domain of domains) {
-      if (!['spatial', 'camera', 'camera-catalog', 'aircraft', 'vessel', 'fire'].includes(domain)) {
+      if (!['spatial', 'camera', 'camera-catalog', 'aircraft', 'vessel', 'fire', 'satellite'].includes(domain)) {
         limitations.push(`${domain} adapter is available at the normalization layer but has no live GEV bridge endpoint in this provider configuration.`)
       }
     }
