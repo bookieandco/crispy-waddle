@@ -23,8 +23,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  gateway:
+    name: Workload OIDC Spatial gateway probe
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'feat/ask-jhadina-gev-bridge-20260923'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mint short-lived GitHub OIDC token
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const token = await core.getIDToken('jhadina-spatial-gateway')
+            core.setSecret(token)
+            return token
+
+      - name: Probe deployed Spatial gateway
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(curl -sSf -X POST \
+            -H "authorization: Bearer $OIDC_TOKEN" \
+            -H "content-type: application/json" \
+            --data '{"action":"probe","payload":{}}' \
+            https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-spatial-gateway)"
+          echo "$body" | jq -e '
+            .data.evidence == true and
+            .data.realityCandidates == true and
+            .data.realityAdmissions == true and
+            .data.knowledgeNodes == true and
+            .data.knowledgeRelations == true
+          ' >/dev/null
+          echo "OIDC Spatial gateway probe: PASS" >> "$GITHUB_STEP_SUMMARY"
+
   certify:
     name: Real CelesTrak + NASA + durable Spatial canary
+    needs: gateway
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'feat/ask-jhadina-gev-bridge-20260923'
     runs-on: ubuntu-latest
     timeout-minutes: 20
