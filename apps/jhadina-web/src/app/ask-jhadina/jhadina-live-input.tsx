@@ -37,6 +37,7 @@ type Props = {
   onBargeIn?: () => void
   onArtifactRefsChange?: (artifactRefs: string[]) => void
   onLanguageChange?: (language: string) => void
+  onConversationActiveChange?: (active: boolean) => void
   onStatus?: (message: string) => void
 }
 
@@ -56,8 +57,9 @@ const LANGUAGES = [
   ["vi-VN", "Tiếng Việt"],
 ] as const
 
-export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBargeIn, onArtifactRefsChange, onLanguageChange, onStatus }: Props) {
+export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBargeIn, onArtifactRefsChange, onLanguageChange, onConversationActiveChange, onStatus }: Props) {
   const [wakeEnabled, setWakeEnabled] = useState(false)
+  const [conversationActive, setConversationActive] = useState(false)
   const [language, setLanguage] = useState("en-US")
   const [voiceState, setVoiceState] = useState<"off"|"listening"|"unsupported"|"error">("off")
   const [screenActive, setScreenActive] = useState(false)
@@ -68,6 +70,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
   const [nativeRecording,setNativeRecording]=useState(false)
   const recognitionRef = useRef<any>(null)
   const shouldWakeRef = useRef(false)
+  const conversationActiveRef = useRef(false)
   const streamRef = useRef<MediaStream|null>(null)
   const micStreamRef = useRef<MediaStream|null>(null)
   const audioContextRef = useRef<AudioContext|null>(null)
@@ -82,6 +85,10 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
 
   useEffect(() => { onArtifactsChange(artifacts) }, [artifacts, onArtifactsChange])
   useEffect(() => { onArtifactRefsChange?.(durableArtifacts.filter((artifact)=>artifact.status==="clean"&&artifact.contextReady).map((artifact)=>artifact.id)) }, [durableArtifacts, onArtifactRefsChange])
+  useEffect(() => {
+    conversationActiveRef.current=conversationActive
+    onConversationActiveChange?.(conversationActive)
+  }, [conversationActive, onConversationActiveChange])
 
   useEffect(() => () => {
     recognitionRef.current?.stop?.()
@@ -148,6 +155,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
     recognitionRef.current?.stop?.()
     recognitionRef.current = null
     setWakeEnabled(false)
+    setConversationActive(false)
     setVoiceState("off")
     stopAcousticMonitor()
   }
@@ -165,7 +173,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
     const recognition = new Recognition()
     recognition.lang = language
     recognition.continuous = true
-    recognition.interimResults = false
+    recognition.interimResults = true
     recognition.maxAlternatives = 1
     shouldWakeRef.current = true
     recognition.onstart = () => { setWakeEnabled(true); setVoiceState("listening") }
@@ -178,15 +186,37 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
     }
     recognition.onresult = (event: any) => {
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        if (!event.results[i]?.isFinal) continue
         const transcript = String(event.results[i][0]?.transcript ?? "").trim()
-        const match = transcript.match(/(?:^|\s)(?:hey\s+)?jhadina[,.!]?\s*(.*)$/i)
-        if (!match) continue
-        const command = (match[1] ?? "").trim()
-        if (!command) {
-          onStatus?.("Jhadina is listening.")
+        if (!transcript) continue
+        const wakeMatch = transcript.match(/(?:^|\s)(?:hey\s+)?jhadina[,.!]?\s*(.*)$/i)
+
+        if (!event.results[i]?.isFinal) {
+          if (wakeMatch || conversationActiveRef.current) {
+            onStatus?.(`Listening: ${wakeMatch ? (wakeMatch[1] ?? "").trim() || "…" : transcript}`)
+          }
           continue
         }
+
+        if (conversationActiveRef.current && /^(?:(?:hey\s+)?jhadina[,.!]?\s*)?(?:stop listening|go to sleep|goodbye|that's all)[.!]?$/i.test(transcript)) {
+          setConversationActive(false)
+          onStatus?.("Conversation paused. Say “Jhadina” to wake me again.")
+          continue
+        }
+
+        let command=""
+        if (wakeMatch) {
+          setConversationActive(true)
+          command=(wakeMatch[1] ?? "").trim()
+          if (!command) {
+            onStatus?.("I’m listening. You can keep talking without repeating my name.")
+            continue
+          }
+        } else if (conversationActiveRef.current) {
+          command=transcript
+        } else {
+          continue
+        }
+
         onStatus?.(`Heard: ${command}`)
         onVoiceCommand(command, summarizeAcoustics(command))
       }
@@ -278,7 +308,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
     nativeRecorderRef.current=recorder
     nativeChunksRef.current=[]
     recorder.ondataavailable=(event)=>{if(event.data.size)nativeChunksRef.current.push(event.data)}
-    recorder.onstart=()=>{setNativeRecording(true);onBargeIn?.();onStatus?.("Native Whisper microphone recording… tap again to transcribe.")}
+    recorder.onstart=()=>{setNativeRecording(true);setConversationActive(true);onBargeIn?.();onStatus?.("Native Whisper microphone recording… tap again to transcribe.")}
     recorder.onstop=()=>{
       void (async()=>{
         setNativeRecording(false)
@@ -346,13 +376,13 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
   return <div style={{marginTop:12}}>
     <video ref={videoRef} muted playsInline style={{display:"none"}} />
     <div className="jh-row">
-      <button type="button" className="jh-button" disabled={busy} onClick={wakeEnabled?stopWake:startWake}>
-        {wakeEnabled ? "Stop wake word" : "Wake: Jhadina"}
+      <button type="button" className="jh-button" disabled={!wakeEnabled&&busy} onClick={wakeEnabled?stopWake:startWake}>
+        {wakeEnabled ? (conversationActive ? "Pause conversation" : "Stop wake word") : "Wake: Jhadina"}
       </button>
       <select className="jh-input" value={language} onChange={(event)=>setLanguage(event.target.value)} aria-label="Voice language" style={{maxWidth:180}}>
         {LANGUAGES.map(([value,label])=><option key={value} value={value}>{label}</option>)}
       </select>
-      <button type="button" className="jh-button" disabled={busy} onClick={()=>void toggleNativeRecording()}>
+      <button type="button" className="jh-button" onClick={()=>void toggleNativeRecording()}>
         {nativeRecording?"Stop native mic":"Native mic"}
       </button>
       <button type="button" className="jh-button" disabled={busy} onClick={()=>void (screenActive?Promise.resolve(stopScreenShare()):startScreenShare())}>
@@ -364,7 +394,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
       </label>
     </div>
     <p className="jh-meta" style={{marginTop:8}}>
-      Wake {voiceState==="listening"?"listening":voiceState==="unsupported"?"unsupported in this browser":voiceState==="error"?"needs microphone permission":"off"} · screen {screenActive?"live":"off"} · {durableArtifacts.filter(a=>a.status==="clean"&&a.contextReady).length} ready file{durableArtifacts.filter(a=>a.status==="clean"&&a.contextReady).length===1?"":"s"}
+      Wake {voiceState==="listening"?"listening":voiceState==="unsupported"?"unsupported in this browser":voiceState==="error"?"needs microphone permission":"off"} · conversation {conversationActive?"active":"waiting for “Jhadina”"} · screen {screenActive?"live":"off"} · {durableArtifacts.filter(a=>a.status==="clean"&&a.contextReady).length} ready file{durableArtifacts.filter(a=>a.status==="clean"&&a.contextReady).length===1?"":"s"}
     </p>
     {(artifacts.length||durableArtifacts.length)?<div className="jh-row" style={{marginTop:8}}>
       {artifacts.map((artifact)=><span key={artifact.id} className="jh-status"><span className="jh-dot"/>{artifact.kind==="screen"?"Screen":artifact.name??artifact.kind}</span>)}
