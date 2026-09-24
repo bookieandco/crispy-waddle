@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { getCurrentUserId } from "@/lib/auth/current-user"
+import { classifyWakeSpeech } from "./interactive-runtime"
 
 export type JhadinaConversationSignals = {
   source: "live-microphone"
@@ -197,28 +198,21 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
           continue
         }
 
-        if (conversationActiveRef.current && /^(?:(?:hey\s+)?jhadina[,.!]?\s*)?(?:stop listening|go to sleep|goodbye|that's all)[.!]?$/i.test(transcript)) {
+        const decision=classifyWakeSpeech(transcript,conversationActiveRef.current)
+        if(decision.action==="ignore")continue
+        if(decision.action==="deactivate"){
           setConversationActive(false)
           onStatus?.("Conversation paused. Say “Jhadina” to wake me again.")
           continue
         }
-
-        let command=""
-        if (wakeMatch) {
+        if(decision.action==="activate"){
           setConversationActive(true)
-          command=(wakeMatch[1] ?? "").trim()
-          if (!command) {
-            onStatus?.("I’m listening. You can keep talking without repeating my name.")
-            continue
-          }
-        } else if (conversationActiveRef.current) {
-          command=transcript
-        } else {
+          onStatus?.("I’m listening. You can keep talking without repeating my name.")
           continue
         }
-
-        onStatus?.(`Heard: ${command}`)
-        onVoiceCommand(command, summarizeAcoustics(command))
+        if(decision.activates)setConversationActive(true)
+        onStatus?.(`Heard: ${decision.command}`)
+        onVoiceCommand(decision.command, summarizeAcoustics(decision.command))
       }
     }
     recognitionRef.current = recognition
