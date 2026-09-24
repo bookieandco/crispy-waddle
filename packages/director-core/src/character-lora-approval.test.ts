@@ -97,8 +97,11 @@ describe('character LoRA approval', () => {
     const second = registerApprovedCharacterLora(registry, promotion(), approval(), policy);
     expect(second.id).toBe(first.id);
 
-    const changed = promotion();
-    changed.lora.sha256 = 'different-sha';
+    const original = promotion();
+    const changed = {
+      ...original,
+      lora: { ...original.lora, sha256: 'different-sha' },
+    };
     expect(() => registerApprovedCharacterLora(registry, changed, approval(), policy))
       .toThrow('DIRECTOR_CHARACTER_LORA_REGISTRY_CONFLICT');
   });
