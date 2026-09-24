@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: gev-satellite-live-${{ github.event.pull_request.number || github.ref }}
@@ -29,7 +30,7 @@ jobs:
     timeout-minutes: 20
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://kqbkaozfjubkjevdfvic.supabase.co
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      JHADINA_SPATIAL_GATEWAY_URL: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-spatial-gateway
       SATELLITE_LIVE_CERT: '1'
     steps:
       - name: Checkout exact PR head
@@ -51,15 +52,16 @@ jobs:
             echo "Skipping live upstream read for non-certification commit: $subject" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Report durable credential state
+      - name: Mint short-lived GitHub OIDC token
         if: steps.gate.outputs.run == 'true'
-        shell: bash
-        run: |
-          if [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "Durable Supabase credential: configured" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "Durable Supabase credential: missing; provider canary will run first and durable gate will fail closed." >> "$GITHUB_STEP_SUMMARY"
-          fi
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const token = await core.getIDToken('jhadina-spatial-gateway')
+            core.setSecret(token)
+            return token
 
       - name: Setup pnpm
         if: steps.gate.outputs.run == 'true'
@@ -82,6 +84,8 @@ jobs:
       - name: Run real provider + durable evidence canary
         if: steps.gate.outputs.run == 'true'
         shell: bash
+        env:
+          SPATIAL_WORKLOAD_OIDC_TOKEN: ${{ steps.oidc.outputs.result }}
         run: |
           set -euo pipefail
           pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/context/satellite-live-certification.test.ts --reporter=verbose 2>&1 | tee /tmp/gev-satellite-live.log
