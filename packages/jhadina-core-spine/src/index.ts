@@ -16,6 +16,7 @@ export * from './expression-strategies.js';
 export * from './session-expression.js';
 export * from './expression-kernel.js';
 export * from './interaction-quality.js';
+export * from './live-context.js';
 export * from './personality-behavior-expression.js';
 export * from './personality-behavior-pipeline.js';
 export * from './personality-behavior-runtime.js';

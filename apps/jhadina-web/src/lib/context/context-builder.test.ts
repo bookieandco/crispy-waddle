@@ -212,6 +212,49 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     expect(assembled.contextPacket.excludedContext.some((e) => e.includes("redacted from assembled text"))).toBe(true)
   })
 
+  it("6b. carries bounded live continuity while redacting secrets and preserving its non-evidence status", async () => {
+    const deps = freshDeps()
+    const assembled = await buildContext(deps, {
+      userId: "user-live",
+      activeTask: "compare that to the earlier one",
+      liveContext: {
+        source: "ask-jhadina-live",
+        observedAt: "2026-09-23T19:00:00.000Z",
+        recentTurns: [
+          {
+            id: "turn-1",
+            speaker: "user",
+            text: "Earlier I showed you the dashboard. my stripe key is sk_test_abcdefghijklmnop",
+            createdAt: "2026-09-23T18:59:00.000Z",
+          },
+          {
+            id: "turn-2",
+            speaker: "jhadina",
+            text: "I can compare it when you show the next state.",
+            createdAt: "2026-09-23T18:59:10.000Z",
+          },
+        ],
+        workSession: {
+          id: "session-live",
+          goal: "Compare dashboard states without exposing sk_test_abcdefghijklmnop",
+          activeSubsystems: ["growth"],
+          admittedArtifactIds: ["artifact-1"],
+        },
+        limitations: ["client placeholder"],
+      },
+    })
+
+    expect(assembled.contextPacket.liveContext?.recentTurns).toHaveLength(2)
+    expect(assembled.contextPacket.liveContext?.recentTurns[0]?.text).toContain("[REDACTED]")
+    expect(assembled.contextPacket.liveContext?.recentTurns[0]?.text).not.toContain("sk_test_abcdefghijklmnop")
+    expect(assembled.contextPacket.liveContext?.workSession?.goal).toContain("[REDACTED]")
+    expect(assembled.contextPacket.liveContext?.workSession?.activeSubsystems).toEqual(["growth"])
+    expect(assembled.contextPacket.liveContext?.workSession?.admittedArtifactIds).toEqual(["artifact-1"])
+    expect(assembled.contextPacket.knowledge).toEqual([])
+    expect(assembled.contextPacket.relevantMemories).toEqual([])
+    expect(assembled.contextPacket.excludedContext.some((e) => e.includes("redacted from assembled text"))).toBe(true)
+  })
+
   it("7. assembles deterministically — identical inputs and state produce identical content and ordering", async () => {
     const deps = freshDeps()
     await approveMemory(deps, "user-f", "I prefer warm color grading in video edits")

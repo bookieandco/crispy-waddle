@@ -1,0 +1,59 @@
+name: Jhadina Live Context Final Certification
+
+on:
+  pull_request:
+    paths:
+      - "packages/jhadina-core-spine/src/live-context*"
+      - "packages/jhadina-core-spine/src/types.ts"
+      - "packages/jhadina-core-spine/src/index.ts"
+      - "packages/jhadina-intelligence-core/src/anthropic-model-provider*"
+      - "apps/jhadina-web/src/app/ask-jhadina/live-context-runtime*"
+      - "apps/jhadina-web/src/app/ask-jhadina/jhadina-live-input.tsx"
+      - "apps/jhadina-web/src/app/ask-jhadina/page.tsx"
+      - "apps/jhadina-web/src/app/api/jhadina/command/route.ts"
+      - "apps/jhadina-web/src/app/api/jhadina/live-context/**"
+      - "apps/jhadina-web/src/lib/context/context-builder*"
+      - "apps/jhadina-web/src/lib/context/live-context-production-health*"
+      - "apps/jhadina-web/src/lib/intelligence/jhadina-command.ts"
+      - "docs/JHADINA_LIVE_CONTEXT_FINAL.md"
+      - ".github/workflows/jhadina-live-context-final.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-context-final:
+    name: Live context source certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+      - name: Core live context tests
+        run: pnpm --filter @jhadina/core-spine exec vitest run src/live-context.test.ts
+      - name: Web live context tests
+        run: |
+          pnpm --filter @jhadina/jhadina-web exec vitest run \
+            src/app/ask-jhadina/live-context-runtime.test.ts \
+            src/lib/context/context-builder.test.ts \
+            src/lib/context/live-context-production-health.test.ts
+      - name: Intelligence provider tests
+        run: pnpm --filter @jhadina/intelligence-core test
+      - name: Core Spine type-check
+        run: pnpm --filter @jhadina/core-spine type-check
+      - name: Intelligence Core type-check
+        run: pnpm --filter @jhadina/intelligence-core type-check
+      - name: Jhadina Web type-check
+        run: pnpm --filter @jhadina/jhadina-web type-check
+      - name: Jhadina Web production build
+        run: pnpm --filter @jhadina/jhadina-web build

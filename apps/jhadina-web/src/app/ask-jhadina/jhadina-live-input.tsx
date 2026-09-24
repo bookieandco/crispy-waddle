@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { classifyWakeSpeech } from "./interactive-runtime"
+import { isMeaningfulScreenChange } from "./live-context-runtime"
 
 export type JhadinaConversationSignals = {
   source: "live-microphone"
@@ -81,6 +82,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
   const acousticSamplesRef = useRef<Array<{at:number;rms:number;pitch?:number}>>([])
   const videoRef = useRef<HTMLVideoElement|null>(null)
   const captureTimerRef = useRef<ReturnType<typeof setInterval>|null>(null)
+  const lastScreenSampleRef = useRef<Uint8Array|null>(null)
   const nativeRecorderRef=useRef<MediaRecorder|null>(null)
   const nativeStreamRef=useRef<MediaStream|null>(null)
   const nativeChunksRef=useRef<Blob[]>([])
@@ -260,7 +262,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
     await captureScreen()
     if (captureTimerRef.current) clearInterval(captureTimerRef.current)
     captureTimerRef.current = setInterval(() => { void captureScreen() }, 3000)
-    onStatus?.("Screen awareness is active. Jhadina receives a refreshed still frame about every 3 seconds while sharing.")
+    onStatus?.("Screen awareness is active. Jhadina keeps the current and previous distinct frame; unchanged frames are suppressed.")
   }
 
   function stopScreenShare() {
@@ -270,6 +272,7 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
     streamRef.current = null
     if (videoRef.current) videoRef.current.srcObject = null
     setScreenActive(false)
+    lastScreenSampleRef.current = null
     setArtifacts((current) => current.filter((artifact) => artifact.kind !== "screen"))
     onStatus?.("Screen awareness stopped.")
   }
@@ -284,7 +287,25 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
     const canvas = document.createElement("canvas")
     canvas.width = width
     canvas.height = height
-    canvas.getContext("2d")?.drawImage(video, 0, 0, width, height)
+    const context = canvas.getContext("2d")
+    context?.drawImage(video, 0, 0, width, height)
+    if (!context) return
+
+    const sampleCanvas = document.createElement("canvas")
+    sampleCanvas.width = 16
+    sampleCanvas.height = 9
+    const sampleContext = sampleCanvas.getContext("2d")
+    if (!sampleContext) return
+    sampleContext.drawImage(canvas, 0, 0, 16, 9)
+    const pixels = sampleContext.getImageData(0, 0, 16, 9).data
+    const sample = new Uint8Array(16 * 9)
+    for (let index = 0; index < sample.length; index += 1) {
+      const offset = index * 4
+      sample[index] = Math.round((pixels[offset]! * 0.299) + (pixels[offset + 1]! * 0.587) + (pixels[offset + 2]! * 0.114))
+    }
+    if (!isMeaningfulScreenChange(lastScreenSampleRef.current, sample)) return
+    lastScreenSampleRef.current = sample
+
     const dataUrl = canvas.toDataURL("image/jpeg", 0.78)
     const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1)
     const artifact: JhadinaEphemeralArtifact = {
@@ -296,7 +317,19 @@ export function JhadinaLiveInput({ busy, onArtifactsChange, onVoiceCommand, onBa
       observedAt: new Date().toISOString(),
       base64,
     }
-    setArtifacts((current) => [artifact, ...current.filter((item) => item.kind !== "screen")].slice(0, 4))
+    setArtifacts((current) => {
+      const currentScreen = current.find((item) => item.kind === "screen" && item.id === "screen:current")
+      const previous = currentScreen ? {
+        ...currentScreen,
+        id: "screen:previous",
+        name: "Previous distinct shared screen",
+      } satisfies JhadinaEphemeralArtifact : undefined
+      return [
+        artifact,
+        ...(previous ? [previous] : []),
+        ...current.filter((item) => item.kind !== "screen"),
+      ].slice(0, 4)
+    })
   }
 
   async function toggleNativeRecording(){

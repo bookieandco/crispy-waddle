@@ -111,6 +111,63 @@ test('serializes the governed expression directive and tells the model not to in
   assert.match(messageText, /"decisionPresentation":"options"/);
 });
 
+test('serializes bounded live context and requires clarification for ambiguous referents', async () => {
+  let capturedBody: string | undefined;
+  const fetchImpl = (async (_url: unknown, init?: RequestInit) => {
+    capturedBody = init?.body as string;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        content: [{
+          text: JSON.stringify({
+            disposition: 'ASK',
+            recommendation: 'Which earlier screen do you mean?',
+            rationale: 'The supplied live context has more than one plausible referent.',
+            evidence: [],
+            uncertainty: ['referent is ambiguous'],
+            alternatives: [],
+          }),
+        }],
+      }),
+    } as Response;
+  }) as typeof fetch;
+
+  const context = baseContext();
+  context.liveContext = {
+    source: 'ask-jhadina-live',
+    observedAt: '2026-09-23T19:00:00.000Z',
+    recentTurns: [{
+      id: 'turn-1',
+      speaker: 'user',
+      text: 'Compare this to the earlier one.',
+      createdAt: '2026-09-23T18:59:00.000Z',
+    }],
+    workSession: {
+      id: 'session-1',
+      goal: 'Compare dashboard states',
+      activeSubsystems: ['growth'],
+      admittedArtifactIds: ['artifact-1'],
+    },
+    limitations: ['continuity only'],
+  };
+
+  const provider = new AnthropicModelProvider({ apiKey: 'test-key', fetchImpl });
+  await provider.propose(context);
+
+  const request = JSON.parse(capturedBody ?? '{}') as {
+    system?: string;
+    messages?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
+  };
+  const messageText = request.messages?.[0]?.content?.find((block) => block.type === 'text')?.text ?? '';
+  assert.match(request.system ?? '', /liveContext contains recent conversation turns/);
+  assert.match(request.system ?? '', /If more than one referent is plausible, ask a focused clarification/);
+  assert.match(request.system ?? '', /not independent evidence of external facts/);
+  assert.match(messageText, /"liveContext"/);
+  assert.match(messageText, /"Compare this to the earlier one."/);
+  assert.match(messageText, /"session-1"/);
+});
+
 test('an HTTP failure from the provider is a normal, catchable rejection', async () => {
   const provider = new AnthropicModelProvider({
     apiKey: 'test-key',
