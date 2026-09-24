@@ -19,7 +19,8 @@ type SocialAccountChoice={accountId:string;brand:string;platform:string;provider
 type SocialWorkPlan={kind:"social_marketing";operation:string;character?:SocialCharacter;availableCharacters?:readonly SocialCharacter[];accounts:readonly SocialAccountChoice[];requestedPlatforms:readonly string[];nextBoundary:"social_read_only"|"growth_research"|"director_production"|"social_publication"|"growth_paid_media";authority:"READ_ONLY"|"PLANNING_ONLY";requiresExplicitApprovalForExecution:boolean;notes:readonly string[]}
 type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ_ONLY";nextBoundary:"growth_read_only";campaigns:readonly EvidenceRef[];audiences:readonly EvidenceRef[];pendingWork:readonly EvidenceRef[];performance:readonly EvidenceRef[];attention:readonly EvidenceRef[];notes:readonly string[]}
 type VideoJobSummary={id:string;projectId:string;status:string;mode?:string;aspectRatio?:string;providerId?:string;error?:string;previewAssetId?:string}
-type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;feedbackEligible?:boolean}
+type SpatialContextUsageReceipt={used:boolean;authority:"INTELLIGENCE_ONLY";observationCount:number;evidenceCount:number;claimCount:number;realityCount:number;provenanceCount:number;sources:string[];conflictCount:number;uncertaintyCount:number;limitationCount:number}
+type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;feedbackEligible?:boolean}
 
 export default function AskJhadinaPage(){return <Suspense fallback={<main className="jh-page"><div className="jh-wrap"><div className="jh-skeleton"/></div></main>}><AskJhadina/></Suspense>}
 
@@ -93,6 +94,7 @@ function AskJhadina(){
    ...(data.socialWorkPlan?["social"]:[]),
    ...(data.growthWorkPlan?["growth"]:[]),
    ...(data.videoJob?["director"]:[]),
+   ...(data.spatialContext?.used?["spatial"]:[]),
   ])]
   const decisionRefs=[data.proposal?.id,data.reasoningEventId].filter((value):value is string=>typeof value==="string"&&Boolean(value))
   const outputRefs=data.videoJob?.id?[data.videoJob.id]:[]
@@ -471,6 +473,7 @@ function AskJhadina(){
     <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{const text=result.expression.segments.filter(segment=>segment.kind==="semantic").map(segment=>segment.text).join(" ");void speakText(text,undefined,result.expression.presentation).finally(()=>setInteractivePhase(conversationActive?"listening":"idle"))}}>Speak response</button><button type="button" className="jh-button" onClick={()=>{stopSpeech();setInteractivePhase(conversationActive?"listening":"idle")}}>Stop speech</button></div>
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
+    {result.spatialContext?.used?<SpatialContextCard receipt={result.spatialContext}/>:null}
     {result.socialWorkPlan?<SocialWorkPlanCard plan={result.socialWorkPlan}/>:null}
     {result.growthWorkPlan?<GrowthWorkPlanCard plan={result.growthWorkPlan}/>:null}
     {result.proposal.evidence.length?<div className="jh-section" style={{marginTop:20}}><h2 className="jh-card-title">Evidence used</h2><div className="jh-list">{result.proposal.evidence.map(evidence=><div className="jh-item" key={evidence.id}><strong>{evidence.source}</strong><p className="jh-card-copy">{evidence.summary}</p><p className="jh-meta">{new Date(evidence.observedAt).toLocaleString()} · {evidence.id}</p></div>)}</div></div>:null}
@@ -497,6 +500,22 @@ function AskJhadina(){
  </div></main>
 }
 
+
+function SpatialContextCard({receipt}:{receipt:SpatialContextUsageReceipt}){
+ return <div className="jh-section" style={{marginTop:20}}>
+  <div className="jh-item">
+   <div className="jh-between">
+    <div><p className="jh-eyebrow">GEV / Spatial context</p><h2 className="jh-card-title">God’s Eye View participated in this turn</h2></div>
+    <span className="jh-status jh-status--success"><span className="jh-dot"/>{receipt.authority}</span>
+   </div>
+   <p className="jh-card-copy">Ask Jhadina consumed governed spatial intelligence through the canonical Context Builder. GEV supplied context only; it did not receive execution or policy authority.</p>
+   <p className="jh-meta">Observations {receipt.observationCount} · durable evidence {receipt.evidenceCount} · claims {receipt.claimCount} · admitted reality {receipt.realityCount} · provenance {receipt.provenanceCount}</p>
+   {receipt.sources.length?<p className="jh-meta">Sources: {receipt.sources.join(" · ")}</p>:null}
+   {(receipt.conflictCount||receipt.uncertaintyCount||receipt.limitationCount)?<p className="jh-meta">Conflicts {receipt.conflictCount} · uncertainty {receipt.uncertaintyCount} · limitations {receipt.limitationCount}</p>:null}
+   <div className="jh-row" style={{marginTop:12}}><Link className="jh-button" href="/spatial">Open Spatial / GEV</Link></div>
+  </div>
+ </div>
+}
 
 function SocialWorkPlanCard({plan}:{plan:SocialWorkPlan}){
  const boundaryHref:Record<SocialWorkPlan["nextBoundary"],string>={
