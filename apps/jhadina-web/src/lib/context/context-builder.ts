@@ -164,11 +164,23 @@ export function deriveBehaviorContext(activeTask: string): BehavioralKernelConte
             ? "threshold"
             : /\b(investigat|timeline|provenance|connection|network trace|evidence trail)\b/.test(text)
               ? "investigative"
-              : /\b(joke|funny|roast|banter|playful)\b/.test(text)
-                ? "playful"
-                : operationalContext && !requiresPrecision && !serious
-                  ? "household-ops"
-                  : "default"
+              : intimacyEligible && /\b(intimacy|sexual|sex|dating|partner|relationship|marriage|fantasy|bedroom)\b/.test(text)
+                ? "intimacy-agency"
+                : /\b(viral|clip|post|comments|social media|tiktok|instagram|reel|timeline reaction|react to)\b/.test(text)
+                  ? "social-reaction"
+                  : /\b(music history|artist legacy|legacy|album|discography|hip[- ]?hop history|cultural impact|influence on culture|give .* flowers)\b/.test(text)
+                    ? "cultural-salon"
+                    : /\b(audience|callers|community discussion|roundtable|panel discussion|room discussion)\b/.test(text)
+                      ? "community-room"
+                      : /\b(tell me a story|storytime|story time|long-form story|recount the story|narrative)\b/.test(text)
+                        ? "storytelling"
+                        : /\b(reflect|sit with this|think this through|what does this mean to me|process this with me)\b/.test(text)
+                          ? "reflective"
+                          : /\b(joke|funny|roast|banter|playful)\b/.test(text)
+                            ? "playful"
+                            : operationalContext && !requiresPrecision && !serious
+                              ? "household-ops"
+                              : "default"
 
   return {
     serious,
