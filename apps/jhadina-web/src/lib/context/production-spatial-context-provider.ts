@@ -1,5 +1,6 @@
 import {
   GevProviderBridge,
+  createCctvCameraCatalogClient,
   createGevSpatialContextReadProvider,
   createSpatialContextProvider,
   createSpatialRealityAdmissionReadProvider,
@@ -38,8 +39,10 @@ export function createProductionSpatialContextProvider(
   const evidenceStore = createSupabaseSpatialEvidenceStore()
   const knowledgeSink = createSupabaseSpatialKnowledgeSink()
   const realityStore = createSupabaseSpatialRealityStore()
+  const cameraCatalog = createCctvCameraCatalogClient()
   const evidenceRead = createGevSpatialContextReadProvider({
     bridge,
+    cameraCatalog,
     purpose: 'model-input',
     ...(options.maxEvidence ? { maxEvidence: options.maxEvidence } : {}),
     ...(evidenceStore ? { evidenceStore } : {}),
