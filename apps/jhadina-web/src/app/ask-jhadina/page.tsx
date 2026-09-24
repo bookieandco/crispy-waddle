@@ -5,12 +5,14 @@ import { Suspense,useEffect,useRef,useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
+import { chunkSpeechText, isAbortLike, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
 type MemoryCandidate={id:string;content:string;type:string;confidence:number;status:string}
 type GovernedExpressionSegment={kind:"semantic"|"callback"|"cultural_reference";text:string}
-type GovernedExpression={proposal:DecisionProposal;presentation:{mode:"direct"|"explanatory"|"pushback"|"clarifying"|"serious";allowProfanity:boolean;allowQuip:boolean;callback?:string;culturalReference?:string};segments:GovernedExpressionSegment[]}
+type GovernedExpressionPresentation={mode:"direct"|"explanatory"|"pushback"|"clarifying"|"serious";allowProfanity:boolean;allowQuip:boolean;register?:string;cadenceStyle?:"tight"|"conversational"|"spacious";pauseDensity?:"low"|"moderate"|"high";metaphorDensity?:"none"|"light"|"moderate";bitDepth?:0|1|2|3;allowPlayfulDisagreement?:boolean;symbolicFraming?:"off"|"interpretive";storytellingDepth?:"none"|"brief"|"extended";edginess?:"none"|"light"|"moderate";reentryToPlayfulness?:"off"|"cautious"|"allowed";operationalSass?:"off"|"light"|"moderate";affectionateTeasing?:boolean;workloadBoundary?:"implicit"|"explicit";evidenceDiscipline?:"standard"|"heightened"|"strict";speakingRate?:"slow"|"normal"|"fast";deliberatePauses?:boolean;callback?:string;culturalReference?:string}
+type GovernedExpression={proposal:DecisionProposal;presentation:GovernedExpressionPresentation;segments:GovernedExpressionSegment[]}
 type SocialCharacter={id:string;brand:string;label:string;description:string;toneTraits:readonly string[];pointOfView:string;voiceProfileRef:string;authority:"EXPRESSION_ONLY"}
 type SocialAccountChoice={accountId:string;brand:string;platform:string;provider:string;displayName:string;handle?:string;attentionScore:number;attentionReasons:readonly string[]}
 type SocialWorkPlan={kind:"social_marketing";operation:string;character?:SocialCharacter;availableCharacters?:readonly SocialCharacter[];accounts:readonly SocialAccountChoice[];requestedPlatforms:readonly string[];nextBoundary:"social_read_only"|"growth_research"|"director_production"|"social_publication"|"growth_paid_media";authority:"READ_ONLY"|"PLANNING_ONLY";requiresExplicitApprovalForExecution:boolean;notes:readonly string[]}
@@ -44,7 +46,14 @@ function AskJhadina(){
  const [referenceStage,setReferenceStage]=useState("")
  const [workSessionId,setWorkSessionId]=useState(()=>params.get("session")??"")
  const [workSessionGoal,setWorkSessionGoal]=useState("")
+ const [interactivePhase,setInteractivePhase]=useState<JhadinaInteractivePhase>("idle")
+ const [conversationActive,setConversationActive]=useState(false)
+ const [conversationLines,setConversationLines]=useState<JhadinaConversationLine[]>([])
  const nativeAudioRef=useRef<HTMLAudioElement|null>(null)
+ const busyRef=useRef(false)
+ const activeTurnRef=useRef("")
+ const commandAbortRef=useRef<AbortController|null>(null)
+ const speechAbortRef=useRef<AbortController|null>(null)
 
  useEffect(()=>{
   let cancelled=false
@@ -67,6 +76,8 @@ function AskJhadina(){
   })().catch(()=>{})
   return()=>{cancelled=true}
  },[])
+
+ useEffect(()=>()=>{commandAbortRef.current?.abort();stopSpeech()},[])
 
  async function persistWorkSession(userId:string,command:string,data:CommandResult){
   if(typeof window==="undefined")return
@@ -93,33 +104,102 @@ function AskJhadina(){
 
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
  function stopSpeech(){
+  speechAbortRef.current?.abort()
+  speechAbortRef.current=null
   nativeAudioRef.current?.pause()
   nativeAudioRef.current=null
   if(typeof window!=="undefined"&&"speechSynthesis" in window)window.speechSynthesis.cancel()
  }
- async function speakText(text:string,userId?:string){
+ function interruptCurrentTurn(){
+  commandAbortRef.current?.abort()
+  stopSpeech()
+  if(busyRef.current||interactivePhase==="speaking"){
+   setInteractivePhase("interrupted")
+   setInputStatus("Interrupted. I’m listening to the new turn.")
+  }
+ }
+ function expressionDelivery(presentation?:GovernedExpressionPresentation){
+  return{
+   rate:presentation?.speakingRate==="slow"?0.9:presentation?.speakingRate==="fast"?1.08:1,
+   pauseScale:presentation?.pauseDensity==="high"?1.3:presentation?.pauseDensity==="moderate"?1.12:0.95,
+   style:presentation?.register??"default",
+  }
+ }
+ async function playNativeAudio(event:{audioBase64?:string;mimeType?:string},signal:AbortSignal){
+  if(!event.audioBase64)throw new Error("native voice returned no audio")
+  const audio=new Audio(`data:${event.mimeType??"audio/wav"};base64,${event.audioBase64}`)
+  nativeAudioRef.current=audio
+  await new Promise<void>((resolve,reject)=>{
+   const abort=()=>{audio.pause();reject(new DOMException("Speech interrupted","AbortError"))}
+   signal.addEventListener("abort",abort,{once:true})
+   audio.onended=()=>{signal.removeEventListener("abort",abort);resolve()}
+   audio.onerror=()=>{signal.removeEventListener("abort",abort);reject(new Error("native audio playback failed"))}
+   void audio.play().catch(reject)
+  })
+  if(nativeAudioRef.current===audio)nativeAudioRef.current=null
+ }
+ async function speakBrowserChunks(text:string,signal:AbortSignal,presentation?:GovernedExpressionPresentation){
+  if(typeof window==="undefined"||!("speechSynthesis" in window))return
+  const delivery=expressionDelivery(presentation)
+  for(const chunk of chunkSpeechText(text)){
+   if(signal.aborted)throw new DOMException("Speech interrupted","AbortError")
+   await new Promise<void>((resolve,reject)=>{
+    const utterance=new SpeechSynthesisUtterance(chunk)
+    utterance.lang=voiceLanguage
+    utterance.rate=delivery.rate
+    const abort=()=>{window.speechSynthesis.cancel();reject(new DOMException("Speech interrupted","AbortError"))}
+    signal.addEventListener("abort",abort,{once:true})
+    utterance.onend=()=>{signal.removeEventListener("abort",abort);resolve()}
+    utterance.onerror=()=>{signal.removeEventListener("abort",abort);reject(new Error("browser speech failed"))}
+    window.speechSynthesis.speak(utterance)
+   })
+  }
+ }
+ async function speakText(text:string,userId?:string,presentation?:GovernedExpressionPresentation){
   if(!text.trim())return
   stopSpeech()
+  const controller=new AbortController()
+  speechAbortRef.current=controller
   const uid=userId??await identity()
+  const delivery=expressionDelivery(presentation)
+  setInteractivePhase("speaking")
   try{
-   const response=await fetch("/api/jhadina/voice/speak",{
+   const response=await fetch("/api/jhadina/voice/speak-stream",{
     method:"POST",
     headers:{"content-type":"application/json","x-jhadina-user-id":uid},
-    body:JSON.stringify({text,language:voiceLanguage,voiceProfileId:"jhadina:canonical"}),
+    body:JSON.stringify({text,language:voiceLanguage,voiceProfileId:"jhadina:canonical",delivery}),
+    signal:controller.signal,
    })
-   if(!response.ok)throw new Error("native voice unavailable")
-   const json=await response.json()
-   if(typeof json.audioBase64!=="string"||!json.audioBase64)throw new Error("native voice returned no audio")
-   const audio=new Audio(`data:${json.mimeType??"audio/wav"};base64,${json.audioBase64}`)
-   nativeAudioRef.current=audio
-   audio.onended=()=>{if(nativeAudioRef.current===audio)nativeAudioRef.current=null}
-   await audio.play()
+   if(!response.ok||!response.body)throw new Error("native voice stream unavailable")
+   const reader=response.body.getReader()
+   const decoder=new TextDecoder()
+   let buffer=""
+   let completed=false
+   while(!completed){
+    const {done,value}=await reader.read()
+    buffer+=decoder.decode(value??new Uint8Array(),{stream:!done})
+    let newline=buffer.indexOf("\n")
+    while(newline>=0){
+     const line=buffer.slice(0,newline).trim()
+     buffer=buffer.slice(newline+1)
+     if(line){
+      const event=JSON.parse(line) as {type:string;detail?:string;audioBase64?:string;mimeType?:string}
+      if(event.type==="error")throw new Error(event.detail||"native voice stream failed")
+      if(event.type==="audio")await playNativeAudio(event,controller.signal)
+      if(event.type==="done")completed=true
+     }
+     newline=buffer.indexOf("\n")
+    }
+    if(done)break
+   }
    return
-  }catch{
-   if(typeof window==="undefined"||!("speechSynthesis" in window))return
-   const utterance=new SpeechSynthesisUtterance(text)
-   utterance.lang=voiceLanguage
-   window.speechSynthesis.speak(utterance)
+  }catch(cause){
+   if(isAbortLike(cause)||controller.signal.aborted)return
+   try{await speakBrowserChunks(text,controller.signal,presentation)}catch(fallbackError){
+    if(!isAbortLike(fallbackError))setInputStatus("Voice playback is unavailable; the response is still shown as text.")
+   }
+  }finally{
+   if(speechAbortRef.current===controller)speechAbortRef.current=null
   }
  }
  function isVideoRequest(text:string){return /\b(make|create|generate|produce|build|render|turn)\b/i.test(text)&&/\b(video|movie|film|short|reel|tiktok|youtube\s+short|youtube\s+video)\b/i.test(text)}
@@ -201,28 +281,84 @@ function AskJhadina(){
   const governed=await governReferenceProposal(userId,command,proposal,"reference-product")
   return {proposal:governed.proposal,reasoningEventId:governed.reasoningEventId,expression:governed.expression,verified:true,verificationReason:"Product reference admission and project authority completed before product-aware production submission; presentation was realized through the governed Personality/RNC path and the turn was persisted to Hippocampus.",videoJob:job,feedbackEligible:false}
  }
- async function ask(commandOverride?:string, conversationSignals?:JhadinaConversationSignals){
+ async function ask(commandOverride?:string, conversationSignals?:JhadinaConversationSignals, source:"typed"|"voice"=commandOverride?"voice":"typed"){
   const command=(commandOverride??task).trim()
-  if(!command||busy)return
-  setBusy(true);setError("");setResult(null);setFeedbackRecorded(null)
+  if(!command)return
+
+  if(busyRef.current){
+   if(source!=="voice")return
+   if(referenceFile){
+    setInputStatus("That governed production turn is already committing work; I won’t start a duplicate. I’m still listening.")
+    return
+   }
+   commandAbortRef.current?.abort()
+   stopSpeech()
+  }
+
+  const turnId=crypto.randomUUID()
+  const controller=new AbortController()
+  activeTurnRef.current=turnId
+  commandAbortRef.current=controller
+  busyRef.current=true
+  setBusy(true)
+  setInteractivePhase(source==="voice"?"understanding":"thinking")
+  setError("")
+  setResult(null)
+  setFeedbackRecorded(null)
+  setConversationLines(current=>[...current,{id:`user:${turnId}`,speaker:"user" as const,text:command,createdAt:new Date().toISOString(),turnId}].slice(-16))
+  let failed=false
+
   try{
    const userId=await identity()
+   if(activeTurnRef.current===turnId)setInteractivePhase("thinking")
    let data:CommandResult
    if(referenceFile){
     data=referenceKind==="product"?await askWithReferenceProduct(command,userId):await askWithReferenceCharacter(command,userId)
    }else{
-    const response=await fetch("/api/jhadina/command",{method:"POST",headers:{"content-type":"application/json","x-jhadina-user-id":userId},body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,activeProject:params.get("project")??undefined,clientRequestId:crypto.randomUUID()})})
-    const json=await response.json();if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
+    const response=await fetch("/api/jhadina/command",{
+     method:"POST",
+     headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+     body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,activeProject:params.get("project")??undefined,clientRequestId:turnId}),
+     signal:controller.signal,
+    })
+    const json=await response.json()
+    if(!response.ok)throw new Error(json.error||"Jhadina could not process that")
     data=json.data as CommandResult
    }
+
+   if(controller.signal.aborted||activeTurnRef.current!==turnId)return
    await persistWorkSession(userId,command,data)
-   setResult(data);setTask("")
-   if(commandOverride){
-    const spoken=(data.expression?.segments??[]).filter((segment:GovernedExpressionSegment)=>segment.kind==="semantic").map((segment:GovernedExpressionSegment)=>segment.text).join(" ")
-    if(spoken)await speakText(spoken,userId)
+   if(controller.signal.aborted||activeTurnRef.current!==turnId)return
+
+   setResult(data)
+   setTask("")
+   const spoken=(data.expression?.segments??[])
+    .filter((segment:GovernedExpressionSegment)=>segment.kind==="semantic")
+    .map((segment:GovernedExpressionSegment)=>segment.text)
+    .join(" ")
+   if(spoken){
+    setConversationLines(current=>[...current,{id:`jhadina:${turnId}`,speaker:"jhadina" as const,text:spoken,createdAt:new Date().toISOString(),turnId}].slice(-16))
    }
-  }catch(cause){setError(cause instanceof Error?cause.message:"Jhadina could not process that")}
-  finally{setBusy(false);setReferenceStage("")}
+
+   if(source==="voice"&&spoken){
+    await speakText(spoken,userId,data.expression.presentation)
+   }
+   if(activeTurnRef.current===turnId)setInteractivePhase(conversationActive?"listening":"idle")
+  }catch(cause){
+   if(!isAbortLike(cause)&&!controller.signal.aborted){
+    failed=true
+    setInteractivePhase("error")
+    setError(cause instanceof Error?cause.message:"Jhadina could not process that")
+   }
+  }finally{
+   if(activeTurnRef.current===turnId){
+    busyRef.current=false
+    commandAbortRef.current=null
+    setBusy(false)
+    setReferenceStage("")
+    if(!failed&&!controller.signal.aborted)setInteractivePhase(conversationActive?"listening":"idle")
+   }
+  }
  }
  async function feedback(kind:"reinforced"|"rejected"){
   if(!result?.reasoningEventId||feedbackBusy||feedbackRecorded)return
@@ -235,17 +371,54 @@ function AskJhadina(){
   finally{setFeedbackBusy(false)}
  }
 
+ const phaseCopy:Record<JhadinaInteractivePhase,string>={
+  idle:"Ready",
+  listening:"Listening",
+  understanding:"Understanding",
+  thinking:"Thinking",
+  speaking:"Speaking",
+  interrupted:"Interrupted — listening",
+  error:"Needs attention",
+ }
+
  return <main className="jh-page"><div className="jh-wrap" style={{maxWidth:900}}>
   <p className="jh-eyebrow">Ask Jhadina · {surface}</p>
   <h1 className="jh-title">Think across the whole OS.</h1>
   <p className="jh-copy">Ask is Jhadina’s governed LLM surface. It can reason across approved context and subsystem intelligence, explain its evidence, and propose next steps. The model itself does not mutate policy, memory, values, money, or external systems.</p>
   <div className="jh-card jh-card--wide" style={{marginTop:28}}>
-   <label htmlFor="jhadina-command" className="jh-eyebrow">What are we doing?</label>
+   <div className="jh-between" style={{gap:16,alignItems:"center"}}>
+    <div>
+     <p className="jh-eyebrow">Live presence</p>
+     <div className="jh-row" style={{alignItems:"center"}}>
+      <span aria-hidden="true" style={{width:18,height:18,borderRadius:"50%",display:"inline-block",background:"var(--jh-accent, currentColor)",opacity:interactivePhase==="idle"?.45:1}}/>
+      <strong>{phaseCopy[interactivePhase]}</strong>
+      <span className={conversationActive?"jh-status jh-status--success":"jh-status"}><span className="jh-dot"/>{conversationActive?"conversation active":"wake required"}</span>
+     </div>
+     <p className="jh-card-copy">Say “Jhadina” once, then keep talking naturally. Speaking while she is thinking or talking interrupts that turn and starts the new one.</p>
+    </div>
+    {(busy||interactivePhase==="speaking")?<button type="button" className="jh-button" onClick={interruptCurrentTurn}>Interrupt</button>:null}
+   </div>
+   {conversationLines.length?<div className="jh-list" aria-label="Recent live conversation" style={{marginTop:14}}>
+    {conversationLines.slice(-6).map(line=><div key={line.id} className="jh-item">
+     <p className="jh-eyebrow">{line.speaker==="jhadina"?"Jhadina":"You"}</p>
+     <p className="jh-card-copy">{line.text}</p>
+    </div>)}
+   </div>:null}
+   <label htmlFor="jhadina-command" className="jh-eyebrow" style={{marginTop:16,display:"block"}}>What are we doing?</label>
    <div className="jh-row" style={{alignItems:"stretch"}}>
     <textarea id="jhadina-command" className="jh-textarea" rows={3} value={task} onChange={event=>setTask(event.target.value)} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")void ask()}} placeholder="Ask a question, connect subsystems, inspect a decision, or tell Jhadina what you want to accomplish…" style={{flex:"1 1 560px",resize:"vertical"}}/>
     <button className="jh-button jh-button--primary" disabled={busy||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":"Ask"}</button>
    </div>
-   <JhadinaLiveInput busy={busy} onArtifactsChange={setArtifacts} onArtifactRefsChange={setArtifactRefs} onBargeIn={stopSpeech} onVoiceCommand={(command,signals)=>void ask(command,signals)} onLanguageChange={setVoiceLanguage} onStatus={setInputStatus}/>
+   <JhadinaLiveInput
+    busy={busy}
+    onArtifactsChange={setArtifacts}
+    onArtifactRefsChange={setArtifactRefs}
+    onBargeIn={interruptCurrentTurn}
+    onVoiceCommand={(command,signals)=>void ask(command,signals,"voice")}
+    onLanguageChange={setVoiceLanguage}
+    onConversationActiveChange={(active)=>{setConversationActive(active);if(!busyRef.current)setInteractivePhase(active?"listening":"idle")}}
+    onStatus={setInputStatus}
+   />
    {inputStatus?<p className="jh-meta" role="status" style={{marginTop:8}}>{inputStatus}</p>:null}
    <div className="jh-item" style={{marginTop:14}}>
     <div className="jh-between">
@@ -278,7 +451,7 @@ function AskJhadina(){
   {result?<section className="jh-section">
    <article className="jh-card jh-card--wide">
     <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.verified?"Verified response":"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
-    <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{const text=result.expression.segments.filter(segment=>segment.kind==="semantic").map(segment=>segment.text).join(" ");void speakText(text)}}>Speak response</button><button type="button" className="jh-button" onClick={stopSpeech}>Stop speech</button></div>
+    <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{const text=result.expression.segments.filter(segment=>segment.kind==="semantic").map(segment=>segment.text).join(" ");void speakText(text,undefined,result.expression.presentation).finally(()=>setInteractivePhase(conversationActive?"listening":"idle"))}}>Speak response</button><button type="button" className="jh-button" onClick={()=>{stopSpeech();setInteractivePhase(conversationActive?"listening":"idle")}}>Stop speech</button></div>
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.socialWorkPlan?<SocialWorkPlanCard plan={result.socialWorkPlan}/>:null}
