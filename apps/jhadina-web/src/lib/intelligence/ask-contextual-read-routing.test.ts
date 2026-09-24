@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { requiresFullJllmContextForRead } from "./ask-contextual-read-routing"
+import { requiresDeviceLocationForSpatialRead, requiresFullJllmContextForRead, requiresSpatialContextForRead } from "./ask-contextual-read-routing"
 
 describe("Ask contextual read routing", () => {
   it.each([
@@ -11,6 +11,49 @@ describe("Ask contextual read routing", () => {
     "Given my personality, what social account fits me?",
   ])("routes explicit personal/history reads through full JLLM context: %s", (input) => {
     expect(requiresFullJllmContextForRead(input)).toBe(true)
+  })
+
+  it.each([
+    "Which social accounts should react to what is happening near Dodger Stadium?",
+    "Which campaign should I prioritize given traffic around LAX?",
+    "Use GEV to tell me which social account should cover the nearby wildfire.",
+    "What flights are around the airport right now?",
+    "Does the Reolink RLC-823A support ONVIF?",
+    "Show me the RTSP / Frigate specs for a Reolink camera model.",
+    "Show me the latest satellite imagery near LAX.",
+    "When is the next satellite overpass around LAX?",
+  ])("routes spatial/GEV reads through full JLLM context: %s", (input) => {
+    expect(requiresSpatialContextForRead(input)).toBe(true)
+    expect(requiresFullJllmContextForRead(input)).toBe(true)
+  })
+
+  it.each([
+    "What flights are near me right now?",
+    "What is happening around here?",
+    "Show me nearby traffic",
+    "Are there wildfires in my area?",
+    "Show me the latest satellite imagery near me.",
+    "When is the next satellite overpass around here?",
+  ])("marks device-relative spatial reads for browser location scope: %s", (input) => {
+    expect(requiresDeviceLocationForSpatialRead(input)).toBe(true)
+  })
+
+  it.each([
+    "What flights are near LAX?",
+    "Show cameras around Dodger Stadium",
+    "What is happening in Miami?",
+    "Show satellite imagery near LAX.",
+    "When is the next overpass at KLAX?",
+  ])("does not request device location for named-place spatial reads: %s", (input) => {
+    expect(requiresDeviceLocationForSpatialRead(input)).toBe(false)
+  })
+
+  it.each([
+    "Why did campaign performance change?",
+    "Route this social draft to the right account",
+    "Investigate why my ad CTR dropped",
+  ])("does not mistake ordinary analysis verbs for spatial intent: %s", (input) => {
+    expect(requiresSpatialContextForRead(input)).toBe(false)
   })
 
   it.each([

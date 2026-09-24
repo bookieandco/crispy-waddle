@@ -169,6 +169,60 @@ describe("Ask Jhadina Growth routing", () => {
     expect(recordShortcutExperience).not.toHaveBeenCalled()
   })
 
+  it("routes a mixed Growth + GEV read through canonical context and returns the spatial receipt", async () => {
+    inspectGrowth.mockReturnValue({
+      matched: true,
+      operation: "campaign_attention",
+      requestedChannels: ["meta"],
+      requestedBrandIds: [],
+    })
+    handleGeneric.mockResolvedValue({
+      proposal: {
+        id: "proposal-spatial-growth",
+        contextId: "ctx-spatial-growth",
+        disposition: "PROCEED",
+        recommendation: "Use the spatial context with Growth state.",
+        rationale: "Canonical JLLM context combined both domains.",
+        evidence: [],
+        uncertainty: [],
+        alternatives: [],
+      },
+      reasoningEventId: "reason-spatial-growth",
+      expression: {
+        proposal: { id: "proposal-spatial-growth" },
+        presentation: { mode: "direct", allowProfanity: false, allowQuip: false },
+        segments: [{ kind: "semantic", text: "Use the spatial context with Growth state." }],
+      },
+      verified: true,
+      verificationReason: "verified",
+      spatialContext: {
+        used: true,
+        authority: "INTELLIGENCE_ONLY",
+        observationCount: 2,
+        evidenceCount: 2,
+        claimCount: 1,
+        realityCount: 1,
+        provenanceCount: 2,
+        sources: ["NASA FIRMS"],
+        conflictCount: 0,
+        uncertaintyCount: 0,
+        limitationCount: 1,
+      },
+    })
+
+    const response = await POST(request("Which Meta campaign should I prioritize given traffic around LAX?"))
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(handleGeneric).toHaveBeenCalledTimes(1)
+    expect(handleGrowth).not.toHaveBeenCalled()
+    expect(json.data.spatialContext).toEqual(expect.objectContaining({
+      used: true,
+      authority: "INTELLIGENCE_ONLY",
+      evidenceCount: 2,
+    }))
+  })
+
   it("lets a mutating paid-media request continue to Social planning", async () => {
     inspectGrowth.mockReturnValue(null)
     inspectSocial.mockReturnValue({

@@ -93,10 +93,10 @@ export function assertSpatialWorkspace(workspace: SpatialWorkspace): void {
 
 export type SpatialQueryKind = 'LOCATE' | 'OBSERVE' | 'COMPARE' | 'TRACE' | 'CORRELATE' | 'INVESTIGATE' | 'EXPLAIN' | 'HISTORICAL' | 'FORECAST_CONTEXT';
 export type SpatialQuery = { queryId: string; kind: SpatialQueryKind; subject: string | null; geographicScope: unknown | null; temporalScope: { from: string | null; to: string | null; asOf: string | null }; requestedDomains: string[]; requiresEvidence: boolean };
-export type SpatialQueryPlan = { queryId: string; capability: 'READ_SPATIAL_CONTEXT'; scope: unknown; temporalScope: SpatialQuery['temporalScope']; domains: string[]; evidenceRequired: boolean };
+export type SpatialQueryPlan = { queryId: string; capability: 'READ_SPATIAL_CONTEXT'; subject?: string | null; scope: unknown; temporalScope: SpatialQuery['temporalScope']; domains: string[]; evidenceRequired: boolean };
 export function planSpatialQuery(query: SpatialQuery): SpatialQueryPlan {
   for (const t of [query.temporalScope.from, query.temporalScope.to, query.temporalScope.asOf]) if (!validTimestamp(t)) throw new Error('SPATIAL_QUERY_TIMESTAMP_INVALID');
-  return { queryId: query.queryId, capability: 'READ_SPATIAL_CONTEXT', scope: query.geographicScope, temporalScope: query.temporalScope, domains: [...new Set(query.requestedDomains)].sort(), evidenceRequired: query.requiresEvidence };
+  return { queryId: query.queryId, capability: 'READ_SPATIAL_CONTEXT', subject: query.subject, scope: query.geographicScope, temporalScope: query.temporalScope, domains: [...new Set(query.requestedDomains)].sort(), evidenceRequired: query.requiresEvidence };
 }
 
 export type SpatialReasoningOutput = { reasoningId: string; observations: string[]; scenarios: string[]; risks: string[]; alternatives: string[]; evidenceGaps: string[]; evidenceRefs: string[]; limitations: string[] };

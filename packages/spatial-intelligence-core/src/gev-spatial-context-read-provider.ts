@@ -4,21 +4,27 @@ import type { SpatialEvidenceStore } from './evidence-store.js'
 import type { SpatialObservation } from './observation.js'
 import { normalizeAisPayload, normalizeFirmsPayload, normalizeGevCctvSources, normalizeOpenSkyPayload } from './gev-source-adapters.js'
 import { GevProviderBridge } from './gev-provider-bridge.js'
-import { createGevSourcePolicyRegistry, type SpatialSourcePolicyRegistry } from './source-policy.js'
+import { createGevSourcePolicyRegistry, type SpatialSourcePolicyRegistry, type SpatialUsePurpose } from './source-policy.js'
 import type { SpatialContextPackage, SpatialContextReadProvider } from './integration.js'
 import type { SpatialQueryPlan } from './spatial-pipeline.js'
 import type { EvidenceRef } from '@jhadina/core-spine'
 import { spatialObservationToGraphContribution, type SpatialKnowledgeSink } from './spatial-knowledge-projection.js'
 import { emitSpatialTelemetry, spatialTelemetryErrorCode, type SpatialTelemetrySink } from './spatial-telemetry.js'
+import type { CctvCameraCatalogClient } from './cctv-camera-catalog.js'
+import type { PublicSatelliteSpatialProvider } from './public-satellite-provider.js'
 
 export type GevSpatialReadProviderOptions = {
-  bridge: GevProviderBridge
+  bridge?: GevProviderBridge
   policyRegistry?: SpatialSourcePolicyRegistry
   now?: () => string
   maxEvidence?: number
   evidenceStore?: SpatialEvidenceStore
   knowledgeSink?: SpatialKnowledgeSink
   telemetry?: SpatialTelemetrySink
+  cameraCatalog?: CctvCameraCatalogClient
+  satelliteProvider?: PublicSatelliteSpatialProvider
+  /** Governs provider/source reuse at this consumer boundary. Ask Jhadina uses model-input; Spatial workspace defaults to private-analysis. */
+  purpose?: SpatialUsePurpose
 }
 
 type ScopePoint = { lat: number; lon: number; radiusKm?: number }
@@ -93,11 +99,92 @@ const observationToEvidence = (observation: SpatialObservation, registry: Spatia
   return { ...withoutIntegrity, integrity: { contentHash: spatialEvidenceHash(withoutIntegrity) } }
 }
 
+const formatPosition = (position: unknown): string => {
+  if (!position || typeof position !== 'object') return ''
+  const raw = position as Record<string, unknown>
+  const lat = Number(raw.lat)
+  const lon = Number(raw.lon)
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return ''
+  const altitudeRaw = raw.altitude_m ?? raw.altitudeM
+  const altitude = altitudeRaw === null || altitudeRaw === undefined ? null : Number(altitudeRaw)
+  return ` at ${lat.toFixed(4)}, ${lon.toFixed(4)}${altitude !== null && Number.isFinite(altitude) ? ` alt ${Math.round(altitude)}m` : ''}`
+}
+
+const catalogSummary = (attributes: Record<string, unknown>): string | null => {
+  if (attributes.catalogKind !== 'camera-specification') return null
+  const brand = typeof attributes.brand === 'string' ? attributes.brand : 'Unknown brand'
+  const model = typeof attributes.model === 'string' ? attributes.model : 'unknown model'
+  const cameraType = typeof attributes.cameraType === 'string' ? attributes.cameraType : null
+  const resolution = typeof attributes.resolutionLabel === 'string' ? attributes.resolutionLabel : null
+  const megapixels = Number.isFinite(Number(attributes.megapixels)) ? `${Number(attributes.megapixels)}MP` : null
+  const strings = (value: unknown, limit: number) => Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string').slice(0, limit)
+    : []
+  const protocols = strings(attributes.protocols, 8)
+  const connectivity = strings(attributes.connectivity, 6)
+  const powerSource = strings(attributes.powerSource, 6)
+  const features = strings(attributes.features, 6)
+  const powerMethod = typeof attributes.powerMethod === 'string' ? attributes.powerMethod : null
+  const nightVisionType = typeof attributes.nightVisionType === 'string' ? attributes.nightVisionType : null
+  const nightVisionRange = Number.isFinite(Number(attributes.nightVisionRangeM)) ? `${Number(attributes.nightVisionRangeM)}m` : null
+  const twoWayAudio = attributes.twoWayAudio === true ? 'two-way audio' : attributes.twoWayAudio === false ? 'no two-way audio' : null
+  const lastVerified = typeof attributes.lastVerified === 'string' ? attributes.lastVerified : null
+  const capabilities = [
+    cameraType,
+    resolution ?? megapixels,
+    protocols.length ? `protocols ${protocols.join(', ')}` : null,
+    connectivity.length ? `connectivity ${connectivity.join(', ')}` : null,
+    powerSource.length || powerMethod ? `power ${[...powerSource, powerMethod].filter(Boolean).join(', ')}` : null,
+    nightVisionType ? `night vision ${nightVisionType}${nightVisionRange ? ` to ${nightVisionRange}` : ''}` : null,
+    twoWayAudio,
+    features.length ? `features ${features.join(', ')}` : null,
+    lastVerified ? `catalog verified ${lastVerified}` : null,
+  ].filter(Boolean)
+  return `CCTV catalog specification for ${brand} ${model}${capabilities.length ? `: ${capabilities.join('; ')}` : ''}. Catalog metadata only; not evidence of deployment, location, or live-feed availability.`
+}
+
+const satelliteSummary = (attributes: Record<string, unknown>): string | null => {
+  if (attributes.sourceId === 'gev-celestrak') {
+    const name = typeof attributes.objectName === 'string' ? attributes.objectName : 'satellite'
+    const norad = typeof attributes.noradCatId === 'string' ? attributes.noradCatId : 'unknown'
+    const subpoint = attributes.derivedSubpoint && typeof attributes.derivedSubpoint === 'object'
+      ? attributes.derivedSubpoint as Record<string, unknown>
+      : null
+    const lat = Number(subpoint?.lat)
+    const lon = Number(subpoint?.lon)
+    const altitudeM = Number(subpoint?.altitudeM)
+    const distance = Number(attributes.distanceToScopeKm)
+    const location = Number.isFinite(lat) && Number.isFinite(lon)
+      ? ` approximate subpoint ${lat.toFixed(2)}, ${lon.toFixed(2)}${Number.isFinite(altitudeM) ? ` at ${Math.round(altitudeM / 1000)} km altitude` : ''}`
+      : ''
+    const proximity = Number.isFinite(distance) ? `; about ${Math.round(distance)} km from requested scope now` : ''
+    const approach = attributes.nextClosestApproach && typeof attributes.nextClosestApproach === 'object'
+      ? attributes.nextClosestApproach as Record<string, unknown>
+      : null
+    const approachDistance = Number(approach?.distanceKm)
+    const approachAt = typeof approach?.at === 'string' ? approach.at : null
+    const closest = Number.isFinite(approachDistance) && approachAt
+      ? `; approximate closest approach within 6h is ${Math.round(approachDistance)} km at ${approachAt}`
+      : ''
+    return `CelesTrak orbit elements for ${name} (NORAD ${norad});${location}${proximity}${closest}. Ground position/pass timing is derived context-only, not an operational position fix.`
+  }
+  if (attributes.sourceId === 'nasa-gibs-viirs') {
+    const date = typeof attributes.layerDate === 'string' ? attributes.layerDate : 'unknown date'
+    const layer = typeof attributes.layer === 'string' ? attributes.layer : 'VIIRS imagery'
+    const bytes = Number(attributes.byteLength)
+    const sha = typeof attributes.sha256 === 'string' ? attributes.sha256.slice(0, 16) : 'unknown'
+    return `NASA GIBS satellite imagery asset ${layer} for ${date}${Number.isFinite(bytes) ? ` (${bytes} bytes)` : ''}; content checksum ${sha}…. Layer date is not the exact sensor acquisition time.`
+  }
+  return null
+}
+
 const evidenceRef = (evidence: SpatialEvidence): EvidenceRef => ({
   id: evidence.evidenceId,
   source: evidence.source.provider,
   observedAt: evidence.timing.observedAt ?? evidence.timing.receivedAt,
-  summary: `${String(evidence.payload.entity.type ?? 'spatial')} observation ${String(evidence.payload.entity.id ?? evidence.observationId)} from ${evidence.source.provider}`,
+  summary: catalogSummary(evidence.payload.attributes)
+    ?? satelliteSummary(evidence.payload.attributes)
+    ?? `${String(evidence.payload.entity.type ?? 'spatial')} observation ${String(evidence.payload.entity.id ?? evidence.observationId)}${formatPosition(evidence.payload.position)} from ${evidence.source.provider}`,
   immutable: true,
 })
 
@@ -105,7 +192,9 @@ const observationRef = (observation: SpatialObservation): EvidenceRef => ({
   id: observation.observation_id,
   source: observation.source.provider,
   observedAt: observation.observed_at ?? observation.received_at,
-  summary: `${observation.observation_type}: ${observation.entity.id}`,
+  summary: catalogSummary(observation.attributes)
+    ?? satelliteSummary(observation.attributes)
+    ?? `${observation.observation_type}: ${observation.entity.id}${formatPosition(observation.position)}`,
   immutable: true,
 })
 
@@ -117,6 +206,7 @@ function requestedDomains(plan: SpatialQueryPlan): Set<string> {
     domains.add('vessel')
     domains.add('fire')
   }
+  if (domains.has('camera')) domains.add('camera-catalog')
   return domains
 }
 
@@ -129,11 +219,13 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
   private readonly registry: SpatialSourcePolicyRegistry
   private readonly now: () => string
   private readonly maxEvidence: number
+  private readonly purpose: SpatialUsePurpose
 
   constructor(private readonly options: GevSpatialReadProviderOptions) {
     this.registry = options.policyRegistry ?? createGevSourcePolicyRegistry()
     this.now = options.now ?? (() => new Date().toISOString())
     this.maxEvidence = options.maxEvidence ?? 500
+    this.purpose = options.purpose ?? 'private-analysis'
     if (!Number.isInteger(this.maxEvidence) || this.maxEvidence < 1 || this.maxEvidence > 10_000) throw new Error('GEV_SPATIAL_MAX_EVIDENCE_INVALID')
   }
 
@@ -171,11 +263,20 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
     }
 
     const point = asScopePoint(plan.scope)
+    if (!this.options.bridge) {
+      for (const domain of ['camera', 'aircraft', 'vessel', 'fire']) {
+        if (domains.has(domain)) sourceHealth.push(`${domain}:unconfigured`)
+      }
+      if ([...domains].some((domain) => ['camera', 'aircraft', 'vessel', 'fire'].includes(domain))) {
+        limitations.push('Live GEV provider is not configured; only independently configured spatial sources can contribute.')
+      }
+    }
+
     await Promise.all([
-      capture('camera', async () => {
-        const sources = await this.options.bridge.cctvSources()
+      ...(this.options.bridge ? [capture('camera', async () => {
+        const sources = await this.options.bridge!.cctvSources(this.purpose)
         try {
-          const health = await this.options.bridge.cctvHealth()
+          const health = await this.options.bridge!.cctvHealth(this.purpose)
           sourceHealth.push(`camera-health:available:${health.length}`)
           emitSpatialTelemetry(this.options.telemetry, {
             kind: 'provider_health', component: 'gev:camera-health', status: 'ok', at: receivedAt,
@@ -197,13 +298,58 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
           return normalizeGevCctvSources(sources, receivedAt)
         }
       }),
-      capture('aircraft', async () => normalizeOpenSkyPayload(await this.options.bridge.openSky(point ? { lat: point.lat, lon: point.lon } : {}), receivedAt)),
-      capture('vessel', async () => normalizeAisPayload(await this.options.bridge.aisLive(), receivedAt)),
-      capture('fire', async () => normalizeFirmsPayload(await this.options.bridge.firms(), receivedAt)),
+      capture('aircraft', async () => normalizeOpenSkyPayload(await this.options.bridge!.openSky(point ? { lat: point.lat, lon: point.lon } : {}, this.purpose), receivedAt)),
+      capture('vessel', async () => normalizeAisPayload(await this.options.bridge!.aisLive(5_000, this.purpose), receivedAt)),
+      capture('fire', async () => normalizeFirmsPayload(await this.options.bridge!.firms(this.purpose), receivedAt)),
+      ] : []),
     ])
 
+    if (domains.has('satellite')) {
+      if (!this.options.satelliteProvider) {
+        sourceHealth.push('satellite:unconfigured')
+        limitations.push('Public satellite provider is not configured.')
+      } else {
+        try {
+          const satellite = await this.options.satelliteProvider.read(plan, this.purpose, receivedAt)
+          observations.push(...satellite.observations)
+          sourceHealth.push(...satellite.sourceHealth)
+          limitations.push(...satellite.limitations)
+          emitSpatialTelemetry(this.options.telemetry, {
+            kind: 'provider_health', component: 'satellite:public', status: satellite.observations.length ? 'ok' : 'degraded', at: receivedAt,
+            details: { domain: 'satellite', observationCount: satellite.observations.length },
+          })
+        } catch (error) {
+          sourceHealth.push('satellite:unavailable')
+          limitations.push(`satellite source unavailable: ${error instanceof Error ? error.message : 'unknown error'}`)
+          emitSpatialTelemetry(this.options.telemetry, {
+            kind: 'source_failure', component: 'satellite:public', status: 'failed', at: receivedAt,
+            details: { domain: 'satellite', errorCode: spatialTelemetryErrorCode(error) },
+          })
+        }
+      }
+    }
+
+    if (domains.has('camera-catalog') && this.options.cameraCatalog && plan.subject?.trim()) {
+      try {
+        const rows = await this.options.cameraCatalog.searchObservations(plan.subject, this.purpose, receivedAt)
+        observations.push(...rows)
+        sourceHealth.push(`camera-catalog:available:${rows.length}`)
+        emitSpatialTelemetry(this.options.telemetry, {
+          kind: 'provider_health', component: 'cctv-database:catalog', status: 'ok', at: receivedAt,
+          details: { domain: 'camera-catalog', observationCount: rows.length },
+        })
+      } catch (error) {
+        limitations.push(`camera catalog unavailable: ${error instanceof Error ? error.message : 'unknown error'}`)
+        sourceHealth.push('camera-catalog:unavailable')
+        emitSpatialTelemetry(this.options.telemetry, {
+          kind: 'source_failure', component: 'cctv-database:catalog', status: 'failed', at: receivedAt,
+          details: { domain: 'camera-catalog', errorCode: spatialTelemetryErrorCode(error) },
+        })
+      }
+    }
+
     for (const domain of domains) {
-      if (!['spatial', 'camera', 'aircraft', 'vessel', 'fire'].includes(domain)) {
+      if (!['spatial', 'camera', 'camera-catalog', 'aircraft', 'vessel', 'fire', 'satellite'].includes(domain)) {
         limitations.push(`${domain} adapter is available at the normalization layer but has no live GEV bridge endpoint in this provider configuration.`)
       }
     }
@@ -243,7 +389,7 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
     const policyLimitations = [...new Set(scoped.flatMap((observation) => this.registry.require(observation.provenance.source_ref).limitations))]
 
     return {
-      subject: null,
+      subject: plan.subject ?? null,
       geographicScope: plan.scope,
       temporalScope: { ...plan.temporalScope },
       observations: observationRefs,

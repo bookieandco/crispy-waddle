@@ -95,7 +95,10 @@ export function spatialObservationToGraphContribution(
         validTo: null,
       },
     ],
-    evidenceRefs: [evidenceRef],
+    // Source/entity nodes are stable identities. Per-observation provenance
+    // belongs on the observation relation so repeated observations cannot
+    // mutate an identity node merely because a new evidence receipt arrived.
+    evidenceRefs: [],
     limitations: [],
   })
 }

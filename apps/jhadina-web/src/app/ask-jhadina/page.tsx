@@ -7,6 +7,7 @@ import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
 import { chunkSpeechText, isAbortLike, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
+import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -19,7 +20,9 @@ type SocialAccountChoice={accountId:string;brand:string;platform:string;provider
 type SocialWorkPlan={kind:"social_marketing";operation:string;character?:SocialCharacter;availableCharacters?:readonly SocialCharacter[];accounts:readonly SocialAccountChoice[];requestedPlatforms:readonly string[];nextBoundary:"social_read_only"|"growth_research"|"director_production"|"social_publication"|"growth_paid_media";authority:"READ_ONLY"|"PLANNING_ONLY";requiresExplicitApprovalForExecution:boolean;notes:readonly string[]}
 type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ_ONLY";nextBoundary:"growth_read_only";campaigns:readonly EvidenceRef[];audiences:readonly EvidenceRef[];pendingWork:readonly EvidenceRef[];performance:readonly EvidenceRef[];attention:readonly EvidenceRef[];notes:readonly string[]}
 type VideoJobSummary={id:string;projectId:string;status:string;mode?:string;aspectRatio?:string;providerId?:string;error?:string;previewAssetId?:string}
-type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;feedbackEligible?:boolean}
+type SpatialContextUsageReceipt={used:boolean;authority:"INTELLIGENCE_ONLY";observationCount:number;evidenceCount:number;claimCount:number;realityCount:number;provenanceCount:number;sources:string[];conflictCount:number;uncertaintyCount:number;limitationCount:number}
+type SpatialGeographicScope={lat:number;lon:number;radiusKm?:number}
+type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;feedbackEligible?:boolean}
 
 export default function AskJhadinaPage(){return <Suspense fallback={<main className="jh-page"><div className="jh-wrap"><div className="jh-skeleton"/></div></main>}><AskJhadina/></Suspense>}
 
@@ -93,6 +96,7 @@ function AskJhadina(){
    ...(data.socialWorkPlan?["social"]:[]),
    ...(data.growthWorkPlan?["growth"]:[]),
    ...(data.videoJob?["director"]:[]),
+   ...(data.spatialContext?.used?["spatial"]:[]),
   ])]
   const decisionRefs=[data.proposal?.id,data.reasoningEventId].filter((value):value is string=>typeof value==="string"&&Boolean(value))
   const outputRefs=data.videoJob?.id?[data.videoJob.id]:[]
@@ -111,6 +115,39 @@ function AskJhadina(){
  }
 
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
+ function validSpatialScope(raw:unknown):SpatialGeographicScope|undefined{
+  if(!raw||typeof raw!=="object")return undefined
+  const value=raw as Record<string,unknown>
+  const lat=Number(value.lat),lon=Number(value.lon),radius=Number(value.radiusKm)
+  if(!Number.isFinite(lat)||lat<-90||lat>90||!Number.isFinite(lon)||lon<-180||lon>180)return undefined
+  return{lat,lon,...(Number.isFinite(radius)&&radius>0?{radiusKm:radius}:{})}
+ }
+ function spatialScopeFromContext():SpatialGeographicScope|undefined{
+  const latRaw=params.get("lat"),lonRaw=params.get("lon")
+  if(latRaw!==null&&lonRaw!==null){
+   const explicit=validSpatialScope({lat:latRaw,lon:lonRaw,radiusKm:params.get("radiusKm")})
+   if(explicit)return explicit
+  }
+  if(typeof window==="undefined")return undefined
+  const staged=window.sessionStorage.getItem("jhadina:spatial-scope")
+  if(!staged)return undefined
+  try{return validSpatialScope(JSON.parse(staged))}catch{return undefined}
+ }
+ async function resolveSpatialGeographicScope(command:string):Promise<SpatialGeographicScope|undefined>{
+  if(!requiresSpatialContextForRead(command))return undefined
+  const explicit=spatialScopeFromContext()
+  if(explicit)return explicit
+  if(!requiresDeviceLocationForSpatialRead(command))return undefined
+  if(typeof navigator==="undefined"||!navigator.geolocation)throw new Error("Device location is unavailable. Specify a location or open Ask Jhadina from the Spatial workspace.")
+  setInputStatus("Location permission is needed to scope this GEV query. Your coordinates are used for this request and are not added to WorkSession memory.")
+  return await new Promise<SpatialGeographicScope>((resolve,reject)=>{
+   navigator.geolocation.getCurrentPosition(
+    position=>resolve({lat:position.coords.latitude,lon:position.coords.longitude,radiusKm:25}),
+    ()=>reject(new Error("Location permission is required for a near-me GEV query. Allow location or specify a location.")),
+    {enableHighAccuracy:false,maximumAge:60000,timeout:8000},
+   )
+  })
+ }
  function stopSpeech(){
   speechAbortRef.current?.abort()
   speechAbortRef.current=null
@@ -332,10 +369,11 @@ function AskJhadina(){
       admittedArtifactIds:artifactRefs,
      }:undefined,
     )
+    const geographicScope=await resolveSpatialGeographicScope(command)
     const response=await fetch("/api/jhadina/command",{
      method:"POST",
      headers:{"content-type":"application/json","x-jhadina-user-id":userId},
-     body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,liveContext,activeProject:params.get("project")??undefined,clientRequestId:turnId}),
+     body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,liveContext,geographicScope,activeProject:params.get("project")??undefined,clientRequestId:turnId}),
      signal:controller.signal,
     })
     const json=await response.json()
@@ -471,6 +509,7 @@ function AskJhadina(){
     <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{const text=result.expression.segments.filter(segment=>segment.kind==="semantic").map(segment=>segment.text).join(" ");void speakText(text,undefined,result.expression.presentation).finally(()=>setInteractivePhase(conversationActive?"listening":"idle"))}}>Speak response</button><button type="button" className="jh-button" onClick={()=>{stopSpeech();setInteractivePhase(conversationActive?"listening":"idle")}}>Stop speech</button></div>
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
+    {result.spatialContext?.used?<SpatialContextCard receipt={result.spatialContext}/>:null}
     {result.socialWorkPlan?<SocialWorkPlanCard plan={result.socialWorkPlan}/>:null}
     {result.growthWorkPlan?<GrowthWorkPlanCard plan={result.growthWorkPlan}/>:null}
     {result.proposal.evidence.length?<div className="jh-section" style={{marginTop:20}}><h2 className="jh-card-title">Evidence used</h2><div className="jh-list">{result.proposal.evidence.map(evidence=><div className="jh-item" key={evidence.id}><strong>{evidence.source}</strong><p className="jh-card-copy">{evidence.summary}</p><p className="jh-meta">{new Date(evidence.observedAt).toLocaleString()} · {evidence.id}</p></div>)}</div></div>:null}
@@ -497,6 +536,22 @@ function AskJhadina(){
  </div></main>
 }
 
+
+function SpatialContextCard({receipt}:{receipt:SpatialContextUsageReceipt}){
+ return <div className="jh-section" style={{marginTop:20}}>
+  <div className="jh-item">
+   <div className="jh-between">
+    <div><p className="jh-eyebrow">GEV / Spatial context</p><h2 className="jh-card-title">God’s Eye View participated in this turn</h2></div>
+    <span className="jh-status jh-status--success"><span className="jh-dot"/>{receipt.authority}</span>
+   </div>
+   <p className="jh-card-copy">Ask Jhadina consumed governed spatial intelligence through the canonical Context Builder. GEV supplied context only; it did not receive execution or policy authority.</p>
+   <p className="jh-meta">Observations {receipt.observationCount} · durable evidence {receipt.evidenceCount} · claims {receipt.claimCount} · admitted reality {receipt.realityCount} · provenance {receipt.provenanceCount}</p>
+   {receipt.sources.length?<p className="jh-meta">Sources: {receipt.sources.join(" · ")}</p>:null}
+   {(receipt.conflictCount||receipt.uncertaintyCount||receipt.limitationCount)?<p className="jh-meta">Conflicts {receipt.conflictCount} · uncertainty {receipt.uncertaintyCount} · limitations {receipt.limitationCount}</p>:null}
+   <div className="jh-row" style={{marginTop:12}}><Link className="jh-button" href="/spatial">Open Spatial / GEV</Link></div>
+  </div>
+ </div>
+}
 
 function SocialWorkPlanCard({plan}:{plan:SocialWorkPlan}){
  const boundaryHref:Record<SocialWorkPlan["nextBoundary"],string>={

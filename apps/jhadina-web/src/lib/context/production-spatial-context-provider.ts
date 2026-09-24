@@ -1,6 +1,8 @@
 import {
   GevProviderBridge,
+  createCctvCameraCatalogClient,
   createGevSpatialContextReadProvider,
+  createPublicSatelliteSpatialProvider,
   createSpatialContextProvider,
   createSpatialRealityAdmissionReadProvider,
   type GevFetchLike,
@@ -19,27 +21,31 @@ export type ProductionSpatialContextProviderOptions = {
 }
 
 /**
- * Production Ask-Jhadina composition seam. No configured GEV endpoint means no
- * spatial provider is installed; the command path remains functional and
- * explicitly lacks spatial context rather than silently inventing it.
+ * Production Ask-Jhadina composition seam. Live GEV is optional at composition
+ * time so independent governed sources such as the CCTV specification catalog
+ * can still contribute. Missing GEV remains explicit/fail-closed in source health.
  */
 export function createProductionSpatialContextProvider(
   userId: string,
   options: ProductionSpatialContextProviderOptions = {},
 ): SpatialContextProvider | undefined {
   const baseUrl = options.baseUrl ?? process.env.JHADINA_GEV_BASE_URL ?? process.env.GEV_BASE_URL
-  if (!baseUrl) return undefined
-  const bridge = new GevProviderBridge({
+  const bridge = baseUrl ? new GevProviderBridge({
     baseUrl,
     ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
     ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
     telemetry: spatialProductionTelemetry,
-  })
+  }) : undefined
   const evidenceStore = createSupabaseSpatialEvidenceStore()
   const knowledgeSink = createSupabaseSpatialKnowledgeSink()
   const realityStore = createSupabaseSpatialRealityStore()
+  const cameraCatalog = createCctvCameraCatalogClient()
+  const satelliteProvider = createPublicSatelliteSpatialProvider()
   const evidenceRead = createGevSpatialContextReadProvider({
-    bridge,
+    ...(bridge ? { bridge } : {}),
+    cameraCatalog,
+    satelliteProvider,
+    purpose: 'model-input',
     ...(options.maxEvidence ? { maxEvidence: options.maxEvidence } : {}),
     ...(evidenceStore ? { evidenceStore } : {}),
     ...(knowledgeSink ? { knowledgeSink } : {}),

@@ -1,0 +1,89 @@
+name: GEV Satellite Live Certification
+
+on:
+  pull_request:
+    paths:
+      - 'packages/spatial-intelligence-core/src/public-satellite-provider.ts'
+      - 'packages/spatial-intelligence-core/src/public-satellite-provider.test.ts'
+      - 'packages/spatial-intelligence-core/src/gev-spatial-context-read-provider.ts'
+      - 'packages/spatial-intelligence-core/src/spatial-reality-admission-read-provider.ts'
+      - 'packages/spatial-intelligence-core/src/spatial-knowledge-projection.ts'
+      - 'apps/jhadina-web/src/lib/context/production-spatial-context-provider.ts'
+      - 'apps/jhadina-web/src/lib/context/satellite-live-certification.test.ts'
+      - 'apps/jhadina-web/src/app/api/spatial/satellite/health/route.ts'
+      - '.github/workflows/gev-satellite-live-certification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gev-satellite-live-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    name: Real CelesTrak + NASA + durable Spatial canary
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'feat/ask-jhadina-gev-bridge-20260923'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://kqbkaozfjubkjevdfvic.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SATELLITE_LIVE_CERT: '1'
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Gate the one-shot upstream read
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          subject="$(git log -1 --format=%s)"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$subject" = "cert(spatial): run satellite live certification" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping live upstream read for non-certification commit: $subject" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Report durable credential state
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        run: |
+          if [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Durable Supabase credential: configured" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Durable Supabase credential: missing; provider canary will run first and durable gate will fail closed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Setup pnpm
+        if: steps.gate.outputs.run == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Frozen install
+        if: steps.gate.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Run real provider + durable evidence canary
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/context/satellite-live-certification.test.ts --reporter=verbose 2>&1 | tee /tmp/gev-satellite-live.log
+          echo "### GEV satellite live certification" >> "$GITHUB_STEP_SUMMARY"
+          tail -n 160 /tmp/gev-satellite-live.log >> "$GITHUB_STEP_SUMMARY"

@@ -42,6 +42,7 @@ const entityIdFrom = (evidence: SpatialEvidence): string | null => {
 }
 
 const candidateFromEvidence = (evidence: SpatialEvidence, createdAt: string): SpatialRealityCandidate | null => {
+  if (evidence.payload.attributes.realityAdmissionEligible === false) return null
   const entityId = entityIdFrom(evidence)
   if (!entityId || !evidence.timing.observedAt) return null
   return {
@@ -137,7 +138,7 @@ export class SpatialRealityAdmissionReadProvider implements SpatialContextReadPr
         const createdAt = this.now()
         const candidate = candidateFromEvidence(evidence, createdAt)
         if (!candidate) {
-          limitations.push(`Reality admission skipped ${ref.id}: source observation time or entity identity is unavailable.`)
+          limitations.push(`Reality admission skipped ${ref.id}: evidence is non-admissible derived context, or source observation time/entity identity is unavailable.`)
           emitSpatialTelemetry(this.options.telemetry, {
             kind: 'reality_admission', component: 'spatial-reality-admission', status: 'deferred', at: createdAt,
             details: { reasonCode: 'CANDIDATE_INPUT_INCOMPLETE' },

@@ -7,7 +7,7 @@ import {
 } from "@jhadina/action-core"
 import { JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION } from "@jhadina/security-core"
 import { IntelligenceRouter, realizeGovernedExpression, type GovernedExpressionRealization, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
-import type { ConversationSignalContext, EphemeralArtifactContext, LiveContextContribution } from "@jhadina/core-spine"
+import type { ConversationSignalContext, EphemeralArtifactContext, LiveContextContribution, SpatialDomainContext } from "@jhadina/core-spine"
 import type {
   GrowthContextProvider,
   KnowledgeContextProvider,
@@ -35,6 +35,7 @@ import { createProductionKnowledgeContextProvider } from "../context/production-
 import { createProductionOwnerContextProvider } from "../context/production-owner-context-provider"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
 import { recordPersonalityDriftObservation, type PersonalityDriftObservationResult } from "../personality/personality-drift-observer"
+import { resolveNamedPlaceScope } from "../spatial/named-place-resolver"
 
 export interface JhadinaCommandInput {
   userId: string
@@ -72,11 +73,45 @@ export interface JhadinaCommandOverrides {
   growthContextProvider?: GrowthContextProvider
 }
 
+export interface SpatialContextUsageReceipt {
+  used: boolean
+  authority: "INTELLIGENCE_ONLY"
+  observationCount: number
+  evidenceCount: number
+  claimCount: number
+  realityCount: number
+  provenanceCount: number
+  sources: string[]
+  conflictCount: number
+  uncertaintyCount: number
+  limitationCount: number
+}
+
 export interface JhadinaCommandResult extends GovernedIntelligenceProposalResult {
   expression: GovernedExpressionRealization
   verified: boolean
   verificationReason?: string
   personalityDrift: PersonalityDriftObservationResult
+  spatialContext: SpatialContextUsageReceipt
+}
+
+function summarizeSpatialContext(spatial: SpatialDomainContext | undefined): SpatialContextUsageReceipt {
+  const sourceRefs = spatial
+    ? [...spatial.provenance, ...spatial.evidence, ...spatial.observations]
+    : []
+  return {
+    used: Boolean(spatial),
+    authority: "INTELLIGENCE_ONLY",
+    observationCount: spatial?.observations.length ?? 0,
+    evidenceCount: spatial?.evidence.length ?? 0,
+    claimCount: spatial?.claims.length ?? 0,
+    realityCount: spatial?.reality.length ?? 0,
+    provenanceCount: spatial?.provenance.length ?? 0,
+    sources: [...new Set(sourceRefs.map((ref) => ref.source).filter(Boolean))].sort().slice(0, 20),
+    conflictCount: spatial?.conflicts.length ?? 0,
+    uncertaintyCount: spatial?.uncertainty.length ?? 0,
+    limitationCount: spatial?.limitations.length ?? 0,
+  }
 }
 
 const defaultApprovalStore = new InMemoryApprovalReceiptStore()
@@ -104,6 +139,8 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   const growthContextProvider =
     overrides.growthContextProvider ??
     createProductionGrowthContextProvider()
+  const geographicScope = input.geographicScope ?? resolveNamedPlaceScope(input.activeTask)
+
   const contextDeps: ContextBuilderDeps = {
     memoryRepo,
     timelineRepo: new TimelineRepository(storage),
@@ -121,13 +158,15 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     route: input.route,
     activeProject: input.activeProject,
     memoryRelevanceQuery: input.memoryRelevanceQuery,
-    geographicScope: input.geographicScope,
+    geographicScope,
     temporalScope: input.temporalScope,
     artifacts: input.artifacts,
     conversationSignals: input.conversationSignals,
     liveContext: input.liveContext,
     limits: input.contextLimits,
   })
+
+  const spatialContext = summarizeSpatialContext(assembled.contextPacket.domainContext?.spatial)
 
   const ledger = overrides.ledger ?? (await createIntelligenceAuditLedger())
   const router = overrides.router ?? createProductionIntelligenceRouter(overrides.onEvent)
@@ -155,6 +194,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     verified: true,
     verificationReason: "no action was executed for this proposal",
     personalityDrift,
+    spatialContext,
   }
 
   const verification = await verifyCandidateDurable(memoryRepo, result.verifiedUserId, result.candidate)
@@ -169,7 +209,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     metadata: { stage: "verify", reason: verification.reason ?? "durable read-back matched executed content" },
   })
   if (!verification.verified) throw new Error(`JHADINA_COMMAND_VERIFICATION_FAILED:${verification.reason}`)
-  return { ...result, expression, verified: true, verificationReason: verification.reason, personalityDrift }
+  return { ...result, expression, verified: true, verificationReason: verification.reason, personalityDrift, spatialContext }
 }
 
 async function verifyCandidateDurable(memoryRepo: MemoryRepository, userId: string, candidate: NonNullable<GovernedIntelligenceProposalResult["candidate"]>): Promise<{ verified: boolean; reason?: string }> {

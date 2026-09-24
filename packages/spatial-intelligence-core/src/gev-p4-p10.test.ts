@@ -1,9 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { GevProviderBridge, type GevFetchLike } from './gev-provider-bridge.js'
+import { createCctvCameraCatalogClient, type CctvCatalogFetchLike } from './cctv-camera-catalog.js'
 import { createGevSpatialContextReadProvider } from './gev-spatial-context-read-provider.js'
 import { inferSpatialDomains, normalizeGevCamera, type SpatialContextPackage } from './integration.js'
-import { projectSpatialContributionToKnowledgeGraph } from './spatial-knowledge-projection.js'
+import { projectSpatialContributionToKnowledgeGraph, spatialObservationToGraphContribution } from './spatial-knowledge-projection.js'
 import { InMemorySpatialWorkspaceStore, createSpatialWorkspaceRevision } from './spatial-workspace-store.js'
 import { applyJanetSpatialPreferences, composeDeliaSpatialAssessment, prepareMarisaSpatialOperation } from './spatial-role-composition.js'
 import { toMoneySpatialIntelligence, toSafetySpatialIntelligence } from './spatial-consumer-adapters.js'
@@ -70,6 +71,51 @@ test('GEV P4 query planning selects source domains rather than always fetching t
   assert.deepEqual(inferSpatialDomains('what is happening near here?'), ['spatial'])
 })
 
+test('camera catalog remains usable when live GEV is unconfigured without becoming live spatial reality', async () => {
+  const catalogFetch: CctvCatalogFetchLike = async (url) => {
+    const path = new URL(url).pathname
+    if (path === '/api/brands.json') return response({ brands: [{ name: 'Reolink', slug: 'reolink' }] })
+    if (path === '/api/brands/reolink.json') return response({ cameras: [{ id: 'reolink-rlc-823a', model: 'RLC-823A' }] })
+    if (path === '/api/cameras/reolink-rlc-823a.json') {
+      return response({
+        id: 'reolink-rlc-823a',
+        brand: 'Reolink',
+        model: 'RLC-823A',
+        type: 'ptz',
+        resolution: { megapixels: 8, label: '4K UHD' },
+        protocols: ['ONVIF', 'RTSP'],
+        last_verified: '2026-09-22',
+      })
+    }
+    return response({}, 404)
+  }
+  const provider = createGevSpatialContextReadProvider({
+    cameraCatalog: createCctvCameraCatalogClient({ fetchImpl: catalogFetch }),
+    purpose: 'model-input',
+    now: () => '2026-09-23T20:00:00Z',
+  })
+  const plan = planSpatialQuery({
+    queryId: 'q-camera-catalog',
+    kind: 'EXPLAIN',
+    subject: 'Does the Reolink RLC-823A camera support ONVIF?',
+    geographicScope: null,
+    temporalScope: { from: null, to: null, asOf: null },
+    requestedDomains: ['camera'],
+    requiresEvidence: true,
+  })
+
+  const context = await provider.read(plan, 'user-catalog')
+  assert.ok(context)
+  assert.ok(context?.sourceHealth.includes('camera:unconfigured'))
+  assert.ok(context?.sourceHealth.includes('camera-catalog:available:1'))
+  assert.equal(context?.evidence.length, 1)
+  assert.equal(context?.evidence[0].source, 'CCTV Camera Database')
+  assert.match(context?.evidence[0].summary ?? '', /Reolink RLC-823A/)
+  assert.match(context?.evidence[0].summary ?? '', /ONVIF/)
+  assert.equal(context?.claims.length, 0)
+  assert.equal(context?.reality.length, 0)
+})
+
 test('GEV P4 live read provider produces evidence but cannot self-admit claims or reality', async () => {
   const telemetry: SpatialTelemetryEvent[] = []
   const sink = { record: (event: SpatialTelemetryEvent) => telemetry.push(event) }
@@ -105,6 +151,44 @@ test('GEV P4 live read provider produces evidence but cannot self-admit claims o
   assert.equal(cameraEvidence?.payload.attributes.timestampSemantics, 'provider-health-updated-at')
   assert.ok(telemetry.some((event) => event.kind === 'provider_health' && event.status === 'ok'))
   assert.ok(telemetry.some((event) => event.kind === 'evidence_write' && event.status === 'ok'))
+})
+
+
+// Ask Jhadina is an LLM boundary: private-analysis permission is not sufficient for model input.
+test('Ask Jhadina model-input GEV reads fail closed for restricted or unknown sources', async () => {
+  const telemetry: SpatialTelemetryEvent[] = []
+  const sink = { record: (event: SpatialTelemetryEvent) => telemetry.push(event) }
+  const bridge = new GevProviderBridge({ baseUrl: 'https://gev.example', fetchImpl: liveFetch(), telemetry: sink, now: () => '2026-09-19T20:00:00Z' })
+  const provider = createGevSpatialContextReadProvider({
+    bridge,
+    purpose: 'model-input',
+    telemetry: sink,
+    now: () => '2026-09-19T20:00:00Z',
+  })
+  const plan = planSpatialQuery({
+    queryId: 'q-model-input',
+    kind: 'OBSERVE',
+    subject: 'nearby spatial context',
+    geographicScope: { lat: 34, lon: -117, radiusKm: 200 },
+    temporalScope: { from: null, to: null, asOf: null },
+    requestedDomains: ['spatial'],
+    requiresEvidence: true,
+  })
+
+  const context = await provider.read(plan, 'user-model-input')
+  assert.ok(context)
+  assert.equal(context?.evidence.length, 1)
+  assert.ok(context?.evidence.every((item) => item.source === 'NASA FIRMS'))
+  assert.ok(context?.sourceHealth.includes('camera:unavailable'))
+  assert.ok(context?.sourceHealth.includes('aircraft:unavailable'))
+  assert.ok(context?.sourceHealth.includes('vessel:unavailable'))
+  assert.ok(context?.sourceHealth.includes('fire:available:1'))
+  const denied = telemetry.filter((event) => event.kind === 'policy_denial')
+  assert.equal(denied.length, 3)
+  assert.ok(denied.some((event) => event.details?.sourceId === 'gev-cctv'))
+  assert.ok(denied.some((event) => event.details?.sourceId === 'gev-opensky'))
+  assert.ok(denied.some((event) => event.details?.sourceId === 'gev-aisstream'))
+  assert.ok(!denied.some((event) => event.details?.sourceId === 'gev-firms'))
 })
 
 
@@ -177,6 +261,26 @@ test('GEV P6 spatial graph projects into the canonical knowledge graph with prov
   const node = graph.getNode('camera:cam-1')
   assert.equal(node?.nodeType, 'camera')
   assert.ok(node?.provenanceRefs?.includes('e-camera-1'))
+})
+
+test('Knowledge identity projection keeps dynamic evidence on relations so repeated observations remain append-safe', () => {
+  const observation = {
+    observation_id: 'obs:1',
+    entity: { id: 'satellite:25544', type: 'satellite' as const },
+    observation_type: 'satellite_orbit_elements',
+    observed_at: '2026-09-24T04:00:00.000Z',
+    received_at: '2026-09-24T04:01:00.000Z',
+    source: { provider: 'CelesTrak', record_id: '25544' },
+    position: null,
+    attributes: {},
+    quality: { freshness: 'unknown' as const, completeness: 'partial' as const, coverage: 'partial' as const },
+    provenance: { source_ref: 'gev-celestrak', adapter_version: 'test:v1' },
+    inference: false as const,
+  }
+  const contribution = spatialObservationToGraphContribution(observation, 'evidence:1')
+  assert.deepEqual(contribution.evidenceRefs, [])
+  assert.equal(contribution.edges.length, 1)
+  assert.deepEqual(contribution.edges[0].evidenceRefs, ['evidence:1'])
 })
 
 test('GEV P7 JANET cannot change truth lineage; DELIA is intelligence-only; MARISA requires policy approval', () => {

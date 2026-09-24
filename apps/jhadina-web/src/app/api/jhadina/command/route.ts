@@ -540,6 +540,7 @@ export async function POST(req: NextRequest) {
         approvalReceiptId: result.approvalReceiptId,
         verified: result.verified,
         verificationReason: result.verificationReason,
+        spatialContext: result.spatialContext,
       },
     })
   } catch (error) {
