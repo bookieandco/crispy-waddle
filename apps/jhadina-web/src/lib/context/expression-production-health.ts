@@ -1,4 +1,5 @@
 import {
+  certifyInteractionQuality,
   decideBehavior,
   emptyPersonalityState,
   planExpression,
@@ -23,6 +24,7 @@ export interface ExpressionProductionHealth {
     semanticInvariant: ExpressionProductionHealthCheck
     ownerContext: ExpressionProductionHealthCheck
     voiceDelivery: ExpressionProductionHealthCheck
+    interactionQuality: ExpressionProductionHealthCheck
   }
 }
 
@@ -141,6 +143,12 @@ export async function checkExpressionProductionHealth(): Promise<ExpressionProdu
     "The governed expression directive maps deterministically into provider-neutral voice pacing.",
   )
 
+  const quality = certifyInteractionQuality(personality)
+  const interactionQuality = check(
+    quality.status === "READY" && quality.gates.every((item) => item.ready),
+    `Interaction quality matrix: ${quality.gates.filter((item) => item.ready).length}/${quality.gates.length} governed gates ready.`,
+  )
+
   const checks = {
     householdOps,
     seriousSuppression,
@@ -148,6 +156,7 @@ export async function checkExpressionProductionHealth(): Promise<ExpressionProdu
     semanticInvariant,
     ownerContext,
     voiceDelivery,
+    interactionQuality,
   }
   const ready = Object.values(checks).every((item) => item.ready)
 
