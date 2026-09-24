@@ -138,6 +138,7 @@ test('Ask Jhadina model-input GEV reads fail closed for restricted or unknown so
   assert.ok(context?.sourceHealth.includes('vessel:unavailable'))
   assert.ok(context?.sourceHealth.includes('fire:available:1'))
   const denied = telemetry.filter((event) => event.kind === 'policy_denial')
+  assert.equal(denied.length, 3)
   assert.ok(denied.some((event) => event.details?.sourceId === 'gev-cctv'))
   assert.ok(denied.some((event) => event.details?.sourceId === 'gev-opensky'))
   assert.ok(denied.some((event) => event.details?.sourceId === 'gev-aisstream'))
