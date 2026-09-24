@@ -20,6 +20,8 @@ describe("Ask contextual read routing", () => {
     "What flights are around the airport right now?",
     "Does the Reolink RLC-823A support ONVIF?",
     "Show me the RTSP / Frigate specs for a Reolink camera model.",
+    "Show me the latest satellite imagery near LAX.",
+    "When is the next satellite overpass around LAX?",
   ])("routes spatial/GEV reads through full JLLM context: %s", (input) => {
     expect(requiresSpatialContextForRead(input)).toBe(true)
     expect(requiresFullJllmContextForRead(input)).toBe(true)
@@ -30,6 +32,8 @@ describe("Ask contextual read routing", () => {
     "What is happening around here?",
     "Show me nearby traffic",
     "Are there wildfires in my area?",
+    "Show me the latest satellite imagery near me.",
+    "When is the next satellite overpass around here?",
   ])("marks device-relative spatial reads for browser location scope: %s", (input) => {
     expect(requiresDeviceLocationForSpatialRead(input)).toBe(true)
   })
@@ -38,6 +42,8 @@ describe("Ask contextual read routing", () => {
     "What flights are near LAX?",
     "Show cameras around Dodger Stadium",
     "What is happening in Miami?",
+    "Show satellite imagery near LAX.",
+    "When is the next overpass at KLAX?",
   ])("does not request device location for named-place spatial reads: %s", (input) => {
     expect(requiresDeviceLocationForSpatialRead(input)).toBe(false)
   })
