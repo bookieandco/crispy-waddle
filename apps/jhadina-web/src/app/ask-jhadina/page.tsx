@@ -46,6 +46,7 @@ function AskJhadina(){
  const [referenceStage,setReferenceStage]=useState("")
  const [workSessionId,setWorkSessionId]=useState(()=>params.get("session")??"")
  const [workSessionGoal,setWorkSessionGoal]=useState("")
+ const [workSessionActiveSubsystems,setWorkSessionActiveSubsystems]=useState<string[]>([])
  const [interactivePhase,setInteractivePhase]=useState<JhadinaInteractivePhase>("idle")
  const [conversationActive,setConversationActive]=useState(false)
  const [conversationLines,setConversationLines]=useState<JhadinaConversationLine[]>([])
@@ -70,8 +71,20 @@ function AskJhadina(){
    if(!response.ok)return
    const json=await response.json()
    const goal=typeof json?.session?.goal==="string"?json.session.goal:""
+   const sessionArtifacts=Array.isArray(json?.session?.artifactRefs)
+    ? json.session.artifactRefs
+      .filter((item:unknown):item is {id:string;admitted?:boolean}=>Boolean(item&&typeof item==="object"&&typeof (item as {id?:unknown}).id==="string"))
+      .filter((item:{id:string;admitted?:boolean})=>item.admitted!==false)
+      .map((item:{id:string})=>item.id)
+      .slice(0,8)
+    : []
+   const sessionSubsystems=Array.isArray(json?.session?.activeSubsystems)
+    ? json.session.activeSubsystems.filter((item:unknown):item is string=>typeof item==="string"&&Boolean(item.trim())).slice(0,16)
+    : []
    if(cancelled)return
    setWorkSessionGoal(goal)
+   setArtifactRefs(current=>[...new Set([...sessionArtifacts,...current])].slice(0,8))
+   setWorkSessionActiveSubsystems(sessionSubsystems)
    if(goal)setTask(current=>current.trim()?current:goal)
   })().catch(()=>{})
   return()=>{cancelled=true}
@@ -84,14 +97,15 @@ function AskJhadina(){
   const id=workSessionId||crypto.randomUUID()
   if(!workSessionId)setWorkSessionId(id)
   window.localStorage.setItem("jhadina:work-session",id)
-  const activeSubsystems=[
+  const activeSubsystems=[...new Set([
+   ...workSessionActiveSubsystems,
    ...(data.socialWorkPlan?["social"]:[]),
    ...(data.growthWorkPlan?["growth"]:[]),
    ...(data.videoJob?["director"]:[]),
-  ]
+  ])]
   const decisionRefs=[data.proposal?.id,data.reasoningEventId].filter((value):value is string=>typeof value==="string"&&Boolean(value))
   const outputRefs=data.videoJob?.id?[data.videoJob.id]:[]
-  const durableRefs=artifactRefs.map(id=>({id,kind:"data" as const,provenanceRef:`artifact:${id}`,admitted:true}))
+  const durableRefs=[...new Set(artifactRefs)].slice(0,8).map(id=>({id,kind:"data" as const,provenanceRef:`artifact:${id}`,admitted:true}))
   const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{
    method:"PUT",
    headers:{"content-type":"application/json","x-jhadina-user-id":userId},
@@ -100,6 +114,9 @@ function AskJhadina(){
   if(!response.ok)return
   const json=await response.json()
   if(typeof json?.session?.goal==="string")setWorkSessionGoal(json.session.goal)
+  if(Array.isArray(json?.session?.activeSubsystems)){
+   setWorkSessionActiveSubsystems(json.session.activeSubsystems.filter((item:unknown):item is string=>typeof item==="string"&&Boolean(item.trim())).slice(0,16))
+  }
  }
 
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
@@ -315,10 +332,22 @@ function AskJhadina(){
    if(referenceFile){
     data=referenceKind==="product"?await askWithReferenceProduct(command,userId):await askWithReferenceCharacter(command,userId)
    }else{
+    const liveContext={
+     source:"ask-jhadina-live" as const,
+     observedAt:new Date().toISOString(),
+     recentTurns:conversationLines.slice(-8).map(({id,speaker,text,createdAt})=>({id,speaker,text,createdAt})),
+     ...(workSessionId?{workSession:{
+      id:workSessionId,
+      ...(workSessionGoal?{goal:workSessionGoal}:{}),
+      activeSubsystems:workSessionActiveSubsystems,
+      admittedArtifactIds:artifactRefs.slice(0,8),
+     }}:{}),
+     limitations:[],
+    }
     const response=await fetch("/api/jhadina/command",{
      method:"POST",
      headers:{"content-type":"application/json","x-jhadina-user-id":userId},
-     body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,activeProject:params.get("project")??undefined,clientRequestId:turnId}),
+     body:JSON.stringify({activeTask:command,surface,route,artifacts,artifactRefs,conversationSignals,liveContext,activeProject:params.get("project")??undefined,clientRequestId:turnId}),
      signal:controller.signal,
     })
     const json=await response.json()
