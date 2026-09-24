@@ -275,6 +275,29 @@ export interface ConversationSignalContext {
   interpretationLimits: string[];
 }
 
+export interface LiveConversationTurnContext {
+  id: string;
+  speaker: 'user' | 'jhadina';
+  text: string;
+  createdAt: string;
+}
+
+export interface LiveWorkSessionContext {
+  id: string;
+  goal?: string;
+  activeSubsystems: string[];
+  admittedArtifactIds: string[];
+}
+
+export interface LiveContextContribution {
+  source: 'ask-jhadina-live';
+  observedAt: string;
+  recentTurns: LiveConversationTurnContext[];
+  workSession?: LiveWorkSessionContext;
+  limitations: string[];
+}
+
+
 /** Domain extensions are additive; existing ContextPacket consumers remain valid. */
 export interface DomainContext {
   spatial?: SpatialDomainContext;
@@ -338,6 +361,7 @@ export interface ContextPacket {
   excludedContext: string[];
   artifacts?: EphemeralArtifactContext[];
   conversationSignals?: ConversationSignalContext;
+  liveContext?: LiveContextContribution;
   ownerContext?: OwnerContextContribution;
   domainContext?: DomainContext;
   expressionDirective?: ExpressionDirective;
