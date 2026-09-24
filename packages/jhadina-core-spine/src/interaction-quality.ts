@@ -294,7 +294,11 @@ export function certifyInteractionQuality(
   const voiceExpressionParity = gate(
     'voice-expression-parity',
     thresholdDelivery.style === 'threshold' &&
+      typeof thresholdDelivery.rate === 'number' &&
+      typeof playfulDelivery.rate === 'number' &&
       thresholdDelivery.rate < playfulDelivery.rate &&
+      typeof thresholdDelivery.pauseScale === 'number' &&
+      typeof playfulDelivery.pauseScale === 'number' &&
       thresholdDelivery.pauseScale > playfulDelivery.pauseScale,
     'Voice pacing follows the same governed register without changing semantic authority.',
   );
