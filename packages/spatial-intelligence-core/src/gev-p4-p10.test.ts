@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { GevProviderBridge, type GevFetchLike } from './gev-provider-bridge.js'
+import { createCctvCameraCatalogClient, type CctvCatalogFetchLike } from './cctv-camera-catalog.js'
 import { createGevSpatialContextReadProvider } from './gev-spatial-context-read-provider.js'
 import { inferSpatialDomains, normalizeGevCamera, type SpatialContextPackage } from './integration.js'
 import { projectSpatialContributionToKnowledgeGraph } from './spatial-knowledge-projection.js'
@@ -68,6 +69,51 @@ const emptyContext = (): SpatialContextPackage => ({
 test('GEV P4 query planning selects source domains rather than always fetching the whole world', () => {
   assert.deepEqual(inferSpatialDomains('show cameras and aircraft near the airport'), ['aircraft', 'camera'])
   assert.deepEqual(inferSpatialDomains('what is happening near here?'), ['spatial'])
+})
+
+test('camera catalog remains usable when live GEV is unconfigured without becoming live spatial reality', async () => {
+  const catalogFetch: CctvCatalogFetchLike = async (url) => {
+    const path = new URL(url).pathname
+    if (path === '/api/brands.json') return response({ brands: [{ name: 'Reolink', slug: 'reolink' }] })
+    if (path === '/api/brands/reolink.json') return response({ cameras: [{ id: 'reolink-rlc-823a', model: 'RLC-823A' }] })
+    if (path === '/api/cameras/reolink-rlc-823a.json') {
+      return response({
+        id: 'reolink-rlc-823a',
+        brand: 'Reolink',
+        model: 'RLC-823A',
+        type: 'ptz',
+        resolution: { megapixels: 8, label: '4K UHD' },
+        protocols: ['ONVIF', 'RTSP'],
+        last_verified: '2026-09-22',
+      })
+    }
+    return response({}, 404)
+  }
+  const provider = createGevSpatialContextReadProvider({
+    cameraCatalog: createCctvCameraCatalogClient({ fetchImpl: catalogFetch }),
+    purpose: 'model-input',
+    now: () => '2026-09-23T20:00:00Z',
+  })
+  const plan = planSpatialQuery({
+    queryId: 'q-camera-catalog',
+    kind: 'EXPLAIN',
+    subject: 'Does the Reolink RLC-823A camera support ONVIF?',
+    geographicScope: null,
+    temporalScope: { from: null, to: null, asOf: null },
+    requestedDomains: ['camera'],
+    requiresEvidence: true,
+  })
+
+  const context = await provider.read(plan, 'user-catalog')
+  assert.ok(context)
+  assert.ok(context?.sourceHealth.includes('camera:unconfigured'))
+  assert.ok(context?.sourceHealth.includes('camera-catalog:available:1'))
+  assert.equal(context?.evidence.length, 1)
+  assert.equal(context?.evidence[0].source, 'CCTV Camera Database')
+  assert.match(context?.evidence[0].summary ?? '', /Reolink RLC-823A/)
+  assert.match(context?.evidence[0].summary ?? '', /ONVIF/)
+  assert.equal(context?.claims.length, 0)
+  assert.equal(context?.reality.length, 0)
 })
 
 test('GEV P4 live read provider produces evidence but cannot self-admit claims or reality', async () => {
