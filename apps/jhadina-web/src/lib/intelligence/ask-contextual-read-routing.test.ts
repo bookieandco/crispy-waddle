@@ -18,6 +18,8 @@ describe("Ask contextual read routing", () => {
     "Which campaign should I prioritize given traffic around LAX?",
     "Use GEV to tell me which social account should cover the nearby wildfire.",
     "What flights are around the airport right now?",
+    "Does the Reolink RLC-823A support ONVIF?",
+    "Show me the RTSP / Frigate specs for a Reolink camera model.",
   ])("routes spatial/GEV reads through full JLLM context: %s", (input) => {
     expect(requiresSpatialContextForRead(input)).toBe(true)
     expect(requiresFullJllmContextForRead(input)).toBe(true)
