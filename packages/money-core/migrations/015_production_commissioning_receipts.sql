@@ -54,7 +54,7 @@ REVOKE ALL ON money_production_platform_receipts FROM PUBLIC;
 REVOKE ALL ON money_production_platform_receipts FROM anon;
 REVOKE ALL ON money_production_platform_receipts FROM authenticated;
 REVOKE ALL ON money_production_platform_receipts FROM service_role;
-GRANT SELECT, INSERT ON money_production_platform_receipts TO service_role;
+GRANT SELECT, INSERT, DELETE ON money_production_platform_receipts TO service_role;
 
 ALTER TABLE money_production_platform_receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE money_production_platform_receipts FORCE ROW LEVEL SECURITY;
