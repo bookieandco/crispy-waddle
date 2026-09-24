@@ -107,6 +107,18 @@ export const GEV_SOURCE_POLICIES: readonly SpatialSourcePolicy[] = [
     sourceIndependenceKey: 'gev:cctv', limitations: ['Frames may contain people, vehicles or plates.', 'Per-camera provider terms control reuse.', 'No named-person search, face recognition, individual tracking or plate identification.'],
   },
   {
+    sourceId: 'cctv-database-catalog', provider: 'CCTV Camera Database', domains: ['camera', 'camera-catalog'],
+    attribution: 'CCTV Camera Database (CC0 1.0; attribution not required, link appreciated)', termsRef: 'https://www.cctv-database.com/api/ · CC0-1.0',
+    privacyClass: 'public-non-personal', commercialUse: 'allowed', publication: 'allowed', modelInput: 'allowed', replay: 'allowed', redistribution: 'allowed', retention: 'allowed',
+    sourceIndependenceKey: 'cctv-database:spec-catalog',
+    limitations: [
+      'Product specification catalog only; it does not establish that a camera is deployed at a location or that a live feed exists.',
+      'Generated RTSP/Frigate configuration may be untested unless the record explicitly marks it verified.',
+      'Manufacturer datasheets remain the preferred authority for deployment-critical specifications.',
+      'Catalog protocol/path metadata never authorizes access to a camera or bypasses device authentication.',
+    ],
+  },
+  {
     sourceId: 'gev-opensky', provider: 'OpenSky Network', domains: ['aircraft'],
     attribution: 'OpenSky Network / Schäfer et al.', termsRef: 'GEV DATA_SOURCES.md: OpenSky Network',
     privacyClass: 'public-non-personal', commercialUse: 'restricted', publication: 'unknown', modelInput: 'unknown', replay: 'unknown', redistribution: 'unknown', retention: 'unknown',
