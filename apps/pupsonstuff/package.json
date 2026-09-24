@@ -11,7 +11,9 @@
     "test": "vitest run",
     "launch:preflight": "node --env-file-if-exists=.env.local --import tsx scripts/launch-preflight.ts",
     "printify:sync": "node --env-file-if-exists=.env.local --import tsx scripts/printify-catalog-sync.ts",
-    "vercel:bootstrap": "node scripts/vercel-bootstrap.mjs"
+    "vercel:bootstrap": "node scripts/vercel-bootstrap.mjs",
+    "roboflow:dog:infer": "python scripts/roboflow-dog-inference.py",
+    "printify:launch-review": "node --import tsx scripts/printify-launch-review.ts"
   },
   "dependencies": {
     "@huggingface/inference": "^4.13.25",

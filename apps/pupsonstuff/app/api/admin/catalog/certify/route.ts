@@ -10,7 +10,7 @@ import {
 interface MappingInput {
   productId: string;
   variantId: string;
-  providerProductId: string;
+  providerProductId?: string;
   providerVariantId: string;
   blueprintId: string;
   printProviderId: string;
@@ -34,7 +34,6 @@ export async function POST(request: NextRequest) {
     !input ||
     !hotspot ||
     !variant ||
-    !input.providerProductId ||
     !input.providerVariantId ||
     !input.blueprintId ||
     !input.printProviderId ||
@@ -53,7 +52,7 @@ export async function POST(request: NextRequest) {
     Array<{
       id: string;
       provider: string;
-      provider_product_id: string;
+      provider_product_id: string | null;
       provider_variant_id: string;
       blueprint_id: string | null;
       print_provider_id: string | null;
@@ -70,7 +69,8 @@ export async function POST(request: NextRequest) {
     const sameSandboxMapping =
       prior?.provider === 'printify' &&
       ['sandbox_verified', 'sample_verified'].includes(prior.certification_status) &&
-      prior.provider_product_id === input.providerProductId &&
+      (prior.provider_product_id ?? null) ===
+        (input.providerProductId?.trim() || null) &&
       prior.provider_variant_id === input.providerVariantId &&
       String(prior.blueprint_id ?? '') === input.blueprintId &&
       String(prior.print_provider_id ?? '') === input.printProviderId &&
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
         product_id: input.productId,
         variant_id: input.variantId,
         provider: 'printify',
-        provider_product_id: input.providerProductId,
+        provider_product_id: input.providerProductId?.trim() || null,
         provider_variant_id: input.providerVariantId,
         blueprint_id: input.blueprintId,
         print_provider_id: input.printProviderId,

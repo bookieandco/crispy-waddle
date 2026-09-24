@@ -216,3 +216,50 @@ must receive exactly:
 Do not put the raw Railway private hostname or raw remover service on the public
 internet. The gateway enforces a 15 MB request cap, POST-only inference, bearer
 authentication, and does not expose the upstream URL-fetch API.
+
+
+## Printify MCP / catalog discovery reconciliation
+
+Reference audited: `TSavo/printify-mcp` at
+`951287b470c2d351e5a8cfd862d1d0ef3a6bf9c4` (ISC).
+
+The upstream MCP is **reference-only** for PupsonStuff launch certification.
+Its read-only catalog ergonomics are useful, but its full server also exposes
+product mutations and contains development fallbacks that can return mock shop
+or product data after live provider failures. PupsonStuff's canonical
+`lib/printify.ts` remains fail-closed and never substitutes mock provider
+evidence.
+
+Current operator path:
+
+1. Add `PRINTIFY_API_KEY` to the `pupsonstuff-production` GitHub environment.
+2. Run `PupsonStuff Printify Catalog Discovery`.
+3. Review the uploaded broad catalog report and
+   `launch-catalog-review.json`.
+4. Only exact, unambiguous matches for:
+   - `frame1 / canvas-12x16`
+   - `mugWhite / mug-11oz`
+   - `concertShirt / tee-concert-m`
+   may proceed to sandbox certification.
+5. No discovery workflow writes Supabase or mutates Printify.
+
+The discovery matcher now derives physical size constraints from fulfillment
+variant labels when `customization.sizes` is absent. This is required for the
+11oz mug and prevents a same-color 15oz mug from being treated as a launch
+match.
+
+### Raw-blueprint Printify identity
+
+PupsonStuff's actual fulfillment submission uses Printify's raw
+`blueprint_id + print_provider_id + variant_id` line-item form. It does not
+require a pre-created Printify shop product.
+
+Accordingly:
+
+- `provider_product_id` is optional/nullable;
+- `provider_variant_id`, `blueprint_id`, `print_provider_id`, and
+  `print_area` remain mandatory;
+- Stripe/order snapshots preserve the optional product ID only when present;
+- fulfillment compares the optional field only when present;
+- sandbox/sample certification must never invent a product ID just to satisfy
+  a legacy field name.

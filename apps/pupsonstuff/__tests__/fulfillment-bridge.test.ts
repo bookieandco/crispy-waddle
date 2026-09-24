@@ -75,10 +75,10 @@ describe('PupsonStuff fulfillment safety', () => {
             variant_id: 'variant-local',
             quantity: 1,
             fulfillment_provider: 'printify',
-            fulfillment_product_id: 'product-1',
+            fulfillment_product_id: null,
             fulfillment_variant_id: 'variant-1',
             catalog_snapshot: {
-              provider_product_id: 'product-1',
+              provider_product_id: null,
               provider_variant_id: 'variant-1',
               blueprint_id: '1',
               print_provider_id: '2',
@@ -91,7 +91,7 @@ describe('PupsonStuff fulfillment safety', () => {
         return [
           {
             provider: 'printify',
-            provider_product_id: 'product-1',
+            provider_product_id: null,
             provider_variant_id: 'variant-1',
             blueprint_id: '1',
             print_provider_id: '2',

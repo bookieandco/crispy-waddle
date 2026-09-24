@@ -21,7 +21,7 @@ interface OrderItemRow {
   variant_id: string;
   quantity: number;
   fulfillment_provider: 'printful' | 'printify';
-  fulfillment_product_id: string;
+  fulfillment_product_id: string | null;
   fulfillment_variant_id: string;
   catalog_snapshot: Record<string, unknown>;
   print_asset: { bucket_id: string; object_path: string } | null;
@@ -92,7 +92,7 @@ export async function submitFulfillment(
     const currentRows = await rest<
       Array<{
         provider: string;
-        provider_product_id: string;
+        provider_product_id: string | null;
         provider_variant_id: string;
         blueprint_id: string | null;
         print_provider_id: string | null;
@@ -113,7 +113,10 @@ export async function submitFulfillment(
       current?.active === true &&
       current.provider === 'printify' &&
       certificationSafe &&
-      current.provider_product_id === String(snapshot.provider_product_id ?? '') &&
+      (current.provider_product_id ?? null) ===
+        (typeof snapshot.provider_product_id === 'string' && snapshot.provider_product_id
+          ? snapshot.provider_product_id
+          : null) &&
       current.provider_variant_id === String(snapshot.provider_variant_id ?? '') &&
       String(current.blueprint_id ?? '') === String(snapshot.blueprint_id ?? '') &&
       String(current.print_provider_id ?? '') === String(snapshot.print_provider_id ?? '') &&

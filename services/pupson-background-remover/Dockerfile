@@ -33,6 +33,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     REAL_ESRGAN_FLAVOR=cpu \
     REAL_ESRGAN_MODEL=/var/cache/real-esrgan-serve/models/realesrgan-x4plus_fp16.onnx
 
+# Roboflow's inference SDK imports OpenCV. The slim base omits its shared
+# GL/GLib runtime, so install only the headless system libraries it needs.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libgl1 libglib2.0-0 nginx && \
+    rm -rf /var/lib/apt/lists/*
+
 # BackgroundRemover needs PyTorch. Pin the CPU wheels so the private Railway
 # worker never pulls multi-gigabyte CUDA/NVIDIA dependencies.
 RUN pip install --no-cache-dir \
@@ -45,7 +51,9 @@ RUN pip install --no-cache-dir \
     pip install --no-cache-dir --no-deps \
       onnxruntime==1.20.1 && \
     pip install --no-cache-dir \
-      numpy==1.26.4
+      numpy==1.26.4 && \
+    python -m venv /opt/roboflow-venv && \
+    /opt/roboflow-venv/bin/pip install --no-cache-dir inference-sdk==1.5.2 flask waitress
 
 COPY --from=upscaler-build /out/real-esrgan-serve /usr/local/bin/real-esrgan-serve
 COPY --from=upscaler-build /src/runtime/ /usr/share/real-esrgan-serve/runtime/
@@ -57,6 +65,7 @@ COPY --from=upscaler-build /src/third-party-licenses/ \
   /usr/share/doc/real-esrgan-serve/third-party-licenses/
 
 COPY media_worker.py /opt/pupson/media_worker.py
+COPY roboflow_worker.py /opt/pupson/roboflow_worker.py
 
 RUN chmod +x /usr/share/real-esrgan-serve/runtime/upscaler.py && \
     mkdir -p /tmp/u2net
