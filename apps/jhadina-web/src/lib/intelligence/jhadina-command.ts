@@ -35,6 +35,7 @@ import { createProductionKnowledgeContextProvider } from "../context/production-
 import { createProductionOwnerContextProvider } from "../context/production-owner-context-provider"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
 import { recordPersonalityDriftObservation, type PersonalityDriftObservationResult } from "../personality/personality-drift-observer"
+import { resolveNamedPlaceScope } from "../spatial/named-place-resolver"
 
 export interface JhadinaCommandInput {
   userId: string
@@ -138,6 +139,8 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   const growthContextProvider =
     overrides.growthContextProvider ??
     createProductionGrowthContextProvider()
+  const geographicScope = input.geographicScope ?? resolveNamedPlaceScope(input.activeTask)
+
   const contextDeps: ContextBuilderDeps = {
     memoryRepo,
     timelineRepo: new TimelineRepository(storage),
@@ -155,7 +158,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     route: input.route,
     activeProject: input.activeProject,
     memoryRelevanceQuery: input.memoryRelevanceQuery,
-    geographicScope: input.geographicScope,
+    geographicScope,
     temporalScope: input.temporalScope,
     artifacts: input.artifacts,
     conversationSignals: input.conversationSignals,
