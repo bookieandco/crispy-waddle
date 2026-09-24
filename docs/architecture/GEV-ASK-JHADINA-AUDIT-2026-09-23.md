@@ -79,6 +79,22 @@ Repair:
 - keep raw provider payloads outside the ContextPacket;
 - rely on the model-input source-use gate above so restricted/unknown sources are blocked before these summaries can reach Ask Jhadina.
 
+### Gap 6 — CCTV model capability enrichment
+
+CCTV Camera Database is now registered as a separate governed source: `cctv-database-catalog`.
+
+Boundary:
+- it is a CC0 camera specification/catalog source, not a live camera-location or stream source;
+- model input is allowed for catalog metadata;
+- live `gev-cctv` remains separately restricted and is not relaxed by this integration;
+- exact brand/model lookups use the fixed-origin static JSON API and never accept arbitrary upstream URLs;
+- catalog observations have no geographic position, `observed_at=null`, `liveDeploymentEvidence=false`, and `liveFeedEvidence=false`;
+- therefore catalog specs cannot self-promote into spatial Reality or prove that a camera exists at LAX or anywhere else;
+- Ask Jhadina may use matched model metadata such as resolution, ONVIF/RTSP support, connectivity, power, night vision and verification provenance;
+- protocol/configuration metadata is capability information only and never authorizes camera access or bypasses authentication.
+
+Source: https://www.cctv-database.com/api/ and https://github.com/ch-bas/cctv-camera-database (CC0 1.0).
+
 ## Regression coverage
 
 - explicit GEV/spatial prompts require the full canonical JLLM context;
