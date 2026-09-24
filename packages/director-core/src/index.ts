@@ -108,6 +108,7 @@ export * from './cast-bible';
 export * from './voice-identity';
 export * from './movie-audio-bible';
 export * from './character-reference-bootstrap';
+export * from './character-training-pipeline';
 export * from './generative-extend';
 export * from './reference-character-video';
 export * from './character-identity-qc';
