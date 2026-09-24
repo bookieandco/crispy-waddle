@@ -240,6 +240,25 @@ const previousUtcDate = (receivedAt: string): string => {
   return date.toISOString().slice(0, 10)
 }
 
+const approximateClosestApproach = (
+  record: OmmRecord,
+  scope: ScopePoint,
+  from: Date,
+  horizonMinutes = 360,
+  stepSeconds = 120,
+): { at: string; distanceKm: number; subpoint: PropagatedSubpoint } | null => {
+  let best: { at: string; distanceKm: number; subpoint: PropagatedSubpoint } | null = null
+  const steps = Math.floor(horizonMinutes * 60 / stepSeconds)
+  for (let index = 0; index <= steps; index += 1) {
+    const at = new Date(from.getTime() + index * stepSeconds * 1000)
+    const subpoint = propagateOmmContext(record, at)
+    if (!subpoint) continue
+    const distanceKm = haversineKm(scope, subpoint)
+    if (!best || distanceKm < best.distanceKm) best = { at: at.toISOString(), distanceKm, subpoint }
+  }
+  return best
+}
+
 export class PublicSatelliteSpatialProvider {
   private readonly fetchImpl: SatelliteFetchLike
   private readonly timeoutMs: number
@@ -347,11 +366,15 @@ export class PublicSatelliteSpatialProvider {
       const subpoint = propagateOmmContext(record, at)
       if (!subpoint) return []
       const distanceToScopeKm = scope ? haversineKm(scope, subpoint) : null
-      return [{ record, subpoint, distanceToScopeKm }]
-    }).sort((a, b) => (a.distanceToScopeKm ?? 0) - (b.distanceToScopeKm ?? 0))
-      .slice(0, MAX_SATELLITE_RESULTS)
+      const nextClosestApproach = scope ? approximateClosestApproach(record, scope, at) : null
+      return [{ record, subpoint, distanceToScopeKm, nextClosestApproach }]
+    }).sort((a, b) => {
+      const aDistance = a.nextClosestApproach?.distanceKm ?? a.distanceToScopeKm ?? Number.POSITIVE_INFINITY
+      const bDistance = b.nextClosestApproach?.distanceKm ?? b.distanceToScopeKm ?? Number.POSITIVE_INFINITY
+      return aDistance - bDistance
+    }).slice(0, MAX_SATELLITE_RESULTS)
 
-    return ranked.map(({ record, subpoint, distanceToScopeKm }) => ({
+    return ranked.map(({ record, subpoint, distanceToScopeKm, nextClosestApproach }) => ({
       observation_id: `celestrak:${record.noradCatId}:${record.epoch}`,
       entity: { id: `satellite:${record.noradCatId}`, type: 'satellite' },
       observation_type: 'satellite_orbit_elements',
@@ -375,6 +398,13 @@ export class PublicSatelliteSpatialProvider {
         revAtEpoch: record.revAtEpoch,
         derivedSubpoint: { ...subpoint },
         distanceToScopeKm,
+        nextClosestApproach: nextClosestApproach ? {
+          at: nextClosestApproach.at,
+          distanceKm: nextClosestApproach.distanceKm,
+          subpoint: nextClosestApproach.subpoint,
+          horizonMinutes: 360,
+          sampleStepSeconds: 120,
+        } : null,
         propagationAccuracy: 'context-only-not-operational',
         realityAdmissionEligible: false,
       },
