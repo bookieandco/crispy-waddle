@@ -10,7 +10,7 @@ const PERSONAL_CONTEXT_PATTERNS: readonly RegExp[] = [
 const SPATIAL_CONTEXT_PATTERNS: readonly RegExp[] = [
   /\b(god['’]?s eye view|gev|spatial intelligence|spatial context)\b/i,
   /\b(near me|nearby|around me|my location|current location|where i am|where am i)\b/i,
-  /\b(cameras?|cctv|onvif|rtsp|frigate|camera\s+specs?|camera\s+models?|traffic|aircraft|flights?|planes?|vessels?|ships?|boats?|wildfires?|fires?|earthquakes?|quakes?|satellites?|harbors?|ports?)\b/i,
+  /\b(cameras?|cctv|onvif|rtsp|frigate|camera\s+specs?|camera\s+models?|traffic|aircraft|flights?|planes?|vessels?|ships?|boats?|wildfires?|fires?|earthquakes?|quakes?|satellites?|imagery|overpass|overhead|orbit|worldview|viirs|celestrak|harbors?|ports?)\b/i,
   /\b(what(?:'s| is) happening|what(?:'s| is) going on)\b.{0,60}\b(near|around|within|at|in)\b/i,
   /\b(near|around|within|inside)\b.{0,80}\b(airport|stadium|venue|port|harbor|road|highway|city|county|address|facility)\b/i,
 ]
@@ -24,8 +24,8 @@ export function requiresSpatialContextForRead(activeTask: string): boolean {
 const DEVICE_LOCATION_PATTERNS: readonly RegExp[] = [
   /\b(near me|around me|around here|near here|in my area|my location|current location|where i am|where am i)\b/i,
   /\b(what(?:'s| is) happening|what(?:'s| is) going on)\b.{0,40}\b(here|nearby)\b/i,
-  /\b(flights?|aircraft|planes?|traffic|cameras?|cctv|fires?|wildfires?|ships?|vessels?)\b.{0,40}\b(nearby|around here|near me)\b/i,
-  /\bnearby\b.{0,40}\b(flights?|aircraft|planes?|traffic|cameras?|cctv|fires?|wildfires?|ships?|vessels?)\b/i,
+  /\b(flights?|aircraft|planes?|traffic|cameras?|cctv|fires?|wildfires?|ships?|vessels?|satellites?|imagery|overpass)\b.{0,40}\b(nearby|around here|near me)\b/i,
+  /\bnearby\b.{0,40}\b(flights?|aircraft|planes?|traffic|cameras?|cctv|fires?|wildfires?|ships?|vessels?|satellites?|imagery|overpass)\b/i,
 ]
 
 /** True only for spatial reads whose scope is explicitly relative to the user's device location. */
