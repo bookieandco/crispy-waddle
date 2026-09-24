@@ -50,6 +50,7 @@ jobs:
           src/creative-gate-adapter.test.ts
           src/storyboard-sequence.test.ts
           src/storyboard-stage-binding.test.ts
+          src/storyboard-persistence.test.ts
           src/storyboard-shot-adapter.test.ts
           src/generation-plan-adapter.test.ts
           src/media-quality-evidence.test.ts
@@ -72,6 +73,8 @@ jobs:
           src/camera-language.test.ts
           src/performance-direction.test.ts
           src/realism-direction.test.ts
+          src/animation-principles.test.ts
+          src/animation-performance-state.test.ts
           src/directed-take-qc.test.ts
           src/ugc-production.test.ts
           src/previs-blockout.test.ts
