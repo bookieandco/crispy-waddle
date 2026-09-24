@@ -115,10 +115,29 @@ const catalogSummary = (attributes: Record<string, unknown>): string | null => {
   const cameraType = typeof attributes.cameraType === 'string' ? attributes.cameraType : null
   const resolution = typeof attributes.resolutionLabel === 'string' ? attributes.resolutionLabel : null
   const megapixels = Number.isFinite(Number(attributes.megapixels)) ? `${Number(attributes.megapixels)}MP` : null
-  const protocols = Array.isArray(attributes.protocols)
-    ? attributes.protocols.filter((item): item is string => typeof item === 'string').slice(0, 8)
+  const strings = (value: unknown, limit: number) => Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string').slice(0, limit)
     : []
-  const capabilities = [cameraType, resolution ?? megapixels, protocols.length ? `protocols ${protocols.join(', ')}` : null].filter(Boolean)
+  const protocols = strings(attributes.protocols, 8)
+  const connectivity = strings(attributes.connectivity, 6)
+  const powerSource = strings(attributes.powerSource, 6)
+  const features = strings(attributes.features, 6)
+  const powerMethod = typeof attributes.powerMethod === 'string' ? attributes.powerMethod : null
+  const nightVisionType = typeof attributes.nightVisionType === 'string' ? attributes.nightVisionType : null
+  const nightVisionRange = Number.isFinite(Number(attributes.nightVisionRangeM)) ? `${Number(attributes.nightVisionRangeM)}m` : null
+  const twoWayAudio = attributes.twoWayAudio === true ? 'two-way audio' : attributes.twoWayAudio === false ? 'no two-way audio' : null
+  const lastVerified = typeof attributes.lastVerified === 'string' ? attributes.lastVerified : null
+  const capabilities = [
+    cameraType,
+    resolution ?? megapixels,
+    protocols.length ? `protocols ${protocols.join(', ')}` : null,
+    connectivity.length ? `connectivity ${connectivity.join(', ')}` : null,
+    powerSource.length || powerMethod ? `power ${[...powerSource, powerMethod].filter(Boolean).join(', ')}` : null,
+    nightVisionType ? `night vision ${nightVisionType}${nightVisionRange ? ` to ${nightVisionRange}` : ''}` : null,
+    twoWayAudio,
+    features.length ? `features ${features.join(', ')}` : null,
+    lastVerified ? `catalog verified ${lastVerified}` : null,
+  ].filter(Boolean)
   return `CCTV catalog specification for ${brand} ${model}${capabilities.length ? `: ${capabilities.join('; ')}` : ''}. Catalog metadata only; not evidence of deployment, location, or live-feed availability.`
 }
 
