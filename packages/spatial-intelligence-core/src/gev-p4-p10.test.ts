@@ -108,6 +108,7 @@ test('GEV P4 live read provider produces evidence but cannot self-admit claims o
 })
 
 
+// Ask Jhadina is an LLM boundary: private-analysis permission is not sufficient for model input.
 test('Ask Jhadina model-input GEV reads fail closed for restricted or unknown sources', async () => {
   const telemetry: SpatialTelemetryEvent[] = []
   const sink = { record: (event: SpatialTelemetryEvent) => telemetry.push(event) }
