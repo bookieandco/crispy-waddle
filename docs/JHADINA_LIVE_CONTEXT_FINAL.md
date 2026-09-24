@@ -2,7 +2,7 @@
 
 Certification date: 2026-09-23 (America/Los_Angeles)
 
-Status: **SOURCE CANDIDATE — exact-head CI and production health required**
+Status: **PASS / CLOSED**
 
 ## Goal
 
@@ -118,3 +118,54 @@ the production commit/environment for exact-lineage verification.
 
 A real physical screen-share drill can strengthen the receipt but is not fabricated
 if browser automation cannot supply OS-level screen-sharing permission.
+
+
+## Production closure receipt
+
+Source implementation PR: **#680**  
+Merged production lineage: `92bd7433971baf346ac1ba23d867d6633aec521d`  
+Production deployment: `dpl_3yFvsFzvqWLCoBiAvbd71jenzAcL`
+
+The merged commit is identical to current `main` and the Vercel deployment for
+that exact SHA reached `READY` with the canonical production alias attached and
+no alias error.
+
+Live verification on the exact merged deployment:
+
+- `GET /api/health` = HTTP 200;
+- `/api/health` reports `environment=production`;
+- `/api/health` reports exact commit
+  `92bd7433971baf346ac1ba23d867d6633aec521d`;
+- durable Memory health = `ready`;
+- `GET /api/jhadina/live-context/health` = HTTP 200 / `READY`;
+- live-context contract version = `JHADINA-LIVE-CONTEXT.FINAL`;
+- all six live-context health checks = true:
+  - bounded recent turns;
+  - bounded admitted artifacts;
+  - bounded active subsystems;
+  - two-frame distinct-screen history;
+  - ambiguity requires clarification;
+  - continuity remains non-authoritative;
+- production limits report 8 recent turns, 8 admitted artifact IDs,
+  16 active subsystems, 2 retained distinct screen frames, and screen-change
+  threshold 7;
+- `GET /ask-jhadina` = HTTP 200;
+- no runtime error clusters were observed for
+  `/ask-jhadina`, `/api/jhadina/live-context/health`,
+  `/api/jhadina/command`, or `/api/health`;
+- no error/fatal runtime logs were observed on the exact production deployment.
+
+The source-certification head also passed the dedicated
+`Jhadina Live Context Final Certification` workflow plus the broader Launch,
+JLLM, Interactive, Interaction Quality, Personality, Evolution, UX, Social,
+Growth, Media, Spatial, Safety, INTCOM, Staffing, and Web Deploy Conformance
+gates before merge.
+
+No claim is made that an automated browser completed a real OS-level
+screen-share permission drill. The production certification covers the deployed
+contract, source tests, build/type gates, exact deployment lineage, health
+endpoint, Ask availability, and runtime-error sweep.
+
+Canonical result:
+
+**`JHADINA-LIVE-CONTEXT.FINAL = PASS / CLOSED`**
