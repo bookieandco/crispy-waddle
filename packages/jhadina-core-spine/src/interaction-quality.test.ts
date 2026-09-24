@@ -7,7 +7,7 @@ describe('JHADINA-INTERACTION-QUALITY.FINAL', () => {
 
     expect(certification.contractVersion).toBe('JHADINA-INTERACTION-QUALITY.FINAL');
     expect(certification.status).toBe('READY');
-    expect(certification.gates).toHaveLength(12);
+    expect(certification.gates).toHaveLength(13);
     expect(certification.gates.every((gate) => gate.ready)).toBe(true);
   });
 
@@ -19,6 +19,7 @@ describe('JHADINA-INTERACTION-QUALITY.FINAL', () => {
       'semantic-invariance',
       'disagreement-without-hostility',
       'distress-high-stakes-override',
+      'precision-technical-override',
       'sacred-love-boundary',
       'fringe-evidence-boundary',
       'clinical-evidence-boundary',
