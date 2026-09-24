@@ -121,6 +121,87 @@ describe('PupsonStuff fulfillment safety', () => {
     );
   });
 
+  it('validates a raw blueprint mapping without inventing a shop product id', async () => {
+    rest.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path.startsWith('pupson_fulfillment_orders?select=*'))
+        return [
+          {
+            id: 'fulfillment-raw',
+            order_id: 'order-raw',
+            status: 'pending',
+            attempt_count: 0,
+            provider: 'printify',
+          },
+        ];
+      if (path.startsWith('pupson_orders?select='))
+        return [
+          {
+            id: 'order-raw',
+            customer_email: 'customer@example.invalid',
+            customer_name: 'Test Customer',
+            customer_phone: null,
+            shipping_address: {
+              line1: '1 Test Way',
+              city: 'Portland',
+              state: 'OR',
+              postal_code: '97035',
+              country: 'US',
+            },
+          },
+        ];
+      if (path.startsWith('pupson_order_items?select='))
+        return [
+          {
+            id: 'line-raw',
+            product_id: 'frame1',
+            variant_id: 'canvas-12x16',
+            quantity: 1,
+            fulfillment_provider: 'printify',
+            fulfillment_product_id: null,
+            fulfillment_variant_id: '12345',
+            catalog_snapshot: {
+              provider_product_id: null,
+              provider_variant_id: '12345',
+              blueprint_id: '678',
+              print_provider_id: '90',
+              print_area: 'front',
+            },
+            print_asset: { bucket_id: 'pupson-print-ready', object_path: 'print.png' },
+          },
+        ];
+      if (path.startsWith('pupson_catalog_variants?select='))
+        return [
+          {
+            provider: 'printify',
+            provider_product_id: null,
+            provider_variant_id: '12345',
+            blueprint_id: '678',
+            print_provider_id: '90',
+            print_area: 'front',
+            active: true,
+            certification_status: 'sandbox_verified',
+          },
+        ];
+      if (init?.method === 'PATCH' || init?.method === 'POST') return undefined;
+      throw new Error(`Unexpected REST call: ${path}`);
+    });
+
+    await expect(submitFulfillment('fulfillment-raw')).resolves.toEqual({ status: 'blocked' });
+    expect(uploadImage).not.toHaveBeenCalled();
+    expect(submitOrder).not.toHaveBeenCalled();
+    expect(rest).toHaveBeenCalledWith(
+      'pupson_fulfillment_events',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          fulfillment_order_id: 'fulfillment-raw',
+          event_type: 'dry_run_validated',
+          payload: { itemCount: 1 },
+        }),
+      })
+    );
+  });
+
   it('refuses live submission when the shop identity is missing', async () => {
     vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'live');
     vi.stubEnv('PRINTIFY_SHOP_ID', '');
