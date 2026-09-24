@@ -14,6 +14,9 @@ function marySheet(): CharacterIdentitySheet {
     projectId: 'movie-1',
     characterId: 'mary',
     continuityRef: 'character:mary:v1',
+    appearanceVariantId: 'mary-winter',
+    appearanceKind: 'wardrobe',
+    parentSheetId: 'sheet:mary:base',
     canonicalFacePanelId: 'mary-face',
     panels: [
       {
@@ -126,6 +129,16 @@ describe('Director continuity reference strategy', () => {
       'DIRECTOR_CONTINUITY_SINGLE_FACE_ANCHOR_REQUIRED',
       'DIRECTOR_CONTINUITY_BODY_PANEL_FACE_CONFLICT:mary-body-front',
     ]));
+  });
+
+  it('requires style variants to carry identity through silhouette and color', () => {
+    const invalid = marySheet();
+    invalid.appearanceKind = 'style';
+    invalid.silhouetteTraits = [];
+    invalid.colorTraits = [];
+    expect(validateCharacterIdentitySheet(invalid)).toContain(
+      'DIRECTOR_CONTINUITY_STYLE_CARRY_TRAITS_REQUIRED',
+    );
   });
 
   it('chooses layered continuity controls for a large-motion dialogue shot', () => {
