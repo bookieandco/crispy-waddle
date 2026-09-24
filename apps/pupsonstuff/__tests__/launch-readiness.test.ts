@@ -23,7 +23,9 @@ const validEnv = {
   CRON_SECRET: 'c'.repeat(32),
   PUPSON_BACKGROUND_REMOVER_PROVIDER: 'backgroundremover',
   PUPSON_BACKGROUND_REMOVER_URL: 'https://background.example',
+  PUPSON_BACKGROUND_REMOVER_TOKEN: 'background-token',
   PUPSON_UPSCALER_URL: 'https://upscale.example',
+  PUPSON_UPSCALER_TOKEN: 'upscale-token',
   PUPSON_FULFILLMENT_MODE: 'dry_run',
   PUPSON_PUBLIC_ORIGIN: 'https://pupsonstuff.example',
 } as NodeJS.ProcessEnv;
@@ -39,6 +41,16 @@ describe('PupsonStuff launch readiness', () => {
       PUPSON_BACKGROUND_REMOVER_URL: '',
       PUPSON_UPSCALER_URL: '',
       KNOCKOUT_TOKEN: '',
+    });
+    expect(checks.find((check) => check.id === 'env.BACKGROUND_REMOVER')?.status).toBe('block');
+    expect(checks.find((check) => check.id === 'env.IMAGE_UPSCALER')?.status).toBe('block');
+  });
+
+  it('requires bearer tokens for the self-hosted Railway media gateway', () => {
+    const checks = evaluateLaunchEnvironment({
+      ...validEnv,
+      PUPSON_BACKGROUND_REMOVER_TOKEN: '',
+      PUPSON_UPSCALER_TOKEN: '',
     });
     expect(checks.find((check) => check.id === 'env.BACKGROUND_REMOVER')?.status).toBe('block');
     expect(checks.find((check) => check.id === 'env.IMAGE_UPSCALER')?.status).toBe('block');
