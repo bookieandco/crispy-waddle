@@ -29,7 +29,21 @@ Repair:
 - route spatial Social/Growth reads through the full JLLM/Context Builder path;
 - keep ordinary non-spatial deterministic reads on their narrow shortcut path.
 
-### Gap 2 — invisible participation
+### Gap 2 — wrong source-use purpose at the Ask boundary
+
+The GEV bridge already enforces per-source reuse policy, including a distinct `model-input` purpose. The production Ask Jhadina SpatialContextProvider did not specify that purpose, so the read provider inherited the bridge default of `private-analysis`.
+
+That is too permissive for an LLM boundary: a source allowed for private read-only analysis is not automatically allowed as model input.
+
+Repair:
+- make the GEV spatial read provider accept an explicit use purpose;
+- configure the Ask Jhadina production composition with `purpose: 'model-input'`;
+- pass that purpose through every live GEV bridge call;
+- fail closed source-by-source when model-input permission is restricted or unknown;
+- retain `private-analysis` as the default for non-model Spatial workspace reads;
+- add a conformance test proving restricted/unknown CCTV, OpenSky and AIS reads are denied at the Ask boundary while model-input-approved FIRMS evidence can proceed.
+
+### Gap 3 — invisible participation
 
 The generic Ask Jhadina result did not expose whether Spatial/GEV actually participated in a turn. The UI therefore could not distinguish “GEV used” from “no spatial context available.”
 
