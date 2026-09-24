@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildLiveContext, isMeaningfulScreenChange } from "./live-context-runtime"
+import { buildLiveContext, isMeaningfulScreenChange, restoreWorkSessionContinuity } from "./live-context-runtime"
 
 describe("JHADINA-LIVE-CONTEXT runtime", () => {
   it("bounds recent turns and carries active WorkSession continuity", () => {
@@ -25,6 +25,21 @@ describe("JHADINA-LIVE-CONTEXT runtime", () => {
       goal:"Compare this screen to the earlier one.",
       activeSubsystems:["social","director"],
       admittedArtifactIds:["artifact-1","artifact-2"],
+    })
+  })
+
+  it("restores only admitted WorkSession artifacts and bounded subsystem context", () => {
+    expect(restoreWorkSessionContinuity({
+      goal:"Continue the campaign review",
+      activeSubsystems:["growth","social"],
+      artifactRefs:[
+        {id:"artifact-clean",admitted:true},
+        {id:"artifact-blocked",admitted:false},
+      ],
+    })).toEqual({
+      goal:"Continue the campaign review",
+      activeSubsystems:["growth","social"],
+      admittedArtifactIds:["artifact-clean"],
     })
   })
 
