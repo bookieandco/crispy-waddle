@@ -492,7 +492,7 @@ export function promoteCharacterLora(
     uri: checkpoint.assetUri,
     sha256: checkpoint.sha256,
     metadata: {
-      status: 'approved-character-lora',
+      status: 'candidate-character-lora',
       characterId: request.characterId,
       continuityRef: request.continuityRef,
       datasetId: request.datasetId,
