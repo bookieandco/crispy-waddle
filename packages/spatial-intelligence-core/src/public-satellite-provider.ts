@@ -68,7 +68,7 @@ const GIBS_SOURCE = 'nasa-gibs-viirs'
 const DEFAULT_CACHE_MS = 2 * 60 * 60 * 1000
 const EARTH_RADIUS_KM = 6378.137
 const MU_KM3_S2 = 398600.4418
-const MAX_SATELLITE_RESULTS = 24
+const MAX_SATELLITE_RESULTS = 8
 
 const CELESTRAK_GROUPS = new Set([
   'stations',
