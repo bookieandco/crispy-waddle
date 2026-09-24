@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import type { ConversationSignalContext, EphemeralArtifactContext, LiveContextContribution } from "@jhadina/core-spine"
+import { JHADINA_LIVE_CONTEXT_LIMITS, type ConversationSignalContext, type EphemeralArtifactContext, type LiveContextContribution } from "@jhadina/core-spine"
 import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
@@ -56,7 +56,7 @@ function parseLiveContext(value: unknown): LiveContextContribution | undefined {
   if (raw.source !== "ask-jhadina-live") throw new Error("Unsupported live context source")
 
   const recentTurns = Array.isArray(raw.recentTurns)
-    ? raw.recentTurns.slice(-8).flatMap((value, index) => {
+    ? raw.recentTurns.slice(-JHADINA_LIVE_CONTEXT_LIMITS.maxRecentTurns).flatMap((value, index) => {
         if (!value || typeof value !== "object") return []
         const turn = value as Record<string, unknown>
         const speaker = turn.speaker
@@ -80,10 +80,10 @@ function parseLiveContext(value: unknown): LiveContextContribution | undefined {
         id,
         ...(typeof session.goal === "string" && session.goal.trim() ? { goal: session.goal.trim().slice(0, 1200) } : {}),
         activeSubsystems: Array.isArray(session.activeSubsystems)
-          ? session.activeSubsystems.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, 16).map((value) => value.slice(0, 80))
+          ? session.activeSubsystems.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, JHADINA_LIVE_CONTEXT_LIMITS.maxActiveSubsystems).map((value) => value.slice(0, 80))
           : [],
         admittedArtifactIds: Array.isArray(session.admittedArtifactIds)
-          ? session.admittedArtifactIds.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, 16).map((value) => value.slice(0, 160))
+          ? session.admittedArtifactIds.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, JHADINA_LIVE_CONTEXT_LIMITS.maxActiveSubsystems).map((value) => value.slice(0, 160))
           : [],
       }
     }
