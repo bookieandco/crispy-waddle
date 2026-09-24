@@ -2,7 +2,7 @@
 
 Certification date: 2026-09-23 (America/Los_Angeles)
 
-Status: **SOURCE CANDIDATE — exact-head CI and production/live receipts required**
+Status: **CERTIFICATION COMPLETE — WEB PRODUCTION PASS / NATIVE VOICE BLOCKED_EXTERNAL / FULL NATIVE PASS WITHHELD**
 
 ## Goal
 
@@ -162,21 +162,21 @@ admitted solely to bypass the Railway resource limit.
 
 | Gate | Requirement | Source | Infrastructure | Live/production |
 | --- | --- | --- | --- | --- |
-| INT.1 | explicit live phase controller | implemented | N/A | pending |
-| INT.2 | wake once + natural follow-up | implemented | browser dependent | pending |
-| INT.3 | background speech ignored before wake | implemented | browser dependent | pending |
-| INT.4 | ordinary reasoning barge-in | implemented | current web runtime | pending |
-| INT.5 | stale-turn suppression | implemented | current web runtime | pending |
-| INT.6 | progressive native TTS stream | implemented | native voice service blocked | blocked native |
-| INT.7 | browser chunked TTS fallback | implemented | browser dependent | pending |
-| INT.8 | cancellation propagation | implemented | current web runtime | pending |
-| INT.9 | Expression delivery -> speech | implemented | provider dependent | pending/fallback |
-| INT.10 | screen/file context retained | existing | current web runtime | pending |
-| INT.11 | WorkSession continuity retained | existing | Supabase ready | pending |
-| INT.12 | canonical voice identity | implemented | native providers blocked | fallback only |
-| INT.13 | live presence UI | implemented | current web runtime | pending |
-| INT.14 | approval/policy invariants | implemented | existing policy runtime | pending |
-| INT.15 | production interaction smoke | pending | current main deployment required | pending |
+| INT.1 | explicit live phase controller | **PASS** | N/A | production bundle verified |
+| INT.2 | wake once + natural follow-up | **PASS** | browser dependent | deployed; physical microphone drill not run |
+| INT.3 | background speech ignored before wake | **PASS** | browser dependent | deployed; physical microphone drill not run |
+| INT.4 | ordinary reasoning barge-in | **PASS** | current web runtime | deployed; physical active-speech drill not run |
+| INT.5 | stale-turn suppression | **PASS** | current web runtime | production bundle verified |
+| INT.6 | progressive native TTS stream | **PASS** | **BLOCKED_EXTERNAL** — native voice service not provisioned | native live receipt blocked |
+| INT.7 | browser chunked TTS fallback | **PASS** | browser dependent | production bundle verified; physical audio drill not run |
+| INT.8 | cancellation propagation | **PASS** | current web runtime | production bundle verified |
+| INT.9 | Expression delivery -> speech | **PASS** | provider dependent | browser fallback deployed; native provider receipt blocked |
+| INT.10 | screen/file context retained | **PASS** | current web runtime | deployed; physical screen-share drill not run in this certification |
+| INT.11 | WorkSession continuity retained | **PASS** | Supabase ready | deployed; second-device physical drill not run |
+| INT.12 | canonical voice identity | **PASS** | native providers blocked | browser fallback only; native identity A/B blocked |
+| INT.13 | live presence UI | **PASS** | current web runtime | production bundle verified |
+| INT.14 | approval/policy invariants | **PASS** | existing policy runtime | production route remains identity-gated |
+| INT.15 | production interaction smoke | **PASS for deployment/routes** | production READY | Ask 200, health 200, voice route protected; physical microphone drill outstanding |
 
 ## FINAL rule
 
@@ -191,3 +191,49 @@ admitted solely to bypass the Railway resource limit.
 
 A blocked native provider path must remain visible; browser fallback is not relabeled
 as a two-provider native voice certification.
+
+## Final receipt
+
+Source head `fb5585d501f36ce05b1b4e6859a715ba04d3ebaf` passed the dedicated
+`Jhadina Interactive Final Certification` workflow plus JLLM Runtime Final,
+Personality Core, Launch Gate, Web Deploy Conformance, UX, Social, Growth, Media and
+Spatial source/conformance workflows.
+
+The feature merged through PR #675 as main SHA
+`b2229a818de06e0e39362a3fbce86b4184225a10`.
+
+Vercel deployment `dpl_JCJRdyznkpZUSJKB96quFCa5ESvD` is `READY`, targets
+production, carries that exact main SHA, and has no alias error.
+
+Production receipts:
+
+- `GET /api/health` returned 200 and reported the exact main SHA,
+  `environment=production`, and `durableMemory=ready`.
+- `GET /ask-jhadina` returned 200.
+- The served Ask Jhadina JavaScript bundle contains the live-presence UI,
+  wake-once conversation path, native-voice health probe, progressive
+  `/api/jhadina/voice/speak-stream` path, and interrupted-turn state.
+- Unauthenticated `GET /api/jhadina/voice/health` returned 401, preserving the
+  verified-session boundary.
+- No runtime error clusters were found for the Ask/command/voice/health routes in
+  the certification window.
+- No error/fatal logs were found on the exact production deployment in that window.
+
+Native compute remains separately tracked by GitHub issue #676. Railway rejected a
+dedicated Jhadina Voice project with `Free plan resource provision limit exceeded`.
+No unrelated PupsonStuff service was repurposed and no native/GPU spend was created.
+
+## Final decision
+
+**JHADINA-INTERACTIVE.FINAL certification is complete.**
+
+- **SOURCE PASS**
+- **WEB PRODUCTION PASS**
+- **NATIVE VOICE = BLOCKED_EXTERNAL**
+- **FULL NATIVE/PHYSICAL INTERACTION PASS = WITHHELD**
+
+This is a completed certification result, not an unfinished audit. Promoting the
+withheld native/physical line requires the receipts explicitly tracked in #676:
+deployed Faster-Whisper, deployed native TTS, native streamed barge-in, and a real
+microphone/audio drill. Until then, the production system correctly exposes browser
+speech recognition/TTS as the admitted interactive fallback.
