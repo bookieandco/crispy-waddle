@@ -157,8 +157,16 @@ const satelliteSummary = (attributes: Record<string, unknown>): string | null =>
     const location = Number.isFinite(lat) && Number.isFinite(lon)
       ? ` approximate subpoint ${lat.toFixed(2)}, ${lon.toFixed(2)}${Number.isFinite(altitudeM) ? ` at ${Math.round(altitudeM / 1000)} km altitude` : ''}`
       : ''
-    const proximity = Number.isFinite(distance) ? `; about ${Math.round(distance)} km from requested scope` : ''
-    return `CelesTrak orbit elements for ${name} (NORAD ${norad});${location}${proximity}. Ground position is derived context-only, not an operational position fix.`
+    const proximity = Number.isFinite(distance) ? `; about ${Math.round(distance)} km from requested scope now` : ''
+    const approach = attributes.nextClosestApproach && typeof attributes.nextClosestApproach === 'object'
+      ? attributes.nextClosestApproach as Record<string, unknown>
+      : null
+    const approachDistance = Number(approach?.distanceKm)
+    const approachAt = typeof approach?.at === 'string' ? approach.at : null
+    const closest = Number.isFinite(approachDistance) && approachAt
+      ? `; approximate closest approach within 6h is ${Math.round(approachDistance)} km at ${approachAt}`
+      : ''
+    return `CelesTrak orbit elements for ${name} (NORAD ${norad});${location}${proximity}${closest}. Ground position/pass timing is derived context-only, not an operational position fix.`
   }
   if (attributes.sourceId === 'nasa-gibs-viirs') {
     const date = typeof attributes.layerDate === 'string' ? attributes.layerDate : 'unknown date'
