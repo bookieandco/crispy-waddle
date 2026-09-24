@@ -47,8 +47,8 @@ const milesToKm = (miles: number): number => miles * 1.609344
 
 function explicitRadiusKm(text: string): number | null {
   const patterns = [
-    /\\bwithin\\s+(\\d+(?:\\.\\d+)?)\\s*(km|kilometers?|kilometres?|mi|miles?)\\b/i,
-    /\\b(\\d+(?:\\.\\d+)?)\\s*(km|kilometers?|kilometres?|mi|miles?)\\s+(?:of|around|from|near)\\b/i,
+    /\bwithin\s+(\d+(?:\.\d+)?)\s*(km|kilometers?|kilometres?|mi|miles?)\b/i,
+    /\b(\d+(?:\.\d+)?)\s*(km|kilometers?|kilometres?|mi|miles?)\s+(?:of|around|from|near)\b/i,
   ]
   for (const pattern of patterns) {
     const match = text.match(pattern)
@@ -64,18 +64,17 @@ function explicitRadiusKm(text: string): number | null {
 }
 
 function defaultRadiusKm(text: string): number {
-  if (/\\b(?:at|inside)\\s+(?:the\\s+)?(?:lax|klax|los angeles international airport)\\b/i.test(text)) return 5
-  if (/\\b(?:near|around|nearby|within)\\b/i.test(text)) return 25
+  if (/\b(?:at|inside)\s+(?:the\s+)?(?:lax|klax|los angeles international airport)\b/i.test(text)) return 5
+  if (/\b(?:near|around|nearby|within)\b/i.test(text)) return 25
   return 25
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^$()|[\\]\\\\]/g, "\\$&")
-}
-
 function matchesAirport(text: string, airport: AirportGazetteerEntry): boolean {
-  const escapedName = escapeRegExp(airport.canonicalName)
-  return new RegExp(`\\b(?:${airport.iata}|${airport.icao}|${escapedName})\\b`, "i").test(text)
+  const normalized = text.toLowerCase()
+  const tokens = normalized.split(/[^a-z0-9]+/).filter(Boolean)
+  return tokens.includes(airport.iata.toLowerCase())
+    || tokens.includes(airport.icao.toLowerCase())
+    || normalized.includes(airport.canonicalName.toLowerCase())
 }
 
 /**
