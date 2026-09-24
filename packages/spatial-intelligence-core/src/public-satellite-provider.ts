@@ -75,7 +75,6 @@ const CELESTRAK_GROUPS = new Set([
   'weather',
   'resource',
   'sarsat',
-  'radar',
 ])
 
 const defaultFetch: SatelliteFetchLike = async (url, init) => await fetch(url, init) as SatelliteFetchResponse
@@ -219,7 +218,7 @@ const chooseCelestrakGroup = (subject: string | null | undefined): string => {
   const value = (subject ?? '').toLowerCase()
   if (/\b(iss|space station|station)\b/.test(value)) return 'stations'
   if (/\b(weather|storm|cloud|hurricane|meteorolog)\b/.test(value)) return 'weather'
-  if (/\b(sar|synthetic aperture radar|radar satellite)\b/.test(value)) return 'radar'
+  if (/\b(sar|synthetic aperture radar|radar satellite)\b/.test(value)) return 'resource'
   if (/\b(search and rescue|sarsat)\b/.test(value)) return 'sarsat'
   if (/\b(earth observation|imagery|image|sentinel|landsat|resource|monitor)\b/.test(value)) return 'resource'
   return 'stations'
