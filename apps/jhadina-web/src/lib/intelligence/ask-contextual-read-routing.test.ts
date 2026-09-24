@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { requiresFullJllmContextForRead, requiresSpatialContextForRead } from "./ask-contextual-read-routing"
+import { requiresDeviceLocationForSpatialRead, requiresFullJllmContextForRead, requiresSpatialContextForRead } from "./ask-contextual-read-routing"
 
 describe("Ask contextual read routing", () => {
   it.each([
@@ -21,6 +21,23 @@ describe("Ask contextual read routing", () => {
   ])("routes spatial/GEV reads through full JLLM context: %s", (input) => {
     expect(requiresSpatialContextForRead(input)).toBe(true)
     expect(requiresFullJllmContextForRead(input)).toBe(true)
+  })
+
+  it.each([
+    "What flights are near me right now?",
+    "What is happening around here?",
+    "Show me nearby traffic",
+    "Are there wildfires in my area?",
+  ])("marks device-relative spatial reads for browser location scope: %s", (input) => {
+    expect(requiresDeviceLocationForSpatialRead(input)).toBe(true)
+  })
+
+  it.each([
+    "What flights are near LAX?",
+    "Show cameras around Dodger Stadium",
+    "What is happening in Miami?",
+  ])("does not request device location for named-place spatial reads: %s", (input) => {
+    expect(requiresDeviceLocationForSpatialRead(input)).toBe(false)
   })
 
   it.each([
