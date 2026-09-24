@@ -108,6 +108,42 @@ test('GEV P4 live read provider produces evidence but cannot self-admit claims o
 })
 
 
+test('Ask Jhadina model-input GEV reads fail closed for restricted or unknown sources', async () => {
+  const telemetry: SpatialTelemetryEvent[] = []
+  const sink = { record: (event: SpatialTelemetryEvent) => telemetry.push(event) }
+  const bridge = new GevProviderBridge({ baseUrl: 'https://gev.example', fetchImpl: liveFetch(), telemetry: sink, now: () => '2026-09-19T20:00:00Z' })
+  const provider = createGevSpatialContextReadProvider({
+    bridge,
+    purpose: 'model-input',
+    telemetry: sink,
+    now: () => '2026-09-19T20:00:00Z',
+  })
+  const plan = planSpatialQuery({
+    queryId: 'q-model-input',
+    kind: 'OBSERVE',
+    subject: 'nearby spatial context',
+    geographicScope: { lat: 34, lon: -117, radiusKm: 200 },
+    temporalScope: { from: null, to: null, asOf: null },
+    requestedDomains: ['spatial'],
+    requiresEvidence: true,
+  })
+
+  const context = await provider.read(plan, 'user-model-input')
+  assert.ok(context)
+  assert.equal(context?.evidence.length, 1)
+  assert.ok(context?.evidence.every((item) => item.source === 'NASA FIRMS'))
+  assert.ok(context?.sourceHealth.includes('camera:unavailable'))
+  assert.ok(context?.sourceHealth.includes('aircraft:unavailable'))
+  assert.ok(context?.sourceHealth.includes('vessel:unavailable'))
+  assert.ok(context?.sourceHealth.includes('fire:available:1'))
+  const denied = telemetry.filter((event) => event.kind === 'policy_denial')
+  assert.ok(denied.some((event) => event.details?.sourceId === 'gev-cctv'))
+  assert.ok(denied.some((event) => event.details?.sourceId === 'gev-opensky'))
+  assert.ok(denied.some((event) => event.details?.sourceId === 'gev-aisstream'))
+  assert.ok(!denied.some((event) => event.details?.sourceId === 'gev-firms'))
+})
+
+
 test('GEV PROD.4 governed admission composes persisted evidence into explicit Reality without a raw-observation bypass', async () => {
   const telemetry: SpatialTelemetryEvent[] = []
   const sink = { record: (event: SpatialTelemetryEvent) => telemetry.push(event) }
