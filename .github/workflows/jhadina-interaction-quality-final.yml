@@ -43,15 +43,19 @@ jobs:
 
       - name: Core interaction quality tests
         run: |
-          pnpm --filter @jhadina/core-spine exec vitest run             src/interaction-quality.test.ts             src/interaction-quality-longrun.test.ts             src/expression-final.test.ts
+          pnpm --filter @jhadina/core-spine exec vitest run \
+            src/interaction-quality.test.ts \
+            src/interaction-quality-longrun.test.ts \
+            src/expression-final.test.ts
 
       - name: Intelligence quality tests
-        run: |
-          pnpm --filter @jhadina/intelligence-core exec vitest run             src/interaction-quality-guidance.test.ts             src/interaction-quality-realization.test.ts             src/expression-realization-final.test.ts
+        run: pnpm --filter @jhadina/intelligence-core test
 
       - name: Context and production health tests
         run: |
-          pnpm --filter @jhadina/jhadina-web exec vitest run             src/lib/context/context-builder.test.ts             src/lib/context/interaction-quality-production-health.test.ts
+          pnpm --filter @jhadina/jhadina-web exec vitest run \
+            src/lib/context/context-builder.test.ts \
+            src/lib/context/interaction-quality-production-health.test.ts
 
       - name: Core Spine type-check
         run: pnpm --filter @jhadina/core-spine type-check
