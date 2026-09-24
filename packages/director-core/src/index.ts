@@ -18,6 +18,7 @@ export * from './realism-direction';
 export * from './directed-take-qc';
 export * from './generation-plan-adapter';
 export * from './generation-reference-manifest';
+export * from './continuity-reference-strategy';
 export * from './generation-assets';
 export * from './generated-asset-resolver';
 export * from './editing-asset-manifest';
