@@ -65,7 +65,9 @@
     "./animation-principles": "./src/animation-principles.ts",
     "./continuity-reference-strategy": "./src/continuity-reference-strategy.ts",
     "./character-training-pipeline": "./src/character-training-pipeline.ts",
-    "./video-upscale-finishing": "./src/video-upscale-finishing.ts"
+    "./video-upscale-finishing": "./src/video-upscale-finishing.ts",
+    "./studio-character-training": "./src/studio-character-training.ts",
+    "./studio-character-training-worker": "./src/studio-character-training-worker.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
