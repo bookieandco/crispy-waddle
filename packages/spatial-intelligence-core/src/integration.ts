@@ -50,9 +50,9 @@ export function toSpatialDomainContext(pkg: SpatialContextPackage): SpatialDomai
 }
 
 export type SpatialQueryInterpreter = (text: string) => SpatialQuery | undefined
-const spatialWords = /\b(near|around|at|inside|within|airport|camera|traffic|aircraft|flight|plane|vessel|ship|earthquake|fire|weather|satellite|spatial|map|location|where|changed|change|moved|route|track|investigate|why)\b/i
+const spatialWords = /\b(near|around|at|inside|within|airport|camera|cctv|onvif|rtsp|frigate|traffic|aircraft|flight|plane|vessel|ship|earthquake|fire|weather|satellite|spatial|map|location|where|changed|change|moved|route|track|investigate|why)\b/i
 const spatialDomainRules: ReadonlyArray<{ domain: string; pattern: RegExp }> = [
-  { domain: "camera", pattern: /\b(cameras?|cctv|views?|frames?)\b/i },
+  { domain: "camera", pattern: /\b(cameras?|cctv|onvif|rtsp|frigate|camera\s+specs?|camera\s+models?|views?|frames?)\b/i },
   { domain: "aircraft", pattern: /\b(aircraft|flight|plane|airport|aviation)\b/i },
   { domain: "vessel", pattern: /\b(vessel|ship|boat|ais|port|harbor)\b/i },
   { domain: "fire", pattern: /\b(fire|wildfire|firms|burn)\b/i },
