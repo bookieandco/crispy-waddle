@@ -102,33 +102,102 @@ function AskJhadina(){
 
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
  function stopSpeech(){
+  speechAbortRef.current?.abort()
+  speechAbortRef.current=null
   nativeAudioRef.current?.pause()
   nativeAudioRef.current=null
   if(typeof window!=="undefined"&&"speechSynthesis" in window)window.speechSynthesis.cancel()
  }
- async function speakText(text:string,userId?:string){
+ function interruptCurrentTurn(){
+  commandAbortRef.current?.abort()
+  stopSpeech()
+  if(busyRef.current||interactivePhase==="speaking"){
+   setInteractivePhase("interrupted")
+   setInputStatus("Interrupted. I’m listening to the new turn.")
+  }
+ }
+ function expressionDelivery(presentation?:GovernedExpressionPresentation){
+  return{
+   rate:presentation?.speakingRate==="slow"?0.9:presentation?.speakingRate==="fast"?1.08:1,
+   pauseScale:presentation?.pauseDensity==="high"?1.3:presentation?.pauseDensity==="moderate"?1.12:0.95,
+   style:presentation?.register??"default",
+  }
+ }
+ async function playNativeAudio(event:{audioBase64?:string;mimeType?:string},signal:AbortSignal){
+  if(!event.audioBase64)throw new Error("native voice returned no audio")
+  const audio=new Audio(`data:${event.mimeType??"audio/wav"};base64,${event.audioBase64}`)
+  nativeAudioRef.current=audio
+  await new Promise<void>((resolve,reject)=>{
+   const abort=()=>{audio.pause();reject(new DOMException("Speech interrupted","AbortError"))}
+   signal.addEventListener("abort",abort,{once:true})
+   audio.onended=()=>{signal.removeEventListener("abort",abort);resolve()}
+   audio.onerror=()=>{signal.removeEventListener("abort",abort);reject(new Error("native audio playback failed"))}
+   void audio.play().catch(reject)
+  })
+  if(nativeAudioRef.current===audio)nativeAudioRef.current=null
+ }
+ async function speakBrowserChunks(text:string,signal:AbortSignal,presentation?:GovernedExpressionPresentation){
+  if(typeof window==="undefined"||!("speechSynthesis" in window))return
+  const delivery=expressionDelivery(presentation)
+  for(const chunk of chunkSpeechText(text)){
+   if(signal.aborted)throw new DOMException("Speech interrupted","AbortError")
+   await new Promise<void>((resolve,reject)=>{
+    const utterance=new SpeechSynthesisUtterance(chunk)
+    utterance.lang=voiceLanguage
+    utterance.rate=delivery.rate
+    const abort=()=>{window.speechSynthesis.cancel();reject(new DOMException("Speech interrupted","AbortError"))}
+    signal.addEventListener("abort",abort,{once:true})
+    utterance.onend=()=>{signal.removeEventListener("abort",abort);resolve()}
+    utterance.onerror=()=>{signal.removeEventListener("abort",abort);reject(new Error("browser speech failed"))}
+    window.speechSynthesis.speak(utterance)
+   })
+  }
+ }
+ async function speakText(text:string,userId?:string,presentation?:GovernedExpressionPresentation){
   if(!text.trim())return
   stopSpeech()
+  const controller=new AbortController()
+  speechAbortRef.current=controller
   const uid=userId??await identity()
+  const delivery=expressionDelivery(presentation)
+  setInteractivePhase("speaking")
   try{
-   const response=await fetch("/api/jhadina/voice/speak",{
+   const response=await fetch("/api/jhadina/voice/speak-stream",{
     method:"POST",
     headers:{"content-type":"application/json","x-jhadina-user-id":uid},
-    body:JSON.stringify({text,language:voiceLanguage,voiceProfileId:"jhadina:canonical"}),
+    body:JSON.stringify({text,language:voiceLanguage,voiceProfileId:"jhadina:canonical",delivery}),
+    signal:controller.signal,
    })
-   if(!response.ok)throw new Error("native voice unavailable")
-   const json=await response.json()
-   if(typeof json.audioBase64!=="string"||!json.audioBase64)throw new Error("native voice returned no audio")
-   const audio=new Audio(`data:${json.mimeType??"audio/wav"};base64,${json.audioBase64}`)
-   nativeAudioRef.current=audio
-   audio.onended=()=>{if(nativeAudioRef.current===audio)nativeAudioRef.current=null}
-   await audio.play()
+   if(!response.ok||!response.body)throw new Error("native voice stream unavailable")
+   const reader=response.body.getReader()
+   const decoder=new TextDecoder()
+   let buffer=""
+   let completed=false
+   while(!completed){
+    const {done,value}=await reader.read()
+    buffer+=decoder.decode(value??new Uint8Array(),{stream:!done})
+    let newline=buffer.indexOf("\n")
+    while(newline>=0){
+     const line=buffer.slice(0,newline).trim()
+     buffer=buffer.slice(newline+1)
+     if(line){
+      const event=JSON.parse(line) as {type:string;detail?:string;audioBase64?:string;mimeType?:string}
+      if(event.type==="error")throw new Error(event.detail||"native voice stream failed")
+      if(event.type==="audio")await playNativeAudio(event,controller.signal)
+      if(event.type==="done")completed=true
+     }
+     newline=buffer.indexOf("\n")
+    }
+    if(done)break
+   }
    return
-  }catch{
-   if(typeof window==="undefined"||!("speechSynthesis" in window))return
-   const utterance=new SpeechSynthesisUtterance(text)
-   utterance.lang=voiceLanguage
-   window.speechSynthesis.speak(utterance)
+  }catch(cause){
+   if(isAbortLike(cause)||controller.signal.aborted)return
+   try{await speakBrowserChunks(text,controller.signal,presentation)}catch(fallbackError){
+    if(!isAbortLike(fallbackError))setInputStatus("Voice playback is unavailable; the response is still shown as text.")
+   }
+  }finally{
+   if(speechAbortRef.current===controller)speechAbortRef.current=null
   }
  }
  function isVideoRequest(text:string){return /\b(make|create|generate|produce|build|render|turn)\b/i.test(text)&&/\b(video|movie|film|short|reel|tiktok|youtube\s+short|youtube\s+video)\b/i.test(text)}
