@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
 import { chunkSpeechText, isAbortLike, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
+import { buildLiveContext } from "./live-context-runtime"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -332,18 +333,15 @@ function AskJhadina(){
    if(referenceFile){
     data=referenceKind==="product"?await askWithReferenceProduct(command,userId):await askWithReferenceCharacter(command,userId)
    }else{
-    const liveContext={
-     source:"ask-jhadina-live" as const,
-     observedAt:new Date().toISOString(),
-     recentTurns:conversationLines.slice(-8).map(({id,speaker,text,createdAt})=>({id,speaker,text,createdAt})),
-     ...(workSessionId?{workSession:{
+    const liveContext=buildLiveContext(
+     conversationLines,
+     workSessionId?{
       id:workSessionId,
       ...(workSessionGoal?{goal:workSessionGoal}:{}),
       activeSubsystems:workSessionActiveSubsystems,
-      admittedArtifactIds:artifactRefs.slice(0,8),
-     }}:{}),
-     limitations:[],
-    }
+      admittedArtifactIds:artifactRefs,
+     }:undefined,
+    )
     const response=await fetch("/api/jhadina/command",{
      method:"POST",
      headers:{"content-type":"application/json","x-jhadina-user-id":userId},
