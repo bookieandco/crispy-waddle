@@ -5,12 +5,14 @@ import { Suspense,useEffect,useRef,useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
+import { chunkSpeechText, isAbortLike, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
 type MemoryCandidate={id:string;content:string;type:string;confidence:number;status:string}
 type GovernedExpressionSegment={kind:"semantic"|"callback"|"cultural_reference";text:string}
-type GovernedExpression={proposal:DecisionProposal;presentation:{mode:"direct"|"explanatory"|"pushback"|"clarifying"|"serious";allowProfanity:boolean;allowQuip:boolean;callback?:string;culturalReference?:string};segments:GovernedExpressionSegment[]}
+type GovernedExpressionPresentation={mode:"direct"|"explanatory"|"pushback"|"clarifying"|"serious";allowProfanity:boolean;allowQuip:boolean;register?:string;cadenceStyle?:"tight"|"conversational"|"spacious";pauseDensity?:"low"|"moderate"|"high";metaphorDensity?:"none"|"light"|"moderate";bitDepth?:0|1|2|3;allowPlayfulDisagreement?:boolean;symbolicFraming?:"off"|"interpretive";storytellingDepth?:"none"|"brief"|"extended";edginess?:"none"|"light"|"moderate";reentryToPlayfulness?:"off"|"cautious"|"allowed";operationalSass?:"off"|"light"|"moderate";affectionateTeasing?:boolean;workloadBoundary?:"implicit"|"explicit";evidenceDiscipline?:"standard"|"heightened"|"strict";speakingRate?:"slow"|"normal"|"fast";deliberatePauses?:boolean;callback?:string;culturalReference?:string}
+type GovernedExpression={proposal:DecisionProposal;presentation:GovernedExpressionPresentation;segments:GovernedExpressionSegment[]}
 type SocialCharacter={id:string;brand:string;label:string;description:string;toneTraits:readonly string[];pointOfView:string;voiceProfileRef:string;authority:"EXPRESSION_ONLY"}
 type SocialAccountChoice={accountId:string;brand:string;platform:string;provider:string;displayName:string;handle?:string;attentionScore:number;attentionReasons:readonly string[]}
 type SocialWorkPlan={kind:"social_marketing";operation:string;character?:SocialCharacter;availableCharacters?:readonly SocialCharacter[];accounts:readonly SocialAccountChoice[];requestedPlatforms:readonly string[];nextBoundary:"social_read_only"|"growth_research"|"director_production"|"social_publication"|"growth_paid_media";authority:"READ_ONLY"|"PLANNING_ONLY";requiresExplicitApprovalForExecution:boolean;notes:readonly string[]}
@@ -44,7 +46,14 @@ function AskJhadina(){
  const [referenceStage,setReferenceStage]=useState("")
  const [workSessionId,setWorkSessionId]=useState(()=>params.get("session")??"")
  const [workSessionGoal,setWorkSessionGoal]=useState("")
+ const [interactivePhase,setInteractivePhase]=useState<JhadinaInteractivePhase>("idle")
+ const [conversationActive,setConversationActive]=useState(false)
+ const [conversationLines,setConversationLines]=useState<JhadinaConversationLine[]>([])
  const nativeAudioRef=useRef<HTMLAudioElement|null>(null)
+ const busyRef=useRef(false)
+ const activeTurnRef=useRef("")
+ const commandAbortRef=useRef<AbortController|null>(null)
+ const speechAbortRef=useRef<AbortController|null>(null)
 
  useEffect(()=>{
   let cancelled=false
