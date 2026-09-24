@@ -39,6 +39,9 @@ export interface CharacterIdentitySheet {
   projectId: string;
   characterId: string;
   continuityRef: string;
+  appearanceVariantId: string;
+  appearanceKind: 'base' | 'wardrobe' | 'style';
+  parentSheetId?: string;
   canonicalFacePanelId: string;
   panels: readonly CharacterSheetPanel[];
   identityTraits: readonly string[];
@@ -139,8 +142,23 @@ export interface ContinuityQcDecision {
 
 export function validateCharacterIdentitySheet(sheet: CharacterIdentitySheet): readonly string[] {
   const reasons: string[] = [];
-  if (!sheet.id.trim() || !sheet.projectId.trim() || !sheet.characterId.trim() || !sheet.continuityRef.trim()) {
+  if (
+    !sheet.id.trim() ||
+    !sheet.projectId.trim() ||
+    !sheet.characterId.trim() ||
+    !sheet.continuityRef.trim() ||
+    !sheet.appearanceVariantId.trim()
+  ) {
     reasons.push('DIRECTOR_CONTINUITY_SHEET_IDENTITY_REQUIRED');
+  }
+  if (sheet.appearanceKind !== 'base' && !sheet.parentSheetId?.trim()) {
+    reasons.push('DIRECTOR_CONTINUITY_VARIANT_PARENT_SHEET_REQUIRED');
+  }
+  if (
+    sheet.appearanceKind === 'style' &&
+    (!sheet.silhouetteTraits?.length || !sheet.colorTraits?.length)
+  ) {
+    reasons.push('DIRECTOR_CONTINUITY_STYLE_CARRY_TRAITS_REQUIRED');
   }
   if (!sheet.panels.length) reasons.push('DIRECTOR_CONTINUITY_SHEET_PANELS_REQUIRED');
   if (!sheet.identityTraits.length) reasons.push('DIRECTOR_CONTINUITY_IDENTITY_TRAITS_REQUIRED');
@@ -193,9 +211,12 @@ export function validateEnvironmentViewPack(pack: EnvironmentViewPack): readonly
       reasons.push(`DIRECTOR_CONTINUITY_ENVIRONMENT_VIEW_INVALID:${view.id}`);
     }
     if (!view.evidenceIds.length) reasons.push(`DIRECTOR_CONTINUITY_ENVIRONMENT_VIEW_EVIDENCE_REQUIRED:${view.id}`);
-    if (view.source === 'chained' && !view.parentAssetIds.length) {
-      reasons.push(`DIRECTOR_CONTINUITY_CHAIN_PARENT_REQUIRED:${view.id}`);
+    if (view.source !== 'authored' && !view.parentAssetIds.length) {
+      reasons.push(`DIRECTOR_CONTINUITY_DERIVED_VIEW_PARENT_REQUIRED:${view.id}`);
     }
+  }
+  if (!pack.views.some((view) => view.assetId === pack.canonicalAssetId)) {
+    reasons.push('DIRECTOR_CONTINUITY_ENVIRONMENT_CANONICAL_VIEW_REQUIRED');
   }
   return Object.freeze([...new Set(reasons)]);
 }
