@@ -4,7 +4,7 @@ import type { SpatialEvidenceStore } from './evidence-store.js'
 import type { SpatialObservation } from './observation.js'
 import { normalizeAisPayload, normalizeFirmsPayload, normalizeGevCctvSources, normalizeOpenSkyPayload } from './gev-source-adapters.js'
 import { GevProviderBridge } from './gev-provider-bridge.js'
-import { createGevSourcePolicyRegistry, type SpatialSourcePolicyRegistry } from './source-policy.js'
+import { createGevSourcePolicyRegistry, type SpatialSourcePolicyRegistry, type SpatialUsePurpose } from './source-policy.js'
 import type { SpatialContextPackage, SpatialContextReadProvider } from './integration.js'
 import type { SpatialQueryPlan } from './spatial-pipeline.js'
 import type { EvidenceRef } from '@jhadina/core-spine'
@@ -19,6 +19,8 @@ export type GevSpatialReadProviderOptions = {
   evidenceStore?: SpatialEvidenceStore
   knowledgeSink?: SpatialKnowledgeSink
   telemetry?: SpatialTelemetrySink
+  /** Governs provider/source reuse at this consumer boundary. Ask Jhadina uses model-input; Spatial workspace defaults to private-analysis. */
+  purpose?: SpatialUsePurpose
 }
 
 type ScopePoint = { lat: number; lon: number; radiusKm?: number }
@@ -129,11 +131,13 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
   private readonly registry: SpatialSourcePolicyRegistry
   private readonly now: () => string
   private readonly maxEvidence: number
+  private readonly purpose: SpatialUsePurpose
 
   constructor(private readonly options: GevSpatialReadProviderOptions) {
     this.registry = options.policyRegistry ?? createGevSourcePolicyRegistry()
     this.now = options.now ?? (() => new Date().toISOString())
     this.maxEvidence = options.maxEvidence ?? 500
+    this.purpose = options.purpose ?? 'private-analysis'
     if (!Number.isInteger(this.maxEvidence) || this.maxEvidence < 1 || this.maxEvidence > 10_000) throw new Error('GEV_SPATIAL_MAX_EVIDENCE_INVALID')
   }
 
@@ -173,9 +177,9 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
     const point = asScopePoint(plan.scope)
     await Promise.all([
       capture('camera', async () => {
-        const sources = await this.options.bridge.cctvSources()
+        const sources = await this.options.bridge.cctvSources(this.purpose)
         try {
-          const health = await this.options.bridge.cctvHealth()
+          const health = await this.options.bridge.cctvHealth(this.purpose)
           sourceHealth.push(`camera-health:available:${health.length}`)
           emitSpatialTelemetry(this.options.telemetry, {
             kind: 'provider_health', component: 'gev:camera-health', status: 'ok', at: receivedAt,
@@ -197,9 +201,9 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
           return normalizeGevCctvSources(sources, receivedAt)
         }
       }),
-      capture('aircraft', async () => normalizeOpenSkyPayload(await this.options.bridge.openSky(point ? { lat: point.lat, lon: point.lon } : {}), receivedAt)),
-      capture('vessel', async () => normalizeAisPayload(await this.options.bridge.aisLive(), receivedAt)),
-      capture('fire', async () => normalizeFirmsPayload(await this.options.bridge.firms(), receivedAt)),
+      capture('aircraft', async () => normalizeOpenSkyPayload(await this.options.bridge.openSky(point ? { lat: point.lat, lon: point.lon } : {}, this.purpose), receivedAt)),
+      capture('vessel', async () => normalizeAisPayload(await this.options.bridge.aisLive(5_000, this.purpose), receivedAt)),
+      capture('fire', async () => normalizeFirmsPayload(await this.options.bridge.firms(this.purpose), receivedAt)),
     ])
 
     for (const domain of domains) {
