@@ -281,6 +281,7 @@ describe('character training pipeline', () => {
 
     expect(registry.compatibleLoRAs('video-base').map((lora) => lora.id)).toContain(promoted.lora.id);
     expect(promoted.lora.triggerWords).toEqual(['MARYX7']);
+    expect(promoted.lora.metadata?.status).toBe('candidate-character-lora');
     expect(promoted.authority).toBe('DIRECTOR_CHARACTER_LORA_PROMOTION');
   });
 });
