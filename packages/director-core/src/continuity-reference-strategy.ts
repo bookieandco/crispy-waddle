@@ -439,3 +439,22 @@ export function evaluateContinuityQc(
     authority: 'DIRECTOR_CONTINUITY_QC',
   });
 }
+
+
+export function compileContinuityStrategyDirective(plan: ContinuityStrategyPlan): string {
+  if (plan.reasons.length) {
+    throw new Error(`DIRECTOR_CONTINUITY_STRATEGY_INVALID: ${plan.reasons.join(', ')}`);
+  }
+  const manifestIssues = validateGenerationReferenceManifest(plan.referenceManifest);
+  if (manifestIssues.length) {
+    throw new Error(`DIRECTOR_CONTINUITY_REFERENCE_MANIFEST_INVALID: ${manifestIssues.map((issue) => issue.code).join(', ')}`);
+  }
+  return [
+    `Continuity techniques: ${plan.techniques.join(', ')}`,
+    `Single continuous shot: ${plan.singleContinuousShot ? 'yes' : 'no'}`,
+    plan.storyboardBatches.length
+      ? `Storyboard batches: ${plan.storyboardBatches.map((batch) => `${batch.id}=[${batch.frameIds.join(',')}]`).join(' | ')}`
+      : undefined,
+    'Do not re-invent locked character, voice, wardrobe, style, environment, or endpoint identity from text when governed references are present.',
+  ].filter((line): line is string => Boolean(line)).join('\n');
+}
