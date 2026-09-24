@@ -5,6 +5,7 @@ import {
   type SpatialEvidenceStore,
 } from '@jhadina/spatial-intelligence-core'
 import { createServiceRoleClient } from '../supabase/service-role'
+import { createOidcSpatialEvidenceStore } from './spatial-oidc-gateway'
 
 type EvidenceRow = {
   evidence_id: string
@@ -42,7 +43,7 @@ const fromRow = (row: EvidenceRow): SpatialEvidence => ({
 /** Server-only durable evidence adapter over the existing service-role Supabase client. */
 export function createSupabaseSpatialEvidenceStore(): SpatialEvidenceStore | undefined {
   const client = createServiceRoleClient()
-  if (!client) return undefined
+  if (!client) return createOidcSpatialEvidenceStore()
 
   return {
     async append(evidence) {
