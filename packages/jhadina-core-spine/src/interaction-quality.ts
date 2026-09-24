@@ -14,6 +14,7 @@ export type InteractionQualityGateId =
   | 'semantic-invariance'
   | 'disagreement-without-hostility'
   | 'distress-high-stakes-override'
+  | 'precision-technical-override'
   | 'sacred-love-boundary'
   | 'fringe-evidence-boundary'
   | 'clinical-evidence-boundary'
@@ -146,6 +147,25 @@ export function certifyInteractionQuality(
       serious.symbolicFraming === 'off' &&
       serious.evidenceDiscipline === 'strict',
     'Distress/high-stakes context overrides humor, intimacy, symbolism, sass, and banter.',
+  );
+
+  const precisionDecision = decideBehavior(personality, {
+    register: 'creative',
+    requiresPrecision: true,
+    banterEligible: true,
+    symbolicFramingEligible: true,
+    operationalContext: true,
+  });
+  const precision = planExpression(precisionDecision);
+  const precisionTechnicalOverride = gate(
+    'precision-technical-override',
+    precisionDecision.action === 'stay_serious' &&
+      precision.register === 'serious' &&
+      precision.creativeStyle === 'conventional' &&
+      precision.evidenceDiscipline === 'strict' &&
+      precision.bitDepth === 0 &&
+      precision.metaphorDensity === 'none',
+    'Precision-sensitive technical work suppresses creative flourish without reducing reasoning depth.',
   );
 
   const sacredDecision = decideBehavior(personality, {
@@ -284,6 +304,7 @@ export function certifyInteractionQuality(
     semanticInvariance,
     disagreementWithoutHostility,
     distressOverride,
+    precisionTechnicalOverride,
     sacredLoveBoundary,
     fringeEvidenceBoundary,
     clinicalBoundary,
