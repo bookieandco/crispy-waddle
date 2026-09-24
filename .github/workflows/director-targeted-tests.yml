@@ -67,6 +67,7 @@ jobs:
           src/cast-bible.test.ts
           src/character-reference-and-extend.test.ts
           src/character-training-pipeline.test.ts
+          src/character-lora-approval.test.ts
           src/video-upscale-finishing.test.ts
           src/studio-character-training.test.ts
           src/whole-video-provider.test.ts
@@ -89,6 +90,7 @@ jobs:
         run: >
           pnpm --filter @jhadina/jhadina-web exec vitest run
           src/lib/director-project-authority.test.ts
+          src/lib/director-generation-provider-factory.test.ts
           src/lib/director-studio-qc-repository.test.ts
           src/lib/director-cast-repository.test.ts
           src/app/api/director/characters/bootstrap/route.test.ts
