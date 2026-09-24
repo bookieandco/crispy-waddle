@@ -10,7 +10,7 @@ const PERSONAL_CONTEXT_PATTERNS: readonly RegExp[] = [
 const SPATIAL_CONTEXT_PATTERNS: readonly RegExp[] = [
   /\b(god['’]?s eye view|gev|spatial intelligence|spatial context)\b/i,
   /\b(near me|nearby|around me|my location|current location|where i am|where am i)\b/i,
-  /\b(cameras?|cctv|traffic|aircraft|flights?|planes?|vessels?|ships?|boats?|wildfires?|fires?|earthquakes?|quakes?|satellites?|harbors?|ports?)\b/i,
+  /\b(cameras?|cctv|onvif|rtsp|frigate|camera\s+specs?|camera\s+models?|traffic|aircraft|flights?|planes?|vessels?|ships?|boats?|wildfires?|fires?|earthquakes?|quakes?|satellites?|harbors?|ports?)\b/i,
   /\b(what(?:'s| is) happening|what(?:'s| is) going on)\b.{0,60}\b(near|around|within|at|in)\b/i,
   /\b(near|around|within|inside)\b.{0,80}\b(airport|stadium|venue|port|harbor|road|highway|city|county|address|facility)\b/i,
 ]
