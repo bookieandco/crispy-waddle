@@ -13,7 +13,7 @@ import { emitSpatialTelemetry, spatialTelemetryErrorCode, type SpatialTelemetryS
 import type { CctvCameraCatalogClient } from './cctv-camera-catalog.js'
 
 export type GevSpatialReadProviderOptions = {
-  bridge: GevProviderBridge
+  bridge?: GevProviderBridge
   policyRegistry?: SpatialSourcePolicyRegistry
   now?: () => string
   maxEvidence?: number
@@ -205,9 +205,18 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
     }
 
     const point = asScopePoint(plan.scope)
+    if (!this.options.bridge) {
+      for (const domain of ['camera', 'aircraft', 'vessel', 'fire']) {
+        if (domains.has(domain)) sourceHealth.push(`${domain}:unconfigured`)
+      }
+      if ([...domains].some((domain) => ['camera', 'aircraft', 'vessel', 'fire'].includes(domain))) {
+        limitations.push('Live GEV provider is not configured; only independently configured spatial sources can contribute.')
+      }
+    }
+
     await Promise.all([
-      capture('camera', async () => {
-        const sources = await this.options.bridge.cctvSources(this.purpose)
+      ...(this.options.bridge ? [capture('camera', async () => {
+        const sources = await this.options.bridge!.cctvSources(this.purpose)
         try {
           const health = await this.options.bridge.cctvHealth(this.purpose)
           sourceHealth.push(`camera-health:available:${health.length}`)
@@ -231,9 +240,10 @@ export class GevSpatialContextReadProvider implements SpatialContextReadProvider
           return normalizeGevCctvSources(sources, receivedAt)
         }
       }),
-      capture('aircraft', async () => normalizeOpenSkyPayload(await this.options.bridge.openSky(point ? { lat: point.lat, lon: point.lon } : {}, this.purpose), receivedAt)),
-      capture('vessel', async () => normalizeAisPayload(await this.options.bridge.aisLive(5_000, this.purpose), receivedAt)),
-      capture('fire', async () => normalizeFirmsPayload(await this.options.bridge.firms(this.purpose), receivedAt)),
+      capture('aircraft', async () => normalizeOpenSkyPayload(await this.options.bridge!.openSky(point ? { lat: point.lat, lon: point.lon } : {}, this.purpose), receivedAt)),
+      capture('vessel', async () => normalizeAisPayload(await this.options.bridge!.aisLive(5_000, this.purpose), receivedAt)),
+      capture('fire', async () => normalizeFirmsPayload(await this.options.bridge!.firms(this.purpose), receivedAt)),
+      ] : []),
     ])
 
     if (domains.has('camera-catalog') && this.options.cameraCatalog && plan.subject?.trim()) {
