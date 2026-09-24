@@ -25,6 +25,7 @@ const DEVICE_LOCATION_PATTERNS: readonly RegExp[] = [
   /\b(near me|around me|around here|near here|in my area|my location|current location|where i am|where am i)\b/i,
   /\b(what(?:'s| is) happening|what(?:'s| is) going on)\b.{0,40}\b(here|nearby)\b/i,
   /\b(flights?|aircraft|planes?|traffic|cameras?|cctv|fires?|wildfires?|ships?|vessels?)\b.{0,40}\b(nearby|around here|near me)\b/i,
+  /\bnearby\b.{0,40}\b(flights?|aircraft|planes?|traffic|cameras?|cctv|fires?|wildfires?|ships?|vessels?)\b/i,
 ]
 
 /** True only for spatial reads whose scope is explicitly relative to the user's device location. */
