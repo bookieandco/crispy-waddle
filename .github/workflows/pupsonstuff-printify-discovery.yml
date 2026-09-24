@@ -70,6 +70,10 @@ jobs:
             printf '%s\n' '{"blocked":true,"blockedReason":"catalog-mapping-report.json was not produced","groups":[]}' > "$out"
           fi
 
+      - name: Compile exact launch review
+        if: steps.discovery.outcome == 'success'
+        run: pnpm --filter @jhadina/pupsonstuff printify:launch-review
+
       - name: Add launch discovery summary
         if: always()
         shell: bash
@@ -95,6 +99,20 @@ jobs:
             }]}' "$out" >> "$GITHUB_STEP_SUMMARY"
             echo "~~~" >> "$GITHUB_STEP_SUMMARY"
           fi
+          review="apps/pupsonstuff/docs/fulfillment/launch-catalog-review.json"
+          if [ -f "$review" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "#### Exact launch review" >> "$GITHUB_STEP_SUMMARY"
+            echo "~~~json" >> "$GITHUB_STEP_SUMMARY"
+            jq '{ready, targets: [.targets[] | {
+              productId,
+              variantId,
+              status,
+              reasons,
+              candidate
+            }]}' "$review" >> "$GITHUB_STEP_SUMMARY"
+            echo "~~~" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload discovery reports
         if: always()
@@ -105,6 +123,7 @@ jobs:
             apps/pupsonstuff/docs/fulfillment/catalog-mapping-report.json
             apps/pupsonstuff/docs/fulfillment/catalog-mapping-report.md
             apps/pupsonstuff/docs/fulfillment/launch-catalog-candidates.json
+            apps/pupsonstuff/docs/fulfillment/launch-catalog-review.json
           if-no-files-found: warn
           retention-days: 14
 
