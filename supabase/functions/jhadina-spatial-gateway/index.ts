@@ -17,6 +17,16 @@ const GITHUB_REPOSITORY = "bookieandco/crispy-waddle"
 const GITHUB_WORKFLOW = "GEV Satellite Live Certification"
 const GITHUB_CERT_BRANCH = "feat/ask-jhadina-gev-bridge-20260923"
 
+const GITHUB_JWKS = createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"))
+const VERCEL_JWKS = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
+const vercelJwks = (issuer: string) => {
+  const existing = VERCEL_JWKS.get(issuer)
+  if (existing) return existing
+  const created = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks`))
+  VERCEL_JWKS.set(issuer, created)
+  return created
+}
+
 type JsonObject = Record<string, unknown>
 
 function json(status: number, body: unknown): Response {
@@ -88,8 +98,7 @@ async function authorize(req: Request): Promise<boolean> {
   const issuer = typeof unverified.iss === "string" ? unverified.iss : ""
   try {
     if (issuer === GITHUB_ISSUER) {
-      const jwks = createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"))
-      const { payload } = await jwtVerify(token, jwks, {
+      const { payload } = await jwtVerify(token, GITHUB_JWKS, {
         issuer: GITHUB_ISSUER,
         audience: GITHUB_AUDIENCE,
       })
@@ -105,8 +114,7 @@ async function authorize(req: Request): Promise<boolean> {
     }
 
     if (VERCEL_ISSUERS.has(issuer)) {
-      const jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks`))
-      const { payload } = await jwtVerify(token, jwks, { issuer, audience: VERCEL_AUDIENCE })
+      const { payload } = await jwtVerify(token, vercelJwks(issuer), { issuer, audience: VERCEL_AUDIENCE })
       return payload.owner === VERCEL_OWNER
         && payload.owner_id === VERCEL_OWNER_ID
         && payload.project === VERCEL_PROJECT
