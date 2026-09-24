@@ -21,6 +21,20 @@ export function requiresSpatialContextForRead(activeTask: string): boolean {
   return SPATIAL_CONTEXT_PATTERNS.some((pattern) => pattern.test(normalized))
 }
 
+const DEVICE_LOCATION_PATTERNS: readonly RegExp[] = [
+  /\b(near me|around me|around here|near here|in my area|my location|current location|where i am|where am i)\b/i,
+  /\b(what(?:'s| is) happening|what(?:'s| is) going on)\b.{0,40}\b(here|nearby)\b/i,
+  /\b(flights?|aircraft|planes?|traffic|cameras?|cctv|fires?|wildfires?|ships?|vessels?)\b.{0,40}\b(nearby|around here|near me)\b/i,
+]
+
+/** True only for spatial reads whose scope is explicitly relative to the user's device location. */
+export function requiresDeviceLocationForSpatialRead(activeTask: string): boolean {
+  const normalized = activeTask.trim()
+  if (!normalized) return false
+  return requiresSpatialContextForRead(normalized)
+    && DEVICE_LOCATION_PATTERNS.some((pattern) => pattern.test(normalized))
+}
+
 /**
  * True when a read/analysis answer needs canonical JLLM context rather than a
  * narrow deterministic subsystem shortcut.
