@@ -102,21 +102,50 @@ export interface FulfillmentGroup {
 
 export function buildFulfillmentGroups(): FulfillmentGroup[] {
   const groups = new Map<string, FulfillmentGroup>();
+
+  const mergeUnique = (
+    current: string[] | undefined,
+    incoming: string[] | undefined
+  ): string[] | undefined => {
+    const values = [...new Set([...(current ?? []), ...(incoming ?? [])])];
+    return values.length ? values : undefined;
+  };
+
   for (const h of hotspots as Hotspot[]) {
     if (!h.fulfillment) continue; // checkout/portraitStudio hotspots — not real products
     const key = h.fulfillment.productId;
+
+    // Some storefront products (notably the 11oz mug) encode the required
+    // physical size only in the fulfillment variant label rather than in
+    // customization.sizes. Catalog discovery must still constrain that size;
+    // otherwise a same-color variant of a different ounce capacity could look
+    // like a valid launch match.
+    const derivedSizes =
+      h.customization?.sizes?.length
+        ? h.customization.sizes
+        : h.fulfillment.variants.map((variant) => variant.label).filter(Boolean);
+
     let g = groups.get(key);
     if (!g) {
       g = {
         fulfillmentProductId: key,
         productType: h.product,
         memberHotspots: [],
-        sizes: h.customization?.sizes,
+        sizes: derivedSizes,
         colors: h.customization?.colors,
         printAreaName: h.fulfillment.printArea.name,
         searchKeywords: KEYWORDS_BY_PRODUCT_TYPE[h.product] ?? [h.product],
       };
       groups.set(key, g);
+    } else {
+      g.sizes = mergeUnique(g.sizes, derivedSizes);
+      g.colors = mergeUnique(g.colors, h.customization?.colors);
+
+      if (g.printAreaName !== h.fulfillment.printArea.name) {
+        throw new Error(
+          `Fulfillment family "${key}" mixes print areas ("${g.printAreaName}" vs "${h.fulfillment.printArea.name}"). Split the family before catalog certification.`
+        );
+      }
     }
     g.memberHotspots.push({ id: h.id, name: h.name });
   }
