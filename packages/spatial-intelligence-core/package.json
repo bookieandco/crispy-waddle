@@ -7,7 +7,7 @@
   "types": "./src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "vitest run src/evidence-store.test.ts src/reality-admission.integration.test.ts src/reality-admission.test.ts src/reality-store.test.ts src/reality.test.ts && tsx --test src/conformance.test.ts src/gev-adapter.test.ts src/gev-p1-p3.test.ts src/gev-p4-p10.test.ts src/integration.test.ts src/spatial-pipeline.test.ts src/temporal.test.ts"
+    "test": "vitest run src/evidence-store.test.ts src/reality-admission.integration.test.ts src/reality-admission.test.ts src/reality-store.test.ts src/reality.test.ts && tsx --test src/cctv-camera-catalog.test.ts src/conformance.test.ts src/gev-adapter.test.ts src/gev-p1-p3.test.ts src/gev-p4-p10.test.ts src/integration.test.ts src/spatial-pipeline.test.ts src/temporal.test.ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
