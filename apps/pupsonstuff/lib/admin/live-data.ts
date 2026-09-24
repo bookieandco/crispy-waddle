@@ -35,7 +35,7 @@ export interface AdminCatalogVariant {
   provider: string;
   active: boolean;
   certification_status: string;
-  provider_product_id: string;
+  provider_product_id: string | null;
   provider_variant_id: string;
 }
 
