@@ -108,6 +108,9 @@ export * from './cast-bible';
 export * from './voice-identity';
 export * from './movie-audio-bible';
 export * from './character-reference-bootstrap';
+export * from './character-training-pipeline';
+export * from './character-lora-approval';
+export * from './video-upscale-finishing';
 export * from './generative-extend';
 export * from './reference-character-video';
 export * from './character-identity-qc';
@@ -119,3 +122,6 @@ export * from './storyboard-reference-board';
 export * from './conversation-prosody-observer';
 
 export * from './paid-video-generation';
+
+export * from './studio-character-training';
+export * from './studio-character-training-worker';

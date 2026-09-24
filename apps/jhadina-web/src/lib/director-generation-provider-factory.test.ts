@@ -4,7 +4,7 @@ import {
   type ArtifactAdmissionReceipt,
   type RuntimeArtifactAttestation,
 } from '@jhadina/reference-provenance';
-import type { ModelRecord } from '@jhadina/director-core';
+import type { LoRARecord, ModelRecord } from '@jhadina/director-core';
 import { createDirectorGenerationRuntimeConfig } from './director-generation-provider-factory';
 
 describe('director generation provider factory', () => {
@@ -15,6 +15,31 @@ describe('director generation provider factory', () => {
     version: '1.0.0',
     modalities: ['image'],
     capabilities: ['text-to-image'],
+    baseModel: 'flux-base',
+  };
+
+  const approvedLora: LoRARecord = {
+    id: 'character:mary:lora:step-500',
+    name: 'Character LoRA — mary',
+    version: '500',
+    baseModel: 'flux-base',
+    triggerWords: ['MARYX7'],
+    modalities: ['image'],
+    weight: { min: 0, max: 1.5, recommended: 0.9 },
+    uri: 'asset://mary-500.safetensors',
+    sha256: 'sha-500',
+    metadata: {
+      status: 'approved-character-lora',
+      characterId: 'mary',
+      continuityRef: 'character:mary:v1',
+      datasetId: 'dataset:mary:v1',
+      trainingRequestId: 'train:mary',
+      checkpointId: 'step-500',
+      approvalReceiptId: 'approval:lora:mary:500',
+      approvedAt: '2026-09-24T06:00:00Z',
+      approvedBy: 'owner',
+      approvalEvidenceIds: ['human:approval', 'qc:identity'],
+    },
   };
   const runtimeDescriptor = {
     runtimeName: 'comfyui-host',
@@ -105,6 +130,53 @@ describe('director generation provider factory', () => {
     expect(runtime.registry.getModel('flux-test')?.providerId).toBe(
       'comfyui-local',
     );
+  });
+
+
+  it('loads only approval-stamped character LoRAs into the production registry', async () => {
+    const runtime = await createDirectorGenerationRuntimeConfig({
+      artifactDeployment: await deploymentConfig(),
+      comfyUi: {
+        id: 'comfyui-local',
+        baseUrl: 'http://comfyui:8188',
+        models: [model],
+      },
+      approvedLoras: [approvedLora],
+    });
+
+    expect(runtime.registry.getLoRA(approvedLora.id)?.metadata?.approvalReceiptId)
+      .toBe('approval:lora:mary:500');
+  });
+
+  it('rejects a trained LoRA with no approval receipt', async () => {
+    await expect(createDirectorGenerationRuntimeConfig({
+      artifactDeployment: await deploymentConfig(),
+      comfyUi: {
+        id: 'comfyui-local',
+        baseUrl: 'http://comfyui:8188',
+        models: [model],
+      },
+      approvedLoras: [{
+        ...approvedLora,
+        metadata: {
+          ...approvedLora.metadata,
+          status: 'candidate-character-lora',
+          approvalReceiptId: undefined,
+        },
+      }],
+    })).rejects.toThrow('DIRECTOR_APPROVED_LORA_INVALID');
+  });
+
+  it('rejects an approved LoRA when its base model is not available', async () => {
+    await expect(createDirectorGenerationRuntimeConfig({
+      artifactDeployment: await deploymentConfig(),
+      comfyUi: {
+        id: 'comfyui-local',
+        baseUrl: 'http://comfyui:8188',
+        models: [model],
+      },
+      approvedLoras: [{ ...approvedLora, baseModel: 'different-base' }],
+    })).rejects.toThrow('DIRECTOR_APPROVED_LORA_BASE_MODEL_UNAVAILABLE');
   });
 
   it('fails closed when deployment proof is missing', async () => {

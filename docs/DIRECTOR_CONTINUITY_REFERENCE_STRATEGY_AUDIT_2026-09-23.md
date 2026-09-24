@@ -77,6 +77,161 @@ Storyboard reference frames are split into batches of at most four panels. The b
 
 When exact composition control or prior-shot continuity is requested, Director includes approved prior-shot references as explicit composition parents instead of re-creating the next shot from text alone.
 
+## Character dataset + LoRA training pipeline
+
+The supplied local workflow adds an optional escalation path when reference-only consistency is not enough:
+
+```
+approved canonical character reference
+  -> multi-view / expression / pose / wardrobe generation
+  -> dataset curation
+  -> trigger-word captions
+  -> identity-preserving upscale
+  -> optional character LoRA training
+  -> checkpoint sample QC
+  -> approved LoRA promotion
+```
+
+`character-training-pipeline.ts` now owns this path.
+
+Director can plan dataset tasks from one canonical asset, including:
+
+- front/profile/full-body views;
+- expression variations;
+- explicit pose-transfer references;
+- virtual-try-on / wardrobe references;
+- optional environment probes for generalization.
+
+Dataset admission rejects:
+
+- identity drift;
+- anatomy failures;
+- low-quality frames;
+- duplicate-heavy groups;
+- missing provenance;
+- missing trigger-word captions;
+- upscales that improve detail by changing the character.
+
+The upscale contract uses a provider-neutral `fidelityBias` instead of hard-coding one ComfyUI sampler/start-step implementation.
+
+LoRA training remains optional. A training request records:
+
+- trigger word;
+- base model;
+- image/video modality compatibility;
+- local vs remote-GPU execution target;
+- maximum training resolution;
+- checkpoint save interval;
+- sample interval and sample prompts.
+
+Director evaluates intermediate checkpoints rather than assuming the final training step is best. A later checkpoint that overfits can lose to an earlier one with better identity/quality balance.
+
+Only an approved checkpoint is promoted into the existing `LoRARecord` registry contract. The LoRA remains a **continuity assist**, not the canonical character identity; Cast Bible / approved reference evidence remains authoritative.
+
+## Low-VRAM 4K finishing
+
+The supplied workflow also describes an advanced video-finishing path that breaks a video into smaller pieces, upscales each piece, and recombines them to keep memory demand manageable.
+
+`video-upscale-finishing.ts` now models that as a governed post-render step:
+
+- exact source and target dimensions;
+- fixed FPS and frame count;
+- configurable maximum frames per chunk;
+- contiguous frame-exact chunk coverage;
+- audio preservation;
+- optional finishing effects:
+  - chromatic aberration;
+  - sharpening;
+  - bloom;
+  - grain.
+
+Effects carry normalized strength and purpose. They are finishing decisions, not permission to alter timing, character identity, shot structure, or audio.
+
+The output is rejected if the upscale:
+
+- changes target dimensions;
+- changes FPS;
+- changes frame count;
+- drops required audio;
+- produces the wrong number of chunk artifacts;
+- lacks evidence/provenance.
+
+This turns a low-memory chunked 4K workflow into a deterministic Director finishing contract rather than a free-form provider trick.
+
+## Governed runtime execution
+
+The dataset/training/upscale path is now executable through the same Director Studio action boundary used by tracking, rigging, physics, render, and QC.
+
+New governed capabilities:
+
+- `character-dataset`
+- `lora-train`
+- `video-upscale`
+
+`studio-character-training.ts` converts approved action requests into provider calls while preserving project/asset lineage.
+
+`studio-character-training-worker.ts` provides strict worker adapters for:
+
+- dataset generation;
+- character LoRA training;
+- chunked video upscale.
+
+Workers cannot silently change:
+
+- dataset plan IDs;
+- training request IDs;
+- checkpoint ownership;
+- source asset lineage;
+- upscale plan IDs;
+- frame count / FPS / target resolution.
+
+LoRA training returns one or more candidate checkpoints. Director applies checkpoint policy and produces a **candidate LoRA promotion**; it does not silently register or publish the LoRA. The resulting Studio asset still requires approval.
+
+Likewise, chunked upscale results are rejected if a worker changes governed timing, dimensions, chunk coverage, or required audio.
+
+## Approval-to-inference LoRA gate
+
+Training completion is not inference authority.
+
+`character-lora-approval.ts` now requires a matching approval receipt after checkpoint promotion. The receipt is bound to:
+
+- candidate LoRA ID;
+- checkpoint ID;
+- dataset ID;
+- character continuity reference;
+- identity score;
+- quality score;
+- overfit score;
+- approval evidence;
+- approving user and timestamp.
+
+The approval metrics must exactly match the promoted checkpoint evidence and still satisfy Director policy.
+
+Only then is an `approved-character-lora` record created.
+
+The canonical production generation factory now accepts an explicit approved-LoRA set (or `DIRECTOR_APPROVED_LORAS_JSON`) and fails closed unless each record includes:
+
+- approval metadata/evidence;
+- model artifact URI and digest;
+- trigger word;
+- continuity/dataset/checkpoint lineage;
+- a base model/modalities compatible with a currently admitted generation model.
+
+A bare trained checkpoint, candidate LoRA, or approval-free LoRA cannot enter the production `GenerationRegistry`.
+
+This closes the authority chain:
+
+```
+training
+  -> candidate checkpoint
+  -> Director checkpoint QC
+  -> candidate LoRA
+  -> explicit approval
+  -> approved LoRA record
+  -> production registry admission
+  -> generation selection
+```
+
 ## Runtime path
 
 ```

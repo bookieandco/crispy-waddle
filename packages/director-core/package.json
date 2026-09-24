@@ -63,7 +63,12 @@
     "./storyboard-reference-board": "./src/storyboard-reference-board.ts",
     "./generation-reference-manifest": "./src/generation-reference-manifest.ts",
     "./animation-principles": "./src/animation-principles.ts",
-    "./continuity-reference-strategy": "./src/continuity-reference-strategy.ts"
+    "./continuity-reference-strategy": "./src/continuity-reference-strategy.ts",
+    "./character-training-pipeline": "./src/character-training-pipeline.ts",
+    "./video-upscale-finishing": "./src/video-upscale-finishing.ts",
+    "./studio-character-training": "./src/studio-character-training.ts",
+    "./studio-character-training-worker": "./src/studio-character-training-worker.ts",
+    "./character-lora-approval": "./src/character-lora-approval.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",

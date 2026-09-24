@@ -7,6 +7,9 @@ export type DirectorStudioCapability =
   | 'rig'
   | 'physics'
   | 'render'
+  | 'character-dataset'
+  | 'lora-train'
+  | 'video-upscale'
   | 'qc'
 
 export type DirectorStudioAction = {
