@@ -67,6 +67,7 @@ jobs:
           src/cast-bible.test.ts
           src/character-reference-and-extend.test.ts
           src/character-training-pipeline.test.ts
+          src/video-upscale-finishing.test.ts
           src/whole-video-provider.test.ts
           src/paid-video-generation.test.ts
           src/commercial-creative-lab.test.ts
