@@ -136,7 +136,8 @@ export function validateStripeLineItems(items: unknown): ValidatedCartItem[] | n
     if (
       typeof snapshot.printAssetId !== 'string' ||
       snapshot.fulfillmentProvider !== 'printify' ||
-      typeof snapshot.providerProductId !== 'string' ||
+      (snapshot.providerProductId !== undefined &&
+        typeof snapshot.providerProductId !== 'string') ||
       typeof snapshot.providerVariantId !== 'string' ||
       typeof snapshot.blueprintId !== 'string' ||
       typeof snapshot.printProviderId !== 'string' ||
@@ -152,7 +153,10 @@ export function validateStripeLineItems(items: unknown): ValidatedCartItem[] | n
       priceCents: raw.price,
       printAssetId: snapshot.printAssetId,
       fulfillmentProvider: 'printify',
-      providerProductId: snapshot.providerProductId,
+      providerProductId:
+        typeof snapshot.providerProductId === 'string' && snapshot.providerProductId.length > 0
+          ? snapshot.providerProductId
+          : undefined,
       providerVariantId: snapshot.providerVariantId,
       blueprintId: snapshot.blueprintId,
       printProviderId: snapshot.printProviderId,
