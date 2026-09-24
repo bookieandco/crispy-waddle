@@ -2,7 +2,7 @@
 
 Certification date: 2026-09-23 (America/Los_Angeles)
 
-Status: **SOURCE CANDIDATE — exact-head CI and production health required**
+Status: **CERTIFICATION COMPLETE — PRODUCTION PASS**
 
 ## Goal
 
@@ -159,3 +159,93 @@ without the native compute receipts already required there.
 
 Native physical audio quality remains a separate line under #676 and is not silently
 waived by this certification.
+
+
+## Production certification receipt
+
+Source head:
+
+`54a7f4d0caab79c24e3e5af604dacf67add782fb`
+
+Merged production lineage:
+
+`ec58477a2580346101de0504397f3e02cd9f3fb9`
+
+Vercel deployment:
+
+`dpl_B6WJzHEsqDGJVeXDSA9cib8HZXrk`
+
+Production admission evidence:
+
+- target = `production`;
+- readyState = `READY`;
+- Git source = `main`;
+- alias error = none;
+- canonical production alias attached;
+- `GET /api/health` = 200 and reports the exact merge SHA,
+  `environment=production`, and `durableMemory=ready`;
+- `GET /ask-jhadina` = 200;
+- `GET /api/jhadina/interaction-quality/health` = 200 / READY;
+- model-realization quality rules = 17;
+- deterministic interaction-quality gates = 13/13 ready;
+- `GET /api/jhadina/expression/health` = 200 / READY and independently reports
+  interaction quality 13/13 ready;
+- no runtime error cluster was found for Ask Jhadina, command, interaction-quality,
+  expression-health, or general-health routes in the certification window;
+- no error/fatal logs were found on the exact production deployment.
+
+Exact-head workflow evidence:
+
+- Jhadina Interaction Quality Final Certification — PASS;
+- JLLM Runtime Final Certification — PASS;
+- Jhadina Personality Core CI — PASS;
+- Jhadina Launch Gate — PASS;
+- Jhadina Web Deploy Conformance — PASS;
+- UX Final Certification — PASS;
+- Safety Core — PASS;
+- Social Core Certification — PASS;
+- Growth Production Certification — PASS;
+- Growth Vercel Prebuilt Preview — PASS;
+- Media Production Certification — PASS;
+- Spatial Conformance — PASS;
+- INTCOM Core — PASS;
+- Jhadina Evolution Core CI — PASS.
+
+## Defects found and repaired during certification
+
+The quality program found real defects instead of weakening the gates:
+
+1. The dedicated workflow initially attempted to run Intelligence Core quality tests
+   through Vitest even though that package's canonical harness is Node's test runner.
+   The new tests and workflow were moved onto the real package test harness.
+2. Natural distress routing recognized `grief` but missed ordinary forms such as
+   `grieving` and `bereaved`. The distress and conversation-temperature
+   detectors were expanded so those phrases now suppress banter.
+3. The voice-quality comparison treated optional provider-neutral delivery values as
+   always present. The quality gate now narrows and verifies rate/pause values before
+   comparing them.
+
+## Final decision
+
+**JHADINA-INTERACTION-QUALITY.FINAL = PASS / CLOSED**
+
+This certifies the browser/text interaction-quality layer on production:
+
+- one continuous Jhadina rather than persona switching;
+- semantic invariance across expression registers;
+- direct disagreement without hostile personalization;
+- distress/high-stakes and precision/technical overrides;
+- sacred/spiritual interpretive boundaries;
+- fringe/perceptual evidence discipline;
+- clinical evidence separation;
+- adult intimacy agency and privacy boundaries;
+- bounded cultural-storytelling / roast behavior;
+- ephemeral session bits and immediate discomfort bit-kill;
+- voice/expression presentation parity;
+- natural register routing;
+- 100-turn no-drift Personality stability;
+- cross-subsystem semantic preservation.
+
+Native voice compute remains a separate external infrastructure exception under
+GitHub issue #676. It does not weaken or reopen this quality certification. A native
+Whisper/TTS quality claim still requires the physical/native receipts tracked there.
