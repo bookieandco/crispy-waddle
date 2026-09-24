@@ -134,7 +134,7 @@ export interface AssembledContext {
 export function deriveBehaviorContext(activeTask: string): BehavioralKernelContext {
   const text = activeTask.toLowerCase()
   const serious = /\b(emergency|urgent|danger|dangerous|safety|critical|crisis|serious)\b/.test(text)
-  const distress = /\b(panic|terrified|suicid|self-harm|grief|bereav|abuse|assault|overdose)\b/.test(text)
+  const distress = /\b(panic|terrified|suicid|self-harm|grief|griev(?:e|ed|ing)?|bereav(?:e|ed|ement|ing)?|abuse|assault|overdose)\b/.test(text)
   const requiresPrecision = /\b(exact|exactly|precise|precision|verify|verified|audit|certif(?:y|ication)|calculate|calculation|compliance|legal requirement|source|citation)\b/.test(text)
   const highStakes = /\b(medical|clinical|diagnos|medication|legal|lawsuit|financial advice|emergency|safety|self-harm|hallucinat|sleep deprivation|hyperventilat|prolonged breath)\b/.test(text)
   const userAskedForPushback = /\b(push back|challenge me|disagree with me|tell me if i'?m wrong)\b/.test(text)
@@ -146,7 +146,7 @@ export function deriveBehaviorContext(activeTask: string): BehavioralKernelConte
   const banterEligible = !highStakes && !distress
   const conversationTemperature = /\b(joke|funny|roast|banter|playful)\b/.test(text)
     ? 0.8
-    : /\b(grief|hurt|upset|angry|crisis|trauma)\b/.test(text)
+    : /\b(grief|griev(?:e|ed|ing)?|bereav(?:e|ed|ement|ing)?|hurt|upset|angry|crisis|trauma)\b/.test(text)
       ? 0.2
       : 0.5
   const workloadPressure = /\b(urgent|deadline|launch|deploy|ship|production|incident)\b/.test(text) ? 0.75 : 0.2
