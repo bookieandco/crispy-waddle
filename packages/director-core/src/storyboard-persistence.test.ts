@@ -5,7 +5,7 @@ import {
 } from './storyboard-persistence.js';
 
 describe('SupabaseStoryboardRepository structured direction persistence', () => {
-  it('selects and hydrates camera, performance, and realism plans', async () => {
+  it('selects and hydrates camera, performance, realism, and animation plans', async () => {
     let selectedColumns = '';
     const row = {
       id: 'board:1',
@@ -62,6 +62,19 @@ describe('SupabaseStoryboardRepository structured direction persistence', () => 
         physicalChains: [],
         preservation: [],
       },
+      animation_plan: {
+        version: 1,
+        narrativeGoal: 'make the reaction readable before motion resumes',
+        primaryAction: 'head turns toward the sound',
+        method: 'pose-to-pose',
+        poseHierarchy: { keys: ['neutral', 'anticipation glance', 'turned reaction'] },
+        staging: {
+          primaryRead: 'the head turn',
+          audienceAttentionTarget: 'eyes and face',
+          competingActionPolicy: 'none',
+        },
+        timing: { fps: 24, exposure: 'twos', primaryActionFrames: 12 },
+      },
       version: 4,
       artifact_ids: ['artifact:board'],
       updated_at: '2026-09-22T23:20:00.000Z',
@@ -88,8 +101,10 @@ describe('SupabaseStoryboardRepository structured direction persistence', () => 
     expect(selectedColumns).toContain('camera_plan');
     expect(selectedColumns).toContain('performance_plan');
     expect(selectedColumns).toContain('realism_plan');
+    expect(selectedColumns).toContain('animation_plan');
     expect(board?.cameraPlan).toEqual(row.camera_plan);
     expect(board?.performancePlan).toEqual(row.performance_plan);
     expect(board?.realismPlan).toEqual(row.realism_plan);
+    expect(board?.animationPlan).toEqual(row.animation_plan);
   });
 });
