@@ -35,6 +35,10 @@ describe("named-place spatial resolver", () => {
     expect(resolveNamedPlaceScope("Show traffic within 12 km of KLAX")?.radiusKm).toBe(12)
   })
 
+  it("fails closed on an oversized explicit radius", () => {
+    expect(resolveNamedPlaceScope("Show cameras within 500 miles of LAX")).toBeUndefined()
+  })
+
   it("does not match LAX inside an unrelated word", () => {
     expect(resolveNamedPlaceScope("Help me relax about this")).toBeUndefined()
   })
