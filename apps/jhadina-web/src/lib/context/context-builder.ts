@@ -8,6 +8,7 @@ import {
   type EphemeralArtifactContext,
   type ExpressionDirective,
   type GrowthDomainContext,
+  type LiveContextContribution,
   type OwnerContextContribution,
   type PatternObservation,
   type PersonalityState,
@@ -98,6 +99,7 @@ export interface ContextBuilderInput {
   temporalScope?: { from: string | null; to: string | null; asOf: string | null }
   artifacts?: EphemeralArtifactContext[]
   conversationSignals?: ConversationSignalContext
+  liveContext?: LiveContextContribution
   behaviorContext?: BehavioralKernelContext
   limits?: Partial<ContextBuilderLimits>
 }
@@ -477,6 +479,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     excludedContext,
     ...(input.artifacts?.length ? { artifacts: input.artifacts.map((artifact) => ({ ...artifact })) } : {}),
     ...(input.conversationSignals ? { conversationSignals: structuredClone(input.conversationSignals) } : {}),
+    ...(input.liveContext ? { liveContext: structuredClone(input.liveContext) } : {}),
     ...(ownerContext ? { ownerContext } : {}),
     ...(domainContext ? { domainContext } : {}),
     ...(expressionDirective ? { expressionDirective } : {}),
