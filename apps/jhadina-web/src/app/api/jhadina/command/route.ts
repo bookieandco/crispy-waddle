@@ -59,9 +59,9 @@ function parseLiveContext(value: unknown): LiveContextContribution | undefined {
     ? raw.recentTurns.slice(-JHADINA_LIVE_CONTEXT_LIMITS.maxRecentTurns).flatMap((value, index) => {
         if (!value || typeof value !== "object") return []
         const turn = value as Record<string, unknown>
-        const speaker = turn.speaker
+        const speaker = turn.speaker === "user" || turn.speaker === "jhadina" ? turn.speaker : undefined
         const text = typeof turn.text === "string" ? turn.text.trim().slice(0, 1200) : ""
-        if ((speaker !== "user" && speaker !== "jhadina") || !text) return []
+        if (!speaker || !text) return []
         return [{
           id: typeof turn.id === "string" && turn.id.trim() ? turn.id.slice(0, 160) : `live-turn:${index}`,
           speaker,
