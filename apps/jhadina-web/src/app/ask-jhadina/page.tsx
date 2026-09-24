@@ -7,7 +7,7 @@ import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
 import { chunkSpeechText, isAbortLike, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
-import { requiresDeviceLocationForSpatialRead } from "@/lib/intelligence/ask-contextual-read-routing"
+import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -115,15 +115,27 @@ function AskJhadina(){
  }
 
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
- function spatialScopeFromParams():SpatialGeographicScope|undefined{
-  const latRaw=params.get("lat"),lonRaw=params.get("lon")
-  if(latRaw===null||lonRaw===null)return undefined
-  const lat=Number(latRaw),lon=Number(lonRaw),radius=Number(params.get("radiusKm")??"")
+ function validSpatialScope(raw:unknown):SpatialGeographicScope|undefined{
+  if(!raw||typeof raw!=="object")return undefined
+  const value=raw as Record<string,unknown>
+  const lat=Number(value.lat),lon=Number(value.lon),radius=Number(value.radiusKm)
   if(!Number.isFinite(lat)||lat<-90||lat>90||!Number.isFinite(lon)||lon<-180||lon>180)return undefined
   return{lat,lon,...(Number.isFinite(radius)&&radius>0?{radiusKm:radius}:{})}
  }
+ function spatialScopeFromContext():SpatialGeographicScope|undefined{
+  const latRaw=params.get("lat"),lonRaw=params.get("lon")
+  if(latRaw!==null&&lonRaw!==null){
+   const explicit=validSpatialScope({lat:latRaw,lon:lonRaw,radiusKm:params.get("radiusKm")})
+   if(explicit)return explicit
+  }
+  if(typeof window==="undefined")return undefined
+  const staged=window.sessionStorage.getItem("jhadina:spatial-scope")
+  if(!staged)return undefined
+  try{return validSpatialScope(JSON.parse(staged))}catch{return undefined}
+ }
  async function resolveSpatialGeographicScope(command:string):Promise<SpatialGeographicScope|undefined>{
-  const explicit=spatialScopeFromParams()
+  if(!requiresSpatialContextForRead(command))return undefined
+  const explicit=spatialScopeFromContext()
   if(explicit)return explicit
   if(!requiresDeviceLocationForSpatialRead(command))return undefined
   if(typeof navigator==="undefined"||!navigator.geolocation)throw new Error("Device location is unavailable. Specify a location or open Ask Jhadina from the Spatial workspace.")
