@@ -156,3 +156,37 @@ export function isAbortLike(error: unknown): boolean {
     ? error.name === "AbortError"
     : error instanceof Error && /abort/i.test(error.name + ":" + error.message)
 }
+
+
+export type WakeSpeechDecision =
+  | { action: "ignore" }
+  | { action: "activate" }
+  | { action: "deactivate" }
+  | { action: "command"; command: string; activates: boolean }
+
+export function classifyWakeSpeech(
+  transcript: string,
+  conversationActive: boolean,
+): WakeSpeechDecision {
+  const value=transcript.trim()
+  if(!value)return {action:"ignore"}
+
+  if(
+    conversationActive &&
+    /^(?:(?:hey\s+)?jhadina[,.!]?\s*)?(?:stop listening|go to sleep|goodbye|that's all)[.!]?$/i.test(value)
+  ){
+    return {action:"deactivate"}
+  }
+
+  const wake=value.match(/(?:^|\s)(?:hey\s+)?jhadina[,.!]?\s*(.*)$/i)
+  if(wake){
+    const command=(wake[1]??"").trim()
+    return command
+      ? {action:"command",command,activates:true}
+      : {action:"activate"}
+  }
+
+  return conversationActive
+    ? {action:"command",command:value,activates:false}
+    : {action:"ignore"}
+}
