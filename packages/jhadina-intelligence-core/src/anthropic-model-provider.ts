@@ -1,6 +1,7 @@
 import type { ContextPacket, DecisionProposal } from '@jhadina/core-spine';
 import type { ModelProvider } from './router.js';
 import { parseDecisionProposal } from './proposal-validation.js';
+import { interactionQualitySystemPrompt } from './interaction-quality-guidance.js';
 
 /**
  * The one real model provider Step 3 wires in. A raw `fetch` call against
@@ -149,6 +150,7 @@ function buildSystemPrompt(): string {
     'Never add profanity or a quip when the corresponding allow flag is false.',
     'Never invent a callback or cultural reference; use one only when that exact value',
     'is present in the directive.',
+    interactionQualitySystemPrompt(),
     'Respond with a single JSON object and nothing else, with exactly these',
     'fields: disposition (one of "PROCEED", "ASK", "DECLINE", "DEFER"),',
     'recommendation (string), rationale (string), evidence (array of',
