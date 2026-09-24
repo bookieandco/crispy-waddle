@@ -212,6 +212,32 @@ function isRelevant(content: string, keywords: string[]): boolean {
   return keywords.some((keyword) => lower.includes(keyword))
 }
 
+function sanitizeLiveContext(input: LiveContextContribution | undefined): { context?: LiveContextContribution; redactionCount: number } {
+  if (!input) return { redactionCount: 0 }
+  let redactionCount = 0
+  const recentTurns = input.recentTurns.slice(-8).map((turn) => {
+    const redacted = redactSecrets(turn.text)
+    redactionCount += redacted.redactionCount
+    return { ...turn, text: redacted.redacted.slice(0, 1200) }
+  })
+  let workSession = input.workSession
+  if (workSession?.goal) {
+    const redacted = redactSecrets(workSession.goal)
+    redactionCount += redacted.redactionCount
+    workSession = { ...workSession, goal: redacted.redacted.slice(0, 1200) }
+  }
+  return {
+    redactionCount,
+    context: {
+      source: "ask-jhadina-live",
+      observedAt: input.observedAt,
+      recentTurns,
+      ...(workSession ? { workSession: structuredClone(workSession) } : {}),
+      limitations: [...input.limitations],
+    },
+  }
+}
+
 function sortMemoriesDeterministically(memories: Memory[]): Memory[] {
   return [...memories].sort((a, b) => {
     const aDate = a.approvedAt ?? a.createdAt
@@ -341,6 +367,8 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   const { redacted: redactedActiveTask, redactionCount: taskRedactions } = redactSecrets(input.activeTask)
   totalRedactions += taskRedactions
   const behaviorContext = input.behaviorContext ?? deriveBehaviorContext(redactedActiveTask)
+  const sanitizedLive = sanitizeLiveContext(input.liveContext)
+  totalRedactions += sanitizedLive.redactionCount
 
   let patterns: PatternObservation[] = []
   let personality = emptyPersonalityState(new Date(0).toISOString())
@@ -479,7 +507,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
     excludedContext,
     ...(input.artifacts?.length ? { artifacts: input.artifacts.map((artifact) => ({ ...artifact })) } : {}),
     ...(input.conversationSignals ? { conversationSignals: structuredClone(input.conversationSignals) } : {}),
-    ...(input.liveContext ? { liveContext: structuredClone(input.liveContext) } : {}),
+    ...(sanitizedLive.context ? { liveContext: sanitizedLive.context } : {}),
     ...(ownerContext ? { ownerContext } : {}),
     ...(domainContext ? { domainContext } : {}),
     ...(expressionDirective ? { expressionDirective } : {}),
