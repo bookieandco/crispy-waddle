@@ -301,7 +301,7 @@ function AskJhadina(){
   commandAbortRef.current=controller
   busyRef.current=true
   setBusy(true)
-  setInteractivePhase("thinking")
+  setInteractivePhase(source==="voice"?"understanding":"thinking")
   setError("")
   setResult(null)
   setFeedbackRecorded(null)
@@ -310,6 +310,7 @@ function AskJhadina(){
 
   try{
    const userId=await identity()
+   if(activeTurnRef.current===turnId)setInteractivePhase("thinking")
    let data:CommandResult
    if(referenceFile){
     data=referenceKind==="product"?await askWithReferenceProduct(command,userId):await askWithReferenceCharacter(command,userId)
