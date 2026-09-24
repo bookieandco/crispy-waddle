@@ -44,7 +44,7 @@ describe('Printify certification client fails closed', () => {
 
   it('uses the live catalog endpoints required by the read-only MCP subset', async () => {
     process.env.PRINTIFY_API_KEY = 'test-key';
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith('/v1/catalog/blueprints.json')) {
         return new Response('[]', { status: 200 });
