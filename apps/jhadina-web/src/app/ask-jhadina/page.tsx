@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
 import { chunkSpeechText, isAbortLike, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
-import { buildLiveContext } from "./live-context-runtime"
+import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -71,22 +71,12 @@ function AskJhadina(){
    const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{headers:{"x-jhadina-user-id":userId}})
    if(!response.ok)return
    const json=await response.json()
-   const goal=typeof json?.session?.goal==="string"?json.session.goal:""
-   const sessionArtifacts=Array.isArray(json?.session?.artifactRefs)
-    ? json.session.artifactRefs
-      .filter((item:unknown):item is {id:string;admitted?:boolean}=>Boolean(item&&typeof item==="object"&&typeof (item as {id?:unknown}).id==="string"))
-      .filter((item:{id:string;admitted?:boolean})=>item.admitted!==false)
-      .map((item:{id:string})=>item.id)
-      .slice(0,8)
-    : []
-   const sessionSubsystems=Array.isArray(json?.session?.activeSubsystems)
-    ? json.session.activeSubsystems.filter((item:unknown):item is string=>typeof item==="string"&&Boolean(item.trim())).slice(0,16)
-    : []
+   const restored=restoreWorkSessionContinuity(json?.session)
    if(cancelled)return
-   setWorkSessionGoal(goal)
-   setArtifactRefs(current=>[...new Set([...sessionArtifacts,...current])].slice(0,8))
-   setWorkSessionActiveSubsystems(sessionSubsystems)
-   if(goal)setTask(current=>current.trim()?current:goal)
+   setWorkSessionGoal(restored.goal)
+   setArtifactRefs(current=>[...new Set([...restored.admittedArtifactIds,...current])].slice(0,8))
+   setWorkSessionActiveSubsystems(restored.activeSubsystems)
+   if(restored.goal)setTask(current=>current.trim()?current:restored.goal)
   })().catch(()=>{})
   return()=>{cancelled=true}
  },[])
@@ -439,7 +429,7 @@ function AskJhadina(){
    <JhadinaLiveInput
     busy={busy}
     onArtifactsChange={setArtifacts}
-    onArtifactRefsChange={setArtifactRefs}
+    onArtifactRefsChange={(refs)=>setArtifactRefs(current=>[...new Set([...current,...refs])].slice(0,8))}
     onBargeIn={interruptCurrentTurn}
     onVoiceCommand={(command,signals)=>void ask(command,signals,"voice")}
     onLanguageChange={setVoiceLanguage}
