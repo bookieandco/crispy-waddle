@@ -143,3 +143,4 @@ export * from './pose-action-recognition';
 export * from './roboflow-people-observation';
 export * from './hybrid-animation-production';
 export * from './action-sequence-control';
+export * from './model-prompt-translation';
