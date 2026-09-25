@@ -1,6 +1,7 @@
 import type { DirectorCameraPlan } from './camera-language.js';
 import type { PerformanceDirectionPlan } from './performance-direction.js';
 import type { RealismDirectionPlan } from './realism-direction.js';
+import type { CinematographyLightingPlan } from './cinematic-lighting.js';
 import type { AnimationPrinciplesPlan } from './animation-principles.js';
 import type { CinematographyPreset, ContinuityLock } from './generation-orchestrator.js';
 
@@ -28,6 +29,7 @@ export interface StoryboardBoard {
   cameraPlan?: DirectorCameraPlan;
   performancePlan?: PerformanceDirectionPlan;
   realismPlan?: RealismDirectionPlan;
+  lightingPlan?: CinematographyLightingPlan;
   animationPlan?: AnimationPrinciplesPlan;
   version: number;
   artifactIds: string[];
