@@ -14,17 +14,17 @@ class MuseTalkEngine:
  name="musetalk"
  def __init__(self,resolve_asset:Callable[[str],str],runtime:Callable[...,dict[str,Any]]):self.resolve_asset,self.runtime=resolve_asset,runtime
  def synchronize(self,r:dict[str,Any])->dict[str,Any]:
-  return _bounded(self.runtime(video=self.resolve_asset(r["videoAssetId"]),audio=self.resolve_asset(r["audioAssetId"]),tracks=r["tracks"],character_track_id=r.get("characterTrackId"),transcript_plan=r.get("transcriptPlan"),tuning_plan=r.get("tuningPlan")),"musetalk")
+  return _bounded(self.runtime(video=self.resolve_asset(r["videoAssetId"]),audio=self.resolve_asset(r["audioAssetId"]),tracks=r["tracks"],character_track_id=r.get("characterTrackId"),transcript_plan=r.get("transcriptPlan"),tuning_plan=r.get("tuningPlan"),repair_plan=r.get("repairPlan")),"musetalk")
 
 class Wav2LipEngine:
  name="wav2lip"
  def __init__(self,resolve_asset:Callable[[str],str],runtime:Callable[...,dict[str,Any]]):self.resolve_asset,self.runtime=resolve_asset,runtime
  def synchronize(self,r:dict[str,Any])->dict[str,Any]:
-  return _bounded(self.runtime(video=self.resolve_asset(r["videoAssetId"]),audio=self.resolve_asset(r["audioAssetId"]),tracks=r["tracks"]),"wav2lip")
+  return _bounded(self.runtime(video=self.resolve_asset(r["videoAssetId"]),audio=self.resolve_asset(r["audioAssetId"]),tracks=r["tracks"],repair_plan=r.get("repairPlan")),"wav2lip")
 
 class RhubarbEngine:
  name="rhubarb"
  def __init__(self,resolve_asset:Callable[[str],str],runtime:Callable[...,dict[str,Any]]):self.resolve_asset,self.runtime=resolve_asset,runtime
  def synchronize(self,r:dict[str,Any])->dict[str,Any]:
   if r["mode"] not in ("phoneme-driven","viseme-driven"):raise ValueError("rhubarb accepts timing modes only")
-  return _bounded(self.runtime(audio=self.resolve_asset(r["audioAssetId"]),mode=r["mode"],tracks=r["tracks"],transcript_plan=r.get("transcriptPlan"),tuning_plan=r.get("tuningPlan")),"rhubarb")
+  return _bounded(self.runtime(audio=self.resolve_asset(r["audioAssetId"]),mode=r["mode"],tracks=r["tracks"],transcript_plan=r.get("transcriptPlan"),tuning_plan=r.get("tuningPlan"),repair_plan=r.get("repairPlan")),"rhubarb")
