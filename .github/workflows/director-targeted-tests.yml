@@ -84,6 +84,8 @@ jobs:
           src/roboflow-people-observation.test.ts
           src/hybrid-animation-production.test.ts
           src/action-sequence-control.test.ts
+          src/model-prompt-translation.test.ts
+          src/generation-plan-prompt-translation.test.ts
           src/quick-cut-planner.test.ts
           src/studio-character-replacement-worker.test.ts
           src/studio-character-replacement.test.ts
