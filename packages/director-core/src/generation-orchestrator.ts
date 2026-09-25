@@ -1,6 +1,7 @@
 import { compileDirectorCameraDirective, type DirectorCameraPlan } from './camera-language.js';
 import { compilePerformanceDirective, type PerformanceDirectionPlan } from './performance-direction.js';
 import { compileRealismDirective, type RealismDirectionPlan } from './realism-direction.js';
+import { compileCinematographyLightingDirective, type CinematographyLightingPlan } from './cinematic-lighting.js';
 import { compileGenerationReferenceManifest, type GenerationReferenceManifest } from './generation-reference-manifest.js';
 import { compileAnimationPrinciplesDirective, type AnimationPrinciplesPlan } from './animation-principles.js';
 import { compileContinuityStrategyDirective, type ContinuityStrategyPlan } from './continuity-reference-strategy.js';
@@ -53,6 +54,8 @@ export type TakeRequest = {
   performancePlan?: PerformanceDirectionPlan;
   /** Physical plausibility, naturalism and source-preservation direction. */
   realismPlan?: RealismDirectionPlan;
+  /** Canonical DP lighting direction, softness, color, intensity and shaping plan. */
+  lightingPlan?: CinematographyLightingPlan;
   /** Governed animation motion grammar derived from classical animation principles. */
   animationPlan?: AnimationPrinciplesPlan;
   /** Director-selected cross-shot identity/world continuity strategy. */
@@ -104,6 +107,7 @@ export function compileTakePrompt(request: TakeRequest): string {
     request.cameraPlan ? section('CAMERA DIRECTION', compileDirectorCameraDirective(request.cameraPlan)) : undefined,
     request.performancePlan ? section('PERFORMANCE DIRECTION', compilePerformanceDirective(request.performancePlan)) : undefined,
     request.realismPlan ? section('REALISM / SOURCE PRESERVATION', compileRealismDirective(request.realismPlan)) : undefined,
+    request.lightingPlan ? section('CINEMATOGRAPHY LIGHTING', compileCinematographyLightingDirective(request.lightingPlan)) : undefined,
     request.animationPlan ? section('ANIMATION PRINCIPLES', compileAnimationPrinciplesDirective(request.animationPlan)) : undefined,
     request.continuityStrategy ? section('CONTINUITY STRATEGY', compileContinuityStrategyDirective(request.continuityStrategy)) : undefined,
     referenceManifest ? section('REFERENCE MANIFEST', compileGenerationReferenceManifest(referenceManifest).directive) : undefined,
@@ -137,6 +141,8 @@ export function buildGenerationBrief(request: TakeRequest) {
     performanceDirective: request.performancePlan ? compilePerformanceDirective(request.performancePlan) : undefined,
     realismPlan: request.realismPlan,
     realismDirective: request.realismPlan ? compileRealismDirective(request.realismPlan) : undefined,
+    lightingPlan: request.lightingPlan,
+    lightingDirective: request.lightingPlan ? compileCinematographyLightingDirective(request.lightingPlan) : undefined,
     animationPlan: request.animationPlan,
     animationDirective: request.animationPlan ? compileAnimationPrinciplesDirective(request.animationPlan) : undefined,
     continuityStrategy: request.continuityStrategy,
