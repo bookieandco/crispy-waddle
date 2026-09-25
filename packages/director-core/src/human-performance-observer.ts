@@ -206,8 +206,9 @@ function gestureIndex(gesture:HumanGestureLike):number{
 function validConfidence(value:number,minimum:number):boolean{
   return Number.isFinite(value)&&value>=minimum&&value<=1;
 }
-function validPoint(point:readonly number[]):boolean{
-  return point.length>=2&&Number.isFinite(point[0])&&Number.isFinite(point[1])&&point[0]>=0&&point[0]<=1&&point[1]>=0&&point[1]<=1;
+function validPoint(point:readonly (number|undefined)[]):boolean{
+  const x=point[0],y=point[1];
+  return typeof x==='number'&&typeof y==='number'&&Number.isFinite(x)&&Number.isFinite(y)&&x>=0&&x<=1&&y>=0&&y<=1;
 }
 function validBox(box:readonly number[]):boolean{
   return box.length===4&&box.every(Number.isFinite)&&box[0]!>=0&&box[1]!>=0&&box[2]!>0&&box[3]!>0&&box[0]!+box[2]!<=1&&box[1]!+box[3]!<=1;
