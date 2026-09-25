@@ -80,7 +80,8 @@
     "./cartoon-production-workflow": "./src/cartoon-production-workflow.ts",
     "./performance-capture-plan": "./src/performance-capture-plan.ts",
     "./human-performance-observer": "./src/human-performance-observer.ts",
-    "./pose-action-recognition": "./src/pose-action-recognition.ts"
+    "./pose-action-recognition": "./src/pose-action-recognition.ts",
+    "./roboflow-people-observation": "./src/roboflow-people-observation.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
