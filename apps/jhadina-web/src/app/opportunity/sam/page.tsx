@@ -110,6 +110,15 @@ function ContractCard({item}:{item:SamCommandCenterItem}){
       {item.subcontractability.status==="unknown"&&<p style={muted}>Subcontractability analysis pending.</p>}
     </Section>
 
+    <Section title="Provider bench coverage">
+      {item.providerBench.length?<div style={providerGrid}>{item.providerBench.map(bench=><div key={bench.requirementId} style={providerCard}>
+        <div style={{fontWeight:700}}>{bench.requirementId}</div>
+        <div style={mutedSmall}>{bench.qualifiedCount} qualified · {bench.corroboratedCount} corroborated · target {bench.targetCandidateCount}</div>
+        <div style={inlineRow}><span style={miniBadge}>{label(bench.status)}</span></div>
+        {bench.blockers.map(x=><p key={x} style={blockerText}>{x}</p>)}
+      </div>)}</div>:<p style={muted}>Provider bench coverage has not been generated yet.</p>}
+    </Section>
+
     <Section title="Matched companies">
       {item.providers.length?<div style={providerGrid}>{item.providers.slice(0,8).map(provider=><div key={provider.requirementId+provider.providerKey} style={providerCard}>
         <div style={{fontWeight:700}}>{provider.providerName}</div>
