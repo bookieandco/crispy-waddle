@@ -77,7 +77,10 @@
     "./transcript-assisted-lip-sync": "./src/transcript-assisted-lip-sync.ts",
     "./character-performance-rig": "./src/character-performance-rig.ts",
     "./character-animation-enhancements": "./src/character-animation-enhancements.ts",
-    "./cartoon-production-workflow": "./src/cartoon-production-workflow.ts"
+    "./cartoon-production-workflow": "./src/cartoon-production-workflow.ts",
+    "./performance-capture-plan": "./src/performance-capture-plan.ts",
+    "./human-performance-observer": "./src/human-performance-observer.ts",
+    "./pose-action-recognition": "./src/pose-action-recognition.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
