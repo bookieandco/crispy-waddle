@@ -12,6 +12,14 @@ export type World3DCapability =
   | 'semantic-segmentation'
   | 'covisibility'
   | 'point-cloud-reconstruction'
+  | 'posed-sparse-multiview'
+  | 'foreground-mask-input'
+  | 'object-mesh-reconstruction'
+  | 'novel-view-synthesis'
+  | 'inverse-rendering'
+  | 'material-albedo'
+  | 'material-roughness'
+  | 'material-metallic'
   | 'free-camera-world'
   | 'navigable-world';
 
@@ -39,6 +47,7 @@ export interface World3DBackendProfile {
   accessMode:BackendAccessMode;
   license:World3DBackendLicensePolicy;
   runtimeAvailable:boolean;
+  requiredExternalAccessIds?:readonly string[];
   notes:readonly string[];
   sourceRefs:readonly string[];
   authority:'DIRECTOR_3D_BACKEND_PROFILE';
@@ -49,12 +58,14 @@ export interface World3DBackendRequirement {
   use:
     | 'prop-asset-generation'
     | 'set-piece-generation'
+    | 'object-reconstruction'
     | 'environment-reconstruction'
     | 'navigable-world'
     | 'research-benchmark';
   requiredCapabilities:readonly World3DCapability[];
   commercialProject:boolean;
   datasetAgreementApproved?:boolean;
+  approvedExternalAccessIds?:readonly string[];
   requireRuntime:boolean;
   evidenceIds:readonly string[];
 }
@@ -103,6 +114,55 @@ export const HUNYUAN3D_1_PROFILE:World3DBackendProfile=Object.freeze({
   ]),
   sourceRefs:Object.freeze([
     'https://github.com/Tencent-Hunyuan/Hunyuan3D-1',
+  ]),
+  authority:'DIRECTOR_3D_BACKEND_PROFILE',
+});
+
+export const LSRM_PROFILE:World3DBackendProfile=Object.freeze({
+  id:'facebookresearch:lsrm',
+  providerId:'facebookresearch',
+  name:'Large Sparse Reconstruction Model (LSRM)',
+  kind:'reconstruction-runtime',
+  capabilities:Object.freeze([
+    'posed-sparse-multiview',
+    'foreground-mask-input',
+    'object-mesh-reconstruction',
+    'novel-view-synthesis',
+    'inverse-rendering',
+    'mesh-texturing',
+    'material-albedo',
+    'material-roughness',
+    'material-metallic',
+    'turntable-render',
+  ] as const),
+  accessMode:'public',
+  license:Object.freeze({
+    codeLicense:'Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)',
+    modelOrDataLicense:'CC BY-NC 4.0 for the released project; external dependencies retain their own terms',
+    commercialUse:'forbidden',
+    restrictedFeatures:Object.freeze([
+      Object.freeze({
+        feature:'runtime-backbone',
+        restriction:'Inference requires separately gated DINOv3 ViT-H/16+ weights; access must be approved before runtime admission.',
+        sourceRef:'facebookresearch/Large-Sparse-Reconstruction-Model:README.md#Setup',
+      }),
+    ]),
+    evidenceIds:Object.freeze([
+      'github:facebookresearch/Large-Sparse-Reconstruction-Model:README',
+      'github:facebookresearch/Large-Sparse-Reconstruction-Model:LICENSE.md',
+    ]),
+  }),
+  runtimeAvailable:true,
+  requiredExternalAccessIds:Object.freeze(['meta:dinov3-vith16plus']),
+  notes:Object.freeze([
+    'Feed-forward object-centric reconstruction from posed sparse multi-view RGB images with foreground masks.',
+    'Produces high-fidelity meshes/textures and novel-view renders; inverse-rendering mode predicts albedo, roughness and metallic materials.',
+    'Inference is documented as requiring less than 40 GB GPU memory and was tested on NVIDIA H200.',
+    'Blender is used headlessly for mesh/material rendering and relighting.',
+    'This is an object-centric reconstruction runtime, not a full-scene or navigable-world backend.',
+  ]),
+  sourceRefs:Object.freeze([
+    'https://github.com/facebookresearch/Large-Sparse-Reconstruction-Model',
   ]),
   authority:'DIRECTOR_3D_BACKEND_PROFILE',
 });
@@ -168,6 +228,13 @@ export function evaluateWorld3DBackend(
 
   if(profile.accessMode==='agreement-required'&&!requirement.datasetAgreementApproved){
     reasons.push('DIRECTOR_3D_BACKEND_ACCESS_AGREEMENT_REQUIRED');
+  }
+
+  const approvedExternalAccess=new Set(requirement.approvedExternalAccessIds??[]);
+  for(const accessId of profile.requiredExternalAccessIds??[]){
+    if(!approvedExternalAccess.has(accessId)){
+      reasons.push(`DIRECTOR_3D_BACKEND_EXTERNAL_ACCESS_REQUIRED:${accessId}`);
+    }
   }
 
   if(requirement.commercialProject){
