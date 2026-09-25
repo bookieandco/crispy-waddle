@@ -206,6 +206,25 @@ describe('GenerationPlanAdapter', () => {
     });
   });
 
+  it('blocks cross-scene generated-audio or attempt policy attachments', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    await expect(makeAdapter(submitted).submitTake({
+      ...request(),
+      audioIntent:{
+        id:'audio:wrong',
+        projectId:'p',
+        sceneId:'other-scene',
+        allowedRoles:['dialogue'],
+        forbiddenRoles:['music'],
+        forbidUnrequestedMusic:true,
+        notes:[],
+        evidenceIds:['e'],
+        authority:'DIRECTOR_GENERATION_AUDIO_INTENT',
+      },
+    },plan(),gateInput())).rejects.toThrow('DIRECTOR_GENERATION_AUDIO_INTENT_SCOPE_MISMATCH');
+    expect(submitted.requests).toHaveLength(0);
+  });
+
   it('blocks provider work when the explicit scene attempt hard ceiling is exceeded', async () => {
     const submitted = { requests: [] as GenerationRequest[] };
     await expect(makeAdapter(submitted).submitTake({
