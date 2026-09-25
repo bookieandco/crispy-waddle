@@ -172,6 +172,66 @@ Requires full multimodal perception, evidence and QC.
 
 Director should prefer Assist mode whenever confidence is insufficient for a high-quality autonomous decision.
 
+## DIR-EDIT.6A — Quick Cut rough-edit proposals
+
+The supplied Firefly Quick Cut workflow adds a useful assist-first editing pattern:
+
+- choose **dialogue-driven** or **visual-only** cutting;
+- scope eligible media to the current project, current timeline, or current selection;
+- optionally describe the desired story/theme in natural language;
+- specify output aspect ratio and target duration;
+- optionally create a separate B-roll track above the primary dialogue cut;
+- return a fully editable timeline as a starting point rather than claiming the first pass is final;
+- support multiple timeline iterations so the editor can compare/refine alternatives.
+
+Director now models this with `quick-cut-planner.ts`.
+
+### Dialogue-driven mode
+
+Transcript spans remain evidence, not authority. Each span can carry:
+
+- exact source time range;
+- transcript text;
+- semantic/theme tags;
+- importance score;
+- evidence IDs.
+
+The planner selects only transcript-supported material from the requested media scope. A requested theme that is absent from the selected transcript evidence is reported as unsupported. Director does not fabricate dialogue or pretend a requested concept exists when it is not present in the source.
+
+### Visual-only mode
+
+Visual-only cuts can be assembled from frame/vision evidence and semantic visual tags without requiring speech.
+
+### A-roll / B-roll classification
+
+The source describes a pragmatic classification rule: decipherable speech tends to imply A-roll/dialogue material, while silent/non-speaking clips tend to act as B-roll. Director adopts this only as a default classifier:
+
+- decipherable speech -> A-roll;
+- silent/non-speaking clip -> B-roll;
+- explicit/manual role overrides the heuristic.
+
+This keeps the heuristic useful without making waveform absence canonical truth.
+
+### Contextual B-roll
+
+B-roll is selected as a separate connected overlay track and is scored against:
+
+- requested themes;
+- the selected A-roll segment's semantic tags;
+- available visual evidence.
+
+The B-roll track remains independent so an editor can extend, swap, move, or remove shots without destabilizing the main dialogue cut.
+
+### Proposal-only authority
+
+Quick Cut returns a new `EditableTimeline` proposal with `authority: PROPOSAL_ONLY`.
+
+It does not mutate the current timeline and does not publish/render automatically. Different prompts/themes can produce independent proposal identities/iterations. This matches the supplied workflow's useful behavior of generating multiple timelines and refining the best one.
+
+### Source-derived limitation retained
+
+Quick Cut cannot manufacture content that is not present in the source media. Theme support is measured against selected transcript/visual evidence and may fail closed under a configured minimum-support policy.
+
 ## DIR-EDIT.7 — Idea / packaging intelligence is upstream, not editing authority
 
 The transcripts repeatedly argue that video idea, niche, title, thumbnail and intro often matter more than editing complexity.
