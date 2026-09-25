@@ -16,6 +16,8 @@ export interface AgenticProjectAssetBinding {
   assetId: string;
   role: AgenticProjectAssetRole;
   semanticLabel: string;
+  /** Stable human/agent-facing tag such as character.raven or location.interview-couch. */
+  elementTag?: string;
   media: 'image' | 'video' | 'audio';
   global: boolean;
   evidenceIds: readonly string[];
@@ -106,12 +108,23 @@ export function validateAgenticProjectContext(context: AgenticProjectContext): r
   if (!context.evidenceIds.length) reasons.push('DIRECTOR_AGENTIC_CONTEXT_EVIDENCE_REQUIRED');
 
   const assetIds = new Set<string>();
+  const elementTags = new Set<string>();
   for (const asset of context.assets) {
     if (!asset.assetId.trim() || assetIds.has(asset.assetId)) {
       reasons.push(`DIRECTOR_AGENTIC_ASSET_ID_INVALID:${asset.assetId || 'unknown'}`);
     }
     assetIds.add(asset.assetId);
     if (!asset.semanticLabel.trim()) reasons.push(`DIRECTOR_AGENTIC_ASSET_LABEL_REQUIRED:${asset.assetId}`);
+    if (asset.elementTag !== undefined) {
+      const tag=asset.elementTag.trim();
+      if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(tag)) {
+        reasons.push(`DIRECTOR_AGENTIC_ELEMENT_TAG_INVALID:${asset.assetId}`);
+      } else if (elementTags.has(tag)) {
+        reasons.push(`DIRECTOR_AGENTIC_ELEMENT_TAG_DUPLICATE:${tag}`);
+      } else {
+        elementTags.add(tag);
+      }
+    }
     if (!asset.evidenceIds.length) reasons.push(`DIRECTOR_AGENTIC_ASSET_EVIDENCE_REQUIRED:${asset.assetId}`);
   }
 
