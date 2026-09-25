@@ -102,6 +102,7 @@ jobs:
           src/performance-direction.test.ts
           src/realism-direction.test.ts
           src/cinematic-lighting.test.ts
+          src/cinematography-analysis.test.ts
           src/animation-principles.test.ts
           src/animation-performance-state.test.ts
           src/directed-take-qc.test.ts
