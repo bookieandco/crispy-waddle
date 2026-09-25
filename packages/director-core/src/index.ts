@@ -140,3 +140,4 @@ export * from './cartoon-production-workflow';
 export * from './performance-capture-plan';
 export * from './human-performance-observer';
 export * from './pose-action-recognition';
+export * from './roboflow-people-observation';
