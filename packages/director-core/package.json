@@ -87,7 +87,8 @@
     "./model-prompt-translation": "./src/model-prompt-translation.ts",
     "./dialogue-coverage-workflow": "./src/dialogue-coverage-workflow.ts",
     "./agentic-project-context": "./src/agentic-project-context.ts",
-    "./localized-video-repair": "./src/localized-video-repair.ts"
+    "./localized-video-repair": "./src/localized-video-repair.ts",
+    "./world-reference-workflow": "./src/world-reference-workflow.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
