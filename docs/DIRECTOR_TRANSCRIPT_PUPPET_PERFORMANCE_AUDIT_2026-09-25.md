@@ -1066,3 +1066,73 @@ Current intended separation:
 - Director previs -> authored camera/blocking execution.
 
 This prevents a useful 3D model or dataset from being promoted beyond what it actually provides.
+
+
+### Large Sparse Reconstruction Model (LSRM)
+
+Reference: `facebookresearch/Large-Sparse-Reconstruction-Model`.
+
+LSRM is a feed-forward **object-centric** reconstruction and inverse-rendering model. Its documented runtime consumes posed sparse multi-view RGB images plus foreground masks and can produce:
+
+- reconstructed object meshes;
+- textured/UV-unwrapped meshes;
+- novel-view renders;
+- inverse-rendered material channels including albedo, roughness and metallic;
+- Blender re-renders/relighting from the reconstructed asset.
+
+It is therefore a strong candidate for reconstructing a prop or set piece from a controlled multi-view capture set.
+
+It is not a whole-room or navigable-world reconstruction backend.
+
+#### Runtime/access boundary
+
+The repository documents inference using less than 40 GB GPU memory and notes testing on NVIDIA H200 hardware.
+
+The runtime also requires separately gated DINOv3 ViT-H/16+ weights. Director now models this explicitly as required external access rather than assuming that a public GitHub repository means every dependency is immediately runnable.
+
+A backend can therefore be:
+
+- publicly cloned;
+- runtime-capable in principle;
+- still inadmissible until gated model access is approved.
+
+#### License boundary
+
+The LSRM repository is licensed under **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)**.
+
+Director therefore fails closed for commercial production use, just as it does for other non-commercial 3D backends.
+
+#### Gap 34 — external dependency access admission
+
+`World3DBackendProfile` now supports `requiredExternalAccessIds`, and `World3DBackendRequirement` can declare `approvedExternalAccessIds`.
+
+`evaluateWorld3DBackend()` fails with `DIRECTOR_3D_BACKEND_EXTERNAL_ACCESS_REQUIRED` when a required gated dependency has not been approved.
+
+This avoids discovering gated checkpoints only after a reconstruction job has already been scheduled.
+
+#### LSRM capability profile
+
+The LSRM profile records:
+
+- posed sparse multi-view input;
+- foreground-mask input;
+- object mesh reconstruction;
+- novel-view synthesis;
+- inverse rendering;
+- mesh texturing;
+- albedo, roughness and metallic material recovery;
+- turntable/render output;
+- non-commercial use;
+- gated DINOv3 runtime dependency.
+
+Current intended use in Director:
+
+- approved non-commercial object/prop reconstruction from controlled multi-view captures;
+- material-reference recovery for previs/look-development;
+- reconstruction experiments.
+
+Not admitted as:
+
+- commercial production backend;
+- room/world reconstruction;
+- free-camera navigable environment engine.
