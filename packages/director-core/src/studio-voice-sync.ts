@@ -58,6 +58,9 @@ function readInput(action:DirectorStudioAction):VoiceSyncInput {
     transcriptPlan:typeof p.transcriptPlan === 'object' && p.transcriptPlan !== null ? p.transcriptPlan as TranscriptLipSyncPlan : undefined,
   }
   const errors=validateVoiceSyncInput(input)
+  if(input.transcriptPlan?.projectId!==undefined && input.transcriptPlan.projectId!==action.projectId) {
+    errors.push('transcript projectId must match voice-sync projectId')
+  }
   if(errors.length) throw new Error(`Invalid voice sync: ${errors.join('; ')}`)
   return input
 }
