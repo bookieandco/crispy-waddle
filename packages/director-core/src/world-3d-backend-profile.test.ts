@@ -2,6 +2,7 @@ import {describe,expect,it} from 'vitest';
 import {
   evaluateWorld3DBackend,
   HUNYUAN3D_1_PROFILE,
+  LSRM_PROFILE,
   REALSEE3D_PROFILE,
 } from './world-3d-backend-profile';
 
@@ -36,6 +37,57 @@ describe('world 3d backend profiles',()=>{
       commercialProject:false,
       requireRuntime:true,
       evidenceIds:['world:need-free-camera'],
+    });
+    expect(world.reasons).toEqual(expect.arrayContaining([
+      'DIRECTOR_3D_BACKEND_CAPABILITY_MISSING:free-camera-world',
+      'DIRECTOR_3D_BACKEND_CAPABILITY_MISSING:navigable-world',
+      'DIRECTOR_3D_BACKEND_NOT_NAVIGABLE_WORLD',
+    ]));
+  });
+
+  it('admits LSRM for non-commercial sparse-view object reconstruction only after gated DINOv3 access is approved',()=>{
+    const blocked=evaluateWorld3DBackend(LSRM_PROFILE,{
+      id:'use:lsrm-object',
+      use:'object-reconstruction',
+      requiredCapabilities:['posed-sparse-multiview','foreground-mask-input','object-mesh-reconstruction','novel-view-synthesis'],
+      commercialProject:false,
+      requireRuntime:true,
+      evidenceIds:['capture:posed-object-views'],
+    });
+    expect(blocked.reasons).toContain('DIRECTOR_3D_BACKEND_EXTERNAL_ACCESS_REQUIRED:meta:dinov3-vith16plus');
+
+    const admitted=evaluateWorld3DBackend(LSRM_PROFILE,{
+      id:'use:lsrm-object',
+      use:'object-reconstruction',
+      requiredCapabilities:['posed-sparse-multiview','foreground-mask-input','object-mesh-reconstruction','novel-view-synthesis','material-roughness','material-metallic'],
+      commercialProject:false,
+      approvedExternalAccessIds:['meta:dinov3-vith16plus'],
+      requireRuntime:true,
+      evidenceIds:['capture:posed-object-views','access:dinov3-approved'],
+    });
+    expect(admitted.admissible).toBe(true);
+  });
+
+  it('blocks LSRM for commercial or navigable-world use',()=>{
+    const commercial=evaluateWorld3DBackend(LSRM_PROFILE,{
+      id:'use:lsrm-commercial',
+      use:'object-reconstruction',
+      requiredCapabilities:['object-mesh-reconstruction'],
+      commercialProject:true,
+      approvedExternalAccessIds:['meta:dinov3-vith16plus'],
+      requireRuntime:true,
+      evidenceIds:['project:commercial'],
+    });
+    expect(commercial.reasons).toContain('DIRECTOR_3D_BACKEND_COMMERCIAL_USE_FORBIDDEN');
+
+    const world=evaluateWorld3DBackend(LSRM_PROFILE,{
+      id:'use:lsrm-world',
+      use:'navigable-world',
+      requiredCapabilities:['free-camera-world','navigable-world'],
+      commercialProject:false,
+      approvedExternalAccessIds:['meta:dinov3-vith16plus'],
+      requireRuntime:true,
+      evidenceIds:['world:full-scene'],
     });
     expect(world.reasons).toEqual(expect.arrayContaining([
       'DIRECTOR_3D_BACKEND_CAPABILITY_MISSING:free-camera-world',
