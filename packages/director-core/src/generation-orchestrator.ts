@@ -5,6 +5,8 @@ import { compileCinematographyLightingDirective, type CinematographyLightingPlan
 import { compileGenerationReferenceManifest, type GenerationReferenceManifest } from './generation-reference-manifest.js';
 import { compileAnimationPrinciplesDirective, type AnimationPrinciplesPlan } from './animation-principles.js';
 import { compileContinuityStrategyDirective, type ContinuityStrategyPlan } from './continuity-reference-strategy.js';
+import { compileGenerationAudioIntent, type GenerationAudioIntent } from './generation-audio-intent.js';
+import { evaluateSceneGenerationAttempt, type SceneGenerationAttemptBudget } from './scene-attempt-budget.js';
 
 export type CinematographyPreset = {
   id: string;
@@ -60,6 +62,10 @@ export type TakeRequest = {
   animationPlan?: AnimationPrinciplesPlan;
   /** Director-selected cross-shot identity/world continuity strategy. */
   continuityStrategy?: ContinuityStrategyPlan;
+  /** Explicit generated-audio roles, including music prohibitions. */
+  audioIntent?: GenerationAudioIntent;
+  /** Optional project/scene attempt guidance and hard retry ceiling. */
+  attemptBudget?: SceneGenerationAttemptBudget;
   /** Optional exact provider attachment order. When present, adapters must preserve it. */
   referenceManifest?: GenerationReferenceManifest;
   referenceCharacterIds?: string[];
@@ -81,6 +87,10 @@ export type TakePlan = {
  * DirectorOS owns continuity and approval; providers own generation.
  */
 export function planTake(request: TakeRequest): TakePlan {
+  if (request.attemptBudget) {
+    const decision=evaluateSceneGenerationAttempt(request.attemptBudget, request.takeCount ?? 1);
+    if (!decision.allowed) throw new Error(`DIRECTOR_SCENE_ATTEMPT_BUDGET_BLOCKED: ${decision.reasons.join(', ')}`);
+  }
   return {
     sceneId: request.sceneId,
     takeNumber: (request.takeCount ?? 1),
@@ -110,6 +120,7 @@ export function compileTakePrompt(request: TakeRequest): string {
     request.lightingPlan ? section('CINEMATOGRAPHY LIGHTING', compileCinematographyLightingDirective(request.lightingPlan)) : undefined,
     request.animationPlan ? section('ANIMATION PRINCIPLES', compileAnimationPrinciplesDirective(request.animationPlan)) : undefined,
     request.continuityStrategy ? section('CONTINUITY STRATEGY', compileContinuityStrategyDirective(request.continuityStrategy)) : undefined,
+    request.audioIntent ? section('GENERATED AUDIO', compileGenerationAudioIntent(request.audioIntent)) : undefined,
     referenceManifest ? section('REFERENCE MANIFEST', compileGenerationReferenceManifest(referenceManifest).directive) : undefined,
   ].filter((value): value is string => Boolean(value?.trim()));
 
@@ -118,6 +129,9 @@ export function compileTakePrompt(request: TakeRequest): string {
 
 export function buildGenerationBrief(request: TakeRequest) {
   const referenceManifest = request.referenceManifest ?? request.continuityStrategy?.referenceManifest;
+  const attemptDecision=request.attemptBudget
+    ? evaluateSceneGenerationAttempt(request.attemptBudget,request.takeCount??1)
+    : undefined;
   return {
     takeId: request.takeId,
     projectId: request.projectId,
@@ -147,6 +161,10 @@ export function buildGenerationBrief(request: TakeRequest) {
     animationDirective: request.animationPlan ? compileAnimationPrinciplesDirective(request.animationPlan) : undefined,
     continuityStrategy: request.continuityStrategy,
     continuityDirective: request.continuityStrategy ? compileContinuityStrategyDirective(request.continuityStrategy) : undefined,
+    audioIntent: request.audioIntent,
+    audioDirective: request.audioIntent ? compileGenerationAudioIntent(request.audioIntent) : undefined,
+    attemptBudget: request.attemptBudget,
+    attemptWarnings: attemptDecision?.warnings,
     referenceManifest,
     referenceDirective: referenceManifest ? compileGenerationReferenceManifest(referenceManifest).directive : undefined,
     approvalRequired: true,
