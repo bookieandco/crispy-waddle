@@ -133,3 +133,5 @@ export * from './quick-cut-planner';
 export * from './creative-workspace-media';
 export * from './playhead-generation-continuation';
 export * from './creative-audio-generation';
+export * from './transcript-assisted-lip-sync';
+export * from './character-performance-rig';
