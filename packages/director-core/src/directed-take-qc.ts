@@ -8,6 +8,9 @@ export type DirectedTakeQcMetric =
   | 'temporal-flicker'
   | 'detail-retention'
   | 'camera-plan-match'
+  | 'camera-position-match'
+  | 'camera-composition-match'
+  | 'camera-movement-match'
   | 'focus-plan-match'
   | 'source-preservation'
   | 'performance-plan-match'
@@ -177,7 +180,13 @@ function preserveForFailures(failingMetrics: readonly DirectedTakeQcMetric[]): s
     'shot timing',
   ]);
 
-  if (!failingMetrics.includes('camera-plan-match')) preserve.add('camera-plan');
+  const cameraMetrics = new Set<DirectedTakeQcMetric>([
+    'camera-plan-match',
+    'camera-position-match',
+    'camera-composition-match',
+    'camera-movement-match',
+  ]);
+  if (!failingMetrics.some((metric) => cameraMetrics.has(metric))) preserve.add('camera-plan');
   if (!failingMetrics.includes('focus-plan-match')) preserve.add('focus-plan');
   if (!failingMetrics.includes('performance-plan-match')) preserve.add('performance-plan');
   if (!failingMetrics.includes('background-geometry')) preserve.add('environment/blocking');
@@ -282,6 +291,25 @@ export const CINEMATOGRAPHY_LIGHTING_TAKE_QC: DirectedTakeQcPolicy = Object.free
     'lighting-color-match': 0.8,
     'lighting-contrast-match': 0.78,
     'lighting-cut-shape-match': 0.72,
+  }),
+  minimumConfidence: 0.55,
+  failOnHardFailure: true,
+});
+
+
+export const CINEMATOGRAPHY_CAMERA_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({
+  id: 'cinematography-camera:v1',
+  requiredMetrics: Object.freeze([
+    'camera-position-match',
+    'camera-composition-match',
+    'camera-movement-match',
+    'focus-plan-match',
+  ] as DirectedTakeQcMetric[]),
+  minimumScoreByMetric: Object.freeze({
+    'camera-position-match': 0.82,
+    'camera-composition-match': 0.8,
+    'camera-movement-match': 0.8,
+    'focus-plan-match': 0.75,
   }),
   minimumConfidence: 0.55,
   failOnHardFailure: true,
