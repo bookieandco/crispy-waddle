@@ -88,7 +88,13 @@ function generatedToWorkspace(projectId:string,asset:GeneratedAssetRecord):Creat
     throw new Error(`DIRECTOR_WORKSPACE_GENERATED_LINEAGE_REQUIRED:${asset.id}`);
   }
   const provenanceRefs=asset.provenance
-    ? [`generation-job:${asset.generationJobId}`,`provider:${asset.providerId}`,`provenance:${asset.provenance.id}`]
+    ? [
+        `generation-job:${asset.generationJobId}`,
+        `provider:${asset.providerId}`,
+        `generation-stage:${asset.provenance.generationStageId}:v${asset.provenance.generationStageVersion}`,
+        `storyboard-version:${asset.provenance.storyboardVersion}`,
+        ...asset.provenance.storyboardBoardIds.map(id=>`storyboard-board:${id}`),
+      ]
     : [`generation-job:${asset.generationJobId}`,`provider:${asset.providerId}`];
   return Object.freeze({
     id:asset.id,
