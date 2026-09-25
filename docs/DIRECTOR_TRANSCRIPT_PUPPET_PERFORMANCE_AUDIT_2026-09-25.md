@@ -261,3 +261,32 @@ Perception responsibilities are deliberately separated:
 - Director -> evidence admission, QC, approval and editing authority.
 
 The credential is never embedded in source or transported in request bodies. A credential pasted into chat or other non-secret surfaces should be rotated before production use.
+
+
+## AI-film continuity workflow audit
+
+The supplied AI-film walkthrough reinforces a workflow Director already mostly implements:
+
+- lock the story before generation;
+- build and save reusable character and location references;
+- use structured shot direction instead of one flat free-form prompt;
+- assign performance/emotional direction per shot;
+- chain a prior video/shot reference only for true continuations;
+- use environment-only shots when no recurring character belongs in the frame;
+- repair generation defects in editing rather than accepting visible continuity failures;
+- normalize recurring character voice identity across independently generated clips.
+
+Existing Director coverage:
+
+- story/shot structure -> storyboard sequence, shot adapters and production orchestration;
+- reusable character/location assets -> generation reference manifest and cast/location references;
+- structured generation direction -> camera, performance, realism, animation, continuity and reference manifests compiled by the generation orchestrator;
+- prior-shot reference continuity -> `ContinuityStrategyPlan` and required prior-shot reference assets for continuity chains;
+- character identity -> locked recurring-character reference contracts;
+- voice consistency -> `CharacterVoiceIdentity`, dialogue generation requests and voice QC;
+- editing repair -> timeline proposal/rough-cut/editing evidence paths;
+- environment-only shots -> references are optional by role and are not forced when the shot contains no character.
+
+No provider-specific JSON grammar is promoted to canonical Director truth. Director's typed generation plans already provide the structured hierarchy that the walkthrough gets from JSON prompts, while remaining portable across providers.
+
+The remaining operational lesson is sequencing: continuity references should be used only when a shot is a direct visual continuation, not indiscriminately across scene changes. Director's continuity strategy already encodes that distinction.
