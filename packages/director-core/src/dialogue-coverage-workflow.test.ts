@@ -5,6 +5,7 @@ import {
   validateDialogueCoveragePlan,
   type CoverageHandoffPlan,
   type DialogueCoveragePlan,
+  type ScreenDirection,
 } from './dialogue-coverage-workflow';
 
 const coverage:DialogueCoveragePlan={
@@ -158,15 +159,18 @@ describe('dialogue axis continuity',()=>{
       ...coverage,
       establishingAxisSide:'A' as const,
       axisTransitions:[],
-      shots:coverage.shots.map((shot,index)=>({
-        ...shot,
-        axisSide:'A' as const,
-        screenDirectionBySubject:index===0
-          ? {'a':'camera-left' as const,'b':'camera-right' as const}
+      shots:coverage.shots.map((shot,index)=>{
+        const screenDirectionBySubject:Record<string,ScreenDirection>=index===0
+          ? {a:'camera-left',b:'camera-right'}
           : shot.subjectCharacterIds.includes('a')
-            ? {'a':'camera-left' as const}
-            : {'b':'camera-right' as const},
-      })),
+            ? {a:'camera-left'}
+            : {b:'camera-right'};
+        return {
+          ...shot,
+          axisSide:'A' as const,
+          screenDirectionBySubject,
+        };
+      }),
     };
     expect(validateDialogueCoveragePlan(plan)).toEqual([]);
   });
