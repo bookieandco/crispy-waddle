@@ -1,4 +1,5 @@
 import {describe,expect,it} from 'vitest';
+import {compileTakePrompt} from './generation-orchestrator';
 import {
   CINEMATIC_LIGHTING_ORDER,
   compileCinematographyLightingDirective,
@@ -77,6 +78,22 @@ describe('cinematic lighting',()=>{
     expect(directive).toContain('vinz reads as backlight');
     expect(directive).toContain('hubert reads as rembrandt');
     expect(directive).toContain('said reads as butterfly');
+  });
+
+  it('survives into the canonical take prompt as structured lighting direction',()=>{
+    const prompt=compileTakePrompt({
+      takeId:'take:lighting',
+      projectId:'p',
+      sceneId:'scene:1',
+      storyboardBoardId:'board:1',
+      prompt:'Two characters talk in a dim room.',
+      locked:['lighting','color'],
+      lightingPlan:plan,
+    });
+    expect(prompt).toContain('[CINEMATOGRAPHY LIGHTING]');
+    expect(prompt).toContain('Work order: Direction -> Quality/softness -> Color -> Intensity/exposure -> Cut & Shape.');
+    expect(prompt).toContain('key-to-fill 2 stops (4:1)');
+    expect(prompt).toContain('foreground-to-background 1.25 stops');
   });
 
   it('expresses stop differences as brightness ratios',()=>{
