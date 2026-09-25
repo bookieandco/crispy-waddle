@@ -6,6 +6,7 @@ on:
       - 'packages/music-core/**'
       - 'packages/jhadina-tv-core/**'
       - 'apps/jhadina-web/**'
+      - 'services/director-character-training/**'
       - '.github/workflows/media-production-certification.yml'
       - 'docs/MEDIA_PROD_FINAL_CERTIFICATION.md'
   push:
@@ -16,6 +17,7 @@ on:
       - 'packages/music-core/**'
       - 'packages/jhadina-tv-core/**'
       - 'apps/jhadina-web/**'
+      - 'services/director-character-training/**'
       - '.github/workflows/media-production-certification.yml'
 jobs:
   certify-media:
@@ -32,3 +34,7 @@ jobs:
       - run: pnpm --filter @jhadina/tv-core type-check
       - run: pnpm --filter @jhadina/tv-core test
       - run: pnpm --filter @jhadina/jhadina-web type-check
+      - name: Director character-training runtime
+        run: |
+          python -m pip install -r services/director-character-training/requirements.txt
+          python -m unittest discover -s services/director-character-training -p 'test_*.py'
