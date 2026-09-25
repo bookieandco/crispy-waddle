@@ -57,6 +57,9 @@ function readInput(action:DirectorStudioAction):RigAnimationInput {
     continuityRef:typeof p.continuityRef==='string'?p.continuityRef:undefined,
   }
   const errors=validateRigAnimationInput(input)
+  if(input.performancePlan?.projectId!==undefined && input.performancePlan.projectId!==action.projectId) {
+    errors.push('performance rig projectId must match rig projectId')
+  }
   if(errors.length) throw new Error(`Invalid rig animation: ${errors.join('; ')}`)
   return input
 }
