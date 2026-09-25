@@ -7,6 +7,10 @@ class B:
 BODY={"characterAssetId":"muppet","trackingArtifactId":"sam2:a","approvedTrackIds":["t"],"channels":["body","head"],"continuityRef":"dna"}
 class T(unittest.TestCase):
  def test_deterministic_artifact(self):self.assertEqual(m.run_animation(B(),BODY)["artifactId"],m.run_animation(B(),BODY)["artifactId"])
+ def test_performance_plan_changes_artifact_identity(self):
+  base=m.run_animation(B(),BODY)["artifactId"]
+  directed=m.run_animation(B(),{**BODY,"performancePlan":{"id":"performance:1","jawFollow":{"enabled":True,"amount":.25}}})["artifactId"]
+  self.assertNotEqual(base,directed)
  def test_rejects_channel(self):
   with self.assertRaises(ValueError):m.run_animation(B(),{**BODY,"channels":["wings"]})
 if __name__=="__main__":unittest.main()
