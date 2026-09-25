@@ -86,6 +86,15 @@ function ContractCard({item}:{item:SamCommandCenterItem}){
       <Fact label="Version" value={String(item.version)}/>
     </div>
 
+    <Section title="Capture & award readiness">
+      <div style={facts}>
+        <Fact label="Notice stage" value={label(item.capture.stage)}/>
+        <Fact label="Capture value" value={label(item.capture.captureValue)}/>
+        <Fact label="Award readiness" value={label(item.capture.awardReadiness)}/>
+      </div>
+      {item.capture.reasons.length?item.capture.reasons.map(reason=><p key={reason} style={muted}>{reason}</p>):<p style={muted}>Capture analysis is still being generated for this notice.</p>}
+    </Section>
+
     <Section title="Requirements">
       {item.requirements.length?<ul style={list}>{item.requirements.slice(0,8).map(req=><li key={req.id}>{req.label}</li>)}</ul>:<p style={muted}>Solicitation requirements are still being extracted.</p>}
       {item.requirements.length>8&&<p style={muted}>+ {item.requirements.length-8} more requirements</p>}
@@ -139,6 +148,7 @@ function ContractCard({item}:{item:SamCommandCenterItem}){
     <div style={authorityRow}>
       <span>Outreach: <strong>not authorized</strong></span>
       <span>Bid: <strong>not authorized</strong></span>
+      <span>Contract execution: <strong>not authorized</strong></span>
       <span>Payment: <strong>not authorized</strong></span>
     </div>
     <div style={actions}>
