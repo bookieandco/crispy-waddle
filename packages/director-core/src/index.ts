@@ -145,3 +145,5 @@ export * from './hybrid-animation-production';
 export * from './action-sequence-control';
 export * from './model-prompt-translation';
 export * from './dialogue-coverage-workflow';
+export * from './agentic-project-context';
+export * from './localized-video-repair';
