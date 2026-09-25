@@ -112,6 +112,9 @@ describe('Director camera language', () => {
     expect(directive).toContain('frame-within-frame doorway frames subject as rectangle');
     expect(directive).toContain('depth layers foreground: soft doorway edge');
     expect(directive).toContain('attention cues luminance-contrast -> subject face');
+    expect(directive).toContain('Capture:');
+    expect(directive).toContain('capture look smartphone');
+    expect(directive).toContain('natural phone-camera motion');
     expect(directive).toContain('Film-form approach: formalist');
     expect(directive).toContain('Symbolic intent: increase subjective pressure');
   });
@@ -177,6 +180,15 @@ describe('Director camera language', () => {
     expect(validateDirectorCameraPlan(plan)).toEqual(expect.arrayContaining([
       expect.objectContaining({code:'INVALID_COMPOSITION',path:'composition.focalPoints',severity:'error'}),
       expect.objectContaining({code:'INVALID_COMPOSITION',path:'composition.depthLayers',severity:'error'}),
+    ]));
+  });
+
+  it('requires a description for a custom capture look', () => {
+    const plan=basePlan({
+      capture:{captureLook:'custom'},
+    });
+    expect(validateDirectorCameraPlan(plan)).toEqual(expect.arrayContaining([
+      expect.objectContaining({code:'INVALID_CAPTURE_LOOK',path:'capture.captureLookNotes',severity:'error'}),
     ]));
   });
 
