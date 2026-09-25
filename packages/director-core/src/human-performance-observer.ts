@@ -1,6 +1,7 @@
 import type {DecodedFrame} from './media-decoder-adapter.js';
 import type {Observation} from './observation-bus.js';
 import type {ObservationProvider} from './observation-provider-adapters.js';
+import type {FrameAnnotation} from './studio-contracts.js';
 
 export interface HumanBodyKeypointLike {
   part:string;
@@ -146,7 +147,7 @@ export function humanResultToObservations(
         assetId:frame.assetId,
         kind:'human-gesture',
         time:{startSeconds:start,endSeconds:end},
-        payload:{part,gesture:gesture.gesture,index:gesture[part]},
+        payload:{part,gesture:gesture.gesture,index:gestureIndex(gesture)},
         confidence:1,
         provenance:{provider:'vladmandic-human',source:frame.frameRef,scope:'gesture-label-only'},
       });
@@ -155,6 +156,53 @@ export function humanResultToObservations(
   return observations;
 }
 
+export function humanResultToFrameAnnotations(
+  frameNumber:number,
+  result:HumanResultLike,
+  policy:Pick<HumanPerformanceObserverPolicy,'minimumConfidence'|'allowedBodyLandmarks'>,
+):FrameAnnotation[]{
+  if(!Number.isInteger(frameNumber)||frameNumber<0) throw new Error('DIRECTOR_HUMAN_FRAME_INVALID');
+  const allowed=policy.allowedBodyLandmarks?new Set(policy.allowedBodyLandmarks):undefined;
+  const annotations:FrameAnnotation[]=[];
+  for(const body of result.body){
+    if(!validConfidence(body.score,policy.minimumConfidence)) continue;
+    const keypoints=body.keypoints
+      .filter(point=>validConfidence(point.score,policy.minimumConfidence))
+      .filter(point=>!allowed||allowed.has(point.part))
+      .filter(point=>validPoint(point.positionRaw))
+      .map(point=>({name:point.part,x:point.positionRaw[0]!,y:point.positionRaw[1]!,confidence:point.score}));
+    if(!keypoints.length) continue;
+    annotations.push({
+      frame:frameNumber,
+      class:'character',
+      instanceId:`human-body:${body.id}`,
+      confidence:body.score,
+      keypoints,
+    });
+  }
+  for(const hand of result.hand){
+    if(!validConfidence(hand.score,policy.minimumConfidence)) continue;
+    const keypoints=hand.keypoints
+      .filter(validPoint)
+      .map((point,index)=>({name:`handPoint:${index}`,x:point[0]!,y:point[1]!,confidence:hand.score}));
+    if(!keypoints.length) continue;
+    annotations.push({
+      frame:frameNumber,
+      class:'hand',
+      instanceId:`human-hand:${hand.id}`,
+      confidence:hand.score,
+      keypoints,
+    });
+  }
+  return annotations;
+}
+
+function gestureIndex(gesture:HumanGestureLike):number{
+  if('body' in gesture) return gesture.body;
+  if('hand' in gesture) return gesture.hand;
+  if('face' in gesture) return gesture.face;
+  return gesture.iris;
+}
 function validConfidence(value:number,minimum:number):boolean{
   return Number.isFinite(value)&&value>=minimum&&value<=1;
 }
