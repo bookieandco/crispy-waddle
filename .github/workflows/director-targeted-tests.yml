@@ -78,6 +78,9 @@ jobs:
           src/character-performance-rig.test.ts
           src/character-animation-enhancements.test.ts
           src/cartoon-production-workflow.test.ts
+          src/performance-capture-plan.test.ts
+          src/human-performance-observer.test.ts
+          src/pose-action-recognition.test.ts
           src/quick-cut-planner.test.ts
           src/studio-character-replacement-worker.test.ts
           src/studio-character-replacement.test.ts
