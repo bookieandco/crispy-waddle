@@ -71,6 +71,7 @@ jobs:
           src/video-upscale-finishing.test.ts
           src/studio-character-training.test.ts
           src/source-driven-character-swap.test.ts
+          src/quick-cut-planner.test.ts
           src/studio-character-replacement-worker.test.ts
           src/studio-character-replacement.test.ts
           src/whole-video-provider.test.ts
