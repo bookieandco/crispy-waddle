@@ -82,6 +82,7 @@ jobs:
           src/human-performance-observer.test.ts
           src/pose-action-recognition.test.ts
           src/roboflow-people-observation.test.ts
+          src/hybrid-animation-production.test.ts
           src/quick-cut-planner.test.ts
           src/studio-character-replacement-worker.test.ts
           src/studio-character-replacement.test.ts
