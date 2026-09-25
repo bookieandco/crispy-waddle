@@ -159,3 +159,7 @@ export * from './final-export-inspection';
 export * from './screenplay-blueprint';
 export * from './production-audio-capture';
 export * from './editorial-cut-decision';
+export * from './cinematic-story-bible';
+export * from './prompt-complexity-budget';
+export * from './music-lipsync-package';
+export * from './voice-replacement-edit';
