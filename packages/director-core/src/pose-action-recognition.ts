@@ -75,7 +75,7 @@ export function buildPoseActionWindows(
       id:`${plan.id}:window:${windows.length+1}`,
       trackId:track.trackId,
       frameStart:slice[0]!.frame,
-      frameEnd:slice.at(-1)!.frame,
+      frameEnd:slice[slice.length-1]!.frame,
       vectors:Object.freeze(slice.map(item=>Object.freeze(item.vector))),
       evidenceIds:Object.freeze([...plan.evidenceIds,...slice.map(item=>item.evidenceId)]),
     }));
