@@ -138,7 +138,11 @@ export function validateDialogueCoveragePlan(plan:DialogueCoveragePlan):readonly
       if(!establishedScreenDirections&&shot.role==='master'&&shot.screenDirectionBySubject){
         establishedScreenDirections=shot.screenDirectionBySubject;
       }else if(establishedScreenDirections&&shot.screenDirectionBySubject){
-        for(const subjectId of plan.characterReferenceAssetIds){
+        const participantIds=new Set([
+          ...plan.eyelines.flatMap(eyeline=>[eyeline.characterId,eyeline.targetCharacterId]),
+          ...plan.shots.flatMap(candidate=>candidate.subjectCharacterIds),
+        ]);
+        for(const subjectId of participantIds){
           const initial=establishedScreenDirections[subjectId];
           const current=shot.screenDirectionBySubject[subjectId];
           if(initial&&current&&initial!==current&&shot.role!=='reaction'){
