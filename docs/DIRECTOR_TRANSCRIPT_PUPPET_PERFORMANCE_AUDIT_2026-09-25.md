@@ -1136,3 +1136,55 @@ Not admitted as:
 - commercial production backend;
 - room/world reconstruction;
 - free-camera navigable environment engine.
+
+
+## GitGlobe + Matrix-3D + GEV integration
+
+The user's existing GEV work is now explicitly connected to the Director world stack.
+
+### GEV remains the real-world intelligence boundary
+
+The previously merged GEV architecture remains unchanged in authority:
+
+`source -> observation -> immutable evidence -> explicit Reality admission -> SpatialContext -> Ask Jhadina / governed consumers`.
+
+CCTV, aircraft, AIS vessels, FIRMS fire, USGS earthquakes, public satellite context and other admitted providers remain intelligence inputs. None of the new rendering/world tools can bypass evidence or Reality admission.
+
+### GitGlobe is a presentation/control pattern, not geospatial evidence
+
+GitGlobe's useful contribution is its ID-based camera protocol and scalable globe rendering architecture.
+
+Director/Spatial reuse the design rule:
+
+> the model chooses grounded entity/reference IDs; the renderer owns geometry.
+
+No GitGlobe semantic-layout coordinate is interpreted as latitude/longitude.
+
+### Matrix-3D is the navigable-world backend slot
+
+Unlike Hunyuan3D-1 and LSRM, Matrix-3D genuinely targets 360-degree explorable scene generation.
+
+It can therefore satisfy Director requirements that explicitly ask for:
+
+- free-camera world;
+- navigable world;
+- panoramic generation;
+- panoramic scene reconstruction;
+- custom camera trajectory.
+
+Commercial use remains fail-closed until checkpoint/model terms are independently verified beyond the MIT code license.
+
+### Synthetic world bridge from GEV
+
+GEV SpatialContext can now be projected into a `SpatialWorldVisualizationSeed` containing evidence/Reality/provenance/uncertainty.
+
+The seed is intelligence-only and marked `MUST_NOT_REENTER_SPATIAL_REALITY`.
+
+This enables workflows such as:
+
+- build a spatially informed visualization for Director;
+- create a Matrix-3D environment inspired by admitted public-world context;
+- fly/focus the Spatial globe by grounded entity IDs;
+- use the generated world for planning, storytelling or visualization;
+
+without claiming that generated geometry is observed reality.
