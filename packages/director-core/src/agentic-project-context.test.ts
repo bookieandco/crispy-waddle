@@ -12,10 +12,11 @@ const context:AgenticProjectContext={
   id:'context:precious-cargo',
   projectId:'p',
   scriptAssetId:'script:film',
+  storyBibleId:'story-bible:precious-cargo',
   assets:[
-    {assetId:'style:film',role:'style',semanticLabel:'project visual style',media:'image',global:true,evidenceIds:['style:approved']},
-    {assetId:'character:harper',role:'character',semanticLabel:'Harper character sheet',media:'image',global:false,evidenceIds:['char:approved']},
-    {assetId:'location:train',role:'location',semanticLabel:'last train car',media:'image',global:false,evidenceIds:['location:approved']},
+    {assetId:'style:film',role:'style',semanticLabel:'project visual style',elementTag:'style.film',media:'image',global:true,evidenceIds:['style:approved']},
+    {assetId:'character:harper',role:'character',semanticLabel:'Harper character sheet',elementTag:'character.harper',media:'image',global:false,evidenceIds:['char:approved']},
+    {assetId:'location:train',role:'location',semanticLabel:'last train car',elementTag:'location.train',media:'image',global:false,evidenceIds:['location:approved']},
     {assetId:'prop:book',role:'prop',semanticLabel:'paperback book',media:'image',global:false,evidenceIds:['prop:book']},
     {assetId:'prop:binoculars',role:'prop',semanticLabel:'binoculars',media:'image',global:false,evidenceIds:['prop:binoculars']},
     {assetId:'prop:bow',role:'prop',semanticLabel:'bow and arrows',media:'image',global:false,evidenceIds:['prop:bow']},
@@ -95,11 +96,28 @@ describe('agentic project context',()=>{
       evidenceIds:['user:generate-scene-1'],
     });
     expect(resolved.targetDurationSeconds).toBe(13);
+    expect(resolved.storyBibleId).toBe('story-bible:precious-cargo');
+    expect(resolved.evidenceIds).toContain('story-bible:story-bible:precious-cargo');
     expect(resolved.boundAssetIds).toEqual(expect.arrayContaining([
       'style:film','character:harper','location:train','prop:book','prop:binoculars',
     ]));
     expect(resolved.boundAssetIds).not.toContain('spider');
     expect(resolved.generationReferences.references.map(reference=>reference.assetId)).not.toContain('prop:bow');
+    expect(resolved.generationReferences.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({assetId:'style:film',promptToken:'@style.film'}),
+      expect.objectContaining({assetId:'character:harper',promptToken:'@character.harper'}),
+      expect.objectContaining({assetId:'location:train',promptToken:'@location.train'}),
+    ]));
+  });
+
+  it('rejects duplicate semantic element tags',()=>{
+    expect(validateAgenticProjectContext({
+      ...context,
+      assets:[
+        ...context.assets,
+        {assetId:'duplicate',role:'other',semanticLabel:'duplicate',elementTag:'character.harper',media:'image',global:false,evidenceIds:['duplicate']},
+      ],
+    })).toContain('DIRECTOR_AGENTIC_ELEMENT_TAG_DUPLICATE:character.harper');
   });
 
   it('rejects manual over-binding of assets that are not relevant to the scene',()=>{
