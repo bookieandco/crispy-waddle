@@ -481,3 +481,113 @@ When an iterated reference fails, the correct response is to return to a higher-
 The tutorial gets better results by alternating image models for different tasks such as camera-angle changes and effects/power imagery. Director already supports provider/model registries, creative variants and take selection.
 
 The lesson is retained as model-per-shot experimentation with measured evidence. A model that performs well on one shot type does not become the universal provider, and switching models must not weaken character/style/continuity locks.
+
+
+## Documentation-grounded model prompt translation audit
+
+The supplied prompting workflow argues for a useful authority split:
+
+- the filmmaker owns the idea, story, emotional intention and desired camera/performance behavior;
+- the model's official documentation describes how that specific generator expects those ideas to be phrased;
+- a separate translator can convert human creative intent into model-optimized prompt grammar;
+- creative feedback such as "less melodramatic" or a changed camera reveal should refine the translation without replacing the underlying authored intent.
+
+Director previously compiled a strong provider-neutral prompt, but it sent that compiled text directly to the selected generation provider.
+
+### Gap 18 — model/version-specific documentation profiles
+
+Added `ModelPromptProfile` and `PromptDocumentationSource`.
+
+A governed profile requires:
+
+- provider ID;
+- exact model ID;
+- exact model version;
+- official documentation or official prompt-guide source;
+- source content hash;
+- capture time;
+- provenance/evidence IDs.
+
+A profile cannot be silently reused across another model/version.
+
+This treats prompt documentation like any other production dependency: versioned, attributable and inspectable.
+
+### Gap 19 — provider prompt translator
+
+Added a `ModelPromptTranslator` interface and `translatePromptForModel()`.
+
+The translator receives:
+
+- project/take identity;
+- Director's canonical compiled prompt;
+- optional creative refinement feedback;
+- the governed prompt profile.
+
+The result must identify:
+
+- the prompt profile;
+- provider/model/version;
+- exact documentation source IDs used;
+- translated prompt;
+- canonical-prompt digest receipt;
+- translation evidence.
+
+Director validates that all cited documentation sources belong to the active profile.
+
+### Generation boundary integration
+
+`GenerationPlanAdapter` now optionally accepts a prompt-profile resolver and model prompt translator.
+
+When a `promptProfileId` is requested:
+
+1. Director resolves the selected generation model.
+2. Director resolves the requested documentation profile.
+3. Provider ID, model ID and model version must match exactly.
+4. Director compiles its canonical camera/performance/continuity/reference prompt.
+5. The translator converts that canonical prompt into model-specific grammar.
+6. Only the translated prompt is sent as the provider's prompt.
+7. The generation request also retains:
+   - `canonicalPrompt`;
+   - refinement feedback;
+   - profile/model/version identity;
+   - documentation source IDs;
+   - translation evidence.
+
+Creative refinement feedback cannot be supplied through this path without a governed prompt profile.
+
+### Authority boundary
+
+This implementation intentionally does not make prompt engineering part of Director's creative authority.
+
+Director remains authoritative for:
+
+- story intent;
+- camera intent;
+- performance;
+- realism;
+- animation principles;
+- references and continuity;
+- approvals and QC.
+
+The translator is a provider adapter. It may reorganize or phrase the canonical brief according to official model guidance, but it does not get to invent story beats, change locked references, or override Director's creative contracts.
+
+### Iteration workflow
+
+The source recommends generate -> review -> explain what feels wrong -> regenerate an improved model-specific prompt.
+
+Director now supports that pattern through `promptRefinementFeedback`, while retaining the original canonical prompt alongside every translated submission.
+
+This means feedback such as "too dramatic", "more emotionally subdued", or "change the reveal to a pull-back/orbit" can be preserved as an explicit refinement receipt instead of silently editing the production's source intent.
+
+### Existing capabilities reused
+
+No duplicate system was added for:
+
+- natural-language directing -> existing TakeRequest and structured camera/performance plans;
+- model selection -> GenerationRegistry;
+- provider submission -> GenerationPlanAdapter / GenerationService;
+- reference attachment -> GenerationReferenceManifest;
+- failed-result review -> directed take QC and take selection;
+- alternate model comparison -> creative experiments and per-shot provider routing.
+
+The new layer only translates canonical intent into documented model-specific prompt syntax.
