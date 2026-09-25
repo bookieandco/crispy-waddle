@@ -2,6 +2,7 @@ import type { ActionRequest } from '@jhadina/action-core'
 import { isVoiceSyncTrackUsable, type VoiceSyncMode, type VoiceSyncTrack } from './studio-contracts'
 import type { DirectorStudioAction, DirectorStudioCapabilityProvider } from './studio-governed-action'
 import { transcriptPlanEvidence, validateTranscriptLipSyncPlan, type TranscriptLipSyncPlan } from './transcript-assisted-lip-sync'
+import { lipSyncTuningEvidence, validateLipSyncTuningPlan, type LipSyncTuningPlan } from './character-animation-enhancements.js'
 
 export interface VoiceSyncInput {
   videoAssetId: string
@@ -11,6 +12,7 @@ export interface VoiceSyncInput {
   characterTrackId?: string
   continuityRef?: string
   transcriptPlan?: TranscriptLipSyncPlan
+  tuningPlan?: LipSyncTuningPlan
 }
 
 export interface VoiceSyncArtifact {
@@ -38,6 +40,10 @@ export function validateVoiceSyncInput(input: VoiceSyncInput): string[] {
     if(!decision.valid) errors.push(...decision.reasons.map(reason=>`transcript invalid: ${reason}`))
     if(input.transcriptPlan.audioAssetId!==input.audioAssetId) errors.push('transcript audioAssetId must match voice-sync audioAssetId')
   }
+  if(input.tuningPlan){
+    const reasons=validateLipSyncTuningPlan(input.tuningPlan)
+    if(reasons.length) errors.push(...reasons.map(reason=>`lip sync tuning invalid: ${reason}`))
+  }
   return errors
 }
 
@@ -56,10 +62,14 @@ function readInput(action:DirectorStudioAction):VoiceSyncInput {
     characterTrackId:typeof p.characterTrackId === 'string' ? p.characterTrackId : undefined,
     continuityRef:typeof p.continuityRef === 'string' ? p.continuityRef : undefined,
     transcriptPlan:typeof p.transcriptPlan === 'object' && p.transcriptPlan !== null ? p.transcriptPlan as TranscriptLipSyncPlan : undefined,
+    tuningPlan:typeof p.tuningPlan === 'object' && p.tuningPlan !== null ? p.tuningPlan as LipSyncTuningPlan : undefined,
   }
   const errors=validateVoiceSyncInput(input)
   if(input.transcriptPlan?.projectId!==undefined && input.transcriptPlan.projectId!==action.projectId) {
     errors.push('transcript projectId must match voice-sync projectId')
+  }
+  if(input.tuningPlan?.projectId!==undefined && input.tuningPlan.projectId!==action.projectId) {
+    errors.push('lip sync tuning projectId must match voice-sync projectId')
   }
   if(errors.length) throw new Error(`Invalid voice sync: ${errors.join('; ')}`)
   return input
@@ -90,6 +100,7 @@ export function createVoiceSyncProvider(adapter:VoiceSyncAdapter):DirectorStudio
           ...(input.characterTrackId ? [`character-track:${input.characterTrackId}`] : []),
           ...(input.continuityRef ? [`continuity:${input.continuityRef}`] : []),
           ...(input.transcriptPlan ? transcriptPlanEvidence(input.transcriptPlan) : []),
+          ...(input.tuningPlan ? lipSyncTuningEvidence(input.tuningPlan) : []),
         ],
       }
     },
