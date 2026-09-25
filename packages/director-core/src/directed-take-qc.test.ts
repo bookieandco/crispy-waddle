@@ -5,6 +5,7 @@ import {
   REALISTIC_CHARACTER_TAKE_QC,
   SOURCE_PRESERVING_VIDEO_EDIT_QC,
   ACTION_SEQUENCE_TAKE_QC,
+  CINEMATOGRAPHY_CAMERA_TAKE_QC,
   type DirectedTakeQcObservation,
 } from './directed-take-qc.js';
 
@@ -97,6 +98,18 @@ describe('directed take QC', () => {
       'DIRECTOR_DIRECTED_TAKE_QC_SCORE_LOW:temporal-flicker',
       'DIRECTOR_DIRECTED_TAKE_QC_SCORE_LOW:detail-retention',
     ]));
+  });
+
+  it('separates camera position, composition, and movement QC', () => {
+    const observations = CINEMATOGRAPHY_CAMERA_TAKE_QC.requiredMetrics.map((metric) =>
+      metric === 'camera-composition-match'
+        ? observation(metric, 0.55)
+        : observation(metric),
+    );
+    const decision = evaluateDirectedTakeQc(observations, CINEMATOGRAPHY_CAMERA_TAKE_QC);
+    expect(decision.admissible).toBe(false);
+    expect(decision.reasons).toContain('DIRECTOR_DIRECTED_TAKE_QC_SCORE_LOW:camera-composition-match');
+    expect(planDirectedTakeRepair(decision).preserve).not.toContain('camera-plan');
   });
 
   it('fails closed when source preservation has not been observed', () => {
