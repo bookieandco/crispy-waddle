@@ -41,6 +41,37 @@ function basePlan(patch: Partial<DirectorCameraPlan> = {}): DirectorCameraPlan {
           evidenceRefs: ['frame:reference'],
         },
       ],
+      focalPoints: [
+        {
+          target: 'subject face',
+          priority: 1,
+          placement: 'upper-right intersection',
+          purpose: 'primary emotional information',
+          evidenceRefs: ['frame:reference'],
+        },
+      ],
+      frameWithinFrame: [
+        {
+          source: 'doorway',
+          target: 'subject',
+          shape: 'rectangle',
+          purpose: 'visually contain the subject',
+          evidenceRefs: ['frame:reference'],
+        },
+      ],
+      depthLayers: [
+        {layer:'foreground',content:'soft doorway edge',focusState:'soft',evidenceRefs:['frame:reference']},
+        {layer:'midground',content:'subject',focusState:'sharp',evidenceRefs:['frame:reference']},
+        {layer:'background',content:'hallway practicals',focusState:'soft',evidenceRefs:['frame:reference']},
+      ],
+      attentionCues: [
+        {
+          kind:'luminance-contrast',
+          target:'subject face',
+          description:'face remains the brightest local area against a darker hallway',
+          evidenceRefs:['frame:reference'],
+        },
+      ],
     },
     optics: {
       focalLengthMm: 50,
@@ -77,6 +108,10 @@ describe('Director camera language', () => {
     expect(directive).toContain('rule-of-thirds composition');
     expect(directive).toContain('lead room short-sided');
     expect(directive).toContain('leading lines hallway walls -> subject face');
+    expect(directive).toContain('focal points #1 subject face at upper-right intersection');
+    expect(directive).toContain('frame-within-frame doorway frames subject as rectangle');
+    expect(directive).toContain('depth layers foreground: soft doorway edge');
+    expect(directive).toContain('attention cues luminance-contrast -> subject face');
     expect(directive).toContain('Film-form approach: formalist');
     expect(directive).toContain('Symbolic intent: increase subjective pressure');
   });
@@ -95,6 +130,53 @@ describe('Director camera language', () => {
       expect.objectContaining({ code: 'INVALID_COMPOSITION', path: 'composition.symmetryAxis', severity: 'warning' }),
       expect.objectContaining({ code: 'INVALID_COMPOSITION', path: 'composition.subjectGridPlacement', severity: 'warning' }),
       expect.objectContaining({ code: 'INVALID_COMPOSITION', path: 'composition.leadingLines[0]', severity: 'error' }),
+    ]));
+  });
+
+  it('supports golden-triangle placement and requires intentional imbalance to carry a reason', () => {
+    const golden = basePlan({
+      composition: {
+        shotSize:'wide',
+        gridStrategy:'golden-triangle',
+        subjectGridPlacement:'lower-right triangle intersection',
+        balance:'balanced',
+        focalPoints:[{target:'subject',priority:1}],
+      },
+    });
+    expect(validateDirectorCameraPlan(golden)).toEqual([]);
+
+    const unbalanced = basePlan({
+      composition: {
+        shotSize:'wide',
+        balance:'intentionally-unbalanced',
+      },
+    });
+    expect(validateDirectorCameraPlan(unbalanced)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code:'INVALID_COMPOSITION',
+        path:'composition.intentionalRuleBreaks',
+        severity:'error',
+      }),
+    ]));
+  });
+
+  it('fails closed when focal-point hierarchy or depth layers are ambiguous', () => {
+    const plan = basePlan({
+      composition: {
+        shotSize:'wide',
+        focalPoints:[
+          {target:'subject-a',priority:1},
+          {target:'subject-b',priority:1},
+        ],
+        depthLayers:[
+          {layer:'foreground',content:'rail'},
+          {layer:'foreground',content:'plant'},
+        ],
+      },
+    });
+    expect(validateDirectorCameraPlan(plan)).toEqual(expect.arrayContaining([
+      expect.objectContaining({code:'INVALID_COMPOSITION',path:'composition.focalPoints',severity:'error'}),
+      expect.objectContaining({code:'INVALID_COMPOSITION',path:'composition.depthLayers',severity:'error'}),
     ]));
   });
 
