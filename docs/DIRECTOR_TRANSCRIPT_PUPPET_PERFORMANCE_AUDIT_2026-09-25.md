@@ -2109,3 +2109,132 @@ The source reports several useful working observations that remain evidence, not
 - generated video is treated as an intermediate result and finished through edit, grading, grain/optical treatment, sound and voice work.
 
 Director preserves these as experiment/provider guidance. Existing character bootstrap, reference manifests, spend tracking, take selection and realism plans remain the canonical mechanisms.
+
+
+### Gap 58 — reference-sheet presentation profile
+
+A second pass over the AI cinematic-story workflow found one character-reference detail that had previously been documented but not represented as a structured contract.
+
+Added `CharacterReferencePresentationProfile`.
+
+It can record:
+
+- reference background treatment;
+- optional neutral-gray reflectance percentage;
+- flat/even or custom lighting;
+- recommended panel count;
+- preferred reference views;
+- full-body requirement;
+- close-up requirement;
+- evidence.
+
+The source's demonstrated workflow is preserved as `SOURCE_FLAT_GRAY_CHARACTER_REFERENCE_PROFILE`:
+
+- 18% neutral-gray background;
+- flat/even lighting;
+- three-panel recommendation;
+- front, rear and close-up reference views;
+- full-body coverage;
+- close-up coverage.
+
+This is explicitly a source/provider workflow profile, not a universal Director requirement.
+
+The canonical `CharacterReferenceView` vocabulary now also includes `rear`.
+
+### Gap 59 — explicit generated-audio intent
+
+The source's interview example explicitly disables music and asks the video generator for dialogue plus scene sound instead.
+
+Added `GenerationAudioIntent`.
+
+A take may now state:
+
+- which generated audio roles are allowed;
+- which roles are forbidden;
+- whether unrequested music must be prohibited;
+- additional scene-specific notes;
+- evidence.
+
+Supported roles include:
+
+- dialogue;
+- music;
+- Foley;
+- SFX;
+- ambience;
+- nonverbal vocalizations.
+
+`TakeRequest.audioIntent` is compiled into a dedicated `[GENERATED AUDIO]` prompt section and is preserved in provider parameters.
+
+This prevents a provider from silently baking a score into an interview or documentary shot when the Director intended dialogue and natural scene sound only.
+
+### Gap 60 — scene generation attempt budget
+
+The source says its current workflow often reaches a usable result in roughly one-to-two generations per scene, while also acknowledging that strong work may need more takes.
+
+Director now separates **recommended efficiency** from **hard production ceilings**.
+
+Added `SceneGenerationAttemptBudget` with:
+
+- recommended minimum attempts;
+- recommended maximum attempts;
+- optional hard maximum attempts;
+- stop-when-accepted policy;
+- evidence.
+
+Going above a recommended range creates a warning.
+
+Only a project/producer-defined hard maximum blocks submission.
+
+`TakeRequest.attemptBudget` is enforced both by `planTake()` and at `GenerationPlanAdapter.submitTake()`, so retries cannot bypass the budget boundary.
+
+This keeps the source's one-to-two generation observation as guidance rather than encoding it as a universal rule.
+
+### Gap 61 — structured smartphone / home-video capture look
+
+The source uses deliberately different capture languages for synthetic documentary footage, including phone-like footage and VHS-style childhood material.
+
+`CameraCaptureSettings` now supports:
+
+- `digital-cinema`;
+- `smartphone`;
+- `vhs-home-video`;
+- `consumer-camcorder`;
+- `custom`.
+
+Custom looks require an explicit description.
+
+A pre-existing handoff gap was also repaired: capture settings were validated but were not emitted by `compileDirectorCameraDirective()`.
+
+The compiled camera prompt now carries:
+
+- FPS;
+- dimensions;
+- HDR;
+- focus mode;
+- exposure mode;
+- exposure duration;
+- ISO;
+- zoom;
+- capture look;
+- capture-look notes.
+
+This makes a requested phone/VHS capture treatment reach generation adapters instead of remaining metadata-only.
+
+### Existing systems confirmed during the second pass
+
+No duplicate work was added for:
+
+- character/wardrobe identity -> Cast Bible;
+- face/multi-angle references -> Character Reference Bootstrap;
+- voice identity -> Voice Identity;
+- natural pacing/prosody -> Speech Performance + voice QC;
+- interview eyeline -> Performance Direction gaze targets;
+- handheld/documentary movement -> Camera Language;
+- 720p-to-4K finishing -> Video Upscale Finishing;
+- grain/lens-edge softness -> Realism Direction / finishing effects;
+- generation spend -> Generation Spend Gate;
+- vocal-stem music lip sync -> MusicLipSyncSegmentPlan;
+- preserving laughter/Foley/ambience during dialogue replacement -> VoiceReplacementEditPlan.
+
+This second pass therefore closes execution gaps from the same source rather than duplicating the first integration.
