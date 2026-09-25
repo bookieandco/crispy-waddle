@@ -112,3 +112,65 @@ No duplicate subsystem was added for:
 - triggerable/generated audio — already covered by Director audio, Foley, speech, and timeline audio paths.
 
 The source mentions broader rig-issue tooling and UI search/filter improvements, but does not provide enough operational detail in this walkthrough to justify inventing a new canonical diagnostic model from it.
+
+
+## Gap 6 — local lip-sync repair windows
+
+The cartoon workflow source demonstrates an important failure-recovery pattern: when transcript-assisted alignment fails only for a short interval, isolate that interval and fall back to audio-only lip sync instead of recomputing or manually repairing the entire performance.
+
+Added a governed regional repair plan with:
+
+- exact millisecond ranges;
+- transcript-assisted or audio-only strategy per range;
+- non-overlap and audio-bound validation;
+- explicit failure reason and evidence;
+- project/audio lineage.
+
+This preserves transcript-assisted sync as the preferred path while making local fallback deterministic.
+
+## Gap 7 — shot-driven minimal rigs
+
+The source repeatedly avoids building features that a brief character or partially hidden shot never uses. Director now records a shot-scoped rig plan:
+
+- exact shot IDs;
+- required rig channels;
+- mouth mode: none, jaw-only, or full viseme;
+- only the needed features such as dangle, eyebrow poses, arm IK, head turns, blinks, or automated lights.
+
+The governed rig request must still include every channel required by the scope. This makes “do only what the shot needs” explicit without weakening QC.
+
+## Gap 8 — triggered and cyclic sprite sequences
+
+Short environmental interactions and recurring machine/city lights are represented as frame-sequence plans:
+
+- triggered or looping mode;
+- ordered frame assets;
+- frames per step;
+- optional start frame;
+- trigger for one-shot interactions;
+- blend mode and provenance evidence.
+
+This covers quick door-opening frames, blinking lights, and impact/poof sprite sequences without inventing a second animation engine.
+
+## Gap 9 — pre-render caches and master-scene scale safety
+
+For complex scenes, the source replaces expensive live links with a transparent image sequence plus matching WAV, while keeping the same FPS. It also builds a large working composition around the closest intended framing so raster characters do not need to be enlarged above 100%.
+
+Director now has:
+
+- pre-render cache plans bound to the exact source version, frame range, FPS, dimensions, alpha mode, image format and optional WAV;
+- render artifact identity bound to those cache instructions;
+- master-scene working/delivery dimensions;
+- a maximum raster scale that fails validation above 1.0;
+- render evidence for these decisions.
+
+## Existing capabilities reused from this source
+
+The following source lessons already map to existing Director primitives and were deliberately not duplicated:
+
+- masked character shadows -> standard effect/compositing parameters;
+- crash/poof + bounce + sound layering -> overlays, transform keyframes, animation principles and Foley/SFX;
+- slow establishing zooms and transition motion -> camera and timeline keyframes/transitions;
+- dialogue beginning before the visual transition completes -> independent audio/video timeline placement;
+- simple character bobbing when legs are hidden -> existing transform/locomotion keyframes;
+- scene and timeline history -> existing timeline versions.
