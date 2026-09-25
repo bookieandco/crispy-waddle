@@ -4,11 +4,15 @@ export type QuickCutVideoType = 'dialogue-driven' | 'visual-only';
 export type QuickCutMediaScope = 'current-project' | 'current-timeline' | 'current-selection';
 export type QuickCutMediaRole = 'a-roll' | 'b-roll' | 'unknown';
 
+export type QuickCutSpeechKind = 'dialogue' | 'production-direction' | 'filler' | 'other';
+
 export interface QuickCutTranscriptSpan {
   id: string;
   startSeconds: number;
   endSeconds: number;
   text: string;
+  speakerId?: string;
+  speechKind?: QuickCutSpeechKind;
   themeTags: readonly string[];
   importance: number;
   evidenceIds: readonly string[];
@@ -35,6 +39,8 @@ export interface QuickCutRequest {
   mediaScope: QuickCutMediaScope;
   prompt?: string;
   focusThemes?: readonly string[];
+  brollThemes?: readonly string[];
+  minimumDistinctSpeakers?: number;
   targetDurationSeconds: number;
   createBrollTrack: boolean;
   minimumThemeSupport?: number;
@@ -53,6 +59,7 @@ export interface QuickCutSelection {
   score: number;
   evidenceIds: readonly string[];
   transcriptText?: string;
+  speakerId?: string;
 }
 
 export interface QuickCutProposal {
@@ -63,6 +70,8 @@ export interface QuickCutProposal {
   mediaScope: QuickCutMediaScope;
   prompt?: string;
   focusThemes: readonly string[];
+  brollThemes: readonly string[];
+  baseTimelineVersionId?: string;
   targetDurationSeconds: number;
   estimatedDurationSeconds: number;
   selections: readonly QuickCutSelection[];
@@ -77,6 +86,7 @@ export function planQuickCut(request: QuickCutRequest): QuickCutProposal {
   if (reasons.length) throw new Error(`DIRECTOR_QUICK_CUT_INVALID: ${reasons.join(', ')}`);
 
   const focusThemes=normalizeThemes(request.focusThemes ?? promptThemes(request.prompt ?? ''));
+  const brollThemes=normalizeThemes(request.brollThemes ?? focusThemes);
   const eligible=request.sourceMedia.filter(item=>item.scopes.includes(request.mediaScope));
   if (!eligible.length) throw new Error('DIRECTOR_QUICK_CUT_SCOPE_EMPTY');
 
@@ -84,7 +94,11 @@ export function planQuickCut(request: QuickCutRequest): QuickCutProposal {
     ? dialogueCandidates(eligible,focusThemes)
     : visualCandidates(eligible,focusThemes,'a-roll');
 
-  const selectedA=selectToDuration(aCandidates,request.targetDurationSeconds);
+  const selectedA=selectToDuration(
+    aCandidates,
+    request.targetDurationSeconds,
+    request.videoType === 'dialogue-driven' ? request.minimumDistinctSpeakers ?? 1 : 0,
+  );
   if (!selectedA.length) {
     throw new Error(request.videoType === 'dialogue-driven'
       ? 'DIRECTOR_QUICK_CUT_DIALOGUE_EVIDENCE_REQUIRED'
@@ -100,7 +114,7 @@ export function planQuickCut(request: QuickCutRequest): QuickCutProposal {
 
   const aTrack=buildARollTrack(selectedA);
   const bSelections=request.createBrollTrack
-    ? selectBroll(eligible,selectedA,focusThemes,request.targetDurationSeconds)
+    ? selectBroll(eligible,selectedA,brollThemes,request.targetDurationSeconds)
     : [];
   const tracks:TimelineTrack[]=[aTrack];
   if (bSelections.length) tracks.push(buildBrollTrack(bSelections,selectedA));
@@ -143,6 +157,8 @@ export function planQuickCut(request: QuickCutRequest): QuickCutProposal {
     mediaScope:request.mediaScope,
     prompt:request.prompt,
     focusThemes:Object.freeze(focusThemes),
+    brollThemes:Object.freeze(brollThemes),
+    baseTimelineVersionId:request.baseTimelineVersionId,
     targetDurationSeconds:request.targetDurationSeconds,
     estimatedDurationSeconds,
     selections:Object.freeze([...selectedA,...bSelections]),
@@ -171,6 +187,14 @@ function validateRequest(request:QuickCutRequest):string[] {
     reasons.push('DIRECTOR_QUICK_CUT_DURATION_INVALID');
   }
   if (
+    request.mediaScope !== 'current-project' &&
+    !request.baseTimelineVersionId?.trim()
+  ) reasons.push('DIRECTOR_QUICK_CUT_BASE_TIMELINE_VERSION_REQUIRED');
+  if (
+    request.minimumDistinctSpeakers!==undefined &&
+    (!Number.isInteger(request.minimumDistinctSpeakers)||request.minimumDistinctSpeakers<1)
+  ) reasons.push('DIRECTOR_QUICK_CUT_SPEAKER_COUNT_INVALID');
+  if (
     request.minimumThemeSupport!==undefined &&
     (!Number.isFinite(request.minimumThemeSupport)||request.minimumThemeSupport<0||request.minimumThemeSupport>1)
   ) reasons.push('DIRECTOR_QUICK_CUT_THEME_SUPPORT_INVALID');
@@ -198,7 +222,9 @@ function validateRequest(request:QuickCutRequest):string[] {
 function dialogueCandidates(media:readonly QuickCutMediaItem[],themes:readonly string[]):QuickCutSelection[] {
   return media.flatMap(item=>{
     if (classifyQuickCutRole(item)!=='a-roll') return [];
-    return (item.transcriptSpans ?? []).map(span=>{
+    return (item.transcriptSpans ?? [])
+      .filter(span=>span.speechKind !== 'production-direction' && span.speechKind !== 'filler')
+      .map(span=>{
       const semantic=themeOverlap(span.themeTags,themes);
       return {
         id:`quickcut:a:${span.id}`,
@@ -210,6 +236,7 @@ function dialogueCandidates(media:readonly QuickCutMediaItem[],themes:readonly s
         score:score(span.importance,semantic,themes.length),
         evidenceIds:Object.freeze([...new Set([...item.evidenceIds,...span.evidenceIds])]),
         transcriptText:span.text,
+        speakerId:span.speakerId,
       };
     });
   }).filter(item=>item.score>0 || themes.length===0);
@@ -239,11 +266,39 @@ function visualCandidates(
   });
 }
 
-function selectToDuration(candidates:readonly QuickCutSelection[],target:number):QuickCutSelection[] {
+function selectToDuration(
+  candidates:readonly QuickCutSelection[],
+  target:number,
+  minimumDistinctSpeakers=0,
+):QuickCutSelection[] {
   const ordered=[...candidates].sort((a,b)=>b.score-a.score || a.sourceStartSeconds-b.sourceStartSeconds || a.id.localeCompare(b.id));
   const selected:QuickCutSelection[]=[];
   let duration=0;
+
+  if (minimumDistinctSpeakers>1) {
+    const bySpeaker=new Map<string,QuickCutSelection[]>();
+    for (const candidate of ordered) {
+      if (!candidate.speakerId?.trim()) continue;
+      const bucket=bySpeaker.get(candidate.speakerId) ?? [];
+      bucket.push(candidate);
+      bySpeaker.set(candidate.speakerId,bucket);
+    }
+    if (bySpeaker.size<minimumDistinctSpeakers) {
+      throw new Error('DIRECTOR_QUICK_CUT_SPEAKER_DIVERSITY_INSUFFICIENT');
+    }
+    for (const [,bucket] of [...bySpeaker.entries()].slice(0,minimumDistinctSpeakers)) {
+      const candidate=bucket[0]!;
+      const available=candidate.sourceEndSeconds-candidate.sourceStartSeconds;
+      const remaining=target-duration;
+      const used=Math.min(available,remaining);
+      if (used<0.1) continue;
+      selected.push(Object.freeze({...candidate,sourceEndSeconds:candidate.sourceStartSeconds+used}));
+      duration+=used;
+    }
+  }
+
   for (const candidate of ordered) {
+    if (selected.some(item=>item.id===candidate.id)) continue;
     if (duration>=target) break;
     const available=candidate.sourceEndSeconds-candidate.sourceStartSeconds;
     const remaining=target-duration;
