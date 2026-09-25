@@ -127,3 +127,5 @@ export * from './studio-character-training';
 export * from './studio-character-training-worker';
 
 export * from './source-driven-character-swap';
+
+export * from './quick-cut-planner';
