@@ -64,6 +64,12 @@ export type SamCommandCenterItem={
     conditions:string[]
     detectedRules:string[]
   }
+  capture:{
+    stage:'discovery'|'sources_sought'|'presolicitation'|'solicitation'|'amendment'|'award'|'execution'|'closeout'|'unknown'
+    captureValue:'low'|'medium'|'high'|'unknown'
+    awardReadiness:'not_award_stage'|'developing'|'ready_for_pursuit'|'unknown'
+    reasons:string[]
+  }
   providers:SamProviderView[]
   pursuitStatus:'ready_for_quote'|'review_required'|'blocked'|'not_generated'
   assignments:SamTeamAssignmentView[]
@@ -75,6 +81,7 @@ export type SamCommandCenterItem={
     humanApprovalRequired:true
     outreachAuthorized:false
     bidSubmissionAuthorized:false
+    contractExecutionAuthorized:false
     paymentAuthorized:false
   }
 }
@@ -129,6 +136,8 @@ export function projectSamCommandCenter(input:{
     const noticeId=string(catalog.notice_id)
     const analysis=analyses.get(noticeId)
     const subcontractability=object(analysis?.subcontractability)
+    const operating=object(analysis?.operating)
+    const capture=object(operating.capture)
     const pursuit=pursuits.get(noticeId)
     const commercial=object(pursuit?.commercial)
 
@@ -195,6 +204,12 @@ export function projectSamCommandCenter(input:{
         conditions:strings(subcontractability.conditions),
         detectedRules:strings(subcontractability.detectedRules),
       },
+      capture:{
+        stage:status(capture.stage,['discovery','sources_sought','presolicitation','solicitation','amendment','award','execution','closeout','unknown'] as const,'unknown'),
+        captureValue:status(capture.captureValue,['low','medium','high','unknown'] as const,'unknown'),
+        awardReadiness:status(capture.awardReadiness,['not_award_stage','developing','ready_for_pursuit','unknown'] as const,'unknown'),
+        reasons:strings(capture.reasons),
+      },
       providers:providerViews,
       pursuitStatus:status(pursuit?.status,['ready_for_quote','review_required','blocked','not_generated'] as const,'not_generated'),
       assignments,
@@ -214,6 +229,7 @@ export function projectSamCommandCenter(input:{
         humanApprovalRequired:true,
         outreachAuthorized:false,
         bidSubmissionAuthorized:false,
+        contractExecutionAuthorized:false,
         paymentAuthorized:false,
       },
     }
