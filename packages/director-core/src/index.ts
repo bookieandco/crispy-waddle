@@ -137,3 +137,6 @@ export * from './transcript-assisted-lip-sync';
 export * from './character-performance-rig';
 export * from './character-animation-enhancements';
 export * from './cartoon-production-workflow';
+export * from './performance-capture-plan';
+export * from './human-performance-observer';
+export * from './pose-action-recognition';
