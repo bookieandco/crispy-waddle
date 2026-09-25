@@ -91,6 +91,17 @@ function basePlan(patch: Partial<DirectorCameraPlan> = {}): DirectorCameraPlan {
       durationSeconds: 4,
       oneTake: true,
     },
+    capture: {
+      fps: 24,
+      width: 1920,
+      height: 1080,
+      focusMode: 'locked',
+      exposureMode: 'manual',
+      exposureSeconds: 1 / 48,
+      iso: 400,
+      captureLook: 'smartphone',
+      captureLookNotes: 'natural phone-camera motion and modest computational sharpness',
+    },
     preserve: ['shot-size', 'angle', 'lens'],
     ...patch,
   };
