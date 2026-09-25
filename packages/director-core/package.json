@@ -83,7 +83,8 @@
     "./pose-action-recognition": "./src/pose-action-recognition.ts",
     "./roboflow-people-observation": "./src/roboflow-people-observation.ts",
     "./hybrid-animation-production": "./src/hybrid-animation-production.ts",
-    "./action-sequence-control": "./src/action-sequence-control.ts"
+    "./action-sequence-control": "./src/action-sequence-control.ts",
+    "./model-prompt-translation": "./src/model-prompt-translation.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
