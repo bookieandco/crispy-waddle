@@ -183,3 +183,114 @@ Satellite certification is not a single boolean:
 5. **GEV-SATELLITE.LIVE.FINAL** — all four gates above are proven with receipts on the same admitted lineage.
 
 Feature-branch automatic Vercel deployment remains disabled by the repository deployment-rate guard. A controlled preview may be used for gate 4 only when an authorized Vercel deploy credential/action is available; the guard must not be weakened to obtain a certification receipt.
+
+
+## GitGlobe / Matrix-3D spatial-world extension
+
+New references:
+
+- `yamantaka-singh/GitGlobe`;
+- `SkyworkAI/Matrix-3D`.
+
+These are integrated without changing the canonical GEV truth boundary:
+
+`GEV/source -> SpatialObservation -> immutable SpatialEvidence -> explicit Reality admission -> SpatialContext -> Ask Jhadina / Spatial Workspace`
+
+### GitGlobe contribution: ID-only globe control
+
+GitGlobe is a semantic software-discovery globe, not a physical-world data source. Its repository positions are derived from embedding/UMAP layout and must **not** be imported as geographic truth.
+
+The reusable architectural lesson is its agent-camera contract:
+
+- the model chooses stable IDs;
+- the renderer owns coordinates/geometry;
+- camera fly/focus/highlight operations resolve IDs inside the renderer;
+- invalid IDs fail visibly;
+- the model never emits plausible-looking coordinates.
+
+Jhadina Spatial now has `SpatialGlobeCommand` and `parseSpatialGlobeCommand()` implementing the same safety property for GEV/Spatial refs.
+
+Supported presentation operations include:
+
+- fly to grounded refs;
+- focus one grounded ref;
+- highlight refs;
+- draw evidence/source/corroboration/conflict/route/semantic relations;
+- set presentation filters;
+- reset view.
+
+Raw `lat/lon/x/y/z/theta/phi` camera geometry in model-issued commands is rejected.
+
+The renderer profile also records scalable implementation guidance from GitGlobe:
+
+- S2 spatial indexing;
+- GPU ID-buffer picking;
+- on-demand relation loading;
+- renderer-owned geometry.
+
+These remain presentation optimizations. Renderer state never becomes observation/evidence/reality.
+
+### GEV -> synthetic world visualization
+
+Added `createSpatialWorldVisualizationSeed()`.
+
+A seed can carry:
+
+- GEV evidence refs;
+- admitted Reality refs;
+- geographic scope;
+- source health;
+- uncertainty;
+- limitations;
+- provenance.
+
+For real-world recreations, the caller can require explicit Reality admission before a world seed is produced.
+
+Every seed is permanently marked:
+
+- authority = `INTELLIGENCE_ONLY`;
+- synthetic output policy = `MUST_NOT_REENTER_SPATIAL_REALITY`.
+
+A Matrix-3D/OpenArt/other generated scene therefore cannot be fed back into the GEV truth chain as if it were a new sensor observation.
+
+### Matrix-3D contribution: actual navigable world backend
+
+Matrix-3D is an omnidirectional explorable 3D-world generator, unlike the object-centric Hunyuan3D/LSRM profiles.
+
+The repository documents:
+
+- text -> panorama image;
+- image -> panorama image;
+- panorama -> panoramic tour video;
+- panoramic video -> 3D scene;
+- custom camera trajectories;
+- optimization-based 3D Gaussian-splat reconstruction;
+- feed-forward panoramic LRM reconstruction;
+- 360-degree free exploration.
+
+Director now registers `MATRIX_3D_PROFILE` as a `world-generator` with:
+
+- `text-to-panorama`;
+- `image-to-panorama`;
+- `panoramic-video-generation`;
+- `panoramic-scene-reconstruction`;
+- `custom-camera-trajectory`;
+- `gaussian-splat-scene`;
+- `free-camera-world`;
+- `navigable-world`.
+
+The GitHub code license is MIT. The GitHub README does not establish the commercial terms for every released checkpoint/model dependency, so commercial production fails closed until those weight terms are separately verified.
+
+### Combined boundary
+
+The integrated roles are:
+
+- **GEV / public spatial providers** -> grounded real-world observations/evidence;
+- **Reality admission** -> determines what can be treated as canonical real-world state;
+- **Ask Jhadina / Spatial Workspace** -> reason over and navigate that state;
+- **GitGlobe-inspired control** -> ID-only camera/navigation presentation;
+- **Matrix-3D** -> optional synthetic navigable visualization/world generation;
+- **Director EnvironmentViewPack / WorldCaptureSession** -> creative-world continuity;
+- **generated world output** -> synthetic derivative only, never new GEV Reality.
+
+This keeps the powerful visual/world layer downstream of truth rather than allowing rendered geometry to contaminate the evidence chain.
