@@ -46,6 +46,20 @@ export type CameraMovementKind =
 
 export type CameraMovementIntensity = 'minimal' | 'low' | 'medium' | 'high';
 
+export type CameraFormApproach = 'realist' | 'formalist' | 'hybrid';
+
+export type CameraCompositionBalance = 'symmetrical' | 'asymmetrical' | 'custom';
+export type CameraGridStrategy = 'rule-of-thirds' | 'centered' | 'free' | 'custom';
+export type CameraLeadRoom = 'ample' | 'balanced' | 'short-sided' | 'custom';
+export type CameraHeadroom = 'ample' | 'balanced' | 'tight' | 'custom';
+
+export type CameraLeadingLine = {
+  source: string;
+  target: string;
+  purpose?: string;
+  evidenceRefs?: string[];
+};
+
 export type CameraVector3 = {
   x: number;
   y: number;
@@ -61,6 +75,10 @@ export type CameraIntent = {
   attentionTarget?: string;
   energy?: 'still' | 'low' | 'medium' | 'high';
   realism?: 'observational' | 'grounded' | 'stylized';
+  /** Realist/formalist are interpretive film-form approaches, not physical realism settings. */
+  formApproach?: CameraFormApproach;
+  /** Optional authored meaning; Director must not infer this automatically from a trope alone. */
+  symbolicIntent?: string[];
 };
 
 export type CameraComposition = {
@@ -71,6 +89,14 @@ export type CameraComposition = {
   horizon?: 'low' | 'eye-level' | 'high' | 'custom';
   vanishingPoint?: string;
   negativeSpace?: string;
+  balance?: CameraCompositionBalance;
+  gridStrategy?: CameraGridStrategy;
+  subjectGridPlacement?: string;
+  symmetryAxis?: 'vertical' | 'horizontal' | 'radial' | 'custom';
+  leadRoom?: CameraLeadRoom;
+  headroom?: CameraHeadroom;
+  shortSide?: boolean;
+  leadingLines?: CameraLeadingLine[];
 };
 
 export type CameraOptics = {
@@ -202,6 +228,7 @@ export type CameraPlanIssue = {
     | 'INVALID_CAPTURE_EXPOSURE'
     | 'INVALID_CAPTURE_ISO'
     | 'INVALID_KEYFRAME_TIME'
+    | 'INVALID_COMPOSITION'
     | 'KEYFRAME_OUT_OF_RANGE'
     | 'UNSORTED_KEYFRAMES'
     | 'UNSUPPORTED_TARGET'
@@ -267,6 +294,7 @@ export function validateDirectorCameraPlan(
     issues.push(issue('INVALID_BPM', 'error', 'timing.bpm', 'BPM must be a positive finite number.'));
   }
 
+  validateComposition(plan.composition, issues);
   validateFocusEvents(plan.focusEvents, issues);
   validateCapture(plan.capture, issues);
   validateKeyframes(plan, issues);
@@ -304,6 +332,14 @@ export function compileDirectorCameraDirective(plan: DirectorCameraPlan): string
     plan.composition.horizon && `${plan.composition.horizon} horizon`,
     plan.composition.vanishingPoint && `vanishing point ${plan.composition.vanishingPoint}`,
     plan.composition.negativeSpace && `negative space ${plan.composition.negativeSpace}`,
+    plan.composition.balance && `${plan.composition.balance} balance`,
+    plan.composition.gridStrategy && `${plan.composition.gridStrategy} composition`,
+    plan.composition.subjectGridPlacement && `grid placement ${plan.composition.subjectGridPlacement}`,
+    plan.composition.symmetryAxis && `symmetry axis ${plan.composition.symmetryAxis}`,
+    plan.composition.leadRoom && `lead room ${plan.composition.leadRoom}`,
+    plan.composition.headroom && `headroom ${plan.composition.headroom}`,
+    plan.composition.shortSide===true && 'short-side the subject',
+    plan.composition.leadingLines?.length && `leading lines ${plan.composition.leadingLines.map(line=>`${line.source} -> ${line.target}${line.purpose?` (${line.purpose})`:''}`).join(' | ')}`,
   ].filter(Boolean);
   if (composition.length) parts.push(`Composition: ${composition.join('; ')}`);
 
@@ -336,6 +372,8 @@ export function compileDirectorCameraDirective(plan: DirectorCameraPlan): string
 
   if (plan.intent.attentionTarget) parts.push(`Attention: ${plan.intent.attentionTarget}`);
   if (plan.intent.emotionalEffect) parts.push(`Audience effect: ${plan.intent.emotionalEffect}`);
+  if (plan.intent.formApproach) parts.push(`Film-form approach: ${plan.intent.formApproach}`);
+  if (plan.intent.symbolicIntent?.length) parts.push(`Symbolic intent: ${plan.intent.symbolicIntent.join(' | ')}`);
   if (plan.preserve?.length) parts.push(`Preserve: ${plan.preserve.join(', ')}`);
 
   return parts.join('\n');
@@ -376,6 +414,40 @@ function compileMovement(movement: CameraMovementInstruction): string {
     movement.motivation && `because ${movement.motivation}`,
   ].filter(Boolean);
   return details.length ? `${movement.kind} (${details.join('; ')})` : movement.kind;
+}
+
+function validateComposition(composition: CameraComposition, issues: CameraPlanIssue[]): void {
+  if (composition.balance === 'symmetrical' && !composition.symmetryAxis) {
+    issues.push(issue(
+      'INVALID_COMPOSITION',
+      'warning',
+      'composition.symmetryAxis',
+      'Symmetrical composition should identify the intended symmetry axis when known.',
+    ));
+  }
+
+  if (
+    composition.gridStrategy === 'rule-of-thirds' &&
+    !composition.subjectGridPlacement?.trim()
+  ) {
+    issues.push(issue(
+      'INVALID_COMPOSITION',
+      'warning',
+      'composition.subjectGridPlacement',
+      'Rule-of-thirds composition should record the intended subject grid placement when known.',
+    ));
+  }
+
+  for (const [index, line] of (composition.leadingLines ?? []).entries()) {
+    if (!line.source.trim() || !line.target.trim()) {
+      issues.push(issue(
+        'INVALID_COMPOSITION',
+        'error',
+        `composition.leadingLines[${index}]`,
+        'Leading-line instructions require both a source line and an attention target.',
+      ));
+    }
+  }
 }
 
 function validateFocusEvents(events: CameraFocusEvent[] | undefined, issues: CameraPlanIssue[]): void {
