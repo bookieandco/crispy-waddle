@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { classifyQuickCutRole, planQuickCut } from './quick-cut-planner';
+import { classifyQuickCutRole, planQuickCut, type QuickCutMediaItem } from './quick-cut-planner';
 
-const media = [
+const media: QuickCutMediaItem[] = [
   {
     assetId:'talk:controller',
     durationSeconds:780,
@@ -196,7 +196,7 @@ describe('Quick Cut planner', () => {
   });
 
   it('preserves multiple speakers when a multi-person rough cut requires diversity', () => {
-    const interview=[
+    const interview: QuickCutMediaItem[]=[
       {
         assetId:'interview:a',
         durationSeconds:30,
@@ -256,7 +256,7 @@ describe('Quick Cut planner', () => {
   });
 
   it('does not treat spoken production directions or filler as publishable dialogue', () => {
-    const source=[{
+    const source: QuickCutMediaItem[]=[{
       assetId:'talk:messy',
       durationSeconds:20,
       hasDecipherableSpeech:true,
