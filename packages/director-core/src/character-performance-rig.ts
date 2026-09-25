@@ -42,6 +42,7 @@ export interface PerformanceRecordingPolicy {
 
 export interface CharacterPerformanceRigPlan {
   id: string;
+  projectId: string;
   characterAssetId: string;
   eyePoses?: PerformancePoseSet;
   eyebrowPoses?: PerformancePoseSet;
@@ -61,7 +62,7 @@ export function validateCharacterPerformanceRigPlan(
   plan: CharacterPerformanceRigPlan,
 ): CharacterPerformanceRigDecision {
   const reasons: string[] = [];
-  if (!plan.id.trim() || !plan.characterAssetId.trim()) {
+  if (!plan.id.trim() || !plan.projectId.trim() || !plan.characterAssetId.trim()) {
     reasons.push('DIRECTOR_PERFORMANCE_RIG_IDENTITY_REQUIRED');
   }
   if (!plan.evidenceIds.length) reasons.push('DIRECTOR_PERFORMANCE_RIG_EVIDENCE_REQUIRED');
