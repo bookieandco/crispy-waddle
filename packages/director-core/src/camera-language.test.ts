@@ -19,12 +19,28 @@ function basePlan(patch: Partial<DirectorCameraPlan> = {}): DirectorCameraPlan {
       attentionTarget: 'the character eyes',
       energy: 'low',
       realism: 'grounded',
+      formApproach: 'formalist',
+      symbolicIntent: ['increase subjective pressure without changing performance blocking'],
     },
     composition: {
       shotSize: 'medium-close-up',
       angle: 'eye-level',
       framing: 'centered with restrained headroom',
-      subjectPlacement: 'center',
+      subjectPlacement: 'right third',
+      balance: 'asymmetrical',
+      gridStrategy: 'rule-of-thirds',
+      subjectGridPlacement: 'upper-right intersection',
+      leadRoom: 'short-sided',
+      headroom: 'tight',
+      shortSide: true,
+      leadingLines: [
+        {
+          source: 'hallway walls',
+          target: 'subject face',
+          purpose: 'concentrate attention on the decision beat',
+          evidenceRefs: ['frame:reference'],
+        },
+      ],
     },
     optics: {
       focalLengthMm: 50,
@@ -58,6 +74,28 @@ describe('Director camera language', () => {
     expect(directive).toContain('dolly-in');
     expect(directive).toContain('because the decision becomes more psychologically immediate');
     expect(directive).toContain('Timing: 4s, one take');
+    expect(directive).toContain('rule-of-thirds composition');
+    expect(directive).toContain('lead room short-sided');
+    expect(directive).toContain('leading lines hallway walls -> subject face');
+    expect(directive).toContain('Film-form approach: formalist');
+    expect(directive).toContain('Symbolic intent: increase subjective pressure');
+  });
+
+  it('validates structured composition rather than leaving thirds and leading lines as free text', () => {
+    const plan = basePlan({
+      composition: {
+        shotSize: 'medium',
+        balance: 'symmetrical',
+        gridStrategy: 'rule-of-thirds',
+        leadingLines: [{ source: '', target: 'subject' }],
+      },
+    });
+    const issues = validateDirectorCameraPlan(plan);
+    expect(issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'INVALID_COMPOSITION', path: 'composition.symmetryAxis', severity: 'warning' }),
+      expect.objectContaining({ code: 'INVALID_COMPOSITION', path: 'composition.subjectGridPlacement', severity: 'warning' }),
+      expect.objectContaining({ code: 'INVALID_COMPOSITION', path: 'composition.leadingLines[0]', severity: 'error' }),
+    ]));
   });
 
   it('fails closed when a moving camera has no motivation', () => {
