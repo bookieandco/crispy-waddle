@@ -182,6 +182,13 @@ export type CameraTiming = {
   landingAnchor?: string;
 };
 
+export type CameraCaptureLook =
+  | 'digital-cinema'
+  | 'smartphone'
+  | 'vhs-home-video'
+  | 'consumer-camcorder'
+  | 'custom';
+
 export type CameraCaptureSettings = {
   fps?: number;
   width?: number;
@@ -194,6 +201,8 @@ export type CameraCaptureSettings = {
   iso?: number;
   torch?: boolean;
   frameProcessing?: boolean;
+  captureLook?: CameraCaptureLook;
+  captureLookNotes?: string;
 };
 
 export type CameraKeyframe = {
@@ -269,6 +278,7 @@ export type CameraPlanIssue = {
     | 'INVALID_CAPTURE_ZOOM'
     | 'INVALID_CAPTURE_EXPOSURE'
     | 'INVALID_CAPTURE_ISO'
+    | 'INVALID_CAPTURE_LOOK'
     | 'INVALID_KEYFRAME_TIME'
     | 'INVALID_COMPOSITION'
     | 'KEYFRAME_OUT_OF_RANGE'
@@ -416,6 +426,20 @@ export function compileDirectorCameraDirective(plan: DirectorCameraPlan): string
     plan.timing?.landingAnchor && `land on ${plan.timing.landingAnchor}`,
   ].filter(Boolean);
   if (timing.length) parts.push(`Timing: ${timing.join(', ')}`);
+
+  const capture = [
+    plan.capture?.fps !== undefined && `${formatNumber(plan.capture.fps)} FPS`,
+    plan.capture?.width !== undefined && plan.capture?.height !== undefined && `${plan.capture.width}x${plan.capture.height}`,
+    plan.capture?.hdr === true && 'HDR',
+    plan.capture?.focusMode && `focus ${plan.capture.focusMode}`,
+    plan.capture?.exposureMode && `exposure ${plan.capture.exposureMode}`,
+    plan.capture?.exposureSeconds !== undefined && `shutter/exposure ${formatNumber(plan.capture.exposureSeconds)}s`,
+    plan.capture?.iso !== undefined && `ISO ${formatNumber(plan.capture.iso)}`,
+    plan.capture?.zoomFactor !== undefined && `${formatNumber(plan.capture.zoomFactor)}x zoom`,
+    plan.capture?.captureLook && `capture look ${plan.capture.captureLook}`,
+    plan.capture?.captureLookNotes?.trim(),
+  ].filter(Boolean);
+  if (capture.length) parts.push(`Capture: ${capture.join(', ')}`);
 
   if (plan.intent.attentionTarget) parts.push(`Attention: ${plan.intent.attentionTarget}`);
   if (plan.intent.emotionalEffect) parts.push(`Audience effect: ${plan.intent.emotionalEffect}`);
@@ -626,6 +650,9 @@ function validateCapture(capture: CameraCaptureSettings | undefined, issues: Cam
   }
   if (capture.iso !== undefined && (!Number.isFinite(capture.iso) || capture.iso <= 0)) {
     issues.push(issue('INVALID_CAPTURE_ISO', 'error', 'capture.iso', 'ISO must be a positive finite number.'));
+  }
+  if (capture.captureLook === 'custom' && !capture.captureLookNotes?.trim()) {
+    issues.push(issue('INVALID_CAPTURE_LOOK', 'error', 'capture.captureLookNotes', 'Custom capture looks require an explicit visual description.'));
   }
 }
 
