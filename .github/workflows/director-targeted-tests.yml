@@ -87,6 +87,11 @@ jobs:
           src/model-prompt-translation.test.ts
           src/generation-plan-prompt-translation.test.ts
           src/dialogue-coverage-workflow.test.ts
+          src/longform-dialogue-state.test.ts
+          src/performance-master.test.ts
+          src/motion-capture-3d.test.ts
+          src/studio-rig-animation.test.ts
+          src/studio-rig-animation-mocap.test.ts
           src/agentic-project-context.test.ts
           src/localized-video-repair.test.ts
           src/world-reference-workflow.test.ts
