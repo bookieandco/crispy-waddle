@@ -9,7 +9,9 @@ import {
   assessSamProposalReadiness,
   buildSamPricingScenario,
   certifySamOperatingReadiness,
+  type ProviderDiscoveryChannel,
   type ProviderOnboardingPacket,
+  type ProposalTrace,
   type SamPriceEvidence,
 } from './sam-operating-system.js'
 import {
@@ -26,7 +28,7 @@ assert.equal(capture.bidSubmissionAuthorized,false)
 const candidates=Array.from({length:3},(_,i)=>({
   providerId:'p'+i,
   requirementIds:['r1'],
-  discoveryChannels:['sam_award','web_search'] as const,
+  discoveryChannels:['sam_award','web_search'] as ProviderDiscoveryChannel[],
   evidenceRefs:['e'+i],
   qualified:true,
 }))
