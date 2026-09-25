@@ -62,3 +62,53 @@ The runtime digest is now bound to the governed animation plan, performance plan
 - pose sets and jaw/head-body controls are performance direction, not asset approval;
 - rig output still requires governed tracking and Director QC/approval;
 - provider-specific behavior remains downstream of Director's canonical plan.
+
+
+## Gap 3 — motion accents and particles
+
+The additional Character Animator release walkthrough shows velocity-triggered motion lines and pointer/attachment-following particle trails as reusable character behaviors.
+
+Added:
+
+- velocity threshold;
+- lifespan in frames;
+- fade/opacity control for motion lines;
+- explicit rig attachment points;
+- particle asset identity;
+- bounded gravity scale;
+- optional pointer-follow intent.
+
+These are modeled as provider-neutral character motion-effects plans and are routed through the existing governed rig-animation path.
+
+## Gap 4 — lip-sync sensitivity preferences
+
+The walkthrough also demonstrates three useful tuning concepts:
+
+- viseme density;
+- audio-noise gating;
+- visual mouth-motion gating.
+
+Director now has a bounded lip-sync tuning plan for those controls plus an optional algorithm profile. The values are direction to the selected sync adapter, not claims that every adapter implements every control identically.
+
+## Gap 5 — position-driven locomotion
+
+The source's position-keyframed walking workflow maps cleanly to a character locomotion plan:
+
+- gait;
+- FPS;
+- ordered spatial keyframes;
+- interpolation;
+- explicit foot-plant preservation.
+
+This is deliberately separate from ordinary timeline clip-position keyframes. Timeline transforms move media; locomotion keyframes ask the rig solver to move the character while preserving believable stepping and reducing foot slide.
+
+## Existing capabilities reused from the walkthrough
+
+No duplicate subsystem was added for:
+
+- generic timeline keyframes — already present in `timeline-model.ts` / `timeline-editing.ts`;
+- camera keyframes — already canonical in `camera-language.ts`;
+- timeline history/version entries — already present in `EditableTimeline.versions`;
+- triggerable/generated audio — already covered by Director audio, Foley, speech, and timeline audio paths.
+
+The source mentions broader rig-issue tooling and UI search/filter improvements, but does not provide enough operational detail in this walkthrough to justify inventing a new canonical diagnostic model from it.
