@@ -7,6 +7,10 @@ class R:
  def render(self,r):return {"mediaAssetId":"final","frameStart":0,"frameEnd":30,"evidenceIds":["gpu:ok"]}
 class T(unittest.TestCase):
  def test_complete_lineage(self):self.assertIn("render-lineage:complete",m.run_render(R(),B)["evidenceIds"])
+ def test_cache_or_scene_plan_changes_artifact_identity(self):
+  base=m.run_render(R(),B)["artifactId"]
+  planned=m.run_render(R(),{**B,"cachePlan":{"id":"cache","fps":24},"spriteSequences":[{"id":"door"}]})["artifactId"]
+  self.assertNotEqual(base,planned)
  def test_requires_all_stages(self):
   with self.assertRaises(ValueError):m.run_render(R(),{**B,"physicsAssetId":""})
 if __name__=="__main__":unittest.main()

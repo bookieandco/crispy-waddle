@@ -1,6 +1,9 @@
 import type { ActionRequest } from '@jhadina/action-core'
 import { isVoiceSyncTrackUsable, type VoiceSyncMode, type VoiceSyncTrack } from './studio-contracts'
 import type { DirectorStudioAction, DirectorStudioCapabilityProvider } from './studio-governed-action'
+import { transcriptPlanEvidence, validateTranscriptLipSyncPlan, type TranscriptLipSyncPlan } from './transcript-assisted-lip-sync'
+import { lipSyncTuningEvidence, validateLipSyncTuningPlan, type LipSyncTuningPlan } from './character-animation-enhancements.js'
+import { cartoonProductionEvidence, validateLipSyncRepairPlan, type LipSyncRepairPlan } from './cartoon-production-workflow.js'
 
 export interface VoiceSyncInput {
   videoAssetId: string
@@ -9,6 +12,9 @@ export interface VoiceSyncInput {
   tracks: VoiceSyncTrack[]
   characterTrackId?: string
   continuityRef?: string
+  transcriptPlan?: TranscriptLipSyncPlan
+  tuningPlan?: LipSyncTuningPlan
+  repairPlan?: LipSyncRepairPlan
 }
 
 export interface VoiceSyncArtifact {
@@ -31,6 +37,20 @@ export function validateVoiceSyncInput(input: VoiceSyncInput): string[] {
   if (!input.audioAssetId) errors.push('audioAssetId is required')
   if (!input.tracks.length) errors.push('at least one voice-sync track is required')
   if (input.tracks.some(track => !isVoiceSyncTrackUsable(track))) errors.push('all voice-sync tracks must meet duration and confidence thresholds')
+  if (input.transcriptPlan) {
+    const decision=validateTranscriptLipSyncPlan(input.transcriptPlan)
+    if(!decision.valid) errors.push(...decision.reasons.map(reason=>`transcript invalid: ${reason}`))
+    if(input.transcriptPlan.audioAssetId!==input.audioAssetId) errors.push('transcript audioAssetId must match voice-sync audioAssetId')
+  }
+  if(input.tuningPlan){
+    const reasons=validateLipSyncTuningPlan(input.tuningPlan)
+    if(reasons.length) errors.push(...reasons.map(reason=>`lip sync tuning invalid: ${reason}`))
+  }
+  if(input.repairPlan){
+    const reasons=validateLipSyncRepairPlan(input.repairPlan)
+    if(reasons.length) errors.push(...reasons.map(reason=>`lip sync repair invalid: ${reason}`))
+    if(input.repairPlan.audioAssetId!==input.audioAssetId) errors.push('lip sync repair audioAssetId must match voice-sync audioAssetId')
+  }
   return errors
 }
 
@@ -48,8 +68,20 @@ function readInput(action:DirectorStudioAction):VoiceSyncInput {
     tracks:readTracks(p.tracks),
     characterTrackId:typeof p.characterTrackId === 'string' ? p.characterTrackId : undefined,
     continuityRef:typeof p.continuityRef === 'string' ? p.continuityRef : undefined,
+    transcriptPlan:typeof p.transcriptPlan === 'object' && p.transcriptPlan !== null ? p.transcriptPlan as TranscriptLipSyncPlan : undefined,
+    tuningPlan:typeof p.tuningPlan === 'object' && p.tuningPlan !== null ? p.tuningPlan as LipSyncTuningPlan : undefined,
+    repairPlan:typeof p.repairPlan === 'object' && p.repairPlan !== null ? p.repairPlan as LipSyncRepairPlan : undefined,
   }
   const errors=validateVoiceSyncInput(input)
+  if(input.transcriptPlan?.projectId!==undefined && input.transcriptPlan.projectId!==action.projectId) {
+    errors.push('transcript projectId must match voice-sync projectId')
+  }
+  if(input.tuningPlan?.projectId!==undefined && input.tuningPlan.projectId!==action.projectId) {
+    errors.push('lip sync tuning projectId must match voice-sync projectId')
+  }
+  if(input.repairPlan?.projectId!==undefined && input.repairPlan.projectId!==action.projectId) {
+    errors.push('lip sync repair projectId must match voice-sync projectId')
+  }
   if(errors.length) throw new Error(`Invalid voice sync: ${errors.join('; ')}`)
   return input
 }
@@ -78,6 +110,9 @@ export function createVoiceSyncProvider(adapter:VoiceSyncAdapter):DirectorStudio
           `voice-sync-confidence:${artifact.averageConfidence}`,
           ...(input.characterTrackId ? [`character-track:${input.characterTrackId}`] : []),
           ...(input.continuityRef ? [`continuity:${input.continuityRef}`] : []),
+          ...(input.transcriptPlan ? transcriptPlanEvidence(input.transcriptPlan) : []),
+          ...(input.tuningPlan ? lipSyncTuningEvidence(input.tuningPlan) : []),
+          ...cartoonProductionEvidence({repairPlan:input.repairPlan}),
         ],
       }
     },

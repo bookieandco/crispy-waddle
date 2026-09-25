@@ -2,6 +2,19 @@ import type { ActionRequest } from '@jhadina/action-core'
 import type { VideoTrack } from './studio-contracts'
 import type { DirectorStudioAction, DirectorStudioCapabilityProvider } from './studio-governed-action'
 import { validateAnimationPrinciplesPlan, type AnimationPrinciplesPlan } from './animation-principles.js'
+import { performanceRigEvidence, validateCharacterPerformanceRigPlan, type CharacterPerformanceRigPlan } from './character-performance-rig.js'
+import {
+  characterAnimationEnhancementEvidence,
+  validateCharacterLocomotionPlan,
+  validateCharacterMotionEffectsPlan,
+  type CharacterLocomotionPlan,
+  type CharacterMotionEffectsPlan,
+} from './character-animation-enhancements.js'
+import {
+  cartoonProductionEvidence,
+  validateShotRigScopePlan,
+  type ShotRigScopePlan,
+} from './cartoon-production-workflow.js'
 
 export type RigChannel='body'|'head'|'face'|'hands'
 export interface RigAnimationInput {
@@ -10,6 +23,10 @@ export interface RigAnimationInput {
   tracks:VideoTrack[]
   channels:RigChannel[]
   animationPlan?:AnimationPrinciplesPlan
+  performancePlan?:CharacterPerformanceRigPlan
+  motionEffectsPlan?:CharacterMotionEffectsPlan
+  locomotionPlan?:CharacterLocomotionPlan
+  rigScopePlan?:ShotRigScopePlan
   continuityRef?:string
 }
 export interface RigAnimationArtifact {
@@ -34,6 +51,29 @@ export function validateRigAnimationInput(input:RigAnimationInput):string[] {
   if(input.tracks.some(t=>!t.approved)) errors.push('all rig source tracks must be approved')
   if(!input.channels.length) errors.push('at least one rig channel is required')
   if(input.animationPlan){for(const issue of validateAnimationPrinciplesPlan(input.animationPlan)) errors.push(`animation principle plan invalid: ${issue.code}`)}
+  if(input.performancePlan){
+    const decision=validateCharacterPerformanceRigPlan(input.performancePlan)
+    if(!decision.valid) errors.push(...decision.reasons.map(reason=>`performance rig plan invalid: ${reason}`))
+    if(input.performancePlan.characterAssetId!==input.characterAssetId) errors.push('performance rig characterAssetId must match rig characterAssetId')
+  }
+  if(input.motionEffectsPlan){
+    const reasons=validateCharacterMotionEffectsPlan(input.motionEffectsPlan)
+    if(reasons.length) errors.push(...reasons.map(reason=>`motion effects plan invalid: ${reason}`))
+    if(input.motionEffectsPlan.characterAssetId!==input.characterAssetId) errors.push('motion effects characterAssetId must match rig characterAssetId')
+  }
+  if(input.locomotionPlan){
+    const reasons=validateCharacterLocomotionPlan(input.locomotionPlan)
+    if(reasons.length) errors.push(...reasons.map(reason=>`locomotion plan invalid: ${reason}`))
+    if(input.locomotionPlan.characterAssetId!==input.characterAssetId) errors.push('locomotion characterAssetId must match rig characterAssetId')
+  }
+  if(input.rigScopePlan){
+    const reasons=validateShotRigScopePlan(input.rigScopePlan)
+    if(reasons.length) errors.push(...reasons.map(reason=>`rig scope plan invalid: ${reason}`))
+    if(input.rigScopePlan.characterAssetId!==input.characterAssetId) errors.push('rig scope characterAssetId must match rig characterAssetId')
+    for(const channel of input.rigScopePlan.requiredChannels){
+      if(!input.channels.includes(channel)) errors.push(`rig scope requires channel not requested: ${channel}`)
+    }
+  }
   return errors
 }
 function readTracks(v:unknown):VideoTrack[]{return Array.isArray(v)?v as VideoTrack[]:[]}
@@ -46,9 +86,25 @@ function readInput(action:DirectorStudioAction):RigAnimationInput {
     tracks:readTracks(p.tracks),
     channels:readChannels(p.channels),
     animationPlan:typeof p.animationPlan==='object'&&p.animationPlan!==null?p.animationPlan as AnimationPrinciplesPlan:undefined,
+    performancePlan:typeof p.performancePlan==='object'&&p.performancePlan!==null?p.performancePlan as CharacterPerformanceRigPlan:undefined,
+    motionEffectsPlan:typeof p.motionEffectsPlan==='object'&&p.motionEffectsPlan!==null?p.motionEffectsPlan as CharacterMotionEffectsPlan:undefined,
+    locomotionPlan:typeof p.locomotionPlan==='object'&&p.locomotionPlan!==null?p.locomotionPlan as CharacterLocomotionPlan:undefined,
+    rigScopePlan:typeof p.rigScopePlan==='object'&&p.rigScopePlan!==null?p.rigScopePlan as ShotRigScopePlan:undefined,
     continuityRef:typeof p.continuityRef==='string'?p.continuityRef:undefined,
   }
   const errors=validateRigAnimationInput(input)
+  if(input.performancePlan?.projectId!==undefined && input.performancePlan.projectId!==action.projectId) {
+    errors.push('performance rig projectId must match rig projectId')
+  }
+  if(input.motionEffectsPlan?.projectId!==undefined && input.motionEffectsPlan.projectId!==action.projectId) {
+    errors.push('motion effects projectId must match rig projectId')
+  }
+  if(input.locomotionPlan?.projectId!==undefined && input.locomotionPlan.projectId!==action.projectId) {
+    errors.push('locomotion projectId must match rig projectId')
+  }
+  if(input.rigScopePlan?.projectId!==undefined && input.rigScopePlan.projectId!==action.projectId) {
+    errors.push('rig scope projectId must match rig projectId')
+  }
   if(errors.length) throw new Error(`Invalid rig animation: ${errors.join('; ')}`)
   return input
 }
@@ -73,6 +129,9 @@ export function createRigAnimationProvider(adapter:RigAnimationAdapter):Director
           `rig-channels:${input.channels.join(',')}`,
           `rig-frame-range:${artifact.frameStart}-${artifact.frameEnd}`,
           ...(input.animationPlan?[`animation-method:${input.animationPlan.method}`,...(input.animationPlan.evidenceRefs??[])]:[]),
+          ...(input.performancePlan?performanceRigEvidence(input.performancePlan):[]),
+          ...characterAnimationEnhancementEvidence({motionEffectsPlan:input.motionEffectsPlan,locomotionPlan:input.locomotionPlan}),
+          ...cartoonProductionEvidence({rigScopePlan:input.rigScopePlan}),
           ...(input.continuityRef?[`continuity:${input.continuityRef}`]:[]),
         ],
       }

@@ -46,6 +46,57 @@ export type CameraMovementKind =
 
 export type CameraMovementIntensity = 'minimal' | 'low' | 'medium' | 'high';
 
+export type CameraFormApproach = 'realist' | 'formalist' | 'hybrid';
+
+export type CameraCompositionBalance = 'balanced' | 'intentionally-unbalanced' | 'symmetrical' | 'asymmetrical' | 'custom';
+export type CameraGridStrategy = 'rule-of-thirds' | 'golden-triangle' | 'centered' | 'free' | 'custom';
+export type CameraLeadRoom = 'ample' | 'balanced' | 'short-sided' | 'custom';
+export type CameraHeadroom = 'ample' | 'balanced' | 'tight' | 'custom';
+
+export type CameraLeadingLine = {
+  source: string;
+  target: string;
+  purpose?: string;
+  evidenceRefs?: string[];
+};
+
+export type CameraFocalPoint = {
+  target: string;
+  priority: number;
+  placement?: string;
+  purpose?: string;
+  evidenceRefs?: string[];
+};
+
+export type CameraFrameWithinFrame = {
+  source: string;
+  target: string;
+  shape?: 'rectangle' | 'circle' | 'triangle' | 'arch' | 'custom';
+  purpose?: string;
+  evidenceRefs?: string[];
+};
+
+export type CameraDepthLayer = {
+  layer: 'foreground' | 'midground' | 'background';
+  content: string;
+  focusState?: 'sharp' | 'soft' | 'silhouette' | 'custom';
+  purpose?: string;
+  evidenceRefs?: string[];
+};
+
+export type CameraAttentionCue = {
+  kind: 'color' | 'luminance-contrast' | 'focus' | 'size' | 'isolation' | 'custom';
+  target: string;
+  description: string;
+  evidenceRefs?: string[];
+};
+
+export type CameraCompositionRuleBreak = {
+  rule: string;
+  purpose: string;
+  evidenceRefs: string[];
+};
+
 export type CameraVector3 = {
   x: number;
   y: number;
@@ -61,6 +112,10 @@ export type CameraIntent = {
   attentionTarget?: string;
   energy?: 'still' | 'low' | 'medium' | 'high';
   realism?: 'observational' | 'grounded' | 'stylized';
+  /** Realist/formalist are interpretive film-form approaches, not physical realism settings. */
+  formApproach?: CameraFormApproach;
+  /** Optional authored meaning; Director must not infer this automatically from a trope alone. */
+  symbolicIntent?: string[];
 };
 
 export type CameraComposition = {
@@ -71,6 +126,19 @@ export type CameraComposition = {
   horizon?: 'low' | 'eye-level' | 'high' | 'custom';
   vanishingPoint?: string;
   negativeSpace?: string;
+  balance?: CameraCompositionBalance;
+  gridStrategy?: CameraGridStrategy;
+  subjectGridPlacement?: string;
+  symmetryAxis?: 'vertical' | 'horizontal' | 'radial' | 'custom';
+  leadRoom?: CameraLeadRoom;
+  headroom?: CameraHeadroom;
+  shortSide?: boolean;
+  leadingLines?: CameraLeadingLine[];
+  focalPoints?: CameraFocalPoint[];
+  frameWithinFrame?: CameraFrameWithinFrame[];
+  depthLayers?: CameraDepthLayer[];
+  attentionCues?: CameraAttentionCue[];
+  intentionalRuleBreaks?: CameraCompositionRuleBreak[];
 };
 
 export type CameraOptics = {
@@ -114,6 +182,13 @@ export type CameraTiming = {
   landingAnchor?: string;
 };
 
+export type CameraCaptureLook =
+  | 'digital-cinema'
+  | 'smartphone'
+  | 'vhs-home-video'
+  | 'consumer-camcorder'
+  | 'custom';
+
 export type CameraCaptureSettings = {
   fps?: number;
   width?: number;
@@ -126,6 +201,8 @@ export type CameraCaptureSettings = {
   iso?: number;
   torch?: boolean;
   frameProcessing?: boolean;
+  captureLook?: CameraCaptureLook;
+  captureLookNotes?: string;
 };
 
 export type CameraKeyframe = {
@@ -201,7 +278,9 @@ export type CameraPlanIssue = {
     | 'INVALID_CAPTURE_ZOOM'
     | 'INVALID_CAPTURE_EXPOSURE'
     | 'INVALID_CAPTURE_ISO'
+    | 'INVALID_CAPTURE_LOOK'
     | 'INVALID_KEYFRAME_TIME'
+    | 'INVALID_COMPOSITION'
     | 'KEYFRAME_OUT_OF_RANGE'
     | 'UNSORTED_KEYFRAMES'
     | 'UNSUPPORTED_TARGET'
@@ -267,6 +346,7 @@ export function validateDirectorCameraPlan(
     issues.push(issue('INVALID_BPM', 'error', 'timing.bpm', 'BPM must be a positive finite number.'));
   }
 
+  validateComposition(plan.composition, issues);
   validateFocusEvents(plan.focusEvents, issues);
   validateCapture(plan.capture, issues);
   validateKeyframes(plan, issues);
@@ -304,6 +384,19 @@ export function compileDirectorCameraDirective(plan: DirectorCameraPlan): string
     plan.composition.horizon && `${plan.composition.horizon} horizon`,
     plan.composition.vanishingPoint && `vanishing point ${plan.composition.vanishingPoint}`,
     plan.composition.negativeSpace && `negative space ${plan.composition.negativeSpace}`,
+    plan.composition.balance && `${plan.composition.balance} balance`,
+    plan.composition.gridStrategy && `${plan.composition.gridStrategy} composition`,
+    plan.composition.subjectGridPlacement && `grid placement ${plan.composition.subjectGridPlacement}`,
+    plan.composition.symmetryAxis && `symmetry axis ${plan.composition.symmetryAxis}`,
+    plan.composition.leadRoom && `lead room ${plan.composition.leadRoom}`,
+    plan.composition.headroom && `headroom ${plan.composition.headroom}`,
+    plan.composition.shortSide===true && 'short-side the subject',
+    plan.composition.leadingLines?.length && `leading lines ${plan.composition.leadingLines.map(line=>`${line.source} -> ${line.target}${line.purpose?` (${line.purpose})`:''}`).join(' | ')}`,
+    plan.composition.focalPoints?.length && `focal points ${[...plan.composition.focalPoints].sort((a,b)=>a.priority-b.priority).map(point=>`#${point.priority} ${point.target}${point.placement?` at ${point.placement}`:''}${point.purpose?` (${point.purpose})`:''}`).join(' | ')}`,
+    plan.composition.frameWithinFrame?.length && `frame-within-frame ${plan.composition.frameWithinFrame.map(frame=>`${frame.source} frames ${frame.target}${frame.shape?` as ${frame.shape}`:''}${frame.purpose?` (${frame.purpose})`:''}`).join(' | ')}`,
+    plan.composition.depthLayers?.length && `depth layers ${plan.composition.depthLayers.map(layer=>`${layer.layer}: ${layer.content}${layer.focusState?` [${layer.focusState}]`:''}${layer.purpose?` (${layer.purpose})`:''}`).join(' | ')}`,
+    plan.composition.attentionCues?.length && `attention cues ${plan.composition.attentionCues.map(cue=>`${cue.kind} -> ${cue.target}: ${cue.description}`).join(' | ')}`,
+    plan.composition.intentionalRuleBreaks?.length && `intentional rule breaks ${plan.composition.intentionalRuleBreaks.map(item=>`${item.rule} because ${item.purpose}`).join(' | ')}`,
   ].filter(Boolean);
   if (composition.length) parts.push(`Composition: ${composition.join('; ')}`);
 
@@ -334,8 +427,24 @@ export function compileDirectorCameraDirective(plan: DirectorCameraPlan): string
   ].filter(Boolean);
   if (timing.length) parts.push(`Timing: ${timing.join(', ')}`);
 
+  const capture = [
+    plan.capture?.fps !== undefined && `${formatNumber(plan.capture.fps)} FPS`,
+    plan.capture?.width !== undefined && plan.capture?.height !== undefined && `${plan.capture.width}x${plan.capture.height}`,
+    plan.capture?.hdr === true && 'HDR',
+    plan.capture?.focusMode && `focus ${plan.capture.focusMode}`,
+    plan.capture?.exposureMode && `exposure ${plan.capture.exposureMode}`,
+    plan.capture?.exposureSeconds !== undefined && `shutter/exposure ${formatNumber(plan.capture.exposureSeconds)}s`,
+    plan.capture?.iso !== undefined && `ISO ${formatNumber(plan.capture.iso)}`,
+    plan.capture?.zoomFactor !== undefined && `${formatNumber(plan.capture.zoomFactor)}x zoom`,
+    plan.capture?.captureLook && `capture look ${plan.capture.captureLook}`,
+    plan.capture?.captureLookNotes?.trim(),
+  ].filter(Boolean);
+  if (capture.length) parts.push(`Capture: ${capture.join(', ')}`);
+
   if (plan.intent.attentionTarget) parts.push(`Attention: ${plan.intent.attentionTarget}`);
   if (plan.intent.emotionalEffect) parts.push(`Audience effect: ${plan.intent.emotionalEffect}`);
+  if (plan.intent.formApproach) parts.push(`Film-form approach: ${plan.intent.formApproach}`);
+  if (plan.intent.symbolicIntent?.length) parts.push(`Symbolic intent: ${plan.intent.symbolicIntent.join(' | ')}`);
   if (plan.preserve?.length) parts.push(`Preserve: ${plan.preserve.join(', ')}`);
 
   return parts.join('\n');
@@ -376,6 +485,125 @@ function compileMovement(movement: CameraMovementInstruction): string {
     movement.motivation && `because ${movement.motivation}`,
   ].filter(Boolean);
   return details.length ? `${movement.kind} (${details.join('; ')})` : movement.kind;
+}
+
+function validateComposition(composition: CameraComposition, issues: CameraPlanIssue[]): void {
+  if (composition.balance === 'symmetrical' && !composition.symmetryAxis) {
+    issues.push(issue(
+      'INVALID_COMPOSITION',
+      'warning',
+      'composition.symmetryAxis',
+      'Symmetrical composition should identify the intended symmetry axis when known.',
+    ));
+  }
+
+  if (
+    (composition.gridStrategy === 'rule-of-thirds' || composition.gridStrategy === 'golden-triangle') &&
+    !composition.subjectGridPlacement?.trim()
+  ) {
+    issues.push(issue(
+      'INVALID_COMPOSITION',
+      'warning',
+      'composition.subjectGridPlacement',
+      'Grid-based composition should record the intended subject/focal placement when known.',
+    ));
+  }
+
+  for (const [index, point] of (composition.focalPoints ?? []).entries()) {
+    if (!point.target.trim() || !Number.isInteger(point.priority) || point.priority < 1) {
+      issues.push(issue(
+        'INVALID_COMPOSITION',
+        'error',
+        `composition.focalPoints[${index}]`,
+        'Focal points require a target and a positive integer priority.',
+      ));
+    }
+  }
+  const focalPriorities = (composition.focalPoints ?? []).map(point => point.priority);
+  if (new Set(focalPriorities).size !== focalPriorities.length) {
+    issues.push(issue(
+      'INVALID_COMPOSITION',
+      'error',
+      'composition.focalPoints',
+      'Focal-point priorities must be unique so the attention order is unambiguous.',
+    ));
+  }
+
+  for (const [index, frame] of (composition.frameWithinFrame ?? []).entries()) {
+    if (!frame.source.trim() || !frame.target.trim()) {
+      issues.push(issue(
+        'INVALID_COMPOSITION',
+        'error',
+        `composition.frameWithinFrame[${index}]`,
+        'Frame-within-frame instructions require both the framing source and target.',
+      ));
+    }
+  }
+
+  const layerNames = (composition.depthLayers ?? []).map(layer => layer.layer);
+  if (new Set(layerNames).size !== layerNames.length) {
+    issues.push(issue(
+      'INVALID_COMPOSITION',
+      'error',
+      'composition.depthLayers',
+      'Depth layers may define foreground, midground and background at most once each.',
+    ));
+  }
+  for (const [index, layer] of (composition.depthLayers ?? []).entries()) {
+    if (!layer.content.trim()) {
+      issues.push(issue(
+        'INVALID_COMPOSITION',
+        'error',
+        `composition.depthLayers[${index}]`,
+        'Depth layers require visible content.',
+      ));
+    }
+  }
+
+  for (const [index, cue] of (composition.attentionCues ?? []).entries()) {
+    if (!cue.target.trim() || !cue.description.trim()) {
+      issues.push(issue(
+        'INVALID_COMPOSITION',
+        'error',
+        `composition.attentionCues[${index}]`,
+        'Attention cues require a target and a description of how the frame directs the eye.',
+      ));
+    }
+  }
+
+  for (const [index, ruleBreak] of (composition.intentionalRuleBreaks ?? []).entries()) {
+    if (!ruleBreak.rule.trim() || !ruleBreak.purpose.trim() || !ruleBreak.evidenceRefs.length) {
+      issues.push(issue(
+        'INVALID_COMPOSITION',
+        'error',
+        `composition.intentionalRuleBreaks[${index}]`,
+        'Intentional composition rule breaks require the broken convention, purpose, and evidence.',
+      ));
+    }
+  }
+
+  if (
+    composition.balance === 'intentionally-unbalanced' &&
+    !(composition.intentionalRuleBreaks?.length)
+  ) {
+    issues.push(issue(
+      'INVALID_COMPOSITION',
+      'error',
+      'composition.intentionalRuleBreaks',
+      'An intentionally unbalanced frame must state why that imbalance serves the shot.',
+    ));
+  }
+
+  for (const [index, line] of (composition.leadingLines ?? []).entries()) {
+    if (!line.source.trim() || !line.target.trim()) {
+      issues.push(issue(
+        'INVALID_COMPOSITION',
+        'error',
+        `composition.leadingLines[${index}]`,
+        'Leading-line instructions require both a source line and an attention target.',
+      ));
+    }
+  }
 }
 
 function validateFocusEvents(events: CameraFocusEvent[] | undefined, issues: CameraPlanIssue[]): void {
@@ -422,6 +650,9 @@ function validateCapture(capture: CameraCaptureSettings | undefined, issues: Cam
   }
   if (capture.iso !== undefined && (!Number.isFinite(capture.iso) || capture.iso <= 0)) {
     issues.push(issue('INVALID_CAPTURE_ISO', 'error', 'capture.iso', 'ISO must be a positive finite number.'));
+  }
+  if (capture.captureLook === 'custom' && !capture.captureLookNotes?.trim()) {
+    issues.push(issue('INVALID_CAPTURE_LOOK', 'error', 'capture.captureLookNotes', 'Custom capture looks require an explicit visual description.'));
   }
 }
 

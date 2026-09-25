@@ -25,3 +25,5 @@ export * from './spatial-consumer-adapters.js';
 export * from './spatial-perception.js';
 export * from './safety-context-reader.js';
 export * from './spatial-telemetry.js';
+export * from './spatial-globe-navigation.js';
+export * from './spatial-world-visualization.js';

@@ -1,5 +1,6 @@
 """Approved-tracking to rig/animation runtime."""
 from hashlib import sha256
+import json
 from typing import Any,Protocol
 ALLOWED={"body","head","face","hands"}
 class RigBackend(Protocol):
@@ -12,5 +13,17 @@ def run_animation(backend:RigBackend,body:dict[str,Any])->dict[str,Any]:
  if not isinstance(start,int) or not isinstance(end,int) or start<0 or end<start:raise ValueError("invalid animation frame range")
  evidence=raw.get("evidenceIds",[])
  if not isinstance(evidence,list) or not all(isinstance(x,str) for x in evidence):raise ValueError("invalid rig evidence")
- digest=sha256(f'{body["characterAssetId"]}:{body["trackingArtifactId"]}:{",".join(body["approvedTrackIds"])}:{",".join(body["channels"])}'.encode()).hexdigest()[:20]
+ identity={
+  "characterAssetId":body["characterAssetId"],
+  "trackingArtifactId":body["trackingArtifactId"],
+  "approvedTrackIds":body["approvedTrackIds"],
+  "channels":body["channels"],
+  "animationPlan":body.get("animationPlan"),
+  "performancePlan":body.get("performancePlan"),
+  "motionEffectsPlan":body.get("motionEffectsPlan"),
+  "locomotionPlan":body.get("locomotionPlan"),
+  "rigScopePlan":body.get("rigScopePlan"),
+  "continuityRef":body.get("continuityRef"),
+ }
+ digest=sha256(json.dumps(identity,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()[:20]
  return {"artifactId":f"rig-animation:{digest}","rigAssetId":raw["rigAssetId"],"animationAssetId":raw["animationAssetId"],"trackingArtifactId":body["trackingArtifactId"],"continuityRef":body.get("continuityRef"),"frameStart":start,"frameEnd":end,"evidenceIds":[*evidence,f"rig-channels:{','.join(body['channels'])}"]}

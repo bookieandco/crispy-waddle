@@ -149,6 +149,29 @@ describe('GenerationPlanAdapter', () => {
           subjectResponse: 'momentum settles through one corrective step',
         }],
       },
+      audioIntent: {
+        id:'audio:int:s1',
+        projectId:'p',
+        sceneId:'s1',
+        allowedRoles:['dialogue','foley','sfx','ambience','nonverbal-vocalization'] as const,
+        forbiddenRoles:['music'] as const,
+        forbidUnrequestedMusic:true,
+        notes:['No baked-in score during the interview-style scene.'],
+        evidenceIds:['director:audio-plan'],
+        authority:'DIRECTOR_GENERATION_AUDIO_INTENT' as const,
+      },
+      attemptBudget: {
+        id:'attempts:s1',
+        projectId:'p',
+        sceneId:'s1',
+        recommendedMinimumAttempts:1,
+        recommendedMaximumAttempts:2,
+        hardMaximumAttempts:4,
+        stopWhenAccepted:true,
+        evidenceIds:['producer:attempt-budget'],
+        authority:'DIRECTOR_SCENE_ATTEMPT_BUDGET' as const,
+      },
+      takeCount:2,
       animationPlan: {
         version: 1 as const,
         narrativeGoal: 'make the stop-and-look reaction readable',
@@ -170,12 +193,56 @@ describe('GenerationPlanAdapter', () => {
     expect(submitted.requests[0]?.prompt).toContain('[PERFORMANCE DIRECTION]');
     expect(submitted.requests[0]?.prompt).toContain('[REALISM / SOURCE PRESERVATION]');
     expect(submitted.requests[0]?.prompt).toContain('[ANIMATION PRINCIPLES]');
+    expect(submitted.requests[0]?.prompt).toContain('[GENERATED AUDIO]');
+    expect(submitted.requests[0]?.prompt).toContain('Do not generate: music.');
     expect(submitted.requests[0]?.parameters).toMatchObject({
       cameraPlan: { target: 'generative-video' },
       performancePlan: { sceneFunction: 'show delayed recognition' },
       realismPlan: { goal: 'keep the take physically grounded' },
       animationPlan: { method: 'pose-to-pose' },
+      audioIntent: { forbidUnrequestedMusic:true },
+      attemptBudget: { hardMaximumAttempts:4 },
+      attemptWarnings: [],
     });
+  });
+
+  it('blocks cross-scene generated-audio or attempt policy attachments', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    await expect(makeAdapter(submitted).submitTake({
+      ...request(),
+      audioIntent:{
+        id:'audio:wrong',
+        projectId:'p',
+        sceneId:'other-scene',
+        allowedRoles:['dialogue'],
+        forbiddenRoles:['music'],
+        forbidUnrequestedMusic:true,
+        notes:[],
+        evidenceIds:['e'],
+        authority:'DIRECTOR_GENERATION_AUDIO_INTENT',
+      },
+    },plan(),gateInput())).rejects.toThrow('DIRECTOR_GENERATION_AUDIO_INTENT_SCOPE_MISMATCH');
+    expect(submitted.requests).toHaveLength(0);
+  });
+
+  it('blocks provider work when the explicit scene attempt hard ceiling is exceeded', async () => {
+    const submitted = { requests: [] as GenerationRequest[] };
+    await expect(makeAdapter(submitted).submitTake({
+      ...request(),
+      takeCount:5,
+      attemptBudget:{
+        id:'attempts:s1',
+        projectId:'p',
+        sceneId:'s1',
+        recommendedMinimumAttempts:1,
+        recommendedMaximumAttempts:2,
+        hardMaximumAttempts:4,
+        stopWhenAccepted:true,
+        evidenceIds:['producer:attempt-budget'],
+        authority:'DIRECTOR_SCENE_ATTEMPT_BUDGET',
+      },
+    },plan(),gateInput())).rejects.toThrow('DIRECTOR_SCENE_ATTEMPT_HARD_MAX_EXCEEDED');
+    expect(submitted.requests).toHaveLength(0);
   });
 
   it('preserves exact provider reference order when a manifest is present', async () => {

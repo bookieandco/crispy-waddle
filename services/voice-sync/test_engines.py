@@ -6,6 +6,20 @@ def resolve(x):return "/sandbox/"+x
 def ok(**k):return {"artifactId":"out","averageConfidence":.9,"syncEvidenceIds":["timing:.9"]}
 class T(unittest.TestCase):
  def test_musetalk_resolves_bounded_assets(self):self.assertIn("runtime:musetalk",m.MuseTalkEngine(resolve,ok).synchronize({"videoAssetId":"v","audioAssetId":"a","tracks":[]})["syncEvidenceIds"])
+ def test_musetalk_forwards_transcript_plan(self):
+  seen={}
+  def runtime(**k):
+   seen.update(k);return {"artifactId":"out","averageConfidence":.9,"syncEvidenceIds":[]}
+  plan={"id":"transcript:1","mode":"timed-cues"}
+  m.MuseTalkEngine(resolve,runtime).synchronize({"videoAssetId":"v","audioAssetId":"a","tracks":[],"transcriptPlan":plan})
+  self.assertEqual(seen["transcript_plan"],plan)
+ def test_wav2lip_forwards_regional_repair_plan(self):
+  seen={}
+  def runtime(**k):
+   seen.update(k);return {"artifactId":"out","averageConfidence":.9,"syncEvidenceIds":[]}
+  plan={"id":"repair:1","segments":[{"startMs":8000,"endMs":18000,"strategy":"audio-only"}]}
+  m.Wav2LipEngine(resolve,runtime).synchronize({"videoAssetId":"v","audioAssetId":"a","tracks":[],"repairPlan":plan})
+  self.assertEqual(seen["repair_plan"],plan)
  def test_wav2lip_rejects_bad_confidence(self):
   with self.assertRaises(ValueError):m.Wav2LipEngine(resolve,lambda **k:{"artifactId":"x","averageConfidence":2,"syncEvidenceIds":[]}).synchronize({"videoAssetId":"v","audioAssetId":"a","tracks":[]})
  def test_rhubarb_rejects_visual_mode(self):

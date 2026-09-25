@@ -4,6 +4,8 @@ import {
   planDirectedTakeRepair,
   REALISTIC_CHARACTER_TAKE_QC,
   SOURCE_PRESERVING_VIDEO_EDIT_QC,
+  ACTION_SEQUENCE_TAKE_QC,
+  CINEMATOGRAPHY_CAMERA_TAKE_QC,
   type DirectedTakeQcObservation,
 } from './directed-take-qc.js';
 
@@ -76,6 +78,38 @@ describe('directed take QC', () => {
     const repair = planDirectedTakeRepair(decision);
     expect(repair.scope).toBe('audio-only');
     expect(repair.instruction).toContain('Preserve picture and camera timing');
+  });
+
+  it('fails a fast action take on body warp, flicker or detail loss even when motion is energetic', () => {
+    const observations = ACTION_SEQUENCE_TAKE_QC.requiredMetrics.map((metric) =>
+      metric === 'body-structure'
+        ? { ...observation(metric, 0.45), hardFailure: true }
+        : metric === 'temporal-flicker'
+          ? observation(metric, 0.5)
+          : metric === 'detail-retention'
+            ? observation(metric, 0.55)
+            : observation(metric),
+    );
+    const decision = evaluateDirectedTakeQc(observations, ACTION_SEQUENCE_TAKE_QC);
+    expect(decision.admissible).toBe(false);
+    expect(decision.reasons).toEqual(expect.arrayContaining([
+      'DIRECTOR_DIRECTED_TAKE_QC_SCORE_LOW:body-structure',
+      'DIRECTOR_DIRECTED_TAKE_QC_HARD_FAILURE:body-structure',
+      'DIRECTOR_DIRECTED_TAKE_QC_SCORE_LOW:temporal-flicker',
+      'DIRECTOR_DIRECTED_TAKE_QC_SCORE_LOW:detail-retention',
+    ]));
+  });
+
+  it('separates camera position, composition, and movement QC', () => {
+    const observations = CINEMATOGRAPHY_CAMERA_TAKE_QC.requiredMetrics.map((metric) =>
+      metric === 'camera-composition-match'
+        ? observation(metric, 0.55)
+        : observation(metric),
+    );
+    const decision = evaluateDirectedTakeQc(observations, CINEMATOGRAPHY_CAMERA_TAKE_QC);
+    expect(decision.admissible).toBe(false);
+    expect(decision.reasons).toContain('DIRECTOR_DIRECTED_TAKE_QC_SCORE_LOW:camera-composition-match');
+    expect(planDirectedTakeRepair(decision).preserve).not.toContain('camera-plan');
   });
 
   it('fails closed when source preservation has not been observed', () => {

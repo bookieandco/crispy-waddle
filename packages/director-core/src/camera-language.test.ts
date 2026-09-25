@@ -19,12 +19,59 @@ function basePlan(patch: Partial<DirectorCameraPlan> = {}): DirectorCameraPlan {
       attentionTarget: 'the character eyes',
       energy: 'low',
       realism: 'grounded',
+      formApproach: 'formalist',
+      symbolicIntent: ['increase subjective pressure without changing performance blocking'],
     },
     composition: {
       shotSize: 'medium-close-up',
       angle: 'eye-level',
       framing: 'centered with restrained headroom',
-      subjectPlacement: 'center',
+      subjectPlacement: 'right third',
+      balance: 'asymmetrical',
+      gridStrategy: 'rule-of-thirds',
+      subjectGridPlacement: 'upper-right intersection',
+      leadRoom: 'short-sided',
+      headroom: 'tight',
+      shortSide: true,
+      leadingLines: [
+        {
+          source: 'hallway walls',
+          target: 'subject face',
+          purpose: 'concentrate attention on the decision beat',
+          evidenceRefs: ['frame:reference'],
+        },
+      ],
+      focalPoints: [
+        {
+          target: 'subject face',
+          priority: 1,
+          placement: 'upper-right intersection',
+          purpose: 'primary emotional information',
+          evidenceRefs: ['frame:reference'],
+        },
+      ],
+      frameWithinFrame: [
+        {
+          source: 'doorway',
+          target: 'subject',
+          shape: 'rectangle',
+          purpose: 'visually contain the subject',
+          evidenceRefs: ['frame:reference'],
+        },
+      ],
+      depthLayers: [
+        {layer:'foreground',content:'soft doorway edge',focusState:'soft',evidenceRefs:['frame:reference']},
+        {layer:'midground',content:'subject',focusState:'sharp',evidenceRefs:['frame:reference']},
+        {layer:'background',content:'hallway practicals',focusState:'soft',evidenceRefs:['frame:reference']},
+      ],
+      attentionCues: [
+        {
+          kind:'luminance-contrast',
+          target:'subject face',
+          description:'face remains the brightest local area against a darker hallway',
+          evidenceRefs:['frame:reference'],
+        },
+      ],
     },
     optics: {
       focalLengthMm: 50,
@@ -44,6 +91,17 @@ function basePlan(patch: Partial<DirectorCameraPlan> = {}): DirectorCameraPlan {
       durationSeconds: 4,
       oneTake: true,
     },
+    capture: {
+      fps: 24,
+      width: 1920,
+      height: 1080,
+      focusMode: 'locked',
+      exposureMode: 'manual',
+      exposureSeconds: 1 / 48,
+      iso: 400,
+      captureLook: 'smartphone',
+      captureLookNotes: 'natural phone-camera motion and modest computational sharpness',
+    },
     preserve: ['shot-size', 'angle', 'lens'],
     ...patch,
   };
@@ -58,6 +116,91 @@ describe('Director camera language', () => {
     expect(directive).toContain('dolly-in');
     expect(directive).toContain('because the decision becomes more psychologically immediate');
     expect(directive).toContain('Timing: 4s, one take');
+    expect(directive).toContain('rule-of-thirds composition');
+    expect(directive).toContain('lead room short-sided');
+    expect(directive).toContain('leading lines hallway walls -> subject face');
+    expect(directive).toContain('focal points #1 subject face at upper-right intersection');
+    expect(directive).toContain('frame-within-frame doorway frames subject as rectangle');
+    expect(directive).toContain('depth layers foreground: soft doorway edge');
+    expect(directive).toContain('attention cues luminance-contrast -> subject face');
+    expect(directive).toContain('Capture:');
+    expect(directive).toContain('capture look smartphone');
+    expect(directive).toContain('natural phone-camera motion');
+    expect(directive).toContain('Film-form approach: formalist');
+    expect(directive).toContain('Symbolic intent: increase subjective pressure');
+  });
+
+  it('validates structured composition rather than leaving thirds and leading lines as free text', () => {
+    const plan = basePlan({
+      composition: {
+        shotSize: 'medium',
+        balance: 'symmetrical',
+        gridStrategy: 'rule-of-thirds',
+        leadingLines: [{ source: '', target: 'subject' }],
+      },
+    });
+    const issues = validateDirectorCameraPlan(plan);
+    expect(issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'INVALID_COMPOSITION', path: 'composition.symmetryAxis', severity: 'warning' }),
+      expect.objectContaining({ code: 'INVALID_COMPOSITION', path: 'composition.subjectGridPlacement', severity: 'warning' }),
+      expect.objectContaining({ code: 'INVALID_COMPOSITION', path: 'composition.leadingLines[0]', severity: 'error' }),
+    ]));
+  });
+
+  it('supports golden-triangle placement and requires intentional imbalance to carry a reason', () => {
+    const golden = basePlan({
+      composition: {
+        shotSize:'wide',
+        gridStrategy:'golden-triangle',
+        subjectGridPlacement:'lower-right triangle intersection',
+        balance:'balanced',
+        focalPoints:[{target:'subject',priority:1}],
+      },
+    });
+    expect(validateDirectorCameraPlan(golden)).toEqual([]);
+
+    const unbalanced = basePlan({
+      composition: {
+        shotSize:'wide',
+        balance:'intentionally-unbalanced',
+      },
+    });
+    expect(validateDirectorCameraPlan(unbalanced)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code:'INVALID_COMPOSITION',
+        path:'composition.intentionalRuleBreaks',
+        severity:'error',
+      }),
+    ]));
+  });
+
+  it('fails closed when focal-point hierarchy or depth layers are ambiguous', () => {
+    const plan = basePlan({
+      composition: {
+        shotSize:'wide',
+        focalPoints:[
+          {target:'subject-a',priority:1},
+          {target:'subject-b',priority:1},
+        ],
+        depthLayers:[
+          {layer:'foreground',content:'rail'},
+          {layer:'foreground',content:'plant'},
+        ],
+      },
+    });
+    expect(validateDirectorCameraPlan(plan)).toEqual(expect.arrayContaining([
+      expect.objectContaining({code:'INVALID_COMPOSITION',path:'composition.focalPoints',severity:'error'}),
+      expect.objectContaining({code:'INVALID_COMPOSITION',path:'composition.depthLayers',severity:'error'}),
+    ]));
+  });
+
+  it('requires a description for a custom capture look', () => {
+    const plan=basePlan({
+      capture:{captureLook:'custom'},
+    });
+    expect(validateDirectorCameraPlan(plan)).toEqual(expect.arrayContaining([
+      expect.objectContaining({code:'INVALID_CAPTURE_LOOK',path:'capture.captureLookNotes',severity:'error'}),
+    ]));
   });
 
   it('fails closed when a moving camera has no motivation', () => {

@@ -74,6 +74,23 @@ jobs:
           src/creative-workspace-media.test.ts
           src/playhead-generation-continuation.test.ts
           src/creative-audio-generation.test.ts
+          src/transcript-assisted-lip-sync.test.ts
+          src/character-performance-rig.test.ts
+          src/character-animation-enhancements.test.ts
+          src/cartoon-production-workflow.test.ts
+          src/performance-capture-plan.test.ts
+          src/human-performance-observer.test.ts
+          src/pose-action-recognition.test.ts
+          src/roboflow-people-observation.test.ts
+          src/hybrid-animation-production.test.ts
+          src/action-sequence-control.test.ts
+          src/model-prompt-translation.test.ts
+          src/generation-plan-prompt-translation.test.ts
+          src/dialogue-coverage-workflow.test.ts
+          src/agentic-project-context.test.ts
+          src/localized-video-repair.test.ts
+          src/world-reference-workflow.test.ts
+          src/world-3d-backend-profile.test.ts
           src/quick-cut-planner.test.ts
           src/studio-character-replacement-worker.test.ts
           src/studio-character-replacement.test.ts
@@ -84,6 +101,23 @@ jobs:
           src/camera-language.test.ts
           src/performance-direction.test.ts
           src/realism-direction.test.ts
+          src/cinematic-lighting.test.ts
+          src/cinematography-analysis.test.ts
+          src/production-story-compass.test.ts
+          src/field-capture-ledger.test.ts
+          src/editorial-reduction-workflow.test.ts
+          src/audio-priority-mix.test.ts
+          src/final-export-inspection.test.ts
+          src/screenplay-blueprint.test.ts
+          src/production-audio-capture.test.ts
+          src/editorial-cut-decision.test.ts
+          src/cinematic-story-bible.test.ts
+          src/prompt-complexity-budget.test.ts
+          src/music-lipsync-package.test.ts
+          src/voice-replacement-edit.test.ts
+          src/character-reference-presentation.test.ts
+          src/generation-audio-intent.test.ts
+          src/scene-attempt-budget.test.ts
           src/animation-principles.test.ts
           src/animation-performance-state.test.ts
           src/directed-take-qc.test.ts

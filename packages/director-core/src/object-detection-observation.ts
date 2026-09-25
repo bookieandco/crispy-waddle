@@ -63,7 +63,7 @@ export function objectDetectionsToVisualEvidence(
     if (!bounds) return [];
     return [{
       id: `${input.id}:prediction:${index}`,
-      kind: 'critical-object',
+      kind: protectedRegionKind(prediction.className),
       startSeconds: input.frame / input.fps,
       endSeconds: (input.frame + 1) / input.fps,
       bounds,
@@ -90,4 +90,16 @@ export function objectDetectionsToVisualEvidence(
     limitations: Object.freeze([...(input.limitations ?? [])]),
     protectedRegions: Object.freeze(protectedRegions),
   });
+}
+
+function protectedRegionKind(className:string):VisualRegion['kind']{
+  const normalized=className.trim().toLowerCase();
+  if(normalized==='person'||normalized==='people'||normalized==='human') return 'person';
+  if(normalized==='face') return 'face';
+  if(normalized==='logo') return 'logo';
+  if(normalized==='product') return 'product';
+  if(normalized==='subtitle') return 'subtitle';
+  if(normalized==='text') return 'text';
+  if(normalized==='ui') return 'ui';
+  return 'critical-object';
 }

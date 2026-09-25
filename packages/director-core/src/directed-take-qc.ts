@@ -4,13 +4,24 @@ export type DirectedTakeQcMetric =
   | 'hand-anatomy'
   | 'blink-naturalism'
   | 'motion-plausibility'
+  | 'body-structure'
+  | 'temporal-flicker'
+  | 'detail-retention'
   | 'camera-plan-match'
+  | 'camera-position-match'
+  | 'camera-composition-match'
+  | 'camera-movement-match'
   | 'focus-plan-match'
   | 'source-preservation'
   | 'performance-plan-match'
   | 'dialogue-prosody'
   | 'audio-sync'
-  | 'background-geometry';
+  | 'background-geometry'
+  | 'lighting-direction-match'
+  | 'lighting-quality-match'
+  | 'lighting-color-match'
+  | 'lighting-contrast-match'
+  | 'lighting-cut-shape-match';
 
 export type DirectedTakeQcObservation = {
   metric: DirectedTakeQcMetric;
@@ -169,11 +180,19 @@ function preserveForFailures(failingMetrics: readonly DirectedTakeQcMetric[]): s
     'shot timing',
   ]);
 
-  if (!failingMetrics.includes('camera-plan-match')) preserve.add('camera-plan');
+  const cameraMetrics = new Set<DirectedTakeQcMetric>([
+    'camera-plan-match',
+    'camera-position-match',
+    'camera-composition-match',
+    'camera-movement-match',
+  ]);
+  if (!failingMetrics.some((metric) => cameraMetrics.has(metric))) preserve.add('camera-plan');
   if (!failingMetrics.includes('focus-plan-match')) preserve.add('focus-plan');
   if (!failingMetrics.includes('performance-plan-match')) preserve.add('performance-plan');
   if (!failingMetrics.includes('background-geometry')) preserve.add('environment/blocking');
   if (!failingMetrics.includes('source-preservation')) preserve.add('source-preservation locks');
+  const lightingMetrics = new Set<DirectedTakeQcMetric>(['lighting-direction-match','lighting-quality-match','lighting-color-match','lighting-contrast-match','lighting-cut-shape-match']);
+  if (!failingMetrics.some((metric) => lightingMetrics.has(metric))) preserve.add('lighting-plan');
 
   return [...preserve];
 }
@@ -228,5 +247,70 @@ export const SOURCE_PRESERVING_VIDEO_EDIT_QC: DirectedTakeQcPolicy = Object.free
     'background-geometry': 0.82,
   }),
   minimumConfidence: 0.6,
+  failOnHardFailure: true,
+});
+
+
+export const ACTION_SEQUENCE_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({
+  id: 'action-sequence:v1',
+  requiredMetrics: Object.freeze([
+    'identity-stability',
+    'body-structure',
+    'temporal-flicker',
+    'motion-plausibility',
+    'detail-retention',
+    'camera-plan-match',
+    'performance-plan-match',
+  ] as DirectedTakeQcMetric[]),
+  minimumScoreByMetric: Object.freeze({
+    'identity-stability': 0.82,
+    'body-structure': 0.78,
+    'temporal-flicker': 0.75,
+    'motion-plausibility': 0.72,
+    'detail-retention': 0.72,
+    'camera-plan-match': 0.78,
+    'performance-plan-match': 0.7,
+  }),
+  minimumConfidence: 0.55,
+  failOnHardFailure: true,
+});
+
+
+export const CINEMATOGRAPHY_LIGHTING_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({
+  id: 'cinematography-lighting:v1',
+  requiredMetrics: Object.freeze([
+    'lighting-direction-match',
+    'lighting-quality-match',
+    'lighting-color-match',
+    'lighting-contrast-match',
+    'lighting-cut-shape-match',
+  ] as DirectedTakeQcMetric[]),
+  minimumScoreByMetric: Object.freeze({
+    'lighting-direction-match': 0.82,
+    'lighting-quality-match': 0.76,
+    'lighting-color-match': 0.8,
+    'lighting-contrast-match': 0.78,
+    'lighting-cut-shape-match': 0.72,
+  }),
+  minimumConfidence: 0.55,
+  failOnHardFailure: true,
+});
+
+
+export const CINEMATOGRAPHY_CAMERA_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({
+  id: 'cinematography-camera:v1',
+  requiredMetrics: Object.freeze([
+    'camera-position-match',
+    'camera-composition-match',
+    'camera-movement-match',
+    'focus-plan-match',
+  ] as DirectedTakeQcMetric[]),
+  minimumScoreByMetric: Object.freeze({
+    'camera-position-match': 0.82,
+    'camera-composition-match': 0.8,
+    'camera-movement-match': 0.8,
+    'focus-plan-match': 0.75,
+  }),
+  minimumConfidence: 0.55,
   failOnHardFailure: true,
 });
