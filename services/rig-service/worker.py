@@ -20,6 +20,8 @@ def run_animation(backend:RigBackend,body:dict[str,Any])->dict[str,Any]:
   "channels":body["channels"],
   "animationPlan":body.get("animationPlan"),
   "performancePlan":body.get("performancePlan"),
+  "motionEffectsPlan":body.get("motionEffectsPlan"),
+  "locomotionPlan":body.get("locomotionPlan"),
   "continuityRef":body.get("continuityRef"),
  }
  digest=sha256(json.dumps(identity,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()[:20]
