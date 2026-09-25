@@ -1,0 +1,197 @@
+import type {GenerationCostEstimate} from './generation-spend-gate.js';
+
+export type DialogueCoverageRole='master'|'over-shoulder'|'reverse'|'medium-close-up'|'close-up'|'reaction';
+export type ScreenDirection='camera-left'|'camera-right'|'center';
+
+export interface DialogueEyeline {
+  id:string;
+  characterId:string;
+  targetCharacterId:string;
+  screenDirection:ScreenDirection;
+  heightNormalized:number;
+  evidenceIds:readonly string[];
+}
+
+export interface DialogueCoverageShot {
+  id:string;
+  role:DialogueCoverageRole;
+  subjectCharacterIds:readonly string[];
+  locationAssetId:string;
+  backgroundAnchorIds:readonly string[];
+  eyelineIds:readonly string[];
+  cameraPlanRef:string;
+  evidenceIds:readonly string[];
+}
+
+export interface DialogueCoveragePlan {
+  id:string;
+  projectId:string;
+  sceneId:string;
+  locationAssetId:string;
+  cameraDiagramAssetId:string;
+  characterReferenceAssetIds:readonly string[];
+  axisRef:string;
+  eyelines:readonly DialogueEyeline[];
+  shots:readonly DialogueCoverageShot[];
+  evidenceIds:readonly string[];
+  authority:'DIRECTOR_DIALOGUE_COVERAGE';
+}
+
+export interface CoverageFrameSelection {
+  id:string;
+  coverageShotId:string;
+  characterId:string;
+  sourceVideoAssetId:string;
+  sourceTimeSeconds:number;
+  frameAssetId:string;
+  frameSha256:string;
+  eyelineId:string;
+  backgroundAnchorIds:readonly string[];
+  evidenceIds:readonly string[];
+}
+
+export interface CoverageHandoffPlan {
+  id:string;
+  projectId:string;
+  sceneId:string;
+  coveragePlanId:string;
+  establishmentModel:{
+    providerId:string;
+    modelId:string;
+    costEstimate:GenerationCostEstimate;
+  };
+  dialogueModel:{
+    providerId:string;
+    modelId:string;
+    costEstimate:GenerationCostEstimate;
+  };
+  allPremiumDialogueEstimate:GenerationCostEstimate;
+  selectedFrames:readonly CoverageFrameSelection[];
+  dialogueAudioAssetIds:readonly string[];
+  requireStartFrame:true;
+  requireAudioReference:true;
+  evidenceIds:readonly string[];
+  authority:'DIRECTOR_DIALOGUE_COVERAGE_HANDOFF';
+}
+
+export interface CoverageHandoffDecision {
+  valid:boolean;
+  projectedSavingsUsd:number;
+  projectedSavingsFraction:number;
+  reasons:readonly string[];
+  evidenceIds:readonly string[];
+  authority:'DIRECTOR_DIALOGUE_COVERAGE_HANDOFF_QC';
+}
+
+export function validateDialogueCoveragePlan(plan:DialogueCoveragePlan):readonly string[]{
+  const reasons:string[]=[];
+  if(!plan.id.trim()||!plan.projectId.trim()||!plan.sceneId.trim()) reasons.push('DIRECTOR_COVERAGE_IDENTITY_REQUIRED');
+  if(!plan.locationAssetId.trim()||!plan.cameraDiagramAssetId.trim()||!plan.axisRef.trim()) reasons.push('DIRECTOR_COVERAGE_SCENE_GEOMETRY_REQUIRED');
+  if(!plan.characterReferenceAssetIds.length) reasons.push('DIRECTOR_COVERAGE_CHARACTER_REFERENCES_REQUIRED');
+  if(!plan.evidenceIds.length) reasons.push('DIRECTOR_COVERAGE_EVIDENCE_REQUIRED');
+
+  const eyelineIds=new Set<string>();
+  for(const eyeline of plan.eyelines){
+    if(!eyeline.id.trim()||eyelineIds.has(eyeline.id)) reasons.push(`DIRECTOR_COVERAGE_EYELINE_ID_INVALID:${eyeline.id||'unknown'}`);
+    eyelineIds.add(eyeline.id);
+    if(!eyeline.characterId.trim()||!eyeline.targetCharacterId.trim()||eyeline.characterId===eyeline.targetCharacterId){
+      reasons.push(`DIRECTOR_COVERAGE_EYELINE_CHARACTERS_INVALID:${eyeline.id}`);
+    }
+    if(!Number.isFinite(eyeline.heightNormalized)||eyeline.heightNormalized<0||eyeline.heightNormalized>1){
+      reasons.push(`DIRECTOR_COVERAGE_EYELINE_HEIGHT_INVALID:${eyeline.id}`);
+    }
+    if(!eyeline.evidenceIds.length) reasons.push(`DIRECTOR_COVERAGE_EYELINE_EVIDENCE_REQUIRED:${eyeline.id}`);
+  }
+
+  const shotIds=new Set<string>();
+  let masterCount=0;
+  for(const shot of plan.shots){
+    if(!shot.id.trim()||shotIds.has(shot.id)) reasons.push(`DIRECTOR_COVERAGE_SHOT_ID_INVALID:${shot.id||'unknown'}`);
+    shotIds.add(shot.id);
+    if(shot.role==='master') masterCount+=1;
+    if(!shot.subjectCharacterIds.length) reasons.push(`DIRECTOR_COVERAGE_SHOT_SUBJECT_REQUIRED:${shot.id}`);
+    if(shot.locationAssetId!==plan.locationAssetId) reasons.push(`DIRECTOR_COVERAGE_LOCATION_MISMATCH:${shot.id}`);
+    if(!shot.backgroundAnchorIds.length) reasons.push(`DIRECTOR_COVERAGE_BACKGROUND_ANCHORS_REQUIRED:${shot.id}`);
+    if(!shot.cameraPlanRef.trim()) reasons.push(`DIRECTOR_COVERAGE_CAMERA_PLAN_REQUIRED:${shot.id}`);
+    for(const eyelineId of shot.eyelineIds){
+      if(!eyelineIds.has(eyelineId)) reasons.push(`DIRECTOR_COVERAGE_EYELINE_UNKNOWN:${shot.id}:${eyelineId}`);
+    }
+    if(!shot.evidenceIds.length) reasons.push(`DIRECTOR_COVERAGE_SHOT_EVIDENCE_REQUIRED:${shot.id}`);
+  }
+  if(masterCount!==1) reasons.push('DIRECTOR_COVERAGE_SINGLE_MASTER_REQUIRED');
+  const coverageRoles=new Set(plan.shots.map(shot=>shot.role));
+  if(!coverageRoles.has('master')||!(coverageRoles.has('medium-close-up')||coverageRoles.has('close-up')||coverageRoles.has('over-shoulder')||coverageRoles.has('reverse'))){
+    reasons.push('DIRECTOR_COVERAGE_DIALOGUE_COVERAGE_REQUIRED');
+  }
+  return Object.freeze([...new Set(reasons)]);
+}
+
+export function evaluateCoverageHandoff(
+  coverage:DialogueCoveragePlan,
+  handoff:CoverageHandoffPlan,
+):CoverageHandoffDecision{
+  const reasons=[...validateDialogueCoveragePlan(coverage)];
+  const evidenceIds=[...new Set([...coverage.evidenceIds,...handoff.evidenceIds,...handoff.selectedFrames.flatMap(frame=>frame.evidenceIds)])];
+
+  if(!handoff.id.trim()||handoff.projectId!==coverage.projectId||handoff.sceneId!==coverage.sceneId||handoff.coveragePlanId!==coverage.id){
+    reasons.push('DIRECTOR_COVERAGE_HANDOFF_LINEAGE_MISMATCH');
+  }
+  if(!handoff.dialogueAudioAssetIds.length) reasons.push('DIRECTOR_COVERAGE_HANDOFF_AUDIO_REQUIRED');
+  if(!handoff.selectedFrames.length) reasons.push('DIRECTOR_COVERAGE_HANDOFF_FRAMES_REQUIRED');
+
+  const shotById=new Map(coverage.shots.map(shot=>[shot.id,shot]));
+  const eyelineById=new Map(coverage.eyelines.map(eyeline=>[eyeline.id,eyeline]));
+  const frameIds=new Set<string>();
+  for(const frame of handoff.selectedFrames){
+    if(!frame.id.trim()||frameIds.has(frame.id)) reasons.push(`DIRECTOR_COVERAGE_FRAME_ID_INVALID:${frame.id||'unknown'}`);
+    frameIds.add(frame.id);
+    const shot=shotById.get(frame.coverageShotId);
+    if(!shot) reasons.push(`DIRECTOR_COVERAGE_FRAME_SHOT_UNKNOWN:${frame.id}`);
+    const eyeline=eyelineById.get(frame.eyelineId);
+    if(!eyeline) reasons.push(`DIRECTOR_COVERAGE_FRAME_EYELINE_UNKNOWN:${frame.id}`);
+    if(eyeline&&eyeline.characterId!==frame.characterId) reasons.push(`DIRECTOR_COVERAGE_FRAME_EYELINE_CHARACTER_MISMATCH:${frame.id}`);
+    if(!Number.isFinite(frame.sourceTimeSeconds)||frame.sourceTimeSeconds<0) reasons.push(`DIRECTOR_COVERAGE_FRAME_TIME_INVALID:${frame.id}`);
+    if(!frame.sourceVideoAssetId.trim()||!frame.frameAssetId.trim()||!frame.frameSha256.trim()) reasons.push(`DIRECTOR_COVERAGE_FRAME_PROVENANCE_REQUIRED:${frame.id}`);
+    if(shot){
+      const expected=new Set(shot.backgroundAnchorIds);
+      if(frame.backgroundAnchorIds.some(anchor=>!expected.has(anchor))||expected.size!==new Set(frame.backgroundAnchorIds).size){
+        reasons.push(`DIRECTOR_COVERAGE_FRAME_BACKGROUND_MISMATCH:${frame.id}`);
+      }
+    }
+    if(!frame.evidenceIds.length) reasons.push(`DIRECTOR_COVERAGE_FRAME_EVIDENCE_REQUIRED:${frame.id}`);
+  }
+
+  for(const [name,estimate] of [
+    ['establishment',handoff.establishmentModel.costEstimate],
+    ['dialogue',handoff.dialogueModel.costEstimate],
+    ['all-premium',handoff.allPremiumDialogueEstimate],
+  ] as const){
+    if(estimate.projectId!==coverage.projectId) reasons.push(`DIRECTOR_COVERAGE_COST_PROJECT_MISMATCH:${name}`);
+    if(!estimate.provider.trim()||!estimate.modelId.trim()||!Number.isFinite(estimate.estimatedCostUsd)||estimate.estimatedCostUsd<0){
+      reasons.push(`DIRECTOR_COVERAGE_COST_INVALID:${name}`);
+    }
+  }
+  if(
+    handoff.establishmentModel.costEstimate.provider!==handoff.establishmentModel.providerId||
+    handoff.establishmentModel.costEstimate.modelId!==handoff.establishmentModel.modelId
+  ) reasons.push('DIRECTOR_COVERAGE_ESTABLISHMENT_COST_MODEL_MISMATCH');
+  if(
+    handoff.dialogueModel.costEstimate.provider!==handoff.dialogueModel.providerId||
+    handoff.dialogueModel.costEstimate.modelId!==handoff.dialogueModel.modelId
+  ) reasons.push('DIRECTOR_COVERAGE_DIALOGUE_COST_MODEL_MISMATCH');
+
+  const stagedCost=handoff.establishmentModel.costEstimate.estimatedCostUsd+handoff.dialogueModel.costEstimate.estimatedCostUsd;
+  const premium=handoff.allPremiumDialogueEstimate.estimatedCostUsd;
+  const savings=premium-stagedCost;
+  const fraction=premium>0?savings/premium:0;
+  if(savings<=0) reasons.push('DIRECTOR_COVERAGE_HANDOFF_NO_COST_ADVANTAGE');
+
+  return Object.freeze({
+    valid:reasons.length===0,
+    projectedSavingsUsd:savings,
+    projectedSavingsFraction:fraction,
+    reasons:Object.freeze([...new Set(reasons)]),
+    evidenceIds:Object.freeze(evidenceIds),
+    authority:'DIRECTOR_DIALOGUE_COVERAGE_HANDOFF_QC',
+  });
+}
