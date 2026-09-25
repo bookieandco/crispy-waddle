@@ -76,6 +76,7 @@ jobs:
           src/creative-audio-generation.test.ts
           src/transcript-assisted-lip-sync.test.ts
           src/character-performance-rig.test.ts
+          src/character-animation-enhancements.test.ts
           src/quick-cut-planner.test.ts
           src/studio-character-replacement-worker.test.ts
           src/studio-character-replacement.test.ts
