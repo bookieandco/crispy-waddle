@@ -4,6 +4,9 @@ export type DirectedTakeQcMetric =
   | 'hand-anatomy'
   | 'blink-naturalism'
   | 'motion-plausibility'
+  | 'body-structure'
+  | 'temporal-flicker'
+  | 'detail-retention'
   | 'camera-plan-match'
   | 'focus-plan-match'
   | 'source-preservation'
@@ -228,5 +231,30 @@ export const SOURCE_PRESERVING_VIDEO_EDIT_QC: DirectedTakeQcPolicy = Object.free
     'background-geometry': 0.82,
   }),
   minimumConfidence: 0.6,
+  failOnHardFailure: true,
+});
+
+
+export const ACTION_SEQUENCE_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({
+  id: 'action-sequence:v1',
+  requiredMetrics: Object.freeze([
+    'identity-stability',
+    'body-structure',
+    'temporal-flicker',
+    'motion-plausibility',
+    'detail-retention',
+    'camera-plan-match',
+    'performance-plan-match',
+  ] as DirectedTakeQcMetric[]),
+  minimumScoreByMetric: Object.freeze({
+    'identity-stability': 0.82,
+    'body-structure': 0.78,
+    'temporal-flicker': 0.75,
+    'motion-plausibility': 0.72,
+    'detail-retention': 0.72,
+    'camera-plan-match': 0.78,
+    'performance-plan-match': 0.7,
+  }),
+  minimumConfidence: 0.55,
   failOnHardFailure: true,
 });
