@@ -833,3 +833,131 @@ No duplicate subsystem was added for:
 - provider prompt optimization -> documentation-grounded prompt translator.
 
 The new layer only makes persistent project context, selective scene binding, compound agent costs and localized repair explicit and inspectable.
+
+
+## 3D world / consistent-location reference audit
+
+The supplied OpenArt workflow demonstrates a useful environment-continuity pipeline:
+
+- create a navigable 3D world from an image or text description;
+- preview the environment before committing to the more expensive full-world generation;
+- navigate the world and capture multiple camera angles;
+- vary focal length while keeping the same underlying location;
+- place recurring characters into that world;
+- use those captures as reference images rather than necessarily as literal image-to-video endpoints;
+- turn selected world captures into a storyboard;
+- combine storyboard/reference imagery with timestamped scene direction;
+- use last-frame continuation for a later action beat;
+- generate only the missing few seconds when the rest of the scene already exists.
+
+### Existing Director systems reused
+
+Director already had:
+
+- `EnvironmentViewPack` for canonical location continuity and approved views;
+- `DirectorCameraPlan` / previs focal-length and camera control;
+- storyboard reference boards;
+- multi-shot/reference manifests;
+- timestamped scene/shot duration;
+- first/last-frame continuity;
+- selective short-duration generation;
+- generation spend estimates and authorization.
+
+The missing layer was the provenance between a navigable world, its camera captures, and those existing continuity/storyboard artifacts.
+
+### Gap 28 — governed world-build plan
+
+Added `WorldBuildPlan`.
+
+It records:
+
+- project/environment identity;
+- whether the world was derived from an image or text;
+- source asset or source prompt;
+- optional preview asset;
+- project style references;
+- evidence/provenance.
+
+Provider-specific world implementations remain downstream. Director does not treat OpenArt's world format as canonical.
+
+### Gap 29 — camera/character world capture session
+
+Added `WorldCaptureSession`, `WorldCameraPose`, `WorldCharacterPlacement` and `WorldReferenceCapture`.
+
+Each captured view records:
+
+- camera position/rotation;
+- focal length;
+- character placements and optional look-at relationships;
+- intended use:
+  - `omni-reference`;
+  - `storyboard`;
+  - `first-frame`;
+  - `last-frame`;
+- capture asset/hash;
+- provenance.
+
+This preserves the useful distinction in the source:
+
+- a loose omni/reference image may tolerate modest character-position discrepancies because it is guidance;
+- start/end-frame captures are continuity endpoints and therefore require explicit continuity grouping and matching character sets.
+
+Director does not assume that every world snapshot is safe to use as a literal start/end frame.
+
+### Gap 30 — world capture -> environment view pack
+
+Added `buildEnvironmentViewPackFromWorld()`.
+
+A validated world session can now emit the existing canonical `EnvironmentViewPack`, carrying:
+
+- the canonical location capture;
+- all approved world views;
+- camera/focal-length evidence;
+- reference-use metadata;
+- world-source lineage;
+- style references.
+
+This means the 3D world is a production tool for generating environment evidence, while `EnvironmentViewPack` remains Director's continuity authority.
+
+### Gap 31 — world capture -> storyboard board
+
+Added `buildStoryboardReferenceBoardFromWorld()`.
+
+Selected world captures become the existing `StoryboardReferenceBoard`, preserving:
+
+- frame order;
+- still hashes;
+- view labels;
+- focal length metadata;
+- world/capture provenance.
+
+This directly supports the source's world -> images -> storyboard -> video sequence without introducing a second storyboard representation.
+
+### Gap 32 — preview-before-full-world cost gate
+
+The source previews a text-generated panorama at much lower cost before committing to a full 3D world.
+
+Added `evaluateWorldPreviewCost()`.
+
+It compares provider-derived preview and full-world `GenerationCostEstimate` records and requires:
+
+- project lineage;
+- valid cost provenance;
+- an accepted preview;
+- an actual positive cost advantage.
+
+Director does not hard-code the source's example credit values. Provider adapters supply current estimates.
+
+### Existing techniques retained without duplication
+
+The following lessons already map to canonical Director features:
+
+- focal-length variation -> camera/previs plans;
+- OTS/reverse placement specificity -> dialogue coverage and camera plans;
+- character wardrobe consistency -> character identity/reference contracts;
+- multiple world views as general references -> environment view packs;
+- storyboard plus timestamped prompts -> storyboard reference board + structured generation direction;
+- last frame of one clip as the next clip's first frame -> continuity strategy/current-frame extraction;
+- generate only the missing four seconds -> target-duration generation and spend planning.
+
+The new world workflow only governs how a navigable environment produces trusted reference views and storyboards.
