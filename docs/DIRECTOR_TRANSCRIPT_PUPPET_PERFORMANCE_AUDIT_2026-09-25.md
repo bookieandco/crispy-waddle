@@ -1476,3 +1476,139 @@ This captures the source's practical advice to:
 - use flags/grids/egg crates to preserve softness while reducing spill.
 
 These are authored production controls, not universal scene-layout rules.
+
+
+## Cinematography framing / film-analysis audit
+
+The supplied film-analysis lesson breaks camera work into three practical descriptive dimensions before interpretation:
+
+1. **camera position**;
+2. **composition/framing**;
+3. **camera movement**.
+
+Only after describing those choices should the viewer infer symbolic/emotional meaning from scene context.
+
+Director already had a strong camera plan covering shot size, angle, lens, movement, focus, timing, capture settings and motivated movement. The source exposed two remaining gaps:
+
+- composition grammar was still mostly free-form;
+- study/analysis had no formal boundary between observation and interpretation.
+
+### Gap 38 — structured composition grammar
+
+`CameraComposition` now supports:
+
+- symmetrical / asymmetrical / custom balance;
+- centered / rule-of-thirds / free / custom grid strategy;
+- explicit subject grid placement;
+- symmetry axis;
+- lead-room intent;
+- headroom intent;
+- short-side intent;
+- leading-line source -> attention-target relationships.
+
+These augment existing subject placement, horizon, vanishing point and negative-space controls.
+
+Examples such as symmetry, rule of thirds, leading lines, lead room, short-siding and headroom are therefore first-class camera instructions rather than being buried in a free-form framing string.
+
+Validation warns when:
+
+- symmetrical composition has no stated symmetry axis;
+- rule-of-thirds composition has no recorded subject placement;
+
+and fails when a leading-line instruction has no source or target.
+
+### Gap 39 — realist vs formalist camera approach
+
+`CameraIntent` now has an optional `formApproach`:
+
+- `realist`;
+- `formalist`;
+- `hybrid`.
+
+This is deliberately separate from physical/generative realism.
+
+A camera can be physically plausible yet formally conspicuous, or stylized while still preserving grounded performance.
+
+The plan may also preserve explicit `symbolicIntent`, but Director does not infer a fixed meaning automatically from one camera trope.
+
+### Gap 40 — two-step cinematography analysis
+
+Added `CinematographyObservation`, `CinematographyInterpretation`, `describeObservedCinematography()` and `compileCinematographyInterpretation()`.
+
+**Step 1: description**
+
+The observation records:
+
+- shot size;
+- camera angle;
+- movement;
+- structured composition cues;
+- optics notes;
+- optional observed realist/formalist/hybrid approach;
+- evidence.
+
+The neutral description is compiled in the source's order:
+
+`Position -> Composition -> Movement`.
+
+**Step 2: contextual interpretation**
+
+Each proposed meaning must reference an actual observed feature, such as:
+
+- `shot-size:close-up`;
+- `movement:dolly-in`;
+- `composition:0:rule-of-thirds`.
+
+The interpretation also requires:
+
+- scene tone/theme;
+- rationale;
+- contextual evidence;
+- confidence.
+
+This prevents a generic trope lookup from becoming Director truth.
+
+For example, the source discusses possibilities such as:
+
+- distance suggesting loneliness;
+- symmetry suggesting order/formality or uncanny precision;
+- rapid movement suggesting panic;
+- dolly-in increasing emotional/psychological focus;
+- dolly-out increasing distance/detachment;
+- handheld increasing immediacy or instability;
+- static framing creating stillness, tension or theatrical observation.
+
+Director treats these as **contextual possibilities**, not deterministic meanings.
+
+A reading such as "Dutch angle means villain" cannot be admitted unless it is tied to an observed feature and scene-specific evidence/rationale.
+
+### Gap 41 — position / composition / movement take QC
+
+Directed take QC now includes:
+
+- `camera-position-match`;
+- `camera-composition-match`;
+- `camera-movement-match`.
+
+Added `CINEMATOGRAPHY_CAMERA_TAKE_QC`.
+
+This lets a generated take fail even when the broad "camera plan" feels roughly correct but, for example:
+
+- the requested medium close-up becomes a wide shot;
+- the subject loses the authored thirds/short-side composition;
+- a static shot turns into an unwanted push or handheld move.
+
+The older `camera-plan-match` metric remains for backwards compatibility.
+
+### Existing camera language reused
+
+No duplicate system was added for the source's already-covered vocabulary:
+
+- extreme-wide / wide / full / cowboy / medium / medium-close-up / close-up / extreme-close-up / insert -> existing `CameraShotSize`;
+- eye-level / high / low / overhead / ground-level / Dutch / profile / OTS / POV -> existing `CameraAngle`;
+- pan / tilt / tracking / dolly / handheld / whip-pan / zoom / static -> existing movement grammar;
+- dolly-in/out motivation -> existing movement motivation;
+- focus, depth of field and focal length -> existing optics/focus plans;
+- long takes and timing -> existing camera timing.
+
+The new work sharpens composition and film analysis while preserving Director's existing camera authority.
