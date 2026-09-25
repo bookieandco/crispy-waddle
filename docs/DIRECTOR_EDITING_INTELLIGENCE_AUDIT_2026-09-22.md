@@ -220,7 +220,15 @@ B-roll is selected as a separate connected overlay track and is scored against:
 - the selected A-roll segment's semantic tags;
 - available visual evidence.
 
-The B-roll track remains independent so an editor can extend, swap, move, or remove shots without destabilizing the main dialogue cut.
+The B-roll track remains independent so an editor can extend, swap, move, or remove shots without destabilizing the main dialogue cut. Explicit B-roll themes can be supplied separately from story themes, and the default selector avoids reusing the same B-roll asset repeatedly in one proposal.
+
+### Multi-person interviews and transcript safety
+
+Dialogue spans may carry speaker identity. A Quick Cut request can require a minimum number of distinct speakers, allowing interview/social cuts to preserve multiple voices rather than accidentally over-selecting one person.
+
+Spans classified as recorded production directions or filler are excluded from publishable dialogue selection. A recorded phrase such as “cut that part out” remains media content, never edit authorization.
+
+When media scope is `current-timeline` or `current-selection`, the proposal must be bound to a base timeline version so a stale selection cannot silently generate against a newer edit.
 
 ### Proposal-only authority
 
