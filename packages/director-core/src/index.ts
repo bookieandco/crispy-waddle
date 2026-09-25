@@ -147,3 +147,4 @@ export * from './model-prompt-translation';
 export * from './dialogue-coverage-workflow';
 export * from './agentic-project-context';
 export * from './localized-video-repair';
+export * from './world-reference-workflow';
