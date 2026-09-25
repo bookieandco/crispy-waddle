@@ -25,6 +25,32 @@ const observation:CinematographyObservation={
       attentionTarget:'subject face',
       evidenceIds:['frame:120'],
     },
+    {
+      cue:'frame-within-frame',
+      description:'Doorway creates a smaller rectangle around the subject.',
+      attentionTarget:'subject face',
+      evidenceIds:['frame:120'],
+    },
+    {
+      cue:'depth-layering',
+      description:'Soft foreground edge, sharp subject midground, and softer hallway background create three visual layers.',
+      attentionTarget:'subject face',
+      evidenceIds:['frame:120'],
+    },
+    {
+      cue:'luminance-contrast',
+      description:'The subject face is brighter than the surrounding hallway.',
+      attentionTarget:'subject face',
+      evidenceIds:['frame:120'],
+    },
+  ],
+  focusShifts:[
+    {
+      fromTarget:'foreground subject',
+      toTarget:'background doorway',
+      triggerOrMoment:'a second character appears',
+      evidenceIds:['frame:180','frame:188'],
+    },
   ],
   opticsNotes:['shallow depth of field'],
   observedFormApproach:'formalist',
@@ -40,7 +66,11 @@ describe('cinematography analysis',()=>{
     expect(description.indexOf('Composition:')).toBeLessThan(description.indexOf('Movement:'));
     expect(description).toContain('medium-close-up');
     expect(description).toContain('rule-of-thirds');
+    expect(description).toContain('frame-within-frame');
+    expect(description).toContain('depth-layering');
+    expect(description).toContain('luminance-contrast');
     expect(description).toContain('dolly-in');
+    expect(description).toContain('Focus shifts: #1 foreground subject -> background doorway');
   });
 
   it('allows contextual meaning readings without hard-coding technique symbolism',()=>{
@@ -60,6 +90,12 @@ describe('cinematography analysis',()=>{
           possibleMeaning:'isolation within the surrounding space',
           rationale:'the empty side of frame remains visually active while the character is emotionally alone',
           contextEvidenceIds:['scene:loneliness-theme'],
+        },
+        {
+          featureRef:'focus-shift:0',
+          possibleMeaning:'redirected attention to new information',
+          rationale:'focus changes only when the second character appears in the doorway',
+          contextEvidenceIds:['performance:entrance-beat'],
         },
       ],
       confidence:.82,
