@@ -2,8 +2,8 @@ import {
   createCharacterDatasetExecutionProvider,
   createCharacterLoraTrainingProvider,
   createVideoUpscaleExecutionProvider,
-  type DirectorStudioCapabilityProvider,
 } from '@jhadina/director-core/studio-character-training';
+import type { DirectorStudioCapabilityProvider } from '@jhadina/director-core/studio-governed-action';
 import {
   createCharacterDatasetWorkerAdapter,
   createCharacterLoraTrainingWorkerAdapter,
