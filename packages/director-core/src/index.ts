@@ -129,3 +129,7 @@ export * from './studio-character-training-worker';
 export * from './source-driven-character-swap';
 
 export * from './quick-cut-planner';
+
+export * from './creative-workspace-media';
+export * from './playhead-generation-continuation';
+export * from './creative-audio-generation';
