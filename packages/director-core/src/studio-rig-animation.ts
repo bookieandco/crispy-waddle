@@ -2,6 +2,7 @@ import type { ActionRequest } from '@jhadina/action-core'
 import type { VideoTrack } from './studio-contracts'
 import type { DirectorStudioAction, DirectorStudioCapabilityProvider } from './studio-governed-action'
 import { validateAnimationPrinciplesPlan, type AnimationPrinciplesPlan } from './animation-principles.js'
+import { evaluateBlenderMotionCertification, motionCapture3dEvidence, validateMotionCapture3dPlan, type BlenderMotionCertification, type MotionCapture3dPlan } from './motion-capture-3d.js'
 import { performanceRigEvidence, validateCharacterPerformanceRigPlan, type CharacterPerformanceRigPlan } from './character-performance-rig.js'
 import {
   characterAnimationEnhancementEvidence,
@@ -27,6 +28,7 @@ export interface RigAnimationInput {
   motionEffectsPlan?:CharacterMotionEffectsPlan
   locomotionPlan?:CharacterLocomotionPlan
   rigScopePlan?:ShotRigScopePlan
+  motionCapturePlan?:MotionCapture3dPlan
   continuityRef?:string
 }
 export interface RigAnimationArtifact {
@@ -37,6 +39,7 @@ export interface RigAnimationArtifact {
   evidenceIds:string[]
   frameStart:number
   frameEnd:number
+  motionCertification?:BlenderMotionCertification
 }
 export interface RigAnimationAdapter {
   readonly name:string
@@ -66,6 +69,15 @@ export function validateRigAnimationInput(input:RigAnimationInput):string[] {
     if(reasons.length) errors.push(...reasons.map(reason=>`locomotion plan invalid: ${reason}`))
     if(input.locomotionPlan.characterAssetId!==input.characterAssetId) errors.push('locomotion characterAssetId must match rig characterAssetId')
   }
+  if(input.motionCapturePlan){
+    const reasons=validateMotionCapture3dPlan(input.motionCapturePlan)
+    if(reasons.length) errors.push(...reasons.map(reason=>`motion capture 3d plan invalid: ${reason}`))
+    if(input.motionCapturePlan.characterAssetId!==input.characterAssetId) errors.push('motion capture characterAssetId must match rig characterAssetId')
+    for(const channel of input.motionCapturePlan.capture.requiredChannels){
+      const required=channel==='body'?'body':channel==='hands'?'hands':'face'
+      if(!input.channels.includes(required)) errors.push(`motion capture requires channel not requested: ${required}`)
+    }
+  }
   if(input.rigScopePlan){
     const reasons=validateShotRigScopePlan(input.rigScopePlan)
     if(reasons.length) errors.push(...reasons.map(reason=>`rig scope plan invalid: ${reason}`))
@@ -90,6 +102,7 @@ function readInput(action:DirectorStudioAction):RigAnimationInput {
     motionEffectsPlan:typeof p.motionEffectsPlan==='object'&&p.motionEffectsPlan!==null?p.motionEffectsPlan as CharacterMotionEffectsPlan:undefined,
     locomotionPlan:typeof p.locomotionPlan==='object'&&p.locomotionPlan!==null?p.locomotionPlan as CharacterLocomotionPlan:undefined,
     rigScopePlan:typeof p.rigScopePlan==='object'&&p.rigScopePlan!==null?p.rigScopePlan as ShotRigScopePlan:undefined,
+    motionCapturePlan:typeof p.motionCapturePlan==='object'&&p.motionCapturePlan!==null?p.motionCapturePlan as MotionCapture3dPlan:undefined,
     continuityRef:typeof p.continuityRef==='string'?p.continuityRef:undefined,
   }
   const errors=validateRigAnimationInput(input)
@@ -101,6 +114,9 @@ function readInput(action:DirectorStudioAction):RigAnimationInput {
   }
   if(input.locomotionPlan?.projectId!==undefined && input.locomotionPlan.projectId!==action.projectId) {
     errors.push('locomotion projectId must match rig projectId')
+  }
+  if(input.motionCapturePlan?.projectId!==undefined && input.motionCapturePlan.projectId!==action.projectId) {
+    errors.push('motion capture projectId must match rig projectId')
   }
   if(input.rigScopePlan?.projectId!==undefined && input.rigScopePlan.projectId!==action.projectId) {
     errors.push('rig scope projectId must match rig projectId')
@@ -118,6 +134,13 @@ export function createRigAnimationProvider(adapter:RigAnimationAdapter):Director
       const input=readInput(action)
       const artifact=await adapter.animate(input)
       if(artifact.frameEnd<artifact.frameStart) throw new Error('Rig animation returned invalid frame range')
+      let motionCertificationEvidence:readonly string[]=[]
+      if(input.motionCapturePlan){
+        if(!artifact.motionCertification) throw new Error('Rig animation missing Blender motion certification')
+        const certification=evaluateBlenderMotionCertification(input.motionCapturePlan,artifact.motionCertification)
+        if(!certification.approved) throw new Error(`Rig animation failed Blender motion certification: ${certification.reasons.join(', ')}`)
+        motionCertificationEvidence=certification.evidenceIds
+      }
       return {
         capability:'rig',
         projectId:action.projectId,
@@ -132,6 +155,8 @@ export function createRigAnimationProvider(adapter:RigAnimationAdapter):Director
           ...(input.performancePlan?performanceRigEvidence(input.performancePlan):[]),
           ...characterAnimationEnhancementEvidence({motionEffectsPlan:input.motionEffectsPlan,locomotionPlan:input.locomotionPlan}),
           ...cartoonProductionEvidence({rigScopePlan:input.rigScopePlan}),
+          ...(input.motionCapturePlan?motionCapture3dEvidence(input.motionCapturePlan):[]),
+          ...motionCertificationEvidence,
           ...(input.continuityRef?[`continuity:${input.continuityRef}`]:[]),
         ],
       }

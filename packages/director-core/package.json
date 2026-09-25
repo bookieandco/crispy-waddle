@@ -106,7 +106,10 @@
     "./voice-replacement-edit": "./src/voice-replacement-edit.ts",
     "./character-reference-presentation": "./src/character-reference-presentation.ts",
     "./generation-audio-intent": "./src/generation-audio-intent.ts",
-    "./scene-attempt-budget": "./src/scene-attempt-budget.ts"
+    "./scene-attempt-budget": "./src/scene-attempt-budget.ts",
+    "./longform-dialogue-state": "./src/longform-dialogue-state.ts",
+    "./performance-master": "./src/performance-master.ts",
+    "./motion-capture-3d": "./src/motion-capture-3d.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
