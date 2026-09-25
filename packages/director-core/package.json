@@ -88,7 +88,8 @@
     "./dialogue-coverage-workflow": "./src/dialogue-coverage-workflow.ts",
     "./agentic-project-context": "./src/agentic-project-context.ts",
     "./localized-video-repair": "./src/localized-video-repair.ts",
-    "./world-reference-workflow": "./src/world-reference-workflow.ts"
+    "./world-reference-workflow": "./src/world-reference-workflow.ts",
+    "./world-3d-backend-profile": "./src/world-3d-backend-profile.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
