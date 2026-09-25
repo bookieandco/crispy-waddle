@@ -1,4 +1,4 @@
-export type World3DBackendKind='asset-generator'|'reconstruction-runtime'|'dataset-benchmark';
+export type World3DBackendKind='asset-generator'|'reconstruction-runtime'|'world-generator'|'dataset-benchmark';
 
 export type World3DCapability =
   | 'text-to-mesh'
@@ -20,6 +20,12 @@ export type World3DCapability =
   | 'material-albedo'
   | 'material-roughness'
   | 'material-metallic'
+  | 'text-to-panorama'
+  | 'image-to-panorama'
+  | 'panoramic-video-generation'
+  | 'panoramic-scene-reconstruction'
+  | 'custom-camera-trajectory'
+  | 'gaussian-splat-scene'
   | 'free-camera-world'
   | 'navigable-world';
 
@@ -163,6 +169,45 @@ export const LSRM_PROFILE:World3DBackendProfile=Object.freeze({
   ]),
   sourceRefs:Object.freeze([
     'https://github.com/facebookresearch/Large-Sparse-Reconstruction-Model',
+  ]),
+  authority:'DIRECTOR_3D_BACKEND_PROFILE',
+});
+
+export const MATRIX_3D_PROFILE:World3DBackendProfile=Object.freeze({
+  id:'skyworkai:matrix-3d',
+  providerId:'skyworkai',
+  name:'Matrix-3D',
+  kind:'world-generator',
+  capabilities:Object.freeze([
+    'text-to-panorama',
+    'image-to-panorama',
+    'panoramic-video-generation',
+    'panoramic-scene-reconstruction',
+    'custom-camera-trajectory',
+    'gaussian-splat-scene',
+    'free-camera-world',
+    'navigable-world',
+  ] as const),
+  accessMode:'public',
+  license:Object.freeze({
+    codeLicense:'MIT',
+    modelOrDataLicense:'Checkpoint/model terms are not specified in the GitHub README; verify released weight terms before commercial production.',
+    commercialUse:'unknown',
+    evidenceIds:Object.freeze([
+      'github:SkyworkAI/Matrix-3D:README',
+      'github:SkyworkAI/Matrix-3D:LICENSE',
+    ]),
+  }),
+  runtimeAvailable:true,
+  notes:Object.freeze([
+    'Generates omnidirectional explorable 3D worlds from text or image via panorama image, panoramic video and 3D scene reconstruction stages.',
+    'Supports custom camera trajectories; repository states camera matrices are world-to-camera matrices in OpenCV format.',
+    'Optimization-based reconstruction emits a .ply Gaussian-splat scene; a feed-forward panoramic LRM path is also available.',
+    'The README documents a 5B panoramic-video model with low-VRAM mode around 12 GB, while heavier stages can require substantially more VRAM.',
+    'GitHub code is MIT, but Director keeps commercial use unresolved until checkpoint/model terms are independently verified.',
+  ]),
+  sourceRefs:Object.freeze([
+    'https://github.com/SkyworkAI/Matrix-3D',
   ]),
   authority:'DIRECTOR_3D_BACKEND_PROFILE',
 });
