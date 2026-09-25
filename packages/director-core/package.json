@@ -75,7 +75,8 @@
     "./playhead-generation-continuation": "./src/playhead-generation-continuation.ts",
     "./creative-audio-generation": "./src/creative-audio-generation.ts",
     "./transcript-assisted-lip-sync": "./src/transcript-assisted-lip-sync.ts",
-    "./character-performance-rig": "./src/character-performance-rig.ts"
+    "./character-performance-rig": "./src/character-performance-rig.ts",
+    "./character-animation-enhancements": "./src/character-animation-enhancements.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
