@@ -7,6 +7,7 @@ import type { DirectorStoryboardLineageResolver } from './storyboard-lineage-res
 import type { DirectorCastResolver, ResolvedCharacterSceneIdentity } from './cast-bible';
 import type { OrderedGenerationReference } from './generation-reference-manifest.js';
 import { translatePromptForModel, type ModelPromptProfileResolver, type ModelPromptTranslator, type PromptTranslationResult } from './model-prompt-translation.js';
+import { evaluateSceneGenerationAttempt } from './scene-attempt-budget.js';
 
 export interface DirectorCharacterReferenceAssetResolver {
   resolve(assetId: string, projectId: string): Promise<{ uri: string; sha256?: string; mimeType?: string }>;
@@ -39,6 +40,13 @@ export class GenerationPlanAdapter {
     plan: PlannedGeneration,
     gateInput: DirectorGenerationGateInput,
   ): Promise<GenerationJob> {
+    if (request.attemptBudget) {
+      const attemptDecision=evaluateSceneGenerationAttempt(request.attemptBudget,request.takeCount??1);
+      if (!attemptDecision.allowed) {
+        throw new Error(`Generation submission blocked: ${attemptDecision.reasons.join(', ')}`);
+      }
+    }
+
     if (gateInput.run.projectId !== request.projectId) {
       throw new Error('Generation gate project does not match the take request project.');
     }
@@ -210,6 +218,11 @@ export class GenerationPlanAdapter {
         lightingPlan: request.lightingPlan,
         animationPlan: request.animationPlan,
         continuityStrategy: request.continuityStrategy,
+        audioIntent: request.audioIntent,
+        attemptBudget: request.attemptBudget,
+        attemptWarnings: request.attemptBudget
+          ? evaluateSceneGenerationAttempt(request.attemptBudget,request.takeCount??1).warnings
+          : undefined,
         referenceManifest,
       },
       creativeProvenance,
