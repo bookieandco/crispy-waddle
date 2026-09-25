@@ -162,10 +162,10 @@ describe('dialogue axis continuity',()=>{
         ...shot,
         axisSide:'A' as const,
         screenDirectionBySubject:index===0
-          ? {'character-a':'camera-left' as const,'character-b':'camera-right' as const}
-          : shot.subjectCharacterIds.includes('character-a')
-            ? {'character-a':'camera-left' as const}
-            : {'character-b':'camera-right' as const},
+          ? {'a':'camera-left' as const,'b':'camera-right' as const}
+          : shot.subjectCharacterIds.includes('a')
+            ? {'a':'camera-left' as const}
+            : {'b':'camera-right' as const},
       })),
     };
     expect(validateDialogueCoveragePlan(plan)).toEqual([]);
