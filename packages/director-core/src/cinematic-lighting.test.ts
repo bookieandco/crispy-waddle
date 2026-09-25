@@ -3,6 +3,7 @@ import {compileTakePrompt} from './generation-orchestrator';
 import {
   CINEMATIC_LIGHTING_ORDER,
   compileCinematographyLightingDirective,
+  inferLightingDirectionFromObservation,
   stopsToBrightnessRatio,
   validateCinematographyLightingPlan,
   type CinematographyLightingPlan,
@@ -47,6 +48,17 @@ const plan:CinematographyLightingPlan={
     creativeIntent:'Let the daylight key read slightly cooler while practicals retain warm contrast.',
     evidenceIds:['lighting-study:color'],
   },
+  motivatedSources:[
+    {
+      id:'window:key',
+      kind:'window',
+      visibleInFrame:true,
+      description:'Visible daylight window motivates the soft key.',
+      apparentQuality:'soft',
+      extensionSetupIds:['key:window'],
+      evidenceIds:['lighting-study:motivated-window'],
+    },
+  ],
   intensity:{
     unit:'relative',
     keyLevel:1,
@@ -56,6 +68,14 @@ const plan:CinematographyLightingPlan={
     foregroundToBackgroundStops:1.25,
     exposureIntent:'Set the key side first, then shape fill and keep the subject modestly brighter than the background.',
     evidenceIds:['lighting-study:intensity'],
+  },
+  separation:{
+    independentSubjectAndBackgroundControl:true,
+    subjectToBackgroundDistanceMeters:2.5,
+    pullFurnitureFromWallMeters:.75,
+    backgroundSpillStrategy:'Keep the key off the background and light the background independently.',
+    negativeFillStrategy:'Use large close negative fill on the shadow side when ambient bounce raises the fill level.',
+    evidenceIds:['lighting-study:separation'],
   },
   cutAndShape:[
     {id:'neg-fill',kind:'negative-fill',target:'shadow side',placement:'subject-shadow-side',purpose:'Reduce ambient bounce on the fill side.',evidenceIds:['lighting-study:negative-fill']},
@@ -107,6 +127,37 @@ describe('cinematic lighting',()=>{
     const wrong:CinematographyLightingPlan={...plan,attributeOrder:['intensity','direction','quality','color','cut-shape']};
     expect(validateCinematographyLightingPlan(wrong).map(issue=>issue.code))
       .toContain('LIGHTING_ATTRIBUTE_ORDER_INVALID');
+  });
+
+  it('infers directional lighting from observed face-shadow cues without making the inference authoritative truth',()=>{
+    expect(inferLightingDirectionFromObservation({
+      id:'obs:rembrandt',
+      subjectId:'talent:1',
+      cue:'triangle-light-on-shadow-cheek',
+      confidence:.88,
+      evidenceIds:['frame:42'],
+    })).toMatchObject({
+      direction:'rembrandt',
+      confidence:.88,
+      authority:'DIRECTOR_LIGHTING_OBSERVATION',
+    });
+
+    expect(inferLightingDirectionFromObservation({
+      id:'obs:kicker',
+      subjectId:'talent:1',
+      cue:'edge-wrap-on-cheek',
+      confidence:.8,
+      evidenceIds:['frame:43'],
+    }).direction).toBe('kicker');
+  });
+
+  it('warns when a visibly soft motivated source is extended with a harder authored light',()=>{
+    const warned:CinematographyLightingPlan={
+      ...plan,
+      quality:{...plan.quality,quality:'hard'},
+    };
+    expect(validateCinematographyLightingPlan(warned).map(issue=>issue.code))
+      .toContain('LIGHTING_EXTENSION_HARDER_THAN_MOTIVATED_SOURCE');
   });
 
   it('warns when a flag is placed before diffusion rather than between diffusion and subject',()=>{
