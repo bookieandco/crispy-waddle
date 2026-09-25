@@ -236,3 +236,28 @@ Important licensing boundary:
 - an ActionAI-compatible or replacement classifier can run as an isolated adapter if desired.
 
 This also avoids coupling Director to ActionAI's historical 36-value pose layout, TensorFlow model format, Intel DLStreamer pipeline, or default five-frame window. Those remain implementation details rather than canonical Director truth.
+
+
+## Roboflow people detection adapter
+
+Reference model: `people-detection-o4rdr/12` on Roboflow Serverless.
+
+Added:
+
+- isolated server-side worker using `InferenceHTTPClient`;
+- header-based API-key transport;
+- `ROBOFLOW_API_KEY` secret-only configuration;
+- model override through `ROBOFLOW_PEOPLE_MODEL_ID`;
+- normalization into Director's existing object-detection evidence path;
+- person aliases normalized to the canonical `person` class;
+- detected people become protected `person` visual regions rather than generic critical objects;
+- explicit limitations preventing identity, demographic, intent or temporal-continuity claims.
+
+Perception responsibilities are deliberately separated:
+
+- Roboflow people detector -> person presence and bounding regions;
+- Human -> body/hand pose, gaze/orientation and gesture geometry;
+- SAM2 -> temporal tracks and masks;
+- Director -> evidence admission, QC, approval and editing authority.
+
+The credential is never embedded in source or transported in request bodies. A credential pasted into chat or other non-secret surfaces should be rotated before production use.
