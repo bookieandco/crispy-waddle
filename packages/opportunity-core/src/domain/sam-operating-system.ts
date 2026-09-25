@@ -188,7 +188,7 @@ export type SamPricingScenario={
   blockers:string[]
 }
 
-const nonnegative=(n:number)=>Number.isFinite(n)&&n>0?n:0
+const nonnegative=(n:number|undefined)=>typeof n==='number'&&Number.isFinite(n)&&n>0?n:0
 const uniq=(xs:string[])=>[...new Set(xs.map(x=>x.trim()).filter(Boolean))]
 
 export function buildSamPricingScenario(input:{
