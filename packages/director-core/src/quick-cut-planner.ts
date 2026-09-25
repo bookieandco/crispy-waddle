@@ -98,6 +98,7 @@ export function planQuickCut(request: QuickCutRequest): QuickCutProposal {
     aCandidates,
     request.targetDurationSeconds,
     request.videoType === 'dialogue-driven' ? request.minimumDistinctSpeakers ?? 1 : 0,
+    focusThemes,
   );
   if (!selectedA.length) {
     throw new Error(request.videoType === 'dialogue-driven'
@@ -270,10 +271,25 @@ function selectToDuration(
   candidates:readonly QuickCutSelection[],
   target:number,
   minimumDistinctSpeakers=0,
+  requiredThemes:readonly string[]=[],
 ):QuickCutSelection[] {
   const ordered=[...candidates].sort((a,b)=>b.score-a.score || a.sourceStartSeconds-b.sourceStartSeconds || a.id.localeCompare(b.id));
   const selected:QuickCutSelection[]=[];
   let duration=0;
+
+  const addCandidate=(candidate:QuickCutSelection,maximumSeconds:number):boolean=>{
+    if (selected.some(item=>item.id===candidate.id)) return false;
+    const available=candidate.sourceEndSeconds-candidate.sourceStartSeconds;
+    const remaining=target-duration;
+    const used=Math.min(available,remaining,maximumSeconds);
+    if (used<0.1) return false;
+    selected.push(Object.freeze({
+      ...candidate,
+      sourceEndSeconds:candidate.sourceStartSeconds+used,
+    }));
+    duration+=used;
+    return true;
+  };
 
   if (minimumDistinctSpeakers>1) {
     const bySpeaker=new Map<string,QuickCutSelection[]>();
@@ -286,29 +302,34 @@ function selectToDuration(
     if (bySpeaker.size<minimumDistinctSpeakers) {
       throw new Error('DIRECTOR_QUICK_CUT_SPEAKER_DIVERSITY_INSUFFICIENT');
     }
-    for (const [,bucket] of [...bySpeaker.entries()].slice(0,minimumDistinctSpeakers)) {
-      const candidate=bucket[0]!;
-      const available=candidate.sourceEndSeconds-candidate.sourceStartSeconds;
-      const remaining=target-duration;
-      const used=Math.min(available,remaining);
-      if (used<0.1) continue;
-      selected.push(Object.freeze({...candidate,sourceEndSeconds:candidate.sourceStartSeconds+used}));
-      duration+=used;
+    const speakers=[...bySpeaker.entries()].slice(0,minimumDistinctSpeakers);
+    for (let index=0;index<speakers.length;index++) {
+      const candidate=speakers[index]![1][0]!;
+      const remainingSpeakers=speakers.length-index;
+      addCandidate(candidate,Math.max(.1,(target-duration)/remainingSpeakers));
     }
   }
 
+  const normalizedThemes=normalizeThemes(requiredThemes);
+  for (let index=0;index<normalizedThemes.length;index++) {
+    const theme=normalizedThemes[index]!;
+    const alreadyCovered=selected.some(item=>item.themeTags.map(normalizeTheme).includes(theme));
+    if (alreadyCovered) continue;
+    const candidate=ordered.find(item=>
+      !selected.some(chosen=>chosen.id===item.id) &&
+      item.themeTags.map(normalizeTheme).includes(theme)
+    );
+    if (!candidate) continue;
+    const remainingThemes=normalizedThemes
+      .slice(index)
+      .filter(value=>!selected.some(item=>item.themeTags.map(normalizeTheme).includes(value)))
+      .length;
+    addCandidate(candidate,Math.max(.1,(target-duration)/Math.max(1,remainingThemes)));
+  }
+
   for (const candidate of ordered) {
-    if (selected.some(item=>item.id===candidate.id)) continue;
     if (duration>=target) break;
-    const available=candidate.sourceEndSeconds-candidate.sourceStartSeconds;
-    const remaining=target-duration;
-    const used=Math.min(available,remaining);
-    if (used<0.1) continue;
-    selected.push(Object.freeze({
-      ...candidate,
-      sourceEndSeconds:candidate.sourceStartSeconds+used,
-    }));
-    duration+=used;
+    addCandidate(candidate,target-duration);
   }
   return selected;
 }
