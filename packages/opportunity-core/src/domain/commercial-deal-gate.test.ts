@@ -31,6 +31,21 @@ assert.equal(viable.economics.estimatedMarginPercent, 34)
 assert.equal(viable.engagementAuthorized, false)
 assert.equal(canAdvanceToCommercialReview(viable), true)
 
+const financed = evaluateCommercialDeal(plan, {
+  contractValue: 100000,
+  providerCosts: { 'provider:lead': 20000, 'provider:sub': 30000 },
+  directCost: 5000,
+  overhead: 5000,
+  contingency: 5000,
+  acquisitionCost: 1000,
+  financingCost: 4000,
+  workingCapitalRequirement: 60000,
+})
+assert.equal(financed.economics.financingCost, 4000)
+assert.equal(financed.economics.workingCapitalRequirement, 60000)
+assert.equal(financed.economics.estimatedGrossProfit, 30000)
+assert.equal(financed.economics.estimatedMarginPercent, 30)
+
 const fee = evaluateCommercialDeal(plan, { contractValue: 100000, feePercent: 10 }, 'success_fee')
 assert.equal(fee.status, 'blocked')
 assert.ok(fee.blockers.some((b) => b.includes('compliance review')))
