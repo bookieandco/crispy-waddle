@@ -163,3 +163,6 @@ export * from './cinematic-story-bible';
 export * from './prompt-complexity-budget';
 export * from './music-lipsync-package';
 export * from './voice-replacement-edit';
+export * from './character-reference-presentation';
+export * from './generation-audio-intent';
+export * from './scene-attempt-budget';
