@@ -1,6 +1,7 @@
 export type CharacterReferenceView =
   | 'unknown'
   | 'front'
+  | 'rear'
   | 'profile-left'
   | 'profile-right'
   | 'three-quarter-left'
@@ -88,9 +89,10 @@ export function planCharacterReferenceBootstrap(
     const rank = (view: CharacterReferenceView) =>
       view === 'close-up' ? 0 :
       view === 'front' ? 1 :
-      view === 'three-quarter-left' || view === 'three-quarter-right' ? 2 :
-      view === 'profile-left' || view === 'profile-right' ? 3 :
-      view === 'full-body' ? 4 : 5;
+      view === 'rear' ? 2 :
+      view === 'three-quarter-left' || view === 'three-quarter-right' ? 3 :
+      view === 'profile-left' || view === 'profile-right' ? 4 :
+      view === 'full-body' ? 5 : 6;
     return rank(a.view)-rank(b.view) || b.width*b.height-a.width*a.height || a.id.localeCompare(b.id);
   })[0];
 
@@ -108,6 +110,7 @@ export function planCharacterReferenceBootstrap(
 
   const targetViews: readonly CharacterReferenceView[] = Object.freeze([
     'front',
+    'rear',
     'profile-left',
     'profile-right',
     'three-quarter-left',
