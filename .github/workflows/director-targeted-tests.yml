@@ -91,6 +91,7 @@ jobs:
           pnpm --filter @jhadina/jhadina-web exec vitest run
           src/lib/director-project-authority.test.ts
           src/lib/director-generation-provider-factory.test.ts
+          src/lib/director-character-training-runtime.test.ts
           src/lib/director-studio-qc-repository.test.ts
           src/lib/director-cast-repository.test.ts
           src/app/api/director/characters/bootstrap/route.test.ts
