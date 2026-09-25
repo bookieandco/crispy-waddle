@@ -43,7 +43,7 @@ describe('model prompt translation',()=>{
       documentationSourceIds:['docs:prompt-basics'],
       evidenceIds:['translation:1'],
       authority:'PROVIDER_PROMPT_TRANSLATION' as const,
-    })));
+    }));
     const result=await translatePromptForModel({translate},profile,{
       projectId:'p',
       takeId:'take-1',
