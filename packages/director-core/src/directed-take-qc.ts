@@ -13,7 +13,12 @@ export type DirectedTakeQcMetric =
   | 'performance-plan-match'
   | 'dialogue-prosody'
   | 'audio-sync'
-  | 'background-geometry';
+  | 'background-geometry'
+  | 'lighting-direction-match'
+  | 'lighting-quality-match'
+  | 'lighting-color-match'
+  | 'lighting-contrast-match'
+  | 'lighting-cut-shape-match';
 
 export type DirectedTakeQcObservation = {
   metric: DirectedTakeQcMetric;
@@ -177,6 +182,8 @@ function preserveForFailures(failingMetrics: readonly DirectedTakeQcMetric[]): s
   if (!failingMetrics.includes('performance-plan-match')) preserve.add('performance-plan');
   if (!failingMetrics.includes('background-geometry')) preserve.add('environment/blocking');
   if (!failingMetrics.includes('source-preservation')) preserve.add('source-preservation locks');
+  const lightingMetrics = new Set<DirectedTakeQcMetric>(['lighting-direction-match','lighting-quality-match','lighting-color-match','lighting-contrast-match','lighting-cut-shape-match']);
+  if (!failingMetrics.some((metric) => lightingMetrics.has(metric))) preserve.add('lighting-plan');
 
   return [...preserve];
 }
@@ -254,6 +261,27 @@ export const ACTION_SEQUENCE_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({
     'detail-retention': 0.72,
     'camera-plan-match': 0.78,
     'performance-plan-match': 0.7,
+  }),
+  minimumConfidence: 0.55,
+  failOnHardFailure: true,
+});
+
+
+export const CINEMATOGRAPHY_LIGHTING_TAKE_QC: DirectedTakeQcPolicy = Object.freeze({
+  id: 'cinematography-lighting:v1',
+  requiredMetrics: Object.freeze([
+    'lighting-direction-match',
+    'lighting-quality-match',
+    'lighting-color-match',
+    'lighting-contrast-match',
+    'lighting-cut-shape-match',
+  ] as DirectedTakeQcMetric[]),
+  minimumScoreByMetric: Object.freeze({
+    'lighting-direction-match': 0.82,
+    'lighting-quality-match': 0.76,
+    'lighting-color-match': 0.8,
+    'lighting-contrast-match': 0.78,
+    'lighting-cut-shape-match': 0.72,
   }),
   minimumConfidence: 0.55,
   failOnHardFailure: true,
