@@ -9,6 +9,7 @@ import { createDirectorStudioAction } from './studio-governed-action';
 
 const plan: CharacterPerformanceRigPlan = {
   id: 'performance-rig:willie',
+  projectId: 'project-1',
   characterAssetId: 'character:willie',
   eyePoses: {
     id: 'eyes:compass',
