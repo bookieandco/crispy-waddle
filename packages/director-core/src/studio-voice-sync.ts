@@ -1,6 +1,7 @@
 import type { ActionRequest } from '@jhadina/action-core'
 import { isVoiceSyncTrackUsable, type VoiceSyncMode, type VoiceSyncTrack } from './studio-contracts'
 import type { DirectorStudioAction, DirectorStudioCapabilityProvider } from './studio-governed-action'
+import { transcriptPlanEvidence, validateTranscriptLipSyncPlan, type TranscriptLipSyncPlan } from './transcript-assisted-lip-sync'
 
 export interface VoiceSyncInput {
   videoAssetId: string
@@ -9,6 +10,7 @@ export interface VoiceSyncInput {
   tracks: VoiceSyncTrack[]
   characterTrackId?: string
   continuityRef?: string
+  transcriptPlan?: TranscriptLipSyncPlan
 }
 
 export interface VoiceSyncArtifact {
@@ -31,6 +33,11 @@ export function validateVoiceSyncInput(input: VoiceSyncInput): string[] {
   if (!input.audioAssetId) errors.push('audioAssetId is required')
   if (!input.tracks.length) errors.push('at least one voice-sync track is required')
   if (input.tracks.some(track => !isVoiceSyncTrackUsable(track))) errors.push('all voice-sync tracks must meet duration and confidence thresholds')
+  if (input.transcriptPlan) {
+    const decision=validateTranscriptLipSyncPlan(input.transcriptPlan)
+    if(!decision.valid) errors.push(...decision.reasons.map(reason=>`transcript invalid: ${reason}`))
+    if(input.transcriptPlan.audioAssetId!==input.audioAssetId) errors.push('transcript audioAssetId must match voice-sync audioAssetId')
+  }
   return errors
 }
 
@@ -48,6 +55,7 @@ function readInput(action:DirectorStudioAction):VoiceSyncInput {
     tracks:readTracks(p.tracks),
     characterTrackId:typeof p.characterTrackId === 'string' ? p.characterTrackId : undefined,
     continuityRef:typeof p.continuityRef === 'string' ? p.continuityRef : undefined,
+    transcriptPlan:typeof p.transcriptPlan === 'object' && p.transcriptPlan !== null ? p.transcriptPlan as TranscriptLipSyncPlan : undefined,
   }
   const errors=validateVoiceSyncInput(input)
   if(errors.length) throw new Error(`Invalid voice sync: ${errors.join('; ')}`)
@@ -78,6 +86,7 @@ export function createVoiceSyncProvider(adapter:VoiceSyncAdapter):DirectorStudio
           `voice-sync-confidence:${artifact.averageConfidence}`,
           ...(input.characterTrackId ? [`character-track:${input.characterTrackId}`] : []),
           ...(input.continuityRef ? [`continuity:${input.continuityRef}`] : []),
+          ...(input.transcriptPlan ? transcriptPlanEvidence(input.transcriptPlan) : []),
         ],
       }
     },
