@@ -70,6 +70,9 @@ jobs:
           src/character-lora-approval.test.ts
           src/video-upscale-finishing.test.ts
           src/studio-character-training.test.ts
+          src/source-driven-character-swap.test.ts
+          src/studio-character-replacement-worker.test.ts
+          src/studio-character-replacement.test.ts
           src/whole-video-provider.test.ts
           src/paid-video-generation.test.ts
           src/commercial-creative-lab.test.ts
@@ -91,6 +94,7 @@ jobs:
           pnpm --filter @jhadina/jhadina-web exec vitest run
           src/lib/director-project-authority.test.ts
           src/lib/director-generation-provider-factory.test.ts
+          src/lib/director-character-training-runtime.test.ts
           src/lib/director-studio-qc-repository.test.ts
           src/lib/director-cast-repository.test.ts
           src/app/api/director/characters/bootstrap/route.test.ts

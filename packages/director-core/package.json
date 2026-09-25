@@ -68,7 +68,8 @@
     "./video-upscale-finishing": "./src/video-upscale-finishing.ts",
     "./studio-character-training": "./src/studio-character-training.ts",
     "./studio-character-training-worker": "./src/studio-character-training-worker.ts",
-    "./character-lora-approval": "./src/character-lora-approval.ts"
+    "./character-lora-approval": "./src/character-lora-approval.ts",
+    "./source-driven-character-swap": "./src/source-driven-character-swap.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",

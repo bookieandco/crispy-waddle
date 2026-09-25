@@ -125,3 +125,5 @@ export * from './paid-video-generation';
 
 export * from './studio-character-training';
 export * from './studio-character-training-worker';
+
+export * from './source-driven-character-swap';
