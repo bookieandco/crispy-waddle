@@ -3,6 +3,7 @@ import {
   evaluateWorld3DBackend,
   HUNYUAN3D_1_PROFILE,
   LSRM_PROFILE,
+  MATRIX_3D_PROFILE,
   REALSEE3D_PROFILE,
 } from './world-3d-backend-profile';
 
@@ -94,6 +95,30 @@ describe('world 3d backend profiles',()=>{
       'DIRECTOR_3D_BACKEND_CAPABILITY_MISSING:navigable-world',
       'DIRECTOR_3D_BACKEND_NOT_NAVIGABLE_WORLD',
     ]));
+  });
+
+  it('admits Matrix-3D as a navigable world runtime for non-commercial/unknown-license evaluation',()=>{
+    const decision=evaluateWorld3DBackend(MATRIX_3D_PROFILE,{
+      id:'use:matrix-world',
+      use:'navigable-world',
+      requiredCapabilities:['text-to-panorama','panoramic-video-generation','panoramic-scene-reconstruction','custom-camera-trajectory','free-camera-world','navigable-world'],
+      commercialProject:false,
+      requireRuntime:true,
+      evidenceIds:['world:generated-scene'],
+    });
+    expect(decision.admissible).toBe(true);
+  });
+
+  it('fails Matrix-3D closed for commercial production until checkpoint terms are verified',()=>{
+    const decision=evaluateWorld3DBackend(MATRIX_3D_PROFILE,{
+      id:'use:matrix-commercial',
+      use:'navigable-world',
+      requiredCapabilities:['free-camera-world','navigable-world'],
+      commercialProject:true,
+      requireRuntime:true,
+      evidenceIds:['project:commercial'],
+    });
+    expect(decision.reasons).toContain('DIRECTOR_3D_BACKEND_COMMERCIAL_TERMS_UNKNOWN');
   });
 
   it('treats Realsee3D as controlled-access benchmark data, not an inference runtime',()=>{
