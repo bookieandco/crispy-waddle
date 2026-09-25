@@ -85,7 +85,9 @@
     "./hybrid-animation-production": "./src/hybrid-animation-production.ts",
     "./action-sequence-control": "./src/action-sequence-control.ts",
     "./model-prompt-translation": "./src/model-prompt-translation.ts",
-    "./dialogue-coverage-workflow": "./src/dialogue-coverage-workflow.ts"
+    "./dialogue-coverage-workflow": "./src/dialogue-coverage-workflow.ts",
+    "./agentic-project-context": "./src/agentic-project-context.ts",
+    "./localized-video-repair": "./src/localized-video-repair.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
