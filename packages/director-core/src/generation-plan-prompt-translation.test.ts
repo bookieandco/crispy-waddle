@@ -55,7 +55,7 @@ function build(profileOverride:ModelPromptProfile=profile){
 }
 
 function request(){
-  return{takeId:'take',projectId:'p',sceneId:'scene',storyboardBoardId:'board',prompt:'Start close on her face, pull back, orbit to reveal what she sees.',locked:['camera','performance'] as const};
+  return{takeId:'take',projectId:'p',sceneId:'scene',storyboardBoardId:'board',prompt:'Start close on her face, pull back, orbit to reveal what she sees.',locked:['camera','performance'] as Array<'camera'|'performance'>};
 }
 function gateInput(){return{run,gate,generationStage,storyboardStage};}
 
