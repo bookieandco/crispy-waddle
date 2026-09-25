@@ -8,7 +8,14 @@ import type {
 export type ObservedCompositionCue =
   | 'symmetry'
   | 'rule-of-thirds'
+  | 'golden-triangle'
+  | 'focal-point'
   | 'leading-lines'
+  | 'frame-within-frame'
+  | 'depth-layering'
+  | 'color-contrast'
+  | 'luminance-contrast'
+  | 'intentional-imbalance'
   | 'short-sided'
   | 'lead-room'
   | 'headroom'
@@ -23,6 +30,13 @@ export interface CameraCompositionObservation {
   evidenceIds:readonly string[];
 }
 
+export interface CameraFocusShiftObservation {
+  fromTarget:string;
+  toTarget:string;
+  triggerOrMoment:string;
+  evidenceIds:readonly string[];
+}
+
 export interface CinematographyObservation {
   id:string;
   shotId:string;
@@ -30,6 +44,7 @@ export interface CinematographyObservation {
   angle?:CameraAngle;
   movements:readonly CameraMovementKind[];
   composition:readonly CameraCompositionObservation[];
+  focusShifts?:readonly CameraFocusShiftObservation[];
   opticsNotes?:readonly string[];
   observedFormApproach?:CameraFormApproach|'undetermined';
   formApproachRationale?:string;
@@ -72,6 +87,11 @@ export function validateCinematographyObservation(
       reasons.push(`DIRECTOR_CAMERA_COMPOSITION_OBSERVATION_INVALID:${index}`);
     }
   }
+  for(const [index,shift] of (observation.focusShifts??[]).entries()){
+    if(!shift.fromTarget.trim()||!shift.toTarget.trim()||!shift.triggerOrMoment.trim()||!shift.evidenceIds.length){
+      reasons.push(`DIRECTOR_CAMERA_FOCUS_SHIFT_OBSERVATION_INVALID:${index}`);
+    }
+  }
   if(
     observation.observedFormApproach&&
     observation.observedFormApproach!=='undetermined'&&
@@ -99,6 +119,9 @@ export function describeObservedCinematography(
       : 'no structured composition cue recorded'}`,
     `Movement: ${observation.movements.join(', ')}`,
   ];
+  if(observation.focusShifts?.length){
+    lines.push(`Focus shifts: ${observation.focusShifts.map((shift,index)=>`#${index+1} ${shift.fromTarget} -> ${shift.toTarget} when ${shift.triggerOrMoment}`).join(' | ')}`);
+  }
   if(observation.opticsNotes?.length) lines.push(`Optics: ${observation.opticsNotes.join(' | ')}`);
   if(observation.observedFormApproach){
     lines.push(`Observed film-form approach: ${observation.observedFormApproach}${observation.formApproachRationale?` — ${observation.formApproachRationale}`:''}`);
@@ -132,6 +155,7 @@ export function validateCinematographyInterpretation(
     ...(observation.angle?[`angle:${observation.angle}`]:[]),
     ...observation.movements.map(movement=>`movement:${movement}`),
     ...observation.composition.map((cue,index)=>`composition:${index}:${cue.cue}`),
+    ...(observation.focusShifts??[]).map((_,index)=>`focus-shift:${index}`),
   ]);
 
   for(const [index,reading] of interpretation.readings.entries()){
