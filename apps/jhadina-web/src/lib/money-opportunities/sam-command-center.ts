@@ -33,6 +33,16 @@ export type SamQuoteTargetView={
   status:string
 }
 
+export type SamProviderBenchView={
+  requirementId:string
+  targetCandidateCount:number
+  candidateCount:number
+  corroboratedCount:number
+  qualifiedCount:number
+  status:'COVERAGE_HEALTHY'|'MARKET_CONSTRAINED'|'DISCOVERY_INCOMPLETE'|'unknown'
+  blockers:string[]
+}
+
 export type SamCommercialView={
   status:'quote_required'|'review_required'|'blocked'|'unknown'
   contractValue:number|null
@@ -75,6 +85,7 @@ export type SamCommandCenterItem={
   assignments:SamTeamAssignmentView[]
   uncoveredRequirementIds:string[]
   quoteTargets:SamQuoteTargetView[]
+  providerBench:SamProviderBenchView[]
   commercial:SamCommercialView
   blockers:string[]
   authority:{
@@ -183,6 +194,16 @@ export function projectSamCommandCenter(input:{
       status:string(target.status)||'quote_required',
     })).filter(target=>target.providerKey&&target.providerName)
 
+    const providerBench=rows(pursuit?.provider_bench).map((bench):SamProviderBenchView=>({
+      requirementId:string(bench.requirementId),
+      targetCandidateCount:numberOrNull(bench.targetCandidateCount)??0,
+      candidateCount:numberOrNull(bench.candidateCount)??0,
+      corroboratedCount:numberOrNull(bench.corroboratedCount)??0,
+      qualifiedCount:numberOrNull(bench.qualifiedCount)??0,
+      status:status(bench.status,['COVERAGE_HEALTHY','MARKET_CONSTRAINED','DISCOVERY_INCOMPLETE','unknown'] as const,'unknown'),
+      blockers:strings(bench.blockers),
+    })).filter(bench=>bench.requirementId)
+
     return {
       noticeId,
       ...(string(catalog.solicitation_number)?{solicitationNumber:string(catalog.solicitation_number)}:{}),
@@ -215,6 +236,7 @@ export function projectSamCommandCenter(input:{
       assignments,
       uncoveredRequirementIds:strings(pursuit?.uncovered_requirement_ids),
       quoteTargets,
+      providerBench,
       commercial:{
         status:status(commercial.status,['quote_required','review_required','blocked','unknown'] as const,'unknown'),
         contractValue:numberOrNull(commercial.contractValue),
