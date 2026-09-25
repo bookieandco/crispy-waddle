@@ -87,6 +87,7 @@ export type TakePlan = {
  * DirectorOS owns continuity and approval; providers own generation.
  */
 export function planTake(request: TakeRequest): TakePlan {
+  assertTakeScopedPlans(request);
   if (request.attemptBudget) {
     const decision=evaluateSceneGenerationAttempt(request.attemptBudget, request.takeCount ?? 1);
     if (!decision.allowed) throw new Error(`DIRECTOR_SCENE_ATTEMPT_BUDGET_BLOCKED: ${decision.reasons.join(', ')}`);
@@ -111,6 +112,7 @@ export const CINEMATOGRAPHY_PRESETS: CinematographyPreset[] = [
 ];
 
 export function compileTakePrompt(request: TakeRequest): string {
+  assertTakeScopedPlans(request);
   const referenceManifest = request.referenceManifest ?? request.continuityStrategy?.referenceManifest;
   const sections = [
     request.prompt.trim(),
@@ -128,6 +130,7 @@ export function compileTakePrompt(request: TakeRequest): string {
 }
 
 export function buildGenerationBrief(request: TakeRequest) {
+  assertTakeScopedPlans(request);
   const referenceManifest = request.referenceManifest ?? request.continuityStrategy?.referenceManifest;
   const attemptDecision=request.attemptBudget
     ? evaluateSceneGenerationAttempt(request.attemptBudget,request.takeCount??1)
@@ -169,6 +172,19 @@ export function buildGenerationBrief(request: TakeRequest) {
     referenceDirective: referenceManifest ? compileGenerationReferenceManifest(referenceManifest).directive : undefined,
     approvalRequired: true,
   };
+}
+
+function assertTakeScopedPlans(request:TakeRequest):void {
+  const reasons:string[]=[];
+  if(
+    request.audioIntent &&
+    (request.audioIntent.projectId!==request.projectId || request.audioIntent.sceneId!==request.sceneId)
+  ) reasons.push('DIRECTOR_GENERATION_AUDIO_INTENT_SCOPE_MISMATCH');
+  if(
+    request.attemptBudget &&
+    (request.attemptBudget.projectId!==request.projectId || request.attemptBudget.sceneId!==request.sceneId)
+  ) reasons.push('DIRECTOR_SCENE_ATTEMPT_BUDGET_SCOPE_MISMATCH');
+  if(reasons.length) throw new Error(`DIRECTOR_TAKE_SCOPE_INVALID: ${reasons.join(', ')}`);
 }
 
 function section(title: string, body: string): string {
