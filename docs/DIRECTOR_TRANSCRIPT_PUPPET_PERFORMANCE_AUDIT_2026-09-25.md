@@ -174,3 +174,65 @@ The following source lessons already map to existing Director primitives and wer
 - dialogue beginning before the visual transition completes -> independent audio/video timeline placement;
 - simple character bobbing when legs are hidden -> existing transform/locomotion keyframes;
 - scene and timeline history -> existing timeline versions.
+
+
+## Gap 10 — calibrated body-performance capture
+
+The body-tracking walkthrough adds capture behavior that was not explicit in Director's prior rig contracts:
+
+- torso-up versus full-body framing;
+- calibration countdown and calibration pose;
+- selectable tracked landmarks instead of assuming every possible landmark;
+- hold-last versus return-to-rest when tracking is lost;
+- configurable return duration;
+- tracking-strength control;
+- separate body, face, gaze and hands recording passes;
+- local repair passes that replace only the faulty limb/interval and blend into surrounding motion;
+- controller arbitration so body tracking does not fight dragger/manual or triggered animation.
+
+Director now has a canonical `PerformanceCapturePlan` for those choices. Trigger/manual override windows require body-tracking strength to be zero, making the source's "disable the competing controller" rule deterministic rather than operator memory.
+
+## Human library adapter
+
+Reference: `vladmandic/human`.
+
+Audited upstream capabilities relevant to Director:
+
+- body pose tracking;
+- hand/finger tracking;
+- face rotation and gaze;
+- gesture recognition;
+- temporal interpolation;
+- browser and Node execution paths;
+- MIT license.
+
+Director now exposes a `HumanPerformanceEngine` adapter seam and maps admitted Human results into both:
+
+1. generic frame observations for the existing Director observation registry;
+2. canonical Director `FrameAnnotation` keypoints that can join the existing tracking -> approval -> rig pipeline.
+
+The adapter intentionally admits performance geometry only. Human's optional age, gender, race, face embedding/recognition, emotion and liveness fields are not propagated through this animation-performance path because they are unnecessary to puppeteering and action recognition.
+
+Human remains a provider downstream of Director authority; it does not approve tracks or decide animation output.
+
+## ActionAI-derived temporal action recognition
+
+Reference: `smellslikeml/ActionAI`.
+
+The useful architecture is its temporal pattern:
+
+- collect pose keypoints over a rolling frame window;
+- normalize pose geometry;
+- classify the sequence into an action label;
+- make window size configurable rather than infer action from one frame.
+
+Director now has a provider-neutral `PoseActionRecognitionPlan`, rolling-window builder over approved `VideoTrack` keypoints, and classifier interface with bounded label/confidence validation.
+
+Important licensing boundary:
+
+- ActionAI is GPLv3;
+- no ActionAI source code or runtime dependency is vendored into Director;
+- the implementation only adopts the general temporal-classification pattern behind Director's own interface;
+- an ActionAI-compatible or replacement classifier can run as an isolated adapter if desired.
+
+This also avoids coupling Director to ActionAI's historical 36-value pose layout, TensorFlow model format, Intel DLStreamer pipeline, or default five-frame window. Those remain implementation details rather than canonical Director truth.
