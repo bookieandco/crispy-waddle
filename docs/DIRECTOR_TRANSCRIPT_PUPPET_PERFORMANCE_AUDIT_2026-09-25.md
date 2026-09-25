@@ -1792,3 +1792,136 @@ No duplicate subsystem was added for:
 - final publishing approval -> existing review/publish gates.
 
 The new contracts connect those existing systems into the source's end-to-end production workflow.
+
+
+## Cinematic composition / visual attention audit
+
+The supplied composition lesson treats composition as the arrangement of elements inside the frame and, more specifically, as a way to **direct the viewer's eye**.
+
+It teaches seven recurring composition families:
+
+- focal points / points of interest;
+- rule of thirds and related grid placement;
+- leading lines;
+- positive / negative space plus headroom and lead room;
+- balance / symmetry;
+- frame-within-frame;
+- depth.
+
+It also explicitly uses:
+
+- golden-triangle placement;
+- subject scale inside the frame;
+- shallow depth of field;
+- focus pulls/rack focus;
+- color separation;
+- luminance/brightness contrast;
+- intentional breaking of conventional balance or spacing.
+
+The source's final boundary is important: these are compositional tools, not inviolable rules. A deliberately awkward or unbalanced frame may be more effective when it serves the scene.
+
+### Gap 47 — focal-point hierarchy
+
+`CameraComposition` now supports ordered `focalPoints`.
+
+Each focal point can record:
+
+- target;
+- unique priority;
+- placement;
+- purpose;
+- evidence.
+
+This gives Director an explicit attention hierarchy instead of relying only on a generic `attentionTarget`.
+
+Focal-point priorities must be unique so a provider/operator is not given contradictory "primary" targets.
+
+### Gap 48 — golden-triangle placement
+
+`CameraGridStrategy` now includes `golden-triangle`.
+
+Like rule-of-thirds planning, a golden-triangle composition should state the intended subject/focal placement when known.
+
+Director does not claim that either grid is universally superior; both are optional authored compositional strategies.
+
+### Gap 49 — frame-within-frame
+
+Added structured `CameraFrameWithinFrame` instructions.
+
+A frame-within-frame instruction records:
+
+- the visible framing source, such as a doorway/arch/window/foreground object;
+- the target it contains;
+- optional shape;
+- purpose;
+- evidence.
+
+This preserves the source's use of internal framing for attention, separation, depth, claustrophobia or spectator distance without hard-coding any one meaning.
+
+### Gap 50 — foreground / midground / background depth layers
+
+Added `CameraDepthLayer`.
+
+Director can now explicitly author:
+
+- foreground content;
+- midground content;
+- background content;
+- focus state;
+- purpose;
+- evidence.
+
+Duplicate definitions of the same depth layer fail validation.
+
+This supports the source's practical depth model while remaining compatible with existing focal-length and depth-of-field controls.
+
+### Gap 51 — color / contrast / focus as attention cues
+
+Added structured `CameraAttentionCue` with cue kinds:
+
+- color;
+- luminance contrast;
+- focus;
+- size;
+- isolation;
+- custom.
+
+This captures the source's examples where a subject is separated through a distinct color, complementary color relationship, brightness contrast, silhouette, scale or isolation.
+
+Existing `CameraFocusEvent` remains the authored rack-focus mechanism.
+
+The cinematography observation layer now also supports structured focus-shift observations, so a clip can be analyzed as:
+
+`foreground subject -> background doorway when second character appears`
+
+rather than merely noting "rack focus" in free text.
+
+### Gap 52 — intentional composition rule-breaking
+
+`CameraComposition` now supports `intentionalRuleBreaks`.
+
+Each rule break requires:
+
+- the convention being broken;
+- a shot-specific purpose;
+- evidence.
+
+`balance: intentionally-unbalanced` fails validation unless that intent is documented.
+
+This is intentionally different from enforcing conventional composition. Director's job is to preserve the chosen visual logic, including purposeful discomfort, isolation, confinement, confusion or disorder.
+
+### Analysis vocabulary expanded
+
+`ObservedCompositionCue` now includes:
+
+- focal-point;
+- golden-triangle;
+- frame-within-frame;
+- depth-layering;
+- color-contrast;
+- luminance-contrast;
+- intentional-imbalance;
+
+in addition to the existing symmetry, thirds, leading-lines, short-side, lead-room, headroom, negative-space and centered cues.
+
+As with the prior cinematography-analysis work, any emotional/symbolic meaning remains a contextual hypothesis requiring scene evidence.
