@@ -36,7 +36,6 @@ function scoreNotice(notice: SamNotice): { fitScore: number; riskFlags: string[]
   if (setAside) score += 15
   if (/small business|8\(a\)|hubzone|woman|veteran|service-disabled/.test(setAside)) score += 10
   if (/solicitation|combined synopsis|award notice/.test(title)) score += 15
-  if (/sources sought|request for information|rfi|market research/.test(title)) score -= 5
   if (/construction|weapons|ammunition|classified|security clearance/.test(title)) flags.push('specialized_or_restricted')
   if (/sole source|brand name|proprietary/.test(title)) flags.push('restricted_competition')
   if (/sources sought|request for information|market research/.test(title)) flags.push('market_research_not_award')

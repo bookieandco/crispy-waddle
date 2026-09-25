@@ -33,6 +33,16 @@ export type SamQuoteTargetView={
   status:string
 }
 
+export type SamProviderBenchView={
+  requirementId:string
+  targetCandidateCount:number
+  candidateCount:number
+  corroboratedCount:number
+  qualifiedCount:number
+  status:'COVERAGE_HEALTHY'|'MARKET_CONSTRAINED'|'DISCOVERY_INCOMPLETE'|'unknown'
+  blockers:string[]
+}
+
 export type SamCommercialView={
   status:'quote_required'|'review_required'|'blocked'|'unknown'
   contractValue:number|null
@@ -64,17 +74,25 @@ export type SamCommandCenterItem={
     conditions:string[]
     detectedRules:string[]
   }
+  capture:{
+    stage:'discovery'|'sources_sought'|'presolicitation'|'solicitation'|'amendment'|'award'|'execution'|'closeout'|'unknown'
+    captureValue:'low'|'medium'|'high'|'unknown'
+    awardReadiness:'not_award_stage'|'developing'|'ready_for_pursuit'|'unknown'
+    reasons:string[]
+  }
   providers:SamProviderView[]
   pursuitStatus:'ready_for_quote'|'review_required'|'blocked'|'not_generated'
   assignments:SamTeamAssignmentView[]
   uncoveredRequirementIds:string[]
   quoteTargets:SamQuoteTargetView[]
+  providerBench:SamProviderBenchView[]
   commercial:SamCommercialView
   blockers:string[]
   authority:{
     humanApprovalRequired:true
     outreachAuthorized:false
     bidSubmissionAuthorized:false
+    contractExecutionAuthorized:false
     paymentAuthorized:false
   }
 }
@@ -129,6 +147,8 @@ export function projectSamCommandCenter(input:{
     const noticeId=string(catalog.notice_id)
     const analysis=analyses.get(noticeId)
     const subcontractability=object(analysis?.subcontractability)
+    const operating=object(analysis?.operating)
+    const capture=object(operating.capture)
     const pursuit=pursuits.get(noticeId)
     const commercial=object(pursuit?.commercial)
 
@@ -174,6 +194,16 @@ export function projectSamCommandCenter(input:{
       status:string(target.status)||'quote_required',
     })).filter(target=>target.providerKey&&target.providerName)
 
+    const providerBench=rows(pursuit?.provider_bench).map((bench):SamProviderBenchView=>({
+      requirementId:string(bench.requirementId),
+      targetCandidateCount:numberOrNull(bench.targetCandidateCount)??0,
+      candidateCount:numberOrNull(bench.candidateCount)??0,
+      corroboratedCount:numberOrNull(bench.corroboratedCount)??0,
+      qualifiedCount:numberOrNull(bench.qualifiedCount)??0,
+      status:status(bench.status,['COVERAGE_HEALTHY','MARKET_CONSTRAINED','DISCOVERY_INCOMPLETE','unknown'] as const,'unknown'),
+      blockers:strings(bench.blockers),
+    })).filter(bench=>bench.requirementId)
+
     return {
       noticeId,
       ...(string(catalog.solicitation_number)?{solicitationNumber:string(catalog.solicitation_number)}:{}),
@@ -195,11 +225,18 @@ export function projectSamCommandCenter(input:{
         conditions:strings(subcontractability.conditions),
         detectedRules:strings(subcontractability.detectedRules),
       },
+      capture:{
+        stage:status(capture.stage,['discovery','sources_sought','presolicitation','solicitation','amendment','award','execution','closeout','unknown'] as const,'unknown'),
+        captureValue:status(capture.captureValue,['low','medium','high','unknown'] as const,'unknown'),
+        awardReadiness:status(capture.awardReadiness,['not_award_stage','developing','ready_for_pursuit','unknown'] as const,'unknown'),
+        reasons:strings(capture.reasons),
+      },
       providers:providerViews,
       pursuitStatus:status(pursuit?.status,['ready_for_quote','review_required','blocked','not_generated'] as const,'not_generated'),
       assignments,
       uncoveredRequirementIds:strings(pursuit?.uncovered_requirement_ids),
       quoteTargets,
+      providerBench,
       commercial:{
         status:status(commercial.status,['quote_required','review_required','blocked','unknown'] as const,'unknown'),
         contractValue:numberOrNull(commercial.contractValue),
@@ -214,6 +251,7 @@ export function projectSamCommandCenter(input:{
         humanApprovalRequired:true,
         outreachAuthorized:false,
         bidSubmissionAuthorized:false,
+        contractExecutionAuthorized:false,
         paymentAuthorized:false,
       },
     }

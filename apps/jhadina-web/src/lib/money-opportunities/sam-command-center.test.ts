@@ -14,6 +14,7 @@ describe('SAM Federal Contracts projection',()=>{
         notice_id:'N1',
         requirements:[{id:'r-food',label:'Contractor shall provide refrigerated food.',sourceRef:'sam:notice:N1',confidence:.8}],
         subcontractability:{status:'conditional',hardBlockers:[],conditions:['Verify product origin.'],detectedRules:['limitations-on-subcontracting analysis required']},
+        operating:{capture:{stage:'solicitation',captureValue:'medium',awardReadiness:'ready_for_pursuit',reasons:['Active procurement evidence supports near-term pursuit decisions.']}},
       }],
       providers:[
         {notice_id:'N1',requirement_id:'r-food',provider_key:'foodco',provider_name:'Food Co',country:'USA',uei:'UEI1',score:91,status:'candidate',sources:['sam_entity','usaspending']},
@@ -23,6 +24,7 @@ describe('SAM Federal Contracts projection',()=>{
         assignments:[{providerKey:'foodco',providerName:'Food Co',requirementIds:['r-food'],sourceTypes:['sam_entity','usaspending'],score:91,reviewRequired:true}],
         uncovered_requirement_ids:[],
         quote_targets:[{providerKey:'foodco',providerName:'Food Co',requirementIds:['r-food'],status:'quote_required'}],
+        provider_bench:[{requirementId:'r-food',targetCandidateCount:5,candidateCount:1,corroboratedCount:1,qualifiedCount:1,status:'DISCOVERY_INCOMPLETE',blockers:['Qualified provider coverage 1/5 is below target and market constraint is not evidenced.']}],
         commercial:{status:'review_required',contractValue:500000,providerCost:null,estimatedGrossProfit:null,estimatedMarginPercent:null,blockers:['Evidence-backed provider quote costs have not been collected.'],assumptions:['No margin is inferred before a quote.']},
         blockers:[],
       }],
@@ -33,11 +35,14 @@ describe('SAM Federal Contracts projection',()=>{
     expect(result.items[0].providers[0].sourceTypes).toEqual(['sam_entity','usaspending'])
     expect(result.items[0].assignments[0].providerName).toBe('Food Co')
     expect(result.items[0].commercial.contractValue).toBe(500000)
+    expect(result.items[0].providerBench[0]).toMatchObject({requirementId:'r-food',targetCandidateCount:5,qualifiedCount:1,status:'DISCOVERY_INCOMPLETE'})
+    expect(result.items[0].capture).toEqual({stage:'solicitation',captureValue:'medium',awardReadiness:'ready_for_pursuit',reasons:['Active procurement evidence supports near-term pursuit decisions.']})
     expect(result.items[0].commercial.providerCost).toBeNull()
     expect(result.items[0].authority).toEqual({
       humanApprovalRequired:true,
       outreachAuthorized:false,
       bidSubmissionAuthorized:false,
+      contractExecutionAuthorized:false,
       paymentAuthorized:false,
     })
   })
@@ -49,7 +54,9 @@ describe('SAM Federal Contracts projection',()=>{
     })
     expect(result.items[0].pursuitStatus).toBe('not_generated')
     expect(result.items[0].subcontractability.status).toBe('unknown')
+    expect(result.items[0].capture.stage).toBe('unknown')
     expect(result.items[0].providers).toEqual([])
+    expect(result.items[0].providerBench).toEqual([])
     expect(result.summary.reviewRequired).toBe(1)
   })
 })

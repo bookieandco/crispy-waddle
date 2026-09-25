@@ -45,9 +45,9 @@ export async function GET(request:NextRequest){
   }
 
   const [analysisResult,providerResult,pursuitResult]=await Promise.all([
-    service.from('jhadina_sam_analysis').select('notice_id,requirements,subcontractability,analyzed_at').in('notice_id',noticeIds),
+    service.from('jhadina_sam_analysis').select('notice_id,requirements,subcontractability,operating,analyzed_at').in('notice_id',noticeIds),
     service.from('jhadina_sam_provider_candidates').select('notice_id,requirement_id,provider_key,provider_name,country,uei,cage,score,status,sources,discovered_at').in('notice_id',noticeIds),
-    service.from('jhadina_sam_pursuit_options').select('notice_id,status,assignments,uncovered_requirement_ids,quote_targets,commercial,blockers,generated_at').in('notice_id',noticeIds),
+    service.from('jhadina_sam_pursuit_options').select('notice_id,status,assignments,uncovered_requirement_ids,quote_targets,provider_bench,commercial,blockers,generated_at').in('notice_id',noticeIds),
   ])
   const error=analysisResult.error??providerResult.error??pursuitResult.error
   if(error)return NextResponse.json({success:false,error:'Unable to load Federal Contracts evidence: '+error.message},{status:502})

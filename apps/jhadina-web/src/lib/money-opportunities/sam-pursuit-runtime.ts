@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
+  assessProviderBench,
   buildSamPursuitOption,
+  type ProviderDiscoveryChannel,
   type SamPursuitProviderCandidate,
   type SamPursuitRequirement,
 } from '@jhadina/opportunity-core'
@@ -47,6 +49,7 @@ function pursuitRequirements(value:unknown):SamPursuitRequirement[]{
     }))
 }
 
+const providerDiscoveryChannels=new Set<ProviderDiscoveryChannel>(['sam_entity','sam_award','usaspending','fpds','entity_directory','local_business','web_search','professional_network','public_social_business_page','marketplace_directory','provider_referral','expert_referral','site_visit_attendee','manual_owner_network'])
 function pursuitCandidates(value:unknown):SamPursuitProviderCandidate[]{
   return rows(value).map(row=>{
     const status=str(row.status)
@@ -90,10 +93,24 @@ export async function buildSamPursuitOptions(client:SupabaseClient,noticeIds:str
       const raw=(catalog as Record<string,unknown>).raw
       const rawRecord=raw&&typeof raw==='object'?raw as Record<string,unknown>:{}
 
+      const requirements=pursuitRequirements(analysisRow.requirements)
+      const parsedCandidates=pursuitCandidates(candidateRows)
+      const benchCandidates=rows(candidateRows).map(row=>({
+        providerId:str(row.provider_key),
+        requirementIds:[str(row.requirement_id)].filter(Boolean),
+        discoveryChannels:strings(row.sources).filter((source):source is ProviderDiscoveryChannel=>providerDiscoveryChannels.has(source as ProviderDiscoveryChannel)),
+        evidenceRefs:evidenceRefs(row.evidence),
+        qualified:str(row.status)==='candidate',
+      })).filter(candidate=>candidate.providerId&&candidate.requirementIds.length)
+      const providerBench=requirements.map(requirement=>({
+        requirementId:requirement.id,
+        ...assessProviderBench(benchCandidates.filter(candidate=>candidate.requirementIds.includes(requirement.id))),
+      }))
+
       const option=buildSamPursuitOption({
         noticeId,
-        requirements:pursuitRequirements(analysisRow.requirements),
-        candidates:pursuitCandidates(candidateRows),
+        requirements,
+        candidates:parsedCandidates,
         subcontractabilityStatus,
         subcontractabilityBlockers:strings(subcontractability.hardBlockers),
         contractValue:knownSamContractValue(rawRecord),
@@ -106,11 +123,13 @@ export async function buildSamPursuitOptions(client:SupabaseClient,noticeIds:str
         covered_requirement_ids:option.coveredRequirementIds,
         uncovered_requirement_ids:option.uncoveredRequirementIds,
         quote_targets:option.quoteTargets,
+        provider_bench:providerBench,
         commercial:option.commercial,
         blockers:option.blockers,
         human_approval_required:true,
         outreach_authorized:false,
         bid_submission_authorized:false,
+        contract_execution_authorized:false,
         payment_authorized:false,
         generated_at:option.generatedAt,
         updated_at:new Date().toISOString(),

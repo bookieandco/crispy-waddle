@@ -17,6 +17,8 @@ export type CommercialAssumptions = {
   overhead?: number
   contingency?: number
   acquisitionCost?: number
+  financingCost?: number
+  workingCapitalRequirement?: number
   feePercent?: number
   minimumMarginPercent?: number
 }
@@ -28,6 +30,8 @@ export type CommercialEconomics = {
   overhead: number
   contingency: number
   acquisitionCost: number
+  financingCost?: number
+  workingCapitalRequirement?: number
   estimatedGrossProfit: number
   estimatedMarginPercent: number
 }
@@ -75,6 +79,8 @@ export function evaluateCommercialDeal(
   const overhead = money(input.overhead)
   const contingency = money(input.contingency)
   const acquisitionCost = money(input.acquisitionCost)
+  const financingCost = money(input.financingCost)
+  const workingCapitalRequirement = money(input.workingCapitalRequirement)
   const feePercent = pct(input.feePercent)
   const minimumMargin = pct(input.minimumMarginPercent ?? 10)
 
@@ -98,7 +104,7 @@ export function evaluateCommercialDeal(
   const grossRevenue = ['referral', 'success_fee', 'percentage'].includes(structure)
     ? contractValue * feePercent / 100
     : contractValue
-  const estimatedGrossProfit = grossRevenue - providerCost - directCost - overhead - contingency - acquisitionCost
+  const estimatedGrossProfit = grossRevenue - providerCost - directCost - overhead - contingency - acquisitionCost - financingCost
   const estimatedMarginPercent = grossRevenue > 0 ? estimatedGrossProfit / grossRevenue * 100 : 0
 
   if (estimatedGrossProfit <= 0) blockers.push('Modeled gross profit is not positive.')
@@ -116,6 +122,8 @@ export function evaluateCommercialDeal(
     overhead,
     contingency,
     acquisitionCost,
+    financingCost,
+    workingCapitalRequirement,
     estimatedGrossProfit,
     estimatedMarginPercent: Math.round(estimatedMarginPercent * 100) / 100,
   }

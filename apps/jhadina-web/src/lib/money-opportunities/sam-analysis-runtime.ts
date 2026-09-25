@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { evaluateSamSubcontractability, extractSolicitationIntelligence, type SamContractKind, type SolicitationDocument } from '@jhadina/opportunity-core'
+import { assessSamCapture, evaluateSamSubcontractability, extractSolicitationIntelligence, type SamContractKind, type SamNoticeLifecycleStage, type SolicitationDocument } from '@jhadina/opportunity-core'
 
 const rows=(x:unknown):Record<string,unknown>[]=>Array.isArray(x)?x.filter((v):v is Record<string,unknown>=>Boolean(v&&typeof v==='object')):[]
 export function selectSamNoticeText(rawDescription:string,docs:Record<string,unknown>[]){
@@ -13,6 +13,15 @@ export function selectSamNoticeText(rawDescription:string,docs:Record<string,unk
 }
 
 const agencyKind=(agency:string)=>/department of defense|\bdod\b|army|navy|air force|marine corps|defense logistics/i.test(agency)?'dod' as const:agency?'civilian' as const:'unknown' as const
+function captureStage(value:unknown):SamNoticeLifecycleStage{
+  const normalized=String(value??'').toLowerCase().replace(/[_-]+/g,' ')
+  if(/sources sought|request for information|\brfi\b|market research/.test(normalized))return'sources_sought'
+  if(/pre solicitation|presolicitation/.test(normalized))return'presolicitation'
+  if(/amendment/.test(normalized))return'amendment'
+  if(/award/.test(normalized))return'award'
+  if(/solicitation|combined synopsis/.test(normalized))return'solicitation'
+  return'discovery'
+}
 function contractKind(text:string,isFood:boolean):SamContractKind{
   if(/specialty construction|electrical|plumbing|hvac|roofing/i.test(text))return'specialty_construction'
   if(/construction|renovation|building modification/i.test(text))return'general_construction'
@@ -70,9 +79,19 @@ export async function analyzeSamNotices(client:SupabaseClient,noticeIds:string[]
       clauses,
     }
     const decision=evaluateSamSubcontractability(subcontractabilityInput)
-    const naics=Array.isArray((catalog as Record<string,unknown>).naics_codes)?((catalog as Record<string,unknown>).naics_codes as string[]):[]
+    const catalogRow=catalog as Record<string,unknown>
+    const stage=captureStage(catalogRow.notice_type??catalogRow.noticeType??catalogRow.type)
+    const capture=assessSamCapture({
+      opportunityId:noticeId,
+      stage,
+      buyingOfficeKnown:Boolean(String(catalogRow.office??'').trim()),
+      responseRequested:stage==='sources_sought'&&Boolean(String(catalogRow.response_deadline??'').trim()),
+      activeSolicitation:stage==='solicitation'||stage==='amendment',
+    })
+    const naics=Array.isArray(catalogRow.naics_codes)?(catalogRow.naics_codes as string[]):[]
     const requirements=extraction.requirements.map(r=>({...r,naicsCodes:naics,keywords:r.label.toLowerCase().split(/[^a-z0-9]+/).filter(x=>x.length>3).slice(0,12)}))
-    const {error}=await client.from('jhadina_sam_analysis').upsert({notice_id:noticeId,requirements,solicitation:{...extraction,clauses},subcontractability:{...decision,evaluationInput:subcontractabilityInput},analyzed_at:new Date().toISOString()},{onConflict:'notice_id'})
+    const operating={capture,authority:{humanApprovalRequired:true,outreachAuthorized:false,bidSubmissionAuthorized:false,contractExecutionAuthorized:false,paymentAuthorized:false}}
+    const {error}=await client.from('jhadina_sam_analysis').upsert({notice_id:noticeId,requirements,solicitation:{...extraction,clauses},subcontractability:{...decision,evaluationInput:subcontractabilityInput},operating,analyzed_at:new Date().toISOString()},{onConflict:'notice_id'})
     if(!error)analyzed+=1
   }
   return {analyzed}
