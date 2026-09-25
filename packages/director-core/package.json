@@ -91,7 +91,12 @@
     "./world-reference-workflow": "./src/world-reference-workflow.ts",
     "./world-3d-backend-profile": "./src/world-3d-backend-profile.ts",
     "./cinematic-lighting": "./src/cinematic-lighting.ts",
-    "./cinematography-analysis": "./src/cinematography-analysis.ts"
+    "./cinematography-analysis": "./src/cinematography-analysis.ts",
+    "./production-story-compass": "./src/production-story-compass.ts",
+    "./field-capture-ledger": "./src/field-capture-ledger.ts",
+    "./editorial-reduction-workflow": "./src/editorial-reduction-workflow.ts",
+    "./audio-priority-mix": "./src/audio-priority-mix.ts",
+    "./final-export-inspection": "./src/final-export-inspection.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
