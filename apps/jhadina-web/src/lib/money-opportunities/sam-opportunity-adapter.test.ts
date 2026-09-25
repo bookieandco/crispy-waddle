@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { normalizeSamOpportunityNotice, normalizeSamOpportunityResults } from "./sam-opportunity-adapter"
+import { adaptSamNotice, normalizeSamOpportunityNotice, normalizeSamOpportunityResults } from "./sam-opportunity-adapter"
 
 describe("SAM opportunity normalization", () => {
   it("normalizes the official opportunitiesData response shape", () => {
@@ -38,6 +38,19 @@ describe("SAM opportunity normalization", () => {
       title: "Missing identifier",
       type: "Sources Sought",
     })).toThrow("stable notice identifier")
+  })
+
+  it("keeps Sources Sought as market research without an automatic fit-score penalty", () => {
+    const adapted = adaptSamNotice({noticeId:"SAM-NOTICE-CAPTURE",title:"Sources Sought market research"})
+    expect(adapted.fitScore).toBe(35)
+    expect(adapted.riskFlags).toContain("market_research_not_award")
+
+    const item = normalizeSamOpportunityNotice({
+      noticeId: "SAM-NOTICE-002",
+      title: "Market research",
+      type: "Sources Sought",
+    })
+    expect(item.noticeType).toBe("SOURCES_SOUGHT")
   })
 
   it("does not turn Sources Sought into an award notice", () => {
