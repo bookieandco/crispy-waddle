@@ -76,7 +76,8 @@
     "./creative-audio-generation": "./src/creative-audio-generation.ts",
     "./transcript-assisted-lip-sync": "./src/transcript-assisted-lip-sync.ts",
     "./character-performance-rig": "./src/character-performance-rig.ts",
-    "./character-animation-enhancements": "./src/character-animation-enhancements.ts"
+    "./character-animation-enhancements": "./src/character-animation-enhancements.ts",
+    "./cartoon-production-workflow": "./src/cartoon-production-workflow.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
