@@ -1,5 +1,6 @@
 import {describe,expect,it} from 'vitest';
 import {
+  buildDialogueCoverageGenerationManifest,
   evaluateCoverageHandoff,
   validateDialogueCoveragePlan,
   type CoverageHandoffPlan,
@@ -118,6 +119,23 @@ describe('dialogue coverage workflow',()=>{
     };
     expect(evaluateCoverageHandoff(coverage,broken).reasons)
       .toContain('DIRECTOR_COVERAGE_FRAME_BACKGROUND_MISMATCH:frame:a-right');
+  });
+
+  it('turns an approved coverage frame and dialogue audio into provider-ready reference slots',()=>{
+    const manifest=buildDialogueCoverageGenerationManifest({
+      id:'manifest:a-line',
+      shotId:'dialogue:a-line',
+      coverage,
+      handoff,
+      frameId:'frame:a-right',
+      dialogueAudioAssetId:'audio:a-line',
+      dialogueAudioSha256:'sha-audio',
+      evidenceIds:['dialogue-line:a'],
+    });
+    expect(manifest.references).toEqual([
+      expect.objectContaining({slot:1,role:'first-frame',assetId:'frame:a:2.1',promptToken:'DIALOGUE_START_FRAME'}),
+      expect.objectContaining({slot:2,role:'audio',assetId:'audio:a-line',promptToken:'DIALOGUE_AUDIO'}),
+    ]);
   });
 
   it('fails when the two-stage handoff is not actually cheaper',()=>{
