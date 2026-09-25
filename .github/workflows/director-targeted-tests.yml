@@ -71,6 +71,9 @@ jobs:
           src/video-upscale-finishing.test.ts
           src/studio-character-training.test.ts
           src/source-driven-character-swap.test.ts
+          src/creative-workspace-media.test.ts
+          src/playhead-generation-continuation.test.ts
+          src/creative-audio-generation.test.ts
           src/quick-cut-planner.test.ts
           src/studio-character-replacement-worker.test.ts
           src/studio-character-replacement.test.ts
