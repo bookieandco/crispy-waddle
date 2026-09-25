@@ -92,7 +92,7 @@ assert.equal(fundingReady.usableExecutionCapital,20000)
 assert.equal(fundingReady.status,'FUNDED')
 
 const conflict={id:'c1',conflictType:'pricing' as const,sourceRefs:['sol:1','pws:1'],statementA:'monthly',statementB:'itemized',materiality:'high' as const,clarificationRequired:true}
-const trace={requirementId:'r1',sourceRef:'sol:1',mandatory:true,responseSectionRef:'technical:1',evidenceRefs:['e1'],claimKinds:['PRIME_VERIFIED_FACT'] as const}
+const trace:ProposalTrace={requirementId:'r1',sourceRef:'sol:1',mandatory:true,responseSectionRef:'technical:1',evidenceRefs:['e1'],claimKinds:['PRIME_VERIFIED_FACT']}
 const proposalBlocked=assessSamProposalReadiness([trace],[conflict])
 assert.equal(proposalBlocked.status,'REVIEW_REQUIRED')
 const proposalReady=assessSamProposalReadiness([trace],[{...conflict,resolvedByRef:'amendment:1'}])
