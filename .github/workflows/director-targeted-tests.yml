@@ -70,6 +70,9 @@ jobs:
           src/character-lora-approval.test.ts
           src/video-upscale-finishing.test.ts
           src/studio-character-training.test.ts
+          src/source-driven-character-swap.test.ts
+          src/studio-character-replacement-worker.test.ts
+          src/studio-character-replacement.test.ts
           src/whole-video-provider.test.ts
           src/paid-video-generation.test.ts
           src/commercial-creative-lab.test.ts
