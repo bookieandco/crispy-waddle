@@ -399,3 +399,85 @@ The source's prompt block ordering is useful provider craft, but Director alread
 The tutorial reports a shot where a close greybox camera produced large ambiguous gray shapes and too little environmental context; pulling the camera back made the action interpretable to the video model.
 
 This is retained as a production/QC heuristic: if a motion reference is not semantically readable, revise framing/context rather than adding arbitrary prompt text. The source does not provide a defensible numeric visibility threshold, so Director does not invent one.
+
+
+## AI fight-scene workflow audit
+
+The supplied fight-scene tutorial demonstrates a useful high-motion production pattern:
+
+- begin from locked character references and a storyboard;
+- generate explicit pose/keyframe images for major action states;
+- preserve visual style by carrying approved references forward;
+- use different image models when one provider performs better for a specific camera/effects task;
+- chain authored first/end frames into short video transitions;
+- build a continuous action story rather than a collection of unrelated clips;
+- review automatically generated sound effects instead of assuming they are usable;
+- accept that faster/more complex subject motion, camera motion and effects increase deformation/flicker risk;
+- repeated image/video edits can soften faces and lose fine detail.
+
+### Existing Director coverage reused
+
+No duplicate subsystem was added for:
+
+- start/end-frame video generation -> existing continuity strategy already requires first/last frame anchors for large motion;
+- pose diagrams and authored blocking -> storyboard/reference boards and previs actor/object tracks;
+- multiple camera angles -> camera-language + previs;
+- model swapping by use case -> generation registry plus creative experiments/take selection;
+- recurring character/style references -> generation reference manifests and continuity locks;
+- automatically generated SFX -> existing Foley/SFX and audio-mix QC;
+- final upscale/finishing -> chunked video upscale with frame/timing preservation.
+
+### Gap 15 — action-sequence risk budget
+
+The source reports a consistent trade-off: as subject motion, camera motion, multi-character interaction and visual effects become denser/faster, temporal consistency becomes harder and body structures may warp or flicker.
+
+Director now has a provider-neutral `ActionSequenceRiskPolicy` and `evaluateActionSequenceRisk()`.
+
+Important boundary:
+
+- no universal motion threshold is claimed;
+- each production supplies its own high/severe thresholds and weights;
+- the score is planning evidence, not provider truth;
+- higher-risk shots automatically require stricter QC dimensions.
+
+The risk input separates:
+
+- subject motion;
+- camera motion;
+- effects density;
+- interaction complexity;
+- whether locked identity is critical.
+
+### Gap 16 — body-structure, flicker and detail-retention QC
+
+Directed take QC now has three explicit metrics:
+
+- `body-structure`;
+- `temporal-flicker`;
+- `detail-retention`.
+
+An `ACTION_SEQUENCE_TAKE_QC` policy combines those with identity stability, motion plausibility, camera-plan match and performance-plan match.
+
+This lets Director fail a visually energetic fight take even if general motion looks impressive when bodies tangle, geometry flickers or face/detail quality collapses.
+
+### Gap 17 — iterative reference edit quality
+
+The source also observes that repeated generative editing can progressively blur faces and lose specific details.
+
+Added `evaluateReferenceIterationQuality()` with:
+
+- explicit parent asset provenance for edited references;
+- edit depth;
+- identity score;
+- detail-retention score;
+- configurable maximum depth and minimum quality thresholds.
+
+Again, Director does not assume a universal maximum number of edits. The production policy decides the acceptable edit depth and quality floor.
+
+When an iterated reference fails, the correct response is to return to a higher-quality parent/canonical reference or regenerate from governed source material rather than letting degraded derivatives silently become the next canonical identity anchor.
+
+### Model-per-shot selection remains an experiment, not identity authority
+
+The tutorial gets better results by alternating image models for different tasks such as camera-angle changes and effects/power imagery. Director already supports provider/model registries, creative variants and take selection.
+
+The lesson is retained as model-per-shot experimentation with measured evidence. A model that performs well on one shot type does not become the universal provider, and switching models must not weaken character/style/continuity locks.
