@@ -115,6 +115,9 @@ jobs:
           src/prompt-complexity-budget.test.ts
           src/music-lipsync-package.test.ts
           src/voice-replacement-edit.test.ts
+          src/character-reference-presentation.test.ts
+          src/generation-audio-intent.test.ts
+          src/scene-attempt-budget.test.ts
           src/animation-principles.test.ts
           src/animation-performance-state.test.ts
           src/directed-take-qc.test.ts
