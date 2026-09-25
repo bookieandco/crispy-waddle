@@ -591,3 +591,105 @@ No duplicate system was added for:
 - alternate model comparison -> creative experiments and per-shot provider routing.
 
 The new layer only translates canonical intent into documented model-specific prompt syntax.
+
+
+## Dialogue coverage / reverse-angle consistency audit
+
+The supplied dialogue-coverage workflow demonstrates a cost-aware way to solve a recurring AI-film problem: master shots, over-the-shoulders, reverse angles and close-ups often drift in background geometry or eyelines when each shot is generated independently.
+
+The source's practical sequence is:
+
+- design character-specific background views and a camera diagram;
+- use a stronger/more expensive model to establish the master and coverage angles;
+- review that generated coverage for usable reaction/eyeline variants;
+- extract approved frames for each character/eyeline;
+- feed those frames into a cheaper dialogue model as start frames;
+- attach dialogue audio for lip-sync;
+- edit the resulting coverage together.
+
+### Existing Director coverage reused
+
+Director already had:
+
+- structured camera plans, including over-shoulder and medium-close-up compositions;
+- immutable frame extraction with source-time provenance;
+- reference manifests with `first-frame` and `audio` roles;
+- voice/lip-sync execution;
+- generation cost estimates and spend authorization;
+- reference/continuity manifests.
+
+The missing piece was a scene-level coverage contract connecting those systems.
+
+### Gap 20 — dialogue coverage geometry
+
+Added `DialogueCoveragePlan`.
+
+It locks:
+
+- project/scene/location identity;
+- camera diagram asset;
+- scene axis reference;
+- character reference assets;
+- explicit eyelines and screen direction;
+- one master shot;
+- over-shoulder/reverse/medium-close-up/close-up/reaction coverage;
+- background anchors expected in each angle;
+- camera-plan references and provenance.
+
+Coverage therefore has a single governed spatial relationship instead of a set of unrelated prompts.
+
+### Gap 21 — approved coverage-frame handoff
+
+Added `CoverageFrameSelection` and `CoverageHandoffPlan`.
+
+A selected frame records:
+
+- source coverage shot;
+- character;
+- source video and time;
+- extracted frame asset and digest;
+- eyeline variant;
+- background anchors;
+- evidence.
+
+The handoff validates that the selected frame still matches the approved coverage shot's background anchors and character eyeline.
+
+### Gap 22 — cost-aware two-stage generation
+
+The handoff records three existing Director `GenerationCostEstimate` objects:
+
+- establishment/coverage model cost;
+- cheaper dialogue-model cost;
+- estimated cost of generating the dialogue coverage entirely with the premium model.
+
+Director computes the projected savings but does not invent provider prices. If the staged workflow is not actually cheaper, the handoff fails its cost-advantage check.
+
+This is planning/QC evidence, not automatic spend authorization; normal Director spend authorization still applies.
+
+### Provider-ready first-frame + audio manifest
+
+Added `buildDialogueCoverageGenerationManifest()`.
+
+For an approved frame and admitted dialogue audio it emits the existing canonical `GenerationReferenceManifest`:
+
+1. slot 1 = `first-frame` with frame digest, coverage shot, eyeline and background provenance;
+2. slot 2 = `audio` with dialogue timing/lip-sync provenance.
+
+That makes the workflow executable through the existing generation/provider boundary without hard-coding Seedance, MiniMax or any other vendor into Director core.
+
+### Authority boundary
+
+The source reports that Seedance performed better for its camera/background establishment and that MiniMax H3 was cheaper for the dialogue pass. Director preserves that as experiment/provider evidence only.
+
+Canonical Director truth is instead:
+
+- which model is admitted for establishment;
+- which model is admitted for dialogue;
+- approved coverage geometry;
+- approved extracted frames;
+- exact eyelines/background anchors;
+- current cost estimates;
+- dialogue audio;
+- final QC.
+
+A future provider can replace either stage without changing the scene's coverage authority.
