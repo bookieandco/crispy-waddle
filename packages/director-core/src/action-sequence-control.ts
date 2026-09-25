@@ -85,7 +85,7 @@ export function evaluateActionSequenceRisk(
     return Object.freeze({
       score:0,
       level:'severe',
-      requiredQcMetrics:Object.freeze(['identity-stability','body-structure','temporal-flicker','motion-plausibility','detail-retention']),
+      requiredQcMetrics:Object.freeze(['identity-stability','body-structure','temporal-flicker','motion-plausibility','detail-retention'] as const),
       reasons:Object.freeze([...new Set(reasons)]),
       evidenceIds:Object.freeze([...input.evidenceIds]),
       authority:'DIRECTOR_ACTION_SEQUENCE_RISK',
