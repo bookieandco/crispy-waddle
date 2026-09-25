@@ -18,6 +18,7 @@ import {
 import { realizeAskJhadinaExpression } from "@/lib/intelligence/ask-expression"
 import { finalizeAskShortcutExperience, recordAskShortcutExperience } from "@/lib/intelligence/ask-shortcut-experience"
 import { requiresFullJllmContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
+import { projectSamCommandCenter } from "@/lib/money-opportunities/sam-command-center"
 
 export const dynamic = "force-dynamic"
 
@@ -156,6 +157,49 @@ function parseEphemeralArtifacts(value: unknown): EphemeralArtifactContext[] {
  * verified against the actual signed-in session server-side, same as
  * every other governed route in this app.
  */
+
+async function resolveSamNoticeArtifact(claimedUserId:string,noticeId:string):Promise<EphemeralArtifactContext|undefined>{
+  const id=noticeId.trim().slice(0,200)
+  if(!id)return undefined
+  const verifier=await createRequestIdentityVerifier()
+  await verifier.verify({userId:claimedUserId})
+  const client=createServiceRoleClient()
+  if(!client)throw new Error("SAM_CONTEXT_STORAGE_NOT_CONFIGURED")
+
+  const [catalogResult,analysisResult,providerResult,pursuitResult]=await Promise.all([
+    client.from('jhadina_sam_catalog').select('notice_id,solicitation_number,title,agency,office,posted_date,response_deadline,naics_codes,classification_codes,set_aside,source_url,version,last_seen_at').eq('notice_id',id).maybeSingle(),
+    client.from('jhadina_sam_analysis').select('notice_id,requirements,subcontractability,operating,analyzed_at').eq('notice_id',id).maybeSingle(),
+    client.from('jhadina_sam_provider_candidates').select('notice_id,requirement_id,provider_key,provider_name,country,uei,cage,score,status,sources,discovered_at').eq('notice_id',id),
+    client.from('jhadina_sam_pursuit_options').select('notice_id,status,assignments,uncovered_requirement_ids,quote_targets,provider_bench,commercial,blockers,generated_at').eq('notice_id',id).maybeSingle(),
+  ])
+  const error=catalogResult.error??analysisResult.error??providerResult.error??pursuitResult.error
+  if(error)throw new Error('SAM context load failed: '+error.message)
+  if(!catalogResult.data)return undefined
+
+  const projection=projectSamCommandCenter({
+    catalog:[catalogResult.data as Record<string,unknown>],
+    analyses:analysisResult.data?[analysisResult.data as Record<string,unknown>]:[],
+    providers:(providerResult.data??[]) as Array<Record<string,unknown>>,
+    pursuits:pursuitResult.data?[pursuitResult.data as Record<string,unknown>]:[],
+  })
+  const item=projection.items[0]
+  if(!item)return undefined
+  return {
+    id:'sam-notice:'+id,
+    kind:'text',
+    mimeType:'application/json',
+    source:'durable-artifact',
+    name:'SAM notice '+id,
+    observedAt:new Date().toISOString(),
+    text:JSON.stringify({
+      kind:'sam_contract_context',
+      noticeId:id,
+      authorityBoundary:'Read-only intelligence. This context does not authorize outreach, bid submission, contract execution, borrowing, or payment.',
+      item,
+    }).slice(0,MAX_TEXT_ARTIFACT_CHARS),
+  }
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json()
   const claimedUserId = req.headers.get("x-jhadina-user-id") || ""
@@ -179,7 +223,11 @@ export async function POST(req: NextRequest) {
       if (!client) throw new Error("ARTIFACT_CONTEXT_STORAGE_NOT_CONFIGURED")
       durableArtifacts = await new CleanArtifactContextResolver(client, verified.userId).resolve(durableRefs)
     }
-    const artifacts = [...ephemeralArtifacts, ...durableArtifacts]
+    const samNoticeId=typeof body?.noticeId==="string"&&body.noticeId.trim()?body.noticeId.trim():undefined
+    const samArtifact=(body?.surface==="opportunities"&&body?.route==="/opportunity/sam"&&samNoticeId)
+      ?await resolveSamNoticeArtifact(claimedUserId,samNoticeId)
+      :undefined
+    const artifacts = [...ephemeralArtifacts, ...durableArtifacts, ...(samArtifact?[samArtifact]:[])]
     const conversationSignals = parseConversationSignals(body?.conversationSignals)
     const liveContext = parseLiveContext(body?.liveContext)
     const doctorIntent = inspectAskDoctorIntent(activeTask)
