@@ -33,7 +33,7 @@ describe('model prompt translation',()=>{
   });
 
   it('translates canonical intent without replacing the canonical prompt',async()=>{
-    const translate=vi.fn(async(input=>({
+    const translate=vi.fn(async(input:{canonicalPrompt:string;creativeFeedback?:readonly string[]})=>({
       profileId:profile.id,
       providerId:profile.providerId,
       modelId:profile.modelId,
