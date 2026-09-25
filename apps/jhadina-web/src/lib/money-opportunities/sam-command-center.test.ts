@@ -14,6 +14,7 @@ describe('SAM Federal Contracts projection',()=>{
         notice_id:'N1',
         requirements:[{id:'r-food',label:'Contractor shall provide refrigerated food.',sourceRef:'sam:notice:N1',confidence:.8}],
         subcontractability:{status:'conditional',hardBlockers:[],conditions:['Verify product origin.'],detectedRules:['limitations-on-subcontracting analysis required']},
+        operating:{capture:{stage:'solicitation',captureValue:'medium',awardReadiness:'ready_for_pursuit',reasons:['Active procurement evidence supports near-term pursuit decisions.']}},
       }],
       providers:[
         {notice_id:'N1',requirement_id:'r-food',provider_key:'foodco',provider_name:'Food Co',country:'USA',uei:'UEI1',score:91,status:'candidate',sources:['sam_entity','usaspending']},
@@ -33,11 +34,13 @@ describe('SAM Federal Contracts projection',()=>{
     expect(result.items[0].providers[0].sourceTypes).toEqual(['sam_entity','usaspending'])
     expect(result.items[0].assignments[0].providerName).toBe('Food Co')
     expect(result.items[0].commercial.contractValue).toBe(500000)
+    expect(result.items[0].capture).toEqual({stage:'solicitation',captureValue:'medium',awardReadiness:'ready_for_pursuit',reasons:['Active procurement evidence supports near-term pursuit decisions.']})
     expect(result.items[0].commercial.providerCost).toBeNull()
     expect(result.items[0].authority).toEqual({
       humanApprovalRequired:true,
       outreachAuthorized:false,
       bidSubmissionAuthorized:false,
+      contractExecutionAuthorized:false,
       paymentAuthorized:false,
     })
   })
@@ -49,6 +52,7 @@ describe('SAM Federal Contracts projection',()=>{
     })
     expect(result.items[0].pursuitStatus).toBe('not_generated')
     expect(result.items[0].subcontractability.status).toBe('unknown')
+    expect(result.items[0].capture.stage).toBe('unknown')
     expect(result.items[0].providers).toEqual([])
     expect(result.summary.reviewRequired).toBe(1)
   })
