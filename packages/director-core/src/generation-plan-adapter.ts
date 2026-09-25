@@ -100,7 +100,7 @@ export class GenerationPlanAdapter {
         projectId: request.projectId,
         takeId: request.takeId,
         canonicalPrompt,
-        creativeFeedback: plan.promptRefinementFeedback,
+        ...(plan.promptRefinementFeedback?.length ? { creativeFeedback: plan.promptRefinementFeedback } : {}),
       });
       providerPrompt = promptTranslation.translatedPrompt;
     }
