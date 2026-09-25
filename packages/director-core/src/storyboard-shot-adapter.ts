@@ -1,6 +1,7 @@
 import { assertDirectorCameraPlan } from './camera-language.js';
 import { assertPerformanceDirectionPlan } from './performance-direction.js';
 import { assertRealismDirectionPlan } from './realism-direction.js';
+import { assertCinematographyLightingPlan } from './cinematic-lighting.js';
 import { assertAnimationPrinciplesPlan } from './animation-principles.js';
 import type { ContinuityLock, TakePlan, TakeRequest } from './generation-orchestrator.js';
 import type { StoryboardBoard, StoryboardSequence } from './storyboard-sequence.js';
@@ -18,6 +19,7 @@ export interface StoryboardShotPlan {
   cameraPlan?: TakeRequest['cameraPlan'];
   performancePlan?: TakeRequest['performancePlan'];
   realismPlan?: TakeRequest['realismPlan'];
+  lightingPlan?: TakeRequest['lightingPlan'];
   animationPlan?: TakeRequest['animationPlan'];
 }
 
@@ -51,10 +53,12 @@ export function buildStoryboardShotPlan(
   const cameraPlan = cameraPlanFrom(shotBoards);
   const performancePlan = performancePlanFrom(shotBoards);
   const realismPlan = realismPlanFrom(shotBoards);
+  const lightingPlan = lightingPlanFrom(shotBoards);
   const animationPlan = animationPlanFrom(shotBoards);
   if (cameraPlan) assertDirectorCameraPlan(cameraPlan);
   if (performancePlan) assertPerformanceDirectionPlan(performancePlan);
   if (realismPlan) assertRealismDirectionPlan(realismPlan);
+  if (lightingPlan) assertCinematographyLightingPlan(lightingPlan);
   if (animationPlan) assertAnimationPrinciplesPlan(animationPlan);
 
   return {
@@ -70,6 +74,7 @@ export function buildStoryboardShotPlan(
     cameraPlan,
     performancePlan,
     realismPlan,
+    lightingPlan,
     animationPlan,
   };
 }
@@ -96,6 +101,7 @@ export function buildStoryboardTakePlan(
     cameraPlan: shot.cameraPlan,
     performancePlan: shot.performancePlan,
     realismPlan: shot.realismPlan,
+    lightingPlan: shot.lightingPlan,
     animationPlan: shot.animationPlan,
     referenceAssetIds: shot.referenceAssetIds,
   };
@@ -137,6 +143,11 @@ function performancePlanFrom(boards: StoryboardBoard[]): TakeRequest['performanc
 function realismPlanFrom(boards: StoryboardBoard[]): TakeRequest['realismPlan'] {
   const board = [...boards].reverse().find((candidate) => candidate.realismPlan);
   return board?.realismPlan;
+}
+
+function lightingPlanFrom(boards: StoryboardBoard[]): TakeRequest['lightingPlan'] {
+  const board = [...boards].reverse().find((candidate) => candidate.lightingPlan);
+  return board?.lightingPlan;
 }
 
 function animationPlanFrom(boards: StoryboardBoard[]): TakeRequest['animationPlan'] {
