@@ -49,6 +49,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 import { hotspots, Hotspot, ProductType } from "../data/hotspots";
+import { REQUIRED_LAUNCH_VARIANTS } from "../lib/launch-readiness";
 import {
   listBlueprints,
   listPrintProvidersForBlueprint,
@@ -63,6 +64,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, "..", "docs", "fulfillment");
 const JSON_OUT = path.join(OUT_DIR, "catalog-mapping-report.json");
 const MD_OUT = path.join(OUT_DIR, "catalog-mapping-report.md");
+const LAUNCH_JSON_OUT = path.join(OUT_DIR, "catalog-launch-candidates.json");
+const LAUNCH_MD_OUT = path.join(OUT_DIR, "catalog-launch-candidates.md");
 
 // How many top-scoring blueprint candidates to actually try fetching
 // providers/variants for, per group. Keyword scoring alone isn't
@@ -368,6 +371,247 @@ export async function matchGroup(group: FulfillmentGroup, blueprints: PrintifyBl
 }
 
 // ---------------------------------------------------------------------
+// Launch-matrix exact candidate discovery
+// ---------------------------------------------------------------------
+
+export interface LaunchTarget {
+  productId: string;
+  variantId: string;
+  label: string;
+  productName: string;
+  productType: ProductType;
+  fulfillmentProductId: string;
+  variantLabel: string;
+  colors: string[];
+  printAreaName: string;
+  searchKeywords: string[];
+}
+
+export interface LaunchCandidate {
+  blueprintId: number;
+  blueprintTitle: string;
+  printProviderId: number;
+  printProviderTitle: string;
+  providerVariantId: number;
+  providerVariantTitle: string;
+  providerProductId: null;
+  printArea: string | null;
+  availablePrintAreas: string[];
+}
+
+export interface LaunchTargetReport {
+  target: LaunchTarget;
+  status: "CANDIDATES" | "UNRESOLVED";
+  reason?: string;
+  candidates: LaunchCandidate[];
+}
+
+interface LaunchRunReport {
+  generatedAt: string;
+  blocked: boolean;
+  blockedReason?: string;
+  targets: LaunchTargetReport[];
+}
+
+export function buildLaunchTargets(): LaunchTarget[] {
+  return REQUIRED_LAUNCH_VARIANTS.map((required) => {
+    const hotspot = hotspots.find((item) => item.id === required.productId);
+    const variant = hotspot?.fulfillment?.variants.find(
+      (item) => item.variantId === required.variantId
+    );
+    if (!hotspot?.fulfillment || !variant) {
+      throw new Error(
+        `Launch target ${required.productId}/${required.variantId} is missing from hotspots.ts.`
+      );
+    }
+    return {
+      productId: hotspot.id,
+      variantId: variant.variantId,
+      label: required.label,
+      productName: hotspot.name,
+      productType: hotspot.product,
+      fulfillmentProductId: hotspot.fulfillment.productId,
+      variantLabel: variant.label,
+      colors: hotspot.customization?.colors ?? [],
+      printAreaName: hotspot.fulfillment.printArea.name,
+      searchKeywords: KEYWORDS_BY_PRODUCT_TYPE[hotspot.product] ?? [hotspot.product],
+    };
+  });
+}
+
+function normalizedLabel(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[″"]/g, "in")
+    .replace(/[×]/g, "x")
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9x]/g, "")
+    .replace(/in$/, "");
+}
+
+export function launchVariantMatches(
+  target: LaunchTarget,
+  variant: PrintifyCatalogVariant
+): boolean {
+  const size = variant.options.size;
+  let labelMatch = sizeMatches(target.variantLabel, size);
+
+  // Some Printify variants encode capacity/dimensions only in the title.
+  // Use title fallback only for numeric labels. A single-letter apparel
+  // size such as "M" must match the structured size option exactly.
+  if (!labelMatch && /\d/.test(target.variantLabel)) {
+    const wanted = normalizedLabel(target.variantLabel);
+    const title = normalizedLabel(variant.title);
+    labelMatch = Boolean(wanted) && title.includes(wanted);
+  }
+
+  if (!labelMatch) return false;
+  if (target.colors.length === 0) return true;
+  return target.colors.some((color) => colorMatches(color, variant.options.color));
+}
+
+function resolveLaunchPrintArea(
+  requested: string,
+  variant: PrintifyCatalogVariant
+): { selected: string | null; available: string[] } {
+  const available = [...new Set((variant.placeholders ?? []).map((p) => p.position))];
+  const wanted = requested.toLowerCase();
+
+  if (available.includes(wanted)) return { selected: wanted, available };
+  if (wanted.includes("front") && available.includes("front"))
+    return { selected: "front", available };
+  if (wanted.includes("back") && available.includes("back"))
+    return { selected: "back", available };
+  if (available.length === 1) return { selected: available[0], available };
+  return { selected: null, available };
+}
+
+export async function findLaunchCandidates(
+  target: LaunchTarget,
+  blueprints: PrintifyBlueprint[]
+): Promise<LaunchTargetReport> {
+  const scored = blueprints
+    .map((bp) => ({ bp, score: scoreBlueprint(bp, target.searchKeywords) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  const candidates: LaunchCandidate[] = [];
+  for (const { bp } of scored) {
+    let providers: PrintifyPrintProviderSimple[];
+    try {
+      providers = await listPrintProvidersForBlueprint(bp.id);
+      await delay(200);
+    } catch (error) {
+      console.warn(`launch target ${target.productId}: blueprint ${bp.id} provider lookup failed — ${error}`);
+      continue;
+    }
+
+    // Launch certification must not depend on Printify's undocumented
+    // provider ordering. Scan every provider for the candidate blueprint.
+    for (const provider of providers) {
+      try {
+        const variants = await listVariants(bp.id, provider.id);
+        await delay(200);
+        for (const variant of variants.variants) {
+          if (!launchVariantMatches(target, variant)) continue;
+          const placement = resolveLaunchPrintArea(target.printAreaName, variant);
+          candidates.push({
+            blueprintId: bp.id,
+            blueprintTitle: bp.title,
+            printProviderId: provider.id,
+            printProviderTitle: provider.title,
+            providerVariantId: variant.id,
+            providerVariantTitle: variant.title,
+            providerProductId: null,
+            printArea: placement.selected,
+            availablePrintAreas: placement.available,
+          });
+        }
+      } catch (error) {
+        console.warn(
+          `launch target ${target.productId}: blueprint ${bp.id}, provider ${provider.id} variant lookup failed — ${error}`
+        );
+      }
+    }
+  }
+
+  const unique = Array.from(
+    new Map(
+      candidates.map((candidate) => [
+        `${candidate.blueprintId}:${candidate.printProviderId}:${candidate.providerVariantId}:${candidate.printArea ?? ""}`,
+        candidate,
+      ])
+    ).values()
+  );
+
+  const actionable = unique.filter((candidate) => candidate.printArea !== null);
+  return {
+    target,
+    status: actionable.length > 0 ? "CANDIDATES" : "UNRESOLVED",
+    reason:
+      actionable.length > 0
+        ? undefined
+        : unique.length > 0
+          ? "Exact variants were found, but none had a confidently resolved print area. Human print-area review is required before sandbox certification."
+          : "No exact blueprint/provider/variant candidate matched the launch variant label, color constraints, and catalog keyword search.",
+    candidates: unique,
+  };
+}
+
+function blockedLaunchReport(reason: string): LaunchRunReport {
+  return {
+    generatedAt: new Date().toISOString(),
+    blocked: true,
+    blockedReason: reason,
+    targets: buildLaunchTargets().map((target) => ({
+      target,
+      status: "UNRESOLVED",
+      reason,
+      candidates: [],
+    })),
+  };
+}
+
+function renderLaunchMarkdown(report: LaunchRunReport): string {
+  const lines: string[] = [
+    "# Printify Launch Candidate Report (dry run)",
+    "",
+    `Generated ${report.generatedAt}. **Read-only discovery only — this report does not certify a mapping or mutate Printify/Supabase.**`,
+    "",
+  ];
+  if (report.blocked) {
+    lines.push(`> ⛔ ${report.blockedReason}`, "");
+  }
+  for (const entry of report.targets) {
+    const target = entry.target;
+    lines.push(
+      `## ${entry.status === "CANDIDATES" ? "✅" : "❌"} ${target.productId} / ${target.variantId} — ${target.label}`,
+      "",
+      `Storefront: **${target.productName}**; discovery family: \`${target.fulfillmentProductId}\`; exact variant label: **${target.variantLabel}**${target.colors.length ? `; colors: **${target.colors.join(", ")}**` : ""}.`,
+      "",
+      `Status: **${entry.status}**${entry.reason ? ` — ${entry.reason}` : ""}`,
+      ""
+    );
+    if (entry.candidates.length) {
+      lines.push(
+        "| Blueprint | Print provider | Provider variant | Print area | Shop product ID |",
+        "|---|---|---|---|---|"
+      );
+      for (const candidate of entry.candidates) {
+        lines.push(
+          `| ${candidate.blueprintId} — ${candidate.blueprintTitle} | ${candidate.printProviderId} — ${candidate.printProviderTitle} | ${candidate.providerVariantId} — ${candidate.providerVariantTitle} | ${candidate.printArea ?? `UNRESOLVED (available: ${candidate.availablePrintAreas.join(", ") || "none"})`} | raw blueprint mapping (none required) |`
+        );
+      }
+      lines.push("");
+    }
+  }
+  lines.push(
+    "A candidate is not a certification. An operator must review the exact candidate before writing a sandbox_verified catalog row."
+  );
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------
 // Report writing
 // ---------------------------------------------------------------------
 
@@ -501,6 +745,9 @@ async function main() {
     };
     writeFileSync(JSON_OUT, JSON.stringify(report, null, 2));
     writeFileSync(MD_OUT, renderMarkdown(report));
+    const launchReport = blockedLaunchReport(reason);
+    writeFileSync(LAUNCH_JSON_OUT, JSON.stringify(launchReport, null, 2));
+    writeFileSync(LAUNCH_MD_OUT, renderLaunchMarkdown(launchReport));
     console.error(`BLOCKED: ${reason}`);
     console.error(`Wrote an all-unresolved report anyway: ${MD_OUT}`);
     process.exitCode = 1;
@@ -525,6 +772,9 @@ async function main() {
     };
     writeFileSync(JSON_OUT, JSON.stringify(report, null, 2));
     writeFileSync(MD_OUT, renderMarkdown(report));
+    const launchReport = blockedLaunchReport(reason);
+    writeFileSync(LAUNCH_JSON_OUT, JSON.stringify(launchReport, null, 2));
+    writeFileSync(LAUNCH_MD_OUT, renderLaunchMarkdown(launchReport));
     console.error(`BLOCKED: ${reason}`);
     console.error(`Wrote an all-unresolved report anyway: ${MD_OUT}`);
     process.exitCode = 1;
@@ -539,6 +789,17 @@ async function main() {
     groupReports.push(result);
   }
 
+  const launchTargets = buildLaunchTargets();
+  const launchTargetsReport: LaunchTargetReport[] = [];
+  for (const target of launchTargets) {
+    console.log(
+      `\nLaunch scan ${target.productId}/${target.variantId} (exact label: ${target.variantLabel})...`
+    );
+    const result = await findLaunchCandidates(target, blueprints);
+    console.log(`  -> ${result.status} (${result.candidates.length} candidates)`);
+    launchTargetsReport.push(result);
+  }
+
   const report: RunReport = {
     generatedAt: new Date().toISOString(),
     blocked: false,
@@ -546,6 +807,13 @@ async function main() {
   };
   writeFileSync(JSON_OUT, JSON.stringify(report, null, 2));
   writeFileSync(MD_OUT, renderMarkdown(report));
+  const launchReport: LaunchRunReport = {
+    generatedAt: report.generatedAt,
+    blocked: false,
+    targets: launchTargetsReport,
+  };
+  writeFileSync(LAUNCH_JSON_OUT, JSON.stringify(launchReport, null, 2));
+  writeFileSync(LAUNCH_MD_OUT, renderLaunchMarkdown(launchReport));
 
   const counts = { RESOLVED: 0, PARTIAL: 0, UNRESOLVED: 0 };
   for (const g of groupReports) counts[g.status]++;
@@ -553,7 +821,8 @@ async function main() {
     `\nDone. ${counts.RESOLVED} resolved, ${counts.PARTIAL} partial, ${counts.UNRESOLVED} unresolved out of ${groupReports.length} fulfillment groups.`
   );
   console.log(`Report: ${MD_OUT}`);
-  console.log("This is a dry run — data/hotspots.ts was not modified. Review the report before applying anything.");
+  console.log(`Launch candidates: ${LAUNCH_MD_OUT}`);
+  console.log("This is a dry run — data/hotspots.ts was not modified. Review the reports before applying anything.");
 }
 
 // Only auto-run when executed directly (`tsx scripts/printify-catalog-sync.ts`

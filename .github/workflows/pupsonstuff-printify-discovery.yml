@@ -1,0 +1,59 @@
+name: PupsonStuff Printify Launch Discovery
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    name: Discover exact Printify launch mappings
+    runs-on: ubuntu-latest
+    environment: pupsonstuff-production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Require Printify catalog credential
+        env:
+          PRINTIFY_API_KEY: ${{ secrets.PRINTIFY_API_KEY }}
+        run: |
+          if [ -z "$PRINTIFY_API_KEY" ]; then
+            echo "::error::PRINTIFY_API_KEY is missing from the pupsonstuff-production GitHub environment."
+            exit 1
+          fi
+
+      - name: Run read-only exact launch discovery
+        working-directory: apps/pupsonstuff
+        env:
+          PRINTIFY_API_KEY: ${{ secrets.PRINTIFY_API_KEY }}
+        run: pnpm printify:sync
+
+      - name: Upload governed discovery reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pupsonstuff-printify-launch-candidates
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            apps/pupsonstuff/docs/fulfillment/catalog-mapping-report.json
+            apps/pupsonstuff/docs/fulfillment/catalog-mapping-report.md
+            apps/pupsonstuff/docs/fulfillment/catalog-launch-candidates.json
+            apps/pupsonstuff/docs/fulfillment/catalog-launch-candidates.md

@@ -69,7 +69,6 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
     if (
       !item.printAssetId ||
       item.fulfillmentProvider !== 'printify' ||
-      !item.providerProductId ||
       !item.providerVariantId ||
       !item.blueprintId ||
       !item.printProviderId ||
@@ -116,7 +115,7 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
 
     const catalogSnapshot = {
       provider: item.fulfillmentProvider,
-      provider_product_id: item.providerProductId,
+      provider_product_id: item.providerProductId ?? null,
       provider_variant_id: item.providerVariantId,
       blueprint_id: item.blueprintId,
       print_provider_id: item.printProviderId,
@@ -140,7 +139,7 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
         quantity: item.quantity,
         unit_amount_cents: item.priceCents,
         fulfillment_provider: item.fulfillmentProvider,
-        fulfillment_product_id: item.providerProductId,
+        fulfillment_product_id: item.providerProductId ?? null,
         fulfillment_variant_id: item.providerVariantId,
         creative_output_id: output.id,
         print_asset_id: item.printAssetId,

@@ -102,10 +102,12 @@ export function evaluateLaunchEnvironment(
 
   const removerProvider = env.PUPSON_BACKGROUND_REMOVER_PROVIDER?.trim();
   const removerUrl = env.PUPSON_BACKGROUND_REMOVER_URL?.trim();
+  const removerToken = env.PUPSON_BACKGROUND_REMOVER_TOKEN?.trim();
   const knockoutToken = env.KNOCKOUT_TOKEN?.trim();
   const selfHostedRemover =
     (!removerProvider || removerProvider === 'backgroundremover') &&
-    Boolean(removerUrl?.startsWith('https://'));
+    Boolean(removerUrl?.startsWith('https://')) &&
+    Boolean(removerToken);
   const knockoutRemover =
     (removerProvider === 'knockout' || (!removerProvider && !removerUrl)) &&
     Boolean(knockoutToken);
@@ -113,21 +115,25 @@ export function evaluateLaunchEnvironment(
     id: 'env.BACKGROUND_REMOVER',
     status: selfHostedRemover || knockoutRemover ? 'pass' : 'block',
     message: selfHostedRemover
-      ? 'Self-hosted background removal is configured over HTTPS.'
+      ? 'Authenticated self-hosted background removal is configured over HTTPS.'
       : knockoutRemover
         ? 'BiRefNet background removal is configured.'
-        : 'Configure an HTTPS self-hosted background-removal service or a BiRefNet provider token.',
+        : 'Configure an HTTPS self-hosted background-removal URL + bearer token or a BiRefNet provider token.',
   });
 
   const upscalerUrl = env.PUPSON_UPSCALER_URL?.trim();
-  const upscalerConfigured =
-    Boolean(upscalerUrl?.startsWith('https://')) || Boolean(knockoutToken);
+  const upscalerToken = env.PUPSON_UPSCALER_TOKEN?.trim();
+  const selfHostedUpscaler =
+    Boolean(upscalerUrl?.startsWith('https://')) && Boolean(upscalerToken);
+  const upscalerConfigured = selfHostedUpscaler || Boolean(knockoutToken);
   checks.push({
     id: 'env.IMAGE_UPSCALER',
     status: upscalerConfigured ? 'pass' : 'block',
     message: upscalerConfigured
-      ? 'A print-resolution AI upscaler is configured.'
-      : 'Configure an HTTPS PUPSON_UPSCALER_URL or KNOCKOUT_TOKEN so enlarged artwork cannot bypass the source-resolution gate.',
+      ? selfHostedUpscaler
+        ? 'An authenticated self-hosted print-resolution AI upscaler is configured.'
+        : 'A provider-token print-resolution AI upscaler is configured.'
+      : 'Configure an HTTPS PUPSON_UPSCALER_URL + PUPSON_UPSCALER_TOKEN or KNOCKOUT_TOKEN so enlarged artwork cannot bypass the source-resolution gate.',
   });
 
   checks.push({

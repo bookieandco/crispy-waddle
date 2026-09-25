@@ -54,7 +54,9 @@ export async function createCheckoutSession(
             creative_output_id: item.creativeOutputId,
             print_asset_id: item.printAssetId,
             fulfillment_provider: item.fulfillmentProvider,
-            provider_product_id: item.providerProductId,
+            ...(item.providerProductId
+              ? { provider_product_id: item.providerProductId }
+              : {}),
             provider_variant_id: item.providerVariantId,
             blueprint_id: item.blueprintId,
             print_provider_id: item.printProviderId,
