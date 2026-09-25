@@ -16,6 +16,7 @@ export * from './camera-language';
 export * from './performance-direction';
 export * from './realism-direction';
 export * from './cinematic-lighting';
+export * from './cinematography-analysis';
 export * from './directed-take-qc';
 export * from './generation-plan-adapter';
 export * from './generation-reference-manifest';
