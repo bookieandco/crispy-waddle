@@ -961,3 +961,108 @@ The following lessons already map to canonical Director features:
 - generate only the missing four seconds -> target-duration generation and spend planning.
 
 The new world workflow only governs how a navigable environment produces trusted reference views and storyboards.
+
+
+## Hunyuan3D-1 / Realsee3D backend audit
+
+Two additional 3D references were supplied:
+
+- `Tencent-Hunyuan/Hunyuan3D-1`;
+- `realsee-developer/RealSee3D`.
+
+They serve different roles and should not be treated as interchangeable "world engines."
+
+### Hunyuan3D-1
+
+The repository supports:
+
+- text -> image -> fixed multi-view -> mesh generation;
+- image -> fixed multi-view -> mesh generation;
+- six fixed azimuth views relative to the input: 0, 60, 120, 180, 240 and 300 degrees;
+- optional texture mapping;
+- mesh/turntable rendering.
+
+It is useful for generating 3D props or set pieces that may later be placed inside a Director world/previs environment.
+
+It is **not** a navigable free-camera scene generator by itself.
+
+#### License boundary
+
+The repository source headers state that Hunyuan3D-1 is licensed under the **Tencent Hunyuan Non-Commercial License Agreement**. The README also states that the optional Dust3R-backed baking module uses CC BY-NC-SA 4.0 and cannot be used commercially.
+
+Director therefore exposes Hunyuan3D-1 as a non-commercial asset-generation capability profile and fails closed for commercial production use.
+
+This does not mean generated meshes are automatically admitted as canonical production assets. Normal asset provenance, QC and approval still apply.
+
+### RealSee3D
+
+RealSee3D is a large multi-view RGB-D dataset, not an inference runtime.
+
+The repository documents:
+
+- 360-degree equirectangular RGB panoramas;
+- aligned depth;
+- metric depth scale;
+- 4x4 camera-to-world extrinsics;
+- floor indices;
+- semantic segmentation;
+- viewpoint covisibility matrices;
+- point-cloud reconstruction utilities.
+
+Real-world segmentation maps are model predictions rather than human-verified ground truth; synthetic labels are rendered exactly from the synthetic scene definition.
+
+#### Access boundary
+
+The repository's code utilities are described as MIT licensed, but access to the actual dataset requires a signed **Realsee3D Data Usage Agreement** and approval from Realsee.
+
+Director therefore treats Realsee3D as an `agreement-required` dataset/benchmark profile.
+
+It may support research/evaluation of environment reconstruction once access is approved, but it cannot be treated as an available production runtime merely because the GitHub repository is public.
+
+### Gap 33 — governed 3D backend capability profiles
+
+Added `World3DBackendProfile` and `evaluateWorld3DBackend()`.
+
+Profiles record:
+
+- backend kind:
+  - `asset-generator`;
+  - `reconstruction-runtime`;
+  - `dataset-benchmark`;
+- explicit capabilities;
+- runtime availability;
+- access mode;
+- code/model/data license information;
+- commercial-use policy;
+- restricted features;
+- source/evidence provenance.
+
+A use request declares:
+
+- intended use;
+- required capabilities;
+- whether the project is commercial;
+- whether controlled dataset access has been approved;
+- whether a runnable inference backend is required.
+
+The evaluator fails closed on:
+
+- missing capabilities;
+- missing runtime;
+- unapproved dataset access;
+- prohibited commercial use;
+- unresolved commercial terms;
+- attempts to use a non-navigable backend as a navigable world engine.
+
+### Canonical role in the Director world stack
+
+Current intended separation:
+
+- OpenArt-like world providers -> navigable environment/reference capture;
+- Hunyuan3D-1 -> non-commercial 3D prop/set-piece generation;
+- Realsee3D -> controlled-access reconstruction benchmark/evaluation data;
+- Director `EnvironmentViewPack` -> canonical approved environment continuity;
+- Director `WorldCaptureSession` -> camera/character capture provenance;
+- Director previs -> authored camera/blocking execution.
+
+This prevents a useful 3D model or dataset from being promoted beyond what it actually provides.
