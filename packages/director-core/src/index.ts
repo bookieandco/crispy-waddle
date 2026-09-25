@@ -135,3 +135,4 @@ export * from './playhead-generation-continuation';
 export * from './creative-audio-generation';
 export * from './transcript-assisted-lip-sync';
 export * from './character-performance-rig';
+export * from './character-animation-enhancements';
