@@ -16,6 +16,7 @@ export interface AgenticProjectAssetBinding {
   assetId: string;
   role: AgenticProjectAssetRole;
   semanticLabel: string;
+  media: 'image' | 'video' | 'audio';
   global: boolean;
   evidenceIds: readonly string[];
 }
@@ -195,7 +196,7 @@ export function resolveAgenticSceneContext(input: {
     .map((asset,index)=>Object.freeze({
       slot:index+1,
       assetId:asset.assetId,
-      media:mediaForRole(asset.role),
+      media:asset.media,
       role:referenceRole(asset.role),
       semanticLabel:asset.semanticLabel,
       promptToken:`PROJECT_REF_${index+1}`,
@@ -292,9 +293,6 @@ function referenceRole(role:AgenticProjectAssetRole):GenerationReferenceRole{
   return 'custom';
 }
 
-function mediaForRole(role:AgenticProjectAssetRole):'image'|'video'{
-  return role==='motion'?'video':'image';
-}
 
 function referencePriority(role:AgenticProjectAssetRole):number{
   const priorities:Record<AgenticProjectAssetRole,number>={
