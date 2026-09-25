@@ -1,10 +1,12 @@
 import importlib.util
 from pathlib import Path
+import sys
 import unittest
 
 root=Path(__file__).parent
 spec=importlib.util.spec_from_file_location("director_character_training_worker",root/"worker.py")
 worker=importlib.util.module_from_spec(spec)
+sys.modules[spec.name]=worker
 spec.loader.exec_module(worker)
 
 def dataset_plan():
