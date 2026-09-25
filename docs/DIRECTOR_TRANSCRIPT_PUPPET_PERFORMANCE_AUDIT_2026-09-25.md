@@ -290,3 +290,112 @@ Existing Director coverage:
 No provider-specific JSON grammar is promoted to canonical Director truth. Director's typed generation plans already provide the structured hierarchy that the walkthrough gets from JSON prompts, while remaining portable across providers.
 
 The remaining operational lesson is sequencing: continuity references should be used only when a shot is a direct visual continuation, not indiscriminately across scene changes. Director's continuity strategy already encodes that distinction.
+
+
+## Hybrid animation / Passport Rush workflow audit
+
+The supplied production breakdown adds several practical lessons from a traditional-animation-plus-AI pipeline.
+
+### Asset-first approach
+
+The source treats character sheets, prop sheets, backgrounds and effects sheets as the visual foundation of the film. Recurring assets deserve dedicated references; incidental/background elements do not automatically require bespoke asset construction.
+
+Director already has the corresponding canonical machinery:
+
+- cast and locked character references;
+- environment view packs;
+- generation reference manifests;
+- previs reference bindings;
+- product/prop-style reference assets;
+- continuity QC.
+
+No second asset registry was added.
+
+### Gap 11 — explicit shot routing: direct generation vs previs
+
+The source uses a simple production rule:
+
+- complex/specific movement, camera or timing -> build a Blender previs;
+- simpler shots -> go directly to video generation;
+- if animating the motion is clearer/faster than explaining it in words, use previs.
+
+Director already had a detailed `PrevisBlockoutPlan`, but no canonical upstream decision describing when a shot should enter it.
+
+Added `routeHybridShot()` with three outcomes:
+
+- `direct-generation`;
+- `previs-conditioned`;
+- `performance-research`.
+
+Specific movement, camera, timing, multi-object interaction, or motion that is difficult to express textually can route to previs.
+
+### Gap 12 — performance gap detection
+
+The source identifies a distinct failure mode in the ceiling-handle gag:
+
+- the greybox carries timing/blocking;
+- subtle expression/hand acting is too weak to survive;
+- increasing greybox detail can cause the video model to copy temporary geometry instead of the locked character design.
+
+Director now calls this out explicitly as `DIRECTOR_HYBRID_PERFORMANCE_GAP`.
+
+A subtle-performance-critical shot whose greybox is not performance-readable is routed to `performance-research` instead of assuming more previs detail will solve the shot.
+
+This can then use existing Director performance-direction, performance-capture, pose/hand observation, character identity and reference-manifest systems.
+
+### Gap 13 — contradictory reference detection
+
+The source's headphone example demonstrates that individually useful references can conflict:
+
+- the canonical character sheet says headphones are present;
+- a screenshot selected for camera framing omits them;
+- the model follows the contradictory framing reference and repeatedly drops the headphones.
+
+Added `evaluateReferenceCoherence()`:
+
+- observations describe explicit traits per reference;
+- canonical trait values are preserved;
+- noncanonical references that disagree are surfaced before generation;
+- conflicts identify the exact trait, canonical value and conflicting asset IDs.
+
+A framing or motion reference is therefore not allowed to silently override character identity.
+
+### Gap 14 — production visual-rule ledger
+
+The source converts pre-production experiments into durable project rules. Examples from the supplied breakdown include:
+
+- late-afternoon / golden-hour light after midday tests looked flat;
+- the recurring taxi became cleaner 3D after heavy watercolor texture failed in motion;
+- recurring props get dedicated sheets while incidental elements may remain text-generated.
+
+Added a `ProductionVisualRuleLedger` with:
+
+- rule kind;
+- human-readable production rule;
+- experiment IDs that produced the rule;
+- evidence IDs;
+- locked versus advisory state.
+
+This extends the existing creative-experiment system: experiments preserve the tests; the visual-rule ledger preserves what production learned from them.
+
+### Existing Director systems reused
+
+No duplicate subsystem was added for:
+
+- storyboards and animatics -> storyboard/reference board;
+- Blender-like authored previs -> `PrevisBlockoutPlan`;
+- exact greybox timing/camera -> previs shot packages and motion references;
+- image references for final appearance -> generation reference manifests;
+- animation principles -> existing `AnimationPrinciplesPlan`;
+- beat-by-beat reaction pauses -> existing performance-direction beats and pauses;
+- character/prop/location continuity -> existing continuity strategy and locked references;
+- repeated generation/review -> creative experiments, take QC and selection;
+- hand-edited reference fixes -> treated as a new version of the governed reference asset with new provenance.
+
+The source's prompt block ordering is useful provider craft, but Director already compiles structured camera, performance, continuity, reference and animation directives. No vendor-specific long-prompt syntax is promoted to canonical authority.
+
+### Previs readability heuristic
+
+The tutorial reports a shot where a close greybox camera produced large ambiguous gray shapes and too little environmental context; pulling the camera back made the action interpretable to the video model.
+
+This is retained as a production/QC heuristic: if a motion reference is not semantically readable, revise framing/context rather than adding arbitrary prompt text. The source does not provide a defensible numeric visibility threshold, so Director does not invent one.
