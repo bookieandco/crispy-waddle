@@ -108,6 +108,9 @@ jobs:
           src/editorial-reduction-workflow.test.ts
           src/audio-priority-mix.test.ts
           src/final-export-inspection.test.ts
+          src/screenplay-blueprint.test.ts
+          src/production-audio-capture.test.ts
+          src/editorial-cut-decision.test.ts
           src/animation-principles.test.ts
           src/animation-performance-state.test.ts
           src/directed-take-qc.test.ts
