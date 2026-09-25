@@ -693,3 +693,143 @@ Canonical Director truth is instead:
 - final QC.
 
 A future provider can replace either stage without changing the scene's coverage authority.
+
+
+## Agentic canvas / persistent project context audit
+
+The supplied CapCut Director workflow demonstrates a useful production pattern: put the script, style and approved creative assets into one persistent project context, then direct by intent such as "generate scene two" instead of manually pasting the same style, character, location, prop and script references into every request.
+
+The source also shows several practical failure modes:
+
+- over-binding references can make a model literalize a prop that should only influence point of view, such as rendering binocular lenses instead of a binocular-view vignette;
+- scene duration matters, and script timestamps help keep long scenes from being forced into short clips;
+- reference count can affect generation cost;
+- agent conversation/thinking can itself consume budget;
+- repeated praise/enthusiasm is less useful than a technical collaborator mode;
+- localized AI repair becomes cheaper when the clip is trimmed to the interval that actually needs repair;
+- last-frame -> next-start-frame continuity and simple sketch/storyboard references are useful but already covered by existing Director systems.
+
+### Gap 23 — persistent agentic project context
+
+Added `AgenticProjectContext`.
+
+It stores once per project:
+
+- script asset;
+- reusable style/character/location/prop/effect/composition/motion asset bindings;
+- global versus scene-local scope;
+- scene IDs and order;
+- scene start/end timing;
+- scene direction;
+- required, optional and explicitly excluded references;
+- provenance/evidence.
+
+This makes persistent context a governed Director artifact rather than hidden conversational memory.
+
+### Gap 24 — generate scene by ID without manual rebinding
+
+Added `resolveAgenticSceneContext()`.
+
+Given a project context, workspace library and scene ID it:
+
+1. verifies project/workspace lineage;
+2. verifies all referenced assets actually exist in the project library;
+3. derives target duration from the scene's script time range;
+4. automatically includes global assets such as the project style;
+5. includes only required assets plus explicitly admitted supplemental assets;
+6. removes excluded references;
+7. emits the existing canonical `GenerationReferenceManifest`.
+
+This prevents manual over-binding from becoming the default production path.
+
+An asset not declared required/optional for that scene cannot be injected as a supplemental reference.
+
+### Reference semantics stay explicit
+
+The source's binocular example is represented by scene scope rather than provider-specific prompting tricks.
+
+If the binocular prop should not be visually present in a point-of-view shot, that scene can exclude the binocular asset while the scene direction still says the audience is seeing through binocular vision.
+
+Likewise, a bow or other recurring prop can be required only in the scenes where continuity demands that it be physically visible.
+
+### Gap 25 — compound agentic cost receipt
+
+The source reports that final cost can vary based on:
+
+- generated media duration;
+- number of bound references;
+- conversational/agent token use;
+- downstream repair.
+
+Added `AgenticSceneCostPlan` and `summarizeAgenticSceneCost()`.
+
+Cost components remain separate:
+
+- `media-generation`;
+- `reference-surcharge`;
+- `orchestration`;
+- `repair`.
+
+Each component uses the existing `GenerationCostEstimate` structure with provider/model/pricing-source provenance.
+
+Director does not invent a universal formula for reference cost or agent "thinking." Provider adapters must supply current estimates.
+
+The summary exposes both total projected cost and per-component cost so an operator can see whether time savings from the agent are worth the additional orchestration spend.
+
+Normal Director spend authorization remains the final authority.
+
+### Gap 26 — technical collaborator interaction profile
+
+The source explicitly changes the agent from enthusiastic creative cheerleader to technical collaborator.
+
+Added `DirectorCollaborationProfile` with:
+
+- mode = `technical-collaborator`;
+- response-detail preference;
+- `evidence-only` praise policy;
+- optional model optimization target;
+- evidence/provenance.
+
+This does not rewrite Jhadina's global personality. It is a scoped Director working mode for production sessions where useful critique, optimization and factual feedback matter more than hype.
+
+### Gap 27 — localized trim-first video repair
+
+The source repairs generated continuity mistakes by:
+
+1. trimming the clip to the portion actually needed;
+2. masking only the unwanted object/region;
+3. running AI remove on that smaller interval;
+4. paying only for the scoped repair when the provider prices by duration.
+
+Added `LocalizedVideoRepairPlan` and `evaluateLocalizedVideoRepair()`.
+
+The plan records:
+
+- source clip/asset;
+- timeline version;
+- exact repair interval;
+- mask asset;
+- remove/replace/cleanup operation;
+- repair instruction;
+- optional full-clip and scoped cost estimates;
+- evidence.
+
+The decision validates source bounds and can report projected savings when both estimates are available.
+
+Director does not claim that trimming always saves money; it only reports the difference using provider-derived estimates.
+
+### Existing systems reused
+
+No duplicate subsystem was added for:
+
+- canvas/media organization -> `CreativeWorkspaceLibrary`;
+- script/scene/shot duration -> shotlist and storyboard stages;
+- style/character/location/prop references -> generation reference manifests and locked references;
+- last-frame continuity -> current-frame extraction and continuity strategy;
+- simple sketches/storyboards -> storyboard reference board and previs;
+- visual reaction shots and emotional progression -> performance direction and storyboard planning;
+- trimming/editing -> canonical timeline editing;
+- generation spend approval -> existing generation spend gate;
+- provider prompt optimization -> documentation-grounded prompt translator.
+
+The new layer only makes persistent project context, selective scene binding, compound agent costs and localized repair explicit and inspectable.
