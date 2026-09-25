@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {humanResultToObservations} from './human-performance-observer';
+import {humanResultToFrameAnnotations,humanResultToObservations} from './human-performance-observer';
 
 const frame={assetId:'video-1',timestampSeconds:2,frameRef:'frame:2'};
 const policy={minimumConfidence:.5,includeBody:true,includeHands:true,includeFaceOrientation:true,includeGestures:true,allowedBodyLandmarks:['head','leftWrist','rightWrist']};
@@ -22,6 +22,23 @@ describe('Human performance observer',()=>{
     expect(serialized).not.toContain('"gender"');
     expect(serialized).not.toContain('"race"');
     expect(serialized).not.toContain('"embedding"');
+  });
+
+  it('maps admitted Human body and hand geometry into canonical Director frame annotations',()=>{
+    const annotations=humanResultToFrameAnnotations(48,{
+      body:[{id:1,score:.9,boxRaw:[.1,.1,.6,.8],keypoints:[
+        {part:'leftWrist',positionRaw:[.2,.4,0],score:.95},
+        {part:'rightWrist',positionRaw:[.8,.4,0],score:.93},
+      ]}],
+      hand:[{id:2,score:.88,boxRaw:[.15,.3,.2,.2],keypoints:[[.2,.4,0],[.25,.45,0]]}],
+    },{minimumConfidence:.5,allowedBodyLandmarks:['leftWrist','rightWrist']});
+    expect(annotations).toEqual([
+      expect.objectContaining({frame:48,class:'character',instanceId:'human-body:1',keypoints:[
+        expect.objectContaining({name:'leftWrist'}),
+        expect.objectContaining({name:'rightWrist'}),
+      ]}),
+      expect.objectContaining({frame:48,class:'hand',instanceId:'human-hand:2'}),
+    ]);
   });
 
   it('drops low-confidence and invalid geometry',()=>{
