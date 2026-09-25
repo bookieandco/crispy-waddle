@@ -81,7 +81,8 @@
     "./performance-capture-plan": "./src/performance-capture-plan.ts",
     "./human-performance-observer": "./src/human-performance-observer.ts",
     "./pose-action-recognition": "./src/pose-action-recognition.ts",
-    "./roboflow-people-observation": "./src/roboflow-people-observation.ts"
+    "./roboflow-people-observation": "./src/roboflow-people-observation.ts",
+    "./hybrid-animation-production": "./src/hybrid-animation-production.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
