@@ -70,7 +70,10 @@
     "./studio-character-training-worker": "./src/studio-character-training-worker.ts",
     "./character-lora-approval": "./src/character-lora-approval.ts",
     "./source-driven-character-swap": "./src/source-driven-character-swap.ts",
-    "./quick-cut-planner": "./src/quick-cut-planner.ts"
+    "./quick-cut-planner": "./src/quick-cut-planner.ts",
+    "./creative-workspace-media": "./src/creative-workspace-media.ts",
+    "./playhead-generation-continuation": "./src/playhead-generation-continuation.ts",
+    "./creative-audio-generation": "./src/creative-audio-generation.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
