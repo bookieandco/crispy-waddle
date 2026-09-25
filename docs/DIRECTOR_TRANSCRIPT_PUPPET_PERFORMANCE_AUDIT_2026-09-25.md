@@ -1188,3 +1188,225 @@ This enables workflows such as:
 - use the generated world for planning, storytelling or visualization;
 
 without claiming that generated geometry is observed reality.
+
+
+## Cinematic lighting framework audit
+
+The supplied cinematography lesson presents lighting as five attributes that should be solved in a specific production order:
+
+1. **Direction**
+2. **Quality / softness**
+3. **Color**
+4. **Intensity / exposure**
+5. **Cut & Shape**
+
+The order matters because changing direction, softness or color can change exposure. The source therefore recommends postponing final intensity/exposure balancing until those earlier choices are settled, and shaping/cutting the light last.
+
+Director previously had lighting only as free-form cinematography text, source-preservation locks and realism response notes. It did not have a first-class DP lighting contract.
+
+### Gap 35 — canonical cinematography lighting plan
+
+Added `CinematographyLightingPlan`.
+
+The contract preserves the source's five-stage working order and fails validation if the order is rearranged.
+
+The plan is separate from:
+
+- camera direction;
+- performance/blocking;
+- realism;
+- animation;
+- provider prompt syntax.
+
+Lighting remains its own authored production dimension.
+
+### Direction
+
+`LightingDirectionSetup` supports the source's named placements:
+
+- front;
+- butterfly;
+- Rembrandt;
+- side;
+- kicker;
+- backlight;
+- custom.
+
+A setup can record:
+
+- key/fill/background/practical/edge/ambient role;
+- subject set;
+- horizontal and downward angle;
+- high placement;
+- placement notes;
+- intended narrative/emotional effect;
+- evidence.
+
+The source's approximate examples are representable without turning them into universal rules:
+
+- Rembrandt can be authored around 45 degrees off axis and 45 degrees down;
+- side light can be authored around 80-90 degrees;
+- kicker can be authored behind the subject with variable wrap;
+- backlight can be placed directly behind/high and aimed down when avoiding flare.
+
+Director does not force those example angles on every face or scene.
+
+### Blocking-aware lighting
+
+The source emphasizes that one light can read differently on multiple performers depending on blocking.
+
+Added `SubjectLightingInterpretation`.
+
+A single source setup can therefore be recorded as reading, for example:
+
+- backlight on one subject;
+- Rembrandt on another;
+- butterfly/top light on another;
+
+with each interpretation tied to a blocking reference.
+
+This allows Director to reason about lighting and blocking together without pretending that a light has one fixed effect throughout the scene.
+
+### Quality / softness
+
+Added `LightingQualityPlan`.
+
+It records:
+
+- hard / soft / custom quality;
+- relative source size;
+- optional source-to-subject distance;
+- diffusion;
+- whether the diffusion frame should be filled evenly;
+- rationale/evidence.
+
+The source-derived rule is preserved: softness depends on **source size relative to the subject**, not fixture size in isolation.
+
+A source can become softer by increasing its apparent relative size, including by diffusion or moving closer; it can become harder as its apparent relative size decreases.
+
+### Color
+
+Added `LightingColorPlan`.
+
+It can record:
+
+- key color temperature;
+- camera white balance;
+- practical color temperature;
+- background color temperature;
+- gel/RGB notes;
+- creative color intent.
+
+This preserves the source's distinction between:
+
+- the light's Kelvin value;
+- the camera white-balance setting;
+- deliberate mismatch for a warmer/cooler interpretation;
+- gels/RGB choices that may also reduce light output.
+
+Director therefore treats color as an authored lighting relationship rather than only a final grade instruction.
+
+### Intensity / contrast ratios
+
+Added `LightingIntensityPlan`.
+
+It can record:
+
+- key/fill/background levels;
+- lux, foot-candle or relative units;
+- key-to-fill difference in stops;
+- foreground-to-background difference in stops;
+- exposure intent.
+
+Added `stopsToBrightnessRatio()`, preserving the source's stop relationship:
+
+- 1 stop -> 2:1;
+- 2 stops -> 4:1;
+- 3 stops -> 8:1;
+- 4 stops -> 16:1.
+
+The source's suggested subject/background example of roughly one to one-and-a-half stops can be represented as intent, but Director does not hard-code it as a universal target.
+
+### Cut & Shape
+
+Added `LightingCutShapeInstruction`.
+
+Supported source-derived modifiers include:
+
+- topper;
+- sider;
+- skirt;
+- barn door;
+- flag;
+- negative fill;
+- bounce;
+- snapgrid;
+- egg crate.
+
+A modifier records target, placement, purpose and evidence.
+
+When diffusion is in use, a flag placed between the source and diffusion emits a warning because the source recommends placing it between diffusion and subject for a cleaner cut and less disturbance to softness/intensity.
+
+### Blocking and foreground/background control
+
+The plan can preserve blocking notes such as:
+
+- keeping talent away from bright walls;
+- pulling beds/sofas away from walls when useful;
+- separating subject and background lighting;
+- controlling spill with grids/flags.
+
+These are authored production instructions, not universal geometry rules.
+
+### Storyboard and generation lineage
+
+`lightingPlan` is now carried by:
+
+- `StoryboardBoard`;
+- storyboard shot plans;
+- `TakeRequest`;
+- canonical take prompt compilation;
+- generation provider parameters;
+- generation briefs.
+
+A new migration adds `lighting_plan jsonb` to canonical storyboard heads and append-only storyboard history so the exact DP plan survives versioning and handoff.
+
+### Lighting take QC
+
+Added dedicated directed-take QC metrics:
+
+- `lighting-direction-match`;
+- `lighting-quality-match`;
+- `lighting-color-match`;
+- `lighting-contrast-match`;
+- `lighting-cut-shape-match`.
+
+`CINEMATOGRAPHY_LIGHTING_TAKE_QC` provides deterministic admission thresholds.
+
+Perception systems may supply the measurements/evidence, but Director remains the deterministic approval authority.
+
+### Interpretation over physical simulation
+
+The source repeatedly frames cinematography as an **interpretation of reality**, not a requirement to reproduce physically literal light direction.
+
+Director therefore permits intentional coverage differences when they preserve the authored emotional/visual logic.
+
+Examples from the source include:
+
+- two opposing characters both reading as backlit;
+- a close-up changing key direction from the wide shot;
+- a candle-motivated scene using a supplemental Rembrandt-position source.
+
+Those examples inform the architecture but are not encoded as automatic prescriptions.
+
+### Existing systems reused
+
+No duplicate subsystem was added for:
+
+- camera framing/lens/movement -> `DirectorCameraPlan`;
+- actor movement/blocking -> performance direction;
+- physical light reactions -> realism direction;
+- continuity locks for lighting/color -> existing `ContinuityLock`;
+- final provider wording -> documentation-grounded prompt translator.
+
+The new layer gives Director the missing DP vocabulary and durable lighting intent.
