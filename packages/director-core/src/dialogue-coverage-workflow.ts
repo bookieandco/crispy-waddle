@@ -1,4 +1,5 @@
 import type {GenerationCostEstimate} from './generation-spend-gate.js';
+import type {GenerationReferenceManifest} from './generation-reference-manifest.js';
 
 export type DialogueCoverageRole='master'|'over-shoulder'|'reverse'|'medium-close-up'|'close-up'|'reaction';
 export type ScreenDirection='camera-left'|'camera-right'|'center';
@@ -193,5 +194,68 @@ export function evaluateCoverageHandoff(
     reasons:Object.freeze([...new Set(reasons)]),
     evidenceIds:Object.freeze(evidenceIds),
     authority:'DIRECTOR_DIALOGUE_COVERAGE_HANDOFF_QC',
+  });
+}
+
+
+export function buildDialogueCoverageGenerationManifest(input:{
+  id:string;
+  shotId:string;
+  coverage:DialogueCoveragePlan;
+  handoff:CoverageHandoffPlan;
+  frameId:string;
+  dialogueAudioAssetId:string;
+  dialogueAudioSha256?:string;
+  evidenceIds:readonly string[];
+}):GenerationReferenceManifest{
+  const decision=evaluateCoverageHandoff(input.coverage,input.handoff);
+  if(!decision.valid) throw new Error(`DIRECTOR_COVERAGE_HANDOFF_INVALID: ${decision.reasons.join(', ')}`);
+  const frame=input.handoff.selectedFrames.find(candidate=>candidate.id===input.frameId);
+  if(!frame) throw new Error('DIRECTOR_COVERAGE_MANIFEST_FRAME_REQUIRED');
+  if(!input.handoff.dialogueAudioAssetIds.includes(input.dialogueAudioAssetId)) {
+    throw new Error('DIRECTOR_COVERAGE_MANIFEST_AUDIO_NOT_ADMITTED');
+  }
+  if(!input.id.trim()||!input.shotId.trim()||!input.evidenceIds.length) {
+    throw new Error('DIRECTOR_COVERAGE_MANIFEST_IDENTITY_REQUIRED');
+  }
+
+  return Object.freeze({
+    id:input.id,
+    projectId:input.coverage.projectId,
+    shotId:input.shotId,
+    references:Object.freeze([
+      Object.freeze({
+        slot:1,
+        assetId:frame.frameAssetId,
+        sha256:frame.frameSha256,
+        media:'image' as const,
+        role:'first-frame' as const,
+        semanticLabel:`Approved dialogue coverage frame for ${frame.characterId}; preserve eyeline ${frame.eyelineId} and background anchors ${frame.backgroundAnchorIds.join(', ')}`,
+        promptToken:'DIALOGUE_START_FRAME',
+        required:true,
+        evidenceIds:Object.freeze([
+          ...frame.evidenceIds,
+          ...input.evidenceIds,
+          `coverage-plan:${input.coverage.id}`,
+          `coverage-shot:${frame.coverageShotId}`,
+          `coverage-eyeline:${frame.eyelineId}`,
+        ]),
+      }),
+      Object.freeze({
+        slot:2,
+        assetId:input.dialogueAudioAssetId,
+        ...(input.dialogueAudioSha256 ? {sha256:input.dialogueAudioSha256} : {}),
+        media:'audio' as const,
+        role:'audio' as const,
+        semanticLabel:'Approved dialogue audio reference for lip-sync/performance timing',
+        promptToken:'DIALOGUE_AUDIO',
+        required:true,
+        evidenceIds:Object.freeze([
+          ...input.evidenceIds,
+          `coverage-handoff:${input.handoff.id}`,
+        ]),
+      }),
+    ]),
+    authority:'DIRECTOR_REFERENCE_MANIFEST',
   });
 }
