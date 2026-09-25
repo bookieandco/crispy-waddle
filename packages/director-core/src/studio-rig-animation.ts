@@ -2,6 +2,7 @@ import type { ActionRequest } from '@jhadina/action-core'
 import type { VideoTrack } from './studio-contracts'
 import type { DirectorStudioAction, DirectorStudioCapabilityProvider } from './studio-governed-action'
 import { validateAnimationPrinciplesPlan, type AnimationPrinciplesPlan } from './animation-principles.js'
+import { performanceRigEvidence, validateCharacterPerformanceRigPlan, type CharacterPerformanceRigPlan } from './character-performance-rig.js'
 
 export type RigChannel='body'|'head'|'face'|'hands'
 export interface RigAnimationInput {
@@ -10,6 +11,7 @@ export interface RigAnimationInput {
   tracks:VideoTrack[]
   channels:RigChannel[]
   animationPlan?:AnimationPrinciplesPlan
+  performancePlan?:CharacterPerformanceRigPlan
   continuityRef?:string
 }
 export interface RigAnimationArtifact {
@@ -34,6 +36,11 @@ export function validateRigAnimationInput(input:RigAnimationInput):string[] {
   if(input.tracks.some(t=>!t.approved)) errors.push('all rig source tracks must be approved')
   if(!input.channels.length) errors.push('at least one rig channel is required')
   if(input.animationPlan){for(const issue of validateAnimationPrinciplesPlan(input.animationPlan)) errors.push(`animation principle plan invalid: ${issue.code}`)}
+  if(input.performancePlan){
+    const decision=validateCharacterPerformanceRigPlan(input.performancePlan)
+    if(!decision.valid) errors.push(...decision.reasons.map(reason=>`performance rig plan invalid: ${reason}`))
+    if(input.performancePlan.characterAssetId!==input.characterAssetId) errors.push('performance rig characterAssetId must match rig characterAssetId')
+  }
   return errors
 }
 function readTracks(v:unknown):VideoTrack[]{return Array.isArray(v)?v as VideoTrack[]:[]}
@@ -46,6 +53,7 @@ function readInput(action:DirectorStudioAction):RigAnimationInput {
     tracks:readTracks(p.tracks),
     channels:readChannels(p.channels),
     animationPlan:typeof p.animationPlan==='object'&&p.animationPlan!==null?p.animationPlan as AnimationPrinciplesPlan:undefined,
+    performancePlan:typeof p.performancePlan==='object'&&p.performancePlan!==null?p.performancePlan as CharacterPerformanceRigPlan:undefined,
     continuityRef:typeof p.continuityRef==='string'?p.continuityRef:undefined,
   }
   const errors=validateRigAnimationInput(input)
@@ -73,6 +81,7 @@ export function createRigAnimationProvider(adapter:RigAnimationAdapter):Director
           `rig-channels:${input.channels.join(',')}`,
           `rig-frame-range:${artifact.frameStart}-${artifact.frameEnd}`,
           ...(input.animationPlan?[`animation-method:${input.animationPlan.method}`,...(input.animationPlan.evidenceRefs??[])]:[]),
+          ...(input.performancePlan?performanceRigEvidence(input.performancePlan):[]),
           ...(input.continuityRef?[`continuity:${input.continuityRef}`]:[]),
         ],
       }
