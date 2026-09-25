@@ -30,8 +30,8 @@ export type CommercialEconomics = {
   overhead: number
   contingency: number
   acquisitionCost: number
-  financingCost: number
-  workingCapitalRequirement: number
+  financingCost?: number
+  workingCapitalRequirement?: number
   estimatedGrossProfit: number
   estimatedMarginPercent: number
 }
