@@ -96,7 +96,10 @@
     "./field-capture-ledger": "./src/field-capture-ledger.ts",
     "./editorial-reduction-workflow": "./src/editorial-reduction-workflow.ts",
     "./audio-priority-mix": "./src/audio-priority-mix.ts",
-    "./final-export-inspection": "./src/final-export-inspection.ts"
+    "./final-export-inspection": "./src/final-export-inspection.ts",
+    "./screenplay-blueprint": "./src/screenplay-blueprint.ts",
+    "./production-audio-capture": "./src/production-audio-capture.ts",
+    "./editorial-cut-decision": "./src/editorial-cut-decision.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
