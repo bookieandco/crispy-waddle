@@ -103,6 +103,11 @@ jobs:
           src/realism-direction.test.ts
           src/cinematic-lighting.test.ts
           src/cinematography-analysis.test.ts
+          src/production-story-compass.test.ts
+          src/field-capture-ledger.test.ts
+          src/editorial-reduction-workflow.test.ts
+          src/audio-priority-mix.test.ts
+          src/final-export-inspection.test.ts
           src/animation-principles.test.ts
           src/animation-performance-state.test.ts
           src/directed-take-qc.test.ts
