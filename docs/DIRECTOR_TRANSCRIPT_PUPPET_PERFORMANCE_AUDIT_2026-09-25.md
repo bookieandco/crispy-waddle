@@ -1612,3 +1612,183 @@ No duplicate system was added for the source's already-covered vocabulary:
 - long takes and timing -> existing camera timing.
 
 The new work sharpens composition and film analysis while preserving Director's existing camera authority.
+
+
+## End-to-end filmmaker master-workflow audit
+
+The supplied long-form filmmaking masterclass covers a complete creator workflow from idea through upload. This pass preserves the source's own organization and separates durable production architecture from the creator's personal preferences.
+
+The durable process described is:
+
+`idea -> references -> whiteboard/story compass -> title/thumbnail/hook -> story -> budget/research/schedule -> music planning -> shoot/edit logs -> interviews/b-roll/raw sound -> organized ingest -> synced/selects/scenes/master -> grade/mix -> export -> full QC -> upload`.
+
+### Gap 42 — pre-production story compass
+
+Added `NonfictionStoryCompass` and `validateNonfictionStoryCompass()`.
+
+The compass records:
+
+- problem;
+- intention;
+- obstacle;
+- solution;
+- optional time constraint;
+- compact logline;
+- title concept;
+- thumbnail concept;
+- opening hook;
+- three-act framing:
+  - impact;
+  - influence;
+  - transformation;
+- identifiable characters;
+- significant moment/event;
+- authentic emotion;
+- specific story details;
+- pulled reference assets;
+- feasibility evidence.
+
+The feasibility gate preserves the source's explicit preflight questions:
+
+- can the production afford the idea;
+- how long will it realistically take;
+- is the unsafe/illegal shortcut blocked;
+- is advancement happening at someone else's expense.
+
+A legal/safety block or harm-boundary failure fails closed.
+
+The source's exact YouTube performance claims and personal title/thumbnail formulas are not promoted into universal truth. Director stores title/thumbnail/hook as an authored promise that must remain grounded in the actual project.
+
+### Gap 43 — field capture / edit-log ledger
+
+Added `FieldCaptureLedger` and `FieldCaptureLogEntry`.
+
+Entries can classify:
+
+- interview;
+- b-roll;
+- raw sound;
+- music;
+- match cut;
+- timelapse;
+- drone;
+- reaction;
+- pickup;
+- phone footage;
+- other.
+
+Each entry preserves:
+
+- shoot day;
+- asset IDs;
+- subjects;
+- scene/topic;
+- notable story moment;
+- camera angle IDs;
+- external audio assets;
+- consent/release references;
+- local/location research references;
+- searchable tags;
+- evidence.
+
+Interview entries require release/consent provenance.
+
+This captures the source's handwritten edit-log concept without tying Director to paper notebooks or a specific NLE.
+
+### Gap 44 — progressive editorial reduction lineage
+
+Added `EditorialReductionGraph`.
+
+The source repeatedly emphasizes reduction rather than destructive early editing:
+
+- keep raw material;
+- sync multi-camera interview sources;
+- create selects;
+- build congruent scenes;
+- assemble the master;
+- finalize only after the master works.
+
+Director now models the forward lineage:
+
+`raw -> synced-interview -> selected -> scene -> master -> final`.
+
+Stage skipping such as `raw -> master` fails validation.
+
+This complements the existing rough-cut evidence and timeline-edit systems: rough-cut intelligence can still suggest placement, but the reduction graph records where every editorial artifact came from.
+
+### Gap 45 — dialogue-first mix intent
+
+Existing `audio-mix-safety.ts` already validates gain/headroom/ducking safety. The masterclass adds a creative priority hierarchy.
+
+Added `AudioPriorityMixPlan` and a `DIALOGUE_FIRST_MIX_PROFILE`:
+
+`dialogue -> music -> foley -> sfx -> ambience`.
+
+The profile requires music to yield to dialogue when overlapping and treats effects as supporting layers that may rise for emphasis without masking speech.
+
+The source gives personal example gain values for dialogue/music. Director does **not** hard-code those numbers as universal targets; project/provider loudness policy remains separate.
+
+### Gap 46 — final start-to-finish export inspection
+
+Existing FFmpeg QC verifies streams, duration, dimensions, FPS and codecs, but that does not prove the complete export was watched.
+
+Added `FinalExportInspection`.
+
+It records:
+
+- publish/review/archive/clean-no-subtitles variants;
+- whether a reviewer watched start-to-finish;
+- number of watch passes;
+- localized observed defects;
+- evidence.
+
+Explicit defect types include:
+
+- black frame;
+- media offline;
+- missing audio;
+- audio dropout;
+- sync error;
+- subtitle error;
+- unexpected frame;
+- other.
+
+Any observed defect prevents final admission.
+
+This complements rather than replaces FFmpeg probe/finalization receipts.
+
+### Source-specific preferences kept noncanonical
+
+The masterclass includes personal workflow choices such as:
+
+- shooting standard material at 60 fps and moving to 120 fps when wanted;
+- using shutter speed around double frame rate;
+- specific Sony S-Log3/native-ISO choices;
+- shallow depth of field;
+- particular ND-filter habits;
+- Rec.709 conversion LUT workflow;
+- example dialogue/music gain ranges;
+- H.264 4K export around 40 Mbps VBR one-pass;
+- strong preference for handheld over gimbal in documentary/non-fiction work.
+
+These are useful production examples, but they are not universal Director defaults.
+
+Director's existing camera/capture/provider profiles remain responsible for actual frame-rate, shutter, ISO, color-space and codec choices.
+
+### Existing systems reused
+
+No duplicate subsystem was added for:
+
+- media ingest/history/duplicate protection -> CreativeWorkspaceLibrary;
+- soundtrack generation -> creative-audio-generation;
+- Foley/SFX -> Foley plans/generation;
+- audio safety -> audio-mix-safety;
+- rough cut evidence -> rough-cut-evidence;
+- editing techniques -> editing-technique-spec;
+- timeline mutation/history -> timeline model/editing/governance;
+- render provenance -> studio render / FFmpeg finalization;
+- technical media QC -> FFmpeg media QC;
+- subtitles/captions -> existing caption/subtitle paths;
+- final publishing approval -> existing review/publish gates.
+
+The new contracts connect those existing systems into the source's end-to-end production workflow.
