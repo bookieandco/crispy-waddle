@@ -148,3 +148,4 @@ export * from './dialogue-coverage-workflow';
 export * from './agentic-project-context';
 export * from './localized-video-repair';
 export * from './world-reference-workflow';
+export * from './world-3d-backend-profile';
