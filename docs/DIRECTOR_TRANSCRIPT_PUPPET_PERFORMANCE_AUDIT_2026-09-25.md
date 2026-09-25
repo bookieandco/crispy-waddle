@@ -1925,3 +1925,187 @@ This is intentionally different from enforcing conventional composition. Directo
 in addition to the existing symmetry, thirds, leading-lines, short-side, lead-room, headroom, negative-space and centered cues.
 
 As with the prior cinematography-analysis work, any emotional/symbolic meaning remains a contextual hypothesis requiring scene evidence.
+
+
+## AI cinematic story / character-voice consistency audit
+
+The supplied AI filmmaking workflow focuses on a full synthetic-story production stack:
+
+- story decisions before generation;
+- persistent story memory;
+- face / wardrobe / location / prop consistency;
+- semantic element tags inside a project;
+- model-aware prompt construction;
+- generating multiple takes rather than treating one generation as final;
+- voice identity replacement/locking;
+- music-video lip sync using tightly scoped vocal material;
+- editorial finishing after generation.
+
+The source's central creative claim is that the generator does not replace directing decisions. The operator still decides who the character is, what they want, why they are present, how they feel, what the world looks like and what the camera/audio should do.
+
+### Existing systems reused
+
+Director already had:
+
+- `CharacterCastRecord` with canonical appearance + wardrobe variants;
+- `CharacterVoiceIdentity` and provider-independent speaker QC;
+- character-reference bootstrap and multi-angle reference generation;
+- character training / LoRA promotion;
+- project media/history;
+- generation reference manifests;
+- agentic scene context;
+- model-documentation prompt translation;
+- camera/performance/lighting/realism plans;
+- transcript-assisted voice sync;
+- soundtrack/stem handling;
+- post naturalism cues such as subtle grain and lens-edge softness.
+
+The new work connects the source's remaining consistency and cost controls.
+
+### Gap 53 — cinematic story bible
+
+Added `CinematicStoryBible`.
+
+It stores persistent narrative memory beyond visual cast identity:
+
+- premise;
+- thesis;
+- plot summary;
+- ordered timeline beats;
+- locations and story functions;
+- character-to-cast bindings;
+- character voice tonality;
+- personality traits;
+- optional default emotional state;
+- story function;
+- locked creative truths;
+- evidence.
+
+It references existing cast/voice identities rather than replacing them.
+
+For example, visual appearance remains `CastBible` authority while "reflective, conversational, never stagey" belongs in the story bible.
+
+### Story bible -> agentic scene execution
+
+`AgenticProjectContext` now supports an optional `storyBibleId`.
+
+Resolved scene execution carries that ID and provenance, so "generate scene X" can use:
+
+- script;
+- approved scene assets;
+- persistent story memory;
+
+without re-pasting the whole story into each prompt.
+
+### Gap 54 — stable semantic element tags
+
+`AgenticProjectAssetBinding` now supports `elementTag`.
+
+Examples:
+
+- `character.raven`;
+- `location.interview-couch`;
+- `style.documentary`;
+- `prop.keyboard`.
+
+Tags must be normalized and unique.
+
+When a tagged asset reaches `GenerationReferenceManifest`, its provider-neutral prompt token becomes `@element.tag` rather than an anonymous `PROJECT_REF_n`.
+
+Provider adapters may still translate that stable token into their own syntax.
+
+### Gap 55 — measured prompt-complexity envelope
+
+The source describes prompt boxes as nonlinear: more detail can improve results until complexity exceeds a practical model/provider envelope.
+
+Added `ModelPromptComplexityProfile` and `evaluatePromptComplexity()`.
+
+A provider/model/version profile may record measured recommendations for:
+
+- prompt character count;
+- instruction count;
+- reference count;
+- concurrent camera movement count;
+- documented hard duration ceiling.
+
+Recommended-envelope excesses produce warnings.
+
+Only an explicitly documented hard model constraint, such as a maximum generation duration, becomes a hard failure.
+
+Director does not invent a universal "perfect prompt length."
+
+Profiles require model/version identity, timestamp and evidence so the envelope can be updated as models change.
+
+### Gap 56 — provider-aware music lip-sync segment package
+
+Added `MusicLipSyncSegmentPlan` and `MusicLipSyncProviderPolicy`.
+
+A music lip-sync package records:
+
+- character;
+- optional canonical voice identity;
+- full source song asset;
+- isolated vocal-stem asset;
+- exact source range;
+- exact target video duration;
+- transport asset/media type;
+- character/reference assets;
+- evidence.
+
+Provider policies can require:
+
+- a duration range;
+- hard duration maximum;
+- exact source/target duration match;
+- isolated vocal stem;
+- a specific transport media type.
+
+A source-demonstrated Seedance profile is included as **provider evidence**, not universal Director truth:
+
+- 4–10 seconds is stored as the demonstrated/recommended music-lip-sync range;
+- 15 seconds is stored as the demonstrated generation ceiling;
+- vocal-only stem is required by that source workflow;
+- transport is recorded as video;
+- target duration must match the source segment.
+
+The transcript also uses an exact 5-second example. Director does not reinterpret that example as a universal 5-second requirement.
+
+### Gap 57 — preserve useful source audio during voice replacement
+
+The source replaces generated dialogue with a locked voice but intentionally keeps useful generated non-dialogue moments such as:
+
+- laughter;
+- footsteps;
+- incidental effects;
+- room/scene sound.
+
+Added `VoiceReplacementEditPlan`.
+
+It separates:
+
+- timed dialogue regions to replace;
+- timed source-audio regions to preserve.
+
+Preserved regions can be:
+
+- nonverbal vocalization;
+- Foley;
+- SFX;
+- ambience;
+- other.
+
+A region cannot simultaneously be marked for dialogue replacement and source preservation.
+
+This lets Director apply a canonical Character Voice Identity while retaining scene life from the original generation.
+
+### Provider/workflow observations kept noncanonical
+
+The source reports several useful working observations that remain evidence, not universal rules:
+
+- medium-gray / flat-light character references may generate more naturally than high-contrast white studio references in the demonstrated workflow;
+- a three-panel sheet can be sufficient for the demonstrated provider, while six panels may help when props/details need explicit coverage;
+- start-frame references are useful when exact placement is important, while looser character/location references may preserve more naturalistic motion in some cases;
+- approximately one or two generations per scene had become achievable in the creator's current workflow;
+- generated video is treated as an intermediate result and finished through edit, grading, grain/optical treatment, sound and voice work.
+
+Director preserves these as experiment/provider guidance. Existing character bootstrap, reference manifests, spend tracking, take selection and realism plans remain the canonical mechanisms.
