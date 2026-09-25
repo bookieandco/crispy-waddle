@@ -73,7 +73,9 @@
     "./quick-cut-planner": "./src/quick-cut-planner.ts",
     "./creative-workspace-media": "./src/creative-workspace-media.ts",
     "./playhead-generation-continuation": "./src/playhead-generation-continuation.ts",
-    "./creative-audio-generation": "./src/creative-audio-generation.ts"
+    "./creative-audio-generation": "./src/creative-audio-generation.ts",
+    "./transcript-assisted-lip-sync": "./src/transcript-assisted-lip-sync.ts",
+    "./character-performance-rig": "./src/character-performance-rig.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
