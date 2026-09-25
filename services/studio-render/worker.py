@@ -1,5 +1,6 @@
 """Final governed media assembly runtime."""
 from hashlib import sha256
+import json
 from typing import Any,Protocol
 class RenderBackend(Protocol):
  def render(self,request:dict[str,Any])->dict[str,Any]: ...
@@ -12,5 +13,14 @@ def run_render(backend:RenderBackend,body:dict[str,Any])->dict[str,Any]:
  raw=backend.render(body);e=raw.get("evidenceIds",[])
  if raw.get("frameStart")!=start or raw.get("frameEnd")!=end:raise ValueError("backend changed governed frame range")
  if not isinstance(e,list) or not all(isinstance(x,str) for x in e):raise ValueError("invalid render evidence")
- digest=sha256((":".join(body[k] for k in IDS)+f":{start}:{end}").encode()).hexdigest()[:20]
+ identity={
+  "ids":{k:body[k] for k in IDS},
+  "frameStart":start,
+  "frameEnd":end,
+  "cachePlan":body.get("cachePlan"),
+  "spriteSequences":body.get("spriteSequences"),
+  "scalePlan":body.get("scalePlan"),
+  "continuityRef":body.get("continuityRef"),
+ }
+ digest=sha256(json.dumps(identity,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()[:20]
  return {"artifactId":f"render:{digest}","mediaAssetId":raw["mediaAssetId"],**{k:body[k] for k in IDS},"continuityRef":body.get("continuityRef"),"frameStart":start,"frameEnd":end,"evidenceIds":[*e,"render-lineage:complete"]}
