@@ -6,6 +6,7 @@ import { evaluateDirectorGenerationGate } from './creative-gate-adapter';
 import type { DirectorStoryboardLineageResolver } from './storyboard-lineage-resolver';
 import type { DirectorCastResolver, ResolvedCharacterSceneIdentity } from './cast-bible';
 import type { OrderedGenerationReference } from './generation-reference-manifest.js';
+import { translatePromptForModel, type ModelPromptProfileResolver, type ModelPromptTranslator, type PromptTranslationResult } from './model-prompt-translation.js';
 
 export interface DirectorCharacterReferenceAssetResolver {
   resolve(assetId: string, projectId: string): Promise<{ uri: string; sha256?: string; mimeType?: string }>;
@@ -17,6 +18,8 @@ export type PlannedGeneration = {
   negativePrompt?: string;
   parameters?: Record<string, unknown>;
   loras?: Array<{ loraId: string; weight?: number }>;
+  promptProfileId?: string;
+  promptRefinementFeedback?: readonly string[];
 };
 
 /** Provider submission boundary for Director takes. Canonical storyboard lineage and provenance are resolved here. */
@@ -27,6 +30,8 @@ export class GenerationPlanAdapter {
     private readonly lineageResolver: DirectorStoryboardLineageResolver,
     private readonly castResolver?: DirectorCastResolver,
     private readonly characterReferenceAssetResolver?: DirectorCharacterReferenceAssetResolver,
+    private readonly promptProfileResolver?: ModelPromptProfileResolver,
+    private readonly promptTranslator?: ModelPromptTranslator,
   ) {}
 
   async submitTake(
@@ -67,6 +72,38 @@ export class GenerationPlanAdapter {
       if (!lora) throw new Error(`LoRA is not registered: ${selected.loraId}`);
       return { lora, weight: selected.weight };
     });
+
+    const canonicalPrompt = compileTakePrompt(request);
+    let providerPrompt = canonicalPrompt;
+    let promptTranslation: PromptTranslationResult | undefined;
+
+    if (plan.promptRefinementFeedback?.length && !plan.promptProfileId) {
+      throw new Error('Generation submission blocked: DIRECTOR_PROMPT_PROFILE_REQUIRED_FOR_REFINEMENT');
+    }
+
+    if (plan.promptProfileId) {
+      if (!this.promptProfileResolver || !this.promptTranslator) {
+        throw new Error('Generation submission blocked: DIRECTOR_PROMPT_TRANSLATOR_REQUIRED');
+      }
+      const profile = await this.promptProfileResolver.resolve(plan.promptProfileId);
+      if (!profile) {
+        throw new Error(`Generation submission blocked: DIRECTOR_PROMPT_PROFILE_NOT_FOUND:${plan.promptProfileId}`);
+      }
+      if (
+        profile.modelId !== model.id ||
+        profile.providerId !== model.providerId ||
+        profile.modelVersion !== model.version
+      ) {
+        throw new Error('Generation submission blocked: DIRECTOR_PROMPT_PROFILE_MODEL_MISMATCH');
+      }
+      promptTranslation = await translatePromptForModel(this.promptTranslator, profile, {
+        projectId: request.projectId,
+        takeId: request.takeId,
+        canonicalPrompt,
+        creativeFeedback: plan.promptRefinementFeedback,
+      });
+      providerPrompt = promptTranslation.translatedPrompt;
+    }
 
     const characterIds = [...new Set(request.referenceCharacterIds ?? [])];
     let characterIdentities: ResolvedCharacterSceneIdentity[] = [];
@@ -128,13 +165,24 @@ export class GenerationPlanAdapter {
       requestId,
       projectId: request.projectId,
       modality: plan.modality,
-      prompt: compileTakePrompt(request),
+      prompt: providerPrompt,
       negativePrompt: plan.negativePrompt,
       model,
       loras,
       references,
       parameters: {
         ...(plan.parameters ?? {}),
+        canonicalPrompt,
+        promptRefinementFeedback: plan.promptRefinementFeedback,
+        promptTranslation: promptTranslation ? {
+          profileId: promptTranslation.profileId,
+          providerId: promptTranslation.providerId,
+          modelId: promptTranslation.modelId,
+          modelVersion: promptTranslation.modelVersion,
+          canonicalPromptSha256: promptTranslation.canonicalPromptSha256,
+          documentationSourceIds: [...promptTranslation.documentationSourceIds],
+          evidenceIds: [...promptTranslation.evidenceIds],
+        } : undefined,
         targetRuntimeSeconds: request.targetRuntimeSeconds,
         sceneCount: request.sceneCount,
         takeCount: request.takeCount,
