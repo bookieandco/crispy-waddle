@@ -151,3 +151,8 @@ export * from './agentic-project-context';
 export * from './localized-video-repair';
 export * from './world-reference-workflow';
 export * from './world-3d-backend-profile';
+export * from './production-story-compass';
+export * from './field-capture-ledger';
+export * from './editorial-reduction-workflow';
+export * from './audio-priority-mix';
+export * from './final-export-inspection';
