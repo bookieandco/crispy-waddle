@@ -150,3 +150,53 @@ describe('dialogue coverage workflow',()=>{
       .toContain('DIRECTOR_COVERAGE_HANDOFF_NO_COST_ADVANTAGE');
   });
 });
+
+
+describe('dialogue axis continuity',()=>{
+  it('preserves the established 180-degree side and screen direction across coverage',()=>{
+    const plan={
+      ...coverage,
+      establishingAxisSide:'A' as const,
+      axisTransitions:[],
+      shots:coverage.shots.map((shot,index)=>({
+        ...shot,
+        axisSide:'A' as const,
+        screenDirectionBySubject:index===0
+          ? {'character-a':'camera-left' as const,'character-b':'camera-right' as const}
+          : shot.subjectCharacterIds.includes('character-a')
+            ? {'character-a':'camera-left' as const}
+            : {'character-b':'camera-right' as const},
+      })),
+    };
+    expect(validateDialogueCoveragePlan(plan)).toEqual([]);
+  });
+
+  it('blocks an invisible axis flip but allows a visible transition to establish a new side',()=>{
+    const bad={
+      ...coverage,
+      establishingAxisSide:'A' as const,
+      shots:coverage.shots.map((shot,index)=>({
+        ...shot,
+        axisSide:index===1?'B' as const:'A' as const,
+      })),
+    };
+    expect(validateDialogueCoveragePlan(bad)).toContain(`DIRECTOR_COVERAGE_AXIS_CROSSED_WITHOUT_TRANSITION:${coverage.shots[1]!.id}`);
+
+    const transitioned={
+      ...coverage,
+      establishingAxisSide:'A' as const,
+      axisTransitions:[{
+        afterCoverageShotId:coverage.shots[0]!.id,
+        method:'visible-camera-cross' as const,
+        from:'A' as const,
+        to:'B' as const,
+        evidenceIds:['camera:visible-cross'],
+      }],
+      shots:coverage.shots.map((shot,index)=>({
+        ...shot,
+        axisSide:index===0?'A' as const:'B' as const,
+      })),
+    };
+    expect(validateDialogueCoveragePlan(transitioned)).toEqual([]);
+  });
+});
