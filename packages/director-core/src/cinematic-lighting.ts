@@ -57,6 +57,16 @@ export interface LightingQualityPlan {
   evidenceIds:readonly string[];
 }
 
+export interface MotivatedLightingSource {
+  id:string;
+  kind:'window'|'practical-lamp'|'candle'|'sun'|'moon'|'fluorescent'|'screen'|'custom';
+  visibleInFrame:boolean;
+  description:string;
+  apparentQuality?:'hard'|'soft'|'custom';
+  extensionSetupIds:readonly string[];
+  evidenceIds:readonly string[];
+}
+
 export interface LightingColorPlan {
   keyColorTemperatureKelvin?:number;
   cameraWhiteBalanceKelvin?:number;
@@ -98,6 +108,40 @@ export interface LightingCutShapeInstruction {
   evidenceIds:readonly string[];
 }
 
+export interface LightingSeparationPlan {
+  independentSubjectAndBackgroundControl:boolean;
+  subjectToBackgroundDistanceMeters?:number;
+  pullFurnitureFromWallMeters?:number;
+  backgroundSpillStrategy?:string;
+  negativeFillStrategy?:string;
+  evidenceIds:readonly string[];
+}
+
+export type ObservedFaceShadowCue =
+  | 'even-face-no-nose-shadow'
+  | 'butterfly-shadow-under-nose'
+  | 'triangle-light-on-shadow-cheek'
+  | 'face-split-light-shadow'
+  | 'edge-wrap-on-cheek'
+  | 'shoulder-rim-no-cheek-wrap'
+  | 'unknown';
+
+export interface LightingObservation {
+  id:string;
+  subjectId:string;
+  cue:ObservedFaceShadowCue;
+  confidence:number;
+  evidenceIds:readonly string[];
+}
+
+export interface LightingDirectionInference {
+  direction:LightingDirectionKind|'unknown';
+  rationale:string;
+  confidence:number;
+  evidenceIds:readonly string[];
+  authority:'DIRECTOR_LIGHTING_OBSERVATION';
+}
+
 export interface CinematographyLightingPlan {
   version:1;
   goal:string;
@@ -106,7 +150,9 @@ export interface CinematographyLightingPlan {
   subjectInterpretations?:readonly SubjectLightingInterpretation[];
   quality:LightingQualityPlan;
   color:LightingColorPlan;
+  motivatedSources?:readonly MotivatedLightingSource[];
   intensity:LightingIntensityPlan;
+  separation?:LightingSeparationPlan;
   cutAndShape:readonly LightingCutShapeInstruction[];
   blockingNotes?:readonly string[];
   preserveAcrossCoverage?:readonly string[];
@@ -178,6 +224,28 @@ export function validateCinematographyLightingPlan(
     issues.push(issue('LIGHTING_QUALITY_RATIONALE_REQUIRED','error','quality','Lighting quality needs rationale and evidence.'));
   }
 
+  for(const source of plan.motivatedSources??[]){
+    if(!source.id.trim()||!source.description.trim()||!source.evidenceIds.length){
+      issues.push(issue('LIGHTING_MOTIVATED_SOURCE_INVALID','error','motivatedSources','Motivated sources need identity, description, and evidence.'));
+    }
+    for(const setupId of source.extensionSetupIds){
+      if(!setupIds.has(setupId)){
+        issues.push(issue('LIGHTING_MOTIVATED_EXTENSION_SETUP_UNKNOWN','error',`motivatedSources.${source.id}`,'Motivated extensions must reference existing lighting setups.'));
+      }
+    }
+    if(
+      source.apparentQuality==='soft'&&
+      source.extensionSetupIds.some(setupId=>plan.quality.quality==='hard'&&setupIds.has(setupId))
+    ){
+      issues.push(issue(
+        'LIGHTING_EXTENSION_HARDER_THAN_MOTIVATED_SOURCE',
+        'warning',
+        `motivatedSources.${source.id}`,
+        'A visibly soft motivated source is being extended with a harder authored quality; the source lesson notes softer extensions are usually easier to sell than harder ones.',
+      ));
+    }
+  }
+
   for(const [name,value] of [
     ['keyColorTemperatureKelvin',plan.color.keyColorTemperatureKelvin],
     ['cameraWhiteBalanceKelvin',plan.color.cameraWhiteBalanceKelvin],
@@ -202,6 +270,20 @@ export function validateCinematographyLightingPlan(
   }
   if(!plan.intensity.exposureIntent.trim()||!plan.intensity.evidenceIds.length){
     issues.push(issue('LIGHTING_INTENSITY_INTENT_REQUIRED','error','intensity','Intensity/exposure needs creative intent and evidence.'));
+  }
+
+  if(plan.separation){
+    if(!plan.separation.evidenceIds.length){
+      issues.push(issue('LIGHTING_SEPARATION_EVIDENCE_REQUIRED','error','separation.evidenceIds','Subject/background separation needs evidence.'));
+    }
+    for(const [name,value] of [
+      ['subjectToBackgroundDistanceMeters',plan.separation.subjectToBackgroundDistanceMeters],
+      ['pullFurnitureFromWallMeters',plan.separation.pullFurnitureFromWallMeters],
+    ] as const){
+      if(value!==undefined&&(!Number.isFinite(value)||value<0)){
+        issues.push(issue('LIGHTING_SEPARATION_DISTANCE_INVALID','error',`separation.${name}`,'Separation distances must be finite and non-negative.'));
+      }
+    }
   }
 
   for(const [index,modifier] of plan.cutAndShape.entries()){
@@ -269,6 +351,16 @@ export function compileCinematographyLightingDirective(
     plan.color.creativeIntent,
   ].filter(Boolean).join('; ')}`);
 
+  if(plan.motivatedSources?.length){
+    lines.push(`Motivated sources: ${plan.motivatedSources.map(source=>[
+      source.kind,
+      source.visibleInFrame?'visible in frame':'off-screen',
+      source.description,
+      source.apparentQuality&&`apparent quality ${source.apparentQuality}`,
+      source.extensionSetupIds.length&&`extended by ${source.extensionSetupIds.join(', ')}`,
+    ].filter(Boolean).join('; ')).join(' | ')}`);
+  }
+
   lines.push(`Intensity/exposure: ${[
     formatLevel('key',plan.intensity.keyLevel,plan.intensity.unit),
     formatLevel('fill',plan.intensity.fillLevel,plan.intensity.unit),
@@ -277,6 +369,16 @@ export function compileCinematographyLightingDirective(
     plan.intensity.foregroundToBackgroundStops!==undefined&&`foreground-to-background ${fmt(plan.intensity.foregroundToBackgroundStops)} stops (${fmt(stopsToBrightnessRatio(plan.intensity.foregroundToBackgroundStops))}:1)`,
     plan.intensity.exposureIntent,
   ].filter(Boolean).join('; ')}`);
+
+  if(plan.separation){
+    lines.push(`Subject/background separation: ${[
+      plan.separation.independentSubjectAndBackgroundControl?'independent subject/background control':'shared subject/background control',
+      plan.separation.subjectToBackgroundDistanceMeters!==undefined&&`subject-background distance ${fmt(plan.separation.subjectToBackgroundDistanceMeters)}m`,
+      plan.separation.pullFurnitureFromWallMeters!==undefined&&`pull furniture from wall ${fmt(plan.separation.pullFurnitureFromWallMeters)}m`,
+      plan.separation.backgroundSpillStrategy,
+      plan.separation.negativeFillStrategy,
+    ].filter(Boolean).join('; ')}`);
+  }
 
   if(plan.cutAndShape.length){
     lines.push(`Cut & Shape: ${plan.cutAndShape.map(modifier=>[
@@ -326,4 +428,59 @@ function issue(code:string,severity:'error'|'warning',path:string,message:string
 
 function fmt(value:number):string{
   return Number.isInteger(value)?String(value):String(Number(value.toFixed(3)));
+}
+
+
+export function inferLightingDirectionFromObservation(
+  observation:LightingObservation,
+):LightingDirectionInference{
+  if(
+    !observation.id.trim()||
+    !observation.subjectId.trim()||
+    !Number.isFinite(observation.confidence)||
+    observation.confidence<0||
+    observation.confidence>1||
+    !observation.evidenceIds.length
+  ){
+    throw new Error('DIRECTOR_LIGHTING_OBSERVATION_INVALID');
+  }
+
+  const mapping:Record<ObservedFaceShadowCue,{direction:LightingDirectionKind|'unknown';rationale:string}>={
+    'even-face-no-nose-shadow':{
+      direction:'front',
+      rationale:'Even facial illumination with no visible nose shadow is consistent with front lighting.',
+    },
+    'butterfly-shadow-under-nose':{
+      direction:'butterfly',
+      rationale:'A centered butterfly-shaped nose shadow is consistent with a high frontal butterfly setup.',
+    },
+    'triangle-light-on-shadow-cheek':{
+      direction:'rembrandt',
+      rationale:'A triangle of light on the shadow-side cheek is the characteristic Rembrandt cue described in the source.',
+    },
+    'face-split-light-shadow':{
+      direction:'side',
+      rationale:'A face divided strongly between lit and shadow halves is consistent with side lighting.',
+    },
+    'edge-wrap-on-cheek':{
+      direction:'kicker',
+      rationale:'A rear edge that wraps onto the cheek is consistent with a kicker/edge light.',
+    },
+    'shoulder-rim-no-cheek-wrap':{
+      direction:'backlight',
+      rationale:'A rear shoulder/head rim without cheek wrap is consistent with backlight.',
+    },
+    unknown:{
+      direction:'unknown',
+      rationale:'The supplied shadow cue is insufficient to classify lighting direction.',
+    },
+  };
+
+  const result=mapping[observation.cue];
+  return Object.freeze({
+    ...result,
+    confidence:observation.confidence,
+    evidenceIds:Object.freeze([...observation.evidenceIds]),
+    authority:'DIRECTOR_LIGHTING_OBSERVATION',
+  });
 }
