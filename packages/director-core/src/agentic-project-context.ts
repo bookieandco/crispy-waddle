@@ -39,6 +39,7 @@ export interface AgenticProjectContext {
   id: string;
   projectId: string;
   scriptAssetId: string;
+  storyBibleId?: string;
   assets: readonly AgenticProjectAssetBinding[];
   scenes: readonly AgenticSceneDefinition[];
   evidenceIds: readonly string[];
@@ -51,6 +52,7 @@ export interface AgenticSceneExecutionContext {
   contextId: string;
   sceneId: string;
   scriptAssetId: string;
+  storyBibleId?: string;
   targetDurationSeconds: number;
   direction: string;
   boundAssetIds: readonly string[];
@@ -212,7 +214,7 @@ export function resolveAgenticSceneContext(input: {
       media:asset.media,
       role:referenceRole(asset.role),
       semanticLabel:asset.semanticLabel,
-      promptToken:`PROJECT_REF_${index+1}`,
+      promptToken:asset.elementTag ? `@${asset.elementTag}` : `PROJECT_REF_${index+1}`,
       required:true,
       evidenceIds:Object.freeze([...asset.evidenceIds,...scene.evidenceIds]),
     }));
@@ -231,6 +233,7 @@ export function resolveAgenticSceneContext(input: {
     contextId:input.context.id,
     sceneId:scene.id,
     scriptAssetId:input.context.scriptAssetId,
+    ...(input.context.storyBibleId ? {storyBibleId:input.context.storyBibleId} : {}),
     targetDurationSeconds:scene.endSeconds-scene.startSeconds,
     direction:scene.direction,
     boundAssetIds:Object.freeze([...boundIds]),
@@ -240,6 +243,7 @@ export function resolveAgenticSceneContext(input: {
       ...scene.evidenceIds,
       ...input.evidenceIds,
       `script:${input.context.scriptAssetId}`,
+      ...(input.context.storyBibleId ? [`story-bible:${input.context.storyBibleId}`] : []),
       `scene-range:${scene.startSeconds}-${scene.endSeconds}`,
     ]),
     authority:'DIRECTOR_AGENTIC_SCENE_CONTEXT',
