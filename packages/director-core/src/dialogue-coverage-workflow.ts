@@ -3,6 +3,7 @@ import type {GenerationReferenceManifest} from './generation-reference-manifest.
 
 export type DialogueCoverageRole='master'|'over-shoulder'|'reverse'|'medium-close-up'|'close-up'|'reaction';
 export type ScreenDirection='camera-left'|'camera-right'|'center';
+export type DialogueAxisSide='A'|'B';
 
 export interface DialogueEyeline {
   id:string;
@@ -21,6 +22,16 @@ export interface DialogueCoverageShot {
   backgroundAnchorIds:readonly string[];
   eyelineIds:readonly string[];
   cameraPlanRef:string;
+  axisSide?:DialogueAxisSide;
+  screenDirectionBySubject?:Readonly<Record<string,ScreenDirection>>;
+  evidenceIds:readonly string[];
+}
+
+export interface DialogueAxisTransition {
+  afterCoverageShotId:string;
+  method:'visible-camera-cross'|'visible-subject-cross'|'neutral-reset';
+  from:DialogueAxisSide;
+  to:DialogueAxisSide;
   evidenceIds:readonly string[];
 }
 
@@ -32,6 +43,8 @@ export interface DialogueCoveragePlan {
   cameraDiagramAssetId:string;
   characterReferenceAssetIds:readonly string[];
   axisRef:string;
+  establishingAxisSide?:DialogueAxisSide;
+  axisTransitions?:readonly DialogueAxisTransition[];
   eyelines:readonly DialogueEyeline[];
   shots:readonly DialogueCoverageShot[];
   evidenceIds:readonly string[];
@@ -106,6 +119,9 @@ export function validateDialogueCoveragePlan(plan:DialogueCoveragePlan):readonly
 
   const shotIds=new Set<string>();
   let masterCount=0;
+  const transitionByShot=new Map((plan.axisTransitions??[]).map(transition=>[transition.afterCoverageShotId,transition]));
+  let expectedAxisSide=plan.establishingAxisSide;
+  let establishedScreenDirections:Readonly<Record<string,ScreenDirection>>|undefined;
   for(const shot of plan.shots){
     if(!shot.id.trim()||shotIds.has(shot.id)) reasons.push(`DIRECTOR_COVERAGE_SHOT_ID_INVALID:${shot.id||'unknown'}`);
     shotIds.add(shot.id);
@@ -114,12 +130,50 @@ export function validateDialogueCoveragePlan(plan:DialogueCoveragePlan):readonly
     if(shot.locationAssetId!==plan.locationAssetId) reasons.push(`DIRECTOR_COVERAGE_LOCATION_MISMATCH:${shot.id}`);
     if(!shot.backgroundAnchorIds.length) reasons.push(`DIRECTOR_COVERAGE_BACKGROUND_ANCHORS_REQUIRED:${shot.id}`);
     if(!shot.cameraPlanRef.trim()) reasons.push(`DIRECTOR_COVERAGE_CAMERA_PLAN_REQUIRED:${shot.id}`);
+
+    if(plan.establishingAxisSide){
+      if(!shot.axisSide) reasons.push(`DIRECTOR_COVERAGE_AXIS_SIDE_REQUIRED:${shot.id}`);
+      else if(shot.axisSide!==expectedAxisSide) reasons.push(`DIRECTOR_COVERAGE_AXIS_CROSSED_WITHOUT_TRANSITION:${shot.id}`);
+
+      if(!establishedScreenDirections&&shot.role==='master'&&shot.screenDirectionBySubject){
+        establishedScreenDirections=shot.screenDirectionBySubject;
+      }else if(establishedScreenDirections&&shot.screenDirectionBySubject){
+        for(const subjectId of plan.characterReferenceAssetIds){
+          const initial=establishedScreenDirections[subjectId];
+          const current=shot.screenDirectionBySubject[subjectId];
+          if(initial&&current&&initial!==current&&shot.role!=='reaction'){
+            reasons.push(`DIRECTOR_COVERAGE_SCREEN_DIRECTION_FLIPPED:${shot.id}:${subjectId}`);
+          }
+        }
+      }
+
+      const transition=transitionByShot.get(shot.id);
+      if(transition){
+        if(
+          !shot.axisSide||
+          transition.from!==shot.axisSide||
+          transition.from===transition.to||
+          !transition.evidenceIds.length
+        ){
+          reasons.push(`DIRECTOR_COVERAGE_AXIS_TRANSITION_INVALID:${shot.id}`);
+        }else{
+          expectedAxisSide=transition.to;
+          establishedScreenDirections=undefined;
+        }
+      }
+    }
     for(const eyelineId of shot.eyelineIds){
       if(!eyelineIds.has(eyelineId)) reasons.push(`DIRECTOR_COVERAGE_EYELINE_UNKNOWN:${shot.id}:${eyelineId}`);
     }
     if(!shot.evidenceIds.length) reasons.push(`DIRECTOR_COVERAGE_SHOT_EVIDENCE_REQUIRED:${shot.id}`);
   }
   if(masterCount!==1) reasons.push('DIRECTOR_COVERAGE_SINGLE_MASTER_REQUIRED');
+
+  for(const transition of plan.axisTransitions??[]){
+    if(!shotIds.has(transition.afterCoverageShotId)){
+      reasons.push(`DIRECTOR_COVERAGE_AXIS_TRANSITION_SHOT_UNKNOWN:${transition.afterCoverageShotId}`);
+    }
+  }
   const coverageRoles=new Set(plan.shots.map(shot=>shot.role));
   if(!coverageRoles.has('master')||!(coverageRoles.has('medium-close-up')||coverageRoles.has('close-up')||coverageRoles.has('over-shoulder')||coverageRoles.has('reverse'))){
     reasons.push('DIRECTOR_COVERAGE_DIALOGUE_COVERAGE_REQUIRED');
