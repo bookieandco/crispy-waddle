@@ -1410,3 +1410,69 @@ No duplicate subsystem was added for:
 - final provider wording -> documentation-grounded prompt translator.
 
 The new layer gives Director the missing DP vocabulary and durable lighting intent.
+
+
+### Gap 36 — lighting observation and motivated-source extension
+
+The lighting source also teaches two things beyond planning a setup:
+
+1. cinematographers can often infer light direction from facial shadow cues;
+2. supplemental film lights can extend a visible practical/window/candle source without needing to reproduce that source literally.
+
+Director now models both.
+
+#### Observed face-shadow cues
+
+Added `LightingObservation` and `inferLightingDirectionFromObservation()`.
+
+The source-derived cue mapping is:
+
+- evenly lit face with no visible nose shadow -> front;
+- butterfly-shaped shadow under the nose -> butterfly;
+- triangle of light on the shadow-side cheek -> Rembrandt;
+- face split strongly between light and shadow -> side;
+- rear edge wrapping onto the cheek -> kicker;
+- shoulder/head rim with no cheek wrap -> backlight.
+
+The result is labeled `DIRECTOR_LIGHTING_OBSERVATION`, carries confidence/evidence, and is not treated as physical ground truth. It is study/QC evidence that can inform Director's cinematography notebook and take review.
+
+#### Motivated-source extension
+
+Added `MotivatedLightingSource`.
+
+A plan can now tie authored film lights to a visible or implied source such as:
+
+- window;
+- practical lamp;
+- candle;
+- sun;
+- moon;
+- fluorescent;
+- screen;
+- custom source.
+
+The motivated source records which lighting setup(s) extend it and its apparent quality.
+
+When a visibly soft motivated source is extended with a hard authored quality, Director emits a warning rather than an error. This reflects the source's practical guidance that a softer supplemental extension is generally easier to sell than a harder one, while preserving cinematographer discretion.
+
+### Gap 37 — explicit subject/background lighting separation
+
+Added `LightingSeparationPlan`.
+
+It records:
+
+- whether subject and background lighting can be controlled independently;
+- subject-to-background distance;
+- optional furniture pull-away distance;
+- background-spill strategy;
+- negative-fill strategy;
+- evidence.
+
+This captures the source's practical advice to:
+
+- keep subject and background lighting independently controllable when possible;
+- move talent/furniture away from bright walls when useful;
+- use negative fill to remove ambient bounce from the shadow side;
+- use flags/grids/egg crates to preserve softness while reducing spill.
+
+These are authored production controls, not universal scene-layout rules.
