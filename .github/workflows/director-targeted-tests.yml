@@ -90,6 +90,7 @@ jobs:
           src/agentic-project-context.test.ts
           src/localized-video-repair.test.ts
           src/world-reference-workflow.test.ts
+          src/world-3d-backend-profile.test.ts
           src/quick-cut-planner.test.ts
           src/studio-character-replacement-worker.test.ts
           src/studio-character-replacement.test.ts
