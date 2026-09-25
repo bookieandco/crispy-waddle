@@ -114,15 +114,17 @@ export function planSourceDrivenCharacterSwap(
         }
       : undefined
 
+  const stages:SourceDrivenCharacterSwapPlan['stages']=Object.freeze([
+    'character-replace',
+    ...(lipSync ? ['voice-sync' as const] : []),
+    'qc',
+    'asset-approval',
+  ])
+
   return Object.freeze({
     replacement,
     lipSync,
-    stages:Object.freeze([
-      'character-replace',
-      ...(lipSync ? ['voice-sync' as const] : []),
-      'qc',
-      'asset-approval',
-    ]),
+    stages,
     authority:'DIRECTOR_SOURCE_DRIVEN_CHARACTER_SWAP',
   })
 }
