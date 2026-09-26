@@ -387,6 +387,56 @@ export function assessPaperExecutionFidelity(
   });
 }
 
+export type ConstantReturnProjection = Readonly<{
+  startingCapital: number;
+  periodicReturnRate: number;
+  periods: number;
+  projectedEndingCapital: number;
+  totalProjectedReturnPct: number;
+  projectionOnly: true;
+  empiricalForecast: false;
+  canAuthorizeTrade: false;
+  authority: 'MATH_ONLY';
+}>;
+
+export function projectConstantReturn(
+  startingCapital: number,
+  periodicReturnRate: number,
+  periods: number,
+): ConstantReturnProjection {
+  assertPositive(
+    startingCapital,
+    'MONEY_AUTO_ECON_PROJECTION_CAPITAL_INVALID',
+  );
+  assertFinite(
+    periodicReturnRate,
+    'MONEY_AUTO_ECON_PROJECTION_RATE_INVALID',
+  );
+  if (periodicReturnRate <= -1) {
+    throw new Error('MONEY_AUTO_ECON_PROJECTION_RATE_INVALID');
+  }
+  if (!Number.isInteger(periods) || periods < 0) {
+    throw new Error('MONEY_AUTO_ECON_PROJECTION_PERIODS_INVALID');
+  }
+
+  const projectedEndingCapital =
+    startingCapital * Math.pow(1 + periodicReturnRate, periods);
+  const totalProjectedReturnPct =
+    ((projectedEndingCapital / startingCapital) - 1) * 100;
+
+  return Object.freeze({
+    startingCapital,
+    periodicReturnRate,
+    periods,
+    projectedEndingCapital,
+    totalProjectedReturnPct,
+    projectionOnly: true,
+    empiricalForecast: false,
+    canAuthorizeTrade: false,
+    authority: 'MATH_ONLY',
+  });
+}
+
 export function assertAutomationEconomicsNonExecutable(
   assessment:
     | StrategyEconomicsAssessment
