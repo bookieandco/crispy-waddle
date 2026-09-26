@@ -379,3 +379,133 @@ It may continuously:
 - learn from settled outcomes.
 
 It does not bypass the existing mandate, risk, policy, capital, provider, permit, kill-switch or reconciliation boundaries.
+
+
+## Additional Parlay repository audit — 2026-09-26
+
+### `cmuparlay/parlaylib`
+
+Disposition: **not a sports-betting/parlay library**.
+
+ParlayLib is an MIT-licensed C++ toolkit for parallel algorithms on shared-memory multicore machines. It provides parallel sequences, algorithms, work-stealing scheduling and memory-allocation infrastructure.
+
+Potential indirect value:
+- high-throughput Monte Carlo or simulation workloads if Money Core later introduces a native C++ compute service;
+- generic parallel algorithm reference.
+
+Current decision:
+- do not import it into the TypeScript Money Core merely because of the name;
+- no sports-ticket, bookmaker, probability, SGP or prediction-market semantics are present;
+- no runtime dependency added.
+
+### `parlay-run/parlay-mcp`
+
+Disposition: **strong prediction-market intelligence reference; hosted service is not admissible as an automated Money execution dependency under its current Terms**.
+
+The public repository documents a hosted read-only MCP service exposing:
+- cross-venue market search;
+- market briefs;
+- market discovery;
+- cross-venue comparisons;
+- discrepancy scanning; and
+- venue inspection.
+
+Its documented metadata model includes:
+- freshness;
+- venues queried / failed;
+- real-money vs sentiment market type;
+- match confidence;
+- liquidity status; and
+- risk flags.
+
+The service currently separates Polymarket/Kalshi/Limitless real-money signals from Manifold sentiment. That separation is incorporated into Money Core's new cross-venue contract.
+
+Important legal/operational boundary:
+- the repository bundle is MIT;
+- the hosted MCP implementation and outputs are proprietary;
+- the hosted service Terms state it is read-only and prohibit using the service to facilitate gambling/trading automation or individualized betting/trading advice.
+
+Therefore:
+- do not wire `mcp.parlay.run` into autonomous execution or individualized trade generation without a changed license/terms or explicit written permission;
+- architecture patterns may be independently implemented;
+- any future open-source venue SDK or direct provider integration must be separately audited and admitted.
+
+### New Money implementation: `prediction-cross-venue-intelligence.ts`
+
+Money Core now has a provider-neutral cross-venue research layer with:
+- `PredictionVenueObservation`;
+- `PredictionCrossVenueComparison`;
+- real-money vs sentiment isolation;
+- match-confidence handling;
+- liquidity health;
+- stale-data exclusion;
+- executable buy/sell probability comparison;
+- settlement-rule fingerprint comparison;
+- resolution-authority mismatch flags; and
+- cross-venue midpoint discrepancy measurement.
+
+A similarly worded Kalshi and Polymarket contract is not treated as the same economic instrument unless event lineage and settlement semantics are comparable.
+
+Sentiment venues can contribute research context but cannot become executable price sources.
+
+### `trillium/parlay`
+
+Disposition: **not a betting/parlay engine; useful Jhadina agent-operations reference outside the Bet Alpha model**.
+
+The project is an MIT-licensed agent chat/supervision system with:
+- per-agent channels;
+- durable identity/scratchpad/handoff concepts;
+- agent spawning and supervision;
+- event/history persistence;
+- mobile/voice-first operator interaction; and
+- MCP/agent-mail experimentation.
+
+Potential Jhadina value:
+- persistent long-running Money research agents;
+- human-visible agent channels;
+- durable handoff/resume state;
+- mobile supervision of autonomous research jobs;
+- explicit agent identity and task-state separation.
+
+Cautions:
+- the project documents alpha/single-owner assumptions;
+- its chat API is unauthenticated by design and intended only for private network exposure;
+- some documented fleet/handoff behavior depends on personal/private tooling.
+
+Current decision:
+- no Money or SHARK runtime dependency added;
+- retain as a Jhadina agent-runtime/operator-interface reference rather than sports-betting logic.
+
+## College-football handicap evidence fold-in
+
+The attached September 26 college-football breakdown contributes a broader feature taxonomy for full-game sides and totals. The source repeatedly combines:
+
+- team efficiency and opponent quality;
+- injury/availability and roster depth;
+- rushing/pass matchup structure;
+- turnover and penalty discipline;
+- third-down and red-zone performance;
+- pace/time-of-possession;
+- weather;
+- travel/body-clock effects;
+- home-field environment;
+- historical series;
+- market/sharp-money claims;
+- coaching/scheme;
+- player workload/role; and
+- narrative/motivational claims.
+
+Money Core now models these through `sports-handicap-evidence.ts`.
+
+Evidence classes are separated into:
+- `MEASURED`;
+- `REPORTED`;
+- `MARKET`;
+- `HISTORICAL`; and
+- `NARRATIVE`.
+
+Narrative claims such as revenge, playing angry, style-points motivation, emotional response after a loss, or locker-room urgency are forced to `UNTESTED_NARRATIVE` status. They cannot claim direct causality until forward calibration demonstrates incremental value.
+
+Market-flow claims such as "sharp money is on X" remain `MARKET` evidence rather than being silently treated as team-quality truth.
+
+This allows Sports Intelligence to learn which handicapping features actually improve calibrated probabilities while preserving the source's useful structure without inheriting its rhetoric as fact.
