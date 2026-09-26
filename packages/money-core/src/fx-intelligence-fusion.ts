@@ -18,6 +18,7 @@ export type FxFactorCategory =
   | 'MOMENTUM'
   | 'VOLATILITY'
   | 'EVENT'
+  | 'POSITIONING'
   | 'OTHER';
 
 export type FxFactorObservation = Readonly<{
