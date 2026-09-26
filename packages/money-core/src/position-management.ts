@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { MoneyAlphaDomain, CrossDomainAlphaRoute } from './cross-domain-alpha-router.js'
 
-export type PositionSide='LONG'|'SHORT'|'YES'|'NO'
+export type ManagedPositionSide='LONG'|'SHORT'|'YES'|'NO'
 export type PositionAction='ADD'|'HOLD'|'TRIM'|'EXIT'|'HEDGE'|'ROTATE'
 export type PositionAutomationMode='MANUAL_ADVISORY'|'PAPER_AUTOMATED'|'SHADOW_AUTOMATED'|'LIVE_AUTONOMOUS_GOVERNED'
 
@@ -9,7 +9,7 @@ export type OpenPositionSnapshot=Readonly<{
   positionId:string
   domain:MoneyAlphaDomain
   instrumentId:string
-  side:PositionSide
+  side:ManagedPositionSide
   quantity:number
   entryPrice:number
   currentExecutableExitPrice:number
