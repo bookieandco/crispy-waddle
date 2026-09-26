@@ -7,6 +7,7 @@ import {
   createTradingAutomationClaim,
   evaluateStrategyEconomics,
   minimumCapitalForFixedCostBurden,
+  projectConstantReturn,
   spreadCostShareOfExpectedEdge,
   type BrokerExecutionPolicy,
   type StrategyEconomicsScenario,
@@ -127,6 +128,16 @@ test('MONEY-AUTO-ECON-01 paper execution can be useful when friction assumptions
   assert.equal(close.paperTradingCanStillBeUseful, true);
   assert.equal(unrealistic.status, 'CALIBRATION_REQUIRED');
   assert.equal(unrealistic.paperTradingCanStillBeUseful, true);
+});
+
+test('MONEY-AUTO-ECON-01 keeps compounding arithmetic separate from an empirical forecast', () => {
+  const projection = projectConstantReturn(10_000, 0.10, 12);
+
+  assert.ok(projection.projectedEndingCapital > 30_000);
+  assert.equal(projection.projectionOnly, true);
+  assert.equal(projection.empiricalForecast, false);
+  assert.equal(projection.canAuthorizeTrade, false);
+  assert.equal(projection.authority, 'MATH_ONLY');
 });
 
 test('MONEY-AUTO-ECON-01 broker compatibility is empirical rather than based on vendor preference', () => {
