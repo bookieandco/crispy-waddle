@@ -75,7 +75,7 @@ export function registerMoneyMarketDataReferences(
     referenceId: 'github:londonstrategicedge/lse-data',
     canonicalName: 'lse-data',
     kind: 'GITHUB_REPOSITORY',
-    roles: ['API_PROVIDER', 'DATA_SOURCE', 'ARCHITECTURE_REFERENCE'],
+    roles: ['DATA_SOURCE', 'ARCHITECTURE_REFERENCE'],
     canonicalLocator: 'https://github.com/londonstrategicedge/lse-data',
     sourceRevision: '564c63dd99e3b447777cb396314ec6c4342f82ff',
     discoveredFrom: 'USER',
@@ -85,7 +85,7 @@ export function registerMoneyMarketDataReferences(
     licenseEvidenceLocator:
       'https://raw.githubusercontent.com/londonstrategicedge/lse-data/564c63dd99e3b447777cb396314ec6c4342f82ff/LICENSE',
     notes:
-      'Reference/provider candidate for unified live WebSocket plus REST/Parquet historical market data across stocks, FX, crypto, commodities, indices, ETFs, futures, options, macro and bonds. MIT applies to the client library only; provider data rights are separate and the README states research, trading, model-training and commercial use are allowed while redistribution/resale are restricted.',
+      'Data-source/provider candidate for unified live WebSocket plus REST/Parquet historical market data across stocks, FX, crypto, commodities, indices, ETFs, futures, options, macro and bonds. MIT applies to the client library only; provider data rights are separate and the README states research, trading, model-training and commercial use are allowed while redistribution/resale are restricted.',
     evidence: [
       {
         evidenceId: 'user:money:lse-data',
