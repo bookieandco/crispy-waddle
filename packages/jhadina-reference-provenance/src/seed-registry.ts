@@ -5,6 +5,10 @@ import {
   type RegisterSourceVerificationInput,
 } from './index.js';
 import { registerRefProv04Seeds } from './ref-prov-04-seed.js';
+import {
+  MONEY_BEHAVIORAL_RISK_REFERENCE_IDS,
+  registerMoneyBehavioralRiskReferences,
+} from './money-behavioral-risk-reference-seed.js';
 
 const tracedReferences: readonly RegisterReferenceInput[] = [
   {
@@ -1543,6 +1547,7 @@ export function createInitialReferenceProvenanceRegistry():
     registry.registerSourceVerification(verification);
   }
   registerRefProv04Seeds(registry);
+  registerMoneyBehavioralRiskReferences(registry);
   for (const mapping of [...mappings, ...repositoryWideMappings]) {
     registry.registerMapping(mapping);
   }
@@ -1551,7 +1556,12 @@ export function createInitialReferenceProvenanceRegistry():
 }
 
 export const INITIAL_REFERENCE_IDS = Object.freeze(
-  [...tracedReferences, ...handoffOnlyReferences, ...repositoryWideReferences]
+  [
+    ...tracedReferences,
+    ...handoffOnlyReferences,
+    ...repositoryWideReferences,
+    ...MONEY_BEHAVIORAL_RISK_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
+  ]
     .map((reference) => reference.referenceId)
     .sort((a, b) => a.localeCompare(b)),
 );
