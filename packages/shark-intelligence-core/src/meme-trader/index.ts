@@ -45,3 +45,4 @@ export * from './copy-trade-observation'
 export * from './provider-soak'
 
 export * from './research-corpus'
+export * from './rug-self-protection'
