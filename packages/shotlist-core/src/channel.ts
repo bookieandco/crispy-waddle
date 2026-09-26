@@ -1,6 +1,6 @@
 export type ChannelContentStatus = "idea" | "validated" | "planned" | "producing" | "review" | "published" | "archived";
 export type ChannelAssetKind = "avatar" | "voice" | "profile" | "banner" | "thumbnail" | "visual" | "video" | "music" | "sfx" | "caption";
-export type ChannelMonetizationKind = "ads" | "affiliate" | "sponsor" | "product" | "service";
+export type ChannelMonetizationKind = "ads" | "affiliate" | "sponsor" | "product" | "service" | "membership" | "licensing";
 export type MarketingActionKind = "research" | "draft" | "schedule" | "publish" | "send" | "spend";
 
 export interface ChannelBrand {
