@@ -193,3 +193,6 @@ export * from './sports-paper-betting.js';
 export * from './money-production-commissioning.js';
 export * from './money-prod-software-certification.js';
 export * from './postgres-money-production-commissioning-store.js';
+
+export * from './cross-domain-alpha-router.js';
+export * from './position-management.js';
