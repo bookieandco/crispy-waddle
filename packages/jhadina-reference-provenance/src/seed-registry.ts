@@ -76,6 +76,30 @@ const tracedReferences: readonly RegisterReferenceInput[] = [
 
 const handoffOnlyReferences: readonly RegisterReferenceInput[] = [
   {
+    referenceId: 'github:parlaychain/parlay',
+    canonicalName: 'Parlay Chain',
+    kind: 'GITHUB_REPOSITORY',
+    roles: ['ARCHITECTURE_REFERENCE', 'SECURITY_REFERENCE'],
+    canonicalLocator: 'https://github.com/parlaychain/parlay',
+    sourceRevision: 'af20508a4adc4eab2b5661fe2222b7aebd0a1e01',
+    discoveredFrom: 'USER',
+    traceabilityStatus: 'EXTERNALLY_VERIFIED',
+    licenseStatus: 'VERIFIED',
+    licenseExpression: 'MIT',
+    licenseEvidenceLocator:
+      'https://github.com/parlaychain/parlay/blob/af20508a4adc4eab2b5661fe2222b7aebd0a1e01/LICENSE',
+    notes:
+      'Money prediction-market reference audit: legacy Bitcoin-derived blockchain, wallet, PrimeNode and RPC architecture only. The README mentions predictor gameplay, but repository code search returned no predict/event/oracle/bet primitives. Do not treat this source as odds, event truth, resolution authority, sportsbook/exchange, or execution provider.',
+    evidence: [
+      {
+        evidenceId: 'commit:parlaychain-parlay:af20508a',
+        kind: 'COMMIT',
+        locator:
+          'https://github.com/parlaychain/parlay/commit/af20508a4adc4eab2b5661fe2222b7aebd0a1e01',
+      },
+    ],
+  },
+  {
     referenceId: 'github:maariia-saez/MDP-Adaptive-GA',
     canonicalName: 'MDP-Adaptive-GA',
     kind: 'GITHUB_REPOSITORY',
@@ -982,6 +1006,31 @@ const repositoryWideMappings: readonly RegisterMappingInput[] = [
 const sourceVerifications:
   readonly RegisterSourceVerificationInput[] = [
   {
+    verificationId: 'verify:parlaychain-parlay:af20508a',
+    referenceId: 'github:parlaychain/parlay',
+    canonicalSourceLocator: 'https://github.com/parlaychain/parlay',
+    sourceVerificationStatus: 'PINNED',
+    sourceRevision: 'af20508a4adc4eab2b5661fe2222b7aebd0a1e01',
+    sourceDigest:
+      'git-commit-sha1:af20508a4adc4eab2b5661fe2222b7aebd0a1e01',
+    verifiedAt: '2026-09-26T22:53:00Z',
+    licenseFinding: 'VERIFIED',
+    licenseExpression: 'MIT',
+    licenseEvidenceLocator:
+      'https://github.com/parlaychain/parlay/blob/af20508a4adc4eab2b5661fe2222b7aebd0a1e01/LICENSE',
+    licenseReusePolicy: 'PERMISSIVE',
+    notes:
+      'Pinned for architecture/provenance comparison only. No live provider admission or source-code derivation is implied.',
+    evidence: [
+      {
+        evidenceId: 'commit:parlaychain-parlay:af20508a',
+        kind: 'COMMIT',
+        locator:
+          'https://github.com/parlaychain/parlay/commit/af20508a4adc4eab2b5661fe2222b7aebd0a1e01',
+      },
+    ],
+  },
+  {
     verificationId: 'verify:godot:57277407',
     referenceId: 'github:godotengine/godot',
     canonicalSourceLocator: 'https://github.com/godotengine/godot',
@@ -1401,6 +1450,32 @@ const sourceVerifications:
 ];
 
 const mappings: readonly RegisterMappingInput[] = [
+  {
+    mappingId: 'map:money:parlaychain-legacy-chain-reference',
+    referenceId: 'github:parlaychain/parlay',
+    subsystem: 'Money',
+    targetPaths: [
+      'docs/architecture/MONEY-PREDICTION-01-02-prediction-markets.md',
+      'docs/architecture/MONEY-PARLAYCHAIN-REFERENCE-AUDIT-2026-09-26.md',
+    ],
+    borrowedArtifactKinds: ['IDEA_ONLY'],
+    borrowedConcepts: [
+      'legacy wallet/RPC/node lifecycle as an architecture comparison point',
+      'explicit separation of chain plumbing from event-market truth and execution authority',
+    ],
+    adaptationNotes:
+      'No Parlay Chain code is imported. Money keeps provider-independent prediction-market reality/intelligence contracts and requires separately admitted venue adapters, resolution evidence, risk, policy, Action Core and reconciliation before any financial side effect.',
+    adoptionStatus: 'EVALUATED',
+    implementationEvidence: [
+      {
+        evidenceId: 'repo:money:parlaychain-reference-audit',
+        kind: 'REPO_PATH',
+        locator:
+          'repo:docs/architecture/MONEY-PARLAYCHAIN-REFERENCE-AUDIT-2026-09-26.md',
+      },
+    ],
+    sourceRevision: 'af20508a4adc4eab2b5661fe2222b7aebd0a1e01',
+  },
   {
     mappingId: 'map:shark:nemoclawd-signal-memory',
     referenceId: 'github:x402agent/NemoClawd',
