@@ -105,6 +105,7 @@ export * from './stock-chart-vision-research.js';
 export * from './fx-market-reality.js';
 
 export * from './fx-intelligence-fusion.js';
+export * from './institutional-flow-contracts.js';
 export * from './finnhub-forex-market-data.js';
 export * from './fx-chart-vision-research.js';
 
