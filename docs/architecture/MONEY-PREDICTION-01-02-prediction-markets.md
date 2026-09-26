@@ -86,6 +86,16 @@ Sports may provide independently governed evidence, but the prediction-market la
 
 No sportsbook wager, market order, payment, transfer or allocation is created here.
 
+## Reference disposition — Parlay Chain
+
+`parlaychain/parlay` is tracked only as a pinned legacy blockchain/wallet/RPC architecture reference at revision `af20508a4adc4eab2b5661fe2222b7aebd0a1e01`.
+
+It is **not** a prediction-market venue/provider adapter. Its README mentions predictor gameplay, but the repository audit found no code-search matches for `predict`, `event`, `oracle` or `bet`; the codebase is primarily Bitcoin-derived wallet, chain, transaction, node/PrimeNode and RPC infrastructure.
+
+Money may compare those infrastructure patterns historically, but no Parlay Chain component supplies market identity, prices, probabilities, event truth, resolution, settlement, wagering, custody or execution authority.
+
+See `docs/architecture/MONEY-PARLAYCHAIN-REFERENCE-AUDIT-2026-09-26.md`.
+
 ## Implementation
 
 - `packages/money-core/src/prediction-market-reality.ts`
