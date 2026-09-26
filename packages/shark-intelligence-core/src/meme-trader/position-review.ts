@@ -23,6 +23,7 @@ export type MemePositionReview=Readonly<{
 }>
 
 const bps=(n:number,c:string)=>{if(!Number.isInteger(n)||n<0||n>10000)throw new Error(c)}
+const signedBps=(n:number,c:string)=>{if(!Number.isInteger(n)||n<-10000||n>10000)throw new Error(c)}
 const unique=(xs:readonly string[])=>Object.freeze([...new Set(xs)].sort())
 
 /**
@@ -41,7 +42,7 @@ export function reviewMemePosition(state:MemePositionReviewState,config:{
   minAddMomentumBps?:number
   minLiquidityUsd?:number
 }={}):MemePositionReview{
-  bps(state.incrementalEdgeBps,'SHARK_POSITION_EDGE_INVALID')
+  signedBps(state.incrementalEdgeBps,'SHARK_POSITION_EDGE_INVALID')
   bps(state.correlationRiskBps,'SHARK_POSITION_CORRELATION_INVALID')
 
   const minAddEdgeBps=config.minAddEdgeBps??500
