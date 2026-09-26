@@ -1,3 +1,5 @@
+import type { FxFactorObservation } from './fx-intelligence-fusion.js';
+
 export const INSTITUTIONAL_FLOW_SCHEMA_VERSION =
   'MONEY-INSTITUTIONAL-FLOW-01' as const;
 
@@ -414,6 +416,79 @@ export function createInstitutionalFlowClaim(
     sourceEvidenceIds: Object.freeze([...input.sourceEvidenceIds]),
     status: 'SOURCE_ASSERTION',
     authority: 'NONE',
+  });
+}
+
+export function toObservedFxPositioningFactor(
+  observation: InstitutionalFlowObservation,
+  input: Readonly<{
+    pairId: string;
+    baseCurrency: string;
+    quoteCurrency: string;
+    informationCutoff: string;
+    methodologyVersion: string;
+    provenanceHash: string;
+  }>,
+): FxFactorObservation {
+  assertInstitutionalFlowObservation(observation);
+
+  if (observation.market !== 'FOREX') {
+    throw new Error('MONEY_INSTITUTIONAL_FX_MARKET_REQUIRED');
+  }
+  if (
+    observation.status !== 'OBSERVED' &&
+    observation.status !== 'CORROBORATED'
+  ) {
+    throw new Error('MONEY_INSTITUTIONAL_FX_FLOW_NOT_OBSERVED');
+  }
+
+  const cutoff = assertTimestamp(
+    input.informationCutoff,
+    'MONEY_INSTITUTIONAL_FX_CUTOFF_INVALID',
+  );
+  const availableAt = assertTimestamp(
+    observation.availableAt,
+    'MONEY_INSTITUTIONAL_FLOW_AVAILABLE_TIME_INVALID',
+  );
+  if (availableAt > cutoff) {
+    throw new Error('MONEY_INSTITUTIONAL_FX_FUTURE_FLOW');
+  }
+
+  for (const [value, code] of [
+    [input.pairId, 'MONEY_INSTITUTIONAL_FX_PAIR_REQUIRED'],
+    [input.baseCurrency, 'MONEY_INSTITUTIONAL_FX_BASE_REQUIRED'],
+    [input.quoteCurrency, 'MONEY_INSTITUTIONAL_FX_QUOTE_REQUIRED'],
+    [input.methodologyVersion, 'MONEY_INSTITUTIONAL_FX_METHODOLOGY_REQUIRED'],
+    [input.provenanceHash, 'MONEY_INSTITUTIONAL_FX_PROVENANCE_REQUIRED'],
+  ] as const) {
+    assertNonEmpty(value, code);
+  }
+
+  const directionalScore =
+    observation.side === 'BUY'
+      ? 1
+      : observation.side === 'SELL'
+        ? -1
+        : 0;
+
+  return Object.freeze({
+    factorId: `${observation.observationId}:fx-positioning`,
+    pairId: input.pairId,
+    instrumentId: observation.instrumentId,
+    baseCurrency: input.baseCurrency,
+    quoteCurrency: input.quoteCurrency,
+    category: 'POSITIONING',
+    name: 'OBSERVED_INSTITUTIONAL_FLOW_DIRECTION',
+    value: directionalScore,
+    unit: 'SIGNED_DIRECTION',
+    directionalScore,
+    informationCutoff: input.informationCutoff,
+    sourceEvidenceRefs: Object.freeze([...observation.evidenceIds]),
+    sourceMacroArtifactIds: Object.freeze([]),
+    sourceSnapshotIds: Object.freeze([]),
+    methodologyVersion: input.methodologyVersion,
+    evidenceRefs: Object.freeze([...observation.evidenceIds]),
+    provenanceHash: input.provenanceHash,
   });
 }
 
