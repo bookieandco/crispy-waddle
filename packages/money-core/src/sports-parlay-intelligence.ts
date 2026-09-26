@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { sportsOddsToDecimal, type SportsMarketQuote } from './sports-paper-betting.js'
+import { assertSportsMarketQuote, sportsOddsToDecimal, type SportsMarketQuote } from './sports-paper-betting.js'
 
 export type SportsParlayTicketKind='BANKROLL_BUILDER'|'TEASER'|'SAME_GAME_PARLAY'|'ANYTIME_TD_PARLAY'|'COMMUNITY_PARLAY'|'STANDARD'
 export type SportsParlayMarketKind='MONEYLINE'|'SPREAD'|'TOTAL'|'PLAYER_PROP'|'ANYTIME_TD'|'ALT_SPREAD'|'ALT_TOTAL'|'TEASER_LEG'
@@ -98,6 +98,7 @@ export function createSportsParlayLeg(input:{
   gameScriptTags?:readonly string[]
   evidenceIds:readonly string[]
 }):SportsParlayLeg{
+  assertSportsMarketQuote(input.quote)
   nonEmpty(input.legId,'MONEY_PARLAY_LEG_ID_REQUIRED')
   nonEmpty(input.thesis,'MONEY_PARLAY_THESIS_REQUIRED')
   prob(input.fairProbability,'MONEY_PARLAY_FAIR_PROBABILITY_INVALID')
