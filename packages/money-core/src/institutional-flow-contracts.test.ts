@@ -7,6 +7,7 @@ import {
   buildInstitutionalBehaviorPattern,
   createInstitutionalBehaviorExample,
   createInstitutionalFlowClaim,
+  toObservedFxPositioningFactor,
   type InstitutionalFlowObservation,
 } from './institutional-flow-contracts.js';
 
@@ -127,6 +128,61 @@ test('MONEY-INSTITUTIONAL-FLOW-01 refuses to learn directly from asserted-only v
         evidenceIds: ['feature-set:2'],
       }),
     /MONEY_INSTITUTIONAL_EXAMPLE_SOURCE_NOT_LEARNABLE/,
+  );
+});
+
+test('MONEY-INSTITUTIONAL-FLOW-01 converts only observed or corroborated flow into FX positioning factors', () => {
+  const observed = directObservation();
+
+  const factor = toObservedFxPositioningFactor(observed, {
+    pairId: 'EURUSD',
+    baseCurrency: 'EUR',
+    quoteCurrency: 'USD',
+    informationCutoff: '2026-09-26T20:00:03Z',
+    methodologyVersion: 'institutional-flow-v1',
+    provenanceHash: 'fx-factor-proof',
+  });
+
+  assert.equal(factor.category, 'POSITIONING');
+  assert.equal(factor.name, 'OBSERVED_INSTITUTIONAL_FLOW_DIRECTION');
+  assert.equal(factor.directionalScore, 1);
+  assert.equal(factor.value, 1);
+  assert.ok(factor.evidenceRefs.includes('feed:event:1'));
+
+  assert.throws(
+    () =>
+      toObservedFxPositioningFactor(
+        directObservation({
+          actorName: undefined,
+          actorConfidence: 'INFERRED',
+          sourceKind: 'VENDOR_INFERRED',
+          status: 'INFERRED',
+        }),
+        {
+          pairId: 'EURUSD',
+          baseCurrency: 'EUR',
+          quoteCurrency: 'USD',
+          informationCutoff: '2026-09-26T20:00:03Z',
+          methodologyVersion: 'institutional-flow-v1',
+          provenanceHash: 'fx-factor-proof-2',
+        },
+      ),
+    /MONEY_INSTITUTIONAL_FX_FLOW_NOT_OBSERVED/,
+  );
+});
+
+test('MONEY-INSTITUTIONAL-FLOW-01 blocks institutional flow that was not available by the decision cutoff', () => {
+  assert.throws(
+    () =>
+      toObservedFxPositioningFactor(directObservation(), {
+        pairId: 'EURUSD',
+        baseCurrency: 'EUR',
+        quoteCurrency: 'USD',
+        informationCutoff: '2026-09-26T20:00:02Z',
+        methodologyVersion: 'institutional-flow-v1',
+        provenanceHash: 'fx-factor-future-proof',
+      }),
+    /MONEY_INSTITUTIONAL_FX_FUTURE_FLOW/,
   );
 });
 
