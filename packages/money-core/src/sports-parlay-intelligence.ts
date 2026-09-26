@@ -52,7 +52,7 @@ export type CommunitySelectionSignal=Readonly<{
   marketId:string
   selectionId:string
   voteCount:number
-  eligibleCommentCount:number
+  eligibleVoterCount:number
   cutoffAt:string
   capturedAt:string
   evidenceIds:readonly string[]
@@ -165,7 +165,7 @@ export function createCommunitySelectionSignal(input:Omit<CommunitySelectionSign
   nonEmpty(input.eventId,'MONEY_COMMUNITY_EVENT_REQUIRED')
   nonEmpty(input.marketId,'MONEY_COMMUNITY_MARKET_REQUIRED')
   nonEmpty(input.selectionId,'MONEY_COMMUNITY_SELECTION_REQUIRED')
-  if(!Number.isInteger(input.voteCount)||input.voteCount<0||!Number.isInteger(input.eligibleCommentCount)||input.eligibleCommentCount<1||input.voteCount>input.eligibleCommentCount)throw new Error('MONEY_COMMUNITY_VOTE_INVALID')
+  if(!Number.isInteger(input.voteCount)||input.voteCount<0||!Number.isInteger(input.eligibleVoterCount)||input.eligibleVoterCount<1||input.voteCount>input.eligibleVoterCount)throw new Error('MONEY_COMMUNITY_VOTE_INVALID')
   if(Number.isNaN(Date.parse(input.cutoffAt))||Number.isNaN(Date.parse(input.capturedAt))||input.capturedAt<input.cutoffAt)throw new Error('MONEY_COMMUNITY_TIME_INVALID')
   if(!input.evidenceIds.length)throw new Error('MONEY_COMMUNITY_EVIDENCE_REQUIRED')
   return Object.freeze({...input,evidenceIds:unique(input.evidenceIds),authority:'SENTIMENT_ONLY',canExecute:false})
