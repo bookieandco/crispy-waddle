@@ -89,6 +89,7 @@ export * from './accounting-lifecycle-contracts.js';
 export * from './market-instrument-contracts.js';
 export * from './prediction-calibration-contracts.js';
 export * from './risk-simulation-contracts.js';
+export * from './automated-trading-economics-contracts.js';
 export * from './decision-workflow-contracts.js';
 export * from './market-provenance-contracts.js';
 export * from './macro-economic-contracts-v2.js';
