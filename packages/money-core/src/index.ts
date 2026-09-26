@@ -202,3 +202,5 @@ export * from './sports-parlay-intelligence.js';
 export * from './prediction-cross-venue-intelligence.js';
 
 export * from './sports-handicap-evidence.js';
+
+export * from './sports-prop-intelligence.js';
