@@ -43,3 +43,5 @@ export * from './evm-token-control-risk'
 export * from './copy-trade-observation'
 
 export * from './provider-soak'
+
+export * from './research-corpus'
