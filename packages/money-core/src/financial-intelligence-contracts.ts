@@ -12,6 +12,8 @@ export type AssetClass =
   | 'CRYPTO'
   | 'MEME'
   | 'PREDICTION'
+  | 'OPTION'
+  | 'FUTURE'
   | 'XAU'
   | 'XAG'
   | 'XPT'
