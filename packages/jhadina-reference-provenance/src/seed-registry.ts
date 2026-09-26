@@ -448,7 +448,6 @@ const handoffOnlyReferences: readonly RegisterReferenceInput[] = [
       },
     ],
   },
-];
 
 
   {
@@ -523,6 +522,7 @@ const handoffOnlyReferences: readonly RegisterReferenceInput[] = [
     notes: 'Historical Ethereum/BSC rug-incident dataset reference for replay/red-team coverage. Chain/time/taxonomy coverage is preserved as dataset provenance; it is not a Solana training oracle and no code/data copy is asserted.',
     evidence: [{ evidenceId: 'handoff:shark:dianxiang-rug-pull-dataset', kind: 'HANDOFF_NOTE', locator: 'urn:jhadina:handoff:shark:dianxiang-rug-pull-dataset' }],
   },
+];
 
 
 const repositoryWideReferences: readonly RegisterReferenceInput[] = [
