@@ -226,3 +226,156 @@ Added on branch `money-cross-domain-position-alpha`:
 - Money Core and SHARK public exports.
 
 This phase creates the canonical reasoning contracts and tests. It does not claim that Kalshi/Polymarket live adapters, sportsbook executors, stock/FX brokers or SHARK wallet execution are newly commissioned by this change.
+
+
+## Sports parlay intelligence — NFL workflow fold-in
+
+The September 26 NFL parlay transcript adds a ticket-construction workflow that is now modeled explicitly rather than being reduced to single-leg SportsPaperWager records.
+
+### Transcript patterns retained as research inputs
+
+The source separates several ticket intents:
+
+- a two-leg moneyline "bankroll builder";
+- a two-leg points teaser using alternate spreads around key football numbers;
+- a same-game parlay built around a shared low-scoring/game-control script;
+- an anytime-touchdown parlay using role/usage evidence; and
+- a community-selected final leg based on comment voting.
+
+The handicap examples also reference reusable football features such as:
+
+- early-down success/conversion efficiency;
+- run-block and pass-rush win rate;
+- route-area defensive weakness;
+- quarterback release/rhythm profile;
+- home/road and travel environment;
+- pace/possession expectations;
+- injury-driven workload changes;
+- interior/red-zone carry share;
+- high-value receiving usage near the goal line; and
+- opponent coverage/matchup tendencies.
+
+These become candidate Sports Intelligence evidence features. They are not promoted to universal betting rules merely because they appear in the source.
+
+### New canonical contract
+
+`packages/money-core/src/sports-parlay-intelligence.ts` adds:
+
+- `SportsParlayTicketKind`
+- `SportsParlayLeg`
+- `SportsParlayDependency`
+- `TeaserAdjustment`
+- `CommunitySelectionSignal`
+- `SportsParlayAssessment`
+
+Supported ticket classifications are:
+
+- `BANKROLL_BUILDER`
+- `TEASER`
+- `SAME_GAME_PARLAY`
+- `ANYTIME_TD_PARLAY`
+- `COMMUNITY_PARLAY`
+- `STANDARD`
+
+### Bankroll-builder rule
+
+"Bankroll builder" is presentation intent, not a mathematical safety classification.
+
+A ticket with individually high-probability legs may still:
+
+- compound bookmaker margin;
+- increase variance;
+- concentrate hidden shared-factor risk; and
+- be inferior to taking one leg or no position at the offered price.
+
+Therefore every `BANKROLL_BUILDER` assessment carries `BANKROLL_LABEL_IS_NOT_RISK_PROOF`.
+
+### Teaser rule
+
+Teaser/alternate-line value is evaluated from both sides of the trade:
+
+```text
+points gained
++ key numbers crossed
++ new fair probability
+- extra price paid
+- fees / margin / execution cost
+= incremental teaser edge
+```
+
+Crossing football key numbers such as 3 or 7 is recorded as evidence, not treated as automatic value.
+
+### Same-game parlay rule
+
+Same-game legs are not assumed independent.
+
+`evaluateSportsParlay()` calculates the naïve product of standalone probabilities only as a diagnostic. If legs share an event, or the ticket is explicitly an SGP:
+
+- `requiresJointModel = true`;
+- a documented dependency graph is expected;
+- the system records positive, negative, shared-game-script and common-driver relationships; and
+- no ticket-level edge is accepted until a `jointFairProbability` is supplied.
+
+This directly supports game-script tickets such as:
+
+```text
+competitive underdog spread
++ game under
++ correlated rushing-volume over
+```
+
+while still requiring the joint model to prove whether that story is actually priced favorably.
+
+### Anytime-touchdown / role evidence
+
+Touchdown propositions may ingest structured role evidence such as goal-line opportunity, red-zone carries/targets, route participation, screen usage, injury-driven role changes and matchup evidence.
+
+Role evidence raises or lowers a model estimate; it does not create a bet by itself.
+
+### Community-parlay rule
+
+A top-voted community leg is captured as `CommunitySelectionSignal` with:
+
+```text
+authority = SENTIMENT_ONLY
+canExecute = false
+```
+
+Popularity can be useful for:
+
+- crowd-belief measurement;
+- discovering a missed angle;
+- identifying public concentration;
+- testing fade/follow hypotheses; and
+- measuring whether community consensus is calibrated historically.
+
+It cannot automatically become the final leg or receive financial authority.
+
+### Manual adjustment / tail-or-fade support
+
+Because every proposed leg remains an evidence-backed object, the user can:
+
+- accept the original line;
+- choose an alternate line;
+- remove a leg;
+- fade a leg;
+- compare single vs parlay economics; or
+- replace a community-selected leg.
+
+Any modified ticket is re-priced and re-underwritten rather than inheriting the source creator's confidence.
+
+### Automation boundary
+
+Parlay intelligence feeds the same Money position/alpha architecture added in this PR.
+
+It may continuously:
+
+- discover candidate tickets;
+- compare offered combinations;
+- estimate joint probability;
+- score correlation/coherence;
+- monitor changing lines;
+- generate add/hold/trim/exit reasoning on open eligible positions; and
+- learn from settled outcomes.
+
+It does not bypass the existing mandate, risk, policy, capital, provider, permit, kill-switch or reconciliation boundaries.
