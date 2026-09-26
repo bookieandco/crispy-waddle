@@ -87,6 +87,7 @@ export { createFinancialActionRequestFromAllocation } from './financial-action-g
 export * from './canonical-financial-state.js';
 export * from './accounting-lifecycle-contracts.js';
 export * from './market-instrument-contracts.js';
+export * from './options-contracts.js';
 export * from './prediction-calibration-contracts.js';
 export * from './risk-simulation-contracts.js';
 export * from './decision-workflow-contracts.js';
