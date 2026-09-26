@@ -198,3 +198,7 @@ export * from './cross-domain-alpha-router.js';
 export * from './position-management.js';
 
 export * from './sports-parlay-intelligence.js';
+
+export * from './prediction-cross-venue-intelligence.js';
+
+export * from './sports-handicap-evidence.js';
