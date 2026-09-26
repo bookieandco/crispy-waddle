@@ -509,3 +509,96 @@ Narrative claims such as revenge, playing angry, style-points motivation, emotio
 Market-flow claims such as "sharp money is on X" remain `MARKET` evidence rather than being silently treated as team-quality truth.
 
 This allows Sports Intelligence to learn which handicapping features actually improve calibrated probabilities while preserving the source's useful structure without inheriting its rhetoric as fact.
+
+
+## ParlayChain repository audit — `parlaychain/parlay`
+
+Disposition: **legacy blockchain/wallet reference only; no sports-betting runtime dependency**.
+
+The repository describes Parlay Chain (PAR), a 2018-era blockchain ecosystem with branded "predictor gameplay." Source inspection shows a Bitcoin/Peercoin/Darkcoin-derived node and wallet stack:
+- chain parameters and P2P seeds;
+- wallet/key/transaction management;
+- JSON-RPC wallet methods;
+- proof-of-work/proof-of-stake-era chain logic;
+- PrimeNode/masternode collateral, registration and ping behavior;
+- legacy Qt wallet/build infrastructure.
+
+No modern source module was found for:
+- sportsbook lines or player props;
+- event-contract normalization;
+- joint parlay probability;
+- oracle-backed sports resolution;
+- contemporary prediction-market venue adapters;
+- order-book/fill modeling; or
+- Money Core risk/execution governance.
+
+The repository is MIT-licensed, but age and domain mismatch make direct reuse inappropriate. Its wallet/RPC/masternode code is not imported into Money Core or SHARK. If Jhadina ever needs blockchain-node primitives, that work should use a current, independently audited chain/library rather than reviving this stack.
+
+## Player-prop intelligence fold-in
+
+The attached NFL prop breakdown contributes a repeatable player-prop research process rather than only specific picks.
+
+Recurring source mechanics include:
+- receptions vs receiving-yard distinction;
+- rush-attempt volume vs rushing efficiency;
+- routes run, snap share, target share and first-read share;
+- backfield concentration when backups are injured;
+- injury-driven target/carry redistribution;
+- game-script sensitivity for favorites/underdogs;
+- opponent blitz/man/coverage/run-defense matchup;
+- weather, especially wind/rain interaction with passing/rushing volume;
+- coach-speak and reported role changes;
+- buy-low reasoning after a weak prior result;
+- prior closing line vs current line;
+- public ticket share vs actual line movement;
+- alternate yardage/attempt ladders;
+- high-ceiling long-shot legs; and
+- same-ticket correlation.
+
+These are now represented in `sports-prop-intelligence.ts`.
+
+### Prop assessment invariants
+
+A player-prop assessment separates:
+- `VOLUME` theses — opportunity/role is the main edge;
+- `EFFICIENCY` theses — expected production per opportunity is the main edge;
+- `MIXED` theses.
+
+A volume thesis without explicit usage evidence is flagged.
+
+"Buy low" is not inferred merely because the player missed last week or the current number looks cheaper. The current line must be more favorable **and** projected opportunity share must remain materially stable.
+
+Heavy public tickets with little line movement are recorded as a market observation, but the engine explicitly sets:
+
+```text
+marketResistanceInferenceAllowed = false
+```
+
+so "the book is daring bettors" or "sharp side confirmed" cannot be silently promoted from line behavior alone.
+
+### Alt-line / ladder rule
+
+Each alternate rung receives its own:
+- offered odds;
+- fair hit probability;
+- estimated costs; and
+- after-cost edge test.
+
+The engine does not assume that a profitable base line makes 80+, 100+, 125+ or other ceiling outcomes profitable.
+
+For OVER ladders, fair hit probability must be non-increasing as the threshold rises. For UNDER ladders, it must be non-decreasing. Non-monotonic probability inputs fail back to model review.
+
+### Interaction with parlay construction
+
+A prop rung can become a `PLAYER_PROP` leg only after its standalone economics are evaluated. If it is combined with another leg from the same game, the existing SGP dependency/joint-probability rules still apply.
+
+This preserves the distinction:
+
+```text
+good player-prop thesis
+!= good alternate line
+!= good parlay leg
+!= good jointly priced ticket
+```
+
+All outputs remain intelligence-only and do not bypass sportsbook/provider, mandate, risk, policy, capital, permit, kill-switch or reconciliation boundaries.
