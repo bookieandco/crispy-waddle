@@ -65,7 +65,6 @@ export type PredictionCrossVenueComparison=Readonly<{
 
 const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex')
 const nonEmpty=(v:string,c:string)=>{if(!v.trim())throw new Error(c)}
-const prob=(v:number|null,c:string)=>{if(v!==null&&(!Number.isFinite(v)||v<0||v>1))throw new Error(c)}
 const ts=(v:string,c:string)=>{nonEmpty(v,c);const n=Date.parse(v);if(Number.isNaN(n))throw new Error(c);return n}
 const unique=<T extends string>(xs:readonly T[])=>Object.freeze([...new Set(xs)].sort()) as readonly T[]
 
