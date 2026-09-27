@@ -339,6 +339,20 @@ export function evaluatePaperAutopilot(
     });
   }
 
+  if (
+    input.signal === 'EXIT' &&
+    (input.mode === 'PAPER_AUTO' || input.mode === 'PAPER_AUTO_REDUCED')
+  ) {
+    return Object.freeze({
+      mode: input.mode,
+      disposition: 'PAPER_TRADE_ELIGIBLE',
+      reasonCodes: Object.freeze(['RISK_REDUCING_EXIT']),
+      notionalMultiplierBps: 10_000,
+      authority: 'PAPER_ONLY',
+      canAuthorizeLive: false,
+    });
+  }
+
   const calibrationStatus = input.calibration?.status ?? 'INSUFFICIENT_EVIDENCE';
 
   if (input.mode === 'PAPER_AUTO' && calibrationStatus !== 'SIMULATION_SUPPORTED') {
