@@ -1,9 +1,16 @@
 import { createHash } from 'node:crypto'
+import { once } from 'node:events'
+import { createReadStream, createWriteStream } from 'node:fs'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { createInterface } from 'node:readline'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { classifySamNoticeChange, computeSamMarketCoverage, nextSamBootstrapWindow, normalizeSamWideNotice, type SamCoverageInterval, type SamMarketCoverage, type SamWideNotice } from '@jhadina/opportunity-core'
 import { scanSamOpportunityWindow } from './sam-client'
 import { extractSamAttachmentText } from './sam-document-extractor'
 import { getSamApiKey } from './sam-config'
+import { samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
 
 export type SamWideScanReceipt={
   runId:number
@@ -19,6 +26,7 @@ export type SamWideScanReceipt={
   resourceLinks:number
   changedNoticeIds:string[]
   errors:string[]
+  source?:{kind:'api'|'bulk_snapshot';url?:string;sha256?:string;bytes?:number;sourceRows?:number}
 }
 
 type Existing={notice_id:string;checksum:string;version:number}
@@ -36,7 +44,7 @@ export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:str
   const {data:run,error:runError}=await client.from('jhadina_sam_scan_runs').insert({posted_from:input.postedFrom,posted_to:input.postedTo,status:'running',started_at:started}).select('id').single()
   if(runError||!run)throw new Error(`Unable to create SAM scan receipt: ${runError?.message??'no row'}`)
   const runId=Number((run as {id:number}).id)
-  const receipt:SamWideScanReceipt={runId,status:'completed',postedFrom:input.postedFrom,postedTo:input.postedTo,pages:0,totalRecords:0,seenRecords:0,newRecords:0,amendedRecords:0,unchangedRecords:0,resourceLinks:0,changedNoticeIds:[],errors:[]}
+  const receipt:SamWideScanReceipt={runId,status:'completed',postedFrom:input.postedFrom,postedTo:input.postedTo,pages:0,totalRecords:0,seenRecords:0,newRecords:0,amendedRecords:0,unchangedRecords:0,resourceLinks:0,changedNoticeIds:[],errors:[],source:{kind:'api'}}
   try{
     const result=await scanSamOpportunityWindow({postedFrom:input.postedFrom,postedTo:input.postedTo,pageSize:input.pageSize??1000,maxPages:input.maxPages??20})
     receipt.pages=result.pages;receipt.totalRecords=result.totalRecords;receipt.seenRecords=result.opportunities.length
@@ -75,6 +83,144 @@ export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:str
     receipt.status='failed';receipt.errors.push(error instanceof Error?error.message:'SAM scan failed')
   }
   await client.from('jhadina_sam_scan_runs').update({status:receipt.status,pages:receipt.pages,total_records:receipt.totalRecords,seen_records:receipt.seenRecords,new_records:receipt.newRecords,amended_records:receipt.amendedRecords,unchanged_records:receipt.unchangedRecords,resource_links:receipt.resourceLinks,errors:receipt.errors,completed_at:new Date().toISOString()}).eq('id',runId)
+  if(receipt.status==='failed')throw new Error(receipt.errors.join('; '))
+  return receipt
+}
+
+
+async function persistSamNoticeChunk(client:SupabaseClient,chunk:SamWideNotice[],receipt:SamWideScanReceipt){
+  if(!chunk.length)return
+  const ids=chunk.map(x=>x.noticeId)
+  const {data:existingRows,error:existingError}=await client.from('jhadina_sam_catalog').select('notice_id,checksum,version').in('notice_id',ids)
+  if(existingError)throw new Error(`Unable to read SAM catalog: ${existingError.message}`)
+  const existing=new Map(rows(existingRows).map(x=>[String(x.notice_id),x as unknown as Existing]))
+  const upserts:Array<Record<string,unknown>>=[]
+  const versions:Array<Record<string,unknown>>=[]
+  for(const notice of chunk){
+    const previous=existing.get(notice.noticeId)
+    const change=classifySamNoticeChange(previous?.checksum,notice.checksum)
+    const version=change==='amended'?(previous?.version??0)+1:previous?.version??1
+    if(change==='new')receipt.newRecords+=1
+    else if(change==='amended')receipt.amendedRecords+=1
+    else receipt.unchangedRecords+=1
+    if(change!=='unchanged'){
+      receipt.changedNoticeIds.push(notice.noticeId)
+      versions.push({notice_id:notice.noticeId,version,checksum:notice.checksum,snapshot:notice.raw,captured_at:notice.capturedAt})
+    }
+    upserts.push(catalogRow(notice,version))
+  }
+  const {error:upsertError}=await client.from('jhadina_sam_catalog').upsert(upserts,{onConflict:'notice_id'})
+  if(upsertError)throw new Error(`Unable to persist SAM catalog: ${upsertError.message}`)
+  if(versions.length){
+    const {error:versionError}=await client.from('jhadina_sam_versions').upsert(versions,{onConflict:'notice_id,checksum',ignoreDuplicates:true})
+    if(versionError)throw new Error(`Unable to persist SAM versions: ${versionError.message}`)
+  }
+}
+
+async function endWriter(stream:ReturnType<typeof createWriteStream>){
+  await new Promise<void>((resolve,reject)=>{
+    stream.once('error',reject)
+    stream.end(resolve)
+  })
+}
+
+export async function runSamBulkSnapshotScan(
+  client:SupabaseClient,
+  input:{targetFrom:string;targetTo:string;sourceUrl?:string},
+):Promise<SamWideScanReceipt>{
+  const started=new Date().toISOString()
+  const {data:run,error:runError}=await client.from('jhadina_sam_scan_runs').insert({
+    posted_from:input.targetFrom,
+    posted_to:input.targetTo,
+    status:'running',
+    scan_kind:'bulk_snapshot',
+    started_at:started,
+  }).select('id').single()
+  if(runError||!run)throw new Error(`Unable to create SAM bulk scan receipt: ${runError?.message??'no row'}`)
+  const runId=Number((run as {id:number}).id)
+  const receipt:SamWideScanReceipt={
+    runId,
+    status:'completed',
+    postedFrom:input.targetFrom,
+    postedTo:input.targetTo,
+    pages:0,
+    totalRecords:0,
+    seenRecords:0,
+    newRecords:0,
+    amendedRecords:0,
+    unchangedRecords:0,
+    resourceLinks:0,
+    changedNoticeIds:[],
+    errors:[],
+    source:{kind:'bulk_snapshot'},
+  }
+  const dir=await mkdtemp(join(tmpdir(),'jhadina-sam-bulk-'))
+  const spoolPath=join(dir,'notices.ndjson')
+  const writer=createWriteStream(spoolPath,{encoding:'utf8'})
+  let writerEnded=false
+  const noticeIds=new Set<string>()
+
+  try{
+    const capturedAt=new Date().toISOString()
+    const snapshot=await streamSamBulkRows({
+      sourceUrl:input.sourceUrl,
+      onRow:async row=>{
+        const postedDay=samBulkPostedDay(row)
+        if(!postedDay||postedDay<input.targetFrom||postedDay>input.targetTo)return
+        const notice=normalizeSamWideNotice(samBulkRowToApiNotice(row),capturedAt)
+        if(noticeIds.has(notice.noticeId))throw new Error(`SAM_BULK_DUPLICATE_NOTICE:${notice.noticeId}`)
+        noticeIds.add(notice.noticeId)
+        receipt.seenRecords+=1
+        receipt.resourceLinks+=notice.resourceLinks.length
+        if(!writer.write(JSON.stringify(notice)+'\\n'))await once(writer,'drain')
+      },
+    })
+    await endWriter(writer)
+    writerEnded=true
+
+    if(receipt.seenRecords<1)throw new Error('SAM_BULK_TARGET_WINDOW_EMPTY')
+    receipt.pages=1
+    receipt.totalRecords=receipt.seenRecords
+    receipt.source={
+      kind:'bulk_snapshot',
+      url:snapshot.sourceUrl,
+      sha256:snapshot.sha256,
+      bytes:snapshot.bytes,
+      sourceRows:snapshot.sourceRows,
+    }
+
+    const reader=createInterface({input:createReadStream(spoolPath,{encoding:'utf8'}),crlfDelay:Infinity})
+    let chunk:SamWideNotice[]=[]
+    for await(const line of reader){
+      if(!line.trim())continue
+      chunk.push(JSON.parse(line) as SamWideNotice)
+      if(chunk.length>=250){
+        await persistSamNoticeChunk(client,chunk,receipt)
+        chunk=[]
+      }
+    }
+    if(chunk.length)await persistSamNoticeChunk(client,chunk,receipt)
+  }catch(error){
+    receipt.status='failed'
+    receipt.errors.push(error instanceof Error?error.message:'SAM bulk scan failed')
+  }finally{
+    if(!writerEnded)writer.destroy()
+    await rm(dir,{recursive:true,force:true})
+  }
+
+  await client.from('jhadina_sam_scan_runs').update({
+    status:receipt.status,
+    pages:receipt.pages,
+    total_records:receipt.totalRecords,
+    seen_records:receipt.seenRecords,
+    new_records:receipt.newRecords,
+    amended_records:receipt.amendedRecords,
+    unchanged_records:receipt.unchangedRecords,
+    resource_links:receipt.resourceLinks,
+    errors:receipt.errors,
+    completed_at:new Date().toISOString(),
+  }).eq('id',runId)
+
   if(receipt.status==='failed')throw new Error(receipt.errors.join('; '))
   return receipt
 }
@@ -236,6 +382,8 @@ export async function runSamMarketBootstrap(
     maxPages?:number
     pageSize?:number
     today?:string
+    source?:'bulk'|'api'
+    bulkSourceUrl?:string
   }={},
 ):Promise<SamBootstrapReceipt>{
   const historyDays=Math.max(1,Math.min(Math.floor(input.historyDays??365),3650))
@@ -254,6 +402,24 @@ export async function runSamMarketBootstrap(
   let successfulWindows=0
   let attempts=0
   let activeWindowDays=preferredWindowDays
+
+  if((input.source??'bulk')==='bulk'&&!coverage.complete){
+    attempts=1
+    const receipt=await runSamBulkSnapshotScan(client,{
+      targetFrom:coverage.targetFrom,
+      targetTo:coverage.targetTo,
+      sourceUrl:input.bulkSourceUrl,
+    })
+    receipts.push(receipt)
+    successfulWindows=1
+    intervals.push({postedFrom:receipt.postedFrom,postedTo:receipt.postedTo})
+    coverage=computeSamMarketCoverage({
+      intervals,
+      targetFrom:coverage.targetFrom,
+      targetTo:coverage.targetTo,
+    })
+    return {complete:coverage.complete,coverage,successfulWindows,attempts,receipts}
+  }
 
   while(!coverage.complete&&successfulWindows<maxWindows&&attempts<maxWindows*6){
     const window=nextSamBootstrapWindow({intervals,today,historyDays,windowDays:activeWindowDays})
