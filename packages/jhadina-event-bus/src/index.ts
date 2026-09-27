@@ -109,3 +109,82 @@ function freezeEvent(event:DomainEvent<unknown>):DomainEvent<unknown>{
     context:event.context?Object.freeze({...event.context}):undefined,
   });
 }
+
+
+export interface RuntimeEventDatabaseError {
+  code?:string;
+  message:string;
+}
+
+export interface RuntimeEventDatabaseClient {
+  from(table:string):{
+    insert(values:Record<string,unknown>):PromiseLike<{error:RuntimeEventDatabaseError|null}>;
+    select(columns:string):{
+      eq(column:string,value:string):{
+        order(column:string,options:{ascending:boolean}):PromiseLike<{data:unknown[]|null;error:RuntimeEventDatabaseError|null}>;
+      };
+    };
+  };
+}
+
+/**
+ * Production journal adapter. Database uniqueness on
+ * (work_session_id,idempotency_key) is the duplicate-suppression authority.
+ */
+export class SupabaseEventJournal implements EventJournal {
+  constructor(private readonly db:RuntimeEventDatabaseClient){}
+
+  async append(event:DomainEvent<unknown>):Promise<'appended'|'duplicate'>{
+    assertTraceableEvent(event);
+    const context=event.context;
+    const {error}=await this.db.from('jhadina_runtime_events').insert({
+      id:event.id,
+      event_type:event.type,
+      occurred_at:event.occurredAt,
+      payload:event.payload,
+      work_session_id:context.workSessionId,
+      task_id:context.taskId??null,
+      correlation_id:context.correlationId,
+      causation_id:context.causationId??null,
+      actor_id:context.actorId??null,
+      domain:context.domain,
+      capability:context.capability??null,
+      authority_ref:context.authorityRef??null,
+      idempotency_key:context.idempotencyKey,
+    });
+    if(!error)return 'appended';
+    if(error.code==='23505')return 'duplicate';
+    throw new Error(`RUNTIME_EVENT_APPEND_FAILED:${error.message}`);
+  }
+
+  async listByWorkSession(workSessionId:string):Promise<readonly DomainEvent<unknown>[]>{
+    const {data,error}=await this.db.from('jhadina_runtime_events')
+      .select('*').eq('work_session_id',workSessionId).order('sequence_id',{ascending:true});
+    if(error)throw new Error(`RUNTIME_EVENT_LIST_FAILED:${error.message}`);
+    return Object.freeze((data??[]).map(row=>eventFromDatabaseRow(row as Record<string,unknown>)));
+  }
+}
+
+function eventFromDatabaseRow(row:Record<string,unknown>):DomainEvent<unknown>{
+  return freezeEvent({
+    id:String(row.id??''),
+    type:String(row.event_type??''),
+    occurredAt:String(row.occurred_at??''),
+    payload:row.payload,
+    context:{
+      workSessionId:String(row.work_session_id??''),
+      taskId:nullableString(row.task_id),
+      correlationId:String(row.correlation_id??''),
+      causationId:nullableString(row.causation_id),
+      actorId:nullableString(row.actor_id),
+      domain:String(row.domain??''),
+      capability:nullableString(row.capability),
+      authorityRef:nullableString(row.authority_ref),
+      idempotencyKey:String(row.idempotency_key??''),
+    },
+  });
+}
+
+function nullableString(value:unknown):string|undefined{
+  return typeof value==='string'&&value.length>0?value:undefined;
+}
