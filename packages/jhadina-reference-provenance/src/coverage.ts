@@ -115,6 +115,36 @@ export const DEFAULT_REFERENCE_SUBSYSTEM_HINTS:
       rationale: 'SHARK observed-wallet transaction/latency telemetry reference; MEV and auto-copy execution excluded.',
     },
     {
+      referenceId: 'github:degenfrends/solana-rugchecker',
+      subsystem: 'SHARK',
+      rationale: 'SHARK Solana rug-defense metadata/holder/liquidity reference.',
+    },
+    {
+      referenceId: 'github:Solanacheker/rug-solana-checker-solscan',
+      subsystem: 'SHARK',
+      rationale: 'SHARK Solana rug-check workflow/UI reference.',
+    },
+    {
+      referenceId: 'github:KeithTheDev/rugpulldetector',
+      subsystem: 'SHARK',
+      rationale: 'SHARK runtime moving-window rug/collapse sentinel reference.',
+    },
+    {
+      referenceId: 'github:kangmyoungseok/RugPull-Prediction-AI',
+      subsystem: 'SHARK',
+      rationale: 'SHARK out-of-domain EVM rug-feature/model research reference.',
+    },
+    {
+      referenceId: 'github:CRPWarner/RugPull',
+      subsystem: 'SHARK',
+      rationale: 'SHARK EVM rug taxonomy and contract-risk static-analysis reference.',
+    },
+    {
+      referenceId: 'github:dianxiang-sun/rug_pull_dataset',
+      subsystem: 'SHARK',
+      rationale: 'SHARK historical rug replay/red-team dataset reference.',
+    },
+    {
       referenceId: 'github:assafelovic/gpt-researcher',
       subsystem: 'Knowledge',
       rationale: 'Knowledge handoff research-agent reference.',
