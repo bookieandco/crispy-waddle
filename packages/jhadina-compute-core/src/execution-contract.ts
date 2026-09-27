@@ -68,6 +68,7 @@ export type ComputeExecutionResultReceipt={
   completedAt:string;
   outputRefs:readonly string[];
   telemetryRef?:string;
+  actualNodeId?:string;
   errorCode?:string;
   retryable?:boolean;
 };
