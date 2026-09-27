@@ -11,6 +11,7 @@ export type ComputeExecutionRecord={
 
 export interface ComputeExecutionRepository{
   getByIdempotency(
+    userId:string,
     workSessionId:string,
     taskId:string,
     idempotencyKey:string,
@@ -19,8 +20,8 @@ export interface ComputeExecutionRepository{
   saveResult(receipt:ComputeExecutionResultReceipt,updatedAt:string):Promise<void>;
 }
 
-function key(workSessionId:string,taskId:string,idempotencyKey:string):string{
-  return `${workSessionId}:${taskId}:${idempotencyKey}`;
+function key(userId:string,workSessionId:string,taskId:string,idempotencyKey:string):string{
+  return `${userId}:${workSessionId}:${taskId}:${idempotencyKey}`;
 }
 
 export class InMemoryComputeExecutionRepository implements ComputeExecutionRepository{
@@ -28,15 +29,16 @@ export class InMemoryComputeExecutionRepository implements ComputeExecutionRepos
   private readonly submissionToKey=new Map<string,string>();
 
   async getByIdempotency(
+    userId:string,
     workSessionId:string,
     taskId:string,
     idempotencyKey:string,
   ):Promise<ComputeExecutionRecord|null>{
-    return this.records.get(key(workSessionId,taskId,idempotencyKey))??null;
+    return this.records.get(key(userId,workSessionId,taskId,idempotencyKey))??null;
   }
 
   async saveSubmission(receipt:ComputeSubmissionReceipt):Promise<void>{
-    const recordKey=key(receipt.workSessionId,receipt.taskId,receipt.idempotencyKey);
+    const recordKey=key(receipt.userId,receipt.workSessionId,receipt.taskId,receipt.idempotencyKey);
     const current=this.records.get(recordKey);
     if(current){
       if(
