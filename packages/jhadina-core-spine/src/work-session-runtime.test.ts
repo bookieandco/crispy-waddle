@@ -5,6 +5,7 @@ import {
   evolveWorkSessionTask,
   listReadyWorkSessionTasks,
   reconcileWorkSessionTaskReadiness,
+  claimNextReadyWorkSessionTask,
   validateWorkSessionTaskGraph,
 } from './work-session.js';
 
@@ -135,5 +136,24 @@ describe('WorkSession readiness and crash recovery',()=>{
     const recovered=await repo.claimReady('ws-1','recover','worker-b',60_000);
     expect(recovered?.leaseOwner).toBe('worker-b');
     expect(recovered?.attempt).toBe(2);
+  });
+});
+
+
+describe('WorkSession worker selection',()=>{
+  it('claims only capability-compatible work in deterministic order',async()=>{
+    const repo=new InMemoryWorkSessionTaskRepository();
+    await repo.create(task('alpha'));
+    await repo.create(createWorkSessionTask({
+      id:'render',workSessionId:'ws-1',ownerUserId:'user-1',domain:'director',capability:'director.render',
+      authorityRef:'context-only',idempotencyKey:'idem-render',correlationId:'corr-1',createdAt:'2026-09-26T00:00:01.000Z',
+    }));
+    const claimed=await claimNextReadyWorkSessionTask(repo,{
+      workSessionId:'ws-1',workerId:'director-worker',leaseMs:60_000,
+      ownerUserId:'user-1',capabilityNames:['director.render'],
+    });
+    expect(claimed?.id).toBe('render');
+    expect(claimed?.status).toBe('running');
+    expect((await repo.get('ws-1','alpha'))?.status).toBe('ready');
   });
 });
