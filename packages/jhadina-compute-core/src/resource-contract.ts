@@ -61,6 +61,17 @@ export type ComputeResourceRequest = {
   maxCostUsdPerHour?: number;
 };
 
+export type ComputeAuthorityBinding = {
+  /**
+   * Names the durable subsystem record that owns the job. Compute never
+   * becomes the authority merely because it executes the work.
+   */
+  system: string;
+  jobId: string;
+  idempotencyKey: string;
+  projectId?: string;
+};
+
 export type ComputeWorkload = {
   id: string;
   source:
@@ -77,6 +88,12 @@ export type ComputeWorkload = {
   kind: ComputeWorkloadKind;
   queue: ComputeQueueClass;
   priority: number;
+  authority: ComputeAuthorityBinding;
+  /**
+   * Deployment-owned sizing profile used to resolve this workload. This
+   * remains on the resolved workload for receipts/observability.
+   */
+  resourceProfileId: string;
   resources: ComputeResourceRequest;
   dataLocalityKeys?: string[];
   preferredNodeIds?: string[];
