@@ -7,7 +7,9 @@ on:
     paths:
       - ".github/workflows/sam-live-commissioning.yml"
       - "apps/jhadina-web/scripts/sam-live-commissioning.ts"
+      - "apps/jhadina-web/src/lib/internal-scheduler-auth.ts"
       - "apps/jhadina-web/src/lib/money-opportunities/sam-*.ts"
+      - "apps/jhadina-web/src/app/api/internal/sam/upstream/**"
       - "packages/opportunity-core/src/domain/sam-*.ts"
       - "supabase/functions/jhadina-sam-gateway/**"
       - "supabase/functions/jhadina-sam-runtime-gateway/**"
@@ -27,28 +29,49 @@ jobs:
   commission:
     name: Real SAM evidence commissioning
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://kqbkaozfjubkjevdfvic.supabase.co
-      SAM_GOV_API_KEY: ${{ secrets.sam_key }}
       SAM_RUNTIME_GATEWAY_URL: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-sam-runtime-gateway
+      SAM_UPSTREAM_URL: https://crispy-waddle-jhadina-web.vercel.app/api/internal/sam/upstream
+
     steps:
-      - name: Check SAM.gov credential
-        id: preflight
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Wait for exact production deployment
+        if: github.event_name == 'push'
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          EXPECTED_SHA: ${{ github.sha }}
         shell: bash
         run: |
-          if [ -z "$SAM_GOV_API_KEY" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "BLOCKED_EXTERNAL_CREDENTIAL: sam_key"
-            echo "### SAM live commissioning" >> "$GITHUB_STEP_SUMMARY"
-            echo "BLOCKED_EXTERNAL_CREDENTIAL: sam_key" >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          echo "configured=true" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          url="${ORIGIN%/}/api/health"
+          for attempt in $(seq 1 60); do
+            response_file="$(mktemp)"
+            status="$(curl --silent --show-error \
+              --connect-timeout 20 \
+              --max-time 30 \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              --header "Accept: application/json" \
+              --header "User-Agent: sam-live-commissioning/${GITHUB_RUN_ID}" \
+              "$url" || true)"
+            success="$(jq -r '.success // false' "$response_file" 2>/dev/null || echo false)"
+            deployed_sha="$(jq -r '.commitSha // empty' "$response_file" 2>/dev/null || true)"
+            environment="$(jq -r '.environment // empty' "$response_file" 2>/dev/null || true)"
+            echo "attempt=${attempt} status=${status} environment=${environment} deployed_sha=${deployed_sha}"
+            if [[ "$status" == "200" && "$success" == "true" && "$environment" == "production" && "$deployed_sha" == "$EXPECTED_SHA" ]]; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Production never reported exact SHA $EXPECTED_SHA" >&2
+          exit 1
 
-      - name: Request SAM runtime OIDC token
-        if: steps.preflight.outputs.configured == 'true'
-        id: oidc
+      - name: Request SWLC runtime OIDC token
+        id: runtime_oidc
         uses: actions/github-script@v7
         with:
           script: |
@@ -56,35 +79,37 @@ jobs:
             core.setSecret(token)
             core.setOutput('token', token)
 
-      - name: Checkout
-        if: steps.preflight.outputs.configured == 'true'
-        uses: actions/checkout@v4
+      - name: Request Vercel SAM upstream OIDC token
+        id: upstream_oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-sam-upstream')
+            core.setSecret(token)
+            core.setOutput('token', token)
 
       - name: Setup pnpm
-        if: steps.preflight.outputs.configured == 'true'
         uses: pnpm/action-setup@v4
         with:
           version: 8.15.9
           run_install: false
 
       - name: Setup Node
-        if: steps.preflight.outputs.configured == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
       - name: Frozen install
-        if: steps.preflight.outputs.configured == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Commission real SAM evidence
-        if: steps.preflight.outputs.configured == 'true'
         env:
-          SAM_RUNTIME_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          SAM_RUNTIME_OIDC_TOKEN: ${{ steps.runtime_oidc.outputs.token }}
+          SAM_UPSTREAM_OIDC_TOKEN: ${{ steps.upstream_oidc.outputs.token }}
         shell: bash
         run: |
           set -euo pipefail
           pnpm --filter @jhadina/opportunity-core exec tsx ../../apps/jhadina-web/scripts/sam-live-commissioning.ts | tee /tmp/sam-commissioning.json
           echo "### SAM live commissioning" >> "$GITHUB_STEP_SUMMARY"
-          tail -n 160 /tmp/sam-commissioning.json >> "$GITHUB_STEP_SUMMARY"
+          tail -n 200 /tmp/sam-commissioning.json >> "$GITHUB_STEP_SUMMARY"

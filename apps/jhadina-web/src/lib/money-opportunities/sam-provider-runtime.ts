@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildBrokerShortlist, evaluateSamSubcontractability, expandProviderTaxonomy, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
 import { getSamApiKey } from './sam-config'
+import { samUpstreamConfigured, searchSamEntitiesViaUpstream } from './sam-upstream-client'
 import { searchCanadaImporterProviders, searchConfiguredCanadaOdbusProviders, searchDenueProviders } from './foreign-provider-sources'
 import { searchConfiguredFsisProviders, searchFmcsaProviders, shouldSearchFmcsa, shouldSearchFsis } from './us-food-logistics-provider-sources'
 import { searchExaCompanyProviders } from './exa-company-provider-source'
@@ -86,7 +87,10 @@ type RuntimeProvider=BrokerProviderCandidate & {_uei?:string;_cage?:string}
 
 async function samEntityRequest(params:Record<string,string>):Promise<Record<string,unknown>>{
   const apiKey=getSamApiKey()
-  if(!apiKey)return{}
+  if(!apiKey){
+    if(samUpstreamConfigured())return searchSamEntitiesViaUpstream(params)
+    return{}
+  }
   const url=new URL('https://api.sam.gov/entity-information/v3/entities')
   url.searchParams.set('api_key',apiKey)
   url.searchParams.set('registrationStatus','A')

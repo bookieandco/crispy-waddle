@@ -1,6 +1,6 @@
 import { generateKeyPairSync, sign } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { authorizedSchedulerRequest } from './internal-scheduler-auth'
+import { authorizedGitHubWorkflowRequest, authorizedSchedulerRequest } from './internal-scheduler-auth'
 
 function base64UrlJson(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -90,6 +90,37 @@ describe('internal scheduler authorization', () => {
         nowSeconds: 1_800_000_100,
       }),
     ).resolves.toBe(true)
+  })
+
+  it('accepts the exact SAM commissioning workflow only for its scoped audience', async () => {
+    const fixture = makeOidcFixture({
+      aud: 'jhadina-sam-upstream',
+      workflow_ref:
+        'bookieandco/crispy-waddle/.github/workflows/sam-live-commissioning.yml@refs/heads/main',
+    })
+    const request = new Request('https://example.test/internal/sam/upstream', {
+      headers: { authorization: `Bearer ${fixture.token}` },
+    })
+
+    await expect(
+      authorizedGitHubWorkflowRequest(request, {
+        audience: 'jhadina-sam-upstream',
+        workflowRef:
+          'bookieandco/crispy-waddle/.github/workflows/sam-live-commissioning.yml@refs/heads/main',
+        fetchImpl: fixture.fetchImpl,
+        nowSeconds: 1_800_000_100,
+      }),
+    ).resolves.toBe(true)
+
+    await expect(
+      authorizedGitHubWorkflowRequest(request, {
+        audience: 'jhadina-sam-runtime',
+        workflowRef:
+          'bookieandco/crispy-waddle/.github/workflows/sam-live-commissioning.yml@refs/heads/main',
+        fetchImpl: fixture.fetchImpl,
+        nowSeconds: 1_800_000_100,
+      }),
+    ).resolves.toBe(false)
   })
 
   it('rejects a legacy name-only subject even when other claims look valid', async () => {
