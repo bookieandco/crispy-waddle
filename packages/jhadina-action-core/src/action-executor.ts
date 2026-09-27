@@ -2,6 +2,16 @@ import type { ApprovalReceiptVerifier } from './approval-receipt.js';
 
 export type ActionPolicyDecision = 'allow' | 'deny' | 'approval_required';
 
+export interface ActionRuntimeContext {
+  workSessionId:string;
+  taskId?:string;
+  correlationId:string;
+  causationId?:string;
+  domain:string;
+  capability?:string;
+  idempotencyKey:string;
+}
+
 export interface ActionRequest<TAction = unknown> {
   id: string;
   userId: string;
@@ -9,6 +19,8 @@ export interface ActionRequest<TAction = unknown> {
   action: TAction;
   requestedAt: string;
   approvalReceiptId?: string;
+  /** Traceability only. Runtime lineage never grants action authority. */
+  runtimeContext?: ActionRuntimeContext;
 }
 
 export interface ActionAuditEvent {
@@ -62,6 +74,7 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
 
   async execute(request: ActionRequest<TAction>): Promise<TResult> {
     const now = () => new Date().toISOString();
+    const runtimeMetadata = request.runtimeContext ? { runtimeContext: Object.freeze({ ...request.runtimeContext }) } : undefined;
     // Fail closed: if the start event can't be durably recorded, this throws
     // here and nothing below — policy, handler, side effects — ever runs.
     await this.ledger.append({
@@ -71,6 +84,7 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
       type: request.type,
       status: 'started',
       timestamp: now(),
+      metadata: runtimeMetadata,
     });
 
     const decision = await this.policy.evaluate(request);
@@ -84,6 +98,7 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
           type: request.type,
           status: 'approval_required',
           timestamp: now(),
+          metadata: runtimeMetadata,
         });
         throw new Error(`Approval required: ${request.type}`);
       }
@@ -97,7 +112,7 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
           type: request.type,
           status: 'denied',
           timestamp: now(),
-          metadata: { reason: 'invalid_or_expired_approval_receipt' },
+          metadata: { ...(runtimeMetadata??{}), reason: 'invalid_or_expired_approval_receipt' },
         });
         throw new Error(`Invalid approval receipt: ${request.type}`);
       }
@@ -109,6 +124,7 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
         type: request.type,
         status: 'denied',
         timestamp: now(),
+        metadata: runtimeMetadata,
       });
       throw new Error(`Action denied: ${request.type}`);
     }
@@ -122,7 +138,7 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
         type: request.type,
         status: 'failed',
         timestamp: now(),
-        metadata: { reason: 'handler_not_found' },
+        metadata: { ...(runtimeMetadata??{}), reason: 'handler_not_found' },
       });
       throw new Error(`No action handler registered for ${request.type}`);
     }
@@ -140,7 +156,7 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
           type: request.type,
           status: 'failed',
           timestamp: now(),
-          metadata: { error: message },
+          metadata: { ...(runtimeMetadata??{}), error: message },
         });
       } catch (auditError) {
         // Don't let a failed audit append swallow the original handler error.
@@ -165,6 +181,7 @@ export class ActionExecutor<TAction = unknown, TResult = unknown> {
         type: request.type,
         status: 'completed',
         timestamp: now(),
+        metadata: runtimeMetadata,
       });
     } catch (auditError) {
       throw new Error(
