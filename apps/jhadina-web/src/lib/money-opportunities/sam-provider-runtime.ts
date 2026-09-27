@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buildBrokerShortlist, evaluateSamSubcontractability, expandProviderTaxonomy, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
+import { buildBrokerShortlist, buildPreviousWinFingerprints, evaluateSamSubcontractability, expandProviderTaxonomy, scoreProviderAgainstPreviousWins, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
 import { getSamApiKey } from './sam-config'
 import { samUpstreamConfigured, searchSamEntitiesViaUpstream } from './sam-upstream-client'
 import { searchCanadaImporterProviders, searchConfiguredCanadaOdbusProviders, searchDenueProviders } from './foreign-provider-sources'
@@ -57,12 +57,26 @@ async function usaSpendingProviders(search:{naicsCodes?:string[];pscCodes?:strin
     const uei=text(r['Recipient UEI'])
     const identity=uei?`uei:${uei.toUpperCase()}`:`name:${key(name)}`
     const existing=grouped.get(identity)
-    const evidence={id:`usaspending:${text(r['Award ID'])||key(name)}`,source:'usaspending' as const,url:'https://www.usaspending.gov/'}
     const naicsObj=r['NAICS']&&typeof r['NAICS']==='object'?(r['NAICS'] as Record<string,unknown>):{}
     const pscObj=r['PSC']&&typeof r['PSC']==='object'?(r['PSC'] as Record<string,unknown>):{}
     const awardNaics=text(naicsObj.code)||text(r['NAICS Code'])
     const awardPsc=text(pscObj.code)||text(r['PSC Code'])
     const description=text(r['Description'])||text(r['Award Description'])
+    const amountRaw=r['Award Amount']
+    const awardAmount=typeof amountRaw==='number'?amountRaw:Number(String(amountRaw??'').replace(/[$,]/g,''))
+    const evidence={
+      id:`usaspending:${text(r['Award ID'])||key(name)}`,
+      source:'usaspending' as const,
+      url:'https://www.usaspending.gov/',
+      details:{
+        awardId:text(r['Award ID'])||null,
+        awardingAgency:text(r['Awarding Agency'])||null,
+        naicsCode:awardNaics||null,
+        pscCode:awardPsc||null,
+        awardAmount:Number.isFinite(awardAmount)?awardAmount:null,
+        recipientUei:uei||null,
+      },
+    }
     if(existing){
       existing.awardCount=(existing.awardCount??0)+1
       existing.evidence.push(evidence)
@@ -401,6 +415,51 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
         }
 
         pool=mergeProviderPools(pool,...requirementPools)
+      }
+
+      const previousWinAnchors=buildPreviousWinFingerprints(
+        pool
+          .filter(provider=>provider.evidence.some(evidence=>evidence.source==='usaspending'))
+          .map(provider=>{
+            const awardEvidence=provider.evidence.filter(evidence=>evidence.source==='usaspending')
+            const pscCodes=[...new Set(awardEvidence.flatMap(evidence=>{
+              const value=evidence.details?.pscCode
+              return typeof value==='string'&&value.trim()?[value.trim()]:[]
+            }))]
+            const agencies=[...new Set(awardEvidence.flatMap(evidence=>{
+              const value=evidence.details?.awardingAgency
+              return typeof value==='string'&&value.trim()?[value.trim()]:[]
+            }))]
+            const amounts=awardEvidence.flatMap(evidence=>{
+              const value=evidence.details?.awardAmount
+              return typeof value==='number'&&Number.isFinite(value)?[value]:[]
+            })
+            return {
+              providerId:provider.id,
+              providerName:provider.legalName,
+              uei:provider._uei,
+              cage:provider._cage,
+              naicsCodes:provider.naicsCodes,
+              pscCodes,
+              agency:agencies[0],
+              awardAmount:amounts.length?Math.max(...amounts):undefined,
+              evidenceRefs:awardEvidence.map(evidence=>evidence.id),
+            }
+          }),
+      )
+      if(previousWinAnchors.length){
+        pool=pool.map(provider=>({
+          ...provider,
+          previousWinSimilarity:scoreProviderAgainstPreviousWins({
+            providerId:provider.id,
+            providerName:provider.legalName,
+            uei:provider._uei,
+            cage:provider._cage,
+            naicsCodes:provider.naicsCodes,
+            pscCodes:[],
+            keywords:provider.keywords,
+          },previousWinAnchors),
+        }))
       }
 
       const awardUeis=pool.map(provider=>provider._uei).filter((value):value is string=>Boolean(value))
