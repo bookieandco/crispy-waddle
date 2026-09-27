@@ -4,6 +4,7 @@ import {
   type ProcessReplicationIntent,
 } from '@jhadina/director-core/process-replication';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { reconcileDirectorProcessReplicationJobs } from '@/lib/director-process-replication-reconciler';
 
 export interface DirectorProcessReplicationJob {
   id:string;
@@ -96,4 +97,16 @@ export async function getProcessReplicationJobForUser(userId:string,jobId:string
   const {data,error}=await client.from('director_process_replication_jobs').select('*').eq('id',jobId).eq('owner_user_id',userId).maybeSingle();
   if(error) throw error;
   return data?toJob(data as JobRow):undefined;
+}
+
+export async function advanceAskProcessReplicationJob(
+  userId:string,
+  jobId:string,
+):Promise<DirectorProcessReplicationJob|undefined>{
+  const client=createServiceRoleClient();
+  if(!client) throw new Error('DIRECTOR_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED');
+  const existing=await getProcessReplicationJobForUser(userId,jobId);
+  if(!existing) return undefined;
+  await reconcileDirectorProcessReplicationJobs(client,{limit:1,jobId});
+  return getProcessReplicationJobForUser(userId,jobId);
 }
