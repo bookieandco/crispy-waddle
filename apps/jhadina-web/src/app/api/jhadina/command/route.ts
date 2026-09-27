@@ -6,6 +6,7 @@ import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { CleanArtifactContextResolver } from "@/lib/artifacts/clean-artifact-context-resolver"
 import { createAndSubmitAskVideoJob, inspectAskVideoIntent } from "@/lib/director-video-job-service"
+import { createAskProcessReplicationJob, inspectAskProcessReplication } from "@/lib/director-process-replication-service"
 import {
   handleAskSocialCommand,
   inspectAskSocialIntent,
@@ -230,6 +231,53 @@ export async function POST(req: NextRequest) {
     const artifacts = [...ephemeralArtifacts, ...durableArtifacts, ...(samArtifact?[samArtifact]:[])]
     const conversationSignals = parseConversationSignals(body?.conversationSignals)
     const liveContext = parseLiveContext(body?.liveContext)
+    const replicationIntent = inspectAskProcessReplication(activeTask, artifacts.map((artifact)=>artifact.id))
+    if (replicationIntent) {
+      const verifier = await createRequestIdentityVerifier()
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const replication = await createAskProcessReplicationJob({
+        userId: verifiedIdentity.userId,
+        activeTask,
+        activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
+        clientRequestId: typeof body?.clientRequestId === "string" ? body.clientRequestId : undefined,
+        sourceArtifactRefs: artifacts.map((artifact)=>artifact.id),
+      })
+      const proposal = {
+        id: `director-replicate-proposal:${replication.job.id}`,
+        contextId: `director-replicate-context:${replication.job.projectId}`,
+        disposition: "PROCEED" as const,
+        recommendation: `Study the supplied process, compile an evidence-bound reference recipe, improve weak steps using current Director capabilities, then execute through Director as an editable ${replication.intent.targetKind} project.`,
+        rationale: "Process-replication requests route through Director Study and the Process Recipe compiler before generation. The reference remains evidence; provider choice, production execution, review, and timeline mutation stay inside canonical Director authority.",
+        evidence: [
+          ...replication.intent.sourceUrls.map((url)=>({ id:url, source:"user-reference-url", observedAt:new Date().toISOString(), summary:url })),
+          ...artifacts.map((artifact)=>({ id:artifact.id, source:artifact.source, observedAt:artifact.observedAt, summary:artifact.name ?? artifact.mimeType })),
+        ],
+        uncertainty: ["The learned recipe is not admitted until Study observations and recipe QC complete."],
+        alternatives: ["Use the reference process exactly without the improvement pass.", "Study the reference only without executing it."],
+      }
+      const reasoningEventId = await recordAskShortcutExperience({
+        userId: verifiedIdentity.userId,
+        activeTask,
+        proposal,
+        shortcut: "director",
+        metadata: { jobId: replication.job.id, projectId: replication.job.projectId, phase: replication.job.phase, executionStarted: false },
+      })
+      return NextResponse.json({
+        success: true,
+        data: {
+          proposal,
+          reasoningEventId,
+          expression: await realizeAskJhadinaExpression({ userId: verifiedIdentity.userId, activeTask, proposal }),
+          directorReplicationIntent: replication.intent,
+          directorReplicationJob: replication.job,
+          approvalRequired: false,
+          executionStarted: false,
+          verified: true,
+          verificationReason: "Identity verified; reference Study was queued. No provider, publishing, spending, or timeline mutation authority was granted.",
+        },
+      })
+    }
+
     const doctorIntent = inspectAskDoctorIntent(activeTask)
     if (doctorIntent) {
       const verifier = await createRequestIdentityVerifier()
