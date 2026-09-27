@@ -1636,7 +1636,6 @@ export function createInitialReferenceProvenanceRegistry():
     ...tracedReferences,
     ...handoffOnlyReferences,
     ...repositoryWideReferences,
-    ...MONEY_PAPER_TUTORIAL_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
   ]) {
     registry.registerReference(reference);
   }
@@ -1669,6 +1668,7 @@ export const INITIAL_REFERENCE_IDS = Object.freeze(
     ...MONEY_RESEARCH_MODEL_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
     ...MONEY_AUTOMATION_ECON_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
     ...MONEY_INSTITUTIONAL_FLOW_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
+    ...MONEY_PAPER_TUTORIAL_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
   ]
     .map((reference) => reference.referenceId)
     .sort((a, b) => a.localeCompare(b)),
