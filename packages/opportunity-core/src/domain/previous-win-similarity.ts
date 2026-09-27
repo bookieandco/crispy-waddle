@@ -66,8 +66,6 @@ export function scoreProviderAgainstPreviousWins(
       if(overlap(candidate.naicsCodes,anchor.naicsCodes)){score+=55;reasons.push('NAICS overlaps a previous federal winner')}
       if(overlap(candidatePsc,anchor.pscCodes)){score+=30;reasons.push('PSC overlaps a previous federal winner')}
       if(candidate.state&&anchor.state&&normalized(candidate.state)===normalized(anchor.state)){score+=5;reasons.push('geography matches a previous winner')}
-      if(anchor.agency){score+=5;reasons.push('previous winner has agency-specific award evidence')}
-      if(Number.isFinite(anchor.awardAmount)){score+=5;reasons.push('previous winner has observed award-value evidence')}
       return {anchor,score:Math.min(100,score),reasons}
     })
     .filter(x=>x.score>0)
