@@ -73,6 +73,43 @@ export interface WorkSessionTaskRepository {
   update(task:WorkSessionTask,expectedVersion:number):Promise<void>;
 }
 
+
+export class InMemoryWorkSessionTaskRepository implements WorkSessionTaskRepository {
+  private readonly tasks=new Map<string,WorkSessionTask>();
+  private readonly idempotency=new Map<string,string>();
+
+  async get(workSessionId:string,taskId:string):Promise<WorkSessionTask|null>{
+    return this.tasks.get(key(workSessionId,taskId))??null;
+  }
+
+  async list(workSessionId:string):Promise<readonly WorkSessionTask[]>{
+    return Object.freeze([...this.tasks.values()].filter(task=>task.workSessionId===workSessionId).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id)));
+  }
+
+  async create(task:WorkSessionTask):Promise<void>{
+    const taskKey=key(task.workSessionId,task.id);
+    if(this.tasks.has(taskKey))throw new Error('WORK_SESSION_TASK_ALREADY_EXISTS');
+    const idemKey=idempotencyKey(task);
+    if(this.idempotency.has(idemKey))throw new Error('WORK_SESSION_TASK_IDEMPOTENCY_CONFLICT');
+    const existing=await this.list(task.workSessionId);
+    validateWorkSessionTaskGraph([...existing,task]);
+    this.tasks.set(taskKey,freezeTask(task));
+    this.idempotency.set(idemKey,task.id);
+  }
+
+  async update(task:WorkSessionTask,expectedVersion:number):Promise<void>{
+    const taskKey=key(task.workSessionId,task.id);
+    const current=this.tasks.get(taskKey);
+    if(!current)throw new Error('WORK_SESSION_TASK_NOT_FOUND');
+    if(current.ownerUserId!==task.ownerUserId)throw new Error('WORK_SESSION_TASK_OWNER_MISMATCH');
+    if(current.version!==expectedVersion||task.version!==expectedVersion+1)throw new Error('WORK_SESSION_TASK_VERSION_CONFLICT');
+    if(current.idempotencyKey!==task.idempotencyKey||current.workSessionId!==task.workSessionId)throw new Error('WORK_SESSION_TASK_IMMUTABLE_IDENTITY');
+    const all=(await this.list(task.workSessionId)).map(candidate=>candidate.id===task.id?task:candidate);
+    validateWorkSessionTaskGraph(all);
+    this.tasks.set(taskKey,freezeTask(task));
+  }
+}
+
 const TASK_TRANSITIONS:Readonly<Record<WorkSessionTaskStatus,readonly WorkSessionTaskStatus[]>>=Object.freeze({
   'queued':['waiting-dependency','ready','blocked','cancelled'],
   'waiting-dependency':['ready','blocked','cancelled'],
@@ -216,3 +253,7 @@ function freezeTask(task:WorkSessionTask):WorkSessionTask{
     outputRefs:Object.freeze([...task.outputRefs]),
   });
 }
+
+
+function key(workSessionId:string,taskId:string):string{return `${workSessionId}:${taskId}`;}
+function idempotencyKey(task:WorkSessionTask):string{return `${task.ownerUserId}:${task.workSessionId}:${task.idempotencyKey}`;}
