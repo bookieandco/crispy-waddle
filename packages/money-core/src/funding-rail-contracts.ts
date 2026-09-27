@@ -1,6 +1,6 @@
 export type MoneyMovementKind='DEPOSIT'|'WITHDRAWAL'|'TRANSFER'
 export type MoneyMovementEnvironment='SANDBOX'|'LIVE'
-export type MoneyMovementState='QUOTED'|'PENDING'|'SUBMITTED'|'SETTLED'|'REJECTED'|'CANCELLED'|'UNKNOWN'
+export type MoneyMovementState='QUOTED'|'PENDING_APPROVAL'|'APPROVED'|'REJECTED'|'EXPIRED'
 
 export type FundingDestination=Readonly<{
  destinationId:string
@@ -42,16 +42,21 @@ export type MoneyMovementQuote=Readonly<{
  canMoveMoney:false
 }>
 
-export type MoneyMovementReceipt=Readonly<{
+export type MoneyMovementInstruction=Readonly<{
+ instructionId:string
  movementId:string
  provider:string
- providerReference:string
- state:MoneyMovementState
+ providerAccountId:string
+ kind:MoneyMovementKind
  amountMinor:bigint
- feeMinor:bigint
  currency:string
- observedAt:string
- evidenceIds:readonly string[]
+ sourceId:string
+ destinationId:string
+ idempotencyKey:string
+ approvalRequired:true
+ reconciliationRequired:true
+ authority:'PROVIDER_INSTRUCTION_ONLY'
+ canMoveMoney:false
 }>
 
 export interface FundingRailAdapter{
@@ -59,8 +64,7 @@ export interface FundingRailAdapter{
  readonly environment:MoneyMovementEnvironment
  readonly capabilities:Readonly<{deposit:boolean;withdrawal:boolean;transfer:boolean}>
  quote(request:MoneyMovementRequest):Promise<MoneyMovementQuote>
- submit(request:MoneyMovementRequest,quote:MoneyMovementQuote):Promise<MoneyMovementReceipt>
- getStatus(providerReference:string,now:string):Promise<MoneyMovementReceipt>
+ prepareInstruction(request:MoneyMovementRequest,quote:MoneyMovementQuote):Promise<MoneyMovementInstruction>
 }
 
 export class FundingRailRegistry{
