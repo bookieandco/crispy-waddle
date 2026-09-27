@@ -116,4 +116,7 @@ test('MONEY-LIVE.1 threshold-triggered profit sweep creates a stable approval pr
  assert.equal(p.state,'PENDING_APPROVAL')
  assert.equal(p.canMoveMoney,false)
  assert.equal(p.destinationId,'bank:owner')
+ assert.equal(p.standingMandateId,'mandate:sweep:1')
+ const approved=promoteApprovedMoneyMovement({proposal:p,authorityId:'authority:sweep',executionPermitId:'permit:sweep'})
+ assert.equal(approved.standingMandateId,'mandate:sweep:1')
 })
