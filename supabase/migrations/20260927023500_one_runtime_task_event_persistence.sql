@@ -120,7 +120,10 @@ begin
    where t.work_session_id = p_work_session_id
      and t.id = p_task_id
      and t.owner_user_id = p_owner_user_id
-     and t.status in ('ready','retrying')
+     and (
+       t.status in ('ready','retrying')
+       or (t.status = 'running' and t.lease_expires_at is not null and t.lease_expires_at <= clock_timestamp())
+     )
      and t.attempt < t.max_attempts
      and (t.lease_expires_at is null or t.lease_expires_at <= clock_timestamp() or t.lease_owner = p_worker_id)
   returning t.*;
