@@ -5,6 +5,7 @@ on:
     paths:
       - 'packages/opportunity-core/**'
       - 'packages/growth-core/src/learning/opportunity-outcome-learning*'
+      - 'packages/growth-core/src/intelligence/side-hustle-opportunity-factory*'
       - 'packages/money-core/src/opportunity-outcome-truth-bridge*'
       - 'packages/growth-core/package.json'
       - 'packages/money-core/package.json'
@@ -29,6 +30,7 @@ on:
     paths:
       - 'packages/opportunity-core/**'
       - 'packages/growth-core/src/learning/opportunity-outcome-learning*'
+      - 'packages/growth-core/src/intelligence/side-hustle-opportunity-factory*'
       - 'packages/money-core/src/opportunity-outcome-truth-bridge*'
       - 'packages/growth-core/package.json'
       - 'packages/money-core/package.json'
@@ -72,8 +74,11 @@ jobs:
         run: pnpm --filter @jhadina/opportunity-core test
       - name: Type-check Growth bridge
         run: pnpm --filter @jhadina/growth-core type-check
-      - name: Test Growth outcome learning
-        run: pnpm --filter @jhadina/growth-core exec vitest run src/learning/opportunity-outcome-learning.test.ts
+      - name: Test Growth Opportunity bridges
+        run: |
+          pnpm --filter @jhadina/growth-core exec vitest run \
+            src/learning/opportunity-outcome-learning.test.ts \
+            src/intelligence/side-hustle-opportunity-factory.test.ts
       - name: Test Money outcome truth bridge
         run: pnpm --filter @jhadina/money-core exec tsx --test src/opportunity-outcome-truth-bridge.test.ts
       - name: Type-check Opportunity web boundaries
@@ -84,6 +89,7 @@ jobs:
             src/__tests__/opportunities.test.ts \
             src/lib/opportunities/overageAdapter.test.ts \
             src/lib/opportunities/vertical-ingestion.test.ts \
+            src/lib/opportunities/growth-side-hustle-runtime.test.ts \
             src/lib/opportunities/supabase-sam-pursuit-snapshot-repository.test.ts \
             src/lib/opportunities/sam-pursuit-snapshot-runtime.test.ts \
             src/lib/opportunities/subnet-client.test.ts \
