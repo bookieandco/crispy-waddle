@@ -99,7 +99,7 @@ export default function MoneyCommandCenter(){
 
   <section style={section}>
    <div style={sectionTitleRow}><div><div style={eyebrow}>Wallets</div><h2 style={h2}>Crypto custody</h2></div><span style={muted}>{workspace?.wallets.length??0} saved connections</span></div>
-   <div style={grid}><PhantomWalletCard/><article style={card}><div style={eyebrow}>Coffer execution wallet</div><h3 style={h3}>Isolated signing boundary</h3><p style={muted}>Reserved for separately commissioned DEX automation. It is capital-limited, destination-allowlisted, reconciled, and separate from your Phantom owner wallet.</p><span style={pill}>Not commissioned</span></article></div>
+   <div style={grid}><PhantomWalletCard savedConnection={workspace?.wallets.find(x=>x.provider==="phantom"&&x.network==="SOLANA")}/><article style={card}><div style={eyebrow}>Coffer execution wallet</div><h3 style={h3}>Isolated signing boundary</h3><p style={muted}>Reserved for separately commissioned DEX automation. It is capital-limited, destination-allowlisted, reconciled, and separate from your Phantom owner wallet.</p><span style={pill}>Not commissioned</span></article></div>
   </section>
 
   <section style={section}>
