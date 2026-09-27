@@ -112,14 +112,15 @@ export async function handleAskSportsSimulationCommand(
   if (!intent) return null
 
   const now = overrides.now ?? (() => new Date())
-  const context = overrides.suppliedContext
-    ?? (overrides.provider ?? createProductionSportsSimulationContextProvider()).resolve
-      ? await (overrides.provider ?? createProductionSportsSimulationContextProvider()).resolve({
-          userId: input.userId,
-          activeTask: input.activeTask,
-          intent,
-        })
-      : null
+  let context = overrides.suppliedContext
+  if (!context) {
+    const provider = overrides.provider ?? createProductionSportsSimulationContextProvider()
+    context = await provider.resolve({
+      userId: input.userId,
+      activeTask: input.activeTask,
+      intent,
+    }) ?? undefined
+  }
 
   if (!context) {
     const proposal: DecisionProposal = {
