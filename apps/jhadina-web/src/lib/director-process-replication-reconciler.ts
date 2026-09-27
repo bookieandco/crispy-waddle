@@ -58,11 +58,18 @@ async function patchStudy(client:SupabaseClient,id:string,patch:Record<string,un
   if(error) throw error;
 }
 
-async function dispatchStudy(study:StudyRow,replicationJobId:string):Promise<'dispatched'|'not-configured'>{
-  const endpoint=process.env.JHADINA_DIRECTOR_STUDY_WORKER_URL?.trim();
-  const callbackUrl=process.env.JHADINA_DIRECTOR_STUDY_CALLBACK_URL?.trim();
-  const token=process.env.JHADINA_DIRECTOR_STUDY_WORKER_TOKEN?.trim();
-  if(!endpoint||!callbackUrl||!token) return 'not-configured';
+function studyWorkerConfigured():boolean{
+  return Boolean(
+    process.env.JHADINA_DIRECTOR_STUDY_WORKER_URL?.trim() &&
+    process.env.JHADINA_DIRECTOR_STUDY_CALLBACK_URL?.trim() &&
+    process.env.JHADINA_DIRECTOR_STUDY_WORKER_TOKEN?.trim()
+  );
+}
+
+async function dispatchStudy(study:StudyRow,replicationJobId:string):Promise<void>{
+  const endpoint=process.env.JHADINA_DIRECTOR_STUDY_WORKER_URL!.trim();
+  const callbackUrl=process.env.JHADINA_DIRECTOR_STUDY_CALLBACK_URL!.trim();
+  const token=process.env.JHADINA_DIRECTOR_STUDY_WORKER_TOKEN!.trim();
   const response=await fetch(endpoint,{
     method:'POST',
     headers:{'content-type':'application/json',authorization:`Bearer ${token}`},
@@ -78,8 +85,8 @@ async function dispatchStudy(study:StudyRow,replicationJobId:string):Promise<'di
     const body=await response.text().catch(()=> '');
     throw new Error(`DIRECTOR_STUDY_WORKER_DISPATCH_FAILED:${response.status}:${body.slice(0,240)}`);
   }
-  return 'dispatched';
 }
+
 
 async function materializeDirectorPlan(client:SupabaseClient,job:JobRow,studies:readonly StudyRow[]):Promise<void>{
   const observationStore=createSupabaseStudyObservationStore(client);
@@ -212,17 +219,21 @@ export async function reconcileDirectorProcessReplicationJobs(
 
       const queued=studies.filter(study=>study.status==='queued');
       if(queued.length){
-        let unavailable=false;
-        for(const study of queued){
-          const dispatched=await dispatchStudy(study,job.id);
-          if(dispatched==='not-configured'){unavailable=true;break;}
-          await patchStudy(client,study.id,{status:'running',started_at:new Date().toISOString(),error:null});
-          summary.dispatchedStudies+=1;
-        }
-        if(unavailable){
+        if(!studyWorkerConfigured()){
           await patchJob(client,job.id,{status:'blocked',phase:'study-provider',error:'DIRECTOR_STUDY_WORKER_NOT_CONFIGURED'});
           summary.blocked+=1;
           continue;
+        }
+        for(const study of queued){
+          await patchStudy(client,study.id,{status:'running',started_at:new Date().toISOString(),error:null});
+          try{
+            await dispatchStudy(study,job.id);
+            summary.dispatchedStudies+=1;
+          }catch(cause){
+            const message=cause instanceof Error?cause.message:'DIRECTOR_STUDY_WORKER_DISPATCH_FAILED';
+            await patchStudy(client,study.id,{status:'failed',completed_at:new Date().toISOString(),error:message});
+            throw cause;
+          }
         }
       }
 
