@@ -56,8 +56,8 @@ jobs:
         run: pnpm --filter @jhadina/compute-core test
       - name: Type-check Jhadina Web compute bridge
         run: pnpm --filter @jhadina/jhadina-web type-check
-      - name: Test Action Core compute bridge
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/compute/compute-action-handler.test.ts
+      - name: Test Jhadina Web compute runtime
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/compute/*.test.ts
       - name: Type-check Director compute adapters
         run: pnpm --filter @jhadina/director-core type-check
       - name: Test Director compute adapters
