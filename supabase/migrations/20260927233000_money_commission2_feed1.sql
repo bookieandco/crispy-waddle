@@ -42,9 +42,7 @@ CREATE TABLE IF NOT EXISTS money_feed_events (
   CHECK (
     (commitment IN ('COMMITTED','CLOSED') AND funded_amount_minor IS NOT NULL AND funded_amount_minor > 0 AND currency IS NOT NULL)
     OR
-    (commitment IN ('WATCHING','SUGGESTED') AND COALESCE(funded_amount_minor,0) = 0)
-    OR
-    (commitment IN ('ACCOUNTING','RISK'))
+    (commitment IN ('WATCHING','SUGGESTED','ACCOUNTING','RISK') AND COALESCE(funded_amount_minor,0) = 0)
   )
 );
 
