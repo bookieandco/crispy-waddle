@@ -219,7 +219,10 @@ export async function advanceDirectorProductionFinalProgram(
   });
 
   const repository=new DirectorProductionFinalRepository(client);
-  const matrix=await repository.evaluatePersistedFinalMatrix(ownerUserId);
+  const expectedProjects=Object.fromEntries(
+    fixtureRuns.map((fixture)=>[fixture.kind,fixture.projectId]),
+  ) as Readonly<Partial<Record<(typeof fixtureRuns)[number]['kind'],string>>>;
+  const matrix=await repository.evaluatePersistedFinalMatrix(ownerUserId,expectedProjects);
   if(matrix.admissible){
     const passed=fixtureRuns.map(fixture=>Object.freeze({...fixture,status:'passed' as const,error:undefined}));
     const {error:passError}=await client.from('director_production_final_programs').update({
