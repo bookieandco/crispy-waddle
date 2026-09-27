@@ -71,7 +71,7 @@ export type SportsHistoryScope=
   |Readonly<{kind:'CAREER'}>
   |Readonly<{kind:'SEASON';season:string}>
   |Readonly<{kind:'LAST_N';count:number}>
-  |Readonly<{kind:'VS_OPPONENT';opponentId:string}>
+  |Readonly<{kind:'VS_OPPONENT';opponentId?:string;opponentLabel?:string}>
   |Readonly<{kind:'VENUE';venue:'HOME'|'AWAY'|'NEUTRAL'}>
   |Readonly<{kind:'PLAYOFFS'}>
   |Readonly<{kind:'DATE_RANGE';from?:string;to?:string}>
@@ -184,7 +184,7 @@ export function assertSportsHistoryQuery(q:SportsHistoryQuery):void{
     switch(scope.kind){
       case 'SEASON':if(!scope.season.trim())throw new Error('SPORT_HISTORY_QUERY_SEASON_REQUIRED');break
       case 'LAST_N':if(!Number.isInteger(scope.count)||scope.count<1||scope.count>100000)throw new Error('SPORT_HISTORY_QUERY_LAST_N_INVALID');break
-      case 'VS_OPPONENT':if(!scope.opponentId.trim())throw new Error('SPORT_HISTORY_QUERY_OPPONENT_REQUIRED');break
+      case 'VS_OPPONENT':if(!scope.opponentId?.trim()&&!scope.opponentLabel?.trim())throw new Error('SPORT_HISTORY_QUERY_OPPONENT_REQUIRED');break
       case 'DATE_RANGE':
         if(scope.from)assertIso(scope.from,'SPORT_HISTORY_QUERY_DATE_FROM_INVALID')
         if(scope.to)assertIso(scope.to,'SPORT_HISTORY_QUERY_DATE_TO_INVALID')
@@ -206,7 +206,7 @@ function scopeFilter(records:readonly SportsHistoricalStatRecord[],scope:SportsH
     case 'LAST_N':
       return [...records].sort((a,b)=>Date.parse(b.eventDate)-Date.parse(a.eventDate)).slice(0,scope.count)
     case 'VS_OPPONENT':
-      return records.filter(r=>r.opponentId===scope.opponentId)
+      return records.filter(r=>(!scope.opponentId||r.opponentId===scope.opponentId)&&(!scope.opponentLabel||r.opponentLabel?.toLowerCase()===scope.opponentLabel.toLowerCase()))
     case 'VENUE':
       return records.filter(r=>r.venue===scope.venue)
     case 'PLAYOFFS':
@@ -276,7 +276,7 @@ export function buildSportsHistoryView(input:{
     if(r.entityKind!==input.query.entityKind||r.entityId!==input.query.entityId)continue
     if(input.query.sport&&r.sport!==input.query.sport)continue
     if(input.query.competition&&r.competition!==input.query.competition)continue
-    if(input.query.statKeys?.length&&!input.query.statKeys.includes(r.statKey))continue
+    if(input.query.statKeys?.length&&!input.query.statKeys.some(key=>r.statKey===key||r.statKey.endsWith('.'+key)))continue
     if(Date.parse(r.availableAt)>Date.parse(input.query.asOf))continue
     const existing=deduped.get(r.recordId)
     if(!existing||Date.parse(r.availableAt)>Date.parse(existing.availableAt))deduped.set(r.recordId,r)
