@@ -39,6 +39,25 @@ type CertRun={
   error:string|null;
 };
 
+function boundedDurations(input:unknown):number[]{
+  const raw=Array.isArray(input)?input:[30,600,1500,3600];
+  const values=[...new Set(raw.map(Number).filter(value=>Number.isFinite(value)&&value>=1&&value<=3600).map(value=>Math.round(value)))];
+  if(!values.length||values.length>4)throw new Error('DIRECTOR_LIVE_CERT_DURATION_MATRIX_INVALID');
+  return values;
+}
+
+async function loadRun(client:SupabaseClient,runId:string):Promise<CertRun>{
+  const {data,error}=await client.from('director_live_certification_runs').select('*').eq('id',runId).single();
+  if(error)throw error;
+  return data as CertRun;
+}
+
+async function patchRun(client:SupabaseClient,runId:string,patch:Record<string,unknown>):Promise<void>{
+  const {error}=await client.from('director_live_certification_runs')
+    .update({...patch,updated_at:new Date().toISOString()}).eq('id',runId);
+  if(error)throw error;
+}
+
 async function consumeRunToken(client:SupabaseClient,runToken:string|undefined):Promise<string>{
   if(!runToken?.trim())throw new Error('DIRECTOR_LIVE_CERT_UNAUTHORIZED');
   const hash=createHash('sha256').update(runToken.trim()).digest('hex');
