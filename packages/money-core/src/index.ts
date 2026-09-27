@@ -234,3 +234,19 @@ export * from './sports-prediction-revision-lineage.js';
 export * from './sports-prediction-process-review.js';
 
 export * from './sports-specialist-context.js';
+
+export * from './sports-simulation-slider-engine.js';
+
+export * from './sports-simulation-state.js';
+
+export * from './sports-correlated-monte-carlo.js';
+
+export * from './sports-live-resimulation.js';
+
+export * from './sports-simulation-calibration.js';
+
+export * from './sports-sim-bet-alpha.js';
+
+export * from './sports-vision-evidence.js';
+
+export * from './sport-sim-2f-certification.js';
