@@ -52,6 +52,7 @@ export interface WholeVideoProviderDescriptor {
   supportsExpressionGuidance?: boolean;
   supportsMultiSubjectReference?: boolean;
   maximumReferenceImages?: number;
+  maximumDurationSeconds?: number;
   productionQualityEligible?: boolean;
 }
 
@@ -92,6 +93,11 @@ export function selectWholeVideoProvider(
     (!requirements.productReference || provider.descriptor.supportsProductReference === true) &&
     (!requirements.expressionGuidance || provider.descriptor.supportsExpressionGuidance === true) &&
     (!requirements.productionQuality || provider.descriptor.productionQualityEligible === true) &&
+    (
+      intent.targetDurationSeconds === undefined ||
+      provider.descriptor.maximumDurationSeconds === undefined ||
+      intent.targetDurationSeconds <= provider.descriptor.maximumDurationSeconds
+    ) &&
     (
       requirements.referenceImageCount === undefined ||
       provider.descriptor.maximumReferenceImages === undefined ||
