@@ -1,7 +1,8 @@
-import type {
-  ComputeExecutionBundle,
-  ComputeExecutionPermit,
-  ComputeSubmissionReceipt,
+import {
+  assertComputeExecutionAuthorized,
+  type ComputeExecutionBundle,
+  type ComputeExecutionPermit,
+  type ComputeSubmissionReceipt,
 } from './execution-contract.js';
 
 export type KubernetesResourceQuantity=string;
@@ -188,6 +189,7 @@ export class KubernetesComputeSubmitter implements ComputeSubmitter{
     permit:ComputeExecutionPermit,
   ):Promise<ComputeSubmissionReceipt>{
     if(bundle.mode!=='live')throw new Error('COMPUTE_LIVE_SUBMITTER_REQUIRES_LIVE_MODE');
+    assertComputeExecutionAuthorized(bundle,permit,this.now());
     const manifest=buildKueueJobManifest(bundle,permit,this.config);
     const created=await this.transport.createJob(manifest);
     const planned=bundle.placement.selectedNodeId;
@@ -217,11 +219,14 @@ export class KubernetesComputeSubmitter implements ComputeSubmitter{
 export class ShadowComputeSubmitter implements ComputeSubmitter{
   private readonly receipts=new Map<string,ComputeSubmissionReceipt>();
 
+  constructor(private readonly now:()=>string=()=>new Date().toISOString()){}
+
   async submit(
     bundle:ComputeExecutionBundle,
     permit:ComputeExecutionPermit,
   ):Promise<ComputeSubmissionReceipt>{
     if(bundle.mode!=='shadow')throw new Error('COMPUTE_SHADOW_SUBMITTER_REQUIRES_SHADOW_MODE');
+    assertComputeExecutionAuthorized(bundle,permit,this.now());
     const existing=this.receipts.get(permit.runtime.idempotencyKey);
     if(existing)return existing;
     const planned=bundle.placement.selectedNodeId;
