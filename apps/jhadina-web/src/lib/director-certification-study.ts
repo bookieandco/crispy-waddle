@@ -17,14 +17,15 @@ const RULES = [
 
 const ALLOWED = new Set(['github.com','raw.githubusercontent.com','www.youtube.com','youtube.com','youtu.be']);
 
-function stripMarkup(input:string):string {
-  return input
+function stripMarkup(input:string,preserveLines=false):string {
+  const cleaned=input
     .replace(/<script[\s\S]*?<\/script>/gi,' ')
     .replace(/<style[\s\S]*?<\/style>/gi,' ')
     .replace(/<[^>]+>/g,' ')
-    .replace(/[\*_>#|]/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
+    .replace(/[\*_>#|]/g,' ');
+  return preserveLines
+    ? cleaned.replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim()
+    : cleaned.replace(/\s+/g,' ').trim();
 }
 
 function classify(text:string) {
@@ -44,10 +45,23 @@ export async function runDirectorCertificationStudy(input:{
   if(!['http:','https:'].includes(parsed.protocol) || !ALLOWED.has(parsed.hostname.toLowerCase())) {
     throw new Error('DIRECTOR_CERT_SOURCE_HOST_NOT_ALLOWED');
   }
-  const response=await fetch(input.sourceUrl,{cache:'no-store',redirect:'follow',headers:{'user-agent':'JhadinaDirectorLiveCertification/1.0'}});
-  if(!response.ok) throw new Error('DIRECTOR_CERT_SOURCE_FETCH_FAILED:'+response.status);
-  const text=stripMarkup((await response.text()).slice(0,2_000_000));
-  const chunks=text.split(/(?<=[.!?])\s+|\n{2,}/).map(part=>part.trim()).filter(part=>part.length>=20).slice(0,240);
+  const sourceParts=parsed.pathname.split('/').filter(Boolean);
+  const candidates:string[]=[];
+  if(parsed.hostname.toLowerCase()==='github.com'&&sourceParts.length>=2){
+    candidates.push('https://raw.githubusercontent.com/'+sourceParts[0]+'/'+sourceParts[1]!.replace(/\\.git$/,'')+'/main/README.md');
+  }
+  candidates.push(input.sourceUrl);
+  let text='';
+  for(const candidate of candidates){
+    const response=await fetch(candidate,{cache:'no-store',redirect:'follow',headers:{'user-agent':'JhadinaDirectorLiveCertification/1.0'}});
+    if(!response.ok) continue;
+    const raw=(await response.text()).slice(0,2_000_000);
+    const preserveLines=new URL(candidate).hostname.toLowerCase()==='raw.githubusercontent.com';
+    const clean=stripMarkup(raw,preserveLines);
+    if(clean.length>=200){text=clean;break;}
+  }
+  if(!text) throw new Error('DIRECTOR_CERT_SOURCE_FETCH_FAILED');
+  const chunks=text.split(/\n+|(?<=[.!?])\s+/).map(part=>part.trim()).filter(part=>part.length>=20).slice(0,240);
   if(chunks.length<3) throw new Error('DIRECTOR_CERT_PROCESS_EVIDENCE_INSUFFICIENT');
 
   const selected:{text:string;rule:ReturnType<typeof classify>}[]=[];
