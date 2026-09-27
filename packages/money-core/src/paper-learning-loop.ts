@@ -324,6 +324,20 @@ export function evaluatePaperAutopilot(
     });
   }
 
+  if (
+    input.signal === 'EXIT' &&
+    (input.mode === 'PAPER_AUTO' || input.mode === 'PAPER_AUTO_REDUCED')
+  ) {
+    return Object.freeze({
+      mode: input.mode,
+      disposition: 'PAPER_TRADE_ELIGIBLE',
+      reasonCodes: Object.freeze(['RISK_REDUCING_EXIT']),
+      notionalMultiplierBps: 10_000,
+      authority: 'PAPER_ONLY',
+      canAuthorizeLive: false,
+    });
+  }
+
   const mimsReviewBlocked =
     input.mimsStatus === 'REVIEW' &&
     !(
@@ -342,20 +356,6 @@ export function evaluatePaperAutopilot(
       disposition: 'NO_TRADE',
       reasonCodes: Object.freeze(['REVIEW_REQUIRED']),
       notionalMultiplierBps: 0,
-      authority: 'PAPER_ONLY',
-      canAuthorizeLive: false,
-    });
-  }
-
-  if (
-    input.signal === 'EXIT' &&
-    (input.mode === 'PAPER_AUTO' || input.mode === 'PAPER_AUTO_REDUCED')
-  ) {
-    return Object.freeze({
-      mode: input.mode,
-      disposition: 'PAPER_TRADE_ELIGIBLE',
-      reasonCodes: Object.freeze(['RISK_REDUCING_EXIT']),
-      notionalMultiplierBps: 10_000,
       authority: 'PAPER_ONLY',
       canAuthorizeLive: false,
     });
