@@ -131,10 +131,13 @@ export type ComputeNode = {
   localityKeys?: string[];
   hourlyCostUsd?: number;
   labels?: Record<string, string>;
+  evidenceObservedAt?: string;
+  evidenceExpiresAt?: string;
 };
 
 export type PlacementRejectionCode =
   | 'NODE_NOT_READY'
+  | 'NODE_EVIDENCE_STALE'
   | 'FORBIDDEN_NODE'
   | 'CPU_INSUFFICIENT'
   | 'RAM_INSUFFICIENT'
