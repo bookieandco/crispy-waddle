@@ -123,6 +123,8 @@ export function buildSportsBetShadowSoakEvidence(input:{
   const started=time(input.startedAt,'SPORT_BET_SHADOW_SOAK_START_INVALID'),ended=time(input.endedAt,'SPORT_BET_SHADOW_SOAK_END_INVALID')
   if(ended<started)throw new Error('SPORT_BET_SHADOW_SOAK_CLOCK_INVALID')
   if(!input.decisions.length||!input.evidenceIds.length)throw new Error('SPORT_BET_SHADOW_SOAK_EVIDENCE_REQUIRED')
+  if(input.decisions.some(x=>x.sourceClass!==input.sourceClass))throw new Error('SPORT_BET_SHADOW_SOURCE_CLASS_MISMATCH')
+  if(input.records.some(x=>x.prediction.sourceClass!==input.sourceClass))throw new Error('SPORT_BET_SHADOW_RECORD_SOURCE_CLASS_MISMATCH')
   const decisionIds=input.decisions.map(x=>x.decisionId)
   const uniqueDecisionIds=unique(decisionIds)
   const duplicateDecisionCount=decisionIds.length-uniqueDecisionIds.length
