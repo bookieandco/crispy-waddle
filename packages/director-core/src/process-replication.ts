@@ -84,7 +84,9 @@ export interface ProcessReplicationIntent {
   authority: 'PLANNING_ONLY';
 }
 
-const REPLICATE_VERB = /\b(replicate|recreate|copy|learn|study|reverse[- ]engineer|use)\b/i;
+const DIRECT_REPLICATION = /\b(replicate|recreate|reverse[- ]engineer|copy)\b/i;
+const USE_PROCESS = /\buse\b.{0,80}\b(process|workflow|method|tutorial|recipe|steps?|way)\b/i;
+const LEARN_AND_APPLY = /\b(study|learn)\b.{0,160}\b(process|workflow|method|tutorial|recipe|steps?|way)\b.{0,160}\b(use|apply|replicate|recreate|make|build|produce)\b/i;
 const PROCESS_NOUN = /\b(process|workflow|method|tutorial|recipe|steps?|way|video)\b/i;
 const IMPROVE = /\b(better|improve|optimi[sz]e|upgrade|stronger|cleaner|no ai slop)\b/i;
 const URL = /https?:\/\/[^\s)\]}>,]+/gi;
@@ -104,7 +106,8 @@ export function detectProcessReplicationIntent(
   contextualSourceRefs: readonly string[] = [],
 ): ProcessReplicationIntent | undefined {
   const prompt = text.trim();
-  if (!prompt || !REPLICATE_VERB.test(prompt) || !PROCESS_NOUN.test(prompt)) return undefined;
+  const replicationLanguage = DIRECT_REPLICATION.test(prompt) || USE_PROCESS.test(prompt) || LEARN_AND_APPLY.test(prompt);
+  if (!prompt || !replicationLanguage || !PROCESS_NOUN.test(prompt)) return undefined;
   const sourceUrls = [...new Set(prompt.match(URL) ?? [])];
   if (!sourceUrls.length && !contextualSourceRefs.length && !/\b(this|that|attached|uploaded|reference)\b/i.test(prompt)) return undefined;
   const targetDurationSeconds = parseDurationSeconds(prompt);
