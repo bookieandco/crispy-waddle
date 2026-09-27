@@ -16,6 +16,7 @@ on:
       - "packages/social-core/src/content-projects*"
       - "docs/DIRECTOR*.md"
       - "supabase/migrations/*director*"
+      - "supabase/functions/jhadina-director-live-cert-gateway/**"
       - ".github/workflows/director-targeted-tests.yml"
       - "pnpm-lock.yaml"
   push:
@@ -35,6 +36,7 @@ on:
       - "packages/social-core/src/content-projects*"
       - "docs/DIRECTOR*.md"
       - "supabase/migrations/*director*"
+      - "supabase/functions/jhadina-director-live-cert-gateway/**"
       - ".github/workflows/director-targeted-tests.yml"
       - "pnpm-lock.yaml"
 jobs:

@@ -18,6 +18,31 @@ export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export const maxDuration=300;
 
+const DEFAULT_DIRECTOR_CERT_GATEWAY_URL =
+  'https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-live-cert-gateway';
+
+async function vercelOidcToken(request:Request):Promise<string|undefined>{
+  const environmentToken=process.env.VERCEL_OIDC_TOKEN?.trim();
+  if(environmentToken) return environmentToken;
+  return request.headers.get('x-vercel-oidc-token')?.trim()||undefined;
+}
+
+async function forwardToDirectorGateway(request:Request,body:CertBody):Promise<NextResponse>{
+  const token=await vercelOidcToken(request);
+  if(!token){
+    return NextResponse.json({ok:false,error:'DIRECTOR_VERCEL_OIDC_REQUIRED'},{status:503});
+  }
+  const endpoint=process.env.JHADINA_DIRECTOR_LIVE_CERT_GATEWAY_URL?.trim()||DEFAULT_DIRECTOR_CERT_GATEWAY_URL;
+  const response=await fetch(endpoint,{
+    method:'POST',
+    headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},
+    body:JSON.stringify(body),
+    cache:'no-store',
+  });
+  const payload=await response.json().catch(()=>({ok:false,error:'DIRECTOR_LIVE_CERT_GATEWAY_INVALID_JSON'})) as Record<string,unknown>;
+  return NextResponse.json(payload,{status:response.status});
+}
+
 type CertBody={
   action?:'start'|'advance';
   runId?:string;
@@ -317,10 +342,10 @@ async function advanceRun(client:SupabaseClient,run:CertRun,userId:string){
 }
 
 export async function POST(request:Request){
+  const body=await request.json().catch(()=>({})) as CertBody;
   const client=createServiceRoleClient();
-  if(!client) return NextResponse.json({ok:false,error:'DIRECTOR_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED'},{status:503});
+  if(!client) return forwardToDirectorGateway(request,body);
   try{
-    const body=await request.json().catch(()=>({})) as CertBody;
     const userId=await consumeRunToken(client,body.runToken);
     const action=body.action??'start';
 
