@@ -15,7 +15,8 @@ type Workspace={
  connectors:{connectorId:string;provider:string;lane:string;admission:string}[]
 }
 type WorkspaceResponse={success:true;data:Workspace}|{success:false;error:string}
-type SaveResponse={success:true;data:{cofferId:string;state:string;totalAllocatedMinor:string;unallocatedMinor:string;fundingRequired:boolean;canFund:false;canTrade:false}}|{success:false;error:string}
+type SaveData={cofferId:string;state:string;totalAllocatedMinor:string;unallocatedMinor:string;fundingRequired:boolean;canFund:false;canTrade:false}
+type SaveResponse={success:true;data:SaveData}|{success:false;error:string}
 
 const emptyBudgets=()=>Object.fromEntries(LANES.map(l=>[l,{allocation:"",hardCap:""}])) as BudgetForm
 
@@ -35,7 +36,7 @@ export default function MoneyCommissioningPage(){
  const [loading,setLoading]=useState(true)
  const [saving,setSaving]=useState(false)
  const [error,setError]=useState("")
- const [saved,setSaved]=useState<SaveResponse extends {success:true;data:infer D}?D:never|null>(null)
+ const [saved,setSaved]=useState<SaveData|null>(null)
 
  useEffect(()=>{
   let active=true
