@@ -1,4 +1,5 @@
 import { createComfyUIHttpClient, resolveComfyUIHistoryOutputs } from '@jhadina/director-core';
+import { createDirectorCertificationMp4 } from '@/lib/director-certification-mp4';
 import type {
   WholeVideoProductionBrief,
   WholeVideoProductionProvider,
@@ -9,14 +10,8 @@ import type {
 
 type ProviderHttpConfig = { baseUrl: string; token?: string };
 
-export interface DirectorVideoRuntimeProviderConfig {
-  certificationVideoProviderUrl?: string;
-  certificationVideoProviderToken?: string;
-}
-
 export interface CreateConfiguredWholeVideoProvidersOptions {
   includeCertification?: boolean;
-  runtimeConfig?: DirectorVideoRuntimeProviderConfig;
 }
 
 function cleanBaseUrl(value: string): string {
@@ -613,18 +608,52 @@ export class AgnesVideoProductionProvider implements WholeVideoProductionProvide
   }
 }
 
+class CertificationSmokeVideoProductionProvider implements WholeVideoProductionProvider {
+  readonly descriptor: WholeVideoProviderDescriptor = {
+    id:'director-certification-smoke',
+    name:'Director Certification Smoke Renderer',
+    costClass:'free-local',
+    supportedModes:['standard','short','faceless','long-form'],
+    health:'unknown',
+  };
+
+  async submit(brief:WholeVideoProductionBrief,idempotencyKey:string):Promise<WholeVideoProviderResult>{
+    const duration=Math.max(1,Math.min(3600,Math.round(brief.intent.targetDurationSeconds??30)));
+    return {
+      providerJobId:'cert-'+duration+'-'+deterministicSeed(idempotencyKey+'|'+brief.jobId),
+      status:'ready',
+      metadata:{durationSeconds:duration,renderer:'mp4-timing-smoke',qualityClaim:false},
+    };
+  }
+
+  async status(providerJobId:string):Promise<WholeVideoProviderResult>{
+    const match=/^cert-(\d{1,4})-(\d+)$/.exec(providerJobId);
+    const duration=match?Number(match[1]):NaN;
+    if(!Number.isFinite(duration)||duration<1||duration>3600){
+      return {providerJobId,status:'failed',error:'DIRECTOR_CERT_PROVIDER_JOB_ID_INVALID'};
+    }
+    return {
+      providerJobId,status:'ready',
+      metadata:{durationSeconds:duration,renderer:'mp4-timing-smoke',qualityClaim:false},
+    };
+  }
+
+  async download(providerJobId:string):Promise<{bytes:Uint8Array;contentType:string}>{
+    const state=await this.status(providerJobId);
+    if(state.status!=='ready')throw new Error(state.error??'DIRECTOR_CERT_VIDEO_NOT_READY');
+    const duration=Number(state.metadata?.durationSeconds);
+    return {bytes:createDirectorCertificationMp4(duration),contentType:'video/mp4'};
+  }
+
+  async cancel(_providerJobId:string):Promise<void>{}
+}
+
 export function createConfiguredWholeVideoProviders(
   options: CreateConfiguredWholeVideoProvidersOptions = {},
 ): WholeVideoProductionProvider[] {
   const providers: WholeVideoProductionProvider[] = [];
-  if (options.includeCertification && options.runtimeConfig?.certificationVideoProviderUrl) {
-    providers.push(new ReferenceCharacterVideoProductionProvider({
-      baseUrl: options.runtimeConfig.certificationVideoProviderUrl,
-      token: options.runtimeConfig.certificationVideoProviderToken,
-      descriptorId: 'director-certification-smoke',
-      descriptorName: 'Director Certification Smoke Renderer',
-      costClass: 'free-local',
-    }));
+  if (options.includeCertification) {
+    providers.push(new CertificationSmokeVideoProductionProvider());
   }
   const comfyReferenceWorkflow = parseReferenceComfyWorkflow();
   if (process.env.DIRECTOR_COMFYUI_URL && comfyReferenceWorkflow) {
