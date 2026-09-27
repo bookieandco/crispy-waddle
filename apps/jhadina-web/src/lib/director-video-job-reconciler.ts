@@ -119,8 +119,8 @@ export async function reconcileDirectorVideoJobs(
         continue;
       }
 
+      let providerState = await provider.status(job.provider_job_id);
       if (job.status !== 'ingesting') {
-        const providerState = await provider.status(job.provider_job_id);
         if (providerState.status === 'failed') {
           await failRun(client, job, providerState.error ?? 'DIRECTOR_VIDEO_PROVIDER_FAILED');
           summary.failed += 1;
@@ -141,7 +141,14 @@ export async function reconcileDirectorVideoJobs(
           current_phase: 'ingest',
           error: null,
         });
-        await event(client, job, 'provider_ready', 'ingesting', { resultUri: providerState.resultUri ?? null });
+        await event(client, job, 'provider_ready', 'ingesting', {
+          resultUri: providerState.resultUri ?? null,
+          qualityClaim: providerState.qualityClaim ?? false,
+          modelId: providerState.modelId ?? null,
+          modelVersion: providerState.modelVersion ?? null,
+          productionRuntimeReceiptId: providerState.productionRuntimeReceiptId ?? null,
+          providerMetadata: providerState.metadata ?? null,
+        });
         summary.advanced += 1;
       }
 
@@ -188,6 +195,11 @@ export async function reconcileDirectorVideoJobs(
           privateBucket: 'director-media',
           objectPath,
           ffmpegQc: 'pending-runtime-inspection',
+          qualityClaim: providerState.qualityClaim ?? false,
+          modelId: providerState.modelId ?? null,
+          modelVersion: providerState.modelVersion ?? null,
+          productionRuntimeReceiptId: providerState.productionRuntimeReceiptId ?? null,
+          providerMetadata: providerState.metadata ?? null,
           ...(job.spec?.referenceCharacter && typeof job.spec.referenceCharacter === 'object'
             ? { referenceCharacter: job.spec.referenceCharacter }
             : {}),
@@ -211,7 +223,14 @@ export async function reconcileDirectorVideoJobs(
         .eq('project_id', job.project_id)
         .in('kind', ['generation','edit','review']);
 
-      await event(client, job, 'preview_ready', 'preview_ready', { assetId, sha256 });
+      await event(client, job, 'preview_ready', 'preview_ready', {
+        assetId,
+        sha256,
+        qualityClaim: providerState.qualityClaim ?? false,
+        modelId: providerState.modelId ?? null,
+        modelVersion: providerState.modelVersion ?? null,
+        productionRuntimeReceiptId: providerState.productionRuntimeReceiptId ?? null,
+      });
       summary.completed += 1;
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'DIRECTOR_VIDEO_RECONCILIATION_FAILED';
