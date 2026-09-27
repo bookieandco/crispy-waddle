@@ -63,6 +63,7 @@ export class KubernetesApiJobTransport implements KubernetesJobTransport{
     });
     if(response.status===409){
       const existing=await this.getJob(manifest.metadata.namespace,manifest.metadata.name);
+      this.assertExistingJobMatches(manifest,existing);
       return {
         name:manifest.metadata.name,
         namespace:manifest.metadata.namespace,
@@ -117,6 +118,25 @@ export class KubernetesApiJobTransport implements KubernetesJobTransport{
     );
     if(!response.ok&&response.status!==404){
       throw new Error(`KUBERNETES_JOB_DELETE_FAILED:${response.status}:${await response.text()}`);
+    }
+  }
+
+
+  private assertExistingJobMatches(manifest:KubernetesJobManifest,existing:KubernetesObject):void{
+    const metadata=record(existing.metadata);
+    const annotations=record(metadata.annotations);
+    for(const key of [
+      'jhadina.ai/workload-id',
+      'jhadina.ai/work-session-id',
+      'jhadina.ai/task-id',
+      'jhadina.ai/idempotency-key',
+      'jhadina.ai/action-request-id',
+    ]){
+      const expected=manifest.metadata.annotations[key];
+      const actual=stringValue(annotations[key]);
+      if(!expected||actual!==expected){
+        throw new Error(`KUBERNETES_JOB_IDEMPOTENCY_CONFLICT:${key}`);
+      }
     }
   }
 
