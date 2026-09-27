@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { DirectorVideoJob } from '@jhadina/director-core/ask-video-production';
 import { createSupabaseGeneratedAssetRepository } from '@/lib/supabase-generated-asset-repository';
 import { createConfiguredWholeVideoProviders } from '@/lib/director-whole-video-providers';
+import { loadDirectorRuntimeConfig } from '@/lib/director-runtime-config';
 
 type JobRow = {
   id: string;
@@ -86,7 +87,14 @@ export async function reconcileDirectorVideoJobs(
     .limit(limit);
   if (error) throw error;
 
-  const providers = new Map(createConfiguredWholeVideoProviders().map((provider) => [provider.descriptor.id, provider]));
+  const runtimeConfig=await loadDirectorRuntimeConfig(client);
+  const providers = new Map(createConfiguredWholeVideoProviders({
+    includeCertification: true,
+    runtimeConfig: {
+      certificationVideoProviderUrl: runtimeConfig.certificationVideoProviderUrl,
+      certificationVideoProviderToken: runtimeConfig.certificationVideoProviderToken,
+    },
+  }).map((provider) => [provider.descriptor.id, provider]));
   const assets = createSupabaseGeneratedAssetRepository(client);
   const summary: DirectorVideoReconciliationSummary = { inspected: 0, advanced: 0, completed: 0, failed: 0, blocked: 0 };
 
