@@ -10,7 +10,7 @@ import { classifySamNoticeChange, computeSamMarketCoverage, nextSamBootstrapWind
 import { scanSamOpportunityWindow } from './sam-client'
 import { extractSamAttachmentText } from './sam-document-extractor'
 import { getSamApiKey } from './sam-config'
-import { certifySamBulkCoverageRange, samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
+import { certifySamBulkCoverageRange, samBulkNdjsonLine, samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
 
 export type SamWideScanReceipt={
   runId:number
@@ -179,7 +179,7 @@ export async function runSamBulkSnapshotScan(
         noticeIds.add(notice.noticeId)
         receipt.seenRecords+=1
         receipt.resourceLinks+=notice.resourceLinks.length
-        if(!writer.write(JSON.stringify(notice)+'\\n'))await once(writer,'drain')
+        if(!writer.write(samBulkNdjsonLine(notice)))await once(writer,'drain')
       },
     })
     await endWriter(writer)
