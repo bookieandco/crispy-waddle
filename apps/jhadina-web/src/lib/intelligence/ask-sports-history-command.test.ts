@@ -59,6 +59,12 @@ describe("Ask Jhadina sports history shortcut",()=>{
     expect(intent?.scopes).toContainEqual({kind:"VS_OPPONENT",opponentLabel:"Denver"})
   })
 
+
+  it("prefers specific basketball stat phrases over overlapping generic aliases",()=>{
+    const intent=inspectAskSportsHistoryIntent("Show me LeBron NBA all-time 3 point field goals")
+    expect(intent?.statKeys).toEqual(["three_point_field_goals_made"])
+  })
+
   it("fails closed when the league or historical provider cannot resolve the request",async()=>{
     const result=await handleAskSportsHistoryCommand(
       {userId:"u1",activeTask:"Show me this player's all-time stats"},
