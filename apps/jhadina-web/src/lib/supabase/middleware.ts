@@ -8,6 +8,11 @@ const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/director/live-certification",
 ]);
 
+function isSelfAuthenticatedMachineRoute(pathname: string): boolean {
+  return pathname.startsWith("/api/internal/") ||
+    SELF_AUTHENTICATED_MACHINE_ROUTES.has(pathname);
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   const pathname = request.nextUrl.pathname;
@@ -16,7 +21,7 @@ export async function updateSession(request: NextRequest) {
   // browser Supabase session in front of them would make CRON/worker callbacks
   // impossible and, when public auth env is absent, used to crash middleware
   // before the route could fail closed on its own secret.
-  if (SELF_AUTHENTICATED_MACHINE_ROUTES.has(pathname)) {
+  if (isSelfAuthenticatedMachineRoute(pathname)) {
     return response;
   }
 
