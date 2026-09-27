@@ -118,9 +118,23 @@ This slice does not yet:
 
 - ONE-RUNTIME.2 — **SOURCE COMPLETE; live DB admission pending**
 - ONE-RUNTIME.3 — **SOURCE COMPLETE; live replay/admission pending**
-- ONE-RUNTIME.4 — runtime capability evidence adapters and health projection
-- ONE-RUNTIME.5 — ComputeWorkload bridge from ready tasks
+- ONE-RUNTIME.4 — **SOURCE COMPLETE** truthful subsystem health projection, including stale-evidence expiry; live capability evidence adapters remain subsystem work
+- ONE-RUNTIME.5 — **SOURCE COMPLETE** runnable WorkSession task -> ComputeWorkload description bridge; Kubernetes/Kueue submission remains deployment work
 - ONE-RUNTIME.6 — subsystem adapters
 - ONE-RUNTIME.7 — Command Center / "what needs me?" projection
 - ONE-RUNTIME.8 — parallel chaos/idempotency certification
 - JHADINA-ONE-RUNTIME.FINAL
+
+
+## ONE-RUNTIME.4/5 shared runtime projection
+
+The foundation now also includes:
+
+- a subsystem-level runtime projection that aggregates registered capability truth without converting configuration into health;
+- stale runtime evidence expiry so READY cannot persist forever after a provider/device disappears;
+- a provider-neutral task-to-ComputeWorkload bridge;
+- WorkSession ID, task ID and idempotency lineage preserved into Compute authority metadata;
+- a hard rejection for tasks that are not runnable;
+- no permission for Compute placement to claim or authorize the originating task.
+
+At this point the remaining shared-runtime work is less about inventing core contracts and more about production admission plus thin adapters from each existing subsystem.
