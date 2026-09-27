@@ -24,6 +24,8 @@ function provider(
     product?: boolean;
     requiresProduct?: boolean;
     expression?: boolean;
+    productionQuality?: boolean;
+    maximumReferenceImages?: number;
   } = {},
 ): WholeVideoProductionProvider {
   return {
@@ -38,6 +40,8 @@ function provider(
       supportsProductReference: input.product ?? false,
       requiresProductReference: input.requiresProduct ?? false,
       supportsExpressionGuidance: input.expression ?? false,
+      productionQualityEligible: input.productionQuality ?? false,
+      ...(input.maximumReferenceImages !== undefined ? { maximumReferenceImages: input.maximumReferenceImages } : {}),
     },
     async submit() { return { providerJobId: 'job', status: 'queued' }; },
     async status() { return { providerJobId: 'job', status: 'processing' }; },
@@ -88,6 +92,17 @@ describe('whole video provider selection', () => {
     expect(selectWholeVideoProvider([
       provider('generic-free'),
     ], intent, { expressionGuidance: true })).toBeUndefined();
+  });
+
+  it('requires an explicitly production-quality-eligible provider for FINAL work', () => {
+    const selected = selectWholeVideoProvider([
+      provider('ordinary-reference', { character: true }),
+      provider('production-reference', { character: true, productionQuality: true, maximumReferenceImages: 4 }),
+    ], intent, { characterReference: true, productionQuality: true, referenceImageCount: 2 });
+    expect(selected?.descriptor.id).toBe('production-reference');
+    expect(selectWholeVideoProvider([
+      provider('production-reference', { character: true, productionQuality: true, maximumReferenceImages: 4 }),
+    ], intent, { characterReference: true, productionQuality: true, referenceImageCount: 5 })).toBeUndefined();
   });
 
   it('returns no provider instead of losing character identity', () => {
