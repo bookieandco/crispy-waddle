@@ -213,3 +213,127 @@ revoke all on function public.jhadina_release_work_session_task_lease(text,text,
 grant execute on function public.jhadina_claim_work_session_task(text,text,uuid,text,integer) to service_role;
 grant execute on function public.jhadina_renew_work_session_task_lease(text,text,uuid,text,text,integer) to service_role;
 grant execute on function public.jhadina_release_work_session_task_lease(text,text,uuid,text,text,text,text) to service_role;
+
+
+-- Durable replay checkpoints for at-least-once cross-core consumers.
+create table if not exists public.jhadina_runtime_event_checkpoints (
+  consumer_id text not null check (char_length(consumer_id) between 1 and 240),
+  work_session_id text not null references public.jhadina_work_sessions(id) on delete cascade,
+  last_sequence bigint not null default 0 check (last_sequence >= 0),
+  updated_at timestamptz not null default now(),
+  primary key (consumer_id,work_session_id)
+);
+
+alter table public.jhadina_runtime_event_checkpoints enable row level security;
+revoke all on public.jhadina_runtime_event_checkpoints from anon, authenticated;
+grant select, insert, update on public.jhadina_runtime_event_checkpoints to service_role;
+revoke delete, truncate on public.jhadina_runtime_event_checkpoints from service_role;
+
+comment on table public.jhadina_runtime_event_checkpoints is
+  'ONE-RUNTIME per-consumer replay checkpoint. Checkpoints coordinate delivery only and grant no action authority.';
+
+create or replace function public.jhadina_read_runtime_events_after(
+  p_work_session_id text,
+  p_after_sequence bigint,
+  p_limit integer
+)
+returns setof public.jhadina_runtime_events
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_after_sequence < 0 or p_limit < 1 or p_limit > 500 then
+    raise exception 'RUNTIME_EVENT_REPLAY_REQUEST_INVALID';
+  end if;
+
+  return query
+  select e.*
+    from public.jhadina_runtime_events e
+   where e.work_session_id = p_work_session_id
+     and e.sequence_id > p_after_sequence
+   order by e.sequence_id asc
+   limit p_limit;
+end;
+$$;
+
+create or replace function public.jhadina_get_runtime_event_checkpoint(
+  p_consumer_id text,
+  p_work_session_id text
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_sequence bigint;
+begin
+  if p_consumer_id is null or btrim(p_consumer_id) = '' or p_work_session_id is null or btrim(p_work_session_id) = '' then
+    raise exception 'RUNTIME_EVENT_CHECKPOINT_IDENTITY_REQUIRED';
+  end if;
+
+  insert into public.jhadina_runtime_event_checkpoints(consumer_id,work_session_id,last_sequence)
+  values (p_consumer_id,p_work_session_id,0)
+  on conflict (consumer_id,work_session_id) do nothing;
+
+  select c.last_sequence into v_sequence
+    from public.jhadina_runtime_event_checkpoints c
+   where c.consumer_id = p_consumer_id
+     and c.work_session_id = p_work_session_id;
+
+  return coalesce(v_sequence,0);
+end;
+$$;
+
+create or replace function public.jhadina_advance_runtime_event_checkpoint(
+  p_consumer_id text,
+  p_work_session_id text,
+  p_expected_sequence bigint,
+  p_next_sequence bigint
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_updated integer;
+begin
+  if p_consumer_id is null or btrim(p_consumer_id) = '' or p_work_session_id is null or btrim(p_work_session_id) = '' then
+    raise exception 'RUNTIME_EVENT_CHECKPOINT_IDENTITY_REQUIRED';
+  end if;
+  if p_expected_sequence < 0 or p_next_sequence < p_expected_sequence then
+    raise exception 'RUNTIME_EVENT_CHECKPOINT_INVALID';
+  end if;
+  if p_next_sequence > 0 and not exists (
+    select 1 from public.jhadina_runtime_events e
+     where e.work_session_id = p_work_session_id
+       and e.sequence_id = p_next_sequence
+  ) then
+    raise exception 'RUNTIME_EVENT_CHECKPOINT_EVENT_NOT_FOUND';
+  end if;
+
+  insert into public.jhadina_runtime_event_checkpoints(consumer_id,work_session_id,last_sequence)
+  values (p_consumer_id,p_work_session_id,0)
+  on conflict (consumer_id,work_session_id) do nothing;
+
+  update public.jhadina_runtime_event_checkpoints c
+     set last_sequence = p_next_sequence,
+         updated_at = clock_timestamp()
+   where c.consumer_id = p_consumer_id
+     and c.work_session_id = p_work_session_id
+     and c.last_sequence = p_expected_sequence;
+
+  get diagnostics v_updated = row_count;
+  return v_updated = 1;
+end;
+$$;
+
+revoke all on function public.jhadina_read_runtime_events_after(text,bigint,integer) from public, anon, authenticated;
+revoke all on function public.jhadina_get_runtime_event_checkpoint(text,text) from public, anon, authenticated;
+revoke all on function public.jhadina_advance_runtime_event_checkpoint(text,text,bigint,bigint) from public, anon, authenticated;
+
+grant execute on function public.jhadina_read_runtime_events_after(text,bigint,integer) to service_role;
+grant execute on function public.jhadina_get_runtime_event_checkpoint(text,text) to service_role;
+grant execute on function public.jhadina_advance_runtime_event_checkpoint(text,text,bigint,bigint) to service_role;
