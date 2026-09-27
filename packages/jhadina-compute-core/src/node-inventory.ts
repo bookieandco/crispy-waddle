@@ -47,7 +47,7 @@ export class InMemoryComputeNodeInventory{
       ...record,
       node:Object.freeze({
         ...record.node,
-        accelerators:Object.freeze(record.node.accelerators.map(accelerator=>Object.freeze({...accelerator}))),
+        accelerators:record.node.accelerators.map(accelerator=>({...accelerator})),
       }),
     }));
   }
