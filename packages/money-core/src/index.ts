@@ -254,3 +254,5 @@ export * from './sport-sim-2f-certification.js';
 export * from './sports-simulation-report.js';
 
 export * from './sports-game-reference-context.js';
+
+export * from './sports-basketball-mechanics.js';
