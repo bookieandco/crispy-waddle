@@ -10,7 +10,7 @@ import { classifySamNoticeChange, computeSamMarketCoverage, nextSamBootstrapWind
 import { scanSamOpportunityWindow } from './sam-client'
 import { extractSamAttachmentText } from './sam-document-extractor'
 import { getSamApiKey } from './sam-config'
-import { samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
+import { certifySamBulkCoverageRange, samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
 
 export type SamWideScanReceipt={
   runId:number
@@ -187,16 +187,16 @@ export async function runSamBulkSnapshotScan(
 
     if(receipt.seenRecords<1)throw new Error('SAM_BULK_TARGET_WINDOW_EMPTY')
     if(!sourceMinDay||!sourceMaxDay)throw new Error('SAM_BULK_POSTED_DATE_RANGE_MISSING')
-    const snapshotDate=snapshot.lastModified?new Date(snapshot.lastModified):null
-    const snapshotDay=snapshotDate&&!Number.isNaN(snapshotDate.getTime())
-      ? snapshotDate.toISOString().slice(0,10)
-      : null
-    const sourceCoverageTo=[sourceMaxDay,snapshotDay].filter((value):value is string=>Boolean(value)).sort().at(-1)!
-    const certifiedFrom=sourceMinDay>input.targetFrom?sourceMinDay:input.targetFrom
-    const certifiedTo=sourceCoverageTo<input.targetTo?sourceCoverageTo:input.targetTo
-    if(certifiedFrom>certifiedTo)throw new Error('SAM_BULK_SNAPSHOT_DOES_NOT_COVER_TARGET')
-    receipt.postedFrom=certifiedFrom
-    receipt.postedTo=certifiedTo
+    const coverageRange=certifySamBulkCoverageRange({
+      targetFrom:input.targetFrom,
+      targetTo:input.targetTo,
+      sourceMinDay,
+      sourceMaxDay,
+      lastModified:snapshot.lastModified,
+    })
+    if(!coverageRange)throw new Error('SAM_BULK_SNAPSHOT_DOES_NOT_COVER_TARGET')
+    receipt.postedFrom=coverageRange.from
+    receipt.postedTo=coverageRange.to
     receipt.pages=1
     receipt.totalRecords=receipt.seenRecords
     receipt.source={
