@@ -84,7 +84,7 @@ export interface LeaseableWorkSessionTaskRepository extends WorkSessionTaskRepos
 }
 
 
-export class InMemoryWorkSessionTaskRepository implements LeaseableWorkSessionTaskRepository implements WorkSessionTaskRepository {
+export class InMemoryWorkSessionTaskRepository implements LeaseableWorkSessionTaskRepository {
   private readonly tasks=new Map<string,WorkSessionTask>();
   private readonly idempotency=new Map<string,string>();
 
