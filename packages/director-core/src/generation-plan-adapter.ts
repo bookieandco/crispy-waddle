@@ -131,7 +131,7 @@ export class GenerationPlanAdapter {
     }
 
     const characterReferenceIds = [...new Set(characterIdentities.flatMap((identity) => identity.referenceAssetIds))];
-    let resolvedCharacterReferences: Array<{ assetId: string; role: 'character'; uri?: string }> =
+    let resolvedCharacterReferences: Array<{ assetId: string; role: 'character'; uri?: string; sha256?: string }> =
       characterReferenceIds.map((assetId) => ({ assetId, role: 'character' as const }));
 
     if (characterReferenceIds.length) {
@@ -140,7 +140,7 @@ export class GenerationPlanAdapter {
       }
       resolvedCharacterReferences = await Promise.all(characterReferenceIds.map(async (assetId) => {
         const resolved = await this.characterReferenceAssetResolver!.resolve(assetId, request.projectId);
-        return { assetId, role: 'character' as const, uri: resolved.uri };
+        return { assetId, role: 'character' as const, uri: resolved.uri, ...(resolved.sha256 ? { sha256: resolved.sha256 } : {}) };
       }));
     }
 
@@ -235,7 +235,7 @@ function buildManifestReferences(
   manifestReferences: readonly OrderedGenerationReference[],
   characterReferenceIds: readonly string[],
   requestReferenceAssetIds: readonly string[],
-  resolvedCharacterByAsset: ReadonlyMap<string, { assetId: string; role: 'character'; uri?: string }>,
+  resolvedCharacterByAsset: ReadonlyMap<string, { assetId: string; role: 'character'; uri?: string; sha256?: string }>,
 ) {
   const ordered = [...manifestReferences].sort((a, b) => a.slot - b.slot);
   const manifestAssetIds = new Set(ordered.map((reference) => reference.assetId));
@@ -257,7 +257,11 @@ function buildManifestReferences(
       assetId: reference.assetId,
       role: providerReferenceRole(reference.role),
       media: reference.media,
+      ...(reference.sha256 ? { sha256: reference.sha256 } : {}),
+      semanticLabel: reference.semanticLabel,
+      evidenceIds: [...reference.evidenceIds],
       ...(resolvedCharacter?.uri ? { uri: resolvedCharacter.uri } : {}),
+      ...(resolvedCharacter?.sha256 ? { sha256: resolvedCharacter.sha256 } : {}),
     };
   });
 }
