@@ -228,6 +228,71 @@ export function resolvePaperDecision(
   });
 }
 
+export type PaperDecisionDailyMark = Readonly<{
+  startsAt: string;
+  endsAt: string;
+  high: number;
+  low: number;
+  close: number;
+  evidenceId: string;
+}>;
+
+export function resolvePaperDecisionFromNextDailyMark(
+  decision: PaperDecisionObservation,
+  marks: readonly PaperDecisionDailyMark[],
+): PaperDecisionResolution | undefined {
+  if (decision.evaluationHorizon !== 'NEXT_COMPLETED_DAILY_BAR') {
+    throw new Error('MONEY_PAPER_LOOP_HORIZON_INVALID');
+  }
+  if (!Number.isFinite(decision.referencePrice) || decision.referencePrice <= 0) {
+    throw new Error('MONEY_PAPER_LOOP_REFERENCE_PRICE_INVALID');
+  }
+
+  const cutoff = Date.parse(decision.informationCutoff);
+  if (Number.isNaN(cutoff)) {
+    throw new Error('MONEY_PAPER_LOOP_DECISION_CUTOFF_INVALID');
+  }
+
+  const eligible = marks
+    .filter((mark) => {
+      const end = Date.parse(mark.endsAt);
+      return !Number.isNaN(end) && end > cutoff;
+    })
+    .sort((a, b) => a.endsAt.localeCompare(b.endsAt));
+  const next = eligible[0];
+  if (!next) return undefined;
+
+  for (const value of [next.high, next.low, next.close]) {
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error('MONEY_PAPER_LOOP_DAILY_MARK_INVALID');
+    }
+  }
+  if (next.high < next.low) {
+    throw new Error('MONEY_PAPER_LOOP_DAILY_MARK_INVALID');
+  }
+  if (!next.evidenceId.trim()) {
+    throw new Error('MONEY_PAPER_LOOP_DAILY_MARK_EVIDENCE_REQUIRED');
+  }
+
+  const ref = decision.referencePrice;
+  const realizedReturnBps = Math.round(((next.close / ref) - 1) * 10_000);
+  const maxFavorableExcursionBps = Math.round(
+    Math.max(0, ((next.high / ref) - 1) * 10_000),
+  );
+  const maxAdverseExcursionBps = Math.round(
+    Math.min(0, ((next.low / ref) - 1) * 10_000),
+  );
+
+  return resolvePaperDecision(decision, {
+    resolvedAt: next.endsAt,
+    realizedReturnBps,
+    maxFavorableExcursionBps,
+    maxAdverseExcursionBps,
+    resolutionBasis: 'COUNTERFACTUAL_MARK',
+    evidenceIds: [next.evidenceId],
+  });
+}
+
 export function learnFromPaperDecision(
   decision: PaperDecisionObservation,
   resolution: PaperDecisionResolution,
