@@ -31,15 +31,19 @@ jobs:
           node-version: 20
           cache: pnpm
       - name: Install workspace
-        run: pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
-      - name: Type-check JhadinaTV
+        run: pnpm install --frozen-lockfile
+      - name: Type-check JhadinaTV core
         run: |
           set -o pipefail
           pnpm --filter @jhadina/tv-core type-check 2>&1 | tee /tmp/jhadinatv-typecheck.log
-      - name: Test JhadinaTV
+      - name: Test JhadinaTV core
         run: |
           set -o pipefail
           pnpm --filter @jhadina/tv-core test 2>&1 | tee /tmp/jhadinatv-test.log
+      - name: Type-check JhadinaTV web integration
+        run: |
+          set -o pipefail
+          pnpm --filter @jhadina/jhadina-web type-check 2>&1 | tee /tmp/jhadinatv-web-typecheck.log
       - name: Upload JhadinaTV diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -48,4 +52,5 @@ jobs:
           path: |
             /tmp/jhadinatv-typecheck.log
             /tmp/jhadinatv-test.log
+            /tmp/jhadinatv-web-typecheck.log
           if-no-files-found: ignore

@@ -106,6 +106,7 @@ export const JHADINA_TV_ROUTES = {
   movies: '/jhadinatv/movies',
   tv: '/jhadinatv/tv',
   search: '/jhadinatv/search',
+  live: '/jhadinatv/live',
   watch: (kind: MediaKind, id: string) => `/jhadinatv/watch/${kind}/${id}`,
 };
 
@@ -160,3 +161,12 @@ export type { MediaPerceptionAdapter } from './perception';
 export { perceiveAuthorizedMedia } from './perception';
 export * from './hierarchy';
 export * from './consumer-state';
+
+export type { LiveChannel, LiveChannelKind, LiveChannelProvider, LiveProgram, LiveSourceProvenance } from './live-tv';
+export { assertLiveChannel } from './live-tv';
+export type { UnifiedGuideRow } from './guide';
+export { buildUnifiedGuide, getCurrentProgram } from './guide';
+export type { JhadinaChannelDefinition, JhadinaChannelEngine, JhadinaChannelSchedule, JhadinaScheduledItem } from './channel-engine';
+export { createJhadinaChannelEngine } from './channel-engine';
+export type { M3uChannelRecord, XmltvProgram } from './live-ingest';
+export { mapXmltvProgram, parseM3u, parseXmltvPrograms } from './live-ingest';

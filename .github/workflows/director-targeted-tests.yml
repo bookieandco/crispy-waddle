@@ -95,6 +95,7 @@ jobs:
           src/production-project.test.ts
           src/process-observation.test.ts
           src/rehearsal-loop.test.ts
+          src/director-replicate-certification.test.ts
           src/agentic-project-context.test.ts
           src/localized-video-repair.test.ts
           src/world-reference-workflow.test.ts
@@ -155,4 +156,5 @@ jobs:
           src/lib/director-reference-media.test.ts
           src/app/api/workstation/editing-assets/route.test.ts
           src/lib/social/director-bridge.test.ts
+          src/lib/supabase/middleware.test.ts
       - run: pnpm --filter @jhadina/jhadina-web run type-check

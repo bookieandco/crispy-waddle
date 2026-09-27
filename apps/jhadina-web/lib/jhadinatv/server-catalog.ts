@@ -1,4 +1,5 @@
 import { CatalogRegistry, createAuthorizedCatalogAdapter, createDeterministicMediaAdvisor, createJhadinaTVRuntime, type MediaSource, type MediaTitle } from '@jhadina/tv-core';
+import { createJellyfinProviderBundle } from './jellyfin-provider';
 
 const records: MediaTitle[] = [
   { id: 'demo-noir', kind: 'movie', title: 'Midnight Signal', overview: 'A detective follows a strange radio transmission through a city that never sleeps.', year: 2026, runtimeMinutes: 108, genres: ['Crime', 'Mystery', 'Drama'], rating: 8.2, availability: 'public-domain' },
@@ -18,6 +19,12 @@ const client = {
 const registry = new CatalogRegistry();
 registry.register(createAuthorizedCatalogAdapter(client, { id: 'jhadina-demo', name: 'Jhadina Demo Catalog' }));
 
+const jellyfin = createJellyfinProviderBundle();
+if (jellyfin) {
+  registry.register(createAuthorizedCatalogAdapter(jellyfin.catalogClient, { id: 'jellyfin', name: 'Jellyfin' }));
+}
+
+export const jhadinaTVLiveProvider = jellyfin?.liveProvider;
 export const jhadinaTVServerRegistry = registry;
 export const jhadinaTVServerRuntime = createJhadinaTVRuntime(registry, createDeterministicMediaAdvisor(), {
   getViewingSignals: async () => [],
