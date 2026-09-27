@@ -103,8 +103,8 @@ export function directorGenerationComputeDraft(
     constraints: defaultDirectorConstraints(options.constraints),
     dataLocalityKeys: locality(
       `model:${task.request.model.id}`,
-      ...task.request.references?.map((reference) => `asset:${reference.assetId}`) ?? [],
-      ...task.request.loras?.map(({ lora }) => `lora:${lora.id}`) ?? [],
+      ...(task.request.references ?? []).map((reference) => `asset:${reference.assetId}`),
+      ...(task.request.loras ?? []).map(({ lora }) => `lora:${lora.id}`),
     ),
     createdAt: options.createdAt ?? task.createdAt,
   };
