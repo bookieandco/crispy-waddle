@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  InMemoryComputeExecutionRepository,
-  type ComputeExecutionResultReceipt,
-} from './execution-repository.js';
+import { InMemoryComputeExecutionRepository } from './execution-repository.js';
+import type { ComputeExecutionResultReceipt } from './execution-contract.js';
 import {
   KubernetesApiJobTransport,
   type FetchLike,
