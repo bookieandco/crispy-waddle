@@ -64,7 +64,7 @@ export const DIRECTOR_PRODUCTION_FINAL_FIXTURES: readonly DirectorProductionFixt
     kind: 'branded-short-8-13m',
     minimumDurationSeconds: 8 * 60,
     maximumDurationSeconds: 13 * 60,
-    requiredMetrics: Object.freeze([...BASE_METRICS, 'product-fidelity']),
+    requiredMetrics: Object.freeze([...BASE_METRICS, 'product-fidelity'] as DirectorProductionQualityMetric[]),
     requiredCoherenceLevels: Object.freeze(['shot','scene','sequence','final'] as DirectorCoherenceLevel[]),
     requireProductFidelity: true,
     requireExternalNleRoundTrip: false,
