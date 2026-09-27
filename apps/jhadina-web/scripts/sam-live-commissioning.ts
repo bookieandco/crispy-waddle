@@ -2,6 +2,7 @@ import { certifySamUsableFinal } from '@jhadina/opportunity-core'
 import { runSamMarketBootstrap } from '../src/lib/money-opportunities/sam-wide-runtime'
 import { runSamEnrichment, collectSamUsableEvidence } from '../src/lib/money-opportunities/sam-usable-runtime'
 import { createRemoteSamSupabaseClient, samRuntimeGatewayHealth } from '../src/lib/money-opportunities/sam-runtime-gateway-client'
+import { samUpstreamHealth } from '../src/lib/money-opportunities/sam-upstream-client'
 
 function required(name:string){
   const value=process.env[name]?.trim()
@@ -10,11 +11,14 @@ function required(name:string){
 }
 async function main(){
   console.log(JSON.stringify({phase:'sam-live-commissioning',version:2,runtimeBound:true,executionSurface:'github_actions_production'}))
-  // SAM_GOV_API_KEY is consumed by the existing server-side SAM client.
-  required('SAM_GOV_API_KEY')
   required('SAM_RUNTIME_OIDC_TOKEN')
-  const health=await samRuntimeGatewayHealth()
+  required('SAM_UPSTREAM_OIDC_TOKEN')
+  const [health,upstream]=await Promise.all([
+    samRuntimeGatewayHealth(),
+    samUpstreamHealth(),
+  ])
   if(!health.serviceRoleConfigured)throw new Error('SAM runtime gateway service role is unavailable')
+  if(!upstream.samKeyConfigured)throw new Error('Vercel sam_key is unavailable')
   const client=createRemoteSamSupabaseClient()
 
   const bootstrap=await runSamMarketBootstrap(client,{
