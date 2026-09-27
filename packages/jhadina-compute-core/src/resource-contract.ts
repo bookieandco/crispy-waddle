@@ -94,6 +94,11 @@ export type ComputeWorkload = {
     | 'pod'
     | 'music'
     | 'memory'
+    | 'money'
+    | 'shark'
+    | 'sports'
+    | 'opportunity'
+    | 'jhadina-tv'
     | 'homebase'
     | 'other';
   kind: ComputeWorkloadKind;
