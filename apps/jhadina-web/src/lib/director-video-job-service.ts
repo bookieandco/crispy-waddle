@@ -11,6 +11,7 @@ import {
 } from '@jhadina/director-core/whole-video-provider';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { createConfiguredWholeVideoProviders } from '@/lib/director-whole-video-providers';
+import { loadDirectorRuntimeConfig } from '@/lib/director-runtime-config';
 
 type VideoJobRow = {
   id: string;
@@ -138,6 +139,7 @@ export interface AskVideoJobInput {
     referenceUris: readonly string[];
     productionPlan?: unknown;
   };
+  certification?: boolean;
   referenceProduct?: {
     productId: string;
     productBibleId: string;
@@ -183,6 +185,7 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
 
   const requestedSpec: Record<string, unknown> = {
     narration: intent.narration,
+    ...(input.certification ? { certification: { runtimeOnly: true, qualityClaim: false } } : {}),
     captions: intent.captions,
     foley: intent.foley,
     commercialSafeOnly: intent.commercialSafeOnly,
@@ -259,7 +262,14 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
     return { intent, job };
   }
 
-  const provider = selectWholeVideoProvider(createConfiguredWholeVideoProviders(), intent, {
+  const runtimeConfig = input.certification ? await loadDirectorRuntimeConfig(client) : {};
+  const provider = selectWholeVideoProvider(createConfiguredWholeVideoProviders({
+    includeCertification: Boolean(input.certification),
+    runtimeConfig: {
+      certificationVideoProviderUrl: runtimeConfig.certificationVideoProviderUrl,
+      certificationVideoProviderToken: runtimeConfig.certificationVideoProviderToken,
+    },
+  }), intent, {
     characterReference: Boolean(input.referenceCharacter),
     productReference: Boolean(input.referenceProduct),
     expressionGuidance: Boolean(input.socialExpression),
