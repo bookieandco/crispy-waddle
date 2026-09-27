@@ -37,23 +37,45 @@ export async function runSessionGovernedMoneyPaperSetup(
   const broker=createAlpacaPaperBrokerAdapter({credentials:()=>credentials})
   const account=await broker.getAccount(input.accountId,now)
 
+  const {data:activeRows,error:activeReadError}=await client
+    .from("money_broker_account_entitlements")
+    .select("entitlement_id,capabilities,evidence_ids")
+    .eq("user_id",identity.userId)
+    .eq("provider","alpaca")
+    .eq("account_id",account.accountId)
+    .eq("status","ACTIVE")
+    .limit(1)
+  if(activeReadError)throw new Error("MONEY_PAPER_SETUP_ENTITLEMENT_READ_FAILED:"+activeReadError.message)
+
+  const active=(activeRows??[])[0] as {entitlement_id:string;capabilities:string[];evidence_ids:string[]}|undefined
+  const inheritedCapabilities=active?.capabilities??[]
   const evidenceIds=Object.freeze([
     "alpaca-paper-account:"+account.accountId,
     ...account.evidenceIds,
+    ...(active?["supersedes-entitlement:"+active.entitlement_id,...(active.evidence_ids??[])]:[]),
   ])
   const entitlement=createBrokerAccountEntitlement({
     entitlementId:"paper-entitlement:"+randomUUID(),
     userId:identity.userId,
     provider:"alpaca",
     accountId:account.accountId,
-    capabilities:["money.market.observe","money.paper.trade.submit"],
+    capabilities:[...new Set([...inheritedCapabilities,"money.market.observe","money.paper.trade.submit"])] as ("money.market.observe"|"money.paper.trade.submit"|"money.trade.submit")[],
     createdAt:now,
     evidenceIds,
   })
 
+  if(active){
+    const {error:revokeError}=await client
+      .from("money_broker_account_entitlements")
+      .update({status:"REVOKED",revoked_at:now,updated_at:now})
+      .eq("entitlement_id",active.entitlement_id)
+      .eq("status","ACTIVE")
+    if(revokeError)throw new Error("MONEY_PAPER_SETUP_ENTITLEMENT_REVOKE_FAILED:"+revokeError.message)
+  }
+
   const {error:entitlementError}=await client
     .from("money_broker_account_entitlements")
-    .upsert({
+    .insert({
       entitlement_id:entitlement.entitlementId,
       user_id:entitlement.userId,
       provider:entitlement.provider,
@@ -66,7 +88,7 @@ export async function runSessionGovernedMoneyPaperSetup(
       evidence_ids:[...entitlement.evidenceIds],
       provenance_hash:entitlement.provenanceHash,
       updated_at:now,
-    },{onConflict:"user_id,provider,account_id"})
+    })
   if(entitlementError)throw new Error("MONEY_PAPER_SETUP_ENTITLEMENT_WRITE_FAILED:"+entitlementError.message)
 
   const settings=createPaperAutopilotSettings({
