@@ -1,5 +1,4 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, expect, it } from 'vitest';
 import {
   assertMakeItMakeSenseCannotAuthorize,
   makeItMakeSense,
@@ -25,45 +24,43 @@ function checks(
   }));
 }
 
-test('MIMS keeps coherence separate from truth or authority', () => {
+it('MIMS keeps coherence separate from truth or authority', () => {
   const vote = makeItMakeSense({
     voteId: 'mims:1',
     subjectId: 'stock:AAPL:baseline',
     checks: checks(),
   });
-  assert.equal(vote.status, 'PASS');
-  assert.equal(vote.coherentNotEquivalentToTrue, true);
-  assert.equal(vote.independentValidationStillRequired, true);
-  assert.equal(vote.authority, 'ADVISORY_ONLY');
-  assert.doesNotThrow(() => assertMakeItMakeSenseCannotAuthorize(vote));
+  expect(vote.status).toBe('PASS');
+  expect(vote.coherentNotEquivalentToTrue).toBe(true);
+  expect(vote.independentValidationStillRequired).toBe(true);
+  expect(vote.authority).toBe('ADVISORY_ONLY');
+  expect(() => assertMakeItMakeSenseCannotAuthorize(vote)).not.toThrow();
 });
 
-test('MIMS fails on any failed dimension and reviews uncertainty explicitly', () => {
+it('MIMS fails on any failed dimension and reviews uncertainty explicitly', () => {
   const failed = makeItMakeSense({
     voteId: 'mims:2',
     subjectId: 'claim:2',
     checks: checks({ CONTRADICTIONS: 'FAIL' }),
   });
-  assert.equal(failed.status, 'FAIL');
-  assert.ok(failed.reasonCodes.includes('CONTRADICTIONS_FAILED'));
+  expect(failed.status).toBe('FAIL');
+  expect(failed.reasonCodes).toContain('CONTRADICTIONS_FAILED');
 
   const review = makeItMakeSense({
     voteId: 'mims:3',
     subjectId: 'claim:3',
     checks: checks({ BASE_RATES: 'REVIEW' }),
   });
-  assert.equal(review.status, 'REVIEW');
-  assert.ok(review.reasonCodes.includes('BASE_RATES_REVIEW'));
+  expect(review.status).toBe('REVIEW');
+  expect(review.reasonCodes).toContain('BASE_RATES_REVIEW');
 });
 
-test('MIMS requires every universal dimension', () => {
-  assert.throws(
-    () =>
+it('MIMS requires every universal dimension', () => {
+  expect(() =>
       makeItMakeSense({
         voteId: 'mims:bad',
         subjectId: 'claim:bad',
         checks: checks().filter((x) => x.dimension !== 'ALTERNATIVES'),
       }),
-    /JHADINA_MIMS_DIMENSION_REQUIRED:ALTERNATIVES/,
-  );
+    ).toThrow(/JHADINA_MIMS_DIMENSION_REQUIRED:ALTERNATIVES/);
 });
