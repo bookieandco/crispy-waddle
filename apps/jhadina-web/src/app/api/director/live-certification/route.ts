@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { applyTimelineCommand } from '@jhadina/director-core/timeline-command';
 import { createTimeline, type EditableTimeline, type TimelineVersion } from '@jhadina/director-core/timeline-model';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
@@ -53,13 +54,13 @@ async function loadRun(client:ReturnType<typeof createServiceRoleClient> extends
   return data as CertRun;
 }
 
-async function patchRun(client:any,runId:string,patch:Record<string,unknown>):Promise<void>{
+async function patchRun(client:SupabaseClient,runId:string,patch:Record<string,unknown>):Promise<void>{
   const {error}=await client.from('director_live_certification_runs')
     .update({...patch,updated_at:new Date().toISOString()}).eq('id',runId);
   if(error) throw error;
 }
 
-async function assertMachineAuth(client:any,request:Request){
+async function assertMachineAuth(client:SupabaseClient,request:Request){
   const config=await loadDirectorRuntimeConfig(client);
   const expected=config.liveCertificationToken;
   if(!expected||authHeader(request)!==`Bearer ${expected}`) throw new Error('DIRECTOR_LIVE_CERT_UNAUTHORIZED');
@@ -70,7 +71,7 @@ async function assertMachineAuth(client:any,request:Request){
   return config;
 }
 
-async function launchVideoMatrix(client:any,run:CertRun,userId:string,providerBase:string,providerToken:string){
+async function launchVideoMatrix(client:SupabaseClient,run:CertRun,userId:string,providerBase:string){
   const replication=run.replication_job_id
     ? await getProcessReplicationJobForUser(userId,run.replication_job_id)
     : undefined;
@@ -136,7 +137,7 @@ function versionEntry(
   };
 }
 
-async function persistEditableProof(client:any,userId:string,job:any,asset:any,duration:number){
+async function persistEditableProof(client:SupabaseClient,userId:string,job:any,asset:any,duration:number){
   const clipId=`clip:${job.id}:master`;
   let timeline=createTimeline({
     projectId:job.project_id,
@@ -206,7 +207,7 @@ async function providerMeasuredDuration(baseUrl:string,token:string,providerJobI
   return value;
 }
 
-async function advanceRun(client:any,run:CertRun,userId:string,providerBase:string,providerToken:string){
+async function advanceRun(client:SupabaseClient,run:CertRun,userId:string,providerBase:string,providerToken:string){
   let current=run;
   if(!current.replication_job_id) throw new Error('DIRECTOR_LIVE_CERT_REPLICATION_JOB_MISSING');
   const replication=await advanceAskProcessReplicationJob(userId,current.replication_job_id);
@@ -221,7 +222,7 @@ async function advanceRun(client:any,run:CertRun,userId:string,providerBase:stri
   }
 
   if(!(current.video_job_ids??[]).length){
-    current=await launchVideoMatrix(client,current,userId,providerBase,providerToken);
+    current=await launchVideoMatrix(client,current,userId,providerBase);
   }
 
   await reconcileDirectorVideoJobs(client,{limit:25});
