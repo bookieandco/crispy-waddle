@@ -37,7 +37,7 @@ test('056.9 paper bracket order binds stop-loss and take-profit to the entry',as
   {clientOrderId:'paper-bracket-cid1',accountId:'acct1',instrumentId:'stock:AAPL',side:'BUY',orderType:'LIMIT',notionalMinor:'100000',limitPriceMinor:'20000',currency:'USD',timeInForce:'DAY',takeProfitPriceMinor:'20800',stopLossPriceMinor:'19600'}
  )
  assert.equal(result.environment,'PAPER')
- const body=JSON.parse(log.at(-1).init.body)
+ const body=JSON.parse(log.at(-1).body)
  assert.equal(body.order_class,'bracket')
  assert.equal(body.take_profit.limit_price,'208.00')
  assert.equal(body.stop_loss.stop_price,'196.00')
