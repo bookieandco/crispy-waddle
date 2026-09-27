@@ -9,9 +9,26 @@ const glyph: Record<Story['kind'], string> = {
   youtube: 'Y',
   director: '▶',
   jhadina: '✦',
+  tv: '▣',
+  opportunity: '★',
+  money: '$',
+  sports: '🏆',
+  commerce: '●',
 };
 
 type GrowthDraft = { title?: string; body: string; status: string };
+type OpportunityItem = {
+  id: string;
+  title: string;
+  summary?: string;
+  sourceName?: string;
+  fitScore?: number;
+  deadline?: string;
+  estimatedPay?: { min?: number; max?: number; currency?: string; cadence?: string };
+  verificationStatus?: string;
+  automationLevel?: string;
+};
+type TvTitle = { id: string; title: string; overview?: string; kind: string; year?: number; providerId?: string };
 
 type SocialHubItem = {
   id: string;
@@ -44,10 +61,9 @@ function sourceForPlatform(platform?: string): Exclude<FeedSource, 'All'> {
 
 function useGrowthProposal(): Story | null {
   const [story, setStory] = useState<Story | null>(null);
-
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    void (async () => {
       try {
         const response = await fetch('/api/growth/drafts', { cache: 'no-store' });
         if (!response.ok) return;
@@ -55,16 +71,13 @@ function useGrowthProposal(): Story | null {
         const drafts: GrowthDraft[] = json.data?.drafts ?? [];
         const pending = drafts.filter((draft) => draft.status === 'PENDING_APPROVAL');
         if (cancelled || pending.length === 0) return;
-
-        const first = pending[0];
+        const first = pending[0]!;
         setStory({
           id: 'growth-pending-approval',
           kind: 'director',
           source: 'Director',
           title: first.title || 'A draft is ready for your review.',
-          body: pending.length > 1
-            ? `${pending.length} drafts are waiting on your approval. Nothing publishes without you.`
-            : first.body,
+          body: pending.length > 1 ? `${pending.length} drafts are waiting on your approval. Nothing publishes without you.` : first.body,
           age: 'Needs attention',
           action: { label: 'Review', href: '/growth' },
           details: [
@@ -73,30 +86,24 @@ function useGrowthProposal(): Story | null {
             { label: 'Publishing', value: 'Human gated' },
           ],
         });
-      } catch {
-        // Home preview stays quiet when Growth is unavailable.
-      }
-    }
-    void load();
+      } catch {}
+    })();
     return () => { cancelled = true; };
   }, []);
-
   return story;
 }
 
 function useSocialHubStories(): Story[] {
   const [stories, setStories] = useState<Story[]>([]);
-
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    void (async () => {
       try {
         const response = await fetch('/api/social/hub', { cache: 'no-store' });
         if (!response.ok) return;
         const json = await response.json();
         const items: SocialHubItem[] = json.data?.items ?? [];
         if (cancelled) return;
-
         setStories(items.slice(0, 20).map((item) => {
           const source = sourceForPlatform(item.platform);
           return {
@@ -108,7 +115,7 @@ function useSocialHubStories(): Story[] {
               ? 'Governed publication activity from the Social outbox.'
               : 'Observed social activity with preserved source evidence.',
             age: item.status ?? new Date(item.occurredAt).toLocaleString(),
-            action: item.source === 'publication' ? { label: 'Open Social', href: '/social' } : undefined,
+            action: { label: 'Open Social', href: '/social' },
             details: [
               { label: 'Type', value: item.source },
               ...(item.status ? [{ label: 'Status', value: item.status }] : []),
@@ -117,14 +124,81 @@ function useSocialHubStories(): Story[] {
             ],
           } satisfies Story;
         }));
-      } catch {
-        // The unified feed remains usable while a provider or migration is unavailable.
-      }
-    }
-    void load();
+      } catch {}
+    })();
     return () => { cancelled = true; };
   }, []);
+  return stories;
+}
 
+function useOpportunityStories(): Story[] {
+  const [stories, setStories] = useState<Story[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch('/api/opportunities', { cache: 'no-store' });
+        if (!response.ok) return;
+        const json = await response.json();
+        const items: OpportunityItem[] = json.data?.opportunities ?? [];
+        if (cancelled) return;
+        setStories(items.slice(0, 5).map((item) => {
+          const pay = item.estimatedPay;
+          const payText = pay && (typeof pay.min === 'number' || typeof pay.max === 'number')
+            ? [pay.min, pay.max].filter((value): value is number => typeof value === 'number').map(value => new Intl.NumberFormat('en-US',{style:'currency',currency:pay.currency || 'USD',maximumFractionDigits:0}).format(value)).join('–')
+            : 'Not reported';
+          return {
+            id: `opportunity:${item.id}`,
+            kind: 'opportunity',
+            source: 'Opportunities',
+            title: item.title,
+            body: item.summary || 'A ranked opportunity is available for review.',
+            age: item.deadline ? `Deadline ${new Date(item.deadline).toLocaleDateString()}` : 'Opportunity',
+            action: { label: 'Review opportunity', href: `/opportunity/${encodeURIComponent(item.id)}` },
+            details: [
+              { label: 'Source', value: item.sourceName || 'Recorded source' },
+              { label: 'Fit', value: typeof item.fitScore === 'number' ? String(item.fitScore) : 'Not scored' },
+              { label: 'Pay', value: payText },
+              ...(item.verificationStatus ? [{ label: 'Verification', value: item.verificationStatus }] : []),
+            ],
+          } satisfies Story;
+        }));
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  return stories;
+}
+
+function useJhadinaTvStories(): Story[] {
+  const [stories, setStories] = useState<Story[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch('/api/jhadinatv/search?q=', { cache: 'no-store' });
+        if (!response.ok) return;
+        const json = await response.json();
+        const titles: TvTitle[] = json.titles ?? [];
+        if (cancelled) return;
+        setStories(titles.slice(0, 4).map((title) => ({
+          id: `jtv:${title.providerId ?? 'provider'}:${title.id}`,
+          kind: 'tv',
+          source: 'JhadinaTV',
+          title: title.title,
+          body: title.overview || 'Available through JhadinaTV’s authorized media provider boundary.',
+          age: [title.kind?.toUpperCase(), title.year].filter(Boolean).join(' · ') || 'Watch',
+          action: { label: 'Open JhadinaTV', href: '/jhadinatv' },
+          details: [
+            { label: 'Kind', value: title.kind || 'media' },
+            { label: 'Year', value: title.year ? String(title.year) : '—' },
+            { label: 'Provider', value: title.providerId || 'Authorized provider' },
+          ],
+        } satisfies Story)));
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
   return stories;
 }
 
@@ -148,6 +222,8 @@ function StoryCard({ story, onOpen }: { story: Story; onOpen: (story: Story) => 
 export function PersonalCommandFeed({ source }: { source?: FeedSource }) {
   const growthStory = useGrowthProposal();
   const socialStories = useSocialHubStories();
+  const opportunityStories = useOpportunityStories();
+  const tvStories = useJhadinaTvStories();
   const [selected, setSelected] = useState<Story | null>(null);
   const [selectedSource, setSelectedSource] = useState<FeedSource>(source ?? 'All');
 
@@ -163,21 +239,21 @@ export function PersonalCommandFeed({ source }: { source?: FeedSource }) {
   const stories = useMemo(() => {
     const all = [
       ...socialStories,
+      ...opportunityStories,
+      ...tvStories,
       ...(growthStory ? [growthStory] : []),
       ...baseStories,
     ];
     return all.filter((story) => storyMatchesSource(story, activeSource));
-  }, [activeSource, growthStory, socialStories]);
+  }, [activeSource, growthStory, opportunityStories, socialStories, tvStories]);
 
   return <section className={styles.feed}>
     <div className={styles.intro}>
-      <div className={styles.eyebrow}>Social + media intelligence</div>
+      <div className={styles.eyebrow}>Jhadina feed</div>
       <h2 className={styles.title}>Your world, in one scroll.</h2>
-      <p className={styles.description}>
-        TikTok, Instagram, YouTube, X, Facebook, Reddit and the rest of Jhadina’s social/media stream stay browseable here with source, provenance and approval state intact.
-      </p>
+      <p className={styles.description}>Social, media, opportunities and direct subsystem surfaces stay connected here without inventing unavailable state.</p>
     </div>
-    {!source && <div className={styles.filters} role="tablist" aria-label="Filter social and media stream">
+    {!source && <div className={styles.filters} role="tablist" aria-label="Filter Jhadina feed">
       {HOME_FEED_SOURCES.map((item) => <button key={item} type="button" role="tab" aria-selected={activeSource === item} className={activeSource === item ? styles.filterActive : styles.filter} onClick={() => setSelectedSource(item)}>{item}</button>)}
     </div>}
     <div className={styles.list} aria-label={activeSource + " feed"}>
@@ -185,13 +261,7 @@ export function PersonalCommandFeed({ source }: { source?: FeedSource }) {
         ? stories.map((story) => <StoryCard key={story.id} story={story} onOpen={setSelected} />)
         : <div className={styles.empty}>Nothing is in this source yet.</div>}
     </div>
-    {selected && <div
-      className={styles.overlay}
-      role="dialog"
-      aria-modal="true"
-      aria-label={selected.title}
-      onClick={() => setSelected(null)}
-    >
+    {selected && <div className={styles.overlay} role="dialog" aria-modal="true" aria-label={selected.title} onClick={() => setSelected(null)}>
       <div className={styles.detailPanel} onClick={(event) => event.stopPropagation()}>
         <button type="button" className={styles.close} onClick={() => setSelected(null)} aria-label="Close">×</button>
         <div className={styles.source}>{selected.source}</div>
