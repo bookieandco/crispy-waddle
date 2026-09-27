@@ -12,9 +12,14 @@ export interface DirectorPhantomWorkerConfig {
 export interface DirectorPhantomWorkerResult {
   providerJobId: string;
   status: 'queued' | 'processing' | 'ready' | 'failed' | 'cancelled';
+  requestId?: string;
+  projectId?: string;
   resultUri?: string;
+  model?: 'phantom-wan-1.3b' | 'phantom-wan-14b';
   modelVersion?: string;
   runtimeReceiptId?: string;
+  outputSha256?: string;
+  qualityClaim?: boolean;
   error?: string;
   metadata?: Readonly<Record<string, unknown>>;
 }
@@ -60,9 +65,14 @@ export class DirectorPhantomVideoProvider {
     return {
       providerJobId:body.providerJobId,
       status:body.status??'queued',
+      ...(body.requestId?{requestId:body.requestId}:{}),
+      ...(body.projectId?{projectId:body.projectId}:{}),
       ...(body.resultUri?{resultUri:body.resultUri}:{}),
+      ...(body.model?{model:body.model}:{}),
       ...(body.modelVersion?{modelVersion:body.modelVersion}:{}),
       ...(body.runtimeReceiptId?{runtimeReceiptId:body.runtimeReceiptId}:{}),
+      ...(body.outputSha256?{outputSha256:body.outputSha256}:{}),
+      ...(body.qualityClaim!==undefined?{qualityClaim:body.qualityClaim}:{}),
       ...(body.error?{error:body.error}:{}),
       ...(body.metadata?{metadata:body.metadata}:{}),
     };
@@ -78,9 +88,14 @@ export class DirectorPhantomVideoProvider {
     return {
       providerJobId,
       status:body.status??'processing',
+      ...(body.requestId?{requestId:body.requestId}:{}),
+      ...(body.projectId?{projectId:body.projectId}:{}),
       ...(body.resultUri?{resultUri:body.resultUri}:{}),
+      ...(body.model?{model:body.model}:{}),
       ...(body.modelVersion?{modelVersion:body.modelVersion}:{}),
       ...(body.runtimeReceiptId?{runtimeReceiptId:body.runtimeReceiptId}:{}),
+      ...(body.outputSha256?{outputSha256:body.outputSha256}:{}),
+      ...(body.qualityClaim!==undefined?{qualityClaim:body.qualityClaim}:{}),
       ...(body.error?{error:body.error}:{}),
       ...(body.metadata?{metadata:body.metadata}:{}),
     };
