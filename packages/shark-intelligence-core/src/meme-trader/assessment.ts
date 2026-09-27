@@ -3,6 +3,7 @@ import type { LiquidityHistory } from './liquidity-history'
 import { assessLPControlRisk, type LPControlRisk, type LPControlRiskInput } from './lp-control-risk'
 import type { RugProtectionEvidence, RugProtectionResult } from './rug-protection'
 import { evaluateRugProtection } from './rug-protection'
+import { evaluateRugSelfProtection, type RugCriticalCoverage, type RugModelSignal, type RugRuntimeObservation, type RugSelfProtectionResult, type RugSelfProtectionThresholds } from './rug-self-protection'
 import { assessMigrationAwareRisk } from './migration-aware-risk'
 import type { MigrationAwareClassification } from './migration-classification'
 
@@ -15,7 +16,7 @@ export type SupplyControlRisk = { score: number; deployerRisk: number; concentra
 export type HolderCohortSignal = { score: number; profitableTrackedWallets: number; accumulatingWallets: number; distributingWallets: number; medianHoldTimeSeconds?: number; reasons: string[] }
 export type AttentionQuality = { score: number; crossSourceConfirmation: number; engagementQuality: number; sourceCredibility: number; manipulationPenalty: number; reasons: string[] }
 export type RiskAssessment = { marketIntegrity: number; liquidityRisk: number; supplyControlRisk: number; holderConcentrationRisk: number; walletCohortRisk: number; socialManipulationRisk: number; narrativeFragilityRisk: number; developerRisk: number; contractRisk: number; networkRisk: number; attentionQuality: number; exitLiquidityRisk: number; overallRisk: number; band: 'candidate' | 'watch' | 'high-risk' | 'blocked' }
-export type MemeTradeAssessment = { assessmentId: string; assessedAt: string; token: { chainId: string; tokenAddress: string }; tradeType: TradeStyle; marketActivityQuality: MarketActivityQuality; supplyControl: SupplyControlRisk; holderCohort: HolderCohortSignal; attention: AttentionQuality; strategyFit: StrategyFit; riskAssessment: RiskAssessment; rugProtection: RugProtectionResult; lpControlRisk?: LPControlRisk; liquidityHistory?: LiquidityHistory; migrationClassification?: MigrationAwareClassification; thesis: string; invalidation: ThesisInvalidation; positionPlan: PositionPlan; confidence: number; evidenceIds: string[]; assessmentVersion: string }
+export type MemeTradeAssessment = { assessmentId: string; assessedAt: string; token: { chainId: string; tokenAddress: string }; tradeType: TradeStyle; marketActivityQuality: MarketActivityQuality; supplyControl: SupplyControlRisk; holderCohort: HolderCohortSignal; attention: AttentionQuality; strategyFit: StrategyFit; riskAssessment: RiskAssessment; rugProtection: RugProtectionResult; rugSelfProtection?: RugSelfProtectionResult; lpControlRisk?: LPControlRisk; liquidityHistory?: LiquidityHistory; migrationClassification?: MigrationAwareClassification; thesis: string; invalidation: ThesisInvalidation; positionPlan: PositionPlan; confidence: number; evidenceIds: string[]; assessmentVersion: string }
 
 const clamp = (n: number) => Math.max(0, Math.min(1, n))
 
@@ -75,6 +76,14 @@ export function createMemeTradeAssessment(input: {
   migrationClassification?: MigrationAwareClassification
   rugProtection?: RugProtectionResult
   rugProtectionInput?: Omit<Parameters<typeof evaluateRugProtection>[0], 'evidence'> & { evidence?: RugProtectionEvidence[] }
+  rugSelfProtection?: RugSelfProtectionResult
+  rugSelfProtectionInput?: Readonly<{
+    coverage: RugCriticalCoverage
+    runtime?: readonly RugRuntimeObservation[]
+    modelSignals?: readonly RugModelSignal[]
+    thresholds?: RugSelfProtectionThresholds
+    informationCutoff: string
+  }>
   thesis: string
   invalidation: ThesisInvalidation
   positionPlan: PositionPlan
@@ -118,6 +127,21 @@ export function createMemeTradeAssessment(input: {
     finalLpControlRisk = assessLPControlRisk(input.lpControlRiskInput)
   }
 
+  const rugSelfProtection = input.rugSelfProtection ?? (input.rugSelfProtectionInput ? evaluateRugSelfProtection({
+    rugProtection,
+    rugSelfProtection,
+    coverage: input.rugSelfProtectionInput.coverage,
+    runtime: input.rugSelfProtectionInput.runtime,
+    modelSignals: input.rugSelfProtectionInput.modelSignals,
+    thresholds: input.rugSelfProtectionInput.thresholds,
+    informationCutoff: input.rugSelfProtectionInput.informationCutoff,
+  }) : undefined)
+  if (rugSelfProtection && (
+    rugSelfProtection.authority !== 'RESEARCH_ONLY' ||
+    rugSelfProtection.canAuthorizeTrade !== false ||
+    rugSelfProtection.canAuthorizeExit !== false
+  )) throw new Error('rug self protection authority escalation forbidden')
+
   const effectiveLpRisk = finalLpControlRisk?.score ?? 0
   const migrated = input.migrationClassification?.kind === 'LEGITIMATE_MIGRATION' || input.migrationClassification?.kind === 'POOL_MIGRATION'
   const riskAssessment = evaluateRisk({
@@ -138,6 +162,9 @@ export function createMemeTradeAssessment(input: {
   if (rugProtection.disposition === 'BLOCK') { riskAssessment.overallRisk = 1; riskAssessment.band = 'blocked' }
   else if (rugProtection.disposition === 'REVIEW' && riskAssessment.band === 'candidate') { riskAssessment.overallRisk = Math.max(riskAssessment.overallRisk, .4); riskAssessment.band = 'watch' }
 
+  if (rugSelfProtection?.action === 'QUARANTINE' || rugSelfProtection?.action === 'BLOCK_NEW_ENTRY' || rugSelfProtection?.action === 'EXIT_RECOMMENDED') { riskAssessment.overallRisk = 1; riskAssessment.band = 'blocked' }
+  else if (rugSelfProtection?.action === 'CAUTION' && riskAssessment.band === 'candidate') { riskAssessment.overallRisk = Math.max(riskAssessment.overallRisk, .4); riskAssessment.band = 'watch' }
+
   const evidenceIds = [...new Set([
     input.market.observationId,
     ...(input.social ?? []).map(x => x.observationId),
@@ -147,6 +174,7 @@ export function createMemeTradeAssessment(input: {
     ...(finalLpControlRisk?.evidenceIds ?? []),
     ...(input.migrationClassification?.evidenceIds ?? []),
     ...rugProtection.evidenceIds,
+    ...(rugSelfProtection?.evidenceIds ?? []),
   ])]
 
   return {
