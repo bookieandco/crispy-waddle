@@ -4737,3 +4737,19 @@ asked.
 **Human gate:** Provisioning or spending on real cloud GPUs, changing production provider credentials, or moving private assets off Homebase requires explicit user authorization and the existing policy/approval path.
 **Verification:** Package type-check/tests; manifest/schema review; repo-wide checks where feasible.
 **Architectural impact:** Adds a scheduling/resource vocabulary only. Does not create a second memory system, second action executor, second audit ledger, or second durable generation authority.
+
+
+---
+
+## JHADINA COMPUTE CLOUD — CLOUD.2: WORKLOAD LINEAGE + DOMAIN ADAPTERS
+
+**Priority:** P0
+**Status:** REVIEW
+**Branch:** `feat/jhadina-compute-cloud-2`
+**Objective:** Bind real Jhadina work to the shared compute plane without making compute a second job authority. Every compute workload must carry a durable authority reference/idempotency key, use a named deployment-owned resource profile, and preserve asset/project locality. Add adapters for Director generation/render/audio/Foley, PupsonStuff creative work, JLLM/character interactive inference, and memory/index maintenance.
+**Dependencies:** CLOUD.1 merged in PR #706.
+**Architecture decision:** Domain code emits a `ComputeWorkloadDraft` with semantic kind, lineage and a resource-profile ID. Deployment/runtime configuration resolves the profile into concrete CPU/RAM/NVMe/GPU requirements before placement. Resource sizing therefore changes with hardware/model deployment, not by rewriting Director/PupsonStuff/JLLM business logic.
+**Definition of Done:** Compute workloads require authority lineage and idempotency; profile resolution is deterministic/fail-closed; Director adapters preserve generation/render/Foley/audio asset lineage; PupsonStuff pet creative drafts are sensitive/local-first; JLLM/character runtime drafts are interactive/local-first; memory embedding/index drafts are maintenance/local-first; tests prove no adapter can silently authorize cloud burst; package/workspace dependencies remain explicit.
+**Human gate:** No real Kubernetes submission, public-cloud spend, production model movement, or private-asset offload in CLOUD.2.
+**Verification:** Targeted type-check/tests for compute-core, director-core, PupsonStuff/Jhadina web adapters plus repo CI.
+**Architectural impact:** Existing Director/PupsonStuff/JLLM/Memory durable records remain authoritative. Compute drafts are execution descriptions only.
