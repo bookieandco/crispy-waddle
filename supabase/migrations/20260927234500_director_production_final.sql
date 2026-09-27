@@ -107,3 +107,31 @@ comment on table public.director_creative_directives is
 'Durable user/Jhadina/system creative locks. User directives retain precedence in Director creative-control resolution.';
 comment on table public.director_production_quality_runs is
 'Four-production quality certification evidence. quality_claim may become true only after deterministic Director production-quality QC passes.';
+
+
+create table if not exists public.director_production_final_programs (
+  id text primary key,
+  owner_user_id uuid not null,
+  source_project_id text not null,
+  character_id text not null,
+  product_id text,
+  status text not null check (status in ('planned','launching','rendering','awaiting-quality-evidence','blocked','failed','passed')),
+  fixtures jsonb not null default '[]'::jsonb,
+  evidence_ids jsonb not null default '[]'::jsonb,
+  error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists director_production_final_programs_owner_idx
+  on public.director_production_final_programs(owner_user_id, updated_at desc);
+
+alter table public.director_production_final_programs enable row level security;
+revoke all on public.director_production_final_programs from anon, authenticated;
+grant select, insert, update, delete on public.director_production_final_programs to service_role;
+create policy director_production_final_programs_service_role_only
+  on public.director_production_final_programs
+  as restrictive for all to service_role using (true) with check (true);
+
+comment on table public.director_production_final_programs is
+'Durable DIRECTOR-PRODUCTION.FINAL four-fixture program state. A passed row requires the persisted four-production quality matrix to pass; launch/render state alone is never a quality claim.';
