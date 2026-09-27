@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildUnifiedGuide, createJhadinaChannelEngine, getCurrentProgram, type LiveChannel, type LiveProgram, type MediaTitle } from './index';
+import { buildUnifiedGuide, createJhadinaChannelEngine, getCurrentProgram, mapXmltvProgram, parseM3u, parseXmltvPrograms, type LiveChannel, type LiveProgram, type MediaTitle } from './index';
 
 const channel: LiveChannel = {
   id: 'jellyfin:7',
@@ -40,5 +40,12 @@ describe('JhadinaTV Live TV', () => {
       '2026-09-26T17:00:00.000Z',
     );
     expect(schedule.items.map((item) => item.titleId)).toEqual(['a', 'b']);
+  });
+  it('parses M3U and XMLTV without promoting imported URLs into admitted channel metadata', () => {
+    const m3u = parseM3u('#EXTM3U\n#EXTINF:-1 tvg-id="news7" group-title="News",News 7\nhttps://example.test/news.m3u8');
+    expect(m3u[0]).toMatchObject({ name: 'News 7', tvgId: 'news7', group: 'News' });
+
+    const xml = parseXmltvPrograms('<tv><programme channel="news7" start="20260926160000 +0000" stop="20260926170000 +0000"><title>News</title><desc>Headlines</desc></programme></tv>');
+    expect(mapXmltvProgram(xml[0], channel.id)).toMatchObject({ channelId: channel.id, title: 'News' });
   });
 });
