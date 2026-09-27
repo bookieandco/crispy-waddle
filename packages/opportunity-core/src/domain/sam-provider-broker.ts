@@ -25,7 +25,10 @@ export function assessBrokerProvider(intent:ProviderSearchIntent,p:BrokerProvide
   if(naics){score+=45;reasons.push('NAICS capability match')}
   if(keyword){score+=25;reasons.push('requirement keyword match')}
   if((p.awardCount??0)>0){score+=20;reasons.push('federal award history observed')}
-  const awardNeighbor=p.evidence.some(e=>e.details?.discoveryMode==='award_neighbor'&&Array.isArray(e.details?.seedProviderIds)&&e.details.seedProviderIds.length>0)
+  const awardNeighbor=p.evidence.some(e=>{
+    const seedProviderIds=e.details?.seedProviderIds
+    return e.details?.discoveryMode==='award_neighbor'&&Array.isArray(seedProviderIds)&&seedProviderIds.length>0
+  })
   if(awardNeighbor){score+=5;reasons.push('similarity to prior federal award winners observed')}
   const sourceTypes=new Set(p.evidence.map(e=>e.source))
   if(sourceTypes.size>=2){score+=10;reasons.push('multi-source provider evidence')}
