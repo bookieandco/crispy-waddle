@@ -132,7 +132,7 @@ export async function handleAskSportsHistoryCommand(
     recommendation:render(view),
     rationale:"Jhadina queried the canonical historical ledger with explicit scope and point-in-time filtering. Historical records remain evidence only unless separately admitted and calibrated as SPORT-SIM features.",
     evidence:view.evidenceIds.slice(0,32).map(id=>({id,source:"sports-history",observedAt:now().toISOString(),summary:"Historical sports evidence"})),
-    uncertainty:view.warnings,
+    uncertainty:[...view.warnings],
     alternatives:["Change the time window or split.","Compare this history with the current SPORT-SIM distribution."],
   }
   return {proposal,view,intent,verified:true,verificationReason:"Canonical sports-history view resolved from read-only provider evidence."}
