@@ -70,7 +70,18 @@ describe('Kubernetes API transport',()=>{
     const fetchImpl:FetchLike=async(input,init)=>{
       calls.push(`${init?.method??'GET'} ${input}`);
       if(init?.method==='POST')return response(409,{message:'exists'});
-      return response(200,{metadata:{name:'job-1',namespace:'jhadina-compute',creationTimestamp:'2026-09-27T06:00:00Z'}});
+      return response(200,{metadata:{
+        name:'job-1',
+        namespace:'jhadina-compute',
+        creationTimestamp:'2026-09-27T06:00:00Z',
+        annotations:{
+          'jhadina.ai/workload-id':'workload-1',
+          'jhadina.ai/work-session-id':'ws-1',
+          'jhadina.ai/task-id':'task-1',
+          'jhadina.ai/idempotency-key':'idem-1',
+          'jhadina.ai/action-request-id':'action-1',
+        },
+      }});
     };
     const transport=new KubernetesApiJobTransport({
       baseUrl:'https://kubernetes.local',
@@ -80,7 +91,13 @@ describe('Kubernetes API transport',()=>{
     const created=await transport.createJob({
       apiVersion:'batch/v1',
       kind:'Job',
-      metadata:{name:'job-1',namespace:'jhadina-compute',labels:{},annotations:{}},
+      metadata:{name:'job-1',namespace:'jhadina-compute',labels:{},annotations:{
+        'jhadina.ai/workload-id':'workload-1',
+        'jhadina.ai/work-session-id':'ws-1',
+        'jhadina.ai/task-id':'task-1',
+        'jhadina.ai/idempotency-key':'idem-1',
+        'jhadina.ai/action-request-id':'action-1',
+      }},
       spec:{
         backoffLimit:0,ttlSecondsAfterFinished:3600,
         template:{
@@ -97,6 +114,37 @@ describe('Kubernetes API transport',()=>{
       'POST https://kubernetes.local/apis/batch/v1/namespaces/jhadina-compute/jobs',
       'GET https://kubernetes.local/apis/batch/v1/namespaces/jhadina-compute/jobs/job-1',
     ]);
+  });
+
+
+  it('rejects an existing Job whose lineage does not match the retried submission',async()=>{
+    const fetchImpl:FetchLike=async(_input,init)=>{
+      if(init?.method==='POST')return response(409,{message:'exists'});
+      return response(200,{metadata:{
+        name:'job-1',namespace:'jhadina-compute',creationTimestamp:'2026-09-27T06:00:00Z',
+        annotations:{
+          'jhadina.ai/workload-id':'different-workload',
+          'jhadina.ai/work-session-id':'ws-1',
+          'jhadina.ai/task-id':'task-1',
+          'jhadina.ai/idempotency-key':'idem-1',
+          'jhadina.ai/action-request-id':'action-1',
+        },
+      }});
+    };
+    const transport=new KubernetesApiJobTransport({baseUrl:'https://kubernetes.local',bearerToken:'token',fetchImpl});
+    await expect(transport.createJob({
+      apiVersion:'batch/v1',kind:'Job',
+      metadata:{name:'job-1',namespace:'jhadina-compute',labels:{},annotations:{
+        'jhadina.ai/workload-id':'workload-1',
+        'jhadina.ai/work-session-id':'ws-1',
+        'jhadina.ai/task-id':'task-1',
+        'jhadina.ai/idempotency-key':'idem-1',
+        'jhadina.ai/action-request-id':'action-1',
+      }},
+      spec:{backoffLimit:0,ttlSecondsAfterFinished:3600,template:{metadata:{labels:{},annotations:{}},spec:{
+        restartPolicy:'Never',priorityClassName:'jhadina-creative',nodeSelector:{},containers:[],
+      }}},
+    })).rejects.toThrow('KUBERNETES_JOB_IDEMPOTENCY_CONFLICT:jhadina.ai/workload-id');
   });
 
   it('observes the actual scheduled node and terminal status from Job + Pod truth',async()=>{
