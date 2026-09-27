@@ -1,9 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type {
-  LeaseableWorkSessionTaskRepository,
-  WorkSessionTask,
-  WorkSessionTaskStatus,
+import {
   validateWorkSessionTaskGraph,
+  type LeaseableWorkSessionTaskRepository,
+  type WorkSessionTask,
+  type WorkSessionTaskStatus,
 } from '@jhadina/core-spine';
 
 type TaskRow = {
