@@ -60,15 +60,16 @@ async function patchStudy(client:SupabaseClient,id:string,patch:Record<string,un
 
 async function dispatchStudy(study:StudyRow,replicationJobId:string):Promise<'dispatched'|'not-configured'>{
   const endpoint=process.env.JHADINA_DIRECTOR_STUDY_WORKER_URL?.trim();
+  const callbackUrl=process.env.JHADINA_DIRECTOR_STUDY_CALLBACK_URL?.trim();
   const token=process.env.JHADINA_DIRECTOR_STUDY_WORKER_TOKEN?.trim();
-  if(!endpoint||!token) return 'not-configured';
+  if(!endpoint||!callbackUrl||!token) return 'not-configured';
   const response=await fetch(endpoint,{
     method:'POST',
     headers:{'content-type':'application/json',authorization:`Bearer ${token}`},
     body:JSON.stringify({
       studyId:study.id,
       sourceUrl:study.source_url,
-      callbackPath:'/api/director/studies/observations',
+      callbackUrl,
       replicationJobId,
       contract:'DIRECTOR_STUDY_WORKER_V1',
     }),
