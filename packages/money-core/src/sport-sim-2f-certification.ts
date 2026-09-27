@@ -39,6 +39,9 @@ const required=[
   'open-position-reunderwriting',
   'cross-domain-alpha-intelligence-only',
   'roboflow-context-only',
+  'simulation-report-stats',
+  'video-game-reference-firewall',
+  'boxing-pose-candidate-not-scoring-truth',
   'no-live-execution-authority',
 ] as const
 
