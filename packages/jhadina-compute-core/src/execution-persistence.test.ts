@@ -24,6 +24,7 @@ describe('durable compute execution repository',()=>{
     const receipt={
       submissionId:'k8s:ns:job',
       actionRequestId:'action-1',
+      userId:'owner-1',
       workloadId:'work-1',
       workSessionId:'ws-1',
       taskId:'task-1',
@@ -46,7 +47,7 @@ describe('durable compute execution repository',()=>{
   it('binds terminal result to the original submission and rejects conflicting terminal truth',async()=>{
     const repo=new InMemoryComputeExecutionRepository();
     await repo.saveSubmission({
-      submissionId:'shadow:ws:task',actionRequestId:'a',workloadId:'w',
+      submissionId:'shadow:ws:task',actionRequestId:'a',userId:'owner-1',workloadId:'w',
       workSessionId:'ws',taskId:'task',idempotencyKey:'idem',target:'kubernetes-job',
       provider:'shadow',namespace:'shadow',queueName:'creative',resourceName:'task',
       plannedNodeId:'gpu',primaryStorageBackendId:'ceph',submittedAt:'2026-09-27T06:00:00Z',
