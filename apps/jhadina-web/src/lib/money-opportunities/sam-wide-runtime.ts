@@ -133,7 +133,7 @@ export async function runSamBulkSnapshotScan(
     posted_from:input.targetFrom,
     posted_to:input.targetTo,
     status:'running',
-    scan_kind:'bulk_snapshot',
+    scan_kind:'backfill',
     source_kind:'bulk_snapshot',
     started_at:started,
   }).select('id').single()
