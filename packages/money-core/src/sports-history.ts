@@ -9,7 +9,7 @@ export const SPORTS_HISTORY_REFERENCES=Object.freeze({
   }),
   sportsdataversePy:Object.freeze({
     repository:'https://github.com/sportsdataverse/sportsdataverse-py',
-    auditedCommit:'9e20c292a670d805a11aec06ef8ef2bcd3968966',
+    auditedCommit:'29c209708f9174f8e6ff73ec431dc2adc819ca59',
     license:'MIT',
     role:'PYTHON_DATASET_AND_PARSER_REFERENCE',
   }),
