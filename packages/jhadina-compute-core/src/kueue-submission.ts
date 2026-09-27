@@ -217,6 +217,7 @@ export class KubernetesComputeSubmitter implements ComputeSubmitter{
     const receipt:ComputeSubmissionReceipt={
       submissionId:`k8s:${created.namespace}:${created.name}`,
       actionRequestId:permit.actionRequestId,
+      userId:permit.userId,
       workloadId:bundle.workload.id,
       workSessionId:permit.runtime.workSessionId,
       taskId:permit.runtime.taskId,
@@ -261,6 +262,7 @@ export class ShadowComputeSubmitter implements ComputeSubmitter{
     const receipt:ComputeSubmissionReceipt={
       submissionId:`shadow:${permit.runtime.workSessionId}:${permit.runtime.taskId}`,
       actionRequestId:permit.actionRequestId,
+      userId:permit.userId,
       workloadId:bundle.workload.id,
       workSessionId:permit.runtime.workSessionId,
       taskId:permit.runtime.taskId,
