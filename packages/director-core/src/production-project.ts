@@ -14,6 +14,8 @@ export interface DirectorProductionProject {
   wardrobePlanRefs: readonly string[];
   adapterRefs: readonly string[];
   performanceMasterRefs: readonly string[];
+  rehearsalPlanRefs?: readonly string[];
+  rehearsalApprovedTakeRefs?: readonly string[];
   creativeDirectiveRefs: readonly string[];
   timelineVersionId?: string;
   finalMasterAssetId?: string;
