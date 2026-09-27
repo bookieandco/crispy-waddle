@@ -26,7 +26,7 @@ export type SamWideScanReceipt={
   resourceLinks:number
   changedNoticeIds:string[]
   errors:string[]
-  source?:{kind:'api'|'bulk_snapshot';url?:string;sha256?:string;bytes?:number;sourceRows?:number}
+  source?:{kind:'api'|'bulk_snapshot';url?:string;sha256?:string;bytes?:number;sourceRows?:number;snapshotAt?:string}
 }
 
 type Existing={notice_id:string;checksum:string;version:number}
@@ -41,7 +41,7 @@ const catalogRow=(n:SamWideNotice,version:number)=>({
 })
 export async function runSamWideScan(client:SupabaseClient,input:{postedFrom:string;postedTo:string;maxPages?:number;pageSize?:number}):Promise<SamWideScanReceipt>{
   const started=new Date().toISOString()
-  const {data:run,error:runError}=await client.from('jhadina_sam_scan_runs').insert({posted_from:input.postedFrom,posted_to:input.postedTo,status:'running',started_at:started}).select('id').single()
+  const {data:run,error:runError}=await client.from('jhadina_sam_scan_runs').insert({posted_from:input.postedFrom,posted_to:input.postedTo,status:'running',source_kind:'api',started_at:started}).select('id').single()
   if(runError||!run)throw new Error(`Unable to create SAM scan receipt: ${runError?.message??'no row'}`)
   const runId=Number((run as {id:number}).id)
   const receipt:SamWideScanReceipt={runId,status:'completed',postedFrom:input.postedFrom,postedTo:input.postedTo,pages:0,totalRecords:0,seenRecords:0,newRecords:0,amendedRecords:0,unchangedRecords:0,resourceLinks:0,changedNoticeIds:[],errors:[],source:{kind:'api'}}
@@ -134,6 +134,7 @@ export async function runSamBulkSnapshotScan(
     posted_to:input.targetTo,
     status:'running',
     scan_kind:'bulk_snapshot',
+    source_kind:'bulk_snapshot',
     started_at:started,
   }).select('id').single()
   if(runError||!run)throw new Error(`Unable to create SAM bulk scan receipt: ${runError?.message??'no row'}`)
@@ -159,6 +160,8 @@ export async function runSamBulkSnapshotScan(
   const writer=createWriteStream(spoolPath,{encoding:'utf8'})
   let writerEnded=false
   const noticeIds=new Set<string>()
+  let sourceMinDay:string|null=null
+  let sourceMaxDay:string|null=null
 
   try{
     const capturedAt=new Date().toISOString()
@@ -166,6 +169,10 @@ export async function runSamBulkSnapshotScan(
       sourceUrl:input.sourceUrl,
       onRow:async row=>{
         const postedDay=samBulkPostedDay(row)
+        if(postedDay){
+          if(!sourceMinDay||postedDay<sourceMinDay)sourceMinDay=postedDay
+          if(!sourceMaxDay||postedDay>sourceMaxDay)sourceMaxDay=postedDay
+        }
         if(!postedDay||postedDay<input.targetFrom||postedDay>input.targetTo)return
         const notice=normalizeSamWideNotice(samBulkRowToApiNotice(row),capturedAt)
         if(noticeIds.has(notice.noticeId))throw new Error(`SAM_BULK_DUPLICATE_NOTICE:${notice.noticeId}`)
@@ -179,6 +186,17 @@ export async function runSamBulkSnapshotScan(
     writerEnded=true
 
     if(receipt.seenRecords<1)throw new Error('SAM_BULK_TARGET_WINDOW_EMPTY')
+    if(!sourceMinDay||!sourceMaxDay)throw new Error('SAM_BULK_POSTED_DATE_RANGE_MISSING')
+    const snapshotDate=snapshot.lastModified?new Date(snapshot.lastModified):null
+    const snapshotDay=snapshotDate&&!Number.isNaN(snapshotDate.getTime())
+      ? snapshotDate.toISOString().slice(0,10)
+      : null
+    const sourceCoverageTo=[sourceMaxDay,snapshotDay].filter((value):value is string=>Boolean(value)).sort().at(-1)!
+    const certifiedFrom=sourceMinDay>input.targetFrom?sourceMinDay:input.targetFrom
+    const certifiedTo=sourceCoverageTo<input.targetTo?sourceCoverageTo:input.targetTo
+    if(certifiedFrom>certifiedTo)throw new Error('SAM_BULK_SNAPSHOT_DOES_NOT_COVER_TARGET')
+    receipt.postedFrom=certifiedFrom
+    receipt.postedTo=certifiedTo
     receipt.pages=1
     receipt.totalRecords=receipt.seenRecords
     receipt.source={
@@ -187,6 +205,7 @@ export async function runSamBulkSnapshotScan(
       sha256:snapshot.sha256,
       bytes:snapshot.bytes,
       sourceRows:snapshot.sourceRows,
+      snapshotAt:snapshot.lastModified,
     }
 
     const reader=createInterface({input:createReadStream(spoolPath,{encoding:'utf8'}),crlfDelay:Infinity})
@@ -209,7 +228,15 @@ export async function runSamBulkSnapshotScan(
   }
 
   await client.from('jhadina_sam_scan_runs').update({
+    posted_from:receipt.postedFrom,
+    posted_to:receipt.postedTo,
     status:receipt.status,
+    source_kind:'bulk_snapshot',
+    source_url:receipt.source?.url??null,
+    source_sha256:receipt.source?.sha256??null,
+    source_bytes:receipt.source?.bytes??null,
+    source_rows:receipt.source?.sourceRows??null,
+    source_snapshot_at:receipt.source?.snapshotAt??null,
     pages:receipt.pages,
     total_records:receipt.totalRecords,
     seen_records:receipt.seenRecords,
@@ -418,7 +445,6 @@ export async function runSamMarketBootstrap(
       targetFrom:coverage.targetFrom,
       targetTo:coverage.targetTo,
     })
-    return {complete:coverage.complete,coverage,successfulWindows,attempts,receipts}
   }
 
   while(!coverage.complete&&successfulWindows<maxWindows&&attempts<maxWindows*6){
@@ -447,6 +473,10 @@ export async function runSamMarketBootstrap(
         activeWindowDays=Math.max(1,Math.floor(spanDays(window.from,window.to)/2))
         continue
       }
+      // A personal SAM key can be quota-limited for the rest of the UTC day.
+      // Keep completed bulk/API coverage durable and leave the uncovered tail
+      // as coverage debt instead of discarding progress or falsely completing.
+      if(message.includes('429')||message.toLowerCase().includes('throttl'))break
       throw error
     }
   }
