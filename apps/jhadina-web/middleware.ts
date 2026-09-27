@@ -1,16 +1,15 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "./src/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  // Local CI-only bypass used by the production-bundle UX smoke test.
-  // Vercel deployments can never activate this path, even if the variable
-  // were accidentally configured there.
+  // Loopback-only production-bundle smoke bypass. Public deployments cannot
+  // satisfy the loopback host check, so this cannot become an external auth
+  // bypass even if the header is copied outside CI.
   if (
-    process.env.CI === "true" &&
-    process.env.JHADINA_E2E_BYPASS_AUTH === "1" &&
-    process.env.VERCEL !== "1"
+    request.nextUrl.hostname === "127.0.0.1" &&
+    request.headers.get("x-jhadina-e2e-smoke") === "local-production-bundle"
   ) {
-    return;
+    return NextResponse.next({ request });
   }
   return updateSession(request);
 }
