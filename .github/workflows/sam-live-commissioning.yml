@@ -1,6 +1,17 @@
 name: SAM Live Commissioning
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/sam-live-commissioning.yml"
+      - "apps/jhadina-web/scripts/sam-live-commissioning.ts"
+      - "apps/jhadina-web/src/lib/money-opportunities/sam-*.ts"
+      - "packages/opportunity-core/src/domain/sam-*.ts"
+      - "supabase/functions/jhadina-sam-gateway/**"
+  schedule:
+    - cron: "11 */6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -66,4 +77,4 @@ jobs:
           set -euo pipefail
           pnpm --filter @jhadina/opportunity-core exec tsx ../../apps/jhadina-web/scripts/sam-live-commissioning.ts | tee /tmp/sam-commissioning.json
           echo "### SAM live commissioning" >> "$GITHUB_STEP_SUMMARY"
-          tail -n 120 /tmp/sam-commissioning.json >> "$GITHUB_STEP_SUMMARY"
+          tail -n 160 /tmp/sam-commissioning.json >> "$GITHUB_STEP_SUMMARY"
