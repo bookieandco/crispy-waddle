@@ -17,7 +17,7 @@ async function get(path){
  let last
  for(let i=0;i<40;i++){
   try{
-   const response=await fetch(base+path,{redirect:"manual"})
+   const response=await fetch(base+path,{redirect:"manual",headers:{"x-jhadina-e2e-smoke":"local-production-bundle"}})
    if(response.status>=200&&response.status<400)return response
    last=new Error(path+" returned "+response.status)
   }catch(error){last=error}
