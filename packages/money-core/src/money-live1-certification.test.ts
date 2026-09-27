@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildCofferAccountantDecision,deriveCofferSurvivalState,type CofferAccountingSnapshot,type CofferPolicy } from './coffer-accountant.js'
-import { assertMoneyMovementRequest,type FundingDestination,type MoneyMovementRequest } from './funding-rail-contracts.js'
+import { assertMoneyMovementProposal,assertMoneyMovementRequest,promoteApprovedMoneyMovement,type FundingDestination,type MoneyMovementProposal,type MoneyMovementRequest } from './funding-rail-contracts.js'
 import { assertWalletTransferRequest,PHANTOM_OWNER_WALLET_BOUNDARY,type ConnectedWallet,type WalletTransferRequest } from './wallet-connector-contracts.js'
 import { assertConnectorMayExecute,MONEY_LIVE1_CONNECTOR_OPENINGS } from './market-connector-contracts.js'
 
@@ -92,4 +92,15 @@ test('MONEY-LIVE.1 post-movement reconciliation must tie source destination and 
  const bad=certifyProfitSweepReconciliation({journal:j,sourceSettledCashBeforeMinor:250000n,sourceSettledCashAfterMinor:154000n,destinationSettledCashBeforeMinor:10000n,destinationSettledCashAfterMinor:104999n,providerFeeMinor:1000n,evidenceIds:['bank:statement']})
  assert.equal(bad.passed,false)
  assert.ok(bad.reasonCodes.includes('DESTINATION_CASH_DOES_NOT_TIE'))
+})
+
+
+test('MONEY-LIVE.1 movement proposal remains non-executing until authority is attached',()=>{
+ const source:FundingDestination={destinationId:'bank:a',ownerUserId:'u1',provider:'plaid',accountId:'a',currency:'USD',verified:true,kind:'BANK',evidenceIds:['a']}
+ const dest:FundingDestination={destinationId:'coffer:c1',ownerUserId:'u1',provider:'money-core',accountId:'c1',currency:'USD',verified:true,kind:'BROKER_CASH',evidenceIds:['c']}
+ const p:MoneyMovementProposal={movementId:'mp1',kind:'DEPOSIT',userId:'u1',cofferId:'c1',amountMinor:2500n,currency:'USD',sourceId:source.destinationId,destinationId:dest.destinationId,idempotencyKey:'proposal:1',requestedAt:'2026-09-27T22:00:00Z',state:'PENDING_APPROVAL',authority:'PROPOSAL_ONLY',canMoveMoney:false}
+ assert.doesNotThrow(()=>assertMoneyMovementProposal(p,{verifiedSource:source,verifiedDestination:dest}))
+ assert.throws(()=>promoteApprovedMoneyMovement({proposal:p,authorityId:'',executionPermitId:''}),/AUTHORITY_REQUIRED/)
+ const r=promoteApprovedMoneyMovement({proposal:p,authorityId:'authority:1',executionPermitId:'permit:1'})
+ assert.equal(r.executionPermitId,'permit:1')
 })
