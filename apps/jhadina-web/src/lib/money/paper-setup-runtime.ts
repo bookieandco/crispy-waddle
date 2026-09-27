@@ -19,6 +19,7 @@ export type MoneyPaperSetupInput = Readonly<{
   baseOrderNotionalMinor?:string
   maxOrderNotionalMinor?:string
   maximumConcurrentPositions?:number
+  riskFractionBps?:number
   stopLossBps?:number
   takeProfitBps?:number
 }>
@@ -77,6 +78,7 @@ export async function runSessionGovernedMoneyPaperSetup(
     baseOrderNotionalMinor:input.baseOrderNotionalMinor??"100000",
     maxOrderNotionalMinor:input.maxOrderNotionalMinor??"500000",
     maximumConcurrentPositions:input.maximumConcurrentPositions??5,
+    riskFractionBps:input.riskFractionBps??50,
     stopLossBps:input.stopLossBps??200,
     takeProfitBps:input.takeProfitBps??400,
     updatedAt:now,
@@ -105,6 +107,7 @@ export async function runSessionGovernedMoneyPaperSetup(
     symbols:Object.freeze([...symbols]),
     baseOrderNotionalMinor:settings.baseOrderNotionalMinor,
     maxOrderNotionalMinor:settings.maxOrderNotionalMinor,
+    riskFractionBps:settings.riskFractionBps,
     stopLossBps:settings.stopLossBps,
     takeProfitBps:settings.takeProfitBps,
     canAuthorizeLive:false,
