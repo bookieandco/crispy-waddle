@@ -118,7 +118,8 @@
     "./rehearsal-loop": "./src/rehearsal-loop.ts",
     "./observation-bus": "./src/observation-bus.ts",
     "./phantom-video-provider": "./src/phantom-video-provider.ts",
-    "./production-quality-certification": "./src/production-quality-certification.ts"
+    "./production-quality-certification": "./src/production-quality-certification.ts",
+    "./nle-roundtrip": "./src/nle-roundtrip.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
