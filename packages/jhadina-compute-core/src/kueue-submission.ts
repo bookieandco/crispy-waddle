@@ -50,6 +50,10 @@ export type KubernetesSubmissionConfig={
   backoffLimit?:number;
 };
 
+export interface ComputeSubmitter{
+  submit(bundle:ComputeExecutionBundle,permit:ComputeExecutionPermit):Promise<ComputeSubmissionReceipt>;
+}
+
 export interface KubernetesJobTransport{
   createJob(manifest:KubernetesJobManifest):Promise<{
     name:string;
@@ -173,7 +177,7 @@ export function manifestFingerprint(manifest:KubernetesJobManifest):string{
   return fingerprint(JSON.stringify(manifest));
 }
 
-export class KubernetesComputeSubmitter{
+export class KubernetesComputeSubmitter implements ComputeSubmitter{
   constructor(
     private readonly transport:KubernetesJobTransport,
     private readonly config:KubernetesSubmissionConfig,
@@ -210,7 +214,7 @@ export class KubernetesComputeSubmitter{
   }
 }
 
-export class ShadowComputeSubmitter{
+export class ShadowComputeSubmitter implements ComputeSubmitter{
   private readonly receipts=new Map<string,ComputeSubmissionReceipt>();
 
   async submit(
