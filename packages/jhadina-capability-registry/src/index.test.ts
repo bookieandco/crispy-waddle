@@ -57,7 +57,7 @@ describe('Capability runtime state', () => {
     }),/LIVE_RUNTIME_EVIDENCE/);
     registry.setRuntimeStatus({
       capabilityName:'director.render',subsystemId:'director',state:'ready',updatedAt:'2026-09-26T00:00:01Z',
-      evidence:[{id:'live-1',source:'homebase-worker',observedAt:'2026-09-26T00:00:01Z',kind:'live-runtime',summary:'real render completed'}],
+      evidence:[{id:'live-1',source:'homebase-worker',observedAt:'2026-09-26T00:00:01Z',expiresAt:'2026-09-26T00:05:01Z',kind:'live-runtime',summary:'real render completed'}],
     });
     assert.equal(registry.runtimeState('director.render'),'ready');
   });
@@ -70,5 +70,63 @@ describe('Capability runtime state', () => {
       evidence:[{id:'paper-1',source:'paper-runner',observedAt:'2026-09-26T00:00:00Z',kind:'infrastructure',summary:'paper adapter available'}],
     });
     assert.equal(registry.getRuntimeStatus('shark.trade')?.state,'paper-only');
+  });
+});
+
+
+describe('Capability runtime freshness',()=>{
+  it('degrades READY after live-runtime evidence expires',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'tv.playback',description:'Play media',risk:'external',version:1,subsystemId:'tv'});
+    registry.setRuntimeStatus({
+      capabilityName:'tv.playback',state:'ready',updatedAt:'2026-09-26T00:00:01Z',
+      evidence:[{
+        id:'live-tv-1',source:'device-smoke',observedAt:'2026-09-26T00:00:00Z',expiresAt:'2026-09-26T00:10:00Z',
+        kind:'live-runtime',summary:'real playback succeeded',
+      }],
+    });
+    assert.equal(registry.effectiveRuntimeStatus('tv.playback','2026-09-26T00:09:59Z').state,'ready');
+    const stale=registry.effectiveRuntimeStatus('tv.playback','2026-09-26T00:10:00Z');
+    assert.equal(stale.state,'degraded');
+    assert.equal(stale.reason,'LIVE_RUNTIME_EVIDENCE_EXPIRED');
+    assert.equal(stale.staleEvidence.length,1);
+  });
+
+  it('refuses READY when the live evidence has no explicit fresh expiry',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'director.render',description:'Render',risk:'external',version:1});
+    assert.throws(()=>registry.setRuntimeStatus({
+      capabilityName:'director.render',state:'ready',updatedAt:'2026-09-26T00:00:01Z',
+      evidence:[{id:'live',source:'worker',observedAt:'2026-09-26T00:00:00Z',kind:'live-runtime',summary:'worked once'}],
+    }),/FRESH_EXPIRING_LIVE_RUNTIME_EVIDENCE/);
+  });
+
+  it('keeps explicit blocked and disabled states fail-closed even after evidence expiry',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'sam.submit',description:'Submit opportunity response',risk:'external',version:1});
+    registry.setRuntimeStatus({
+      capabilityName:'sam.submit',state:'blocked',reason:'credential missing',updatedAt:'2026-09-26T00:00:01Z',
+      evidence:[{id:'block-1',source:'runtime',observedAt:'2026-09-26T00:00:00Z',expiresAt:'2026-09-26T00:01:00Z',kind:'infrastructure',summary:'credential absent'}],
+    });
+    const evaluated=registry.effectiveRuntimeStatus('sam.submit','2026-09-26T01:00:00Z');
+    assert.equal(evaluated.state,'blocked');
+    assert.equal(evaluated.staleEvidence.length,1);
+  });
+
+  it('returns UNKNOWN for registered capabilities with no runtime status',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'sports.nhl.watch',description:'Watch NHL evidence',risk:'read',version:1,subsystemId:'sports'});
+    const evaluated=registry.effectiveRuntimeStatus('sports.nhl.watch','2026-09-26T00:00:00Z');
+    assert.equal(evaluated.state,'unknown');
+    assert.equal(evaluated.reason,'NO_RUNTIME_STATUS_RECORDED');
+  });
+
+  it('rejects malformed or future-dated evidence',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'x.read',description:'x',risk:'read',version:1});
+    assert.throws(()=>registry.setRuntimeStatus({
+      capabilityName:'x.read',state:'degraded',updatedAt:'2026-09-26T00:00:00Z',
+      evidence:[{id:'e',source:'runtime',observedAt:'2026-09-26T00:00:01Z',kind:'infrastructure',summary:'late'}],
+    }),/EVIDENCE_FROM_FUTURE/);
   });
 });
