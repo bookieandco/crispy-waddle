@@ -212,3 +212,25 @@ export * from './prediction-cross-venue-intelligence.js';
 export * from './sports-handicap-evidence.js';
 
 export * from './sports-prop-intelligence.js';
+
+export * from './sports-prediction-reality.js';
+
+export * from './sports-prediction-features.js';
+
+export * from './sports-prediction-simulation.js';
+
+export * from './sports-prediction-producer.js';
+
+export * from './sports-prediction-model-arena.js';
+
+export * from './sports-prediction-forward-shadow.js';
+
+export * from './sports-pred-final-certification.js';
+
+export * from './sports-market-semantics.js';
+
+export * from './sports-prediction-revision-lineage.js';
+
+export * from './sports-prediction-process-review.js';
+
+export * from './sports-specialist-context.js';
