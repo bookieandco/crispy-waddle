@@ -297,7 +297,12 @@ export function buildSportsHistoryView(input:{
   }
 
   let scoped=[...deduped.values()]
-  for(const scope of input.query.scopes)scoped=scopeFilter(scoped,scope)
+  const terminalWindows=input.query.scopes.filter(scope=>scope.kind==='LAST_N')
+  for(const scope of input.query.scopes){
+    if(scope.kind==='LAST_N')continue
+    scoped=scopeFilter(scoped,scope)
+  }
+  for(const scope of terminalWindows)scoped=scopeFilter(scoped,scope)
   scoped.sort((a,b)=>Date.parse(a.eventDate)-Date.parse(b.eventDate)||a.recordId.localeCompare(b.recordId))
   if(input.query.limit!==undefined)scoped=scoped.slice(-input.query.limit)
 
