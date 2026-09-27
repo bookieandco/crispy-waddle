@@ -268,10 +268,12 @@ function buildManifestReferences(
 
 function providerReferenceRole(
   role: OrderedGenerationReference['role'],
-): 'character' | 'location' | 'style' | 'composition' | 'motion' | 'audio' | 'image' {
+): 'character' | 'product' | 'location' | 'style' | 'composition' | 'motion' | 'audio' | 'image' {
   switch (role) {
     case 'character-identity':
       return 'character';
+    case 'product-identity':
+      return 'product';
     case 'location':
       return 'location';
     case 'style':
