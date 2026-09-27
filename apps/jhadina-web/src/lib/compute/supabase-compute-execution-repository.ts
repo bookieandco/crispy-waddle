@@ -90,11 +90,13 @@ export class SupabaseComputeExecutionRepository implements ComputeExecutionRepos
   constructor(private readonly client:ComputeReceiptRpcClient){}
 
   async getByIdempotency(
+    userId:string,
     workSessionId:string,
     taskId:string,
     idempotencyKey:string,
   ):Promise<ComputeExecutionRecord|null>{
     const {data,error}=await this.client.rpc('jhadina_get_compute_execution',{
+      p_owner_user_id:userId,
       p_work_session_id:workSessionId,
       p_task_id:taskId,
       p_idempotency_key:idempotencyKey,
