@@ -9,7 +9,7 @@ function token() {
   return process.env.SAM_UPSTREAM_OIDC_TOKEN?.trim()
 }
 
-async function request<T>(action: 'health' | 'search' | 'entities', params?: Record<string, unknown>) {
+async function request<T>(action: 'health' | 'search' | 'entities' | 'awards', params?: Record<string, unknown>) {
   const oidc = token()
   if (!oidc) throw new Error('SAM_UPSTREAM_OIDC_TOKEN is not configured')
 
@@ -61,5 +61,10 @@ export async function searchSamViaUpstream(params: Record<string, unknown>) {
 
 export async function searchSamEntitiesViaUpstream(params: Record<string, unknown>) {
   const payload = await request<{ ok: true; data: Record<string, unknown> }>('entities', params)
+  return payload.data
+}
+
+export async function searchSamAwardsViaUpstream(params: Record<string, unknown>) {
+  const payload = await request<{ ok: true; data: Record<string, unknown> }>('awards', params)
   return payload.data
 }
