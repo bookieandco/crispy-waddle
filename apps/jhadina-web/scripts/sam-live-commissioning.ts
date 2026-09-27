@@ -10,7 +10,7 @@ function required(name:string){
   return value
 }
 async function main(){
-  console.log(JSON.stringify({phase:'sam-live-commissioning',version:2,runtimeBound:true,executionSurface:'github_actions_production'}))
+  console.log(JSON.stringify({phase:'sam-live-commissioning',version:3,runtimeBound:true,executionSurface:'github_actions_production'}))
   required('SAM_RUNTIME_OIDC_TOKEN')
   required('SAM_UPSTREAM_OIDC_TOKEN')
   const [health,upstream]=await Promise.all([
@@ -23,10 +23,14 @@ async function main(){
 
   const bootstrap=await runSamMarketBootstrap(client,{
     historyDays:365,
-    windowDays:31,
-    maxWindows:31,
+    source:'bulk',
+    // API settings remain bounded fallback parameters. Historical coverage is
+    // established from SAM.gov's public bulk snapshot, not by spending the
+    // low-quota personal sam_key across hundreds of paginated requests.
+    windowDays:7,
+    maxWindows:4,
     pageSize:1000,
-    maxPages:100,
+    maxPages:20,
   })
 
   const enrichment=await runSamEnrichment(client,{
