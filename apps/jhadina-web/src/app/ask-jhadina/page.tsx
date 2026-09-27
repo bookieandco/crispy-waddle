@@ -501,6 +501,7 @@ function AskJhadina(){
      "Research Meta ad concepts for PupsonStuff on Instagram",
      "Which paid campaigns need attention?",
      "What is awaiting paid ad approval?",
+     "Show me LeBron James NBA all-time points and 3 pointers",
     ].map(example=><button key={example} type="button" className="jh-button" disabled={busy} onClick={()=>setTask(example)}>{example}</button>)}
    </div>
   </div>
