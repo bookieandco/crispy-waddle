@@ -8,6 +8,7 @@ export type AskShortcutKind =
   | "growth"
   | "social"
   | "director"
+  | "sports-simulation"
   | "reference-character"
   | "reference-product"
 
