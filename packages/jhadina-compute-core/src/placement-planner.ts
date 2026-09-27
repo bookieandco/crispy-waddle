@@ -28,7 +28,17 @@ function rejectionCodes(node: ComputeNode, workload: ComputeWorkload): Placement
   if (node.ramGiBFree < request.ramGiB) codes.push('RAM_INSUFFICIENT');
   if (node.scratchGiBFree < request.scratchGiB) codes.push('SCRATCH_INSUFFICIENT');
 
-  if (
+  if (request.networkFabric) {
+    const fabric=node.networkFabrics?.find(candidate=>candidate.fabric===request.networkFabric);
+    if (!fabric || fabric.status==='offline') {
+      codes.push('NETWORK_FABRIC_UNAVAILABLE');
+    } else if (
+      request.networkMbps !== undefined &&
+      fabric.bandwidthMbpsAvailable < request.networkMbps
+    ) {
+      codes.push('NETWORK_INSUFFICIENT');
+    }
+  } else if (
     request.networkMbps !== undefined &&
     (node.networkMbpsAvailable ?? 0) < request.networkMbps
   ) {
