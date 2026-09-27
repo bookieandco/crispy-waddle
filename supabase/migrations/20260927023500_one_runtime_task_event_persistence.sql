@@ -76,3 +76,128 @@ comment on table public.jhadina_runtime_events is
   'Append-only ONE-RUNTIME event journal for replay, audit lineage and cross-core coordination.';
 
 revoke update, delete, truncate on public.jhadina_runtime_events from service_role;
+
+
+-- Atomic worker lease operations. Security remains service-role-only because the
+-- underlying table is not exposed to browser roles and these functions are not
+-- granted to anon/authenticated.
+
+create or replace function public.jhadina_claim_work_session_task(
+  p_work_session_id text,
+  p_task_id text,
+  p_owner_user_id uuid,
+  p_worker_id text,
+  p_lease_ms integer
+)
+returns setof public.jhadina_work_session_tasks
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_worker_id is null or btrim(p_worker_id) = '' or p_lease_ms < 1 or p_lease_ms > 3600000 then
+    raise exception 'WORK_SESSION_TASK_LEASE_INVALID';
+  end if;
+
+  return query
+  update public.jhadina_work_session_tasks t
+     set status = 'running',
+         attempt = t.attempt + 1,
+         version = t.version + 1,
+         lease_owner = p_worker_id,
+         lease_token = md5(random()::text || clock_timestamp()::text || t.id),
+         lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_ms::double precision / 1000.0),
+         updated_at = clock_timestamp()
+   where t.work_session_id = p_work_session_id
+     and t.id = p_task_id
+     and t.owner_user_id = p_owner_user_id
+     and t.status in ('ready','retrying')
+     and t.attempt < t.max_attempts
+     and (t.lease_expires_at is null or t.lease_expires_at <= clock_timestamp() or t.lease_owner = p_worker_id)
+  returning t.*;
+end;
+$$;
+
+create or replace function public.jhadina_renew_work_session_task_lease(
+  p_work_session_id text,
+  p_task_id text,
+  p_owner_user_id uuid,
+  p_worker_id text,
+  p_lease_token text,
+  p_lease_ms integer
+)
+returns setof public.jhadina_work_session_tasks
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_lease_ms < 1 or p_lease_ms > 3600000 then
+    raise exception 'WORK_SESSION_TASK_LEASE_INVALID';
+  end if;
+
+  return query
+  update public.jhadina_work_session_tasks t
+     set version = t.version + 1,
+         lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_ms::double precision / 1000.0),
+         updated_at = clock_timestamp()
+   where t.work_session_id = p_work_session_id
+     and t.id = p_task_id
+     and t.owner_user_id = p_owner_user_id
+     and t.status = 'running'
+     and t.lease_owner = p_worker_id
+     and t.lease_token = p_lease_token
+     and t.lease_expires_at > clock_timestamp()
+  returning t.*;
+end;
+$$;
+
+create or replace function public.jhadina_release_work_session_task_lease(
+  p_work_session_id text,
+  p_task_id text,
+  p_owner_user_id uuid,
+  p_worker_id text,
+  p_lease_token text,
+  p_next_status text,
+  p_blocked_reason text default null
+)
+returns setof public.jhadina_work_session_tasks
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_next_status not in ('waiting-approval','retrying','paused','blocked','completed','failed','cancelled') then
+    raise exception 'WORK_SESSION_TASK_RELEASE_STATUS_INVALID';
+  end if;
+  if p_next_status = 'blocked' and (p_blocked_reason is null or btrim(p_blocked_reason) = '') then
+    raise exception 'WORK_SESSION_TASK_BLOCK_REASON_REQUIRED';
+  end if;
+
+  return query
+  update public.jhadina_work_session_tasks t
+     set status = p_next_status,
+         blocked_reason = case when p_next_status = 'blocked' then p_blocked_reason else null end,
+         version = t.version + 1,
+         lease_owner = null,
+         lease_token = null,
+         lease_expires_at = null,
+         updated_at = clock_timestamp()
+   where t.work_session_id = p_work_session_id
+     and t.id = p_task_id
+     and t.owner_user_id = p_owner_user_id
+     and t.status = 'running'
+     and t.lease_owner = p_worker_id
+     and t.lease_token = p_lease_token
+     and t.lease_expires_at > clock_timestamp()
+  returning t.*;
+end;
+$$;
+
+revoke all on function public.jhadina_claim_work_session_task(text,text,uuid,text,integer) from public, anon, authenticated;
+revoke all on function public.jhadina_renew_work_session_task_lease(text,text,uuid,text,text,integer) from public, anon, authenticated;
+revoke all on function public.jhadina_release_work_session_task_lease(text,text,uuid,text,text,text,text) from public, anon, authenticated;
+
+grant execute on function public.jhadina_claim_work_session_task(text,text,uuid,text,integer) to service_role;
+grant execute on function public.jhadina_renew_work_session_task_lease(text,text,uuid,text,text,integer) to service_role;
+grant execute on function public.jhadina_release_work_session_task_lease(text,text,uuid,text,text,text,text) to service_role;
