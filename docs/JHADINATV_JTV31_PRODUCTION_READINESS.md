@@ -64,3 +64,12 @@ Repository implementation is complete for JTV-LIVE.FINAL. Overall production sta
 5. physical iPhone/PiP/AirPlay/Google Cast/JhadinaTV receiver/Homebase handoff receipts for the devices actually used.
 
 Those are environment/hardware receipts, not missing application architecture. Do not weaken the admission gates merely to label the environment READY.
+
+## 2026-09-27 production verification receipt
+
+- PR #726 (`JTV-LIVE.FINAL`) merged to `main` as `12a1ea687f4930537767ebf9ad7e6e4b5fb68cf2` after JhadinaTV CI, Media Production Certification, filtered Jhadina Web production build, UX certification, JLLM certification, and the repository launch gate all passed.
+- Stale PR #150 was closed as superseded; its useful Live TV/Jellyfin/EPG behavior was forward-ported instead of merging the 5,500+ commit-diverged branch.
+- The first #726 production deployment exposed a pre-existing middleware bootstrap defect when public Supabase config was absent. Current `main` now contains the reconciled auth bootstrap from PR #729.
+- Current production deployment `3455f7bae32528cf98eddd6a88de0a3acddce796` is READY. A direct request to `/api/jhadinatv/live/status` reaches Jhadina and is redirected to the Supabase login screen rather than failing with `MIDDLEWARE_INVOCATION_FAILED`.
+- Vercel runtime error aggregation shows the Supabase URL/key crash only on the older #726 deployment; no newer occurrence is attributed to the current deployment.
+- Jellyfin admission remains intentionally fail-closed until real provider credentials and rights evidence are supplied. Those values are not present in source control and must not be invented.
