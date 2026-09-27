@@ -34,11 +34,7 @@ function bars(closes: readonly number[]): StockBar[] {
 }
 
 test('20/50 baseline emits long entry only on an actual upward crossover', () => {
-  const xs = [
-    ...Array.from({ length: 31 }, () => 100),
-    ...Array.from({ length: 19 }, () => 90),
-    200,
-  ];
+  const xs = [...Array.from({ length: 50 }, () => 100), 200];
   const decision = evaluateStockSmaBaseline(bars(xs));
   assert.equal(decision.signal, 'LONG_ENTRY');
   assert.ok(decision.previousFast <= decision.previousSlow);
@@ -47,11 +43,7 @@ test('20/50 baseline emits long entry only on an actual upward crossover', () =>
 });
 
 test('20/50 baseline emits exit only on an actual downward crossover', () => {
-  const xs = [
-    ...Array.from({ length: 31 }, () => 100),
-    ...Array.from({ length: 19 }, () => 110),
-    1,
-  ];
+  const xs = [...Array.from({ length: 50 }, () => 100), 1];
   const decision = evaluateStockSmaBaseline(bars(xs));
   assert.equal(decision.signal, 'EXIT');
   assert.ok(decision.previousFast >= decision.previousSlow);
