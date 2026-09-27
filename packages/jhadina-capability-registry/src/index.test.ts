@@ -1,6 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { CapabilityRegistry } from './index.js';
+import {
+  CapabilityRegistry,
+  buildSubsystemRuntimeProjection,
+  hydrateCapabilityRuntimeStatuses,
+  persistCapabilityRuntimeStatus,
+  type CapabilityRuntimeStatus,
+  type CapabilityRuntimeStatusRepository,
+} from './index.js';
 
 describe('CapabilityRegistry', () => {
   it('registers and retrieves immutable capability definitions', () => {
@@ -108,5 +115,51 @@ describe('Subsystem runtime projection',()=>{
     const projection=buildSubsystemRuntimeProjection(registry,'director','2026-09-27T00:11:00Z');
     assert.equal(projection.state,'unknown');
     assert.equal(projection.capabilities[0]?.reason,'runtime evidence expired');
+  });
+});
+
+
+describe('Capability runtime persistence',()=>{
+  class MemoryStatusRepository implements CapabilityRuntimeStatusRepository {
+    readonly statuses=new Map<string,CapabilityRuntimeStatus>();
+    failSave=false;
+    async get(name:string){return this.statuses.get(name);}
+    async list(){return [...this.statuses.values()];}
+    async save(status:CapabilityRuntimeStatus){
+      if(this.failSave)throw new Error('PERSISTENCE_DOWN');
+      this.statuses.set(status.capabilityName,status);
+    }
+  }
+
+  const ready:CapabilityRuntimeStatus={
+    capabilityName:'director.render',state:'ready',updatedAt:'2026-09-27T00:00:01Z',
+    evidence:[{id:'live-1',source:'worker',observedAt:'2026-09-27T00:00:01Z',kind:'live-runtime',summary:'real render completed'}],
+  };
+
+  it('persists only after canonical READY evidence validation',async()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'director.render',description:'Render media',risk:'external',version:1,subsystemId:'director'});
+    const repository=new MemoryStatusRepository();
+    await persistCapabilityRuntimeStatus(registry,repository,ready);
+    assert.equal(repository.statuses.get('director.render')?.subsystemId,'director');
+    assert.equal(registry.runtimeState('director.render'),'ready');
+  });
+
+  it('does not mutate in-memory truth when durable persistence fails',async()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'director.render',description:'Render media',risk:'external',version:1,subsystemId:'director'});
+    const repository=new MemoryStatusRepository();
+    repository.failSave=true;
+    await assert.rejects(()=>persistCapabilityRuntimeStatus(registry,repository,ready),/PERSISTENCE_DOWN/);
+    assert.equal(registry.runtimeState('director.render'),'unknown');
+  });
+
+  it('rehydrates persisted state through the same validation rules',async()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'director.render',description:'Render media',risk:'external',version:1,subsystemId:'director'});
+    const repository=new MemoryStatusRepository();
+    repository.statuses.set('director.render',ready);
+    await hydrateCapabilityRuntimeStatuses(registry,repository);
+    assert.equal(registry.runtimeState('director.render'),'ready');
   });
 });
