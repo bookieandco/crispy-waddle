@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import { assertSportsMarketQuote,sportsOddsToDecimal,type SportsMarketQuote } from './sports-paper-betting.js'
+import type { MoneyFeedEventSink } from './money-feed-contracts.js'
+import { buildSportsLiveCanaryFeedEvent } from './sports-feed-projection.js'
 
 export type SportsBetEvidenceClass='REAL_AS_OF'|'SYNTHETIC_TEST'
 
@@ -238,6 +240,7 @@ export async function executeSportsBetLiveCanary(input:{
   ageEligibilityVerified:boolean
   credentialVerified:boolean
   evidenceIds:readonly string[]
+  feed?:Readonly<{sink:MoneyFeedEventSink;route?:string}>
 }):Promise<SportsBetCanaryExecutionResult>{
   assertSportsBetLiveCanaryPolicy(input.policy)
   assertSportsBetLiveWagerRequest(input.request,input.now)
@@ -281,10 +284,12 @@ export async function executeSportsBetLiveCanary(input:{
   if(!result.providerReference.trim()||!result.providerEventId.trim()||!result.evidenceIds.length)throw new Error('SPORT_BET_CANARY_PROVIDER_EVIDENCE_REQUIRED')
   if(time(result.availableAt,'SPORT_BET_CANARY_PROVIDER_AVAILABLE_INVALID')<time(result.observedAt,'SPORT_BET_CANARY_PROVIDER_OBSERVED_INVALID'))throw new Error('SPORT_BET_CANARY_PROVIDER_CLOCK_INVALID')
   await input.store.complete(executionId,{state:result.state,providerReference:result.providerReference,completedAt:result.availableAt})
-  return Object.freeze({
+  const output=Object.freeze({
     executionId,idempotencyKey,providerReference:result.providerReference,providerState:result.state,stakeMinor:input.request.stakeMinor,currency:input.request.currency,sourceClass:input.sourceClass,
-    evidenceIds:unique([...input.approval.evidenceIds,...input.evidenceIds,...input.request.quote.evidenceIds,...result.evidenceIds]),authority:'TINY_MANUAL_CANARY_ONLY',canIncreaseLimits:false,autonomousBettingEnabled:false,
+    evidenceIds:unique([...input.approval.evidenceIds,...input.evidenceIds,...input.request.quote.evidenceIds,...result.evidenceIds]),authority:'TINY_MANUAL_CANARY_ONLY' as const,canIncreaseLimits:false as const,autonomousBettingEnabled:false as const,
   })
+  if(input.feed){try{await input.feed.sink.publish(buildSportsLiveCanaryFeedEvent({userId:input.approval.userId,request:input.request,result:output,route:input.feed.route}))}catch{}}
+  return output
 }
 
 export function certifySportsBetLiveCanary(input:{evidence:SportsBetLiveCanaryEvidence;maxCanaryStakeMinor:bigint}):SportsBetLiveCanaryCertification{
