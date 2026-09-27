@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 
 export const DEFAULT_SAM_BULK_URL =
-  'https://sam.gov/api/prod/fileextractservices/v1/api/download/Contract%20Opportunities/datagov/ContractOpportunitiesFullCSV.csv?privacy=Public'
+  'https://s3.amazonaws.com/falextracts/Contract%20Opportunities/datagov/ContractOpportunitiesFullCSV.csv'
 
 export type SamBulkRow = Record<string, string>
 export type SamBulkStreamReceipt = {
