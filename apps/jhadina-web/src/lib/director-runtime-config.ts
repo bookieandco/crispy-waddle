@@ -7,6 +7,7 @@ export interface DirectorRuntimeConfig {
   certificationVideoProviderUrl?: string;
   certificationVideoProviderToken?: string;
   liveCertificationToken?: string;
+  certificationUserId?: string;
 }
 
 const KEY_MAP = {
@@ -16,6 +17,7 @@ const KEY_MAP = {
   certification_video_provider_url: 'certificationVideoProviderUrl',
   certification_video_provider_token: 'certificationVideoProviderToken',
   live_certification_token: 'liveCertificationToken',
+  certification_user_id: 'certificationUserId',
 } as const;
 
 export async function loadDirectorRuntimeConfig(
