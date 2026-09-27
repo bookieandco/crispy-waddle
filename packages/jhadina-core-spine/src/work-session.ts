@@ -60,6 +60,10 @@ export interface WorkSessionTask {
   version:number;
   createdAt:string;
   updatedAt:string;
+  /** Worker lease fields are concurrency controls only; they never grant action authority. */
+  leaseOwner?:string;
+  leaseToken?:string;
+  leaseExpiresAt?:string;
 }
 
 export interface WorkSessionTaskRepository {
@@ -73,8 +77,14 @@ export interface WorkSessionTaskRepository {
   update(task:WorkSessionTask,expectedVersion:number):Promise<void>;
 }
 
+export interface LeaseableWorkSessionTaskRepository extends WorkSessionTaskRepository {
+  claimReady(workSessionId:string,taskId:string,workerId:string,leaseMs:number):Promise<WorkSessionTask|null>;
+  renewLease(workSessionId:string,taskId:string,workerId:string,leaseToken:string,leaseMs:number):Promise<WorkSessionTask|null>;
+  releaseLease(workSessionId:string,taskId:string,workerId:string,leaseToken:string,nextStatus:WorkSessionTaskStatus,blockedReason?:string):Promise<WorkSessionTask|null>;
+}
 
-export class InMemoryWorkSessionTaskRepository implements WorkSessionTaskRepository {
+
+export class InMemoryWorkSessionTaskRepository implements LeaseableWorkSessionTaskRepository implements WorkSessionTaskRepository {
   private readonly tasks=new Map<string,WorkSessionTask>();
   private readonly idempotency=new Map<string,string>();
 
@@ -107,6 +117,50 @@ export class InMemoryWorkSessionTaskRepository implements WorkSessionTaskReposit
     const all=(await this.list(task.workSessionId)).map(candidate=>candidate.id===task.id?task:candidate);
     validateWorkSessionTaskGraph(all);
     this.tasks.set(taskKey,freezeTask(task));
+  }
+
+  async claimReady(workSessionId:string,taskId:string,workerId:string,leaseMs:number):Promise<WorkSessionTask|null>{
+    if(!workerId.trim()||!Number.isFinite(leaseMs)||leaseMs<1)throw new Error('WORK_SESSION_TASK_LEASE_INVALID');
+    const taskKey=key(workSessionId,taskId);
+    const current=this.tasks.get(taskKey);
+    if(!current)return null;
+    if(current.status!=='ready'&&current.status!=='retrying')return null;
+    const now=Date.now();
+    if(current.leaseExpiresAt&&Date.parse(current.leaseExpiresAt)>now&&current.leaseOwner!==workerId)return null;
+    const claimed=freezeTask({
+      ...current,
+      status:'running',
+      attempt:current.attempt+1,
+      version:current.version+1,
+      leaseOwner:workerId,
+      leaseToken:newLeaseToken(),
+      leaseExpiresAt:new Date(now+leaseMs).toISOString(),
+      updatedAt:new Date(now).toISOString(),
+    });
+    if(claimed.attempt>claimed.maxAttempts)throw new Error('WORK_SESSION_TASK_ATTEMPT_INVALID');
+    this.tasks.set(taskKey,claimed);
+    return claimed;
+  }
+
+  async renewLease(workSessionId:string,taskId:string,workerId:string,leaseToken:string,leaseMs:number):Promise<WorkSessionTask|null>{
+    const taskKey=key(workSessionId,taskId);
+    const current=this.tasks.get(taskKey);
+    const now=Date.now();
+    if(!current||current.status!=='running'||current.leaseOwner!==workerId||current.leaseToken!==leaseToken||!current.leaseExpiresAt||Date.parse(current.leaseExpiresAt)<=now)return null;
+    const renewed=freezeTask({...current,version:current.version+1,leaseExpiresAt:new Date(now+leaseMs).toISOString(),updatedAt:new Date(now).toISOString()});
+    this.tasks.set(taskKey,renewed);
+    return renewed;
+  }
+
+  async releaseLease(workSessionId:string,taskId:string,workerId:string,leaseToken:string,nextStatus:WorkSessionTaskStatus,blockedReason?:string):Promise<WorkSessionTask|null>{
+    const taskKey=key(workSessionId,taskId);
+    const current=this.tasks.get(taskKey);
+    const now=Date.now();
+    if(!current||current.leaseOwner!==workerId||current.leaseToken!==leaseToken||!current.leaseExpiresAt||Date.parse(current.leaseExpiresAt)<=now)return null;
+    const evolved=evolveWorkSessionTask(current,{status:nextStatus,blockedReason,updatedAt:new Date(now).toISOString()});
+    const released=freezeTask({...evolved,leaseOwner:undefined,leaseToken:undefined,leaseExpiresAt:undefined});
+    this.tasks.set(taskKey,released);
+    return released;
   }
 }
 
@@ -257,3 +311,4 @@ function freezeTask(task:WorkSessionTask):WorkSessionTask{
 
 function key(workSessionId:string,taskId:string):string{return `${workSessionId}:${taskId}`;}
 function idempotencyKey(task:WorkSessionTask):string{return `${task.ownerUserId}:${task.workSessionId}:${task.idempotencyKey}`;}
+function newLeaseToken():string{return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;}
