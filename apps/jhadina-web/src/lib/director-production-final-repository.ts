@@ -103,14 +103,17 @@ export class DirectorProductionFinalRepository {
   async loadLatestPassedFixture(
     ownerUserId:string,
     fixtureKind:DirectorProductionFixtureKind,
+    projectId?:string,
   ):Promise<DirectorProductionFinalEvidence|undefined>{
-    const {data,error}=await this.client
+    let query=this.client
       .from('director_production_quality_runs')
       .select('evidence')
       .eq('owner_user_id',ownerUserId)
       .eq('fixture_kind',fixtureKind)
       .eq('status','passed')
-      .eq('quality_claim',true)
+      .eq('quality_claim',true);
+    if(projectId?.trim()) query=query.eq('project_id',projectId.trim());
+    const {data,error}=await query
       .order('updated_at',{ascending:false})
       .limit(1)
       .maybeSingle();
@@ -119,7 +122,10 @@ export class DirectorProductionFinalRepository {
     return data.evidence as DirectorProductionFinalEvidence;
   }
 
-  async evaluatePersistedFinalMatrix(ownerUserId:string):Promise<DirectorProductionFinalMatrixDecision>{
+  async evaluatePersistedFinalMatrix(
+    ownerUserId:string,
+    expectedProjects?:Readonly<Partial<Record<DirectorProductionFixtureKind,string>>>,
+  ):Promise<DirectorProductionFinalMatrixDecision>{
     const kinds:readonly DirectorProductionFixtureKind[]=[
       'commercial-30s',
       'branded-short-8-13m',
@@ -128,7 +134,7 @@ export class DirectorProductionFinalRepository {
     ];
     const evidence:DirectorProductionFinalEvidence[]=[];
     for(const kind of kinds){
-      const item=await this.loadLatestPassedFixture(ownerUserId,kind);
+      const item=await this.loadLatestPassedFixture(ownerUserId,kind,expectedProjects?.[kind]);
       if(item) evidence.push(item);
     }
     return evaluateDirectorProductionFinalMatrix(evidence);
