@@ -111,6 +111,24 @@ begin
 end;
 $$;
 
+create or replace function public.jhadina_get_compute_execution(
+  p_work_session_id text,
+  p_task_id text,
+  p_idempotency_key text
+)
+returns setof public.jhadina_compute_executions
+language sql
+security definer
+set search_path = public
+as $
+  select e.*
+    from public.jhadina_compute_executions e
+   where e.work_session_id=p_work_session_id
+     and e.task_id=p_task_id
+     and e.idempotency_key=p_idempotency_key
+   limit 1;
+$;
+
 create or replace function public.jhadina_record_compute_result(
   p_submission_id text,
   p_workload_id text,
@@ -175,7 +193,9 @@ begin
 end;
 $$;
 
+revoke all on function public.jhadina_get_compute_execution(text,text,text) from public, anon, authenticated;
 revoke all on function public.jhadina_record_compute_submission(text,text,uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,timestamptz) from public, anon, authenticated;
 revoke all on function public.jhadina_record_compute_result(text,text,text,timestamptz,timestamptz,jsonb,text,text,boolean,text) from public, anon, authenticated;
+grant execute on function public.jhadina_get_compute_execution(text,text,text) to service_role;
 grant execute on function public.jhadina_record_compute_submission(text,text,uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,timestamptz) to service_role;
 grant execute on function public.jhadina_record_compute_result(text,text,text,timestamptz,timestamptz,jsonb,text,text,boolean,text) to service_role;
