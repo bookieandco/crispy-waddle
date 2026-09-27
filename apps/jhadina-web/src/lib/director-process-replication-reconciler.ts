@@ -9,6 +9,7 @@ import {
   extractDirectorProcessObservation,
 } from '@jhadina/director-core/process-observation';
 import { createSupabaseStudyObservationStore } from '@/lib/director-study-observation-store';
+import { loadDirectorRuntimeConfig } from '@/lib/director-runtime-config';
 
 type ReplicationStatus='queued'|'studying'|'recipe_ready'|'executing'|'review'|'completed'|'blocked'|'failed';
 type JobRow={
@@ -58,18 +59,18 @@ async function patchStudy(client:SupabaseClient,id:string,patch:Record<string,un
   if(error) throw error;
 }
 
-function studyWorkerConfigured():boolean{
-  return Boolean(
-    process.env.JHADINA_DIRECTOR_STUDY_WORKER_URL?.trim() &&
-    process.env.JHADINA_DIRECTOR_STUDY_CALLBACK_URL?.trim() &&
-    process.env.JHADINA_DIRECTOR_STUDY_WORKER_TOKEN?.trim()
-  );
+type StudyWorkerConfig={endpoint:string;callbackUrl:string;token:string};
+
+async function resolveStudyWorkerConfig(client:SupabaseClient):Promise<StudyWorkerConfig|undefined>{
+  const runtime=await loadDirectorRuntimeConfig(client);
+  const endpoint=process.env.JHADINA_DIRECTOR_STUDY_WORKER_URL?.trim() || runtime.studyWorkerUrl;
+  const callbackUrl=process.env.JHADINA_DIRECTOR_STUDY_CALLBACK_URL?.trim() || runtime.studyCallbackUrl;
+  const token=process.env.JHADINA_DIRECTOR_STUDY_WORKER_TOKEN?.trim() || runtime.studyWorkerToken;
+  return endpoint&&callbackUrl&&token?{endpoint,callbackUrl,token}:undefined;
 }
 
-async function dispatchStudy(study:StudyRow,replicationJobId:string):Promise<void>{
-  const endpoint=process.env.JHADINA_DIRECTOR_STUDY_WORKER_URL!.trim();
-  const callbackUrl=process.env.JHADINA_DIRECTOR_STUDY_CALLBACK_URL!.trim();
-  const token=process.env.JHADINA_DIRECTOR_STUDY_WORKER_TOKEN!.trim();
+async function dispatchStudy(study:StudyRow,replicationJobId:string,config:StudyWorkerConfig):Promise<void>{
+  const {endpoint,callbackUrl,token}=config;
   const response=await fetch(endpoint,{
     method:'POST',
     headers:{'content-type':'application/json',authorization:`Bearer ${token}`},
@@ -190,6 +191,7 @@ export async function reconcileDirectorProcessReplicationJobs(
   if(error) throw error;
 
   const summary:DirectorProcessReplicationSummary={inspected:0,dispatchedStudies:0,studying:0,recipeReady:0,blocked:0,failed:0};
+  const workerConfig=await resolveStudyWorkerConfig(client);
 
   for(const raw of data??[]){
     const job=raw as JobRow;
@@ -219,7 +221,7 @@ export async function reconcileDirectorProcessReplicationJobs(
 
       const queued=studies.filter(study=>study.status==='queued');
       if(queued.length){
-        if(!studyWorkerConfigured()){
+        if(!workerConfig){
           await patchJob(client,job.id,{status:'blocked',phase:'study-provider',error:'DIRECTOR_STUDY_WORKER_NOT_CONFIGURED'});
           summary.blocked+=1;
           continue;
@@ -227,7 +229,7 @@ export async function reconcileDirectorProcessReplicationJobs(
         for(const study of queued){
           await patchStudy(client,study.id,{status:'running',started_at:new Date().toISOString(),error:null});
           try{
-            await dispatchStudy(study,job.id);
+            await dispatchStudy(study,job.id,workerConfig);
             summary.dispatchedStudies+=1;
           }catch(cause){
             const message=cause instanceof Error?cause.message:'DIRECTOR_STUDY_WORKER_DISPATCH_FAILED';
