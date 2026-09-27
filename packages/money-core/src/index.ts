@@ -87,6 +87,12 @@ export { createFinancialActionRequestFromAllocation } from './financial-action-g
 export * from './canonical-financial-state.js';
 export * from './accounting-lifecycle-contracts.js';
 export * from './market-instrument-contracts.js';
+export * from './options-contracts.js';
+export * from './market-data-source-contracts.js';
+export * from './trader-readiness-contracts.js';
+export * from './trading-vehicle-semantics.js';
+export * from './market-force-equilibrium-contracts.js';
+export * from './automated-trading-economics-contracts.js';
 export * from './prediction-calibration-contracts.js';
 export * from './risk-simulation-contracts.js';
 export * from './decision-workflow-contracts.js';
@@ -105,6 +111,7 @@ export * from './stock-chart-vision-research.js';
 export * from './fx-market-reality.js';
 
 export * from './fx-intelligence-fusion.js';
+export * from './institutional-flow-contracts.js';
 export * from './finnhub-forex-market-data.js';
 export * from './fx-chart-vision-research.js';
 
