@@ -5,6 +5,8 @@ on:
     paths:
       - "packages/jhadina-compute-core/**"
       - "apps/jhadina-web/src/lib/compute/**"
+      - "packages/director-core/src/compute-workload.ts"
+      - "packages/director-core/src/compute-workload.test.ts"
       - "infrastructure/jhadina-cloud/**"
       - "docs/JHADINA_COMPUTE_CLOUD_ARCHITECTURE.md"
       - "docs/JHADINA_CLOUD_STORAGE_REFERENCE_AUDIT_2026-09-26.md"
@@ -18,6 +20,8 @@ on:
     paths:
       - "packages/jhadina-compute-core/**"
       - "apps/jhadina-web/src/lib/compute/**"
+      - "packages/director-core/src/compute-workload.ts"
+      - "packages/director-core/src/compute-workload.test.ts"
       - "infrastructure/jhadina-cloud/**"
       - "docs/JHADINA_COMPUTE_CLOUD_ARCHITECTURE.md"
       - "docs/JHADINA_CLOUD_STORAGE_REFERENCE_AUDIT_2026-09-26.md"
@@ -54,3 +58,7 @@ jobs:
         run: pnpm --filter @jhadina/jhadina-web type-check
       - name: Test Action Core compute bridge
         run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/compute/compute-action-handler.test.ts
+      - name: Type-check Director compute adapters
+        run: pnpm --filter @jhadina/director-core type-check
+      - name: Test Director compute adapters
+        run: pnpm --filter @jhadina/director-core exec vitest run src/compute-workload.test.ts
