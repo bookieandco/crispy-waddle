@@ -56,3 +56,8 @@ export async function readSessionMoneyFeed(limit=20):Promise<readonly MoneyFeedR
   currency:x.currency??null,materiality:Number(x.materiality),occurredAt:x.occurred_at,evidenceIds:Object.freeze(x.evidence_ids??[]),
  })))
 }
+
+
+export const moneyFeedEventSink=Object.freeze({
+ publish:appendMoneyFeedEvent,
+})
