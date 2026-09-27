@@ -345,8 +345,10 @@ test('SPORT-PRED.FINAL software matrix closes all source invariants without clai
     'point-in-time-reality','future-observation-exclusion','cutoff-safe-feature-snapshot','narrative-context-only',
     'replayable-scenario-simulation','frozen-model-version','valid-sport-pred-envelope','money-research-only-boundary',
     'pre-resolution-shadow-prediction','quote-before-information-cutoff','full-issued-history-retained',
-    'model-mutation-new-cohort','sport-market-specific-model-arena','synthetic-cannot-certify-edge',
-    'no-betting-or-financial-authority',
+    'model-mutation-new-cohort','sport-market-specific-model-arena','specialist-context-lineage',
+    'exact-market-settlement-semantics','tail-markets-require-distributions',
+    'prediction-revisions-retain-prior-envelope','process-review-cannot-rewrite-outcome',
+    'synthetic-cannot-certify-edge','no-betting-or-financial-authority',
   ].map(name=>Object.freeze({name,passed:true,evidenceIds:Object.freeze(['test:'+name])}))
   const report=certifySportsPredFinalSoftware({cases})
   assert.equal(report.softwarePassed,true)
