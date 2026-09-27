@@ -36,6 +36,12 @@ describe('SAM public bulk snapshot',()=>{
     expect(notice.classificationCode).toBe('D302')
   })
 
+  it('writes a true NDJSON record terminator for spool persistence',()=>{
+    const line=samBulkNdjsonLine({noticeId:'N-1'})
+    expect(line).toBe('{"noticeId":"N-1"}\n')
+    expect(line.split('\n').filter(Boolean).map(value=>JSON.parse(value))).toEqual([{noticeId:'N-1'}])
+  })
+
   it('rejects a source that never exposes the required SAM headers',async()=>{
     await expect(streamSamBulkRows({
       fetchImpl:async()=>new Response('foo,bar\n1,2\n',{status:200}),
