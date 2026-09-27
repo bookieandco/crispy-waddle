@@ -24,6 +24,21 @@ const OPPORTUNITY_PARAMS = new Map([
   ['classificationCode', 'ccode'],
   ['organizationName', 'organizationName'],
 ])
+const AWARD_PARAMS = new Set([
+  'awardeeUniqueEntityId',
+  'awardeeCageCode',
+  'naicsCode',
+  'productOrServiceCode',
+  'contractingDepartmentName',
+  'contractingSubtierName',
+  'contractingOfficeCode',
+  'approvedDate',
+  'dateSigned',
+  'typeOfSetAsideCode',
+  'awardOrIDV',
+  'includeSections',
+])
+
 const ENTITY_PARAMS = new Set([
   'naicsCode',
   'ueiSAM',
@@ -58,7 +73,7 @@ function record(value: unknown): Record<string, unknown> {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-async function fetchJson(url: URL, requestKind: 'opportunity_search' | 'entity_search') {
+async function fetchJson(url: URL, requestKind: 'opportunity_search' | 'entity_search' | 'award_search') {
   let lastStatus = 0
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const response = await fetch(url, {
@@ -107,7 +122,7 @@ export async function POST(request: NextRequest) {
     return json({
       ok: true,
       samKeyConfigured: true,
-      contract: 'SAM_VERCEL_UPSTREAM.v1',
+      contract: 'SAM_VERCEL_UPSTREAM.v2',
     })
   }
 
@@ -135,6 +150,37 @@ export async function POST(request: NextRequest) {
       return json({
         ok: false,
         error: 'sam_gov_request_failed',
+        upstreamStatus: result.status,
+      }, 502)
+    }
+    return json({ ok: true, data: result.payload })
+  }
+
+  if (action === 'awards') {
+    const params = record(body.params)
+    const url = new URL('https://api.sam.gov/contract-awards/v1/search')
+    url.searchParams.set('api_key', apiKey)
+    url.searchParams.set(
+      'limit',
+      String(Math.max(1, Math.min(Number(params.limit ?? 100) || 100, 100))),
+    )
+    url.searchParams.set(
+      'offset',
+      String(Math.max(0, Number(params.offset ?? 0) || 0)),
+    )
+    url.searchParams.set('awardOrIDV', 'Award')
+    url.searchParams.set('includeSections', 'contractId,coreData,awardDetails')
+    for (const [name, value] of Object.entries(params)) {
+      if (AWARD_PARAMS.has(name) && typeof value === 'string' && value.trim()) {
+        url.searchParams.set(name, value.trim())
+      }
+    }
+
+    const result = await fetchJson(url, 'award_search')
+    if (!result.ok) {
+      return json({
+        ok: false,
+        error: 'sam_award_request_failed',
         upstreamStatus: result.status,
       }, 502)
     }
