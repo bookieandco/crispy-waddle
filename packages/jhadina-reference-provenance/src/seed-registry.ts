@@ -9,6 +9,26 @@ import {
   MONEY_BEHAVIORAL_RISK_REFERENCE_IDS,
   registerMoneyBehavioralRiskReferences,
 } from './money-behavioral-risk-reference-seed.js';
+import {
+  MONEY_MARKET_DATA_REFERENCE_IDS,
+  registerMoneyMarketDataReferences,
+} from './money-market-data-reference-seed.js';
+import {
+  MONEY_TRADING_FOUNDATION_REFERENCE_IDS,
+  registerMoneyTradingFoundationReferences,
+} from './money-trading-foundation-reference-seed.js';
+import {
+  MONEY_RESEARCH_MODEL_REFERENCE_IDS,
+  registerMoneyResearchModelReferences,
+} from './money-research-model-reference-seed.js';
+import {
+  MONEY_AUTOMATION_ECON_REFERENCE_IDS,
+  registerMoneyAutomationEconomicsReferences,
+} from './money-automation-economics-reference-seed.js';
+import {
+  MONEY_INSTITUTIONAL_FLOW_REFERENCE_IDS,
+  registerMoneyInstitutionalFlowReferences,
+} from './money-institutional-flow-reference-seed.js';
 
 const tracedReferences: readonly RegisterReferenceInput[] = [
   {
@@ -1623,6 +1643,11 @@ export function createInitialReferenceProvenanceRegistry():
   }
   registerRefProv04Seeds(registry);
   registerMoneyBehavioralRiskReferences(registry);
+  registerMoneyMarketDataReferences(registry);
+  registerMoneyTradingFoundationReferences(registry);
+  registerMoneyResearchModelReferences(registry);
+  registerMoneyAutomationEconomicsReferences(registry);
+  registerMoneyInstitutionalFlowReferences(registry);
   for (const mapping of [...mappings, ...repositoryWideMappings]) {
     registry.registerMapping(mapping);
   }
@@ -1636,6 +1661,11 @@ export const INITIAL_REFERENCE_IDS = Object.freeze(
     ...handoffOnlyReferences,
     ...repositoryWideReferences,
     ...MONEY_BEHAVIORAL_RISK_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
+    ...MONEY_MARKET_DATA_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
+    ...MONEY_TRADING_FOUNDATION_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
+    ...MONEY_RESEARCH_MODEL_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
+    ...MONEY_AUTOMATION_ECON_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
+    ...MONEY_INSTITUTIONAL_FLOW_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
   ]
     .map((reference) => reference.referenceId)
     .sort((a, b) => a.localeCompare(b)),
