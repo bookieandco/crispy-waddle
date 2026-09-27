@@ -186,3 +186,4 @@ export * from './phantom-video-provider';
 export * from './production-quality-certification';
 export * from './nle-roundtrip';
 export * from './hierarchical-production-coherence';
+export * from './production-final-program';
