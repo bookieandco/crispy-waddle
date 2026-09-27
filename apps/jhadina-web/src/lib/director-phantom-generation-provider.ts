@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type {
+  type BuildPhantomVideoRequestInput,
   GenerationProvider,
   GenerationProviderRecord,
   GenerationReference,
@@ -104,7 +105,7 @@ export class PhantomDirectorGenerationProvider implements GenerationProvider{
     };
   }
 
-  private buildInput(request:GenerationRequest){
+  private buildInput(request:GenerationRequest):BuildPhantomVideoRequestInput{
     if(request.modality!=='video') throw new Error('DIRECTOR_PHANTOM_VIDEO_MODALITY_REQUIRED');
     const model=request.model.id;
     if(model!=='phantom-wan-1.3b'&&model!=='phantom-wan-14b'){
