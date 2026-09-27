@@ -107,12 +107,12 @@ importers:
 
   apps/pupsonstuff:
     dependencies:
-      '@jhadina/compute-core':
-        specifier: workspace:*
-        version: link:../../packages/jhadina-compute-core
       '@huggingface/inference':
         specifier: ^4.13.25
         version: 4.13.30
+      '@jhadina/compute-core':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-compute-core
       '@react-three/drei':
         specifier: ^10.7.8
         version: 10.7.8(@react-three/fiber@9.7.0)(@types/three@0.170.0)(react-dom@19.2.3)(react@19.2.3)(three@0.170.0)
