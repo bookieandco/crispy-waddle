@@ -1,6 +1,9 @@
 -- ONE-RUNTIME.2/3: durable subsystem-neutral WorkSession tasks and cross-core event journal.
 -- These tables are coordination/evidence state only. They grant no execution authority.
 
+create unique index if not exists jhadina_work_sessions_id_owner_idx
+  on public.jhadina_work_sessions(id,owner_user_id);
+
 create table if not exists public.jhadina_work_session_tasks (
   id text not null,
   work_session_id text not null references public.jhadina_work_sessions(id) on delete cascade,
@@ -28,7 +31,11 @@ create table if not exists public.jhadina_work_session_tasks (
   lease_expires_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  primary key (work_session_id,id)
+  primary key (work_session_id,id),
+  foreign key (work_session_id,owner_user_id)
+    references public.jhadina_work_sessions(id,owner_user_id) on delete cascade,
+  foreign key (work_session_id,parent_task_id)
+    references public.jhadina_work_session_tasks(work_session_id,id)
 );
 
 create unique index if not exists jhadina_work_session_tasks_idempotency_idx
@@ -59,7 +66,9 @@ create table if not exists public.jhadina_runtime_events (
   capability text,
   authority_ref text,
   idempotency_key text not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  foreign key (work_session_id,task_id)
+    references public.jhadina_work_session_tasks(work_session_id,id)
 );
 
 create unique index if not exists jhadina_runtime_events_idempotency_idx
