@@ -215,6 +215,7 @@ export class AlpacaStockMarketDataClient {
         bar.t,
         'MONEY_ALPACA_STOCK_DATA_BAR_TIME_INVALID',
       );
+      const endsAt = barEnd(startsAt);
       const evidenceRef =
         'alpaca-stock-bar:' + barsResponse.requestId + ':' + symbol + ':' + index;
       return Object.freeze({
