@@ -4,7 +4,7 @@ import { getCurrentUserId } from "@/lib/auth/current-user"
 import { PersonalCommandFeed } from "../components/home/PersonalCommandFeed"
 import { HomeCommandBar } from "../src/components/home/HomeCommandBar"
 import { HomeWorldStrip } from "../src/components/home/HomeWorldStrip"
-import type { FeedSource } from "../components/home/storyTypes"
+import { HOME_FEED_SOURCES, type FeedSource } from "../components/home/storyTypes"
 import { connectorExecutionState } from "@/lib/system/execution-ux"
 
 type Event={id:string;actionId:string;type:string;status:"started"|"approval_required"|"completed"|"denied"|"failed";timestamp:string;domain:string}
@@ -66,7 +66,7 @@ export default function Home(){
   <section className="jh-section jh-section--tight">
    <div className="jh-between"><div><p className="jh-eyebrow">Your feed</p><h2 className="jh-section-title">What is happening across Jhadina</h2><p className="jh-card-copy">Social/media activity keeps source and provenance. Governed system activity stays linked to its real workstation rather than becoming a fake dashboard action.</p></div><Link className="jh-button" href="/activity">Activity</Link></div>
    <div aria-label="Filter your stream" className="jh-feed-filters">
-    {(["All","Social","TikTok","Facebook","Snapchat","Instagram","YouTube","Reddit","X","LinkedIn","Threads","Bluesky","Tumblr","VK","Director"] as FeedSource[]).map(source=><button key={source} type="button" aria-pressed={streamSource===source} onClick={()=>setStreamSource(source)} className={streamSource===source?"jh-button jh-button--primary":"jh-button"}>{source}</button>)}
+    {HOME_FEED_SOURCES.map(source=><button key={source} type="button" aria-pressed={streamSource===source} onClick={()=>setStreamSource(source)} className={streamSource===source?"jh-button jh-button--primary":"jh-button"}>{source}</button>)}
    </div>
    <PersonalCommandFeed source={streamSource}/>
   </section>
