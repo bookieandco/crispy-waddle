@@ -20,3 +20,6 @@ export * from './cloud12-certification.js';
 
 export * from './node-inventory.js';
 export * from './runtime-catalog.js';
+
+export * from './execution-repository.js';
+export * from './kubernetes-api-transport.js';
