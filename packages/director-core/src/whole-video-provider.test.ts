@@ -26,6 +26,7 @@ function provider(
     expression?: boolean;
     productionQuality?: boolean;
     maximumReferenceImages?: number;
+    maximumDurationSeconds?: number;
   } = {},
 ): WholeVideoProductionProvider {
   return {
@@ -42,6 +43,7 @@ function provider(
       supportsExpressionGuidance: input.expression ?? false,
       productionQualityEligible: input.productionQuality ?? false,
       ...(input.maximumReferenceImages !== undefined ? { maximumReferenceImages: input.maximumReferenceImages } : {}),
+      ...(input.maximumDurationSeconds !== undefined ? { maximumDurationSeconds: input.maximumDurationSeconds } : {}),
     },
     async submit() { return { providerJobId: 'job', status: 'queued' }; },
     async status() { return { providerJobId: 'job', status: 'processing' }; },
@@ -103,6 +105,16 @@ describe('whole video provider selection', () => {
     expect(selectWholeVideoProvider([
       provider('production-reference', { character: true, productionQuality: true, maximumReferenceImages: 4 }),
     ], intent, { characterReference: true, productionQuality: true, referenceImageCount: 5 })).toBeUndefined();
+  });
+
+  it('refuses a provider whose declared duration ceiling is below the requested film', () => {
+    const longIntent={...intent,mode:'long-form' as const,targetDurationSeconds:3600};
+    expect(selectWholeVideoProvider([
+      provider('five-minute-provider',{productionQuality:true,maximumDurationSeconds:300}),
+    ],longIntent,{productionQuality:true})).toBeUndefined();
+    expect(selectWholeVideoProvider([
+      provider('feature-provider',{productionQuality:true,maximumDurationSeconds:4200}),
+    ],longIntent,{productionQuality:true})?.descriptor.id).toBe('feature-provider');
   });
 
   it('returns no provider instead of losing character identity', () => {
