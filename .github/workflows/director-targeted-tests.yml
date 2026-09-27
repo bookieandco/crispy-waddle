@@ -147,6 +147,7 @@ jobs:
           src/production-quality-certification.test.ts
           src/nle-roundtrip.test.ts
           src/hierarchical-production-coherence.test.ts
+          src/production-final-program.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
       - name: Workstation authority, Studio QC and Social bridge
         run: >
