@@ -36,6 +36,9 @@ export type AcceleratorInventory = {
   model?: string;
   count: number;
   vramGiBPerDevice?: number;
+  vramGiBFreePerDevice?: number;
+  utilizationPercent?: number;
+  temperatureC?: number;
   features?: string[];
 };
 
