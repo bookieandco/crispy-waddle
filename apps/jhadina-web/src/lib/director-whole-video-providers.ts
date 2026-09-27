@@ -18,6 +18,17 @@ function cleanBaseUrl(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
+function envFlag(name:string):boolean {
+  return ['1','true','yes','on'].includes((process.env[name]??'').trim().toLowerCase());
+}
+
+function envPositiveInt(name:string):number|undefined {
+  const raw=process.env[name]?.trim();
+  if(!raw) return undefined;
+  const value=Number(raw);
+  return Number.isInteger(value)&&value>0?value:undefined;
+}
+
 function referenceProviderCostClass(): WholeVideoProviderCostClass {
   const value = process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_COST_CLASS;
   return value === 'paid' || value === 'external-free' || value === 'free-local' ? value : 'free-local';
@@ -129,6 +140,8 @@ export class ComfyUIReferenceVideoProductionProvider implements WholeVideoProduc
     supportsCharacterReference: true,
     requiresCharacterReference: true,
     supportsExpressionGuidance: true,
+    productionQualityEligible: envFlag('DIRECTOR_COMFYUI_PRODUCTION_QUALITY_ELIGIBLE'),
+    ...(envPositiveInt('DIRECTOR_COMFYUI_MAX_REFERENCE_IMAGES') ? { maximumReferenceImages: envPositiveInt('DIRECTOR_COMFYUI_MAX_REFERENCE_IMAGES') } : {}),
   };
 
   private readonly baseUrl: string;
@@ -262,6 +275,8 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
     descriptorId?: string;
     descriptorName?: string;
     costClass?: WholeVideoProviderCostClass;
+    productionQualityEligible?: boolean;
+    maximumReferenceImages?: number;
   }) {
     this.baseUrl = cleanBaseUrl(config.baseUrl);
     this.descriptor = {
@@ -273,6 +288,8 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
       supportsCharacterReference: true,
       requiresCharacterReference: true,
       supportsExpressionGuidance: true,
+      productionQualityEligible: config.productionQualityEligible ?? envFlag('DIRECTOR_REFERENCE_VIDEO_PRODUCTION_QUALITY_ELIGIBLE'),
+      ...(config.maximumReferenceImages ?? envPositiveInt('DIRECTOR_REFERENCE_VIDEO_MAX_REFERENCE_IMAGES') ? { maximumReferenceImages: config.maximumReferenceImages ?? envPositiveInt('DIRECTOR_REFERENCE_VIDEO_MAX_REFERENCE_IMAGES') } : {}),
     };
   }
 
@@ -355,6 +372,8 @@ export class ReferenceProductVideoProductionProvider implements WholeVideoProduc
     supportsProductReference: true,
     requiresProductReference: true,
     supportsExpressionGuidance: true,
+    productionQualityEligible: envFlag('DIRECTOR_PRODUCT_VIDEO_PRODUCTION_QUALITY_ELIGIBLE'),
+    ...(envPositiveInt('DIRECTOR_PRODUCT_VIDEO_MAX_REFERENCE_IMAGES') ? { maximumReferenceImages: envPositiveInt('DIRECTOR_PRODUCT_VIDEO_MAX_REFERENCE_IMAGES') } : {}),
   };
 
   private readonly baseUrl: string;
@@ -516,6 +535,7 @@ export class AgnesVideoProductionProvider implements WholeVideoProductionProvide
     supportedModes: ['standard', 'short', 'faceless', 'long-form'],
     health: 'unknown',
     supportsExpressionGuidance: true,
+    productionQualityEligible: envFlag('DIRECTOR_AGNES_VIDEO_PRODUCTION_QUALITY_ELIGIBLE'),
   };
 
   private readonly baseUrl: string;
