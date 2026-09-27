@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buildBrokerShortlist, evaluateSamSubcontractability, expandProviderTaxonomy, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
+import { buildAwardNeighborProfile, buildAwardNeighborSearches, buildBrokerShortlist, evaluateSamSubcontractability, expandProviderTaxonomy, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
 import { getSamApiKey } from './sam-config'
 import { samUpstreamConfigured, searchSamEntitiesViaUpstream } from './sam-upstream-client'
 import { searchCanadaImporterProviders, searchConfiguredCanadaOdbusProviders, searchDenueProviders } from './foreign-provider-sources'
@@ -31,7 +31,16 @@ function complianceInput(value:unknown):SubcontractabilityInput|null{
   }
 }
 function isoDate(d:Date){return d.toISOString().slice(0,10)}
-async function usaSpendingProviders(search:{naicsCodes?:string[];pscCodes?:string[];keywords?:string[]},limit=30):Promise<RuntimeProvider[]>{
+type AwardDiscoveryProvenance={
+  discoveryMode?:'direct'|'award_neighbor'
+  seedProviderIds?:string[]
+  reason?:string
+}
+async function usaSpendingProviders(
+  search:{naicsCodes?:string[];pscCodes?:string[];keywords?:string[]},
+  limit=30,
+  provenance:AwardDiscoveryProvenance={discoveryMode:'direct'},
+):Promise<RuntimeProvider[]>{
   const end=new Date(),start=new Date(Date.UTC(end.getUTCFullYear()-5,end.getUTCMonth(),end.getUTCDate()))
   const filters:Record<string,unknown>={time_period:[{start_date:isoDate(start),end_date:isoDate(end)}],award_type_codes:['A','B','C','D']}
   if(search.naicsCodes?.length)filters.naics_codes={require:search.naicsCodes.slice(0,5)}
@@ -57,12 +66,31 @@ async function usaSpendingProviders(search:{naicsCodes?:string[];pscCodes?:strin
     const uei=text(r['Recipient UEI'])
     const identity=uei?`uei:${uei.toUpperCase()}`:`name:${key(name)}`
     const existing=grouped.get(identity)
-    const evidence={id:`usaspending:${text(r['Award ID'])||key(name)}`,source:'usaspending' as const,url:'https://www.usaspending.gov/'}
     const naicsObj=r['NAICS']&&typeof r['NAICS']==='object'?(r['NAICS'] as Record<string,unknown>):{}
     const pscObj=r['PSC']&&typeof r['PSC']==='object'?(r['PSC'] as Record<string,unknown>):{}
     const awardNaics=text(naicsObj.code)||text(r['NAICS Code'])
     const awardPsc=text(pscObj.code)||text(r['PSC Code'])
     const description=text(r['Description'])||text(r['Award Description'])
+    const awardAmountRaw=r['Award Amount']
+    const awardAmount=typeof awardAmountRaw==='number'?awardAmountRaw:Number(String(awardAmountRaw??'').replace(/[^0-9.-]/g,''))
+    const agency=text(r['Awarding Agency'])
+    const evidence={
+      id:`usaspending:${text(r['Award ID'])||key(name)}`,
+      source:'usaspending' as const,
+      url:'https://www.usaspending.gov/',
+      details:{
+        awardId:text(r['Award ID'])||null,
+        recipientUei:uei||null,
+        amount:Number.isFinite(awardAmount)?awardAmount:null,
+        agency:agency||null,
+        naicsCode:awardNaics||null,
+        pscCode:awardPsc||null,
+        description:description||null,
+        discoveryMode:provenance.discoveryMode??'direct',
+        seedProviderIds:[...(provenance.seedProviderIds??[])],
+        reason:provenance.reason??null,
+      },
+    }
     if(existing){
       existing.awardCount=(existing.awardCount??0)+1
       existing.evidence.push(evidence)
@@ -217,6 +245,8 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
   let entityRequestsRemaining=Number.isFinite(requestedEntityBudget)?Math.max(0,Math.min(Math.floor(requestedEntityBudget),10)):2
   const requestedSpendingBudget=Number(process.env.USASPENDING_REQUEST_BUDGET_PER_ENRICHMENT??6)
   let spendingRequestsRemaining=Number.isFinite(requestedSpendingBudget)?Math.max(0,Math.min(Math.floor(requestedSpendingBudget),30)):6
+  const requestedAwardNeighborBudget=Number(process.env.SAM_AWARD_NEIGHBOR_REQUEST_BUDGET_PER_ENRICHMENT??2)
+  let awardNeighborRequestsRemaining=Number.isFinite(requestedAwardNeighborBudget)?Math.max(0,Math.min(Math.floor(requestedAwardNeighborBudget),10)):2
   const requestedDenueBudget=Number(process.env.DENUE_SEARCH_BUDGET_PER_ENRICHMENT??2)
   let denueSearchesRemaining=Number.isFinite(requestedDenueBudget)?Math.max(0,Math.min(Math.floor(requestedDenueBudget),10)):2
   const requestedCanadaBudget=Number(process.env.CANADA_SEARCH_BUDGET_PER_ENRICHMENT??2)
@@ -231,6 +261,7 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
   let foreignExaSearchesRemaining=Number.isFinite(requestedForeignExaBudget)?Math.max(0,Math.min(Math.floor(requestedForeignExaBudget),10)):2
   const entityNaicsCache=new Map<string,RuntimeProvider[]>()
   const spendingCache=new Map<string,RuntimeProvider[]>()
+  const awardNeighborSpendingCache=new Map<string,RuntimeProvider[]>()
   const denueCache=new Map<string,RuntimeProvider[]>()
   const canadaCache=new Map<string,RuntimeProvider[]>()
   const fmcsaCache=new Map<string,RuntimeProvider[]>()
@@ -301,6 +332,30 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
             spendingCache.set(keyName,awards)
           }
           requirementPools.push(awards)
+        }
+
+        if(awardNeighborRequestsRemaining>0){
+          const awardProfile=buildAwardNeighborProfile(mergeProviderPools(...requirementPools))
+          const seedNames=new Set(awardProfile.seedProviderNames.map(name=>key(name)))
+          for(const neighborSearch of buildAwardNeighborSearches(awardProfile,2)){
+            if(awardNeighborRequestsRemaining<=0)break
+            const cacheKey=`award-neighbor:${JSON.stringify([neighborSearch.naicsCodes,neighborSearch.pscCodes,neighborSearch.keywords,neighborSearch.seedProviderIds])}`
+            let neighbors=awardNeighborSpendingCache.get(cacheKey)
+            if(!neighbors){
+              awardNeighborRequestsRemaining-=1
+              neighbors=(await usaSpendingProviders({
+                naicsCodes:neighborSearch.naicsCodes,
+                pscCodes:neighborSearch.pscCodes,
+                keywords:neighborSearch.keywords,
+              },maxProvidersPerNotice,{
+                discoveryMode:'award_neighbor',
+                seedProviderIds:neighborSearch.seedProviderIds,
+                reason:neighborSearch.reason,
+              })).filter(provider=>!seedNames.has(key(provider.legalName)))
+              awardNeighborSpendingCache.set(cacheKey,neighbors)
+            }
+            if(neighbors.length)requirementPools.push(neighbors)
+          }
         }
 
         if(process.env.EXA_API_KEY?.trim()&&expansion.keywords.length&&exaSearchesRemaining>0){
@@ -433,5 +488,5 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
       notices+=1
     }catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'provider discovery failed'}`)}
   }
-  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,usaspending:spendingRequestsRemaining,exa:exaSearchesRemaining,exaForeign:foreignExaSearchesRemaining,fmcsa:fmcsaSearchesRemaining,fsis:fsisSearchesRemaining,denue:denueSearchesRemaining,canada:canadaSearchesRemaining}}
+  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,usaspending:spendingRequestsRemaining,awardNeighbor:awardNeighborRequestsRemaining,exa:exaSearchesRemaining,exaForeign:foreignExaSearchesRemaining,fmcsa:fmcsaSearchesRemaining,fsis:fsisSearchesRemaining,denue:denueSearchesRemaining,canada:canadaSearchesRemaining}}
 }
