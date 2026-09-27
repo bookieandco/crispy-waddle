@@ -66,7 +66,7 @@ const unique=(xs:readonly string[])=>Object.freeze([...new Set(xs)].sort())
 
 function multiclassBrier(probabilities:Readonly<Record<string,number>>,actual:string):number{
   const entries=Object.entries(probabilities)
-  if(entries.length<2||!Object.hasOwn(probabilities,actual))throw new Error('SPORT_PRED_ARENA_OUTCOME_INVALID')
+  if(entries.length<2||!Object.prototype.hasOwnProperty.call(probabilities,actual))throw new Error('SPORT_PRED_ARENA_OUTCOME_INVALID')
   return entries.reduce((sum,[id,p])=>sum+(p-(id===actual?1:0))**2,0)/entries.length
 }
 function ece(xs:readonly SportsArenaObservation[]):number{
@@ -100,7 +100,7 @@ export function createSportsArenaObservation(input:{
     if(!Number.isFinite(o.probability)||o.probability<0||o.probability>1)throw new Error('SPORT_PRED_ARENA_PROBABILITY_INVALID')
     probabilities[o.outcomeId]=o.probability
   }
-  if(!Object.hasOwn(probabilities,input.actualOutcomeId))throw new Error('SPORT_PRED_ARENA_ACTUAL_OUTCOME_UNKNOWN')
+  if(!Object.prototype.hasOwnProperty.call(probabilities,input.actualOutcomeId))throw new Error('SPORT_PRED_ARENA_ACTUAL_OUTCOME_UNKNOWN')
   const sorted=Object.entries(probabilities).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))
   const [topOutcomeId,topConfidence]=sorted[0]!
   const actualProbability=Math.max(1e-12,probabilities[input.actualOutcomeId]!)
