@@ -13,7 +13,7 @@ const nextConfig = {
   // disk. extensionAlias is that second half of the fix. (Verified: with
   // transpilePackages alone, the build still fails with "Module not
   // found: Can't resolve './types.js'" etc.)
-  transpilePackages: ["@jhadina/music-core"],
+  transpilePackages: ["@jhadina/music-core", "@jhadina/compute-core"],
   webpack(config) {
     config.resolve.extensionAlias = {
       ...config.resolve.extensionAlias,
