@@ -8,6 +8,7 @@ import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemera
 import { chunkSpeechText, isAbortLike, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
+import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history-card"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -22,7 +23,7 @@ type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ
 type VideoJobSummary={id:string;projectId:string;status:string;mode?:string;aspectRatio?:string;providerId?:string;error?:string;previewAssetId?:string}
 type SpatialContextUsageReceipt={used:boolean;authority:"INTELLIGENCE_ONLY";observationCount:number;evidenceCount:number;claimCount:number;realityCount:number;provenanceCount:number;sources:string[];conflictCount:number;uncertaintyCount:number;limitationCount:number}
 type SpatialGeographicScope={lat:number;lon:number;radiusKm?:number}
-type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;feedbackEligible?:boolean}
+type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;feedbackEligible?:boolean}
 
 export default function AskJhadinaPage(){return <Suspense fallback={<main className="jh-page"><div className="jh-wrap"><div className="jh-skeleton"/></div></main>}><AskJhadina/></Suspense>}
 
@@ -97,6 +98,7 @@ function AskJhadina(){
    ...(data.growthWorkPlan?["growth"]:[]),
    ...(data.videoJob?["director"]:[]),
    ...(data.spatialContext?.used?["spatial"]:[]),
+   ...(data.sportsHistoryView?["sports"]:[]),
   ])]
   const decisionRefs=[data.proposal?.id,data.reasoningEventId].filter((value):value is string=>typeof value==="string"&&Boolean(value))
   const outputRefs=data.videoJob?.id?[data.videoJob.id]:[]
@@ -510,6 +512,7 @@ function AskJhadina(){
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.spatialContext?.used?<SpatialContextCard receipt={result.spatialContext}/>:null}
+    {result.sportsHistoryView?<SportsHistoryCard view={result.sportsHistoryView}/>:null}
     {result.socialWorkPlan?<SocialWorkPlanCard plan={result.socialWorkPlan}/>:null}
     {result.growthWorkPlan?<GrowthWorkPlanCard plan={result.growthWorkPlan}/>:null}
     {result.proposal.evidence.length?<div className="jh-section" style={{marginTop:20}}><h2 className="jh-card-title">Evidence used</h2><div className="jh-list">{result.proposal.evidence.map(evidence=><div className="jh-item" key={evidence.id}><strong>{evidence.source}</strong><p className="jh-card-copy">{evidence.summary}</p><p className="jh-meta">{new Date(evidence.observedAt).toLocaleString()} · {evidence.id}</p></div>)}</div></div>:null}
