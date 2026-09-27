@@ -4,6 +4,7 @@ import { buildCofferAccountantDecision,deriveCofferSurvivalState,type CofferAcco
 import { assertMoneyMovementProposal,assertMoneyMovementRequest,promoteApprovedMoneyMovement,type FundingDestination,type MoneyMovementProposal,type MoneyMovementRequest } from './funding-rail-contracts.js'
 import { assertWalletTransferRequest,PHANTOM_OWNER_WALLET_BOUNDARY,type ConnectedWallet,type WalletTransferRequest } from './wallet-connector-contracts.js'
 import { assertConnectorMayExecute,MONEY_LIVE1_CONNECTOR_OPENINGS } from './market-connector-contracts.js'
+import { buildProfitSweepMovementProposal } from './profit-sweep-orchestrator.js'
 
 const policy=(o:Partial<CofferPolicy>={}):CofferPolicy=>({
  policyId:'coffer-policy:1',currency:'USD',principalCapitalMinor:100000n,hardStopFloorMinor:10000n,survivalFloorMinor:20000n,defensiveFloorMinor:40000n,maxDeployableBps:5000,
@@ -103,4 +104,16 @@ test('MONEY-LIVE.1 movement proposal remains non-executing until authority is at
  assert.throws(()=>promoteApprovedMoneyMovement({proposal:p,authorityId:'',executionPermitId:''}),/AUTHORITY_REQUIRED/)
  const r=promoteApprovedMoneyMovement({proposal:p,authorityId:'authority:1',executionPermitId:'permit:1'})
  assert.equal(r.executionPermitId,'permit:1')
+})
+
+
+test('MONEY-LIVE.1 threshold-triggered profit sweep creates a stable approval proposal, never a transfer',()=>{
+ const d=buildCofferAccountantDecision({policy:policy(),snapshot:snapshot()})
+ const destination:FundingDestination={destinationId:'bank:owner',ownerUserId:'u1',provider:'plaid',accountId:'acct1',currency:'USD',verified:true,kind:'BANK',evidenceIds:['bank:e']}
+ const p=buildProfitSweepMovementProposal({decision:d,userId:'u1',currency:'USD',sourceCofferId:'coffer:1',destination,requestedAt:'2026-09-27T22:00:00Z'})
+ assert.equal(p.kind,'WITHDRAWAL')
+ assert.equal(p.amountMinor,95000n)
+ assert.equal(p.state,'PENDING_APPROVAL')
+ assert.equal(p.canMoveMoney,false)
+ assert.equal(p.destinationId,'bank:owner')
 })
