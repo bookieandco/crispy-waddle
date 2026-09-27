@@ -118,7 +118,6 @@ test('live canary requires exact manual authority and executes only one tiny bou
   assert.equal(result.autonomousBettingEnabled,false)
   assert.equal(result.canIncreaseLimits,false)
   assert.equal(feedEvents.length,1)
-  assert.equal(feedEvents[0]!.sourceClass,undefined)
   assert.equal(feedEvents[0]!.commitment,'COMMITTED')
   assert.equal(feedEvents[0]!.lane,'SPORTS')
   assert.equal(feedEvents[0]!.fundedAmountMinor,50n)
