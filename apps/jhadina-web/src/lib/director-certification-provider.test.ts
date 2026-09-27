@@ -21,24 +21,13 @@ afterEach(()=>{
 describe('Director certification provider isolation',()=>{
   it('does not expose the smoke renderer to ordinary provider selection',()=>{
     for(const key of envKeys) delete process.env[key];
-    const providers=createConfiguredWholeVideoProviders({
-      runtimeConfig:{
-        certificationVideoProviderUrl:'https://example.test/api/director/cert-worker',
-        certificationVideoProviderToken:'token',
-      },
-    });
+    const providers=createConfiguredWholeVideoProviders();
     expect(providers.map(provider=>provider.descriptor.id)).not.toContain('director-certification-smoke');
   });
 
   it('admits the smoke renderer only when certification is explicit',()=>{
     for(const key of envKeys) delete process.env[key];
-    const providers=createConfiguredWholeVideoProviders({
-      includeCertification:true,
-      runtimeConfig:{
-        certificationVideoProviderUrl:'https://example.test/api/director/cert-worker',
-        certificationVideoProviderToken:'token',
-      },
-    });
+    const providers=createConfiguredWholeVideoProviders({includeCertification:true});
     expect(providers.map(provider=>provider.descriptor.id)).toEqual(['director-certification-smoke']);
     expect(providers[0]?.descriptor.costClass).toBe('free-local');
   });
