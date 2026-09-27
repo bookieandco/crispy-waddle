@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
+import { certifySamBulkCoverageRange, samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
 
 function responseFromChunks(chunks:string[]){
   const encoder=new TextEncoder()
@@ -50,5 +50,20 @@ describe('SAM public bulk snapshot',()=>{
       sourceUrl:'https://example.test/empty.csv',
       onRow:()=>undefined,
     })).rejects.toThrow('SAM_BULK_EMPTY_SNAPSHOT')
+  })  it('never certifies dates outside the observed full-snapshot range',()=>{
+    expect(certifySamBulkCoverageRange({
+      targetFrom:'2025-09-28',
+      targetTo:'2026-09-27',
+      sourceMinDay:'2022-01-01',
+      sourceMaxDay:'2026-09-26',
+      lastModified:'Sat, 26 Sep 2026 08:00:00 GMT',
+    })).toEqual({from:'2025-09-28',to:'2026-09-26',snapshotDay:'2026-09-26'})
+
+    expect(certifySamBulkCoverageRange({
+      targetFrom:'2025-09-28',
+      targetTo:'2026-09-27',
+      sourceMinDay:'2026-01-01',
+      sourceMaxDay:'2026-09-27',
+    })).toEqual({from:'2026-01-01',to:'2026-09-27',snapshotDay:null})
   })
 })
