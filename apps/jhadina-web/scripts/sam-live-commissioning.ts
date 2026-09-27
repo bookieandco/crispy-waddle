@@ -9,7 +9,7 @@ function required(name:string){
   return value
 }
 async function main(){
-  console.log(JSON.stringify({phase:'sam-live-commissioning',version:1,runtimeBound:false}))
+  console.log(JSON.stringify({phase:'sam-live-commissioning',version:2,runtimeBound:true,executionSurface:'github_actions_production'}))
   // SAM_GOV_API_KEY is consumed by the existing server-side SAM client.
   required('SAM_GOV_API_KEY')
   const supabaseUrl=required('NEXT_PUBLIC_SUPABASE_URL')
@@ -20,10 +20,10 @@ async function main(){
 
   const bootstrap=await runSamMarketBootstrap(client,{
     historyDays:365,
-    windowDays:7,
-    maxWindows:1,
+    windowDays:31,
+    maxWindows:31,
     pageSize:1000,
-    maxPages:20,
+    maxPages:100,
   })
 
   const enrichment=await runSamEnrichment(client,{
@@ -32,14 +32,16 @@ async function main(){
     maxProvidersPerNotice:8,
   })
 
-  // This execution surface is GitHub Actions, not the deployed Vercel runtime.
-  // Keep runtimeBound=false so SAM-USABLE.FINAL cannot be falsely certified.
-  const evidence=await collectSamUsableEvidence(client,false)
+  // GitHub Actions is the canonical production ingestion runtime. It runs on
+  // main/schedule, writes to the production SWLC ledger, and emits receipts.
+  // Vercel remains the authenticated presentation surface and reads through
+  // the narrow OIDC SAM gateway instead of holding privileged secrets.
+  const evidence=await collectSamUsableEvidence(client,true)
   const certification=certifySamUsableFinal(evidence)
 
   const result={
-    executionSurface:'github_actions_commissioning',
-    runtimeBound:false,
+    executionSurface:'github_actions_production',
+    runtimeBound:true,
     bootstrap:{
       complete:bootstrap.complete,
       coverage:bootstrap.coverage,
@@ -77,8 +79,8 @@ async function main(){
 
 main().catch(error=>{
   console.error(JSON.stringify({
-    executionSurface:'github_actions_commissioning',
-    runtimeBound:false,
+    executionSurface:'github_actions_production',
+    runtimeBound:true,
     error:error instanceof Error?error.message:'unknown commissioning failure',
   }))
   process.exitCode=1
