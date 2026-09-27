@@ -24,6 +24,7 @@ export type MoneyMovementProposal=Readonly<{
  destinationId:string
  idempotencyKey:string
  requestedAt:string
+ standingMandateId?:string
  state:'PENDING_APPROVAL'
  authority:'PROPOSAL_ONLY'
  canMoveMoney:false
@@ -116,5 +117,5 @@ export function assertMoneyMovementProposal(p:MoneyMovementProposal,input:{verif
 export function promoteApprovedMoneyMovement(input:{proposal:MoneyMovementProposal;authorityId:string;executionPermitId:string;standingMandateId?:string}):MoneyMovementRequest{
  if(!input.authorityId||!input.executionPermitId)throw new Error('MONEY_LIVE1_APPROVED_MOVEMENT_AUTHORITY_REQUIRED')
  const p=input.proposal
- return Object.freeze({movementId:p.movementId,kind:p.kind,userId:p.userId,cofferId:p.cofferId,amountMinor:p.amountMinor,currency:p.currency,sourceId:p.sourceId,destinationId:p.destinationId,idempotencyKey:p.idempotencyKey,requestedAt:p.requestedAt,standingMandateId:input.standingMandateId,authorityId:input.authorityId,executionPermitId:input.executionPermitId})
+ return Object.freeze({movementId:p.movementId,kind:p.kind,userId:p.userId,cofferId:p.cofferId,amountMinor:p.amountMinor,currency:p.currency,sourceId:p.sourceId,destinationId:p.destinationId,idempotencyKey:p.idempotencyKey,requestedAt:p.requestedAt,standingMandateId:input.standingMandateId??p.standingMandateId,authorityId:input.authorityId,executionPermitId:input.executionPermitId})
 }
