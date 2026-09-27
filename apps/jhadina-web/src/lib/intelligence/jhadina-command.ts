@@ -10,6 +10,7 @@ import { IntelligenceRouter, realizeGovernedExpression, type GovernedExpressionR
 import type { ConversationSignalContext, EphemeralArtifactContext, LiveContextContribution, SpatialDomainContext } from "@jhadina/core-spine"
 import type {
   GrowthContextProvider,
+  MoneyContextProvider,
   KnowledgeContextProvider,
   OwnerContextProvider,
   PersonalityContextProvider,
@@ -31,6 +32,7 @@ import { createProductionIntelligenceRouter } from "./production-model-provider"
 import { createProductionSpatialContextProvider } from "../context/production-spatial-context-provider"
 import { createProductionSocialContextProvider } from "../context/production-social-context-provider"
 import { createProductionGrowthContextProvider } from "../context/production-growth-context-provider"
+import { createProductionMoneyContextProvider } from "../context/production-money-context-provider"
 import { createProductionKnowledgeContextProvider } from "../context/production-knowledge-context-provider"
 import { createProductionOwnerContextProvider } from "../context/production-owner-context-provider"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
@@ -71,6 +73,8 @@ export interface JhadinaCommandOverrides {
   socialContextProvider?: SocialContextProvider
   /** Read-only Growth adapter. It grants no spend, publish, lifecycle-send, or audience-mutation authority. */
   growthContextProvider?: GrowthContextProvider
+  /** Read-only Money adapter. It grants no trade, payment, transfer, or broker-mutation authority. */
+  moneyContextProvider?: MoneyContextProvider
 }
 
 export interface SpatialContextUsageReceipt {
@@ -139,6 +143,9 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   const growthContextProvider =
     overrides.growthContextProvider ??
     createProductionGrowthContextProvider()
+  const moneyContextProvider =
+    overrides.moneyContextProvider ??
+    createProductionMoneyContextProvider()
   const geographicScope = input.geographicScope ?? resolveNamedPlaceScope(input.activeTask)
 
   const contextDeps: ContextBuilderDeps = {
@@ -150,6 +157,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     ownerContextProvider,
     socialContextProvider,
     growthContextProvider,
+    moneyContextProvider,
   }
   const assembled = await buildContext(contextDeps, {
     userId: verifiedIdentity.userId,
