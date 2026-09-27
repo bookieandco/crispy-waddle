@@ -16,7 +16,7 @@ export async function updateSession(request: NextRequest) {
   // browser Supabase session in front of them would make CRON/worker callbacks
   // impossible and, when public auth env is absent, used to crash middleware
   // before the route could fail closed on its own secret.
-  if (SELF_AUTHENTICATED_MACHINE_ROUTES.has(pathname)) {
+  if (SELF_AUTHENTICATED_MACHINE_ROUTES.has(pathname) || pathname.startsWith("/api/director/cert-worker/")) {
     return response;
   }
 
