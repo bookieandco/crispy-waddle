@@ -7,6 +7,7 @@ import {
   InMemoryEventConsumerCheckpointStore,
   SupabaseEventJournal,
   SupabaseEventConsumerCheckpointStore,
+  consumeReplayBatch,
 } from './index.js';
 
 const runtimeEvent=(id:string,key:string)=>({
@@ -155,5 +156,49 @@ describe('Runtime event replay checkpoints',()=>{
       'jhadina_get_runtime_event_checkpoint',
       'jhadina_advance_runtime_event_checkpoint',
     ]);
+  });
+});
+
+
+describe('Replay consumer semantics',()=>{
+  it('advances checkpoint only after successful handling',async()=>{
+    const journal=new InMemoryEventJournal();
+    const checkpoints=new InMemoryEventConsumerCheckpointStore();
+    await journal.append(runtimeEvent('evt-c1','consume-1'));
+    await journal.append(runtimeEvent('evt-c2','consume-2'));
+    const seen:string[]=[];
+
+    const result=await consumeReplayBatch({
+      journal,
+      checkpoints,
+      consumerId:'growth-consumer',
+      workSessionId:'ws-1',
+      handle:async(entry)=>{seen.push(entry.event.id);},
+    });
+
+    assert.deepEqual(seen,['evt-c1','evt-c2']);
+    assert.deepEqual(result,{processed:2,checkpoint:2});
+    assert.equal(await checkpoints.get('growth-consumer','ws-1'),2);
+  });
+
+  it('leaves the failed event unacknowledged for retry',async()=>{
+    const journal=new InMemoryEventJournal();
+    const checkpoints=new InMemoryEventConsumerCheckpointStore();
+    await journal.append(runtimeEvent('evt-f1','failure-1'));
+    await journal.append(runtimeEvent('evt-f2','failure-2'));
+
+    await assert.rejects(()=>consumeReplayBatch({
+      journal,
+      checkpoints,
+      consumerId:'sam-consumer',
+      workSessionId:'ws-1',
+      handle:async(entry)=>{
+        if(entry.event.id==='evt-f2')throw new Error('HANDLER_FAILED');
+      },
+    }),/HANDLER_FAILED/);
+
+    assert.equal(await checkpoints.get('sam-consumer','ws-1'),1);
+    const retry=await journal.readAfter('ws-1',1,10);
+    assert.deepEqual(retry.map(entry=>entry.event.id),['evt-f2']);
   });
 });
