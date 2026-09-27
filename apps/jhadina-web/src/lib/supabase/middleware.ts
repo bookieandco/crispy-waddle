@@ -5,6 +5,7 @@ import { getSupabasePublicConfig } from "./public-config";
 const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/director/process-replication/reconcile",
   "/api/director/studies/observations",
+  "/api/director/live-certification",
 ]);
 
 export async function updateSession(request: NextRequest) {

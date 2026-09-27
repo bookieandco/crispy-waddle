@@ -156,6 +156,8 @@ jobs:
           src/app/api/director/products/references/[assetId]/admit/route.test.ts
           src/app/api/director/products/references/route.test.ts
           src/lib/director-reference-video-provider.test.ts
+          src/lib/director-certification-mp4.test.ts
+          src/lib/director-certification-provider.test.ts
           src/lib/director-reference-asset-resolver.test.ts
           src/lib/director-reference-media.test.ts
           src/app/api/workstation/editing-assets/route.test.ts

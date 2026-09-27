@@ -86,7 +86,9 @@ export async function reconcileDirectorVideoJobs(
     .limit(limit);
   if (error) throw error;
 
-  const providers = new Map(createConfiguredWholeVideoProviders().map((provider) => [provider.descriptor.id, provider]));
+  const providers = new Map(createConfiguredWholeVideoProviders({
+    includeCertification: true,
+  }).map((provider) => [provider.descriptor.id, provider]));
   const assets = createSupabaseGeneratedAssetRepository(client);
   const summary: DirectorVideoReconciliationSummary = { inspected: 0, advanced: 0, completed: 0, failed: 0, blocked: 0 };
 
