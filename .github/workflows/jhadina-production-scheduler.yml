@@ -60,11 +60,12 @@ jobs:
 
           for attempt in $(seq 1 50); do
             response_file="$(mktemp)"
-            status="$(curl --silent --show-error --location \
+            status="$(curl --silent --show-error \
               --connect-timeout 20 \
               --max-time 30 \
               --output "$response_file" \
               --write-out '%{http_code}' \
+              --header "Accept: application/json" \
               --header "User-Agent: jhadina-production-admission/${GITHUB_RUN_ID}" \
               "$url" || true)"
 
