@@ -23,6 +23,13 @@ export type ComputeQueueClass =
 
 export type ComputeProvider = 'homebase' | 'remote-homebase' | 'cloud';
 export type AcceleratorVendor = 'nvidia' | 'amd' | 'apple' | 'cpu';
+export type ComputeNetworkFabric = 'converged' | 'frontend' | 'storage' | 'gpu-backend';
+
+export type NetworkFabricInventory = {
+  fabric: ComputeNetworkFabric;
+  bandwidthMbpsAvailable: number;
+  status: 'ready' | 'degraded' | 'offline';
+};
 
 export type AcceleratorInventory = {
   vendor: AcceleratorVendor;
@@ -45,6 +52,7 @@ export type ComputeResourceRequest = {
   scratchGiB: number;
   gpu?: GpuResourceRequest;
   networkMbps?: number;
+  networkFabric?: ComputeNetworkFabric;
   durableReadGiB?: number;
   durableWriteGiB?: number;
   /**
@@ -110,6 +118,7 @@ export type ComputeNode = {
   ramGiBFree: number;
   scratchGiBFree: number;
   networkMbpsAvailable?: number;
+  networkFabrics?: NetworkFabricInventory[];
   accelerators: AcceleratorInventory[];
   localityKeys?: string[];
   hourlyCostUsd?: number;
@@ -123,6 +132,7 @@ export type PlacementRejectionCode =
   | 'RAM_INSUFFICIENT'
   | 'SCRATCH_INSUFFICIENT'
   | 'NETWORK_INSUFFICIENT'
+  | 'NETWORK_FABRIC_UNAVAILABLE'
   | 'GPU_INSUFFICIENT'
   | 'GPU_VRAM_INSUFFICIENT'
   | 'GPU_FEATURE_MISSING'
