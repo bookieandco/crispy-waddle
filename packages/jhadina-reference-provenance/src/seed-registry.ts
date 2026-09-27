@@ -5,6 +5,7 @@ import {
   type RegisterSourceVerificationInput,
 } from './index.js';
 import { registerRefProv04Seeds } from './ref-prov-04-seed.js';
+import { MONEY_PAPER_TUTORIAL_REFERENCE_IDS, registerMoneyPaperTutorialReferences } from './money-paper-tutorial-reference-seed.js';
 import {
   MONEY_BEHAVIORAL_RISK_REFERENCE_IDS,
   registerMoneyBehavioralRiskReferences,
@@ -1635,6 +1636,7 @@ export function createInitialReferenceProvenanceRegistry():
     ...tracedReferences,
     ...handoffOnlyReferences,
     ...repositoryWideReferences,
+    ...MONEY_PAPER_TUTORIAL_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
   ]) {
     registry.registerReference(reference);
   }
@@ -1642,6 +1644,7 @@ export function createInitialReferenceProvenanceRegistry():
     registry.registerSourceVerification(verification);
   }
   registerRefProv04Seeds(registry);
+  registerMoneyPaperTutorialReferences(registry);
   registerMoneyBehavioralRiskReferences(registry);
   registerMoneyMarketDataReferences(registry);
   registerMoneyTradingFoundationReferences(registry);
