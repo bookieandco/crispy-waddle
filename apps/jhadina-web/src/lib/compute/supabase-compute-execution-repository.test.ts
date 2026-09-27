@@ -77,6 +77,7 @@ describe('Supabase compute execution receipt repository',()=>{
         return {data:submissionRow(),error:null};
       },
     };
+    const repo=new SupabaseComputeExecutionRepository(client);
     const receipt:ComputeSubmissionReceipt={
       submissionId:'k8s:jhadina-compute:job-1',
       actionRequestId:'action-1',
