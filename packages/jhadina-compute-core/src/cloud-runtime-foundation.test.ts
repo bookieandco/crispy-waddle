@@ -115,7 +115,7 @@ describe('CLOUD.4 execution boundary',()=>{
   });
 
   it('keeps shadow submission idempotent',async()=>{
-    const submitter=new ShadowComputeSubmitter();
+    const submitter=new ShadowComputeSubmitter(()=>'2026-09-27T04:00:30.000Z');
     const first=await submitter.submit(bundle,permit);
     const second=await submitter.submit(bundle,permit);
     expect(second).toEqual(first);
