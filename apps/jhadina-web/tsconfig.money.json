@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "src/app/money/**/*.ts",
+    "src/app/money/**/*.tsx",
+    "src/app/api/money/**/*.ts",
+    "src/lib/money/**/*.ts",
+    "src/lib/supabase/server.ts",
+    "src/lib/supabase/service-role.ts",
+    "src/lib/supabase/public-config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "dist"
+  ]
+}
