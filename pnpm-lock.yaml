@@ -28,6 +28,9 @@ importers:
       '@jhadina/action-core':
         specifier: workspace:*
         version: link:../../packages/jhadina-action-core
+      '@jhadina/compute-core':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-compute-core
       '@jhadina/director-core':
         specifier: workspace:*
         version: link:../../packages/director-core
@@ -104,6 +107,9 @@ importers:
 
   apps/pupsonstuff:
     dependencies:
+      '@jhadina/compute-core':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-compute-core
       '@huggingface/inference':
         specifier: ^4.13.25
         version: 4.13.30
@@ -202,6 +208,9 @@ importers:
       '@jhadina/action-core':
         specifier: workspace:*
         version: link:../jhadina-action-core
+      '@jhadina/compute-core':
+        specifier: workspace:*
+        version: link:../jhadina-compute-core
     devDependencies:
       vitest:
         specifier: ^2.1.8
