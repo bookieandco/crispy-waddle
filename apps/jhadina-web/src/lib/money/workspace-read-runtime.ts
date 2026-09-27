@@ -71,9 +71,9 @@ export async function readSessionMoneyWorkspace():Promise<MoneyWorkspaceSnapshot
  const c=cofferResult.data
  return Object.freeze({
   userId,
-  coffer:c?Object.freeze({cofferId:c.coffer_id,currency:c.currency,principalCapitalMinor:String(c.principal_capital_minor),hardStopFloorMinor:String(c.hard_stop_floor_minor),survivalFloorMinor:String(c.survival_floor_minor),defensiveFloorMinor:String(c.defensive_floor_minor),state:c.state}):null,
+  coffer:c?Object.freeze({cofferId:c.coffer_id,currency:c.currency,principalCapitalMinor:String(c.principal_capital_minor),hardStopFloorMinor:String(c.hard_stop_floor_minor),survivalFloorMinor:String(c.survival_floor_minor),defensiveFloorMinor:String(c.defensive_floor_minor),state:c.state as NonNullable<MoneyWorkspaceSnapshot["coffer"]>["state"]}):null,
   sweepPolicy,
-  wallets:Object.freeze((walletResult.data??[]).map(x=>Object.freeze({connectionId:x.connection_id,provider:x.provider,network:x.network,address:x.address,mode:x.mode,status:x.status}))),
-  connectors:Object.freeze((connectorResult.data??[]).map(x=>Object.freeze({connectorId:x.connector_id,provider:x.provider,lane:x.lane,admission:x.admission}))),
+  wallets:Object.freeze((walletResult.data??[]).map(x=>Object.freeze({connectionId:x.connection_id,provider:x.provider,network:x.network,address:x.address,mode:x.mode as MoneyWorkspaceSnapshot["wallets"][number]["mode"],status:x.status as MoneyWorkspaceSnapshot["wallets"][number]["status"]}))),
+  connectors:Object.freeze((connectorResult.data??[]).map(x=>Object.freeze({connectorId:x.connector_id,provider:x.provider,lane:x.lane as MoneyWorkspaceSnapshot["connectors"][number]["lane"],admission:x.admission as MoneyWorkspaceSnapshot["connectors"][number]["admission"]}))),
  })
 }
