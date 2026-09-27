@@ -19,6 +19,7 @@ export async function GET(request: Request) {
       hasServerSupabaseUrl: Boolean(process.env.SUPABASE_URL),
       hasSupabaseServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
       hasSupabasePublishableKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
+      hasSamGovApiKey: Boolean(process.env.SAM_GOV_API_KEY),
     },
   })
 }
