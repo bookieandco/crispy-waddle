@@ -34,10 +34,6 @@ export function workSessionTaskComputeDraft(
     throw new Error(`ONE_RUNTIME_COMPUTE_TASK_NOT_DISPATCHABLE:${task.status}`);
   }
   if(!binding.resourceProfileId.trim())throw new Error('ONE_RUNTIME_COMPUTE_PROFILE_REQUIRED');
-  if(binding.constraints?.allowCloudBurst===true&&task.authorityRef==='context-only'){
-    throw new Error('ONE_RUNTIME_COMPUTE_CLOUD_BURST_REQUIRES_GOVERNED_AUTHORITY');
-  }
-
   return Object.freeze({
     id:`compute:work-session:${task.workSessionId}:${task.id}:v${task.version}`,
     source:binding.source,
