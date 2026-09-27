@@ -221,6 +221,8 @@ export function computeNodeFromHardwareTruth(
       'jhadina.ai/hardware-evidence':'hardware-truth-scanner',
       'jhadina.ai/hardware-observed-at':report.generatedAt,
     },
+    evidenceObservedAt:report.generatedAt,
+    evidenceExpiresAt:new Date(observedAt+config.maxEvidenceAgeMs).toISOString(),
   };
 
   return {
