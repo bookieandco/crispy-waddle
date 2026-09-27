@@ -17,6 +17,7 @@ on:
       - "docs/DIRECTOR*.md"
       - "supabase/migrations/*director*"
       - "supabase/functions/jhadina-director-live-cert-gateway/**"
+      - "services/director-phantom/**"
       - ".github/workflows/director-targeted-tests.yml"
       - "pnpm-lock.yaml"
   push:
@@ -37,6 +38,7 @@ on:
       - "docs/DIRECTOR*.md"
       - "supabase/migrations/*director*"
       - "supabase/functions/jhadina-director-live-cert-gateway/**"
+      - "services/director-phantom/**"
       - ".github/workflows/director-targeted-tests.yml"
       - "pnpm-lock.yaml"
 jobs:
@@ -141,6 +143,8 @@ jobs:
           src/storyboard-reference-board.test.ts
           src/generation-reference-manifest.test.ts
           src/continuity-reference-strategy.test.ts
+          src/phantom-video-provider.test.ts
+          src/production-quality-certification.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
       - name: Workstation authority, Studio QC and Social bridge
         run: >
@@ -160,6 +164,7 @@ jobs:
           src/lib/director-reference-video-provider.test.ts
           src/lib/director-certification-mp4.test.ts
           src/lib/director-certification-provider.test.ts
+          src/lib/director-phantom-video-provider.test.ts
           src/lib/director-reference-asset-resolver.test.ts
           src/lib/director-reference-media.test.ts
           src/app/api/workstation/editing-assets/route.test.ts
@@ -167,3 +172,5 @@ jobs:
           src/lib/supabase/middleware.test.ts
           src/lib/supabase/public-config.test.ts
       - run: pnpm --filter @jhadina/jhadina-web run type-check
+      - name: Phantom worker contract
+        run: python -m unittest services/director-phantom/test_worker.py
