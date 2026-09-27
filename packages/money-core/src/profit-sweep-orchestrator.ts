@@ -31,6 +31,7 @@ export function buildProfitSweepMovementProposal(input:{
   destinationId:input.destination.destinationId,
   idempotencyKey:'profit-sweep-proposal:'+movementId,
   requestedAt:input.requestedAt,
+  standingMandateId:d.standingSweepMandateId,
   state:'PENDING_APPROVAL' as const,
   authority:'PROPOSAL_ONLY' as const,
   canMoveMoney:false as const,
