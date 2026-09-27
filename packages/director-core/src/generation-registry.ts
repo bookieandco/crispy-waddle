@@ -11,6 +11,11 @@ export type ProviderCapability =
   | 'upscale'
   | 'motion'
   | 'camera-control'
+  | 'subject-to-video'
+  | 'multi-subject-reference'
+  | 'identity-preserving-video'
+  | 'product-reference-video'
+  | 'temporal-subject-consistency'
   | 'text-to-subtitle';
 
 export type ModelRecord = {
