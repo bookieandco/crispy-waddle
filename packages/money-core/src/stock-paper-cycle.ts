@@ -364,6 +364,7 @@ export function planStockPaperCycle(input: Readonly<{
     action: willTrade ? 'PAPER_TRADE' : 'NO_TRADE',
     side: willTrade ? orderRequest!.side : undefined,
     signal: baseline.signal,
+    referencePrice: baseline.referencePrice,
     reasonCodes,
     informationCutoff: baseline.informationCutoff,
     createdAt: input.now,
