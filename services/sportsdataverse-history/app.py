@@ -210,7 +210,8 @@ def health() -> dict[str, Any]:
     return {
         "ok": True,
         "provider": "sportsdataverse",
-        "sportsdataverseVersion": "0.1.4",\n        "auditedReferenceCommit": "29c209708f9174f8e6ff73ec431dc2adc819ca59",
+        "sportsdataverseVersion": "0.1.4",
+        "auditedReferenceCommit": "29c209708f9174f8e6ff73ec431dc2adc819ca59",
         "authority": "HISTORICAL_EVIDENCE_ONLY",
     }
 
@@ -349,7 +350,8 @@ def history_query(request: HistoryQuery) -> dict[str, Any]:
 
     return {
         "provider": "sportsdataverse",
-        "providerVersion": "0.1.4",\n        "auditedReferenceCommit": "29c209708f9174f8e6ff73ec431dc2adc819ca59",
+        "providerVersion": "0.1.4",
+        "auditedReferenceCommit": "29c209708f9174f8e6ff73ec431dc2adc819ca59",
         "entity": {
             "kind": "PLAYER",
             "id": f"sportsdataverse:{league}:athlete:{athlete_id}",
