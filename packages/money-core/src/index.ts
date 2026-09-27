@@ -234,3 +234,7 @@ export * from './sports-prediction-revision-lineage.js';
 export * from './sports-prediction-process-review.js';
 
 export * from './sports-specialist-context.js';
+
+export * from './sports-bet-shadow-runtime.js';
+export * from './sports-bet-live-canary.js';
+export * from './sports-bet-final-certification.js';
