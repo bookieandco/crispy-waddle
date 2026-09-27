@@ -1,3 +1,4 @@
+import { createProductionSportsSimulationContextProvider } from "./sports-simulation-context-provider"
 import type { DecisionProposal, EvidenceRef } from "@jhadina/core-spine"
 import {
   buildSportsSimulationReport,
@@ -248,32 +249,6 @@ export async function handleAskSportsSimulationCommand(
     },
     verified: true,
     verificationReason: "SPORT-SIM completed from a resolved point-in-time context and returned a non-executable simulation report.",
-  }
-}
-
-export function createProductionSportsSimulationContextProvider(): SportsSimulationContextProvider {
-  return {
-    async resolve(input) {
-      const url = process.env.SPORTS_SIMULATION_CONTEXT_URL?.trim()
-      if (!url) return null
-      const token = process.env.SPORTS_SIMULATION_CONTEXT_TOKEN?.trim()
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          userId: input.userId,
-          query: input.activeTask,
-          pathCount: input.intent.pathCount,
-          liveRequested: input.intent.liveRequested,
-        }),
-        cache: "no-store",
-      })
-      if (!response.ok) return null
-      return parseSportsSimulationResolvedContext(await response.json(), "ADMITTED_SPORTS_CONTEXT")
-    },
   }
 }
 
