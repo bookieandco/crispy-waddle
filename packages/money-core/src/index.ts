@@ -244,3 +244,5 @@ export * from './accountant-controls.js';
 export * from './funding-rail-contracts.js';
 export * from './wallet-connector-contracts.js';
 export * from './market-connector-contracts.js';
+
+export * from './profit-sweep-orchestrator.js';
