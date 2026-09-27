@@ -37,9 +37,11 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     expect(sam).toContain('cron: "11 */6 * * *"')
     expect(sam).toContain('id-token: write')
     expect(sam).toContain("core.getIDToken('jhadina-sam-runtime')")
-    expect(sam).toContain('SAM_GOV_API_KEY: ${{ secrets.sam_key }}')
+    expect(sam).toContain("core.getIDToken('jhadina-sam-upstream')")
     expect(sam).not.toContain('secrets.SUPABASE_SERVICE_ROLE_KEY')
     expect(sam).not.toContain('secrets.SAM_GOV_API_KEY')
+    expect(sam).not.toContain('secrets.sam_key')
+    expect(sam).toContain('/api/health')
     expect(sam).toContain('apps/jhadina-web/scripts/sam-live-commissioning.ts')
   })
 
