@@ -3,10 +3,13 @@ import {
   createAlpacaPaperBrokerAdapter,
   createPaperDecision,
   createPaperLearningEvent,
+  learnFromPaperDecision,
+  resolvePaperDecisionFromNextDailyMark,
   createPaperRealismProfile,
   assessPaperRealism,
   evaluatePaperAutopilot,
   evaluateStockSmaBaseline,
+  type PaperDecisionObservation,
   type PaperLearningEvent,
   type StrategyCalibration,
 } from "@jhadina/money-core"
@@ -61,6 +64,62 @@ function positionQuantity(value:string):number{
   return Number.isFinite(n)?n:0
 }
 
+async function resolveEligibleDecisionLearning(input:Readonly<{
+  repo:SupabaseMoneyPaperRuntimeRepository
+  userId:string
+  instrumentId:string
+  learningEvents:readonly PaperLearningEvent[]
+  dailyBars:readonly {startsAt:string;endsAt:string;high:string;low:string;close:string;evidenceRef:string}[]
+}>):Promise<{resolutions:number;learning:number}>{
+  const resolvedDecisionIds=new Set(
+    input.learningEvents
+      .filter((event)=>event.kind==="RESOLUTION")
+      .map((event)=>(event.payload as {decisionId?:string}).decisionId)
+      .filter((value):value is string=>Boolean(value)),
+  )
+  const learnedDecisionIds=new Set(
+    input.learningEvents
+      .filter((event)=>event.kind==="DECISION_LEARNING")
+      .map((event)=>(event.payload as {decisionId?:string}).decisionId)
+      .filter((value):value is string=>Boolean(value)),
+  )
+  const marks=input.dailyBars.map((bar)=>({
+    startsAt:bar.startsAt,
+    endsAt:bar.endsAt,
+    high:Number(bar.high),
+    low:Number(bar.low),
+    close:Number(bar.close),
+    evidenceId:bar.evidenceRef,
+  }))
+  let resolutions=0,learning=0
+
+  for(const event of input.learningEvents){
+    if(event.kind!=="DECISION"||event.instrumentId!==input.instrumentId)continue
+    const decision=event.payload as PaperDecisionObservation
+    if(resolvedDecisionIds.has(decision.decisionId)&&learnedDecisionIds.has(decision.decisionId))continue
+    const resolution=resolvePaperDecisionFromNextDailyMark(decision,marks)
+    if(!resolution)continue
+
+    if(!resolvedDecisionIds.has(decision.decisionId)){
+      const resolutionEvent=createPaperLearningEvent({
+        userId:input.userId,kind:"RESOLUTION",occurredAt:resolution.resolvedAt,payload:resolution,
+        paperRunId:decision.paperRunId,strategyId:decision.strategyId,instrumentId:decision.instrumentId,
+      })
+      if(await input.repo.appendLearningEvent(resolutionEvent)==="INSERTED")resolutions++
+    }
+
+    if(!learnedDecisionIds.has(decision.decisionId)){
+      const record=learnFromPaperDecision(decision,resolution)
+      const learningEvent=createPaperLearningEvent({
+        userId:input.userId,kind:"DECISION_LEARNING",occurredAt:record.evaluatedAt,payload:record,
+        paperRunId:decision.paperRunId,strategyId:decision.strategyId,instrumentId:decision.instrumentId,
+      })
+      if(await input.repo.appendLearningEvent(learningEvent)==="INSERTED")learning++
+    }
+  }
+  return {resolutions,learning}
+}
+
 export type PaperAutopilotCycleReceipt=Readonly<{
   ranAt:string
   settingsProcessed:number
@@ -69,6 +128,8 @@ export type PaperAutopilotCycleReceipt=Readonly<{
   decisionsReplayed:number
   paperOrdersSubmitted:number
   paperOrdersSkipped:number
+  decisionResolutionsInserted:number
+  decisionLearningInserted:number
   errors:readonly string[]
   canAuthorizeLive:false
 }>
@@ -85,7 +146,7 @@ export async function runMoneyPaperAutopilotCycle(
   const broker=createAlpacaPaperBrokerAdapter({credentials:()=>credentials})
   const settingsRows=await repo.listActiveSettings()
 
-  let symbolsProcessed=0,decisionsInserted=0,decisionsReplayed=0,paperOrdersSubmitted=0,paperOrdersSkipped=0
+  let symbolsProcessed=0,decisionsInserted=0,decisionsReplayed=0,paperOrdersSubmitted=0,paperOrdersSkipped=0,decisionResolutionsInserted=0,decisionLearningInserted=0
   const errors:string[]=[]
 
   for(const settings of settingsRows){
@@ -118,6 +179,12 @@ export async function runMoneyPaperAutopilotCycle(
           if(settings.strategyId!=="stock-baseline-sma-20-50"){paperOrdersSkipped++;errors.push(entry.symbol+": unsupported paper strategy "+settings.strategyId);continue}
           const bundle=await market.getStockBundle({symbol:entry.symbol,start:window.start,end:window.end,now:ranAt,feed:settings.stockFeed,maxBars:90})
           if(!bundle.quote||bundle.dailyBars.length<51){paperOrdersSkipped++;continue}
+          const resolved=await resolveEligibleDecisionLearning({
+            repo,userId:settings.userId,instrumentId:"stock:"+entry.symbol,learningEvents,
+            dailyBars:bundle.dailyBars,
+          })
+          decisionResolutionsInserted+=resolved.resolutions
+          decisionLearningInserted+=resolved.learning
           const baseline=evaluateStockSmaBaseline(bundle.dailyBars)
           const calibration=latestCalibration(learning,baseline.strategyId)
           const mims=mimsForBaseline({decisionId:baseline.decisionId,evidenceIds:baseline.evidenceIds,calibration})
@@ -216,6 +283,6 @@ export async function runMoneyPaperAutopilotCycle(
 
   return Object.freeze({
     ranAt,settingsProcessed:settingsRows.length,symbolsProcessed,decisionsInserted,decisionsReplayed,
-    paperOrdersSubmitted,paperOrdersSkipped,errors:Object.freeze(errors),canAuthorizeLive:false,
+    paperOrdersSubmitted,paperOrdersSkipped,decisionResolutionsInserted,decisionLearningInserted,errors:Object.freeze(errors),canAuthorizeLive:false,
   })
 }
