@@ -184,3 +184,4 @@ export * from './observation-bus';
 
 export * from './phantom-video-provider';
 export * from './production-quality-certification';
+export * from './nle-roundtrip';
