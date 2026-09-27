@@ -1,5 +1,5 @@
 import { describe,expect,it } from "vitest"
-import { JHADINA_WORLDS,getWorld,worldAssistantHref } from "./jhadina-world-registry"
+import { JHADINA_WORLDS,getWorld,worldAssistantHref,worldDirectHref } from "./jhadina-world-registry"
 
 describe("Jhadina world registry",()=>{
  it("keeps the major user-facing subsystems reachable",()=>{
@@ -11,10 +11,15 @@ describe("Jhadina world registry",()=>{
   const ids=new Set(JHADINA_WORLDS.map(world=>world.id))
   for(const id of required)expect(ids.has(id as never)).toBe(true)
  })
- it("routes Ask Jhadina as the governed fallback for worlds without native UI",()=>{
+ it("gives every world a direct surface and keeps Ask Jhadina as the governed fallback",()=>{
+  for(const world of JHADINA_WORLDS){
+   expect(worldDirectHref(world)).toBeTruthy()
+  }
   for(const world of JHADINA_WORLDS.filter(item=>item.access==="assistant")){
    expect(world.href).toBeUndefined()
+   expect(worldDirectHref(world)).toBe("/worlds/"+world.id)
    expect(worldAssistantHref(world)).toContain("/ask-jhadina?surface=")
+   expect(worldAssistantHref(world)).toContain(encodeURIComponent("/worlds/"+world.id))
   }
  })
  it("uses unique native routes",()=>{

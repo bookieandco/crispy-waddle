@@ -1,10 +1,10 @@
 import { describe,expect,it } from "vitest"
 import { HOME_FEED_SOURCES,storyMatchesSource,type Story } from "./storyTypes"
 
-describe("Jhadina Home social/media scroll",()=>{
- it("keeps every configured social/media source in the scroll",()=>{
+describe("Jhadina Home unified feed",()=>{
+ it("keeps social, media and major subsystem sources in the scroll",()=>{
   expect(HOME_FEED_SOURCES).toEqual(expect.arrayContaining([
-   "All","Social","TikTok","Facebook","Snapchat","Instagram","YouTube","Reddit","X","LinkedIn","Threads","Bluesky","Tumblr","VK","Director",
+   "All","Social","TikTok","Facebook","Snapchat","Instagram","YouTube","Reddit","X","LinkedIn","Threads","Bluesky","Tumblr","VK","Director","JhadinaTV","Opportunities","Money","Sports","PupsonStuff",
   ]))
  })
  it("filters without losing provenance identity",()=>{

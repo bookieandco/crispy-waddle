@@ -48,3 +48,5 @@ export class PrivacyController {
     return this.adapter.status();
   }
 }
+
+export * from "./vpn-provider-boundary";
