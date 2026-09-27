@@ -67,3 +67,17 @@ describe('WorkSession runtime projection',()=>{
       .toThrow('WORK_SESSION_RUNTIME_SCOPE_MISMATCH');
   });
 });
+
+
+describe('paused runtime attention',()=>{
+  it('surfaces paused work without treating it as automatic recovery',()=>{
+    const running=evolveWorkSessionTask(
+      evolveWorkSessionTask(task('paused','director'),{status:'ready'}),
+      {status:'running',attempt:1},
+    );
+    const paused=evolveWorkSessionTask(running,{status:'paused'});
+    const projection=buildWorkSessionRuntimeProjection([paused],'2026-09-27T00:02:00Z');
+    expect(projection.humanAttention[0]).toMatchObject({kind:'paused',requiresHuman:true});
+    expect(projection.systemAttention).toHaveLength(0);
+  });
+});
