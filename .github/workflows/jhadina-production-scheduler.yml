@@ -18,10 +18,6 @@ on:
   schedule:
     - cron: "0 * * * *"
     - cron: "30 * * * *"
-    - cron: "5 */6 * * *"
-    - cron: "20 */6 * * *"
-    - cron: "35 */6 * * *"
-    - cron: "50 */6 * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -31,10 +27,6 @@ on:
         options:
           - shark-launch-outcomes
           - shark-historical-observations
-          - sam-scan
-          - sam-enrich
-          - sam-certify
-          - sam-bootstrap
 
 permissions:
   contents: read
@@ -115,125 +107,11 @@ jobs:
 
           deployed_sha="$(jq -r '.commitSha // empty' "$response_file" 2>/dev/null || true)"
           environment="$(jq -r '.environment // empty' "$response_file" 2>/dev/null || true)"
-          has_service_role="$(jq -r '.configuration.hasSupabaseServiceRoleKey // false' "$response_file" 2>/dev/null || echo false)"
-          has_sam_key="$(jq -r '.configuration.hasSamGovApiKey // false' "$response_file" 2>/dev/null || echo false)"
-          echo "protected_status=${status} environment=${environment} deployed_sha=${deployed_sha} service_role=${has_service_role} sam_api_key=${has_sam_key}"
+          echo "protected_status=${status} environment=${environment} deployed_sha=${deployed_sha}"
 
           [[ "$status" == "200" ]]
           [[ "$environment" == "production" ]]
           [[ "$deployed_sha" == "$EXPECTED_SHA" ]]
-
-  sam-admission-smoke:
-    if: github.event_name == 'push'
-    needs: admission-smoke
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Request SAM bootstrap OIDC token
-        id: bootstrap_oidc
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
-            core.setSecret(token)
-            core.setOutput('token', token)
-
-      - name: Scan and bootstrap live SAM market
-        env:
-          OIDC_TOKEN: ${{ steps.bootstrap_oidc.outputs.token }}
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-        run: |
-          set -euo pipefail
-
-          invoke() {
-            local job="$1"
-            local path="$2"
-            local response_file
-            response_file="$(mktemp)"
-            local status
-
-            status="$(curl --silent --show-error \
-              --connect-timeout 20 \
-              --max-time 320 \
-              --output "$response_file" \
-              --write-out '%{http_code}' \
-              --header "Accept: application/json" \
-              --header "Authorization: Bearer ${OIDC_TOKEN}" \
-              --header "User-Agent: jhadina-production-sam-admission/${GITHUB_RUN_ID}" \
-              "${ORIGIN%/}${path}")"
-
-            echo "sam_admission_worker=${job} status=${status}"
-            cat "$response_file"
-
-            case "$status" in
-              2??) ;;
-              *)
-                echo "SAM admission worker ${job} failed with HTTP ${status}" >&2
-                exit 1
-                ;;
-            esac
-
-            jq -e 'type == "object"' "$response_file" >/dev/null || {
-              echo "SAM admission worker ${job} returned non-JSON content." >&2
-              exit 1
-            }
-          }
-
-          invoke "sam-scan" "/api/internal/sam/scan?lookbackDays=2&maxPages=100"
-          invoke "sam-bootstrap" "/api/internal/sam/bootstrap?historyDays=365&windowDays=31&maxWindows=31&maxPages=100"
-
-      - name: Request fresh SAM enrichment OIDC token
-        id: enrichment_oidc
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
-            core.setSecret(token)
-            core.setOutput('token', token)
-
-      - name: Enrich and certify live SAM market
-        env:
-          OIDC_TOKEN: ${{ steps.enrichment_oidc.outputs.token }}
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-        run: |
-          set -euo pipefail
-
-          invoke() {
-            local job="$1"
-            local path="$2"
-            local response_file
-            response_file="$(mktemp)"
-            local status
-
-            status="$(curl --silent --show-error \
-              --connect-timeout 20 \
-              --max-time 320 \
-              --output "$response_file" \
-              --write-out '%{http_code}' \
-              --header "Accept: application/json" \
-              --header "Authorization: Bearer ${OIDC_TOKEN}" \
-              --header "User-Agent: jhadina-production-sam-admission/${GITHUB_RUN_ID}" \
-              "${ORIGIN%/}${path}")"
-
-            echo "sam_admission_worker=${job} status=${status}"
-            cat "$response_file"
-
-            case "$status" in
-              2??) ;;
-              *)
-                echo "SAM admission worker ${job} failed with HTTP ${status}" >&2
-                exit 1
-                ;;
-            esac
-
-            jq -e 'type == "object"' "$response_file" >/dev/null || {
-              echo "SAM admission worker ${job} returned non-JSON content." >&2
-              exit 1
-            }
-          }
-
-          invoke "sam-enrich" "/api/internal/sam/enrich?limit=10&maxDocuments=80&maxProviders=8"
-          invoke "sam-certify" "/api/internal/sam/certify"
 
   invoke:
     if: github.event_name != 'push'
@@ -256,22 +134,6 @@ jobs:
             shark-historical-observations:*|*:30\ \*\ \*\ \*\ \*)
               job="shark-historical-observations"
               path="/api/internal/shark/historical-observations"
-              ;;
-            sam-scan:*|*:5\ \*/6\ \*\ \*\ \*)
-              job="sam-scan"
-              path="/api/internal/sam/scan?lookbackDays=2&maxPages=20"
-              ;;
-            sam-enrich:*|*:20\ \*/6\ \*\ \*\ \*)
-              job="sam-enrich"
-              path="/api/internal/sam/enrich?limit=5&maxDocuments=40&maxProviders=8"
-              ;;
-            sam-certify:*|*:35\ \*/6\ \*\ \*\ \*)
-              job="sam-certify"
-              path="/api/internal/sam/certify"
-              ;;
-            sam-bootstrap:*|*:50\ \*/6\ \*\ \*\ \*)
-              job="sam-bootstrap"
-              path="/api/internal/sam/bootstrap?historyDays=365&windowDays=7&maxWindows=4&maxPages=20"
               ;;
             *)
               echo "Unknown scheduler invocation: input=${INPUT_JOB:-} schedule=${SCHEDULE:-}" >&2
