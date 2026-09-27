@@ -113,7 +113,10 @@
     "./performance-master": "./src/performance-master.ts",
     "./motion-capture-3d": "./src/motion-capture-3d.ts",
     "./process-replication": "./src/process-replication.ts",
-    "./production-project": "./src/production-project.ts"
+    "./production-project": "./src/production-project.ts",
+    "./process-observation": "./src/process-observation.ts",
+    "./rehearsal-loop": "./src/rehearsal-loop.ts",
+    "./observation-bus": "./src/observation-bus.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",

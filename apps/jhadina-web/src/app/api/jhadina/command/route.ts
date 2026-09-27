@@ -6,7 +6,7 @@ import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { CleanArtifactContextResolver } from "@/lib/artifacts/clean-artifact-context-resolver"
 import { createAndSubmitAskVideoJob, inspectAskVideoIntent } from "@/lib/director-video-job-service"
-import { createAskProcessReplicationJob, inspectAskProcessReplication } from "@/lib/director-process-replication-service"
+import { advanceAskProcessReplicationJob, createAskProcessReplicationJob, inspectAskProcessReplication } from "@/lib/director-process-replication-service"
 import {
   handleAskSocialCommand,
   inspectAskSocialIntent,
@@ -242,9 +242,11 @@ export async function POST(req: NextRequest) {
         clientRequestId: typeof body?.clientRequestId === "string" ? body.clientRequestId : undefined,
         sourceArtifactRefs: artifacts.map((artifact)=>artifact.id),
       })
+      const advancedJob = await advanceAskProcessReplicationJob(verifiedIdentity.userId, replication.job.id)
+      const replicationJob = advancedJob ?? replication.job
       const proposal = {
-        id: `director-replicate-proposal:${replication.job.id}`,
-        contextId: `director-replicate-context:${replication.job.projectId}`,
+        id: `director-replicate-proposal:${replicationJob.id}`,
+        contextId: `director-replicate-context:${replicationJob.projectId}`,
         disposition: "PROCEED" as const,
         recommendation: `Study the supplied process, compile an evidence-bound reference recipe, improve weak steps using current Director capabilities, then execute through Director as an editable ${replication.intent.targetKind} project.`,
         rationale: "Process-replication requests route through Director Study and the Process Recipe compiler before generation. The reference remains evidence; provider choice, production execution, review, and timeline mutation stay inside canonical Director authority.",
@@ -252,7 +254,12 @@ export async function POST(req: NextRequest) {
           ...replication.intent.sourceUrls.map((url)=>({ id:url, source:"user-reference-url", observedAt:new Date().toISOString(), summary:url })),
           ...artifacts.map((artifact)=>({ id:artifact.id, source:artifact.source, observedAt:artifact.observedAt, summary:artifact.name ?? artifact.mimeType })),
         ],
-        uncertainty: ["The learned recipe is not admitted until Study observations and recipe QC complete."],
+        uncertainty: [
+          "The learned recipe is not admitted until Study observations and recipe QC complete.",
+          ...(replicationJob.status === "blocked" && replicationJob.phase === "study-provider"
+            ? ["The external Director Study worker is not configured, so Jhadina has not claimed to have watched or understood the reference yet."]
+            : []),
+        ],
         alternatives: ["Use the reference process exactly without the improvement pass.", "Study the reference only without executing it."],
       }
       const reasoningEventId = await recordAskShortcutExperience({
@@ -260,7 +267,7 @@ export async function POST(req: NextRequest) {
         activeTask,
         proposal,
         shortcut: "director",
-        metadata: { jobId: replication.job.id, projectId: replication.job.projectId, phase: replication.job.phase, executionStarted: false },
+        metadata: { jobId: replicationJob.id, projectId: replicationJob.projectId, phase: replicationJob.phase, status: replicationJob.status, executionStarted: false },
       })
       return NextResponse.json({
         success: true,
@@ -269,11 +276,13 @@ export async function POST(req: NextRequest) {
           reasoningEventId,
           expression: await realizeAskJhadinaExpression({ userId: verifiedIdentity.userId, activeTask, proposal }),
           directorReplicationIntent: replication.intent,
-          directorReplicationJob: replication.job,
+          directorReplicationJob: replicationJob,
           approvalRequired: false,
           executionStarted: false,
           verified: true,
-          verificationReason: "Identity verified; reference Study was queued. No provider, publishing, spending, or timeline mutation authority was granted.",
+          verificationReason: replicationJob.status === "blocked"
+            ? "Identity verified; the replication job is durable but the Study worker is not configured. No claim of reference understanding or provider execution was made."
+            : "Identity verified; reference Study was dispatched or queued for governed Study. No publishing, spending, or timeline mutation authority was granted.",
         },
       })
     }
