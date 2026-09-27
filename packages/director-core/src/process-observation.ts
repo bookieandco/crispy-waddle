@@ -132,6 +132,15 @@ export function deriveDirectorNativeImprovements(
       operation = 'Diagnose the failing range, preserve approved locks, regenerate only invalidated descendants, and compare the repair against the prior timeline version.';
     }
 
+    if (step.kind === 'performance' || /blocking|eyeline|rehears|table read|performance pass|interaction/.test(text)) {
+      capabilities.add('director-rehearsal-loop');
+      capabilities.add('low-cost-previs');
+      qc.add('rehearsal-graduation');
+      qc.add('performance-notes-resolved');
+      reasons.push('Director can rehearse dialogue, blocking, eyelines, gestures, interactions, and camera timing cheaply before committing to final-generation cost.');
+      operation = 'Run a low-cost Director rehearsal loop: table-read/blocking/performance passes, issue evidence-backed notes, retry until graduation, then preserve the approved Performance Master for final generation.';
+    }
+
     const weakSelection =
       /pick (the )?best|choose (the )?best|looks best|whichever looks/.test(text) ||
       (step.kind === 'review' && step.qcChecks.length === 0);
