@@ -32,6 +32,12 @@ const STAT_ALIASES:Readonly<Record<string,string>>=Object.freeze({
   receptions:"receptions",targets:"targets","passing touchdowns":"passing_touchdowns",
   "rushing touchdowns":"rushing_touchdowns","receiving touchdowns":"receiving_touchdowns",
   "home runs":"home_runs",hits:"hits","strikeouts":"strikeouts","runs":"runs",
+
+  "3 pointers":"three_point_field_goals_made","3 pointer":"three_point_field_goals_made",
+  "three pointers":"three_point_field_goals_made","three pointer":"three_point_field_goals_made",
+  "3pt":"three_point_field_goals_made","3 point field goals":"three_point_field_goals_made",
+  "3 point attempts":"three_point_field_goals_attempted","three point attempts":"three_point_field_goals_attempted",
+  "field goals":"field_goals_made","free throws":"free_throws_made",
 })
 
 function normalize(v:string){return v.toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim()}
