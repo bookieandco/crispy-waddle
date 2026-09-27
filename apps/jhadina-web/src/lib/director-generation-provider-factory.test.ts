@@ -54,14 +54,17 @@ describe('director generation provider factory', () => {
     factualAuthority: 'NONE' as const,
   };
 
-  async function deploymentConfig() {
+  async function deploymentConfig(
+    artifactId='comfyui:runtime-model-bundle',
+    referenceId='provider:comfyui',
+  ) {
     const ledger = new InMemoryArtifactAdmissionLedger();
     const admission: ArtifactAdmissionReceipt = {
       schemaVersion: 'REF-PROV-05',
       admissionId: 'admission:director:1',
       pinId: 'artifact:comfyui:model-bundle',
-      referenceId: 'provider:comfyui',
-      artifactId: 'comfyui:runtime-model-bundle',
+      referenceId,
+      artifactId,
       artifactDigest:
         'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       pinHash: 'pin',
@@ -132,6 +135,38 @@ describe('director generation provider factory', () => {
     );
   });
 
+
+
+  it('constructs Phantom only after a Phantom runtime-bundle proof verifies', async () => {
+    const runtime = await createDirectorGenerationRuntimeConfig({
+      artifactDeployment: await deploymentConfig('phantom:runtime-model-bundle','provider:phantom'),
+      phantom: {
+        id: 'phantom-wan',
+        baseUrl: 'http://phantom:8090',
+        token: 'test-token',
+      },
+    });
+
+    expect(runtime.providers.has('phantom-wan')).toBe(true);
+    expect(runtime.registry.getModel('phantom-wan-1.3b')?.providerId).toBe('phantom-wan');
+    expect(runtime.registry.getModel('phantom-wan-14b')?.capabilities).toContain('identity-preserving-video');
+    expect(runtime.artifactDeployment.artifactId).toBe('phantom:runtime-model-bundle');
+  });
+
+  it('requires a composite proof before enabling ComfyUI and Phantom together', async () => {
+    await expect(createDirectorGenerationRuntimeConfig({
+      artifactDeployment: await deploymentConfig(),
+      comfyUi: {
+        id: 'comfyui-local',
+        baseUrl: 'http://comfyui:8188',
+        models: [model],
+      },
+      phantom: {
+        id: 'phantom-wan',
+        baseUrl: 'http://phantom:8090',
+      },
+    })).rejects.toThrow('DIRECTOR_GENERATION_COMPOSITE_MODEL_BUNDLE_PROOF_REQUIRED');
+  });
 
   it('loads only approval-stamped character LoRAs into the production registry', async () => {
     const runtime = await createDirectorGenerationRuntimeConfig({
