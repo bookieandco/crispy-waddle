@@ -39,7 +39,7 @@ export async function runSessionGovernedMoneyPaperSetup(
 
   const {data:activeRows,error:activeReadError}=await client
     .from("money_broker_account_entitlements")
-    .select("entitlement_id,capabilities,evidence_ids")
+    .select("entitlement_id,capabilities,evidence_ids,created_at,expires_at")
     .eq("user_id",identity.userId)
     .eq("provider","alpaca")
     .eq("account_id",account.accountId)
@@ -47,7 +47,7 @@ export async function runSessionGovernedMoneyPaperSetup(
     .limit(1)
   if(activeReadError)throw new Error("MONEY_PAPER_SETUP_ENTITLEMENT_READ_FAILED:"+activeReadError.message)
 
-  const active=(activeRows??[])[0] as {entitlement_id:string;capabilities:string[];evidence_ids:string[]}|undefined
+  const active=(activeRows??[])[0] as {entitlement_id:string;capabilities:string[];evidence_ids:string[];created_at:string;expires_at:string|null}|undefined
   const inheritedCapabilities=active?.capabilities??[]
   const evidenceIds=Object.freeze([
     "alpaca-paper-account:"+account.accountId,
@@ -55,41 +55,47 @@ export async function runSessionGovernedMoneyPaperSetup(
     ...(active?["supersedes-entitlement:"+active.entitlement_id,...(active.evidence_ids??[])]:[]),
   ])
   const entitlement=createBrokerAccountEntitlement({
-    entitlementId:"paper-entitlement:"+randomUUID(),
+    entitlementId:active?.entitlement_id??("paper-entitlement:"+randomUUID()),
     userId:identity.userId,
     provider:"alpaca",
     accountId:account.accountId,
     capabilities:[...new Set([...inheritedCapabilities,"money.market.observe","money.paper.trade.submit"])] as ("money.market.observe"|"money.paper.trade.submit"|"money.trade.submit")[],
-    createdAt:now,
+    createdAt:active?.created_at??now,
+    expiresAt:active?.expires_at??undefined,
     evidenceIds,
   })
 
   if(active){
-    const {error:revokeError}=await client
+    const {error:entitlementError}=await client
       .from("money_broker_account_entitlements")
-      .update({status:"REVOKED",revoked_at:now,updated_at:now})
+      .update({
+        capabilities:[...entitlement.capabilities],
+        evidence_ids:[...entitlement.evidenceIds],
+        provenance_hash:entitlement.provenanceHash,
+        updated_at:now,
+      })
       .eq("entitlement_id",active.entitlement_id)
       .eq("status","ACTIVE")
-    if(revokeError)throw new Error("MONEY_PAPER_SETUP_ENTITLEMENT_REVOKE_FAILED:"+revokeError.message)
+    if(entitlementError)throw new Error("MONEY_PAPER_SETUP_ENTITLEMENT_WRITE_FAILED:"+entitlementError.message)
+  }else{
+    const {error:entitlementError}=await client
+      .from("money_broker_account_entitlements")
+      .insert({
+        entitlement_id:entitlement.entitlementId,
+        user_id:entitlement.userId,
+        provider:entitlement.provider,
+        account_id:entitlement.accountId,
+        capabilities:[...entitlement.capabilities],
+        status:entitlement.status,
+        created_at:entitlement.createdAt,
+        expires_at:entitlement.expiresAt??null,
+        revoked_at:null,
+        evidence_ids:[...entitlement.evidenceIds],
+        provenance_hash:entitlement.provenanceHash,
+        updated_at:now,
+      })
+    if(entitlementError)throw new Error("MONEY_PAPER_SETUP_ENTITLEMENT_WRITE_FAILED:"+entitlementError.message)
   }
-
-  const {error:entitlementError}=await client
-    .from("money_broker_account_entitlements")
-    .insert({
-      entitlement_id:entitlement.entitlementId,
-      user_id:entitlement.userId,
-      provider:entitlement.provider,
-      account_id:entitlement.accountId,
-      capabilities:[...entitlement.capabilities],
-      status:entitlement.status,
-      created_at:entitlement.createdAt,
-      expires_at:entitlement.expiresAt??null,
-      revoked_at:null,
-      evidence_ids:[...entitlement.evidenceIds],
-      provenance_hash:entitlement.provenanceHash,
-      updated_at:now,
-    })
-  if(entitlementError)throw new Error("MONEY_PAPER_SETUP_ENTITLEMENT_WRITE_FAILED:"+entitlementError.message)
 
   const settings=createPaperAutopilotSettings({
     userId:identity.userId,
