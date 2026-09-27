@@ -64,11 +64,12 @@ function rejectionCodes(node: ComputeNode, workload: ComputeWorkload): Placement
     } else {
       if (
         request.gpu.minVramGiBPerDevice !== undefined &&
-        !matches.some(
-          (accelerator) =>
-            (accelerator.vramGiBPerDevice ?? 0) >= request.gpu!.minVramGiBPerDevice! &&
-            accelerator.count >= request.gpu!.count,
-        )
+        !matches.some((accelerator) => {
+          const totalOk=(accelerator.vramGiBPerDevice ?? 0)>=request.gpu!.minVramGiBPerDevice!;
+          const free=accelerator.vramGiBFreePerDevice;
+          const freeOk=free===undefined||free>=request.gpu!.minVramGiBPerDevice!;
+          return totalOk&&freeOk&&accelerator.count>=request.gpu!.count;
+        })
       ) {
         codes.push('GPU_VRAM_INSUFFICIENT');
       }
@@ -122,7 +123,9 @@ function candidateScore(node: ComputeNode, workload: ComputeWorkload): Placement
 
   if (workload.resources.gpu) {
     const matches = matchingAccelerators(node, workload);
-    const bestVram = Math.max(...matches.map((accelerator) => accelerator.vramGiBPerDevice ?? 0), 0);
+    const bestVram = Math.max(...matches.map((accelerator) =>
+      accelerator.vramGiBFreePerDevice ?? accelerator.vramGiBPerDevice ?? 0
+    ), 0);
     const requestedVram = workload.resources.gpu.minVramGiBPerDevice ?? 0;
     score += Math.min(Math.max(bestVram - requestedVram, 0), 48) / 4;
     reasons.push(`gpu-headroom:${Math.max(bestVram - requestedVram, 0)}GiB`);
