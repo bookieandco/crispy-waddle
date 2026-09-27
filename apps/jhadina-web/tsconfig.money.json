@@ -11,7 +11,10 @@
     "src/lib/money/**/*.ts",
     "src/lib/supabase/server.ts",
     "src/lib/supabase/service-role.ts",
-    "src/lib/supabase/public-config.ts"
+    "src/lib/supabase/public-config.ts",
+    "components/home/PersonalCommandFeed.tsx",
+    "components/home/storyTypes.ts",
+    "components/home/storyCatalog.ts"
   ],
   "exclude": [
     "node_modules",
