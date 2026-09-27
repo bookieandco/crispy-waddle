@@ -82,5 +82,6 @@ export * from './governed-semantic-preference-pattern.js';
 export * from './voice-runtime.js';
 export * from './work-session.js';
 export * from './work-session-lease.js';
+export * from './runtime-attention.js';
 
 export * from './universal-artifact-core.js';
