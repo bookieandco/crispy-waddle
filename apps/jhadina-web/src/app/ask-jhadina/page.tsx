@@ -37,7 +37,7 @@ function AskJhadina(){
  const [feedbackBusy,setFeedbackBusy]=useState(false)
  const [feedbackRecorded,setFeedbackRecorded]=useState<"reinforced"|"rejected"|null>(null)
  const [artifacts,setArtifacts]=useState<JhadinaEphemeralArtifact[]>([])
- const [artifactRefs,setArtifactRefs]=useState<string[]>([])
+ const [artifactRefs,setArtifactRefs]=useState<string[]>(()=>[...new Set((params.get("artifacts")??"").split(",").map(value=>value.trim()).filter(Boolean))].slice(0,8))
  const [inputStatus,setInputStatus]=useState("")
  const [voiceLanguage,setVoiceLanguage]=useState("en-US")
  const [referenceFile,setReferenceFile]=useState<File|null>(null)
