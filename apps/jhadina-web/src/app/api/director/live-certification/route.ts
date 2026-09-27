@@ -58,6 +58,23 @@ async function patchRun(client:SupabaseClient,runId:string,patch:Record<string,u
   if(error)throw error;
 }
 
+async function ensureCertificationUser(client:SupabaseClient):Promise<string>{
+  const email='director-certification@system.jhadina.test';
+  const {data:list,error:listError}=await client.auth.admin.listUsers({page:1,perPage:100});
+  if(listError)throw listError;
+  const existing=list.users.find(user=>user.email===email);
+  if(existing)return existing.id;
+  const {data,error}=await client.auth.admin.createUser({
+    email,
+    email_confirm:true,
+    app_metadata:{system_principal:'director-live-certification'},
+    user_metadata:{display_name:'Director Live Certification'},
+  });
+  if(error)throw error;
+  if(!data.user?.id)throw new Error('DIRECTOR_LIVE_CERT_USER_BOOTSTRAP_FAILED');
+  return data.user.id;
+}
+
 async function consumeRunToken(client:SupabaseClient,runToken:string|undefined):Promise<string>{
   if(!runToken?.trim())throw new Error('DIRECTOR_LIVE_CERT_UNAUTHORIZED');
   const hash=createHash('sha256').update(runToken.trim()).digest('hex');
@@ -70,8 +87,14 @@ async function consumeRunToken(client:SupabaseClient,runToken:string|undefined):
     .select('user_id')
     .maybeSingle();
   if(error)throw error;
-  if(!data?.user_id)throw new Error('DIRECTOR_LIVE_CERT_UNAUTHORIZED');
-  return String(data.user_id);
+  if(!data)throw new Error('DIRECTOR_LIVE_CERT_UNAUTHORIZED');
+  const userId=data.user_id?String(data.user_id):await ensureCertificationUser(client);
+  if(!data.user_id){
+    const {error:bindError}=await client.from('director_live_certification_tokens')
+      .update({user_id:userId}).eq('token_hash',hash);
+    if(bindError)throw bindError;
+  }
+  return userId;
 }
 
 async function launchVideoMatrix(client:SupabaseClient,run:CertRun,userId:string){
