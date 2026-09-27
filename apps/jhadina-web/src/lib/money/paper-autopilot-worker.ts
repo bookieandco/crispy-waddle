@@ -7,7 +7,6 @@ import {
   assessPaperRealism,
   evaluatePaperAutopilot,
   evaluateStockSmaBaseline,
-  type PaperAutopilotSettings,
   type PaperLearningEvent,
   type StrategyCalibration,
 } from "@jhadina/money-core"
