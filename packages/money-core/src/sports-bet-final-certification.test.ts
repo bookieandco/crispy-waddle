@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { SportsPredictionTransportEnvelope } from './sports-intelligence-ingress.js'
 import { createSportsForwardShadowPrediction,resolveSportsForwardShadowPrediction } from './sports-prediction-forward-shadow.js'
-import type { SportsMarketQuote } from './sports-paper-betting.js'
+import { createSportsPaperWager,type SportsMarketQuote } from './sports-paper-betting.js'
 import { createSportsBetShadowDecision,buildSportsBetShadowSoakEvidence,certifySportsBetShadowSoak } from './sports-bet-shadow-runtime.js'
 import {
   assertSportsBetLiveCanaryPolicy,createSportsBetCanaryApproval,executeSportsBetLiveCanary,certifySportsBetLiveCanary,
@@ -11,6 +11,7 @@ import {
 } from './sports-bet-live-canary.js'
 import { certifySportsBetFinalSoftware,certifySportsBetFinal,type SportsBetFinalSoftwareCaseName } from './sports-bet-final-certification.js'
 import type { MoneyFeedEvent } from './money-feed-contracts.js'
+import { buildSportsSuggestionFeedEvent } from './sports-feed-projection.js'
 
 const envelope:SportsPredictionTransportEnvelope=Object.freeze({
   schemaVersion:'SPORT-PRED-01',
@@ -181,4 +182,15 @@ test('SPORT-BET.FINAL source certification is complete while external real evide
   assert.equal(final.productionAutonomousBettingEnabled,false)
   assert.equal(final.canIncreaseCanaryLimits,false)
   assert.equal(final.canExecute,false)
+})
+
+
+test('SPORT-BET feed keeps paper recommendation visibly unfunded',()=>{
+  const wager=createSportsPaperWager({strategyId:'sports-feed-paper',quote,fairProbability:.60,stakeMinor:500n,currency:'USD',placedAt:'2026-09-27T19:00:02.000Z',informationCutoff:'2026-09-27T19:00:01.000Z',evidenceIds:['sports-feed-paper:e1']})
+  const event=buildSportsSuggestionFeedEvent({userId:'user-1',wager})
+  assert.equal(event.lane,'SPORTS')
+  assert.equal(event.commitment,'SUGGESTED')
+  assert.equal(event.fundedAmountMinor,undefined)
+  assert.equal(event.canExecute,false)
+  assert.match(event.body,/no money is committed/i)
 })
