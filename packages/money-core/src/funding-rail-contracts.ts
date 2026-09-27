@@ -13,6 +13,22 @@ export type FundingDestination=Readonly<{
  evidenceIds:readonly string[]
 }>
 
+export type MoneyMovementProposal=Readonly<{
+ movementId:string
+ kind:MoneyMovementKind
+ userId:string
+ cofferId:string
+ amountMinor:bigint
+ currency:string
+ sourceId:string
+ destinationId:string
+ idempotencyKey:string
+ requestedAt:string
+ state:'PENDING_APPROVAL'
+ authority:'PROPOSAL_ONLY'
+ canMoveMoney:false
+}>
+
 export type MoneyMovementRequest=Readonly<{
  movementId:string
  kind:MoneyMovementKind
@@ -85,4 +101,20 @@ export function assertMoneyMovementRequest(r:MoneyMovementRequest,input:{verifie
  if(input.verifiedSource.destinationId!==r.sourceId||input.verifiedDestination.destinationId!==r.destinationId)throw new Error('MONEY_LIVE1_MOVEMENT_BINDING_MISMATCH')
  if(input.verifiedSource.currency!==r.currency||input.verifiedDestination.currency!==r.currency)throw new Error('MONEY_LIVE1_MOVEMENT_CURRENCY_MISMATCH')
  if(!input.verifiedSource.evidenceIds.length||!input.verifiedDestination.evidenceIds.length)throw new Error('MONEY_LIVE1_MOVEMENT_EVIDENCE_REQUIRED')
+}
+
+
+export function assertMoneyMovementProposal(p:MoneyMovementProposal,input:{verifiedSource:FundingDestination;verifiedDestination:FundingDestination}){
+ if(p.authority!=='PROPOSAL_ONLY'||p.canMoveMoney!==false||p.state!=='PENDING_APPROVAL')throw new Error('MONEY_LIVE1_PROPOSAL_AUTHORITY_INVALID')
+ if(p.amountMinor<=0n||!p.currency||!p.idempotencyKey)throw new Error('MONEY_LIVE1_PROPOSAL_INVALID')
+ if(!input.verifiedSource.verified||!input.verifiedDestination.verified)throw new Error('MONEY_LIVE1_PROPOSAL_DESTINATION_UNVERIFIED')
+ if(input.verifiedSource.ownerUserId!==p.userId||input.verifiedDestination.ownerUserId!==p.userId)throw new Error('MONEY_LIVE1_PROPOSAL_OWNER_MISMATCH')
+ if(input.verifiedSource.destinationId!==p.sourceId||input.verifiedDestination.destinationId!==p.destinationId)throw new Error('MONEY_LIVE1_PROPOSAL_BINDING_MISMATCH')
+ if(input.verifiedSource.currency!==p.currency||input.verifiedDestination.currency!==p.currency)throw new Error('MONEY_LIVE1_PROPOSAL_CURRENCY_MISMATCH')
+}
+
+export function promoteApprovedMoneyMovement(input:{proposal:MoneyMovementProposal;authorityId:string;executionPermitId:string;standingMandateId?:string}):MoneyMovementRequest{
+ if(!input.authorityId||!input.executionPermitId)throw new Error('MONEY_LIVE1_APPROVED_MOVEMENT_AUTHORITY_REQUIRED')
+ const p=input.proposal
+ return Object.freeze({movementId:p.movementId,kind:p.kind,userId:p.userId,cofferId:p.cofferId,amountMinor:p.amountMinor,currency:p.currency,sourceId:p.sourceId,destinationId:p.destinationId,idempotencyKey:p.idempotencyKey,requestedAt:p.requestedAt,standingMandateId:input.standingMandateId,authorityId:input.authorityId,executionPermitId:input.executionPermitId})
 }
