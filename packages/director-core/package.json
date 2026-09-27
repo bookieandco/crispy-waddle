@@ -108,7 +108,12 @@
     "./generation-audio-intent": "./src/generation-audio-intent.ts",
     "./scene-attempt-budget": "./src/scene-attempt-budget.ts",
     "./production-foundry": "./src/production-foundry.ts",
-    "./compute-workload": "./src/compute-workload.ts"
+    "./compute-workload": "./src/compute-workload.ts",
+    "./longform-dialogue-state": "./src/longform-dialogue-state.ts",
+    "./performance-master": "./src/performance-master.ts",
+    "./motion-capture-3d": "./src/motion-capture-3d.ts",
+    "./process-replication": "./src/process-replication.ts",
+    "./production-project": "./src/production-project.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
