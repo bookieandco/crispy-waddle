@@ -195,6 +195,29 @@ Concepts retained:
 
 Disposition: reasoning/orchestration reference only.
 
+### solana-developers/cash-app-clone
+
+Concepts retained:
+
+- simple consumer cash home / activity / pay mental model;
+- clear deposit / withdraw / transfer affordances;
+- mobile-first amount-entry and wallet-connected flows.
+
+Disposition: UX/workflow reference only. Its devnet Anchor program and direct wallet transaction code are not imported into Money Core.
+
+### phantom/docs
+
+Authoritative integration rules retained:
+
+- detect Phantom through the injected provider and `isPhantom`;
+- connect through `window.phantom.solana.connect()`;
+- require explicit user approval before transaction requests;
+- prefer Phantom-owned signing/submission when user-approved wallet transactions are later added;
+- on mobile, use Phantom's documented `/ul/browse/` universal-link flow to reopen the Money page inside Phantom's in-app browser when the injected provider is unavailable;
+- never request or persist the user's private key or seed phrase.
+
+Disposition: authoritative provider-contract reference.
+
 ### tabii-dev/accounting-automation-portfolio
 
 Concepts retained:
