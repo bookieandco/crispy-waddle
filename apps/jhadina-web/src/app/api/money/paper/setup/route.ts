@@ -15,6 +15,7 @@ export async function POST(request:NextRequest){
       baseOrderNotionalMinor:body.baseOrderNotionalMinor===undefined?undefined:String(body.baseOrderNotionalMinor),
       maxOrderNotionalMinor:body.maxOrderNotionalMinor===undefined?undefined:String(body.maxOrderNotionalMinor),
       maximumConcurrentPositions:body.maximumConcurrentPositions===undefined?undefined:Number(body.maximumConcurrentPositions),
+      riskFractionBps:body.riskFractionBps===undefined?undefined:Number(body.riskFractionBps),
       stopLossBps:body.stopLossBps===undefined?undefined:Number(body.stopLossBps),
       takeProfitBps:body.takeProfitBps===undefined?undefined:Number(body.takeProfitBps),
     })
