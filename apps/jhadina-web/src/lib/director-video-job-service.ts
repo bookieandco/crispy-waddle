@@ -12,6 +12,12 @@ import {
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { createConfiguredWholeVideoProviders } from '@/lib/director-whole-video-providers';
 import { loadDirectorRuntimeConfig } from '@/lib/director-runtime-config';
+import {
+  evaluateRehearsalTake,
+  rehearsalGraduationReceipt,
+  type RehearsalPlan,
+  type RehearsalTake,
+} from '@jhadina/director-core/rehearsal-loop';
 
 type VideoJobRow = {
   id: string;
@@ -160,6 +166,89 @@ export function inspectAskVideoIntent(activeTask: string): AskVideoCreationInten
   return detectAskVideoCreationIntent(activeTask);
 }
 
+async function runCertificationRehearsal(
+  client:SupabaseClient,
+  job:DirectorVideoJob,
+):Promise<readonly string[]>{
+  const plan:RehearsalPlan={
+    id:`rehearsal:${job.id}`,
+    projectId:job.projectId,
+    sceneId:`scene:${job.id}:smoke`,
+    mode:'blocking',
+    characterIds:['director-cert-character'],
+    cues:[{
+      id:`cue:${job.id}:1`,
+      characterId:'director-cert-character',
+      beatRef:`beat:${job.id}:1`,
+      action:'hold mark, preserve eyeline, then cross without collision',
+      startSeconds:0,
+      endSeconds:Math.min(4,Math.max(1,job.targetDurationSeconds??4)),
+    }],
+    referenceAssetIds:['director-cert-reference'],
+    wardrobePlanRefs:['director-cert-wardrobe'],
+    cameraPlanRefs:['director-cert-camera'],
+    maxTakes:3,
+    escalationOrder:['blocking','performance','interaction','camera','full-dress'],
+    evidenceIds:[`certification:${job.id}:previs`],
+    authority:'DIRECTOR_REHEARSAL_PLAN',
+  };
+  const first=evaluateRehearsalTake(plan,{
+    takeNumber:1,
+    mode:'blocking',
+    observations:[{
+      id:`observation:${job.id}:collision`,
+      planId:plan.id,
+      takeNumber:1,
+      characterId:'director-cert-character',
+      cueId:plan.cues[0]!.id,
+      issue:'collision',
+      severity:'fix',
+      message:'Move the character half a step camera-left before the cross; preserve the eyeline.',
+      score:0.62,
+      evidenceIds:[`certification:${job.id}:blocking-preview:1`],
+    }],
+  });
+  if(first.disposition!=='retry'||!first.notes.length){
+    throw new Error('DIRECTOR_CERT_REHEARSAL_NOTE_REQUIRED');
+  }
+  const second=evaluateRehearsalTake(plan,{takeNumber:2,mode:'blocking',observations:[]});
+  if(second.disposition!=='approve') throw new Error('DIRECTOR_CERT_REHEARSAL_APPROVAL_REQUIRED');
+  const take:RehearsalTake={
+    id:`take:${job.id}:2`,
+    planId:plan.id,
+    takeNumber:2,
+    mode:'blocking',
+    observations:[],
+    directorNotes:first.notes,
+    status:'approved',
+    evidenceIds:[`certification:${job.id}:blocking-preview:2`],
+  };
+  const receipt=rehearsalGraduationReceipt(plan,take);
+  const {error:stageError}=await client.from('director_creative_stages')
+    .update({
+      status:'approved',
+      output_artifact_ids:[...receipt],
+      updated_at:new Date().toISOString(),
+    })
+    .eq('project_id',job.projectId)
+    .eq('id',`stage:${job.id}:rehearsal`);
+  if(stageError) throw stageError;
+  await appendJobEvent(client,{
+    jobId:job.id,
+    eventType:'certification_rehearsal_approved',
+    status:'completed',
+    metadata:{
+      smoke:true,
+      qualityClaim:false,
+      firstTakeDisposition:first.disposition,
+      firstTakeNotes:first.notes,
+      approvedTakeId:take.id,
+      receipt:[...receipt],
+    },
+  });
+  return receipt;
+}
+
 export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promise<AskVideoJobResult> {
   const intent = detectAskVideoCreationIntent(input.activeTask);
   if (!intent) throw new Error('DIRECTOR_VIDEO_INTENT_NOT_DETECTED');
@@ -260,6 +349,12 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
   let job = toJob(row);
   if (job.providerJobId || ['submitted','generating','ingesting','preview_ready'].includes(job.status)) {
     return { intent, job };
+  }
+
+  if(input.certification){
+    const rehearsalReceipt=await runCertificationRehearsal(client,job);
+    const nextSpec={...(row.spec??{}),certification:{runtimeOnly:true,qualityClaim:false,rehearsalReceipt:[...rehearsalReceipt]}};
+    job=await updateJob(client,job.id,{spec:nextSpec,current_phase:'rehearsal-approved'});
   }
 
   const runtimeConfig = input.certification ? await loadDirectorRuntimeConfig(client) : {};
