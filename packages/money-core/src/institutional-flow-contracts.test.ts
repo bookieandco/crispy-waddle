@@ -9,6 +9,7 @@ import {
   createInstitutionalFlowClaim,
   toObservedFxPositioningFactor,
   type InstitutionalFlowObservation,
+  type InstitutionalBehaviorExample,
 } from './institutional-flow-contracts.js';
 
 function directObservation(
@@ -62,6 +63,28 @@ test('MONEY-INSTITUTIONAL-FLOW-01 permits named actors only from directly partic
       ),
     /MONEY_INSTITUTIONAL_FLOW_NAMED_ACTOR_UNVERIFIED/,
   );
+});
+
+test('pattern aggregation rejects repeated facts, forged actions, and unlearnable serialized samples', () => {
+  const observation = directObservation();
+  const example = createInstitutionalBehaviorExample(observation, {
+    exampleId: 'example:one', featureCutoff: observation.effectiveAt,
+    conditionIds: ['condition:one'], evidenceIds: ['evidence:one'],
+    outcomeAvailableAt: '2026-09-26T21:00:00Z', outcomeLabel: 'MATCHED',
+  });
+  const build = (examples: readonly InstitutionalBehaviorExample[], source = observation) =>
+    buildInstitutionalBehaviorPattern({
+      patternId: 'pattern:one', instrumentId: observation.instrumentId, examples,
+      observationById: new Map([[observation.observationId, source]]), minimumSamples: 2,
+      methodologyVersion: 'v1', evidenceIds: ['evidence:pattern'], provenanceHash: 'proof',
+    });
+  assert.throws(() => build([example, example]), /DUPLICATE_SAMPLE/);
+  assert.throws(() => build([example, {...example, exampleId: 'example:copy'}]), /DUPLICATE_SAMPLE/);
+  assert.throws(() => build([{...example, action: 'SELL'}]), /OBSERVATION_MISMATCH/);
+  assert.throws(() => build([example], {...observation, instrumentId: 'fx:GBPUSD'}), /OBSERVATION_MISMATCH/);
+  assert.throws(() => build([example], {...observation, status: 'REJECTED'}), /SOURCE_NOT_LEARNABLE/);
+  assert.throws(() => build([{...example, featureCutoff: '2026-09-27T00:00:00Z'}]), /FEATURE_FUTURE_LEAK/);
+  assert.equal(build([example]).calibrationStatus, 'UNVALIDATED');
 });
 
 test('MONEY-INSTITUTIONAL-FLOW-01 allows actor-agnostic aggregate positioning observations', () => {

@@ -309,12 +309,27 @@ export function buildInstitutionalBehaviorPattern(input: Readonly<{
     throw new Error('MONEY_INSTITUTIONAL_PATTERN_EXAMPLE_AUTHORITY_INVALID');
   }
 
+  const seenExamples = new Set<string>();
+  const seenObservations = new Set<string>();
   const observations = examples.map((example) => {
+    if (seenExamples.has(example.exampleId) || seenObservations.has(example.observationId)) {
+      throw new Error('MONEY_INSTITUTIONAL_PATTERN_DUPLICATE_SAMPLE');
+    }
+    seenExamples.add(example.exampleId);
+    seenObservations.add(example.observationId);
     const observation = input.observationById.get(example.observationId);
     if (!observation) {
       throw new Error('MONEY_INSTITUTIONAL_PATTERN_OBSERVATION_MISSING');
     }
     assertInstitutionalFlowObservation(observation);
+    if (observation.observationId !== example.observationId ||
+        observation.instrumentId !== example.instrumentId ||
+        observation.side !== example.action ||
+        observation.observedAt !== example.actionObservedAt) {
+      throw new Error('MONEY_INSTITUTIONAL_PATTERN_OBSERVATION_MISMATCH');
+    }
+    // Revalidate serialized examples at the aggregation boundary as well.
+    createInstitutionalBehaviorExample(observation, example);
     return observation;
   });
 
