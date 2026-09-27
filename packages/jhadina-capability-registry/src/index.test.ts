@@ -72,3 +72,41 @@ describe('Capability runtime state', () => {
     assert.equal(registry.getRuntimeStatus('shark.trade')?.state,'paper-only');
   });
 });
+
+
+describe('Subsystem runtime projection',()=>{
+  it('stays unknown when registered capabilities lack live status',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'tv.play',description:'play media',risk:'external',version:1,subsystemId:'tv'});
+    const projection=buildSubsystemRuntimeProjection(registry,'tv');
+    assert.equal(projection.state,'unknown');
+    assert.deepEqual(projection.unknownCapabilities,['tv.play']);
+  });
+
+  it('fails the aggregate closed when one capability is blocked',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'sam.read',description:'read notices',risk:'read',version:1,subsystemId:'sam'});
+    registry.register({name:'sam.refresh',description:'refresh notices',risk:'external',version:1,subsystemId:'sam'});
+    registry.setRuntimeStatus({
+      capabilityName:'sam.read',state:'ready',updatedAt:'2026-09-27T00:00:00Z',
+      evidence:[{id:'live-read',source:'prod',observedAt:'2026-09-27T00:00:00Z',kind:'live-runtime',summary:'read succeeded'}],
+    });
+    registry.setRuntimeStatus({
+      capabilityName:'sam.refresh',state:'blocked',reason:'scheduler unavailable',updatedAt:'2026-09-27T00:00:00Z',evidence:[],
+    });
+    const projection=buildSubsystemRuntimeProjection(registry,'sam');
+    assert.equal(projection.state,'blocked');
+  });
+
+  it('expires stale evidence instead of reporting ready forever',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'director.render',description:'render',risk:'external',version:1,subsystemId:'director'});
+    registry.setRuntimeStatus({
+      capabilityName:'director.render',state:'ready',updatedAt:'2026-09-27T00:00:00Z',
+      evidence:[{id:'live-1',source:'worker',observedAt:'2026-09-27T00:00:00Z',kind:'live-runtime',summary:'rendered',expiresAt:'2026-09-27T00:10:00Z'}],
+    });
+    const projection=buildSubsystemRuntimeProjection(registry,'director','2026-09-27T00:11:00Z');
+    assert.equal(projection.state,'unknown');
+    assert.equal(projection.capabilities[0]?.reason,'runtime evidence expired');
+  });
+});
