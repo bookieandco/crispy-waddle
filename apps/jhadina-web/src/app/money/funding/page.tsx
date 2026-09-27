@@ -7,7 +7,8 @@ import type { MoneyAccount } from "@jhadina/money-core"
 type Kind="DEPOSIT"|"WITHDRAWAL"|"TRANSFER"
 type AccountsResponse={success:true;data:{accounts:MoneyAccount[]}}|{success:false;error:string}
 type WorkspaceResponse={success:true;data:{coffer:null|{cofferId:string;currency:string}}}|{success:false;error:string}
-type ProposalResponse={success:true;data:{proposal:{movementId:string;kind:Kind;amountMinor:string;currency:string;sourceId:string;destinationId:string;state:string}}}|{success:false;error:string}
+type ProposalData={proposal:{movementId:string;kind:Kind;amountMinor:string;currency:string;sourceId:string;destinationId:string;state:string}}
+type ProposalResponse={success:true;data:ProposalData}|{success:false;error:string}
 
 type Endpoint={id:string;label:string;currency:string;kind:"BANK"|"COFFER"}
 
@@ -21,7 +22,7 @@ export default function MoneyFundingPage(){
  const [loading,setLoading]=useState(true)
  const [submitting,setSubmitting]=useState(false)
  const [error,setError]=useState("")
- const [receipt,setReceipt]=useState<ProposalResponse extends {success:true;data:infer D}?D:never|null>(null)
+ const [receipt,setReceipt]=useState<ProposalData|null>(null)
 
  useEffect(()=>{
   const requested=new URLSearchParams(window.location.search).get("action")
