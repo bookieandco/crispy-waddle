@@ -35,6 +35,11 @@ const required=[
   'full-issued-history-retained',
   'model-mutation-new-cohort',
   'sport-market-specific-model-arena',
+  'specialist-context-lineage',
+  'exact-market-settlement-semantics',
+  'tail-markets-require-distributions',
+  'prediction-revisions-retain-prior-envelope',
+  'process-review-cannot-rewrite-outcome',
   'synthetic-cannot-certify-edge',
   'no-betting-or-financial-authority',
 ] as const
