@@ -2,7 +2,6 @@ import { timingSafeEqual } from 'node:crypto'
 
 const GITHUB_OIDC_ISSUER = 'https://token.actions.githubusercontent.com'
 const GITHUB_OIDC_JWKS = 'https://token.actions.githubusercontent.com/.well-known/jwks'
-const GITHUB_OIDC_AUDIENCE = 'jhadina-production-scheduler'
 const GITHUB_REPOSITORY = 'bookieandco/crispy-waddle'
 const GITHUB_REPOSITORY_ID = '1320251374'
 const GITHUB_REPOSITORY_OWNER = 'bookieandco'
@@ -10,7 +9,9 @@ const GITHUB_REPOSITORY_OWNER_ID = '289295074'
 const GITHUB_MAIN_REF = 'refs/heads/main'
 const GITHUB_IMMUTABLE_SUBJECT =
   'repo:bookieandco@289295074/crispy-waddle@1320251374:ref:refs/heads/main'
-const GITHUB_WORKFLOW_REF =
+
+const SCHEDULER_AUDIENCE = 'jhadina-production-scheduler'
+const SCHEDULER_WORKFLOW_REF =
   'bookieandco/crispy-waddle/.github/workflows/jhadina-production-scheduler.yml@refs/heads/main'
 
 type JwtHeader = { alg?: string; kid?: string; typ?: string }
@@ -42,20 +43,25 @@ function decodeBase64UrlJson<T>(segment: string): T {
   return JSON.parse(Buffer.from(segment, 'base64url').toString('utf8')) as T
 }
 
-function audienceMatches(aud: string | string[] | undefined): boolean {
-  if (typeof aud === 'string') return aud === GITHUB_OIDC_AUDIENCE
-  return Array.isArray(aud) && aud.includes(GITHUB_OIDC_AUDIENCE)
+function audienceMatches(aud: string | string[] | undefined, expected: string): boolean {
+  if (typeof aud === 'string') return aud === expected
+  return Array.isArray(aud) && aud.includes(expected)
 }
 
-function claimsAreTrusted(claims: SchedulerClaims, nowSeconds: number): boolean {
+function claimsAreTrusted(
+  claims: SchedulerClaims,
+  nowSeconds: number,
+  expectedAudience: string,
+  expectedWorkflowRef: string,
+): boolean {
   if (claims.iss !== GITHUB_OIDC_ISSUER) return false
-  if (!audienceMatches(claims.aud)) return false
+  if (!audienceMatches(claims.aud, expectedAudience)) return false
   if (claims.repository !== GITHUB_REPOSITORY) return false
   if (claims.repository_id !== GITHUB_REPOSITORY_ID) return false
   if (claims.repository_owner !== GITHUB_REPOSITORY_OWNER) return false
   if (claims.repository_owner_id !== GITHUB_REPOSITORY_OWNER_ID) return false
   if (claims.ref !== GITHUB_MAIN_REF) return false
-  if (claims.workflow_ref !== GITHUB_WORKFLOW_REF) return false
+  if (claims.workflow_ref !== expectedWorkflowRef) return false
   if (!['schedule', 'workflow_dispatch', 'push'].includes(claims.event_name ?? '')) return false
   if (typeof claims.exp !== 'number' || claims.exp <= nowSeconds) return false
   if (typeof claims.nbf === 'number' && claims.nbf > nowSeconds + 30) return false
@@ -90,6 +96,8 @@ async function verifyGitHubOidc(
   token: string,
   fetchImpl: typeof fetch,
   nowSeconds: number,
+  expectedAudience: string,
+  expectedWorkflowRef: string,
 ): Promise<boolean> {
   const parts = token.split('.')
   if (parts.length !== 3) return false
@@ -104,13 +112,11 @@ async function verifyGitHubOidc(
   }
 
   if (header.alg !== 'RS256' || typeof header.kid !== 'string' || !header.kid) return false
-  if (!claimsAreTrusted(claims, nowSeconds)) return false
+  if (!claimsAreTrusted(claims, nowSeconds, expectedAudience, expectedWorkflowRef)) return false
 
   try {
     let jwk = (await githubSigningKeys(fetchImpl)).find((candidate) => candidate.kid === header.kid)
     if (!jwk) {
-      // GitHub may rotate signing keys while a warm function still holds a
-      // valid cached JWKS set. Refresh once on an unknown kid before denying.
       jwk = (await githubSigningKeys(fetchImpl, true)).find((candidate) => candidate.kid === header.kid)
     }
     if (!jwk) return false
@@ -132,6 +138,29 @@ async function verifyGitHubOidc(
   }
 }
 
+export async function authorizedGitHubWorkflowRequest(
+  request: Request,
+  input: {
+    audience: string
+    workflowRef: string
+    fetchImpl?: typeof fetch
+    nowSeconds?: number
+  },
+): Promise<boolean> {
+  const authorization = request.headers.get('authorization')
+  if (!authorization?.startsWith('Bearer ')) return false
+  const token = authorization.slice('Bearer '.length).trim()
+  if (!token) return false
+
+  return verifyGitHubOidc(
+    token,
+    input.fetchImpl ?? fetch,
+    input.nowSeconds ?? Math.floor(Date.now() / 1000),
+    input.audience,
+    input.workflowRef,
+  )
+}
+
 /**
  * Authorizes production scheduler traffic using either the existing shared
  * CRON_SECRET or a signature-verified GitHub Actions OIDC token issued only
@@ -150,9 +179,9 @@ export async function authorizedSchedulerRequest(
   const cronSecret = process.env.CRON_SECRET?.trim()
   if (cronSecret && constantTimeEqual(token, cronSecret)) return true
 
-  return verifyGitHubOidc(
-    token,
-    options.fetchImpl ?? fetch,
-    options.nowSeconds ?? Math.floor(Date.now() / 1000),
-  )
+  return authorizedGitHubWorkflowRequest(request, {
+    audience: SCHEDULER_AUDIENCE,
+    workflowRef: SCHEDULER_WORKFLOW_REF,
+    ...options,
+  })
 }
