@@ -246,3 +246,8 @@ export * from './wallet-connector-contracts.js';
 export * from './market-connector-contracts.js';
 
 export * from './profit-sweep-orchestrator.js';
+
+export * from './strategy-budget-contracts.js';
+export * from './signer-lease-contracts.js';
+export * from './provider-sync-contracts.js';
+export * from './broker-surface-contracts.js';
