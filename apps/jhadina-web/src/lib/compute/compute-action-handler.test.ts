@@ -90,7 +90,7 @@ describe('compute Action Core submission bridge',()=>{
   it('submits only after ActionExecutor policy evaluation and preserves runtime lineage',async()=>{
     const ledger=new InMemoryActionLedger();
     const handler=new ComputeSubmitActionHandler(
-      new ShadowComputeSubmitter(),
+      new ShadowComputeSubmitter(()=>'2026-09-27T03:00:01.500Z'),
       ()=>'2026-09-27T03:00:01.000Z',
     );
     const executor=new ActionExecutor(
@@ -108,7 +108,7 @@ describe('compute Action Core submission bridge',()=>{
 
   it('rejects task lineage mismatch even after policy allows the action',async()=>{
     const handler=new ComputeSubmitActionHandler(
-      new ShadowComputeSubmitter(),
+      new ShadowComputeSubmitter(()=>'2026-09-27T03:00:01.500Z'),
       ()=>'2026-09-27T03:00:01.000Z',
     );
     const executor=new ActionExecutor(
