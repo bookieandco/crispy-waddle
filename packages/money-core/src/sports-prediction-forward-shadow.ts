@@ -43,6 +43,7 @@ export type SportsForwardShadowCohort=Readonly<{
   cohortName:string
   modelId:string
   modelVersion:string
+  issuanceRegistryIds:readonly string[]
   predictions:readonly SportsForwardShadowPrediction[]
   records:readonly SportsForwardShadowRecord[]
   unresolvedPredictionIds:readonly string[]
@@ -194,17 +195,21 @@ export function resolveSportsForwardShadowPrediction(input:{
 
 export function buildSportsForwardShadowCohort(input:{
   cohortName:string
+  issuedPredictionIds:readonly string[]
   predictions:readonly SportsForwardShadowPrediction[]
   records:readonly SportsForwardShadowRecord[]
   mutationIds?:readonly string[]
   closedAt:string
 }):SportsForwardShadowCohort{
   if(!input.cohortName.trim()||!input.predictions.length)throw new Error('SPORT_PRED_SHADOW_COHORT_REQUIRED')
+  const registryIds=unique(input.issuedPredictionIds)
+  if(registryIds.length!==input.issuedPredictionIds.length)throw new Error('SPORT_PRED_SHADOW_DUPLICATE_ISSUANCE_REGISTRY_ID')
   const predictionIds=new Set<string>()
   for(const p of input.predictions){
     if(predictionIds.has(p.predictionId))throw new Error('SPORT_PRED_SHADOW_DUPLICATE_PREDICTION')
     predictionIds.add(p.predictionId)
   }
+  if(registryIds.length!==predictionIds.size||registryIds.some(id=>!predictionIds.has(id)))throw new Error('SPORT_PRED_SHADOW_SURVIVORSHIP_FILTER_DETECTED')
   const recordPredictions=new Set<string>()
   for(const r of input.records){
     if(!predictionIds.has(r.prediction.predictionId))throw new Error('SPORT_PRED_SHADOW_RECORD_NOT_IN_COHORT')
@@ -217,12 +222,13 @@ export function buildSportsForwardShadowCohort(input:{
   const modelVersion=input.predictions[0]!.envelope.model.modelVersion
   const unresolved=unique(input.predictions.filter(p=>!recordPredictions.has(p.predictionId)).map(p=>p.predictionId))
   const classes=unique(input.predictions.map(p=>p.sourceClass))
-  const sourceClass=classes.length===1?classes[0]!:'MIXED'
+  const sourceClass:SportsForwardShadowCohort['sourceClass']=classes.length===1?(classes[0] as SportsArenaSourceClass):'MIXED'
   const startedAt=[...input.predictions].sort((a,b)=>a.envelope.issuedAt.localeCompare(b.envelope.issuedAt))[0]!.envelope.issuedAt
   if(Date.parse(input.closedAt)<Date.parse(startedAt))throw new Error('SPORT_PRED_SHADOW_COHORT_CLOCK_INVALID')
   const mutationIds=unique(input.mutationIds??[])
   const cohortId='sport-shadow-cohort:'+hash({
     name:input.cohortName,
+    issuanceRegistryIds:registryIds,
     predictions:[...predictionIds].sort(),
     records:input.records.map(r=>r.recordId).sort(),
     mutations:mutationIds,
@@ -233,6 +239,7 @@ export function buildSportsForwardShadowCohort(input:{
     cohortName:input.cohortName,
     modelId,
     modelVersion,
+    issuanceRegistryIds:registryIds,
     predictions:Object.freeze([...input.predictions]),
     records:Object.freeze([...input.records]),
     unresolvedPredictionIds:unresolved,
