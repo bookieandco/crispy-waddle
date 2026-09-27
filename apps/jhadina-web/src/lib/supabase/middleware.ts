@@ -1,19 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getSupabasePublicConfig } from "./public-config";
 
 const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/director/process-replication/reconcile",
   "/api/director/studies/observations",
 ]);
-
-function publicSupabaseConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || process.env.SUPABASE_URL?.trim();
-  const key =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
-    process.env.SUPABASE_PUBLISHABLE_KEY?.trim();
-  return { url, key };
-}
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -31,27 +23,11 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/auth");
 
-  const { url, key } = publicSupabaseConfig();
-  if (!url || !key) {
-    if (isPublicRoute) return response;
-
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
-        { success: false, error: "Authentication service is not configured" },
-        { status: 503 },
-      );
-    }
-
-    const redirect = request.nextUrl.clone();
-    redirect.pathname = "/login";
-    redirect.searchParams.set("next", pathname);
-    redirect.searchParams.set("auth", "unconfigured");
-    return NextResponse.redirect(redirect);
-  }
+  const { url, publishableKey } = getSupabasePublicConfig();
 
   const supabase = createServerClient(
     url,
-    key,
+    publishableKey,
     {
       cookies: {
         getAll() {
