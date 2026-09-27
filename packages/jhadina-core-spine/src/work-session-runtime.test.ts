@@ -4,6 +4,7 @@ import {
   InMemoryWorkSessionTaskRepository,
   evolveWorkSessionTask,
   listReadyWorkSessionTasks,
+  reconcileWorkSessionTaskReadiness,
   validateWorkSessionTaskGraph,
 } from './work-session.js';
 
@@ -109,5 +110,30 @@ describe('WorkSession task leases',()=>{
     expect(released?.status).toBe('completed');
     expect(released?.leaseOwner).toBeUndefined();
     expect(released?.leaseToken).toBeUndefined();
+  });
+});
+
+
+describe('WorkSession readiness and crash recovery',()=>{
+  it('promotes dependency-satisfied tasks without granting execution authority',async()=>{
+    const repo=new InMemoryWorkSessionTaskRepository();
+    const queued=task('ready-now');
+    await repo.create(queued);
+    const promoted=await reconcileWorkSessionTaskReadiness(repo,'ws-1','2026-09-27T00:00:01.000Z');
+    expect(promoted.map(item=>item.id)).toEqual(['ready-now']);
+    expect((await repo.get('ws-1','ready-now'))?.status).toBe('ready');
+    expect((await repo.get('ws-1','ready-now'))?.authorityRef).toBe('context-only');
+  });
+
+  it('reclaims an expired running lease after worker loss',async()=>{
+    const repo=new InMemoryWorkSessionTaskRepository();
+    const ready=evolveWorkSessionTask(task('recover'),{status:'ready'});
+    await repo.create(ready);
+    const first=await repo.claimReady('ws-1','recover','worker-a',1);
+    expect(first?.attempt).toBe(1);
+    await new Promise(resolve=>setTimeout(resolve,5));
+    const recovered=await repo.claimReady('ws-1','recover','worker-b',60_000);
+    expect(recovered?.leaseOwner).toBe('worker-b');
+    expect(recovered?.attempt).toBe(2);
   });
 });
