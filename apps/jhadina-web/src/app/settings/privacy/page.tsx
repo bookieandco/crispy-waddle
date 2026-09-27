@@ -1,14 +1,36 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_KILL_SWITCH_POLICY, evaluateKillSwitch, type KillSwitchMode, type NetworkTrust } from "@jhadina/privacy-core";
 
-type VpnStatus = "connected" | "disconnected";
+type VpnStatus = "connected" | "connecting" | "disconnected" | "error";
 
 export default function PrivacySettingsPage() {
   const [mode, setMode] = useState<KillSwitchMode>(DEFAULT_KILL_SWITCH_POLICY.mode);
-  const [vpnStatus] = useState<VpnStatus>("disconnected");
+  const [vpnStatus, setVpnStatus] = useState<VpnStatus>("disconnected");
+  const [vpnAvailable, setVpnAvailable] = useState(false);
   const [network, setNetwork] = useState<NetworkTrust>("unknown");
+
+  useEffect(() => {
+    const bridge = typeof window !== "undefined" ? window.jhadinaVpn : undefined;
+    if (!bridge) return;
+    setVpnAvailable(true);
+    void bridge.getState().then((state) => setVpnStatus(state.status)).catch(() => setVpnStatus("error"));
+  }, []);
+
+  async function toggleVpn() {
+    const bridge = window.jhadinaVpn;
+    if (!bridge) return;
+    setVpnStatus("connecting");
+    try {
+      const state = await bridge.getState();
+      if (state.status === "connected") await bridge.disconnect();
+      else await bridge.connect(state.profileId ?? "default");
+      setVpnStatus((await bridge.getState()).status);
+    } catch {
+      setVpnStatus("error");
+    }
+  }
 
   const decision = useMemo(() => evaluateKillSwitch({ mode }, { status: vpnStatus }, network), [mode, vpnStatus, network]);
   const blocked = !decision.allowTraffic;
@@ -36,13 +58,13 @@ export default function PrivacySettingsPage() {
           </div>
 
           <div className="mt-7 grid gap-3 md:grid-cols-2">
-            <label className="rounded-2xl border border-white/10 bg-black/10 p-4"><span className="text-xs uppercase tracking-widest text-white/30">VPN status</span><p className="mt-2 font-medium">{vpnStatus}</p></label>
+            <div className="rounded-2xl border border-white/10 bg-black/10 p-4"><span className="text-xs uppercase tracking-widest text-white/30">VPN status</span><p className="mt-2 font-medium">{vpnAvailable ? vpnStatus : "Native adapter unavailable in this browser"}</p>{vpnAvailable ? <button type="button" disabled={vpnStatus==="connecting"} onClick={() => void toggleVpn()} className="mt-3 rounded-full border border-white/15 px-3 py-2 text-xs">{vpnStatus==="connected"?"Disconnect":"Connect"}</button> : null}</div>
             <label className="rounded-2xl border border-white/10 bg-black/10 p-4"><span className="text-xs uppercase tracking-widest text-white/30">Network trust</span><select value={network} onChange={(e) => setNetwork(e.target.value as NetworkTrust)} className="mt-2 w-full bg-transparent outline-none"><option value="trusted" className="bg-[#101116]">Trusted</option><option value="untrusted" className="bg-[#101116]">Untrusted</option><option value="unknown" className="bg-[#101116]">Unknown</option></select></label>
           </div>
         </section>
 
         <section className="mt-5 grid gap-5 md:grid-cols-2">
-          <article className="rounded-[1.5rem] border border-white/10 bg-white/[.035] p-6"><p className="text-lg font-medium">VPN connection</p><p className="mt-2 text-sm text-white/40">The platform adapter will provide the real connection state. Credentials and raw tunnel configuration stay outside the AI layer.</p><div className="mt-5 rounded-xl bg-black/20 px-4 py-3 text-sm text-white/50">Currently: platform adapter not connected</div></article>
+          <article className="rounded-[1.5rem] border border-white/10 bg-white/[.035] p-6"><p className="text-lg font-medium">VPN connection</p><p className="mt-2 text-sm text-white/40">The native platform adapter provides the real connection state. Credentials and raw tunnel configuration stay outside the AI layer.</p><div className="mt-5 rounded-xl bg-black/20 px-4 py-3 text-sm text-white/50">{vpnAvailable ? `Native adapter: ${vpnStatus}` : "Native adapter not exposed by this browser runtime"}</div></article>
           <article className="rounded-[1.5rem] border border-white/10 bg-white/[.035] p-6"><p className="text-lg font-medium">Policy decision</p><p className="mt-2 text-sm text-white/40">{blocked ? "Traffic would be blocked until VPN protection is available." : "Traffic is currently permitted by the selected policy."}</p><div className="mt-5 text-xs uppercase tracking-widest text-white/25">Reason: {decision.reason}</div></article>
         </section>
       </div>
