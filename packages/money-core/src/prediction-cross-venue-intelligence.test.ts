@@ -15,7 +15,7 @@ function snap(overrides:Partial<PredictionMarketSnapshot>={}):PredictionMarketSn
       {outcomeId:'NO',label:'No',bidProbability:.44,askProbability:.46,midpointProbability:.45,spreadProbability:.02,bidSize:500,askSize:600,quoteId:'q2',evidenceRefs:Object.freeze(['q2'])},
     ]),
     midpointProbabilityMass:1,completeSetArbitrage:'NONE',
-    resolution:{authorityId:'official-source',ruleVersion:'r1',canonicalRule:'Resolves from official source.',scheduledResolutionAt:'2026-09-28T00:00:00Z',voidTreatment:'VENUE_RULES',evidenceRefs:Object.freeze(['rules']),provenanceHash:'rh'},
+    resolution:{authorityId:'official-source',ruleVersion:'r1',canonicalRule:'Resolves from official source.',scheduledResolutionAt:'2026-09-28T00:00:00Z',voidTreatment:'VENUE_RULES' as const,evidenceRefs:Object.freeze(['rules']),provenanceHash:'rh'},
     methodologyVersion:'m1',sourceManifest:Object.freeze(['src']),evidenceRefs:Object.freeze(['s']),snapshotHash:'h',
     researchAuthority:'INTELLIGENCE_ONLY',executionAuthority:'NONE',financialAuthority:'NONE',
     ...overrides,
