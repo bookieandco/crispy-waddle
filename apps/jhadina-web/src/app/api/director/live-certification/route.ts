@@ -4,7 +4,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { applyTimelineCommand } from '@jhadina/director-core/timeline-command';
 import { createTimeline, type EditableTimeline, type TimelineVersion } from '@jhadina/director-core/timeline-model';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
-import { loadDirectorRuntimeConfig } from '@/lib/director-runtime-config';
 import {
   advanceAskProcessReplicationJob,
   createAskProcessReplicationJob,
@@ -24,6 +23,7 @@ type CertBody={
   runId?:string;
   sourceUrl?:string;
   durations?:number[];
+  runToken?:string;
 };
 
 type CertRun={
@@ -39,51 +39,27 @@ type CertRun={
   error:string|null;
 };
 
-function authHeader(request:Request):string{
-  return request.headers.get('authorization')??'';
+async function consumeRunToken(client:SupabaseClient,runToken:string|undefined):Promise<string>{
+  if(!runToken?.trim())throw new Error('DIRECTOR_LIVE_CERT_UNAUTHORIZED');
+  const hash=createHash('sha256').update(runToken.trim()).digest('hex');
+  const now=new Date().toISOString();
+  const {data,error}=await client.from('director_live_certification_tokens')
+    .update({consumed_at:now})
+    .eq('token_hash',hash)
+    .is('consumed_at',null)
+    .gt('expires_at',now)
+    .select('user_id')
+    .maybeSingle();
+  if(error)throw error;
+  if(!data?.user_id)throw new Error('DIRECTOR_LIVE_CERT_UNAUTHORIZED');
+  return String(data.user_id);
 }
 
-function boundedDurations(input:unknown):number[]{
-  const raw=Array.isArray(input)?input:[30,600,1500,3600];
-  const values=[...new Set(raw.map(Number).filter(value=>Number.isFinite(value)&&value>=1&&value<=3600).map(value=>Math.round(value)))];
-  if(!values.length||values.length>4) throw new Error('DIRECTOR_LIVE_CERT_DURATION_MATRIX_INVALID');
-  return values;
-}
-
-async function loadRun(client:SupabaseClient,runId:string):Promise<CertRun>{
-  const {data,error}=await client.from('director_live_certification_runs').select('*').eq('id',runId).single();
-  if(error) throw error;
-  return data as CertRun;
-}
-
-async function patchRun(client:SupabaseClient,runId:string,patch:Record<string,unknown>):Promise<void>{
-  const {error}=await client.from('director_live_certification_runs')
-    .update({...patch,updated_at:new Date().toISOString()}).eq('id',runId);
-  if(error) throw error;
-}
-
-async function assertMachineAuth(client:SupabaseClient,request:Request){
-  const config=await loadDirectorRuntimeConfig(client);
-  const expected=config.liveCertificationToken;
-  if(!expected||authHeader(request)!==`Bearer ${expected}`) throw new Error('DIRECTOR_LIVE_CERT_UNAUTHORIZED');
-  if(!config.certificationUserId) throw new Error('DIRECTOR_LIVE_CERT_USER_NOT_CONFIGURED');
-  if(!config.certificationVideoProviderUrl||!config.certificationVideoProviderToken){
-    throw new Error('DIRECTOR_LIVE_CERT_VIDEO_PROVIDER_NOT_CONFIGURED');
-  }
-  return config;
-}
-
-async function launchVideoMatrix(client:SupabaseClient,run:CertRun,userId:string,providerBase:string){
+async function launchVideoMatrix(client:SupabaseClient,run:CertRun,userId:string){
   const replication=run.replication_job_id
     ? await getProcessReplicationJobForUser(userId,run.replication_job_id)
     : undefined;
   if(!replication||replication.status!=='recipe_ready') return run;
-
-  const referenceUrl=`${providerBase.replace(/\/+$/,'')}/reference`;
-  const referenceResponse=await fetch(referenceUrl,{cache:'no-store'});
-  if(!referenceResponse.ok) throw new Error(`DIRECTOR_LIVE_CERT_REFERENCE_FAILED:${referenceResponse.status}`);
-  const referenceBytes=new Uint8Array(await referenceResponse.arrayBuffer());
-  const referenceSha=createHash('sha256').update(referenceBytes).digest('hex');
 
   const durations=boundedDurations(run.requested_durations);
   const jobIds:string[]=[];
@@ -95,15 +71,6 @@ async function launchVideoMatrix(client:SupabaseClient,run:CertRun,userId:string
       ...(index===0?{activeProject:replication.projectId}:{}),
       clientRequestId:`${run.id}:video:${duration}`,
       certification:true,
-      referenceCharacter:{
-        characterId:'director-cert-character',
-        continuityRef:'director-cert-v1',
-        appearanceVariantId:'director-cert-v1',
-        referenceAssetIds:['director-cert-reference'],
-        referenceSha256s:[referenceSha],
-        referenceUris:[referenceUrl],
-        productionPlan:{certification:true,qualityClaim:false,sourceReplicationJobId:replication.id},
-      },
     });
     jobIds.push(result.job.id);
   }
@@ -139,7 +106,7 @@ function versionEntry(
   };
 }
 
-async function persistEditableProof(client:SupabaseClient,userId:string,job:any,asset:any,duration:number){
+async function persistEditableProof(client:SupabaseClient,userId:string,job:any,asset:any,duration:number,replicationJobId:string){
   const clipId=`clip:${job.id}:master`;
   let timeline=createTimeline({
     projectId:job.project_id,
@@ -179,7 +146,7 @@ async function persistEditableProof(client:SupabaseClient,userId:string,job:any,
     snapshot:{
       liveCertification:true,
       qualityClaim:false,
-      sourceReplicationJobId:job.spec?.referenceCharacter?.productionPlan?.sourceReplicationJobId??null,
+      sourceReplicationJobId:replicationJobId,
       videoJobId:job.id,
       targetDurationSeconds:duration,
       timelineVersionId:v2.id,
@@ -209,7 +176,7 @@ async function storedMeasuredDuration(client:SupabaseClient,asset:{uri?:string})
   return readDirectorCertificationMp4Duration(bytes);
 }
 
-async function advanceRun(client:SupabaseClient,run:CertRun,userId:string,providerBase:string){
+async function advanceRun(client:SupabaseClient,run:CertRun,userId:string){
   let current=run;
   if(!current.replication_job_id) throw new Error('DIRECTOR_LIVE_CERT_REPLICATION_JOB_MISSING');
   const replication=await advanceAskProcessReplicationJob(userId,current.replication_job_id);
@@ -224,7 +191,7 @@ async function advanceRun(client:SupabaseClient,run:CertRun,userId:string,provid
   }
 
   if(!(current.video_job_ids??[]).length){
-    current=await launchVideoMatrix(client,current,userId,providerBase);
+    current=await launchVideoMatrix(client,current,userId);
   }
 
   await reconcileDirectorVideoJobs(client,{limit:25});
@@ -262,7 +229,7 @@ async function advanceRun(client:SupabaseClient,run:CertRun,userId:string,provid
     if(Math.abs(measuredDuration-duration)>1.25){
       throw new Error(`DIRECTOR_LIVE_CERT_DURATION_MISMATCH:${duration}:${measuredDuration}`);
     }
-    timelines[String(duration)]=await persistEditableProof(client,userId,job,asset,duration);
+    timelines[String(duration)]=await persistEditableProof(client,userId,job,asset,duration,replication.id);
   }
 
   const {data:rehearsalEvents,error:rehearsalError}=await client.from('director_video_job_events')
@@ -311,8 +278,8 @@ export async function POST(request:Request){
   const client=createServiceRoleClient();
   if(!client) return NextResponse.json({ok:false,error:'DIRECTOR_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED'},{status:503});
   try{
-    const config=await assertMachineAuth(client,request);
     const body=await request.json().catch(()=>({})) as CertBody;
+    const userId=await consumeRunToken(client,body.runToken);
     const action=body.action??'start';
 
     if(action==='start'){
@@ -327,7 +294,7 @@ export async function POST(request:Request){
       if(runError) throw runError;
 
       const created=await createAskProcessReplicationJob({
-        userId:config.certificationUserId!,
+        userId:userId,
         activeTask:`Study this process at ${body.sourceUrl} and replicate this process better as an editable 30 second film with no AI slop.`,
         clientRequestId:`${runId}:replication`,
       });
@@ -341,8 +308,7 @@ export async function POST(request:Request){
       const advanced=await advanceRun(
         client,
         await loadRun(client,runId),
-        config.certificationUserId!,
-        config.certificationVideoProviderUrl!,
+        userId,
       );
       return NextResponse.json({ok:true,run:advanced});
     }
@@ -351,8 +317,7 @@ export async function POST(request:Request){
     const advanced=await advanceRun(
       client,
       await loadRun(client,body.runId.trim()),
-      config.certificationUserId!,
-      config.certificationVideoProviderUrl!,
+      userId,
     );
     return NextResponse.json({ok:true,run:advanced});
   }catch(cause){
