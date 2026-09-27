@@ -7,6 +7,7 @@ on:
       - 'packages/money-core/src/sports-bet-**'
       - 'packages/money-core/src/sports-paper-betting.ts'
       - 'packages/money-core/src/sports-prediction-**'
+      - 'packages/money-core/src/sports-feed-projection.ts'
       - 'packages/money-core/src/index.ts'
       - 'packages/money-core/package.json'
       - '.github/workflows/sport-bet-final-certification.yml'
