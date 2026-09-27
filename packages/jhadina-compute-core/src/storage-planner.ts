@@ -55,9 +55,6 @@ function primaryRejectionCodes(
   if (req.requireRangeReads && !backend.capabilities.rangeReads) {
     codes.push('RANGE_READS_REQUIRED');
   }
-  if (req.requireOfflinePinning && !backend.capabilities.offlinePinning) {
-    codes.push('OFFLINE_PINNING_REQUIRED');
-  }
   if (req.requireArchiveTier && !backend.capabilities.archiveTier) {
     codes.push('ARCHIVE_TIER_REQUIRED');
   }
@@ -71,7 +68,11 @@ function cacheRejectionCodes(
 ): StorageRejectionCode[] {
   const codes: StorageRejectionCode[] = [];
   if (backend.status !== 'ready') codes.push('BACKEND_NOT_READY');
-  if (!backend.capabilities.cache) codes.push('DURABILITY_INSUFFICIENT');
+  if (!backend.capabilities.cache) codes.push('CACHE_CAPABILITY_REQUIRED');
+  const req = inferredStorageRequirements(intent);
+  if (req.requireOfflinePinning && !backend.capabilities.offlinePinning) {
+    codes.push('OFFLINE_PINNING_REQUIRED');
+  }
   if (backend.provider === 'external') {
     if (!intent.allowExternalStorage) codes.push('EXTERNAL_STORAGE_NOT_ALLOWED');
     if (intent.sensitiveData) codes.push('SENSITIVE_DATA_EXTERNAL_DENIED');
@@ -344,9 +345,20 @@ export function planStoragePath(
   const primary = backends.find((backend) => backend.id === primaryBackendId);
   const cache = backends.find((backend) => backend.id === cacheBackendId);
 
+  const requirements = inferredStorageRequirements(intent);
+  const blockingReasons: string[] = [];
+  if (!primaryBackendId) blockingReasons.push('NO_PRIMARY_STORAGE_PATH');
+  if (requirements.requireOfflinePinning && !cacheBackendId) {
+    blockingReasons.push('NO_OFFLINE_PINNING_CACHE');
+  }
+
   return {
     intentId: intent.id,
-    primaryBackendId,
+    admissible: blockingReasons.length === 0,
+    blockingReasons,
+    primaryBackendId: blockingReasons.includes('NO_PRIMARY_STORAGE_PATH')
+      ? undefined
+      : primaryBackendId,
     cacheBackendId,
     primaryCandidates,
     cacheCandidates,
