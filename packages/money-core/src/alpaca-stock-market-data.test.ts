@@ -72,6 +72,8 @@ test('Alpaca stock adapter uses market-data host and keeps execution authority a
   assert.equal(bundle.quote?.bidPrice, '199.9');
   assert.equal(bundle.quote?.askPrice, '200.1');
   assert.equal(bundle.dailyBars.length, 2);
+  assert.ok(bundle.dailyBars.every((bar) => bar.availableAt === bar.endsAt));
+  assert.ok(bundle.dailyBars.every((bar) => bar.observedAt === bar.endsAt));
   assert.ok(log.every((url) => url.startsWith(ALPACA_STOCK_DATA_BASE_URL)));
   assert.ok(log.some((url) => url.includes('feed=iex')));
 });
