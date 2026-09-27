@@ -39,3 +39,36 @@ describe('CapabilityRegistry', () => {
     assert.deepEqual(registry.regressionCommandsFor('knowledge'),['test:knowledge:regression','test:ask']);
   });
 });
+
+
+describe('Capability runtime state', () => {
+  it('defaults registered capabilities to unknown until runtime evidence exists', () => {
+    const registry=new CapabilityRegistry();
+    registry.register({name:'director.render',description:'Render media',risk:'external',version:1,subsystemId:'director'});
+    assert.equal(registry.runtimeState('director.render'),'unknown');
+  });
+
+  it('requires live-runtime evidence before claiming ready', () => {
+    const registry=new CapabilityRegistry();
+    registry.register({name:'director.render',description:'Render media',risk:'external',version:1,subsystemId:'director'});
+    assert.throws(()=>registry.setRuntimeStatus({
+      capabilityName:'director.render',subsystemId:'director',state:'ready',updatedAt:'2026-09-26T00:00:00Z',
+      evidence:[{id:'src-1',source:'ci',observedAt:'2026-09-26T00:00:00Z',kind:'source',summary:'tests pass'}],
+    }),/LIVE_RUNTIME_EVIDENCE/);
+    registry.setRuntimeStatus({
+      capabilityName:'director.render',subsystemId:'director',state:'ready',updatedAt:'2026-09-26T00:00:01Z',
+      evidence:[{id:'live-1',source:'homebase-worker',observedAt:'2026-09-26T00:00:01Z',kind:'live-runtime',summary:'real render completed'}],
+    });
+    assert.equal(registry.runtimeState('director.render'),'ready');
+  });
+
+  it('preserves paper-only and degraded states without implying execution authority', () => {
+    const registry=new CapabilityRegistry();
+    registry.register({name:'shark.trade',description:'Trade candidate execution surface',risk:'financial',version:1,subsystemId:'shark'});
+    registry.setRuntimeStatus({
+      capabilityName:'shark.trade',state:'paper-only',updatedAt:'2026-09-26T00:00:00Z',
+      evidence:[{id:'paper-1',source:'paper-runner',observedAt:'2026-09-26T00:00:00Z',kind:'infrastructure',summary:'paper adapter available'}],
+    });
+    assert.equal(registry.getRuntimeStatus('shark.trade')?.state,'paper-only');
+  });
+});
