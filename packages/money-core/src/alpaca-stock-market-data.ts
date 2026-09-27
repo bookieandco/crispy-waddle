@@ -199,7 +199,7 @@ export class AlpacaStockMarketDataClient {
         askSize:
           rawQuote.as === undefined ? undefined : String(numberField(rawQuote.as, 'MONEY_ALPACA_STOCK_DATA_ASK_SIZE_INVALID')),
         observedAt,
-        availableAt: observedAt,
+        availableAt: input.now,
         receivedAt: input.now,
         provider: this.provider + ':' + feed,
         evidenceRef,
@@ -226,7 +226,7 @@ export class AlpacaStockMarketDataClient {
         startsAt,
         endsAt: barEnd(startsAt),
         observedAt: startsAt,
-        availableAt: startsAt,
+        availableAt: input.now,
         receivedAt: input.now,
         open: String(positiveNumber(bar.o, 'MONEY_ALPACA_STOCK_DATA_OPEN_INVALID')),
         high: String(positiveNumber(bar.h, 'MONEY_ALPACA_STOCK_DATA_HIGH_INVALID')),
