@@ -176,3 +176,6 @@ export * from './performance-master';
 export * from './motion-capture-3d';
 export * from './process-replication';
 export * from './production-project';
+
+export * from './process-observation';
+export * from './rehearsal-loop';
