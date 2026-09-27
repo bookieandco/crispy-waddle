@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublicConfig } from "./public-config";
 
 const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
+  "/api/health",
   "/api/director/process-replication/reconcile",
   "/api/director/studies/observations",
   "/api/director/live-certification",
