@@ -84,17 +84,19 @@ export function inspectAskSportsSimulationIntent(activeTask: string): AskSportsS
   if (!text) return null
 
   const simulate =
-    /(simulate|simulation|monte carlo|run sims?|run simulations?)/.test(text)
-    || /what if/.test(text) && /(game|match|fight|bout|event)/.test(text)
+    /\b(simulate|simulation|monte carlo|run sims?|run simulations?)\b/.test(text)
+    || (/\bwhat if\b/.test(text) && /\b(game|match|fight|bout|event)\b/.test(text))
   if (!simulate) return null
 
-  const pathMatch = activeTask.match(/(d[d,]{2,})s*(?:times|simulations?|sims?|runs?)/i)
+  const pathMatch = activeTask.match(/(\d[\d,]{2,})\s*(?:times|simulations?|sims?|runs?)\b/i)
   const parsed = pathMatch ? Number(pathMatch[1]!.replace(/,/g, "")) : DEFAULT_PATHS
   const pathCount = Number.isFinite(parsed)
     ? Math.max(MIN_PATHS, Math.min(MAX_PATHS, Math.floor(parsed)))
     : DEFAULT_PATHS
 
-  const liveRequested = /(live|right now|in[- ]game|mid[- ]game|froms+(?:q[1-4]|quarter|half|inning|period|round|set|game))/i.test(activeTask)
+  const liveRequested =
+    /\b(live|right now|in[- ]game|mid[- ]game)\b/i.test(activeTask)
+    || /\bfrom\s+(?:q[1-4]|quarter|half|inning|period|round|set|game)\b/i.test(activeTask)
 
   return {
     matched: true,
@@ -124,8 +126,8 @@ export async function handleAskSportsSimulationCommand(
 
   if (!context) {
     const proposal: DecisionProposal = {
-      id: `ask-sports-sim:${crypto.randomUUID()}`,
-      contextId: `sports-sim-context:${crypto.randomUUID()}`,
+      id: \`ask-sports-sim:\${crypto.randomUUID()}\`,
+      contextId: \`sports-sim-context:\${crypto.randomUUID()}\`,
       disposition: "ASK",
       recommendation:
         "I recognized the simulation request, but I do not have an admitted point-in-time game context for it yet. Load/select the game in Sports, connect the sports context provider, or supply the game/player context; I will not invent team strength, player usage, injuries, or live state.",
@@ -204,21 +206,21 @@ export async function handleAskSportsSimulationCommand(
     id,
     source: context.source === "USER_SUPPLIED_CONTEXT" ? "user-supplied-sports-context" : "sports-simulation-context",
     observedAt: context.observedAt,
-    summary: `SPORT-SIM input for ${context.eventLabel}; contextId=${context.contextId}`,
+    summary: \`SPORT-SIM input for \${context.eventLabel}; contextId=\${context.contextId}\`,
     immutable: context.source === "ADMITTED_SPORTS_CONTEXT",
   }))
 
   const proposal: DecisionProposal = {
-    id: `ask-sports-sim:${crypto.randomUUID()}`,
-    contextId: `sports-sim-context:${context.contextId}`,
+    id: \`ask-sports-sim:\${crypto.randomUUID()}\`,
+    contextId: \`sports-sim-context:\${context.contextId}\`,
     disposition: "PROCEED",
     recommendation: renderSportsSimulationReportText(report),
     rationale:
-      `Jhadina ran ${intent.pathCount.toLocaleString()} correlated SPORT-SIM paths against the resolved point-in-time context for ${context.eventLabel}. The result is probabilistic intelligence only and preserves the exact simulation ID, seed, assumptions, and evidence lineage.`,
+      \`Jhadina ran \${intent.pathCount.toLocaleString()} correlated SPORT-SIM paths against the resolved point-in-time context for \${context.eventLabel}. The result is probabilistic intelligence only and preserves the exact simulation ID, seed, assumptions, and evidence lineage.\`,
     evidence,
     uncertainty: [
       ...report.warnings,
-      `Simulation context observed at ${context.observedAt}; response created at ${observedAt}.`,
+      \`Simulation context observed at \${context.observedAt}; response created at \${observedAt}.\`,
     ],
     alternatives: [
       "Change one or more scenario assumptions/sliders and run a revision.",
@@ -259,7 +261,7 @@ export function createProductionSportsSimulationContextProvider(): SportsSimulat
         method: "POST",
         headers: {
           "content-type": "application/json",
-          ...(token ? { authorization: `Bearer ${token}` } : {}),
+          ...(token ? { authorization: \`Bearer \${token}\` } : {}),
         },
         body: JSON.stringify({
           userId: input.userId,
@@ -322,5 +324,5 @@ function assertResolvedContext(c: SportsSimulationResolvedContext): void {
 }
 
 function normalize(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/s+/g, " ").trim()
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim()
 }
