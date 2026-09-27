@@ -75,6 +75,7 @@ export type PaperAutopilotEvaluationInput = Readonly<{
   accountEnvironment: 'PAPER' | 'LIVE';
   signal: PaperDecisionObservation['signal'];
   mimsStatus: 'PASS' | 'REVIEW' | 'FAIL';
+  mimsReviewExplorationAllowed?: boolean;
   hardRiskStatus: 'PASS' | 'REVIEW' | 'FAIL';
   behavioralRiskStatus: 'PASS' | 'REVIEW' | 'HALT';
   providerHealth: 'HEALTHY' | 'DEGRADED' | 'DOWN';
@@ -323,8 +324,15 @@ export function evaluatePaperAutopilot(
     });
   }
 
+  const mimsReviewBlocked =
+    input.mimsStatus === 'REVIEW' &&
+    !(
+      input.mode === 'PAPER_AUTO_REDUCED' &&
+      input.mimsReviewExplorationAllowed === true
+    );
+
   if (
-    input.mimsStatus === 'REVIEW' ||
+    mimsReviewBlocked ||
     input.hardRiskStatus === 'REVIEW' ||
     input.behavioralRiskStatus === 'REVIEW' ||
     input.providerHealth === 'DEGRADED'
