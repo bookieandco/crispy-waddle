@@ -25,6 +25,9 @@
       "@jhadina/*": [
         "../../packages/*/src",
         "../../apps/*/src"
+      ],
+      "@jhadina/capability-registry": [
+        "../../packages/jhadina-capability-registry/src"
       ]
     },
     "allowJs": true,
