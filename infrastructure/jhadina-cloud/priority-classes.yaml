@@ -1,0 +1,39 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: jhadina-interactive
+value: 100000
+globalDefault: false
+description: "Latency-sensitive JLLM, active character and live voice work."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: jhadina-creative
+value: 80000
+globalDefault: false
+description: "Image, video, ad, Foley and TTS generation."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: jhadina-render
+value: 50000
+globalDefault: false
+description: "FFmpeg, final render and 3D production jobs."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: jhadina-background
+value: 20000
+globalDefault: false
+description: "Long-running training and batch generation."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: jhadina-maintenance
+value: 10000
+globalDefault: false
+description: "Embeddings, memory-index maintenance and cache warming."

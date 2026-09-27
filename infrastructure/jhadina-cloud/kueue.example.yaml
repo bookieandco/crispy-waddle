@@ -1,0 +1,68 @@
+# Example only. Replace quotas with measured hardware inventory before apply.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: homebase-nvidia
+spec:
+  nodeLabels:
+    jhadina.ai/provider: homebase
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: jhadina-homebase
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+    - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+      flavors:
+        - name: homebase-nvidia
+          resources:
+            # Deliberately zero until real node inventory is certified.
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+            - name: nvidia.com/gpu
+              nominalQuota: "0"
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  namespace: jhadina-compute
+  name: jhadina-interactive
+spec:
+  clusterQueue: jhadina-homebase
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  namespace: jhadina-compute
+  name: jhadina-creative
+spec:
+  clusterQueue: jhadina-homebase
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  namespace: jhadina-compute
+  name: jhadina-render
+spec:
+  clusterQueue: jhadina-homebase
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  namespace: jhadina-compute
+  name: jhadina-background
+spec:
+  clusterQueue: jhadina-homebase
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  namespace: jhadina-compute
+  name: jhadina-maintenance
+spec:
+  clusterQueue: jhadina-homebase
