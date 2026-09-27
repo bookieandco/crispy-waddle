@@ -96,9 +96,19 @@ export async function POST(req:NextRequest){
   },{onConflict:"coffer_id"})
   if(sweepError)throw new Error("MONEY_COMMISSION2_SWEEP_STORE_FAILED:"+sweepError.message)
 
+  const {data:existingBudgets,error:existingBudgetError}=await db.from("money_strategy_budgets").select("lane,reserved_minor,spent_minor,evidence_ids").eq("coffer_id",actualCofferId)
+  if(existingBudgetError)throw new Error("MONEY_COMMISSION2_BUDGET_LOOKUP_FAILED:"+existingBudgetError.message)
+  const priorByLane=new Map((existingBudgets??[]).map(x=>[String(x.lane),x]))
   const configured=new Map(config.strategies.map(s=>[s.lane,s]))
   const budgetRows=MONEY_STRATEGY_LANES.map((strategyLane)=>{
    const s=configured.get(strategyLane)??{lane:strategyLane,allocatedMinor:0n,hardCapMinor:0n}
+   const prior=priorByLane.get(strategyLane)
+   const reserved=BigInt(String(prior?.reserved_minor??"0"))
+   const spent=BigInt(String(prior?.spent_minor??"0"))
+   const used=reserved+spent
+   if(s.allocatedMinor<used||s.hardCapMinor<used)throw new Error("MONEY_COMMISSION2_BUDGET_BELOW_CURRENT_EXPOSURE:"+strategyLane)
+   const effectiveCap=s.allocatedMinor<s.hardCapMinor?s.allocatedMinor:s.hardCapMinor
+   const state=cofferState!=="ACTIVE"?"HALTED":effectiveCap<=used?"EXHAUSTED":s.allocatedMinor>0n?"ACTIVE":"HALTED"
    return {
     budget_id:actualCofferId+":"+strategyLane.toLowerCase(),
     coffer_id:actualCofferId,
@@ -106,11 +116,11 @@ export async function POST(req:NextRequest){
     lane:strategyLane,
     currency:config.currency,
     allocated_minor:s.allocatedMinor.toString(),
-    reserved_minor:"0",
-    spent_minor:"0",
+    reserved_minor:reserved.toString(),
+    spent_minor:spent.toString(),
     hard_cap_minor:s.hardCapMinor.toString(),
-    state:cofferState==="ACTIVE"&&s.allocatedMinor>0n?"ACTIVE":"HALTED",
-    evidence_ids:["owner-commissioning:"+now],
+    state,
+    evidence_ids:[...(prior?.evidence_ids??[]),"owner-commissioning:"+now],
     updated_at:now,
    }
   })
@@ -128,7 +138,7 @@ export async function POST(req:NextRequest){
   }})
  }catch(error){
   const message=error instanceof Error?error.message:"Money commissioning failed"
-  const status=message.includes("SESSION")?401:message.includes("INVALID")||message.includes("EXCEED")||message.includes("REQUIRED")||message.includes("DUPLICATE")?400:500
+  const status=message.includes("SESSION")?401:message.includes("INVALID")||message.includes("EXCEED")||message.includes("REQUIRED")||message.includes("DUPLICATE")||message.includes("BELOW_CURRENT_EXPOSURE")?400:500
   return NextResponse.json({success:false,error:message},{status})
  }
 }
