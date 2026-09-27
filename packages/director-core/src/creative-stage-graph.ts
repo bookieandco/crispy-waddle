@@ -6,6 +6,7 @@ export type CreativeStageKind =
   | 'storyboard'
   | 'shotlist'
   | 'previs'
+  | 'rehearsal'
   | 'generation'
   | 'edit'
   | 'review'
