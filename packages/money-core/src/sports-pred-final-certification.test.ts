@@ -199,14 +199,14 @@ test('SPORT-PRED.5 producer emits a valid SPORT-PRED-01 envelope that remains re
     requestedBy:'shadow-cert',
     receivedAt:'2026-09-26T18:00:01Z',
     sourceNamespace:'sport-pred',
-    evidenceQuality:'HIGH',
+    evidenceQuality:'VERIFIED',
   }))
   const artifact=ingestSportsPredictionResearch(envelope,{
     accountId:'acct:test',
     requestedBy:'shadow-cert',
     receivedAt:'2026-09-26T18:00:01Z',
     sourceNamespace:'sport-pred',
-    evidenceQuality:'HIGH',
+    evidenceQuality:'VERIFIED',
   })
   assert.equal(artifact.assessment.disposition,'RESEARCH_ONLY')
   assert.equal(artifact.bettingAuthority,'NONE')
