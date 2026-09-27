@@ -17,6 +17,7 @@ type Row = {
   base_order_notional_minor: string | number | bigint;
   max_order_notional_minor: string | number | bigint;
   maximum_concurrent_positions: number;
+  risk_fraction_bps: number;
   stop_loss_bps: number;
   take_profit_bps: number;
   updated_at: string | Date;
@@ -43,6 +44,7 @@ function fromRow(row: Row): PaperAutopilotSettings {
     baseOrderNotionalMinor: String(row.base_order_notional_minor),
     maxOrderNotionalMinor: String(row.max_order_notional_minor),
     maximumConcurrentPositions: row.maximum_concurrent_positions,
+    riskFractionBps: row.risk_fraction_bps,
     stopLossBps: row.stop_loss_bps,
     takeProfitBps: row.take_profit_bps,
     updatedAt: iso(row.updated_at),
@@ -65,8 +67,8 @@ export class PostgresPaperAutopilotSettingsStore
   async put(settings: PaperAutopilotSettings): Promise<void> {
     await this.client.query(
       `INSERT INTO ${this.table}
-        (user_id,provider,account_id,mode,stock_feed,strategy_id,base_order_notional_minor,max_order_notional_minor,maximum_concurrent_positions,stop_loss_bps,take_profit_bps,updated_at,evidence_ids)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::text[])
+        (user_id,provider,account_id,mode,stock_feed,strategy_id,base_order_notional_minor,max_order_notional_minor,maximum_concurrent_positions,risk_fraction_bps,stop_loss_bps,take_profit_bps,updated_at,evidence_ids)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::text[])
        ON CONFLICT(user_id,provider,account_id) DO UPDATE SET
         mode=EXCLUDED.mode,
         stock_feed=EXCLUDED.stock_feed,
@@ -74,6 +76,7 @@ export class PostgresPaperAutopilotSettingsStore
         base_order_notional_minor=EXCLUDED.base_order_notional_minor,
         max_order_notional_minor=EXCLUDED.max_order_notional_minor,
         maximum_concurrent_positions=EXCLUDED.maximum_concurrent_positions,
+        risk_fraction_bps=EXCLUDED.risk_fraction_bps,
         stop_loss_bps=EXCLUDED.stop_loss_bps,
         take_profit_bps=EXCLUDED.take_profit_bps,
         updated_at=EXCLUDED.updated_at,
@@ -88,6 +91,7 @@ export class PostgresPaperAutopilotSettingsStore
         settings.baseOrderNotionalMinor,
         settings.maxOrderNotionalMinor,
         settings.maximumConcurrentPositions,
+        settings.riskFractionBps,
         settings.stopLossBps,
         settings.takeProfitBps,
         settings.updatedAt,
