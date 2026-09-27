@@ -12,6 +12,7 @@ on:
       - 'packages/money-core/src/sports-parlay-intelligence.ts'
       - 'packages/money-core/src/sports-pred-final-certification.test.ts'
       - 'packages/money-core/src/sports-pred-final-certification.ts'
+      - 'packages/money-core/src/sports-feed-projection.ts'
       - 'packages/money-core/src/index.ts'
       - 'packages/money-core/package.json'
       - '.github/workflows/sport-pred-final-certification.yml'
