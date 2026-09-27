@@ -50,7 +50,9 @@ describe('SAM public bulk snapshot',()=>{
       sourceUrl:'https://example.test/empty.csv',
       onRow:()=>undefined,
     })).rejects.toThrow('SAM_BULK_EMPTY_SNAPSHOT')
-  })  it('never certifies dates outside the observed full-snapshot range',()=>{
+  })
+
+  it('never certifies dates outside the observed full-snapshot range',()=>{
     expect(certifySamBulkCoverageRange({
       targetFrom:'2025-09-28',
       targetTo:'2026-09-27',
