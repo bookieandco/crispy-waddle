@@ -16,7 +16,11 @@ export type OneRuntimeTaskDescriptor = {
   capability:string;
   idempotencyKey:string;
   status:string;
+  leaseOwner?:string;
+  leaseToken?:string;
+  leaseExpiresAt?:string;
   createdAt:string;
+  updatedAt?:string;
 };
 
 export type OneRuntimeComputeBinding = {
@@ -39,12 +43,21 @@ export function describeComputeWorkloadForTask(
   task:OneRuntimeTaskDescriptor,
   binding:OneRuntimeComputeBinding,
   profiles:ComputeResourceProfileCatalog,
+  nowIso?:string,
 ):ComputeWorkload {
-  if(task.status!=='ready'&&task.status!=='running'){
-    throw new Error(`COMPUTE_TASK_NOT_RUNNABLE:${task.status}`);
-  }
   if(!task.workSessionId.trim()||!task.id.trim()||!task.idempotencyKey.trim()){
     throw new Error('COMPUTE_TASK_LINEAGE_REQUIRED');
+  }
+  const now=Date.parse(nowIso??new Date().toISOString());
+  if(
+    task.status!=='running'||
+    !task.leaseOwner?.trim()||
+    !task.leaseToken?.trim()||
+    !task.leaseExpiresAt||
+    !Number.isFinite(now)||
+    Date.parse(task.leaseExpiresAt)<=now
+  ){
+    throw new Error('COMPUTE_TASK_ACTIVE_LEASE_REQUIRED');
   }
   return resolveComputeWorkload({
     id:`one-runtime:${task.workSessionId}:${task.id}`,
@@ -63,6 +76,6 @@ export function describeComputeWorkloadForTask(
     dataLocalityKeys:binding.dataLocalityKeys,
     preferredNodeIds:binding.preferredNodeIds,
     forbiddenNodeIds:binding.forbiddenNodeIds,
-    createdAt:task.createdAt,
+    createdAt:task.updatedAt??task.createdAt,
   },profiles);
 }
