@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { SportsPredictionTransportEnvelope } from './sports-intelligence-ingress.js'
 import { createSportsForwardShadowPrediction,resolveSportsForwardShadowPrediction } from './sports-prediction-forward-shadow.js'
-import type { SportsMarketQuote } from './sports-paper-betting.js'
+import { createSportsPaperWager,type SportsMarketQuote } from './sports-paper-betting.js'
 import { createSportsBetShadowDecision,buildSportsBetShadowSoakEvidence,certifySportsBetShadowSoak } from './sports-bet-shadow-runtime.js'
 import {
   assertSportsBetLiveCanaryPolicy,createSportsBetCanaryApproval,executeSportsBetLiveCanary,certifySportsBetLiveCanary,
@@ -10,6 +10,8 @@ import {
   type SportsBetLiveWagerRequest,type SportsBetManualCanaryTrigger,type SportsbookLiveCanaryAdapter,
 } from './sports-bet-live-canary.js'
 import { certifySportsBetFinalSoftware,certifySportsBetFinal,type SportsBetFinalSoftwareCaseName } from './sports-bet-final-certification.js'
+import type { MoneyFeedEvent } from './money-feed-contracts.js'
+import { buildSportsSuggestionFeedEvent } from './sports-feed-projection.js'
 
 const envelope:SportsPredictionTransportEnvelope=Object.freeze({
   schemaVersion:'SPORT-PRED-01',
@@ -107,14 +109,19 @@ test('synthetic shadow evidence can prove software only, never operational certi
 
 test('live canary requires exact manual authority and executes only one tiny bound request',async()=>{
   assertSportsBetLiveCanaryPolicy(policy)
-  const store=new AttemptStore()
+  const store=new AttemptStore(),feedEvents:MoneyFeedEvent[]=[]
   const result=await executeSportsBetLiveCanary({
     adapter,store,policy,runtime,request,approval,trigger,now:'2026-09-27T19:00:10.000Z',sourceClass:'SYNTHETIC_TEST',jurisdictionStatus:'ALLOWED',ageEligibilityVerified:true,credentialVerified:true,evidenceIds:['runtime-e1'],
+    feed:{sink:{publish(event){feedEvents.push(event)}}},
   })
   assert.equal(result.providerState,'ACKNOWLEDGED')
   assert.equal(result.authority,'TINY_MANUAL_CANARY_ONLY')
   assert.equal(result.autonomousBettingEnabled,false)
   assert.equal(result.canIncreaseLimits,false)
+  assert.equal(feedEvents.length,1)
+  assert.equal(feedEvents[0]!.commitment,'COMMITTED')
+  assert.equal(feedEvents[0]!.lane,'SPORTS')
+  assert.equal(feedEvents[0]!.fundedAmountMinor,50n)
   await assert.rejects(()=>executeSportsBetLiveCanary({
     adapter,store,policy,runtime,request,approval,trigger,now:'2026-09-27T19:00:10.000Z',sourceClass:'SYNTHETIC_TEST',jurisdictionStatus:'ALLOWED',ageEligibilityVerified:true,credentialVerified:true,evidenceIds:['runtime-e1'],
   }),/SPORT_BET_CANARY_DUPLICATE_SUBMISSION_BLOCKED/)
@@ -175,4 +182,15 @@ test('SPORT-BET.FINAL source certification is complete while external real evide
   assert.equal(final.productionAutonomousBettingEnabled,false)
   assert.equal(final.canIncreaseCanaryLimits,false)
   assert.equal(final.canExecute,false)
+})
+
+
+test('SPORT-BET feed keeps paper recommendation visibly unfunded',()=>{
+  const wager=createSportsPaperWager({strategyId:'sports-feed-paper',quote,fairProbability:.60,stakeMinor:500n,currency:'USD',placedAt:'2026-09-27T19:00:02.000Z',informationCutoff:'2026-09-27T19:00:01.000Z',evidenceIds:['sports-feed-paper:e1']})
+  const event=buildSportsSuggestionFeedEvent({userId:'user-1',wager})
+  assert.equal(event.lane,'SPORTS')
+  assert.equal(event.commitment,'SUGGESTED')
+  assert.equal(event.fundedAmountMinor,undefined)
+  assert.equal(event.canExecute,false)
+  assert.match(event.body,/no money is committed/i)
 })

@@ -30,6 +30,22 @@ type OpportunityItem = {
 };
 type TvTitle = { id: string; title: string; overview?: string; kind: string; year?: number; providerId?: string };
 
+type MoneyFeedItem = {
+  eventId: string;
+  type: string;
+  lane: string;
+  commitment: 'WATCHING' | 'SUGGESTED' | 'COMMITTED' | 'CLOSED' | 'ACCOUNTING' | 'RISK';
+  title: string;
+  body: string;
+  subjectId?: string | null;
+  route: string;
+  fundedAmountMinor?: string | null;
+  currency?: string | null;
+  materiality: number;
+  occurredAt: string;
+  evidenceIds: string[];
+};
+
 type SocialHubItem = {
   id: string;
   source: 'publication' | 'observation';
@@ -202,6 +218,49 @@ function useJhadinaTvStories(): Story[] {
   return stories;
 }
 
+
+function useMoneyStories(): Story[] {
+  const [stories, setStories] = useState<Story[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch('/api/money/feed?limit=20', { cache: 'no-store' });
+        if (!response.ok) return;
+        const json = await response.json();
+        const events: MoneyFeedItem[] = json.data?.events ?? [];
+        if (cancelled) return;
+        setStories(events.map((event) => {
+          const hasMoney = event.commitment === 'COMMITTED' || event.commitment === 'CLOSED';
+          const source: Exclude<FeedSource, 'All'> = event.lane === 'SPORTS' ? 'Sports' : 'Money';
+          const amount = hasMoney && event.fundedAmountMinor && event.currency
+            ? new Intl.NumberFormat('en-US',{style:'currency',currency:event.currency}).format(Number(event.fundedAmountMinor)/100)
+            : null;
+          return {
+            id: `money-feed:${event.eventId}`,
+            kind: source === 'Sports' ? 'sports' : 'money',
+            source,
+            title: event.title,
+            body: event.body,
+            age: `${event.commitment.replaceAll('_',' ')} · ${new Date(event.occurredAt).toLocaleString()}`,
+            action: { label: source === 'Sports' ? 'Open Sports' : 'Open Money', href: event.route || (source === 'Sports' ? '/worlds/sports' : '/money/command-center') },
+            details: [
+              { label: 'Status', value: event.commitment },
+              { label: 'Money committed', value: hasMoney ? 'Yes' : 'No' },
+              { label: 'Lane', value: event.lane },
+              ...(amount ? [{ label: 'Committed amount', value: amount }] : []),
+              { label: 'Materiality', value: String(event.materiality) },
+              { label: 'Evidence', value: String(event.evidenceIds?.length ?? 0) + ' records' },
+            ],
+          } satisfies Story;
+        }));
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  return stories;
+}
+
 function StoryCard({ story, onOpen }: { story: Story; onOpen: (story: Story) => void }) {
   return <article className={styles.card} role="button" tabIndex={0} onClick={() => onOpen(story)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(story); } }}>
     <div className={styles.cardHeader}>
@@ -224,6 +283,7 @@ export function PersonalCommandFeed({ source }: { source?: FeedSource }) {
   const socialStories = useSocialHubStories();
   const opportunityStories = useOpportunityStories();
   const tvStories = useJhadinaTvStories();
+  const moneyStories = useMoneyStories();
   const [selected, setSelected] = useState<Story | null>(null);
   const [selectedSource, setSelectedSource] = useState<FeedSource>(source ?? 'All');
 
@@ -241,11 +301,12 @@ export function PersonalCommandFeed({ source }: { source?: FeedSource }) {
       ...socialStories,
       ...opportunityStories,
       ...tvStories,
+      ...moneyStories,
       ...(growthStory ? [growthStory] : []),
       ...baseStories,
     ];
     return all.filter((story) => storyMatchesSource(story, activeSource));
-  }, [activeSource, growthStory, opportunityStories, socialStories, tvStories]);
+  }, [activeSource, growthStory, moneyStories, opportunityStories, socialStories, tvStories]);
 
   return <section className={styles.feed}>
     <div className={styles.intro}>
