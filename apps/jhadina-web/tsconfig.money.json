@@ -14,7 +14,8 @@
     "src/lib/supabase/public-config.ts",
     "components/home/PersonalCommandFeed.tsx",
     "components/home/storyTypes.ts",
-    "components/home/storyCatalog.ts"
+    "components/home/storyCatalog.ts",
+    "components/home/css-modules.d.ts"
   ],
   "exclude": [
     "node_modules",
