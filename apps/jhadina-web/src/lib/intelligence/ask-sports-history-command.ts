@@ -66,9 +66,14 @@ export function inspectAskSportsHistoryIntent(activeTask:string):AskSportsHistor
   if(vs?.[1]?.trim())scopes.push({kind:"VS_OPPONENT",opponentLabel:vs[1].trim()})
   if(!scopes.length)scopes.push({kind:"CAREER"})
 
-  const statKeys=Object.entries(STAT_ALIASES)
-    .filter(([phrase])=>text.includes(phrase))
-    .map(([,key])=>key)
+  const statKeys:string[]=[]
+  let statText=" "+text+" "
+  for(const [phrase,key] of Object.entries(STAT_ALIASES).sort(([a],[b])=>b.length-a.length)){
+    const token=" "+phrase+" "
+    if(!statText.includes(token))continue
+    statKeys.push(key)
+    statText=statText.replaceAll(token," ")
+  }
   return Object.freeze({
     matched:true,
     rawQuery:activeTask,
