@@ -33,7 +33,8 @@ export type PaperDecisionObservation = Readonly<{
   action: PaperDecisionAction;
   side?: 'BUY' | 'SELL';
   signal: 'LONG_ENTRY' | 'EXIT' | 'HOLD' | 'OTHER';
-  referencePrice?: number;
+  referencePrice: number;
+  evaluationHorizon: 'NEXT_COMPLETED_DAILY_BAR';
   reasonCodes: readonly string[];
   informationCutoff: string;
   createdAt: string;
@@ -49,6 +50,7 @@ export type PaperDecisionResolution = Readonly<{
   realizedReturnBps: number;
   maxFavorableExcursionBps: number;
   maxAdverseExcursionBps: number;
+  resolutionBasis: 'COUNTERFACTUAL_MARK' | 'BROKER_REALIZED';
   evidenceIds: readonly string[];
   authority: 'LEARNING_ONLY';
   canAuthorizeLive: false;
@@ -153,11 +155,11 @@ export function createPaperDecision(
   if (input.signal === 'HOLD' && input.action !== 'NO_TRADE') {
     throw new Error('MONEY_PAPER_LOOP_HOLD_MUST_BE_NO_TRADE');
   }
-  if (
-    input.referencePrice !== undefined &&
-    (!Number.isFinite(input.referencePrice) || input.referencePrice <= 0)
-  ) {
+  if (!Number.isFinite(input.referencePrice) || input.referencePrice <= 0) {
     throw new Error('MONEY_PAPER_LOOP_REFERENCE_PRICE_INVALID');
+  }
+  if (input.evaluationHorizon !== 'NEXT_COMPLETED_DAILY_BAR') {
+    throw new Error('MONEY_PAPER_LOOP_HORIZON_INVALID');
   }
 
   return Object.freeze({
@@ -177,6 +179,7 @@ export function resolvePaperDecision(
     realizedReturnBps: number;
     maxFavorableExcursionBps: number;
     maxAdverseExcursionBps: number;
+    resolutionBasis: 'COUNTERFACTUAL_MARK' | 'BROKER_REALIZED';
     evidenceIds: readonly string[];
   }>,
 ): PaperDecisionResolution {
@@ -216,6 +219,7 @@ export function resolvePaperDecision(
     realizedReturnBps: input.realizedReturnBps,
     maxFavorableExcursionBps: input.maxFavorableExcursionBps,
     maxAdverseExcursionBps: input.maxAdverseExcursionBps,
+    resolutionBasis: input.resolutionBasis,
     evidenceIds: Object.freeze([
       ...new Set([...decision.evidenceIds, ...input.evidenceIds]),
     ]),
@@ -234,9 +238,17 @@ export function learnFromPaperDecision(
 
   const realized = resolution.realizedReturnBps;
   const avoidedLossBps =
-    decision.action === 'NO_TRADE' ? Math.max(0, -realized) : 0;
+    decision.action === 'NO_TRADE'
+      ? Math.max(0, -realized)
+      : decision.side === 'SELL'
+        ? Math.max(0, -realized)
+        : 0;
   const missedGainBps =
-    decision.action === 'NO_TRADE' ? Math.max(0, realized) : 0;
+    decision.action === 'NO_TRADE'
+      ? Math.max(0, realized)
+      : decision.side === 'SELL'
+        ? Math.max(0, realized)
+        : 0;
 
   const signedQuality =
     decision.action === 'NO_TRADE'
