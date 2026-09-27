@@ -148,3 +148,60 @@ function deepFreezeSubsystem(input: SubsystemHealthDefinition): SubsystemHealthD
     repair: Object.freeze({ ...input.repair }),
   });
 }
+
+
+export interface SubsystemRuntimeProjection {
+  readonly subsystemId:string;
+  readonly state:CapabilityRuntimeState;
+  readonly capabilities:readonly CapabilityRuntimeStatus[];
+  readonly unknownCapabilities:readonly string[];
+  readonly updatedAt?:string;
+}
+
+/**
+ * Truthful read projection for Ask Jhadina / Command Center.
+ * This summarizes observed runtime state only and grants no execution authority.
+ */
+export function buildSubsystemRuntimeProjection(
+  registry:CapabilityRegistry,
+  subsystemId:string,
+  nowIso?:string,
+):SubsystemRuntimeProjection {
+  const definitions=registry.list().filter(item=>item.subsystemId===subsystemId);
+  if(definitions.length===0)throw new Error(`Unknown subsystem runtime projection: ${subsystemId}`);
+  const statuses=definitions
+    .map(item=>registry.getRuntimeStatus(item.name))
+    .filter((item):item is CapabilityRuntimeStatus=>!!item)
+    .map(status=>expireRuntimeStatus(status,nowIso));
+  const unknown=definitions.filter(item=>!statuses.some(status=>status.capabilityName===item.name)).map(item=>item.name).sort();
+  const states:CapabilityRuntimeState[]=[...statuses.map(item=>item.state),...(unknown.length?['unknown' as const]:[])];
+  const state=aggregateRuntimeState(states);
+  const updatedAt=statuses.map(item=>item.updatedAt).sort().at(-1);
+  return Object.freeze({
+    subsystemId,
+    state,
+    capabilities:Object.freeze(statuses.sort((a,b)=>a.capabilityName.localeCompare(b.capabilityName))),
+    unknownCapabilities:Object.freeze(unknown),
+    updatedAt,
+  });
+}
+
+export function expireRuntimeStatus(status:CapabilityRuntimeStatus,nowIso?:string):CapabilityRuntimeStatus {
+  if(!nowIso)return status;
+  const now=Date.parse(nowIso);
+  if(!Number.isFinite(now))throw new Error('CAPABILITY_RUNTIME_NOW_INVALID');
+  const expired=status.evidence.some(item=>item.expiresAt&&Date.parse(item.expiresAt)<=now);
+  if(!expired)return status;
+  return Object.freeze({
+    ...status,
+    state:'unknown',
+    reason:'runtime evidence expired',
+    evidence:Object.freeze(status.evidence),
+  });
+}
+
+function aggregateRuntimeState(states:readonly CapabilityRuntimeState[]):CapabilityRuntimeState {
+  if(states.length===0)return 'unknown';
+  const precedence:readonly CapabilityRuntimeState[]=['blocked','disabled','degraded','paper-only','simulation-only','unknown','ready'];
+  return precedence.find(state=>states.includes(state))??'unknown';
+}
