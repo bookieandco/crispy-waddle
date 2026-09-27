@@ -91,7 +91,10 @@ export async function POST(request:Request){
     const {count,error:countError}=await client.from('director_study_observations')
       .select('id',{head:true,count:'exact'}).eq('study_id',studyId);
     if(countError) throw countError;
-    const lastTime=observations.reduce((max,observation)=>Math.max(max,observation.time.endSeconds),0);
+    const {data:lastObservation,error:lastError}=await client.from('director_study_observations')
+      .select('end_seconds').eq('study_id',studyId).order('end_seconds',{ascending:false}).limit(1).maybeSingle();
+    if(lastError) throw lastError;
+    const lastTime=lastObservation?Number(lastObservation.end_seconds):0;
     const update:Record<string,unknown>={
       status,
       observations_seen:count??0,
