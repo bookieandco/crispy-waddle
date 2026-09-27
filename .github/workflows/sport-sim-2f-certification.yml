@@ -24,6 +24,8 @@ on:
       - 'packages/money-core/src/sports-history.ts'
       - 'packages/money-core/src/sports-history.test.ts'
       - 'services/sportsdataverse-history/**'
+      - 'apps/jhadina-web/src/app/ask-jhadina/page.tsx'
+      - 'apps/jhadina-web/src/app/ask-jhadina/sports-history-card.tsx'
       - 'apps/jhadina-web/src/app/api/jhadina/command/route.ts'
       - 'apps/jhadina-web/src/lib/intelligence/ask-shortcut-experience.ts'
       - 'services/roboflow-sports-workflow-observer/**'
@@ -47,6 +49,15 @@ on:
       - 'packages/money-core/src/sports-game-reference-context.ts'
       - 'apps/jhadina-web/src/lib/intelligence/ask-sports-simulation-command.ts'
       - 'apps/jhadina-web/src/lib/intelligence/ask-sports-simulation-command.test.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-sports-history-command.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-sports-history-command.test.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/sports-history-provider.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/sports-history-provider.test.ts'
+      - 'packages/money-core/src/sports-history.ts'
+      - 'packages/money-core/src/sports-history.test.ts'
+      - 'services/sportsdataverse-history/**'
+      - 'apps/jhadina-web/src/app/ask-jhadina/page.tsx'
+      - 'apps/jhadina-web/src/app/ask-jhadina/sports-history-card.tsx'
       - 'apps/jhadina-web/src/app/api/jhadina/command/route.ts'
       - 'apps/jhadina-web/src/lib/intelligence/ask-shortcut-experience.ts'
 
@@ -89,6 +100,9 @@ jobs:
 
       - name: Ask Jhadina sports history shortcut and provider
         run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/intelligence/ask-sports-history-command.test.ts src/lib/intelligence/sports-history-provider.test.ts
+
+      - name: SportsDataverse history sidecar syntax
+        run: python3 -m py_compile services/sportsdataverse-history/app.py
 
       - name: Repository type-check
         run: pnpm type-check
