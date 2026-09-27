@@ -1,4 +1,8 @@
 import {
+  InMemoryComputeExecutionRepository,
+  type ComputeExecutionRepository,
+} from './execution-repository.js';
+import {
   assertComputeExecutionAuthorized,
   type ComputeExecutionBundle,
   type ComputeExecutionPermit,
@@ -189,6 +193,7 @@ export class KubernetesComputeSubmitter implements ComputeSubmitter{
   constructor(
     private readonly transport:KubernetesJobTransport,
     private readonly config:KubernetesSubmissionConfig,
+    private readonly repository:ComputeExecutionRepository,
     private readonly now:()=>string=()=>new Date().toISOString(),
   ){}
 
@@ -198,12 +203,18 @@ export class KubernetesComputeSubmitter implements ComputeSubmitter{
   ):Promise<ComputeSubmissionReceipt>{
     if(bundle.mode!=='live')throw new Error('COMPUTE_LIVE_SUBMITTER_REQUIRES_LIVE_MODE');
     assertComputeExecutionAuthorized(bundle,permit,this.now());
+    const existing=await this.repository.getByIdempotency(
+      permit.runtime.workSessionId,
+      permit.runtime.taskId,
+      permit.runtime.idempotencyKey,
+    );
+    if(existing)return existing.submission;
     const manifest=buildKueueJobManifest(bundle,permit,this.config);
     const created=await this.transport.createJob(manifest);
     const planned=bundle.placement.selectedNodeId;
     const primary=bundle.storagePlan.primaryBackendId;
     if(!planned||!primary)throw new Error('COMPUTE_SUBMISSION_PLAN_INCOMPLETE');
-    return {
+    const receipt:ComputeSubmissionReceipt={
       submissionId:`k8s:${created.namespace}:${created.name}`,
       actionRequestId:permit.actionRequestId,
       workloadId:bundle.workload.id,
@@ -221,13 +232,16 @@ export class KubernetesComputeSubmitter implements ComputeSubmitter{
       submittedAt:created.createdAt,
       manifestFingerprint:manifestFingerprint(manifest),
     };
+    await this.repository.saveSubmission(receipt);
+    return receipt;
   }
 }
 
 export class ShadowComputeSubmitter implements ComputeSubmitter{
-  private readonly receipts=new Map<string,ComputeSubmissionReceipt>();
-
-  constructor(private readonly now:()=>string=()=>new Date().toISOString()){}
+  constructor(
+    private readonly now:()=>string=()=>new Date().toISOString(),
+    private readonly repository:ComputeExecutionRepository=new InMemoryComputeExecutionRepository(),
+  ){}
 
   async submit(
     bundle:ComputeExecutionBundle,
@@ -235,8 +249,12 @@ export class ShadowComputeSubmitter implements ComputeSubmitter{
   ):Promise<ComputeSubmissionReceipt>{
     if(bundle.mode!=='shadow')throw new Error('COMPUTE_SHADOW_SUBMITTER_REQUIRES_SHADOW_MODE');
     assertComputeExecutionAuthorized(bundle,permit,this.now());
-    const existing=this.receipts.get(permit.runtime.idempotencyKey);
-    if(existing)return existing;
+    const existing=await this.repository.getByIdempotency(
+      permit.runtime.workSessionId,
+      permit.runtime.taskId,
+      permit.runtime.idempotencyKey,
+    );
+    if(existing)return existing.submission;
     const planned=bundle.placement.selectedNodeId;
     const primary=bundle.storagePlan.primaryBackendId;
     if(!planned||!primary)throw new Error('COMPUTE_SUBMISSION_PLAN_INCOMPLETE');
@@ -266,7 +284,7 @@ export class ShadowComputeSubmitter implements ComputeSubmitter{
         worker:bundle.worker.image,
       })),
     };
-    this.receipts.set(permit.runtime.idempotencyKey,receipt);
+    await this.repository.saveSubmission(receipt);
     return receipt;
   }
 }
