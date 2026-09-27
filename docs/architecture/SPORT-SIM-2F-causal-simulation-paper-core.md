@@ -215,3 +215,31 @@ SPORT-SIM.2F does not add or commission:
 - wallet signing;
 - deposits/withdrawals;
 - live financial execution.
+
+
+## Basketball environment vs player tendencies
+
+The NBA 2K25 slider discussion at \`https://youtu.be/frB2eQ-_Vrs\` is used as a
+mechanics-taxonomy reference, not as real NBA evidence.
+
+\`sports-basketball-mechanics.ts\` separates two layers:
+
+1. **Environment** — pace, fast/slow player speed and acceleration, stamina/fatigue,
+   contact sensitivity, pass speed, on-ball/help defense, defensive
+   awareness/consistency, gather-vs-release contest impact, and foul environment.
+2. **Player tendencies** — inside/close/mid/three/post shot mix, rim attack, post-up
+   seeking, alley-oops, dunks, putbacks, backdoor cuts, transition attack and hustle.
+
+The environment is frozen before player tendencies are layered. This prevents
+roster-specific tuning from silently changing the global simulation physics.
+
+The video's numeric examples remain \`VIDEO_GAME_REFERENCE\`:
+
+\`\`\`text
+realWorldTruth = false
+calibrationEligible = false
+authority = SIMULATION_INPUT_ONLY
+\`\`\`
+
+Real basketball effects must be learned from \`REAL_AS_OF\` historical/forward
+cohorts. The video contributes structure and stress-test hypotheses only.
