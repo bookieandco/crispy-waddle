@@ -182,6 +182,7 @@ export class KubernetesComputeSubmitter implements ComputeSubmitter{
   constructor(
     private readonly transport:KubernetesJobTransport,
     private readonly config:KubernetesSubmissionConfig,
+    private readonly now:()=>string=()=>new Date().toISOString(),
   ){}
 
   async submit(
