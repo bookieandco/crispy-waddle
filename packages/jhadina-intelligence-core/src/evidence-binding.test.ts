@@ -63,6 +63,17 @@ function context(): ContextPacket {
         limitations: [],
         provenance: [],
       },
+      money: {
+        market: [ref('money-market-1', 'alpaca-market-data', 'AAPL market evidence')],
+        watchlist: [ref('money-watch-1', 'money:watchlist', 'AAPL watchlist')],
+        paperActivity: [ref('money-paper-1', 'money:paper-learning', 'paper decision')],
+        learning: [ref('money-learning-1', 'money:paper-learning', 'decision learning')],
+        alerts: [ref('money-alert-1', 'money:stock-alert', 'price alert')],
+        attention: [],
+        uncertainty: [],
+        limitations: [],
+        provenance: [ref('money-prov-1', 'alpaca-market-data', 'market provenance')],
+      },
     },
   };
 }
@@ -88,6 +99,12 @@ test('collects canonical evidence across Memory, Knowledge, Personality, domain,
     'pattern-evidence-1',
     'trait-evidence-1',
     'social-account-1',
+    'money-market-1',
+    'money-watch-1',
+    'money-paper-1',
+    'money-learning-1',
+    'money-alert-1',
+    'money-prov-1',
     'artifact-1',
   ]);
 });
@@ -131,4 +148,20 @@ test('does not mutate the original proposal', () => {
   assert.equal(original.uncertainty.length, 0);
   assert.equal(result.evidence.length, 0);
   assert.equal(result.uncertainty.length, 1);
+});
+
+test('rebinds Money evidence only when it exists in the governed Money context', () => {
+  const result = bindProposalEvidenceToContext(
+    proposal([
+      ref('money-market-1', 'invented-provider', 'invented market summary'),
+      ref('money-market-made-up', 'model', 'not governed'),
+    ]),
+    context(),
+  );
+
+  assert.deepEqual(result.evidence, [
+    ref('money-market-1', 'alpaca-market-data', 'AAPL market evidence'),
+  ]);
+  assert.equal(result.uncertainty.length, 1);
+  assert.match(result.uncertainty[0] ?? '', /1 provider evidence reference/);
 });
