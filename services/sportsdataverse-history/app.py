@@ -92,6 +92,7 @@ def _extract_entity_name(query: str, league: str | None, stat_keys: Iterable[str
         value = re.sub(pattern, " ", value, flags=re.I)
     for phrase in sorted(LEAGUE_WORDS, key=len, reverse=True):
         value = re.sub(r"\b" + re.escape(phrase) + r"\b", " ", value, flags=re.I)
+    value = re.sub(r"\b(and|with)\b", " ", value, flags=re.I)
     value = re.sub(r"\s+", " ", value).strip(" ,.-")
     if league and value.lower() == league:
         return ""
@@ -289,6 +290,7 @@ def history_query(request: HistoryQuery) -> dict[str, Any]:
         warnings.append("Gamelog fetch failed for seasons: " + ", ".join(map(str, failed_seasons)))
 
     records: list[dict[str, Any]] = []
+    truncated = False
     requested_keys = {_slug(key) for key in request.stat_keys if key.strip()}
     for row in all_rows:
         season = int(row["_season"])
@@ -335,12 +337,13 @@ def history_query(request: HistoryQuery) -> dict[str, Any]:
                 "canExecute": False,
             })
             if len(records) >= request.max_records:
+                truncated = True
                 warnings.append("History response reached maxRecords and was truncated.")
                 break
-        if len(records) >= request.max_records:
+        if truncated:
             break
 
-    complete = seasons_complete and not failed_seasons and len(seasons) == len(season_years)
+    complete = seasons_complete and not failed_seasons and len(seasons) == len(season_years) and not truncated
     if not complete:
         warnings.append("Complete all-time coverage is not certified for this response.")
     warnings.append(
@@ -363,6 +366,7 @@ def history_query(request: HistoryQuery) -> dict[str, Any]:
         "providerClaimsAllTimeCoverage": complete,
         "seasonsAttempted": seasons,
         "failedSeasons": failed_seasons,
+        "truncated": truncated,
         "warnings": warnings,
         "authority": "HISTORICAL_EVIDENCE_ONLY",
         "canExecute": False,
