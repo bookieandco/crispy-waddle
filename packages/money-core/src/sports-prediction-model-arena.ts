@@ -190,7 +190,7 @@ export function deriveSportsEnsembleWeights(input:{
   if(!eligible.length)return Object.freeze([])
   const raw=eligible.map(a=>1/Math.max(.0001,a.meanBrierScore))
   const total=raw.reduce((a,b)=>a+b,0)
-  const provisional=eligible.map((a,i)=>Math.floor(raw[i]!/total*10000))
+  const provisional=eligible.map((_,i)=>Math.floor(raw[i]!/total*10000))
   let remainder=10000-provisional.reduce((a,b)=>a+b,0)
   const ordered=eligible.map((a,i)=>({a,i,score:raw[i]!})).sort((x,y)=>y.score-x.score||x.a.modelId.localeCompare(y.a.modelId))
   for(const x of ordered){
