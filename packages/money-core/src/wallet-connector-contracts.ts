@@ -29,14 +29,17 @@ export type WalletTransferRequest=Readonly<{
  requestedAt:string
 }>
 
-export type WalletTransferReceipt=Readonly<{
+export type WalletTransferInstruction=Readonly<{
  transferId:string
  provider:string
  network:WalletNetwork
- transactionHash?:string
- state:'SUBMITTED'|'CONFIRMED'|'REJECTED'|'UNKNOWN'
- observedAt:string
- evidenceIds:readonly string[]
+ assetId:string
+ amountAtomic:string
+ destinationAddress:string
+ approvalRequired:true
+ reconciliationRequired:true
+ authority:'WALLET_INSTRUCTION_ONLY'
+ canSign:false
 }>
 
 export interface OwnerWalletConnector{
@@ -45,12 +48,11 @@ export interface OwnerWalletConnector{
  disconnect(connectionId:string):Promise<void>
 }
 
-export interface CofferWalletExecutionAdapter{
+export interface CofferWalletInstructionAdapter{
  readonly provider:string
  readonly mode:'COFFER_EXECUTION_WALLET'
  readonly supportedNetworks:readonly WalletNetwork[]
- submitTransfer(request:WalletTransferRequest):Promise<WalletTransferReceipt>
- getTransfer(transactionHash:string|undefined,transferId:string,now:string):Promise<WalletTransferReceipt>
+ prepareTransfer(request:WalletTransferRequest):Promise<WalletTransferInstruction>
 }
 
 export function assertWalletTransferRequest(r:WalletTransferRequest,input:{connection:ConnectedWallet;allowedDestinationAddresses:readonly string[]}){
@@ -63,10 +65,10 @@ export function assertWalletTransferRequest(r:WalletTransferRequest,input:{conne
 }
 
 /**
- * Phantom is admitted as an owner-visible wallet connection/cash-in/cash-out
- * surface. Unattended DEX automation must use a separately isolated,
- * policy-limited Coffer execution signer; Money Core never imports or stores
- * the user's Phantom seed phrase/private key.
+ * Phantom is admitted as an owner-visible wallet connection and user-approved
+ * signing surface. Money Core never imports or stores the user's Phantom seed
+ * phrase/private key. Unattended DEX execution, if separately commissioned,
+ * must use isolated Coffer custody outside the owner wallet.
  */
 export const PHANTOM_OWNER_WALLET_BOUNDARY=Object.freeze({
  provider:'phantom',
