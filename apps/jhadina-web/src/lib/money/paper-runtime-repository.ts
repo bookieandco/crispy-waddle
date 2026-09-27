@@ -22,6 +22,7 @@ type SettingsRow = {
   base_order_notional_minor:string|number
   max_order_notional_minor:string|number
   maximum_concurrent_positions:number
+  risk_fraction_bps:number
   stop_loss_bps:number
   take_profit_bps:number
   updated_at:string
@@ -60,6 +61,7 @@ export class SupabaseMoneyPaperRuntimeRepository {
       baseOrderNotionalMinor:String(row.base_order_notional_minor),
       maxOrderNotionalMinor:String(row.max_order_notional_minor),
       maximumConcurrentPositions:row.maximum_concurrent_positions,
+      riskFractionBps:row.risk_fraction_bps,
       stopLossBps:row.stop_loss_bps,
       takeProfitBps:row.take_profit_bps,
       updatedAt:row.updated_at,
@@ -85,6 +87,7 @@ export class SupabaseMoneyPaperRuntimeRepository {
         baseOrderNotionalMinor:String(row.base_order_notional_minor),
         maxOrderNotionalMinor:String(row.max_order_notional_minor),
         maximumConcurrentPositions:row.maximum_concurrent_positions,
+      riskFractionBps:row.risk_fraction_bps,
       stopLossBps:row.stop_loss_bps,
       takeProfitBps:row.take_profit_bps,
         updatedAt:row.updated_at,
@@ -104,6 +107,7 @@ export class SupabaseMoneyPaperRuntimeRepository {
       base_order_notional_minor:settings.baseOrderNotionalMinor,
       max_order_notional_minor:settings.maxOrderNotionalMinor,
       maximum_concurrent_positions:settings.maximumConcurrentPositions,
+      risk_fraction_bps:settings.riskFractionBps,
       stop_loss_bps:settings.stopLossBps,
       take_profit_bps:settings.takeProfitBps,
       allow_opening_shorts:false,
