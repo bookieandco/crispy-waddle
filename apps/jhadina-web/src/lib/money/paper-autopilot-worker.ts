@@ -138,7 +138,7 @@ export async function runMoneyPaperAutopilotCycle(
             decisionId:"paper-decision:"+settings.userId+":"+settings.accountId+":"+baseline.decisionId,
             paperRunId,accountId:settings.accountId,instrumentId:baseline.instrumentId,
             strategyId:baseline.strategyId,scenarioId:"daily:"+entry.symbol,action,side,signal:baseline.signal,
-            reasonCodes:reasons,informationCutoff:baseline.informationCutoff,createdAt:ranAt,
+            reasonCodes:reasons,referencePrice:baseline.referencePrice,evaluationHorizon:"NEXT_COMPLETED_DAILY_BAR",informationCutoff:baseline.informationCutoff,createdAt:ranAt,
             evidenceIds:Object.freeze([...new Set([...baseline.evidenceIds,bundle.provenanceHash,...settings.evidenceIds])]),
           })
           const decisionEvent=createPaperLearningEvent({
