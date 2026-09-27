@@ -57,7 +57,11 @@ jobs:
       - name: Type-check Jhadina Web compute bridge
         run: pnpm --filter @jhadina/jhadina-web type-check
       - name: Test Jhadina Web compute runtime
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/compute/*.test.ts
+        run: >-
+          pnpm --filter @jhadina/jhadina-web exec vitest run
+          src/lib/compute/compute-action-handler.test.ts
+          src/lib/compute/supabase-compute-execution-repository.test.ts
+          src/lib/compute/work-session-compute-action.test.ts
       - name: Type-check Director compute adapters
         run: pnpm --filter @jhadina/director-core type-check
       - name: Test Director compute adapters
