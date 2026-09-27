@@ -18,11 +18,21 @@ function matchingAccelerators(node: ComputeNode, workload: ComputeWorkload): Acc
   });
 }
 
-function rejectionCodes(node: ComputeNode, workload: ComputeWorkload): PlacementRejectionCode[] {
+function rejectionCodes(
+  node: ComputeNode,
+  workload: ComputeWorkload,
+  nowMs: number,
+): PlacementRejectionCode[] {
   const codes: PlacementRejectionCode[] = [];
   const request = workload.resources;
 
   if (node.status !== 'ready') codes.push('NODE_NOT_READY');
+  if (
+    node.evidenceExpiresAt &&
+    (!Number.isFinite(Date.parse(node.evidenceExpiresAt)) || Date.parse(node.evidenceExpiresAt) <= nowMs)
+  ) {
+    codes.push('NODE_EVIDENCE_STALE');
+  }
   if (workload.forbiddenNodeIds?.includes(node.id)) codes.push('FORBIDDEN_NODE');
   if (node.cpuCoresFree < request.cpuCores) codes.push('CPU_INSUFFICIENT');
   if (node.ramGiBFree < request.ramGiB) codes.push('RAM_INSUFFICIENT');
@@ -143,12 +153,18 @@ function candidateScore(node: ComputeNode, workload: ComputeWorkload): Placement
  * Pure placement planning only. This function does not start containers,
  * authorize data movement, mutate durable job state, or spend money.
  */
-export function planPlacement(nodes: ComputeNode[], workload: ComputeWorkload): PlacementPlan {
+export function planPlacement(
+  nodes: ComputeNode[],
+  workload: ComputeWorkload,
+  nowIso?: string,
+): PlacementPlan {
   const candidates: PlacementCandidate[] = [];
   const rejected: PlacementPlan['rejected'] = [];
+  const nowMs=Date.parse(nowIso??new Date().toISOString());
+  if(!Number.isFinite(nowMs))throw new Error('COMPUTE_PLACEMENT_TIME_INVALID');
 
   for (const node of nodes) {
-    const codes = rejectionCodes(node, workload);
+    const codes = rejectionCodes(node, workload, nowMs);
     if (codes.length > 0) {
       rejected.push({ nodeId: node.id, codes });
       continue;
