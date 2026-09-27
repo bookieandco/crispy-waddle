@@ -256,3 +256,5 @@ export * from './money-commissioning-contracts.js';
 export * from './money-feed-contracts.js';
 
 export * from './execution-feed-projection.js';
+
+export * from './sports-feed-projection.js';
