@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { DurableEventBus, InMemoryEventBus, InMemoryEventJournal } from './index.js';
+import { DurableEventBus, InMemoryEventBus, InMemoryEventConsumerCheckpointStore, InMemoryEventJournal, replayWorkSessionEvents } from './index.js';
 
 describe('InMemoryEventBus', () => {
   it('publishes events to subscribers in registration order', async () => {
@@ -53,5 +53,70 @@ describe('DurableEventBus',()=>{
   it('requires WorkSession correlation for durable cross-core events',async()=>{
     const bus=new DurableEventBus(new InMemoryEventJournal());
     await assert.rejects(()=>bus.publish({id:'evt-12',type:'x',occurredAt:'2026-09-26T12:00:00.000Z',payload:null}),/runtime context is required/);
+  });
+});
+
+
+describe('event replay checkpoints',()=>{
+  const make=(id:string,key:string,workSessionId='ws-replay')=>({
+    id,type:'runtime.event',occurredAt:'2026-09-26T12:00:00.000Z',payload:{id},
+    context:{workSessionId,correlationId:'corr-replay',domain:'runtime',idempotencyKey:key},
+  });
+
+  it('replays in journal order and resumes after the committed checkpoint',async()=>{
+    const journal=new InMemoryEventJournal();
+    await journal.append(make('e1','k1'));
+    await journal.append(make('e2','k2'));
+    await journal.append(make('other','other','ws-other'));
+    await journal.append(make('e3','k3'));
+
+    const checkpoints=new InMemoryEventConsumerCheckpointStore();
+    const seen:string[]=[];
+    const first=await replayWorkSessionEvents({
+      journal,checkpoints,consumerId:'growth-consumer',workSessionId:'ws-replay',limit:2,
+      now:'2026-09-26T12:01:00.000Z',handler:event=>{seen.push(event.id);},
+    });
+    assert.deepEqual(seen,['e1','e2']);
+    assert.equal(first.processed,2);
+
+    const second=await replayWorkSessionEvents({
+      journal,checkpoints,consumerId:'growth-consumer',workSessionId:'ws-replay',
+      now:'2026-09-26T12:02:00.000Z',handler:event=>{seen.push(event.id);},
+    });
+    assert.deepEqual(seen,['e1','e2','e3']);
+    assert.equal(second.processed,1);
+    assert.ok(second.checkpointOffset>first.checkpointOffset);
+  });
+
+  it('does not advance the checkpoint when a consumer fails',async()=>{
+    const journal=new InMemoryEventJournal();
+    await journal.append(make('e1','k1'));
+    await journal.append(make('e2','k2'));
+    const checkpoints=new InMemoryEventConsumerCheckpointStore();
+
+    await assert.rejects(()=>replayWorkSessionEvents({
+      journal,checkpoints,consumerId:'sam-consumer',workSessionId:'ws-replay',
+      now:'2026-09-26T12:01:00.000Z',
+      handler:event=>{if(event.id==='e2')throw new Error('CONSUMER_DOWN');},
+    }),/CONSUMER_DOWN/);
+
+    const checkpoint=await checkpoints.get('sam-consumer','ws-replay');
+    assert.equal(checkpoint?.offset,1);
+    const replayed:string[]=[];
+    await replayWorkSessionEvents({
+      journal,checkpoints,consumerId:'sam-consumer',workSessionId:'ws-replay',
+      now:'2026-09-26T12:02:00.000Z',handler:event=>{replayed.push(event.id);},
+    });
+    assert.deepEqual(replayed,['e2']);
+  });
+
+  it('rejects stale concurrent checkpoint commits instead of skipping events',async()=>{
+    const checkpoints=new InMemoryEventConsumerCheckpointStore();
+    await checkpoints.commit({
+      consumerId:'c1',workSessionId:'ws-replay',expectedOffset:0,nextOffset:4,updatedAt:'2026-09-26T12:00:00.000Z',
+    });
+    await assert.rejects(()=>checkpoints.commit({
+      consumerId:'c1',workSessionId:'ws-replay',expectedOffset:0,nextOffset:5,updatedAt:'2026-09-26T12:00:01.000Z',
+    }),/CHECKPOINT_CONFLICT/);
   });
 });
