@@ -15,6 +15,7 @@ export type PaperAutopilotSettings = Readonly<{
   baseOrderNotionalMinor: string;
   maxOrderNotionalMinor: string;
   maximumConcurrentPositions: number;
+  riskFractionBps: number;
   stopLossBps: number;
   takeProfitBps: number;
   allowOpeningShorts: false;
@@ -70,6 +71,7 @@ export function createPaperAutopilotSettings(
   ) {
     throw new Error('MONEY_PAPER_SETTINGS_POSITION_LIMIT_INVALID');
   }
+  if (!Number.isInteger(input.riskFractionBps) || input.riskFractionBps < 1 || input.riskFractionBps > 200) throw new Error('MONEY_PAPER_SETTINGS_RISK_FRACTION_INVALID');
   if (!Number.isInteger(input.stopLossBps) || input.stopLossBps < 1 || input.stopLossBps > 5000) throw new Error('MONEY_PAPER_SETTINGS_STOP_LOSS_INVALID');
   if (!Number.isInteger(input.takeProfitBps) || input.takeProfitBps < 1 || input.takeProfitBps > 10000) throw new Error('MONEY_PAPER_SETTINGS_TAKE_PROFIT_INVALID');
   if (!input.evidenceIds.length) {
