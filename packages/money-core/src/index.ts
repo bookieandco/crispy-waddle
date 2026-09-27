@@ -254,3 +254,5 @@ export * from './broker-surface-contracts.js';
 
 export * from './money-commissioning-contracts.js';
 export * from './money-feed-contracts.js';
+
+export * from './execution-feed-projection.js';
