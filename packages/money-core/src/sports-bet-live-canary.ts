@@ -249,10 +249,10 @@ export async function executeSportsBetLiveCanary(input:{
   if(!input.ageEligibilityVerified)throw new Error('SPORT_BET_CANARY_AGE_ELIGIBILITY_REQUIRED')
   if(!input.credentialVerified)throw new Error('SPORT_BET_CANARY_CREDENTIAL_VERIFICATION_REQUIRED')
   if(input.runtime.halted)throw new Error('SPORT_BET_CANARY_KILL_SWITCH_ACTIVE')
-  if(input.runtime.openUnknownExecutions>input.policy.maxOpenUnknownExecutions)throw new Error('SPORT_BET_CANARY_UNKNOWN_EXECUTION_LIMIT')
+  if(input.runtime.openUnknownExecutions>0&&input.runtime.openUnknownExecutions>=input.policy.maxOpenUnknownExecutions)throw new Error('SPORT_BET_CANARY_UNKNOWN_EXECUTION_LIMIT')
   if(input.runtime.dailyWagers>=input.policy.maxDailyWagers)throw new Error('SPORT_BET_CANARY_DAILY_WAGER_LIMIT')
   if(input.runtime.dailyStakeMinor+input.request.stakeMinor>input.policy.maxDailyStakeMinor)throw new Error('SPORT_BET_CANARY_DAILY_STAKE_LIMIT')
-  if(input.runtime.dailyRealizedLossMinor>=input.policy.maxDailyRealizedLossMinor)throw new Error('SPORT_BET_CANARY_DAILY_LOSS_LIMIT')
+  if(input.runtime.dailyRealizedLossMinor>input.policy.maxDailyRealizedLossMinor)throw new Error('SPORT_BET_CANARY_DAILY_LOSS_LIMIT')
   if(input.request.stakeMinor>input.policy.maxStakeMinor||input.request.stakeMinor>input.approval.maximumStakeMinor)throw new Error('SPORT_BET_CANARY_STAKE_LIMIT')
   if(input.approval.authority!=='TINY_MANUAL_CANARY_ONLY'||input.approval.autonomousBettingEnabled!==false||input.approval.canIncreaseLimits!==false)throw new Error('SPORT_BET_CANARY_APPROVAL_AUTHORITY_INVALID')
   if(input.approval.requestFingerprint!==fingerprintSportsBetLiveWagerRequest(input.request))throw new Error('SPORT_BET_CANARY_APPROVAL_BINDING_MISMATCH')
@@ -307,7 +307,7 @@ export function certifySportsBetLiveCanary(input:{evidence:SportsBetLiveCanaryEv
   if(!e.evidenceIds.length)reasons.push('LIVE_EVIDENCE_REQUIRED')
   time(e.recordedAt,'SPORT_BET_CANARY_CERT_TIME_INVALID')
   let status:SportsBetLiveCanaryCertification['status']
-  if(e.evidenceClass==='SYNTHETIC_TEST')status='SOFTWARE_ONLY'
+  if(e.evidenceClass==='SYNTHETIC_TEST')status=reasons.length?'REJECTED':'SOFTWARE_ONLY'
   else status=reasons.length?'REJECTED':'LIVE_CANARY_CERTIFIED'
   const liveCanaryCertified=status==='LIVE_CANARY_CERTIFIED'
   return Object.freeze({
