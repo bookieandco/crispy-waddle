@@ -1,4 +1,5 @@
 import { getSamApiKey, getSamApiUrl } from './sam-config';
+import { samUpstreamConfigured, searchSamViaUpstream } from './sam-upstream-client';
 
 export type SamSearchParams = {
   limit?: number;
@@ -30,7 +31,12 @@ const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms))
 
 export async function searchSamOpportunities(params: SamSearchParams = {}): Promise<SamSearchPage> {
   const apiKey = getSamApiKey();
-  if (!apiKey) throw new Error('SAM_GOV_API_KEY is not configured');
+  if (!apiKey) {
+    if (samUpstreamConfigured()) {
+      return searchSamViaUpstream(params as Record<string, unknown>) as Promise<SamSearchPage>;
+    }
+    throw new Error('sam_key is not configured');
+  }
 
   const url = new URL(getSamApiUrl());
   url.searchParams.set('api_key', apiKey);
