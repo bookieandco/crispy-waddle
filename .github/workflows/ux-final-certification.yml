@@ -55,3 +55,12 @@ jobs:
 
       - name: Production build
         run: pnpm turbo run build --filter=@jhadina/jhadina-web
+
+      - name: Live production-bundle UX smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          CI=true JHADINA_E2E_BYPASS_AUTH=1 pnpm --filter @jhadina/jhadina-web exec next start -p 3100 > /tmp/jhadina-ux-live.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true; cat /tmp/jhadina-ux-live.log' EXIT
+          JHADINA_BASE_URL=http://127.0.0.1:3100 node apps/jhadina-web/scripts/ux-live-smoke.mjs
