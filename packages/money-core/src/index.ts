@@ -104,6 +104,10 @@ export * from './shark-intelligence-ingress.js';
 export * from './shark-simulation-learning.js';
 
 export * from './stock-market-reality.js';
+export * from './alpaca-stock-market-data.js';
+export * from './stock-paper-baseline-strategy.js';
+export * from './stock-watchlist.js';
+export * from './postgres-stock-watchlist-store.js';
 
 export * from './stock-intelligence-fusion.js';
 export * from './stock-chart-vision-research.js';
@@ -157,6 +161,12 @@ export * from './paper-execution-engine.js';
 export * from './paper-strategy-result.js';
 export * from './paper-ledger.js';
 export * from './postgres-paper-ledger-store.js';
+export * from './paper-learning-loop.js';
+export * from './paper-learning-store.js';
+export * from './postgres-paper-learning-store.js';
+export * from './paper-realism-profile.js';
+export * from './paper-autopilot-settings.js';
+export * from './postgres-paper-autopilot-settings-store.js';
 
 export * from './sandbox-broker-contracts.js';
 export * from './sandbox-broker-engine.js';
