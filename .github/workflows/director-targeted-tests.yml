@@ -10,6 +10,8 @@ on:
       - "apps/jhadina-web/src/lib/social/director-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
       - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
+      - "apps/jhadina-web/src/lib/supabase/middleware*"
+      - "apps/jhadina-web/src/lib/supabase/public-config*"
       - "apps/jhadina-web/lib/supabase-generated-asset-repository.ts"
       - "packages/social-core/src/content-projects*"
       - "docs/DIRECTOR*.md"
@@ -27,6 +29,8 @@ on:
       - "apps/jhadina-web/src/lib/social/director-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
       - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
+      - "apps/jhadina-web/src/lib/supabase/middleware*"
+      - "apps/jhadina-web/src/lib/supabase/public-config*"
       - "apps/jhadina-web/lib/supabase-generated-asset-repository.ts"
       - "packages/social-core/src/content-projects*"
       - "docs/DIRECTOR*.md"
@@ -157,4 +161,5 @@ jobs:
           src/app/api/workstation/editing-assets/route.test.ts
           src/lib/social/director-bridge.test.ts
           src/lib/supabase/middleware.test.ts
+          src/lib/supabase/public-config.test.ts
       - run: pnpm --filter @jhadina/jhadina-web run type-check
