@@ -42,6 +42,7 @@ export type ComputeExecutionPermit={
 export type ComputeSubmissionReceipt={
   submissionId:string;
   actionRequestId:string;
+  userId:string;
   workloadId:string;
   workSessionId:string;
   taskId:string;
