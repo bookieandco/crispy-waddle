@@ -129,7 +129,6 @@ export function createMemeTradeAssessment(input: {
 
   const rugSelfProtection = input.rugSelfProtection ?? (input.rugSelfProtectionInput ? evaluateRugSelfProtection({
     rugProtection,
-    rugSelfProtection,
     coverage: input.rugSelfProtectionInput.coverage,
     runtime: input.rugSelfProtectionInput.runtime,
     modelSignals: input.rugSelfProtectionInput.modelSignals,
@@ -189,6 +188,7 @@ export function createMemeTradeAssessment(input: {
     strategyFit: input.strategyFit,
     riskAssessment,
     rugProtection,
+    rugSelfProtection,
     lpControlRisk: finalLpControlRisk,
     liquidityHistory: input.liquidityHistory,
     migrationClassification: input.migrationClassification,
