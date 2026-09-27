@@ -32,6 +32,10 @@ export interface WholeVideoProviderResult {
   status: 'queued' | 'processing' | 'ready' | 'failed';
   resultUri?: string;
   error?: string;
+  qualityClaim?: boolean;
+  modelId?: string;
+  modelVersion?: string;
+  productionRuntimeReceiptId?: string;
   metadata?: Readonly<Record<string, unknown>>;
 }
 
@@ -46,6 +50,9 @@ export interface WholeVideoProviderDescriptor {
   supportsProductReference?: boolean;
   requiresProductReference?: boolean;
   supportsExpressionGuidance?: boolean;
+  supportsMultiSubjectReference?: boolean;
+  maximumReferenceImages?: number;
+  productionQualityEligible?: boolean;
 }
 
 export interface WholeVideoProductionProvider {
@@ -75,6 +82,8 @@ export function selectWholeVideoProvider(
     productReference?: boolean;
     expressionGuidance?: boolean;
     paidProviderAuthorized?: boolean;
+    productionQuality?: boolean;
+    referenceImageCount?: number;
   } = {},
 ): WholeVideoProductionProvider | undefined {
   const compatible = providers.filter((provider) =>
@@ -82,6 +91,12 @@ export function selectWholeVideoProvider(
     (!requirements.characterReference || provider.descriptor.supportsCharacterReference === true) &&
     (!requirements.productReference || provider.descriptor.supportsProductReference === true) &&
     (!requirements.expressionGuidance || provider.descriptor.supportsExpressionGuidance === true) &&
+    (!requirements.productionQuality || provider.descriptor.productionQualityEligible === true) &&
+    (
+      requirements.referenceImageCount === undefined ||
+      provider.descriptor.maximumReferenceImages === undefined ||
+      requirements.referenceImageCount <= provider.descriptor.maximumReferenceImages
+    ) &&
     (requirements.characterReference || provider.descriptor.requiresCharacterReference !== true) &&
     (requirements.productReference || provider.descriptor.requiresProductReference !== true),
   );
