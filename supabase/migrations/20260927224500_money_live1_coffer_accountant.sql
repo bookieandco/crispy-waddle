@@ -139,3 +139,11 @@ COMMENT ON TABLE money_movement_proposals IS 'Approval-gated deposit/withdrawal/
 COMMENT ON TABLE money_profit_sweep_reconciliations IS 'Source/destination/fee tie-out evidence after an externally completed movement.';
 COMMENT ON TABLE money_wallet_connections IS 'Wallet connection metadata only. Seed phrases and private keys are forbidden.';
 COMMENT ON TABLE money_market_connector_admissions IS 'Fail-closed stock/forex/DEX connector admission registry.';
+
+
+INSERT INTO money_market_connector_admissions(connector_id,provider,lane,admission,evidence_ids)
+VALUES
+ ('stock:open','unassigned-stock-broker','STOCK','UNCOMMISSIONED',ARRAY['money-live1:stock-opening']),
+ ('forex:open','unassigned-fx-broker','FOREX','UNCOMMISSIONED',ARRAY['money-live1:forex-opening']),
+ ('dex:open','unassigned-dex-router','DEX','UNCOMMISSIONED',ARRAY['money-live1:dex-opening'])
+ON CONFLICT (connector_id) DO NOTHING;
