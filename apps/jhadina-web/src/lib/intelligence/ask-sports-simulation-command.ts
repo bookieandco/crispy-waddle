@@ -126,8 +126,8 @@ export async function handleAskSportsSimulationCommand(
 
   if (!context) {
     const proposal: DecisionProposal = {
-      id: \`ask-sports-sim:\${crypto.randomUUID()}\`,
-      contextId: \`sports-sim-context:\${crypto.randomUUID()}\`,
+      id: `ask-sports-sim:${crypto.randomUUID()}`,
+      contextId: `sports-sim-context:${crypto.randomUUID()}`,
       disposition: "ASK",
       recommendation:
         "I recognized the simulation request, but I do not have an admitted point-in-time game context for it yet. Load/select the game in Sports, connect the sports context provider, or supply the game/player context; I will not invent team strength, player usage, injuries, or live state.",
@@ -206,21 +206,21 @@ export async function handleAskSportsSimulationCommand(
     id,
     source: context.source === "USER_SUPPLIED_CONTEXT" ? "user-supplied-sports-context" : "sports-simulation-context",
     observedAt: context.observedAt,
-    summary: \`SPORT-SIM input for \${context.eventLabel}; contextId=\${context.contextId}\`,
+    summary: `SPORT-SIM input for ${context.eventLabel}; contextId=${context.contextId}`,
     immutable: context.source === "ADMITTED_SPORTS_CONTEXT",
   }))
 
   const proposal: DecisionProposal = {
-    id: \`ask-sports-sim:\${crypto.randomUUID()}\`,
-    contextId: \`sports-sim-context:\${context.contextId}\`,
+    id: `ask-sports-sim:${crypto.randomUUID()}`,
+    contextId: `sports-sim-context:${context.contextId}`,
     disposition: "PROCEED",
     recommendation: renderSportsSimulationReportText(report),
     rationale:
-      \`Jhadina ran \${intent.pathCount.toLocaleString()} correlated SPORT-SIM paths against the resolved point-in-time context for \${context.eventLabel}. The result is probabilistic intelligence only and preserves the exact simulation ID, seed, assumptions, and evidence lineage.\`,
+      `Jhadina ran ${intent.pathCount.toLocaleString()} correlated SPORT-SIM paths against the resolved point-in-time context for ${context.eventLabel}. The result is probabilistic intelligence only and preserves the exact simulation ID, seed, assumptions, and evidence lineage.`,
     evidence,
     uncertainty: [
       ...report.warnings,
-      \`Simulation context observed at \${context.observedAt}; response created at \${observedAt}.\`,
+      `Simulation context observed at ${context.observedAt}; response created at ${observedAt}.`,
     ],
     alternatives: [
       "Change one or more scenario assumptions/sliders and run a revision.",
@@ -261,7 +261,7 @@ export function createProductionSportsSimulationContextProvider(): SportsSimulat
         method: "POST",
         headers: {
           "content-type": "application/json",
-          ...(token ? { authorization: \`Bearer \${token}\` } : {}),
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           userId: input.userId,
