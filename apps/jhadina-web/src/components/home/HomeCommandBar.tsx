@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/router"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 
 type UploadedArtifact={id:string;name:string;status:string;contextReady?:boolean;extractionStatus?:string}
