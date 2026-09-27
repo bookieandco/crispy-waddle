@@ -8,6 +8,8 @@ import { assessSportsSimulationCalibration, assessSportsSliderAblation, assessSp
 import { automateSportsPaperCore, createSportsBetAlpha, rankSportsBetAlpha, reunderwriteSportsPositionFromAlpha, sportsAlphaToCrossDomainEvidence } from './sports-sim-bet-alpha.js'
 import { createSportsVisualInferenceObservation, sportsVisualObservationToContextFeature } from './sports-vision-evidence.js'
 import { certifySportSim2FSoftware } from './sport-sim-2f-certification.js'
+import { buildSportsSimulationReport, renderSportsSimulationReportText } from './sports-simulation-report.js'
+import { assertSoccerVideoGameReferenceProfile, detectBoxingPunchCandidates, FC25_LIVE_EDITOR_REFERENCE, LOCKDOWN_BOXER_REFERENCE } from './sports-game-reference-context.js'
 import type { SportsMarketQuote } from './sports-paper-betting.js'
 import type { OpenPositionSnapshot } from './position-management.js'
 
@@ -165,12 +167,82 @@ test('Roboflow workflow output remains inferred context-only evidence',()=>{
   assert.equal(feature.canExecute,false)
 })
 
+
+
+test('simulation report exposes score/player/market stats and keeps game references out of real-world calibration',()=>{
+  const sim=runCorrelatedSportsMonteCarlo({
+    eventId:'event:report',sport:'BASKETBALL',currentHomeScore:0,currentAwayScore:0,pathCount:1000,randomSeed:'report-seed',
+    teamModels:[
+      {team:'HOME',baseRemainingMean:112,residualStdDev:9,sensitivities:{PACE:5}},
+      {team:'AWAY',baseRemainingMean:108,residualStdDev:9,sensitivities:{PACE:4}},
+    ],
+    playerModels:[
+      {statId:'player-points',playerId:'player:1',baseRemainingMean:28,residualStdDev:7,minimum:0,sensitivities:{PACE:4},tailThresholds:[25,30,35]},
+    ],
+    latentFactors:[{factorId:'PACE',mean:.2,stdDev:.4,evidenceIds:['pace:e1']}],
+    marketLegs:[{legId:'home-ml',kind:'HOME_WIN'},{legId:'points-30',kind:'PLAYER_OVER',statId:'player-points',line:30}],
+    jointSets:[{jointId:'combo:1',legIds:['home-ml','points-30']}],
+  })
+  const report=buildSportsSimulationReport({
+    eventLabel:'Home vs Away',
+    simulation:sim,
+    requestedStats:[{statId:'player-points',label:'Player points'}],
+    assumptions:['pace from admitted snapshot'],
+  })
+  assert.equal(report.requestedPlayerStats.length,1)
+  assert.equal(report.marketProbabilities.length,2)
+  assert.equal(report.jointProbabilities.length,1)
+  const text=renderSportsSimulationReportText(report)
+  assert.match(text,/1,000 simulations/)
+  assert.match(text,/Player points/)
+  assert.equal(report.bettingAuthority,'NONE')
+})
+
+test('FC25 concepts remain stress-test references and never become real-world truth',()=>{
+  assert.equal(FC25_LIVE_EDITOR_REFERENCE.codeImportAllowed,false)
+  assert.equal(FC25_LIVE_EDITOR_REFERENCE.license,'GPL-3.0')
+  assert.doesNotThrow(()=>assertSoccerVideoGameReferenceProfile({
+    profileId:'fc25:1',gameVersion:'FC25',playerId:'player:1',position:'CAM',formationRole:'10',
+    squadRole:'starter',overall:88,form:91,sharpness:94,morale:86,fitness:90,playstyleTags:['INCISIVE_PASS'],
+    startingXi:true,observedAt:'2026-09-27T18:00:00Z',evidenceIds:['fc25:reference'],
+    sourceClass:'VIDEO_GAME_REFERENCE',realWorldTruth:false,calibrationEligible:false,stressTestOnly:true,
+    authority:'CONTEXT_ONLY',canExecute:false,
+  }))
+})
+
+test('Lockdown Boxer motion concepts emit punch candidates but never landed/scoring punches',()=>{
+  assert.equal(LOCKDOWN_BOXER_REFERENCE.codeImportAllowed,false)
+  assert.equal(LOCKDOWN_BOXER_REFERENCE.license,'NO_LICENSE_DETECTED')
+  const candidates=detectBoxingPunchCandidates({
+    previous:{
+      frameId:'f1',athleteId:'boxer:1',observedAt:'2026-09-27T18:00:00.000Z',
+      leftShoulder:{x:100,y:100,confidence:.95},rightShoulder:{x:200,y:100,confidence:.95},
+      leftWrist:{x:100,y:140,confidence:.95},rightWrist:{x:200,y:140,confidence:.95},
+      evidenceIds:['pose:f1'],
+    },
+    current:{
+      frameId:'f2',athleteId:'boxer:1',observedAt:'2026-09-27T18:00:00.100Z',
+      leftShoulder:{x:100,y:100,confidence:.95},rightShoulder:{x:200,y:100,confidence:.95},
+      leftWrist:{x:100,y:60,confidence:.95},rightWrist:{x:200,y:140,confidence:.95},
+      evidenceIds:['pose:f2'],
+    },
+    minimumConfidence:.8,minimumWristSpeedPerSecond:300,
+  })
+  assert.equal(candidates.length,1)
+  assert.equal(candidates[0]!.side,'LEFT')
+  assert.equal(candidates[0]!.classification,'PUNCH_CANDIDATE')
+  assert.equal(candidates[0]!.landedPunch,false)
+  assert.equal(candidates[0]!.scoringPunch,false)
+  assert.equal(candidates[0]!.authority,'INFERRED_VISUAL_EVIDENCE_ONLY')
+})
+
 test('SPORT-SIM.2F certification matrix closes software without fabricating empirical edge or live betting',()=>{
   const names=[
     'causal-slider-impact','stress-override-separated','sport-specific-state-transitions','correlated-monte-carlo','fat-tail-regime',
     'player-stat-and-tail-distributions','same-path-joint-probability','live-resimulation-deltas','slider-ablation-and-sensitivity',
     'synthetic-cannot-certify-edge','bet-alpha-ranking','papercore-automatic-wagering','open-position-reunderwriting',
-    'cross-domain-alpha-intelligence-only','roboflow-context-only','no-live-execution-authority',
+    'cross-domain-alpha-intelligence-only','roboflow-context-only','simulation-report-stats',
+    'video-game-reference-firewall','boxing-pose-candidate-not-scoring-truth','no-live-execution-authority',
   ]
   const report=certifySportSim2FSoftware({cases:names.map(name=>Object.freeze({name,passed:true,evidenceIds:Object.freeze(['test:'+name])}))})
   assert.equal(report.softwarePassed,true)
