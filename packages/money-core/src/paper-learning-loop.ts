@@ -33,6 +33,7 @@ export type PaperDecisionObservation = Readonly<{
   action: PaperDecisionAction;
   side?: 'BUY' | 'SELL';
   signal: 'LONG_ENTRY' | 'EXIT' | 'HOLD' | 'OTHER';
+  referencePrice?: number;
   reasonCodes: readonly string[];
   informationCutoff: string;
   createdAt: string;
@@ -152,6 +153,12 @@ export function createPaperDecision(
   if (input.signal === 'HOLD' && input.action !== 'NO_TRADE') {
     throw new Error('MONEY_PAPER_LOOP_HOLD_MUST_BE_NO_TRADE');
   }
+  if (
+    input.referencePrice !== undefined &&
+    (!Number.isFinite(input.referencePrice) || input.referencePrice <= 0)
+  ) {
+    throw new Error('MONEY_PAPER_LOOP_REFERENCE_PRICE_INVALID');
+  }
 
   return Object.freeze({
     ...input,
@@ -232,7 +239,11 @@ export function learnFromPaperDecision(
     decision.action === 'NO_TRADE' ? Math.max(0, realized) : 0;
 
   const signedQuality =
-    decision.action === 'PAPER_TRADE' ? realized : -realized;
+    decision.action === 'NO_TRADE'
+      ? -realized
+      : decision.side === 'SELL'
+        ? -realized
+        : realized;
   const decisionQualityScore = Math.max(
     -1,
     Math.min(1, signedQuality / 1000),
