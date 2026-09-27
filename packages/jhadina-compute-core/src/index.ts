@@ -17,3 +17,6 @@ export * from './telemetry.js';
 export * from './admission-planner.js';
 export * from './recovery.js';
 export * from './cloud12-certification.js';
+
+export * from './node-inventory.js';
+export * from './runtime-catalog.js';
