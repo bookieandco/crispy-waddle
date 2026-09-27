@@ -128,8 +128,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Request SAM admission OIDC token
-        id: oidc
+      - name: Request SAM bootstrap OIDC token
+        id: bootstrap_oidc
         uses: actions/github-script@v7
         with:
           script: |
@@ -137,9 +137,9 @@ jobs:
             core.setSecret(token)
             core.setOutput('token', token)
 
-      - name: Commission and certify live SAM pipeline
+      - name: Scan and bootstrap live SAM market
         env:
-          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          OIDC_TOKEN: ${{ steps.bootstrap_oidc.outputs.token }}
           ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
         run: |
           set -euo pipefail
@@ -172,14 +172,65 @@ jobs:
                 ;;
             esac
 
-            if ! jq -e 'type == "object"' "$response_file" >/dev/null 2>&1; then
+            jq -e 'type == "object"' "$response_file" >/dev/null || {
               echo "SAM admission worker ${job} returned non-JSON content." >&2
               exit 1
-            fi
+            }
           }
 
           invoke "sam-scan" "/api/internal/sam/scan?lookbackDays=2&maxPages=100"
           invoke "sam-bootstrap" "/api/internal/sam/bootstrap?historyDays=365&windowDays=31&maxWindows=31&maxPages=100"
+
+      - name: Request fresh SAM enrichment OIDC token
+        id: enrichment_oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-production-scheduler')
+            core.setSecret(token)
+            core.setOutput('token', token)
+
+      - name: Enrich and certify live SAM market
+        env:
+          OIDC_TOKEN: ${{ steps.enrichment_oidc.outputs.token }}
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+        run: |
+          set -euo pipefail
+
+          invoke() {
+            local job="$1"
+            local path="$2"
+            local response_file
+            response_file="$(mktemp)"
+            local status
+
+            status="$(curl --silent --show-error \
+              --connect-timeout 20 \
+              --max-time 320 \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              --header "Accept: application/json" \
+              --header "Authorization: Bearer ${OIDC_TOKEN}" \
+              --header "User-Agent: jhadina-production-sam-admission/${GITHUB_RUN_ID}" \
+              "${ORIGIN%/}${path}")"
+
+            echo "sam_admission_worker=${job} status=${status}"
+            cat "$response_file"
+
+            case "$status" in
+              2??) ;;
+              *)
+                echo "SAM admission worker ${job} failed with HTTP ${status}" >&2
+                exit 1
+                ;;
+            esac
+
+            jq -e 'type == "object"' "$response_file" >/dev/null || {
+              echo "SAM admission worker ${job} returned non-JSON content." >&2
+              exit 1
+            }
+          }
+
           invoke "sam-enrich" "/api/internal/sam/enrich?limit=10&maxDocuments=80&maxProviders=8"
           invoke "sam-certify" "/api/internal/sam/certify"
 
