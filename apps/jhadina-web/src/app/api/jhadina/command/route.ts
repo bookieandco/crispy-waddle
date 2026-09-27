@@ -25,6 +25,10 @@ import {
   inspectAskSportsSimulationIntent,
   parseSportsSimulationResolvedContext,
 } from "@/lib/intelligence/ask-sports-simulation-command"
+import {
+  handleAskSportsHistoryCommand,
+  inspectAskSportsHistoryIntent,
+} from "@/lib/intelligence/ask-sports-history-command"
 
 export const dynamic = "force-dynamic"
 
@@ -280,6 +284,51 @@ export async function POST(req: NextRequest) {
             executionStarted: false,
             verified: sportsSimulation.verified,
             verificationReason: sportsSimulation.verificationReason,
+            feedbackEligible: false,
+          },
+        })
+      }
+    }
+
+
+    const sportsHistoryIntent = inspectAskSportsHistoryIntent(activeTask)
+    if (sportsHistoryIntent) {
+      const verifier = await createRequestIdentityVerifier()
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const sportsHistory = await handleAskSportsHistoryCommand({
+        userId: verifiedIdentity.userId,
+        activeTask,
+      })
+      if (sportsHistory) {
+        const reasoningEventId = await recordAskShortcutExperience({
+          userId: verifiedIdentity.userId,
+          activeTask,
+          proposal: sportsHistory.proposal,
+          shortcut: "sports-history",
+          metadata: {
+            authority: sportsHistory.view?.authority ?? "HISTORICAL_EVIDENCE_ONLY",
+            entityId: sportsHistory.view?.query.entityId,
+            allTimeAvailable: sportsHistory.view?.allTimeAvailable ?? false,
+            recordCount: sportsHistory.view?.coverage.totalRecords ?? 0,
+            seasons: sportsHistory.view?.coverage.seasons ?? [],
+          },
+        })
+        return NextResponse.json({
+          success: true,
+          data: {
+            proposal: sportsHistory.proposal,
+            reasoningEventId,
+            expression: await realizeAskJhadinaExpression({
+              userId: verifiedIdentity.userId,
+              activeTask,
+              proposal: sportsHistory.proposal,
+            }),
+            sportsHistoryIntent,
+            sportsHistoryView: sportsHistory.view,
+            approvalRequired: false,
+            executionStarted: false,
+            verified: sportsHistory.verified,
+            verificationReason: sportsHistory.verificationReason,
             feedbackEligible: false,
           },
         })
