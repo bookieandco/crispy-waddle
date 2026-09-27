@@ -68,6 +68,11 @@ function safeName(value:string):string{
   return (normalized||'jhadina-job').slice(0,50);
 }
 
+function safeLabel(value:string):string{
+  const normalized=value.replace(/[^A-Za-z0-9_.-]+/g,'_').replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g,'');
+  return (normalized||'jhadina').slice(0,63);
+}
+
 function imageRef(image:string,digest:string|undefined):string{
   if(!digest)return image;
   const normalized=digest.startsWith('sha256:')?digest:`sha256:${digest}`;
@@ -113,14 +118,17 @@ export function buildKueueJobManifest(
   const labels:Record<string,string>={
     'app.kubernetes.io/part-of':'jhadina',
     'app.kubernetes.io/component':'compute-worker',
-    'jhadina.ai/workload-id':workload.id,
-    'jhadina.ai/work-session-id':permit.runtime.workSessionId,
-    'jhadina.ai/task-id':permit.runtime.taskId,
-    'jhadina.ai/queue':workload.queue,
-    'jhadina.ai/source':workload.source,
+    'jhadina.ai/workload-id':safeLabel(workload.id),
+    'jhadina.ai/work-session-id':safeLabel(permit.runtime.workSessionId),
+    'jhadina.ai/task-id':safeLabel(permit.runtime.taskId),
+    'jhadina.ai/queue':safeLabel(workload.queue),
+    'jhadina.ai/source':safeLabel(workload.source),
     'kueue.x-k8s.io/queue-name':queueName,
   };
   const annotations:Record<string,string>={
+    'jhadina.ai/workload-id':workload.id,
+    'jhadina.ai/work-session-id':permit.runtime.workSessionId,
+    'jhadina.ai/task-id':permit.runtime.taskId,
     'jhadina.ai/action-request-id':permit.actionRequestId,
     'jhadina.ai/idempotency-key':permit.runtime.idempotencyKey,
     'jhadina.ai/planned-node-id':selected,
