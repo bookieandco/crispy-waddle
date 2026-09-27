@@ -1,7 +1,7 @@
 const base=process.env.JHADINA_BASE_URL??"http://127.0.0.1:3100"
 const routes=[
  ["/","Ask Jhadina"],
- ["/ask-jhadina","What are we doing?"],
+ ["/ask-jhadina",null],
  ["/work","Continue what matters."],
  ["/activity","What happened, in order."],
  ["/worlds","One OS. Every subsystem."],
