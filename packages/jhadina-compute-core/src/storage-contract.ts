@@ -101,6 +101,7 @@ export type StorageRejectionCode =
   | 'RANGE_READS_REQUIRED'
   | 'OFFLINE_PINNING_REQUIRED'
   | 'ARCHIVE_TIER_REQUIRED'
+  | 'CACHE_CAPABILITY_REQUIRED'
   | 'EXTERNAL_COST_LIMIT_EXCEEDED';
 
 export type StorageCandidate = {
@@ -126,6 +127,8 @@ export type StorageStrategy =
 
 export type StoragePlan = {
   intentId: string;
+  admissible: boolean;
+  blockingReasons: string[];
   primaryBackendId?: string;
   cacheBackendId?: string;
   primaryCandidates: StorageCandidate[];
