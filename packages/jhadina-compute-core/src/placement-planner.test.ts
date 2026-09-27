@@ -13,6 +13,13 @@ const baseWorkload: ComputeWorkload = {
   kind: 'video-generation',
   queue: 'creative',
   priority: 700,
+  authority: {
+    system: 'director-generation',
+    jobId: 'generation-1',
+    idempotencyKey: 'generation-1',
+    projectId: 'movie-1',
+  },
+  resourceProfileId: 'director.video.test',
   resources: {
     cpuCores: 8,
     ramGiB: 32,
