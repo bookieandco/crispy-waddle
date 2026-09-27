@@ -58,7 +58,7 @@ async function patchStudy(client:SupabaseClient,id:string,patch:Record<string,un
   if(error) throw error;
 }
 
-async function dispatchStudy(study:StudyRow):Promise<'dispatched'|'not-configured'>{
+async function dispatchStudy(study:StudyRow,replicationJobId:string):Promise<'dispatched'|'not-configured'>{
   const endpoint=process.env.JHADINA_DIRECTOR_STUDY_WORKER_URL?.trim();
   const token=process.env.JHADINA_DIRECTOR_STUDY_WORKER_TOKEN?.trim();
   if(!endpoint||!token) return 'not-configured';
@@ -69,6 +69,7 @@ async function dispatchStudy(study:StudyRow):Promise<'dispatched'|'not-configure
       studyId:study.id,
       sourceUrl:study.source_url,
       callbackPath:'/api/director/studies/observations',
+      replicationJobId,
       contract:'DIRECTOR_STUDY_WORKER_V1',
     }),
   });
@@ -212,7 +213,7 @@ export async function reconcileDirectorProcessReplicationJobs(
       if(queued.length){
         let unavailable=false;
         for(const study of queued){
-          const dispatched=await dispatchStudy(study);
+          const dispatched=await dispatchStudy(study,job.id);
           if(dispatched==='not-configured'){unavailable=true;break;}
           await patchStudy(client,study.id,{status:'running',started_at:new Date().toISOString(),error:null});
           summary.dispatchedStudies+=1;
