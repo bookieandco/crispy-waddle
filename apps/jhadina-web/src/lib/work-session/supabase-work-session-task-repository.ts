@@ -3,6 +3,7 @@ import type {
   LeaseableWorkSessionTaskRepository,
   WorkSessionTask,
   WorkSessionTaskStatus,
+  validateWorkSessionTaskGraph,
 } from '@jhadina/core-spine';
 
 type TaskRow = {
@@ -55,6 +56,8 @@ export class SupabaseWorkSessionTaskRepository implements LeaseableWorkSessionTa
 
   async create(task:WorkSessionTask):Promise<void>{
     this.assertOwner(task);
+    const existing=await this.list(task.workSessionId);
+    validateWorkSessionTaskGraph([...existing,task]);
     const {error}=await this.client.from('jhadina_work_session_tasks').insert(toRow(task));
     if(error)throw new Error(`WORK_SESSION_TASK_CREATE_FAILED:${error.message}`);
   }
@@ -62,6 +65,13 @@ export class SupabaseWorkSessionTaskRepository implements LeaseableWorkSessionTa
   async update(task:WorkSessionTask,expectedVersion:number):Promise<void>{
     this.assertOwner(task);
     if(task.version!==expectedVersion+1)throw new Error('WORK_SESSION_TASK_VERSION_CONFLICT');
+    const existing=await this.list(task.workSessionId);
+    const current=existing.find(candidate=>candidate.id===task.id);
+    if(!current)throw new Error('WORK_SESSION_TASK_NOT_FOUND');
+    if(current.idempotencyKey!==task.idempotencyKey||current.workSessionId!==task.workSessionId||current.ownerUserId!==task.ownerUserId){
+      throw new Error('WORK_SESSION_TASK_IMMUTABLE_IDENTITY');
+    }
+    validateWorkSessionTaskGraph(existing.map(candidate=>candidate.id===task.id?task:candidate));
     const {data,error}=await this.client.from('jhadina_work_session_tasks')
       .update(toRow(task))
       .eq('work_session_id',task.workSessionId)
