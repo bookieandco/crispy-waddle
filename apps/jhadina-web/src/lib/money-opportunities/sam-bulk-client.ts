@@ -4,6 +4,10 @@ export const DEFAULT_SAM_BULK_URL =
   'https://s3.amazonaws.com/falextracts/Contract%20Opportunities/datagov/ContractOpportunitiesFullCSV.csv'
 
 export type SamBulkRow = Record<string, string>
+
+export function samBulkNdjsonLine(value: unknown): string {
+  return JSON.stringify(value) + '\n'
+}
 export type SamBulkStreamReceipt = {
   sourceUrl: string
   sha256: string
