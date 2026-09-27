@@ -116,7 +116,9 @@
     "./production-project": "./src/production-project.ts",
     "./process-observation": "./src/process-observation.ts",
     "./rehearsal-loop": "./src/rehearsal-loop.ts",
-    "./observation-bus": "./src/observation-bus.ts"
+    "./observation-bus": "./src/observation-bus.ts",
+    "./phantom-video-provider": "./src/phantom-video-provider.ts",
+    "./production-quality-certification": "./src/production-quality-certification.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
