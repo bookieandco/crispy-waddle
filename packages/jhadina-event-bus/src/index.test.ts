@@ -2,6 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { DurableEventBus, InMemoryEventBus, InMemoryEventJournal, SupabaseEventJournal } from './index.js';
 
+const runtimeEvent=(id:string,key:string)=>({
+  id,type:'director.render.completed',occurredAt:'2026-09-26T12:00:00.000Z',payload:{assetId:'asset-1'},
+  context:{workSessionId:'ws-1',taskId:'task-1',correlationId:'corr-1',domain:'director',capability:'director.render',authorityRef:'action:123',idempotencyKey:key},
+});
+
 describe('InMemoryEventBus', () => {
   it('publishes events to subscribers in registration order', async () => {
     const bus = new InMemoryEventBus();
@@ -34,18 +39,13 @@ describe('InMemoryEventBus', () => {
 
 
 describe('DurableEventBus',()=>{
-  const event=(id:string,key:string)=>({
-    id,type:'director.render.completed',occurredAt:'2026-09-26T12:00:00.000Z',payload:{assetId:'asset-1'},
-    context:{workSessionId:'ws-1',taskId:'task-1',correlationId:'corr-1',domain:'director',capability:'director.render',authorityRef:'action:123',idempotencyKey:key},
-  });
-
   it('journals before dispatch and suppresses duplicate idempotency keys',async()=>{
     const journal=new InMemoryEventJournal();
     const bus=new DurableEventBus(journal);
     let seen=0;
     bus.subscribe('director.render.completed',()=>{seen+=1;});
-    await bus.publish(event('evt-10','render-1'));
-    await bus.publish(event('evt-11','render-1'));
+    await bus.publish(runtimeEvent('evt-10','render-1'));
+    await bus.publish(runtimeEvent('evt-11','render-1'));
     assert.equal(seen,1);
     assert.equal((await journal.listByWorkSession('ws-1')).length,1);
   });
@@ -67,7 +67,7 @@ describe('SupabaseEventJournal',()=>{
     };
     const journal=new SupabaseEventJournal(db);
     await assert.doesNotReject(async()=>{
-      const result=await journal.append(event('evt-db-1','idem-db-1'));
+      const result=await journal.append(runtimeEvent('evt-db-1','idem-db-1'));
       assert.equal(result,'duplicate');
     });
   });
