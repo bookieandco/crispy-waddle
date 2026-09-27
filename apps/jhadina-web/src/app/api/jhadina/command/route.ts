@@ -245,10 +245,13 @@ export async function POST(req: NextRequest) {
       const proposal = {
         id: `director-replicate-proposal:${replication.job.id}`,
         contextId: `director-replicate-context:${replication.job.projectId}`,
-        disposition: "PROPOSE" as const,
+        disposition: "PROCEED" as const,
         recommendation: `Study the supplied process, compile an evidence-bound reference recipe, improve weak steps using current Director capabilities, then execute through Director as an editable ${replication.intent.targetKind} project.`,
         rationale: "Process-replication requests route through Director Study and the Process Recipe compiler before generation. The reference remains evidence; provider choice, production execution, review, and timeline mutation stay inside canonical Director authority.",
-        evidence: replication.intent.sourceUrls.map((url)=>({ id:url, kind:"reference-url", summary:url })),
+        evidence: [
+          ...replication.intent.sourceUrls.map((url)=>({ id:url, source:"user-reference-url", observedAt:new Date().toISOString(), summary:url })),
+          ...artifacts.map((artifact)=>({ id:artifact.id, source:artifact.source, observedAt:artifact.observedAt, summary:artifact.name ?? artifact.mimeType })),
+        ],
         uncertainty: ["The learned recipe is not admitted until Study observations and recipe QC complete."],
         alternatives: ["Use the reference process exactly without the improvement pass.", "Study the reference only without executing it."],
       }
@@ -256,7 +259,7 @@ export async function POST(req: NextRequest) {
         userId: verifiedIdentity.userId,
         activeTask,
         proposal,
-        shortcut: "director-process-replication",
+        shortcut: "director",
         metadata: { jobId: replication.job.id, projectId: replication.job.projectId, phase: replication.job.phase, executionStarted: false },
       })
       return NextResponse.json({
