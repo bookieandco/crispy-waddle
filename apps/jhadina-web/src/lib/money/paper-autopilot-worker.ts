@@ -180,7 +180,7 @@ export async function runMoneyPaperAutopilotCycle(
           const bundle=await market.getStockBundle({symbol:entry.symbol,start:window.start,end:window.end,now:ranAt,feed:settings.stockFeed,maxBars:90})
           if(!bundle.quote||bundle.dailyBars.length<51){paperOrdersSkipped++;continue}
           const resolved=await resolveEligibleDecisionLearning({
-            repo,userId:settings.userId,instrumentId:"stock:"+entry.symbol,learningEvents,
+            repo,userId:settings.userId,instrumentId:"stock:"+entry.symbol,learningEvents:learning,
             dailyBars:bundle.dailyBars,
           })
           decisionResolutionsInserted+=resolved.resolutions
