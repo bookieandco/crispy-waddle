@@ -55,7 +55,7 @@ comment on table public.director_live_certification_runs is
 
 create table if not exists public.director_live_certification_tokens (
   token_hash text primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
   expires_at timestamptz not null,
   consumed_at timestamptz,
   created_at timestamptz not null default now()
