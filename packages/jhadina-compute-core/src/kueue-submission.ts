@@ -124,9 +124,7 @@ export function buildKueueJobManifest(
     'jhadina.ai/resource-profile':workload.resourceProfileId,
   };
 
-  const nodeSelector:Record<string,string>={
-    ...(config.providerNodeLabels?.homebase??{}),
-  };
+  const nodeSelector:Record<string,string>={};
   if(workload.resources.networkFabric){
     nodeSelector['jhadina.ai/fabric']=workload.resources.networkFabric;
   }
