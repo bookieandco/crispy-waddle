@@ -53,3 +53,8 @@ export function moneyFeedHasCommittedCapital(e:MoneyFeedEvent):boolean{
 export function moneyFeedSource(e:MoneyFeedEvent):'Money'|'Sports'{
  return e.lane==='SPORTS'?'Sports':'Money'
 }
+
+
+export interface MoneyFeedEventSink{
+ publish(event:MoneyFeedEvent):Promise<void>|void
+}
