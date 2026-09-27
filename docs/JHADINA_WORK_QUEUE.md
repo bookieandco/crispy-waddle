@@ -4753,3 +4753,19 @@ asked.
 **Human gate:** No real Kubernetes submission, public-cloud spend, production model movement, or private-asset offload in CLOUD.2.
 **Verification:** Targeted type-check/tests for compute-core, director-core, PupsonStuff/Jhadina web adapters plus repo CI.
 **Architectural impact:** Existing Director/PupsonStuff/JLLM/Memory durable records remain authoritative. Compute drafts are execution descriptions only.
+
+
+---
+
+## JHADINA COMPUTE CLOUD — CLOUD.3: INTELLIGENT DATA PATH + MEDIA MOUNT
+
+**Priority:** P0
+**Status:** REVIEW
+**Branch:** `feat/jhadina-compute-cloud-3-rebased`
+**Objective:** Add the storage/data-path layer between governed jobs and compute: AI lifecycle-aware storage (prepare/train/serve/archive), media ingest/edit/review/delivery access patterns, local NVMe read-through/pinned caches, two-phase checkpoint staging, shared POSIX/RWX needs, model-serving prefetch, and optional external media federation.
+**Reference synthesis:** Ceph/Vultr AI-storage architecture; four-stage PREPARE/TRAIN/SERVE/ARCHIVE storage blueprint; Shade intelligent cloud-NAS patterns (mounted access, pinning/shared cache, proxies/search/review/automations); existing rclone + Seafile/SeaDrive + Ceph foundation.
+**Architecture decision:** Ceph remains the private durable Homebase core. CephFS supplies shared POSIX/RWX; Ceph object/RGW supplies object/archive semantics; node NVMe is disposable cache/scratch. SeaDrive is the human on-demand virtual-drive surface. rclone VFS is the provider-neutral sparse/chunked-read bridge for object remotes. Shade is optional external media/collaboration storage through rclone's Shade backend, disabled by default and never authoritative for Jhadina provenance, memory, or approval.
+**Safety/privacy:** External storage is never selected merely because Homebase is slow/full. Sensitive assets require trusted Homebase/remote-Homebase storage. External federation requires explicit eligibility plus existing authorization; no credentials or paid storage are provisioned by this task.
+**Definition of Done:** Typed storage-intent/backend contracts; deterministic fail-closed data-path planner; stage-specific cache/prefetch/checkpoint strategies; tests for sensitive external denial, POSIX training requirements, archive/object preference, media range-stream/cache preference, and checkpoint durability; deployment runbook documenting SeaDrive/rclone-VFS/Shade boundaries and rclone-Shade limitations.
+**Human gate:** Real Shade signup/API keys, paid storage, public-cloud data movement, destructive remote sync/delete, and production Ceph/SeaDrive mounts remain explicit deployment decisions.
+**Verification:** Compute-core type-check/tests plus repository CI on exact PR head.
