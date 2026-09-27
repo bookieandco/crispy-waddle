@@ -1,7 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
 import { certifySamUsableFinal } from '@jhadina/opportunity-core'
 import { runSamMarketBootstrap } from '../src/lib/money-opportunities/sam-wide-runtime'
 import { runSamEnrichment, collectSamUsableEvidence } from '../src/lib/money-opportunities/sam-usable-runtime'
+import { createRemoteSamSupabaseClient, samRuntimeGatewayHealth } from '../src/lib/money-opportunities/sam-runtime-gateway-client'
 
 function required(name:string){
   const value=process.env[name]?.trim()
@@ -12,11 +12,10 @@ async function main(){
   console.log(JSON.stringify({phase:'sam-live-commissioning',version:2,runtimeBound:true,executionSurface:'github_actions_production'}))
   // SAM_GOV_API_KEY is consumed by the existing server-side SAM client.
   required('SAM_GOV_API_KEY')
-  const supabaseUrl=required('NEXT_PUBLIC_SUPABASE_URL')
-  const serviceRoleKey=required('SUPABASE_SERVICE_ROLE_KEY')
-  const client=createClient(supabaseUrl,serviceRoleKey,{
-    auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
-  })
+  required('SAM_RUNTIME_OIDC_TOKEN')
+  const health=await samRuntimeGatewayHealth()
+  if(!health.serviceRoleConfigured)throw new Error('SAM runtime gateway service role is unavailable')
+  const client=createRemoteSamSupabaseClient()
 
   const bootstrap=await runSamMarketBootstrap(client,{
     historyDays:365,
