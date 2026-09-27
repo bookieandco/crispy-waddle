@@ -41,7 +41,7 @@ export function assertMoneyFeedEvent(e:MoneyFeedEvent){
  const funded=e.fundedAmountMinor??0n
  if(funded<0n)throw new Error('MONEY_FEED1_FUNDED_AMOUNT_INVALID')
  if((e.commitment==='COMMITTED'||e.commitment==='CLOSED')&&funded<=0n)throw new Error('MONEY_FEED1_FUNDED_EVIDENCE_REQUIRED')
- if((e.commitment==='WATCHING'||e.commitment==='SUGGESTED')&&funded!==0n)throw new Error('MONEY_FEED1_UNFUNDED_EVENT_HAS_MONEY')
+ if(e.commitment!=='COMMITTED'&&e.commitment!=='CLOSED'&&funded!==0n)throw new Error('MONEY_FEED1_UNFUNDED_EVENT_HAS_MONEY')
  if(funded>0n&&!e.currency)throw new Error('MONEY_FEED1_CURRENCY_REQUIRED')
 }
 
