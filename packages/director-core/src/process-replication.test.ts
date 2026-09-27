@@ -58,3 +58,16 @@ describe('Director process replication',()=>{
     expect(graph.get('process:recipe:2:s2')?.dependsOn).toEqual(['process:recipe:2:s1']);
   });
 });
+
+it('maps performance work into the rehearsal stage before final generation',()=>{
+  const recipe=compileProcessRecipe({
+    id:'recipe:rehearse',projectId:'film:r',objective:'performance test',sourceRefs:['source:1'],
+    observations:[
+      {id:'p1',sourceId:'source:1',order:0,kind:'performance',purpose:'rehearse blocking and dialogue',operation:'run a performance rehearsal',requiredCapabilities:['performance'],inputs:['script'],outputs:['approved-performance'],qcChecks:['eyeline'],failureModes:['collision'],evidenceIds:['e1']},
+      {id:'p2',sourceId:'source:1',order:1,kind:'generation',purpose:'render final',operation:'generate final take',requiredCapabilities:['video-generation'],inputs:['approved-performance'],outputs:['final-take'],qcChecks:['coherence'],failureModes:[],evidenceIds:['e2']},
+    ],
+  });
+  const graph=compileRecipeToCreativeStageGraph(recipe);
+  expect(graph.list().map(stage=>stage.kind)).toEqual(['rehearsal','generation']);
+  expect(graph.get('process:recipe:rehearse:p2')?.dependsOn).toEqual(['process:recipe:rehearse:p1']);
+});

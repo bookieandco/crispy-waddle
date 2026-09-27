@@ -93,6 +93,8 @@ jobs:
           src/studio-rig-animation-mocap.test.ts
           src/process-replication.test.ts
           src/production-project.test.ts
+          src/process-observation.test.ts
+          src/rehearsal-loop.test.ts
           src/agentic-project-context.test.ts
           src/localized-video-repair.test.ts
           src/world-reference-workflow.test.ts

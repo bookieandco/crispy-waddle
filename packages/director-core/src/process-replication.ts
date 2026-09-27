@@ -228,7 +228,8 @@ function stageKind(kind: DirectorProcessStepKind): CreativeStageKind {
   if (kind === 'research' || kind === 'concept') return 'vision';
   if (kind === 'script' || kind === 'character' || kind === 'asset' || kind === 'world' || kind === 'wardrobe') return 'treatment';
   if (kind === 'storyboard') return 'storyboard';
-  if (kind === 'previs' || kind === 'performance') return 'previs';
+  if (kind === 'previs') return 'previs';
+  if (kind === 'performance') return 'rehearsal';
   if (kind === 'generation' || kind === 'voice' || kind === 'motion') return 'generation';
   if (kind === 'edit' || kind === 'audio') return 'edit';
   if (kind === 'review') return 'review';
