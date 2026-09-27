@@ -31,11 +31,13 @@ async function request<T>(action: 'health' | 'search' | 'entities', params?: Rec
   })) as Record<string, unknown>
 
   if (!response.ok || payload.ok !== true) {
-    throw new Error(
-      typeof payload.error === 'string'
-        ? payload.error
-        : `SAM upstream HTTP ${response.status}`,
-    )
+    const reason = typeof payload.error === 'string'
+      ? payload.error
+      : `SAM upstream HTTP ${response.status}`
+    const upstreamStatus = typeof payload.upstreamStatus === 'number'
+      ? `:${payload.upstreamStatus}`
+      : ''
+    throw new Error(`${reason}${upstreamStatus}`)
   }
   return payload as T
 }
