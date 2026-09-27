@@ -21,6 +21,7 @@ on:
     - cron: "20 */6 * * *"
     - cron: "35 */6 * * *"
     - cron: "50 */6 * * *"
+    - cron: "15 22 * * 1-5"
   workflow_dispatch:
     inputs:
       job:
@@ -34,6 +35,7 @@ on:
           - sam-enrich
           - sam-certify
           - sam-bootstrap
+          - money-paper-autopilot
 
 permissions:
   contents: read
@@ -155,6 +157,10 @@ jobs:
             sam-bootstrap:*|*:50\ \*/6\ \*\ \*\ \*)
               job="sam-bootstrap"
               path="/api/internal/sam/bootstrap?historyDays=365&windowDays=7&maxWindows=4&maxPages=20"
+              ;;
+            money-paper-autopilot:*|*:15\ 22\ \*\ \*\ 1-5)
+              job="money-paper-autopilot"
+              path="/api/internal/money/paper-autopilot"
               ;;
             *)
               echo "Unknown scheduler invocation: input=${INPUT_JOB:-} schedule=${SCHEDULE:-}" >&2
