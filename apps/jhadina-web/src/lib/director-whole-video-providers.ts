@@ -9,6 +9,16 @@ import type {
 
 type ProviderHttpConfig = { baseUrl: string; token?: string };
 
+export interface DirectorVideoRuntimeProviderConfig {
+  certificationVideoProviderUrl?: string;
+  certificationVideoProviderToken?: string;
+}
+
+export interface CreateConfiguredWholeVideoProvidersOptions {
+  includeCertification?: boolean;
+  runtimeConfig?: DirectorVideoRuntimeProviderConfig;
+}
+
 function cleanBaseUrl(value: string): string {
   return value.replace(/\/+$/, '');
 }
@@ -250,20 +260,25 @@ export class ComfyUIReferenceVideoProductionProvider implements WholeVideoProduc
 }
 
 export class ReferenceCharacterVideoProductionProvider implements WholeVideoProductionProvider {
-  readonly descriptor: WholeVideoProviderDescriptor = {
-    id: process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_ID ?? 'reference-video-local',
-    name: process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_NAME ?? 'Reference Character Video',
-    costClass: referenceProviderCostClass(),
-    supportedModes: ['standard', 'short', 'long-form'],
-    health: 'unknown',
-    supportsCharacterReference: true,
-    requiresCharacterReference: true,
-    supportsExpressionGuidance: true,
-  };
-
+  readonly descriptor: WholeVideoProviderDescriptor;
   private readonly baseUrl: string;
-  constructor(private readonly config: ProviderHttpConfig) {
+
+  constructor(private readonly config: ProviderHttpConfig & {
+    descriptorId?: string;
+    descriptorName?: string;
+    costClass?: WholeVideoProviderCostClass;
+  }) {
     this.baseUrl = cleanBaseUrl(config.baseUrl);
+    this.descriptor = {
+      id: config.descriptorId ?? process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_ID ?? 'reference-video-local',
+      name: config.descriptorName ?? process.env.DIRECTOR_REFERENCE_VIDEO_PROVIDER_NAME ?? 'Reference Character Video',
+      costClass: config.costClass ?? referenceProviderCostClass(),
+      supportedModes: ['standard', 'short', 'long-form'],
+      health: 'unknown',
+      supportsCharacterReference: true,
+      requiresCharacterReference: true,
+      supportsExpressionGuidance: true,
+    };
   }
 
   async submit(brief: WholeVideoProductionBrief, idempotencyKey: string): Promise<WholeVideoProviderResult> {
@@ -598,8 +613,19 @@ export class AgnesVideoProductionProvider implements WholeVideoProductionProvide
   }
 }
 
-export function createConfiguredWholeVideoProviders(): WholeVideoProductionProvider[] {
+export function createConfiguredWholeVideoProviders(
+  options: CreateConfiguredWholeVideoProvidersOptions = {},
+): WholeVideoProductionProvider[] {
   const providers: WholeVideoProductionProvider[] = [];
+  if (options.includeCertification && options.runtimeConfig?.certificationVideoProviderUrl) {
+    providers.push(new ReferenceCharacterVideoProductionProvider({
+      baseUrl: options.runtimeConfig.certificationVideoProviderUrl,
+      token: options.runtimeConfig.certificationVideoProviderToken,
+      descriptorId: 'director-certification-smoke',
+      descriptorName: 'Director Certification Smoke Renderer',
+      costClass: 'free-local',
+    }));
+  }
   const comfyReferenceWorkflow = parseReferenceComfyWorkflow();
   if (process.env.DIRECTOR_COMFYUI_URL && comfyReferenceWorkflow) {
     providers.push(new ComfyUIReferenceVideoProductionProvider({
