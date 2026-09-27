@@ -3,6 +3,7 @@ import type { Observation } from '@jhadina/director-core/observation-bus';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { createSupabaseStudyObservationStore } from '@/lib/director-study-observation-store';
 import { reconcileDirectorProcessReplicationJobs } from '@/lib/director-process-replication-reconciler';
+import { loadDirectorRuntimeConfig } from '@/lib/director-runtime-config';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -52,7 +53,10 @@ function parseObservation(studyId:string,raw:unknown,index:number):Observation{
 }
 
 export async function POST(request:Request){
-  const expected=process.env.JHADINA_DIRECTOR_STUDY_WORKER_TOKEN?.trim();
+  const client=createServiceRoleClient();
+  if(!client) return NextResponse.json({ok:false,error:'DIRECTOR_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED'},{status:503});
+  const runtimeConfig=await loadDirectorRuntimeConfig(client);
+  const expected=process.env.JHADINA_DIRECTOR_STUDY_WORKER_TOKEN?.trim() || runtimeConfig.studyWorkerToken;
   if(!expected||request.headers.get('authorization')!==`Bearer ${expected}`){
     return NextResponse.json({ok:false},{status:401});
   }
@@ -66,9 +70,6 @@ export async function POST(request:Request){
   if(!studyId||!replicationJobId||!status){
     return NextResponse.json({ok:false,error:'DIRECTOR_STUDY_CALLBACK_FIELDS_REQUIRED'},{status:400});
   }
-
-  const client=createServiceRoleClient();
-  if(!client) return NextResponse.json({ok:false,error:'DIRECTOR_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED'},{status:503});
 
   const {data:job,error:jobError}=await client.from('director_process_replication_jobs')
     .select('id,study_ids').eq('id',replicationJobId).maybeSingle();
