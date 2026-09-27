@@ -4721,3 +4721,19 @@ asked.
 5. Step 9: close the Evolution/Builder loop.
 6. Not started, per explicit instruction: Music, TV, Social, Meta Ads,
    Stocks, Bitcoin, Betting, Mining, Overage, Notifications, Voice.
+
+
+---
+
+## JHADINA COMPUTE CLOUD — CLOUD.1: UNIFIED AI RESOURCE CONTROL PLANE
+
+**Priority:** P0
+**Status:** REVIEW
+**Branch:** `feat/jhadina-compute-cloud-1`
+**Objective:** Establish one provider-neutral compute/resource control plane for Jhadina workloads so Director, Social/Growth ads, PupsonStuff/POD, JLLM, voice/Foley, 3D and memory maintenance share the same CPU/GPU/RAM/VRAM/NVMe/storage scheduling vocabulary instead of creating parallel queues or execution authorities.
+**Dependencies:** Existing Director durable generation task/execution boundary, existing Jhadina governance/action boundary, existing memory authority.
+**Architecture decision:** Kubernetes/K3s owns node lifecycle and container placement; NVIDIA GPU Operator/device plugins expose GPU resources; Kueue owns quota/admission/priority classes; Ray/KubeRay is an optional distributed execution backend for workloads that actually benefit from multi-node GPU execution. Existing Supabase/Postgres records remain the durable business/job authority. Ceph is the planned durable bulk/object/block/file store; node-local NVMe is cache/scratch, never the sole copy of an approved asset. Seafile/rclone are management/federation layers, not execution authorities.
+**Definition of Done:** A typed `@jhadina/compute-core` contract can describe AI/media workloads and node capabilities; a deterministic planner rejects impossible placements and ranks eligible nodes using locality, accelerator fit, memory headroom and queue priority without inventing policy authority; workload classes cover interactive LLM/character, image/ad, video, Foley/audio, render/FFmpeg, 3D, training and memory/index maintenance; cloud-burst is explicit opt-in metadata rather than an automatic side effect; architecture documentation maps existing Director/PupsonStuff/services onto the shared plane; deployment templates define namespaces, priority classes and Kueue resource flavors/queues without claiming a real cluster is live.
+**Human gate:** Provisioning or spending on real cloud GPUs, changing production provider credentials, or moving private assets off Homebase requires explicit user authorization and the existing policy/approval path.
+**Verification:** Package type-check/tests; manifest/schema review; repo-wide checks where feasible.
+**Architectural impact:** Adds a scheduling/resource vocabulary only. Does not create a second memory system, second action executor, second audit ledger, or second durable generation authority.
