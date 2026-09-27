@@ -331,3 +331,147 @@ SPORT-PRED.FINAL SOFTWARE COMPLETE
 This is deliberate. The system fails closed rather than fabricating a profitable
 sports-prediction history or upgrading a paper/shadow result into live betting
 authority.
+
+
+## Research-source enrichment — NFL props + soccer props
+
+Two September 2026 YouTube sources were audited as research inputs:
+
+- VSiN / John Hansen: *I Analyzed Every Falcons vs Packers Prop — Here’s 5 Props That I LOVE (as a Prop Betting Expert)*.
+- Maikito: *5-1 PLAYER PROP DAY My Best FIFA/Soccer bets, player props, moneylines for today September 27th 9/27*.
+
+The system does **not** import their picks or confidence as truth. It extracts reusable variables and decision mechanics that can be forward-tested.
+
+### American-football matchup mechanics
+
+The NFL source repeatedly uses:
+
+- defensive coverage-shell rates such as two-high, single-high and Cover 3;
+- player yards-per-route-run against specific coverage families;
+- snap share and route participation;
+- target/role concentration after injuries;
+- opponent position-specific allowed production;
+- offensive-line injuries;
+- game-script reasoning for rush attempts versus rushing yards;
+- line movement between an earlier number and the current number;
+- receptions versus receiving-yard markets as different distributions;
+- longest-reception / plus-money specials as tail events;
+- public-handle splits as market context.
+
+These are now supported through:
+
+- `COVERAGE_SHELL`;
+- `OPPORTUNITY_SHARE`;
+- `GAME_SCRIPT`;
+- `TAIL_EVENT_RATE`;
+- `MARKET_CONTEXT`; and
+- `AmericanFootballMatchupContext`.
+
+A coverage profile must sum to 10000 bps and preserve source evidence. Coverage-specific efficiency is a feature, not a universal betting rule.
+
+### Soccer role and opportunity mechanics
+
+The soccer source repeatedly uses:
+
+- expected possession;
+- opponent possession conceded;
+- player shots per 90;
+- formation/role changes;
+- injuries reallocating offensive responsibility;
+- penalty/free-kick/set-piece duty;
+- projected minutes;
+- substitution risk;
+- confirmed versus projected lineups;
+- goalkeeper/pass-volume dependence on game state;
+- player-fantasy composite scoring markets;
+- line bumps between publication and later availability.
+
+These are now supported through:
+
+- `EXPECTED_POSSESSION`;
+- `FORMATION_ROLE`;
+- `SET_PIECE_ROLE`;
+- `PROJECTED_MINUTES`;
+- `SUBSTITUTION_RISK`;
+- `LINEUP_STATUS`; and
+- `SoccerPlayerRoleContext`.
+
+A player marked OUT cannot carry nonzero projected minutes. Bench status cannot silently be modeled as a full 90-minute role.
+
+### Exact market semantics
+
+`sports-market-semantics.ts` distinguishes:
+
+- count thresholds;
+- yardage thresholds;
+- longest-event thresholds;
+- composite fantasy-score thresholds;
+- binary events.
+
+Composite markets must retain the exact provider scoring-rule version and per-stat weights. A generic expected fantasy score cannot substitute for the provider's actual scoring formula.
+
+Longest-reception and other tail-event markets require a full distribution. A mean-only yardage projection cannot be used to justify a longest-play threshold.
+
+Line/price movement is retained as:
+
+```text
+MARKET_OBSERVATION_ONLY
+```
+
+A move from 43.5 to 45.5, or a change from -110 to -125, may show the market became more expensive. It does not by itself prove sharp money, bookmaker intent or predictive correctness.
+
+### Pre-lineup and post-lineup forecasts
+
+`sports-prediction-revision-lineage.ts` preserves separate prediction envelopes when new information arrives.
+
+Examples:
+
+```text
+early projected lineup prediction
+    ↓ lineup confirmed / rotation discovered
+new information cutoff
+    ↓
+new prediction envelope
+```
+
+The earlier envelope remains in history.
+
+A revision requires:
+
+- the same event and sport;
+- a strictly later information cutoff;
+- a strictly later issuance time;
+- explicit reason codes;
+- changed-evidence IDs;
+- the same model ID/version.
+
+A model-version change is not a revision. It starts a new experimental cohort.
+
+This prevents late lineup knowledge from overwriting the actual prediction that existed earlier.
+
+### Process quality does not rewrite results
+
+The soccer source describes a losing under as a play that "should have gone under" because the decisive shots came late.
+
+SPORT-PRED records that distinction without rewriting reality.
+
+`sports-prediction-process-review.ts` can label a record as:
+
+- GOOD_PROCESS_GOOD_RESULT;
+- GOOD_PROCESS_BAD_RESULT;
+- WEAK_PROCESS_GOOD_RESULT;
+- WEAK_PROCESS_BAD_RESULT; or
+- NON_DECISION_RESULT.
+
+Process evidence can include positive entry edge and closing-line value.
+
+But:
+
+```text
+nearMissCreditBps = 0
+canRewriteOutcome = false
+```
+
+A loss remains a loss in calibration, P&L and certification regardless of how close the result was.
+
+This lets Jhadina learn from process without introducing hindsight grading or creator-style "should have won" accounting.
