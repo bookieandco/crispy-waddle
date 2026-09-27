@@ -1,0 +1,60 @@
+name: SPORT-BET.FINAL Certification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packages/money-core/src/sports-bet-**'
+      - 'packages/money-core/src/sports-paper-betting.ts'
+      - 'packages/money-core/src/sports-prediction-**'
+      - 'packages/money-core/src/index.ts'
+      - 'packages/money-core/package.json'
+      - '.github/workflows/sport-bet-final-certification.yml'
+      - 'docs/architecture/SPORT-BET-FINAL-live-canary-shadow-certification.md'
+      - 'pnpm-lock.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/money-core/src/sports-bet-**'
+      - 'packages/money-core/src/sports-paper-betting.ts'
+      - 'packages/money-core/src/sports-prediction-**'
+      - 'packages/money-core/src/index.ts'
+      - 'packages/money-core/package.json'
+      - '.github/workflows/sport-bet-final-certification.yml'
+      - 'docs/architecture/SPORT-BET-FINAL-live-canary-shadow-certification.md'
+      - 'pnpm-lock.yaml'
+
+concurrency:
+  group: sport-bet-final-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    name: Type-check, SPORT-BET.FINAL, full Money regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+
+      - name: SPORT-BET.FINAL
+        run: pnpm --filter @jhadina/money-core verify:sport-bet-final
