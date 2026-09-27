@@ -50,7 +50,7 @@ function boundedDurations(input:unknown):number[]{
   return values;
 }
 
-async function loadRun(client:ReturnType<typeof createServiceRoleClient> extends infer T?Exclude<T,null>:never,runId:string):Promise<CertRun>{
+async function loadRun(client:SupabaseClient,runId:string):Promise<CertRun>{
   const {data,error}=await client.from('director_live_certification_runs').select('*').eq('id',runId).single();
   if(error) throw error;
   return data as CertRun;
@@ -79,7 +79,7 @@ async function launchVideoMatrix(client:SupabaseClient,run:CertRun,userId:string
     : undefined;
   if(!replication||replication.status!=='recipe_ready') return run;
 
-  const referenceUrl=`${providerBase.replace(/\/+$/,'')}/cert/reference.png`;
+  const referenceUrl=`${providerBase.replace(/\/+$/,'')}/reference`;
   const referenceResponse=await fetch(referenceUrl,{cache:'no-store'});
   if(!referenceResponse.ok) throw new Error(`DIRECTOR_LIVE_CERT_REFERENCE_FAILED:${referenceResponse.status}`);
   const referenceBytes=new Uint8Array(await referenceResponse.arrayBuffer());
@@ -209,7 +209,7 @@ async function storedMeasuredDuration(client:SupabaseClient,asset:{uri?:string})
   return readDirectorCertificationMp4Duration(bytes);
 }
 
-async function advanceRun(client:SupabaseClient,run:CertRun,userId:string,providerBase:string,providerToken:string){
+async function advanceRun(client:SupabaseClient,run:CertRun,userId:string,providerBase:string){
   let current=run;
   if(!current.replication_job_id) throw new Error('DIRECTOR_LIVE_CERT_REPLICATION_JOB_MISSING');
   const replication=await advanceAskProcessReplicationJob(userId,current.replication_job_id);
@@ -343,7 +343,6 @@ export async function POST(request:Request){
         await loadRun(client,runId),
         config.certificationUserId!,
         config.certificationVideoProviderUrl!,
-        config.certificationVideoProviderToken!,
       );
       return NextResponse.json({ok:true,run:advanced});
     }
@@ -354,7 +353,6 @@ export async function POST(request:Request){
       await loadRun(client,body.runId.trim()),
       config.certificationUserId!,
       config.certificationVideoProviderUrl!,
-      config.certificationVideoProviderToken!,
     );
     return NextResponse.json({ok:true,run:advanced});
   }catch(cause){
