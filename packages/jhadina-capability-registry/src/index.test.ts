@@ -64,7 +64,7 @@ describe('Capability runtime state', () => {
     }),/LIVE_RUNTIME_EVIDENCE/);
     registry.setRuntimeStatus({
       capabilityName:'director.render',subsystemId:'director',state:'ready',updatedAt:'2026-09-26T00:00:01Z',
-      evidence:[{id:'live-1',source:'homebase-worker',observedAt:'2026-09-26T00:00:01Z',kind:'live-runtime',summary:'real render completed'}],
+      evidence:[{id:'live-1',source:'homebase-worker',observedAt:'2026-09-26T00:00:01Z',expiresAt:'2026-09-26T00:05:01Z',kind:'live-runtime',summary:'real render completed'}],
     });
     assert.equal(registry.runtimeState('director.render'),'ready');
   });
@@ -96,7 +96,7 @@ describe('Subsystem runtime projection',()=>{
     registry.register({name:'sam.refresh',description:'refresh notices',risk:'external',version:1,subsystemId:'sam'});
     registry.setRuntimeStatus({
       capabilityName:'sam.read',state:'ready',updatedAt:'2026-09-27T00:00:00Z',
-      evidence:[{id:'live-read',source:'prod',observedAt:'2026-09-27T00:00:00Z',kind:'live-runtime',summary:'read succeeded'}],
+      evidence:[{id:'live-read',source:'prod',observedAt:'2026-09-27T00:00:00Z',expiresAt:'2026-09-27T00:10:00Z',kind:'live-runtime',summary:'read succeeded'}],
     });
     registry.setRuntimeStatus({
       capabilityName:'sam.refresh',state:'blocked',reason:'scheduler unavailable',updatedAt:'2026-09-27T00:00:00Z',evidence:[],
@@ -113,8 +113,8 @@ describe('Subsystem runtime projection',()=>{
       evidence:[{id:'live-1',source:'worker',observedAt:'2026-09-27T00:00:00Z',kind:'live-runtime',summary:'rendered',expiresAt:'2026-09-27T00:10:00Z'}],
     });
     const projection=buildSubsystemRuntimeProjection(registry,'director','2026-09-27T00:11:00Z');
-    assert.equal(projection.state,'unknown');
-    assert.equal(projection.capabilities[0]?.reason,'runtime evidence expired');
+    assert.equal(projection.state,'degraded');
+    assert.equal(projection.capabilities[0]?.reason,'LIVE_RUNTIME_EVIDENCE_EXPIRED');
   });
 });
 
@@ -133,7 +133,7 @@ describe('Capability runtime persistence',()=>{
 
   const ready:CapabilityRuntimeStatus={
     capabilityName:'director.render',state:'ready',updatedAt:'2026-09-27T00:00:01Z',
-    evidence:[{id:'live-1',source:'worker',observedAt:'2026-09-27T00:00:01Z',kind:'live-runtime',summary:'real render completed'}],
+    evidence:[{id:'live-1',source:'worker',observedAt:'2026-09-27T00:00:01Z',expiresAt:'2026-09-27T00:05:01Z',kind:'live-runtime',summary:'real render completed'}],
   };
 
   it('persists only after canonical READY evidence validation',async()=>{
@@ -161,5 +161,50 @@ describe('Capability runtime persistence',()=>{
     repository.statuses.set('director.render',ready);
     await hydrateCapabilityRuntimeStatuses(registry,repository);
     assert.equal(registry.runtimeState('director.render'),'ready');
+  });
+});
+
+
+describe('Capability runtime freshness admission',()=>{
+  it('requires explicit unexpired live evidence for READY',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'director.live',description:'live render',risk:'external',version:1});
+    assert.throws(()=>registry.setRuntimeStatus({
+      capabilityName:'director.live',state:'ready',updatedAt:'2026-09-27T00:00:01Z',
+      evidence:[{id:'live',source:'worker',observedAt:'2026-09-27T00:00:00Z',kind:'live-runtime',summary:'worked once'}],
+    }),/FRESH_EXPIRING_LIVE_RUNTIME_EVIDENCE/);
+  });
+
+  it('keeps explicit blocked state fail-closed after evidence expiry',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'sam.submit',description:'submit',risk:'external',version:1});
+    registry.setRuntimeStatus({
+      capabilityName:'sam.submit',state:'blocked',reason:'credential missing',updatedAt:'2026-09-27T00:00:01Z',
+      evidence:[{id:'block',source:'runtime',observedAt:'2026-09-27T00:00:00Z',expiresAt:'2026-09-27T00:01:00Z',kind:'infrastructure',summary:'credential absent'}],
+    });
+    const effective=registry.effectiveRuntimeStatus('sam.submit','2026-09-27T01:00:00Z');
+    assert.equal(effective.state,'blocked');
+    assert.equal(effective.staleEvidence.length,1);
+  });
+
+  it('returns unknown effective state when no runtime status has been recorded',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'sports.watch',description:'watch',risk:'read',version:1,subsystemId:'sports'});
+    const effective=registry.effectiveRuntimeStatus('sports.watch','2026-09-27T00:00:00Z');
+    assert.equal(effective.state,'unknown');
+    assert.equal(effective.reason,'NO_RUNTIME_STATUS_RECORDED');
+  });
+
+  it('rejects future-dated and invalid-expiry evidence',()=>{
+    const registry=new CapabilityRegistry();
+    registry.register({name:'x.read',description:'x',risk:'read',version:1});
+    assert.throws(()=>registry.setRuntimeStatus({
+      capabilityName:'x.read',state:'degraded',updatedAt:'2026-09-27T00:00:00Z',
+      evidence:[{id:'future',source:'runtime',observedAt:'2026-09-27T00:00:01Z',kind:'infrastructure',summary:'future'}],
+    }),/EVIDENCE_FROM_FUTURE/);
+    assert.throws(()=>registry.setRuntimeStatus({
+      capabilityName:'x.read',state:'degraded',updatedAt:'2026-09-27T00:00:02Z',
+      evidence:[{id:'bad-expiry',source:'runtime',observedAt:'2026-09-27T00:00:01Z',expiresAt:'2026-09-27T00:00:01Z',kind:'infrastructure',summary:'bad'}],
+    }),/EXPIRY_ORDER_INVALID/);
   });
 });

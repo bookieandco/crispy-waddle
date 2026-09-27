@@ -317,6 +317,43 @@ export async function reconcileWorkSessionTaskReadiness(
   return Object.freeze(promoted);
 }
 
+/**
+ * Select and atomically claim the next compatible task for a worker.
+ * Capability matching is scheduling metadata only; the lease never grants
+ * Action Core authority.
+ */
+export async function claimNextReadyWorkSessionTask(
+  repository:LeaseableWorkSessionTaskRepository,
+  input:{
+    workSessionId:string;
+    workerId:string;
+    leaseMs:number;
+    ownerUserId?:string;
+    capabilityNames?:readonly string[];
+  },
+):Promise<WorkSessionTask|null>{
+  if(!input.workerId.trim())throw new Error('WORK_SESSION_TASK_WORKER_REQUIRED');
+  if(!Number.isFinite(input.leaseMs)||input.leaseMs<1)throw new Error('WORK_SESSION_TASK_LEASE_INVALID');
+  await reconcileWorkSessionTaskReadiness(repository,input.workSessionId);
+  const allowed=input.capabilityNames?new Set(input.capabilityNames.map(value=>value.trim()).filter(Boolean)):null;
+  const now=Date.now();
+  const candidates=(await repository.list(input.workSessionId))
+    .filter(task=>!input.ownerUserId||task.ownerUserId===input.ownerUserId)
+    .filter(task=>!allowed||allowed.has(task.capability))
+    .filter(task=>task.attempt<task.maxAttempts)
+    .filter(task=>
+      task.status==='ready'||
+      task.status==='retrying'||
+      (task.status==='running'&&!!task.leaseExpiresAt&&Date.parse(task.leaseExpiresAt)<=now)
+    )
+    .sort((a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id));
+  for(const task of candidates){
+    const claimed=await repository.claimReady(input.workSessionId,task.id,input.workerId,input.leaseMs);
+    if(claimed)return claimed;
+  }
+  return null;
+}
+
 function uniqueStrings(values:readonly string[]):readonly string[]{
   return Object.freeze([...new Set(values.map(value=>value.trim()).filter(Boolean))]);
 }
