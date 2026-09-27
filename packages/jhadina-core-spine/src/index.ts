@@ -83,5 +83,7 @@ export * from './voice-runtime.js';
 export * from './work-session.js';
 export * from './work-session-lease.js';
 export * from './runtime-attention.js';
+export * from './runtime-work-projection.js';
+export * from './work-session-lineage.js';
 
 export * from './universal-artifact-core.js';
