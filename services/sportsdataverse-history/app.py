@@ -62,20 +62,37 @@ def _infer_league(query: str) -> str | None:
     return None
 
 
-def _extract_entity_name(query: str, league: str | None) -> str:
+def _extract_entity_name(query: str, league: str | None, stat_keys: Iterable[str] = ()) -> str:
     value = query
+    for key in stat_keys:
+        phrase = re.sub(r"[_\\-]+", " ", str(key)).strip()
+        if phrase:
+            value = re.sub(r"\\b" + re.escape(phrase) + r"\\b", " ", value, flags=re.I)
+    for phrase in (
+        "3pt",
+        "3 pointer",
+        "3 pointers",
+        "three pointer",
+        "three pointers",
+        "3 point field goals",
+        "3 point attempts",
+        "three point attempts",
+        "field goals",
+        "free throws",
+    ):
+        value = re.sub(r"\\b" + re.escape(phrase) + r"\\b", " ", value, flags=re.I)
     removable = [
-        r"\b(show|give|tell)\s+me\b",
-        r"\b(all[- ]time|career|historical|history|stats?|statistics|gamelog|game log|splits?)\b",
-        r"\b(last\s+\d+|playoffs?|postseason|regular season|home|away)\b",
-        r"\b(vs\.?|versus|against)\s+.+$",
-        r"\b(in|for|on)\s+the\b",
+        r"\\b(show|give|tell)\\s+me\\b",
+        r"\\b(all[- ]time|career|historical|history|stats?|statistics|gamelog|game log|splits?)\\b",
+        r"\\b(last\\s+\\d+|playoffs?|postseason|regular season|home|away)\\b",
+        r"\\b(vs\\.?|versus|against)\\s+.+$",
+        r"\\b(in|for|on)\\s+the\\b",
     ]
     for pattern in removable:
         value = re.sub(pattern, " ", value, flags=re.I)
     for phrase in sorted(LEAGUE_WORDS, key=len, reverse=True):
-        value = re.sub(r"\b" + re.escape(phrase) + r"\b", " ", value, flags=re.I)
-    value = re.sub(r"\s+", " ", value).strip(" ,.-")
+        value = re.sub(r"\\b" + re.escape(phrase) + r"\\b", " ", value, flags=re.I)
+    value = re.sub(r"\\s+", " ", value).strip(" ,.-")
     if league and value.lower() == league:
         return ""
     return value
@@ -208,7 +225,7 @@ def history_query(request: HistoryQuery) -> dict[str, Any]:
             detail="A supported league is required (for example NBA, NFL, MLB, NHL, WNBA, CFB, MBB, WBB, MLS or EPL).",
         )
 
-    entity_name = (request.entity_name or _extract_entity_name(raw_query, league)).strip()
+    entity_name = (request.entity_name or _extract_entity_name(raw_query, league, request.stat_keys)).strip()
     if not entity_name:
         raise HTTPException(status_code=422, detail="A player name is required.")
 
