@@ -1,0 +1,84 @@
+export type MoneyMovementKind='DEPOSIT'|'WITHDRAWAL'|'TRANSFER'
+export type MoneyMovementEnvironment='SANDBOX'|'LIVE'
+export type MoneyMovementState='QUOTED'|'PENDING'|'SUBMITTED'|'SETTLED'|'REJECTED'|'CANCELLED'|'UNKNOWN'
+
+export type FundingDestination=Readonly<{
+ destinationId:string
+ ownerUserId:string
+ provider:string
+ accountId:string
+ currency:string
+ verified:boolean
+ kind:'BANK'|'BROKER_CASH'|'CRYPTO_WALLET'
+ evidenceIds:readonly string[]
+}>
+
+export type MoneyMovementRequest=Readonly<{
+ movementId:string
+ kind:MoneyMovementKind
+ userId:string
+ cofferId:string
+ amountMinor:bigint
+ currency:string
+ sourceId:string
+ destinationId:string
+ idempotencyKey:string
+ requestedAt:string
+ standingMandateId?:string
+ authorityId:string
+ executionPermitId:string
+}>
+
+export type MoneyMovementQuote=Readonly<{
+ quoteId:string
+ movementId:string
+ provider:string
+ amountMinor:bigint
+ feeMinor:bigint
+ currency:string
+ expiresAt:string
+ evidenceIds:readonly string[]
+ authority:'QUOTE_ONLY'
+ canMoveMoney:false
+}>
+
+export type MoneyMovementReceipt=Readonly<{
+ movementId:string
+ provider:string
+ providerReference:string
+ state:MoneyMovementState
+ amountMinor:bigint
+ feeMinor:bigint
+ currency:string
+ observedAt:string
+ evidenceIds:readonly string[]
+}>
+
+export interface FundingRailAdapter{
+ readonly provider:string
+ readonly environment:MoneyMovementEnvironment
+ readonly capabilities:Readonly<{deposit:boolean;withdrawal:boolean;transfer:boolean}>
+ quote(request:MoneyMovementRequest):Promise<MoneyMovementQuote>
+ submit(request:MoneyMovementRequest,quote:MoneyMovementQuote):Promise<MoneyMovementReceipt>
+ getStatus(providerReference:string,now:string):Promise<MoneyMovementReceipt>
+}
+
+export class FundingRailRegistry{
+ private rows=new Map<string,FundingRailAdapter>()
+ register(adapter:FundingRailAdapter){
+  if(!adapter.provider)throw new Error('MONEY_LIVE1_FUNDING_PROVIDER_REQUIRED')
+  if(this.rows.has(adapter.provider))throw new Error('MONEY_LIVE1_FUNDING_PROVIDER_DUPLICATE')
+  this.rows.set(adapter.provider,adapter)
+ }
+ get(provider:string){const x=this.rows.get(provider);if(!x)throw new Error('MONEY_LIVE1_FUNDING_PROVIDER_NOT_REGISTERED:'+provider);return x}
+ list(){return Object.freeze([...this.rows.values()])}
+}
+
+export function assertMoneyMovementRequest(r:MoneyMovementRequest,input:{verifiedSource:FundingDestination;verifiedDestination:FundingDestination}){
+ if(r.amountMinor<=0n||!r.currency||!r.idempotencyKey||!r.authorityId||!r.executionPermitId)throw new Error('MONEY_LIVE1_MOVEMENT_INVALID')
+ if(!input.verifiedSource.verified||!input.verifiedDestination.verified)throw new Error('MONEY_LIVE1_MOVEMENT_DESTINATION_UNVERIFIED')
+ if(input.verifiedSource.ownerUserId!==r.userId||input.verifiedDestination.ownerUserId!==r.userId)throw new Error('MONEY_LIVE1_MOVEMENT_OWNER_MISMATCH')
+ if(input.verifiedSource.destinationId!==r.sourceId||input.verifiedDestination.destinationId!==r.destinationId)throw new Error('MONEY_LIVE1_MOVEMENT_BINDING_MISMATCH')
+ if(input.verifiedSource.currency!==r.currency||input.verifiedDestination.currency!==r.currency)throw new Error('MONEY_LIVE1_MOVEMENT_CURRENCY_MISMATCH')
+ if(!input.verifiedSource.evidenceIds.length||!input.verifiedDestination.evidenceIds.length)throw new Error('MONEY_LIVE1_MOVEMENT_EVIDENCE_REQUIRED')
+}
