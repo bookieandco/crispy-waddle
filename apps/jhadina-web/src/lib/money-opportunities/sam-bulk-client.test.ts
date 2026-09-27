@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { certifySamBulkCoverageRange, samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
+import { certifySamBulkCoverageRange, samBulkNdjsonLine, samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
 
 function responseFromChunks(chunks:string[]){
   const encoder=new TextEncoder()
@@ -39,7 +39,7 @@ describe('SAM public bulk snapshot',()=>{
   it('writes a true NDJSON record terminator for spool persistence',()=>{
     const line=samBulkNdjsonLine({noticeId:'N-1'})
     expect(line).toBe('{"noticeId":"N-1"}\n')
-    expect(line.split('\n').filter(Boolean).map(value=>JSON.parse(value))).toEqual([{noticeId:'N-1'}])
+    expect(line.split('\n').filter(Boolean).map((value:string)=>JSON.parse(value))).toEqual([{noticeId:'N-1'}])
   })
 
   it('rejects a source that never exposes the required SAM headers',async()=>{
