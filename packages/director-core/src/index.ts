@@ -168,3 +168,5 @@ export * from './generation-audio-intent';
 export * from './scene-attempt-budget';
 
 export * from './production-foundry';
+
+export * from './compute-workload';
