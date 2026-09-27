@@ -11,7 +11,6 @@ import {
 } from '@jhadina/director-core/whole-video-provider';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { createConfiguredWholeVideoProviders } from '@/lib/director-whole-video-providers';
-import { loadDirectorRuntimeConfig } from '@/lib/director-runtime-config';
 import {
   evaluateRehearsalTake,
   rehearsalGraduationReceipt,
@@ -357,13 +356,8 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
     job=await updateJob(client,job.id,{spec:nextSpec,current_phase:'rehearsal-approved'});
   }
 
-  const runtimeConfig = input.certification ? await loadDirectorRuntimeConfig(client) : {};
   const provider = selectWholeVideoProvider(createConfiguredWholeVideoProviders({
     includeCertification: Boolean(input.certification),
-    runtimeConfig: {
-      certificationVideoProviderUrl: runtimeConfig.certificationVideoProviderUrl,
-      certificationVideoProviderToken: runtimeConfig.certificationVideoProviderToken,
-    },
   }), intent, {
     characterReference: Boolean(input.referenceCharacter),
     productReference: Boolean(input.referenceProduct),
