@@ -25,6 +25,12 @@ export interface CapabilityRuntimeStatus {
   readonly updatedAt:string;
 }
 
+export interface CapabilityRuntimeStatusRepository {
+  get(capabilityName:string):Promise<CapabilityRuntimeStatus|undefined>;
+  list():Promise<readonly CapabilityRuntimeStatus[]>;
+  save(status:CapabilityRuntimeStatus):Promise<void>;
+}
+
 export function buildSubsystemSurface(registry:CapabilityRegistry,subsystemId:string):JhadinaSubsystemSurface {
   const capabilities=registry.list().filter(item=>item.subsystemId===subsystemId);
   const buckets:Record<JhadinaCapabilityVerb,string[]>={observe:[],read:[],analyze:[],plan:[],propose:[],execute:[]};
@@ -204,4 +210,31 @@ function aggregateRuntimeState(states:readonly CapabilityRuntimeState[]):Capabil
   if(states.length===0)return 'unknown';
   const precedence:readonly CapabilityRuntimeState[]=['blocked','disabled','degraded','paper-only','simulation-only','unknown','ready'];
   return precedence.find(state=>states.includes(state))??'unknown';
+}
+
+
+/**
+ * Load persisted runtime truth through the canonical registry validation rules.
+ * Persistence cannot bypass READY/live-evidence or subsystem-consistency checks.
+ */
+export async function hydrateCapabilityRuntimeStatuses(
+  registry:CapabilityRegistry,
+  repository:CapabilityRuntimeStatusRepository,
+):Promise<void>{
+  for(const status of await repository.list())registry.setRuntimeStatus(status);
+}
+
+/**
+ * Validate first, persist second, then leave the registry holding the same
+ * normalized state that callers see. Persistence grants no execution authority.
+ */
+export async function persistCapabilityRuntimeStatus(
+  registry:CapabilityRegistry,
+  repository:CapabilityRuntimeStatusRepository,
+  status:CapabilityRuntimeStatus,
+):Promise<void>{
+  registry.setRuntimeStatus(status);
+  const normalized=registry.getRuntimeStatus(status.capabilityName);
+  if(!normalized)throw new Error('CAPABILITY_RUNTIME_STATUS_NORMALIZATION_FAILED');
+  await repository.save(normalized);
 }
