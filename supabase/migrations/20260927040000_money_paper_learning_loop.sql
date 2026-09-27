@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS money_paper_autopilot_settings (
   maximum_concurrent_positions INTEGER NOT NULL CHECK (
     maximum_concurrent_positions BETWEEN 1 AND 100
   ),
+  risk_fraction_bps INTEGER NOT NULL CHECK (risk_fraction_bps BETWEEN 1 AND 200),
   stop_loss_bps INTEGER NOT NULL CHECK (stop_loss_bps BETWEEN 1 AND 5000),
   take_profit_bps INTEGER NOT NULL CHECK (take_profit_bps BETWEEN 1 AND 10000),
   allow_opening_shorts BOOLEAN NOT NULL DEFAULT FALSE CHECK (allow_opening_shorts = FALSE),
