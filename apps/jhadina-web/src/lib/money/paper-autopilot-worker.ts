@@ -107,7 +107,7 @@ export async function runMoneyPaperAutopilotCycle(
         marginEnabled:false,
         slippageBps:5,
         requireProtectiveExitPlan:true,
-        maximumRiskPerTradeBps:Math.min(settings.stopLossBps,1000),
+        maximumRiskPerTradeBps:settings.riskFractionBps,
         warmupExecutionCount:10,
       })
       const window=priorDayWindow(ranAt)
@@ -152,7 +152,15 @@ export async function runMoneyPaperAutopilotCycle(
             ? (current.marketValueMinor<0n?-current.marketValueMinor:current.marketValueMinor).toString()
             : settings.baseOrderNotionalMinor
           const quotePrice=side==="SELL"?positiveMinorFromPrice(bundle.quote.bidPrice):positiveMinorFromPrice(bundle.quote.askPrice)
-          const draftNotional=scaled(requestedBase,settings.mode==="PAPER_AUTO_REDUCED"?2500:10000,settings.maxOrderNotionalMinor,account.buyingPowerMinor)
+          const equityMinor=profile.startingEquityMinor
+          const riskBudgetMinor=equityMinor*BigInt(settings.riskFractionBps)/10000n
+          const riskSizedNotional=side==="BUY"
+            ? riskBudgetMinor*10000n/BigInt(settings.stopLossBps)
+            : BigInt(requestedBase)
+          const draftNotional=[
+            scaled(requestedBase,settings.mode==="PAPER_AUTO_REDUCED"?2500:10000,settings.maxOrderNotionalMinor,account.buyingPowerMinor),
+            riskSizedNotional,
+          ].reduce((a,b)=>a<b?a:b)
           const maxLoss=draftNotional*BigInt(settings.stopLossBps)/10000n
           const realism=assessPaperRealism({
             profile,currentEquityMinor:profile.startingEquityMinor,requestedNotionalMinor:draftNotional,
@@ -176,7 +184,10 @@ export async function runMoneyPaperAutopilotCycle(
             paperOrdersSkipped++;continue
           }
 
-          const notional=scaled(requestedBase,autopilot.notionalMultiplierBps,settings.maxOrderNotionalMinor,account.buyingPowerMinor)
+          const notional=[
+            scaled(requestedBase,autopilot.notionalMultiplierBps,settings.maxOrderNotionalMinor,account.buyingPowerMinor),
+            side==="BUY"?riskSizedNotional:BigInt(requestedBase),
+          ].reduce((a,b)=>a<b?a:b)
           if(notional<=0n){paperOrdersSkipped++;continue}
           const stop=side==="BUY"
             ? quotePrice*(10000n-BigInt(settings.stopLossBps))/10000n
