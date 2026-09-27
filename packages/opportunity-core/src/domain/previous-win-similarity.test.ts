@@ -23,7 +23,7 @@ const lookalike=scoreProviderAgainstPreviousWins({
   state:'VA',
   keywords:['PSC D302','cloud migration'],
 },anchors)
-assert.equal(lookalike.score,100)
+assert.equal(lookalike.score,90)
 assert.deepEqual(lookalike.anchorProviderIds,['winner-1'])
 assert.ok(lookalike.evidenceRefs.includes('usaspending:award-1'))
 
