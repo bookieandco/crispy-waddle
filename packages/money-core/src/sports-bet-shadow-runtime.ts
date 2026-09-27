@@ -166,7 +166,7 @@ export function certifySportsBetShadowSoak(input:{evidence:SportsBetShadowSoakEv
   if(e.authorityEscalationCount>c.maximumAuthorityEscalationCount)reasons.push('AUTHORITY_ESCALATION_DETECTED')
   const insufficient=reasons.some(x=>x==='DECISION_SAMPLE_TOO_SMALL'||x==='RESOLVED_SAMPLE_TOO_SMALL'||x==='FORWARD_DURATION_TOO_SHORT'||x==='RESOLUTION_RATE_LOW')
   let status:SportsBetShadowSoakCertification['status']
-  if(e.sourceClass==='SYNTHETIC_TEST')status='SOFTWARE_ONLY'
+  if(e.sourceClass==='SYNTHETIC_TEST')status=reasons.length?'REJECTED':'SOFTWARE_ONLY'
   else if(!reasons.length)status='SHADOW_CERTIFIED'
   else if(insufficient)status='INSUFFICIENT_FORWARD_EVIDENCE'
   else status='REJECTED'
