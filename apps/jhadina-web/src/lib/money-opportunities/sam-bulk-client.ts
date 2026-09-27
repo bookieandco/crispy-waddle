@@ -10,6 +10,7 @@ export type SamBulkStreamReceipt = {
   bytes: number
   sourceRows: number
   headers: string[]
+  lastModified?: string
 }
 
 type CsvState = {
@@ -194,6 +195,7 @@ export async function streamSamBulkRows(input: {
     bytes,
     sourceRows,
     headers,
+    lastModified: response.headers.get('last-modified') ?? undefined,
   }
 }
 
