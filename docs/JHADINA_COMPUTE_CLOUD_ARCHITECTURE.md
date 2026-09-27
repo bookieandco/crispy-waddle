@@ -285,3 +285,73 @@ CLOUD.1 is source-level architecture and deterministic scheduling logic.
 It does not certify any physical cluster as live. Live certification requires
 actual node inventory, GPU drivers, K3s/Kubernetes health, storage health,
 real workload execution and failure/recovery tests on the hardware.
+
+
+## CLOUD.3 data-path model
+
+The new storage planner treats **durable primary storage** and **acceleration
+cache/mounts** as separate decisions.
+
+This is required for AI/media workloads because the fastest copy is frequently
+not the authoritative copy:
+
+- local NVMe may be the fastest place to land a checkpoint;
+- a workstation sparse cache may be the fastest place to scrub an edit;
+- RAM/NVMe may be the fastest place to load model weights;
+- a remote media service may be the easiest place to collaborate with a client;
+
+but those do not replace the durable Jhadina asset/provenance record.
+
+### AI lifecycle
+
+Storage is planned by lifecycle:
+
+1. **PREPARE** — durable object-oriented capacity and ingest throughput.
+2. **TRAIN** — choose large/sequential object+cache or shared POSIX/RWX according
+   to actual I/O shape; use fast local checkpoint landing plus durable flush.
+3. **SERVE** — immutable model versions with prefetch/pinning into node-local
+   cache before traffic.
+4. **ARCHIVE** — durable write-once/read-rarely storage optimized for capacity.
+
+### Media lifecycle
+
+Media uses a parallel access lifecycle:
+
+1. **INGEST** — durable landing followed by proxy/index work.
+2. **EDIT** — seek/range reads with local sparse/read-through cache and optional
+   offline pinning.
+3. **REVIEW** — proxy/version/annotation access under Director review authority.
+4. **DELIVERY** — controlled export/share copies; never the canonical asset
+   authority.
+
+### Human/editor mounted access
+
+No single client is treated as the storage authority.
+
+- **SeaDrive** is the private human-facing virtual drive for Seafile libraries,
+  on-demand file access and explicit offline pinning.
+- **rclone VFS** is the provider-neutral media bridge where sparse partial-file
+  caching, read-ahead and chunked parallel reads are useful.
+- **CephFS** is preferred for local/trusted high-performance shared POSIX access.
+- **Shade** can be configured through rclone as an optional external
+  media/collaboration provider after an explicit privacy/cost decision. It is
+  disabled by default and cannot become the sole provenance/integrity source.
+
+The product-facing concept may be called a **Jhadina Media Mount**, but it is an
+abstraction over approved providers rather than a new proprietary filesystem.
+
+### External-storage safeguards
+
+External storage is not a pressure-release valve. Lack of Homebase capacity does
+not silently authorize external movement.
+
+A storage intent must explicitly permit external storage and still pass privacy
+and cost policy. Sensitive Director media, JLLM/character identity/voice data,
+PupsonStuff source pet images and Memory artifacts remain external-ineligible by
+default.
+
+Destructive remote operations are out of scope for the scheduler. Federation
+copy/sync/delete stays behind a separate governed action boundary.
+
+See `docs/JHADINA_CLOUD_STORAGE_REFERENCE_AUDIT_2026-09-26.md` for the detailed
+reference synthesis and provider distinctions.
