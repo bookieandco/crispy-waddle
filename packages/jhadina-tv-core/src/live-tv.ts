@@ -38,6 +38,7 @@ export interface LiveChannelProvider {
   readonly name: string;
   listChannels(): Promise<LiveChannel[]>;
   getPrograms?(channelId: string, from?: string, to?: string): Promise<LiveProgram[]>;
+  getProgramsForChannels?(channelIds: string[], from?: string, to?: string): Promise<LiveProgram[]>;
 }
 
 export function assertLiveChannel(channel: LiveChannel): LiveChannel {
