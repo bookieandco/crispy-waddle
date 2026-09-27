@@ -80,3 +80,5 @@ export * from './domain/sam-market-coverage.js'
 export * from './domain/sam-operating-system.js'
 export * from './domain/sam-operating-context.js'
 export * from './domain/opportunity-factory-final.js'
+
+export * from './domain/previous-win-similarity.js'

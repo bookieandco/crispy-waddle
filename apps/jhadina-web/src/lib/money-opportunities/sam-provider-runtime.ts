@@ -1,10 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buildBrokerShortlist, evaluateSamSubcontractability, expandProviderTaxonomy, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
+import { buildBrokerShortlist, buildPreviousWinFingerprints, evaluateSamSubcontractability, expandProviderTaxonomy, scoreProviderAgainstPreviousWins, type BrokerProviderCandidate, type BrokerRequirement, type SubcontractabilityInput } from '@jhadina/opportunity-core'
 import { getSamApiKey } from './sam-config'
 import { samUpstreamConfigured, searchSamEntitiesViaUpstream } from './sam-upstream-client'
 import { searchCanadaImporterProviders, searchConfiguredCanadaOdbusProviders, searchDenueProviders } from './foreign-provider-sources'
 import { searchConfiguredFsisProviders, searchFmcsaProviders, shouldSearchFmcsa, shouldSearchFsis } from './us-food-logistics-provider-sources'
 import { searchExaCompanyProviders } from './exa-company-provider-source'
+import { parseSamAwardProviders, searchSamContractAwards } from './sam-award-client'
 
 const rows=(x:unknown):Record<string,unknown>[]=>Array.isArray(x)?x.filter((v):v is Record<string,unknown>=>Boolean(v&&typeof v==='object')):[]
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
@@ -57,12 +58,26 @@ async function usaSpendingProviders(search:{naicsCodes?:string[];pscCodes?:strin
     const uei=text(r['Recipient UEI'])
     const identity=uei?`uei:${uei.toUpperCase()}`:`name:${key(name)}`
     const existing=grouped.get(identity)
-    const evidence={id:`usaspending:${text(r['Award ID'])||key(name)}`,source:'usaspending' as const,url:'https://www.usaspending.gov/'}
     const naicsObj=r['NAICS']&&typeof r['NAICS']==='object'?(r['NAICS'] as Record<string,unknown>):{}
     const pscObj=r['PSC']&&typeof r['PSC']==='object'?(r['PSC'] as Record<string,unknown>):{}
     const awardNaics=text(naicsObj.code)||text(r['NAICS Code'])
     const awardPsc=text(pscObj.code)||text(r['PSC Code'])
     const description=text(r['Description'])||text(r['Award Description'])
+    const amountRaw=r['Award Amount']
+    const awardAmount=typeof amountRaw==='number'?amountRaw:Number(String(amountRaw??'').replace(/[$,]/g,''))
+    const evidence={
+      id:`usaspending:${text(r['Award ID'])||key(name)}`,
+      source:'usaspending' as const,
+      url:'https://www.usaspending.gov/',
+      details:{
+        awardId:text(r['Award ID'])||null,
+        awardingAgency:text(r['Awarding Agency'])||null,
+        naicsCode:awardNaics||null,
+        pscCode:awardPsc||null,
+        awardAmount:Number.isFinite(awardAmount)?awardAmount:null,
+        recipientUei:uei||null,
+      },
+    }
     if(existing){
       existing.awardCount=(existing.awardCount??0)+1
       existing.evidence.push(evidence)
@@ -84,6 +99,56 @@ async function usaSpendingProviders(search:{naicsCodes?:string[];pscCodes?:strin
   return [...grouped.values()]
 }
 type RuntimeProvider=BrokerProviderCandidate & {_uei?:string;_cage?:string}
+
+function apiDate(d:Date){
+  return `${String(d.getUTCMonth()+1).padStart(2,'0')}/${String(d.getUTCDate()).padStart(2,'0')}/${d.getUTCFullYear()}`
+}
+
+async function samAwardProvidersByUei(ueis:string[]):Promise<RuntimeProvider[]>{
+  const values=[...new Set(ueis.map(value=>value.trim().toUpperCase()).filter(Boolean))].slice(0,100)
+  if(!values.length)return[]
+  const end=new Date()
+  const start=new Date(Date.UTC(end.getUTCFullYear()-5,end.getUTCMonth(),end.getUTCDate()))
+  const body=await searchSamContractAwards({
+    awardeeUniqueEntityId:values.join('~'),
+    dateSigned:`[${apiDate(start)},${apiDate(end)}]`,
+    limit:100,
+    offset:0,
+    awardOrIDV:'Award',
+    includeSections:'contractId,coreData,awardDetails',
+  })
+  return parseSamAwardProviders(body).map(row=>({
+    id:`provider:award:${row.uei||key(row.providerName)}`,
+    legalName:row.providerName,
+    country:'USA',
+    naicsCodes:row.naicsCodes,
+    keywords:[
+      ...row.pscCodes.map(code=>`PSC ${code}`),
+      row.agency?`Agency ${row.agency}`:'',
+      row.setAside?`Set-aside ${row.setAside}`:'',
+      row.businessSize?`Business size ${row.businessSize}`:'',
+    ].filter(Boolean),
+    awardCount:1,
+    evidence:[{
+      id:`sam-award:${row.awardId}`,
+      source:'sam_award',
+      url:row.evidenceUrl,
+      details:{
+        awardId:row.awardId,
+        awardingAgency:row.agency??null,
+        contractingOffice:row.office??null,
+        naicsCodes:row.naicsCodes,
+        pscCodes:row.pscCodes,
+        awardAmount:row.awardAmount??null,
+        setAside:row.setAside??null,
+        businessSize:row.businessSize??null,
+        awardeeState:row.state??null,
+      },
+    }],
+    _uei:row.uei,
+    _cage:row.cage,
+  }))
+}
 
 async function samEntityRequest(params:Record<string,string>):Promise<Record<string,unknown>>{
   const apiKey=getSamApiKey()
@@ -217,6 +282,8 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
   let entityRequestsRemaining=Number.isFinite(requestedEntityBudget)?Math.max(0,Math.min(Math.floor(requestedEntityBudget),10)):2
   const requestedSpendingBudget=Number(process.env.USASPENDING_REQUEST_BUDGET_PER_ENRICHMENT??6)
   let spendingRequestsRemaining=Number.isFinite(requestedSpendingBudget)?Math.max(0,Math.min(Math.floor(requestedSpendingBudget),30)):6
+  const requestedAwardBudget=Number(process.env.SAM_AWARD_REQUEST_BUDGET_PER_ENRICHMENT??1)
+  let awardRequestsRemaining=Number.isFinite(requestedAwardBudget)?Math.max(0,Math.min(Math.floor(requestedAwardBudget),4)):1
   const requestedDenueBudget=Number(process.env.DENUE_SEARCH_BUDGET_PER_ENRICHMENT??2)
   let denueSearchesRemaining=Number.isFinite(requestedDenueBudget)?Math.max(0,Math.min(Math.floor(requestedDenueBudget),10)):2
   const requestedCanadaBudget=Number(process.env.CANADA_SEARCH_BUDGET_PER_ENRICHMENT??2)
@@ -403,6 +470,67 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
         pool=mergeProviderPools(pool,...requirementPools)
       }
 
+      const candidateUeis=[...new Set(
+        pool
+          .filter(provider=>Boolean(provider._uei))
+          .sort((a,b)=>(b.awardCount??0)-(a.awardCount??0)||a.legalName.localeCompare(b.legalName))
+          .map(provider=>provider._uei!)
+      )].slice(0,100)
+      if(candidateUeis.length&&awardRequestsRemaining>0){
+        awardRequestsRemaining-=1
+        try{pool=mergeProviderPools(pool,await samAwardProvidersByUei(candidateUeis))}
+        catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'SAM Contract Awards verification failed'}`)}
+      }
+
+      const previousWinAnchors=buildPreviousWinFingerprints(
+        pool
+          .filter(provider=>provider.evidence.some(evidence=>evidence.source==='usaspending'||evidence.source==='sam_award'))
+          .map(provider=>{
+            const awardEvidence=provider.evidence.filter(evidence=>evidence.source==='usaspending'||evidence.source==='sam_award')
+            const pscCodes=[...new Set(awardEvidence.flatMap(evidence=>{
+              const one=evidence.details?.pscCode
+              const many=evidence.details?.pscCodes
+              return [
+                ...(typeof one==='string'&&one.trim()?[one.trim()]:[]),
+                ...(Array.isArray(many)?many.filter((value):value is string=>typeof value==='string'&&value.trim().length>0):[]),
+              ]
+            }))]
+            const agencies=[...new Set(awardEvidence.flatMap(evidence=>{
+              const value=evidence.details?.awardingAgency
+              return typeof value==='string'&&value.trim()?[value.trim()]:[]
+            }))]
+            const amounts=awardEvidence.flatMap(evidence=>{
+              const value=evidence.details?.awardAmount
+              return typeof value==='number'&&Number.isFinite(value)?[value]:[]
+            })
+            return {
+              providerId:provider.id,
+              providerName:provider.legalName,
+              uei:provider._uei,
+              cage:provider._cage,
+              naicsCodes:provider.naicsCodes,
+              pscCodes,
+              agency:agencies[0],
+              awardAmount:amounts.length?Math.max(...amounts):undefined,
+              evidenceRefs:awardEvidence.map(evidence=>evidence.id),
+            }
+          }),
+      )
+      if(previousWinAnchors.length){
+        pool=pool.map(provider=>({
+          ...provider,
+          previousWinSimilarity:scoreProviderAgainstPreviousWins({
+            providerId:provider.id,
+            providerName:provider.legalName,
+            uei:provider._uei,
+            cage:provider._cage,
+            naicsCodes:provider.naicsCodes,
+            pscCodes:[],
+            keywords:provider.keywords,
+          },previousWinAnchors),
+        }))
+      }
+
       const awardUeis=pool.map(provider=>provider._uei).filter((value):value is string=>Boolean(value))
       if(awardUeis.length&&entityRequestsRemaining>0){
         entityRequestsRemaining-=1
@@ -418,7 +546,19 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
         const ext=p as RuntimeProvider
         const compliance=complianceBase?evaluateSamSubcontractability({...complianceBase,providerCountry:p.country}):null
         const finalStatus=compliance?.status==='blocked'?'blocked':compliance&&(compliance.status==='conditional'||compliance.status==='review_required')&&assessment.status==='candidate'?'review_required':assessment.status
-        const evidence=compliance?[...p.evidence,{id:`subcontractability:${noticeId}:${key(p.legalName)}`,source:'subcontractability',decision:compliance}]:p.evidence
+        const similarityEvidence=p.previousWinSimilarity&&p.previousWinSimilarity.score>0?[{
+          id:`previous-win-similarity:${noticeId}:${key(p.legalName)}`,
+          source:'previous_win_similarity',
+          details:{
+            score:p.previousWinSimilarity.score,
+            anchorProviderIds:p.previousWinSimilarity.anchorProviderIds,
+            anchorEvidenceRefs:p.previousWinSimilarity.evidenceRefs,
+            reasons:p.previousWinSimilarity.reasons,
+            advisoryOnly:true,
+          },
+        }]:[]
+        const baseEvidence=[...p.evidence,...similarityEvidence]
+        const evidence=compliance?[...baseEvidence,{id:`subcontractability:${noticeId}:${key(p.legalName)}`,source:'subcontractability',decision:compliance}]:baseEvidence
         inserts.push({
           notice_id:noticeId,requirement_id:group.intent.requirementId,provider_key:key(p.legalName),provider_name:p.legalName,
           country:p.country??null,uei:ext._uei??null,cage:ext._cage??null,naics_codes:p.naicsCodes,score:assessment.score,status:finalStatus,
@@ -433,5 +573,5 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
       notices+=1
     }catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'provider discovery failed'}`)}
   }
-  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,usaspending:spendingRequestsRemaining,exa:exaSearchesRemaining,exaForeign:foreignExaSearchesRemaining,fmcsa:fmcsaSearchesRemaining,fsis:fsisSearchesRemaining,denue:denueSearchesRemaining,canada:canadaSearchesRemaining}}
+  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,samAwards:awardRequestsRemaining,usaspending:spendingRequestsRemaining,exa:exaSearchesRemaining,exaForeign:foreignExaSearchesRemaining,fmcsa:fmcsaSearchesRemaining,fsis:fsisSearchesRemaining,denue:denueSearchesRemaining,canada:canadaSearchesRemaining}}
 }
