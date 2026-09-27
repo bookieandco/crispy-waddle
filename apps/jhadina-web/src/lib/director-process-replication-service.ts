@@ -69,6 +69,27 @@ export async function createAskProcessReplicationJob(input:{
   const studyIds=intent.sourceUrls.map((_,index)=>`study:${jobId}:${index}`);
   const now=new Date().toISOString();
 
+  const {data:memberships,error:membershipLookupError}=await client
+    .from('director_project_memberships')
+    .select('user_id,role')
+    .eq('project_id',projectId);
+  if(membershipLookupError) throw membershipLookupError;
+  const existingOwner=(memberships??[]).find((membership)=>membership.role==='owner');
+  if(existingOwner && existingOwner.user_id!==input.userId){
+    throw new Error('DIRECTOR_PROCESS_PROJECT_OWNED_BY_ANOTHER_USER');
+  }
+  const ownMembership=(memberships??[]).find((membership)=>membership.user_id===input.userId);
+  if(input.activeProject?.trim()){
+    if(!ownMembership || !['owner','editor'].includes(String(ownMembership.role))){
+      throw new Error('DIRECTOR_PROCESS_PROJECT_EDIT_AUTHORITY_REQUIRED');
+    }
+  }else{
+    const {error:membershipError}=await client.from('director_project_memberships').upsert({
+      project_id:projectId,user_id:input.userId,role:'owner',created_at:now,
+    },{onConflict:'project_id,user_id'});
+    if(membershipError) throw membershipError;
+  }
+
   for(let index=0;index<intent.sourceUrls.length;index+=1){
     const studyId=studyIds[index]!;
     const {error}=await client.from('director_studies').upsert({
