@@ -82,7 +82,6 @@ export type SportsPropLadderAssessment=Readonly<{
 
 const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex')
 const nonEmpty=(v:string,c:string)=>{if(!v.trim())throw new Error(c)}
-const iso=(v:string,c:string)=>{nonEmpty(v,c);if(Number.isNaN(Date.parse(v)))throw new Error(c)}
 const prob=(v:number,c:string)=>{if(!Number.isFinite(v)||v<=0||v>=1)throw new Error(c)}
 const signedBps=(v:number,c:string)=>{if(!Number.isInteger(v)||v<-10000||v>10000)throw new Error(c)}
 const unitBps=(v:number|undefined,c:string)=>{if(v!==undefined&&(!Number.isInteger(v)||v<0||v>10000))throw new Error(c)}

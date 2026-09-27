@@ -1,9 +1,34 @@
 export type CapabilityRisk = 'read' | 'write' | 'external' | 'financial' | 'destructive';
 export type JhadinaCapabilityVerb = 'observe'|'read'|'analyze'|'plan'|'propose'|'execute';
+export type CapabilityRuntimeState = 'unknown'|'ready'|'degraded'|'blocked'|'simulation-only'|'paper-only'|'disabled';
 
 export interface JhadinaSubsystemSurface {
   readonly subsystemId:string;
   readonly verbs:Readonly<Record<JhadinaCapabilityVerb,readonly string[]>>;
+}
+
+export interface CapabilityRuntimeEvidence {
+  readonly id:string;
+  readonly source:string;
+  readonly observedAt:string;
+  readonly kind:'source'|'infrastructure'|'live-runtime'|'operator';
+  readonly summary:string;
+  readonly expiresAt?:string;
+}
+
+export interface CapabilityRuntimeStatus {
+  readonly capabilityName:string;
+  readonly subsystemId?:string;
+  readonly state:CapabilityRuntimeState;
+  readonly reason?:string;
+  readonly evidence:readonly CapabilityRuntimeEvidence[];
+  readonly updatedAt:string;
+}
+
+export interface CapabilityRuntimeStatusRepository {
+  get(capabilityName:string):Promise<CapabilityRuntimeStatus|undefined>;
+  list():Promise<readonly CapabilityRuntimeStatus[]>;
+  save(status:CapabilityRuntimeStatus):Promise<void>;
 }
 
 export function buildSubsystemSurface(registry:CapabilityRegistry,subsystemId:string):JhadinaSubsystemSurface {
@@ -55,6 +80,7 @@ export interface CapabilityDefinition {
 export class CapabilityRegistry {
   private readonly definitions = new Map<string, CapabilityDefinition>();
   private readonly subsystems = new Map<string, SubsystemHealthDefinition>();
+  private readonly runtimeStatuses = new Map<string, CapabilityRuntimeStatus>();
 
   register(definition: CapabilityDefinition): void {
     if (!definition.name.trim()) throw new Error('Capability name is required');
@@ -72,11 +98,37 @@ export class CapabilityRegistry {
     this.subsystems.set(definition.subsystemId, deepFreezeSubsystem(definition));
   }
 
+  validateRuntimeStatus(status:CapabilityRuntimeStatus):CapabilityRuntimeStatus {
+    const definition=this.definitions.get(status.capabilityName);
+    if(!definition)throw new Error(`Unknown capability runtime status: ${status.capabilityName}`);
+    if(definition.subsystemId&&status.subsystemId&&definition.subsystemId!==status.subsystemId)throw new Error('Capability runtime subsystem mismatch');
+    if(!status.updatedAt.trim())throw new Error('Capability runtime timestamp is required');
+    if(status.state==='ready'&&!status.evidence.some(item=>item.kind==='live-runtime'))throw new Error('CAPABILITY_READY_REQUIRES_LIVE_RUNTIME_EVIDENCE');
+    if((status.state==='degraded'||status.state==='paper-only'||status.state==='simulation-only')===true&&status.evidence.length===0)throw new Error('CAPABILITY_RUNTIME_EVIDENCE_REQUIRED');
+    return Object.freeze({
+      ...status,
+      subsystemId:status.subsystemId??definition.subsystemId,
+      evidence:Object.freeze(status.evidence.map(item=>Object.freeze({...item}))),
+    });
+  }
+
+  setRuntimeStatus(status:CapabilityRuntimeStatus):void {
+    const normalized=this.validateRuntimeStatus(status);
+    this.runtimeStatuses.set(status.capabilityName,normalized);
+  }
+
   get(name: string): CapabilityDefinition | undefined { return this.definitions.get(name); }
   has(name: string): boolean { return this.definitions.has(name); }
   list(): readonly CapabilityDefinition[] { return [...this.definitions.values()].sort((a,b)=>a.name.localeCompare(b.name)); }
   getSubsystem(id: string): SubsystemHealthDefinition | undefined { return this.subsystems.get(id); }
   listSubsystems(): readonly SubsystemHealthDefinition[] { return [...this.subsystems.values()].sort((a,b)=>a.subsystemId.localeCompare(b.subsystemId)); }
+  getRuntimeStatus(name:string):CapabilityRuntimeStatus|undefined{return this.runtimeStatuses.get(name);}
+  listRuntimeStatuses():readonly CapabilityRuntimeStatus[]{return [...this.runtimeStatuses.values()].sort((a,b)=>a.capabilityName.localeCompare(b.capabilityName));}
+
+  runtimeState(name:string):CapabilityRuntimeState {
+    if(!this.definitions.has(name))throw new Error(`Unknown capability: ${name}`);
+    return this.runtimeStatuses.get(name)?.state??'unknown';
+  }
 
   dependentsOf(subsystemId: string): readonly SubsystemHealthDefinition[] {
     return this.listSubsystems().filter((definition) => definition.dependencies.includes(subsystemId));
@@ -105,4 +157,87 @@ function deepFreezeSubsystem(input: SubsystemHealthDefinition): SubsystemHealthD
     }),
     repair: Object.freeze({ ...input.repair }),
   });
+}
+
+
+export interface SubsystemRuntimeProjection {
+  readonly subsystemId:string;
+  readonly state:CapabilityRuntimeState;
+  readonly capabilities:readonly CapabilityRuntimeStatus[];
+  readonly unknownCapabilities:readonly string[];
+  readonly updatedAt?:string;
+}
+
+/**
+ * Truthful read projection for Ask Jhadina / Command Center.
+ * This summarizes observed runtime state only and grants no execution authority.
+ */
+export function buildSubsystemRuntimeProjection(
+  registry:CapabilityRegistry,
+  subsystemId:string,
+  nowIso?:string,
+):SubsystemRuntimeProjection {
+  const definitions=registry.list().filter(item=>item.subsystemId===subsystemId);
+  if(definitions.length===0)throw new Error(`Unknown subsystem runtime projection: ${subsystemId}`);
+  const statuses=definitions
+    .map(item=>registry.getRuntimeStatus(item.name))
+    .filter((item):item is CapabilityRuntimeStatus=>!!item)
+    .map(status=>expireRuntimeStatus(status,nowIso));
+  const unknown=definitions.filter(item=>!statuses.some(status=>status.capabilityName===item.name)).map(item=>item.name).sort();
+  const states:CapabilityRuntimeState[]=[...statuses.map(item=>item.state),...(unknown.length?['unknown' as const]:[])];
+  const state=aggregateRuntimeState(states);
+  const updatedAt=statuses.map(item=>item.updatedAt).sort().at(-1);
+  return Object.freeze({
+    subsystemId,
+    state,
+    capabilities:Object.freeze(statuses.sort((a,b)=>a.capabilityName.localeCompare(b.capabilityName))),
+    unknownCapabilities:Object.freeze(unknown),
+    updatedAt,
+  });
+}
+
+export function expireRuntimeStatus(status:CapabilityRuntimeStatus,nowIso?:string):CapabilityRuntimeStatus {
+  if(!nowIso)return status;
+  const now=Date.parse(nowIso);
+  if(!Number.isFinite(now))throw new Error('CAPABILITY_RUNTIME_NOW_INVALID');
+  const expired=status.evidence.some(item=>item.expiresAt&&Date.parse(item.expiresAt)<=now);
+  if(!expired)return status;
+  return Object.freeze({
+    ...status,
+    state:'unknown',
+    reason:'runtime evidence expired',
+    evidence:Object.freeze(status.evidence),
+  });
+}
+
+function aggregateRuntimeState(states:readonly CapabilityRuntimeState[]):CapabilityRuntimeState {
+  if(states.length===0)return 'unknown';
+  const precedence:readonly CapabilityRuntimeState[]=['blocked','disabled','degraded','paper-only','simulation-only','unknown','ready'];
+  return precedence.find(state=>states.includes(state))??'unknown';
+}
+
+
+/**
+ * Load persisted runtime truth through the canonical registry validation rules.
+ * Persistence cannot bypass READY/live-evidence or subsystem-consistency checks.
+ */
+export async function hydrateCapabilityRuntimeStatuses(
+  registry:CapabilityRegistry,
+  repository:CapabilityRuntimeStatusRepository,
+):Promise<void>{
+  for(const status of await repository.list())registry.setRuntimeStatus(status);
+}
+
+/**
+ * Validate first, persist second, then leave the registry holding the same
+ * normalized state that callers see. Persistence grants no execution authority.
+ */
+export async function persistCapabilityRuntimeStatus(
+  registry:CapabilityRegistry,
+  repository:CapabilityRuntimeStatusRepository,
+  status:CapabilityRuntimeStatus,
+):Promise<void>{
+  const normalized=registry.validateRuntimeStatus(status);
+  await repository.save(normalized);
+  registry.setRuntimeStatus(normalized);
 }

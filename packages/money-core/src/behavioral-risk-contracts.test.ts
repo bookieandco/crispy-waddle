@@ -114,8 +114,18 @@ test('MONEY-BEHAVIORAL-RISK-01 flags rapid reentry and rule overrides without pr
 test('MONEY-BEHAVIORAL-RISK-01 detects strategy churn in the observation window', () => {
   const xs = [
     trade({ observationId: 'a1', strategyId: 'a' }),
-    trade({ observationId: 'b1', strategyId: 'b', openedAt: '2026-09-26T21:00:00Z' }),
-    trade({ observationId: 'a2', strategyId: 'a', openedAt: '2026-09-26T22:00:00Z' }),
+    trade({
+      observationId: 'b1',
+      strategyId: 'b',
+      openedAt: '2026-09-26T21:00:00Z',
+      closedAt: '2026-09-26T21:10:00Z',
+    }),
+    trade({
+      observationId: 'a2',
+      strategyId: 'a',
+      openedAt: '2026-09-26T22:00:00Z',
+      closedAt: '2026-09-26T22:10:00Z',
+    }),
   ];
 
   const assessment = assessBehavioralRisk(xs, {

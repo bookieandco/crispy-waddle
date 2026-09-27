@@ -21,6 +21,7 @@ export default defineConfig({
       { find: "@jhadina/action-core", replacement: path.resolve(__dirname, "../../packages/jhadina-action-core/src") },
       { find: "@jhadina/security-core", replacement: path.resolve(__dirname, "../../packages/security-core/src") },
       { find: "@jhadina/core-spine", replacement: path.resolve(__dirname, "../../packages/jhadina-core-spine/src") },
+      { find: "@jhadina/capability-registry", replacement: path.resolve(__dirname, "../../packages/jhadina-capability-registry/src") },
       { find: "@jhadina/intelligence-core", replacement: path.resolve(__dirname, "../../packages/jhadina-intelligence-core/src") },
       { find: "@jhadina/checkout-orchestrator", replacement: path.resolve(__dirname, "../../packages/checkout-orchestrator/src") },
       { find: "@jhadina/payment-core", replacement: path.resolve(__dirname, "../../packages/payment-core/src") },

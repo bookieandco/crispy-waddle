@@ -109,3 +109,25 @@ test('preserves the original handler error when both the handler and the failed-
     /ACTION_FAILED_AND_AUDIT_FAILED:HANDLER_BROKE:FAILED_AUDIT_DOWN/,
   );
 });
+
+
+test('preserves WorkSession lineage in action audit without changing authority', async () => {
+  const ledger = new InMemoryActionLedger();
+  const executor = new ActionExecutor(new AllowAllActionPolicy(), ledger, [okHandler]);
+  const request = {
+    ...baseRequest('req-runtime-1'),
+    runtimeContext: {
+      workSessionId: 'ws-1',
+      taskId: 'task-1',
+      correlationId: 'corr-1',
+      domain: 'growth',
+      capability: 'growth.publish',
+      idempotencyKey: 'idem-1',
+    },
+  };
+
+  await executor.execute(request);
+  for (const event of ledger.list()) {
+    assert.deepEqual(event.metadata?.runtimeContext, request.runtimeContext);
+  }
+});

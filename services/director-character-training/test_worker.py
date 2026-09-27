@@ -1,10 +1,16 @@
 import importlib.util
+import sys
 from pathlib import Path
 import unittest
 
 root=Path(__file__).parent
 spec=importlib.util.spec_from_file_location("director_character_training_worker",root/"worker.py")
+if spec is None or spec.loader is None:
+    raise ImportError("director character training worker spec unavailable")
 worker=importlib.util.module_from_spec(spec)
+# Python 3.12 dataclasses resolves annotation context through sys.modules.
+# Register the dynamic module before executing it, matching normal import semantics.
+sys.modules[spec.name]=worker
 spec.loader.exec_module(worker)
 
 def dataset_plan():
