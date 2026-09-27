@@ -46,7 +46,6 @@ export type KubernetesSubmissionConfig={
   namespace:string;
   queueNames:Record<'interactive'|'creative'|'render'|'background'|'maintenance',string>;
   priorityClassNames:Record<'interactive'|'creative'|'render'|'background'|'maintenance',string>;
-  providerNodeLabels?:Partial<Record<'homebase'|'remote-homebase'|'cloud',Record<string,string>>>;
   ttlSecondsAfterFinished?:number;
   backoffLimit?:number;
 };
