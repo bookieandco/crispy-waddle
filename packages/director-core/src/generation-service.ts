@@ -19,7 +19,7 @@ function assertRequestCompatibility(registry: GenerationRegistry, request: Gener
   ) ?? false;
   const hasImageReference = request.references?.some((reference) =>
     reference.media === 'image' ||
-    (reference.media === undefined && ['image', 'character', 'composition', 'style', 'location'].includes(reference.role))
+    (reference.media === undefined && ['image', 'character', 'product', 'composition', 'style', 'location'].includes(reference.role))
   ) ?? false;
   const requiredCapability =
     request.modality === 'video'
