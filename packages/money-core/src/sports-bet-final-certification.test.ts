@@ -88,6 +88,12 @@ test('SPORT-BET shadow blocks future and stale quotes',()=>{
   assert.deepEqual(stale.reasonCodes,['STALE_QUOTE'])
 })
 
+test('synthetic shadow evidence cannot be relabeled REAL_AS_OF at soak assembly',()=>{
+  const decision=createSportsBetShadowDecision({prediction,decisionAt:'2026-09-27T19:00:10.000Z',minimumEdgeBps:500,maxQuoteAgeSeconds:30,sourceClass:'SYNTHETIC_TEST',evidenceIds:['decision-source-class']})
+  const record=resolveSportsForwardShadowPrediction({prediction,status:'WON',actualOutcomeId:'home',resolvedAt:'2026-09-28T01:00:00.000Z',evidenceIds:['resolution-source-class']})
+  assert.throws(()=>buildSportsBetShadowSoakEvidence({sourceClass:'REAL_AS_OF',decisions:[decision],records:[record],startedAt:'2026-09-27T19:00:00.000Z',endedAt:'2026-09-27T19:02:00.000Z',evidenceIds:['soak-source-class']}),/SPORT_BET_SHADOW_SOURCE_CLASS_MISMATCH/)
+})
+
 test('synthetic shadow evidence can prove software only, never operational certification',()=>{
   const decision=createSportsBetShadowDecision({prediction,decisionAt:'2026-09-27T19:00:10.000Z',minimumEdgeBps:500,maxQuoteAgeSeconds:30,sourceClass:'SYNTHETIC_TEST',evidenceIds:['decision-e4']})
   const record=resolveSportsForwardShadowPrediction({prediction,status:'WON',actualOutcomeId:'home',resolvedAt:'2026-09-28T01:00:00.000Z',evidenceIds:['resolution-e1']})
