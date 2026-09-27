@@ -179,7 +179,7 @@ export async function runSamBulkSnapshotScan(
         noticeIds.add(notice.noticeId)
         receipt.seenRecords+=1
         receipt.resourceLinks+=notice.resourceLinks.length
-        if(!writer.write(JSON.stringify(notice)+'\\n'))await once(writer,'drain')
+        if(!writer.write(JSON.stringify(notice)+'\n'))await once(writer,'drain')
       },
     })
     await endWriter(writer)
