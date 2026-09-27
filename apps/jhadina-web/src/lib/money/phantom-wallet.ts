@@ -37,3 +37,19 @@ export async function disconnectPhantomSolana():Promise<void>{
  const provider=getPhantomSolanaProvider()
  if(provider?.disconnect)await provider.disconnect()
 }
+
+
+export function phantomBrowseUrl(currentUrl?:string):string{
+ const url=currentUrl??(typeof window!=="undefined"?window.location.href:"")
+ if(!url)throw new Error("MONEY_PHANTOM_BROWSE_URL_REQUIRED")
+ const parsed=new URL(url)
+ if(parsed.protocol!=="https:"&&parsed.hostname!=="localhost"&&parsed.hostname!=="127.0.0.1")throw new Error("MONEY_PHANTOM_HTTPS_REQUIRED")
+ const encoded=encodeURIComponent(parsed.toString())
+ const ref=encodeURIComponent(parsed.origin)
+ return `https://phantom.app/ul/browse/${encoded}?ref=${ref}`
+}
+
+export function openMoneyInPhantom(currentUrl?:string){
+ if(typeof window==="undefined")throw new Error("MONEY_PHANTOM_BROWSER_REQUIRED")
+ window.location.assign(phantomBrowseUrl(currentUrl))
+}
