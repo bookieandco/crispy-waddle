@@ -115,7 +115,8 @@
     "./process-replication": "./src/process-replication.ts",
     "./production-project": "./src/production-project.ts",
     "./process-observation": "./src/process-observation.ts",
-    "./rehearsal-loop": "./src/rehearsal-loop.ts"
+    "./rehearsal-loop": "./src/rehearsal-loop.ts",
+    "./observation-bus": "./src/observation-bus.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
