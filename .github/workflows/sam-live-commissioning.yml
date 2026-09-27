@@ -10,12 +10,14 @@ on:
       - "apps/jhadina-web/src/lib/money-opportunities/sam-*.ts"
       - "packages/opportunity-core/src/domain/sam-*.ts"
       - "supabase/functions/jhadina-sam-gateway/**"
+      - "supabase/functions/jhadina-sam-runtime-gateway/**"
   schedule:
     - cron: "11 */6 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: sam-live-commissioning
@@ -28,25 +30,31 @@ jobs:
     timeout-minutes: 25
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://kqbkaozfjubkjevdfvic.supabase.co
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      SAM_GOV_API_KEY: ${{ secrets.SAM_GOV_API_KEY }}
+      SAM_GOV_API_KEY: ${{ secrets.sam_key }}
+      SAM_RUNTIME_GATEWAY_URL: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-sam-runtime-gateway
     steps:
-      - name: Check live credentials
+      - name: Check SAM.gov credential
         id: preflight
         shell: bash
         run: |
-          missing=""
-          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then missing="$missing SUPABASE_SERVICE_ROLE_KEY"; fi
-          if [ -z "$SAM_GOV_API_KEY" ]; then missing="$missing SAM_GOV_API_KEY"; fi
-          if [ -n "$missing" ]; then
+          if [ -z "$SAM_GOV_API_KEY" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "BLOCKED_EXTERNAL_CREDENTIAL:$missing"
+            echo "BLOCKED_EXTERNAL_CREDENTIAL: sam_key"
             echo "### SAM live commissioning" >> "$GITHUB_STEP_SUMMARY"
-            echo "BLOCKED_EXTERNAL_CREDENTIAL:$missing" >> "$GITHUB_STEP_SUMMARY"
+            echo "BLOCKED_EXTERNAL_CREDENTIAL: sam_key" >> "$GITHUB_STEP_SUMMARY"
             exit 1
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Request SAM runtime OIDC token
+        if: steps.preflight.outputs.configured == 'true'
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-sam-runtime')
+            core.setSecret(token)
+            core.setOutput('token', token)
 
       - name: Checkout
         if: steps.preflight.outputs.configured == 'true'
@@ -72,6 +80,8 @@ jobs:
 
       - name: Commission real SAM evidence
         if: steps.preflight.outputs.configured == 'true'
+        env:
+          SAM_RUNTIME_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         shell: bash
         run: |
           set -euo pipefail
