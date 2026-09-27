@@ -56,21 +56,37 @@ function record(value: unknown): Record<string, unknown> {
     : {}
 }
 
-async function fetchJson(url: URL) {
-  const response = await fetch(url, {
-    headers: { accept: 'application/json' },
-    cache: 'no-store',
-    signal: AbortSignal.timeout(30_000),
-  })
-  const payload = await response.json().catch(() => null)
-  if (!response.ok) {
-    return {
-      ok: false as const,
-      status: response.status,
-      payload: null,
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+async function fetchJson(url: URL, requestKind: 'opportunity_search' | 'entity_search') {
+  let lastStatus = 0
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const response = await fetch(url, {
+      headers: { accept: 'application/json' },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(30_000),
+    })
+    lastStatus = response.status
+    const payload = await response.json().catch(() => null)
+    if (response.ok) {
+      return { ok: true as const, status: response.status, payload }
     }
+
+    const retryable = response.status === 408 || response.status === 429 || response.status >= 500
+    if (!retryable || attempt === 3) break
+
+    const retryAfter = Number(response.headers.get('retry-after') ?? '')
+    const delay = Number.isFinite(retryAfter) && retryAfter > 0
+      ? Math.min(retryAfter * 1000, 20_000)
+      : Math.min(750 * (2 ** attempt), 6_000)
+    await sleep(delay)
   }
-  return { ok: true as const, status: response.status, payload }
+
+  console.warn('[sam-upstream] upstream request failed', {
+    requestKind,
+    status: lastStatus,
+  })
+  return { ok: false as const, status: lastStatus, payload: null }
 }
 
 export async function POST(request: NextRequest) {
@@ -114,7 +130,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const result = await fetchJson(url)
+    const result = await fetchJson(url, 'opportunity_search')
     if (!result.ok) {
       return json({
         ok: false,
@@ -140,7 +156,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const result = await fetchJson(url)
+    const result = await fetchJson(url, 'entity_search')
     if (!result.ok) {
       return json({
         ok: false,
