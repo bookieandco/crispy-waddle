@@ -124,8 +124,10 @@ export class InMemoryWorkSessionTaskRepository implements LeaseableWorkSessionTa
     const taskKey=key(workSessionId,taskId);
     const current=this.tasks.get(taskKey);
     if(!current)return null;
-    if(current.status!=='ready'&&current.status!=='retrying')return null;
     const now=Date.now();
+    const expiredRunning=current.status==='running'&&!!current.leaseExpiresAt&&Date.parse(current.leaseExpiresAt)<=now;
+    if(current.status!=='ready'&&current.status!=='retrying'&&!expiredRunning)return null;
+    if(current.attempt>=current.maxAttempts)return null;
     if(current.leaseExpiresAt&&Date.parse(current.leaseExpiresAt)>now&&current.leaseOwner!==workerId)return null;
     const claimed=freezeTask({
       ...current,
@@ -293,6 +295,26 @@ export function listReadyWorkSessionTasks(tasks:readonly WorkSessionTask[]):read
     (task.status==='queued'||task.status==='waiting-dependency')&&
     task.dependencyIds.every(id=>byId.get(id)?.status==='completed')
   ));
+}
+
+/**
+ * Promote dependency-satisfied queued work into READY using optimistic writes.
+ * This is coordination only; READY does not imply Action Core authorization.
+ */
+export async function reconcileWorkSessionTaskReadiness(
+  repository:WorkSessionTaskRepository,
+  workSessionId:string,
+  updatedAt?:string,
+):Promise<readonly WorkSessionTask[]>{
+  const tasks=await repository.list(workSessionId);
+  const candidates=listReadyWorkSessionTasks(tasks);
+  const promoted:WorkSessionTask[]=[];
+  for(const task of candidates){
+    const ready=evolveWorkSessionTask(task,{status:'ready',updatedAt});
+    await repository.update(ready,task.version);
+    promoted.push(ready);
+  }
+  return Object.freeze(promoted);
 }
 
 function uniqueStrings(values:readonly string[]):readonly string[]{
