@@ -87,24 +87,37 @@ A subsystem plugging into ONE-RUNTIME should:
 7. Report outputs as references rather than silently mutating another subsystem.
 8. Never treat capability health, task readiness, event receipt or compute placement as execution permission.
 
+## ONE-RUNTIME.2/3 source persistence now included
+
+The same branch now also establishes the production persistence boundary:
+
+- service-role-only `jhadina_work_session_tasks` table;
+- optimistic task versions plus unique WorkSession-scoped idempotency;
+- atomic claim / renew / release RPCs with expiring worker leases;
+- task lease state remains coordination only and never execution authority;
+- Supabase WorkSession task repository for durable reads/writes and lease RPCs;
+- append-only `jhadina_runtime_events` journal;
+- unique WorkSession-scoped event idempotency;
+- ordered WorkSession/correlation indexes for replay;
+- Supabase event-journal adapter with Postgres duplicate suppression.
+
+These are source-level persistence contracts. Applying the migration and proving lease takeover/replay against the live production database are separate environment-admission receipts.
+
 ## Intentionally deferred
 
 This slice does not yet:
 
-- create the production Postgres/Supabase task table;
-- create the production durable event journal/outbox;
-- implement leases/worker claims/heartbeats;
+- claim the new task/event migration is applied in production;
+- run live crash/lease-expiry/replay drills against Supabase;
 - submit Kubernetes/Kueue jobs;
 - wire Director, SHARK, Sports, PupsonStuff, Growth, SAM or JhadinaTV into the task graph;
 - expose the Command Center runtime projection;
 - claim background-worker or chaos-test certification.
 
-Those are the next ONE-RUNTIME slices.
-
 ## Next sequence
 
-- ONE-RUNTIME.2 — production task persistence + lease/claim/heartbeat/recovery
-- ONE-RUNTIME.3 — durable event journal/outbox + replay/offsets
+- ONE-RUNTIME.2 — **SOURCE COMPLETE; live DB admission pending**
+- ONE-RUNTIME.3 — **SOURCE COMPLETE; live replay/admission pending**
 - ONE-RUNTIME.4 — runtime capability evidence adapters and health projection
 - ONE-RUNTIME.5 — ComputeWorkload bridge from ready tasks
 - ONE-RUNTIME.6 — subsystem adapters
