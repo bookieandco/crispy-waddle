@@ -15,33 +15,32 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     expect(web.crons).toBeUndefined()
   })
 
-  it('preserves every SHARK and SAM cadence in the GitHub production scheduler', () => {
-    const workflow = repoFile('.github/workflows/jhadina-production-scheduler.yml')
+  it('keeps SHARK on the OIDC Vercel scheduler and SAM on the dedicated privileged commissioning workflow', () => {
+    const scheduler = repoFile('.github/workflows/jhadina-production-scheduler.yml')
+    const sam = repoFile('.github/workflows/sam-live-commissioning.yml')
 
-    for (const schedule of [
-      '0 * * * *',
-      '30 * * * *',
-      '5 */6 * * *',
-      '20 */6 * * *',
-      '35 */6 * * *',
-      '50 */6 * * *',
-    ]) {
-      expect(workflow).toContain(`cron: "${schedule}"`)
+    for (const schedule of ['0 * * * *', '30 * * * *']) {
+      expect(scheduler).toContain(`cron: "${schedule}"`)
     }
+    expect(scheduler).toContain('/api/internal/shark/launch-outcomes')
+    expect(scheduler).toContain('/api/internal/shark/historical-observations')
 
-    for (const path of [
-      '/api/internal/shark/launch-outcomes',
-      '/api/internal/shark/historical-observations',
-      '/api/internal/sam/scan?lookbackDays=2&maxPages=20',
-      '/api/internal/sam/enrich?limit=5&maxDocuments=40&maxProviders=8',
+    for (const staleSamRoute of [
+      '/api/internal/sam/scan',
+      '/api/internal/sam/enrich',
       '/api/internal/sam/certify',
-      '/api/internal/sam/bootstrap?historyDays=365&windowDays=7&maxWindows=4&maxPages=20',
+      '/api/internal/sam/bootstrap',
     ]) {
-      expect(workflow).toContain(path)
+      expect(scheduler).not.toContain(staleSamRoute)
     }
+
+    expect(sam).toContain('cron: "11 */6 * * *"')
+    expect(sam).toContain('SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}')
+    expect(sam).toContain('SAM_GOV_API_KEY: ${{ secrets.SAM_GOV_API_KEY }}')
+    expect(sam).toContain('apps/jhadina-web/scripts/sam-live-commissioning.ts')
   })
 
-  it('uses GitHub OIDC instead of copying CRON_SECRET into Actions', () => {
+  it('uses GitHub OIDC for Vercel workers instead of copying CRON_SECRET into Actions', () => {
     const workflow = repoFile('.github/workflows/jhadina-production-scheduler.yml')
     const auth = repoFile('apps/jhadina-web/src/lib/internal-scheduler-auth.ts')
 
