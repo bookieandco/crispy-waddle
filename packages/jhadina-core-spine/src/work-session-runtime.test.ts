@@ -1,6 +1,7 @@
 import {describe,expect,it} from 'vitest';
 import {
   createWorkSessionTask,
+  InMemoryWorkSessionTaskRepository,
   evolveWorkSessionTask,
   listReadyWorkSessionTasks,
   validateWorkSessionTaskGraph,
@@ -58,5 +59,27 @@ describe('WorkSession task graph',()=>{
     expect(()=>evolveWorkSessionTask(running,{status:'blocked'})).toThrow(/BLOCK_REASON_REQUIRED/);
     const blocked=evolveWorkSessionTask(running,{status:'blocked',blockedReason:'provider unavailable'});
     expect(blocked.blockedReason).toBe('provider unavailable');
+  });
+});
+
+
+describe('WorkSession task repository',()=>{
+  it('enforces idempotency and optimistic versioning',async()=>{
+    const repo=new InMemoryWorkSessionTaskRepository();
+    const original=task('persisted');
+    await repo.create(original);
+    await expect(repo.create(task('duplicate'))).resolves.toBeUndefined();
+
+    const conflicting=createWorkSessionTask({
+      id:'another-id',workSessionId:'ws-1',ownerUserId:'user-1',domain:'runtime',capability:'runtime.other',
+      authorityRef:'context-only',idempotencyKey:'idem-persisted',correlationId:'corr-1',
+      createdAt:'2026-09-26T00:00:00.000Z',
+    });
+    await expect(repo.create(conflicting)).rejects.toThrow(/IDEMPOTENCY_CONFLICT/);
+
+    const ready=evolveWorkSessionTask(original,{status:'ready',updatedAt:'2026-09-26T00:00:01.000Z'});
+    await repo.update(ready,1);
+    await expect(repo.update(evolveWorkSessionTask(ready,{status:'running'}),1)).rejects.toThrow(/VERSION_CONFLICT/);
+    expect((await repo.get('ws-1','persisted'))?.status).toBe('ready');
   });
 });
