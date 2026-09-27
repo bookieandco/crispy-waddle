@@ -212,7 +212,7 @@ export class SupabaseEventJournal implements EventJournal {
       p_limit:limit,
     });
     if(error)throw new Error(`RUNTIME_EVENT_REPLAY_FAILED:${error.message}`);
-    const rows=Array.isArray(data)?data as Record<string,unknown>[];
+    const rows=Array.isArray(data)?data as Record<string,unknown>[]:[];
     return Object.freeze(rows.map(row=>Object.freeze({
       sequenceId:Number(row.sequence_id),
       event:eventFromDatabaseRow(row),
