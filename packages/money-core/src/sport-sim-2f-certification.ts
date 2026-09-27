@@ -42,6 +42,7 @@ const required=[
   'simulation-report-stats',
   'video-game-reference-firewall',
   'boxing-pose-candidate-not-scoring-truth',
+  'basketball-environment-tendency-separation',
   'no-live-execution-authority',
 ] as const
 
