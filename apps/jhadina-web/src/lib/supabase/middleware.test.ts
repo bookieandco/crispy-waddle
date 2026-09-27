@@ -40,6 +40,13 @@ describe('Supabase middleware Director certification behavior',()=>{
     expect(mocks.createServerClient).not.toHaveBeenCalled();
   });
 
+  it('keeps the production health probe machine-readable without a browser session',async()=>{
+    const response=await updateSession(new NextRequest('https://example.com/api/health'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
   it('lets internal scheduler routes reach OIDC/cron authorization without being redirected to interactive login',async()=>{
     const response=await updateSession(new NextRequest('https://example.com/api/internal/sam/scan?lookbackDays=2'));
     expect(response.status).toBe(200);
