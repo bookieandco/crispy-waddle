@@ -12,6 +12,8 @@ import {
 } from '@/lib/director-process-replication-service';
 import { createAndSubmitAskVideoJob } from '@/lib/director-video-job-service';
 import { reconcileDirectorVideoJobs } from '@/lib/director-video-job-reconciler';
+import { runDirectorCertificationStudy } from '@/lib/director-certification-study';
+import { readDirectorCertificationMp4Duration } from '@/lib/director-certification-mp4';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -196,15 +198,15 @@ async function persistEditableProof(client:SupabaseClient,userId:string,job:any,
   return {baseline:v1.id,edited:v2.id,assetId:asset.id};
 }
 
-async function providerMeasuredDuration(baseUrl:string,token:string,providerJobId:string):Promise<number>{
-  const response=await fetch(`${baseUrl.replace(/\/+$/,'')}/jobs/${encodeURIComponent(providerJobId)}`,{
-    headers:{authorization:`Bearer ${token}`},cache:'no-store',
-  });
-  if(!response.ok) throw new Error(`DIRECTOR_LIVE_CERT_PROVIDER_STATUS_FAILED:${response.status}`);
-  const body=await response.json() as {metadata?:{durationSeconds?:number}};
-  const value=Number(body.metadata?.durationSeconds);
-  if(!Number.isFinite(value)||value<=0) throw new Error('DIRECTOR_LIVE_CERT_PROVIDER_DURATION_MISSING');
-  return value;
+async function storedMeasuredDuration(client:SupabaseClient,asset:{uri?:string}):Promise<number>{
+  const uri=String(asset.uri??'');
+  const prefix='storage://director-media/';
+  if(!uri.startsWith(prefix)) throw new Error('DIRECTOR_LIVE_CERT_STORAGE_URI_INVALID');
+  const objectPath=uri.slice(prefix.length);
+  const {data,error}=await client.storage.from('director-media').download(objectPath);
+  if(error) throw error;
+  const bytes=new Uint8Array(await data.arrayBuffer());
+  return readDirectorCertificationMp4Duration(bytes);
 }
 
 async function advanceRun(client:SupabaseClient,run:CertRun,userId:string,providerBase:string,providerToken:string){
@@ -255,7 +257,7 @@ async function advanceRun(client:SupabaseClient,run:CertRun,userId:string,provid
     const duration=Number(job.target_duration_seconds);
     const asset=assetById.get(String(job.preview_asset_id));
     if(!asset) throw new Error(`DIRECTOR_LIVE_CERT_ASSET_MISSING:${job.id}`);
-    const measuredDuration=await providerMeasuredDuration(providerBase,providerToken,String(job.provider_job_id));
+    const measuredDuration=await storedMeasuredDuration(client,asset);
     measured[String(duration)]=measuredDuration;
     if(Math.abs(measuredDuration-duration)>1.25){
       throw new Error(`DIRECTOR_LIVE_CERT_DURATION_MISMATCH:${duration}:${measuredDuration}`);
@@ -330,6 +332,12 @@ export async function POST(request:Request){
         clientRequestId:`${runId}:replication`,
       });
       await patchRun(client,runId,{status:'studying',replication_job_id:created.job.id});
+      const studyReceipt=await runDirectorCertificationStudy({
+        client,
+        sourceUrl:body.sourceUrl,
+        studyIds:created.job.studyIds,
+      });
+      await patchRun(client,runId,{receipts:{studyAdapter:'in-process',studyObservationCount:studyReceipt.observationCount}});
       const advanced=await advanceRun(
         client,
         await loadRun(client,runId),
