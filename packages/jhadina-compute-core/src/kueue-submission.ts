@@ -204,6 +204,7 @@ export class KubernetesComputeSubmitter implements ComputeSubmitter{
     if(bundle.mode!=='live')throw new Error('COMPUTE_LIVE_SUBMITTER_REQUIRES_LIVE_MODE');
     assertComputeExecutionAuthorized(bundle,permit,this.now());
     const existing=await this.repository.getByIdempotency(
+      permit.userId,
       permit.runtime.workSessionId,
       permit.runtime.taskId,
       permit.runtime.idempotencyKey,
@@ -251,6 +252,7 @@ export class ShadowComputeSubmitter implements ComputeSubmitter{
     if(bundle.mode!=='shadow')throw new Error('COMPUTE_SHADOW_SUBMITTER_REQUIRES_SHADOW_MODE');
     assertComputeExecutionAuthorized(bundle,permit,this.now());
     const existing=await this.repository.getByIdempotency(
+      permit.userId,
       permit.runtime.workSessionId,
       permit.runtime.taskId,
       permit.runtime.idempotencyKey,
