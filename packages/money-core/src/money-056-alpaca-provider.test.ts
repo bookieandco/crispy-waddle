@@ -27,3 +27,30 @@ test('056.8 paper broker requires the paper autopilot gate and can never claim l
  assert.equal(result.canAuthorizeLive,false)
  assert.ok(log.at(-1).url.startsWith(ALPACA_PAPER_BASE_URL))
 })
+
+test('056.9 paper bracket order binds stop-loss and take-profit to the entry',async()=>{
+ const log:any[]=[]
+ const paper=createAlpacaPaperBrokerAdapter({credentials,fetchImpl:fakeFetch(log)})
+ const allowed={mode:'PAPER_AUTO_REDUCED' as const,disposition:'PAPER_TRADE_ELIGIBLE' as const,reasonCodes:['REDUCED_PAPER_SIZE'],notionalMultiplierBps:2500,authority:'PAPER_ONLY' as const,canAuthorizeLive:false as const}
+ const result=await paper.submitPaperOrder(
+  {environment:'PAPER',executionId:'paper-bracket-e1',idempotencyKey:'paper-bracket-cid1',userId:'u',paperRunId:'run-bracket',paperDecisionId:'d-bracket',now:'2026-09-20T18:00:00Z',autopilot:allowed},
+  {clientOrderId:'paper-bracket-cid1',accountId:'acct1',instrumentId:'stock:AAPL',side:'BUY',orderType:'LIMIT',notionalMinor:'100000',limitPriceMinor:'20000',currency:'USD',timeInForce:'DAY',takeProfitPriceMinor:'20800',stopLossPriceMinor:'19600'}
+ )
+ assert.equal(result.environment,'PAPER')
+ const body=JSON.parse(log.at(-1).init.body)
+ assert.equal(body.order_class,'bracket')
+ assert.equal(body.take_profit.limit_price,'208.00')
+ assert.equal(body.stop_loss.stop_price,'196.00')
+})
+
+test('056.10 malformed paper bracket is rejected before provider submission',async()=>{
+ const paper=createAlpacaPaperBrokerAdapter({credentials,fetchImpl:fakeFetch([])})
+ const allowed={mode:'PAPER_AUTO_REDUCED' as const,disposition:'PAPER_TRADE_ELIGIBLE' as const,reasonCodes:['REDUCED_PAPER_SIZE'],notionalMultiplierBps:2500,authority:'PAPER_ONLY' as const,canAuthorizeLive:false as const}
+ await assert.rejects(
+  ()=>paper.submitPaperOrder(
+   {environment:'PAPER',executionId:'e',idempotencyKey:'c',userId:'u',paperRunId:'r',paperDecisionId:'d',now:'2026-09-20T18:00:00Z',autopilot:allowed},
+   {clientOrderId:'c',accountId:'acct1',instrumentId:'stock:AAPL',side:'BUY',orderType:'LIMIT',notionalMinor:'100000',limitPriceMinor:'20000',currency:'USD',timeInForce:'DAY',takeProfitPriceMinor:'19000',stopLossPriceMinor:'19600'}
+  ),
+  /MONEY_ALPACA_LONG_BRACKET_ORDER_INVALID/
+ )
+})
