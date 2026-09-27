@@ -98,18 +98,22 @@ export class CapabilityRegistry {
     this.subsystems.set(definition.subsystemId, deepFreezeSubsystem(definition));
   }
 
-  setRuntimeStatus(status:CapabilityRuntimeStatus):void {
+  validateRuntimeStatus(status:CapabilityRuntimeStatus):CapabilityRuntimeStatus {
     const definition=this.definitions.get(status.capabilityName);
     if(!definition)throw new Error(`Unknown capability runtime status: ${status.capabilityName}`);
     if(definition.subsystemId&&status.subsystemId&&definition.subsystemId!==status.subsystemId)throw new Error('Capability runtime subsystem mismatch');
     if(!status.updatedAt.trim())throw new Error('Capability runtime timestamp is required');
     if(status.state==='ready'&&!status.evidence.some(item=>item.kind==='live-runtime'))throw new Error('CAPABILITY_READY_REQUIRES_LIVE_RUNTIME_EVIDENCE');
     if((status.state==='degraded'||status.state==='paper-only'||status.state==='simulation-only')===true&&status.evidence.length===0)throw new Error('CAPABILITY_RUNTIME_EVIDENCE_REQUIRED');
-    const normalized:CapabilityRuntimeStatus=Object.freeze({
+    return Object.freeze({
       ...status,
       subsystemId:status.subsystemId??definition.subsystemId,
       evidence:Object.freeze(status.evidence.map(item=>Object.freeze({...item}))),
     });
+  }
+
+  setRuntimeStatus(status:CapabilityRuntimeStatus):void {
+    const normalized=this.validateRuntimeStatus(status);
     this.runtimeStatuses.set(status.capabilityName,normalized);
   }
 
@@ -233,8 +237,7 @@ export async function persistCapabilityRuntimeStatus(
   repository:CapabilityRuntimeStatusRepository,
   status:CapabilityRuntimeStatus,
 ):Promise<void>{
-  registry.setRuntimeStatus(status);
-  const normalized=registry.getRuntimeStatus(status.capabilityName);
-  if(!normalized)throw new Error('CAPABILITY_RUNTIME_STATUS_NORMALIZATION_FAILED');
+  const normalized=registry.validateRuntimeStatus(status);
   await repository.save(normalized);
+  registry.setRuntimeStatus(normalized);
 }
