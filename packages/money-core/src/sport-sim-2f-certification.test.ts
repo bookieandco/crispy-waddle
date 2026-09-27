@@ -10,6 +10,7 @@ import { createSportsVisualInferenceObservation, sportsVisualObservationToContex
 import { certifySportSim2FSoftware } from './sport-sim-2f-certification.js'
 import { buildSportsSimulationReport, renderSportsSimulationReportText } from './sports-simulation-report.js'
 import { assertSoccerVideoGameReferenceProfile, detectBoxingPunchCandidates, FC25_LIVE_EDITOR_REFERENCE, LOCKDOWN_BOXER_REFERENCE } from './sports-game-reference-context.js'
+import { basketballEnvironmentLatentFactors, basketballPlayerTendencyLatentFactors, createBasketballMechanicsBundle, NBA2K25_SLIDER_VIDEO_REFERENCE } from './sports-basketball-mechanics.js'
 import type { SportsMarketQuote } from './sports-paper-betting.js'
 import type { OpenPositionSnapshot } from './position-management.js'
 
@@ -236,13 +237,53 @@ test('Lockdown Boxer motion concepts emit punch candidates but never landed/scor
   assert.equal(candidates[0]!.authority,'INFERRED_VISUAL_EVIDENCE_ONLY')
 })
 
+
+test('NBA2K25 reference informs basketball mechanics taxonomy without becoming real-world calibration',()=>{
+  const environment={
+    profileId:'bball-env:reference',
+    profileVersion:'v1',
+    competitionProfile:'NBA2K25_REFERENCE',
+    observedAt:'2025-06-13T16:26:32Z',
+    paceBps:6000,fastPlayerSpeedBps:7500,slowPlayerSpeedBps:4800,
+    fastPlayerAccelerationBps:7500,slowPlayerAccelerationBps:4800,
+    staminaCapacityBps:7000,fatigueRateBps:4500,physicalContactSensitivityBps:4000,
+    passSpeedBps:7000,onBallDefenseBps:6000,defensiveAwarenessBps:6000,
+    defensiveConsistencyBps:6000,helpDefenseBps:5000,gatherContestImpactBps:4000,
+    releaseContestImpactBps:5500,shootingFoulRateBps:6500,blockingFoulRateBps:2500,
+    chargingFoulRateBps:2500,looseBallFoulRateBps:500,illegalScreenFoulRateBps:2500,
+    evidenceIds:['youtube:frB2eQ-_Vrs'],sourceClass:'VIDEO_GAME_REFERENCE' as const,
+    calibrationEligible:false,authority:'SIMULATION_INPUT_ONLY' as const,canExecute:false as const,
+  }
+  const tendency={
+    tendencyId:'bball-tendency:reference',playerId:'player:1',profileVersion:'v1',
+    observedAt:'2025-06-13T16:26:32Z',
+    insideShotBps:5500,closeShotBps:1000,midRangeShotBps:3000,threePointShotBps:6500,
+    postShotBps:2500,rimAttackBps:8000,postUpSeekBps:2000,alleyOopPassBps:8000,
+    dunkAttemptBps:8000,putbackAttemptBps:6000,backdoorCutBps:7500,
+    transitionAttackBps:6500,hustleBps:3500,evidenceIds:['youtube:frB2eQ-_Vrs'],
+    sourceClass:'VIDEO_GAME_REFERENCE' as const,calibrationEligible:false,
+    authority:'SIMULATION_INPUT_ONLY' as const,canExecute:false as const,
+  }
+  const bundle=createBasketballMechanicsBundle({environment,playerTendencies:[tendency]})
+  assert.equal(NBA2K25_SLIDER_VIDEO_REFERENCE.calibrationEligible,false)
+  assert.equal(bundle.environmentFrozenBeforePlayerLayer,true)
+  assert.equal(bundle.calibrationEligible,false)
+  assert.equal(bundle.videoGameReferenceCount,2)
+  const envFactors=basketballEnvironmentLatentFactors(environment)
+  const playerFactors=basketballPlayerTendencyLatentFactors(tendency)
+  assert.ok(envFactors.some(x=>x.factorId==='BBALL_MOVEMENT_MISMATCH'))
+  assert.ok(envFactors.some(x=>x.factorId==='BBALL_CONTEST'))
+  assert.ok(playerFactors.some(x=>x.factorId==='BBALL_SHOT_THREE:player:1'))
+  assert.ok(playerFactors.some(x=>x.factorId==='BBALL_BACKDOOR_CUT:player:1'))
+})
+
 test('SPORT-SIM.2F certification matrix closes software without fabricating empirical edge or live betting',()=>{
   const names=[
     'causal-slider-impact','stress-override-separated','sport-specific-state-transitions','correlated-monte-carlo','fat-tail-regime',
     'player-stat-and-tail-distributions','same-path-joint-probability','live-resimulation-deltas','slider-ablation-and-sensitivity',
     'synthetic-cannot-certify-edge','bet-alpha-ranking','papercore-automatic-wagering','open-position-reunderwriting',
     'cross-domain-alpha-intelligence-only','roboflow-context-only','simulation-report-stats',
-    'video-game-reference-firewall','boxing-pose-candidate-not-scoring-truth','no-live-execution-authority',
+    'video-game-reference-firewall','boxing-pose-candidate-not-scoring-truth','basketball-environment-tendency-separation','no-live-execution-authority',
   ]
   const report=certifySportSim2FSoftware({cases:names.map(name=>Object.freeze({name,passed:true,evidenceIds:Object.freeze(['test:'+name])}))})
   assert.equal(report.softwarePassed,true)
