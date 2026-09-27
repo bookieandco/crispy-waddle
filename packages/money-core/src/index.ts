@@ -250,3 +250,7 @@ export * from './sports-sim-bet-alpha.js';
 export * from './sports-vision-evidence.js';
 
 export * from './sport-sim-2f-certification.js';
+
+export * from './sports-simulation-report.js';
+
+export * from './sports-game-reference-context.js';
