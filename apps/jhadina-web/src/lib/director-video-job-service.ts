@@ -169,6 +169,23 @@ async function runCertificationRehearsal(
   client:SupabaseClient,
   job:DirectorVideoJob,
 ):Promise<readonly string[]>{
+  const previsReceipt=`director-cert-previs:${job.id}`;
+  const {error:previsError}=await client.from('director_creative_stages')
+    .update({
+      status:'approved',
+      output_artifact_ids:[previsReceipt],
+      updated_at:new Date().toISOString(),
+    })
+    .eq('project_id',job.projectId)
+    .eq('id',`stage:${job.id}:previs`);
+  if(previsError) throw previsError;
+  await appendJobEvent(client,{
+    jobId:job.id,
+    eventType:'certification_previs_approved',
+    status:'completed',
+    metadata:{smoke:true,qualityClaim:false,receipt:previsReceipt},
+  });
+
   const plan:RehearsalPlan={
     id:`rehearsal:${job.id}`,
     projectId:job.projectId,
@@ -356,13 +373,16 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
     job=await updateJob(client,job.id,{spec:nextSpec,current_phase:'rehearsal-approved'});
   }
 
-  const provider = selectWholeVideoProvider(createConfiguredWholeVideoProviders({
-    includeCertification: Boolean(input.certification),
-  }), intent, {
-    characterReference: Boolean(input.referenceCharacter),
-    productReference: Boolean(input.referenceProduct),
-    expressionGuidance: Boolean(input.socialExpression),
+  const configuredProviders=createConfiguredWholeVideoProviders({
+    includeCertification:Boolean(input.certification),
   });
+  const provider=input.certification
+    ? configuredProviders.find(candidate=>candidate.descriptor.id==='director-certification-smoke')
+    : selectWholeVideoProvider(configuredProviders,intent,{
+        characterReference:Boolean(input.referenceCharacter),
+        productReference:Boolean(input.referenceProduct),
+        expressionGuidance:Boolean(input.socialExpression),
+      });
   if (!provider) {
     job = await updateJob(client, job.id, {
       status: 'blocked',
