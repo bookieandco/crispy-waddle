@@ -219,3 +219,11 @@ export * from './sports-prediction-model-arena.js';
 export * from './sports-prediction-forward-shadow.js';
 
 export * from './sports-pred-final-certification.js';
+
+export * from './sports-market-semantics.js';
+
+export * from './sports-prediction-revision-lineage.js';
+
+export * from './sports-prediction-process-review.js';
+
+export * from './sports-specialist-context.js';
