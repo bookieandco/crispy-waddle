@@ -150,11 +150,12 @@ It does not store plaintext:
 - encryption keys;
 - evidence payloads.
 
-RLS is enabled and `anon` / `authenticated` table privileges are revoked. The current web adapter is service-role/server-only.
+RLS is enabled, `anon` / `authenticated` table privileges are revoked, and an explicit deny-all client RLS policy is installed. The current web adapter is service-role/server-only.
 
-Migration applied to the connected SWLC/Jhadina Supabase project:
+Migrations applied to the connected SWLC/Jhadina Supabase project:
 
 - `20260927071900_consumer_safetyos_setup`
+- `20260927072117_consumer_safetyos_setup_rls_deny`
 
 ## Certification
 
