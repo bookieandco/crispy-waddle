@@ -216,6 +216,24 @@ export function samBulkPostedDay(row: SamBulkRow): string | null {
   return null
 }
 
+export function certifySamBulkCoverageRange(input:{
+  targetFrom:string
+  targetTo:string
+  sourceMinDay:string
+  sourceMaxDay:string
+  lastModified?:string
+}):{from:string;to:string;snapshotDay:string|null}|null{
+  const iso=/^\d{4}-\d{2}-\d{2}$/
+  if(![input.targetFrom,input.targetTo,input.sourceMinDay,input.sourceMaxDay].every(value=>iso.test(value)))return null
+  if(input.targetFrom>input.targetTo||input.sourceMinDay>input.sourceMaxDay)return null
+  const parsed=input.lastModified?new Date(input.lastModified):null
+  const snapshotDay=parsed&&!Number.isNaN(parsed.getTime())?parsed.toISOString().slice(0,10):null
+  const sourceCoverageTo=[input.sourceMaxDay,snapshotDay].filter((value):value is string=>Boolean(value)).sort().at(-1)!
+  const from=input.sourceMinDay>input.targetFrom?input.sourceMinDay:input.targetFrom
+  const to=sourceCoverageTo<input.targetTo?sourceCoverageTo:input.targetTo
+  return from<=to?{from,to,snapshotDay}:null
+}
+
 export function samBulkRowToApiNotice(row: SamBulkRow): Record<string, unknown> {
   const noticeId = value(row, 'NoticeId', 'Sol#')
   const solicitationNumber = value(row, 'Sol#', 'SolicitationNumber')
