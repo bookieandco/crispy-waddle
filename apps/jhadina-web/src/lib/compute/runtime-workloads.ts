@@ -2,10 +2,7 @@ import type {
   ComputeAuthorityBinding,
   ComputeExecutionConstraints,
   ComputeWorkloadDraft,
-  ComputeWorkloadKind,
-  ComputeQueueClass,
 } from '@jhadina/compute-core';
-import type { WorkSessionTask } from '@jhadina/core-spine';
 
 function unique(keys: readonly string[]): string[] {
   return [...new Set(keys.filter((key) => key.trim()))];
@@ -151,82 +148,4 @@ export function memoryMaintenanceComputeDraft(
     ]),
     createdAt: input.createdAt ?? new Date().toISOString(),
   };
-}
-
-
-export interface WorkSessionTaskComputeInput {
-  task:WorkSessionTask;
-  kind:ComputeWorkloadKind;
-  profileId:string;
-  queue?:ComputeQueueClass;
-  requestedPriority?:number;
-  constraints?:ComputeExecutionConstraints;
-  dataLocalityKeys?:readonly string[];
-  preferredNodeIds?:readonly string[];
-  forbiddenNodeIds?:readonly string[];
-  nowIso?:string;
-}
-
-/**
- * ONE-RUNTIME -> Compute bridge.
- *
- * A task must already be atomically claimed by a worker. This function only
- * describes compute work; it does not authorize the task, spend money, move
- * sensitive data, or submit Kubernetes/Kueue work.
- */
-export function workSessionTaskComputeDraft(
-  input:WorkSessionTaskComputeInput,
-):ComputeWorkloadDraft {
-  const task=input.task;
-  const now=Date.parse(input.nowIso??new Date().toISOString());
-  if(
-    task.status!=='running'||
-    !task.leaseOwner?.trim()||
-    !task.leaseToken?.trim()||
-    !task.leaseExpiresAt||
-    !Number.isFinite(now)||
-    Date.parse(task.leaseExpiresAt)<=now
-  ){
-    throw new Error('ONE_RUNTIME_COMPUTE_TASK_ACTIVE_LEASE_REQUIRED');
-  }
-
-  return {
-    id:`compute:work-session:${task.workSessionId}:${task.id}`,
-    source:computeSourceForDomain(task.domain),
-    kind:input.kind,
-    queue:input.queue,
-    authority:{
-      system:'jhadina-one-runtime-task',
-      jobId:task.id,
-      idempotencyKey:task.idempotencyKey,
-      projectId:task.workSessionId,
-    },
-    resourceProfileId:input.profileId,
-    requestedPriority:input.requestedPriority,
-    constraints:input.constraints,
-    dataLocalityKeys:unique([
-      `work-session:${task.workSessionId}`,
-      `task:${task.id}`,
-      ...task.inputRefs.map(ref=>`ref:${ref}`),
-      ...(input.dataLocalityKeys??[]),
-    ]),
-    preferredNodeIds:input.preferredNodeIds?[...new Set(input.preferredNodeIds)]:undefined,
-    forbiddenNodeIds:input.forbiddenNodeIds?[...new Set(input.forbiddenNodeIds)]:undefined,
-    createdAt:task.updatedAt,
-  };
-}
-
-function computeSourceForDomain(domain:string):ComputeWorkloadDraft['source']{
-  switch(domain){
-    case 'jllm':return 'jllm';
-    case 'director':return 'director';
-    case 'social':return 'social';
-    case 'growth':return 'growth';
-    case 'pupsonstuff':return 'pupsonstuff';
-    case 'pod':return 'pod';
-    case 'music':return 'music';
-    case 'memory':return 'memory';
-    case 'homebase':return 'homebase';
-    default:return 'other';
-  }
 }
