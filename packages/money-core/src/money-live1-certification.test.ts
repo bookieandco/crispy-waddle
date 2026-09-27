@@ -71,3 +71,25 @@ test('MONEY-LIVE.1 stock forex and DEX openings fail closed until separately com
  assert.deepEqual(MONEY_LIVE1_CONNECTOR_OPENINGS.map(x=>x.lane),['STOCK','FOREX','DEX'])
  for(const x of MONEY_LIVE1_CONNECTOR_OPENINGS)assert.throws(()=>assertConnectorMayExecute(x),/NOT_EXECUTION_ADMITTED/)
 })
+
+
+import { buildProfitSweepJournalCandidate,certifyProfitSweepReconciliation,validateDoubleEntry } from './accountant-controls.js'
+
+test('MONEY-LIVE.1 sweep journal is balanced and remains non-posting',()=>{
+ const d=buildCofferAccountantDecision({policy:policy(),snapshot:snapshot()})
+ const j=buildProfitSweepJournalCandidate({journalId:'journal:1',decision:d,currency:'USD',sourceAccount:'coffer:cash',destinationAccount:'owner:cash'})
+ assert.equal(j.balanced,true)
+ assert.equal(j.approvalRequired,true)
+ assert.equal(j.canPost,false)
+ assert.equal(validateDoubleEntry(j.lines).passed,true)
+})
+
+test('MONEY-LIVE.1 post-movement reconciliation must tie source destination and provider fee',()=>{
+ const d=buildCofferAccountantDecision({policy:policy(),snapshot:snapshot()})
+ const j=buildProfitSweepJournalCandidate({journalId:'journal:2',decision:d,currency:'USD',sourceAccount:'coffer:cash',destinationAccount:'owner:cash'})
+ const ok=certifyProfitSweepReconciliation({journal:j,sourceSettledCashBeforeMinor:250000n,sourceSettledCashAfterMinor:154000n,destinationSettledCashBeforeMinor:10000n,destinationSettledCashAfterMinor:105000n,providerFeeMinor:1000n,evidenceIds:['bank:statement','coffer:statement']})
+ assert.equal(ok.passed,true)
+ const bad=certifyProfitSweepReconciliation({journal:j,sourceSettledCashBeforeMinor:250000n,sourceSettledCashAfterMinor:154000n,destinationSettledCashBeforeMinor:10000n,destinationSettledCashAfterMinor:104999n,providerFeeMinor:1000n,evidenceIds:['bank:statement']})
+ assert.equal(bad.passed,false)
+ assert.ok(bad.reasonCodes.includes('DESTINATION_CASH_DOES_NOT_TIE'))
+})
