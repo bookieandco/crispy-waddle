@@ -142,6 +142,7 @@ export class ComfyUIReferenceVideoProductionProvider implements WholeVideoProduc
     supportsProductReference: envFlag('DIRECTOR_COMFYUI_SUPPORTS_PRODUCT_REFERENCE'),
     supportsExpressionGuidance: true,
     productionQualityEligible: envFlag('DIRECTOR_COMFYUI_PRODUCTION_QUALITY_ELIGIBLE'),
+    maximumDurationSeconds: 300,
     ...(envPositiveInt('DIRECTOR_COMFYUI_MAX_REFERENCE_IMAGES') ? { maximumReferenceImages: envPositiveInt('DIRECTOR_COMFYUI_MAX_REFERENCE_IMAGES') } : {}),
   };
 
@@ -308,6 +309,7 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
     productionQualityEligible?: boolean;
     maximumReferenceImages?: number;
     supportsProductReference?: boolean;
+    maximumDurationSeconds?: number;
   }) {
     this.baseUrl = cleanBaseUrl(config.baseUrl);
     this.descriptor = {
@@ -321,6 +323,7 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
       supportsProductReference: config.supportsProductReference ?? envFlag('DIRECTOR_REFERENCE_VIDEO_SUPPORTS_PRODUCT_REFERENCE'),
       supportsExpressionGuidance: true,
       productionQualityEligible: config.productionQualityEligible ?? envFlag('DIRECTOR_REFERENCE_VIDEO_PRODUCTION_QUALITY_ELIGIBLE'),
+      ...(config.maximumDurationSeconds ?? envPositiveInt('DIRECTOR_REFERENCE_VIDEO_MAX_DURATION_SECONDS') ? { maximumDurationSeconds: config.maximumDurationSeconds ?? envPositiveInt('DIRECTOR_REFERENCE_VIDEO_MAX_DURATION_SECONDS') } : {}),
       ...(config.maximumReferenceImages ?? envPositiveInt('DIRECTOR_REFERENCE_VIDEO_MAX_REFERENCE_IMAGES') ? { maximumReferenceImages: config.maximumReferenceImages ?? envPositiveInt('DIRECTOR_REFERENCE_VIDEO_MAX_REFERENCE_IMAGES') } : {}),
     };
   }
@@ -406,6 +409,7 @@ export class ReferenceProductVideoProductionProvider implements WholeVideoProduc
     requiresProductReference: true,
     supportsExpressionGuidance: true,
     productionQualityEligible: envFlag('DIRECTOR_PRODUCT_VIDEO_PRODUCTION_QUALITY_ELIGIBLE'),
+    ...(envPositiveInt('DIRECTOR_PRODUCT_VIDEO_MAX_DURATION_SECONDS') ? { maximumDurationSeconds: envPositiveInt('DIRECTOR_PRODUCT_VIDEO_MAX_DURATION_SECONDS') } : {}),
     ...(envPositiveInt('DIRECTOR_PRODUCT_VIDEO_MAX_REFERENCE_IMAGES') ? { maximumReferenceImages: envPositiveInt('DIRECTOR_PRODUCT_VIDEO_MAX_REFERENCE_IMAGES') } : {}),
   };
 
@@ -569,6 +573,7 @@ export class AgnesVideoProductionProvider implements WholeVideoProductionProvide
     health: 'unknown',
     supportsExpressionGuidance: true,
     productionQualityEligible: envFlag('DIRECTOR_AGNES_VIDEO_PRODUCTION_QUALITY_ELIGIBLE'),
+    maximumDurationSeconds: 300,
   };
 
   private readonly baseUrl: string;
@@ -668,6 +673,7 @@ class CertificationSmokeVideoProductionProvider implements WholeVideoProductionP
     costClass:'free-local',
     supportedModes:['standard','short','faceless','long-form'],
     health:'unknown',
+    maximumDurationSeconds:3600,
   };
 
   async submit(brief:WholeVideoProductionBrief,idempotencyKey:string):Promise<WholeVideoProviderResult>{
