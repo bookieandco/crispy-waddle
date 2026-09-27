@@ -148,3 +148,22 @@ test('SPORT-HISTORY does not certify all-time coverage from a partial provider r
   assert.equal(view.allTimeAvailable,false)
   assert.ok(view.warnings.some(w=>/did not certify complete all-time/i.test(w)))
 })
+
+
+test('SPORT-HISTORY applies last-N after opponent/playoff qualification',()=>{
+  const rows=[
+    record({id:'d-old',event:'g1',date:'2026-01-01T00:00:00Z',opponent:'Denver Nuggets',phase:'PLAYOFFS',value:21}),
+    record({id:'b-mid',event:'g2',date:'2026-02-01T00:00:00Z',opponent:'Boston Celtics',phase:'PLAYOFFS',value:22}),
+    record({id:'d-reg',event:'g3',date:'2026-03-01T00:00:00Z',opponent:'Denver Nuggets',phase:'REGULAR',value:23}),
+    record({id:'d-new',event:'g4',date:'2026-04-01T00:00:00Z',opponent:'Denver Nuggets',phase:'PLAYOFFS',value:24}),
+  ]
+  const view=buildSportsHistoryView({
+    query:query([
+      {kind:'LAST_N',count:1},
+      {kind:'PLAYOFFS'},
+      {kind:'VS_OPPONENT',opponentLabel:'Denver'},
+    ]),
+    records:rows,
+  })
+  assert.deepEqual(view.records.map(r=>r.recordId),['d-new'])
+})
