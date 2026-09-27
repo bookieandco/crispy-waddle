@@ -81,4 +81,52 @@ describe('rug protection integration', () => {
     expect(assessment.rugProtection.disposition).toBe('REVIEW')
     expect(assessment.riskAssessment.band).toBe('watch')
   })
+
+  it('blocks entry when self-protection coverage is incomplete', () => {
+    const assessment = createMemeTradeAssessment({
+      ...baseInput,
+      rugSelfProtectionInput: {
+        coverage: {
+          sellability: true,
+          liquidityControl: true,
+          authorityControl: true,
+          holderIndependence: false,
+          operatorIdentity: true,
+        },
+        informationCutoff: '2026-09-02T00:10:00.000Z',
+      },
+    })
+
+    expect(assessment.rugSelfProtection?.action).toBe('QUARANTINE')
+    expect(assessment.riskAssessment.band).toBe('blocked')
+    expect(assessment.riskAssessment.overallRisk).toBe(1)
+  })
+
+  it('blocks new entry when the runtime sentinel sees operator-linked distribution', () => {
+    const assessment = createMemeTradeAssessment({
+      ...baseInput,
+      rugSelfProtectionInput: {
+        coverage: {
+          sellability: true,
+          liquidityControl: true,
+          authorityControl: true,
+          holderIndependence: true,
+          operatorIdentity: true,
+        },
+        runtime: [{
+          evidenceId: 'operator-sell-1',
+          observedAt: '2026-09-02T00:09:58.000Z',
+          availableAt: '2026-09-02T00:09:59.000Z',
+          operatorDistributionPct: .35,
+          source: 'entity-graph',
+        }],
+        informationCutoff: '2026-09-02T00:10:00.000Z',
+      },
+    })
+
+    expect(assessment.rugSelfProtection?.action).toBe('EXIT_RECOMMENDED')
+    expect(assessment.riskAssessment.band).toBe('blocked')
+    expect(assessment.evidenceIds).toContain('operator-sell-1')
+  })
+
 })
