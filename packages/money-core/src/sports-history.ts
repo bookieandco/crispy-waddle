@@ -203,10 +203,24 @@ function scopeFilter(records:readonly SportsHistoricalStatRecord[],scope:SportsH
       return [...records]
     case 'SEASON':
       return records.filter(r=>r.season===scope.season)
-    case 'LAST_N':
-      return [...records].sort((a,b)=>Date.parse(b.eventDate)-Date.parse(a.eventDate)).slice(0,scope.count)
-    case 'VS_OPPONENT':
-      return records.filter(r=>(!scope.opponentId||r.opponentId===scope.opponentId)&&(!scope.opponentLabel||r.opponentLabel?.toLowerCase()===scope.opponentLabel.toLowerCase()))
+    case 'LAST_N': {
+      const eventIds=[...new Map(
+        [...records]
+          .sort((a,b)=>Date.parse(b.eventDate)-Date.parse(a.eventDate)||b.eventId.localeCompare(a.eventId))
+          .map(r=>[r.eventId,r] as const)
+      ).keys()].slice(0,scope.count)
+      const admitted=new Set(eventIds)
+      return records.filter(r=>admitted.has(r.eventId))
+    }
+    case 'VS_OPPONENT': {
+      const wanted=scope.opponentLabel?.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()
+      return records.filter(r=>{
+        if(scope.opponentId&&r.opponentId!==scope.opponentId)return false
+        if(!wanted)return true
+        const actual=r.opponentLabel?.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()??''
+        return actual===wanted||actual.includes(wanted)||wanted.includes(actual)
+      })
+    }
     case 'VENUE':
       return records.filter(r=>r.venue===scope.venue)
     case 'PLAYOFFS':
