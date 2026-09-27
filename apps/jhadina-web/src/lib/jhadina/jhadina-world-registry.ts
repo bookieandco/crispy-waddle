@@ -91,6 +91,10 @@ export function getWorld(id: JhadinaWorldId) {
   return JHADINA_WORLDS.find((world) => world.id === id);
 }
 
+export function worldDirectHref(world: JhadinaWorldDefinition) {
+  return world.href ?? ("/worlds/" + encodeURIComponent(world.id));
+}
+
 export function worldAssistantHref(world: JhadinaWorldDefinition) {
-  return "/ask-jhadina?surface=" + encodeURIComponent(world.id) + "&route=" + encodeURIComponent(world.href ?? "/worlds");
+  return "/ask-jhadina?surface=" + encodeURIComponent(world.id) + "&route=" + encodeURIComponent(worldDirectHref(world));
 }

@@ -170,3 +170,14 @@ export * from './scene-attempt-budget';
 export * from './production-foundry';
 
 export * from './compute-workload';
+
+export * from './longform-dialogue-state';
+export * from './performance-master';
+export * from './motion-capture-3d';
+export * from './process-replication';
+export * from './production-project';
+
+export * from './process-observation';
+export * from './rehearsal-loop';
+
+export * from './observation-bus';

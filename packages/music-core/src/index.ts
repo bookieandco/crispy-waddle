@@ -5,6 +5,7 @@ export * from "./taste.js";
 export * from "./youtube-music.js";
 export * from "./search.js";
 export * from "./player.js";
+export * from "./player-controller.js";
 export * from "./jhadina-music.js";
 export * from "./jhadina-music-action-handler.js";
 export * from "./audio-output.js";
@@ -31,6 +32,5 @@ export * from "./browser-playback-host.js";
 export * from "./playback-checkpoint.js";
 export * from "./entertainment-continuity.js";
 
-// Keep the public restoration-session type distinct from ledger versions.
 export type { RestorationVersion } from "./restoration.js";
 export type { RestorationVersion as LedgerRestorationVersion } from "./restoration-engine/provenance-ledger.js";

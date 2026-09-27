@@ -13,13 +13,18 @@ export type FeedSource =
   | 'Bluesky'
   | 'Tumblr'
   | 'VK'
-  | 'Director';
+  | 'Director'
+  | 'JhadinaTV'
+  | 'Opportunities'
+  | 'Money'
+  | 'Sports'
+  | 'PupsonStuff';
 
 export const HOME_FEED_SOURCES: FeedSource[] = [
-  'All','Social','TikTok','Facebook','Snapchat','Instagram','YouTube','Reddit','X','LinkedIn','Threads','Bluesky','Tumblr','VK','Director',
+  'All','Social','TikTok','Facebook','Snapchat','Instagram','YouTube','Reddit','X','LinkedIn','Threads','Bluesky','Tumblr','VK','Director','JhadinaTV','Opportunities','Money','Sports','PupsonStuff',
 ];
 
-export type StoryKind = 'social' | 'youtube' | 'director' | 'jhadina';
+export type StoryKind = 'social' | 'youtube' | 'director' | 'jhadina' | 'tv' | 'opportunity' | 'money' | 'sports' | 'commerce';
 
 export type StoryDetail = { label: string; value: string };
 

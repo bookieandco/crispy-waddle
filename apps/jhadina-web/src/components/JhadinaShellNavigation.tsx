@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import styles from "./JhadinaShellNavigation.module.css"
+import { VpnShellControl } from "./VpnShellControl"
 
 type IconName="home"|"ask"|"work"|"activity"|"more"|"money"|"media"|"growth"|"opportunity"|"spatial"|"calendar"|"campaign"|"placement"|"wallet"|"privacy"|"studio"
 
@@ -65,6 +66,7 @@ export function JhadinaShellNavigation(){
  },[open])
  return <>
   <div className={styles.brand}><Link href="/" aria-label="Jhadina home"><span className={styles.brandMark}><Icon name="ask"/></span><span className={styles.brandText}>Jhadina</span></Link></div>
+  <div className={styles.vpnWrap}><VpnShellControl/></div>
   <div ref={wrap} className={styles.moreWrap}>
    <button type="button" className={styles.worldsButton} aria-label="Open Jhadina worlds" aria-expanded={open} aria-controls="jhadina-worlds-menu" onClick={()=>setOpen(v=>!v)}><Icon name="more"/><span>Worlds</span></button>
    {open&&<nav id="jhadina-worlds-menu" className={styles.menu} aria-label="Jhadina worlds">

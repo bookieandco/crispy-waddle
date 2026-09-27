@@ -9,7 +9,8 @@ export type RuntimeAttentionKind =
   | 'blocked'
   | 'retry-exhausted'
   | 'lease-recovery'
-  | 'automatic-retry';
+  | 'automatic-retry'
+  | 'paused';
 
 export interface RuntimeAttentionItem {
   taskId:string;
@@ -61,6 +62,10 @@ export function buildWorkSessionRuntimeProjection(
     }
     if(task.status==='blocked'){
       human.push(item(task,'blocked',true,task.blockedReason??'task blocked'));
+      continue;
+    }
+    if(task.status==='paused'){
+      human.push(item(task,'paused',true,'task paused; resume or cancel decision required'));
       continue;
     }
     if(task.status==='failed'){

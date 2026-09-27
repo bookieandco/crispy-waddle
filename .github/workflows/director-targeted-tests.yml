@@ -10,10 +10,13 @@ on:
       - "apps/jhadina-web/src/lib/social/director-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
       - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
+      - "apps/jhadina-web/src/lib/supabase/middleware*"
+      - "apps/jhadina-web/src/lib/supabase/public-config*"
       - "apps/jhadina-web/lib/supabase-generated-asset-repository.ts"
       - "packages/social-core/src/content-projects*"
       - "docs/DIRECTOR*.md"
       - "supabase/migrations/*director*"
+      - "supabase/functions/jhadina-director-live-cert-gateway/**"
       - ".github/workflows/director-targeted-tests.yml"
       - "pnpm-lock.yaml"
   push:
@@ -27,10 +30,13 @@ on:
       - "apps/jhadina-web/src/lib/social/director-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
       - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
+      - "apps/jhadina-web/src/lib/supabase/middleware*"
+      - "apps/jhadina-web/src/lib/supabase/public-config*"
       - "apps/jhadina-web/lib/supabase-generated-asset-repository.ts"
       - "packages/social-core/src/content-projects*"
       - "docs/DIRECTOR*.md"
       - "supabase/migrations/*director*"
+      - "supabase/functions/jhadina-director-live-cert-gateway/**"
       - ".github/workflows/director-targeted-tests.yml"
       - "pnpm-lock.yaml"
 jobs:
@@ -87,6 +93,15 @@ jobs:
           src/model-prompt-translation.test.ts
           src/generation-plan-prompt-translation.test.ts
           src/dialogue-coverage-workflow.test.ts
+          src/longform-dialogue-state.test.ts
+          src/performance-master.test.ts
+          src/motion-capture-3d.test.ts
+          src/studio-rig-animation-mocap.test.ts
+          src/process-replication.test.ts
+          src/production-project.test.ts
+          src/process-observation.test.ts
+          src/rehearsal-loop.test.ts
+          src/director-replicate-certification.test.ts
           src/agentic-project-context.test.ts
           src/localized-video-repair.test.ts
           src/world-reference-workflow.test.ts
@@ -143,8 +158,12 @@ jobs:
           src/app/api/director/products/references/[assetId]/admit/route.test.ts
           src/app/api/director/products/references/route.test.ts
           src/lib/director-reference-video-provider.test.ts
+          src/lib/director-certification-mp4.test.ts
+          src/lib/director-certification-provider.test.ts
           src/lib/director-reference-asset-resolver.test.ts
           src/lib/director-reference-media.test.ts
           src/app/api/workstation/editing-assets/route.test.ts
           src/lib/social/director-bridge.test.ts
+          src/lib/supabase/middleware.test.ts
+          src/lib/supabase/public-config.test.ts
       - run: pnpm --filter @jhadina/jhadina-web run type-check
