@@ -34,7 +34,7 @@ function provider(
       id,
       name: id,
       costClass: input.costClass ?? 'free-local',
-      supportedModes: ['standard'],
+      supportedModes: ['standard','long-form'],
       health: 'healthy',
       supportsCharacterReference: input.character ?? false,
       requiresCharacterReference: input.requiresCharacter ?? false,
