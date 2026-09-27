@@ -181,3 +181,6 @@ export * from './process-observation';
 export * from './rehearsal-loop';
 
 export * from './observation-bus';
+
+export * from './phantom-video-provider';
+export * from './production-quality-certification';
