@@ -83,3 +83,31 @@ describe('WorkSession task repository',()=>{
     expect((await repo.get('ws-1','persisted'))?.status).toBe('ready');
   });
 });
+
+
+describe('WorkSession task leases',()=>{
+  it('prevents double claims and supports heartbeat/release',async()=>{
+    const repo=new InMemoryWorkSessionTaskRepository();
+    const queued=task('lease');
+    const ready=evolveWorkSessionTask(queued,{status:'ready',updatedAt:'2026-09-26T00:00:01.000Z'});
+    await repo.create(ready);
+
+    const first=await repo.claimReady('ws-1','lease','worker-a',60_000);
+    expect(first?.status).toBe('running');
+    expect(first?.attempt).toBe(1);
+    expect(first?.leaseOwner).toBe('worker-a');
+    expect(first?.leaseToken).toBeTruthy();
+
+    await expect(repo.claimReady('ws-1','lease','worker-b',60_000)).resolves.toBeNull();
+    await expect(repo.renewLease('ws-1','lease','worker-b',first!.leaseToken!,60_000)).resolves.toBeNull();
+
+    const renewed=await repo.renewLease('ws-1','lease','worker-a',first!.leaseToken!,60_000);
+    expect(renewed?.leaseExpiresAt).toBeTruthy();
+    expect(renewed?.version).toBeGreaterThan(first!.version);
+
+    const released=await repo.releaseLease('ws-1','lease','worker-a',renewed!.leaseToken!,'completed');
+    expect(released?.status).toBe('completed');
+    expect(released?.leaseOwner).toBeUndefined();
+    expect(released?.leaseToken).toBeUndefined();
+  });
+});
