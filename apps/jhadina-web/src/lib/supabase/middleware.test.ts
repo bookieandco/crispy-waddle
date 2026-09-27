@@ -10,6 +10,7 @@ vi.mock('@supabase/ssr',()=>({
 }));
 
 import { updateSession } from './middleware';
+import { getPublicSupabaseConfig } from './public-config';
 
 const envKeys=[
   'NEXT_PUBLIC_SUPABASE_URL',
@@ -20,7 +21,7 @@ const envKeys=[
 ] as const;
 const original=Object.fromEntries(envKeys.map(key=>[key,process.env[key]]));
 
-describe('Supabase middleware fail-closed behavior',()=>{
+describe('Supabase middleware production bootstrap',()=>{
   beforeEach(()=>{
     mocks.createServerClient.mockReset();
     for(const key of envKeys) delete process.env[key];
@@ -33,20 +34,32 @@ describe('Supabase middleware fail-closed behavior',()=>{
     }
   });
 
-  it('lets Director machine routes reach their own bearer-secret boundary without public Supabase env',async()=>{
+  it('lets Director machine routes reach their own bearer-secret boundary without a browser session',async()=>{
     const response=await updateSession(new NextRequest('https://example.com/api/director/process-replication/reconcile'));
     expect(response.status).toBe(200);
     expect(mocks.createServerClient).not.toHaveBeenCalled();
   });
 
-  it('returns 503 for ordinary protected APIs instead of crashing middleware when public auth env is absent',async()=>{
-    const response=await updateSession(new NextRequest('https://example.com/api/jhadina/command'));
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({success:false,error:'Authentication service is not configured'});
-    expect(mocks.createServerClient).not.toHaveBeenCalled();
+  it('has a canonical public Supabase fallback when deployment env injection is absent',()=>{
+    const config=getPublicSupabaseConfig();
+    expect(config.url).toBe('https://kqbkaozfjubkjevdfvic.supabase.co');
+    expect(config.key).toMatch(/^sb_publishable_/);
   });
 
-  it('supports publishable-key aliases without ever falling back to service-role credentials',async()=>{
+  it('uses the canonical public fallback instead of crashing middleware when env is absent',async()=>{
+    mocks.createServerClient.mockReturnValue({
+      auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:{sub:'u'}}})},
+    });
+    const response=await updateSession(new NextRequest('https://example.com/api/jhadina/command'));
+    expect(response.status).toBe(200);
+    expect(mocks.createServerClient).toHaveBeenCalledWith(
+      'https://kqbkaozfjubkjevdfvic.supabase.co',
+      expect.stringMatching(/^sb_publishable_/),
+      expect.any(Object),
+    );
+  });
+
+  it('prefers deployment env aliases while never falling back to service-role credentials',async()=>{
     process.env.SUPABASE_URL='https://example.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='anon-key';
     mocks.createServerClient.mockReturnValue({
