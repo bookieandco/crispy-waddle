@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type {
   GenerationProvider,
   GenerationProviderRecord,
+  GenerationReference,
   GenerationRequest,
   GenerationResult,
   GenerationSubmissionOptions,
@@ -34,7 +35,7 @@ function mappedStatus(status:DirectorPhantomWorkerResult['status']):GenerationRe
   return 'queued';
 }
 
-function referenceRole(role:GenerationRequest['references'] extends Array<infer T>|undefined ? T extends {role:infer R}?R:never:never){
+function referenceRole(role:GenerationReference['role']){
   switch(role){
     case 'character': return 'character' as const;
     case 'product': return 'product' as const;
