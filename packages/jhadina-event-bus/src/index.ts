@@ -26,13 +26,24 @@ export interface EventBus {
   subscribe<TPayload>(type: string, handler: EventHandler<TPayload>): () => void;
 }
 
+export interface JournaledDomainEvent {
+  readonly sequenceId:number;
+  readonly event:DomainEvent<unknown>;
+}
+
 export interface EventJournal {
   append(event:DomainEvent<unknown>):Promise<'appended'|'duplicate'>;
   listByWorkSession(workSessionId:string):Promise<readonly DomainEvent<unknown>[]>;
+  readAfter(workSessionId:string,afterSequence:number,limit:number):Promise<readonly JournaledDomainEvent[]>;
+}
+
+export interface EventConsumerCheckpointStore {
+  get(consumerId:string,workSessionId:string):Promise<number>;
+  advance(consumerId:string,workSessionId:string,expectedSequence:number,nextSequence:number):Promise<boolean>;
 }
 
 export class InMemoryEventJournal implements EventJournal {
-  private readonly events:DomainEvent<unknown>[]=[];
+  private readonly events:JournaledDomainEvent[]=[];
   private readonly ids=new Set<string>();
   private readonly idempotency=new Set<string>();
 
@@ -42,12 +53,40 @@ export class InMemoryEventJournal implements EventJournal {
     if(this.ids.has(event.id)||this.idempotency.has(key))return 'duplicate';
     this.ids.add(event.id);
     this.idempotency.add(key);
-    this.events.push(freezeEvent(event));
+    this.events.push(Object.freeze({sequenceId:this.events.length+1,event:freezeEvent(event)}));
     return 'appended';
   }
 
   async listByWorkSession(workSessionId:string):Promise<readonly DomainEvent<unknown>[]>{
-    return Object.freeze(this.events.filter(event=>event.context?.workSessionId===workSessionId));
+    return Object.freeze(this.events.filter(entry=>entry.event.context?.workSessionId===workSessionId).map(entry=>entry.event));
+  }
+
+  async readAfter(workSessionId:string,afterSequence:number,limit:number):Promise<readonly JournaledDomainEvent[]>{
+    assertReplayRequest(afterSequence,limit);
+    return Object.freeze(this.events
+      .filter(entry=>entry.sequenceId>afterSequence&&entry.event.context?.workSessionId===workSessionId)
+      .slice(0,limit));
+  }
+}
+
+export class InMemoryEventConsumerCheckpointStore implements EventConsumerCheckpointStore {
+  private readonly checkpoints=new Map<string,number>();
+
+  async get(consumerId:string,workSessionId:string):Promise<number>{
+    assertCheckpointIdentity(consumerId,workSessionId);
+    return this.checkpoints.get(checkpointKey(consumerId,workSessionId))??0;
+  }
+
+  async advance(consumerId:string,workSessionId:string,expectedSequence:number,nextSequence:number):Promise<boolean>{
+    assertCheckpointIdentity(consumerId,workSessionId);
+    if(!Number.isInteger(expectedSequence)||!Number.isInteger(nextSequence)||expectedSequence<0||nextSequence<expectedSequence){
+      throw new Error('RUNTIME_EVENT_CHECKPOINT_INVALID');
+    }
+    const key=checkpointKey(consumerId,workSessionId);
+    const current=this.checkpoints.get(key)??0;
+    if(current!==expectedSequence)return false;
+    this.checkpoints.set(key,nextSequence);
+    return true;
   }
 }
 
@@ -117,6 +156,7 @@ export interface RuntimeEventDatabaseError {
 }
 
 export interface RuntimeEventDatabaseClient {
+  rpc(name:string,args:Record<string,unknown>):PromiseLike<{data:unknown;error:RuntimeEventDatabaseError|null}>;
   from(table:string):{
     insert(values:Record<string,unknown>):PromiseLike<{error:RuntimeEventDatabaseError|null}>;
     select(columns:string):{
@@ -163,6 +203,52 @@ export class SupabaseEventJournal implements EventJournal {
     if(error)throw new Error(`RUNTIME_EVENT_LIST_FAILED:${error.message}`);
     return Object.freeze((data??[]).map(row=>eventFromDatabaseRow(row as Record<string,unknown>)));
   }
+
+  async readAfter(workSessionId:string,afterSequence:number,limit:number):Promise<readonly JournaledDomainEvent[]>{
+    assertReplayRequest(afterSequence,limit);
+    const {data,error}=await this.db.rpc('jhadina_read_runtime_events_after',{
+      p_work_session_id:workSessionId,
+      p_after_sequence:afterSequence,
+      p_limit:limit,
+    });
+    if(error)throw new Error(`RUNTIME_EVENT_REPLAY_FAILED:${error.message}`);
+    const rows=Array.isArray(data)?data as Record<string,unknown>[];
+    return Object.freeze(rows.map(row=>Object.freeze({
+      sequenceId:Number(row.sequence_id),
+      event:eventFromDatabaseRow(row),
+    })));
+  }
+}
+
+export class SupabaseEventConsumerCheckpointStore implements EventConsumerCheckpointStore {
+  constructor(private readonly db:RuntimeEventDatabaseClient){}
+
+  async get(consumerId:string,workSessionId:string):Promise<number>{
+    assertCheckpointIdentity(consumerId,workSessionId);
+    const {data,error}=await this.db.rpc('jhadina_get_runtime_event_checkpoint',{
+      p_consumer_id:consumerId,
+      p_work_session_id:workSessionId,
+    });
+    if(error)throw new Error(`RUNTIME_EVENT_CHECKPOINT_READ_FAILED:${error.message}`);
+    const value=typeof data==='number'?data:Number(data??0);
+    if(!Number.isInteger(value)||value<0)throw new Error('RUNTIME_EVENT_CHECKPOINT_CORRUPT');
+    return value;
+  }
+
+  async advance(consumerId:string,workSessionId:string,expectedSequence:number,nextSequence:number):Promise<boolean>{
+    assertCheckpointIdentity(consumerId,workSessionId);
+    if(!Number.isInteger(expectedSequence)||!Number.isInteger(nextSequence)||expectedSequence<0||nextSequence<expectedSequence){
+      throw new Error('RUNTIME_EVENT_CHECKPOINT_INVALID');
+    }
+    const {data,error}=await this.db.rpc('jhadina_advance_runtime_event_checkpoint',{
+      p_consumer_id:consumerId,
+      p_work_session_id:workSessionId,
+      p_expected_sequence:expectedSequence,
+      p_next_sequence:nextSequence,
+    });
+    if(error)throw new Error(`RUNTIME_EVENT_CHECKPOINT_WRITE_FAILED:${error.message}`);
+    return data===true;
+  }
 }
 
 function eventFromDatabaseRow(row:Record<string,unknown>):DomainEvent<unknown>{
@@ -187,4 +273,19 @@ function eventFromDatabaseRow(row:Record<string,unknown>):DomainEvent<unknown>{
 
 function nullableString(value:unknown):string|undefined{
   return typeof value==='string'&&value.length>0?value:undefined;
+}
+
+
+function assertReplayRequest(afterSequence:number,limit:number):void{
+  if(!Number.isInteger(afterSequence)||afterSequence<0||!Number.isInteger(limit)||limit<1||limit>500){
+    throw new Error('RUNTIME_EVENT_REPLAY_REQUEST_INVALID');
+  }
+}
+
+function assertCheckpointIdentity(consumerId:string,workSessionId:string):void{
+  if(!consumerId.trim()||!workSessionId.trim())throw new Error('RUNTIME_EVENT_CHECKPOINT_IDENTITY_REQUIRED');
+}
+
+function checkpointKey(consumerId:string,workSessionId:string):string{
+  return `${consumerId}:${workSessionId}`;
 }
