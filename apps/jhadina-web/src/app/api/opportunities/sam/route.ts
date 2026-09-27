@@ -6,6 +6,9 @@ import { projectSamCommandCenter } from '@/lib/money-opportunities/sam-command-c
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
 
+const DEFAULT_SAM_GATEWAY_URL=
+  'https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-sam-gateway'
+
 async function authenticated(){
   const supabase=await createClient()
   const {data:{user}}=await supabase.auth.getUser()
@@ -19,17 +22,52 @@ function limitFrom(request:NextRequest){
   return Number.isInteger(value)&&value>=1&&value<=100?value:null
 }
 
+function oidcToken(request:NextRequest):string|undefined{
+  return process.env.VERCEL_OIDC_TOKEN?.trim()||
+    request.headers.get('x-vercel-oidc-token')?.trim()||
+    undefined
+}
+
+async function readViaGateway(request:NextRequest,limit:number){
+  const token=oidcToken(request)
+  if(!token)return NextResponse.json({
+    success:false,
+    error:'Federal contracts read gateway is not available.',
+    blocker:'VERCEL_OIDC_TOKEN',
+  },{status:503})
+
+  const endpoint=process.env.JHADINA_SAM_GATEWAY_URL?.trim()||DEFAULT_SAM_GATEWAY_URL
+  const response=await fetch(endpoint,{
+    method:'POST',
+    headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},
+    body:JSON.stringify({action:'command_center',limit}),
+    cache:'no-store',
+  })
+  const payload=await response.json().catch(()=>({ok:false,error:'sam_gateway_invalid_json'})) as Record<string,unknown>
+  if(!response.ok||payload.ok!==true){
+    return NextResponse.json({
+      success:false,
+      error:'Unable to load Federal Contracts evidence.',
+      blocker:typeof payload.error==='string'?payload.error:'sam_gateway_failed',
+    },{status:response.status||502})
+  }
+
+  const data=projectSamCommandCenter({
+    catalog:Array.isArray(payload.catalog)?payload.catalog as Array<Record<string,unknown>>:[],
+    analyses:Array.isArray(payload.analyses)?payload.analyses as Array<Record<string,unknown>>:[],
+    providers:Array.isArray(payload.providers)?payload.providers as Array<Record<string,unknown>>:[],
+    pursuits:Array.isArray(payload.pursuits)?payload.pursuits as Array<Record<string,unknown>>:[],
+  })
+  return NextResponse.json({success:true,data},{headers:{'cache-control':'no-store'}})
+}
+
 export async function GET(request:NextRequest){
   if(!await authenticated())return NextResponse.json({success:false,error:'Authentication required'},{status:401})
   const limit=limitFrom(request)
   if(limit===null)return NextResponse.json({success:false,error:'limit must be between 1 and 100'},{status:400})
 
   const service=createServiceRoleClient()
-  if(!service)return NextResponse.json({
-    success:false,
-    error:'Federal contracts runtime is not configured.',
-    blocker:'SUPABASE_SERVICE_ROLE_KEY',
-  },{status:503})
+  if(!service)return readViaGateway(request,limit)
 
   const {data:catalog,error:catalogError}=await service
     .from('jhadina_sam_catalog')
