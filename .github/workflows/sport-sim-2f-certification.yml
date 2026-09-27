@@ -23,6 +23,7 @@ on:
   push:
     branches:
       - main
+      - sport-sim-2f-final
     paths:
       - 'packages/money-core/src/sports-simulation-**'
       - 'packages/money-core/src/sports-correlated-monte-carlo.ts'
@@ -77,3 +78,15 @@ jobs:
 
       - name: Ask Jhadina sports simulation shortcut
         run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/intelligence/ask-sports-simulation-command.test.ts
+
+      - name: Repository type-check
+        run: pnpm type-check
+
+      - name: Repository lint
+        run: pnpm lint
+
+      - name: Repository tests
+        run: pnpm test
+
+      - name: Repository build
+        run: pnpm build
