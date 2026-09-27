@@ -289,3 +289,43 @@ function assertCheckpointIdentity(consumerId:string,workSessionId:string):void{
 function checkpointKey(consumerId:string,workSessionId:string):string{
   return `${consumerId}:${workSessionId}`;
 }
+
+
+export interface ReplayConsumerInput {
+  journal:EventJournal;
+  checkpoints:EventConsumerCheckpointStore;
+  consumerId:string;
+  workSessionId:string;
+  limit?:number;
+  handle:(entry:JournaledDomainEvent)=>Promise<void>;
+}
+
+/**
+ * At-least-once replay consumer. The checkpoint advances only after the
+ * handler succeeds. A crash between side effect and checkpoint may replay the
+ * event, so handlers must use the event/task idempotency lineage.
+ */
+export async function consumeReplayBatch(input:ReplayConsumerInput):Promise<{
+  processed:number;
+  checkpoint:number;
+}>{
+  const limit=input.limit??100;
+  assertReplayRequest(0,limit);
+  const initial=await input.checkpoints.get(input.consumerId,input.workSessionId);
+  const entries=await input.journal.readAfter(input.workSessionId,initial,limit);
+  let checkpoint=initial;
+  let processed=0;
+  for(const entry of entries){
+    await input.handle(entry);
+    const advanced=await input.checkpoints.advance(
+      input.consumerId,
+      input.workSessionId,
+      checkpoint,
+      entry.sequenceId,
+    );
+    if(!advanced)throw new Error('RUNTIME_EVENT_CHECKPOINT_CONFLICT');
+    checkpoint=entry.sequenceId;
+    processed+=1;
+  }
+  return {processed,checkpoint};
+}
