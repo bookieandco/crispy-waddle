@@ -106,8 +106,9 @@ export class PhantomDirectorGenerationProvider implements GenerationProvider{
 
   private buildInput(request:GenerationRequest){
     if(request.modality!=='video') throw new Error('DIRECTOR_PHANTOM_VIDEO_MODALITY_REQUIRED');
-    if(request.model.id!=='phantom-wan-1.3b'&&request.model.id!=='phantom-wan-14b'){
-      throw new Error(`DIRECTOR_PHANTOM_MODEL_UNSUPPORTED:${request.model.id}`);
+    const model=request.model.id;
+    if(model!=='phantom-wan-1.3b'&&model!=='phantom-wan-14b'){
+      throw new Error(`DIRECTOR_PHANTOM_MODEL_UNSUPPORTED:${model}`);
     }
     const references=(request.references??[]).filter(reference=>reference.media!=='video'&&reference.role!=='audio');
     if(!references.length) throw new Error('DIRECTOR_PHANTOM_REFERENCE_REQUIRED');
@@ -139,7 +140,7 @@ export class PhantomDirectorGenerationProvider implements GenerationProvider{
       references:phantomReferences,
       durationSeconds:duration,
       seed,
-      model:request.model.id,
+      model,
       ...(request.parameters.phantomSize==='832*480'||request.parameters.phantomSize==='1280*720'
         ? {size:request.parameters.phantomSize} : {}),
       ...(request.parameters.phantomFps===16||request.parameters.phantomFps===24
