@@ -51,7 +51,8 @@ export type ComputeSubmissionReceipt={
   namespace:string;
   queueName:string;
   resourceName:string;
-  selectedNodeId:string;
+  plannedNodeId:string;
+  actualNodeId?:string;
   primaryStorageBackendId:string;
   cacheStorageBackendId?:string;
   submittedAt:string;
