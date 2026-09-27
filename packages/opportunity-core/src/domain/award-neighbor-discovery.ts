@@ -130,9 +130,10 @@ export function buildAwardNeighborSearches(
 }
 
 export function isAwardNeighborEvidence(provider:BrokerProviderCandidate){
-  return provider.evidence.some(evidence =>
-    evidence.details?.discoveryMode === 'award_neighbor' &&
-    Array.isArray(evidence.details?.seedProviderIds) &&
-    evidence.details.seedProviderIds.length>0,
-  )
+  return provider.evidence.some(evidence => {
+    const seedProviderIds=evidence.details?.seedProviderIds
+    return evidence.details?.discoveryMode === 'award_neighbor' &&
+      Array.isArray(seedProviderIds) &&
+      seedProviderIds.length>0
+  })
 }
