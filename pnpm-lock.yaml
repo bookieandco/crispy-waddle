@@ -197,6 +197,12 @@ importers:
 
   packages/delivery-compliance-gate: {}
 
+  packages/jhadina-compute-core:
+    devDependencies:
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
+
   packages/director-core:
     dependencies:
       '@jhadina/action-core':
