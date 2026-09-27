@@ -31,6 +31,18 @@ export interface CapabilityRuntimeStatusRepository {
   save(status:CapabilityRuntimeStatus):Promise<void>;
 }
 
+export interface EffectiveCapabilityRuntimeStatus {
+  readonly capabilityName:string;
+  readonly subsystemId?:string;
+  readonly configuredState:CapabilityRuntimeState;
+  readonly state:CapabilityRuntimeState;
+  readonly reason?:string;
+  readonly freshEvidence:readonly CapabilityRuntimeEvidence[];
+  readonly staleEvidence:readonly CapabilityRuntimeEvidence[];
+  readonly updatedAt?:string;
+  readonly evaluatedAt:string;
+}
+
 export function buildSubsystemSurface(registry:CapabilityRegistry,subsystemId:string):JhadinaSubsystemSurface {
   const capabilities=registry.list().filter(item=>item.subsystemId===subsystemId);
   const buckets:Record<JhadinaCapabilityVerb,string[]>={observe:[],read:[],analyze:[],plan:[],propose:[],execute:[]};
@@ -102,8 +114,15 @@ export class CapabilityRegistry {
     const definition=this.definitions.get(status.capabilityName);
     if(!definition)throw new Error(`Unknown capability runtime status: ${status.capabilityName}`);
     if(definition.subsystemId&&status.subsystemId&&definition.subsystemId!==status.subsystemId)throw new Error('Capability runtime subsystem mismatch');
-    if(!status.updatedAt.trim())throw new Error('Capability runtime timestamp is required');
-    if(status.state==='ready'&&!status.evidence.some(item=>item.kind==='live-runtime'))throw new Error('CAPABILITY_READY_REQUIRES_LIVE_RUNTIME_EVIDENCE');
+    const updatedAt=parseRuntimeTime(status.updatedAt,'CAPABILITY_RUNTIME_TIMESTAMP_INVALID');
+    for(const evidence of status.evidence)validateRuntimeEvidence(evidence,updatedAt);
+    if(status.state==='ready'){
+      const live=status.evidence.filter(item=>item.kind==='live-runtime');
+      if(!live.length)throw new Error('CAPABILITY_READY_REQUIRES_LIVE_RUNTIME_EVIDENCE');
+      if(!live.some(item=>item.expiresAt&&Date.parse(item.expiresAt)>updatedAt)){
+        throw new Error('CAPABILITY_READY_REQUIRES_FRESH_EXPIRING_LIVE_RUNTIME_EVIDENCE');
+      }
+    }
     if((status.state==='degraded'||status.state==='paper-only'||status.state==='simulation-only')===true&&status.evidence.length===0)throw new Error('CAPABILITY_RUNTIME_EVIDENCE_REQUIRED');
     return Object.freeze({
       ...status,
@@ -128,6 +147,21 @@ export class CapabilityRegistry {
   runtimeState(name:string):CapabilityRuntimeState {
     if(!this.definitions.has(name))throw new Error(`Unknown capability: ${name}`);
     return this.runtimeStatuses.get(name)?.state??'unknown';
+  }
+
+  effectiveRuntimeStatus(name:string,evaluatedAt:string):EffectiveCapabilityRuntimeStatus {
+    const definition=this.definitions.get(name);
+    if(!definition)throw new Error(`Unknown capability: ${name}`);
+    return evaluateCapabilityRuntimeStatus({
+      capabilityName:name,
+      subsystemId:definition.subsystemId,
+      status:this.runtimeStatuses.get(name),
+      evaluatedAt,
+    });
+  }
+
+  listEffectiveRuntimeStatuses(evaluatedAt:string):readonly EffectiveCapabilityRuntimeStatus[]{
+    return Object.freeze(this.list().map(definition=>this.effectiveRuntimeStatus(definition.name,evaluatedAt)));
   }
 
   dependentsOf(subsystemId: string): readonly SubsystemHealthDefinition[] {
@@ -198,16 +232,89 @@ export function buildSubsystemRuntimeProjection(
 
 export function expireRuntimeStatus(status:CapabilityRuntimeStatus,nowIso?:string):CapabilityRuntimeStatus {
   if(!nowIso)return status;
-  const now=Date.parse(nowIso);
-  if(!Number.isFinite(now))throw new Error('CAPABILITY_RUNTIME_NOW_INVALID');
-  const expired=status.evidence.some(item=>item.expiresAt&&Date.parse(item.expiresAt)<=now);
-  if(!expired)return status;
+  const effective=evaluateCapabilityRuntimeStatus({
+    capabilityName:status.capabilityName,
+    subsystemId:status.subsystemId,
+    status,
+    evaluatedAt:nowIso,
+  });
   return Object.freeze({
     ...status,
-    state:'unknown',
-    reason:'runtime evidence expired',
+    state:effective.state,
+    reason:effective.reason,
     evidence:Object.freeze(status.evidence),
   });
+}
+
+export function evaluateCapabilityRuntimeStatus(input:{
+  capabilityName:string;
+  subsystemId?:string;
+  status?:CapabilityRuntimeStatus;
+  evaluatedAt:string;
+}):EffectiveCapabilityRuntimeStatus{
+  const now=parseRuntimeTime(input.evaluatedAt,'CAPABILITY_RUNTIME_EVALUATED_AT_INVALID');
+  const status=input.status;
+  if(!status){
+    return Object.freeze({
+      capabilityName:input.capabilityName,
+      subsystemId:input.subsystemId,
+      configuredState:'unknown',
+      state:'unknown',
+      reason:'NO_RUNTIME_STATUS_RECORDED',
+      freshEvidence:Object.freeze([]),
+      staleEvidence:Object.freeze([]),
+      evaluatedAt:input.evaluatedAt,
+    });
+  }
+
+  const fresh:CapabilityRuntimeEvidence[]=[];
+  const stale:CapabilityRuntimeEvidence[]=[];
+  for(const evidence of status.evidence){
+    const expired=evidence.expiresAt!==undefined&&Date.parse(evidence.expiresAt)<=now;
+    (expired?stale:fresh).push(evidence);
+  }
+
+  let state=status.state;
+  let reason=status.reason;
+  if(status.state==='ready'&&!fresh.some(item=>item.kind==='live-runtime')){
+    state='degraded';
+    reason='LIVE_RUNTIME_EVIDENCE_EXPIRED';
+  }else if(
+    (status.state==='degraded'||status.state==='paper-only'||status.state==='simulation-only')&&
+    status.evidence.length>0&&fresh.length===0
+  ){
+    state='unknown';
+    reason='RUNTIME_EVIDENCE_EXPIRED';
+  }
+
+  return Object.freeze({
+    capabilityName:status.capabilityName,
+    subsystemId:status.subsystemId??input.subsystemId,
+    configuredState:status.state,
+    state,
+    reason,
+    freshEvidence:Object.freeze([...fresh]),
+    staleEvidence:Object.freeze([...stale]),
+    updatedAt:status.updatedAt,
+    evaluatedAt:input.evaluatedAt,
+  });
+}
+
+function validateRuntimeEvidence(evidence:CapabilityRuntimeEvidence,statusUpdatedAt:number):void{
+  if(!evidence.id.trim()||!evidence.source.trim()||!evidence.summary.trim())throw new Error('CAPABILITY_RUNTIME_EVIDENCE_IDENTITY_REQUIRED');
+  const observedAt=parseRuntimeTime(evidence.observedAt,'CAPABILITY_RUNTIME_EVIDENCE_TIME_INVALID');
+  if(observedAt>statusUpdatedAt)throw new Error('CAPABILITY_RUNTIME_EVIDENCE_FROM_FUTURE');
+  if(evidence.expiresAt!==undefined){
+    const expiresAt=parseRuntimeTime(evidence.expiresAt,'CAPABILITY_RUNTIME_EVIDENCE_EXPIRY_INVALID');
+    if(expiresAt<=observedAt)throw new Error('CAPABILITY_RUNTIME_EVIDENCE_EXPIRY_ORDER_INVALID');
+  }
+}
+
+function parseRuntimeTime(value:string,code:string):number{
+  if(!value.trim())throw new Error(code);
+  const parsed=Date.parse(value);
+  if(Number.isNaN(parsed))throw new Error(code);
+  return parsed;
 }
 
 function aggregateRuntimeState(states:readonly CapabilityRuntimeState[]):CapabilityRuntimeState {
