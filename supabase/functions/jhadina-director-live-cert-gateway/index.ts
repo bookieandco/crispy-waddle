@@ -153,11 +153,14 @@ const RULES = [
   {kind:"delivery",terms:["export","publish","download","deliver","save"],purpose:"package approved output and provenance",caps:["delivery"],qc:["export-integrity"],fail:["flattened or missing lineage"]},
 ] as const;
 
-function stripMarkup(input:string):string {
-  return input.replace(/<script[\s\S]*?<\/script>/gi," ")
+function stripMarkup(input:string,preserveLines=false):string {
+  const cleaned=input.replace(/<script[\s\S]*?<\/script>/gi," ")
     .replace(/<style[\s\S]*?<\/style>/gi," ")
-    .replace(/<[^>]+>/g," ").replace(/[\*_>#|]/g," ")
-    .replace(/\s+/g," ").trim();
+    .replace(/<[^>]+>/g," ")
+    .replace(/[\*_>#|]/g," ");
+  return preserveLines
+    ? cleaned.replace(/\r/g,"").replace(/[ \t]+/g," ").replace(/\n{3,}/g,"\n\n").trim()
+    : cleaned.replace(/\s+/g," ").trim();
 }
 function classify(text:string) {
   const lower=text.toLowerCase();
@@ -180,7 +183,8 @@ async function fetchSource(sourceUrl:string):Promise<string> {
       const response=await fetch(url,{redirect:"follow",headers:{"user-agent":"JhadinaDirectorLiveCertification/1.0"}});
       if(!response.ok) continue;
       const raw=(await response.text()).slice(0,2000000);
-      const clean=stripMarkup(raw);
+      const preserveLines=new URL(url).hostname.toLowerCase()==="raw.githubusercontent.com";
+      const clean=stripMarkup(raw,preserveLines);
       if(clean.length>=200) return clean;
     } catch {}
   }
@@ -188,7 +192,7 @@ async function fetchSource(sourceUrl:string):Promise<string> {
 }
 async function studySteps(sourceUrl:string):Promise<Json[]> {
   const text=await fetchSource(sourceUrl);
-  const parts=text.split(/(?<=[.!?])\s+|\n{2,}/).map(v=>v.trim()).filter(v=>v.length>=20).slice(0,240);
+  const parts=text.split(/\n+|(?<=[.!?])\s+/).map(v=>v.trim()).filter(v=>v.length>=20).slice(0,240);
   if(parts.length<3) throw new Error("DIRECTOR_CERT_PROCESS_EVIDENCE_INSUFFICIENT");
   const selected:{text:string;rule:ReturnType<typeof classify>}[]=[];
   let last="";
