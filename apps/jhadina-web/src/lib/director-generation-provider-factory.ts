@@ -14,6 +14,8 @@ import {
   type LoRARecord,
   type ModelRecord,
 } from '@jhadina/director-core';
+import { DirectorPhantomVideoProvider } from '@/lib/director-phantom-video-provider';
+import { PhantomDirectorGenerationProvider, phantomModelRecords } from '@/lib/director-phantom-generation-provider';
 
 export type DirectorGenerationFactoryConfig = {
   artifactDeployment?: {
@@ -27,6 +29,11 @@ export type DirectorGenerationFactoryConfig = {
     baseUrl: string;
     apiKey?: string;
     models: ModelRecord[];
+  };
+  phantom?: {
+    id?: string;
+    baseUrl: string;
+    token?: string;
   };
   approvedLoras?: LoRARecord[];
 };
@@ -69,6 +76,19 @@ function defaultComfyUiConfig(): DirectorGenerationFactoryConfig['comfyUi'] | un
   };
 }
 
+function defaultPhantomConfig(): DirectorGenerationFactoryConfig['phantom'] | undefined {
+  const enabled=['1','true','yes','on'].includes(
+    (process.env.DIRECTOR_PHANTOM_CANONICAL_GENERATION_ENABLED??'').trim().toLowerCase(),
+  );
+  const baseUrl=process.env.DIRECTOR_PHANTOM_WORKER_URL?.trim();
+  if(!enabled||!baseUrl) return undefined;
+  return {
+    id:process.env.DIRECTOR_PHANTOM_PROVIDER_ID??'phantom-wan',
+    baseUrl,
+    token:process.env.DIRECTOR_PHANTOM_WORKER_TOKEN,
+  };
+}
+
 function buildComfyUiDescriptor(config: NonNullable<DirectorGenerationFactoryConfig['comfyUi']>): GenerationProviderRecord {
   const capabilities = [...new Set(config.models.flatMap((model) => model.capabilities))];
   return {
@@ -101,12 +121,14 @@ function buildWorkflow(request: Parameters<NonNullable<GenerationProvider['submi
 export async function createDirectorGenerationRuntimeConfig(
   config: DirectorGenerationFactoryConfig = {
     comfyUi: defaultComfyUiConfig(),
+    phantom: defaultPhantomConfig(),
     approvedLoras: defaultApprovedLoras(),
   },
 ): Promise<DirectorGenerationProviderRuntime> {
   const registry = new GenerationRegistry();
   const providers = new Map<string, GenerationProvider>();
   const comfyUi = config.comfyUi;
+  const phantom = config.phantom;
   const deployment = config.artifactDeployment;
 
   if (!deployment) {
@@ -120,31 +142,55 @@ export async function createDirectorGenerationRuntimeConfig(
   if (deployment.requirement.subsystem !== 'director') {
     throw new Error('DIRECTOR_ARTIFACT_DEPLOYMENT_SUBSYSTEM_MISMATCH');
   }
-  if (
-    deployment.requirement.artifactId !==
-    'comfyui:runtime-model-bundle'
-  ) {
-    throw new Error('DIRECTOR_COMFYUI_MODEL_BUNDLE_PROOF_REQUIRED');
-  }
-
-  if (!comfyUi) {
+  if (!comfyUi && !phantom) {
     throw new Error('DIRECTOR_GENERATION_PROVIDER_NOT_CONFIGURED');
   }
 
-  const descriptor = buildComfyUiDescriptor(comfyUi);
-  const client = createComfyUIHttpClient({
-    baseUrl: comfyUi.baseUrl,
-    ...(comfyUi.apiKey ? { headers: { authorization: `Bearer ${comfyUi.apiKey}` } } : {}),
-  });
-  const provider = new ComfyUIProvider(descriptor, client, buildWorkflow);
-  providers.set(descriptor.id, provider);
-  registry.registerProvider(descriptor);
+  const requiredBundle =
+    comfyUi && phantom ? 'director:generation-runtime-bundle'
+    : phantom ? 'phantom:runtime-model-bundle'
+    : 'comfyui:runtime-model-bundle';
+  if (deployment.requirement.artifactId !== requiredBundle) {
+    throw new Error(
+      requiredBundle === 'comfyui:runtime-model-bundle'
+        ? 'DIRECTOR_COMFYUI_MODEL_BUNDLE_PROOF_REQUIRED'
+        : requiredBundle === 'phantom:runtime-model-bundle'
+          ? 'DIRECTOR_PHANTOM_MODEL_BUNDLE_PROOF_REQUIRED'
+          : 'DIRECTOR_GENERATION_COMPOSITE_MODEL_BUNDLE_PROOF_REQUIRED',
+    );
+  }
 
-  for (const model of comfyUi.models) {
-    if (model.providerId !== descriptor.id) {
-      throw new Error(`DIRECTOR_MODEL_PROVIDER_MISMATCH:${model.id}`);
+  if (comfyUi) {
+    const descriptor = buildComfyUiDescriptor(comfyUi);
+    const client = createComfyUIHttpClient({
+      baseUrl: comfyUi.baseUrl,
+      ...(comfyUi.apiKey ? { headers: { authorization: `Bearer ${comfyUi.apiKey}` } } : {}),
+    });
+    const provider = new ComfyUIProvider(descriptor, client, buildWorkflow);
+    providers.set(descriptor.id, provider);
+    registry.registerProvider(descriptor);
+
+    for (const model of comfyUi.models) {
+      if (model.providerId !== descriptor.id) {
+        throw new Error(`DIRECTOR_MODEL_PROVIDER_MISMATCH:${model.id}`);
+      }
+      registry.registerModel(model);
     }
-    registry.registerModel(model);
+  }
+
+  if (phantom) {
+    const providerId=phantom.id??'phantom-wan';
+    const worker=new DirectorPhantomVideoProvider({
+      baseUrl:phantom.baseUrl,
+      token:phantom.token,
+    });
+    const provider=new PhantomDirectorGenerationProvider(worker,providerId);
+    providers.set(providerId,provider);
+    registry.registerProvider(provider.descriptor);
+    for(const model of phantomModelRecords(providerId)){
+      if(model.providerId!==providerId) throw new Error(`DIRECTOR_MODEL_PROVIDER_MISMATCH:${model.id}`);
+      registry.registerModel(model);
+    }
   }
 
   for (const lora of config.approvedLoras ?? []) {
