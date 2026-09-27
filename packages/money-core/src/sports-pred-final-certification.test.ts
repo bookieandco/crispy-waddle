@@ -105,8 +105,8 @@ function runtime(eventId='event:1',modelVersion='v1',informationCutoff=cutoff){
     outcomeLogitShiftBps:Object.freeze({HOME:350,AWAY:-350}),
     volatilityBps:250,
     sliders:Object.freeze([
-      {name:'MATCHUP',value:.3,rationale:'Measured matchup evidence.',evidenceIds:Object.freeze(['feature-evidence:'+eventId])},
-      {name:'PLAYER_NIGHT',value:0,rationale:'Neutral upside/downside uncertainty.',evidenceIds:Object.freeze(['feature-evidence:'+eventId])},
+      {name:'MATCHUP' as const,value:.3,rationale:'Measured matchup evidence.',evidenceIds:Object.freeze(['feature-evidence:'+eventId])},
+      {name:'PLAYER_NIGHT' as const,value:0,rationale:'Neutral upside/downside uncertainty.',evidenceIds:Object.freeze(['feature-evidence:'+eventId])},
     ]),
     authority:'SIMULATION_INPUT_ONLY',
     canExecute:false,
