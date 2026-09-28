@@ -171,10 +171,18 @@ export async function submitControlledDexCanaryLeg(input:{
  if(order.requestId.trim()===''||order.inputMint!==intent.inputMint||order.outputMint!==intent.outputMint||order.inputAmountAtomic!==intent.inputAmountAtomic||order.takerAddress!==boundary.wallet.address)throw new Error('DEX_COMMISSION_ORDER_BINDING_MISMATCH')
  if(adapter.provider!=='solana-dex-router'&&order.provider!==adapter.provider)throw new Error('DEX_COMMISSION_ORDER_PROVIDER_MISMATCH')
  if(order.quotedOutputAtomic<intent.minimumOutputAtomic)throw new Error('DEX_COMMISSION_QUOTE_BELOW_MINIMUM')
- const preflight=evaluateMoneyDexGate({intent,order,policy:dexGatePolicy,context:dexGateContext})
+ const simulation=await chain.simulateUnsignedTransaction({unsignedTransactionBase64:order.unsignedTransactionBase64,now})
+ if(simulation.simulationMode!=='UNSIGNED_PRE_SIGN'||!simulation.passed)throw new Error('DEX_COMMISSION_PREFLIGHT_SIMULATION_FAILED')
+ if(simulation.feeLamports===undefined)throw new Error('DEX_COMMISSION_PREFLIGHT_FEE_REQUIRED')
+ const preflight=evaluateMoneyDexGate({
+  intent,
+  order,
+  policy:dexGatePolicy,
+  context:{...dexGateContext,estimatedFeeLamports:simulation.feeLamports},
+ })
  assertMoneyDexGatePassed(preflight)
 
- // No signer call is reachable until the SHARK/EDGE binding and Money preflight both pass.
+ // No signer call is reachable until SHARK/EDGE binding, unsigned simulation, and Money preflight all pass.
  const signed=await signer.signVersionedTransaction({
   walletConnectionId:intent.walletConnectionId,
   signerLeaseId:intent.signerLeaseId,
@@ -204,7 +212,9 @@ export async function submitControlledDexCanaryLeg(input:{
   providerRequestId:order.requestId,
   preExecutionBindingHash:intent.preExecution.bindingHash,
   moneyDexGateId:preflight.gateId,
-  state:'SIGNED',
+  simulationId:simulation.simulationId,
+  simulatedFeeLamports:simulation.feeLamports,
+  state:'SIMULATED',
   startedAt:now,
   updatedAt:now,
   evidenceIds:Object.freeze([...new Set([
@@ -212,6 +222,7 @@ export async function submitControlledDexCanaryLeg(input:{
    ...intent.preExecution.evidenceIds,
    intent.preExecution.bindingHash,
    ...order.evidenceIds,
+   ...simulation.evidenceIds,
    ...preflight.evidenceIds,
    preflight.gateId,
    ...signed.evidenceIds,
@@ -219,12 +230,6 @@ export async function submitControlledDexCanaryLeg(input:{
   authority:'EXECUTION_ATTEMPT_ONLY' as const,
  })
  await attemptStore.put(attempt)
- const simulation=await chain.simulateSignedTransaction({signedTransactionBase64:signed.signedTransactionBase64,primarySignature:signed.primarySignature,now})
- if(!simulation.passed){
-  attempt=await attemptStore.update(attemptId,{state:'FAILED',errorCode:simulation.errorCode??'DEX_SIMULATION_FAILED',updatedAt:now,evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds]})
-  throw new Error('DEX_COMMISSION_PREFLIGHT_SIMULATION_FAILED')
- }
- attempt=await attemptStore.update(attemptId,{state:'SIMULATED',simulationId:simulation.simulationId,simulatedFeeLamports:simulation.feeLamports,updatedAt:now,evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds]})
  const reserved=await canaryStore.reserve({
   provider:intent.provider,
   accountId:intent.walletConnectionId,
