@@ -244,8 +244,8 @@ export function hashDexRuntime(value:unknown):string{
  return createHash('sha256').update(JSON.stringify(value,(_,x)=>typeof x==='bigint'?x.toString():x)).digest('hex')
 }
 
-export function createDexExecutionApprovalBinding(input:Omit<DexExecutionApprovalBinding,'bindingHash'>):DexExecutionApprovalBinding{
- const bindingHash=hashDexRuntime({
+function dexApprovalBindingHash(input:Omit<DexExecutionApprovalBinding,'bindingHash'>):string{
+ return hashDexRuntime({
   sharkAssessmentId:input.sharkAssessmentId,
   thesisId:input.thesisId,
   edgeDecisionBundleHash:input.edgeDecisionBundleHash,
@@ -254,7 +254,10 @@ export function createDexExecutionApprovalBinding(input:Omit<DexExecutionApprova
   approvedAt:input.approvedAt,
   authority:input.authority,
  })
- return Object.freeze({...input,bindingHash})
+}
+
+export function createDexExecutionApprovalBinding(input:Omit<DexExecutionApprovalBinding,'bindingHash'>):DexExecutionApprovalBinding{
+ return Object.freeze({...input,bindingHash:dexApprovalBindingHash(input)})
 }
 
 export function assertDexExecutionApprovalBinding(binding:DexExecutionApprovalBinding):void{
@@ -268,7 +271,7 @@ export function assertDexExecutionApprovalBinding(binding:DexExecutionApprovalBi
  ] as const) if(!value.trim())throw new Error(code)
  if(binding.authority!=='MONEY_RISK_APPROVAL_BINDING')throw new Error('DEX_APPROVAL_AUTHORITY_INVALID')
  if(Number.isNaN(Date.parse(binding.approvedAt)))throw new Error('DEX_APPROVAL_TIME_INVALID')
- const expected=createDexExecutionApprovalBinding({...binding,bindingHash:undefined} as never).bindingHash
+ const expected=dexApprovalBindingHash(binding)
  if(expected!==binding.bindingHash)throw new Error('DEX_APPROVAL_BINDING_HASH_MISMATCH')
 }
 
