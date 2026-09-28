@@ -219,11 +219,11 @@ export async function submitControlledDexCanaryLeg(input:{
   permit,permitContext,canaryStore,canaryPolicy,tradingDate,attemptId,now,
  }=input
  assertBoundary({intent,boundary,adapter,now})
+ const existing=await attemptStore.getByIdempotencyKey(intent.idempotencyKey)
+ if(existing)throw new Error('DEX_COMMISSION_DUPLICATE_EXECUTION_BLOCKED')
  let tradeRecord=assertTradeRuntime({memory:tradeMemory,tradeId,intent,expected:intent.leg==='ENTRY'?'ORDER_INTENT_CREATED':'POSITION_MONITORED'})
  if(dexGateContext.now!==now)throw new Error('MONEY_DEX_GATE_RUNTIME_TIME_MISMATCH')
  assertSharkPreExecutionBinding({binding:intent.preExecution,material:preExecutionMaterial,informationCutoff:intent.informationCutoff})
- const existing=await attemptStore.getByIdempotencyKey(intent.idempotencyKey)
- if(existing)throw new Error('DEX_COMMISSION_DUPLICATE_EXECUTION_BLOCKED')
  const action=dexExecutionAction(intent)
  verifyExecutionPermit(permit,{...permitContext,action,now})
  const order=await adapter.createOrder({intent,takerAddress:boundary.wallet.address})
