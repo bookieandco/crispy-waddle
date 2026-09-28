@@ -128,3 +128,22 @@ test('MONEY-FUND.2 settlement reconciliation understands source-added and destin
  assert.equal(bad.passed,false)
  assert.ok(bad.reasonCodes.includes('SOURCE_DELTA_MISMATCH'))
 })
+
+
+test('MONEY-FUND.2 pre-submit failure revokes unused permit and never calls provider submit',async()=>{
+ const calls={submit:0},base=adapter('SETTLED',calls)
+ const broken:ExecutingFundingRailAdapter={...base,async quote(){throw new Error('QUOTE_DOWN')}}
+ const permits=new PermitMemoryStore(),attempts=new AttemptMemoryStore()
+ const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),observation:observation(),adapter:broken})
+ const loader={async load(){return ctx}}
+ const approvalStore=new InMemoryApprovalReceiptStore(),approvalRequest=moneyMovementApprovalRequest(proposal)
+ const pending=await approvalStore.createPending({actionId:approvalRequest.id,userId:approvalRequest.userId,type:approvalRequest.type,fingerprint:fingerprintMoneyMovementApproval(approvalRequest),expiresAt:'2099-01-01T00:00:00Z'})
+ await approvalStore.approve(pending.id,'u1')
+ const request=moneyMovementExecutionRequest({proposal,approvalReceiptId:pending.id,provider:'funding-fixture',railId:'rail:fixture'})
+ const handler=new MoneyMovementExecutionHandler({loader,permitStore:permits,attempts,now:()=> '2026-09-27T23:00:02Z',policyVersion:'fund2:v1',policyHash:'fund2-policy-hash',authorityId:()=> 'authority:movement:quote-fail',permitId:()=> 'permit:movement:quote-fail',permitNonce:()=> 'nonce:movement:quote-fail'})
+ const executor=new ActionExecutor(createMoneyMovementActionPolicy(loader),new InMemoryActionLedger(),[handler],createApprovalReceiptVerifier(approvalStore,fingerprintMoneyMovementApproval))
+ await assert.rejects(()=>executor.execute(request),/QUOTE_DOWN/)
+ assert.equal(permits.get('permit:movement:quote-fail')?.state,'REVOKED')
+ assert.equal(calls.submit,0)
+ assert.equal(attempts.rows.size,0)
+})
