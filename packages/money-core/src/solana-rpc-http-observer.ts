@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { DexOnchainReceipt, DexSimulationReceipt, SolanaChainObserver } from './solana-dex-runtime-contracts.js'
 
 type FetchLike=(input:string|URL,init?:RequestInit)=>Promise<Response>
@@ -26,6 +27,7 @@ function tokenTotal(rows:unknown,owner:string,mint:string):bigint{
  }
  return total
 }
+function txHash(value:string):string{return createHash('sha256').update(value).digest('hex')}
 
 export class SolanaRpcHttpObserver implements SolanaChainObserver{
  private readonly resolveRpcEndpoint:SolanaRpcHttpObserverOptions['resolveRpcEndpoint']
@@ -47,8 +49,14 @@ export class SolanaRpcHttpObserver implements SolanaChainObserver{
   if(payload.error)throw new Error('DEX_SOLANA_RPC_ERROR')
   return payload.result
  }
- async simulateSignedTransaction(input:{signedTransactionBase64:string;primarySignature:string;now:string}):Promise<DexSimulationReceipt>{
-  const result=record(await this.call('simulateTransaction',[input.signedTransactionBase64,{encoding:'base64',sigVerify:true,commitment:'processed'}]))
+ private async simulation(input:{
+  transactionBase64:string
+  sigVerify:boolean
+  simulationMode:DexSimulationReceipt['simulationMode']
+  signature?:string
+  now:string
+ }):Promise<DexSimulationReceipt>{
+  const result=record(await this.call('simulateTransaction',[input.transactionBase64,{encoding:'base64',sigVerify:input.sigVerify,commitment:'processed'}]))
   const value=record(result?.value)
   if(!value)throw new Error('DEX_SOLANA_SIMULATION_RESPONSE_INVALID')
   const err=value.err
@@ -56,18 +64,26 @@ export class SolanaRpcHttpObserver implements SolanaChainObserver{
   const unitsRaw=value.unitsConsumed
   const logs=Array.isArray(value.logs)?value.logs.filter((x):x is string=>typeof x==='string'):[]
   const passed=err===null||err===undefined
+  const identity=input.signature??txHash(input.transactionBase64)
   return Object.freeze({
-   simulationId:'solana:simulation:'+input.primarySignature,
-   signature:input.primarySignature,
+   simulationId:'solana:simulation:'+input.simulationMode.toLowerCase()+':'+identity,
+   simulationMode:input.simulationMode,
+   signature:input.signature,
    passed,
    errorCode:passed?undefined:'SOLANA_SIMULATION_FAILED',
    unitsConsumed:typeof unitsRaw==='number'&&Number.isFinite(unitsRaw)?unitsRaw:undefined,
    feeLamports:typeof feeRaw==='number'&&Number.isSafeInteger(feeRaw)&&feeRaw>=0?BigInt(feeRaw):undefined,
    logs:Object.freeze(logs),
    observedAt:input.now,
-   evidenceIds:Object.freeze(['solana:simulation:'+input.primarySignature]),
+   evidenceIds:Object.freeze(['solana:simulation:'+input.simulationMode.toLowerCase()+':'+identity]),
    authority:'CHAIN_SIMULATION_EVIDENCE' as const,
   })
+ }
+ async simulateUnsignedTransaction(input:{unsignedTransactionBase64:string;now:string}):Promise<DexSimulationReceipt>{
+  return this.simulation({transactionBase64:input.unsignedTransactionBase64,sigVerify:false,simulationMode:'UNSIGNED_PRE_SIGN',now:input.now})
+ }
+ async simulateSignedTransaction(input:{signedTransactionBase64:string;primarySignature:string;now:string}):Promise<DexSimulationReceipt>{
+  return this.simulation({transactionBase64:input.signedTransactionBase64,sigVerify:true,simulationMode:'SIGNED_NO_BROADCAST',signature:input.primarySignature,now:input.now})
  }
  async observeSwap(input:{signature:string;walletAddress:string;inputMint:string;outputMint:string;now:string}):Promise<DexOnchainReceipt>{
   const result=record(await this.call('getTransaction',[input.signature,{commitment:'confirmed',encoding:'jsonParsed',maxSupportedTransactionVersion:0}]))
