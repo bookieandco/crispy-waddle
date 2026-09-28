@@ -104,9 +104,15 @@ export class MoneyMovementExecutionHandler implements ActionHandler<MoneyMovemen
   await this.deps.permitStore.issue(permit)
   const movementRequest=promoteApprovedMoneyMovement({proposal:ctx.proposal,authorityId:authority.authorityId,executionPermitId:permit.permitId,standingMandateId:ctx.proposal.standingMandateId})
 
-  assertFundingRailAdmissionMayExecute({admission:ctx.admission,observation:ctx.observation,adapter:ctx.adapter,request:movementRequest,source:ctx.source,destination:ctx.destination})
-  const quote=await ctx.adapter.quote(movementRequest)
-  const instruction=await ctx.adapter.prepareInstruction(movementRequest,quote)
+  let quote,instruction
+  try{
+   assertFundingRailAdmissionMayExecute({admission:ctx.admission,observation:ctx.observation,adapter:ctx.adapter,request:movementRequest,source:ctx.source,destination:ctx.destination})
+   quote=await ctx.adapter.quote(movementRequest)
+   instruction=await ctx.adapter.prepareInstruction(movementRequest,quote)
+  }catch(error){
+   await this.deps.permitStore.revoke(permit.permitId)
+   throw error
+  }
 
   await authorizeAndConsumeMoneyPermit(this.deps.permitStore,permitRef(permit),request,executionAction,now)
   return executeGovernedMoneyMovement({request:movementRequest,source:ctx.source,destination:ctx.destination,quote,instruction,admission:ctx.admission,observation:ctx.observation,adapter:ctx.adapter,attempts:this.deps.attempts,now})
