@@ -82,3 +82,5 @@ export * from './domain/sam-operating-context.js'
 export * from './domain/opportunity-factory-final.js'
 
 export * from './domain/previous-win-similarity.js'
+
+export * from './domain/prospect-intelligence.js'

@@ -86,3 +86,5 @@ export * from './work-session-projection.js';
 export * from './work-session-lineage.js';
 
 export * from './universal-artifact-core.js';
+
+export * from './focus-core.js';
