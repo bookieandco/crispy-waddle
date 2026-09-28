@@ -53,7 +53,7 @@ test('Money publishes governed risk, immutable order intent, and completed exit 
     exitIntentId:'position-exit:1',
     sourceDecisionId:'position-decision:1',
     positionId:'position:1',
-    domain:'SHARK_MEME',
+    domain:'MEME',
     instrumentId:'solana:TOKEN1',
     side:'SELL',
     action:'EXIT',
