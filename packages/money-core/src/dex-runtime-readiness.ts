@@ -14,6 +14,7 @@ export const DEX_RUNTIME_READINESS_CHECKS=[
  'SOLANA_RPC',
  'SETTLEMENT_MINT',
  'CANARY_FUNDING_EVIDENCE',
+ 'SOL_FEE_RESERVE_EVIDENCE',
 ] as const
 export type DexRuntimeReadinessCheckId=typeof DEX_RUNTIME_READINESS_CHECKS[number]
 
@@ -37,6 +38,7 @@ export type DexRuntimeReadinessInput=Readonly<{
  solanaRpcConfigured:boolean
  settlementMintConfigured:boolean
  canaryFundingEvidenceIds:readonly string[]
+ solFeeReserveEvidenceIds:readonly string[]
 }>
 
 export type DexRuntimeReadinessReport=Readonly<{
@@ -102,7 +104,8 @@ export function evaluateDexRuntimeReadiness(input:DexRuntimeReadinessInput):DexR
   check('SIGNER_AUTH',input.signerAuthorizationConfigured,'DEX_READINESS_SIGNER_AUTH_REQUIRED',input.signerAuthorizationConfigured?'Remote signer authorization is configured.':'Configure opaque signer-service authorization.'),
   check('SOLANA_RPC',input.solanaRpcConfigured,'DEX_READINESS_SOLANA_RPC_REQUIRED',input.solanaRpcConfigured?'Solana RPC endpoint is configured.':'Configure the server-side HTTPS Solana RPC endpoint.'),
   check('SETTLEMENT_MINT',input.settlementMintConfigured,'DEX_READINESS_SETTLEMENT_MINT_REQUIRED',input.settlementMintConfigured?'Settlement mint is configured.':'Configure the canonical settlement mint used by the controlled canary.'),
-  check('CANARY_FUNDING_EVIDENCE',input.canaryFundingEvidenceIds.length>0,'DEX_READINESS_CANARY_FUNDING_EVIDENCE_REQUIRED',input.canaryFundingEvidenceIds.length>0?'Canary funding evidence exists.':'Record verified tiny-canary funding evidence before any live DEX submission.'),
+  check('CANARY_FUNDING_EVIDENCE',input.canaryFundingEvidenceIds.length>0,'DEX_READINESS_CANARY_FUNDING_EVIDENCE_REQUIRED',input.canaryFundingEvidenceIds.length>0?'Canary settlement funding evidence exists.':'Verify the tiny-canary settlement-asset balance before any live DEX submission.'),
+  check('SOL_FEE_RESERVE_EVIDENCE',input.solFeeReserveEvidenceIds.length>0,'DEX_READINESS_SOL_FEE_RESERVE_EVIDENCE_REQUIRED',input.solFeeReserveEvidenceIds.length>0?'SOL fee-reserve evidence exists.':'Verify a dedicated SOL network-fee reserve before any live DEX submission.'),
  ])
  const blockerCodes=Object.freeze(checks.filter(x=>!x.ready).map(x=>x.code))
  return Object.freeze({
