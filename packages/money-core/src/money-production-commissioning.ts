@@ -1,3 +1,4 @@
+import { assertDexControlledLiveCanaryCertified, type DexExecutionLadderReport } from './dex-four-stage-certification.js'
 import { createHash } from 'node:crypto'
 
 export type MoneyProductionLane='STOCK'|'FOREX'|'SHARK_MEME'|'SPORTS_BETTING'
@@ -171,7 +172,7 @@ function receiptMap(receipts:readonly MoneyProductionCommissioningReceipt[],lane
   return new Map(receipts.filter(x=>x.lane===lane&&x.passed).map(x=>[x.kind,x] as const))
 }
 
-function evaluateLane(lane:MoneyProductionLane,receipts:readonly MoneyProductionCommissioningReceipt[],soak:MoneyShadowSoakReport):MoneyProductionLaneAssessment{
+function evaluateLane(lane:MoneyProductionLane,receipts:readonly MoneyProductionCommissioningReceipt[],soak:MoneyShadowSoakReport,dexControlledCanary?:DexExecutionLadderReport):MoneyProductionLaneAssessment{
   const r=receiptMap(receipts,lane),reasons:string[]=[]
   const software=r.get('SOFTWARE_CERTIFICATION')
   if(!software)reasons.push('SOFTWARE_CERTIFICATION_REQUIRED')
@@ -198,7 +199,14 @@ function evaluateLane(lane:MoneyProductionLane,receipts:readonly MoneyProduction
     const provider=r.get('PROVIDER_CONFIGURATION')
     if(!provider)reasons.push('DEX_EXECUTION_PROVIDER_REQUIRED')
     if(!r.get('CREDENTIAL_VERIFICATION'))reasons.push('DEDICATED_TRADING_WALLET_VERIFICATION_REQUIRED')
-    if(!r.get('LIVE_CANARY'))reasons.push('DEX_TINY_LIVE_CANARY_REQUIRED')
+    const liveCanary=r.get('LIVE_CANARY')
+    if(!liveCanary)reasons.push('DEX_TINY_LIVE_CANARY_REQUIRED')
+    else if(!dexControlledCanary)reasons.push('DEX_STAGE4_CERTIFICATION_REQUIRED')
+    else{
+      try{assertDexControlledLiveCanaryCertified(dexControlledCanary)}
+      catch{reasons.push('DEX_STAGE4_CERTIFICATION_INVALID')}
+      if(!liveCanary.evidenceIds.includes(dexControlledCanary.reportId))reasons.push('DEX_STAGE4_RECEIPT_BINDING_REQUIRED')
+    }
     if(!r.get('RECONCILIATION'))reasons.push('ONCHAIN_RECONCILIATION_REQUIRED')
     if(!r.get('KILL_SWITCH'))reasons.push('DEX_KILL_SWITCH_DRILL_REQUIRED')
   }else{
@@ -226,6 +234,7 @@ export function certifyMoneyProdFinal(input:{
   receipts:readonly MoneyProductionCommissioningReceipt[]
   shadowSoak:MoneyShadowSoakReport
   platformReceipts:readonly MoneyProductionPlatformReceipt[]
+  dexControlledCanary?:DexExecutionLadderReport
   generatedAt:string
 }):MoneyProdFinalReport{
   iso(input.generatedAt,'MONEY_PROD_GENERATED_AT_INVALID')
@@ -242,7 +251,7 @@ export function certifyMoneyProdFinal(input:{
     if(platformIds.has(r.receiptId))throw new Error('MONEY_PROD_DUPLICATE_PLATFORM_RECEIPT')
     platformIds.add(r.receiptId)
   }
-  const lanes=Object.freeze(MONEY_PROD_REQUIRED_LANES.map(lane=>evaluateLane(lane,input.receipts,input.shadowSoak)))
+  const lanes=Object.freeze(MONEY_PROD_REQUIRED_LANES.map(lane=>evaluateLane(lane,input.receipts,input.shadowSoak,input.dexControlledCanary)))
   const softwareComplete=lanes.every(x=>x.status!=='BLOCKED_SOFTWARE')
   const platformPassed=new Map(input.platformReceipts.filter(x=>x.passed).map(x=>[x.kind,x] as const))
   const platformBlockers:string[]=[]
