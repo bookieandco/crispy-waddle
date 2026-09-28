@@ -12,6 +12,7 @@ export type DexExecutionApprovalBinding=Readonly<{
  edgeDecisionBundleHash:string
  integrityGuardHash:string
  moneyRiskDecisionId:string
+ intentFingerprint:string
  approvedAt:string
  authority:'MONEY_RISK_APPROVAL_BINDING'
  bindingHash:string
@@ -254,6 +255,7 @@ function dexApprovalBindingHash(input:Omit<DexExecutionApprovalBinding,'bindingH
   edgeDecisionBundleHash:input.edgeDecisionBundleHash,
   integrityGuardHash:input.integrityGuardHash,
   moneyRiskDecisionId:input.moneyRiskDecisionId,
+  intentFingerprint:input.intentFingerprint,
   approvedAt:input.approvedAt,
   authority:input.authority,
  })
@@ -270,6 +272,7 @@ export function assertDexExecutionApprovalBinding(binding:DexExecutionApprovalBi
   [binding.edgeDecisionBundleHash,'DEX_APPROVAL_EDGE_BUNDLE_REQUIRED'],
   [binding.integrityGuardHash,'DEX_APPROVAL_INTEGRITY_REQUIRED'],
   [binding.moneyRiskDecisionId,'DEX_APPROVAL_MONEY_RISK_REQUIRED'],
+  [binding.intentFingerprint,'DEX_APPROVAL_INTENT_FINGERPRINT_REQUIRED'],
   [binding.bindingHash,'DEX_APPROVAL_BINDING_HASH_REQUIRED'],
  ] as const) if(!value.trim())throw new Error(code)
  if(binding.authority!=='MONEY_RISK_APPROVAL_BINDING')throw new Error('DEX_APPROVAL_AUTHORITY_INVALID')
@@ -328,6 +331,30 @@ function assertMoneyRiskApprovalForExecution(receipt:MoneyDexRiskApprovalReceipt
 
 export type DexSwapIntentDraft=Omit<DexSwapIntent,'approval'|'authority'>
 
+function dexSwapIntentFingerprint(intent:DexSwapIntentDraft|DexSwapIntent):string{
+ return hashDexRuntime({
+  executionId:intent.executionId,
+  tradeId:intent.tradeId,
+  requestId:intent.requestId,
+  runLineageId:intent.runLineageId,
+  userId:intent.userId,
+  strategyId:intent.strategyId,
+  instrumentId:intent.instrumentId,
+  leg:intent.leg,
+  provider:intent.provider,
+  walletConnectionId:intent.walletConnectionId,
+  signerLeaseId:intent.signerLeaseId,
+  inputMint:intent.inputMint,
+  outputMint:intent.outputMint,
+  inputAmountAtomic:intent.inputAmountAtomic.toString(),
+  minimumOutputAtomic:intent.minimumOutputAtomic.toString(),
+  notionalMinor:intent.notionalMinor.toString(),
+  currency:intent.currency,
+  idempotencyKey:intent.idempotencyKey,
+  informationCutoff:intent.informationCutoff,
+ })
+}
+
 export function createApprovedDexSwapIntent(input:{
  draft:DexSwapIntentDraft
  governance:DexGovernanceApprovalPackage
@@ -345,6 +372,7 @@ export function createApprovedDexSwapIntent(input:{
   edgeDecisionBundleHash:hashDexRuntime(governance.edgeDecisionBundle),
   integrityGuardHash:hashDexRuntime(governance.integrityGuard),
   moneyRiskDecisionId:governance.moneyRisk.riskDecisionId,
+  intentFingerprint:dexSwapIntentFingerprint(input.draft),
   approvedAt:governance.approvedAt,
   authority:'MONEY_RISK_APPROVAL_BINDING',
  })
@@ -387,6 +415,7 @@ export function assertDexSwapIntent(intent:DexSwapIntent):void{
  if(intent.inputAmountAtomic<=0n||intent.minimumOutputAtomic<=0n||intent.notionalMinor<=0n)throw new Error('DEX_COMMISSION_AMOUNT_INVALID')
  if(Number.isNaN(Date.parse(intent.informationCutoff)))throw new Error('DEX_COMMISSION_CUTOFF_INVALID')
  assertDexExecutionApprovalBinding(intent.approval)
+ if(intent.approval.intentFingerprint!==dexSwapIntentFingerprint(intent))throw new Error('DEX_APPROVAL_INTENT_FINGERPRINT_MISMATCH')
  if(intent.approval.approvedAt<intent.informationCutoff)throw new Error('DEX_APPROVAL_BEFORE_INFORMATION_CUTOFF')
  if(!intent.evidenceIds.length)throw new Error('DEX_COMMISSION_EVIDENCE_REQUIRED')
 }
