@@ -98,4 +98,31 @@ describe('reference adaptation and publish canary', () => {
     expect(result.canExpand).toBe(true)
     expect(result.authorizationEffect).toBe('NONE')
   })
+
+  it('records failed canary attempts even when no provider post id exists', () => {
+    const plan = createSocialPublishCanaryPlan({
+      id: 'canary:failed',
+      assetId: 'asset:failed',
+      canaryPlatform: 'instagram',
+      expansionPlatforms: ['youtube'],
+      createdAt: '2026-09-28T18:00:00.000Z',
+    })
+    const result = assessPublishCanary({
+      plan,
+      receipts: [{
+        id: 'receipt:failed',
+        canaryPlanId: plan.id,
+        assetId: plan.assetId,
+        platform: 'instagram',
+        accountId: 'acct:1',
+        provider: 'provider',
+        state: 'failed',
+        captionVersion: 'caption:v1',
+        assetVersion: 'asset:v1',
+        observedAt: '2026-09-28T18:05:00.000Z',
+        evidenceRefs: ['provider-error:1'],
+      }],
+    })
+    expect(result.canExpand).toBe(false)
+  })
 })
