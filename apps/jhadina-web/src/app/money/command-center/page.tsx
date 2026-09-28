@@ -16,14 +16,25 @@ type WorkspaceSnapshot={
  connectors:readonly {connectorId:string;provider:string;lane:"STOCK"|"FOREX"|"DEX";admission:"UNCOMMISSIONED"|"READ_ONLY"|"SHADOW"|"CONTROLLED_CANARY"|"LIVE"}[]
 }
 type WorkspaceResponse={success:true;data:WorkspaceSnapshot}|{success:false;error:string}
+type DexReadinessSnapshot={
+ ready:boolean
+ status:"READY_FOR_CONTROLLED_CANARY"|"BLOCKED"
+ blockerCodes:readonly string[]
+ checks:readonly {id:string;ready:boolean;code:string;detail:string;sensitive:false}[]
+ canExposeSecrets:false
+ authority:"READINESS_ONLY"
+}
+type DexReadinessResponse={success:true;data:DexReadinessSnapshot}|{success:false;error:string}
 
 export default function MoneyCommandCenter(){
  const [accounts,setAccounts]=useState<MoneyAccount[]>([])
  const [transactions,setTransactions]=useState<MoneyTransaction[]>([])
  const [workspace,setWorkspace]=useState<WorkspaceSnapshot|null>(null)
+ const [dexReadiness,setDexReadiness]=useState<DexReadinessSnapshot|null>(null)
  const [loading,setLoading]=useState(true)
  const [error,setError]=useState("")
  const [workspaceError,setWorkspaceError]=useState("")
+ const [dexError,setDexError]=useState("")
  const model=useMemo(()=>buildMoneyCommandCenterModel(accounts,transactions),[accounts,transactions])
 
  useEffect(()=>{
@@ -46,9 +57,16 @@ export default function MoneyCommandCenter(){
    if(!response.ok||!payload.success)throw new Error(payload.success?"Could not load Money workspace":payload.error)
    if(active)setWorkspace(payload.data)
   }
+  const loadDexReadiness=async()=>{
+   const response=await fetch("/api/money/dex/readiness",{method:"GET",credentials:"same-origin",cache:"no-store"})
+   const payload=await response.json() as DexReadinessResponse
+   if(!response.ok||!payload.success)throw new Error(payload.success?"Could not load DEX readiness":payload.error)
+   if(active)setDexReadiness(payload.data)
+  }
   void Promise.allSettled([
    loadAccounts().catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load accounts")}),
    loadWorkspace().catch(e=>{if(active)setWorkspaceError(e instanceof Error?e.message:"Could not load Money workspace")}),
+   loadDexReadiness().catch(e=>{if(active)setDexError(e instanceof Error?e.message:"Could not load DEX readiness")}),
   ]).finally(()=>{if(active)setLoading(false)})
   return()=>{active=false}
  },[])
@@ -69,7 +87,13 @@ export default function MoneyCommandCenter(){
    <div style={heroActions}><MoneyConnectBankButton/><Link href="/money/funding?action=deposit" style={lightButton}>Add funds</Link><Link href="/money/funding?action=withdrawal" style={lightButton}>Cash out</Link></div>
   </section>
 
-  {(error||workspaceError)&&<div role="alert" style={alert}>{error&&<>Accounts: {error}</>}{error&&workspaceError?<br/>:null}{workspaceError&&<>Money workspace: {workspaceError}</>}</div>}
+  {(error||workspaceError||dexError)&&<div role="alert" style={alert}>
+   {error&&<>Accounts: {error}</>}
+   {error&&(workspaceError||dexError)?<br/>:null}
+   {workspaceError&&<>Money workspace: {workspaceError}</>}
+   {workspaceError&&dexError?<br/>:null}
+   {dexError&&<>DEX readiness: {dexError}</>}
+  </div>}
 
   <section style={grid}>
    <article style={darkCard}>
@@ -99,7 +123,7 @@ export default function MoneyCommandCenter(){
 
   <section style={section}>
    <div style={sectionTitleRow}><div><div style={eyebrow}>Wallets</div><h2 style={h2}>Crypto custody</h2></div><span style={muted}>{workspace?.wallets.length??0} saved connections</span></div>
-   <div style={grid}><PhantomWalletCard savedConnection={workspace?.wallets.find(x=>x.provider==="phantom"&&x.network==="SOLANA")}/><article style={card}><div style={eyebrow}>Coffer execution wallet</div><h3 style={h3}>Isolated signing boundary</h3><p style={muted}>Reserved for separately commissioned DEX automation. It is capital-limited, destination-allowlisted, reconciled, and separate from your Phantom owner wallet.</p><span style={pill}>Not commissioned</span></article></div>
+   <div style={grid}><PhantomWalletCard savedConnection={workspace?.wallets.find(x=>x.provider==="phantom"&&x.network==="SOLANA")}/><article style={card}><div style={eyebrow}>Coffer execution wallet</div><h3 style={h3}>Isolated signing boundary</h3><p style={muted}>Reserved for separately commissioned DEX automation. It is capital-limited, destination-allowlisted, reconciled, and separate from your Phantom owner wallet.</p><span style={pill}>{dexReadiness?.checks.find(x=>x.id==="COFFER_WALLET")?.ready?"BOUND":"NOT COMMISSIONED"}</span></article></div>
   </section>
 
   <section style={section}>
@@ -109,6 +133,14 @@ export default function MoneyCommandCenter(){
     <MarketCard title="Forex" lane="FOREX" row={connector("FOREX")}/>
     <MarketCard title="DEX / Crypto" lane="DEX" row={connector("DEX")}/>
    </div>
+   <article style={{...card,marginTop:14}}>
+    <div style={sectionHead}><div><div style={eyebrow}>DEX controlled canary</div><h3 style={h3}>Runtime readiness</h3></div><span style={pill}>{dexReadiness?.status??"CHECKING"}</span></div>
+    <p style={muted}>This checklist reports only whether each commissioning prerequisite exists. Secret values are never returned to the browser.</p>
+    <div style={readinessGrid}>
+     {(dexReadiness?.checks??[]).map(item=><div key={item.id} style={readinessRow}><span style={item.ready?readyMark:blockMark}>{item.ready?"✓":"•"}</span><div><strong>{item.id.replaceAll("_"," ")}</strong><div style={muted}>{item.detail}</div></div></div>)}
+     {!dexReadiness&&!dexError&&<div style={muted}>Loading DEX commissioning state…</div>}
+    </div>
+   </article>
   </section>
 
   <section style={section}>
@@ -174,3 +206,8 @@ const row={display:"flex",justifyContent:"space-between",gap:15,alignItems:"cent
 const alert={marginTop:14,padding:14,borderRadius:16,background:"#f3e4e1",color:"#743b36"}
 const boundary={marginTop:30,padding:20,borderRadius:24,border:"1px solid #dce2dd",display:"grid",gap:7,color:"#56665d",fontSize:13}
 const textLink={color:"#34443c",fontSize:13}
+const readinessGrid={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:10,marginTop:14}
+const readinessRow={display:"flex",gap:10,alignItems:"flex-start",padding:12,borderRadius:16,background:"#f7f9f7",border:"1px solid #e3e8e4"}
+const readyMark={display:"grid",placeItems:"center",width:20,height:20,borderRadius:999,background:"#dfeae2",fontSize:12,flex:"0 0 auto"}
+const blockMark={display:"grid",placeItems:"center",width:20,height:20,borderRadius:999,background:"#efe4df",fontSize:12,flex:"0 0 auto"}
+
