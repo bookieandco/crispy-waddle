@@ -65,6 +65,7 @@ async function emitExecutionEvent(
 ):Promise<void>{
  await events.publish(Object.freeze({
   type,
+  tradeId:intent.tradeId,
   executionId:intent.executionId,
   runLineageId:intent.runLineageId,
   strategyId:intent.strategyId,
