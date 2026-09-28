@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createClosedMemeTradeLearningRecord } from '../live-trade-learning'
 import { reviewMemePosition } from '../position-review'
 import {
+  createPostExitLearningConsumer,
   publishPositionMonitored,
   publishSharkAnalyzed,
   publishThesisCreated,
@@ -59,4 +60,52 @@ describe('SHARK trade runtime events',()=>{
     expect(sink.rows[3]?.details.currentValueUsd).toBe(1200)
     expect(sink.rows[4]?.details.signalsWorked).toEqual(['wallet-cluster'])
   })
+})
+
+
+it('automatically closes the SHARK learning loop when EXITED arrives',async()=>{
+  const sink=new Sink()
+  const consumer=createPostExitLearningConsumer({
+    sink,
+    loadLearningInput:event=>({
+      tradeId:event.payload.tradeId,
+      runLineageId:event.payload.runLineageId,
+      sourceAssessmentId:'assessment:1',
+      sourceThesisId:'thesis:1',
+      strategyId:event.payload.strategyId,
+      instrumentId:event.payload.instrumentId,
+      openedAt:'2026-09-27T20:00:00Z',
+      exitedAt:event.occurredAt,
+      plannedEntryNotionalMinor:1000n,
+      realizedEntryNotionalMinor:1000n,
+      realizedExitNotionalMinor:1150n,
+      modeledSlippageBps:30,
+      realizedEntrySlippageBps:35,
+      realizedExitSlippageBps:45,
+      grossReturnBps:1500,
+      netReturnBps:1300,
+      feesPaidMinor:20n,
+      expectedNarrative:'Tracked wallets would keep accumulating.',
+      observedNarrative:'Accumulation persisted until exit.',
+      narrativeHeld:true,
+      signalOutcomes:[{
+        signalId:'wallet:1',signalName:'wallet-cluster',entryExpectation:'accumulation persists',
+        observedOutcome:'accumulation persisted',confidenceBps:8000,worked:true,evidenceIds:['wallet:e'],
+      }],
+      exitReasonCodes:['PROFIT_TARGET'],
+      originalEvidenceIds:['assessment:e','thesis:e'],
+      outcomeEvidenceIds:event.payload.evidenceIds,
+    }),
+  })
+  const learning=await consumer.handle({
+    type:'EXITED',
+    occurredAt:'2026-09-27T20:10:00Z',
+    payload:{
+      tradeId:'trade:2',runLineageId:'lineage:2',strategyId:'shark:meme:v1',
+      instrumentId:'solana:TOKEN2',tokenAddress:'TOKEN2',evidenceIds:['exit:e'],details:{exitExecutionId:'exec:exit'},
+    },
+  })
+  expect(learning?.tradeId).toBe('trade:2')
+  expect(sink.rows.map(row=>row.type)).toEqual(['TRADE_REVIEWED'])
+  expect(sink.rows[0]?.details.signalsWorked).toEqual(['wallet-cluster'])
 })
