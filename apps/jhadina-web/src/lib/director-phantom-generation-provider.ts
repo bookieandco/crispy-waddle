@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type {
-  type BuildPhantomVideoRequestInput,
+  BuildPhantomVideoRequestInput,
   GenerationProvider,
   GenerationProviderRecord,
   GenerationReference,
