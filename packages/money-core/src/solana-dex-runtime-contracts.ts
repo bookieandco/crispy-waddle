@@ -277,6 +277,22 @@ export function assertDexExecutionApprovalBinding(binding:DexExecutionApprovalBi
  if(expected!==binding.bindingHash)throw new Error('DEX_APPROVAL_BINDING_HASH_MISMATCH')
 }
 
+export type DexSwapIntentDraft=Omit<DexSwapIntent,'approval'|'authority'>
+
+export function createApprovedDexSwapIntent(input:{
+ draft:DexSwapIntentDraft
+ approval:Omit<DexExecutionApprovalBinding,'bindingHash'>
+}):DexSwapIntent{
+ const intent=Object.freeze({
+  ...input.draft,
+  approval:createDexExecutionApprovalBinding(input.approval),
+  evidenceIds:Object.freeze([...new Set(input.draft.evidenceIds)]),
+  authority:'MONEY_EXECUTION_INTENT' as const,
+ })
+ assertDexSwapIntent(intent)
+ return intent
+}
+
 export function assertDexSwapIntent(intent:DexSwapIntent):void{
  for(const [value,code] of [
   [intent.executionId,'DEX_COMMISSION_EXECUTION_ID_REQUIRED'],
