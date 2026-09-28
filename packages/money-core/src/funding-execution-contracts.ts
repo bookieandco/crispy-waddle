@@ -24,6 +24,35 @@ export type FundingRailAdmission=Readonly<{
  canMoveMoney:false
 }>
 
+export type FundingRailCertificateProof=Readonly<{
+ certificateId:string
+ railId:string
+ provider:string
+ evidenceClass:'REAL_LIVE'|'SYNTHETIC_TEST'
+ status:'REJECTED'|'SOFTWARE_ONLY'|'CONTROLLED_CANARY_CERTIFIED'|'LIVE_CERTIFIED'
+ admittedKinds:readonly MoneyMovementKind[]
+ admittedCurrencies:readonly string[]
+ sourceKinds:readonly FundingDestination['kind'][]
+ destinationKinds:readonly FundingDestination['kind'][]
+ maxMovementMinor:bigint
+ maxDailyMovementMinor:bigint
+ authority:'CERTIFICATION_ONLY'
+ canExecute:false
+}>
+
+export function assertFundingRailAdmissionCertificate(admission:FundingRailAdmission,certificate:FundingRailCertificateProof):void{
+ if(!admission.commissioningCertificateId||admission.commissioningCertificateId!==certificate.certificateId)throw new Error('MONEY_FUND3_ADMISSION_CERTIFICATE_MISMATCH')
+ if(certificate.authority!=='CERTIFICATION_ONLY'||certificate.canExecute!==false||certificate.evidenceClass!=='REAL_LIVE')throw new Error('MONEY_FUND3_REAL_CERTIFICATE_REQUIRED')
+ if(admission.railId!==certificate.railId||admission.provider!==certificate.provider||admission.environment!=='LIVE')throw new Error('MONEY_FUND3_ADMISSION_PROVIDER_BINDING_MISMATCH')
+ const expected=certificate.status==='LIVE_CERTIFIED'?'LIVE':certificate.status==='CONTROLLED_CANARY_CERTIFIED'?'CONTROLLED_CANARY':null
+ if(!expected||admission.admission!==expected)throw new Error('MONEY_FUND3_ADMISSION_LEVEL_MISMATCH')
+ if(admission.maxMovementMinor>certificate.maxMovementMinor||admission.maxDailyMovementMinor>certificate.maxDailyMovementMinor)throw new Error('MONEY_FUND3_ADMISSION_LIMIT_ESCALATION')
+ for(const k of admission.allowedKinds)if(!certificate.admittedKinds.includes(k))throw new Error('MONEY_FUND3_ADMISSION_KIND_ESCALATION:'+k)
+ for(const x of admission.allowedCurrencies)if(!certificate.admittedCurrencies.includes(x))throw new Error('MONEY_FUND3_ADMISSION_CURRENCY_ESCALATION:'+x)
+ for(const x of admission.sourceKinds)if(!certificate.sourceKinds.includes(x))throw new Error('MONEY_FUND3_ADMISSION_SOURCE_ESCALATION:'+x)
+ for(const x of admission.destinationKinds)if(!certificate.destinationKinds.includes(x))throw new Error('MONEY_FUND3_ADMISSION_DESTINATION_ESCALATION:'+x)
+}
+
 export type FundingRailRuntimeObservation=Readonly<{
  railId:string
  movedTodayMinor:bigint
@@ -94,6 +123,7 @@ function assertTime(v:string,code:string){if(Number.isNaN(Date.parse(v)))throw n
 
 export function assertFundingRailAdmissionMayExecute(input:{
  admission:FundingRailAdmission
+ commissioningCertificate:FundingRailCertificateProof
  observation:FundingRailRuntimeObservation
  adapter:ExecutingFundingRailAdapter
  request:MoneyMovementRequest
@@ -153,7 +183,8 @@ export async function executeGovernedMoneyMovement(input:{
  attempts:MoneyMovementAttemptStore
  now:string
 }):Promise<MoneyMovementExecutionResult>{
- const {request:r,source,destination,quote:q,instruction:i,admission:a,observation:o,adapter,attempts,now}=input
+ const {request:r,source,destination,quote:q,instruction:i,admission:a,commissioningCertificate,observation:o,adapter,attempts,now}=input
+ assertFundingRailAdmissionCertificate(a,commissioningCertificate)
  assertMoneyMovementRequest(r,{verifiedSource:source,verifiedDestination:destination})
  assertFundingRailAdmissionMayExecute({admission:a,observation:o,adapter,request:r,source,destination})
  assertFundingQuoteBound(r,q,now)
