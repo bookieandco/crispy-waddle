@@ -11,7 +11,7 @@ import {
  type MoneyMovementAttemptStore,
  type MoneyMovementExecutionResult,
 } from './funding-execution-contracts.js'
-import { promoteApprovedMoneyMovement,type FundingDestination,type MoneyMovementProposal } from './funding-rail-contracts.js'
+import { promoteApprovedMoneyMovement,type FundingDestination,type MoneyMovementInstruction,type MoneyMovementProposal,type MoneyMovementQuote } from './funding-rail-contracts.js'
 import {
  MONEY_MOVEMENT_EXECUTE_CAPABILITY,
  moneyMovementApprovalAction,
@@ -104,7 +104,7 @@ export class MoneyMovementExecutionHandler implements ActionHandler<MoneyMovemen
   await this.deps.permitStore.issue(permit)
   const movementRequest=promoteApprovedMoneyMovement({proposal:ctx.proposal,authorityId:authority.authorityId,executionPermitId:permit.permitId,standingMandateId:ctx.proposal.standingMandateId})
 
-  let quote,instruction
+  let quote:MoneyMovementQuote,instruction:MoneyMovementInstruction
   try{
    assertFundingRailAdmissionMayExecute({admission:ctx.admission,observation:ctx.observation,adapter:ctx.adapter,request:movementRequest,source:ctx.source,destination:ctx.destination})
    quote=await ctx.adapter.quote(movementRequest)
