@@ -306,7 +306,9 @@ export function assessHandoffReadiness(input: HandoffReadinessInput): HandoffRea
     [input.escalationRuleEvidenceRefs, 'Escalation-rule evidence is missing.'],
     [input.operatorTrialEvidenceRefs, 'Independent operator trial evidence is missing.'],
   ]
-  for (const [refs, message] of requiredEvidence) if (!refs.length) blockers.push(message)
+  for (const [refs, message] of requiredEvidence) {
+    if (!refs.length || refs.some((ref) => !ref.trim())) blockers.push(message)
+  }
   if (input.founderCorrectionRate > input.maximumFounderCorrectionRate) {
     blockers.push('Independent operator trial still requires too much founder correction.')
   }
