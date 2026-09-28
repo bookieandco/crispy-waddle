@@ -11,6 +11,7 @@ import {
   type MoneyProductionCommissioningReceipt,
   type MoneyProductionLane,
 } from './money-production-commissioning.js'
+import { certifyDexExecutionLadder, type DexExecutionStageEvidence } from './dex-four-stage-certification.js'
 
 const at='2026-09-22T02:00:00Z'
 const soak=(overrides:Record<string,Partial<{sampleSize:number;resolvedSampleSize:number;maxDrawdownBps:number;unresolvedExecutions:number;duplicateExecutionCount:number;futureLeakCount:number;authorityEscalationCount:number;crossDomainTruthContaminationCount:number}>>={})=>certifyMoneyShadowSoak({
@@ -34,8 +35,31 @@ const platform=()=>[
   createMoneyProductionPlatformReceipt({kind:'PRODUCTION_DEPLOYMENT',environment:'LIVE',passed:true,revision:'main:test',recordedAt:at,evidenceIds:['vercel:deploy'],issuer:'OPERATIONS'}),
 ]
 
-const receipt=(lane:MoneyProductionLane,kind:MoneyProductionCommissioningReceipt['kind'],provider:string,environment:MoneyProductionCommissioningReceipt['environment']='LIVE')=>
-  createMoneyProductionCommissioningReceipt({lane,kind,provider,environment,passed:true,recordedAt:at,evidenceIds:[lane+':'+kind],issuer:kind==='SOFTWARE_CERTIFICATION'?'MONEY_CERTIFICATION':'OPERATIONS'})
+const receipt=(lane:MoneyProductionLane,kind:MoneyProductionCommissioningReceipt['kind'],provider:string,environment:MoneyProductionCommissioningReceipt['environment']='LIVE',extraEvidence:readonly string[]=[]) =>
+  createMoneyProductionCommissioningReceipt({lane,kind,provider,environment,passed:true,recordedAt:at,evidenceIds:[lane+':'+kind,...extraEvidence],issuer:kind==='SOFTWARE_CERTIFICATION'?'MONEY_CERTIFICATION':'OPERATIONS'})
+
+const dexStage=(stage:DexExecutionStageEvidence['stage'],overrides:Partial<DexExecutionStageEvidence>={}):DexExecutionStageEvidence=>{
+  const windows={
+    HISTORICAL_REPLAY:['2026-09-22T01:00:00Z','2026-09-22T01:05:00Z'],
+    LIVE_SHADOW:['2026-09-22T01:06:00Z','2026-09-22T01:11:00Z'],
+    SIGNED_SIMULATION_NO_BROADCAST:['2026-09-22T01:12:00Z','2026-09-22T01:17:00Z'],
+    CONTROLLED_LIVE_CANARY:['2026-09-22T01:18:00Z','2026-09-22T01:23:00Z'],
+  } as const
+  const [startedAt,endedAt]=windows[stage]
+  const base:DexExecutionStageEvidence={
+    stageId:'prod:'+stage,stage,origin:stage==='HISTORICAL_REPLAY'||stage==='LIVE_SHADOW'?'RECORDED_REAL_MARKET':'LIVE_RUNTIME_ATTESTED',
+    runLineageId:'prod:lineage:1',strategyId:'shark:meme:v1',instrumentId:'solana:TOKEN1',
+    startedAt,endedAt,informationCutoff:endedAt,
+    integrityGuard:{guardVersion:'EDGE-007-v1',guardId:'edge007:prod',disposition:'PASS',reasonCodes:[],evidenceIds:['edge007:prod:e'],authority:'INTEGRITY_VETO_ONLY',canAuthorizeTrade:false,canAuthorizePromotion:false},
+    decisionCount:1,signedTransactionCount:0,simulationCount:0,simulationFailureCount:0,broadcastCount:0,entryBroadcastCount:0,exitBroadcastCount:0,reconciledBroadcastCount:0,duplicateBroadcastCount:0,unknownExecutionCount:0,futureEvidenceCount:0,
+    signerBoundary:'NOT_APPLICABLE',privateKeyMaterialObserved:false,capitalBounded:false,killSwitchProven:false,restartRecoveryProven:false,sellabilityProven:false,positionFlatAfterExit:false,executionCostReconciled:false,
+    providerReceiptIds:[],onchainSignatureIds:[],evidenceIds:['stage:'+stage],
+  }
+  if(stage==='SIGNED_SIMULATION_NO_BROADCAST')Object.assign(base,{walletConnectionId:'wallet:coffer:1',signedTransactionCount:1,simulationCount:1,signerBoundary:'ISOLATED'})
+  if(stage==='CONTROLLED_LIVE_CANARY')Object.assign(base,{walletConnectionId:'wallet:coffer:1',entryExecutionId:'exec:entry',exitExecutionId:'exec:exit',signedTransactionCount:2,simulationCount:2,broadcastCount:2,entryBroadcastCount:1,exitBroadcastCount:1,reconciledBroadcastCount:2,signerBoundary:'ISOLATED',capitalBounded:true,killSwitchProven:true,restartRecoveryProven:true,sellabilityProven:true,positionFlatAfterExit:true,executionCostReconciled:true,providerReceiptIds:['provider:entry','provider:exit'],onchainSignatureIds:['sig:entry','sig:exit']})
+  return {...base,...overrides}
+}
+const dexReport=()=>certifyDexExecutionLadder({stages:[dexStage('HISTORICAL_REPLAY'),dexStage('LIVE_SHADOW'),dexStage('SIGNED_SIMULATION_NO_BROADCAST'),dexStage('CONTROLLED_LIVE_CANARY')]})
 
 test('MONEY-PROD.1 shadow soak rejects leakage, unresolved execution and truth contamination',()=>{
   assert.equal(soak().passed,true)
@@ -73,7 +97,10 @@ test('MONEY-PROD.3 Finnhub market data can satisfy evidence but never forex exec
   assert.notEqual(fx.status,'LIVE_ACCEPTED')
 })
 
-test('MONEY-PROD.4 every lane requires independent live receipts before final acceptance',()=>{
+test('MONEY-PROD.4 SHARK remains externally blocked until a real Stage 4 runtime certificate exists',()=>{
+  const dex=dexReport()
+  assert.equal(dex.controlledLiveCanaryCertified,false)
+  assert.ok(dex.reasonCodes.includes('DEX_CANARY_RUNTIME_VERIFICATION_REQUIRED'))
   const provider:Record<MoneyProductionLane,string>={STOCK:'alpaca',FOREX:'fx-broker',SHARK_MEME:'dex-router',SPORTS_BETTING:'sportsbook-provider'}
   const receipts:MoneyProductionCommissioningReceipt[]=[]
   for(const lane of MONEY_PROD_REQUIRED_LANES){
@@ -81,21 +108,43 @@ test('MONEY-PROD.4 every lane requires independent live receipts before final ac
     if(lane==='FOREX')receipts.push(receipt(lane,'MARKET_DATA','finnhub','LIVE'))
     receipts.push(receipt(lane,'PROVIDER_CONFIGURATION',provider[lane]))
     receipts.push(receipt(lane,'CREDENTIAL_VERIFICATION',provider[lane]))
-    receipts.push(receipt(lane,'LIVE_CANARY',provider[lane]))
+    receipts.push(receipt(lane,'LIVE_CANARY',provider[lane],'LIVE',lane==='SHARK_MEME'?[dex.reportId]:[]))
     receipts.push(receipt(lane,'RECONCILIATION',provider[lane]))
     receipts.push(receipt(lane,'KILL_SWITCH',provider[lane]))
   }
-  const report=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:platform(),generatedAt:at})
-  assert.equal(report.status,'PRODUCTION_ACCEPTED')
-  assert.equal(report.productionAccepted,true)
-  assert.ok(report.lanes.every(x=>x.status==='LIVE_ACCEPTED'))
+  const report=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:platform(),dexControlledCanary:dex,generatedAt:at})
+  assert.equal(report.productionAccepted,false)
+  const shark=report.lanes.find(x=>x.lane==='SHARK_MEME')!
+  assert.ok(shark.reasonCodes.includes('DEX_STAGE4_CERTIFICATION_INVALID'))
+  assert.ok(report.lanes.filter(x=>x.lane!=='SHARK_MEME').every(x=>x.status==='LIVE_ACCEPTED'))
   assert.equal(report.authority,'CERTIFICATION_ONLY')
   assert.equal(report.canExecute,false)
 
   const withoutSportsKill=receipts.filter(x=>!(x.lane==='SPORTS_BETTING'&&x.kind==='KILL_SWITCH'))
-  const blocked=certifyMoneyProdFinal({receipts:withoutSportsKill,shadowSoak:soak(),platformReceipts:platform(),generatedAt:at})
+  const blocked=certifyMoneyProdFinal({receipts:withoutSportsKill,shadowSoak:soak(),platformReceipts:platform(),dexControlledCanary:dex,generatedAt:at})
   assert.equal(blocked.productionAccepted,false)
   assert.ok(blocked.blockers.includes('SPORTS_BETTING:BETTING_KILL_SWITCH_DRILL_REQUIRED'))
+})
+
+test('MONEY-PROD.4B generic SHARK live-canary receipt cannot bypass the DEX Stage 4 certificate',()=>{
+  const provider:Record<MoneyProductionLane,string>={STOCK:'alpaca',FOREX:'fx-broker',SHARK_MEME:'dex-router',SPORTS_BETTING:'sportsbook-provider'}
+  const receipts:MoneyProductionCommissioningReceipt[]=[]
+  for(const lane of MONEY_PROD_REQUIRED_LANES){
+    receipts.push(receipt(lane,'SOFTWARE_CERTIFICATION','jhadina','SHADOW'))
+    if(lane==='FOREX')receipts.push(receipt(lane,'MARKET_DATA','finnhub','LIVE'))
+    receipts.push(receipt(lane,'PROVIDER_CONFIGURATION',provider[lane]),receipt(lane,'CREDENTIAL_VERIFICATION',provider[lane]),receipt(lane,'LIVE_CANARY',provider[lane]),receipt(lane,'RECONCILIATION',provider[lane]),receipt(lane,'KILL_SWITCH',provider[lane]))
+  }
+  const missing=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:platform(),generatedAt:at})
+  const shark=missing.lanes.find(x=>x.lane==='SHARK_MEME')!
+  assert.ok(shark.reasonCodes.includes('DEX_STAGE4_CERTIFICATION_REQUIRED'))
+  assert.equal(missing.productionAccepted,false)
+
+  const dex=dexReport()
+  const unbound=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:platform(),dexControlledCanary:dex,generatedAt:at})
+  const sharkUnbound=unbound.lanes.find(x=>x.lane==='SHARK_MEME')!
+  assert.ok(sharkUnbound.reasonCodes.includes('DEX_STAGE4_CERTIFICATION_INVALID'))
+  assert.ok(sharkUnbound.reasonCodes.includes('DEX_STAGE4_RECEIPT_BINDING_REQUIRED'))
+  assert.equal(unbound.productionAccepted,false)
 })
 
 test('MONEY-PROD.5 certification receipts cannot carry execution authority',()=>{
@@ -131,14 +180,15 @@ test('MONEY-PROD.6 commissioning migration is service-role only and stores no se
 })
 
 test('MONEY-PROD.7 platform deployment and schema are independently required',()=>{
+  const dex=dexReport()
   const receipts=MONEY_PROD_REQUIRED_LANES.flatMap(lane=>{
     const provider:Record<MoneyProductionLane,string>={STOCK:'alpaca',FOREX:'fx-broker',SHARK_MEME:'dex-router',SPORTS_BETTING:'sportsbook-provider'}
     const rows=[receipt(lane,'SOFTWARE_CERTIFICATION','jhadina','SHADOW')]
     if(lane==='FOREX')rows.push(receipt(lane,'MARKET_DATA','finnhub','LIVE'))
-    rows.push(receipt(lane,'PROVIDER_CONFIGURATION',provider[lane]),receipt(lane,'CREDENTIAL_VERIFICATION',provider[lane]),receipt(lane,'LIVE_CANARY',provider[lane]),receipt(lane,'RECONCILIATION',provider[lane]),receipt(lane,'KILL_SWITCH',provider[lane]))
+    rows.push(receipt(lane,'PROVIDER_CONFIGURATION',provider[lane]),receipt(lane,'CREDENTIAL_VERIFICATION',provider[lane]),receipt(lane,'LIVE_CANARY',provider[lane],'LIVE',lane==='SHARK_MEME'?[dex.reportId]:[]),receipt(lane,'RECONCILIATION',provider[lane]),receipt(lane,'KILL_SWITCH',provider[lane]))
     return rows
   })
-  const noPlatform=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:[],generatedAt:at})
+  const noPlatform=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:[],dexControlledCanary:dex,generatedAt:at})
   assert.equal(noPlatform.productionAccepted,false)
   assert.ok(noPlatform.blockers.includes('PLATFORM:COMMISSIONING_DATABASE_SCHEMA_REQUIRED'))
   assert.ok(noPlatform.blockers.includes('PLATFORM:CURRENT_PRODUCTION_DEPLOYMENT_REQUIRED'))

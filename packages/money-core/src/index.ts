@@ -262,3 +262,4 @@ export * from './sports-feed-projection.js';
 export * from './money-movement-approval-contracts.js';
 export * from './funding-execution-contracts.js';
 export * from './funding-action-core-handler.js';
+export * from './dex-four-stage-certification.js';
