@@ -333,3 +333,4 @@ export async function consumeReplayBatch(input:ReplayConsumerInput):Promise<{
 
 export * from './trade-events'
 export * from './trade-memory'
+export * from './trade-runtime-coordinator'
