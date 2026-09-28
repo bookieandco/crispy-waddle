@@ -114,9 +114,12 @@ function commonValidation(input:{receipts:readonly FundingRailCommissioningRecei
  if(criteria.liveMaxDailyMovementMinor<criteria.liveMaxMovementMinor)throw new Error('MONEY_FUND3_DAILY_LIMIT_BELOW_MOVEMENT_LIMIT')
  if(criteria.liveMaxMovementMinor<criteria.maximumCanaryAmountMinor)throw new Error('MONEY_FUND3_LIVE_LIMIT_BELOW_CANARY_LIMIT')
  if(!criteria.requiredKinds.length||!criteria.requiredCurrencies.length)throw new Error('MONEY_FUND3_CRITERIA_REQUIRED')
+ const seenKinds=new Set<FundingCommissioningReceiptKind>()
  for(const r of receipts){
   if(r.authority!=='CERTIFICATION_ONLY'||r.canExecute!==false)throw new Error('MONEY_FUND3_RECEIPT_AUTHORITY_INVALID')
   if(r.railId!==railId||r.provider!==provider||r.providerAccountId!==providerAccountId)reasons.push('RECEIPT_BINDING_MISMATCH:'+r.kind)
+  if(seenKinds.has(r.kind))reasons.push('DUPLICATE_RECEIPT_KIND:'+r.kind)
+  seenKinds.add(r.kind)
  }
  const r=receiptMap(receipts)
  for(const kind of ['PROVIDER_CONFIGURATION','OWNER_ACCOUNT_VERIFICATION','CREDENTIAL_VERIFICATION','KYC_ELIGIBILITY','CAPABILITY_PROBE','WEBHOOK_OR_STATUS_EVIDENCE','KILL_SWITCH_DRILL'] as const)if(!r.get(kind))reasons.push(kind+'_REQUIRED')
@@ -170,8 +173,11 @@ export function certifyFundingRailLive(input:{
  const {map,reasons:common}=commonValidation({receipts:input.receipts,criteria:input.criteria,railId:c.railId,provider:c.provider,providerAccountId:c.providerAccountId})
  reasons.push(...common)
  for(const kind of ['LIVE_CANARY','SETTLEMENT_RECONCILIATION','UNKNOWN_EXECUTION_DRILL','DUPLICATE_SUBMISSION_DRILL','CANCEL_DRILL'] as const)if(!map.get(kind))reasons.push(kind+'_REQUIRED')
- const canaryKinds=new Set<MoneyMovementKind>()
+ const canaryKinds=new Set<MoneyMovementKind>(),canaryIds=new Set<string>(),movementIds=new Set<string>()
  for(const x of input.canaries){
+  if(canaryIds.has(x.canaryId))reasons.push('DUPLICATE_CANARY_ID:'+x.canaryId)
+  if(movementIds.has(x.movementId))reasons.push('DUPLICATE_CANARY_MOVEMENT:'+x.movementId)
+  canaryIds.add(x.canaryId);movementIds.add(x.movementId)
   if(x.authority!=='CANARY_EVIDENCE'||x.canExecute!==false||!x.evidenceIds.length)reasons.push('CANARY_EVIDENCE_INVALID:'+x.canaryId)
   if(x.evidenceClass!=='REAL_LIVE')reasons.push('REAL_LIVE_CANARY_REQUIRED:'+x.canaryId)
   if(x.railId!==c.railId||x.provider!==c.provider||x.providerAccountId!==c.providerAccountId)reasons.push('CANARY_BINDING_MISMATCH:'+x.canaryId)
