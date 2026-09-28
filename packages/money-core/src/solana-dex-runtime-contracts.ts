@@ -67,7 +67,8 @@ export type DexSignedTransaction=Readonly<{
 
 export type DexSimulationReceipt=Readonly<{
  simulationId:string
- signature:string
+ simulationMode:'UNSIGNED_PRE_SIGN'|'SIGNED_NO_BROADCAST'
+ signature?:string
  passed:boolean
  errorCode?:string
  unitsConsumed?:number
@@ -195,6 +196,7 @@ export interface CofferSignerAdapter{
 }
 
 export interface SolanaChainObserver{
+ simulateUnsignedTransaction(input:{unsignedTransactionBase64:string;now:string}):Promise<DexSimulationReceipt>
  simulateSignedTransaction(input:{signedTransactionBase64:string;primarySignature:string;now:string}):Promise<DexSimulationReceipt>
  observeSwap(input:{
   signature:string
