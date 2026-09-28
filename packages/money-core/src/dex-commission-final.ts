@@ -9,7 +9,8 @@ import {
  dexLiveCanaryEvidenceHash,
  type DexExecutionLadderReport,
  type DexExecutionStageEvidence,
- type DexLiveCanaryVerificationReceipt,
+type DexLiveCanaryVerificationReceipt,
+ type EdgeDecisionBundleReceipt,
  type Edge007IntegrityReceipt,
 } from './dex-four-stage-certification.js'
 import type { DexCanaryReconcileResult, DexCanarySubmitResult, DexRestartRecoveryProof } from './dex-controlled-canary-runtime.js'
@@ -171,6 +172,7 @@ export function buildDexControlledLiveCanaryEvidence(input:{
  stageId:string
  strategyId:string
  instrumentId:string
+ edgeDecisionBundle:EdgeDecisionBundleReceipt
  integrityGuard:Edge007IntegrityReceipt
  startedAt:string
  endedAt:string
@@ -218,6 +220,7 @@ export function buildDexControlledLiveCanaryEvidence(input:{
   startedAt:input.startedAt,
   endedAt:input.endedAt,
   informationCutoff:input.informationCutoff,
+  edgeDecisionBundle:input.edgeDecisionBundle,
   integrityGuard:input.integrityGuard,
   decisionCount:2,
   signedTransactionCount:2,
