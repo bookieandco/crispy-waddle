@@ -121,7 +121,8 @@
     "./production-quality-certification": "./src/production-quality-certification.ts",
     "./nle-roundtrip": "./src/nle-roundtrip.ts",
     "./hierarchical-production-coherence": "./src/hierarchical-production-coherence.ts",
-    "./production-final-program": "./src/production-final-program.ts"
+    "./production-final-program": "./src/production-final-program.ts",
+    "./hunyuan-video-15-provider": "./src/hunyuan-video-15-provider.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
