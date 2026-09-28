@@ -118,6 +118,12 @@ export function createProspectRecord(
   requireText(input.icpId, 'PROSPECT_ICP_REQUIRED')
   requireText(input.companyName, 'PROSPECT_COMPANY_REQUIRED')
   requireDate(input.lastVerifiedAt, 'PROSPECT_VERIFIED_AT_INVALID')
+  if (!['generic_business', 'public_professional', 'verified_professional', 'inferred_professional', 'personal_or_unverified'].includes(input.contactQuality)) {
+    throw new Error('PROSPECT_CONTACT_QUALITY_INVALID')
+  }
+  if (!['clear', 'contacted', 'declined', 'do_not_contact', 'suppressed', 'customer'].includes(input.suppressionState)) {
+    throw new Error('PROSPECT_SUPPRESSION_STATE_INVALID')
+  }
   if (!input.evidence.length) throw new Error('PROSPECT_EVIDENCE_REQUIRED')
   for (const evidence of input.evidence) {
     requireText(evidence.id, 'PROSPECT_EVIDENCE_ID_REQUIRED')
