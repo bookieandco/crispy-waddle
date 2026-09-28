@@ -57,3 +57,5 @@ export * from './evidence/evidence-health.js';
 export * from './intelligence/platform-ad-creative.js';
 export * from './experiments/ad-creative-lineage.js';
 export * from './experiments/creative-ab-testing.js';
+
+export * from './intelligence/creator-operating-system.js';
