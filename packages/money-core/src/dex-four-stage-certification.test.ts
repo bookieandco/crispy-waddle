@@ -35,6 +35,9 @@ const stage = (
     stageId: 'stage:' + stageName,
     stage: stageName,
     origin: 'SYNTHETIC_TEST',
+    runLineageId: 'lineage:shark-canary-1',
+    strategyId: 'shark:meme:v1',
+    instrumentId: 'solana:TOKEN1',
     startedAt,
     endedAt,
     informationCutoff: endedAt,
@@ -69,6 +72,7 @@ const stage = (
       signedTransactionCount: 1,
       simulationCount: 1,
       signerBoundary: 'ISOLATED',
+      walletConnectionId: 'wallet:coffer:1',
     })
   }
 
@@ -150,6 +154,9 @@ test('controlled canary cannot be certified by synthetic evidence or without run
 test('controlled live canary requires a fully reconciled entry and exit round trip', () => {
   const evidence = stage('CONTROLLED_LIVE_CANARY', {
     origin: 'LIVE_RUNTIME_ATTESTED',
+    walletConnectionId: 'wallet:coffer:1',
+    entryExecutionId: 'exec:entry',
+    exitExecutionId: 'exec:exit',
     signedTransactionCount: 2,
     simulationCount: 2,
     broadcastCount: 2,
@@ -171,10 +178,11 @@ test('controlled live canary requires a fully reconciled entry and exit round tr
   assert.equal(result.operationalEvidence, true)
   assert.equal(result.canAuthorizeTrade, false)
 
-  const missingExit = certifyDexExecutionStage({ ...evidence, exitBroadcastCount: 0, broadcastCount: 1, reconciledBroadcastCount: 1, onchainSignatureIds: ['sig:entry'] })
+  const missingExit = certifyDexExecutionStage({ ...evidence, exitBroadcastCount: 0, broadcastCount: 1, reconciledBroadcastCount: 1, sellabilityProven: false, positionFlatAfterExit: false, onchainSignatureIds: ['sig:entry'] })
   assert.equal(missingExit.passed, false)
   assert.ok(missingExit.reasonCodes.includes('DEX_CANARY_EXIT_BROADCAST_REQUIRED'))
-  assert.ok(missingExit.reasonCodes.includes('DEX_CANARY_SELLABILITY_REQUIRED') || evidence.sellabilityProven)
+  assert.ok(missingExit.reasonCodes.includes('DEX_CANARY_SELLABILITY_REQUIRED'))
+  assert.ok(missingExit.reasonCodes.includes('DEX_CANARY_POSITION_MUST_BE_FLAT_AFTER_EXIT'))
 })
 
 test('stages 1-3 software certify while controlled canary remains explicitly missing', () => {
@@ -191,6 +199,19 @@ test('stages 1-3 software certify while controlled canary remains explicitly mis
   assert.deepEqual(report.missingStages, ['CONTROLLED_LIVE_CANARY'])
   assert.equal(report.unrestrictedLiveAuthorized, false)
   assert.throws(() => assertDexControlledLiveCanaryCertified(report), /DEX_CONTROLLED_LIVE_CANARY_NOT_CERTIFIED/)
+})
+
+
+test('ladder rejects evidence stitched across different strategies or instruments', () => {
+  const report = certifyDexExecutionLadder({
+    stages: [
+      stage('HISTORICAL_REPLAY', { origin: 'RECORDED_REAL_MARKET' }),
+      stage('LIVE_SHADOW', { origin: 'RECORDED_REAL_MARKET', strategyId: 'different-strategy' }),
+      stage('SIGNED_SIMULATION_NO_BROADCAST'),
+    ],
+  })
+  assert.equal(report.operationallyCertified, false)
+  assert.ok(report.reasonCodes.includes('DEX_STAGE_LINEAGE_MISMATCH'))
 })
 
 test('overlapping stage windows fail ladder certification', () => {
