@@ -1,8 +1,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createApprovedDexSwapIntent, type DexSwapIntent } from './solana-dex-runtime-contracts.js'
+import type { EdgeDecisionBundleReceipt,Edge007IntegrityReceipt } from './dex-four-stage-certification.js'
 import { publishMoneyRiskApproved, publishOrderIntentCreated, publishPositionExited, type MoneyTradeStageEmission, type MoneyTradeStageEventSink } from './trade-runtime-events.js'
 import type { PositionExitIntentCandidate } from './position-management.js'
+
+const edgeDecisionBundle:EdgeDecisionBundleReceipt={
+  frameworkVersion:'EDGE-001-006-v1',
+  receipts:(['EDGE-001','EDGE-002','EDGE-003','EDGE-004','EDGE-005','EDGE-006'] as const).map(gateId=>({
+    gateId,version:'EDGE-001-006-v1',disposition:'PASS' as const,reasonCodes:[],evidenceIds:[gateId+':e'],
+    evaluatedAt:'2026-09-27T19:59:58Z',authority:'RESEARCH_AND_RISK_GATE_ONLY' as const,canAuthorizeTrade:false as const,
+  })),
+  disposition:'PASS',reasonCodes:[],evidenceIds:['edge:bundle:e'],authority:'RESEARCH_AND_RISK_GATE_ONLY',canAuthorizeTrade:false,
+}
+const integrity:Edge007IntegrityReceipt={
+  guardVersion:'EDGE-007-v1',guardId:'edge007:1',disposition:'PASS',reasonCodes:[],evidenceIds:['edge007:e'],
+  authority:'INTEGRITY_VETO_ONLY',canAuthorizeTrade:false,canAuthorizePromotion:false,
+}
 
 class Sink implements MoneyTradeStageEventSink{
   readonly rows:MoneyTradeStageEmission[]=[]
@@ -32,14 +46,16 @@ const intent=(leg:'ENTRY'|'EXIT'):DexSwapIntent=>createApprovedDexSwapIntent({
     informationCutoff:'2026-09-27T20:00:00Z',
     evidenceIds:['shark:e'],
   },
-  approval:{
+  governance:{
     sharkAssessmentId:'assessment:1',
     thesisId:'thesis:1',
-    edgeDecisionBundleHash:'edge:hash',
-    integrityGuardHash:'integrity:hash',
-    moneyRiskDecisionId:'risk:'+leg.toLowerCase(),
+    edgeDecisionBundle,
+    integrityGuard:integrity,
+    moneyRisk:{
+      riskDecisionId:'risk:'+leg.toLowerCase(),disposition:'APPROVE',reasonCodes:[],evidenceIds:['risk:e'],
+      evaluatedAt:'2026-09-27T20:00:00Z',authority:'MONEY_RISK_DECISION',canExecute:false,
+    },
     approvedAt:'2026-09-27T20:00:01Z',
-    authority:'MONEY_RISK_APPROVAL_BINDING',
   },
 })
 
