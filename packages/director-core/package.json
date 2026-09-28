@@ -136,4 +136,4 @@
     "@jhadina/action-core": "workspace:*",
     "@jhadina/compute-core": "workspace:*"
   }
-}\n
+}
