@@ -148,7 +148,7 @@ function apply(input:TradeLifecycleAppendInput,previous?:TradeRecord):TradeRecor
  iso(input.occurredAt,'TRADE_MEMORY_TIME_INVALID')
  if(!input.evidenceIds.length)throw new Error('TRADE_MEMORY_EVIDENCE_REQUIRED')
  if(input.context.domain!=='trading')throw new Error('TRADE_MEMORY_DOMAIN_REQUIRED')
- const core=coreRecord({...input,previous})
+ const core=coreRecord({...input,eventId:input.id,previous})
  return Object.freeze({...core,recordHash:hash(core)})
 }
 
