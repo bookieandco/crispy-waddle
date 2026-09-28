@@ -178,6 +178,7 @@ export async function executeGovernedMoneyMovement(input:{
  quote:MoneyMovementQuote
  instruction:MoneyMovementInstruction
  admission:FundingRailAdmission
+ commissioningCertificate:FundingRailCertificateProof
  observation:FundingRailRuntimeObservation
  adapter:ExecutingFundingRailAdapter
  attempts:MoneyMovementAttemptStore
