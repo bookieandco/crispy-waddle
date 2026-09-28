@@ -7,12 +7,13 @@ import {
  executeGovernedMoneyMovement,
  type ExecutingFundingRailAdapter,
  type FundingRailAdmission,
+ type FundingRailCertificateProof,
  type FundingRailRuntimeObservation,
+ assertFundingRailAdmissionCertificate,
  type MoneyMovementAttemptStore,
  type MoneyMovementExecutionResult,
 } from './funding-execution-contracts.js'
 import { promoteApprovedMoneyMovement,type FundingDestination,type MoneyMovementInstruction,type MoneyMovementProposal,type MoneyMovementQuote } from './funding-rail-contracts.js'
-import { assertFundingRailAdmissionCertificate,type FundingRailCommissioningCertificate } from './funding-provider-commissioning.js'
 import {
  MONEY_MOVEMENT_EXECUTE_CAPABILITY,
  moneyMovementApprovalAction,
@@ -26,7 +27,7 @@ export type MoneyMovementExecutionContext=Readonly<{
  admission:FundingRailAdmission
  observation:FundingRailRuntimeObservation
  adapter:ExecutingFundingRailAdapter
- commissioningCertificate:FundingRailCommissioningCertificate
+ commissioningCertificate:FundingRailCertificateProof
 }>
 
 export interface MoneyMovementExecutionContextLoader{
@@ -119,6 +120,6 @@ export class MoneyMovementExecutionHandler implements ActionHandler<MoneyMovemen
   }
 
   await authorizeAndConsumeMoneyPermit(this.deps.permitStore,permitRef(permit),request,executionAction,now)
-  return executeGovernedMoneyMovement({request:movementRequest,source:ctx.source,destination:ctx.destination,quote,instruction,admission:ctx.admission,observation:ctx.observation,adapter:ctx.adapter,attempts:this.deps.attempts,now})
+  return executeGovernedMoneyMovement({request:movementRequest,source:ctx.source,destination:ctx.destination,quote,instruction,admission:ctx.admission,commissioningCertificate:ctx.commissioningCertificate,observation:ctx.observation,adapter:ctx.adapter,attempts:this.deps.attempts,now})
  }
 }
