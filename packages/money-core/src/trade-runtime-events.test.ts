@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createApprovedDexSwapIntent, type DexSwapIntent } from './solana-dex-runtime-contracts.js'
 import type { EdgeDecisionBundleReceipt,Edge007IntegrityReceipt } from './dex-four-stage-certification.js'
-import { publishMoneyRiskApproved, publishOrderIntentCreated, publishPositionExited, type MoneyTradeStageEmission, type MoneyTradeStageEventSink } from './trade-runtime-events.js'
+import { createMoneyPositionManagementConsumer, publishMoneyRiskApproved, publishOrderIntentCreated, publishPositionExited, type MoneyTradeStageEmission, type MoneyTradeStageEventSink } from './trade-runtime-events.js'
 import type { PositionExitIntentCandidate } from './position-management.js'
 
 const edgeDecisionBundle:EdgeDecisionBundleReceipt={
@@ -103,4 +103,39 @@ test('Money publishes governed risk, immutable order intent, and completed exit 
   assert.equal(sink.rows[1]?.details.authority,'MONEY_EXECUTION_INTENT')
   assert.equal(sink.rows[2]?.details.exitIntentId,'position-exit:1')
   assert.ok(entry.evidenceIds.some(id=>id.startsWith('dex-approval:')))
+})
+
+
+test('Money consumes POSITION_MONITORED into an independent exit candidate',async()=>{
+  let exitId=''
+  const consumer=createMoneyPositionManagementConsumer({
+    loadPosition:()=>({
+      positionId:'position:1',domain:'MEME',instrumentId:'solana:TOKEN1',side:'LONG',quantity:100,
+      entryPrice:1,currentExecutableExitPrice:.85,currentExecutableAddPrice:.86,
+      costBasisMinor:1000n,currentValueMinor:850n,unrealizedPnlMinor:-150n,peakUnrealizedPnlMinor:200n,
+      grossExposureMinor:850n,currency:'USD',openedAt:'2026-09-27T20:00:00Z',observedAt:'2026-09-27T20:11:00Z',
+      evidenceIds:['position:e'],authority:'EVIDENCE_ONLY',
+    }),
+    loadAssessment:()=>({
+      edgeAfterCostsBps:-700,thesisStrengthBps:3000,invalidationRiskBps:9300,liquidityQualityBps:5500,liquidityUsd:120000,
+      smartWalletExitRiskBps:9400,smartWalletNetFlowUsd:-65000,narrativeDegradationBps:9200,
+      whaleDistributionRiskBps:9100,whaleNetFlowUsd:-90000,thesisInvalidated:true,
+      thesisInvalidationReasons:['Wallet cohort reversed and whales distributed.'],momentumBps:2500,correlationRiskBps:2000,
+      alphaRoutes:[],evidenceIds:['assessment:current'],assessedAt:'2026-09-27T20:11:30Z',
+      authority:'INTELLIGENCE_ONLY',canExecute:false,
+    }),
+    onExitCandidate:candidate=>{exitId=candidate.exitIntentId},
+  })
+  const result=await consumer.handle({
+    type:'POSITION_MONITORED',
+    occurredAt:'2026-09-27T20:12:00Z',
+    payload:{
+      tradeId:'trade:1',runLineageId:'lineage:1',strategyId:'shark:meme:v1',instrumentId:'solana:TOKEN1',
+      tokenAddress:'TOKEN1',evidenceIds:['position-monitor:e'],details:{action:'EXIT'},
+    },
+  })
+  assert.equal(result?.decision.action,'EXIT')
+  assert.equal(result?.exitCandidate?.origin,'INDEPENDENT_POSITION_REUNDERWRITE')
+  assert.equal(result?.exitCandidate?.canExecute,false)
+  assert.equal(exitId,result?.exitCandidate?.exitIntentId)
 })
