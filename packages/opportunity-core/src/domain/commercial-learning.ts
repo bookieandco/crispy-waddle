@@ -278,10 +278,17 @@ export function assessProofSprint(input: {
   )
   const targetRank = commitmentRank(input.sprint.successCommitmentLevel)
   const strongestRank = commitmentRank(strongest)
+  const observedTestIds = new Set(
+    relevant
+      .map((learning) => learning.validationTestId)
+      .filter((id): id is string => Boolean(id)),
+  )
+  const allPlannedTestsObserved = input.sprint.validationTestIds.every((id) => observedTestIds.has(id))
+
   const decision: ProofSprintAssessment['decision'] =
     strongestRank >= targetRank
       ? 'proven'
-      : relevant.length >= input.sprint.validationTestIds.length
+      : allPlannedTestsObserved
         ? 'disproven'
         : 'inconclusive'
 
