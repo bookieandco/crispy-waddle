@@ -35,8 +35,10 @@ export type PositionMarketAssessment=Readonly<{
   liquidityQualityBps:number
   liquidityUsd:number
   smartWalletExitRiskBps:number
+  smartWalletNetFlowUsd:number
   narrativeDegradationBps:number
   whaleDistributionRiskBps:number
+  whaleNetFlowUsd:number
   thesisInvalidated:boolean
   thesisInvalidationReasons:readonly string[]
   momentumBps:number
@@ -128,6 +130,8 @@ export function assertPositionMarketAssessment(a:PositionMarketAssessment):void{
     [a.correlationRiskBps,'MONEY_POSITION_CORRELATION_INVALID'],
   ] as const)bps(v,c)
   if(!Number.isFinite(a.liquidityUsd)||a.liquidityUsd<0)throw new Error('MONEY_POSITION_LIQUIDITY_USD_INVALID')
+  if(!Number.isFinite(a.smartWalletNetFlowUsd))throw new Error('MONEY_POSITION_SMART_WALLET_FLOW_INVALID')
+  if(!Number.isFinite(a.whaleNetFlowUsd))throw new Error('MONEY_POSITION_WHALE_FLOW_INVALID')
   if(a.thesisInvalidated&&!a.thesisInvalidationReasons.length)throw new Error('MONEY_POSITION_INVALIDATION_REASON_REQUIRED')
   if(a.bestAlternativeEdgeBps!==undefined&&(!Number.isInteger(a.bestAlternativeEdgeBps)||a.bestAlternativeEdgeBps<-10000||a.bestAlternativeEdgeBps>10000))throw new Error('MONEY_POSITION_ALT_EDGE_INVALID')
   iso(a.assessedAt,'MONEY_POSITION_ASSESSED_AT_INVALID')
