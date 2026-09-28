@@ -37,8 +37,8 @@ const destination:FundingDestination=Object.freeze({destinationId:'coffer:c1',ow
 const proposal:MoneyMovementProposal=Object.freeze({movementId:'movement:1',kind:'DEPOSIT',userId:'u1',cofferId:'c1',amountMinor:2500n,currency:'USD',sourceId:source.destinationId,destinationId:destination.destinationId,idempotencyKey:'movement:1:idem',requestedAt:'2026-09-27T23:00:00Z',state:'PENDING_APPROVAL',authority:'PROPOSAL_ONLY',canMoveMoney:false})
 
 const admission=(o:Partial<FundingRailAdmission>={}):FundingRailAdmission=>Object.freeze({
- railId:'rail:fixture',provider:'funding-fixture',environment:'LIVE',admission:'CONTROLLED_CANARY',allowedKinds:Object.freeze(['DEPOSIT','WITHDRAWAL','TRANSFER']),allowedCurrencies:Object.freeze(['USD']),
- sourceKinds:Object.freeze(['BANK','BROKER_CASH']),destinationKinds:Object.freeze(['BANK','BROKER_CASH']),maxMovementMinor:10000n,maxDailyMovementMinor:20000n,
+ railId:'rail:fixture',provider:'funding-fixture',environment:'LIVE',admission:'CONTROLLED_CANARY',allowedKinds:Object.freeze(['DEPOSIT','WITHDRAWAL','TRANSFER'] as const),allowedCurrencies:Object.freeze(['USD'] as const),
+ sourceKinds:Object.freeze(['BANK','BROKER_CASH'] as const),destinationKinds:Object.freeze(['BANK','BROKER_CASH'] as const),maxMovementMinor:10000n,maxDailyMovementMinor:20000n,
  evidenceIds:Object.freeze(['rail:e1']),authority:'ADMISSION_ONLY',canMoveMoney:false,...o,
 })
 const observation=(o:Partial<FundingRailRuntimeObservation>={}):FundingRailRuntimeObservation=>Object.freeze({railId:'rail:fixture',movedTodayMinor:0n,unresolvedAttemptCount:0,observedAt:'2026-09-27T23:00:01Z',evidenceIds:Object.freeze(['runtime:e1']),authority:'RUNTIME_EVIDENCE',...o})
