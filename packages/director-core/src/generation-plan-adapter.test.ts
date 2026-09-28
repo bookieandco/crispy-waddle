@@ -440,8 +440,8 @@ describe('GenerationPlanAdapter', () => {
 
     const generated = submitted.requests[0]!;
     expect(generated.references).toEqual(expect.arrayContaining([
-      { assetId: 'maya-face-v4', role: 'character', uri: 'https://private.test/maya-face-v4?signed=1' },
-      { assetId: 'maya-red-coat-ref', role: 'character', uri: 'https://private.test/maya-red-coat-ref?signed=1' },
+      { assetId: 'maya-face-v4', role: 'character', uri: 'https://private.test/maya-face-v4?signed=1', sha256: 'sha-face' },
+      { assetId: 'maya-red-coat-ref', role: 'character', uri: 'https://private.test/maya-red-coat-ref?signed=1', sha256: 'sha-coat' },
       { assetId: 'apartment', role: 'image' },
     ]));
     expect(generated.references).not.toContainEqual({ assetId: 'maya', role: 'character' });

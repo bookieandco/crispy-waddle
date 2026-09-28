@@ -24,6 +24,9 @@ function provider(
     product?: boolean;
     requiresProduct?: boolean;
     expression?: boolean;
+    productionQuality?: boolean;
+    maximumReferenceImages?: number;
+    maximumDurationSeconds?: number;
   } = {},
 ): WholeVideoProductionProvider {
   return {
@@ -31,13 +34,16 @@ function provider(
       id,
       name: id,
       costClass: input.costClass ?? 'free-local',
-      supportedModes: ['standard'],
+      supportedModes: ['standard','long-form'],
       health: 'healthy',
       supportsCharacterReference: input.character ?? false,
       requiresCharacterReference: input.requiresCharacter ?? false,
       supportsProductReference: input.product ?? false,
       requiresProductReference: input.requiresProduct ?? false,
       supportsExpressionGuidance: input.expression ?? false,
+      productionQualityEligible: input.productionQuality ?? false,
+      ...(input.maximumReferenceImages !== undefined ? { maximumReferenceImages: input.maximumReferenceImages } : {}),
+      ...(input.maximumDurationSeconds !== undefined ? { maximumDurationSeconds: input.maximumDurationSeconds } : {}),
     },
     async submit() { return { providerJobId: 'job', status: 'queued' }; },
     async status() { return { providerJobId: 'job', status: 'processing' }; },
@@ -88,6 +94,27 @@ describe('whole video provider selection', () => {
     expect(selectWholeVideoProvider([
       provider('generic-free'),
     ], intent, { expressionGuidance: true })).toBeUndefined();
+  });
+
+  it('requires an explicitly production-quality-eligible provider for FINAL work', () => {
+    const selected = selectWholeVideoProvider([
+      provider('ordinary-reference', { character: true }),
+      provider('production-reference', { character: true, productionQuality: true, maximumReferenceImages: 4 }),
+    ], intent, { characterReference: true, productionQuality: true, referenceImageCount: 2 });
+    expect(selected?.descriptor.id).toBe('production-reference');
+    expect(selectWholeVideoProvider([
+      provider('production-reference', { character: true, productionQuality: true, maximumReferenceImages: 4 }),
+    ], intent, { characterReference: true, productionQuality: true, referenceImageCount: 5 })).toBeUndefined();
+  });
+
+  it('refuses a provider whose declared duration ceiling is below the requested film', () => {
+    const longIntent={...intent,mode:'long-form' as const,targetDurationSeconds:3600};
+    expect(selectWholeVideoProvider([
+      provider('five-minute-provider',{productionQuality:true,maximumDurationSeconds:300}),
+    ],longIntent,{productionQuality:true})).toBeUndefined();
+    expect(selectWholeVideoProvider([
+      provider('feature-provider',{productionQuality:true,maximumDurationSeconds:4200}),
+    ],longIntent,{productionQuality:true})?.descriptor.id).toBe('feature-provider');
   });
 
   it('returns no provider instead of losing character identity', () => {

@@ -145,6 +145,7 @@ export interface AskVideoJobInput {
     productionPlan?: unknown;
   };
   certification?: boolean;
+  productionQuality?: boolean;
   referenceProduct?: {
     productId: string;
     productBibleId: string;
@@ -268,6 +269,7 @@ async function runCertificationRehearsal(
 export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promise<AskVideoJobResult> {
   const intent = detectAskVideoCreationIntent(input.activeTask);
   if (!intent) throw new Error('DIRECTOR_VIDEO_INTENT_NOT_DETECTED');
+  if (input.certification && input.productionQuality) throw new Error('DIRECTOR_VIDEO_CERTIFICATION_MODE_CONFLICT');
 
   const client = createServiceRoleClient();
   if (!client) throw new Error('DIRECTOR_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED');
@@ -291,6 +293,7 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
   const requestedSpec: Record<string, unknown> = {
     narration: intent.narration,
     ...(input.certification ? { certification: { runtimeOnly: true, qualityClaim: false } } : {}),
+    ...(input.productionQuality ? { productionQuality: { required: true, program: 'DIRECTOR-PRODUCTION.FINAL' } } : {}),
     captions: intent.captions,
     foley: intent.foley,
     commercialSafeOnly: intent.commercialSafeOnly,
@@ -382,30 +385,36 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
         characterReference:Boolean(input.referenceCharacter),
         productReference:Boolean(input.referenceProduct),
         expressionGuidance:Boolean(input.socialExpression),
+        productionQuality:Boolean(input.productionQuality),
+        referenceImageCount:(input.referenceCharacter?.referenceUris.length??0)+(input.referenceProduct?.referenceUris.length??0),
       });
   if (!provider) {
     job = await updateJob(client, job.id, {
       status: 'blocked',
       current_phase: 'provider-selection',
-      error: input.referenceCharacter
-        ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
-        : input.referenceProduct
-          ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
-          : input.socialExpression
-            ? 'DIRECTOR_SOCIAL_EXPRESSION_PROVIDER_NOT_CONFIGURED'
-            : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+      error: input.productionQuality
+        ? 'DIRECTOR_PRODUCTION_QUALITY_PROVIDER_NOT_CONFIGURED'
+        : input.referenceCharacter
+          ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
+          : input.referenceProduct
+            ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
+            : input.socialExpression
+              ? 'DIRECTOR_SOCIAL_EXPRESSION_PROVIDER_NOT_CONFIGURED'
+              : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
     });
     await appendJobEvent(client, {
       jobId: job.id,
       eventType: 'provider_selection',
       status: 'blocked',
-      error: input.referenceCharacter
-        ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
-        : input.referenceProduct
-          ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
-          : input.socialExpression
-            ? 'DIRECTOR_SOCIAL_EXPRESSION_PROVIDER_NOT_CONFIGURED'
-            : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+      error: input.productionQuality
+        ? 'DIRECTOR_PRODUCTION_QUALITY_PROVIDER_NOT_CONFIGURED'
+        : input.referenceCharacter
+          ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
+          : input.referenceProduct
+            ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
+            : input.socialExpression
+              ? 'DIRECTOR_SOCIAL_EXPRESSION_PROVIDER_NOT_CONFIGURED'
+              : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
     });
     return { intent, job };
   }
