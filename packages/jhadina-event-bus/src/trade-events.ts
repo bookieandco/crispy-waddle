@@ -100,6 +100,12 @@ export function createTradeStreamEvent(input:{
   })
 }
 
+export function composeTradeEventConsumers(...consumers:readonly TradeEventConsumer[]):TradeEventConsumer{
+ return async(event:TradeStreamEvent)=>{
+  for(const consumer of consumers)await consumer(event)
+ }
+}
+
 export function subscribeTradeStream(bus:EventBus,consumer:TradeEventConsumer):()=>void{
   const unsubscribers=TRADE_EVENT_TYPES.map(type=>bus.subscribe<TradeStreamPayload>(type,event=>consumer(event as TradeStreamEvent)))
   return ()=>{for(const unsubscribe of unsubscribers)unsubscribe()}
