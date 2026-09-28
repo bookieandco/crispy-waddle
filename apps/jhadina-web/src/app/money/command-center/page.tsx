@@ -35,6 +35,8 @@ export default function MoneyCommandCenter(){
  const [error,setError]=useState("")
  const [workspaceError,setWorkspaceError]=useState("")
  const [dexError,setDexError]=useState("")
+ const [fundingBusy,setFundingBusy]=useState(false)
+ const [fundingMessage,setFundingMessage]=useState("")
  const model=useMemo(()=>buildMoneyCommandCenterModel(accounts,transactions),[accounts,transactions])
 
  useEffect(()=>{
@@ -62,6 +64,21 @@ export default function MoneyCommandCenter(){
    const payload=await response.json() as DexReadinessResponse
    if(!response.ok||!payload.success)throw new Error(payload.success?"Could not load DEX readiness":payload.error)
    if(active)setDexReadiness(payload.data)
+  }
+  const verifyDexFunding=async()=>{
+   setFundingBusy(true);setFundingMessage("");setDexError("")
+   try{
+    const response=await fetch("/api/money/dex/verify-funding",{method:"POST",credentials:"same-origin",cache:"no-store"})
+    const payload=await response.json() as {success:boolean;data?:{verified:boolean;blockerCodes:readonly string[]};error?:string}
+    if(!response.ok||!payload.success)throw new Error(payload.error??"Could not verify DEX funding")
+    if(!payload.data?.verified){
+     setFundingMessage(payload.data?.blockerCodes.join(", ")||"Funding is below the controlled-canary minimum.")
+    }else{
+     setFundingMessage("Funding verified. Settlement balance and SOL fee reserve are recorded.")
+    }
+    await loadDexReadiness()
+   }catch(e){setDexError(e instanceof Error?e.message:"Could not verify DEX funding")}
+   finally{setFundingBusy(false)}
   }
   void Promise.allSettled([
    loadAccounts().catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load accounts")}),
@@ -136,6 +153,10 @@ export default function MoneyCommandCenter(){
    <article style={{...card,marginTop:14}}>
     <div style={sectionHead}><div><div style={eyebrow}>DEX controlled canary</div><h3 style={h3}>Runtime readiness</h3></div><span style={pill}>{dexReadiness?.status??"CHECKING"}</span></div>
     <p style={muted}>This checklist reports only whether each commissioning prerequisite exists. Secret values are never returned to the browser.</p>
+    <div style={buttonRow}>
+     <button type="button" onClick={()=>void verifyDexFunding()} disabled={fundingBusy} style={button}>{fundingBusy?"Verifying…":"Verify canary funding"}</button>
+    </div>
+    {fundingMessage&&<div style={miniRow}><span>Funding verification</span><strong>{fundingMessage}</strong></div>}
     <div style={readinessGrid}>
      {(dexReadiness?.checks??[]).map(item=><div key={item.id} style={readinessRow}><span style={item.ready?readyMark:blockMark}>{item.ready?"✓":"•"}</span><div><strong>{item.id.replaceAll("_"," ")}</strong><div style={muted}>{item.detail}</div></div></div>)}
      {!dexReadiness&&!dexError&&<div style={muted}>Loading DEX commissioning state…</div>}
