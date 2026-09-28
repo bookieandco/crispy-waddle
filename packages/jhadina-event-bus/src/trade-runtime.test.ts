@@ -16,7 +16,7 @@ const context=(id:string)=>({
 const evt=(id:string,type:TradeEventType,leg:TradeLeg,details:Record<string,unknown>={})=>createTradeStreamEvent({
   id,
   type,
-  occurredAt:'2026-09-28T02:30:'+String(Number(id.split(':').at(-1)??0)).padStart(2,'0')+'.000Z',
+  occurredAt:'2026-09-28T02:30:'+String(Number(id.split(':')[1]??0)).padStart(2,'0')+'.000Z',
   payload:{
     tradeId:'trade:1',
     runLineageId:'lineage:1',
