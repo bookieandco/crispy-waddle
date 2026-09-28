@@ -14,12 +14,12 @@ type DexLiveCanaryVerificationReceipt,
  type Edge007IntegrityReceipt,
 } from './dex-four-stage-certification.js'
 import type { DexCanaryReconcileResult, DexCanarySubmitResult, DexRestartRecoveryProof } from './dex-controlled-canary-runtime.js'
-import { hashDexRuntime, type DexSwapIntent } from './solana-dex-runtime-contracts.js'
+import { hashDexRuntime, type DexSwapIntent, type SolanaDexExecutionProvider } from './solana-dex-runtime-contracts.js'
 
 export type DexCapitalBoundaryProof=Readonly<{
  proofId:string
  walletConnectionId:string
- provider:'jupiter-ultra'
+ provider:SolanaDexExecutionProvider
  entryExecutionId:string
  exitExecutionId:string
  maxOrderNotionalMinor:bigint
@@ -33,7 +33,7 @@ export type DexCapitalBoundaryProof=Readonly<{
 
 export type DexKillSwitchProof=Readonly<{
  proofId:string
- provider:'jupiter-ultra'
+ provider:SolanaDexExecutionProvider
  walletConnectionId:string
  tradingDate:string
  activatedAt:string
@@ -66,7 +66,7 @@ export function proveDexCapitalBoundary(input:{
  evidenceIds:readonly string[]
 }):DexCapitalBoundaryProof{
  const {connector,signerPolicy,canaryPolicy,entryIntent,exitIntent}=input
- if(connector.provider!=='jupiter-ultra'||connector.lane!=='DEX'||connector.admission!=='CONTROLLED_CANARY')throw new Error('DEX_COMMISSION_CAPITAL_CONNECTOR_INVALID')
+ if(connector.lane!=='DEX'||connector.admission!=='CONTROLLED_CANARY'||connector.provider!==entryIntent.provider||entryIntent.provider!==exitIntent.provider)throw new Error('DEX_COMMISSION_CAPITAL_CONNECTOR_INVALID')
  if(entryIntent.walletConnectionId!==exitIntent.walletConnectionId||entryIntent.runLineageId!==exitIntent.runLineageId)throw new Error('DEX_COMMISSION_CAPITAL_LINEAGE_MISMATCH')
  if(entryIntent.leg!=='ENTRY'||exitIntent.leg!=='EXIT')throw new Error('DEX_COMMISSION_CAPITAL_LEG_INVALID')
  if(entryIntent.executionId===exitIntent.executionId)throw new Error('DEX_COMMISSION_CAPITAL_EXECUTION_IDS_MUST_DIFFER')
@@ -91,7 +91,7 @@ export function proveDexCapitalBoundary(input:{
    signerDaily:signerPolicy.rolling24hCapMinor.toString(),
   }),
   walletConnectionId:entryIntent.walletConnectionId,
-  provider:'jupiter-ultra',
+  provider:entryIntent.provider,
   entryExecutionId:entryIntent.executionId,
   exitExecutionId:exitIntent.executionId,
   maxOrderNotionalMinor:canaryPolicy.maxOrderNotionalMinor,
@@ -108,7 +108,7 @@ export async function proveDexKillSwitch(input:{
  canaryStore:LiveCanaryStateStore
  permitStore:PermitStore
  policy:LiveCanaryPolicy
- provider:'jupiter-ultra'
+ provider:SolanaDexExecutionProvider
  walletConnectionId:string
  tradingDate:string
  currency:string
@@ -162,6 +162,7 @@ function assertLegPair(input:{
  if(entrySubmit.attempt.walletConnectionId!==exitSubmit.attempt.walletConnectionId)throw new Error('DEX_COMMISSION_FINAL_WALLET_MISMATCH')
  if(entryReconcile.attempt.state!=='RECONCILED'||exitReconcile.attempt.state!=='RECONCILED')throw new Error('DEX_COMMISSION_FINAL_RECONCILIATION_REQUIRED')
  if(!entryReconcile.reconciliation?.passed||!exitReconcile.reconciliation?.passed)throw new Error('DEX_COMMISSION_FINAL_RECONCILIATION_FAILED')
+ if(!entrySubmit.preflight.passed||entrySubmit.preflight.reasonCodes.length||!exitSubmit.preflight.passed||exitSubmit.preflight.reasonCodes.length)throw new Error('DEX_COMMISSION_FINAL_MONEY_PREFLIGHT_REQUIRED')
  if(!entrySubmit.providerReceipt.signature||!exitSubmit.providerReceipt.signature)throw new Error('DEX_COMMISSION_FINAL_PROVIDER_SIGNATURES_REQUIRED')
  if(entrySubmit.providerReceipt.signature!==entryReconcile.onchain.signature||exitSubmit.providerReceipt.signature!==exitReconcile.onchain.signature)throw new Error('DEX_COMMISSION_FINAL_PROVIDER_CHAIN_SIGNATURE_MISMATCH')
  if(!entryReconcile.onchain.confirmed||entryReconcile.onchain.failed||!exitReconcile.onchain.confirmed||exitReconcile.onchain.failed)throw new Error('DEX_COMMISSION_FINAL_CHAIN_CONFIRMATION_REQUIRED')
@@ -288,7 +289,7 @@ export function certifyDexCommissionFinal(input:{
  liveCanaryVerification?:DexLiveCanaryVerificationReceipt
 }):DexCommissionFinalReport{
  const blockers:string[]=[]
- if(input.connector.lane!=='DEX'||input.connector.provider!=='jupiter-ultra')blockers.push('DEX_COMMISSION_PROVIDER_NOT_COMMISSIONED')
+ if(input.connector.lane!=='DEX'||input.connector.provider!=='solana-dex-router')blockers.push('DEX_COMMISSION_UNIVERSAL_ROUTER_NOT_COMMISSIONED')
  if(input.connector.admission!=='CONTROLLED_CANARY')blockers.push('DEX_COMMISSION_CONTROLLED_CANARY_ADMISSION_REQUIRED')
  if(!input.connector.credentialRef?.trim())blockers.push('DEX_COMMISSION_PROVIDER_CREDENTIAL_REFERENCE_REQUIRED')
  if(input.wallet.mode!=='COFFER_EXECUTION_WALLET'||input.wallet.network!=='SOLANA'||input.wallet.connectionId!==input.signerLease.walletConnectionId)blockers.push('DEX_COMMISSION_ISOLATED_COFFER_WALLET_REQUIRED')
