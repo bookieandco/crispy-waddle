@@ -187,3 +187,5 @@ export * from './production-quality-certification';
 export * from './nle-roundtrip';
 export * from './hierarchical-production-coherence';
 export * from './production-final-program';
+
+export * from './hunyuan-video-15-provider';
