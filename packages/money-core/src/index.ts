@@ -276,3 +276,4 @@ export * from './dex-controlled-canary-runtime.js';
 export * from './dex-commission-final.js';
 
 export * from './postgres-dex-runtime-store.js';
+export * from './coffer-commission-final.js';
