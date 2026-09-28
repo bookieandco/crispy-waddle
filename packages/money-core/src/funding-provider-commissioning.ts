@@ -216,17 +216,3 @@ export function buildFundingRailAdmissionFromCertificate(input:{certificate:Fund
   commissioningCertificateId:c.certificateId,credentialRef:input.credentialRef,evidenceIds:Object.freeze([...c.evidenceIds,'funding-certificate:'+c.certificateId]),authority:'ADMISSION_ONLY' as const,canMoveMoney:false as const,
  })
 }
-
-
-export function assertFundingRailAdmissionCertificate(admission:FundingRailAdmission,certificate:FundingRailCommissioningCertificate):void{
- if(!admission.commissioningCertificateId||admission.commissioningCertificateId!==certificate.certificateId)throw new Error('MONEY_FUND3_ADMISSION_CERTIFICATE_MISMATCH')
- if(certificate.authority!=='CERTIFICATION_ONLY'||certificate.canExecute!==false||certificate.evidenceClass!=='REAL_LIVE')throw new Error('MONEY_FUND3_REAL_CERTIFICATE_REQUIRED')
- if(admission.railId!==certificate.railId||admission.provider!==certificate.provider||admission.environment!=='LIVE')throw new Error('MONEY_FUND3_ADMISSION_PROVIDER_BINDING_MISMATCH')
- const expected=certificate.status==='LIVE_CERTIFIED'?'LIVE':certificate.status==='CONTROLLED_CANARY_CERTIFIED'?'CONTROLLED_CANARY':null
- if(!expected||admission.admission!==expected)throw new Error('MONEY_FUND3_ADMISSION_LEVEL_MISMATCH')
- if(admission.maxMovementMinor>certificate.maxMovementMinor||admission.maxDailyMovementMinor>certificate.maxDailyMovementMinor)throw new Error('MONEY_FUND3_ADMISSION_LIMIT_ESCALATION')
- for(const k of admission.allowedKinds)if(!certificate.admittedKinds.includes(k))throw new Error('MONEY_FUND3_ADMISSION_KIND_ESCALATION:'+k)
- for(const x of admission.allowedCurrencies)if(!certificate.admittedCurrencies.includes(x))throw new Error('MONEY_FUND3_ADMISSION_CURRENCY_ESCALATION:'+x)
- for(const x of admission.sourceKinds)if(!certificate.sourceKinds.includes(x))throw new Error('MONEY_FUND3_ADMISSION_SOURCE_ESCALATION:'+x)
- for(const x of admission.destinationKinds)if(!certificate.destinationKinds.includes(x))throw new Error('MONEY_FUND3_ADMISSION_DESTINATION_ESCALATION:'+x)
-}
