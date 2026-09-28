@@ -130,7 +130,8 @@ export function assertFundingRailAdmissionMayExecute(input:{
  source:FundingDestination
  destination:FundingDestination
 }){
- const {admission:a,observation:o,adapter,request:r,source,destination}=input
+ const {admission:a,commissioningCertificate,observation:o,adapter,request:r,source,destination}=input
+ assertFundingRailAdmissionCertificate(a,commissioningCertificate)
  if(a.authority!=='ADMISSION_ONLY'||a.canMoveMoney!==false||o.authority!=='RUNTIME_EVIDENCE')throw new Error('MONEY_FUND2_AUTHORITY_INVALID')
  if(!a.evidenceIds.length||!o.evidenceIds.length)throw new Error('MONEY_FUND2_EVIDENCE_REQUIRED')
  if(a.admission!=='CONTROLLED_CANARY'&&a.admission!=='LIVE')throw new Error('MONEY_FUND2_RAIL_NOT_EXECUTABLE')
@@ -187,7 +188,7 @@ export async function executeGovernedMoneyMovement(input:{
  const {request:r,source,destination,quote:q,instruction:i,admission:a,commissioningCertificate,observation:o,adapter,attempts,now}=input
  assertFundingRailAdmissionCertificate(a,commissioningCertificate)
  assertMoneyMovementRequest(r,{verifiedSource:source,verifiedDestination:destination})
- assertFundingRailAdmissionMayExecute({admission:a,observation:o,adapter,request:r,source,destination})
+ assertFundingRailAdmissionMayExecute({admission:a,commissioningCertificate,observation:o,adapter,request:r,source,destination})
  assertFundingQuoteBound(r,q,now)
  assertFundingInstructionBound(r,q,i)
  if(q.provider!==adapter.provider)throw new Error('MONEY_FUND2_QUOTE_PROVIDER_MISMATCH')
