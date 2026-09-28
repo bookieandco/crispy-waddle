@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 import type {
+  BuildHunyuanVideo15RequestInput,
   GenerationProvider,
   GenerationProviderRecord,
   GenerationRequest,
   GenerationResult,
   GenerationSubmissionOptions,
   ModelRecord,
+  HunyuanVideo15Model,
 } from '@jhadina/director-core';
 import {
   DirectorHunyuanVideoProvider,
@@ -119,12 +121,13 @@ export class HunyuanDirectorGenerationProvider implements GenerationProvider{
     };
   }
 
-  private buildInput(request:GenerationRequest){
+  private buildInput(request:GenerationRequest):BuildHunyuanVideo15RequestInput{
     if(request.modality!=='video') throw new Error('DIRECTOR_HUNYUAN_VIDEO_MODALITY_REQUIRED');
-    const model=request.model.id;
-    if(!hunyuanVideo15ModelRecords(this.descriptor.id).some(record=>record.id===model)){
-      throw new Error(`DIRECTOR_HUNYUAN_MODEL_UNSUPPORTED:${model}`);
+    const modelId=request.model.id;
+    if(!hunyuanVideo15ModelRecords(this.descriptor.id).some(record=>record.id===modelId)){
+      throw new Error(`DIRECTOR_HUNYUAN_MODEL_UNSUPPORTED:${modelId}`);
     }
+    const model=modelId as HunyuanVideo15Model;
 
     const isI2v=model.includes('-i2v');
     const refs=(request.references??[]).filter(reference=>reference.media!=='video'&&reference.role!=='audio');
@@ -175,7 +178,7 @@ export class HunyuanDirectorGenerationProvider implements GenerationProvider{
       offloading:true,
       groupOffloading:true,
       overlapGroupOffloading:false,
-    } as const;
+    };
   }
 
   private async ingestReady(state:DirectorHunyuanWorkerResult):Promise<GenerationResult>{
