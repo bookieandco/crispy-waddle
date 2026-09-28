@@ -146,28 +146,33 @@ export function createMoneyPositionManagementConsumer(input:{
  policy?:PositionManagementPolicy
  onDecision?:(decision:PositionManagementDecision,event:MoneyInboundTradeEvent)=>Promise<void>|void
  onExitCandidate?:(candidate:PositionExitIntentCandidate,decision:PositionManagementDecision,event:MoneyInboundTradeEvent)=>Promise<void>|void
-}):Readonly<{handle(event:MoneyInboundTradeEvent):Promise<Readonly<{decision:PositionManagementDecision;exitCandidate?:PositionExitIntentCandidate}>|undefined>}>{
+}):Readonly<{
+ evaluate(event:MoneyInboundTradeEvent):Promise<Readonly<{decision:PositionManagementDecision;exitCandidate?:PositionExitIntentCandidate}>|undefined>
+ handle(event:MoneyInboundTradeEvent):Promise<void>
+}>{
+ const evaluate=async(event:MoneyInboundTradeEvent):Promise<Readonly<{decision:PositionManagementDecision;exitCandidate?:PositionExitIntentCandidate}>|undefined>=>{
+  if(event.type!=='POSITION_MONITORED')return undefined
+  const position=await input.loadPosition(event)
+  if(position.instrumentId!==event.payload.instrumentId)throw new Error('MONEY_POSITION_EVENT_INSTRUMENT_MISMATCH')
+  const assessment=await input.loadAssessment(event,position)
+  const decision=evaluateOpenPosition({
+   position,
+   assessment,
+   policy:input.policy,
+   evaluatedAt:event.occurredAt,
+  })
+  await input.onDecision?.(decision,event)
+  if(decision.action!=='EXIT'&&decision.action!=='TRIM')return Object.freeze({decision})
+  const exitCandidate=createPositionExitIntentCandidate({
+   position,
+   decision,
+   createdAt:event.occurredAt,
+  })
+  await input.onExitCandidate?.(exitCandidate,decision,event)
+  return Object.freeze({decision,exitCandidate})
+ }
  return Object.freeze({
-  handle:async(event:MoneyInboundTradeEvent)=>{
-   if(event.type!=='POSITION_MONITORED')return undefined
-   const position=await input.loadPosition(event)
-   if(position.instrumentId!==event.payload.instrumentId)throw new Error('MONEY_POSITION_EVENT_INSTRUMENT_MISMATCH')
-   const assessment=await input.loadAssessment(event,position)
-   const decision=evaluateOpenPosition({
-    position,
-    assessment,
-    policy:input.policy,
-    evaluatedAt:event.occurredAt,
-   })
-   await input.onDecision?.(decision,event)
-   if(decision.action!=='EXIT'&&decision.action!=='TRIM')return Object.freeze({decision})
-   const exitCandidate=createPositionExitIntentCandidate({
-    position,
-    decision,
-    createdAt:event.occurredAt,
-   })
-   await input.onExitCandidate?.(exitCandidate,decision,event)
-   return Object.freeze({decision,exitCandidate})
-  },
+  evaluate,
+  handle:async(event:MoneyInboundTradeEvent)=>{await evaluate(event)},
  })
 }
