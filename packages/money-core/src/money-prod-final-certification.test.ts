@@ -97,9 +97,10 @@ test('MONEY-PROD.3 Finnhub market data can satisfy evidence but never forex exec
   assert.notEqual(fx.status,'LIVE_ACCEPTED')
 })
 
-test('MONEY-PROD.4 every lane requires independent live receipts before final acceptance',()=>{
+test('MONEY-PROD.4 SHARK remains externally blocked until a real Stage 4 runtime certificate exists',()=>{
   const dex=dexReport()
-  assert.equal(dex.controlledLiveCanaryCertified,true)
+  assert.equal(dex.controlledLiveCanaryCertified,false)
+  assert.ok(dex.reasonCodes.includes('DEX_CANARY_RUNTIME_VERIFICATION_REQUIRED'))
   const provider:Record<MoneyProductionLane,string>={STOCK:'alpaca',FOREX:'fx-broker',SHARK_MEME:'dex-router',SPORTS_BETTING:'sportsbook-provider'}
   const receipts:MoneyProductionCommissioningReceipt[]=[]
   for(const lane of MONEY_PROD_REQUIRED_LANES){
@@ -112,9 +113,10 @@ test('MONEY-PROD.4 every lane requires independent live receipts before final ac
     receipts.push(receipt(lane,'KILL_SWITCH',provider[lane]))
   }
   const report=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:platform(),dexControlledCanary:dex,generatedAt:at})
-  assert.equal(report.status,'PRODUCTION_ACCEPTED')
-  assert.equal(report.productionAccepted,true)
-  assert.ok(report.lanes.every(x=>x.status==='LIVE_ACCEPTED'))
+  assert.equal(report.productionAccepted,false)
+  const shark=report.lanes.find(x=>x.lane==='SHARK_MEME')!
+  assert.ok(shark.reasonCodes.includes('DEX_STAGE4_CERTIFICATION_INVALID'))
+  assert.ok(report.lanes.filter(x=>x.lane!=='SHARK_MEME').every(x=>x.status==='LIVE_ACCEPTED'))
   assert.equal(report.authority,'CERTIFICATION_ONLY')
   assert.equal(report.canExecute,false)
 
@@ -123,7 +125,6 @@ test('MONEY-PROD.4 every lane requires independent live receipts before final ac
   assert.equal(blocked.productionAccepted,false)
   assert.ok(blocked.blockers.includes('SPORTS_BETTING:BETTING_KILL_SWITCH_DRILL_REQUIRED'))
 })
-
 
 test('MONEY-PROD.4B generic SHARK live-canary receipt cannot bypass the DEX Stage 4 certificate',()=>{
   const provider:Record<MoneyProductionLane,string>={STOCK:'alpaca',FOREX:'fx-broker',SHARK_MEME:'dex-router',SPORTS_BETTING:'sportsbook-provider'}
@@ -141,6 +142,7 @@ test('MONEY-PROD.4B generic SHARK live-canary receipt cannot bypass the DEX Stag
   const dex=dexReport()
   const unbound=certifyMoneyProdFinal({receipts,shadowSoak:soak(),platformReceipts:platform(),dexControlledCanary:dex,generatedAt:at})
   const sharkUnbound=unbound.lanes.find(x=>x.lane==='SHARK_MEME')!
+  assert.ok(sharkUnbound.reasonCodes.includes('DEX_STAGE4_CERTIFICATION_INVALID'))
   assert.ok(sharkUnbound.reasonCodes.includes('DEX_STAGE4_RECEIPT_BINDING_REQUIRED'))
   assert.equal(unbound.productionAccepted,false)
 })
