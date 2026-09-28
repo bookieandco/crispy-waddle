@@ -272,8 +272,9 @@ export async function reconcileDexCanaryLeg(input:{
   const attempt=await attemptStore.update(attemptId,{state:'FAILED',errorCode:'DEX_CHAIN_EXECUTION_FAILED',updatedAt:now,evidenceIds:[...current.evidenceIds,...onchain.evidenceIds]})
   return Object.freeze({attempt,onchain,recoveredExisting,authority:'RECONCILIATION_RESULT_ONLY' as const})
  }
- await attemptStore.update(attemptId,{state:'CONFIRMED',errorCode:undefined,updatedAt:now,evidenceIds:[...current.evidenceIds,...onchain.evidenceIds]})
- const confirmedAttempt=(await attemptStore.get(attemptId))??current
+ const confirmedAttempt=current.state==='RECONCILED'
+  ? current
+  : await attemptStore.update(attemptId,{state:'CONFIRMED',errorCode:undefined,updatedAt:now,evidenceIds:[...current.evidenceIds,...onchain.evidenceIds]})
  const reconciliation=reconcile({intent,attempt:confirmedAttempt,onchain,now})
  if(!reconciliation.passed){
   await canaryStore.resolveUnknown(intent.provider,intent.walletConnectionId,tradingDate,intent.executionId,now)
@@ -281,7 +282,9 @@ export async function reconcileDexCanaryLeg(input:{
   return Object.freeze({attempt,onchain,reconciliation,recoveredExisting,authority:'RECONCILIATION_RESULT_ONLY' as const})
  }
  await canaryStore.resolveUnknown(intent.provider,intent.walletConnectionId,tradingDate,intent.executionId,now)
- const attempt=await attemptStore.update(attemptId,{state:'RECONCILED',errorCode:undefined,updatedAt:now,evidenceIds:[...current.evidenceIds,...reconciliation.evidenceIds]})
+ const attempt=current.state==='RECONCILED'
+  ? current
+  : await attemptStore.update(attemptId,{state:'RECONCILED',errorCode:undefined,updatedAt:now,evidenceIds:[...current.evidenceIds,...reconciliation.evidenceIds]})
  return Object.freeze({attempt,onchain,reconciliation,recoveredExisting,authority:'RECONCILIATION_RESULT_ONLY' as const})
 }
 
