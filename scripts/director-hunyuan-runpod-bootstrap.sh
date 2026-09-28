@@ -29,9 +29,10 @@ if [[ ! -d "$ROOT/crispy-waddle/.git" ]]; then
   git clone https://github.com/bookieandco/crispy-waddle.git "$ROOT/crispy-waddle"
 fi
 cd "$ROOT/crispy-waddle"
-git fetch origin
-git checkout feat/director-hunyuan-video-15-20260928
-git pull --ff-only origin feat/director-hunyuan-video-15-20260928
+DIRECTOR_SOURCE_REF="${DIRECTOR_SOURCE_REF:-main}"
+git fetch origin "$DIRECTOR_SOURCE_REF"
+git checkout "$DIRECTOR_SOURCE_REF"
+git pull --ff-only origin "$DIRECTOR_SOURCE_REF"
 
 if [[ ! -d "$ROOT/HunyuanVideo-1.5/.git" ]]; then
   git clone --depth=1 https://github.com/Tencent-Hunyuan/HunyuanVideo-1.5.git "$ROOT/HunyuanVideo-1.5"
