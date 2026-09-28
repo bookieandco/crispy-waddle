@@ -283,10 +283,11 @@ export function createApprovedDexSwapIntent(input:{
  draft:DexSwapIntentDraft
  approval:Omit<DexExecutionApprovalBinding,'bindingHash'>
 }):DexSwapIntent{
+ const approval=createDexExecutionApprovalBinding(input.approval)
  const intent=Object.freeze({
   ...input.draft,
-  approval:createDexExecutionApprovalBinding(input.approval),
-  evidenceIds:Object.freeze([...new Set(input.draft.evidenceIds)]),
+  approval,
+  evidenceIds:Object.freeze([...new Set([...input.draft.evidenceIds,'dex-approval:'+approval.bindingHash])]),
   authority:'MONEY_EXECUTION_INTENT' as const,
  })
  assertDexSwapIntent(intent)
