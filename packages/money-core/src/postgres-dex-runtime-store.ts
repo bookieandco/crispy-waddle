@@ -3,6 +3,8 @@ import type {
  DexExecutionAttempt,
  DexExecutionAttemptState,
  DexExecutionAttemptStore,
+ SolanaDexExecutionProvider,
+ SolanaDexVenueProvider,
 } from './solana-dex-runtime-contracts.js'
 import type { DexExecutionStageEvidence, DexLiveCanaryVerificationReceipt } from './dex-four-stage-certification.js'
 import { dexLiveCanaryEvidenceHash } from './dex-four-stage-certification.js'
@@ -13,7 +15,8 @@ type AttemptRow=Readonly<{
  request_id:string
  run_lineage_id:string
  leg:'ENTRY'|'EXIT'
- provider:'jupiter-ultra'
+ provider:SolanaDexVenueProvider
+ request_provider:SolanaDexExecutionProvider
  wallet_connection_id:string
  signer_lease_id:string
  idempotency_key:string
@@ -24,6 +27,8 @@ type AttemptRow=Readonly<{
  signed_transaction_hash:string
  primary_signature:string
  provider_request_id:string
+ pre_execution_binding_hash:string
+ money_dex_gate_id:string
  simulation_id:string|null
  simulated_fee_lamports:string|number|bigint|null
  provider_receipt_id:string|null
@@ -86,6 +91,7 @@ function mapAttempt(row:AttemptRow):DexExecutionAttempt{
   runLineageId:row.run_lineage_id,
   leg:row.leg,
   provider:row.provider,
+  requestProvider:row.request_provider,
   walletConnectionId:row.wallet_connection_id,
   signerLeaseId:row.signer_lease_id,
   idempotencyKey:row.idempotency_key,
@@ -96,6 +102,8 @@ function mapAttempt(row:AttemptRow):DexExecutionAttempt{
   signedTransactionHash:row.signed_transaction_hash,
   primarySignature:row.primary_signature,
   providerRequestId:row.provider_request_id,
+  preExecutionBindingHash:row.pre_execution_binding_hash,
+  moneyDexGateId:row.money_dex_gate_id,
   simulationId:row.simulation_id??undefined,
   simulatedFeeLamports:row.simulated_fee_lamports==null?undefined:BigInt(row.simulated_fee_lamports),
   providerReceiptId:row.provider_receipt_id??undefined,
@@ -131,17 +139,17 @@ export class PostgresDexExecutionAttemptStore implements DexExecutionAttemptStor
   if(attempt.authority!=='EXECUTION_ATTEMPT_ONLY')throw new Error('DEX_COMMISSION_ATTEMPT_AUTHORITY_INVALID')
   const result=await this.client.query(
    `INSERT INTO ${this.table}(
-     attempt_id,execution_id,request_id,run_lineage_id,leg,provider,wallet_connection_id,signer_lease_id,
+     attempt_id,execution_id,request_id,run_lineage_id,leg,provider,request_provider,wallet_connection_id,signer_lease_id,
      idempotency_key,input_mint,output_mint,input_amount_atomic,minimum_output_atomic,signed_transaction_hash,
-     primary_signature,provider_request_id,simulation_id,simulated_fee_lamports,provider_receipt_id,state,
+     primary_signature,provider_request_id,pre_execution_binding_hash,money_dex_gate_id,simulation_id,simulated_fee_lamports,provider_receipt_id,state,
      error_code,evidence_ids,started_at,updated_at
-    ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+    ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
     ON CONFLICT DO NOTHING RETURNING attempt_id`,
    [
-    attempt.attemptId,attempt.executionId,attempt.requestId,attempt.runLineageId,attempt.leg,attempt.provider,
+    attempt.attemptId,attempt.executionId,attempt.requestId,attempt.runLineageId,attempt.leg,attempt.provider,attempt.requestProvider,
     attempt.walletConnectionId,attempt.signerLeaseId,attempt.idempotencyKey,attempt.inputMint,attempt.outputMint,
     attempt.inputAmountAtomic.toString(),attempt.minimumOutputAtomic.toString(),attempt.signedTransactionHash,
-    attempt.primarySignature,attempt.providerRequestId,attempt.simulationId??null,attempt.simulatedFeeLamports?.toString()??null,
+    attempt.primarySignature,attempt.providerRequestId,attempt.preExecutionBindingHash,attempt.moneyDexGateId,attempt.simulationId??null,attempt.simulatedFeeLamports?.toString()??null,
     attempt.providerReceiptId??null,attempt.state,attempt.errorCode??null,[...attempt.evidenceIds],attempt.startedAt,attempt.updatedAt,
    ],
   )

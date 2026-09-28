@@ -2,8 +2,12 @@ import { createHash } from 'node:crypto'
 import type { ConnectedWallet } from './wallet-connector-contracts.js'
 import type { MoneyMarketConnectorDescriptor } from './market-connector-contracts.js'
 import type { SignerLease, SignerLeasePolicy, SignerRollingObservation } from './signer-lease-contracts.js'
+import type { SharkPreExecutionBinding } from './shark-preexec-binding.js'
 
 export type DexCanaryLeg='ENTRY'|'EXIT'
+export type SolanaDexVenueProvider='jupiter-ultra'|'raydium-direct'|'meteora-direct'
+export type SolanaDexExecutionProvider=SolanaDexVenueProvider|'solana-dex-router'
+export type DexRoutePreference='AUTO'|SolanaDexVenueProvider
 
 export type DexSwapIntent=Readonly<{
  executionId:string
@@ -13,7 +17,9 @@ export type DexSwapIntent=Readonly<{
  strategyId:string
  instrumentId:string
  leg:DexCanaryLeg
- provider:'jupiter-ultra'
+ provider:SolanaDexExecutionProvider
+ routePreference:DexRoutePreference
+ requestedSlippageBps:number
  walletConnectionId:string
  signerLeaseId:string
  inputMint:string
@@ -25,11 +31,12 @@ export type DexSwapIntent=Readonly<{
  idempotencyKey:string
  informationCutoff:string
  evidenceIds:readonly string[]
+ preExecution:SharkPreExecutionBinding
  authority:'MONEY_EXECUTION_INTENT'
 }>
 
 export type DexManagedOrder=Readonly<{
- provider:'jupiter-ultra'
+ provider:SolanaDexVenueProvider
  requestId:string
  inputMint:string
  outputMint:string
@@ -37,6 +44,8 @@ export type DexManagedOrder=Readonly<{
  quotedOutputAtomic:bigint
  unsignedTransactionBase64:string
  takerAddress:string
+ quoteObservedAt:string
+ priceImpactBps:number
  evidenceIds:readonly string[]
  authority:'PROVIDER_QUOTE_ONLY'
  canBroadcast:false
@@ -58,7 +67,8 @@ export type DexSignedTransaction=Readonly<{
 
 export type DexSimulationReceipt=Readonly<{
  simulationId:string
- signature:string
+ simulationMode:'UNSIGNED_PRE_SIGN'|'SIGNED_NO_BROADCAST'
+ signature?:string
  passed:boolean
  errorCode?:string
  unitsConsumed?:number
@@ -71,7 +81,7 @@ export type DexSimulationReceipt=Readonly<{
 
 export type DexProviderExecutionReceipt=Readonly<{
  receiptId:string
- provider:'jupiter-ultra'
+ provider:SolanaDexVenueProvider
  requestId:string
  executionId:string
  state:'ACKNOWLEDGED'|'FAILED'|'UNKNOWN'
@@ -131,7 +141,8 @@ export type DexExecutionAttempt=Readonly<{
  requestId:string
  runLineageId:string
  leg:DexCanaryLeg
- provider:'jupiter-ultra'
+ provider:SolanaDexVenueProvider
+ requestProvider:SolanaDexExecutionProvider
  walletConnectionId:string
  signerLeaseId:string
  idempotencyKey:string
@@ -142,6 +153,8 @@ export type DexExecutionAttempt=Readonly<{
  signedTransactionHash:string
  primarySignature:string
  providerRequestId:string
+ preExecutionBindingHash:string
+ moneyDexGateId:string
  simulationId?:string
  simulatedFeeLamports?:bigint
  providerReceiptId?:string
@@ -161,9 +174,13 @@ export interface DexExecutionAttemptStore{
 }
 
 export interface ManagedSolanaDexAdapter{
- readonly provider:'jupiter-ultra'
+ readonly provider:SolanaDexExecutionProvider
  createOrder(input:{intent:DexSwapIntent;takerAddress:string}):Promise<DexManagedOrder>
  executeSigned(input:{intent:DexSwapIntent;order:DexManagedOrder;signed:DexSignedTransaction;now:string}):Promise<DexProviderExecutionReceipt>
+}
+
+export interface ManagedSolanaDexVenueAdapter extends ManagedSolanaDexAdapter{
+ readonly provider:SolanaDexVenueProvider
 }
 
 export interface CofferSignerAdapter{
@@ -179,6 +196,7 @@ export interface CofferSignerAdapter{
 }
 
 export interface SolanaChainObserver{
+ simulateUnsignedTransaction(input:{unsignedTransactionBase64:string;now:string}):Promise<DexSimulationReceipt>
  simulateSignedTransaction(input:{signedTransactionBase64:string;primarySignature:string;now:string}):Promise<DexSimulationReceipt>
  observeSwap(input:{
   signature:string
@@ -201,6 +219,13 @@ export function hashDexRuntime(value:unknown):string{
  return createHash('sha256').update(JSON.stringify(value,(_,x)=>typeof x==='bigint'?x.toString():x)).digest('hex')
 }
 
+function validProvider(value:string):value is SolanaDexExecutionProvider{
+ return value==='jupiter-ultra'||value==='raydium-direct'||value==='meteora-direct'||value==='solana-dex-router'
+}
+function validRoutePreference(value:string):value is DexRoutePreference{
+ return value==='AUTO'||value==='jupiter-ultra'||value==='raydium-direct'||value==='meteora-direct'
+}
+
 export function assertDexSwapIntent(intent:DexSwapIntent):void{
  for(const [value,code] of [
   [intent.executionId,'DEX_COMMISSION_EXECUTION_ID_REQUIRED'],
@@ -216,11 +241,15 @@ export function assertDexSwapIntent(intent:DexSwapIntent):void{
   [intent.currency,'DEX_COMMISSION_CURRENCY_REQUIRED'],
   [intent.idempotencyKey,'DEX_COMMISSION_IDEMPOTENCY_REQUIRED'],
  ] as const) if(!value.trim()) throw new Error(code)
- if(intent.provider!=='jupiter-ultra'||intent.authority!=='MONEY_EXECUTION_INTENT')throw new Error('DEX_COMMISSION_INTENT_AUTHORITY_INVALID')
+ if(!validProvider(intent.provider)||!validRoutePreference(intent.routePreference)||intent.authority!=='MONEY_EXECUTION_INTENT')throw new Error('DEX_COMMISSION_INTENT_AUTHORITY_INVALID')
+ if(intent.provider!=='solana-dex-router'&&intent.routePreference!=='AUTO'&&intent.routePreference!==intent.provider)throw new Error('DEX_COMMISSION_ROUTE_BINDING_INVALID')
+ if(!Number.isInteger(intent.requestedSlippageBps)||intent.requestedSlippageBps<0||intent.requestedSlippageBps>10000)throw new Error('DEX_COMMISSION_SLIPPAGE_INVALID')
  if(intent.inputMint===intent.outputMint)throw new Error('DEX_COMMISSION_IDENTICAL_MINTS')
  if(intent.inputAmountAtomic<=0n||intent.minimumOutputAtomic<=0n||intent.notionalMinor<=0n)throw new Error('DEX_COMMISSION_AMOUNT_INVALID')
  if(Number.isNaN(Date.parse(intent.informationCutoff)))throw new Error('DEX_COMMISSION_CUTOFF_INVALID')
  if(!intent.evidenceIds.length)throw new Error('DEX_COMMISSION_EVIDENCE_REQUIRED')
+ if(!intent.preExecution||intent.preExecution.authority!=='PREEXEC_BINDING_ONLY'||intent.preExecution.canAuthorizeTrade!==false)throw new Error('DEX_COMMISSION_PREEXEC_BINDING_REQUIRED')
+ if(intent.preExecution.informationCutoff!==intent.informationCutoff)throw new Error('DEX_COMMISSION_PREEXEC_CUTOFF_MISMATCH')
 }
 
 export class InMemoryDexExecutionAttemptStore implements DexExecutionAttemptStore{

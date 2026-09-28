@@ -1,4 +1,4 @@
-import type { DexManagedOrder, DexProviderExecutionReceipt, DexSignedTransaction, DexSwapIntent, ManagedSolanaDexAdapter } from './solana-dex-runtime-contracts.js'
+import type { DexManagedOrder, DexProviderExecutionReceipt, DexSignedTransaction, DexSwapIntent, ManagedSolanaDexVenueAdapter } from './solana-dex-runtime-contracts.js'
 
 type FetchLike=(input:string|URL,init?:RequestInit)=>Promise<Response>
 
@@ -6,6 +6,7 @@ export type JupiterUltraDexAdapterOptions=Readonly<{
  baseUrl?:string
  resolveApiKey?:()=>Promise<string|undefined>|string|undefined
  fetchFn?:FetchLike
+ now?:()=>string
 }>
 
 function asRecord(value:unknown):Record<string,unknown>{
@@ -25,17 +26,28 @@ function optionalAtomic(row:Record<string,unknown>,...keys:string[]):bigint|unde
  }
  return undefined
 }
+function priceImpactBps(row:Record<string,unknown>):number{
+ const direct=row.priceImpactBps
+ if(typeof direct==='number'&&Number.isFinite(direct)&&direct>=0)return Math.ceil(direct)
+ if(typeof direct==='string'&&/^\d+(\.\d+)?$/.test(direct))return Math.ceil(Number(direct))
+ const pct=row.priceImpactPct??row.priceImpact
+ if(typeof pct==='number'&&Number.isFinite(pct)&&pct>=0)return Math.ceil(pct*100)
+ if(typeof pct==='string'&&/^\d+(\.\d+)?$/.test(pct))return Math.ceil(Number(pct)*100)
+ throw new Error('DEX_JUPITER_PRICE_IMPACT_REQUIRED')
+}
 
-export class JupiterUltraDexAdapter implements ManagedSolanaDexAdapter{
+export class JupiterUltraDexAdapter implements ManagedSolanaDexVenueAdapter{
  readonly provider='jupiter-ultra' as const
  private readonly baseUrl:string
  private readonly resolveApiKey?:JupiterUltraDexAdapterOptions['resolveApiKey']
  private readonly fetchFn:FetchLike
+ private readonly now:()=>string
  constructor(options:JupiterUltraDexAdapterOptions={}){
   this.baseUrl=(options.baseUrl??'https://api.jup.ag').replace(/\/$/,'')
   if(!this.baseUrl.startsWith('https://'))throw new Error('DEX_JUPITER_HTTPS_REQUIRED')
   this.resolveApiKey=options.resolveApiKey
   this.fetchFn=options.fetchFn??fetch
+  this.now=options.now??(()=>new Date().toISOString())
  }
  private async headers(extra:Record<string,string>={}):Promise<Record<string,string>>{
   const apiKey=await this.resolveApiKey?.()
@@ -57,6 +69,8 @@ export class JupiterUltraDexAdapter implements ManagedSolanaDexAdapter{
   const outAmount=optionalAtomic(row,'outAmount','outputAmount')
   if(inAmount===undefined||inAmount!==intent.inputAmountAtomic)throw new Error('DEX_JUPITER_INPUT_AMOUNT_MISMATCH')
   if(outAmount===undefined||outAmount<=0n)throw new Error('DEX_JUPITER_OUTPUT_AMOUNT_INVALID')
+  const observed=typeof row.quoteObservedAt==='string'&&row.quoteObservedAt.trim()?row.quoteObservedAt:this.now()
+  if(Number.isNaN(Date.parse(observed)))throw new Error('DEX_JUPITER_QUOTE_TIME_INVALID')
   return Object.freeze({
    provider:this.provider,
    requestId,
@@ -66,12 +80,15 @@ export class JupiterUltraDexAdapter implements ManagedSolanaDexAdapter{
    quotedOutputAtomic:outAmount,
    unsignedTransactionBase64:transaction,
    takerAddress,
+   quoteObservedAt:observed,
+   priceImpactBps:priceImpactBps(row),
    evidenceIds:Object.freeze(['jupiter:order:'+requestId]),
    authority:'PROVIDER_QUOTE_ONLY' as const,
    canBroadcast:false as const,
   })
  }
  async executeSigned(input:{intent:DexSwapIntent;order:DexManagedOrder;signed:DexSignedTransaction;now:string}):Promise<DexProviderExecutionReceipt>{
+  if(input.order.provider!==this.provider)throw new Error('DEX_JUPITER_ORDER_PROVIDER_MISMATCH')
   const response=await this.fetchFn(this.baseUrl+'/ultra/v1/execute',{
    method:'POST',
    headers:await this.headers({'content-type':'application/json','accept':'application/json'}),
