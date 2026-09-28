@@ -125,7 +125,7 @@ Open-position state now preserves and evaluates:
 
 SHARK remains intelligence-only. Money remains downstream capital/risk authority.
 
-A current position can independently create a `PositionExitIntentCandidate` after re-underwriting. The exit candidate does not require the original entry signal to fire again and cannot execute itself.
+A current position can independently create a `PositionExitIntentCandidate` after re-underwriting. The canonical Money trade consumer reacts to `POSITION_MONITORED`, reloads current position + assessment state, re-underwrites it, and creates an exit candidate only when the current evidence supports TRIM/EXIT. The exit candidate does not require the original entry signal to fire again and cannot execute itself.
 
 ## 4. Post-exit learning loop
 
@@ -149,7 +149,7 @@ After a closed trade, SHARK can create a learning-only record containing:
 - merged evidence lineage;
 - lesson tags.
 
-The complete review summary is published as `TRADE_REVIEWED` and therefore lands in the same shared trade-memory record as discovery, entry, monitoring, and exit.
+The canonical SHARK post-exit consumer reacts to every delivered `EXITED` event, loads the closed-trade outcome evidence, creates the learning record, and publishes `TRADE_REVIEWED`. The complete review summary therefore lands in the same shared trade-memory record as discovery, entry, monitoring, and exit.
 
 Learning records have:
 
