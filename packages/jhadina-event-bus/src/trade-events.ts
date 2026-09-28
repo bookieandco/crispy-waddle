@@ -196,15 +196,16 @@ export class TradeEventSequenceGuard{
       case 'FILLED':{
         const step=EXECUTION_STEP[event.type]
         if(step===undefined)fail('TRADE_EVENT_EXECUTION_STEP_INVALID')
+        const executionStep=step as ExecutionProgress
         const entry=event.payload.leg==='ENTRY'
         const exit=event.payload.leg==='EXIT'
         if(!entry&&!exit)fail('TRADE_EVENT_EXECUTION_LEG_REQUIRED')
         if(entry&&!current.entryRisk)fail('TRADE_EVENT_ENTRY_EXECUTION_BEFORE_RISK')
         if(exit&&!current.exitRisk)fail('TRADE_EVENT_EXIT_EXECUTION_BEFORE_RISK')
         const prior=entry?current.entryExecution:current.exitExecution
-        if(step!==prior+1)fail('TRADE_EVENT_EXECUTION_ORDER_INVALID')
-        if(entry)next.entryExecution=step
-        else next.exitExecution=step
+        if(executionStep!==prior+1)fail('TRADE_EVENT_EXECUTION_ORDER_INVALID')
+        if(entry)next.entryExecution=executionStep
+        else next.exitExecution=executionStep
         break
       }
       case 'POSITION_MONITORED':
