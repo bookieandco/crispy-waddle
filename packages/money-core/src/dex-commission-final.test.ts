@@ -8,7 +8,7 @@ import type { ConnectedWallet } from './wallet-connector-contracts.js'
 import type { MoneyMarketConnectorDescriptor } from './market-connector-contracts.js'
 import type { SignerLease,SignerLeasePolicy,SignerRollingObservation } from './signer-lease-contracts.js'
 import type { CofferSignerAdapter,DexExecutionEventSink,DexExecutionLifecycleEvent,DexManagedOrder,DexProviderExecutionReceipt,DexSignedTransaction,DexSwapIntent,ManagedSolanaDexAdapter,SolanaChainObserver,DexSimulationReceipt,DexUnsignedSimulationReceipt,DexOnchainReceipt } from './solana-dex-runtime-contracts.js'
-import { createApprovedDexSwapIntent,InMemoryDexExecutionAttemptStore } from './solana-dex-runtime-contracts.js'
+import { assertDexSwapIntent,createApprovedDexSwapIntent,InMemoryDexExecutionAttemptStore } from './solana-dex-runtime-contracts.js'
 import { dexExecutionAction,proveDexRestartRecovery,reconcileDexCanaryLeg,submitControlledDexCanaryLeg } from './dex-controlled-canary-runtime.js'
 import { buildDexControlledLiveCanaryEvidence,certifyDexCommissionFinal,createDexLiveRuntimeVerificationReceipt,proveDexCapitalBoundary,proveDexKillSwitch } from './dex-commission-final.js'
 import { certifyDexExecutionLadder,type DexExecutionStageEvidence,type EdgeDecisionBundleReceipt,type Edge007IntegrityReceipt } from './dex-four-stage-certification.js'
@@ -100,6 +100,12 @@ function stage(stage:DexExecutionStageEvidence['stage']):DexExecutionStageEviden
  return {stageId:'stage:'+stage,stage,origin:stage==='SIGNED_SIMULATION_NO_BROADCAST'?'LIVE_RUNTIME_ATTESTED':'RECORDED_REAL_MARKET',runLineageId:'lineage:1',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',
   walletConnectionId:stage==='SIGNED_SIMULATION_NO_BROADCAST'?wallet.connectionId:undefined,startedAt,endedAt,informationCutoff:endedAt,edgeDecisionBundle,integrityGuard:integrity,decisionCount:1,signedTransactionCount:stage==='SIGNED_SIMULATION_NO_BROADCAST'?1:0,simulationCount:stage==='SIGNED_SIMULATION_NO_BROADCAST'?1:0,simulationFailureCount:0,broadcastCount:0,entryBroadcastCount:0,exitBroadcastCount:0,reconciledBroadcastCount:0,duplicateBroadcastCount:0,unknownExecutionCount:0,futureEvidenceCount:0,signerBoundary:stage==='SIGNED_SIMULATION_NO_BROADCAST'?'ISOLATED':'NOT_APPLICABLE',privateKeyMaterialObserved:false,capitalBounded:false,killSwitchProven:false,restartRecoveryProven:false,sellabilityProven:false,positionFlatAfterExit:false,executionCostReconciled:false,providerReceiptIds:[],onchainSignatureIds:[],evidenceIds:['stage:e']}
 }
+
+test('DEX intent rejects a forged SHARK EDGE Money approval binding before execution',()=>{
+ const valid=intent('ENTRY')
+ const forged={...valid,approval:{...valid.approval,bindingHash:'forged'}} as DexSwapIntent
+ assert.throws(()=>assertDexSwapIntent(forged),/DEX_APPROVAL_BINDING_HASH_MISMATCH/)
+})
 
 test('reference is adapted to current Jupiter managed endpoints rather than legacy V6 browser flow',async()=>{
  let orderUrl='',executeBody='',apiKey=''
