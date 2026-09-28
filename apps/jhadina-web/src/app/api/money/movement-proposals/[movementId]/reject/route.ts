@@ -3,9 +3,9 @@ import { rejectSessionMoneyMovement } from "@/lib/money/movement-approval-runtim
 
 export const dynamic="force-dynamic"
 
-export async function POST(_req:NextRequest,{params}:{params:Promise<{movementId:string}>}){
+export async function POST(_req:NextRequest,{params}:{params:{movementId:string}}){
  try{
-  const {movementId}=await params
+  const {movementId}=params
   return NextResponse.json({success:true,data:await rejectSessionMoneyMovement(movementId)})
  }catch(error){
   const message=error instanceof Error?error.message:"Money movement rejection failed"
