@@ -14,3 +14,5 @@ export * from "./messaging.js";
 export * from "./character-profiles.js";
 
 export * from "./talent-business.js";
+
+export * from "./reference-adaptation.js";
