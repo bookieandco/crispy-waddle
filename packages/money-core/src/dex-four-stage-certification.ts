@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 export const DEX_EXECUTION_LADDER_VERSION = 'DEX-EXECUTION-4STAGE-v2' as const
 export const EDGE_007_REQUIRED_VERSION = 'EDGE-007-v1' as const
+export const EDGE_DECISION_REQUIRED_VERSION = 'EDGE-001-006-v1' as const
 
 export type DexExecutionStage =
   | 'HISTORICAL_REPLAY'
@@ -13,6 +14,27 @@ export type DexEvidenceOrigin =
   | 'SYNTHETIC_TEST'
   | 'RECORDED_REAL_MARKET'
   | 'LIVE_RUNTIME_ATTESTED'
+
+export type EdgeDecisionGateReceipt = Readonly<{
+  gateId: 'EDGE-001' | 'EDGE-002' | 'EDGE-003' | 'EDGE-004' | 'EDGE-005' | 'EDGE-006'
+  version: typeof EDGE_DECISION_REQUIRED_VERSION
+  disposition: 'PASS' | 'BLOCK'
+  reasonCodes: readonly string[]
+  evidenceIds: readonly string[]
+  evaluatedAt: string
+  authority: 'RESEARCH_AND_RISK_GATE_ONLY'
+  canAuthorizeTrade: false
+}>
+
+export type EdgeDecisionBundleReceipt = Readonly<{
+  frameworkVersion: typeof EDGE_DECISION_REQUIRED_VERSION
+  receipts: readonly EdgeDecisionGateReceipt[]
+  disposition: 'PASS' | 'BLOCK'
+  reasonCodes: readonly string[]
+  evidenceIds: readonly string[]
+  authority: 'RESEARCH_AND_RISK_GATE_ONLY'
+  canAuthorizeTrade: false
+}>
 
 export type Edge007IntegrityReceipt = Readonly<{
   guardVersion: typeof EDGE_007_REQUIRED_VERSION
@@ -38,6 +60,7 @@ export type DexExecutionStageEvidence = Readonly<{
   startedAt: string
   endedAt: string
   informationCutoff: string
+  edgeDecisionBundle: EdgeDecisionBundleReceipt
   integrityGuard: Edge007IntegrityReceipt
   decisionCount: number
   signedTransactionCount: number
@@ -158,6 +181,25 @@ function assertCommon(evidence: DexExecutionStageEvidence, reasons: string[]): v
   }
 
   pushIf(reasons, !evidence.evidenceIds.length, 'DEX_STAGE_EVIDENCE_REQUIRED')
+  pushIf(reasons, evidence.edgeDecisionBundle.frameworkVersion !== EDGE_DECISION_REQUIRED_VERSION, 'DEX_EDGE_DECISION_VERSION_REQUIRED')
+  pushIf(reasons, evidence.edgeDecisionBundle.authority !== 'RESEARCH_AND_RISK_GATE_ONLY', 'DEX_EDGE_DECISION_AUTHORITY_INVALID')
+  pushIf(reasons, evidence.edgeDecisionBundle.canAuthorizeTrade !== false, 'DEX_EDGE_DECISION_TRADE_AUTHORITY_FORBIDDEN')
+  pushIf(reasons, evidence.edgeDecisionBundle.disposition !== 'PASS', 'DEX_EDGE_DECISION_BLOCKED')
+  pushIf(reasons, evidence.edgeDecisionBundle.reasonCodes.length !== 0, 'DEX_EDGE_DECISION_REASONS_PRESENT')
+  pushIf(reasons, !evidence.edgeDecisionBundle.evidenceIds.length, 'DEX_EDGE_DECISION_EVIDENCE_REQUIRED')
+  const requiredEdgeGates = ['EDGE-001','EDGE-002','EDGE-003','EDGE-004','EDGE-005','EDGE-006'] as const
+  const edgeReceipts = new Map(evidence.edgeDecisionBundle.receipts.map((item) => [item.gateId, item]))
+  for (const gateId of requiredEdgeGates) {
+    const item = edgeReceipts.get(gateId)
+    const code = gateId.replace('-', '')
+    pushIf(reasons, !item, `DEX_${code}_RECEIPT_REQUIRED`)
+    if (item) {
+      pushIf(reasons, item.version !== EDGE_DECISION_REQUIRED_VERSION, `DEX_${code}_VERSION_REQUIRED`)
+      pushIf(reasons, item.authority !== 'RESEARCH_AND_RISK_GATE_ONLY' || item.canAuthorizeTrade !== false, `DEX_${code}_AUTHORITY_INVALID`)
+      pushIf(reasons, item.disposition !== 'PASS' || item.reasonCodes.length !== 0, `DEX_${code}_BLOCKED`)
+      pushIf(reasons, !item.evidenceIds.length, `DEX_${code}_EVIDENCE_REQUIRED`)
+    }
+  }
   pushIf(reasons, evidence.integrityGuard.guardVersion !== EDGE_007_REQUIRED_VERSION, 'DEX_EDGE007_VERSION_REQUIRED')
   pushIf(reasons, evidence.integrityGuard.authority !== 'INTEGRITY_VETO_ONLY', 'DEX_EDGE007_AUTHORITY_INVALID')
   pushIf(reasons, evidence.integrityGuard.canAuthorizeTrade !== false, 'DEX_EDGE007_TRADE_AUTHORITY_FORBIDDEN')
