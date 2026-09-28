@@ -36,7 +36,7 @@ import type { FundingRailCommissioningCertificate } from './funding-provider-com
 const commissioningCertificate:FundingRailCommissioningCertificate=Object.freeze({
  certificateId:'fund-cert:1',railId:'rail:fixture',provider:'funding-fixture',providerAccountId:'acct-live-1',evidenceClass:'REAL_LIVE',status:'CONTROLLED_CANARY_CERTIFIED',
  controlledCanaryCertified:true,liveCertified:false,admittedKinds:Object.freeze(['DEPOSIT','WITHDRAWAL','TRANSFER'] as const),admittedCurrencies:Object.freeze(['USD']),
- sourceKinds:Object.freeze(['BANK','BROKER_CASH'] as const),destinationKinds:Object.freeze(['BANK','BROKER_CASH'] as const),maxMovementMinor:10000n,maxDailyMovementMinor:20000n,commissioningCertificateId:commissioningCertificate.certificateId,
+ sourceKinds:Object.freeze(['BANK','BROKER_CASH'] as const),destinationKinds:Object.freeze(['BANK','BROKER_CASH'] as const),maxMovementMinor:10000n,maxDailyMovementMinor:20000n,
  reasonCodes:Object.freeze([]),receiptIds:Object.freeze(['r1']),canaryIds:Object.freeze([]),evidenceIds:Object.freeze(['cert:e1']),recordedAt:'2026-09-27T23:00:00Z',authority:'CERTIFICATION_ONLY',canExecute:false,
 })
 
@@ -46,7 +46,7 @@ const proposal:MoneyMovementProposal=Object.freeze({movementId:'movement:1',kind
 
 const admission=(o:Partial<FundingRailAdmission>={}):FundingRailAdmission=>Object.freeze({
  railId:'rail:fixture',provider:'funding-fixture',environment:'LIVE',admission:'CONTROLLED_CANARY',allowedKinds:Object.freeze(['DEPOSIT','WITHDRAWAL','TRANSFER'] as const),allowedCurrencies:Object.freeze(['USD'] as const),
- sourceKinds:Object.freeze(['BANK','BROKER_CASH'] as const),destinationKinds:Object.freeze(['BANK','BROKER_CASH'] as const),maxMovementMinor:10000n,maxDailyMovementMinor:20000n,
+ sourceKinds:Object.freeze(['BANK','BROKER_CASH'] as const),destinationKinds:Object.freeze(['BANK','BROKER_CASH'] as const),maxMovementMinor:10000n,maxDailyMovementMinor:20000n,commissioningCertificateId:commissioningCertificate.certificateId,
  evidenceIds:Object.freeze(['rail:e1']),authority:'ADMISSION_ONLY',canMoveMoney:false,...o,
 })
 const observation=(o:Partial<FundingRailRuntimeObservation>={}):FundingRailRuntimeObservation=>Object.freeze({railId:'rail:fixture',movedTodayMinor:0n,unresolvedAttemptCount:0,observedAt:'2026-09-27T23:00:01Z',evidenceIds:Object.freeze(['runtime:e1']),authority:'RUNTIME_EVIDENCE',...o})
