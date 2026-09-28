@@ -278,3 +278,4 @@ export * from './dex-commission-final.js';
 export * from './postgres-dex-runtime-store.js';
 export * from './coffer-commission-final.js';
 export * from './dex-certification-runner.js';
+export * from './dex-router-final.js';
