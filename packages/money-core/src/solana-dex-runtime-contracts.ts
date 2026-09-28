@@ -93,6 +93,8 @@ export type DexOnchainReceipt=Readonly<{
  feeLamports?:bigint
  inputDebitAtomic?:bigint
  outputCreditAtomic?:bigint
+ inputPostBalanceAtomic?:bigint
+ outputPostBalanceAtomic?:bigint
  observedAt:string
  evidenceIds:readonly string[]
  authority:'ONCHAIN_EVIDENCE'
