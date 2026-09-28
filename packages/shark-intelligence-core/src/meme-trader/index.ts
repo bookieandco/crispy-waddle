@@ -47,4 +47,5 @@ export * from './provider-soak'
 
 export * from './research-corpus'
 export * from './rug-self-protection'
+export * from './edge-decision-gates'
 export * from './integrity-guard'

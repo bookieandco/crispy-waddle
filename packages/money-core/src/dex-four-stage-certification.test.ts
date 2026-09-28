@@ -5,8 +5,29 @@ import {
   certifyDexExecutionLadder,
   certifyDexExecutionStage,
   type DexExecutionStageEvidence,
+  type EdgeDecisionBundleReceipt,
   type Edge007IntegrityReceipt,
 } from './dex-four-stage-certification.js'
+
+const edgeDecisionBundle = (overrides: Partial<EdgeDecisionBundleReceipt> = {}): EdgeDecisionBundleReceipt => ({
+  frameworkVersion: 'EDGE-001-006-v1',
+  receipts: (['EDGE-001','EDGE-002','EDGE-003','EDGE-004','EDGE-005','EDGE-006'] as const).map((gateId) => ({
+    gateId,
+    version: 'EDGE-001-006-v1',
+    disposition: 'PASS',
+    reasonCodes: [],
+    evidenceIds: [gateId.toLowerCase()+':evidence:1'],
+    evaluatedAt: '2026-09-27T18:59:00.000Z',
+    authority: 'RESEARCH_AND_RISK_GATE_ONLY',
+    canAuthorizeTrade: false,
+  })),
+  disposition: 'PASS',
+  reasonCodes: [],
+  evidenceIds: ['edge001:evidence:1','edge002:evidence:1','edge003:evidence:1','edge004:evidence:1','edge005:evidence:1','edge006:evidence:1'],
+  authority: 'RESEARCH_AND_RISK_GATE_ONLY',
+  canAuthorizeTrade: false,
+  ...overrides,
+})
 
 const integrity = (overrides: Partial<Edge007IntegrityReceipt> = {}): Edge007IntegrityReceipt => ({
   guardVersion: 'EDGE-007-v1',
@@ -41,6 +62,7 @@ const stage = (
     startedAt,
     endedAt,
     informationCutoff: endedAt,
+    edgeDecisionBundle: edgeDecisionBundle(),
     integrityGuard: integrity(),
     decisionCount: 1,
     signedTransactionCount: 0,
@@ -121,6 +143,26 @@ test('signed simulation requires isolated signing, successful simulation, and ze
   }))
   assert.equal(broadcast.passed, false)
   assert.ok(broadcast.reasonCodes.includes('DEX_SIMULATION_BROADCAST_FORBIDDEN'))
+})
+
+test('EDGE-001 through EDGE-006 are mandatory before any DEX stage can certify', () => {
+  const missingEdge006 = edgeDecisionBundle({
+    receipts: edgeDecisionBundle().receipts.filter((item) => item.gateId !== 'EDGE-006'),
+  })
+  const result = certifyDexExecutionStage(stage('SIGNED_SIMULATION_NO_BROADCAST', {
+    edgeDecisionBundle: missingEdge006,
+  }))
+  assert.equal(result.passed, false)
+  assert.ok(result.reasonCodes.includes('DEX_EDGE006_RECEIPT_REQUIRED'))
+
+  const blocked = certifyDexExecutionStage(stage('SIGNED_SIMULATION_NO_BROADCAST', {
+    edgeDecisionBundle: edgeDecisionBundle({
+      disposition: 'BLOCK',
+      reasonCodes: ['EDGE002_BLOCKED'],
+    }),
+  }))
+  assert.equal(blocked.passed, false)
+  assert.ok(blocked.reasonCodes.includes('DEX_EDGE_DECISION_BLOCKED'))
 })
 
 test('EDGE-007 blocks staged DEX certification and never grants execution authority', () => {
