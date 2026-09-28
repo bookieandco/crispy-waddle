@@ -29,6 +29,12 @@ export type DexExecutionStageEvidence = Readonly<{
   stageId: string
   stage: DexExecutionStage
   origin: DexEvidenceOrigin
+  runLineageId: string
+  strategyId: string
+  instrumentId: string
+  walletConnectionId?: string
+  entryExecutionId?: string
+  exitExecutionId?: string
   startedAt: string
   endedAt: string
   informationCutoff: string
@@ -105,6 +111,9 @@ function pushIf(reasons: string[], condition: boolean, code: string): void {
 
 function assertCommon(evidence: DexExecutionStageEvidence, reasons: string[]): void {
   pushIf(reasons, !evidence.stageId.trim(), 'DEX_STAGE_ID_REQUIRED')
+  pushIf(reasons, !evidence.runLineageId.trim(), 'DEX_STAGE_LINEAGE_ID_REQUIRED')
+  pushIf(reasons, !evidence.strategyId.trim(), 'DEX_STAGE_STRATEGY_ID_REQUIRED')
+  pushIf(reasons, !evidence.instrumentId.trim(), 'DEX_STAGE_INSTRUMENT_ID_REQUIRED')
   pushIf(reasons, !validIso(evidence.startedAt), 'DEX_STAGE_STARTED_AT_INVALID')
   pushIf(reasons, !validIso(evidence.endedAt), 'DEX_STAGE_ENDED_AT_INVALID')
   pushIf(reasons, !validIso(evidence.informationCutoff), 'DEX_STAGE_INFORMATION_CUTOFF_INVALID')
@@ -169,6 +178,7 @@ export function certifyDexExecutionStage(evidence: DexExecutionStageEvidence): D
   }
 
   if (evidence.stage === 'SIGNED_SIMULATION_NO_BROADCAST') {
+    pushIf(reasons, !evidence.walletConnectionId?.trim(), 'DEX_SIMULATION_WALLET_BINDING_REQUIRED')
     pushIf(reasons, evidence.decisionCount < 1, 'DEX_SIMULATION_DECISIONS_REQUIRED')
     pushIf(reasons, evidence.signerBoundary !== 'ISOLATED', 'DEX_SIMULATION_ISOLATED_SIGNER_REQUIRED')
     pushIf(reasons, evidence.signedTransactionCount < 1, 'DEX_SIMULATION_SIGNED_TRANSACTION_REQUIRED')
@@ -182,6 +192,10 @@ export function certifyDexExecutionStage(evidence: DexExecutionStageEvidence): D
 
   if (evidence.stage === 'CONTROLLED_LIVE_CANARY') {
     pushIf(reasons, evidence.origin !== 'LIVE_RUNTIME_ATTESTED', 'DEX_CANARY_LIVE_RUNTIME_ATTESTATION_REQUIRED')
+    pushIf(reasons, !evidence.walletConnectionId?.trim(), 'DEX_CANARY_WALLET_BINDING_REQUIRED')
+    pushIf(reasons, !evidence.entryExecutionId?.trim(), 'DEX_CANARY_ENTRY_EXECUTION_ID_REQUIRED')
+    pushIf(reasons, !evidence.exitExecutionId?.trim(), 'DEX_CANARY_EXIT_EXECUTION_ID_REQUIRED')
+    pushIf(reasons, Boolean(evidence.entryExecutionId && evidence.exitExecutionId && evidence.entryExecutionId === evidence.exitExecutionId), 'DEX_CANARY_ENTRY_EXIT_EXECUTIONS_MUST_DIFFER')
     pushIf(reasons, evidence.decisionCount < 1, 'DEX_CANARY_DECISIONS_REQUIRED')
     pushIf(reasons, evidence.signerBoundary !== 'ISOLATED', 'DEX_CANARY_ISOLATED_SIGNER_REQUIRED')
     pushIf(reasons, evidence.signedTransactionCount < 1, 'DEX_CANARY_SIGNED_TRANSACTION_REQUIRED')
@@ -229,6 +243,8 @@ export function certifyDexExecutionLadder(input: {
   }
 
   const missingStages = ORDER.filter((stage) => !byStage.has(stage))
+  const lineageKeys = new Set([...byStage.values()].map((evidence) => `${evidence.runLineageId}|${evidence.strategyId}|${evidence.instrumentId}`))
+  if (lineageKeys.size > 1) reasons.push('DEX_STAGE_LINEAGE_MISMATCH')
   const certifications = ORDER.flatMap((stage) => {
     const evidence = byStage.get(stage)
     return evidence ? [certifyDexExecutionStage(evidence)] : []
