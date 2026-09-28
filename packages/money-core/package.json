@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@jhadina/action-core": "workspace:*",
+    "@jhadina/event-bus": "workspace:*",
     "@jhadina/opportunity-core": "workspace:*",
     "pg": "^8.16.3"
   },
