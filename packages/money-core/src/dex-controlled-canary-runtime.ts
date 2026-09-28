@@ -345,6 +345,7 @@ export async function proveDexRestartRecovery(input:{
  intent:DexSwapIntent
  boundary:DexCommissioningBoundary
  chain:SolanaChainObserver
+ events:DexExecutionEventSink
  attemptStore:DexExecutionAttemptStore
  canaryStore:LiveCanaryStateStore
  tradingDate:string
