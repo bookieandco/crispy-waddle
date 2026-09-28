@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-
 export type TradeSignalOutcome=Readonly<{
  signalId:string
  signalName:string
@@ -91,7 +89,16 @@ export type ClosedMemeTradeLearningRecord=Readonly<{
  canExecute:false
 }>
 
-const hash=(value:unknown)=>createHash('sha256').update(JSON.stringify(value,(_,item)=>typeof item==='bigint'?item.toString():item)).digest('hex')
+const hash=(value:unknown)=>{
+ const text=JSON.stringify(value,(_,item)=>typeof item==='bigint'?item.toString():item)
+ let a=0x811c9dc5,b=0x9e3779b9
+ for(let i=0;i<text.length;i+=1){
+  const code=text.charCodeAt(i)
+  a=Math.imul(a^code,0x01000193)
+  b=Math.imul(b^(code+i),0x85ebca6b)
+ }
+ return (a>>>0).toString(16).padStart(8,'0')+(b>>>0).toString(16).padStart(8,'0')
+}
 const iso=(value:string,code:string)=>{if(!value.trim()||Number.isNaN(Date.parse(value)))throw new Error(code)}
 const slippageBps=(value:number,code:string)=>{if(!Number.isInteger(value)||value<-10000||value>10000)throw new Error(code)}
 const returnBps=(value:number,code:string)=>{if(!Number.isInteger(value)||value<-10000||value>100000000)throw new Error(code)}
