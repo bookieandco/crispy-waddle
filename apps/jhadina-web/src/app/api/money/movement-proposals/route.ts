@@ -52,12 +52,12 @@ export async function GET(req:NextRequest){
   if(receiptIds.length){
    const {data:receipts,error:receiptError}=await db.from("money_movement_approval_receipts").select("id,status,expires_at").in("id",receiptIds)
    if(receiptError)throw new Error("MONEY_MOVEMENT_APPROVAL_READ_FAILED:"+receiptError.message)
-   statusById=new Map((receipts??[]).map(x=>[x.id,x.status+":"+x.expires_at]))
+   statusById=new Map((receipts??[]).map(x=>[x.id,JSON.stringify({status:x.status,expiresAt:x.expires_at})]))
   }
   return NextResponse.json({success:true,data:{proposals:(data??[]).map(x=>{
    const raw=x.approval_receipt_id?statusById.get(x.approval_receipt_id):undefined
-   const [approvalStatus,approvalExpiresAt]=raw?raw.split(":",2):[null,null]
-   return {...x,approvalStatus,approvalExpiresAt}
+   const receipt=raw?JSON.parse(raw) as {status:string;expiresAt:string}:null
+   return {...x,approvalStatus:receipt?.status??null,approvalExpiresAt:receipt?.expiresAt??null}
   })}})
  }catch(error){
   const message=error instanceof Error?error.message:"Money movement proposal read failed"
