@@ -169,7 +169,7 @@ export function certifyFundingRailLive(input:{
  if(!c.controlledCanaryCertified||c.status!=='CONTROLLED_CANARY_CERTIFIED'||c.evidenceClass!=='REAL_LIVE')reasons.push('REAL_CONTROLLED_CANARY_CERT_REQUIRED')
  const {map,reasons:common}=commonValidation({receipts:input.receipts,criteria:input.criteria,railId:c.railId,provider:c.provider,providerAccountId:c.providerAccountId})
  reasons.push(...common)
- for(const kind of ['UNKNOWN_EXECUTION_DRILL','DUPLICATE_SUBMISSION_DRILL','CANCEL_DRILL'] as const)if(!map.get(kind))reasons.push(kind+'_REQUIRED')
+ for(const kind of ['LIVE_CANARY','SETTLEMENT_RECONCILIATION','UNKNOWN_EXECUTION_DRILL','DUPLICATE_SUBMISSION_DRILL','CANCEL_DRILL'] as const)if(!map.get(kind))reasons.push(kind+'_REQUIRED')
  const canaryKinds=new Set<MoneyMovementKind>()
  for(const x of input.canaries){
   if(x.authority!=='CANARY_EVIDENCE'||x.canExecute!==false||!x.evidenceIds.length)reasons.push('CANARY_EVIDENCE_INVALID:'+x.canaryId)
