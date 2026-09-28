@@ -91,8 +91,11 @@ class FakeDex implements ManagedSolanaDexAdapter{
  }
 }
 class FakeChain implements SolanaChainObserver{
+ async simulateUnsignedTransaction(i:{unsignedTransactionBase64:string;now:string}):Promise<DexSimulationReceipt>{
+  return {simulationId:'sim:unsigned',simulationMode:'UNSIGNED_PRE_SIGN',passed:true,unitsConsumed:123,feeLamports:5000n,logs:[],observedAt:i.now,evidenceIds:['sim:unsigned:e'],authority:'CHAIN_SIMULATION_EVIDENCE'}
+ }
  async simulateSignedTransaction(i:{signedTransactionBase64:string;primarySignature:string;now:string}):Promise<DexSimulationReceipt>{
-  return {simulationId:'sim:'+i.primarySignature,signature:i.primarySignature,passed:true,unitsConsumed:123,feeLamports:5000n,logs:[],observedAt:i.now,evidenceIds:['sim:e'],authority:'CHAIN_SIMULATION_EVIDENCE'}
+  return {simulationId:'sim:'+i.primarySignature,simulationMode:'SIGNED_NO_BROADCAST',signature:i.primarySignature,passed:true,unitsConsumed:123,feeLamports:5000n,logs:[],observedAt:i.now,evidenceIds:['sim:signed:e'],authority:'CHAIN_SIMULATION_EVIDENCE'}
  }
  async observeSwap(i:{signature:string;walletAddress:string;inputMint:string;outputMint:string;now:string}):Promise<DexOnchainReceipt>{
   const isEntry=i.inputMint===settlement
@@ -143,9 +146,10 @@ test('Solana RPC observer preflights and derives token deltas from confirmed cha
   if(body.method==='simulateTransaction')return new Response(JSON.stringify({jsonrpc:'2.0',result:{value:{err:null,fee:5000,unitsConsumed:12,logs:[]}}}),{status:200})
   return new Response(JSON.stringify({jsonrpc:'2.0',result:{slot:42,meta:{err:null,fee:5000,preTokenBalances:[{owner:wallet.address,mint:settlement,uiTokenAmount:{amount:'1000000'}},{owner:wallet.address,mint:target,uiTokenAmount:{amount:'0'}}],postTokenBalances:[{owner:wallet.address,mint:settlement,uiTokenAmount:{amount:'0'}},{owner:wallet.address,mint:target,uiTokenAmount:{amount:'500100'}}]}}}),{status:200})
  }})
+ const unsigned=await observer.simulateUnsignedTransaction({unsignedTransactionBase64:'abc',now:'2026-09-27T20:29:59Z'})
  const sim=await observer.simulateSignedTransaction({signedTransactionBase64:'abc',primarySignature:'sig',now:'2026-09-27T20:30:00Z'})
  const chain=await observer.observeSwap({signature:'sig',walletAddress:wallet.address,inputMint:settlement,outputMint:target,now:'2026-09-27T20:31:00Z'})
- assert.equal(calls,2);assert.equal(sim.passed,true);assert.equal(chain.inputDebitAtomic,1000000n);assert.equal(chain.outputCreditAtomic,500100n)
+ assert.equal(calls,3);assert.equal(unsigned.simulationMode,'UNSIGNED_PRE_SIGN');assert.equal(sim.simulationMode,'SIGNED_NO_BROADCAST');assert.equal(sim.passed,true);assert.equal(chain.inputDebitAtomic,1000000n);assert.equal(chain.outputCreditAtomic,500100n)
 })
 
 test('DEX-COMMISSION.FINAL executes exactly two bounded routed legs, proves restart recovery, flat exit, kill switch, and still forbids unrestricted live',async()=>{
