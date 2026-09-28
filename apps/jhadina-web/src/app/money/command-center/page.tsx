@@ -65,21 +65,6 @@ export default function MoneyCommandCenter(){
    if(!response.ok||!payload.success)throw new Error(payload.success?"Could not load DEX readiness":payload.error)
    if(active)setDexReadiness(payload.data)
   }
-  const verifyDexFunding=async()=>{
-   setFundingBusy(true);setFundingMessage("");setDexError("")
-   try{
-    const response=await fetch("/api/money/dex/verify-funding",{method:"POST",credentials:"same-origin",cache:"no-store"})
-    const payload=await response.json() as {success:boolean;data?:{verified:boolean;blockerCodes:readonly string[]};error?:string}
-    if(!response.ok||!payload.success)throw new Error(payload.error??"Could not verify DEX funding")
-    if(!payload.data?.verified){
-     setFundingMessage(payload.data?.blockerCodes.join(", ")||"Funding is below the controlled-canary minimum.")
-    }else{
-     setFundingMessage("Funding verified. Settlement balance and SOL fee reserve are recorded.")
-    }
-    await loadDexReadiness()
-   }catch(e){setDexError(e instanceof Error?e.message:"Could not verify DEX funding")}
-   finally{setFundingBusy(false)}
-  }
   void Promise.allSettled([
    loadAccounts().catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load accounts")}),
    loadWorkspace().catch(e=>{if(active)setWorkspaceError(e instanceof Error?e.message:"Could not load Money workspace")}),
@@ -87,6 +72,25 @@ export default function MoneyCommandCenter(){
   ]).finally(()=>{if(active)setLoading(false)})
   return()=>{active=false}
  },[])
+
+ const verifyDexFunding=async()=>{
+  setFundingBusy(true);setFundingMessage("");setDexError("")
+  try{
+   const response=await fetch("/api/money/dex/verify-funding",{method:"POST",credentials:"same-origin",cache:"no-store"})
+   const payload=await response.json() as {success:boolean;data?:{verified:boolean;blockerCodes:readonly string[]};error?:string}
+   if(!response.ok||!payload.success)throw new Error(payload.error??"Could not verify DEX funding")
+   if(!payload.data?.verified){
+    setFundingMessage(payload.data?.blockerCodes.join(", ")||"Funding is below the controlled-canary minimum.")
+   }else{
+    setFundingMessage("Funding verified. Settlement balance and SOL fee reserve are recorded.")
+   }
+   const readinessResponse=await fetch("/api/money/dex/readiness",{method:"GET",credentials:"same-origin",cache:"no-store"})
+   const readinessPayload=await readinessResponse.json() as DexReadinessResponse
+   if(!readinessResponse.ok||!readinessPayload.success)throw new Error(readinessPayload.success?"Could not refresh DEX readiness":readinessPayload.error)
+   setDexReadiness(readinessPayload.data)
+  }catch(e){setDexError(e instanceof Error?e.message:"Could not verify DEX funding")}
+  finally{setFundingBusy(false)}
+ }
 
  const available=model.availableCash===null?"—":new Intl.NumberFormat("en-US",{style:"currency",currency:model.currency??"USD"}).format(model.availableCash)
  const money=(minor:string|undefined,currency="USD")=>minor===undefined?"—":new Intl.NumberFormat("en-US",{style:"currency",currency}).format(Number(minor)/100)
