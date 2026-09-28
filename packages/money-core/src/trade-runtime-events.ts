@@ -1,4 +1,4 @@
-import type { PositionExitIntentCandidate } from './position-management.js'
+import { createPositionExitIntentCandidate, evaluateOpenPosition, type OpenPositionSnapshot, type PositionExitIntentCandidate, type PositionManagementDecision, type PositionManagementPolicy, type PositionMarketAssessment } from './position-management.js'
 import type { DexSwapIntent } from './solana-dex-runtime-contracts.js'
 
 export type MoneyTradeStageEmission=Readonly<{
@@ -123,4 +123,51 @@ export async function publishPositionExited(input:{
   domain:'MONEY',
   authority:'TRADE_STAGE_EVENT_ONLY',
  }))
+}
+
+
+export type MoneyInboundTradeEvent=Readonly<{
+ type:string
+ occurredAt:string
+ payload:Readonly<{
+  tradeId:string
+  runLineageId:string
+  strategyId:string
+  instrumentId:string
+  tokenAddress?:string
+  evidenceIds:readonly string[]
+  details:Readonly<Record<string,unknown>>
+ }>
+}>
+
+export function createMoneyPositionManagementConsumer(input:{
+ loadPosition:(event:MoneyInboundTradeEvent)=>Promise<OpenPositionSnapshot>|OpenPositionSnapshot
+ loadAssessment:(event:MoneyInboundTradeEvent,position:OpenPositionSnapshot)=>Promise<PositionMarketAssessment>|PositionMarketAssessment
+ policy?:PositionManagementPolicy
+ onDecision?:(decision:PositionManagementDecision,event:MoneyInboundTradeEvent)=>Promise<void>|void
+ onExitCandidate?:(candidate:PositionExitIntentCandidate,decision:PositionManagementDecision,event:MoneyInboundTradeEvent)=>Promise<void>|void
+}):Readonly<{handle(event:MoneyInboundTradeEvent):Promise<Readonly<{decision:PositionManagementDecision;exitCandidate?:PositionExitIntentCandidate}>|undefined>}>{
+ return Object.freeze({
+  handle:async(event:MoneyInboundTradeEvent)=>{
+   if(event.type!=='POSITION_MONITORED')return undefined
+   const position=await input.loadPosition(event)
+   if(position.instrumentId!==event.payload.instrumentId)throw new Error('MONEY_POSITION_EVENT_INSTRUMENT_MISMATCH')
+   const assessment=await input.loadAssessment(event,position)
+   const decision=evaluateOpenPosition({
+    position,
+    assessment,
+    policy:input.policy,
+    evaluatedAt:event.occurredAt,
+   })
+   await input.onDecision?.(decision,event)
+   if(decision.action!=='EXIT'&&decision.action!=='TRIM')return Object.freeze({decision})
+   const exitCandidate=createPositionExitIntentCandidate({
+    position,
+    decision,
+    createdAt:event.occurredAt,
+   })
+   await input.onExitCandidate?.(exitCandidate,decision,event)
+   return Object.freeze({decision,exitCandidate})
+  },
+ })
 }
