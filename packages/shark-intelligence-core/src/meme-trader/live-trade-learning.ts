@@ -124,7 +124,7 @@ export function createClosedMemeTradeLearningRecord(input:ClosedMemeTradeLearnin
  const signalAttribution=input.signalOutcomes.map(signal=>{
   confidence(signal.confidenceBps)
   if(!signal.signalId.trim()||!signal.signalName.trim()||!signal.entryExpectation.trim()||!signal.observedOutcome.trim()||!signal.evidenceIds.length)throw new Error('SHARK_TRADE_LEARNING_SIGNAL_INVALID')
-  const magnitude=Math.max(50,Math.min(500,Math.round(signal.confidenceBps/20)))
+  const magnitude=signal.confidenceBps===0?0:Math.max(50,Math.min(500,Math.round(signal.confidenceBps/20)))
   return Object.freeze({
    signalId:signal.signalId,
    signalName:signal.signalName,
