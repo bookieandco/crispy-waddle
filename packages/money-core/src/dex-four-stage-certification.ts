@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 
-export const DEX_EXECUTION_LADDER_VERSION = 'DEX-EXECUTION-4STAGE-v1' as const
+export const DEX_EXECUTION_LADDER_VERSION = 'DEX-EXECUTION-4STAGE-v2' as const
 export const EDGE_007_REQUIRED_VERSION = 'EDGE-007-v1' as const
 
 export type DexExecutionStage =
@@ -38,6 +38,8 @@ export type DexExecutionStageEvidence = Readonly<{
   simulationCount: number
   simulationFailureCount: number
   broadcastCount: number
+  entryBroadcastCount: number
+  exitBroadcastCount: number
   reconciledBroadcastCount: number
   duplicateBroadcastCount: number
   unknownExecutionCount: number
@@ -46,6 +48,10 @@ export type DexExecutionStageEvidence = Readonly<{
   privateKeyMaterialObserved: boolean
   capitalBounded: boolean
   killSwitchProven: boolean
+  restartRecoveryProven: boolean
+  sellabilityProven: boolean
+  positionFlatAfterExit: boolean
+  executionCostReconciled: boolean
   providerReceiptIds: readonly string[]
   onchainSignatureIds: readonly string[]
   evidenceIds: readonly string[]
@@ -115,6 +121,8 @@ function assertCommon(evidence: DexExecutionStageEvidence, reasons: string[]): v
     [evidence.simulationCount, 'DEX_STAGE_SIMULATION_COUNT_INVALID'],
     [evidence.simulationFailureCount, 'DEX_STAGE_SIMULATION_FAILURE_COUNT_INVALID'],
     [evidence.broadcastCount, 'DEX_STAGE_BROADCAST_COUNT_INVALID'],
+    [evidence.entryBroadcastCount, 'DEX_STAGE_ENTRY_BROADCAST_COUNT_INVALID'],
+    [evidence.exitBroadcastCount, 'DEX_STAGE_EXIT_BROADCAST_COUNT_INVALID'],
     [evidence.reconciledBroadcastCount, 'DEX_STAGE_RECONCILED_COUNT_INVALID'],
     [evidence.duplicateBroadcastCount, 'DEX_STAGE_DUPLICATE_COUNT_INVALID'],
     [evidence.unknownExecutionCount, 'DEX_STAGE_UNKNOWN_COUNT_INVALID'],
@@ -179,14 +187,22 @@ export function certifyDexExecutionStage(evidence: DexExecutionStageEvidence): D
     pushIf(reasons, evidence.signedTransactionCount < 1, 'DEX_CANARY_SIGNED_TRANSACTION_REQUIRED')
     pushIf(reasons, evidence.simulationCount < 1, 'DEX_CANARY_PREFLIGHT_SIMULATION_REQUIRED')
     pushIf(reasons, evidence.simulationFailureCount !== 0, 'DEX_CANARY_SIMULATION_FAILURE_PRESENT')
-    pushIf(reasons, evidence.broadcastCount !== 1, 'DEX_CANARY_EXACTLY_ONE_BROADCAST_REQUIRED')
-    pushIf(reasons, evidence.reconciledBroadcastCount !== 1, 'DEX_CANARY_RECONCILIATION_REQUIRED')
+    pushIf(reasons, evidence.signedTransactionCount < 2, 'DEX_CANARY_ROUND_TRIP_SIGNED_TRANSACTIONS_REQUIRED')
+    pushIf(reasons, evidence.simulationCount < 2, 'DEX_CANARY_ROUND_TRIP_PREFLIGHT_REQUIRED')
+    pushIf(reasons, evidence.broadcastCount !== 2, 'DEX_CANARY_ROUND_TRIP_BROADCASTS_REQUIRED')
+    pushIf(reasons, evidence.entryBroadcastCount !== 1, 'DEX_CANARY_ENTRY_BROADCAST_REQUIRED')
+    pushIf(reasons, evidence.exitBroadcastCount !== 1, 'DEX_CANARY_EXIT_BROADCAST_REQUIRED')
+    pushIf(reasons, evidence.reconciledBroadcastCount !== 2, 'DEX_CANARY_ROUND_TRIP_RECONCILIATION_REQUIRED')
     pushIf(reasons, evidence.duplicateBroadcastCount !== 0, 'DEX_CANARY_DUPLICATE_BROADCAST')
     pushIf(reasons, evidence.unknownExecutionCount !== 0, 'DEX_CANARY_UNKNOWN_EXECUTION')
     pushIf(reasons, !evidence.capitalBounded, 'DEX_CANARY_CAPITAL_BOUNDARY_REQUIRED')
     pushIf(reasons, !evidence.killSwitchProven, 'DEX_CANARY_KILL_SWITCH_REQUIRED')
-    pushIf(reasons, evidence.providerReceiptIds.length < 1, 'DEX_CANARY_PROVIDER_RECEIPT_REQUIRED')
-    pushIf(reasons, evidence.onchainSignatureIds.length !== 1, 'DEX_CANARY_ONCHAIN_SIGNATURE_REQUIRED')
+    pushIf(reasons, !evidence.restartRecoveryProven, 'DEX_CANARY_RESTART_RECOVERY_REQUIRED')
+    pushIf(reasons, !evidence.sellabilityProven, 'DEX_CANARY_SELLABILITY_REQUIRED')
+    pushIf(reasons, !evidence.positionFlatAfterExit, 'DEX_CANARY_POSITION_MUST_BE_FLAT_AFTER_EXIT')
+    pushIf(reasons, !evidence.executionCostReconciled, 'DEX_CANARY_EXECUTION_COST_RECONCILIATION_REQUIRED')
+    pushIf(reasons, evidence.providerReceiptIds.length < 2, 'DEX_CANARY_PROVIDER_RECEIPTS_REQUIRED')
+    pushIf(reasons, evidence.onchainSignatureIds.length !== 2, 'DEX_CANARY_ONCHAIN_SIGNATURES_REQUIRED')
   }
 
   const uniqueReasons = Object.freeze([...new Set(reasons)])
