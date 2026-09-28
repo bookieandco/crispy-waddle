@@ -187,15 +187,35 @@ export async function submitControlledDexCanaryLeg(input:{
   providerRequestId:order.requestId,
   stage:'UNSIGNED_PREFLIGHT',
  })
- const signed=await signer.signVersionedTransaction({
-  walletConnectionId:intent.walletConnectionId,
-  signerLeaseId:intent.signerLeaseId,
-  unsignedTransactionBase64:order.unsignedTransactionBase64,
-  idempotencyKey:intent.idempotencyKey,
-  expectedSignerAddress:boundary.wallet.address,
+ const reserved=await canaryStore.reserve({
+  provider:intent.provider,
+  accountId:intent.walletConnectionId,
+  tradingDate,
+  currency:intent.currency,
+  notionalMinor:intent.notionalMinor,
+  side:intent.leg==='ENTRY'?'BUY':'SELL',
+  policy:canaryPolicy,
   now,
  })
- if(signed.walletConnectionId!==intent.walletConnectionId||signed.signerLeaseId!==intent.signerLeaseId||signed.signerAddress!==boundary.wallet.address||signed.containsPrivateKey!==false||signed.containsRawToken!==false)throw new Error('DEX_COMMISSION_SIGNER_OUTPUT_INVALID')
+ if(!reserved.allowed)throw new Error('DEX_COMMISSION_CANARY_RISK_BLOCKED:'+reserved.reasonCodes.join(','))
+ let signed:DexSignedTransaction
+ try{
+  signed=await signer.signVersionedTransaction({
+   walletConnectionId:intent.walletConnectionId,
+   signerLeaseId:intent.signerLeaseId,
+   unsignedTransactionBase64:order.unsignedTransactionBase64,
+   idempotencyKey:intent.idempotencyKey,
+   expectedSignerAddress:boundary.wallet.address,
+   now,
+  })
+ }catch(error){
+  await canaryStore.release(reserved.reservation,now)
+  throw error
+ }
+ if(signed.walletConnectionId!==intent.walletConnectionId||signed.signerLeaseId!==intent.signerLeaseId||signed.signerAddress!==boundary.wallet.address||signed.containsPrivateKey!==false||signed.containsRawToken!==false){
+  await canaryStore.release(reserved.reservation,now)
+  throw new Error('DEX_COMMISSION_SIGNER_OUTPUT_INVALID')
+ }
  let attempt:DexExecutionAttempt=Object.freeze({
   attemptId,
   executionId:intent.executionId,
@@ -220,30 +240,23 @@ export async function submitControlledDexCanaryLeg(input:{
   authority:'EXECUTION_ATTEMPT_ONLY' as const,
  })
  await attemptStore.put(attempt)
- await emitExecutionEvent(events,intent,'TX_SIGNED',now,[...attempt.evidenceIds],{
-  primarySignature:signed.primarySignature,
-  signedTransactionHash:signed.signedTransactionHash,
- })
+ try{
+  await emitExecutionEvent(events,intent,'TX_SIGNED',now,[...attempt.evidenceIds],{
+   primarySignature:signed.primarySignature,
+   signedTransactionHash:signed.signedTransactionHash,
+  })
+ }catch(error){
+  await canaryStore.release(reserved.reservation,now)
+  await attemptStore.update(attemptId,{state:'FAILED',errorCode:'DEX_EXECUTION_EVENT_PUBLISH_FAILED',updatedAt:now})
+  throw error
+ }
  const simulation=await chain.simulateSignedTransaction({signedTransactionBase64:signed.signedTransactionBase64,primarySignature:signed.primarySignature,now})
  if(!simulation.passed){
+  await canaryStore.release(reserved.reservation,now)
   attempt=await attemptStore.update(attemptId,{state:'FAILED',errorCode:simulation.errorCode??'DEX_SIMULATION_FAILED',updatedAt:now,evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds]})
   throw new Error('DEX_COMMISSION_PREFLIGHT_SIMULATION_FAILED')
  }
  attempt=await attemptStore.update(attemptId,{state:'SIMULATED',simulationId:simulation.simulationId,simulatedFeeLamports:simulation.feeLamports,updatedAt:now,evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds]})
- const reserved=await canaryStore.reserve({
-  provider:intent.provider,
-  accountId:intent.walletConnectionId,
-  tradingDate,
-  currency:intent.currency,
-  notionalMinor:intent.notionalMinor,
-  side:intent.leg==='ENTRY'?'BUY':'SELL',
-  policy:canaryPolicy,
-  now,
- })
- if(!reserved.allowed){
-  await attemptStore.update(attemptId,{state:'FAILED',errorCode:'DEX_CANARY_RISK_BLOCK:'+reserved.reasonCodes.join(','),updatedAt:now})
-  throw new Error('DEX_COMMISSION_CANARY_RISK_BLOCKED:'+reserved.reasonCodes.join(','))
- }
  try{
   await consumeExecutionPermit(permitStore,permit.permitId,permit.nonce)
  }catch(error){
