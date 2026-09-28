@@ -50,6 +50,13 @@ const dexStage=(stage:DexExecutionStageEvidence['stage'],overrides:Partial<DexEx
     stageId:'prod:'+stage,stage,origin:stage==='HISTORICAL_REPLAY'||stage==='LIVE_SHADOW'?'RECORDED_REAL_MARKET':'LIVE_RUNTIME_ATTESTED',
     runLineageId:'prod:lineage:1',strategyId:'shark:meme:v1',instrumentId:'solana:TOKEN1',
     startedAt,endedAt,informationCutoff:endedAt,
+    edgeDecisionBundle:{
+      frameworkVersion:'EDGE-001-006-v1',
+      receipts:(['EDGE-001','EDGE-002','EDGE-003','EDGE-004','EDGE-005','EDGE-006'] as const).map(gateId=>({
+        gateId,version:'EDGE-001-006-v1',disposition:'PASS' as const,reasonCodes:[],evidenceIds:[gateId+':prod:e'],evaluatedAt:'2026-09-27T18:58:00.000Z',authority:'RESEARCH_AND_RISK_GATE_ONLY' as const,canAuthorizeTrade:false as const
+      })),
+      disposition:'PASS',reasonCodes:[],evidenceIds:['edge:prod:e'],authority:'RESEARCH_AND_RISK_GATE_ONLY',canAuthorizeTrade:false
+    },
     integrityGuard:{guardVersion:'EDGE-007-v1',guardId:'edge007:prod',disposition:'PASS',reasonCodes:[],evidenceIds:['edge007:prod:e'],authority:'INTEGRITY_VETO_ONLY',canAuthorizeTrade:false,canAuthorizePromotion:false},
     decisionCount:1,signedTransactionCount:0,simulationCount:0,simulationFailureCount:0,broadcastCount:0,entryBroadcastCount:0,exitBroadcastCount:0,reconciledBroadcastCount:0,duplicateBroadcastCount:0,unknownExecutionCount:0,futureEvidenceCount:0,
     signerBoundary:'NOT_APPLICABLE',privateKeyMaterialObserved:false,capitalBounded:false,killSwitchProven:false,restartRecoveryProven:false,sellabilityProven:false,positionFlatAfterExit:false,executionCostReconciled:false,
