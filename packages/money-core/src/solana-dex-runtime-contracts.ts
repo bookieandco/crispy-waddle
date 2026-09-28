@@ -153,7 +153,7 @@ export interface DexExecutionAttemptStore{
  put(attempt:DexExecutionAttempt):Promise<void>|void
  get(attemptId:string):Promise<DexExecutionAttempt|undefined>|DexExecutionAttempt|undefined
  getByIdempotencyKey(idempotencyKey:string):Promise<DexExecutionAttempt|undefined>|DexExecutionAttempt|undefined
- update(attemptId:string,patch:Partial<Pick<DexExecutionAttempt,'providerReceiptId'|'state'|'errorCode'|'updatedAt'|'evidenceIds'>>):Promise<DexExecutionAttempt>|DexExecutionAttempt
+ update(attemptId:string,patch:Partial<Pick<DexExecutionAttempt,'providerReceiptId'|'simulationId'|'simulatedFeeLamports'|'state'|'errorCode'|'updatedAt'|'evidenceIds'>>):Promise<DexExecutionAttempt>|DexExecutionAttempt
 }
 
 export interface ManagedSolanaDexAdapter{
@@ -232,7 +232,7 @@ export class InMemoryDexExecutionAttemptStore implements DexExecutionAttemptStor
   const id=this.byIdempotency.get(idempotencyKey)
   return id?this.rows.get(id):undefined
  }
- update(attemptId:string,patch:Partial<Pick<DexExecutionAttempt,'providerReceiptId'|'state'|'errorCode'|'updatedAt'|'evidenceIds'>>):DexExecutionAttempt{
+ update(attemptId:string,patch:Partial<Pick<DexExecutionAttempt,'providerReceiptId'|'simulationId'|'simulatedFeeLamports'|'state'|'errorCode'|'updatedAt'|'evidenceIds'>>):DexExecutionAttempt{
   const current=this.rows.get(attemptId)
   if(!current)throw new Error('DEX_COMMISSION_ATTEMPT_NOT_FOUND')
   const next=Object.freeze({...current,...patch,evidenceIds:Object.freeze([...(patch.evidenceIds??current.evidenceIds)])})
