@@ -31,6 +31,11 @@ fi
 echo "Checking Runpod CLI authentication..."
 runpodctl gpu list >/dev/null
 
+if [[ "${RUNPOD_SKIP_MCP_INSTALL:-false}" != "true" ]]; then
+  echo "Running Runpod's official guided hosted-MCP installer..."
+  npx -y @runpod/mcp-server@latest add
+fi
+
 echo "Runpod CLI is authenticated."
 echo "Hosted MCP endpoint: https://mcp.getrunpod.io/"
 echo "Docs MCP endpoint:   https://docs.runpod.io/mcp"
