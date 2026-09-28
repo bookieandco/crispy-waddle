@@ -1,5 +1,5 @@
 import type { MemeTradeAssessment } from './assessment'
-import type { ClosedMemeTradeLearningRecord } from './live-trade-learning'
+import { createClosedMemeTradeLearningRecord, type ClosedMemeTradeLearningInput, type ClosedMemeTradeLearningRecord } from './live-trade-learning'
 import type { MemePositionReview, MemePositionReviewState } from './position-review'
 
 export type SharkTradeStageEmission=Readonly<{
@@ -199,4 +199,40 @@ export async function publishTradeReviewed(input:{
   domain:'SHARK',
   authority:'TRADE_STAGE_EVENT_ONLY',
  }))
+}
+
+
+export type SharkInboundTradeEvent=Readonly<{
+ type:string
+ occurredAt:string
+ payload:Readonly<{
+  tradeId:string
+  runLineageId:string
+  strategyId:string
+  instrumentId:string
+  tokenAddress?:string
+  evidenceIds:readonly string[]
+  details:Readonly<Record<string,unknown>>
+ }>
+}>
+
+export function createPostExitLearningConsumer(input:{
+ sink:SharkTradeStageEventSink
+ loadLearningInput:(event:SharkInboundTradeEvent)=>Promise<ClosedMemeTradeLearningInput>|ClosedMemeTradeLearningInput
+}):Readonly<{handle(event:SharkInboundTradeEvent):Promise<ClosedMemeTradeLearningRecord|undefined>}>{
+ return Object.freeze({
+  handle:async(event:SharkInboundTradeEvent)=>{
+   if(event.type!=='EXITED')return undefined
+   const learningInput=await input.loadLearningInput(event)
+   if(
+    learningInput.tradeId!==event.payload.tradeId||
+    learningInput.runLineageId!==event.payload.runLineageId||
+    learningInput.strategyId!==event.payload.strategyId||
+    learningInput.instrumentId!==event.payload.instrumentId
+   )throw new Error('SHARK_POST_EXIT_LEARNING_LINEAGE_MISMATCH')
+   const learning=createClosedMemeTradeLearningRecord(learningInput)
+   await publishTradeReviewed({sink:input.sink,learning,tokenAddress:event.payload.tokenAddress})
+   return learning
+  },
+ })
 }
