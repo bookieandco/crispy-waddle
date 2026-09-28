@@ -97,7 +97,7 @@ it('automatically closes the SHARK learning loop when EXITED arrives',async()=>{
       outcomeEvidenceIds:event.payload.evidenceIds,
     }),
   })
-  const learning=await consumer.handle({
+  const learning=await consumer.learn({
     type:'EXITED',
     occurredAt:'2026-09-27T20:10:00Z',
     payload:{
