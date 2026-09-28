@@ -94,6 +94,44 @@ export type FunnelBottleneckAssessment = {
   authority: 'ANALYSIS_ONLY'
 }
 
+
+export type FounderDependencyProfile = {
+  identity: number
+  voice: number
+  relationships: number
+  taste: number
+  research: number
+  approval: number
+  dailyOperations: number
+  evidenceRefs: readonly string[]
+}
+
+export type HandoffReadinessInput = {
+  workflowEvidenceRefs: readonly string[]
+  qualityStandardEvidenceRefs: readonly string[]
+  exampleEvidenceRefs: readonly string[]
+  escalationRuleEvidenceRefs: readonly string[]
+  operatorTrialEvidenceRefs: readonly string[]
+  founderCorrectionRate: number
+  maximumFounderCorrectionRate: number
+}
+
+export type HandoffReadinessAssessment = {
+  ready: boolean
+  blockers: readonly string[]
+  founderCorrectionRate: number
+  evidenceRefs: readonly string[]
+  authorizationEffect: 'NONE'
+}
+
+export type OperationalIndependenceAssessment = {
+  dependencyIndex: number
+  founderHoursPerWeek: number
+  independenceState: 'founder_operated' | 'system_assisted' | 'operator_runnable' | 'owner_level'
+  evidenceRefs: readonly string[]
+  authority: 'ANALYSIS_ONLY'
+}
+
 export type ProductRelevanceAssessment = {
   mode: 'no_product' | 'natural_embed' | 'direct_promotion'
   allowed: boolean
@@ -237,6 +275,80 @@ export function detectFunnelBottleneck(measurements: readonly FunnelStageMeasure
     bottleneck: selected.stage,
     gap: round(Math.max(0, largestGap)),
     evidenceRefs: Object.freeze(unique(selected.evidenceRefs)),
+    authority: 'ANALYSIS_ONLY',
+  })
+}
+
+
+export function assessFounderDependency(profile: FounderDependencyProfile): number {
+  const values = [
+    profile.identity,
+    profile.voice,
+    profile.relationships,
+    profile.taste,
+    profile.research,
+    profile.approval,
+    profile.dailyOperations,
+  ]
+  for (const value of values) assertRate(value, 'founderDependency')
+  requireEvidence(profile.evidenceRefs, 'founder dependency')
+  return round(values.reduce((sum, value) => sum + value, 0) / values.length)
+}
+
+export function assessHandoffReadiness(input: HandoffReadinessInput): HandoffReadinessAssessment {
+  assertRate(input.founderCorrectionRate, 'founderCorrectionRate')
+  assertRate(input.maximumFounderCorrectionRate, 'maximumFounderCorrectionRate')
+  const blockers: string[] = []
+  const requiredEvidence: Array<[readonly string[], string]> = [
+    [input.workflowEvidenceRefs, 'Documented workflow evidence is missing.'],
+    [input.qualityStandardEvidenceRefs, 'Quality-standard evidence is missing.'],
+    [input.exampleEvidenceRefs, 'Good/bad example evidence is missing.'],
+    [input.escalationRuleEvidenceRefs, 'Escalation-rule evidence is missing.'],
+    [input.operatorTrialEvidenceRefs, 'Independent operator trial evidence is missing.'],
+  ]
+  for (const [refs, message] of requiredEvidence) if (!refs.length) blockers.push(message)
+  if (input.founderCorrectionRate > input.maximumFounderCorrectionRate) {
+    blockers.push('Independent operator trial still requires too much founder correction.')
+  }
+  return Object.freeze({
+    ready: blockers.length === 0,
+    blockers: Object.freeze(blockers),
+    founderCorrectionRate: input.founderCorrectionRate,
+    evidenceRefs: Object.freeze(unique(requiredEvidence.flatMap(([refs]) => [...refs]))),
+    authorizationEffect: 'NONE',
+  })
+}
+
+export function assessOperationalIndependence(input: {
+  profile: FounderDependencyProfile
+  founderHoursPerWeek: number
+  operatorRunnableMaxDependency: number
+  ownerLevelMaxDependency: number
+  ownerLevelMaxHoursPerWeek: number
+}): OperationalIndependenceAssessment {
+  if (!Number.isFinite(input.founderHoursPerWeek) || input.founderHoursPerWeek < 0) {
+    throw new Error('FOUNDER_HOURS_INVALID')
+  }
+  assertRate(input.operatorRunnableMaxDependency, 'operatorRunnableMaxDependency')
+  assertRate(input.ownerLevelMaxDependency, 'ownerLevelMaxDependency')
+  if (!Number.isFinite(input.ownerLevelMaxHoursPerWeek) || input.ownerLevelMaxHoursPerWeek < 0) {
+    throw new Error('OWNER_LEVEL_HOURS_INVALID')
+  }
+  const dependencyIndex = assessFounderDependency(input.profile)
+  const independenceState: OperationalIndependenceAssessment['independenceState'] =
+    dependencyIndex <= input.ownerLevelMaxDependency && input.founderHoursPerWeek <= input.ownerLevelMaxHoursPerWeek
+      ? 'owner_level'
+      : dependencyIndex <= input.operatorRunnableMaxDependency
+        ? 'operator_runnable'
+        : dependencyIndex < 0.8
+          ? 'system_assisted'
+          : 'founder_operated'
+
+  return Object.freeze({
+    dependencyIndex,
+    founderHoursPerWeek: input.founderHoursPerWeek,
+    independenceState,
+    evidenceRefs: Object.freeze(unique(input.profile.evidenceRefs)),
     authority: 'ANALYSIS_ONLY',
   })
 }
