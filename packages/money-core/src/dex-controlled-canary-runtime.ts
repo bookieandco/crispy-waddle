@@ -202,6 +202,8 @@ export async function submitControlledDexCanaryLeg(input:{
   signedTransactionHash:signed.signedTransactionHash,
   primarySignature:signed.primarySignature,
   providerRequestId:order.requestId,
+  preExecutionBindingHash:intent.preExecution.bindingHash,
+  moneyDexGateId:preflight.gateId,
   state:'SIGNED',
   startedAt:now,
   updatedAt:now,
