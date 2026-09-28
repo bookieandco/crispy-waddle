@@ -56,7 +56,7 @@ export function createMoneyMovementActionPolicy(loader:MoneyMovementExecutionCon
     assertFundingRailAdmissionCertificate(ctx.admission,ctx.commissioningCertificate)
     if(ctx.proposal.userId!==request.userId)return 'deny'
     if(ctx.admission.railId!==request.action.railId||ctx.admission.provider!==request.action.provider)return 'deny'
-    assertFundingRailAdmissionMayExecute({admission:ctx.admission,observation:ctx.observation,adapter:ctx.adapter,request:provisionalRequest(ctx.proposal),source:ctx.source,destination:ctx.destination})
+    assertFundingRailAdmissionMayExecute({admission:ctx.admission,commissioningCertificate:ctx.commissioningCertificate,observation:ctx.observation,adapter:ctx.adapter,request:provisionalRequest(ctx.proposal),source:ctx.source,destination:ctx.destination})
     return 'approval_required'
    }catch{return 'deny'}
   },
@@ -111,7 +111,7 @@ export class MoneyMovementExecutionHandler implements ActionHandler<MoneyMovemen
 
   let quote:MoneyMovementQuote,instruction:MoneyMovementInstruction
   try{
-   assertFundingRailAdmissionMayExecute({admission:ctx.admission,observation:ctx.observation,adapter:ctx.adapter,request:movementRequest,source:ctx.source,destination:ctx.destination})
+   assertFundingRailAdmissionMayExecute({admission:ctx.admission,commissioningCertificate:ctx.commissioningCertificate,observation:ctx.observation,adapter:ctx.adapter,request:movementRequest,source:ctx.source,destination:ctx.destination})
    quote=await ctx.adapter.quote(movementRequest)
    instruction=await ctx.adapter.prepareInstruction(movementRequest,quote)
   }catch(error){
