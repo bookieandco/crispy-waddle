@@ -152,6 +152,8 @@ export type DexExecutionAttempt=Readonly<{
  signedTransactionHash:string
  primarySignature:string
  providerRequestId:string
+ preExecutionBindingHash:string
+ moneyDexGateId:string
  simulationId?:string
  simulatedFeeLamports?:bigint
  providerReceiptId?:string
