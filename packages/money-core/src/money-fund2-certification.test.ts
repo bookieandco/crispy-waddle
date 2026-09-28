@@ -99,7 +99,7 @@ test('MONEY-FUND.2 uncommissioned rail denies before approval consumption',async
 
 test('MONEY-FUND.2 canonical chain consumes receipt and permit then submits provider exactly once',async()=>{
  const calls={submit:0},rail=adapter('SETTLED',calls),permits=new PermitMemoryStore(),attempts=new AttemptMemoryStore()
- const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),commissioningCertificate,observation:observation(),adapter:rail,commissioningCertificate})
+ const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),commissioningCertificate,observation:observation(),adapter:rail})
  const loader={async load(){return ctx}}
  const approvalStore=new InMemoryApprovalReceiptStore(),approvalRequest=moneyMovementApprovalRequest(proposal)
  const pending=await approvalStore.createPending({actionId:approvalRequest.id,userId:approvalRequest.userId,type:approvalRequest.type,fingerprint:fingerprintMoneyMovementApproval(approvalRequest),expiresAt:'2099-01-01T00:00:00Z'})
@@ -142,7 +142,7 @@ test('MONEY-FUND.2 pre-submit failure revokes unused permit and never calls prov
  const calls={submit:0},base=adapter('SETTLED',calls)
  const broken:ExecutingFundingRailAdapter={...base,async quote(){throw new Error('QUOTE_DOWN')}}
  const permits=new PermitMemoryStore(),attempts=new AttemptMemoryStore()
- const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),commissioningCertificate,observation:observation(),adapter:broken,commissioningCertificate})
+ const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),commissioningCertificate,observation:observation(),adapter:broken})
  const loader={async load(){return ctx}}
  const approvalStore=new InMemoryApprovalReceiptStore(),approvalRequest=moneyMovementApprovalRequest(proposal)
  const pending=await approvalStore.createPending({actionId:approvalRequest.id,userId:approvalRequest.userId,type:approvalRequest.type,fingerprint:fingerprintMoneyMovementApproval(approvalRequest),expiresAt:'2099-01-01T00:00:00Z'})
