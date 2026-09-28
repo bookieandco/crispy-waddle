@@ -1,6 +1,19 @@
 -- MONEY-FUND.3 external funding provider commissioning evidence.
 -- Certification metadata only. No raw credentials or execution authority.
 
+ALTER TABLE money_funding_rail_admissions
+  ADD COLUMN IF NOT EXISTS commissioning_certificate_id TEXT;
+
+ALTER TABLE money_funding_rail_admissions
+  DROP CONSTRAINT IF EXISTS money_funding_admission_certificate_required;
+
+ALTER TABLE money_funding_rail_admissions
+  ADD CONSTRAINT money_funding_admission_certificate_required
+  CHECK (
+    admission IN ('UNCOMMISSIONED','READ_ONLY')
+    OR commissioning_certificate_id IS NOT NULL
+  );
+
 CREATE TABLE IF NOT EXISTS money_funding_commissioning_receipts (
   receipt_id TEXT PRIMARY KEY,
   rail_id TEXT NOT NULL,
