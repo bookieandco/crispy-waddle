@@ -72,6 +72,14 @@ CREATE TABLE IF NOT EXISTS money_funding_commissioning_certificates (
 CREATE INDEX IF NOT EXISTS money_funding_commissioning_certificates_rail_time_idx
   ON money_funding_commissioning_certificates(rail_id,recorded_at DESC);
 
+ALTER TABLE money_funding_rail_admissions
+  DROP CONSTRAINT IF EXISTS money_funding_admission_certificate_fk;
+
+ALTER TABLE money_funding_rail_admissions
+  ADD CONSTRAINT money_funding_admission_certificate_fk
+  FOREIGN KEY (commissioning_certificate_id)
+  REFERENCES money_funding_commissioning_certificates(certificate_id);
+
 DO $$
 DECLARE t text;
 BEGIN
