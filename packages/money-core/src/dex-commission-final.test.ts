@@ -114,6 +114,14 @@ test('DEX intent rejects a forged SHARK EDGE Money approval binding before execu
  assert.throws(()=>assertDexSwapIntent(forged),/DEX_APPROVAL_BINDING_HASH_MISMATCH/)
 })
 
+test('DEX approval binding is invalid if transaction parameters change after Money approval',()=>{
+ const valid=intent('ENTRY')
+ const resized={...valid,notionalMinor:valid.notionalMinor+1n} as DexSwapIntent
+ assert.throws(()=>assertDexSwapIntent(resized),/DEX_APPROVAL_INTENT_FINGERPRINT_MISMATCH/)
+ const reminted={...valid,outputMint:'DIFFERENT_MINT'} as DexSwapIntent
+ assert.throws(()=>assertDexSwapIntent(reminted),/DEX_APPROVAL_INTENT_FINGERPRINT_MISMATCH/)
+})
+
 test('reference is adapted to current Jupiter managed endpoints rather than legacy V6 browser flow',async()=>{
  let orderUrl='',executeBody='',apiKey=''
  const adapter=new JupiterUltraDexAdapter({resolveApiKey:()=> 'key-1',fetchFn:async(input,init)=>{
