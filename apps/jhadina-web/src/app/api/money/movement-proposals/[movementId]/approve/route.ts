@@ -7,9 +7,9 @@ export const dynamic="force-dynamic"
 
 async function sessionUser(){const c=await createClient();const {data,error}=await c.auth.getClaims();const id=data?.claims?.sub;if(error||!id)throw new Error("MONEY_FUND2_SESSION_REQUIRED");return id}
 
-export async function POST(_req:NextRequest,{params}:{params:Promise<{movementId:string}>}){
+export async function POST(_req:NextRequest,{params}:{params:{movementId:string}}){
  try{
-  const {movementId}=await params
+  const {movementId}=params
   const data=await approveSessionMoneyMovement(movementId)
   try{
    const userId=await sessionUser(),now=new Date().toISOString()
