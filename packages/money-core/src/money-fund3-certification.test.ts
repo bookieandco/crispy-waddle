@@ -115,3 +115,24 @@ test('MONEY-FUND.3 executable admission cannot exceed its bound certificate',()=
  assert.throws(()=>assertFundingRailAdmissionCertificate({...admission,allowedKinds:[...admission.allowedKinds,'TRANSFER']},cert),/KIND_ESCALATION/)
  assert.throws(()=>assertFundingRailAdmissionCertificate({...admission,commissioningCertificateId:'different'},cert),/CERTIFICATE_MISMATCH/)
 })
+
+
+test('MONEY-FUND.3 duplicate receipt kinds and canary movements cannot be reused to manufacture certification',()=>{
+ const duplicate=[...canaryReceipts(),receipt('CAPABILITY_PROBE')]
+ const controlled=certifyFundingRailControlledCanary({railId,provider,providerAccountId,receipts:duplicate,criteria,recordedAt:at})
+ assert.equal(controlled.status,'REJECTED')
+ assert.ok(controlled.reasonCodes.includes('DUPLICATE_RECEIPT_KIND:CAPABILITY_PROBE'))
+
+ const validControlled=certifyFundingRailControlledCanary({railId,provider,providerAccountId,receipts:canaryReceipts(),criteria,recordedAt:at})
+ const deposit=canary('DEPOSIT')
+ const forgedWithdrawal={...canary('WITHDRAWAL'),movementId:deposit.movementId}
+ const live=certifyFundingRailLive({controlledCanaryCertificate:validControlled,receipts:liveReceipts(),canaries:[deposit,forgedWithdrawal],criteria,recordedAt:'2026-09-28T01:50:00Z'})
+ assert.equal(live.status,'REJECTED')
+ assert.ok(live.reasonCodes.includes('DUPLICATE_CANARY_MOVEMENT:'+deposit.movementId))
+})
+
+test('MONEY-FUND.3 controlled-canary certificate cannot back a LIVE admission level',()=>{
+ const cert=certifyFundingRailControlledCanary({railId,provider,providerAccountId,receipts:canaryReceipts(),criteria,recordedAt:at})
+ const admission=buildFundingRailAdmissionFromCertificate({certificate:cert,credentialRef:'secret://funding/live'})
+ assert.throws(()=>assertFundingRailAdmissionCertificate({...admission,admission:'LIVE'},cert),/ADMISSION_LEVEL_MISMATCH/)
+})
