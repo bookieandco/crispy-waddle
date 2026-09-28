@@ -209,7 +209,7 @@ export class SolanaCofferBalanceProbe{
    walletAddress,
    balanceLamports:BigInt(value),
    observedAt:now,
-   evidenceIds:Object.freeze(['solana:getBalance:'+walletAddress+':'+String(result.context&&row(result.context).slot??'unknown')]),
+   evidenceIds:Object.freeze(['solana:getBalance:'+walletAddress+':'+String(row(result.context)?.slot??'unknown')]),
    authority:'CHAIN_BALANCE_EVIDENCE_ONLY' as const,
    canMoveFunds:false as const,
   })
