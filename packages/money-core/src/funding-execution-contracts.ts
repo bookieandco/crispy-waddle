@@ -17,6 +17,7 @@ export type FundingRailAdmission=Readonly<{
  destinationKinds:readonly FundingDestination['kind'][]
  maxMovementMinor:bigint
  maxDailyMovementMinor:bigint
+ commissioningCertificateId?:string
  credentialRef?:string
  evidenceIds:readonly string[]
  authority:'ADMISSION_ONLY'
@@ -103,6 +104,7 @@ export function assertFundingRailAdmissionMayExecute(input:{
  if(a.authority!=='ADMISSION_ONLY'||a.canMoveMoney!==false||o.authority!=='RUNTIME_EVIDENCE')throw new Error('MONEY_FUND2_AUTHORITY_INVALID')
  if(!a.evidenceIds.length||!o.evidenceIds.length)throw new Error('MONEY_FUND2_EVIDENCE_REQUIRED')
  if(a.admission!=='CONTROLLED_CANARY'&&a.admission!=='LIVE')throw new Error('MONEY_FUND2_RAIL_NOT_EXECUTABLE')
+ if(!a.commissioningCertificateId?.trim())throw new Error('MONEY_FUND3_COMMISSIONING_CERTIFICATE_REQUIRED')
  if(a.environment!=='LIVE'||adapter.environment!=='LIVE')throw new Error('MONEY_FUND2_LIVE_RAIL_REQUIRED')
  if(a.provider!==adapter.provider||a.railId!==o.railId)throw new Error('MONEY_FUND2_RAIL_BINDING_MISMATCH')
  if(!a.allowedKinds.includes(r.kind)||!a.allowedCurrencies.includes(r.currency))throw new Error('MONEY_FUND2_RAIL_POLICY_BLOCK')
