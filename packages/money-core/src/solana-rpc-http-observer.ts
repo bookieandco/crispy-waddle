@@ -91,6 +91,8 @@ export class SolanaRpcHttpObserver implements SolanaChainObserver{
    feeLamports:typeof feeRaw==='number'&&Number.isSafeInteger(feeRaw)&&feeRaw>=0?BigInt(feeRaw):undefined,
    inputDebitAtomic:preIn>=postIn?preIn-postIn:0n,
    outputCreditAtomic:postOut>=preOut?postOut-preOut:0n,
+   inputPostBalanceAtomic:postIn,
+   outputPostBalanceAtomic:postOut,
    observedAt:input.now,
    evidenceIds:Object.freeze(['solana:getTransaction:'+input.signature]),
    authority:'ONCHAIN_EVIDENCE' as const,
