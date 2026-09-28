@@ -112,7 +112,7 @@ export async function runDexExecutionSequence(input:{
   })
   validateRunResult(result,expected)
   assertIdentity({...input,evidence:result.evidence})
-  const previous=stages.at(-1)
+  const previous=stages.length?stages[stages.length-1]:undefined
   if(previous&&Date.parse(result.evidence.startedAt)<Date.parse(previous.endedAt))throw new Error('DEX_SEQUENCE_TIME_ORDER_INVALID:'+previous.stage+'->'+expected)
   if(result.runClass!=='REAL_RUNTIME')blockers.push('DEX_SEQUENCE_TEST_FIXTURE_ONLY:'+expected)
   else realRuntimeStages.push(expected)
@@ -158,7 +158,7 @@ export async function runDexExecutionSequence(input:{
  validateRunResult(canary,'CONTROLLED_LIVE_CANARY')
  assertIdentity({...input,evidence:canary.evidence})
  if(canary.runClass!=='REAL_RUNTIME')throw new Error('DEX_SEQUENCE_CANARY_REAL_RUNTIME_REQUIRED')
- if(Date.parse(canary.evidence.startedAt)<Date.parse(stages.at(-1)!.endedAt))throw new Error('DEX_SEQUENCE_TIME_ORDER_INVALID:SIGNED_SIMULATION_NO_BROADCAST->CONTROLLED_LIVE_CANARY')
+ if(Date.parse(canary.evidence.startedAt)<Date.parse(stages[stages.length-1]!.endedAt))throw new Error('DEX_SEQUENCE_TIME_ORDER_INVALID:SIGNED_SIMULATION_NO_BROADCAST->CONTROLLED_LIVE_CANARY')
  stages.push(canary.evidence)
  realRuntimeStages.push('CONTROLLED_LIVE_CANARY')
  const ladder=certifyDexExecutionLadder({stages,liveCanaryVerification:canary.verification})
