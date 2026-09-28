@@ -1,4 +1,4 @@
-// Production redeploy marker: refresh server-only Kalshi environment bindings.
+// Production redeploy marker 2: refresh corrected server-only Kalshi environment bindings.
 import {
   constants,
   createPrivateKey,
