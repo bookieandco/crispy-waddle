@@ -12,6 +12,7 @@ import {
  type MoneyMovementExecutionResult,
 } from './funding-execution-contracts.js'
 import { promoteApprovedMoneyMovement,type FundingDestination,type MoneyMovementInstruction,type MoneyMovementProposal,type MoneyMovementQuote } from './funding-rail-contracts.js'
+import { assertFundingRailAdmissionCertificate,type FundingRailCommissioningCertificate } from './funding-provider-commissioning.js'
 import {
  MONEY_MOVEMENT_EXECUTE_CAPABILITY,
  moneyMovementApprovalAction,
@@ -25,6 +26,7 @@ export type MoneyMovementExecutionContext=Readonly<{
  admission:FundingRailAdmission
  observation:FundingRailRuntimeObservation
  adapter:ExecutingFundingRailAdapter
+ commissioningCertificate:FundingRailCommissioningCertificate
 }>
 
 export interface MoneyMovementExecutionContextLoader{
@@ -50,6 +52,7 @@ export function createMoneyMovementActionPolicy(loader:MoneyMovementExecutionCon
    try{
     const ctx=await loader.load(request.action,request)
     assertActionMatchesProposal(request.action,ctx.proposal)
+    assertFundingRailAdmissionCertificate(ctx.admission,ctx.commissioningCertificate)
     if(ctx.proposal.userId!==request.userId)return 'deny'
     if(ctx.admission.railId!==request.action.railId||ctx.admission.provider!==request.action.provider)return 'deny'
     assertFundingRailAdmissionMayExecute({admission:ctx.admission,observation:ctx.observation,adapter:ctx.adapter,request:provisionalRequest(ctx.proposal),source:ctx.source,destination:ctx.destination})
@@ -86,6 +89,7 @@ export class MoneyMovementExecutionHandler implements ActionHandler<MoneyMovemen
   if(!request.approvalReceiptId)throw new Error('MONEY_FUND2_APPROVAL_RECEIPT_REQUIRED')
   const ctx=await this.deps.loader.load(action,request)
   assertActionMatchesProposal(action,ctx.proposal)
+  assertFundingRailAdmissionCertificate(ctx.admission,ctx.commissioningCertificate)
   if(ctx.proposal.userId!==request.userId)throw new Error('MONEY_FUND2_OWNER_MISMATCH')
   if(ctx.admission.railId!==action.railId||ctx.admission.provider!==action.provider||ctx.adapter.provider!==action.provider)throw new Error('MONEY_FUND2_PROVIDER_BINDING_MISMATCH')
 
