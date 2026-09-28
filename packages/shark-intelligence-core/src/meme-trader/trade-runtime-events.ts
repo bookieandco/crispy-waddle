@@ -219,20 +219,27 @@ export type SharkInboundTradeEvent=Readonly<{
 export function createPostExitLearningConsumer(input:{
  sink:SharkTradeStageEventSink
  loadLearningInput:(event:SharkInboundTradeEvent)=>Promise<ClosedMemeTradeLearningInput>|ClosedMemeTradeLearningInput
-}):Readonly<{handle(event:SharkInboundTradeEvent):Promise<ClosedMemeTradeLearningRecord|undefined>}>{
+ onLearning?:(learning:ClosedMemeTradeLearningRecord,event:SharkInboundTradeEvent)=>Promise<void>|void
+}):Readonly<{
+ learn(event:SharkInboundTradeEvent):Promise<ClosedMemeTradeLearningRecord|undefined>
+ handle(event:SharkInboundTradeEvent):Promise<void>
+}>{
+ const learn=async(event:SharkInboundTradeEvent):Promise<ClosedMemeTradeLearningRecord|undefined>=>{
+  if(event.type!=='EXITED')return undefined
+  const learningInput=await input.loadLearningInput(event)
+  if(
+   learningInput.tradeId!==event.payload.tradeId||
+   learningInput.runLineageId!==event.payload.runLineageId||
+   learningInput.strategyId!==event.payload.strategyId||
+   learningInput.instrumentId!==event.payload.instrumentId
+  )throw new Error('SHARK_POST_EXIT_LEARNING_LINEAGE_MISMATCH')
+  const learning=createClosedMemeTradeLearningRecord(learningInput)
+  await publishTradeReviewed({sink:input.sink,learning,tokenAddress:event.payload.tokenAddress})
+  await input.onLearning?.(learning,event)
+  return learning
+ }
  return Object.freeze({
-  handle:async(event:SharkInboundTradeEvent)=>{
-   if(event.type!=='EXITED')return undefined
-   const learningInput=await input.loadLearningInput(event)
-   if(
-    learningInput.tradeId!==event.payload.tradeId||
-    learningInput.runLineageId!==event.payload.runLineageId||
-    learningInput.strategyId!==event.payload.strategyId||
-    learningInput.instrumentId!==event.payload.instrumentId
-   )throw new Error('SHARK_POST_EXIT_LEARNING_LINEAGE_MISMATCH')
-   const learning=createClosedMemeTradeLearningRecord(learningInput)
-   await publishTradeReviewed({sink:input.sink,learning,tokenAddress:event.payload.tokenAddress})
-   return learning
-  },
+  learn,
+  handle:async(event:SharkInboundTradeEvent)=>{await learn(event)},
  })
 }
