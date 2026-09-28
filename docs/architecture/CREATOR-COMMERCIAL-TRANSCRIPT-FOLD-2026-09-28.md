@@ -37,6 +37,8 @@ Added `commercial-learning.ts` for:
 - Commitment Ladder: attention -> problem confirmed -> intent -> behavioral -> paid -> repeat;
 - Market Learning records;
 - Proof Sprint contracts and assessment;
+- recurring-value evidence gates for subscription/community offers;
+- generic B2B Prospect Intelligence with ICPs, sourced personalization, suppression state, contact-quality tiers and draft-only outreach;
 - explicit `authorizationEffect: NONE`.
 
 This absorbs the transcripts covering revenue sprints, first-customer validation, micro pilots, outcome communities, offer canvases, proof-before-scale and “customers create evidence.”
@@ -53,7 +55,8 @@ Added `creator-operating-system.ts` for:
 - Channel Role assignments instead of identical posting everywhere;
 - Audience Ownership assessment;
 - measured Funnel Bottleneck detection;
-- Product Relevance gate for natural product embedding versus forced promotion.
+- Product Relevance gate for natural product embedding versus forced promotion;
+- Founder Dependency, operational-independence and Handoff Readiness assessments backed by real operator-trial evidence.
 
 This absorbs the transcripts covering first-100-content learning, voice discovery, work-to-content, builder-creator flywheels, email/owned-audience logic, channel roles, product relevance and “automation only after the format works.”
 
@@ -118,6 +121,24 @@ Added `focus-core.ts` for the universal “what matters now?” layer:
 - prioritization only — no execution authority.
 
 This absorbs the transcripts covering maintenance-mode detection, one-thing focus, opportunity cost, owner-attention scarcity and focus drift while preserving parallel agent work.
+
+## Transcript-theme disposition
+
+| Transcript theme | Canonical disposition |
+| --- | --- |
+| Faceless/passive media | Growth Creator Maturity + Founder Dependency + Handoff Readiness + Audience Ownership; no claim that AI-generated means passive. |
+| Lead scraping / personalized outreach | Opportunity Prospect Intelligence for generic B2B research; Growth creator-outreach remains canonical for creator partnerships; external send remains separately governed. |
+| Story automation | Existing Social campaign/content-project + approval/outbox path; story cadence and CTA choices remain experiment data rather than hard-coded policy. |
+| Revenue sprint / first customer | Opportunity Validation Tests + Commitment Ladder + Proof Sprint; Core Focus protects the shortest evidence path. |
+| Remotion-style video workflows | Director Production Archetype Registry routes into existing storyboard, rights, timeline, QC and export systems. |
+| Beginner personal-brand reps | Growth Creator Maturity blocks premature automation and Work-to-Content prioritizes real experience over generic ideation. |
+| AI operator / team enablement | Existing `ai_business_implementation`, `business_automation` and `business_systems` opportunity families; progression is process/readiness-driven, not a new execution authority. |
+| Paid community | Existing `communities` side-hustle family + Offer Canvas + Recurring Value gate; Growth/outcome evidence supplies member-success proof. |
+| Focus / maintenance mode | Core Spine Focus Core, distinct from execution authority and compatible with parallel agents. |
+| Build-first / vibe coding | Existing bounded Validation Factory / side-hustle experiments plus known-good release and verification patterns; one-feature-at-a-time is an operating rule, not a second builder runtime. |
+| Prompt-chain business planning | Offer Canvas and Proof Sprint replace pseudo-precise success probabilities with evidence states and real commitments. |
+| Viral reference / avatar automation | Social Reference Adaptation + Creative Distance + Publish Canary; Director owns likeness/rights and production. |
+| Personal brand + SaaS | Growth Work-to-Content, Channel Roles, Audience Ownership, Product Relevance and Funnel Bottleneck compose the builder-creator flywheel. |
 
 ## Transcript concepts already covered and intentionally not duplicated
 
