@@ -153,7 +153,29 @@ describe('director generation provider factory', () => {
     expect(runtime.artifactDeployment.artifactId).toBe('phantom:runtime-model-bundle');
   });
 
-  it('requires a composite proof before enabling ComfyUI and Phantom together', async () => {
+  it('constructs Hunyuan only after a Hunyuan runtime-bundle proof verifies', async () => {
+    const runtime = await createDirectorGenerationRuntimeConfig({
+      artifactDeployment: await deploymentConfig(
+        'hunyuan-video-1.5:runtime-model-bundle',
+        'provider:hunyuan',
+      ),
+      hunyuan: {
+        id: 'hunyuan-video-1.5',
+        baseUrl: 'https://runpod-hunyuan.example',
+        token: 'test-token',
+      },
+    });
+
+    expect(runtime.providers.has('hunyuan-video-1.5')).toBe(true);
+    expect(runtime.registry.getModel('hunyuan-video-1.5-480p-i2v-step-distilled')?.providerId)
+      .toBe('hunyuan-video-1.5');
+    expect(runtime.registry.getModel('hunyuan-video-1.5-720p-t2v')?.capabilities)
+      .toContain('text-to-video');
+    expect(runtime.artifactDeployment.artifactId)
+      .toBe('hunyuan-video-1.5:runtime-model-bundle');
+  });
+
+  it('requires a composite proof before enabling more than one production renderer', async () => {
     await expect(createDirectorGenerationRuntimeConfig({
       artifactDeployment: await deploymentConfig(),
       comfyUi: {
@@ -164,6 +186,10 @@ describe('director generation provider factory', () => {
       phantom: {
         id: 'phantom-wan',
         baseUrl: 'http://phantom:8090',
+      },
+      hunyuan: {
+        id: 'hunyuan-video-1.5',
+        baseUrl: 'https://runpod-hunyuan.example',
       },
     })).rejects.toThrow('DIRECTOR_GENERATION_COMPOSITE_MODEL_BUNDLE_PROOF_REQUIRED');
   });

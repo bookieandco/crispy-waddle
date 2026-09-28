@@ -16,6 +16,8 @@ import {
 } from '@jhadina/director-core';
 import { DirectorPhantomVideoProvider } from '@/lib/director-phantom-video-provider';
 import { PhantomDirectorGenerationProvider, phantomModelRecords } from '@/lib/director-phantom-generation-provider';
+import { DirectorHunyuanVideoProvider } from '@/lib/director-hunyuan-video-provider';
+import { HunyuanDirectorGenerationProvider, hunyuanVideo15ModelRecords } from '@/lib/director-hunyuan-generation-provider';
 
 export type DirectorGenerationFactoryConfig = {
   artifactDeployment?: {
@@ -31,6 +33,11 @@ export type DirectorGenerationFactoryConfig = {
     models: ModelRecord[];
   };
   phantom?: {
+    id?: string;
+    baseUrl: string;
+    token?: string;
+  };
+  hunyuan?: {
     id?: string;
     baseUrl: string;
     token?: string;
@@ -89,6 +96,19 @@ function defaultPhantomConfig(): DirectorGenerationFactoryConfig['phantom'] | un
   };
 }
 
+function defaultHunyuanConfig(): DirectorGenerationFactoryConfig['hunyuan'] | undefined {
+  const enabled=['1','true','yes','on'].includes(
+    (process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED??'').trim().toLowerCase(),
+  );
+  const baseUrl=process.env.DIRECTOR_HUNYUAN_WORKER_URL?.trim();
+  if(!enabled||!baseUrl) return undefined;
+  return {
+    id:process.env.DIRECTOR_HUNYUAN_PROVIDER_ID??'hunyuan-video-1.5',
+    baseUrl,
+    token:process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN,
+  };
+}
+
 function buildComfyUiDescriptor(config: NonNullable<DirectorGenerationFactoryConfig['comfyUi']>): GenerationProviderRecord {
   const capabilities = [...new Set(config.models.flatMap((model) => model.capabilities))];
   return {
@@ -122,6 +142,7 @@ export async function createDirectorGenerationRuntimeConfig(
   config: DirectorGenerationFactoryConfig = {
     comfyUi: defaultComfyUiConfig(),
     phantom: defaultPhantomConfig(),
+    hunyuan: defaultHunyuanConfig(),
     approvedLoras: defaultApprovedLoras(),
   },
 ): Promise<DirectorGenerationProviderRuntime> {
@@ -129,6 +150,7 @@ export async function createDirectorGenerationRuntimeConfig(
   const providers = new Map<string, GenerationProvider>();
   const comfyUi = config.comfyUi;
   const phantom = config.phantom;
+  const hunyuan = config.hunyuan;
   const deployment = config.artifactDeployment;
 
   if (!deployment) {
@@ -142,13 +164,15 @@ export async function createDirectorGenerationRuntimeConfig(
   if (deployment.requirement.subsystem !== 'director') {
     throw new Error('DIRECTOR_ARTIFACT_DEPLOYMENT_SUBSYSTEM_MISMATCH');
   }
-  if (!comfyUi && !phantom) {
+  if (!comfyUi && !phantom && !hunyuan) {
     throw new Error('DIRECTOR_GENERATION_PROVIDER_NOT_CONFIGURED');
   }
 
+  const enabledProviderCount=[Boolean(comfyUi),Boolean(phantom),Boolean(hunyuan)].filter(Boolean).length;
   const requiredBundle =
-    comfyUi && phantom ? 'director:generation-runtime-bundle'
+    enabledProviderCount > 1 ? 'director:generation-runtime-bundle'
     : phantom ? 'phantom:runtime-model-bundle'
+    : hunyuan ? 'hunyuan-video-1.5:runtime-model-bundle'
     : 'comfyui:runtime-model-bundle';
   if (deployment.requirement.artifactId !== requiredBundle) {
     throw new Error(
@@ -156,7 +180,9 @@ export async function createDirectorGenerationRuntimeConfig(
         ? 'DIRECTOR_COMFYUI_MODEL_BUNDLE_PROOF_REQUIRED'
         : requiredBundle === 'phantom:runtime-model-bundle'
           ? 'DIRECTOR_PHANTOM_MODEL_BUNDLE_PROOF_REQUIRED'
-          : 'DIRECTOR_GENERATION_COMPOSITE_MODEL_BUNDLE_PROOF_REQUIRED',
+          : requiredBundle === 'hunyuan-video-1.5:runtime-model-bundle'
+            ? 'DIRECTOR_HUNYUAN_MODEL_BUNDLE_PROOF_REQUIRED'
+            : 'DIRECTOR_GENERATION_COMPOSITE_MODEL_BUNDLE_PROOF_REQUIRED',
     );
   }
 
@@ -174,6 +200,21 @@ export async function createDirectorGenerationRuntimeConfig(
       if (model.providerId !== descriptor.id) {
         throw new Error(`DIRECTOR_MODEL_PROVIDER_MISMATCH:${model.id}`);
       }
+      registry.registerModel(model);
+    }
+  }
+
+  if (hunyuan) {
+    const providerId=hunyuan.id??'hunyuan-video-1.5';
+    const worker=new DirectorHunyuanVideoProvider({
+      baseUrl:hunyuan.baseUrl,
+      token:hunyuan.token,
+    });
+    const provider=new HunyuanDirectorGenerationProvider(worker,providerId);
+    providers.set(providerId,provider);
+    registry.registerProvider(provider.descriptor);
+    for(const model of hunyuanVideo15ModelRecords(providerId)){
+      if(model.providerId!==providerId) throw new Error(`DIRECTOR_MODEL_PROVIDER_MISMATCH:${model.id}`);
       registry.registerModel(model);
     }
   }

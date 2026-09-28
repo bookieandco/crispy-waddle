@@ -18,6 +18,9 @@ on:
       - "supabase/migrations/*director*"
       - "supabase/functions/jhadina-director-live-cert-gateway/**"
       - "services/director-phantom/**"
+      - "services/director-hunyuan/**"
+      - "scripts/director-hunyuan-runpod-*.sh"
+      - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
       - "pnpm-lock.yaml"
   push:
@@ -39,6 +42,9 @@ on:
       - "supabase/migrations/*director*"
       - "supabase/functions/jhadina-director-live-cert-gateway/**"
       - "services/director-phantom/**"
+      - "services/director-hunyuan/**"
+      - "scripts/director-hunyuan-runpod-*.sh"
+      - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
       - "pnpm-lock.yaml"
 jobs:
@@ -144,6 +150,7 @@ jobs:
           src/generation-reference-manifest.test.ts
           src/continuity-reference-strategy.test.ts
           src/phantom-video-provider.test.ts
+          src/hunyuan-video-15-provider.test.ts
           src/production-quality-certification.test.ts
           src/nle-roundtrip.test.ts
           src/hierarchical-production-coherence.test.ts
@@ -169,6 +176,7 @@ jobs:
           src/lib/director-certification-provider.test.ts
           src/lib/director-phantom-video-provider.test.ts
           src/lib/director-phantom-generation-provider.test.ts
+          src/lib/director-hunyuan-video-provider.test.ts
           src/lib/director-reference-asset-resolver.test.ts
           src/lib/director-reference-media.test.ts
           src/app/api/workstation/editing-assets/route.test.ts
@@ -178,3 +186,10 @@ jobs:
       - run: pnpm --filter @jhadina/jhadina-web run type-check
       - name: Phantom worker contract
         run: python -m unittest services/director-phantom/test_worker.py
+      - name: Hunyuan worker contract
+        run: python -m unittest services/director-hunyuan/test_worker.py
+      - name: Runpod Hunyuan shell contracts
+        run: >
+          bash -n scripts/runpod-agent-setup.sh &&
+          bash -n scripts/director-hunyuan-runpod-create.sh &&
+          bash -n scripts/director-hunyuan-runpod-bootstrap.sh
