@@ -406,6 +406,9 @@ export async function reconcileDexCanaryLeg(input:{
 
 export async function proveDexRestartRecovery(input:{
  intent:DexSwapIntent
+ tradeMemory:TradeLifecycleRecorder
+ tradeId:string
+ tradeEventContext:RuntimeEventContext
  boundary:DexCommissioningBoundary
  chain:SolanaChainObserver
  attemptStore:DexExecutionAttemptStore
