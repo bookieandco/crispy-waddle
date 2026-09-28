@@ -109,6 +109,7 @@ export async function readDexRuntimeReadiness():Promise<DexRuntimeReadinessRepor
  }
 
  let canaryFundingEvidenceIds:readonly string[]=Object.freeze([])
+ let solFeeReserveEvidenceIds:readonly string[]=Object.freeze([])
  if(cofferWallet&&settlementMint){
   const {data,error}=await db.from("money_dex_canary_funding_evidence")
    .select("funding_evidence_id,evidence_ids")
@@ -121,6 +122,17 @@ export async function readDexRuntimeReadiness():Promise<DexRuntimeReadinessRepor
    .maybeSingle()
   if(error)throw new Error("DEX_READINESS_FUNDING_EVIDENCE_READ_FAILED:"+error.message)
   if(data)canaryFundingEvidenceIds=Object.freeze([data.funding_evidence_id,...(data.evidence_ids??[])])
+  const {data:solData,error:solError}=await db.from("money_dex_canary_funding_evidence")
+   .select("funding_evidence_id,evidence_ids")
+   .eq("user_id",userId)
+   .eq("wallet_connection_id",cofferWallet.connectionId)
+   .eq("asset_id","SOL")
+   .eq("verified",true)
+   .order("observed_at",{ascending:false})
+   .limit(1)
+   .maybeSingle()
+  if(solError)throw new Error("DEX_READINESS_SOL_RESERVE_EVIDENCE_READ_FAILED:"+solError.message)
+  if(solData)solFeeReserveEvidenceIds=Object.freeze([solData.funding_evidence_id,...(solData.evidence_ids??[])])
  }
 
  return evaluateDexRuntimeReadiness({
@@ -131,5 +143,6 @@ export async function readDexRuntimeReadiness():Promise<DexRuntimeReadinessRepor
   solanaRpcConfigured:configuredHttps("SOLANA_RPC_URL"),
   settlementMintConfigured:configuredMint("MONEY_DEX_SETTLEMENT_MINT"),
   canaryFundingEvidenceIds,
+  solFeeReserveEvidenceIds,
  })
 }
