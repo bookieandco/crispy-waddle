@@ -23,7 +23,7 @@ function fake(provider:SolanaDexVenueProvider,create:()=>Promise<DexManagedOrder
  return {provider,createOrder:create,executeSigned:async()=>receipt(provider)}
 }
 
-describe('DEX-ROUTER.FINAL',()=>{
+describe('DEX-ROUTER.SURFACE',()=>{
  it('uses Jupiter first and falls back to Raydium when Jupiter cannot build the route',async()=>{
   const calls:string[]=[]
   const router=new UniversalSolanaDexRouter({adapters:[
