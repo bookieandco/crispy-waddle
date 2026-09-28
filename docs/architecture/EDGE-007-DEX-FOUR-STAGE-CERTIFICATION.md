@@ -99,14 +99,17 @@ Operational certification requires live-runtime-attested evidence proving:
 - isolated signer boundary;
 - EDGE-007 PASS;
 - preflight simulation;
-- exactly one bounded broadcast;
-- exactly one reconciled broadcast;
+- one bounded entry broadcast and one bounded exit broadcast;
+- both broadcasts reconciled to provider and on-chain evidence;
+- sellability proven by the real exit and the position flat after exit;
 - no duplicate broadcast;
 - no unknown execution;
+- restart/recovery behavior proven while preserving idempotency;
 - capital boundary enforced;
 - kill switch proven;
-- provider execution receipt;
-- exactly one on-chain signature.
+- modeled versus realized execution costs reconciled;
+- provider execution receipts for both legs;
+- exactly two on-chain signatures, one per leg.
 
 A successful controlled canary still sets `unrestrictedLiveAuthorized=false`.
 
