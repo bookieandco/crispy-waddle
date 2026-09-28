@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+ assertFundingRailAdmissionCertificate,
  buildFundingRailAdmissionFromCertificate,
  certifyFundingRailControlledCanary,
  certifyFundingRailLive,
@@ -103,4 +104,14 @@ test('MONEY-FUND.3 synthetic live canary can never promote a real rail',()=>{
  assert.equal(cert.status,'REJECTED')
  assert.ok(cert.reasonCodes.some(x=>x.startsWith('REAL_LIVE_CANARY_REQUIRED:')))
  assert.equal(cert.liveCertified,false)
+})
+
+
+test('MONEY-FUND.3 executable admission cannot exceed its bound certificate',()=>{
+ const cert=certifyFundingRailControlledCanary({railId,provider,providerAccountId,receipts:canaryReceipts(),criteria,recordedAt:at})
+ const admission=buildFundingRailAdmissionFromCertificate({certificate:cert,credentialRef:'secret://funding/live'})
+ assert.doesNotThrow(()=>assertFundingRailAdmissionCertificate(admission,cert))
+ assert.throws(()=>assertFundingRailAdmissionCertificate({...admission,maxMovementMinor:cert.maxMovementMinor+1n},cert),/LIMIT_ESCALATION/)
+ assert.throws(()=>assertFundingRailAdmissionCertificate({...admission,allowedKinds:[...admission.allowedKinds,'TRANSFER']},cert),/KIND_ESCALATION/)
+ assert.throws(()=>assertFundingRailAdmissionCertificate({...admission,commissioningCertificateId:'different'},cert),/CERTIFICATE_MISMATCH/)
 })
