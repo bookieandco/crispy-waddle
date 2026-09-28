@@ -151,7 +151,7 @@ test('controlled canary cannot be certified by synthetic evidence or without run
 })
 
 
-test('controlled live canary requires a fully reconciled entry and exit round trip', () => {
+test('fully shaped static canary evidence remains structural-only without a commissioned runtime receipt', () => {
   const evidence = stage('CONTROLLED_LIVE_CANARY', {
     origin: 'LIVE_RUNTIME_ATTESTED',
     walletConnectionId: 'wallet:coffer:1',
@@ -173,12 +173,33 @@ test('controlled live canary requires a fully reconciled entry and exit round tr
     providerReceiptIds: ['provider:entry', 'provider:exit'],
     onchainSignatureIds: ['sig:entry', 'sig:exit'],
   })
-  const result = certifyDexExecutionStage(evidence)
-  assert.equal(result.passed, true)
-  assert.equal(result.operationalEvidence, true)
-  assert.equal(result.canAuthorizeTrade, false)
+  const structural = certifyDexExecutionStage(evidence)
+  assert.equal(structural.passed, true)
+  assert.equal(structural.operationalEvidence, false)
+  assert.equal(structural.canAuthorizeTrade, false)
 
-  const missingExit = certifyDexExecutionStage({ ...evidence, exitBroadcastCount: 0, broadcastCount: 1, reconciledBroadcastCount: 1, sellabilityProven: false, positionFlatAfterExit: false, onchainSignatureIds: ['sig:entry'] })
+  const report = certifyDexExecutionLadder({
+    stages: [
+      stage('HISTORICAL_REPLAY', { origin: 'RECORDED_REAL_MARKET' }),
+      stage('LIVE_SHADOW', { origin: 'RECORDED_REAL_MARKET' }),
+      stage('SIGNED_SIMULATION_NO_BROADCAST'),
+      evidence,
+    ],
+  })
+  assert.equal(report.controlledLiveCanaryCertified, false)
+  assert.equal(report.operationallyCertified, false)
+  assert.ok(report.reasonCodes.includes('DEX_CANARY_RUNTIME_VERIFICATION_REQUIRED'))
+  assert.throws(() => assertDexControlledLiveCanaryCertified(report), /DEX_CONTROLLED_LIVE_CANARY_NOT_CERTIFIED/)
+
+  const missingExit = certifyDexExecutionStage({
+    ...evidence,
+    exitBroadcastCount: 0,
+    broadcastCount: 1,
+    reconciledBroadcastCount: 1,
+    sellabilityProven: false,
+    positionFlatAfterExit: false,
+    onchainSignatureIds: ['sig:entry'],
+  })
   assert.equal(missingExit.passed, false)
   assert.ok(missingExit.reasonCodes.includes('DEX_CANARY_EXIT_BROADCAST_REQUIRED'))
   assert.ok(missingExit.reasonCodes.includes('DEX_CANARY_SELLABILITY_REQUIRED'))
