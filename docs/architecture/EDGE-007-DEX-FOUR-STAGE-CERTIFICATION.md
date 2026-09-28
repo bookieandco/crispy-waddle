@@ -94,11 +94,12 @@ Must prove:
 
 Static or synthetic tests cannot certify this stage.
 
-Operational certification requires live-runtime-attested evidence proving:
+Operational certification requires live-runtime-attested evidence proving the same strategy/instrument lineage that passed stages 1–3, including:
 
-- isolated signer boundary;
+- isolated Coffer wallet/signer binding;
 - EDGE-007 PASS;
 - preflight simulation;
+- distinct entry and exit execution IDs;
 - one bounded entry broadcast and one bounded exit broadcast;
 - both broadcasts reconciled to provider and on-chain evidence;
 - sellability proven by the real exit and the position flat after exit;
