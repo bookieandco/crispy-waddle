@@ -258,3 +258,7 @@ export * from './money-feed-contracts.js';
 export * from './execution-feed-projection.js';
 
 export * from './sports-feed-projection.js';
+
+export * from './money-movement-approval-contracts.js';
+export * from './funding-execution-contracts.js';
+export * from './funding-action-core-handler.js';

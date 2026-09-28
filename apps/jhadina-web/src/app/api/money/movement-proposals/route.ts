@@ -4,6 +4,7 @@ import { assertMoneyMovementProposal,type FundingDestination,type MoneyMovementK
 import { runSessionGovernedMoneyAccountRead } from "@/lib/money/governed-account-read-runtime"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { appendMoneyFeedEvent } from "@/lib/money/feed-runtime"
+import { createPendingMoneyMovementApproval } from "@/lib/money/movement-approval-runtime"
 
 export const dynamic="force-dynamic"
 
@@ -44,9 +45,20 @@ export async function GET(req:NextRequest){
  try{
   const requestId=req.headers.get("x-jhadina-request-id")||randomUUID()
   const {db,verifiedUserId}=await context(requestId)
-  const {data,error}=await db.from("money_movement_proposals").select("movement_id,coffer_id,kind,amount_minor,currency,source_id,destination_id,state,created_at,updated_at").eq("user_id",verifiedUserId).order("created_at",{ascending:false}).limit(50)
+  const {data,error}=await db.from("money_movement_proposals").select("movement_id,coffer_id,kind,amount_minor,currency,source_id,destination_id,state,approval_receipt_id,created_at,updated_at").eq("user_id",verifiedUserId).order("created_at",{ascending:false}).limit(50)
   if(error)throw new Error("MONEY_MOVEMENT_PROPOSAL_READ_FAILED:"+error.message)
-  return NextResponse.json({success:true,data:{proposals:data??[]}})
+  const receiptIds=(data??[]).map(x=>x.approval_receipt_id).filter(Boolean)
+  let statusById=new Map<string,string>()
+  if(receiptIds.length){
+   const {data:receipts,error:receiptError}=await db.from("money_movement_approval_receipts").select("id,status,expires_at").in("id",receiptIds)
+   if(receiptError)throw new Error("MONEY_MOVEMENT_APPROVAL_READ_FAILED:"+receiptError.message)
+   statusById=new Map((receipts??[]).map(x=>[x.id,JSON.stringify({status:x.status,expiresAt:x.expires_at})]))
+  }
+  return NextResponse.json({success:true,data:{proposals:(data??[]).map(x=>{
+   const raw=x.approval_receipt_id?statusById.get(x.approval_receipt_id):undefined
+   const receipt=raw?JSON.parse(raw) as {status:string;expiresAt:string}:null
+   return {...x,approvalStatus:receipt?.status??null,approvalExpiresAt:receipt?.expiresAt??null}
+  })}})
  }catch(error){
   const message=error instanceof Error?error.message:"Money movement proposal read failed"
   const status=message.includes("SESSION")?401:message.includes("NOT_COMMISSIONED")?409:500
@@ -75,6 +87,12 @@ export async function POST(req:NextRequest){
   assertMoneyMovementProposal(proposal,{verifiedSource:source,verifiedDestination:destination})
   const {error}=await db.from("money_movement_proposals").insert({movement_id:movementId,user_id:verifiedUserId,coffer_id:coffer.coffer_id,kind:movementKind,amount_minor:amountMinor.toString(),currency,source_id:sourceId,destination_id:destinationId,idempotency_key:idempotencyKey,state:"PENDING_APPROVAL",evidence_ids:[...source.evidenceIds,...destination.evidenceIds],created_at:requestedAt,updated_at:requestedAt})
   if(error)throw new Error("MONEY_MOVEMENT_PROPOSAL_STORE_FAILED:"+error.message)
+  let approvalReceipt
+  try{approvalReceipt=await createPendingMoneyMovementApproval(proposal)}
+  catch(approvalError){
+   await db.from("money_movement_proposals").update({state:"REJECTED",updated_at:new Date().toISOString()}).eq("movement_id",movementId).eq("user_id",verifiedUserId)
+   throw approvalError
+  }
   let feedPublished=false
   try{
    const label=movementKind==="DEPOSIT"?"Add-funds":movementKind==="WITHDRAWAL"?"Cash-out":"Transfer"
@@ -85,7 +103,7 @@ export async function POST(req:NextRequest){
    }))
    feedPublished=true
   }catch{}
-  return NextResponse.json({success:true,data:{proposal:{...proposal,amountMinor:proposal.amountMinor.toString()},feedPublished}},{status:201})
+  return NextResponse.json({success:true,data:{proposal:{...proposal,amountMinor:proposal.amountMinor.toString()},approval:{receiptId:approvalReceipt.id,status:approvalReceipt.status,expiresAt:approvalReceipt.expiresAt},feedPublished}},{status:201})
  }catch(error){
   const message=error instanceof Error?error.message:"Money movement proposal failed"
   const status=message.includes("SESSION")?401:message.includes("NOT_COMMISSIONED")?409:message.includes("INVALID")||message.includes("MUST_")||message.includes("NOT_OWNED")?400:500
