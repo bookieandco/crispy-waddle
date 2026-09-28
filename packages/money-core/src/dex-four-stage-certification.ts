@@ -63,6 +63,23 @@ export type DexExecutionStageEvidence = Readonly<{
   evidenceIds: readonly string[]
 }>
 
+export type DexLiveCanaryVerificationReceipt = Readonly<{
+  verificationId: string
+  stageId: string
+  runLineageId: string
+  walletConnectionId: string
+  entryExecutionId: string
+  exitExecutionId: string
+  stageEvidenceHash: string
+  verifiedAt: string
+  providerReceiptIds: readonly string[]
+  onchainSignatureIds: readonly string[]
+  providerEvidenceVerified: true
+  onchainEvidenceVerified: true
+  source: 'COMMISSIONED_DEX_RUNTIME'
+  authority: 'RUNTIME_EVIDENCE_ONLY'
+}>
+
 export type DexStageCertification = Readonly<{
   stage: DexExecutionStage
   stageId: string
@@ -154,7 +171,10 @@ function assertCommon(evidence: DexExecutionStageEvidence, reasons: string[]): v
 function operationalOriginFor(stage: DexExecutionStage, origin: DexEvidenceOrigin): boolean {
   if (stage === 'HISTORICAL_REPLAY') return origin === 'RECORDED_REAL_MARKET' || origin === 'LIVE_RUNTIME_ATTESTED'
   if (stage === 'LIVE_SHADOW') return origin === 'RECORDED_REAL_MARKET' || origin === 'LIVE_RUNTIME_ATTESTED'
-  return origin === 'LIVE_RUNTIME_ATTESTED'
+  if (stage === 'SIGNED_SIMULATION_NO_BROADCAST') return origin === 'LIVE_RUNTIME_ATTESTED'
+  // A pure/static stage validator can never establish a real broadcast happened.
+  // Stage 4 becomes operational only through a separately bound commissioned-runtime receipt.
+  return false
 }
 
 export function certifyDexExecutionStage(evidence: DexExecutionStageEvidence): DexStageCertification {
@@ -231,8 +251,39 @@ export function certifyDexExecutionStage(evidence: DexExecutionStageEvidence): D
   })
 }
 
+export function dexLiveCanaryEvidenceHash(evidence: DexExecutionStageEvidence): string {
+  if (evidence.stage !== 'CONTROLLED_LIVE_CANARY') throw new Error('DEX_CANARY_EVIDENCE_STAGE_INVALID')
+  return hash(evidence)
+}
+
+function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+  return JSON.stringify([...new Set(left)].sort()) === JSON.stringify([...new Set(right)].sort())
+}
+
+function liveCanaryVerificationMatches(
+  evidence: DexExecutionStageEvidence,
+  receipt: DexLiveCanaryVerificationReceipt,
+): boolean {
+  if (evidence.stage !== 'CONTROLLED_LIVE_CANARY') return false
+  if (receipt.source !== 'COMMISSIONED_DEX_RUNTIME' || receipt.authority !== 'RUNTIME_EVIDENCE_ONLY') return false
+  if (!receipt.verificationId.trim() || !validIso(receipt.verifiedAt)) return false
+  if (Date.parse(receipt.verifiedAt) < Date.parse(evidence.endedAt)) return false
+  if (
+    receipt.stageId !== evidence.stageId ||
+    receipt.runLineageId !== evidence.runLineageId ||
+    receipt.walletConnectionId !== evidence.walletConnectionId ||
+    receipt.entryExecutionId !== evidence.entryExecutionId ||
+    receipt.exitExecutionId !== evidence.exitExecutionId
+  ) return false
+  if (receipt.stageEvidenceHash !== dexLiveCanaryEvidenceHash(evidence)) return false
+  if (!sameStrings(receipt.providerReceiptIds, evidence.providerReceiptIds)) return false
+  if (!sameStrings(receipt.onchainSignatureIds, evidence.onchainSignatureIds)) return false
+  return receipt.providerEvidenceVerified === true && receipt.onchainEvidenceVerified === true
+}
+
 export function certifyDexExecutionLadder(input: {
   stages: readonly DexExecutionStageEvidence[]
+  liveCanaryVerification?: DexLiveCanaryVerificationReceipt
 }): DexExecutionLadderReport {
   const byStage = new Map<DexExecutionStage, DexExecutionStageEvidence>()
   const reasons: string[] = []
@@ -266,7 +317,19 @@ export function certifyDexExecutionLadder(input: {
     certifications.find((certification) => certification.stage === stage)?.operationalEvidence === true,
   )
   const canary = certifications.find((certification) => certification.stage === 'CONTROLLED_LIVE_CANARY')
-  const controlledLiveCanaryCertified = canary?.passed === true && canary.operationalEvidence === true
+  const canaryEvidence = byStage.get('CONTROLLED_LIVE_CANARY')
+  const liveVerificationValid = Boolean(
+    canaryEvidence &&
+    canary?.passed === true &&
+    input.liveCanaryVerification &&
+    liveCanaryVerificationMatches(canaryEvidence, input.liveCanaryVerification),
+  )
+  if (canaryEvidence && canary?.passed === true && !input.liveCanaryVerification) {
+    reasons.push('DEX_CANARY_RUNTIME_VERIFICATION_REQUIRED')
+  } else if (canaryEvidence && canary?.passed === true && input.liveCanaryVerification && !liveVerificationValid) {
+    reasons.push('DEX_CANARY_RUNTIME_VERIFICATION_INVALID')
+  }
+  const controlledLiveCanaryCertified = canary?.passed === true && liveVerificationValid
   const operationallyCertified =
     missingStages.length === 0 &&
     reasons.length === 0 &&
@@ -289,7 +352,7 @@ export function certifyDexExecutionLadder(input: {
   }))
 
   return Object.freeze({
-    reportId: `dex-4stage:${hash({ stages: stable, missingStages, reasons: uniqueReasons })}`,
+    reportId: `dex-4stage:${hash({ stages: stable, missingStages, reasons: uniqueReasons, liveVerificationId: input.liveCanaryVerification?.verificationId ?? null })}`,
     version: DEX_EXECUTION_LADDER_VERSION,
     stages: Object.freeze(certifications),
     softwareCertified,
