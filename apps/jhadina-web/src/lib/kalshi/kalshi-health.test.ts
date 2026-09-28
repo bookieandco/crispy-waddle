@@ -16,6 +16,7 @@ function ed25519Env() {
   return {
     publicKey,
     env: {
+      NODE_ENV: 'test',
       KALSHI_ENV: 'demo',
       KALSHI_API_KEY_ID: 'test-key-id',
       KALSHI_PRIVATE_KEY_BASE64: Buffer.from(pem).toString('base64'),
