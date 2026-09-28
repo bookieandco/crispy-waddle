@@ -3,6 +3,7 @@ import { consumeExecutionPermit, verifyExecutionPermit } from './execution-permi
 import { assertConnectorMayExecute } from './market-connector-contracts.js'
 import { assertSignerLeaseMayPrepare } from './signer-lease-contracts.js'
 import type { CanaryReservation, LiveCanaryPolicy, LiveCanaryStateStore } from './live-canary-contracts.js'
+import { TRADING_EVENT_SEQUENCE, type RuntimeEventContext, type TradeLifecycleRecorder, type TradeRecord, type TradingEventType } from '@jhadina/event-bus'
 import { assertSharkPreExecutionBinding, type SharkPreExecutionMaterial } from './shark-preexec-binding.js'
 import {
  assertMoneyDexGatePassed,
@@ -37,6 +38,7 @@ export type DexCanarySubmitResult=Readonly<{
  simulation:DexSimulationReceipt
  providerReceipt:DexProviderExecutionReceipt
  reservation:CanaryReservation
+ tradeRecord:TradeRecord
  authority:'EXECUTION_RESULT_ONLY'
 }>
 
@@ -45,6 +47,7 @@ export type DexCanaryReconcileResult=Readonly<{
  onchain:DexOnchainReceipt
  reconciliation?:DexLegReconciliation
  recoveredExisting:boolean
+ tradeRecord:TradeRecord
  authority:'RECONCILIATION_RESULT_ONLY'
 }>
 
@@ -60,6 +63,58 @@ export type DexRestartRecoveryProof=Readonly<{
  evidenceIds:readonly string[]
  authority:'RECOVERY_EVIDENCE_ONLY'
 }>
+
+function tradeIndex(type:TradingEventType):number{return TRADING_EVENT_SEQUENCE.indexOf(type)}
+
+function assertTradeRuntime(input:{
+ memory:TradeLifecycleRecorder
+ tradeId:string
+ intent:DexSwapIntent
+ expected:TradingEventType
+}):TradeRecord{
+ const record=input.memory.get(input.tradeId)
+ if(!record)throw new Error('TRADE_MEMORY_RECORD_REQUIRED')
+ if(record.tradeId!==input.tradeId||record.runLineageId!==input.intent.runLineageId||record.userId!==input.intent.userId||record.strategyId!==input.intent.strategyId||record.instrumentId!==input.intent.instrumentId)throw new Error('TRADE_MEMORY_EXECUTION_IDENTITY_MISMATCH')
+ if(record.currentEvent!==input.expected)throw new Error('TRADE_MEMORY_EXECUTION_STATE_REQUIRED:'+input.expected)
+ return record
+}
+
+async function recordTradeRuntimeEvent(input:{
+ memory:TradeLifecycleRecorder
+ tradeId:string
+ intent:DexSwapIntent
+ baseContext:RuntimeEventContext
+ type:TradingEventType
+ occurredAt:string
+ referenceId:string
+ evidenceIds:readonly string[]
+ details?:Readonly<Record<string,string|number|boolean|null>>
+}):Promise<TradeRecord>{
+ const current=input.memory.get(input.tradeId)
+ if(!current)throw new Error('TRADE_MEMORY_RECORD_REQUIRED')
+ const target=tradeIndex(input.type)
+ if(current.sequenceIndex>target)return current
+ if(current.sequenceIndex===target){
+  if(current.references[input.type]!==input.referenceId)throw new Error('TRADE_MEMORY_EVENT_REFERENCE_MISMATCH:'+input.type)
+  return current
+ }
+ if(current.sequenceIndex!==target-1)throw new Error('TRADE_MEMORY_SEQUENCE_NOT_READY:'+input.type)
+ const eventId='trade:'+input.tradeId+':'+input.type+':'+input.intent.executionId
+ return input.memory.record({
+  id:eventId,
+  type:input.type,
+  occurredAt:input.occurredAt,
+  context:Object.freeze({...input.baseContext,domain:'trading',capability:'money.trade.lifecycle',idempotencyKey:eventId}),
+  tradeId:input.tradeId,
+  runLineageId:input.intent.runLineageId,
+  userId:input.intent.userId,
+  strategyId:input.intent.strategyId,
+  instrumentId:input.intent.instrumentId,
+  referenceId:input.referenceId,
+  evidenceIds:input.evidenceIds,
+  details:Object.freeze({leg:input.intent.leg,executionId:input.intent.executionId,...input.details}),
+ })
+}
 
 export function dexExecutionAction(intent:DexSwapIntent):ExecutionAction{
  return Object.freeze({
@@ -139,6 +194,9 @@ function reconcile(input:{
 
 export async function submitControlledDexCanaryLeg(input:{
  intent:DexSwapIntent
+ tradeMemory:TradeLifecycleRecorder
+ tradeId:string
+ tradeEventContext:RuntimeEventContext
  preExecutionMaterial:SharkPreExecutionMaterial
  dexGatePolicy:MoneyDexGatePolicy
  dexGateContext:MoneyDexGateContext
@@ -157,10 +215,11 @@ export async function submitControlledDexCanaryLeg(input:{
  now:string
 }):Promise<DexCanarySubmitResult>{
  const {
-  intent,preExecutionMaterial,dexGatePolicy,dexGateContext,boundary,adapter,signer,chain,attemptStore,permitStore,
+  intent,tradeMemory,tradeId,tradeEventContext,preExecutionMaterial,dexGatePolicy,dexGateContext,boundary,adapter,signer,chain,attemptStore,permitStore,
   permit,permitContext,canaryStore,canaryPolicy,tradingDate,attemptId,now,
  }=input
  assertBoundary({intent,boundary,adapter,now})
+ let tradeRecord=assertTradeRuntime({memory:tradeMemory,tradeId,intent,expected:intent.leg==='ENTRY'?'ORDER_INTENT_CREATED':'POSITION_MONITORED'})
  if(dexGateContext.now!==now)throw new Error('MONEY_DEX_GATE_RUNTIME_TIME_MISMATCH')
  assertSharkPreExecutionBinding({binding:intent.preExecution,material:preExecutionMaterial,informationCutoff:intent.informationCutoff})
  const existing=await attemptStore.getByIdempotencyKey(intent.idempotencyKey)
@@ -172,6 +231,7 @@ export async function submitControlledDexCanaryLeg(input:{
  if(adapter.provider!=='solana-dex-router'&&order.provider!==adapter.provider)throw new Error('DEX_COMMISSION_ORDER_PROVIDER_MISMATCH')
  if(order.quotedOutputAtomic<intent.minimumOutputAtomic)throw new Error('DEX_COMMISSION_QUOTE_BELOW_MINIMUM')
  const simulation=await chain.simulateUnsignedTransaction({unsignedTransactionBase64:order.unsignedTransactionBase64,now})
+ if(intent.leg==='ENTRY')tradeRecord=await recordTradeRuntimeEvent({memory:tradeMemory,tradeId,intent,baseContext:tradeEventContext,type:'TX_SIMULATED',occurredAt:now,referenceId:simulation.simulationId,evidenceIds:simulation.evidenceIds,details:{provider:order.provider,passed:simulation.passed}})
  if(simulation.simulationMode!=='UNSIGNED_PRE_SIGN'||!simulation.passed)throw new Error('DEX_COMMISSION_PREFLIGHT_SIMULATION_FAILED')
  if(simulation.feeLamports===undefined)throw new Error('DEX_COMMISSION_PREFLIGHT_FEE_REQUIRED')
  const preflight=evaluateMoneyDexGate({
@@ -192,6 +252,7 @@ export async function submitControlledDexCanaryLeg(input:{
   now,
  })
  if(signed.walletConnectionId!==intent.walletConnectionId||signed.signerLeaseId!==intent.signerLeaseId||signed.signerAddress!==boundary.wallet.address||signed.containsPrivateKey!==false||signed.containsRawToken!==false)throw new Error('DEX_COMMISSION_SIGNER_OUTPUT_INVALID')
+ if(intent.leg==='ENTRY')tradeRecord=await recordTradeRuntimeEvent({memory:tradeMemory,tradeId,intent,baseContext:tradeEventContext,type:'TX_SIGNED',occurredAt:now,referenceId:signed.signedTransactionHash,evidenceIds:signed.evidenceIds,details:{signerProvider:signed.signerProvider}})
  let attempt:DexExecutionAttempt=Object.freeze({
   attemptId,
   executionId:intent.executionId,
@@ -280,11 +341,15 @@ export async function submitControlledDexCanaryLeg(input:{
   throw new Error('DEX_COMMISSION_PROVIDER_SIGNATURE_REQUIRED')
  }
  attempt=await attemptStore.update(attemptId,{providerReceiptId:providerReceipt.receiptId,state:'SUBMITTED',updatedAt:now,evidenceIds:[...attempt.evidenceIds,...providerReceipt.evidenceIds]})
- return Object.freeze({attempt,order,preflight,signed,simulation,providerReceipt,reservation:reserved.reservation,authority:'EXECUTION_RESULT_ONLY' as const})
+ if(intent.leg==='ENTRY')tradeRecord=await recordTradeRuntimeEvent({memory:tradeMemory,tradeId,intent,baseContext:tradeEventContext,type:'TX_SENT',occurredAt:now,referenceId:providerReceipt.receiptId,evidenceIds:providerReceipt.evidenceIds,details:{provider:providerReceipt.provider,signature:providerReceipt.signature}})
+ return Object.freeze({attempt,order,preflight,signed,simulation,providerReceipt,reservation:reserved.reservation,tradeRecord,authority:'EXECUTION_RESULT_ONLY' as const})
 }
 
 export async function reconcileDexCanaryLeg(input:{
  intent:DexSwapIntent
+ tradeMemory:TradeLifecycleRecorder
+ tradeId:string
+ tradeEventContext:RuntimeEventContext
  boundary:DexCommissioningBoundary
  chain:SolanaChainObserver
  attemptStore:DexExecutionAttemptStore
@@ -293,10 +358,12 @@ export async function reconcileDexCanaryLeg(input:{
  attemptId:string
  now:string
 }):Promise<DexCanaryReconcileResult>{
- const {intent,boundary,chain,attemptStore,canaryStore,tradingDate,attemptId,now}=input
+ const {intent,tradeMemory,tradeId,tradeEventContext,boundary,chain,attemptStore,canaryStore,tradingDate,attemptId,now}=input
  const current=await attemptStore.get(attemptId)
  if(!current||current.executionId!==intent.executionId||current.idempotencyKey!==intent.idempotencyKey)throw new Error('DEX_COMMISSION_RECOVERY_ATTEMPT_BINDING_MISMATCH')
  if(!['SUBMITTED','UNKNOWN','CONFIRMED','RECONCILED'].includes(current.state))throw new Error('DEX_COMMISSION_RECOVERY_STATE_INVALID')
+ let tradeRecord=tradeMemory.get(tradeId)
+ if(!tradeRecord)throw new Error('TRADE_MEMORY_RECORD_REQUIRED')
  const recoveredExisting=true
  const onchain=await chain.observeSwap({
   signature:current.primarySignature,
@@ -308,12 +375,12 @@ export async function reconcileDexCanaryLeg(input:{
  if(!onchain.found||!onchain.confirmed){
   await canaryStore.markUnknown(intent.provider,intent.walletConnectionId,tradingDate,intent.executionId,now)
   const attempt=await attemptStore.update(attemptId,{state:'UNKNOWN',errorCode:'DEX_CHAIN_CONFIRMATION_PENDING',updatedAt:now,evidenceIds:[...current.evidenceIds,...onchain.evidenceIds]})
-  return Object.freeze({attempt,onchain,recoveredExisting,authority:'RECONCILIATION_RESULT_ONLY' as const})
+  return Object.freeze({attempt,onchain,recoveredExisting,tradeRecord,authority:'RECONCILIATION_RESULT_ONLY' as const})
  }
  if(onchain.failed){
   await canaryStore.resolveUnknown(intent.provider,intent.walletConnectionId,tradingDate,intent.executionId,now)
   const attempt=await attemptStore.update(attemptId,{state:'FAILED',errorCode:'DEX_CHAIN_EXECUTION_FAILED',updatedAt:now,evidenceIds:[...current.evidenceIds,...onchain.evidenceIds]})
-  return Object.freeze({attempt,onchain,recoveredExisting,authority:'RECONCILIATION_RESULT_ONLY' as const})
+  return Object.freeze({attempt,onchain,recoveredExisting,tradeRecord,authority:'RECONCILIATION_RESULT_ONLY' as const})
  }
  const confirmedAttempt=current.state==='RECONCILED'
   ? current
@@ -322,13 +389,19 @@ export async function reconcileDexCanaryLeg(input:{
  if(!reconciliation.passed){
   await canaryStore.resolveUnknown(intent.provider,intent.walletConnectionId,tradingDate,intent.executionId,now)
   const attempt=await attemptStore.update(attemptId,{state:'FAILED',errorCode:'DEX_RECONCILIATION_FAILED:'+reconciliation.reasonCodes.join(','),updatedAt:now,evidenceIds:[...current.evidenceIds,...reconciliation.evidenceIds]})
-  return Object.freeze({attempt,onchain,reconciliation,recoveredExisting,authority:'RECONCILIATION_RESULT_ONLY' as const})
+  return Object.freeze({attempt,onchain,reconciliation,recoveredExisting,tradeRecord,authority:'RECONCILIATION_RESULT_ONLY' as const})
  }
  await canaryStore.resolveUnknown(intent.provider,intent.walletConnectionId,tradingDate,intent.executionId,now)
  const attempt=current.state==='RECONCILED'
   ? current
   : await attemptStore.update(attemptId,{state:'RECONCILED',errorCode:undefined,updatedAt:now,evidenceIds:[...current.evidenceIds,...reconciliation.evidenceIds]})
- return Object.freeze({attempt,onchain,reconciliation,recoveredExisting,authority:'RECONCILIATION_RESULT_ONLY' as const})
+ tradeRecord=await recordTradeRuntimeEvent({
+  memory:tradeMemory,tradeId,intent,baseContext:tradeEventContext,type:intent.leg==='ENTRY'?'FILLED':'EXITED',occurredAt:now,
+  referenceId:intent.leg==='ENTRY'?onchain.signature:reconciliation.reconciliationId,
+  evidenceIds:reconciliation.evidenceIds,
+  details:{provider:attempt.provider,signature:onchain.signature},
+ })
+ return Object.freeze({attempt,onchain,reconciliation,recoveredExisting,tradeRecord,authority:'RECONCILIATION_RESULT_ONLY' as const})
 }
 
 export async function proveDexRestartRecovery(input:{
