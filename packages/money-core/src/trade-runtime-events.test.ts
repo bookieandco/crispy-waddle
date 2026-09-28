@@ -126,7 +126,7 @@ test('Money consumes POSITION_MONITORED into an independent exit candidate',asyn
     }),
     onExitCandidate:candidate=>{exitId=candidate.exitIntentId},
   })
-  const result=await consumer.handle({
+  const result=await consumer.evaluate({
     type:'POSITION_MONITORED',
     occurredAt:'2026-09-27T20:12:00Z',
     payload:{
