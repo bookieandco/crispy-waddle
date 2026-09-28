@@ -69,9 +69,6 @@ export function assertTradeStreamPayload(payload:TradeStreamPayload):void{
   nonEmpty(payload.strategyId,'TRADE_EVENT_STRATEGY_REQUIRED')
   nonEmpty(payload.instrumentId,'TRADE_EVENT_INSTRUMENT_REQUIRED')
   if(!payload.evidenceIds.length)throw new Error('TRADE_EVENT_EVIDENCE_REQUIRED')
-  if(payload.leg==='NONE'&&['RISK_APPROVED','ORDER_INTENT_CREATED','TX_SIMULATED','TX_SIGNED','TX_SENT','FILLED','EXITED'].includes(String((payload.details as Record<string,unknown>).eventType??''))){
-    throw new Error('TRADE_EVENT_EXECUTION_LEG_REQUIRED')
-  }
 }
 
 export function createTradeStreamEvent(input:{
@@ -128,7 +125,7 @@ export function wireTradeEventConsumers(input:{
   return ()=>{for(const unsubscribe of unsubscribers)unsubscribe()}
 }
 
-type ExecutionProgress = -1|0|1|2|3|4|5
+type ExecutionProgress = -1|0|1|2|3|4
 type TradeProgress=Readonly<{
   discovered:boolean
   analyzed:boolean
