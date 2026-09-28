@@ -31,6 +31,14 @@ import {
  moneyMovementExecutionRequest,
 } from './money-movement-approval-contracts.js'
 import type { ExecutionPermit,PermitStore } from './execution-permit.js'
+import type { FundingRailCommissioningCertificate } from './funding-provider-commissioning.js'
+
+const commissioningCertificate:FundingRailCommissioningCertificate=Object.freeze({
+ certificateId:'fund-cert:1',railId:'rail:fixture',provider:'funding-fixture',providerAccountId:'acct-live-1',evidenceClass:'REAL_LIVE',status:'CONTROLLED_CANARY_CERTIFIED',
+ controlledCanaryCertified:true,liveCertified:false,admittedKinds:Object.freeze(['DEPOSIT','WITHDRAWAL','TRANSFER'] as const),admittedCurrencies:Object.freeze(['USD']),
+ sourceKinds:Object.freeze(['BANK','BROKER_CASH'] as const),destinationKinds:Object.freeze(['BANK','BROKER_CASH'] as const),maxMovementMinor:10000n,maxDailyMovementMinor:20000n,commissioningCertificateId:commissioningCertificate.certificateId,
+ reasonCodes:Object.freeze([]),receiptIds:Object.freeze(['r1']),canaryIds:Object.freeze([]),evidenceIds:Object.freeze(['cert:e1']),recordedAt:'2026-09-27T23:00:00Z',authority:'CERTIFICATION_ONLY',canExecute:false,
+})
 
 const source:FundingDestination=Object.freeze({destinationId:'bank:owner',ownerUserId:'u1',provider:'plaid',accountId:'bank-1',currency:'USD',verified:true,kind:'BANK',evidenceIds:Object.freeze(['bank:e1'])})
 const destination:FundingDestination=Object.freeze({destinationId:'coffer:c1',ownerUserId:'u1',provider:'money-core',accountId:'c1',currency:'USD',verified:true,kind:'BROKER_CASH',evidenceIds:Object.freeze(['coffer:e1'])})
@@ -82,7 +90,7 @@ test('MONEY-FUND.2 uncommissioned rail denies before approval consumption',async
  const pending=await approvalStore.createPending({actionId:approvalRequest.id,userId:approvalRequest.userId,type:approvalRequest.type,fingerprint:fingerprintMoneyMovementApproval(approvalRequest),expiresAt:'2099-01-01T00:00:00Z'})
  await approvalStore.approve(pending.id,'u1')
  const request=moneyMovementExecutionRequest({proposal,approvalReceiptId:pending.id,provider:'funding-fixture',railId:'rail:fixture'})
- const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission({admission:'UNCOMMISSIONED'}),observation:observation(),adapter:adapter()})
+ const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission({admission:'UNCOMMISSIONED'}),observation:observation(),adapter:adapter(),commissioningCertificate})
  const policy=createMoneyMovementActionPolicy({async load(){return ctx}})
  assert.equal(await policy.evaluate(request),'deny')
  const stillConsumable=await approvalStore.consume(pending.id,{actionId:approvalRequest.id,userId:'u1',type:approvalRequest.type,fingerprint:fingerprintMoneyMovementApproval(approvalRequest)})
@@ -91,7 +99,7 @@ test('MONEY-FUND.2 uncommissioned rail denies before approval consumption',async
 
 test('MONEY-FUND.2 canonical chain consumes receipt and permit then submits provider exactly once',async()=>{
  const calls={submit:0},rail=adapter('SETTLED',calls),permits=new PermitMemoryStore(),attempts=new AttemptMemoryStore()
- const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),observation:observation(),adapter:rail})
+ const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),observation:observation(),adapter:rail,commissioningCertificate})
  const loader={async load(){return ctx}}
  const approvalStore=new InMemoryApprovalReceiptStore(),approvalRequest=moneyMovementApprovalRequest(proposal)
  const pending=await approvalStore.createPending({actionId:approvalRequest.id,userId:approvalRequest.userId,type:approvalRequest.type,fingerprint:fingerprintMoneyMovementApproval(approvalRequest),expiresAt:'2099-01-01T00:00:00Z'})
@@ -134,7 +142,7 @@ test('MONEY-FUND.2 pre-submit failure revokes unused permit and never calls prov
  const calls={submit:0},base=adapter('SETTLED',calls)
  const broken:ExecutingFundingRailAdapter={...base,async quote(){throw new Error('QUOTE_DOWN')}}
  const permits=new PermitMemoryStore(),attempts=new AttemptMemoryStore()
- const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),observation:observation(),adapter:broken})
+ const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),observation:observation(),adapter:broken,commissioningCertificate})
  const loader={async load(){return ctx}}
  const approvalStore=new InMemoryApprovalReceiptStore(),approvalRequest=moneyMovementApprovalRequest(proposal)
  const pending=await approvalStore.createPending({actionId:approvalRequest.id,userId:approvalRequest.userId,type:approvalRequest.type,fingerprint:fingerprintMoneyMovementApproval(approvalRequest),expiresAt:'2099-01-01T00:00:00Z'})
