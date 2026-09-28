@@ -8,8 +8,10 @@ export type MemePositionReviewState=ProfitTakingState & {
   costBasisUsd?:number
   currentValueUsd?:number
   smartWalletExitScore?:number
+  smartWalletNetFlowUsd?:number
   narrativeDegradationScore?:number
   whaleDistributionScore?:number
+  whaleNetFlowUsd?:number
   thesisInvalidated?:boolean
   thesisInvalidationReasons?:readonly string[]
   crossDomainAlphaIds?:readonly string[]
@@ -56,6 +58,8 @@ export function reviewMemePosition(state:MemePositionReviewState,config:{
   const narrativeDegradationScore=score(state.narrativeDegradationScore,'SHARK_POSITION_NARRATIVE_DEGRADATION_INVALID')
   const whaleDistributionScore=score(state.whaleDistributionScore,'SHARK_POSITION_WHALE_DISTRIBUTION_INVALID')
   if(state.costBasisUsd!==undefined&&(!Number.isFinite(state.costBasisUsd)||state.costBasisUsd<0))throw new Error('SHARK_POSITION_COST_BASIS_INVALID')
+  if(state.smartWalletNetFlowUsd!==undefined&&!Number.isFinite(state.smartWalletNetFlowUsd))throw new Error('SHARK_POSITION_SMART_WALLET_FLOW_INVALID')
+  if(state.whaleNetFlowUsd!==undefined&&!Number.isFinite(state.whaleNetFlowUsd))throw new Error('SHARK_POSITION_WHALE_FLOW_INVALID')
   if(state.currentValueUsd!==undefined&&(!Number.isFinite(state.currentValueUsd)||state.currentValueUsd<0))throw new Error('SHARK_POSITION_CURRENT_VALUE_INVALID')
   if(state.thesisInvalidated&&!(state.thesisInvalidationReasons?.length))throw new Error('SHARK_POSITION_INVALIDATION_REASON_REQUIRED')
 
