@@ -1,0 +1,109 @@
+name: Kalshi Live Health
+
+on:
+  pull_request:
+    paths:
+      - 'apps/jhadina-web/src/lib/kalshi/**'
+      - 'apps/jhadina-web/src/app/api/internal/kalshi/**'
+      - '.github/workflows/kalshi-live-health.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/jhadina-web/src/lib/kalshi/**'
+      - 'apps/jhadina-web/src/app/api/internal/kalshi/**'
+      - '.github/workflows/kalshi-live-health.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: kalshi-live-health-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-certification:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Kalshi signing and redaction tests
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/kalshi/kalshi-health.test.ts
+
+      - name: Jhadina web typecheck
+        run: pnpm --filter @jhadina/jhadina-web type-check
+
+  live-read-only-health:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: source-certification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint repository-bound OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --fail-with-body --silent --show-error \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=jhadina-kalshi-commissioning")"
+          token="$(printf '%s' "$response" | jq -r '.value')"
+          test -n "$token"
+          test "$token" != "null"
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Verify deployed Vercel Kalshi authentication
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          HEALTH_URL: https://crispy-waddle-jhadina-web.vercel.app/api/internal/kalshi/health
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 30); do
+            body_file="$(mktemp)"
+            status="$(curl --silent --show-error \
+              --output "$body_file" \
+              --write-out '%{http_code}' \
+              -H "Authorization: Bearer $OIDC_TOKEN" \
+              "$HEALTH_URL" || true)"
+
+            if [ "$status" = "200" ]; then
+              cat "$body_file" | jq .
+              jq -e '
+                .ok == true and
+                .status == "AUTHENTICATED" and
+                .authenticated == true and
+                .authority == "READ_ONLY_HEALTH" and
+                .canTrade == false
+              ' "$body_file" >/dev/null
+              rm -f "$body_file"
+              exit 0
+            fi
+
+            if [ "$status" = "404" ]; then
+              rm -f "$body_file"
+              sleep 10
+              continue
+            fi
+
+            echo "Kalshi live health failed with HTTP $status"
+            cat "$body_file"
+            rm -f "$body_file"
+            exit 1
+          done
+
+          echo "Kalshi health route was not present on the production deployment."
+          exit 1
