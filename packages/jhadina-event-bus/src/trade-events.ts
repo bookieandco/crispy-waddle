@@ -234,3 +234,72 @@ export class TradeEventSequenceGuard{
     return this.state.get(tradeId)??initialProgress()
   }
 }
+
+
+export async function publishTradeStageEvent(input:{
+  bus:EventBus
+  id:string
+  type:TradeEventType
+  occurredAt:string
+  payload:TradeStreamPayload
+  context:RuntimeEventContext
+}):Promise<TradeStreamEvent>{
+  const event=createTradeStreamEvent(input)
+  await input.bus.publish(event)
+  return event
+}
+
+export type MechanicalDexExecutionTelemetry=Readonly<{
+  type:'TX_SIMULATED'|'TX_SIGNED'|'TX_SENT'|'FILLED'
+  tradeId:string
+  executionId:string
+  runLineageId:string
+  strategyId:string
+  instrumentId:string
+  leg:'ENTRY'|'EXIT'
+  occurredAt:string
+  evidenceIds:readonly string[]
+  details:Readonly<Record<string,unknown>>
+  authority:'EXECUTION_TELEMETRY_ONLY'
+}>
+
+export function createMechanicalDexExecutionEventSink(input:{
+  bus:EventBus
+  workSessionId:string
+  correlationId:string
+  actorId?:string
+  authorityRef?:string
+  tokenAddress?:string
+}):Readonly<{publish(event:MechanicalDexExecutionTelemetry):Promise<void>}>{
+  return Object.freeze({
+    publish:async(event:MechanicalDexExecutionTelemetry)=>{
+      if(event.authority!=='EXECUTION_TELEMETRY_ONLY')throw new Error('TRADE_EVENT_EXECUTOR_AUTHORITY_INVALID')
+      const id=`trade:${event.tradeId}:${event.executionId}:${event.type}`
+      await publishTradeStageEvent({
+        bus:input.bus,
+        id,
+        type:event.type,
+        occurredAt:event.occurredAt,
+        payload:{
+          tradeId:event.tradeId,
+          runLineageId:event.runLineageId,
+          strategyId:event.strategyId,
+          instrumentId:event.instrumentId,
+          tokenAddress:input.tokenAddress,
+          leg:event.leg,
+          evidenceIds:event.evidenceIds,
+          details:{executionId:event.executionId,...event.details},
+        },
+        context:{
+          workSessionId:input.workSessionId,
+          correlationId:input.correlationId,
+          actorId:input.actorId,
+          domain:'MONEY',
+          capability:'money.trade.execute',
+          authorityRef:input.authorityRef,
+          idempotencyKey:id,
+        },
+      })
+    },
+  })
+}
