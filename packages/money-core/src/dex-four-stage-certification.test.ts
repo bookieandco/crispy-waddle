@@ -44,6 +44,8 @@ const stage = (
     simulationCount: 0,
     simulationFailureCount: 0,
     broadcastCount: 0,
+    entryBroadcastCount: 0,
+    exitBroadcastCount: 0,
     reconciledBroadcastCount: 0,
     duplicateBroadcastCount: 0,
     unknownExecutionCount: 0,
@@ -52,6 +54,10 @@ const stage = (
     privateKeyMaterialObserved: false,
     capitalBounded: false,
     killSwitchProven: false,
+    restartRecoveryProven: false,
+    sellabilityProven: false,
+    positionFlatAfterExit: false,
+    executionCostReconciled: false,
     providerReceiptIds: [],
     onchainSignatureIds: [],
     evidenceIds: ['evidence:' + stageName],
@@ -130,10 +136,45 @@ test('controlled canary cannot be certified by synthetic evidence or without run
   assert.equal(result.passed, false)
   assert.equal(result.operationalEvidence, false)
   assert.ok(result.reasonCodes.includes('DEX_CANARY_LIVE_RUNTIME_ATTESTATION_REQUIRED'))
-  assert.ok(result.reasonCodes.includes('DEX_CANARY_EXACTLY_ONE_BROADCAST_REQUIRED'))
-  assert.ok(result.reasonCodes.includes('DEX_CANARY_RECONCILIATION_REQUIRED'))
-  assert.ok(result.reasonCodes.includes('DEX_CANARY_PROVIDER_RECEIPT_REQUIRED'))
-  assert.ok(result.reasonCodes.includes('DEX_CANARY_ONCHAIN_SIGNATURE_REQUIRED'))
+  assert.ok(result.reasonCodes.includes('DEX_CANARY_ROUND_TRIP_BROADCASTS_REQUIRED'))
+  assert.ok(result.reasonCodes.includes('DEX_CANARY_ENTRY_BROADCAST_REQUIRED'))
+  assert.ok(result.reasonCodes.includes('DEX_CANARY_EXIT_BROADCAST_REQUIRED'))
+  assert.ok(result.reasonCodes.includes('DEX_CANARY_ROUND_TRIP_RECONCILIATION_REQUIRED'))
+  assert.ok(result.reasonCodes.includes('DEX_CANARY_PROVIDER_RECEIPTS_REQUIRED'))
+  assert.ok(result.reasonCodes.includes('DEX_CANARY_ONCHAIN_SIGNATURES_REQUIRED'))
+  assert.ok(result.reasonCodes.includes('DEX_CANARY_RESTART_RECOVERY_REQUIRED'))
+  assert.ok(result.reasonCodes.includes('DEX_CANARY_SELLABILITY_REQUIRED'))
+})
+
+
+test('controlled live canary requires a fully reconciled entry and exit round trip', () => {
+  const evidence = stage('CONTROLLED_LIVE_CANARY', {
+    origin: 'LIVE_RUNTIME_ATTESTED',
+    signedTransactionCount: 2,
+    simulationCount: 2,
+    broadcastCount: 2,
+    entryBroadcastCount: 1,
+    exitBroadcastCount: 1,
+    reconciledBroadcastCount: 2,
+    signerBoundary: 'ISOLATED',
+    capitalBounded: true,
+    killSwitchProven: true,
+    restartRecoveryProven: true,
+    sellabilityProven: true,
+    positionFlatAfterExit: true,
+    executionCostReconciled: true,
+    providerReceiptIds: ['provider:entry', 'provider:exit'],
+    onchainSignatureIds: ['sig:entry', 'sig:exit'],
+  })
+  const result = certifyDexExecutionStage(evidence)
+  assert.equal(result.passed, true)
+  assert.equal(result.operationalEvidence, true)
+  assert.equal(result.canAuthorizeTrade, false)
+
+  const missingExit = certifyDexExecutionStage({ ...evidence, exitBroadcastCount: 0, broadcastCount: 1, reconciledBroadcastCount: 1, onchainSignatureIds: ['sig:entry'] })
+  assert.equal(missingExit.passed, false)
+  assert.ok(missingExit.reasonCodes.includes('DEX_CANARY_EXIT_BROADCAST_REQUIRED'))
+  assert.ok(missingExit.reasonCodes.includes('DEX_CANARY_SELLABILITY_REQUIRED') || evidence.sellabilityProven)
 })
 
 test('stages 1-3 software certify while controlled canary remains explicitly missing', () => {
