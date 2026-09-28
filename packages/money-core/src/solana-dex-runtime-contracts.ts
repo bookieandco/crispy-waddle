@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import type { ConnectedWallet } from './wallet-connector-contracts.js'
 import type { MoneyMarketConnectorDescriptor } from './market-connector-contracts.js'
 import type { SignerLease, SignerLeasePolicy, SignerRollingObservation } from './signer-lease-contracts.js'
+import { EDGE_007_REQUIRED_VERSION, EDGE_DECISION_REQUIRED_VERSION, type Edge007IntegrityReceipt, type EdgeDecisionBundleReceipt } from './dex-four-stage-certification.js'
 
 export type DexCanaryLeg='ENTRY'|'EXIT'
 
@@ -258,7 +259,7 @@ function dexApprovalBindingHash(input:Omit<DexExecutionApprovalBinding,'bindingH
  })
 }
 
-export function createDexExecutionApprovalBinding(input:Omit<DexExecutionApprovalBinding,'bindingHash'>):DexExecutionApprovalBinding{
+function createDexExecutionApprovalBinding(input:Omit<DexExecutionApprovalBinding,'bindingHash'>):DexExecutionApprovalBinding{
  return Object.freeze({...input,bindingHash:dexApprovalBindingHash(input)})
 }
 
@@ -277,17 +278,88 @@ export function assertDexExecutionApprovalBinding(binding:DexExecutionApprovalBi
  if(expected!==binding.bindingHash)throw new Error('DEX_APPROVAL_BINDING_HASH_MISMATCH')
 }
 
+export type MoneyDexRiskApprovalReceipt=Readonly<{
+ riskDecisionId:string
+ disposition:'APPROVE'|'BLOCK'
+ reasonCodes:readonly string[]
+ evidenceIds:readonly string[]
+ evaluatedAt:string
+ authority:'MONEY_RISK_DECISION'
+ canExecute:false
+}>
+
+export type DexGovernanceApprovalPackage=Readonly<{
+ sharkAssessmentId:string
+ thesisId:string
+ edgeDecisionBundle:EdgeDecisionBundleReceipt
+ integrityGuard:Edge007IntegrityReceipt
+ moneyRisk:MoneyDexRiskApprovalReceipt
+ approvedAt:string
+}>
+
+function assertEdgeDecisionBundleForExecution(bundle:EdgeDecisionBundleReceipt):void{
+ if(bundle.frameworkVersion!==EDGE_DECISION_REQUIRED_VERSION)throw new Error('DEX_APPROVAL_EDGE_VERSION_INVALID')
+ if(bundle.authority!=='RESEARCH_AND_RISK_GATE_ONLY'||bundle.canAuthorizeTrade!==false)throw new Error('DEX_APPROVAL_EDGE_AUTHORITY_INVALID')
+ if(bundle.disposition!=='PASS'||bundle.reasonCodes.length)throw new Error('DEX_APPROVAL_EDGE_BLOCKED')
+ if(!bundle.evidenceIds.length)throw new Error('DEX_APPROVAL_EDGE_EVIDENCE_REQUIRED')
+ const required=['EDGE-001','EDGE-002','EDGE-003','EDGE-004','EDGE-005','EDGE-006'] as const
+ const receipts=new Map(bundle.receipts.map(receipt=>[receipt.gateId,receipt]))
+ for(const gateId of required){
+  const receipt=receipts.get(gateId)
+  if(!receipt)throw new Error('DEX_APPROVAL_'+gateId.replace('-','')+'_RECEIPT_REQUIRED')
+  if(receipt.version!==EDGE_DECISION_REQUIRED_VERSION||receipt.authority!=='RESEARCH_AND_RISK_GATE_ONLY'||receipt.canAuthorizeTrade!==false)throw new Error('DEX_APPROVAL_'+gateId.replace('-','')+'_RECEIPT_INVALID')
+  if(receipt.disposition!=='PASS'||receipt.reasonCodes.length||!receipt.evidenceIds.length)throw new Error('DEX_APPROVAL_'+gateId.replace('-','')+'_BLOCKED')
+ }
+}
+
+function assertIntegrityGuardForExecution(receipt:Edge007IntegrityReceipt):void{
+ if(receipt.guardVersion!==EDGE_007_REQUIRED_VERSION)throw new Error('DEX_APPROVAL_EDGE007_VERSION_INVALID')
+ if(receipt.authority!=='INTEGRITY_VETO_ONLY'||receipt.canAuthorizeTrade!==false||receipt.canAuthorizePromotion!==false)throw new Error('DEX_APPROVAL_EDGE007_AUTHORITY_INVALID')
+ if(receipt.disposition!=='PASS'||receipt.reasonCodes.length||!receipt.evidenceIds.length)throw new Error('DEX_APPROVAL_EDGE007_BLOCKED')
+}
+
+function assertMoneyRiskApprovalForExecution(receipt:MoneyDexRiskApprovalReceipt):void{
+ if(!receipt.riskDecisionId.trim())throw new Error('DEX_APPROVAL_MONEY_RISK_REQUIRED')
+ if(receipt.authority!=='MONEY_RISK_DECISION'||receipt.canExecute!==false)throw new Error('DEX_APPROVAL_MONEY_RISK_AUTHORITY_INVALID')
+ if(receipt.disposition!=='APPROVE'||receipt.reasonCodes.length)throw new Error('DEX_APPROVAL_MONEY_RISK_BLOCKED')
+ if(!receipt.evidenceIds.length)throw new Error('DEX_APPROVAL_MONEY_RISK_EVIDENCE_REQUIRED')
+ if(Number.isNaN(Date.parse(receipt.evaluatedAt)))throw new Error('DEX_APPROVAL_MONEY_RISK_TIME_INVALID')
+}
+
 export type DexSwapIntentDraft=Omit<DexSwapIntent,'approval'|'authority'>
 
 export function createApprovedDexSwapIntent(input:{
  draft:DexSwapIntentDraft
- approval:Omit<DexExecutionApprovalBinding,'bindingHash'>
+ governance:DexGovernanceApprovalPackage
 }):DexSwapIntent{
- const approval=createDexExecutionApprovalBinding(input.approval)
+ const governance=input.governance
+ if(!governance.sharkAssessmentId.trim()||!governance.thesisId.trim())throw new Error('DEX_APPROVAL_SHARK_LINEAGE_REQUIRED')
+ if(Number.isNaN(Date.parse(governance.approvedAt)))throw new Error('DEX_APPROVAL_TIME_INVALID')
+ assertEdgeDecisionBundleForExecution(governance.edgeDecisionBundle)
+ assertIntegrityGuardForExecution(governance.integrityGuard)
+ assertMoneyRiskApprovalForExecution(governance.moneyRisk)
+ if(governance.moneyRisk.evaluatedAt>governance.approvedAt)throw new Error('DEX_APPROVAL_BEFORE_MONEY_RISK_DECISION')
+ const approval=createDexExecutionApprovalBinding({
+  sharkAssessmentId:governance.sharkAssessmentId,
+  thesisId:governance.thesisId,
+  edgeDecisionBundleHash:hashDexRuntime(governance.edgeDecisionBundle),
+  integrityGuardHash:hashDexRuntime(governance.integrityGuard),
+  moneyRiskDecisionId:governance.moneyRisk.riskDecisionId,
+  approvedAt:governance.approvedAt,
+  authority:'MONEY_RISK_APPROVAL_BINDING',
+ })
  const intent=Object.freeze({
   ...input.draft,
   approval,
-  evidenceIds:Object.freeze([...new Set([...input.draft.evidenceIds,'dex-approval:'+approval.bindingHash])]),
+  evidenceIds:Object.freeze([...new Set([
+   ...input.draft.evidenceIds,
+   ...governance.edgeDecisionBundle.evidenceIds,
+   ...governance.integrityGuard.evidenceIds,
+   ...governance.moneyRisk.evidenceIds,
+   'shark-assessment:'+governance.sharkAssessmentId,
+   'thesis:'+governance.thesisId,
+   'dex-approval:'+approval.bindingHash,
+  ])]),
   authority:'MONEY_EXECUTION_INTENT' as const,
  })
  assertDexSwapIntent(intent)
