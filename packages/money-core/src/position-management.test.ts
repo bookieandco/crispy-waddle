@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { routeAlphaAcrossDomains, type AlphaEvidence } from './cross-domain-alpha-router.js'
-import { defaultPositionManagementPolicy, evaluateOpenPosition, type OpenPositionSnapshot, type PositionMarketAssessment } from './position-management.js'
+import { createPositionExitIntentCandidate, defaultPositionManagementPolicy, evaluateOpenPosition, type OpenPositionSnapshot, type PositionMarketAssessment } from './position-management.js'
 
 const alpha:AlphaEvidence=Object.freeze({
   alphaId:'sports-alpha:game-1',
@@ -29,6 +29,8 @@ const position=(overrides:Partial<OpenPositionSnapshot>={}):OpenPositionSnapshot
   entryPrice:.52,
   currentExecutableExitPrice:.68,
   currentExecutableAddPrice:.69,
+  costBasisMinor:5200n,
+  currentValueMinor:6800n,
   unrealizedPnlMinor:1600n,
   peakUnrealizedPnlMinor:1800n,
   grossExposureMinor:5200n,
@@ -55,6 +57,12 @@ function assessment(overrides:Partial<PositionMarketAssessment>={}):PositionMark
     thesisStrengthBps:8200,
     invalidationRiskBps:2200,
     liquidityQualityBps:8000,
+    liquidityUsd:250000,
+    smartWalletExitRiskBps:1800,
+    narrativeDegradationBps:1200,
+    whaleDistributionRiskBps:1500,
+    thesisInvalidated:false,
+    thesisInvalidationReasons:[],
     momentumBps:7200,
     correlationRiskBps:2000,
     alphaRoutes:[route],
@@ -115,4 +123,33 @@ test('materially better alternative can produce a ROTATE candidate without grant
   assert.equal(decision.action,'ROTATE')
   assert.equal(decision.alternativeInstrumentId,'forex:EURUSD')
   assert.equal(decision.canExecute,false)
+})
+
+
+test('current evidence can independently create a governed full exit intent',()=>{
+  const p=position()
+  const decision=evaluateOpenPosition({
+    position:p,
+    assessment:assessment({
+      thesisInvalidated:true,
+      thesisInvalidationReasons:['Tracked wallet cohort reversed and distributed.'],
+      smartWalletExitRiskBps:9300,
+      narrativeDegradationBps:9100,
+    }),
+    policy:defaultPositionManagementPolicy('LIVE_AUTONOMOUS_GOVERNED'),
+    evaluatedAt:'2026-09-26T20:00:04Z',
+  })
+  assert.equal(decision.action,'EXIT')
+  assert.ok(decision.reasonCodes.includes('THESIS_EXPLICITLY_INVALIDATED'))
+  const exit=createPositionExitIntentCandidate({
+    position:p,
+    decision,
+    createdAt:'2026-09-26T20:00:05Z',
+  })
+  assert.equal(exit.action,'EXIT')
+  assert.equal(exit.quantity,p.quantity)
+  assert.equal(exit.quantityFractionBps,10000)
+  assert.equal(exit.origin,'INDEPENDENT_POSITION_REUNDERWRITE')
+  assert.equal(exit.canExecute,false)
+  assert.equal(exit.requiresDownstreamRiskAndAuthority,true)
 })
