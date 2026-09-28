@@ -17,6 +17,7 @@ import type { MoneyDexGateContext,MoneyDexGatePolicy } from './money-dex-gate.js
 import { JupiterUltraDexAdapter } from './jupiter-ultra-dex-adapter.js'
 import { RemoteCofferSignerAdapter } from './remote-coffer-signer-adapter.js'
 import { SolanaRpcHttpObserver } from './solana-rpc-http-observer.js'
+import { DurableEventBus,InMemoryEventJournal,TradeMemory,type RuntimeEventContext } from '@jhadina/event-bus'
 
 const settlement='USDC_MINT'
 const target='TARGET_MINT'
@@ -45,6 +46,27 @@ const preExecutionMaterial:SharkPreExecutionMaterial={
  integrityGuard:integrity,
 }
 const preExecution=createSharkPreExecutionBinding({material:preExecutionMaterial,informationCutoff:'2026-09-27T20:30:00Z',evidenceIds:['money:intent:e']})
+
+const tradeId='trade:target:1'
+const tradeEventContext:RuntimeEventContext={workSessionId:'ws:trade:1',taskId:'task:trade:1',correlationId:tradeId,actorId:'money',domain:'trading',capability:'money.trade.lifecycle',authorityRef:'money:controlled-canary',idempotencyKey:'base'}
+
+async function seedTradeToOrderIntent(memory:TradeMemory):Promise<void>{
+ const early=[
+  ['TOKEN_DISCOVERED','token:'+target],
+  ['SHARK_ANALYZED',preExecutionMaterial.assessmentId],
+  ['THESIS_CREATED','thesis:target:1'],
+  ['RISK_APPROVED',preExecution.edgeDecisionBundleHash],
+  ['ORDER_INTENT_CREATED',preExecution.bindingHash],
+ ] as const
+ for(let i=0;i<early.length;i++){
+  const [type,referenceId]=early[i]!
+  await memory.record({
+   id:'trade:seed:'+(i+1),type,occurredAt:new Date(Date.UTC(2026,8,27,20,20,i)).toISOString(),
+   context:{...tradeEventContext,idempotencyKey:'trade:seed:'+(i+1)},tradeId,runLineageId:'lineage:1',userId:'u1',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',
+   referenceId,evidenceIds:['trade:seed:'+type],
+  })
+ }
+}
 
 class PermitMemory implements PermitStore{
  rows=new Map<string,ExecutionPermit>()
@@ -154,13 +176,15 @@ test('Solana RPC observer preflights and derives token deltas from confirmed cha
 
 test('DEX-COMMISSION.FINAL executes exactly two bounded routed legs, proves restart recovery, flat exit, kill switch, and still forbids unrestricted live',async()=>{
  const adapter=new FakeDex(),signer=new FakeSigner(),chain=new FakeChain(),attempts=new InMemoryDexExecutionAttemptStore(),permits=new PermitMemory(),canary=new InMemoryLiveCanaryStateStore()
+ const tradeJournal=new InMemoryEventJournal(),tradeMemory=new TradeMemory(new DurableEventBus(tradeJournal))
+ await seedTradeToOrderIntent(tradeMemory)
  await canary.updateRiskMetrics({snapshotId:'risk:1',provider:'solana-dex-router',accountId:wallet.connectionId,currency:'USD',grossExposureMinor:0n,realizedPnlMinor:0n,observedAt:'2026-09-27T20:29:00Z',availableAt:'2026-09-27T20:29:00Z',evidenceIds:['risk:e'],authority:'EVIDENCE_ONLY'},'2026-09-27','2026-09-27T20:30:00Z')
  const run=async(i:DexSwapIntent,attemptId:string,now:string)=>{
   const action=dexExecutionAction(i)
   const p=issueExecutionPermit({action,actionRequestFingerprint:'arf:'+i.leg,authorityId:'authority:'+i.leg,policyVersion:'dex:v1',policyHash:'hash',expiresAt:'2026-09-27T21:30:00Z',now,permitId:'permit:'+i.leg,nonce:'nonce:'+i.leg})
   permits.issue(p)
   return submitControlledDexCanaryLeg({
-   intent:i,preExecutionMaterial,dexGatePolicy,dexGateContext:dexGateContext(now,i),boundary,adapter,signer,chain,attemptStore:attempts,permitStore:permits,permit:p,
+   intent:i,tradeMemory,tradeId,tradeEventContext,preExecutionMaterial,dexGatePolicy,dexGateContext:dexGateContext(now,i),boundary,adapter,signer,chain,attemptStore:attempts,permitStore:permits,permit:p,
    permitContext:{actionRequestFingerprint:'arf:'+i.leg,authorityId:'authority:'+i.leg,policyVersion:'dex:v1',policyHash:'hash',now},canaryStore:canary,canaryPolicy,tradingDate:'2026-09-27',attemptId,now,
   })
  }
@@ -171,10 +195,15 @@ test('DEX-COMMISSION.FINAL executes exactly two bounded routed legs, proves rest
  assert.equal(entry.attempt.requestProvider,'solana-dex-router')
  assert.equal(entry.attempt.preExecutionBindingHash,entryIntent.preExecution.bindingHash)
  assert.equal(entry.attempt.moneyDexGateId,entry.preflight.gateId)
- const entryRec=await reconcileDexCanaryLeg({intent:entryIntent,boundary,chain,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:entry',now:'2026-09-27T20:31:00Z'})
- const recovery=await proveDexRestartRecovery({intent:entryIntent,boundary,chain,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:entry',previousRuntimeId:'runtime:a',recoveryRuntimeId:'runtime:b',now:'2026-09-27T20:32:00Z'})
+ const entryRec=await reconcileDexCanaryLeg({intent:entryIntent,tradeMemory,tradeId,tradeEventContext,boundary,chain,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:entry',now:'2026-09-27T20:31:00Z'})
+ assert.equal(entryRec.tradeRecord.currentEvent,'FILLED')
+ const recovery=await proveDexRestartRecovery({intent:entryIntent,tradeMemory,tradeId,tradeEventContext,boundary,chain,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:entry',previousRuntimeId:'runtime:a',recoveryRuntimeId:'runtime:b',now:'2026-09-27T20:32:00Z'})
+ await tradeMemory.record({id:'trade:position:1',type:'POSITION_MONITORED',occurredAt:'2026-09-27T20:32:30Z',context:{...tradeEventContext,idempotencyKey:'trade:position:1'},tradeId,runLineageId:'lineage:1',userId:'u1',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',referenceId:'position:target:1',evidenceIds:['position:e']})
  const exit=await run(exitIntent,'attempt:exit','2026-09-27T20:33:00Z')
- const exitRec=await reconcileDexCanaryLeg({intent:exitIntent,boundary,chain,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:exit',now:'2026-09-27T20:34:00Z'})
+ const exitRec=await reconcileDexCanaryLeg({intent:exitIntent,tradeMemory,tradeId,tradeEventContext,boundary,chain,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:exit',now:'2026-09-27T20:34:00Z'})
+ assert.equal(exitRec.tradeRecord.currentEvent,'EXITED')
+ const reviewed=await tradeMemory.record({id:'trade:review:1',type:'TRADE_REVIEWED',occurredAt:'2026-09-27T20:35:00Z',context:{...tradeEventContext,idempotencyKey:'trade:review:1'},tradeId,runLineageId:'lineage:1',userId:'u1',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',referenceId:'review:target:1',evidenceIds:['review:e']})
+ assert.equal(reviewed.completed,true)
  assert.equal(adapter.calls,2);assert.equal(signer.calls,2)
  await assert.rejects(()=>run(entryIntent,'attempt:dup','2026-09-27T20:35:00Z'),/DUPLICATE_EXECUTION_BLOCKED/)
  const capital=proveDexCapitalBoundary({connector,signerPolicy,canaryPolicy,entryIntent,exitIntent,evidenceIds:['capital:e']})
