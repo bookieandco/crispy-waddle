@@ -99,7 +99,7 @@ test('MONEY-FUND.2 uncommissioned rail denies before approval consumption',async
 
 test('MONEY-FUND.2 canonical chain consumes receipt and permit then submits provider exactly once',async()=>{
  const calls={submit:0},rail=adapter('SETTLED',calls),permits=new PermitMemoryStore(),attempts=new AttemptMemoryStore()
- const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),observation:observation(),adapter:rail,commissioningCertificate})
+ const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),commissioningCertificate,observation:observation(),adapter:rail,commissioningCertificate})
  const loader={async load(){return ctx}}
  const approvalStore=new InMemoryApprovalReceiptStore(),approvalRequest=moneyMovementApprovalRequest(proposal)
  const pending=await approvalStore.createPending({actionId:approvalRequest.id,userId:approvalRequest.userId,type:approvalRequest.type,fingerprint:fingerprintMoneyMovementApproval(approvalRequest),expiresAt:'2099-01-01T00:00:00Z'})
@@ -119,10 +119,10 @@ test('MONEY-FUND.2 UNKNOWN provider evidence blocks deterministic replay of the 
  const calls={submit:0},rail=adapter('UNKNOWN',calls),attempts=new AttemptMemoryStore()
  const request:MoneyMovementRequest=Object.freeze({movementId:proposal.movementId,kind:proposal.kind,userId:proposal.userId,cofferId:proposal.cofferId,amountMinor:proposal.amountMinor,currency:proposal.currency,sourceId:proposal.sourceId,destinationId:proposal.destinationId,idempotencyKey:proposal.idempotencyKey,requestedAt:proposal.requestedAt,authorityId:'authority:1',executionPermitId:'permit:1'})
  const q=await rail.quote(request),i=await rail.prepareInstruction(request,q)
- const first=await executeGovernedMoneyMovement({request,source,destination,quote:q,instruction:i,admission:admission(),observation:observation(),adapter:rail,attempts,now:'2026-09-27T23:00:02Z'})
+ const first=await executeGovernedMoneyMovement({request,source,destination,quote:q,instruction:i,admission:admission(),commissioningCertificate,observation:observation(),adapter:rail,attempts,now:'2026-09-27T23:00:02Z'})
  assert.equal(first.attempt.state,'UNKNOWN')
  assert.equal(first.attempt.recoveryRequired,true)
- await assert.rejects(()=>executeGovernedMoneyMovement({request,source,destination,quote:q,instruction:i,admission:admission(),observation:observation(),adapter:rail,attempts,now:'2026-09-27T23:00:03Z'}),/ATTEMPT_ALREADY_IN_FLIGHT_OR_UNKNOWN/)
+ await assert.rejects(()=>executeGovernedMoneyMovement({request,source,destination,quote:q,instruction:i,admission:admission(),commissioningCertificate,observation:observation(),adapter:rail,attempts,now:'2026-09-27T23:00:03Z'}),/ATTEMPT_ALREADY_IN_FLIGHT_OR_UNKNOWN/)
  assert.equal(calls.submit,1)
 })
 
@@ -142,7 +142,7 @@ test('MONEY-FUND.2 pre-submit failure revokes unused permit and never calls prov
  const calls={submit:0},base=adapter('SETTLED',calls)
  const broken:ExecutingFundingRailAdapter={...base,async quote(){throw new Error('QUOTE_DOWN')}}
  const permits=new PermitMemoryStore(),attempts=new AttemptMemoryStore()
- const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),observation:observation(),adapter:broken,commissioningCertificate})
+ const ctx:MoneyMovementExecutionContext=Object.freeze({proposal,source,destination,admission:admission(),commissioningCertificate,observation:observation(),adapter:broken,commissioningCertificate})
  const loader={async load(){return ctx}}
  const approvalStore=new InMemoryApprovalReceiptStore(),approvalRequest=moneyMovementApprovalRequest(proposal)
  const pending=await approvalStore.createPending({actionId:approvalRequest.id,userId:approvalRequest.userId,type:approvalRequest.type,fingerprint:fingerprintMoneyMovementApproval(approvalRequest),expiresAt:'2099-01-01T00:00:00Z'})
