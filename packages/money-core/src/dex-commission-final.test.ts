@@ -11,7 +11,7 @@ import type { CofferSignerAdapter,DexManagedOrder,DexProviderExecutionReceipt,De
 import { InMemoryDexExecutionAttemptStore } from './solana-dex-runtime-contracts.js'
 import { dexExecutionAction,proveDexRestartRecovery,reconcileDexCanaryLeg,submitControlledDexCanaryLeg } from './dex-controlled-canary-runtime.js'
 import { buildDexControlledLiveCanaryEvidence,certifyDexCommissionFinal,createDexLiveRuntimeVerificationReceipt,proveDexCapitalBoundary,proveDexKillSwitch } from './dex-commission-final.js'
-import { certifyDexExecutionLadder,type DexExecutionStageEvidence,type Edge007IntegrityReceipt } from './dex-four-stage-certification.js'
+import { certifyDexExecutionLadder,type DexExecutionStageEvidence,type EdgeDecisionBundleReceipt,type Edge007IntegrityReceipt } from './dex-four-stage-certification.js'
 import { JupiterUltraDexAdapter } from './jupiter-ultra-dex-adapter.js'
 import { RemoteCofferSignerAdapter } from './remote-coffer-signer-adapter.js'
 import { SolanaRpcHttpObserver } from './solana-rpc-http-observer.js'
@@ -40,6 +40,13 @@ const intent=(leg:'ENTRY'|'EXIT'):DexSwapIntent=>({
  inputAmountAtomic:leg==='ENTRY'?1000000n:500000n,minimumOutputAtomic:leg==='ENTRY'?500000n:990000n,notionalMinor:1000n,currency:'USD',idempotencyKey:'idem:'+leg.toLowerCase(),
  informationCutoff:'2026-09-27T20:30:00Z',evidenceIds:['shark:'+leg],authority:'MONEY_EXECUTION_INTENT'
 })
+const edgeDecisionBundle:EdgeDecisionBundleReceipt={
+ frameworkVersion:'EDGE-001-006-v1',
+ receipts:(['EDGE-001','EDGE-002','EDGE-003','EDGE-004','EDGE-005','EDGE-006'] as const).map(gateId=>({
+  gateId,version:'EDGE-001-006-v1',disposition:'PASS' as const,reasonCodes:[],evidenceIds:[gateId+':e'],evaluatedAt:'2026-09-27T18:58:00Z',authority:'RESEARCH_AND_RISK_GATE_ONLY' as const,canAuthorizeTrade:false as const
+ })),
+ disposition:'PASS',reasonCodes:[],evidenceIds:['edge:bundle:e'],authority:'RESEARCH_AND_RISK_GATE_ONLY',canAuthorizeTrade:false
+}
 const integrity:Edge007IntegrityReceipt={guardVersion:'EDGE-007-v1',guardId:'edge:1',disposition:'PASS',reasonCodes:[],evidenceIds:['edge:e'],authority:'INTEGRITY_VETO_ONLY',canAuthorizeTrade:false,canAuthorizePromotion:false}
 
 class FakeSigner implements CofferSignerAdapter{
@@ -78,7 +85,7 @@ function stage(stage:DexExecutionStageEvidence['stage']):DexExecutionStageEviden
  }
  const [startedAt,endedAt]=times[stage]
  return {stageId:'stage:'+stage,stage,origin:stage==='SIGNED_SIMULATION_NO_BROADCAST'?'LIVE_RUNTIME_ATTESTED':'RECORDED_REAL_MARKET',runLineageId:'lineage:1',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',
-  walletConnectionId:stage==='SIGNED_SIMULATION_NO_BROADCAST'?wallet.connectionId:undefined,startedAt,endedAt,informationCutoff:endedAt,integrityGuard:integrity,decisionCount:1,signedTransactionCount:stage==='SIGNED_SIMULATION_NO_BROADCAST'?1:0,simulationCount:stage==='SIGNED_SIMULATION_NO_BROADCAST'?1:0,simulationFailureCount:0,broadcastCount:0,entryBroadcastCount:0,exitBroadcastCount:0,reconciledBroadcastCount:0,duplicateBroadcastCount:0,unknownExecutionCount:0,futureEvidenceCount:0,signerBoundary:stage==='SIGNED_SIMULATION_NO_BROADCAST'?'ISOLATED':'NOT_APPLICABLE',privateKeyMaterialObserved:false,capitalBounded:false,killSwitchProven:false,restartRecoveryProven:false,sellabilityProven:false,positionFlatAfterExit:false,executionCostReconciled:false,providerReceiptIds:[],onchainSignatureIds:[],evidenceIds:['stage:e']}
+  walletConnectionId:stage==='SIGNED_SIMULATION_NO_BROADCAST'?wallet.connectionId:undefined,startedAt,endedAt,informationCutoff:endedAt,edgeDecisionBundle,integrityGuard:integrity,decisionCount:1,signedTransactionCount:stage==='SIGNED_SIMULATION_NO_BROADCAST'?1:0,simulationCount:stage==='SIGNED_SIMULATION_NO_BROADCAST'?1:0,simulationFailureCount:0,broadcastCount:0,entryBroadcastCount:0,exitBroadcastCount:0,reconciledBroadcastCount:0,duplicateBroadcastCount:0,unknownExecutionCount:0,futureEvidenceCount:0,signerBoundary:stage==='SIGNED_SIMULATION_NO_BROADCAST'?'ISOLATED':'NOT_APPLICABLE',privateKeyMaterialObserved:false,capitalBounded:false,killSwitchProven:false,restartRecoveryProven:false,sellabilityProven:false,positionFlatAfterExit:false,executionCostReconciled:false,providerReceiptIds:[],onchainSignatureIds:[],evidenceIds:['stage:e']}
 }
 
 test('reference is adapted to current Jupiter managed endpoints rather than legacy V6 browser flow',async()=>{
@@ -136,7 +143,7 @@ test('DEX-COMMISSION.FINAL executes exactly two bounded legs, proves restart rec
  await assert.rejects(()=>run(entryIntent,'attempt:dup','2026-09-27T20:35:00Z'),/DUPLICATE_EXECUTION_BLOCKED/)
  const capital=proveDexCapitalBoundary({connector,signerPolicy,canaryPolicy,entryIntent,exitIntent,evidenceIds:['capital:e']})
  const kill=await proveDexKillSwitch({canaryStore:canary,permitStore:permits,policy:canaryPolicy,provider:'jupiter-ultra',walletConnectionId:wallet.connectionId,tradingDate:'2026-09-27',currency:'USD',now:'2026-09-27T20:36:00Z',evidenceIds:['kill:e']})
- const stage4=buildDexControlledLiveCanaryEvidence({stageId:'stage:canary',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',integrityGuard:integrity,startedAt:'2026-09-27T20:30:00Z',endedAt:'2026-09-27T20:36:00Z',informationCutoff:'2026-09-27T20:36:00Z',entrySubmit:entry,entryReconcile:entryRec,exitSubmit:exit,exitReconcile:exitRec,capitalProof:capital,recoveryProof:recovery,killSwitchProof:kill,evidenceIds:['canary:e']})
+ const stage4=buildDexControlledLiveCanaryEvidence({stageId:'stage:canary',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',edgeDecisionBundle,integrityGuard:integrity,startedAt:'2026-09-27T20:30:00Z',endedAt:'2026-09-27T20:36:00Z',informationCutoff:'2026-09-27T20:36:00Z',entrySubmit:entry,entryReconcile:entryRec,exitSubmit:exit,exitReconcile:exitRec,capitalProof:capital,recoveryProof:recovery,killSwitchProof:kill,evidenceIds:['canary:e']})
  const verification=createDexLiveRuntimeVerificationReceipt({evidence:stage4,entrySubmit:entry,entryReconcile:entryRec,exitSubmit:exit,exitReconcile:exitRec,verifiedAt:'2026-09-27T20:37:00Z'})
  const stages=[stage('HISTORICAL_REPLAY'),stage('LIVE_SHADOW'),stage('SIGNED_SIMULATION_NO_BROADCAST'),stage4]
  const ladder=certifyDexExecutionLadder({stages,liveCanaryVerification:verification})
