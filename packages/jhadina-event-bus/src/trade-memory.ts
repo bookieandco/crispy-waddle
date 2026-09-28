@@ -35,6 +35,8 @@ export type TradeMemoryRecord=Readonly<{
   authority:'SHARED_TRADE_MEMORY'
 }>
 
+type MutableTradeMemoryRecord={-readonly [K in keyof TradeMemoryRecord]:TradeMemoryRecord[K]}
+
 export interface TradeMemoryStore{
   get(tradeId:string):Promise<TradeMemoryRecord|undefined>|TradeMemoryRecord|undefined
   put(record:TradeMemoryRecord):Promise<void>|void
@@ -112,7 +114,7 @@ export class TradeMemoryProjector{
       authority:'SHARED_TRADE_MEMORY' as const,
     })
 
-    const next:TradeMemoryRecord={
+    const next:MutableTradeMemoryRecord={
       ...base,
       tokenAddress:base.tokenAddress??event.payload.tokenAddress,
       events:Object.freeze([...base.events,item]),
@@ -133,7 +135,7 @@ export class TradeMemoryProjector{
     if(event.type==='EXITED')next.exited=item
     if(event.type==='TRADE_REVIEWED')next.review=item
 
-    const frozen=Object.freeze(next)
+    const frozen=Object.freeze(next) as TradeMemoryRecord
     await this.store.put(frozen)
     return frozen
   }
