@@ -41,9 +41,16 @@ const intent=(leg:'ENTRY'|'EXIT'):DexSwapIntent=>createApprovedDexSwapIntent({
   inputAmountAtomic:leg==='ENTRY'?1000000n:500000n,minimumOutputAtomic:leg==='ENTRY'?500000n:990000n,notionalMinor:1000n,currency:'USD',idempotencyKey:'idem:'+leg.toLowerCase(),
   informationCutoff:'2026-09-27T20:29:59Z',evidenceIds:['shark:'+leg]
  },
- approval:{
-  sharkAssessmentId:'assessment:1',thesisId:'thesis:1',edgeDecisionBundleHash:'edge-bundle:1',integrityGuardHash:'integrity:1',
-  moneyRiskDecisionId:'risk:'+leg.toLowerCase(),approvedAt:'2026-09-27T20:30:00Z',authority:'MONEY_RISK_APPROVAL_BINDING'
+ governance:{
+  sharkAssessmentId:'assessment:1',
+  thesisId:'thesis:1',
+  edgeDecisionBundle,
+  integrityGuard:integrity,
+  moneyRisk:{
+   riskDecisionId:'risk:'+leg.toLowerCase(),disposition:'APPROVE',reasonCodes:[],evidenceIds:['risk:'+leg.toLowerCase()+':e'],
+   evaluatedAt:'2026-09-27T20:30:00Z',authority:'MONEY_RISK_DECISION',canExecute:false,
+  },
+  approvedAt:'2026-09-27T20:30:00Z',
  }
 })
 const edgeDecisionBundle:EdgeDecisionBundleReceipt={
