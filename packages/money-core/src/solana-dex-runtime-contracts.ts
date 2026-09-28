@@ -18,6 +18,7 @@ export type DexExecutionApprovalBinding=Readonly<{
 
 export type DexSwapIntent=Readonly<{
  executionId:string
+ tradeId:string
  requestId:string
  runLineageId:string
  userId:string
@@ -217,6 +218,7 @@ export type DexExecutionLifecycleEventType='TX_SIMULATED'|'TX_SIGNED'|'TX_SENT'|
 
 export type DexExecutionLifecycleEvent=Readonly<{
  type:DexExecutionLifecycleEventType
+ tradeId:string
  executionId:string
  runLineageId:string
  strategyId:string
@@ -278,6 +280,7 @@ export function assertDexExecutionApprovalBinding(binding:DexExecutionApprovalBi
 export function assertDexSwapIntent(intent:DexSwapIntent):void{
  for(const [value,code] of [
   [intent.executionId,'DEX_COMMISSION_EXECUTION_ID_REQUIRED'],
+  [intent.tradeId,'DEX_COMMISSION_TRADE_ID_REQUIRED'],
   [intent.requestId,'DEX_COMMISSION_REQUEST_ID_REQUIRED'],
   [intent.runLineageId,'DEX_COMMISSION_LINEAGE_REQUIRED'],
   [intent.userId,'DEX_COMMISSION_USER_REQUIRED'],
