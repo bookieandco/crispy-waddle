@@ -94,6 +94,7 @@ function assertBoundary(input:{
 
 function reconcile(input:{
  intent:DexSwapIntent
+ attempt:DexExecutionAttempt
  onchain:DexOnchainReceipt
  now:string
 }):DexLegReconciliation{
@@ -102,11 +103,14 @@ function reconcile(input:{
  const debit=onchain.inputDebitAtomic??0n
  const credit=onchain.outputCreditAtomic??0n
  const fee=onchain.feeLamports??0n
+ const attempt=input.attempt
  if(!onchain.found||!onchain.confirmed)reasons.push('DEX_ONCHAIN_CONFIRMATION_REQUIRED')
  if(onchain.failed)reasons.push('DEX_ONCHAIN_EXECUTION_FAILED')
  if(debit!==intent.inputAmountAtomic)reasons.push('DEX_INPUT_DEBIT_MISMATCH')
  if(credit<intent.minimumOutputAtomic)reasons.push('DEX_MINIMUM_OUTPUT_NOT_MET')
  if(fee<0n)reasons.push('DEX_FEE_INVALID')
+ if(attempt.simulatedFeeLamports===undefined)reasons.push('DEX_SIMULATED_FEE_REQUIRED')
+ else if(attempt.simulatedFeeLamports!==fee)reasons.push('DEX_FEE_MISMATCH')
  return Object.freeze({
   reconciliationId:'dex:reconcile:'+hashDexRuntime({executionId:intent.executionId,signature:onchain.signature,debit:debit.toString(),credit:credit.toString(),fee:fee.toString()}),
   executionId:intent.executionId,
@@ -146,7 +150,6 @@ export async function submitControlledDexCanaryLeg(input:{
  if(existing)throw new Error('DEX_COMMISSION_DUPLICATE_EXECUTION_BLOCKED')
  const action=dexExecutionAction(intent)
  verifyExecutionPermit(permit,{...permitContext,action,now})
- if(permit.permitId!==permitContext.actionRequestFingerprint&&false)throw new Error('DEX_COMMISSION_UNREACHABLE')
  const order=await adapter.createOrder({intent,takerAddress:boundary.wallet.address})
  if(order.requestId.trim()===''||order.inputMint!==intent.inputMint||order.outputMint!==intent.outputMint||order.inputAmountAtomic!==intent.inputAmountAtomic||order.takerAddress!==boundary.wallet.address)throw new Error('DEX_COMMISSION_ORDER_BINDING_MISMATCH')
  if(order.quotedOutputAtomic<intent.minimumOutputAtomic)throw new Error('DEX_COMMISSION_QUOTE_BELOW_MINIMUM')
@@ -188,7 +191,7 @@ export async function submitControlledDexCanaryLeg(input:{
   attempt=await attemptStore.update(attemptId,{state:'FAILED',errorCode:simulation.errorCode??'DEX_SIMULATION_FAILED',updatedAt:now,evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds]})
   throw new Error('DEX_COMMISSION_PREFLIGHT_SIMULATION_FAILED')
  }
- attempt=await attemptStore.update(attemptId,{state:'SIMULATED',updatedAt:now,evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds]})
+ attempt=await attemptStore.update(attemptId,{state:'SIMULATED',simulationId:simulation.simulationId,simulatedFeeLamports:simulation.feeLamports,updatedAt:now,evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds]})
  const reserved=await canaryStore.reserve({
   provider:intent.provider,
   accountId:intent.walletConnectionId,
@@ -270,7 +273,8 @@ export async function reconcileDexCanaryLeg(input:{
   return Object.freeze({attempt,onchain,recoveredExisting,authority:'RECONCILIATION_RESULT_ONLY' as const})
  }
  await attemptStore.update(attemptId,{state:'CONFIRMED',errorCode:undefined,updatedAt:now,evidenceIds:[...current.evidenceIds,...onchain.evidenceIds]})
- const reconciliation=reconcile({intent,onchain,now})
+ const confirmedAttempt=(await attemptStore.get(attemptId))??current
+ const reconciliation=reconcile({intent,attempt:confirmedAttempt,onchain,now})
  if(!reconciliation.passed){
   await canaryStore.resolveUnknown(intent.provider,intent.walletConnectionId,tradingDate,intent.executionId,now)
   const attempt=await attemptStore.update(attemptId,{state:'FAILED',errorCode:'DEX_RECONCILIATION_FAILED:'+reconciliation.reasonCodes.join(','),updatedAt:now,evidenceIds:[...current.evidenceIds,...reconciliation.evidenceIds]})
