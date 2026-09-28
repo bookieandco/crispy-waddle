@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   assessProofSprint,
+  assessRecurringOffer,
   createCommercialValidationTest,
   createMarketLearning,
   createOfferCanvas,
@@ -139,5 +140,38 @@ const incompleteCoverage = assessProofSprint({
 })
 
 assert.equal(incompleteCoverage.decision, 'inconclusive')
+
+
+const recurringBlocked = assessRecurringOffer({
+  continuingValue: [{
+    dimension: 'continuing_education',
+    description: 'new implementation guidance',
+    evidenceRefs: ['community:updates'],
+  }],
+  minimumDistinctDimensions: 2,
+  memberOutcomeEvidenceRefs: [],
+  supportCapacityEvidenceRefs: [],
+})
+assert.equal(recurringBlocked.supported, false)
+
+const recurringSupported = assessRecurringOffer({
+  continuingValue: [
+    {
+      dimension: 'continuing_education',
+      description: 'new implementation guidance',
+      evidenceRefs: ['community:updates'],
+    },
+    {
+      dimension: 'implementation_support',
+      description: 'ongoing office hours and troubleshooting',
+      evidenceRefs: ['community:support'],
+    },
+  ],
+  minimumDistinctDimensions: 2,
+  memberOutcomeEvidenceRefs: ['community:member-outcomes'],
+  supportCapacityEvidenceRefs: ['community:support-capacity'],
+})
+assert.equal(recurringSupported.supported, true)
+assert.equal(recurringSupported.authority, 'ANALYSIS_ONLY')
 
 console.log('commercial-learning tests passed')
