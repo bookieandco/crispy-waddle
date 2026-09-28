@@ -92,9 +92,9 @@ Must prove:
 
 ### Stage 4 — Controlled live canary
 
-Static or synthetic tests cannot certify this stage.
+Static or synthetic tests cannot certify this stage. Even a structurally complete Stage 4 evidence object remains non-operational until a separately bound verification receipt is produced by the commissioned DEX runtime after checking provider and on-chain evidence.
 
-Operational certification requires live-runtime-attested evidence proving the same strategy/instrument lineage that passed stages 1–3, including:
+Operational certification requires that commissioned-runtime verification receipt plus live-runtime evidence proving the same strategy/instrument lineage that passed stages 1–3, including:
 
 - isolated Coffer wallet/signer binding;
 - EDGE-007 PASS;
@@ -110,9 +110,10 @@ Operational certification requires live-runtime-attested evidence proving the sa
 - kill switch proven;
 - modeled versus realized execution costs reconciled;
 - provider execution receipts for both legs;
-- exactly two on-chain signatures, one per leg.
+- exactly two on-chain signatures, one per leg;
+- a post-run verification receipt bound to the Stage 4 evidence hash, Coffer wallet connection, lineage, distinct entry/exit execution IDs, provider receipts and both on-chain signatures.
 
-A successful controlled canary still sets `unrestrictedLiveAuthorized=false`.
+A successful controlled canary still sets `unrestrictedLiveAuthorized=false`. A unit test or caller-provided `origin="LIVE_RUNTIME_ATTESTED"` string is never enough by itself to make the report operationally certified.
 
 ## Current repository truth
 
