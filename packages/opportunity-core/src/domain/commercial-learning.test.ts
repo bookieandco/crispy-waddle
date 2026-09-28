@@ -98,4 +98,46 @@ assert.equal(assessment.decision, 'proven')
 assert.equal(assessment.authorizationEffect, 'NONE')
 assert.deepEqual(assessment.evidenceRefs, ['stripe-receipt:1'])
 
+
+const secondTest = createCommercialValidationTest({
+  id: 'validation:2',
+  opportunityId: 'opportunity:1',
+  hypothesis: 'a second channel can produce buyer intent',
+  targetCustomer: 'local service businesses',
+  offer: 'one-week content pilot',
+  channel: 'local workshop',
+  ask: 'book a paid pilot',
+  expectedCommitment: 'behavioral',
+  maxSpend: 50,
+  currency: 'usd',
+  maxHours: 5,
+  minimumObservations: 1,
+  successMetric: 'booked_pilots',
+  successThreshold: 1,
+  evidenceRefs: ['offer-canvas:1'],
+  createdAt: now,
+})
+
+const multiTestSprint = createProofSprint({
+  id: 'proof-sprint:2',
+  opportunityId: 'opportunity:1',
+  question: 'will either of the planned channels create a real commitment?',
+  primaryUncertainty: 'channel fit',
+  validationTestIds: [test.id, secondTest.id],
+  maxSpend: 100,
+  currency: 'usd',
+  maxHours: 10,
+  maxDurationDays: 14,
+  successCommitmentLevel: 'repeat',
+  createdAt: now,
+})
+
+const incompleteCoverage = assessProofSprint({
+  sprint: multiTestSprint,
+  learnings: [learning, { ...learning, id: 'learning:duplicate-same-test' }],
+  assessedAt: '2026-09-29T18:30:00.000Z',
+})
+
+assert.equal(incompleteCoverage.decision, 'inconclusive')
+
 console.log('commercial-learning tests passed')
