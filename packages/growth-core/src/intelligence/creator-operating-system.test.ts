@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   assessAudienceOwnership,
   assessCreatorAutomationEligibility,
+  assessFounderDependency,
+  assessHandoffReadiness,
+  assessOperationalIndependence,
   assessProductRelevance,
   buildWorkToContentCandidate,
   detectFunnelBottleneck,
@@ -83,6 +86,55 @@ describe('creator operating system', () => {
     expect(result.mode).toBe('no_product')
     expect(result.allowed).toBe(true)
   })
+
+  it('measures founder dependency without treating it as authorization', () => {
+    const profile = {
+      identity: 0.1,
+      voice: 0.2,
+      relationships: 0.2,
+      taste: 0.3,
+      research: 0.2,
+      approval: 0.2,
+      dailyOperations: 0.1,
+      evidenceRefs: ['ops:founder-dependency'],
+    } as const
+    expect(assessFounderDependency(profile)).toBeCloseTo(0.1857, 4)
+    const result = assessOperationalIndependence({
+      profile,
+      founderHoursPerWeek: 1,
+      operatorRunnableMaxDependency: 0.4,
+      ownerLevelMaxDependency: 0.2,
+      ownerLevelMaxHoursPerWeek: 2,
+    })
+    expect(result.independenceState).toBe('owner_level')
+    expect(result.authority).toBe('ANALYSIS_ONLY')
+  })
+
+  it('requires a real independent operator trial before handoff readiness', () => {
+    const blocked = assessHandoffReadiness({
+      workflowEvidenceRefs: ['workflow:1'],
+      qualityStandardEvidenceRefs: ['quality:1'],
+      exampleEvidenceRefs: ['examples:1'],
+      escalationRuleEvidenceRefs: ['escalation:1'],
+      operatorTrialEvidenceRefs: [],
+      founderCorrectionRate: 0.1,
+      maximumFounderCorrectionRate: 0.2,
+    })
+    expect(blocked.ready).toBe(false)
+
+    const ready = assessHandoffReadiness({
+      workflowEvidenceRefs: ['workflow:1'],
+      qualityStandardEvidenceRefs: ['quality:1'],
+      exampleEvidenceRefs: ['examples:1'],
+      escalationRuleEvidenceRefs: ['escalation:1'],
+      operatorTrialEvidenceRefs: ['trial:1'],
+      founderCorrectionRate: 0.1,
+      maximumFounderCorrectionRate: 0.2,
+    })
+    expect(ready.ready).toBe(true)
+    expect(ready.authorizationEffect).toBe('NONE')
+  })
+
 
   it('requires evidence for channel role assignments', () => {
     expect(() => validateChannelRoleAssignment({
