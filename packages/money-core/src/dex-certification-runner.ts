@@ -7,6 +7,7 @@ import {
  type DexLiveCanaryVerificationReceipt,
 } from './dex-four-stage-certification.js'
 import type { CofferCommissionFinalReport } from './coffer-commission-final.js'
+import type { DexRouterFinalReport } from './dex-router-final.js'
 
 export type DexStageRunClass='REAL_RUNTIME'|'TEST_FIXTURE'
 
@@ -90,6 +91,7 @@ export async function runDexExecutionSequence(input:{
  historicalReplay:DexStageExecutor
  liveShadow:DexStageExecutor
  signedSimulation:DexStageExecutor
+ routerCommission?:DexRouterFinalReport
  cofferCommission?:CofferCommissionFinalReport
  controlledLiveCanary?:DexControlledCanaryExecutor
 }):Promise<DexExecutionSequenceReport>{
@@ -101,6 +103,37 @@ export async function runDexExecutionSequence(input:{
  const stages:DexExecutionStageEvidence[]=[]
  const realRuntimeStages:DexExecutionStage[]=[]
  const blockers:string[]=[]
+ const routerReady=Boolean(
+  input.routerCommission?.passed===true&&
+  input.routerCommission.status==='DEX_ROUTER_COMMISSIONED'&&
+  input.routerCommission.jupiterPrimaryVerified===true&&
+  input.routerCommission.raydiumDirectVerified===true&&
+  input.routerCommission.meteoraDirectVerified===true&&
+  input.routerCommission.unrestrictedLiveAuthorized===false,
+ )
+ const coffer=input.cofferCommission
+ const cofferReady=Boolean(
+  coffer?.passed===true&&
+  coffer.status==='COFFER_COMMISSIONED'&&
+  coffer.operationalEvidence===true&&
+  coffer.unrestrictedLiveAuthorized===false,
+ )
+ if(!routerReady)blockers.push('DEX_SEQUENCE_ROUTER_COMMISSION_REQUIRED')
+ if(!cofferReady)blockers.push('DEX_SEQUENCE_COFFER_COMMISSION_REQUIRED')
+ if(blockers.length){
+  const ladder=certifyDexExecutionLadder({stages:[]})
+  return Object.freeze({
+   status:'BLOCKED_BEFORE_CANARY' as const,
+   stages:Object.freeze([]),
+   ladder,
+   blockerCodes:unique(blockers),
+   realRuntimeStages:Object.freeze([]),
+   controlledLiveCanaryAttempted:false,
+   unrestrictedLiveAuthorized:false as const,
+   authority:'CERTIFICATION_ORCHESTRATION_ONLY' as const,
+   canAuthorizeTrade:false as const,
+  })
+ }
 
  for(let i=0;i<executors.length;i++){
   const expected=PRE_CANARY[i]!
@@ -124,20 +157,12 @@ export async function runDexExecutionSequence(input:{
  const firstThreeOperational=PRE_CANARY.every(stage=>realRuntimeStages.includes(stage))
  if(!firstThreeOperational)blockers.push('DEX_SEQUENCE_PRE_CANARY_REAL_RUNTIME_REQUIRED')
 
- const coffer=input.cofferCommission
- const cofferReady=Boolean(
-  coffer?.passed===true&&
-  coffer.status==='COFFER_COMMISSIONED'&&
-  coffer.operationalEvidence===true&&
-  coffer.unrestrictedLiveAuthorized===false,
- )
- if(!cofferReady)blockers.push('DEX_SEQUENCE_COFFER_COMMISSION_REQUIRED')
  if(!input.controlledLiveCanary)blockers.push('DEX_SEQUENCE_CONTROLLED_CANARY_EXECUTOR_REQUIRED')
 
- if(!firstThreeOperational||!cofferReady||!input.controlledLiveCanary){
+ if(!firstThreeOperational||!input.controlledLiveCanary){
   const uniqueBlockers=unique(blockers)
   return Object.freeze({
-   status:firstThreeOperational&&cofferReady?'READY_FOR_CONTROLLED_LIVE_CANARY' as const:'BLOCKED_BEFORE_CANARY' as const,
+   status:firstThreeOperational?'READY_FOR_CONTROLLED_LIVE_CANARY' as const:'BLOCKED_BEFORE_CANARY' as const,
    stages:Object.freeze([...stages]),
    ladder:firstThreeLadder,
    blockerCodes:uniqueBlockers,
