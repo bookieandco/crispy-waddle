@@ -254,7 +254,7 @@ export async function reconcileDexCanaryLeg(input:{
  const current=await attemptStore.get(attemptId)
  if(!current||current.executionId!==intent.executionId||current.idempotencyKey!==intent.idempotencyKey)throw new Error('DEX_COMMISSION_RECOVERY_ATTEMPT_BINDING_MISMATCH')
  if(!['SUBMITTED','UNKNOWN','CONFIRMED','RECONCILED'].includes(current.state))throw new Error('DEX_COMMISSION_RECOVERY_STATE_INVALID')
- const recoveredExisting=current.state==='UNKNOWN'||current.state==='CONFIRMED'||current.state==='RECONCILED'
+ const recoveredExisting=true
  const onchain=await chain.observeSwap({
   signature:current.primarySignature,
   walletAddress:boundary.wallet.address,
