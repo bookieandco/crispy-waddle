@@ -87,6 +87,29 @@ export type ProofSprint = {
   authority: 'PLANNING_ONLY'
 }
 
+
+export type RecurringValueDimension =
+  | 'continuing_education'
+  | 'implementation_support'
+  | 'peer_network'
+  | 'expert_access'
+  | 'opportunity_access'
+  | 'product_updates'
+
+export type RecurringValueEvidence = {
+  dimension: RecurringValueDimension
+  evidenceRefs: readonly string[]
+  description: string
+}
+
+export type RecurringOfferAssessment = {
+  supported: boolean
+  dimensions: readonly RecurringValueDimension[]
+  blockers: readonly string[]
+  evidenceRefs: readonly string[]
+  authority: 'ANALYSIS_ONLY'
+}
+
 export type ProofSprintAssessment = {
   sprintId: string
   opportunityId: string
@@ -308,6 +331,48 @@ export function assessProofSprint(input: {
     reasons: Object.freeze(reasons),
     assessedAt: input.assessedAt,
     authorizationEffect: 'NONE',
+  })
+}
+
+
+export function assessRecurringOffer(input: {
+  continuingValue: readonly RecurringValueEvidence[]
+  minimumDistinctDimensions: number
+  memberOutcomeEvidenceRefs: readonly string[]
+  supportCapacityEvidenceRefs: readonly string[]
+}): RecurringOfferAssessment {
+  if (!Number.isInteger(input.minimumDistinctDimensions) || input.minimumDistinctDimensions < 1) {
+    throw new Error('RECURRING_VALUE_MINIMUM_DIMENSIONS_INVALID')
+  }
+  const dimensions = unique(input.continuingValue.map((item) => item.dimension)) as RecurringValueDimension[]
+  const refs: string[] = []
+  const blockers: string[] = []
+
+  for (const item of input.continuingValue) {
+    requireText(item.description, 'recurringValue.description')
+    requireEvidence(item.evidenceRefs, `recurring value ${item.dimension}`)
+    refs.push(...item.evidenceRefs)
+  }
+  if (dimensions.length < input.minimumDistinctDimensions) {
+    blockers.push('Recurring offer does not yet have enough distinct continuing-value dimensions.')
+  }
+  if (!input.memberOutcomeEvidenceRefs.length) {
+    blockers.push('Member/customer outcome evidence is missing.')
+  } else {
+    refs.push(...input.memberOutcomeEvidenceRefs)
+  }
+  if (!input.supportCapacityEvidenceRefs.length) {
+    blockers.push('Ongoing support capacity evidence is missing.')
+  } else {
+    refs.push(...input.supportCapacityEvidenceRefs)
+  }
+
+  return Object.freeze({
+    supported: blockers.length === 0,
+    dimensions: Object.freeze(dimensions),
+    blockers: Object.freeze(blockers),
+    evidenceRefs: Object.freeze(unique(refs)),
+    authority: 'ANALYSIS_ONLY',
   })
 }
 
