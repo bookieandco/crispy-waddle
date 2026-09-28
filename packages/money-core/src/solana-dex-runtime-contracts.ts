@@ -5,6 +5,17 @@ import type { SignerLease, SignerLeasePolicy, SignerRollingObservation } from '.
 
 export type DexCanaryLeg='ENTRY'|'EXIT'
 
+export type DexExecutionApprovalBinding=Readonly<{
+ sharkAssessmentId:string
+ thesisId:string
+ edgeDecisionBundleHash:string
+ integrityGuardHash:string
+ moneyRiskDecisionId:string
+ approvedAt:string
+ authority:'MONEY_RISK_APPROVAL_BINDING'
+ bindingHash:string
+}>
+
 export type DexSwapIntent=Readonly<{
  executionId:string
  requestId:string
@@ -24,6 +35,7 @@ export type DexSwapIntent=Readonly<{
  currency:string
  idempotencyKey:string
  informationCutoff:string
+ approval:DexExecutionApprovalBinding
  evidenceIds:readonly string[]
  authority:'MONEY_EXECUTION_INTENT'
 }>
@@ -54,6 +66,17 @@ export type DexSignedTransaction=Readonly<{
  authority:'SIGNER_OUTPUT_ONLY'
  containsPrivateKey:false
  containsRawToken:false
+}>
+
+export type DexUnsignedSimulationReceipt=Readonly<{
+ simulationId:string
+ passed:boolean
+ errorCode?:string
+ unitsConsumed?:number
+ logs:readonly string[]
+ observedAt:string
+ evidenceIds:readonly string[]
+ authority:'CHAIN_PREFLIGHT_EVIDENCE'
 }>
 
 export type DexSimulationReceipt=Readonly<{
@@ -179,6 +202,7 @@ export interface CofferSignerAdapter{
 }
 
 export interface SolanaChainObserver{
+ simulateUnsignedTransaction(input:{unsignedTransactionBase64:string;now:string}):Promise<DexUnsignedSimulationReceipt>
  simulateSignedTransaction(input:{signedTransactionBase64:string;primarySignature:string;now:string}):Promise<DexSimulationReceipt>
  observeSwap(input:{
   signature:string
@@ -187,6 +211,25 @@ export interface SolanaChainObserver{
   outputMint:string
   now:string
  }):Promise<DexOnchainReceipt>
+}
+
+export type DexExecutionLifecycleEventType='TX_SIMULATED'|'TX_SIGNED'|'TX_SENT'|'FILLED'
+
+export type DexExecutionLifecycleEvent=Readonly<{
+ type:DexExecutionLifecycleEventType
+ executionId:string
+ runLineageId:string
+ strategyId:string
+ instrumentId:string
+ leg:DexCanaryLeg
+ occurredAt:string
+ evidenceIds:readonly string[]
+ details:Readonly<Record<string,unknown>>
+ authority:'EXECUTION_TELEMETRY_ONLY'
+}>
+
+export interface DexExecutionEventSink{
+ publish(event:DexExecutionLifecycleEvent):Promise<void>|void
 }
 
 export type DexCommissioningBoundary=Readonly<{
@@ -199,6 +242,34 @@ export type DexCommissioningBoundary=Readonly<{
 
 export function hashDexRuntime(value:unknown):string{
  return createHash('sha256').update(JSON.stringify(value,(_,x)=>typeof x==='bigint'?x.toString():x)).digest('hex')
+}
+
+export function createDexExecutionApprovalBinding(input:Omit<DexExecutionApprovalBinding,'bindingHash'>):DexExecutionApprovalBinding{
+ const bindingHash=hashDexRuntime({
+  sharkAssessmentId:input.sharkAssessmentId,
+  thesisId:input.thesisId,
+  edgeDecisionBundleHash:input.edgeDecisionBundleHash,
+  integrityGuardHash:input.integrityGuardHash,
+  moneyRiskDecisionId:input.moneyRiskDecisionId,
+  approvedAt:input.approvedAt,
+  authority:input.authority,
+ })
+ return Object.freeze({...input,bindingHash})
+}
+
+export function assertDexExecutionApprovalBinding(binding:DexExecutionApprovalBinding):void{
+ for(const [value,code] of [
+  [binding.sharkAssessmentId,'DEX_APPROVAL_SHARK_ASSESSMENT_REQUIRED'],
+  [binding.thesisId,'DEX_APPROVAL_THESIS_REQUIRED'],
+  [binding.edgeDecisionBundleHash,'DEX_APPROVAL_EDGE_BUNDLE_REQUIRED'],
+  [binding.integrityGuardHash,'DEX_APPROVAL_INTEGRITY_REQUIRED'],
+  [binding.moneyRiskDecisionId,'DEX_APPROVAL_MONEY_RISK_REQUIRED'],
+  [binding.bindingHash,'DEX_APPROVAL_BINDING_HASH_REQUIRED'],
+ ] as const) if(!value.trim())throw new Error(code)
+ if(binding.authority!=='MONEY_RISK_APPROVAL_BINDING')throw new Error('DEX_APPROVAL_AUTHORITY_INVALID')
+ if(Number.isNaN(Date.parse(binding.approvedAt)))throw new Error('DEX_APPROVAL_TIME_INVALID')
+ const expected=createDexExecutionApprovalBinding({...binding,bindingHash:undefined} as never).bindingHash
+ if(expected!==binding.bindingHash)throw new Error('DEX_APPROVAL_BINDING_HASH_MISMATCH')
 }
 
 export function assertDexSwapIntent(intent:DexSwapIntent):void{
@@ -220,6 +291,8 @@ export function assertDexSwapIntent(intent:DexSwapIntent):void{
  if(intent.inputMint===intent.outputMint)throw new Error('DEX_COMMISSION_IDENTICAL_MINTS')
  if(intent.inputAmountAtomic<=0n||intent.minimumOutputAtomic<=0n||intent.notionalMinor<=0n)throw new Error('DEX_COMMISSION_AMOUNT_INVALID')
  if(Number.isNaN(Date.parse(intent.informationCutoff)))throw new Error('DEX_COMMISSION_CUTOFF_INVALID')
+ assertDexExecutionApprovalBinding(intent.approval)
+ if(intent.approval.approvedAt<intent.informationCutoff)throw new Error('DEX_APPROVAL_BEFORE_INFORMATION_CUTOFF')
  if(!intent.evidenceIds.length)throw new Error('DEX_COMMISSION_EVIDENCE_REQUIRED')
 }
 
