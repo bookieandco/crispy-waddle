@@ -61,7 +61,7 @@ export type SocialPlatformReceipt = {
   platform: SocialPlatform
   accountId: string
   provider: string
-  providerPostId: string
+  providerPostId?: string
   finalUrl?: string
   state: 'submitted' | 'published' | 'failed' | 'unknown'
   captionVersion: string
@@ -184,7 +184,9 @@ export function validateSocialPlatformReceipt(
   requireText(receipt.assetId, 'receipt.assetId')
   requireText(receipt.accountId, 'receipt.accountId')
   requireText(receipt.provider, 'receipt.provider')
-  requireText(receipt.providerPostId, 'receipt.providerPostId')
+  if ((receipt.state === 'submitted' || receipt.state === 'published') && !receipt.providerPostId?.trim()) {
+    throw new Error('SOCIAL_RECEIPT_PROVIDER_POST_ID_REQUIRED')
+  }
   requireText(receipt.captionVersion, 'receipt.captionVersion')
   requireText(receipt.assetVersion, 'receipt.assetVersion')
   requireEvidence(receipt.evidenceRefs, 'platform receipt')
