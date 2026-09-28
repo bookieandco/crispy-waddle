@@ -303,3 +303,69 @@ export function createMechanicalDexExecutionEventSink(input:{
     },
   })
 }
+
+
+export type DomainTradeStageEmission=Readonly<{
+  type:'TOKEN_DISCOVERED'|'SHARK_ANALYZED'|'THESIS_CREATED'|'RISK_APPROVED'|'ORDER_INTENT_CREATED'|'POSITION_MONITORED'|'EXITED'|'TRADE_REVIEWED'
+  tradeId:string
+  runLineageId:string
+  strategyId:string
+  instrumentId:string
+  tokenAddress?:string
+  leg:TradeLeg
+  occurredAt:string
+  evidenceIds:readonly string[]
+  details:Readonly<Record<string,unknown>>
+  domain:'SHARK'|'MONEY'
+  authority:'TRADE_STAGE_EVENT_ONLY'
+}>
+
+export function createDomainTradeStageEventSink(input:{
+  bus:EventBus
+  workSessionId:string
+  correlationId:string
+  actorId?:string
+  authorityRef?:string
+}):Readonly<{publish(event:DomainTradeStageEmission):Promise<void>}>{
+  return Object.freeze({
+    publish:async(event:DomainTradeStageEmission)=>{
+      if(event.authority!=='TRADE_STAGE_EVENT_ONLY')throw new Error('TRADE_EVENT_STAGE_AUTHORITY_INVALID')
+      const detailIdentity=String(
+        event.details.assessmentId??
+        event.details.thesisId??
+        event.details.riskDecisionId??
+        event.details.intentId??
+        event.details.positionDecisionId??
+        event.details.exitIntentId??
+        event.details.reviewId??
+        event.occurredAt
+      )
+      const id=`trade:${event.tradeId}:${event.type}:${event.leg}:${detailIdentity}`
+      await publishTradeStageEvent({
+        bus:input.bus,
+        id,
+        type:event.type,
+        occurredAt:event.occurredAt,
+        payload:{
+          tradeId:event.tradeId,
+          runLineageId:event.runLineageId,
+          strategyId:event.strategyId,
+          instrumentId:event.instrumentId,
+          tokenAddress:event.tokenAddress,
+          leg:event.leg,
+          evidenceIds:event.evidenceIds,
+          details:event.details,
+        },
+        context:{
+          workSessionId:input.workSessionId,
+          correlationId:input.correlationId,
+          actorId:input.actorId,
+          domain:event.domain,
+          capability:event.domain==='SHARK'?'shark.trade.intelligence':'money.trade.govern',
+          authorityRef:input.authorityRef,
+          idempotencyKey:id,
+        },
+      })
+    },
+  })
+}
