@@ -93,7 +93,8 @@ export type ClosedMemeTradeLearningRecord=Readonly<{
 
 const hash=(value:unknown)=>createHash('sha256').update(JSON.stringify(value,(_,item)=>typeof item==='bigint'?item.toString():item)).digest('hex')
 const iso=(value:string,code:string)=>{if(!value.trim()||Number.isNaN(Date.parse(value)))throw new Error(code)}
-const bps=(value:number,code:string)=>{if(!Number.isInteger(value)||value<-10000||value>10000)throw new Error(code)}
+const slippageBps=(value:number,code:string)=>{if(!Number.isInteger(value)||value<-10000||value>10000)throw new Error(code)}
+const returnBps=(value:number,code:string)=>{if(!Number.isInteger(value)||value<-10000||value>100000000)throw new Error(code)}
 const confidence=(value:number)=>{if(!Number.isInteger(value)||value<0||value>10000)throw new Error('SHARK_TRADE_LEARNING_SIGNAL_CONFIDENCE_INVALID')}
 const unique=(values:readonly string[])=>Object.freeze([...new Set(values)].sort())
 
@@ -107,9 +108,9 @@ export function createClosedMemeTradeLearningRecord(input:ClosedMemeTradeLearnin
   [input.modeledSlippageBps,'SHARK_TRADE_LEARNING_MODELED_SLIPPAGE_INVALID'],
   [input.realizedEntrySlippageBps,'SHARK_TRADE_LEARNING_ENTRY_SLIPPAGE_INVALID'],
   [input.realizedExitSlippageBps,'SHARK_TRADE_LEARNING_EXIT_SLIPPAGE_INVALID'],
-  [input.grossReturnBps,'SHARK_TRADE_LEARNING_GROSS_RETURN_INVALID'],
-  [input.netReturnBps,'SHARK_TRADE_LEARNING_NET_RETURN_INVALID'],
- ] as const)bps(value,code)
+ ] as const)slippageBps(value,code)
+ returnBps(input.grossReturnBps,'SHARK_TRADE_LEARNING_GROSS_RETURN_INVALID')
+ returnBps(input.netReturnBps,'SHARK_TRADE_LEARNING_NET_RETURN_INVALID')
  if(!input.expectedNarrative.trim()||!input.observedNarrative.trim())throw new Error('SHARK_TRADE_LEARNING_NARRATIVE_REQUIRED')
  if(!input.signalOutcomes.length)throw new Error('SHARK_TRADE_LEARNING_SIGNAL_OUTCOME_REQUIRED')
  if(!input.originalEvidenceIds.length||!input.outcomeEvidenceIds.length)throw new Error('SHARK_TRADE_LEARNING_EVIDENCE_REQUIRED')
