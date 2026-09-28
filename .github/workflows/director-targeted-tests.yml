@@ -188,3 +188,8 @@ jobs:
         run: python -m unittest services/director-phantom/test_worker.py
       - name: Hunyuan worker contract
         run: python -m unittest services/director-hunyuan/test_worker.py
+      - name: Runpod Hunyuan shell contracts
+        run: >
+          bash -n scripts/runpod-agent-setup.sh &&
+          bash -n scripts/director-hunyuan-runpod-create.sh &&
+          bash -n scripts/director-hunyuan-runpod-bootstrap.sh
