@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { assertFundingRailAdmissionCertificate } from './funding-execution-contracts.js'
 import {
- assertFundingRailAdmissionCertificate,
  buildFundingRailAdmissionFromCertificate,
  certifyFundingRailControlledCanary,
  certifyFundingRailLive,
