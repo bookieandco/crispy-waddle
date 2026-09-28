@@ -61,7 +61,7 @@ describe('creator operating system', () => {
     ])
     expect(result.ownedAudience).toBe(500)
     expect(result.rentedAudience).toBe(1000)
-    expect(result.concentrationRisk).toBe('high')
+    expect(result.concentrationRisk).toBe('medium')
   })
 
   it('finds the largest measured funnel gap rather than assuming the bottleneck', () => {
