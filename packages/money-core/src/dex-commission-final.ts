@@ -14,6 +14,7 @@ type DexLiveCanaryVerificationReceipt,
  type Edge007IntegrityReceipt,
 } from './dex-four-stage-certification.js'
 import type { DexCanaryReconcileResult, DexCanarySubmitResult, DexRestartRecoveryProof } from './dex-controlled-canary-runtime.js'
+import { TRADING_EVENT_SEQUENCE, type TradeRecord } from '@jhadina/event-bus'
 import { hashDexRuntime, type DexSwapIntent, type SolanaDexExecutionProvider } from './solana-dex-runtime-contracts.js'
 
 export type DexCapitalBoundaryProof=Readonly<{
@@ -185,11 +186,15 @@ export function buildDexControlledLiveCanaryEvidence(input:{
  capitalProof:DexCapitalBoundaryProof
  recoveryProof:DexRestartRecoveryProof
  killSwitchProof:DexKillSwitchProof
+ tradeRecord:TradeRecord
  evidenceIds:readonly string[]
 }):DexExecutionStageEvidence{
  assertLegPair(input)
- const {entrySubmit,entryReconcile,exitSubmit,exitReconcile,capitalProof,recoveryProof,killSwitchProof}=input
+ const {entrySubmit,entryReconcile,exitSubmit,exitReconcile,capitalProof,recoveryProof,killSwitchProof,tradeRecord}=input
  const walletConnectionId=entrySubmit.attempt.walletConnectionId
+ if(tradeRecord.currentEvent!=='TRADE_REVIEWED'||tradeRecord.sequenceIndex!==TRADING_EVENT_SEQUENCE.length-1||!tradeRecord.completed||tradeRecord.positionOpen)throw new Error('DEX_COMMISSION_FINAL_TRADE_MEMORY_INCOMPLETE')
+ if(tradeRecord.runLineageId!==entrySubmit.attempt.runLineageId||tradeRecord.strategyId!==input.strategyId||tradeRecord.instrumentId!==input.instrumentId)throw new Error('DEX_COMMISSION_FINAL_TRADE_MEMORY_IDENTITY_MISMATCH')
+ if(tradeRecord.eventIds.length!==TRADING_EVENT_SEQUENCE.length)throw new Error('DEX_COMMISSION_FINAL_TRADE_MEMORY_SEQUENCE_INVALID')
  if(capitalProof.walletConnectionId!==walletConnectionId||killSwitchProof.walletConnectionId!==walletConnectionId)throw new Error('DEX_COMMISSION_FINAL_PROOF_WALLET_MISMATCH')
  if(![entrySubmit.attempt.attemptId,exitSubmit.attempt.attemptId].includes(recoveryProof.attemptId))throw new Error('DEX_COMMISSION_FINAL_RECOVERY_PROOF_MISMATCH')
  if(recoveryProof.recoveredState!=='RECONCILED'||killSwitchProof.reserveBlockedAfterHalt!==true||capitalProof.passed!==true)throw new Error('DEX_COMMISSION_FINAL_PROOF_INVALID')
@@ -206,6 +211,8 @@ export function buildDexControlledLiveCanaryEvidence(input:{
   ...capitalProof.evidenceIds,
   ...recoveryProof.evidenceIds,
   ...killSwitchProof.evidenceIds,
+  ...tradeRecord.evidenceIds,
+  'trade-record:'+tradeRecord.recordHash,
  ])
  if(!evidence.length)throw new Error('DEX_COMMISSION_FINAL_EVIDENCE_REQUIRED')
  return Object.freeze({
