@@ -51,7 +51,7 @@ class SpeakerQcWorkerTest(unittest.TestCase):
         normalized=wav()
         backend=FakeBackend([0.25,0.5,0.75])
         config=worker.SpeakerQcConfig(cache_dir=worker.Path("/tmp/unused"))
-        with patch("worker.normalize_audio",return_value=normalized):
+        with patch.object(worker,"normalize_audio",return_value=normalized):
             result=worker.fingerprint_audio(source,"audio/mpeg",backend,config)
         self.assertEqual(result["sourceSha256"],worker.sha256(source).hexdigest())
         self.assertEqual(result["embeddingDimensions"],3)
@@ -77,7 +77,7 @@ class SpeakerQcWorkerTest(unittest.TestCase):
                 return [1.0,0.0] if self.calls==1 else [0.8,0.6]
         backend=PairBackend()
         config=worker.SpeakerQcConfig(cache_dir=worker.Path("/tmp/unused"))
-        with patch("worker.normalize_audio",return_value=normalized):
+        with patch.object(worker,"normalize_audio",return_value=normalized):
             result=worker.verify_audio_pair(b"a","audio/mpeg",b"b","audio/mpeg",backend,config)
         self.assertAlmostEqual(result["similarity"],0.8,places=6)
         self.assertNotEqual(result["referenceSha256"],result["candidateSha256"])
@@ -86,7 +86,7 @@ class SpeakerQcWorkerTest(unittest.TestCase):
     def test_readiness_can_certify_injected_backend_without_loading_model(self):
         backend=FakeBackend([1,0])
         config=worker.SpeakerQcConfig(cache_dir=worker.Path("/tmp/unused"))
-        with patch("worker._ffmpeg_path",return_value="/usr/bin/ffmpeg"):
+        with patch.object(worker,"_ffmpeg_path",return_value="/usr/bin/ffmpeg"):
             result=worker.runtime_readiness(config,load_model=True,backend=backend)
         self.assertTrue(result["productionReady"])
         self.assertTrue(result["modelReady"])
