@@ -11,10 +11,10 @@ import type {
 export const BONEZ_PROJECT_ID='director:bonez:production-quality:v1';
 export const BONEZ_CHARACTER_ID='bonez';
 export const BONEZ_REFERENCE_ASSET_ID='director-ref:bonez:canonical:v1';
-export const BONEZ_REFERENCE_SHA256='31051fc7b4d62a7c5d844da64f740079acfdd28ff4289b062535481a815fa72b';
+export const BONEZ_REFERENCE_SHA256='bc3cf5b39b814eac4a18320ece12cc026d5607e1baa41e0355584efa050d89cc';
 export const BONEZ_ORIGINAL_UPLOAD_SHA256='f50dbd93ab245e9098fb7237c8149cf20c445fe22fdea9070741f38f43d9c881';
 export const BONEZ_PRODUCT_REFERENCE_ASSET_ID='director-ref:bonez:product-print:v1';
-export const BONEZ_PRODUCT_REFERENCE_SHA256='96c84530d213ad6cde0b87c4dedb845a9c1d9214927610a955da329396e838e8';
+export const BONEZ_PRODUCT_REFERENCE_SHA256='8e09332025a170adf956d726e2774cab7987ec6052644375960bf467bc2847ef';
 export const BONEZ_PRODUCT_ID='bonez-lair-art-print-v1';
 export const BONEZ_RIGHTS_REF='user-supplied-reference:bonez:2026-09-28';
 
