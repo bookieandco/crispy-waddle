@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   authorizeCompiledRestorationPlan,
   executeVerifiedRestoration,
+  evaluateRestorationGate,
   RestorationProvenanceLedger,
   RuntimeRestorationArtifactWriter,
   type MusicDirectorJudgment,
