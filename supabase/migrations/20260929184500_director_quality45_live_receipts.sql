@@ -9,7 +9,7 @@ create table if not exists public.director_live_take_qc_receipts (
   voice_identity_id text not null references public.director_voice_identities(id) on delete restrict,
   speaker_fingerprint_receipt_id text not null references public.director_speaker_fingerprint_receipts(id) on delete restrict,
   speaker_fingerprint_ref text not null,
-  provider_id text not null,
+  provider_id text not null check(lower(provider_id) not in ('director-certification-smoke','fixture','synthetic','mock','test')),
   model_id text not null,
   model_version text not null,
   provider_job_id text not null,
@@ -82,7 +82,7 @@ begin
 
   select * into output_row from public.director_generated_editing_assets where id=new.output_asset_id;
   if not found or output_row.project_id<>new.project_id or output_row.media_type<>'video'
-     or output_row.sha256<>new.output_sha256 or output_row.provider_id<>new.provider_id
+     or output_row.sha256 is distinct from new.output_sha256 or output_row.provider_id<>new.provider_id
      or coalesce(output_row.model_id,'')<>new.model_id then
     raise exception 'Director live take output authority mismatch';
   end if;
@@ -102,10 +102,27 @@ begin
   if not new.storage_verified or not new.production_provider then
     raise exception 'Director live take requires verified production media';
   end if;
-  if new.purpose='quality4-canary' and not new.qc_admissible then
+  if not (new.performance_evidence @> '{"movedAwayFromChair":true,"dialoguePerformed":true}'::jsonb) then
+    raise exception 'Director live take performance evidence incomplete';
+  end if;
+  if coalesce((new.performance_evidence->>'speakerSimilarity')::numeric,0) < 0.80
+     or coalesce((new.performance_evidence->>'lipSyncScore')::numeric,0) < 0.84 then
+    raise exception 'Director live take voice/performance QC below threshold';
+  end if;
+  if not coalesce((new.performance_evidence->'interactionRefs') ?& array['chair','microphone','set'],false) then
+    raise exception 'Director live take chair/microphone/set interaction evidence required';
+  end if;
+  if coalesce(new.performance_evidence->>'voiceIdentityId','')<>new.voice_identity_id
+     or coalesce(new.performance_evidence->>'speakerFingerprintReceiptId','')<>new.speaker_fingerprint_receipt_id
+     or coalesce(new.performance_evidence->>'speakerFingerprintRef','')<>new.speaker_fingerprint_ref then
+    raise exception 'Director live take performance lineage mismatch';
+  end if;
+  if new.purpose='quality4-canary'
+     and (not new.qc_admissible or new.expected_failure_observed or cardinality(new.qc_reasons)<>0) then
     raise exception 'Director QUALITY.4 receipt must represent a passed independent QC review';
   end if;
-  if new.purpose='quality5-stress' and (new.qc_admissible or not new.expected_failure_observed) then
+  if new.purpose='quality5-stress'
+     and (new.qc_admissible or not new.expected_failure_observed or cardinality(new.qc_reasons)=0) then
     raise exception 'Director QUALITY.5 stress receipt must preserve a real observed failure';
   end if;
   return new;
@@ -135,19 +152,26 @@ begin
   end if;
 
   select * into source_row from public.director_generated_editing_assets where id=new.source_asset_id;
-  if not found or source_row.id<>failure_row.output_asset_id or source_row.sha256<>new.source_sha256 then
+  if not found or source_row.id<>failure_row.output_asset_id or source_row.sha256 is distinct from new.source_sha256 then
     raise exception 'Director QUALITY.5 repair source mismatch';
   end if;
 
   select * into repaired_row from public.director_generated_editing_assets where id=new.repaired_asset_id;
   if not found or repaired_row.project_id<>new.project_id or repaired_row.media_type<>'video'
-     or repaired_row.sha256<>new.repaired_sha256 or repaired_row.provider_id<>new.provider_id
+     or repaired_row.sha256 is distinct from new.repaired_sha256 or repaired_row.provider_id<>new.provider_id
      or coalesce(repaired_row.model_id,'')<>new.model_id then
     raise exception 'Director QUALITY.5 repaired output authority mismatch';
   end if;
 
-  if new.source_sha256=new.repaired_sha256 or not new.qc_admissible then
+  if new.source_sha256=new.repaired_sha256 or not new.qc_admissible or cardinality(new.qc_reasons)<>0 then
     raise exception 'Director QUALITY.5 localized repair must change bytes and pass post-repair QC';
+  end if;
+  if not (new.preservation_evidence @> '{"identityPreserved":true,"cameraTimingPreserved":true,"unaffectedRegionsPreserved":true}'::jsonb) then
+    raise exception 'Director QUALITY.5 localized repair preservation evidence incomplete';
+  end if;
+  if jsonb_typeof(new.preservation_evidence->'preservedDirectiveIds')<>'array'
+     or jsonb_array_length(new.preservation_evidence->'preservedDirectiveIds')=0 then
+    raise exception 'Director QUALITY.5 preserved directives required';
   end if;
   return new;
 end;
