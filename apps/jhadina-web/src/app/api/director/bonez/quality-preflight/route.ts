@@ -25,28 +25,6 @@ function unique(items:string[]):string[]{
   return [...new Set(items)];
 }
 
-async function nativeVoiceReadiness(){
-  const base=(process.env.JHADINA_VOICE_URL??'').replace(/\/$/,'');
-  const token=process.env.JHADINA_VOICE_TOKEN??'';
-  if(!base||!token){
-    return {configured:false,native:false,status:'browser-fallback'};
-  }
-  try{
-    const response=await fetch(`${base}/health`,{signal:AbortSignal.timeout(12_000),cache:'no-store'});
-    const health=await response.json().catch(()=>({})) as Row;
-    const status=String(health.status??(response.ok?'reachable':'unavailable'));
-    const native=response.ok&&status==='ready'&&health.canonicalVoiceProfile==='jhadina:canonical';
-    return {configured:true,native,status,health};
-  }catch(cause){
-    return {
-      configured:true,
-      native:false,
-      status:'unavailable',
-      error:cause instanceof Error?cause.message:'VOICE_HEALTH_FAILED',
-    };
-  }
-}
-
 async function hunyuanReadiness(){
   const provider=createConfiguredDirectorHunyuanVideoProvider();
   if(!provider) return {configured:false,productionReady:false,status:'not-configured'};
@@ -169,9 +147,10 @@ export async function GET(request:Request){
   if(!validIdentities.length) q3Blockers.push('DIRECTOR_BONEZ_APPROVED_VOICE_IDENTITY_REQUIRED');
   const q3Passed=q3Blockers.length===0;
 
-  const [voiceRuntime,hunyuan]=await Promise.all([
-    nativeVoiceReadiness(),hunyuanReadiness(),
-  ]);
+  const hunyuan=await hunyuanReadiness();
+  const bonezVoiceRuntime=typeof data.bonezVoiceRuntime==='object'&&data.bonezVoiceRuntime
+    ?data.bonezVoiceRuntime as Row
+    :{configured:false,productionReady:false,status:'not-configured'};
   const speakerQcRuntime=typeof data.speakerQcRuntime==='object'&&data.speakerQcRuntime
     ?data.speakerQcRuntime as Row
     :{configured:false,productionReady:false,status:'not-configured'};
@@ -202,7 +181,7 @@ export async function GET(request:Request){
   const q4PrereqBlockers:string[]=[];
   if(!q2Passed) q4PrereqBlockers.push('DIRECTOR_QUALITY_2_REQUIRED');
   if(!q3Passed) q4PrereqBlockers.push('DIRECTOR_QUALITY_3_REQUIRED');
-  if(!voiceRuntime.native) q4PrereqBlockers.push('DIRECTOR_NATIVE_VOICE_RUNTIME_NOT_READY');
+  if(!bonezVoiceRuntime.productionReady) q4PrereqBlockers.push('DIRECTOR_BONEZ_VOICE_PRODUCTION_RUNTIME_NOT_READY');
   if(!speakerQcRuntime.productionReady) q4PrereqBlockers.push('DIRECTOR_SPEAKER_QC_RUNTIME_NOT_READY');
   if(!hunyuan.productionReady) q4PrereqBlockers.push('DIRECTOR_HUNYUAN_PRODUCTION_NOT_READY');
   const q4Runnable=!q4Passed&&q4PrereqBlockers.length===0;
@@ -265,7 +244,7 @@ export async function GET(request:Request){
         speakerFingerprintRef:matchingSpeakerFingerprint?.fingerprintRef??null,
         explicitVoiceApprovalReceiptCount:explicitApprovalReceipts.length,
         approvedMovieGradeVoiceIdentityCount:validIdentities.length,
-        nativeVoiceRuntime:voiceRuntime,
+        bonezVoiceRuntime,
         speakerQcRuntime,
       },
     },
@@ -274,7 +253,7 @@ export async function GET(request:Request){
       runnable:q4Runnable&&!q4Passed,
       blockers:unique(q4Blockers),
       evidence:{
-        hunyuan,voiceRuntime,speakerQcRuntime,
+        hunyuan,bonezVoiceRuntime,speakerQcRuntime,
         realRenderReceiptId:q4Receipt?.id??null,
         outputAssetId:q4Receipt?.outputAssetId??null,
         providerRuntimeReceiptId:q4Receipt?.providerRuntimeReceiptId??null,
