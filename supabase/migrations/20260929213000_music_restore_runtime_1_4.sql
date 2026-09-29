@@ -32,13 +32,6 @@ create table if not exists public.music_restoration_artifacts (
   unique(storage_bucket,storage_path)
 );
 
-alter table public.music_restoration_cases
-  drop constraint if exists music_restoration_cases_source_artifact_fk;
-alter table public.music_restoration_cases
-  add constraint music_restoration_cases_source_artifact_fk
-  foreign key(source_artifact_id) references public.music_restoration_artifacts(id)
-  deferrable initially deferred;
-
 create table if not exists public.music_restoration_evidence (
   id text primary key,
   case_id text not null references public.music_restoration_cases(id) on delete restrict,
