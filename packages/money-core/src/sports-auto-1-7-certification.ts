@@ -13,6 +13,9 @@ export type SportAuto1To7CaseName=
   |'shark-style-thesis-reuse-no-authority'
   |'continuous-pregame-live-shadow'
   |'shadow-idempotency-and-settlement-review'
+  |'director-authorized-frame-watcher-service'
+  |'automatic-discovery-resolution-feedback-loop'
+  |'restart-safe-paper-shadow-runtime-state'
 
 export type SportAuto1To7CertificationCase=Readonly<{
   caseId:string
@@ -70,6 +73,9 @@ const REQUIRED:readonly SportAuto1To7CaseName[]=Object.freeze([
   'shark-style-thesis-reuse-no-authority',
   'continuous-pregame-live-shadow',
   'shadow-idempotency-and-settlement-review',
+  'director-authorized-frame-watcher-service',
+  'automatic-discovery-resolution-feedback-loop',
+  'restart-safe-paper-shadow-runtime-state',
 ])
 
 const hash=(value:unknown):string=>createHash('sha256').update(JSON.stringify(value)).digest('hex')
