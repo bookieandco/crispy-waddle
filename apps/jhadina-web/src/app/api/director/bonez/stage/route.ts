@@ -2,7 +2,10 @@ import {createHash} from 'node:crypto';
 import {NextResponse} from 'next/server';
 import {createClient} from '@/lib/supabase/server';
 import {createServiceRoleClient} from '@/lib/supabase/service-role';
-import {stageBonezReferenceDerivatives} from '@/lib/director-bonez-live-inputs';
+import {
+  buildBonezGatewayCanonicalPayload,
+  stageBonezReferenceDerivatives,
+} from '@/lib/director-bonez-live-inputs';
 import {
   DIRECTOR_REFERENCE_MAX_BYTES,
   inspectDirectorReferenceImage,
@@ -22,8 +25,10 @@ function hash(bytes:Uint8Array):string{
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-function oidcToken():string|undefined{
-  return process.env.VERCEL_OIDC_TOKEN?.trim()||undefined;
+function oidcToken(request:Request):string|undefined{
+  return process.env.VERCEL_OIDC_TOKEN?.trim()||
+    request.headers.get('x-vercel-oidc-token')?.trim()||
+    undefined;
 }
 
 async function readExpectedJpeg(file:FormDataEntryValue|null,expectedSha:string,label:string){
@@ -42,12 +47,19 @@ async function readExpectedJpeg(file:FormDataEntryValue|null,expectedSha:string,
 
 export async function POST(request:Request){
   const supabase=await createClient();
-  const {data:{user}}=await supabase.auth.getUser();
+  const [{data:{user}},{data:{session}}]=await Promise.all([
+    supabase.auth.getUser(),
+    supabase.auth.getSession(),
+  ]);
   if(!user) return NextResponse.json({ok:false,error:'Authentication required'},{status:401});
 
-  const oidc=oidcToken();
+  const oidc=oidcToken(request);
+  const userAccessToken=session?.access_token?.trim()||undefined;
   const privileged=createServiceRoleClient();
-  if(!privileged&&!oidc) return NextResponse.json({ok:false,error:'DIRECTOR_PRIVILEGED_RUNTIME_REQUIRED'},{status:503});
+  const gatewayAuth=oidc||userAccessToken;
+  if(!privileged&&!gatewayAuth){
+    return NextResponse.json({ok:false,error:'DIRECTOR_PRIVILEGED_OR_USER_SESSION_REQUIRED'},{status:503});
+  }
 
   let form:FormData;
   try{form=await request.formData();}
@@ -69,7 +81,7 @@ export async function POST(request:Request){
     }else{
       const staged=await fetch(GATEWAY_URL,{
         method:'POST',
-        headers:{authorization:`Bearer ${oidc}`,'content-type':'application/json'},
+        headers:{authorization:`Bearer ${gatewayAuth}`,'content-type':'application/json'},
         body:JSON.stringify({
           action:'stage',
           userId:user.id,
@@ -87,11 +99,25 @@ export async function POST(request:Request){
     const token=typeof stagedBody.token==='string'?stagedBody.token:'';
     if(!token) return NextResponse.json({ok:false,error:'DIRECTOR_BONEZ_STAGE_TOKEN_MISSING'},{status:502});
 
-    const bootstrapUrl=new URL('/api/director/bonez/bootstrap',request.url);
-    bootstrapUrl.searchParams.set('token',token);
-    const completed=await fetch(bootstrapUrl,{
-      method:'GET',
-      ...(oidc?{headers:{'x-vercel-oidc-token':oidc}}:{}),
+    if(privileged){
+      const bootstrapUrl=new URL('/api/director/bonez/bootstrap',request.url);
+      bootstrapUrl.searchParams.set('token',token);
+      const completed=await fetch(bootstrapUrl,{method:'GET',cache:'no-store'});
+      const completedBody=await completed.json().catch(()=>({ok:false,error:'DIRECTOR_BONEZ_BOOTSTRAP_INVALID_JSON'}));
+      return NextResponse.json(completedBody,{
+        status:completed.status,
+        headers:{'cache-control':'no-store','referrer-policy':'no-referrer'},
+      });
+    }
+
+    const completed=await fetch(GATEWAY_URL,{
+      method:'POST',
+      headers:{authorization:`Bearer ${gatewayAuth}`,'content-type':'application/json'},
+      body:JSON.stringify({
+        action:'bootstrap',
+        token,
+        canonical:buildBonezGatewayCanonicalPayload(new Date().toISOString(),user.id),
+      }),
       cache:'no-store',
     });
     const completedBody=await completed.json().catch(()=>({ok:false,error:'DIRECTOR_BONEZ_BOOTSTRAP_INVALID_JSON'}));
