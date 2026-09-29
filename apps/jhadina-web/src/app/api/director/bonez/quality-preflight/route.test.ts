@@ -4,17 +4,6 @@ vi.mock('@/lib/director-hunyuan-video-provider',()=>({
   createConfiguredDirectorHunyuanVideoProvider:vi.fn(()=>undefined),
 }));
 
-vi.mock('@/lib/director-speaker-qc-provider',()=>({
-  createConfiguredDirectorSpeakerQcProvider:vi.fn(()=>({
-    health:vi.fn(async()=>({
-      status:'ready',
-      productionReady:true,
-      modelId:'speechbrain/spkrec-ecapa-voxceleb',
-      modelRevision:'ff989f88e92ccc120569763824f8eedd5afc9039',
-    })),
-  })),
-}));
-
 describe('Bonez quality preflight',()=>{
   afterEach(()=>{
     vi.restoreAllMocks();
@@ -54,6 +43,15 @@ describe('Bonez quality preflight',()=>{
         approvalState:'candidate_unapproved',
         artifactHashStatus:'verified',
       },
+      speakerQcRuntime:{
+        configured:true,
+        productionReady:true,
+        status:'ready',
+        health:{
+          modelId:'speechbrain/spkrec-ecapa-voxceleb',
+          modelRevision:'ff989f88e92ccc120569763824f8eedd5afc9039',
+        },
+      },
       speakerFingerprintReceipts:[{
         id:'speaker-fingerprint:bonez:ecapa:ff989f88e92c:0123456789abcdef',
         sourceAssetId:'asset:audio:bonez:voice-audition:v1',
@@ -88,6 +86,7 @@ describe('Bonez quality preflight',()=>{
     expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].evidence.voiceCandidateReceiptVerified).toBe(true);
     expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].evidence.speakerFingerprintReady).toBe(true);
     expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].evidence.speakerFingerprintReceiptId).toContain('speaker-fingerprint:bonez');
+    expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].evidence.speakerQcRuntime.productionReady).toBe(true);
     expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].passed).toBe(false);
     expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].blockers).toContain('DIRECTOR_BONEZ_APPROVED_VOICE_IDENTITY_REQUIRED');
     expect(body.stages['DIRECTOR-QUALITY.4'].passed).toBe(false);
