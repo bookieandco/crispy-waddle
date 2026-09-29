@@ -28,7 +28,7 @@ args=(
   --cloud-type "$CLOUD_TYPE"
   --container-disk-in-gb "$CONTAINER_GB"
   --volume-mount-path /workspace
-  --ports "8091/http,8092/http,22/tcp"
+  --ports "8091/http,8092/http,8093/http,22/tcp"
   --min-cuda-version "$CUDA_MIN"
   --ssh true
   --country-code "$COUNTRY"
@@ -68,4 +68,10 @@ The same Pod can host the separate speaker-QC service:
 
 Speaker-QC then uses:
   https://<pod-id>-8092.proxy.runpod.net
+
+The same Pod can host the Music restoration worker:
+  bash scripts/music-restoration-runpod-bootstrap.sh
+
+Music restoration then uses:
+  https://<pod-id>-8093.proxy.runpod.net
 EOF

@@ -76,12 +76,33 @@ class MusicRestorationWorkerTest(unittest.TestCase):
 
     def test_readiness_can_pass_with_required_runtime(self):
         with tempfile.TemporaryDirectory() as td:
-            config=worker.RestorationWorkerConfig(output_dir=Path(td))
+            config=worker.RestorationWorkerConfig(output_dir=Path(td),demucs_device="cpu")
             with patch.object(worker.shutil,"which",side_effect=lambda name:f"/usr/bin/{name}"), \
                  patch.object(worker.importlib.util,"find_spec",return_value=object()):
                 state=worker.runtime_readiness(config)
         self.assertTrue(state["productionReady"])
         self.assertEqual(state["reasons"],[])
+        self.assertEqual(state["demucsDevice"],"cpu")
+
+    def test_readiness_requires_cuda_when_explicitly_configured(self):
+        with tempfile.TemporaryDirectory() as td:
+            config=worker.RestorationWorkerConfig(output_dir=Path(td),demucs_device="cuda")
+            real_import=__import__
+            class TorchStub:
+                class cuda:
+                    @staticmethod
+                    def is_available():
+                        return False
+            def fake_import(name,*args,**kwargs):
+                if name=="torch":
+                    return TorchStub
+                return real_import(name,*args,**kwargs)
+            with patch.object(worker.shutil,"which",side_effect=lambda name:f"/usr/bin/{name}"), \
+                 patch.object(worker.importlib.util,"find_spec",return_value=object()), \
+                 patch("builtins.__import__",side_effect=fake_import):
+                state=worker.runtime_readiness(config)
+        self.assertFalse(state["productionReady"])
+        self.assertIn("MUSIC_RESTORATION_CUDA_REQUIRED",state["reasons"])
 
     def test_artifact_path_is_name_and_job_allow_listed(self):
         with tempfile.TemporaryDirectory() as td:
