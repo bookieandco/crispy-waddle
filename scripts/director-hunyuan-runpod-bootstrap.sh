@@ -22,6 +22,16 @@ if [[ "$GPU_MB" -lt 14336 ]]; then
   exit 1
 fi
 
+if ! command -v ffprobe >/dev/null 2>&1; then
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg
+  else
+    echo "DIRECTOR_HUNYUAN_FFPROBE_REQUIRED" >&2
+    exit 1
+  fi
+fi
+
 ROOT="${JHADINA_GPU_ROOT:-/workspace/jhadina}"
 mkdir -p "$ROOT" "$ROOT/models" "$ROOT/hunyuan-output"
 
