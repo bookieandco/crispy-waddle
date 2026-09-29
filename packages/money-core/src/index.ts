@@ -288,3 +288,6 @@ export * from './sports-shark-learning-bridge.js';
 export * from './sports-continuous-shadow-league.js';
 export * from './postgres-sports-auto-store.js';
 export * from './sports-auto-1-7-certification.js';
+
+export * from './sports-auto-runtime.js';
+export * from './postgres-sports-auto-runtime-store.js';
