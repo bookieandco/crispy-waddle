@@ -189,7 +189,82 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
     };
   }
 
-  private assertOwner(ownerUserId: string): void {
+
+  async createJob(input: {
+    id: string;
+    caseId: string;
+    kind: "probe" | "separate" | "perceive" | "repair";
+    sourceArtifactId: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    const { error } = await this.client.from("music_restoration_jobs").insert({
+      id: input.id,
+      case_id: input.caseId,
+      owner_user_id: this.ownerUserId,
+      kind: input.kind,
+      status: "processing",
+      source_artifact_id: input.sourceArtifactId,
+      metadata: input.metadata ?? {},
+    });
+    if (error) throw new Error(`MUSIC_RESTORATION_JOB_WRITE_FAILED: ${error.message}`);
+  }
+
+  async completeJob(input: {
+    id: string;
+    outputArtifactIds?: string[];
+    runtimeReceiptId?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    const { error } = await this.client
+      .from("music_restoration_jobs")
+      .update({
+        status: "completed",
+        output_artifact_ids: input.outputArtifactIds ?? [],
+        runtime_receipt_id: input.runtimeReceiptId ?? null,
+        metadata: input.metadata ?? {},
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", input.id)
+      .eq("owner_user_id", this.ownerUserId);
+    if (error) throw new Error(`MUSIC_RESTORATION_JOB_COMPLETE_FAILED: ${error.message}`);
+  }
+
+  async failJob(id: string, errorMessage: string): Promise<void> {
+    const { error } = await this.client
+      .from("music_restoration_jobs")
+      .update({
+        status: "failed",
+        error: errorMessage.slice(0, 2000),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("owner_user_id", this.ownerUserId);
+    if (error) throw new Error(`MUSIC_RESTORATION_JOB_FAIL_FAILED: ${error.message}`);
+  }
+
+  async persistEvidence(input: {
+    caseId: string;
+    artifactId: string;
+    observations: EvidenceObservation[];
+    runtimeReceiptId?: string;
+  }): Promise<void> {
+    if (!input.observations.length) return;
+    const rows = input.observations.map(observation => ({
+      id: observation.id,
+      case_id: input.caseId,
+      artifact_id: input.artifactId,
+      kind: observation.kind,
+      confidence: observation.confidence,
+      region: observation.region ?? null,
+      data: observation.data,
+      runtime_receipt_id: input.runtimeReceiptId ?? null,
+    }));
+    const { error } = await this.client
+      .from("music_restoration_evidence")
+      .upsert(rows, { onConflict: "id", ignoreDuplicates: true });
+    if (error) throw new Error(`MUSIC_RESTORATION_EVIDENCE_WRITE_FAILED: ${error.message}`);
+  }
+\n  private assertOwner(ownerUserId: string): void {
     if (!ownerUserId || ownerUserId !== this.ownerUserId) {
       throw new Error("MUSIC_RESTORATION_OWNER_MISMATCH");
     }
