@@ -1,11 +1,19 @@
+import importlib.util
 import io
-import math
 import struct
+import sys
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 import wave
 
-import worker
+root=Path(__file__).parent
+spec=importlib.util.spec_from_file_location("director_speaker_qc_worker",root/"worker.py")
+if spec is None or spec.loader is None:
+    raise ImportError("director speaker qc worker spec unavailable")
+worker=importlib.util.module_from_spec(spec)
+sys.modules[spec.name]=worker
+spec.loader.exec_module(worker)
 
 class FakeBackend:
     def __init__(self,embedding):
