@@ -1,13 +1,12 @@
 import type {
   CharacterCastRecord,
   CharacterAppearanceVariant,
-} from '@jhadina/director-core/cast-bible';
-import type {
   CreativeDirective,
   ProductionAssetPackage,
+  ProductionReferenceRole,
   WorldStateGraph,
-} from '@jhadina/director-core/production-foundry';
-import type { ProductIdentityBible } from '@jhadina/director-core/commercial-creative-lab';
+  ProductIdentityBible,
+} from '@jhadina/director-core';
 
 export const BONEZ_PROJECT_ID='director:bonez:production-quality:v1';
 export const BONEZ_CHARACTER_ID='bonez';
@@ -76,7 +75,7 @@ export const BONEZ_CANON = Object.freeze({
   ],
 });
 
-export function bonezAppearance():CharacterAppearanceVariant{
+export function bonezAppearance(approvedAt:string,approvedBy:string):CharacterAppearanceVariant{
   return Object.freeze({
     id:'appearance:bonez:canonical:v1',
     characterId:BONEZ_CHARACTER_ID,
@@ -96,11 +95,13 @@ export function bonezAppearance():CharacterAppearanceVariant{
       'photoreal practical-horror surface detail',
       'preserve asymmetry and damaged anatomy; do not replace with a generic white skeleton',
     ]),
+    approvedAt,
+    approvedBy,
   });
 }
 
-export function bonezCastRecord(approvedAt:string):CharacterCastRecord{
-  const appearance=bonezAppearance();
+export function bonezCastRecord(approvedAt:string,approvedBy:string):CharacterCastRecord{
+  const appearance=bonezAppearance(approvedAt,approvedBy);
   return Object.freeze({
     id:'cast:bonez:v1',
     projectId:BONEZ_PROJECT_ID,
@@ -129,6 +130,7 @@ export function bonezCastRecord(approvedAt:string):CharacterCastRecord{
       'phash:bonez-upper-v1:98dd7b226d06d286',
     ]),
     approvedAt,
+    approvedBy,
     authority:'DIRECTOR_CAST_BIBLE',
   });
 }
@@ -138,11 +140,12 @@ function assetPackage(input:{
   tags:string[];immutable:string[];changeable:string[];
   spatial?:ProductionAssetPackage['spatial'];commercialProductRef?:string;
 },now:string):ProductionAssetPackage{
+  const role:ProductionReferenceRole=input.kind==='character'?'face':input.kind==='environment'?'other':input.kind==='wearable'?'body':'in-use';
   const refs=[{
     id:'ref:'+input.id,
     assetId:BONEZ_REFERENCE_ASSET_ID,
     sha256:BONEZ_REFERENCE_SHA256,
-    role:input.kind==='character'?'face':input.kind==='environment'?'other':input.kind==='wearable'?'body':'in-use',
+    role,
     rightsRef:BONEZ_RIGHTS_REF,
     evidenceIds:['user-upload:bonez:canonical','sanitized-reference:'+BONEZ_REFERENCE_SHA256],
   }] as const;
