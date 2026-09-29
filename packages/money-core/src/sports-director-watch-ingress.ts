@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto'
+import type {SportsPredictionFeature,SportsPredictionFeatureFamily} from './sports-prediction-features.js'
 import type {SportsRealityObservation,SportsRealityObservationKind} from './sports-prediction-reality.js'
 
 export const EXPECTED_DIRECTOR_SPORTS_WATCH_SCHEMA_VERSION='director-sports-watch.v1' as const
@@ -104,6 +105,50 @@ export function ingestDirectorSportsWatchObservation(input:DirectorSportsWatchIn
     canonicalRealityEligible:false,
     authority:'INFERRED_CONTEXT_ONLY',
     canAuthorizeBet:false,
+    canExecute:false,
+  })
+}
+
+
+function featureFamily(kind:DirectorSportsWatchKind):SportsPredictionFeatureFamily{
+  if(kind==='FORMATION')return'FORMATION_ROLE'
+  if(kind==='MATCHUP')return'MATCHUP'
+  if(kind==='TEMPO')return'PACE'
+  if(kind==='FATIGUE')return'LIVE_STATE'
+  if(kind==='MOMENTUM')return'LIVE_STATE'
+  if(kind==='TACTICAL_ADJUSTMENT')return'COACHING_SCHEME'
+  if(kind==='PLAYER_ROLE')return'PLAYER_ROLE'
+  if(kind==='SUBSTITUTION')return'SUBSTITUTION_RISK'
+  if(kind==='POSSESSION_CANDIDATE')return'EXPECTED_POSSESSION'
+  return'LIVE_STATE'
+}
+
+export function directorPerceptionToContextFeature(input:{
+  update:SportsDirectorPerceptionUpdate
+  normalizedValue:number
+  methodologyVersion:string
+  evidenceIds?:readonly string[]
+}):SportsPredictionFeature{
+  if(input.update.authority!=='INFERRED_CONTEXT_ONLY'||input.update.canAuthorizeBet!==false||input.update.canExecute!==false)throw new Error('SPORT_AUTO_DIRECTOR_CONTEXT_AUTHORITY_INVALID')
+  if(!Number.isFinite(input.normalizedValue)||input.normalizedValue<-1||input.normalizedValue>1)throw new Error('SPORT_AUTO_DIRECTOR_CONTEXT_NORMALIZED_VALUE_INVALID')
+  if(!input.methodologyVersion.trim())throw new Error('SPORT_AUTO_DIRECTOR_CONTEXT_METHOD_REQUIRED')
+  const observation=input.update.observation
+  const numericValue=typeof observation.value==='number'?observation.value:input.normalizedValue
+  return Object.freeze({
+    featureId:'sports-director-feature:'+hash({perceptionId:input.update.perceptionId,methodologyVersion:input.methodologyVersion,normalizedValue:input.normalizedValue}),
+    eventId:input.update.eventId,
+    subjectId:observation.subjectId,
+    family:featureFamily(input.update.kind),
+    evidenceClass:'DERIVED',
+    inputRole:'CONTEXT_ONLY',
+    value:numericValue,
+    normalizedValue:input.normalizedValue,
+    observedAt:observation.observedAt,
+    availableAt:observation.availableAt,
+    methodologyVersion:input.methodologyVersion,
+    sourceObservationIds:Object.freeze([observation.observationId]),
+    evidenceIds:unique([...observation.evidenceIds,...(input.evidenceIds??[])]),
+    authority:'FEATURE_EVIDENCE_ONLY',
     canExecute:false,
   })
 }
