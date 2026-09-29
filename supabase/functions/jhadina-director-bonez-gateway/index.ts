@@ -254,9 +254,16 @@ async function main(req:Request):Promise<Response>{
     },{onConflict:"id"});
     if(productWrite.error) throw productWrite.error;
 
-    const voices=await client.from("director_voice_identities").select("id,source,approved_at")
-      .eq("project_id",BONEZ_PROJECT_ID).eq("character_id",BONEZ_CHARACTER_ID);
+    const [voices,candidates]=await Promise.all([
+      client.from("director_voice_identities").select("id,source,approved_at")
+        .eq("project_id",BONEZ_PROJECT_ID).eq("character_id",BONEZ_CHARACTER_ID),
+      client.from("director_voice_candidate_receipts")
+        .select("id,provider,provider_task_id,model_id,provider_voice_ref,duration_seconds,receipt_sha256,artifact_sha256,approval_state,artifact_hash_status")
+        .eq("project_id",BONEZ_PROJECT_ID).eq("character_id",BONEZ_CHARACTER_ID)
+        .order("created_at",{ascending:false}).limit(10),
+    ]);
     if(voices.error) throw voices.error;
+    if(candidates.error) throw candidates.error;
     if(!directMode) await cleanupChunks(client);
 
     return json(200,{
@@ -266,6 +273,18 @@ async function main(req:Request):Promise<Response>{
       assetPackageIds:canonical.packages.map((pkg:any)=>String(pkg.id)),
       worldStateId:String(world.id),creativeDirectiveCount:canonical.directives.length,productBibleId:String(product.id),
       voiceIdentityIds:(voices.data??[]).map((row:any)=>String(row.id)),
+      voiceCandidateReceipts:(candidates.data??[]).map((row:any)=>({
+        id:String(row.id),
+        provider:String(row.provider),
+        providerTaskId:String(row.provider_task_id),
+        modelId:String(row.model_id),
+        providerVoiceRef:String(row.provider_voice_ref),
+        durationSeconds:Number(row.duration_seconds),
+        receiptSha256:String(row.receipt_sha256),
+        artifactSha256:row.artifact_sha256?String(row.artifact_sha256):null,
+        approvalState:String(row.approval_state),
+        artifactHashStatus:String(row.artifact_hash_status),
+      })),
       privilegedTransport:"vercel-oidc-supabase-edge",
       admissionMode:directMode?"direct-authenticated-upload":"staged-token",
     });
