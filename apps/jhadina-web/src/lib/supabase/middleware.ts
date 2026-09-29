@@ -10,6 +10,7 @@ const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/director/bonez/bootstrap",
   "/api/director/hunyuan/health",
   "/api/director/bonez/voice-audition/bootstrap",
+  "/api/director/bonez/quality-preflight",
   "/api/jhadina/voice/health",
 ]);
 
