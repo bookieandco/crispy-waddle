@@ -10,13 +10,14 @@ import type {
 
 export const BONEZ_PROJECT_ID='director:bonez:production-quality:v1';
 export const BONEZ_CHARACTER_ID='bonez';
-export const BONEZ_REFERENCE_ASSET_ID='director-ref:bonez:canonical:v1';
-export const BONEZ_REFERENCE_SHA256='bc3cf5b39b814eac4a18320ece12cc026d5607e1baa41e0355584efa050d89cc';
-export const BONEZ_ORIGINAL_UPLOAD_SHA256='f50dbd93ab245e9098fb7237c8149cf20c445fe22fdea9070741f38f43d9c881';
-export const BONEZ_PRODUCT_REFERENCE_ASSET_ID='director-ref:bonez:product-print:v1';
-export const BONEZ_PRODUCT_REFERENCE_SHA256='8e09332025a170adf956d726e2774cab7987ec6052644375960bf467bc2847ef';
+export const BONEZ_REFERENCE_ASSET_ID='director-ref:bonez:canonical:v2';
+export const BONEZ_REFERENCE_SHA256='fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6';
+export const BONEZ_REFERENCE_SOURCE_SHA256='fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6';
+export const BONEZ_LEGACY_V1_SOURCE_SHA256='f50dbd93ab245e9098fb7237c8149cf20c445fe22fdea9070741f38f43d9c881';
+export const BONEZ_PRODUCT_REFERENCE_ASSET_ID='director-ref:bonez:product-print:v2';
+export const BONEZ_PRODUCT_REFERENCE_SHA256='fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6';
 export const BONEZ_PRODUCT_ID='bonez-lair-art-print-v1';
-export const BONEZ_RIGHTS_REF='user-supplied-reference:bonez:2026-09-28';
+export const BONEZ_RIGHTS_REF='model-generated-reference:bonez:v2:2026-09-29';
 
 export const BONEZ_CANON = Object.freeze({
   series:'Tales from the Crip',
@@ -35,8 +36,9 @@ export const BONEZ_CANON = Object.freeze({
     'The visual target is photorealistic cinematic horror rather than a cartoon or clean skeleton.',
   ],
   visualAuthority:{
-    source:'user-uploaded canonical image',
-    originalSha256:BONEZ_ORIGINAL_UPLOAD_SHA256,
+    source:'model-generated canonical derivative from the locked Bonez canon',
+    sourceSha256:BONEZ_REFERENCE_SOURCE_SHA256,
+    legacyV1SourceSha256:BONEZ_LEGACY_V1_SOURCE_SHA256,
     sanitizedReferenceSha256:BONEZ_REFERENCE_SHA256,
     immutable:[
       'deeply decayed skeletal corpse face with asymmetric organic decay',
@@ -147,7 +149,7 @@ function assetPackage(input:{
     sha256:input.referenceSha256??BONEZ_REFERENCE_SHA256,
     role,
     rightsRef:BONEZ_RIGHTS_REF,
-    evidenceIds:['user-upload:bonez:canonical','sanitized-reference:'+BONEZ_REFERENCE_SHA256],
+    evidenceIds:['model-generated:bonez:canonical-v2','sanitized-reference:'+BONEZ_REFERENCE_SHA256],
   }] as const;
   const sourceFingerprint=refs.map(ref=>ref.id+':'+ref.role+':'+ref.sha256.toLowerCase()).sort().join('|');
   return Object.freeze({
@@ -211,7 +213,7 @@ export function bonezAssetPackages(now:string):readonly ProductionAssetPackage[]
     assetPackage({
       id:'assetpkg:bonez-print:v1',kind:'product',displayName:'Tales from the Crip — Bonez Lair Art Print',
       tags:['limited edition','art print','Bonez','Tales from the Crip'],
-      immutable:['canonical Bonez Lair artwork','TALES FROM THE CRIP title treatment visible in source artwork'],
+      immutable:['canonical Bonez Lair artwork'],
       changeable:['physical print size','frame treatment'],
       commercialProductRef:BONEZ_PRODUCT_ID,
       referenceAssetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,
@@ -276,20 +278,12 @@ export function bonezProductBible():ProductIdentityBible{
       assetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,
       sha256:BONEZ_PRODUCT_REFERENCE_SHA256,
       view:'front',
-      evidenceIds:Object.freeze(['user-upload:bonez:canonical','product-fixture:flat-art-print']),
+      evidenceIds:Object.freeze(['model-generated:bonez:canonical-v2','product-fixture:flat-art-print']),
     }]),
-    labelAuthorities:Object.freeze([{
-      id:'product-label:tftc',
-      assetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,
-      sha256:BONEZ_PRODUCT_REFERENCE_SHA256,
-      text:'TALES FROM THE CRIP',
-      surface:'front',
-      evidenceIds:Object.freeze(['visual-authority:uploaded-image:left-wall-title']),
-    }]),
+    labelAuthorities:Object.freeze([]),
     immutableTraits:Object.freeze([
       'canonical Bonez Lair artwork',
       'Bonez remains the central depicted character',
-      'TALES FROM THE CRIP title remains legible and unchanged when shown as product artwork',
     ]),
     claimEvidenceIds:Object.freeze([]),
     rightsEvidenceIds:Object.freeze([BONEZ_RIGHTS_REF]),
