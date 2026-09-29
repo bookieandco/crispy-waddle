@@ -1,5 +1,4 @@
 import {NextResponse} from 'next/server';
-import {createConfiguredDirectorHunyuanVideoProvider} from '@/lib/director-hunyuan-video-provider';
 import {
   BONEZ_PRODUCT_REFERENCE_ASSET_ID,
   BONEZ_PRODUCT_REFERENCE_SHA256,
@@ -23,28 +22,6 @@ type StageState={
 
 function unique(items:string[]):string[]{
   return [...new Set(items)];
-}
-
-async function hunyuanReadiness(){
-  const provider=createConfiguredDirectorHunyuanVideoProvider();
-  if(!provider) return {configured:false,productionReady:false,status:'not-configured'};
-  try{
-    const health=await provider.health();
-    const productionReady=health.status==='ready'&&health.productionReady===true;
-    return {
-      configured:true,
-      productionReady,
-      status:productionReady?'ready':String(health.status??'blocked'),
-      health,
-    };
-  }catch(cause){
-    return {
-      configured:true,
-      productionReady:false,
-      status:'unavailable',
-      error:cause instanceof Error?cause.message:'DIRECTOR_HUNYUAN_HEALTH_FAILED',
-    };
-  }
 }
 
 export async function GET(request:Request){
@@ -147,7 +124,9 @@ export async function GET(request:Request){
   if(!validIdentities.length) q3Blockers.push('DIRECTOR_BONEZ_APPROVED_VOICE_IDENTITY_REQUIRED');
   const q3Passed=q3Blockers.length===0;
 
-  const hunyuan=await hunyuanReadiness();
+  const hunyuan=typeof data.hunyuanRuntime==='object'&&data.hunyuanRuntime
+    ?data.hunyuanRuntime as Row
+    :{configured:false,productionReady:false,status:'not-configured'};
   const bonezVoiceRuntime=typeof data.bonezVoiceRuntime==='object'&&data.bonezVoiceRuntime
     ?data.bonezVoiceRuntime as Row
     :{configured:false,productionReady:false,status:'not-configured'};
