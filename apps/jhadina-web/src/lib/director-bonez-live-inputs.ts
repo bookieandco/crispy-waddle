@@ -1,9 +1,19 @@
 import {createHash,randomBytes} from 'node:crypto';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {
+  BONEZ_CHARACTER_ID,
+  BONEZ_ORIGINAL_UPLOAD_SHA256,
+  BONEZ_PRODUCT_REFERENCE_ASSET_ID,
   BONEZ_PRODUCT_REFERENCE_SHA256,
   BONEZ_PROJECT_ID,
+  BONEZ_REFERENCE_ASSET_ID,
   BONEZ_REFERENCE_SHA256,
+  BONEZ_RIGHTS_REF,
+  bonezAssetPackages,
+  bonezCastRecord,
+  bonezCreativeDirectives,
+  bonezProductBible,
+  bonezWorldState,
 } from '@/lib/director-bonez-canon';
 
 const CHAR_PREFIX='bonez_bootstrap_char_chunk_';
@@ -12,6 +22,9 @@ const VOICE_SOURCE_KEY='bonez_voice_candidate_source_url_v1';
 const VOICE_TASK_ID='4c04699b-bbc2-4e40-8d8e-502d6a71d959';
 const VOICE_ASSET_ID='asset:audio:bonez:voice-audition:v1';
 const VOICE_OBJECT_PATH='bonez/voice-candidates/Bonez_voice_audition_v1.mp3';
+const VOICE_RECEIPT_ID='voice-candidate:bonez:runway:'+VOICE_TASK_ID;
+const VOICE_RECEIPT_SHA256='cc388b7d4d874dfc62c6e7aaa5193928d2473cbc036ade112603a1cfa25707cd';
+const VOICE_REQUEST_TRANSCRIPT='[low, amused] You ever notice the dead got better stories than the living? [chuckles] Pull up a chair. I got time.';
 
 function sha256(bytes:Uint8Array|string){
   return createHash('sha256').update(bytes).digest('hex');
@@ -39,6 +52,24 @@ async function cleanupChunks(client:SupabaseClient){
   const {error}=await client.from('director_runtime_config').delete()
     .or('key.like.'+CHAR_PREFIX+'%,key.like.'+PRODUCT_PREFIX+'%');
   if(error) throw error;
+}
+
+export function buildBonezGatewayCanonicalPayload(now:string,userId:string){
+  return {
+    projectId:BONEZ_PROJECT_ID,
+    characterId:BONEZ_CHARACTER_ID,
+    rightsRef:BONEZ_RIGHTS_REF,
+    originalUploadSha256:BONEZ_ORIGINAL_UPLOAD_SHA256,
+    references:{
+      character:{assetId:BONEZ_REFERENCE_ASSET_ID,expectedSha:BONEZ_REFERENCE_SHA256},
+      product:{assetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,expectedSha:BONEZ_PRODUCT_REFERENCE_SHA256},
+    },
+    cast:bonezCastRecord(now,userId),
+    packages:bonezAssetPackages(now),
+    world:bonezWorldState(now),
+    directives:bonezCreativeDirectives(now),
+    productBible:bonezProductBible(),
+  };
 }
 
 export async function stageBonezReferenceDerivatives(
@@ -135,8 +166,48 @@ export async function recordBonezVoiceAuditionCandidate(client:SupabaseClient){
     .single();
   if(asset.error) throw asset.error;
 
+  const receipt=await client.from('director_voice_candidate_receipts').upsert({
+    id:VOICE_RECEIPT_ID,
+    project_id:BONEZ_PROJECT_ID,
+    character_id:BONEZ_CHARACTER_ID,
+    provider:'runway',
+    provider_task_id:VOICE_TASK_ID,
+    model_id:'eleven_v3',
+    provider_voice_ref:'Grungle',
+    primary_language:'en',
+    speed:0.88,
+    duration_seconds:9.04,
+    prompt_label:'Bonez voice audition v1',
+    transcript:VOICE_REQUEST_TRANSCRIPT,
+    receipt_sha256:VOICE_RECEIPT_SHA256,
+    artifact_sha256:digest,
+    approval_state:'candidate_unapproved',
+    artifact_hash_status:'verified',
+    provenance_refs:[
+      'runway-task:'+VOICE_TASK_ID,
+      'storage:director-media/'+VOICE_OBJECT_PATH,
+      'non-cloned-preset-audition',
+      'not-canonical',
+      'artifact-sha256:'+digest,
+    ],
+    updated_at:new Date().toISOString(),
+  },{onConflict:'provider,provider_task_id'});
+  if(receipt.error) throw receipt.error;
+
   const cleanup=await client.from('director_runtime_config').delete().eq('key',VOICE_SOURCE_KEY);
   if(cleanup.error) throw cleanup.error;
 
-  return {ok:true,phase:'DIRECTOR-QUALITY.3-VOICE-CANDIDATE',asset:asset.data,approved:false};
+  return {
+    ok:true,
+    phase:'DIRECTOR-QUALITY.3-VOICE-CANDIDATE',
+    asset:asset.data,
+    candidateReceipt:{
+      id:VOICE_RECEIPT_ID,
+      receiptSha256:VOICE_RECEIPT_SHA256,
+      artifactSha256:digest,
+      artifactHashStatus:'verified',
+      approvalState:'candidate_unapproved',
+    },
+    approved:false,
+  };
 }
