@@ -1,6 +1,7 @@
 import {
   evaluateDirectedTakeQc,
   REALISTIC_CHARACTER_TAKE_QC,
+  type DirectedTakeQcMetric,
   type DirectedTakeQcObservation,
   type DirectedTakeQcPolicy,
 } from './directed-take-qc.js';
@@ -66,7 +67,7 @@ const CANARY_POLICY:DirectedTakeQcPolicy=Object.freeze({
   requiredMetrics:Object.freeze([
     ...REALISTIC_CHARACTER_TAKE_QC.requiredMetrics,
     'audio-sync',
-  ]),
+  ] as DirectedTakeQcMetric[]),
   minimumScoreByMetric:Object.freeze({
     ...REALISTIC_CHARACTER_TAKE_QC.minimumScoreByMetric,
     'audio-sync':0.84,
