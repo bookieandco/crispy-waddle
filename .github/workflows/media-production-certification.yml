@@ -8,6 +8,8 @@ on:
       - 'apps/jhadina-web/**'
       - 'services/director-character-training/**'
       - 'services/replacement-service/**'
+      - 'services/music-restoration-worker/**'
+      - 'scripts/music-restoration-runpod-bootstrap.sh'
       - '.github/workflows/media-production-certification.yml'
       - 'docs/MEDIA_PROD_FINAL_CERTIFICATION.md'
   push:
@@ -19,6 +21,8 @@ on:
       - 'packages/jhadina-tv-core/**'
       - 'apps/jhadina-web/**'
       - 'services/director-character-training/**'
+      - 'services/music-restoration-worker/**'
+      - 'scripts/music-restoration-runpod-bootstrap.sh'
       - '.github/workflows/media-production-certification.yml'
 jobs:
   certify-media:
@@ -42,6 +46,11 @@ jobs:
       - name: Director replacement runtime
         run: |
           python -m unittest discover -s services/replacement-service -p 'test_*.py'
+      - name: Music restoration runtime
+        run: |
+          python -m py_compile services/music-restoration-worker/worker.py services/music-restoration-worker/source_fetch.py services/music-restoration-worker/app.py
+          python -m unittest discover -s services/music-restoration-worker -p 'test_*.py'
+          bash -n scripts/music-restoration-runpod-bootstrap.sh
       - name: Music restoration runtime
         run: |
           python -m py_compile services/music-restoration-worker/worker.py services/music-restoration-worker/source_fetch.py services/music-restoration-worker/app.py
