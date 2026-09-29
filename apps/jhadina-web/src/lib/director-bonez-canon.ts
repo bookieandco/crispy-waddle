@@ -222,20 +222,22 @@ export function bonezAssetPackages(now:string):readonly ProductionAssetPackage[]
 }
 
 export function bonezWorldState(now:string):WorldStateGraph{
+  const entities:WorldStateGraph['entities']=[
+    {id:'world-entity:bonez',kind:'character',label:'Bonez',productionAssetPackageRef:'assetpkg:bonez:v1',affordances:['narrate','walk','sit','stand','gesture','hold'],evidenceIds:['canon:bonez']},
+    {id:'world-entity:crip',kind:'location',label:'The Crip / Bonez Lair',productionAssetPackageRef:'assetpkg:crip-lair:v1',affordances:['host','contain'],evidenceIds:['canon:bonez:lair']},
+    {id:'world-entity:chair',kind:'asset',label:'Bonez chair',productionAssetPackageRef:'assetpkg:bonez-chair:v1',affordances:['sit','stand-from','rest-hand','grip'],evidenceIds:['image:bonez:chair']},
+    {id:'world-entity:mic',kind:'asset',label:'broadcast microphone',productionAssetPackageRef:'assetpkg:bonez-mic:v1',affordances:['speak-toward'],evidenceIds:['image:bonez:mic']},
+  ];
+  const relations:WorldStateGraph['relations']=[
+    {id:'rel:bonez:at:crip',subjectId:'world-entity:bonez',kind:'at',objectId:'world-entity:crip',validFrom:now,evidenceIds:['canon:bonez:crip-choice']},
+    {id:'rel:chair:at:crip',subjectId:'world-entity:chair',kind:'at',objectId:'world-entity:crip',validFrom:now,evidenceIds:['image:bonez:chair']},
+    {id:'rel:mic:at:crip',subjectId:'world-entity:mic',kind:'at',objectId:'world-entity:crip',validFrom:now,evidenceIds:['image:bonez:mic']},
+    {id:'rel:bonez:seated',subjectId:'world-entity:bonez',kind:'seated-on',objectId:'world-entity:chair',validFrom:now,evidenceIds:['image:bonez:canonical-state'],validTo:now},
+  ];
   return Object.freeze({
     id:'world:bonez-crip:v1',projectId:BONEZ_PROJECT_ID,kind:'fictional',version:1,
-    entities:Object.freeze([
-      {id:'world-entity:bonez',kind:'character',label:'Bonez',productionAssetPackageRef:'assetpkg:bonez:v1',affordances:['narrate','walk','sit','stand','gesture','hold'],evidenceIds:['canon:bonez']},
-      {id:'world-entity:crip',kind:'location',label:'The Crip / Bonez Lair',productionAssetPackageRef:'assetpkg:crip-lair:v1',affordances:['host','contain'],evidenceIds:['canon:bonez:lair']},
-      {id:'world-entity:chair',kind:'asset',label:'Bonez chair',productionAssetPackageRef:'assetpkg:bonez-chair:v1',affordances:['sit','stand-from','rest-hand','grip'],evidenceIds:['image:bonez:chair']},
-      {id:'world-entity:mic',kind:'asset',label:'broadcast microphone',productionAssetPackageRef:'assetpkg:bonez-mic:v1',affordances:['speak-toward'],evidenceIds:['image:bonez:mic']},
-    ]),
-    relations:Object.freeze([
-      {id:'rel:bonez:at:crip',subjectId:'world-entity:bonez',kind:'at',objectId:'world-entity:crip',validFrom:now,evidenceIds:['canon:bonez:crip-choice']},
-      {id:'rel:chair:at:crip',subjectId:'world-entity:chair',kind:'at',objectId:'world-entity:crip',validFrom:now,evidenceIds:['image:bonez:chair']},
-      {id:'rel:mic:at:crip',subjectId:'world-entity:mic',kind:'at',objectId:'world-entity:crip',validFrom:now,evidenceIds:['image:bonez:mic']},
-      {id:'rel:bonez:seated',subjectId:'world-entity:bonez',kind:'seated-on',objectId:'world-entity:chair',validFrom:now,evidenceIds:['image:bonez:canonical-state'],validTo:now},
-    ]),
+    entities:Object.freeze([...entities]),
+    relations:Object.freeze([...relations]),
     authority:'DIRECTOR_WORLD_STATE',
   });
 }
@@ -252,11 +254,18 @@ export function bonezCreativeDirectives(now:string):readonly CreativeDirective[]
     {id:'directive:bonez:tone',scope:'project',scopeRef:BONEZ_PROJECT_ID,key:'visual-tone',mode:'pin',value:'photoreal cinematic hood-horror; sinister, funny, grimy, practical-textured; never bright mascot comedy'},
     {id:'directive:bonez:origin',scope:'character',scopeRef:BONEZ_CHARACTER_ID,key:'unconfirmed-origin',mode:'forbid',value:'Do not canonize the proposed cursed-podcaster/story-addict death origin without user approval.'},
   ];
-  return Object.freeze(items.map(item=>Object.freeze({...item,projectId:BONEZ_PROJECT_ID,createdBy:'user',createdAt:now,evidenceIds:Object.freeze(['user-canon:bonez'])})));
+  const directives:CreativeDirective[]=items.map(item=>({
+    ...item,
+    projectId:BONEZ_PROJECT_ID,
+    createdBy:'user',
+    createdAt:now,
+    evidenceIds:Object.freeze(['user-canon:bonez']),
+  }));
+  return Object.freeze(directives.map(directive=>Object.freeze(directive)));
 }
 
 export function bonezProductBible():ProductIdentityBible{
-  return Object.freeze({
+  const bible:ProductIdentityBible={
     id:'product-bible:bonez-lair-print:v1',
     projectId:BONEZ_PROJECT_ID,
     productId:BONEZ_PRODUCT_ID,
@@ -284,5 +293,6 @@ export function bonezProductBible():ProductIdentityBible{
     ]),
     claimEvidenceIds:Object.freeze([]),
     rightsEvidenceIds:Object.freeze([BONEZ_RIGHTS_REF]),
-  });
+  };
+  return Object.freeze(bible);
 }
