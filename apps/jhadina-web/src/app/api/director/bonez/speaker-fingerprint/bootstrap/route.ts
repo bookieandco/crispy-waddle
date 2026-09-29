@@ -14,7 +14,7 @@ function oidcToken(request:Request){
     ||undefined;
 }
 
-async function gateway(request:Request,oidc:string,body:Record<string,unknown>){
+async function gateway(oidc:string,body:Record<string,unknown>){
   const response=await fetch(GATEWAY_URL,{
     method:'POST',
     headers:{authorization:`Bearer ${oidc}`,'content-type':'application/json'},
@@ -58,7 +58,7 @@ export async function GET(request:Request){
     },{status:503});
   }
 
-  const source=await gateway(request,oidc,{action:'speaker-fingerprint-source'});
+  const source=await gateway(oidc,{action:'speaker-fingerprint-source'});
   if(!source.response.ok){
     return NextResponse.json(source.payload,{status:source.response.status});
   }
@@ -90,7 +90,7 @@ export async function GET(request:Request){
     return NextResponse.json({ok:false,error:'DIRECTOR_SPEAKER_QC_SOURCE_HASH_MISMATCH'},{status:502});
   }
 
-  const saved=await gateway(request,oidc,{
+  const saved=await gateway(oidc,{
     action:'speaker-fingerprint-receipt',
     receipt:{
       sourceAssetId:BONEZ_VOICE_ASSET_ID,
