@@ -61,13 +61,10 @@ describe('Bonez reference staging route',()=>{
     expect(upstream).not.toHaveBeenCalled();
   });
 
-  it('uses the verified Supabase session JWT for both stage and bootstrap when Vercel has no privileged env',async()=>{
+  it('uses the verified Supabase session JWT for staging but preserves machine-only canon bootstrap',async()=>{
     const upstream=vi.spyOn(globalThis,'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
         ok:true,phase:'DIRECTOR-QUALITY.2-STAGED',token:'single-use-token',
-      }),{status:200,headers:{'content-type':'application/json'}}))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        ok:true,phase:'DIRECTOR-QUALITY.2-LIVE',privilegedTransport:'supabase-user-jwt-edge',
       }),{status:200,headers:{'content-type':'application/json'}}));
 
     const form=new FormData();
@@ -77,10 +74,11 @@ describe('Bonez reference staging route',()=>{
     const response=await POST(new Request('https://app.example/api/director/bonez/stage',{method:'POST',body:form}));
     const body=await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body.phase).toBe('DIRECTOR-QUALITY.2-LIVE');
+    expect(response.status).toBe(202);
+    expect(body.phase).toBe('DIRECTOR-QUALITY.2-STAGED');
+    expect(body.machineBootstrapRequired).toBe(true);
     expect(body.privilegedTransport).toBe('supabase-user-jwt-edge');
-    expect(upstream).toHaveBeenCalledTimes(2);
+    expect(upstream).toHaveBeenCalledTimes(1);
 
     const [stageUrl,stageInit]=upstream.mock.calls[0]!;
     expect(stageUrl).toBe('https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway');
@@ -90,15 +88,5 @@ describe('Bonez reference staging route',()=>{
     const stageBody=JSON.parse(String(stageInit?.body));
     expect(stageBody.action).toBe('stage');
     expect(stageBody.userId).toBe('11111111-1111-4111-8111-111111111111');
-
-    const [,bootstrapInit]=upstream.mock.calls[1]!;
-    expect(bootstrapInit).toEqual(expect.objectContaining({
-      headers:expect.objectContaining({authorization:'Bearer supabase-user-jwt'}),
-    }));
-    const bootstrapBody=JSON.parse(String(bootstrapInit?.body));
-    expect(bootstrapBody.action).toBe('bootstrap');
-    expect(bootstrapBody.token).toBe('single-use-token');
-    expect(bootstrapBody.canonical.projectId).toBe('director:bonez:production-quality:v1');
-    expect(bootstrapBody.canonical.characterId).toBe('bonez');
   });
 });
