@@ -1,19 +1,23 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
 
+vi.mock('@/lib/supabase/service-role',()=>({
+  createServiceRoleClient:vi.fn(()=>undefined),
+}));
+
 describe('Bonez voice audition candidate bootstrap',()=>{
   afterEach(()=>{
     vi.restoreAllMocks();
     delete process.env.VERCEL_OIDC_TOKEN;
   });
 
-  it('fails closed without Vercel OIDC',async()=>{
+  it('fails closed without either privileged runtime path',async()=>{
     const {GET}=await import('./route');
     const response=await GET();
     expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ok:false,error:'DIRECTOR_VERCEL_OIDC_REQUIRED'});
+    expect(await response.json()).toEqual({ok:false,error:'DIRECTOR_PRIVILEGED_RUNTIME_REQUIRED'});
   });
 
-  it('records only through the OIDC-bound Bonez gateway',async()=>{
+  it('uses the OIDC-bound Bonez gateway when direct service-role access is absent',async()=>{
     process.env.VERCEL_OIDC_TOKEN='oidc-test-token';
     const upstream=vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(JSON.stringify({
       ok:true,
