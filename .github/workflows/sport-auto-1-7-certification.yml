@@ -1,0 +1,66 @@
+name: SPORT-AUTO.1-.7 Certification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packages/money-core/src/sports-**'
+      - 'packages/money-core/src/postgres-sports-auto-store.ts'
+      - 'packages/money-core/migrations/023_sports_auto_1_7.sql'
+      - 'packages/money-core/src/index.ts'
+      - 'packages/money-core/package.json'
+      - 'packages/director-core/src/live-sports-watch.ts'
+      - 'packages/director-core/src/live-sports-watch.test.ts'
+      - 'packages/director-core/src/index.ts'
+      - 'supabase/migrations/20260929024500_sports_auto_1_7.sql'
+      - 'docs/architecture/SPORT-AUTO-1-7.md'
+      - '.github/workflows/sport-auto-1-7-certification.yml'
+      - 'pnpm-lock.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/money-core/src/sports-**'
+      - 'packages/money-core/src/postgres-sports-auto-store.ts'
+      - 'packages/money-core/migrations/023_sports_auto_1_7.sql'
+      - 'packages/money-core/src/index.ts'
+      - 'packages/money-core/package.json'
+      - 'packages/director-core/src/live-sports-watch.ts'
+      - 'packages/director-core/src/live-sports-watch.test.ts'
+      - 'packages/director-core/src/index.ts'
+      - 'supabase/migrations/20260929024500_sports_auto_1_7.sql'
+      - 'docs/architecture/SPORT-AUTO-1-7.md'
+      - '.github/workflows/sport-auto-1-7-certification.yml'
+      - 'pnpm-lock.yaml'
+
+concurrency:
+  group: sport-auto-1-7-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    name: Historical to live perception to paper learning to continuous shadow
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+      - name: SPORT-AUTO.1-.7 Money certification
+        run: pnpm --filter @jhadina/money-core verify:sport-auto-1-7
+      - name: Director live sports watch boundary
+        run: pnpm --filter @jhadina/director-core exec vitest run src/live-sports-watch.test.ts
