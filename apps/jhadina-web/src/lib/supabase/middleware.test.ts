@@ -54,6 +54,13 @@ describe('Supabase middleware Director certification behavior',()=>{
     expect(mocks.createServerClient).not.toHaveBeenCalled();
   });
 
+  it('keeps native voice health machine-readable without interactive login',async()=>{
+    const response=await updateSession(new NextRequest('https://example.com/api/jhadina/voice/health'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
   it('keeps the fixed Bonez voice-candidate bootstrap outside interactive auth',async()=>{
     const response=await updateSession(new NextRequest('https://example.com/api/director/bonez/voice-audition/bootstrap'));
     expect(response.status).toBe(200);
