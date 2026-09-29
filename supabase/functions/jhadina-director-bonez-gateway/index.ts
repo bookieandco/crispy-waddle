@@ -199,8 +199,12 @@ async function writeChunks(client:any,prefix:string,bytes:Uint8Array){
   return rows.length;
 }
 
-async function stageReferences(client:any,body:any){
-  const userId=String(body?.userId??"").trim();
+async function stageReferences(client:any,body:any,authenticatedUserId?:string){
+  const requestedUserId=String(body?.userId??"").trim();
+  if(authenticatedUserId&&requestedUserId&&requestedUserId!==authenticatedUserId){
+    throw new Error("DIRECTOR_BONEZ_STAGE_USER_MISMATCH");
+  }
+  const userId=authenticatedUserId||requestedUserId;
   if(!userId) throw new Error("DIRECTOR_BONEZ_STAGE_USER_REQUIRED");
   const userLookup=await client.auth.admin.getUserById(userId);
   if(userLookup.error||!userLookup.data?.user) throw new Error("DIRECTOR_BONEZ_STAGE_USER_INVALID");
@@ -299,9 +303,12 @@ async function recordVoiceCandidate(client:any){
   return {ok:true,phase:"DIRECTOR-QUALITY.3-VOICE-CANDIDATE",asset:asset.data,approved:false};
 }
 
-async function bootstrap(client:any,body:any){
+async function bootstrap(client:any,body:any,authenticatedUserId?:string){
   const canonical=requireCanonical(body);
   const userId=await consumeToken(client,String(body?.token??""));
+  if(authenticatedUserId&&userId!==authenticatedUserId){
+    throw new Error("DIRECTOR_BONEZ_BOOTSTRAP_USER_MISMATCH");
+  }
   const now=new Date().toISOString();
 
   const membership=await client.from("director_project_memberships").upsert({
@@ -389,7 +396,6 @@ async function bootstrap(client:any,body:any){
 
 async function main(req:Request):Promise<Response>{
   if(req.method!=="POST") return json(405,{ok:false,error:"method_not_allowed"});
-  if(!(await authorizeVercel(req))) return json(401,{ok:false,error:"unauthorized"});
   const url=Deno.env.get("SUPABASE_URL");
   const key=secretKey();
   if(!url||!key) return json(503,{ok:false,error:"supabase_admin_unavailable"});
@@ -397,14 +403,34 @@ async function main(req:Request):Promise<Response>{
   try{
     const body=await req.json() as Json;
     const action=String((body as any).action??"bootstrap");
-    if(action==="stage") return json(200,await stageReferences(client,body));
+
+    let authenticatedUserId:string|undefined;
+    const vercelAuthorized=await authorizeVercel(req);
+    if(!vercelAuthorized){
+      if(action!=="stage"&&action!=="bootstrap") return json(401,{ok:false,error:"unauthorized"});
+      const authorization=req.headers.get("authorization")??"";
+      const token=authorization.startsWith("Bearer ")?authorization.slice(7).trim():"";
+      if(!token) return json(401,{ok:false,error:"DIRECTOR_BONEZ_USER_AUTH_REQUIRED"});
+      const verified=await client.auth.getUser(token);
+      if(verified.error||!verified.data?.user?.id){
+        return json(401,{ok:false,error:"DIRECTOR_BONEZ_USER_AUTH_INVALID"});
+      }
+      authenticatedUserId=String(verified.data.user.id);
+    }
+
+    if(action==="stage") return json(200,await stageReferences(client,body,authenticatedUserId));
     if(action==="voice-candidate") return json(200,await recordVoiceCandidate(client));
     if(action!=="bootstrap") return json(400,{ok:false,error:"unsupported_action"});
-    return json(200,await bootstrap(client,body));
+    return json(200,await bootstrap(client,body,authenticatedUserId));
   }catch(error){
     console.error("jhadina-director-bonez-gateway",error instanceof Error?error.message:String(error));
     const message=error instanceof Error?error.message:"DIRECTOR_BONEZ_GATEWAY_FAILED";
-    return json(message==="DIRECTOR_BONEZ_BOOTSTRAP_UNAUTHORIZED"?401:500,{ok:false,error:message});
+    const unauthorized=new Set([
+      "DIRECTOR_BONEZ_BOOTSTRAP_UNAUTHORIZED",
+      "DIRECTOR_BONEZ_STAGE_USER_MISMATCH",
+      "DIRECTOR_BONEZ_BOOTSTRAP_USER_MISMATCH",
+    ]);
+    return json(unauthorized.has(message)?401:500,{ok:false,error:message});
   }
 }
 
