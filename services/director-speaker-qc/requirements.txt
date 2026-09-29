@@ -1,5 +1,6 @@
 fastapi==0.117.1
 uvicorn==0.36.0
 speechbrain==1.1.1
-torch==2.11.0
-torchaudio==2.11.0
+torch==2.14.0
+torchaudio==2.14.0
+huggingface-hub==1.31.0
