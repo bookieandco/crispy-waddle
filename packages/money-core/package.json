@@ -19,7 +19,7 @@
     "verify:sport-bet-final": "pnpm type-check && tsx --test src/sports-bet-final-certification.test.ts && pnpm test && pnpm build",
     "verify:dex-edge007": "pnpm type-check && tsx --test src/dex-four-stage-certification.test.ts && pnpm test && pnpm build",
     "verify:dex-commission-final": "pnpm type-check && tsx --test src/dex-four-stage-certification.test.ts src/dex-commission-final.test.ts src/dex-runtime-readiness.test.ts && pnpm test && pnpm build",
-    "verify:sport-auto-1-7": "pnpm type-check && tsx --test src/sports-auto-1-7-certification.test.ts && pnpm test && pnpm build"
+    "verify:sport-auto-1-7": "pnpm type-check && tsx --test src/sports-auto-1-7-certification.test.ts src/sports-auto-runtime.test.ts && pnpm test && pnpm build"
   },
   "dependencies": {
     "@jhadina/action-core": "workspace:*",
