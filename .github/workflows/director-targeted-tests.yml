@@ -23,6 +23,7 @@ on:
       - "services/director-speaker-qc/**"
       - "scripts/director-hunyuan-runpod-*.sh"
       - "scripts/director-speaker-qc-runpod-bootstrap.sh"
+      - "scripts/music-restoration-runpod-bootstrap.sh"
       - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
       - "pnpm-lock.yaml"
@@ -211,4 +212,5 @@ jobs:
           bash -n scripts/runpod-agent-setup.sh &&
           bash -n scripts/director-hunyuan-runpod-create.sh &&
           bash -n scripts/director-hunyuan-runpod-bootstrap.sh &&
-          bash -n scripts/director-speaker-qc-runpod-bootstrap.sh
+          bash -n scripts/director-speaker-qc-runpod-bootstrap.sh &&
+          bash -n scripts/music-restoration-runpod-bootstrap.sh
