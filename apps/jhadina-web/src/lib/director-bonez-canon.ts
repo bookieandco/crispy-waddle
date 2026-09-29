@@ -14,6 +14,8 @@ export const BONEZ_CHARACTER_ID='bonez';
 export const BONEZ_REFERENCE_ASSET_ID='director-ref:bonez:canonical:v1';
 export const BONEZ_REFERENCE_SHA256='31051fc7b4d62a7c5d844da64f740079acfdd28ff4289b062535481a815fa72b';
 export const BONEZ_ORIGINAL_UPLOAD_SHA256='f50dbd93ab245e9098fb7237c8149cf20c445fe22fdea9070741f38f43d9c881';
+export const BONEZ_PRODUCT_REFERENCE_ASSET_ID='director-ref:bonez:product-print:v1';
+export const BONEZ_PRODUCT_REFERENCE_SHA256='96c84530d213ad6cde0b87c4dedb845a9c1d9214927610a955da329396e838e8';
 export const BONEZ_PRODUCT_ID='bonez-lair-art-print-v1';
 export const BONEZ_RIGHTS_REF='user-supplied-reference:bonez:2026-09-28';
 
@@ -256,15 +258,15 @@ export function bonezProductBible():ProductIdentityBible{
     canonicalVariantId:'bonez-lair-canonical-art-v1',
     referenceViews:Object.freeze([{
       id:'product-view:bonez-print:front',
-      assetId:BONEZ_REFERENCE_ASSET_ID,
-      sha256:BONEZ_REFERENCE_SHA256,
+      assetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,
+      sha256:BONEZ_PRODUCT_REFERENCE_SHA256,
       view:'front',
       evidenceIds:Object.freeze(['user-upload:bonez:canonical','product-fixture:flat-art-print']),
     }]),
     labelAuthorities:Object.freeze([{
       id:'product-label:tftc',
-      assetId:BONEZ_REFERENCE_ASSET_ID,
-      sha256:BONEZ_REFERENCE_SHA256,
+      assetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,
+      sha256:BONEZ_PRODUCT_REFERENCE_SHA256,
       text:'TALES FROM THE CRIP',
       surface:'front',
       evidenceIds:Object.freeze(['visual-authority:uploaded-image:left-wall-title']),
