@@ -39,6 +39,8 @@ const VOICE_VARIANT_ID="voice-variant:bonez:en:v1";
 const VOICE_APPROVAL_RECEIPT_ID="voice-approval:bonez:canonical:v1";
 const BONEZ_VOICE_RUNTIME_URL_KEY="director_bonez_voice_runtime_url";
 const BONEZ_VOICE_RUNTIME_TOKEN_KEY="director_bonez_voice_runtime_token";
+const HUNYUAN_RUNTIME_URL_KEY="director_hunyuan_worker_url";
+const HUNYUAN_RUNTIME_TOKEN_KEY="director_hunyuan_worker_token";
 
 type Json=Record<string,unknown>;
 
@@ -367,6 +369,52 @@ async function recordVoiceCandidate(client:any){
     },
     approved:false,
   };
+}
+
+async function hunyuanRuntimeConfig(client:any):Promise<{baseUrl:string;token:string}|null>{
+  const result=await client.from("director_runtime_config")
+    .select("key,value")
+    .in("key",[HUNYUAN_RUNTIME_URL_KEY,HUNYUAN_RUNTIME_TOKEN_KEY]);
+  if(result.error) throw result.error;
+  const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
+  const rawUrl=(values.get(HUNYUAN_RUNTIME_URL_KEY)??"").trim();
+  const token=(values.get(HUNYUAN_RUNTIME_TOKEN_KEY)??"").trim();
+  if(!rawUrl||!token) return null;
+  const parsed=new URL(rawUrl);
+  if(parsed.protocol!=="https:"||!parsed.hostname.endsWith(".proxy.runpod.net")||parsed.username||parsed.password){
+    throw new Error("DIRECTOR_HUNYUAN_RUNTIME_URL_NOT_ADMITTED");
+  }
+  parsed.pathname=parsed.pathname.replace(/\/+$/,"");
+  parsed.search="";
+  parsed.hash="";
+  return {baseUrl:parsed.toString().replace(/\/$/,""),token};
+}
+
+async function hunyuanRuntimeStatus(client:any){
+  let config:{baseUrl:string;token:string}|null;
+  try{config=await hunyuanRuntimeConfig(client);}
+  catch{return {configured:true,productionReady:false,status:"invalid-config"};}
+  if(!config) return {configured:false,productionReady:false,status:"not-configured"};
+  try{
+    const response=await fetch(config.baseUrl+"/health",{
+      signal:AbortSignal.timeout(15_000),
+      redirect:"error",
+    });
+    const health=await response.json().catch(()=>({})) as Record<string,unknown>;
+    const productionReady=response.ok&&health.status==="ready"&&health.productionReady===true;
+    return {
+      configured:true,
+      productionReady,
+      status:productionReady?"ready":String(health.status??(response.ok?"blocked":"unavailable")),
+      minimumGpuMemoryMb:health.minimumGpuMemoryMb??null,
+      checkpointTreeReady:health.checkpointTreeReady??null,
+      licenseAcknowledged:health.licenseAcknowledged??null,
+      territoryAcknowledged:health.territoryAcknowledged??null,
+      reasons:Array.isArray(health.reasons)?health.reasons.map(String):[],
+    };
+  }catch{
+    return {configured:true,productionReady:false,status:"unavailable"};
+  }
 }
 
 async function bonezVoiceRuntimeStatus(client:any){
@@ -885,9 +933,10 @@ async function qualityStatus(client:any){
   for(const result of [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,voiceApprovalResult,liveTakeResult,repairResult,videosResult,chunksResult,tokensResult]){
     if(result.error) throw result.error;
   }
-  const [speakerQcRuntime,bonezVoiceRuntime]=await Promise.all([
+  const [speakerQcRuntime,bonezVoiceRuntime,hunyuanRuntime]=await Promise.all([
     speakerQcRuntimeStatus(client),
     bonezVoiceRuntimeStatus(client),
+    hunyuanRuntimeStatus(client),
   ]);
   const voices=(voicesResult.data??[]) as Array<any>;
   const voiceIds=voices.map(row=>String(row.id));
@@ -950,6 +999,7 @@ async function qualityStatus(client:any){
     }:null,
     speakerQcRuntime,
     bonezVoiceRuntime,
+    hunyuanRuntime,
     voiceApprovalReceipts:(voiceApprovalResult.data??[]).map((row:any)=>({
       id:String(row.id),
       voiceIdentityId:String(row.voice_identity_id),
