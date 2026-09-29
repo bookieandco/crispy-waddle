@@ -433,7 +433,7 @@ async function bootstrap(client:any,body:any,authenticatedUserId?:string){
     assetPackageIds:canonical.packages.map((pkg:any)=>String(pkg.id)),
     worldStateId:String(world.id),creativeDirectiveCount:canonical.directives.length,productBibleId:String(product.id),
     voiceIdentityIds:(voices.data??[]).map((row:any)=>String(row.id)),
-    privilegedTransport:authenticatedUserId?"supabase-user-jwt-edge":"vercel-oidc-supabase-edge",
+    privilegedTransport:"vercel-oidc-supabase-edge",
   };
 }
 
@@ -450,7 +450,7 @@ async function main(req:Request):Promise<Response>{
     let authenticatedUserId:string|undefined;
     const vercelAuthorized=await authorizeVercel(req);
     if(!vercelAuthorized){
-      if(action!=="stage"&&action!=="bootstrap") return json(401,{ok:false,error:"unauthorized"});
+      if(action!=="stage") return json(401,{ok:false,error:"unauthorized"});
       const authorization=req.headers.get("authorization")??"";
       const token=authorization.startsWith("Bearer ")?authorization.slice(7).trim():"";
       if(!token) return json(401,{ok:false,error:"DIRECTOR_BONEZ_USER_AUTH_REQUIRED"});
@@ -464,7 +464,7 @@ async function main(req:Request):Promise<Response>{
     if(action==="stage") return json(200,await stageReferences(client,body,authenticatedUserId));
     if(action==="voice-candidate") return json(200,await recordVoiceCandidate(client));
     if(action!=="bootstrap") return json(400,{ok:false,error:"unsupported_action"});
-    return json(200,await bootstrap(client,body,authenticatedUserId));
+    return json(200,await bootstrap(client,body));
   }catch(error){
     console.error("jhadina-director-bonez-gateway",error instanceof Error?error.message:String(error));
     const message=error instanceof Error?error.message:"DIRECTOR_BONEZ_GATEWAY_FAILED";
