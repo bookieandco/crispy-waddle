@@ -264,7 +264,65 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
       .upsert(rows, { onConflict: "id", ignoreDuplicates: true });
     if (error) throw new Error(`MUSIC_RESTORATION_EVIDENCE_WRITE_FAILED: ${error.message}`);
   }
-\n  private assertOwner(ownerUserId: string): void {
+\n  async persistExecutionOutcome(input: {
+    caseId: string;
+    receipt: PostExecutionQcReceipt;
+    version?: LedgerRestorationVersion;
+  }): Promise<void> {
+    const { error: receiptError } = await this.client
+      .from("music_restoration_execution_receipts")
+      .insert({
+        id: input.receipt.id,
+        execution_id: input.receipt.executionId,
+        case_id: input.caseId,
+        source_artifact_id: input.receipt.sourceArtifactId,
+        output_artifact_id: input.receipt.outputArtifactId ?? null,
+        status: input.receipt.status,
+        qc: input.receipt.qc,
+        gate: input.receipt.gate,
+        output_hash: input.receipt.outputHash ?? null,
+        expected_output_hash: input.receipt.expectedOutputHash ?? null,
+        hash_verified: input.receipt.hashVerified,
+        reasons: input.receipt.reasons,
+        created_at: input.receipt.createdAt,
+      });
+    if (receiptError) {
+      throw new Error(`MUSIC_RESTORATION_EXECUTION_RECEIPT_WRITE_FAILED: ${receiptError.message}`);
+    }
+
+    if (!input.version) return;
+    const { error: versionError } = await this.client
+      .from("music_restoration_versions")
+      .insert({
+        id: input.version.id,
+        case_id: input.version.caseId,
+        source_artifact_id: input.version.sourceArtifactId,
+        output_artifact_id: input.version.outputArtifactId,
+        candidate_id: input.version.candidateId ?? null,
+        operation_class: input.version.operationClass,
+        operation: input.version.operation,
+        evidence_ids: input.version.evidenceIds,
+        authorization_ids: input.version.authorizationIds,
+        qc_passed: input.version.qcPassed,
+        created_at: input.version.createdAt,
+      });
+    if (versionError) {
+      throw new Error(`MUSIC_RESTORATION_VERSION_WRITE_FAILED: ${versionError.message}`);
+    }
+    const { error: caseError } = await this.client
+      .from("music_restoration_cases")
+      .update({
+        current_version_id: input.version.id,
+        updated_at: input.version.createdAt,
+      })
+      .eq("id", input.caseId)
+      .eq("user_id", this.ownerUserId);
+    if (caseError) {
+      throw new Error(`MUSIC_RESTORATION_CASE_VERSION_UPDATE_FAILED: ${caseError.message}`);
+    }
+  }
+
+  private assertOwner(ownerUserId: string): void {
     if (!ownerUserId || ownerUserId !== this.ownerUserId) {
       throw new Error("MUSIC_RESTORATION_OWNER_MISMATCH");
     }
