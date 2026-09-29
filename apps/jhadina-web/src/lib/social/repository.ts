@@ -4,7 +4,9 @@ import type {
   SocialObservation,
   SocialOutboxJob,
   SocialPlatform,
+  SocialPlatformReceipt,
   SocialPublicationProposal,
+  SocialPublishCanaryPlan,
   SocialPublishTarget,
 } from "@jhadina/social-core"
 import { createClient } from "../supabase/server"
@@ -68,6 +70,34 @@ type OutboxRow = {
   updated_at: string
   target_id: string
   account_id: string
+}
+
+type PublishCanaryRow = {
+  id: string
+  user_id: string
+  asset_id: string
+  canary_platform: SocialPlatform
+  expansion_platforms: SocialPlatform[]
+  payload: SocialPublishCanaryPlan
+  created_at: string
+  updated_at: string
+}
+
+type PlatformReceiptRow = {
+  id: string
+  user_id: string
+  canary_plan_id: string
+  asset_id: string
+  outbox_id: string
+  account_id: string
+  provider: string
+  platform: SocialPlatform
+  provider_post_id: string | null
+  final_url: string | null
+  state: SocialPlatformReceipt["state"]
+  observed_at: string
+  evidence_refs: string[]
+  payload: Record<string, unknown>
 }
 
 type ObservationRow = {
@@ -139,6 +169,28 @@ function outboxFromRow(row: OutboxRow): SocialOutboxJob {
   }
 }
 
+function publishCanaryFromRow(row: PublishCanaryRow): SocialPublishCanaryPlan {
+  return row.payload
+}
+
+function platformReceiptFromRow(row: PlatformReceiptRow): SocialPlatformReceipt {
+  return {
+    id: row.id,
+    canaryPlanId: row.canary_plan_id,
+    assetId: row.asset_id,
+    platform: row.platform,
+    accountId: row.account_id,
+    provider: row.provider,
+    providerPostId: row.provider_post_id ?? undefined,
+    finalUrl: row.final_url ?? undefined,
+    state: row.state,
+    captionVersion: String(row.payload.captionVersion ?? ""),
+    assetVersion: String(row.payload.assetVersion ?? row.asset_id),
+    observedAt: row.observed_at,
+    evidenceRefs: row.evidence_refs ?? [],
+  }
+}
+
 function observationFromRow(row: ObservationRow): SocialObservation {
   return {
     id: row.id,
@@ -196,6 +248,15 @@ export interface SocialRepository {
     observation: Omit<SocialObservation, "id" | "userId">
   }): Promise<SocialObservation>
   listObservations(userId: string): Promise<SocialObservation[]>
+  createPublishCanary(userId: string, plan: SocialPublishCanaryPlan): Promise<SocialPublishCanaryPlan>
+  getPublishCanary(userId: string, planId: string): Promise<SocialPublishCanaryPlan>
+  listPublishCanaryReceipts(userId: string, planId: string): Promise<SocialPlatformReceipt[]>
+  capturePublishCanaryOutboxReceipt(input: {
+    userId: string
+    planId: string
+    outboxId: string
+    finalUrl?: string
+  }): Promise<SocialPlatformReceipt>
 }
 
 async function proposalWithTargets(userId: string, row: ProposalRow): Promise<SocialPublicationProposal> {
@@ -423,6 +484,55 @@ export function createSocialRepository(): SocialRepository {
         .order("observed_at", { ascending: false })
       if (error) throw new Error(`Unable to load social observations: ${error.message}`)
       return ((data ?? []) as ObservationRow[]).map(observationFromRow)
+    },
+
+    async createPublishCanary(userId, plan) {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .rpc("jhadina_social_publish_canary_create", { p_plan: plan })
+        .single<PublishCanaryRow>()
+      if (error || !data) throw new Error(`Unable to persist publish canary: ${error?.message ?? "plan unavailable"}`)
+      if (data.user_id !== userId) throw new Error("SOCIAL_CANARY_OWNER_MISMATCH")
+      return publishCanaryFromRow(data)
+    },
+
+    async getPublishCanary(userId, planId) {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_social_publish_canaries")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("id", planId)
+        .single<PublishCanaryRow>()
+      if (error || !data) throw new Error("SOCIAL_CANARY_NOT_FOUND")
+      return publishCanaryFromRow(data)
+    },
+
+    async listPublishCanaryReceipts(userId, planId) {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_social_platform_receipts")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("canary_plan_id", planId)
+        .order("observed_at", { ascending: true })
+        .returns<PlatformReceiptRow[]>()
+      if (error) throw new Error(`Unable to load publish canary receipts: ${error.message}`)
+      return (data ?? []).map(platformReceiptFromRow)
+    },
+
+    async capturePublishCanaryOutboxReceipt(input) {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .rpc("jhadina_social_publish_canary_capture_outbox", {
+          p_canary_plan_id: input.planId,
+          p_outbox_id: input.outboxId,
+          p_final_url: input.finalUrl ?? null,
+        })
+        .single<PlatformReceiptRow>()
+      if (error || !data) throw new Error(`Unable to capture publish canary receipt: ${error?.message ?? "receipt unavailable"}`)
+      if (data.user_id !== input.userId) throw new Error("SOCIAL_CANARY_RECEIPT_OWNER_MISMATCH")
+      return platformReceiptFromRow(data)
     },
   }
 }
