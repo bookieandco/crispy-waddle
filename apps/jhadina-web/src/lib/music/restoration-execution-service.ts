@@ -52,6 +52,7 @@ export async function executeGovernedRestoration(input: GovernedRestorationExecu
     throw new Error("MUSIC_RESTORATION_CANDIDATE_SOURCE_MISMATCH");
   }
 
+  const gate = evaluateRestorationGate(input.plan, input.candidateId, input.qc);
   const authorization = authorizeCompiledRestorationPlan({
     plan: input.plan,
     candidateId: input.candidateId,
@@ -95,11 +96,7 @@ export async function executeGovernedRestoration(input: GovernedRestorationExecu
       candidate,
       ledger,
       writer,
-      gate: {
-        allowed: true,
-        candidateId: candidate.id,
-        reason: authorization.gateReason,
-      },
+      gate,
       qc: input.qc,
       createdAt: new Date().toISOString(),
     });
