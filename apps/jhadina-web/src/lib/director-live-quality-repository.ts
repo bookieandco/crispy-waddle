@@ -28,9 +28,7 @@ export async function recordDirectorLiveTakeQc(
     reference_sha256:artifact.referenceSha256.toLowerCase(),
     audio_asset_id:performance.audioAssetId,
     voice_identity_id:performance.voiceIdentityId,
-    speaker_fingerprint_receipt_id:String(
-      input.review.evidenceIds.find(id=>id.startsWith('speaker-fingerprint-receipt:'))?.slice('speaker-fingerprint-receipt:'.length)??''
-    ),
+    speaker_fingerprint_receipt_id:performance.speakerFingerprintReceiptId,
     speaker_fingerprint_ref:performance.speakerFingerprintRef,
     provider_id:artifact.providerId,
     model_id:artifact.modelId,
