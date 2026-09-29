@@ -26,12 +26,14 @@ REPAIR_OPERATIONS={"copy","gain","eq","declick","declip","denoise"}
 class RestorationWorkerConfig:
     output_dir:Path=Path("/data/music-restoration")
     demucs_model:str=DEFAULT_DEMUCS_MODEL
+    demucs_device:str="auto"
 
     @classmethod
     def from_env(cls)->"RestorationWorkerConfig":
         return cls(
             output_dir=Path(os.getenv("MUSIC_RESTORATION_OUTPUT_DIR","/data/music-restoration")),
             demucs_model=os.getenv("MUSIC_RESTORATION_DEMUCS_MODEL",DEFAULT_DEMUCS_MODEL).strip() or DEFAULT_DEMUCS_MODEL,
+            demucs_device=os.getenv("MUSIC_RESTORATION_DEMUCS_DEVICE","auto").strip().lower() or "auto",
         )
 
 def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
@@ -39,11 +41,23 @@ def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
     ffmpeg=shutil.which("ffmpeg")
     ffprobe=shutil.which("ffprobe")
     demucs_ready=importlib.util.find_spec("demucs") is not None
+    torch_ready=importlib.util.find_spec("torch") is not None
+    cuda_ready=False
+    if torch_ready:
+        try:
+            import torch
+            cuda_ready=bool(torch.cuda.is_available())
+        except Exception:
+            cuda_ready=False
     librosa_ready=importlib.util.find_spec("librosa") is not None
     numpy_ready=importlib.util.find_spec("numpy") is not None
     if not ffmpeg: reasons.append("MUSIC_RESTORATION_FFMPEG_REQUIRED")
     if not ffprobe: reasons.append("MUSIC_RESTORATION_FFPROBE_REQUIRED")
     if not demucs_ready: reasons.append("MUSIC_RESTORATION_DEMUCS_REQUIRED")
+    if config.demucs_device not in {"auto","cpu","cuda"}:
+        reasons.append("MUSIC_RESTORATION_DEMUCS_DEVICE_INVALID")
+    if config.demucs_device=="cuda" and not cuda_ready:
+        reasons.append("MUSIC_RESTORATION_CUDA_REQUIRED")
     if not librosa_ready or not numpy_ready: reasons.append("MUSIC_RESTORATION_PERCEPTION_RUNTIME_REQUIRED")
     try:
         config.output_dir.mkdir(parents=True,exist_ok=True)
@@ -57,6 +71,9 @@ def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
         "ffmpegReady":bool(ffmpeg),
         "ffprobeReady":bool(ffprobe),
         "demucsReady":demucs_ready,
+        "torchReady":torch_ready,
+        "cudaReady":cuda_ready,
+        "demucsDevice":config.demucs_device,
         "librosaReady":librosa_ready,
         "numpyReady":numpy_ready,
         "demucsModel":config.demucs_model,
@@ -126,6 +143,8 @@ def separate_path(
 )->dict[str,Any]:
     requested=(model_id or config.demucs_model).strip()
     if requested!=config.demucs_model: raise ValueError("MUSIC_RESTORATION_DEMUCS_MODEL_NOT_ADMITTED")
+    if config.demucs_device not in {"auto","cpu","cuda"}:
+        raise ValueError("MUSIC_RESTORATION_DEMUCS_DEVICE_INVALID")
     probe=probe_path(source_path,source_artifact_id,source_sha256)
     directory=config.output_dir/("separate-"+_safe_token(job_id))
     directory.mkdir(parents=True,exist_ok=True)
@@ -133,7 +152,8 @@ def separate_path(
     normalize_to_wav(source_path,normalized,probe["sampleRate"],probe["channels"])
     demucs_out=directory/"demucs"
     result=subprocess.run([
-        sys.executable,"-m","demucs.separate","-n",requested,"--out",str(demucs_out),str(normalized),
+        sys.executable,"-m","demucs.separate","-n",requested,"-d",config.demucs_device,
+        "--out",str(demucs_out),str(normalized),
     ],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=3600,check=False)
     if result.returncode!=0:
         raise RuntimeError("MUSIC_RESTORATION_DEMUCS_FAILED:"+result.stdout.decode(errors="replace")[-1200:])
