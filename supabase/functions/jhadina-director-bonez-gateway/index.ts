@@ -37,6 +37,8 @@ const VOICE_SAMPLE_ID="voice-sample:bonez:audition:v1";
 const VOICE_BINDING_ID="voice-provider:bonez:runway:v1";
 const VOICE_VARIANT_ID="voice-variant:bonez:en:v1";
 const VOICE_APPROVAL_RECEIPT_ID="voice-approval:bonez:canonical:v1";
+const BONEZ_VOICE_RUNTIME_URL_KEY="director_bonez_voice_runtime_url";
+const BONEZ_VOICE_RUNTIME_TOKEN_KEY="director_bonez_voice_runtime_token";
 
 type Json=Record<string,unknown>;
 
@@ -365,6 +367,45 @@ async function recordVoiceCandidate(client:any){
     },
     approved:false,
   };
+}
+
+async function bonezVoiceRuntimeStatus(client:any){
+  const result=await client.from("director_runtime_config")
+    .select("key,value")
+    .in("key",[BONEZ_VOICE_RUNTIME_URL_KEY,BONEZ_VOICE_RUNTIME_TOKEN_KEY]);
+  if(result.error) throw result.error;
+  const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
+  const rawUrl=(values.get(BONEZ_VOICE_RUNTIME_URL_KEY)??"").trim();
+  const token=(values.get(BONEZ_VOICE_RUNTIME_TOKEN_KEY)??"").trim();
+  if(!rawUrl||!token) return {configured:false,productionReady:false,status:"not-configured"};
+  try{
+    const parsed=new URL(rawUrl);
+    const allowedHost=parsed.hostname.endsWith(".up.railway.app")||parsed.hostname.endsWith(".proxy.runpod.net");
+    if(parsed.protocol!=="https:"||!allowedHost||parsed.username||parsed.password){
+      return {configured:true,productionReady:false,status:"invalid-config"};
+    }
+    parsed.pathname=parsed.pathname.replace(/\/+$/,"");
+    parsed.search="";
+    parsed.hash="";
+    const response=await fetch(parsed.toString().replace(/\/$/,"")+"/health",{
+      headers:{authorization:"Bearer "+token},
+      signal:AbortSignal.timeout(15_000),
+      redirect:"error",
+    });
+    const health=await response.json().catch(()=>({})) as Record<string,unknown>;
+    const productionReady=response.ok&&health.status==="ready"&&health.productionReady===true
+      &&health.provider==="runway-speech"&&health.modelId==="eleven_v3"&&health.providerVoiceRef==="Grungle";
+    return {
+      configured:true,
+      productionReady,
+      status:productionReady?"ready":String(health.status??(response.ok?"blocked":"unavailable")),
+      provider:health.provider??null,
+      modelId:health.modelId??null,
+      providerVoiceRef:health.providerVoiceRef??null,
+    };
+  }catch{
+    return {configured:true,productionReady:false,status:"unavailable"};
+  }
 }
 
 async function speakerQcRuntimeConfig(client:any):Promise<{baseUrl:string;token:string}|null>{
@@ -844,7 +885,10 @@ async function qualityStatus(client:any){
   for(const result of [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,voiceApprovalResult,liveTakeResult,repairResult,videosResult,chunksResult,tokensResult]){
     if(result.error) throw result.error;
   }
-  const speakerQcRuntime=await speakerQcRuntimeStatus(client);
+  const [speakerQcRuntime,bonezVoiceRuntime]=await Promise.all([
+    speakerQcRuntimeStatus(client),
+    bonezVoiceRuntimeStatus(client),
+  ]);
   const voices=(voicesResult.data??[]) as Array<any>;
   const voiceIds=voices.map(row=>String(row.id));
   let bindingRows:Array<any>=[];
@@ -905,6 +949,7 @@ async function qualityStatus(client:any){
       artifactHashStatus:String((candidateReceiptResult.data as any).artifact_hash_status),
     }:null,
     speakerQcRuntime,
+    bonezVoiceRuntime,
     voiceApprovalReceipts:(voiceApprovalResult.data??[]).map((row:any)=>({
       id:String(row.id),
       voiceIdentityId:String(row.voice_identity_id),
