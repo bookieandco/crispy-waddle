@@ -3,7 +3,7 @@ import {createRequestIdentityVerifier} from "@/lib/auth/request-identity"
 
 export const runtime="nodejs"
 
-export async function GET(req:NextRequest,context:{params:Promise<{action:string}>}){
+export async function GET(_req:NextRequest,context:{params:Promise<{action:string}>}){
  const {action}=await context.params
  if(action!=="health")return NextResponse.json({success:false,error:"Unsupported voice action"},{status:404})
  try{
