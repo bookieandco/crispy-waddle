@@ -329,3 +329,5 @@ export async function consumeReplayBatch(input:ReplayConsumerInput):Promise<{
   }
   return {processed,checkpoint};
 }
+
+export * from './transcript-fold-events.js';
