@@ -177,6 +177,7 @@ jobs:
           src/lib/director-certification-provider.test.ts
           src/lib/director-bonez-canon.test.ts
           src/app/api/director/bonez/bootstrap/route.test.ts
+          src/app/api/director/bonez/quality-preflight/route.test.ts
           src/app/api/director/bonez/stage/route.test.ts
           src/app/api/director/bonez/voice-audition/bootstrap/route.test.ts
           src/lib/director-phantom-video-provider.test.ts
