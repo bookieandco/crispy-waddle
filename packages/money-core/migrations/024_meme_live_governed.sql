@@ -32,7 +32,7 @@ CREATE INDEX IF NOT EXISTS money_meme_soak_wallet_time_idx
 CREATE TABLE IF NOT EXISTS money_meme_governed_live_certifications (
   report_id TEXT PRIMARY KEY,
   version TEXT NOT NULL,
-  mandate_id TEXT NOT NULL REFERENCES money_autonomous_trading_mandates(mandate_id),
+  mandate_id TEXT REFERENCES money_autonomous_trading_mandates(mandate_id),
   wallet_connection_id TEXT NOT NULL REFERENCES money_wallet_connections(connection_id),
   strategy_id TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('BLOCKED','MEME_GOVERNED_LIVE_ELIGIBLE')),
