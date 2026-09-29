@@ -12,13 +12,12 @@ describe('Bonez voice audition candidate bootstrap',()=>{
 
   it('fails closed without either privileged runtime path',async()=>{
     const {GET}=await import('./route');
-    const response=await GET();
+    const response=await GET(new Request('https://app.example/api/director/bonez/voice-audition/bootstrap'));
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ok:false,error:'DIRECTOR_PRIVILEGED_RUNTIME_REQUIRED'});
   });
 
   it('uses the OIDC-bound Bonez gateway when direct service-role access is absent',async()=>{
-    process.env.VERCEL_OIDC_TOKEN='oidc-test-token';
     const upstream=vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(JSON.stringify({
       ok:true,
       phase:'DIRECTOR-QUALITY.3-VOICE-CANDIDATE',
@@ -26,7 +25,9 @@ describe('Bonez voice audition candidate bootstrap',()=>{
       asset:{id:'asset:audio:bonez:voice-audition:v1',sha256:'abc'},
     }),{status:200,headers:{'content-type':'application/json'}}));
     const {GET}=await import('./route');
-    const response=await GET();
+    const response=await GET(new Request('https://app.example/api/director/bonez/voice-audition/bootstrap',{
+      headers:{'x-vercel-oidc-token':'oidc-test-token'},
+    }));
     const body=await response.json();
     expect(response.status).toBe(200);
     expect(body.approved).toBe(false);
