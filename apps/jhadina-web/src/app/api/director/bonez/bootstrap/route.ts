@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { saveDirectorCastRecord } from '@/lib/director-cast-repository';
 import { inspectDirectorReferenceImage } from '@/lib/director-reference-media';
 import { createConfiguredWholeVideoProviders } from '@/lib/director-whole-video-providers';
+import { createConfiguredDirectorHunyuanVideoProvider } from '@/lib/director-hunyuan-video-provider';
 import {
   BONEZ_CANON,
   BONEZ_CHARACTER_ID,
@@ -188,15 +189,41 @@ async function bootstrap(request:Request){
     },{onConflict:'id'});
     if(productBibleError) throw productBibleError;
 
-    const providers=createConfiguredWholeVideoProviders().map(provider=>({
+    const wholeVideoProviders=createConfiguredWholeVideoProviders().map(provider=>({
       id:provider.descriptor.id,
       name:provider.descriptor.name,
       productionQualityEligible:Boolean(provider.descriptor.productionQualityEligible),
       supportsCharacterReference:Boolean(provider.descriptor.supportsCharacterReference),
       supportsProductReference:Boolean(provider.descriptor.supportsProductReference),
       maximumDurationSeconds:provider.descriptor.maximumDurationSeconds??null,
+      health:String(provider.descriptor.health??'unknown'),
     }));
+    const hunyuan=createConfiguredDirectorHunyuanVideoProvider();
+    let hunyuanHealth:Readonly<Record<string,unknown>>|null=null;
+    let hunyuanHealthError:string|null=null;
+    let hunyuanProductionReady=false;
+    if(hunyuan){
+      try{
+        hunyuanHealth=await hunyuan.health();
+        hunyuanProductionReady=hunyuanHealth.status==='ready'&&hunyuanHealth.productionReady===true;
+      }catch(cause){
+        hunyuanHealthError=cause instanceof Error?cause.message:'DIRECTOR_HUNYUAN_HEALTH_FAILED';
+      }
+    }
+    const providers=[
+      ...wholeVideoProviders,
+      ...(hunyuan?[{
+        id:hunyuan.id,
+        name:'Director HunyuanVideo-1.5',
+        productionQualityEligible:Boolean(hunyuan.productionQualityEligible),
+        supportsCharacterReference:true,
+        supportsProductReference:false,
+        maximumDurationSeconds:null,
+        health:hunyuanProductionReady?'ready':'blocked',
+      }]:[]),
+    ];
     const eligibleProviders=providers.filter(provider=>provider.productionQualityEligible);
+    const liveEligibleProviders=eligibleProviders.filter(provider=>provider.health==='ready');
     const {data:voiceRows,error:voiceError}=await client.from('director_voice_identities')
       .select('id,source,approved_at').eq('project_id',BONEZ_PROJECT_ID).eq('character_id',BONEZ_CHARACTER_ID);
     if(voiceError) throw voiceError;
@@ -220,7 +247,14 @@ async function bootstrap(request:Request){
         voiceIdentityIds:(voiceRows??[]).map((row:any)=>String(row.id)),
         configuredProviders:providers,
         productionQualityProviderIds:eligibleProviders.map(provider=>provider.id),
-        productionFinalCanLaunch:(voiceRows??[]).length>0&&eligibleProviders.length>0,
+        liveProductionQualityProviderIds:liveEligibleProviders.map(provider=>provider.id),
+        hunyuan:{
+          configured:Boolean(hunyuan),
+          productionReady:hunyuanProductionReady,
+          health:hunyuanHealth,
+          error:hunyuanHealthError,
+        },
+        productionFinalCanLaunch:(voiceRows??[]).length>0&&liveEligibleProviders.length>0,
       },
       truthBoundary:{
         referenceDerivative:true,

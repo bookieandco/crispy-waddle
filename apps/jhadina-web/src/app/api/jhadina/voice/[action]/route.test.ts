@@ -31,6 +31,44 @@ describe("Jhadina voice HTTP bridge",()=>{
     expect(json.canonicalVoiceProfile).toBe("jhadina:canonical")
   })
 
+  it("does not certify a degraded native voice service",async()=>{
+    vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({
+      status:"degraded",
+      tts:["qwen3-tts"],
+      nativeTtsRequired:2,
+      canonicalVoiceProfile:"jhadina:canonical",
+    }),{status:200,headers:{"content-type":"application/json"}}))
+    const {GET}=await import("./route")
+    const req=new NextRequest("https://app.example/api/jhadina/voice/health",{
+      method:"GET",
+      headers:{"x-jhadina-user-id":"user-1"},
+    })
+    const response=await GET(req,{params:Promise.resolve({action:"health"})})
+    const json=await response.json()
+    expect(response.status).toBe(200)
+    expect(json.native).toBe(false)
+    expect(json.status).toBe("degraded")
+  })
+
+  it("certifies native voice only when the canonical service reports ready",async()=>{
+    vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({
+      status:"ready",
+      tts:["qwen3-tts","voxcpm2"],
+      nativeTtsRequired:2,
+      canonicalVoiceProfile:"jhadina:canonical",
+    }),{status:200,headers:{"content-type":"application/json"}}))
+    const {GET}=await import("./route")
+    const req=new NextRequest("https://app.example/api/jhadina/voice/health",{
+      method:"GET",
+      headers:{"x-jhadina-user-id":"user-1"},
+    })
+    const response=await GET(req,{params:Promise.resolve({action:"health"})})
+    const json=await response.json()
+    expect(response.status).toBe(200)
+    expect(json.native).toBe(true)
+    expect(json.status).toBe("ready")
+  })
+
   it("proxies progressive speak-stream without buffering",async()=>{
     const upstream=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(
       '{"type":"audio","index":0,"count":1,"audioBase64":"UklGRg==","mimeType":"audio/wav"}\n{"type":"done","count":1}\n',
