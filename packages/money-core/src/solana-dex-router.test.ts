@@ -5,10 +5,10 @@ import { MeteoraDirectDexAdapter,RaydiumDirectDexAdapter,type DirectDexOrderBuil
 import type { DexManagedOrder,DexProviderExecutionReceipt,DexSignedTransaction,DexSwapIntent,ManagedSolanaDexVenueAdapter,SolanaDexVenueProvider } from './solana-dex-runtime-contracts.js'
 
 const intent=(overrides:Partial<DexSwapIntent>={}):DexSwapIntent=>({
- executionId:'exec-1',requestId:'req-1',runLineageId:'run-1',userId:'user-1',strategyId:'meme',instrumentId:'solana:TOKEN',leg:'ENTRY',
+ executionId:'exec-1',tradeId:'trade-1',requestId:'req-1',runLineageId:'run-1',userId:'user-1',strategyId:'meme',instrumentId:'solana:TOKEN',leg:'ENTRY',
  provider:'solana-dex-router',routePreference:'AUTO',requestedSlippageBps:50,walletConnectionId:'wallet-1',signerLeaseId:'lease-1',inputMint:'SOL',outputMint:'TOKEN',
  inputAmountAtomic:1000n,minimumOutputAtomic:900n,notionalMinor:100n,currency:'USD',idempotencyKey:'idem-1',informationCutoff:'2026-09-27T19:00:00.000Z',
- evidenceIds:['e1'],preExecution:{} as DexSwapIntent['preExecution'],authority:'MONEY_EXECUTION_INTENT',...overrides,
+ evidenceIds:['e1'],preExecution:{} as DexSwapIntent['preExecution'],approval:{} as DexSwapIntent['approval'],authority:'MONEY_EXECUTION_INTENT',...overrides,
 })
 const order=(provider:SolanaDexVenueProvider):DexManagedOrder=>({
  provider,requestId:provider+':q',inputMint:'SOL',outputMint:'TOKEN',inputAmountAtomic:1000n,quotedOutputAtomic:1000n,unsignedTransactionBase64:'unsigned',
