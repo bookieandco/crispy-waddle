@@ -299,6 +299,106 @@ async function recordVoiceCandidate(client:any){
   return {ok:true,phase:"DIRECTOR-QUALITY.3-VOICE-CANDIDATE",asset:asset.data,approved:false};
 }
 
+async function qualityStatus(client:any){
+  const [refsResult,castResult,voicesResult,candidateResult,videosResult,chunksResult,tokensResult]=await Promise.all([
+    client.from("director_reference_media_assets")
+      .select("id,sha256,reference_kind,admission_status,scan_status")
+      .eq("project_id",BONEZ_PROJECT_ID)
+      .in("id",[BONEZ_REFERENCE_ASSET_ID,BONEZ_PRODUCT_REFERENCE_ASSET_ID]),
+    client.from("director_cast_characters")
+      .select("id,character_id,canonical_appearance_variant_id,approved_at")
+      .eq("project_id",BONEZ_PROJECT_ID)
+      .eq("character_id",BONEZ_CHARACTER_ID)
+      .maybeSingle(),
+    client.from("director_voice_identities")
+      .select("id,source,speaker_fingerprint_refs,minimum_speaker_similarity,approved_at")
+      .eq("project_id",BONEZ_PROJECT_ID)
+      .eq("character_id",BONEZ_CHARACTER_ID),
+    client.from("director_generated_editing_assets")
+      .select("id,sha256,provider_id,model_id,approval_policy,metadata")
+      .eq("id",VOICE_ASSET_ID)
+      .maybeSingle(),
+    client.from("director_generated_editing_assets")
+      .select("id,sha256,provider_id,model_id,metadata,created_at")
+      .eq("project_id",BONEZ_PROJECT_ID)
+      .eq("media_type","video")
+      .order("created_at",{ascending:false})
+      .limit(20),
+    client.from("director_runtime_config")
+      .select("key")
+      .or("key.like."+CHAR_PREFIX+"%,key.like."+PRODUCT_PREFIX+"%"),
+    client.from("director_quality_bootstrap_tokens")
+      .select("token_hash",{count:"exact",head:true})
+      .is("consumed_at",null)
+      .gt("expires_at",new Date().toISOString()),
+  ]);
+  for(const result of [refsResult,castResult,voicesResult,candidateResult,videosResult,chunksResult,tokensResult]){
+    if(result.error) throw result.error;
+  }
+  const voices=(voicesResult.data??[]) as Array<any>;
+  const voiceIds=voices.map(row=>String(row.id));
+  let bindingRows:Array<any>=[];
+  if(voiceIds.length){
+    const bindings=await client.from("director_voice_provider_bindings")
+      .select("id,voice_identity_id,provider,model_id,provider_voice_ref,enabled,provenance_refs")
+      .in("voice_identity_id",voiceIds)
+      .eq("enabled",true);
+    if(bindings.error) throw bindings.error;
+    bindingRows=(bindings.data??[]) as Array<any>;
+  }
+  return {
+    ok:true,
+    phase:"DIRECTOR-BONEZ-QUALITY-PREFLIGHT-DATA",
+    projectId:BONEZ_PROJECT_ID,
+    references:(refsResult.data??[]).map((row:any)=>({
+      id:String(row.id),
+      sha256:String(row.sha256),
+      referenceKind:String(row.reference_kind),
+      admissionStatus:String(row.admission_status),
+      scanStatus:String(row.scan_status),
+    })),
+    cast:castResult.data?{
+      id:String((castResult.data as any).id),
+      characterId:String((castResult.data as any).character_id),
+      canonicalAppearanceVariantId:String((castResult.data as any).canonical_appearance_variant_id),
+      approvedAt:String((castResult.data as any).approved_at),
+    }:null,
+    voiceIdentities:voices.map((row:any)=>({
+      id:String(row.id),
+      source:String(row.source),
+      speakerFingerprintRefs:Array.isArray(row.speaker_fingerprint_refs)?row.speaker_fingerprint_refs.map(String):[],
+      minimumSpeakerSimilarity:Number(row.minimum_speaker_similarity),
+      approvedAt:String(row.approved_at),
+    })),
+    voiceProviderBindings:bindingRows.map((row:any)=>({
+      id:String(row.id),
+      voiceIdentityId:String(row.voice_identity_id),
+      provider:String(row.provider),
+      modelId:String(row.model_id),
+      providerVoiceRef:row.provider_voice_ref?String(row.provider_voice_ref):null,
+      provenanceRefs:Array.isArray(row.provenance_refs)?row.provenance_refs.map(String):[],
+    })),
+    voiceCandidate:candidateResult.data?{
+      id:String((candidateResult.data as any).id),
+      sha256:String((candidateResult.data as any).sha256),
+      providerId:String((candidateResult.data as any).provider_id),
+      modelId:String((candidateResult.data as any).model_id),
+      approvalPolicy:String((candidateResult.data as any).approval_policy),
+      metadata:(candidateResult.data as any).metadata??{},
+    }:null,
+    recentVideoArtifacts:(videosResult.data??[]).map((row:any)=>({
+      id:String(row.id),
+      sha256:String(row.sha256),
+      providerId:String(row.provider_id),
+      modelId:String(row.model_id),
+      metadata:row.metadata??{},
+      createdAt:String(row.created_at),
+    })),
+    stagedChunkCount:(chunksResult.data??[]).length,
+    activeBootstrapTokenCount:tokensResult.count??0,
+  };
+}
+
 async function bootstrap(client:any,body:any){
   const canonical=requireCanonical(body);
   const userId=await consumeToken(client,String(body?.token??""));
@@ -399,6 +499,7 @@ async function main(req:Request):Promise<Response>{
     const action=String((body as any).action??"bootstrap");
     if(action==="stage") return json(200,await stageReferences(client,body));
     if(action==="voice-candidate") return json(200,await recordVoiceCandidate(client));
+    if(action==="status") return json(200,await qualityStatus(client));
     if(action!=="bootstrap") return json(400,{ok:false,error:"unsupported_action"});
     return json(200,await bootstrap(client,body));
   }catch(error){
