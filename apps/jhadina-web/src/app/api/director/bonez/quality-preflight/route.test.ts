@@ -36,6 +36,13 @@ describe('Bonez quality preflight',()=>{
         approvalPolicy:'studio_qc',
         metadata:{candidate:true,canonical:false,approved:false},
       },
+      voiceCandidateReceipt:{
+        id:'voice-candidate:bonez:runway:4c04699b-bbc2-4e40-8d8e-502d6a71d959',
+        receiptSha256:'cc388b7d4d874dfc62c6e7aaa5193928d2473cbc036ade112603a1cfa25707cd',
+        artifactSha256:'cb5af66bfe5bbcc7b07c1f9dfc2b9be6b077c290452bab7c2aff60c62d1ce84a',
+        approvalState:'candidate_unapproved',
+        artifactHashStatus:'verified',
+      },
       recentVideoArtifacts:[],
       stagedChunkCount:0,
       activeBootstrapTokenCount:0,
@@ -53,6 +60,7 @@ describe('Bonez quality preflight',()=>{
     expect(body.certificationAuthorityUnchanged).toBe(true);
     expect(body.stages['DIRECTOR-QUALITY.2-LIVE'].passed).toBe(false);
     expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].evidence.voiceCandidateReady).toBe(true);
+    expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].evidence.voiceCandidateReceiptVerified).toBe(true);
     expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].passed).toBe(false);
     expect(body.stages['DIRECTOR-QUALITY.4'].passed).toBe(false);
     expect(body.stages['DIRECTOR-QUALITY.4'].blockers).toContain('DIRECTOR_HUNYUAN_PRODUCTION_NOT_READY');

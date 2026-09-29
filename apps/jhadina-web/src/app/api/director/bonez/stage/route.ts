@@ -44,12 +44,19 @@ async function readExpectedJpeg(file:FormDataEntryValue|null,expectedSha:string,
 
 export async function POST(request:Request){
   const supabase=await createClient();
-  const {data:{user}}=await supabase.auth.getUser();
+  const [{data:{user}},{data:{session}}]=await Promise.all([
+    supabase.auth.getUser(),
+    supabase.auth.getSession(),
+  ]);
   if(!user) return NextResponse.json({ok:false,error:'Authentication required'},{status:401});
 
   const oidc=oidcToken(request);
+  const userAccessToken=session?.access_token?.trim()||undefined;
   const privileged=createServiceRoleClient();
-  if(!privileged&&!oidc) return NextResponse.json({ok:false,error:'DIRECTOR_PRIVILEGED_RUNTIME_REQUIRED'},{status:503});
+  const stageGatewayToken=oidc||userAccessToken;
+  if(!privileged&&!stageGatewayToken){
+    return NextResponse.json({ok:false,error:'DIRECTOR_PRIVILEGED_OR_USER_SESSION_REQUIRED'},{status:503});
+  }
 
   let form:FormData;
   try{form=await request.formData();}
@@ -71,7 +78,7 @@ export async function POST(request:Request){
     }else{
       const staged=await fetch(GATEWAY_URL,{
         method:'POST',
-        headers:{authorization:`Bearer ${oidc}`,'content-type':'application/json'},
+        headers:{authorization:`Bearer ${stageGatewayToken}`,'content-type':'application/json'},
         body:JSON.stringify({
           action:'stage',
           userId:user.id,
@@ -88,6 +95,19 @@ export async function POST(request:Request){
 
     const token=typeof stagedBody.token==='string'?stagedBody.token:'';
     if(!token) return NextResponse.json({ok:false,error:'DIRECTOR_BONEZ_STAGE_TOKEN_MISSING'},{status:502});
+
+    if(!privileged&&!oidc){
+      const {token:_token,...safeStagedBody}=stagedBody;
+      return NextResponse.json({
+        ...safeStagedBody,
+        machineBootstrapRequired:true,
+        privilegedTransport:'supabase-user-jwt-edge',
+        next:'DIRECTOR-QUALITY.2-MACHINE-BOOTSTRAP',
+      },{
+        status:202,
+        headers:{'cache-control':'no-store','referrer-policy':'no-referrer'},
+      });
+    }
 
     const bootstrapUrl=new URL('/api/director/bonez/bootstrap',request.url);
     bootstrapUrl.searchParams.set('token',token);
