@@ -24,7 +24,7 @@ function take(purpose:'quality4-canary'|'quality5-stress'='quality4-canary'):Dir
       measuredDurationSeconds:5.04,storageVerified:true,productionProvider:true,evidenceIds:['provider'],
     },
     performance:{
-      audioAssetId:'audio',voiceIdentityId:'voice',speakerFingerprintRef:'fingerprint',
+      audioAssetId:'audio',voiceIdentityId:'voice',speakerFingerprintReceiptId:'fp-receipt',speakerFingerprintRef:'fingerprint',
       speakerSimilarity:.94,lipSyncScore:.93,movedAwayFromChair:true,dialoguePerformed:true,
       interactionRefs:['chair','microphone','set'],evidenceIds:['performance'],
     },
