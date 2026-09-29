@@ -22,10 +22,12 @@ export async function GET(req:NextRequest,context:{params:Promise<{action:string
   }
   const response=await fetch(`${base}/health`,{signal:AbortSignal.timeout(12_000),cache:"no-store"})
   const health=await response.json().catch(()=>({}))
+  const healthStatus=String(health?.status??(response.ok?"reachable":"unavailable"))
+  const nativeReady=response.ok&&healthStatus==="ready"&&health?.canonicalVoiceProfile==="jhadina:canonical"
   return NextResponse.json({
    success:true,
-   native:response.ok,
-   status:response.ok?String(health?.status??"reachable"):"unavailable",
+   native:nativeReady,
+   status:healthStatus,
    health,
    canonicalVoiceProfile:"jhadina:canonical",
   },{status:200})
