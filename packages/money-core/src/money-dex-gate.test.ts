@@ -5,9 +5,9 @@ import type { DexManagedOrder,DexSwapIntent } from './solana-dex-runtime-contrac
 
 const now='2026-09-27T19:00:05.000Z'
 const intent=(overrides:Partial<DexSwapIntent>={}):DexSwapIntent=>({
- executionId:'exec-1',requestId:'req-1',runLineageId:'run-1',userId:'u',strategyId:'meme',instrumentId:'solana:TOKEN',leg:'ENTRY',provider:'solana-dex-router',routePreference:'AUTO',requestedSlippageBps:50,
+ executionId:'exec-1',tradeId:'trade-1',requestId:'req-1',runLineageId:'run-1',userId:'u',strategyId:'meme',instrumentId:'solana:TOKEN',leg:'ENTRY',provider:'solana-dex-router',routePreference:'AUTO',requestedSlippageBps:50,
  walletConnectionId:'wallet',signerLeaseId:'lease',inputMint:'SOL',outputMint:'TOKEN',inputAmountAtomic:1000n,minimumOutputAtomic:990n,notionalMinor:100n,currency:'USD',idempotencyKey:'idem',
- informationCutoff:'2026-09-27T19:00:00.000Z',evidenceIds:['intent-e'],preExecution:{} as DexSwapIntent['preExecution'],authority:'MONEY_EXECUTION_INTENT',...overrides,
+ informationCutoff:'2026-09-27T19:00:00.000Z',evidenceIds:['intent-e'],preExecution:{} as DexSwapIntent['preExecution'],approval:{} as DexSwapIntent['approval'],authority:'MONEY_EXECUTION_INTENT',...overrides,
 })
 const order=(overrides:Partial<DexManagedOrder>={}):DexManagedOrder=>({
  provider:'jupiter-ultra',requestId:'quote-1',inputMint:'SOL',outputMint:'TOKEN',inputAmountAtomic:1000n,quotedOutputAtomic:1000n,unsignedTransactionBase64:'tx',takerAddress:'wallet-address',
