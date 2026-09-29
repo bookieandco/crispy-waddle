@@ -8,6 +8,7 @@ const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/director/studies/observations",
   "/api/director/live-certification",
   "/api/director/bonez/bootstrap",
+  "/api/director/hunyuan/health",
 ]);
 
 function isSelfAuthenticatedMachineRoute(pathname: string): boolean {
