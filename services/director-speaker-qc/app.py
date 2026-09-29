@@ -55,6 +55,10 @@ def backend()->SpeechBrainEcapaBackend:
         _backend=SpeechBrainEcapaBackend(_config)
     return _backend
 
+@app.get("/health/live")
+def live():
+    return {"status":"live","service":"director-speaker-qc"}
+
 @app.get("/health")
 def health():
     readiness=runtime_readiness(_config,load_model=True,backend=backend())
