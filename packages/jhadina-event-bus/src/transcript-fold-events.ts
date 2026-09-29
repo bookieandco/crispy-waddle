@@ -10,6 +10,8 @@ export const TRANSCRIPT_FOLD_EVENT_TYPES = {
   PROSPECT_RECORD_PERSISTED: 'prospect.record.persisted',
   SOCIAL_CANARY_CREATED: 'social.publish_canary.created',
   SOCIAL_CANARY_RECEIPT_CAPTURED: 'social.publish_canary.receipt_captured',
+  GROWTH_CONTENT_CANDIDATE_PROPOSED: 'growth.content_candidate.proposed',
+  FOCUS_REASSESSMENT_REQUESTED: 'focus.reassessment.requested',
 } as const
 
 export type TranscriptFoldEventType =
@@ -69,6 +71,21 @@ export type TranscriptFoldEventPayloadMap = {
     state: string
     evidenceRefs: readonly string[]
   }
+  'growth.content_candidate.proposed': {
+    candidateId: string
+    sourceEventId: string
+    projectId: string
+    origin: 'operational_evidence' | 'customer_evidence' | 'research_synthesis'
+    angle: string
+    evidenceRefs: readonly string[]
+    requiresRedaction: boolean
+  }
+  'focus.reassessment.requested': {
+    sourceEventId: string
+    reason: string
+    objectiveRef?: string
+    evidenceRefs: readonly string[]
+  }
 }
 
 export type TranscriptFoldEvent<TType extends TranscriptFoldEventType = TranscriptFoldEventType> =
@@ -96,12 +113,22 @@ export function createTranscriptFoldEvent<TType extends TranscriptFoldEventType>
   requireText(input.runtime.correlationId, 'TRANSCRIPT_EVENT_CORRELATION_REQUIRED')
   requireText(input.runtime.actorId, 'TRANSCRIPT_EVENT_ACTOR_REQUIRED')
 
-  const domain = input.type.startsWith('social.') ? 'social' : 'opportunity'
+  const domain = input.type.startsWith('social.')
+    ? 'social'
+    : input.type.startsWith('growth.')
+      ? 'growth'
+      : input.type.startsWith('focus.')
+        ? 'core-spine'
+        : 'opportunity'
   const capability = input.type.startsWith('social.')
     ? 'social.publish-canary'
-    : input.type.startsWith('prospect.')
-      ? 'opportunity.prospect-intelligence'
-      : 'opportunity.commercial-learning'
+    : input.type.startsWith('growth.')
+      ? 'growth.content-candidate'
+      : input.type.startsWith('focus.')
+        ? 'core-spine.focus'
+        : input.type.startsWith('prospect.')
+          ? 'opportunity.prospect-intelligence'
+          : 'opportunity.commercial-learning'
 
   const idempotencyKey = `transcript-fold:${input.type}:${input.entityId}`
   const id = `${input.runtime.workSessionId}:${idempotencyKey}`
