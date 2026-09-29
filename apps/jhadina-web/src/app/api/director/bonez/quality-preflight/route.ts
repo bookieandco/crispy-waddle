@@ -1,5 +1,6 @@
 import {NextResponse} from 'next/server';
 import {createConfiguredDirectorHunyuanVideoProvider} from '@/lib/director-hunyuan-video-provider';
+import {createConfiguredDirectorSpeakerQcProvider} from '@/lib/director-speaker-qc-provider';
 import {
   BONEZ_PRODUCT_REFERENCE_ASSET_ID,
   BONEZ_PRODUCT_REFERENCE_SHA256,
@@ -43,6 +44,28 @@ async function nativeVoiceReadiness(){
       native:false,
       status:'unavailable',
       error:cause instanceof Error?cause.message:'VOICE_HEALTH_FAILED',
+    };
+  }
+}
+
+async function speakerQcReadiness(){
+  const provider=createConfiguredDirectorSpeakerQcProvider();
+  if(!provider) return {configured:false,productionReady:false,status:'not-configured'};
+  try{
+    const health=await provider.health();
+    const productionReady=health.status==='ready'&&health.productionReady===true;
+    return {
+      configured:true,
+      productionReady,
+      status:productionReady?'ready':String(health.status??'blocked'),
+      health,
+    };
+  }catch(cause){
+    return {
+      configured:true,
+      productionReady:false,
+      status:'unavailable',
+      error:cause instanceof Error?cause.message:'DIRECTOR_SPEAKER_QC_HEALTH_FAILED',
     };
   }
 }
@@ -132,13 +155,29 @@ export async function GET(request:Request){
     &&voiceCandidateReceipt.artifactHashStatus==='verified'
     &&candidateReceiptSha===candidateAssetSha
   );
+  const speakerFingerprints=Array.isArray(data.speakerFingerprintReceipts)
+    ?data.speakerFingerprintReceipts as Row[]:[];
+  const matchingSpeakerFingerprint=speakerFingerprints.find(receipt=>
+    receipt.sourceAssetId===voiceCandidate?.id
+    &&receipt.sourceSha256===candidateAssetSha
+    &&/^[a-f0-9]{64}$/i.test(String(receipt.embeddingSha256??''))
+    &&typeof receipt.fingerprintRef==='string'
+    &&receipt.fingerprintRef.startsWith('speaker-embedding:ecapa-voxceleb:')
+    &&Number(receipt.embeddingDimensions)>0
+    &&receipt.qualityClaim===false
+  );
+  const speakerFingerprintReady=Boolean(matchingSpeakerFingerprint);
+
   const q3Blockers:string[]=[];
   if(!q2Passed) q3Blockers.push('DIRECTOR_QUALITY_2_REQUIRED');
   if(!candidateReady) q3Blockers.push('DIRECTOR_BONEZ_VOICE_CANDIDATE_MISSING');
+  if(!speakerFingerprintReady) q3Blockers.push('DIRECTOR_BONEZ_SPEAKER_FINGERPRINT_REQUIRED');
   if(!validIdentities.length) q3Blockers.push('DIRECTOR_BONEZ_APPROVED_VOICE_IDENTITY_REQUIRED');
   const q3Passed=q3Blockers.length===0;
 
-  const [voiceRuntime,hunyuan]=await Promise.all([nativeVoiceReadiness(),hunyuanReadiness()]);
+  const [voiceRuntime,hunyuan,speakerQcRuntime]=await Promise.all([
+    nativeVoiceReadiness(),hunyuanReadiness(),speakerQcReadiness(),
+  ]);
   const videos=Array.isArray(data.recentVideoArtifacts)?data.recentVideoArtifacts as Row[]:[];
   const q4Receipt=videos.find(row=>{
     const metadata=row.metadata??{};
@@ -153,6 +192,7 @@ export async function GET(request:Request){
   if(!q2Passed) q4PrereqBlockers.push('DIRECTOR_QUALITY_2_REQUIRED');
   if(!q3Passed) q4PrereqBlockers.push('DIRECTOR_QUALITY_3_REQUIRED');
   if(!voiceRuntime.native) q4PrereqBlockers.push('DIRECTOR_NATIVE_VOICE_RUNTIME_NOT_READY');
+  if(!speakerQcRuntime.productionReady) q4PrereqBlockers.push('DIRECTOR_SPEAKER_QC_RUNTIME_NOT_READY');
   if(!hunyuan.productionReady) q4PrereqBlockers.push('DIRECTOR_HUNYUAN_PRODUCTION_NOT_READY');
   const q4Runnable=q4PrereqBlockers.length===0;
   const q4Passed=Boolean(q4Receipt);
@@ -182,7 +222,7 @@ export async function GET(request:Request){
     },
     'DIRECTOR-QUALITY.3-LIVE':{
       passed:q3Passed,
-      runnable:q2Passed&&candidateReady&&!q3Passed,
+      runnable:q2Passed&&candidateReady&&speakerFingerprintReady&&!q3Passed,
       blockers:unique(q3Blockers),
       evidence:{
         voiceCandidateReady:candidateReady,
@@ -191,15 +231,19 @@ export async function GET(request:Request){
           &&voiceCandidateReceipt.artifactHashStatus==='verified'
           &&candidateReceiptSha===candidateAssetSha
         ),
+        speakerFingerprintReady,
+        speakerFingerprintReceiptId:matchingSpeakerFingerprint?.id??null,
+        speakerFingerprintRef:matchingSpeakerFingerprint?.fingerprintRef??null,
         approvedMovieGradeVoiceIdentityCount:validIdentities.length,
         nativeVoiceRuntime:voiceRuntime,
+        speakerQcRuntime,
       },
     },
     'DIRECTOR-QUALITY.4':{
       passed:q4Passed,
       runnable:q4Runnable&&!q4Passed,
       blockers:unique(q4Blockers),
-      evidence:{hunyuan,voiceRuntime,realRenderReceiptId:q4Receipt?.id??null},
+      evidence:{hunyuan,voiceRuntime,speakerQcRuntime,realRenderReceiptId:q4Receipt?.id??null},
     },
     'DIRECTOR-QUALITY.5':{
       passed:q5Passed,
