@@ -23,6 +23,9 @@ const VOICE_SOURCE_KEY="bonez_voice_candidate_source_url_v1";
 const VOICE_TASK_ID="4c04699b-bbc2-4e40-8d8e-502d6a71d959";
 const VOICE_ASSET_ID="asset:audio:bonez:voice-audition:v1";
 const VOICE_OBJECT_PATH="bonez/voice-candidates/Bonez_voice_audition_v1.mp3";
+const VOICE_RECEIPT_ID="voice-candidate:bonez:runway:"+VOICE_TASK_ID;
+const VOICE_RECEIPT_SHA256="cc388b7d4d874dfc62c6e7aaa5193928d2473cbc036ade112603a1cfa25707cd";
+const VOICE_REQUEST_TRANSCRIPT="[low, amused] You ever notice the dead got better stories than the living? [chuckles] Pull up a chair. I got time.";
 
 type Json=Record<string,unknown>;
 
@@ -297,10 +300,50 @@ async function recordVoiceCandidate(client:any){
   },{onConflict:"id"}).select("id,project_id,media_type,uri,mime_type,sha256,provider_id,model_id,approval_policy,metadata").single();
   if(asset.error) throw asset.error;
 
+  const receipt=await client.from("director_voice_candidate_receipts").upsert({
+    id:VOICE_RECEIPT_ID,
+    project_id:BONEZ_PROJECT_ID,
+    character_id:BONEZ_CHARACTER_ID,
+    provider:"runway",
+    provider_task_id:VOICE_TASK_ID,
+    model_id:"eleven_v3",
+    provider_voice_ref:"Grungle",
+    primary_language:"en",
+    speed:0.88,
+    duration_seconds:9.04,
+    prompt_label:"Bonez voice audition v1",
+    transcript:VOICE_REQUEST_TRANSCRIPT,
+    receipt_sha256:VOICE_RECEIPT_SHA256,
+    artifact_sha256:sha256,
+    approval_state:"candidate_unapproved",
+    artifact_hash_status:"verified",
+    provenance_refs:[
+      "runway-task:"+VOICE_TASK_ID,
+      "storage:director-media/"+VOICE_OBJECT_PATH,
+      "non-cloned-preset-audition",
+      "not-canonical",
+      "artifact-sha256:"+sha256,
+    ],
+    updated_at:new Date().toISOString(),
+  },{onConflict:"provider,provider_task_id"});
+  if(receipt.error) throw receipt.error;
+
   const cleanup=await client.from("director_runtime_config").delete().eq("key",VOICE_SOURCE_KEY);
   if(cleanup.error) throw cleanup.error;
 
-  return {ok:true,phase:"DIRECTOR-QUALITY.3-VOICE-CANDIDATE",asset:asset.data,approved:false};
+  return {
+    ok:true,
+    phase:"DIRECTOR-QUALITY.3-VOICE-CANDIDATE",
+    asset:asset.data,
+    candidateReceipt:{
+      id:VOICE_RECEIPT_ID,
+      receiptSha256:VOICE_RECEIPT_SHA256,
+      artifactSha256:sha256,
+      artifactHashStatus:"verified",
+      approvalState:"candidate_unapproved",
+    },
+    approved:false,
+  };
 }
 
 async function bootstrap(client:any,body:any,authenticatedUserId?:string){
