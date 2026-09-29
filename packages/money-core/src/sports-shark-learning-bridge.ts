@@ -118,7 +118,7 @@ export function projectSportsThesisToReusableAlpha(input:{
     signalId:'sports-reusable-signal:'+hash({alphaId:alpha.alphaId,thesisId:input.thesis.thesisId}),
     thesis:input.thesis,
     alpha,
-    reusableFor:['SPORTS_BETTING','PREDICTION_MARKET'],
+    reusableFor:Object.freeze(['SPORTS_BETTING','PREDICTION_MARKET'] as const),
     targetTruthClaim:false,
     authority:'CROSS_DOMAIN_EVIDENCE_ONLY',
     canAuthorizeLive:false,
