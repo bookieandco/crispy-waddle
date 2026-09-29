@@ -97,8 +97,9 @@ export async function POST(request:Request){
     if(!token) return NextResponse.json({ok:false,error:'DIRECTOR_BONEZ_STAGE_TOKEN_MISSING'},{status:502});
 
     if(!privileged&&!oidc){
+      const {token:_token,...safeStagedBody}=stagedBody;
       return NextResponse.json({
-        ...stagedBody,
+        ...safeStagedBody,
         machineBootstrapRequired:true,
         privilegedTransport:'supabase-user-jwt-edge',
         next:'DIRECTOR-QUALITY.2-MACHINE-BOOTSTRAP',
