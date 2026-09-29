@@ -21,3 +21,13 @@ It uses a pinned SpeechBrain ECAPA-TDNN VoxCeleb speaker-recognition model to pr
 - `POST /v1/verify` — authenticated reference/candidate audio → cosine similarity.
 
 Set `DIRECTOR_SPEAKER_QC_TOKEN` for bearer authentication. Optional runtime overrides exist for model ID/revision/cache/device, but production should retain the pinned admitted model revision.
+
+
+## Director runtime binding
+
+Production web code does not need the speaker worker URL or bearer token. The machine-authorized SWLC Director gateway reads these service-role-only runtime-config keys:
+
+- `director_speaker_qc_url` — HTTPS worker base URL. Admitted hosts are Railway `*.up.railway.app` or RunPod `*.proxy.runpod.net`.
+- `director_speaker_qc_token` — bearer secret expected by `DIRECTOR_SPEAKER_QC_TOKEN` on the worker.
+
+The gateway health-checks the worker, downloads the already-admitted private Bonez candidate from Director storage, sends the audio to `/v1/fingerprint`, independently validates the returned pinned-model receipt, and persists only the receipt. Vercel receives no worker secret and no raw speaker embedding.
