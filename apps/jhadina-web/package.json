@@ -30,7 +30,8 @@
     "next": "^14.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@jhadina/compute-core": "workspace:*"
+    "@jhadina/compute-core": "workspace:*",
+    "@jhadina/event-bus": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
