@@ -32,6 +32,11 @@ const SPEAKER_QC_SAMPLE_RATE_HZ=16000;
 const SPEAKER_QC_QUANTIZATION="l2-int16-v1";
 const SPEAKER_QC_URL_KEY="director_speaker_qc_url";
 const SPEAKER_QC_TOKEN_KEY="director_speaker_qc_token";
+const VOICE_IDENTITY_ID="voice:bonez:canonical:v1";
+const VOICE_SAMPLE_ID="voice-sample:bonez:audition:v1";
+const VOICE_BINDING_ID="voice-provider:bonez:runway:v1";
+const VOICE_VARIANT_ID="voice-variant:bonez:en:v1";
+const VOICE_APPROVAL_RECEIPT_ID="voice-approval:bonez:canonical:v1";
 
 type Json=Record<string,unknown>;
 
@@ -590,8 +595,194 @@ async function runSpeakerFingerprint(client:any){
   };
 }
 
+async function approveBonezVoiceIdentity(client:any,body:any,userId:string|undefined){
+  if(!userId) throw new Error("DIRECTOR_BONEZ_VOICE_APPROVER_REQUIRED");
+  if(body?.approve!==true) throw new Error("DIRECTOR_BONEZ_VOICE_EXPLICIT_APPROVAL_REQUIRED");
+
+  const expectedCandidateSha=String(body?.expectedCandidateSha256??"").trim().toLowerCase();
+  const expectedFingerprintRef=String(body?.expectedFingerprintRef??"").trim();
+  const minimumSimilarity=Number(body?.minimumSpeakerSimilarity);
+  if(!/^[a-f0-9]{64}$/.test(expectedCandidateSha)) throw new Error("DIRECTOR_BONEZ_VOICE_EXPECTED_SHA_REQUIRED");
+  if(!expectedFingerprintRef.startsWith("speaker-embedding:ecapa-voxceleb:")) throw new Error("DIRECTOR_BONEZ_VOICE_EXPECTED_FINGERPRINT_REQUIRED");
+  if(!Number.isFinite(minimumSimilarity)||minimumSimilarity<=0||minimumSimilarity>1){
+    throw new Error("DIRECTOR_BONEZ_VOICE_SIMILARITY_FLOOR_INVALID");
+  }
+
+  const [membership,cast,candidate,candidateReceipt,fingerprint]=await Promise.all([
+    client.from("director_project_memberships")
+      .select("role").eq("project_id",BONEZ_PROJECT_ID).eq("user_id",userId).maybeSingle(),
+    client.from("director_cast_characters")
+      .select("id,character_id").eq("project_id",BONEZ_PROJECT_ID).eq("character_id",BONEZ_CHARACTER_ID).maybeSingle(),
+    client.from("director_generated_editing_assets")
+      .select("id,sha256,provider_id,model_id,metadata")
+      .eq("id",VOICE_ASSET_ID).maybeSingle(),
+    client.from("director_voice_candidate_receipts")
+      .select("id,artifact_sha256,approval_state,artifact_hash_status")
+      .eq("id",VOICE_RECEIPT_ID).maybeSingle(),
+    client.from("director_speaker_fingerprint_receipts")
+      .select("id,source_asset_id,source_sha256,fingerprint_ref,model_id,model_revision,quality_claim")
+      .eq("project_id",BONEZ_PROJECT_ID)
+      .eq("character_id",BONEZ_CHARACTER_ID)
+      .eq("source_asset_id",VOICE_ASSET_ID)
+      .eq("source_sha256",expectedCandidateSha)
+      .eq("fingerprint_ref",expectedFingerprintRef)
+      .maybeSingle(),
+  ]);
+  for(const result of [membership,cast,candidate,candidateReceipt,fingerprint]){
+    if(result.error) throw result.error;
+  }
+  const role=String((membership.data as any)?.role??"");
+  if(role!=="owner"&&role!=="editor") throw new Error("DIRECTOR_BONEZ_VOICE_APPROVAL_AUTHORITY_REQUIRED");
+  if(!cast.data) throw new Error("DIRECTOR_QUALITY_2_REQUIRED");
+
+  const candidateRow=candidate.data as any;
+  const receiptRow=candidateReceipt.data as any;
+  const fingerprintRow=fingerprint.data as any;
+  if(!candidateRow||!receiptRow) throw new Error("DIRECTOR_BONEZ_VOICE_CANDIDATE_MISSING");
+  const metadata=candidateRow.metadata??{};
+  const actualCandidateSha=String(candidateRow.sha256??"").toLowerCase();
+  if(
+    candidateRow.id!==VOICE_ASSET_ID||
+    actualCandidateSha!==expectedCandidateSha||
+    metadata.candidate!==true||
+    metadata.canonical!==false||
+    metadata.approved!==false
+  ) throw new Error("DIRECTOR_BONEZ_VOICE_CANDIDATE_MISMATCH");
+  if(
+    String(receiptRow.artifact_sha256??"").toLowerCase()!==actualCandidateSha||
+    receiptRow.artifact_hash_status!=="verified"||
+    !["candidate_unapproved","approved"].includes(String(receiptRow.approval_state??""))
+  ) throw new Error("DIRECTOR_BONEZ_VOICE_CANDIDATE_RECEIPT_INVALID");
+  if(
+    !fingerprintRow||
+    fingerprintRow.source_asset_id!==VOICE_ASSET_ID||
+    String(fingerprintRow.source_sha256??"").toLowerCase()!==actualCandidateSha||
+    fingerprintRow.fingerprint_ref!==expectedFingerprintRef||
+    fingerprintRow.model_id!==SPEAKER_QC_MODEL_ID||
+    fingerprintRow.model_revision!==SPEAKER_QC_MODEL_REVISION||
+    fingerprintRow.quality_claim!==false
+  ) throw new Error("DIRECTOR_BONEZ_SPEAKER_FINGERPRINT_REQUIRED");
+
+  const provider=String(candidateRow.provider_id??"");
+  const modelId=String(candidateRow.model_id??"");
+  const providerVoiceRef=String(metadata.voicePreset??"");
+  if(provider!=="runway-speech"||modelId!=="eleven_v3"||providerVoiceRef!=="Grungle"){
+    throw new Error("DIRECTOR_BONEZ_VOICE_PROVIDER_PROVENANCE_MISMATCH");
+  }
+
+  const now=new Date().toISOString();
+  const identity=await client.from("director_voice_identities").upsert({
+    id:VOICE_IDENTITY_ID,
+    project_id:BONEZ_PROJECT_ID,
+    character_id:BONEZ_CHARACTER_ID,
+    display_name:"Bonez canonical voice — v1",
+    source:"preset",
+    consent_ref:null,
+    primary_language:"en",
+    default_variant_id:VOICE_VARIANT_ID,
+    speaker_fingerprint_refs:[expectedFingerprintRef],
+    minimum_speaker_similarity:minimumSimilarity,
+    approved_at:now,
+    approved_by:userId,
+  },{onConflict:"id"});
+  if(identity.error) throw identity.error;
+
+  const sample=await client.from("director_voice_reference_samples").upsert({
+    id:VOICE_SAMPLE_ID,
+    voice_identity_id:VOICE_IDENTITY_ID,
+    asset_id:VOICE_ASSET_ID,
+    sha256:actualCandidateSha,
+    language:"en",
+    transcript:"You ever notice the dead got better stories than the living? Pull up a chair. I got time.",
+    duration_seconds:9.04,
+    rights_ref:"provider-preset:runway:eleven_v3:Grungle",
+    quality_evidence_ids:[VOICE_RECEIPT_ID,String(fingerprintRow.id),expectedFingerprintRef],
+  },{onConflict:"id"});
+  if(sample.error) throw sample.error;
+
+  const binding=await client.from("director_voice_provider_bindings").upsert({
+    id:VOICE_BINDING_ID,
+    voice_identity_id:VOICE_IDENTITY_ID,
+    provider,
+    model_id:modelId,
+    provider_voice_ref:providerVoiceRef,
+    reusable_prompt_ref:null,
+    speaker_embedding_ref:expectedFingerprintRef,
+    reference_sample_ids:[VOICE_SAMPLE_ID],
+    supported_languages:["en"],
+    sample_rate_hz:null,
+    provenance_refs:[
+      "runway-task:"+VOICE_TASK_ID,
+      VOICE_RECEIPT_ID,
+      String(fingerprintRow.id),
+      "asset-sha256:"+actualCandidateSha,
+    ],
+    enabled:true,
+  },{onConflict:"id"});
+  if(binding.error) throw binding.error;
+
+  const variant=await client.from("director_voice_language_variants").upsert({
+    id:VOICE_VARIANT_ID,
+    voice_identity_id:VOICE_IDENTITY_ID,
+    language:"en",
+    locale:"en-US",
+    pronunciation_lexicon_ref:null,
+    accent_policy:"preserve-identity",
+    delivery_style:"low, unhurried, darkly amused, cynical supernatural host",
+    provider_binding_ids:[VOICE_BINDING_ID],
+  },{onConflict:"id"});
+  if(variant.error) throw variant.error;
+
+  const approval=await client.from("director_voice_identity_approval_receipts").upsert({
+    id:VOICE_APPROVAL_RECEIPT_ID,
+    project_id:BONEZ_PROJECT_ID,
+    character_id:BONEZ_CHARACTER_ID,
+    voice_identity_id:VOICE_IDENTITY_ID,
+    candidate_asset_id:VOICE_ASSET_ID,
+    candidate_sha256:actualCandidateSha,
+    candidate_receipt_id:VOICE_RECEIPT_ID,
+    speaker_fingerprint_receipt_id:String(fingerprintRow.id),
+    speaker_fingerprint_ref:expectedFingerprintRef,
+    minimum_speaker_similarity:minimumSimilarity,
+    provider,
+    model_id:modelId,
+    provider_voice_ref:providerVoiceRef,
+    authority:"DIRECTOR_EXPLICIT_VOICE_APPROVAL",
+    evidence_ids:[
+      VOICE_ASSET_ID,
+      VOICE_RECEIPT_ID,
+      String(fingerprintRow.id),
+      expectedFingerprintRef,
+      "asset-sha256:"+actualCandidateSha,
+    ],
+    approved_by:userId,
+    approved_at:now,
+  },{onConflict:"id"});
+  if(approval.error) throw approval.error;
+
+  const candidateApproval=await client.from("director_voice_candidate_receipts")
+    .update({approval_state:"approved",updated_at:now})
+    .eq("id",VOICE_RECEIPT_ID);
+  if(candidateApproval.error) throw candidateApproval.error;
+
+  return {
+    ok:true,
+    phase:"DIRECTOR-QUALITY.3-VOICE-APPROVED",
+    voiceIdentityId:VOICE_IDENTITY_ID,
+    approvalReceiptId:VOICE_APPROVAL_RECEIPT_ID,
+    candidateSha256:actualCandidateSha,
+    speakerFingerprintRef:expectedFingerprintRef,
+    minimumSpeakerSimilarity:minimumSimilarity,
+    provider:{id:provider,modelId,providerVoiceRef},
+    approvedBy:userId,
+    approvedAt:now,
+    authority:"DIRECTOR_EXPLICIT_VOICE_APPROVAL",
+    productionVoiceRuntimeCommissioned:false,
+  };
+}
+
 async function qualityStatus(client:any){
-  const [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,videosResult,chunksResult,tokensResult]=await Promise.all([
+  const [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,voiceApprovalResult,videosResult,chunksResult,tokensResult]=await Promise.all([
     client.from("director_reference_media_assets")
       .select("id,sha256,reference_kind,admission_status,scan_status")
       .eq("project_id",BONEZ_PROJECT_ID)
@@ -619,6 +810,11 @@ async function qualityStatus(client:any){
       .eq("character_id",BONEZ_CHARACTER_ID)
       .order("created_at",{ascending:false})
       .limit(10),
+    client.from("director_voice_identity_approval_receipts")
+      .select("id,voice_identity_id,candidate_sha256,speaker_fingerprint_receipt_id,speaker_fingerprint_ref,minimum_speaker_similarity,provider,model_id,provider_voice_ref,authority,approved_by,approved_at")
+      .eq("project_id",BONEZ_PROJECT_ID)
+      .eq("character_id",BONEZ_CHARACTER_ID)
+      .order("approved_at",{ascending:false}),
     client.from("director_generated_editing_assets")
       .select("id,sha256,provider_id,model_id,metadata,created_at")
       .eq("project_id",BONEZ_PROJECT_ID)
@@ -633,7 +829,7 @@ async function qualityStatus(client:any){
       .is("consumed_at",null)
       .gt("expires_at",new Date().toISOString()),
   ]);
-  for(const result of [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,videosResult,chunksResult,tokensResult]){
+  for(const result of [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,voiceApprovalResult,videosResult,chunksResult,tokensResult]){
     if(result.error) throw result.error;
   }
   const speakerQcRuntime=await speakerQcRuntimeStatus(client);
@@ -697,6 +893,20 @@ async function qualityStatus(client:any){
       artifactHashStatus:String((candidateReceiptResult.data as any).artifact_hash_status),
     }:null,
     speakerQcRuntime,
+    voiceApprovalReceipts:(voiceApprovalResult.data??[]).map((row:any)=>({
+      id:String(row.id),
+      voiceIdentityId:String(row.voice_identity_id),
+      candidateSha256:String(row.candidate_sha256),
+      speakerFingerprintReceiptId:String(row.speaker_fingerprint_receipt_id),
+      speakerFingerprintRef:String(row.speaker_fingerprint_ref),
+      minimumSpeakerSimilarity:Number(row.minimum_speaker_similarity),
+      provider:String(row.provider),
+      modelId:String(row.model_id),
+      providerVoiceRef:row.provider_voice_ref?String(row.provider_voice_ref):null,
+      authority:String(row.authority),
+      approvedBy:String(row.approved_by),
+      approvedAt:String(row.approved_at),
+    })),
     speakerFingerprintReceipts:(speakerFingerprintResult.data??[]).map((row:any)=>({
       id:String(row.id),
       sourceAssetId:String(row.source_asset_id),
@@ -826,7 +1036,7 @@ async function main(req:Request):Promise<Response>{
     let authenticatedUserId:string|undefined;
 
     if(!vercelAuthorized){
-      if(action!=="stage") return json(401,{ok:false,error:"unauthorized"});
+      if(action!=="stage"&&action!=="voice-approve") return json(401,{ok:false,error:"unauthorized"});
       const authorization=req.headers.get("authorization")??"";
       const token=authorization.startsWith("Bearer ")?authorization.slice(7).trim():"";
       if(!token) return json(401,{ok:false,error:"DIRECTOR_BONEZ_USER_AUTH_REQUIRED"});
@@ -838,6 +1048,7 @@ async function main(req:Request):Promise<Response>{
     }
 
     if(action==="stage") return json(200,await stageReferences(client,body,authenticatedUserId));
+    if(action==="voice-approve") return json(200,await approveBonezVoiceIdentity(client,body,authenticatedUserId));
     if(action==="voice-candidate") return json(200,await recordVoiceCandidate(client));
     if(action==="speaker-fingerprint-source") return json(200,await speakerFingerprintSource(client));
     if(action==="speaker-fingerprint-receipt") return json(200,await recordSpeakerFingerprintReceipt(client,body));
@@ -852,11 +1063,34 @@ async function main(req:Request):Promise<Response>{
       "DIRECTOR_BONEZ_BOOTSTRAP_UNAUTHORIZED",
       "DIRECTOR_BONEZ_STAGE_USER_MISMATCH",
     ]);
+    const forbidden=new Set([
+      "DIRECTOR_BONEZ_VOICE_APPROVAL_AUTHORITY_REQUIRED",
+    ]);
+    const conflict=new Set([
+      "DIRECTOR_QUALITY_2_REQUIRED",
+      "DIRECTOR_BONEZ_VOICE_CANDIDATE_MISSING",
+      "DIRECTOR_BONEZ_VOICE_CANDIDATE_MISMATCH",
+      "DIRECTOR_BONEZ_VOICE_CANDIDATE_RECEIPT_INVALID",
+      "DIRECTOR_BONEZ_SPEAKER_FINGERPRINT_REQUIRED",
+      "DIRECTOR_BONEZ_VOICE_PROVIDER_PROVENANCE_MISMATCH",
+    ]);
+    const badRequest=new Set([
+      "DIRECTOR_BONEZ_VOICE_APPROVER_REQUIRED",
+      "DIRECTOR_BONEZ_VOICE_EXPLICIT_APPROVAL_REQUIRED",
+      "DIRECTOR_BONEZ_VOICE_EXPECTED_SHA_REQUIRED",
+      "DIRECTOR_BONEZ_VOICE_EXPECTED_FINGERPRINT_REQUIRED",
+      "DIRECTOR_BONEZ_VOICE_SIMILARITY_FLOOR_INVALID",
+    ]);
     const unavailable=new Set([
       "DIRECTOR_SPEAKER_QC_RUNTIME_NOT_CONFIGURED",
       "DIRECTOR_SPEAKER_QC_RUNTIME_NOT_READY",
     ]);
-    return json(unauthorized.has(message)?401:unavailable.has(message)?503:500,{ok:false,error:message});
+    const status=unauthorized.has(message)?401:
+      forbidden.has(message)?403:
+      conflict.has(message)?409:
+      badRequest.has(message)?400:
+      unavailable.has(message)?503:500;
+    return json(status,{ok:false,error:message});
   }
 }
 
