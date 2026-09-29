@@ -49,7 +49,7 @@ export interface RestorationArtifactStore {
     bytes: Uint8Array;
     role?: string;
   }): Promise<{ uri: string }>;
-  register(artifact: StoredRestorationArtifact): Promise<void>;
+  registerCase(restorationCase: RestorationCase): Promise<void>;\n  register(artifact: StoredRestorationArtifact): Promise<void>;
   get(ownerUserId: string, artifactId: string): Promise<StoredRestorationArtifact | undefined>;
 }
 
@@ -168,8 +168,6 @@ export async function ingestRestorationSource(input: {
     sizeBytes: input.bytes.byteLength,
     runtimeReceiptId: probe.runtimeReceiptId,
   };
-  await input.store.register(artifact);
-
   const restorationCase = createRestorationCase({
     id: caseId,
     userId: ownerUserId,
@@ -177,6 +175,8 @@ export async function ingestRestorationSource(input: {
     sourceArtifactId: artifactId,
     now,
   });
+  await input.store.registerCase(restorationCase);
+  await input.store.register(artifact);
 
   const fingerprint: AudioSourceFingerprint = {
     assetId: artifactId,
