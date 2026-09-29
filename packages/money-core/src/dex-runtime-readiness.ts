@@ -88,7 +88,7 @@ export function evaluateDexRuntimeReadiness(input:DexRuntimeReadinessInput):DexR
  const connectorReady=Boolean(
   input.connector&&
   input.connector.lane==='DEX'&&
-  input.connector.provider==='jupiter-ultra'&&
+  (input.connector.provider==='jupiter-ultra'||input.connector.provider==='solana-dex-router')&&
   input.connector.admission==='CONTROLLED_CANARY'&&
   input.connector.executionCapabilities.includes('swap')&&
   input.connector.credentialRef?.trim()&&
@@ -98,7 +98,7 @@ export function evaluateDexRuntimeReadiness(input:DexRuntimeReadinessInput):DexR
   check('COFFER_WALLET',walletReady,'DEX_READINESS_COFFER_WALLET_REQUIRED',walletReady?'Isolated Solana Coffer wallet is bound.':'Create and persist an active COFFER_EXECUTION_WALLET on Solana.'),
   check('SIGNER_LEASE',leaseReady,'DEX_READINESS_SIGNER_LEASE_REQUIRED',leaseReady?'Active secret-free signer lease is bound.':'Issue an unexpired signer lease bound to the Coffer wallet.'),
   check('MEME_BUDGET',budgetReady,'DEX_READINESS_MEME_BUDGET_REQUIRED',budgetReady?'MEME strategy budget has bounded deployable capacity.':'Commission a non-zero ACTIVE MEME budget with remaining hard-cap capacity.'),
-  check('DEX_CONNECTOR',connectorReady,'DEX_READINESS_CONTROLLED_CANARY_CONNECTOR_REQUIRED',connectorReady?'Jupiter connector is admitted for CONTROLLED_CANARY.':'Admit provider jupiter-ultra on the DEX lane as CONTROLLED_CANARY with a credential reference.'),
+  check('DEX_CONNECTOR',connectorReady,'DEX_READINESS_CONTROLLED_CANARY_CONNECTOR_REQUIRED',connectorReady?'DEX execution surface is admitted for CONTROLLED_CANARY.':'Admit the universal Solana DEX router (or Jupiter canary adapter) as CONTROLLED_CANARY with a credential reference.'),
   check('JUPITER_CREDENTIAL',input.jupiterCredentialConfigured,'DEX_READINESS_JUPITER_CREDENTIAL_REQUIRED',input.jupiterCredentialConfigured?'Jupiter credential is configured in the server runtime.':'Configure the server-side Jupiter API credential.'),
   check('SIGNER_ENDPOINT',input.signerEndpointConfigured,'DEX_READINESS_SIGNER_ENDPOINT_REQUIRED',input.signerEndpointConfigured?'Remote signer HTTPS endpoint is configured.':'Configure the isolated Coffer signer HTTPS endpoint.'),
   check('SIGNER_AUTH',input.signerAuthorizationConfigured,'DEX_READINESS_SIGNER_AUTH_REQUIRED',input.signerAuthorizationConfigured?'Remote signer authorization is configured.':'Configure opaque signer-service authorization.'),
