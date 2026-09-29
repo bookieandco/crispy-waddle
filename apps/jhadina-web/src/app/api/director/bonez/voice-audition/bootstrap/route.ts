@@ -8,7 +8,7 @@ export const maxDuration=120;
 
 const GATEWAY_URL='https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway';
 
-export async function GET(){
+export async function GET(request:Request){
   const privileged=createServiceRoleClient();
   if(privileged){
     try{
@@ -19,7 +19,9 @@ export async function GET(){
       return NextResponse.json({ok:false,error:message},{status:500,headers:{'cache-control':'no-store'}});
     }
   }
-  const oidc=process.env.VERCEL_OIDC_TOKEN?.trim();
+  const oidc=process.env.VERCEL_OIDC_TOKEN?.trim()||
+    request.headers.get('x-vercel-oidc-token')?.trim()||
+    undefined;
   if(!oidc) return NextResponse.json({ok:false,error:'DIRECTOR_PRIVILEGED_RUNTIME_REQUIRED'},{status:503});
   const response=await fetch(GATEWAY_URL,{
     method:'POST',
