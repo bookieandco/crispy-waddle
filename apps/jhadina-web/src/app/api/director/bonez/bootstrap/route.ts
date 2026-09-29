@@ -150,7 +150,7 @@ async function bootstrap(request:Request){
       }),
     ]);
 
-    await saveDirectorCastRecord(client,{cast:bonezCastRecord(now),approvedByUserId:userId});
+    await saveDirectorCastRecord(client,{cast:bonezCastRecord(now,userId),approvedByUserId:userId});
 
     const packages=bonezAssetPackages(now);
     for(const pkg of packages){
