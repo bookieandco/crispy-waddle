@@ -59,6 +59,18 @@ describe('Director live quality gates',()=>{
     expect(result.expectedFailureObserved).toBe(true);
   });
 
+  it('does not count a structurally invalid take as the intentional Q5 failure',()=>{
+    const input=take('quality5-stress');
+    input.artifact.storageVerified=false;
+    input.observations=observations().map((row,index)=>
+      index===2?{...row,score:.2,hardFailure:true,startSeconds:1,endSeconds:2}:row
+    );
+    const result=evaluateDirectorLiveTake(input);
+    expect(result.expectedFailureObserved).toBe(false);
+    expect(result.reasons).toContain('DIRECTOR_QUALITY_5_STRESS_TAKE_STRUCTURALLY_INVALID');
+    expect(result.reasons).toContain('DIRECTOR_QUALITY_5_REAL_FAILURE_REQUIRED');
+  });
+
   it('requires a changed localized repair that passes post-QC and preserves unaffected work',()=>{
     const failed=observations().map((row,index)=>
       index===2?{...row,score:.2,hardFailure:true,startSeconds:1,endSeconds:2}:row
