@@ -105,10 +105,19 @@ export async function executeGovernedRestoration(input: GovernedRestorationExecu
     });
 
     if (result.status !== "completed") {
+      await store.persistExecutionOutcome({
+        caseId: input.caseId,
+        receipt: result.receipt,
+      });
       await store.failJob(executionId, result.receipt.reasons.join(" ") || "Restoration execution failed");
       return { authorization, ...result };
     }
 
+    await store.persistExecutionOutcome({
+      caseId: input.caseId,
+      receipt: result.receipt,
+      version: result.version,
+    });
     await store.completeJob({
       id: executionId,
       outputArtifactIds: result.artifact ? [result.artifact.id] : [],
