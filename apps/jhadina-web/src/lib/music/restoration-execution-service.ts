@@ -104,6 +104,11 @@ export async function executeGovernedRestoration(input: GovernedRestorationExecu
       createdAt: new Date().toISOString(),
     });
 
+    if (result.status !== "completed") {
+      await store.failJob(executionId, result.receipt.reasons.join(" ") || "Restoration execution failed");
+      return { authorization, ...result };
+    }
+
     await store.completeJob({
       id: executionId,
       outputArtifactIds: result.artifact ? [result.artifact.id] : [],
