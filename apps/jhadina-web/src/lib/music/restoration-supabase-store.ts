@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  EvidenceObservation,
+  LedgerRestorationVersion,
+  PostExecutionQcReceipt,
   RestorationArtifactStore,
   RestorationCase,
   StoredRestorationArtifact,
@@ -264,7 +267,8 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
       .upsert(rows, { onConflict: "id", ignoreDuplicates: true });
     if (error) throw new Error(`MUSIC_RESTORATION_EVIDENCE_WRITE_FAILED: ${error.message}`);
   }
-\n  async persistExecutionOutcome(input: {
+
+  async persistExecutionOutcome(input: {
     caseId: string;
     receipt: PostExecutionQcReceipt;
     version?: LedgerRestorationVersion;
