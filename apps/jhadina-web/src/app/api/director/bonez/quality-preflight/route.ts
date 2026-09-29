@@ -151,6 +151,8 @@ export async function GET(request:Request){
       approval.voiceIdentityId===identity.id
       &&approval.authority==='DIRECTOR_EXPLICIT_VOICE_APPROVAL'
       &&approval.candidateSha256===candidateAssetSha
+      &&approval.speakerFingerprintReceiptId===matchingSpeakerFingerprint?.id
+      &&approval.speakerFingerprintRef===matchingSpeakerFingerprint?.fingerprintRef
       &&identity.speakerFingerprintRefs.includes(approval.speakerFingerprintRef)
       &&Number(approval.minimumSpeakerSimilarity)===Number(identity.minimumSpeakerSimilarity)
       &&approval.provider===binding.provider
