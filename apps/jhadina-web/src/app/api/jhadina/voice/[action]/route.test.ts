@@ -15,6 +15,18 @@ describe("Jhadina voice HTTP bridge",()=>{
     process.env.JHADINA_VOICE_TOKEN="secret"
   })
 
+  it("keeps read-only health public to machine certification",async()=>{
+    delete process.env.JHADINA_VOICE_URL
+    delete process.env.JHADINA_VOICE_TOKEN
+    const {GET}=await import("./route")
+    const req=new NextRequest("https://app.example/api/jhadina/voice/health",{method:"GET"})
+    const response=await GET(req,{params:Promise.resolve({action:"health"})})
+    const json=await response.json()
+    expect(response.status).toBe(200)
+    expect(json.status).toBe("browser-fallback")
+    expect(verify).not.toHaveBeenCalled()
+  })
+
   it("reports browser fallback when native voice infrastructure is not configured",async()=>{
     delete process.env.JHADINA_VOICE_URL
     delete process.env.JHADINA_VOICE_TOKEN
