@@ -37,6 +37,9 @@ importers:
       '@jhadina/evolution-core':
         specifier: workspace:*
         version: link:../../packages/jhadina-evolution-core
+      '@jhadina/event-bus':
+        specifier: workspace:*
+        version: link:../../packages/jhadina-event-bus
       '@jhadina/growth-core':
         specifier: workspace:*
         version: link:../../packages/growth-core
