@@ -12,7 +12,7 @@ describe('Bonez voice audition candidate bootstrap',()=>{
 
   it('fails closed without either privileged runtime path',async()=>{
     const {GET}=await import('./route');
-    const response=await GET();
+    const response=await GET(new Request('https://app.example/api/director/bonez/voice-audition/bootstrap'));
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ok:false,error:'DIRECTOR_PRIVILEGED_RUNTIME_REQUIRED'});
   });
@@ -26,7 +26,7 @@ describe('Bonez voice audition candidate bootstrap',()=>{
       asset:{id:'asset:audio:bonez:voice-audition:v1',sha256:'abc'},
     }),{status:200,headers:{'content-type':'application/json'}}));
     const {GET}=await import('./route');
-    const response=await GET();
+    const response=await GET(new Request('https://app.example/api/director/bonez/voice-audition/bootstrap'));
     const body=await response.json();
     expect(response.status).toBe(200);
     expect(body.approved).toBe(false);
@@ -40,5 +40,26 @@ describe('Bonez voice audition candidate bootstrap',()=>{
     );
     const [,init]=upstream.mock.calls[0]!;
     expect(JSON.parse(String(init?.body))).toEqual({action:'voice-candidate'});
+  });
+
+  it('accepts the production request-scoped Vercel OIDC token',async()=>{
+    delete process.env.VERCEL_OIDC_TOKEN;
+    const upstream=vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(JSON.stringify({
+      ok:true,
+      phase:'DIRECTOR-QUALITY.3-VOICE-CANDIDATE',
+      approved:false,
+    }),{status:200,headers:{'content-type':'application/json'}}));
+    const {GET}=await import('./route');
+    const response=await GET(new Request(
+      'https://app.example/api/director/bonez/voice-audition/bootstrap',
+      {headers:{'x-vercel-oidc-token':'request-oidc-token'}},
+    ));
+    expect(response.status).toBe(200);
+    expect(upstream).toHaveBeenCalledWith(
+      'https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway',
+      expect.objectContaining({
+        headers:expect.objectContaining({authorization:'Bearer request-oidc-token'}),
+      }),
+    );
   });
 });
