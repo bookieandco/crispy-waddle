@@ -15,6 +15,7 @@ import { certifyDexExecutionLadder,type DexExecutionStageEvidence,type EdgeDecis
 import { JupiterUltraDexAdapter } from './jupiter-ultra-dex-adapter.js'
 import { RemoteCofferSignerAdapter } from './remote-coffer-signer-adapter.js'
 import { SolanaRpcHttpObserver } from './solana-rpc-http-observer.js'
+import { createSharkPreExecutionBinding,type SharkPreExecutionMaterial } from './shark-preexec-binding.js'
 
 const settlement='USDC_MINT'
 const target='TARGET_MINT'
@@ -34,25 +35,33 @@ class PermitMemory implements PermitStore{
  revoke(id:string){const p=this.rows.get(id);if(p)this.rows.set(id,{...p,state:'REVOKED'})}
  haltAll(){for(const [id,p] of this.rows)if(p.state==='ISSUED')this.rows.set(id,{...p,state:'HALTED'})}
 }
-const intent=(leg:'ENTRY'|'EXIT'):DexSwapIntent=>createApprovedDexSwapIntent({
- draft:{
-  executionId:'exec:'+leg.toLowerCase(),tradeId:'trade:1',requestId:'req:'+leg.toLowerCase(),runLineageId:'lineage:1',userId:'u1',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',
-  leg,provider:'jupiter-ultra',walletConnectionId:wallet.connectionId,signerLeaseId:signerLease.leaseId,inputMint:leg==='ENTRY'?settlement:target,outputMint:leg==='ENTRY'?target:settlement,
-  inputAmountAtomic:leg==='ENTRY'?1000000n:500000n,minimumOutputAtomic:leg==='ENTRY'?500000n:990000n,notionalMinor:1000n,currency:'USD',idempotencyKey:'idem:'+leg.toLowerCase(),
-  informationCutoff:'2026-09-27T20:29:59Z',evidenceIds:['shark:'+leg]
- },
- governance:{
-  sharkAssessmentId:'assessment:1',
-  thesisId:'thesis:1',
-  edgeDecisionBundle,
-  integrityGuard:integrity,
-  moneyRisk:{
-   riskDecisionId:'risk:'+leg.toLowerCase(),disposition:'APPROVE',reasonCodes:[],evidenceIds:['risk:'+leg.toLowerCase()+':e'],
-   evaluatedAt:'2026-09-27T20:30:00Z',authority:'MONEY_RISK_DECISION',canExecute:false,
+function preExecutionMaterial():SharkPreExecutionMaterial{
+ return {assessmentId:'assessment:1',assessment:{instrument:'solana:TARGET',decision:'candidate'},assessmentEvidenceIds:['assessment:e'],edgeDecisionBundle,integrityGuard:integrity}
+}
+function intent(leg:'ENTRY'|'EXIT'):DexSwapIntent{
+ const material=preExecutionMaterial()
+ const preExecution=createSharkPreExecutionBinding({material,informationCutoff:'2026-09-27T20:29:59Z'})
+ return createApprovedDexSwapIntent({
+  draft:{
+   executionId:'exec:'+leg.toLowerCase(),tradeId:'trade:1',requestId:'req:'+leg.toLowerCase(),runLineageId:'lineage:1',userId:'u1',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',
+   leg,provider:'jupiter-ultra',routePreference:'AUTO',requestedSlippageBps:50,walletConnectionId:wallet.connectionId,signerLeaseId:signerLease.leaseId,inputMint:leg==='ENTRY'?settlement:target,outputMint:leg==='ENTRY'?target:settlement,
+   inputAmountAtomic:leg==='ENTRY'?1000000n:500000n,minimumOutputAtomic:leg==='ENTRY'?500000n:990000n,notionalMinor:1000n,currency:'USD',idempotencyKey:'idem:'+leg.toLowerCase(),
+   informationCutoff:'2026-09-27T20:29:59Z',preExecution,evidenceIds:['shark:'+leg]
   },
-  approvedAt:'2026-09-27T20:30:00Z',
- }
-})
+  governance:{
+   sharkAssessmentId:'assessment:1',
+   thesisId:'thesis:1',
+   preExecution,
+   edgeDecisionBundle,
+   integrityGuard:integrity,
+   moneyRisk:{
+    riskDecisionId:'risk:'+leg.toLowerCase(),disposition:'APPROVE',reasonCodes:[],evidenceIds:['risk:'+leg.toLowerCase()+':e'],
+    evaluatedAt:'2026-09-27T20:30:00Z',authority:'MONEY_RISK_DECISION',canExecute:false,
+   },
+   approvedAt:'2026-09-27T20:30:00Z',
+  }
+ })
+}
 const edgeDecisionBundle:EdgeDecisionBundleReceipt={
  frameworkVersion:'EDGE-001-006-v1',
  receipts:(['EDGE-001','EDGE-002','EDGE-003','EDGE-004','EDGE-005','EDGE-006'] as const).map(gateId=>({
@@ -77,7 +86,7 @@ class FakeDex implements ManagedSolanaDexAdapter{
  readonly provider='jupiter-ultra' as const
  calls=0
  async createOrder({intent:i,takerAddress}:{intent:DexSwapIntent;takerAddress:string}):Promise<DexManagedOrder>{
-  return {provider:this.provider,requestId:'jup:'+i.executionId,inputMint:i.inputMint,outputMint:i.outputMint,inputAmountAtomic:i.inputAmountAtomic,quotedOutputAtomic:i.minimumOutputAtomic+100n,unsignedTransactionBase64:'unsigned:'+i.executionId,takerAddress,evidenceIds:['jup:order'],authority:'PROVIDER_QUOTE_ONLY',canBroadcast:false}
+  return {provider:this.provider,requestId:'jup:'+i.executionId,inputMint:i.inputMint,outputMint:i.outputMint,inputAmountAtomic:i.inputAmountAtomic,quotedOutputAtomic:i.minimumOutputAtomic+100n,unsignedTransactionBase64:'unsigned:'+i.executionId,takerAddress,quoteObservedAt:'2026-09-27T20:29:59Z',priceImpactBps:10,evidenceIds:['jup:order'],authority:'PROVIDER_QUOTE_ONLY',canBroadcast:false}
  }
  async executeSigned({intent:i,order,signed,now}:{intent:DexSwapIntent;order:DexManagedOrder;signed:DexSignedTransaction;now:string}):Promise<DexProviderExecutionReceipt>{
   this.calls++
@@ -125,7 +134,7 @@ test('DEX approval binding is invalid if transaction parameters change after Mon
 test('reference is adapted to current Jupiter managed endpoints rather than legacy V6 browser flow',async()=>{
  let orderUrl='',executeBody='',apiKey=''
  const adapter=new JupiterUltraDexAdapter({resolveApiKey:()=> 'key-1',fetchFn:async(input,init)=>{
-  const url=String(input);if((init?.method??'GET')==='GET'){orderUrl=url;apiKey=(init?.headers as Record<string,string>)['x-api-key'];return new Response(JSON.stringify({requestId:'r1',transaction:'dHg=',inAmount:'1000000',outAmount:'500100'}),{status:200})}
+  const url=String(input);if((init?.method??'GET')==='GET'){orderUrl=url;apiKey=(init?.headers as Record<string,string>)['x-api-key'];return new Response(JSON.stringify({requestId:'r1',transaction:'dHg=',inAmount:'1000000',outAmount:'500100',priceImpactBps:10}),{status:200})}
   executeBody=String(init?.body??'');return new Response(JSON.stringify({status:'Success',signature:'sig:idem:entry',inputAmountResult:'1000000',outputAmountResult:'500100'}),{status:200})
  }})
  const i=intent('ENTRY'),o=await adapter.createOrder({intent:i,takerAddress:wallet.address})
@@ -166,7 +175,12 @@ test('DEX-COMMISSION.FINAL executes exactly two bounded legs, proves restart rec
   const action=dexExecutionAction(i)
   const p=issueExecutionPermit({action,actionRequestFingerprint:'arf:'+i.leg,authorityId:'authority:'+i.leg,policyVersion:'dex:v1',policyHash:'hash',expiresAt:'2026-09-27T21:30:00Z',now,permitId:'permit:'+i.leg,nonce:'nonce:'+i.leg})
   permits.issue(p)
-  return submitControlledDexCanaryLeg({intent:i,boundary,adapter,signer,chain,events,attemptStore:attempts,permitStore:permits,permit:p,permitContext:{actionRequestFingerprint:'arf:'+i.leg,authorityId:'authority:'+i.leg,policyVersion:'dex:v1',policyHash:'hash',now},canaryStore:canary,canaryPolicy,tradingDate:'2026-09-27',attemptId,now})
+  return submitControlledDexCanaryLeg({
+   intent:i,preExecutionMaterial:preExecutionMaterial(),
+   dexGatePolicy:{maxQuoteAgeMs:600000,maxSlippageBps:100,maxPriceImpactBps:100,minSolFeeReserveLamports:100000n,maxConsecutiveLosses:3},
+   dexGateContext:{now,walletSolBalanceLamports:1000000n,estimatedFeeLamports:5000n,solSpendLamports:0n,consecutiveLosses:0,admission:{inputMint:i.inputMint,outputMint:i.outputMint,inputTokenAdmitted:true,outputTokenAdmitted:true,contractAdmitted:true,evidenceIds:['token-admission:e'],authority:'TOKEN_CONTRACT_ADMISSION_ONLY',canAuthorizeTrade:false},evidenceIds:['dex-gate-context:e']},
+   boundary,adapter,signer,chain,events,attemptStore:attempts,permitStore:permits,permit:p,permitContext:{actionRequestFingerprint:'arf:'+i.leg,authorityId:'authority:'+i.leg,policyVersion:'dex:v1',policyHash:'hash',now},canaryStore:canary,canaryPolicy,tradingDate:'2026-09-27',attemptId,now
+  })
  }
  const entryIntent=intent('ENTRY'),exitIntent=intent('EXIT')
  const entry=await run(entryIntent,'attempt:entry','2026-09-27T20:30:00Z')
