@@ -30,6 +30,8 @@ const SPEAKER_QC_MODEL_ID="speechbrain/spkrec-ecapa-voxceleb";
 const SPEAKER_QC_MODEL_REVISION="ff989f88e92ccc120569763824f8eedd5afc9039";
 const SPEAKER_QC_SAMPLE_RATE_HZ=16000;
 const SPEAKER_QC_QUANTIZATION="l2-int16-v1";
+const SPEAKER_QC_URL_KEY="director_speaker_qc_url";
+const SPEAKER_QC_TOKEN_KEY="director_speaker_qc_token";
 
 type Json=Record<string,unknown>;
 
@@ -360,6 +362,71 @@ async function recordVoiceCandidate(client:any){
   };
 }
 
+async function speakerQcRuntimeConfig(client:any):Promise<{baseUrl:string;token:string}|null>{
+  const result=await client.from("director_runtime_config")
+    .select("key,value")
+    .in("key",[SPEAKER_QC_URL_KEY,SPEAKER_QC_TOKEN_KEY]);
+  if(result.error) throw result.error;
+  const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
+  const rawUrl=(values.get(SPEAKER_QC_URL_KEY)??"").trim();
+  const token=(values.get(SPEAKER_QC_TOKEN_KEY)??"").trim();
+  if(!rawUrl||!token) return null;
+  const parsed=new URL(rawUrl);
+  const allowedHost=parsed.hostname.endsWith(".up.railway.app")||parsed.hostname.endsWith(".proxy.runpod.net");
+  if(parsed.protocol!=="https:"||!allowedHost||parsed.username||parsed.password){
+    throw new Error("DIRECTOR_SPEAKER_QC_RUNTIME_URL_NOT_ADMITTED");
+  }
+  parsed.pathname=parsed.pathname.replace(/\/+$/,"");
+  parsed.search="";
+  parsed.hash="";
+  return {baseUrl:parsed.toString().replace(/\/$/,""),token};
+}
+
+async function speakerQcRuntimeStatus(client:any){
+  let config:{baseUrl:string;token:string}|null;
+  try{
+    config=await speakerQcRuntimeConfig(client);
+  }catch(cause){
+    return {
+      configured:true,
+      productionReady:false,
+      status:"invalid-config",
+      error:cause instanceof Error?cause.message:"DIRECTOR_SPEAKER_QC_RUNTIME_CONFIG_INVALID",
+    };
+  }
+  if(!config) return {configured:false,productionReady:false,status:"not-configured"};
+  try{
+    const response=await fetch(config.baseUrl+"/health",{
+      signal:AbortSignal.timeout(15_000),
+      redirect:"error",
+    });
+    const health=await response.json().catch(()=>({})) as Record<string,unknown>;
+    const productionReady=response.ok&&health.status==="ready"&&health.productionReady===true;
+    return {
+      configured:true,
+      productionReady,
+      status:productionReady?"ready":String(health.status??(response.ok?"blocked":"unavailable")),
+      health:{
+        status:health.status??null,
+        productionReady:health.productionReady===true,
+        modelId:health.modelId??null,
+        modelRevision:health.modelRevision??null,
+        modelReady:health.modelReady??null,
+        sampleRateHz:health.sampleRateHz??null,
+        quantization:health.quantization??null,
+        reasons:Array.isArray(health.reasons)?health.reasons.map(String):[],
+      },
+    };
+  }catch(cause){
+    return {
+      configured:true,
+      productionReady:false,
+      status:"unavailable",
+      error:cause instanceof Error?cause.message:"DIRECTOR_SPEAKER_QC_HEALTH_FAILED",
+    };
+  }
+}
+
 async function speakerFingerprintSource(client:any){
   const asset=await client.from("director_generated_editing_assets")
     .select("id,sha256,mime_type,uri,metadata")
@@ -484,6 +551,45 @@ async function recordSpeakerFingerprintReceipt(client:any,body:any){
   };
 }
 
+async function runSpeakerFingerprint(client:any){
+  const config=await speakerQcRuntimeConfig(client);
+  if(!config) throw new Error("DIRECTOR_SPEAKER_QC_RUNTIME_NOT_CONFIGURED");
+  const runtime=await speakerQcRuntimeStatus(client);
+  if(runtime.productionReady!==true) throw new Error("DIRECTOR_SPEAKER_QC_RUNTIME_NOT_READY");
+
+  const source=await speakerFingerprintSource(client);
+  const response=await fetch(config.baseUrl+"/v1/fingerprint",{
+    method:"POST",
+    headers:{
+      authorization:"Bearer "+config.token,
+      "content-type":"application/json",
+    },
+    body:JSON.stringify({
+      mimeType:source.mimeType,
+      audioBase64:source.audioBase64,
+      expectedSourceSha256:source.sourceSha256,
+    }),
+    signal:AbortSignal.timeout(120_000),
+    redirect:"error",
+  });
+  const fingerprint=await response.json().catch(()=>({})) as Record<string,unknown>;
+  if(!response.ok){
+    throw new Error("DIRECTOR_SPEAKER_QC_FINGERPRINT_FAILED:"+response.status);
+  }
+  if(String(fingerprint.sourceSha256??"")!==source.sourceSha256){
+    throw new Error("DIRECTOR_SPEAKER_QC_SOURCE_HASH_MISMATCH");
+  }
+  const persisted=await recordSpeakerFingerprintReceipt(client,{
+    receipt:{sourceAssetId:VOICE_ASSET_ID,...fingerprint},
+  });
+  return {
+    ...persisted,
+    runtime,
+    authority:"DIRECTOR_SPEAKER_QC_EVIDENCE_ONLY",
+    canonicalVoiceIdentityCreated:false,
+  };
+}
+
 async function qualityStatus(client:any){
   const [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,videosResult,chunksResult,tokensResult]=await Promise.all([
     client.from("director_reference_media_assets")
@@ -530,6 +636,7 @@ async function qualityStatus(client:any){
   for(const result of [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,videosResult,chunksResult,tokensResult]){
     if(result.error) throw result.error;
   }
+  const speakerQcRuntime=await speakerQcRuntimeStatus(client);
   const voices=(voicesResult.data??[]) as Array<any>;
   const voiceIds=voices.map(row=>String(row.id));
   let bindingRows:Array<any>=[];
@@ -589,6 +696,7 @@ async function qualityStatus(client:any){
       approvalState:String((candidateReceiptResult.data as any).approval_state),
       artifactHashStatus:String((candidateReceiptResult.data as any).artifact_hash_status),
     }:null,
+    speakerQcRuntime,
     speakerFingerprintReceipts:(speakerFingerprintResult.data??[]).map((row:any)=>({
       id:String(row.id),
       sourceAssetId:String(row.source_asset_id),
@@ -733,6 +841,7 @@ async function main(req:Request):Promise<Response>{
     if(action==="voice-candidate") return json(200,await recordVoiceCandidate(client));
     if(action==="speaker-fingerprint-source") return json(200,await speakerFingerprintSource(client));
     if(action==="speaker-fingerprint-receipt") return json(200,await recordSpeakerFingerprintReceipt(client,body));
+    if(action==="speaker-fingerprint-run") return json(200,await runSpeakerFingerprint(client));
     if(action==="status") return json(200,await qualityStatus(client));
     if(action!=="bootstrap") return json(400,{ok:false,error:"unsupported_action"});
     return json(200,await bootstrap(client,body));
