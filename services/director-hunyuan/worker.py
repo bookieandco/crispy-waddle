@@ -9,6 +9,7 @@ from pathlib import Path
 import subprocess
 import sys
 import threading
+import shutil
 import urllib.request
 from typing import Any
 
@@ -90,12 +91,16 @@ def runtime_readiness(config:HunyuanRuntimeConfig)->dict[str,Any]:
         reasons.append("DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGEMENT_REQUIRED")
     if not config.checkpoint_tree_ready():
         reasons.append("DIRECTOR_HUNYUAN_CHECKPOINT_TREE_INCOMPLETE")
+    ffprobe_ready=shutil.which("ffprobe") is not None
     if not gpu_ready:
         reasons.append("DIRECTOR_HUNYUAN_GPU_MEMORY_BELOW_14GB_OR_UNAVAILABLE")
+    if not ffprobe_ready:
+        reasons.append("DIRECTOR_HUNYUAN_FFPROBE_REQUIRED")
     return {
         "productionReady":not reasons,
         "reasons":reasons,
         "gpuMemoryMb":memory,
+        "ffprobeReady":ffprobe_ready,
         "minimumGpuMemoryMb":MIN_GPU_MEMORY_MB,
         "checkpointTreeReady":config.checkpoint_tree_ready(),
         "licenseAcknowledged":config.license_acknowledged,
