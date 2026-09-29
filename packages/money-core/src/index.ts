@@ -288,3 +288,6 @@ export * from './dex-router-final.js';
 export * from './dex-certification-runner.js';
 export * from './dex-stage-executors.js';
 export * from './meme-live-governed.js';
+
+export * from './solana-dex-runtime-factory.js';
+export * from './postgres-meme-live-governed-store.js';
