@@ -266,3 +266,62 @@ Therefore this receipt **does not** claim:
 Those are **production-quality admission tests**, not missing replication-runtime wiring.
 
 The important change from DIRECTOR-REPLICATE.12 is now proven: Jhadina can take a real reference through the deployed Study → improve → rehearse → render → store → reopen/edit pipeline with durable receipts, at the full requested duration classes, without source-only or synthetic-database-only certification.
+
+
+---
+
+## Re-certification — 2026-09-29 UTC
+
+A second production smoke was run after the single-use GET trigger was merged.
+
+**Trigger PR:** #787  
+**Trigger merge commit:** `1edb66a9d127fe498754642e83e57f6cb8e31479`  
+**Certified Vercel deployment:** `dpl_3X6WBGb3zAwsF5uAvp4NqFiHVkch`  
+**Deployment state:** `READY`  
+**Re-certification run:** `director-live-cert:098ffafb-a988-45c2-b61a-079eda8e99b2`
+
+The source was again the real public repository:
+
+`https://github.com/replicate/lora-training`
+
+Observed and independently verified receipts:
+
+- live run status: **completed**
+- Study observations: **16**
+- minimum observation confidence: **0.84**
+- explicit improvement receipts: **16**
+- video jobs: **4**
+- video jobs in `preview_ready`: **4**
+- rehearsal receipts: **4**
+- first rehearsal take disposition `retry`: **4**
+- approved second takes: **4**
+- generated editing assets: **4**
+- private `director-media` Storage objects: **4**
+- stored MP4 durations: **30 / 600 / 1500 / 3600 seconds**
+- editable timeline snapshots: **8**
+- baseline timelines: **4**
+- localized edited child timelines: **4**
+- final editable Director projects: **4**
+- final stages approved: **4**
+- unused one-use certification tokens remaining after cleanup: **0**
+
+The localized edits were directly verified in durable timeline JSON:
+
+| Runtime class | v1 clip duration | v2 clip duration |
+|---|---:|---:|
+| 30 s | 30.0 s | 29.7 s |
+| 600 s | 600.0 s | 599.5 s |
+| 1,500 s | 1,500.0 s | 1,499.5 s |
+| 3,600 s | 3,600.0 s | 3,599.5 s |
+
+All four projects persisted the approved dependency chain:
+
+`previs -> rehearsal -> generation -> edit -> review -> final`
+
+The runtime response and SWLC both recorded:
+
+`privilegedTransport = vercel-oidc-supabase-edge`
+
+The re-certification therefore confirms the earlier FINAL PASS still holds after subsequent mainline changes.
+
+**DIRECTOR-REPLICATE.FINAL live runtime remains PASS.**
