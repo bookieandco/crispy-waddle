@@ -170,6 +170,7 @@ class SpeechBrainEcapaBackend:
         self._model=SpeakerRecognition.from_hparams(
             source=snapshot_path,
             savedir=str(self.config.cache_dir/"speechbrain"),
+            overrides={"pretrained_path":snapshot_path},
             run_opts={"device":device},
         )
         self._torch=torch
