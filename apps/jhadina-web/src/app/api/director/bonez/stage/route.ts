@@ -22,8 +22,10 @@ function hash(bytes:Uint8Array):string{
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-function oidcToken():string|undefined{
-  return process.env.VERCEL_OIDC_TOKEN?.trim()||undefined;
+function oidcToken(request:Request):string|undefined{
+  return process.env.VERCEL_OIDC_TOKEN?.trim()
+    ||request.headers.get('x-vercel-oidc-token')?.trim()
+    ||undefined;
 }
 
 async function readExpectedJpeg(file:FormDataEntryValue|null,expectedSha:string,label:string){
@@ -45,7 +47,7 @@ export async function POST(request:Request){
   const {data:{user}}=await supabase.auth.getUser();
   if(!user) return NextResponse.json({ok:false,error:'Authentication required'},{status:401});
 
-  const oidc=oidcToken();
+  const oidc=oidcToken(request);
   const privileged=createServiceRoleClient();
   if(!privileged&&!oidc) return NextResponse.json({ok:false,error:'DIRECTOR_PRIVILEGED_RUNTIME_REQUIRED'},{status:503});
 
