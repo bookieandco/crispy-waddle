@@ -2,9 +2,18 @@ import { createHash } from 'node:crypto'
 import type { ConnectedWallet } from './wallet-connector-contracts.js'
 import type { MoneyMarketConnectorDescriptor } from './market-connector-contracts.js'
 import type { SignerLease, SignerLeasePolicy, SignerRollingObservation } from './signer-lease-contracts.js'
-import { EDGE_007_REQUIRED_VERSION, EDGE_DECISION_REQUIRED_VERSION, type Edge007IntegrityReceipt, type EdgeDecisionBundleReceipt } from './dex-four-stage-certification.js'
+import {
+ EDGE_007_REQUIRED_VERSION,
+ EDGE_DECISION_REQUIRED_VERSION,
+ type Edge007IntegrityReceipt,
+ type EdgeDecisionBundleReceipt,
+} from './dex-four-stage-certification.js'
+import type { SharkPreExecutionBinding } from './shark-preexec-binding.js'
 
 export type DexCanaryLeg='ENTRY'|'EXIT'
+export type SolanaDexVenueProvider='jupiter-ultra'|'raydium-direct'|'meteora-direct'
+export type SolanaDexExecutionProvider=SolanaDexVenueProvider|'solana-dex-router'
+export type DexRoutePreference='AUTO'|SolanaDexVenueProvider
 
 export type DexExecutionApprovalBinding=Readonly<{
  sharkAssessmentId:string
@@ -27,7 +36,9 @@ export type DexSwapIntent=Readonly<{
  strategyId:string
  instrumentId:string
  leg:DexCanaryLeg
- provider:'jupiter-ultra'
+ provider:SolanaDexExecutionProvider
+ routePreference:DexRoutePreference
+ requestedSlippageBps:number
  walletConnectionId:string
  signerLeaseId:string
  inputMint:string
@@ -38,13 +49,14 @@ export type DexSwapIntent=Readonly<{
  currency:string
  idempotencyKey:string
  informationCutoff:string
+ preExecution:SharkPreExecutionBinding
  approval:DexExecutionApprovalBinding
  evidenceIds:readonly string[]
  authority:'MONEY_EXECUTION_INTENT'
 }>
 
 export type DexManagedOrder=Readonly<{
- provider:'jupiter-ultra'
+ provider:SolanaDexVenueProvider
  requestId:string
  inputMint:string
  outputMint:string
@@ -52,6 +64,8 @@ export type DexManagedOrder=Readonly<{
  quotedOutputAtomic:bigint
  unsignedTransactionBase64:string
  takerAddress:string
+ quoteObservedAt:string
+ priceImpactBps:number
  evidenceIds:readonly string[]
  authority:'PROVIDER_QUOTE_ONLY'
  canBroadcast:false
@@ -97,7 +111,7 @@ export type DexSimulationReceipt=Readonly<{
 
 export type DexProviderExecutionReceipt=Readonly<{
  receiptId:string
- provider:'jupiter-ultra'
+ provider:SolanaDexVenueProvider
  requestId:string
  executionId:string
  state:'ACKNOWLEDGED'|'FAILED'|'UNKNOWN'
@@ -157,7 +171,8 @@ export type DexExecutionAttempt=Readonly<{
  requestId:string
  runLineageId:string
  leg:DexCanaryLeg
- provider:'jupiter-ultra'
+ provider:SolanaDexVenueProvider
+ requestProvider:SolanaDexExecutionProvider
  walletConnectionId:string
  signerLeaseId:string
  idempotencyKey:string
@@ -168,6 +183,9 @@ export type DexExecutionAttempt=Readonly<{
  signedTransactionHash:string
  primarySignature:string
  providerRequestId:string
+ preExecutionBindingHash:string
+ approvalBindingHash:string
+ moneyDexGateId:string
  simulationId?:string
  simulatedFeeLamports?:bigint
  providerReceiptId?:string
@@ -187,9 +205,12 @@ export interface DexExecutionAttemptStore{
 }
 
 export interface ManagedSolanaDexAdapter{
- readonly provider:'jupiter-ultra'
+ readonly provider:SolanaDexExecutionProvider
  createOrder(input:{intent:DexSwapIntent;takerAddress:string}):Promise<DexManagedOrder>
  executeSigned(input:{intent:DexSwapIntent;order:DexManagedOrder;signed:DexSignedTransaction;now:string}):Promise<DexProviderExecutionReceipt>
+}
+export interface ManagedSolanaDexVenueAdapter extends ManagedSolanaDexAdapter{
+ readonly provider:SolanaDexVenueProvider
 }
 
 export interface CofferSignerAdapter{
@@ -217,7 +238,6 @@ export interface SolanaChainObserver{
 }
 
 export type DexExecutionLifecycleEventType='TX_SIMULATED'|'TX_SIGNED'|'TX_SENT'|'FILLED'
-
 export type DexExecutionLifecycleEvent=Readonly<{
  type:DexExecutionLifecycleEventType
  tradeId:string
@@ -231,7 +251,6 @@ export type DexExecutionLifecycleEvent=Readonly<{
  details:Readonly<Record<string,unknown>>
  authority:'EXECUTION_TELEMETRY_ONLY'
 }>
-
 export interface DexExecutionEventSink{
  publish(event:DexExecutionLifecycleEvent):Promise<void>|void
 }
@@ -248,6 +267,13 @@ export function hashDexRuntime(value:unknown):string{
  return createHash('sha256').update(JSON.stringify(value,(_,x)=>typeof x==='bigint'?x.toString():x)).digest('hex')
 }
 
+function validProvider(value:string):value is SolanaDexExecutionProvider{
+ return value==='jupiter-ultra'||value==='raydium-direct'||value==='meteora-direct'||value==='solana-dex-router'
+}
+function validRoutePreference(value:string):value is DexRoutePreference{
+ return value==='AUTO'||value==='jupiter-ultra'||value==='raydium-direct'||value==='meteora-direct'
+}
+
 function dexApprovalBindingHash(input:Omit<DexExecutionApprovalBinding,'bindingHash'>):string{
  return hashDexRuntime({
   sharkAssessmentId:input.sharkAssessmentId,
@@ -260,11 +286,9 @@ function dexApprovalBindingHash(input:Omit<DexExecutionApprovalBinding,'bindingH
   authority:input.authority,
  })
 }
-
 function createDexExecutionApprovalBinding(input:Omit<DexExecutionApprovalBinding,'bindingHash'>):DexExecutionApprovalBinding{
  return Object.freeze({...input,bindingHash:dexApprovalBindingHash(input)})
 }
-
 export function assertDexExecutionApprovalBinding(binding:DexExecutionApprovalBinding):void{
  for(const [value,code] of [
   [binding.sharkAssessmentId,'DEX_APPROVAL_SHARK_ASSESSMENT_REQUIRED'],
@@ -274,11 +298,10 @@ export function assertDexExecutionApprovalBinding(binding:DexExecutionApprovalBi
   [binding.moneyRiskDecisionId,'DEX_APPROVAL_MONEY_RISK_REQUIRED'],
   [binding.intentFingerprint,'DEX_APPROVAL_INTENT_FINGERPRINT_REQUIRED'],
   [binding.bindingHash,'DEX_APPROVAL_BINDING_HASH_REQUIRED'],
- ] as const) if(!value.trim())throw new Error(code)
+ ] as const)if(!value.trim())throw new Error(code)
  if(binding.authority!=='MONEY_RISK_APPROVAL_BINDING')throw new Error('DEX_APPROVAL_AUTHORITY_INVALID')
  if(Number.isNaN(Date.parse(binding.approvedAt)))throw new Error('DEX_APPROVAL_TIME_INVALID')
- const expected=dexApprovalBindingHash(binding)
- if(expected!==binding.bindingHash)throw new Error('DEX_APPROVAL_BINDING_HASH_MISMATCH')
+ if(dexApprovalBindingHash(binding)!==binding.bindingHash)throw new Error('DEX_APPROVAL_BINDING_HASH_MISMATCH')
 }
 
 export type MoneyDexRiskApprovalReceipt=Readonly<{
@@ -290,10 +313,10 @@ export type MoneyDexRiskApprovalReceipt=Readonly<{
  authority:'MONEY_RISK_DECISION'
  canExecute:false
 }>
-
 export type DexGovernanceApprovalPackage=Readonly<{
  sharkAssessmentId:string
  thesisId:string
+ preExecution:SharkPreExecutionBinding
  edgeDecisionBundle:EdgeDecisionBundleReceipt
  integrityGuard:Edge007IntegrityReceipt
  moneyRisk:MoneyDexRiskApprovalReceipt
@@ -314,13 +337,11 @@ function assertEdgeDecisionBundleForExecution(bundle:EdgeDecisionBundleReceipt):
   if(receipt.disposition!=='PASS'||receipt.reasonCodes.length||!receipt.evidenceIds.length)throw new Error('DEX_APPROVAL_'+gateId.replace('-','')+'_BLOCKED')
  }
 }
-
 function assertIntegrityGuardForExecution(receipt:Edge007IntegrityReceipt):void{
  if(receipt.guardVersion!==EDGE_007_REQUIRED_VERSION)throw new Error('DEX_APPROVAL_EDGE007_VERSION_INVALID')
  if(receipt.authority!=='INTEGRITY_VETO_ONLY'||receipt.canAuthorizeTrade!==false||receipt.canAuthorizePromotion!==false)throw new Error('DEX_APPROVAL_EDGE007_AUTHORITY_INVALID')
  if(receipt.disposition!=='PASS'||receipt.reasonCodes.length||!receipt.evidenceIds.length)throw new Error('DEX_APPROVAL_EDGE007_BLOCKED')
 }
-
 function assertMoneyRiskApprovalForExecution(receipt:MoneyDexRiskApprovalReceipt):void{
  if(!receipt.riskDecisionId.trim())throw new Error('DEX_APPROVAL_MONEY_RISK_REQUIRED')
  if(receipt.authority!=='MONEY_RISK_DECISION'||receipt.canExecute!==false)throw new Error('DEX_APPROVAL_MONEY_RISK_AUTHORITY_INVALID')
@@ -330,7 +351,6 @@ function assertMoneyRiskApprovalForExecution(receipt:MoneyDexRiskApprovalReceipt
 }
 
 export type DexSwapIntentDraft=Omit<DexSwapIntent,'approval'|'authority'>
-
 function dexSwapIntentFingerprint(intent:DexSwapIntentDraft|DexSwapIntent):string{
  return hashDexRuntime({
   executionId:intent.executionId,
@@ -342,6 +362,8 @@ function dexSwapIntentFingerprint(intent:DexSwapIntentDraft|DexSwapIntent):strin
   instrumentId:intent.instrumentId,
   leg:intent.leg,
   provider:intent.provider,
+  routePreference:intent.routePreference,
+  requestedSlippageBps:intent.requestedSlippageBps,
   walletConnectionId:intent.walletConnectionId,
   signerLeaseId:intent.signerLeaseId,
   inputMint:intent.inputMint,
@@ -352,28 +374,29 @@ function dexSwapIntentFingerprint(intent:DexSwapIntentDraft|DexSwapIntent):strin
   currency:intent.currency,
   idempotencyKey:intent.idempotencyKey,
   informationCutoff:intent.informationCutoff,
+  preExecutionBindingHash:intent.preExecution.bindingHash,
  })
 }
 
-export function createApprovedDexSwapIntent(input:{
- draft:DexSwapIntentDraft
- governance:DexGovernanceApprovalPackage
-}):DexSwapIntent{
- const governance=input.governance
- if(!governance.sharkAssessmentId.trim()||!governance.thesisId.trim())throw new Error('DEX_APPROVAL_SHARK_LINEAGE_REQUIRED')
- if(Number.isNaN(Date.parse(governance.approvedAt)))throw new Error('DEX_APPROVAL_TIME_INVALID')
- assertEdgeDecisionBundleForExecution(governance.edgeDecisionBundle)
- assertIntegrityGuardForExecution(governance.integrityGuard)
- assertMoneyRiskApprovalForExecution(governance.moneyRisk)
- if(governance.moneyRisk.evaluatedAt>governance.approvedAt)throw new Error('DEX_APPROVAL_BEFORE_MONEY_RISK_DECISION')
+export function createApprovedDexSwapIntent(input:{draft:DexSwapIntentDraft;governance:DexGovernanceApprovalPackage}):DexSwapIntent{
+ const g=input.governance
+ if(!g.sharkAssessmentId.trim()||!g.thesisId.trim())throw new Error('DEX_APPROVAL_SHARK_LINEAGE_REQUIRED')
+ if(Number.isNaN(Date.parse(g.approvedAt)))throw new Error('DEX_APPROVAL_TIME_INVALID')
+ assertEdgeDecisionBundleForExecution(g.edgeDecisionBundle)
+ assertIntegrityGuardForExecution(g.integrityGuard)
+ assertMoneyRiskApprovalForExecution(g.moneyRisk)
+ if(g.moneyRisk.evaluatedAt>g.approvedAt)throw new Error('DEX_APPROVAL_BEFORE_MONEY_RISK_DECISION')
+ if(g.preExecution.assessmentId!==g.sharkAssessmentId)throw new Error('DEX_APPROVAL_PREEXEC_ASSESSMENT_MISMATCH')
+ if(g.preExecution.informationCutoff!==input.draft.informationCutoff)throw new Error('DEX_APPROVAL_PREEXEC_CUTOFF_MISMATCH')
+ if(input.draft.preExecution.bindingHash!==g.preExecution.bindingHash)throw new Error('DEX_APPROVAL_PREEXEC_BINDING_MISMATCH')
  const approval=createDexExecutionApprovalBinding({
-  sharkAssessmentId:governance.sharkAssessmentId,
-  thesisId:governance.thesisId,
-  edgeDecisionBundleHash:hashDexRuntime(governance.edgeDecisionBundle),
-  integrityGuardHash:hashDexRuntime(governance.integrityGuard),
-  moneyRiskDecisionId:governance.moneyRisk.riskDecisionId,
+  sharkAssessmentId:g.sharkAssessmentId,
+  thesisId:g.thesisId,
+  edgeDecisionBundleHash:g.preExecution.edgeDecisionBundleHash,
+  integrityGuardHash:g.preExecution.edgeHashes['EDGE-007'],
+  moneyRiskDecisionId:g.moneyRisk.riskDecisionId,
   intentFingerprint:dexSwapIntentFingerprint(input.draft),
-  approvedAt:governance.approvedAt,
+  approvedAt:g.approvedAt,
   authority:'MONEY_RISK_APPROVAL_BINDING',
  })
  const intent=Object.freeze({
@@ -381,11 +404,13 @@ export function createApprovedDexSwapIntent(input:{
   approval,
   evidenceIds:Object.freeze([...new Set([
    ...input.draft.evidenceIds,
-   ...governance.edgeDecisionBundle.evidenceIds,
-   ...governance.integrityGuard.evidenceIds,
-   ...governance.moneyRisk.evidenceIds,
-   'shark-assessment:'+governance.sharkAssessmentId,
-   'thesis:'+governance.thesisId,
+   ...g.preExecution.evidenceIds,
+   ...g.edgeDecisionBundle.evidenceIds,
+   ...g.integrityGuard.evidenceIds,
+   ...g.moneyRisk.evidenceIds,
+   'shark-assessment:'+g.sharkAssessmentId,
+   'thesis:'+g.thesisId,
+   'dex-preexec:'+g.preExecution.bindingHash,
    'dex-approval:'+approval.bindingHash,
   ])]),
   authority:'MONEY_EXECUTION_INTENT' as const,
@@ -409,14 +434,21 @@ export function assertDexSwapIntent(intent:DexSwapIntent):void{
   [intent.outputMint,'DEX_COMMISSION_OUTPUT_MINT_REQUIRED'],
   [intent.currency,'DEX_COMMISSION_CURRENCY_REQUIRED'],
   [intent.idempotencyKey,'DEX_COMMISSION_IDEMPOTENCY_REQUIRED'],
- ] as const) if(!value.trim()) throw new Error(code)
- if(intent.provider!=='jupiter-ultra'||intent.authority!=='MONEY_EXECUTION_INTENT')throw new Error('DEX_COMMISSION_INTENT_AUTHORITY_INVALID')
+ ] as const)if(!value.trim())throw new Error(code)
+ if(!validProvider(intent.provider)||!validRoutePreference(intent.routePreference)||intent.authority!=='MONEY_EXECUTION_INTENT')throw new Error('DEX_COMMISSION_INTENT_AUTHORITY_INVALID')
+ if(intent.provider!=='solana-dex-router'&&intent.routePreference!=='AUTO'&&intent.routePreference!==intent.provider)throw new Error('DEX_COMMISSION_ROUTE_BINDING_INVALID')
+ if(!Number.isInteger(intent.requestedSlippageBps)||intent.requestedSlippageBps<0||intent.requestedSlippageBps>10000)throw new Error('DEX_COMMISSION_SLIPPAGE_INVALID')
  if(intent.inputMint===intent.outputMint)throw new Error('DEX_COMMISSION_IDENTICAL_MINTS')
  if(intent.inputAmountAtomic<=0n||intent.minimumOutputAtomic<=0n||intent.notionalMinor<=0n)throw new Error('DEX_COMMISSION_AMOUNT_INVALID')
  if(Number.isNaN(Date.parse(intent.informationCutoff)))throw new Error('DEX_COMMISSION_CUTOFF_INVALID')
+ if(!intent.preExecution||intent.preExecution.authority!=='PREEXEC_BINDING_ONLY'||intent.preExecution.canAuthorizeTrade!==false)throw new Error('DEX_COMMISSION_PREEXEC_BINDING_REQUIRED')
+ if(intent.preExecution.informationCutoff!==intent.informationCutoff)throw new Error('DEX_COMMISSION_PREEXEC_CUTOFF_MISMATCH')
  assertDexExecutionApprovalBinding(intent.approval)
  if(intent.approval.intentFingerprint!==dexSwapIntentFingerprint(intent))throw new Error('DEX_APPROVAL_INTENT_FINGERPRINT_MISMATCH')
  if(intent.approval.approvedAt<intent.informationCutoff)throw new Error('DEX_APPROVAL_BEFORE_INFORMATION_CUTOFF')
+ if(intent.approval.sharkAssessmentId!==intent.preExecution.assessmentId)throw new Error('DEX_APPROVAL_PREEXEC_ASSESSMENT_MISMATCH')
+ if(intent.approval.edgeDecisionBundleHash!==intent.preExecution.edgeDecisionBundleHash)throw new Error('DEX_APPROVAL_PREEXEC_EDGE_MISMATCH')
+ if(intent.approval.integrityGuardHash!==intent.preExecution.edgeHashes['EDGE-007'])throw new Error('DEX_APPROVAL_PREEXEC_INTEGRITY_MISMATCH')
  if(!intent.evidenceIds.length)throw new Error('DEX_COMMISSION_EVIDENCE_REQUIRED')
 }
 

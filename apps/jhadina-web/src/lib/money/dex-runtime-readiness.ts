@@ -39,7 +39,7 @@ export async function readDexRuntimeReadiness():Promise<DexRuntimeReadinessRepor
  const [cofferResult,walletResult,connectorResult]=await Promise.all([
   db.from("money_coffers").select("coffer_id").eq("user_id",userId).order("updated_at",{ascending:false}).limit(1).maybeSingle(),
   db.from("money_wallet_connections").select("connection_id,user_id,provider,network,address,mode,status,evidence_ids,connected_at").eq("user_id",userId).eq("mode","COFFER_EXECUTION_WALLET").eq("status","ACTIVE").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
-  db.from("money_market_connector_admissions").select("connector_id,provider,lane,admission,credential_ref,evidence_ids").eq("lane","DEX").eq("provider","jupiter-ultra").order("updated_at",{ascending:false}).limit(1).maybeSingle(),
+  db.from("money_market_connector_admissions").select("connector_id,provider,lane,admission,credential_ref,evidence_ids").eq("lane","DEX").in("provider",["solana-dex-router","jupiter-ultra"]).order("updated_at",{ascending:false}).limit(1).maybeSingle(),
  ])
  if(cofferResult.error)throw new Error("DEX_READINESS_COFFER_READ_FAILED:"+cofferResult.error.message)
  if(walletResult.error)throw new Error("DEX_READINESS_WALLET_READ_FAILED:"+walletResult.error.message)

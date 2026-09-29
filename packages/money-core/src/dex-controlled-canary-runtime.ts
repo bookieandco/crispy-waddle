@@ -3,6 +3,8 @@ import { consumeExecutionPermit, verifyExecutionPermit } from './execution-permi
 import { assertConnectorMayExecute } from './market-connector-contracts.js'
 import { assertSignerLeaseMayPrepare } from './signer-lease-contracts.js'
 import type { CanaryReservation, LiveCanaryPolicy, LiveCanaryStateStore } from './live-canary-contracts.js'
+import { assertSharkPreExecutionBinding, type SharkPreExecutionMaterial } from './shark-preexec-binding.js'
+import { assertMoneyDexGatePassed, evaluateMoneyDexGate, type MoneyDexGateContext, type MoneyDexGatePolicy, type MoneyDexGateReceipt } from './money-dex-gate.js'
 import {
  assertDexSwapIntent,
  hashDexRuntime,
@@ -26,6 +28,7 @@ import {
 export type DexCanarySubmitResult=Readonly<{
  attempt:DexExecutionAttempt
  order:DexManagedOrder
+ preflight:MoneyDexGateReceipt
  signed:DexSignedTransaction
  preflightSimulation:DexUnsignedSimulationReceipt
  simulation:DexSimulationReceipt
@@ -156,6 +159,9 @@ function reconcile(input:{
 
 export async function submitControlledDexCanaryLeg(input:{
  intent:DexSwapIntent
+ preExecutionMaterial:SharkPreExecutionMaterial
+ dexGatePolicy:MoneyDexGatePolicy
+ dexGateContext:MoneyDexGateContext
  boundary:DexCommissioningBoundary
  adapter:ManagedSolanaDexAdapter
  signer:CofferSignerAdapter
@@ -171,22 +177,28 @@ export async function submitControlledDexCanaryLeg(input:{
  attemptId:string
  now:string
 }):Promise<DexCanarySubmitResult>{
- const {intent,boundary,adapter,signer,chain,events,attemptStore,permitStore,permit,permitContext,canaryStore,canaryPolicy,tradingDate,attemptId,now}=input
+ const {intent,preExecutionMaterial,dexGatePolicy,dexGateContext,boundary,adapter,signer,chain,events,attemptStore,permitStore,permit,permitContext,canaryStore,canaryPolicy,tradingDate,attemptId,now}=input
  assertBoundary({intent,boundary,adapter,now})
  const existing=await attemptStore.getByIdempotencyKey(intent.idempotencyKey)
  if(existing)throw new Error('DEX_COMMISSION_DUPLICATE_EXECUTION_BLOCKED')
+ if(dexGateContext.now!==now)throw new Error('MONEY_DEX_GATE_RUNTIME_TIME_MISMATCH')
+ assertSharkPreExecutionBinding({binding:intent.preExecution,material:preExecutionMaterial,informationCutoff:intent.informationCutoff})
  const action=dexExecutionAction(intent)
  verifyExecutionPermit(permit,{...permitContext,action,now})
  const order=await adapter.createOrder({intent,takerAddress:boundary.wallet.address})
  if(order.requestId.trim()===''||order.inputMint!==intent.inputMint||order.outputMint!==intent.outputMint||order.inputAmountAtomic!==intent.inputAmountAtomic||order.takerAddress!==boundary.wallet.address)throw new Error('DEX_COMMISSION_ORDER_BINDING_MISMATCH')
+ if(adapter.provider!=='solana-dex-router'&&order.provider!==adapter.provider)throw new Error('DEX_COMMISSION_ORDER_PROVIDER_MISMATCH')
  if(order.quotedOutputAtomic<intent.minimumOutputAtomic)throw new Error('DEX_COMMISSION_QUOTE_BELOW_MINIMUM')
  const preflightSimulation=await chain.simulateUnsignedTransaction({unsignedTransactionBase64:order.unsignedTransactionBase64,now})
  if(!preflightSimulation.passed)throw new Error('DEX_COMMISSION_UNSIGNED_PREFLIGHT_FAILED')
  await emitExecutionEvent(events,intent,'TX_SIMULATED',now,[...intent.evidenceIds,...order.evidenceIds,...preflightSimulation.evidenceIds],{
   simulationId:preflightSimulation.simulationId,
   providerRequestId:order.requestId,
+  routeProvider:order.provider,
   stage:'UNSIGNED_PREFLIGHT',
  })
+ const preflight=evaluateMoneyDexGate({intent,order,policy:dexGatePolicy,context:dexGateContext})
+ assertMoneyDexGatePassed(preflight)
  const reserved=await canaryStore.reserve({
   provider:intent.provider,
   accountId:intent.walletConnectionId,
@@ -222,7 +234,8 @@ export async function submitControlledDexCanaryLeg(input:{
   requestId:intent.requestId,
   runLineageId:intent.runLineageId,
   leg:intent.leg,
-  provider:intent.provider,
+  provider:order.provider,
+  requestProvider:intent.provider,
   walletConnectionId:intent.walletConnectionId,
   signerLeaseId:intent.signerLeaseId,
   idempotencyKey:intent.idempotencyKey,
@@ -233,10 +246,13 @@ export async function submitControlledDexCanaryLeg(input:{
   signedTransactionHash:signed.signedTransactionHash,
   primarySignature:signed.primarySignature,
   providerRequestId:order.requestId,
+  preExecutionBindingHash:intent.preExecution.bindingHash,
+  approvalBindingHash:intent.approval.bindingHash,
+  moneyDexGateId:preflight.gateId,
   state:'SIGNED',
   startedAt:now,
   updatedAt:now,
-  evidenceIds:Object.freeze([...new Set([...intent.evidenceIds,...order.evidenceIds,...signed.evidenceIds])]),
+  evidenceIds:Object.freeze([...new Set([...intent.evidenceIds,...intent.preExecution.evidenceIds,intent.preExecution.bindingHash,intent.approval.bindingHash,...order.evidenceIds,...preflight.evidenceIds,preflight.gateId,...signed.evidenceIds])]),
   authority:'EXECUTION_ATTEMPT_ONLY' as const,
  })
  await attemptStore.put(attempt)
@@ -272,6 +288,11 @@ export async function submitControlledDexCanaryLeg(input:{
   await attemptStore.update(attemptId,{state:'UNKNOWN',errorCode:'DEX_PROVIDER_RESULT_AMBIGUOUS',updatedAt:now})
   throw new Error('DEX_COMMISSION_PROVIDER_RESULT_AMBIGUOUS')
  }
+ if(providerReceipt.provider!==order.provider||providerReceipt.requestId!==order.requestId||providerReceipt.executionId!==intent.executionId){
+  await canaryStore.markUnknown(intent.provider,intent.walletConnectionId,tradingDate,intent.executionId,now)
+  await attemptStore.update(attemptId,{providerReceiptId:providerReceipt.receiptId,state:'UNKNOWN',errorCode:'DEX_PROVIDER_RECEIPT_BINDING_MISMATCH',updatedAt:now,evidenceIds:[...attempt.evidenceIds,...providerReceipt.evidenceIds]})
+  throw new Error('DEX_COMMISSION_PROVIDER_RECEIPT_BINDING_MISMATCH')
+ }
  if(providerReceipt.signature&&providerReceipt.signature!==signed.primarySignature){
   await canaryStore.markUnknown(intent.provider,intent.walletConnectionId,tradingDate,intent.executionId,now)
   await attemptStore.update(attemptId,{providerReceiptId:providerReceipt.receiptId,state:'UNKNOWN',errorCode:'DEX_PROVIDER_SIGNATURE_MISMATCH',updatedAt:now,evidenceIds:[...attempt.evidenceIds,...providerReceipt.evidenceIds]})
@@ -293,7 +314,7 @@ export async function submitControlledDexCanaryLeg(input:{
   signature:providerReceipt.signature,
   state:providerReceipt.state,
  })
- return Object.freeze({attempt,order,signed,preflightSimulation,simulation,providerReceipt,reservation:reserved.reservation,authority:'EXECUTION_RESULT_ONLY' as const})
+ return Object.freeze({attempt,order,preflight,signed,preflightSimulation,simulation,providerReceipt,reservation:reserved.reservation,authority:'EXECUTION_RESULT_ONLY' as const})
 }
 
 export async function reconcileDexCanaryLeg(input:{
