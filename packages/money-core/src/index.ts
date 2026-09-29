@@ -274,3 +274,5 @@ export * from './dex-commission-final.js';
 export * from './postgres-dex-runtime-store.js';
 
 export * from './dex-runtime-readiness.js';
+
+export * from './trade-runtime-events.js';

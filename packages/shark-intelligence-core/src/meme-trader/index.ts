@@ -49,3 +49,6 @@ export * from './research-corpus'
 export * from './rug-self-protection'
 export * from './edge-decision-gates'
 export * from './integrity-guard'
+
+export * from './live-trade-learning'
+export * from './trade-runtime-events'

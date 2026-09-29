@@ -10,12 +10,14 @@ import {
  type DexCommissioningBoundary,
  type DexExecutionAttempt,
  type DexExecutionAttemptStore,
+ type DexExecutionEventSink,
  type DexLegReconciliation,
  type DexManagedOrder,
  type DexOnchainReceipt,
  type DexProviderExecutionReceipt,
  type DexSignedTransaction,
  type DexSimulationReceipt,
+ type DexUnsignedSimulationReceipt,
  type DexSwapIntent,
  type ManagedSolanaDexAdapter,
  type SolanaChainObserver,
@@ -25,6 +27,7 @@ export type DexCanarySubmitResult=Readonly<{
  attempt:DexExecutionAttempt
  order:DexManagedOrder
  signed:DexSignedTransaction
+ preflightSimulation:DexUnsignedSimulationReceipt
  simulation:DexSimulationReceipt
  providerReceipt:DexProviderExecutionReceipt
  reservation:CanaryReservation
@@ -51,6 +54,29 @@ export type DexRestartRecoveryProof=Readonly<{
  evidenceIds:readonly string[]
  authority:'RECOVERY_EVIDENCE_ONLY'
 }>
+
+async function emitExecutionEvent(
+ events:DexExecutionEventSink,
+ intent:DexSwapIntent,
+ type:'TX_SIMULATED'|'TX_SIGNED'|'TX_SENT'|'FILLED',
+ now:string,
+ evidenceIds:readonly string[],
+ details:Readonly<Record<string,unknown>>,
+):Promise<void>{
+ await events.publish(Object.freeze({
+  type,
+  tradeId:intent.tradeId,
+  executionId:intent.executionId,
+  runLineageId:intent.runLineageId,
+  strategyId:intent.strategyId,
+  instrumentId:intent.instrumentId,
+  leg:intent.leg,
+  occurredAt:now,
+  evidenceIds:Object.freeze([...new Set(evidenceIds)]),
+  details:Object.freeze({...details}),
+  authority:'EXECUTION_TELEMETRY_ONLY' as const,
+ }))
+}
 
 export function dexExecutionAction(intent:DexSwapIntent):ExecutionAction{
  return Object.freeze({
@@ -134,6 +160,7 @@ export async function submitControlledDexCanaryLeg(input:{
  adapter:ManagedSolanaDexAdapter
  signer:CofferSignerAdapter
  chain:SolanaChainObserver
+ events:DexExecutionEventSink
  attemptStore:DexExecutionAttemptStore
  permitStore:PermitStore
  permit:ExecutionPermit
@@ -144,7 +171,7 @@ export async function submitControlledDexCanaryLeg(input:{
  attemptId:string
  now:string
 }):Promise<DexCanarySubmitResult>{
- const {intent,boundary,adapter,signer,chain,attemptStore,permitStore,permit,permitContext,canaryStore,canaryPolicy,tradingDate,attemptId,now}=input
+ const {intent,boundary,adapter,signer,chain,events,attemptStore,permitStore,permit,permitContext,canaryStore,canaryPolicy,tradingDate,attemptId,now}=input
  assertBoundary({intent,boundary,adapter,now})
  const existing=await attemptStore.getByIdempotencyKey(intent.idempotencyKey)
  if(existing)throw new Error('DEX_COMMISSION_DUPLICATE_EXECUTION_BLOCKED')
@@ -153,15 +180,42 @@ export async function submitControlledDexCanaryLeg(input:{
  const order=await adapter.createOrder({intent,takerAddress:boundary.wallet.address})
  if(order.requestId.trim()===''||order.inputMint!==intent.inputMint||order.outputMint!==intent.outputMint||order.inputAmountAtomic!==intent.inputAmountAtomic||order.takerAddress!==boundary.wallet.address)throw new Error('DEX_COMMISSION_ORDER_BINDING_MISMATCH')
  if(order.quotedOutputAtomic<intent.minimumOutputAtomic)throw new Error('DEX_COMMISSION_QUOTE_BELOW_MINIMUM')
- const signed=await signer.signVersionedTransaction({
-  walletConnectionId:intent.walletConnectionId,
-  signerLeaseId:intent.signerLeaseId,
-  unsignedTransactionBase64:order.unsignedTransactionBase64,
-  idempotencyKey:intent.idempotencyKey,
-  expectedSignerAddress:boundary.wallet.address,
+ const preflightSimulation=await chain.simulateUnsignedTransaction({unsignedTransactionBase64:order.unsignedTransactionBase64,now})
+ if(!preflightSimulation.passed)throw new Error('DEX_COMMISSION_UNSIGNED_PREFLIGHT_FAILED')
+ await emitExecutionEvent(events,intent,'TX_SIMULATED',now,[...intent.evidenceIds,...order.evidenceIds,...preflightSimulation.evidenceIds],{
+  simulationId:preflightSimulation.simulationId,
+  providerRequestId:order.requestId,
+  stage:'UNSIGNED_PREFLIGHT',
+ })
+ const reserved=await canaryStore.reserve({
+  provider:intent.provider,
+  accountId:intent.walletConnectionId,
+  tradingDate,
+  currency:intent.currency,
+  notionalMinor:intent.notionalMinor,
+  side:intent.leg==='ENTRY'?'BUY':'SELL',
+  policy:canaryPolicy,
   now,
  })
- if(signed.walletConnectionId!==intent.walletConnectionId||signed.signerLeaseId!==intent.signerLeaseId||signed.signerAddress!==boundary.wallet.address||signed.containsPrivateKey!==false||signed.containsRawToken!==false)throw new Error('DEX_COMMISSION_SIGNER_OUTPUT_INVALID')
+ if(!reserved.allowed)throw new Error('DEX_COMMISSION_CANARY_RISK_BLOCKED:'+reserved.reasonCodes.join(','))
+ let signed:DexSignedTransaction
+ try{
+  signed=await signer.signVersionedTransaction({
+   walletConnectionId:intent.walletConnectionId,
+   signerLeaseId:intent.signerLeaseId,
+   unsignedTransactionBase64:order.unsignedTransactionBase64,
+   idempotencyKey:intent.idempotencyKey,
+   expectedSignerAddress:boundary.wallet.address,
+   now,
+  })
+ }catch(error){
+  await canaryStore.release(reserved.reservation,now)
+  throw error
+ }
+ if(signed.walletConnectionId!==intent.walletConnectionId||signed.signerLeaseId!==intent.signerLeaseId||signed.signerAddress!==boundary.wallet.address||signed.containsPrivateKey!==false||signed.containsRawToken!==false){
+  await canaryStore.release(reserved.reservation,now)
+  throw new Error('DEX_COMMISSION_SIGNER_OUTPUT_INVALID')
+ }
  let attempt:DexExecutionAttempt=Object.freeze({
   attemptId,
   executionId:intent.executionId,
@@ -186,26 +240,23 @@ export async function submitControlledDexCanaryLeg(input:{
   authority:'EXECUTION_ATTEMPT_ONLY' as const,
  })
  await attemptStore.put(attempt)
+ try{
+  await emitExecutionEvent(events,intent,'TX_SIGNED',now,[...attempt.evidenceIds],{
+   primarySignature:signed.primarySignature,
+   signedTransactionHash:signed.signedTransactionHash,
+  })
+ }catch(error){
+  await canaryStore.release(reserved.reservation,now)
+  await attemptStore.update(attemptId,{state:'FAILED',errorCode:'DEX_EXECUTION_EVENT_PUBLISH_FAILED',updatedAt:now})
+  throw error
+ }
  const simulation=await chain.simulateSignedTransaction({signedTransactionBase64:signed.signedTransactionBase64,primarySignature:signed.primarySignature,now})
  if(!simulation.passed){
+  await canaryStore.release(reserved.reservation,now)
   attempt=await attemptStore.update(attemptId,{state:'FAILED',errorCode:simulation.errorCode??'DEX_SIMULATION_FAILED',updatedAt:now,evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds]})
   throw new Error('DEX_COMMISSION_PREFLIGHT_SIMULATION_FAILED')
  }
  attempt=await attemptStore.update(attemptId,{state:'SIMULATED',simulationId:simulation.simulationId,simulatedFeeLamports:simulation.feeLamports,updatedAt:now,evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds]})
- const reserved=await canaryStore.reserve({
-  provider:intent.provider,
-  accountId:intent.walletConnectionId,
-  tradingDate,
-  currency:intent.currency,
-  notionalMinor:intent.notionalMinor,
-  side:intent.leg==='ENTRY'?'BUY':'SELL',
-  policy:canaryPolicy,
-  now,
- })
- if(!reserved.allowed){
-  await attemptStore.update(attemptId,{state:'FAILED',errorCode:'DEX_CANARY_RISK_BLOCK:'+reserved.reasonCodes.join(','),updatedAt:now})
-  throw new Error('DEX_COMMISSION_CANARY_RISK_BLOCKED:'+reserved.reasonCodes.join(','))
- }
  try{
   await consumeExecutionPermit(permitStore,permit.permitId,permit.nonce)
  }catch(error){
@@ -237,20 +288,26 @@ export async function submitControlledDexCanaryLeg(input:{
   throw new Error('DEX_COMMISSION_PROVIDER_SIGNATURE_REQUIRED')
  }
  attempt=await attemptStore.update(attemptId,{providerReceiptId:providerReceipt.receiptId,state:'SUBMITTED',updatedAt:now,evidenceIds:[...attempt.evidenceIds,...providerReceipt.evidenceIds]})
- return Object.freeze({attempt,order,signed,simulation,providerReceipt,reservation:reserved.reservation,authority:'EXECUTION_RESULT_ONLY' as const})
+ await emitExecutionEvent(events,intent,'TX_SENT',now,[...attempt.evidenceIds,...providerReceipt.evidenceIds],{
+  providerReceiptId:providerReceipt.receiptId,
+  signature:providerReceipt.signature,
+  state:providerReceipt.state,
+ })
+ return Object.freeze({attempt,order,signed,preflightSimulation,simulation,providerReceipt,reservation:reserved.reservation,authority:'EXECUTION_RESULT_ONLY' as const})
 }
 
 export async function reconcileDexCanaryLeg(input:{
  intent:DexSwapIntent
  boundary:DexCommissioningBoundary
  chain:SolanaChainObserver
+ events:DexExecutionEventSink
  attemptStore:DexExecutionAttemptStore
  canaryStore:LiveCanaryStateStore
  tradingDate:string
  attemptId:string
  now:string
 }):Promise<DexCanaryReconcileResult>{
- const {intent,boundary,chain,attemptStore,canaryStore,tradingDate,attemptId,now}=input
+ const {intent,boundary,chain,events,attemptStore,canaryStore,tradingDate,attemptId,now}=input
  const current=await attemptStore.get(attemptId)
  if(!current||current.executionId!==intent.executionId||current.idempotencyKey!==intent.idempotencyKey)throw new Error('DEX_COMMISSION_RECOVERY_ATTEMPT_BINDING_MISMATCH')
  if(!['SUBMITTED','UNKNOWN','CONFIRMED','RECONCILED'].includes(current.state))throw new Error('DEX_COMMISSION_RECOVERY_STATE_INVALID')
@@ -282,9 +339,18 @@ export async function reconcileDexCanaryLeg(input:{
   return Object.freeze({attempt,onchain,reconciliation,recoveredExisting,authority:'RECONCILIATION_RESULT_ONLY' as const})
  }
  await canaryStore.resolveUnknown(intent.provider,intent.walletConnectionId,tradingDate,intent.executionId,now)
- const attempt=current.state==='RECONCILED'
+ const wasAlreadyReconciled=current.state==='RECONCILED'
+ const attempt=wasAlreadyReconciled
   ? current
   : await attemptStore.update(attemptId,{state:'RECONCILED',errorCode:undefined,updatedAt:now,evidenceIds:[...current.evidenceIds,...reconciliation.evidenceIds]})
+ if(!wasAlreadyReconciled){
+  await emitExecutionEvent(events,intent,'FILLED',now,[...reconciliation.evidenceIds,...onchain.evidenceIds],{
+   signature:onchain.signature,
+   inputDebitAtomic:reconciliation.observedInputDebitAtomic.toString(),
+   outputCreditAtomic:reconciliation.observedOutputCreditAtomic.toString(),
+   feeLamports:reconciliation.feeLamports.toString(),
+  })
+ }
  return Object.freeze({attempt,onchain,reconciliation,recoveredExisting,authority:'RECONCILIATION_RESULT_ONLY' as const})
 }
 
@@ -292,6 +358,7 @@ export async function proveDexRestartRecovery(input:{
  intent:DexSwapIntent
  boundary:DexCommissioningBoundary
  chain:SolanaChainObserver
+ events:DexExecutionEventSink
  attemptStore:DexExecutionAttemptStore
  canaryStore:LiveCanaryStateStore
  tradingDate:string

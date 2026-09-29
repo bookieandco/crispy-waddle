@@ -7,8 +7,8 @@ import type { LiveCanaryPolicy } from './live-canary-contracts.js'
 import type { ConnectedWallet } from './wallet-connector-contracts.js'
 import type { MoneyMarketConnectorDescriptor } from './market-connector-contracts.js'
 import type { SignerLease,SignerLeasePolicy,SignerRollingObservation } from './signer-lease-contracts.js'
-import type { CofferSignerAdapter,DexManagedOrder,DexProviderExecutionReceipt,DexSignedTransaction,DexSwapIntent,ManagedSolanaDexAdapter,SolanaChainObserver,DexSimulationReceipt,DexOnchainReceipt } from './solana-dex-runtime-contracts.js'
-import { InMemoryDexExecutionAttemptStore } from './solana-dex-runtime-contracts.js'
+import type { CofferSignerAdapter,DexExecutionEventSink,DexExecutionLifecycleEvent,DexManagedOrder,DexProviderExecutionReceipt,DexSignedTransaction,DexSwapIntent,ManagedSolanaDexAdapter,SolanaChainObserver,DexSimulationReceipt,DexUnsignedSimulationReceipt,DexOnchainReceipt } from './solana-dex-runtime-contracts.js'
+import { assertDexSwapIntent,createApprovedDexSwapIntent,InMemoryDexExecutionAttemptStore } from './solana-dex-runtime-contracts.js'
 import { dexExecutionAction,proveDexRestartRecovery,reconcileDexCanaryLeg,submitControlledDexCanaryLeg } from './dex-controlled-canary-runtime.js'
 import { buildDexControlledLiveCanaryEvidence,certifyDexCommissionFinal,createDexLiveRuntimeVerificationReceipt,proveDexCapitalBoundary,proveDexKillSwitch } from './dex-commission-final.js'
 import { certifyDexExecutionLadder,type DexExecutionStageEvidence,type EdgeDecisionBundleReceipt,type Edge007IntegrityReceipt } from './dex-four-stage-certification.js'
@@ -34,11 +34,24 @@ class PermitMemory implements PermitStore{
  revoke(id:string){const p=this.rows.get(id);if(p)this.rows.set(id,{...p,state:'REVOKED'})}
  haltAll(){for(const [id,p] of this.rows)if(p.state==='ISSUED')this.rows.set(id,{...p,state:'HALTED'})}
 }
-const intent=(leg:'ENTRY'|'EXIT'):DexSwapIntent=>({
- executionId:'exec:'+leg.toLowerCase(),requestId:'req:'+leg.toLowerCase(),runLineageId:'lineage:1',userId:'u1',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',
- leg,provider:'jupiter-ultra',walletConnectionId:wallet.connectionId,signerLeaseId:signerLease.leaseId,inputMint:leg==='ENTRY'?settlement:target,outputMint:leg==='ENTRY'?target:settlement,
- inputAmountAtomic:leg==='ENTRY'?1000000n:500000n,minimumOutputAtomic:leg==='ENTRY'?500000n:990000n,notionalMinor:1000n,currency:'USD',idempotencyKey:'idem:'+leg.toLowerCase(),
- informationCutoff:'2026-09-27T20:30:00Z',evidenceIds:['shark:'+leg],authority:'MONEY_EXECUTION_INTENT'
+const intent=(leg:'ENTRY'|'EXIT'):DexSwapIntent=>createApprovedDexSwapIntent({
+ draft:{
+  executionId:'exec:'+leg.toLowerCase(),tradeId:'trade:1',requestId:'req:'+leg.toLowerCase(),runLineageId:'lineage:1',userId:'u1',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',
+  leg,provider:'jupiter-ultra',walletConnectionId:wallet.connectionId,signerLeaseId:signerLease.leaseId,inputMint:leg==='ENTRY'?settlement:target,outputMint:leg==='ENTRY'?target:settlement,
+  inputAmountAtomic:leg==='ENTRY'?1000000n:500000n,minimumOutputAtomic:leg==='ENTRY'?500000n:990000n,notionalMinor:1000n,currency:'USD',idempotencyKey:'idem:'+leg.toLowerCase(),
+  informationCutoff:'2026-09-27T20:29:59Z',evidenceIds:['shark:'+leg]
+ },
+ governance:{
+  sharkAssessmentId:'assessment:1',
+  thesisId:'thesis:1',
+  edgeDecisionBundle,
+  integrityGuard:integrity,
+  moneyRisk:{
+   riskDecisionId:'risk:'+leg.toLowerCase(),disposition:'APPROVE',reasonCodes:[],evidenceIds:['risk:'+leg.toLowerCase()+':e'],
+   evaluatedAt:'2026-09-27T20:30:00Z',authority:'MONEY_RISK_DECISION',canExecute:false,
+  },
+  approvedAt:'2026-09-27T20:30:00Z',
+ }
 })
 const edgeDecisionBundle:EdgeDecisionBundleReceipt={
  frameworkVersion:'EDGE-001-006-v1',
@@ -49,6 +62,10 @@ const edgeDecisionBundle:EdgeDecisionBundleReceipt={
 }
 const integrity:Edge007IntegrityReceipt={guardVersion:'EDGE-007-v1',guardId:'edge:1',disposition:'PASS',reasonCodes:[],evidenceIds:['edge:e'],authority:'INTEGRITY_VETO_ONLY',canAuthorizeTrade:false,canAuthorizePromotion:false}
 
+class EventMemory implements DexExecutionEventSink{
+ readonly rows:DexExecutionLifecycleEvent[]=[]
+ publish(event:DexExecutionLifecycleEvent){this.rows.push(event)}
+}
 class FakeSigner implements CofferSignerAdapter{
  readonly provider='fake-signer'
  async signVersionedTransaction(i:{walletConnectionId:string;signerLeaseId:string;unsignedTransactionBase64:string;idempotencyKey:string;expectedSignerAddress:string;now:string}):Promise<DexSignedTransaction>{
@@ -68,6 +85,9 @@ class FakeDex implements ManagedSolanaDexAdapter{
  }
 }
 class FakeChain implements SolanaChainObserver{
+ async simulateUnsignedTransaction(i:{unsignedTransactionBase64:string;now:string}):Promise<DexUnsignedSimulationReceipt>{
+  return {simulationId:'preflight:'+i.unsignedTransactionBase64,passed:true,unitsConsumed:100,logs:[],observedAt:i.now,evidenceIds:['preflight:e'],authority:'CHAIN_PREFLIGHT_EVIDENCE'}
+ }
  async simulateSignedTransaction(i:{signedTransactionBase64:string;primarySignature:string;now:string}):Promise<DexSimulationReceipt>{
   return {simulationId:'sim:'+i.primarySignature,signature:i.primarySignature,passed:true,unitsConsumed:123,feeLamports:5000n,logs:[],observedAt:i.now,evidenceIds:['sim:e'],authority:'CHAIN_SIMULATION_EVIDENCE'}
  }
@@ -87,6 +107,20 @@ function stage(stage:DexExecutionStageEvidence['stage']):DexExecutionStageEviden
  return {stageId:'stage:'+stage,stage,origin:stage==='SIGNED_SIMULATION_NO_BROADCAST'?'LIVE_RUNTIME_ATTESTED':'RECORDED_REAL_MARKET',runLineageId:'lineage:1',strategyId:'shark:meme:v1',instrumentId:'solana:TARGET',
   walletConnectionId:stage==='SIGNED_SIMULATION_NO_BROADCAST'?wallet.connectionId:undefined,startedAt,endedAt,informationCutoff:endedAt,edgeDecisionBundle,integrityGuard:integrity,decisionCount:1,signedTransactionCount:stage==='SIGNED_SIMULATION_NO_BROADCAST'?1:0,simulationCount:stage==='SIGNED_SIMULATION_NO_BROADCAST'?1:0,simulationFailureCount:0,broadcastCount:0,entryBroadcastCount:0,exitBroadcastCount:0,reconciledBroadcastCount:0,duplicateBroadcastCount:0,unknownExecutionCount:0,futureEvidenceCount:0,signerBoundary:stage==='SIGNED_SIMULATION_NO_BROADCAST'?'ISOLATED':'NOT_APPLICABLE',privateKeyMaterialObserved:false,capitalBounded:false,killSwitchProven:false,restartRecoveryProven:false,sellabilityProven:false,positionFlatAfterExit:false,executionCostReconciled:false,providerReceiptIds:[],onchainSignatureIds:[],evidenceIds:['stage:e']}
 }
+
+test('DEX intent rejects a forged SHARK EDGE Money approval binding before execution',()=>{
+ const valid=intent('ENTRY')
+ const forged={...valid,approval:{...valid.approval,bindingHash:'forged'}} as DexSwapIntent
+ assert.throws(()=>assertDexSwapIntent(forged),/DEX_APPROVAL_BINDING_HASH_MISMATCH/)
+})
+
+test('DEX approval binding is invalid if transaction parameters change after Money approval',()=>{
+ const valid=intent('ENTRY')
+ const resized={...valid,notionalMinor:valid.notionalMinor+1n} as DexSwapIntent
+ assert.throws(()=>assertDexSwapIntent(resized),/DEX_APPROVAL_INTENT_FINGERPRINT_MISMATCH/)
+ const reminted={...valid,outputMint:'DIFFERENT_MINT'} as DexSwapIntent
+ assert.throws(()=>assertDexSwapIntent(reminted),/DEX_APPROVAL_INTENT_FINGERPRINT_MISMATCH/)
+})
 
 test('reference is adapted to current Jupiter managed endpoints rather than legacy V6 browser flow',async()=>{
  let orderUrl='',executeBody='',apiKey=''
@@ -119,27 +153,30 @@ test('Solana RPC observer preflights and derives token deltas from confirmed cha
   if(body.method==='simulateTransaction')return new Response(JSON.stringify({jsonrpc:'2.0',result:{value:{err:null,fee:5000,unitsConsumed:12,logs:[]}}}),{status:200})
   return new Response(JSON.stringify({jsonrpc:'2.0',result:{slot:42,meta:{err:null,fee:5000,preTokenBalances:[{owner:wallet.address,mint:settlement,uiTokenAmount:{amount:'1000000'}},{owner:wallet.address,mint:target,uiTokenAmount:{amount:'0'}}],postTokenBalances:[{owner:wallet.address,mint:settlement,uiTokenAmount:{amount:'0'}},{owner:wallet.address,mint:target,uiTokenAmount:{amount:'500100'}}]}}}),{status:200})
  }})
+ const preflight=await observer.simulateUnsignedTransaction({unsignedTransactionBase64:'abc',now:'2026-09-27T20:29:59Z'})
  const sim=await observer.simulateSignedTransaction({signedTransactionBase64:'abc',primarySignature:'sig',now:'2026-09-27T20:30:00Z'})
  const chain=await observer.observeSwap({signature:'sig',walletAddress:wallet.address,inputMint:settlement,outputMint:target,now:'2026-09-27T20:31:00Z'})
- assert.equal(calls,2);assert.equal(sim.passed,true);assert.equal(chain.inputDebitAtomic,1000000n);assert.equal(chain.outputCreditAtomic,500100n)
+ assert.equal(calls,3);assert.equal(preflight.passed,true);assert.equal(sim.passed,true);assert.equal(chain.inputDebitAtomic,1000000n);assert.equal(chain.outputCreditAtomic,500100n)
 })
 
 test('DEX-COMMISSION.FINAL executes exactly two bounded legs, proves restart recovery, flat exit, kill switch, and still forbids unrestricted live',async()=>{
- const adapter=new FakeDex(),signer=new FakeSigner(),chain=new FakeChain(),attempts=new InMemoryDexExecutionAttemptStore(),permits=new PermitMemory(),canary=new InMemoryLiveCanaryStateStore()
+ const adapter=new FakeDex(),signer=new FakeSigner(),chain=new FakeChain(),events=new EventMemory(),attempts=new InMemoryDexExecutionAttemptStore(),permits=new PermitMemory(),canary=new InMemoryLiveCanaryStateStore()
  await canary.updateRiskMetrics({snapshotId:'risk:1',provider:'jupiter-ultra',accountId:wallet.connectionId,currency:'USD',grossExposureMinor:0n,realizedPnlMinor:0n,observedAt:'2026-09-27T20:29:00Z',availableAt:'2026-09-27T20:29:00Z',evidenceIds:['risk:e'],authority:'EVIDENCE_ONLY'},'2026-09-27','2026-09-27T20:30:00Z')
  const run=async(i:DexSwapIntent,attemptId:string,now:string)=>{
   const action=dexExecutionAction(i)
   const p=issueExecutionPermit({action,actionRequestFingerprint:'arf:'+i.leg,authorityId:'authority:'+i.leg,policyVersion:'dex:v1',policyHash:'hash',expiresAt:'2026-09-27T21:30:00Z',now,permitId:'permit:'+i.leg,nonce:'nonce:'+i.leg})
   permits.issue(p)
-  return submitControlledDexCanaryLeg({intent:i,boundary,adapter,signer,chain,attemptStore:attempts,permitStore:permits,permit:p,permitContext:{actionRequestFingerprint:'arf:'+i.leg,authorityId:'authority:'+i.leg,policyVersion:'dex:v1',policyHash:'hash',now},canaryStore:canary,canaryPolicy,tradingDate:'2026-09-27',attemptId,now})
+  return submitControlledDexCanaryLeg({intent:i,boundary,adapter,signer,chain,events,attemptStore:attempts,permitStore:permits,permit:p,permitContext:{actionRequestFingerprint:'arf:'+i.leg,authorityId:'authority:'+i.leg,policyVersion:'dex:v1',policyHash:'hash',now},canaryStore:canary,canaryPolicy,tradingDate:'2026-09-27',attemptId,now})
  }
  const entryIntent=intent('ENTRY'),exitIntent=intent('EXIT')
  const entry=await run(entryIntent,'attempt:entry','2026-09-27T20:30:00Z')
- const entryRec=await reconcileDexCanaryLeg({intent:entryIntent,boundary,chain,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:entry',now:'2026-09-27T20:31:00Z'})
- const recovery=await proveDexRestartRecovery({intent:entryIntent,boundary,chain,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:entry',previousRuntimeId:'runtime:a',recoveryRuntimeId:'runtime:b',now:'2026-09-27T20:32:00Z'})
+ const entryRec=await reconcileDexCanaryLeg({intent:entryIntent,boundary,chain,events,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:entry',now:'2026-09-27T20:31:00Z'})
+ const recovery=await proveDexRestartRecovery({intent:entryIntent,boundary,chain,events,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:entry',previousRuntimeId:'runtime:a',recoveryRuntimeId:'runtime:b',now:'2026-09-27T20:32:00Z'})
  const exit=await run(exitIntent,'attempt:exit','2026-09-27T20:33:00Z')
- const exitRec=await reconcileDexCanaryLeg({intent:exitIntent,boundary,chain,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:exit',now:'2026-09-27T20:34:00Z'})
+ const exitRec=await reconcileDexCanaryLeg({intent:exitIntent,boundary,chain,events,attemptStore:attempts,canaryStore:canary,tradingDate:'2026-09-27',attemptId:'attempt:exit',now:'2026-09-27T20:34:00Z'})
  assert.equal(adapter.calls,2)
+ assert.deepEqual(events.rows.map(x=>x.type),['TX_SIMULATED','TX_SIGNED','TX_SENT','FILLED','TX_SIMULATED','TX_SIGNED','TX_SENT','FILLED'])
+ assert.ok(events.rows.every(x=>x.tradeId==='trade:1'&&x.authority==='EXECUTION_TELEMETRY_ONLY'))
  await assert.rejects(()=>run(entryIntent,'attempt:dup','2026-09-27T20:35:00Z'),/DUPLICATE_EXECUTION_BLOCKED/)
  const capital=proveDexCapitalBoundary({connector,signerPolicy,canaryPolicy,entryIntent,exitIntent,evidenceIds:['capital:e']})
  const kill=await proveDexKillSwitch({canaryStore:canary,permitStore:permits,policy:canaryPolicy,provider:'jupiter-ultra',walletConnectionId:wallet.connectionId,tradingDate:'2026-09-27',currency:'USD',now:'2026-09-27T20:36:00Z',evidenceIds:['kill:e']})

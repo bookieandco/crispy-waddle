@@ -14,6 +14,8 @@ export type OpenPositionSnapshot=Readonly<{
   entryPrice:number
   currentExecutableExitPrice:number
   currentExecutableAddPrice:number
+  costBasisMinor:bigint
+  currentValueMinor:bigint
   unrealizedPnlMinor:bigint
   peakUnrealizedPnlMinor:bigint
   grossExposureMinor:bigint
@@ -31,6 +33,14 @@ export type PositionMarketAssessment=Readonly<{
   thesisStrengthBps:number
   invalidationRiskBps:number
   liquidityQualityBps:number
+  liquidityUsd:number
+  smartWalletExitRiskBps:number
+  smartWalletNetFlowUsd:number
+  narrativeDegradationBps:number
+  whaleDistributionRiskBps:number
+  whaleNetFlowUsd:number
+  thesisInvalidated:boolean
+  thesisInvalidationReasons:readonly string[]
   momentumBps:number
   correlationRiskBps:number
   bestAlternativeEdgeBps?:number
@@ -48,6 +58,9 @@ export type PositionManagementPolicy=Readonly<{
   minThesisStrengthBps:number
   minLiquidityBps:number
   maxRiskBps:number
+  maxSmartWalletExitRiskBps:number
+  maxNarrativeDegradationBps:number
+  maxWhaleDistributionRiskBps:number
   maxCorrelationRiskBps:number
   maxGivebackFromPeakBps:number
   rotateAdvantageBps:number
@@ -68,6 +81,7 @@ export type PositionManagementDecision=Readonly<{
   reasonCodes:readonly string[]
   alphaRouteIds:readonly string[]
   alternativeInstrumentId?:string
+  evidenceIds:readonly string[]
   evaluatedAt:string
   authority:'INTELLIGENCE_ONLY'
   financialAuthority:'NONE'
@@ -92,6 +106,7 @@ export function assertOpenPositionSnapshot(p:OpenPositionSnapshot):void{
   finitePositive(p.entryPrice,'MONEY_POSITION_ENTRY_PRICE_INVALID')
   finitePositive(p.currentExecutableExitPrice,'MONEY_POSITION_EXIT_PRICE_INVALID')
   finitePositive(p.currentExecutableAddPrice,'MONEY_POSITION_ADD_PRICE_INVALID')
+  if(p.costBasisMinor<0n||p.currentValueMinor<0n)throw new Error('MONEY_POSITION_VALUE_INVALID')
   if(p.grossExposureMinor<0n)throw new Error('MONEY_POSITION_EXPOSURE_INVALID')
   iso(p.openedAt,'MONEY_POSITION_OPENED_AT_INVALID')
   iso(p.observedAt,'MONEY_POSITION_OBSERVED_AT_INVALID')
@@ -108,9 +123,16 @@ export function assertPositionMarketAssessment(a:PositionMarketAssessment):void{
     [a.thesisStrengthBps,'MONEY_POSITION_THESIS_INVALID'],
     [a.invalidationRiskBps,'MONEY_POSITION_INVALIDATION_INVALID'],
     [a.liquidityQualityBps,'MONEY_POSITION_LIQUIDITY_INVALID'],
+    [a.smartWalletExitRiskBps,'MONEY_POSITION_SMART_WALLET_EXIT_INVALID'],
+    [a.narrativeDegradationBps,'MONEY_POSITION_NARRATIVE_DEGRADATION_INVALID'],
+    [a.whaleDistributionRiskBps,'MONEY_POSITION_WHALE_DISTRIBUTION_INVALID'],
     [a.momentumBps,'MONEY_POSITION_MOMENTUM_INVALID'],
     [a.correlationRiskBps,'MONEY_POSITION_CORRELATION_INVALID'],
   ] as const)bps(v,c)
+  if(!Number.isFinite(a.liquidityUsd)||a.liquidityUsd<0)throw new Error('MONEY_POSITION_LIQUIDITY_USD_INVALID')
+  if(!Number.isFinite(a.smartWalletNetFlowUsd))throw new Error('MONEY_POSITION_SMART_WALLET_FLOW_INVALID')
+  if(!Number.isFinite(a.whaleNetFlowUsd))throw new Error('MONEY_POSITION_WHALE_FLOW_INVALID')
+  if(a.thesisInvalidated&&!a.thesisInvalidationReasons.length)throw new Error('MONEY_POSITION_INVALIDATION_REASON_REQUIRED')
   if(a.bestAlternativeEdgeBps!==undefined&&(!Number.isInteger(a.bestAlternativeEdgeBps)||a.bestAlternativeEdgeBps<-10000||a.bestAlternativeEdgeBps>10000))throw new Error('MONEY_POSITION_ALT_EDGE_INVALID')
   iso(a.assessedAt,'MONEY_POSITION_ASSESSED_AT_INVALID')
   if(!a.evidenceIds.length)throw new Error('MONEY_POSITION_ASSESSMENT_EVIDENCE_REQUIRED')
@@ -127,6 +149,9 @@ export function defaultPositionManagementPolicy(mode:PositionAutomationMode='MAN
     minThesisStrengthBps:6500,
     minLiquidityBps:5000,
     maxRiskBps:7000,
+    maxSmartWalletExitRiskBps:7000,
+    maxNarrativeDegradationBps:7000,
+    maxWhaleDistributionRiskBps:7000,
     maxCorrelationRiskBps:6500,
     maxGivebackFromPeakBps:3000,
     rotateAdvantageBps:300,
@@ -155,6 +180,9 @@ export function evaluateOpenPosition(input:{
     [policy.minThesisStrengthBps,'MONEY_POSITION_POLICY_THESIS_INVALID'],
     [policy.minLiquidityBps,'MONEY_POSITION_POLICY_LIQUIDITY_INVALID'],
     [policy.maxRiskBps,'MONEY_POSITION_POLICY_RISK_INVALID'],
+    [policy.maxSmartWalletExitRiskBps,'MONEY_POSITION_POLICY_SMART_WALLET_INVALID'],
+    [policy.maxNarrativeDegradationBps,'MONEY_POSITION_POLICY_NARRATIVE_INVALID'],
+    [policy.maxWhaleDistributionRiskBps,'MONEY_POSITION_POLICY_WHALE_INVALID'],
     [policy.maxCorrelationRiskBps,'MONEY_POSITION_POLICY_CORRELATION_INVALID'],
     [policy.maxGivebackFromPeakBps,'MONEY_POSITION_POLICY_GIVEBACK_INVALID'],
   ] as const)bps(v,c)
@@ -176,11 +204,15 @@ export function evaluateOpenPosition(input:{
   else cons.push('Liquidity quality is weak; exit/add assumptions may not be executable.')
   if(a.correlationRiskBps>policy.maxCorrelationRiskBps)cons.push('Correlated exposure is above the configured concentration limit.')
   if(a.invalidationRiskBps>=policy.maxRiskBps)cons.push('Invalidation/risk evidence is above the configured limit.')
+  if(a.smartWalletExitRiskBps>=policy.maxSmartWalletExitRiskBps)cons.push('Tracked smart-wallet exits are above the configured risk limit.')
+  if(a.narrativeDegradationBps>=policy.maxNarrativeDegradationBps)cons.push('Narrative quality has materially degraded.')
+  if(a.whaleDistributionRiskBps>=policy.maxWhaleDistributionRiskBps)cons.push('Whale distribution is above the configured risk limit.')
+  if(a.thesisInvalidated)cons.push('The current evidence explicitly invalidates the thesis.')
   if(a.alphaRoutes.length)pros.push(`${a.alphaRoutes.length} governed alpha route(s) contribute reusable evidence.`)
 
   let action:PositionAction='HOLD'
-  if(a.invalidationRiskBps>=9000||a.edgeAfterCostsBps<=-500){
-    action='EXIT';reasons.push('THESIS_OR_EDGE_INVALIDATED')
+  if(a.thesisInvalidated||a.invalidationRiskBps>=9000||a.smartWalletExitRiskBps>=9000||a.narrativeDegradationBps>=9000||a.whaleDistributionRiskBps>=9000||a.edgeAfterCostsBps<=-500){
+    action='EXIT';reasons.push(a.thesisInvalidated?'THESIS_EXPLICITLY_INVALIDATED':'THESIS_OR_EDGE_INVALIDATED')
   }else if(a.correlationRiskBps>policy.maxCorrelationRiskBps&&a.edgeAfterCostsBps>=policy.minHoldEdgeBps){
     action='HEDGE';reasons.push('CORRELATED_RISK_REQUIRES_OFFSET')
   }else if(
@@ -199,8 +231,8 @@ export function evaluateOpenPosition(input:{
     action='ADD';reasons.push(winning?'WINNING_POSITION_STILL_HAS_INCREMENTAL_EDGE':'POSITION_HAS_INCREMENTAL_EDGE')
   }else if(winning&&a.edgeAfterCostsBps<policy.minHoldEdgeBps){
     action='TRIM';reasons.push('LOCK_PROFIT_WHILE_INCREMENTAL_EDGE_IS_WEAK')
-  }else if(a.invalidationRiskBps>=policy.maxRiskBps||a.liquidityQualityBps<policy.minLiquidityBps){
-    action='TRIM';reasons.push('RISK_OR_LIQUIDITY_DEGRADED')
+  }else if(a.invalidationRiskBps>=policy.maxRiskBps||a.smartWalletExitRiskBps>=policy.maxSmartWalletExitRiskBps||a.narrativeDegradationBps>=policy.maxNarrativeDegradationBps||a.whaleDistributionRiskBps>=policy.maxWhaleDistributionRiskBps||a.liquidityQualityBps<policy.minLiquidityBps){
+    action='TRIM';reasons.push('RISK_LIQUIDITY_OR_BEHAVIOR_DEGRADED')
   }else{
     reasons.push('HOLD_CURRENT_EXPOSURE')
   }
@@ -227,10 +259,66 @@ export function evaluateOpenPosition(input:{
     reasonCodes:unique(reasons),
     alphaRouteIds:unique(a.alphaRoutes.map(r=>r.routeId)),
     alternativeInstrumentId:action==='ROTATE'?a.bestAlternativeInstrumentId:undefined,
+    evidenceIds:unique([...p.evidenceIds,...a.evidenceIds]),
     evaluatedAt:input.evaluatedAt,
     authority:'INTELLIGENCE_ONLY',
     financialAuthority:'NONE',
     requiresDownstreamRiskAndAuthority:true,
     canExecute:false,
   })
+}
+
+
+export type PositionExitIntentCandidate=Readonly<{
+ exitIntentId:string
+ sourceDecisionId:string
+ positionId:string
+ domain:MoneyAlphaDomain
+ instrumentId:string
+ side:'SELL'|'BUY_TO_CLOSE'
+ action:'TRIM'|'EXIT'
+ quantity:number
+ quantityFractionBps:number
+ reasonCodes:readonly string[]
+ evidenceIds:readonly string[]
+ createdAt:string
+ origin:'INDEPENDENT_POSITION_REUNDERWRITE'
+ authority:'POSITION_EXIT_INTENT_CANDIDATE'
+ requiresDownstreamRiskAndAuthority:true
+ canExecute:false
+}>
+
+export function createPositionExitIntentCandidate(input:{
+ position:OpenPositionSnapshot
+ decision:PositionManagementDecision
+ createdAt:string
+ trimFractionBps?:number
+}):PositionExitIntentCandidate{
+ assertOpenPositionSnapshot(input.position)
+ iso(input.createdAt,'MONEY_POSITION_EXIT_INTENT_TIME_INVALID')
+ if(input.decision.positionId!==input.position.positionId||input.decision.instrumentId!==input.position.instrumentId)throw new Error('MONEY_POSITION_EXIT_INTENT_BINDING_MISMATCH')
+ if(input.decision.action!=='EXIT'&&input.decision.action!=='TRIM')throw new Error('MONEY_POSITION_EXIT_INTENT_ACTION_REQUIRED')
+ if(input.decision.canExecute!==false||input.decision.requiresDownstreamRiskAndAuthority!==true)throw new Error('MONEY_POSITION_EXIT_INTENT_AUTHORITY_INVALID')
+ const fraction=input.decision.action==='EXIT'?10000:(input.trimFractionBps??5000)
+ if(!Number.isInteger(fraction)||fraction<1||fraction>10000)throw new Error('MONEY_POSITION_EXIT_INTENT_FRACTION_INVALID')
+ const quantity=input.position.quantity*fraction/10000
+ if(!Number.isFinite(quantity)||quantity<=0)throw new Error('MONEY_POSITION_EXIT_INTENT_QUANTITY_INVALID')
+ return Object.freeze({
+  exitIntentId:'money-position-exit:'+hash({decisionId:input.decision.decisionId,positionId:input.position.positionId,fraction,createdAt:input.createdAt}),
+  sourceDecisionId:input.decision.decisionId,
+  positionId:input.position.positionId,
+  domain:input.position.domain,
+  instrumentId:input.position.instrumentId,
+  side:input.position.side==='LONG'||input.position.side==='YES'?'SELL':'BUY_TO_CLOSE',
+  action:input.decision.action,
+  quantity,
+  quantityFractionBps:fraction,
+  reasonCodes:Object.freeze([...input.decision.reasonCodes]),
+  evidenceIds:unique([...input.position.evidenceIds,...input.decision.evidenceIds]),
+  createdAt:input.createdAt,
+  origin:'INDEPENDENT_POSITION_REUNDERWRITE',
+  authority:'POSITION_EXIT_INTENT_CANDIDATE',
+  requiresDownstreamRiskAndAuthority:true,
+  canExecute:false,
+ })
 }
