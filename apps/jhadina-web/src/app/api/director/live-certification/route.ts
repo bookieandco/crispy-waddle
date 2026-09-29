@@ -393,3 +393,26 @@ export async function POST(request:Request){
     return NextResponse.json({ok:false,error:message},{status});
   }
 }
+
+
+export async function GET(request:Request){
+  const url=new URL(request.url);
+  const durations=url.searchParams.get('durations')?.split(',').map(Number);
+  const body:CertBody={
+    action:url.searchParams.get('action')==='advance'?'advance':'start',
+    runToken:url.searchParams.get('runToken')??undefined,
+    runId:url.searchParams.get('runId')??undefined,
+    sourceUrl:url.searchParams.get('sourceUrl')??undefined,
+    ...(durations?.length?{durations}:{}),
+  };
+  const headers=new Headers(request.headers);
+  headers.set('content-type','application/json');
+  const response=await POST(new Request(request.url,{
+    method:'POST',
+    headers,
+    body:JSON.stringify(body),
+  }));
+  response.headers.set('cache-control','no-store');
+  response.headers.set('referrer-policy','no-referrer');
+  return response;
+}
