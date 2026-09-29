@@ -32,6 +32,7 @@ export interface DirectorLiveTakeArtifactEvidence{
 export interface DirectorLiveTakePerformanceEvidence{
   audioAssetId:string;
   voiceIdentityId:string;
+  speakerFingerprintReceiptId:string;
   speakerFingerprintRef:string;
   speakerSimilarity:number;
   lipSyncScore:number;
@@ -103,7 +104,8 @@ export function evaluateDirectorLiveTake(input:DirectorLiveTakeReviewInput):Dire
   const performance=input.performance;
   if(
     !performance.audioAssetId.trim()||!performance.voiceIdentityId.trim()||
-    !performance.speakerFingerprintRef.trim()||!performance.evidenceIds.length
+    !performance.speakerFingerprintReceiptId.trim()||!performance.speakerFingerprintRef.trim()||
+    !performance.evidenceIds.length
   ) reasons.push('DIRECTOR_LIVE_TAKE_PERFORMANCE_PROVENANCE_REQUIRED');
   if(!Number.isFinite(performance.speakerSimilarity)||performance.speakerSimilarity<0.80||performance.speakerSimilarity>1){
     reasons.push('DIRECTOR_LIVE_TAKE_SPEAKER_SIMILARITY_LOW');
