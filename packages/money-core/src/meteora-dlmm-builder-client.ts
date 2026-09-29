@@ -5,7 +5,7 @@ type FetchLike=(input:string|URL,init?:RequestInit)=>Promise<Response>
 export type MeteoraDlmmBuilderClientOptions=Readonly<{
  baseUrl:string
  resolveAuthorizationHeader?:()=>Promise<string|undefined>|string|undefined
- resolvePoolAddress:(intent:DexSwapIntent)=>Promise<string>|string
+ resolvePoolAddress?:(intent:DexSwapIntent)=>Promise<string|undefined>|string|undefined
  fetchFn?:FetchLike
 }>
 function row(value:unknown):Record<string,unknown>{
@@ -15,7 +15,7 @@ function row(value:unknown):Record<string,unknown>{
 export class MeteoraDlmmOrderBuilderClient implements DirectDexOrderBuilder{
  private readonly baseUrl:string
  private readonly auth?:MeteoraDlmmBuilderClientOptions['resolveAuthorizationHeader']
- private readonly pool:MeteoraDlmmBuilderClientOptions['resolvePoolAddress']
+ private readonly pool?:MeteoraDlmmBuilderClientOptions['resolvePoolAddress']
  private readonly fetchFn:FetchLike
  constructor(options:MeteoraDlmmBuilderClientOptions){
   this.baseUrl=options.baseUrl.replace(/\/$/,'')
@@ -26,14 +26,14 @@ export class MeteoraDlmmOrderBuilderClient implements DirectDexOrderBuilder{
  }
  async build(input:{provider:'raydium-direct'|'meteora-direct';intent:DexSwapIntent;takerAddress:string}):Promise<DirectDexBuildResult>{
   if(input.provider!=='meteora-direct')throw new Error('DEX_METEORA_PROVIDER_REQUIRED')
-  const poolAddress=await this.pool(input.intent)
-  if(!poolAddress.trim())throw new Error('DEX_METEORA_POOL_REQUIRED')
+  const poolAddress=await this.pool?.(input.intent)
+  if(poolAddress!==undefined&&!poolAddress.trim())throw new Error('DEX_METEORA_POOL_INVALID')
   const authorization=await this.auth?.()
   const response=await this.fetchFn(this.baseUrl+'/build',{
    method:'POST',
    headers:{'content-type':'application/json',accept:'application/json',...(authorization?{authorization}:{})},
    body:JSON.stringify({
-    poolAddress,
+    ...(poolAddress?{poolAddress}:{}),
     inputMint:input.intent.inputMint,
     outputMint:input.intent.outputMint,
     inputAmountAtomic:input.intent.inputAmountAtomic.toString(),
