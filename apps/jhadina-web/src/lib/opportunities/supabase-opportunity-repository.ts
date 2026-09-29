@@ -1,5 +1,5 @@
 import { evaluateSideHustleExperiment } from "@jhadina/opportunity-core"
-import type { Opportunity, OpportunityLearningSignal, OpportunityOutcome, OpportunityPursuitCase, OpportunityStatus, PursuitTaskStatus, SideHustleExperiment, SideHustleExperimentEvaluation, SideHustleExperimentObservation } from "@jhadina/opportunity-core"
+import type { CommercialValidationTest, IdealCustomerProfile, MarketLearning, OfferCanvas, Opportunity, OpportunityLearningSignal, OpportunityOutcome, OpportunityPursuitCase, OpportunityStatus, ProofSprint, ProspectRecord, PursuitTaskStatus, RecurringOfferAssessment, SideHustleExperiment, SideHustleExperimentEvaluation, SideHustleExperimentObservation } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
 import type { StoredCanonicalOpportunity } from "./canonical"
 import type { OpportunityTriageState } from "./sideIncome"
@@ -28,6 +28,44 @@ type SideHustleExperimentRow = {
 
 type SideHustleExperimentObservationRow = {
   payload: SideHustleExperimentObservation
+}
+
+export type CommercialLearningKind =
+  | "offer_canvas"
+  | "validation_test"
+  | "market_learning"
+  | "proof_sprint"
+  | "recurring_offer_assessment"
+
+export type CommercialLearningPayload =
+  | OfferCanvas
+  | CommercialValidationTest
+  | MarketLearning
+  | ProofSprint
+  | RecurringOfferAssessment
+
+export type StoredCommercialLearningRecord = {
+  id: string
+  opportunityId: string
+  kind: CommercialLearningKind
+  payload: CommercialLearningPayload
+  recordedAt: string
+}
+
+type CommercialLearningRow = {
+  id: string
+  opportunity_id: string
+  kind: CommercialLearningKind
+  payload: CommercialLearningPayload
+  recorded_at: string
+}
+
+type ProspectIcpRow = {
+  payload: IdealCustomerProfile
+}
+
+type ProspectRow = {
+  payload: ProspectRecord
 }
 
 export type StoredSideHustleExperiment = {
@@ -280,6 +318,91 @@ export function createSupabaseOpportunityRepository() {
       })
       if (error || !data) throw new Error(`Unable to complete side hustle experiment: ${error?.message ?? "no result returned"}`)
       return data as SideHustleExperiment
+    },
+
+    async listCommercialLearning(opportunityId: string): Promise<StoredCommercialLearningRecord[]> {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_commercial_learning_records")
+        .select("id,opportunity_id,kind,payload,recorded_at")
+        .eq("opportunity_id", opportunityId)
+        .order("recorded_at", { ascending: true })
+        .returns<CommercialLearningRow[]>()
+      if (error) throw new Error(`Unable to list commercial learning: ${error.message}`)
+      return (data ?? []).map((row) => ({
+        id: row.id,
+        opportunityId: row.opportunity_id,
+        kind: row.kind,
+        payload: row.payload,
+        recordedAt: row.recorded_at,
+      }))
+    },
+
+    async upsertCommercialLearning(
+      record: StoredCommercialLearningRecord,
+    ): Promise<StoredCommercialLearningRecord> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_commercial_learning_upsert", {
+        p_record: {
+          id: record.id,
+          opportunityId: record.opportunityId,
+          kind: record.kind,
+          payload: record.payload,
+          recordedAt: record.recordedAt,
+        },
+      })
+      if (error || !data) {
+        throw new Error(`Unable to persist commercial learning: ${error?.message ?? "no result returned"}`)
+      }
+      const row = data as CommercialLearningRow
+      return {
+        id: row.id,
+        opportunityId: row.opportunity_id,
+        kind: row.kind,
+        payload: row.payload,
+        recordedAt: row.recorded_at,
+      }
+    },
+
+    async listProspectIcps(): Promise<IdealCustomerProfile[]> {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_prospect_icps")
+        .select("payload")
+        .order("updated_at", { ascending: false })
+        .returns<ProspectIcpRow[]>()
+      if (error) throw new Error(`Unable to list prospect ICPs: ${error.message}`)
+      return (data ?? []).map((row) => row.payload)
+    },
+
+    async upsertProspectIcp(icp: IdealCustomerProfile): Promise<IdealCustomerProfile> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_prospect_icp_upsert", {
+        p_icp: icp,
+      })
+      if (error || !data) throw new Error(`Unable to persist prospect ICP: ${error?.message ?? "no result returned"}`)
+      return (data as ProspectIcpRow).payload
+    },
+
+    async listProspects(icpId?: string): Promise<ProspectRecord[]> {
+      const supabase = await createClient()
+      let query = supabase
+        .from("jhadina_prospects")
+        .select("payload")
+        .order("last_verified_at", { ascending: false })
+      if (icpId) query = query.eq("icp_id", icpId)
+      const { data, error } = await query.returns<ProspectRow[]>()
+      if (error) throw new Error(`Unable to list prospects: ${error.message}`)
+      return (data ?? []).map((row) => row.payload)
+    },
+
+    async upsertProspect(prospect: ProspectRecord): Promise<ProspectRecord> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_prospect_upsert", {
+        p_prospect: prospect,
+      })
+      if (error || !data) throw new Error(`Unable to persist prospect: ${error?.message ?? "no result returned"}`)
+      return (data as ProspectRow).payload
     },
 
     async recordOutcome(

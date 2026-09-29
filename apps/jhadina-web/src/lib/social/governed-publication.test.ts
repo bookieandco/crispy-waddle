@@ -10,8 +10,10 @@ import type {
   SocialObservation,
   SocialOutboxJob,
   SocialPlatform,
+  SocialPlatformReceipt,
   SocialProvider,
   SocialPublicationProposal,
+  SocialPublishCanaryPlan,
   SocialPublishAction,
   SocialPublishTarget,
 } from "@jhadina/social-core"
@@ -29,6 +31,8 @@ class MemorySocialRepository implements SocialRepository {
   readonly proposals = new Map<string, SocialPublicationProposal>()
   readonly outbox = new Map<string, SocialOutboxJob>()
   readonly observations: SocialObservation[] = []
+  readonly canaries = new Map<string, SocialPublishCanaryPlan>()
+  readonly canaryReceipts: SocialPlatformReceipt[] = []
   private counter = 0
 
   constructor(userId = "user-1") {
@@ -243,6 +247,55 @@ class MemorySocialRepository implements SocialRepository {
 
   async listObservations(userId: string) {
     return this.observations.filter((observation) => observation.userId === userId)
+  }
+
+  async createPublishCanary(_userId: string, plan: SocialPublishCanaryPlan) {
+    this.canaries.set(plan.id, plan)
+    return plan
+  }
+
+  async getPublishCanary(_userId: string, planId: string) {
+    const plan = this.canaries.get(planId)
+    if (!plan) throw new Error("SOCIAL_CANARY_NOT_FOUND")
+    return plan
+  }
+
+  async listPublishCanaryReceipts(_userId: string, planId: string) {
+    return this.canaryReceipts.filter((receipt) => receipt.canaryPlanId === planId)
+  }
+
+  async capturePublishCanaryOutboxReceipt(input: {
+    userId: string
+    planId: string
+    outboxId: string
+    finalUrl?: string
+  }) {
+    const plan = await this.getPublishCanary(input.userId, input.planId)
+    const outbox = this.outbox.get(input.outboxId)
+    if (!outbox || outbox.userId !== input.userId) throw new Error("SOCIAL_OUTBOX_OWNER_MISMATCH")
+    const receipt: SocialPlatformReceipt = {
+      id: `${plan.id}:outbox:${outbox.id}`,
+      canaryPlanId: plan.id,
+      assetId: plan.assetId,
+      platform: outbox.target.platform,
+      accountId: outbox.target.accountId,
+      provider: outbox.target.provider,
+      providerPostId: outbox.providerPostId,
+      finalUrl: input.finalUrl,
+      state: outbox.status === "delivered"
+        ? "published"
+        : outbox.status === "failed"
+          ? "failed"
+          : outbox.status === "ambiguous"
+            ? "unknown"
+            : "submitted",
+      captionVersion: outbox.proposalId,
+      assetVersion: plan.assetId,
+      observedAt: new Date().toISOString(),
+      evidenceRefs: [`social-outbox:${outbox.id}`],
+    }
+    this.canaryReceipts.push(receipt)
+    return receipt
   }
 }
 
