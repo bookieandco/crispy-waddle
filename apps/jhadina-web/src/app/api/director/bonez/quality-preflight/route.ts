@@ -175,40 +175,72 @@ export async function GET(request:Request){
   const speakerQcRuntime=typeof data.speakerQcRuntime==='object'&&data.speakerQcRuntime
     ?data.speakerQcRuntime as Row
     :{configured:false,productionReady:false,status:'not-configured'};
-  const videos=Array.isArray(data.recentVideoArtifacts)?data.recentVideoArtifacts as Row[]:[];
-  const q4Receipt=videos.find(row=>{
-    const metadata=row.metadata??{};
-    const duration=Number(metadata.measuredDurationSeconds??metadata.durationSeconds);
-    return metadata.directorQualityStage==='DIRECTOR-QUALITY.4'
-      &&metadata.productionProvider===true
-      &&metadata.qualityClaim===true
-      &&Number.isFinite(duration)&&duration>=5&&duration<=10
-      &&/^[a-f0-9]{64}$/i.test(String(row.sha256??''));
+  const liveTakeReceipts=Array.isArray(data.liveTakeQcReceipts)?data.liveTakeQcReceipts as Row[]:[];
+  const q4Receipt=liveTakeReceipts.find(row=>{
+    const performance=typeof row.performanceEvidence==='object'&&row.performanceEvidence?row.performanceEvidence as Row:{};
+    const interactions=new Set(Array.isArray(performance.interactionRefs)?performance.interactionRefs.map(String):[]);
+    return row.purpose==='quality4-canary'
+      &&row.referenceAssetId===BONEZ_REFERENCE_ASSET_ID
+      &&row.referenceSha256===BONEZ_REFERENCE_SHA256
+      &&validIdentities.some(identity=>identity.id===row.voiceIdentityId)
+      &&row.speakerFingerprintReceiptId===matchingSpeakerFingerprint?.id
+      &&row.speakerFingerprintRef===matchingSpeakerFingerprint?.fingerprintRef
+      &&row.storageVerified===true
+      &&row.productionProvider===true
+      &&row.qcAdmissible===true
+      &&Array.isArray(row.qcReasons)&&row.qcReasons.length===0
+      &&Number.isFinite(row.measuredDurationSeconds)
+      &&row.measuredDurationSeconds>=5&&row.measuredDurationSeconds<=10
+      &&/^[a-f0-9]{64}$/i.test(String(row.outputSha256??''))
+      &&performance.movedAwayFromChair===true
+      &&performance.dialoguePerformed===true
+      &&Number(performance.speakerSimilarity)>=0.80
+      &&Number(performance.lipSyncScore)>=0.84
+      &&['chair','microphone','set'].every(value=>interactions.has(value));
   });
+  const q4Passed=Boolean(q4Receipt);
   const q4PrereqBlockers:string[]=[];
   if(!q2Passed) q4PrereqBlockers.push('DIRECTOR_QUALITY_2_REQUIRED');
   if(!q3Passed) q4PrereqBlockers.push('DIRECTOR_QUALITY_3_REQUIRED');
   if(!voiceRuntime.native) q4PrereqBlockers.push('DIRECTOR_NATIVE_VOICE_RUNTIME_NOT_READY');
   if(!speakerQcRuntime.productionReady) q4PrereqBlockers.push('DIRECTOR_SPEAKER_QC_RUNTIME_NOT_READY');
   if(!hunyuan.productionReady) q4PrereqBlockers.push('DIRECTOR_HUNYUAN_PRODUCTION_NOT_READY');
-  const q4Runnable=q4PrereqBlockers.length===0;
-  const q4Passed=Boolean(q4Receipt);
-  const q4Blockers=[...q4PrereqBlockers];
-  if(!q4Passed) q4Blockers.push('DIRECTOR_QUALITY_4_REAL_RENDER_RECEIPT_REQUIRED');
+  const q4Runnable=!q4Passed&&q4PrereqBlockers.length===0;
+  const q4Blockers=q4Passed?[]:[...q4PrereqBlockers,'DIRECTOR_QUALITY_4_REAL_RENDER_RECEIPT_REQUIRED'];
 
-  const q5Receipt=videos.find(row=>{
-    const metadata=row.metadata??{};
-    return metadata.directorQualityStage==='DIRECTOR-QUALITY.5'
-      &&typeof metadata.localizedRepairReceiptId==='string'
-      &&metadata.localizedRepairReceiptId.length>0
-      &&metadata.forcedFailureObserved===true
-      &&metadata.localizedRepairPassed===true;
-  });
-  const q5Runnable=q4Passed;
+  const q5StressReceipt=liveTakeReceipts.find(row=>
+    row.purpose==='quality5-stress'
+    &&row.qcAdmissible===false
+    &&row.expectedFailureObserved===true
+    &&Array.isArray(row.qcReasons)&&row.qcReasons.length>0
+    &&row.storageVerified===true
+    &&row.productionProvider===true
+    &&/^[a-f0-9]{64}$/i.test(String(row.outputSha256??''))
+  );
+  const repairs=Array.isArray(data.quality5RepairReceipts)?data.quality5RepairReceipts as Row[]:[];
+  const q5Receipt=repairs.find(row=>
+    q5StressReceipt
+    &&row.failureTakeReceiptId===q5StressReceipt.id
+    &&row.sourceAssetId===q5StressReceipt.outputAssetId
+    &&row.sourceSha256===q5StressReceipt.outputSha256
+    &&row.repairedAssetId!==row.sourceAssetId
+    &&row.repairedSha256!==row.sourceSha256
+    &&/^[a-f0-9]{64}$/i.test(String(row.repairedSha256??''))
+    &&row.qcAdmissible===true
+    &&Array.isArray(row.qcReasons)&&row.qcReasons.length===0
+    &&Number(row.repairDurationSeconds)>0
+    &&typeof row.preservationEvidence==='object'
+    &&row.preservationEvidence?.identityPreserved===true
+    &&row.preservationEvidence?.cameraTimingPreserved===true
+    &&row.preservationEvidence?.unaffectedRegionsPreserved===true
+  );
   const q5Passed=Boolean(q5Receipt);
-  const q5Blockers:string[]=[];
-  if(!q4Passed) q5Blockers.push('DIRECTOR_QUALITY_4_REQUIRED');
-  if(!q5Passed) q5Blockers.push('DIRECTOR_QUALITY_5_REAL_FAILURE_REPAIR_RECEIPT_REQUIRED');
+  const q5Runnable=q4Passed&&!q5Passed;
+  const q5Blockers=q5Passed?[]:[
+    ...(!q4Passed?['DIRECTOR_QUALITY_4_REQUIRED']:[]),
+    ...(!q5StressReceipt?['DIRECTOR_QUALITY_5_REAL_FAILURE_REQUIRED']:[]),
+    'DIRECTOR_QUALITY_5_REAL_FAILURE_REPAIR_RECEIPT_REQUIRED',
+  ];
 
   const stages:Record<string,StageState>={
     'DIRECTOR-QUALITY.2-LIVE':{
@@ -241,13 +273,25 @@ export async function GET(request:Request){
       passed:q4Passed,
       runnable:q4Runnable&&!q4Passed,
       blockers:unique(q4Blockers),
-      evidence:{hunyuan,voiceRuntime,speakerQcRuntime,realRenderReceiptId:q4Receipt?.id??null},
+      evidence:{
+        hunyuan,voiceRuntime,speakerQcRuntime,
+        realRenderReceiptId:q4Receipt?.id??null,
+        outputAssetId:q4Receipt?.outputAssetId??null,
+        providerRuntimeReceiptId:q4Receipt?.providerRuntimeReceiptId??null,
+        measuredDurationSeconds:q4Receipt?.measuredDurationSeconds??null,
+        rendererSelfCertified:false,
+      },
     },
     'DIRECTOR-QUALITY.5':{
       passed:q5Passed,
       runnable:q5Runnable&&!q5Passed,
       blockers:unique(q5Blockers),
-      evidence:{forcedRepairReceiptId:q5Receipt?.id??null},
+      evidence:{
+        realFailureTakeReceiptId:q5StressReceipt?.id??null,
+        forcedRepairReceiptId:q5Receipt?.id??null,
+        repairedAssetId:q5Receipt?.repairedAssetId??null,
+        repairDurationSeconds:q5Receipt?.repairDurationSeconds??null,
+      },
     },
   };
 
