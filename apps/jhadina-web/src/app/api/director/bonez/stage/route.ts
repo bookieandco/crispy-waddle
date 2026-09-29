@@ -1,6 +1,8 @@
 import {createHash} from 'node:crypto';
 import {NextResponse} from 'next/server';
 import {createClient} from '@/lib/supabase/server';
+import {createServiceRoleClient} from '@/lib/supabase/service-role';
+import {stageBonezReferenceDerivatives} from '@/lib/director-bonez-live-inputs';
 import {
   DIRECTOR_REFERENCE_MAX_BYTES,
   inspectDirectorReferenceImage,
@@ -44,7 +46,8 @@ export async function POST(request:Request){
   if(!user) return NextResponse.json({ok:false,error:'Authentication required'},{status:401});
 
   const oidc=oidcToken();
-  if(!oidc) return NextResponse.json({ok:false,error:'DIRECTOR_VERCEL_OIDC_REQUIRED'},{status:503});
+  const privileged=createServiceRoleClient();
+  if(!privileged&&!oidc) return NextResponse.json({ok:false,error:'DIRECTOR_PRIVILEGED_RUNTIME_REQUIRED'},{status:503});
 
   let form:FormData;
   try{form=await request.formData();}
@@ -56,20 +59,29 @@ export async function POST(request:Request){
       readExpectedJpeg(form.get('productFile'),BONEZ_PRODUCT_REFERENCE_SHA256,'product'),
     ]);
 
-    const staged=await fetch(GATEWAY_URL,{
-      method:'POST',
-      headers:{authorization:`Bearer ${oidc}`,'content-type':'application/json'},
-      body:JSON.stringify({
-        action:'stage',
+    let stagedBody:Record<string,unknown>;
+    if(privileged){
+      stagedBody=await stageBonezReferenceDerivatives(privileged,{
         userId:user.id,
-        characterBase64:Buffer.from(characterBytes).toString('base64'),
-        productBase64:Buffer.from(productBytes).toString('base64'),
-      }),
-      cache:'no-store',
-    });
-    const stagedBody=await staged.json().catch(()=>({ok:false,error:'DIRECTOR_BONEZ_STAGE_INVALID_JSON'})) as Record<string,unknown>;
-    if(!staged.ok){
-      return NextResponse.json(stagedBody,{status:staged.status,headers:{'cache-control':'no-store'}});
+        characterBytes,
+        productBytes,
+      }) as unknown as Record<string,unknown>;
+    }else{
+      const staged=await fetch(GATEWAY_URL,{
+        method:'POST',
+        headers:{authorization:`Bearer ${oidc}`,'content-type':'application/json'},
+        body:JSON.stringify({
+          action:'stage',
+          userId:user.id,
+          characterBase64:Buffer.from(characterBytes).toString('base64'),
+          productBase64:Buffer.from(productBytes).toString('base64'),
+        }),
+        cache:'no-store',
+      });
+      stagedBody=await staged.json().catch(()=>({ok:false,error:'DIRECTOR_BONEZ_STAGE_INVALID_JSON'})) as Record<string,unknown>;
+      if(!staged.ok){
+        return NextResponse.json(stagedBody,{status:staged.status,headers:{'cache-control':'no-store'}});
+      }
     }
 
     const token=typeof stagedBody.token==='string'?stagedBody.token:'';
@@ -79,7 +91,7 @@ export async function POST(request:Request){
     bootstrapUrl.searchParams.set('token',token);
     const completed=await fetch(bootstrapUrl,{
       method:'GET',
-      headers:{'x-vercel-oidc-token':oidc},
+      ...(oidc?{headers:{'x-vercel-oidc-token':oidc}}:{}),
       cache:'no-store',
     });
     const completedBody=await completed.json().catch(()=>({ok:false,error:'DIRECTOR_BONEZ_BOOTSTRAP_INVALID_JSON'}));
