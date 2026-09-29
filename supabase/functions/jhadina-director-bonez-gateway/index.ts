@@ -852,7 +852,11 @@ async function main(req:Request):Promise<Response>{
       "DIRECTOR_BONEZ_BOOTSTRAP_UNAUTHORIZED",
       "DIRECTOR_BONEZ_STAGE_USER_MISMATCH",
     ]);
-    return json(unauthorized.has(message)?401:500,{ok:false,error:message});
+    const unavailable=new Set([
+      "DIRECTOR_SPEAKER_QC_RUNTIME_NOT_CONFIGURED",
+      "DIRECTOR_SPEAKER_QC_RUNTIME_NOT_READY",
+    ]);
+    return json(unauthorized.has(message)?401:unavailable.has(message)?503:500,{ok:false,error:message});
   }
 }
 
