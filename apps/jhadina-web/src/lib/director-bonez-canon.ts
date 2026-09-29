@@ -131,7 +131,6 @@ export function bonezCastRecord(approvedAt:string,approvedBy:string):CharacterCa
     ]),
     approvedAt,
     approvedBy,
-    authority:'DIRECTOR_CAST_BIBLE',
   });
 }
 
@@ -139,12 +138,13 @@ function assetPackage(input:{
   id:string;kind:ProductionAssetPackage['kind'];displayName:string;
   tags:string[];immutable:string[];changeable:string[];
   spatial?:ProductionAssetPackage['spatial'];commercialProductRef?:string;
+  referenceAssetId?:string;referenceSha256?:string;referenceRole?:ProductionReferenceRole;
 },now:string):ProductionAssetPackage{
-  const role:ProductionReferenceRole=input.kind==='character'?'face':input.kind==='environment'?'other':input.kind==='wearable'?'body':'in-use';
+  const role:ProductionReferenceRole=input.referenceRole??(input.kind==='character'?'face':input.kind==='environment'?'other':input.kind==='wearable'?'body':'in-use');
   const refs=[{
     id:'ref:'+input.id,
-    assetId:BONEZ_REFERENCE_ASSET_ID,
-    sha256:BONEZ_REFERENCE_SHA256,
+    assetId:input.referenceAssetId??BONEZ_REFERENCE_ASSET_ID,
+    sha256:input.referenceSha256??BONEZ_REFERENCE_SHA256,
     role,
     rightsRef:BONEZ_RIGHTS_REF,
     evidenceIds:['user-upload:bonez:canonical','sanitized-reference:'+BONEZ_REFERENCE_SHA256],
@@ -214,6 +214,9 @@ export function bonezAssetPackages(now:string):readonly ProductionAssetPackage[]
       immutable:['canonical Bonez Lair artwork','TALES FROM THE CRIP title treatment visible in source artwork'],
       changeable:['physical print size','frame treatment'],
       commercialProductRef:BONEZ_PRODUCT_ID,
+      referenceAssetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,
+      referenceSha256:BONEZ_PRODUCT_REFERENCE_SHA256,
+      referenceRole:'front',
     },now),
   ]);
 }
