@@ -163,6 +163,7 @@ describe('Bonez quality preflight',()=>{
           id:'voice-approval:bonez:canonical:v1',
           voiceIdentityId:'voice:bonez:canonical:v1',
           candidateSha256:candidateSha,
+          speakerFingerprintReceiptId:'speaker-fingerprint:bonez:test',
           speakerFingerprintRef:fingerprint,
           minimumSpeakerSimilarity:0.8,
           provider:'runway-speech',
