@@ -57,6 +57,11 @@ export * from "./music-research-adapter.js";
 export * from "./music-perception-adapters.js";
 export * from "./music-pitch-fingerprint-adapters.js";
 export * from "./music-continuity-graph.js";
+export * from "./runtime-contract.js";
+export * from "./ingest-runtime.js";
+export * from "./separation-runtime.js";
+export * from "./perception-runtime.js";
+export * from "./runtime-restoration-executor.js";
 
 export type { MusicalEventKind } from "./event-perception.js";
 export type { MusicalEventKind as ProtectedMusicalEventKind } from "./protected-events.js";
