@@ -433,7 +433,7 @@ async function bootstrap(client:any,body:any,authenticatedUserId?:string){
     assetPackageIds:canonical.packages.map((pkg:any)=>String(pkg.id)),
     worldStateId:String(world.id),creativeDirectiveCount:canonical.directives.length,productBibleId:String(product.id),
     voiceIdentityIds:(voices.data??[]).map((row:any)=>String(row.id)),
-    privilegedTransport:"vercel-oidc-supabase-edge",
+    privilegedTransport:authenticatedUserId?"supabase-user-jwt-edge":"vercel-oidc-supabase-edge",
   };
 }
 
