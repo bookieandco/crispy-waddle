@@ -193,3 +193,5 @@ export * from './hunyuan-video-15-provider';
 export * from './production-archetypes';
 
 export * from './live-sports-watch';
+
+export * from './live-sports-watcher';
