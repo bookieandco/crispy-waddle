@@ -97,10 +97,37 @@ class HunyuanWorkerTests(unittest.TestCase):
                 license_acknowledged=True,
                 territory_acknowledged=True,
             )
-            with patch.object(worker,"_gpu_memory_mb",return_value=[24576]):
+            with patch.object(worker,"_gpu_memory_mb",return_value=[24576]), patch.object(worker.shutil,"which",return_value="/usr/bin/ffprobe"):
                 ready=worker.runtime_readiness(config)
             self.assertTrue(ready["productionReady"])
+            self.assertTrue(ready["ffprobeReady"])
             self.assertEqual(ready["reasons"],[])
+
+    def test_readiness_fails_closed_without_ffprobe(self):
+        with tempfile.TemporaryDirectory() as td:
+            base=Path(td)
+            repo=base/"repo"
+            model=base/"model"
+            out=base/"out"
+            repo.mkdir()
+            model.mkdir()
+            (repo/"generate.py").write_text("print('ok')")
+            (model/"transformer").mkdir()
+            (model/"text_encoder").mkdir()
+            (model/"vision_encoder").mkdir()
+            config=worker.HunyuanRuntimeConfig(
+                repo_dir=repo,
+                model_path=model,
+                output_dir=out,
+                model_version="1.5",
+                license_acknowledged=True,
+                territory_acknowledged=True,
+            )
+            with patch.object(worker,"_gpu_memory_mb",return_value=[24576]), patch.object(worker.shutil,"which",return_value=None):
+                ready=worker.runtime_readiness(config)
+            self.assertFalse(ready["productionReady"])
+            self.assertFalse(ready["ffprobeReady"])
+            self.assertIn("DIRECTOR_HUNYUAN_FFPROBE_REQUIRED",ready["reasons"])
 
     def test_probe_duration_uses_ffprobe_output(self):
         with patch.object(worker.subprocess,"check_output",return_value="5.041667\n"):
