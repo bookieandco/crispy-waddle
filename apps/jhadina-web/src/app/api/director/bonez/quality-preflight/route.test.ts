@@ -193,4 +193,118 @@ describe('Bonez quality preflight',()=>{
     expect(withBody.stages['DIRECTOR-QUALITY.3-LIVE'].evidence.explicitVoiceApprovalReceiptCount).toBe(1);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it('requires durable independent receipts for Q4 and a real failed take plus distinct repair for Q5',async()=>{
+    const candidateSha='cb5af66bfe5bbcc7b07c1f9dfc2b9be6b077c290452bab7c2aff60c62d1ce84a';
+    const fingerprint='speaker-embedding:ecapa-voxceleb:ff989f88e92c:sha256:'+'1'.repeat(64);
+    const base={
+      ok:true,
+      projectId:'director:bonez:production-quality:v1',
+      references:[
+        {id:'director-ref:bonez:canonical:v1',sha256:'bc3cf5b39b814eac4a18320ece12cc026d5607e1baa41e0355584efa050d89cc',referenceKind:'character',admissionStatus:'admitted',scanStatus:'clean'},
+        {id:'director-ref:bonez:product-print:v1',sha256:'8e09332025a170adf956d726e2774cab7987ec6052644375960bf467bc2847ef',referenceKind:'product',admissionStatus:'admitted',scanStatus:'clean'},
+      ],
+      cast:{id:'cast:bonez:v1',characterId:'bonez'},
+      voiceIdentities:[{
+        id:'voice:bonez:canonical:v1',source:'preset',
+        speakerFingerprintRefs:[fingerprint],minimumSpeakerSimilarity:0.8,
+      }],
+      voiceProviderBindings:[{
+        id:'voice-provider:bonez:runway:v1',voiceIdentityId:'voice:bonez:canonical:v1',
+        provider:'runway-speech',modelId:'eleven_v3',providerVoiceRef:'Grungle',
+        provenanceRefs:['runway-task:real'],
+      }],
+      voiceCandidate:{
+        id:'asset:audio:bonez:voice-audition:v1',sha256:candidateSha,
+        metadata:{candidate:true,canonical:false,approved:false},
+      },
+      voiceCandidateReceipt:{
+        id:'voice-candidate:bonez:runway:real',artifactSha256:candidateSha,
+        approvalState:'approved',artifactHashStatus:'verified',
+      },
+      speakerQcRuntime:{configured:false,productionReady:false,status:'offline-after-certification'},
+      speakerFingerprintReceipts:[{
+        id:'speaker-fingerprint:bonez:real',sourceAssetId:'asset:audio:bonez:voice-audition:v1',
+        sourceSha256:candidateSha,embeddingDimensions:192,embeddingSha256:'1'.repeat(64),
+        fingerprintRef:fingerprint,qualityClaim:false,
+      }],
+      voiceApprovalReceipts:[{
+        id:'voice-approval:bonez:canonical:v1',voiceIdentityId:'voice:bonez:canonical:v1',
+        candidateSha256:candidateSha,speakerFingerprintReceiptId:'speaker-fingerprint:bonez:real',
+        speakerFingerprintRef:fingerprint,minimumSpeakerSimilarity:0.8,
+        provider:'runway-speech',modelId:'eleven_v3',providerVoiceRef:'Grungle',
+        authority:'DIRECTOR_EXPLICIT_VOICE_APPROVAL',
+      }],
+      recentVideoArtifacts:[{
+        id:'legacy-video',sha256:'9'.repeat(64),metadata:{
+          directorQualityStage:'DIRECTOR-QUALITY.4',productionProvider:true,qualityClaim:true,durationSeconds:6,
+        },
+      }],
+      liveTakeQcReceipts:[],
+      quality5RepairReceipts:[],
+      stagedChunkCount:0,activeBootstrapTokenCount:0,
+    };
+    const performance={
+      speakerSimilarity:.94,lipSyncScore:.93,movedAwayFromChair:true,dialoguePerformed:true,
+      interactionRefs:['chair','microphone','set'],
+    };
+    const q4={
+      id:'live-take:bonez:q4:1',purpose:'quality4-canary',
+      referenceAssetId:'director-ref:bonez:canonical:v1',
+      referenceSha256:'bc3cf5b39b814eac4a18320ece12cc026d5607e1baa41e0355584efa050d89cc',
+      audioAssetId:'asset:audio:bonez:voice-audition:v1',voiceIdentityId:'voice:bonez:canonical:v1',
+      speakerFingerprintReceiptId:'speaker-fingerprint:bonez:real',speakerFingerprintRef:fingerprint,
+      providerId:'hunyuan-video-1.5',modelId:'hunyuan-video-1.5-480p-i2v-step-distilled',
+      modelVersion:'HunyuanVideo-1.5',providerJobId:'hunyuan-real',providerRuntimeReceiptId:'hunyuan-runtime:real',
+      seed:42,outputAssetId:'video:q4',outputSha256:'2'.repeat(64),contentType:'video/mp4',
+      measuredDurationSeconds:5.04,storageVerified:true,productionProvider:true,
+      performanceEvidence:performance,observations:[],qcPolicyId:'bonez-quality-live:v1',
+      qcAdmissible:true,expectedFailureObserved:false,qcReasons:[],evidenceIds:['real-q4'],
+    };
+    const stress={
+      ...q4,id:'live-take:bonez:q5-stress:1',purpose:'quality5-stress',
+      providerJobId:'hunyuan-stress',providerRuntimeReceiptId:'hunyuan-runtime:stress',
+      outputAssetId:'video:q5-fail',outputSha256:'3'.repeat(64),
+      qcAdmissible:false,expectedFailureObserved:true,
+      qcReasons:['DIRECTOR_DIRECTED_TAKE_QC_HARD_FAILURE:hand-anatomy'],
+    };
+    const repair={
+      id:'repair:bonez:q5:1',failureTakeReceiptId:stress.id,
+      sourceAssetId:stress.outputAssetId,sourceSha256:stress.outputSha256,
+      repairedAssetId:'video:q5-repaired',repairedSha256:'4'.repeat(64),
+      providerId:'editor-ai',modelId:'repair-v1',modelVersion:'1',
+      providerJobId:'repair-job',providerRuntimeReceiptId:'repair-runtime',
+      repairPlan:{repairStartSeconds:1,repairEndSeconds:2},
+      postRepairObservations:[],
+      preservationEvidence:{
+        identityPreserved:true,cameraTimingPreserved:true,unaffectedRegionsPreserved:true,
+      },
+      repairDurationSeconds:1,qcAdmissible:true,qcReasons:[],evidenceIds:['repair-proof'],
+    };
+
+    vi.spyOn(globalThis,'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify(base),{status:200,headers:{'content-type':'application/json'}}))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        ...base,liveTakeQcReceipts:[q4,stress],quality5RepairReceipts:[repair],
+      }),{status:200,headers:{'content-type':'application/json'}}));
+
+    const {GET}=await import('./route');
+    const request=()=>new Request('https://app.example/api/director/bonez/quality-preflight',{
+      headers:{'x-vercel-oidc-token':'request-oidc-token'},
+    });
+
+    const legacyOnly=await (await GET(request())).json();
+    expect(legacyOnly.stages['DIRECTOR-QUALITY.4'].passed).toBe(false);
+    expect(legacyOnly.stages['DIRECTOR-QUALITY.4'].blockers).toContain('DIRECTOR_QUALITY_4_REAL_RENDER_RECEIPT_REQUIRED');
+
+    const durable=await (await GET(request())).json();
+    expect(durable.stages['DIRECTOR-QUALITY.4'].passed).toBe(true);
+    expect(durable.stages['DIRECTOR-QUALITY.4'].blockers).toEqual([]);
+    expect(durable.stages['DIRECTOR-QUALITY.4'].evidence.rendererSelfCertified).toBe(false);
+    expect(durable.stages['DIRECTOR-QUALITY.5'].passed).toBe(true);
+    expect(durable.stages['DIRECTOR-QUALITY.5'].blockers).toEqual([]);
+    expect(durable.stages['DIRECTOR-QUALITY.5'].evidence.realFailureTakeReceiptId).toBe(stress.id);
+    expect(durable.stages['DIRECTOR-QUALITY.5'].evidence.forcedRepairReceiptId).toBe(repair.id);
+  });
+
 });
