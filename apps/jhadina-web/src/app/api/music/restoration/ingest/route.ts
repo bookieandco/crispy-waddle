@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  HttpRestorationRuntimeClient,
-  ingestRestorationSource,
-} from "@jhadina/music-core";
+import { ingestRestorationSource } from "@jhadina/music-core";
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
+import { createMusicRestorationRuntimeClient } from "@/lib/music/restoration-runtime-server";
+import { SupabaseMusicRestorationArtifactStore } from "@/lib/music/restoration-supabase-store";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { SupabaseMusicRestorationArtifactStore } from "@/lib/music/restoration-supabase-store";\nimport { createMusicRestorationRuntimeClient } from "@/lib/music/restoration-runtime-server";
 
 export const runtime = "nodejs";
-
-function createRuntimeClient(): HttpRestorationRuntimeClient {
-  const url = process.env.MUSIC_RESTORATION_WORKER_URL?.trim() ?? "";
-  const token = process.env.MUSIC_RESTORATION_WORKER_TOKEN?.trim() ?? "";
-  if (!url || !token) throw new Error("MUSIC_RESTORATION_WORKER_NOT_CONFIGURED");
-  return new HttpRestorationRuntimeClient(url, token);
-}
 
 export async function POST(req: NextRequest) {
   const claimedUserId = req.headers.get("x-jhadina-user-id")?.trim() ?? "";
