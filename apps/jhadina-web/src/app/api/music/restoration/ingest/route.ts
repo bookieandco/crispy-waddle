@@ -5,7 +5,7 @@ import {
 } from "@jhadina/music-core";
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { SupabaseMusicRestorationArtifactStore } from "@/lib/music/restoration-supabase-store";
+import { SupabaseMusicRestorationArtifactStore } from "@/lib/music/restoration-supabase-store";\nimport { createMusicRestorationRuntimeClient } from "@/lib/music/restoration-runtime-server";
 
 export const runtime = "nodejs";
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       fileName: file.name,
       mimeType: file.type,
       bytes,
-      runtime: createRuntimeClient(),
+      runtime: createMusicRestorationRuntimeClient(),
       store,
     });
 
