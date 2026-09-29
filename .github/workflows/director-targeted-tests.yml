@@ -190,6 +190,7 @@ jobs:
           src/lib/director-speaker-qc-provider.test.ts
           src/app/api/director/hunyuan/health/route.test.ts
           src/app/api/director/bonez/speaker-fingerprint/bootstrap/route.test.ts
+          src/app/api/director/bonez/voice-identity/approve/route.test.ts
           src/app/api/jhadina/voice/[action]/route.test.ts
           src/lib/director-reference-asset-resolver.test.ts
           src/lib/director-reference-media.test.ts
