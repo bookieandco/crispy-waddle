@@ -156,15 +156,20 @@ class SpeechBrainEcapaBackend:
         if self._model is not None:
             return
         import torch
+        from huggingface_hub import snapshot_download
         from speechbrain.inference.speaker import SpeakerRecognition
         device=self.config.device
         if device=="auto":
             device="cuda" if torch.cuda.is_available() else "cpu"
         self.config.cache_dir.mkdir(parents=True,exist_ok=True)
-        self._model=SpeakerRecognition.from_hparams(
-            source=self.config.model_id,
+        snapshot_path=snapshot_download(
+            repo_id=self.config.model_id,
             revision=self.config.model_revision,
-            savedir=str(self.config.cache_dir),
+            local_dir=str(self.config.cache_dir/"snapshot"),
+        )
+        self._model=SpeakerRecognition.from_hparams(
+            source=snapshot_path,
+            savedir=str(self.config.cache_dir/"speechbrain"),
             run_opts={"device":device},
         )
         self._torch=torch
