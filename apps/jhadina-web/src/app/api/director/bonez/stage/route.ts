@@ -99,6 +99,18 @@ export async function POST(request:Request){
     const token=typeof stagedBody.token==='string'?stagedBody.token:'';
     if(!token) return NextResponse.json({ok:false,error:'DIRECTOR_BONEZ_STAGE_TOKEN_MISSING'},{status:502});
 
+    if(!privileged&&!oidc){
+      return NextResponse.json({
+        ...stagedBody,
+        machineBootstrapRequired:true,
+        privilegedTransport:'supabase-user-jwt-edge',
+        next:'DIRECTOR-QUALITY.2-MACHINE-BOOTSTRAP',
+      },{
+        status:202,
+        headers:{'cache-control':'no-store','referrer-policy':'no-referrer'},
+      });
+    }
+
     if(privileged){
       const bootstrapUrl=new URL('/api/director/bonez/bootstrap',request.url);
       bootstrapUrl.searchParams.set('token',token);
