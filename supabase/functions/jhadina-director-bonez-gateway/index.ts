@@ -347,7 +347,7 @@ async function recordVoiceCandidate(client:any){
 }
 
 async function qualityStatus(client:any){
-  const [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,videosResult,chunksResult,tokensResult]=await Promise.all([
+  const [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,videosResult,chunksResult,tokensResult]=await Promise.all([
     client.from("director_reference_media_assets")
       .select("id,sha256,reference_kind,admission_status,scan_status")
       .eq("project_id",BONEZ_PROJECT_ID)
@@ -369,6 +369,12 @@ async function qualityStatus(client:any){
       .select("id,receipt_sha256,artifact_sha256,approval_state,artifact_hash_status")
       .eq("id",VOICE_RECEIPT_ID)
       .maybeSingle(),
+    client.from("director_speaker_fingerprint_receipts")
+      .select("id,source_asset_id,source_sha256,model_id,model_revision,embedding_dimensions,embedding_sha256,fingerprint_ref,quantization,sample_rate_hz,duration_seconds,quality_claim,created_at")
+      .eq("project_id",BONEZ_PROJECT_ID)
+      .eq("character_id",BONEZ_CHARACTER_ID)
+      .order("created_at",{ascending:false})
+      .limit(10),
     client.from("director_generated_editing_assets")
       .select("id,sha256,provider_id,model_id,metadata,created_at")
       .eq("project_id",BONEZ_PROJECT_ID)
@@ -383,7 +389,7 @@ async function qualityStatus(client:any){
       .is("consumed_at",null)
       .gt("expires_at",new Date().toISOString()),
   ]);
-  for(const result of [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,videosResult,chunksResult,tokensResult]){
+  for(const result of [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,videosResult,chunksResult,tokensResult]){
     if(result.error) throw result.error;
   }
   const voices=(voicesResult.data??[]) as Array<any>;
@@ -445,6 +451,21 @@ async function qualityStatus(client:any){
       approvalState:String((candidateReceiptResult.data as any).approval_state),
       artifactHashStatus:String((candidateReceiptResult.data as any).artifact_hash_status),
     }:null,
+    speakerFingerprintReceipts:(speakerFingerprintResult.data??[]).map((row:any)=>({
+      id:String(row.id),
+      sourceAssetId:String(row.source_asset_id),
+      sourceSha256:String(row.source_sha256),
+      modelId:String(row.model_id),
+      modelRevision:String(row.model_revision),
+      embeddingDimensions:Number(row.embedding_dimensions),
+      embeddingSha256:String(row.embedding_sha256),
+      fingerprintRef:String(row.fingerprint_ref),
+      quantization:String(row.quantization),
+      sampleRateHz:Number(row.sample_rate_hz),
+      durationSeconds:Number(row.duration_seconds),
+      qualityClaim:Boolean(row.quality_claim),
+      createdAt:String(row.created_at),
+    })),
     recentVideoArtifacts:(videosResult.data??[]).map((row:any)=>({
       id:String(row.id),
       sha256:String(row.sha256),
