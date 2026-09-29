@@ -32,7 +32,7 @@ export type SportsReusableLearningSignal=Readonly<{
   signalId:string
   thesis:SportsThesisLearningRecord
   alpha:AlphaEvidence
-  reusableFor:['SPORTS_BETTING','PREDICTION_MARKET']
+  reusableFor:readonly ['SPORTS_BETTING','PREDICTION_MARKET']
   targetTruthClaim:false
   authority:'CROSS_DOMAIN_EVIDENCE_ONLY'
   canAuthorizeLive:false
