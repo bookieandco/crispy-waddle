@@ -48,8 +48,10 @@ export interface RestorationArtifactStore {
     sha256: string;
     bytes: Uint8Array;
     role?: string;
-  }): Promise<{ uri: string }>;
-  registerCase(restorationCase: RestorationCase): Promise<void>;\n  register(artifact: StoredRestorationArtifact): Promise<void>;
+  }): Promise<{ storageUri: string; runtimeUri: string }>;
+  resolveRuntimeUri(ownerUserId: string, artifactId: string): Promise<string>;
+  registerCase(restorationCase: RestorationCase): Promise<void>;
+  register(artifact: StoredRestorationArtifact): Promise<void>;
   get(ownerUserId: string, artifactId: string): Promise<StoredRestorationArtifact | undefined>;
 }
 
