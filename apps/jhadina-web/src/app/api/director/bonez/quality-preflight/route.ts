@@ -107,15 +107,7 @@ export async function GET(request:Request){
 
   const identities=Array.isArray(data.voiceIdentities)?data.voiceIdentities as Row[]:[];
   const bindings=Array.isArray(data.voiceProviderBindings)?data.voiceProviderBindings as Row[]:[];
-  const validIdentities=identities.filter(identity=>
-    Array.isArray(identity.speakerFingerprintRefs)&&identity.speakerFingerprintRefs.length>0
-    &&Number.isFinite(identity.minimumSpeakerSimilarity)
-    &&identity.minimumSpeakerSimilarity>0&&identity.minimumSpeakerSimilarity<=1
-    &&bindings.some(binding=>
-      binding.voiceIdentityId===identity.id
-      &&Array.isArray(binding.provenanceRefs)&&binding.provenanceRefs.length>0
-    )
-  );
+  const approvals=Array.isArray(data.voiceApprovalReceipts)?data.voiceApprovalReceipts as Row[]:[];
   const voiceCandidate=typeof data.voiceCandidate==='object'&&data.voiceCandidate?data.voiceCandidate as Row:null;
   const voiceCandidateReceipt=typeof data.voiceCandidateReceipt==='object'&&data.voiceCandidateReceipt
     ?data.voiceCandidateReceipt as Row:null;
@@ -128,7 +120,7 @@ export async function GET(request:Request){
     &&voiceCandidate.metadata?.approved===false
     &&/^[a-f0-9]{64}$/i.test(candidateAssetSha)
     &&voiceCandidateReceipt
-    &&voiceCandidateReceipt.approvalState==='candidate_unapproved'
+    &&['candidate_unapproved','approved'].includes(String(voiceCandidateReceipt.approvalState??''))
     &&voiceCandidateReceipt.artifactHashStatus==='verified'
     &&candidateReceiptSha===candidateAssetSha
   );
@@ -144,6 +136,31 @@ export async function GET(request:Request){
     &&receipt.qualityClaim===false
   );
   const speakerFingerprintReady=Boolean(matchingSpeakerFingerprint);
+  const validIdentities=identities.filter(identity=>{
+    if(
+      !Array.isArray(identity.speakerFingerprintRefs)||!identity.speakerFingerprintRefs.length
+      ||!Number.isFinite(identity.minimumSpeakerSimilarity)
+      ||identity.minimumSpeakerSimilarity<=0||identity.minimumSpeakerSimilarity>1
+    ) return false;
+    const binding=bindings.find(item=>
+      item.voiceIdentityId===identity.id
+      &&Array.isArray(item.provenanceRefs)&&item.provenanceRefs.length>0
+    );
+    if(!binding) return false;
+    return approvals.some(approval=>
+      approval.voiceIdentityId===identity.id
+      &&approval.authority==='DIRECTOR_EXPLICIT_VOICE_APPROVAL'
+      &&approval.candidateSha256===candidateAssetSha
+      &&approval.speakerFingerprintReceiptId===matchingSpeakerFingerprint?.id
+      &&approval.speakerFingerprintRef===matchingSpeakerFingerprint?.fingerprintRef
+      &&identity.speakerFingerprintRefs.includes(approval.speakerFingerprintRef)
+      &&Number(approval.minimumSpeakerSimilarity)===Number(identity.minimumSpeakerSimilarity)
+      &&approval.provider===binding.provider
+      &&approval.modelId===binding.modelId
+      &&approval.providerVoiceRef===binding.providerVoiceRef
+    );
+  });
+  const explicitApprovalReceipts=approvals.filter(receipt=>receipt.authority==='DIRECTOR_EXPLICIT_VOICE_APPROVAL');
 
   const q3Blockers:string[]=[];
   if(!q2Passed) q3Blockers.push('DIRECTOR_QUALITY_2_REQUIRED');
@@ -214,6 +231,7 @@ export async function GET(request:Request){
         speakerFingerprintReady,
         speakerFingerprintReceiptId:matchingSpeakerFingerprint?.id??null,
         speakerFingerprintRef:matchingSpeakerFingerprint?.fingerprintRef??null,
+        explicitVoiceApprovalReceiptCount:explicitApprovalReceipts.length,
         approvedMovieGradeVoiceIdentityCount:validIdentities.length,
         nativeVoiceRuntime:voiceRuntime,
         speakerQcRuntime,
