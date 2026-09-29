@@ -4,6 +4,7 @@ import {
   createTranscriptFoldEvent,
   type EventBus,
   type RuntimeEventDatabaseClient,
+  type TranscriptFoldEvent,
   type TranscriptFoldEventPayloadMap,
   type TranscriptFoldEventType,
 } from "@jhadina/event-bus"
@@ -33,7 +34,7 @@ export type TranscriptFoldEventEmitter = {
     entityId: string
     occurredAt: string
     payload: TranscriptFoldEventPayloadMap[TType]
-  }): Promise<void>
+  }): Promise<TranscriptFoldEvent<TType>>
 }
 
 export async function prepareTranscriptFoldEventEmitter(input: {
@@ -86,7 +87,7 @@ export async function prepareTranscriptFoldEventEmitter(input: {
       entityId: string
       occurredAt: string
       payload: TranscriptFoldEventPayloadMap[TType]
-    }): Promise<void> {
+    }): Promise<TranscriptFoldEvent<TType>> {
       const event = createTranscriptFoldEvent({
         ...eventInput,
         runtime: {
@@ -98,6 +99,7 @@ export async function prepareTranscriptFoldEventEmitter(input: {
         },
       })
       await bus!.publish(event)
+      return event
     },
   })
 }
