@@ -59,14 +59,14 @@ describe('Bonez speaker fingerprint bootstrap',()=>{
     vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(JSON.stringify({
       ok:false,
       error:'DIRECTOR_SPEAKER_QC_RUNTIME_NOT_CONFIGURED',
-    }),{status:500,headers:{'content-type':'application/json'}}));
+    }),{status:503,headers:{'content-type':'application/json'}}));
 
     const {GET}=await import('./route');
     const response=await GET(new Request(
       'https://app.example/api/director/bonez/speaker-fingerprint/bootstrap',
       {headers:{'x-vercel-oidc-token':'oidc'}},
     ));
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(503);
     expect((await response.json()).error).toBe('DIRECTOR_SPEAKER_QC_RUNTIME_NOT_CONFIGURED');
   });
 });
