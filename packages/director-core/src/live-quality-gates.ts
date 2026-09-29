@@ -121,16 +121,20 @@ export function evaluateDirectorLiveTake(input:DirectorLiveTakeReviewInput):Dire
     if(!interactions.has(required)) reasons.push('DIRECTOR_BONEZ_INTERACTION_REQUIRED:'+required);
   }
 
+  const structuralReasons=[...reasons];
   const qc=evaluateDirectedTakeQc(input.observations,CANARY_POLICY);
   reasons.push(...qc.reasons);
 
-  const expectedFailureObserved=input.purpose==='quality5-stress'&&!qc.admissible&&
-    input.observations.some(observation=>
+  const expectedFailureObserved=input.purpose==='quality5-stress'
+    &&structuralReasons.length===0
+    &&!qc.admissible
+    &&input.observations.some(observation=>
       observation.hardFailure===true||
       qc.reasons.some(reason=>reason.endsWith(':'+observation.metric))
     );
 
   if(input.purpose==='quality5-stress'){
+    if(structuralReasons.length) reasons.push('DIRECTOR_QUALITY_5_STRESS_TAKE_STRUCTURALLY_INVALID');
     if(!expectedFailureObserved) reasons.push('DIRECTOR_QUALITY_5_REAL_FAILURE_REQUIRED');
     return Object.freeze({
       admissible:false,
