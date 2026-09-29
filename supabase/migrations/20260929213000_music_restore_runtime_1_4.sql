@@ -59,6 +59,37 @@ create table if not exists public.music_restoration_jobs (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.music_restoration_versions (
+  id text primary key,
+  case_id text not null references public.music_restoration_cases(id) on delete restrict,
+  source_artifact_id text not null references public.music_restoration_artifacts(id) on delete restrict,
+  output_artifact_id text not null references public.music_restoration_artifacts(id) on delete restrict,
+  candidate_id text,
+  operation_class text not null
+    check (operation_class in ('analysis','correction','reconstruction','source-recovery','production','simulation')),
+  operation text not null,
+  evidence_ids text[] not null default '{}',
+  authorization_ids text[] not null default '{}',
+  qc_passed boolean not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.music_restoration_execution_receipts (
+  id text primary key,
+  execution_id text not null unique,
+  case_id text not null references public.music_restoration_cases(id) on delete restrict,
+  source_artifact_id text not null references public.music_restoration_artifacts(id) on delete restrict,
+  output_artifact_id text references public.music_restoration_artifacts(id) on delete restrict,
+  status text not null check (status in ('completed','failed','aborted')),
+  qc jsonb not null,
+  gate jsonb not null,
+  output_hash text,
+  expected_output_hash text,
+  hash_verified boolean not null,
+  reasons text[] not null default '{}',
+  created_at timestamptz not null default now()
+);
+
 create index if not exists music_restoration_cases_user_idx
   on public.music_restoration_cases(user_id,created_at desc);
 create index if not exists music_restoration_artifacts_case_idx
@@ -67,6 +98,10 @@ create index if not exists music_restoration_evidence_artifact_idx
   on public.music_restoration_evidence(artifact_id,created_at);
 create index if not exists music_restoration_jobs_case_status_idx
   on public.music_restoration_jobs(case_id,status,updated_at);
+create index if not exists music_restoration_versions_case_idx
+  on public.music_restoration_versions(case_id,created_at);
+create index if not exists music_restoration_execution_case_idx
+  on public.music_restoration_execution_receipts(case_id,created_at);
 
 create or replace function public.assert_music_restoration_artifact_owner()
 returns trigger
@@ -134,16 +169,24 @@ alter table public.music_restoration_evidence enable row level security;
 alter table public.music_restoration_evidence force row level security;
 alter table public.music_restoration_jobs enable row level security;
 alter table public.music_restoration_jobs force row level security;
+alter table public.music_restoration_versions enable row level security;
+alter table public.music_restoration_versions force row level security;
+alter table public.music_restoration_execution_receipts enable row level security;
+alter table public.music_restoration_execution_receipts force row level security;
 
 revoke all on public.music_restoration_cases from public,anon,authenticated;
 revoke all on public.music_restoration_artifacts from public,anon,authenticated;
 revoke all on public.music_restoration_evidence from public,anon,authenticated;
 revoke all on public.music_restoration_jobs from public,anon,authenticated;
+revoke all on public.music_restoration_versions from public,anon,authenticated;
+revoke all on public.music_restoration_execution_receipts from public,anon,authenticated;
 
 grant select,insert,update on public.music_restoration_cases to service_role;
 grant select,insert on public.music_restoration_artifacts to service_role;
 grant select,insert on public.music_restoration_evidence to service_role;
 grant select,insert,update on public.music_restoration_jobs to service_role;
+grant select,insert on public.music_restoration_versions to service_role;
+grant select,insert on public.music_restoration_execution_receipts to service_role;
 
 drop policy if exists music_restoration_cases_service_role_only on public.music_restoration_cases;
 create policy music_restoration_cases_service_role_only
@@ -157,6 +200,13 @@ create policy music_restoration_evidence_service_role_only
 drop policy if exists music_restoration_jobs_service_role_only on public.music_restoration_jobs;
 create policy music_restoration_jobs_service_role_only
   on public.music_restoration_jobs as restrictive for all to service_role using(true) with check(true);
+
+drop policy if exists music_restoration_versions_service_role_only on public.music_restoration_versions;
+create policy music_restoration_versions_service_role_only
+  on public.music_restoration_versions as restrictive for all to service_role using(true) with check(true);
+drop policy if exists music_restoration_execution_receipts_service_role_only on public.music_restoration_execution_receipts;
+create policy music_restoration_execution_receipts_service_role_only
+  on public.music_restoration_execution_receipts as restrictive for all to service_role using(true) with check(true);
 
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values(
