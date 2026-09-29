@@ -37,7 +37,7 @@ export interface RestorationArtifactStore {
     mimeType: string;
     sha256: string;
     bytes: Uint8Array;
-  }): Promise<{ uri: string }>;
+  }): Promise<{ storageUri: string; runtimeUri: string }>;
   putDerived(input: {
     ownerUserId: string;
     caseId: string;
@@ -143,7 +143,7 @@ export async function ingestRestorationSource(input: {
 
   const source: RestorationRuntimeSource = {
     artifactId,
-    uri: stored.uri,
+    uri: stored.runtimeUri,
     sha256,
     mimeType: input.mimeType,
   };
@@ -163,7 +163,7 @@ export async function ingestRestorationSource(input: {
     createdAt: now,
     ownerUserId,
     caseId,
-    storageUri: stored.uri,
+    storageUri: stored.storageUri,
     mimeType: input.mimeType,
     sizeBytes: input.bytes.byteLength,
     runtimeReceiptId: probe.runtimeReceiptId,
