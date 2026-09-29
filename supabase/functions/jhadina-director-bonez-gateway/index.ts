@@ -26,6 +26,10 @@ const VOICE_OBJECT_PATH="bonez/voice-candidates/Bonez_voice_audition_v1.mp3";
 const VOICE_RECEIPT_ID="voice-candidate:bonez:runway:"+VOICE_TASK_ID;
 const VOICE_RECEIPT_SHA256="cc388b7d4d874dfc62c6e7aaa5193928d2473cbc036ade112603a1cfa25707cd";
 const VOICE_REQUEST_TRANSCRIPT="[low, amused] You ever notice the dead got better stories than the living? [chuckles] Pull up a chair. I got time.";
+const SPEAKER_QC_MODEL_ID="speechbrain/spkrec-ecapa-voxceleb";
+const SPEAKER_QC_MODEL_REVISION="ff989f88e92ccc120569763824f8eedd5afc9039";
+const SPEAKER_QC_SAMPLE_RATE_HZ=16000;
+const SPEAKER_QC_QUANTIZATION="l2-int16-v1";
 
 type Json=Record<string,unknown>;
 
@@ -87,6 +91,16 @@ function base64Url(bytes:Uint8Array):string{
   let raw="";
   for(const byte of bytes) raw+=String.fromCharCode(byte);
   return btoa(raw).replaceAll("+","-").replaceAll("/","_").replace(/=+$/,"");
+}
+
+function base64Bytes(bytes:Uint8Array):string{
+  let raw="";
+  const step=0x8000;
+  for(let offset=0;offset<bytes.length;offset+=step){
+    const chunk=bytes.subarray(offset,Math.min(bytes.length,offset+step));
+    for(const byte of chunk) raw+=String.fromCharCode(byte);
+  }
+  return btoa(raw);
 }
 
 function jpegDimensions(bytes:Uint8Array):{width:number;height:number}{
@@ -346,8 +360,132 @@ async function recordVoiceCandidate(client:any){
   };
 }
 
+async function speakerFingerprintSource(client:any){
+  const asset=await client.from("director_generated_editing_assets")
+    .select("id,sha256,mime_type,uri,metadata")
+    .eq("id",VOICE_ASSET_ID)
+    .maybeSingle();
+  if(asset.error) throw asset.error;
+  const row=asset.data as any;
+  if(!row) throw new Error("DIRECTOR_BONEZ_VOICE_CANDIDATE_MISSING");
+  const metadata=row.metadata??{};
+  if(metadata.candidate!==true||metadata.canonical!==false||metadata.approved!==false){
+    throw new Error("DIRECTOR_BONEZ_VOICE_CANDIDATE_NOT_ADMITTED");
+  }
+  const expectedSha=String(row.sha256??"");
+  if(!/^[a-f0-9]{64}$/i.test(expectedSha)) throw new Error("DIRECTOR_BONEZ_VOICE_CANDIDATE_HASH_INVALID");
+  const downloaded=await client.storage.from("director-media").download(VOICE_OBJECT_PATH);
+  if(downloaded.error) throw downloaded.error;
+  const bytes=new Uint8Array(await downloaded.data.arrayBuffer());
+  if(!bytes.length) throw new Error("DIRECTOR_BONEZ_VOICE_BYTES_EMPTY");
+  const actualSha=await sha256Bytes(bytes);
+  if(actualSha!==expectedSha) throw new Error("DIRECTOR_BONEZ_VOICE_STORAGE_HASH_MISMATCH");
+  return {
+    ok:true,
+    phase:"DIRECTOR-QUALITY.3-SPEAKER-QC-SOURCE",
+    sourceAssetId:VOICE_ASSET_ID,
+    sourceSha256:actualSha,
+    mimeType:String(row.mime_type??"audio/mpeg"),
+    audioBase64:base64Bytes(bytes),
+    candidate:true,
+    canonical:false,
+    approved:false,
+  };
+}
+
+async function recordSpeakerFingerprintReceipt(client:any,body:any){
+  const receipt=body?.receipt;
+  if(!receipt||typeof receipt!=="object") throw new Error("DIRECTOR_SPEAKER_QC_RECEIPT_REQUIRED");
+
+  const asset=await client.from("director_generated_editing_assets")
+    .select("id,sha256,metadata")
+    .eq("id",VOICE_ASSET_ID)
+    .maybeSingle();
+  if(asset.error) throw asset.error;
+  const row=asset.data as any;
+  if(!row) throw new Error("DIRECTOR_BONEZ_VOICE_CANDIDATE_MISSING");
+  const assetSha=String(row.sha256??"");
+  const metadata=row.metadata??{};
+  if(metadata.candidate!==true||metadata.canonical!==false||metadata.approved!==false){
+    throw new Error("DIRECTOR_BONEZ_VOICE_CANDIDATE_NOT_ADMITTED");
+  }
+
+  const sourceSha=String(receipt.sourceSha256??"");
+  const normalizedSha=String(receipt.normalizedAudioSha256??"");
+  const embeddingSha=String(receipt.embeddingSha256??"");
+  const fingerprintRef=String(receipt.fingerprintRef??"");
+  const dimensions=Number(receipt.embeddingDimensions);
+  const duration=Number(receipt.durationSeconds);
+  if(String(receipt.sourceAssetId??"")!==VOICE_ASSET_ID) throw new Error("DIRECTOR_SPEAKER_QC_SOURCE_ASSET_MISMATCH");
+  if(sourceSha!==assetSha) throw new Error("DIRECTOR_SPEAKER_QC_SOURCE_HASH_MISMATCH");
+  if(String(receipt.modelId??"")!==SPEAKER_QC_MODEL_ID) throw new Error("DIRECTOR_SPEAKER_QC_MODEL_ID_MISMATCH");
+  if(String(receipt.modelRevision??"")!==SPEAKER_QC_MODEL_REVISION) throw new Error("DIRECTOR_SPEAKER_QC_MODEL_REVISION_MISMATCH");
+  if(String(receipt.quantization??"")!==SPEAKER_QC_QUANTIZATION) throw new Error("DIRECTOR_SPEAKER_QC_QUANTIZATION_MISMATCH");
+  if(Number(receipt.sampleRateHz)!==SPEAKER_QC_SAMPLE_RATE_HZ) throw new Error("DIRECTOR_SPEAKER_QC_SAMPLE_RATE_MISMATCH");
+  if(receipt.qualityClaim!==false) throw new Error("DIRECTOR_SPEAKER_QC_QUALITY_CLAIM_FORBIDDEN");
+  if(!/^[a-f0-9]{64}$/i.test(normalizedSha)||!/^[a-f0-9]{64}$/i.test(embeddingSha)){
+    throw new Error("DIRECTOR_SPEAKER_QC_HASH_INVALID");
+  }
+  if(!Number.isInteger(dimensions)||dimensions<=0||!Number.isFinite(duration)||duration<=0){
+    throw new Error("DIRECTOR_SPEAKER_QC_RECEIPT_INVALID");
+  }
+  const expectedPrefix="speaker-embedding:ecapa-voxceleb:"+SPEAKER_QC_MODEL_REVISION.slice(0,12)+":sha256:";
+  if(fingerprintRef!==expectedPrefix+embeddingSha){
+    throw new Error("DIRECTOR_SPEAKER_QC_FINGERPRINT_REF_INVALID");
+  }
+
+  const id="speaker-fingerprint:bonez:ecapa:"+SPEAKER_QC_MODEL_REVISION.slice(0,12)+":"+embeddingSha.slice(0,16);
+  const written=await client.from("director_speaker_fingerprint_receipts").upsert({
+    id,
+    project_id:BONEZ_PROJECT_ID,
+    character_id:BONEZ_CHARACTER_ID,
+    source_asset_id:VOICE_ASSET_ID,
+    source_sha256:sourceSha,
+    normalized_audio_sha256:normalizedSha,
+    model_id:SPEAKER_QC_MODEL_ID,
+    model_revision:SPEAKER_QC_MODEL_REVISION,
+    embedding_dimensions:dimensions,
+    embedding_sha256:embeddingSha,
+    fingerprint_ref:fingerprintRef,
+    quantization:SPEAKER_QC_QUANTIZATION,
+    sample_rate_hz:SPEAKER_QC_SAMPLE_RATE_HZ,
+    duration_seconds:duration,
+    quality_claim:false,
+    evidence_ids:[
+      VOICE_RECEIPT_ID,
+      VOICE_ASSET_ID,
+      "source-sha256:"+sourceSha,
+      "embedding-sha256:"+embeddingSha,
+    ],
+  },{onConflict:"project_id,character_id,source_sha256,model_id,model_revision"})
+    .select("id,source_asset_id,source_sha256,model_id,model_revision,embedding_dimensions,embedding_sha256,fingerprint_ref,quantization,sample_rate_hz,duration_seconds,quality_claim,created_at")
+    .single();
+  if(written.error) throw written.error;
+
+  return {
+    ok:true,
+    phase:"DIRECTOR-QUALITY.3-SPEAKER-FINGERPRINT",
+    receipt:{
+      id:String(written.data.id),
+      sourceAssetId:String(written.data.source_asset_id),
+      sourceSha256:String(written.data.source_sha256),
+      modelId:String(written.data.model_id),
+      modelRevision:String(written.data.model_revision),
+      embeddingDimensions:Number(written.data.embedding_dimensions),
+      embeddingSha256:String(written.data.embedding_sha256),
+      fingerprintRef:String(written.data.fingerprint_ref),
+      quantization:String(written.data.quantization),
+      sampleRateHz:Number(written.data.sample_rate_hz),
+      durationSeconds:Number(written.data.duration_seconds),
+      qualityClaim:Boolean(written.data.quality_claim),
+      createdAt:String(written.data.created_at),
+    },
+    approved:false,
+  };
+}
+
 async function qualityStatus(client:any){
-  const [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,videosResult,chunksResult,tokensResult]=await Promise.all([
+  const [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,videosResult,chunksResult,tokensResult]=await Promise.all([
     client.from("director_reference_media_assets")
       .select("id,sha256,reference_kind,admission_status,scan_status")
       .eq("project_id",BONEZ_PROJECT_ID)
@@ -369,6 +507,12 @@ async function qualityStatus(client:any){
       .select("id,receipt_sha256,artifact_sha256,approval_state,artifact_hash_status")
       .eq("id",VOICE_RECEIPT_ID)
       .maybeSingle(),
+    client.from("director_speaker_fingerprint_receipts")
+      .select("id,source_asset_id,source_sha256,model_id,model_revision,embedding_dimensions,embedding_sha256,fingerprint_ref,quantization,sample_rate_hz,duration_seconds,quality_claim,created_at")
+      .eq("project_id",BONEZ_PROJECT_ID)
+      .eq("character_id",BONEZ_CHARACTER_ID)
+      .order("created_at",{ascending:false})
+      .limit(10),
     client.from("director_generated_editing_assets")
       .select("id,sha256,provider_id,model_id,metadata,created_at")
       .eq("project_id",BONEZ_PROJECT_ID)
@@ -383,7 +527,7 @@ async function qualityStatus(client:any){
       .is("consumed_at",null)
       .gt("expires_at",new Date().toISOString()),
   ]);
-  for(const result of [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,videosResult,chunksResult,tokensResult]){
+  for(const result of [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,videosResult,chunksResult,tokensResult]){
     if(result.error) throw result.error;
   }
   const voices=(voicesResult.data??[]) as Array<any>;
@@ -445,6 +589,21 @@ async function qualityStatus(client:any){
       approvalState:String((candidateReceiptResult.data as any).approval_state),
       artifactHashStatus:String((candidateReceiptResult.data as any).artifact_hash_status),
     }:null,
+    speakerFingerprintReceipts:(speakerFingerprintResult.data??[]).map((row:any)=>({
+      id:String(row.id),
+      sourceAssetId:String(row.source_asset_id),
+      sourceSha256:String(row.source_sha256),
+      modelId:String(row.model_id),
+      modelRevision:String(row.model_revision),
+      embeddingDimensions:Number(row.embedding_dimensions),
+      embeddingSha256:String(row.embedding_sha256),
+      fingerprintRef:String(row.fingerprint_ref),
+      quantization:String(row.quantization),
+      sampleRateHz:Number(row.sample_rate_hz),
+      durationSeconds:Number(row.duration_seconds),
+      qualityClaim:Boolean(row.quality_claim),
+      createdAt:String(row.created_at),
+    })),
     recentVideoArtifacts:(videosResult.data??[]).map((row:any)=>({
       id:String(row.id),
       sha256:String(row.sha256),
@@ -572,6 +731,8 @@ async function main(req:Request):Promise<Response>{
 
     if(action==="stage") return json(200,await stageReferences(client,body,authenticatedUserId));
     if(action==="voice-candidate") return json(200,await recordVoiceCandidate(client));
+    if(action==="speaker-fingerprint-source") return json(200,await speakerFingerprintSource(client));
+    if(action==="speaker-fingerprint-receipt") return json(200,await recordSpeakerFingerprintReceipt(client,body));
     if(action==="status") return json(200,await qualityStatus(client));
     if(action!=="bootstrap") return json(400,{ok:false,error:"unsupported_action"});
     return json(200,await bootstrap(client,body));

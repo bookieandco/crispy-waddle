@@ -4,6 +4,17 @@ vi.mock('@/lib/director-hunyuan-video-provider',()=>({
   createConfiguredDirectorHunyuanVideoProvider:vi.fn(()=>undefined),
 }));
 
+vi.mock('@/lib/director-speaker-qc-provider',()=>({
+  createConfiguredDirectorSpeakerQcProvider:vi.fn(()=>({
+    health:vi.fn(async()=>({
+      status:'ready',
+      productionReady:true,
+      modelId:'speechbrain/spkrec-ecapa-voxceleb',
+      modelRevision:'ff989f88e92ccc120569763824f8eedd5afc9039',
+    })),
+  })),
+}));
+
 describe('Bonez quality preflight',()=>{
   afterEach(()=>{
     vi.restoreAllMocks();
@@ -43,6 +54,20 @@ describe('Bonez quality preflight',()=>{
         approvalState:'candidate_unapproved',
         artifactHashStatus:'verified',
       },
+      speakerFingerprintReceipts:[{
+        id:'speaker-fingerprint:bonez:ecapa:ff989f88e92c:0123456789abcdef',
+        sourceAssetId:'asset:audio:bonez:voice-audition:v1',
+        sourceSha256:'cb5af66bfe5bbcc7b07c1f9dfc2b9be6b077c290452bab7c2aff60c62d1ce84a',
+        modelId:'speechbrain/spkrec-ecapa-voxceleb',
+        modelRevision:'ff989f88e92ccc120569763824f8eedd5afc9039',
+        embeddingDimensions:192,
+        embeddingSha256:'0'.repeat(64),
+        fingerprintRef:'speaker-embedding:ecapa-voxceleb:ff989f88e92c:sha256:'+'0'.repeat(64),
+        quantization:'l2-int16-v1',
+        sampleRateHz:16000,
+        durationSeconds:9.04,
+        qualityClaim:false,
+      }],
       recentVideoArtifacts:[],
       stagedChunkCount:0,
       activeBootstrapTokenCount:0,
@@ -61,7 +86,10 @@ describe('Bonez quality preflight',()=>{
     expect(body.stages['DIRECTOR-QUALITY.2-LIVE'].passed).toBe(false);
     expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].evidence.voiceCandidateReady).toBe(true);
     expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].evidence.voiceCandidateReceiptVerified).toBe(true);
+    expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].evidence.speakerFingerprintReady).toBe(true);
+    expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].evidence.speakerFingerprintReceiptId).toContain('speaker-fingerprint:bonez');
     expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].passed).toBe(false);
+    expect(body.stages['DIRECTOR-QUALITY.3-LIVE'].blockers).toContain('DIRECTOR_BONEZ_APPROVED_VOICE_IDENTITY_REQUIRED');
     expect(body.stages['DIRECTOR-QUALITY.4'].passed).toBe(false);
     expect(body.stages['DIRECTOR-QUALITY.4'].blockers).toContain('DIRECTOR_HUNYUAN_PRODUCTION_NOT_READY');
     expect(body.stages['DIRECTOR-QUALITY.5'].passed).toBe(false);

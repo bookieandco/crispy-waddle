@@ -20,7 +20,9 @@ on:
       - "supabase/functions/jhadina-director-bonez-gateway/**"
       - "services/director-phantom/**"
       - "services/director-hunyuan/**"
+      - "services/director-speaker-qc/**"
       - "scripts/director-hunyuan-runpod-*.sh"
+      - "scripts/director-speaker-qc-runpod-bootstrap.sh"
       - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
       - "pnpm-lock.yaml"
@@ -44,7 +46,9 @@ on:
       - "supabase/functions/jhadina-director-live-cert-gateway/**"
       - "services/director-phantom/**"
       - "services/director-hunyuan/**"
+      - "services/director-speaker-qc/**"
       - "scripts/director-hunyuan-runpod-*.sh"
+      - "scripts/director-speaker-qc-runpod-bootstrap.sh"
       - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
       - "pnpm-lock.yaml"
@@ -183,7 +187,9 @@ jobs:
           src/lib/director-phantom-video-provider.test.ts
           src/lib/director-phantom-generation-provider.test.ts
           src/lib/director-hunyuan-video-provider.test.ts
+          src/lib/director-speaker-qc-provider.test.ts
           src/app/api/director/hunyuan/health/route.test.ts
+          src/app/api/director/bonez/speaker-fingerprint/bootstrap/route.test.ts
           src/app/api/jhadina/voice/[action]/route.test.ts
           src/lib/director-reference-asset-resolver.test.ts
           src/lib/director-reference-media.test.ts
@@ -196,8 +202,11 @@ jobs:
         run: python -m unittest services/director-phantom/test_worker.py
       - name: Hunyuan worker contract
         run: python -m unittest services/director-hunyuan/test_worker.py
+      - name: Speaker QC worker contract
+        run: python -m unittest services/director-speaker-qc/test_worker.py
       - name: Runpod Hunyuan shell contracts
         run: >
           bash -n scripts/runpod-agent-setup.sh &&
           bash -n scripts/director-hunyuan-runpod-create.sh &&
-          bash -n scripts/director-hunyuan-runpod-bootstrap.sh
+          bash -n scripts/director-hunyuan-runpod-bootstrap.sh &&
+          bash -n scripts/director-speaker-qc-runpod-bootstrap.sh
