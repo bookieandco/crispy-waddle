@@ -82,6 +82,12 @@ export interface RestorationPerceptionReceipt {
   rms?: number;
   role?: RestorationStemRole;
   vocal?: RestorationVocalObservation;
+  confidences?: {
+    tempo: number;
+    beat: number;
+    downbeat: number;
+    section: number;
+  };
   providerId: string;
   providerVersion: string;
   runtimeReceiptId: string;
