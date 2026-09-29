@@ -11,7 +11,6 @@ import {
   type EventJournal,
   type RuntimeEventDatabaseClient,
 } from "@jhadina/event-bus"
-import { commitmentRank } from "@jhadina/opportunity-core"
 import { buildWorkToContentCandidate } from "@jhadina/growth-core"
 import type { JhadinaWorkSession } from "@jhadina/core-spine"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
@@ -104,7 +103,7 @@ async function deriveFromEvent(event: DomainEvent<unknown>, bus: EventBus): Prom
     await bus.publish(focusEvent)
     emitted += 1
 
-    if (commitmentLevel && commitmentRank(commitmentLevel as Parameters<typeof commitmentRank>[0]) >= commitmentRank("paid")) {
+    if (opportunityId && (commitmentLevel === "paid" || commitmentLevel === "repeat")) {
       const candidate = buildWorkToContentCandidate({
         event: {
           id: `work-event:${event.id}`,
