@@ -117,12 +117,20 @@ export async function GET(request:Request){
     )
   );
   const voiceCandidate=typeof data.voiceCandidate==='object'&&data.voiceCandidate?data.voiceCandidate as Row:null;
+  const voiceCandidateReceipt=typeof data.voiceCandidateReceipt==='object'&&data.voiceCandidateReceipt
+    ?data.voiceCandidateReceipt as Row:null;
+  const candidateAssetSha=String(voiceCandidate?.sha256??'');
+  const candidateReceiptSha=String(voiceCandidateReceipt?.artifactSha256??'');
   const candidateReady=Boolean(
     voiceCandidate
     &&voiceCandidate.metadata?.candidate===true
     &&voiceCandidate.metadata?.canonical===false
     &&voiceCandidate.metadata?.approved===false
-    &&/^[a-f0-9]{64}$/i.test(String(voiceCandidate.sha256??''))
+    &&/^[a-f0-9]{64}$/i.test(candidateAssetSha)
+    &&voiceCandidateReceipt
+    &&voiceCandidateReceipt.approvalState==='candidate_unapproved'
+    &&voiceCandidateReceipt.artifactHashStatus==='verified'
+    &&candidateReceiptSha===candidateAssetSha
   );
   const q3Blockers:string[]=[];
   if(!q2Passed) q3Blockers.push('DIRECTOR_QUALITY_2_REQUIRED');
@@ -178,6 +186,11 @@ export async function GET(request:Request){
       blockers:unique(q3Blockers),
       evidence:{
         voiceCandidateReady:candidateReady,
+        voiceCandidateReceiptVerified:Boolean(
+          voiceCandidateReceipt
+          &&voiceCandidateReceipt.artifactHashStatus==='verified'
+          &&candidateReceiptSha===candidateAssetSha
+        ),
         approvedMovieGradeVoiceIdentityCount:validIdentities.length,
         nativeVoiceRuntime:voiceRuntime,
       },
