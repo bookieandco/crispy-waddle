@@ -29,6 +29,8 @@ export const maxDuration=120;
 
 const CHAR_PREFIX='bonez_bootstrap_char_chunk_';
 const PRODUCT_PREFIX='bonez_bootstrap_product_chunk_';
+const DEFAULT_BONEZ_GATEWAY_URL=
+  'https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway';
 
 function sha256(bytes:Uint8Array):string{
   return createHash('sha256').update(bytes).digest('hex');
@@ -118,12 +120,120 @@ async function cleanupChunks(client:any){
   if(error) throw error;
 }
 
+async function collectReadiness(voiceIdentityIds:string[]){
+  const wholeVideoProviders=createConfiguredWholeVideoProviders().map(provider=>({
+    id:provider.descriptor.id,
+    name:provider.descriptor.name,
+    productionQualityEligible:Boolean(provider.descriptor.productionQualityEligible),
+    supportsCharacterReference:Boolean(provider.descriptor.supportsCharacterReference),
+    supportsProductReference:Boolean(provider.descriptor.supportsProductReference),
+    maximumDurationSeconds:provider.descriptor.maximumDurationSeconds??null,
+    health:String(provider.descriptor.health??'unknown'),
+  }));
+  const hunyuan=createConfiguredDirectorHunyuanVideoProvider();
+  let hunyuanHealth:Readonly<Record<string,unknown>>|null=null;
+  let hunyuanHealthError:string|null=null;
+  let hunyuanProductionReady=false;
+  if(hunyuan){
+    try{
+      hunyuanHealth=await hunyuan.health();
+      hunyuanProductionReady=hunyuanHealth.status==='ready'&&hunyuanHealth.productionReady===true;
+    }catch(cause){
+      hunyuanHealthError=cause instanceof Error?cause.message:'DIRECTOR_HUNYUAN_HEALTH_FAILED';
+    }
+  }
+  const providers=[
+    ...wholeVideoProviders,
+    ...(hunyuan?[{
+      id:hunyuan.id,
+      name:'Director HunyuanVideo-1.5',
+      productionQualityEligible:Boolean(hunyuan.productionQualityEligible),
+      supportsCharacterReference:true,
+      supportsProductReference:false,
+      maximumDurationSeconds:null,
+      health:hunyuanProductionReady?'ready':'blocked',
+    }]:[]),
+  ];
+  const eligibleProviders=providers.filter(provider=>provider.productionQualityEligible);
+  const liveEligibleProviders=eligibleProviders.filter(provider=>provider.health==='ready');
+  return {
+    movieGradeVoiceApproved:voiceIdentityIds.length>0,
+    voiceIdentityIds,
+    configuredProviders:providers,
+    productionQualityProviderIds:eligibleProviders.map(provider=>provider.id),
+    liveProductionQualityProviderIds:liveEligibleProviders.map(provider=>provider.id),
+    hunyuan:{
+      configured:Boolean(hunyuan),
+      productionReady:hunyuanProductionReady,
+      health:hunyuanHealth,
+      error:hunyuanHealthError,
+    },
+    productionFinalCanLaunch:voiceIdentityIds.length>0&&liveEligibleProviders.length>0,
+  };
+}
+
+function gatewayCanonicalPayload(now:string){
+  const gatewayPrincipal='vercel-oidc-bonez-gateway';
+  return {
+    projectId:BONEZ_PROJECT_ID,
+    characterId:BONEZ_CHARACTER_ID,
+    rightsRef:BONEZ_RIGHTS_REF,
+    originalUploadSha256:BONEZ_ORIGINAL_UPLOAD_SHA256,
+    references:{
+      character:{assetId:BONEZ_REFERENCE_ASSET_ID,expectedSha:BONEZ_REFERENCE_SHA256},
+      product:{assetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,expectedSha:BONEZ_PRODUCT_REFERENCE_SHA256},
+    },
+    cast:bonezCastRecord(now,gatewayPrincipal),
+    packages:bonezAssetPackages(now),
+    world:bonezWorldState(now),
+    directives:bonezCreativeDirectives(now),
+    productBible:bonezProductBible(),
+  };
+}
+
+async function vercelOidcToken(request:Request):Promise<string|undefined>{
+  const environmentToken=process.env.VERCEL_OIDC_TOKEN?.trim();
+  if(environmentToken) return environmentToken;
+  return request.headers.get('x-vercel-oidc-token')?.trim()||undefined;
+}
+
+async function forwardToBonezGateway(request:Request,token:string|undefined):Promise<NextResponse>{
+  const oidc=await vercelOidcToken(request);
+  if(!oidc){
+    return NextResponse.json({ok:false,error:'DIRECTOR_VERCEL_OIDC_REQUIRED'},{status:503});
+  }
+  const endpoint=process.env.JHADINA_DIRECTOR_BONEZ_GATEWAY_URL?.trim()||DEFAULT_BONEZ_GATEWAY_URL;
+  const response=await fetch(endpoint,{
+    method:'POST',
+    headers:{authorization:`Bearer ${oidc}`,'content-type':'application/json'},
+    body:JSON.stringify({token,canonical:gatewayCanonicalPayload(new Date().toISOString())}),
+    cache:'no-store',
+  });
+  const payload=await response.json().catch(()=>({ok:false,error:'DIRECTOR_BONEZ_GATEWAY_INVALID_JSON'})) as Record<string,unknown>;
+  if(!response.ok) return NextResponse.json(payload,{status:response.status});
+  const voiceIdentityIds=Array.isArray(payload.voiceIdentityIds)
+    ? payload.voiceIdentityIds.map(value=>String(value))
+    : [];
+  const readiness=await collectReadiness(voiceIdentityIds);
+  return NextResponse.json({
+    ...payload,
+    canon:BONEZ_CANON,
+    readiness,
+    truthBoundary:{
+      referenceDerivative:true,
+      originalUploadPreservedBySha256:BONEZ_ORIGINAL_UPLOAD_SHA256,
+      unconfirmedOriginNotCanonized:true,
+      noQualityClaimYet:true,
+    },
+  },{headers:{'cache-control':'no-store','referrer-policy':'no-referrer'}});
+}
+
 async function bootstrap(request:Request){
+  const url=new URL(request.url);
+  const token=url.searchParams.get('token')??undefined;
   const client=createServiceRoleClient();
-  if(!client) return NextResponse.json({ok:false,error:'DIRECTOR_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED'},{status:503});
+  if(!client) return forwardToBonezGateway(request,token);
   try{
-    const url=new URL(request.url);
-    const token=url.searchParams.get('token')??undefined;
     const userId=await consumeToken(client,token);
     const now=new Date().toISOString();
 
@@ -189,50 +299,18 @@ async function bootstrap(request:Request){
     },{onConflict:'id'});
     if(productBibleError) throw productBibleError;
 
-    const wholeVideoProviders=createConfiguredWholeVideoProviders().map(provider=>({
-      id:provider.descriptor.id,
-      name:provider.descriptor.name,
-      productionQualityEligible:Boolean(provider.descriptor.productionQualityEligible),
-      supportsCharacterReference:Boolean(provider.descriptor.supportsCharacterReference),
-      supportsProductReference:Boolean(provider.descriptor.supportsProductReference),
-      maximumDurationSeconds:provider.descriptor.maximumDurationSeconds??null,
-      health:String(provider.descriptor.health??'unknown'),
-    }));
-    const hunyuan=createConfiguredDirectorHunyuanVideoProvider();
-    let hunyuanHealth:Readonly<Record<string,unknown>>|null=null;
-    let hunyuanHealthError:string|null=null;
-    let hunyuanProductionReady=false;
-    if(hunyuan){
-      try{
-        hunyuanHealth=await hunyuan.health();
-        hunyuanProductionReady=hunyuanHealth.status==='ready'&&hunyuanHealth.productionReady===true;
-      }catch(cause){
-        hunyuanHealthError=cause instanceof Error?cause.message:'DIRECTOR_HUNYUAN_HEALTH_FAILED';
-      }
-    }
-    const providers=[
-      ...wholeVideoProviders,
-      ...(hunyuan?[{
-        id:hunyuan.id,
-        name:'Director HunyuanVideo-1.5',
-        productionQualityEligible:Boolean(hunyuan.productionQualityEligible),
-        supportsCharacterReference:true,
-        supportsProductReference:false,
-        maximumDurationSeconds:null,
-        health:hunyuanProductionReady?'ready':'blocked',
-      }]:[]),
-    ];
-    const eligibleProviders=providers.filter(provider=>provider.productionQualityEligible);
-    const liveEligibleProviders=eligibleProviders.filter(provider=>provider.health==='ready');
     const {data:voiceRows,error:voiceError}=await client.from('director_voice_identities')
       .select('id,source,approved_at').eq('project_id',BONEZ_PROJECT_ID).eq('character_id',BONEZ_CHARACTER_ID);
     if(voiceError) throw voiceError;
+
+    const voiceIdentityIds=(voiceRows??[]).map((row:any)=>String(row.id));
+    const readiness=await collectReadiness(voiceIdentityIds);
 
     await cleanupChunks(client);
 
     return NextResponse.json({
       ok:true,
-      phase:'DIRECTOR-QUALITY.1',
+      phase:'DIRECTOR-QUALITY.2-LIVE',
       projectId:BONEZ_PROJECT_ID,
       characterId:BONEZ_CHARACTER_ID,
       canon:BONEZ_CANON,
@@ -242,20 +320,7 @@ async function bootstrap(request:Request){
       worldStateId:world.id,
       creativeDirectiveCount:bonezCreativeDirectives(now).length,
       productBibleId:product.id,
-      readiness:{
-        movieGradeVoiceApproved:(voiceRows??[]).length>0,
-        voiceIdentityIds:(voiceRows??[]).map((row:any)=>String(row.id)),
-        configuredProviders:providers,
-        productionQualityProviderIds:eligibleProviders.map(provider=>provider.id),
-        liveProductionQualityProviderIds:liveEligibleProviders.map(provider=>provider.id),
-        hunyuan:{
-          configured:Boolean(hunyuan),
-          productionReady:hunyuanProductionReady,
-          health:hunyuanHealth,
-          error:hunyuanHealthError,
-        },
-        productionFinalCanLaunch:(voiceRows??[]).length>0&&liveEligibleProviders.length>0,
-      },
+      readiness,
       truthBoundary:{
         referenceDerivative:true,
         originalUploadPreservedBySha256:BONEZ_ORIGINAL_UPLOAD_SHA256,
