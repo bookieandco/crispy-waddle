@@ -1,6 +1,5 @@
 import {NextResponse} from 'next/server';
 import {createConfiguredDirectorHunyuanVideoProvider} from '@/lib/director-hunyuan-video-provider';
-import {createConfiguredDirectorSpeakerQcProvider} from '@/lib/director-speaker-qc-provider';
 import {
   BONEZ_PRODUCT_REFERENCE_ASSET_ID,
   BONEZ_PRODUCT_REFERENCE_SHA256,
@@ -44,28 +43,6 @@ async function nativeVoiceReadiness(){
       native:false,
       status:'unavailable',
       error:cause instanceof Error?cause.message:'VOICE_HEALTH_FAILED',
-    };
-  }
-}
-
-async function speakerQcReadiness(){
-  const provider=createConfiguredDirectorSpeakerQcProvider();
-  if(!provider) return {configured:false,productionReady:false,status:'not-configured'};
-  try{
-    const health=await provider.health();
-    const productionReady=health.status==='ready'&&health.productionReady===true;
-    return {
-      configured:true,
-      productionReady,
-      status:productionReady?'ready':String(health.status??'blocked'),
-      health,
-    };
-  }catch(cause){
-    return {
-      configured:true,
-      productionReady:false,
-      status:'unavailable',
-      error:cause instanceof Error?cause.message:'DIRECTOR_SPEAKER_QC_HEALTH_FAILED',
     };
   }
 }
@@ -175,9 +152,12 @@ export async function GET(request:Request){
   if(!validIdentities.length) q3Blockers.push('DIRECTOR_BONEZ_APPROVED_VOICE_IDENTITY_REQUIRED');
   const q3Passed=q3Blockers.length===0;
 
-  const [voiceRuntime,hunyuan,speakerQcRuntime]=await Promise.all([
-    nativeVoiceReadiness(),hunyuanReadiness(),speakerQcReadiness(),
+  const [voiceRuntime,hunyuan]=await Promise.all([
+    nativeVoiceReadiness(),hunyuanReadiness(),
   ]);
+  const speakerQcRuntime=typeof data.speakerQcRuntime==='object'&&data.speakerQcRuntime
+    ?data.speakerQcRuntime as Row
+    :{configured:false,productionReady:false,status:'not-configured'};
   const videos=Array.isArray(data.recentVideoArtifacts)?data.recentVideoArtifacts as Row[]:[];
   const q4Receipt=videos.find(row=>{
     const metadata=row.metadata??{};
