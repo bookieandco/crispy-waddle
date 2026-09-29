@@ -76,6 +76,7 @@ export function buildSportsPredictionFeatureSnapshot(input:{
   const cutoff=instant(input.informationCutoff,'SPORT_PRED_FEATURE_CUTOFF_INVALID')
   if(input.informationCutoff!==input.reality.informationCutoff)throw new Error('SPORT_PRED_FEATURE_REALITY_CUTOFF_MISMATCH')
   const realityObservationIds=new Set(input.reality.observations.map(o=>o.observationId))
+  const realityObservationById=new Map(input.reality.observations.map(o=>[o.observationId,o] as const))
   const ids=new Set<string>()
   for(const f of input.features){
     assertSportsPredictionFeature(f)
@@ -84,6 +85,8 @@ export function buildSportsPredictionFeatureSnapshot(input:{
     ids.add(f.featureId)
     for(const sourceId of f.sourceObservationIds){
       if(!realityObservationIds.has(sourceId)&&Date.parse(f.availableAt)<=cutoff)throw new Error('SPORT_PRED_FEATURE_SOURCE_NOT_IN_REALITY_SNAPSHOT')
+      const source=realityObservationById.get(sourceId)
+      if(source?.evidenceClass==='DIRECTOR_INFERRED'&&f.inputRole!=='CONTEXT_ONLY')throw new Error('SPORT_PRED_DIRECTOR_INFERRED_PRIMARY_INPUT_FORBIDDEN')
     }
   }
   const included=input.features.filter(f=>Date.parse(f.availableAt)<=cutoff)

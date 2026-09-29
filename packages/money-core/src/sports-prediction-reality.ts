@@ -5,6 +5,7 @@ export type SportsParticipantRole='HOME'|'AWAY'|'PLAYER_A'|'PLAYER_B'|'TEAM'|'AT
 export type SportsRealityObservationKind=
   |'SCHEDULE'|'SCORE'|'CLOCK'|'LINEUP'|'AVAILABILITY'|'INJURY'|'WEATHER'
   |'VENUE'|'RESULT'|'PLAYER_ROLE'|'TEAM_STATE'|'OTHER'
+export type SportsRealityEvidenceClass='OFFICIAL_LIVE'|'OFFICIAL_HISTORICAL'|'VERIFIED_CONTEXT'|'DIRECTOR_INFERRED'|'UNSPECIFIED'
 
 export type SportsParticipant=Readonly<{
   participantId:string
@@ -24,6 +25,8 @@ export type SportsRealityObservation=Readonly<{
   sourceType:string
   sourceLocator?:string
   evidenceIds:readonly string[]
+  evidenceClass?:SportsRealityEvidenceClass
+  confidence?:number
   authority:'EVIDENCE_ONLY'
   canExecute:false
 }>
@@ -58,6 +61,7 @@ export function assertSportsRealityObservation(o:SportsRealityObservation):void{
   const available=instant(o.availableAt,'SPORT_PRED_REALITY_AVAILABLE_AT_INVALID')
   if(available<observed)throw new Error('SPORT_PRED_REALITY_AVAILABLE_BEFORE_OBSERVED')
   if(!o.evidenceIds.length)throw new Error('SPORT_PRED_REALITY_EVIDENCE_REQUIRED')
+  if(o.confidence!==undefined&&(!Number.isFinite(o.confidence)||o.confidence<0||o.confidence>1))throw new Error('SPORT_PRED_REALITY_CONFIDENCE_INVALID')
   if(o.authority!=='EVIDENCE_ONLY'||o.canExecute!==false)throw new Error('SPORT_PRED_REALITY_AUTHORITY_INVALID')
 }
 
@@ -96,7 +100,7 @@ export function buildSportsRealitySnapshot(input:{
   const included=input.observations.filter(o=>Date.parse(o.availableAt)<=cutoff)
   const excluded=input.observations.filter(o=>Date.parse(o.availableAt)>cutoff)
   if(!included.length)throw new Error('SPORT_PRED_REALITY_NO_AS_OF_EVIDENCE')
-  if(input.status==='FINAL'&&!included.some(o=>o.kind==='RESULT'))throw new Error('SPORT_PRED_REALITY_FINAL_RESULT_REQUIRED')
+  if(input.status==='FINAL'&&!included.some(o=>o.kind==='RESULT'&&o.evidenceClass!=='DIRECTOR_INFERRED'))throw new Error('SPORT_PRED_REALITY_FINAL_RESULT_REQUIRED')
 
   const payload={
     eventId:input.eventId,
@@ -105,7 +109,7 @@ export function buildSportsRealitySnapshot(input:{
     status:input.status,
     scheduledStartAt:input.scheduledStartAt,
     participants:input.participants.map(p=>[p.participantId,p.role]),
-    observations:included.map(o=>o.observationId).sort(),
+    observations:included.map(o=>[o.observationId,o.evidenceClass??'UNSPECIFIED']).sort(),
     cutoff:input.informationCutoff,
   }
   const snapshotHash=hash(payload)
@@ -117,7 +121,7 @@ export function buildSportsRealitySnapshot(input:{
     status:input.status,
     scheduledStartAt:input.scheduledStartAt,
     participants:Object.freeze(input.participants.map(p=>Object.freeze({...p}))),
-    observations:Object.freeze(included.map(o=>Object.freeze({...o,evidenceIds:unique(o.evidenceIds)}))),
+    observations:Object.freeze(included.map(o=>Object.freeze({...o,evidenceClass:o.evidenceClass??'UNSPECIFIED',evidenceIds:unique(o.evidenceIds)}))),
     excludedFutureObservationIds:unique(excluded.map(o=>o.observationId)),
     informationCutoff:input.informationCutoff,
     snapshotHash,
