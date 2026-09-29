@@ -4,12 +4,9 @@ import {createRequestIdentityVerifier} from "@/lib/auth/request-identity"
 export const runtime="nodejs"
 
 export async function GET(req:NextRequest,context:{params:Promise<{action:string}>}){
- const claimed=req.headers.get("x-jhadina-user-id")||""
- if(!claimed)return NextResponse.json({success:false,error:"Not signed in"},{status:401})
+ const {action}=await context.params
+ if(action!=="health")return NextResponse.json({success:false,error:"Unsupported voice action"},{status:404})
  try{
-  await (await createRequestIdentityVerifier()).verify({userId:claimed})
-  const {action}=await context.params
-  if(action!=="health")return NextResponse.json({success:false,error:"Unsupported voice action"},{status:404})
   const base=(process.env.JHADINA_VOICE_URL??"").replace(/\/$/,"")
   const token=process.env.JHADINA_VOICE_TOKEN??""
   if(!base||!token){
