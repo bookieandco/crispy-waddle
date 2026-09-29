@@ -37,6 +37,10 @@ const VOICE_SAMPLE_ID="voice-sample:bonez:audition:v1";
 const VOICE_BINDING_ID="voice-provider:bonez:runway:v1";
 const VOICE_VARIANT_ID="voice-variant:bonez:en:v1";
 const VOICE_APPROVAL_RECEIPT_ID="voice-approval:bonez:canonical:v1";
+const BONEZ_VOICE_RUNTIME_URL_KEY="director_bonez_voice_runtime_url";
+const BONEZ_VOICE_RUNTIME_TOKEN_KEY="director_bonez_voice_runtime_token";
+const HUNYUAN_RUNTIME_URL_KEY="director_hunyuan_worker_url";
+const HUNYUAN_RUNTIME_TOKEN_KEY="director_hunyuan_worker_token";
 
 type Json=Record<string,unknown>;
 
@@ -365,6 +369,91 @@ async function recordVoiceCandidate(client:any){
     },
     approved:false,
   };
+}
+
+async function hunyuanRuntimeConfig(client:any):Promise<{baseUrl:string;token:string}|null>{
+  const result=await client.from("director_runtime_config")
+    .select("key,value")
+    .in("key",[HUNYUAN_RUNTIME_URL_KEY,HUNYUAN_RUNTIME_TOKEN_KEY]);
+  if(result.error) throw result.error;
+  const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
+  const rawUrl=(values.get(HUNYUAN_RUNTIME_URL_KEY)??"").trim();
+  const token=(values.get(HUNYUAN_RUNTIME_TOKEN_KEY)??"").trim();
+  if(!rawUrl||!token) return null;
+  const parsed=new URL(rawUrl);
+  if(parsed.protocol!=="https:"||!parsed.hostname.endsWith(".proxy.runpod.net")||parsed.username||parsed.password){
+    throw new Error("DIRECTOR_HUNYUAN_RUNTIME_URL_NOT_ADMITTED");
+  }
+  parsed.pathname=parsed.pathname.replace(/\/+$/,"");
+  parsed.search="";
+  parsed.hash="";
+  return {baseUrl:parsed.toString().replace(/\/$/,""),token};
+}
+
+async function hunyuanRuntimeStatus(client:any){
+  let config:{baseUrl:string;token:string}|null;
+  try{config=await hunyuanRuntimeConfig(client);}
+  catch{return {configured:true,productionReady:false,status:"invalid-config"};}
+  if(!config) return {configured:false,productionReady:false,status:"not-configured"};
+  try{
+    const response=await fetch(config.baseUrl+"/health",{
+      signal:AbortSignal.timeout(15_000),
+      redirect:"error",
+    });
+    const health=await response.json().catch(()=>({})) as Record<string,unknown>;
+    const productionReady=response.ok&&health.status==="ready"&&health.productionReady===true;
+    return {
+      configured:true,
+      productionReady,
+      status:productionReady?"ready":String(health.status??(response.ok?"blocked":"unavailable")),
+      minimumGpuMemoryMb:health.minimumGpuMemoryMb??null,
+      checkpointTreeReady:health.checkpointTreeReady??null,
+      licenseAcknowledged:health.licenseAcknowledged??null,
+      territoryAcknowledged:health.territoryAcknowledged??null,
+      reasons:Array.isArray(health.reasons)?health.reasons.map(String):[],
+    };
+  }catch{
+    return {configured:true,productionReady:false,status:"unavailable"};
+  }
+}
+
+async function bonezVoiceRuntimeStatus(client:any){
+  const result=await client.from("director_runtime_config")
+    .select("key,value")
+    .in("key",[BONEZ_VOICE_RUNTIME_URL_KEY,BONEZ_VOICE_RUNTIME_TOKEN_KEY]);
+  if(result.error) throw result.error;
+  const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
+  const rawUrl=(values.get(BONEZ_VOICE_RUNTIME_URL_KEY)??"").trim();
+  const token=(values.get(BONEZ_VOICE_RUNTIME_TOKEN_KEY)??"").trim();
+  if(!rawUrl||!token) return {configured:false,productionReady:false,status:"not-configured"};
+  try{
+    const parsed=new URL(rawUrl);
+    const allowedHost=parsed.hostname.endsWith(".up.railway.app")||parsed.hostname.endsWith(".proxy.runpod.net");
+    if(parsed.protocol!=="https:"||!allowedHost||parsed.username||parsed.password){
+      return {configured:true,productionReady:false,status:"invalid-config"};
+    }
+    parsed.pathname=parsed.pathname.replace(/\/+$/,"");
+    parsed.search="";
+    parsed.hash="";
+    const response=await fetch(parsed.toString().replace(/\/$/,"")+"/health",{
+      headers:{authorization:"Bearer "+token},
+      signal:AbortSignal.timeout(15_000),
+      redirect:"error",
+    });
+    const health=await response.json().catch(()=>({})) as Record<string,unknown>;
+    const productionReady=response.ok&&health.status==="ready"&&health.productionReady===true
+      &&health.provider==="runway-speech"&&health.modelId==="eleven_v3"&&health.providerVoiceRef==="Grungle";
+    return {
+      configured:true,
+      productionReady,
+      status:productionReady?"ready":String(health.status??(response.ok?"blocked":"unavailable")),
+      provider:health.provider??null,
+      modelId:health.modelId??null,
+      providerVoiceRef:health.providerVoiceRef??null,
+    };
+  }catch{
+    return {configured:true,productionReady:false,status:"unavailable"};
+  }
 }
 
 async function speakerQcRuntimeConfig(client:any):Promise<{baseUrl:string;token:string}|null>{
@@ -782,7 +871,7 @@ async function approveBonezVoiceIdentity(client:any,body:any,userId:string|undef
 }
 
 async function qualityStatus(client:any){
-  const [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,voiceApprovalResult,videosResult,chunksResult,tokensResult]=await Promise.all([
+  const [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,voiceApprovalResult,liveTakeResult,repairResult,videosResult,chunksResult,tokensResult]=await Promise.all([
     client.from("director_reference_media_assets")
       .select("id,sha256,reference_kind,admission_status,scan_status")
       .eq("project_id",BONEZ_PROJECT_ID)
@@ -815,6 +904,18 @@ async function qualityStatus(client:any){
       .eq("project_id",BONEZ_PROJECT_ID)
       .eq("character_id",BONEZ_CHARACTER_ID)
       .order("approved_at",{ascending:false}),
+    client.from("director_live_take_qc_receipts")
+      .select("id,purpose,reference_asset_id,reference_sha256,audio_asset_id,voice_identity_id,speaker_fingerprint_receipt_id,speaker_fingerprint_ref,provider_id,model_id,model_version,provider_job_id,provider_runtime_receipt_id,seed,output_asset_id,output_sha256,content_type,measured_duration_seconds,storage_verified,production_provider,performance_evidence,observations,qc_policy_id,qc_admissible,expected_failure_observed,qc_reasons,evidence_ids,created_at")
+      .eq("project_id",BONEZ_PROJECT_ID)
+      .eq("character_id",BONEZ_CHARACTER_ID)
+      .order("created_at",{ascending:false})
+      .limit(20),
+    client.from("director_quality5_localized_repair_receipts")
+      .select("id,failure_take_receipt_id,source_asset_id,source_sha256,repaired_asset_id,repaired_sha256,provider_id,model_id,model_version,provider_job_id,provider_runtime_receipt_id,repair_plan,post_repair_observations,preservation_evidence,repair_duration_seconds,qc_admissible,qc_reasons,evidence_ids,created_at")
+      .eq("project_id",BONEZ_PROJECT_ID)
+      .eq("character_id",BONEZ_CHARACTER_ID)
+      .order("created_at",{ascending:false})
+      .limit(20),
     client.from("director_generated_editing_assets")
       .select("id,sha256,provider_id,model_id,metadata,created_at")
       .eq("project_id",BONEZ_PROJECT_ID)
@@ -829,10 +930,14 @@ async function qualityStatus(client:any){
       .is("consumed_at",null)
       .gt("expires_at",new Date().toISOString()),
   ]);
-  for(const result of [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,voiceApprovalResult,videosResult,chunksResult,tokensResult]){
+  for(const result of [refsResult,castResult,voicesResult,candidateResult,candidateReceiptResult,speakerFingerprintResult,voiceApprovalResult,liveTakeResult,repairResult,videosResult,chunksResult,tokensResult]){
     if(result.error) throw result.error;
   }
-  const speakerQcRuntime=await speakerQcRuntimeStatus(client);
+  const [speakerQcRuntime,bonezVoiceRuntime,hunyuanRuntime]=await Promise.all([
+    speakerQcRuntimeStatus(client),
+    bonezVoiceRuntimeStatus(client),
+    hunyuanRuntimeStatus(client),
+  ]);
   const voices=(voicesResult.data??[]) as Array<any>;
   const voiceIds=voices.map(row=>String(row.id));
   let bindingRows:Array<any>=[];
@@ -893,6 +998,8 @@ async function qualityStatus(client:any){
       artifactHashStatus:String((candidateReceiptResult.data as any).artifact_hash_status),
     }:null,
     speakerQcRuntime,
+    bonezVoiceRuntime,
+    hunyuanRuntime,
     voiceApprovalReceipts:(voiceApprovalResult.data??[]).map((row:any)=>({
       id:String(row.id),
       voiceIdentityId:String(row.voice_identity_id),
@@ -906,6 +1013,57 @@ async function qualityStatus(client:any){
       authority:String(row.authority),
       approvedBy:String(row.approved_by),
       approvedAt:String(row.approved_at),
+    })),
+    liveTakeQcReceipts:(liveTakeResult.data??[]).map((row:any)=>({
+      id:String(row.id),
+      purpose:String(row.purpose),
+      referenceAssetId:String(row.reference_asset_id),
+      referenceSha256:String(row.reference_sha256),
+      audioAssetId:String(row.audio_asset_id),
+      voiceIdentityId:String(row.voice_identity_id),
+      speakerFingerprintReceiptId:String(row.speaker_fingerprint_receipt_id),
+      speakerFingerprintRef:String(row.speaker_fingerprint_ref),
+      providerId:String(row.provider_id),
+      modelId:String(row.model_id),
+      modelVersion:String(row.model_version),
+      providerJobId:String(row.provider_job_id),
+      providerRuntimeReceiptId:String(row.provider_runtime_receipt_id),
+      seed:Number(row.seed),
+      outputAssetId:String(row.output_asset_id),
+      outputSha256:String(row.output_sha256),
+      contentType:String(row.content_type),
+      measuredDurationSeconds:Number(row.measured_duration_seconds),
+      storageVerified:Boolean(row.storage_verified),
+      productionProvider:Boolean(row.production_provider),
+      performanceEvidence:row.performance_evidence??{},
+      observations:Array.isArray(row.observations)?row.observations:[],
+      qcPolicyId:String(row.qc_policy_id),
+      qcAdmissible:Boolean(row.qc_admissible),
+      expectedFailureObserved:Boolean(row.expected_failure_observed),
+      qcReasons:Array.isArray(row.qc_reasons)?row.qc_reasons.map(String):[],
+      evidenceIds:Array.isArray(row.evidence_ids)?row.evidence_ids.map(String):[],
+      createdAt:String(row.created_at),
+    })),
+    quality5RepairReceipts:(repairResult.data??[]).map((row:any)=>({
+      id:String(row.id),
+      failureTakeReceiptId:String(row.failure_take_receipt_id),
+      sourceAssetId:String(row.source_asset_id),
+      sourceSha256:String(row.source_sha256),
+      repairedAssetId:String(row.repaired_asset_id),
+      repairedSha256:String(row.repaired_sha256),
+      providerId:String(row.provider_id),
+      modelId:String(row.model_id),
+      modelVersion:String(row.model_version),
+      providerJobId:String(row.provider_job_id),
+      providerRuntimeReceiptId:String(row.provider_runtime_receipt_id),
+      repairPlan:row.repair_plan??{},
+      postRepairObservations:Array.isArray(row.post_repair_observations)?row.post_repair_observations:[],
+      preservationEvidence:row.preservation_evidence??{},
+      repairDurationSeconds:Number(row.repair_duration_seconds),
+      qcAdmissible:Boolean(row.qc_admissible),
+      qcReasons:Array.isArray(row.qc_reasons)?row.qc_reasons.map(String):[],
+      evidenceIds:Array.isArray(row.evidence_ids)?row.evidence_ids.map(String):[],
+      createdAt:String(row.created_at),
     })),
     speakerFingerprintReceipts:(speakerFingerprintResult.data??[]).map((row:any)=>({
       id:String(row.id),

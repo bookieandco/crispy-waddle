@@ -19,6 +19,7 @@ export interface DirectorHunyuanWorkerResult {
   resultUri?:string;
   runtimeReceiptId?:string;
   outputSha256?:string;
+  measuredDurationSeconds?:number;
   qualityClaim?:boolean;
   error?:string;
   metadata?:Readonly<Record<string,unknown>>;
@@ -80,6 +81,7 @@ export class DirectorHunyuanVideoProvider {
       ...(body.resultUri?{resultUri:body.resultUri}:{}),
       ...(body.runtimeReceiptId?{runtimeReceiptId:body.runtimeReceiptId}:{}),
       ...(body.outputSha256?{outputSha256:body.outputSha256}:{}),
+      ...(body.measuredDurationSeconds!==undefined?{measuredDurationSeconds:Number(body.measuredDurationSeconds)}:{}),
       ...(body.qualityClaim!==undefined?{qualityClaim:body.qualityClaim}:{}),
       ...(body.error?{error:body.error}:{}),
       ...(body.metadata?{metadata:body.metadata}:{}),
@@ -103,6 +105,7 @@ export class DirectorHunyuanVideoProvider {
       ...(body.resultUri?{resultUri:body.resultUri}:{}),
       ...(body.runtimeReceiptId?{runtimeReceiptId:body.runtimeReceiptId}:{}),
       ...(body.outputSha256?{outputSha256:body.outputSha256}:{}),
+      ...(body.measuredDurationSeconds!==undefined?{measuredDurationSeconds:Number(body.measuredDurationSeconds)}:{}),
       ...(body.qualityClaim!==undefined?{qualityClaim:body.qualityClaim}:{}),
       ...(body.error?{error:body.error}:{}),
       ...(body.metadata?{metadata:body.metadata}:{}),

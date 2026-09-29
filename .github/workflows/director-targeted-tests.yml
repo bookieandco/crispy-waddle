@@ -149,6 +149,7 @@ jobs:
           src/animation-principles.test.ts
           src/animation-performance-state.test.ts
           src/directed-take-qc.test.ts
+          src/live-quality-gates.test.ts
           src/ugc-production.test.ts
           src/previs-blockout.test.ts
           src/storyboard-reference-board.test.ts

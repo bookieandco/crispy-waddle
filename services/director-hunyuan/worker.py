@@ -160,6 +160,21 @@ def _download_verified(uri:str,expected_sha256:str,destination:Path)->None:
         raise ValueError("DIRECTOR_HUNYUAN_REFERENCE_HASH_MISMATCH")
     destination.write_bytes(data)
 
+def _probe_duration_seconds(path:Path)->float:
+    output=subprocess.check_output(
+        [
+            "ffprobe","-v","error","-show_entries","format=duration",
+            "-of","default=noprint_wrappers=1:nokey=1",str(path),
+        ],
+        stderr=subprocess.STDOUT,
+        timeout=30,
+        text=True,
+    ).strip()
+    duration=float(output)
+    if duration<=0:
+        raise RuntimeError("DIRECTOR_HUNYUAN_OUTPUT_DURATION_INVALID")
+    return duration
+
 def build_cli_arguments(request:dict[str,Any],config:HunyuanRuntimeConfig,reference_path:Path|None,output_path:Path)->list[str]:
     validate_request(request)
     if request["mode"]=="i2v" and reference_path is None:
@@ -257,6 +272,7 @@ class HunyuanJobManager:
             if not output.is_file() or output.stat().st_size<=0:
                 raise RuntimeError("DIRECTOR_HUNYUAN_OUTPUT_MISSING")
             digest=sha256(output.read_bytes()).hexdigest()
+            measured_duration_seconds=_probe_duration_seconds(output)
             config_path=output.with_name(output.stem+"_config.json")
             receipt_payload={
                 "providerJobId":job_id,
@@ -269,6 +285,7 @@ class HunyuanJobManager:
                 "resolution":request["resolution"],
                 "referenceSha256":request.get("reference",{}).get("sha256"),
                 "outputSha256":digest,
+                "measuredDurationSeconds":measured_duration_seconds,
                 "generationConfigSha256":sha256(config_path.read_bytes()).hexdigest() if config_path.is_file() else None,
             }
             receipt="hunyuan-runtime:"+sha256(json.dumps(receipt_payload,sort_keys=True).encode()).hexdigest()

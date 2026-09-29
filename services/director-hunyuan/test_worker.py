@@ -102,6 +102,11 @@ class HunyuanWorkerTests(unittest.TestCase):
             self.assertTrue(ready["productionReady"])
             self.assertEqual(ready["reasons"],[])
 
+    def test_probe_duration_uses_ffprobe_output(self):
+        with patch.object(worker.subprocess,"check_output",return_value="5.041667\n"):
+            duration=worker._probe_duration_seconds(Path("/tmp/output.mp4"))
+        self.assertAlmostEqual(duration,5.041667)
+
     def test_cli_matches_upstream_generate_surface(self):
         with tempfile.TemporaryDirectory() as td:
             base=Path(td)

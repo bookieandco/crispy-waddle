@@ -123,7 +123,8 @@
     "./hierarchical-production-coherence": "./src/hierarchical-production-coherence.ts",
     "./production-final-program": "./src/production-final-program.ts",
     "./hunyuan-video-15-provider": "./src/hunyuan-video-15-provider.ts",
-    "./production-archetypes": "./src/production-archetypes.ts"
+    "./production-archetypes": "./src/production-archetypes.ts",
+    "./live-quality-gates": "./src/live-quality-gates.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
