@@ -174,6 +174,7 @@ jobs:
           src/lib/director-reference-video-provider.test.ts
           src/lib/director-certification-mp4.test.ts
           src/lib/director-certification-provider.test.ts
+          src/lib/director-bonez-canon.test.ts
           src/lib/director-phantom-video-provider.test.ts
           src/lib/director-phantom-generation-provider.test.ts
           src/lib/director-hunyuan-video-provider.test.ts
