@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
 from source_fetch import stage_verified_source
+from vercel_oidc import authorize_vercel_token
 from worker import (
     RestorationWorkerConfig,
     artifact_path,
@@ -60,12 +61,15 @@ class ExecuteRequest(BaseModel):
     channels:int=Field(gt=0,le=32)
 
 def _authorize(authorization:str|None)->None:
-    expected=os.getenv("MUSIC_RESTORATION_WORKER_TOKEN","").strip()
-    if not expected:
-        raise HTTPException(status_code=503,detail="MUSIC_RESTORATION_WORKER_TOKEN_NOT_CONFIGURED")
-    supplied=authorization[7:] if authorization and authorization.startswith("Bearer ") else ""
-    if not supplied or not hmac.compare_digest(supplied,expected):
+    supplied=authorization[7:].strip() if authorization and authorization.startswith("Bearer ") else ""
+    if not supplied:
         raise HTTPException(status_code=401,detail="UNAUTHORIZED")
+    expected=os.getenv("MUSIC_RESTORATION_WORKER_TOKEN","").strip()
+    if expected and hmac.compare_digest(supplied,expected):
+        return
+    if authorize_vercel_token(supplied):
+        return
+    raise HTTPException(status_code=401,detail="UNAUTHORIZED")
 
 def _host_suffixes()->tuple[str,...]:
     raw=os.getenv("MUSIC_RESTORATION_SOURCE_HOST_SUFFIXES",".supabase.co")
