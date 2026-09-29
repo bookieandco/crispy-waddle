@@ -130,7 +130,7 @@ export async function separateRestorationSource(input: {
       sampleRate: stem.sampleRate,
       modelId: stem.modelId,
       modelVersion: stem.modelVersion,
-      sourceKind: "separated-stem",
+      sourceKind: input.source.kind === "source" ? "separated-stem" : "recursive-separation",
       confidence: stem.confidence,
       bleedEstimate: stem.bleedEstimate,
       evidenceIds: [`separation:${stem.runtimeReceiptId}:${stem.role}`],
