@@ -452,8 +452,8 @@ async function recordSpeakerFingerprintReceipt(client:any,body:any){
     duration_seconds:duration,
     quality_claim:false,
     evidence_ids:[
-      "voice-candidate:"+VOICE_RECEIPT_ID,
-      "asset:"+VOICE_ASSET_ID,
+      VOICE_RECEIPT_ID,
+      VOICE_ASSET_ID,
       "source-sha256:"+sourceSha,
       "embedding-sha256:"+embeddingSha,
     ],
