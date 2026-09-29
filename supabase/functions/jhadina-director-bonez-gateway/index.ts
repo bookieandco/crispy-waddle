@@ -148,6 +148,27 @@ async function cleanupChunks(client:any){
   const result=await client.from("director_runtime_config").delete().or("key.like."+CHAR_PREFIX+"%,key.like."+PRODUCT_PREFIX+"%");
   if(result.error) throw result.error;
 }
+function requireUserId(value:unknown):string{
+  const userId=String(value??"").trim();
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)){
+    throw new Error("DIRECTOR_BONEZ_USER_ID_INVALID");
+  }
+  return userId;
+}
+function directBytes(body:any):{character:Uint8Array;product:Uint8Array}{
+  const characterBase64=typeof body?.characterBase64==="string"?body.characterBase64:"";
+  const productBase64=typeof body?.productBase64==="string"?body.productBase64:"";
+  if(!characterBase64||!productBase64) throw new Error("DIRECTOR_BONEZ_DIRECT_BYTES_REQUIRED");
+  const character=decodeBase64(characterBase64);
+  const product=decodeBase64(productBase64);
+  const maxEach=2_000_000;
+  const maxCombined=3_000_000;
+  if(!character.length||!product.length) throw new Error("DIRECTOR_BONEZ_REFERENCE_BYTES_EMPTY");
+  if(character.length>maxEach||product.length>maxEach||character.length+product.length>maxCombined){
+    throw new Error("DIRECTOR_BONEZ_DIRECT_BYTES_TOO_LARGE");
+  }
+  return {character,product};
+}
 async function main(req:Request):Promise<Response>{
   if(req.method!=="POST") return json(405,{ok:false,error:"method_not_allowed"});
   if(!(await authorizeVercel(req))) return json(401,{ok:false,error:"unauthorized"});
@@ -158,7 +179,10 @@ async function main(req:Request):Promise<Response>{
   try{
     const body=await req.json() as Json;
     const canonical=requireCanonical(body);
-    const userId=await consumeToken(client,String((body as any).token??""));
+    const directMode=(body as any).mode==="direct";
+    const userId=directMode
+      ? requireUserId((body as any).userId)
+      : await consumeToken(client,String((body as any).token??""));
     const now=new Date().toISOString();
 
     const membership=await client.from("director_project_memberships").upsert({
@@ -166,7 +190,15 @@ async function main(req:Request):Promise<Response>{
     },{onConflict:"project_id,user_id"});
     if(membership.error) throw membership.error;
 
-    const [characterBytes,productBytes]=await Promise.all([readChunks(client,CHAR_PREFIX),readChunks(client,PRODUCT_PREFIX)]);
+    let characterBytes:Uint8Array;
+    let productBytes:Uint8Array;
+    if(directMode){
+      const direct=directBytes(body);
+      characterBytes=direct.character;
+      productBytes=direct.product;
+    }else{
+      [characterBytes,productBytes]=await Promise.all([readChunks(client,CHAR_PREFIX),readChunks(client,PRODUCT_PREFIX)]);
+    }
     const [characterRef,productRef]=await Promise.all([
       uploadReference(client,{userId,bytes:characterBytes,assetId:BONEZ_REFERENCE_ASSET_ID,expectedSha:BONEZ_REFERENCE_SHA256,kind:"character",objectPath:"bonez/v1/bonez-canonical-character-v1.jpg",filename:"bonez-canonical-character-v1.jpg",viewHint:"close-up"}),
       uploadReference(client,{userId,bytes:productBytes,assetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,expectedSha:BONEZ_PRODUCT_REFERENCE_SHA256,kind:"product",objectPath:"bonez/v1/bonez-lair-art-print-v1.jpg",filename:"bonez-lair-art-print-v1.jpg",viewHint:"front"}),
@@ -225,7 +257,7 @@ async function main(req:Request):Promise<Response>{
     const voices=await client.from("director_voice_identities").select("id,source,approved_at")
       .eq("project_id",BONEZ_PROJECT_ID).eq("character_id",BONEZ_CHARACTER_ID);
     if(voices.error) throw voices.error;
-    await cleanupChunks(client);
+    if(!directMode) await cleanupChunks(client);
 
     return json(200,{
       ok:true,phase:"DIRECTOR-QUALITY.2-LIVE",projectId:BONEZ_PROJECT_ID,characterId:BONEZ_CHARACTER_ID,
@@ -235,6 +267,7 @@ async function main(req:Request):Promise<Response>{
       worldStateId:String(world.id),creativeDirectiveCount:canonical.directives.length,productBibleId:String(product.id),
       voiceIdentityIds:(voices.data??[]).map((row:any)=>String(row.id)),
       privilegedTransport:"vercel-oidc-supabase-edge",
+      admissionMode:directMode?"direct-authenticated-upload":"staged-token",
     });
   }catch(error){
     console.error("jhadina-director-bonez-gateway",error instanceof Error?error.message:String(error));
