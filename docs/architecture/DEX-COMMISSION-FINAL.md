@@ -7,14 +7,16 @@ This phase converts the previously merged DEX four-stage certificate into an exe
 Canonical flow:
 
 ```
-SHARK evidence / EDGE-007
-  -> Money decision + risk + Action Core authority
+SHARK assessment + thesis + EDGE-001..006 + EDGE-007
+  -> Money risk decision + immutable approval-bound intent + Action Core authority
   -> single-use Money execution permit
   -> CONTROLLED_CANARY DEX connector
   -> isolated Coffer signer lease
   -> Jupiter managed order
+  -> Solana unsigned pre-sign simulation
+  -> bounded canary-capital reservation
   -> isolated signer returns signed transaction + deterministic signature
-  -> Solana signed preflight simulation
+  -> Solana signed verification simulation
   -> persist signature/hash BEFORE provider broadcast
   -> Jupiter execute exactly once
   -> Solana getTransaction truth
@@ -99,6 +101,7 @@ The RPC endpoint is resolved at runtime so an embedded Helius/API credential nev
 
 `submitControlledDexCanaryLeg` requires:
 
+- an immutable Money execution intent bound to a SHARK assessment, thesis, passing EDGE-001–006 bundle, passing EDGE-007 receipt, Money risk decision, and exact transaction fingerprint;
 - DEX connector admission exactly `CONTROLLED_CANARY`;
 - provider exactly `jupiter-ultra`;
 - opaque provider credential reference;
@@ -108,9 +111,11 @@ The RPC endpoint is resolved at runtime so an embedded Helius/API credential nev
 - signer per-transaction and 24-hour caps;
 - Money execution permit;
 - live-canary reservation;
-- successful signed simulation.
+- successful unsigned simulation before signing;
+- bounded canary reservation before signing;
+- successful signed verification simulation before broadcast.
 
-The signature and signed-transaction hash are durably recorded before broadcast.
+The signature and signed-transaction hash are durably recorded before broadcast. The executor publishes only mechanical `TX_SIMULATED`, `TX_SIGNED`, `TX_SENT`, and `FILLED` telemetry; it has no strategy-generation authority.
 
 Any ambiguous provider result becomes `UNKNOWN`; the runtime does not blindly submit a second transaction.
 

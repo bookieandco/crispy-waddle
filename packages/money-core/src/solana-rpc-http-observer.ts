@@ -1,4 +1,4 @@
-import type { DexOnchainReceipt, DexSimulationReceipt, SolanaChainObserver } from './solana-dex-runtime-contracts.js'
+import type { DexOnchainReceipt, DexSimulationReceipt, DexUnsignedSimulationReceipt, SolanaChainObserver } from './solana-dex-runtime-contracts.js'
 
 type FetchLike=(input:string|URL,init?:RequestInit)=>Promise<Response>
 type JsonRpcResult=Readonly<{result?:unknown;error?:unknown}>
@@ -46,6 +46,25 @@ export class SolanaRpcHttpObserver implements SolanaChainObserver{
   const payload=await response.json() as JsonRpcResult
   if(payload.error)throw new Error('DEX_SOLANA_RPC_ERROR')
   return payload.result
+ }
+ async simulateUnsignedTransaction(input:{unsignedTransactionBase64:string;now:string}):Promise<DexUnsignedSimulationReceipt>{
+  const result=record(await this.call('simulateTransaction',[input.unsignedTransactionBase64,{encoding:'base64',sigVerify:false,replaceRecentBlockhash:true,commitment:'processed'}]))
+  const value=record(result?.value)
+  if(!value)throw new Error('DEX_SOLANA_PREFLIGHT_RESPONSE_INVALID')
+  const err=value.err
+  const unitsRaw=value.unitsConsumed
+  const logs=Array.isArray(value.logs)?value.logs.filter((x):x is string=>typeof x==='string'):[]
+  const passed=err===null||err===undefined
+  return Object.freeze({
+   simulationId:'solana:preflight:'+input.now,
+   passed,
+   errorCode:passed?undefined:'SOLANA_PREFLIGHT_FAILED',
+   unitsConsumed:typeof unitsRaw==='number'&&Number.isFinite(unitsRaw)?unitsRaw:undefined,
+   logs:Object.freeze(logs),
+   observedAt:input.now,
+   evidenceIds:Object.freeze(['solana:preflight:'+input.now]),
+   authority:'CHAIN_PREFLIGHT_EVIDENCE' as const,
+  })
  }
  async simulateSignedTransaction(input:{signedTransactionBase64:string;primarySignature:string;now:string}):Promise<DexSimulationReceipt>{
   const result=record(await this.call('simulateTransaction',[input.signedTransactionBase64,{encoding:'base64',sigVerify:true,commitment:'processed'}]))

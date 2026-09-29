@@ -65,3 +65,32 @@ describe('reviewMemePosition',()=>{
     expect(review.canExecute).toBe(false)
   })
 })
+
+
+  it('exits from current wallet/narrative evidence even when the original entry signal is not consulted',()=>{
+    const review=reviewMemePosition({
+      entryPrice:1,
+      currentPrice:1.25,
+      peakPrice:1.4,
+      liquidityUsd:300000,
+      momentumScore:.6,
+      distributionScore:.4,
+      riskScore:.45,
+      thesisStrength:.7,
+      secondsSinceEntry:180,
+      incrementalEdgeBps:250,
+      correlationRiskBps:2500,
+      costBasisUsd:1000,
+      currentValueUsd:1250,
+      smartWalletExitScore:.94,
+      narrativeDegradationScore:.92,
+      whaleDistributionScore:.88,
+      thesisInvalidated:true,
+      thesisInvalidationReasons:['Tracked wallet cohort reversed after the catalyst.'],
+    })
+    expect(review.action).toBe('EXIT')
+    expect(review.reasonCodes).toContain('THESIS_EXPLICITLY_INVALIDATED')
+    expect(review.cons.some(x=>x.includes('smart wallets'))).toBe(true)
+    expect(review.cons.some(x=>x.includes('narrative'))).toBe(true)
+    expect(review.canExecute).toBe(false)
+  })
