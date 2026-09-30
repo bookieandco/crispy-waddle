@@ -62,13 +62,15 @@ Production Jhadina calls:
 https://xn73vwwekavcc6-8091.proxy.runpod.net/music-restoration
 ```
 
-and authenticates with the short-lived `VERCEL_OIDC_TOKEN` automatically
-provided by Vercel. The worker verifies the exact production owner, team,
-project id, project name, subject and environment against Vercel's public JWKS.
-No long-lived Music bearer secret is required in Vercel.
+and authenticates in this order:
 
-A static `MUSIC_RESTORATION_WORKER_TOKEN` remains supported as a higher-priority
-fallback for local/manual deployments.
+1. a dedicated `MUSIC_RESTORATION_WORKER_TOKEN`, when explicitly configured;
+2. the already-commissioned `DIRECTOR_HUNYUAN_WORKER_TOKEN` for the shared Pod;
+3. Vercel OIDC when project OIDC injection is available.
+
+The default production path reuses the existing Hunyuan worker URL/token, so
+Music does not require a new Vercel secret. The worker still supports pinned
+Vercel OIDC and a dedicated static token for alternate deployments.
 
 The Music bootstrap reuses the RunPod CUDA/PyTorch base through a
 `--system-site-packages` virtualenv, stores outputs under
@@ -87,7 +89,8 @@ bash scripts/music-restoration-runpod-commission.sh
 ```
 
 The script reads the currently running Hunyuan process environment from
-`/proc/<pid>/environ` **in memory**, pulls current `main`, installs the
-updated Hunyuan proxy dependency, starts/replaces the localhost Music sidecar,
-then restarts Hunyuan with the same captured environment. It does not print or
-persist those captured secret values.
+`/proc/<pid>/environ` **in memory**, reuses the Hunyuan bearer token for the
+localhost Music sidecar, pulls current `main`, installs the updated Hunyuan
+proxy dependency, starts/replaces the sidecar, then restarts Hunyuan with the
+same captured environment. It does not print or persist those captured secret
+values.

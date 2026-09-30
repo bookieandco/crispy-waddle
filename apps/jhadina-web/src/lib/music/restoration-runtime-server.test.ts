@@ -9,6 +9,8 @@ const keys=[
   "MUSIC_RESTORATION_WORKER_URL",
   "MUSIC_RESTORATION_WORKER_TOKEN",
   "VERCEL_OIDC_TOKEN",
+  "DIRECTOR_HUNYUAN_WORKER_URL",
+  "DIRECTOR_HUNYUAN_WORKER_TOKEN",
 ] as const;
 const original=Object.fromEntries(keys.map(key=>[key,process.env[key]]));
 
@@ -45,6 +47,28 @@ describe("Music restoration runtime server binding",()=>{
     await expect(getMusicRestorationRuntimeHealth(fetcher)).resolves.toEqual({
       status:"blocked",
       productionReady:false,
+    });
+  });
+
+  it("reuses the commissioned Hunyuan proxy and token when Music-specific env is absent",async()=>{
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL="https://shared-pod.example";
+    process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN="shared-hunyuan-token";
+
+    const fetcher=vi.fn(async(input:RequestInfo|URL,init?:RequestInit)=>{
+      expect(String(input)).toBe("https://shared-pod.example/music-restoration/health");
+      expect(new Headers(init?.headers).get("authorization"))
+        .toBe("Bearer shared-hunyuan-token");
+      return new Response(JSON.stringify({status:"ready",productionReady:true}),{
+        status:200,
+        headers:{"content-type":"application/json"},
+      });
+    }) as unknown as typeof fetch;
+
+    expect(isMusicRestorationRuntimeConfigured()).toBe(true);
+    expect(musicRestorationRuntimeAuthMode()).toBe("shared-hunyuan");
+    await expect(getMusicRestorationRuntimeHealth(fetcher)).resolves.toEqual({
+      status:"ready",
+      productionReady:true,
     });
   });
 
