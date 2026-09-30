@@ -318,6 +318,197 @@ def execute_repair_path(
     payload["runtimeReceiptId"]=receipt_id("music-repair",payload)
     return payload
 
+def _assessment_regions(
+    y:Any,
+    sr:int,
+    regions:list[tuple[float,float]],
+)->Any:
+    import numpy as np
+    pieces=[]
+    total_ms=(len(y)/sr)*1000.0
+    for start_ms,end_ms in regions:
+        if not math.isfinite(start_ms) or not math.isfinite(end_ms) or start_ms<0 or end_ms<=start_ms:
+            raise ValueError("MUSIC_INSTRUMENT_ASSESSMENT_REGION_INVALID")
+        if end_ms>total_ms+2:
+            raise ValueError("MUSIC_INSTRUMENT_ASSESSMENT_REGION_OUT_OF_RANGE")
+        start=max(0,int(round(start_ms*sr/1000.0)))
+        end=min(len(y),int(round(end_ms*sr/1000.0)))
+        if end<=start:
+            raise ValueError("MUSIC_INSTRUMENT_ASSESSMENT_REGION_EMPTY")
+        pieces.append(y[start:end])
+    if not pieces:
+        raise ValueError("MUSIC_INSTRUMENT_ASSESSMENT_SEGMENTS_REQUIRED")
+    merged=np.concatenate(pieces)
+    if merged.size<max(256,int(sr*0.02)):
+        raise ValueError("MUSIC_INSTRUMENT_ASSESSMENT_AUDIO_TOO_SHORT")
+    return merged
+
+def _instrument_audio_metrics(
+    path:Path,
+    family:str,
+    regions:list[tuple[float,float]],
+)->dict[str,Any]:
+    import numpy as np
+    import librosa
+
+    y_native,sr=librosa.load(str(path),sr=None,mono=False)
+    if np.size(y_native)<=0:
+        raise ValueError("MUSIC_INSTRUMENT_ASSESSMENT_DECODE_INVALID")
+    if np.ndim(y_native)==1:
+        mono=np.asarray(y_native,dtype=float)
+        stereo_width=None
+    else:
+        channels=np.asarray(y_native,dtype=float)
+        mono=np.mean(channels,axis=0)
+        if channels.shape[0]>=2:
+            left=channels[0]; right=channels[1]
+            mid=(left+right)*0.5
+            side=(left-right)*0.5
+            mid_energy=float(np.mean(mid*mid))+1e-12
+            stereo_width=max(0.0,min(1.0,float(np.mean(side*side))/mid_energy))
+        else:
+            stereo_width=None
+
+    selected=_assessment_regions(mono,int(sr),regions)
+    n_fft=min(2048,max(256,2**int(math.floor(math.log2(max(256,min(len(selected),2048)))))))
+    hop=max(64,n_fft//4)
+    stft=np.abs(librosa.stft(selected,n_fft=n_fft,hop_length=hop))
+    power=stft*stft
+    freqs=librosa.fft_frequencies(sr=sr,n_fft=n_fft)
+    total_energy=float(np.sum(power))+1e-12
+    low=float(np.sum(power[freqs<250]))/total_energy
+    mid=float(np.sum(power[(freqs>=250)&(freqs<4000)]))/total_energy
+    high=max(0.0,1.0-low-mid)
+    centroid=float(np.mean(librosa.feature.spectral_centroid(S=stft,sr=sr))) if stft.size else 0.0
+    spread=float(np.mean(librosa.feature.spectral_bandwidth(S=stft,sr=sr))) if stft.size else 0.0
+
+    onset=librosa.onset.onset_strength(y=selected,sr=sr,hop_length=hop)
+    if onset.size:
+        transient=float(np.percentile(onset,95)/(np.max(onset)+1e-12))
+    else:
+        transient=0.0
+
+    harmonic=librosa.effects.harmonic(selected)
+    harmonicity=max(0.0,min(1.0,float(np.mean(harmonic*harmonic))/(float(np.mean(selected*selected))+1e-12)))
+
+    rms=np.asarray(librosa.feature.rms(y=selected,frame_length=n_fft,hop_length=hop)).reshape(-1)
+    positive=rms[rms>1e-9]
+    dynamic_range=0.0
+    if positive.size>=2:
+        p95=float(np.percentile(positive,95)); p10=float(np.percentile(positive,10))
+        dynamic_range=max(0.0,20.0*math.log10((p95+1e-12)/(p10+1e-12)))
+
+    peak=np.max(np.abs(selected)) if selected.size else 0.0
+    clipping_ratio=float(np.mean(np.abs(selected)>=0.999)) if selected.size else 0.0
+    median_rms=float(np.median(rms)) if rms.size else 0.0
+    silence_threshold=max(1e-5,median_rms*0.08)
+    dropout_ratio=float(np.mean(rms<=silence_threshold)) if rms.size else 1.0
+    clipping_score=min(1.0,clipping_ratio*500.0)
+    dropout_score=min(1.0,dropout_ratio)
+    damage_score=max(clipping_score,dropout_score)
+    quality_score=max(0.0,1.0-damage_score)
+
+    fingerprint={
+        "family":family,
+        "spectralCentroidHz":max(0.0,centroid),
+        "spectralSpreadHz":max(0.0,spread),
+        "lowEnergyRatio":max(0.0,min(1.0,low)),
+        "midEnergyRatio":max(0.0,min(1.0,mid)),
+        "highEnergyRatio":max(0.0,min(1.0,high)),
+        "transientStrength":max(0.0,min(1.0,transient)),
+        "harmonicity":harmonicity,
+        "dynamicRangeDb":dynamic_range,
+    }
+    if stereo_width is not None:
+        fingerprint["stereoWidth"]=stereo_width
+
+    return {
+        "fingerprint":fingerprint,
+        "damageScore":damage_score,
+        "qualityScore":quality_score,
+        "clippingRatio":clipping_ratio,
+        "dropoutRatio":dropout_ratio,
+        "durationMs":float(len(selected))*1000.0/float(sr),
+        "peak":float(peak),
+    }
+
+def assess_instrument_replacement_path(
+    source_path:Path,
+    replacement_path:Path,
+    source_artifact_id:str,
+    source_sha256:str,
+    replacement_artifact_id:str,
+    replacement_sha256:str,
+    assessment_id:str,
+    instrument_family:str,
+    segments:list[dict[str,Any]],
+)->dict[str,Any]:
+    if not assessment_id.strip():
+        raise ValueError("MUSIC_INSTRUMENT_ASSESSMENT_ID_REQUIRED")
+    if source_artifact_id==replacement_artifact_id:
+        raise ValueError("MUSIC_INSTRUMENT_ASSESSMENT_SOURCE_DONOR_MUST_DIFFER")
+    allowed_families={
+        "acoustic-guitar","electric-guitar","piano","organ","strings","brass",
+        "woodwinds","drums","bass","percussion","synth","unknown",
+    }
+    if instrument_family not in allowed_families:
+        raise ValueError("MUSIC_INSTRUMENT_ASSESSMENT_FAMILY_INVALID")
+    if not segments or len(segments)>64:
+        raise ValueError("MUSIC_INSTRUMENT_ASSESSMENT_SEGMENT_COUNT_INVALID")
+
+    source_regions=[]
+    replacement_regions=[]
+    for segment in segments:
+        try:
+            source_regions.append((float(segment["sourceStartMs"]),float(segment["sourceEndMs"])))
+            replacement_regions.append((float(segment["replacementStartMs"]),float(segment["replacementEndMs"])))
+        except (KeyError,TypeError,ValueError) as exc:
+            raise ValueError("MUSIC_INSTRUMENT_ASSESSMENT_SEGMENT_INVALID") from exc
+
+    source_metrics=_instrument_audio_metrics(source_path,instrument_family,source_regions)
+    replacement_metrics=_instrument_audio_metrics(replacement_path,instrument_family,replacement_regions)
+    expected_gain=max(0.0,min(
+        1.0,
+        source_metrics["damageScore"]-replacement_metrics["damageScore"],
+    ))
+    minimum_duration=min(source_metrics["durationMs"],replacement_metrics["durationMs"])
+    duration_confidence=max(0.0,min(1.0,minimum_duration/250.0))
+    damage_margin=max(0.0,source_metrics["damageScore"]-replacement_metrics["damageScore"])
+    confidence=max(0.0,min(
+        1.0,
+        0.45+0.35*duration_confidence+0.20*min(1.0,damage_margin*2.0),
+    ))
+    if expected_gain<0.05:
+        confidence=min(confidence,0.55)
+
+    payload={
+        "assessmentId":assessment_id,
+        "sourceArtifactId":source_artifact_id,
+        "replacementArtifactId":replacement_artifact_id,
+        "sourceSha256":source_sha256.lower(),
+        "replacementSha256":replacement_sha256.lower(),
+        "instrumentFamily":instrument_family,
+        "observedFingerprint":source_metrics["fingerprint"],
+        "replacementFingerprint":replacement_metrics["fingerprint"],
+        "gainEvidence":{
+            "method":"runtime-region-integrity-delta-v1",
+            "expectedGain":expected_gain,
+            "confidence":confidence,
+        },
+        "diagnostics":{
+            "sourceDamageScore":source_metrics["damageScore"],
+            "replacementDamageScore":replacement_metrics["damageScore"],
+            "sourceClippingRatio":source_metrics["clippingRatio"],
+            "replacementClippingRatio":replacement_metrics["clippingRatio"],
+            "sourceDropoutRatio":source_metrics["dropoutRatio"],
+            "replacementDropoutRatio":replacement_metrics["dropoutRatio"],
+            "sourceDurationMs":source_metrics["durationMs"],
+            "replacementDurationMs":replacement_metrics["durationMs"],
+        },
+    }
+    payload["runtimeReceiptId"]=receipt_id("music-instrument-assessment",payload)
+    return payload
+
 def _reconstruction_segment(segment:dict[str,Any],source_duration_ms:float,replacement_duration_ms:float)->dict[str,Any]:
     required=("targetStartMs","targetEndMs","replacementStartMs","replacementEndMs","gainDb","sourceResidualMix","fadeMs","phaseInvert")
     if any(key not in segment for key in required):
