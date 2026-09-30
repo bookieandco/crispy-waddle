@@ -93,64 +93,36 @@ export async function reviewRestorationArtifact(input: {
     if (!qc) throw new Error("MUSIC_RESTORATION_REVIEW_VERIFIED_QC_REQUIRED");
   }
 
-  const { error: reviewError } = await input.client
-    .from("music_restoration_reviews")
-    .insert({
-      id: reviewId,
-      case_id: input.caseId,
-      owner_user_id: input.ownerUserId,
-      artifact_id: input.artifactId,
-      comparison_artifact_id: input.comparisonArtifactId ?? null,
-      decision: input.decision,
-      note: input.note?.trim().slice(0, 2000) || null,
-      qc_receipt_id: qc?.receiptId ?? null,
-      qc_receipt_kind: qc?.kind ?? null,
-      reviewed_at: reviewedAt,
-    });
-  if (reviewError) throw new Error(`MUSIC_RESTORATION_REVIEW_WRITE_FAILED: ${reviewError.message}`);
+  const versionId = input.decision === "approved"
+    ? `music-restoration-version:${globalThis.crypto.randomUUID()}`
+    : null;
 
-  if (input.decision === "approved") {
-    const versionId = `music-restoration-version:${globalThis.crypto.randomUUID()}`;
-    const operation = artifact.role === "vocal-restoration"
-      ? "vocal-restoration"
-      : artifact.role?.startsWith("reconstructed-")
-        ? "instrument-reconstruction"
-        : "restoration-review";
-    const operationClass = artifact.role?.startsWith("reconstructed-")
-      ? "reconstruction"
-      : "correction";
-    const sourceArtifactId = artifact.parentArtifactId ?? String(restorationCase.source_artifact_id);
-
-    const { error: versionError } = await input.client
-      .from("music_restoration_versions")
-      .insert({
-        id: versionId,
-        case_id: input.caseId,
-        source_artifact_id: sourceArtifactId,
-        output_artifact_id: artifact.id,
-        candidate_id: reviewId,
-        operation_class: operationClass,
-        operation,
-        evidence_ids: [reviewId, qc!.receiptId],
-        authorization_ids: [reviewId],
-        qc_passed: true,
-        created_at: reviewedAt,
-      });
-    if (versionError) throw new Error(`MUSIC_RESTORATION_REVIEW_VERSION_WRITE_FAILED: ${versionError.message}`);
-
-    const { error: caseError } = await input.client
-      .from("music_restoration_cases")
-      .update({
-        current_version_id: versionId,
-        status: "approved",
-        updated_at: reviewedAt,
-      })
-      .eq("id", input.caseId)
-      .eq("user_id", input.ownerUserId);
-    if (caseError) throw new Error(`MUSIC_RESTORATION_REVIEW_CASE_UPDATE_FAILED: ${caseError.message}`);
-
-    return { reviewId, decision: input.decision, versionId, qc };
+  const { data, error } = await input.client.rpc("record_music_restoration_review", {
+    p_review_id: reviewId,
+    p_case_id: input.caseId,
+    p_owner_user_id: input.ownerUserId,
+    p_artifact_id: input.artifactId,
+    p_comparison_artifact_id: input.comparisonArtifactId ?? null,
+    p_decision: input.decision,
+    p_note: input.note?.trim().slice(0, 2000) ?? "",
+    p_qc_receipt_id: qc?.receiptId ?? null,
+    p_qc_receipt_kind: qc?.kind ?? null,
+    p_version_id: versionId,
+    p_reviewed_at: reviewedAt,
+  });
+  if (error) {
+    throw new Error(`MUSIC_RESTORATION_REVIEW_TRANSACTION_FAILED: ${error.message}`);
   }
 
-  return { reviewId, decision: input.decision, versionId: null, qc: null };
+  const result = data && typeof data === "object" && !Array.isArray(data)
+    ? data as Record<string, unknown>
+    : {};
+  return {
+    reviewId: String(result.reviewId ?? reviewId),
+    decision: input.decision,
+    versionId: input.decision === "approved"
+      ? String(result.versionId ?? versionId)
+      : null,
+    qc,
+  };
 }
