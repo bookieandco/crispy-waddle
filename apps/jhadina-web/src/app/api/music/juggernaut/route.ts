@@ -1,7 +1,7 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {createRequestIdentityVerifier} from '@/lib/auth/request-identity';
 import {createMusicJuggernautRepository} from '@/lib/music/music-juggernaut-repository';
-import {loadMusicJuggernautProjection} from '@/lib/music/music-juggernaut-service';
+import {loadMusicJuggernautProjection} from '@/lib/music/music-juggernaut-service';\nimport {recordMusicFanConsent} from '@/lib/music/music-fan-projection';
 
 export const dynamic='force-dynamic';
 
@@ -39,6 +39,18 @@ export async function POST(req:NextRequest){
         data=await repo.upsertCityDemand({projectId:String(p.projectId??''),cityKey:String(p.cityKey??''),cityName:String(p.cityName??''),listeners:Number(p.listeners??0),directFans:Number(p.directFans??0),showInterest:Number(p.showInterest??0),priorAttendees:Number(p.priorAttendees??0),repeatFans:Number(p.repeatFans??0),evidenceRefs:stringArray(p.evidenceRefs),observedAt:String(p.observedAt??new Date().toISOString())});break;
       case 'upsert_rights':
         data=await repo.upsertRights({projectId:String(p.projectId??''),assetKey:String(p.assetKey??''),masterOwnershipKnown:Boolean(p.masterOwnershipKnown),publishingKnown:Boolean(p.publishingKnown),sampleStatus:String(p.sampleStatus??'review_required'),thirdPartyUsageStatus:String(p.thirdPartyUsageStatus??'review_required'),evidenceRefs:stringArray(p.evidenceRefs)});break;
+      case 'capture_fan_consent':{
+        const channel=p.channel==='sms'||p.channel==='whatsapp'||p.channel==='social_dm'?p.channel:'email';
+        const result=await recordMusicFanConsent({
+          brandId:String(p.brandId??'brand:atwood-bookie'),
+          customerKey:String(p.customerKey??''),
+          channel,
+          granted:p.granted!==false,
+          evidenceRef:String(p.evidenceRef??''),
+          occurredAt:optionalString(p.occurredAt),
+        });
+        data=result;break;
+      }
       case 'upsert_learning':{
         const status=p.status==='validated'||p.status==='rejected'?p.status:'provisional';
         data=await repo.upsertLearning({projectId:String(p.projectId??''),learningKey:String(p.learningKey??''),status,confidence:Number(p.confidence??0.5),finding:String(p.finding??''),reusableSignals:objectValue(p.reusableSignals),evidenceRefs:stringArray(p.evidenceRefs)});break;
