@@ -480,6 +480,38 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
     return (data ?? []) as Array<Record<string, unknown>>;
   }
 
+  async listJobs(caseId: string): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_jobs")
+      .select("id,kind,status,source_artifact_id,output_artifact_ids,runtime_receipt_id,metadata,error,created_at,updated_at")
+      .eq("case_id", caseId)
+      .eq("owner_user_id", this.ownerUserId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_RESTORATION_JOB_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async listExecutionReceipts(caseId: string): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_execution_receipts")
+      .select("id,execution_id,source_artifact_id,output_artifact_id,status,qc,gate,hash_verified,reasons,created_at")
+      .eq("case_id", caseId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_RESTORATION_EXECUTION_RECEIPT_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async listReviews(caseId: string): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_reviews")
+      .select("id,artifact_id,comparison_artifact_id,decision,note,qc_receipt_id,qc_receipt_kind,reviewed_at")
+      .eq("case_id", caseId)
+      .eq("owner_user_id", this.ownerUserId)
+      .order("reviewed_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_RESTORATION_REVIEW_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
   async listVocalReceipts(caseId: string): Promise<Array<Record<string, unknown>>> {
     const { data, error } = await this.client
       .from("music_restoration_vocal_receipts")
@@ -489,6 +521,28 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
       .order("created_at", { ascending: true });
     if (error) throw new Error(`MUSIC_VOCAL_RESTORATION_RECEIPT_LIST_FAILED: ${error.message}`);
     return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async downloadArtifactBytes(artifactId: string): Promise<Uint8Array> {
+    const { data, error } = await this.client
+      .from("music_restoration_artifacts")
+      .select("storage_bucket,storage_path")
+      .eq("id", artifactId)
+      .eq("owner_user_id", this.ownerUserId)
+      .single();
+    if (error || !data) {
+      throw new Error(`MUSIC_RESTORATION_ARTIFACT_EXPORT_LOOKUP_FAILED: ${error?.message ?? "not found"}`);
+    }
+    if (String(data.storage_bucket) !== BUCKET) {
+      throw new Error("MUSIC_RESTORATION_ARTIFACT_BUCKET_NOT_ADMITTED");
+    }
+    const { data: blob, error: downloadError } = await this.client.storage
+      .from(BUCKET)
+      .download(String(data.storage_path));
+    if (downloadError || !blob) {
+      throw new Error(`MUSIC_RESTORATION_ARTIFACT_EXPORT_DOWNLOAD_FAILED: ${downloadError?.message ?? "missing bytes"}`);
+    }
+    return new Uint8Array(await blob.arrayBuffer());
   }
 
   async createArtifactDownloadUrl(artifactId: string, expiresInSeconds = 15 * 60): Promise<string> {
