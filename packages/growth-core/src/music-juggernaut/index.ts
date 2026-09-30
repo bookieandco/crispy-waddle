@@ -7,3 +7,4 @@ export * from './certification.js';
 export * from './content.js';
 
 export * from './career.js';
+export * from './playbook.js';
