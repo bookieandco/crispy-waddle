@@ -3,6 +3,16 @@ import { HttpRestorationRuntimeClient } from "@jhadina/music-core";
 const DEFAULT_MUSIC_RESTORATION_WORKER_URL =
   "https://xn73vwwekavcc6-8091.proxy.runpod.net/music-restoration";
 
+function musicRuntimeUrl(): string {
+  const explicit=process.env.MUSIC_RESTORATION_WORKER_URL?.trim();
+  if(explicit) return explicit.replace(/\/+$/, "");
+
+  const hunyuan=process.env.DIRECTOR_HUNYUAN_WORKER_URL?.trim();
+  if(hunyuan) return `${hunyuan.replace(/\/+$/, "")}/music-restoration`;
+
+  return DEFAULT_MUSIC_RESTORATION_WORKER_URL;
+}
+
 export interface MusicRestorationRuntimeHealth {
   status?: string;
   productionReady?: boolean;
@@ -20,23 +30,29 @@ export interface MusicRestorationRuntimeHealth {
   outputDirWritable?: boolean;
 }
 
+type MusicRestorationAuthMode = "static" | "shared-hunyuan" | "vercel-oidc";
+
 function runtimeBearerToken(): string {
   return process.env.MUSIC_RESTORATION_WORKER_TOKEN?.trim()
+    || process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim()
     || process.env.VERCEL_OIDC_TOKEN?.trim()
     || "";
 }
 
-function runtimeConfig(): { url: string; token: string; authMode: "static" | "vercel-oidc" } | null {
-  const url = process.env.MUSIC_RESTORATION_WORKER_URL?.trim()
-    || DEFAULT_MUSIC_RESTORATION_WORKER_URL;
+function runtimeConfig(): { url: string; token: string; authMode: MusicRestorationAuthMode } | null {
   const staticToken = process.env.MUSIC_RESTORATION_WORKER_TOKEN?.trim() ?? "";
+  const sharedHunyuanToken = process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim() ?? "";
   const oidcToken = process.env.VERCEL_OIDC_TOKEN?.trim() ?? "";
-  const token = staticToken || oidcToken;
-  if (!url || !token) return null;
+  const token = staticToken || sharedHunyuanToken || oidcToken;
+  if (!token) return null;
   return {
-    url: url.replace(/\/+$/, ""),
+    url: musicRuntimeUrl(),
     token,
-    authMode: staticToken ? "static" : "vercel-oidc",
+    authMode: staticToken
+      ? "static"
+      : sharedHunyuanToken
+        ? "shared-hunyuan"
+        : "vercel-oidc",
   };
 }
 
@@ -44,7 +60,7 @@ export function isMusicRestorationRuntimeConfigured(): boolean {
   return runtimeConfig() !== null;
 }
 
-export function musicRestorationRuntimeAuthMode(): "static" | "vercel-oidc" | "unconfigured" {
+export function musicRestorationRuntimeAuthMode(): MusicRestorationAuthMode | "unconfigured" {
   return runtimeConfig()?.authMode ?? "unconfigured";
 }
 
