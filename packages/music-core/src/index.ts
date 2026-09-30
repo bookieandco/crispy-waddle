@@ -32,6 +32,7 @@ export {
   type InstrumentReplacementCandidate as InstrumentFingerprintReplacementCandidate,
 } from "./instrument-replacement.js";
 export * from "./instrument-reconstruction.js";
+export * from "./instrument-donor-search.js";
 export * from "./restoration-engine/index.js";
 export * from "./user-scoped-playback-resolver.js";
 export * from "./playback-host.js";
