@@ -137,6 +137,7 @@ export async function getMusicRestorationRuntimeLiveness(
     const response = await fetcher(`${workerUrl()}/health/live`, {
       cache: "no-store",
       redirect: "error",
+      signal: AbortSignal.timeout(6_000),
     });
     if (!response.ok) {
       return { reachable: false, status: "unavailable", httpStatus: response.status };
