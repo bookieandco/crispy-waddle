@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 type ExportFormat = "bundle" | "manifest" | "reaper" | "markers" | "logic";
 
-const MAX_DAW_BUNDLE_SOURCE_BYTES = 700 * 1024 * 1024;
+const MAX_DAW_BUNDLE_SOURCE_BYTES = 250 * 1024 * 1024;
 
 function safeFile(value: string): string {
   return value.trim().replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 100) || "restoration";
@@ -101,7 +101,8 @@ export async function GET(req: NextRequest) {
       }
 
       const zip = buildRestorationZip(entries);
-      return new NextResponse(zip, {
+      const body = zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.byteLength) as ArrayBuffer;
+      return new NextResponse(body, {
         headers: {
           "content-type": "application/zip",
           "content-disposition": 'attachment; filename="' + title + '-jhadina-restoration.zip"',
@@ -151,7 +152,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "content-type": "text/markdown; charset=utf-8",
         "content-disposition": 'attachment; filename="' + title + '-logic-import.md"',
-        "cache-control": "no-store",
+        "cache-control": "private, no-store",
       },
     });
   } catch (error) {
