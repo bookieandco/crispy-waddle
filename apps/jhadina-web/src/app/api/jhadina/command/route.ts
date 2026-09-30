@@ -16,6 +16,10 @@ import {
   handleAskGrowthReadCommand,
   inspectAskGrowthReadIntent,
 } from "@/lib/intelligence/ask-growth-command"
+import {
+  handleAskMarketingPresenceCommand,
+  inspectAskMarketingPresenceIntent,
+} from "@/lib/intelligence/ask-marketing-presence-command"
 import { realizeAskJhadinaExpression } from "@/lib/intelligence/ask-expression"
 import { finalizeAskShortcutExperience, recordAskShortcutExperience } from "@/lib/intelligence/ask-shortcut-experience"
 import { requiresFullJllmContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
@@ -327,6 +331,50 @@ export async function POST(req: NextRequest) {
           verificationReason: "Identity verified; Doctor intent classified. No repair authority was granted.",
         },
       })
+    }
+
+    const marketingPresenceIntent = inspectAskMarketingPresenceIntent(activeTask)
+    if (marketingPresenceIntent) {
+      const verifier = await createRequestIdentityVerifier()
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const marketing = await handleAskMarketingPresenceCommand({
+        userId: verifiedIdentity.userId,
+        activeTask,
+        activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
+        artifacts: artifacts.map((artifact) => ({ id: artifact.id, name: artifact.name })),
+      })
+      if (marketing) {
+        const reasoningEventId = await recordAskShortcutExperience({
+          userId: verifiedIdentity.userId,
+          activeTask,
+          proposal: marketing.proposal,
+          shortcut: "growth",
+          metadata: {
+            operation: "marketing_presence",
+            authority: marketing.workPlan.authority,
+            nextBoundary: marketing.workPlan.nextBoundary,
+            campaignId: marketing.workPlan.campaignId,
+            persisted: marketing.workPlan.persisted,
+          },
+        })
+        return NextResponse.json({
+          success: true,
+          data: {
+            proposal: marketing.proposal,
+            reasoningEventId,
+            expression: await realizeAskJhadinaExpression({
+              userId: verifiedIdentity.userId,
+              activeTask,
+              proposal: marketing.proposal,
+            }),
+            verified: marketing.verified,
+            verificationReason: marketing.verificationReason,
+            marketingPresenceWorkPlan: marketing.workPlan,
+            presenceCampaign: marketing.storedCampaign,
+            feedbackEligible: false,
+          },
+        })
+      }
     }
 
     const growthReadIntent = inspectAskGrowthReadIntent(activeTask)

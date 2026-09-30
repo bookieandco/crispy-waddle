@@ -19,7 +19,8 @@ export type JhadinaBrand =
   | "bookieandco"
   | "jhadina"
   | "pupsonstuff"
-  | "atwood-bookie";
+  | "atwood-bookie"
+  | "truckeros";
 
 export type SocialProviderName = "hootsuite" | (string & {});
 

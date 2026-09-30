@@ -16,4 +16,5 @@ export const BRAND_SOCIAL_CONFIG: Record<JhadinaBrand, BrandSocialConfig> = {
   jhadina: { id: "jhadina", label: "Jhadina", defaultPlatforms: DEFAULT_SOCIAL },
   pupsonstuff: { id: "pupsonstuff", label: "PupsonStuff", defaultPlatforms: DEFAULT_SOCIAL },
   "atwood-bookie": { id: "atwood-bookie", label: "Atwood Bookie", defaultPlatforms: DEFAULT_SOCIAL },
+  truckeros: { id: "truckeros", label: "Truckeros", defaultPlatforms: DEFAULT_SOCIAL },
 };
