@@ -16,6 +16,7 @@ from vercel_oidc import authorize_vercel_token
 from worker import (
     RestorationWorkerConfig,
     artifact_path,
+    execute_reconstruction_path,
     execute_repair_path,
     perceive_path,
     probe_path,
@@ -57,6 +58,26 @@ class ExecuteRequest(BaseModel):
     source:SourceRef
     operation:str=Field(min_length=1,max_length=40)
     parameters:dict[str,str|int|float|bool]=Field(default_factory=dict)
+    sampleRate:int=Field(gt=0,le=384000)
+    channels:int=Field(gt=0,le=32)
+
+class ReconstructionSegment(BaseModel):
+    targetStartMs:float=Field(ge=0)
+    targetEndMs:float=Field(gt=0)
+    replacementStartMs:float=Field(ge=0)
+    replacementEndMs:float=Field(gt=0)
+    gainDb:float=Field(ge=-12,le=12)
+    sourceResidualMix:float=Field(ge=0,le=0.25)
+    fadeMs:float=Field(ge=0,le=250)
+    phaseInvert:bool=False
+
+class ReconstructRequest(BaseModel):
+    jobId:str=Field(min_length=1,max_length=240)
+    requestId:str=Field(min_length=1,max_length=240)
+    authorizationId:str=Field(min_length=1,max_length=500)
+    source:SourceRef
+    replacement:SourceRef
+    segments:list[ReconstructionSegment]=Field(min_length=1,max_length=64)
     sampleRate:int=Field(gt=0,le=384000)
     channels:int=Field(gt=0,le=32)
 
@@ -153,6 +174,25 @@ def execute(body:ExecuteRequest,authorization:str|None=Header(default=None))->di
                 body.sampleRate,
                 body.channels,
                 _config,
+            )
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/reconstruct")
+def reconstruct(body:ReconstructRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-reconstruct-source-") as source_temp, \
+             tempfile.TemporaryDirectory(prefix="music-reconstruct-donor-") as donor_temp:
+            source=_stage(body.source,Path(source_temp))
+            replacement=_stage(body.replacement,Path(donor_temp))
+            return execute_reconstruction_path(
+                source,replacement,
+                body.source.artifactId,body.source.sha256,
+                body.replacement.artifactId,body.replacement.sha256,
+                body.jobId,body.requestId,body.authorizationId,
+                [segment.model_dump() for segment in body.segments],
+                body.sampleRate,body.channels,_config,
             )
     except Exception as exc:
         raise _error(exc) from exc
