@@ -334,10 +334,12 @@ revoke execute on function public.jhadina_music_upsert_song(uuid,text,text,text,
 revoke execute on function public.jhadina_music_upsert_experiment(uuid,uuid,text,text,text,text,text,text,bigint,text,integer,text,text,text,jsonb) from public,anon;
 revoke execute on function public.jhadina_music_record_observation(uuid,uuid,text,timestamptz,jsonb,numeric,numeric,jsonb) from public,anon;
 revoke execute on function public.jhadina_music_upsert_city_demand(uuid,text,text,bigint,bigint,bigint,bigint,bigint,jsonb,timestamptz) from public,anon;
-revoke execute on function public.jhadina_music_upsert_rights(uuid,text,boolean,boolean,text,text,jsonb) from public,anon;\nrevoke execute on function public.jhadina_music_upsert_learning(uuid,text,text,numeric,text,jsonb,jsonb) from public,anon;
+revoke execute on function public.jhadina_music_upsert_rights(uuid,text,boolean,boolean,text,text,jsonb) from public,anon;
+revoke execute on function public.jhadina_music_upsert_learning(uuid,text,text,numeric,text,jsonb,jsonb) from public,anon;
 grant execute on function public.jhadina_music_upsert_project(text,text,text,jsonb) to authenticated;
 grant execute on function public.jhadina_music_upsert_song(uuid,text,text,text,text,numeric,text,jsonb,jsonb,date) to authenticated;
 grant execute on function public.jhadina_music_upsert_experiment(uuid,uuid,text,text,text,text,text,text,bigint,text,integer,text,text,text,jsonb) to authenticated;
 grant execute on function public.jhadina_music_record_observation(uuid,uuid,text,timestamptz,jsonb,numeric,numeric,jsonb) to authenticated;
 grant execute on function public.jhadina_music_upsert_city_demand(uuid,text,text,bigint,bigint,bigint,bigint,bigint,jsonb,timestamptz) to authenticated;
-grant execute on function public.jhadina_music_upsert_rights(uuid,text,boolean,boolean,text,text,jsonb) to authenticated;\ngrant execute on function public.jhadina_music_upsert_learning(uuid,text,text,numeric,text,jsonb,jsonb) to authenticated;
+grant execute on function public.jhadina_music_upsert_rights(uuid,text,boolean,boolean,text,text,jsonb) to authenticated;
+grant execute on function public.jhadina_music_upsert_learning(uuid,text,text,numeric,text,jsonb,jsonb) to authenticated;
