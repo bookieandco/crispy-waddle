@@ -664,10 +664,210 @@ def execute_reconstruction_path(
     payload["runtimeReceiptId"]=receipt_id("music-reconstruction",payload)
     return payload
 
+def _vocal_analysis_excerpt(y:Any,sr:int,max_seconds:float=90.0)->Any:
+    import numpy as np
+    maximum=max(1,int(sr*max_seconds))
+    if len(y)<=maximum:
+        return y
+    chunk=max(1,maximum//3)
+    middle=max(0,(len(y)-chunk)//2)
+    return np.concatenate([y[:chunk],y[middle:middle+chunk],y[-chunk:]])
+
+def _vocal_identity_profile(path:Path)->dict[str,Any]:
+    import numpy as np
+    import librosa
+
+    y,sr=librosa.load(str(path),sr=None,mono=True)
+    if y.size<=0:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_DECODE_INVALID")
+    y=_vocal_analysis_excerpt(np.asarray(y,dtype=float),int(sr))
+    hop=512
+
+    centroid=librosa.feature.spectral_centroid(y=y,sr=sr,hop_length=hop)
+    rms=np.asarray(librosa.feature.rms(y=y,hop_length=hop)).reshape(-1)
+    rms_mean=float(np.sqrt(np.mean(y*y))) if y.size else 0.0
+    rms_db=20.0*math.log10(rms_mean+1e-12)
+    positive=rms[rms>1e-9]
+    dynamic_range=0.0
+    if positive.size>=2:
+        p95=float(np.percentile(positive,95)); p10=float(np.percentile(positive,10))
+        dynamic_range=max(0.0,20.0*math.log10((p95+1e-12)/(p10+1e-12)))
+
+    mfcc=librosa.feature.mfcc(y=y,sr=sr,n_mfcc=13,hop_length=hop)
+    mfcc_mean=[float(value) for value in np.mean(mfcc,axis=1)] if mfcc.size else [0.0]*13
+
+    median_f0=None
+    f0_deviation=None
+    voiced_fraction=0.0
+    try:
+        f0,voiced,_=librosa.pyin(
+            y,
+            fmin=float(librosa.note_to_hz("C2")),
+            fmax=float(librosa.note_to_hz("C7")),
+            sr=sr,
+            hop_length=hop,
+        )
+        voiced_array=np.asarray(voiced,dtype=bool)
+        voiced_fraction=float(np.mean(voiced_array)) if voiced_array.size else 0.0
+        finite=np.asarray(f0,dtype=float)
+        finite=finite[np.isfinite(finite)&(finite>0)]
+        if finite.size:
+            median_f0=float(np.median(finite))
+            cents=1200.0*np.log2(finite/median_f0)
+            f0_deviation=float(np.std(cents))
+    except Exception:
+        voiced_fraction=0.0
+
+    return {
+        "voicedFraction":max(0.0,min(1.0,voiced_fraction)),
+        "medianF0Hz":median_f0,
+        "f0DeviationCents":f0_deviation,
+        "spectralCentroidHz":float(np.mean(centroid)) if centroid.size else 0.0,
+        "rmsDb":rms_db,
+        "dynamicRangeDb":dynamic_range,
+        "mfccMean":mfcc_mean,
+    }
+
+def _cosine_similarity(a:list[float],b:list[float])->float:
+    import numpy as np
+    av=np.asarray(a,dtype=float); bv=np.asarray(b,dtype=float)
+    if av.size!=bv.size or av.size==0:
+        return 0.0
+    denom=float(np.linalg.norm(av)*np.linalg.norm(bv))
+    if denom<=1e-12:
+        return 1.0 if float(np.linalg.norm(av-bv))<=1e-12 else 0.0
+    return max(-1.0,min(1.0,float(np.dot(av,bv))/denom))
+
+def _compare_vocal_identity(before:dict[str,Any],after:dict[str,Any])->dict[str,Any]:
+    reasons=[]
+    voiced_delta=abs(float(after["voicedFraction"])-float(before["voicedFraction"]))
+    timbre=_cosine_similarity(before["mfccMean"],after["mfccMean"])
+    rms_delta=abs(float(after["rmsDb"])-float(before["rmsDb"]))
+
+    before_f0=before.get("medianF0Hz")
+    after_f0=after.get("medianF0Hz")
+    f0_drift=None
+    if before_f0 and after_f0 and before_f0>0 and after_f0>0:
+        f0_drift=abs(1200.0*math.log2(float(after_f0)/float(before_f0)))
+        if f0_drift>25.0:
+            reasons.append("median F0 drift exceeds 25 cents")
+    elif bool(before_f0) != bool(after_f0):
+        reasons.append("voiced F0 evidence disappeared or appeared after cleanup")
+
+    before_dev=before.get("f0DeviationCents")
+    after_dev=after.get("f0DeviationCents")
+    deviation_delta=None
+    if before_dev is not None and after_dev is not None:
+        deviation_delta=abs(float(after_dev)-float(before_dev))
+        if deviation_delta>40.0:
+            reasons.append("F0 variation/vibrato proxy drift exceeds 40 cents")
+
+    if voiced_delta>0.12:
+        reasons.append("voiced fraction drift exceeds 0.12")
+    if timbre<0.90:
+        reasons.append("MFCC timbre similarity fell below 0.90")
+    if rms_delta>6.0:
+        reasons.append("RMS level drift exceeds 6 dB")
+
+    return {
+        "medianF0DriftCents":f0_drift,
+        "f0DeviationDeltaCents":deviation_delta,
+        "voicedFractionDelta":voiced_delta,
+        "timbreCosine":timbre,
+        "rmsDeltaDb":rms_delta,
+        "identityPreserved":not reasons,
+        "reasons":reasons,
+    }
+
+def _vocal_filter_chain(profile:dict[str,Any])->str:
+    filters=[]
+    if bool(profile.get("declick",False)):
+        filters.append("adeclick")
+    if bool(profile.get("declip",False)):
+        filters.append("adeclip")
+    highpass=profile.get("highPassHz")
+    if highpass is not None:
+        frequency=float(highpass)
+        if not math.isfinite(frequency) or frequency<20 or frequency>180:
+            raise ValueError("MUSIC_VOCAL_RESTORATION_HIGHPASS_OUT_OF_RANGE")
+        filters.append(f"highpass=f={frequency:.6f}")
+    noise_floor=profile.get("denoiseNoiseFloorDb")
+    if noise_floor is not None:
+        floor=float(noise_floor)
+        if not math.isfinite(floor) or floor<-80 or floor>-25:
+            raise ValueError("MUSIC_VOCAL_RESTORATION_DENOISE_OUT_OF_RANGE")
+        filters.append(f"afftdn=nf={floor:.6f}")
+    if not filters:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_EMPTY_PROFILE")
+    return ",".join(filters)
+
+def execute_vocal_restoration_path(
+    source_path:Path,
+    source_artifact_id:str,
+    source_sha256:str,
+    job_id:str,
+    request_id:str,
+    authorization_id:str,
+    profile:dict[str,Any],
+    sample_rate:int,
+    channels:int,
+    config:RestorationWorkerConfig,
+)->dict[str,Any]:
+    if not job_id.strip() or not request_id.strip() or not authorization_id.strip():
+        raise ValueError("MUSIC_VOCAL_RESTORATION_AUTHORITY_REQUIRED")
+    source_probe=probe_path(source_path,source_artifact_id,source_sha256)
+    if source_probe["sampleRate"]!=sample_rate or source_probe["channels"]!=channels:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_SOURCE_DIMENSIONS_MISMATCH")
+
+    before=_vocal_identity_profile(source_path)
+    directory=config.output_dir/("vocal-"+_safe_token(job_id))
+    directory.mkdir(parents=True,exist_ok=True)
+    output=directory/"output.wav"
+    ffmpeg=shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError("MUSIC_RESTORATION_FFMPEG_REQUIRED")
+    graph=_vocal_filter_chain(profile)
+    result=subprocess.run(
+        [
+            ffmpeg,"-nostdin","-v","error","-y","-i",str(source_path),"-map","0:a:0",
+            "-af",graph,
+            "-c:a","pcm_s24le","-ar",str(sample_rate),"-ac",str(channels),str(output),
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        timeout=900,
+        check=False,
+    )
+    if result.returncode!=0 or not output.is_file() or output.stat().st_size<=0:
+        raise RuntimeError("MUSIC_VOCAL_RESTORATION_RENDER_FAILED:"+result.stderr.decode(errors="replace")[-1200:])
+
+    after=_vocal_identity_profile(output)
+    comparison=_compare_vocal_identity(before,after)
+    digest=sha256(output.read_bytes()).hexdigest()
+    output_id=f"music-vocal-restoration:{_safe_token(job_id)}:{digest[:16]}"
+    out_probe=probe_path(output,output_id,digest)
+    payload={
+        "jobId":job_id,
+        "requestId":request_id,
+        "sourceArtifactId":source_artifact_id,
+        "outputArtifactId":output_id,
+        "resultUri":f"/v1/jobs/{_safe_token(job_id)}/artifact/output.wav",
+        "outputSha256":digest,
+        "sampleRate":out_probe["sampleRate"],
+        "channels":out_probe["channels"],
+        "sampleCount":out_probe["sampleCount"],
+        "durationSeconds":out_probe["durationSeconds"],
+        "before":before,
+        "after":after,
+        "comparison":comparison,
+    }
+    payload["runtimeReceiptId"]=receipt_id("music-vocal-restoration",payload)
+    return payload
+
 def artifact_path(config:RestorationWorkerConfig,job_token:str,name:str)->Path|None:
     if len(job_token)!=24 or any(ch not in "0123456789abcdef" for ch in job_token): return None
     if name not in {"vocals.wav","drums.wav","bass.wav","other.wav","output.wav"}: return None
-    for prefix in ("separate","repair","reconstruct"):
+    for prefix in ("separate","repair","reconstruct","vocal"):
         candidate=config.output_dir/f"{prefix}-{job_token}"/name
         if candidate.is_file() and candidate.stat().st_size>0: return candidate
     return None
