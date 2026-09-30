@@ -227,7 +227,6 @@ function inferKind(text: string): SellableKind {
 function inferBrandId(text: string, kind: SellableKind): string | undefined {
   const brands = listGrowthBrands()
   const matched = brands.filter((brand) => {
-    const haystack = normalize([brand.brandId, brand.name, ...brand.audienceSignals].join(" "))
     return brand.name.split(/\s+/).some((part) => part.length > 3 && text.includes(normalize(part)))
       || text.includes(normalize(brand.name))
       || text.includes(normalize(brand.brandId.replace(/^brand:/, "")))
