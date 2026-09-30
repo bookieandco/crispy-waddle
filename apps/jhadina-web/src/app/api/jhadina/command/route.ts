@@ -17,6 +17,10 @@ import {
   inspectAskGrowthReadIntent,
 } from "@/lib/intelligence/ask-growth-command"
 import {
+  handleAskMusicJuggernautCommand,
+  inspectAskMusicJuggernautIntent,
+} from "@/lib/intelligence/ask-music-juggernaut-command"
+import {
   handleAskMarketingPresenceCommand,
   inspectAskMarketingPresenceIntent,
 } from "@/lib/intelligence/ask-marketing-presence-command"
@@ -331,6 +335,49 @@ export async function POST(req: NextRequest) {
           verificationReason: "Identity verified; Doctor intent classified. No repair authority was granted.",
         },
       })
+    }
+
+    const musicJuggernautIntent = inspectAskMusicJuggernautIntent(activeTask)
+    if (musicJuggernautIntent) {
+      const verifier = await createRequestIdentityVerifier()
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const music = await handleAskMusicJuggernautCommand({
+        userId: verifiedIdentity.userId,
+        activeTask,
+        artistKey: typeof body?.artistKey === "string" ? body.artistKey : undefined,
+        artistName: typeof body?.artistName === "string" ? body.artistName : undefined,
+      })
+      if (music) {
+        const reasoningEventId = await recordAskShortcutExperience({
+          userId: verifiedIdentity.userId,
+          activeTask,
+          proposal: music.proposal,
+          shortcut: "growth",
+          metadata: {
+            operation: music.workPlan.operation,
+            authority: music.workPlan.authority,
+            nextBoundary: music.workPlan.nextBoundary,
+            projectId: music.workPlan.projectId,
+            mode: music.workPlan.mode,
+          },
+        })
+        return NextResponse.json({
+          success: true,
+          data: {
+            proposal: music.proposal,
+            reasoningEventId,
+            expression: await realizeAskJhadinaExpression({
+              userId: verifiedIdentity.userId,
+              activeTask,
+              proposal: music.proposal,
+            }),
+            verified: music.verified,
+            verificationReason: music.verificationReason,
+            musicJuggernautWorkPlan: music.workPlan,
+            feedbackEligible: false,
+          },
+        })
+      }
     }
 
     const marketingPresenceIntent = inspectAskMarketingPresenceIntent(activeTask)
