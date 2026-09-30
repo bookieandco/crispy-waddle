@@ -208,6 +208,88 @@ class MusicRestorationWorkerTest(unittest.TestCase):
             self.assertEqual(receipt["segmentCount"],1)
             self.assertTrue(receipt["runtimeReceiptId"].startswith("music-reconstruction:"))
 
+    def test_vocal_filter_chain_is_bounded_and_non_generative(self):
+        chain=worker._vocal_filter_chain({
+            "declick":True,
+            "declip":True,
+            "denoiseNoiseFloorDb":-55,
+            "highPassHz":65,
+        })
+        self.assertIn("adeclick",chain)
+        self.assertIn("adeclip",chain)
+        self.assertIn("highpass=f=65.000000",chain)
+        self.assertIn("afftdn=nf=-55.000000",chain)
+        with self.assertRaisesRegex(ValueError,"HIGHPASS_OUT_OF_RANGE"):
+            worker._vocal_filter_chain({"declick":False,"declip":False,"highPassHz":300})
+        with self.assertRaisesRegex(ValueError,"EMPTY_PROFILE"):
+            worker._vocal_filter_chain({"declick":False,"declip":False})
+
+    def test_vocal_identity_comparison_passes_small_drift_and_rejects_large_drift(self):
+        before={
+            "voicedFraction":0.72,"medianF0Hz":220.0,"f0DeviationCents":65.0,
+            "spectralCentroidHz":2100.0,"rmsDb":-18.0,"dynamicRangeDb":13.0,
+            "mfccMean":[1.0,2.0,3.0],
+        }
+        safe={
+            **before,
+            "voicedFraction":0.70,
+            "medianF0Hz":220.5,
+            "f0DeviationCents":66.0,
+            "rmsDb":-17.8,
+            "mfccMean":[1.01,2.01,2.99],
+        }
+        safe_result=worker._compare_vocal_identity(before,safe)
+        self.assertTrue(safe_result["identityPreserved"])
+        self.assertEqual(safe_result["reasons"],[])
+
+        changed={
+            **before,
+            "voicedFraction":0.45,
+            "medianF0Hz":233.0,
+            "f0DeviationCents":120.0,
+            "rmsDb":-9.0,
+            "mfccMean":[-3.0,0.5,7.0],
+        }
+        changed_result=worker._compare_vocal_identity(before,changed)
+        self.assertFalse(changed_result["identityPreserved"])
+        self.assertGreater(len(changed_result["reasons"]),0)
+
+    def test_vocal_restoration_receipt_binds_identity_qc_and_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            config=worker.RestorationWorkerConfig(output_dir=Path(td),demucs_device="cpu")
+            source=Path(td)/"source.wav"; source.write_bytes(b"source")
+            before={
+                "voicedFraction":0.72,"medianF0Hz":220.0,"f0DeviationCents":65.0,
+                "spectralCentroidHz":2100.0,"rmsDb":-18.0,"dynamicRangeDb":13.0,
+                "mfccMean":[1.0,2.0,3.0],
+            }
+            after={**before,"medianF0Hz":220.5,"rmsDb":-17.8}
+            profiles=[before,after]
+            def fake_probe(path,artifact_id,digest):
+                return {
+                    "sourceArtifactId":artifact_id,"sourceSha256":digest,
+                    "sampleRate":48000,"channels":2,"sampleCount":240000,
+                    "durationSeconds":5.0,"codec":"pcm_s24le","lossless":True,
+                    "runtimeReceiptId":"probe",
+                }
+            def fake_run(args,**_kwargs):
+                Path(args[-1]).write_bytes(b"restored-vocal")
+                return Mock(returncode=0,stderr=b"")
+            with patch.object(worker,"probe_path",side_effect=fake_probe), \
+                 patch.object(worker,"_vocal_identity_profile",side_effect=profiles), \
+                 patch.object(worker.shutil,"which",return_value="/usr/bin/ffmpeg"), \
+                 patch.object(worker.subprocess,"run",side_effect=fake_run):
+                receipt=worker.execute_vocal_restoration_path(
+                    source,"stem-vocals","a"*64,
+                    "vocal-job-1","vocal-request-1","approval-1",
+                    {"declick":True,"declip":False,"denoiseNoiseFloorDb":-55,"highPassHz":65},
+                    48000,2,config,
+                )
+            self.assertEqual(receipt["sourceArtifactId"],"stem-vocals")
+            self.assertTrue(receipt["comparison"]["identityPreserved"])
+            self.assertEqual(receipt["sampleCount"],240000)
+            self.assertTrue(receipt["runtimeReceiptId"].startswith("music-vocal-restoration:"))
+
     def test_artifact_path_is_name_and_job_allow_listed(self):
         with tempfile.TemporaryDirectory() as td:
             config=worker.RestorationWorkerConfig(output_dir=Path(td))
