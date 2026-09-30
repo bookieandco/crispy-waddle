@@ -3,6 +3,8 @@ import type {
   EvidenceObservation,
   InstrumentReconstructionRequest,
   InstrumentReconstructionRuntimeResult,
+  InstrumentDonorSearchInput,
+  InstrumentDonorSearchRuntimeResult,
   LedgerRestorationVersion,
   PostExecutionQcReceipt,
   RestorationArtifactStore,
@@ -201,7 +203,7 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
   async createJob(input: {
     id: string;
     caseId: string;
-    kind: "probe" | "separate" | "perceive" | "repair" | "reconstruct" | "vocal-restore";
+    kind: "probe" | "separate" | "perceive" | "repair" | "reconstruct" | "vocal-restore" | "donor-search";
     sourceArtifactId: string;
     metadata?: Record<string, unknown>;
   }): Promise<void> {
@@ -271,6 +273,44 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
       .from("music_restoration_evidence")
       .upsert(rows, { onConflict: "id", ignoreDuplicates: true });
     if (error) throw new Error(`MUSIC_RESTORATION_EVIDENCE_WRITE_FAILED: ${error.message}`);
+  }
+
+  async persistDonorSearchOutcome(input: {
+    caseId: string;
+    jobId: string;
+    search: InstrumentDonorSearchInput;
+    result: InstrumentDonorSearchRuntimeResult;
+  }): Promise<void> {
+    const { error } = await this.client
+      .from("music_restoration_donor_searches")
+      .insert({
+        id: input.result.runtimeReceiptId,
+        job_id: input.jobId,
+        case_id: input.caseId,
+        owner_user_id: this.ownerUserId,
+        source_artifact_id: input.search.sourceArtifactId,
+        instrument_family: input.search.instrumentFamily,
+        event_kind: input.search.eventKind ?? null,
+        target_region: input.search.target,
+        candidates: input.result.candidates.map(candidate => ({
+          candidateId: candidate.candidateId,
+          artifactId: candidate.artifactId,
+          sourceStartMs: candidate.sourceStartMs,
+          sourceEndMs: candidate.sourceEndMs,
+          similarityScore: candidate.similarityScore,
+          qualityScore: candidate.qualityScore,
+          contextScore: candidate.contextScore,
+          searchScore: candidate.searchScore,
+          damageScore: candidate.damageScore,
+          expectedGain: candidate.expectedGain,
+          runtimeReceiptId: candidate.runtimeReceiptId,
+          sha256: candidate.artifact.contentHash,
+        })),
+        runtime_receipt_id: input.result.runtimeReceiptId,
+      });
+    if (error) {
+      throw new Error(`MUSIC_DONOR_SEARCH_RECEIPT_WRITE_FAILED: ${error.message}`);
+    }
   }
 
   async persistReconstructionOutcome(input: {
@@ -466,6 +506,17 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
       .eq("case_id", caseId)
       .order("created_at", { ascending: true });
     if (error) throw new Error(`MUSIC_RESTORATION_VERSION_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async listDonorSearches(caseId: string): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_donor_searches")
+      .select("id,source_artifact_id,instrument_family,event_kind,target_region,candidates,runtime_receipt_id,created_at")
+      .eq("case_id", caseId)
+      .eq("owner_user_id", this.ownerUserId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_DONOR_SEARCH_LIST_FAILED: ${error.message}`);
     return (data ?? []) as Array<Record<string, unknown>>;
   }
 
