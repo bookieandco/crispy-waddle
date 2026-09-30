@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import {
   getMusicRestorationRuntimeHealth,
+  getMusicRestorationRuntimeAuthMode,
+  isMusicRestorationOidcAvailable,
   isMusicRestorationRuntimeConfigured,
 } from "@/lib/music/restoration-runtime-server";
 
@@ -15,6 +17,8 @@ export async function GET() {
       providerId: "music-restoration-worker",
       status: "not-configured",
       productionReady: false,
+      oidcAvailable: isMusicRestorationOidcAvailable(),
+      authMode: getMusicRestorationRuntimeAuthMode(),
     }, {
       headers: { "cache-control": "no-store" },
     });
@@ -29,6 +33,8 @@ export async function GET() {
       providerId: "music-restoration-worker",
       status: productionReady ? "ready" : String(health.status ?? "blocked"),
       productionReady,
+      oidcAvailable: isMusicRestorationOidcAvailable(),
+      authMode: getMusicRestorationRuntimeAuthMode(),
       health,
     }, {
       headers: { "cache-control": "no-store" },
@@ -40,6 +46,8 @@ export async function GET() {
       providerId: "music-restoration-worker",
       status: "unavailable",
       productionReady: false,
+      oidcAvailable: isMusicRestorationOidcAvailable(),
+      authMode: getMusicRestorationRuntimeAuthMode(),
       error: cause instanceof Error ? cause.message : "MUSIC_RESTORATION_WORKER_HEALTH_FAILED",
     }, {
       headers: { "cache-control": "no-store" },
