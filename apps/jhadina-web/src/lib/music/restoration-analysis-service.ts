@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";\nimport type { RestorationRuntimeClient } from "@jhadina/music-core";
 import { SupabaseMusicRestorationArtifactStore } from "./restoration-supabase-store";
 import { runPersistedPerception, type PersistedPerceptionSummary } from "./restoration-perception-service";
 import { runPersistedSeparation } from "./restoration-separation-service";
