@@ -3,7 +3,7 @@ import { certifySamUsableFinal, type SamUsableCertification, type SamUsableEvide
 import { analyzeSamNotices } from './sam-analysis-runtime'
 import { discoverSamProviders } from './sam-provider-runtime'
 import { buildSamPursuitOptions } from './sam-pursuit-runtime'
-import { getSamMarketCoverage, harvestSamDocuments, recentSamNoticeIds } from './sam-wide-runtime'
+import { getSamMarketCoverage, harvestSamDocuments, hydrateSamNoticeDetails, recentSamNoticeIds } from './sam-wide-runtime'
 
 const rows=(value:unknown):Record<string,unknown>[]=>Array.isArray(value)?value.filter((row):row is Record<string,unknown>=>Boolean(row&&typeof row==='object')):[]
 
@@ -15,16 +15,18 @@ export async function runSamEnrichment(
   const noticeIds=await recentSamNoticeIds(client,limit)
   if(!noticeIds.length)return {
     noticeIds,
+    hydration:{hydrated:0,errors:[] as string[]},
     documents:{attempted:0,textCaptured:0,binaryCaptured:0,needsOcr:0,unsupported:0,failed:0},
     analysis:{analyzed:0},
     providers:{notices:0,candidates:0,errors:[] as string[]},
     pursuit:{generated:0,teamCovered:0,readyForQuote:0,errors:[] as string[]},
   }
+  const hydration=await hydrateSamNoticeDetails(client,noticeIds)
   const documents=await harvestSamDocuments(client,noticeIds,Math.max(1,Math.min(input.maxDocuments??40,100)))
   const analysis=await analyzeSamNotices(client,noticeIds)
   const providers=await discoverSamProviders(client,noticeIds,Math.max(1,Math.min(input.maxProvidersPerNotice??8,20)))
   const pursuit=await buildSamPursuitOptions(client,noticeIds)
-  return {noticeIds,documents,analysis,providers,pursuit}
+  return {noticeIds,hydration,documents,analysis,providers,pursuit}
 }
 
 async function count(client:SupabaseClient,table:string,filter?:(query:any)=>any){
