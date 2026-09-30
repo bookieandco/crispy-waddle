@@ -19,6 +19,7 @@ from worker import (
     assess_instrument_replacement_path,
     execute_reconstruction_path,
     execute_repair_path,
+    execute_vocal_restoration_path,
     perceive_path,
     probe_path,
     runtime_readiness,
@@ -84,6 +85,21 @@ class InstrumentAssessmentRequest(BaseModel):
     replacement:SourceRef
     instrumentFamily:str=Field(min_length=1,max_length=64)
     segments:list[InstrumentAssessmentSegment]=Field(min_length=1,max_length=64)
+
+class VocalRestorationProfile(BaseModel):
+    declick:bool=False
+    declip:bool=False
+    denoiseNoiseFloorDb:float|None=Field(default=None,ge=-80,le=-25)
+    highPassHz:float|None=Field(default=None,ge=20,le=180)
+
+class VocalRestoreRequest(BaseModel):
+    jobId:str=Field(min_length=1,max_length=240)
+    requestId:str=Field(min_length=1,max_length=240)
+    authorizationId:str=Field(min_length=1,max_length=500)
+    source:SourceRef
+    profile:VocalRestorationProfile
+    sampleRate:int=Field(gt=0,le=384000)
+    channels:int=Field(gt=0,le=32)
 
 class ReconstructRequest(BaseModel):
     jobId:str=Field(min_length=1,max_length=240)
@@ -209,6 +225,27 @@ def assess_instrument_replacement(
                 body.replacement.artifactId,body.replacement.sha256,
                 body.assessmentId,body.instrumentFamily,
                 [segment.model_dump() for segment in body.segments],
+            )
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/vocal/restore")
+def restore_vocal(body:VocalRestoreRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-vocal-input-") as temp:
+            source=_stage(body.source,Path(temp))
+            return execute_vocal_restoration_path(
+                source,
+                body.source.artifactId,
+                body.source.sha256,
+                body.jobId,
+                body.requestId,
+                body.authorizationId,
+                body.profile.model_dump(),
+                body.sampleRate,
+                body.channels,
+                _config,
             )
     except Exception as exc:
         raise _error(exc) from exc
