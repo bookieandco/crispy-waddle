@@ -17,6 +17,7 @@ from worker import (
     RestorationWorkerConfig,
     artifact_path,
     assess_instrument_replacement_path,
+    search_instrument_donors_path,
     execute_reconstruction_path,
     execute_repair_path,
     execute_vocal_restoration_path,
@@ -85,6 +86,15 @@ class InstrumentAssessmentRequest(BaseModel):
     replacement:SourceRef
     instrumentFamily:str=Field(min_length=1,max_length=64)
     segments:list[InstrumentAssessmentSegment]=Field(min_length=1,max_length=64)
+
+class InstrumentDonorSearchRequest(BaseModel):
+    jobId:str=Field(min_length=1,max_length=240)
+    source:SourceRef
+    instrumentFamily:str=Field(min_length=1,max_length=64)
+    eventKind:str|None=Field(default=None,max_length=64)
+    targetStartMs:float=Field(ge=0)
+    targetEndMs:float=Field(gt=0)
+    maxCandidates:int=Field(ge=1,le=5)
 
 class ReconstructRequest(BaseModel):
     jobId:str=Field(min_length=1,max_length=240)
@@ -206,6 +216,30 @@ def execute(body:ExecuteRequest,authorization:str|None=Header(default=None))->di
                 body.sampleRate,
                 body.channels,
                 _config,
+            )
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/reconstruction/search-donors")
+def search_instrument_donors(
+    body:InstrumentDonorSearchRequest,
+    authorization:str|None=Header(default=None),
+)->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-donor-search-") as source_temp:
+            source=_stage(body.source,Path(source_temp))
+            return search_instrument_donors_path(
+                source,
+                body.source.artifactId,
+                body.source.sha256,
+                body.jobId,
+                body.instrumentFamily,
+                body.targetStartMs,
+                body.targetEndMs,
+                body.maxCandidates,
+                _config,
+                body.eventKind,
             )
     except Exception as exc:
         raise _error(exc) from exc
