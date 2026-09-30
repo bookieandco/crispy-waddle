@@ -3,6 +3,7 @@ import {
   directorFoleyComputeDraft,
   directorGenerationComputeDraft,
   directorLoraTrainingComputeDraft,
+  directorMediaAnalysisComputeDraft,
   directorRenderComputeDraft,
   directorSpeechComputeDraft,
 } from './compute-workload.js';
@@ -126,6 +127,30 @@ describe('Director compute workload adapters', () => {
     }, binding);
     expect(draft.kind).toBe('voice-generation');
     expect(draft.dataLocalityKeys).toContain('voice:mike-voice');
+  });
+
+  it('maps Director media intelligence to background analysis without creating a second media authority', () => {
+    const draft = directorMediaAnalysisComputeDraft({
+      id: 'media-analysis-1',
+      projectId: 'movie-1',
+      assetIds: ['shot-1', 'shot-2'],
+      analysisKinds: ['proxy', 'transcript', 'scene-detection', 'semantic-embedding', 'quick-cut-analysis'],
+      evidenceIds: ['upload:shot-1', 'upload:shot-2'],
+    }, binding);
+    expect(draft.kind).toBe('batch-analysis');
+    expect(draft.source).toBe('director');
+    expect(draft.constraints).toEqual({ sensitiveData: true });
+    expect(draft.dataLocalityKeys).toEqual([
+      'asset:shot-1',
+      'asset:shot-2',
+      'media-analysis:proxy',
+      'media-analysis:transcript',
+      'media-analysis:scene-detection',
+      'media-analysis:semantic-embedding',
+      'media-analysis:quick-cut-analysis',
+      'evidence:upload:shot-1',
+      'evidence:upload:shot-2',
+    ]);
   });
 
   it('maps LoRA training to background training work without changing target authority', () => {
