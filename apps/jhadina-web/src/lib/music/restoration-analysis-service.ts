@@ -1,4 +1,5 @@
-import type { SupabaseClient } from "@supabase/supabase-js";\nimport type { RestorationRuntimeClient } from "@jhadina/music-core";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { RestorationRuntimeClient } from "@jhadina/music-core";
 import { SupabaseMusicRestorationArtifactStore } from "./restoration-supabase-store";
 import { runPersistedPerception, type PersistedPerceptionSummary } from "./restoration-perception-service";
 import { runPersistedSeparation } from "./restoration-separation-service";
@@ -29,6 +30,7 @@ export async function analyzeRestorationArtifact(input: {
   artifactId: string;
   separate?: boolean;
   modelId?: string;
+  runtime: RestorationRuntimeClient;
 }): Promise<RestorationAnalysisSummary> {
   const store = new SupabaseMusicRestorationArtifactStore(input.client, input.ownerUserId);
   const artifact = await store.get(input.ownerUserId, input.artifactId);
@@ -41,6 +43,7 @@ export async function analyzeRestorationArtifact(input: {
     ownerUserId: input.ownerUserId,
     caseId: input.caseId,
     artifact,
+    runtime: input.runtime,
   });
 
   if (input.separate === false) {
@@ -53,6 +56,7 @@ export async function analyzeRestorationArtifact(input: {
     caseId: input.caseId,
     source: artifact,
     modelId: input.modelId,
+    runtime: input.runtime,
   });
 
   const stemPerception: PersistedPerceptionSummary[] = [];
@@ -62,6 +66,7 @@ export async function analyzeRestorationArtifact(input: {
       ownerUserId: input.ownerUserId,
       caseId: input.caseId,
       artifact: stem,
+      runtime: input.runtime,
     }));
   }
 
