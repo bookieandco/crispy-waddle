@@ -40,21 +40,23 @@ export function createContentProjectRepository(): ContentProjectRepository {
   return {
     async save(userId, project, presenceCampaignId) {
       const supabase = await createClient()
+      const row: Record<string, unknown> = {
+        id: project.id,
+        user_id: userId,
+        brand: project.brand,
+        authority_position_ref: project.authorityPositionRef,
+        pillar_ref: project.pillarRef,
+        big_idea_ref: project.bigIdeaRef,
+        primary_job: project.primaryJob,
+        origin: project.origin,
+        payload: project,
+        updated_at: project.updatedAt,
+      }
+      if (presenceCampaignId !== undefined) row.presence_campaign_id = presenceCampaignId
+
       const { data, error } = await supabase
         .from("jhadina_social_content_projects")
-        .upsert({
-          id: project.id,
-          user_id: userId,
-          brand: project.brand,
-          authority_position_ref: project.authorityPositionRef,
-          pillar_ref: project.pillarRef,
-          big_idea_ref: project.bigIdeaRef,
-          primary_job: project.primaryJob,
-          origin: project.origin,
-          presence_campaign_id: presenceCampaignId ?? null,
-          payload: project,
-          updated_at: project.updatedAt,
-        }, { onConflict: "user_id,id" })
+        .upsert(row, { onConflict: "user_id,id" })
         .select("*")
         .single<ContentProjectRow>()
       if (error || !data) {
