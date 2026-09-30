@@ -70,6 +70,7 @@ export async function reconstructInstrumentRegions(input: {
   replacement: StoredRestorationArtifact;
   runtime: RestorationRuntimeClient;
   store: RestorationArtifactStore;
+  jobId?: string;
   now?: string;
 }): Promise<InstrumentReconstructionRuntimeResult> {
   validateReconstructionRequest(input.request, { ownerUserId: input.ownerUserId });
@@ -84,7 +85,7 @@ export async function reconstructInstrumentRegions(input: {
     }
   }
 
-  const jobId = `music-reconstruct:${globalThis.crypto.randomUUID()}`;
+  const jobId = input.jobId?.trim() || `music-reconstruct:${globalThis.crypto.randomUUID()}`;
   const sourceRuntime = await runtimeSource(input.store, input.ownerUserId, source);
   const replacementRuntime = await runtimeSource(input.store, input.ownerUserId, replacement);
   const receipt = await input.runtime.reconstruct({
