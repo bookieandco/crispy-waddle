@@ -1,5 +1,6 @@
 import {
-  buildMusicCreativePortfolio,\n  certifyMusicJuggernautCore,
+  buildMusicCreativePortfolio,
+  certifyMusicJuggernautCore,
   chooseJuggernautMode,
   detectCreativeOutlier,
   rankSongs,
@@ -8,9 +9,11 @@ import {
   type CreativeOutlier,
   type PerformanceObservation,
   type SongRecord,
-  type SongSection,\n  type MusicCreativePortfolio,
+  type SongSection,
+  type MusicCreativePortfolio,
 } from '@jhadina/growth-core';
-import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';\nimport {loadMusicFanAudienceProjection,type MusicFanAudienceProjection} from './music-fan-projection';
+import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';
+import {loadMusicFanAudienceProjection,type MusicFanAudienceProjection} from './music-fan-projection';
 
 type Row=Record<string,unknown>;
 
