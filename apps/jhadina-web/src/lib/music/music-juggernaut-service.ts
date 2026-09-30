@@ -3,6 +3,7 @@ import {
   buildSongSectionHeatmap,
   certifyMusicJuggernautCore,
   chooseJuggernautMode,
+  consolidateCreativeOutliers,
   detectCreativeOutlier,
   rankSongs,
   recommendVenueCapacity,
@@ -84,7 +85,7 @@ export async function loadMusicJuggernautProjection(input:{
   const experimentModels=experiments.map(mapExperiment);
   const experimentByDb=new Map(experiments.map((row,index)=>[String(row.id),experimentModels[index]!]));
   const observationModels:PerformanceObservation[]=[];
-  const outliers:CreativeOutlier[]=[];
+  const rawOutliers:CreativeOutlier[]=[];
   const baseline={
     medianViews:Math.max(1,median(observations.map((row)=>numberValue(row.views)))),
     medianSongActions:Math.max(1,median(observations.map((row)=>numberValue(row.song_actions)))),
@@ -99,9 +100,10 @@ export async function loadMusicJuggernautProjection(input:{
     }
     const observation=mapObservation(row,experiment.id);
     observationModels.push(observation);
-    try{outliers.push(detectCreativeOutlier(observation,baseline));}
+    try{rawOutliers.push(detectCreativeOutlier(observation,baseline));}
     catch(error){dataWarnings.push('Observation '+String(row.id)+' was excluded from outlier scoring: '+message(error));}
   }
+  const outliers=[...consolidateCreativeOutliers(rawOutliers)];
   const songModels=songs.map(mapSong);
   const rankedSongs=[...rankSongs(songModels,observationModels,experimentModels)];
   const venues=cityDemand.flatMap((row)=>{
