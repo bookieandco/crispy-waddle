@@ -96,8 +96,17 @@ export function compareInstrumentFingerprints(
   const high = 1 - Math.abs(observed.highEnergyRatio - candidate.highEnergyRatio);
   const transient = 1 - Math.abs(observed.transientStrength - candidate.transientStrength);
   const harmonic = 1 - Math.abs(observed.harmonicity - candidate.harmonicity);
-  const family = observed.family === candidate.family ? 1 : 0;
-  return clamp01(spectral * 0.22 + spread * 0.10 + low * 0.10 + mid * 0.10 + high * 0.10 + transient * 0.12 + harmonic * 0.11 + family * 0.15);
+  // Family is a separate admission gate below. Do not let a declared family
+  // label inflate the acoustic similarity score.
+  return clamp01(
+    spectral * 0.25 +
+    spread * 0.12 +
+    low * 0.11 +
+    mid * 0.11 +
+    high * 0.11 +
+    transient * 0.14 +
+    harmonic * 0.16,
+  );
 }
 
 /**
