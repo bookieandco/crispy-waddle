@@ -3,6 +3,10 @@ import type {
   InstrumentFingerprint,
   RestorationGainEvidence,
 } from "../instrument-replacement.js";
+import type {
+  VocalPreservationMetrics,
+  VocalRepairOperation,
+} from "../vocal-restoration.js";
 
 export type RestorationStemRole = "vocals" | "drums" | "bass" | "other" | "unknown";
 
@@ -209,6 +213,42 @@ export interface RestorationInstrumentAssessmentReceipt {
   runtimeReceiptId: string;
 }
 
+export interface RestorationVocalRepairSegment {
+  startMs: number;
+  endMs: number;
+  operation: VocalRepairOperation;
+  parameters: Record<string, string | number | boolean>;
+  sourceResidualMix: number;
+  fadeMs: number;
+}
+
+export interface RestorationVocalRepairRequest {
+  jobId: string;
+  requestId: string;
+  authorizationId: string;
+  source: RestorationRuntimeSource;
+  segments: RestorationVocalRepairSegment[];
+  sampleRate: number;
+  channels: number;
+}
+
+export interface RestorationVocalRepairReceipt {
+  jobId: string;
+  requestId: string;
+  sourceArtifactId: string;
+  sourceSha256: string;
+  outputArtifactId: string;
+  resultUri: string;
+  outputSha256: string;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  durationSeconds: number;
+  segmentCount: number;
+  preservation: VocalPreservationMetrics;
+  runtimeReceiptId: string;
+}
+
 export interface RestorationRuntimeClient {
   probe(source: RestorationRuntimeSource): Promise<RestorationProbeReceipt>;
   separate(input: {
@@ -225,6 +265,7 @@ export interface RestorationRuntimeClient {
     request: RestorationInstrumentAssessmentRequest,
   ): Promise<RestorationInstrumentAssessmentReceipt>;
   reconstruct(request: RestorationReconstructionRequest): Promise<RestorationReconstructionReceipt>;
+  restoreVocal(request: RestorationVocalRepairRequest): Promise<RestorationVocalRepairReceipt>;
   downloadArtifact(resultUri: string): Promise<Uint8Array>;
 }
 
@@ -389,6 +430,28 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     }
     if (!HEX_64.test(receipt.outputSha256)) throw new Error("Reconstruction output hash is invalid.");
     if (receipt.segmentCount !== request.segments.length) throw new Error("Reconstruction segment count mismatch.");
+    return receipt;
+  }
+
+  async restoreVocal(request: RestorationVocalRepairRequest): Promise<RestorationVocalRepairReceipt> {
+    assertRuntimeSource(request.source);
+    if (!request.jobId.trim() || !request.requestId.trim() || !request.authorizationId.trim()) {
+      throw new Error("Vocal restoration job, request and authorization ids are required.");
+    }
+    if (!request.segments.length) throw new Error("Vocal restoration requires at least one segment.");
+    finitePositive(request.sampleRate, "Vocal restoration sample rate");
+    finitePositive(request.channels, "Vocal restoration channel count");
+
+    const receipt = await this.post<RestorationVocalRepairReceipt>("/v1/vocal/restore", request);
+    if (receipt.jobId !== request.jobId || receipt.requestId !== request.requestId) {
+      throw new Error("Vocal restoration receipt identity mismatch.");
+    }
+    if (receipt.sourceArtifactId !== request.source.artifactId ||
+        receipt.sourceSha256.toLowerCase() !== request.source.sha256.toLowerCase()) {
+      throw new Error("Vocal restoration receipt source binding mismatch.");
+    }
+    if (!HEX_64.test(receipt.outputSha256)) throw new Error("Vocal restoration output hash is invalid.");
+    if (receipt.segmentCount !== request.segments.length) throw new Error("Vocal restoration segment count mismatch.");
     return receipt;
   }
 
