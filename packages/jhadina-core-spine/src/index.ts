@@ -22,6 +22,8 @@ export * from './personality-behavior-pipeline.js';
 export * from './personality-behavior-runtime.js';
 export * from './personality-drift.js';
 export * from './evolution.js';
+export * from './canonical-json.js';
+export * from './content-hash.js';
 export * from './emergency-domain.js';
 export * from './emergency-evidence.js';
 export * from './emergency-evidence-state.js';
