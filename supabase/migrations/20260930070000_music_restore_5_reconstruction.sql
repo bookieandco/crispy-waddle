@@ -20,8 +20,6 @@ create table if not exists public.music_restoration_reconstruction_receipts (
   expected_gain numeric not null check (expected_gain >= 0 and expected_gain <= 1),
   gain_confidence numeric not null check (gain_confidence >= 0 and gain_confidence <= 1),
   gain_evidence_method text not null,
-  assessment_runtime_receipt_id text not null,
-  assessment jsonb not null,
   evidence_ids text[] not null default '{}',
   approval_evidence_id text not null,
   approved_by_user_id uuid not null references auth.users(id) on delete restrict,
