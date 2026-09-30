@@ -401,6 +401,172 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
     }
   }
 
+  async listCases(): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_cases")
+      .select("id,title,status,source_artifact_id,source_version_id,current_version_id,created_at,updated_at")
+      .eq("user_id", this.ownerUserId)
+      .order("updated_at", { ascending: false });
+    if (error) throw new Error(`MUSIC_RESTORATION_CASE_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async getCase(caseId: string): Promise<Record<string, unknown> | undefined> {
+    const { data, error } = await this.client
+      .from("music_restoration_cases")
+      .select("id,title,status,source_artifact_id,source_version_id,current_version_id,created_at,updated_at")
+      .eq("id", caseId)
+      .eq("user_id", this.ownerUserId)
+      .maybeSingle();
+    if (error) throw new Error(`MUSIC_RESTORATION_CASE_READ_FAILED: ${error.message}`);
+    return data ? data as Record<string, unknown> : undefined;
+  }
+
+  async listArtifacts(caseId: string): Promise<StoredRestorationArtifact[]> {
+    const { data, error } = await this.client
+      .from("music_restoration_artifacts")
+      .select("*")
+      .eq("case_id", caseId)
+      .eq("owner_user_id", this.ownerUserId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_RESTORATION_ARTIFACT_LIST_FAILED: ${error.message}`);
+    return (data ?? []).map(row => ({
+      id: String(row.id),
+      kind: row.kind,
+      contentHash: String(row.content_hash),
+      sampleRate: Number(row.sample_rate),
+      channels: Number(row.channels),
+      sampleCount: Number(row.sample_count),
+      parentArtifactId: row.parent_artifact_id ? String(row.parent_artifact_id) : undefined,
+      createdAt: String(row.created_at),
+      ownerUserId: String(row.owner_user_id),
+      caseId: String(row.case_id),
+      storageUri: `supabase-private://${String(row.storage_bucket)}/${String(row.storage_path)}`,
+      mimeType: String(row.mime_type),
+      sizeBytes: Number(row.size_bytes),
+      role: row.role ? String(row.role) : undefined,
+      runtimeReceiptId: row.runtime_receipt_id ? String(row.runtime_receipt_id) : undefined,
+    }));
+  }
+
+  async listEvidence(caseId: string): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_evidence")
+      .select("id,artifact_id,kind,confidence,region,data,runtime_receipt_id,created_at")
+      .eq("case_id", caseId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_RESTORATION_EVIDENCE_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async listVersions(caseId: string): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_versions")
+      .select("id,source_artifact_id,output_artifact_id,candidate_id,operation_class,operation,evidence_ids,authorization_ids,qc_passed,created_at")
+      .eq("case_id", caseId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_RESTORATION_VERSION_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async listReconstructionReceipts(caseId: string): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_reconstruction_receipts")
+      .select("id,source_artifact_id,replacement_artifact_id,output_artifact_id,instrument_family,segments,qc,created_at")
+      .eq("case_id", caseId)
+      .eq("owner_user_id", this.ownerUserId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_RECONSTRUCTION_RECEIPT_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async listJobs(caseId: string): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_jobs")
+      .select("id,kind,status,source_artifact_id,output_artifact_ids,runtime_receipt_id,metadata,error,created_at,updated_at")
+      .eq("case_id", caseId)
+      .eq("owner_user_id", this.ownerUserId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_RESTORATION_JOB_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async listExecutionReceipts(caseId: string): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_execution_receipts")
+      .select("id,execution_id,source_artifact_id,output_artifact_id,status,qc,gate,hash_verified,reasons,created_at")
+      .eq("case_id", caseId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_RESTORATION_EXECUTION_RECEIPT_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async listReviews(caseId: string): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_reviews")
+      .select("id,artifact_id,comparison_artifact_id,decision,note,qc_receipt_id,qc_receipt_kind,reviewed_at")
+      .eq("case_id", caseId)
+      .eq("owner_user_id", this.ownerUserId)
+      .order("reviewed_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_RESTORATION_REVIEW_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async listVocalReceipts(caseId: string): Promise<Array<Record<string, unknown>>> {
+    const { data, error } = await this.client
+      .from("music_restoration_vocal_receipts")
+      .select("id,source_artifact_id,output_artifact_id,segments,preservation,qc,created_at")
+      .eq("case_id", caseId)
+      .eq("owner_user_id", this.ownerUserId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`MUSIC_VOCAL_RESTORATION_RECEIPT_LIST_FAILED: ${error.message}`);
+    return (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  async downloadArtifactBytes(artifactId: string): Promise<Uint8Array> {
+    const { data, error } = await this.client
+      .from("music_restoration_artifacts")
+      .select("storage_bucket,storage_path")
+      .eq("id", artifactId)
+      .eq("owner_user_id", this.ownerUserId)
+      .single();
+    if (error || !data) {
+      throw new Error(`MUSIC_RESTORATION_ARTIFACT_EXPORT_LOOKUP_FAILED: ${error?.message ?? "not found"}`);
+    }
+    if (String(data.storage_bucket) !== BUCKET) {
+      throw new Error("MUSIC_RESTORATION_ARTIFACT_BUCKET_NOT_ADMITTED");
+    }
+    const { data: blob, error: downloadError } = await this.client.storage
+      .from(BUCKET)
+      .download(String(data.storage_path));
+    if (downloadError || !blob) {
+      throw new Error(`MUSIC_RESTORATION_ARTIFACT_EXPORT_DOWNLOAD_FAILED: ${downloadError?.message ?? "missing bytes"}`);
+    }
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+
+  async createArtifactDownloadUrl(artifactId: string, expiresInSeconds = 15 * 60): Promise<string> {
+    const { data, error } = await this.client
+      .from("music_restoration_artifacts")
+      .select("storage_bucket,storage_path")
+      .eq("id", artifactId)
+      .eq("owner_user_id", this.ownerUserId)
+      .single();
+    if (error || !data) {
+      throw new Error(`MUSIC_RESTORATION_ARTIFACT_DOWNLOAD_LOOKUP_FAILED: ${error?.message ?? "not found"}`);
+    }
+    if (String(data.storage_bucket) !== BUCKET) {
+      throw new Error("MUSIC_RESTORATION_ARTIFACT_BUCKET_NOT_ADMITTED");
+    }
+    const { data: signed, error: signedError } = await this.client.storage
+      .from(BUCKET)
+      .createSignedUrl(String(data.storage_path), Math.max(60, Math.min(3600, expiresInSeconds)));
+    if (signedError || !signed?.signedUrl) {
+      throw new Error(`MUSIC_RESTORATION_ARTIFACT_DOWNLOAD_SIGN_FAILED: ${signedError?.message ?? "missing URL"}`);
+    }
+    return signed.signedUrl;
+  }
+
   private assertOwner(ownerUserId: string): void {
     if (!ownerUserId || ownerUserId !== this.ownerUserId) {
       throw new Error("MUSIC_RESTORATION_OWNER_MISMATCH");
