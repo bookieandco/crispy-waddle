@@ -19,6 +19,7 @@ from worker import (
     assess_instrument_replacement_path,
     execute_reconstruction_path,
     execute_repair_path,
+    execute_vocal_restoration_path,
     perceive_path,
     probe_path,
     runtime_readiness,
@@ -92,6 +93,23 @@ class ReconstructRequest(BaseModel):
     source:SourceRef
     replacement:SourceRef
     segments:list[ReconstructionSegment]=Field(min_length=1,max_length=64)
+    sampleRate:int=Field(gt=0,le=384000)
+    channels:int=Field(gt=0,le=32)
+
+class VocalRepairSegment(BaseModel):
+    startMs:float=Field(ge=0)
+    endMs:float=Field(gt=0)
+    operation:str=Field(min_length=1,max_length=32)
+    parameters:dict[str,str|int|float|bool]=Field(default_factory=dict)
+    sourceResidualMix:float=Field(ge=0,le=0.25)
+    fadeMs:float=Field(ge=0,le=100)
+
+class VocalRestoreRequest(BaseModel):
+    jobId:str=Field(min_length=1,max_length=240)
+    requestId:str=Field(min_length=1,max_length=240)
+    authorizationId:str=Field(min_length=1,max_length=500)
+    source:SourceRef
+    segments:list[VocalRepairSegment]=Field(min_length=1,max_length=64)
     sampleRate:int=Field(gt=0,le=384000)
     channels:int=Field(gt=0,le=32)
 
@@ -228,6 +246,27 @@ def reconstruct(body:ReconstructRequest,authorization:str|None=Header(default=No
                 body.jobId,body.requestId,body.authorizationId,
                 [segment.model_dump() for segment in body.segments],
                 body.sampleRate,body.channels,_config,
+            )
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/vocal/restore")
+def restore_vocal(body:VocalRestoreRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-vocal-source-") as source_temp:
+            source=_stage(body.source,Path(source_temp))
+            return execute_vocal_restoration_path(
+                source,
+                body.source.artifactId,
+                body.source.sha256,
+                body.jobId,
+                body.requestId,
+                body.authorizationId,
+                [segment.model_dump() for segment in body.segments],
+                body.sampleRate,
+                body.channels,
+                _config,
             )
     except Exception as exc:
         raise _error(exc) from exc
