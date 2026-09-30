@@ -39,6 +39,10 @@ export function isMusicRestorationRuntimeConfigured(): boolean {
   return runtimeConfig() !== null;
 }
 
+export function isMusicRestorationOidcAvailable(): boolean {
+  return Boolean(process.env.VERCEL_OIDC_TOKEN?.trim());
+}
+
 export function getMusicRestorationRuntimeAuthMode(): RuntimeConfig["authMode"] | "not-configured" {
   return runtimeConfig()?.authMode ?? "not-configured";
 }
