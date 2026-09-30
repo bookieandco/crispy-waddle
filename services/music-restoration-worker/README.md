@@ -14,7 +14,7 @@ This worker is deliberately narrower than Music Core. It does not choose a repai
 
 Set:
 
-- `MUSIC_RESTORATION_WORKER_TOKEN` — bearer token required by every non-liveness endpoint.
+- `MUSIC_RESTORATION_WORKER_TOKEN` — optional static bearer fallback for local/manual deployments. Production Jhadina uses pinned Vercel OIDC instead.
 - `MUSIC_RESTORATION_SOURCE_HOST_SUFFIXES` — comma-separated HTTPS host suffixes allowed for signed source URLs. Default: `.supabase.co`.
 - `MUSIC_RESTORATION_OUTPUT_DIR` — persistent scratch/output directory. Default: `/data/music-restoration`.
 - `MUSIC_RESTORATION_DEMUCS_MODEL` — admitted Demucs model. Default: `htdemucs`.
@@ -45,40 +45,33 @@ The artifact route only serves `vocals.wav`, `drums.wav`, `bass.wav`, `other.wav
 
 ## RunPod commissioning
 
-The existing Director GPU Pod can host this worker beside Hunyuan and speaker QC.
+Music restoration now runs as a **localhost-only sidecar** on the existing
+Director GPU Pod. It is started automatically by
+`scripts/director-hunyuan-runpod-bootstrap.sh`.
 
-The shared Pod exposes:
+Runtime layout:
 
-- `8091` — Director Hunyuan
-- `8092` — Director speaker QC
-- `8093` — Music restoration
+- public `8091` — Director Hunyuan plus the allow-listed
+  `/music-restoration/*` proxy;
+- public `8092` — Director speaker QC when enabled;
+- private `127.0.0.1:8093` — Music restoration sidecar.
 
-In a separate Pod shell/session:
-
-```bash
-export MUSIC_RESTORATION_WORKER_TOKEN='...'
-export MUSIC_RESTORATION_DEMUCS_DEVICE=cuda
-bash scripts/music-restoration-runpod-bootstrap.sh
-```
-
-The bootstrap reuses the RunPod CUDA/PyTorch base through a
-`--system-site-packages` virtualenv, installs the pinned worker dependencies,
-stores outputs under `/workspace/jhadina/music-restoration-output`, stores the
-Torch/Demucs cache under `/workspace/jhadina/models/torch`, verifies CUDA, and
-warms the admitted Demucs model.
-
-The HTTPS proxy URL is:
+Production Jhadina calls:
 
 ```text
-https://<pod-id>-8093.proxy.runpod.net
+https://xn73vwwekavcc6-8091.proxy.runpod.net/music-restoration
 ```
 
-The Jhadina web runtime receives only:
+and authenticates with the short-lived `VERCEL_OIDC_TOKEN` automatically
+provided by Vercel. The worker verifies the exact production owner, team,
+project id, project name, subject and environment against Vercel's public JWKS.
+No long-lived Music bearer secret is required in Vercel.
 
-```bash
-MUSIC_RESTORATION_WORKER_URL=https://<pod-id>-8093.proxy.runpod.net
-MUSIC_RESTORATION_WORKER_TOKEN=...
-```
+A static `MUSIC_RESTORATION_WORKER_TOKEN` remains supported as a higher-priority
+fallback for local/manual deployments.
 
-Do not expose the RunPod API key or any unrelated GPU-provider credentials to
-the web app.
+The Music bootstrap reuses the RunPod CUDA/PyTorch base through a
+`--system-site-packages` virtualenv, stores outputs under
+`/workspace/jhadina/music-restoration-output`, stores the Torch/Demucs cache
+under `/workspace/jhadina/models/torch`, verifies CUDA, warms the admitted
+Demucs model, and binds only to localhost.
