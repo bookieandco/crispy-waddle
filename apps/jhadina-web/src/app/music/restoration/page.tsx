@@ -26,6 +26,7 @@ type Snapshot = {
   reviews:Array<Record<string,unknown>>;
   manifest:{tracks:Array<{artifactId:string;name:string;role:string;fileName:string}>};
 };
+type HistoryDisplayRow = Record<string,unknown> & {_type:string};
 
 function roleLabel(artifact:StudioArtifact):string {
   if(artifact.role==="vocals")return "Vocals";
@@ -242,6 +243,11 @@ export default function RestorationStudioPage(){
   const a=snapshot?.artifacts.find(item=>item.id===aId);
   const b=snapshot?.artifacts.find(item=>item.id===bId);
   const markers=snapshot?.markers??[];
+  const historyRows:HistoryDisplayRow[]=snapshot?[
+    ...snapshot.versions.map((item):HistoryDisplayRow=>({...item,_type:"version"})),
+    ...snapshot.reconstructions.map((item):HistoryDisplayRow=>({...item,_type:"instrument reconstruction"})),
+    ...snapshot.vocalRepairs.map((item):HistoryDisplayRow=>({...item,_type:"vocal restoration"})),
+  ].sort((x,y)=>String(x.created_at??"").localeCompare(String(y.created_at??""))):[];
 
   return <main className="min-h-screen bg-[#07080b] text-white">
     <div className="mx-auto max-w-7xl px-4 pb-24 pt-7 md:px-8">
@@ -338,7 +344,7 @@ export default function RestorationStudioPage(){
           <div className="rounded-2xl border border-white/10 bg-white/[.035] p-5">
             <div className="flex items-end justify-between"><div><p className="text-xs uppercase tracking-[.24em] text-white/35">History</p><h2 className="mt-1 text-xl">Restoration lineage</h2></div><span className="text-xs text-white/35">{snapshot.versions.length+snapshot.reconstructions.length+snapshot.vocalRepairs.length}</span></div>
             <div className="mt-4 max-h-[420px] space-y-2 overflow-auto pr-1">
-              {[...snapshot.versions.map(item=>({...item,_type:"version"})),...snapshot.reconstructions.map(item=>({...item,_type:"instrument reconstruction"})),...snapshot.vocalRepairs.map(item=>({...item,_type:"vocal restoration"}))].sort((x,y)=>String(x.created_at??"").localeCompare(String(y.created_at??""))).map((item,index)=><div key={String(item.id??index)} className="rounded-xl border border-white/7 bg-black/20 p-3"><div className="flex justify-between gap-3"><p className="text-sm capitalize">{String(item._type)}</p><p className="text-xs text-white/35">{String(item.created_at??"").slice(0,16).replace("T"," ")}</p></div><p className="mt-1 truncate font-mono text-[10px] text-white/25">{String(item.output_artifact_id??item.id??"")}</p></div>)}
+              {historyRows.map((item,index)=><div key={String(item.id??index)} className="rounded-xl border border-white/7 bg-black/20 p-3"><div className="flex justify-between gap-3"><p className="text-sm capitalize">{String(item._type)}</p><p className="text-xs text-white/35">{String(item.created_at??"").slice(0,16).replace("T"," ")}</p></div><p className="mt-1 truncate font-mono text-[10px] text-white/25">{String(item.output_artifact_id??item.id??"")}</p></div>)}
             </div>
           </div>
         </section>
@@ -348,7 +354,7 @@ export default function RestorationStudioPage(){
             <div className="flex items-end justify-between"><div><p className="text-xs uppercase tracking-[.24em] text-white/35">Jobs</p><h2 className="mt-1 text-xl">Runtime activity</h2></div><span className="text-xs text-white/35">{snapshot.jobs.length}</span></div>
             <div className="mt-4 max-h-[320px] space-y-2 overflow-auto pr-1">
               {snapshot.jobs.length===0&&<p className="text-sm text-white/35">No restoration jobs yet.</p>}
-              {snapshot.jobs.slice().reverse().map((item,index)=><div key={String(item.id??index)} className="rounded-xl border border-white/7 bg-black/20 p-3"><div className="flex justify-between gap-3"><p className="text-sm capitalize">{String(item.kind??"job").replace(/-/g," ")}</p><p className="text-xs text-white/45">{String(item.status??"unknown")}</p></div>{item.error&&<p className="mt-1 text-xs text-rose-200/70">{String(item.error)}</p>}</div>)}
+              {snapshot.jobs.slice().reverse().map((item,index)=><div key={String(item.id??index)} className="rounded-xl border border-white/7 bg-black/20 p-3"><div className="flex justify-between gap-3"><p className="text-sm capitalize">{String(item.kind??"job").replace(/-/g," ")}</p><p className="text-xs text-white/45">{String(item.status??"unknown")}</p></div>{Boolean(item.error)&&<p className="mt-1 text-xs text-rose-200/70">{String(item.error)}</p>}</div>)}
             </div>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[.035] p-5">
