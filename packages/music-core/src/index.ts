@@ -19,6 +19,8 @@ export * from "./audio-engine.js";
 export * from "./realtime-audio-engine.js";
 export * from "./studio-adapter.js";
 export * from "./mobile-adapter.js";
+export * from "./instrument-replacement.js";
+export * from "./instrument-reconstruction.js";
 export * from "./restoration-engine/index.js";
 export * from "./user-scoped-playback-resolver.js";
 export * from "./playback-host.js";
