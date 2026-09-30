@@ -77,6 +77,7 @@ export HUNYUAN_VIDEO_MODEL_VERSION="${HUNYUAN_VIDEO_MODEL_VERSION:-HunyuanVideo-
 
 echo "Bootstrapping localhost Music restoration sidecar"
 DIRECTOR_SOURCE_REF="$DIRECTOR_SOURCE_REF" \
+MUSIC_RESTORATION_WORKER_TOKEN="${MUSIC_RESTORATION_WORKER_TOKEN:-$DIRECTOR_HUNYUAN_WORKER_TOKEN}" \
 MUSIC_RESTORATION_BIND_HOST=127.0.0.1 \
 MUSIC_RESTORATION_PORT=8093 \
 bash "$ROOT/crispy-waddle/scripts/music-restoration-runpod-bootstrap.sh" --background
