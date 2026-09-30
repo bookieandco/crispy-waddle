@@ -306,7 +306,7 @@ $$;
 create or replace function music_private.upsert_learning(
   p_project_id uuid,p_learning_key text,p_status text,p_confidence numeric,p_finding text,
   p_reusable_signals jsonb,p_evidence_refs jsonb
-) returns public.jhadina_music_learning language plpgsql security definer set search_path='' as $
+) returns public.jhadina_music_learning language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=auth.uid(); v_row public.jhadina_music_learning;
 begin
   if v_user is null then raise exception 'authentication required'; end if;
@@ -318,14 +318,14 @@ begin
     status=excluded.status,confidence=excluded.confidence,finding=excluded.finding,reusable_signals=excluded.reusable_signals,
     evidence_refs=excluded.evidence_refs,updated_at=now()
   returning * into v_row; return v_row;
-end $;
+end $$;
 
 create or replace function public.jhadina_music_upsert_learning(
   p_project_id uuid,p_learning_key text,p_status text,p_confidence numeric,p_finding text,
   p_reusable_signals jsonb,p_evidence_refs jsonb
-) returns public.jhadina_music_learning language sql security invoker set search_path='' as $
+) returns public.jhadina_music_learning language sql security invoker set search_path='' as $$
   select * from music_private.upsert_learning(p_project_id,p_learning_key,p_status,p_confidence,p_finding,p_reusable_signals,p_evidence_refs)
-$;
+$$;
 
 revoke all on all functions in schema music_private from public;
 grant execute on all functions in schema music_private to authenticated;
