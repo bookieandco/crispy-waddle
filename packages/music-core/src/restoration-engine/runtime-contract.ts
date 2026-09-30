@@ -180,9 +180,20 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     baseUrl: string,
     private readonly bearerToken: string,
     private readonly fetcher: typeof fetch = fetch,
+    private readonly identityUserId?: string,
   ) {
     this.baseUrl = normalizeBaseUrl(baseUrl);
     if (!bearerToken.trim()) throw new Error("Music restoration runtime bearer token is required.");
+    if (identityUserId !== undefined && !identityUserId.trim()) {
+      throw new Error("Music restoration runtime identity user id cannot be empty.");
+    }
+  }
+
+  private authHeaders(): Record<string, string> {
+    return {
+      Authorization: `Bearer ${this.bearerToken}`,
+      ...(this.identityUserId ? { "X-Jhadina-User-Id": this.identityUserId } : {}),
+    };
   }
 
   async probe(source: RestorationRuntimeSource): Promise<RestorationProbeReceipt> {
@@ -252,7 +263,7 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
       : `${this.baseUrl}${resultUri.startsWith("/") ? "" : "/"}${resultUri}`;
     if (!url.startsWith(this.baseUrl + "/")) throw new Error("Music restoration artifact URI escaped the admitted runtime.");
     const response = await this.fetcher(url, {
-      headers: { Authorization: `Bearer ${this.bearerToken}` },
+      headers: this.authHeaders(),
       redirect: "error",
     });
     if (!response.ok) throw new Error(`Music restoration artifact download failed (${response.status}).`);
@@ -263,7 +274,7 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     const response = await this.fetcher(this.baseUrl + path, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${this.bearerToken}`,
+        ...this.authHeaders(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
