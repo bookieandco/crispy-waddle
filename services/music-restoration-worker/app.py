@@ -16,6 +16,7 @@ from vercel_oidc import authorize_vercel_token
 from worker import (
     RestorationWorkerConfig,
     artifact_path,
+    assess_instrument_replacement_path,
     execute_reconstruction_path,
     execute_repair_path,
     perceive_path,
@@ -70,6 +71,19 @@ class ReconstructionSegment(BaseModel):
     sourceResidualMix:float=Field(ge=0,le=0.25)
     fadeMs:float=Field(ge=0,le=250)
     phaseInvert:bool=False
+
+class InstrumentAssessmentSegment(BaseModel):
+    sourceStartMs:float=Field(ge=0)
+    sourceEndMs:float=Field(gt=0)
+    replacementStartMs:float=Field(ge=0)
+    replacementEndMs:float=Field(gt=0)
+
+class InstrumentAssessmentRequest(BaseModel):
+    assessmentId:str=Field(min_length=1,max_length=240)
+    source:SourceRef
+    replacement:SourceRef
+    instrumentFamily:str=Field(min_length=1,max_length=64)
+    segments:list[InstrumentAssessmentSegment]=Field(min_length=1,max_length=64)
 
 class ReconstructRequest(BaseModel):
     jobId:str=Field(min_length=1,max_length=240)
@@ -174,6 +188,27 @@ def execute(body:ExecuteRequest,authorization:str|None=Header(default=None))->di
                 body.sampleRate,
                 body.channels,
                 _config,
+            )
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/reconstruction/assess")
+def assess_instrument_replacement(
+    body:InstrumentAssessmentRequest,
+    authorization:str|None=Header(default=None),
+)->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-assess-source-") as source_temp, \
+             tempfile.TemporaryDirectory(prefix="music-assess-donor-") as donor_temp:
+            source=_stage(body.source,Path(source_temp))
+            replacement=_stage(body.replacement,Path(donor_temp))
+            return assess_instrument_replacement_path(
+                source,replacement,
+                body.source.artifactId,body.source.sha256,
+                body.replacement.artifactId,body.replacement.sha256,
+                body.assessmentId,body.instrumentFamily,
+                [segment.model_dump() for segment in body.segments],
             )
     except Exception as exc:
         raise _error(exc) from exc
