@@ -1,0 +1,53 @@
+name: Music Juggernaut Final Certification
+
+on:
+  pull_request:
+    paths:
+      - "packages/growth-core/src/music-juggernaut/**"
+      - "packages/growth-core/src/index.ts"
+      - "apps/jhadina-web/src/lib/music/**"
+      - "apps/jhadina-web/src/lib/intelligence/ask-music-juggernaut-command*"
+      - "apps/jhadina-web/src/app/api/music/juggernaut/**"
+      - "apps/jhadina-web/src/app/api/jhadina/command/route.ts"
+      - "apps/jhadina-web/src/app/music/**"
+      - "supabase/migrations/20260930170000_music_juggernaut_final.sql"
+      - "supabase/migrations/20260930170500_growth_direct_audience_consent.sql"
+      - ".github/workflows/music-juggernaut-final.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/growth-core/src/music-juggernaut/**"
+      - "apps/jhadina-web/src/lib/music/**"
+      - "apps/jhadina-web/src/app/api/music/juggernaut/**"
+
+jobs:
+  certify:
+    name: MUSIC-JUGGERNAUT.FINAL
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+      - name: Growth Core type-check
+        run: pnpm --filter @jhadina/growth-core type-check
+      - name: Growth Core Music tests
+        run: pnpm --filter @jhadina/growth-core test -- src/music-juggernaut
+      - name: Jhadina Web type-check
+        run: pnpm --filter @jhadina/jhadina-web type-check
+      - name: Music web regression tests
+        run: pnpm --filter @jhadina/jhadina-web test -- src/lib/intelligence/ask-music-juggernaut-command.test.ts src/lib/music/music-paid-proposal-bridge.test.ts
+      - name: Verify governed persistence
+        run: |
+          test -f supabase/migrations/20260930170000_music_juggernaut_final.sql
+          test -f supabase/migrations/20260930170500_growth_direct_audience_consent.sql
+          grep -q "enable row level security" supabase/migrations/20260930170000_music_juggernaut_final.sql
+          grep -q "consent evidence reference required" supabase/migrations/20260930170500_growth_direct_audience_consent.sql
+          grep -q "GROWTH_PAID_AD_MUST_REQUIRE_APPROVAL" apps/jhadina-web/src/lib/growth/governed-paid-campaign.ts
