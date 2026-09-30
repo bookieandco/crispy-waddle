@@ -1,5 +1,5 @@
 import { decideJuggernautAutonomy, precheckRightsForScale } from './governance.js';
-import { chooseJuggernautMode, decidePromotionSpend, detectCreativeOutlier, recommendVenueCapacity, validateExperimentPlan } from './intelligence.js';
+import { chooseJuggernautMode, consolidateCreativeOutliers, decidePromotionSpend, detectCreativeOutlier, recommendVenueCapacity, validateExperimentPlan } from './intelligence.js';
 import { canTransitionMusicCampaign } from './state.js';
 import type { CityDemand, ContentExperiment, PerformanceObservation, PromotionBudget, RightsRecord } from './domain.js';
 
@@ -26,12 +26,26 @@ export function certifyMusicJuggernautCore(): MusicJuggernautCertification {
     observedAt: '2026-09-30T12:00:00.000Z',
     evidenceRefs: ['evidence:obs-1'],
   };
-  const outlier = detectCreativeOutlier(observation, {
+  const baseline = {
     medianViews: 800,
     medianSongActions: 60,
     medianDirectFanCaptures: 10,
     minimumExposures: 500,
-  });
+  };
+  const sampleOutlier = detectCreativeOutlier(observation, baseline);
+  const repeatedObservation: PerformanceObservation = {
+    ...observation,
+    id: 'obs-2',
+    views: 2200,
+    songActions: 275,
+    directFanCaptures: 62,
+    observedAt: '2026-09-30T13:00:00.000Z',
+    evidenceRefs: ['evidence:obs-2'],
+  };
+  const outlier = consolidateCreativeOutliers([
+    sampleOutlier,
+    detectCreativeOutlier(repeatedObservation, baseline),
+  ])[0]!;
   const budget: PromotionBudget = {
     approvedMinor: 100000,
     spentMinor: 10000,
@@ -81,8 +95,9 @@ export function certifyMusicJuggernautCore(): MusicJuggernautCertification {
   });
   const checks = [
     {name:'state-machine', passed:canTransitionMusicCampaign('EXPLORING','EARLY_SIGNAL') && !canTransitionMusicCampaign('INGESTED','SCALING')},
-    {name:'outlier-detection', passed:outlier.status === 'validated'},
-    {name:'attack-mode', passed:chooseJuggernautMode({outliers:[outlier]}) === 'ATTACK'},
+    {name:'outlier-detection', passed:sampleOutlier.status === 'validated' && sampleOutlier.replicationCount === 1},
+    {name:'replication-gate', passed:outlier.status === 'validated' && outlier.replicationCount >= 2},
+    {name:'attack-mode', passed:chooseJuggernautMode({outliers:[sampleOutlier]}) === 'SEARCH' && chooseJuggernautMode({outliers:[outlier]}) === 'ATTACK'},
     {name:'bounded-spend', passed:spend.action === 'CONTROLLED_SCALE' && spend.authorizedMinor === 10000 && !spend.requiresApproval},
     {name:'rights-gate', passed:precheckRightsForScale(rights).length === 0},
     {name:'autonomy-boundary', passed:!decideJuggernautAutonomy('contract_sign').allowedWithoutApproval && decideJuggernautAutonomy('analyze').allowedWithoutApproval},
