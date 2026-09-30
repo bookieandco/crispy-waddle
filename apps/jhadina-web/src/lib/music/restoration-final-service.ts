@@ -219,15 +219,17 @@ export async function certifyRestorationFinal(input: {
     throw new Error(`MUSIC_RESTORATION_FINAL_RECEIPT_READ_FAILED: ${existingError.message}`);
   }
   if (existing) {
+    const historicalEvidence: RestorationFinalEvidence = {
+      ...preflight.evidence,
+      artifactHashesVerified: true,
+      dawBundleSha256: String(existing.bundle_sha256),
+    };
+    const decision = evaluateRestorationFinalCertification(historicalEvidence);
     return {
-      certified: true as const,
+      certified: decision.status === "certified",
       persisted: existing,
       runtime: preflight.runtime,
-      decision: {
-        ...preflight.decision,
-        status: "certified" as const,
-        reasons: [],
-      },
+      decision,
     };
   }
 
