@@ -148,7 +148,7 @@ test('SPORT-SIM.2F ranks alpha, automatically creates PaperCore wagers, and pres
 
   const position:OpenPositionSnapshot=Object.freeze({
     positionId:'pos:1',domain:'SPORTS_BETTING',instrumentId:good.instrumentId,side:'YES',quantity:1,entryPrice:.5,currentExecutableExitPrice:.58,currentExecutableAddPrice:.59,
-    unrealizedPnlMinor:800n,peakUnrealizedPnlMinor:900n,grossExposureMinor:1000n,currency:'USD',openedAt:'2026-09-27T17:00:00Z',observedAt:'2026-09-27T18:00:30Z',
+    costBasisMinor:5000n,currentValueMinor:5800n,unrealizedPnlMinor:800n,peakUnrealizedPnlMinor:900n,grossExposureMinor:5900n,currency:'USD',openedAt:'2026-09-27T17:00:00Z',observedAt:'2026-09-27T18:00:30Z',
     evidenceIds:Object.freeze(['position:e1']),authority:'EVIDENCE_ONLY',
   })
   const decision=reunderwriteSportsPositionFromAlpha({position,alpha:good,evaluatedAt:'2026-09-27T18:01:00Z',thesisStrengthBps:8000,invalidationRiskBps:2000,momentumBps:6000})
