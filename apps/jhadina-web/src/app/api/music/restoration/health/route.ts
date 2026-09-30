@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getMusicRestorationRuntimeHealth,
   isMusicRestorationRuntimeConfigured,
+  musicRestorationRuntimeAuthMode,
 } from "@/lib/music/restoration-runtime-server";
 
 export const runtime = "nodejs";
@@ -15,6 +16,7 @@ export async function GET() {
       providerId: "music-restoration-worker",
       status: "not-configured",
       productionReady: false,
+      authMode: musicRestorationRuntimeAuthMode(),
     }, {
       headers: { "cache-control": "no-store" },
     });
@@ -29,6 +31,7 @@ export async function GET() {
       providerId: "music-restoration-worker",
       status: productionReady ? "ready" : String(health.status ?? "blocked"),
       productionReady,
+      authMode: musicRestorationRuntimeAuthMode(),
       health,
     }, {
       headers: { "cache-control": "no-store" },
@@ -40,6 +43,7 @@ export async function GET() {
       providerId: "music-restoration-worker",
       status: "unavailable",
       productionReady: false,
+      authMode: musicRestorationRuntimeAuthMode(),
       error: cause instanceof Error ? cause.message : "MUSIC_RESTORATION_WORKER_HEALTH_FAILED",
     }, {
       headers: { "cache-control": "no-store" },

@@ -3,9 +3,11 @@ from __future__ import annotations
 import hmac
 import os
 from typing import Any
-from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse
+import httpx
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import FileResponse, StreamingResponse
 from worker import HunyuanJobManager, HunyuanRuntimeConfig, runtime_readiness
+from music_proxy_policy import music_proxy_path_allowed
 
 app=FastAPI(title="Jhadina Director HunyuanVideo-1.5",version="1.0")
 _manager:HunyuanJobManager|None=None
@@ -38,6 +40,54 @@ def live()->dict[str,object]:
 def health()->dict[str,object]:
     readiness=runtime_readiness(_config())
     return {"status":"ready" if readiness["productionReady"] else "blocked",**readiness}
+
+
+_MUSIC_SIDECAR_URL=os.getenv("MUSIC_RESTORATION_SIDECAR_URL","http://127.0.0.1:8093").rstrip("/")
+@app.api_route("/music-restoration/{path:path}",methods=["GET","POST"])
+async def music_restoration_proxy(path:str,request:Request):
+    if not music_proxy_path_allowed(path,request.method):
+        raise HTTPException(status_code=404,detail="MUSIC_RESTORATION_PROXY_PATH_NOT_ADMITTED")
+    headers:dict[str,str]={}
+    authorization=request.headers.get("authorization")
+    content_type=request.headers.get("content-type")
+    if authorization:
+        headers["authorization"]=authorization
+    if content_type:
+        headers["content-type"]=content_type
+    client=httpx.AsyncClient(timeout=httpx.Timeout(3700.0,connect=10.0),follow_redirects=False)
+    try:
+        upstream_request=client.build_request(
+            request.method,
+            f"{_MUSIC_SIDECAR_URL}/{path}",
+            params=request.query_params,
+            headers=headers,
+            content=await request.body(),
+        )
+        upstream=await client.send(upstream_request,stream=True)
+    except Exception as exc:
+        await client.aclose()
+        raise HTTPException(status_code=503,detail="MUSIC_RESTORATION_SIDECAR_UNAVAILABLE") from exc
+
+    response_headers={"cache-control":"no-store"}
+    disposition=upstream.headers.get("content-disposition")
+    if disposition:
+        response_headers["content-disposition"]=disposition
+    media_type=upstream.headers.get("content-type","application/octet-stream")
+
+    async def stream():
+        try:
+            async for chunk in upstream.aiter_raw():
+                yield chunk
+        finally:
+            await upstream.aclose()
+            await client.aclose()
+
+    return StreamingResponse(
+        stream(),
+        status_code=upstream.status_code,
+        media_type=media_type,
+        headers=response_headers,
+    )
 
 @app.post("/v1/jobs")
 def submit(body:dict[str,Any],authorization:str|None=Header(default=None),idempotency_key:str|None=Header(default=None,alias="idempotency-key"))->dict[str,Any]:
