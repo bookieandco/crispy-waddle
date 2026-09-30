@@ -210,6 +210,17 @@ export function reunderwriteSportsPositionFromAlpha(input:{
       thesisStrengthBps:input.thesisStrengthBps,
       invalidationRiskBps:input.invalidationRiskBps,
       liquidityQualityBps:input.alpha.liquidityQualityBps,
+      // Sports quotes currently expose a normalized liquidity-quality score, not
+      // exact depth in USD. Keep the richer generic position schema explicit
+      // without fabricating venue depth or crypto-specific behavioral signals.
+      liquidityUsd:0,
+      smartWalletExitRiskBps:0,
+      smartWalletNetFlowUsd:0,
+      narrativeDegradationBps:0,
+      whaleDistributionRiskBps:0,
+      whaleNetFlowUsd:0,
+      thesisInvalidated:false,
+      thesisInvalidationReasons:Object.freeze([]),
       momentumBps:input.momentumBps,
       correlationRiskBps:0,
       alphaRoutes:Object.freeze([]),
