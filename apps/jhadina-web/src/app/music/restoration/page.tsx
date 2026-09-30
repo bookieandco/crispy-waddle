@@ -27,6 +27,11 @@ type Snapshot = {
   manifest:{tracks:Array<{artifactId:string;name:string;role:string;fileName:string}>};
 };
 type HistoryDisplayRow = Record<string,unknown> & {_type:string};
+type FinalDecision = {
+  status:"certified"|"blocked";
+  checks:Array<{id:string;passed:boolean;reason:string}>;
+  reasons:string[];
+};
 
 function roleLabel(artifact:StudioArtifact):string {
   if(artifact.role==="vocals")return "Vocals";
@@ -118,6 +123,7 @@ export default function RestorationStudioPage(){
   const [busy,setBusy]=useState(false);
   const [aId,setAId]=useState("");
   const [bId,setBId]=useState("");
+  const [finalDecision,setFinalDecision]=useState<FinalDecision|null>(null);
 
   const loadCases=useCallback(async(uid:string)=>{
     const response=await fetch("/api/music/restoration/studio",{cache:"no-store",headers:{"x-jhadina-user-id":uid}});
@@ -135,6 +141,7 @@ export default function RestorationStudioPage(){
     if(!response.ok)throw new Error(body.error||"Unable to load restoration case");
     const next=body as Snapshot;
     setSnapshot(next);
+    setFinalDecision(null);
     const playable=next.artifacts.filter(item=>item.downloadUrl);
     setAId(current=>playable.some(item=>item.id===current)?current:(playable[0]?.id??""));
     setBId(current=>playable.some(item=>item.id===current)?current:(playable.at(-1)?.id??""));
@@ -209,6 +216,35 @@ export default function RestorationStudioPage(){
     const href=URL.createObjectURL(blob);
     const anchor=document.createElement("a");anchor.href=href;anchor.download=name;anchor.click();
     URL.revokeObjectURL(href);
+  }
+
+  async function finalCertification(certify:boolean){
+    if(!userId||!snapshot)return;
+    setBusy(true);
+    setStatus(certify?"Running MUSIC-RESTORE.FINAL certification…":"Checking FINAL readiness…");
+    try{
+      const endpoint="/api/music/restoration/final";
+      const response=certify
+        ? await fetch(endpoint,{
+            method:"POST",
+            headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+            body:JSON.stringify({caseId:snapshot.restorationCase.id,certify:true}),
+          })
+        : await fetch(endpoint+"?caseId="+encodeURIComponent(snapshot.restorationCase.id),{
+            cache:"no-store",
+            headers:{"x-jhadina-user-id":userId},
+          });
+      const body=await response.json();
+      if(body.decision)setFinalDecision(body.decision as FinalDecision);
+      if(!response.ok&&response.status!==409)throw new Error(body.error||"FINAL certification check failed");
+      if(body.decision?.status==="certified"){
+        setStatus("MUSIC-RESTORE.FINAL certified for the current version.");
+      }else{
+        const first=body.decision?.reasons?.[0];
+        setStatus(first?("FINAL blocked: "+first):"FINAL remains blocked.");
+      }
+    }catch(error){setStatus(error instanceof Error?error.message:"FINAL certification failed")}
+    finally{setBusy(false)}
   }
 
   async function review(decision:"approved"|"rejected"){
@@ -347,6 +383,23 @@ export default function RestorationStudioPage(){
               {historyRows.map((item,index)=><div key={String(item.id??index)} className="rounded-xl border border-white/7 bg-black/20 p-3"><div className="flex justify-between gap-3"><p className="text-sm capitalize">{String(item._type)}</p><p className="text-xs text-white/35">{String(item.created_at??"").slice(0,16).replace("T"," ")}</p></div><p className="mt-1 truncate font-mono text-[10px] text-white/25">{String(item.output_artifact_id??item.id??"")}</p></div>)}
             </div>
           </div>
+        </section>
+
+        <section className="mt-8 rounded-2xl border border-white/10 bg-white/[.035] p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[.24em] text-white/35">MUSIC-RESTORE.FINAL</p>
+              <h2 className="mt-1 text-xl">Real-song certification</h2>
+              <p className="mt-2 max-w-2xl text-sm text-white/40">Fail-closed proof of live runtime, source/stem/perception receipts, consequential repair, passed QC, human approval, artifact hashes and the exact DAW bundle.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={()=>finalCertification(false)} disabled={busy} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Preflight FINAL</button>
+              <button onClick={()=>finalCertification(true)} disabled={busy} className="rounded-xl bg-amber-300 px-4 py-2 text-xs font-semibold text-black disabled:opacity-30">Certify FINAL</button>
+            </div>
+          </div>
+          {finalDecision&&<div className="mt-5 grid gap-2 md:grid-cols-2">
+            {finalDecision.checks.map(item=><div key={item.id} className={"rounded-xl border p-3 "+(item.passed?"border-emerald-300/15 bg-emerald-300/[.04]":"border-amber-300/15 bg-amber-300/[.04]")}><div className="flex items-center justify-between gap-3"><p className="text-sm capitalize">{item.id.replace(/-/g," ")}</p><span className={item.passed?"text-xs text-emerald-200":"text-xs text-amber-200"}>{item.passed?"PASS":"BLOCKED"}</span></div><p className="mt-1 text-xs leading-5 text-white/40">{item.reason}</p></div>)}
+          </div>}
         </section>
 
         <section className="mt-8 grid gap-4 lg:grid-cols-2">
