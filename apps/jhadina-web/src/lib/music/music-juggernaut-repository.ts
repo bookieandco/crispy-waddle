@@ -16,6 +16,7 @@ export interface MusicJuggernautRepository {
   recordObservation(input:{projectId:string;experimentId:string;observationKey:string;observedAt:string;metrics:Row;botRisk:number;attributionConfidence:number;evidenceRefs:string[]}):Promise<Row>;
   upsertCityDemand(input:{projectId:string;cityKey:string;cityName:string;listeners:number;directFans:number;showInterest:number;priorAttendees:number;repeatFans:number;evidenceRefs:string[];observedAt:string}):Promise<Row>;
   upsertRights(input:{projectId:string;assetKey:string;masterOwnershipKnown:boolean;publishingKnown:boolean;sampleStatus:string;thirdPartyUsageStatus:string;evidenceRefs:string[]}):Promise<Row>;
+  upsertLearning(input:{projectId:string;learningKey:string;status:'provisional'|'validated'|'rejected';confidence:number;finding:string;reusableSignals:Row;evidenceRefs:string[]}):Promise<Row>;
 }
 
 export function createMusicJuggernautRepository():MusicJuggernautRepository{
@@ -67,6 +68,12 @@ export function createMusicJuggernautRepository():MusicJuggernautRepository{
       return rpcOne('jhadina_music_upsert_rights',{
         p_project_id:input.projectId,p_asset_key:input.assetKey,p_master_ownership_known:input.masterOwnershipKnown,p_publishing_known:input.publishingKnown,
         p_sample_status:input.sampleStatus,p_third_party_usage_status:input.thirdPartyUsageStatus,p_evidence_refs:input.evidenceRefs,
+      });
+    },
+    async upsertLearning(input){
+      return rpcOne('jhadina_music_upsert_learning',{
+        p_project_id:input.projectId,p_learning_key:input.learningKey,p_status:input.status,p_confidence:input.confidence,
+        p_finding:input.finding,p_reusable_signals:input.reusableSignals,p_evidence_refs:input.evidenceRefs,
       });
     },
   };
