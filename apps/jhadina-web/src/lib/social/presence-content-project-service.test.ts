@@ -87,7 +87,7 @@ describe("Presence Campaign -> Social Content Project service", () => {
       project,
       presenceCampaignId,
     }))
-    const link = vi.fn(async (_userId, campaignId, contentProjectId) => ({
+    const link = vi.fn(async (_userId, _campaignId, contentProjectId) => ({
       ...campaign,
       contentProjectId,
       status: "active" as const,
