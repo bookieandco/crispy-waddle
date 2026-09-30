@@ -23,7 +23,7 @@ const NOW='2026-09-29T03:00:00.000Z';
 const OWNER='00000000-0000-0000-0000-000000000001';
 
 describe('Bonez canonical Director package',()=>{
-  it('validates the cast and keeps the uploaded visual reference as identity authority',()=>{
+  it('validates the cast and keeps the v2 visual reference as identity authority',()=>{
     const cast=bonezCastRecord(NOW,OWNER);
     expect(validateCharacterCastRecord(cast)).toEqual([]);
     expect(cast.characterId).toBe(BONEZ_CHARACTER_ID);
@@ -60,7 +60,7 @@ describe('Bonez canonical Director package',()=>{
     const bible=bonezProductBible();
     expect(validateProductIdentityBible(bible)).toEqual([]);
     expect(bible.referenceViews[0]?.assetId).toBe(BONEZ_PRODUCT_REFERENCE_ASSET_ID);
-    expect(bible.labelAuthorities[0]?.text).toBe('TALES FROM THE CRIP');
+    expect(bible.labelAuthorities).toEqual([]);
     expect(BONEZ_CANON.confirmed.join(' ')).not.toContain('art print');
   });
 

@@ -21,11 +21,9 @@ vi.mock('node:crypto',()=>({
     return {
       update(value:Uint8Array){first=Number(value[0]??0);return this;},
       digest(){
-        return first===1
-          ?'bc3cf5b39b814eac4a18320ece12cc026d5607e1baa41e0355584efa050d89cc'
-          :first===2
-            ?'8e09332025a170adf956d726e2774cab7987ec6052644375960bf467bc2847ef'
-            :'bad-hash';
+        return first===1||first===2
+          ?'fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6'
+          :'bad-hash';
       },
     };
   }),
@@ -66,8 +64,8 @@ describe('Bonez reference staging route',()=>{
       phase:'DIRECTOR-QUALITY.2-STAGED',
       token:'one-time-machine-token',
       expiresAt:'2026-09-29T18:00:00.000Z',
-      character:{sha256:'bc3cf5b39b814eac4a18320ece12cc026d5607e1baa41e0355584efa050d89cc'},
-      product:{sha256:'8e09332025a170adf956d726e2774cab7987ec6052644375960bf467bc2847ef'},
+      character:{sha256:'fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6'},
+      product:{sha256:'fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6'},
     }),{status:200,headers:{'content-type':'application/json'}}));
 
     const form=new FormData();

@@ -28,7 +28,7 @@ describe('Bonez quality bootstrap OIDC fallback',()=>{
       phase:'DIRECTOR-QUALITY.2-LIVE',
       projectId:'director:bonez:production-quality:v1',
       characterId:'bonez',
-      references:{character:{assetId:'director-ref:bonez:canonical:v1'},product:{assetId:'director-ref:bonez:product-print:v1'}},
+      references:{character:{assetId:'director-ref:bonez:canonical:v2'},product:{assetId:'director-ref:bonez:product-print:v2'}},
       voiceIdentityIds:[],
       privilegedTransport:'vercel-oidc-supabase-edge',
     }),{status:200,headers:{'content-type':'application/json'}}));
@@ -54,8 +54,8 @@ describe('Bonez quality bootstrap OIDC fallback',()=>{
     expect(body.token).toBe('bootstrap-token');
     expect(body.canonical.projectId).toBe('director:bonez:production-quality:v1');
     expect(body.canonical.characterId).toBe('bonez');
-    expect(body.canonical.references.character.expectedSha).toBe('bc3cf5b39b814eac4a18320ece12cc026d5607e1baa41e0355584efa050d89cc');
-    expect(body.canonical.references.product.expectedSha).toBe('8e09332025a170adf956d726e2774cab7987ec6052644375960bf467bc2847ef');
+    expect(body.canonical.references.character.expectedSha).toBe('fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6');
+    expect(body.canonical.references.product.expectedSha).toBe('fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6');
   });
 
   it('fails closed when neither a service role nor Vercel OIDC is available',async()=>{

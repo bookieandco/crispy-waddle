@@ -108,8 +108,8 @@ describe('Bonez quality preflight',()=>{
       ok:true,
       projectId:'director:bonez:production-quality:v1',
       references:[
-        {id:'director-ref:bonez:canonical:v1',sha256:'bc3cf5b39b814eac4a18320ece12cc026d5607e1baa41e0355584efa050d89cc',referenceKind:'character',admissionStatus:'admitted',scanStatus:'clean'},
-        {id:'director-ref:bonez:product-print:v1',sha256:'8e09332025a170adf956d726e2774cab7987ec6052644375960bf467bc2847ef',referenceKind:'product',admissionStatus:'admitted',scanStatus:'clean'},
+        {id:'director-ref:bonez:canonical:v2',sha256:'fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6',referenceKind:'character',admissionStatus:'admitted',scanStatus:'clean'},
+        {id:'director-ref:bonez:product-print:v2',sha256:'fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6',referenceKind:'product',admissionStatus:'admitted',scanStatus:'clean'},
       ],
       cast:{id:'cast:bonez:v1',characterId:'bonez'},
       voiceIdentities:[{
@@ -201,8 +201,8 @@ describe('Bonez quality preflight',()=>{
       ok:true,
       projectId:'director:bonez:production-quality:v1',
       references:[
-        {id:'director-ref:bonez:canonical:v1',sha256:'bc3cf5b39b814eac4a18320ece12cc026d5607e1baa41e0355584efa050d89cc',referenceKind:'character',admissionStatus:'admitted',scanStatus:'clean'},
-        {id:'director-ref:bonez:product-print:v1',sha256:'8e09332025a170adf956d726e2774cab7987ec6052644375960bf467bc2847ef',referenceKind:'product',admissionStatus:'admitted',scanStatus:'clean'},
+        {id:'director-ref:bonez:canonical:v2',sha256:'fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6',referenceKind:'character',admissionStatus:'admitted',scanStatus:'clean'},
+        {id:'director-ref:bonez:product-print:v2',sha256:'fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6',referenceKind:'product',admissionStatus:'admitted',scanStatus:'clean'},
       ],
       cast:{id:'cast:bonez:v1',characterId:'bonez'},
       voiceIdentities:[{
@@ -250,8 +250,8 @@ describe('Bonez quality preflight',()=>{
     };
     const q4={
       id:'live-take:bonez:q4:1',purpose:'quality4-canary',
-      referenceAssetId:'director-ref:bonez:canonical:v1',
-      referenceSha256:'bc3cf5b39b814eac4a18320ece12cc026d5607e1baa41e0355584efa050d89cc',
+      referenceAssetId:'director-ref:bonez:canonical:v2',
+      referenceSha256:'fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6',
       audioAssetId:'asset:audio:bonez:voice-audition:v1',voiceIdentityId:'voice:bonez:canonical:v1',
       speakerFingerprintReceiptId:'speaker-fingerprint:bonez:real',speakerFingerprintRef:fingerprint,
       providerId:'hunyuan-video-1.5',modelId:'hunyuan-video-1.5-480p-i2v-step-distilled',
