@@ -1,16 +1,10 @@
 import { createHash } from 'node:crypto'
-import { once } from 'node:events'
-import { createReadStream, createWriteStream } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { createInterface } from 'node:readline'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { classifySamNoticeChange, computeSamMarketCoverage, nextSamBootstrapWindow, normalizeSamWideNotice, type SamCoverageInterval, type SamMarketCoverage, type SamWideNotice } from '@jhadina/opportunity-core'
-import { scanSamOpportunityWindow } from './sam-client'
+import { scanSamOpportunityWindow, searchSamOpportunities } from './sam-client'
 import { extractSamAttachmentText } from './sam-document-extractor'
 import { getSamApiKey } from './sam-config'
-import { certifySamBulkCoverageRange, samBulkNdjsonLine, samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
+import { certifySamBulkCoverageRange, samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
 
 export type SamWideScanReceipt={
   runId:number
@@ -117,13 +111,6 @@ async function persistSamNoticeChunk(client:SupabaseClient,chunk:SamWideNotice[]
   }
 }
 
-async function endWriter(stream:ReturnType<typeof createWriteStream>){
-  await new Promise<void>((resolve,reject)=>{
-    stream.once('error',reject)
-    stream.end(resolve)
-  })
-}
-
 export async function runSamBulkSnapshotScan(
   client:SupabaseClient,
   input:{targetFrom:string;targetTo:string;sourceUrl?:string},
@@ -155,13 +142,16 @@ export async function runSamBulkSnapshotScan(
     errors:[],
     source:{kind:'bulk_snapshot'},
   }
-  const dir=await mkdtemp(join(tmpdir(),'jhadina-sam-bulk-'))
-  const spoolPath=join(dir,'notices.ndjson')
-  const writer=createWriteStream(spoolPath,{encoding:'utf8'})
-  let writerEnded=false
   const noticeIds=new Set<string>()
   let sourceMinDay:string|null=null
   let sourceMaxDay:string|null=null
+  let pending:SamWideNotice[]=[]
+  const flush=async()=>{
+    if(!pending.length)return
+    const chunk=pending
+    pending=[]
+    await persistSamNoticeChunk(client,chunk,receipt)
+  }
 
   try{
     const capturedAt=new Date().toISOString()
@@ -179,11 +169,11 @@ export async function runSamBulkSnapshotScan(
         noticeIds.add(notice.noticeId)
         receipt.seenRecords+=1
         receipt.resourceLinks+=notice.resourceLinks.length
-        if(!writer.write(samBulkNdjsonLine(notice)))await once(writer,'drain')
+        pending.push(notice)
+        if(pending.length>=250)await flush()
       },
     })
-    await endWriter(writer)
-    writerEnded=true
+    await flush()
 
     if(receipt.seenRecords<1)throw new Error('SAM_BULK_TARGET_WINDOW_EMPTY')
     if(!sourceMinDay||!sourceMaxDay)throw new Error('SAM_BULK_POSTED_DATE_RANGE_MISSING')
@@ -207,24 +197,9 @@ export async function runSamBulkSnapshotScan(
       sourceRows:snapshot.sourceRows,
       snapshotAt:snapshot.lastModified,
     }
-
-    const reader=createInterface({input:createReadStream(spoolPath,{encoding:'utf8'}),crlfDelay:Infinity})
-    let chunk:SamWideNotice[]=[]
-    for await(const line of reader){
-      if(!line.trim())continue
-      chunk.push(JSON.parse(line) as SamWideNotice)
-      if(chunk.length>=250){
-        await persistSamNoticeChunk(client,chunk,receipt)
-        chunk=[]
-      }
-    }
-    if(chunk.length)await persistSamNoticeChunk(client,chunk,receipt)
   }catch(error){
     receipt.status='failed'
     receipt.errors.push(error instanceof Error?error.message:'SAM bulk scan failed')
-  }finally{
-    if(!writerEnded)writer.destroy()
-    await rm(dir,{recursive:true,force:true})
   }
 
   await client.from('jhadina_sam_scan_runs').update({
@@ -344,10 +319,66 @@ export async function harvestSamDocuments(client:SupabaseClient,noticeIds:string
   return {attempted,textCaptured,binaryCaptured,needsOcr,unsupported,failed}
 }
 
+export async function hydrateSamNoticeDetails(client:SupabaseClient,noticeIds:string[]){
+  let hydrated=0
+  const errors:string[]=[]
+  for(const noticeId of noticeIds){
+    try{
+      const page=await searchSamOpportunities({noticeId,limit:5,offset:0})
+      const candidates=Array.isArray(page.opportunitiesData)?page.opportunitiesData:[]
+      const raw=candidates.find(row=>String(row.noticeId??row.solicitationNumber??row.contractOpportunityId??'')===noticeId)??candidates[0]
+      if(!raw){errors.push(`${noticeId}: detail lookup returned no notice`);continue}
+      const notice=normalizeSamWideNotice(raw,new Date().toISOString())
+      const hydrationReceipt:SamWideScanReceipt={
+        runId:0,status:'completed',postedFrom:'',postedTo:'',pages:1,totalRecords:1,seenRecords:1,
+        newRecords:0,amendedRecords:0,unchangedRecords:0,resourceLinks:notice.resourceLinks.length,
+        changedNoticeIds:[],errors:[],source:{kind:'api'},
+      }
+      await persistSamNoticeChunk(client,[notice],hydrationReceipt)
+      hydrated+=1
+    }catch(error){
+      errors.push(`${noticeId}: ${error instanceof Error?error.message:'detail hydration failed'}`)
+    }
+  }
+  return {hydrated,errors}
+}
+
 export async function recentSamNoticeIds(client:SupabaseClient,limit=10):Promise<string[]>{
-  const {data,error}=await client.from('jhadina_sam_catalog').select('notice_id').order('last_seen_at',{ascending:false}).limit(Math.max(1,Math.min(limit,100)))
+  const bounded=Math.max(1,Math.min(limit,100))
+  const {data,error}=await client.from('jhadina_sam_catalog')
+    .select('notice_id,description,notice_type,resource_links,posted_date')
+    .order('posted_date',{ascending:false})
+    .limit(Math.max(50,bounded*10))
   if(error)throw new Error(`Unable to load recent SAM notices: ${error.message}`)
-  return rows(data).map(x=>String(x.notice_id))
+  return rows(data)
+    .map(row=>{
+      const description=typeof row.description==='string'?row.description:''
+      const noticeType=typeof row.notice_type==='string'?row.notice_type:''
+      const links=Array.isArray(row.resource_links)?row.resource_links.length:0
+      const score=links*100+
+        (/attach|performance work statement|\bpws\b|statement of work|\bsow\b/i.test(description)?40:0)+
+        (/solicitation|request for quote|\brfq\b|request for proposal|\brfp\b/i.test(description)?25:0)+
+        (/solicitation|combined synopsis|amendment/i.test(noticeType)?15:0)+
+        (description.length>=500?5:0)
+      return {noticeId:String(row.notice_id),score,postedDate:String(row.posted_date??'')}
+    })
+    .filter(row=>row.noticeId)
+    .sort((a,b)=>b.score-a.score||b.postedDate.localeCompare(a.postedDate))
+    .slice(0,bounded)
+    .map(row=>row.noticeId)
+}
+
+export async function failStaleSamScanRuns(client:SupabaseClient,olderThanMinutes=90){
+  const minutes=Math.max(15,Math.min(Math.floor(olderThanMinutes),24*60))
+  const cutoff=new Date(Date.now()-minutes*60_000).toISOString()
+  const completedAt=new Date().toISOString()
+  const {data,error}=await client.from('jhadina_sam_scan_runs')
+    .update({status:'failed',errors:['SAM_SCAN_ORPHANED_PREVIOUS_RUNTIME'],completed_at:completedAt})
+    .eq('status','running')
+    .lt('started_at',cutoff)
+    .select('id')
+  if(error)throw new Error(`Unable to reconcile stale SAM scan receipts: ${error.message}`)
+  return rows(data).map(row=>Number(row.id)).filter(Number.isFinite)
 }
 
 

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { getGithubOidcToken } from './github-oidc-token'
 
 const DEFAULT_GATEWAY='https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-sam-runtime-gateway'
 
@@ -19,11 +20,8 @@ type RequestShape={
 type Result={data:unknown;error:{message:string;code?:string;details?:string;hint?:string}|null;count:number|null;status:number;statusText:string}
 
 function endpoint(){return process.env.SAM_RUNTIME_GATEWAY_URL?.trim()||DEFAULT_GATEWAY}
-function token(){return process.env.SAM_RUNTIME_OIDC_TOKEN?.trim()}
-
 async function gateway(body:Record<string,unknown>){
-  const oidc=token()
-  if(!oidc)throw new Error('SAM_RUNTIME_OIDC_TOKEN is not configured')
+  const oidc=await getGithubOidcToken('jhadina-sam-runtime','SAM_RUNTIME_OIDC_TOKEN')
   const response=await fetch(endpoint(),{
     method:'POST',
     headers:{authorization:`Bearer ${oidc}`,'content-type':'application/json',accept:'application/json'},

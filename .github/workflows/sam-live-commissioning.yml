@@ -34,6 +34,9 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: https://kqbkaozfjubkjevdfvic.supabase.co
       SAM_RUNTIME_GATEWAY_URL: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-sam-runtime-gateway
       SAM_UPSTREAM_URL: https://crispy-waddle-jhadina-web.vercel.app/api/internal/sam/upstream
+      SAM_ENTITY_REQUEST_BUDGET_PER_ENRICHMENT: "6"
+      SAM_AWARD_REQUEST_BUDGET_PER_ENRICHMENT: "3"
+      USASPENDING_REQUEST_BUDGET_PER_ENRICHMENT: "12"
 
     steps:
       - name: Checkout
