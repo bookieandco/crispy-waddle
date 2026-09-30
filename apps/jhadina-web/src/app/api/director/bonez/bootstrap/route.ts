@@ -8,7 +8,7 @@ import { createConfiguredDirectorHunyuanVideoProvider } from '@/lib/director-hun
 import {
   BONEZ_CANON,
   BONEZ_CHARACTER_ID,
-  BONEZ_ORIGINAL_UPLOAD_SHA256,
+  BONEZ_REFERENCE_SOURCE_SHA256,
   BONEZ_PRODUCT_ID,
   BONEZ_PRODUCT_REFERENCE_ASSET_ID,
   BONEZ_PRODUCT_REFERENCE_SHA256,
@@ -78,9 +78,9 @@ async function uploadReference(input:{
   if(uploadError) throw uploadError;
 
   const evidence=[
-    'source:user-uploaded-bonez-canonical',
-    'original-upload-sha256:'+BONEZ_ORIGINAL_UPLOAD_SHA256,
-    'sanitized-reencode:pillow-rgb-jpeg',
+    'source:model-generated-bonez-canonical-v2',
+    'reference-source-sha256:'+BONEZ_REFERENCE_SOURCE_SHA256,
+    'source-format:image-jpeg',
     'signature:image-jpeg',
     'dimensions:'+inspection.width+'x'+inspection.height,
     'sha256:'+actual,
@@ -178,7 +178,7 @@ function gatewayCanonicalPayload(now:string){
     projectId:BONEZ_PROJECT_ID,
     characterId:BONEZ_CHARACTER_ID,
     rightsRef:BONEZ_RIGHTS_REF,
-    originalUploadSha256:BONEZ_ORIGINAL_UPLOAD_SHA256,
+    referenceSourceSha256:BONEZ_REFERENCE_SOURCE_SHA256,
     references:{
       character:{assetId:BONEZ_REFERENCE_ASSET_ID,expectedSha:BONEZ_REFERENCE_SHA256},
       product:{assetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,expectedSha:BONEZ_PRODUCT_REFERENCE_SHA256},
@@ -221,7 +221,7 @@ async function forwardToBonezGateway(request:Request,token:string|undefined):Pro
     readiness,
     truthBoundary:{
       referenceDerivative:true,
-      originalUploadPreservedBySha256:BONEZ_ORIGINAL_UPLOAD_SHA256,
+      referenceSourcePreservedBySha256:BONEZ_REFERENCE_SOURCE_SHA256,
       unconfirmedOriginNotCanonized:true,
       noQualityClaimYet:true,
     },
@@ -250,14 +250,14 @@ async function bootstrap(request:Request){
       uploadReference({
         client,userId,assetId:BONEZ_REFERENCE_ASSET_ID,bytes:characterBytes,
         expectedSha:BONEZ_REFERENCE_SHA256,kind:'character',
-        objectPath:'bonez/v1/bonez-canonical-character-v1.jpg',
-        filename:'bonez-canonical-character-v1.jpg',viewHint:'close-up',
+        objectPath:'bonez/v2/bonez-canonical-character-v2.jpg',
+        filename:'bonez-canonical-character-v2.jpg',viewHint:'close-up',
       }),
       uploadReference({
         client,userId,assetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,bytes:productBytes,
         expectedSha:BONEZ_PRODUCT_REFERENCE_SHA256,kind:'product',
-        objectPath:'bonez/v1/bonez-lair-art-print-v1.jpg',
-        filename:'bonez-lair-art-print-v1.jpg',viewHint:'front',
+        objectPath:'bonez/v2/bonez-lair-art-print-v2.jpg',
+        filename:'bonez-lair-art-print-v2.jpg',viewHint:'front',
       }),
     ]);
 
@@ -323,7 +323,7 @@ async function bootstrap(request:Request){
       readiness,
       truthBoundary:{
         referenceDerivative:true,
-        originalUploadPreservedBySha256:BONEZ_ORIGINAL_UPLOAD_SHA256,
+        referenceSourcePreservedBySha256:BONEZ_REFERENCE_SOURCE_SHA256,
         unconfirmedOriginNotCanonized:true,
         noQualityClaimYet:true,
       },
