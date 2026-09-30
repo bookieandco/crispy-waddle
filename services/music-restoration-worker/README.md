@@ -1,6 +1,6 @@
 # Music Restoration Worker
 
-Private compute runtime for `MUSIC-RESTORE.1` through `.4`.
+Private compute runtime for `MUSIC-RESTORE.1` through `.6`.
 
 This worker is deliberately narrower than Music Core. It does not choose a repair, approve a repair, mutate provenance, or decide that output quality is acceptable. Music Core owns those decisions. The worker only:
 
@@ -8,6 +8,8 @@ This worker is deliberately narrower than Music Core. It does not choose a repai
 - separates a source into vocals / drums / bass / other with pinned Demucs;
 - derives tempo, beat, conservative downbeat/section, transient, spectral and vocal observations with librosa;
 - executes an allow-listed FFmpeg repair operation after an authorization id is supplied;
+- renders localized instrument reconstruction from a separately verified donor;
+- performs bounded vocal-stem cleanup with pre/post identity-preservation QC;
 - returns hash-bound runtime receipts and named output artifacts.
 
 ## Security boundary
@@ -30,6 +32,9 @@ Source URLs are staged by a network-only module. The staged file must match the 
 - `POST /v1/separate`
 - `POST /v1/perceive`
 - `POST /v1/execute`
+- `POST /v1/reconstruction/assess`
+- `POST /v1/reconstruct`
+- `POST /v1/vocal/restore`
 - `GET /v1/jobs/{job-token}/artifact/{name}`
 
 The artifact route only serves `vocals.wav`, `drums.wav`, `bass.wav`, `other.wav`, or `output.wav` from the worker-managed job directories.
@@ -40,6 +45,9 @@ The artifact route only serves `vocals.wav`, `drums.wav`, `bass.wav`, `other.wav
 - The downbeat grid is a low-confidence 4-beat phase heuristic and must remain evidence, not authority.
 - Vocal F0/activity is generated only when the artifact is explicitly identified as a vocal stem.
 - The executor accepts only: `copy`, `gain`, `eq`, `declick`, `declip`, `denoise`.
+- Vocal restoration accepts only bounded declick/declip, high-pass, and FFT denoise operations. It never pitch-shifts, time-warps, or synthesizes the singer.
+- Vocal identity QC compares voiced fraction, median F0, F0-variation/vibrato proxy, MFCC timbre proxy and level before/after. MFCC is a timbre proxy, not a literal formant or singer-identity model.
+- VoiceFixer remains reference-only: its runtime weights are not currently admitted by the repository provenance gate, so this worker does not claim to run VoiceFixer.
 - Arbitrary FFmpeg filter graphs are not accepted from callers.
 - Output is PCM24 WAV and is independently re-hashed again by Music Core before durable registration.
 
