@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   getMusicRestorationRuntimeHealth,
+  getMusicRestorationRuntimeLiveness,
   isMusicRestorationRuntimeConfigured,
   musicRestorationRuntimeAuthMode,
 } from "@/lib/music/restoration-runtime-server";
@@ -10,13 +11,18 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   if (!isMusicRestorationRuntimeConfigured()) {
+    const liveness = await getMusicRestorationRuntimeLiveness();
     return NextResponse.json({
       ok: true,
       configured: false,
+      machineAuthConfigured: false,
+      sessionAuthSupported: true,
       providerId: "music-restoration-worker",
-      status: "not-configured",
+      status: liveness.reachable ? "session-auth-ready" : "worker-unavailable",
+      workerReachable: liveness.reachable,
       productionReady: false,
-      authMode: musicRestorationRuntimeAuthMode(),
+      authMode: "supabase-session",
+      liveness,
     }, {
       headers: { "cache-control": "no-store" },
     });
@@ -28,6 +34,8 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       configured: true,
+      machineAuthConfigured: true,
+      sessionAuthSupported: true,
       providerId: "music-restoration-worker",
       status: productionReady ? "ready" : String(health.status ?? "blocked"),
       productionReady,
@@ -40,6 +48,8 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       configured: true,
+      machineAuthConfigured: true,
+      sessionAuthSupported: true,
       providerId: "music-restoration-worker",
       status: "unavailable",
       productionReady: false,
