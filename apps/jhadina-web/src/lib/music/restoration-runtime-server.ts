@@ -4,6 +4,7 @@ export interface MusicRestorationRuntimeHealth {
   status?: string;
   productionReady?: boolean;
   reasons?: string[];
+  authMode?: string;
   ffmpegReady?: boolean;
   ffprobeReady?: boolean;
   demucsReady?: boolean;
@@ -17,14 +18,29 @@ export interface MusicRestorationRuntimeHealth {
   outputDirWritable?: boolean;
 }
 
-function runtimeConfig(): { url: string; token: string } | null {
+interface RuntimeConfig {
+  url: string;
+  token: string;
+  authMode: "vercel-oidc" | "static-bearer";
+}
+
+function runtimeConfig(): RuntimeConfig | null {
   const url = process.env.MUSIC_RESTORATION_WORKER_URL?.trim() ?? "";
-  const token = process.env.MUSIC_RESTORATION_WORKER_TOKEN?.trim() ?? "";
-  return url && token ? { url: url.replace(/\/+$/, ""), token } : null;
+  const staticToken = process.env.MUSIC_RESTORATION_WORKER_TOKEN?.trim() ?? "";
+  const oidcToken = process.env.VERCEL_OIDC_TOKEN?.trim() ?? "";
+  const token = oidcToken || staticToken;
+  const authMode = oidcToken ? "vercel-oidc" : "static-bearer";
+  return url && token
+    ? { url: url.replace(/\/+$/, ""), token, authMode }
+    : null;
 }
 
 export function isMusicRestorationRuntimeConfigured(): boolean {
   return runtimeConfig() !== null;
+}
+
+export function getMusicRestorationRuntimeAuthMode(): RuntimeConfig["authMode"] | "not-configured" {
+  return runtimeConfig()?.authMode ?? "not-configured";
 }
 
 export function createMusicRestorationRuntimeClient(): HttpRestorationRuntimeClient {
