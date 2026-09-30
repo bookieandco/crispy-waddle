@@ -1,6 +1,6 @@
 # MUSIC-JUGGERNAUT.FINAL
 
-Status: implementation candidate on PR #833.
+Status: merged to main in PR #833; production schema commissioned on SWLC.
 
 ## Purpose
 
@@ -128,3 +128,23 @@ These are environment/data dependencies, not permission to fabricate readiness:
 - live-show outcomes.
 
 Until those exist, Jhadina stays in SEARCH and reports missing evidence rather than claiming a breakout.
+
+
+## Live commissioning — 2026-09-30
+
+Canonical Supabase project: SWLC (`kqbkaozfjubkjevdfvic`).
+
+Applied migrations:
+- `20260930183612 music_juggernaut_final`
+- `20260930183615 growth_direct_audience_consent`
+- `20260930183743 music_juggernaut_fk_indexes`
+
+Verification:
+- all seven Music Juggernaut tables have RLS enabled;
+- authenticated users have owner-scoped SELECT only; anon SELECT is absent;
+- public Music/consent RPCs are SECURITY INVOKER, executable by authenticated and not anon;
+- rollback smoke of the canonical schema/consent migrations succeeded against the real SWLC schema before live application;
+- Supabase security advisor reports no Music-Juggernaut-specific finding after commissioning;
+- the post-apply performance advisor's Music foreign-key findings were closed with dedicated covering indexes.
+
+This certifies the durable substrate. It does not fabricate real catalog, fan, rights, city, social-provider, or breakout evidence.

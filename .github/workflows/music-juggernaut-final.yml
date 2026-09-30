@@ -10,7 +10,7 @@ on:
       - "apps/jhadina-web/src/app/api/music/juggernaut/**"
       - "apps/jhadina-web/src/app/api/jhadina/command/route.ts"
       - "apps/jhadina-web/src/app/music/**"
-      - "supabase/migrations/20260930170000_music_juggernaut_final.sql"
+      - "supabase/migrations/*music_juggernaut*.sql"
       - "supabase/migrations/20260930170500_growth_direct_audience_consent.sql"
       - ".github/workflows/music-juggernaut-final.yml"
   push:
@@ -48,6 +48,7 @@ jobs:
         run: |
           test -f supabase/migrations/20260930170000_music_juggernaut_final.sql
           test -f supabase/migrations/20260930170500_growth_direct_audience_consent.sql
+          test -f supabase/migrations/20260930183743_music_juggernaut_fk_indexes.sql
           grep -q "enable row level security" supabase/migrations/20260930170000_music_juggernaut_final.sql
           grep -q "consent evidence reference required" supabase/migrations/20260930170500_growth_direct_audience_consent.sql
           grep -q "GROWTH_PAID_AD_MUST_REQUIRE_APPROVAL" apps/jhadina-web/src/lib/growth/governed-paid-campaign.ts
