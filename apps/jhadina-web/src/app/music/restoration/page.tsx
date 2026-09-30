@@ -10,7 +10,7 @@ type StudioCase = {
 type StudioArtifact = {
   id:string; kind:string; role?:string; sha256:string; sampleRate:number; channels:number;
   sampleCount:number; durationSeconds:number; parentArtifactId?:string; createdAt:string;
-  runtimeReceiptId?:string; downloadUrl:string;
+  runtimeReceiptId?:string; sizeBytes:number; mimeType:string; downloadUrl:string;
 };
 type Marker = {id:string;label:string;kind?:string;sample:number;sampleRate:number;confidence?:number};
 type Snapshot = {
@@ -21,6 +21,9 @@ type Snapshot = {
   versions:Array<Record<string,unknown>>;
   reconstructions:Array<Record<string,unknown>>;
   vocalRepairs:Array<Record<string,unknown>>;
+  jobs:Array<Record<string,unknown>>;
+  executionReceipts:Array<Record<string,unknown>>;
+  reviews:Array<Record<string,unknown>>;
   manifest:{tracks:Array<{artifactId:string;name:string;role:string;fileName:string}>};
 };
 
@@ -188,7 +191,7 @@ export default function RestorationStudioPage(){
     finally{setBusy(false)}
   }
 
-  async function downloadExport(format:"manifest"|"reaper"|"markers"|"logic"){
+  async function downloadExport(format:"bundle"|"manifest"|"reaper"|"markers"|"logic"){
     if(!userId||!snapshot)return;
     const response=await fetch(
       "/api/music/restoration/export?caseId="+encodeURIComponent(snapshot.restorationCase.id)+"&format="+format,
@@ -207,6 +210,35 @@ export default function RestorationStudioPage(){
     URL.revokeObjectURL(href);
   }
 
+  async function review(decision:"approved"|"rejected"){
+    if(!userId||!snapshot||!bId)return;
+    if(aId===bId){setStatus("Choose different A and B artifacts before review.");return}
+    setBusy(true);
+    setStatus(decision==="approved"?"Approving B after verified QC…":"Recording rejection…");
+    try{
+      const response=await fetch("/api/music/restoration/review",{
+        method:"POST",
+        headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+        body:JSON.stringify({
+          caseId:snapshot.restorationCase.id,
+          artifactId:bId,
+          comparisonArtifactId:aId||undefined,
+          decision,
+        }),
+      });
+      const body=await response.json();
+      if(!response.ok)throw new Error(body.error||"Review failed");
+      await Promise.all([
+        loadCase(userId,snapshot.restorationCase.id),
+        loadCases(userId),
+      ]);
+      setStatus(decision==="approved"
+        ?"B approved and promoted as the current restoration version."
+        :"B rejected; the source and other versions remain unchanged.");
+    }catch(error){setStatus(error instanceof Error?error.message:"Review failed")}
+    finally{setBusy(false)}
+  }
+
   const a=snapshot?.artifacts.find(item=>item.id===aId);
   const b=snapshot?.artifacts.find(item=>item.id===bId);
   const markers=snapshot?.markers??[];
@@ -221,10 +253,11 @@ export default function RestorationStudioPage(){
           <p className="mt-3 max-w-2xl text-sm leading-6 text-white/45">Preserve the source. Analyze first. Repair locally. Audition every consequential change.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button onClick={()=>downloadExport("bundle")} disabled={!snapshot||busy} className="rounded-xl bg-white px-4 py-2 text-xs font-medium text-black disabled:opacity-30">DAW Bundle ↓</button>
           <button onClick={()=>downloadExport("reaper")} disabled={!snapshot} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Reaper .rpp</button>
           <button onClick={()=>downloadExport("logic")} disabled={!snapshot} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Logic guide</button>
           <button onClick={()=>downloadExport("markers")} disabled={!snapshot} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Markers CSV</button>
-          <button onClick={()=>downloadExport("manifest")} disabled={!snapshot} className="rounded-xl bg-white px-4 py-2 text-xs font-medium text-black disabled:opacity-30">Manifest</button>
+          <button onClick={()=>downloadExport("manifest")} disabled={!snapshot} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Manifest</button>
         </div>
       </header>
 
@@ -268,7 +301,7 @@ export default function RestorationStudioPage(){
           <div className="mb-3 flex items-end justify-between"><div><p className="text-xs uppercase tracking-[.24em] text-white/35">Audio assets</p><h2 className="mt-1 text-xl font-medium">Stems & versions</h2></div><span className="text-xs text-white/35">{snapshot.artifacts.length} artifacts</span></div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {snapshot.artifacts.map(item=><article key={item.id} className="rounded-2xl border border-white/8 bg-white/[.03] p-4">
-              <div className="flex items-start justify-between gap-3"><div><p className="font-medium capitalize">{roleLabel(item)}</p><p className="mt-1 text-xs text-white/35">{item.kind} · {item.sampleRate} Hz · {item.channels}ch</p></div><a href={item.downloadUrl} download className="text-xs text-white/50 hover:text-white">WAV ↓</a></div>
+              <div className="flex items-start justify-between gap-3"><div><p className="font-medium capitalize">{roleLabel(item)}</p><p className="mt-1 text-xs text-white/35">{item.kind} · {item.sampleRate} Hz · {item.channels}ch</p></div><a href={item.downloadUrl} download className="text-xs text-white/50 hover:text-white">Audio ↓</a></div>
               <audio controls preload="metadata" src={item.downloadUrl} className="mt-4 w-full"/>
               <p className="mt-3 truncate font-mono text-[10px] text-white/25">{item.sha256}</p>
             </article>)}
@@ -287,7 +320,12 @@ export default function RestorationStudioPage(){
               </div>;
             })}
           </div>
-          <p className="mt-3 text-xs text-white/35">Yellow lines are evidence/region markers. Compare aligned material before approving any restoration for release.</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button onClick={()=>review("approved")} disabled={busy||!b||b.kind==="source"||aId===bId} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-semibold text-black disabled:opacity-30">Approve B</button>
+            <button onClick={()=>review("rejected")} disabled={busy||!b||b.kind==="source"||aId===bId} className="rounded-xl border border-rose-300/30 px-4 py-2 text-xs text-rose-100 disabled:opacity-30">Reject B</button>
+            <span className="text-xs text-white/35">Approval requires a passed, hash-bound QC receipt; rejection never mutates the source.</span>
+          </div>
+          <p className="mt-3 text-xs text-white/35">Yellow lines are canonical-source evidence markers. Compare aligned material before approving any restoration for release.</p>
         </section>
 
         <section className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -301,6 +339,23 @@ export default function RestorationStudioPage(){
             <div className="flex items-end justify-between"><div><p className="text-xs uppercase tracking-[.24em] text-white/35">History</p><h2 className="mt-1 text-xl">Restoration lineage</h2></div><span className="text-xs text-white/35">{snapshot.versions.length+snapshot.reconstructions.length+snapshot.vocalRepairs.length}</span></div>
             <div className="mt-4 max-h-[420px] space-y-2 overflow-auto pr-1">
               {[...snapshot.versions.map(item=>({...item,_type:"version"})),...snapshot.reconstructions.map(item=>({...item,_type:"instrument reconstruction"})),...snapshot.vocalRepairs.map(item=>({...item,_type:"vocal restoration"}))].sort((x,y)=>String(x.created_at??"").localeCompare(String(y.created_at??""))).map((item,index)=><div key={String(item.id??index)} className="rounded-xl border border-white/7 bg-black/20 p-3"><div className="flex justify-between gap-3"><p className="text-sm capitalize">{String(item._type)}</p><p className="text-xs text-white/35">{String(item.created_at??"").slice(0,16).replace("T"," ")}</p></div><p className="mt-1 truncate font-mono text-[10px] text-white/25">{String(item.output_artifact_id??item.id??"")}</p></div>)}
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-8 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-white/[.035] p-5">
+            <div className="flex items-end justify-between"><div><p className="text-xs uppercase tracking-[.24em] text-white/35">Jobs</p><h2 className="mt-1 text-xl">Runtime activity</h2></div><span className="text-xs text-white/35">{snapshot.jobs.length}</span></div>
+            <div className="mt-4 max-h-[320px] space-y-2 overflow-auto pr-1">
+              {snapshot.jobs.length===0&&<p className="text-sm text-white/35">No restoration jobs yet.</p>}
+              {snapshot.jobs.slice().reverse().map((item,index)=><div key={String(item.id??index)} className="rounded-xl border border-white/7 bg-black/20 p-3"><div className="flex justify-between gap-3"><p className="text-sm capitalize">{String(item.kind??"job").replace(/-/g," ")}</p><p className="text-xs text-white/45">{String(item.status??"unknown")}</p></div>{item.error&&<p className="mt-1 text-xs text-rose-200/70">{String(item.error)}</p>}</div>)}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[.035] p-5">
+            <div className="flex items-end justify-between"><div><p className="text-xs uppercase tracking-[.24em] text-white/35">Human review</p><h2 className="mt-1 text-xl">Approval ledger</h2></div><span className="text-xs text-white/35">{snapshot.reviews.length}</span></div>
+            <div className="mt-4 max-h-[320px] space-y-2 overflow-auto pr-1">
+              {snapshot.reviews.length===0&&<p className="text-sm text-white/35">No human review decisions yet.</p>}
+              {snapshot.reviews.slice().reverse().map((item,index)=><div key={String(item.id??index)} className="rounded-xl border border-white/7 bg-black/20 p-3"><div className="flex justify-between gap-3"><p className="text-sm capitalize">{String(item.decision??"review")}</p><p className="text-xs text-white/35">{String(item.reviewed_at??"").slice(0,16).replace("T"," ")}</p></div><p className="mt-1 truncate font-mono text-[10px] text-white/25">{String(item.artifact_id??"")}</p></div>)}
             </div>
           </div>
         </section>
