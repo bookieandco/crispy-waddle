@@ -54,6 +54,8 @@ export function inspectAskMarketingPresenceIntent(activeTask: string): AskMarket
   const text = normalize(activeTask)
   if (!text || !MARKETING_VERBS.test(text) || !SELLABLE_TERMS.test(text)) return null
   if (/(paid ad|paid ads|meta ad|meta ads|google ad|google ads|ad spend|media buy)/.test(text)) return null
+  const platformCampaign = /(?:meta|facebook|instagram|tiktok|youtube|linkedin|reddit|twitter|google|\bx\b).{0,32}(?:campaign|ads?|promotion)|(?:campaign|ads?|promotion).{0,32}(?:meta|facebook|instagram|tiktok|youtube|linkedin|reddit|twitter|google|\bx\b)/
+  if (platformCampaign.test(text)) return null
 
   const kind = inferKind(text)
   const brandId = inferBrandId(text, kind)
