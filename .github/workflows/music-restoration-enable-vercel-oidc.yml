@@ -1,0 +1,91 @@
+name: Music Restoration Enable Vercel OIDC
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/music-restoration-enable-vercel-oidc.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: music-restoration-enable-vercel-oidc
+  cancel-in-progress: false
+
+jobs:
+  enable:
+    name: Enable project OIDC
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TEAM_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+      VERCEL_PROJECT_ID: prj_QK9bYgb8lwUvJgsYfJG6YLSzVPco
+    steps:
+      - name: Require existing Vercel automation credential
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN repository secret is required"
+            exit 1
+          fi
+
+      - name: Enable team-issued Vercel OIDC
+        run: |
+          node <<'NODE'
+          const token=process.env.VERCEL_TOKEN;
+          const teamId=process.env.VERCEL_TEAM_ID;
+          const projectId=process.env.VERCEL_PROJECT_ID;
+          const url=`https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}?teamId=${encodeURIComponent(teamId)}`;
+
+          async function request(method,body){
+            const response=await fetch(url,{
+              method,
+              headers:{
+                Authorization:`Bearer ${token}`,
+                "Content-Type":"application/json",
+              },
+              body:body ? JSON.stringify(body) : undefined,
+            });
+            const text=await response.text();
+            if(!response.ok){
+              throw new Error(`${method} project failed (${response.status}): ${text.slice(0,800)}`);
+            }
+            return text ? JSON.parse(text) : {};
+          }
+
+          const before=await request("GET");
+          console.log(JSON.stringify({
+            before:{
+              enabled:Boolean(before.oidcTokenConfig?.enabled),
+              issuerMode:before.oidcTokenConfig?.issuerMode ?? null,
+            },
+          }));
+
+          await request("PATCH",{
+            oidcTokenConfig:{
+              enabled:true,
+              issuerMode:"team",
+            },
+          });
+
+          const after=await request("GET");
+          const enabled=after.oidcTokenConfig?.enabled===true;
+          const issuerMode=after.oidcTokenConfig?.issuerMode;
+          console.log(JSON.stringify({after:{enabled,issuerMode}}));
+          if(!enabled || issuerMode!=="team"){
+            throw new Error("VERCEL_OIDC_CONFIGURATION_NOT_APPLIED");
+          }
+          NODE
+
+      - name: Record result
+        run: |
+          {
+            echo "### Music restoration Vercel OIDC"
+            echo
+            echo "- project: `$VERCEL_PROJECT_ID`"
+            echo "- team issuer mode: enabled"
+            echo "- next required event: a fresh production deployment so Vercel injects `VERCEL_OIDC_TOKEN`"
+          } >> "$GITHUB_STEP_SUMMARY"
