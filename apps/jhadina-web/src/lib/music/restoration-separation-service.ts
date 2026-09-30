@@ -36,7 +36,7 @@ export async function runPersistedSeparation(input: {
       ownerUserId: input.ownerUserId,
       caseId: input.caseId,
       source: input.source,
-      runtime: createMusicRestorationRuntimeClient(),
+      runtime: input.runtime,
       store,
       jobId,
       modelId: input.modelId,
