@@ -7,7 +7,7 @@ import httpx
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from worker import HunyuanJobManager, HunyuanRuntimeConfig, runtime_readiness
-from music_proxy_policy import music_proxy_path_allowed
+from music_proxy_policy import music_proxy_forward_headers, music_proxy_path_allowed
 
 app=FastAPI(title="Jhadina Director HunyuanVideo-1.5",version="1.0")
 _manager:HunyuanJobManager|None=None
@@ -47,13 +47,7 @@ _MUSIC_SIDECAR_URL=os.getenv("MUSIC_RESTORATION_SIDECAR_URL","http://127.0.0.1:8
 async def music_restoration_proxy(path:str,request:Request):
     if not music_proxy_path_allowed(path,request.method):
         raise HTTPException(status_code=404,detail="MUSIC_RESTORATION_PROXY_PATH_NOT_ADMITTED")
-    headers:dict[str,str]={}
-    authorization=request.headers.get("authorization")
-    content_type=request.headers.get("content-type")
-    if authorization:
-        headers["authorization"]=authorization
-    if content_type:
-        headers["content-type"]=content_type
+    headers=music_proxy_forward_headers(request.headers)
     client=httpx.AsyncClient(timeout=httpx.Timeout(3700.0,connect=10.0),follow_redirects=False)
     try:
         upstream_request=client.build_request(
