@@ -7,6 +7,7 @@ import type {
   PostExecutionQcReceipt,
   RestorationArtifactStore,
   RestorationCase,
+  RestorationInstrumentAssessmentReceipt,
   StoredRestorationArtifact,
 } from "@jhadina/music-core";
 
@@ -275,8 +276,9 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
     jobId: string;
     request: InstrumentReconstructionRequest;
     result: InstrumentReconstructionRuntimeResult;
+    assessment: RestorationInstrumentAssessmentReceipt;
   }): Promise<void> {
-    const { request, result } = input;
+    const { request, result, assessment } = input;
     const { error } = await this.client
       .from("music_restoration_reconstruction_receipts")
       .insert({
@@ -293,6 +295,8 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
         expected_gain: request.expectedGain,
         gain_confidence: request.gainConfidence,
         gain_evidence_method: request.gainEvidenceMethod,
+        assessment_runtime_receipt_id: assessment.runtimeReceiptId,
+        assessment: assessment,
         evidence_ids: request.evidenceIds,
         approval_evidence_id: request.approval.evidenceId,
         approved_by_user_id: request.approval.approvedByUserId,
