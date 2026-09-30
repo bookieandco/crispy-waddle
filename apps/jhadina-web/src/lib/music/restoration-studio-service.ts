@@ -35,12 +35,24 @@ export async function getRestorationStudioCase(input: {
   const restorationCase = await store.getCase(input.caseId);
   if (!restorationCase) throw new Error("MUSIC_RESTORATION_CASE_NOT_FOUND");
 
-  const [artifacts, evidence, versions, reconstructions, vocalRepairs] = await Promise.all([
+  const [
+    artifacts,
+    evidence,
+    versions,
+    reconstructions,
+    vocalRepairs,
+    jobs,
+    executionReceipts,
+    reviews,
+  ] = await Promise.all([
     store.listArtifacts(input.caseId),
     store.listEvidence(input.caseId),
     store.listVersions(input.caseId),
     store.listReconstructionReceipts(input.caseId),
     store.listVocalReceipts(input.caseId),
+    store.listJobs(input.caseId),
+    store.listExecutionReceipts(input.caseId),
+    store.listReviews(input.caseId),
   ]);
 
   const audio = await Promise.all(artifacts.map(async artifact => ({
@@ -48,16 +60,19 @@ export async function getRestorationStudioCase(input: {
     downloadUrl: await store.createArtifactDownloadUrl(artifact.id),
   })));
 
+  const sourceArtifactId = String(restorationCase.source_artifact_id);
   const markers: RestorationExportMarker[] = evidence.flatMap(item => {
+    const artifactId = stringValue(item.artifact_id);
+    if (artifactId !== sourceArtifactId) return [];
     const region = objectValue(item.region);
     const startSample = numberValue(region.startSample);
-    const artifactId = stringValue(item.artifact_id);
-    const artifact = artifactId ? artifacts.find(candidate => candidate.id === artifactId) : undefined;
+    const artifact = artifacts.find(candidate => candidate.id === artifactId);
     if (startSample === undefined || !artifact) return [];
     const data = objectValue(item.data);
     return [{
       id: String(item.id),
       label: stringValue(data.label) ?? String(item.kind ?? "evidence"),
+      artifactId,
       kind: String(item.kind ?? "evidence"),
       sample: Math.max(0, Math.round(startSample)),
       sampleRate: artifact.sampleRate,
@@ -134,6 +149,9 @@ export async function getRestorationStudioCase(input: {
     versions,
     reconstructions,
     vocalRepairs,
+    jobs,
+    executionReceipts,
+    reviews,
     manifest,
   };
 }
