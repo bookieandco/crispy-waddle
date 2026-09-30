@@ -1,12 +1,11 @@
-import { renderPupsonLlmsTxt } from '@/lib/ai-discovery';
+import { buildDiscoveryResponse, renderPupsonLlmsTxt } from '@/lib/ai-discovery';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  return new Response(renderPupsonLlmsTxt(), {
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
-    },
-  });
+export async function GET(request: Request) {
+  return buildDiscoveryResponse(
+    request,
+    await renderPupsonLlmsTxt(),
+    'text/plain; charset=utf-8',
+  );
 }
