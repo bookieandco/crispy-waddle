@@ -1,7 +1,8 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {createRequestIdentityVerifier} from '@/lib/auth/request-identity';
 import {createMusicJuggernautRepository} from '@/lib/music/music-juggernaut-repository';
-import {loadMusicJuggernautProjection} from '@/lib/music/music-juggernaut-service';\nimport {recordMusicFanConsent} from '@/lib/music/music-fan-projection';
+import {loadMusicJuggernautProjection} from '@/lib/music/music-juggernaut-service';
+import {recordMusicFanConsent} from '@/lib/music/music-fan-projection';
 
 export const dynamic='force-dynamic';
 
