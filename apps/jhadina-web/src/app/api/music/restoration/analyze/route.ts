@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
-import { analyzeRestorationArtifact } from "@/lib/music/restoration-analysis-service";
+import { analyzeRestorationArtifact } from "@/lib/music/restoration-analysis-service";\nimport { createRequestMusicRestorationRuntimeClient } from "@/lib/music/restoration-runtime-server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export const runtime = "nodejs";
