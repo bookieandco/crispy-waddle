@@ -55,6 +55,12 @@ class SupabaseSessionAuthTest(unittest.TestCase):
         self.assertEqual(request.headers["Authorization"],"Bearer header.payload.signature")
         self.assertEqual(request.headers["Apikey"],auth.SUPABASE_PUBLISHABLE_KEY)
 
+    def test_rejects_session_without_bound_user_id_before_network(self):
+        with patch.object(auth.jwt,"decode",return_value=self.claims()), \
+             patch.object(auth.urllib.request,"urlopen") as urlopen:
+            self.assertIsNone(auth.authorize_supabase_user("token",None))
+        urlopen.assert_not_called()
+
     def test_rejects_claimed_user_mismatch_before_network(self):
         other="123e4567-e89b-12d3-a456-426614174001"
         with patch.object(auth.jwt,"decode",return_value=self.claims()),              patch.object(auth.urllib.request,"urlopen") as urlopen:
