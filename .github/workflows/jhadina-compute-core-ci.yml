@@ -13,6 +13,7 @@ on:
       - "docs/JHADINA_CLOUD_EXTERNAL_REFERENCE_AUDIT_2026-09-26.md"
       - "docs/JHADINA_CLOUD_FINAL_CERTIFICATION.md"
       - "pnpm-lock.yaml"
+      - "supabase/migrations/*compute_execution_receipts.sql"
       - ".github/workflows/jhadina-compute-core-ci.yml"
   push:
     branches:
@@ -66,3 +67,17 @@ jobs:
         run: pnpm --filter @jhadina/director-core type-check
       - name: Test Director compute adapters
         run: pnpm --filter @jhadina/director-core exec vitest run src/compute-workload.test.ts
+      - name: Verify compute receipt migration hardening
+        run: |
+          test -f supabase/migrations/20260930190000_compute_execution_receipts.sql
+          grep -q "security invoker" supabase/migrations/20260930190000_compute_execution_receipts.sql
+          if grep -q "security definer" supabase/migrations/20260930190000_compute_execution_receipts.sql; then
+            echo "Compute receipt RPCs must not use SECURITY DEFINER"
+            exit 1
+          fi
+          if grep -Eq "as [$]$" supabase/migrations/20260930190000_compute_execution_receipts.sql; then
+            echo "Malformed single-dollar SQL delimiter found"
+            exit 1
+          fi
+          grep -q "jhadina_compute_executions_task_fk_idx" supabase/migrations/20260930190000_compute_execution_receipts.sql
+          grep -q "jhadina_compute_executions_session_owner_fk_idx" supabase/migrations/20260930190000_compute_execution_receipts.sql
