@@ -35,6 +35,7 @@
       "@jhadina/action-core": ["packages/jhadina-action-core/src"],
       "@jhadina/compute-core": ["packages/jhadina-compute-core/src"],
       "@jhadina/core-spine": ["packages/jhadina-core-spine/src"],
+      "@jhadina/real-core": ["packages/jhadina-real-core/src"],
       "@jhadina/intelligence-core": ["packages/jhadina-intelligence-core/src"],
       "@jhadina/ai-core": ["packages/ai-core/src"],
       "@jhadina/knowledge-graph": ["packages/knowledge-graph/src"],
@@ -45,5 +46,4 @@
   },
   "include": ["packages/*/src", "apps/*/src", "infrastructure/*/src"],
   "exclude": ["node_modules", "dist", "build"]
-  
 }
