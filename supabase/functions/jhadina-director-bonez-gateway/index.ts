@@ -11,12 +11,12 @@ const OWNER="bookieandcos-projects";
 
 const BONEZ_PROJECT_ID="director:bonez:production-quality:v1";
 const BONEZ_CHARACTER_ID="bonez";
-const BONEZ_REFERENCE_ASSET_ID="director-ref:bonez:canonical:v1";
-const BONEZ_REFERENCE_SHA256="bc3cf5b39b814eac4a18320ece12cc026d5607e1baa41e0355584efa050d89cc";
-const BONEZ_PRODUCT_REFERENCE_ASSET_ID="director-ref:bonez:product-print:v1";
-const BONEZ_PRODUCT_REFERENCE_SHA256="8e09332025a170adf956d726e2774cab7987ec6052644375960bf467bc2847ef";
-const BONEZ_ORIGINAL_UPLOAD_SHA256="f50dbd93ab245e9098fb7237c8149cf20c445fe22fdea9070741f38f43d9c881";
-const BONEZ_RIGHTS_REF="user-supplied-reference:bonez:2026-09-28";
+const BONEZ_REFERENCE_ASSET_ID="director-ref:bonez:canonical:v2";
+const BONEZ_REFERENCE_SHA256="fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6";
+const BONEZ_PRODUCT_REFERENCE_ASSET_ID="director-ref:bonez:product-print:v2";
+const BONEZ_PRODUCT_REFERENCE_SHA256="fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6";
+const BONEZ_REFERENCE_SOURCE_SHA256="fb188ca50aa7a2278fee921c9e366d30ec3442e044e62a07f83d3ff78e5ba1f6";
+const BONEZ_RIGHTS_REF="model-generated-reference:bonez:v2:2026-09-29";
 const CHAR_PREFIX="bonez_bootstrap_char_chunk_";
 const PRODUCT_PREFIX="bonez_bootstrap_product_chunk_";
 const VOICE_SOURCE_KEY="bonez_voice_candidate_source_url_v1";
@@ -171,9 +171,9 @@ async function uploadReference(client:any,input:{
     .upload(input.objectPath,input.bytes,{contentType:"image/jpeg",upsert:true});
   if(upload.error) throw upload.error;
   const evidence=[
-    "source:user-uploaded-bonez-canonical",
-    "original-upload-sha256:"+BONEZ_ORIGINAL_UPLOAD_SHA256,
-    "sanitized-reencode:pillow-rgb-jpeg",
+    "source:model-generated-bonez-canonical-v2",
+    "reference-source-sha256:"+BONEZ_REFERENCE_SOURCE_SHA256,
+    "source-format:image-jpeg",
     "signature:image-jpeg",
     "dimensions:"+dimensions.width+"x"+dimensions.height,
     "sha256:"+actual,
@@ -194,7 +194,7 @@ async function uploadReference(client:any,input:{
 function requireCanonical(body:any){
   const c=body?.canonical;
   if(!c||c.projectId!==BONEZ_PROJECT_ID||c.characterId!==BONEZ_CHARACTER_ID) throw new Error("DIRECTOR_BONEZ_CANONICAL_PAYLOAD_INVALID");
-  if(c.rightsRef!==BONEZ_RIGHTS_REF||c.originalUploadSha256!==BONEZ_ORIGINAL_UPLOAD_SHA256) throw new Error("DIRECTOR_BONEZ_CANONICAL_PAYLOAD_INVALID");
+  if(c.rightsRef!==BONEZ_RIGHTS_REF||c.referenceSourceSha256!==BONEZ_REFERENCE_SOURCE_SHA256) throw new Error("DIRECTOR_BONEZ_CANONICAL_PAYLOAD_INVALID");
   if(c.references?.character?.assetId!==BONEZ_REFERENCE_ASSET_ID||c.references?.character?.expectedSha!==BONEZ_REFERENCE_SHA256) throw new Error("DIRECTOR_BONEZ_CHARACTER_REFERENCE_AUTHORITY_MISMATCH");
   if(c.references?.product?.assetId!==BONEZ_PRODUCT_REFERENCE_ASSET_ID||c.references?.product?.expectedSha!==BONEZ_PRODUCT_REFERENCE_SHA256) throw new Error("DIRECTOR_BONEZ_PRODUCT_REFERENCE_AUTHORITY_MISMATCH");
   if(c.cast?.id!=="cast:bonez:v1"||c.cast?.characterId!==BONEZ_CHARACTER_ID||c.cast?.projectId!==BONEZ_PROJECT_ID) throw new Error("DIRECTOR_BONEZ_CAST_AUTHORITY_MISMATCH");
@@ -1108,8 +1108,8 @@ async function bootstrap(client:any,body:any){
     readChunks(client,PRODUCT_PREFIX),
   ]);
   const [characterRef,productRef]=await Promise.all([
-    uploadReference(client,{userId,bytes:characterBytes,assetId:BONEZ_REFERENCE_ASSET_ID,expectedSha:BONEZ_REFERENCE_SHA256,kind:"character",objectPath:"bonez/v1/bonez-canonical-character-v1.jpg",filename:"bonez-canonical-character-v1.jpg",viewHint:"close-up"}),
-    uploadReference(client,{userId,bytes:productBytes,assetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,expectedSha:BONEZ_PRODUCT_REFERENCE_SHA256,kind:"product",objectPath:"bonez/v1/bonez-lair-art-print-v1.jpg",filename:"bonez-lair-art-print-v1.jpg",viewHint:"front"}),
+    uploadReference(client,{userId,bytes:characterBytes,assetId:BONEZ_REFERENCE_ASSET_ID,expectedSha:BONEZ_REFERENCE_SHA256,kind:"character",objectPath:"bonez/v2/bonez-canonical-character-v2.jpg",filename:"bonez-canonical-character-v2.jpg",viewHint:"close-up"}),
+    uploadReference(client,{userId,bytes:productBytes,assetId:BONEZ_PRODUCT_REFERENCE_ASSET_ID,expectedSha:BONEZ_PRODUCT_REFERENCE_SHA256,kind:"product",objectPath:"bonez/v2/bonez-lair-art-print-v2.jpg",filename:"bonez-lair-art-print-v2.jpg",viewHint:"front"}),
   ]);
 
   const cast=canonical.cast;
