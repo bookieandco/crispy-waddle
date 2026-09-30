@@ -25,6 +25,18 @@ fi
 
 echo "Commissioning Music restoration beside Hunyuan PID $OLD_PID"
 
+HUNYUAN_WORKER_TOKEN=""
+while IFS='=' read -r -d '' key value; do
+  if [[ "$key" == "DIRECTOR_HUNYUAN_WORKER_TOKEN" ]]; then
+    HUNYUAN_WORKER_TOKEN="$value"
+    break
+  fi
+done < "/proc/$OLD_PID/environ"
+if [[ -z "$HUNYUAN_WORKER_TOKEN" ]]; then
+  echo "MUSIC_RESTORATION_COMMISSION_HUNYUAN_TOKEN_REQUIRED" >&2
+  exit 1
+fi
+
 cd "$REPO"
 git fetch origin "$SOURCE_REF"
 git checkout "$SOURCE_REF"
@@ -33,9 +45,11 @@ git pull --ff-only origin "$SOURCE_REF"
 "$HUNYUAN_VENV/bin/python" -m pip install -r "$REPO/services/director-hunyuan/requirements.txt"
 
 DIRECTOR_SOURCE_REF="$SOURCE_REF" \
+MUSIC_RESTORATION_WORKER_TOKEN="$HUNYUAN_WORKER_TOKEN" \
 MUSIC_RESTORATION_BIND_HOST=127.0.0.1 \
 MUSIC_RESTORATION_PORT=8093 \
 bash "$REPO/scripts/music-restoration-runpod-bootstrap.sh" --background
+unset HUNYUAN_WORKER_TOKEN
 
 OLD_PID="$OLD_PID" \
 HUNYUAN_VENV="$HUNYUAN_VENV" \
