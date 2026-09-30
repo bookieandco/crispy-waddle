@@ -35,7 +35,7 @@ export default function MusicPage() {
       <div className="mx-auto max-w-7xl px-5 pb-32 pt-7 md:px-10 md:pt-10">
         <header className="mb-10 flex items-end justify-between gap-4">
           <div><p className="text-[11px] uppercase tracking-[.35em] text-white/35">Jhadina</p><h1 className="mt-2 text-4xl font-semibold tracking-tight md:text-6xl">Music</h1></div>
-          <div className="flex items-center gap-3"><a href="/api/auth/youtube/start" className="rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-xs text-white/70 hover:bg-white/[.08]">{youtubeConnected ? "YouTube connected" : "Connect YouTube"}</a><div className="hidden rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-xs text-white/50 md:block">Personal Music OS</div></div>
+          <div className="flex flex-wrap items-center justify-end gap-3"><a href="/music/restoration" className="rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-xs text-white/70 hover:bg-white/[.08]">Restoration Studio</a><a href="/api/auth/youtube/start" className="rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-xs text-white/70 hover:bg-white/[.08]">{youtubeConnected ? "YouTube connected" : "Connect YouTube"}</a><div className="hidden rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-xs text-white/50 md:block">Personal Music OS</div></div>
         </header>
         <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[.045] p-7 md:p-12">
           <div className="pointer-events-none absolute -right-20 -top-28 h-80 w-80 rounded-full bg-fuchsia-500/10 blur-3xl" />
