@@ -298,8 +298,6 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
   let awardRequestsRemaining=Number.isFinite(requestedAwardBudget)?Math.max(0,Math.min(Math.floor(requestedAwardBudget),4)):1
   const requestedAwardNeighborBudget=Number(process.env.SAM_AWARD_NEIGHBOR_REQUEST_BUDGET_PER_ENRICHMENT??2)
   let awardNeighborRequestsRemaining=Number.isFinite(requestedAwardNeighborBudget)?Math.max(0,Math.min(Math.floor(requestedAwardNeighborBudget),10)):2
-  const requestedAwardNeighborBudget=Number(process.env.SAM_AWARD_NEIGHBOR_REQUEST_BUDGET_PER_ENRICHMENT??2)
-  let awardNeighborRequestsRemaining=Number.isFinite(requestedAwardNeighborBudget)?Math.max(0,Math.min(Math.floor(requestedAwardNeighborBudget),10)):2
   const requestedDenueBudget=Number(process.env.DENUE_SEARCH_BUDGET_PER_ENRICHMENT??2)
   let denueSearchesRemaining=Number.isFinite(requestedDenueBudget)?Math.max(0,Math.min(Math.floor(requestedDenueBudget),10)):2
   const requestedCanadaBudget=Number(process.env.CANADA_SEARCH_BUDGET_PER_ENRICHMENT??2)
@@ -389,6 +387,7 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
 
         if(awardNeighborRequestsRemaining>0){
           const awardProfile=buildAwardNeighborProfile(mergeProviderPools(...requirementPools))
+          const seedIds=new Set(awardProfile.seedProviderIds)
           const seedNames=new Set(awardProfile.seedProviderNames.map(name=>key(name)))
           for(const neighborSearch of buildAwardNeighborSearches(awardProfile,2)){
             if(awardNeighborRequestsRemaining<=0)break
@@ -404,7 +403,7 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
                 discoveryMode:'award_neighbor',
                 seedProviderIds:neighborSearch.seedProviderIds,
                 reason:neighborSearch.reason,
-              })).filter(provider=>!seedNames.has(key(provider.legalName)))
+              })).filter(provider=>!seedIds.has(provider.id)&&!seedNames.has(key(provider.legalName)))
               awardNeighborSpendingCache.set(cacheKey,neighbors)
             }
             if(neighbors.length)requirementPools.push(neighbors)
