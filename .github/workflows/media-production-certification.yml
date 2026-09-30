@@ -49,7 +49,7 @@ jobs:
           python -m unittest discover -s services/replacement-service -p 'test_*.py'
       - name: Music restoration runtime
         run: |
-          python -m py_compile services/music-restoration-worker/worker.py services/music-restoration-worker/source_fetch.py services/music-restoration-worker/vercel_oidc.py services/music-restoration-worker/app.py
+          python -m py_compile services/music-restoration-worker/worker.py services/music-restoration-worker/source_fetch.py services/music-restoration-worker/vercel_oidc.py services/music-restoration-worker/supabase_auth.py services/music-restoration-worker/app.py
           python -m unittest discover -s services/music-restoration-worker -p 'test_*.py'
           bash -n scripts/music-restoration-runpod-bootstrap.sh
           bash -n scripts/music-restoration-runpod-commission.sh
