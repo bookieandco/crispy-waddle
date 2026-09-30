@@ -292,6 +292,7 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
         fingerprint_similarity: request.fingerprintSimilarity,
         expected_gain: request.expectedGain,
         gain_confidence: request.gainConfidence,
+        gain_evidence_method: request.gainEvidenceMethod,
         evidence_ids: request.evidenceIds,
         approval_evidence_id: request.approval.evidenceId,
         approved_by_user_id: request.approval.approvedByUserId,
