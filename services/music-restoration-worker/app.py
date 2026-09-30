@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
 from source_fetch import stage_verified_source
+from vercel_oidc import verify_vercel_oidc
 from worker import (
     RestorationWorkerConfig,
     artifact_path,
@@ -59,13 +60,25 @@ class ExecuteRequest(BaseModel):
     sampleRate:int=Field(gt=0,le=384000)
     channels:int=Field(gt=0,le=32)
 
-def _authorize(authorization:str|None)->None:
-    expected=os.getenv("MUSIC_RESTORATION_WORKER_TOKEN","").strip()
-    if not expected:
-        raise HTTPException(status_code=503,detail="MUSIC_RESTORATION_WORKER_TOKEN_NOT_CONFIGURED")
+def _authorize(authorization:str|None)->dict[str,Any]:
     supplied=authorization[7:] if authorization and authorization.startswith("Bearer ") else ""
-    if not supplied or not hmac.compare_digest(supplied,expected):
+    if not supplied:
         raise HTTPException(status_code=401,detail="UNAUTHORIZED")
+
+    expected=os.getenv("MUSIC_RESTORATION_WORKER_TOKEN","").strip()
+    if expected and hmac.compare_digest(supplied,expected):
+        return {"authMode":"static-bearer","subject":"local-or-emergency"}
+
+    try:
+        claims=verify_vercel_oidc(supplied)
+        return {
+            "authMode":"vercel-oidc",
+            "subject":str(claims.get("sub") or ""),
+            "projectId":str(claims.get("project_id") or ""),
+            "environment":str(claims.get("environment") or ""),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=401,detail=f"UNAUTHORIZED:{type(exc).__name__}") from exc
 
 def _host_suffixes()->tuple[str,...]:
     raw=os.getenv("MUSIC_RESTORATION_SOURCE_HOST_SUFFIXES",".supabase.co")
@@ -91,9 +104,13 @@ def live()->dict[str,str]:
 
 @app.get("/health")
 def health(authorization:str|None=Header(default=None))->dict[str,Any]:
-    _authorize(authorization)
+    identity=_authorize(authorization)
     readiness=runtime_readiness(_config)
-    return {"status":"ready" if readiness["productionReady"] else "blocked",**readiness}
+    return {
+        "status":"ready" if readiness["productionReady"] else "blocked",
+        "authMode":identity["authMode"],
+        **readiness,
+    }
 
 @app.post("/v1/probe")
 def probe(body:ProbeRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
