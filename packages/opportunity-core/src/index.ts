@@ -83,6 +83,7 @@ export * from './domain/opportunity-factory-final.js'
 export * from './domain/public-opportunity-grid.js'
 
 export * from './domain/previous-win-similarity.js'
+export * from './domain/award-neighbor-discovery.js'
 
 export * from './domain/prospect-intelligence.js'
 
