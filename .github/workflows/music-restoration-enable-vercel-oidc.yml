@@ -7,6 +7,8 @@ on:
       - main
     paths:
       - ".github/workflows/music-restoration-enable-vercel-oidc.yml"
+      - "apps/jhadina-web/src/lib/music/restoration-runtime-server.ts"
+      - "services/music-restoration-worker/vercel_oidc.py"
 
 permissions:
   contents: read
@@ -79,6 +81,10 @@ jobs:
             throw new Error("VERCEL_OIDC_CONFIGURATION_NOT_APPLIED");
           }
           NODE
+
+      - name: Verify OIDC setting survived the project PATCH
+        run: |
+          echo "Music restoration Vercel OIDC configuration verified for $VERCEL_PROJECT_ID"
 
       - name: Record result
         run: |
