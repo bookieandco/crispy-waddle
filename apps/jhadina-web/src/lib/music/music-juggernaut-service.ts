@@ -10,7 +10,7 @@ import {
   type SongRecord,
   type SongSection,
 } from '@jhadina/growth-core';
-import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';
+import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';\nimport {loadMusicFanAudienceProjection,type MusicFanAudienceProjection} from './music-fan-projection';
 
 type Row=Record<string,unknown>;
 
@@ -43,7 +43,7 @@ export async function ensureMusicJuggernautProject(input:{
     artistKey:input.artistKey,
     name:input.artistName,
     mode:'SEARCH',
-    metadata:{createdBy:'music-juggernaut',authority:'INTERNAL_PLANNING_ONLY'},
+    metadata:{createdBy:'music-juggernaut',authority:'INTERNAL_PLANNING_ONLY',brandId:input.artistKey==='atwood-bookie'?'brand:atwood-bookie':undefined},
   });
 }
 
