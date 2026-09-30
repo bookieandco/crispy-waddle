@@ -13,16 +13,15 @@ import {
 
 export { pupsonPublicBaseUrl };
 
-export async function renderPupsonLlmsTxt(): Promise<string> {
-  return renderOwnedWebLlmsTxt(await buildPupsonDiscoveryManifest());
+export async function renderPupsonLlmsTxt(baseUrl = pupsonPublicBaseUrl()): Promise<string> {
+  return renderOwnedWebLlmsTxt(await buildPupsonDiscoveryManifest(baseUrl));
 }
 
-export async function renderPupsonLlmsJsonl(): Promise<string> {
-  return renderOwnedWebJsonl(await buildPupsonDiscoveryManifest());
+export async function renderPupsonLlmsJsonl(baseUrl = pupsonPublicBaseUrl()): Promise<string> {
+  return renderOwnedWebJsonl(await buildPupsonDiscoveryManifest(baseUrl));
 }
 
-export async function renderPupsonAgenticSitemap(): Promise<string> {
-  const baseUrl = pupsonPublicBaseUrl();
+export async function renderPupsonAgenticSitemap(baseUrl = pupsonPublicBaseUrl()): Promise<string> {
   const manifest = await buildPupsonDiscoveryManifest(baseUrl);
   return renderOwnedWebAgenticSitemap(manifest, [
     `${baseUrl}/llms.txt`,
@@ -32,16 +31,17 @@ export async function renderPupsonAgenticSitemap(): Promise<string> {
   ]);
 }
 
-export async function renderPupsonProductMarkdown(id: string): Promise<string | null> {
-  const baseUrl = pupsonPublicBaseUrl();
+export async function renderPupsonProductMarkdown(
+  id: string,
+  baseUrl = pupsonPublicBaseUrl(),
+): Promise<string | null> {
   const manifest = await buildPupsonDiscoveryManifest(baseUrl);
   const entity = manifest.entities.find((candidate) => candidate.id === `product:${id}`);
   return entity ? renderOwnedWebEntityMarkdown(entity) : null;
 }
 
-export async function renderPupsonAgentsMd(): Promise<string> {
-  const baseUrl = pupsonPublicBaseUrl();
-  const products = await getPublicCatalogProductListForAgents();
+export async function renderPupsonAgentsMd(baseUrl = pupsonPublicBaseUrl()): Promise<string> {
+  const products = await getPublicCatalogProductListForAgents(baseUrl);
   return [
     '# PupsonStuff — Agent Guidance',
     '',
@@ -91,12 +91,12 @@ export function buildDiscoveryResponse(
   });
 }
 
-async function getPublicCatalogProductListForAgents(): Promise<Array<{
+async function getPublicCatalogProductListForAgents(baseUrl: string): Promise<Array<{
   name: string;
   url: string;
   markdownUrl: string;
 }>> {
-  const manifest = await buildPupsonDiscoveryManifest();
+  const manifest = await buildPupsonDiscoveryManifest(baseUrl);
   return manifest.entities.map((entity) => ({
     name: entity.name,
     url: entity.canonicalUrl,
