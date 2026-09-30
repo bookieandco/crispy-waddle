@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestRestorationSource } from "@jhadina/music-core";
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
-import { createMusicRestorationRuntimeClient } from "@/lib/music/restoration-runtime-server";
+import { createRequestMusicRestorationRuntimeClient } from "@/lib/music/restoration-runtime-server";
 import { SupabaseMusicRestorationArtifactStore } from "@/lib/music/restoration-supabase-store";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       fileName: file.name,
       mimeType: file.type,
       bytes,
-      runtime: createMusicRestorationRuntimeClient(),
+      runtime: runtimeClient,
       store,
     });
 
