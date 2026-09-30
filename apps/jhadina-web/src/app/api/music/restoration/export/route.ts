@@ -1,23 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  buildRestorationZip,
   renderLogicImportGuide,
   renderReaperProject,
   renderRestorationManifest,
   renderRestorationMarkersCsv,
-  sha256Hex,
 } from "@jhadina/music-core";
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
+import { buildRestorationDawBundle } from "@/lib/music/restoration-daw-bundle-service";
 import { getRestorationStudioCase } from "@/lib/music/restoration-studio-service";
-import { SupabaseMusicRestorationArtifactStore } from "@/lib/music/restoration-supabase-store";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type ExportFormat = "bundle" | "manifest" | "reaper" | "markers" | "logic";
-
-const MAX_DAW_BUNDLE_SOURCE_BYTES = 250 * 1024 * 1024;
 
 function safeFile(value: string): string {
   return value.trim().replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 100) || "restoration";
@@ -48,68 +44,34 @@ export async function GET(req: NextRequest) {
     const title = safeFile(String(snapshot.restorationCase.title ?? "restoration"));
 
     if (format === "bundle") {
-      const totalSourceBytes = snapshot.artifacts.reduce(
-        (sum, artifact) => sum + Number(artifact.sizeBytes ?? 0),
-        0,
-      );
-      if (!Number.isFinite(totalSourceBytes) || totalSourceBytes > MAX_DAW_BUNDLE_SOURCE_BYTES) {
-        return NextResponse.json({
-          success: false,
-          error: "DAW bundle is too large for the web export boundary. Export individual assets or use the commissioned restoration worker.",
-        }, { status: 413 });
-      }
-
-      const store = new SupabaseMusicRestorationArtifactStore(client, identity.userId);
-      const entries: Array<{ path: string; data: Uint8Array | string }> = [
-        {
-          path: "restoration-manifest.json",
-          data: renderRestorationManifest(snapshot.manifest),
-        },
-        {
-          path: "markers.csv",
-          data: renderRestorationMarkersCsv(snapshot.manifest.markers),
-        },
-        {
-          path: safeFile(String(snapshot.restorationCase.title ?? "restoration")) + ".rpp",
-          data: renderReaperProject(snapshot.manifest),
-        },
-        {
-          path: "LOGIC-IMPORT.md",
-          data: renderLogicImportGuide(snapshot.manifest),
-        },
-        {
-          path: "README.txt",
-          data: [
-            "Jhadina Restoration Studio DAW bundle",
-            "",
-            "The immutable source remains authoritative.",
-            "Files in stems/ are exact registered artifact bytes and are SHA-256 checked before packaging.",
-            "Open the .rpp file in REAPER from this extracted folder, or import stems/ at time 0 in Logic Pro.",
-            "markers.csv and restoration-manifest.json preserve timing, lineage, QC and restoration history.",
-            "",
-          ].join("\n"),
-        },
-      ];
-
-      for (const track of snapshot.manifest.tracks) {
-        const bytes = await store.downloadArtifactBytes(track.artifactId);
-        const actualHash = await sha256Hex(bytes);
-        if (actualHash.toLowerCase() !== track.sha256.toLowerCase()) {
-          throw new Error(`MUSIC_RESTORATION_EXPORT_HASH_MISMATCH: ${track.artifactId}`);
+      try {
+        const bundle = await buildRestorationDawBundle({
+          client,
+          ownerUserId: identity.userId,
+          snapshot,
+        });
+        const body = bundle.bytes.buffer.slice(
+          bundle.bytes.byteOffset,
+          bundle.bytes.byteOffset + bundle.bytes.byteLength,
+        ) as ArrayBuffer;
+        return new NextResponse(body, {
+          headers: {
+            "content-type": "application/zip",
+            "content-disposition": 'attachment; filename="' + bundle.title + '-jhadina-restoration.zip"',
+            "cache-control": "private, no-store",
+            "content-length": String(bundle.bytes.byteLength),
+            "x-jhadina-bundle-sha256": bundle.sha256,
+          },
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === "MUSIC_RESTORATION_DAW_BUNDLE_TOO_LARGE") {
+          return NextResponse.json({
+            success: false,
+            error: "DAW bundle is too large for the web export boundary. Export individual assets or use the commissioned restoration worker.",
+          }, { status: 413 });
         }
-        entries.push({ path: "stems/" + track.fileName, data: bytes });
+        throw error;
       }
-
-      const zip = buildRestorationZip(entries);
-      const body = zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.byteLength) as ArrayBuffer;
-      return new NextResponse(body, {
-        headers: {
-          "content-type": "application/zip",
-          "content-disposition": 'attachment; filename="' + title + '-jhadina-restoration.zip"',
-          "cache-control": "private, no-store",
-          "content-length": String(zip.byteLength),
-        },
-      });
     }
 
     if (format === "manifest") {
