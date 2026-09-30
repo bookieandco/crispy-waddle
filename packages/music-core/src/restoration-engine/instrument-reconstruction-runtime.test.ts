@@ -5,7 +5,10 @@ import {
 } from "../instrument-replacement.js";
 import type { InstrumentReconstructionRequest } from "../instrument-reconstruction.js";
 import { sha256Hex, type RestorationArtifactStore, type StoredRestorationArtifact } from "./ingest-runtime.js";
-import { reconstructInstrumentRegions } from "./instrument-reconstruction-runtime.js";
+import {
+  assessInstrumentReplacementArtifacts,
+  reconstructInstrumentRegions,
+} from "./instrument-reconstruction-runtime.js";
 import type {
   RestorationPerceptionReceipt,
   RestorationProbeReceipt,
@@ -108,6 +111,70 @@ describe("instrument reconstruction",()=>{
     });
     expect(decision.replace).toBe(false);
     expect(decision.reason).toContain("gain evidence confidence");
+  });
+
+  it("derives donor admission from real artifact regions through the runtime",async()=>{
+    const store=new MemoryStore();
+    const {source,replacement}=artifacts();
+    store.artifacts.set(source.id,source);
+    store.artifacts.set(replacement.id,replacement);
+    let assessmentRequest:unknown;
+
+    const receipt=await assessInstrumentReplacementArtifacts({
+      ownerUserId:"user-1",
+      instrumentFamily:"drums",
+      segments:request().segments,
+      source,
+      replacement,
+      store,
+      runtime:runtime({
+        async assessInstrumentReplacement(input){
+          assessmentRequest=input;
+          return {
+            assessmentId:input.assessmentId,
+            sourceArtifactId:input.source.artifactId,
+            replacementArtifactId:input.replacement.artifactId,
+            sourceSha256:input.source.sha256,
+            replacementSha256:input.replacement.sha256,
+            instrumentFamily:"drums",
+            observedFingerprint:fingerprint,
+            replacementFingerprint:{...fingerprint,spectralCentroidHz:2650},
+            gainEvidence:{
+              method:"runtime-region-integrity-delta-v1",
+              expectedGain:0.55,
+              confidence:0.91,
+            },
+            diagnostics:{
+              sourceDamageScore:0.7,
+              replacementDamageScore:0.15,
+              sourceClippingRatio:0.003,
+              replacementClippingRatio:0,
+              sourceDropoutRatio:0.1,
+              replacementDropoutRatio:0.01,
+              sourceDurationMs:500,
+              replacementDurationMs:600,
+            },
+            runtimeReceiptId:"music-instrument-assessment:receipt-1",
+          };
+        },
+      }),
+      assessmentId:"assessment-1",
+    });
+
+    expect(assessmentRequest).toMatchObject({
+      assessmentId:"assessment-1",
+      source:{artifactId:"drums-damaged"},
+      replacement:{artifactId:"drums-donor"},
+      instrumentFamily:"drums",
+      segments:[{
+        sourceStartMs:1000,
+        sourceEndMs:1500,
+        replacementStartMs:2000,
+        replacementEndMs:2600,
+      }],
+    });
+    expect(receipt.gainEvidence.method).toBe("runtime-region-integrity-delta-v1");
+    expect(receipt.runtimeReceiptId).toBe("music-instrument-assessment:receipt-1");
   });
 
   it("renders, independently re-hashes and registers a reconstructed artifact",async()=>{
