@@ -11,6 +11,7 @@ import {
   type StoredRestorationArtifact,
 } from "./ingest-runtime.js";
 import type {
+  RestorationInstrumentAssessmentReceipt,
   RestorationReconstructionReceipt,
   RestorationReconstructionSegment,
   RestorationRuntimeClient,
@@ -48,6 +49,43 @@ async function runtimeSource(
     sha256: artifact.contentHash,
     mimeType: artifact.mimeType,
   };
+}
+
+export async function assessInstrumentReplacementArtifacts(input: {
+  ownerUserId: string;
+  instrumentFamily: import("../instrument-replacement.js").InstrumentFamily;
+  segments: InstrumentReconstructionRequest["segments"];
+  source: StoredRestorationArtifact;
+  replacement: StoredRestorationArtifact;
+  runtime: RestorationRuntimeClient;
+  store: RestorationArtifactStore;
+  assessmentId?: string;
+}): Promise<RestorationInstrumentAssessmentReceipt> {
+  if (input.source.ownerUserId !== input.ownerUserId ||
+      input.replacement.ownerUserId !== input.ownerUserId ||
+      input.source.caseId !== input.replacement.caseId) {
+    throw new Error("MUSIC_INSTRUMENT_ASSESSMENT_SCOPE_MISMATCH");
+  }
+  if (input.source.id === input.replacement.id) {
+    throw new Error("MUSIC_INSTRUMENT_ASSESSMENT_SOURCE_DONOR_MUST_DIFFER");
+  }
+  if (!input.runtime.assessInstrumentReplacement) {
+    throw new Error("MUSIC_INSTRUMENT_ASSESSMENT_RUNTIME_UNAVAILABLE");
+  }
+  const assessmentId = input.assessmentId?.trim() ||
+    `music-instrument-assessment:${globalThis.crypto.randomUUID()}`;
+  return input.runtime.assessInstrumentReplacement({
+    assessmentId,
+    source: await runtimeSource(input.store, input.ownerUserId, input.source),
+    replacement: await runtimeSource(input.store, input.ownerUserId, input.replacement),
+    instrumentFamily: input.instrumentFamily,
+    segments: input.segments.map(segment => ({
+      sourceStartMs: segment.targetStartMs,
+      sourceEndMs: segment.targetEndMs,
+      replacementStartMs: segment.replacementStartMs,
+      replacementEndMs: segment.replacementEndMs,
+    })),
+  });
 }
 
 export interface InstrumentReconstructionRuntimeResult extends ReconstructionResult {
