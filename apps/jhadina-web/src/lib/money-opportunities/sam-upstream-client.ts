@@ -1,3 +1,5 @@
+import { getGithubOidcToken, githubOidcAvailable } from './github-oidc-token'
+
 const DEFAULT_SAM_UPSTREAM_URL =
   'https://crispy-waddle-jhadina-web.vercel.app/api/internal/sam/upstream'
 
@@ -5,13 +7,8 @@ function endpoint() {
   return process.env.SAM_UPSTREAM_URL?.trim() || DEFAULT_SAM_UPSTREAM_URL
 }
 
-function token() {
-  return process.env.SAM_UPSTREAM_OIDC_TOKEN?.trim()
-}
-
 async function request<T>(action: 'health' | 'search' | 'entities' | 'awards', params?: Record<string, unknown>) {
-  const oidc = token()
-  if (!oidc) throw new Error('SAM_UPSTREAM_OIDC_TOKEN is not configured')
+  const oidc = await getGithubOidcToken('jhadina-sam-upstream','SAM_UPSTREAM_OIDC_TOKEN')
 
   const response = await fetch(endpoint(), {
     method: 'POST',
@@ -43,7 +40,7 @@ async function request<T>(action: 'health' | 'search' | 'entities' | 'awards', p
 }
 
 export function samUpstreamConfigured() {
-  return Boolean(token())
+  return githubOidcAvailable('SAM_UPSTREAM_OIDC_TOKEN')
 }
 
 export async function samUpstreamHealth() {
