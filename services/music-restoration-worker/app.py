@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
 from source_fetch import stage_verified_source
+from supabase_auth import authorize_supabase_user
 from vercel_oidc import authorize_vercel_token
 from worker import (
     RestorationWorkerConfig,
@@ -60,15 +61,18 @@ class ExecuteRequest(BaseModel):
     sampleRate:int=Field(gt=0,le=384000)
     channels:int=Field(gt=0,le=32)
 
-def _authorize(authorization:str|None)->None:
+def _authorize(authorization:str|None,claimed_user_id:str|None=None)->dict[str,Any]:
     supplied=authorization[7:].strip() if authorization and authorization.startswith("Bearer ") else ""
     if not supplied:
         raise HTTPException(status_code=401,detail="UNAUTHORIZED")
     expected=os.getenv("MUSIC_RESTORATION_WORKER_TOKEN","").strip()
     if expected and hmac.compare_digest(supplied,expected):
-        return
+        return {"authMode":"static"}
     if authorize_vercel_token(supplied):
-        return
+        return {"authMode":"vercel-oidc"}
+    user=authorize_supabase_user(supplied,claimed_user_id)
+    if user is not None:
+        return user
     raise HTTPException(status_code=401,detail="UNAUTHORIZED")
 
 def _host_suffixes()->tuple[str,...]:
@@ -94,14 +98,14 @@ def live()->dict[str,str]:
     return {"status":"live","service":"music-restoration-worker"}
 
 @app.get("/health")
-def health(authorization:str|None=Header(default=None))->dict[str,Any]:
-    _authorize(authorization)
+def health(authorization:str|None=Header(default=None),x_jhadina_user_id:str|None=Header(default=None,alias="x-jhadina-user-id"))->dict[str,Any]:
+    identity=_authorize(authorization,x_jhadina_user_id)
     readiness=runtime_readiness(_config)
-    return {"status":"ready" if readiness["productionReady"] else "blocked",**readiness}
+    return {"status":"ready" if readiness["productionReady"] else "blocked","authMode":identity["authMode"],**readiness}
 
 @app.post("/v1/probe")
-def probe(body:ProbeRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
-    _authorize(authorization)
+def probe(body:ProbeRequest,authorization:str|None=Header(default=None),x_jhadina_user_id:str|None=Header(default=None,alias="x-jhadina-user-id"))->dict[str,Any]:
+    _authorize(authorization,x_jhadina_user_id)
     try:
         with tempfile.TemporaryDirectory(prefix="music-probe-") as temp:
             source=_stage(body.source,Path(temp))
@@ -110,8 +114,8 @@ def probe(body:ProbeRequest,authorization:str|None=Header(default=None))->dict[s
         raise _error(exc) from exc
 
 @app.post("/v1/separate")
-def separate(body:SeparateRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
-    _authorize(authorization)
+def separate(body:SeparateRequest,authorization:str|None=Header(default=None),x_jhadina_user_id:str|None=Header(default=None,alias="x-jhadina-user-id"))->dict[str,Any]:
+    _authorize(authorization,x_jhadina_user_id)
     try:
         with tempfile.TemporaryDirectory(prefix="music-separate-input-") as temp:
             source=_stage(body.source,Path(temp))
@@ -127,8 +131,8 @@ def separate(body:SeparateRequest,authorization:str|None=Header(default=None))->
         raise _error(exc) from exc
 
 @app.post("/v1/perceive")
-def perceive(body:PerceiveRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
-    _authorize(authorization)
+def perceive(body:PerceiveRequest,authorization:str|None=Header(default=None),x_jhadina_user_id:str|None=Header(default=None,alias="x-jhadina-user-id"))->dict[str,Any]:
+    _authorize(authorization,x_jhadina_user_id)
     try:
         with tempfile.TemporaryDirectory(prefix="music-perceive-") as temp:
             source=_stage(body.source,Path(temp))
@@ -137,8 +141,8 @@ def perceive(body:PerceiveRequest,authorization:str|None=Header(default=None))->
         raise _error(exc) from exc
 
 @app.post("/v1/execute")
-def execute(body:ExecuteRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
-    _authorize(authorization)
+def execute(body:ExecuteRequest,authorization:str|None=Header(default=None),x_jhadina_user_id:str|None=Header(default=None,alias="x-jhadina-user-id"))->dict[str,Any]:
+    _authorize(authorization,x_jhadina_user_id)
     try:
         with tempfile.TemporaryDirectory(prefix="music-repair-input-") as temp:
             source=_stage(body.source,Path(temp))
@@ -158,8 +162,8 @@ def execute(body:ExecuteRequest,authorization:str|None=Header(default=None))->di
         raise _error(exc) from exc
 
 @app.get("/v1/jobs/{job_token}/artifact/{name}")
-def artifact(job_token:str,name:str,authorization:str|None=Header(default=None)):
-    _authorize(authorization)
+def artifact(job_token:str,name:str,authorization:str|None=Header(default=None),x_jhadina_user_id:str|None=Header(default=None,alias="x-jhadina-user-id")):
+    _authorize(authorization,x_jhadina_user_id)
     path=artifact_path(_config,job_token,name)
     if path is None:
         raise HTTPException(status_code=404,detail="MUSIC_RESTORATION_ARTIFACT_NOT_FOUND")
