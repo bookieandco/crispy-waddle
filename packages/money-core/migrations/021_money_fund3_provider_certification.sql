@@ -106,3 +106,15 @@ TO service_role;
 
 COMMENT ON TABLE money_funding_commissioning_receipts IS 'Evidence-only receipts for external funding rail commissioning. REAL_LIVE and SYNTHETIC_TEST are never interchangeable.';
 COMMENT ON TABLE money_funding_commissioning_certificates IS 'Non-executing funding rail certification outputs. Operational admission remains a separate persisted policy change.';
+
+
+-- Cover funding foreign keys for parent-row maintenance and advisor cleanliness.
+CREATE INDEX IF NOT EXISTS money_movement_attempts_movement_fk_idx
+  ON money_movement_attempts(movement_id);
+CREATE INDEX IF NOT EXISTS money_movement_provider_events_movement_fk_idx
+  ON money_movement_provider_events(movement_id);
+CREATE INDEX IF NOT EXISTS money_movement_reconciliations_movement_fk_idx
+  ON money_movement_reconciliations(movement_id);
+CREATE INDEX IF NOT EXISTS money_funding_rail_admissions_commissioning_cert_idx
+  ON money_funding_rail_admissions(commissioning_certificate_id)
+  WHERE commissioning_certificate_id IS NOT NULL;
