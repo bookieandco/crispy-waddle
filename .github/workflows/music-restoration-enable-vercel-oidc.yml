@@ -2,13 +2,6 @@ name: Music Restoration Enable Vercel OIDC
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/music-restoration-enable-vercel-oidc.yml"
-      - "apps/jhadina-web/src/lib/music/restoration-runtime-server.ts"
-      - "services/music-restoration-worker/vercel_oidc.py"
 
 permissions:
   contents: read
