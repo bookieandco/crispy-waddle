@@ -53,12 +53,14 @@ vi.mock("@/lib/intelligence/jhadina-command", () => ({
 }))
 
 vi.mock("@/lib/intelligence/ask-shortcut-experience", () => ({
-  recordAskShortcutExperience: recordShortcutExperience,
+  recordAskShortcutExperience: (input: unknown) => recordShortcutExperience(input as { shortcut: string }),
   finalizeAskShortcutExperience: vi.fn(),
 }))
 
 vi.mock("@/lib/intelligence/ask-expression", () => ({
-  realizeAskJhadinaExpression: realizeExpression,
+  realizeAskJhadinaExpression: (input: unknown) => realizeExpression(input as {
+    proposal: { recommendation: string; disposition: string }
+  }),
 }))
 
 import { POST } from "./route"
