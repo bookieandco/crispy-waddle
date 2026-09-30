@@ -61,4 +61,5 @@ export * from './experiments/creative-ab-testing.js';
 export * from './intelligence/creator-operating-system.js';
 
 export * from './intelligence/marketing-presence.js';
-\nexport * from './music-juggernaut/index.js';\n
+
+export * from './music-juggernaut/index.js';
