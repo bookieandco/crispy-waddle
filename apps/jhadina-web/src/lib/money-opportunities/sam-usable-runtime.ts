@@ -15,6 +15,7 @@ export async function runSamEnrichment(
   const noticeIds=await recentSamNoticeIds(client,limit)
   if(!noticeIds.length)return {
     noticeIds,
+    hydration:{hydrated:0,errors:[] as string[]},
     documents:{attempted:0,textCaptured:0,binaryCaptured:0,needsOcr:0,unsupported:0,failed:0},
     analysis:{analyzed:0},
     providers:{notices:0,candidates:0,errors:[] as string[]},
