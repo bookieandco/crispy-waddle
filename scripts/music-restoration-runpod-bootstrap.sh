@@ -76,9 +76,20 @@ if [[ "$MODE" == "--background" ]]; then
   if [[ -f "$PID_FILE" ]]; then
     OLD_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
     if [[ -n "$OLD_PID" ]] && kill -0 "$OLD_PID" 2>/dev/null; then
-      echo "Music restoration sidecar already running as PID $OLD_PID"
-      exit 0
+      echo "Replacing Music restoration sidecar PID $OLD_PID"
+      kill "$OLD_PID"
+      for _ in $(seq 1 20); do
+        if ! kill -0 "$OLD_PID" 2>/dev/null; then
+          break
+        fi
+        sleep 0.5
+      done
+      if kill -0 "$OLD_PID" 2>/dev/null; then
+        echo "Music restoration sidecar did not stop gracefully; forcing PID $OLD_PID" >&2
+        kill -9 "$OLD_PID"
+      fi
     fi
+    rm -f "$PID_FILE"
   fi
 
   echo "Starting Music restoration sidecar on $BIND_HOST:$PORT"
