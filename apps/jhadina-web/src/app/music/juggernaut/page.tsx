@@ -38,7 +38,7 @@ export default function MusicJuggernautPage(){
     setStatus("Initializing internal artist-growth project…");
     const response=await fetch("/api/music/juggernaut",{
       method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({operation:"upsert_project",payload:{artistKey,name:DEFAULT_ARTIST_NAME,mode:"SEARCH",metadata:{createdFrom:"music-juggernaut-ui"}}}),
+      body:JSON.stringify({operation:"upsert_project",payload:{artistKey,name:DEFAULT_ARTIST_NAME,mode:"SEARCH",metadata:{createdFrom:"music-juggernaut-ui",brandId:"brand:atwood-bookie"}}}),
     });
     const body=await response.json();
     if(!response.ok||body.success!==true){setStatus(body.error??"Initialization failed");return;}
@@ -97,7 +97,7 @@ export default function MusicJuggernautPage(){
           <Metric label="Mode" value={data.mode} detail={data.mode==="ATTACK"?"Concentrate on validated signal":"Maximize learning; keep spend light"} />
           <Metric label="Catalog priority" value={topSong?.title??"Need evidence"} detail={topSong?"Current evidence rank, not artistic judgment":"Ingest songs + observations"} />
           <Metric label="Validated outliers" value={String(validated.length)} detail={data.outliers.length+" scored experiment signal(s)"} />
-          <Metric label="Validated learnings" value={String(validatedLearning.length)} detail="Durable, evidence-backed campaign memory" />
+          <Metric label="Direct audience" value={String(data.fanAudience?.directlyReachable??0)} detail={(data.fanAudience?Math.round(data.fanAudience.ownedShare*100):0)+"% of known fan records directly reachable"} />
         </section>
 
         <section className="mt-8 grid gap-6 lg:grid-cols-2">
@@ -117,7 +117,7 @@ export default function MusicJuggernautPage(){
         </section>
 
         <section className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
-          <Panel title="Durable learning" kicker="MEMORY">
+          <Panel title="Durable learning" kicker={"MEMORY · "+validatedLearning.length+" VALIDATED"}>
             {data.learning.length?data.learning.slice(0,10).map((row)=><RowLine key={String(row.id)} title={String(row.finding??row.learning_key)} meta={String(row.status)+" · confidence "+Math.round(Number(row.confidence??0)*100)+"%"} />):<Empty text="No campaign learning has been admitted yet."/>}
           </Panel>
           <Panel title="System integrity" kicker="AUDIT">
