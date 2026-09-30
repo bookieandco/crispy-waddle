@@ -303,3 +303,6 @@ export * from './sports-simulation-report.js';
 export * from './sports-game-reference-context.js';
 export * from './sports-basketball-mechanics.js';
 export * from './sports-history.js';
+
+export * from './sports-auto-runtime.js';
+export * from './postgres-sports-auto-runtime-store.js';
