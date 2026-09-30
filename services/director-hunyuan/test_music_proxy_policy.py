@@ -18,7 +18,7 @@ class MusicProxyPolicyTest(unittest.TestCase):
         self.assertFalse(policy.music_proxy_path_allowed("health","POST"))
 
     def test_compute_endpoints_are_post_only(self):
-        for path in ("v1/probe","v1/separate","v1/perceive","v1/execute","v1/reconstruct","v1/reconstruction/assess","v1/vocal/restore"):
+        for path in ("v1/probe","v1/separate","v1/perceive","v1/execute","v1/reconstruct","v1/reconstruction/assess","v1/reconstruction/search-donors","v1/vocal/restore"):
             self.assertTrue(policy.music_proxy_path_allowed(path,"POST"))
             self.assertFalse(policy.music_proxy_path_allowed(path,"GET"))
 
@@ -26,6 +26,9 @@ class MusicProxyPolicyTest(unittest.TestCase):
         token="a"*24
         self.assertTrue(policy.music_proxy_path_allowed(f"v1/jobs/{token}/artifact/vocals.wav","GET"))
         self.assertTrue(policy.music_proxy_path_allowed(f"v1/jobs/{token}/artifact/output.wav","GET"))
+        self.assertTrue(policy.music_proxy_path_allowed(f"v1/jobs/{token}/artifact/donor-0.wav","GET"))
+        self.assertTrue(policy.music_proxy_path_allowed(f"v1/jobs/{token}/artifact/donor-4.wav","GET"))
+        self.assertFalse(policy.music_proxy_path_allowed(f"v1/jobs/{token}/artifact/donor-5.wav","GET"))
         self.assertFalse(policy.music_proxy_path_allowed(f"v1/jobs/{token}/artifact/secret.wav","GET"))
         self.assertFalse(policy.music_proxy_path_allowed("v1/jobs/../../etc/passwd/artifact/output.wav","GET"))
         self.assertFalse(policy.music_proxy_path_allowed(f"v1/jobs/{token}/artifact/output.wav","POST"))
