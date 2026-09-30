@@ -1,3 +1,9 @@
+import type {
+  InstrumentFamily,
+  InstrumentFingerprint,
+  RestorationGainEvidence,
+} from "../instrument-replacement.js";
+
 export type RestorationStemRole = "vocals" | "drums" | "bass" | "other" | "unknown";
 
 export interface RestorationRuntimeSource {
@@ -163,6 +169,46 @@ export interface RestorationReconstructionReceipt {
   runtimeReceiptId: string;
 }
 
+export interface RestorationInstrumentAssessmentSegment {
+  sourceStartMs: number;
+  sourceEndMs: number;
+  replacementStartMs: number;
+  replacementEndMs: number;
+}
+
+export interface RestorationInstrumentAssessmentRequest {
+  assessmentId: string;
+  source: RestorationRuntimeSource;
+  replacement: RestorationRuntimeSource;
+  instrumentFamily: InstrumentFamily;
+  segments: RestorationInstrumentAssessmentSegment[];
+}
+
+export interface RestorationInstrumentAssessmentDiagnostics {
+  sourceDamageScore: number;
+  replacementDamageScore: number;
+  sourceClippingRatio: number;
+  replacementClippingRatio: number;
+  sourceDropoutRatio: number;
+  replacementDropoutRatio: number;
+  sourceDurationMs: number;
+  replacementDurationMs: number;
+}
+
+export interface RestorationInstrumentAssessmentReceipt {
+  assessmentId: string;
+  sourceArtifactId: string;
+  replacementArtifactId: string;
+  sourceSha256: string;
+  replacementSha256: string;
+  instrumentFamily: InstrumentFamily;
+  observedFingerprint: InstrumentFingerprint;
+  replacementFingerprint: InstrumentFingerprint;
+  gainEvidence: RestorationGainEvidence;
+  diagnostics: RestorationInstrumentAssessmentDiagnostics;
+  runtimeReceiptId: string;
+}
+
 export interface RestorationRuntimeClient {
   probe(source: RestorationRuntimeSource): Promise<RestorationProbeReceipt>;
   separate(input: {
@@ -175,6 +221,9 @@ export interface RestorationRuntimeClient {
     role?: RestorationStemRole;
   }): Promise<RestorationPerceptionReceipt>;
   execute(request: RestorationRepairRequest): Promise<RestorationRepairReceipt>;
+  assessInstrumentReplacement?(
+    request: RestorationInstrumentAssessmentRequest,
+  ): Promise<RestorationInstrumentAssessmentReceipt>;
   reconstruct(request: RestorationReconstructionRequest): Promise<RestorationReconstructionReceipt>;
   downloadArtifact(resultUri: string): Promise<Uint8Array>;
 }
@@ -282,6 +331,38 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
       throw new Error("Restoration execution receipt identity mismatch.");
     }
     if (!HEX_64.test(receipt.outputSha256)) throw new Error("Restoration execution output hash is invalid.");
+    return receipt;
+  }
+
+  async assessInstrumentReplacement(
+    request: RestorationInstrumentAssessmentRequest,
+  ): Promise<RestorationInstrumentAssessmentReceipt> {
+    assertRuntimeSource(request.source);
+    assertRuntimeSource(request.replacement);
+    if (!request.assessmentId.trim()) throw new Error("Instrument assessment id is required.");
+    if (request.source.artifactId === request.replacement.artifactId) {
+      throw new Error("Instrument assessment source and replacement artifacts must differ.");
+    }
+    if (!request.segments.length) throw new Error("Instrument assessment requires at least one segment.");
+
+    const receipt = await this.post<RestorationInstrumentAssessmentReceipt>(
+      "/v1/reconstruction/assess",
+      request,
+    );
+    if (receipt.assessmentId !== request.assessmentId) {
+      throw new Error("Instrument assessment receipt identity mismatch.");
+    }
+    if (receipt.sourceArtifactId !== request.source.artifactId ||
+        receipt.replacementArtifactId !== request.replacement.artifactId) {
+      throw new Error("Instrument assessment receipt lineage mismatch.");
+    }
+    if (receipt.sourceSha256.toLowerCase() !== request.source.sha256.toLowerCase() ||
+        receipt.replacementSha256.toLowerCase() !== request.replacement.sha256.toLowerCase()) {
+      throw new Error("Instrument assessment receipt hash binding mismatch.");
+    }
+    if (receipt.instrumentFamily !== request.instrumentFamily) {
+      throw new Error("Instrument assessment family mismatch.");
+    }
     return receipt;
   }
 
