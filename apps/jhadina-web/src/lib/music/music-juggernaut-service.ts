@@ -1,5 +1,6 @@
 import {
   buildMusicCreativePortfolio,
+  buildSongSectionHeatmap,
   certifyMusicJuggernautCore,
   chooseJuggernautMode,
   detectCreativeOutlier,
@@ -30,6 +31,8 @@ export interface MusicJuggernautProjection{
   rankedSongs:SongRecord[];
   venues:ReturnType<typeof recommendVenueCapacity>[];
   certification:ReturnType<typeof certifyMusicJuggernautCore>;
+  creativePortfolio?:MusicCreativePortfolio;
+  fanAudience?:MusicFanAudienceProjection;
   dataWarnings:string[];
 }
 
@@ -118,9 +121,42 @@ export async function loadMusicJuggernautProjection(input:{
     }
   });
   const mode=chooseJuggernautMode({outliers});
+  let creativePortfolio:MusicCreativePortfolio|undefined;
+  const topSong=rankedSongs[0];
+  if(topSong){
+    try{
+      const heatmap=buildSongSectionHeatmap({song:topSong,experiments:experimentModels,observations:observationModels});
+      const winningSectionId=heatmap.find((section)=>section.observations>0)?.sectionId??topSong.sections[0]?.id;
+      if(mode==='SEARCH'||winningSectionId){
+        creativePortfolio=buildMusicCreativePortfolio({
+          song:topSong,
+          mode,
+          winningSectionId:mode==='ATTACK'?winningSectionId:undefined,
+        });
+      }else{
+        dataWarnings.push('ATTACK mode is active but no tested song section is available for creative concentration.');
+      }
+    }catch(error){
+      dataWarnings.push('Creative portfolio could not be built: '+message(error));
+    }
+  }
+
+  let fanAudience:MusicFanAudienceProjection|undefined;
+  const metadata=project.metadata&&typeof project.metadata==='object'&&!Array.isArray(project.metadata)
+    ? project.metadata as Record<string,unknown>
+    : {};
+  const brandId=typeof metadata.brandId==='string'&&metadata.brandId.trim()?metadata.brandId.trim():'brand:'+input.artistKey;
+  try{
+    fanAudience=await loadMusicFanAudienceProjection({userId:input.userId,brandId});
+  }catch(error){
+    dataWarnings.push('Fan audience projection unavailable: '+message(error));
+  }
+
   return {
     project,songs,experiments,observations,cityDemand,rights,learning,outliers,mode,rankedSongs,venues,
     certification:certifyMusicJuggernautCore(),
+    creativePortfolio,
+    fanAudience,
     dataWarnings,
   };
 }
