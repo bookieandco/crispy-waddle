@@ -75,3 +75,19 @@ The Music bootstrap reuses the RunPod CUDA/PyTorch base through a
 `/workspace/jhadina/music-restoration-output`, stores the Torch/Demucs cache
 under `/workspace/jhadina/models/torch`, verifies CUDA, warms the admitted
 Demucs model, and binds only to localhost.
+
+
+### Existing Pod one-command commissioning
+
+When Hunyuan is already running on the Pod, use the lightweight commissioning
+script instead of re-entering the Hunyuan/Hugging Face credentials:
+
+```bash
+bash scripts/music-restoration-runpod-commission.sh
+```
+
+The script reads the currently running Hunyuan process environment from
+`/proc/<pid>/environ` **in memory**, pulls current `main`, installs the
+updated Hunyuan proxy dependency, starts/replaces the localhost Music sidecar,
+then restarts Hunyuan with the same captured environment. It does not print or
+persist those captured secret values.
