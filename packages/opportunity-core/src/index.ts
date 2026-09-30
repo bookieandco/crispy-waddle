@@ -86,3 +86,7 @@ export * from './domain/previous-win-similarity.js'
 export * from './domain/prospect-intelligence.js'
 
 export * from './domain/commercial-learning.js'
+
+export * from './domain/contract-precheck.js'
+export * from './domain/provider-network-governance.js'
+export * from './domain/public-procurement-path.js'
