@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   perceiveRestorationArtifact,
+  type RestorationRuntimeClient,
   type StoredRestorationArtifact,
 } from "@jhadina/music-core";
 import { SupabaseMusicRestorationArtifactStore } from "./restoration-supabase-store";
-import { createMusicRestorationRuntimeClient } from "./restoration-runtime-server";
 
 export interface PersistedPerceptionSummary {
   artifactId: string;
@@ -29,6 +29,7 @@ export async function runPersistedPerception(input: {
   ownerUserId: string;
   caseId: string;
   artifact: StoredRestorationArtifact;
+  runtime: RestorationRuntimeClient;
 }): Promise<PersistedPerceptionSummary> {
   const store = new SupabaseMusicRestorationArtifactStore(input.client, input.ownerUserId);
   const jobId = `music-perceive:${globalThis.crypto.randomUUID()}`;
@@ -44,7 +45,7 @@ export async function runPersistedPerception(input: {
     const observed = await perceiveRestorationArtifact({
       ownerUserId: input.ownerUserId,
       artifact: input.artifact,
-      runtime: createMusicRestorationRuntimeClient(),
+      runtime: input.runtime,
       store,
       role: admittedRole(input.artifact.role),
     });
