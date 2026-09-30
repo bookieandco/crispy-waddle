@@ -63,3 +63,5 @@ export * from './intelligence/creator-operating-system.js';
 export * from './intelligence/marketing-presence.js';
 
 export * from './intelligence/owned-web-discovery.js';
+
+export * from './intelligence/answer-observatory.js';
