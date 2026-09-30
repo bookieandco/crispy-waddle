@@ -31,6 +31,16 @@ export async function runInstrumentReconstruction(input: InstrumentReconstructio
   if (!replacement || replacement.caseId !== input.caseId) throw new Error("MUSIC_RECONSTRUCTION_REPLACEMENT_NOT_FOUND");
   if (source.id === replacement.id) throw new Error("MUSIC_RECONSTRUCTION_SOURCE_DONOR_MUST_DIFFER");
   if (!input.approved) throw new Error("MUSIC_RECONSTRUCTION_EXPLICIT_APPROVAL_REQUIRED");
+  if (source.role && replacement.role && source.role !== replacement.role) {
+    throw new Error("MUSIC_RECONSTRUCTION_PERSISTED_ROLE_MISMATCH");
+  }
+  if ((input.instrumentFamily === "drums" || input.instrumentFamily === "bass") &&
+      (source.role !== input.instrumentFamily || replacement.role !== input.instrumentFamily)) {
+    throw new Error("MUSIC_RECONSTRUCTION_PERSISTED_FAMILY_MISMATCH");
+  }
+  if (source.role === "vocals" || replacement.role === "vocals") {
+    throw new Error("MUSIC_RECONSTRUCTION_VOCAL_ARTIFACT_NOT_ADMITTED");
+  }
 
   const runtime = createMusicRestorationRuntimeClient();
   const assessment = await assessInstrumentReplacementArtifacts({
