@@ -2,6 +2,7 @@ import type {DecisionProposal,EvidenceRef} from '@jhadina/core-spine';
 import type {MusicJuggernautRepository} from '../music/music-juggernaut-repository';
 import {createMusicJuggernautRepository} from '../music/music-juggernaut-repository';
 import {loadMusicJuggernautProjection} from '../music/music-juggernaut-service';
+import {runMusicJuggernautTick} from '../music/music-juggernaut-tick';
 
 export type AskMusicJuggernautOperation =
   | 'overview'
@@ -9,7 +10,8 @@ export type AskMusicJuggernautOperation =
   | 'experiments'
   | 'breakout'
   | 'live_market'
-  | 'rights';
+  | 'rights'
+  | 'run_tick';
 
 export interface AskMusicJuggernautIntent{
   matched:true;
@@ -46,7 +48,9 @@ export function inspectAskMusicJuggernautIntent(activeTask:string):AskMusicJugge
   if(!diagnostic)return null;
 
   let operation:AskMusicJuggernautOperation='overview';
-  if(/\b(rights|clearance|sample|samples|split|splits|master|publishing|deal)\b/.test(text))operation='rights';
+  if(/\b(run|continue|operate|execute|work)\b/.test(text)&&/\b(juggernaut|music system|music machine|music os)\b/.test(text))operation='run_tick';
+  if(operation==='run_tick'){}
+  else if(/\b(rights|clearance|sample|samples|split|splits|master|publishing|deal)\b/.test(text))operation='rights';
   else if(/\b(city|cities|tour|touring|perform|performance|show|venue|room|market)\b/.test(text))operation='live_market';
   else if(/\b(breakout|viral|virality|momentum|taking off|blowing up)\b/.test(text))operation='breakout';
   else if(/\b(experiment|experiments|test|testing|outlier|content style|creative)\b/.test(text))operation='experiments';
@@ -65,6 +69,38 @@ export async function handleAskMusicJuggernautCommand(input:{
   const repository=overrides.repository??createMusicJuggernautRepository();
   const artistKey=input.artistKey?.trim()||'atwood-bookie';
   const artistName=input.artistName?.trim()||'Atwood Bookie';
+  if(intent.operation==='run_tick'){
+    const receipt=await runMusicJuggernautTick(
+      {userId:input.userId,artistKey,artistName},
+      {repository},
+    );
+    const proposal:DecisionProposal={
+      id:'ask-music-juggernaut:'+crypto.randomUUID(),
+      contextId:'music-juggernaut:'+receipt.projectId,
+      disposition:'PROCEED',
+      recommendation:receipt.actions.length
+        ? receipt.actions.map((action,index)=>(index+1)+'. '+action.instruction).join(' ')
+        : 'Music Juggernaut completed its internal tick. No new evidence-backed action is required right now.',
+      rationale:'The user explicitly asked Music Juggernaut to continue. Jhadina synchronized lineage-bound Social observations, updated durable learning, and planned the next internal work without starting publication, spend, outreach, bookings, contracts, or rights actions.',
+      evidence:receipt.socialSync.evidenceRefs.slice(0,12).map((ref)=>({id:ref,source:'music-juggernaut-tick',observedAt:new Date().toISOString(),summary:ref,immutable:false})),
+      uncertainty:[],
+      alternatives:[],
+    };
+    return {
+      proposal,
+      workPlan:{
+        kind:'music_juggernaut',operation:'run_tick',authority:'INTERNAL_PLANNING_ONLY',artistKey,mode:receipt.mode,
+        nextBoundary:receipt.mode==='ATTACK'?'director_social':'music_experiment',projectId:receipt.projectId,
+        notes:[
+          'Internal tick completed.',
+          'External actions started=false.',
+          ...receipt.actions.map((action)=>action.kind+': '+action.reason),
+        ],
+      },
+      verified:true,
+      verificationReason:'Music Juggernaut tick completed through owner-scoped repositories; no external action authority was used.',
+    };
+  }
   const projection=await loadMusicJuggernautProjection({
     userId:input.userId,artistKey,artistName,initialize:true,repository,
   });
@@ -144,6 +180,8 @@ function recommend(operation:AskMusicJuggernautOperation,p:NonNullable<Awaited<R
             ? 'Stored rights records currently show no blocking state. Contracts and grants still require human/legal review.'
             : 'No rights ledger evidence is stored yet. Map masters, publishing, samples, and third-party usage before commercial scaling.';
     }
+    case 'run_tick':
+      return 'Run the governed Music Juggernaut internal tick.';
     case 'overview':
       return 'Music Juggernaut: mode='+p.mode+'; songs='+p.songs.length+'; experiments='+p.experiments.length+'; observations='+p.observations.length+'; direct live markets='+p.cityDemand.length+'; validated learnings='+p.learning.filter((row)=>row.status==='validated').length+'.';
   }
@@ -156,6 +194,7 @@ function selectEvidence(operation:AskMusicJuggernautOperation,p:NonNullable<Awai
     operation==='rights'?p.rights:
     operation==='experiments'||operation==='breakout'?p.observations:
     operation==='catalog_priority'?p.songs:
+    operation==='run_tick'?p.observations:
     [p.project,...p.songs.slice(0,3),...p.observations.slice(0,3)];
   return rows.slice(0,12).map((row,index)=>({
     id:String(row.id??('music-juggernaut-evidence:'+index)),
@@ -172,6 +211,7 @@ function summarizeRow(row:Record<string,unknown>):string{
 }
 
 function nextBoundaryFor(operation:AskMusicJuggernautOperation,mode:'SEARCH'|'ATTACK'):AskMusicJuggernautWorkPlan['nextBoundary']{
+  if(operation==='run_tick')return mode==='ATTACK'?'director_social':'music_experiment';
   if(operation==='rights')return 'rights_review';
   if(operation==='live_market')return 'live_planning';
   if(operation==='experiments')return 'music_experiment';
