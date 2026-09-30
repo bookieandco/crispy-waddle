@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${MUSIC_RESTORATION_WORKER_TOKEN:?Set MUSIC_RESTORATION_WORKER_TOKEN in the worker environment.}"
-
+MODE="${1:-foreground}"
 ROOT="${JHADINA_GPU_ROOT:-/workspace/jhadina}"
 REPO="$ROOT/crispy-waddle"
 VENV="$ROOT/music-restoration-venv"
 OUTPUT="$ROOT/music-restoration-output"
 TORCH_CACHE="$ROOT/models/torch"
+PID_FILE="$ROOT/music-restoration-worker.pid"
+LOG_FILE="$ROOT/music-restoration-worker.log"
 SOURCE_REF="${DIRECTOR_SOURCE_REF:-main}"
+BIND_HOST="${MUSIC_RESTORATION_BIND_HOST:-127.0.0.1}"
+PORT="${MUSIC_RESTORATION_PORT:-8093}"
+
+if [[ "$MODE" != "foreground" && "$MODE" != "--background" ]]; then
+  echo "Usage: $0 [--background]" >&2
+  exit 2
+fi
 
 mkdir -p "$ROOT" "$ROOT/models" "$OUTPUT" "$TORCH_CACHE"
 
@@ -64,5 +72,40 @@ PY
 
 cd "$REPO/services/music-restoration-worker"
 
-echo "Starting Music restoration worker on :8093"
-exec uvicorn app:app --host 0.0.0.0 --port 8093
+if [[ "$MODE" == "--background" ]]; then
+  if [[ -f "$PID_FILE" ]]; then
+    OLD_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
+    if [[ -n "$OLD_PID" ]] && kill -0 "$OLD_PID" 2>/dev/null; then
+      echo "Music restoration sidecar already running as PID $OLD_PID"
+      exit 0
+    fi
+  fi
+
+  echo "Starting Music restoration sidecar on $BIND_HOST:$PORT"
+  nohup "$VENV/bin/uvicorn" app:app --host "$BIND_HOST" --port "$PORT" >"$LOG_FILE" 2>&1 &
+  PID="$!"
+  echo "$PID" > "$PID_FILE"
+
+  MUSIC_RESTORATION_HEALTH_URL="http://127.0.0.1:$PORT/health/live" python - <<'PY'
+import os
+import time
+import urllib.request
+
+url=os.environ["MUSIC_RESTORATION_HEALTH_URL"]
+last=None
+for _ in range(45):
+    try:
+        with urllib.request.urlopen(url,timeout=2) as response:
+            if response.status==200:
+                print("MUSIC_RESTORATION_SIDECAR_READY")
+                raise SystemExit(0)
+    except Exception as exc:
+        last=exc
+    time.sleep(1)
+raise SystemExit(f"MUSIC_RESTORATION_SIDECAR_START_FAILED:{last}")
+PY
+  exit 0
+fi
+
+echo "Starting Music restoration worker on $BIND_HOST:$PORT"
+exec uvicorn app:app --host "$BIND_HOST" --port "$PORT"
