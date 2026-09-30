@@ -285,3 +285,10 @@ CLOUD.1 is source-level architecture and deterministic scheduling logic.
 It does not certify any physical cluster as live. Live certification requires
 actual node inventory, GPU drivers, K3s/Kubernetes health, storage health,
 real workload execution and failure/recovery tests on the hardware.
+
+
+## CLOUD.3 data-path model
+
+CLOUD.3 separates the durable primary copy from acceleration/cache. AI workloads declare PREPARE, TRAIN, SERVE or ARCHIVE access semantics; media declares INGEST, EDIT, REVIEW or DELIVERY. Ceph RGW/object remains the private durable object/archive path, CephFS is shared POSIX/RWX, and node-local NVMe is disposable cache/scratch/checkpoint landing. SeaDrive is the private human virtual-drive surface; rclone VFS is the provider-neutral sparse/range-read bridge. Shade is optional external collaboration storage only and is never canonical provenance or approval authority.
+
+A compute workload and storage intent must carry matching authority, job, idempotency and project lineage before execution can be submitted. External storage requires explicit eligibility and remains denied for sensitive workloads.
