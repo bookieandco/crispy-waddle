@@ -1,74 +1,105 @@
-const DEFAULT_PUBLIC_URL = 'https://pupsonstuff.com';
+import { createHash } from 'node:crypto';
+import {
+  renderOwnedWebAgenticSitemap,
+  renderOwnedWebEntityMarkdown,
+  renderOwnedWebJsonl,
+  renderOwnedWebLlmsTxt,
+} from '@jhadina/growth-core';
+import {
+  buildPupsonDiscoveryManifest,
+  getPublicCatalogProduct,
+  pupsonPublicBaseUrl,
+} from '@/lib/public-discovery';
 
-export function pupsonPublicBaseUrl(): string {
-  const value =
-    process.env.PUPSON_PUBLIC_URL ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    DEFAULT_PUBLIC_URL;
-  return value.replace(/\/+$/, '');
+export { pupsonPublicBaseUrl };
+
+export async function renderPupsonLlmsTxt(): Promise<string> {
+  return renderOwnedWebLlmsTxt(await buildPupsonDiscoveryManifest());
 }
 
-export function renderPupsonLlmsTxt(baseUrl = pupsonPublicBaseUrl()): string {
-  return [
-    '# PupsonStuff',
-    '',
-    '> PupsonStuff helps pet owners turn pet photos into personalized products and gifts.',
-    '',
-    '## Primary experience',
-    `- [PupsonStuff](${baseUrl}): Create and shop personalized pet products from pet photos.`,
-    '',
-    '## AI and agent discovery',
-    `- [Agent guidance](${baseUrl}/agents.md): Grounding rules and machine-readable discovery surfaces.`,
-    `- [Agent discovery sitemap](${baseUrl}/sitemap_agentic_discovery.xml): Public AI-discovery URLs.`,
-    '',
-    '## Accuracy',
-    '- Product availability, pricing, shipping, and current product options must be grounded in the live public storefront.',
-    '- This file improves machine-readable discovery but does not guarantee ranking, citation, recommendation, or inclusion by any search or answer engine.',
-    '',
-  ].join('\n');
+export async function renderPupsonLlmsJsonl(): Promise<string> {
+  return renderOwnedWebJsonl(await buildPupsonDiscoveryManifest());
 }
 
-export function renderPupsonAgentsMd(baseUrl = pupsonPublicBaseUrl()): string {
+export async function renderPupsonAgenticSitemap(): Promise<string> {
+  const baseUrl = pupsonPublicBaseUrl();
+  const manifest = await buildPupsonDiscoveryManifest(baseUrl);
+  return renderOwnedWebAgenticSitemap(manifest, [
+    `${baseUrl}/llms.txt`,
+    `${baseUrl}/llms.jsonl`,
+    `${baseUrl}/agents.md`,
+    `${baseUrl}/sitemap_agentic_discovery.xml`,
+  ]);
+}
+
+export async function renderPupsonProductMarkdown(id: string): Promise<string | null> {
+  const baseUrl = pupsonPublicBaseUrl();
+  const manifest = await buildPupsonDiscoveryManifest(baseUrl);
+  const entity = manifest.entities.find((candidate) => candidate.id === `product:${id}`);
+  return entity ? renderOwnedWebEntityMarkdown(entity) : null;
+}
+
+export async function renderPupsonAgentsMd(): Promise<string> {
+  const baseUrl = pupsonPublicBaseUrl();
+  const products = await getPublicCatalogProductListForAgents();
   return [
     '# PupsonStuff — Agent Guidance',
     '',
-    '## Canonical public source',
+    '## Canonical public sources',
     `- Storefront: ${baseUrl}`,
     `- Discovery index: ${baseUrl}/llms.txt`,
+    `- Structured catalog: ${baseUrl}/llms.jsonl`,
+    `- Agent discovery sitemap: ${baseUrl}/sitemap_agentic_discovery.xml`,
     '',
     '## Grounding rules',
-    '- Use the current public storefront as the authority for product names, prices, availability, shipping, returns, and checkout information.',
-    '- Do not infer current inventory, delivery time, discounts, or product options from cached or remembered information.',
+    '- Use current public product pages as the authority for names, descriptions, prices, customization options, and checkout-facing facts.',
+    '- The current catalog certification ledger proves fulfillment mapping readiness; it does not prove live inventory. Do not turn certification into an in-stock claim.',
+    '- Do not infer delivery promises, discounts, inventory, or product options from cached or remembered information.',
     '- Do not represent a product as purchased or reserved unless the user explicitly completes the storefront checkout flow.',
-    '- Prefer direct public product evidence over promotional language when answering factual product questions.',
+    '- Prefer canonical product evidence over promotional copy for factual product questions.',
     '',
-    '## Discovery surfaces',
-    `- ${baseUrl}/llms.txt`,
-    `- ${baseUrl}/sitemap_agentic_discovery.xml`,
+    '## Public product pages',
+    ...products.map((product) => `- ${product.name}: ${product.url} (Markdown: ${product.markdownUrl})`),
+    '',
+    '## Scope',
+    '- These files improve machine-readable discovery. They do not guarantee citation, recommendation, ranking, or ingestion by an AI/search system.',
     '',
   ].join('\n');
 }
 
-function xmlEscape(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+export function buildDiscoveryResponse(
+  request: Request,
+  body: string,
+  contentType: string,
+): Response {
+  const etag = `"${createHash('sha256').update(body).digest('hex')}"`;
+  if (request.headers.get('if-none-match') === etag) {
+    return new Response(null, {
+      status: 304,
+      headers: {
+        ETag: etag,
+        'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600',
+      },
+    });
+  }
+  return new Response(body, {
+    headers: {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600',
+      ETag: etag,
+    },
+  });
 }
 
-export function renderPupsonAgenticSitemap(baseUrl = pupsonPublicBaseUrl()): string {
-  const urls = [
-    baseUrl,
-    `${baseUrl}/llms.txt`,
-    `${baseUrl}/agents.md`,
-  ];
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    ...urls.map((url) => `  <url><loc>${xmlEscape(url)}</loc></url>`),
-    '</urlset>',
-    '',
-  ].join('\n');
+async function getPublicCatalogProductListForAgents(): Promise<Array<{
+  name: string;
+  url: string;
+  markdownUrl: string;
+}>> {
+  const manifest = await buildPupsonDiscoveryManifest();
+  return manifest.entities.map((entity) => ({
+    name: entity.name,
+    url: entity.canonicalUrl,
+    markdownUrl: entity.markdownUrl ?? entity.canonicalUrl,
+  }));
 }
