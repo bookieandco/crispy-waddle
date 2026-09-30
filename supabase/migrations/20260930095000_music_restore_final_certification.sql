@@ -32,6 +32,7 @@ declare
   v_case_source text;
   v_case_current_version text;
   v_version_output text;
+  v_version_candidate text;
   v_version_qc boolean;
 begin
   select user_id,source_artifact_id,current_version_id
@@ -49,8 +50,8 @@ begin
     raise exception 'Music final certification is not for current version';
   end if;
 
-  select output_artifact_id,qc_passed
-    into v_version_output,v_version_qc
+  select output_artifact_id,candidate_id,qc_passed
+    into v_version_output,v_version_candidate,v_version_qc
   from public.music_restoration_versions
   where id=new.current_version_id
     and case_id=new.case_id;
@@ -83,7 +84,8 @@ begin
   if not exists (
     select 1
     from public.music_restoration_reviews review
-    where review.case_id=new.case_id
+    where review.id=v_version_candidate
+      and review.case_id=new.case_id
       and review.owner_user_id=new.owner_user_id
       and review.artifact_id=new.output_artifact_id
       and review.decision='approved'
