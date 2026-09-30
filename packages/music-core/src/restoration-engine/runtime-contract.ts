@@ -265,7 +265,7 @@ export interface RestorationRuntimeClient {
     request: RestorationInstrumentAssessmentRequest,
   ): Promise<RestorationInstrumentAssessmentReceipt>;
   reconstruct(request: RestorationReconstructionRequest): Promise<RestorationReconstructionReceipt>;
-  restoreVocal(request: RestorationVocalRepairRequest): Promise<RestorationVocalRepairReceipt>;
+  restoreVocal?(request: RestorationVocalRepairRequest): Promise<RestorationVocalRepairReceipt>;
   downloadArtifact(resultUri: string): Promise<Uint8Array>;
 }
 
