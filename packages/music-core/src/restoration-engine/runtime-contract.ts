@@ -7,6 +7,10 @@ import type {
   VocalPreservationMetrics,
   VocalRepairOperation,
 } from "../vocal-restoration.js";
+import type {
+  InstrumentDonorEventKind,
+  InstrumentDonorFamily,
+} from "../instrument-donor-search.js";
 
 export type RestorationStemRole = "vocals" | "drums" | "bass" | "other" | "unknown";
 
@@ -213,6 +217,49 @@ export interface RestorationInstrumentAssessmentReceipt {
   runtimeReceiptId: string;
 }
 
+export interface RestorationDonorSearchRequest {
+  jobId: string;
+  source: RestorationRuntimeSource;
+  instrumentFamily: InstrumentDonorFamily;
+  eventKind?: InstrumentDonorEventKind;
+  targetStartMs: number;
+  targetEndMs: number;
+  maxCandidates: number;
+}
+
+export interface RestorationDonorCandidateReceipt {
+  candidateId: string;
+  parentArtifactId: string;
+  artifactId: string;
+  resultUri: string;
+  sha256: string;
+  sourceStartMs: number;
+  sourceEndMs: number;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  durationSeconds: number;
+  similarityScore: number;
+  qualityScore: number;
+  contextScore: number;
+  searchScore: number;
+  damageScore: number;
+  expectedGain: number;
+  runtimeReceiptId: string;
+}
+
+export interface RestorationDonorSearchReceipt {
+  jobId: string;
+  sourceArtifactId: string;
+  sourceSha256: string;
+  instrumentFamily: InstrumentDonorFamily;
+  eventKind?: InstrumentDonorEventKind;
+  targetStartMs: number;
+  targetEndMs: number;
+  candidates: RestorationDonorCandidateReceipt[];
+  runtimeReceiptId: string;
+}
+
 export interface RestorationVocalRepairSegment {
   startMs: number;
   endMs: number;
@@ -261,6 +308,9 @@ export interface RestorationRuntimeClient {
     role?: RestorationStemRole;
   }): Promise<RestorationPerceptionReceipt>;
   execute(request: RestorationRepairRequest): Promise<RestorationRepairReceipt>;
+  searchDonors?(
+    request: RestorationDonorSearchRequest,
+  ): Promise<RestorationDonorSearchReceipt>;
   assessInstrumentReplacement?(
     request: RestorationInstrumentAssessmentRequest,
   ): Promise<RestorationInstrumentAssessmentReceipt>;
@@ -372,6 +422,48 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
       throw new Error("Restoration execution receipt identity mismatch.");
     }
     if (!HEX_64.test(receipt.outputSha256)) throw new Error("Restoration execution output hash is invalid.");
+    return receipt;
+  }
+
+  async searchDonors(
+    request: RestorationDonorSearchRequest,
+  ): Promise<RestorationDonorSearchReceipt> {
+    assertRuntimeSource(request.source);
+    if (!request.jobId.trim()) throw new Error("Donor search job id is required.");
+    if (!["drums","percussion","bass"].includes(request.instrumentFamily)) {
+      throw new Error("Donor search instrument family is not admitted.");
+    }
+    if (!Number.isFinite(request.targetStartMs) || request.targetStartMs < 0 ||
+        !Number.isFinite(request.targetEndMs) || request.targetEndMs <= request.targetStartMs) {
+      throw new Error("Donor search target region is invalid.");
+    }
+    if (!Number.isInteger(request.maxCandidates) || request.maxCandidates < 1 || request.maxCandidates > 5) {
+      throw new Error("Donor search candidate limit is invalid.");
+    }
+    const receipt = await this.post<RestorationDonorSearchReceipt>(
+      "/v1/reconstruction/search-donors",
+      request,
+    );
+    if (receipt.jobId !== request.jobId ||
+        receipt.sourceArtifactId !== request.source.artifactId ||
+        receipt.sourceSha256.toLowerCase() !== request.source.sha256.toLowerCase()) {
+      throw new Error("Donor search receipt source binding mismatch.");
+    }
+    if (receipt.instrumentFamily !== request.instrumentFamily) {
+      throw new Error("Donor search receipt instrument family mismatch.");
+    }
+    if (receipt.candidates.length > request.maxCandidates) {
+      throw new Error("Donor search returned too many candidates.");
+    }
+    for (const candidate of receipt.candidates) {
+      if (candidate.parentArtifactId !== request.source.artifactId) {
+        throw new Error("Donor candidate lineage mismatch.");
+      }
+      if (!HEX_64.test(candidate.sha256)) throw new Error("Donor candidate hash is invalid.");
+      if (candidate.sourceStartMs < 0 || candidate.sourceEndMs <= candidate.sourceStartMs) {
+        throw new Error("Donor candidate source region is invalid.");
+      }
+    }
     return receipt;
   }
 
