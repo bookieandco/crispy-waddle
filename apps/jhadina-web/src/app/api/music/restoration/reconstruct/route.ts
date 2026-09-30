@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type {
   InstrumentFamily,
-  InstrumentFingerprint,
   ReconstructionSegment,
-  RestorationGainEvidence,
 } from "@jhadina/music-core";
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
 import { runInstrumentReconstruction } from "@/lib/music/restoration-reconstruction-service";
@@ -16,9 +14,6 @@ interface ReconstructBody {
   sourceArtifactId?: string;
   replacementArtifactId?: string;
   instrumentFamily?: InstrumentFamily;
-  observedFingerprint?: InstrumentFingerprint;
-  replacementFingerprint?: InstrumentFingerprint;
-  gainEvidence?: RestorationGainEvidence;
   segments?: ReconstructionSegment[];
   evidenceIds?: string[];
   approved?: boolean;
@@ -42,11 +37,10 @@ export async function POST(req: NextRequest) {
         error: "caseId, sourceArtifactId and replacementArtifactId are required",
       }, { status: 400 });
     }
-    if (!body.instrumentFamily || !body.observedFingerprint || !body.replacementFingerprint ||
-        !body.gainEvidence || !Array.isArray(body.segments) || !body.segments.length) {
+    if (!body.instrumentFamily || !Array.isArray(body.segments) || !body.segments.length) {
       return NextResponse.json({
         success: false,
-        error: "instrumentFamily, fingerprints, gainEvidence and segments are required",
+        error: "instrumentFamily and segments are required",
       }, { status: 400 });
     }
     if (body.approved !== true) {
@@ -65,9 +59,6 @@ export async function POST(req: NextRequest) {
       sourceArtifactId,
       replacementArtifactId,
       instrumentFamily: body.instrumentFamily,
-      observedFingerprint: body.observedFingerprint,
-      replacementFingerprint: body.replacementFingerprint,
-      gainEvidence: body.gainEvidence,
       segments: body.segments,
       evidenceIds: Array.isArray(body.evidenceIds) ? body.evidenceIds.map(String) : [],
       approved: true,
@@ -77,6 +68,13 @@ export async function POST(req: NextRequest) {
       success: true,
       jobId: result.jobId,
       decision: result.decision,
+      assessment: {
+        runtimeReceiptId: result.assessment.runtimeReceiptId,
+        observedFingerprint: result.assessment.observedFingerprint,
+        replacementFingerprint: result.assessment.replacementFingerprint,
+        gainEvidence: result.assessment.gainEvidence,
+        diagnostics: result.assessment.diagnostics,
+      },
       reconstruction: {
         requestId: result.request.requestId,
         sourceArtifactId: result.request.sourceArtifactId,
