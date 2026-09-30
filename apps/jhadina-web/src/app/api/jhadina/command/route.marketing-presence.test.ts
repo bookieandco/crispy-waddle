@@ -53,7 +53,7 @@ vi.mock("@/lib/intelligence/jhadina-command", () => ({
 }))
 
 vi.mock("@/lib/intelligence/ask-shortcut-experience", () => ({
-  recordAskShortcutExperience,
+  recordAskShortcutExperience: recordShortcutExperience,
   finalizeAskShortcutExperience: vi.fn(),
 }))
 
