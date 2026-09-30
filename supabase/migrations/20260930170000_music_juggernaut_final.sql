@@ -303,6 +303,30 @@ create or replace function public.jhadina_music_upsert_rights(
   select * from music_private.upsert_rights(p_project_id,p_asset_key,p_master_ownership_known,p_publishing_known,p_sample_status,p_third_party_usage_status,p_evidence_refs)
 $$;
 
+create or replace function music_private.upsert_learning(
+  p_project_id uuid,p_learning_key text,p_status text,p_confidence numeric,p_finding text,
+  p_reusable_signals jsonb,p_evidence_refs jsonb
+) returns public.jhadina_music_learning language plpgsql security definer set search_path='' as $
+declare v_user uuid:=auth.uid(); v_row public.jhadina_music_learning;
+begin
+  if v_user is null then raise exception 'authentication required'; end if;
+  if not exists(select 1 from public.jhadina_music_projects where id=p_project_id and user_id=v_user) then raise exception 'project not found'; end if;
+  if p_confidence < 0 or p_confidence > 1 then raise exception 'confidence out of range'; end if;
+  insert into public.jhadina_music_learning(user_id,project_id,learning_key,status,confidence,finding,reusable_signals,evidence_refs)
+  values(v_user,p_project_id,trim(p_learning_key),p_status,p_confidence,trim(p_finding),coalesce(p_reusable_signals,'{}'::jsonb),coalesce(p_evidence_refs,'[]'::jsonb))
+  on conflict(user_id,project_id,learning_key) do update set
+    status=excluded.status,confidence=excluded.confidence,finding=excluded.finding,reusable_signals=excluded.reusable_signals,
+    evidence_refs=excluded.evidence_refs,updated_at=now()
+  returning * into v_row; return v_row;
+end $;
+
+create or replace function public.jhadina_music_upsert_learning(
+  p_project_id uuid,p_learning_key text,p_status text,p_confidence numeric,p_finding text,
+  p_reusable_signals jsonb,p_evidence_refs jsonb
+) returns public.jhadina_music_learning language sql security invoker set search_path='' as $
+  select * from music_private.upsert_learning(p_project_id,p_learning_key,p_status,p_confidence,p_finding,p_reusable_signals,p_evidence_refs)
+$;
+
 revoke all on all functions in schema music_private from public;
 grant execute on all functions in schema music_private to authenticated;
 revoke execute on function public.jhadina_music_upsert_project(text,text,text,jsonb) from public,anon;
@@ -310,10 +334,10 @@ revoke execute on function public.jhadina_music_upsert_song(uuid,text,text,text,
 revoke execute on function public.jhadina_music_upsert_experiment(uuid,uuid,text,text,text,text,text,text,bigint,text,integer,text,text,text,jsonb) from public,anon;
 revoke execute on function public.jhadina_music_record_observation(uuid,uuid,text,timestamptz,jsonb,numeric,numeric,jsonb) from public,anon;
 revoke execute on function public.jhadina_music_upsert_city_demand(uuid,text,text,bigint,bigint,bigint,bigint,bigint,jsonb,timestamptz) from public,anon;
-revoke execute on function public.jhadina_music_upsert_rights(uuid,text,boolean,boolean,text,text,jsonb) from public,anon;
+revoke execute on function public.jhadina_music_upsert_rights(uuid,text,boolean,boolean,text,text,jsonb) from public,anon;\nrevoke execute on function public.jhadina_music_upsert_learning(uuid,text,text,numeric,text,jsonb,jsonb) from public,anon;
 grant execute on function public.jhadina_music_upsert_project(text,text,text,jsonb) to authenticated;
 grant execute on function public.jhadina_music_upsert_song(uuid,text,text,text,text,numeric,text,jsonb,jsonb,date) to authenticated;
 grant execute on function public.jhadina_music_upsert_experiment(uuid,uuid,text,text,text,text,text,text,bigint,text,integer,text,text,text,jsonb) to authenticated;
 grant execute on function public.jhadina_music_record_observation(uuid,uuid,text,timestamptz,jsonb,numeric,numeric,jsonb) to authenticated;
 grant execute on function public.jhadina_music_upsert_city_demand(uuid,text,text,bigint,bigint,bigint,bigint,bigint,jsonb,timestamptz) to authenticated;
-grant execute on function public.jhadina_music_upsert_rights(uuid,text,boolean,boolean,text,text,jsonb) to authenticated;
+grant execute on function public.jhadina_music_upsert_rights(uuid,text,boolean,boolean,text,text,jsonb) to authenticated;\ngrant execute on function public.jhadina_music_upsert_learning(uuid,text,text,numeric,text,jsonb,jsonb) to authenticated;
