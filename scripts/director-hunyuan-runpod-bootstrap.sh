@@ -75,6 +75,12 @@ export HUNYUAN_VIDEO_MODEL_PATH="$MODEL_ROOT"
 export DIRECTOR_HUNYUAN_OUTPUT_DIR="$ROOT/hunyuan-output"
 export HUNYUAN_VIDEO_MODEL_VERSION="${HUNYUAN_VIDEO_MODEL_VERSION:-HunyuanVideo-1.5}"
 
+echo "Bootstrapping localhost Music restoration sidecar"
+DIRECTOR_SOURCE_REF="$DIRECTOR_SOURCE_REF" \
+MUSIC_RESTORATION_BIND_HOST=127.0.0.1 \
+MUSIC_RESTORATION_PORT=8093 \
+bash "$ROOT/crispy-waddle/scripts/music-restoration-runpod-bootstrap.sh" --background
+
 cd "$ROOT/crispy-waddle/services/director-hunyuan"
 
 echo "Starting Director Hunyuan worker on :8091"
