@@ -1,0 +1,117 @@
+name: SPORT-SIM.2F Certification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packages/money-core/src/sports-simulation-**'
+      - 'packages/money-core/src/sports-correlated-monte-carlo.ts'
+      - 'packages/money-core/src/sports-live-resimulation.ts'
+      - 'packages/money-core/src/sports-sim-bet-alpha.ts'
+      - 'packages/money-core/src/sports-vision-evidence.ts'
+      - 'packages/money-core/src/sport-sim-2f-certification.ts'
+      - 'packages/money-core/src/sport-sim-2f-certification.test.ts'
+      - 'packages/money-core/src/index.ts'
+      - 'packages/money-core/package.json'
+      - '.github/workflows/sport-sim-2f-certification.yml'
+      - 'packages/money-core/src/sports-game-reference-context.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-sports-simulation-command.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-sports-simulation-command.test.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-sports-history-command.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-sports-history-command.test.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/sports-history-provider.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/sports-history-provider.test.ts'
+      - 'packages/money-core/src/sports-history.ts'
+      - 'packages/money-core/src/sports-history.test.ts'
+      - 'services/sportsdataverse-history/**'
+      - 'apps/jhadina-web/src/app/ask-jhadina/page.tsx'
+      - 'apps/jhadina-web/src/app/ask-jhadina/sports-history-card.tsx'
+      - 'apps/jhadina-web/src/app/api/jhadina/command/route.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-shortcut-experience.ts'
+      - 'services/roboflow-sports-workflow-observer/**'
+  push:
+    branches:
+      - main
+      - sport-sim-2f-final
+      - sport-sim-2f-current-main
+    paths:
+      - 'packages/money-core/src/sports-simulation-**'
+      - 'packages/money-core/src/sports-correlated-monte-carlo.ts'
+      - 'packages/money-core/src/sports-live-resimulation.ts'
+      - 'packages/money-core/src/sports-sim-bet-alpha.ts'
+      - 'packages/money-core/src/sports-vision-evidence.ts'
+      - 'packages/money-core/src/sport-sim-2f-certification.ts'
+      - 'packages/money-core/src/sport-sim-2f-certification.test.ts'
+      - 'packages/money-core/src/index.ts'
+      - 'packages/money-core/package.json'
+      - '.github/workflows/sport-sim-2f-certification.yml'
+      - 'services/roboflow-sports-workflow-observer/**'
+      - 'packages/money-core/src/sports-game-reference-context.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-sports-simulation-command.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-sports-simulation-command.test.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-sports-history-command.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-sports-history-command.test.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/sports-history-provider.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/sports-history-provider.test.ts'
+      - 'packages/money-core/src/sports-history.ts'
+      - 'packages/money-core/src/sports-history.test.ts'
+      - 'services/sportsdataverse-history/**'
+      - 'apps/jhadina-web/src/app/ask-jhadina/page.tsx'
+      - 'apps/jhadina-web/src/app/ask-jhadina/sports-history-card.tsx'
+      - 'apps/jhadina-web/src/app/api/jhadina/command/route.ts'
+      - 'apps/jhadina-web/src/lib/intelligence/ask-shortcut-experience.ts'
+
+concurrency:
+  group: sport-sim-2f-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    name: Type-check, SPORT-SIM.2F, Money regression, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+
+      - name: SPORT-SIM.2F
+        run: pnpm --filter @jhadina/money-core verify:sport-sim-2f
+
+      - name: Ask Jhadina sports simulation shortcut
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/intelligence/ask-sports-simulation-command.test.ts
+
+      - name: Ask Jhadina sports history shortcut and provider
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/intelligence/ask-sports-history-command.test.ts src/lib/intelligence/sports-history-provider.test.ts
+
+      - name: SportsDataverse history sidecar syntax
+        run: python3 -m py_compile services/sportsdataverse-history/app.py
+
+      - name: Repository type-check
+        run: pnpm type-check
+
+      - name: Repository lint
+        run: pnpm lint
+
+      - name: Repository tests
+        run: pnpm test
+
+      - name: Repository build
+        run: pnpm build
