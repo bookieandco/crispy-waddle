@@ -9,8 +9,9 @@ import {
   type RestorationCandidate,
   type RestorationPlan,
   type RestorationQcResult,
+  type RestorationRuntimeClient,
 } from "@jhadina/music-core";
-import { createMusicRestorationRuntimeClient } from "./restoration-runtime-server";
+import { createRequestMusicRestorationRuntimeClient } from "./restoration-runtime-server";
 import { SupabaseMusicRestorationArtifactStore } from "./restoration-supabase-store";
 
 export interface GovernedRestorationExecutionInput {
@@ -23,6 +24,7 @@ export interface GovernedRestorationExecutionInput {
   judgment: MusicDirectorJudgment;
   qc: RestorationQcResult;
   humanApproved?: boolean;
+  runtime?: RestorationRuntimeClient;
 }
 
 function candidateFor(plan: RestorationPlan, candidateId: string): RestorationCandidate {
@@ -79,6 +81,8 @@ export async function executeGovernedRestoration(input: GovernedRestorationExecu
   });
 
   try {
+    const runtime = input.runtime
+      ?? await createRequestMusicRestorationRuntimeClient(input.ownerUserId);
     const ledger = new RestorationProvenanceLedger();
     ledger.registerArtifact(source);
     const writer = new RuntimeRestorationArtifactWriter({
@@ -87,7 +91,7 @@ export async function executeGovernedRestoration(input: GovernedRestorationExecu
       executionId,
       candidate,
       source,
-      runtime: createMusicRestorationRuntimeClient(),
+      runtime,
       store,
     });
     const result = await executeVerifiedRestoration({
