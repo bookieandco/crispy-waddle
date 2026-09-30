@@ -18,7 +18,7 @@ class MusicProxyPolicyTest(unittest.TestCase):
         self.assertFalse(policy.music_proxy_path_allowed("health","POST"))
 
     def test_compute_endpoints_are_post_only(self):
-        for path in ("v1/probe","v1/separate","v1/perceive","v1/execute"):
+        for path in ("v1/probe","v1/separate","v1/perceive","v1/execute","v1/reconstruct"):
             self.assertTrue(policy.music_proxy_path_allowed(path,"POST"))
             self.assertFalse(policy.music_proxy_path_allowed(path,"GET"))
 

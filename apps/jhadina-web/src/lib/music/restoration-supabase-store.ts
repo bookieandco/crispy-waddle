@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   EvidenceObservation,
+  InstrumentReconstructionRequest,
+  InstrumentReconstructionRuntimeResult,
   LedgerRestorationVersion,
   PostExecutionQcReceipt,
   RestorationArtifactStore,
@@ -196,7 +198,7 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
   async createJob(input: {
     id: string;
     caseId: string;
-    kind: "probe" | "separate" | "perceive" | "repair";
+    kind: "probe" | "separate" | "perceive" | "repair" | "reconstruct";
     sourceArtifactId: string;
     metadata?: Record<string, unknown>;
   }): Promise<void> {
@@ -266,6 +268,42 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
       .from("music_restoration_evidence")
       .upsert(rows, { onConflict: "id", ignoreDuplicates: true });
     if (error) throw new Error(`MUSIC_RESTORATION_EVIDENCE_WRITE_FAILED: ${error.message}`);
+  }
+
+  async persistReconstructionOutcome(input: {
+    caseId: string;
+    jobId: string;
+    request: InstrumentReconstructionRequest;
+    result: InstrumentReconstructionRuntimeResult;
+  }): Promise<void> {
+    const { request, result } = input;
+    const { error } = await this.client
+      .from("music_restoration_reconstruction_receipts")
+      .insert({
+        id: result.runtimeReceipt.runtimeReceiptId,
+        job_id: input.jobId,
+        case_id: input.caseId,
+        owner_user_id: this.ownerUserId,
+        source_artifact_id: request.sourceArtifactId,
+        replacement_artifact_id: request.replacementArtifactId,
+        output_artifact_id: result.storedArtifact.id,
+        instrument_family: request.instrumentFamily,
+        segments: request.segments,
+        fingerprint_similarity: request.fingerprintSimilarity,
+        expected_gain: request.expectedGain,
+        gain_confidence: request.gainConfidence,
+        gain_evidence_method: request.gainEvidenceMethod,
+        evidence_ids: request.evidenceIds,
+        approval_evidence_id: request.approval.evidenceId,
+        approved_by_user_id: request.approval.approvedByUserId,
+        approved_at: request.approval.approvedAt,
+        runtime_receipt_id: result.runtimeReceipt.runtimeReceiptId,
+        qc: result.qc,
+        created_at: result.storedArtifact.createdAt,
+      });
+    if (error) {
+      throw new Error(`MUSIC_RECONSTRUCTION_RECEIPT_WRITE_FAILED: ${error.message}`);
+    }
   }
 
   async persistExecutionOutcome(input: {

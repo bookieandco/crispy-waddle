@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT=Path(__file__).parent
 
@@ -104,11 +104,83 @@ class MusicRestorationWorkerTest(unittest.TestCase):
         self.assertFalse(state["productionReady"])
         self.assertIn("MUSIC_RESTORATION_CUDA_REQUIRED",state["reasons"])
 
+    def test_reconstruction_segment_is_bounded(self):
+        segment=worker._reconstruction_segment({
+            "targetStartMs":1000,"targetEndMs":1500,
+            "replacementStartMs":2000,"replacementEndMs":2600,
+            "gainDb":-1.5,"sourceResidualMix":0.08,"fadeMs":20,"phaseInvert":False,
+        },5000,5000)
+        self.assertAlmostEqual(segment["tempo"],1.2)
+        envelope=worker._source_envelope(segment)
+        self.assertIn("between(t,1.000000000,1.020000000)",envelope)
+        with self.assertRaisesRegex(ValueError,"TIME_FIT_OUT_OF_RANGE"):
+            worker._reconstruction_segment({
+                "targetStartMs":1000,"targetEndMs":1100,
+                "replacementStartMs":0,"replacementEndMs":1000,
+                "gainDb":0,"sourceResidualMix":0.05,"fadeMs":10,"phaseInvert":False,
+            },5000,5000)
+
+    def test_reconstruction_renders_two_source_filter_graph(self):
+        with tempfile.TemporaryDirectory() as td:
+            config=worker.RestorationWorkerConfig(output_dir=Path(td),demucs_device="cpu")
+            source=Path(td)/"source.wav"; source.write_bytes(b"source")
+            donor=Path(td)/"donor.wav"; donor.write_bytes(b"donor")
+            probe_values={
+                str(source):{
+                    "sourceArtifactId":"source-1","sourceSha256":"a"*64,"sampleRate":48000,"channels":2,
+                    "sampleCount":240000,"durationSeconds":5.0,"codec":"pcm_s24le","lossless":True,
+                    "runtimeReceiptId":"probe-source",
+                },
+                str(donor):{
+                    "sourceArtifactId":"donor-1","sourceSha256":"b"*64,"sampleRate":44100,"channels":1,
+                    "sampleCount":220500,"durationSeconds":5.0,"codec":"pcm_s24le","lossless":True,
+                    "runtimeReceiptId":"probe-donor",
+                },
+            }
+            def fake_probe(path,artifact_id,digest):
+                if Path(path).name=="output.wav":
+                    return {
+                        "sourceArtifactId":artifact_id,"sourceSha256":digest,"sampleRate":48000,"channels":2,
+                        "sampleCount":240000,"durationSeconds":5.0,"codec":"pcm_s24le","lossless":True,
+                        "runtimeReceiptId":"probe-output",
+                    }
+                return probe_values[str(path)]
+            def fake_normalize(_source,destination,_rate,_channels):
+                Path(destination).write_bytes(b"normalized-donor")
+            captured={}
+            def fake_run(args,**_kwargs):
+                captured["args"]=args
+                Path(args[-1]).write_bytes(b"reconstructed-wav")
+                return Mock(returncode=0,stderr=b"")
+            with patch.object(worker,"probe_path",side_effect=fake_probe), \
+                 patch.object(worker,"normalize_to_wav",side_effect=fake_normalize), \
+                 patch.object(worker.shutil,"which",return_value="/usr/bin/ffmpeg"), \
+                 patch.object(worker.subprocess,"run",side_effect=fake_run):
+                receipt=worker.execute_reconstruction_path(
+                    source,donor,"source-1","a"*64,"donor-1","b"*64,
+                    "job-1","request-1","approval-1",
+                    [{
+                        "targetStartMs":1000,"targetEndMs":1500,
+                        "replacementStartMs":2000,"replacementEndMs":2600,
+                        "gainDb":-1.5,"sourceResidualMix":0.08,"fadeMs":20,"phaseInvert":True,
+                    }],
+                    48000,2,config,
+                )
+            graph=captured["args"][captured["args"].index("-filter_complex")+1]
+            self.assertIn("atempo=1.200000000",graph)
+            self.assertIn("volume=-1",graph)
+            self.assertIn("adelay=delays=1000.000:all=1",graph)
+            self.assertIn("amix=inputs=2",graph)
+            self.assertEqual(receipt["sourceArtifactId"],"source-1")
+            self.assertEqual(receipt["replacementArtifactId"],"donor-1")
+            self.assertEqual(receipt["segmentCount"],1)
+            self.assertTrue(receipt["runtimeReceiptId"].startswith("music-reconstruction:"))
+
     def test_artifact_path_is_name_and_job_allow_listed(self):
         with tempfile.TemporaryDirectory() as td:
             config=worker.RestorationWorkerConfig(output_dir=Path(td))
             token="a"*24
-            directory=Path(td)/f"repair-{token}"
+            directory=Path(td)/f"reconstruct-{token}"
             directory.mkdir()
             output=directory/"output.wav"
             output.write_bytes(b"wav")

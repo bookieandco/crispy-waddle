@@ -125,6 +125,44 @@ export interface RestorationRepairReceipt {
   runtimeReceiptId: string;
 }
 
+export interface RestorationReconstructionSegment {
+  targetStartMs: number;
+  targetEndMs: number;
+  replacementStartMs: number;
+  replacementEndMs: number;
+  gainDb: number;
+  sourceResidualMix: number;
+  fadeMs: number;
+  phaseInvert: boolean;
+}
+
+export interface RestorationReconstructionRequest {
+  jobId: string;
+  requestId: string;
+  authorizationId: string;
+  source: RestorationRuntimeSource;
+  replacement: RestorationRuntimeSource;
+  segments: RestorationReconstructionSegment[];
+  sampleRate: number;
+  channels: number;
+}
+
+export interface RestorationReconstructionReceipt {
+  jobId: string;
+  requestId: string;
+  sourceArtifactId: string;
+  replacementArtifactId: string;
+  outputArtifactId: string;
+  resultUri: string;
+  outputSha256: string;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  durationSeconds: number;
+  segmentCount: number;
+  runtimeReceiptId: string;
+}
+
 export interface RestorationRuntimeClient {
   probe(source: RestorationRuntimeSource): Promise<RestorationProbeReceipt>;
   separate(input: {
@@ -137,6 +175,7 @@ export interface RestorationRuntimeClient {
     role?: RestorationStemRole;
   }): Promise<RestorationPerceptionReceipt>;
   execute(request: RestorationRepairRequest): Promise<RestorationRepairReceipt>;
+  reconstruct(request: RestorationReconstructionRequest): Promise<RestorationReconstructionReceipt>;
   downloadArtifact(resultUri: string): Promise<Uint8Array>;
 }
 
@@ -243,6 +282,32 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
       throw new Error("Restoration execution receipt identity mismatch.");
     }
     if (!HEX_64.test(receipt.outputSha256)) throw new Error("Restoration execution output hash is invalid.");
+    return receipt;
+  }
+
+  async reconstruct(request: RestorationReconstructionRequest): Promise<RestorationReconstructionReceipt> {
+    assertRuntimeSource(request.source);
+    assertRuntimeSource(request.replacement);
+    if (!request.jobId.trim() || !request.requestId.trim() || !request.authorizationId.trim()) {
+      throw new Error("Reconstruction job, request and authorization ids are required.");
+    }
+    if (request.source.artifactId === request.replacement.artifactId) {
+      throw new Error("Reconstruction source and replacement artifacts must differ.");
+    }
+    if (!request.segments.length) throw new Error("Reconstruction requires at least one segment.");
+    finitePositive(request.sampleRate, "Reconstruction sample rate");
+    finitePositive(request.channels, "Reconstruction channel count");
+
+    const receipt = await this.post<RestorationReconstructionReceipt>("/v1/reconstruct", request);
+    if (receipt.jobId !== request.jobId || receipt.requestId !== request.requestId) {
+      throw new Error("Reconstruction receipt identity mismatch.");
+    }
+    if (receipt.sourceArtifactId !== request.source.artifactId ||
+        receipt.replacementArtifactId !== request.replacement.artifactId) {
+      throw new Error("Reconstruction receipt lineage mismatch.");
+    }
+    if (!HEX_64.test(receipt.outputSha256)) throw new Error("Reconstruction output hash is invalid.");
+    if (receipt.segmentCount !== request.segments.length) throw new Error("Reconstruction segment count mismatch.");
     return receipt;
   }
 

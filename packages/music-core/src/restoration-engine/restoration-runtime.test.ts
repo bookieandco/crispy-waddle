@@ -6,6 +6,7 @@ import { RuntimeRestorationArtifactWriter } from "./runtime-restoration-executor
 import type {
   RestorationPerceptionReceipt,
   RestorationProbeReceipt,
+  RestorationReconstructionReceipt,
   RestorationRepairReceipt,
   RestorationRuntimeClient,
   RestorationRuntimeSource,
@@ -41,6 +42,7 @@ function runtime(overrides:Partial<RestorationRuntimeClient>={}):RestorationRunt
     async separate():Promise<RestorationSeparationReceipt>{ throw new Error("not configured"); },
     async perceive():Promise<RestorationPerceptionReceipt>{ throw new Error("not configured"); },
     async execute():Promise<RestorationRepairReceipt>{ throw new Error("not configured"); },
+    async reconstruct():Promise<RestorationReconstructionReceipt>{ throw new Error("not configured"); },
     async downloadArtifact(){ throw new Error("not configured"); },
     ...overrides,
   };

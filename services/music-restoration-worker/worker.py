@@ -318,10 +318,165 @@ def execute_repair_path(
     payload["runtimeReceiptId"]=receipt_id("music-repair",payload)
     return payload
 
+def _reconstruction_segment(segment:dict[str,Any],source_duration_ms:float,replacement_duration_ms:float)->dict[str,Any]:
+    required=("targetStartMs","targetEndMs","replacementStartMs","replacementEndMs","gainDb","sourceResidualMix","fadeMs","phaseInvert")
+    if any(key not in segment for key in required):
+        raise ValueError("MUSIC_RECONSTRUCTION_SEGMENT_INCOMPLETE")
+    target_start=float(segment["targetStartMs"]); target_end=float(segment["targetEndMs"])
+    replacement_start=float(segment["replacementStartMs"]); replacement_end=float(segment["replacementEndMs"])
+    gain_db=float(segment["gainDb"]); residual=float(segment["sourceResidualMix"]); fade_ms=float(segment["fadeMs"])
+    phase_invert=bool(segment["phaseInvert"])
+    values=(target_start,target_end,replacement_start,replacement_end,gain_db,residual,fade_ms)
+    if any(not math.isfinite(value) for value in values):
+        raise ValueError("MUSIC_RECONSTRUCTION_SEGMENT_NONFINITE")
+    if target_start<0 or target_end<=target_start or target_end>source_duration_ms+2:
+        raise ValueError("MUSIC_RECONSTRUCTION_TARGET_SEGMENT_INVALID")
+    if replacement_start<0 or replacement_end<=replacement_start or replacement_end>replacement_duration_ms+2:
+        raise ValueError("MUSIC_RECONSTRUCTION_DONOR_SEGMENT_INVALID")
+    target_duration=target_end-target_start
+    replacement_duration=replacement_end-replacement_start
+    tempo=replacement_duration/target_duration
+    if tempo<0.5 or tempo>2:
+        raise ValueError("MUSIC_RECONSTRUCTION_TIME_FIT_OUT_OF_RANGE")
+    if abs(gain_db)>12:
+        raise ValueError("MUSIC_RECONSTRUCTION_GAIN_OUT_OF_RANGE")
+    if residual<0 or residual>0.25:
+        raise ValueError("MUSIC_RECONSTRUCTION_RESIDUAL_MIX_OUT_OF_RANGE")
+    if fade_ms<0 or fade_ms>250 or fade_ms*2>=target_duration:
+        raise ValueError("MUSIC_RECONSTRUCTION_FADE_OUT_OF_RANGE")
+    return {
+        "targetStartMs":target_start,"targetEndMs":target_end,
+        "replacementStartMs":replacement_start,"replacementEndMs":replacement_end,
+        "gainDb":gain_db,"sourceResidualMix":residual,"fadeMs":fade_ms,
+        "phaseInvert":phase_invert,"tempo":tempo,
+    }
+
+def _source_envelope(segment:dict[str,Any])->str:
+    start=segment["targetStartMs"]/1000.0
+    end=segment["targetEndMs"]/1000.0
+    fade=segment["fadeMs"]/1000.0
+    residual=segment["sourceResidualMix"]
+    if fade<=0:
+        return f"if(between(t,{start:.9f},{end:.9f}),{residual:.9f},1)"
+    first_end=start+fade
+    last_start=end-fade
+    return (
+        f"if(between(t,{start:.9f},{first_end:.9f}),"
+        f"1-(1-{residual:.9f})*(t-{start:.9f})/{fade:.9f},"
+        f"if(between(t,{first_end:.9f},{last_start:.9f}),{residual:.9f},"
+        f"if(between(t,{last_start:.9f},{end:.9f}),"
+        f"{residual:.9f}+(1-{residual:.9f})*(t-{last_start:.9f})/{fade:.9f},1)))"
+    )
+
+def execute_reconstruction_path(
+    source_path:Path,replacement_path:Path,
+    source_artifact_id:str,source_sha256:str,replacement_artifact_id:str,replacement_sha256:str,
+    job_id:str,request_id:str,authorization_id:str,segments:list[dict[str,Any]],
+    sample_rate:int,channels:int,config:RestorationWorkerConfig,
+)->dict[str,Any]:
+    if not job_id.strip() or not request_id.strip() or not authorization_id.strip():
+        raise ValueError("MUSIC_RECONSTRUCTION_AUTHORITY_REQUIRED")
+    if source_artifact_id==replacement_artifact_id:
+        raise ValueError("MUSIC_RECONSTRUCTION_SOURCE_DONOR_MUST_DIFFER")
+    if not segments or len(segments)>64:
+        raise ValueError("MUSIC_RECONSTRUCTION_SEGMENT_COUNT_INVALID")
+
+    source_probe=probe_path(source_path,source_artifact_id,source_sha256)
+    replacement_probe=probe_path(replacement_path,replacement_artifact_id,replacement_sha256)
+    if source_probe["sampleRate"]!=sample_rate or source_probe["channels"]!=channels:
+        raise ValueError("MUSIC_RECONSTRUCTION_SOURCE_DIMENSIONS_MISMATCH")
+
+    normalized=[]
+    previous_target_end=-1.0
+    for raw in segments:
+        segment=_reconstruction_segment(
+            raw,
+            float(source_probe["durationSeconds"])*1000.0,
+            float(replacement_probe["durationSeconds"])*1000.0,
+        )
+        if segment["targetStartMs"]<previous_target_end:
+            raise ValueError("MUSIC_RECONSTRUCTION_TARGET_SEGMENTS_OVERLAP")
+        previous_target_end=segment["targetEndMs"]
+        normalized.append(segment)
+
+    directory=config.output_dir/("reconstruct-"+_safe_token(job_id))
+    directory.mkdir(parents=True,exist_ok=True)
+    donor=directory/"replacement.wav"
+    normalize_to_wav(replacement_path,donor,sample_rate,channels)
+    output=directory/"output.wav"
+
+    ffmpeg=shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError("MUSIC_RESTORATION_FFMPEG_REQUIRED")
+
+    filters=[]
+    source_label="0:a"
+    for index,segment in enumerate(normalized):
+        next_label=f"source{index}"
+        envelope=_source_envelope(segment)
+        filters.append(f"[{source_label}]volume='{envelope}':eval=frame[{next_label}]")
+        source_label=next_label
+
+    replacement_labels=[]
+    for index,segment in enumerate(normalized):
+        target_duration=(segment["targetEndMs"]-segment["targetStartMs"])/1000.0
+        donor_start=segment["replacementStartMs"]/1000.0
+        donor_end=segment["replacementEndMs"]/1000.0
+        fade=segment["fadeMs"]/1000.0
+        chain=(
+            f"[1:a]atrim=start={donor_start:.9f}:end={donor_end:.9f},"
+            "asetpts=PTS-STARTPTS,"
+            f"atempo={segment['tempo']:.9f},"
+            f"atrim=duration={target_duration:.9f},"
+            f"volume={segment['gainDb']:.6f}dB"
+        )
+        if segment["phaseInvert"]:
+            chain+=",volume=-1"
+        if fade>0:
+            chain+=(
+                f",afade=t=in:st=0:d={fade:.9f},"
+                f"afade=t=out:st={max(0.0,target_duration-fade):.9f}:d={fade:.9f}"
+            )
+        chain+=f",adelay=delays={segment['targetStartMs']:.3f}:all=1[replacement{index}]"
+        filters.append(chain)
+        replacement_labels.append(f"[replacement{index}]")
+
+    mix_inputs=f"[{source_label}]"+ "".join(replacement_labels)
+    filters.append(
+        f"{mix_inputs}amix=inputs={1+len(replacement_labels)}:normalize=0:dropout_transition=0,"
+        f"atrim=duration={float(source_probe['durationSeconds']):.9f}[reconstructed]"
+    )
+    args=[
+        ffmpeg,"-nostdin","-v","error","-y",
+        "-i",str(source_path),"-i",str(donor),
+        "-filter_complex",";".join(filters),
+        "-map","[reconstructed]",
+        "-c:a","pcm_s24le","-ar",str(sample_rate),"-ac",str(channels),str(output),
+    ]
+    result=subprocess.run(args,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,timeout=900,check=False)
+    if result.returncode!=0 or not output.is_file() or output.stat().st_size<=0:
+        raise RuntimeError("MUSIC_RECONSTRUCTION_RENDER_FAILED:"+result.stderr.decode(errors="replace")[-1200:])
+
+    digest=sha256(output.read_bytes()).hexdigest()
+    output_id=f"music-reconstruction:{_safe_token(job_id)}:{digest[:16]}"
+    out_probe=probe_path(output,output_id,digest)
+    payload={
+        "jobId":job_id,"requestId":request_id,
+        "sourceArtifactId":source_artifact_id,"replacementArtifactId":replacement_artifact_id,
+        "sourceSha256":source_sha256.lower(),"replacementSha256":replacement_sha256.lower(),
+        "outputArtifactId":output_id,
+        "resultUri":f"/v1/jobs/{_safe_token(job_id)}/artifact/output.wav",
+        "outputSha256":digest,"sampleRate":out_probe["sampleRate"],"channels":out_probe["channels"],
+        "sampleCount":out_probe["sampleCount"],"durationSeconds":out_probe["durationSeconds"],
+        "segmentCount":len(normalized),
+    }
+    payload["runtimeReceiptId"]=receipt_id("music-reconstruction",payload)
+    return payload
+
 def artifact_path(config:RestorationWorkerConfig,job_token:str,name:str)->Path|None:
     if len(job_token)!=24 or any(ch not in "0123456789abcdef" for ch in job_token): return None
     if name not in {"vocals.wav","drums.wav","bass.wav","other.wav","output.wav"}: return None
-    for prefix in ("separate","repair"):
+    for prefix in ("separate","repair","reconstruct"):
         candidate=config.output_dir/f"{prefix}-{job_token}"/name
         if candidate.is_file() and candidate.stat().st_size>0: return candidate
     return None
