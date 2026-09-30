@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   separateRestorationSource,
+  type RestorationRuntimeClient,
   type StoredRestorationArtifact,
 } from "@jhadina/music-core";
 import { SupabaseMusicRestorationArtifactStore } from "./restoration-supabase-store";
-import { createMusicRestorationRuntimeClient } from "./restoration-runtime-server";
 
 export interface PersistedSeparationSummary {
   jobId: string;
@@ -20,6 +20,7 @@ export async function runPersistedSeparation(input: {
   caseId: string;
   source: StoredRestorationArtifact;
   modelId?: string;
+  runtime: RestorationRuntimeClient;
 }): Promise<PersistedSeparationSummary> {
   const store = new SupabaseMusicRestorationArtifactStore(input.client, input.ownerUserId);
   const jobId = `music-separate:${globalThis.crypto.randomUUID()}`;
