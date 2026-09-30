@@ -96,20 +96,22 @@ export function createGrowthPresenceRepository(): GrowthPresenceRepository {
 
       const supabase = await createClient()
       const now = new Date().toISOString()
+      const row: Record<string, unknown> = {
+        id: input.campaign.id,
+        user_id: input.userId,
+        brand_id: input.campaign.brandId,
+        payload: {
+          campaign: input.campaign,
+          offers: [...input.offers],
+        },
+        updated_at: now,
+      }
+      if (input.contentProjectId !== undefined) row.content_project_id = input.contentProjectId
+      if (input.status !== undefined) row.status = input.status
+
       const { data, error } = await supabase
         .from("jhadina_growth_presence_campaigns")
-        .upsert({
-          id: input.campaign.id,
-          user_id: input.userId,
-          brand_id: input.campaign.brandId,
-          payload: {
-            campaign: input.campaign,
-            offers: [...input.offers],
-          },
-          content_project_id: input.contentProjectId ?? null,
-          status: input.status ?? "draft",
-          updated_at: now,
-        }, { onConflict: "user_id,id" })
+        .upsert(row, { onConflict: "user_id,id" })
         .select("*")
         .single<CampaignRow>()
 
