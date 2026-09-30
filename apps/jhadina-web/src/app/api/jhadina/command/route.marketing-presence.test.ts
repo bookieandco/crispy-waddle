@@ -11,7 +11,7 @@ const handleSocial = vi.fn()
 const inspectVideo = vi.fn()
 const createVideo = vi.fn()
 const handleGeneric = vi.fn()
-const recordShortcutExperience = vi.fn(async () => "reason-marketing")
+const recordShortcutExperience = vi.fn(async (_input: { shortcut: string }) => "reason-marketing")
 const realizeExpression = vi.fn(async (input: {
   proposal: { recommendation: string; disposition: string }
 }) => ({
