@@ -67,11 +67,13 @@ def _candidate_claims(token:str)->dict[str,Any]|None:
     return claims
 
 def authorize_supabase_user(token:str,expected_user_id:str|None)->dict[str,Any]|None:
+    if expected_user_id is None or not _valid_uuid(expected_user_id):
+        return None
     claims=_candidate_claims(token)
     if claims is None:
         return None
     subject=str(claims["sub"])
-    if expected_user_id is not None and subject!=expected_user_id:
+    if subject!=expected_user_id:
         return None
 
     request=urllib.request.Request(
