@@ -24,7 +24,11 @@ export interface AutonomyDecision {
   reasons: readonly string[];
 }
 
-const AUTONOMOUS = new Set<JuggernautAction>([
+type AutonomousJuggernautAction = Extract<JuggernautAction,
+  'research'|'score'|'prepare_asset'|'schedule_approved_content'|'analyze'|'organize_fans'|'draft_outreach'|'run_preapproved_test'
+>;
+
+const AUTONOMOUS = new Set<AutonomousJuggernautAction>([
   'research',
   'score',
   'prepare_asset',
@@ -36,7 +40,7 @@ const AUTONOMOUS = new Set<JuggernautAction>([
 ]);
 
 export function decideJuggernautAutonomy(action: JuggernautAction): AutonomyDecision {
-  if (AUTONOMOUS.has(action)) {
+  if (isAutonomousAction(action)) {
     return Object.freeze({action, allowedWithoutApproval: true, reasons: Object.freeze(['Action is preparatory, analytical, or already bounded by prior authorization.'])});
   }
   const capability = capabilityFor(action);
@@ -77,7 +81,11 @@ export function buildDealPrecheck(input: Omit<DealPrecheck, 'requiresAttorneyRev
   });
 }
 
-function capabilityFor(action: Exclude<JuggernautAction, 'research'|'score'|'prepare_asset'|'schedule_approved_content'|'analyze'|'organize_fans'|'draft_outreach'|'run_preapproved_test'>):
+function isAutonomousAction(action: JuggernautAction): action is AutonomousJuggernautAction {
+  return AUTONOMOUS.has(action as AutonomousJuggernautAction);
+}
+
+function capabilityFor(action: Exclude<JuggernautAction, AutonomousJuggernautAction>):
   AutonomyDecision['requiredCapability'] {
   switch (action) {
     case 'public_publish': return 'public.publish';
