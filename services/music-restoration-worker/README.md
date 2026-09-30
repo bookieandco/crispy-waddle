@@ -34,6 +34,34 @@ Source URLs are staged by a network-only module. The staged file must match the 
 
 The artifact route only serves `vocals.wav`, `drums.wav`, `bass.wav`, `other.wav`, or `output.wav` from the worker-managed job directories.
 
+## MUSIC-RESTORE.6 vocal restoration
+
+`POST /v1/vocal/restore` performs conservative **same-source localized vocal
+correction** on a persisted vocal stem. It does not synthesize a singer or
+replace a vocal with a generated voice.
+
+Each requested region:
+
+- is bounded and non-overlapping;
+- uses only `denoise`, `declick`, `declip`, conservative EQ, or conservative gain;
+- retains an optional small amount of the untouched source for room/bleed continuity;
+- crossfades the corrected copy back into the exact original timeline;
+- preserves source duration, sample rate and channel count.
+
+After rendering, the worker compares source and output regions using voicing,
+median F0, F0-spread/vibrato proxy, spectral centroid, RMS and harmonicity.
+Outputs that exceed conservative drift limits are returned with
+`preservation.passed=false` and Music Core refuses durable admission.
+
+Phrase/word/syllable/phoneme context can be carried in the governed request for
+provenance and future coarticulation-aware repair, but those labels are
+supporting evidence only. They do not authorize processing or override the
+audio-derived preservation checks.
+
+VoiceFixer remains a separately governed reference/provider candidate. Its
+model artifact is still blocked by the repository artifact-admission ledger,
+so this runtime does not pretend VoiceFixer is deployed.
+
 ## Restoration rules
 
 - Demucs stems are derived evidence, never canonical source truth.
