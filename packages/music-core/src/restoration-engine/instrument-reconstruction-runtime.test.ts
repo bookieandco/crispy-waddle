@@ -86,6 +86,7 @@ function request():InstrumentReconstructionRequest{
     fingerprintSimilarity:0.94,
     expectedGain:0.55,
     gainConfidence:0.91,
+    gainEvidenceMethod:"same-session-a-b-v1",
     evidenceIds:["fingerprint:e1","damage:e2"],
     approval:{
       approvedByUserId:"user-1",
