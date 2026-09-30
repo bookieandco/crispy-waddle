@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRestorationExportTracks,
+  buildRestorationZip,
   renderLogicImportGuide,
   renderReaperProject,
   renderRestorationMarkersCsv,
@@ -39,7 +40,32 @@ describe("restoration DAW export",()=>{
     ]);
     expect(tracks.map(track=>track.role)).toEqual(["source-mix","vocals","drums","bass"]);
     expect(tracks.every(track=>track.fileName.endsWith(".wav"))).toBe(true);
+    const mixed=buildRestorationExportTracks([
+      artifact({id:"source-mp3",kind:"source",mimeType:"audio/mpeg"}),
+      artifact({id:"stem-flac",role:"other",mimeType:"audio/flac"}),
+    ]);
+    expect(mixed.map(track=>track.fileName.split(".").at(-1))).toEqual(["mp3","flac"]);
     expect(tracks[0]?.durationSeconds).toBe(5);
+  });
+
+  it("builds a self-contained deterministic ZIP with safe entry names",()=>{
+    const zip=buildRestorationZip([
+      {path:"stems/Vocals.wav",data:new Uint8Array([1,2,3,4])},
+      {path:"restoration-manifest.json",data:"{\"ok\":true}\n"},
+      {path:"project.rpp",data:"<REAPER_PROJECT 0.1\n>\n"},
+    ]);
+    const view=new DataView(zip.buffer,zip.byteOffset,zip.byteLength);
+    expect(view.getUint32(0,true)).toBe(0x04034b50);
+    expect(view.getUint32(zip.byteLength-22,true)).toBe(0x06054b50);
+    const decoded=new TextDecoder().decode(zip);
+    expect(decoded).toContain("stems/Vocals.wav");
+    expect(decoded).toContain("restoration-manifest.json");
+    expect(decoded).toContain("project.rpp");
+    expect(()=>buildRestorationZip([{path:"../escape.wav",data:"x"}])).toThrow("ZIP entry path");
+    expect(()=>buildRestorationZip([
+      {path:"same.txt",data:"a"},
+      {path:"same.txt",data:"b"},
+    ])).toThrow("Duplicate");
   });
 
   it("renders aligned Reaper tracks and marker positions",()=>{
