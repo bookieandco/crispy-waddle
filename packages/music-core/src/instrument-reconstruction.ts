@@ -30,6 +30,7 @@ export interface InstrumentReconstructionRequest {
   fingerprintSimilarity: number;
   expectedGain: number;
   gainConfidence: number;
+  gainEvidenceMethod: string;
   evidenceIds: string[];
   approval: ReconstructionApproval;
 }
@@ -103,6 +104,8 @@ export function validateReconstructionRequest(
   if (options.ownerUserId && request.approval.approvedByUserId !== options.ownerUserId) {
     throw new Error("reconstruction approval owner mismatch");
   }
+
+  if (!request.gainEvidenceMethod.trim()) throw new Error("gainEvidenceMethod is required");
 
   const similarity = bounded01(request.fingerprintSimilarity, "fingerprintSimilarity");
   const gain = bounded01(request.expectedGain, "expectedGain");
