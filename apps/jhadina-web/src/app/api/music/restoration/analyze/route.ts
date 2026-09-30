@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
 import { analyzeRestorationArtifact } from "@/lib/music/restoration-analysis-service";
+import { createRequestMusicRestorationRuntimeClient } from "@/lib/music/restoration-runtime-server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export const runtime = "nodejs";
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
 
     const client = createServiceRoleClient();
     if (!client) throw new Error("MUSIC_RESTORATION_STORAGE_NOT_CONFIGURED");
+    const runtimeClient = await createRequestMusicRestorationRuntimeClient(identity.userId);
     const result = await analyzeRestorationArtifact({
       client,
       ownerUserId: identity.userId,
@@ -36,6 +38,7 @@ export async function POST(req: NextRequest) {
       artifactId,
       separate: body.separate,
       modelId: body.modelId,
+      runtime: runtimeClient,
     });
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
