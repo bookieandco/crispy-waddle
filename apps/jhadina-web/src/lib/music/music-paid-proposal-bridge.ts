@@ -21,7 +21,7 @@ export async function prepareMusicPaidCampaignProposal(
   input:MusicPaidProposalInput,
   overrides:{requester?:(input:CreatePaidCampaignInput)=>Promise<RequestedPaidCampaign>}={},
 ):Promise<MusicPaidProposalResult>{
-  const mode=input.outlier?.status==='validated'?'ATTACK':'SEARCH';
+  const mode=input.outlier?.status==='validated'&&input.outlier.replicationCount>=2?'ATTACK':'SEARCH';
   const decision=decidePromotionSpend({
     budget:input.budget,
     mode,
