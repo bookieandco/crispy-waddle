@@ -298,6 +298,8 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
   let awardRequestsRemaining=Number.isFinite(requestedAwardBudget)?Math.max(0,Math.min(Math.floor(requestedAwardBudget),4)):1
   const requestedAwardNeighborBudget=Number(process.env.SAM_AWARD_NEIGHBOR_REQUEST_BUDGET_PER_ENRICHMENT??2)
   let awardNeighborRequestsRemaining=Number.isFinite(requestedAwardNeighborBudget)?Math.max(0,Math.min(Math.floor(requestedAwardNeighborBudget),10)):2
+  const requestedAwardNeighborBudget=Number(process.env.SAM_AWARD_NEIGHBOR_REQUEST_BUDGET_PER_ENRICHMENT??2)
+  let awardNeighborRequestsRemaining=Number.isFinite(requestedAwardNeighborBudget)?Math.max(0,Math.min(Math.floor(requestedAwardNeighborBudget),10)):2
   const requestedDenueBudget=Number(process.env.DENUE_SEARCH_BUDGET_PER_ENRICHMENT??2)
   let denueSearchesRemaining=Number.isFinite(requestedDenueBudget)?Math.max(0,Math.min(Math.floor(requestedDenueBudget),10)):2
   const requestedCanadaBudget=Number(process.env.CANADA_SEARCH_BUDGET_PER_ENRICHMENT??2)
