@@ -1,5 +1,5 @@
 import {
-  certifyMusicJuggernautCore,
+  buildMusicCreativePortfolio,\n  certifyMusicJuggernautCore,
   chooseJuggernautMode,
   detectCreativeOutlier,
   rankSongs,
@@ -8,7 +8,7 @@ import {
   type CreativeOutlier,
   type PerformanceObservation,
   type SongRecord,
-  type SongSection,
+  type SongSection,\n  type MusicCreativePortfolio,
 } from '@jhadina/growth-core';
 import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';\nimport {loadMusicFanAudienceProjection,type MusicFanAudienceProjection} from './music-fan-projection';
 
