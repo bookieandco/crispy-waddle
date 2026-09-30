@@ -37,6 +37,7 @@ declare
   v_source_hash text;
   v_output_hash text;
   v_failed_check_count integer;
+  v_required_check_count integer;
 begin
   select user_id,source_artifact_id,current_version_id
     into v_case_owner,v_case_source,v_case_current_version
@@ -123,8 +124,9 @@ begin
     raise exception 'Music final certification output hash proof missing';
   end if;
 
-  if jsonb_typeof(new.evidence->'checks') <> 'array' then
-    raise exception 'Music final certification check evidence is missing';
+  if jsonb_typeof(new.evidence->'checks') is distinct from 'array'
+     or jsonb_array_length(new.evidence->'checks') <> 10 then
+    raise exception 'Music final certification check evidence is incomplete';
   end if;
 
   select count(*) into v_failed_check_count
@@ -133,6 +135,26 @@ begin
 
   if v_failed_check_count <> 0 then
     raise exception 'Music final certification contains blocked checks';
+  end if;
+
+  select count(distinct item->>'id') into v_required_check_count
+  from jsonb_array_elements(new.evidence->'checks') item
+  where item->>'id' in (
+    'runtime-ready',
+    'immutable-source',
+    'separation-receipt',
+    'perception-receipts',
+    'consequential-repair',
+    'human-review',
+    'current-version',
+    'qc-receipt',
+    'artifact-hashes',
+    'daw-bundle'
+  )
+    and coalesce((item->>'passed')::boolean,false) is true;
+
+  if v_required_check_count <> 10 then
+    raise exception 'Music final certification required checks are incomplete';
   end if;
 
   if not exists (
