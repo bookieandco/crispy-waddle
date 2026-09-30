@@ -579,6 +579,8 @@ def execute_vocal_restoration_path(
         graph=segment["filterGraph"]
         if graph:
             chain+=f",{graph}"
+        processed_mix=max(0.0,1.0-float(segment["sourceResidualMix"]))
+        chain+=f",volume={processed_mix:.9f}"
         if fade>0:
             chain+=(
                 f",afade=t=in:st=0:d={fade:.9f},"
