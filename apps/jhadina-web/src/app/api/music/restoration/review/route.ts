@@ -5,6 +5,14 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export const runtime = "nodejs";
 
+export const dynamic = "force-dynamic";
+
+const PRIVATE_JSON_HEADERS = { "Cache-Control": "private, no-store" };
+
+function privateJson(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: PRIVATE_JSON_HEADERS });
+}
+
 interface ReviewBody {
   caseId?: string;
   artifactId?: string;
@@ -16,7 +24,7 @@ interface ReviewBody {
 export async function POST(req: NextRequest) {
   const claimedUserId = req.headers.get("x-jhadina-user-id")?.trim() ?? "";
   if (!claimedUserId) {
-    return NextResponse.json({ success: false, error: "Not signed in" }, { status: 401 });
+    return privateJson({ success: false, error: "Not signed in" }, 401);
   }
 
   try {
@@ -25,10 +33,10 @@ export async function POST(req: NextRequest) {
     const caseId = body.caseId?.trim() ?? "";
     const artifactId = body.artifactId?.trim() ?? "";
     if (!caseId || !artifactId || (body.decision !== "approved" && body.decision !== "rejected")) {
-      return NextResponse.json({
+      return privateJson({
         success: false,
         error: "caseId, artifactId and a valid review decision are required",
-      }, { status: 400 });
+      }, 400);
     }
 
     const client = createServiceRoleClient();
@@ -42,7 +50,7 @@ export async function POST(req: NextRequest) {
       decision: body.decision,
       note: body.note,
     });
-    return NextResponse.json({ success: true, ...result });
+    return privateJson({ success: true, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Restoration review failed";
     const status = /identity|session|signed in/i.test(message)
@@ -54,6 +62,6 @@ export async function POST(req: NextRequest) {
           : /NOT_CONFIGURED|not configured/i.test(message)
             ? 503
             : 422;
-    return NextResponse.json({ success: false, error: message }, { status });
+    return privateJson({ success: false, error: message }, status);
   }
 }
