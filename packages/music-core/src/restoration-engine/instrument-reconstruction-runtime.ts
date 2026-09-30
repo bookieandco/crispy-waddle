@@ -2,6 +2,7 @@ import {
   createReconstructionResult,
   validateReconstructionRequest,
   type InstrumentReconstructionRequest,
+  type ReconstructionQcEvidence,
   type ReconstructionResult,
 } from "../instrument-reconstruction.js";
 import {
@@ -144,7 +145,7 @@ export async function reconstructInstrumentRegions(input: {
   };
   await input.store.register(artifact);
 
-  const qc = {
+  const qc: ReconstructionQcEvidence = {
     passed: true,
     method: "hash-dimensions-duration-v1",
     findings: [
@@ -154,7 +155,7 @@ export async function reconstructInstrumentRegions(input: {
       "localized reconstruction still requires A/B audition before promotion",
     ],
     requiresAudition: true,
-  } as const;
+  };
   const result = createReconstructionResult(request, {
     artifactId: artifact.id,
     sourceArtifactId: source.id,
