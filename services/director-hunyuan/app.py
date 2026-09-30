@@ -2,12 +2,12 @@
 from __future__ import annotations
 import hmac
 import os
-import re
 from typing import Any
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from worker import HunyuanJobManager, HunyuanRuntimeConfig, runtime_readiness
+from music_proxy_policy import music_proxy_path_allowed
 
 app=FastAPI(title="Jhadina Director HunyuanVideo-1.5",version="1.0")
 _manager:HunyuanJobManager|None=None
@@ -43,28 +43,9 @@ def health()->dict[str,object]:
 
 
 _MUSIC_SIDECAR_URL=os.getenv("MUSIC_RESTORATION_SIDECAR_URL","http://127.0.0.1:8093").rstrip("/")
-_MUSIC_EXACT_PATHS={
-    "health",
-    "health/live",
-    "v1/probe",
-    "v1/separate",
-    "v1/perceive",
-    "v1/execute",
-}
-_MUSIC_ARTIFACT_RE=re.compile(
-    r"^v1/jobs/[0-9a-f]{24}/artifact/(vocals|drums|bass|other|output)\.wav$"
-)
-
-def _music_proxy_path_allowed(path:str,method:str)->bool:
-    if path in {"health","health/live"}:
-        return method=="GET"
-    if path in {"v1/probe","v1/separate","v1/perceive","v1/execute"}:
-        return method=="POST"
-    return method=="GET" and _MUSIC_ARTIFACT_RE.fullmatch(path) is not None
-
 @app.api_route("/music-restoration/{path:path}",methods=["GET","POST"])
 async def music_restoration_proxy(path:str,request:Request):
-    if not _music_proxy_path_allowed(path,request.method):
+    if not music_proxy_path_allowed(path,request.method):
         raise HTTPException(status_code=404,detail="MUSIC_RESTORATION_PROXY_PATH_NOT_ADMITTED")
     headers:dict[str,str]={}
     authorization=request.headers.get("authorization")
