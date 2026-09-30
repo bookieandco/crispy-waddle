@@ -118,6 +118,7 @@ export interface CreativeOutlier {
   experimentId: string;
   relativeLift: number;
   confidence: number;
+  replicationCount: number;
   status: 'insufficient_sample'|'interesting'|'validated';
   reasons: readonly string[];
   evidenceRefs: readonly string[];
