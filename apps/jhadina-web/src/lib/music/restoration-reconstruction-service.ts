@@ -1,11 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  assessInstrumentReplacementArtifacts,
   decideInstrumentReplacement,
   reconstructInstrumentRegions,
   type InstrumentFamily,
-  type InstrumentFingerprint,
   type ReconstructionSegment,
-  type RestorationGainEvidence,
 } from "@jhadina/music-core";
 import { createMusicRestorationRuntimeClient } from "./restoration-runtime-server";
 import { SupabaseMusicRestorationArtifactStore } from "./restoration-supabase-store";
@@ -17,9 +16,6 @@ export interface InstrumentReconstructionServiceInput {
   sourceArtifactId: string;
   replacementArtifactId: string;
   instrumentFamily: InstrumentFamily;
-  observedFingerprint: InstrumentFingerprint;
-  replacementFingerprint: InstrumentFingerprint;
-  gainEvidence: RestorationGainEvidence;
   segments: ReconstructionSegment[];
   evidenceIds: string[];
   approved: boolean;
@@ -35,22 +31,28 @@ export async function runInstrumentReconstruction(input: InstrumentReconstructio
   if (!replacement || replacement.caseId !== input.caseId) throw new Error("MUSIC_RECONSTRUCTION_REPLACEMENT_NOT_FOUND");
   if (source.id === replacement.id) throw new Error("MUSIC_RECONSTRUCTION_SOURCE_DONOR_MUST_DIFFER");
   if (!input.approved) throw new Error("MUSIC_RECONSTRUCTION_EXPLICIT_APPROVAL_REQUIRED");
-  if (input.observedFingerprint.family !== input.instrumentFamily ||
-      input.replacementFingerprint.family !== input.instrumentFamily) {
-    throw new Error("MUSIC_RECONSTRUCTION_INSTRUMENT_FAMILY_MISMATCH");
-  }
 
+  const runtime = createMusicRestorationRuntimeClient();
+  const assessment = await assessInstrumentReplacementArtifacts({
+    ownerUserId: input.ownerUserId,
+    instrumentFamily: input.instrumentFamily,
+    segments: input.segments,
+    source,
+    replacement,
+    runtime,
+    store,
+  });
   const candidateId = `instrument-replacement:${globalThis.crypto.randomUUID()}`;
   const decision = decideInstrumentReplacement({
-    observed: input.observedFingerprint,
+    observed: assessment.observedFingerprint,
     candidate: {
       id: candidateId,
       label: `${input.instrumentFamily} donor`,
-      fingerprint: input.replacementFingerprint,
+      fingerprint: assessment.replacementFingerprint,
       sourceArtifactId: source.id,
       replacementArtifactId: replacement.id,
     },
-    gainEvidence: input.gainEvidence,
+    gainEvidence: assessment.gainEvidence,
   });
   if (!decision.replace) {
     throw new Error(`MUSIC_RECONSTRUCTION_DONOR_REJECTED: ${decision.reason}`);
@@ -70,8 +72,12 @@ export async function runInstrumentReconstruction(input: InstrumentReconstructio
     fingerprintSimilarity: decision.fingerprintSimilarity,
     expectedGain: decision.expectedRestorationGain,
     gainConfidence: decision.gainEvidenceConfidence,
-    gainEvidenceMethod: input.gainEvidence.method,
-    evidenceIds: [...new Set([...input.evidenceIds, approvalEvidenceId])],
+    gainEvidenceMethod: assessment.gainEvidence.method,
+    evidenceIds: [...new Set([
+      ...input.evidenceIds,
+      assessment.runtimeReceiptId,
+      approvalEvidenceId,
+    ])],
     approval: {
       approvedByUserId: input.ownerUserId,
       approvedAt,
@@ -92,7 +98,9 @@ export async function runInstrumentReconstruction(input: InstrumentReconstructio
       fingerprintSimilarity: decision.fingerprintSimilarity,
       expectedGain: decision.expectedRestorationGain,
       gainConfidence: decision.gainEvidenceConfidence,
-      gainEvidenceMethod: input.gainEvidence.method,
+      gainEvidenceMethod: assessment.gainEvidence.method,
+      assessmentRuntimeReceiptId: assessment.runtimeReceiptId,
+      assessmentDiagnostics: assessment.diagnostics,
       requiresAudition: true,
     },
   });
@@ -104,7 +112,7 @@ export async function runInstrumentReconstruction(input: InstrumentReconstructio
       request,
       source,
       replacement,
-      runtime: createMusicRestorationRuntimeClient(),
+      runtime,
       store,
       jobId,
     });
@@ -113,6 +121,7 @@ export async function runInstrumentReconstruction(input: InstrumentReconstructio
       jobId,
       request,
       result,
+      assessment,
     });
     await store.completeJob({
       id: jobId,
@@ -130,6 +139,7 @@ export async function runInstrumentReconstruction(input: InstrumentReconstructio
       jobId,
       request,
       decision,
+      assessment,
       result,
     };
   } catch (error) {
